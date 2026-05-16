@@ -14,7 +14,7 @@ public partial class Game1
     {
         private const float RunnerSpeed = 60f; // pixels per second (slowed by 50%)
         private const float SpawnInterval = 1.2f; // seconds between spawns
-        private const float AnimationSpeed = 8f; // frames per second
+        private const float AnimationSpeed = 12f; // frames per second
 
         private readonly Game1 _game;
         private readonly Random _random;
@@ -139,10 +139,10 @@ public partial class Game1
             var position = new Vector2(runner.X, yPosition);
 
             // Calculate equipment offset (weapon bounce) based on animation frame
-            // When animation frame is even, weapon bounces down by 2 pixels
-            // Soldier doesn't bounce
+            // Weapon is lower on frames 0, 3, 4, 7 and higher on frames 1, 2, 5, 6
             var equipmentOffset = 0f;
-            if (runner.ClassId != PlayerClass.Soldier && System.Math.Abs((int)System.MathF.Floor(runner.AnimationFrame) % 2) == 0)
+            var frame = (int)System.MathF.Floor(runner.AnimationFrame) % 8;
+            if (frame == 0 || frame == 3 || frame == 4 || frame == 7)
             {
                 equipmentOffset -= 2f;
             }

@@ -3,6 +3,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Client.Plugins;
+using OpenGarrison.Core;
 using System;
 using System.Collections.Generic;
 
@@ -130,6 +131,16 @@ public partial class Game1
             var viewportWidth = _game.ViewportWidth;
             var viewportHeight = _game.ViewportHeight;
             _game._spriteBatch.Draw(_game._pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.78f);
+
+            // Draw bottom bar and runners (in animated mode only) - behind everything else
+            if (_game._menuBackgroundMode != MenuBackgroundMode.Static)
+            {
+                const int bottomBarHeight = 76;
+                var barY = viewportHeight - bottomBarHeight;
+                var bottomBarBounds = new Rectangle(0, barY, viewportWidth, bottomBarHeight);
+                _game._spriteBatch.Draw(_game._pixel, bottomBarBounds, new Color(0x57, 0x4f, 0x47));
+                _game._menuBottomBarRunners.Draw(bottomBarBounds);
+            }
 
             var rows = BuildPluginOptionsMenuRows();
             GetPluginOptionsPanelLayout(out var panel, out var listBounds, out var backBounds, out var compactLayout, out var rowHeight);
