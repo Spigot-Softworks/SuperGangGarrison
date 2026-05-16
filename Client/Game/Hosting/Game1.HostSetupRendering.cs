@@ -14,6 +14,16 @@ public partial class Game1
         var viewportHeight = ViewportHeight;
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.78f);
 
+        // Draw bottom bar and runners (in animated mode only) - behind everything else
+        if (_menuBackgroundMode != MenuBackgroundMode.Static)
+        {
+            const int bottomBarHeight = 76;
+            var barY = viewportHeight - bottomBarHeight;
+            var bottomBarBounds = new Rectangle(0, barY, viewportWidth, bottomBarHeight);
+            _spriteBatch.Draw(_pixel, bottomBarBounds, new Color(0x57, 0x4f, 0x47));
+            _menuBottomBarRunners.Draw(bottomBarBounds);
+        }
+
         var layout = HostSetupMenuLayoutCalculator.CreateMenuLayout(ViewportWidth, ViewportHeight, _hostMapEntries.Count, IsServerLauncherMode);
         _hostSetupState.ClampMapScrollOffset(layout.VisibleRowCapacity);
         ClampHostSetupContentScrollOffset(layout);

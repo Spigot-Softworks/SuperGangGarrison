@@ -335,7 +335,7 @@ public partial class Game1
         }
 
         var clampedSpeedPerSecond = MathF.Min(MathF.Abs(speedPerSecond), 8f * LegacyMovementModel.SourceTicksPerSecond);
-        return clampedSpeedPerSecond * elapsedSeconds / 20f * MathF.Sign(speedPerSecond) * facingScale;
+        return clampedSpeedPerSecond * elapsedSeconds / 15f * MathF.Sign(speedPerSecond) * facingScale;
     }
 
     private Vector2 SampleObservedRenderVelocity(PlayerEntity player)

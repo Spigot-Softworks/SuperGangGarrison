@@ -1,6 +1,7 @@
 #nullable enable
 
 using OpenGarrison.Client.Plugins;
+using OpenGarrison.Core;
 using System;
 using System.Collections.Generic;
 
@@ -28,7 +29,7 @@ public partial class Game1
         {
             var buttons = new List<MenuPageButton>();
             var (stackedActions, soloAction, bottomBarLabel, bottomBarAction) = GetCurrentMainMenuActions();
-            var layout = _game.GetCenteredPlaqueMenuLayout(tall: false, stackedActions.Count, includeBottomBarButton: bottomBarAction is not null);
+            var layout = _game.GetCenteredPlaqueMenuLayout(tall: false, stackedActions.Count, includeBottomBarButton: bottomBarAction is not null || _game._menuBackgroundMode != Core.MenuBackgroundMode.Static);
 
             for (var index = 0; index < stackedActions.Count && index < layout.StackedButtonBounds.Length; index += 1)
             {
@@ -48,7 +49,7 @@ public partial class Game1
         public void DrawCurrentMainMenuPage(IReadOnlyList<MenuPageButton> buttons)
         {
             var (stackedActions, soloAction, bottomBarLabel, bottomBarAction) = GetCurrentMainMenuActions();
-            var layout = _game.GetCenteredPlaqueMenuLayout(tall: false, stackedActions.Count, includeBottomBarButton: bottomBarAction is not null);
+            var layout = _game.GetCenteredPlaqueMenuLayout(tall: false, stackedActions.Count, includeBottomBarButton: bottomBarAction is not null || _game._menuBackgroundMode != Core.MenuBackgroundMode.Static);
             var hoveredStackedIndex = -1;
             var soloHovered = false;
             var bottomHovered = false;
