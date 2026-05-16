@@ -172,12 +172,16 @@ public partial class Game1
             }
 
             var equipmentOffset = bodyYOffset;
-            if (isRunSprite && !appearsAirborne && (System.Math.Abs((int)System.MathF.Floor(animationImage) % 2) == 0))
+            if (isRunSprite && !appearsAirborne)
             {
-                equipmentOffset -= 2f;
+                var frame = (int)System.MathF.Floor(animationImage) % 8;
+                if (frame == 0 || frame == 3 || frame == 4 || frame == 7)
+                {
+                    equipmentOffset -= 2f;
+                }
             }
 
-            if (isHeavySlowWalk || player.ClassId == PlayerClass.Soldier)
+            if (isHeavySlowWalk)
             {
                 equipmentOffset = bodyYOffset;
             }
