@@ -272,13 +272,18 @@ public partial class Game1
 
         DrawPlaqueMenuButton(_menuTextBoxSoloTexture, layout.SoloButtonBounds, soloAction.Label, soloHovered, layout.Scale, textScaleMultiplier);
 
-        if (drawBottomBarButton && layout.BottomBarBounds.HasValue && layout.BottomBarButtonBounds.HasValue)
+        // Always draw bottom bar and runners in animated mode (outside gameplay)
+        if (layout.BottomBarBounds.HasValue && _menuBackgroundMode != MenuBackgroundMode.Static)
         {
             _spriteBatch.Draw(_pixel, layout.BottomBarBounds.Value, new Color(0x57, 0x4f, 0x47));
             
             // Draw running character silhouettes on the bottom bar
             _menuBottomBarRunners.Draw(layout.BottomBarBounds.Value);
-            
+        }
+
+        // Draw bottom bar button only if explicitly requested
+        if (drawBottomBarButton && layout.BottomBarButtonBounds.HasValue)
+        {
             DrawPlaqueMenuButton(_menuTextBoxSoloTexture, layout.BottomBarButtonBounds.Value, bottomBarLabel, bottomBarHovered, layout.Scale, textScaleMultiplier);
         }
     }

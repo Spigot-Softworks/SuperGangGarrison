@@ -92,6 +92,16 @@ public partial class Game1
         }
 
         DrawMenuButton(new Rectangle(panel.X + 30, panel.Bottom - 62, 180, 42), "Back", false);
+
+        // Draw bottom bar and runners (in animated mode only)
+        if (_menuBackgroundMode != MenuBackgroundMode.Static)
+        {
+            const int bottomBarHeight = 76;
+            var barY = viewportHeight - bottomBarHeight;
+            var bottomBarBounds = new Rectangle(0, barY, viewportWidth, bottomBarHeight);
+            _spriteBatch.Draw(_pixel, bottomBarBounds, new Color(0x57, 0x4f, 0x47));
+            _menuBottomBarRunners.Draw(bottomBarBounds);
+        }
     }
 
     private void DrawMenuStatusText()

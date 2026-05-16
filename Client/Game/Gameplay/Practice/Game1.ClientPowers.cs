@@ -175,6 +175,16 @@ public partial class Game1
         var viewportHeight = ViewportHeight;
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.82f);
 
+        // Draw bottom bar and runners (in animated mode only, not when opened from gameplay) - behind everything else
+        if (!_clientPowersOpenedFromGameplay && _menuBackgroundMode != MenuBackgroundMode.Static)
+        {
+            const int bottomBarHeight = 76;
+            var barY = viewportHeight - bottomBarHeight;
+            var bottomBarBounds = new Rectangle(0, barY, viewportWidth, bottomBarHeight);
+            _spriteBatch.Draw(_pixel, bottomBarBounds, new Color(0x57, 0x4f, 0x47));
+            _menuBottomBarRunners.Draw(bottomBarBounds);
+        }
+
         var layout = GetClientPowersLayout();
         ClampClientPowersScrollOffset(layout.VisibleRowCount);
 

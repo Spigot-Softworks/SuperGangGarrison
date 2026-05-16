@@ -41,11 +41,150 @@ public partial class Game1
             }
 
             var viewportHeight = _game.ViewportHeight;
-            var frameIndex = GetCharacterHudFrameIndex(_game._world.LocalPlayer);
-            _game.DrawScreenHealthBar(new Rectangle(45, viewportHeight - 53, 42, 38), _game._world.LocalPlayer.Health, _game._world.LocalPlayer.MaxHealth, false, fillDirection: HudFillDirection.VerticalBottomToTop);
-            _game.TryDrawScreenSprite("CharacterHUD", frameIndex, new Vector2(5f, viewportHeight - 75f), Color.White, new Vector2(2f, 2f));
+            var scale = new Vector2(2f, 2f);
+            
+            // Align base position to sprite pixel grid (2-pixel boundaries)
+            var basePosition = new Vector2(
+                MathF.Round(5f / scale.X) * scale.X,
+                MathF.Round((viewportHeight - 75f) / scale.Y) * scale.Y
+            );
+            
+            // Draw team-colored base health sprite
+            var healthSpriteName = _game._world.LocalPlayer.Team == PlayerTeam.Blue ? "PlayerHealthBlu" : "PlayerHealthRed";
+            _game.TryDrawScreenSprite(healthSpriteName, 0, basePosition, Color.White, scale);
+            
+            // Get background health sprite dimensions for masking
+            var backgroundHealthSprite = _game.GetResolvedSprite(healthSpriteName);
+            
+            // Calculate cross position (move half width to the right)
+            var crossSprite = _game.GetResolvedSprite("PlayerHealthCross");
+            var crossOffsetX = 20f;
+            if (crossSprite is not null && crossSprite.Frames.Count > 0)
+            {
+                crossOffsetX += (crossSprite.Frames[0].Width * scale.X) / 2f;
+            }
+            var crossPosition = basePosition + new Vector2(crossOffsetX - 4f, -2f);
+            
+            // Draw character sprite centered on background health sprite (always use basic standing sprite)
+            var characterSpriteName = GameplayPlayerSpriteRenderController.GetTeamSpriteNameProxy(_game._world.LocalPlayer.ClassId, _game._world.LocalPlayer.Team, "StandS");
+            if (characterSpriteName is not null && backgroundHealthSprite is not null && backgroundHealthSprite.Frames.Count > 0)
+            {
+                var characterSprite = _game.GetResolvedSprite(characterSpriteName);
+                if (characterSprite is not null && characterSprite.Frames.Count > 0)
+                {
+                    var characterScale = new Vector2(2f, 2f);
+                    var characterWidth = characterSprite.Frames[0].Width;
+                    var characterHeight = characterSprite.Frames[0].Height;
+                    var backgroundWidth = backgroundHealthSprite.Frames[0].Width * scale.X;
+                    var backgroundHeight = backgroundHealthSprite.Frames[0].Height * scale.Y;
+                    
+                    // Calculate center of background sprite
+                    var backgroundCenterX = basePosition.X + (backgroundWidth / 2f);
+                    var backgroundCenterY = basePosition.Y + (backgroundHeight / 2f);
+                    
+                    // Account for sprite origin when centering
+                    var spriteOrigin = characterSprite.Origin.ToVector2();
+                    
+                    // Calculate horizontal centering based on opaque bounds (trim transparent padding)
+                    float characterCenterOffsetX;
+                    if (characterSprite.Frames[0].OpaqueBounds.HasValue)
+                    {
+                        var opaqueBounds = characterSprite.Frames[0].OpaqueBounds.Value;
+                        var opaqueWidth = opaqueBounds.Width;
+                        var opaqueCenterX = opaqueBounds.X + opaqueWidth / 2f;
+                        characterCenterOffsetX = (opaqueCenterX - spriteOrigin.X) * characterScale.X;
+                    }
+                    else
+                    {
+                        // Fallback to full sprite width if opaque bounds not available
+                        characterCenterOffsetX = (characterWidth / 2f - spriteOrigin.X) * characterScale.X;
+                    }
+                    
+                    var characterCenterOffsetY = (characterHeight / 2f - spriteOrigin.Y) * characterScale.Y;
+                    
+                    // Move up by quarter of character height
+                    var upwardOffset = (characterHeight * characterScale.Y) / 4f;
+                    
+                    // Position where origin should be to center the sprite
+                    // Round to sprite pixel grid (every 2 screen pixels) to align with HUD
+                    var characterPosition = new Vector2(
+                        MathF.Round((backgroundCenterX - characterCenterOffsetX - 11f) / scale.X) * scale.X,
+                        MathF.Round((backgroundCenterY - characterCenterOffsetY - upwardOffset + 11f) / scale.Y) * scale.Y
+                    );
+                    
+                    // Calculate masking - mask from bottom up to 1 sprite pixel into background sprite from its bottom
+                    // Align to sprite pixel grid
+                    var maskLineY = basePosition.Y + MathF.Round((backgroundHealthSprite.Frames[0].Height - 2f) * scale.Y);
+                    var spriteBottomY = characterPosition.Y + (characterHeight - spriteOrigin.Y) * characterScale.Y;
+                    var amountToMaskFromBottom = spriteBottomY - maskLineY;
+                    
+                    if (amountToMaskFromBottom > 0)
+                    {
+                        // Mask the bottom portion
+                        var maskHeightUnscaled = amountToMaskFromBottom / characterScale.Y;
+                        var visibleHeight = (int)(characterHeight - maskHeightUnscaled);
+                        
+                        if (visibleHeight > 0)
+                        {
+                            var sourceRect = new Rectangle(0, 0, characterWidth, visibleHeight);
+                            _game.TryDrawScreenSpritePart(characterSpriteName, 0, sourceRect, characterPosition, Color.White, characterScale);
+                        }
+                    }
+                    else
+                    {
+                        // No masking needed
+                        _game.TryDrawScreenSprite(characterSpriteName, 0, characterPosition, Color.White, characterScale);
+                    }
+                    
+                    // Draw weapon sprite for the character (static, always facing right like HUD sprite)
+                    var weaponDefinition = GameplayWeaponRenderController.GetWeaponRenderDefinitionProxy(_game._world.LocalPlayer);
+                    if (weaponDefinition.NormalSpriteName is not null)
+                    {
+                        var weaponSprite = _game.GetResolvedSprite(weaponDefinition.NormalSpriteName);
+                        if (weaponSprite is not null && weaponSprite.Frames.Count > 0)
+                        {
+                            var weaponAnchorOrigin = _game._gameplayWeaponRenderController.GetWeaponAnchorOrigin(weaponDefinition, weaponSprite);
+                            var facingScale = 1f; // Always face right, matching HUD sprite
+                            
+                            // Calculate weapon position relative to character position
+                            // Character position is where the character's origin is placed
+                            var weaponX = characterPosition.X + ((weaponDefinition.XOffset + weaponAnchorOrigin.X) * facingScale * characterScale.X);
+                            var weaponY = characterPosition.Y + ((weaponDefinition.YOffset + weaponAnchorOrigin.Y) * characterScale.Y);
+                            
+                            var weaponPosition = new Vector2(weaponX, weaponY);
+                            var weaponScale = new Vector2(facingScale * characterScale.X, characterScale.Y);
+                            
+                            _game.TryDrawScreenSprite(weaponDefinition.NormalSpriteName, 0, weaponPosition, Color.White, weaponScale);
+                        }
+                    }
+                }
+            }
+            
+            // Draw the background cross (unmasked)
+            _game.TryDrawScreenSprite("PlayerHealthCross", 0, crossPosition, Color.White, scale);
+            
+            // Draw the medical cross with health-based masking and green overlay
+            var healthPercent = MathF.Max(0f, (float)_game._world.LocalPlayer.Health / _game._world.LocalPlayer.MaxHealth);
+            var medicineSprite = _game.GetResolvedSprite("PlayerHealthCrossInternalMedicine");
+            if (medicineSprite is not null && medicineSprite.Frames.Count > 0)
+            {
+                var medicineHeight = medicineSprite.Frames[0].Height;
+                var maskedHeight = (int)MathF.Ceiling(healthPercent * medicineHeight);
+                
+                if (maskedHeight > 0)
+                {
+                    // Mask from bottom up (full health = full height)
+                    var sourceRect = new Rectangle(0, medicineHeight - maskedHeight, medicineSprite.Frames[0].Width, maskedHeight);
+                    var drawPosition = crossPosition + new Vector2(0f, (medicineHeight - maskedHeight) * scale.Y);
+                    
+                    _game.TryDrawScreenSpritePart("PlayerHealthCrossInternalMedicine", 0, sourceRect, drawPosition, Color.Green, scale);
+                }
+            }
+            
+            // Draw health text centered on top of the crosses
             var hpColor = _game._world.LocalPlayer.Health > (_game._world.LocalPlayer.MaxHealth / 3.5f) ? Color.White : Color.Red;
-            _game.DrawHudTextCentered(Math.Max(_game._world.LocalPlayer.Health, 0).ToString(CultureInfo.InvariantCulture), new Vector2(69f, viewportHeight - 35f), hpColor, 1f);
+            var healthTextPosition = crossPosition + new Vector2((crossSprite?.Frames[0].Width ?? 0) * scale.X / 2f, (crossSprite?.Frames[0].Height ?? 0) * scale.Y / 2f);
+            _game.DrawHudTextCentered(Math.Max(_game._world.LocalPlayer.Health, 0).ToString(CultureInfo.InvariantCulture), healthTextPosition, hpColor, 1f);
         }
 
         public void DrawAmmoHud()
