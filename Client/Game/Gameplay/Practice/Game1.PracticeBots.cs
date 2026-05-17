@@ -39,7 +39,7 @@ public partial class Game1
     private readonly Dictionary<byte, PlayerInputSnapshot> _browserPracticeBotInputCache = new();
     private readonly Dictionary<byte, ControlledBotSlot> _controlledPracticeBotSlotsBuffer = new();
     private readonly PracticeBotDisplayNamePool _practiceBotDisplayNamePool = new();
-    [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "Practice bots intentionally sit behind a controller seam so client and server bot plumbing stay aligned on the BotBrain entry point.")]
+    [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "Practice bots intentionally sit behind a controller seam so client and server bot plumbing can select different controller implementations.")]
     private IPracticeBotController _practiceBotController = new BotBrainPracticeBotController();
     private string _practiceBotControllerSelectionKey = nameof(OfflineBotControllerMode.BotBrain);
     private static readonly (PlayerClass Medic, PlayerClass Partner)[] LastToDieOpeningEnemyCombos =
@@ -684,8 +684,9 @@ public partial class Game1
         ResetPracticeBotControllerState();
     }
 
-    private static (string SelectionKey, IPracticeBotController Controller) CreatePracticeBotController()
+    private (string SelectionKey, IPracticeBotController Controller) CreatePracticeBotController()
     {
-        return (nameof(OfflineBotControllerMode.BotBrain), new BotBrainPracticeBotController());
+        var mode = PracticeBotControllerFactory.NormalizeMode(_clientSettings.BotMode);
+        return (mode.ToString(), PracticeBotControllerFactory.Create(mode));
     }
 }

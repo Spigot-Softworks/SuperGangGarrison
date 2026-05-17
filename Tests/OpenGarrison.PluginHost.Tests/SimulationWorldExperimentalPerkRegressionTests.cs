@@ -1,4 +1,5 @@
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 using System.Linq;
 using System.Reflection;
 using Xunit;
@@ -688,6 +689,341 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
     }
 
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void EngineerBeamAvailableDoesNotBlockShotgunOutSentryPlacement(bool enableEssenceExtractor, bool enableFreezeRay)
+    {
+        var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(
+            EnableEngineerEssenceExtractor: enableEssenceExtractor,
+            EnableEngineerFreezeRay: enableFreezeRay));
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        AdvanceTicks(world, 1);
+
+        Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: true,
+            AimWorldX: world.LocalPlayer.X + 96f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+
+        Assert.Single(world.Sentries);
+    }
+
+    [Fact]
+    public void SoldierCivilDefenseTurretUsesRightClickWithoutTogglingOffhand()
+    {
+        var world = CreateJoinedSoldierWorld(new ExperimentalGameplaySettings(
+            EnableSoldierShotgunSecondaryWeapon: true,
+            EnableSoldierCivilDefenseTurret: true));
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        AdvanceTicks(world, 1);
+
+        Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: true,
+            AimWorldX: world.LocalPlayer.X + 96f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+
+        Assert.Single(world.CivilDefenseTurrets);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+    }
+
+    [Fact]
+    public void SoldierSwapWeaponInputTogglesOffhandOnlyOnceWithSpaceUtilityInput()
+    {
+        var world = CreateJoinedSoldierWorld(new ExperimentalGameplaySettings(EnableSoldierShotgunSecondaryWeapon: true));
+        AdvanceTicks(world, 1);
+
+        Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 96f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false,
+            UseAbility: true,
+            SwapWeapon: true));
+        world.AdvanceOneTick();
+
+        Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
+    }
+
+    [Fact]
+    public void SoldierSwapWeaponInputCanToggleOffhandBackToPrimary()
+    {
+        var world = CreateJoinedSoldierWorld(new ExperimentalGameplaySettings(EnableSoldierShotgunSecondaryWeapon: true));
+        AdvanceTicks(world, 1);
+
+        Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+
+        PressSwapWeaponSpace(world);
+        Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
+
+        ReleaseAllInput(world);
+
+        PressSwapWeaponSpace(world);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+    }
+
+    [Fact]
+    public void SoldierUseAbilityInputCanToggleOffhandBackToPrimary()
+    {
+        var world = CreateJoinedSoldierWorld(new ExperimentalGameplaySettings(EnableSoldierShotgunSecondaryWeapon: true));
+        AdvanceTicks(world, 1);
+
+        Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+
+        PressUseAbilitySpace(world);
+        Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
+
+        ReleaseAllInput(world);
+
+        PressUseAbilitySpace(world);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+    }
+
+    [Fact]
+    public void NetworkSoldierSwapWeaponInputCanToggleOffhandBackToPrimary()
+    {
+        var world = CreateJoinedSoldierWorld(new ExperimentalGameplaySettings(EnableSoldierShotgunSecondaryWeapon: true));
+        var player = CreateNetworkSoldier(world, 2);
+        AdvanceTicks(world, 1);
+
+        Assert.True(player.HasExperimentalOffhandWeapon);
+        Assert.False(player.IsExperimentalOffhandEquipped);
+
+        PressNetworkSwapWeaponSpace(world, 2, player);
+        Assert.True(player.IsExperimentalOffhandEquipped);
+
+        ReleaseNetworkInput(world, 2);
+
+        PressNetworkSwapWeaponSpace(world, 2, player);
+        Assert.False(player.IsExperimentalOffhandEquipped);
+        Assert.Equal(GameplayEquipmentSlot.Primary, player.GameplayLoadoutState.EquippedSlot);
+    }
+
+    [Fact]
+    public void SoldierPrimarySlotSnapshotAfterShotgunSwapAllowsRocketFire()
+    {
+        var world = CreateJoinedSoldierWorld(new ExperimentalGameplaySettings(EnableSoldierShotgunSecondaryWeapon: true));
+        AdvanceTicks(world, 1);
+
+        PressSwapWeaponSpace(world);
+        Assert.True(world.LocalPlayer.IsExperimentalOffhandSelected);
+
+        ApplyPrimarySoldierSnapshot(world.LocalPlayer);
+
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandSelected);
+        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+
+        ReleaseAllInput(world);
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 96f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+
+        Assert.NotEmpty(world.Rockets);
+    }
+
+    [Fact]
+    public void SoldierSwapWeaponInputStowsSelectedSecondarySlotBackToPrimary()
+    {
+        var world = CreateJoinedSoldierWorld(new ExperimentalGameplaySettings(EnableSoldierShotgunSecondaryWeapon: true));
+        AdvanceTicks(world, 1);
+
+        Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.True(world.LocalPlayer.TrySelectGameplayEquippedSlot(GameplayEquipmentSlot.Secondary));
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.True(world.LocalPlayer.IsExperimentalOffhandSelected);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+
+        PressSwapWeaponSpace(world);
+
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandSelected);
+        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+    }
+
+    [Fact]
+    public void SwapWeaponInputTogglesAnyClassSecondaryWeaponWithoutFiringUtility()
+    {
+        var world = CreateJoinedScoutWorld(new ExperimentalGameplaySettings());
+        Assert.True(world.TrySetNetworkPlayerGameplaySecondaryItem(SimulationWorld.LocalPlayerSlot, "weapon.rocketlauncher"));
+        AdvanceTicks(world, 1);
+
+        Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+
+        PressSwapWeaponSpace(world);
+
+        Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.False(world.LocalPlayer.IsTaunting);
+
+        ReleaseAllInput(world);
+
+        PressSwapWeaponSpace(world);
+
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+        Assert.False(world.LocalPlayer.IsTaunting);
+    }
+
+    [Fact]
+    public void MedicSwapWeaponSpaceUsesUberWithoutEquippingSecondaryWeapon()
+    {
+        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+
+        Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        world.LocalPlayer.FillMedicUberCharge();
+
+        PressSwapWeaponSpace(world);
+
+        Assert.True(world.LocalPlayer.IsMedicUbering);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+    }
+
+    [Fact]
+    public void MedicRightClickFiresNeedlesWithoutEquippingSecondaryWeapon()
+    {
+        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: true,
+            AimWorldX: world.LocalPlayer.X + 96f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+
+        Assert.NotEmpty(world.Needles);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+    }
+
+    [Fact]
+    public void EssenceExtractorWorksThroughEquippedOffhandPrimaryInput()
+    {
+        var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerEssenceExtractor: true));
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        var enemy = CreateBlueNetworkScout(world, 2);
+        enemy.ForceSetHealth(999);
+        enemy.TeleportTo(world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
+        AdvanceTicks(world, 1);
+
+        Assert.True(InvokeTryHandleExperimentalEngineerAlternateWeaponInteraction(world, world.LocalPlayer));
+        Assert.Equal(ExperimentalEngineerAlternateWeaponMode.EssenceExtractor, world.LocalPlayer.ExperimentalEngineerAlternateWeaponMode);
+        var healthBefore = enemy.Health;
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: enemy.X,
+            AimWorldY: enemy.Y,
+            DebugKill: false));
+        AdvanceTicks(world, 5);
+
+        Assert.True(enemy.Health < healthBefore);
+        Assert.Equal(enemy.Id, world.LocalPlayer.MedicHealTargetId);
+    }
+
+    [Fact]
+    public void FreezeRayWorksThroughEquippedOffhandPrimaryInput()
+    {
+        var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerFreezeRay: true));
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        var enemy = CreateBlueNetworkScout(world, 2);
+        enemy.ForceSetHealth(999);
+        enemy.TeleportTo(world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
+        AdvanceTicks(world, 1);
+
+        Assert.True(InvokeTryHandleExperimentalEngineerAlternateWeaponInteraction(world, world.LocalPlayer));
+        Assert.Equal(ExperimentalEngineerAlternateWeaponMode.FreezeRay, world.LocalPlayer.ExperimentalEngineerAlternateWeaponMode);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: enemy.X,
+            AimWorldY: enemy.Y,
+            DebugKill: false));
+        AdvanceTicks(world, world.Config.TicksPerSecond * 3);
+
+        Assert.True(enemy.IsExperimentalCryoFrozen);
+        Assert.Equal(enemy.Id, world.LocalPlayer.MedicHealTargetId);
+    }
+
     [Fact]
     public void EssenceExtractorDrainsEnemyAndAppliesDamageVulnerability()
     {
@@ -1139,6 +1475,39 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         return world;
     }
 
+    private static SimulationWorld CreateJoinedSoldierWorld(ExperimentalGameplaySettings settings)
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TryLoadLevel("Harvest"));
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        world.ConfigureExperimentalGameplaySettings(settings);
+        return world;
+    }
+
+    private static SimulationWorld CreateJoinedScoutWorld(ExperimentalGameplaySettings settings)
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TryLoadLevel("Harvest"));
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.ConfigureExperimentalGameplaySettings(settings);
+        return world;
+    }
+
+    private static SimulationWorld CreateJoinedMedicWorld(ExperimentalGameplaySettings settings)
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TryLoadLevel("Harvest"));
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin(PlayerClass.Medic);
+        world.ConfigureExperimentalGameplaySettings(settings);
+        return world;
+    }
+
     private static SimulationWorld CreateJoinedEngineerWorld(ExperimentalGameplaySettings settings)
     {
         var world = new SimulationWorld();
@@ -1197,6 +1566,141 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Scout));
         Assert.True(world.TryGetNetworkPlayer(slot, out var player));
         return player;
+    }
+
+    private static PlayerEntity CreateNetworkSoldier(SimulationWorld world, byte slot)
+    {
+        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Red));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Soldier));
+        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        return player;
+    }
+
+    private static void PressSwapWeaponSpace(SimulationWorld world)
+    {
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 96f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false,
+            UseAbility: true,
+            SwapWeapon: true));
+        world.AdvanceOneTick();
+    }
+
+    private static void PressUseAbilitySpace(SimulationWorld world)
+    {
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 96f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false,
+            UseAbility: true,
+            SwapWeapon: false));
+        world.AdvanceOneTick();
+    }
+
+    private static void PressNetworkSwapWeaponSpace(SimulationWorld world, byte slot, PlayerEntity player)
+    {
+        Assert.True(world.TrySetNetworkPlayerInput(
+            slot,
+            new PlayerInputSnapshot(
+                Left: false,
+                Right: false,
+                Up: false,
+                Down: false,
+                BuildSentry: false,
+                DestroySentry: false,
+                Taunt: false,
+                FirePrimary: false,
+                FireSecondary: false,
+                AimWorldX: player.X + 96f,
+                AimWorldY: player.Y,
+                DebugKill: false,
+                UseAbility: true,
+                SwapWeapon: true)));
+        world.AdvanceOneTick();
+    }
+
+    private static void ReleaseNetworkInput(SimulationWorld world, byte slot)
+    {
+        Assert.True(world.TrySetNetworkPlayerInput(slot, default));
+        world.AdvanceOneTick();
+    }
+
+    private static void ReleaseAllInput(SimulationWorld world)
+    {
+        world.SetLocalInput(default);
+        world.AdvanceOneTick();
+    }
+
+    private static void ApplyPrimarySoldierSnapshot(PlayerEntity player)
+    {
+        player.ApplyNetworkState(
+            team: PlayerTeam.Red,
+            classDefinition: CharacterClassCatalog.Soldier,
+            isAlive: true,
+            x: player.X,
+            y: player.Y,
+            horizontalSpeed: 0f,
+            verticalSpeed: 0f,
+            health: player.MaxHealth,
+            currentShells: player.PrimaryWeapon.MaxAmmo,
+            kills: 0,
+            deaths: 0,
+            caps: 0,
+            points: 0f,
+            healPoints: 0,
+            activeDominationCount: 0,
+            isDominatingLocalViewer: false,
+            isDominatedByLocalViewer: false,
+            metal: player.MaxMetal,
+            isGrounded: true,
+            remainingAirJumps: player.MaxAirJumps,
+            isCarryingIntel: false,
+            intelRechargeTicks: 0f,
+            isSpyCloaked: false,
+            spyCloakAlpha: 0f,
+            isSpySuperjumping: false,
+            spySuperjumpHorizontalVelocity: 0f,
+            spySuperjumpCooldownTicksRemaining: 0,
+            spyBackstabVisualTicksRemaining: 0,
+            isUbered: false,
+            isKritzCritBoosted: false,
+            isHeavyEating: false,
+            heavyEatTicksRemaining: 0,
+            isSniperScoped: false,
+            sniperChargeTicks: 0,
+            isUsingBinoculars: false,
+            binocularsFocusX: 0f,
+            binocularsFocusY: 0f,
+            facingDirectionX: player.FacingDirectionX,
+            aimDirectionDegrees: player.AimDirectionDegrees,
+            aimWorldX: player.X + 96f,
+            aimWorldY: player.Y,
+            isTaunting: false,
+            tauntFrameIndex: 0f,
+            isChatBubbleVisible: false,
+            chatBubbleFrameIndex: 0,
+            chatBubbleAlpha: 0f,
+            gameplayEquippedSlot: (byte)GameplayEquipmentSlot.Primary);
     }
 
     private static void AdvanceTicks(SimulationWorld world, int ticks)

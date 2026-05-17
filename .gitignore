@@ -42,6 +42,7 @@ Tests/BrowserSmoke/node_modules/
 /botbrain_architecture_map.md
 /overall_architecture_map.md
 /botbrain-conflict-trace.txt
+/combined plan.txt
 
 # Generated bot navigation and canary artifacts
 /BotBrain.Tools/canaries/
@@ -64,7 +65,6 @@ Tests/BrowserSmoke/node_modules/
 
 # MotionProof bake scratch outputs
 /MotionProof.Tools/
-/Core/Content/MotionProof/
 /MotionProof.Tools/candidates/
 /MotionProof.Tools/logs/
 

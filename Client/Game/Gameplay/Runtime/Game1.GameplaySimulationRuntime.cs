@@ -83,5 +83,6 @@ public partial class Game1
 
         AdvanceLastToDieSimulationTick();
         UpdateLastToDieBotReactions();
+        AdvanceJumpSimulationTick();
     }
 }

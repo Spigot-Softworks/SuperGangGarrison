@@ -247,6 +247,27 @@ public sealed partial class SimulationWorld
         _rockets.Add(rocket);
         _entities.Add(rocket.Id, rocket);
         _pendingNewRocketIds.Add(rocket.Id);
+        _pendingRocketSpawnEvents.Add(new WorldRocketSpawnEvent(
+            rocket.Id,
+            (byte)rocket.Team,
+            rocket.OwnerId,
+            rocket.X,
+            rocket.Y,
+            rocket.PreviousX,
+            rocket.PreviousY,
+            rocket.DirectionRadians,
+            rocket.Speed,
+            rocket.TicksRemaining,
+            rocket.ReducedKnockbackSourceTicksRemaining,
+            rocket.ZeroKnockbackSourceTicksRemaining,
+            rocket.RangeAnchorOwnerId,
+            rocket.LastKnownRangeOriginX,
+            rocket.LastKnownRangeOriginY,
+            rocket.DistanceToTravel,
+            rocket.IsFading,
+            rocket.FadeSourceTicksRemaining,
+            rocket.ExplodeImmediately,
+            rocket.IsCritical));
     }
 
     private void AdvancePendingRocketsForOwner(int ownerId)

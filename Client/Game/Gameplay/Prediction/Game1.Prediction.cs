@@ -30,7 +30,8 @@ public partial class Game1
         bool jumpPressed,
         bool primaryPressed,
         bool secondaryAbilityPressed,
-        bool abilityPressed)
+        bool abilityPressed,
+        bool swapWeaponPressed)
     {
         _latestPredictedLocalInput = input;
 
@@ -286,5 +287,6 @@ public partial class Game1
         bool JumpPressed,
         bool PrimaryPressed,
         bool SecondaryAbilityPressed,
-        bool AbilityPressed);
+        bool AbilityPressed,
+        bool SwapWeaponPressed);
 }

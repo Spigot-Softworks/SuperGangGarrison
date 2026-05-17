@@ -7,19 +7,24 @@ public sealed class VerifiedNavProofRouteExecutor
     private const float EntryWindow = 34f;
     private const float MaxEdgeDivergence = 360f;
     private const float MaxRouteDivergence = 520f;
+    private const float MaxActionOnlyRouteStartDivergence = 24f;
     private const float MaxRouteAttachmentDivergence = 520f;
     private const float ProgressDistance = 28f;
     private const float LaneEntryAlignmentWindow = 6f;
     private const float LaneExitCompletionWindow = 96f;
     private const float PreciseLaneExitCompletionWindow = 24f;
     private const int NoProgressTicks = 120;
+    private const int RouteActionProgressWindowTicks = 30;
+    private const int RouteActionMaxStagnantWindows = 4;
     private const int MaxLaneEntryAlignmentTicks = 45;
     private const int RouteSuppressionTicks = 1800;
+    private const int RouteActionNoMovementSuppressionTicks = 90;
     private const int LaneActionExtraHoldTicks = 12;
     private const int EdgeActionExtraHoldTicks = 24;
     private const int KnownLandingActionExtraHoldTicks = 60;
     private const int PointLaneActionExtraHoldTicks = 45;
     private const int TerminalExtraHoldTicks = 120;
+    private const int TerminalNoProgressTicks = 45;
     private const int LaneRecoveryExtraTicks = 180;
     private const float LaneDropRecoveryThreshold = 48f;
     private const float AirborneDropRecoveryThreshold = 8f;
@@ -46,10 +51,16 @@ public sealed class VerifiedNavProofRouteExecutor
     private int _laneEntryAlignmentTicks;
     private int _laneRecoveryTicks;
     private int _routeActionTick;
+    private int _routeActionLastProgressTick;
+    private int _routeActionStagnantWindows;
+    private float _routeActionWindowX;
+    private float _routeActionWindowY;
     private bool _terminalActionStarted;
     private bool _attachedAtRouteInterior;
     private int _terminalActionTick;
     private int _terminalStartThinkTick;
+    private int _terminalNoProgressTicks;
+    private float _bestTerminalDistance = float.PositiveInfinity;
     private float _bestDistanceToExit = float.PositiveInfinity;
 
     public string LastTrace { get; private set; } = string.Empty;
@@ -69,7 +80,8 @@ public sealed class VerifiedNavProofRouteExecutor
         PlayerTeam team,
         int thinkTick,
         SteeringOutput baseSteering,
-        out SteeringOutput proofSteering)
+        out SteeringOutput proofSteering,
+        VerifiedNavProofRouteKind? forcedKind = null)
     {
         proofSteering = baseSteering;
         LastTrace = string.Empty;
@@ -79,9 +91,9 @@ public sealed class VerifiedNavProofRouteExecutor
             return false;
         }
 
-        var desiredKind = self.IsCarryingIntel
+        var desiredKind = forcedKind ?? (self.IsCarryingIntel
             ? VerifiedNavProofRouteKind.Return
-            : VerifiedNavProofRouteKind.Pickup;
+            : VerifiedNavProofRouteKind.Pickup);
         if (_activeRoute is null || _activeKind != desiredKind)
         {
             ResetActiveRoute();
@@ -111,7 +123,8 @@ public sealed class VerifiedNavProofRouteExecutor
             return TryResolveLaneSegment(asset, self, thinkTick, baseSteering, out proofSteering);
         }
 
-        if (_activeRoute.Actions.Count > 0 && !_attachedAtRouteInterior)
+        if (ShouldResolveRouteLevelActions(_activeRoute)
+            && !_attachedAtRouteInterior)
         {
             return TryResolveRouteAction(self, thinkTick, baseSteering, out proofSteering);
         }
@@ -307,7 +320,10 @@ public sealed class VerifiedNavProofRouteExecutor
             var candidateStartX = candidate.StartX != 0f ? candidate.StartX : firstEdge.EntryX;
             var candidateStartBottom = candidate.StartBottom != 0f ? candidate.StartBottom : firstEdge.EntryBottom;
             var startDistance = Distance(self.X, self.Bottom, candidateStartX, candidateStartBottom);
-            if (startDistance <= MaxRouteDivergence && startDistance < selectedStartDistance)
+            var startDivergenceLimit = IsActionOnlyRoute(candidate)
+                ? MaxActionOnlyRouteStartDivergence
+                : MaxRouteDivergence;
+            if (startDistance <= startDivergenceLimit && startDistance < selectedStartDistance)
             {
                 selectedRoute = candidate;
                 selectedRouteKey = candidateKey;
@@ -316,11 +332,6 @@ public sealed class VerifiedNavProofRouteExecutor
                 selectedRouteEdgeIndex = 0;
                 selectedLaneSegmentIndex = 0;
                 selectedAttachmentEdgeId = firstEdge.Id;
-            }
-
-            if (kind != VerifiedNavProofRouteKind.Return)
-            {
-                continue;
             }
 
             for (var edgeIndex = 1; edgeIndex < candidate.EdgeIds.Count; edgeIndex += 1)
@@ -378,10 +389,16 @@ public sealed class VerifiedNavProofRouteExecutor
         _laneEntryAlignmentTicks = 0;
         _laneRecoveryTicks = 0;
         _routeActionTick = 0;
+        _routeActionLastProgressTick = thinkTick;
+        _routeActionStagnantWindows = 0;
+        _routeActionWindowX = self.X;
+        _routeActionWindowY = self.Y;
         _terminalActionStarted = false;
         _attachedAtRouteInterior = selectedRouteEdgeIndex > 0;
         _terminalActionTick = 0;
         _terminalStartThinkTick = 0;
+        _terminalNoProgressTicks = 0;
+        _bestTerminalDistance = float.PositiveInfinity;
         _bestDistanceToExit = float.PositiveInfinity;
         var attachmentTrace = selectedRouteEdgeIndex > 0
             ? $" attachEdge:{selectedAttachmentEdgeId} attachIndex:{selectedRouteEdgeIndex}"
@@ -392,13 +409,19 @@ public sealed class VerifiedNavProofRouteExecutor
 
     private static bool CanAttachAtInteriorEdge(PlayerEntity self, int currentSurfaceId, VerifiedNavProofGraphEdge edge)
     {
+        var entryDistance = Distance(self.X, self.Bottom, edge.EntryX, edge.EntryBottom);
+        if (edge.Actions.Count > 0)
+        {
+            return entryDistance <= EntryWindow
+                && MathF.Abs(self.Bottom - edge.EntryBottom) <= SurfaceBottomTolerance;
+        }
+
         if (IsKnownSurfaceMatch(currentSurfaceId, edge.FromSurfaceId)
             || IsKnownSurfaceMatch(currentSurfaceId, edge.ToSurfaceId))
         {
             return true;
         }
 
-        var entryDistance = Distance(self.X, self.Bottom, edge.EntryX, edge.EntryBottom);
         return entryDistance <= EntryWindow
             && MathF.Abs(self.Bottom - edge.EntryBottom) <= SurfaceBottomTolerance;
     }
@@ -648,6 +671,12 @@ public sealed class VerifiedNavProofRouteExecutor
             return false;
         }
 
+        if (ShouldAbortStagnantRouteAction(self, thinkTick, out var stagnantTrace))
+        {
+            AbortRoute(thinkTick, stagnantTrace, suppress: true);
+            return false;
+        }
+
         if (!TryResolveActionRun(_activeRoute.Actions, ref _routeActionTick, holdLast: false, maxHoldTicks: TerminalExtraHoldTicks, out var action))
         {
             return TryResolveTerminal(self, thinkTick, baseSteering, out proofSteering);
@@ -660,6 +689,44 @@ public sealed class VerifiedNavProofRouteExecutor
         LastTrace =
             $"proofGraph=routeAction route:{_activeKind} actionTick:{_routeActionTick} routeTicks:{thinkTick - _routeStartThinkTick + 1} " +
             $"edge:{edgeLabel} move:{proofSteering.MoveDirection:0} jump:{(proofSteering.Jump ? 1 : 0)} drop:{(proofSteering.DropDown ? 1 : 0)}";
+        return true;
+    }
+
+    private static bool IsActionOnlyRoute(VerifiedNavProofGraphRoute route) =>
+        route.Actions.Count > 0 && route.EdgeIds.Count == 0;
+
+    private static bool ShouldResolveRouteLevelActions(VerifiedNavProofGraphRoute route)
+        => route.Actions.Count > 0
+            && route.EdgeIds.Count == 0;
+
+    private bool ShouldAbortStagnantRouteAction(PlayerEntity self, int thinkTick, out string trace)
+    {
+        trace = string.Empty;
+        if (thinkTick - _routeActionLastProgressTick < RouteActionProgressWindowTicks)
+        {
+            return false;
+        }
+
+        var moved = Distance(self.X, self.Y, _routeActionWindowX, _routeActionWindowY);
+        _routeActionWindowX = self.X;
+        _routeActionWindowY = self.Y;
+        _routeActionLastProgressTick = thinkTick;
+        if (moved >= ProgressDistance)
+        {
+            _routeActionStagnantWindows = 0;
+            return false;
+        }
+
+        _routeActionStagnantWindows += 1;
+        if (_routeActionStagnantWindows < RouteActionMaxStagnantWindows)
+        {
+            return false;
+        }
+
+        var edgeLabel = TryResolveCurrentRouteEdgeLabel(out var label) ? label : $"{_activeKind}:route";
+        trace =
+            $"route_action_no_movement edge:{edgeLabel} actionTick:{_routeActionTick} " +
+            $"windows:{_routeActionStagnantWindows} moved:{moved:0.0}";
         return true;
     }
 
@@ -702,9 +769,18 @@ public sealed class VerifiedNavProofRouteExecutor
             _terminalActionStarted = true;
             _terminalActionTick = 0;
             _terminalStartThinkTick = thinkTick;
+            _terminalNoProgressTicks = 0;
+            _bestTerminalDistance = float.PositiveInfinity;
         }
 
         var dx = _activeRoute.TerminalEndX - self.X;
+        var terminalDistance = Distance(self.X, self.Bottom, _activeRoute.TerminalEndX, _activeRoute.TerminalEndBottom);
+        if (ShouldAbortStagnantTerminal(terminalDistance, out var stagnantTrace))
+        {
+            AbortRoute(thinkTick, stagnantTrace, suppress: true);
+            return false;
+        }
+
         var climbTarget = _activeRoute.TerminalEndBottom < self.Bottom - SurfaceBottomTolerance;
         var terminalAlignmentTicks = thinkTick - _terminalStartThinkTick + 1;
         if (climbTarget
@@ -721,7 +797,7 @@ public sealed class VerifiedNavProofRouteExecutor
                 $"start=({_activeRoute.TerminalStartX:0.0},{_activeRoute.TerminalStartBottom:0.0}) " +
                 $"end=({_activeRoute.TerminalEndX:0.0},{_activeRoute.TerminalEndBottom:0.0}) " +
                 $"startDx:{_activeRoute.TerminalStartX - self.X:0.0} " +
-                $"dist:{Distance(self.X, self.Bottom, _activeRoute.TerminalEndX, _activeRoute.TerminalEndBottom):0.0} " +
+                $"dist:{terminalDistance:0.0} " +
                 $"move:{proofSteering.MoveDirection:0} jump:0 drop:0";
             return true;
         }
@@ -742,7 +818,7 @@ public sealed class VerifiedNavProofRouteExecutor
                 $"terminalTicks:{thinkTick - _terminalStartThinkTick + 1} mode:action " +
                 $"start=({_activeRoute.TerminalStartX:0.0},{_activeRoute.TerminalStartBottom:0.0}) " +
                 $"end=({_activeRoute.TerminalEndX:0.0},{_activeRoute.TerminalEndBottom:0.0}) " +
-                $"dist:{Distance(self.X, self.Bottom, _activeRoute.TerminalEndX, _activeRoute.TerminalEndBottom):0.0} " +
+                $"dist:{terminalDistance:0.0} " +
                 $"move:{proofSteering.MoveDirection:0} jump:{(proofSteering.Jump ? 1 : 0)} drop:{(proofSteering.DropDown ? 1 : 0)}";
             return true;
         }
@@ -758,8 +834,30 @@ public sealed class VerifiedNavProofRouteExecutor
             $"terminalTicks:{thinkTick - _terminalStartThinkTick + 1} " +
             $"start=({_activeRoute.TerminalStartX:0.0},{_activeRoute.TerminalStartBottom:0.0}) " +
             $"end=({_activeRoute.TerminalEndX:0.0},{_activeRoute.TerminalEndBottom:0.0}) " +
-            $"dist:{Distance(self.X, self.Bottom, _activeRoute.TerminalEndX, _activeRoute.TerminalEndBottom):0.0} " +
+            $"dist:{terminalDistance:0.0} " +
             $"move:{proofSteering.MoveDirection:0} jump:{(proofSteering.Jump ? 1 : 0)} drop:{(proofSteering.DropDown ? 1 : 0)}";
+        return true;
+    }
+
+    private bool ShouldAbortStagnantTerminal(float terminalDistance, out string trace)
+    {
+        trace = string.Empty;
+        if (terminalDistance + ProgressDistance < _bestTerminalDistance)
+        {
+            _bestTerminalDistance = terminalDistance;
+            _terminalNoProgressTicks = 0;
+            return false;
+        }
+
+        _terminalNoProgressTicks += 1;
+        if (_terminalNoProgressTicks < TerminalNoProgressTicks)
+        {
+            return false;
+        }
+
+        trace =
+            $"terminal_no_progress dist:{terminalDistance:0.0} " +
+            $"best:{_bestTerminalDistance:0.0} terminalTick:{_terminalActionTick}";
         return true;
     }
 
@@ -1366,7 +1464,10 @@ public sealed class VerifiedNavProofRouteExecutor
     {
         if (suppress && _activeRoute is not null && _activeKind is not null)
         {
-            _suppressedRoutes[_activeRouteKey] = thinkTick + RouteSuppressionTicks;
+            var suppressionTicks = reason.StartsWith("route_action_no_movement", StringComparison.Ordinal)
+                ? RouteActionNoMovementSuppressionTicks
+                : RouteSuppressionTicks;
+            _suppressedRoutes[_activeRouteKey] = thinkTick + suppressionTicks;
         }
 
         LastTrace = $"proofGraph=abort route:{_activeKind?.ToString() ?? "none"} reason:{reason}";
@@ -1389,10 +1490,16 @@ public sealed class VerifiedNavProofRouteExecutor
         _laneEntryAlignmentTicks = 0;
         _laneRecoveryTicks = 0;
         _routeActionTick = 0;
+        _routeActionLastProgressTick = 0;
+        _routeActionStagnantWindows = 0;
+        _routeActionWindowX = 0f;
+        _routeActionWindowY = 0f;
         _terminalActionStarted = false;
         _attachedAtRouteInterior = false;
         _terminalActionTick = 0;
         _terminalStartThinkTick = 0;
+        _terminalNoProgressTicks = 0;
+        _bestTerminalDistance = float.PositiveInfinity;
         _bestDistanceToExit = float.PositiveInfinity;
     }
 

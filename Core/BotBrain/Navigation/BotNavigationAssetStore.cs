@@ -241,13 +241,13 @@ public static class BotNavigationAssetStore
     private static bool TryLoadFromPath(string path, SimpleLevel level, out BotNavigationAsset asset)
     {
         asset = null!;
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        if (!BotBrainJsonAssetIO.TryResolveReadablePath(path, out var readablePath))
         {
             return false;
         }
 
-        var cacheKey = Path.GetFullPath(path);
-        var fileInfo = new FileInfo(path);
+        var cacheKey = Path.GetFullPath(readablePath);
+        var fileInfo = new FileInfo(readablePath);
         lock (AssetFileCacheSync)
         {
             if (AssetFileCache.TryGetValue(cacheKey, out var cached)
@@ -263,7 +263,7 @@ public static class BotNavigationAssetStore
         BotNavigationAsset? loaded;
         try
         {
-            loaded = JsonSerializer.Deserialize<BotNavigationAsset>(File.ReadAllText(path), SerializerOptions);
+            loaded = BotBrainJsonAssetIO.Deserialize<BotNavigationAsset>(readablePath, SerializerOptions);
         }
         catch
         {
@@ -291,7 +291,7 @@ public static class BotNavigationAssetStore
             return "empty_path";
         }
 
-        if (!File.Exists(path))
+        if (!BotBrainJsonAssetIO.TryResolveReadablePath(path, out var readablePath))
         {
             return "missing";
         }
@@ -299,9 +299,9 @@ public static class BotNavigationAssetStore
         BotNavigationAsset? loaded;
         try
         {
-            loaded = JsonSerializer.Deserialize<BotNavigationAsset>(File.ReadAllText(path), SerializerOptions);
+            loaded = BotBrainJsonAssetIO.Deserialize<BotNavigationAsset>(readablePath, SerializerOptions);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or NotSupportedException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or JsonException or NotSupportedException)
         {
             return $"read_error:{ex.GetType().Name}";
         }

@@ -182,10 +182,12 @@ partial class GameServer
         Console.WriteLine($"Secondary abilities: {(_secondaryAbilitiesEnabled ? "Enabled" : "Disabled")}");
         Console.WriteLine($"Level: {_world.Level.Name} area={_world.Level.MapAreaIndex}/{_world.Level.MapAreaCount} imported={_world.Level.ImportedFromSource} mode={_world.MatchRules.Mode}");
         Console.WriteLine($"World bounds: {_world.Bounds.Width}x{_world.Bounds.Height}");
+        var botNavigationPreloaded = PreloadBotNavigationForCurrentLevel(out var botNavigationPreloadMs);
         var botNavigationDiagnostic = BotNavigationAssetStore.GetLoadDiagnostic(_world.Level);
         Console.WriteLine(
             "[botbrain] startup-nav " +
             $"level={_world.Level.Name} area={_world.Level.MapAreaIndex} " +
+            $"preloaded={botNavigationPreloaded} preloadMs={botNavigationPreloadMs:0.###} " +
             $"expectedFingerprint={TrimDiagnosticFingerprint(botNavigationDiagnostic.ExpectedFingerprint)} " +
             $"shipped={botNavigationDiagnostic.ShippedStatus} shippedPath=\"{botNavigationDiagnostic.ShippedPath}\" " +
             $"runtimeCache={botNavigationDiagnostic.RuntimeCacheStatus}");
@@ -237,6 +239,14 @@ partial class GameServer
             : fingerprint[..Math.Min(12, fingerprint.Length)];
     }
 
+    private bool PreloadBotNavigationForCurrentLevel(out double elapsedMilliseconds)
+    {
+        var startTimestamp = Stopwatch.GetTimestamp();
+        var loaded = BotNavigationAssetStore.TryLoadCachedGraph(_world.Level, out _);
+        elapsedMilliseconds = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+        return loaded;
+    }
+
     private void RunMainLoop(PersistentServerEventLog eventLog, CancellationToken cancellationToken)
     {
         var maxSimulationTicksPerAdvance = Math.Max(1, (int)Math.Ceiling(_config.TicksPerSecond / 10d));
@@ -270,6 +280,11 @@ partial class GameServer
                         _autoBalancer.Tick(now, 1, _autoBalanceEnabled);
                         if (_mapRotationManager.TryApplyPendingMapChange(out var transition))
                         {
+                            var botNavigationPreloaded = PreloadBotNavigationForCurrentLevel(out var botNavigationPreloadMs);
+                            Console.WriteLine(
+                                "[botbrain] map-nav " +
+                                $"level={_world.Level.Name} area={_world.Level.MapAreaIndex} " +
+                                $"preloaded={botNavigationPreloaded} preloadMs={botNavigationPreloadMs:0.###}");
                             var restoredBotCount = _botManager.ReactivateBotsAfterMapChange();
                             _eventReporter.ApplyMapTransition(transition);
                             _demoRecorder.HandleMapTransition(transition);
@@ -311,12 +326,27 @@ partial class GameServer
                             "server_snapshot_metrics",
                             ("frame", snapshotMetrics.Frame),
                             ("client_count", snapshotMetrics.ClientCount),
+                            ("average_target_payload_bytes", snapshotMetrics.AverageTargetPayloadBytes),
                             ("average_full_payload_bytes", snapshotMetrics.AverageFullPayloadBytes),
+                            ("average_sent_uncompressed_bytes", snapshotMetrics.AverageSentUncompressedBytes),
                             ("average_sent_payload_bytes", snapshotMetrics.AverageSentPayloadBytes),
+                            ("max_sent_payload_bytes", snapshotMetrics.MaxSentPayloadBytes),
+                            ("payload_over_target_count", snapshotMetrics.PayloadOverTargetCount),
                             ("budgeted_client_count", snapshotMetrics.BudgetedClientCount),
                             ("baseline_hit_count", snapshotMetrics.BaselineHitCount),
                             ("baseline_miss_count", snapshotMetrics.BaselineMissCount),
                             ("average_serialize_passes", snapshotMetrics.AverageSerializePasses),
+                            ("snapshot_full_player_bytes", snapshotMetrics.AverageSnapshotFullPlayerBytes),
+                            ("snapshot_player_movement_bytes", snapshotMetrics.AverageSnapshotPlayerMovementBytes),
+                            ("snapshot_player_status_bytes", snapshotMetrics.AverageSnapshotPlayerStatusBytes),
+                            ("snapshot_player_extended_status_bytes", snapshotMetrics.AverageSnapshotPlayerExtendedStatusBytes),
+                            ("snapshot_player_chat_bubble_bytes", snapshotMetrics.AverageSnapshotPlayerChatBubbleBytes),
+                            ("snapshot_projectile_bytes", snapshotMetrics.AverageSnapshotProjectileBytes),
+                            ("snapshot_sentry_bytes", snapshotMetrics.AverageSnapshotSentryBytes),
+                            ("snapshot_event_bytes", snapshotMetrics.AverageSnapshotEventBytes),
+                            ("snapshot_removal_bytes", snapshotMetrics.AverageSnapshotRemovalBytes),
+                            ("snapshot_world_bytes", snapshotMetrics.AverageSnapshotWorldBytes),
+                            ("snapshot_envelope_bytes", snapshotMetrics.AverageSnapshotEnvelopeBytes),
                             ("shared_capture_ms", snapshotMetrics.SharedCaptureMilliseconds),
                             ("per_client_ms", snapshotMetrics.PerClientMilliseconds),
                             ("total_ms", snapshotMetrics.TotalMilliseconds),

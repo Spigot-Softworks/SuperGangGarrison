@@ -147,7 +147,7 @@ public static class BotNavigationAssetBuilder
 
     public static NavGraph BuildGraph(SimpleLevel level)
     {
-        return ToGraph(BuildAsset(level));
+        return ToGraph(BuildAsset(level), level);
     }
 
     public static NavGraph ToGraph(BotNavigationAsset asset)
@@ -227,11 +227,27 @@ public static class BotNavigationAssetBuilder
                 var virtualNodes = nodes.ToList();
                 var virtualAdjacency = adjacency.ToList();
                 AddMotionProofObjectiveTapeVirtualGraphEdges(level, virtualNodes, virtualAdjacency);
-                return new NavGraph(virtualNodes.ToArray(), virtualAdjacency.ToArray(), level.Name, level.Mode);
+                return new NavGraph(virtualNodes.ToArray(), virtualAdjacency.ToArray(), level.Name, level.Mode, BuildSpawnAnchors(level));
             }
         }
 
-        return new NavGraph(nodes, adjacency, level?.Name, level?.Mode);
+        return new NavGraph(nodes, adjacency, level?.Name, level?.Mode, level is null ? null : BuildSpawnAnchors(level));
+    }
+
+    private static NavSpawnAnchor[] BuildSpawnAnchors(SimpleLevel level)
+    {
+        var anchors = new List<NavSpawnAnchor>(level.RedSpawns.Count + level.BlueSpawns.Count);
+        foreach (var spawn in level.RedSpawns)
+        {
+            anchors.Add(new NavSpawnAnchor(spawn.X, spawn.Y, PlayerTeam.Red));
+        }
+
+        foreach (var spawn in level.BlueSpawns)
+        {
+            anchors.Add(new NavSpawnAnchor(spawn.X, spawn.Y, PlayerTeam.Blue));
+        }
+
+        return anchors.ToArray();
     }
 
     private static void AddMotionProofObjectiveTapeGraphEdges(SimpleLevel level, NavNode[] nodes, List<NavEdge>[] adjacency)

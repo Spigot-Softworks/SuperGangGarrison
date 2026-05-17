@@ -6,6 +6,14 @@ using Microsoft.Xna.Framework.Input;
 
 namespace OpenGarrison.Client;
 
+public enum WeaponSwapBindingMode
+{
+    Space = 0,
+    MouseSecondary = 1,
+    Q = 2,
+    Custom = 3,
+}
+
 public sealed class InputBindingsSettings
 {
     public const string DefaultFileName = "controls.OpenGarrison";
@@ -26,6 +34,10 @@ public sealed class InputBindingsSettings
     public Keys UseAbility { get; set; } = Keys.Space;
 
     public Keys InteractWeapon { get; set; } = Keys.Q;
+
+    public WeaponSwapBindingMode SwapWeaponsBinding { get; set; } = WeaponSwapBindingMode.Space;
+
+    public Keys SwapWeaponsCustomKey { get; set; } = Keys.Space;
 
     public Keys ShowScoreboard { get; set; } = Keys.Tab;
 
@@ -91,6 +103,8 @@ public sealed class InputBindingsSettings
         document.SetInt("Controls", "medic", (int)CallMedic);
         document.SetInt("Controls", "secondaryWeapon", (int)UseAbility);
         document.SetInt("Controls", "interactWeapon", (int)InteractWeapon);
+        document.SetString("Controls", "swapWeapons", NormalizeSwapWeaponsBinding(SwapWeaponsBinding).ToString());
+        document.SetInt("Controls", "swapWeaponsCustomKey", (int)SwapWeaponsCustomKey);
         document.SetInt("Controls", "changeTeam", (int)ChangeTeam);
         document.SetInt("Controls", "changeClass", (int)ChangeClass);
         document.SetInt("Controls", "showScores", (int)ShowScoreboard);
@@ -120,6 +134,8 @@ public sealed class InputBindingsSettings
             CallMedic = ReadKey(document, "medic", Keys.E),
             UseAbility = ReadKey(document, "secondaryWeapon", Keys.Space),
             InteractWeapon = ReadKey(document, "interactWeapon", Keys.Q),
+            SwapWeaponsBinding = ReadSwapWeaponsBinding(document),
+            SwapWeaponsCustomKey = ReadKey(document, "swapWeaponsCustomKey", Keys.Space),
             ChangeTeam = ReadKey(document, "changeTeam", Keys.N),
             ChangeClass = ReadKey(document, "changeClass", Keys.M),
             ShowScoreboard = ReadKey(document, "showScores", Keys.LeftShift),
@@ -136,5 +152,25 @@ public sealed class InputBindingsSettings
         return Enum.IsDefined(typeof(Keys), value)
             ? (Keys)value
             : fallback;
+    }
+
+    private static WeaponSwapBindingMode ReadSwapWeaponsBinding(IniConfigurationFile document)
+    {
+        var text = document.GetString("Controls", "swapWeapons", WeaponSwapBindingMode.Space.ToString());
+        return Enum.TryParse<WeaponSwapBindingMode>(text, ignoreCase: true, out var binding)
+            ? NormalizeSwapWeaponsBinding(binding)
+            : WeaponSwapBindingMode.Space;
+    }
+
+    public static WeaponSwapBindingMode NormalizeSwapWeaponsBinding(WeaponSwapBindingMode binding)
+    {
+        return binding switch
+        {
+            WeaponSwapBindingMode.Space => WeaponSwapBindingMode.Space,
+            WeaponSwapBindingMode.MouseSecondary => WeaponSwapBindingMode.MouseSecondary,
+            WeaponSwapBindingMode.Q => WeaponSwapBindingMode.Q,
+            WeaponSwapBindingMode.Custom => WeaponSwapBindingMode.Custom,
+            _ => WeaponSwapBindingMode.Space,
+        };
     }
 }

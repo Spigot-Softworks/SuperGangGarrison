@@ -58,6 +58,7 @@ public enum InputButtons : ushort
     DropIntel = 1 << 10,
     UseAbility = 1 << 11,
     InteractWeapon = 1 << 12,
+    SwapWeapon = 1 << 13,
 }
 
 public interface IProtocolMessage
@@ -459,6 +460,29 @@ public sealed record SnapshotRocketState(
     IReadOnlyList<int>? PassedFriendlyPlayerIds = null,
     bool IsCritical = false);
 
+public sealed record SnapshotRocketSpawnEvent(
+    int Id,
+    byte Team,
+    int OwnerId,
+    float X,
+    float Y,
+    float PreviousX,
+    float PreviousY,
+    float DirectionRadians,
+    float Speed,
+    int TicksRemaining,
+    float ReducedKnockbackSourceTicksRemaining = 20f,
+    float ZeroKnockbackSourceTicksRemaining = 30f,
+    int RangeAnchorOwnerId = -1,
+    float LastKnownRangeOriginX = 0f,
+    float LastKnownRangeOriginY = 0f,
+    float DistanceToTravel = 800f,
+    bool IsFading = false,
+    float FadeSourceTicksRemaining = 0f,
+    bool ExplodeImmediately = false,
+    bool IsCritical = false,
+    ulong EventId = 0);
+
 public sealed record SnapshotFlameState(
     int Id,
     byte Team,
@@ -729,6 +753,7 @@ public sealed record SnapshotMessage(
     public IReadOnlyList<int> RemovedJumpPadIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<SnapshotPlayerGibState> PlayerGibs { get; init; } = Array.Empty<SnapshotPlayerGibState>();
     public IReadOnlyList<SnapshotGibSpawnEvent> GibSpawnEvents { get; init; } = Array.Empty<SnapshotGibSpawnEvent>();
+    public IReadOnlyList<SnapshotRocketSpawnEvent> RocketSpawnEvents { get; init; } = Array.Empty<SnapshotRocketSpawnEvent>();
 
     public MessageType Type => MessageType.Snapshot;
 }

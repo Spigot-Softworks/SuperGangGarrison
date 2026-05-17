@@ -240,6 +240,7 @@ public sealed partial class SimulationWorld
                     entity.SetCritical();
             });
         ApplySnapshotRockets(snapshot.Rockets);
+        ApplySnapshotRocketSpawnEvents(snapshot.RocketSpawnEvents);
         ApplySnapshotFlames(snapshot.Flames);
         ApplySnapshotShots(
             snapshot.Flares,
@@ -450,6 +451,73 @@ public sealed partial class SimulationWorld
                         state.PassedFriendlyPlayerIds);
                 }
             });
+    }
+
+    private void ApplySnapshotRocketSpawnEvents(IReadOnlyList<SnapshotRocketSpawnEvent> rocketSpawnEvents)
+    {
+        for (var index = 0; index < rocketSpawnEvents.Count; index += 1)
+        {
+            var e = rocketSpawnEvents[index];
+            if (e.ExplodeImmediately
+                && e.EventId != 0
+                && !_processedImmediateNetworkRocketSpawnEventIds.Add(e.EventId))
+            {
+                continue;
+            }
+
+            if (_entities.ContainsKey(e.Id))
+            {
+                continue;
+            }
+
+            ReserveEntityId(e.Id);
+            var rocket = new RocketProjectileEntity(
+                e.Id,
+                (PlayerTeam)e.Team,
+                e.OwnerId,
+                e.X,
+                e.Y,
+                e.Speed,
+                e.DirectionRadians,
+                reducedKnockbackSourceTicksRemaining: e.ReducedKnockbackSourceTicksRemaining,
+                zeroKnockbackSourceTicksRemaining: e.ZeroKnockbackSourceTicksRemaining,
+                rangeAnchorOwnerId: e.RangeAnchorOwnerId,
+                lastKnownRangeOriginX: e.LastKnownRangeOriginX,
+                lastKnownRangeOriginY: e.LastKnownRangeOriginY,
+                distanceToTravel: e.DistanceToTravel,
+                isFading: e.IsFading,
+                fadeSourceTicksRemaining: e.FadeSourceTicksRemaining);
+            if (e.IsCritical)
+            {
+                rocket.SetCritical();
+            }
+
+            rocket.ApplyNetworkState(
+                e.X,
+                e.Y,
+                e.PreviousX,
+                e.PreviousY,
+                e.DirectionRadians,
+                e.Speed,
+                e.TicksRemaining,
+                e.ReducedKnockbackSourceTicksRemaining,
+                e.ZeroKnockbackSourceTicksRemaining,
+                e.RangeAnchorOwnerId,
+                e.LastKnownRangeOriginX,
+                e.LastKnownRangeOriginY,
+                e.DistanceToTravel,
+                e.IsFading,
+                e.FadeSourceTicksRemaining,
+                Array.Empty<int>());
+            if (e.ExplodeImmediately)
+            {
+                rocket.DelayExplosionUntilNextTick(RocketProjectileEntity.DelayedExplosionReasonSpawnBlocked);
+            }
+
+            _rockets.Add(rocket);
+            _entities.Add(rocket.Id, rocket);
+            _clientPredictedProjectileIds.Add(rocket.Id);
+        }
     }
 
     private void ApplySnapshotFlames(IReadOnlyList<SnapshotFlameState> flames)
@@ -704,7 +772,9 @@ public sealed partial class SimulationWorld
         foreach (var snapshotPlayer in snapshotPlayers)
         {
             _snapshotSeenRemotePlayerSlots.Add(snapshotPlayer.Slot);
-            if (!_remoteSnapshotPlayersBySlot.TryGetValue(snapshotPlayer.Slot, out var player))
+            var hadRemotePlayer = _remoteSnapshotPlayersBySlot.TryGetValue(snapshotPlayer.Slot, out var existingPlayer);
+            PlayerEntity player;
+            if (!hadRemotePlayer)
             {
                 ReserveEntityId(snapshotPlayer.PlayerId);
                 player = new PlayerEntity(
@@ -713,8 +783,24 @@ public sealed partial class SimulationWorld
                     snapshotPlayer.Name);
                 _remoteSnapshotPlayersBySlot[snapshotPlayer.Slot] = player;
             }
+            else
+            {
+                player = existingPlayer!;
+            }
 
+            var wasAlive = player.IsAlive;
+            var previousGibDeaths = player.GibDeaths;
+            SynchronizeNetworkGibDeathPresentationCount(player.Id, snapshotPlayer.GibDeaths);
             ApplySnapshotPlayer(player, snapshotPlayer);
+            if (hadRemotePlayer
+                && wasAlive
+                && !player.IsAlive
+                && snapshotPlayer.GibDeaths > previousGibDeaths
+                && TryMarkNetworkGibDeathPresented(player.Id, snapshotPlayer.GibDeaths))
+            {
+                SpawnClientPlayerGibsFromNetworkDeath(player);
+            }
+
             if (snapshotPlayer.IsAwaitingJoin)
             {
                 _remoteSnapshotAwaitingJoinSlots.Add(snapshotPlayer.Slot);
@@ -736,8 +822,46 @@ public sealed partial class SimulationWorld
 
         for (var index = 0; index < _snapshotStaleRemotePlayerSlots.Count; index += 1)
         {
-            _remoteSnapshotPlayersBySlot.Remove(_snapshotStaleRemotePlayerSlots[index]);
+            var slot = _snapshotStaleRemotePlayerSlots[index];
+            if (_remoteSnapshotPlayersBySlot.Remove(slot, out var removedPlayer))
+            {
+                _presentedNetworkGibDeathCountsByPlayerId.Remove(removedPlayer.Id);
+            }
         }
+    }
+
+    private void SynchronizeNetworkGibDeathPresentationCount(int playerId, int observedGibDeaths)
+    {
+        if (!_presentedNetworkGibDeathCountsByPlayerId.TryGetValue(playerId, out var presentedGibDeaths)
+            || observedGibDeaths >= presentedGibDeaths)
+        {
+            return;
+        }
+
+        if (observedGibDeaths <= 0)
+        {
+            _presentedNetworkGibDeathCountsByPlayerId.Remove(playerId);
+            return;
+        }
+
+        _presentedNetworkGibDeathCountsByPlayerId[playerId] = observedGibDeaths;
+    }
+
+    private bool TryMarkNetworkGibDeathPresented(int playerId, int gibDeaths)
+    {
+        if (gibDeaths <= 0)
+        {
+            return false;
+        }
+
+        if (_presentedNetworkGibDeathCountsByPlayerId.TryGetValue(playerId, out var presentedGibDeaths)
+            && gibDeaths <= presentedGibDeaths)
+        {
+            return false;
+        }
+
+        _presentedNetworkGibDeathCountsByPlayerId[playerId] = gibDeaths;
+        return true;
     }
 
     private void SyncSnapshotEntities<TState, TEntity>(

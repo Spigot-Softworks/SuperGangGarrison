@@ -127,6 +127,69 @@ public static partial class ProtocolCodec
         return events;
     }
 
+    private static void WriteRocketSpawnEvents(BinaryWriter writer, IReadOnlyList<SnapshotRocketSpawnEvent> rocketSpawnEvents)
+    {
+        writer.Write((ushort)rocketSpawnEvents.Count);
+        for (var index = 0; index < rocketSpawnEvents.Count; index += 1)
+        {
+            var e = rocketSpawnEvents[index];
+            writer.Write(e.Id);
+            writer.Write(e.Team);
+            writer.Write(e.OwnerId);
+            writer.Write(e.X);
+            writer.Write(e.Y);
+            writer.Write(e.PreviousX);
+            writer.Write(e.PreviousY);
+            writer.Write(e.DirectionRadians);
+            writer.Write(e.Speed);
+            writer.Write(e.TicksRemaining);
+            writer.Write(e.ReducedKnockbackSourceTicksRemaining);
+            writer.Write(e.ZeroKnockbackSourceTicksRemaining);
+            writer.Write(e.RangeAnchorOwnerId);
+            writer.Write(e.LastKnownRangeOriginX);
+            writer.Write(e.LastKnownRangeOriginY);
+            writer.Write(e.DistanceToTravel);
+            writer.Write(e.IsFading);
+            writer.Write(e.FadeSourceTicksRemaining);
+            writer.Write(e.ExplodeImmediately);
+            writer.Write(e.IsCritical);
+            writer.Write(e.EventId);
+        }
+    }
+
+    private static List<SnapshotRocketSpawnEvent> ReadRocketSpawnEvents(BinaryReader reader)
+    {
+        var count = reader.ReadUInt16();
+        var events = new List<SnapshotRocketSpawnEvent>(count);
+        for (var index = 0; index < count; index += 1)
+        {
+            events.Add(new SnapshotRocketSpawnEvent(
+                reader.ReadInt32(),
+                reader.ReadByte(),
+                reader.ReadInt32(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadInt32(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadInt32(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadBoolean(),
+                reader.ReadSingle(),
+                reader.ReadBoolean(),
+                reader.ReadBoolean(),
+                reader.ReadUInt64()));
+        }
+
+        return events;
+    }
+
     private static void WritePlayerGibStates(BinaryWriter writer, IReadOnlyList<SnapshotPlayerGibState> playerGibs)
     {
         writer.Write((ushort)playerGibs.Count);

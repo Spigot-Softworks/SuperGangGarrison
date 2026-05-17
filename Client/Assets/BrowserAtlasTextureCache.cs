@@ -67,7 +67,8 @@ internal sealed class BrowserAtlasTextureCache(GraphicsDevice graphicsDevice) : 
             page.Texture,
             clampedRect,
             OwnsTexture: false,
-            OpaqueBounds: GetOpaqueBounds(page, clampedRect));
+            OpaqueBounds: GetOpaqueBounds(page, clampedRect),
+            PixelSource: page.PixelSource);
     }
 
     public void Dispose()
@@ -162,4 +163,7 @@ internal sealed record BrowserLoadedAtlasPage(
     Texture2D Texture,
     XnaColor[] PixelData,
     int Width,
-    int Height);
+    int Height)
+{
+    public LoadedSpriteFramePixelSource PixelSource { get; } = new(PixelData, Width, Height);
+}

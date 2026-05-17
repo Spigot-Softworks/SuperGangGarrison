@@ -259,6 +259,7 @@ public partial class Game1
             DropIntel = false,
             UseAbility = false,
             InteractWeapon = false,
+            SwapWeapon = false,
         };
     }
 

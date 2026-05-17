@@ -486,6 +486,7 @@ internal sealed class NetworkGameClient : IDisposable
         if (input.DropIntel) buttons |= InputButtons.DropIntel;
         if (input.UseAbility) buttons |= InputButtons.UseAbility;
         if (input.InteractWeapon) buttons |= InputButtons.InteractWeapon;
+        if (input.SwapWeapon) buttons |= InputButtons.SwapWeapon;
 
         SendPendingControlCommands();
         var sequence = _nextInputSequence++;

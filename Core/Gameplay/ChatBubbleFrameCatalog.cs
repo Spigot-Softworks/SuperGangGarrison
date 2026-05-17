@@ -29,10 +29,10 @@ public static class ChatBubbleFrameCatalog
             PlayerClass.Soldier => offset + 2,
             PlayerClass.Demoman => offset + 3,
             PlayerClass.Heavy => offset + 4,
-            PlayerClass.Engineer => offset + 5,
-            PlayerClass.Medic => offset + 6,
-            PlayerClass.Sniper => offset + 7,
-            PlayerClass.Spy => offset + 8,
+            PlayerClass.Medic => offset + 5,
+            PlayerClass.Engineer => offset + 6,
+            PlayerClass.Spy => offset + 7,
+            PlayerClass.Sniper => offset + 8,
             _ => Alert,
         };
     }

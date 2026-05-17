@@ -1,3 +1,5 @@
+using OpenGarrison.GameplayModding;
+
 namespace OpenGarrison.Core.BotBrain;
 
 /// <summary>
@@ -30,7 +32,7 @@ public static class BotInputSynthesizer
         var up = steering.Jump && !previousInput.Up;
         var down = steering.DropDown;
 
-        return new PlayerInputSnapshot(
+        var input = new PlayerInputSnapshot(
             Left: left,
             Right: right,
             Up: up,
@@ -42,7 +44,38 @@ public static class BotInputSynthesizer
             FireSecondary: combat.FireSecondary,
             AimWorldX: aimX,
             AimWorldY: aimY,
-            DebugKill: false,
-            UseAbility: combat.UseAbility);
+            DebugKill: false);
+        return ApplyCombat(self, input, combat, previousInput);
+    }
+
+    public static PlayerInputSnapshot ApplyCombat(
+        PlayerEntity self,
+        PlayerInputSnapshot input,
+        CombatFireDecision combat,
+        PlayerInputSnapshot previousInput)
+    {
+        var useAbility = combat.UseAbility;
+        var swapWeapon = input.SwapWeapon;
+        if (self.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SoldierSecondaryWeapon))
+        {
+            if (self.HasExperimentalOffhandWeapon)
+            {
+                var wantsOffhand = combat.UseAbility;
+                if (wantsOffhand != self.IsExperimentalOffhandSelected && !previousInput.SwapWeapon)
+                {
+                    swapWeapon = true;
+                }
+            }
+
+            useAbility = false;
+        }
+
+        return input with
+        {
+            FirePrimary = combat.FirePrimary,
+            FireSecondary = combat.FireSecondary,
+            UseAbility = useAbility,
+            SwapWeapon = swapWeapon,
+        };
     }
 }

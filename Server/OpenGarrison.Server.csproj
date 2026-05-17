@@ -19,7 +19,7 @@
     <EnablePreviewFeatures>true</EnablePreviewFeatures>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(OpenGarrisonPackageScriptOwnsContent)' != 'true'">
     <None Include="..\Core\Content\StockMaps\**\*">
       <TargetPath>Content\StockMaps\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -86,13 +86,13 @@
 
   <Target Name="GenerateRuntimeAssetManifest"
           AfterTargets="Build"
-          Condition="'$(DesignTimeBuild)' != 'true'">
+          Condition="'$(OpenGarrisonPackageScriptOwnsContent)' != 'true' and '$(DesignTimeBuild)' != 'true'">
     <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\..\Tools\BrowserAssetBuilder\OpenGarrison.Tools.BrowserAssetBuilder.csproj&quot; -- &quot;$(TargetDir)Content&quot; --manifest-only" />
   </Target>
 
   <Target Name="GeneratePublishedRuntimeAssetManifest"
           AfterTargets="Publish"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(PublishDir)' != ''">
+          Condition="'$(OpenGarrisonPackageScriptOwnsContent)' != 'true' and '$(DesignTimeBuild)' != 'true' and '$(PublishDir)' != ''">
     <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\..\Tools\BrowserAssetBuilder\OpenGarrison.Tools.BrowserAssetBuilder.csproj&quot; -- &quot;$(PublishDir)Content&quot; --manifest-only" />
   </Target>
 

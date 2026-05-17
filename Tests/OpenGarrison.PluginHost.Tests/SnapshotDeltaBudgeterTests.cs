@@ -1,4 +1,5 @@
 using System.Net;
+using System.Globalization;
 using System.Reflection;
 using OpenGarrison.Core;
 using OpenGarrison.GameplayModding;
@@ -258,7 +259,60 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
-    public void BuildBudgetedSnapshotCullsFarTransientEventsBeforeBudgeting()
+    public void BuildBudgetedSnapshotDoesNotClearAllMovementWhenEstimatesUnderrun()
+    {
+        var baselinePlayers = Enumerable.Range(0, 16)
+            .Select(index => CreatePlayerState((byte)(index + 1), 1200 + index, $"Moving Player {index:D2}"))
+            .ToArray();
+        var currentPlayers = baselinePlayers
+            .Select(player => player with
+            {
+                X = player.X + 18f,
+                HorizontalSpeed = 7f,
+                AimDirectionDegrees = player.AimDirectionDegrees + 12f,
+            })
+            .ToArray();
+        var baseline = CreateSnapshot(340) with
+        {
+            Players = baselinePlayers,
+        };
+        var current = CreateSnapshot(341) with
+        {
+            Players = currentPlayers,
+        };
+        var contributions = new List<SnapshotDeltaBudgeter.Contribution>
+        {
+            new(
+                Priority: 2000,
+                DistanceSquared: 0f,
+                EstimatedBytes: 1,
+                Apply: builder => builder.PlayerMovementStates.Add(CreateMovementState(currentPlayers[0])),
+                Kind: SnapshotDeltaBudgeter.ContributionKind.LocalPlayerUpdate),
+        };
+        for (var index = 1; index < currentPlayers.Length; index += 1)
+        {
+            var player = currentPlayers[index];
+            contributions.Add(new SnapshotDeltaBudgeter.Contribution(
+                Priority: 1800 - index,
+                DistanceSquared: index,
+                EstimatedBytes: 1,
+                Apply: builder => builder.PlayerMovementStates.Add(CreateMovementState(player)),
+                Kind: SnapshotDeltaBudgeter.ContributionKind.PlayerMovementUpdate));
+        }
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(
+            current,
+            baseline,
+            contributions,
+            targetPayloadBytes: 260);
+
+        Assert.True(result.Payload.Length <= 260);
+        Assert.NotEmpty(result.Message.PlayerMovementStates);
+        Assert.Contains(result.Message.PlayerMovementStates, player => player.Slot == currentPlayers[0].Slot);
+    }
+
+    [Fact]
+    public void BuildBudgetedSnapshotPreservesFarTransientEventsWhenUnderBudget()
     {
         var world = new SimulationWorld();
         var nearX = world.Bounds.Width / 2f;
@@ -281,6 +335,38 @@ public sealed class SnapshotDeltaBudgeterTests
                 new SnapshotDamageEvent(25, 1, -1, 1, 10, nearX, nearY, false, EventId: 5, SourceFrame: 601),
                 new SnapshotDamageEvent(25, 1, -1, 1, 10, 5000f, 5000f, false, EventId: 6, SourceFrame: 601),
             ],
+            RocketSpawnEvents =
+            [
+                new SnapshotRocketSpawnEvent(
+                    701,
+                    1,
+                    5,
+                    nearX,
+                    nearY,
+                    nearX - 4f,
+                    nearY,
+                    0f,
+                    240f,
+                    20,
+                    EventId: 7),
+                new SnapshotRocketSpawnEvent(
+                    702,
+                    1,
+                    5,
+                    5000f,
+                    5000f,
+                    4996f,
+                    5000f,
+                    0f,
+                    240f,
+                    20,
+                    EventId: 8),
+            ],
+            GibSpawnEvents =
+            [
+                new SnapshotGibSpawnEvent("near-gib", 0, nearX, nearY, 1f, -2f, 15f, 0.4f, 0.5f, 120, 1f, EventId: 9),
+                new SnapshotGibSpawnEvent("far-gib", 0, 5000f, 5000f, 1f, -2f, 15f, 0.4f, 0.5f, 120, 1f, EventId: 10),
+            ],
         };
         var client = new ClientSession(
             1,
@@ -292,12 +378,43 @@ public sealed class SnapshotDeltaBudgeterTests
 
         var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 64 * 1024);
 
-        var soundEvent = Assert.Single(result.Message.SoundEvents);
-        var visualEvent = Assert.Single(result.Message.VisualEvents);
-        var damageEvent = Assert.Single(result.Message.DamageEvents);
-        Assert.Equal("near-sound", soundEvent.SoundName);
-        Assert.Equal("near-visual", visualEvent.EffectName);
-        Assert.Equal<ulong>(5, damageEvent.EventId);
+        Assert.Equal(2, result.Message.SoundEvents.Count);
+        Assert.Equal(2, result.Message.VisualEvents.Count);
+        Assert.Equal(2, result.Message.DamageEvents.Count);
+        Assert.Equal(2, result.Message.RocketSpawnEvents.Count);
+        Assert.Equal(2, result.Message.GibSpawnEvents.Count);
+        Assert.Contains(result.Message.SoundEvents, soundEvent => soundEvent.SoundName == "far-sound");
+        Assert.Contains(result.Message.VisualEvents, visualEvent => visualEvent.EffectName == "far-visual");
+        Assert.Contains(result.Message.DamageEvents, damageEvent => damageEvent.EventId == 6);
+        Assert.Contains(result.Message.RocketSpawnEvents, rocketEvent => rocketEvent.EventId == 8);
+        Assert.Contains(result.Message.GibSpawnEvents, gibEvent => gibEvent.EventId == 10);
+    }
+
+    [Fact]
+    public void TransientEventBufferRetainsGibSpawnEventsForReplay()
+    {
+        var world = new SimulationWorld();
+        var pendingGibSpawnEvents = GetPendingGibSpawnEvents(world);
+        pendingGibSpawnEvents.Add(new WorldGibSpawnEvent(
+            "HeadS",
+            1,
+            128f,
+            64f,
+            3f,
+            -5f,
+            45f,
+            0.4f,
+            0.5f,
+            180,
+            1.25f));
+        var buffer = new SnapshotTransientEventBuffer(transientEventReplayTicks: 3);
+
+        var events = buffer.CaptureCurrentEvents(world);
+
+        var gibEvent = Assert.Single(events.GibSpawnEvents);
+        Assert.Equal("HeadS", gibEvent.SpriteName);
+        Assert.NotEqual<ulong>(0, gibEvent.EventId);
+        Assert.Empty(world.DrainPendingGibSpawnEvents());
     }
 
     [Fact]
@@ -671,6 +788,62 @@ public sealed class SnapshotDeltaBudgeterTests
         Assert.True(result.Payload.Length <= 900);
         var mergedLocalPlayer = Assert.Single(merged.Players, player => player.Slot == 1);
         Assert.Equal(75, mergedLocalPlayer.Health);
+    }
+
+    [Fact]
+    public void BuildBudgetedSnapshotDoesNotDropSoundsBeforeLowerPriorityVisualsWhenReducingOverage()
+    {
+        var baseline = CreateSnapshot(880);
+        var current = CreateSnapshot(881);
+        var soundEvent = new SnapshotSoundEvent("critical-reminder-sound", 128f, 96f, EventId: 1, SourceFrame: 881);
+        var visualEvents = Enumerable.Range(0, 80)
+            .Select(static index =>
+            {
+                var value = unchecked((uint)(index * 2654435761u));
+                return new SnapshotVisualEvent(
+                    $"visual-{value.ToString("X8", CultureInfo.InvariantCulture)}",
+                    128f + index,
+                    96f - index,
+                    index,
+                    1,
+                    EventId: (ulong)(index + 2));
+            })
+            .ToArray();
+        var soundOnlyDelta = current with
+        {
+            IsDelta = true,
+            BaselineFrame = baseline.Frame,
+            SoundEvents = [soundEvent],
+        };
+        var targetPayloadBytes = ProtocolCodec.Serialize(
+            soundOnlyDelta,
+            ProtocolCodec.MeasureSerializedSize(soundOnlyDelta),
+            ServerProtocolCompression.Settings).Length + 256;
+        var contributions = new List<SnapshotDeltaBudgeter.Contribution>
+        {
+            new(
+                Priority: 850,
+                DistanceSquared: 0f,
+                EstimatedBytes: 1,
+                Apply: builder => builder.SoundEvents.Add(soundEvent)),
+            new(
+                Priority: 840,
+                DistanceSquared: 0f,
+                EstimatedBytes: 1,
+                Apply: builder =>
+                {
+                    for (var index = 0; index < visualEvents.Length; index += 1)
+                    {
+                        builder.VisualEvents.Add(visualEvents[index]);
+                    }
+                }),
+        };
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes);
+
+        Assert.True(result.Payload.Length <= targetPayloadBytes);
+        Assert.Single(result.Message.SoundEvents);
+        Assert.Empty(result.Message.VisualEvents);
     }
 
     [Fact]
@@ -1228,6 +1401,13 @@ public sealed class SnapshotDeltaBudgeterTests
         {
             SentryGibs = Array.Empty<SnapshotSentryGibState>(),
         };
+    }
+
+    private static List<WorldGibSpawnEvent> GetPendingGibSpawnEvents(SimulationWorld world)
+    {
+        var field = typeof(SimulationWorld).GetField("_pendingGibSpawnEvents", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(field);
+        return Assert.IsType<List<WorldGibSpawnEvent>>(field!.GetValue(world));
     }
 
     private static SnapshotPlayerState CreatePlayerState(byte slot, int playerId, string name)

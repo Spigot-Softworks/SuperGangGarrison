@@ -86,6 +86,14 @@ public sealed class IniConfigurationFile
                 : fallback;
     }
 
+    public float GetFloat(string section, string key, float fallback = 0f)
+    {
+        return TryGetValue(section, key, out var value)
+            && float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+                ? parsed
+                : fallback;
+    }
+
     public bool GetBool(string section, string key, bool fallback = false)
     {
         if (!TryGetValue(section, key, out var value))
@@ -117,6 +125,11 @@ public sealed class IniConfigurationFile
     public void SetInt(string section, string key, int value)
     {
         SetString(section, key, value.ToString(CultureInfo.InvariantCulture));
+    }
+
+    public void SetFloat(string section, string key, float value)
+    {
+        SetString(section, key, value.ToString("0.###", CultureInfo.InvariantCulture));
     }
 
     public void SetBool(string section, string key, bool value)

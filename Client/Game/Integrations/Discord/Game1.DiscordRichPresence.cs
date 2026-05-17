@@ -106,7 +106,7 @@ public partial class Game1
             return DiscordOnlinePumpIntervalSeconds;
         }
 
-        if (IsPracticeSessionActive || IsLastToDieSessionActive)
+        if (IsPracticeSessionActive || IsLastToDieSessionActive || IsJumpSessionActive)
         {
             return DiscordOfflinePumpIntervalSeconds;
         }
@@ -159,6 +159,11 @@ public partial class Game1
             return $"practice:{_world.Level.Name}";
         }
 
+        if (IsJumpSessionActive)
+        {
+            return $"jump:{_world.Level.Name}";
+        }
+
         if (_networkClient.IsConnected && _networkClient.IsReplayConnection)
         {
             return $"replay:{_networkClient.ReplayDisplayName}:{_networkClient.ReplayServerName}:{ResolveDiscordReplayMapName()}:{FormatDiscordReplayDate(_networkClient.ReplayDateUtc)}";
@@ -208,6 +213,16 @@ public partial class Game1
             return new RichPresence
             {
                 Details = $"Practice | {_world.Level.Name}",
+                Timestamps = new Timestamps(startTimestampUtc)
+            };
+        }
+
+        if (IsJumpSessionActive)
+        {
+            return new RichPresence
+            {
+                Details = "Jump",
+                State = _world.Level.Name,
                 Timestamps = new Timestamps(startTimestampUtc)
             };
         }
@@ -408,6 +423,7 @@ public partial class Game1
             }
 
             if (stateKey.StartsWith("practice:", StringComparison.Ordinal)
+                || stateKey.StartsWith("jump:", StringComparison.Ordinal)
                 || stateKey.StartsWith("last_to_die:", StringComparison.Ordinal)
                 || stateKey.StartsWith("replay:", StringComparison.Ordinal)
                 || stateKey.Equals("garrison_builder", StringComparison.Ordinal))

@@ -53,6 +53,7 @@ public sealed partial class SimulationWorld
         var primaryPressed = input.FirePrimary && !previousInput.FirePrimary;
         var secondaryAbilityPressed = input.FireSecondary && !previousInput.FireSecondary;
         var abilityPressed = input.UseAbility && !previousInput.UseAbility;
+        var swapWeaponPressed = input.SwapWeapon && !previousInput.SwapWeapon;
         var secondaryWeaponTriggeredPyroSelfAirblast = player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.PyroUtility)
             && abilityPressed
             && player.CanFirePyroAirblast();
@@ -133,12 +134,18 @@ public sealed partial class SimulationWorld
             TryHandleNetworkSecondaryAbility(player, input, preAdvanceX, preAdvanceY);
         }
 
+        var swappedWeaponThisTick = false;
+        if (swapWeaponPressed)
+        {
+            swappedWeaponThisTick = TryHandleNetworkWeaponSwap(player);
+        }
+
         if (abilityPressed)
         {
-            TryHandleNetworkAbilityInput(player, input);
+            var abilityInputConsumedByWeaponSwap = TryHandleNetworkAbilityInput(player, input, swappedWeaponThisTick);
 
             // Start charging spy superjump when Space is pressed
-            if (player.ClassId == PlayerClass.Spy)
+            if (!abilityInputConsumedByWeaponSwap && player.ClassId == PlayerClass.Spy)
             {
                 var directionDegrees = PointDirectionDegrees(player.X, player.Y, input.AimWorldX, input.AimWorldY);
                 player.TryStartSpySuperjumpCharge(directionDegrees, input.Left, input.Right, input.Up, input.Down);

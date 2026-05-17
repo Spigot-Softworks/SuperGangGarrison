@@ -12,6 +12,8 @@ public static partial class ProtocolCodec
     private const float QuantizedChatBubbleAlphaScale = 255f;
     private const float QuantizedSpyCloakAlphaScale = 255f;
     private const float QuantizedMedicUberChargeScale = 4f;
+    private const float QuantizedMovementTauntFrameScale = 4f;
+    private const float QuantizedMovementBurnIntensityScale = 100f;
 
     private static void WriteSnapshot(BinaryWriter writer, SnapshotMessage snapshot)
     {
@@ -60,6 +62,7 @@ public static partial class ProtocolCodec
         WriteEntityIdList(writer, snapshot.RemovedRevolverShotIds);
         WriteRocketStates(writer, snapshot.Rockets);
         WriteEntityIdList(writer, snapshot.RemovedRocketIds);
+        WriteRocketSpawnEvents(writer, snapshot.RocketSpawnEvents);
         WriteFlameStates(writer, snapshot.Flames);
         WriteEntityIdList(writer, snapshot.RemovedFlameIds);
         WriteShotStates(writer, snapshot.Flares);
@@ -140,6 +143,7 @@ public static partial class ProtocolCodec
         var removedRevolverShotIds = ReadEntityIdList(reader);
         var rockets = ReadRocketStates(reader);
         var removedRocketIds = ReadEntityIdList(reader);
+        var rocketSpawnEvents = ReadRocketSpawnEvents(reader);
         var flames = ReadFlameStates(reader);
         var removedFlameIds = ReadEntityIdList(reader);
         var flares = ReadShotStates(reader);
@@ -241,6 +245,7 @@ public static partial class ProtocolCodec
             RemovedNeedleIds = removedNeedleIds,
             RemovedRevolverShotIds = removedRevolverShotIds,
             RemovedRocketIds = removedRocketIds,
+            RocketSpawnEvents = rocketSpawnEvents,
             RemovedFlameIds = removedFlameIds,
             RemovedFlareIds = removedFlareIds,
             RemovedMineIds = removedMineIds,
@@ -576,21 +581,22 @@ public static partial class ProtocolCodec
             writer.Write(QuantizePosition(state.Y));
             writer.Write(QuantizePosition(state.HorizontalSpeed));
             writer.Write(QuantizePosition(state.VerticalSpeed));
-            writer.Write(state.IsGrounded);
-            writer.Write(state.RemainingAirJumps);
-            writer.Write(state.FacingDirectionX);
-            writer.Write(state.AimDirectionDegrees);
+            writer.Write(GetMovementFlags(
+                state.IsGrounded,
+                state.FacingDirectionX < 0f,
+                state.IsMedicHealing,
+                state.IsTaunting));
+            WriteVariableInt32(writer, state.RemainingAirJumps);
+            writer.Write(QuantizeAngleDegrees(state.AimDirectionDegrees));
             writer.Write(state.MovementState);
-            writer.Write(state.IsTaunting);
-            writer.Write(state.TauntFrameIndex);
-            writer.Write(state.BurnIntensity);
+            writer.Write(QuantizeScaledUInt16(state.TauntFrameIndex, QuantizedMovementTauntFrameScale));
+            writer.Write(QuantizeScaledUInt16(state.BurnIntensity, QuantizedMovementBurnIntensityScale));
             writer.Write(state.GameplayEquippedSlot);
-            writer.Write(state.PrimaryCooldownTicks);
-            writer.Write(state.ReloadTicksUntilNextShell);
-            writer.Write(state.OffhandCooldownTicks);
-            writer.Write(state.OffhandReloadTicks);
-            writer.Write(state.MedicHealTargetId);
-            writer.Write(state.IsMedicHealing);
+            WriteVariableInt32(writer, state.PrimaryCooldownTicks);
+            WriteVariableInt32(writer, state.ReloadTicksUntilNextShell);
+            WriteVariableInt32(writer, state.OffhandCooldownTicks);
+            WriteVariableInt32(writer, state.OffhandReloadTicks);
+            WriteVariableInt32(writer, state.MedicHealTargetId);
         }
     }
 
@@ -600,27 +606,45 @@ public static partial class ProtocolCodec
         var states = new List<SnapshotPlayerMovementState>(stateCount);
         for (var index = 0; index < stateCount; index += 1)
         {
+            var slot = reader.ReadByte();
+            var x = DequantizePosition(reader.ReadInt16());
+            var y = DequantizePosition(reader.ReadInt16());
+            var horizontalSpeed = DequantizePosition(reader.ReadInt16());
+            var verticalSpeed = DequantizePosition(reader.ReadInt16());
+            var flags = reader.ReadByte();
+            var remainingAirJumps = ReadVariableInt32(reader);
+            var aimDirectionDegrees = ReadQuantizedAngleDegrees(reader);
+            var movementState = reader.ReadByte();
+            var tauntFrameIndex = ReadScaledUInt16(reader, QuantizedMovementTauntFrameScale);
+            var burnIntensity = ReadScaledUInt16(reader, QuantizedMovementBurnIntensityScale);
+            var gameplayEquippedSlot = reader.ReadByte();
+            var primaryCooldownTicks = ReadVariableInt32(reader);
+            var reloadTicksUntilNextShell = ReadVariableInt32(reader);
+            var offhandCooldownTicks = ReadVariableInt32(reader);
+            var offhandReloadTicks = ReadVariableInt32(reader);
+            var medicHealTargetId = ReadVariableInt32(reader);
+
             states.Add(new SnapshotPlayerMovementState(
-                reader.ReadByte(),
-                DequantizePosition(reader.ReadInt16()),
-                DequantizePosition(reader.ReadInt16()),
-                DequantizePosition(reader.ReadInt16()),
-                DequantizePosition(reader.ReadInt16()),
-                reader.ReadBoolean(),
-                reader.ReadInt32(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadByte(),
-                reader.ReadBoolean(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadByte(),
-                reader.ReadInt32(),
-                reader.ReadInt32(),
-                reader.ReadInt32(),
-                reader.ReadInt32(),
-                reader.ReadInt32(),
-                reader.ReadBoolean()));
+                slot,
+                x,
+                y,
+                horizontalSpeed,
+                verticalSpeed,
+                IsGroundedFromFlags(flags),
+                remainingAirJumps,
+                FacingDirectionXFromFlags(flags),
+                aimDirectionDegrees,
+                movementState,
+                IsTauntingFromFlags(flags),
+                tauntFrameIndex,
+                burnIntensity,
+                gameplayEquippedSlot,
+                primaryCooldownTicks,
+                reloadTicksUntilNextShell,
+                offhandCooldownTicks,
+                offhandReloadTicks,
+                medicHealTargetId,
+                IsMedicHealingFromFlags(flags)));
         }
 
         return states;
@@ -763,7 +787,7 @@ public static partial class ProtocolCodec
         return states;
     }
 
-    private static byte GetMovementFlags(bool isGrounded, bool isFacingLeft, bool isMedicHealing)
+    private static byte GetMovementFlags(bool isGrounded, bool isFacingLeft, bool isMedicHealing, bool isTaunting)
     {
         byte flags = 0;
         if (isGrounded)
@@ -781,6 +805,11 @@ public static partial class ProtocolCodec
             flags |= 0x04;
         }
 
+        if (isTaunting)
+        {
+            flags |= 0x08;
+        }
+
         return flags;
     }
 
@@ -789,6 +818,8 @@ public static partial class ProtocolCodec
     private static float FacingDirectionXFromFlags(byte flags) => (flags & 0x02) != 0 ? -1f : 1f;
 
     private static bool IsMedicHealingFromFlags(byte flags) => (flags & 0x04) != 0;
+
+    private static bool IsTauntingFromFlags(byte flags) => (flags & 0x08) != 0;
 
     private static byte GetStatusFlags(bool isCarryingIntel) => isCarryingIntel ? (byte)0x01 : (byte)0x00;
 
@@ -904,6 +935,56 @@ public static partial class ProtocolCodec
     private static float ReadScaledUInt16(BinaryReader reader, float scale)
     {
         return reader.ReadUInt16() / scale;
+    }
+
+    private static void WriteVariableInt32(BinaryWriter writer, int value)
+    {
+        WriteVariableUInt32(writer, EncodeZigZagInt32(value));
+    }
+
+    private static int ReadVariableInt32(BinaryReader reader)
+    {
+        return DecodeZigZagInt32(ReadVariableUInt32(reader));
+    }
+
+    private static void WriteVariableUInt32(BinaryWriter writer, uint value)
+    {
+        while (value >= 0x80)
+        {
+            writer.Write((byte)((value & 0x7f) | 0x80));
+            value >>= 7;
+        }
+
+        writer.Write((byte)value);
+    }
+
+    private static uint ReadVariableUInt32(BinaryReader reader)
+    {
+        uint value = 0;
+        var shift = 0;
+        for (var index = 0; index < 5; index += 1)
+        {
+            var next = reader.ReadByte();
+            value |= (uint)(next & 0x7f) << shift;
+            if ((next & 0x80) == 0)
+            {
+                return value;
+            }
+
+            shift += 7;
+        }
+
+        throw new IOException("Variable-length integer exceeds Int32 range.");
+    }
+
+    private static uint EncodeZigZagInt32(int value)
+    {
+        return unchecked((uint)((value << 1) ^ (value >> 31)));
+    }
+
+    private static int DecodeZigZagInt32(uint value)
+    {
+        return unchecked((int)((value >> 1) ^ (uint)-(int)(value & 1)));
     }
 
     private static void WriteReplicatedStateEntries(BinaryWriter writer, IReadOnlyList<SnapshotReplicatedStateEntry>? entries)

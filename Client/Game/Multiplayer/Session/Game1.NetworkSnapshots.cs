@@ -212,12 +212,18 @@ public partial class Game1
 
     private void CaptureSmoothingTrackForLocalPlayer(SnapshotMessage snapshot)
     {
-        if (!_networkClient.IsConnected || !_world.LocalPlayerAwaitingJoin || !_world.LocalPlayer.IsAlive)
+        if (!_networkClient.IsConnected || _world.LocalPlayerAwaitingJoin || !_world.LocalPlayer.IsAlive)
         {
             return;
         }
 
         var localPlayerStateKey = GetResolvedLocalPlayerId();
+        _entityInterpolationTracks.Remove(localPlayerStateKey);
+        if (!_networkClient.IsReplayConnection)
+        {
+            return;
+        }
+
         var currentRenderPosition = GetRenderPosition(localPlayerStateKey, _world.LocalPlayer.X, _world.LocalPlayer.Y, allowInterpolation: true);
         var targetPosition = new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
         if (Vector2.DistanceSquared(currentRenderPosition, targetPosition) <= 0.0001f)

@@ -56,9 +56,13 @@ public sealed partial class SimulationWorld
 
     private bool TryHandleExperimentalOffhandPrimaryFire(PlayerEntity player, PlayerInputSnapshot input)
     {
+        if (TryHandleExperimentalEngineerBeamPrimaryFire(player, input))
+        {
+            return true;
+        }
+
         if (!input.FirePrimary
-            || !player.IsExperimentalOffhandEquipped
-            || !player.HasExperimentalOffhandWeapon)
+            || !player.IsExperimentalOffhandSelected)
         {
             return false;
         }
@@ -147,32 +151,8 @@ public sealed partial class SimulationWorld
 
     private bool TryHandleEquippedPrimaryFire(PlayerEntity player, PlayerInputSnapshot input, bool primaryPressed, bool suppressPyroPrimaryThisTick)
     {
-        if (HasExperimentalEngineerFreezeRay(player))
+        if (TryHandleExperimentalEngineerBeamPrimaryFire(player, input))
         {
-            if (input.FirePrimary)
-            {
-                UpdateExperimentalEngineerFreezeRay(player, input.AimWorldX, input.AimWorldY);
-            }
-            else
-            {
-                player.ClearMedicHealingTarget();
-            }
-
-            return true;
-        }
-
-        if (HasExperimentalEngineerEssenceExtractor(player))
-        {
-            if (input.FirePrimary)
-            {
-                UpdateExperimentalEngineerEssenceExtractor(player, input.AimWorldX, input.AimWorldY);
-            }
-            else
-            {
-                FlushExperimentalEngineerEssenceExtractorHealing(player);
-                player.ClearMedicHealingTarget();
-            }
-
             return true;
         }
 
@@ -229,6 +209,40 @@ public sealed partial class SimulationWorld
         return false;
     }
 
+    private bool TryHandleExperimentalEngineerBeamPrimaryFire(PlayerEntity player, PlayerInputSnapshot input)
+    {
+        if (HasExperimentalEngineerFreezeRay(player))
+        {
+            if (input.FirePrimary)
+            {
+                UpdateExperimentalEngineerFreezeRay(player, input.AimWorldX, input.AimWorldY);
+            }
+            else
+            {
+                player.ClearMedicHealingTarget();
+            }
+
+            return true;
+        }
+
+        if (HasExperimentalEngineerEssenceExtractor(player))
+        {
+            if (input.FirePrimary)
+            {
+                UpdateExperimentalEngineerEssenceExtractor(player, input.AimWorldX, input.AimWorldY);
+            }
+            else
+            {
+                FlushExperimentalEngineerEssenceExtractorHealing(player);
+                player.ClearMedicHealingTarget();
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
     private void TryHandleNetworkSecondaryAbility(PlayerEntity player, PlayerInputSnapshot input, float sourceX, float sourceY)
     {
         // Allow demoman to detonate mines even while taunting
@@ -247,11 +261,6 @@ public sealed partial class SimulationWorld
         }
 
         if (player.IsExperimentalCryoFrozen)
-        {
-            return;
-        }
-
-        if (TryHandleSoldierOffhandToggle(player))
         {
             return;
         }
@@ -307,24 +316,10 @@ public sealed partial class SimulationWorld
         }
 
         if (player.ClassId == PlayerClass.Engineer
-            && player.IsExperimentalOffhandEquipped
+            && !player.IsAcquiredWeaponEquipped
             && HasExperimentalEngineerAlternateWeaponAvailable(player))
         {
-            var maxOwnedSentries = GetExperimentalMaxOwnedSentries(player);
-            if (maxOwnedSentries > 1)
-            {
-                if (GetExperimentalOwnedSentryCount(player.Id) < maxOwnedSentries)
-                {
-                    TryBuildSentry(player);
-                    return;
-                }
-            }
-
-            if (!TryDestroySentry(player))
-            {
-                TryBuildSentry(player);
-            }
-
+            HandleEngineerPdaSentryCommand(player);
             return;
         }
 
@@ -345,21 +340,7 @@ public sealed partial class SimulationWorld
                 return;
             }
 
-            var maxOwnedSentries = GetExperimentalMaxOwnedSentries(player);
-            if (maxOwnedSentries > 1)
-            {
-                if (GetExperimentalOwnedSentryCount(player.Id) < maxOwnedSentries)
-                {
-                    TryBuildSentry(player);
-                    return;
-                }
-            }
-
-            if (!TryDestroySentry(player))
-            {
-                TryBuildSentry(player);
-            }
-
+            HandleEngineerPdaSentryCommand(player);
             return;
         }
 
@@ -424,19 +405,36 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private static bool TryHandleSoldierOffhandToggle(PlayerEntity player)
+    private void HandleEngineerPdaSentryCommand(PlayerEntity player)
     {
-        if (player.ClassId != PlayerClass.Soldier || !player.HasExperimentalOffhandWeapon)
+        var maxOwnedSentries = GetExperimentalMaxOwnedSentries(player);
+        if (maxOwnedSentries > 1 && GetExperimentalOwnedSentryCount(player.Id) < maxOwnedSentries)
+        {
+            TryBuildSentry(player);
+            return;
+        }
+
+        if (!TryDestroySentry(player))
+        {
+            TryBuildSentry(player);
+        }
+    }
+
+    private static bool TryHandleSecondaryWeaponToggle(PlayerEntity player)
+    {
+        if (player.ClassId == PlayerClass.Medic
+            || !player.HasExperimentalOffhandWeapon)
         {
             return false;
         }
 
+        var isOffhandSelected = player.IsExperimentalOffhandSelected;
         if (player.IsAcquiredWeaponEquipped)
         {
             player.StowAcquiredWeapon();
         }
 
-        if (player.IsExperimentalOffhandEquipped)
+        if (isOffhandSelected)
         {
             player.StowExperimentalOffhandWeapon();
         }
@@ -448,33 +446,14 @@ public sealed partial class SimulationWorld
         return true;
     }
 
-    private static bool TryHandleMedicOffhandToggle(PlayerEntity player)
+    private static bool TryHandleNetworkWeaponSwap(PlayerEntity player)
     {
-        if (player.ClassId != PlayerClass.Medic || !player.HasExperimentalOffhandWeapon)
+        if (player.IsTaunting || player.IsExperimentalCryoFrozen)
         {
             return false;
         }
 
-        if (player.IsMedicUbering || player.IsUbered)
-        {
-            return false;
-        }
-
-        if (player.IsAcquiredWeaponEquipped)
-        {
-            player.StowAcquiredWeapon();
-        }
-
-        if (player.IsExperimentalOffhandEquipped)
-        {
-            player.StowExperimentalOffhandWeapon();
-        }
-        else
-        {
-            player.EquipExperimentalOffhandWeapon();
-        }
-
-        return true;
+        return TryHandleSecondaryWeaponToggle(player);
     }
 
     private bool TryHandleExperimentalSoldierStingerDetonation(PlayerEntity player)
@@ -546,32 +525,42 @@ public sealed partial class SimulationWorld
         return true;
     }
 
-    private void TryHandleNetworkAbilityInput(PlayerEntity player, PlayerInputSnapshot input)
+    private bool TryHandleNetworkAbilityInput(PlayerEntity player, PlayerInputSnapshot input, bool swappedWeaponThisTick)
     {
         if (player.IsTaunting)
         {
-            return;
+            return false;
         }
 
-        // Offhand weapon swapping should remain available even if secondary abilities are disabled.
-        if (TryHandleSoldierOffhandToggle(player) || TryHandleMedicOffhandToggle(player))
+        if (swappedWeaponThisTick)
         {
-            return;
+            return true;
+        }
+
+        // Backward compatibility for clients that still send UseAbility for weapon swapping.
+        if (!input.SwapWeapon && TryHandleNetworkWeaponSwap(player))
+        {
+            return true;
         }
 
         if (!ExperimentalGameplaySettings.EnableSecondaryAbilities)
         {
-            return;
+            return false;
         }
 
         if (TryHandleNetworkUtilityAbility(player, input))
         {
-            return;
+            return false;
         }
 
-        // Backward-compatible fallback for sessions where Soldier offhand is enabled
+        // Backward-compatible fallback for sessions where a secondary weapon is enabled
         // but utility loadout behaviors are unavailable.
-        TryHandleLegacyNetworkSecondaryWeaponFire(player, input);
+        if (!input.SwapWeapon)
+        {
+            TryHandleLegacyNetworkSecondaryWeaponToggle(player, input);
+        }
+
+        return false;
     }
 
     private bool TryHandleNetworkUtilityAbility(PlayerEntity player, PlayerInputSnapshot input)
@@ -584,18 +573,17 @@ public sealed partial class SimulationWorld
 
         if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SoldierSecondaryWeapon))
         {
-            TryHandleLegacyNetworkSecondaryWeaponFire(player, input);
+            if (!input.SwapWeapon)
+            {
+                TryHandleLegacyNetworkSecondaryWeaponToggle(player, input);
+            }
+
             return true;
         }
 
         if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUtility)
             || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
         {
-            if (TryHandleMedicOffhandToggle(player))
-            {
-                return true;
-            }
-
             if (player.IsMedicUberReady && player.TryStartMedicUber())
             {
                 AwardMedicUberActivationPoints(player);
@@ -653,10 +641,10 @@ public sealed partial class SimulationWorld
         return false;
     }
 
-    private static void TryHandleLegacyNetworkSecondaryWeaponFire(PlayerEntity player, PlayerInputSnapshot input)
+    private static void TryHandleLegacyNetworkSecondaryWeaponToggle(PlayerEntity player, PlayerInputSnapshot input)
     {
         _ = input;
-        TryHandleSoldierOffhandToggle(player);
+        TryHandleSecondaryWeaponToggle(player);
     }
 
     private void TryHandleNetworkWeaponInteraction(PlayerEntity player)
@@ -677,7 +665,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        if (player.IsExperimentalOffhandEquipped)
+        if (player.IsExperimentalOffhandSelected)
         {
             ClearExperimentalEngineerAlternateWeaponState(player);
             player.StowExperimentalOffhandWeapon();
@@ -725,7 +713,7 @@ public sealed partial class SimulationWorld
             player.SetExperimentalOffhandWeapon(CharacterClassCatalog.Medigun);
         }
 
-        if (!player.IsExperimentalOffhandEquipped)
+        if (!player.IsExperimentalOffhandSelected)
         {
             player.SetExperimentalEngineerAlternateWeaponMode(
                 GetExperimentalEngineerDefaultAlternateWeaponMode(player));

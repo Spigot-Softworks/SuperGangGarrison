@@ -36,7 +36,7 @@ public partial class Game1
                 return;
             }
 
-            var renderPosition = _game.GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _game._world.LocalPlayer));
+            var renderPosition = _game.GetRenderPosition(player);
             var blurDirection = GetExperimentalDemoknightChargeBlurDirection(player);
             if (blurDirection.LengthSquared() <= 0.0001f)
             {
@@ -369,7 +369,7 @@ public partial class Game1
                 return;
             }
 
-            var renderPosition = _game.GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _game._world.LocalPlayer));
+            var renderPosition = _game.GetRenderPosition(player);
             var frameIndex = player.Team == PlayerTeam.Blue ? 1 : 0;
             _game.DrawCenteredHudSprite("DominationS", frameIndex, new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y - 35f), Color.White * visibilityAlpha, Vector2.One);
         }

@@ -14,7 +14,7 @@ public partial class Game1
         var owner = FindPlayerById(stabAnimation.OwnerId);
         var renderPosition = owner is null
             ? new Vector2(stabAnimation.X, stabAnimation.Y)
-            : GetRenderPosition(owner, allowInterpolation: !ReferenceEquals(owner, _world.LocalPlayer));
+            : GetRenderPosition(owner);
         var torsoSprite = GetResolvedSprite(stabAnimation.Team == PlayerTeam.Blue ? "SpyBlueBackstabTorsoS" : "SpyRedBackstabTorsoS");
         if (torsoSprite is null || torsoSprite.Frames.Count == 0)
         {
@@ -501,7 +501,7 @@ public partial class Game1
 
         var weaponName = CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(nearbyWeapon.WeaponClassId).DisplayName.ToUpperInvariant();
         var prompt = $"PRESS Q FOR {weaponName}";
-        var renderPosition = GetRenderPosition(_world.LocalPlayer, allowInterpolation: false);
+        var renderPosition = GetRenderPosition(_world.LocalPlayer);
         var labelPosition = new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y - 42f);
         DrawBitmapFontTextCentered(prompt, labelPosition + new Vector2(2f, 2f), Color.Black * 0.9f, 0.92f);
         DrawBitmapFontTextCentered(prompt, labelPosition, new Color(255, 226, 74), 0.92f);

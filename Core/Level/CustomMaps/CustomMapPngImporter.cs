@@ -49,13 +49,14 @@ public static class CustomMapPngImporter
             return null;
         }
 
-        var mapScale = ResolveMapScale(metadata, entities, walkmaskSection);
+        var visualScale = ResolveMetadataScale(metadata);
+        var mapScale = ResolveMapScale(visualScale, entities, walkmaskSection);
         if (!TryDecodeWalkmask(walkmaskSection, mapScale, out var solids, out var bounds))
         {
             return null;
         }
 
-        var visuals = DecodeVisualMetadata(metadata, mapScale);
+        var visuals = DecodeVisualMetadata(metadata, visualScale);
         var room = BuildRoomMetadata(Path.GetFileNameWithoutExtension(pngPath), pngPath, bounds, entities, visuals);
         return new Result(room, solids);
     }
@@ -129,7 +130,7 @@ public static class CustomMapPngImporter
             return;
         }
 
-        builder.Append(Encoding.UTF8.GetString(chunkData, separatorIndex + 1, chunkData.Length - separatorIndex - 1));
+        builder.Append(Encoding.Latin1.GetString(chunkData, separatorIndex + 1, chunkData.Length - separatorIndex - 1));
     }
 
     private static void AppendCompressedTextChunk(StringBuilder builder, byte[] chunkData)
@@ -142,7 +143,7 @@ public static class CustomMapPngImporter
 
         using var compressedStream = new MemoryStream(chunkData, separatorIndex + 2, chunkData.Length - separatorIndex - 2, writable: false);
         using var zlibStream = new ZLibStream(compressedStream, CompressionMode.Decompress);
-        using var reader = new StreamReader(zlibStream, Encoding.UTF8);
+        using var reader = new StreamReader(zlibStream, Encoding.Latin1);
         builder.Append(reader.ReadToEnd());
     }
 
@@ -594,19 +595,13 @@ public static class CustomMapPngImporter
 
             if (!TryGetString(entityMap, "type", out var entityType))
             {
+                CopyUntypedMetadataMap(entityMap, decodedMetadata);
                 continue;
             }
 
             if (entityType.Equals("meta", StringComparison.OrdinalIgnoreCase))
             {
-                foreach (var entry in entityMap.Entries)
-                {
-                    if (entry.Value is GgonValue.Scalar scalar)
-                    {
-                        decodedMetadata[entry.Key] = scalar.Value;
-                    }
-                }
-
+                CopyScalarMetadata(entityMap, decodedMetadata);
                 continue;
             }
 
@@ -632,6 +627,42 @@ public static class CustomMapPngImporter
         entities = decodedEntities;
         metadata = decodedMetadata;
         return true;
+    }
+
+    private static void CopyUntypedMetadataMap(
+        GgonValue.Map entityMap,
+        IDictionary<string, string> metadata)
+    {
+        if (!entityMap.Entries.Keys.Any(IsVisualMetadataKey))
+        {
+            return;
+        }
+
+        CopyScalarMetadata(entityMap, metadata);
+    }
+
+    private static void CopyScalarMetadata(
+        GgonValue.Map entityMap,
+        IDictionary<string, string> metadata)
+    {
+        foreach (var entry in entityMap.Entries)
+        {
+            if (entry.Value is GgonValue.Scalar scalar)
+            {
+                metadata[entry.Key] = scalar.Value;
+            }
+        }
+    }
+
+    private static bool IsVisualMetadataKey(string key)
+    {
+        return key.Equals("background", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("void", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("scale", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("bg_foreground", StringComparison.OrdinalIgnoreCase)
+            || key.StartsWith("bg_layer", StringComparison.OrdinalIgnoreCase)
+            || key.EndsWith("xfactor", StringComparison.OrdinalIgnoreCase)
+            || key.EndsWith("yfactor", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool TryEnumerateList(GgonValue value, out IReadOnlyList<GgonValue> items)
@@ -667,19 +698,23 @@ public static class CustomMapPngImporter
         return false;
     }
 
-    private static float ResolveMapScale(
-        IReadOnlyDictionary<string, string> metadata,
-        IReadOnlyList<ImportedEntity> entities,
-        string walkmaskSection)
+    private static float ResolveMetadataScale(IReadOnlyDictionary<string, string> metadata)
     {
-        var resolvedScale = DefaultCustomMapScale;
         if (metadata.TryGetValue("scale", out var scaleText)
             && float.TryParse(scaleText, NumberStyles.Float, CultureInfo.InvariantCulture, out var scale)
             && scale > 0f)
         {
-            resolvedScale = scale;
+            return scale;
         }
 
+        return DefaultCustomMapScale;
+    }
+
+    private static float ResolveMapScale(
+        float resolvedScale,
+        IReadOnlyList<ImportedEntity> entities,
+        string walkmaskSection)
+    {
         return ShouldUseDefaultScaleForGg2Compatibility(entities, walkmaskSection, resolvedScale)
             ? DefaultCustomMapScale
             : resolvedScale;
