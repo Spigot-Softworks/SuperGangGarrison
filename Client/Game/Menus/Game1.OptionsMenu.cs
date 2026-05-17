@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using OpenGarrison.Client.Plugins;
+using OpenGarrison.ClientShared;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
@@ -15,6 +16,11 @@ public partial class Game1
     private static OfflineBotControllerMode GetNextBotMode(OfflineBotControllerMode botMode)
     {
         return OfflineBotControllerMode.BotBrain;
+    }
+
+    private static string GetBotModeLabel(OfflineBotControllerMode botMode)
+    {
+        return "BotBrain";
     }
 
     private static MusicMode GetNextMusicMode(MusicMode musicMode)
@@ -39,6 +45,24 @@ public partial class Game1
             120 => "120 FPS",
             _ => "Off",
         };
+    }
+
+    private static float NormalizeSmoothCameraMultiplier(float multiplier)
+    {
+        if (float.IsNaN(multiplier) || float.IsInfinity(multiplier))
+        {
+            return ClientSettings.DefaultSmoothCameraMultiplier;
+        }
+
+        return Math.Clamp(multiplier, 0f, 1f);
+    }
+
+    private static string GetSmoothCameraMultiplierLabel(float multiplier)
+    {
+        var normalized = NormalizeSmoothCameraMultiplier(multiplier);
+        return normalized <= 0.01f
+            ? "Off"
+            : $"{MathF.Round(normalized * 100f)}%";
     }
 
     private void BeginEditingPlayerName()
@@ -93,6 +117,30 @@ public partial class Game1
         ApplyConfiguredPracticeBotController(respawnActiveBots: true);
     }
 
+    private void CycleSwapWeaponsBindingSetting()
+    {
+        _inputBindings.SwapWeaponsBinding = InputBindingsSettings.NormalizeSwapWeaponsBinding(_inputBindings.SwapWeaponsBinding) switch
+        {
+            WeaponSwapBindingMode.Space => WeaponSwapBindingMode.MouseSecondary,
+            WeaponSwapBindingMode.MouseSecondary => WeaponSwapBindingMode.Q,
+            WeaponSwapBindingMode.Q => WeaponSwapBindingMode.Custom,
+            _ => WeaponSwapBindingMode.Space,
+        };
+        PersistInputBindings();
+    }
+
+    private string GetSwapWeaponsBindingLabel()
+    {
+        return InputBindingsSettings.NormalizeSwapWeaponsBinding(_inputBindings.SwapWeaponsBinding) switch
+        {
+            WeaponSwapBindingMode.Space => "Space",
+            WeaponSwapBindingMode.MouseSecondary => "M2",
+            WeaponSwapBindingMode.Q => "Q",
+            WeaponSwapBindingMode.Custom => $"Custom ({GetBindingDisplayName(_inputBindings.SwapWeaponsCustomKey)})",
+            _ => "Space",
+        };
+    }
+
     private void CycleIngameResolutionSetting()
     {
         _clientSettings.IngameResolution = GetNextIngameResolution(_clientSettings.IngameResolution);
@@ -118,6 +166,24 @@ public partial class Game1
     private void CycleParticleModeSetting()
     {
         _particleMode = (_particleMode + 2) % 3;
+        PersistClientSettings();
+    }
+
+    private void CycleSmoothCameraMultiplierSetting()
+    {
+        var current = NormalizeSmoothCameraMultiplier(_smoothCameraMultiplier);
+        _smoothCameraMultiplier = current switch
+        {
+            <= 0.01f => ClientSettings.DefaultSmoothCameraMultiplier,
+            < 0.5f => 0.6f,
+            < 0.8f => 0.85f,
+            _ => 0f,
+        };
+        if (_smoothCameraMultiplier <= 0f)
+        {
+            _hasSmoothCameraY = false;
+        }
+
         PersistClientSettings();
     }
 
@@ -196,6 +262,30 @@ public partial class Game1
     private void ToggleShowHealthBarSetting()
     {
         _showHealthBarEnabled = !_showHealthBarEnabled;
+        PersistClientSettings();
+    }
+
+    private void TogglePortraitRumbleSetting()
+    {
+        _portraitRumbleEnabled = !_portraitRumbleEnabled;
+        if (!_portraitRumbleEnabled)
+        {
+            _portraitRumbleRemainingSeconds = 0f;
+            _portraitRumbleIntensity = 0f;
+        }
+
+        PersistClientSettings();
+    }
+
+    private void ToggleDamageVignetteSetting()
+    {
+        _damageVignetteEnabled = !_damageVignetteEnabled;
+        if (!_damageVignetteEnabled)
+        {
+            _damageVignetteIntensity = 0f;
+            _damageVignetteHoldSeconds = 0f;
+        }
+
         PersistClientSettings();
     }
 

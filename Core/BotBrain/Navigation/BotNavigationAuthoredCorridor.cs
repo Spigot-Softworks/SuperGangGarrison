@@ -58,14 +58,14 @@ public static class BotNavigationAuthoredCorridorStore
 
         asset = null!;
         var path = ResolvePath(level.Name, level.MapAreaIndex);
-        if (!File.Exists(path))
+        if (!BotBrainJsonAssetIO.TryResolveReadablePath(path, out var readablePath))
         {
             return false;
         }
 
         try
         {
-            asset = JsonSerializer.Deserialize<BotNavigationAuthoredCorridorAsset>(File.ReadAllText(path), SerializerOptions)!;
+            asset = BotBrainJsonAssetIO.Deserialize<BotNavigationAuthoredCorridorAsset>(readablePath, SerializerOptions)!;
         }
         catch
         {
@@ -84,9 +84,9 @@ public static class BotNavigationAuthoredCorridorStore
 
         var path = ResolvePath(level.Name, level.MapAreaIndex);
         BotNavigationAuthoredCorridorAsset asset;
-        if (File.Exists(path))
+        if (BotBrainJsonAssetIO.TryResolveReadablePath(path, out var readablePath))
         {
-            asset = JsonSerializer.Deserialize<BotNavigationAuthoredCorridorAsset>(File.ReadAllText(path), SerializerOptions)
+            asset = BotBrainJsonAssetIO.Deserialize<BotNavigationAuthoredCorridorAsset>(readablePath, SerializerOptions)
                 ?? new BotNavigationAuthoredCorridorAsset();
         }
         else

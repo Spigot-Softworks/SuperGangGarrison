@@ -16,7 +16,7 @@ public partial class Game1
             return;
         }
 
-        var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
+        var renderPosition = GetRenderPosition(player);
         var sprite = GetResolvedSprite("BubblesS");
         if (sprite is null || sprite.Frames.Count == 0)
         {
@@ -50,7 +50,7 @@ public partial class Game1
             return;
         }
 
-        var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
+        var renderPosition = GetRenderPosition(player);
         var bounds = GetPlayerScreenBounds(player, renderPosition, cameraPosition);
         var barWidth = Math.Max(18, bounds.Width + 4);
         const int barHeight = 4;

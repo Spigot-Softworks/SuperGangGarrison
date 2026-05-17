@@ -11,6 +11,7 @@ public sealed class SteeringMachine
     private const float WaypointReachRadius = NavGraphBuilder.WaypointArrivalRadius;
     private const int WaypointLookaheadSkipCount = 4;
     private const float WaypointLookaheadReachMultiplier = 1.5f;
+    private const float InitialWalkAttachmentVerticalTolerance = 24f;
     private const float EdgeProbeDistance = 18f;
     private const float JumpTriggerDistance = 32f;
     private const float JumpLaunchGateTolerance = 4f;
@@ -20,6 +21,7 @@ public sealed class SteeringMachine
     private const float HorizontalDeadZone = 5f;
     private const float TargetAboveJumpThreshold = -8f;
     private const int JumpRetryCooldownTicks = 6;
+    private const int FastObstacleJumpRetryCooldownTicks = 2;
     private const float MinimumDelayedJumpRunupSpeed = 80f;
     private const int MaximumDelayedJumpRunupTicks = 18;
     private const int GroundedContinuationRecoveryTicks = 45;
@@ -70,6 +72,14 @@ public sealed class SteeringMachine
         if (path is null || path.IsComplete || !player.IsAlive)
         {
             return output;
+        }
+
+        TrySkipInitialWalkAttachment(player, graph, path);
+        if (TrySkipPassedWalkWaypoint(player, graph, path))
+        {
+            _stuckTicks = 0;
+            _stuckEscapePhase = 0;
+            _jumpRetryCooldownTicks = 0;
         }
 
         TryAdvanceToReachedFutureWaypoint(player, graph, path);
@@ -155,7 +165,10 @@ public sealed class SteeringMachine
             ApplyStuckEscape(player, ref output);
         }
 
-        ApplyJumpPulse(ref output);
+        var fastJumpRetry = output.Jump
+            && player.IsGrounded
+            && ShouldUseFastJumpRetry(player, level, team, output.MoveDirection);
+        ApplyJumpPulse(ref output, fastJumpRetry);
         if (output.RecipeTrace.HasRecipe)
         {
             output.RecipeTrace = output.RecipeTrace with
@@ -305,6 +318,7 @@ public sealed class SteeringMachine
         && edge.LaunchRecipe.HasRecipe
         && edge.ProbeMoveDirectionX != 0f
         && (player.ClassId == PlayerClass.Soldier
+            || (mode == GameModeKind.CaptureTheFlag && player.ClassId == PlayerClass.Engineer)
             || (mode == GameModeKind.CaptureTheFlag && player.ClassId == PlayerClass.Heavy)
             || RequiresVerticalCertifiedLaunch(edge));
 
@@ -412,6 +426,96 @@ public sealed class SteeringMachine
 
         while (bestIndex > path.CurrentIndex)
         {
+            path.Advance();
+        }
+    }
+
+    private static bool TrySkipPassedWalkWaypoint(PlayerEntity player, NavGraph graph, NavPath path)
+    {
+        var advanced = false;
+        if (!player.IsGrounded)
+        {
+            return false;
+        }
+
+        while (path.CurrentIndex > 0
+            && path.CurrentIndex + 1 < path.Count
+            && path.TryGetIncomingEdge(path.CurrentIndex, out var incomingEdge)
+            && incomingEdge.Kind == NavEdgeKind.Walk
+            && path.TryGetIncomingEdge(path.CurrentIndex + 1, out var outgoingEdge)
+            && outgoingEdge.Kind == NavEdgeKind.Walk)
+        {
+            var previousNode = graph.GetNode(path.GetWaypoint(path.CurrentIndex - 1));
+            var currentNode = graph.GetNode(path.CurrentNode);
+            var nextNode = graph.GetNode(path.GetWaypoint(path.CurrentIndex + 1));
+            if (!previousNode.SurfaceId.HasValue
+                || previousNode.SurfaceId != currentNode.SurfaceId
+                || currentNode.SurfaceId != nextNode.SurfaceId
+                || MathF.Abs(player.Y - currentNode.Y) > InitialWalkAttachmentVerticalTolerance)
+            {
+                break;
+            }
+
+            var incomingDx = currentNode.X - previousNode.X;
+            var outgoingDx = nextNode.X - currentNode.X;
+            if (MathF.Abs(incomingDx) <= HorizontalDeadZone
+                || MathF.Abs(outgoingDx) <= HorizontalDeadZone)
+            {
+                break;
+            }
+
+            var direction = MathF.Sign(incomingDx);
+            if (MathF.Sign(outgoingDx) != direction)
+            {
+                break;
+            }
+
+            var progressPastCurrent = (player.X - currentNode.X) * direction;
+            if (progressPastCurrent <= WaypointReachRadius)
+            {
+                break;
+            }
+
+            path.Advance();
+            advanced = true;
+        }
+
+        return advanced;
+    }
+
+    private static void TrySkipInitialWalkAttachment(PlayerEntity player, NavGraph graph, NavPath path)
+    {
+        if (path.CurrentIndex != 0 || path.Count < 2 || !player.IsGrounded)
+        {
+            return;
+        }
+
+        while (path.CurrentIndex + 1 < path.Count
+            && path.TryGetIncomingEdge(path.CurrentIndex + 1, out var nextEdge)
+            && nextEdge.Kind == NavEdgeKind.Walk)
+        {
+            var fromNode = graph.GetNode(path.CurrentNode);
+            var toNode = graph.GetNode(path.GetWaypoint(path.CurrentIndex + 1));
+            if (!fromNode.SurfaceId.HasValue
+                || fromNode.SurfaceId != toNode.SurfaceId
+                || MathF.Abs(player.Y - fromNode.Y) > InitialWalkAttachmentVerticalTolerance)
+            {
+                return;
+            }
+
+            var edgeDx = toNode.X - fromNode.X;
+            if (MathF.Abs(edgeDx) <= HorizontalDeadZone)
+            {
+                return;
+            }
+
+            var edgeDirection = MathF.Sign(edgeDx);
+            var progressFromStart = (player.X - fromNode.X) * edgeDirection;
+            if (progressFromStart < -WaypointReachRadius)
+            {
+                return;
+            }
+
             path.Advance();
         }
     }
@@ -873,12 +977,14 @@ public sealed class SteeringMachine
 
             default:
                 output.MoveDirection = moveDir;
+                var jumpableObstacleAhead = IsJumpableObstacleAhead(player, level, team, moveDir);
                 if (assistSemanticWalkClimb && edgeTicks >= 2)
                 {
                     output.Jump = true;
                 }
 
-                if (WouldHitWall(player, level, team, moveDir) && dy <= TargetAboveJumpThreshold)
+                if (jumpableObstacleAhead
+                    || (WouldHitWall(player, level, team, moveDir) && dy <= TargetAboveJumpThreshold))
                 {
                     output.Jump = true;
                 }
@@ -929,6 +1035,10 @@ public sealed class SteeringMachine
         }
     }
 
+    private bool ShouldUseFastJumpRetry(PlayerEntity player, SimpleLevel level, PlayerTeam team, float moveDirection) =>
+        _stuckEscapePhase > 0
+        || IsJumpableObstacleAhead(player, level, team, moveDirection);
+
     private void ApplyStuckEscape(PlayerEntity player, ref SteeringOutput output)
     {
         _stuckEscapeTicks += 1;
@@ -960,7 +1070,7 @@ public sealed class SteeringMachine
         }
     }
 
-    private void ApplyJumpPulse(ref SteeringOutput output)
+    private void ApplyJumpPulse(ref SteeringOutput output, bool fastRetry)
     {
         if (_jumpRetryCooldownTicks > 0)
         {
@@ -972,13 +1082,18 @@ public sealed class SteeringMachine
             return;
         }
 
+        if (fastRetry && _jumpRetryCooldownTicks > FastObstacleJumpRetryCooldownTicks)
+        {
+            _jumpRetryCooldownTicks = FastObstacleJumpRetryCooldownTicks;
+        }
+
         if (_jumpRetryCooldownTicks > 0)
         {
             output.Jump = false;
             return;
         }
 
-        _jumpRetryCooldownTicks = JumpRetryCooldownTicks;
+        _jumpRetryCooldownTicks = fastRetry ? FastObstacleJumpRetryCooldownTicks : JumpRetryCooldownTicks;
     }
 
     private void TrackJumpRequest(NavEdgeKind edgeKind, SteeringOutput output)
@@ -1029,6 +1144,32 @@ public sealed class SteeringMachine
         }
 
         return !player.CanOccupy(level, team, player.X + (direction * 4f), player.Y);
+    }
+
+    private static bool IsJumpableObstacleAhead(PlayerEntity player, SimpleLevel level, PlayerTeam team, float direction)
+    {
+        if (direction == 0f
+            || player.CanOccupy(level, team, player.X + (direction * 4f), player.Y))
+        {
+            return false;
+        }
+
+        return CanClearObstacleAtLift(player, level, team, direction, 16f)
+            || CanClearObstacleAtLift(player, level, team, direction, 28f)
+            || CanClearObstacleAtLift(player, level, team, direction, 40f);
+    }
+
+    private static bool CanClearObstacleAtLift(
+        PlayerEntity player,
+        SimpleLevel level,
+        PlayerTeam team,
+        float direction,
+        float lift)
+    {
+        var liftedY = player.Y - lift;
+        return player.CanOccupy(level, team, player.X, liftedY)
+            && player.CanOccupy(level, team, player.X + (direction * 4f), liftedY)
+            && player.CanOccupy(level, team, player.X + (direction * EdgeProbeDistance), liftedY);
     }
 
     private static float GetMoveDirection(float dx)

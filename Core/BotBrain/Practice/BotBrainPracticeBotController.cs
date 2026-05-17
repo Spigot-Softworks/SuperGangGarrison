@@ -73,6 +73,15 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
         _chatBubbles.Reset();
     }
 
+    /// <summary>
+    /// Test/diagnostic affordance: look up the per-slot brain controller. Intended for
+    /// xUnit harnesses and debug overlays that need to read trace strings and graph state.
+    /// </summary>
+    public bool TryGetBotBrainController(byte slot, out BotBrainController? controller)
+    {
+        return _controllersBySlot.TryGetValue(slot, out controller);
+    }
+
     public void ConfigureSpawnOverrides(
         SimulationWorld world,
         IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots)

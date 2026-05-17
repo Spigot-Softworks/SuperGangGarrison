@@ -151,7 +151,9 @@ internal static class ServerRuntimeBootstrapFactory
             log,
             recordBroadcastNotice: notice => demoRecorder?.RecordBroadcastMessage(notice));
 
-        IPracticeBotController botController = new BotBrainPracticeBotController();
+        var botControllerMode = PracticeBotControllerFactory.ResolveModeFromEnvironment(OfflineBotControllerMode.BotBrain);
+        IPracticeBotController botController = PracticeBotControllerFactory.Create(botControllerMode);
+        log($"Server bot controller: {botControllerMode}");
         botManager = new ServerBotManager(
             world,
             config,

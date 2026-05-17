@@ -36,6 +36,7 @@ internal sealed class ServerBotManager
     
     private readonly Dictionary<byte, ServerBotSlotState> _botSlots = new();
     private readonly Dictionary<byte, ControlledBotSlot> _controlledSlotsBuffer = new();
+    private readonly Dictionary<byte, ControlledBotSlot> _controllerConfigurationSlotsBuffer = new();
     private readonly Dictionary<byte, PlayerInputSnapshot> _inputCache = new();
     private readonly HashSet<byte> _staleSlotsBuffer = new();
     private int _perfSamples;
@@ -110,11 +111,19 @@ internal sealed class ServerBotManager
         var resolvedDisplayName = ResolveBotDisplayName(slot, team, displayName);
         if (!_world.TryPrepareNetworkPlayerJoin(slot)
             || !_world.TrySetNetworkPlayerName(slot, resolvedDisplayName)
-            || !_world.TrySetNetworkPlayerTeam(slot, team)
-            || !_world.TryApplyNetworkPlayerClassSelection(slot, classId))
+            || !_world.TrySetNetworkPlayerTeam(slot, team))
         {
             _world.TryReleaseNetworkPlayerSlot(slot);
             _botDisplayNamePool.ReleaseSlot(slot);
+            return false;
+        }
+
+        ConfigureBotControllerSpawnOverrides(slot, team, classId);
+        if (!_world.TryApplyNetworkPlayerClassSelection(slot, classId))
+        {
+            _world.TryReleaseNetworkPlayerSlot(slot);
+            _botDisplayNamePool.ReleaseSlot(slot);
+            ConfigureBotControllerSpawnOverrides();
             return false;
         }
 
@@ -142,6 +151,7 @@ internal sealed class ServerBotManager
         _world.TryReleaseNetworkPlayerSlot(slot);
         _botDisplayNamePool.ReleaseSlot(slot);
         _inputCache.Remove(slot);
+        ConfigureBotControllerSpawnOverrides();
         return true;
     }
 
@@ -155,12 +165,15 @@ internal sealed class ServerBotManager
             return false;
         }
 
+        ConfigureBotControllerSpawnOverrides(slot, team, state.ClassId);
         if (!_world.TrySetNetworkPlayerTeam(slot, team))
         {
+            ConfigureBotControllerSpawnOverrides();
             return false;
         }
 
         _botSlots[slot] = state.WithTeam(team);
+        ConfigureBotControllerSpawnOverrides();
         return true;
     }
 
@@ -177,15 +190,19 @@ internal sealed class ServerBotManager
         if (_world.TryGetNetworkPlayer(slot, out var player) && player.ClassId == classId)
         {
             _botSlots[slot] = state.WithClassId(classId);
+            ConfigureBotControllerSpawnOverrides();
             return true;
         }
 
+        ConfigureBotControllerSpawnOverrides(slot, state.Team, classId);
         if (!_world.TryApplyNetworkPlayerClassSelection(slot, classId))
         {
+            ConfigureBotControllerSpawnOverrides();
             return false;
         }
 
         _botSlots[slot] = state.WithClassId(classId);
+        ConfigureBotControllerSpawnOverrides();
         return true;
     }
 
@@ -318,6 +335,9 @@ internal sealed class ServerBotManager
         }
         _botSlots.Clear();
         _inputCache.Clear();
+        _controllerConfigurationSlotsBuffer.Clear();
+        _controlledSlotsBuffer.Clear();
+        _botController.Reset();
         _reactionController.Reset();
         _botDisplayNamePool.Reset();
     }
@@ -340,6 +360,9 @@ internal sealed class ServerBotManager
         {
             return 0;
         }
+
+        _botController.Reset();
+        ConfigureBotControllerSpawnOverrides();
 
         var restoredCount = 0;
         foreach (var entry in _botSlots)
@@ -488,6 +511,32 @@ internal sealed class ServerBotManager
         }
     }
 
+    private void ConfigureBotControllerSpawnOverrides(
+        byte? pendingSlot = null,
+        PlayerTeam pendingTeam = default,
+        PlayerClass pendingClassId = default)
+    {
+        _controllerConfigurationSlotsBuffer.Clear();
+        foreach (var entry in _botSlots)
+        {
+            var state = entry.Value;
+            _controllerConfigurationSlotsBuffer[entry.Key] = new ControlledBotSlot(
+                entry.Key,
+                state.Team,
+                state.ClassId);
+        }
+
+        if (pendingSlot.HasValue)
+        {
+            _controllerConfigurationSlotsBuffer[pendingSlot.Value] = new ControlledBotSlot(
+                pendingSlot.Value,
+                pendingTeam,
+                pendingClassId);
+        }
+
+        _botController.ConfigureSpawnOverrides(_world, _controllerConfigurationSlotsBuffer);
+    }
+
     private Dictionary<byte, PlayerInputSnapshot> GetBotInputs()
     {
         var refreshedInputs = _botController.BuildInputs(
@@ -556,6 +605,7 @@ internal sealed class ServerBotManager
             || input.DropIntel
             || input.UseAbility
             || input.InteractWeapon
+            || input.SwapWeapon
             || input.IsUsingBinoculars;
     }
 

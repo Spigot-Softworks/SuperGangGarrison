@@ -150,6 +150,23 @@ public sealed class ProtocolCodecTests
             PlayerStatusStates = [new SnapshotPlayerStatusState(1, 95, 125, 4, 6, 15f, false, 0f)],
             PlayerChatBubbleStates = [new SnapshotPlayerChatBubbleState(1, true, 49, 0.75f)],
             RemovedShotIds = [2, 4, 6],
+            RocketSpawnEvents =
+            [
+                new SnapshotRocketSpawnEvent(
+                    901,
+                    1,
+                    5,
+                    100f,
+                    120f,
+                    96f,
+                    120f,
+                    0.2f,
+                    240f,
+                    20,
+                    ExplodeImmediately: true,
+                    IsCritical: true,
+                    EventId: 1024),
+            ],
             SentryGibs = [new SnapshotSentryGibState(3, 1, 10f, 12f, 25)],
             RemovedSentryGibIds = [3],
         };
@@ -181,6 +198,11 @@ public sealed class ProtocolCodecTests
         var player = Assert.Single(roundTrippedSnapshot.Players);
         Assert.Equal(9, player.MedicHealTargetId);
         Assert.True(player.IsMedicHealing);
+        var rocketSpawn = Assert.Single(roundTrippedSnapshot.RocketSpawnEvents);
+        Assert.Equal(901, rocketSpawn.Id);
+        Assert.True(rocketSpawn.ExplodeImmediately);
+        Assert.True(rocketSpawn.IsCritical);
+        Assert.Equal(1024UL, rocketSpawn.EventId);
     }
 
     [Fact]

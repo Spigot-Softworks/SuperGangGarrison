@@ -111,6 +111,7 @@ public static class CombatDecisionResolver
             if (!candidate.IsAlive
                 || candidate.Team != team
                 || candidate.Id == self.Id
+                || IsCloakedSpy(candidate)
                 || !HasLineOfSight(world, self.X, self.Y, candidate.X, candidate.Y, self.Team, self.IsCarryingIntel))
             {
                 continue;
@@ -156,6 +157,9 @@ public static class CombatDecisionResolver
             ? new MedicHealTargetSelection(bestPocketTarget, MedicHealTargetSelectionKind.Pocket)
             : default;
     }
+
+    private static bool IsCloakedSpy(PlayerEntity candidate) =>
+        candidate.ClassId == PlayerClass.Spy && candidate.IsSpyCloaked;
 
     public static CombatFireDecision Resolve(
         SimulationWorld world,

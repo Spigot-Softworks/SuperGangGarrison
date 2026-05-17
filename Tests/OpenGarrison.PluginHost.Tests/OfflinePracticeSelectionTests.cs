@@ -23,20 +23,49 @@ public sealed class OfflinePracticeSelectionTests
         }
     }
 
-    [Fact]
-    public void PracticeMapSelectionDoesNotExposeHiddenShippedAvanti()
+    [Theory]
+    [InlineData("ctf_avanti", "Avanti")]
+    [InlineData("ctf_classicwell", "ClassicWell")]
+    [InlineData("ctf_orange", "Orange")]
+    [InlineData("dkoth_atalia", "Atalia")]
+    [InlineData("dkoth_sixties", "Sixties")]
+    [InlineData("gen_destroy", "Destroy")]
+    public void PracticeMapSelectionDoesNotExposeHiddenShippedMaps(string iniKey, string levelName)
     {
         var entries = BuildPracticeMapEntries();
         var levelNames = entries
             .Select(GetPracticeMapLevelName)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        Assert.DoesNotContain("Avanti", levelNames);
+        Assert.DoesNotContain(levelName, levelNames);
         Assert.DoesNotContain(
             OpenGarrisonStockMapCatalog.GetOrderedIncludedMapLevelNames(OpenGarrisonStockMapCatalog.CreateDefaultEntries()),
-            levelName => string.Equals(levelName, "Avanti", StringComparison.OrdinalIgnoreCase));
-        Assert.True(OpenGarrisonStockMapCatalog.TryGetDefinition("ctf_avanti", out var hiddenDefinition));
-        Assert.Equal("Avanti", hiddenDefinition.LevelName);
+            candidate => string.Equals(candidate, levelName, StringComparison.OrdinalIgnoreCase));
+        Assert.True(OpenGarrisonStockMapCatalog.TryGetDefinition(iniKey, out var hiddenDefinition));
+        Assert.Equal(levelName, hiddenDefinition.LevelName);
+    }
+
+    [Fact]
+    public void DefaultServerMapRotationUsesConfiguredStockOrder()
+    {
+        var rotation = OpenGarrisonStockMapCatalog.GetOrderedIncludedMapLevelNames(OpenGarrisonStockMapCatalog.CreateDefaultEntries());
+
+        Assert.Equal(
+            [
+                "Conflict",
+                "Dirtbowl",
+                "Harvest",
+                "Eiger",
+                "Waterway",
+                "Gallery",
+                "Truefort",
+                "Montane",
+                "Valley",
+                "Lumberyard",
+                "Egypt",
+                "Corinth",
+            ],
+            rotation);
     }
 
     [Fact]

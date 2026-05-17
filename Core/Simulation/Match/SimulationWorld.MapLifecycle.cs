@@ -169,6 +169,7 @@ public sealed partial class SimulationWorld
         _pendingSoundEvents.Clear();
         _pendingVisualEvents.Clear();
         _pendingDamageEvents.Clear();
+        _pendingRocketSpawnEvents.Clear();
         _pendingHealingEvents.Clear();
         _nextRedSpawnIndex = 0;
         _nextBlueSpawnIndex = 0;
@@ -257,6 +258,12 @@ public sealed partial class SimulationWorld
         RemoveEntities(_deadBodies);
         RemoveEntities(_sentryGibs);
         _jumpPadTriggerContacts.Clear();
+        _pendingNewRocketIds.Clear();
+        _clientPredictedProjectileIds.Clear();
+        _terminatedProjectileIds.Clear();
+        _processedImmediateNetworkRocketSpawnEventIds.Clear();
+        _processedNetworkGibSpawnEventIds.Clear();
+        _presentedNetworkGibDeathCountsByPlayerId.Clear();
     }
 
     private void RemoveEntities<T>(List<T> entities) where T : SimulationEntity

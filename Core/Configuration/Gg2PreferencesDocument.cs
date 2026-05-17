@@ -43,7 +43,7 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public int FlameRenderMode { get; set; }
 
-    public MenuBackgroundMode MenuBackgroundMode { get; set; } = MenuBackgroundMode.Static;
+    public MenuBackgroundMode MenuBackgroundMode { get; set; } = MenuBackgroundMode.DefaultMaps;
 
     public int GibLevel { get; set; } = 3;
 
@@ -56,6 +56,10 @@ public sealed class OpenGarrisonPreferencesDocument
     public bool ShowHealingEnabled { get; set; } = true;
 
     public bool ShowHealthBarEnabled { get; set; }
+
+    public bool PortraitRumbleEnabled { get; set; } = true;
+
+    public bool DamageVignetteEnabled { get; set; } = true;
 
     public bool ShowUberOutlinesEnabled { get; set; } = true;
 
@@ -72,6 +76,8 @@ public sealed class OpenGarrisonPreferencesDocument
     public bool ShowPersistentSelfNameEnabled { get; set; }
 
     public bool PositionSmoothingEnabled { get; set; } = true;
+
+    public float SmoothCameraMultiplier { get; set; } = 0.35f;
 
     public bool SpriteDropShadowEnabled { get; set; }
 
@@ -122,13 +128,15 @@ public sealed class OpenGarrisonPreferencesDocument
             KillCamEnabled = ini.GetBool(SettingsSection, "Kill Cam", true),
             ParticleMode = ini.GetInt(SettingsSection, "Particles", 0),
             FlameRenderMode = ini.GetInt(SettingsSection, "Flame Render Mode", 0),
-            MenuBackgroundMode = (MenuBackgroundMode)ini.GetInt(SettingsSection, "Menu Background Mode", 0),
+            MenuBackgroundMode = (MenuBackgroundMode)ini.GetInt(SettingsSection, "Menu Background Mode", (int)MenuBackgroundMode.DefaultMaps),
             GibLevel = ini.GetInt(SettingsSection, "Gib Level", 3),
             CorpseDurationMode = ini.GetInt(SettingsSection, "Corpse Duration", 0),
             HealerRadarEnabled = ini.GetBool(SettingsSection, "Healer Radar", true),
             ShowHealerEnabled = ini.GetBool(SettingsSection, "Show Healer", true),
             ShowHealingEnabled = ini.GetBool(SettingsSection, "Show Healing", true),
             ShowHealthBarEnabled = ini.GetBool(SettingsSection, "Show Healthbar", false),
+            PortraitRumbleEnabled = ini.GetBool(SettingsSection, "Portrait Rumble", true),
+            DamageVignetteEnabled = ini.GetBool(SettingsSection, "Damage Vignette", true),
             ShowUberOutlinesEnabled = ini.GetBool(SettingsSection, "Show Uber Outlines", true),
             ProjectileTeamTintEnabled = ini.GetBool(SettingsSection, "Projectile Team Tint", true),
             AudioMuted = ini.GetBool(SettingsSection, "Audio Muted", false),
@@ -137,7 +145,8 @@ public sealed class OpenGarrisonPreferencesDocument
             SoundEffectsVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Sound Effects Volume", 100), 0, 100),
             ShowPersistentSelfNameEnabled = ini.GetBool(SettingsSection, "Show Self Name", false),
             PositionSmoothingEnabled = ini.GetBool(SettingsSection, "Position Smoothing", true),
-            SpriteDropShadowEnabled = ini.GetBool(SettingsSection, "Sprite Drop Shadow", false),
+            SmoothCameraMultiplier = Math.Clamp(ini.GetFloat(SettingsSection, "Smooth Camera Multiplier", 0.35f), 0f, 1f),
+            SpriteDropShadowEnabled = ini.GetBool(SettingsSection, "Sprite Drop Shadow", true),
             DisableLegacyGameplaySpriteFallback = ini.GetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", false),
             RecentConnectionHost = ini.GetString(ConnectionSection, "Host", "127.0.0.1"),
             RecentConnectionPort = ini.GetInt(ConnectionSection, "Port", 8190),
@@ -182,6 +191,8 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(SettingsSection, "Show Healer", ShowHealerEnabled);
         ini.SetBool(SettingsSection, "Show Healing", ShowHealingEnabled);
         ini.SetBool(SettingsSection, "Show Healthbar", ShowHealthBarEnabled);
+        ini.SetBool(SettingsSection, "Portrait Rumble", PortraitRumbleEnabled);
+        ini.SetBool(SettingsSection, "Damage Vignette", DamageVignetteEnabled);
         ini.SetBool(SettingsSection, "Show Uber Outlines", ShowUberOutlinesEnabled);
         ini.SetBool(SettingsSection, "Projectile Team Tint", ProjectileTeamTintEnabled);
         ini.SetBool(SettingsSection, "Audio Muted", AudioMuted);
@@ -190,6 +201,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(SettingsSection, "Sound Effects Volume", SoundEffectsVolumePercent);
         ini.SetBool(SettingsSection, "Show Self Name", ShowPersistentSelfNameEnabled);
         ini.SetBool(SettingsSection, "Position Smoothing", PositionSmoothingEnabled);
+        ini.SetFloat(SettingsSection, "Smooth Camera Multiplier", Math.Clamp(SmoothCameraMultiplier, 0f, 1f));
         ini.SetBool(SettingsSection, "Sprite Drop Shadow", SpriteDropShadowEnabled);
         ini.SetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", DisableLegacyGameplaySpriteFallback);
 
@@ -253,17 +265,12 @@ public sealed class OpenGarrisonPreferencesDocument
 
     private static OfflineBotControllerMode ParseBotMode(string value)
     {
-        return Enum.TryParse<OfflineBotControllerMode>(value, ignoreCase: true, out var mode)
-            ? NormalizeBotMode(mode)
-            : OfflineBotControllerMode.BotBrain;
+        return BotBrain.PracticeBotControllerFactory.ParseMode(value, OfflineBotControllerMode.BotBrain);
     }
 
     private static OfflineBotControllerMode NormalizeBotMode(OfflineBotControllerMode mode)
     {
-        return mode switch
-        {
-            _ => OfflineBotControllerMode.BotBrain,
-        };
+        return BotBrain.PracticeBotControllerFactory.NormalizeMode(mode);
     }
 
     private static IngameResolutionKind NormalizeIngameResolution(IngameResolutionKind ingameResolution)
@@ -480,30 +487,30 @@ public static class OpenGarrisonStockMapCatalog
 
     public static IReadOnlyList<OpenGarrisonStockMapDefinition> Definitions { get; } =
     [
-        new("ctf_truefort", "Truefort", "Truefort", GameModeKind.CaptureTheFlag, 1, "truefort"),
-        new("ctf_2dfort", "TwodFortTwo", "2dFort", GameModeKind.CaptureTheFlag, 2, "2dfort", "twodforttwo", "2dfort2", "2dfortremix"),
-        new("ctf_conflict", "Conflict", "Conflict", GameModeKind.CaptureTheFlag, 3, "conflict"),
-        new("ctf_classicwell", "ClassicWell", "ClassicWell", GameModeKind.CaptureTheFlag, 4, "classicwell"),
-        new("ctf_waterway", "Waterway", "Waterway", GameModeKind.CaptureTheFlag, 5, "waterway"),
-        new("ctf_orange", "Orange", "Orange", GameModeKind.CaptureTheFlag, 6, "orange"),
-        new("cp_dirtbowl", "Dirtbowl", "Dirtbowl", GameModeKind.ControlPoint, 0, "dirtbowl", "cp_dirtbowl_stage1", "cp_dirtbowl_stage2", "cp_dirtbowl_stage3"),
-        new("cp_egypt", "Egypt", "Egypt", GameModeKind.ControlPoint, 0, "egypt"),
-        new("arena_montane", "Montane", "Montane", GameModeKind.Arena, 0, "montane"),
-        new("arena_lumberyard", "Lumberyard", "Lumberyard", GameModeKind.Arena, 0, "lumberyard"),
-        new("gen_destroy", "Destroy", "Destroy", GameModeKind.Generator, 0, "destroy"),
-        new("koth_valley", "Valley", "Valley", GameModeKind.KingOfTheHill, 12, "valley"),
-        new("koth_corinth", "Corinth", "Corinth", GameModeKind.KingOfTheHill, 13, "corinth"),
-        new("koth_harvest", "Harvest", "Harvest", GameModeKind.KingOfTheHill, 14, "harvest"),
-        new("dkoth_atalia", "Atalia", "Atalia", GameModeKind.DoubleKingOfTheHill, 15, "atalia"),
-        new("dkoth_sixties", "Sixties", "Sixties", GameModeKind.DoubleKingOfTheHill, 0, "sixties", "60s", "dkoth_60s"),
+        new("ctf_truefort", "Truefort", "Truefort", GameModeKind.CaptureTheFlag, 11, "truefort"),
+        new("ctf_2dfort", "TwodFortTwo", "2dFort", GameModeKind.CaptureTheFlag, 0, "2dfort", "twodforttwo", "2dfort2", "2dfortremix"),
+        new("ctf_conflict", "Conflict", "Conflict", GameModeKind.CaptureTheFlag, 8, "conflict"),
+        new("ctf_waterway", "Waterway", "Waterway", GameModeKind.CaptureTheFlag, 7, "waterway"),
+        new("cp_dirtbowl", "Dirtbowl", "Dirtbowl", GameModeKind.ControlPoint, 3, "dirtbowl", "cp_dirtbowl_stage1", "cp_dirtbowl_stage2", "cp_dirtbowl_stage3"),
+        new("cp_egypt", "Egypt", "Egypt", GameModeKind.ControlPoint, 4, "egypt"),
+        new("arena_montane", "Montane", "Montane", GameModeKind.Arena, 10, "montane"),
+        new("arena_lumberyard", "Lumberyard", "Lumberyard", GameModeKind.Arena, 9, "lumberyard"),
+        new("koth_valley", "Valley", "Valley", GameModeKind.KingOfTheHill, 5, "valley"),
+        new("koth_corinth", "Corinth", "Corinth", GameModeKind.KingOfTheHill, 12, "corinth"),
+        new("koth_harvest", "Harvest", "Harvest", GameModeKind.KingOfTheHill, 1, "harvest"),
         new("tdm_mantic", "Mantic", "Mantic", GameModeKind.TeamDeathmatch, 0, "mantic"),
-        new("koth_gallery", "Gallery", "Gallery", GameModeKind.KingOfTheHill, 18, "gallery"),
-        new("ctf_eiger", "Eiger", "Eiger", GameModeKind.CaptureTheFlag, 19, "eiger"),
+        new("koth_gallery", "Gallery", "Gallery", GameModeKind.KingOfTheHill, 2, "gallery"),
+        new("ctf_eiger", "Eiger", "Eiger", GameModeKind.CaptureTheFlag, 6, "eiger"),
     ];
 
     private static IReadOnlyList<OpenGarrisonStockMapDefinition> HiddenDefinitions { get; } =
     [
-        new("ctf_avanti", "Avanti", "Avanti", GameModeKind.CaptureTheFlag, 20, "avanti"),
+        new("ctf_avanti", "Avanti", "Avanti", GameModeKind.CaptureTheFlag, 0, "avanti"),
+        new("ctf_classicwell", "ClassicWell", "ClassicWell", GameModeKind.CaptureTheFlag, 0, "classicwell"),
+        new("ctf_orange", "Orange", "Orange", GameModeKind.CaptureTheFlag, 0, "orange"),
+        new("dkoth_atalia", "Atalia", "Atalia", GameModeKind.DoubleKingOfTheHill, 0, "atalia"),
+        new("dkoth_sixties", "Sixties", "Sixties", GameModeKind.DoubleKingOfTheHill, 0, "sixties", "60s", "dkoth_60s"),
+        new("gen_destroy", "Destroy", "Destroy", GameModeKind.Generator, 0, "destroy"),
     ];
 
     public static IReadOnlyList<OpenGarrisonStockMapDefinition> SourceDefinitions { get; } =

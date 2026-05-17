@@ -90,7 +90,7 @@ public partial class Game1
             return;
         }
 
-        var healTargetRenderPosition = GetRenderPosition(healTarget, allowInterpolation: !ReferenceEquals(healTarget, _world.LocalPlayer));
+        var healTargetRenderPosition = GetRenderPosition(healTarget);
         var beamOrigin = GetMedicBeamOrigin(medic, out var weaponForwardDirection);
         if (!IsFiniteVector(healTargetRenderPosition)
             || !IsFiniteVector(beamOrigin)
@@ -159,7 +159,7 @@ public partial class Game1
 
         void DrawMedicBeamSegment(PlayerEntity target)
         {
-            var targetRenderPosition = GetRenderPosition(target, allowInterpolation: !ReferenceEquals(target, _world.LocalPlayer));
+            var targetRenderPosition = GetRenderPosition(target);
             if (!IsFiniteVector(targetRenderPosition))
             {
                 return;
@@ -495,7 +495,7 @@ public partial class Game1
     private Vector2 GetMedicBeamOrigin(PlayerEntity medic, out Vector2 weaponForwardDirection)
     {
         weaponForwardDirection = Vector2.Zero;
-        var renderPosition = GetRenderPosition(medic, allowInterpolation: !ReferenceEquals(medic, _world.LocalPlayer));
+        var renderPosition = GetRenderPosition(medic);
         if (!IsFiniteVector(renderPosition))
         {
             return Vector2.Zero;
@@ -576,24 +576,34 @@ public partial class Game1
 
     private void DrawGameplayEffectsAndProjectiles(Vector2 cameraPosition)
     {
+        WriteGameplayRenderTrace("effects before explosions");
         DrawExplosionVisuals(cameraPosition);
+        WriteGameplayRenderTrace("effects before impacts");
         DrawImpactVisuals(cameraPosition);
+        WriteGameplayRenderTrace("effects before loose-sheets");
         DrawLooseSheetVisuals(cameraPosition);
         if (_gibLevel > 0)
         {
+            WriteGameplayRenderTrace("effects before blood");
             DrawBloodVisuals(cameraPosition);
         }
 
+        WriteGameplayRenderTrace("effects before shells");
         DrawShellVisuals(cameraPosition);
 
         if (_particleMode != 1)
         {
+            WriteGameplayRenderTrace("effects before rocket-smoke");
             DrawRocketSmokeVisuals(cameraPosition);
+            WriteGameplayRenderTrace("effects before wallspin-dust");
             DrawWallspinDustVisuals(cameraPosition);
+            WriteGameplayRenderTrace("effects before blastjump-flame");
             DrawBlastJumpFlameVisuals(cameraPosition);
+            WriteGameplayRenderTrace("effects before flame-smoke");
             DrawFlameSmokeVisuals(cameraPosition);
         }
 
+        WriteGameplayRenderTrace("effects before projectile-sprites");
         DrawSniperTracers(cameraPosition);
 
         foreach (var shot in _world.Shots)
@@ -628,16 +638,19 @@ public partial class Game1
 
         if (_flameRenderMode == 0)
         {
+            WriteGameplayRenderTrace("effects before procedural-flames");
             DrawFlameProjectiles(cameraPosition);
         }
         else
         {
+            WriteGameplayRenderTrace("effects before sprite-flames");
             foreach (var flame in _world.Flames)
             {
                 DrawFlameProjectile(flame, cameraPosition);
             }
         }
 
+        WriteGameplayRenderTrace("effects before flares-rockets");
         foreach (var flare in _world.Flares)
         {
             DrawFlareProjectile(flare, cameraPosition);
@@ -650,13 +663,17 @@ public partial class Game1
 
         if (_particleMode != 1)
         {
+            WriteGameplayRenderTrace("effects before mine-trails");
             DrawMineTrailVisuals(cameraPosition);
         }
 
+        WriteGameplayRenderTrace("effects before mines");
         foreach (var mine in _world.Mines)
         {
             DrawMineProjectile(mine, cameraPosition);
         }
+
+        WriteGameplayRenderTrace("effects done");
     }
 
     private void DrawShotProjectile(ShotProjectileEntity shot, Vector2 cameraPosition, Color blueColor, Color redColor)
@@ -1409,7 +1426,10 @@ public partial class Game1
         }
 
         var pixels = new Color[sourceRectangle.Width * sourceRectangle.Height];
-        frame.Texture.GetData(0, sourceRectangle, pixels, 0, pixels.Length);
+        if (!frame.TryCopyPixelData(pixels))
+        {
+            frame.Texture.GetData(0, sourceRectangle, pixels, 0, pixels.Length);
+        }
 
         double weightedX = 0d;
         double weightedY = 0d;

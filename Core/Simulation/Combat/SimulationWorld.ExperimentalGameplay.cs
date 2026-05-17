@@ -498,7 +498,7 @@ public sealed partial class SimulationWorld
 
         var weaponDefinition = attacker.IsAcquiredWeaponEquipped
             ? attacker.AcquiredWeapon
-            : attacker.IsExperimentalOffhandEquipped
+            : attacker.IsExperimentalOffhandSelected
                 ? attacker.ExperimentalOffhandWeapon
                 : attacker.PrimaryWeapon;
         if (weaponDefinition is null)

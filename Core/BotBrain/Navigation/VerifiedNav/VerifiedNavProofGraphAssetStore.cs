@@ -59,19 +59,19 @@ public static class VerifiedNavProofGraphAssetStore
             path = ResolveShippedContentPath(level, team, classId);
         }
 
-        if ((string.IsNullOrWhiteSpace(path) || !File.Exists(path)) && proofGraphEnabled)
+        if ((string.IsNullOrWhiteSpace(path) || !BotBrainJsonAssetIO.TryResolveReadablePath(path, out path)) && proofGraphEnabled)
         {
             path = ResolveDefaultArtifactPath(level, team, classId);
         }
 
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        if (string.IsNullOrWhiteSpace(path) || !BotBrainJsonAssetIO.TryResolveReadablePath(path, out path))
         {
             return false;
         }
 
         try
         {
-            asset = JsonSerializer.Deserialize<VerifiedNavProofGraphAsset>(File.ReadAllText(path), SerializerOptions)!;
+            asset = BotBrainJsonAssetIO.Deserialize<VerifiedNavProofGraphAsset>(path, SerializerOptions)!;
         }
         catch
         {

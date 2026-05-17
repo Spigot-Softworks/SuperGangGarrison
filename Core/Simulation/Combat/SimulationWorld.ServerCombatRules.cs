@@ -19,9 +19,13 @@ public sealed partial class SimulationWorld
             return false;
         }
 
+        if (attackerId == target.Id)
+        {
+            return !ExperimentalGameplaySettings.DisableSelfDamage;
+        }
+
         var attacker = FindPlayerById(attackerId);
-        return attackerId == target.Id
-            || attackerTeam != target.Team
+        return attackerTeam != target.Team
             || IsRoundEndFriendlyFireActive()
             || (attacker is not null && IsExperimentalConfusionFriendlyFireAllowed(attacker, target));
     }

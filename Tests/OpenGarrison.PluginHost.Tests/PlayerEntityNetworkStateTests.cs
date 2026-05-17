@@ -142,6 +142,49 @@ public sealed class PlayerEntityNetworkStateTests
         Assert.Equal("ability.heavy-sandvich", player.GameplayLoadoutState.EquippedItemId);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ApplyNetworkStateClearsStaleOffhandSelectionWhenReplicatedSlotReturnsToPrimary(bool includeFullLoadoutState)
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Soldier, "Test");
+        player.Spawn(PlayerTeam.Red, 0f, 0f);
+        player.SetExperimentalOffhandWeapon(CharacterClassCatalog.SoldierShotgun);
+        player.EquipExperimentalOffhandWeapon();
+
+        Assert.True(player.IsExperimentalOffhandSelected);
+        Assert.True(player.IsExperimentalOffhandEquipped);
+
+        ApplySoldierNetworkSnapshot(player, GameplayEquipmentSlot.Primary, includeFullLoadoutState);
+
+        Assert.False(player.IsExperimentalOffhandEquipped);
+        Assert.False(player.IsExperimentalOffhandSelected);
+        Assert.Equal(GameplayEquipmentSlot.Primary, player.SelectedGameplayEquippedSlot);
+        Assert.Equal(GameplayEquipmentSlot.Primary, player.GameplayLoadoutState.EquippedSlot);
+        Assert.Equal(player.GameplayLoadoutState.PrimaryItemId, player.GameplayLoadoutState.EquippedItemId);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ApplyNetworkStateCanSelectOffhandFromReplicatedSecondarySlot(bool includeFullLoadoutState)
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Soldier, "Test");
+        player.Spawn(PlayerTeam.Red, 0f, 0f);
+        player.SetExperimentalOffhandWeapon(CharacterClassCatalog.SoldierShotgun);
+
+        Assert.False(player.IsExperimentalOffhandSelected);
+        Assert.False(player.IsExperimentalOffhandEquipped);
+
+        ApplySoldierNetworkSnapshot(player, GameplayEquipmentSlot.Secondary, includeFullLoadoutState);
+
+        Assert.True(player.IsExperimentalOffhandEquipped);
+        Assert.True(player.IsExperimentalOffhandSelected);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, player.SelectedGameplayEquippedSlot);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, player.GameplayLoadoutState.EquippedSlot);
+        Assert.Equal(player.GameplayLoadoutState.SecondaryItemId, player.GameplayLoadoutState.EquippedItemId);
+    }
+
     [Fact]
     public void CloakedSpyHitRevealsCloakToMinimumThirtyPercent()
     {
@@ -470,5 +513,71 @@ public sealed class PlayerEntityNetworkStateTests
 
         Assert.True(player.IsBurning);
         Assert.True(player.BurnVisualCount > 0);
+    }
+
+    private static void ApplySoldierNetworkSnapshot(
+        PlayerEntity player,
+        GameplayEquipmentSlot equippedSlot,
+        bool includeFullLoadoutState)
+    {
+        var equippedItemId = equippedSlot == GameplayEquipmentSlot.Secondary
+            ? "weapon.soldier-shotgun"
+            : "weapon.rocketlauncher";
+
+        player.ApplyNetworkState(
+            team: PlayerTeam.Red,
+            classDefinition: CharacterClassCatalog.Soldier,
+            isAlive: true,
+            x: 10f,
+            y: 20f,
+            horizontalSpeed: 0f,
+            verticalSpeed: 0f,
+            health: 200,
+            currentShells: 4,
+            kills: 0,
+            deaths: 0,
+            caps: 0,
+            points: 0f,
+            healPoints: 0,
+            activeDominationCount: 0,
+            isDominatingLocalViewer: false,
+            isDominatedByLocalViewer: false,
+            metal: 50f,
+            isGrounded: true,
+            remainingAirJumps: 0,
+            isCarryingIntel: false,
+            intelRechargeTicks: 0f,
+            isSpyCloaked: false,
+            spyCloakAlpha: 0f,
+            isSpySuperjumping: false,
+            spySuperjumpHorizontalVelocity: 0f,
+            spySuperjumpCooldownTicksRemaining: 0,
+            spyBackstabVisualTicksRemaining: 0,
+            isUbered: false,
+            isKritzCritBoosted: false,
+            isHeavyEating: false,
+            heavyEatTicksRemaining: 0,
+            isSniperScoped: false,
+            sniperChargeTicks: 0,
+            isUsingBinoculars: false,
+            binocularsFocusX: 0f,
+            binocularsFocusY: 0f,
+            facingDirectionX: 1f,
+            aimDirectionDegrees: 0f,
+            aimWorldX: 106f,
+            aimWorldY: 20f,
+            isTaunting: false,
+            tauntFrameIndex: 0f,
+            isChatBubbleVisible: false,
+            chatBubbleFrameIndex: 0,
+            chatBubbleAlpha: 0f,
+            gameplayModPackId: includeFullLoadoutState ? "stock.gg2" : "",
+            gameplayLoadoutId: includeFullLoadoutState ? "soldier.stock" : "",
+            gameplayPrimaryItemId: includeFullLoadoutState ? "weapon.rocketlauncher" : "",
+            gameplaySecondaryItemId: includeFullLoadoutState ? "weapon.soldier-shotgun" : "",
+            gameplayUtilityItemId: includeFullLoadoutState ? "ability.soldier-utility" : "",
+            gameplayEquippedSlot: (byte)equippedSlot,
+            gameplayEquippedItemId: includeFullLoadoutState ? equippedItemId : "",
+            gameplayAcquiredItemId: "");
     }
 }

@@ -189,8 +189,12 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public bool IsExperimentalOffhandEquipped { get; private set; }
 
-    public bool IsExperimentalOffhandPresented => ExperimentalOffhandWeapon is not null
-        && IsExperimentalOffhandEquipped;
+    public bool IsExperimentalOffhandPresented => IsExperimentalOffhandSelected;
+
+    public bool IsExperimentalOffhandSelected => HasExperimentalOffhandWeapon
+        && !IsAcquiredWeaponEquipped
+        && GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Secondary
+        && string.Equals(GameplayLoadoutState.EquippedItemId, GameplayLoadoutState.SecondaryItemId, StringComparison.Ordinal);
 
     public PlayerClass? AcquiredWeaponClassId { get; private set; }
 
@@ -845,14 +849,10 @@ public sealed partial class PlayerEntity : SimulationEntity
         var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
         var secondaryItemId = ResolveRegisteredWeaponItemId(ExperimentalOffhandWeapon);
         var acquiredItemId = ResolveRegisteredWeaponItemId(AcquiredWeapon);
-        var equippedSlot = (IsExperimentalOffhandEquipped || IsAcquiredWeaponEquipped)
-            ? GameplayEquipmentSlot.Secondary
-            : SelectedGameplayEquippedSlot;
-
         return runtimeRegistry.CreatePlayerLoadoutState(
             ClassId,
             SelectedGameplayLoadoutId,
-            equippedSlot,
+            SelectedGameplayEquippedSlot,
             secondaryItemOverrideId: secondaryItemId,
             acquiredItemId: acquiredItemId);
     }

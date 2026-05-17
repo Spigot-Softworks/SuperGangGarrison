@@ -429,10 +429,15 @@ public partial class Game1
                 new("Show Healer", _game._showHealerEnabled ? "Enabled" : "Disabled", _game.ToggleShowHealerSetting, OptionsMenuTab.Gameplay),
                 new("Show Healing", _game._showHealingEnabled ? "Enabled" : "Disabled", _game.ToggleShowHealingSetting, OptionsMenuTab.Gameplay),
                 new("Healthbar", _game._showHealthBarEnabled ? "Enabled" : "Disabled", _game.ToggleShowHealthBarSetting, OptionsMenuTab.Gameplay),
+                new("Portrait Rumble", _game._portraitRumbleEnabled ? "Enabled" : "Disabled", _game.TogglePortraitRumbleSetting, OptionsMenuTab.Gameplay),
+                new("Damage Vignette", _game._damageVignetteEnabled ? "Enabled" : "Disabled", _game.ToggleDamageVignetteSetting, OptionsMenuTab.Gameplay),
                 new("Persistent Name", _game._showPersistentSelfNameEnabled ? "Enabled" : "Disabled", _game.TogglePersistentSelfNameSetting, OptionsMenuTab.Gameplay),
                 new("Uber Outlines", _game._uberOutlineEnabled ? "Enabled" : "Disabled", _game.ToggleUberOutlinesSetting, OptionsMenuTab.Gameplay),
                 new("Projectile Team Tint", _game._projectileTeamTintEnabled ? "Enabled" : "Disabled", _game.ToggleProjectileTeamTintSetting, OptionsMenuTab.Gameplay),
                 new("Kill Cam", _game._killCamEnabled ? "Enabled" : "Disabled", _game.ToggleKillCamSetting, OptionsMenuTab.Gameplay),
+                new("Smooth Camera", Game1.GetSmoothCameraMultiplierLabel(_game._smoothCameraMultiplier), _game.CycleSmoothCameraMultiplierSetting, OptionsMenuTab.Gameplay),
+                new("Bot Controller", Game1.GetBotModeLabel(_game._clientSettings.BotMode), _game.CycleBotModeSetting, OptionsMenuTab.Gameplay),
+                new("Swap Weapons", _game.GetSwapWeaponsBindingLabel(), _game.CycleSwapWeaponsBindingSetting, OptionsMenuTab.Gameplay),
                 new("Controls", string.Empty, OpenControlsMenuFromOptions, OptionsMenuTab.Gameplay),
             };
 

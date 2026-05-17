@@ -11,6 +11,7 @@ public sealed class ClientSettings
     private const string LegacyFileName = "client.settings.json";
     public const int CorpseDurationDefault = 0;
     public const int CorpseDurationInfinite = 1;
+    public const float DefaultSmoothCameraMultiplier = 0.35f;
 
     public string PlayerName { get; set; } = "Player";
 
@@ -46,7 +47,7 @@ public sealed class ClientSettings
 
     public int FlameRenderMode { get; set; }
 
-    public MenuBackgroundMode MenuBackgroundMode { get; set; } = MenuBackgroundMode.Static;
+    public MenuBackgroundMode MenuBackgroundMode { get; set; } = MenuBackgroundMode.DefaultMaps;
 
     public int GibLevel { get; set; } = 3;
 
@@ -60,6 +61,10 @@ public sealed class ClientSettings
 
     public bool ShowHealthBarEnabled { get; set; }
 
+    public bool PortraitRumbleEnabled { get; set; } = true;
+
+    public bool DamageVignetteEnabled { get; set; } = true;
+
     public bool ShowUberOutlinesEnabled { get; set; } = true;
 
     public bool ProjectileTeamTintEnabled { get; set; } = true;
@@ -69,6 +74,8 @@ public sealed class ClientSettings
     public bool ShowPersistentSelfNameEnabled { get; set; }
 
     public bool PositionSmoothingEnabled { get; set; } = true;
+
+    public float SmoothCameraMultiplier { get; set; } = DefaultSmoothCameraMultiplier;
 
     public bool SpriteDropShadowEnabled { get; set; }
 
@@ -157,6 +164,8 @@ public sealed class ClientSettings
             ShowHealerEnabled = document.ShowHealerEnabled,
             ShowHealingEnabled = document.ShowHealingEnabled,
             ShowHealthBarEnabled = document.ShowHealthBarEnabled,
+            PortraitRumbleEnabled = document.PortraitRumbleEnabled,
+            DamageVignetteEnabled = document.DamageVignetteEnabled,
             ShowUberOutlinesEnabled = document.ShowUberOutlinesEnabled,
             ProjectileTeamTintEnabled = document.ProjectileTeamTintEnabled,
             AudioMuted = document.AudioMuted,
@@ -165,6 +174,7 @@ public sealed class ClientSettings
             SoundEffectsVolumePercent = Math.Clamp(document.SoundEffectsVolumePercent, 0, 100),
             ShowPersistentSelfNameEnabled = document.ShowPersistentSelfNameEnabled,
             PositionSmoothingEnabled = document.PositionSmoothingEnabled,
+            SmoothCameraMultiplier = Math.Clamp(document.SmoothCameraMultiplier, 0f, 1f),
             SpriteDropShadowEnabled = document.SpriteDropShadowEnabled,
             DisableLegacyGameplaySpriteFallback = document.DisableLegacyGameplaySpriteFallback,
             RecentConnection = new ClientRecentConnectionSettings
@@ -198,6 +208,8 @@ public sealed class ClientSettings
         preferences.ShowHealerEnabled = ShowHealerEnabled;
         preferences.ShowHealingEnabled = ShowHealingEnabled;
         preferences.ShowHealthBarEnabled = ShowHealthBarEnabled;
+        preferences.PortraitRumbleEnabled = PortraitRumbleEnabled;
+        preferences.DamageVignetteEnabled = DamageVignetteEnabled;
         preferences.ShowUberOutlinesEnabled = ShowUberOutlinesEnabled;
         preferences.ProjectileTeamTintEnabled = ProjectileTeamTintEnabled;
         preferences.AudioMuted = AudioMuted;
@@ -206,6 +218,7 @@ public sealed class ClientSettings
         preferences.SoundEffectsVolumePercent = SoundEffectsVolumePercent;
         preferences.ShowPersistentSelfNameEnabled = ShowPersistentSelfNameEnabled;
         preferences.PositionSmoothingEnabled = PositionSmoothingEnabled;
+        preferences.SmoothCameraMultiplier = Math.Clamp(SmoothCameraMultiplier, 0f, 1f);
         preferences.SpriteDropShadowEnabled = SpriteDropShadowEnabled;
         preferences.FrameRateLimit = FrameRateLimit;
         preferences.DisableLegacyGameplaySpriteFallback = DisableLegacyGameplaySpriteFallback;

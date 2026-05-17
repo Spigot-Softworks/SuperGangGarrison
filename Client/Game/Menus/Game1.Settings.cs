@@ -43,8 +43,16 @@ public partial class Game1
         _showHealerEnabled = _clientSettings.ShowHealerEnabled;
         _showHealingEnabled = _clientSettings.ShowHealingEnabled;
         _showHealthBarEnabled = _clientSettings.ShowHealthBarEnabled;
+        _portraitRumbleEnabled = _clientSettings.PortraitRumbleEnabled;
+        _damageVignetteEnabled = _clientSettings.DamageVignetteEnabled;
         _showPersistentSelfNameEnabled = _clientSettings.ShowPersistentSelfNameEnabled;
         _positionSmoothingEnabled = _clientSettings.PositionSmoothingEnabled;
+        _smoothCameraMultiplier = NormalizeSmoothCameraMultiplier(_clientSettings.SmoothCameraMultiplier);
+        if (_smoothCameraMultiplier <= 0f)
+        {
+            _hasSmoothCameraY = false;
+        }
+
         _spriteDropShadowEnabled = _clientSettings.SpriteDropShadowEnabled;
         _uberOutlineEnabled = _clientSettings.ShowUberOutlinesEnabled;
         _projectileTeamTintEnabled = _clientSettings.ProjectileTeamTintEnabled;
@@ -85,8 +93,11 @@ public partial class Game1
         _clientSettings.ShowHealerEnabled = _showHealerEnabled;
         _clientSettings.ShowHealingEnabled = _showHealingEnabled;
         _clientSettings.ShowHealthBarEnabled = _showHealthBarEnabled;
+        _clientSettings.PortraitRumbleEnabled = _portraitRumbleEnabled;
+        _clientSettings.DamageVignetteEnabled = _damageVignetteEnabled;
         _clientSettings.ShowPersistentSelfNameEnabled = _showPersistentSelfNameEnabled;
         _clientSettings.PositionSmoothingEnabled = _positionSmoothingEnabled;
+        _clientSettings.SmoothCameraMultiplier = NormalizeSmoothCameraMultiplier(_smoothCameraMultiplier);
         _clientSettings.SpriteDropShadowEnabled = _spriteDropShadowEnabled;
         _clientSettings.ShowUberOutlinesEnabled = _uberOutlineEnabled;
         _clientSettings.ProjectileTeamTintEnabled = _projectileTeamTintEnabled;

@@ -40,6 +40,23 @@ public static class ObjectiveEvaluator
     {
         var level = world.Level;
 
+        if (self.ClassId == PlayerClass.Engineer && !self.IsCarryingIntel)
+        {
+            var engineerOwnIntel = GetOwnIntelState(world, ownTeam);
+            if (engineerOwnIntel.IsDropped)
+            {
+                return (engineerOwnIntel.X, engineerOwnIntel.Y);
+            }
+
+            var engineerOwnBase = level.GetIntelBase(ownTeam);
+            if (engineerOwnBase.HasValue)
+            {
+                return (engineerOwnBase.Value.X, engineerOwnBase.Value.Y);
+            }
+
+            return (engineerOwnIntel.X, engineerOwnIntel.Y);
+        }
+
         if (self.ClassId == PlayerClass.Sniper
             && combatTarget is not null
             && !self.IsCarryingIntel

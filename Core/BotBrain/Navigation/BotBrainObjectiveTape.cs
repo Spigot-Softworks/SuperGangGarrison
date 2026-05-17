@@ -104,14 +104,14 @@ public static class BotBrainObjectiveTapeStore
 
         asset = null!;
         var path = ResolvePath(level.Name, level.MapAreaIndex);
-        if (!File.Exists(path))
+        if (!BotBrainJsonAssetIO.TryResolveReadablePath(path, out var readablePath))
         {
             return TryLoadFromAuthoredCorridors(level, out asset);
         }
 
         try
         {
-            asset = JsonSerializer.Deserialize<BotBrainObjectiveTapeAsset>(File.ReadAllText(path), SerializerOptions)!;
+            asset = BotBrainJsonAssetIO.Deserialize<BotBrainObjectiveTapeAsset>(readablePath, SerializerOptions)!;
         }
         catch
         {
@@ -469,9 +469,9 @@ public static class BotBrainObjectiveTapeStore
 
         var path = ResolvePath(level.Name, level.MapAreaIndex);
         BotBrainObjectiveTapeAsset asset;
-        if (File.Exists(path))
+        if (BotBrainJsonAssetIO.TryResolveReadablePath(path, out var readablePath))
         {
-            asset = JsonSerializer.Deserialize<BotBrainObjectiveTapeAsset>(File.ReadAllText(path), SerializerOptions)
+            asset = BotBrainJsonAssetIO.Deserialize<BotBrainObjectiveTapeAsset>(readablePath, SerializerOptions)
                 ?? new BotBrainObjectiveTapeAsset();
         }
         else

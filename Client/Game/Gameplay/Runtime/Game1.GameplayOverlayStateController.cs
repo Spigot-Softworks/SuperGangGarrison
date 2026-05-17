@@ -29,6 +29,7 @@ public partial class Game1
         {
             _game._practiceSetupOpen = false;
             _game._lastToDieMenuOpen = false;
+            _game._jumpMenuOpen = false;
             _game._lastToDiePerkMenuOpen = false;
             _game._clientPowersOpen = false;
             _game._clientPowersOpenedFromGameplay = false;

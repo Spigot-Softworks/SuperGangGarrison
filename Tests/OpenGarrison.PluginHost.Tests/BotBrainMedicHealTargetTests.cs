@@ -40,6 +40,26 @@ public sealed class BotBrainMedicHealTargetTests
         Assert.Same(scout, target);
     }
 
+    [Fact]
+    public void MedicHealTargetSkipsCloakedSpyEvenWhenCritical()
+    {
+        var world = CreateMedicTargetWorld(
+            out var medic,
+            out var scout,
+            out var soldier,
+            out var heavy);
+        scout.ForceSetHealth(scout.MaxHealth);
+        soldier.ForceSetHealth(soldier.MaxHealth);
+        heavy.ForceSetHealth(heavy.MaxHealth);
+        var spy = AddNetworkPlayer(world, 5, PlayerClass.Spy, medic.X + 50f, medic.Y);
+        spy.ForceSetHealth(1);
+        Assert.True(spy.TryToggleSpyCloak());
+
+        var target = CombatDecisionResolver.FindBestMedicHealTarget(world, medic, PlayerTeam.Red);
+
+        Assert.Same(heavy, target);
+    }
+
     private static SimulationWorld CreateMedicTargetWorld(
         out PlayerEntity medic,
         out PlayerEntity scout,

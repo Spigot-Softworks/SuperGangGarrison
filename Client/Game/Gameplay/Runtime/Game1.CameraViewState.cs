@@ -7,9 +7,15 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private const float SmoothCameraResetDeltaPixels = 48f;
+    private const float SmoothCameraPixelHysteresisPixels = 0.75f;
+    private const float SmoothCameraMinFollowPerFrame = 0.08f;
+    private const float SmoothCameraMaxFollowPerFrame = 0.5f;
+
     private Vector2 GetCameraTopLeft(int viewportWidth, int viewportHeight, int mouseX, int mouseY)
     {
         var cameraTopLeft = CalculateBaseCameraTopLeft(viewportWidth, viewportHeight, mouseX, mouseY, trackLiveCamera: true);
+        cameraTopLeft = ApplySmoothCameraY(cameraTopLeft);
         return RoundToSourcePixels(cameraTopLeft + GetClientPluginCameraOffset() + GetLastToDieCameraShakeOffset());
     }
 
@@ -112,6 +118,8 @@ public partial class Game1
             {
                 return _predictedLocalPlayerPosition;
             }
+
+            return GetRenderPosition(_world.LocalPlayer, allowInterpolation: true);
         }
 
         return new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
@@ -171,5 +179,55 @@ public partial class Game1
         return new Vector2(
             focusPosition.X - (viewportWidth / 2f),
             focusPosition.Y - (viewportHeight / 2f));
+    }
+
+    private Vector2 ApplySmoothCameraY(Vector2 cameraTopLeft)
+    {
+        var multiplier = NormalizeSmoothCameraMultiplier(_smoothCameraMultiplier);
+        if (multiplier <= 0f || !ShouldSmoothCameraY())
+        {
+            _hasSmoothCameraY = false;
+            return cameraTopLeft;
+        }
+
+        if (!_hasSmoothCameraY || MathF.Abs(cameraTopLeft.Y - _smoothCameraY) > SmoothCameraResetDeltaPixels)
+        {
+            _smoothCameraY = cameraTopLeft.Y;
+            _smoothCameraPixelY = RoundToSourcePixel(cameraTopLeft.Y);
+            _hasSmoothCameraY = true;
+            return new Vector2(cameraTopLeft.X, _smoothCameraPixelY);
+        }
+
+        var elapsedFrames = MathF.Max(1f, MathF.Min(4f, _clientUpdateElapsedSeconds * 60f));
+        var followPerFrame = MathHelper.Lerp(SmoothCameraMaxFollowPerFrame, SmoothCameraMinFollowPerFrame, multiplier);
+        var alpha = 1f - MathF.Pow(1f - followPerFrame, elapsedFrames);
+        _smoothCameraY = MathHelper.Lerp(_smoothCameraY, cameraTopLeft.Y, MathHelper.Clamp(alpha, 0f, 1f));
+        _smoothCameraPixelY = ApplySmoothCameraPixelHysteresis(_smoothCameraPixelY, _smoothCameraY);
+        return new Vector2(cameraTopLeft.X, _smoothCameraPixelY);
+    }
+
+    private static float ApplySmoothCameraPixelHysteresis(float currentPixelY, float smoothedY)
+    {
+        return MathF.Abs(smoothedY - currentPixelY) < SmoothCameraPixelHysteresisPixels
+            ? currentPixelY
+            : RoundToSourcePixel(smoothedY);
+    }
+
+    private bool ShouldSmoothCameraY()
+    {
+        if (IsDeathCamPresentationActive() || IsRespawnFreeCameraActive())
+        {
+            return false;
+        }
+
+        if (_networkClient.IsSpectator)
+        {
+            var spectatorFocus = GetSpectatorFocusPlayer();
+            return spectatorFocus is null
+                || (!GetPlayerIsUsingBinoculars(spectatorFocus) && !GetPlayerIsSniperScoped(spectatorFocus));
+        }
+
+        return !_world.LocalPlayer.IsAlive
+            || (!GetPlayerIsUsingBinoculars(_world.LocalPlayer) && !GetPlayerIsSniperScoped(_world.LocalPlayer));
     }
 }

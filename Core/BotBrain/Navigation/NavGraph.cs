@@ -13,15 +13,20 @@ public sealed class NavGraph
 
     private readonly NavNode[] _nodes;
     private readonly List<NavEdge>[] _adjacency;
-    private readonly bool[] _spawnAdjacentNodes;
+    private readonly int[] _spawnAdjacentTeamMasks;
     private readonly string? _levelName;
     private readonly GameModeKind? _mode;
 
-    public NavGraph(NavNode[] nodes, List<NavEdge>[] adjacency, string? levelName = null, GameModeKind? mode = null)
+    public NavGraph(
+        NavNode[] nodes,
+        List<NavEdge>[] adjacency,
+        string? levelName = null,
+        GameModeKind? mode = null,
+        IReadOnlyList<NavSpawnAnchor>? spawnAnchors = null)
     {
         _nodes = nodes;
         _adjacency = adjacency;
-        _spawnAdjacentNodes = ResolveSpawnAdjacentNodes(nodes);
+        _spawnAdjacentTeamMasks = ResolveSpawnAdjacentTeamMasks(nodes, spawnAnchors);
         _levelName = levelName;
         _mode = mode;
     }
@@ -341,7 +346,7 @@ public sealed class NavGraph
         var isSuspiciousVerticalRelay = IsSuspiciousVerticalRelay(edge, cost, verticalDelta, horizontalDelta, euclideanDistance);
         if (ShouldReturnRawTraversalCost(edge, verticalDelta, isSuspiciousVerticalRelay, playerClass, carryingIntel, team))
         {
-            return cost + ResolveCarrierSpawnAdjacencyPenalty(fromNodeIndex, toNodeIndex, carryingIntel, fromNode, toNode);
+            return cost + ResolveCarrierSpawnAdjacencyPenalty(fromNodeIndex, toNodeIndex, carryingIntel, fromNode, toNode, team);
         }
 
         var difficultyPenalty = edge.Kind switch
@@ -414,7 +419,7 @@ public sealed class NavGraph
 
         return cost
             + difficultyPenalty
-            + ResolveCarrierSpawnAdjacencyPenalty(fromNodeIndex, toNodeIndex, carryingIntel, fromNode, toNode)
+            + ResolveCarrierSpawnAdjacencyPenalty(fromNodeIndex, toNodeIndex, carryingIntel, fromNode, toNode, team)
             + ResolveMapSpecificTraversalPenalty(edge, fromNode, toNode, playerClass, carryingIntel, team);
     }
 
@@ -477,27 +482,60 @@ public sealed class NavGraph
         int toNodeIndex,
         bool carryingIntel,
         NavNode fromNode,
-        NavNode toNode)
+        NavNode toNode,
+        PlayerTeam? team)
     {
         if (!carryingIntel
             || _mode != GameModeKind.CaptureTheFlag
-            || !string.Equals(_levelName, "Eiger", StringComparison.OrdinalIgnoreCase)
+            || !ShouldApplyCarrierSpawnAdjacencyPenalty()
             || fromNode.Kind == NavNodeKind.Objective
             || toNode.Kind == NavNodeKind.Objective)
         {
             return 0f;
         }
 
-        return _spawnAdjacentNodes[fromNodeIndex] || _spawnAdjacentNodes[toNodeIndex]
+        return IsCarrierBlockedSpawnAdjacentNode(fromNodeIndex, team)
+            || IsCarrierBlockedSpawnAdjacentNode(toNodeIndex, team)
             ? 3_000f
             : 0f;
     }
 
-    private static bool[] ResolveSpawnAdjacentNodes(NavNode[] nodes)
+    private bool ShouldApplyCarrierSpawnAdjacencyPenalty()
+    {
+        return string.Equals(_levelName, "Conflict", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(_levelName, "Eiger", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(_levelName, "Waterway", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool IsCarrierBlockedSpawnAdjacentNode(int nodeIndex, PlayerTeam? team)
+    {
+        var mask = _spawnAdjacentTeamMasks[nodeIndex];
+        if (mask == 0)
+        {
+            return false;
+        }
+
+        if (!ShouldUseTeamAwareCarrierSpawnAdjacencyPenalty() || !team.HasValue)
+        {
+            return true;
+        }
+
+        return BotBrainTeamMask.Contains(mask, GetOpposingTeam(team.Value));
+    }
+
+    private bool ShouldUseTeamAwareCarrierSpawnAdjacencyPenalty() =>
+        string.Equals(_levelName, "Waterway", StringComparison.OrdinalIgnoreCase);
+
+    private static int[] ResolveSpawnAdjacentTeamMasks(NavNode[] nodes, IReadOnlyList<NavSpawnAnchor>? spawnAnchors)
     {
         const float spawnHorizontalRange = 170f;
         const float spawnVerticalRange = 80f;
-        var spawnAdjacent = new bool[nodes.Length];
+        var spawnAdjacentTeamMasks = new int[nodes.Length];
+        if (spawnAnchors is null || spawnAnchors.Count == 0)
+        {
+            spawnAnchors = ResolveLegacySpawnAnchors(nodes);
+        }
+
         for (var i = 0; i < nodes.Length; i += 1)
         {
             if (nodes[i].Kind is NavNodeKind.Spawn or NavNodeKind.Objective)
@@ -505,24 +543,37 @@ public sealed class NavGraph
                 continue;
             }
 
-            for (var j = 0; j < nodes.Length; j += 1)
+            for (var j = 0; j < spawnAnchors.Count; j += 1)
             {
-                if (nodes[j].Kind != NavNodeKind.Spawn)
+                var spawn = spawnAnchors[j];
+                if (MathF.Abs(nodes[i].X - spawn.X) <= spawnHorizontalRange
+                    && MathF.Abs(nodes[i].Y - spawn.Y) <= spawnVerticalRange)
                 {
-                    continue;
-                }
-
-                if (MathF.Abs(nodes[i].X - nodes[j].X) <= spawnHorizontalRange
-                    && MathF.Abs(nodes[i].Y - nodes[j].Y) <= spawnVerticalRange)
-                {
-                    spawnAdjacent[i] = true;
-                    break;
+                    spawnAdjacentTeamMasks[i] |= BotBrainTeamMask.For(spawn.Team);
                 }
             }
         }
 
-        return spawnAdjacent;
+        return spawnAdjacentTeamMasks;
     }
+
+    private static NavSpawnAnchor[] ResolveLegacySpawnAnchors(NavNode[] nodes)
+    {
+        var anchors = new List<NavSpawnAnchor>();
+        foreach (var node in nodes)
+        {
+            if (node.Kind == NavNodeKind.Spawn)
+            {
+                anchors.Add(new NavSpawnAnchor(node.X, node.Y, PlayerTeam.Red));
+                anchors.Add(new NavSpawnAnchor(node.X, node.Y, PlayerTeam.Blue));
+            }
+        }
+
+        return anchors.ToArray();
+    }
+
+    private static PlayerTeam GetOpposingTeam(PlayerTeam team) =>
+        team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
 
     private bool ShouldUseRawTraversalCost(PlayerClass? playerClass, bool carryingIntel, PlayerTeam? team)
     {
@@ -539,15 +590,20 @@ public sealed class NavGraph
         bool carryingIntel,
         PlayerTeam? team)
     {
-        if (_mode != GameModeKind.CaptureTheFlag || !carryingIntel)
+        if (_mode != GameModeKind.CaptureTheFlag)
         {
             return 0f;
         }
 
         if (edge.Kind == NavEdgeKind.Walk
-            || playerClass != PlayerClass.Soldier
+            || playerClass == PlayerClass.Scout
             || !team.HasValue
             || !string.Equals(_levelName, "Truefort", StringComparison.OrdinalIgnoreCase))
+        {
+            return 0f;
+        }
+
+        if (!carryingIntel)
         {
             return 0f;
         }
@@ -582,8 +638,8 @@ public sealed class NavGraph
 
     private static bool IsTruefortRedReturnChurnEdge(NavEdge edge, NavNode fromNode, NavNode toNode)
     {
-        if (!IsInBox(fromNode, minX: 4_180f, maxX: 4_680f, minY: 430f, maxY: 920f)
-            || !IsInBox(toNode, minX: 4_180f, maxX: 4_680f, minY: 430f, maxY: 920f))
+        if (!IsInBox(fromNode, minX: 4_140f, maxX: 4_680f, minY: 430f, maxY: 920f)
+            || !IsInBox(toNode, minX: 4_140f, maxX: 4_680f, minY: 430f, maxY: 920f))
         {
             return false;
         }
@@ -668,6 +724,8 @@ public sealed class NavGraph
 /// A node in the navigation graph — a walkable position in world space.
 /// </summary>
 public readonly record struct NavNode(float X, float Y, NavNodeKind Kind, int? SurfaceId = null);
+
+public readonly record struct NavSpawnAnchor(float X, float Y, PlayerTeam Team);
 
 public readonly record struct NavEdgeBlock(int FromNode, int ToNode, NavEdgeKind Kind);
 

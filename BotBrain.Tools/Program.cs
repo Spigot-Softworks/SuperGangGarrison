@@ -80,6 +80,40 @@ if (rawOptions.TryGetValue("build-proof-graph", out var buildProofGraph)
     return;
 }
 
+if (rawOptions.TryGetValue("audit-proof-graphs", out var auditProofGraphs)
+    && bool.TryParse(auditProofGraphs, out var parsedAuditProofGraphs)
+    && parsedAuditProofGraphs)
+{
+    RunProofGraphAudit(rawOptions);
+    return;
+}
+
+if (rawOptions.TryGetValue("local-motion-lab", out var localMotionLab)
+    && bool.TryParse(localMotionLab, out var parsedLocalMotionLab)
+    && parsedLocalMotionLab)
+{
+    BotBrainToolCommandHelpers.RunLocalMotionLab(rawOptions);
+    return;
+}
+
+if (rawOptions.TryGetValue("direct-drive-lab", out var directDriveLab)
+    && bool.TryParse(directDriveLab, out var parsedDirectDriveLab)
+    && parsedDirectDriveLab)
+{
+    BotBrainToolCommandHelpers.RunDirectDriveLab(rawOptions);
+    return;
+}
+
+if (rawOptions.TryGetValue("topology-local-motion-lab", out var topologyLocalMotionLab)
+    && bool.TryParse(topologyLocalMotionLab, out var parsedTopologyLocalMotionLab)
+    && parsedTopologyLocalMotionLab)
+{
+    var labOptions = TopologyLocalMotionLabOptions.FromRawOptions(rawOptions, FindRepoRoot(AppContext.BaseDirectory));
+    var labSummary = TopologyLocalMotionLab.Run(labOptions);
+    Console.WriteLine(JsonSerializer.Serialize(labSummary, artifactJsonOptions));
+    return;
+}
+
 if (rawOptions.TryGetValue("extract-proof-trace", out var extractProofTrace)
     && bool.TryParse(extractProofTrace, out var parsedExtractProofTrace)
     && parsedExtractProofTrace)
@@ -144,6 +178,14 @@ if (options.ProofGraphRequired)
 var repoRoot = FindRepoRoot(AppContext.BaseDirectory);
 ContentRoot.Initialize(Path.Combine(repoRoot, "Core", "Content"));
 
+if (rawOptions.TryGetValue("bot-traversal-soak", out var botTraversalSoak)
+    && bool.TryParse(botTraversalSoak, out var parsedBotTraversalSoak)
+    && parsedBotTraversalSoak)
+{
+    RunBotTraversalSoak(options, rawOptions);
+    return;
+}
+
 var level = SimpleLevelFactory.CreateImportedLevel(options.MapName, options.AreaIndex)
     ?? throw new InvalidOperationException($"Could not load map '{options.MapName}' area {options.AreaIndex}.");
 
@@ -188,6 +230,14 @@ assetStopwatch.Stop();
 if (options.ProbeFromNode >= 0 && options.ProbeToNode >= 0)
 {
     RunProbeTrace(level, asset, options);
+    return;
+}
+
+if (rawOptions.TryGetValue("simulate-practice-roster", out var simulatePracticeRoster)
+    && bool.TryParse(simulatePracticeRoster, out var parsedSimulatePracticeRoster)
+    && parsedSimulatePracticeRoster)
+{
+    RunPracticeRosterSimulation(level, graph, options, rawOptions);
     return;
 }
 
@@ -1596,6 +1646,1108 @@ static TraversalLabTickSample CreateRuntimeProofSample(
         StepLabel: stepLabel);
 }
 
+static void RunBotTraversalSoak(
+    BotBrainCanaryOptions options,
+    IReadOnlyDictionary<string, string> rawOptions)
+{
+    var maps = GetTraversalSoakMaps(rawOptions, options.MapName);
+    var failOnAcceptance = GetRosterBool(rawOptions, "fail-on-acceptance", true);
+    var allPassed = true;
+    var results = new List<TraversalSoakRunResult>(maps.Count);
+    foreach (var mapName in maps)
+    {
+        var result = RunBotTraversalSoakMap(mapName, options, rawOptions);
+        results.Add(result);
+        allPassed &= result.Passed;
+    }
+
+    if (results.Count > 1)
+    {
+        Console.WriteLine(
+            $"soakSuiteResult=maps:{results.Count} passed:{(allPassed ? 1 : 0)} " +
+            $"failed:{results.Count(static result => !result.Passed)}");
+        foreach (var result in results)
+        {
+            Console.WriteLine(
+                $"soakSuiteMap=map:{result.MapName} area:{result.AreaIndex} " +
+                $"passed:{(result.Passed ? 1 : 0)} reason:{result.Reason}");
+        }
+    }
+
+    if (failOnAcceptance && !allPassed)
+    {
+        Environment.ExitCode = 1;
+    }
+}
+
+static TraversalSoakRunResult RunBotTraversalSoakMap(
+    string mapName,
+    BotBrainCanaryOptions options,
+    IReadOnlyDictionary<string, string> rawOptions)
+{
+    var areaIndex = GetRosterInt(rawOptions, "area", GetRosterInt(rawOptions, "area-index", options.AreaIndex));
+    var ticks = GetRosterInt(rawOptions, "ticks", Math.Max(options.Ticks, 18_000));
+    var reportEvery = GetRosterInt(rawOptions, "report-every", Math.Max(300, options.ReportEveryTicks));
+    var requestedBots = GetRosterInt(rawOptions, "bots", 24);
+    var includeLocal = GetRosterBool(rawOptions, "include-local", true);
+    var failOnAcceptance = GetRosterBool(rawOptions, "fail-on-acceptance", true);
+    var stagnantWindowTicks = Math.Max(1, GetRosterInt(rawOptions, "stagnant-window-ticks", 30));
+    var inertFailTicks = Math.Max(stagnantWindowTicks, GetRosterInt(rawOptions, "inert-fail-ticks", 150));
+    var stagnantDistance = MathF.Max(0f, GetRosterFloat(rawOptions, "stagnant-distance", 12f));
+    var oscillationWindowTicks = Math.Max(1, GetRosterInt(rawOptions, "oscillation-window-ticks", 150));
+    var oscillationFlips = Math.Max(1, GetRosterInt(rawOptions, "oscillation-flips", 8));
+    var oscillationDistance = MathF.Max(0f, GetRosterFloat(rawOptions, "oscillation-distance", 48f));
+    var maxBots = includeLocal
+        ? SimulationWorld.MaxPlayableNetworkPlayers
+        : SimulationWorld.MaxPlayableNetworkPlayers - 1;
+    var botCount = Math.Clamp(requestedBots, 1, maxBots);
+    PlayerClass[] classCycle =
+    [
+        PlayerClass.Scout,
+        PlayerClass.Pyro,
+        PlayerClass.Soldier,
+        PlayerClass.Heavy,
+        PlayerClass.Demoman,
+        PlayerClass.Medic,
+        PlayerClass.Engineer,
+        PlayerClass.Spy,
+        PlayerClass.Sniper,
+        PlayerClass.Quote,
+    ];
+
+    var world = new SimulationWorld();
+    if (!world.TryLoadLevel(mapName, areaIndex, preservePlayerStats: false))
+    {
+        throw new InvalidOperationException($"SimulationWorld failed to load '{mapName}' area {areaIndex}.");
+    }
+
+    world.DespawnEnemyDummy();
+    world.DespawnFriendlyDummy();
+    if (!includeLocal)
+    {
+        world.PrepareLocalPlayerJoin();
+    }
+
+    var controllers = new Dictionary<byte, BotBrainController>();
+    var stats = new Dictionary<byte, TraversalSoakBotStats>();
+    var redCount = (botCount + 1) / 2;
+    for (var index = 0; index < botCount; index += 1)
+    {
+        var slot = includeLocal
+            ? (byte)(SimulationWorld.LocalPlayerSlot + index)
+            : (byte)(SimulationWorld.LocalPlayerSlot + index + 1);
+        var team = index < redCount ? PlayerTeam.Red : PlayerTeam.Blue;
+        var teamIndex = team == PlayerTeam.Red ? index : index - redCount;
+        var classOffset = team == PlayerTeam.Red ? 0 : 3;
+        var classId = classCycle[(teamIndex + classOffset) % classCycle.Length];
+        if (!TryConfigureTraversalSoakBot(world, slot, team, classId, out var bot))
+        {
+            Console.WriteLine($"soakBotSkipped=slot:{slot} team:{team} class:{classId}");
+            continue;
+        }
+
+        controllers[slot] = new BotBrainController();
+        stats[slot] = new TraversalSoakBotStats(slot, team, classId, bot.X, bot.Y, bot.Bottom);
+    }
+
+    if (requestedBots > botCount)
+    {
+        Console.WriteLine(
+            $"soakCapacity=requested:{requestedBots} using:{botCount} " +
+            $"maxPlayableSlots:{SimulationWorld.MaxPlayableNetworkPlayers} includeLocal:{(includeLocal ? 1 : 0)}");
+    }
+
+    Console.WriteLine(
+        $"soakStart=map:{world.Level.Name} area:{world.Level.MapAreaIndex} mode:{world.MatchRules.Mode} " +
+        $"requestedBots:{requestedBots} bots:{stats.Count} ticks:{ticks} reportEvery:{reportEvery} " +
+        $"inertFailTicks:{inertFailTicks} stagnantWindowTicks:{stagnantWindowTicks} " +
+        $"stagnantDistance:{stagnantDistance:0.0} oscillationWindowTicks:{oscillationWindowTicks} " +
+        $"oscillationFlips:{oscillationFlips} oscillationDistance:{oscillationDistance:0.0} " +
+        $"failOnAcceptance:{(failOnAcceptance ? 1 : 0)}");
+    foreach (var entry in stats.Values.OrderBy(static stat => stat.Slot))
+    {
+        Console.WriteLine(
+            $"soakBot=slot:{entry.Slot} team:{entry.Team} class:{entry.ClassId} " +
+            $"start=({entry.StartX:0.0},{entry.StartY:0.0})");
+    }
+
+    var initialRedCaps = world.RedCaps;
+    var initialBlueCaps = world.BlueCaps;
+    var redFirstCapTick = -1;
+    var blueFirstCapTick = -1;
+    long totalThinkStopwatchTicks = 0;
+    long maxTickThinkStopwatchTicks = 0;
+    var controlledThinkTicks = 0L;
+    for (var tick = 1; tick <= ticks; tick += 1)
+    {
+        var tickThinkStart = Stopwatch.GetTimestamp();
+        var inputs = new Dictionary<byte, PlayerInputSnapshot>(controllers.Count);
+        foreach (var (slot, controller) in controllers)
+        {
+            if (!world.TryGetNetworkPlayer(slot, out var bot))
+            {
+                continue;
+            }
+
+            var thinkStart = Stopwatch.GetTimestamp();
+            var input = controller.Think(bot, world, bot.Team);
+            var thinkElapsed = Stopwatch.GetTimestamp() - thinkStart;
+            totalThinkStopwatchTicks += thinkElapsed;
+            controlledThinkTicks += 1;
+            inputs[slot] = bot.IsAlive ? input : default;
+            ObserveTraversalSoakBotPreAdvance(stats[slot], tick, bot, input, controller, thinkElapsed);
+        }
+
+        foreach (var (slot, input) in inputs)
+        {
+            world.TrySetNetworkPlayerInput(slot, input);
+        }
+
+        world.AdvanceOneTick();
+        var tickThinkElapsed = Stopwatch.GetTimestamp() - tickThinkStart;
+        if (tickThinkElapsed > maxTickThinkStopwatchTicks)
+        {
+            maxTickThinkStopwatchTicks = tickThinkElapsed;
+        }
+
+        if (redFirstCapTick < 0 && world.RedCaps > initialRedCaps)
+        {
+            redFirstCapTick = tick;
+        }
+
+        if (blueFirstCapTick < 0 && world.BlueCaps > initialBlueCaps)
+        {
+            blueFirstCapTick = tick;
+        }
+
+        foreach (var (slot, controller) in controllers)
+        {
+            if (!world.TryGetNetworkPlayer(slot, out var bot))
+            {
+                continue;
+            }
+
+            ObserveTraversalSoakBotPostAdvance(
+                stats[slot],
+                tick,
+                bot,
+                controller,
+                stagnantWindowTicks,
+                inertFailTicks,
+                stagnantDistance,
+                oscillationWindowTicks,
+                oscillationFlips,
+                oscillationDistance);
+        }
+
+        if (reportEvery > 0 && tick % reportEvery == 0)
+        {
+            var maxInertTicks = stats.Values.Select(static stat => stat.MaxConsecutiveInertTicks).DefaultIfEmpty().Max();
+            var oscillationEvents = stats.Values.Sum(static stat => stat.OscillationEvents);
+            var avgThinkMsPerTick = StopwatchTicksToMilliseconds(totalThinkStopwatchTicks) / tick;
+            Console.WriteLine(
+                $"soakTick={tick} redCaps:{world.RedCaps - initialRedCaps} blueCaps:{world.BlueCaps - initialBlueCaps} " +
+                $"maxInertTicks:{maxInertTicks} oscillationEvents:{oscillationEvents} " +
+                $"avgThinkMsPerTick:{avgThinkMsPerTick:0.000} " +
+                $"{FormatPracticeRosterIntelState("redIntel", world.RedIntel)} {FormatPracticeRosterIntelState("blueIntel", world.BlueIntel)}");
+            foreach (var entry in stats.Values
+                         .OrderByDescending(static stat => stat.ConsecutiveInertTicks)
+                         .ThenByDescending(static stat => stat.RecentStagnant)
+                         .ThenBy(static stat => stat.Slot)
+                         .Take(8))
+            {
+                Console.WriteLine(FormatTraversalSoakBotTick(entry));
+            }
+        }
+    }
+
+    var finalRedCaps = world.RedCaps - initialRedCaps;
+    var finalBlueCaps = world.BlueCaps - initialBlueCaps;
+    var finalMaxInertTicks = stats.Values.Select(static stat => stat.MaxConsecutiveInertTicks).DefaultIfEmpty().Max();
+    var finalOscillationEvents = stats.Values.Sum(static stat => stat.OscillationEvents);
+    var ctfCapsPassed = world.MatchRules.Mode != GameModeKind.CaptureTheFlag
+        || (finalRedCaps > 0 && finalBlueCaps > 0);
+    var inertPassed = finalMaxInertTicks < inertFailTicks;
+    var oscillationPassed = finalOscillationEvents == 0;
+    var passed = ctfCapsPassed && inertPassed && oscillationPassed;
+    var reason = FormatTraversalSoakResultReason(ctfCapsPassed, inertPassed, oscillationPassed);
+    var totalThinkMs = StopwatchTicksToMilliseconds(totalThinkStopwatchTicks);
+    var avgThinkMsPerTickFinal = ticks > 0 ? totalThinkMs / ticks : 0d;
+    var avgThinkMsPerBotTick = controlledThinkTicks > 0 ? totalThinkMs / controlledThinkTicks : 0d;
+    var maxTickThinkMs = StopwatchTicksToMilliseconds(maxTickThinkStopwatchTicks);
+
+    Console.WriteLine(
+        $"soakResult=map:{world.Level.Name} area:{world.Level.MapAreaIndex} passed:{(passed ? 1 : 0)} reason:{reason} " +
+        $"redCaps:{finalRedCaps} blueCaps:{finalBlueCaps} redFirstCapTick:{redFirstCapTick} blueFirstCapTick:{blueFirstCapTick} " +
+        $"maxInertTicks:{finalMaxInertTicks} inertFailTicks:{inertFailTicks} oscillationEvents:{finalOscillationEvents} " +
+        $"totalThinkMs:{totalThinkMs:0.000} avgThinkMsPerTick:{avgThinkMsPerTickFinal:0.000} " +
+        $"avgThinkMsPerBotTick:{avgThinkMsPerBotTick:0.0000} maxTickThinkMs:{maxTickThinkMs:0.000}");
+    foreach (var entry in stats.Values.OrderBy(static stat => stat.Slot))
+    {
+        Console.WriteLine(FormatTraversalSoakBotSummary(entry));
+    }
+
+    return new TraversalSoakRunResult(world.Level.Name, world.Level.MapAreaIndex, passed, reason);
+}
+
+static bool TryConfigureTraversalSoakBot(
+    SimulationWorld world,
+    byte slot,
+    PlayerTeam team,
+    PlayerClass classId,
+    out PlayerEntity bot)
+{
+    bot = null!;
+    if (slot == SimulationWorld.LocalPlayerSlot)
+    {
+        world.TrySetNetworkPlayerTeam(slot, team);
+        world.SetPendingLocalPlayerClass(classId);
+        world.ForceRespawnLocalPlayer();
+        return world.TryGetNetworkPlayer(slot, out bot);
+    }
+
+    return world.TryPrepareNetworkPlayerJoin(slot)
+        && world.TrySetNetworkPlayerTeam(slot, team)
+        && world.TryApplyNetworkPlayerClassSelection(slot, classId)
+        && world.TryGetNetworkPlayer(slot, out bot);
+}
+
+static void ObserveTraversalSoakBotPreAdvance(
+    TraversalSoakBotStats stats,
+    int tick,
+    PlayerEntity bot,
+    PlayerInputSnapshot input,
+    BotBrainController controller,
+    long thinkStopwatchTicks)
+{
+    stats.LastPreX = bot.X;
+    stats.LastPreY = bot.Y;
+    stats.LastPreBottom = bot.Bottom;
+    stats.LastInput = input;
+    stats.LastTraversalTrace = FormatTraversalSoakControllerTrace(controller);
+    stats.LastSemanticTrace = controller.LastSemanticRecoveryTrace;
+    stats.ThinkTicks += 1;
+    stats.ThinkStopwatchTicks += thinkStopwatchTicks;
+    if (thinkStopwatchTicks > stats.MaxThinkStopwatchTicks)
+    {
+        stats.MaxThinkStopwatchTicks = thinkStopwatchTicks;
+    }
+
+    if (!input.Left && !input.Right && !input.Up && !input.Down && !input.FirePrimary && !input.FireSecondary)
+    {
+        stats.ZeroInputTicks += 1;
+    }
+
+    var moveSign = input.Right == input.Left ? 0 : input.Right ? 1 : -1;
+    if (moveSign != 0 && stats.LastMoveSign != 0 && moveSign != stats.LastMoveSign)
+    {
+        stats.MoveFlips += 1;
+        stats.OscillationWindowLowSpeedMoveFlips += MathF.Abs(bot.HorizontalSpeed) < 40f ? 1 : 0;
+        if (MathF.Abs(bot.HorizontalSpeed) < 40f)
+        {
+            stats.LowSpeedMoveFlips += 1;
+        }
+    }
+
+    if (moveSign != 0)
+    {
+        stats.LastMoveSign = moveSign;
+    }
+
+    if (bot.IsCarryingIntel && stats.CarryingIntelTick < 0)
+    {
+        stats.CarryingIntelTick = tick;
+    }
+}
+
+static string FormatTraversalSoakControllerTrace(BotBrainController controller)
+{
+    var trace = string.Empty;
+    AppendTrace(controller.LastSemanticRecoveryTrace);
+    AppendTrace(controller.LastDirectDriveTrace);
+    AppendTrace(controller.LastObjectiveTapeTrace);
+    AppendTrace(controller.LastProofGraphTrace);
+    return trace;
+
+    void AppendTrace(string candidate)
+    {
+        if (string.IsNullOrWhiteSpace(candidate))
+        {
+            return;
+        }
+
+        trace = trace.Length == 0 ? candidate : $"{trace} {candidate}";
+    }
+}
+
+static void ObserveTraversalSoakBotPostAdvance(
+    TraversalSoakBotStats stats,
+    int tick,
+    PlayerEntity bot,
+    BotBrainController controller,
+    int stagnantWindowTicks,
+    int inertFailTicks,
+    float stagnantDistance,
+    int oscillationWindowTicks,
+    int oscillationFlips,
+    float oscillationDistance)
+{
+    var wasCarryingIntel = stats.LastCarryingIntel;
+    var wasAlive = stats.LastAlive;
+    var hadPreviousPostSample = stats.HasPostAdvanceSample;
+    var capIncreased = bot.Caps > stats.LastCapsSeen;
+
+    stats.LastX = bot.X;
+    stats.LastY = bot.Y;
+    stats.LastBottom = bot.Bottom;
+    stats.LastGrounded = bot.IsGrounded;
+    stats.LastHorizontalSpeed = bot.HorizontalSpeed;
+    stats.LastVerticalSpeed = bot.VerticalSpeed;
+    stats.LastCaps = bot.Caps;
+    stats.LastCarryingIntel = bot.IsCarryingIntel;
+    stats.HasPostAdvanceSample = true;
+
+    if (hadPreviousPostSample && wasAlive && !bot.IsAlive)
+    {
+        stats.DeathCount += 1;
+        if (stats.FirstDeathTick < 0)
+        {
+            stats.FirstDeathTick = tick;
+        }
+    }
+
+    if (wasCarryingIntel && !bot.IsCarryingIntel && !capIncreased)
+    {
+        stats.CarryLossCount += 1;
+        if (stats.FirstCarryLossTick < 0)
+        {
+            stats.FirstCarryLossTick = tick;
+            stats.FirstCarryLossX = bot.X;
+            stats.FirstCarryLossY = bot.Y;
+        }
+    }
+
+    stats.LastAlive = bot.IsAlive;
+    if (capIncreased)
+    {
+        if (stats.FirstCapTick < 0)
+        {
+            stats.FirstCapTick = tick;
+        }
+
+        if (stats.CarryingIntelTick >= 0 && stats.CarrierConversionTicks < 0)
+        {
+            stats.CarrierConversionTicks = tick - stats.CarryingIntelTick;
+        }
+
+        stats.LastCapsSeen = bot.Caps;
+    }
+
+    stats.TotalMovement += Distance(stats.PreviousX, stats.PreviousY, bot.X, bot.Y);
+    stats.PreviousX = bot.X;
+    stats.PreviousY = bot.Y;
+
+    if (!bot.IsAlive)
+    {
+        stats.ConsecutiveInertTicks = 0;
+        stats.WindowX = bot.X;
+        stats.WindowY = bot.Y;
+        stats.OscillationWindowX = bot.X;
+        stats.OscillationWindowY = bot.Y;
+        stats.OscillationWindowLowSpeedMoveFlips = 0;
+        return;
+    }
+
+    if (tick % stagnantWindowTicks == 0)
+    {
+        var windowMovement = Distance(stats.WindowX, stats.WindowY, bot.X, bot.Y);
+        stats.RecentWindowMovement = windowMovement;
+        stats.RecentStagnant = windowMovement < stagnantDistance;
+        if (stats.RecentStagnant)
+        {
+            stats.StagnantWindows += 1;
+            stats.ConsecutiveInertTicks += stagnantWindowTicks;
+            if (stats.ConsecutiveInertTicks > stats.MaxConsecutiveInertTicks)
+            {
+                stats.MaxConsecutiveInertTicks = stats.ConsecutiveInertTicks;
+            }
+
+            if (stats.ConsecutiveInertTicks >= inertFailTicks && stats.FirstInertFailTick < 0)
+            {
+                stats.FirstInertFailTick = tick;
+                stats.FirstInertFailX = bot.X;
+                stats.FirstInertFailY = bot.Y;
+                stats.FirstInertFailTrace = stats.LastTraversalTrace;
+            }
+        }
+        else
+        {
+            stats.ConsecutiveInertTicks = 0;
+        }
+
+        stats.WindowX = bot.X;
+        stats.WindowY = bot.Y;
+    }
+
+    if (tick % oscillationWindowTicks == 0)
+    {
+        var oscillationMovement = Distance(stats.OscillationWindowX, stats.OscillationWindowY, bot.X, bot.Y);
+        stats.RecentOscillationWindowMovement = oscillationMovement;
+        if (oscillationMovement < oscillationDistance
+            && stats.OscillationWindowLowSpeedMoveFlips >= oscillationFlips)
+        {
+            stats.OscillationEvents += 1;
+            if (stats.FirstOscillationTick < 0)
+            {
+                stats.FirstOscillationTick = tick;
+                stats.FirstOscillationTrace = stats.LastTraversalTrace;
+            }
+        }
+
+        stats.OscillationWindowX = bot.X;
+        stats.OscillationWindowY = bot.Y;
+        stats.OscillationWindowLowSpeedMoveFlips = 0;
+    }
+}
+
+static string FormatTraversalSoakBotTick(TraversalSoakBotStats stats)
+{
+    var trace = stats.LastTraversalTrace;
+    if (trace.Length > 240)
+    {
+        trace = trace[..240];
+    }
+
+    return string.Create(
+        CultureInfo.InvariantCulture,
+        $"soakBotTick=slot:{stats.Slot} {stats.Team} {stats.ClassId} pos=({stats.LastX:0.0},{stats.LastY:0.0}) " +
+        $"speed=({stats.LastHorizontalSpeed:0.0},{stats.LastVerticalSpeed:0.0}) caps:{stats.LastCaps} " +
+        $"carrying:{(stats.LastCarryingIntel ? 1 : 0)} inert:{stats.ConsecutiveInertTicks}/{stats.MaxConsecutiveInertTicks} " +
+        $"windowMove:{stats.RecentWindowMovement:0.0} flips:{stats.LowSpeedMoveFlips} " +
+        $"trace:{trace}");
+}
+
+static string FormatTraversalSoakBotSummary(TraversalSoakBotStats stats)
+{
+    var issue = stats.FirstInertFailTick >= 0
+        ? stats.FirstInertFailTrace
+        : stats.FirstOscillationTick >= 0
+            ? stats.FirstOscillationTrace
+            : stats.LastTraversalTrace;
+    if (issue.Length > 180)
+    {
+        issue = issue[..180];
+    }
+
+    return string.Create(
+        CultureInfo.InvariantCulture,
+        $"soakBotSummary=slot:{stats.Slot} team:{stats.Team} class:{stats.ClassId} caps:{stats.LastCaps} " +
+        $"carrying:{(stats.LastCarryingIntel ? 1 : 0)} carryTick:{stats.CarryingIntelTick} capTick:{stats.FirstCapTick} " +
+        $"returnTicks:{stats.CarrierConversionTicks} carryLosses:{stats.CarryLossCount} firstCarryLossTick:{stats.FirstCarryLossTick} " +
+        $"deaths:{stats.DeathCount} firstDeathTick:{stats.FirstDeathTick} movement:{stats.TotalMovement:0.0} " +
+        $"stagnantWindows:{stats.StagnantWindows} maxInertTicks:{stats.MaxConsecutiveInertTicks} firstInertTick:{stats.FirstInertFailTick} " +
+        $"oscillationEvents:{stats.OscillationEvents} firstOscillationTick:{stats.FirstOscillationTick} " +
+        $"zeroInput:{stats.ZeroInputTicks} flips:{stats.MoveFlips} lowSpeedFlips:{stats.LowSpeedMoveFlips} " +
+        $"avgThinkMs:{(stats.ThinkTicks > 0 ? StopwatchTicksToMilliseconds(stats.ThinkStopwatchTicks) / stats.ThinkTicks : 0d):0.0000} " +
+        $"maxThinkMs:{StopwatchTicksToMilliseconds(stats.MaxThinkStopwatchTicks):0.000} final=({stats.LastX:0.0},{stats.LastY:0.0}) issue:{issue}");
+}
+
+static string FormatTraversalSoakResultReason(
+    bool ctfCapsPassed,
+    bool inertPassed,
+    bool oscillationPassed)
+{
+    var reasons = new List<string>(3);
+    if (!ctfCapsPassed)
+    {
+        reasons.Add("caps");
+    }
+
+    if (!inertPassed)
+    {
+        reasons.Add("inert");
+    }
+
+    if (!oscillationPassed)
+    {
+        reasons.Add("oscillation");
+    }
+
+    return reasons.Count == 0 ? "ok" : string.Join(',', reasons);
+}
+
+static IReadOnlyList<string> GetTraversalSoakMaps(
+    IReadOnlyDictionary<string, string> rawOptions,
+    string fallbackMap)
+{
+    if (!rawOptions.TryGetValue("maps", out var mapsText) || string.IsNullOrWhiteSpace(mapsText))
+    {
+        return [fallbackMap];
+    }
+
+    return mapsText
+        .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+}
+
+static bool GetRosterBool(IReadOnlyDictionary<string, string> options, string key, bool fallback)
+    => options.TryGetValue(key, out var value) && bool.TryParse(value, out var parsed)
+        ? parsed
+        : fallback;
+
+static float GetRosterFloat(IReadOnlyDictionary<string, string> options, string key, float fallback)
+    => options.TryGetValue(key, out var value) && float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+        ? parsed
+        : fallback;
+
+static double StopwatchTicksToMilliseconds(long stopwatchTicks)
+    => stopwatchTicks * 1000d / Stopwatch.Frequency;
+
+static void RunPracticeRosterSimulation(
+    SimpleLevel level,
+    NavGraph graph,
+    BotBrainCanaryOptions options,
+    IReadOnlyDictionary<string, string> rawOptions)
+{
+    var ticks = GetRosterInt(rawOptions, "ticks", options.Ticks);
+    var reportEvery = GetRosterInt(rawOptions, "report-every", Math.Max(30, options.ReportEveryTicks));
+    var friendlyCount = GetRosterInt(rawOptions, "friendly-bots", 3);
+    var enemyCount = GetRosterInt(rawOptions, "enemy-bots", 3);
+    var localTeam = options.Team;
+    var enemyTeam = localTeam == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
+    PlayerClass[] classCycle =
+    [
+        PlayerClass.Scout,
+        PlayerClass.Pyro,
+        PlayerClass.Soldier,
+        PlayerClass.Heavy,
+        PlayerClass.Demoman,
+        PlayerClass.Medic,
+        PlayerClass.Engineer,
+        PlayerClass.Spy,
+        PlayerClass.Sniper,
+        PlayerClass.Quote,
+    ];
+
+    var world = new SimulationWorld();
+    if (!world.TryLoadLevel(options.MapName, options.AreaIndex, preservePlayerStats: false))
+    {
+        throw new InvalidOperationException($"SimulationWorld failed to load '{options.MapName}' area {options.AreaIndex}.");
+    }
+
+    world.DespawnEnemyDummy();
+    world.DespawnFriendlyDummy();
+    world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, localTeam);
+    world.LocalPlayer.Kill();
+
+    var controllers = new Dictionary<byte, BotBrainController>();
+    var stats = new Dictionary<byte, PracticeRosterBotStats>();
+    var nextSlot = (byte)(SimulationWorld.LocalPlayerSlot + 1);
+    AppendPracticeRosterBots(world, graph, controllers, stats, ref nextSlot, localTeam, friendlyCount, classCycle, classOffset: 0);
+    AppendPracticeRosterBots(world, graph, controllers, stats, ref nextSlot, enemyTeam, enemyCount, classCycle, classOffset: 3);
+
+    Console.WriteLine(
+        $"practiceRoster=map:{level.Name} area:{level.MapAreaIndex} mode:{world.MatchRules.Mode} " +
+        $"localTeam:{localTeam} friendlyBots:{friendlyCount} enemyBots:{enemyCount} ticks:{ticks} strictProof:{(VerifiedNavProofGraphAssetStore.IsRequired() ? 1 : 0)}");
+    foreach (var entry in stats.Values.OrderBy(static s => s.Slot))
+    {
+        Console.WriteLine($"practiceBot=slot:{entry.Slot} team:{entry.Team} class:{entry.ClassId} start=({entry.StartX:0.0},{entry.StartY:0.0})");
+    }
+
+    var initialRedCaps = world.RedCaps;
+    var initialBlueCaps = world.BlueCaps;
+    var redDropStartedTick = -1;
+    var blueDropStartedTick = -1;
+    var redDroppedPickupLatencies = new List<int>();
+    var blueDroppedPickupLatencies = new List<int>();
+    for (var tick = 1; tick <= ticks; tick += 1)
+    {
+        var previousRedIntel = world.RedIntel;
+        var previousBlueIntel = world.BlueIntel;
+        var inputs = new Dictionary<byte, PlayerInputSnapshot>(controllers.Count);
+        foreach (var (slot, controller) in controllers)
+        {
+            if (!world.TryGetNetworkPlayer(slot, out var bot) || !bot.IsAlive)
+            {
+                continue;
+            }
+
+            var input = controller.Think(bot, world, bot.Team);
+            inputs[slot] = input;
+            ObservePracticeRosterBotPreAdvance(stats[slot], tick, bot, input, controller);
+        }
+
+        foreach (var (slot, input) in inputs)
+        {
+            world.TrySetNetworkPlayerInput(slot, input);
+        }
+
+        world.AdvanceOneTick();
+        ObservePracticeRosterIntelTransition(previousRedIntel, world.RedIntel, tick, ref redDropStartedTick, redDroppedPickupLatencies);
+        ObservePracticeRosterIntelTransition(previousBlueIntel, world.BlueIntel, tick, ref blueDropStartedTick, blueDroppedPickupLatencies);
+
+        foreach (var (slot, controller) in controllers)
+        {
+            if (!world.TryGetNetworkPlayer(slot, out var bot))
+            {
+                continue;
+            }
+
+            ObservePracticeRosterBotPostAdvance(stats[slot], tick, bot, controller);
+        }
+
+        if (reportEvery > 0 && tick % reportEvery == 0)
+        {
+            var stagnant = stats.Values.Count(static s => s.StagnantWindows > 0);
+            var proofIdle = stats.Values.Count(static s => s.ProofIdleTicks > 0 && s.ProofTicks == 0);
+            var caps = $"redCaps:{world.RedCaps - initialRedCaps} blueCaps:{world.BlueCaps - initialBlueCaps}";
+            Console.WriteLine(
+                $"practiceRosterTick={tick} {caps} stagnantBots:{stagnant} proofIdleOnly:{proofIdle} " +
+                $"{FormatPracticeRosterIntelState("redIntel", world.RedIntel)} {FormatPracticeRosterIntelState("blueIntel", world.BlueIntel)} " +
+                $"droppedPickups:red:{redDroppedPickupLatencies.Count} blue:{blueDroppedPickupLatencies.Count}");
+            foreach (var entry in stats.Values.OrderByDescending(static s => s.RecentStagnant).ThenBy(static s => s.Slot).Take(8))
+            {
+                Console.WriteLine(FormatPracticeRosterBotTick(entry));
+            }
+        }
+    }
+
+    Console.WriteLine($"practiceRosterResult=redCaps:{world.RedCaps - initialRedCaps} blueCaps:{world.BlueCaps - initialBlueCaps}");
+    Console.WriteLine(FormatPracticeRosterAcceptance(stats.Values, redDroppedPickupLatencies, blueDroppedPickupLatencies));
+    foreach (var entry in stats.Values.OrderBy(static s => s.Slot))
+    {
+        Console.WriteLine(FormatPracticeRosterBotSummary(entry));
+    }
+}
+
+static void AppendPracticeRosterBots(
+    SimulationWorld world,
+    NavGraph graph,
+    Dictionary<byte, BotBrainController> controllers,
+    Dictionary<byte, PracticeRosterBotStats> stats,
+    ref byte nextSlot,
+    PlayerTeam team,
+    int count,
+    IReadOnlyList<PlayerClass> classCycle,
+    int classOffset)
+{
+    for (var index = 0; index < count && nextSlot <= SimulationWorld.MaxPlayableNetworkPlayers; index += 1)
+    {
+        var classId = classCycle[(index + classOffset) % classCycle.Count];
+        var slot = nextSlot;
+        nextSlot += 1;
+        world.TryPrepareNetworkPlayerJoin(slot);
+        world.TrySetNetworkPlayerTeam(slot, team);
+        if (!world.TryApplyNetworkPlayerClassSelection(slot, classId)
+            || !world.TryGetNetworkPlayer(slot, out var bot))
+        {
+            continue;
+        }
+
+        controllers[slot] = new BotBrainController(graph);
+        stats[slot] = new PracticeRosterBotStats(slot, team, classId, bot.X, bot.Y, bot.Bottom);
+    }
+}
+
+static void ObservePracticeRosterBotPreAdvance(
+    PracticeRosterBotStats stats,
+    int tick,
+    PlayerEntity bot,
+    PlayerInputSnapshot input,
+    BotBrainController controller)
+{
+    stats.LastPreX = bot.X;
+    stats.LastPreY = bot.Y;
+    stats.LastPreBottom = bot.Bottom;
+    stats.LastInput = input;
+    stats.LastProofTrace = controller.LastProofGraphTrace;
+    stats.LastDirectTrace = controller.LastDirectDriveTrace;
+    stats.LastTapeTrace = controller.LastObjectiveTapeTrace;
+    stats.LastPathCount = controller.CurrentPathCount;
+    stats.LastPathIndex = controller.CurrentPathIndex;
+
+    if (!string.IsNullOrWhiteSpace(controller.LastProofGraphTrace))
+    {
+        ObservePracticeRosterProofTrace(stats, controller.LastProofGraphTrace);
+        if (controller.LastProofGraphTrace.StartsWith("proofGraph=idle", StringComparison.Ordinal))
+        {
+            stats.ProofIdleTicks += 1;
+        }
+        else if (controller.LastProofGraphTrace.StartsWith("proofGraph=abort", StringComparison.Ordinal))
+        {
+            stats.ProofAbortTicks += 1;
+        }
+        else
+        {
+            stats.ProofTicks += 1;
+        }
+    }
+    else if (!string.IsNullOrWhiteSpace(controller.LastDirectDriveTrace))
+    {
+        ObservePracticeRosterDirectTrace(stats, controller.LastDirectDriveTrace);
+        stats.DirectTicks += 1;
+    }
+    else if (!string.IsNullOrWhiteSpace(controller.LastObjectiveTapeTrace))
+    {
+        stats.TapeTicks += 1;
+    }
+    else if (controller.CurrentPathCount > 0)
+    {
+        stats.GraphTicks += 1;
+    }
+
+    if (!input.Left && !input.Right && !input.Up && !input.Down && !input.FirePrimary && !input.FireSecondary)
+    {
+        stats.ZeroInputTicks += 1;
+    }
+
+    var moveSign = input.Right == input.Left ? 0 : input.Right ? 1 : -1;
+    if (moveSign != 0 && stats.LastMoveSign != 0 && moveSign != stats.LastMoveSign)
+    {
+        stats.MoveFlips += 1;
+        if (MathF.Abs(bot.HorizontalSpeed) < 40f)
+        {
+            stats.LowSpeedMoveFlips += 1;
+        }
+    }
+
+    if (moveSign != 0)
+    {
+        stats.LastMoveSign = moveSign;
+    }
+
+    if (bot.IsCarryingIntel && stats.CarryingIntelTick < 0)
+    {
+        stats.CarryingIntelTick = tick;
+    }
+}
+
+static void ObservePracticeRosterBotPostAdvance(
+    PracticeRosterBotStats stats,
+    int tick,
+    PlayerEntity bot,
+    BotBrainController controller)
+{
+    var wasCarryingIntel = stats.LastCarryingIntel;
+    var wasAlive = stats.LastAlive;
+    var hadPreviousPostSample = stats.HasPostAdvanceSample;
+    var capIncreased = bot.Caps > stats.LastCapsSeen;
+
+    stats.LastX = bot.X;
+    stats.LastY = bot.Y;
+    stats.LastBottom = bot.Bottom;
+    stats.LastGrounded = bot.IsGrounded;
+    stats.LastHorizontalSpeed = bot.HorizontalSpeed;
+    stats.LastVerticalSpeed = bot.VerticalSpeed;
+    stats.LastCaps = bot.Caps;
+    stats.LastCarryingIntel = bot.IsCarryingIntel;
+    stats.HasPostAdvanceSample = true;
+
+    if (hadPreviousPostSample && wasAlive && !bot.IsAlive)
+    {
+        stats.DeathCount += 1;
+        if (stats.FirstDeathTick < 0)
+        {
+            stats.FirstDeathTick = tick;
+        }
+    }
+
+    if (wasCarryingIntel && !bot.IsCarryingIntel && !capIncreased)
+    {
+        stats.CarryLossCount += 1;
+        if (stats.FirstCarryLossTick < 0)
+        {
+            stats.FirstCarryLossTick = tick;
+            stats.FirstCarryLossX = bot.X;
+            stats.FirstCarryLossY = bot.Y;
+        }
+    }
+
+    stats.LastAlive = bot.IsAlive;
+    if (capIncreased)
+    {
+        if (stats.FirstCapTick < 0)
+        {
+            stats.FirstCapTick = tick;
+        }
+
+        if (stats.CarryingIntelTick >= 0 && stats.CarrierConversionTicks < 0)
+        {
+            stats.CarrierConversionTicks = tick - stats.CarryingIntelTick;
+        }
+
+        stats.LastCapsSeen = bot.Caps;
+    }
+
+    stats.TotalMovement += Distance(stats.PreviousX, stats.PreviousY, bot.X, bot.Y);
+    stats.PreviousX = bot.X;
+    stats.PreviousY = bot.Y;
+
+    if (tick % 30 == 0)
+    {
+        var windowMovement = Distance(stats.WindowX, stats.WindowY, bot.X, bot.Y);
+        stats.RecentWindowMovement = windowMovement;
+        stats.RecentStagnant = windowMovement < 12f;
+        if (stats.RecentStagnant)
+        {
+            stats.StagnantWindows += 1;
+        }
+
+        stats.WindowX = bot.X;
+        stats.WindowY = bot.Y;
+    }
+
+    if (controller.LastProofGraphTrace.StartsWith("proofGraph=abort", StringComparison.Ordinal))
+    {
+        stats.LastIssue = controller.LastProofGraphTrace;
+    }
+    else if (controller.LastProofGraphTrace.StartsWith("proofGraph=idle", StringComparison.Ordinal)
+        && string.IsNullOrWhiteSpace(stats.LastIssue))
+    {
+        stats.LastIssue = controller.LastProofGraphTrace;
+    }
+}
+
+static string FormatPracticeRosterBotTick(PracticeRosterBotStats stats)
+{
+    var authority = stats.LastProofTrace.Length > 0
+        ? "proof"
+        : stats.LastDirectTrace.Length > 0
+            ? "direct"
+            : stats.LastTapeTrace.Length > 0
+                ? "tape"
+                : stats.LastPathCount > 0
+                    ? "graph"
+                    : "none";
+    var trace = stats.LastProofTrace.Length > 0
+        ? stats.LastProofTrace
+        : stats.LastDirectTrace.Length > 0
+            ? stats.LastDirectTrace
+            : stats.LastTapeTrace;
+    if (trace.Length > 220)
+    {
+        trace = trace[..220];
+    }
+
+    return string.Create(
+        CultureInfo.InvariantCulture,
+        $"practiceBotTick=slot:{stats.Slot} {stats.Team} {stats.ClassId} pos=({stats.LastX:0.0},{stats.LastY:0.0}) " +
+        $"speed=({stats.LastHorizontalSpeed:0.0},{stats.LastVerticalSpeed:0.0}) caps:{stats.LastCaps} " +
+        $"carrying:{(stats.LastCarryingIntel ? 1 : 0)} " +
+        $"stagnant:{(stats.RecentStagnant ? 1 : 0)} windowMove:{stats.RecentWindowMovement:0.0} " +
+        $"auth:{authority} path:{stats.LastPathIndex}/{stats.LastPathCount} trace:{trace}");
+}
+
+static string FormatPracticeRosterBotSummary(PracticeRosterBotStats stats)
+{
+    var issue = string.IsNullOrWhiteSpace(stats.LastIssue) ? "none" : stats.LastIssue;
+    if (issue.Length > 120)
+    {
+        issue = issue[..120];
+    }
+
+    return string.Create(
+        CultureInfo.InvariantCulture,
+        $"practiceBotSummary=slot:{stats.Slot} team:{stats.Team} class:{stats.ClassId} caps:{stats.LastCaps} " +
+        $"carrying:{(stats.LastCarryingIntel ? 1 : 0)} carryTick:{stats.CarryingIntelTick} capTick:{stats.FirstCapTick} returnTicks:{stats.CarrierConversionTicks} " +
+        $"carryLossTick:{stats.FirstCarryLossTick} carryLosses:{stats.CarryLossCount} carryLossPos=({stats.FirstCarryLossX:0.0},{stats.FirstCarryLossY:0.0}) " +
+        $"deaths:{stats.DeathCount} firstDeathTick:{stats.FirstDeathTick} " +
+        $"movement:{stats.TotalMovement:0.0} stagnantWindows:{stats.StagnantWindows} " +
+        $"zeroInput:{stats.ZeroInputTicks} flips:{stats.MoveFlips} lowSpeedFlips:{stats.LowSpeedMoveFlips} " +
+        $"proof:{stats.ProofTicks} proofIdle:{stats.ProofIdleTicks} proofAbort:{stats.ProofAbortTicks} proofAbortEvents:{SumValues(stats.ProofAbortByReason)} proofIdleEvents:{SumValues(stats.ProofIdleByReason)} " +
+        $"direct:{stats.DirectTicks} directRejects:{SumValues(stats.DirectRejectByReason)} localMotionFailures:{SumValues(stats.LocalMotionFailureByReason)} graph:{stats.GraphTicks} tape:{stats.TapeTicks} " +
+        $"final=({stats.LastX:0.0},{stats.LastY:0.0}) issue:{issue}");
+}
+
+static void ObservePracticeRosterIntelTransition(
+    TeamIntelligenceState previous,
+    TeamIntelligenceState current,
+    int tick,
+    ref int droppedStartedTick,
+    List<int> pickupLatencies)
+{
+    if (!previous.IsDropped && current.IsDropped)
+    {
+        droppedStartedTick = tick;
+        return;
+    }
+
+    if (previous.IsDropped && current.IsCarried && droppedStartedTick >= 0)
+    {
+        pickupLatencies.Add(tick - droppedStartedTick);
+        droppedStartedTick = -1;
+        return;
+    }
+
+    if (current.IsAtBase)
+    {
+        droppedStartedTick = -1;
+    }
+}
+
+static string FormatPracticeRosterAcceptance(
+    IEnumerable<PracticeRosterBotStats> stats,
+    IReadOnlyList<int> redDroppedPickupLatencies,
+    IReadOnlyList<int> blueDroppedPickupLatencies)
+{
+    var entries = stats.ToArray();
+    var classesPicked = entries.Where(static s => s.CarryingIntelTick >= 0).Select(static s => s.ClassId).Distinct().Count();
+    var classesCapped = entries.Where(static s => s.LastCaps > 0).Select(static s => s.ClassId).Distinct().Count();
+    var conversions = entries.Where(static s => s.CarrierConversionTicks >= 0).Select(static s => s.CarrierConversionTicks).Order().ToArray();
+    var droppedLatencies = redDroppedPickupLatencies.Concat(blueDroppedPickupLatencies).Order().ToArray();
+    var proofAbortEvents = entries.Sum(static s => SumValues(s.ProofAbortByReason));
+    var proofIdleEvents = entries.Sum(static s => SumValues(s.ProofIdleByReason));
+    var directRejects = entries.Sum(static s => SumValues(s.DirectRejectByReason));
+    var localMotionFailures = entries.Sum(static s => SumValues(s.LocalMotionFailureByReason));
+    var carryLosses = entries.Sum(static s => s.CarryLossCount);
+    var deaths = entries.Sum(static s => s.DeathCount);
+    return string.Create(
+        CultureInfo.InvariantCulture,
+        $"practiceRosterAcceptance=classesPicked:{classesPicked} classesCapped:{classesCapped} " +
+        $"carrierConversions:{conversions.Length} medianReturnTicks:{MedianOrMinusOne(conversions)} p90ReturnTicks:{PercentileOrMinusOne(conversions, 0.9f)} " +
+        $"droppedPickupCount:{droppedLatencies.Length} medianDroppedPickupTicks:{MedianOrMinusOne(droppedLatencies)} " +
+        $"carryLosses:{carryLosses} deaths:{deaths} " +
+        $"proofAbortEvents:{proofAbortEvents} proofIdleEvents:{proofIdleEvents} directRejects:{directRejects} localMotionFailures:{localMotionFailures}");
+}
+
+static void ObservePracticeRosterProofTrace(PracticeRosterBotStats stats, string trace)
+{
+    var key = NormalizePracticeRosterTraceKey(trace);
+    if (key == stats.LastProofTraceKey)
+    {
+        return;
+    }
+
+    stats.LastProofTraceKey = key;
+    if (trace.StartsWith("proofGraph=abort", StringComparison.Ordinal))
+    {
+        IncrementCounter(stats.ProofAbortByReason, ExtractPracticeRosterReason(trace));
+    }
+    else if (trace.StartsWith("proofGraph=idle", StringComparison.Ordinal))
+    {
+        IncrementCounter(stats.ProofIdleByReason, ExtractPracticeRosterReason(trace));
+    }
+}
+
+static void ObservePracticeRosterDirectTrace(PracticeRosterBotStats stats, string trace)
+{
+    var key = NormalizePracticeRosterTraceKey(trace);
+    if (key == stats.LastDirectTraceKey)
+    {
+        return;
+    }
+
+    stats.LastDirectTraceKey = key;
+    if (trace.Contains("reject:", StringComparison.Ordinal))
+    {
+        IncrementCounter(stats.DirectRejectByReason, ExtractPracticeRosterReason(trace));
+    }
+
+    if (trace.StartsWith("localMotion=failed", StringComparison.Ordinal)
+        || trace.StartsWith("localMotion=suppressed", StringComparison.Ordinal))
+    {
+        IncrementCounter(stats.LocalMotionFailureByReason, ExtractPracticeRosterReason(trace));
+    }
+}
+
+static string NormalizePracticeRosterTraceKey(string trace)
+{
+    if (string.IsNullOrWhiteSpace(trace))
+    {
+        return string.Empty;
+    }
+
+    var actionTickIndex = trace.IndexOf(" actionTick:", StringComparison.Ordinal);
+    if (actionTickIndex >= 0)
+    {
+        trace = trace[..actionTickIndex];
+    }
+
+    var routeTicksIndex = trace.IndexOf(" routeTicks:", StringComparison.Ordinal);
+    if (routeTicksIndex >= 0)
+    {
+        trace = trace[..routeTicksIndex];
+    }
+
+    var ageIndex = trace.IndexOf(" age:", StringComparison.Ordinal);
+    if (ageIndex >= 0)
+    {
+        trace = trace[..ageIndex];
+    }
+
+    return trace.Length <= 96 ? trace : trace[..96];
+}
+
+static string ExtractPracticeRosterReason(string trace)
+{
+    var reasonIndex = trace.IndexOf("reason:", StringComparison.Ordinal);
+    if (reasonIndex >= 0)
+    {
+        var reason = trace[(reasonIndex + "reason:".Length)..];
+        var spaceIndex = reason.IndexOf(' ');
+        return spaceIndex >= 0 ? reason[..spaceIndex] : reason;
+    }
+
+    var rejectIndex = trace.IndexOf("reject:", StringComparison.Ordinal);
+    if (rejectIndex >= 0)
+    {
+        var reason = trace[(rejectIndex + "reject:".Length)..];
+        var spaceIndex = reason.IndexOf(' ');
+        return $"reject:{(spaceIndex >= 0 ? reason[..spaceIndex] : reason)}";
+    }
+
+    var labelIndex = trace.IndexOf("label:", StringComparison.Ordinal);
+    if (labelIndex >= 0)
+    {
+        var reason = trace[..labelIndex].Trim();
+        return reason.Length == 0 ? "unknown" : reason;
+    }
+
+    var firstSpace = trace.IndexOf(' ');
+    return firstSpace >= 0 ? trace[..firstSpace] : trace;
+}
+
+static void IncrementCounter(Dictionary<string, int> counters, string key)
+{
+    counters[key] = counters.TryGetValue(key, out var count) ? count + 1 : 1;
+}
+
+static int SumValues(Dictionary<string, int> counters) => counters.Values.Sum();
+
+static int MedianOrMinusOne(IReadOnlyList<int> values)
+{
+    return values.Count == 0 ? -1 : values[values.Count / 2];
+}
+
+static int PercentileOrMinusOne(IReadOnlyList<int> values, float percentile)
+{
+    if (values.Count == 0)
+    {
+        return -1;
+    }
+
+    var index = Math.Clamp((int)MathF.Ceiling((values.Count * percentile) - 1f), 0, values.Count - 1);
+    return values[index];
+}
+
+static string FormatPracticeRosterIntelState(string label, TeamIntelligenceState intel)
+{
+    var state = intel.IsAtBase
+        ? "base"
+        : intel.IsDropped
+            ? $"dropped:{intel.ReturnTicksRemaining}"
+            : "carried";
+    return string.Create(
+        CultureInfo.InvariantCulture,
+        $"{label}:{state}@({intel.X:0.0},{intel.Y:0.0})");
+}
+
+static int GetRosterInt(IReadOnlyDictionary<string, string> options, string key, int fallback)
+    => options.TryGetValue(key, out var value) && int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+        ? parsed
+        : fallback;
+
 static string FindRepoRoot(string startPath)
 {
     var directory = new DirectoryInfo(startPath);
@@ -1611,6 +2763,141 @@ static string FindRepoRoot(string startPath)
     }
 
     throw new InvalidOperationException("Could not locate OpenGarrison repo root.");
+}
+
+void RunProofGraphAudit(IReadOnlyDictionary<string, string> rawOptions)
+{
+    var repoRoot = FindRepoRoot(AppContext.BaseDirectory);
+    var proofGraphDirectory = rawOptions.TryGetValue("proof-graph-dir", out var configuredDirectory)
+        && !string.IsNullOrWhiteSpace(configuredDirectory)
+            ? Path.GetFullPath(configuredDirectory)
+            : Path.Combine(repoRoot, "Core", "Content", "BotBrainProofGraphs");
+    if (!Directory.Exists(proofGraphDirectory))
+    {
+        throw new DirectoryNotFoundException($"Proof graph directory not found: {proofGraphDirectory}");
+    }
+
+    var jsonOptions = new JsonSerializerOptions
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+    var files = Directory
+        .EnumerateFiles(proofGraphDirectory, "*.verified-proof-graph.json", SearchOption.TopDirectoryOnly)
+        .Order(StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+
+    var assetCount = 0;
+    var routeCount = 0;
+    var exactOrActionOnlyRoutes = 0;
+    var laneBackedRoutes = 0;
+    var missingRouteRoutes = 0;
+    var totalBytes = 0L;
+
+    Console.WriteLine($"proofGraphAudit=directory:{proofGraphDirectory} files:{files.Length}");
+    foreach (var file in files)
+    {
+        var json = File.ReadAllText(file);
+        var asset = JsonSerializer.Deserialize<VerifiedNavProofGraphAsset>(json, jsonOptions)
+            ?? throw new InvalidOperationException($"Could not parse proof graph asset: {file}");
+        assetCount += 1;
+        var fileBytes = new FileInfo(file).Length;
+        totalBytes += fileBytes;
+
+        var assetExactOrActionOnlyRoutes = 0;
+        var assetLaneBackedRoutes = 0;
+        var assetMissingRouteRoutes = 0;
+        foreach (var route in asset.Routes)
+        {
+            routeCount += 1;
+            var actionTicks = CountActionTicks(route.Actions);
+            var terminalActionTicks = CountActionTicks(route.TerminalActions);
+            var edgeActionTicks = route.EdgeIds
+                .Select(edgeId => asset.Edges.FirstOrDefault(edge => edge.Id == edgeId))
+                .Where(edge => edge is not null)
+                .Sum(edge => CountActionTicks(edge!.Actions));
+            var laneActionTicks = route.LaneSegmentIds
+                .Select(segmentId => asset.LaneSegments.FirstOrDefault(segment => segment.Id == segmentId))
+                .Where(segment => segment is not null)
+                .Sum(segment => CountActionTicks(segment!.Actions));
+            var classification = ClassifyProofRoute(route, actionTicks, edgeActionTicks, terminalActionTicks);
+            switch (classification)
+            {
+                case "lane-backed":
+                    laneBackedRoutes += 1;
+                    assetLaneBackedRoutes += 1;
+                    break;
+                case "missing-route":
+                    missingRouteRoutes += 1;
+                    assetMissingRouteRoutes += 1;
+                    break;
+                default:
+                    exactOrActionOnlyRoutes += 1;
+                    assetExactOrActionOnlyRoutes += 1;
+                    break;
+            }
+
+            Console.WriteLine(
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"proofGraphRoute=map:{asset.LevelName} area:{asset.MapAreaIndex} team:{asset.Team} class:{asset.ClassId} " +
+                    $"kind:{route.Kind} source:{route.Source} edges:{route.EdgeIds.Count} lanes:{route.LaneSegmentIds.Count} " +
+                    $"routeActionRuns:{route.Actions.Count} routeActionTicks:{actionTicks} edgeActionTicks:{edgeActionTicks} " +
+                    $"laneActionTicks:{laneActionTicks} terminalActionTicks:{terminalActionTicks} " +
+                    $"start=({route.StartX:0.0},{route.StartBottom:0.0}) classification:{classification}"));
+        }
+
+        Console.WriteLine(
+            $"proofGraphAsset=file:{Path.GetFileName(file)} map:{asset.LevelName} area:{asset.MapAreaIndex} " +
+            $"team:{asset.Team} class:{asset.ClassId} routes:{asset.Routes.Count} edges:{asset.Edges.Count} " +
+            $"lanes:{asset.LaneSegments.Count} links:{asset.Links.Count} surfaces:{asset.Surfaces.Count} " +
+            $"laneBackedRoutes:{assetLaneBackedRoutes} exactOrActionOnlyRoutes:{assetExactOrActionOnlyRoutes} " +
+            $"missingRouteRoutes:{assetMissingRouteRoutes} bytes:{fileBytes}");
+    }
+
+    Console.WriteLine(
+        $"proofGraphAuditSummary=assets:{assetCount} routes:{routeCount} laneBackedRoutes:{laneBackedRoutes} " +
+        $"exactOrActionOnlyRoutes:{exactOrActionOnlyRoutes} missingRouteRoutes:{missingRouteRoutes} bytes:{totalBytes}");
+    Console.WriteLine("proofGraphAuditGate=robustnessMetadata:missing installedEnvelopeValidation:unknown routeActionOnlyIsNotRobust:true");
+}
+
+string ClassifyProofRoute(
+    VerifiedNavProofGraphRoute route,
+    int routeActionTicks,
+    int edgeActionTicks,
+    int terminalActionTicks)
+{
+    if (route.EdgeIds.Count == 0)
+    {
+        return "missing-route";
+    }
+
+    if (route.LaneSegmentIds.Count > 0)
+    {
+        return "lane-backed";
+    }
+
+    if (routeActionTicks > 0)
+    {
+        return "route-action-only";
+    }
+
+    if (edgeActionTicks > 0 || terminalActionTicks > 0)
+    {
+        return "edge-action-only";
+    }
+
+    return "surface-only";
+}
+
+int CountActionTicks(IReadOnlyList<VerifiedNavProofGraphActionRun> actions)
+{
+    var ticks = 0;
+    for (var index = 0; index < actions.Count; index += 1)
+    {
+        ticks += actions[index].Ticks;
+    }
+
+    return ticks;
 }
 
 static float Distance(float ax, float ay, float bx, float by)
@@ -7236,6 +8523,627 @@ internal static class BotBrainToolCommandHelpers
         return bestNode;
     }
 
+    public static void RunLocalMotionLab(Dictionary<string, string> rawOptions)
+    {
+        var repoRoot = FindRepoRoot(AppContext.BaseDirectory);
+        ContentRoot.Initialize(Path.Combine(repoRoot, "Core", "Content"));
+
+        var mapName = rawOptions.TryGetValue("map", out var mapText) ? mapText : "Truefort";
+        var area = ReadIntOption(rawOptions, "area", 1);
+        var team = ReadEnumOption(rawOptions, "team", PlayerTeam.Red);
+        var classId = ReadEnumOption(rawOptions, "class", PlayerClass.Pyro);
+        var ticks = ReadIntOption(rawOptions, "ticks", 180);
+        var xOffsets = rawOptions.TryGetValue("validation-x-offsets", out var xOffsetText)
+            ? ParseFloatList(xOffsetText)
+            : [-24f, 0f, 24f];
+        var bottomOffsets = rawOptions.TryGetValue("validation-bottom-offsets", out var bottomOffsetText)
+            ? ParseFloatList(bottomOffsetText)
+            : [-8f, 0f, 8f];
+        var horizontalSpeeds = rawOptions.TryGetValue("validation-horizontal-speeds", out var horizontalSpeedText)
+            ? ParseFloatList(horizontalSpeedText)
+            : [-60f, 0f, 60f];
+        var verticalSpeeds = rawOptions.TryGetValue("validation-vertical-speeds", out var verticalSpeedText)
+            ? ParseFloatList(verticalSpeedText)
+            : [0f];
+        var scenarios = BuildLocalMotionLabScenarios(rawOptions);
+        Console.WriteLine(
+            $"localMotionLab map={mapName} area={area} team={team} class={classId} scenarios={scenarios.Count} " +
+            $"variants={xOffsets.Count * bottomOffsets.Count * horizontalSpeeds.Count * verticalSpeeds.Count} ticks={ticks}");
+
+        var totalPrimitivePassed = 0;
+        var totalStochasticPassed = 0;
+        var totalCases = 0;
+        foreach (var scenario in scenarios)
+        {
+            var primitiveResults = RunLocalMotionLabScenario(
+                mapName,
+                area,
+                team,
+                classId,
+                scenario,
+                ticks,
+                xOffsets,
+                bottomOffsets,
+                horizontalSpeeds,
+                verticalSpeeds,
+                LocalMotionLabMode.Primitive);
+            var stochasticResults = RunLocalMotionLabScenario(
+                mapName,
+                area,
+                team,
+                classId,
+                scenario,
+                ticks,
+                xOffsets,
+                bottomOffsets,
+                horizontalSpeeds,
+                verticalSpeeds,
+                LocalMotionLabMode.Stochastic);
+
+            totalCases += primitiveResults.Count;
+            totalPrimitivePassed += primitiveResults.Count(static result => result.Passed);
+            totalStochasticPassed += stochasticResults.Count(static result => result.Passed);
+            Console.WriteLine(FormatLocalMotionLabSummary(scenario, LocalMotionLabMode.Primitive, primitiveResults));
+            Console.WriteLine(FormatLocalMotionLabSummary(scenario, LocalMotionLabMode.Stochastic, stochasticResults));
+        }
+
+        Console.WriteLine(
+            $"localMotionLabTotal primitive={totalPrimitivePassed}/{totalCases} " +
+            $"stochastic={totalStochasticPassed}/{totalCases} delta={totalStochasticPassed - totalPrimitivePassed}");
+    }
+
+    public static void RunDirectDriveLab(Dictionary<string, string> rawOptions)
+    {
+        var repoRoot = FindRepoRoot(AppContext.BaseDirectory);
+        ContentRoot.Initialize(Path.Combine(repoRoot, "Core", "Content"));
+
+        var mapName = rawOptions.TryGetValue("map", out var mapText) ? mapText : "Truefort";
+        var area = ReadIntOption(rawOptions, "area", 1);
+        var team = ReadEnumOption(rawOptions, "team", PlayerTeam.Red);
+        var classId = ReadEnumOption(rawOptions, "class", PlayerClass.Pyro);
+        var ticks = ReadIntOption(rawOptions, "ticks", 2400);
+        var reportEvery = ReadIntOption(rawOptions, "report-every", 60);
+        var stuckWindowTicks = ReadIntOption(rawOptions, "stuck-window", 180);
+        var stuckMovement = ReadFloatOption(rawOptions, "stuck-movement", 24f);
+        var stuckProgress = ReadFloatOption(rawOptions, "stuck-progress", 18f);
+        var dumpCandidates = rawOptions.TryGetValue("dump-candidates", out var dumpText)
+            && bool.TryParse(dumpText, out var parsedDump)
+            && parsedDump;
+        var dumpXMin = ReadFloatOption(rawOptions, "dump-x-min", float.NegativeInfinity);
+        var dumpXMax = ReadFloatOption(rawOptions, "dump-x-max", float.PositiveInfinity);
+
+        var world = new SimulationWorld(new SimulationConfig
+        {
+            EnableLocalDummies = false,
+            EnableEnemyTrainingDummy = false,
+            EnableFriendlySupportDummy = false,
+        });
+        if (!world.TryLoadLevel(mapName, area, preservePlayerStats: false))
+        {
+            Console.WriteLine($"directDriveLab=load_failed map={mapName} area={area}");
+            return;
+        }
+
+        var enemyTeam = team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
+        var enemyIntel = world.Level.GetIntelBase(enemyTeam);
+        if (!enemyIntel.HasValue)
+        {
+            Console.WriteLine($"directDriveLab=no_enemy_intel map={mapName} area={area} team={team}");
+            return;
+        }
+
+        const byte botSlot = 2;
+        var spawn = world.Level.GetSpawn(team, 0);
+        world.PrepareLocalPlayerJoin();
+        world.TrySetNetworkPlayerSpawnOverride(botSlot, spawn.X, spawn.Y);
+        if (!world.TryPrepareNetworkPlayerJoin(botSlot)
+            || !world.TrySetNetworkPlayerTeam(botSlot, team)
+            || !world.TryApplyNetworkPlayerClassSelection(botSlot, classId)
+            || !world.TryGetNetworkPlayer(botSlot, out var bot))
+        {
+            Console.WriteLine($"directDriveLab=spawn_failed map={mapName} area={area} team={team} class={classId}");
+            return;
+        }
+
+        var targetBottom = enemyIntel.Value.Y + bot.CollisionBottomOffset;
+        var goal = StochasticLocalMotionGoal.FromPoint(
+            enemyIntel.Value.X,
+            targetBottom,
+            "enemyIntel",
+            acceptanceX: 44f,
+            acceptanceBottom: 34f);
+        var planner = new StochasticLocalMotionPlanner();
+        var startMetric = MeasureDirectDriveMetric(bot.X, bot.Bottom, goal);
+        var bestMetric = startMetric;
+        var bestTick = 0;
+        var bestX = bot.X;
+        var bestBottom = bot.Bottom;
+        var windowStartTick = 0;
+        var windowStartX = bot.X;
+        var windowStartBottom = bot.Bottom;
+        var windowStartBestMetric = bestMetric;
+        var totalCpuMs = 0d;
+        var totalCandidates = 0;
+        var totalSimTicks = 0;
+        var noPlanTicks = 0;
+        var lastTrace = string.Empty;
+        var lastFrontierDiagnostics = string.Empty;
+
+        Console.WriteLine(
+            $"directDriveLab map={mapName} area={area} team={team} class={classId} " +
+            $"spawn=({bot.X:0.0},{bot.Bottom:0.0}) target=({goal.X:0.0},{goal.Bottom:0.0}) " +
+            $"initialMetric={startMetric:0.0} ticks={ticks} mode=stochastic-direct");
+
+        for (var tick = 1; tick <= ticks; tick += 1)
+        {
+            var resolved = planner.TryResolve(world, bot, goal, tick, out var input, out var trace);
+            if (!string.IsNullOrWhiteSpace(planner.LastCandidateTrace))
+            {
+                lastFrontierDiagnostics = planner.LastCandidateTrace;
+            }
+
+            if (dumpCandidates
+                && bot.X >= dumpXMin
+                && bot.X <= dumpXMax
+                && !string.IsNullOrWhiteSpace(planner.LastCandidateTrace))
+            {
+                Console.WriteLine(
+                    $"directDriveCandidates tick={tick} pos=({bot.X:0.0},{bot.Bottom:0.0}) " +
+                    $"speed=({bot.HorizontalSpeed:0.0},{bot.VerticalSpeed:0.0}) grounded={bot.IsGrounded} " +
+                    planner.LastCandidateTrace);
+            }
+
+            if (!resolved)
+            {
+                noPlanTicks += 1;
+                input = default;
+            }
+
+            if (trace.Candidates > 0)
+            {
+                totalCandidates += trace.Candidates;
+                totalSimTicks += trace.SimTicks;
+                totalCpuMs += trace.ElapsedMilliseconds;
+            }
+
+            if (!string.IsNullOrWhiteSpace(trace.Source) || !string.IsNullOrWhiteSpace(trace.RejectedReason))
+            {
+                lastTrace =
+                    $"source:{trace.Source} macro:{trace.MacroLabel} reject:{trace.RejectedReason} " +
+                    $"start:{trace.StartMetric:0.0} best:{trace.BestMetric:0.0} final:{trace.FinalMetric:0.0} " +
+                    $"progress:{trace.Progress:0.0} score:{trace.Score:0.0} candidates:{trace.Candidates} simTicks:{trace.SimTicks} cpuMs:{trace.ElapsedMilliseconds:0.000}";
+            }
+
+            if (!world.TrySetNetworkPlayerInput(botSlot, input))
+            {
+                Console.WriteLine($"directDriveLab=input_failed tick={tick}");
+                return;
+            }
+
+            world.AdvanceOneTick();
+            var metric = MeasureDirectDriveMetric(bot.X, bot.Bottom, goal);
+            if (metric < bestMetric)
+            {
+                bestMetric = metric;
+                bestTick = tick;
+                bestX = bot.X;
+                bestBottom = bot.Bottom;
+            }
+
+            if (HasReachedDirectDriveGoal(bot, goal))
+            {
+                Console.WriteLine(
+                    $"directDriveLabResult=Reached tick={tick} pos=({bot.X:0.0},{bot.Bottom:0.0}) " +
+                    $"bestMetric={bestMetric:0.0}@{bestTick} totalCandidates={totalCandidates} " +
+                    $"totalSimTicks={totalSimTicks} cpuMs={totalCpuMs:0.000} noPlanTicks={noPlanTicks}");
+                return;
+            }
+
+            if (reportEvery > 0 && tick % reportEvery == 0)
+            {
+                Console.WriteLine(
+                    $"directDriveLabTick tick={tick} pos=({bot.X:0.0},{bot.Bottom:0.0}) " +
+                    $"speed=({bot.HorizontalSpeed:0.0},{bot.VerticalSpeed:0.0}) grounded={bot.IsGrounded} " +
+                    $"metric={metric:0.0} best={bestMetric:0.0}@{bestTick} input=L{Flag(input.Left)}R{Flag(input.Right)}U{Flag(input.Up)}D{Flag(input.Down)} trace={lastTrace}");
+            }
+
+            if (tick - windowStartTick < stuckWindowTicks)
+            {
+                continue;
+            }
+
+            var windowMovement = Distance(bot.X, bot.Bottom, windowStartX, windowStartBottom);
+            var windowProgress = windowStartBestMetric - bestMetric;
+            if (windowMovement <= stuckMovement && windowProgress <= stuckProgress)
+            {
+                Console.WriteLine(
+                    $"directDriveLabResult=Stuck tick={tick} pos=({bot.X:0.0},{bot.Bottom:0.0}) " +
+                    $"windowStart=({windowStartX:0.0},{windowStartBottom:0.0}) windowTicks={tick - windowStartTick} " +
+                    $"windowMovement={windowMovement:0.0} windowProgress={windowProgress:0.0} metric={metric:0.0} " +
+                    $"best=({bestX:0.0},{bestBottom:0.0}) bestMetric={bestMetric:0.0}@{bestTick} " +
+                    $"speed=({bot.HorizontalSpeed:0.0},{bot.VerticalSpeed:0.0}) grounded={bot.IsGrounded} " +
+                    $"target=({goal.X:0.0},{goal.Bottom:0.0}) noPlanTicks={noPlanTicks} lastTrace={lastTrace} " +
+                    $"frontierDiagnostics={lastFrontierDiagnostics}");
+                return;
+            }
+
+            windowStartTick = tick;
+            windowStartX = bot.X;
+            windowStartBottom = bot.Bottom;
+            windowStartBestMetric = bestMetric;
+        }
+
+        Console.WriteLine(
+            $"directDriveLabResult=Timeout tick={ticks} pos=({bot.X:0.0},{bot.Bottom:0.0}) " +
+            $"best=({bestX:0.0},{bestBottom:0.0}) bestMetric={bestMetric:0.0}@{bestTick} " +
+            $"target=({goal.X:0.0},{goal.Bottom:0.0}) totalCandidates={totalCandidates} totalSimTicks={totalSimTicks} " +
+            $"cpuMs={totalCpuMs:0.000} noPlanTicks={noPlanTicks} lastTrace={lastTrace} " +
+            $"frontierDiagnostics={lastFrontierDiagnostics}");
+    }
+
+    private static float MeasureDirectDriveMetric(float x, float bottom, StochasticLocalMotionGoal goal)
+    {
+        var horizontal = MathF.Max(0f, MathF.Abs(goal.X - x) - goal.AcceptanceX);
+        var vertical = MathF.Max(0f, MathF.Abs(goal.Bottom - bottom) - goal.AcceptanceBottom);
+        return horizontal + (vertical * 2.4f);
+    }
+
+    private static bool HasReachedDirectDriveGoal(PlayerEntity player, StochasticLocalMotionGoal goal)
+        => MathF.Abs(player.X - goal.X) <= goal.AcceptanceX
+            && MathF.Abs(player.Bottom - goal.Bottom) <= goal.AcceptanceBottom;
+
+    private static int Flag(bool value) => value ? 1 : 0;
+
+    private static List<LocalMotionLabScenario> BuildLocalMotionLabScenarios(Dictionary<string, string> rawOptions)
+    {
+        var hasExplicitScenario = rawOptions.ContainsKey("start-x")
+            && rawOptions.ContainsKey("start-bottom")
+            && rawOptions.ContainsKey("target-x")
+            && rawOptions.ContainsKey("target-bottom");
+        if (hasExplicitScenario)
+        {
+            return
+            [
+                new LocalMotionLabScenario(
+                    rawOptions.TryGetValue("scenario-name", out var scenarioName) ? scenarioName : "explicit",
+                    ReadFloatOption(rawOptions, "start-x", 0f),
+                    ReadFloatOption(rawOptions, "start-bottom", 0f),
+                    ReadFloatOption(rawOptions, "target-x", 0f),
+                    ReadFloatOption(rawOptions, "target-bottom", 0f),
+                    ReadFloatOption(rawOptions, "acceptance-x", 36f),
+                    ReadFloatOption(rawOptions, "acceptance-bottom", 24f)),
+            ];
+        }
+
+        return
+        [
+            new LocalMotionLabScenario("truefort_mid_walk_18_19", 1624.3f, 498f, 1869.0f, 498f, 42f, 18f),
+            new LocalMotionLabScenario("truefort_lip_19_22", 1869.0f, 498f, 2044.6f, 516f, 42f, 22f),
+            new LocalMotionLabScenario("truefort_lower_bridge_51_58", 3022.9f, 708f, 3376.5f, 768f, 48f, 28f),
+            new LocalMotionLabScenario("truefort_battlement_drop_17_76", 4332.0f, 480f, 4527.7f, 912f, 54f, 36f),
+        ];
+    }
+
+    private static List<LocalMotionLabCaseResult> RunLocalMotionLabScenario(
+        string mapName,
+        int area,
+        PlayerTeam team,
+        PlayerClass classId,
+        LocalMotionLabScenario scenario,
+        int ticks,
+        IReadOnlyList<float> xOffsets,
+        IReadOnlyList<float> bottomOffsets,
+        IReadOnlyList<float> horizontalSpeeds,
+        IReadOnlyList<float> verticalSpeeds,
+        LocalMotionLabMode mode)
+    {
+        var results = new List<LocalMotionLabCaseResult>();
+        foreach (var xOffset in xOffsets)
+        {
+            foreach (var bottomOffset in bottomOffsets)
+            {
+                foreach (var horizontalSpeed in horizontalSpeeds)
+                {
+                    foreach (var verticalSpeed in verticalSpeeds)
+                    {
+                        results.Add(RunLocalMotionLabCase(
+                            mapName,
+                            area,
+                            team,
+                            classId,
+                            scenario,
+                            ticks,
+                            xOffset,
+                            bottomOffset,
+                            horizontalSpeed,
+                            verticalSpeed,
+                            mode));
+                    }
+                }
+            }
+        }
+
+        return results;
+    }
+
+    private static LocalMotionLabCaseResult RunLocalMotionLabCase(
+        string mapName,
+        int area,
+        PlayerTeam team,
+        PlayerClass classId,
+        LocalMotionLabScenario scenario,
+        int ticks,
+        float xOffset,
+        float bottomOffset,
+        float horizontalSpeed,
+        float verticalSpeed,
+        LocalMotionLabMode mode)
+    {
+        var world = new SimulationWorld(new SimulationConfig
+        {
+            EnableLocalDummies = false,
+            EnableEnemyTrainingDummy = false,
+            EnableFriendlySupportDummy = false,
+        });
+        if (!world.TryLoadLevel(mapName, area, preservePlayerStats: false))
+        {
+            return LocalMotionLabCaseResult.Failed("load_failed", scenario, mode, xOffset, bottomOffset, horizontalSpeed, verticalSpeed);
+        }
+
+        const byte botSlot = 2;
+        world.PrepareLocalPlayerJoin();
+        if (!world.TryPrepareNetworkPlayerJoin(botSlot)
+            || !world.TrySetNetworkPlayerTeam(botSlot, team)
+            || !world.TryApplyNetworkPlayerClassSelection(botSlot, classId)
+            || !world.TryGetNetworkPlayer(botSlot, out var bot))
+        {
+            return LocalMotionLabCaseResult.Failed("spawn_failed", scenario, mode, xOffset, bottomOffset, horizontalSpeed, verticalSpeed);
+        }
+
+        var startX = scenario.StartX + xOffset;
+        var startBottom = scenario.StartBottom + bottomOffset;
+        var startY = startBottom - bot.CollisionBottomOffset;
+        bot.Spawn(team, startX, startY);
+        bot.TeleportTo(startX, startY);
+        bot.ResolveBlockingOverlap(world.Level, team);
+        if (horizontalSpeed != 0f || verticalSpeed != 0f)
+        {
+            bot.AddImpulse(horizontalSpeed, verticalSpeed);
+        }
+
+        bot.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: bot.MaxAirJumps, facingDirectionX: scenario.TargetX >= scenario.StartX ? 1f : -1f);
+
+        var planner = new StochasticLocalMotionPlanner();
+        var goal = StochasticLocalMotionGoal.FromPoint(
+            scenario.TargetX,
+            scenario.TargetBottom,
+            scenario.Name,
+            scenario.AcceptanceX,
+            scenario.AcceptanceBottom);
+        var previousInput = default(PlayerInputSnapshot);
+        var bestMetric = MeasureLocalMotionLabMetric(bot.X, bot.Bottom, scenario);
+        var startMetric = bestMetric;
+        var totalSimTicks = 0;
+        var totalCandidates = 0;
+        var totalCpuMs = 0d;
+        var decisions = 0;
+        var noPlanTicks = 0;
+        var flips = 0;
+        var stagnantWindows = 0;
+        var windowBestMetric = bestMetric;
+        var previousMove = 0;
+        var lastTrace = string.Empty;
+        for (var tick = 1; tick <= ticks; tick += 1)
+        {
+            PlayerInputSnapshot input;
+            if (mode == LocalMotionLabMode.Stochastic)
+            {
+                var resolved = planner.TryResolve(world, bot, goal, tick, out input, out var trace);
+                if (trace.Candidates > 0 || trace.Resolved && trace.Source == "probe")
+                {
+                    decisions += 1;
+                    totalSimTicks += trace.SimTicks;
+                    totalCandidates += trace.Candidates;
+                    totalCpuMs += trace.ElapsedMilliseconds;
+                }
+
+                if (!resolved)
+                {
+                    noPlanTicks += 1;
+                    input = default;
+                }
+
+                if (!string.IsNullOrWhiteSpace(trace.Source) || !string.IsNullOrWhiteSpace(trace.RejectedReason))
+                {
+                    lastTrace = $"{trace.Source}:{trace.MacroLabel}:{trace.RejectedReason} p:{trace.Progress:0.0} cpu:{trace.ElapsedMilliseconds:0.000}";
+                }
+            }
+            else
+            {
+                var targetY = scenario.TargetBottom - bot.CollisionBottomOffset;
+                var resolved = PrimitiveDirectDrive.TryResolveRecovery(
+                    world,
+                    bot,
+                    new DirectDriveTarget(DirectDriveTargetKind.Objective, scenario.TargetX, targetY, scenario.Name),
+                    default,
+                    out var steering,
+                    out var trace);
+                if (!resolved)
+                {
+                    noPlanTicks += 1;
+                    input = default;
+                }
+                else
+                {
+                    input = BotInputSynthesizer.Synthesize(
+                        bot,
+                        steering,
+                        scenario.TargetX,
+                        targetY,
+                        default,
+                        previousInput);
+                    lastTrace = trace;
+                }
+            }
+
+            var move = input.Left == input.Right ? 0 : input.Right ? 1 : -1;
+            if (move != 0 && previousMove != 0 && move != previousMove)
+            {
+                flips += 1;
+            }
+
+            if (move != 0)
+            {
+                previousMove = move;
+            }
+
+            if (!world.TrySetNetworkPlayerInput(botSlot, input))
+            {
+                return LocalMotionLabCaseResult.Failed("input_failed", scenario, mode, xOffset, bottomOffset, horizontalSpeed, verticalSpeed);
+            }
+
+            world.AdvanceOneTick();
+            previousInput = input;
+            var metric = MeasureLocalMotionLabMetric(bot.X, bot.Bottom, scenario);
+            bestMetric = MathF.Min(bestMetric, metric);
+            windowBestMetric = MathF.Min(windowBestMetric, metric);
+            if (tick % 30 == 0)
+            {
+                if (windowBestMetric > bestMetric + 0.1f || startMetric - windowBestMetric < 6f)
+                {
+                    stagnantWindows += 1;
+                }
+
+                windowBestMetric = metric;
+            }
+
+            if (HasReachedLocalMotionLabGoal(bot, scenario))
+            {
+                return new LocalMotionLabCaseResult(
+                    scenario.Name,
+                    mode,
+                    Passed: true,
+                    FailureReason: string.Empty,
+                    Ticks: tick,
+                    XOffset: xOffset,
+                    BottomOffset: bottomOffset,
+                    HorizontalSpeed: horizontalSpeed,
+                    VerticalSpeed: verticalSpeed,
+                    StartMetric: startMetric,
+                    BestMetric: bestMetric,
+                    FinalMetric: metric,
+                    Decisions: decisions,
+                    Candidates: totalCandidates,
+                    SimTicks: totalSimTicks,
+                    CpuMilliseconds: totalCpuMs,
+                    NoPlanTicks: noPlanTicks,
+                    MoveFlips: flips,
+                    StagnantWindows: stagnantWindows,
+                    FinalX: bot.X,
+                    FinalBottom: bot.Bottom,
+                    LastTrace: lastTrace);
+            }
+        }
+
+        var finalMetric = MeasureLocalMotionLabMetric(bot.X, bot.Bottom, scenario);
+        return new LocalMotionLabCaseResult(
+            scenario.Name,
+            mode,
+            Passed: false,
+            FailureReason: "timeout",
+            Ticks: ticks,
+            XOffset: xOffset,
+            BottomOffset: bottomOffset,
+            HorizontalSpeed: horizontalSpeed,
+            VerticalSpeed: verticalSpeed,
+            StartMetric: startMetric,
+            BestMetric: bestMetric,
+            FinalMetric: finalMetric,
+            Decisions: decisions,
+            Candidates: totalCandidates,
+            SimTicks: totalSimTicks,
+            CpuMilliseconds: totalCpuMs,
+            NoPlanTicks: noPlanTicks,
+            MoveFlips: flips,
+            StagnantWindows: stagnantWindows,
+            FinalX: bot.X,
+            FinalBottom: bot.Bottom,
+            LastTrace: lastTrace);
+    }
+
+    private static string FormatLocalMotionLabSummary(
+        LocalMotionLabScenario scenario,
+        LocalMotionLabMode mode,
+        IReadOnlyList<LocalMotionLabCaseResult> results)
+    {
+        var passed = results.Count(static result => result.Passed);
+        var passedResults = results.Where(static result => result.Passed).ToArray();
+        var failedResults = results.Where(static result => !result.Passed).ToArray();
+        var medianTicks = passedResults.Length == 0 ? -1 : MedianInt(passedResults.Select(static result => result.Ticks).ToArray());
+        var p95Cpu = Percentile(results.Select(static result => result.CpuMilliseconds).ToArray(), 0.95f);
+        var p95SimTicks = Percentile(results.Select(static result => (double)result.SimTicks).ToArray(), 0.95f);
+        var worst = failedResults
+            .OrderBy(static result => result.BestMetric)
+            .FirstOrDefault();
+        var worstText = failedResults.Length == 0
+            ? "none"
+            : $"{worst.FailureReason}@x{worst.XOffset:0}/b{worst.BottomOffset:0}/hs{worst.HorizontalSpeed:0} best:{worst.BestMetric:0.0} final:({worst.FinalX:0.0},{worst.FinalBottom:0.0}) trace:{worst.LastTrace}";
+        var failureList = failedResults.Length == 0
+            ? "none"
+            : string.Join(
+                ";",
+                failedResults
+                    .OrderBy(static result => result.XOffset)
+                    .ThenBy(static result => result.BottomOffset)
+                    .ThenBy(static result => result.HorizontalSpeed)
+                    .Take(8)
+                    .Select(static result =>
+                        $"x{result.XOffset:0}/b{result.BottomOffset:0}/hs{result.HorizontalSpeed:0}->({result.FinalX:0.0},{result.FinalBottom:0.0}) best:{result.BestMetric:0.0} trace:{result.LastTrace}"));
+        return
+            $"localMotionLabScenario={scenario.Name} mode={mode} pass={passed}/{results.Count} " +
+            $"medianTicks={medianTicks} noPlan:{results.Sum(static result => result.NoPlanTicks)} " +
+            $"flips:{results.Sum(static result => result.MoveFlips)} stagnant:{results.Sum(static result => result.StagnantWindows)} " +
+            $"decisions:{results.Sum(static result => result.Decisions)} candidates:{results.Sum(static result => result.Candidates)} " +
+            $"simTicks:{results.Sum(static result => result.SimTicks)} p95SimTicks:{p95SimTicks:0.0} cpuMsTotal:{results.Sum(static result => result.CpuMilliseconds):0.000} " +
+            $"cpuMsP95:{p95Cpu:0.000} worstFailure:{worstText} failures:{failureList}";
+    }
+
+    private static float MeasureLocalMotionLabMetric(float x, float bottom, LocalMotionLabScenario scenario)
+    {
+        var horizontal = MathF.Max(0f, MathF.Abs(scenario.TargetX - x) - scenario.AcceptanceX);
+        var vertical = MathF.Max(0f, MathF.Abs(scenario.TargetBottom - bottom) - scenario.AcceptanceBottom);
+        return horizontal + (vertical * 2.4f);
+    }
+
+    private static bool HasReachedLocalMotionLabGoal(PlayerEntity player, LocalMotionLabScenario scenario)
+    {
+        return MathF.Abs(player.X - scenario.TargetX) <= scenario.AcceptanceX
+            && MathF.Abs(player.Bottom - scenario.TargetBottom) <= scenario.AcceptanceBottom;
+    }
+
+    private static int MedianInt(int[] values)
+    {
+        if (values.Length == 0)
+        {
+            return -1;
+        }
+
+        Array.Sort(values);
+        return values[values.Length / 2];
+    }
+
+    private static double Percentile(double[] values, float percentile)
+    {
+        if (values.Length == 0)
+        {
+            return 0d;
+        }
+
+        Array.Sort(values);
+        var index = Math.Clamp((int)MathF.Ceiling((values.Length - 1) * percentile), 0, values.Length - 1);
+        return values[index];
+    }
+
     private static float Distance(float ax, float ay, float bx, float by)
     {
         var dx = bx - ax;
@@ -7413,6 +9321,367 @@ internal readonly record struct BotBrainRuntimeStateArtifact(
     bool Up,
     bool Down,
     bool IsCarryingIntel);
+
+internal readonly record struct LocalMotionLabScenario(
+    string Name,
+    float StartX,
+    float StartBottom,
+    float TargetX,
+    float TargetBottom,
+    float AcceptanceX,
+    float AcceptanceBottom);
+
+internal enum LocalMotionLabMode
+{
+    Primitive,
+    Stochastic,
+}
+
+internal readonly record struct LocalMotionLabCaseResult(
+    string Scenario,
+    LocalMotionLabMode Mode,
+    bool Passed,
+    string FailureReason,
+    int Ticks,
+    float XOffset,
+    float BottomOffset,
+    float HorizontalSpeed,
+    float VerticalSpeed,
+    float StartMetric,
+    float BestMetric,
+    float FinalMetric,
+    int Decisions,
+    int Candidates,
+    int SimTicks,
+    double CpuMilliseconds,
+    int NoPlanTicks,
+    int MoveFlips,
+    int StagnantWindows,
+    float FinalX,
+    float FinalBottom,
+    string LastTrace)
+{
+    public static LocalMotionLabCaseResult Failed(
+        string reason,
+        LocalMotionLabScenario scenario,
+        LocalMotionLabMode mode,
+        float xOffset,
+        float bottomOffset,
+        float horizontalSpeed,
+        float verticalSpeed) =>
+        new(
+            scenario.Name,
+            mode,
+            Passed: false,
+            reason,
+            Ticks: 0,
+            xOffset,
+            bottomOffset,
+            horizontalSpeed,
+            verticalSpeed,
+            StartMetric: float.PositiveInfinity,
+            BestMetric: float.PositiveInfinity,
+            FinalMetric: float.PositiveInfinity,
+            Decisions: 0,
+            Candidates: 0,
+            SimTicks: 0,
+            CpuMilliseconds: 0d,
+            NoPlanTicks: 0,
+            MoveFlips: 0,
+            StagnantWindows: 0,
+            FinalX: 0f,
+            FinalBottom: 0f,
+            LastTrace: string.Empty);
+}
+
+internal sealed record TraversalSoakRunResult(
+    string MapName,
+    int AreaIndex,
+    bool Passed,
+    string Reason);
+
+internal sealed class TraversalSoakBotStats
+{
+    public TraversalSoakBotStats(byte slot, PlayerTeam team, PlayerClass classId, float startX, float startY, float startBottom)
+    {
+        Slot = slot;
+        Team = team;
+        ClassId = classId;
+        StartX = startX;
+        StartY = startY;
+        StartBottom = startBottom;
+        LastX = startX;
+        LastY = startY;
+        LastBottom = startBottom;
+        PreviousX = startX;
+        PreviousY = startY;
+        WindowX = startX;
+        WindowY = startY;
+        OscillationWindowX = startX;
+        OscillationWindowY = startY;
+    }
+
+    public byte Slot { get; }
+
+    public PlayerTeam Team { get; }
+
+    public PlayerClass ClassId { get; }
+
+    public float StartX { get; }
+
+    public float StartY { get; }
+
+    public float StartBottom { get; }
+
+    public float LastPreX { get; set; }
+
+    public float LastPreY { get; set; }
+
+    public float LastPreBottom { get; set; }
+
+    public float LastX { get; set; }
+
+    public float LastY { get; set; }
+
+    public float LastBottom { get; set; }
+
+    public bool LastGrounded { get; set; }
+
+    public float LastHorizontalSpeed { get; set; }
+
+    public float LastVerticalSpeed { get; set; }
+
+    public PlayerInputSnapshot LastInput { get; set; }
+
+    public string LastTraversalTrace { get; set; } = string.Empty;
+
+    public string LastSemanticTrace { get; set; } = string.Empty;
+
+    public int LastCaps { get; set; }
+
+    public int LastCapsSeen { get; set; }
+
+    public int FirstCapTick { get; set; } = -1;
+
+    public int CarrierConversionTicks { get; set; } = -1;
+
+    public bool LastCarryingIntel { get; set; }
+
+    public bool HasPostAdvanceSample { get; set; }
+
+    public bool LastAlive { get; set; } = true;
+
+    public int DeathCount { get; set; }
+
+    public int FirstDeathTick { get; set; } = -1;
+
+    public int CarryLossCount { get; set; }
+
+    public int FirstCarryLossTick { get; set; } = -1;
+
+    public float FirstCarryLossX { get; set; }
+
+    public float FirstCarryLossY { get; set; }
+
+    public float PreviousX { get; set; }
+
+    public float PreviousY { get; set; }
+
+    public float WindowX { get; set; }
+
+    public float WindowY { get; set; }
+
+    public float RecentWindowMovement { get; set; }
+
+    public bool RecentStagnant { get; set; }
+
+    public float TotalMovement { get; set; }
+
+    public int StagnantWindows { get; set; }
+
+    public int ConsecutiveInertTicks { get; set; }
+
+    public int MaxConsecutiveInertTicks { get; set; }
+
+    public int FirstInertFailTick { get; set; } = -1;
+
+    public float FirstInertFailX { get; set; }
+
+    public float FirstInertFailY { get; set; }
+
+    public string FirstInertFailTrace { get; set; } = string.Empty;
+
+    public float OscillationWindowX { get; set; }
+
+    public float OscillationWindowY { get; set; }
+
+    public int OscillationWindowLowSpeedMoveFlips { get; set; }
+
+    public float RecentOscillationWindowMovement { get; set; }
+
+    public int OscillationEvents { get; set; }
+
+    public int FirstOscillationTick { get; set; } = -1;
+
+    public string FirstOscillationTrace { get; set; } = string.Empty;
+
+    public int ZeroInputTicks { get; set; }
+
+    public int MoveFlips { get; set; }
+
+    public int LowSpeedMoveFlips { get; set; }
+
+    public int LastMoveSign { get; set; }
+
+    public int CarryingIntelTick { get; set; } = -1;
+
+    public long ThinkTicks { get; set; }
+
+    public long ThinkStopwatchTicks { get; set; }
+
+    public long MaxThinkStopwatchTicks { get; set; }
+
+}
+
+internal sealed class PracticeRosterBotStats
+{
+    public PracticeRosterBotStats(byte slot, PlayerTeam team, PlayerClass classId, float startX, float startY, float startBottom)
+    {
+        Slot = slot;
+        Team = team;
+        ClassId = classId;
+        StartX = startX;
+        StartY = startY;
+        StartBottom = startBottom;
+        LastX = startX;
+        LastY = startY;
+        LastBottom = startBottom;
+        PreviousX = startX;
+        PreviousY = startY;
+        WindowX = startX;
+        WindowY = startY;
+    }
+
+    public byte Slot { get; }
+
+    public PlayerTeam Team { get; }
+
+    public PlayerClass ClassId { get; }
+
+    public float StartX { get; }
+
+    public float StartY { get; }
+
+    public float StartBottom { get; }
+
+    public float LastPreX { get; set; }
+
+    public float LastPreY { get; set; }
+
+    public float LastPreBottom { get; set; }
+
+    public float LastX { get; set; }
+
+    public float LastY { get; set; }
+
+    public float LastBottom { get; set; }
+
+    public bool LastGrounded { get; set; }
+
+    public float LastHorizontalSpeed { get; set; }
+
+    public float LastVerticalSpeed { get; set; }
+
+    public PlayerInputSnapshot LastInput { get; set; }
+
+    public string LastProofTrace { get; set; } = string.Empty;
+
+    public string LastDirectTrace { get; set; } = string.Empty;
+
+    public string LastTapeTrace { get; set; } = string.Empty;
+
+    public string LastIssue { get; set; } = string.Empty;
+
+    public int LastPathCount { get; set; }
+
+    public int LastPathIndex { get; set; }
+
+    public int LastCaps { get; set; }
+
+    public int LastCapsSeen { get; set; }
+
+    public int FirstCapTick { get; set; } = -1;
+
+    public int CarrierConversionTicks { get; set; } = -1;
+
+    public bool LastCarryingIntel { get; set; }
+
+    public bool HasPostAdvanceSample { get; set; }
+
+    public bool LastAlive { get; set; } = true;
+
+    public int DeathCount { get; set; }
+
+    public int FirstDeathTick { get; set; } = -1;
+
+    public int CarryLossCount { get; set; }
+
+    public int FirstCarryLossTick { get; set; } = -1;
+
+    public float FirstCarryLossX { get; set; }
+
+    public float FirstCarryLossY { get; set; }
+
+    public float PreviousX { get; set; }
+
+    public float PreviousY { get; set; }
+
+    public float WindowX { get; set; }
+
+    public float WindowY { get; set; }
+
+    public float RecentWindowMovement { get; set; }
+
+    public bool RecentStagnant { get; set; }
+
+    public float TotalMovement { get; set; }
+
+    public int StagnantWindows { get; set; }
+
+    public int ZeroInputTicks { get; set; }
+
+    public int MoveFlips { get; set; }
+
+    public int LowSpeedMoveFlips { get; set; }
+
+    public int LastMoveSign { get; set; }
+
+    public int ProofTicks { get; set; }
+
+    public int ProofIdleTicks { get; set; }
+
+    public int ProofAbortTicks { get; set; }
+
+    public int DirectTicks { get; set; }
+
+    public int GraphTicks { get; set; }
+
+    public int TapeTicks { get; set; }
+
+    public int CarryingIntelTick { get; set; } = -1;
+
+    public string LastProofTraceKey { get; set; } = string.Empty;
+
+    public string LastDirectTraceKey { get; set; } = string.Empty;
+
+    public Dictionary<string, int> ProofAbortByReason { get; } = new(StringComparer.Ordinal);
+
+    public Dictionary<string, int> ProofIdleByReason { get; } = new(StringComparer.Ordinal);
+
+    public Dictionary<string, int> DirectRejectByReason { get; } = new(StringComparer.Ordinal);
+
+    public Dictionary<string, int> LocalMotionFailureByReason { get; } = new(StringComparer.Ordinal);
+}
 
 internal sealed record ReturnProofSearchResult(
     TraversalLabScenario? BestScenario,

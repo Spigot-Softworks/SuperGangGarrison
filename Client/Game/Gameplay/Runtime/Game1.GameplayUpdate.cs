@@ -17,6 +17,7 @@ public partial class Game1
             || _inputBindings.Taunt == key
             || _inputBindings.CallMedic == key
             || _inputBindings.UseAbility == key
+            || IsSwapWeaponsKeyboardBindingKey(key)
             || _inputBindings.InteractWeapon == key
             || _inputBindings.ChangeTeam == key
             || _inputBindings.ChangeClass == key
@@ -25,6 +26,17 @@ public partial class Game1
             || _inputBindings.OpenBubbleMenuZ == key
             || _inputBindings.OpenBubbleMenuX == key
             || _inputBindings.OpenBubbleMenuC == key;
+    }
+
+    private bool IsSwapWeaponsKeyboardBindingKey(Keys key)
+    {
+        return InputBindingsSettings.NormalizeSwapWeaponsBinding(_inputBindings.SwapWeaponsBinding) switch
+        {
+            WeaponSwapBindingMode.Space => key == Keys.Space,
+            WeaponSwapBindingMode.Q => key == Keys.Q,
+            WeaponSwapBindingMode.Custom => key == _inputBindings.SwapWeaponsCustomKey,
+            _ => false,
+        };
     }
 
     private static bool IsChatShortcutHeld(KeyboardState keyboard)

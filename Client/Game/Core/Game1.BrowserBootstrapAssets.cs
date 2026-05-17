@@ -31,7 +31,7 @@ public partial class Game1
             && BrowserContentCatalog.TryGetBinaryForPath(path, out var browserBytes)
             && browserBytes.Length > 0)
         {
-            return new LoadedSpriteFrame(TextureDecodeUtility.LoadTexture(GraphicsDevice, browserBytes, applyLegacyChromaKey: false));
+            return TextureDecodeUtility.LoadSpriteFrame(GraphicsDevice, browserBytes, applyLegacyChromaKey: false);
         }
 
         if (OperatingSystem.IsBrowser() || !File.Exists(path))
@@ -122,8 +122,7 @@ public partial class Game1
 
         if (_browserBootstrapAssets is not null && _browserBootstrapAssets.TryGetBinary(relativePath, out var bytes))
         {
-            using var stream = new MemoryStream(bytes, writable: false);
-            frame = new LoadedSpriteFrame(Texture2D.FromStream(GraphicsDevice, stream));
+            frame = TextureDecodeUtility.LoadSpriteFrame(GraphicsDevice, bytes, applyLegacyChromaKey: false);
             return true;
         }
 

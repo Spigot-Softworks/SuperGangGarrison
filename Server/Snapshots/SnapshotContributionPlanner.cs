@@ -16,13 +16,12 @@ internal static class SnapshotContributionPlanner
     private const int PlayerChatBubblePriority = 1125;
     private const int RemovedPlayerEstimatedBytes = 6;
     private const int SnapshotPlayerFixedBytes = 220;
-    private const int SnapshotPlayerMovementBytes = 37;
+    private const int SnapshotPlayerMovementBytes = 28;
     private const int SnapshotPlayerStatusBytes = 20;
     private const int SnapshotPlayerExtendedStatusBytes = 26;
     private const int SnapshotPlayerChatBubbleBytes = 10;
     private const int ProjectileSnapshotUpdateIntervalTicks = 1;
     private const int CosmeticEntityUpdateIntervalTicks = 8;
-    private const float MaxEventDistanceFromFocus = 1200f;
     private const int LowFrequencyPlayerDetailRefreshIntervalTicks = 30;
 
     public static List<SnapshotDeltaBudgeter.Contribution> BuildContributions(
@@ -233,6 +232,18 @@ internal static class SnapshotContributionPlanner
             static (builder, id) => builder.RemovedSentryGibIds.Add(id),
             (state, baselineState, currentFrame, id) => ((currentFrame + id) % CosmeticEntityUpdateIntervalTicks) != 0,
             frame);
+        // Transient gameplay events are replayed for reliability. Let snapshot
+        // budgeting decide what fits instead of pre-dropping events by focus.
+        AddPointEventContributions(
+            contributions,
+            fullSnapshot.RocketSpawnEvents,
+            priority: 1290,
+            estimateBytes: static state => 82,
+            focus,
+            static state => state.X,
+            static state => state.Y,
+            static (builder, state) => builder.RocketSpawnEvents.Add(state),
+            kind: SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
         AddPointEventContributions(
             contributions,
             fullSnapshot.SoundEvents,
@@ -241,8 +252,7 @@ internal static class SnapshotContributionPlanner
             focus,
             static state => state.X,
             static state => state.Y,
-            static (builder, state) => builder.SoundEvents.Add(state),
-            maxDistanceFromFocus: MaxEventDistanceFromFocus);
+            static (builder, state) => builder.SoundEvents.Add(state));
         AddPointEventContributions(
             contributions,
             fullSnapshot.VisualEvents,
@@ -251,8 +261,16 @@ internal static class SnapshotContributionPlanner
             focus,
             static state => state.X,
             static state => state.Y,
-            static (builder, state) => builder.VisualEvents.Add(state),
-            maxDistanceFromFocus: MaxEventDistanceFromFocus);
+            static (builder, state) => builder.VisualEvents.Add(state));
+        AddPointEventContributions(
+            contributions,
+            fullSnapshot.GibSpawnEvents,
+            priority: 835,
+            estimateBytes: EstimateGibSpawnEventBytes,
+            focus,
+            static state => state.X,
+            static state => state.Y,
+            static (builder, state) => builder.GibSpawnEvents.Add(state));
         AddPointEventContributions(
             contributions,
             fullSnapshot.DamageEvents,
@@ -261,8 +279,7 @@ internal static class SnapshotContributionPlanner
             focus,
             static state => state.X,
             static state => state.Y,
-            static (builder, state) => builder.DamageEvents.Add(state),
-            maxDistanceFromFocus: MaxEventDistanceFromFocus);
+            static (builder, state) => builder.DamageEvents.Add(state));
         AddOrderedContributions(
             contributions,
             fullSnapshot.KillFeed,
@@ -883,7 +900,8 @@ internal static class SnapshotContributionPlanner
         Func<T, float> xSelector,
         Func<T, float> ySelector,
         Action<SnapshotDeltaBudgeter.Builder, T> addState,
-        float maxDistanceFromFocus = float.MaxValue)
+        float maxDistanceFromFocus = float.MaxValue,
+        SnapshotDeltaBudgeter.ContributionKind kind = SnapshotDeltaBudgeter.ContributionKind.Optional)
     {
         var maxDistanceSquared = maxDistanceFromFocus * maxDistanceFromFocus;
         for (var index = states.Count - 1; index >= 0; index -= 1)
@@ -899,7 +917,8 @@ internal static class SnapshotContributionPlanner
                 priority - ((states.Count - 1) - index),
                 distanceSquared,
                 estimateBytes(state),
-                builder => addState(builder, state)));
+                builder => addState(builder, state),
+                kind));
         }
     }
 
@@ -929,6 +948,11 @@ internal static class SnapshotContributionPlanner
     private static int EstimateVisualEventBytes(SnapshotVisualEvent state)
     {
         return 26 + state.EffectName.Length;
+    }
+
+    private static int EstimateGibSpawnEventBytes(SnapshotGibSpawnEvent state)
+    {
+        return 42 + state.SpriteName.Length;
     }
 
     private static int EstimateKillFeedBytes(SnapshotKillFeedEntry entry)

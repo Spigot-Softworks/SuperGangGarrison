@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Server;
 
 internal static class SnapshotDeltaBudgeter
 {
-    private readonly record struct SerializedSnapshot(SnapshotMessage Message, byte[] Payload);
+    private readonly record struct SerializedSnapshot(SnapshotMessage Message, byte[] Payload, int UncompressedBytes);
 
     // Stay below a typical 1500-byte Ethernet MTU after IPv4/UDP headers while
     // giving internet UDP clients more room than the prior ultra-conservative cap.
@@ -100,12 +101,6 @@ internal static class SnapshotDeltaBudgeter
             builder,
             orderedContributions,
             appliedContributions,
-            SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn,
-            ref remainingBudget);
-        ApplyRequiredContributions(
-            builder,
-            orderedContributions,
-            appliedContributions,
             SnapshotDeltaBudgeter.ContributionKind.LocalPlayerUpdate,
             ref remainingBudget);
         ApplyRequiredRosterContribution(
@@ -113,24 +108,6 @@ internal static class SnapshotDeltaBudgeter
             orderedContributions,
             appliedContributions,
             SnapshotDeltaBudgeter.ContributionKind.LocalPlayerStatusUpdate,
-            ref remainingBudget);
-        ApplyRequiredContributions(
-            builder,
-            orderedContributions,
-            appliedContributions,
-            SnapshotDeltaBudgeter.ContributionKind.PlayerMovementUpdate,
-            ref remainingBudget);
-        ApplyRequiredContributions(
-            builder,
-            orderedContributions,
-            appliedContributions,
-            SnapshotDeltaBudgeter.ContributionKind.PlayerExtendedStatusUpdate,
-            ref remainingBudget);
-        ApplyRequiredContributions(
-            builder,
-            orderedContributions,
-            appliedContributions,
-            SnapshotDeltaBudgeter.ContributionKind.PlayerChatBubbleUpdate,
             ref remainingBudget);
 
         for (var index = 0; index < orderedContributions.Length; index += 1)
@@ -153,34 +130,32 @@ internal static class SnapshotDeltaBudgeter
 
         snapshot = builder.Build();
         payloadSize = Measure(snapshot);
+        payload = Serialize(snapshot, payloadSize, ref serializePassCount);
 
-        if (payloadSize > targetPayloadBytes)
+        if (payload.Length > targetPayloadBytes)
         {
             if (TryReduceToBudget(builder, targetPayloadBytes, ref serializePassCount) is { } reducedBuilderSnapshot)
             {
                 snapshot = reducedBuilderSnapshot.Message;
                 payload = reducedBuilderSnapshot.Payload;
+                payloadSize = reducedBuilderSnapshot.UncompressedBytes;
+            }
+            else if (TryReduceSnapshotForBudget(snapshot, targetPayloadBytes, ref serializePassCount) is { } reducedSnapshot)
+            {
+                snapshot = reducedSnapshot.Message;
+                payload = reducedSnapshot.Payload;
+                payloadSize = reducedSnapshot.UncompressedBytes;
             }
             else
             {
-                if (TryReduceSnapshotForBudget(snapshot, targetPayloadBytes, ref serializePassCount) is { } reducedSnapshot)
-                {
-                    snapshot = reducedSnapshot.Message;
-                    payload = reducedSnapshot.Payload;
-                }
-                else
-                {
-                    snapshot = ReduceSnapshotToAbsoluteMinimum(snapshot);
-                    payload = Serialize(snapshot, ref serializePassCount);
-                }
+                snapshot = ReduceSnapshotToAbsoluteMinimum(snapshot);
+                payloadSize = Measure(snapshot);
+                payload = Serialize(snapshot, payloadSize, ref serializePassCount);
             }
         }
-        else
-        {
-            payload = Serialize(snapshot, ref serializePassCount);
-        }
 
-        return new SnapshotBudgetBuildResult(snapshot, payload!, serializePassCount);
+        var composition = BuildCompositionMetrics(snapshot, targetPayloadBytes, payloadSize, payload!.Length);
+        return new SnapshotBudgetBuildResult(snapshot, payload, serializePassCount, composition);
     }
 
     private static void ApplyRequiredRosterContribution(
@@ -231,26 +206,32 @@ internal static class SnapshotDeltaBudgeter
         var changed = false;
         changed |= ClearIfAny(builder.KillFeed);
         changed |= ClearIfAny(builder.CombatTraces);
-        // Keep VisualEvents (rocket explosions) - let priority system decide
+        // Keep transient events here; let the contribution and reduction passes decide.
         // Keep DamageEvents - needed for client-side blood and hit feedback
-        changed |= ClearIfAny(builder.SoundEvents);
         return changed;
     }
 
     private static SerializedSnapshot? TryReduceToBudget(Builder builder, int targetPayloadBytes, ref int serializePassCount)
     {
-        foreach (var dropStep in BudgetDropSteps)
+        var madeProgress = true;
+        while (madeProgress)
         {
-            if (!dropStep(builder))
+            madeProgress = false;
+            foreach (var dropStep in BudgetDropSteps)
             {
-                continue;
-            }
+                if (!dropStep(builder))
+                {
+                    continue;
+                }
 
-            var snapshot = builder.Build();
-            var payloadSize = Measure(snapshot);
-            if (payloadSize <= targetPayloadBytes)
-            {
-                return new SerializedSnapshot(snapshot, Serialize(snapshot, payloadSize, ref serializePassCount));
+                madeProgress = true;
+                var snapshot = builder.Build();
+                var payloadSize = Measure(snapshot);
+                var payload = Serialize(snapshot, payloadSize, ref serializePassCount);
+                if (payload.Length <= targetPayloadBytes)
+                {
+                    return new SerializedSnapshot(snapshot, payload, payloadSize);
+                }
             }
         }
 
@@ -268,9 +249,10 @@ internal static class SnapshotDeltaBudgeter
         };
 
         var payloadSize = Measure(snapshot);
-        if (payloadSize <= targetPayloadBytes)
+        var payload = Serialize(snapshot, payloadSize, ref serializePassCount);
+        if (payload.Length <= targetPayloadBytes)
         {
-            return new SerializedSnapshot(snapshot, Serialize(snapshot, payloadSize, ref serializePassCount));
+            return new SerializedSnapshot(snapshot, payload, payloadSize);
         }
 
         snapshot = snapshot with
@@ -281,9 +263,10 @@ internal static class SnapshotDeltaBudgeter
         };
 
         payloadSize = Measure(snapshot);
-        if (payloadSize <= targetPayloadBytes)
+        payload = Serialize(snapshot, payloadSize, ref serializePassCount);
+        if (payload.Length <= targetPayloadBytes)
         {
-            return new SerializedSnapshot(snapshot, Serialize(snapshot, payloadSize, ref serializePassCount));
+            return new SerializedSnapshot(snapshot, payload, payloadSize);
         }
 
         snapshot = snapshot with
@@ -293,9 +276,10 @@ internal static class SnapshotDeltaBudgeter
             PlayerExtendedStatusStates = Array.Empty<SnapshotPlayerExtendedStatusState>(),
         };
 
-        var payload = Serialize(snapshot, ref serializePassCount);
+        payloadSize = Measure(snapshot);
+        payload = Serialize(snapshot, payloadSize, ref serializePassCount);
         return payload.Length <= targetPayloadBytes
-            ? new SerializedSnapshot(snapshot, payload)
+            ? new SerializedSnapshot(snapshot, payload, payloadSize)
             : null;
     }
 
@@ -304,16 +288,251 @@ internal static class SnapshotDeltaBudgeter
         return ProtocolCodec.MeasureSerializedSize(snapshot);
     }
 
-    private static byte[] Serialize(SnapshotMessage snapshot, ref int serializePassCount)
-    {
-        serializePassCount += 1;
-        return ProtocolCodec.Serialize(snapshot, ServerProtocolCompression.Settings);
-    }
-
     private static byte[] Serialize(SnapshotMessage snapshot, int measuredSize, ref int serializePassCount)
     {
         serializePassCount += 1;
         return ProtocolCodec.Serialize(snapshot, measuredSize, ServerProtocolCompression.Settings);
+    }
+
+    internal static SnapshotCompositionMetrics BuildCompositionMetrics(
+        SnapshotMessage snapshot,
+        int targetPayloadBytes,
+        int finalUncompressedBytes,
+        int finalPayloadBytes)
+    {
+        var fullPlayerBytes = EstimateByteCountCollection(snapshot.Players, EstimatePlayerBytes);
+        var movementBytes = EstimateByteCountCollection(snapshot.PlayerMovementStates, EstimatePlayerMovementBytes);
+        var statusBytes = EstimateByteCountCollection(snapshot.PlayerStatusStates, static _ => 14);
+        var extendedStatusBytes = EstimateByteCountCollection(snapshot.PlayerExtendedStatusStates, static _ => 30);
+        var chatBubbleBytes = EstimateByteCountCollection(snapshot.PlayerChatBubbleStates, static _ => 6);
+        var projectileBytes =
+            EstimateShotCollectionBytes(snapshot.Shots)
+            + EstimateShotCollectionBytes(snapshot.Bubbles)
+            + EstimateShotCollectionBytes(snapshot.Blades)
+            + EstimateShotCollectionBytes(snapshot.Needles)
+            + EstimateShotCollectionBytes(snapshot.RevolverShots)
+            + EstimateShotCollectionBytes(snapshot.Flares)
+            + EstimateUShortCountCollection(snapshot.Rockets, EstimateRocketBytes)
+            + EstimateUShortCountCollection(snapshot.RocketSpawnEvents, static _ => 76)
+            + EstimateUShortCountCollection(snapshot.Flames, static _ => 50)
+            + EstimateUShortCountCollection(snapshot.Mines, static _ => 32);
+        var sentryBytes =
+            EstimateUShortCountCollection(snapshot.Sentries, static _ => 44)
+            + EstimateUShortCountCollection(snapshot.SentryUpdateStates, static _ => 37)
+            + EstimateUShortCountCollection(snapshot.JumpPads, static _ => 22);
+        var eventBytes =
+            EstimateUShortCountCollection(snapshot.CombatTraces, static _ => 24)
+            + EstimateByteCountCollection(snapshot.KillFeed, EstimateKillFeedBytes)
+            + EstimateUShortCountCollection(snapshot.VisualEvents, EstimateVisualEventBytes)
+            + EstimateUShortCountCollection(snapshot.DamageEvents, static _ => 42)
+            + EstimateUShortCountCollection(snapshot.SoundEvents, EstimateSoundEventBytes)
+            + EstimateUShortCountCollection(snapshot.GibSpawnEvents, EstimateGibSpawnEventBytes)
+            + EstimateUShortCountCollection(snapshot.DeadBodies, static _ => 40)
+            + EstimateUShortCountCollection(snapshot.SentryGibs, static _ => 17);
+        var removalBytes =
+            EstimateEntityIdListBytes(snapshot.RemovedPlayerIds)
+            + EstimateEntityIdListBytes(snapshot.RemovedSentryIds)
+            + EstimateEntityIdListBytes(snapshot.RemovedShotIds)
+            + EstimateEntityIdListBytes(snapshot.RemovedBubbleIds)
+            + EstimateEntityIdListBytes(snapshot.RemovedBladeIds)
+            + EstimateEntityIdListBytes(snapshot.RemovedNeedleIds)
+            + EstimateEntityIdListBytes(snapshot.RemovedRevolverShotIds)
+            + EstimateEntityIdListBytes(snapshot.RemovedRocketIds)
+            + EstimateEntityIdListBytes(snapshot.RemovedFlameIds)
+            + EstimateEntityIdListBytes(snapshot.RemovedFlareIds)
+            + EstimateEntityIdListBytes(snapshot.RemovedMineIds)
+            + EstimateEntityIdListBytes(snapshot.RemovedDeadBodyIds)
+            + EstimateEntityIdListBytes(snapshot.RemovedSentryGibIds)
+            + EstimateEntityIdListBytes(snapshot.RemovedJumpPadIds);
+        var worldBytes =
+            EstimateByteCountCollection(snapshot.ControlPoints, static _ => 8)
+            + EstimateByteCountCollection(snapshot.Generators, static _ => 5)
+            + EstimateDeathCamBytes(snapshot.LocalDeathCam);
+        var knownBytes =
+            fullPlayerBytes
+            + movementBytes
+            + statusBytes
+            + extendedStatusBytes
+            + chatBubbleBytes
+            + projectileBytes
+            + sentryBytes
+            + eventBytes
+            + removalBytes
+            + worldBytes;
+        var envelopeBytes = Math.Max(0, finalUncompressedBytes - knownBytes);
+
+        return new SnapshotCompositionMetrics(
+            targetPayloadBytes,
+            finalUncompressedBytes,
+            finalPayloadBytes,
+            finalPayloadBytes > targetPayloadBytes,
+            fullPlayerBytes,
+            movementBytes,
+            statusBytes,
+            extendedStatusBytes,
+            chatBubbleBytes,
+            projectileBytes,
+            sentryBytes,
+            eventBytes,
+            removalBytes,
+            worldBytes,
+            envelopeBytes);
+    }
+
+    private static int EstimateByteCountCollection<T>(IReadOnlyList<T> entries, Func<T, int> estimateEntryBytes)
+    {
+        var bytes = 1;
+        for (var index = 0; index < entries.Count; index += 1)
+        {
+            bytes += estimateEntryBytes(entries[index]);
+        }
+
+        return bytes;
+    }
+
+    private static int EstimateUShortCountCollection<T>(IReadOnlyList<T> entries, Func<T, int> estimateEntryBytes)
+    {
+        var bytes = 2;
+        for (var index = 0; index < entries.Count; index += 1)
+        {
+            bytes += estimateEntryBytes(entries[index]);
+        }
+
+        return bytes;
+    }
+
+    private static int EstimateEntityIdListBytes(IReadOnlyList<int> ids) => 1 + (ids.Count * 4);
+
+    private static int EstimateShotCollectionBytes(IReadOnlyList<SnapshotShotState> shots) => 2 + (shots.Count * 30);
+
+    private static int EstimateRocketBytes(SnapshotRocketState rocket)
+    {
+        return 69 + ((rocket.PassedFriendlyPlayerIds?.Count ?? 0) * 4);
+    }
+
+    private static int EstimatePlayerMovementBytes(SnapshotPlayerMovementState state)
+    {
+        return 1 // Slot
+            + 8 // Quantized position and velocity shorts
+            + 1 // Flags
+            + EstimateVariableInt32Bytes(state.RemainingAirJumps)
+            + 2 // Quantized aim angle
+            + 1 // MovementState
+            + 2 // Quantized taunt frame
+            + 2 // Quantized burn intensity
+            + 1 // GameplayEquippedSlot
+            + EstimateVariableInt32Bytes(state.PrimaryCooldownTicks)
+            + EstimateVariableInt32Bytes(state.ReloadTicksUntilNextShell)
+            + EstimateVariableInt32Bytes(state.OffhandCooldownTicks)
+            + EstimateVariableInt32Bytes(state.OffhandReloadTicks)
+            + EstimateVariableInt32Bytes(state.MedicHealTargetId);
+    }
+
+    private static int EstimatePlayerBytes(SnapshotPlayerState player)
+    {
+        var bytes = 206
+            + EstimateStringBytes(player.Name)
+            + EstimateCachedStringBytes(player.GameplayModPackCacheId, player.GameplayModPackId)
+            + EstimateCachedStringBytes(player.GameplayLoadoutCacheId, player.GameplayLoadoutId)
+            + EstimateCachedStringBytes(player.GameplayPrimaryItemCacheId, player.GameplayPrimaryItemId)
+            + EstimateCachedStringBytes(player.GameplaySecondaryItemCacheId, player.GameplaySecondaryItemId)
+            + EstimateCachedStringBytes(player.GameplayUtilityItemCacheId, player.GameplayUtilityItemId)
+            + EstimateCachedStringBytes(player.GameplayEquippedItemCacheId, player.GameplayEquippedItemId)
+            + EstimateCachedStringBytes(player.GameplayAcquiredItemCacheId, player.GameplayAcquiredItemId)
+            + EstimateGameplayIdListBytes(player.OwnedGameplayItemIds)
+            + EstimateReplicatedStateEntriesBytes(player.ReplicatedStates);
+        return bytes;
+    }
+
+    private static int EstimateCachedStringBytes(ushort cacheId, string value)
+    {
+        return 2 + (cacheId == 0 ? EstimateStringBytes(value) : 0);
+    }
+
+    private static int EstimateGameplayIdListBytes(IReadOnlyList<string>? ids)
+    {
+        var count = ids?.Count ?? 0;
+        var bytes = 1;
+        for (var index = 0; index < count; index += 1)
+        {
+            bytes += EstimateStringBytes(ids![index]);
+        }
+
+        return bytes;
+    }
+
+    private static int EstimateReplicatedStateEntriesBytes(IReadOnlyList<SnapshotReplicatedStateEntry>? entries)
+    {
+        var count = entries?.Count ?? 0;
+        var bytes = 1;
+        for (var index = 0; index < count; index += 1)
+        {
+            var entry = entries![index];
+            bytes += EstimateStringBytes(entry.OwnerId)
+                + EstimateStringBytes(entry.Key)
+                + 10;
+        }
+
+        return bytes;
+    }
+
+    private static int EstimateKillFeedBytes(SnapshotKillFeedEntry entry)
+    {
+        return EstimateStringBytes(entry.KillerName)
+            + EstimateStringBytes(entry.WeaponSpriteName)
+            + EstimateStringBytes(entry.VictimName)
+            + EstimateStringBytes(entry.MessageText)
+            + 27;
+    }
+
+    private static int EstimateSoundEventBytes(SnapshotSoundEvent soundEvent)
+    {
+        return EstimateStringBytes(soundEvent.SoundName) + 24;
+    }
+
+    private static int EstimateVisualEventBytes(SnapshotVisualEvent visualEvent)
+    {
+        return EstimateStringBytes(visualEvent.EffectName) + 24;
+    }
+
+    private static int EstimateGibSpawnEventBytes(SnapshotGibSpawnEvent gibEvent)
+    {
+        return EstimateStringBytes(gibEvent.SpriteName) + 48;
+    }
+
+    private static int EstimateDeathCamBytes(SnapshotDeathCamState? deathCam)
+    {
+        if (deathCam is null)
+        {
+            return 1;
+        }
+
+        return 1
+            + 8
+            + EstimateStringBytes(deathCam.KillMessage)
+            + EstimateStringBytes(deathCam.KillerName)
+            + 17;
+    }
+
+    private static int EstimateStringBytes(string value) => 2 + Encoding.UTF8.GetByteCount(value);
+
+    private static int EstimateVariableInt32Bytes(int value) => EstimateVariableUInt32Bytes(EncodeZigZagInt32(value));
+
+    private static int EstimateVariableUInt32Bytes(uint value)
+    {
+        var bytes = 1;
+        while (value >= 0x80)
+        {
+            value >>= 7;
+            bytes += 1;
+        }
+
+        return bytes;
+    }
+
+    private static uint EncodeZigZagInt32(int value)
+    {
+        return unchecked((uint)((value << 1) ^ (value >> 31)));
     }
 
     private static SnapshotPlayerState ReducePlayerStateForBudget(SnapshotPlayerState player)
@@ -433,6 +652,7 @@ internal static class SnapshotDeltaBudgeter
             VisualEvents = Array.Empty<SnapshotVisualEvent>(),
             DamageEvents = Array.Empty<SnapshotDamageEvent>(),
             SoundEvents = Array.Empty<SnapshotSoundEvent>(),
+            RocketSpawnEvents = Array.Empty<SnapshotRocketSpawnEvent>(),
             SentryGibs = Array.Empty<SnapshotSentryGibState>(),
             JumpPads = Array.Empty<SnapshotJumpPadState>(),
             RemovedPlayerIds = Array.Empty<int>(),
@@ -458,7 +678,6 @@ internal static class SnapshotDeltaBudgeter
         static builder =>
         {
             var changed = false;
-            changed |= ClearIfAny(builder.SoundEvents);
             changed |= ClearIfAny(builder.VisualEvents);
             changed |= ClearIfAny(builder.KillFeed);
             return changed;
@@ -493,6 +712,8 @@ internal static class SnapshotDeltaBudgeter
             changed |= ClearIfAny(builder.JumpPads);
             return changed;
         },
+        static builder => RemoveLastIfAboveMinimum(builder.RocketSpawnEvents, minimumCount: 0),
+        static builder => ClearIfAny(builder.SoundEvents),
         static builder =>
         {
             var changed = false;
@@ -522,6 +743,9 @@ internal static class SnapshotDeltaBudgeter
             changed |= ClearIfAny(builder.RemovedSentryIds);
             return changed;
         },
+        static builder => RemoveLastIfAboveMinimum(builder.PlayerChatBubbleStates, minimumCount: 0),
+        static builder => RemoveLastIfAboveMinimum(builder.PlayerExtendedStatusStates, minimumCount: 0),
+        static builder => RemoveLastIfAboveMinimum(builder.PlayerMovementStates, minimumCount: 1),
     ];
 
     private static bool ClearIfAny<T>(TrackingList<T> list)
@@ -532,6 +756,17 @@ internal static class SnapshotDeltaBudgeter
         }
 
         list.Clear();
+        return true;
+    }
+
+    private static bool RemoveLastIfAboveMinimum<T>(TrackingList<T> list, int minimumCount)
+    {
+        if (list.Count <= minimumCount)
+        {
+            return false;
+        }
+
+        list.RemoveLast();
         return true;
     }
 
@@ -549,6 +784,7 @@ internal static class SnapshotDeltaBudgeter
             DamageEvents = seedFromTemplateCollections ? new TrackingList<SnapshotDamageEvent>(template.DamageEvents) : [];
             SoundEvents = seedFromTemplateCollections ? new TrackingList<SnapshotSoundEvent>(template.SoundEvents) : [];
             GibSpawnEvents = seedFromTemplateCollections ? new TrackingList<SnapshotGibSpawnEvent>(template.GibSpawnEvents) : [];
+            RocketSpawnEvents = seedFromTemplateCollections ? new TrackingList<SnapshotRocketSpawnEvent>(template.RocketSpawnEvents) : [];
             Players = seedFromTemplateCollections ? new TrackingList<SnapshotPlayerState>(template.Players) : [];
             PlayerMovementStates = seedFromTemplateCollections ? new TrackingList<SnapshotPlayerMovementState>(template.PlayerMovementStates) : [];
             PlayerStatusStates = seedFromTemplateCollections ? new TrackingList<SnapshotPlayerStatusState>(template.PlayerStatusStates) : [];
@@ -596,6 +832,7 @@ internal static class SnapshotDeltaBudgeter
             DamageEvents = new TrackingList<SnapshotDamageEvent>(other.DamageEvents);
             SoundEvents = new TrackingList<SnapshotSoundEvent>(other.SoundEvents);
             GibSpawnEvents = new TrackingList<SnapshotGibSpawnEvent>(other.GibSpawnEvents);
+            RocketSpawnEvents = new TrackingList<SnapshotRocketSpawnEvent>(other.RocketSpawnEvents);
             Players = new TrackingList<SnapshotPlayerState>(other.Players);
             PlayerMovementStates = new TrackingList<SnapshotPlayerMovementState>(other.PlayerMovementStates);
             PlayerStatusStates = new TrackingList<SnapshotPlayerStatusState>(other.PlayerStatusStates);
@@ -640,6 +877,7 @@ internal static class SnapshotDeltaBudgeter
         public TrackingList<SnapshotDamageEvent> DamageEvents { get; }
         public TrackingList<SnapshotSoundEvent> SoundEvents { get; }
         public TrackingList<SnapshotGibSpawnEvent> GibSpawnEvents { get; }
+        public TrackingList<SnapshotRocketSpawnEvent> RocketSpawnEvents { get; }
         public TrackingList<SnapshotPlayerState> Players { get; }
         public TrackingList<SnapshotPlayerMovementState> PlayerMovementStates { get; }
         public TrackingList<SnapshotPlayerStatusState> PlayerStatusStates { get; }
@@ -713,6 +951,7 @@ internal static class SnapshotDeltaBudgeter
                 DamageEvents = DamageEvents.ToArrayCached(),
                 SoundEvents = SoundEvents.ToArrayCached(),
                 GibSpawnEvents = GibSpawnEvents.ToArrayCached(),
+                RocketSpawnEvents = RocketSpawnEvents.ToArrayCached(),
                 RemovedPlayerIds = RemovedPlayerIds.ToArrayCached(),
                 RemovedSentryIds = RemovedSentryIds.ToArrayCached(),
                 RemovedShotIds = RemovedShotIds.ToArrayCached(),
@@ -765,6 +1004,17 @@ internal static class SnapshotDeltaBudgeter
             }
 
             _items.Clear();
+            _cachedArray = null;
+        }
+
+        public void RemoveLast()
+        {
+            if (_items.Count == 0)
+            {
+                return;
+            }
+
+            _items.RemoveAt(_items.Count - 1);
             _cachedArray = null;
         }
 

@@ -101,6 +101,7 @@ public partial class Game1
                     null),
                 MainMenuPage.Minigames => (
                     [
+                        new MenuPageAction("Jump", () => _game.OpenJumpMenu()),
                         new MenuPageAction("Last to Die", () => _game.OpenLastToDieMenu()),
                     ],
                     new MenuPageAction("Back", () => OpenMainMenuPage(MainMenuPage.PlayOffline)),
