@@ -255,6 +255,15 @@ internal static class SnapshotContributionPlanner
             static (builder, state) => builder.SoundEvents.Add(state));
         AddPointEventContributions(
             contributions,
+            fullSnapshot.CombatTraces,
+            priority: 845,
+            estimateBytes: static _ => 24,
+            focus,
+            static state => (state.StartX + state.EndX) * 0.5f,
+            static state => (state.StartY + state.EndY) * 0.5f,
+            static (builder, state) => builder.CombatTraces.Add(state));
+        AddPointEventContributions(
+            contributions,
             fullSnapshot.VisualEvents,
             priority: 840,
             estimateBytes: EstimateVisualEventBytes,

@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Net;
+using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 using OpenGarrison.Server;
 using Xunit;
@@ -67,6 +69,46 @@ public sealed class SnapshotDeltaBudgeterRocketRemovalTests
         Assert.Contains(rocket.Id, result.Message.RemovedRocketIds);
         Assert.Empty(result.Message.SoundEvents);
         Assert.Empty(merged.Rockets);
+    }
+
+    [Fact]
+    public void BuildBudgetedSnapshotIncludesCombatTraces()
+    {
+        var baseline = CreateSnapshot(910);
+        var sniperTrace = new SnapshotCombatTraceState(
+            StartX: 128f,
+            StartY: 96f,
+            EndX: 512f,
+            EndY: 96f,
+            TicksRemaining: 3,
+            HitCharacter: true,
+            Team: 1,
+            IsSniperTracer: true);
+        var current = CreateSnapshot(911) with
+        {
+            CombatTraces = [sniperTrace],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var contributions = SnapshotContributionPlanner.BuildContributions(
+            client,
+            current,
+            baseline,
+            new SimulationWorld());
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(
+            current,
+            baseline,
+            contributions,
+            targetPayloadBytes: 64 * 1024);
+
+        var trace = Assert.Single(result.Message.CombatTraces);
+        Assert.True(trace.IsSniperTracer);
+        Assert.Equal(sniperTrace.EndX, trace.EndX);
     }
 
     private static int MeasurePayloadLength(SnapshotMessage snapshot)

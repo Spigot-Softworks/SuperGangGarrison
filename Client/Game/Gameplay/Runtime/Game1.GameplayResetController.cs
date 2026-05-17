@@ -27,9 +27,13 @@ public partial class Game1
             _game._networkSnapshotInterpolationDurationSeconds = 1f / _game._config.TicksPerSecond;
             _game._smoothedSnapshotIntervalSeconds = 1f / _game._config.TicksPerSecond;
             _game._smoothedSnapshotJitterSeconds = 0f;
+            _game._localPlayerInterpolationBackTimeSeconds = _game.GetMinimumLocalPlayerInterpolationBackTimeSeconds();
             _game._remotePlayerInterpolationBackTimeSeconds = _game.GetMinimumRemotePlayerInterpolationBackTimeSeconds();
+            _game._localPlayerRenderTimeSeconds = 0d;
             _game._remotePlayerRenderTimeSeconds = 0d;
+            _game._lastLocalPlayerRenderTimeClockSeconds = -1d;
             _game._lastRemotePlayerRenderTimeClockSeconds = -1d;
+            _game._hasLocalPlayerRenderTime = false;
             _game._hasRemotePlayerRenderTime = false;
             _game._pendingNetworkSoundEvents.Clear();
             _game._pendingNetworkVisualEvents.Clear();

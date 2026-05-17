@@ -30,9 +30,13 @@ public partial class Game1
             _networkSnapshotInterpolationDurationSeconds = 1f / _config.TicksPerSecond;
             _smoothedSnapshotIntervalSeconds = 1f / _config.TicksPerSecond;
             _smoothedSnapshotJitterSeconds = 0f;
+            _localPlayerInterpolationBackTimeSeconds = GetMinimumLocalPlayerInterpolationBackTimeSeconds();
             _remotePlayerInterpolationBackTimeSeconds = GetMinimumRemotePlayerInterpolationBackTimeSeconds();
+            _localPlayerRenderTimeSeconds = 0d;
             _remotePlayerRenderTimeSeconds = 0d;
+            _lastLocalPlayerRenderTimeClockSeconds = -1d;
             _lastRemotePlayerRenderTimeClockSeconds = -1d;
+            _hasLocalPlayerRenderTime = false;
             _hasRemotePlayerRenderTime = false;
             _hasPredictedLocalPlayerPosition = false;
             _hasPredictedLocalActionState = false;
@@ -42,13 +46,14 @@ public partial class Game1
         }
 
         _activeInterpolatedEntityIds.Clear();
+        var localPlayerRenderTimeSeconds = GetLocalPlayerRenderTimeSeconds();
         var remotePlayerRenderTimeSeconds = GetRemotePlayerRenderTimeSeconds();
         var entityRenderTimeSeconds = GetEntityRenderTimeSeconds();
         var localPlayerStateKey = GetResolvedLocalPlayerId();
         if (_remotePlayerSnapshotHistories.TryGetValue(localPlayerStateKey, out var localHistory)
             && localHistory.Count > 0)
         {
-            UpdateInterpolatedRemotePlayerPosition(_world.LocalPlayer, remotePlayerRenderTimeSeconds);
+            UpdateInterpolatedRemotePlayerPosition(_world.LocalPlayer, localPlayerRenderTimeSeconds);
         }
         else
         {
@@ -339,30 +344,55 @@ public partial class Game1
                 0.12f);
         }
 
-        var minimumBackTimeSeconds = GetMinimumRemotePlayerInterpolationBackTimeSeconds();
-        var maximumBackTimeSeconds = GetMaximumRemotePlayerInterpolationBackTimeSeconds();
-        var desiredBackTimeSeconds = _networkClient.IsReplayConnection
+        var minimumLocalBackTimeSeconds = GetMinimumLocalPlayerInterpolationBackTimeSeconds();
+        var maximumLocalBackTimeSeconds = GetMaximumLocalPlayerInterpolationBackTimeSeconds();
+        var desiredLocalBackTimeSeconds = _networkClient.IsReplayConnection
             ? Math.Clamp(
                 MathF.Max(
-                    minimumBackTimeSeconds,
+                    minimumLocalBackTimeSeconds,
                     (_smoothedSnapshotIntervalSeconds * 1.1f) + (_smoothedSnapshotJitterSeconds * 1.5f)),
-                minimumBackTimeSeconds,
-                maximumBackTimeSeconds)
+                minimumLocalBackTimeSeconds,
+                maximumLocalBackTimeSeconds)
             : Math.Clamp(
                 MathF.Max(
-                    minimumBackTimeSeconds,
-                    (_smoothedSnapshotIntervalSeconds * 2.25f) + (_smoothedSnapshotJitterSeconds * 4f)),
-                minimumBackTimeSeconds,
-                maximumBackTimeSeconds);
-        var backTimeAdjustmentAlpha = desiredBackTimeSeconds >= _remotePlayerInterpolationBackTimeSeconds
+                    minimumLocalBackTimeSeconds,
+                    (_smoothedSnapshotIntervalSeconds * 1.2f) + (_smoothedSnapshotJitterSeconds * 2.5f)),
+                minimumLocalBackTimeSeconds,
+                maximumLocalBackTimeSeconds);
+        var localBackTimeAdjustmentAlpha = desiredLocalBackTimeSeconds >= _localPlayerInterpolationBackTimeSeconds
+            ? 0.35f
+            : 0.18f;
+        _localPlayerInterpolationBackTimeSeconds +=
+            (desiredLocalBackTimeSeconds - _localPlayerInterpolationBackTimeSeconds) * localBackTimeAdjustmentAlpha;
+        _localPlayerInterpolationBackTimeSeconds = Math.Clamp(
+            _localPlayerInterpolationBackTimeSeconds,
+            minimumLocalBackTimeSeconds,
+            maximumLocalBackTimeSeconds);
+
+        var minimumRemoteBackTimeSeconds = GetMinimumRemotePlayerInterpolationBackTimeSeconds();
+        var maximumRemoteBackTimeSeconds = GetMaximumRemotePlayerInterpolationBackTimeSeconds();
+        var desiredRemoteBackTimeSeconds = _networkClient.IsReplayConnection
+            ? Math.Clamp(
+                MathF.Max(
+                    minimumRemoteBackTimeSeconds,
+                    (_smoothedSnapshotIntervalSeconds * 1.1f) + (_smoothedSnapshotJitterSeconds * 1.5f)),
+                minimumRemoteBackTimeSeconds,
+                maximumRemoteBackTimeSeconds)
+            : Math.Clamp(
+                MathF.Max(
+                    minimumRemoteBackTimeSeconds,
+                    (_smoothedSnapshotIntervalSeconds * 1.8f) + (_smoothedSnapshotJitterSeconds * 4f)),
+                minimumRemoteBackTimeSeconds,
+                maximumRemoteBackTimeSeconds);
+        var remoteBackTimeAdjustmentAlpha = desiredRemoteBackTimeSeconds >= _remotePlayerInterpolationBackTimeSeconds
             ? 0.25f
             : 0.12f;
         _remotePlayerInterpolationBackTimeSeconds +=
-            (desiredBackTimeSeconds - _remotePlayerInterpolationBackTimeSeconds) * backTimeAdjustmentAlpha;
+            (desiredRemoteBackTimeSeconds - _remotePlayerInterpolationBackTimeSeconds) * remoteBackTimeAdjustmentAlpha;
         _remotePlayerInterpolationBackTimeSeconds = Math.Clamp(
             _remotePlayerInterpolationBackTimeSeconds,
-            minimumBackTimeSeconds,
-            maximumBackTimeSeconds);
+            minimumRemoteBackTimeSeconds,
+            maximumRemoteBackTimeSeconds);
     }
 
     private void CaptureEntityInterpolationTarget(bool isActive, int entityId, float x, float y)
@@ -631,6 +661,29 @@ public partial class Game1
             targetRenderTimeSeconds,
             deltaSeconds);
         return _remotePlayerRenderTimeSeconds;
+    }
+
+    private double GetLocalPlayerRenderTimeSeconds()
+    {
+        var targetRenderTimeSeconds = GetSnapshotRenderTimeSeconds(_localPlayerInterpolationBackTimeSeconds);
+        if (!_hasLocalPlayerRenderTime)
+        {
+            _localPlayerRenderTimeSeconds = targetRenderTimeSeconds;
+            _lastLocalPlayerRenderTimeClockSeconds = _networkInterpolationClockSeconds;
+            _hasLocalPlayerRenderTime = true;
+            return _localPlayerRenderTimeSeconds;
+        }
+
+        var deltaSeconds = Math.Clamp(
+            _networkInterpolationClockSeconds - _lastLocalPlayerRenderTimeClockSeconds,
+            0d,
+            0.05d);
+        _lastLocalPlayerRenderTimeClockSeconds = _networkInterpolationClockSeconds;
+        _localPlayerRenderTimeSeconds = NetworkInterpolationTimeline.AdvanceTowards(
+            _localPlayerRenderTimeSeconds,
+            targetRenderTimeSeconds,
+            deltaSeconds);
+        return _localPlayerRenderTimeSeconds;
     }
 
     private static double GetSnapshotTimelineTimeSeconds(ulong snapshotFrame, int tickRate)

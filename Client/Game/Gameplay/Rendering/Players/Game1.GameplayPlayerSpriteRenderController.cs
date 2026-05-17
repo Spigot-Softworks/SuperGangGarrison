@@ -120,24 +120,10 @@ public partial class Game1
             }
 
             var renderState = _game._playerRenderStates.GetValueOrDefault(_game.GetPlayerStateKey(player));
-            var renderHorizontalSpeed = renderState?.RenderHorizontalSpeed ?? player.HorizontalSpeed;
-            var renderVerticalSpeed = renderState?.RenderVerticalSpeed ?? player.VerticalSpeed;
-            var horizontalSourceStepSpeed = GetPlayerAnimationSourceStepSpeed(renderHorizontalSpeed);
+            var animationHorizontalSpeed = renderState?.AnimationHorizontalSpeed ?? player.HorizontalSpeed;
+            var horizontalSourceStepSpeed = GetPlayerAnimationSourceStepSpeed(animationHorizontalSpeed);
             var animationImage = WrapAnimationImage(renderState?.BodyAnimationImage ?? 0f, _game.GetPlayerBodyAnimationLength(player, horizontalSourceStepSpeed));
             var appearsAirborne = renderState?.AppearsAirborne ?? !player.IsGrounded;
-            var renderPosition = _game.GetRenderPosition(player, allowInterpolation: true);
-            var hasGroundSupport = HasGroundSupportForPresentation(player, renderPosition);
-            var forceAirbornePresentation = ShouldForceAirbornePresentation(player, renderVerticalSpeed, hasGroundSupport)
-                || (renderState?.AirbornePresentationLatchSeconds ?? 0f) > 0f;
-            if (!appearsAirborne && forceAirbornePresentation)
-            {
-                appearsAirborne = true;
-            }
-
-            if (appearsAirborne && hasGroundSupport && !forceAirbornePresentation)
-            {
-                appearsAirborne = false;
-            }
 
             if (_game._world.IsPlayerHumiliated(player))
             {
@@ -446,23 +432,36 @@ public partial class Game1
             return leanDirection;
         }
 
-        public bool HasGroundSupportForPresentation(PlayerEntity player, Vector2 renderPosition)
+        public bool HasGroundSupportForPresentation(
+            PlayerEntity player,
+            Vector2 renderPosition,
+            float? maxSupportDistance = null,
+            bool suppressWhileRising = true)
         {
-            if (player.VerticalSpeed < 0f)
+            if (suppressWhileRising && player.VerticalSpeed < 0f)
             {
                 return false;
             }
 
             var playerScale = player.PlayerScale;
             player.GetCollisionBoundsAt(renderPosition.X, renderPosition.Y, out var left, out _, out var right, out var bottom);
-            var probeY = bottom + playerScale;
+            var supportDistance = MathF.Max(playerScale, maxSupportDistance ?? playerScale);
             var sideInset = MathF.Max(1f, 2f * playerScale);
             var leftProbeX = left + sideInset;
             var centerProbeX = renderPosition.X;
             var rightProbeX = right - sideInset;
-            return IsPointBlockedForPlayerCore(player, leftProbeX, probeY)
-                || IsPointBlockedForPlayerCore(player, centerProbeX, probeY)
-                || IsPointBlockedForPlayerCore(player, rightProbeX, probeY);
+            for (var probeDistance = playerScale; probeDistance <= supportDistance + 0.001f; probeDistance += playerScale)
+            {
+                var probeY = bottom + probeDistance;
+                if (IsPointBlockedForPlayerCore(player, leftProbeX, probeY)
+                    || IsPointBlockedForPlayerCore(player, centerProbeX, probeY)
+                    || IsPointBlockedForPlayerCore(player, rightProbeX, probeY))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private bool IsPointBlockedForPlayerCore(PlayerEntity player, float x, float y)
