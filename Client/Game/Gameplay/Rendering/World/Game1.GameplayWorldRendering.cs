@@ -65,6 +65,7 @@ public partial class Game1
         DrawFrozenSpyVisuals(cameraPosition);
         DrawBackstabVisuals(cameraPosition);
         DrawSpySuperjumpVisuals(cameraPosition);
+        DrawSniperAimIndicators(cameraPosition);
         DrawCustomMapForegroundAndVoid(cameraPosition, worldRectangle);
         DrawRocketCollisionDebug(cameraPosition);
         DrawProjectileSpawnBlockedDebug(cameraPosition);

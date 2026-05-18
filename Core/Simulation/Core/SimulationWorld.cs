@@ -26,6 +26,7 @@ public sealed partial class SimulationWorld
     private const int DefaultGibLevel = 3;
     private readonly Dictionary<int, SimulationEntity> _entities = new();
     private readonly List<CombatTrace> _combatTraces = new();
+    private readonly List<SniperAimIndicator> _sniperAimIndicators = new();
     private readonly List<KillFeedEntry> _killFeed = new();
     private readonly List<ShotProjectileEntity> _shots = new();
     private readonly List<BubbleProjectileEntity> _bubbles = new();
@@ -169,6 +170,8 @@ public sealed partial class SimulationWorld
 
     public bool RandomSpreadEnabled { get; set; } = true;
 
+    public bool SniperAimIndicatorEnabled { get; set; } = true;
+
     /// <summary>
     /// When true, only the local player and projectiles are simulated.
     /// Other network players, match logic, and structures are skipped.
@@ -226,6 +229,8 @@ public sealed partial class SimulationWorld
     public IReadOnlyList<KillFeedEntry> KillFeed => _killFeed;
 
     public IReadOnlyList<CombatTrace> CombatTraces => _combatTraces;
+
+    public IReadOnlyList<SniperAimIndicator> SniperAimIndicators => _sniperAimIndicators;
 
     public IReadOnlyList<ShotProjectileEntity> Shots => _shots;
 

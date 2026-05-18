@@ -135,6 +135,7 @@ public sealed class ClientSessionSnapshotHistoryTests
                     PlayerScale: 1f),
             ],
             CombatTraces: Array.Empty<SnapshotCombatTraceState>(),
+            SniperAimIndicators: Array.Empty<SnapshotSniperAimIndicatorState>(),
             Sentries: Array.Empty<SnapshotSentryState>(),
             Shots: [new SnapshotShotState((int)frame, 1, 10, 32f, 48f, 1f, 0f, 10)],
             Bubbles: Array.Empty<SnapshotShotState>(),

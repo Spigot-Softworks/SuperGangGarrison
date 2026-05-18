@@ -167,6 +167,7 @@ public sealed class ImmediateNetworkDeathPresentationPlannerTests
             BlueIntel: new SnapshotIntelState((byte)PlayerTeam.Blue, 0f, 0f, true, false, 0),
             Players: Array.Empty<SnapshotPlayerState>(),
             CombatTraces: Array.Empty<SnapshotCombatTraceState>(),
+            SniperAimIndicators: Array.Empty<SnapshotSniperAimIndicatorState>(),
             Sentries: Array.Empty<SnapshotSentryState>(),
             Shots: Array.Empty<SnapshotShotState>(),
             Bubbles: Array.Empty<SnapshotShotState>(),

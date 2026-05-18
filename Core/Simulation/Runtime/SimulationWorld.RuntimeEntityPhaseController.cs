@@ -14,6 +14,7 @@ public sealed partial class SimulationWorld
         public void AdvanceProjectileAndTransientEntityPhase()
         {
             _world.AdvanceCombatTraces();
+            _world.ComputeSniperAimIndicators();
             _world.AdvanceShots();
             _world.AdvanceBubbles();
             _world.AdvanceBlades();

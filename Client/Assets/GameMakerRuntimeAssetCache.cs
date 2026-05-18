@@ -67,7 +67,6 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
         }
 
         var framePaths = spriteAsset.FramePaths;
-        if (framePaths.Count <= 1)
         {
             var metadataDirectory = Path.GetDirectoryName(spriteAsset.MetadataPath) ?? string.Empty;
             var imagesDirectory = Path.Combine(metadataDirectory, $"{spriteAsset.Name}.images");

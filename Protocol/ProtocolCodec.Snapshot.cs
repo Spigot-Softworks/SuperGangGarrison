@@ -42,6 +42,7 @@ public static partial class ProtocolCodec
         WriteSnapshotPlayerChatBubbleStates(writer, snapshot.PlayerChatBubbleStates);
         WriteEntityIdList(writer, snapshot.RemovedPlayerIds);
         WriteCombatTraces(writer, snapshot.CombatTraces);
+        WriteSniperAimIndicators(writer, snapshot.SniperAimIndicators);
         WriteSentryStates(writer, snapshot.Sentries);
         WriteSentryUpdateStates(writer, snapshot.SentryUpdateStates);
         WriteEntityIdList(writer, snapshot.RemovedSentryIds);
@@ -121,6 +122,7 @@ public static partial class ProtocolCodec
         var playerChatBubbleStates = ReadSnapshotPlayerChatBubbleStates(reader);
         var removedPlayerIds = ReadEntityIdList(reader);
         var combatTraces = ReadCombatTraces(reader);
+        var sniperAimIndicators = ReadSniperAimIndicators(reader);
         var sentries = ReadSentryStates(reader);
         var sentryUpdateStates = ReadSentryUpdateStates(reader);
         var removedSentryIds = ReadEntityIdList(reader);
@@ -186,6 +188,7 @@ public static partial class ProtocolCodec
             blueIntel,
             players,
             combatTraces,
+            sniperAimIndicators,
             sentries,
             shots,
             bubbles,
