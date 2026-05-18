@@ -161,6 +161,8 @@ public sealed class RocketProjectileEntity : SimulationEntity
 
     public string DelayedExplosionReason { get; private set; } = string.Empty;
 
+    private bool ExplosionConsumed { get; set; }
+
     private bool ExperimentalStingerSpeedBurstConsumed { get; set; }
 
     private bool ExperimentalCaveatLockSpeedBurstConsumed { get; set; }
@@ -270,6 +272,7 @@ public sealed class RocketProjectileEntity : SimulationEntity
         PreviousY = Y;
         ExplodeImmediately = false;
         DelayedExplosionReason = string.Empty;
+        ExplosionConsumed = false;
         EnableExperimentalStingerTracking = false;
         EnableExperimentalCaveatTracking = false;
         ExperimentalStingerSpeedBurstConsumed = false;
@@ -303,6 +306,17 @@ public sealed class RocketProjectileEntity : SimulationEntity
     public void ArmExperimentalManualDetonation()
     {
         DelayExplosionUntilNextTick(DelayedExplosionReasonManualDetonation);
+    }
+
+    public bool TryMarkExplosionConsumed()
+    {
+        if (ExplosionConsumed)
+        {
+            return false;
+        }
+
+        ExplosionConsumed = true;
+        return true;
     }
 
     public void TrackExperimentalStingerTarget(float targetDirectionRadians, float maxTurnRadians)
@@ -389,6 +403,7 @@ public sealed class RocketProjectileEntity : SimulationEntity
         SetPassedFriendlyPlayerIds(passedFriendlyPlayerIds);
         ExplodeImmediately = false;
         DelayedExplosionReason = string.Empty;
+        ExplosionConsumed = false;
         ExperimentalStingerSpeedBurstConsumed = false;
         ExperimentalCaveatLockSpeedBurstConsumed = false;
         ExperimentalTrackingLockTicksRemaining = 0;
@@ -430,6 +445,7 @@ public sealed class RocketProjectileEntity : SimulationEntity
         SetPassedFriendlyPlayerIds(passedFriendlyPlayerIds);
         ExplodeImmediately = false;
         DelayedExplosionReason = string.Empty;
+        ExplosionConsumed = false;
         ExperimentalStingerSpeedBurstConsumed = false;
         ExperimentalCaveatLockSpeedBurstConsumed = false;
         ExperimentalTrackingLockTicksRemaining = 0;

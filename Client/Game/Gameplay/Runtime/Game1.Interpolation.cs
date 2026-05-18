@@ -15,14 +15,16 @@ public partial class Game1
     private const int MaxQueuedAuthoritativeSnapshots = 4;
     private const float RemotePlayerTeleportSnapDistance = 128f;
     private const float RemotePlayerExtrapolationDurationSeconds = 0.07f;
-    private const float RemotePlayerMinimumInterpolationBackTimeSeconds = 0.08f;
-    private const float RemotePlayerMaximumInterpolationBackTimeSeconds = 0.16f;
+    private const float LocalPlayerMinimumInterpolationBackTimeSeconds = 0.035f;
+    private const float LocalPlayerMaximumInterpolationBackTimeSeconds = 0.09f;
+    private const float RemotePlayerMinimumInterpolationBackTimeSeconds = 0.06f;
+    private const float RemotePlayerMaximumInterpolationBackTimeSeconds = 0.14f;
     private const float ReplayMinimumInterpolationBackTimeSeconds = 0.02f;
     private const float ReplayMaximumInterpolationBackTimeSeconds = 0.06f;
     private const float SnapshotHistoryRetentionSeconds = 0.5f;
     // Projectiles are updated every few ticks - enable extrapolation to smooth between updates
     // This prevents jittering when the camera/player moves around projectiles
-    private const float ProjectileInterpolationExtrapolationCeilingSeconds = 0.15f;
+    private static readonly float ProjectileInterpolationExtrapolationCeilingSeconds = 0.15f;
     private const int ExpectedProjectileUpdateIntervalTicks = 3;
 
     private int GetPlayerStateKey(PlayerEntity player)
@@ -44,7 +46,7 @@ public partial class Game1
     private readonly Dictionary<int, List<PlayerSnapshotSample>> _remotePlayerSnapshotHistories = new();
     private readonly HashSet<int> _activeInterpolatedEntityIds = new();
     private readonly List<int> _staleInterpolatedEntityIds = new();
-    private readonly Dictionary<ulong, SnapshotMessage> _snapshotStatesByFrame = new();
+    private readonly Dictionary<ulong, SnapshotBaselineState> _snapshotStatesByFrame = new();
     private readonly Queue<ulong> _snapshotStateFrameOrder = new();
     private readonly Queue<SnapshotMessage> _queuedAuthoritativeSnapshots = new();
     private readonly Stopwatch _networkInterpolationClock = Stopwatch.StartNew();
@@ -52,14 +54,18 @@ public partial class Game1
     private float _networkSnapshotInterpolationDurationSeconds = 1f / SimulationConfig.DefaultTicksPerSecond;
     private float _smoothedSnapshotIntervalSeconds = 1f / SimulationConfig.DefaultTicksPerSecond;
     private float _smoothedSnapshotJitterSeconds;
+    private float _localPlayerInterpolationBackTimeSeconds = LocalPlayerMinimumInterpolationBackTimeSeconds;
     private float _remotePlayerInterpolationBackTimeSeconds = RemotePlayerMinimumInterpolationBackTimeSeconds;
+    private double _localPlayerRenderTimeSeconds;
     private double _remotePlayerRenderTimeSeconds;
+    private double _lastLocalPlayerRenderTimeClockSeconds = -1d;
     private double _lastRemotePlayerRenderTimeClockSeconds = -1d;
     private double _lastSnapshotReceivedTimeSeconds = -1d;
     private double _latestSnapshotServerTimeSeconds = -1d;
     private double _latestSnapshotReceivedClockSeconds = -1d;
     private double _lastPredictedRenderSmoothingTimeSeconds = -1d;
     private bool _hasReceivedSnapshot;
+    private bool _hasLocalPlayerRenderTime;
     private bool _hasRemotePlayerRenderTime;
     private ulong _lastAppliedSnapshotFrame;
     private ulong _lastBufferedSnapshotFrame;
@@ -81,6 +87,20 @@ public partial class Game1
         return _networkClient.IsReplayConnection
             ? ReplayMaximumInterpolationBackTimeSeconds
             : RemotePlayerMaximumInterpolationBackTimeSeconds;
+    }
+
+    private float GetMinimumLocalPlayerInterpolationBackTimeSeconds()
+    {
+        return _networkClient.IsReplayConnection
+            ? ReplayMinimumInterpolationBackTimeSeconds
+            : LocalPlayerMinimumInterpolationBackTimeSeconds;
+    }
+
+    private float GetMaximumLocalPlayerInterpolationBackTimeSeconds()
+    {
+        return _networkClient.IsReplayConnection
+            ? ReplayMaximumInterpolationBackTimeSeconds
+            : LocalPlayerMaximumInterpolationBackTimeSeconds;
     }
 
     private Vector2 GetRenderPosition(int entityId, float x, float y, bool allowInterpolation = true)
@@ -205,19 +225,20 @@ public partial class Game1
 
     private void RememberSnapshotState(SnapshotMessage snapshot)
     {
+        var baseline = SnapshotBaselineState.FromSnapshot(snapshot);
         if (!_snapshotStatesByFrame.ContainsKey(snapshot.Frame))
         {
             _snapshotStateFrameOrder.Enqueue(snapshot.Frame);
         }
 
-        _snapshotStatesByFrame[snapshot.Frame] = snapshot;
+        _snapshotStatesByFrame[snapshot.Frame] = baseline;
         while (_snapshotStateFrameOrder.Count > SnapshotStateHistoryLimit)
         {
             _snapshotStatesByFrame.Remove(_snapshotStateFrameOrder.Dequeue());
         }
     }
 
-    private bool TryGetSnapshotState(ulong frame, out SnapshotMessage snapshot)
+    private bool TryGetSnapshotState(ulong frame, out SnapshotBaselineState snapshot)
     {
         return _snapshotStatesByFrame.TryGetValue(frame, out snapshot!);
     }

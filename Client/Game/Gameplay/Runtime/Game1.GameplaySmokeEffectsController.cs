@@ -253,7 +253,7 @@ public partial class Game1
                     continue;
                 }
 
-                var renderPosition = _game.GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _game._world.LocalPlayer));
+                var renderPosition = _game.GetRenderPosition(player);
                 if (_game._visualRandom.NextSingle() < GetBlastJumpFlameProbability()
                     && CanEmitBrowserVisual(_game._blastJumpFlameVisuals.Count, BrowserBlastJumpFlameVisualLimit))
                 {

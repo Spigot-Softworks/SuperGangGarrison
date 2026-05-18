@@ -58,6 +58,7 @@ public enum InputButtons : ushort
     DropIntel = 1 << 10,
     UseAbility = 1 << 11,
     InteractWeapon = 1 << 12,
+    SwapWeapon = 1 << 13,
 }
 
 public interface IProtocolMessage
@@ -361,6 +362,32 @@ public sealed record SnapshotPlayerChatBubbleState(
     int ChatBubbleFrameIndex,
     float ChatBubbleAlpha);
 
+public sealed record SnapshotPlayerExtendedStatusState(
+    byte Slot,
+    bool IsSpyCloaked,
+    float SpyCloakAlpha,
+    bool IsSpySuperjumping,
+    float SpySuperjumpHorizontalVelocity,
+    int SpySuperjumpCooldownTicksRemaining,
+    int SpyBackstabVisualTicksRemaining,
+    bool IsUbered,
+    bool IsKritzCritBoosted,
+    bool IsHeavyEating,
+    int HeavyEatTicksRemaining,
+    bool IsSniperScoped,
+    int SniperChargeTicks,
+    int MedicNeedleCooldownTicks = 0,
+    int MedicNeedleRefillTicks = 0,
+    int PyroAirblastCooldownTicks = 0,
+    int PyroFlareCooldownTicks = 0,
+    int PyroPrimaryFuelScaled = 0,
+    bool IsPyroPrimaryRefilling = false,
+    int PyroFlameLoopTicksRemaining = 0,
+    bool PyroPrimaryRequiresReleaseAfterEmpty = false,
+    int HeavyEatCooldownTicksRemaining = 0,
+    float MedicUberCharge = 0f,
+    bool IsMedicUberReady = false);
+
 public sealed record SnapshotIntelState(
     byte Team,
     float X,
@@ -432,6 +459,29 @@ public sealed record SnapshotRocketState(
     float FadeSourceTicksRemaining = 0f,
     IReadOnlyList<int>? PassedFriendlyPlayerIds = null,
     bool IsCritical = false);
+
+public sealed record SnapshotRocketSpawnEvent(
+    int Id,
+    byte Team,
+    int OwnerId,
+    float X,
+    float Y,
+    float PreviousX,
+    float PreviousY,
+    float DirectionRadians,
+    float Speed,
+    int TicksRemaining,
+    float ReducedKnockbackSourceTicksRemaining = 20f,
+    float ZeroKnockbackSourceTicksRemaining = 30f,
+    int RangeAnchorOwnerId = -1,
+    float LastKnownRangeOriginX = 0f,
+    float LastKnownRangeOriginY = 0f,
+    float DistanceToTravel = 800f,
+    bool IsFading = false,
+    float FadeSourceTicksRemaining = 0f,
+    bool ExplodeImmediately = false,
+    bool IsCritical = false,
+    ulong EventId = 0);
 
 public sealed record SnapshotFlameState(
     int Id,
@@ -690,6 +740,7 @@ public sealed record SnapshotMessage(
     public IReadOnlyList<SnapshotPlayerMovementState> PlayerMovementStates { get; init; } = Array.Empty<SnapshotPlayerMovementState>();
     public IReadOnlyList<SnapshotPlayerStatusState> PlayerStatusStates { get; init; } = Array.Empty<SnapshotPlayerStatusState>();
     public IReadOnlyList<SnapshotPlayerChatBubbleState> PlayerChatBubbleStates { get; init; } = Array.Empty<SnapshotPlayerChatBubbleState>();
+    public IReadOnlyList<SnapshotPlayerExtendedStatusState> PlayerExtendedStatusStates { get; init; } = Array.Empty<SnapshotPlayerExtendedStatusState>();
     public IReadOnlyList<SnapshotSentryUpdateState> SentryUpdateStates { get; init; } = Array.Empty<SnapshotSentryUpdateState>();
     public IReadOnlyList<int> RemovedPlayerIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedSentryIds { get; init; } = Array.Empty<int>();
@@ -710,6 +761,7 @@ public sealed record SnapshotMessage(
     public IReadOnlyList<int> RemovedJumpPadIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<SnapshotPlayerGibState> PlayerGibs { get; init; } = Array.Empty<SnapshotPlayerGibState>();
     public IReadOnlyList<SnapshotGibSpawnEvent> GibSpawnEvents { get; init; } = Array.Empty<SnapshotGibSpawnEvent>();
+    public IReadOnlyList<SnapshotRocketSpawnEvent> RocketSpawnEvents { get; init; } = Array.Empty<SnapshotRocketSpawnEvent>();
 
     public MessageType Type => MessageType.Snapshot;
 }

@@ -9,4 +9,10 @@
   <ItemGroup>
     <ProjectReference Include="..\Core\OpenGarrison.Core.csproj" />
   </ItemGroup>
+
+  <Target Name="GenerateRuntimeAssetManifest"
+          AfterTargets="Build"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipRuntimeAssetManifest)' != 'true'">
+    <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\..\Tools\BrowserAssetBuilder\OpenGarrison.Tools.BrowserAssetBuilder.csproj&quot; -- &quot;$(TargetDir)Content&quot; --manifest-only" />
+  </Target>
 </Project>

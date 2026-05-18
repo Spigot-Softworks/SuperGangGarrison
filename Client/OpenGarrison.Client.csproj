@@ -43,7 +43,7 @@
     <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.4.1" />
     <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.4.1" PrivateAssets="all" />
   </ItemGroup>
-  <ItemGroup>
+  <ItemGroup Condition="'$(OpenGarrisonPackageScriptOwnsContent)' != 'true'">
     <None Include="..\Core\Content\**\*" Exclude="..\Core\Content\bin\**\*;..\Core\Content\obj\**\*;..\Core\Content\**\*.mgcb">
       <TargetPath>Content\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -53,6 +53,12 @@
     <None Include="practice-bot-names.txt">
       <TargetPath>config\practice-bot-names.txt</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </None>
+    <None Include="..\Maps\**\*" Condition="Exists('..\Maps')">
+      <TargetPath>Maps\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       <Visible>false</Visible>
     </None>
   </ItemGroup>
@@ -78,13 +84,13 @@
 
   <Target Name="GenerateDistributionContentAtlases"
           AfterTargets="Build"
-          Condition="'$(OpenGarrisonClientAsLibrary)' != 'true' and Exists('$(TargetDir)Content')">
+          Condition="'$(OpenGarrisonPackageScriptOwnsContent)' != 'true' and '$(OpenGarrisonClientAsLibrary)' != 'true' and Exists('$(TargetDir)Content')">
     <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\..\Tools\BrowserAssetBuilder\OpenGarrison.Tools.BrowserAssetBuilder.csproj&quot; -- &quot;$(TargetDir)Content&quot;" />
   </Target>
 
   <Target Name="GeneratePublishedDistributionContentAtlases"
           AfterTargets="Publish"
-          Condition="'$(OpenGarrisonClientAsLibrary)' != 'true' and Exists('$(PublishDir)Content')">
+          Condition="'$(OpenGarrisonPackageScriptOwnsContent)' != 'true' and '$(OpenGarrisonClientAsLibrary)' != 'true' and Exists('$(PublishDir)Content')">
     <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\..\Tools\BrowserAssetBuilder\OpenGarrison.Tools.BrowserAssetBuilder.csproj&quot; -- &quot;$(PublishDir)Content&quot;" />
   </Target>
 </Project>

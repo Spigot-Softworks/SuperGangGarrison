@@ -17,7 +17,8 @@ sealed class SnapshotBroadcaster
         bool WasBudgeted,
         bool BaselineHit,
         bool BaselineMiss,
-        int SnapshotHistoryCount);
+        int SnapshotHistoryCount,
+        SnapshotCompositionMetrics Composition);
 
     private sealed record SharedSnapshotData(
         ClientSession[] OrderedClients,
@@ -61,15 +62,37 @@ sealed class SnapshotBroadcaster
     }
 
     public OpenGarrison.Server.SnapshotTransientEvents LastCapturedTransientEvents { get; private set; } =
-        new([], [], [], []);
+        new([], [], [], [], []);
 
     public SnapshotBroadcastMetrics Metrics { get; private set; }
 
     public void ResetTransientEvents()
     {
         _transientEventBuffer.Reset(_clientsBySlot.Values);
-        LastCapturedTransientEvents = new([], [], [], []);
+        LastCapturedTransientEvents = new([], [], [], [], []);
         Metrics = default;
+    }
+
+    public void RemoveClientState(byte slot)
+    {
+        _clientCacheTrackers.Remove(slot);
+    }
+
+    public void MoveClientState(byte oldSlot, byte newSlot)
+    {
+        if (oldSlot == newSlot)
+        {
+            return;
+        }
+
+        if (_clientCacheTrackers.TryGetValue(oldSlot, out var tracker))
+        {
+            _clientCacheTrackers.Remove(oldSlot);
+            _clientCacheTrackers[newSlot] = tracker;
+            return;
+        }
+
+        _clientCacheTrackers.Remove(newSlot);
     }
 
     public void BroadcastSnapshot()
@@ -92,7 +115,8 @@ sealed class SnapshotBroadcaster
             transientEvents.VisualEvents,
             transientEvents.DamageEvents,
             transientEvents.SoundEvents,
-            transientEvents.GibSpawnEvents);
+            transientEvents.GibSpawnEvents,
+            transientEvents.RocketSpawnEvents);
         var sharedCaptureTicks = Stopwatch.GetTimestamp() - sharedCaptureStartTimestamp;
         var sharedCaptureAllocatedBytes = GC.GetAllocatedBytesForCurrentThread() - sharedCaptureStartAllocatedBytes;
         if (_recordCanonicalSnapshot is not null
@@ -103,14 +127,29 @@ sealed class SnapshotBroadcaster
 
         long perClientTicks = 0;
         long perClientAllocatedBytes = 0;
+        var totalTargetPayloadBytes = 0;
         var totalFullPayloadBytes = 0;
+        var totalSentUncompressedBytes = 0;
         var totalSentPayloadBytes = 0;
+        var maxSentPayloadBytes = 0;
+        var payloadOverTargetCount = 0;
         var totalSerializePassCount = 0;
         var budgetedClientCount = 0;
         var baselineHitCount = 0;
         var baselineMissCount = 0;
         var totalSnapshotHistoryCount = 0;
         var maxSnapshotHistoryCount = 0;
+        var totalFullPlayerBytes = 0;
+        var totalPlayerMovementBytes = 0;
+        var totalPlayerStatusBytes = 0;
+        var totalPlayerExtendedStatusBytes = 0;
+        var totalPlayerChatBubbleBytes = 0;
+        var totalProjectileBytes = 0;
+        var totalSentryBytes = 0;
+        var totalEventBytes = 0;
+        var totalRemovalBytes = 0;
+        var totalWorldBytes = 0;
+        var totalEnvelopeBytes = 0;
         foreach (var client in sharedSnapshot.OrderedClients)
         {
             var clientStartTimestamp = Stopwatch.GetTimestamp();
@@ -118,8 +157,16 @@ sealed class SnapshotBroadcaster
             var clientMetrics = SendSnapshot(client, sharedSnapshot);
             perClientTicks += Stopwatch.GetTimestamp() - clientStartTimestamp;
             perClientAllocatedBytes += GC.GetAllocatedBytesForCurrentThread() - clientStartAllocatedBytes;
+            totalTargetPayloadBytes += clientMetrics.Composition.TargetPayloadBytes;
             totalFullPayloadBytes += clientMetrics.FullPayloadBytes;
+            totalSentUncompressedBytes += clientMetrics.Composition.FinalUncompressedBytes;
             totalSentPayloadBytes += clientMetrics.SentPayloadBytes;
+            maxSentPayloadBytes = Math.Max(maxSentPayloadBytes, clientMetrics.SentPayloadBytes);
+            if (clientMetrics.Composition.PayloadOverTarget)
+            {
+                payloadOverTargetCount += 1;
+            }
+
             totalSerializePassCount += clientMetrics.SerializePassCount;
             if (clientMetrics.WasBudgeted)
             {
@@ -138,6 +185,17 @@ sealed class SnapshotBroadcaster
 
             totalSnapshotHistoryCount += clientMetrics.SnapshotHistoryCount;
             maxSnapshotHistoryCount = Math.Max(maxSnapshotHistoryCount, clientMetrics.SnapshotHistoryCount);
+            totalFullPlayerBytes += clientMetrics.Composition.FullPlayerBytes;
+            totalPlayerMovementBytes += clientMetrics.Composition.PlayerMovementBytes;
+            totalPlayerStatusBytes += clientMetrics.Composition.PlayerStatusBytes;
+            totalPlayerExtendedStatusBytes += clientMetrics.Composition.PlayerExtendedStatusBytes;
+            totalPlayerChatBubbleBytes += clientMetrics.Composition.PlayerChatBubbleBytes;
+            totalProjectileBytes += clientMetrics.Composition.ProjectileBytes;
+            totalSentryBytes += clientMetrics.Composition.SentryBytes;
+            totalEventBytes += clientMetrics.Composition.EventBytes;
+            totalRemovalBytes += clientMetrics.Composition.RemovalBytes;
+            totalWorldBytes += clientMetrics.Composition.WorldBytes;
+            totalEnvelopeBytes += clientMetrics.Composition.EnvelopeAndOtherBytes;
         }
 
         var totalTicks = Stopwatch.GetTimestamp() - totalStartTimestamp;
@@ -153,14 +211,29 @@ sealed class SnapshotBroadcaster
             SharedCaptureAllocatedBytes: sharedCaptureAllocatedBytes,
             PerClientAllocatedBytes: perClientAllocatedBytes,
             TotalAllocatedBytes: totalAllocatedBytes,
+            AverageTargetPayloadBytes: clientCount == 0 ? 0 : totalTargetPayloadBytes / clientCount,
             AverageFullPayloadBytes: clientCount == 0 ? 0 : totalFullPayloadBytes / clientCount,
+            AverageSentUncompressedBytes: clientCount == 0 ? 0 : totalSentUncompressedBytes / clientCount,
             AverageSentPayloadBytes: clientCount == 0 ? 0 : totalSentPayloadBytes / clientCount,
+            MaxSentPayloadBytes: maxSentPayloadBytes,
+            PayloadOverTargetCount: payloadOverTargetCount,
             AverageSerializePasses: clientCount == 0 ? 0d : (double)totalSerializePassCount / clientCount,
             BudgetedClientCount: budgetedClientCount,
             BaselineHitCount: baselineHitCount,
             BaselineMissCount: baselineMissCount,
             AverageSnapshotHistoryCount: clientCount == 0 ? 0d : (double)totalSnapshotHistoryCount / clientCount,
-            MaxSnapshotHistoryCount: maxSnapshotHistoryCount);
+            MaxSnapshotHistoryCount: maxSnapshotHistoryCount,
+            AverageSnapshotFullPlayerBytes: clientCount == 0 ? 0 : totalFullPlayerBytes / clientCount,
+            AverageSnapshotPlayerMovementBytes: clientCount == 0 ? 0 : totalPlayerMovementBytes / clientCount,
+            AverageSnapshotPlayerStatusBytes: clientCount == 0 ? 0 : totalPlayerStatusBytes / clientCount,
+            AverageSnapshotPlayerExtendedStatusBytes: clientCount == 0 ? 0 : totalPlayerExtendedStatusBytes / clientCount,
+            AverageSnapshotPlayerChatBubbleBytes: clientCount == 0 ? 0 : totalPlayerChatBubbleBytes / clientCount,
+            AverageSnapshotProjectileBytes: clientCount == 0 ? 0 : totalProjectileBytes / clientCount,
+            AverageSnapshotSentryBytes: clientCount == 0 ? 0 : totalSentryBytes / clientCount,
+            AverageSnapshotEventBytes: clientCount == 0 ? 0 : totalEventBytes / clientCount,
+            AverageSnapshotRemovalBytes: clientCount == 0 ? 0 : totalRemovalBytes / clientCount,
+            AverageSnapshotWorldBytes: clientCount == 0 ? 0 : totalWorldBytes / clientCount,
+            AverageSnapshotEnvelopeBytes: clientCount == 0 ? 0 : totalEnvelopeBytes / clientCount);
     }
 
     private SentSnapshotMetrics SendSnapshot(ClientSession client, SharedSnapshotData sharedSnapshot)
@@ -178,7 +251,12 @@ sealed class SnapshotBroadcaster
         {
             var fullSnapshotPayload = ProtocolCodec.Serialize(fullSnapshot, ServerProtocolCompression.Settings);
             _sendSnapshot(client.Peer, fullSnapshot, fullSnapshotPayload);
-            client.RememberSnapshotState(fullSnapshot);
+            client.RememberResolvedSnapshotState(fullSnapshot);
+            var composition = SnapshotDeltaBudgeter.BuildCompositionMetrics(
+                fullSnapshot,
+                targetPayloadBytes,
+                fullSnapshotPayloadBytes,
+                fullSnapshotPayload.Length);
             return new SentSnapshotMetrics(
                 FullPayloadBytes: fullSnapshotPayloadBytes,
                 SentPayloadBytes: fullSnapshotPayload.Length,
@@ -186,7 +264,8 @@ sealed class SnapshotBroadcaster
                 WasBudgeted: false,
                 BaselineHit: false,
                 BaselineMiss: false,
-                SnapshotHistoryCount: client.SnapshotHistoryCount);
+                SnapshotHistoryCount: client.SnapshotHistoryCount,
+                Composition: composition);
         }
 
         // Prefer ACK-based deltas for steady-state gameplay once the client has a valid
@@ -195,7 +274,12 @@ sealed class SnapshotBroadcaster
         {
             var fullSnapshotPayload = ProtocolCodec.Serialize(fullSnapshot, ServerProtocolCompression.Settings);
             _sendSnapshot(client.Peer, fullSnapshot, fullSnapshotPayload);
-            client.RememberSnapshotState(fullSnapshot);
+            client.RememberResolvedSnapshotState(fullSnapshot);
+            var composition = SnapshotDeltaBudgeter.BuildCompositionMetrics(
+                fullSnapshot,
+                targetPayloadBytes,
+                fullSnapshotPayloadBytes,
+                fullSnapshotPayload.Length);
             return new SentSnapshotMetrics(
                 FullPayloadBytes: fullSnapshotPayloadBytes,
                 SentPayloadBytes: fullSnapshotPayload.Length,
@@ -203,12 +287,13 @@ sealed class SnapshotBroadcaster
                 WasBudgeted: false,
                 BaselineHit: false,
                 BaselineMiss: false,
-                SnapshotHistoryCount: client.SnapshotHistoryCount);
+                SnapshotHistoryCount: client.SnapshotHistoryCount,
+                Composition: composition);
         }
 
         var snapshot = BuildBudgetedSnapshot(client, fullSnapshot, baseline, targetPayloadBytes);
         _sendSnapshot(client.Peer, snapshot.Message, snapshot.Payload);
-        client.RememberSnapshotState(SnapshotDelta.ToFullSnapshot(snapshot.Message, baseline));
+        client.RememberResolvedSnapshotState(SnapshotDelta.ToFullSnapshot(snapshot.Message, baseline));
         return new SentSnapshotMetrics(
             FullPayloadBytes: fullSnapshotPayloadBytes,
             SentPayloadBytes: snapshot.Payload.Length,
@@ -216,14 +301,16 @@ sealed class SnapshotBroadcaster
             WasBudgeted: true,
             BaselineHit: baseline is not null,
             BaselineMiss: baseline is null,
-            SnapshotHistoryCount: client.SnapshotHistoryCount);
+            SnapshotHistoryCount: client.SnapshotHistoryCount,
+            Composition: snapshot.Composition);
     }
 
     private SharedSnapshotData CaptureSharedSnapshotData(
         SnapshotVisualEvent[] visualEvents,
         SnapshotDamageEvent[] damageEvents,
         SnapshotSoundEvent[] soundEvents,
-        SnapshotGibSpawnEvent[] gibSpawnEvents)
+        SnapshotGibSpawnEvent[] gibSpawnEvents,
+        SnapshotRocketSpawnEvent[] rocketSpawnEvents)
     {
         var orderedClients = _clientsBySlot.Values.ToArray();
         Array.Sort(orderedClients, static (left, right) => left.Slot.CompareTo(right.Slot));
@@ -305,6 +392,7 @@ sealed class SnapshotBroadcaster
             SentryGibs = ConvertToArray(_world.SentryGibs, static sentryGib => ToSnapshotSentryGibState(sentryGib)),
             JumpPads = ConvertToArray(_world.JumpPads, static jumpPad => ToSnapshotJumpPadState(jumpPad)),
             GibSpawnEvents = gibSpawnEvents,
+            RocketSpawnEvents = rocketSpawnEvents,
         };
 
         return new SharedSnapshotData(orderedClients, template);
@@ -630,7 +718,8 @@ sealed class SnapshotBroadcaster
             Array.Empty<SnapshotVisualEvent>(),
             Array.Empty<SnapshotDamageEvent>(),
             Array.Empty<SnapshotSoundEvent>(),
-            Array.Empty<SnapshotGibSpawnEvent>());
+            Array.Empty<SnapshotGibSpawnEvent>(),
+            Array.Empty<SnapshotRocketSpawnEvent>());
         return CaptureCanonicalSnapshot(sharedSnapshot);
     }
 
@@ -671,7 +760,6 @@ sealed class SnapshotBroadcaster
 
     private SnapshotBudgetBuildResult BuildBudgetedSnapshot(ClientSession client, SnapshotMessage fullSnapshot, SnapshotBaselineState? baseline)
     {
-        var contributions = OpenGarrison.Server.SnapshotContributionPlanner.BuildContributions(client, fullSnapshot, baseline, _world);
         return BuildBudgetedSnapshot(client, fullSnapshot, baseline, GetTargetSnapshotPayloadBytes(client));
     }
 

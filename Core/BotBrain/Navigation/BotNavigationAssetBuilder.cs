@@ -16,8 +16,8 @@ public static class BotNavigationAssetBuilder
     private const float StepRelayHorizontalReach = 96f;
     private const float ShallowStepRelayWalkHorizontalReach = 192f;
     private const float StepRelayVerticalReach = 14f;
-    private const float StairRampRelayHorizontalReach = 132f;
-    private const float StairRampRelayVerticalReach = 88f;
+    private const float StairRampRelayHorizontalReach = 160f;
+    private const float StairRampRelayVerticalReach = 112f;
     private const float StairRampRelayJumpVerticalReach = 74f;
     private const float StairRampRelayMinimumHorizontal = 8f;
     private const float StairRampRelayCostMultiplier = 0.18f;
@@ -38,6 +38,10 @@ public static class BotNavigationAssetBuilder
     private const float AuthoredCorridorVirtualNodeSpacing = 48f;
     private const float AuthoredCorridorDirectEdgeMaxDistance = 360f;
     private const float AuthoredCorridorPreferredCostMultiplier = 0.2f;
+    private const float MotionProofGraphLaneMaxSnapDistance = 220f;
+    private const float MotionProofGraphLaneMaxEdgeDistance = 620f;
+    private const float MotionProofGraphLaneDistanceCostMultiplier = 0.08f;
+    private const float MotionProofGraphLaneTickCostMultiplier = 0.25f;
     private const float AuthoredCorridorObjectiveArrivalDistance = 96f;
 
     public static BotNavigationAsset BuildAsset(SimpleLevel level)
@@ -143,7 +147,7 @@ public static class BotNavigationAssetBuilder
 
     public static NavGraph BuildGraph(SimpleLevel level)
     {
-        return ToGraph(BuildAsset(level));
+        return ToGraph(BuildAsset(level), level);
     }
 
     public static NavGraph ToGraph(BotNavigationAsset asset)
@@ -217,9 +221,375 @@ public static class BotNavigationAssetBuilder
         if (level is not null)
         {
             AddAuthoredCorridorReturnEdges(level, nodes, adjacency);
+            AddMotionProofObjectiveTapeGraphEdges(level, nodes, adjacency);
+            if (IsMotionProofVirtualGraphLaneEnabled())
+            {
+                var virtualNodes = nodes.ToList();
+                var virtualAdjacency = adjacency.ToList();
+                AddMotionProofObjectiveTapeVirtualGraphEdges(level, virtualNodes, virtualAdjacency);
+                return new NavGraph(virtualNodes.ToArray(), virtualAdjacency.ToArray(), level.Name, level.Mode, BuildSpawnAnchors(level));
+            }
         }
 
-        return new NavGraph(nodes, adjacency, level?.Name, level?.Mode);
+        return new NavGraph(nodes, adjacency, level?.Name, level?.Mode, level is null ? null : BuildSpawnAnchors(level));
+    }
+
+    private static NavSpawnAnchor[] BuildSpawnAnchors(SimpleLevel level)
+    {
+        var anchors = new List<NavSpawnAnchor>(level.RedSpawns.Count + level.BlueSpawns.Count);
+        foreach (var spawn in level.RedSpawns)
+        {
+            anchors.Add(new NavSpawnAnchor(spawn.X, spawn.Y, PlayerTeam.Red));
+        }
+
+        foreach (var spawn in level.BlueSpawns)
+        {
+            anchors.Add(new NavSpawnAnchor(spawn.X, spawn.Y, PlayerTeam.Blue));
+        }
+
+        return anchors.ToArray();
+    }
+
+    private static void AddMotionProofObjectiveTapeGraphEdges(SimpleLevel level, NavNode[] nodes, List<NavEdge>[] adjacency)
+    {
+        if (nodes.Length == 0
+            || !IsMotionProofGraphLaneEnabled()
+            || !BotBrainObjectiveTapeStore.TryLoad(level, out var tapeAsset))
+        {
+            return;
+        }
+
+        foreach (var tape in tapeAsset.Tapes)
+        {
+            if (!tape.Name.StartsWith("MotionProof.", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var supportedClassMask = BotBrainClassMask.For(tape.PlayerClass);
+            var supportedTeamMask = BotBrainTeamMask.For(tape.Team);
+            foreach (var segment in tape.Segments)
+            {
+                if (!segment.RequiresCarryingIntel || segment.Samples.Count < 2)
+                {
+                    continue;
+                }
+
+                AddMotionProofObjectiveTapeGraphLane(
+                    nodes,
+                    adjacency,
+                    segment.Samples,
+                    supportedClassMask,
+                    supportedTeamMask,
+                    segment.RequiresCarryingIntel);
+            }
+        }
+    }
+
+    private static bool IsMotionProofGraphLaneEnabled() =>
+        Environment.GetEnvironmentVariable("BOTBRAIN_ENABLE_MOTIONPROOF_GRAPH_LANES") is "1" or "true" or "TRUE";
+
+    private static bool IsMotionProofVirtualGraphLaneEnabled() =>
+        Environment.GetEnvironmentVariable("BOTBRAIN_ENABLE_MOTIONPROOF_VIRTUAL_GRAPH_LANES") is "1" or "true" or "TRUE";
+
+    private static void AddMotionProofObjectiveTapeVirtualGraphEdges(
+        SimpleLevel level,
+        List<NavNode> nodes,
+        List<List<NavEdge>> adjacency)
+    {
+        if (nodes.Count == 0 || !BotBrainObjectiveTapeStore.TryLoad(level, out var tapeAsset))
+        {
+            return;
+        }
+
+        var baseNodeCount = nodes.Count;
+        foreach (var tape in tapeAsset.Tapes)
+        {
+            if (!tape.Name.StartsWith("MotionProof.", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var supportedClassMask = BotBrainClassMask.For(tape.PlayerClass);
+            var supportedTeamMask = BotBrainTeamMask.For(tape.Team);
+            foreach (var segment in tape.Segments)
+            {
+                if (!segment.RequiresCarryingIntel || segment.Samples.Count < 2)
+                {
+                    continue;
+                }
+
+                AddMotionProofObjectiveTapeVirtualGraphLane(
+                    nodes,
+                    adjacency,
+                    baseNodeCount,
+                    segment.Samples,
+                    supportedClassMask,
+                    supportedTeamMask,
+                    segment.RequiresCarryingIntel);
+            }
+        }
+    }
+
+    private static void AddMotionProofObjectiveTapeVirtualGraphLane(
+        List<NavNode> nodes,
+        List<List<NavEdge>> adjacency,
+        int baseNodeCount,
+        IReadOnlyList<BotBrainObjectiveTapeSample> samples,
+        int supportedClassMask,
+        int supportedTeamMask,
+        bool requiresCarryingIntel)
+    {
+        var laneNodeStart = nodes.Count;
+        for (var i = 0; i < samples.Count; i += 1)
+        {
+            var sample = samples[i];
+            nodes.Add(new NavNode(sample.X, sample.Y, sample.IsGrounded ? NavNodeKind.Surface : NavNodeKind.Ledge));
+            adjacency.Add(new List<NavEdge>(2));
+        }
+
+        var firstLaneNode = laneNodeStart;
+        var lastLaneNode = laneNodeStart + samples.Count - 1;
+        var entryNode = FindNearestMotionProofGraphNode(nodes, samples[0], baseNodeCount, MotionProofGraphLaneMaxSnapDistance);
+        if (entryNode >= 0)
+        {
+            AddMotionProofObjectiveTapeGraphEdge(
+                nodes,
+                adjacency,
+                entryNode,
+                firstLaneNode,
+                samples[0],
+                samples[0],
+                supportedClassMask,
+                supportedTeamMask,
+                requiresCarryingIntel);
+        }
+
+        for (var i = 1; i < samples.Count; i += 1)
+        {
+            AddMotionProofObjectiveTapeGraphEdge(
+                nodes,
+                adjacency,
+                laneNodeStart + i - 1,
+                laneNodeStart + i,
+                samples[i - 1],
+                samples[i],
+                supportedClassMask,
+                supportedTeamMask,
+                requiresCarryingIntel);
+        }
+
+        var exitNode = FindNearestMotionProofGraphNode(nodes, samples[^1], baseNodeCount, MotionProofGraphLaneMaxSnapDistance);
+        if (exitNode >= 0)
+        {
+            AddMotionProofObjectiveTapeGraphEdge(
+                nodes,
+                adjacency,
+                lastLaneNode,
+                exitNode,
+                samples[^1],
+                samples[^1],
+                supportedClassMask,
+                supportedTeamMask,
+                requiresCarryingIntel);
+        }
+    }
+
+    private static void AddMotionProofObjectiveTapeGraphLane(
+        NavNode[] nodes,
+        List<NavEdge>[] adjacency,
+        IReadOnlyList<BotBrainObjectiveTapeSample> samples,
+        int supportedClassMask,
+        int supportedTeamMask,
+        bool requiresCarryingIntel)
+    {
+        var previousNode = -1;
+        BotBrainObjectiveTapeSample? previousSample = null;
+        for (var i = 0; i < samples.Count; i += 1)
+        {
+            var sample = samples[i];
+            var nodeIndex = FindNearestMotionProofGraphNode(nodes, sample, MotionProofGraphLaneMaxSnapDistance);
+            if (nodeIndex < 0)
+            {
+                continue;
+            }
+
+            if (previousNode >= 0 && previousNode != nodeIndex && previousSample is { } fromSample)
+            {
+                AddMotionProofObjectiveTapeGraphEdge(
+                    nodes,
+                    adjacency,
+                    previousNode,
+                    nodeIndex,
+                    fromSample,
+                    sample,
+                    supportedClassMask,
+                    supportedTeamMask,
+                    requiresCarryingIntel);
+            }
+
+            previousNode = nodeIndex;
+            previousSample = sample;
+        }
+    }
+
+    private static int FindNearestMotionProofGraphNode(
+        NavNode[] nodes,
+        BotBrainObjectiveTapeSample sample,
+        float maxDistance)
+    {
+        return FindNearestMotionProofGraphNode(nodes, sample, nodes.Length, maxDistance);
+    }
+
+    private static int FindNearestMotionProofGraphNode(
+        IReadOnlyList<NavNode> nodes,
+        BotBrainObjectiveTapeSample sample,
+        int count,
+        float maxDistance)
+    {
+        var bestIndex = -1;
+        var bestScore = maxDistance * maxDistance;
+        for (var i = 0; i < count; i += 1)
+        {
+            var dx = nodes[i].X - sample.X;
+            var dy = nodes[i].Y - sample.Y;
+            var score = (dx * dx) + (dy * dy * 2.25f);
+            if (nodes[i].SurfaceId.HasValue && sample.IsGrounded)
+            {
+                score *= 0.65f;
+            }
+
+            if (score >= bestScore)
+            {
+                continue;
+            }
+
+            bestScore = score;
+            bestIndex = i;
+        }
+
+        return bestIndex;
+    }
+
+    private static void AddMotionProofObjectiveTapeGraphEdge(
+        IReadOnlyList<NavNode> nodes,
+        IList<List<NavEdge>> adjacency,
+        int fromNode,
+        int toNode,
+        BotBrainObjectiveTapeSample fromSample,
+        BotBrainObjectiveTapeSample toSample,
+        int supportedClassMask,
+        int supportedTeamMask,
+        bool requiresCarryingIntel)
+    {
+        var from = nodes[fromNode];
+        var to = nodes[toNode];
+        var distance = MathF.Sqrt(DistanceSquared(from.X, from.Y, to.X, to.Y));
+        if (distance <= 0f || distance > MotionProofGraphLaneMaxEdgeDistance)
+        {
+            return;
+        }
+
+        var kind = ResolveMotionProofGraphEdgeKind(from, to, fromSample, toSample);
+        var ticks = Math.Max(1, toSample.Tick - fromSample.Tick);
+        var cost = MathF.Max(1f, (distance * MotionProofGraphLaneDistanceCostMultiplier) + (ticks * MotionProofGraphLaneTickCostMultiplier));
+        var completion = new NavEdgeCompletion(
+            to.X - 56f,
+            to.X + 56f,
+            to.Y - 40f,
+            to.Y + 40f,
+            to.SurfaceId.HasValue ? [to.SurfaceId.Value] : []);
+        var moveDirection = ResolveMotionProofMoveDirection(fromSample, toSample);
+        var launchRecipe = new NavEdgeLaunchRecipe(
+            fromSample.IsGrounded,
+            fromSample.Jump ? 0 : kind == NavEdgeKind.Jump ? 3 : 0,
+            fromSample.X - 72f,
+            fromSample.X + 72f,
+            fromSample.Y - 56f,
+            fromSample.Y + 56f,
+            fromSample.HorizontalSpeed - 180f,
+            fromSample.HorizontalSpeed + 180f,
+            moveDirection);
+        var edge = new NavEdge(
+            toNode,
+            kind,
+            cost,
+            completion,
+            launchRecipe.LaunchTick,
+            ticks,
+            moveDirection,
+            1,
+            1,
+            supportedClassMask,
+            supportedTeamMask,
+            toSample.IsGrounded,
+            requiresCarryingIntel,
+            launchRecipe);
+
+        var edges = adjacency[fromNode];
+        for (var i = 0; i < edges.Count; i += 1)
+        {
+            var existing = edges[i];
+            if (existing.ToNode != toNode
+                || existing.Kind != kind
+                || existing.RequiresCarryingIntel != requiresCarryingIntel)
+            {
+                continue;
+            }
+
+            if (cost < existing.Cost)
+            {
+                edges[i] = edge with
+                {
+                    SupportedClassMask = existing.SupportedClassMask | supportedClassMask,
+                    SupportedTeamMask = existing.SupportedTeamMask | supportedTeamMask,
+                };
+            }
+            else
+            {
+                edges[i] = existing with
+                {
+                    SupportedClassMask = existing.SupportedClassMask | supportedClassMask,
+                    SupportedTeamMask = existing.SupportedTeamMask | supportedTeamMask,
+                };
+            }
+
+            return;
+        }
+
+        edges.Add(edge);
+    }
+
+    private static NavEdgeKind ResolveMotionProofGraphEdgeKind(
+        NavNode from,
+        NavNode to,
+        BotBrainObjectiveTapeSample fromSample,
+        BotBrainObjectiveTapeSample toSample)
+    {
+        if (fromSample.Jump || toSample.Y < from.Y - StepRelayVerticalReach)
+        {
+            return NavEdgeKind.Jump;
+        }
+
+        if (fromSample.DropDown || to.Y > from.Y + StepRelayVerticalReach)
+        {
+            return NavEdgeKind.Fall;
+        }
+
+        return NavEdgeKind.Walk;
+    }
+
+    private static float ResolveMotionProofMoveDirection(
+        BotBrainObjectiveTapeSample fromSample,
+        BotBrainObjectiveTapeSample toSample)
+    {
+        if (MathF.Abs(fromSample.MoveDirection) > 0.1f)
+        {
+            return MathF.Sign(fromSample.MoveDirection);
+        }
+
+        var dx = toSample.X - fromSample.X;
+        return MathF.Abs(dx) <= 1f ? 0f : MathF.Sign(dx);
     }
 
     private static void AddAuthoredCorridorReturnEdges(SimpleLevel level, NavNode[] nodes, List<NavEdge>[] adjacency)
@@ -1962,7 +2332,6 @@ public static class BotNavigationAssetBuilder
 
     private static NavEdgeKind ResolveStairRampRelayKind(BuildNode from, BuildNode to, bool forceJumpToNarrowTarget) =>
         to.Y < from.Y - StepDownTolerance
-        && (from.Y - to.Y <= StairRampRelayJumpVerticalReach || forceJumpToNarrowTarget)
             ? NavEdgeKind.Jump
             : NavEdgeKind.Walk;
 
@@ -1994,7 +2363,7 @@ public static class BotNavigationAssetBuilder
             maxX,
             to.Y - verticalPadding,
             to.Y + verticalPadding,
-            [],
+            [targetSurface.Id],
             Ticks: 0,
             JumpTriggerTick: 0,
             MoveDirectionX: moveDirection,
@@ -2829,23 +3198,25 @@ public static class BotNavigationAssetBuilder
         List<BuildEdge> edges,
         HashSet<EdgeKey> edgeSet)
     {
+        var forwardKind = ResolveStairRampRelayKind(fromSurface, toSurface, from, to);
+        var reverseKind = ResolveStairRampRelayKind(toSurface, fromSurface, to, from);
         AddEdge(
             fromNode,
             toNode,
-            NavEdgeKind.Walk,
+            forwardKind,
             cost,
             edges,
             edgeSet,
-            semanticCompletion: CreateStairRampCompletion(toSurface, from, to, NavEdgeKind.Walk),
+            semanticCompletion: CreateStairRampCompletion(toSurface, from, to, forwardKind),
             preferLowerCost: true);
         AddEdge(
             toNode,
             fromNode,
-            NavEdgeKind.Walk,
+            reverseKind,
             cost,
             edges,
             edgeSet,
-            semanticCompletion: CreateStairRampCompletion(fromSurface, to, from, NavEdgeKind.Walk),
+            semanticCompletion: CreateStairRampCompletion(fromSurface, to, from, reverseKind),
             preferLowerCost: true);
     }
 

@@ -6,17 +6,27 @@ namespace OpenGarrison.Core.BotBrain;
 /// </summary>
 public sealed class NavGraph
 {
+    private const float SignificantWalkVerticalDelta = 24f;
+    private const float SuspiciousRelayVerticalDelta = 24f;
+    private const float SuspiciousRelayHorizontalReach = 260f;
+    private const float SuspiciousRelayCostFloorMultiplier = 0.55f;
+
     private readonly NavNode[] _nodes;
     private readonly List<NavEdge>[] _adjacency;
-    private readonly bool[] _spawnAdjacentNodes;
+    private readonly int[] _spawnAdjacentTeamMasks;
     private readonly string? _levelName;
     private readonly GameModeKind? _mode;
 
-    public NavGraph(NavNode[] nodes, List<NavEdge>[] adjacency, string? levelName = null, GameModeKind? mode = null)
+    public NavGraph(
+        NavNode[] nodes,
+        List<NavEdge>[] adjacency,
+        string? levelName = null,
+        GameModeKind? mode = null,
+        IReadOnlyList<NavSpawnAnchor>? spawnAnchors = null)
     {
         _nodes = nodes;
         _adjacency = adjacency;
-        _spawnAdjacentNodes = ResolveSpawnAdjacentNodes(nodes);
+        _spawnAdjacentTeamMasks = ResolveSpawnAdjacentTeamMasks(nodes, spawnAnchors);
         _levelName = levelName;
         _mode = mode;
     }
@@ -101,7 +111,7 @@ public sealed class NavGraph
             return true;
         }
 
-        var nodeIndex = FindNearestTraversalStartNode(x, y, maxAboveDistance: 12f);
+        var nodeIndex = FindNearestTraversalStartNodeInCompletionBand(x, y, maxAboveDistance: 12f);
         var nodeSurfaceId = nodeIndex >= 0 ? _nodes[nodeIndex].SurfaceId : null;
         if (!nodeSurfaceId.HasValue)
         {
@@ -122,6 +132,30 @@ public sealed class NavGraph
 
     public bool IsEdgeCompletionSatisfied(float x, float y, NavEdgeCompletion completion) =>
         completion.Contains(x, y) && IsOnAcceptedCompletionSurface(x, y, completion);
+
+    private int FindNearestTraversalStartNodeInCompletionBand(float x, float y, float maxAboveDistance)
+    {
+        var bestIndex = -1;
+        var bestScore = float.MaxValue;
+        for (var i = 0; i < _nodes.Length; i++)
+        {
+            if (_nodes[i].Y < y - maxAboveDistance)
+            {
+                continue;
+            }
+
+            var dx = _nodes[i].X - x;
+            var dy = _nodes[i].Y - y;
+            var score = (dx * dx) + (dy * dy * 4f);
+            if (score < bestScore)
+            {
+                bestScore = score;
+                bestIndex = i;
+            }
+        }
+
+        return bestIndex;
+    }
 
     public int FindNearestReachableNode(
         float x,
@@ -177,6 +211,11 @@ public sealed class NavGraph
 
                 var neighbor = edge.ToNode;
                 if (blockedEdges is not null && blockedEdges.Contains(new NavEdgeBlock(current, neighbor, edge.Kind)))
+                {
+                    continue;
+                }
+
+                if (ShouldBlockSuspiciousVerticalRelayForExperiment(edge, current, neighbor))
                 {
                     continue;
                 }
@@ -263,6 +302,11 @@ public sealed class NavGraph
                     continue;
                 }
 
+                if (ShouldBlockSuspiciousVerticalRelayForExperiment(edge, current, neighbor))
+                {
+                    continue;
+                }
+
                 if (closed[neighbor])
                 {
                     continue;
@@ -296,9 +340,13 @@ public sealed class NavGraph
         var fromNode = _nodes[fromNodeIndex];
         var toNode = _nodes[toNodeIndex];
         var cost = MathF.Max(1f, edge.Cost);
-        if (edge.Kind == NavEdgeKind.Walk || ShouldUseRawTraversalCost(playerClass, carryingIntel, team))
+        var verticalDelta = MathF.Abs(toNode.Y - fromNode.Y);
+        var horizontalDelta = MathF.Abs(toNode.X - fromNode.X);
+        var euclideanDistance = MathF.Sqrt((horizontalDelta * horizontalDelta) + (verticalDelta * verticalDelta));
+        var isSuspiciousVerticalRelay = IsSuspiciousVerticalRelay(edge, cost, verticalDelta, horizontalDelta, euclideanDistance);
+        if (ShouldReturnRawTraversalCost(edge, verticalDelta, isSuspiciousVerticalRelay, playerClass, carryingIntel, team))
         {
-            return cost + ResolveCarrierSpawnAdjacencyPenalty(fromNodeIndex, toNodeIndex, carryingIntel, fromNode, toNode);
+            return cost + ResolveCarrierSpawnAdjacencyPenalty(fromNodeIndex, toNodeIndex, carryingIntel, fromNode, toNode, team);
         }
 
         var difficultyPenalty = edge.Kind switch
@@ -309,19 +357,14 @@ public sealed class NavGraph
             _ => 0f,
         };
 
-        var verticalDelta = MathF.Abs(toNode.Y - fromNode.Y);
-        var horizontalDelta = MathF.Abs(toNode.X - fromNode.X);
-        var euclideanDistance = MathF.Sqrt((horizontalDelta * horizontalDelta) + (verticalDelta * verticalDelta));
         if (verticalDelta > 48f)
         {
             difficultyPenalty += MathF.Min(96f, (verticalDelta - 48f) * 0.45f);
         }
 
-        if (edge.Kind is NavEdgeKind.Jump or NavEdgeKind.Fall
-            && verticalDelta >= 24f
-            && horizontalDelta <= 260f)
+        if (isSuspiciousVerticalRelay)
         {
-            var stableRelayFloor = euclideanDistance * 0.55f;
+            var stableRelayFloor = euclideanDistance * SuspiciousRelayCostFloorMultiplier;
             if (cost < stableRelayFloor)
             {
                 difficultyPenalty += MathF.Min(260f, (stableRelayFloor - cost) * 1.35f);
@@ -336,6 +379,7 @@ public sealed class NavGraph
                 NavEdgeKind.Jump => 150f,
                 NavEdgeKind.Fall => 120f,
                 NavEdgeKind.Dropdown => 80f,
+                NavEdgeKind.Walk when isSuspiciousVerticalRelay => 110f,
                 _ => 0f,
             };
 
@@ -368,15 +412,69 @@ public sealed class NavGraph
             difficultyPenalty += 24f;
         }
 
-        if (carryingIntel && edge.Kind is NavEdgeKind.Jump or NavEdgeKind.Fall)
+        if (carryingIntel && (edge.Kind is NavEdgeKind.Jump or NavEdgeKind.Fall || isSuspiciousVerticalRelay))
         {
             difficultyPenalty += 20f;
         }
 
         return cost
             + difficultyPenalty
-            + ResolveCarrierSpawnAdjacencyPenalty(fromNodeIndex, toNodeIndex, carryingIntel, fromNode, toNode)
+            + ResolveCarrierSpawnAdjacencyPenalty(fromNodeIndex, toNodeIndex, carryingIntel, fromNode, toNode, team)
             + ResolveMapSpecificTraversalPenalty(edge, fromNode, toNode, playerClass, carryingIntel, team);
+    }
+
+    private bool ShouldBlockSuspiciousVerticalRelayForExperiment(NavEdge edge, int fromNodeIndex, int toNodeIndex)
+    {
+        if (!IsSuspiciousVerticalRelayBlockEnabled())
+        {
+            return false;
+        }
+
+        var fromNode = _nodes[fromNodeIndex];
+        var toNode = _nodes[toNodeIndex];
+        var cost = MathF.Max(1f, edge.Cost);
+        var verticalDelta = MathF.Abs(toNode.Y - fromNode.Y);
+        var horizontalDelta = MathF.Abs(toNode.X - fromNode.X);
+        var euclideanDistance = MathF.Sqrt((horizontalDelta * horizontalDelta) + (verticalDelta * verticalDelta));
+        return IsSuspiciousVerticalRelay(edge, cost, verticalDelta, horizontalDelta, euclideanDistance);
+    }
+
+    private static bool IsSuspiciousVerticalRelayBlockEnabled() =>
+        Environment.GetEnvironmentVariable("BOTBRAIN_BLOCK_SUSPICIOUS_VERTICAL_RELAYS") is "1" or "true" or "TRUE";
+
+    private bool ShouldReturnRawTraversalCost(
+        NavEdge edge,
+        float verticalDelta,
+        bool isSuspiciousVerticalRelay,
+        PlayerClass? playerClass,
+        bool carryingIntel,
+        PlayerTeam? team)
+    {
+        if (edge.Kind == NavEdgeKind.Walk
+            && verticalDelta <= SignificantWalkVerticalDelta)
+        {
+            return true;
+        }
+
+        return ShouldUseRawTraversalCost(playerClass, carryingIntel, team)
+            && !isSuspiciousVerticalRelay;
+    }
+
+    private static bool IsSuspiciousVerticalRelay(
+        NavEdge edge,
+        float cost,
+        float verticalDelta,
+        float horizontalDelta,
+        float euclideanDistance)
+    {
+        if (edge.Kind is not (NavEdgeKind.Walk or NavEdgeKind.Jump or NavEdgeKind.Fall)
+            || verticalDelta < SuspiciousRelayVerticalDelta
+            || horizontalDelta > SuspiciousRelayHorizontalReach)
+        {
+            return false;
+        }
+
+        return cost < euclideanDistance * SuspiciousRelayCostFloorMultiplier;
     }
 
     private float ResolveCarrierSpawnAdjacencyPenalty(
@@ -384,27 +482,60 @@ public sealed class NavGraph
         int toNodeIndex,
         bool carryingIntel,
         NavNode fromNode,
-        NavNode toNode)
+        NavNode toNode,
+        PlayerTeam? team)
     {
         if (!carryingIntel
             || _mode != GameModeKind.CaptureTheFlag
-            || !string.Equals(_levelName, "Eiger", StringComparison.OrdinalIgnoreCase)
+            || !ShouldApplyCarrierSpawnAdjacencyPenalty()
             || fromNode.Kind == NavNodeKind.Objective
             || toNode.Kind == NavNodeKind.Objective)
         {
             return 0f;
         }
 
-        return _spawnAdjacentNodes[fromNodeIndex] || _spawnAdjacentNodes[toNodeIndex]
+        return IsCarrierBlockedSpawnAdjacentNode(fromNodeIndex, team)
+            || IsCarrierBlockedSpawnAdjacentNode(toNodeIndex, team)
             ? 3_000f
             : 0f;
     }
 
-    private static bool[] ResolveSpawnAdjacentNodes(NavNode[] nodes)
+    private bool ShouldApplyCarrierSpawnAdjacencyPenalty()
+    {
+        return string.Equals(_levelName, "Conflict", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(_levelName, "Eiger", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(_levelName, "Waterway", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool IsCarrierBlockedSpawnAdjacentNode(int nodeIndex, PlayerTeam? team)
+    {
+        var mask = _spawnAdjacentTeamMasks[nodeIndex];
+        if (mask == 0)
+        {
+            return false;
+        }
+
+        if (!ShouldUseTeamAwareCarrierSpawnAdjacencyPenalty() || !team.HasValue)
+        {
+            return true;
+        }
+
+        return BotBrainTeamMask.Contains(mask, GetOpposingTeam(team.Value));
+    }
+
+    private bool ShouldUseTeamAwareCarrierSpawnAdjacencyPenalty() =>
+        string.Equals(_levelName, "Waterway", StringComparison.OrdinalIgnoreCase);
+
+    private static int[] ResolveSpawnAdjacentTeamMasks(NavNode[] nodes, IReadOnlyList<NavSpawnAnchor>? spawnAnchors)
     {
         const float spawnHorizontalRange = 170f;
         const float spawnVerticalRange = 80f;
-        var spawnAdjacent = new bool[nodes.Length];
+        var spawnAdjacentTeamMasks = new int[nodes.Length];
+        if (spawnAnchors is null || spawnAnchors.Count == 0)
+        {
+            spawnAnchors = ResolveLegacySpawnAnchors(nodes);
+        }
+
         for (var i = 0; i < nodes.Length; i += 1)
         {
             if (nodes[i].Kind is NavNodeKind.Spawn or NavNodeKind.Objective)
@@ -412,24 +543,37 @@ public sealed class NavGraph
                 continue;
             }
 
-            for (var j = 0; j < nodes.Length; j += 1)
+            for (var j = 0; j < spawnAnchors.Count; j += 1)
             {
-                if (nodes[j].Kind != NavNodeKind.Spawn)
+                var spawn = spawnAnchors[j];
+                if (MathF.Abs(nodes[i].X - spawn.X) <= spawnHorizontalRange
+                    && MathF.Abs(nodes[i].Y - spawn.Y) <= spawnVerticalRange)
                 {
-                    continue;
-                }
-
-                if (MathF.Abs(nodes[i].X - nodes[j].X) <= spawnHorizontalRange
-                    && MathF.Abs(nodes[i].Y - nodes[j].Y) <= spawnVerticalRange)
-                {
-                    spawnAdjacent[i] = true;
-                    break;
+                    spawnAdjacentTeamMasks[i] |= BotBrainTeamMask.For(spawn.Team);
                 }
             }
         }
 
-        return spawnAdjacent;
+        return spawnAdjacentTeamMasks;
     }
+
+    private static NavSpawnAnchor[] ResolveLegacySpawnAnchors(NavNode[] nodes)
+    {
+        var anchors = new List<NavSpawnAnchor>();
+        foreach (var node in nodes)
+        {
+            if (node.Kind == NavNodeKind.Spawn)
+            {
+                anchors.Add(new NavSpawnAnchor(node.X, node.Y, PlayerTeam.Red));
+                anchors.Add(new NavSpawnAnchor(node.X, node.Y, PlayerTeam.Blue));
+            }
+        }
+
+        return anchors.ToArray();
+    }
+
+    private static PlayerTeam GetOpposingTeam(PlayerTeam team) =>
+        team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
 
     private bool ShouldUseRawTraversalCost(PlayerClass? playerClass, bool carryingIntel, PlayerTeam? team)
     {
@@ -446,15 +590,20 @@ public sealed class NavGraph
         bool carryingIntel,
         PlayerTeam? team)
     {
-        if (_mode != GameModeKind.CaptureTheFlag || !carryingIntel)
+        if (_mode != GameModeKind.CaptureTheFlag)
         {
             return 0f;
         }
 
         if (edge.Kind == NavEdgeKind.Walk
-            || playerClass != PlayerClass.Soldier
+            || playerClass == PlayerClass.Scout
             || !team.HasValue
             || !string.Equals(_levelName, "Truefort", StringComparison.OrdinalIgnoreCase))
+        {
+            return 0f;
+        }
+
+        if (!carryingIntel)
         {
             return 0f;
         }
@@ -489,8 +638,8 @@ public sealed class NavGraph
 
     private static bool IsTruefortRedReturnChurnEdge(NavEdge edge, NavNode fromNode, NavNode toNode)
     {
-        if (!IsInBox(fromNode, minX: 4_180f, maxX: 4_680f, minY: 430f, maxY: 920f)
-            || !IsInBox(toNode, minX: 4_180f, maxX: 4_680f, minY: 430f, maxY: 920f))
+        if (!IsInBox(fromNode, minX: 4_140f, maxX: 4_680f, minY: 430f, maxY: 920f)
+            || !IsInBox(toNode, minX: 4_140f, maxX: 4_680f, minY: 430f, maxY: 920f))
         {
             return false;
         }
@@ -575,6 +724,8 @@ public sealed class NavGraph
 /// A node in the navigation graph — a walkable position in world space.
 /// </summary>
 public readonly record struct NavNode(float X, float Y, NavNodeKind Kind, int? SurfaceId = null);
+
+public readonly record struct NavSpawnAnchor(float X, float Y, PlayerTeam Team);
 
 public readonly record struct NavEdgeBlock(int FromNode, int ToNode, NavEdgeKind Kind);
 

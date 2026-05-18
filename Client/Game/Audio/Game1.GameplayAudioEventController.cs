@@ -150,6 +150,7 @@ public partial class Game1
             }
 
             if (string.Equals(soundEvent.SoundName, "ExplosionSnd", StringComparison.OrdinalIgnoreCase)
+                && !_game.HasPresentedExplosionVisualThisFrame(soundEvent.X, soundEvent.Y)
                 && _game.TryCreateExplosionVisual(soundEvent, out var explosion))
             {
                 _game._explosions.Add(explosion!);

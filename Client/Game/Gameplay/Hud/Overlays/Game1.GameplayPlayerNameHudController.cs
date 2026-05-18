@@ -57,7 +57,7 @@ public partial class Game1
                 return;
             }
 
-            var renderPosition = _game.GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _game._world.LocalPlayer));
+            var renderPosition = _game.GetRenderPosition(player);
             var bounds = GetPlayerScreenBounds(player, renderPosition, cameraPosition);
             var screenPosition = new Vector2(bounds.Left + (bounds.Width * 0.5f), bounds.Top - 13f);
             var textHeight = _game.MeasureBitmapFontHeight(1f);
@@ -81,7 +81,7 @@ public partial class Game1
                     continue;
                 }
 
-                var renderPosition = _game.GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _game._world.LocalPlayer));
+                var renderPosition = _game.GetRenderPosition(player);
                 var deltaX = (renderPosition.X - cameraPosition.X) - mouse.X;
                 var deltaY = (renderPosition.Y - cameraPosition.Y) - mouse.Y;
                 var distanceSquared = (deltaX * deltaX) + (deltaY * deltaY);

@@ -286,13 +286,10 @@ public partial class Game1
         }
 
         var sourceRectangle = frame.SourceRectangle ?? new Rectangle(0, 0, frame.Texture.Width, frame.Texture.Height);
-        var texturePixels = new Color[frame.Texture.Width * frame.Texture.Height];
-        frame.Texture.GetData(texturePixels);
         var pixelData = new Color[sourceRectangle.Width * sourceRectangle.Height];
-        for (var row = 0; row < sourceRectangle.Height; row += 1)
+        if (!frame.TryCopyPixelData(pixelData))
         {
-            var sourceIndex = ((sourceRectangle.Y + row) * frame.Texture.Width) + sourceRectangle.X;
-            Array.Copy(texturePixels, sourceIndex, pixelData, row * sourceRectangle.Width, sourceRectangle.Width);
+            frame.Texture.GetData(0, sourceRectangle, pixelData, 0, pixelData.Length);
         }
 
         var minX = frame.Width;

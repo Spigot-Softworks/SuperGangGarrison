@@ -645,6 +645,7 @@ internal sealed class ServerRuntimeEventReporter(
             transientEvents.VisualEvents ?? [],
             transientEvents.DamageEvents ?? [],
             transientEvents.SoundEvents ?? [],
-            transientEvents.GibSpawnEvents ?? []);
+            transientEvents.GibSpawnEvents ?? [],
+            transientEvents.RocketSpawnEvents ?? []);
     }
 }

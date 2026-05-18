@@ -36,9 +36,12 @@ internal sealed class ServerBotManager
     
     private readonly Dictionary<byte, ServerBotSlotState> _botSlots = new();
     private readonly Dictionary<byte, ControlledBotSlot> _controlledSlotsBuffer = new();
+    private readonly Dictionary<byte, ControlledBotSlot> _controllerConfigurationSlotsBuffer = new();
     private readonly Dictionary<byte, PlayerInputSnapshot> _inputCache = new();
     private readonly HashSet<byte> _staleSlotsBuffer = new();
     private int _perfSamples;
+    private int _lastActiveInputCount;
+    private int _lastZeroInputCount;
     private double _perfBuildInputLastMs;
     private double _perfBuildInputTotalMs;
     private double _perfBuildInputMaxMs;
@@ -63,16 +66,32 @@ internal sealed class ServerBotManager
 
     public IReadOnlyDictionary<byte, ServerBotSlotState> BotSlots => _botSlots;
 
-    public ServerBotRuntimeMetrics Metrics => new(
-        HasMeasurements: _perfSamples > 0,
-        ControlledBotCount: _controlledSlotsBuffer.Count,
-        SampleCount: _perfSamples,
-        LastBuildInputMilliseconds: _perfBuildInputLastMs,
-        AverageBuildInputMilliseconds: _perfSamples == 0 ? 0d : _perfBuildInputTotalMs / _perfSamples,
-        MaxBuildInputMilliseconds: _perfBuildInputMaxMs,
-        LastApplyInputMilliseconds: _perfApplyInputLastMs,
-        AverageApplyInputMilliseconds: _perfSamples == 0 ? 0d : _perfApplyInputTotalMs / _perfSamples,
-        MaxApplyInputMilliseconds: _perfApplyInputMaxMs);
+    public ServerBotRuntimeMetrics Metrics
+    {
+        get
+        {
+            var botBrainSnapshot = _botController is BotBrainPracticeBotController botBrainController
+                ? botBrainController.RuntimeSnapshot
+                : default;
+            return new ServerBotRuntimeMetrics(
+                HasMeasurements: _perfSamples > 0,
+                ControlledBotCount: _controlledSlotsBuffer.Count,
+                ActiveInputCount: _lastActiveInputCount,
+                ZeroInputCount: _lastZeroInputCount,
+                BotBrainActiveControllerCount: botBrainSnapshot.ActiveControllerCount,
+                BotBrainNavigationLoadedCount: botBrainSnapshot.NavigationLoadedCount,
+                BotBrainNavigationMissingCount: botBrainSnapshot.NavigationMissingCount,
+                BotBrainObjectiveTapeLoadedCount: botBrainSnapshot.ObjectiveTapeLoadedCount,
+                BotBrainActivePathCount: botBrainSnapshot.ActivePathCount,
+                SampleCount: _perfSamples,
+                LastBuildInputMilliseconds: _perfBuildInputLastMs,
+                AverageBuildInputMilliseconds: _perfSamples == 0 ? 0d : _perfBuildInputTotalMs / _perfSamples,
+                MaxBuildInputMilliseconds: _perfBuildInputMaxMs,
+                LastApplyInputMilliseconds: _perfApplyInputLastMs,
+                AverageApplyInputMilliseconds: _perfSamples == 0 ? 0d : _perfApplyInputTotalMs / _perfSamples,
+                MaxApplyInputMilliseconds: _perfApplyInputMaxMs);
+        }
+    }
 
     /// <summary>
     /// Adds a bot to the specified slot with the given configuration.
@@ -92,11 +111,19 @@ internal sealed class ServerBotManager
         var resolvedDisplayName = ResolveBotDisplayName(slot, team, displayName);
         if (!_world.TryPrepareNetworkPlayerJoin(slot)
             || !_world.TrySetNetworkPlayerName(slot, resolvedDisplayName)
-            || !_world.TrySetNetworkPlayerTeam(slot, team)
-            || !_world.TryApplyNetworkPlayerClassSelection(slot, classId))
+            || !_world.TrySetNetworkPlayerTeam(slot, team))
         {
             _world.TryReleaseNetworkPlayerSlot(slot);
             _botDisplayNamePool.ReleaseSlot(slot);
+            return false;
+        }
+
+        ConfigureBotControllerSpawnOverrides(slot, team, classId);
+        if (!_world.TryApplyNetworkPlayerClassSelection(slot, classId))
+        {
+            _world.TryReleaseNetworkPlayerSlot(slot);
+            _botDisplayNamePool.ReleaseSlot(slot);
+            ConfigureBotControllerSpawnOverrides();
             return false;
         }
 
@@ -124,6 +151,7 @@ internal sealed class ServerBotManager
         _world.TryReleaseNetworkPlayerSlot(slot);
         _botDisplayNamePool.ReleaseSlot(slot);
         _inputCache.Remove(slot);
+        ConfigureBotControllerSpawnOverrides();
         return true;
     }
 
@@ -137,12 +165,15 @@ internal sealed class ServerBotManager
             return false;
         }
 
+        ConfigureBotControllerSpawnOverrides(slot, team, state.ClassId);
         if (!_world.TrySetNetworkPlayerTeam(slot, team))
         {
+            ConfigureBotControllerSpawnOverrides();
             return false;
         }
 
         _botSlots[slot] = state.WithTeam(team);
+        ConfigureBotControllerSpawnOverrides();
         return true;
     }
 
@@ -159,15 +190,19 @@ internal sealed class ServerBotManager
         if (_world.TryGetNetworkPlayer(slot, out var player) && player.ClassId == classId)
         {
             _botSlots[slot] = state.WithClassId(classId);
+            ConfigureBotControllerSpawnOverrides();
             return true;
         }
 
+        ConfigureBotControllerSpawnOverrides(slot, state.Team, classId);
         if (!_world.TryApplyNetworkPlayerClassSelection(slot, classId))
         {
+            ConfigureBotControllerSpawnOverrides();
             return false;
         }
 
         _botSlots[slot] = state.WithClassId(classId);
+        ConfigureBotControllerSpawnOverrides();
         return true;
     }
 
@@ -300,6 +335,9 @@ internal sealed class ServerBotManager
         }
         _botSlots.Clear();
         _inputCache.Clear();
+        _controllerConfigurationSlotsBuffer.Clear();
+        _controlledSlotsBuffer.Clear();
+        _botController.Reset();
         _reactionController.Reset();
         _botDisplayNamePool.Reset();
     }
@@ -322,6 +360,9 @@ internal sealed class ServerBotManager
         {
             return 0;
         }
+
+        _botController.Reset();
+        ConfigureBotControllerSpawnOverrides();
 
         var restoredCount = 0;
         foreach (var entry in _botSlots)
@@ -430,6 +471,7 @@ internal sealed class ServerBotManager
 
         // Build fresh authoritative inputs every simulation tick.
         var inputs = GetBotInputs();
+        RecordInputActivity(inputs);
         
         var buildMs = GetElapsedMilliseconds(buildStartTimestamp);
         RecordBuildInputPerformance(buildMs);
@@ -469,6 +511,32 @@ internal sealed class ServerBotManager
         }
     }
 
+    private void ConfigureBotControllerSpawnOverrides(
+        byte? pendingSlot = null,
+        PlayerTeam pendingTeam = default,
+        PlayerClass pendingClassId = default)
+    {
+        _controllerConfigurationSlotsBuffer.Clear();
+        foreach (var entry in _botSlots)
+        {
+            var state = entry.Value;
+            _controllerConfigurationSlotsBuffer[entry.Key] = new ControlledBotSlot(
+                entry.Key,
+                state.Team,
+                state.ClassId);
+        }
+
+        if (pendingSlot.HasValue)
+        {
+            _controllerConfigurationSlotsBuffer[pendingSlot.Value] = new ControlledBotSlot(
+                pendingSlot.Value,
+                pendingTeam,
+                pendingClassId);
+        }
+
+        _botController.ConfigureSpawnOverrides(_world, _controllerConfigurationSlotsBuffer);
+    }
+
     private Dictionary<byte, PlayerInputSnapshot> GetBotInputs()
     {
         var refreshedInputs = _botController.BuildInputs(
@@ -500,6 +568,45 @@ internal sealed class ServerBotManager
         {
             _inputCache[slot] = refreshedInputs.GetValueOrDefault(slot);
         }
+    }
+
+    private void RecordInputActivity(IReadOnlyDictionary<byte, PlayerInputSnapshot> inputs)
+    {
+        var active = 0;
+        var zero = 0;
+        foreach (var slot in _controlledSlotsBuffer.Keys)
+        {
+            if (inputs.TryGetValue(slot, out var input) && IsActiveInput(input))
+            {
+                active += 1;
+            }
+            else
+            {
+                zero += 1;
+            }
+        }
+
+        _lastActiveInputCount = active;
+        _lastZeroInputCount = zero;
+    }
+
+    private static bool IsActiveInput(PlayerInputSnapshot input)
+    {
+        return input.Left
+            || input.Right
+            || input.Up
+            || input.Down
+            || input.BuildSentry
+            || input.DestroySentry
+            || input.Taunt
+            || input.FirePrimary
+            || input.FireSecondary
+            || input.DebugKill
+            || input.DropIntel
+            || input.UseAbility
+            || input.InteractWeapon
+            || input.SwapWeapon
+            || input.IsUsingBinoculars;
     }
 
     private static double GetElapsedMilliseconds(long startTimestamp)

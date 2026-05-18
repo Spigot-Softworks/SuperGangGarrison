@@ -8,6 +8,7 @@ internal sealed record BrowserAssetBuildContext(
     string BrowserOutputRoot,
     string BrowserPluginsRoot,
     string? PackagedClientPluginSourceRoot,
+    bool PruneDeprecatedGameMakerMetadata,
     string BrowserAtlasesRoot,
     string BrowserManifestsRoot,
     string BrowserBootstrapRoot)
@@ -15,7 +16,8 @@ internal sealed record BrowserAssetBuildContext(
     public static BrowserAssetBuildContext Create(
         string outputContentRoot,
         string startPath,
-        string? packagedClientPluginSourceRoot = null)
+        string? packagedClientPluginSourceRoot = null,
+        bool pruneDeprecatedGameMakerMetadata = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(outputContentRoot);
         ArgumentException.ThrowIfNullOrWhiteSpace(startPath);
@@ -35,6 +37,7 @@ internal sealed record BrowserAssetBuildContext(
             string.IsNullOrWhiteSpace(packagedClientPluginSourceRoot)
                 ? null
                 : Path.GetFullPath(packagedClientPluginSourceRoot),
+            pruneDeprecatedGameMakerMetadata,
             Path.Combine(browserOutputRoot, "Atlases"),
             Path.Combine(browserOutputRoot, "Manifests"),
             Path.Combine(browserOutputRoot, "Bootstrap"));

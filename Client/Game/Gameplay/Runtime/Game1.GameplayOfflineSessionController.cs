@@ -216,7 +216,8 @@ public partial class Game1
 
             _game._world.Level.ForcedBlockingTeamGates = forcedBlockingTeamGates;
 
-            _game._world.AutoRestartOnMapChange = sessionKind != GameplaySessionKind.LastToDie;
+            _game._world.AutoRestartOnMapChange = sessionKind != GameplaySessionKind.LastToDie
+                && sessionKind != GameplaySessionKind.Jump;
             LogBrowserPracticeStartupStep("configure-level");
             _game.LoadPracticeNavigationAssetsForCurrentLevel();
             LogBrowserPracticeStartupStep("load-navigation");

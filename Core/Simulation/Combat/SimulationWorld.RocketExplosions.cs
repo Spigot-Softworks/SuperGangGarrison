@@ -16,9 +16,19 @@ public sealed partial class SimulationWorld
             SentryEntity? directHitSentry,
             GeneratorState? directHitGenerator)
         {
+            if (!rocket.TryMarkExplosionConsumed())
+            {
+                return;
+            }
+
             var owner = world.FindPlayerById(rocket.OwnerId);
             var blastRadius = rocket.BlastRadiusValue * rocket.ExperimentalStingerBlastRadiusMultiplier;
             RemoveAt(world, rocket.Id);
+            if (world.ClientPredictionMode)
+            {
+                return;
+            }
+
             var hitEnemyPlayer = ApplyDirectHitDamage(world, rocket, owner, directHitPlayer, directHitSentry, directHitGenerator);
 
             world.RegisterWorldSoundEvent("ExplosionSnd", rocket.X, rocket.Y);

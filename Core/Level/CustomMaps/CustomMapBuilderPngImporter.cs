@@ -238,7 +238,7 @@ public static class CustomMapBuilderPngImporter
         var separatorIndex = Array.IndexOf(chunkData, (byte)0);
         if (separatorIndex >= 0 && separatorIndex < chunkData.Length - 1)
         {
-            builder.Append(Encoding.UTF8.GetString(chunkData, separatorIndex + 1, chunkData.Length - separatorIndex - 1));
+            builder.Append(Encoding.Latin1.GetString(chunkData, separatorIndex + 1, chunkData.Length - separatorIndex - 1));
         }
     }
 
@@ -252,7 +252,7 @@ public static class CustomMapBuilderPngImporter
 
         using var compressedStream = new MemoryStream(chunkData, separatorIndex + 2, chunkData.Length - separatorIndex - 2, writable: false);
         using var zlibStream = new ZLibStream(compressedStream, CompressionMode.Decompress);
-        using var reader = new StreamReader(zlibStream, Encoding.UTF8);
+        using var reader = new StreamReader(zlibStream, Encoding.Latin1);
         builder.Append(reader.ReadToEnd());
     }
 

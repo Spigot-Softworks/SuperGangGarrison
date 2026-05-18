@@ -19,6 +19,7 @@ public partial class Game1
     private bool _pendingPredictedPrimaryPress;
     private bool _pendingPredictedSecondaryAbilityPress;
     private bool _pendingPredictedAbilityPress;
+    private bool _pendingPredictedSwapWeaponPress;
     private uint _latchedJumpPressSequence;
 
     private bool _hasLatestLocalAimWorldPosition;
@@ -46,14 +47,20 @@ public partial class Game1
         _clientTickAccumulatorSeconds = 0d;
         _networkInputAccumulatorSeconds = 0d;
         _goreSourceTickAccumulator = 0f;
-        _pendingPredictedJumpPress = false;
-        _pendingPredictedPrimaryPress = false;
-        _pendingPredictedSecondaryAbilityPress = false;
-        _pendingPredictedAbilityPress = false;
+        ClearPendingPredictedInputEdges();
         _latchedJumpPressSequence = 0;
         _hasLatestLocalAimWorldPosition = false;
         _latestLocalAimWorldX = 0f;
         _latestLocalAimWorldY = 0f;
+    }
+
+    private void ClearPendingPredictedInputEdges()
+    {
+        _pendingPredictedJumpPress = false;
+        _pendingPredictedPrimaryPress = false;
+        _pendingPredictedSecondaryAbilityPress = false;
+        _pendingPredictedAbilityPress = false;
+        _pendingPredictedSwapWeaponPress = false;
     }
 
     private void CapturePendingPredictedInputEdges(KeyboardState keyboard, MouseState mouse, PlayerInputSnapshot networkInput)
@@ -62,7 +69,13 @@ public partial class Game1
         _latestPredictedLocalInput = networkInput;
         var previousPredictedInput = _previousPredictedLocalInput;
 
-        if (!networkInput.Up && !networkInput.FireSecondary && !networkInput.UseAbility)
+        if (!_networkClient.IsConnected)
+        {
+            ClearPendingPredictedInputEdges();
+            return;
+        }
+
+        if (!networkInput.Up && !networkInput.FireSecondary && !networkInput.UseAbility && !networkInput.SwapWeapon)
         {
             return;
         }
@@ -100,13 +113,29 @@ public partial class Game1
         {
             _pendingPredictedAbilityPress = true;
         }
+
+        var swapWeaponPressed = networkInput.SwapWeapon && !previousPredictedInput.SwapWeapon;
+        if (swapWeaponPressed)
+        {
+            _pendingPredictedSwapWeaponPress = true;
+        }
     }
 
     private PlayerInputSnapshot ApplyPendingInputEdges(PlayerInputSnapshot input)
     {
+        if (!_networkClient.IsConnected)
+        {
+            return input;
+        }
+
         if (_pendingPredictedSecondaryAbilityPress && !input.FireSecondary)
         {
             input = input with { FireSecondary = true };
+        }
+
+        if (_pendingPredictedSwapWeaponPress && !input.SwapWeapon)
+        {
+            input = input with { SwapWeapon = true };
         }
 
         return input;
@@ -144,11 +173,9 @@ public partial class Game1
                 _pendingPredictedJumpPress,
                 _pendingPredictedPrimaryPress,
                 _pendingPredictedSecondaryAbilityPress,
-                _pendingPredictedAbilityPress);
-            _pendingPredictedJumpPress = false;
-            _pendingPredictedPrimaryPress = false;
-            _pendingPredictedSecondaryAbilityPress = false;
-            _pendingPredictedAbilityPress = false;
+                _pendingPredictedAbilityPress,
+                _pendingPredictedSwapWeaponPress);
+            ClearPendingPredictedInputEdges();
         }
     }
 

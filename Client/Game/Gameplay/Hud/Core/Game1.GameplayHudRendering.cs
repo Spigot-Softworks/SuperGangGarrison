@@ -60,6 +60,8 @@ public partial class Game1
         WriteGameplayRenderTrace("hud after winbanner");
         DrawLastToDieHud();
         WriteGameplayRenderTrace("hud after lasttodie");
+        DrawJumpHud();
+        WriteGameplayRenderTrace("hud after jump");
         DrawLastToDieCombatFeedbackHud();
         WriteGameplayRenderTrace("hud after lasttodie-combat");
         if (!_networkClient.IsSpectator && localPlayerAlive && !deathCamActive)
@@ -130,6 +132,8 @@ public partial class Game1
         WriteGameplayRenderTrace("hud after naveditor");
         DrawChatHud();
         WriteGameplayRenderTrace("hud after chat");
+        DrawDamageVignette();
+        WriteGameplayRenderTrace("hud after damagevignette");
         
         // Draw binocular overlay last so HUD elements show through the transparent circles
         if (!_networkClient.IsSpectator && localPlayerAlive && !deathCamActive)

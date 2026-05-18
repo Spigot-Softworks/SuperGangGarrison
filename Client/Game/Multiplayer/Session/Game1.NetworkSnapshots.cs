@@ -18,7 +18,7 @@ public partial class Game1
         SnapshotMessage snapshot,
         ref ulong latestBufferedSnapshotFrame,
         ref SnapshotMessage? latestResolvedSnapshot,
-        ref Dictionary<ulong, SnapshotMessage>? resolvedBatchSnapshotsByFrame,
+        ref Dictionary<ulong, SnapshotBaselineState>? resolvedBatchSnapshotsByFrame,
         ref List<SnapshotMessage>? resolvedBatchSnapshots)
     {
         if ((!string.Equals(snapshot.LevelName, _world.Level.Name, StringComparison.OrdinalIgnoreCase)
@@ -40,14 +40,23 @@ public partial class Game1
             return false;
         }
 
-        SnapshotMessage? baselineSnapshot = null;
-        if (snapshot.IsDelta && snapshot.BaselineFrame != 0
-            && !(resolvedBatchSnapshotsByFrame?.TryGetValue(snapshot.BaselineFrame, out baselineSnapshot) ?? false)
-            && !TryGetSnapshotState(snapshot.BaselineFrame, out baselineSnapshot))
+        ISnapshotBaselineState? baselineSnapshot = null;
+        if (snapshot.IsDelta && snapshot.BaselineFrame != 0)
         {
-            RecordMissingBaselineSnapshot();
-            AddNetworkConsoleLine($"snapshot {snapshot.Frame} missing baseline {snapshot.BaselineFrame}");
-            return false;
+            if (resolvedBatchSnapshotsByFrame?.TryGetValue(snapshot.BaselineFrame, out var batchBaselineSnapshot) == true)
+            {
+                baselineSnapshot = batchBaselineSnapshot;
+            }
+            else if (TryGetSnapshotState(snapshot.BaselineFrame, out var storedBaselineSnapshot))
+            {
+                baselineSnapshot = storedBaselineSnapshot;
+            }
+            else
+            {
+                RecordMissingBaselineSnapshot();
+                AddNetworkConsoleLine($"snapshot {snapshot.Frame} missing baseline {snapshot.BaselineFrame}");
+                return false;
+            }
         }
 
         SnapshotMessage resolvedSnapshot;
@@ -67,8 +76,8 @@ public partial class Game1
         QueueResolvedSnapshotSoundEvents(resolvedSnapshot);
         QueueResolvedSnapshotDamageEvents(resolvedSnapshot);
 
-        resolvedBatchSnapshotsByFrame ??= new Dictionary<ulong, SnapshotMessage>();
-        resolvedBatchSnapshotsByFrame[resolvedSnapshot.Frame] = resolvedSnapshot;
+        resolvedBatchSnapshotsByFrame ??= new Dictionary<ulong, SnapshotBaselineState>();
+        resolvedBatchSnapshotsByFrame[resolvedSnapshot.Frame] = SnapshotBaselineState.FromSnapshot(resolvedSnapshot);
 
         resolvedBatchSnapshots ??= new List<SnapshotMessage>();
         resolvedBatchSnapshots.Add(resolvedSnapshot);
@@ -205,12 +214,18 @@ public partial class Game1
 
     private void CaptureSmoothingTrackForLocalPlayer(SnapshotMessage snapshot)
     {
-        if (!_networkClient.IsConnected || !_world.LocalPlayerAwaitingJoin || !_world.LocalPlayer.IsAlive)
+        if (!_networkClient.IsConnected || _world.LocalPlayerAwaitingJoin || !_world.LocalPlayer.IsAlive)
         {
             return;
         }
 
         var localPlayerStateKey = GetResolvedLocalPlayerId();
+        _entityInterpolationTracks.Remove(localPlayerStateKey);
+        if (!_networkClient.IsReplayConnection)
+        {
+            return;
+        }
+
         var currentRenderPosition = GetRenderPosition(localPlayerStateKey, _world.LocalPlayer.X, _world.LocalPlayer.Y, allowInterpolation: true);
         var targetPosition = new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
         if (Vector2.DistanceSquared(currentRenderPosition, targetPosition) <= 0.0001f)

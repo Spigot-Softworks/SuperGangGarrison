@@ -54,11 +54,33 @@ public partial class Game1
         "HS",
     ];
 
+    private static readonly string[] BrowserWarmupClassSelectionSprites =
+    [
+        "ClassSelectS",
+        "ClassSelectBS",
+        "ClassSelectSpritesS",
+        "ScoutPortraitAnimationS",
+        "PyroPortraitAnimationS",
+        "SoldierPortraitanimationS",
+        "HeavyPortraitAnimationS",
+        "DemomanPortraitAnimationS",
+        "MedicPortraitAnimationS",
+        "EngineerPortraitAnimationS",
+        "SpyPortraitAnimationS",
+        "SniperPortraitAnimationS",
+        "RandomPortraitAnimationS",
+    ];
+
     private void WarmBrowserClassSelectionAssets(PlayerTeam team)
     {
         if (!OperatingSystem.IsBrowser())
         {
             return;
+        }
+
+        foreach (var spriteName in BrowserWarmupClassSelectionSprites)
+        {
+            WarmBrowserSprite(spriteName);
         }
 
         foreach (var classId in BrowserWarmupClassOrder)

@@ -104,14 +104,14 @@ public static class BotBrainObjectiveTapeStore
 
         asset = null!;
         var path = ResolvePath(level.Name, level.MapAreaIndex);
-        if (!File.Exists(path))
+        if (!BotBrainJsonAssetIO.TryResolveReadablePath(path, out var readablePath))
         {
             return TryLoadFromAuthoredCorridors(level, out asset);
         }
 
         try
         {
-            asset = JsonSerializer.Deserialize<BotBrainObjectiveTapeAsset>(File.ReadAllText(path), SerializerOptions)!;
+            asset = BotBrainJsonAssetIO.Deserialize<BotBrainObjectiveTapeAsset>(readablePath, SerializerOptions)!;
         }
         catch
         {
@@ -185,6 +185,13 @@ public static class BotBrainObjectiveTapeStore
                 .Select(segment => new BotBrainObjectiveTapeSegment
                 {
                     RequiresCarryingIntel = segment.RequiresCarryingIntel,
+                    Source = segment.Source,
+                    EntryX = MirrorNullableX(segment.EntryX, mirrorSumX),
+                    EntryY = segment.EntryY,
+                    EntryRadius = segment.EntryRadius,
+                    ExitX = MirrorNullableX(segment.ExitX, mirrorSumX),
+                    ExitY = segment.ExitY,
+                    ExitRadius = segment.ExitRadius,
                     Samples = segment.Samples.Select(sample => new BotBrainObjectiveTapeSample
                     {
                         Tick = sample.Tick,
@@ -246,6 +253,9 @@ public static class BotBrainObjectiveTapeStore
             });
         }
     }
+
+    private static float? MirrorNullableX(float? x, float mirrorSumX) =>
+        x.HasValue ? mirrorSumX - x.Value : null;
 
     private static bool TryBuildFromAuthoredCorridors(SimpleLevel level, out BotBrainObjectiveTapeAsset asset)
     {
@@ -459,9 +469,9 @@ public static class BotBrainObjectiveTapeStore
 
         var path = ResolvePath(level.Name, level.MapAreaIndex);
         BotBrainObjectiveTapeAsset asset;
-        if (File.Exists(path))
+        if (BotBrainJsonAssetIO.TryResolveReadablePath(path, out var readablePath))
         {
-            asset = JsonSerializer.Deserialize<BotBrainObjectiveTapeAsset>(File.ReadAllText(path), SerializerOptions)
+            asset = BotBrainJsonAssetIO.Deserialize<BotBrainObjectiveTapeAsset>(readablePath, SerializerOptions)
                 ?? new BotBrainObjectiveTapeAsset();
         }
         else

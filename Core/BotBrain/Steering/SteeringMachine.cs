@@ -11,6 +11,7 @@ public sealed class SteeringMachine
     private const float WaypointReachRadius = NavGraphBuilder.WaypointArrivalRadius;
     private const int WaypointLookaheadSkipCount = 4;
     private const float WaypointLookaheadReachMultiplier = 1.5f;
+    private const float InitialWalkAttachmentVerticalTolerance = 24f;
     private const float EdgeProbeDistance = 18f;
     private const float JumpTriggerDistance = 32f;
     private const float JumpLaunchGateTolerance = 4f;
@@ -20,11 +21,15 @@ public sealed class SteeringMachine
     private const float HorizontalDeadZone = 5f;
     private const float TargetAboveJumpThreshold = -8f;
     private const int JumpRetryCooldownTicks = 6;
+    private const int FastObstacleJumpRetryCooldownTicks = 2;
     private const float MinimumDelayedJumpRunupSpeed = 80f;
     private const int MaximumDelayedJumpRunupTicks = 18;
     private const int GroundedContinuationRecoveryTicks = 45;
     private const int LandedBelowCompletionRecoveryTicks = 90;
+    private const int LandedBelowCompletionFastFailSlackTicks = 8;
     private const float LandedBelowCompletionVerticalSlack = 8f;
+    private const int GroundedWalkBelowTargetFastFailTicks = 8;
+    private const float GroundedWalkBelowTargetVerticalSlack = 48f;
     private const float GroundedContinuationCompletionSlack = 8f;
     private const float AirborneCompletionContinuationSlack = 8f;
     private const int MaximumCertifiedEdgeTicks = 120;
@@ -69,6 +74,14 @@ public sealed class SteeringMachine
             return output;
         }
 
+        TrySkipInitialWalkAttachment(player, graph, path);
+        if (TrySkipPassedWalkWaypoint(player, graph, path))
+        {
+            _stuckTicks = 0;
+            _stuckEscapePhase = 0;
+            _jumpRetryCooldownTicks = 0;
+        }
+
         TryAdvanceToReachedFutureWaypoint(player, graph, path);
         if (ShouldAdvanceWaypoint(player, graph, path, level))
         {
@@ -96,7 +109,7 @@ public sealed class SteeringMachine
         if (hasCurrentEdge)
         {
             UpdateCurrentEdgeExecutionPhase(player, graph, path, currentEdge);
-            TryFailExpiredEdge(player, graph, path, currentEdge, edgeTicks, ref output);
+            TryFailExpiredEdge(player, graph, path, currentEdge, edgeTicks, level.Mode, ref output);
         }
 
         var suppressJumpUntilLaunch = false;
@@ -119,6 +132,7 @@ public sealed class SteeringMachine
                     suppressJumpUntilLaunch,
                     ResolveJumpTriggerTick(player, currentEdge),
                     edgeTicks,
+                    ShouldAssistSemanticWalkClimb(player, currentEdge),
                     RequiresCertifiedRunup(player, currentEdge, level.Mode),
                     currentEdge.LaunchRecipe,
                     ref output);
@@ -151,7 +165,10 @@ public sealed class SteeringMachine
             ApplyStuckEscape(player, ref output);
         }
 
-        ApplyJumpPulse(ref output);
+        var fastJumpRetry = output.Jump
+            && player.IsGrounded
+            && ShouldUseFastJumpRetry(player, level, team, output.MoveDirection);
+        ApplyJumpPulse(ref output, fastJumpRetry);
         if (output.RecipeTrace.HasRecipe)
         {
             output.RecipeTrace = output.RecipeTrace with
@@ -258,7 +275,7 @@ public sealed class SteeringMachine
                 ? graph.IsEdgeCompletionSatisfied(player.X, player.Y, edge.Completion)
                     || IsNearGroundedContinuationCompletion(player, edge, level)
                 : player.ClassId != PlayerClass.Heavy
-                    && (IsAirborneCompletionContinuation(player, edge)
+                    && (IsAirborneCompletionContinuation(player, graph, edge)
                         || IsNearGroundedContinuationCompletion(player, edge, level)));
     }
 
@@ -272,15 +289,14 @@ public sealed class SteeringMachine
         && player.Y >= edge.Completion.MinY - GroundedContinuationCompletionSlack
         && player.Y <= edge.Completion.MaxY + GroundedContinuationCompletionSlack;
 
-    private static bool IsAirborneCompletionContinuation(PlayerEntity player, NavEdge edge) =>
+    private static bool IsAirborneCompletionContinuation(PlayerEntity player, NavGraph graph, NavEdge edge) =>
         edge.Kind == NavEdgeKind.Jump
         && !edge.RequiresGroundedContinuation
-        && edge.Completion.HasWindow
         && player.VerticalSpeed >= -15f
-        && player.X >= edge.Completion.MinX
-        && player.X <= edge.Completion.MaxX
-        && player.Y >= edge.Completion.MinY
-        && player.Y <= edge.Completion.MaxY + AirborneCompletionContinuationSlack;
+        && graph.IsEdgeCompletionSatisfied(player.X, player.Y, edge.Completion with
+        {
+            MaxY = edge.Completion.MaxY + AirborneCompletionContinuationSlack,
+        });
 
     private static bool NextEdgeRequiresGroundedLaunch(NavPath path) =>
         path.CurrentIndex + 1 < path.Count
@@ -302,6 +318,7 @@ public sealed class SteeringMachine
         && edge.LaunchRecipe.HasRecipe
         && edge.ProbeMoveDirectionX != 0f
         && (player.ClassId == PlayerClass.Soldier
+            || (mode == GameModeKind.CaptureTheFlag && player.ClassId == PlayerClass.Engineer)
             || (mode == GameModeKind.CaptureTheFlag && player.ClassId == PlayerClass.Heavy)
             || RequiresVerticalCertifiedLaunch(edge));
 
@@ -413,6 +430,96 @@ public sealed class SteeringMachine
         }
     }
 
+    private static bool TrySkipPassedWalkWaypoint(PlayerEntity player, NavGraph graph, NavPath path)
+    {
+        var advanced = false;
+        if (!player.IsGrounded)
+        {
+            return false;
+        }
+
+        while (path.CurrentIndex > 0
+            && path.CurrentIndex + 1 < path.Count
+            && path.TryGetIncomingEdge(path.CurrentIndex, out var incomingEdge)
+            && incomingEdge.Kind == NavEdgeKind.Walk
+            && path.TryGetIncomingEdge(path.CurrentIndex + 1, out var outgoingEdge)
+            && outgoingEdge.Kind == NavEdgeKind.Walk)
+        {
+            var previousNode = graph.GetNode(path.GetWaypoint(path.CurrentIndex - 1));
+            var currentNode = graph.GetNode(path.CurrentNode);
+            var nextNode = graph.GetNode(path.GetWaypoint(path.CurrentIndex + 1));
+            if (!previousNode.SurfaceId.HasValue
+                || previousNode.SurfaceId != currentNode.SurfaceId
+                || currentNode.SurfaceId != nextNode.SurfaceId
+                || MathF.Abs(player.Y - currentNode.Y) > InitialWalkAttachmentVerticalTolerance)
+            {
+                break;
+            }
+
+            var incomingDx = currentNode.X - previousNode.X;
+            var outgoingDx = nextNode.X - currentNode.X;
+            if (MathF.Abs(incomingDx) <= HorizontalDeadZone
+                || MathF.Abs(outgoingDx) <= HorizontalDeadZone)
+            {
+                break;
+            }
+
+            var direction = MathF.Sign(incomingDx);
+            if (MathF.Sign(outgoingDx) != direction)
+            {
+                break;
+            }
+
+            var progressPastCurrent = (player.X - currentNode.X) * direction;
+            if (progressPastCurrent <= WaypointReachRadius)
+            {
+                break;
+            }
+
+            path.Advance();
+            advanced = true;
+        }
+
+        return advanced;
+    }
+
+    private static void TrySkipInitialWalkAttachment(PlayerEntity player, NavGraph graph, NavPath path)
+    {
+        if (path.CurrentIndex != 0 || path.Count < 2 || !player.IsGrounded)
+        {
+            return;
+        }
+
+        while (path.CurrentIndex + 1 < path.Count
+            && path.TryGetIncomingEdge(path.CurrentIndex + 1, out var nextEdge)
+            && nextEdge.Kind == NavEdgeKind.Walk)
+        {
+            var fromNode = graph.GetNode(path.CurrentNode);
+            var toNode = graph.GetNode(path.GetWaypoint(path.CurrentIndex + 1));
+            if (!fromNode.SurfaceId.HasValue
+                || fromNode.SurfaceId != toNode.SurfaceId
+                || MathF.Abs(player.Y - fromNode.Y) > InitialWalkAttachmentVerticalTolerance)
+            {
+                return;
+            }
+
+            var edgeDx = toNode.X - fromNode.X;
+            if (MathF.Abs(edgeDx) <= HorizontalDeadZone)
+            {
+                return;
+            }
+
+            var edgeDirection = MathF.Sign(edgeDx);
+            var progressFromStart = (player.X - fromNode.X) * edgeDirection;
+            if (progressFromStart < -WaypointReachRadius)
+            {
+                return;
+            }
+
+            path.Advance();
+        }
+    }
+
     private void UpdateCurrentEdgeExecutionPhase(PlayerEntity player, NavGraph graph, NavPath path, NavEdge edge)
     {
         if (_edgePhase != EdgeExecutionPhase.None)
@@ -444,8 +551,38 @@ public sealed class SteeringMachine
         out bool suppressJumpUntilLaunch)
     {
         suppressJumpUntilLaunch = false;
-        if (!edge.Completion.HasWindow || edge.Kind == NavEdgeKind.Walk)
+        if (IsExperimentalFallDropdownSteeringEnabled()
+            && edge.Kind is (NavEdgeKind.Fall or NavEdgeKind.Dropdown)
+            && player.IsGrounded
+            && path.CurrentIndex > 0)
         {
+            var launchNode = graph.GetNode(path.GetWaypoint(path.CurrentIndex - 1));
+            var targetNode = graph.GetNode(path.CurrentNode);
+            var travelDirection = edge.ProbeMoveDirectionX != 0f
+                ? MathF.Sign(edge.ProbeMoveDirectionX)
+                : MathF.Sign(targetNode.X - launchNode.X);
+            if (travelDirection != 0f)
+            {
+                return travelDirection * MathF.Max(JumpTriggerDistance * 2f, MathF.Abs(waypointDx) + JumpTriggerDistance);
+            }
+        }
+
+        if (!edge.Completion.HasWindow)
+        {
+            return waypointDx;
+        }
+
+        if (edge.Kind == NavEdgeKind.Walk)
+        {
+            if (ShouldAssistSemanticWalkClimb(player, edge))
+            {
+                var walkCompletionCenterX = (edge.Completion.MinX + edge.Completion.MaxX) * 0.5f;
+                var walkCompletionDx = walkCompletionCenterX - player.X;
+                return MathF.Abs(walkCompletionDx) > HorizontalDeadZone
+                    ? walkCompletionDx
+                    : waypointDx;
+            }
+
             return waypointDx;
         }
 
@@ -628,12 +765,13 @@ public sealed class SteeringMachine
         return _edgePhaseTicks > maxTicks;
     }
 
-    private static void TryFailExpiredEdge(
+    private void TryFailExpiredEdge(
         PlayerEntity player,
         NavGraph graph,
         NavPath path,
         NavEdge edge,
         int edgeTicks,
+        GameModeKind mode,
         ref SteeringOutput output)
     {
         if (path.CurrentIndex <= 0
@@ -645,6 +783,32 @@ public sealed class SteeringMachine
         var fromNode = path.GetWaypoint(path.CurrentIndex - 1);
         var toNode = path.CurrentNode;
         var targetNode = graph.GetNode(toNode);
+        if (ShouldFastFailGroundedWalkBelowTarget(player, edge, targetNode, edgeTicks))
+        {
+            output.RequestRepath = true;
+            output.FailedEdge = new SteeringFailedEdge(
+                HasFailure: true,
+                FromNode: fromNode,
+                ToNode: toNode,
+                Kind: edge.Kind,
+                EdgeTicks: edgeTicks,
+                Reason: "walk_timeout");
+            return;
+        }
+
+        if (ShouldFastFailLandedBelowCompletion(player, edge, edgeTicks, mode))
+        {
+            output.RequestRepath = true;
+            output.FailedEdge = new SteeringFailedEdge(
+                HasFailure: true,
+                FromNode: fromNode,
+                ToNode: toNode,
+                Kind: edge.Kind,
+                EdgeTicks: edgeTicks,
+                Reason: "landed_below_completion");
+            return;
+        }
+
         var targetDistance = MathF.Sqrt(
             ((targetNode.X - player.X) * (targetNode.X - player.X))
             + ((targetNode.Y - player.Y) * (targetNode.Y - player.Y)));
@@ -662,6 +826,34 @@ public sealed class SteeringMachine
             Kind: edge.Kind,
             EdgeTicks: edgeTicks,
             Reason: ResolveEdgeFailureReason(player, edge, targetDistance));
+    }
+
+    private static bool IsExperimentalFallDropdownSteeringEnabled() =>
+        Environment.GetEnvironmentVariable("BOTBRAIN_EXPERIMENTAL_FALL_DROPDOWN_STEERING") is "1" or "true" or "TRUE";
+
+    private bool ShouldFastFailLandedBelowCompletion(PlayerEntity player, NavEdge edge, int edgeTicks, GameModeKind mode)
+    {
+        return _edgePhase == EdgeExecutionPhase.None
+            && mode == GameModeKind.CaptureTheFlag
+            && edge.Kind == NavEdgeKind.Jump
+            && edge.Completion.HasWindow
+            && _currentEdgeLandedAfterAirborne
+            && _currentEdgeJumpRequested
+            && player.IsGrounded
+            && player.ClassId is not PlayerClass.Soldier and not PlayerClass.Heavy
+            && !edge.Completion.Contains(player.X, player.Y)
+            && player.Y > edge.Completion.MaxY + LandedBelowCompletionVerticalSlack
+            && edgeTicks >= Math.Max(0, ResolveMaximumEdgeTicks(edge) - LandedBelowCompletionFastFailSlackTicks);
+    }
+
+    private static bool ShouldFastFailGroundedWalkBelowTarget(PlayerEntity player, NavEdge edge, NavNode targetNode, int edgeTicks)
+    {
+        return edge.Kind == NavEdgeKind.Walk
+            && !edge.Completion.HasWindow
+            && player.IsGrounded
+            && player.ClassId is not PlayerClass.Soldier and not PlayerClass.Heavy
+            && player.Y > targetNode.Y + GroundedWalkBelowTargetVerticalSlack
+            && edgeTicks >= GroundedWalkBelowTargetFastFailTicks;
     }
 
     private static string ResolveEdgeFailureReason(PlayerEntity player, NavEdge edge, float targetDistance)
@@ -718,6 +910,7 @@ public sealed class SteeringMachine
         bool suppressJumpUntilLaunch,
         int jumpTriggerTick,
         int edgeTicks,
+        bool assistSemanticWalkClimb,
         bool requiresCertifiedRunup,
         NavEdgeLaunchRecipe launchRecipe,
         ref SteeringOutput output)
@@ -784,7 +977,14 @@ public sealed class SteeringMachine
 
             default:
                 output.MoveDirection = moveDir;
-                if (WouldHitWall(player, level, team, moveDir) && dy <= TargetAboveJumpThreshold)
+                var jumpableObstacleAhead = IsJumpableObstacleAhead(player, level, team, moveDir);
+                if (assistSemanticWalkClimb && edgeTicks >= 2)
+                {
+                    output.Jump = true;
+                }
+
+                if (jumpableObstacleAhead
+                    || (WouldHitWall(player, level, team, moveDir) && dy <= TargetAboveJumpThreshold))
                 {
                     output.Jump = true;
                 }
@@ -796,6 +996,12 @@ public sealed class SteeringMachine
                 break;
         }
     }
+
+    private static bool ShouldAssistSemanticWalkClimb(PlayerEntity player, NavEdge edge) =>
+        edge.Kind == NavEdgeKind.Walk
+        && edge.Completion.HasWindow
+        && player.IsGrounded
+        && player.Y > edge.Completion.MaxY + LandedBelowCompletionVerticalSlack;
 
     private static void SteerAirborne(
         PlayerEntity player,
@@ -829,6 +1035,10 @@ public sealed class SteeringMachine
         }
     }
 
+    private bool ShouldUseFastJumpRetry(PlayerEntity player, SimpleLevel level, PlayerTeam team, float moveDirection) =>
+        _stuckEscapePhase > 0
+        || IsJumpableObstacleAhead(player, level, team, moveDirection);
+
     private void ApplyStuckEscape(PlayerEntity player, ref SteeringOutput output)
     {
         _stuckEscapeTicks += 1;
@@ -860,7 +1070,7 @@ public sealed class SteeringMachine
         }
     }
 
-    private void ApplyJumpPulse(ref SteeringOutput output)
+    private void ApplyJumpPulse(ref SteeringOutput output, bool fastRetry)
     {
         if (_jumpRetryCooldownTicks > 0)
         {
@@ -872,13 +1082,18 @@ public sealed class SteeringMachine
             return;
         }
 
+        if (fastRetry && _jumpRetryCooldownTicks > FastObstacleJumpRetryCooldownTicks)
+        {
+            _jumpRetryCooldownTicks = FastObstacleJumpRetryCooldownTicks;
+        }
+
         if (_jumpRetryCooldownTicks > 0)
         {
             output.Jump = false;
             return;
         }
 
-        _jumpRetryCooldownTicks = JumpRetryCooldownTicks;
+        _jumpRetryCooldownTicks = fastRetry ? FastObstacleJumpRetryCooldownTicks : JumpRetryCooldownTicks;
     }
 
     private void TrackJumpRequest(NavEdgeKind edgeKind, SteeringOutput output)
@@ -929,6 +1144,32 @@ public sealed class SteeringMachine
         }
 
         return !player.CanOccupy(level, team, player.X + (direction * 4f), player.Y);
+    }
+
+    private static bool IsJumpableObstacleAhead(PlayerEntity player, SimpleLevel level, PlayerTeam team, float direction)
+    {
+        if (direction == 0f
+            || player.CanOccupy(level, team, player.X + (direction * 4f), player.Y))
+        {
+            return false;
+        }
+
+        return CanClearObstacleAtLift(player, level, team, direction, 16f)
+            || CanClearObstacleAtLift(player, level, team, direction, 28f)
+            || CanClearObstacleAtLift(player, level, team, direction, 40f);
+    }
+
+    private static bool CanClearObstacleAtLift(
+        PlayerEntity player,
+        SimpleLevel level,
+        PlayerTeam team,
+        float direction,
+        float lift)
+    {
+        var liftedY = player.Y - lift;
+        return player.CanOccupy(level, team, player.X, liftedY)
+            && player.CanOccupy(level, team, player.X + (direction * 4f), liftedY)
+            && player.CanOccupy(level, team, player.X + (direction * EdgeProbeDistance), liftedY);
     }
 
     private static float GetMoveDirection(float dx)

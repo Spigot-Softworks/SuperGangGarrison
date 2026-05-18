@@ -27,7 +27,7 @@ body {
     left: 0;
     top: 0;
     width: min(800px, 100vw, calc(100vh * 4 / 3));
-    height: auto;
+    height: min(600px, 100vh, calc(100vw * 3 / 4));
     max-height: 100vh;
     border: 0;
     outline: none;

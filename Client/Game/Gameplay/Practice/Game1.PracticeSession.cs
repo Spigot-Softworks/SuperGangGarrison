@@ -67,6 +67,11 @@ public partial class Game1
             return "Last To Die ended.";
         }
 
+        if (IsJumpSessionActive)
+        {
+            return "Jump ended.";
+        }
+
         return IsPracticeSessionActive ? "Practice ended." : "Disconnected.";
     }
 
@@ -75,6 +80,11 @@ public partial class Game1
         if (IsLastToDieSessionActive)
         {
             return "Spectator mode is not available in Last To Die.";
+        }
+
+        if (IsJumpSessionActive)
+        {
+            return "Spectator mode is not available in Jump.";
         }
 
         return IsPracticeSessionActive

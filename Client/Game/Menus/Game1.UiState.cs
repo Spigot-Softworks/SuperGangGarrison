@@ -17,6 +17,7 @@ public partial class Game1
         ManualConnect,
         ControlsMenu,
         LastToDieMenu,
+        JumpMenu,
         PluginOptionsMenu,
         OptionsMenu,
     }

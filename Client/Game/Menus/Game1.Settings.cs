@@ -10,6 +10,8 @@ public partial class Game1
 {
     private readonly ClientSettings _clientSettings;
     private readonly InputBindingsSettings _inputBindings;
+    private const string DefaultBrowserSecureManualConnectHost = "wss://45-61-52-208.sslip.io/opengarrison/ws";
+    private const int DefaultBrowserSecureManualConnectPort = 443;
 
     private void ApplyLoadedSettings()
     {
@@ -41,8 +43,16 @@ public partial class Game1
         _showHealerEnabled = _clientSettings.ShowHealerEnabled;
         _showHealingEnabled = _clientSettings.ShowHealingEnabled;
         _showHealthBarEnabled = _clientSettings.ShowHealthBarEnabled;
+        _portraitRumbleEnabled = _clientSettings.PortraitRumbleEnabled;
+        _damageVignetteEnabled = _clientSettings.DamageVignetteEnabled;
         _showPersistentSelfNameEnabled = _clientSettings.ShowPersistentSelfNameEnabled;
         _positionSmoothingEnabled = _clientSettings.PositionSmoothingEnabled;
+        _smoothCameraMultiplier = NormalizeSmoothCameraMultiplier(_clientSettings.SmoothCameraMultiplier);
+        if (_smoothCameraMultiplier <= 0f)
+        {
+            _hasSmoothCameraY = false;
+        }
+
         _spriteDropShadowEnabled = _clientSettings.SpriteDropShadowEnabled;
         _uberOutlineEnabled = _clientSettings.ShowUberOutlinesEnabled;
         _projectileTeamTintEnabled = _clientSettings.ProjectileTeamTintEnabled;
@@ -58,6 +68,7 @@ public partial class Game1
 
         _connectHostBuffer = SanitizeHost(_clientSettings.RecentConnection.Host);
         _connectPortBuffer = SanitizePort(_clientSettings.RecentConnection.Port);
+        ApplyBrowserPreferredManualConnectDefaults();
 
         _hostSetupState.LoadFrom(_clientSettings.HostDefaults);
     }
@@ -82,8 +93,11 @@ public partial class Game1
         _clientSettings.ShowHealerEnabled = _showHealerEnabled;
         _clientSettings.ShowHealingEnabled = _showHealingEnabled;
         _clientSettings.ShowHealthBarEnabled = _showHealthBarEnabled;
+        _clientSettings.PortraitRumbleEnabled = _portraitRumbleEnabled;
+        _clientSettings.DamageVignetteEnabled = _damageVignetteEnabled;
         _clientSettings.ShowPersistentSelfNameEnabled = _showPersistentSelfNameEnabled;
         _clientSettings.PositionSmoothingEnabled = _positionSmoothingEnabled;
+        _clientSettings.SmoothCameraMultiplier = NormalizeSmoothCameraMultiplier(_smoothCameraMultiplier);
         _clientSettings.SpriteDropShadowEnabled = _spriteDropShadowEnabled;
         _clientSettings.ShowUberOutlinesEnabled = _uberOutlineEnabled;
         _clientSettings.ProjectileTeamTintEnabled = _projectileTeamTintEnabled;
@@ -134,9 +148,72 @@ public partial class Game1
         PersistClientSettings();
     }
 
+    private void ApplyBrowserPreferredManualConnectDefaults()
+    {
+        if (!OperatingSystem.IsBrowser())
+        {
+            return;
+        }
+
+        var browserBaseAddress = ClientShared.ClientRuntimeBootstrap.GetBrowserBaseAddress();
+        if (browserBaseAddress is null
+            || !string.Equals(browserBaseAddress.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (ShouldUseBrowserPreferredManualConnectHost(_connectHostBuffer))
+        {
+            _connectHostBuffer = DefaultBrowserSecureManualConnectHost;
+        }
+
+        if (TryParseExplicitBrowserWebSocketUri(_connectHostBuffer, out _)
+            && (!int.TryParse(_connectPortBuffer, out var port) || port is <= 0 or > 65535))
+        {
+            _connectPortBuffer = DefaultBrowserSecureManualConnectPort.ToString(CultureInfo.InvariantCulture);
+        }
+    }
+
+    private static bool ShouldUseBrowserPreferredManualConnectHost(string? host)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return true;
+        }
+
+        var trimmed = host.Trim();
+        if (string.Equals(trimmed, "127.0.0.1", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(trimmed, "localhost", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryParseExplicitBrowserWebSocketUri(string value, out Uri uri)
+    {
+        if (Uri.TryCreate(value, UriKind.Absolute, out uri!)
+            && (uri.Scheme == "ws" || uri.Scheme == "wss")
+            && !string.IsNullOrWhiteSpace(uri.Host))
+        {
+            return true;
+        }
+
+        uri = null!;
+        return false;
+    }
+
     private static string SanitizeHost(string? host)
     {
-        return string.IsNullOrWhiteSpace(host) ? "127.0.0.1" : host.Trim();
+        if (!string.IsNullOrWhiteSpace(host))
+        {
+            return host.Trim();
+        }
+
+        return OperatingSystem.IsBrowser()
+            ? DefaultBrowserSecureManualConnectHost
+            : "127.0.0.1";
     }
 
     private static string SanitizeServerName(string? serverName)
@@ -146,6 +223,11 @@ public partial class Game1
 
     private static string SanitizePort(int port)
     {
+        if (OperatingSystem.IsBrowser() && port <= 0)
+        {
+            return DefaultBrowserSecureManualConnectPort.ToString(CultureInfo.InvariantCulture);
+        }
+
         return Math.Clamp(port, 1, 65535).ToString(CultureInfo.InvariantCulture);
     }
 

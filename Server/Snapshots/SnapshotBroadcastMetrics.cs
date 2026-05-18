@@ -12,16 +12,49 @@ internal readonly record struct SnapshotBroadcastMetrics(
     long SharedCaptureAllocatedBytes,
     long PerClientAllocatedBytes,
     long TotalAllocatedBytes,
+    int AverageTargetPayloadBytes,
     int AverageFullPayloadBytes,
+    int AverageSentUncompressedBytes,
     int AverageSentPayloadBytes,
+    int MaxSentPayloadBytes,
+    int PayloadOverTargetCount,
     double AverageSerializePasses,
     int BudgetedClientCount,
     int BaselineHitCount,
     int BaselineMissCount,
     double AverageSnapshotHistoryCount,
-    int MaxSnapshotHistoryCount);
+    int MaxSnapshotHistoryCount,
+    int AverageSnapshotFullPlayerBytes,
+    int AverageSnapshotPlayerMovementBytes,
+    int AverageSnapshotPlayerStatusBytes,
+    int AverageSnapshotPlayerExtendedStatusBytes,
+    int AverageSnapshotPlayerChatBubbleBytes,
+    int AverageSnapshotProjectileBytes,
+    int AverageSnapshotSentryBytes,
+    int AverageSnapshotEventBytes,
+    int AverageSnapshotRemovalBytes,
+    int AverageSnapshotWorldBytes,
+    int AverageSnapshotEnvelopeBytes);
+
+internal readonly record struct SnapshotCompositionMetrics(
+    int TargetPayloadBytes,
+    int FinalUncompressedBytes,
+    int FinalPayloadBytes,
+    bool PayloadOverTarget,
+    int FullPlayerBytes,
+    int PlayerMovementBytes,
+    int PlayerStatusBytes,
+    int PlayerExtendedStatusBytes,
+    int PlayerChatBubbleBytes,
+    int ProjectileBytes,
+    int SentryBytes,
+    int EventBytes,
+    int RemovalBytes,
+    int WorldBytes,
+    int EnvelopeAndOtherBytes);
 
 internal readonly record struct SnapshotBudgetBuildResult(
     SnapshotMessage Message,
     byte[] Payload,
-    int SerializePassCount);
+    int SerializePassCount,
+    SnapshotCompositionMetrics Composition);

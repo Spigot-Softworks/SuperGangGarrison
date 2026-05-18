@@ -4,7 +4,7 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private static readonly Lazy<GameMakerAssetManifest> s_gameMakerAssets = new(GameMakerAssetManifestImporter.ImportProjectAssets);
+    private static readonly Lazy<GameMakerAssetManifest> s_gameMakerAssets = new(GameMakerRuntimeAssetManifestLoader.LoadPackagedOrProjectAssets);
 
     private static void GetPlayerPresentationHitBounds(
         SimulationWorld world,
@@ -66,7 +66,7 @@ public sealed partial class SimulationWorld
             return true;
         }
 
-        var freshManifest = GameMakerAssetManifestImporter.ImportProjectAssets();
+        var freshManifest = GameMakerRuntimeAssetManifestLoader.LoadPackagedOrProjectAssets();
         return freshManifest.Sprites.TryGetValue(spriteName, out sprite!);
     }
 

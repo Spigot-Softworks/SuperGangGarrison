@@ -69,6 +69,7 @@ public partial class Game1
             _game._practiceSessionElapsedTicks = 0;
             _game.ResetSpectatorTracking(enableTracking: false);
             _game.ResetLastToDieState();
+            _game.ResetJumpState();
             _game.InvalidateDiscordRichPresenceRefresh();
         }
     }

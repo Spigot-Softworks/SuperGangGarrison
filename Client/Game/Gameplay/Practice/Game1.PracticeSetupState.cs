@@ -123,8 +123,13 @@ public partial class Game1
             SimpleLevelFactory.ClearCachedCatalog();
             var stockDefinitions = OpenGarrisonStockMapCatalog.Definitions
                 .ToDictionary(definition => definition.LevelName, definition => definition, StringComparer.OrdinalIgnoreCase);
+            var hiddenStockLevelNames = OpenGarrisonStockMapCatalog.SourceDefinitions
+                .Where(definition => !stockDefinitions.ContainsKey(definition.LevelName))
+                .Select(definition => definition.LevelName)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             return SimpleLevelFactory.GetAvailableSourceLevels()
+                .Where(level => !hiddenStockLevelNames.Contains(level.Name))
                 .Select(level =>
                 {
                     var isCustomMap = Path.GetExtension(level.RoomSourcePath).Equals(".png", StringComparison.OrdinalIgnoreCase);

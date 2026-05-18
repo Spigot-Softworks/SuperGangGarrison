@@ -111,6 +111,8 @@ internal static class ServerRuntimeBootstrapFactory
             eventReporter.WriteEvent,
             log,
             recordBroadcastMessage: message => demoRecorder?.RecordBroadcastMessage(message));
+        SnapshotBroadcaster? snapshotBroadcaster = null;
+
         var sessionManager = new ServerSessionManager(
             world,
             clientsBySlot,
@@ -128,11 +130,16 @@ internal static class ServerRuntimeBootstrapFactory
             connectionRateLimiter.ClearPasswordFailures,
             outboundMessaging.SendMessage,
             log,
-            eventReporter.NotifyClientDisconnected,
+            (client, reason) =>
+            {
+                snapshotBroadcaster?.RemoveClientState(client.Slot);
+                eventReporter.NotifyClientDisconnected(client, reason);
+            },
             eventReporter.NotifyPasswordAccepted,
             eventReporter.NotifyPlayerTeamChanged,
             eventReporter.NotifyPlayerClassChanged,
-            IsPlayableSlotAvailableForClient);
+            IsPlayableSlotAvailableForClient,
+            (oldSlot, newSlot) => snapshotBroadcaster?.MoveClientState(oldSlot, newSlot));
         var autoBalancer = new AutoBalancer(
             world,
             config,
@@ -144,7 +151,9 @@ internal static class ServerRuntimeBootstrapFactory
             log,
             recordBroadcastNotice: notice => demoRecorder?.RecordBroadcastMessage(notice));
 
-        IPracticeBotController botController = new BotBrainPracticeBotController();
+        var botControllerMode = PracticeBotControllerFactory.ResolveModeFromEnvironment(OfflineBotControllerMode.BotBrain);
+        IPracticeBotController botController = PracticeBotControllerFactory.Create(botControllerMode);
+        log($"Server bot controller: {botControllerMode}");
         botManager = new ServerBotManager(
             world,
             config,
@@ -152,7 +161,7 @@ internal static class ServerRuntimeBootstrapFactory
             slot => !clientsBySlot.ContainsKey(slot));
 
         // Snapshot broadcaster needs bot manager to include server bots in snapshots
-        var snapshotBroadcaster = new SnapshotBroadcaster(
+        snapshotBroadcaster = new SnapshotBroadcaster(
             world,
             config,
             clientsBySlot,

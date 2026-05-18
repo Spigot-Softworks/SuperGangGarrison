@@ -260,6 +260,11 @@ public sealed partial class PlayerEntity
         if (Enum.IsDefined(typeof(GameplayEquipmentSlot), (int)gameplayEquippedSlot))
         {
             SelectedGameplayEquippedSlot = (GameplayEquipmentSlot)gameplayEquippedSlot;
+            if (SelectedGameplayEquippedSlot != GameplayEquipmentSlot.Secondary)
+            {
+                IsExperimentalOffhandEquipped = false;
+                IsAcquiredWeaponEquipped = false;
+            }
         }
         ApplyReplicatedGameplayLoadoutState(
             gameplayModPackId,
@@ -270,6 +275,7 @@ public sealed partial class PlayerEntity
             gameplayEquippedSlot,
             gameplayEquippedItemId,
             gameplayAcquiredItemId);
+        ReconcileReplicatedWeaponSelection();
         ReplaceOwnedGameplayItemIds(ownedGameplayItemIds ?? []);
         ReplaceReplicatedStateEntries(replicatedStateEntries ?? []);
         // Apply offhand weapon animation state so recoil/reload animations are visible to other players.
@@ -317,5 +323,28 @@ public sealed partial class PlayerEntity
         }
 
         RefreshGameplayLoadoutState();
+    }
+
+    private void ReconcileReplicatedWeaponSelection()
+    {
+        if (GameplayLoadoutState.EquippedSlot != GameplayEquipmentSlot.Secondary)
+        {
+            IsExperimentalOffhandEquipped = false;
+            IsAcquiredWeaponEquipped = false;
+            return;
+        }
+
+        var equippedItemId = GameplayLoadoutState.EquippedItemId;
+        var acquiredItemId = GameplayLoadoutState.AcquiredItemId;
+        var acquiredSelected = HasAcquiredWeapon
+            && !string.IsNullOrWhiteSpace(acquiredItemId)
+            && string.Equals(equippedItemId, acquiredItemId, StringComparison.Ordinal);
+        var offhandSelected = !acquiredSelected
+            && HasExperimentalOffhandWeapon
+            && !string.IsNullOrWhiteSpace(GameplayLoadoutState.SecondaryItemId)
+            && string.Equals(equippedItemId, GameplayLoadoutState.SecondaryItemId, StringComparison.Ordinal);
+
+        IsAcquiredWeaponEquipped = acquiredSelected;
+        IsExperimentalOffhandEquipped = offhandSelected;
     }
 }

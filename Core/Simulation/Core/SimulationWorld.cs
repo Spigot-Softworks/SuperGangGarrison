@@ -43,7 +43,6 @@ public sealed partial class SimulationWorld
     private readonly List<SentryEntity> _sentries = new();
     private readonly List<JumpPadEntity> _jumpPads = new();
     private readonly List<CivilDefenseTurretEntity> _civilDefenseTurrets = new();
-    private readonly HashSet<long> _jumpPadTriggerContacts = new();
     private readonly List<PlayerGibEntity> _playerGibs = new();
     private readonly List<BloodDropEntity> _bloodDrops = new();
     private readonly List<HealthPackEntity> _healthPacks = new();
@@ -55,6 +54,7 @@ public sealed partial class SimulationWorld
     private readonly List<WorldVisualEvent> _pendingVisualEvents = new();
     private readonly List<WorldDamageEvent> _pendingDamageEvents = new();
     private readonly List<WorldGibSpawnEvent> _pendingGibSpawnEvents = new();
+    private readonly List<WorldRocketSpawnEvent> _pendingRocketSpawnEvents = new();
     private readonly List<WorldHealingEvent> _pendingHealingEvents = new();
     private readonly Queue<DangerCloseExplosionRequest> _pendingDangerCloseExplosions = new();
     private readonly List<PlayerEntity> _remoteSnapshotPlayers = new();
@@ -63,6 +63,8 @@ public sealed partial class SimulationWorld
     private readonly HashSet<int> _snapshotSeenEntityIds = new();
     private readonly List<int> _snapshotStaleEntityIds = new();
     private readonly HashSet<ulong> _processedNetworkGibSpawnEventIds = new();
+    private readonly HashSet<ulong> _processedImmediateNetworkRocketSpawnEventIds = new();
+    private readonly Dictionary<int, int> _presentedNetworkGibDeathCountsByPlayerId = new();
     private readonly HashSet<byte> _snapshotSeenRemotePlayerSlots = new();
     private readonly List<byte> _snapshotStaleRemotePlayerSlots = new();
     private readonly HashSet<byte> _remoteSnapshotAwaitingJoinSlots = new();
@@ -277,6 +279,8 @@ public sealed partial class SimulationWorld
     public IReadOnlyList<WorldVisualEvent> PendingVisualEvents => _pendingVisualEvents;
 
     public IReadOnlyList<WorldDamageEvent> PendingDamageEvents => _pendingDamageEvents;
+
+    public IReadOnlyList<WorldRocketSpawnEvent> PendingRocketSpawnEvents => _pendingRocketSpawnEvents;
 
     public IReadOnlyList<WorldHealingEvent> PendingHealingEvents => _pendingHealingEvents;
 
@@ -531,6 +535,18 @@ public sealed partial class SimulationWorld
         var gibSpawnEvents = _pendingGibSpawnEvents.ToArray();
         _pendingGibSpawnEvents.Clear();
         return gibSpawnEvents;
+    }
+
+    public IReadOnlyList<WorldRocketSpawnEvent> DrainPendingRocketSpawnEvents()
+    {
+        if (_pendingRocketSpawnEvents.Count == 0)
+        {
+            return [];
+        }
+
+        var rocketSpawnEvents = _pendingRocketSpawnEvents.ToArray();
+        _pendingRocketSpawnEvents.Clear();
+        return rocketSpawnEvents;
     }
 
     public IReadOnlyList<WorldHealingEvent> DrainPendingHealingEvents()

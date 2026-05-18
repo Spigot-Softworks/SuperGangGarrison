@@ -17,6 +17,7 @@ public partial class Game1
 
         public void PlayPendingVisualEvents()
         {
+            _game._presentedExplosionVisualsThisFrame.Clear();
             foreach (var visualEvent in _game._world.DrainPendingVisualEvents())
             {
                 PlayVisualEvent(visualEvent.EffectName, visualEvent.X, visualEvent.Y, visualEvent.DirectionDegrees, visualEvent.Count);
@@ -34,6 +35,7 @@ public partial class Game1
         {
             if (_game._gameplayImpactEffectsController.TryPlayVisualEvent(effectName, x, y, directionDegrees, count))
             {
+                _game.RecordPresentedExplosionVisual(effectName, x, y);
                 return;
             }
 

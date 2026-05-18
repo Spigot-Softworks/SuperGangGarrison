@@ -200,14 +200,14 @@ public static class CustomMapPngExporter
     private static bool IsExistingLevelDataTextChunk(string chunkType, byte[] chunkData)
     {
         return chunkType == "tEXt"
-            && Encoding.UTF8.GetString(chunkData).Contains("{WALKMASK}", StringComparison.OrdinalIgnoreCase)
-            && Encoding.UTF8.GetString(chunkData).Contains("{ENTITIES}", StringComparison.OrdinalIgnoreCase);
+            && Encoding.Latin1.GetString(chunkData).Contains("{WALKMASK}", StringComparison.OrdinalIgnoreCase)
+            && Encoding.Latin1.GetString(chunkData).Contains("{ENTITIES}", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void WriteTextChunk(Stream output, string keyword, string value)
     {
         var keywordBytes = Encoding.ASCII.GetBytes(keyword);
-        var valueBytes = Encoding.UTF8.GetBytes(value);
+        var valueBytes = Encoding.Latin1.GetBytes(value);
         var data = new byte[keywordBytes.Length + 1 + valueBytes.Length];
         Buffer.BlockCopy(keywordBytes, 0, data, 0, keywordBytes.Length);
         Buffer.BlockCopy(valueBytes, 0, data, keywordBytes.Length + 1, valueBytes.Length);

@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
@@ -181,6 +182,11 @@ public partial class Game1
     private bool DrawLevelBackground(Rectangle worldRectangle)
     {
         var backgroundName = _world.Level.BackgroundAssetName;
+        if (TryDrawLevelBackgroundFile(backgroundName, worldRectangle))
+        {
+            return true;
+        }
+
         if (_runtimeAssets is null)
         {
             _spriteBatch.Draw(_pixel, worldRectangle, new Color(34, 44, 60));
@@ -197,6 +203,77 @@ public partial class Game1
         }
 
         _spriteBatch.Draw(background, worldRectangle, Color.White);
+        return true;
+    }
+
+    private bool TryDrawLevelBackgroundFile(string? backgroundName, Rectangle worldRectangle)
+    {
+        if (string.IsNullOrWhiteSpace(backgroundName))
+        {
+            return false;
+        }
+
+        if (!Path.IsPathRooted(backgroundName) && !backgroundName.Contains(Path.DirectorySeparatorChar) && !backgroundName.Contains(Path.AltDirectorySeparatorChar))
+        {
+            return false;
+        }
+
+        if (string.Equals(_levelBackgroundFileFailedPath, backgroundName, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!string.Equals(_levelBackgroundFileTexturePath, backgroundName, StringComparison.OrdinalIgnoreCase))
+        {
+            _levelBackgroundFileTexture?.Dispose();
+            _levelBackgroundFileTexture = null;
+            _levelBackgroundFileTexturePath = null;
+
+            try
+            {
+                byte[]? bytes = null;
+                if (File.Exists(backgroundName))
+                {
+                    bytes = File.ReadAllBytes(backgroundName);
+                }
+                else if (BrowserContentCatalog.TryGetBinaryForPath(backgroundName, out var browserBytes))
+                {
+                    bytes = browserBytes;
+                }
+
+                if (bytes is null || bytes.Length == 0)
+                {
+                    _levelBackgroundFileFailedPath = backgroundName;
+                    return false;
+                }
+
+                _levelBackgroundFileTexture = TextureDecodeUtility.LoadTexture(GraphicsDevice, bytes, applyLegacyChromaKey: false);
+                _levelBackgroundFileTexturePath = backgroundName;
+                _levelBackgroundFileFailedPath = null;
+            }
+            catch (IOException)
+            {
+                _levelBackgroundFileFailedPath = backgroundName;
+                return false;
+            }
+            catch (InvalidOperationException)
+            {
+                _levelBackgroundFileFailedPath = backgroundName;
+                return false;
+            }
+            catch (NotSupportedException)
+            {
+                _levelBackgroundFileFailedPath = backgroundName;
+                return false;
+            }
+        }
+
+        if (_levelBackgroundFileTexture is null)
+        {
+            return false;
+        }
+
+        _spriteBatch.Draw(_levelBackgroundFileTexture, worldRectangle, Color.White);
         return true;
     }
 
@@ -226,6 +303,14 @@ public partial class Game1
 
     private void DrawCurvedWorldLine(float startX, float startY, float endX, float endY, Vector2 cameraPosition, Color color, float thickness, Vector2 aimDirection)
     {
+        if (!AreFinite(startX, startY, endX, endY, thickness)
+            || !IsFiniteVector(cameraPosition)
+            || !IsFiniteVector(aimDirection)
+            || aimDirection.LengthSquared() <= 0.0001f)
+        {
+            return;
+        }
+
         var start = new Vector2(startX - cameraPosition.X, startY - cameraPosition.Y);
         var end = new Vector2(endX - cameraPosition.X, endY - cameraPosition.Y);
         var toTarget = end - start;
@@ -343,6 +428,14 @@ public partial class Game1
         float nozzleThickness, float maxThickness, float tailThickness, float rampDistPixels,
         Vector2 aimDirection)
     {
+        if (!AreFinite(startX, startY, endX, endY, nozzleThickness, maxThickness, tailThickness, rampDistPixels)
+            || !IsFiniteVector(cameraPosition)
+            || !IsFiniteVector(aimDirection)
+            || aimDirection.LengthSquared() <= 0.0001f)
+        {
+            return;
+        }
+
         var start = new Vector2(startX - cameraPosition.X, startY - cameraPosition.Y);
         var end   = new Vector2(endX   - cameraPosition.X, endY   - cameraPosition.Y);
         var toTarget = end - start;
@@ -678,7 +771,10 @@ public partial class Game1
         var sourceRectangle = frame.SourceRectangle ?? new Rectangle(0, 0, frame.Texture.Width, frame.Texture.Height);
         var mask = new Texture2D(GraphicsDevice, sourceRectangle.Width, sourceRectangle.Height);
         var pixels = new Color[sourceRectangle.Width * sourceRectangle.Height];
-        frame.Texture.GetData(0, sourceRectangle, pixels, 0, pixels.Length);
+        if (!frame.TryCopyPixelData(pixels))
+        {
+            frame.Texture.GetData(0, sourceRectangle, pixels, 0, pixels.Length);
+        }
 
         for (var i = 0; i < pixels.Length; i += 1)
         {
