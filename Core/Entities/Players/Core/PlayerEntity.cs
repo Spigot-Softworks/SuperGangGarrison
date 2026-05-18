@@ -133,7 +133,7 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public int Health { get; private set; }
 
-    public int MaxHealth => ClassDefinition.MaxHealth + ExperimentalMaxHealthBonusValue;
+    public int MaxHealth => ExperimentalMaxHealthOverrideValue ?? ClassDefinition.MaxHealth + ExperimentalMaxHealthBonusValue;
 
     public float Metal { get; private set; } = 100f;
 
@@ -461,6 +461,8 @@ public sealed partial class PlayerEntity : SimulationEntity
     private PrimaryWeaponDefinition? ExperimentalPrimaryWeaponOverride { get; set; }
 
     private int ExperimentalMaxHealthBonusValue { get; set; }
+
+    private int? ExperimentalMaxHealthOverrideValue { get; set; }
 
     private float ExperimentalHealthPackHealingMultiplierValue { get; set; } = 1f;
 

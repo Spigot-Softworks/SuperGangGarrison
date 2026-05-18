@@ -1,5 +1,6 @@
 #nullable enable
 
+using Microsoft.Xna.Framework;
 using OpenGarrison.Client.Plugins;
 using OpenGarrison.Core;
 using System;
@@ -43,6 +44,15 @@ public partial class Game1
                 buttons.Add(new MenuPageButton(bottomBarLabel, layout.BottomBarButtonBounds.Value, bottomBarAction, IsBottomBarButton: true));
             }
 
+            if (_game._mainMenuPage == MainMenuPage.Root)
+            {
+                var friendsBounds = _game.GetBottomRightPlaqueButtonBounds(layout);
+                if (friendsBounds != Rectangle.Empty)
+                {
+                    buttons.Add(new MenuPageButton("Friends", friendsBounds, _game.OpenFriendsMenu, IsBottomBarRightButton: true));
+                }
+            }
+
             return buttons;
         }
 
@@ -53,6 +63,7 @@ public partial class Game1
             var hoveredStackedIndex = -1;
             var soloHovered = false;
             var bottomHovered = false;
+            var bottomRightHovered = false;
 
             for (var index = 0; index < buttons.Count; index += 1)
             {
@@ -65,6 +76,10 @@ public partial class Game1
                 {
                     bottomHovered = true;
                 }
+                else if (buttons[index].IsBottomBarRightButton)
+                {
+                    bottomRightHovered = true;
+                }
                 else if (index < stackedActions.Count)
                 {
                     hoveredStackedIndex = index;
@@ -76,6 +91,10 @@ public partial class Game1
             }
 
             _game.DrawPlaqueMenuLayout(layout, stackedActions, soloAction, bottomBarAction is not null, bottomBarLabel, hoveredStackedIndex, soloHovered, bottomHovered, 1.15f);
+            if (_game._mainMenuPage == MainMenuPage.Root)
+            {
+                _game.DrawBottomRightPlaqueButton(layout, "Friends", bottomRightHovered, 1.15f);
+            }
         }
 
         private (List<MenuPageAction> StackedActions, MenuPageAction SoloAction, string BottomBarLabel, Action? BottomBarAction) GetCurrentMainMenuActions()
@@ -87,6 +106,7 @@ public partial class Game1
                         new MenuPageAction("Host Match", _game.OpenHostSetupMenu),
                         new MenuPageAction("Join (IP)", _game.OpenManualConnectMenu),
                         new MenuPageAction("Join (Lobby)", _game.OpenLobbyBrowser),
+                        new MenuPageAction("Friends", _game.OpenFriendsMenu),
                     ],
                     new MenuPageAction("Back", () => OpenMainMenuPage(MainMenuPage.Root)),
                     string.Empty,

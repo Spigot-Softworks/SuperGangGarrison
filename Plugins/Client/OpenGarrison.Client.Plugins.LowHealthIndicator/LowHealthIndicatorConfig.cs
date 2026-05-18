@@ -11,7 +11,7 @@ internal sealed class LowHealthIndicatorConfig
 
     public int WarningVolumePercent { get; set; } = 70;
 
-    public int WarningTimerFrames { get; set; } = 60;
+    public int WarningTimerFrames { get; set; } = 36;
 
     public int WarningHealthThreshold { get; set; } = 40;
 
@@ -45,10 +45,14 @@ internal sealed class LowHealthIndicatorConfig
 
     private static LowHealthIndicatorConfig Normalize(LowHealthIndicatorConfig config)
     {
+        var warningTimerFrames = config.WarningTimerFrames == 60
+            ? 36
+            : config.WarningTimerFrames;
+
         return new LowHealthIndicatorConfig
         {
             WarningVolumePercent = int.Clamp(config.WarningVolumePercent, 0, 100),
-            WarningTimerFrames = int.Clamp(config.WarningTimerFrames, 0, 180),
+            WarningTimerFrames = int.Clamp(warningTimerFrames, 0, 180),
             WarningHealthThreshold = int.Clamp(config.WarningHealthThreshold, 0, 100),
             UsePercentageThreshold = config.UsePercentageThreshold,
         };

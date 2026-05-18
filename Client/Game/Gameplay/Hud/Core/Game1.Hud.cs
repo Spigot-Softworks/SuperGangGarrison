@@ -36,13 +36,14 @@ public partial class Game1
             && !(_clientPluginHost?.IsCapturedHotkeyPressed(key) ?? false);
     }
 
-    private void UpdateScoreboardState(KeyboardState keyboard)
+    private void UpdateScoreboardState(KeyboardState keyboard, MouseState mouse)
     {
         _scoreboardOpen = CanShowGameplayScoreboard()
             && keyboard.IsKeyDown(_inputBindings.ShowScoreboard);
 
         if (_scoreboardOpen)
         {
+            UpdateScoreboardPlayerCardState(mouse);
             if (_scoreboardAlpha < 0.99f)
             {
                 _scoreboardAlpha = AdvanceOpeningAlpha(_scoreboardAlpha, 0.02f, 0.99f);
@@ -51,6 +52,7 @@ public partial class Game1
             return;
         }
 
+        _scoreboardHoveredPlayerRow = null;
         if (_scoreboardAlpha > 0.02f)
         {
             _scoreboardAlpha = AdvanceClosingAlpha(_scoreboardAlpha, 0.02f);

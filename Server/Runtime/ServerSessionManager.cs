@@ -25,6 +25,7 @@ sealed class ServerSessionManager
     private readonly Action<ServerTransportPeer, IProtocolMessage> _sendMessage;
     private readonly Action<string> _log;
     private readonly Action<ClientSession, string> _clientRemoved;
+    private readonly Action<ClientSession> _clientProfileChanged;
     private readonly Action<ClientSession> _passwordAccepted;
     private readonly Action<ClientSession, PlayerTeam> _playerTeamChanged;
     private readonly Action<ClientSession, PlayerClass> _playerClassChanged;
@@ -50,6 +51,7 @@ sealed class ServerSessionManager
         Action<ServerTransportPeer, IProtocolMessage> sendMessage,
         Action<string> log,
         Action<ClientSession, string>? clientRemoved = null,
+        Action<ClientSession>? clientProfileChanged = null,
         Action<ClientSession>? passwordAccepted = null,
         Action<ClientSession, PlayerTeam>? playerTeamChanged = null,
         Action<ClientSession, PlayerClass>? playerClassChanged = null,
@@ -73,6 +75,7 @@ sealed class ServerSessionManager
         _sendMessage = sendMessage;
         _log = log;
         _clientRemoved = clientRemoved ?? ((_, _) => { });
+        _clientProfileChanged = clientProfileChanged ?? (_ => { });
         _passwordAccepted = passwordAccepted ?? (_ => { });
         _playerTeamChanged = playerTeamChanged ?? ((_, _) => { });
         _playerClassChanged = playerClassChanged ?? ((_, _) => { });
@@ -85,11 +88,30 @@ sealed class ServerSessionManager
         _gameplayOwnershipService = gameplayOwnershipService;
     }
 
-    public void ApplyClientProfile(byte slot, string name, ulong badgeMask)
+    public void ApplyClientProfile(byte slot, string name, ulong badgeMask, string? friendCode = null, string? playerCardJson = null)
     {
+        if (_clientsBySlot.TryGetValue(slot, out var client))
+        {
+            client.Name = name;
+            client.BadgeMask = badgeMask;
+            if (friendCode is not null)
+            {
+                client.FriendCode = ProtocolCodec.TruncateUtf8(friendCode.Trim(), ProtocolCodec.MaxFriendCodeBytes);
+            }
+
+            if (playerCardJson is not null)
+            {
+                client.PlayerCardJson = ProtocolCodec.TruncateUtf8(playerCardJson.Trim(), ProtocolCodec.MaxPlayerCardBytes);
+            }
+        }
+
         _world.TrySetNetworkPlayerName(slot, name);
         _world.TrySetNetworkPlayerBadgeMask(slot, badgeMask);
         _gameplayOwnershipService?.ApplyClientProfile(slot, name, badgeMask);
+        if (client is not null)
+        {
+            _clientProfileChanged(client);
+        }
     }
 
     public void PreparePlayableClientInputsForNextTick()
@@ -181,6 +203,7 @@ sealed class ServerSessionManager
 
             _sendMessage(client.Peer, new PasswordResultMessage(true, string.Empty));
             _passwordAccepted(client);
+            _clientProfileChanged(client);
             return;
         }
 
@@ -202,6 +225,7 @@ sealed class ServerSessionManager
             _sendMessage(client.Peer, new PasswordResultMessage(true, string.Empty));
             _log($"[server] client authorized slot={client.Slot} peer={client.RemoteDescription}");
             _passwordAccepted(client);
+            _clientProfileChanged(client);
             return;
         }
 

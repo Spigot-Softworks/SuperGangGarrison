@@ -4,7 +4,7 @@ local LEGACY_FRAMES_PER_SECOND = 30.0
 
 local default_config = {
     warningVolumePercent = 70,
-    warningTimerFrames = 60,
+    warningTimerFrames = 36,
     warningHealthThreshold = 40,
     usePercentageThreshold = false
 }
@@ -24,11 +24,20 @@ local function clamp(value, minimum, maximum)
     return value
 end
 
+local function normalize_warning_timer_frames(value)
+    local frames = tonumber(value)
+    if frames == nil or frames == 60 then
+        return default_config.warningTimerFrames
+    end
+
+    return clamp(frames, 0, 180)
+end
+
 local function load_config()
     local loaded = plugin.host.load_json_config("lowhealthindicator.json", default_config)
     local normalized = {
         warningVolumePercent = clamp(tonumber(loaded.warningVolumePercent) or default_config.warningVolumePercent, 0, 100),
-        warningTimerFrames = clamp(tonumber(loaded.warningTimerFrames) or default_config.warningTimerFrames, 0, 180),
+        warningTimerFrames = normalize_warning_timer_frames(loaded.warningTimerFrames),
         warningHealthThreshold = clamp(tonumber(loaded.warningHealthThreshold) or default_config.warningHealthThreshold, 0, 100),
         usePercentageThreshold = loaded.usePercentageThreshold == true
     }
@@ -52,7 +61,7 @@ end
 function plugin.initialize(host)
     plugin.host = host
     config = load_config()
-    host.register_sound_asset("warning", "Resources/PrOF/boop.wav")
+    host.register_sound_asset("warning", "Resources/lowhealth.ogg")
 end
 
 function plugin.on_client_frame(e)
@@ -72,6 +81,7 @@ function plugin.on_client_frame(e)
     end
 
     if not should_play_warning(state.localPlayerHealth, state.localPlayerMaxHealth) then
+        warning_elapsed_frames = 0.0
         return
     end
 
@@ -126,7 +136,7 @@ function plugin.advance_warning_volume()
 end
 
 function plugin.get_warning_delay_label()
-    return tostring(config.warningTimerFrames) .. "f"
+    return string.format("%.1fs", config.warningTimerFrames / LEGACY_FRAMES_PER_SECOND)
 end
 
 function plugin.advance_warning_delay()

@@ -81,7 +81,7 @@ public partial class Game1
         switch (command)
         {
             case "help":
-                AddConsoleLine("help, clear, connect <host> [port], replay_play <path>, demo_play <path>, demo_record <start [path]|stop|cancel|status>, replay_queue <path|status|clear>, replay_pause <on|off|toggle|status>, replay_speed <percent>, replay_status, replay_stop, disconnect, net_delay <ms>, net_diag/netdiag/net-diag <on|off|status|clear|export|path>, bot_diag <on|off|status|clear>, debug <0|1>, bots <server bot command>, nav_edit <on|off|status|save|reload|rebuild>, builder <on|off|new|open|bg|wm|save|status>, score_route_rec <start|stop|save|cancel|status> ..., spawn_dummy (offline training), despawn_dummy (offline training), spawn_friendly_dummy (offline support), despawn_friendly_dummy (offline support), set_name <text>, set_dummy_name <text> (offline training), set_friendly_name <text> (offline support), set_friendly_dummy_hp <n> (offline support), killme, respawn_me, build_sentry, destroy_sentry, give_intel, drop_intel, set_hp <n>, set_ammo <n>, set_class <scout|engineer|pyro|soldier|demoman|heavy|sniper|medic|spy|quote>, load_map <map>, teleport <x> <y>, fill_uber, ltd_win, show_import, show_engineer, show_medic");
+                AddConsoleLine("help, clear, connect <host> [port], replay_play <path>, demo_play <path>, demo_record <start [path]|stop|cancel|status>, replay_queue <path|status|clear>, replay_pause <on|off|toggle|status>, replay_speed <percent>, replay_status, replay_stop, disconnect, net_delay <ms>, net_diag/netdiag/net-diag <on|off|status|clear|export|path>, bot_diag <on|off|status|clear>, debug <0|1>, bots <server bot command>, nav_edit <on|off|status|save|reload|rebuild>, builder <on|off|new|open|bg|wm|save|status>, score_route_rec <start|stop|save|cancel|status> ..., spawn_dummy (offline training), despawn_dummy (offline training), spawn_friendly_dummy (offline support), despawn_friendly_dummy (offline support), set_name <text>, set_dummy_name <text> (offline training), set_friendly_name <text> (offline support), set_friendly_dummy_hp <n> (offline support), killme, respawn_me, build_sentry, destroy_sentry, give_intel, drop_intel, set_hp <n>, set_ammo <n>, set_class <scout|engineer|pyro|soldier|demoman|heavy|sniper|medic|spy|quote>, load_map <map>, teleport <x> <y>, fill_uber, ltd_win, ltd_forcespecial <a|b|c|d>, show_import, show_engineer, show_medic");
                 break;
             case "clear":
                 _consoleHistory.Clear();
@@ -642,6 +642,9 @@ public partial class Game1
                 {
                     AddConsoleLine("could not trigger last to die victory right now.");
                 }
+                break;
+            case "ltd_forcespecial":
+                ForceNextLastToDieSpecialRoundForTesting(parts);
                 break;
             default:
                 if (TryHandleEnemyDummyConsoleCommand(commandText))

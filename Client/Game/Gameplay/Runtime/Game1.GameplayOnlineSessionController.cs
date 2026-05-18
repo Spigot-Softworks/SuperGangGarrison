@@ -1,6 +1,7 @@
 #nullable enable
 
 using System.IO;
+using OpenGarrison.ClientShared;
 using OpenGarrison.Protocol;
 using OpenGarrison.Core;
 
@@ -92,9 +93,18 @@ public partial class Game1
                 return false;
             }
 
-            if (_game._networkClient.Connect(host, port, _game._world.LocalPlayer.DisplayName, _game._world.LocalPlayer.BadgeMask, out var error))
+            if (_game._networkClient.Connect(
+                    host,
+                    port,
+                    _game._world.LocalPlayer.DisplayName,
+                    _game._world.LocalPlayer.BadgeMask,
+                    out var error,
+                    _game._clientIdentity.FriendCode,
+                    PlayerCardProfile.Serialize(_game._clientIdentity.PlayerCard)))
             {
+                _game.SetSocialPresenceNetworkEndpoint(endpoint);
                 _game.RecordRecentConnection(host, port);
+                _game.ClearOnlinePlayerSocialProfiles();
                 _game.ResetGameplayRuntimeState();
                 // Online sessions must always start from default server-authoritative gameplay rules.
                 // This prevents offline experimental settings (for example Last To Die perks)
@@ -147,6 +157,7 @@ public partial class Game1
             if (_game._networkClient.Connect(transport, _game._world.LocalPlayer.DisplayName, _game._world.LocalPlayer.BadgeMask, out error))
             {
                 _game._activeReplayPath = replayPath.Trim();
+                _game.ClearOnlinePlayerSocialProfiles();
                 _game.ResetGameplayRuntimeState();
                 _game._world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings());
                 _game.CloseLobbyBrowser(clearStatus: false);
@@ -191,6 +202,7 @@ public partial class Game1
             if (_game._networkClient.Connect(transport, _game._world.LocalPlayer.DisplayName, _game._world.LocalPlayer.BadgeMask, out error))
             {
                 _game._activeReplayPath = demoPath.Trim();
+                _game.ClearOnlinePlayerSocialProfiles();
                 _game.ResetGameplayRuntimeState();
                 _game._world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings());
                 _game.CloseLobbyBrowser(clearStatus: false);

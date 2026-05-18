@@ -134,12 +134,19 @@ internal static class ServerRuntimeBootstrapFactory
             {
                 snapshotBroadcaster?.RemoveClientState(client.Slot);
                 eventReporter.NotifyClientDisconnected(client, reason);
+                outboundMessaging.BroadcastPlayerSocialProfileRemoval(client.Slot);
             },
+            _ => outboundMessaging.BroadcastPlayerSocialProfiles(),
             eventReporter.NotifyPasswordAccepted,
             eventReporter.NotifyPlayerTeamChanged,
             eventReporter.NotifyPlayerClassChanged,
             IsPlayableSlotAvailableForClient,
-            (oldSlot, newSlot) => snapshotBroadcaster?.MoveClientState(oldSlot, newSlot));
+            (oldSlot, newSlot) =>
+            {
+                snapshotBroadcaster?.MoveClientState(oldSlot, newSlot);
+                outboundMessaging.BroadcastPlayerSocialProfileRemoval(oldSlot);
+                outboundMessaging.BroadcastPlayerSocialProfiles();
+            });
         var autoBalancer = new AutoBalancer(
             world,
             config,

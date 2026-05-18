@@ -123,6 +123,11 @@ public partial class Game1
         _mainMenuOverlayStateController.OpenManualConnectMenu();
     }
 
+    private void OpenFriendsMenu()
+    {
+        _mainMenuOverlayStateController.OpenFriendsMenu();
+    }
+
     private Rectangle GetCreditsPanelBounds()
     {
         return new Rectangle(0, 0, ViewportWidth, ViewportHeight);

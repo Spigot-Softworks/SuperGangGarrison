@@ -9,8 +9,16 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
     private const float PortraitRumbleDurationSeconds = 0.24f;
-    private const float DamageVignetteHoldDurationSeconds = 1f;
-    private const float DamageVignetteFadePerSecond = 0.18f;
+    private const int LowHealthColorThreshold = 50;
+    private const float DamageVignetteLowHealthThresholdFraction = 0.5f;
+    private const float DamageVignetteFadeInPerSecond = 8f;
+    private const float DamageVignetteFadeOutPerSecond = 1.2f;
+    private const float DamageVignetteReactiveFadePerSecond = 1.75f;
+    private const float DamageVignetteReactiveMinimumIntensity = 0.2f;
+    private const float DamageVignetteReactiveMaximumIntensity = 0.56f;
+    private const float DamageVignetteReactiveDamageScale = 190f;
+    private const float DamageVignettePersistentMinimumIntensity = 0.08f;
+    private const float DamageVignettePersistentMaximumIntensity = 0.95f;
     private static readonly Color PortraitRumbleTintColor = new(255, 80, 80);
 
     private void TriggerLocalHudPortraitDamageFeedback(int damageAmount)
@@ -32,9 +40,15 @@ public partial class Game1
             return;
         }
 
-        var addedIntensity = Math.Clamp(0.012f + (damageAmount / 520f), 0.018f, 0.11f);
-        _damageVignetteIntensity = Math.Clamp(_damageVignetteIntensity + addedIntensity, 0f, 0.28f);
-        _damageVignetteHoldSeconds = DamageVignetteHoldDurationSeconds;
+        var addedIntensity = Math.Clamp(
+            DamageVignetteReactiveMinimumIntensity + (damageAmount / DamageVignetteReactiveDamageScale),
+            DamageVignetteReactiveMinimumIntensity,
+            DamageVignetteReactiveMaximumIntensity * 0.75f);
+        _damageVignetteFlashIntensity = Math.Clamp(
+            _damageVignetteFlashIntensity + addedIntensity,
+            0f,
+            DamageVignetteReactiveMaximumIntensity);
+        _damageVignetteIntensity = Math.Max(_damageVignetteIntensity, _damageVignetteFlashIntensity);
     }
 
     private sealed class GameplayLocalStatusHudController
@@ -185,8 +199,13 @@ public partial class Game1
                             
                             var weaponPosition = new Vector2(weaponX, weaponY);
                             var weaponScale = new Vector2(facingScale * characterScale.X, characterScale.Y);
-                            
-                            _game.TryDrawScreenSprite(weaponDefinition.NormalSpriteName, 0, weaponPosition, portraitColor, weaponScale);
+                            var weaponFrameIndex = _game._gameplayWeaponRenderController.GetWeaponSpriteFrameIndex(
+                                _game._world.LocalPlayer,
+                                WeaponAnimationMode.Idle,
+                                weaponDefinition,
+                                weaponSprite.Frames.Count);
+
+                            _game.TryDrawScreenSprite(weaponDefinition.NormalSpriteName, weaponFrameIndex, weaponPosition, portraitColor, weaponScale);
                         }
                     }
                 }
@@ -214,9 +233,12 @@ public partial class Game1
             }
             
             // Draw health text centered on top of the crosses
-            var hpColor = _game._world.LocalPlayer.Health > (_game._world.LocalPlayer.MaxHealth / 3.5f) ? Color.White : Color.Red;
+            var health = Math.Max(_game._world.LocalPlayer.Health, 0);
+            var hpColor = _game._lowHealthColorMode == LowHealthColorMode.Red && health < LowHealthColorThreshold
+                ? Color.Red
+                : Color.White;
             var healthTextPosition = crossPosition + new Vector2((crossSprite?.Frames[0].Width ?? 0) * scale.X / 2f, (crossSprite?.Frames[0].Height ?? 0) * scale.Y / 2f);
-            _game.DrawHudTextCentered(Math.Max(_game._world.LocalPlayer.Health, 0).ToString(CultureInfo.InvariantCulture), healthTextPosition, hpColor, 1f);
+            _game.DrawHudTextCentered(health.ToString(CultureInfo.InvariantCulture), healthTextPosition, hpColor, 1f);
         }
 
         public void DrawAmmoHud()
@@ -336,31 +358,82 @@ public partial class Game1
 
         private void DrawDamageVignetteCore()
         {
-            if (!_game._damageVignetteEnabled || _game._damageVignetteIntensity <= 0f)
+            if (!_game._damageVignetteEnabled)
             {
                 _game._damageVignetteIntensity = 0f;
-                _game._damageVignetteHoldSeconds = 0f;
+                _game._damageVignetteFlashIntensity = 0f;
                 return;
             }
 
             var elapsedSeconds = Math.Max(0f, _game._clientUpdateElapsedSeconds);
-            if (_game._damageVignetteHoldSeconds > 0f)
+            var lowHealthDepth = GetDamageVignetteLowHealthDepth();
+            var persistentIntensity = GetDamageVignettePersistentTargetIntensity(lowHealthDepth);
+            var flashIntensity = _game._damageVignetteFlashIntensity;
+            var flashMultiplier = MathHelper.Lerp(1f, 1.35f, lowHealthDepth);
+            var targetIntensity = Math.Clamp(
+                persistentIntensity + (flashIntensity * flashMultiplier),
+                0f,
+                1f);
+
+            if (targetIntensity > _game._damageVignetteIntensity)
             {
-                _game._damageVignetteHoldSeconds = Math.Max(0f, _game._damageVignetteHoldSeconds - elapsedSeconds);
+                _game._damageVignetteIntensity = Math.Min(
+                    targetIntensity,
+                    _game._damageVignetteIntensity + (DamageVignetteFadeInPerSecond * elapsedSeconds));
+            }
+            else if (targetIntensity <= 0f)
+            {
+                _game._damageVignetteIntensity = Math.Max(
+                    0f,
+                    _game._damageVignetteIntensity - (DamageVignetteFadeOutPerSecond * elapsedSeconds));
             }
             else
             {
-                _game._damageVignetteIntensity = Math.Max(0f, _game._damageVignetteIntensity - (DamageVignetteFadePerSecond * elapsedSeconds));
+                _game._damageVignetteIntensity = targetIntensity;
             }
 
-            if (_game._damageVignetteIntensity <= 0f || !_game.TryEnsureDamageVignetteTexture(out var texture))
+            _game._damageVignetteFlashIntensity = Math.Max(
+                0f,
+                _game._damageVignetteFlashIntensity - (DamageVignetteReactiveFadePerSecond * elapsedSeconds));
+
+            if (_game._damageVignetteIntensity <= 0f || !_game.TryEnsureDamageVignetteTexture(_game._damageVignetteIntensity, out var texture))
             {
                 return;
             }
 
-            var alpha = Math.Clamp(_game._damageVignetteIntensity, 0f, 0.28f);
-            var tint = new Color(120, 0, 0) * alpha;
-            _game._spriteBatch.Draw(texture, new Rectangle(0, 0, _game.ViewportWidth, _game.ViewportHeight), tint);
+            _game._spriteBatch.Draw(texture, new Rectangle(0, 0, _game.ViewportWidth, _game.ViewportHeight), Color.White);
+        }
+
+        private float GetDamageVignettePersistentTargetIntensity(float lowHealthDepth)
+        {
+            if (lowHealthDepth <= 0f)
+            {
+                return 0f;
+            }
+
+            var danger = lowHealthDepth * lowHealthDepth;
+            return MathHelper.Lerp(DamageVignettePersistentMinimumIntensity, DamageVignettePersistentMaximumIntensity, danger);
+        }
+
+        private float GetDamageVignetteLowHealthDepth()
+        {
+            var player = _game._world.LocalPlayer;
+            if (!player.IsAlive || player.MaxHealth <= 0)
+            {
+                return 0f;
+            }
+
+            var healthFraction = Math.Clamp(player.Health / (float)player.MaxHealth, 0f, 1f);
+            if (healthFraction >= DamageVignetteLowHealthThresholdFraction)
+            {
+                return 0f;
+            }
+
+            var lowHealthDepth = Math.Clamp(
+                (DamageVignetteLowHealthThresholdFraction - healthFraction) / DamageVignetteLowHealthThresholdFraction,
+                0f,
+                1f);
+            return lowHealthDepth;
         }
 
         public void DrawSpySuperjumpHud() => DrawSpySuperjumpHudCore();

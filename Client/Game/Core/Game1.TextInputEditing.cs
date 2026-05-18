@@ -47,6 +47,9 @@ public partial class Game1
         None,
         ManualConnectHost,
         ManualConnectPort,
+        FriendsCode,
+        FriendsNickname,
+        FriendsMessage,
         OptionsPlayerName,
         HostSetupServerName,
         HostSetupPort,
@@ -218,6 +221,18 @@ public partial class Game1
                 _connectPortCursorIndex = _connectPortBuffer.Length;
                 _connectPortSelectionStart = 0;
                 break;
+            case TextFieldClickTarget.FriendsCode:
+                _friendCodeCursorIndex = _friendCodeInputBuffer.Length;
+                _friendCodeSelectionStart = 0;
+                break;
+            case TextFieldClickTarget.FriendsNickname:
+                _friendNicknameCursorIndex = _friendNicknameInputBuffer.Length;
+                _friendNicknameSelectionStart = 0;
+                break;
+            case TextFieldClickTarget.FriendsMessage:
+                _friendMessageCursorIndex = _friendMessageInputBuffer.Length;
+                _friendMessageSelectionStart = 0;
+                break;
             case TextFieldClickTarget.OptionsPlayerName:
                 _playerNameEditCursorIndex = _playerNameEditBuffer.Length;
                 _playerNameEditSelectionStart = 0;
@@ -319,6 +334,18 @@ public partial class Game1
         else if (_mainMenuOpen && _manualConnectOpen && _editingConnectPort)
         {
             selectedText = GetSelectedText(_connectPortBuffer, _connectPortCursorIndex, _connectPortSelectionStart);
+        }
+        else if (_mainMenuOpen && _friendsMenuOpen && _editingFriendCode)
+        {
+            selectedText = GetSelectedText(_friendCodeInputBuffer, _friendCodeCursorIndex, _friendCodeSelectionStart);
+        }
+        else if (_mainMenuOpen && _friendsMenuOpen && _editingFriendNickname)
+        {
+            selectedText = GetSelectedText(_friendNicknameInputBuffer, _friendNicknameCursorIndex, _friendNicknameSelectionStart);
+        }
+        else if (_mainMenuOpen && _friendsMenuOpen && _editingFriendMessage)
+        {
+            selectedText = GetSelectedText(_friendMessageInputBuffer, _friendMessageCursorIndex, _friendMessageSelectionStart);
         }
         else if (_optionsMenuOpen && _editingPlayerName)
         {
@@ -439,6 +466,21 @@ public partial class Game1
             return TextFieldClickTarget.OptionsPlayerName;
         }
 
+        if (_mainMenuOpen && _friendsMenuOpen && _editingFriendCode)
+        {
+            return TextFieldClickTarget.FriendsCode;
+        }
+
+        if (_mainMenuOpen && _friendsMenuOpen && _editingFriendNickname)
+        {
+            return TextFieldClickTarget.FriendsNickname;
+        }
+
+        if (_mainMenuOpen && _friendsMenuOpen && _editingFriendMessage)
+        {
+            return TextFieldClickTarget.FriendsMessage;
+        }
+
         if (_mainMenuOpen && _hostSetupOpen)
         {
             return _hostSetupEditField switch
@@ -513,6 +555,63 @@ public partial class Game1
                 _connectPortBuffer = newText;
                 _connectPortCursorIndex = newCursorIndex;
                 _connectPortSelectionStart = newSelectionStart;
+                return true;
+            }
+
+            return false;
+        }
+
+        if (_mainMenuOpen && _friendsMenuOpen && _editingFriendCode)
+        {
+            if (CutSelectionFromField(
+                _friendCodeInputBuffer,
+                _friendCodeCursorIndex,
+                _friendCodeSelectionStart,
+                out var newText,
+                out var newCursorIndex,
+                out var newSelectionStart))
+            {
+                _friendCodeInputBuffer = newText;
+                _friendCodeCursorIndex = newCursorIndex;
+                _friendCodeSelectionStart = newSelectionStart;
+                return true;
+            }
+
+            return false;
+        }
+
+        if (_mainMenuOpen && _friendsMenuOpen && _editingFriendNickname)
+        {
+            if (CutSelectionFromField(
+                _friendNicknameInputBuffer,
+                _friendNicknameCursorIndex,
+                _friendNicknameSelectionStart,
+                out var newText,
+                out var newCursorIndex,
+                out var newSelectionStart))
+            {
+                _friendNicknameInputBuffer = newText;
+                _friendNicknameCursorIndex = newCursorIndex;
+                _friendNicknameSelectionStart = newSelectionStart;
+                return true;
+            }
+
+            return false;
+        }
+
+        if (_mainMenuOpen && _friendsMenuOpen && _editingFriendMessage)
+        {
+            if (CutSelectionFromField(
+                _friendMessageInputBuffer,
+                _friendMessageCursorIndex,
+                _friendMessageSelectionStart,
+                out var newText,
+                out var newCursorIndex,
+                out var newSelectionStart))
+            {
+                _friendMessageInputBuffer = newText;
+                _friendMessageCursorIndex = newCursorIndex;
+                _friendMessageSelectionStart = newSelectionStart;
                 return true;
             }
 
@@ -818,6 +917,51 @@ public partial class Game1
             _connectPortBuffer = result.Text;
             _connectPortCursorIndex = result.CursorIndex;
             _connectPortSelectionStart = result.SelectionStart;
+            return true;
+        }
+
+        if (_mainMenuOpen && _friendsMenuOpen && _editingFriendCode)
+        {
+            var result = InsertTextAtCursor(
+                _friendCodeInputBuffer,
+                pasteText,
+                _friendCodeCursorIndex,
+                _friendCodeSelectionStart,
+                20,
+                c => char.IsAsciiLetterOrDigit(c) || c == '-');
+            _friendCodeInputBuffer = result.Text.ToUpperInvariant();
+            _friendCodeCursorIndex = result.CursorIndex;
+            _friendCodeSelectionStart = result.SelectionStart;
+            return true;
+        }
+
+        if (_mainMenuOpen && _friendsMenuOpen && _editingFriendNickname)
+        {
+            var result = InsertTextAtCursor(
+                _friendNicknameInputBuffer,
+                pasteText,
+                _friendNicknameCursorIndex,
+                _friendNicknameSelectionStart,
+                20,
+                c => !char.IsControl(c) && c != '#');
+            _friendNicknameInputBuffer = result.Text;
+            _friendNicknameCursorIndex = result.CursorIndex;
+            _friendNicknameSelectionStart = result.SelectionStart;
+            return true;
+        }
+
+        if (_mainMenuOpen && _friendsMenuOpen && _editingFriendMessage)
+        {
+            var result = InsertTextAtCursor(
+                _friendMessageInputBuffer,
+                pasteText,
+                _friendMessageCursorIndex,
+                _friendMessageSelectionStart,
+                500,
+                c => !char.IsControl(c));
+            _friendMessageInputBuffer = result.Text;
+            _friendMessageCursorIndex = result.CursorIndex;
+            _friendMessageSelectionStart = result.SelectionStart;
             return true;
         }
 
@@ -1476,6 +1620,66 @@ public partial class Game1
             }
         }
 
+        if (_mainMenuOpen && _friendsMenuOpen)
+        {
+            if (_editingFriendCode)
+            {
+                if (leftRepeat)
+                {
+                    var result = MoveTextCursorLeft(_friendCodeCursorIndex, _friendCodeSelectionStart, shiftHeld);
+                    _friendCodeCursorIndex = result.CursorIndex;
+                    _friendCodeSelectionStart = result.SelectionStart;
+                }
+
+                if (rightRepeat)
+                {
+                    var result = MoveTextCursorRight(_friendCodeCursorIndex, _friendCodeSelectionStart, _friendCodeInputBuffer, shiftHeld);
+                    _friendCodeCursorIndex = result.CursorIndex;
+                    _friendCodeSelectionStart = result.SelectionStart;
+                }
+
+                return true;
+            }
+
+            if (_editingFriendNickname)
+            {
+                if (leftRepeat)
+                {
+                    var result = MoveTextCursorLeft(_friendNicknameCursorIndex, _friendNicknameSelectionStart, shiftHeld);
+                    _friendNicknameCursorIndex = result.CursorIndex;
+                    _friendNicknameSelectionStart = result.SelectionStart;
+                }
+
+                if (rightRepeat)
+                {
+                    var result = MoveTextCursorRight(_friendNicknameCursorIndex, _friendNicknameSelectionStart, _friendNicknameInputBuffer, shiftHeld);
+                    _friendNicknameCursorIndex = result.CursorIndex;
+                    _friendNicknameSelectionStart = result.SelectionStart;
+                }
+
+                return true;
+            }
+
+            if (_editingFriendMessage)
+            {
+                if (leftRepeat)
+                {
+                    var result = MoveTextCursorLeft(_friendMessageCursorIndex, _friendMessageSelectionStart, shiftHeld);
+                    _friendMessageCursorIndex = result.CursorIndex;
+                    _friendMessageSelectionStart = result.SelectionStart;
+                }
+
+                if (rightRepeat)
+                {
+                    var result = MoveTextCursorRight(_friendMessageCursorIndex, _friendMessageSelectionStart, _friendMessageInputBuffer, shiftHeld);
+                    _friendMessageCursorIndex = result.CursorIndex;
+                    _friendMessageSelectionStart = result.SelectionStart;
+                }
+
+                return true;
+            }
+        }
+
         if (_optionsMenuOpen && _editingPlayerName)
         {
             if (leftRepeat)
@@ -1849,6 +2053,24 @@ public partial class Game1
     {
         _connectPortCursorIndex = _connectPortBuffer.Length;
         _connectPortSelectionStart = _connectPortCursorIndex;
+    }
+
+    private void InitializeFriendCodeCursor()
+    {
+        _friendCodeCursorIndex = _friendCodeInputBuffer.Length;
+        _friendCodeSelectionStart = _friendCodeCursorIndex;
+    }
+
+    private void InitializeFriendNicknameCursor()
+    {
+        _friendNicknameCursorIndex = _friendNicknameInputBuffer.Length;
+        _friendNicknameSelectionStart = _friendNicknameCursorIndex;
+    }
+
+    private void InitializeFriendMessageCursor()
+    {
+        _friendMessageCursorIndex = _friendMessageInputBuffer.Length;
+        _friendMessageSelectionStart = _friendMessageCursorIndex;
     }
 
     private void InitializePasswordEditCursor()

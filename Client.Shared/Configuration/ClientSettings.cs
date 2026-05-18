@@ -12,6 +12,9 @@ public sealed class ClientSettings
     public const int CorpseDurationDefault = 0;
     public const int CorpseDurationInfinite = 1;
     public const float DefaultSmoothCameraMultiplier = 0.35f;
+    public const int PlayerCardSizeSmall = 0;
+    public const int PlayerCardSizeMedium = 1;
+    public const int PlayerCardSizeLarge = 2;
 
     public string PlayerName { get; set; } = "Player";
 
@@ -65,6 +68,8 @@ public sealed class ClientSettings
 
     public bool DamageVignetteEnabled { get; set; } = true;
 
+    public LowHealthColorMode LowHealthColorMode { get; set; } = LowHealthColorMode.Red;
+
     public bool ShowUberOutlinesEnabled { get; set; } = true;
 
     public bool ProjectileTeamTintEnabled { get; set; } = true;
@@ -80,6 +85,8 @@ public sealed class ClientSettings
     public bool SpriteDropShadowEnabled { get; set; }
 
     public bool DisableLegacyGameplaySpriteFallback { get; set; }
+
+    public int PlayerCardSizeMode { get; set; } = PlayerCardSizeSmall;
 
     public ClientRecentConnectionSettings RecentConnection { get; set; } = new();
 
@@ -166,6 +173,7 @@ public sealed class ClientSettings
             ShowHealthBarEnabled = document.ShowHealthBarEnabled,
             PortraitRumbleEnabled = document.PortraitRumbleEnabled,
             DamageVignetteEnabled = document.DamageVignetteEnabled,
+            LowHealthColorMode = NormalizeLowHealthColorMode(document.LowHealthColorMode),
             ShowUberOutlinesEnabled = document.ShowUberOutlinesEnabled,
             ProjectileTeamTintEnabled = document.ProjectileTeamTintEnabled,
             AudioMuted = document.AudioMuted,
@@ -177,6 +185,7 @@ public sealed class ClientSettings
             SmoothCameraMultiplier = Math.Clamp(document.SmoothCameraMultiplier, 0f, 1f),
             SpriteDropShadowEnabled = document.SpriteDropShadowEnabled,
             DisableLegacyGameplaySpriteFallback = document.DisableLegacyGameplaySpriteFallback,
+            PlayerCardSizeMode = NormalizePlayerCardSizeMode(document.PlayerCardSizeMode),
             RecentConnection = new ClientRecentConnectionSettings
             {
                 Host = document.RecentConnectionHost,
@@ -210,6 +219,7 @@ public sealed class ClientSettings
         preferences.ShowHealthBarEnabled = ShowHealthBarEnabled;
         preferences.PortraitRumbleEnabled = PortraitRumbleEnabled;
         preferences.DamageVignetteEnabled = DamageVignetteEnabled;
+        preferences.LowHealthColorMode = NormalizeLowHealthColorMode(LowHealthColorMode);
         preferences.ShowUberOutlinesEnabled = ShowUberOutlinesEnabled;
         preferences.ProjectileTeamTintEnabled = ProjectileTeamTintEnabled;
         preferences.AudioMuted = AudioMuted;
@@ -222,12 +232,28 @@ public sealed class ClientSettings
         preferences.SpriteDropShadowEnabled = SpriteDropShadowEnabled;
         preferences.FrameRateLimit = FrameRateLimit;
         preferences.DisableLegacyGameplaySpriteFallback = DisableLegacyGameplaySpriteFallback;
+        preferences.PlayerCardSizeMode = NormalizePlayerCardSizeMode(PlayerCardSizeMode);
         preferences.RecentConnectionHost = RecentConnection.Host;
         preferences.RecentConnectionPort = RecentConnection.Port;
         preferences.HostSettings = HostDefaults.Clone();
         preferences.LobbyHost = LobbyHost;
         preferences.LobbyPort = LobbyPort;
         preferences.DiscordApplicationId = DiscordApplicationId;
+    }
+
+    public static int NormalizePlayerCardSizeMode(int sizeMode)
+    {
+        return Math.Clamp(sizeMode, PlayerCardSizeSmall, PlayerCardSizeLarge);
+    }
+
+    public static LowHealthColorMode NormalizeLowHealthColorMode(LowHealthColorMode mode)
+    {
+        return mode switch
+        {
+            LowHealthColorMode.None => LowHealthColorMode.None,
+            LowHealthColorMode.Red => LowHealthColorMode.Red,
+            _ => LowHealthColorMode.Red,
+        };
     }
 }
 

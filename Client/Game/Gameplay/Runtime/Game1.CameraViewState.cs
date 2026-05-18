@@ -7,10 +7,25 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const float SmoothCameraResetDeltaPixels = 48f;
-    private const float SmoothCameraPixelHysteresisPixels = 0.75f;
-    private const float SmoothCameraMinFollowPerFrame = 0.08f;
-    private const float SmoothCameraMaxFollowPerFrame = 0.5f;
+    private const float SmoothCameraSnapDeltaPixels = 256f;
+    private const float SmoothCameraMinSmoothTimeSeconds = 0.022f;
+    private const float SmoothCameraMaxSmoothTimeSeconds = 0.09f;
+    private const float SmoothCameraFastMaxSpeedPixelsPerSecond = 9000f;
+    private const float SmoothCameraSlowMaxSpeedPixelsPerSecond = 3600f;
+    private const float SmoothCameraMinVerticalWindowPixels = 0.75f;
+    private const float SmoothCameraMaxVerticalWindowPixels = 6f;
+    private const float SmoothCameraMinPixelHysteresisPixels = 0.2f;
+    private const float SmoothCameraMaxPixelHysteresisPixels = 0.7f;
+    private const float SmoothCameraPixelHysteresisCatchUpPixels = 18f;
+    private const float SmoothCameraTargetVelocityBlendTimeSeconds = 0.05f;
+    private const float SmoothCameraVelocityDeadZonePixelsPerSecond = 18f;
+    private const float SmoothCameraMinLookAheadSeconds = 0.008f;
+    private const float SmoothCameraMaxLookAheadSeconds = 0.02f;
+    private const float SmoothCameraMaxLookAheadPixels = 12f;
+    private float _smoothCameraVelocityY;
+    private bool _hasSmoothCameraPreviousTargetY;
+    private float _smoothCameraPreviousTargetY;
+    private float _smoothCameraTargetVelocityY;
 
     private Vector2 GetCameraTopLeft(int viewportWidth, int viewportHeight, int mouseX, int mouseY)
     {
@@ -122,7 +137,9 @@ public partial class Game1
             return GetRenderPosition(_world.LocalPlayer, allowInterpolation: true);
         }
 
-        return new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
+        return _world.LocalPlayer.IsAlive
+            ? GetRenderPosition(_world.LocalPlayer, allowInterpolation: true)
+            : new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
     }
 
     private Vector2 GetDefaultFreeCameraCenter()
@@ -138,7 +155,9 @@ public partial class Game1
             return _respawnCameraCenter;
         }
 
-        return new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
+        return _world.LocalPlayer.IsAlive
+            ? GetRenderPosition(_world.LocalPlayer, allowInterpolation: true)
+            : new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
     }
 
     private Vector2 GetSpectatorScopedSniperCameraTopLeft(PlayerEntity trackedPlayer, int viewportWidth, int viewportHeight)
@@ -186,31 +205,176 @@ public partial class Game1
         var multiplier = NormalizeSmoothCameraMultiplier(_smoothCameraMultiplier);
         if (multiplier <= 0f || !ShouldSmoothCameraY())
         {
-            _hasSmoothCameraY = false;
+            ResetSmoothCameraState();
             return cameraTopLeft;
         }
 
-        if (!_hasSmoothCameraY || MathF.Abs(cameraTopLeft.Y - _smoothCameraY) > SmoothCameraResetDeltaPixels)
+        var rawTargetY = cameraTopLeft.Y;
+        if (!_hasSmoothCameraY
+            || !float.IsFinite(_smoothCameraY)
+            || MathF.Abs(rawTargetY - _smoothCameraY) > SmoothCameraSnapDeltaPixels)
         {
-            _smoothCameraY = cameraTopLeft.Y;
-            _smoothCameraPixelY = RoundToSourcePixel(cameraTopLeft.Y);
-            _hasSmoothCameraY = true;
+            ResetSmoothCameraState(rawTargetY);
             return new Vector2(cameraTopLeft.X, _smoothCameraPixelY);
         }
 
-        var elapsedFrames = MathF.Max(1f, MathF.Min(4f, _clientUpdateElapsedSeconds * 60f));
-        var followPerFrame = MathHelper.Lerp(SmoothCameraMaxFollowPerFrame, SmoothCameraMinFollowPerFrame, multiplier);
-        var alpha = 1f - MathF.Pow(1f - followPerFrame, elapsedFrames);
-        _smoothCameraY = MathHelper.Lerp(_smoothCameraY, cameraTopLeft.Y, MathHelper.Clamp(alpha, 0f, 1f));
-        _smoothCameraPixelY = ApplySmoothCameraPixelHysteresis(_smoothCameraPixelY, _smoothCameraY);
+        var deltaSeconds = GetSmoothCameraDeltaSeconds();
+        UpdateSmoothCameraTargetVelocity(rawTargetY, deltaSeconds);
+        var targetY = GetSmoothCameraTargetY(rawTargetY, multiplier);
+        var smoothTimeSeconds = MathHelper.Lerp(
+            SmoothCameraMinSmoothTimeSeconds,
+            SmoothCameraMaxSmoothTimeSeconds,
+            multiplier);
+        var maxSpeedPixelsPerSecond = MathHelper.Lerp(
+            SmoothCameraFastMaxSpeedPixelsPerSecond,
+            SmoothCameraSlowMaxSpeedPixelsPerSecond,
+            multiplier);
+        _smoothCameraY = SmoothDamp(
+            _smoothCameraY,
+            targetY,
+            ref _smoothCameraVelocityY,
+            smoothTimeSeconds,
+            maxSpeedPixelsPerSecond,
+            deltaSeconds);
+        if (!float.IsFinite(_smoothCameraY) || !float.IsFinite(_smoothCameraVelocityY))
+        {
+            ResetSmoothCameraState(rawTargetY);
+        }
+        else
+        {
+            _smoothCameraPixelY = QuantizeSmoothCameraPixelY(_smoothCameraY, rawTargetY, multiplier);
+        }
+
         return new Vector2(cameraTopLeft.X, _smoothCameraPixelY);
     }
 
-    private static float ApplySmoothCameraPixelHysteresis(float currentPixelY, float smoothedY)
+    private void ResetSmoothCameraState()
     {
-        return MathF.Abs(smoothedY - currentPixelY) < SmoothCameraPixelHysteresisPixels
-            ? currentPixelY
-            : RoundToSourcePixel(smoothedY);
+        _hasSmoothCameraY = false;
+        _smoothCameraVelocityY = 0f;
+        _hasSmoothCameraPreviousTargetY = false;
+        _smoothCameraTargetVelocityY = 0f;
+    }
+
+    private void ResetSmoothCameraState(float y)
+    {
+        _smoothCameraY = y;
+        _smoothCameraPixelY = RoundToSourcePixel(y);
+        _smoothCameraVelocityY = 0f;
+        _smoothCameraPreviousTargetY = y;
+        _smoothCameraTargetVelocityY = 0f;
+        _hasSmoothCameraPreviousTargetY = true;
+        _hasSmoothCameraY = true;
+    }
+
+    private float GetSmoothCameraDeltaSeconds()
+    {
+        return Math.Clamp(_clientUpdateElapsedSeconds, 1f / 240f, 1f / 20f);
+    }
+
+    private void UpdateSmoothCameraTargetVelocity(float targetY, float deltaSeconds)
+    {
+        if (!_hasSmoothCameraPreviousTargetY || deltaSeconds <= 0f)
+        {
+            _smoothCameraPreviousTargetY = targetY;
+            _smoothCameraTargetVelocityY = 0f;
+            _hasSmoothCameraPreviousTargetY = true;
+            return;
+        }
+
+        var measuredVelocityY = (targetY - _smoothCameraPreviousTargetY) / deltaSeconds;
+        _smoothCameraPreviousTargetY = targetY;
+        if (!float.IsFinite(measuredVelocityY))
+        {
+            measuredVelocityY = 0f;
+        }
+
+        var velocityBlend = 1f - MathF.Exp(-deltaSeconds / SmoothCameraTargetVelocityBlendTimeSeconds);
+        _smoothCameraTargetVelocityY = MathHelper.Lerp(
+            _smoothCameraTargetVelocityY,
+            measuredVelocityY,
+            Math.Clamp(velocityBlend, 0f, 1f));
+    }
+
+    private float GetSmoothCameraTargetY(float rawTargetY, float multiplier)
+    {
+        var verticalWindowPixels = MathHelper.Lerp(
+            SmoothCameraMinVerticalWindowPixels,
+            SmoothCameraMaxVerticalWindowPixels,
+            multiplier);
+        var displacementY = rawTargetY - _smoothCameraY;
+        var windowedTargetY = MathF.Abs(displacementY) <= verticalWindowPixels
+            ? _smoothCameraY
+            : rawTargetY - (MathF.Sign(displacementY) * verticalWindowPixels);
+
+        var targetVelocityY = MathF.Abs(_smoothCameraTargetVelocityY) < SmoothCameraVelocityDeadZonePixelsPerSecond
+            ? 0f
+            : _smoothCameraTargetVelocityY;
+        var lookAheadSeconds = MathHelper.Lerp(
+            SmoothCameraMinLookAheadSeconds,
+            SmoothCameraMaxLookAheadSeconds,
+            multiplier);
+        var lookAheadY = Math.Clamp(
+            targetVelocityY * lookAheadSeconds,
+            -SmoothCameraMaxLookAheadPixels,
+            SmoothCameraMaxLookAheadPixels);
+
+        return windowedTargetY + lookAheadY;
+    }
+
+    private float QuantizeSmoothCameraPixelY(float smoothY, float rawTargetY, float multiplier)
+    {
+        var desiredPixelY = RoundToSourcePixel(smoothY);
+        if (!float.IsFinite(_smoothCameraPixelY)
+            || MathF.Abs(rawTargetY - _smoothCameraPixelY) >= SmoothCameraPixelHysteresisCatchUpPixels)
+        {
+            return desiredPixelY;
+        }
+
+        var deltaFromCurrentPixel = smoothY - _smoothCameraPixelY;
+        var hysteresisPixels = MathHelper.Lerp(
+            SmoothCameraMinPixelHysteresisPixels,
+            SmoothCameraMaxPixelHysteresisPixels,
+            multiplier);
+        if (MathF.Abs(deltaFromCurrentPixel) < 0.5f + hysteresisPixels)
+        {
+            return _smoothCameraPixelY;
+        }
+
+        return desiredPixelY;
+    }
+
+    private static float SmoothDamp(
+        float current,
+        float target,
+        ref float currentVelocity,
+        float smoothTime,
+        float maxSpeed,
+        float deltaTime)
+    {
+        smoothTime = MathF.Max(0.0001f, smoothTime);
+        deltaTime = MathF.Max(0f, deltaTime);
+        var omega = 2f / smoothTime;
+        var x = omega * deltaTime;
+        var exponential = 1f / (1f + x + (0.48f * x * x) + (0.235f * x * x * x));
+        var change = current - target;
+        var originalTarget = target;
+        var maxChange = MathF.Max(0f, maxSpeed) * smoothTime;
+        change = Math.Clamp(change, -maxChange, maxChange);
+        target = current - change;
+        var temp = (currentVelocity + (omega * change)) * deltaTime;
+        currentVelocity = (currentVelocity - (omega * temp)) * exponential;
+        var output = target + ((change + temp) * exponential);
+
+        if ((originalTarget - current > 0f) == (output > originalTarget))
+        {
+            output = originalTarget;
+            currentVelocity = deltaTime > 0f
+                ? (output - originalTarget) / deltaTime
+                : 0f;
+        }
+
+        return output;
     }
 
     private bool ShouldSmoothCameraY()

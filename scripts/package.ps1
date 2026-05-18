@@ -19,6 +19,7 @@ $stagingRoot = Join-Path $distRoot "_staging"
 $configuration = "Release"
 $projects =
 @(
+    "Updater/OpenGarrison.Updater.csproj",
     "Client/OpenGarrison.Client.csproj",
     "Server/OpenGarrison.Server.csproj",
     "ServerLauncher/OpenGarrison.ServerLauncher.csproj"

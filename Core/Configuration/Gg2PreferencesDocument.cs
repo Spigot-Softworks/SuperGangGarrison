@@ -8,7 +8,8 @@ namespace OpenGarrison.Core;
 public sealed class OpenGarrisonPreferencesDocument
 {
     public const string DefaultFileName = "OpenGarrison.ini";
-    public const string DefaultLobbyHost = "https://unkind-dev.com/API/og2servers.php";
+    public const string DefaultApiBaseUrl = "https://api.unkind-dev.com";
+    public const string DefaultLobbyHost = DefaultApiBaseUrl + "/api/servers";
     public const int DefaultLobbyPort = 443;
     private const string SettingsSection = "Settings";
     private const string ServerSection = "Server";
@@ -61,6 +62,8 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool DamageVignetteEnabled { get; set; } = true;
 
+    public LowHealthColorMode LowHealthColorMode { get; set; } = LowHealthColorMode.Red;
+
     public bool ShowUberOutlinesEnabled { get; set; } = true;
 
     public bool ProjectileTeamTintEnabled { get; set; } = true;
@@ -82,6 +85,8 @@ public sealed class OpenGarrisonPreferencesDocument
     public bool SpriteDropShadowEnabled { get; set; }
 
     public bool DisableLegacyGameplaySpriteFallback { get; set; }
+
+    public int PlayerCardSizeMode { get; set; }
 
     public string RecentConnectionHost { get; set; } = "127.0.0.1";
 
@@ -137,6 +142,7 @@ public sealed class OpenGarrisonPreferencesDocument
             ShowHealthBarEnabled = ini.GetBool(SettingsSection, "Show Healthbar", false),
             PortraitRumbleEnabled = ini.GetBool(SettingsSection, "Portrait Rumble", true),
             DamageVignetteEnabled = ini.GetBool(SettingsSection, "Damage Vignette", true),
+            LowHealthColorMode = ParseLowHealthColorMode(ini.GetString(SettingsSection, "Low Health Color", LowHealthColorMode.Red.ToString())),
             ShowUberOutlinesEnabled = ini.GetBool(SettingsSection, "Show Uber Outlines", true),
             ProjectileTeamTintEnabled = ini.GetBool(SettingsSection, "Projectile Team Tint", true),
             AudioMuted = ini.GetBool(SettingsSection, "Audio Muted", false),
@@ -148,6 +154,7 @@ public sealed class OpenGarrisonPreferencesDocument
             SmoothCameraMultiplier = Math.Clamp(ini.GetFloat(SettingsSection, "Smooth Camera Multiplier", 0.35f), 0f, 1f),
             SpriteDropShadowEnabled = ini.GetBool(SettingsSection, "Sprite Drop Shadow", true),
             DisableLegacyGameplaySpriteFallback = ini.GetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", false),
+            PlayerCardSizeMode = Math.Clamp(ini.GetInt(SettingsSection, "Playercard Size", 0), 0, 2),
             RecentConnectionHost = ini.GetString(ConnectionSection, "Host", "127.0.0.1"),
             RecentConnectionPort = ini.GetInt(ConnectionSection, "Port", 8190),
             HostSettings = OpenGarrisonHostSettings.LoadFrom(ini, legacySelectedMap),
@@ -193,6 +200,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(SettingsSection, "Show Healthbar", ShowHealthBarEnabled);
         ini.SetBool(SettingsSection, "Portrait Rumble", PortraitRumbleEnabled);
         ini.SetBool(SettingsSection, "Damage Vignette", DamageVignetteEnabled);
+        ini.SetString(SettingsSection, "Low Health Color", NormalizeLowHealthColorMode(LowHealthColorMode).ToString());
         ini.SetBool(SettingsSection, "Show Uber Outlines", ShowUberOutlinesEnabled);
         ini.SetBool(SettingsSection, "Projectile Team Tint", ProjectileTeamTintEnabled);
         ini.SetBool(SettingsSection, "Audio Muted", AudioMuted);
@@ -204,6 +212,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetFloat(SettingsSection, "Smooth Camera Multiplier", Math.Clamp(SmoothCameraMultiplier, 0f, 1f));
         ini.SetBool(SettingsSection, "Sprite Drop Shadow", SpriteDropShadowEnabled);
         ini.SetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", DisableLegacyGameplaySpriteFallback);
+        ini.SetInt(SettingsSection, "Playercard Size", Math.Clamp(PlayerCardSizeMode, 0, 2));
 
         ini.SetString(ServerSection, "MapRotation", HostSettings.MapRotationFile);
         ini.SetBool(ServerSection, "Dedicated", HostSettings.DedicatedModeEnabled);
@@ -291,6 +300,23 @@ public sealed class OpenGarrisonPreferencesDocument
         return Enum.TryParse<PersistentGameplayOwnershipIdentityMode>(value, ignoreCase: true, out var mode)
             ? mode
             : PersistentGameplayOwnershipIdentityMode.Disabled;
+    }
+
+    private static LowHealthColorMode ParseLowHealthColorMode(string value)
+    {
+        return Enum.TryParse<LowHealthColorMode>(value, ignoreCase: true, out var mode)
+            ? NormalizeLowHealthColorMode(mode)
+            : LowHealthColorMode.Red;
+    }
+
+    private static LowHealthColorMode NormalizeLowHealthColorMode(LowHealthColorMode mode)
+    {
+        return mode switch
+        {
+            LowHealthColorMode.None => LowHealthColorMode.None,
+            LowHealthColorMode.Red => LowHealthColorMode.Red,
+            _ => LowHealthColorMode.Red,
+        };
     }
 }
 

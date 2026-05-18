@@ -8,7 +8,6 @@ using OpenGarrison.Core;
 using OpenGarrison.GameplayModding;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 
@@ -34,12 +33,37 @@ public partial class Game1
     private const float LastToDieStageIntroDurationSeconds = 2f;
     private const int LastToDieKillTimerReductionSeconds = 3;
     private const float LastToDieAccessoryChoiceChance = 0.2f;
+    private const int LastToDieSpecialRoundChancePercent = 10;
+    private const int LastToDieHardcoreMaxHealth = 25;
+    private const float LastToDieGigaScale = 1.7f;
+    private const float LastToDieGigaHealthMultiplier = 4f;
+    private const float LastToDieHaxtonScale = 1.35f;
+    private const float LastToDieHaxtonJumpHeightMultiplier = 1.4f;
+    private const int LastToDieHaxtonBaseHealth = 850;
+    private const int LastToDieHaxtonHealthPerRound = 500;
+    private const int LastToDieHaxtonSwordDamage = 60;
+    private const float LastToDieHaxtonHardcoreHealthMultiplier = 0.25f;
 
     private enum LastToDieSurvivorKind
     {
         Soldier,
         Demoknight,
         Engineer,
+    }
+
+    private enum LastToDieDifficulty
+    {
+        Standard,
+        Hardcore,
+    }
+
+    private enum LastToDieSpecialRoundKind
+    {
+        None,
+        AllOneClass,
+        Giga,
+        DroneSwarm,
+        Haxton,
     }
 
     private enum LastToDiePerkKind
@@ -173,6 +197,27 @@ public partial class Game1
         bool EndMatchOnRedTeamIntelCapture,
         TeamGateLockMask ForcedBlockingTeamGates);
 
+    private sealed class LastToDieStageSpecialRoundState
+    {
+        public LastToDieSpecialRoundKind Kind { get; init; }
+
+        public PlayerClass? SelectedClass { get; init; }
+
+        public PlayerClass[] GigaClasses { get; init; } = [];
+
+        public HashSet<byte> GigaSlots { get; } = [];
+
+        public int DroneCount { get; init; }
+
+        public byte? HaxtonSlot { get; set; }
+
+        public int HaxtonStandardMaxHealth { get; init; }
+
+        public bool IsSpecial => Kind != LastToDieSpecialRoundKind.None;
+
+        public static LastToDieStageSpecialRoundState None => new();
+    }
+
     private readonly record struct LastToDieChoiceMenuLayout(
         Rectangle Panel,
         Rectangle[] CardBounds);
@@ -195,6 +240,14 @@ public partial class Game1
         public int StageIntroTicksRemaining { get; set; }
 
         public string CurrentLevelName { get; set; }
+
+        public LastToDieDifficulty Difficulty { get; set; } = LastToDieDifficulty.Standard;
+
+        public LastToDieStageSpecialRoundState CurrentSpecialRound { get; set; } = LastToDieStageSpecialRoundState.None;
+
+        public int NextSpecialRoundChancePercent { get; set; } = LastToDieSpecialRoundChancePercent;
+
+        public LastToDieSpecialRoundKind? ForcedNextSpecialRoundKind { get; set; }
 
         public bool AwaitingOpeningPerkSelection { get; set; }
 
@@ -341,6 +394,7 @@ public partial class Game1
     ];
 
     private LastToDieRunState? _lastToDieRun;
+    private LastToDieSpecialRoundKind? _pendingLastToDieForcedSpecialRoundKind;
     private bool _lastToDieSurvivorMenuOpen;
     private int _lastToDieSurvivorHoverIndex = -1;
     private bool _lastToDiePerkMenuOpen;
@@ -352,8 +406,8 @@ public partial class Game1
     private int _lastToDieTimerReductionPopupTicksRemaining;
     private float _lastToDieTimerReductionPopupRise;
     private int _lastToDieTimerReductionPopupSeconds;
-    private Texture2D? _lastToDieBuffIconTexture;
-    private bool _lastToDieBuffIconLoadAttempted;
+    private LoadedSpriteFrame? _lastToDieBuffIconFrame;
+    private string? _lastToDieBuffIconFramePath;
 
     private const string LastToDieHelmetLoadoutItemId = "ltd.accessory.helmet";
     private const string LastToDieDogtagsLoadoutItemId = "ltd.accessory.dogtags";
@@ -483,10 +537,10 @@ public partial class Game1
         }
 
         var iconBounds = new Rectangle(96, ViewportHeight - 83, 35, 35);
-        var texture = GetLastToDieBuffIconTexture();
-        if (texture is not null)
+        var frame = GetLastToDieBuffIconFrame();
+        if (frame is not null)
         {
-            _spriteBatch.Draw(texture, iconBounds, Color.White);
+            DrawLoadedSpriteFrame(frame, iconBounds, Color.White);
         }
         else
         {
@@ -527,29 +581,32 @@ public partial class Game1
         }
     }
 
-    private Texture2D? GetLastToDieBuffIconTexture()
+    private LoadedSpriteFrame? GetLastToDieBuffIconFrame()
     {
-        if (_lastToDieBuffIconLoadAttempted)
+        var path = ContentRoot.GetPath("Sprites", "Menu", "LastToDie", "ltd_buff.png");
+        if (string.IsNullOrWhiteSpace(path) || !CanLoadSpriteFrameFromPath(path))
         {
-            return _lastToDieBuffIconTexture;
+            DisposeLastToDieBuffIconFrame();
+            return null;
         }
 
-        _lastToDieBuffIconLoadAttempted = true;
-        try
+        if (_lastToDieBuffIconFrame is not null
+            && string.Equals(_lastToDieBuffIconFramePath, path, StringComparison.OrdinalIgnoreCase))
         {
-            var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "ltd_buff.png");
-            if (File.Exists(path))
-            {
-                using var stream = File.OpenRead(path);
-                _lastToDieBuffIconTexture = Texture2D.FromStream(GraphicsDevice, stream);
-            }
-        }
-        catch
-        {
-            _lastToDieBuffIconTexture = null;
+            return _lastToDieBuffIconFrame;
         }
 
-        return _lastToDieBuffIconTexture;
+        DisposeLastToDieBuffIconFrame();
+        _lastToDieBuffIconFrame = LoadSpriteFrameFromPath(path);
+        _lastToDieBuffIconFramePath = path;
+        return _lastToDieBuffIconFrame;
+    }
+
+    private void DisposeLastToDieBuffIconFrame()
+    {
+        _lastToDieBuffIconFrame?.Dispose();
+        _lastToDieBuffIconFrame = null;
+        _lastToDieBuffIconFramePath = null;
     }
 
     private int GetOfflineEnemyBotCount()
@@ -608,9 +665,10 @@ public partial class Game1
         _lastToDieTimerReductionPopupTicksRemaining = 0;
         _lastToDieTimerReductionPopupRise = 0f;
         _lastToDieTimerReductionPopupSeconds = 0;
+        _world.ClearLastToDieDroneSentries();
     }
 
-    private void TryStartLastToDieRun()
+    private void TryStartLastToDieRun(LastToDieDifficulty difficulty)
     {
         _practiceMapEntries = BuildPracticeMapEntries();
         var initialMap = SelectInitialLastToDieMap();
@@ -623,9 +681,12 @@ public partial class Game1
         ResetLastToDieState();
         _lastToDieRun = new LastToDieRunState(initialMap.LevelName)
         {
+            Difficulty = difficulty,
+            ForcedNextSpecialRoundKind = _pendingLastToDieForcedSpecialRoundKind,
             AwaitingOpeningSurvivorSelection = true,
             AwaitingOpeningPerkSelection = true,
         };
+        _pendingLastToDieForcedSpecialRoundKind = null;
         if (!BeginLastToDieStage(initialMap.LevelName))
         {
             ResetLastToDieState();
@@ -638,6 +699,275 @@ public partial class Game1
     private bool BeginLastToDieStage(string levelName)
     {
         return _gameplaySessionController.BeginLastToDieStage(levelName);
+    }
+
+    private void PrepareLastToDieStageSpecialRound()
+    {
+        if (_lastToDieRun is null)
+        {
+            return;
+        }
+
+        _lastToDieRun.CurrentSpecialRound = RollLastToDieStageSpecialRound(_lastToDieRun);
+    }
+
+    private LastToDieStageSpecialRoundState RollLastToDieStageSpecialRound(LastToDieRunState run)
+    {
+        if (run.ForcedNextSpecialRoundKind is { } forcedKind)
+        {
+            run.ForcedNextSpecialRoundKind = null;
+            run.NextSpecialRoundChancePercent = LastToDieSpecialRoundChancePercent;
+            return CreateLastToDieStageSpecialRound(run, forcedKind);
+        }
+
+        var chancePercent = Math.Clamp(
+            run.NextSpecialRoundChancePercent,
+            LastToDieSpecialRoundChancePercent,
+            100);
+        if (RandomNumberGenerator.GetInt32(100) >= chancePercent)
+        {
+            run.NextSpecialRoundChancePercent = Math.Clamp(
+                chancePercent + LastToDieSpecialRoundChancePercent,
+                LastToDieSpecialRoundChancePercent,
+                100);
+            return LastToDieStageSpecialRoundState.None;
+        }
+
+        run.NextSpecialRoundChancePercent = LastToDieSpecialRoundChancePercent;
+        var kind = (LastToDieSpecialRoundKind)(RandomNumberGenerator.GetInt32(4) + 1);
+        return CreateLastToDieStageSpecialRound(run, kind);
+    }
+
+    private LastToDieStageSpecialRoundState CreateLastToDieStageSpecialRound(LastToDieRunState run, LastToDieSpecialRoundKind kind)
+    {
+        return kind switch
+        {
+            LastToDieSpecialRoundKind.AllOneClass => new LastToDieStageSpecialRoundState
+            {
+                Kind = kind,
+                SelectedClass = PickRandomLastToDieEligibleBotClass(excludeMedic: false),
+            },
+            LastToDieSpecialRoundKind.Giga => new LastToDieStageSpecialRoundState
+            {
+                Kind = kind,
+                GigaClasses = PickRandomLastToDieGigaClasses(GetLastToDieGigaBossCount(run.StageNumber)),
+            },
+            LastToDieSpecialRoundKind.DroneSwarm => new LastToDieStageSpecialRoundState
+            {
+                Kind = kind,
+                DroneCount = Math.Max(1, run.EnemyBotCount),
+            },
+            LastToDieSpecialRoundKind.Haxton => new LastToDieStageSpecialRoundState
+            {
+                Kind = kind,
+                HaxtonStandardMaxHealth = GetLastToDieHaxtonStandardMaxHealth(run.StageNumber),
+            },
+            _ => LastToDieStageSpecialRoundState.None,
+        };
+    }
+
+    private PlayerClass PickRandomLastToDieEligibleBotClass(bool excludeMedic)
+    {
+        var eligibleClasses = GetEligibleLastToDieBotClassCycle()
+            .Where(classId => !excludeMedic || classId != PlayerClass.Medic)
+            .ToArray();
+        if (eligibleClasses.Length == 0 && excludeMedic)
+        {
+            eligibleClasses = GetEligibleLastToDieBotClassCycle();
+        }
+
+        return eligibleClasses.Length == 0
+            ? PlayerClass.Soldier
+            : eligibleClasses[RandomNumberGenerator.GetInt32(eligibleClasses.Length)];
+    }
+
+    private PlayerClass[] PickRandomLastToDieGigaClasses(int count)
+    {
+        var classes = new PlayerClass[Math.Max(1, count)];
+        for (var index = 0; index < classes.Length; index += 1)
+        {
+            classes[index] = PickRandomLastToDieEligibleBotClass(excludeMedic: true);
+        }
+
+        return classes;
+    }
+
+    private static int GetLastToDieGigaBossCount(int stageNumber)
+    {
+        return stageNumber > 6 ? 2 : 1;
+    }
+
+    private static int GetLastToDieHaxtonStandardMaxHealth(int stageNumber)
+    {
+        return LastToDieHaxtonBaseHealth + (LastToDieHaxtonHealthPerRound * Math.Max(1, stageNumber));
+    }
+
+    private void ApplyLastToDieLocalPlayerDifficultyModifier()
+    {
+        if (_lastToDieRun is null || _world.LocalPlayerAwaitingJoin)
+        {
+            return;
+        }
+
+        _world.TrySetNetworkPlayerMaxHealthOverride(
+            SimulationWorld.LocalPlayerSlot,
+            _lastToDieRun.Difficulty == LastToDieDifficulty.Hardcore ? LastToDieHardcoreMaxHealth : null,
+            refillHealth: true);
+    }
+
+    private void ApplyLastToDieStageEnemyModifiers()
+    {
+        if (_lastToDieRun is null)
+        {
+            return;
+        }
+
+        var enemyTeam = GetOpposingTeam(PlayerTeam.Red);
+        var enemyIndex = 0;
+        _lastToDieRun.CurrentSpecialRound.GigaSlots.Clear();
+        foreach (var entry in _practiceBotSlots.OrderBy(static slot => slot.Key))
+        {
+            var slot = entry.Key;
+            var slotState = entry.Value;
+            if (slotState.Team != enemyTeam || !_world.TryGetNetworkPlayer(slot, out var player))
+            {
+                continue;
+            }
+
+            _world.TrySetNetworkPlayerScale(slot, 1f);
+            player.SetExperimentalDemoknightEnabled(false);
+            player.SetExperimentalJumpHeightMultiplier(ExperimentalGameplaySettings.DefaultPassiveJumpHeightMultiplier);
+            player.SetExperimentalDemoknightSwordBaseDamage(ExperimentalGameplaySettings.DefaultDemoknightSwordBaseDamage);
+            player.SetExperimentalDemoknightSwordDamageMultiplier(ExperimentalGameplaySettings.DefaultDemoknightSwordDamageMultiplier);
+            player.SetExperimentalDemoknightSwordCooldownMultiplier(ExperimentalGameplaySettings.DefaultDemoknightSwordCooldownMultiplier);
+            ApplyLastToDieEnemyMaxHealthOverride(slot, GetStandardLastToDieEnemyMaxHealthOverride(slotState.ClassId));
+
+            if (_lastToDieRun.CurrentSpecialRound.Kind == LastToDieSpecialRoundKind.Giga
+                && enemyIndex < _lastToDieRun.CurrentSpecialRound.GigaClasses.Length)
+            {
+                _world.TrySetNetworkPlayerScale(slot, LastToDieGigaScale);
+                _lastToDieRun.CurrentSpecialRound.GigaSlots.Add(slot);
+                ApplyLastToDieEnemyMaxHealthOverride(
+                    slot,
+                    GetGigaLastToDieEnemyMaxHealthOverride(slotState.ClassId));
+            }
+            else if (_lastToDieRun.CurrentSpecialRound.Kind == LastToDieSpecialRoundKind.Haxton
+                     && enemyIndex == 0)
+            {
+                _lastToDieRun.CurrentSpecialRound.HaxtonSlot = slot;
+                _world.TrySetNetworkPlayerName(slot, "Haxton");
+                _world.TrySetNetworkPlayerScale(slot, LastToDieHaxtonScale);
+                ApplyLastToDieEnemyMaxHealthOverride(slot, GetHaxtonEffectiveMaxHealth(_lastToDieRun));
+                player.SetExperimentalDemoknightEnabled(true);
+                player.SetExperimentalJumpHeightMultiplier(LastToDieHaxtonJumpHeightMultiplier);
+                player.SetExperimentalDemoknightSwordBaseDamage(LastToDieHaxtonSwordDamage);
+            }
+
+            enemyIndex += 1;
+        }
+    }
+
+    private int? GetStandardLastToDieEnemyMaxHealthOverride(PlayerClass classId)
+    {
+        _ = classId;
+        return _lastToDieRun?.Difficulty == LastToDieDifficulty.Hardcore
+            ? LastToDieHardcoreMaxHealth
+            : null;
+    }
+
+    private int? GetGigaLastToDieEnemyMaxHealthOverride(PlayerClass classId)
+    {
+        if (_lastToDieRun?.Difficulty == LastToDieDifficulty.Hardcore)
+        {
+            return LastToDieHardcoreMaxHealth;
+        }
+
+        return Math.Max(1, (int)MathF.Round(CharacterClassCatalog.GetDefinition(classId).MaxHealth * LastToDieGigaHealthMultiplier));
+    }
+
+    private static int GetHaxtonEffectiveMaxHealth(LastToDieRunState run)
+    {
+        return run.Difficulty == LastToDieDifficulty.Hardcore
+            ? Math.Max(1, (int)MathF.Round(run.CurrentSpecialRound.HaxtonStandardMaxHealth * LastToDieHaxtonHardcoreHealthMultiplier))
+            : run.CurrentSpecialRound.HaxtonStandardMaxHealth;
+    }
+
+    private void ApplyLastToDieEnemyMaxHealthOverride(byte slot, int? maxHealth)
+    {
+        _world.TrySetNetworkPlayerMaxHealthOverride(slot, maxHealth, refillHealth: true);
+    }
+
+    private bool IsLastToDieHaxtonPlayer(PlayerEntity player)
+    {
+        return _world.TryGetPlayerNetworkSlot(player, out var slot)
+            && IsLastToDieHaxtonSlot(slot);
+    }
+
+    private bool IsLastToDieHaxtonSlot(byte slot)
+    {
+        return _lastToDieRun?.CurrentSpecialRound.Kind == LastToDieSpecialRoundKind.Haxton
+            && _lastToDieRun.CurrentSpecialRound.HaxtonSlot.HasValue
+            && slot == _lastToDieRun.CurrentSpecialRound.HaxtonSlot.Value;
+    }
+
+    private bool ShouldForceLastToDieSpecialEnemyHealthBar(PlayerEntity player)
+    {
+        return _world.TryGetPlayerNetworkSlot(player, out var slot)
+            && (IsLastToDieHaxtonSlot(slot) || IsLastToDieGigaSlot(slot));
+    }
+
+    private bool IsLastToDieGigaSlot(byte slot)
+    {
+        return _lastToDieRun?.CurrentSpecialRound.Kind == LastToDieSpecialRoundKind.Giga
+            && _lastToDieRun.CurrentSpecialRound.GigaSlots.Contains(slot);
+    }
+
+    private bool TryGetLastToDieHaxtonSpriteName(PlayerEntity player, out string spriteName)
+    {
+        if (IsLastToDieHaxtonPlayer(player))
+        {
+            spriteName = player.Team == PlayerTeam.Red ? "SaxtonHaleRedS" : "SaxtonHaleBlueS";
+            return true;
+        }
+
+        spriteName = string.Empty;
+        return false;
+    }
+
+    private bool ShouldHideLastToDieWeaponForPlayer(PlayerEntity player)
+    {
+        return IsLastToDieHaxtonPlayer(player);
+    }
+
+    private void SpawnLastToDieDroneSwarmForCurrentStage()
+    {
+        _world.ClearLastToDieDroneSentries();
+        if (_lastToDieRun?.CurrentSpecialRound.Kind != LastToDieSpecialRoundKind.DroneSwarm)
+        {
+            return;
+        }
+
+        var droneCount = Math.Max(1, _lastToDieRun.CurrentSpecialRound.DroneCount);
+        var spawnPoints = _world.Level.BlueSpawns.Count > 0
+            ? _world.Level.BlueSpawns
+            : _world.Level.RedSpawns;
+        var droneMaxHealth = _lastToDieRun.Difficulty == LastToDieDifficulty.Hardcore
+            ? LastToDieHardcoreMaxHealth
+            : SentryEntity.DefaultMaxHealth;
+        for (var index = 0; index < droneCount; index += 1)
+        {
+            var spawn = spawnPoints.Count > 0
+                ? spawnPoints[index % spawnPoints.Count]
+                : new SpawnPoint(_world.LocalPlayer.X + 240f, _world.LocalPlayer.Y - 60f);
+            var offsetX = ((index % 3) - 1) * 46f;
+            var offsetY = -36f - ((index / 3) * 18f);
+            _world.SpawnLastToDieDroneSentry(
+                PlayerTeam.Blue,
+                spawn.X + offsetX,
+                spawn.Y + offsetY,
+                startDirectionX: -1f,
+                droneMaxHealth);
+        }
     }
 
     private static PlayerClass GetLastToDieSurvivorPlayerClass(LastToDieSurvivorKind survivorKind)
@@ -670,6 +1000,8 @@ public partial class Game1
         {
             _world.TryMoveLocalPlayerToControlPointSpawn();
         }
+
+        ApplyLastToDieLocalPlayerDifficultyModifier();
     }
 
     private bool TryBeginOfflineBotSession(
@@ -758,10 +1090,38 @@ public partial class Game1
             }
         }
 
+        if (IsLastToDieSpecialRoundClearByElimination(_lastToDieRun)
+            && IsCurrentLastToDieSpecialRoundEliminated(_lastToDieRun))
+        {
+            HandleLastToDieStageClear();
+            return;
+        }
+
         if (_lastToDieRun.StageRemainingTicks <= 0)
         {
             HandleLastToDieStageClear();
         }
+    }
+
+    private bool IsCurrentLastToDieSpecialRoundEliminated(LastToDieRunState run)
+    {
+        return run.CurrentSpecialRound.Kind switch
+        {
+            LastToDieSpecialRoundKind.DroneSwarm => _world.LastToDieDroneSentryCount <= 0,
+            LastToDieSpecialRoundKind.Haxton => IsLastToDieHaxtonEliminated(run),
+            _ => false,
+        };
+    }
+
+    private bool IsLastToDieHaxtonEliminated(LastToDieRunState run)
+    {
+        return run.CurrentSpecialRound.HaxtonSlot.HasValue
+            && (!_world.TryGetNetworkPlayer(run.CurrentSpecialRound.HaxtonSlot.Value, out var player) || !player.IsAlive);
+    }
+
+    private static bool IsLastToDieSpecialRoundClearByElimination(LastToDieRunState run)
+    {
+        return run.CurrentSpecialRound.Kind is LastToDieSpecialRoundKind.DroneSwarm or LastToDieSpecialRoundKind.Haxton;
     }
 
     private void HandleLastToDieStageClear()
@@ -821,6 +1181,74 @@ public partial class Game1
         }
 
         return true;
+    }
+
+    private void ForceNextLastToDieSpecialRoundForTesting(string[] parts)
+    {
+        if (parts.Length != 2
+            || !TryParseLastToDieForcedSpecialRoundKind(parts[1], out var kind))
+        {
+            AddConsoleLine("usage: ltd_forcespecial <a|b|c|d>");
+            AddConsoleLine("a=uni-class, b=giga, c=drone swarm, d=Haxton");
+            return;
+        }
+
+        if (_lastToDieRun is not null)
+        {
+            _lastToDieRun.ForcedNextSpecialRoundKind = kind;
+            AddConsoleLine($"last to die next round forced to {GetLastToDieSpecialRoundConsoleLabel(kind)}.");
+            return;
+        }
+
+        _pendingLastToDieForcedSpecialRoundKind = kind;
+        AddConsoleLine($"last to die first round of the next run forced to {GetLastToDieSpecialRoundConsoleLabel(kind)}.");
+    }
+
+    private static bool TryParseLastToDieForcedSpecialRoundKind(string value, out LastToDieSpecialRoundKind kind)
+    {
+        switch (value.Trim().ToLowerInvariant())
+        {
+            case "a":
+            case "alloneclass":
+            case "all_one_class":
+            case "oneclass":
+            case "uni":
+            case "uniclass":
+            case "uni-class":
+                kind = LastToDieSpecialRoundKind.AllOneClass;
+                return true;
+            case "b":
+            case "giga":
+                kind = LastToDieSpecialRoundKind.Giga;
+                return true;
+            case "c":
+            case "drone":
+            case "drones":
+            case "drone_swarm":
+            case "drone-swarm":
+            case "swarm":
+                kind = LastToDieSpecialRoundKind.DroneSwarm;
+                return true;
+            case "d":
+            case "haxton":
+                kind = LastToDieSpecialRoundKind.Haxton;
+                return true;
+            default:
+                kind = LastToDieSpecialRoundKind.None;
+                return false;
+        }
+    }
+
+    private static string GetLastToDieSpecialRoundConsoleLabel(LastToDieSpecialRoundKind kind)
+    {
+        return kind switch
+        {
+            LastToDieSpecialRoundKind.AllOneClass => "uni-class",
+            LastToDieSpecialRoundKind.Giga => "giga",
+            LastToDieSpecialRoundKind.DroneSwarm => "drone swarm",
+            LastToDieSpecialRoundKind.Haxton => "Haxton",
+            _ => "normal",
+        };
     }
 
     private void OpenLastToDieStageClearOverlay()
@@ -1019,7 +1447,15 @@ public partial class Game1
         _lastToDieRun.PendingRewardChoices = [];
 
         var nextMap = SelectRandomLastToDieMap(_lastToDieRun.SurvivorKind, _lastToDieRun.CurrentLevelName);
-        if (nextMap is null || !BeginLastToDieStage(nextMap.LevelName))
+        if (nextMap is null)
+        {
+            ReturnToLastToDieMenu("Failed to start the next Last To Die stage.");
+            return;
+        }
+
+        _lastToDieRun.CurrentLevelName = nextMap.LevelName;
+        PrepareLastToDieStageSpecialRound();
+        if (!BeginLastToDieStage(nextMap.LevelName))
         {
             ReturnToLastToDieMenu("Failed to start the next Last To Die stage.");
         }
@@ -1480,6 +1916,7 @@ public partial class Game1
         if (_lastToDieRun.AwaitingOpeningPerkSelection)
         {
             _lastToDieRun.AwaitingOpeningPerkSelection = false;
+            PrepareLastToDieStageSpecialRound();
             if (!BeginLastToDieStage(_lastToDieRun.CurrentLevelName))
             {
                 ReturnToLastToDieMenu("Failed to start Last To Die.");
@@ -2013,7 +2450,7 @@ public partial class Game1
         }
 
         var stageLabel = $"Stage {_lastToDieRun.StageNumber}/{LastToDieStageCount}";
-        var enemiesLabel = $"{_lastToDieRun.EnemyBotCount} Enemies";
+        var enemiesLabel = GetLastToDieStageEnemyHudLabel(_lastToDieRun);
         var stageX = ViewportWidth - MeasureBitmapFontWidth(stageLabel, 0.92f) - 18f;
         var enemiesX = ViewportWidth - MeasureBitmapFontWidth(enemiesLabel, 0.92f) - 18f;
         DrawBitmapFontText(stageLabel, new Vector2(stageX, 44f), new Color(232, 232, 232), 0.92f);
@@ -2027,7 +2464,20 @@ public partial class Game1
                 ? Math.Clamp(introProgress / 0.32f, 0f, 1f)
                 : Math.Clamp(1f - ((introProgress - 0.32f) / 0.68f), 0f, 1f);
             var introColor = new Color(241, 232, 203) * (fadeAlpha * 0.96f);
-            DrawHudTextCentered("SURVIVE!", new Vector2(ViewportWidth / 2f, ViewportHeight * 0.2f), introColor, 2.4f);
+            var introText = _lastToDieRun.CurrentSpecialRound.IsSpecial ? "!!" : "SURVIVE!";
+            DrawHudTextCentered(introText, new Vector2(ViewportWidth / 2f, ViewportHeight * 0.2f), introColor, 2.4f);
         }
+    }
+
+    private static string GetLastToDieStageEnemyHudLabel(LastToDieRunState run)
+    {
+        return run.CurrentSpecialRound.Kind switch
+        {
+            LastToDieSpecialRoundKind.Giga => run.StageNumber > 6 ? "2 Gigas + Medic" : "Giga + Medic",
+            LastToDieSpecialRoundKind.DroneSwarm => $"{Math.Max(1, run.CurrentSpecialRound.DroneCount)} Drones",
+            LastToDieSpecialRoundKind.Haxton => "Haxton",
+            LastToDieSpecialRoundKind.AllOneClass when run.CurrentSpecialRound.SelectedClass.HasValue => $"{run.EnemyBotCount} {run.CurrentSpecialRound.SelectedClass.Value}",
+            _ => $"{run.EnemyBotCount} Enemies",
+        };
     }
 }

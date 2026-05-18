@@ -1,4 +1,6 @@
 using System.Linq;
+using System;
+using System.Collections.Generic;
 using System.Net;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
@@ -129,6 +131,49 @@ internal sealed class ServerOutboundMessaging(
         }
 
         SendMessage(client.Peer, new ServerPluginMessage(sourcePluginId, targetPluginId, messageType, payload, payloadFormat, schemaVersion));
+    }
+
+    public void BroadcastPlayerSocialProfiles()
+    {
+        var profiles = BuildPlayerSocialProfiles();
+        if (profiles.Count == 0)
+        {
+            return;
+        }
+
+        BroadcastPlayerSocialProfileUpdate(new PlayerSocialProfileUpdateMessage(profiles, Array.Empty<byte>()));
+    }
+
+    public void BroadcastPlayerSocialProfileRemoval(byte slot)
+    {
+        BroadcastPlayerSocialProfileUpdate(new PlayerSocialProfileUpdateMessage(
+            Array.Empty<PlayerSocialProfileState>(),
+            [slot]));
+    }
+
+    private List<PlayerSocialProfileState> BuildPlayerSocialProfiles()
+    {
+        var profiles = new List<PlayerSocialProfileState>(clientsBySlot.Count);
+        foreach (var client in clientsBySlot.Values)
+        {
+            profiles.Add(new PlayerSocialProfileState(
+                client.Slot,
+                client.Name,
+                client.FriendCode,
+                client.PlayerCardJson));
+        }
+
+        return profiles;
+    }
+
+    private void BroadcastPlayerSocialProfileUpdate(PlayerSocialProfileUpdateMessage message)
+    {
+        foreach (var client in clientsBySlot.Values)
+        {
+            SendMessage(client.Peer, message);
+        }
+
+        recordBroadcastMessage?.Invoke(message);
     }
 
     public void BroadcastPluginMessage(

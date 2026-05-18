@@ -25,6 +25,11 @@ public partial class Game1
 
         public bool TryDrawWeaponSpriteBackdrop(PlayerEntity player, Vector2 cameraPosition, Color tint, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
         {
+            if (_game.ShouldHideLastToDieWeaponForPlayer(player))
+            {
+                return false;
+            }
+
             if (_game.GetPlayerIsSpyCloaked(player) && visibilityAlpha <= PlayerEntity.SpyCloakToggleThreshold)
             {
                 return false;
@@ -98,6 +103,11 @@ public partial class Game1
 
         public bool TryDrawWeaponSpriteAtPosition(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, Color tint, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
         {
+            if (_game.ShouldHideLastToDieWeaponForPlayer(player))
+            {
+                return false;
+            }
+
             if (_game.GetPlayerIsSpyCloaked(player) && visibilityAlpha <= PlayerEntity.SpyCloakToggleThreshold)
             {
                 return false;

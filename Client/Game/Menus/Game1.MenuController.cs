@@ -98,7 +98,14 @@ public partial class Game1
                 return;
             }
 
-            if (!_game._mainMenuOverlayController.TryDraw())
+            if (_game._friendsMenuOpen)
+            {
+                var buttons = _game.BuildMainMenuButtons();
+                _game.LogBrowserMenuState(buttons.Count);
+                _game.DrawCurrentMainMenuPage(buttons);
+                _game.DrawFriendsMenu();
+            }
+            else if (!_game._mainMenuOverlayController.TryDraw())
             {
                 var buttons = _game.BuildMainMenuButtons();
                 _game.LogBrowserMenuState(buttons.Count);

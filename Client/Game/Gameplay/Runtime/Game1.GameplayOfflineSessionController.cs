@@ -119,6 +119,8 @@ public partial class Game1
             _game._lastToDieRun.CurrentLevelName = levelName;
             _game.ApplySelectedLastToDieSurvivorToCurrentStage();
             _game.SyncPracticeBotRoster(PlayerTeam.Red);
+            _game.ApplyLastToDieStageEnemyModifiers();
+            _game.SpawnLastToDieDroneSwarmForCurrentStage();
             _game._world.DespawnEnemyDummy();
             _game._world.DespawnFriendlyDummy();
             _game.ObserveLastToDieBotReactionState();
@@ -130,7 +132,7 @@ public partial class Game1
             _game._lastToDieRun.StageIntroTicksRemaining = _game.GetLastToDieStageIntroDurationTicks();
 
             _game.AddConsoleLine(
-                $"last to die stage={_game._lastToDieRun.StageNumber} map={levelName} survivor={_game._lastToDieRun.SurvivorKind} enemies={_game._lastToDieRun.EnemyBotCount} minutes={_game._lastToDieRun.StageDurationMinutes}");
+                $"last to die stage={_game._lastToDieRun.StageNumber} map={levelName} survivor={_game._lastToDieRun.SurvivorKind} difficulty={_game._lastToDieRun.Difficulty} special={_game._lastToDieRun.CurrentSpecialRound.Kind} enemies={_game._lastToDieRun.EnemyBotCount} minutes={_game._lastToDieRun.StageDurationMinutes}");
             return true;
         }
 

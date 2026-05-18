@@ -56,6 +56,8 @@ internal sealed class NetworkGameClient : IDisposable
     private ulong _networkInputTick;
     private string? _pendingHelloPlayerName;
     private ulong _pendingHelloBadgeMask;
+    private string _pendingHelloFriendCode = string.Empty;
+    private string _pendingHelloPlayerCardJson = string.Empty;
     private long _connectStartedAtMilliseconds = -1;
     private long _lastHelloSentAtMilliseconds = -1;
     private long _lastServerMessageReceivedAtMilliseconds = -1;
@@ -71,9 +73,8 @@ internal sealed class NetworkGameClient : IDisposable
 
     public bool CollectDiagnostics { get; set; }
 
-    // Delay outbound input by a small number of fixed gameplay ticks on remote connections
-    // to give the remote server a chance to catch up and reduce visible position correction.
-    public int NetworkInputDelayTicks { get; set; } = 2;
+    // Keep this as a diagnostics knob, but do not add deliberate input latency by default.
+    public int NetworkInputDelayTicks { get; set; }
     public bool IsConnected => _transport is not null;
     public bool IsAwaitingWelcome => IsConnected && LocalPlayerSlot == 0;
     public bool IsSpectator => IsConnected && LocalPlayerSlot >= SimulationWorld.FirstSpectatorSlot;
@@ -91,7 +92,14 @@ internal sealed class NetworkGameClient : IDisposable
     public ReceiveDiagnostics LastReceiveDiagnostics { get; private set; }
     public SendDiagnostics TotalSendDiagnostics { get; private set; }
 
-    public bool Connect(string host, int port, string playerName, ulong badgeMask, out string error)
+    public bool Connect(
+        string host,
+        int port,
+        string playerName,
+        ulong badgeMask,
+        out string error,
+        string friendCode = "",
+        string playerCardJson = "")
     {
         error = string.Empty;
         var armedDemoRecordingPath = _demoRecorder is null ? _armedDemoRecordingPath : null;
@@ -108,7 +116,7 @@ internal sealed class NetworkGameClient : IDisposable
                 return false;
             }
 
-            return Connect(transport, playerName, badgeMask, out error);
+            return Connect(transport, playerName, badgeMask, out error, friendCode, playerCardJson);
         }
         catch (SocketException ex)
         {
@@ -118,7 +126,13 @@ internal sealed class NetworkGameClient : IDisposable
         }
     }
 
-    public bool Connect(INetworkClientMessageTransport transport, string playerName, ulong badgeMask, out string error)
+    public bool Connect(
+        INetworkClientMessageTransport transport,
+        string playerName,
+        ulong badgeMask,
+        out string error,
+        string friendCode = "",
+        string playerCardJson = "")
     {
         error = string.Empty;
         ArgumentNullException.ThrowIfNull(transport);
@@ -153,9 +167,11 @@ internal sealed class NetworkGameClient : IDisposable
             ReplayDateUtc = null;
         }
 
-        NetworkInputDelayTicks = transport.IsLoopbackConnection ? 0 : 2;
+        NetworkInputDelayTicks = 0;
         _pendingHelloPlayerName = playerName;
         _pendingHelloBadgeMask = badgeMask;
+        _pendingHelloFriendCode = NormalizeSocialProfileField(friendCode, ProtocolCodec.MaxFriendCodeBytes);
+        _pendingHelloPlayerCardJson = NormalizeSocialProfileField(playerCardJson, ProtocolCodec.MaxPlayerCardBytes);
         _connectStartedAtMilliseconds = _clock.ElapsedMilliseconds;
         _lastHelloSentAtMilliseconds = -1;
         LocalPlayerSlot = 0;
@@ -190,6 +206,8 @@ internal sealed class NetworkGameClient : IDisposable
         ServerMaxPlayerCount = 0;
         _pendingHelloPlayerName = null;
         _pendingHelloBadgeMask = 0UL;
+        _pendingHelloFriendCode = string.Empty;
+        _pendingHelloPlayerCardJson = string.Empty;
         _connectStartedAtMilliseconds = -1;
         _lastHelloSentAtMilliseconds = -1;
         _lastServerMessageReceivedAtMilliseconds = -1;
@@ -432,16 +450,26 @@ internal sealed class NetworkGameClient : IDisposable
         Send(new ChatSubmitMessage(text, teamOnly));
     }
 
-    public void UpdatePlayerProfile(string playerName, ulong badgeMask)
+    public void UpdatePlayerProfile(string playerName, ulong badgeMask, string? friendCode = null, string? playerCardJson = null)
     {
         _pendingHelloPlayerName = playerName;
         _pendingHelloBadgeMask = badgeMask;
+        if (friendCode is not null)
+        {
+            _pendingHelloFriendCode = NormalizeSocialProfileField(friendCode, ProtocolCodec.MaxFriendCodeBytes);
+        }
+
+        if (playerCardJson is not null)
+        {
+            _pendingHelloPlayerCardJson = NormalizeSocialProfileField(playerCardJson, ProtocolCodec.MaxPlayerCardBytes);
+        }
+
         if (!IsConnected || IsAwaitingWelcome)
         {
             return;
         }
 
-        Send(new PlayerProfileUpdateMessage(playerName, badgeMask));
+        Send(new PlayerProfileUpdateMessage(playerName, badgeMask, _pendingHelloFriendCode, _pendingHelloPlayerCardJson));
     }
 
     public void SendPluginMessage(
@@ -886,6 +914,7 @@ internal sealed class NetworkGameClient : IDisposable
             or AutoBalanceNoticeMessage
             or SessionSlotChangedMessage
             or ControlAckMessage
+            or PlayerSocialProfileUpdateMessage
             or ServerPluginMessage;
     }
 
@@ -998,8 +1027,20 @@ internal sealed class NetworkGameClient : IDisposable
             return;
         }
 
-        Send(new HelloMessage(_pendingHelloPlayerName, ProtocolVersion.Current, _pendingHelloBadgeMask));
+        Send(new HelloMessage(
+            _pendingHelloPlayerName,
+            ProtocolVersion.Current,
+            _pendingHelloBadgeMask,
+            _pendingHelloFriendCode,
+            _pendingHelloPlayerCardJson));
         _lastHelloSentAtMilliseconds = _clock.ElapsedMilliseconds;
+    }
+
+    private static string NormalizeSocialProfileField(string? value, int maxBytes)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? string.Empty
+            : ProtocolCodec.TruncateUtf8(value.Trim(), maxBytes);
     }
 
     private static double GetElapsedMilliseconds(long startTimestamp)

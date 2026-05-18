@@ -186,7 +186,7 @@ public partial class Game1
                 $"event=client_perf_test_setup mode={mode} map={GetSelectedPracticeMapEntry()?.LevelName ?? ClientPerformanceDefaultMap} friendlyBots={_practiceFriendlyBotCount} enemyBots={_practiceEnemyBotCount}");
             if (mode == ClientPerformanceMode.LastToDie)
             {
-                TryStartLastToDieRun();
+                TryStartLastToDieRun(LastToDieDifficulty.Standard);
             }
             else
             {

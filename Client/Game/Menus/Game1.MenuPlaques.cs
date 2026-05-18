@@ -45,7 +45,12 @@ public partial class Game1
 
     private readonly record struct MenuPageAction(string Label, Action Activate);
 
-    private readonly record struct MenuPageButton(string Label, Rectangle Bounds, Action Activate, bool IsBottomBarButton = false);
+    private readonly record struct MenuPageButton(
+        string Label,
+        Rectangle Bounds,
+        Action Activate,
+        bool IsBottomBarButton = false,
+        bool IsBottomBarRightButton = false);
 
     private readonly record struct PlaqueMenuLayout(
         Rectangle PlaqueBounds,
@@ -227,6 +232,34 @@ public partial class Game1
         }
 
         return new PlaqueMenuLayout(plaqueBounds, stackedBounds, soloBounds, bottomBarBounds, bottomBarButtonBounds, scale);
+    }
+
+    private Rectangle GetBottomRightPlaqueButtonBounds(PlaqueMenuLayout layout)
+    {
+        if (!layout.BottomBarBounds.HasValue || _menuTextBoxSoloTexture is null)
+        {
+            return Rectangle.Empty;
+        }
+
+        var buttonWidth = (int)MathF.Round(_menuTextBoxSoloTexture.Width * layout.Scale);
+        var buttonHeight = (int)MathF.Round(_menuTextBoxSoloTexture.Height * layout.Scale);
+        var rightMargin = MathF.Max(20f, ViewportWidth * 0.04f);
+        return new Rectangle(
+            ViewportWidth - (int)MathF.Round(rightMargin) - buttonWidth,
+            layout.BottomBarBounds.Value.Y + (layout.BottomBarBounds.Value.Height - buttonHeight) / 2,
+            buttonWidth,
+            buttonHeight);
+    }
+
+    private void DrawBottomRightPlaqueButton(PlaqueMenuLayout layout, string label, bool hovered, float textScaleMultiplier)
+    {
+        var bounds = GetBottomRightPlaqueButtonBounds(layout);
+        if (bounds == Rectangle.Empty)
+        {
+            return;
+        }
+
+        DrawPlaqueMenuButton(_menuTextBoxSoloTexture, bounds, label, hovered, layout.Scale, textScaleMultiplier);
     }
 
     private LoadedSpriteFrame? GetMenuStackedButtonTexture(int index, int count)

@@ -688,6 +688,11 @@ public static class CombatDecisionResolver
             return false;
         }
 
+        if (self.IsExperimentalDemoknightEnabled)
+        {
+            return distanceToTarget <= self.GetExperimentalDemoknightSwordRange();
+        }
+
         return self.ClassId is not (PlayerClass.Soldier or PlayerClass.Demoman) || distanceToTarget >= 60f;
     }
 

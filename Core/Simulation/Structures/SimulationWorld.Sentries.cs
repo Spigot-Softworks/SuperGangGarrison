@@ -30,11 +30,63 @@ public sealed partial class SimulationWorld
         return false;
     }
 
+    public int LastToDieDroneSentryCount => _lastToDieDroneSentryIds.Count;
+
+    public bool IsLastToDieDroneSentry(SentryEntity sentry)
+    {
+        return _lastToDieDroneSentryIds.Contains(sentry.Id);
+    }
+
+    public SentryEntity SpawnLastToDieDroneSentry(PlayerTeam team, float x, float y, float startDirectionX, int maxHealth = SentryEntity.DefaultMaxHealth)
+    {
+        var sentry = new SentryEntity(
+            AllocateEntityId(),
+            ownerPlayerId: 0,
+            team,
+            x,
+            y,
+            startDirectionX,
+            maxHealth);
+        sentry.ForceBuilt();
+        _sentries.Add(sentry);
+        _entities.Add(sentry.Id, sentry);
+        _lastToDieDroneSentryIds.Add(sentry.Id);
+        return sentry;
+    }
+
+    public void ClearLastToDieDroneSentries()
+    {
+        if (_lastToDieDroneSentryIds.Count == 0)
+        {
+            return;
+        }
+
+        for (var index = _sentries.Count - 1; index >= 0; index -= 1)
+        {
+            var sentry = _sentries[index];
+            if (!_lastToDieDroneSentryIds.Contains(sentry.Id))
+            {
+                continue;
+            }
+
+            _entities.Remove(sentry.Id);
+            _sentries.RemoveAt(index);
+        }
+
+        _lastToDieDroneSentryIds.Clear();
+    }
+
     private void AdvanceSentries()
     {
         for (var sentryIndex = _sentries.Count - 1; sentryIndex >= 0; sentryIndex -= 1)
         {
             var sentry = _sentries[sentryIndex];
+            if (IsLastToDieDroneSentry(sentry))
+            {
+                AdvanceLastToDieDroneSentry(sentry);
+                continue;
+            }
+
             var owner = FindPlayerById(sentry.OwnerPlayerId);
             if (owner is null || owner.ClassId != PlayerClass.Engineer || owner.Team != sentry.Team)
             {
@@ -83,6 +135,70 @@ public sealed partial class SimulationWorld
             var idleResetTicks = GetExperimentalSentryIdleResetTicks();
             RegisterWorldSoundEvent("ShotgunSnd", sentry.X, sentry.Y);
             FireExperimentalSentry(sentry, owner, target.Value, reloadTicks, idleResetTicks);
+        }
+    }
+
+    private void AdvanceLastToDieDroneSentry(SentryEntity sentry)
+    {
+        sentry.AdvanceFloatingRuntime();
+        if (!LocalPlayer.IsAlive || LocalPlayer.Team == sentry.Team)
+        {
+            sentry.SetTarget(null, sentry.X + sentry.FacingDirectionX, sentry.Y, hasTarget: false);
+            return;
+        }
+
+        const float desiredDistance = 150f;
+        var desiredX = LocalPlayer.X;
+        var desiredY = LocalPlayer.Y - global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerAutonomousPhaseEngineHoverHeight;
+        var deltaX = desiredX - sentry.X;
+        var deltaY = desiredY - sentry.Y;
+        var distance = MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+        if (distance > desiredDistance && distance > 0.001f)
+        {
+            var moveDistance = MathF.Min(
+                distance - desiredDistance,
+                global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerAutonomousPhaseEngineFollowSpeedPerTick);
+            sentry.MoveTo(
+                sentry.X + (deltaX / distance) * moveDistance,
+                sentry.Y + (deltaY / distance) * moveDistance);
+        }
+
+        if (distance > SentryEntity.TargetRange || !HasSentryLineOfSight(sentry, LocalPlayer))
+        {
+            sentry.SetTarget(null, LocalPlayer.X, LocalPlayer.Y, hasTarget: false);
+            return;
+        }
+
+        var previousTargetId = sentry.CurrentTargetPlayerId;
+        sentry.SetTarget(LocalPlayer.Id, LocalPlayer.X, LocalPlayer.Y);
+        if (previousTargetId != LocalPlayer.Id && sentry.BeginTargetAlert())
+        {
+            RegisterWorldSoundEvent("SentryAlert", sentry.X, sentry.Y);
+            return;
+        }
+
+        if (!sentry.CanFire())
+        {
+            return;
+        }
+
+        sentry.FireAt(LocalPlayer.X, LocalPlayer.Y);
+        RegisterWorldSoundEvent("ShotgunSnd", sentry.X, sentry.Y);
+        if (distance > 0f)
+        {
+            RegisterCombatTrace(
+                sentry.X,
+                sentry.Y,
+                (LocalPlayer.X - sentry.X) / distance,
+                (LocalPlayer.Y - sentry.Y) / distance,
+                distance,
+                true,
+                sentry.Team);
+        }
+
+        if (ApplyPlayerDamage(LocalPlayer, SentryEntity.HitDamage, null, PlayerEntity.SpyDamageRevealAlpha))
+        {
+            KillPlayer(LocalPlayer, weaponSpriteName: "TurretKL", deathCamMessage: "You were killed by", deathCamSentry: sentry);
         }
     }
 
@@ -260,6 +376,7 @@ public sealed partial class SimulationWorld
             ApplySentryDestroyBlastToOwner(sentry);
             _entities.Remove(sentry.Id);
             _sentries.RemoveAt(sentryIndex);
+            _lastToDieDroneSentryIds.Remove(sentry.Id);
             RegisterWorldSoundEvent("ExplosionSnd", sentry.X, sentry.Y);
             RegisterVisualEffect("Explosion", sentry.X, sentry.Y);
             SpawnSentryGibs(sentry.Team, sentry.X, sentry.Y);

@@ -100,7 +100,7 @@ public sealed class LowHealthIndicatorPlugin :
                         minValue: 0,
                         maxValue: 180,
                         step: 5,
-                        valueLabelFormatter: value => $"{value}f"),
+                        valueLabelFormatter: value => $"{value / LegacyFramesPerSecond:0.0}s"),
                     new ClientPluginBooleanOptionItem(
                         "Percentage based calculations?",
                         () => _config.UsePercentageThreshold,
@@ -147,7 +147,7 @@ public sealed class LowHealthIndicatorPlugin :
 
         try
         {
-            _context.Assets.RegisterSoundAsset("warning", "Resources/PrOF/boop.wav");
+            _context.Assets.RegisterSoundAsset("warning", "Resources/lowhealth.ogg");
             if (!_context.Assets.TryGetSoundAsset("warning", out var warningSound))
             {
                 _context.Log("registered warning sound was not available after registration");

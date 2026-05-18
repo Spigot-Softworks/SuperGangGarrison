@@ -367,6 +367,16 @@ public sealed partial class PlayerEntity
         Health = int.Clamp(Health, 0, MaxHealth);
     }
 
+    public void SetExperimentalMaxHealthOverride(int? maxHealth, bool refillHealth = false)
+    {
+        ExperimentalMaxHealthOverrideValue = maxHealth.HasValue
+            ? Math.Max(1, maxHealth.Value)
+            : null;
+        Health = refillHealth && IsAlive
+            ? MaxHealth
+            : int.Clamp(Health, 0, MaxHealth);
+    }
+
     public void SetExperimentalHealthPackHealingMultiplier(float multiplier)
     {
         ExperimentalHealthPackHealingMultiplierValue = MathF.Max(0f, multiplier);

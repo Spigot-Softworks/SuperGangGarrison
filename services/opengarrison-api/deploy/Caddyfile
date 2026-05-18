@@ -1,0 +1,13 @@
+api.unkind-dev.com {
+    encode zstd gzip
+
+    handle /updates/* {
+        root * /var/www/opengarrison-updates
+        uri strip_prefix /updates
+        file_server
+    }
+
+    handle {
+        reverse_proxy 127.0.0.1:8008
+    }
+}

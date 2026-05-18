@@ -137,6 +137,44 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         Assert.True(remotePlayer.IsAlive);
     }
 
+    [Fact]
+    public void NetworkPlayerMaxHealthOverrideClampsAndClearsPlayerHealth()
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Heavy));
+        Assert.True(world.TryGetNetworkPlayer(2, out var remotePlayer));
+
+        Assert.True(world.TrySetNetworkPlayerMaxHealthOverride(2, 25));
+        Assert.Equal(25, remotePlayer.MaxHealth);
+        Assert.Equal(25, remotePlayer.Health);
+
+        remotePlayer.ForceSetHealth(10);
+        Assert.True(world.TrySetNetworkPlayerMaxHealthOverride(2, null, refillHealth: false));
+
+        Assert.Equal(CharacterClassCatalog.Heavy.MaxHealth, remotePlayer.MaxHealth);
+        Assert.Equal(10, remotePlayer.Health);
+    }
+
+    [Fact]
+    public void ReleasingNetworkPlayerSlotClearsMaxHealthOverride()
+    {
+        var world = new SimulationWorld();
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Heavy));
+        Assert.True(world.TrySetNetworkPlayerMaxHealthOverride(2, 25));
+        Assert.True(world.TryGetNetworkPlayer(2, out var remotePlayer));
+        Assert.Equal(25, remotePlayer.MaxHealth);
+
+        Assert.True(world.TryReleaseNetworkPlayerSlot(2));
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Heavy));
+
+        Assert.True(world.TryGetNetworkPlayer(2, out remotePlayer));
+        Assert.Equal(CharacterClassCatalog.Heavy.MaxHealth, remotePlayer.MaxHealth);
+    }
+
     private static SimulationWorld CreateWorldWithLocalClass(PlayerClass playerClass)
     {
         var world = new SimulationWorld();

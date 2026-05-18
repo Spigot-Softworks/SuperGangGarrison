@@ -123,31 +123,20 @@ public sealed class SentryEntity : SimulationEntity
             }
         }
 
-        if (ReloadTicksRemaining > 0)
-        {
-            ReloadTicksRemaining -= 1;
-        }
+        AdvanceRuntimeTimers();
+    }
 
-        if (AlertTicksRemaining > 0)
-        {
-            AlertTicksRemaining -= 1;
-        }
+    public void AdvanceFloatingRuntime()
+    {
+        AdvanceRuntimeTimers();
+    }
 
-        if (ShotTraceTicksRemaining > 0)
-        {
-            ShotTraceTicksRemaining -= 1;
-        }
-
-        if (IdleTicksRemaining > 0)
-        {
-            IdleTicksRemaining -= 1;
-            if (IdleTicksRemaining <= 0)
-            {
-                IdleTicksRemaining = 0;
-                ConsecutiveShotsFired = 0;
-            }
-        }
-
+    public void ForceBuilt()
+    {
+        VerticalSpeed = 0f;
+        HasLanded = true;
+        IsBuilt = true;
+        Health = MaxHealth;
     }
 
     public bool IsNear(float x, float y, float radius)
@@ -241,6 +230,34 @@ public sealed class SentryEntity : SimulationEntity
 
         Health = int.Max(0, Health - damage);
         return Health == 0;
+    }
+
+    private void AdvanceRuntimeTimers()
+    {
+        if (ReloadTicksRemaining > 0)
+        {
+            ReloadTicksRemaining -= 1;
+        }
+
+        if (AlertTicksRemaining > 0)
+        {
+            AlertTicksRemaining -= 1;
+        }
+
+        if (ShotTraceTicksRemaining > 0)
+        {
+            ShotTraceTicksRemaining -= 1;
+        }
+
+        if (IdleTicksRemaining > 0)
+        {
+            IdleTicksRemaining -= 1;
+            if (IdleTicksRemaining <= 0)
+            {
+                IdleTicksRemaining = 0;
+                ConsecutiveShotsFired = 0;
+            }
+        }
     }
 
     public void ApplyNetworkState(

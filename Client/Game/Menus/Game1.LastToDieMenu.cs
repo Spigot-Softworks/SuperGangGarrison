@@ -14,6 +14,7 @@ public partial class Game1
     private enum LastToDieMenuPage
     {
         Root,
+        Difficulty,
         Stats,
     }
 
@@ -66,6 +67,10 @@ public partial class Game1
             {
                 OpenLastToDieStatsPage(false);
             }
+            else if (_lastToDieMenuPage == LastToDieMenuPage.Difficulty)
+            {
+                OpenLastToDieDifficultyPage(false);
+            }
             else
             {
                 CloseLastToDieMenu();
@@ -111,6 +116,7 @@ public partial class Game1
         return _lastToDieMenuPage switch
         {
             LastToDieMenuPage.Stats => ["Back"],
+            LastToDieMenuPage.Difficulty => ["Standard", "Hardcore", "Back"],
             _ => ["Play", "Stats", "Back"],
         };
     }
@@ -126,11 +132,26 @@ public partial class Game1
                 }
                 break;
 
+            case LastToDieMenuPage.Difficulty:
+                switch (index)
+                {
+                    case 0:
+                        TryStartLastToDieRun(LastToDieDifficulty.Standard);
+                        break;
+                    case 1:
+                        TryStartLastToDieRun(LastToDieDifficulty.Hardcore);
+                        break;
+                    case 2:
+                        OpenLastToDieDifficultyPage(false);
+                        break;
+                }
+                break;
+
             default:
                 switch (index)
                 {
                     case 0:
-                        TryStartLastToDieRun();
+                        OpenLastToDieDifficultyPage(true);
                         break;
                     case 1:
                         OpenLastToDieStatsPage(true);
@@ -146,6 +167,12 @@ public partial class Game1
     private void OpenLastToDieStatsPage(bool open)
     {
         _lastToDieMenuPage = open ? LastToDieMenuPage.Stats : LastToDieMenuPage.Root;
+        _lastToDieMenuHoverIndex = 0;
+    }
+
+    private void OpenLastToDieDifficultyPage(bool open)
+    {
+        _lastToDieMenuPage = open ? LastToDieMenuPage.Difficulty : LastToDieMenuPage.Root;
         _lastToDieMenuHoverIndex = 0;
     }
 
@@ -262,6 +289,10 @@ public partial class Game1
         {
             DrawLastToDieStatsPage(layout);
         }
+        else if (_lastToDieMenuPage == LastToDieMenuPage.Difficulty)
+        {
+            DrawLastToDieDifficultyPage(layout);
+        }
 
         for (var index = 0; index < layout.ButtonBounds.Length && index < buttonLabels.Length; index += 1)
         {
@@ -290,20 +321,30 @@ public partial class Game1
             return;
         }
 
-        var title = _lastToDieMenuPage == LastToDieMenuPage.Stats ? "Stats" : "Last to Die";
+        var title = _lastToDieMenuPage switch
+        {
+            LastToDieMenuPage.Stats => "Stats",
+            LastToDieMenuPage.Difficulty => "Difficulty",
+            _ => "Last to Die",
+        };
         var subtitle = _lastToDieMenuPage == LastToDieMenuPage.Stats
             ? "Track your best solo runs."
-            : "Survive the escalating gauntlet.";
+            : _lastToDieMenuPage == LastToDieMenuPage.Difficulty
+                ? string.Empty
+                : "Survive the escalating gauntlet.";
         DrawShadowedMenuBitmapFontText(
             title,
             new Vector2(layout.ContentBounds.X, layout.ContentBounds.Y),
             Color.White,
             1.06f * layout.Scale);
-        DrawShadowedMenuBitmapFontText(
-            subtitle,
-            new Vector2(layout.ContentBounds.X, layout.ContentBounds.Y + (26f * layout.Scale)),
-            new Color(236, 236, 236),
-            0.58f * layout.Scale);
+        if (!string.IsNullOrEmpty(subtitle))
+        {
+            DrawShadowedMenuBitmapFontText(
+                subtitle,
+                new Vector2(layout.ContentBounds.X, layout.ContentBounds.Y + (26f * layout.Scale)),
+                new Color(236, 236, 236),
+                0.58f * layout.Scale);
+        }
     }
 
     private void DrawLastToDieStatsPage(LastToDieMenuLayout layout)
@@ -334,6 +375,33 @@ public partial class Game1
             DrawShadowedMenuBitmapFontText(lines[index], new Vector2(layout.ContentBounds.X, lineY), Color.White, lineScale);
             lineY += lineSpacing;
         }
+    }
+
+    private void DrawLastToDieDifficultyPage(LastToDieMenuLayout layout)
+    {
+        if (layout.ContentBounds == Rectangle.Empty || _lastToDieMenuHoverIndex != 1)
+        {
+            return;
+        }
+
+        var scale = 0.58f * layout.Scale;
+        var prefix = "You and your opponents' max HP is ";
+        var emphasis = "reduced to 25";
+        var suffix = ".";
+        var totalWidth =
+            MeasureMenuBitmapFontWidth(prefix, scale)
+            + MeasureMenuBitmapFontWidth(emphasis, scale)
+            + MeasureMenuBitmapFontWidth(suffix, scale);
+        var startX = layout.ContentBounds.X + ((layout.ContentBounds.Width - totalWidth) * 0.5f);
+        var y = layout.ButtonBounds.Length > 0
+            ? layout.ButtonBounds[^1].Bottom + (22f * layout.Scale)
+            : layout.ContentBounds.Y + (76f * layout.Scale);
+        var position = new Vector2(startX, y);
+        DrawShadowedMenuBitmapFontText(prefix, position, Color.White, scale);
+        position.X += MeasureMenuBitmapFontWidth(prefix, scale);
+        DrawShadowedMenuBitmapFontText(emphasis, position, new Color(235, 58, 58), scale);
+        position.X += MeasureMenuBitmapFontWidth(emphasis, scale);
+        DrawShadowedMenuBitmapFontText(suffix, position, Color.White, scale);
     }
 
     private static string FormatLastToDieMenuDuration(int ticks)

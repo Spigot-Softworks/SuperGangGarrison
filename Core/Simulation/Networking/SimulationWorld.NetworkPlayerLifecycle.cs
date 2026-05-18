@@ -73,6 +73,7 @@ public sealed partial class SimulationWorld
         _networkPlayerSpawnOverrides.Remove(slot);
         _networkPlayerMovementSpeedScaleOverrides.Remove(slot);
         _networkPlayerGravityScaleOverrides.Remove(slot);
+        _networkPlayerMaxHealthOverrides.Remove(slot);
         player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
         SyncExperimentalGameplayLoadout(slot, player);
         ApplyServerGameplayTuning(slot, player);

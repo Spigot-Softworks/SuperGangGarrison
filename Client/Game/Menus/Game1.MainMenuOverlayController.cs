@@ -37,6 +37,11 @@ public partial class Game1
                 return MainMenuOverlayKind.Credits;
             }
 
+            if (_game._friendsMenuOpen)
+            {
+                return MainMenuOverlayKind.FriendsMenu;
+            }
+
             if (_game._lobbyBrowserOpen)
             {
                 return MainMenuOverlayKind.LobbyBrowser;
@@ -101,6 +106,9 @@ public partial class Game1
                 case MainMenuOverlayKind.Credits:
                     _game.UpdateCreditsMenu(keyboard, mouse);
                     return true;
+                case MainMenuOverlayKind.FriendsMenu:
+                    _game.UpdateFriendsMenu(keyboard, mouse);
+                    return true;
                 case MainMenuOverlayKind.LobbyBrowser:
                     _game.UpdateLobbyBrowserState(keyboard, mouse);
                     return true;
@@ -157,6 +165,9 @@ public partial class Game1
                     return true;
                 case MainMenuOverlayKind.Credits:
                     _game.DrawCreditsMenu();
+                    return true;
+                case MainMenuOverlayKind.FriendsMenu:
+                    _game.DrawFriendsMenu();
                     return true;
                 case MainMenuOverlayKind.LobbyBrowser:
                     _game.DrawLobbyBrowserMenu();

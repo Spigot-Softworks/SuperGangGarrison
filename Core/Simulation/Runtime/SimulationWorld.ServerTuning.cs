@@ -74,6 +74,26 @@ public sealed partial class SimulationWorld
         return _networkPlayerGravityScaleOverrides.ContainsKey(slot);
     }
 
+    public bool TrySetNetworkPlayerMaxHealthOverride(byte slot, int? maxHealth, bool refillHealth = true)
+    {
+        if (!TryGetNetworkPlayer(slot, out var player))
+        {
+            return false;
+        }
+
+        if (maxHealth.HasValue)
+        {
+            _networkPlayerMaxHealthOverrides[slot] = Math.Max(1, maxHealth.Value);
+        }
+        else
+        {
+            _networkPlayerMaxHealthOverrides.Remove(slot);
+        }
+
+        ApplyNetworkPlayerMaxHealthOverride(slot, player, refillHealth);
+        return true;
+    }
+
     public void SetPlayerScale(float scale)
     {
         _configuredPlayerScale = PlayerEntity.ClampPlayerScale(scale);
@@ -206,6 +226,15 @@ public sealed partial class SimulationWorld
         return slot != 0 && _networkPlayerGravityScaleOverrides.TryGetValue(slot, out var scale)
             ? scale
             : _configuredGravityScale;
+    }
+
+    private void ApplyNetworkPlayerMaxHealthOverride(byte slot, PlayerEntity player, bool refillHealth)
+    {
+        player.SetExperimentalMaxHealthOverride(
+            slot != 0 && _networkPlayerMaxHealthOverrides.TryGetValue(slot, out var maxHealth)
+                ? maxHealth
+                : null,
+            refillHealth);
     }
 
     private void ApplyConfiguredPlayerScaleToKnownPlayers()

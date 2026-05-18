@@ -13,6 +13,7 @@ public partial class Game1
         ClientPowers,
         PracticeSetup,
         Credits,
+        FriendsMenu,
         LobbyBrowser,
         ManualConnect,
         ControlsMenu,

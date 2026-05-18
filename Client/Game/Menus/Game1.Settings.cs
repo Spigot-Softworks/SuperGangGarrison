@@ -45,6 +45,7 @@ public partial class Game1
         _showHealthBarEnabled = _clientSettings.ShowHealthBarEnabled;
         _portraitRumbleEnabled = _clientSettings.PortraitRumbleEnabled;
         _damageVignetteEnabled = _clientSettings.DamageVignetteEnabled;
+        _lowHealthColorMode = ClientSettings.NormalizeLowHealthColorMode(_clientSettings.LowHealthColorMode);
         _showPersistentSelfNameEnabled = _clientSettings.ShowPersistentSelfNameEnabled;
         _positionSmoothingEnabled = _clientSettings.PositionSmoothingEnabled;
         _smoothCameraMultiplier = NormalizeSmoothCameraMultiplier(_clientSettings.SmoothCameraMultiplier);
@@ -54,6 +55,7 @@ public partial class Game1
         }
 
         _spriteDropShadowEnabled = _clientSettings.SpriteDropShadowEnabled;
+        _playerCardSizeMode = ClientSettings.NormalizePlayerCardSizeMode(_clientSettings.PlayerCardSizeMode);
         _uberOutlineEnabled = _clientSettings.ShowUberOutlinesEnabled;
         _projectileTeamTintEnabled = _clientSettings.ProjectileTeamTintEnabled;
         _audioMuted = _clientSettings.AudioMuted;
@@ -95,10 +97,12 @@ public partial class Game1
         _clientSettings.ShowHealthBarEnabled = _showHealthBarEnabled;
         _clientSettings.PortraitRumbleEnabled = _portraitRumbleEnabled;
         _clientSettings.DamageVignetteEnabled = _damageVignetteEnabled;
+        _clientSettings.LowHealthColorMode = ClientSettings.NormalizeLowHealthColorMode(_lowHealthColorMode);
         _clientSettings.ShowPersistentSelfNameEnabled = _showPersistentSelfNameEnabled;
         _clientSettings.PositionSmoothingEnabled = _positionSmoothingEnabled;
         _clientSettings.SmoothCameraMultiplier = NormalizeSmoothCameraMultiplier(_smoothCameraMultiplier);
         _clientSettings.SpriteDropShadowEnabled = _spriteDropShadowEnabled;
+        _clientSettings.PlayerCardSizeMode = ClientSettings.NormalizePlayerCardSizeMode(_playerCardSizeMode);
         _clientSettings.ShowUberOutlinesEnabled = _uberOutlineEnabled;
         _clientSettings.ProjectileTeamTintEnabled = _projectileTeamTintEnabled;
         _clientSettings.AudioMuted = _audioMuted;

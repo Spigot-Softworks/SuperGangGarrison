@@ -3,6 +3,8 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using System;
+using System.Linq;
+using OpenGarrison.ClientShared;
 
 namespace OpenGarrison.Client;
 
@@ -41,6 +43,12 @@ public partial class Game1
         var teamOnly = _chatTeamOnly;
         if (!string.IsNullOrWhiteSpace(text))
         {
+            if (TrySubmitDirectMessageChatCommand(text))
+            {
+                ResetChatInputState(requireOpenKeyRelease: true);
+                return;
+            }
+
             if (_networkClient.IsConnected)
             {
                 _networkClient.SendChat(text, teamOnly);
@@ -52,6 +60,88 @@ public partial class Game1
         }
 
         ResetChatInputState(requireOpenKeyRelease: true);
+    }
+
+    private bool TrySubmitDirectMessageChatCommand(string text)
+    {
+        if (!text.StartsWith("/dm ", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var payload = text[4..].Trim();
+        if (string.IsNullOrWhiteSpace(payload))
+        {
+            AppendDirectMessageChatLine("DM", "Enter a message.", incoming: true);
+            return true;
+        }
+
+        if (TryResolveDirectMessageTarget(payload, out var targetFriendCode, out var messageText))
+        {
+            TrySendDirectMessage(targetFriendCode, messageText, echoToChat: true);
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_lastDirectMessageSenderFriendCode))
+        {
+            TrySendDirectMessage(_lastDirectMessageSenderFriendCode, payload, echoToChat: true);
+            return true;
+        }
+
+        AppendDirectMessageChatLine("DM", "No recent sender.", incoming: true);
+        return true;
+    }
+
+    private bool TryResolveDirectMessageTarget(string payload, out string targetFriendCode, out string messageText)
+    {
+        targetFriendCode = string.Empty;
+        messageText = string.Empty;
+
+        var firstSpace = payload.IndexOf(' ', StringComparison.Ordinal);
+        if (payload.StartsWith('['))
+        {
+            var closingBracket = payload.IndexOf(']', StringComparison.Ordinal);
+            if (closingBracket > 1 && closingBracket + 1 < payload.Length && char.IsWhiteSpace(payload[closingBracket + 1]))
+            {
+                var bracketName = payload[1..closingBracket].Trim();
+                var bracketMatch = _friendList.Friends.FirstOrDefault(friend =>
+                    string.Equals(GetFriendDisplayName(friend.FriendCode, friend.DisplayName), bracketName, StringComparison.OrdinalIgnoreCase));
+                if (bracketMatch is not null)
+                {
+                    targetFriendCode = bracketMatch.FriendCode;
+                    messageText = payload[(closingBracket + 2)..].Trim();
+                    return !string.IsNullOrWhiteSpace(messageText);
+                }
+            }
+        }
+
+        if (firstSpace > 0
+            && ClientIdentityDocument.TryNormalizeFriendCode(payload[..firstSpace], out var codeFromPrefix)
+            && _friendList.Friends.Any(friend => string.Equals(friend.FriendCode, codeFromPrefix, StringComparison.OrdinalIgnoreCase)))
+        {
+            targetFriendCode = codeFromPrefix;
+            messageText = payload[(firstSpace + 1)..].Trim();
+            return !string.IsNullOrWhiteSpace(messageText);
+        }
+
+        var match = _friendList.Friends
+            .Select(friend => new
+            {
+                friend.FriendCode,
+                Label = GetFriendDisplayName(friend.FriendCode, friend.DisplayName),
+            })
+            .Where(friend => !string.IsNullOrWhiteSpace(friend.Label)
+                && payload.StartsWith(friend.Label + " ", StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(friend => friend.Label.Length)
+            .FirstOrDefault();
+        if (match is null)
+        {
+            return false;
+        }
+
+        targetFriendCode = match.FriendCode;
+        messageText = payload[(match.Label.Length + 1)..].Trim();
+        return !string.IsNullOrWhiteSpace(messageText);
     }
 
     private void AppendChatLine(string playerName, string text, byte team, bool teamOnly)
@@ -77,6 +167,28 @@ public partial class Game1
 
         ClampChatScrollOffset();
         AddConsoleLine(teamOnly ? $"[team chat] {line}" : $"[chat] {line}");
+    }
+
+    private void AppendDirectMessageChatLine(string playerName, string text, bool incoming)
+    {
+        var line = $"[{playerName}]: {text}";
+        if (_chatOpen && _chatScrollOffset > 0)
+        {
+            _chatScrollOffset += 1;
+        }
+
+        _chatLines.Add(new ChatLine(playerName, text, 0, teamOnly: false, directMessage: true));
+        while (_chatLines.Count > MaxChatHistoryLines)
+        {
+            _chatLines.RemoveAt(0);
+            if (_chatScrollOffset > 0)
+            {
+                _chatScrollOffset -= 1;
+            }
+        }
+
+        ClampChatScrollOffset();
+        AddConsoleLine(incoming ? $"[dm] {line}" : $"[dm sent] {line}");
     }
 
     private void AdvanceChatHud()
@@ -184,10 +296,13 @@ public partial class Game1
 
     private void DrawChatLine(ChatLine line, Vector2 position, float alpha, float maxPanelWidth)
     {
+        var directMessageColor = new Color(138, 218, 255);
         var channelPrefix = line.TeamOnly ? "(TEAM) " : string.Empty;
         var speakerPrefix = string.IsNullOrWhiteSpace(line.PlayerName)
             ? channelPrefix
-            : $"{channelPrefix}{line.PlayerName}: ";
+            : line.DirectMessage
+                ? $"[{line.PlayerName}]: "
+                : $"{channelPrefix}{line.PlayerName}: ";
         var speakerWidth = MeasureBitmapFontWidth(speakerPrefix, 1f);
         var maxContentWidth = Math.Max(48f, maxPanelWidth - (ChatHudPanelHorizontalPadding * 2f));
         var wrappedMessageLines = WrapBitmapFontText(
@@ -211,13 +326,13 @@ public partial class Game1
             var textPosition = new Vector2(position.X, position.Y + lineIndex * lineHeight);
             if (lineIndex == 0 && speakerPrefix.Length > 0)
             {
-                DrawBitmapFontText(speakerPrefix, textPosition, GetChatTeamColor(line.Team) * alpha, 1f);
+                DrawBitmapFontText(speakerPrefix, textPosition, (line.DirectMessage ? directMessageColor : GetChatTeamColor(line.Team)) * alpha, 1f);
             }
 
             DrawBitmapFontText(
                 wrappedMessageLines[lineIndex],
                 new Vector2(textPosition.X + (lineIndex == 0 ? speakerWidth : 0f), textPosition.Y),
-                new Color(235, 235, 235) * alpha,
+                (line.DirectMessage ? directMessageColor : new Color(235, 235, 235)) * alpha,
                 1f);
         }
     }
@@ -295,7 +410,9 @@ public partial class Game1
         var channelPrefix = line.TeamOnly ? "(TEAM) " : string.Empty;
         var speakerPrefix = string.IsNullOrWhiteSpace(line.PlayerName)
             ? channelPrefix
-            : $"{channelPrefix}{line.PlayerName}: ";
+            : line.DirectMessage
+                ? $"[{line.PlayerName}]: "
+                : $"{channelPrefix}{line.PlayerName}: ";
         var maxContentWidth = Math.Max(48f, maxPanelWidth - (ChatHudPanelHorizontalPadding * 2f));
         var wrappedMessageLines = WrapBitmapFontText(
             line.Text,

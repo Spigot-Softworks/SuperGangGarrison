@@ -6,6 +6,31 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class ProtocolCodecTests
 {
     [Fact]
+    public void PlayerSocialProfileUpdateRoundTrips()
+    {
+        var message = new PlayerSocialProfileUpdateMessage(
+            [
+                new PlayerSocialProfileState(
+                    2,
+                    "Remote Player",
+                    "OG2-ABCD-EFGH-JKLM",
+                    "{\"background\":\"MenuBackground1.png\",\"class\":\"Spy\"}"),
+            ],
+            [7]);
+
+        var payload = ProtocolCodec.Serialize(message, ProtocolCompressionSettings.Disabled);
+
+        Assert.True(ProtocolCodec.TryDeserialize(payload, out var roundTripped));
+        var update = Assert.IsType<PlayerSocialProfileUpdateMessage>(roundTripped);
+        var profile = Assert.Single(update.Profiles);
+        Assert.Equal((byte)2, profile.Slot);
+        Assert.Equal("Remote Player", profile.DisplayName);
+        Assert.Equal("OG2-ABCD-EFGH-JKLM", profile.FriendCode);
+        Assert.Contains("MenuBackground1", profile.PlayerCardJson);
+        Assert.Equal((byte)7, Assert.Single(update.RemovedSlots));
+    }
+
+    [Fact]
     public void MeasureSerializedSizeMatchesSerializedSnapshotPayloadLength()
     {
         var snapshot = new SnapshotMessage(

@@ -14,34 +14,7 @@ public partial class Game1
     {
         if (!_networkClient.IsConnected)
         {
-            _interpolatedEntityPositions.Clear();
-            _interpolatedIntelPositions.Clear();
-            _entityInterpolationTracks.Clear();
-            _intelInterpolationTracks.Clear();
-            _entitySnapshotHistories.Clear();
-            _intelSnapshotHistories.Clear();
-            _remotePlayerSnapshotHistories.Clear();
-            ResetSnapshotStateHistory();
-            _lastAppliedSnapshotFrame = 0;
-            _hasReceivedSnapshot = false;
-            _lastSnapshotReceivedTimeSeconds = -1d;
-            _latestSnapshotServerTimeSeconds = -1d;
-            _latestSnapshotReceivedClockSeconds = -1d;
-            _networkSnapshotInterpolationDurationSeconds = 1f / _config.TicksPerSecond;
-            _smoothedSnapshotIntervalSeconds = 1f / _config.TicksPerSecond;
-            _smoothedSnapshotJitterSeconds = 0f;
-            _localPlayerInterpolationBackTimeSeconds = GetMinimumLocalPlayerInterpolationBackTimeSeconds();
-            _remotePlayerInterpolationBackTimeSeconds = GetMinimumRemotePlayerInterpolationBackTimeSeconds();
-            _localPlayerRenderTimeSeconds = 0d;
-            _remotePlayerRenderTimeSeconds = 0d;
-            _lastLocalPlayerRenderTimeClockSeconds = -1d;
-            _lastRemotePlayerRenderTimeClockSeconds = -1d;
-            _hasLocalPlayerRenderTime = false;
-            _hasRemotePlayerRenderTime = false;
-            _hasPredictedLocalPlayerPosition = false;
-            _hasPredictedLocalActionState = false;
-            _predictedLocalPlayerShadow = null;
-            _pendingPredictedInputs.Clear();
+            UpdateOfflineInterpolatedWorldState();
             return;
         }
 
@@ -164,6 +137,233 @@ public partial class Game1
 
         UpdateInterpolatedIntelPosition(_world.RedIntel, entityRenderTimeSeconds);
         UpdateInterpolatedIntelPosition(_world.BlueIntel, entityRenderTimeSeconds);
+    }
+
+    private void UpdateOfflineInterpolatedWorldState()
+    {
+        ResetNetworkInterpolationStateForOfflineFrame();
+        _activeInterpolatedEntityIds.Clear();
+
+        UpdateOfflineInterpolatedPlayerPosition(_world.LocalPlayer);
+        foreach (var player in EnumerateRemotePlayersForView())
+        {
+            UpdateOfflineInterpolatedPlayerPosition(player);
+        }
+
+        foreach (var deadBody in _world.DeadBodies)
+        {
+            UpdateOfflineInterpolatedEntityPosition(deadBody.Id, deadBody.X, deadBody.Y);
+        }
+
+        foreach (var sentry in _world.Sentries)
+        {
+            UpdateOfflineInterpolatedEntityPosition(sentry.Id, sentry.X, sentry.Y);
+        }
+
+        foreach (var shot in _world.Shots)
+        {
+            UpdateOfflineInterpolatedEntityPosition(shot.Id, shot.X, shot.Y);
+        }
+
+        foreach (var bubble in _world.Bubbles)
+        {
+            UpdateOfflineInterpolatedEntityPosition(bubble.Id, bubble.X, bubble.Y);
+        }
+
+        foreach (var blade in _world.Blades)
+        {
+            UpdateOfflineInterpolatedEntityPosition(blade.Id, blade.X, blade.Y);
+        }
+
+        foreach (var shot in _world.RevolverShots)
+        {
+            UpdateOfflineInterpolatedEntityPosition(shot.Id, shot.X, shot.Y);
+        }
+
+        foreach (var needle in _world.Needles)
+        {
+            UpdateOfflineInterpolatedEntityPosition(needle.Id, needle.X, needle.Y);
+        }
+
+        foreach (var flame in _world.Flames)
+        {
+            UpdateOfflineInterpolatedEntityPosition(flame.Id, flame.X, flame.Y);
+        }
+
+        foreach (var flare in _world.Flares)
+        {
+            UpdateOfflineInterpolatedEntityPosition(flare.Id, flare.X, flare.Y);
+        }
+
+        foreach (var rocket in _world.Rockets)
+        {
+            UpdateOfflineInterpolatedEntityPosition(rocket.Id, rocket.X, rocket.Y);
+        }
+
+        foreach (var mine in _world.Mines)
+        {
+            UpdateOfflineInterpolatedEntityPosition(mine.Id, mine.X, mine.Y);
+        }
+
+        foreach (var gib in _world.PlayerGibs)
+        {
+            UpdateOfflineInterpolatedEntityPosition(gib.Id, gib.X, gib.Y);
+        }
+
+        foreach (var bloodDrop in _world.BloodDrops)
+        {
+            UpdateOfflineInterpolatedEntityPosition(bloodDrop.Id, bloodDrop.X, bloodDrop.Y);
+        }
+
+        PruneStaleOfflineInterpolatedEntities();
+        UpdateOfflineInterpolatedIntelPosition(_world.RedIntel);
+        UpdateOfflineInterpolatedIntelPosition(_world.BlueIntel);
+    }
+
+    private void ResetNetworkInterpolationStateForOfflineFrame()
+    {
+        _entitySnapshotHistories.Clear();
+        _intelSnapshotHistories.Clear();
+        _remotePlayerSnapshotHistories.Clear();
+        ResetSnapshotStateHistory();
+        _lastAppliedSnapshotFrame = 0;
+        _lastBufferedSnapshotFrame = 0;
+        _hasReceivedSnapshot = false;
+        _lastSnapshotReceivedTimeSeconds = -1d;
+        _latestSnapshotServerTimeSeconds = -1d;
+        _latestSnapshotReceivedClockSeconds = -1d;
+        _networkSnapshotInterpolationDurationSeconds = 1f / _config.TicksPerSecond;
+        _smoothedSnapshotIntervalSeconds = 1f / _config.TicksPerSecond;
+        _smoothedSnapshotJitterSeconds = 0f;
+        _localPlayerInterpolationBackTimeSeconds = GetMinimumLocalPlayerInterpolationBackTimeSeconds();
+        _remotePlayerInterpolationBackTimeSeconds = GetMinimumRemotePlayerInterpolationBackTimeSeconds();
+        _localPlayerRenderTimeSeconds = 0d;
+        _remotePlayerRenderTimeSeconds = 0d;
+        _lastLocalPlayerRenderTimeClockSeconds = -1d;
+        _lastRemotePlayerRenderTimeClockSeconds = -1d;
+        _hasLocalPlayerRenderTime = false;
+        _hasRemotePlayerRenderTime = false;
+        _hasPredictedLocalPlayerPosition = false;
+        _hasPredictedLocalActionState = false;
+        _predictedLocalPlayerShadow = null;
+        _pendingPredictedInputs.Clear();
+    }
+
+    private void UpdateOfflineInterpolatedPlayerPosition(PlayerEntity player)
+    {
+        if (!player.IsAlive)
+        {
+            return;
+        }
+
+        UpdateOfflineInterpolatedEntityPosition(GetPlayerStateKey(player), player.X, player.Y);
+    }
+
+    private void UpdateOfflineInterpolatedIntelPosition(TeamIntelligenceState intelState)
+    {
+        var target = new Vector2(intelState.X, intelState.Y);
+        if (!_interpolatedIntelPositions.TryGetValue(intelState.Team, out var current))
+        {
+            _interpolatedIntelPositions[intelState.Team] = target;
+            _intelInterpolationTracks.Remove(intelState.Team);
+            return;
+        }
+
+        if (_intelInterpolationTracks.TryGetValue(intelState.Team, out var existingTrack)
+            && existingTrack.Target == target)
+        {
+            _interpolatedIntelPositions[intelState.Team] = EvaluateInterpolationTrack(existingTrack);
+            return;
+        }
+
+        CaptureOfflineInterpolationTrack(
+            _intelInterpolationTracks,
+            intelState.Team,
+            current,
+            target);
+        _interpolatedIntelPositions[intelState.Team] = _intelInterpolationTracks.TryGetValue(intelState.Team, out var track)
+            ? EvaluateInterpolationTrack(track)
+            : target;
+    }
+
+    private void UpdateOfflineInterpolatedEntityPosition(int entityId, float x, float y)
+    {
+        _activeInterpolatedEntityIds.Add(entityId);
+        var target = new Vector2(x, y);
+        if (!_interpolatedEntityPositions.TryGetValue(entityId, out var current))
+        {
+            _interpolatedEntityPositions[entityId] = target;
+            _entityInterpolationTracks.Remove(entityId);
+            return;
+        }
+
+        if (_entityInterpolationTracks.TryGetValue(entityId, out var existingTrack)
+            && existingTrack.Target == target)
+        {
+            _interpolatedEntityPositions[entityId] = EvaluateInterpolationTrack(existingTrack);
+            return;
+        }
+
+        CaptureOfflineInterpolationTrack(
+            _entityInterpolationTracks,
+            entityId,
+            current,
+            target);
+        _interpolatedEntityPositions[entityId] = _entityInterpolationTracks.TryGetValue(entityId, out var track)
+            ? EvaluateInterpolationTrack(track)
+            : target;
+    }
+
+    private void CaptureOfflineInterpolationTrack<TKey>(
+        Dictionary<TKey, InterpolationTrack> tracks,
+        TKey key,
+        Vector2 current,
+        Vector2 target)
+        where TKey : notnull
+    {
+        if (Vector2.DistanceSquared(current, target) >= OfflineInterpolationTeleportSnapDistance * OfflineInterpolationTeleportSnapDistance)
+        {
+            tracks.Remove(key);
+            return;
+        }
+
+        if (Vector2.DistanceSquared(current, target) <= 0.0001f)
+        {
+            tracks.Remove(key);
+            return;
+        }
+
+        tracks[key] = new InterpolationTrack(
+            current,
+            target,
+            _networkInterpolationClockSeconds,
+            GetOfflineInterpolationDurationSeconds(),
+            Vector2.Zero,
+            0f,
+            0f);
+    }
+
+    private void PruneStaleOfflineInterpolatedEntities()
+    {
+        _staleInterpolatedEntityIds.Clear();
+        foreach (var entityId in _interpolatedEntityPositions.Keys)
+        {
+            if (!_activeInterpolatedEntityIds.Contains(entityId))
+            {
+                _staleInterpolatedEntityIds.Add(entityId);
+            }
+        }
+
+        foreach (var entityId in _staleInterpolatedEntityIds)
+        {
+            _interpolatedEntityPositions.Remove(entityId);
+            _entityInterpolationTracks.Remove(entityId);
+        }
+    }
+
+    private float GetOfflineInterpolationDurationSeconds()
+    {
+        return MathF.Max(1f / SimulationConfig.MaximumTicksPerSecond, (float)_config.FixedDeltaSeconds);
     }
 
     private void UpdateInterpolatedEntityPosition(int entityId, float x, float y, double renderTimeSeconds)
@@ -356,12 +556,12 @@ public partial class Game1
             : Math.Clamp(
                 MathF.Max(
                     minimumLocalBackTimeSeconds,
-                    (_smoothedSnapshotIntervalSeconds * 1.2f) + (_smoothedSnapshotJitterSeconds * 2.5f)),
+                    (_smoothedSnapshotIntervalSeconds * 1.05f) + (_smoothedSnapshotJitterSeconds * 1.75f)),
                 minimumLocalBackTimeSeconds,
                 maximumLocalBackTimeSeconds);
         var localBackTimeAdjustmentAlpha = desiredLocalBackTimeSeconds >= _localPlayerInterpolationBackTimeSeconds
-            ? 0.35f
-            : 0.18f;
+            ? 0.45f
+            : 0.35f;
         _localPlayerInterpolationBackTimeSeconds +=
             (desiredLocalBackTimeSeconds - _localPlayerInterpolationBackTimeSeconds) * localBackTimeAdjustmentAlpha;
         _localPlayerInterpolationBackTimeSeconds = Math.Clamp(
@@ -381,12 +581,12 @@ public partial class Game1
             : Math.Clamp(
                 MathF.Max(
                     minimumRemoteBackTimeSeconds,
-                    (_smoothedSnapshotIntervalSeconds * 1.8f) + (_smoothedSnapshotJitterSeconds * 4f)),
+                    (_smoothedSnapshotIntervalSeconds * 1.35f) + (_smoothedSnapshotJitterSeconds * 2.75f)),
                 minimumRemoteBackTimeSeconds,
                 maximumRemoteBackTimeSeconds);
         var remoteBackTimeAdjustmentAlpha = desiredRemoteBackTimeSeconds >= _remotePlayerInterpolationBackTimeSeconds
-            ? 0.25f
-            : 0.12f;
+            ? 0.35f
+            : 0.25f;
         _remotePlayerInterpolationBackTimeSeconds +=
             (desiredRemoteBackTimeSeconds - _remotePlayerInterpolationBackTimeSeconds) * remoteBackTimeAdjustmentAlpha;
         _remotePlayerInterpolationBackTimeSeconds = Math.Clamp(
@@ -659,7 +859,12 @@ public partial class Game1
         _remotePlayerRenderTimeSeconds = NetworkInterpolationTimeline.AdvanceTowards(
             _remotePlayerRenderTimeSeconds,
             targetRenderTimeSeconds,
-            deltaSeconds);
+            deltaSeconds,
+            snapThresholdSeconds: 0.12d,
+            catchUpRate: 18d,
+            slowDownRate: 12d,
+            maxLagBehindTargetSeconds: 0.045d,
+            maxLeadAheadOfTargetSeconds: 0.025d);
         return _remotePlayerRenderTimeSeconds;
     }
 
@@ -682,7 +887,12 @@ public partial class Game1
         _localPlayerRenderTimeSeconds = NetworkInterpolationTimeline.AdvanceTowards(
             _localPlayerRenderTimeSeconds,
             targetRenderTimeSeconds,
-            deltaSeconds);
+            deltaSeconds,
+            snapThresholdSeconds: 0.10d,
+            catchUpRate: 20d,
+            slowDownRate: 14d,
+            maxLagBehindTargetSeconds: 0.03d,
+            maxLeadAheadOfTargetSeconds: 0.02d);
         return _localPlayerRenderTimeSeconds;
     }
 

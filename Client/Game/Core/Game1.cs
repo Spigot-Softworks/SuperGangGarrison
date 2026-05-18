@@ -160,6 +160,9 @@ public partial class Game1 : Game
     private bool _debugRocketCollisionsEnabled;
     private readonly GameplayOverlayController _gameplayOverlayController;
     private readonly LastToDieStatsDocument _lastToDieStats;
+    private readonly ClientIdentityDocument _clientIdentity;
+    private readonly FriendListDocument _friendList;
+    private readonly OpenGarrisonPresenceClient _presenceClient;
     private readonly GraphicsDeviceManager _graphics;
     private RenderTarget2D? _gameRenderTarget;
     private SimulationConfig _config = null!;
@@ -262,13 +265,16 @@ public partial class Game1 : Game
     private float _portraitRumbleIntensity;
     private int _portraitRumbleSeed;
     private bool _damageVignetteEnabled = true;
+    private LowHealthColorMode _lowHealthColorMode = LowHealthColorMode.Red;
     private float _damageVignetteIntensity;
-    private float _damageVignetteHoldSeconds;
+    private float _damageVignetteFlashIntensity;
     private Texture2D? _damageVignetteTexture;
     private int _damageVignetteTextureWidth;
     private int _damageVignetteTextureHeight;
+    private int _damageVignetteTextureIntensityBucket = -1;
     private bool _showPersistentSelfNameEnabled;
     private bool _spriteDropShadowEnabled;
+    private int _playerCardSizeMode = ClientSettings.PlayerCardSizeSmall;
     private bool _uberOutlineEnabled = true;
     private bool _projectileTeamTintEnabled = true;
     private bool _wasWindowActive = true;
@@ -348,6 +354,9 @@ public partial class Game1 : Game
             _lastToDieStats,
             _hostedServerRuntime,
             _graphics) = CreateRuntimeServices(this, _hostedServerConsole);
+        _clientIdentity = ClientIdentityDocument.LoadOrCreate();
+        _friendList = FriendListDocument.Load();
+        _presenceClient = new OpenGarrisonPresenceClient();
         _graphics.HardwareModeSwitch = false;
         if (OperatingSystem.IsBrowser())
         {
@@ -406,6 +415,7 @@ public partial class Game1 : Game
         // Ensure we disconnect from the server before exiting
         // This sends a proper close message (WebSocket close frame or UDP socket closure)
         // so the server can immediately remove the player instead of waiting for timeout
+        SendSocialPresenceOffline();
         _networkClient.Disconnect();
     }
 
@@ -444,6 +454,7 @@ public partial class Game1 : Game
         _networkInterpolationClockSeconds = _networkInterpolationClock.Elapsed.TotalSeconds;
         var clientTicks = _frameController.Update(gameTime);
         PumpDiscordRichPresence(gameTime.ElapsedGameTime.TotalSeconds);
+        PumpSocialPresence(gameTime.ElapsedGameTime.TotalSeconds);
         NotifyClientPluginsFrame(gameTime, clientTicks);
         AdvanceClientPerformanceAutomation();
         FinalizeNetworkDiagnosticsFrame();
@@ -735,12 +746,13 @@ public partial class Game1 : Game
 
     private sealed class ChatLine
     {
-        public ChatLine(string playerName, string text, byte team, bool teamOnly)
+        public ChatLine(string playerName, string text, byte team, bool teamOnly, bool directMessage = false)
         {
             PlayerName = playerName;
             Text = text;
             Team = team;
             TeamOnly = teamOnly;
+            DirectMessage = directMessage;
             TicksRemaining = 600;
         }
 
@@ -751,6 +763,8 @@ public partial class Game1 : Game
         public byte Team { get; }
 
         public bool TeamOnly { get; }
+
+        public bool DirectMessage { get; }
 
         public int TicksRemaining { get; set; }
     }

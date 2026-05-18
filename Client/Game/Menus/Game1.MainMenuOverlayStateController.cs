@@ -47,6 +47,41 @@ public partial class Game1
             _game._creditsScrollInitialized = false;
         }
 
+        public void OpenFriendsMenu()
+        {
+            PrepareForExclusiveMainMenuOverlayOpen();
+            _game._friendsMenuOpen = true;
+            _game._mainMenuHoverIndex = -1;
+            _game._mainMenuBottomBarHover = false;
+            _game._friendsMenuHoverIndex = -1;
+            _game._friendsMenuSelectedIndex = _game._friendList.Friends.Count > 0 ? 0 : -1;
+            _game._friendsMenuTab = FriendsMenuTab.Friends;
+            _game.CloseFriendsContextMenu();
+            _game.ClosePlayerCardOverlay();
+            _game._friendNicknameInputBuffer = _game.GetFriendNicknameInputDefault();
+            _game.InitializeFriendNicknameCursor();
+            var needsNickname = string.IsNullOrWhiteSpace(_game._clientIdentity.DisplayName);
+            _game._editingFriendNickname = needsNickname;
+            _game._editingFriendCode = !needsNickname;
+            _game.InitializeFriendCodeCursor();
+            _game._menuStatusMessage = needsNickname ? "Choose a nickname for friends." : string.Empty;
+            _game.RefreshFriendPresence();
+        }
+
+        public void CloseFriendsMenu(bool clearStatus = false)
+        {
+            _game._friendsMenuOpen = false;
+            _game._friendsMenuHoverIndex = -1;
+            _game.CloseFriendsContextMenu();
+            _game.ClosePlayerCardOverlay();
+            _game._editingFriendCode = false;
+            _game._editingFriendNickname = false;
+            if (clearStatus)
+            {
+                _game._menuStatusMessage = string.Empty;
+            }
+        }
+
         public void CloseCreditsMenu()
         {
             _game._creditsOpen = false;
@@ -98,6 +133,7 @@ public partial class Game1
             _game._manualConnectOpen = false;
             CloseHostSetupMenu(clearStatus: false);
             CloseCreditsMenu();
+            CloseFriendsMenu(clearStatus: false);
             CloseJumpMenu(clearStatus: false);
             _game._connectionFlowController.DisableManualConnectEditing();
         }

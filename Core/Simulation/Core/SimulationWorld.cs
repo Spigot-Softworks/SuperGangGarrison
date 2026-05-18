@@ -82,7 +82,9 @@ public sealed partial class SimulationWorld
     private readonly Dictionary<byte, SpawnPoint> _networkPlayerSpawnOverrides = new();
     private readonly Dictionary<byte, float> _networkPlayerMovementSpeedScaleOverrides = new();
     private readonly Dictionary<byte, float> _networkPlayerGravityScaleOverrides = new();
+    private readonly Dictionary<byte, int> _networkPlayerMaxHealthOverrides = new();
     private readonly Dictionary<byte, LocalDeathCamState> _networkPlayerDeathCams = new();
+    private readonly HashSet<int> _lastToDieDroneSentryIds = new();
     private readonly HashSet<int> _clientPredictedProjectileIds = new();
     private readonly HashSet<int> _terminatedProjectileIds = new();
     private readonly ClientSnapshotStringCache _snapshotStringCache = new();
@@ -598,6 +600,7 @@ public sealed partial class SimulationWorld
             player.StartExperimentalDemoknightPostRageRegeneration(0);
             player.SetExperimentalOffhandWeapon(ResolveGameplaySecondaryWeapon(player, allowSoldierShotgun: false, allowSoldierShotgunLtd: false));
             player.SetAcquiredWeapon(null);
+            ApplyNetworkPlayerMaxHealthOverride(slot, player, refillHealth: false);
             return;
         }
 
@@ -648,6 +651,8 @@ public sealed partial class SimulationWorld
         {
             player.SetAcquiredWeapon(null);
         }
+
+        ApplyNetworkPlayerMaxHealthOverride(slot, player, refillHealth: false);
     }
 
     private static PrimaryWeaponDefinition? ResolveGameplaySecondaryWeapon(
