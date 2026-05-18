@@ -48,7 +48,7 @@ public sealed partial class SimulationWorld
     private static bool IsExperimentalEngineerAlternateWeaponModeActive(PlayerEntity? player, ExperimentalEngineerAlternateWeaponMode mode)
     {
         return player is not null
-            && player.IsExperimentalOffhandEquipped
+            && player.IsExperimentalOffhandSelected
             && player.ExperimentalEngineerAlternateWeaponMode == mode;
     }
 
@@ -323,7 +323,7 @@ public sealed partial class SimulationWorld
         var freezeAvailable = HasExperimentalEngineerFreezeRayAvailable(player);
         if (!essenceAvailable && !freezeAvailable)
         {
-            if (player.IsExperimentalOffhandEquipped)
+            if (player.IsExperimentalOffhandSelected)
             {
                 ClearExperimentalEngineerAlternateWeaponState(player);
                 player.StowExperimentalOffhandWeapon();
@@ -344,7 +344,7 @@ public sealed partial class SimulationWorld
             };
             if (!modeIsValid)
             {
-                if (player.IsExperimentalOffhandEquipped)
+                if (player.IsExperimentalOffhandSelected)
                 {
                     ClearExperimentalEngineerAlternateWeaponState(player);
                     player.StowExperimentalOffhandWeapon();

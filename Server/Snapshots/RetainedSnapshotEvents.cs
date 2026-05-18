@@ -7,3 +7,5 @@ sealed record RetainedSnapshotVisualEvent(SnapshotVisualEvent Event, ulong Expir
 sealed record RetainedSnapshotDamageEvent(SnapshotDamageEvent Event, ulong ExpiresAfterFrame);
 
 sealed record RetainedSnapshotGibSpawnEvent(SnapshotGibSpawnEvent Event, ulong ExpiresAfterFrame);
+
+sealed record RetainedSnapshotRocketSpawnEvent(SnapshotRocketSpawnEvent Event, ulong ExpiresAfterFrame);

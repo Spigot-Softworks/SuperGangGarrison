@@ -71,8 +71,11 @@ public partial class Game1
     private readonly List<SnapshotVisualEvent> _pendingNetworkVisualEvents = new();
     private readonly HashSet<ulong> _processedNetworkVisualEventIds = new();
     private readonly Queue<ulong> _processedNetworkVisualEventOrder = new();
+    private readonly List<PresentedExplosionVisual> _presentedExplosionVisualsThisFrame = new();
     private int _nextClientBackstabVisualId = -1;
     private int _spySuperjumpTrajectoryAnimationTicks;
+
+    private readonly record struct PresentedExplosionVisual(float X, float Y);
 
     private void ResetTransientPresentationEffects()
     {
@@ -99,6 +102,30 @@ public partial class Game1
     private bool TryCreateExplosionVisual(WorldSoundEvent soundEvent, out ExplosionVisual? explosion)
     {
         return _gameplayImpactEffectsController.TryCreateExplosionVisual(soundEvent, out explosion);
+    }
+
+    private void RecordPresentedExplosionVisual(string effectName, float x, float y)
+    {
+        if (string.Equals(effectName, "Explosion", StringComparison.OrdinalIgnoreCase))
+        {
+            _presentedExplosionVisualsThisFrame.Add(new PresentedExplosionVisual(x, y));
+        }
+    }
+
+    private bool HasPresentedExplosionVisualThisFrame(float x, float y)
+    {
+        const float epsilon = 0.01f;
+        for (var index = 0; index < _presentedExplosionVisualsThisFrame.Count; index += 1)
+        {
+            var visual = _presentedExplosionVisualsThisFrame[index];
+            if (MathF.Abs(visual.X - x) <= epsilon
+                && MathF.Abs(visual.Y - y) <= epsilon)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void AdvanceExplosionVisuals()

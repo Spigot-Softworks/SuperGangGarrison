@@ -147,6 +147,7 @@ internal static partial class ServerHelpers
             InteractWeapon: buttons.HasFlag(InputButtons.InteractWeapon),
             IsUsingBinoculars: message.IsUsingBinoculars,
             BinocularsFocusX: message.BinocularsFocusX,
-            BinocularsFocusY: message.BinocularsFocusY);
+            BinocularsFocusY: message.BinocularsFocusY,
+            SwapWeapon: buttons.HasFlag(InputButtons.SwapWeapon));
     }
 }

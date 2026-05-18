@@ -123,6 +123,21 @@ public static class BotNavigationAssetStore
         return TryLoadFromPath(GetRuntimeCachePath(level), level, out asset);
     }
 
+    public static BotNavigationAssetLoadDiagnostic GetLoadDiagnostic(SimpleLevel level)
+    {
+        ArgumentNullException.ThrowIfNull(level);
+
+        var expectedFingerprint = ComputeLevelFingerprint(level);
+        var shippedPath = ResolveShippedPath(level);
+        var runtimeCachePath = GetRuntimeCachePath(level);
+        return new BotNavigationAssetLoadDiagnostic(
+            ShippedPath: shippedPath,
+            RuntimeCachePath: runtimeCachePath,
+            ExpectedFingerprint: expectedFingerprint,
+            ShippedStatus: InspectPath(shippedPath, level, expectedFingerprint),
+            RuntimeCacheStatus: InspectPath(runtimeCachePath, level, expectedFingerprint));
+    }
+
     public static void SaveRuntimeCache(BotNavigationAsset asset)
     {
         ArgumentNullException.ThrowIfNull(asset);
@@ -226,13 +241,13 @@ public static class BotNavigationAssetStore
     private static bool TryLoadFromPath(string path, SimpleLevel level, out BotNavigationAsset asset)
     {
         asset = null!;
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        if (!BotBrainJsonAssetIO.TryResolveReadablePath(path, out var readablePath))
         {
             return false;
         }
 
-        var cacheKey = Path.GetFullPath(path);
-        var fileInfo = new FileInfo(path);
+        var cacheKey = Path.GetFullPath(readablePath);
+        var fileInfo = new FileInfo(readablePath);
         lock (AssetFileCacheSync)
         {
             if (AssetFileCache.TryGetValue(cacheKey, out var cached)
@@ -248,7 +263,7 @@ public static class BotNavigationAssetStore
         BotNavigationAsset? loaded;
         try
         {
-            loaded = JsonSerializer.Deserialize<BotNavigationAsset>(File.ReadAllText(path), SerializerOptions);
+            loaded = BotBrainJsonAssetIO.Deserialize<BotNavigationAsset>(readablePath, SerializerOptions);
         }
         catch
         {
@@ -267,6 +282,56 @@ public static class BotNavigationAssetStore
 
         asset = loaded;
         return true;
+    }
+
+    private static string InspectPath(string path, SimpleLevel level, string expectedFingerprint)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return "empty_path";
+        }
+
+        if (!BotBrainJsonAssetIO.TryResolveReadablePath(path, out var readablePath))
+        {
+            return "missing";
+        }
+
+        BotNavigationAsset? loaded;
+        try
+        {
+            loaded = BotBrainJsonAssetIO.Deserialize<BotNavigationAsset>(readablePath, SerializerOptions);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or JsonException or NotSupportedException)
+        {
+            return $"read_error:{ex.GetType().Name}";
+        }
+
+        if (loaded is null)
+        {
+            return "empty_asset";
+        }
+
+        if (loaded.FormatVersion != CurrentFormatVersion)
+        {
+            return $"format_mismatch:{loaded.FormatVersion}!={CurrentFormatVersion}";
+        }
+
+        if (!string.Equals(loaded.LevelName, level.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"level_mismatch:{loaded.LevelName}!={level.Name}";
+        }
+
+        if (loaded.MapAreaIndex != level.MapAreaIndex)
+        {
+            return $"area_mismatch:{loaded.MapAreaIndex}!={level.MapAreaIndex}";
+        }
+
+        if (!string.Equals(loaded.LevelFingerprint, expectedFingerprint, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"fingerprint_mismatch:{TrimFingerprint(loaded.LevelFingerprint)}!={TrimFingerprint(expectedFingerprint)}";
+        }
+
+        return $"compatible:nodes={loaded.Nodes.Count}:edges={loaded.Edges.Count}:anchors={loaded.Anchors.Count}";
     }
 
     private static NavGraph CacheGraph(SimpleLevel level, BotNavigationAsset asset)
@@ -362,3 +427,10 @@ public static class BotNavigationAssetStore
 
     private sealed record CachedLevelFingerprint(string Fingerprint);
 }
+
+public readonly record struct BotNavigationAssetLoadDiagnostic(
+    string ShippedPath,
+    string RuntimeCachePath,
+    string ExpectedFingerprint,
+    string ShippedStatus,
+    string RuntimeCacheStatus);

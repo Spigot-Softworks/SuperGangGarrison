@@ -252,6 +252,20 @@ public sealed class CustomMapPngExporterTests
     }
 
     [Fact]
+    public void RuntimeImporterReadsUntypedLegacyVisualMetadata()
+    {
+        var harvestPath = ProjectSourceLocator.FindFile(Path.Combine("Core", "Content", "StockMaps", "koth_harvest.png"));
+        Assert.False(string.IsNullOrWhiteSpace(harvestPath));
+
+        var imported = CustomMapPngImporter.Import(harvestPath!);
+
+        Assert.NotNull(imported);
+        Assert.Equal(3f, imported.Room.CustomMapVisuals.ImageScale);
+        Assert.NotEmpty(imported.Room.CustomMapVisuals.ParallaxLayers);
+        Assert.NotNull(imported.Room.CustomMapVisuals.Foreground);
+    }
+
+    [Fact]
     public void RuntimeImporterKeepsGg2CompatibleScaleWhenEmbeddedScaleWouldClipEntities()
     {
         using var workspace = TempWorkspace.Create();

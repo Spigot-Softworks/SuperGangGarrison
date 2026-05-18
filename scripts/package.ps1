@@ -19,8 +19,6 @@ $stagingRoot = Join-Path $distRoot "_staging"
 $configuration = "Release"
 $projects =
 @(
-    "Core/OpenGarrison.Core.csproj",
-    "Protocol/OpenGarrison.Protocol.csproj",
     "Client/OpenGarrison.Client.csproj",
     "Server/OpenGarrison.Server.csproj",
     "ServerLauncher/OpenGarrison.ServerLauncher.csproj"
@@ -144,6 +142,259 @@ function Invoke-GenerateDistributionAtlases {
     )
 }
 
+function Restore-CollisionMaskImages {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot,
+        [Parameter(Mandatory = $true)]
+        [string]$ContentDirectory
+    )
+
+    $sourceDirectory = Join-Path $repoRoot "Core/Content/Sprites/Collision Maps"
+    if (-not (Test-Path $sourceDirectory)) {
+        return
+    }
+
+    $destinationDirectory = Join-Path $ContentDirectory "Sprites/Collision Maps"
+    Copy-DirectoryContents -SourceDirectory $sourceDirectory -DestinationDirectory $destinationDirectory
+}
+
+function Test-IsPathWithinDirectory {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+        [Parameter(Mandatory = $true)]
+        [string]$Directory
+    )
+
+    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    $resolvedDirectory = [System.IO.Path]::GetFullPath($Directory)
+    if (-not $resolvedDirectory.EndsWith([System.IO.Path]::DirectorySeparatorChar)) {
+        $resolvedDirectory += [System.IO.Path]::DirectorySeparatorChar
+    }
+
+    return $resolvedPath.StartsWith($resolvedDirectory, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Remove-PackagedContentResidue {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ContentDirectory
+    )
+
+    if (-not (Test-Path $ContentDirectory)) {
+        return
+    }
+
+    $contentRoot = [System.IO.Path]::GetFullPath($ContentDirectory)
+    $removedDirectories = 0
+    $removedFiles = 0
+
+    $knownSourceDirectories = @(
+        "BotNavScoreRoutes",
+        "Builder",
+        "MotionProof",
+        "Objects",
+        "Paths",
+        "Scripts",
+        "Time Lines",
+        "TraversalLab"
+    )
+
+    foreach ($relativeDirectory in $knownSourceDirectories) {
+        $directory = Join-Path $ContentDirectory $relativeDirectory
+        if ((Test-Path $directory) -and (Test-IsPathWithinDirectory -Path $directory -Directory $contentRoot)) {
+            Remove-Item $directory -Recurse -Force
+            $removedDirectories += 1
+        }
+    }
+
+    $buildDirectoryNames = @("bin", "obj")
+    foreach ($directory in Get-ChildItem -Path $ContentDirectory -Directory -Recurse -Force | Sort-Object FullName -Descending) {
+        if ($buildDirectoryNames -notcontains $directory.Name) {
+            continue
+        }
+
+        if (-not (Test-IsPathWithinDirectory -Path $directory.FullName -Directory $contentRoot)) {
+            continue
+        }
+
+        Remove-Item $directory.FullName -Recurse -Force
+        $removedDirectories += 1
+    }
+
+    $sourceFilePatterns = @(
+        "*.mgcb",
+        "*.mgcontent",
+        "*.mgstats",
+        "*.spritefont",
+        "*.fx",
+        "*.cs"
+    )
+
+    foreach ($pattern in $sourceFilePatterns) {
+        foreach ($file in Get-ChildItem -Path $ContentDirectory -File -Recurse -Force -Filter $pattern) {
+            if (-not (Test-IsPathWithinDirectory -Path $file.FullName -Directory $contentRoot)) {
+                continue
+            }
+
+            Remove-Item $file.FullName -Force
+            $removedFiles += 1
+        }
+    }
+
+    $deprecatedGameMakerMetadataDirectories = @(
+        "Sprites",
+        "Backgrounds",
+        "Sounds",
+        "Fonts",
+        "Paths",
+        "Time Lines",
+        "Builder"
+    )
+
+    foreach ($relativeDirectory in $deprecatedGameMakerMetadataDirectories) {
+        $directory = Join-Path $ContentDirectory $relativeDirectory
+        if (-not (Test-Path $directory)) {
+            continue
+        }
+
+        foreach ($file in Get-ChildItem -Path $directory -File -Recurse -Force -Filter "*.xml") {
+            if (-not (Test-IsPathWithinDirectory -Path $file.FullName -Directory $contentRoot)) {
+                continue
+            }
+
+            Remove-Item $file.FullName -Force
+            $removedFiles += 1
+        }
+    }
+
+    $rootConstantsFile = Join-Path $ContentDirectory "Constants.xml"
+    if ((Test-Path $rootConstantsFile) -and (Test-IsPathWithinDirectory -Path $rootConstantsFile -Directory $contentRoot)) {
+        Remove-Item $rootConstantsFile -Force
+        $removedFiles += 1
+    }
+
+    $browserOnlyBundlePatterns = @(
+        "_browser-bootstrap-assets.zip",
+        "_browser-runtime-assets.zip"
+    )
+
+    foreach ($pattern in $browserOnlyBundlePatterns) {
+        foreach ($file in Get-ChildItem -Path $ContentDirectory -File -Force -Filter $pattern) {
+            if (-not (Test-IsPathWithinDirectory -Path $file.FullName -Directory $contentRoot)) {
+                continue
+            }
+
+            Remove-Item $file.FullName -Force
+            $removedFiles += 1
+        }
+    }
+
+    Write-Host "[package] removed content residue: $removedDirectories directories, $removedFiles files"
+}
+
+function Convert-PackagedBotBrainJsonAssetsToGzip {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ContentDirectory
+    )
+
+    if (-not (Test-Path $ContentDirectory)) {
+        return
+    }
+
+    Add-Type -AssemblyName System.IO.Compression
+
+    $contentRoot = [System.IO.Path]::GetFullPath($ContentDirectory)
+    $directories = @(
+        "BotBrainNav",
+        "BotBrainProofGraphs",
+        "BotBrainCorridors",
+        "BotBrainTapes"
+    )
+
+    $compressedFiles = 0
+    $rawBytes = 0L
+    $compressedBytes = 0L
+
+    foreach ($relativeDirectory in $directories) {
+        $directory = Join-Path $ContentDirectory $relativeDirectory
+        if (-not (Test-Path $directory)) {
+            continue
+        }
+
+        foreach ($file in Get-ChildItem -Path $directory -File -Recurse -Force -Filter "*.json") {
+            if (-not (Test-IsPathWithinDirectory -Path $file.FullName -Directory $contentRoot)) {
+                continue
+            }
+
+            $compressedPath = "$($file.FullName).gz"
+            if (Test-Path $compressedPath) {
+                Remove-Item $compressedPath -Force
+            }
+
+            $sourceStream = [System.IO.File]::OpenRead($file.FullName)
+            try {
+                $destinationStream = [System.IO.File]::Create($compressedPath)
+                try {
+                    $gzipStream = [System.IO.Compression.GZipStream]::new($destinationStream, [System.IO.Compression.CompressionMode]::Compress)
+                    try {
+                        $sourceStream.CopyTo($gzipStream)
+                    }
+                    finally {
+                        $gzipStream.Dispose()
+                    }
+                }
+                finally {
+                    $destinationStream.Dispose()
+                }
+            }
+            finally {
+                $sourceStream.Dispose()
+            }
+
+            $compressedFile = Get-Item $compressedPath
+            $rawBytes += $file.Length
+            $compressedBytes += $compressedFile.Length
+            Remove-Item $file.FullName -Force
+            $compressedFiles += 1
+        }
+    }
+
+    $rawMb = [Math]::Round($rawBytes / 1MB, 2)
+    $compressedMb = [Math]::Round($compressedBytes / 1MB, 2)
+    Write-Host "[package] compressed BotBrain JSON assets: $compressedFiles files, $rawMb MB -> $compressedMb MB"
+}
+
+function Assert-PackagedContentPolicy {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ContentDirectory
+    )
+
+    if (-not (Test-Path $ContentDirectory)) {
+        return
+    }
+
+    $motionProofDirectory = Join-Path $ContentDirectory "MotionProof"
+    if (Test-Path $motionProofDirectory) {
+        throw "Release content still contains removed MotionProof runtime assets: '$motionProofDirectory'."
+    }
+
+    foreach ($relativeDirectory in @("BotBrainNav", "BotBrainProofGraphs", "BotBrainCorridors", "BotBrainTapes")) {
+        $directory = Join-Path $ContentDirectory $relativeDirectory
+        if (-not (Test-Path $directory)) {
+            continue
+        }
+
+        $uncompressedJson = Get-ChildItem -Path $directory -File -Recurse -Force -Filter "*.json" | Select-Object -First 1
+        if ($uncompressedJson -ne $null) {
+            throw "Release content contains uncompressed BotBrain JSON asset '$($uncompressedJson.FullName)'. Expected packaged .json.gz assets."
+        }
+    }
+}
+
 function New-UnixLauncherScript {
     param(
         [Parameter(Mandatory = $true)]
@@ -253,6 +504,8 @@ function Publish-BundledPlugins {
             "-r", $RuntimeIdentifier,
             "--self-contained", "false",
             "--no-restore",
+            "/nr:false",
+            "/m:1",
             "-o", $pluginOutputDirectory
         )
 
@@ -338,14 +591,27 @@ foreach ($runtimeIdentifier in $Platforms) {
             "-r", $runtimeIdentifier,
             "--self-contained", $selfContained,
             "--no-restore",
+            "/nr:false",
+            "/m:1",
+            "-p:OpenGarrisonPackageScriptOwnsContent=true",
             "-o", $stagingDirectory
         )
     }
 
     Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "Core/Content") -DestinationDirectory (Join-Path $stagingDirectory "Content")
     Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "Client/Content") -DestinationDirectory (Join-Path $stagingDirectory "Content")
+    $mapsDirectory = Join-Path $repoRoot "Maps"
+    if (Test-Path $mapsDirectory) {
+        Copy-DirectoryContents -SourceDirectory $mapsDirectory -DestinationDirectory (Join-Path $stagingDirectory "Maps")
+    }
+
     Invoke-GenerateDistributionAtlases -RepoRoot $repoRoot -ContentDirectory (Join-Path $stagingDirectory "Content")
+    Restore-CollisionMaskImages -RepoRoot $repoRoot -ContentDirectory (Join-Path $stagingDirectory "Content")
+    Remove-PackagedContentResidue -ContentDirectory (Join-Path $stagingDirectory "Content")
+    Convert-PackagedBotBrainJsonAssetsToGzip -ContentDirectory (Join-Path $stagingDirectory "Content")
+    Assert-PackagedContentPolicy -ContentDirectory (Join-Path $stagingDirectory "Content")
     Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "packaging/config") -DestinationDirectory (Join-Path $stagingDirectory "config")
+    Copy-Item (Join-Path $repoRoot "Client/practice-bot-names.txt") (Join-Path $stagingDirectory "config/practice-bot-names.txt") -Force
     Copy-Item (Join-Path $repoRoot "sampleMapRotation.txt") (Join-Path $stagingDirectory "config/sampleMapRotation.txt") -Force
     Copy-Item (Join-Path $repoRoot "packaging/README.txt") (Join-Path $stagingDirectory "README.txt") -Force
 

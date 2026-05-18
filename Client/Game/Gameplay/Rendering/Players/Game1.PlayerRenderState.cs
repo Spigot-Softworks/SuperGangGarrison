@@ -11,7 +11,6 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
     private const string CoreReplicatedOwnerId = "core.player";
-    private const string SoldierShotgunEquippedKey = "soldier_shotgun_equipped";
     private const string SoldierShotgunAmmoKey = "soldier_shotgun_ammo";
     private const string SoldierShotgunMaxAmmoKey = "soldier_shotgun_max_ammo";
     private const string SoldierShotgunReloadTicksKey = "soldier_shotgun_reload_ticks";
@@ -30,6 +29,8 @@ public partial class Game1
         public float BodyAnimationImage { get; set; }
 
         public float RenderHorizontalSpeed { get; set; }
+
+        public float AnimationHorizontalSpeed { get; set; }
 
         public bool AppearsAirborne { get; set; }
 
@@ -67,10 +68,12 @@ public partial class Game1
         }
 
         var renderState = GetOrCreatePlayerRenderState(playerStateKey, player);
-        var observedRenderVelocity = SampleObservedRenderVelocity(player);
+        var renderPosition = GetRenderPosition(player, allowInterpolation: true);
+        var observedRenderVelocity = SampleObservedRenderVelocity(player, renderPosition);
         var renderHorizontalSpeed = GetPlayerRenderHorizontalSpeed(player, observedRenderVelocity);
         var renderVerticalSpeed = GetPlayerRenderVerticalSpeed(player, observedRenderVelocity);
-        var horizontalSourceStepSpeed = GetPlayerAnimationSourceStepSpeed(renderHorizontalSpeed);
+        var animationHorizontalSpeed = GetPlayerPhysicsHorizontalSpeedForPresentation(player);
+        var horizontalSourceStepSpeed = GetPlayerAnimationSourceStepSpeed(animationHorizontalSpeed);
         var verticalSourceStepSpeed = GetPlayerAnimationSourceStepSpeed(renderVerticalSpeed);
         var animationElapsedSeconds = GetPlayerAnimationElapsedSeconds();
         var isRemoteNetworkPlayer = _networkClient.IsConnected && !ReferenceEquals(player, _world.LocalPlayer);
@@ -90,8 +93,8 @@ public partial class Game1
             appearsAirborne = verticalSourceStepSpeed > 0.35f;
         }
 
-        // For remote network players not grounded, ensure they appear airborne if moving significantly
-        // Don't force to false when vertical speed is low - player might be at jump apex
+        // For remote network players not grounded, ensure they appear airborne if moving significantly.
+        // Don't force to false when vertical speed is low - player might be at jump apex.
         if (!isHumiliated && isRemoteNetworkPlayer && !player.IsGrounded)
         {
             if (verticalSourceStepSpeed > 0.35f)
@@ -101,7 +104,6 @@ public partial class Game1
         }
 
         // Small stair snaps can briefly clear grounded state without being a real jump/fall.
-        // Only apply this when player is actually grounded to avoid affecting jump apex
         if (appearsAirborne
             && player.IsGrounded
             && horizontalSourceStepSpeed >= 0.2f
@@ -110,8 +112,6 @@ public partial class Game1
             appearsAirborne = false;
         }
 
-        // When standing still at an edge/platform, never use jump animation if grounded
-        // This ensures leaning animation is used instead
         if (appearsAirborne
             && player.IsGrounded
             && horizontalSourceStepSpeed < 0.2f)
@@ -119,19 +119,8 @@ public partial class Game1
             appearsAirborne = false;
         }
 
-        // Check for ground support beneath player to handle stairs and platform edges
-        // This prevents animation resets when IsGrounded flickers on stairs
-        var hasGroundSupport = appearsAirborne && HasGroundSupportBeneathPlayer(player);
-        if (hasGroundSupport)
+        if (!appearsAirborne && horizontalSourceStepSpeed < 0.2f)
         {
-            appearsAirborne = false;
-        }
-
-        var isStill = !appearsAirborne && horizontalSourceStepSpeed < 0.2f;
-
-        if (isStill && !hasGroundSupport)
-        {
-            // Only reset animation if truly standing still (not on stairs/edges)
             animationImage = 0f;
         }
         else if (appearsAirborne)
@@ -140,14 +129,14 @@ public partial class Game1
         }
         else
         {
-            // Continue advancing animation (including on stairs with ground support)
             animationImage = WrapAnimationImage(
-                animationImage + GetPlayerAnimationAdvance(renderHorizontalSpeed, animationElapsedSeconds, GetPlayerFacingScale(player)),
-                GetPlayerBodyAnimationLength(player));
+                animationImage + GetPlayerAnimationAdvance(animationHorizontalSpeed, animationElapsedSeconds, GetPlayerFacingScale(player)),
+                GetPlayerBodyAnimationLength(player, horizontalSourceStepSpeed));
         }
 
         renderState.BodyAnimationImage = animationImage;
         renderState.RenderHorizontalSpeed = renderHorizontalSpeed;
+        renderState.AnimationHorizontalSpeed = animationHorizontalSpeed;
         renderState.AppearsAirborne = appearsAirborne;
         UpdatePlayerWeaponAnimationState(player, renderState, animationElapsedSeconds);
     }
@@ -366,10 +355,9 @@ public partial class Game1
         return clampedSpeedPerSecond * elapsedSeconds / 15f * MathF.Sign(speedPerSecond) * facingScale;
     }
 
-    private Vector2 SampleObservedRenderVelocity(PlayerEntity player)
+    private Vector2 SampleObservedRenderVelocity(PlayerEntity player, Vector2 currentPosition)
     {
         var playerStateKey = GetPlayerStateKey(player);
-        var currentPosition = GetRenderPosition(player, allowInterpolation: true);
         var currentTimeSeconds = _networkInterpolationClockSeconds;
         if (!_playerPreviousRenderPositions.TryGetValue(playerStateKey, out var previousPosition)
             || !_playerPreviousRenderSampleTimes.TryGetValue(playerStateKey, out var previousTimeSeconds))
@@ -408,6 +396,24 @@ public partial class Game1
             }
 
             return observedRenderVelocity.X;
+        }
+
+        return player.HorizontalSpeed;
+    }
+
+    private float GetPlayerPhysicsHorizontalSpeedForPresentation(PlayerEntity player)
+    {
+        if (_networkClient.IsConnected && ReferenceEquals(player, _world.LocalPlayer))
+        {
+            if (_hasPredictedLocalPlayerPosition)
+            {
+                return _predictedLocalPlayerVelocity.X;
+            }
+
+            if (TryGetLatestLocalServerVelocity(out var serverVelocity))
+            {
+                return serverVelocity.X;
+            }
         }
 
         return player.HorizontalSpeed;
@@ -460,54 +466,6 @@ public partial class Game1
             && _hasPredictedLocalPlayerPosition
                 ? _predictedLocalPlayerGrounded
                 : player.IsGrounded;
-    }
-
-    private bool HasGroundSupportBeneathPlayer(PlayerEntity player)
-    {
-        // Check if there's solid ground beneath the player, even if IsGrounded is false
-        // This helps with stairs and small platform edges
-        if (player.VerticalSpeed < -2.5f)
-        {
-            return false;
-        }
-
-        var playerScale = player.PlayerScale;
-        // Probe further down and wider to catch platform edges more reliably
-        var probeY = player.Bottom + (2f * playerScale);
-        var leftProbeX = player.Left + MathF.Max(0.5f, 1f * playerScale);
-        var centerProbeX = player.X;
-        var rightProbeX = player.Right - MathF.Max(0.5f, 1f * playerScale);
-        
-        // Also check slightly inside the player bounds for very narrow platforms
-        var innerLeftProbeX = player.X - (2f * playerScale);
-        var innerRightProbeX = player.X + (2f * playerScale);
-        
-        return IsPointBlocked(player, leftProbeX, probeY)
-            || IsPointBlocked(player, centerProbeX, probeY)
-            || IsPointBlocked(player, rightProbeX, probeY)
-            || IsPointBlocked(player, innerLeftProbeX, probeY)
-            || IsPointBlocked(player, innerRightProbeX, probeY);
-    }
-
-    private bool IsPointBlocked(PlayerEntity player, float x, float y)
-    {
-        foreach (var solid in _world.Level.Solids)
-        {
-            if (x >= solid.Left && x < solid.Right && y >= solid.Top && y < solid.Bottom)
-            {
-                return true;
-            }
-        }
-
-        foreach (var gate in _world.Level.GetBlockingTeamGates(player.Team, player.IsCarryingIntel))
-        {
-            if (x >= gate.Left && x < gate.Right && y >= gate.Top && y < gate.Bottom)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private PlayerRenderState GetOrCreatePlayerRenderState(int playerStateKey, PlayerEntity player)
@@ -722,22 +680,11 @@ public partial class Game1
     private static bool ShouldPresentExperimentalSoldierShotgun(PlayerEntity player)
     {
         if (player.ClassId != PlayerClass.Soldier) return false;
-        // Local player: IsExperimentalOffhandPresented reflects the live simulation state.
-        if (player.IsExperimentalOffhandPresented) return true;
-        // Remote players: GameplayEquippedSlot is delivered via the movement delta (required, never
-        // budget-dropped) and pre-sets SelectedGameplayEquippedSlot in ApplyNetworkState before the
-        // loadout validation runs, so GameplayLoadoutState.EquippedSlot is always up-to-date.
-        // We do NOT check SecondaryItemId here because it is null for remote players (ExperimentalOffhandWeapon
-        // is never set on network-applied entities); the server only sends Secondary slot when a valid
-        // offhand weapon is actually equipped, so the check is redundant.
-        if (player.GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Secondary)
-        {
-            return true;
-        }
-        // Fallback: ReplicatedStates full-state path (may be delayed by budget, but serves as a
-        // safety net for the initial join frame before any movement delta has been merged).
-        return player.TryGetReplicatedStateBool(CoreReplicatedOwnerId, SoldierShotgunEquippedKey, out var equipped)
-            && equipped;
+        // GameplayEquippedSlot is delivered via movement deltas and is the authoritative
+        // presentation signal. Replicated shotgun toggles can lag under snapshot budgeting,
+        // so they must not keep the shotgun visible after the slot returns to primary.
+        return player.IsExperimentalOffhandPresented
+            || player.GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Secondary;
     }
 
     private static float WrapAnimationImage(float animationImage, float length)
@@ -756,13 +703,29 @@ public partial class Game1
         return animationImage;
     }
 
-    private float GetPlayerBodyAnimationLength(PlayerEntity player)
+    private float GetPlayerBodyAnimationLength(PlayerEntity player, float? horizontalSourceStepSpeed = null)
     {
-        return player.ClassId == PlayerClass.Quote
+        if (player.ClassId == PlayerClass.Quote
             || (player.ClassId == PlayerClass.Sniper && player.IsSniperScoped)
-            || _world.IsPlayerHumiliated(player)
-                ? 2f
-                : 8f;
+            || _world.IsPlayerHumiliated(player))
+        {
+            return 2f;
+        }
+
+        var spriteName = player.ClassId == PlayerClass.Heavy
+            && horizontalSourceStepSpeed is >= 0.2f and < 3f
+                ? GameplayPlayerSpriteRenderController.GetWalkSpriteName(player)
+                : GameplayPlayerSpriteRenderController.GetRunSpriteName(player);
+        if (spriteName is not null)
+        {
+            var sprite = GetResolvedSprite(spriteName);
+            if (sprite is { Frames.Count: > 0 })
+            {
+                return MathF.Max(1f, sprite.Frames.Count);
+            }
+        }
+
+        return 4f;
     }
 
     private void QueueWeaponShellVisuals(PlayerEntity player, bool shotStarted, bool shellInserted)

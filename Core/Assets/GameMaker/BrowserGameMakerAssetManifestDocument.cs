@@ -73,6 +73,9 @@ public sealed class BrowserGameMakerSpriteAssetDocument
     [JsonPropertyName("metadataPath")]
     public string MetadataPath { get; init; } = string.Empty;
 
+    [JsonPropertyName("framePaths")]
+    public string[] FramePaths { get; init; } = [];
+
     [JsonPropertyName("originX")]
     public int OriginX { get; init; }
 
@@ -93,6 +96,9 @@ public sealed class BrowserGameMakerSpriteAssetDocument
         return new BrowserGameMakerSpriteAssetDocument
         {
             MetadataPath = BrowserGameMakerAssetManifestDocument.NormalizeAssetPath(asset.MetadataPath),
+            FramePaths = asset.FramePaths
+                .Select(BrowserGameMakerAssetManifestDocument.NormalizeAssetPath)
+                .ToArray(),
             OriginX = asset.OriginX,
             OriginY = asset.OriginY,
             Preload = asset.Preload,
@@ -106,7 +112,7 @@ public sealed class BrowserGameMakerSpriteAssetDocument
         return new GameMakerSpriteAsset(
             Name: name,
             MetadataPath: MetadataPath,
-            FramePaths: [],
+            FramePaths: FramePaths,
             OriginX: OriginX,
             OriginY: OriginY,
             Preload: Preload,

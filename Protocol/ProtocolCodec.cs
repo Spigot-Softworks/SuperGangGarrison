@@ -50,7 +50,18 @@ public static partial class ProtocolCodec
     /// </summary>
     public static byte[] Serialize(IProtocolMessage message, ProtocolCompressionSettings compressionSettings)
     {
-        var uncompressed = SerializeUncompressed(message);
+        var measuredSize = MeasureSerializedSize(message);
+        return Serialize(message, measuredSize, compressionSettings);
+    }
+
+    public static byte[] Serialize(IProtocolMessage message, int measuredSize)
+    {
+        return Serialize(message, measuredSize, ProtocolCompressionSettings.Default);
+    }
+
+    public static byte[] Serialize(IProtocolMessage message, int measuredSize, ProtocolCompressionSettings compressionSettings)
+    {
+        var uncompressed = SerializeUncompressed(message, measuredSize);
 
         // Check if compression should be attempted
         if (!compressionSettings.EnableCompression)
@@ -78,10 +89,10 @@ public static partial class ProtocolCodec
     private static byte[] SerializeUncompressed(IProtocolMessage message)
     {
         var size = MeasureSerializedSize(message);
-        return Serialize(message, size);
+        return SerializeUncompressed(message, size);
     }
 
-    public static byte[] Serialize(IProtocolMessage message, int measuredSize)
+    private static byte[] SerializeUncompressed(IProtocolMessage message, int measuredSize)
     {
         ArgumentNullException.ThrowIfNull(message);
         ArgumentOutOfRangeException.ThrowIfNegative(measuredSize);

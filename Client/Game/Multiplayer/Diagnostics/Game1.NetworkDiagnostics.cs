@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
@@ -14,7 +15,9 @@ public partial class Game1
 {
     private const double NetworkDiagnosticSummaryIntervalSeconds = 1d;
     private const int NetworkDiagnosticHistoryLimit = 180;
+    private const string NetworkDiagnosticLogFilePrefix = "client-netdiag";
     private bool _networkDiagnosticsEnabled;
+    private string? _networkDiagnosticLogPath;
     private readonly List<string> _networkDiagnosticOverlayLines = new();
     private readonly List<string> _networkDiagnosticSummaryHistory = new();
     private double _networkDiagnosticSummaryElapsedSeconds;
@@ -292,7 +295,10 @@ public partial class Game1
         _networkDiagnosticSummaryHistory.Clear();
         _networkDiagnosticOverlayLines.Clear();
         InitializeNetworkDiagnosticGcBaseline();
-        AddConsoleLine("network diagnostics enabled");
+        StartNetworkDiagnosticLog();
+        AddConsoleLine(_networkDiagnosticLogPath is null
+            ? "network diagnostics enabled"
+            : $"network diagnostics enabled, logging to {_networkDiagnosticLogPath}");
     }
 
     private void DisableNetworkDiagnostics()
@@ -300,6 +306,7 @@ public partial class Game1
         _networkDiagnosticsEnabled = false;
         _networkClient.CollectDiagnostics = false;
         _networkDiagnosticOverlayLines.Clear();
+        AppendNetworkDiagnosticLogLine($"[{DateTime.Now:O}] status=disabled");
         AddConsoleLine("network diagnostics disabled");
     }
 
@@ -316,7 +323,23 @@ public partial class Game1
     private void PrintNetworkDiagnosticsStatus()
     {
         AddConsoleLine(_networkDiagnosticsEnabled ? "network diagnostics: enabled" : "network diagnostics: disabled");
+        if (_networkDiagnosticLogPath is not null)
+        {
+            AddConsoleLine($"network diagnostics log: {_networkDiagnosticLogPath}");
+        }
+
         AddConsoleLine(_networkDiagnosticLastConsoleSummary);
+    }
+
+    private void PrintNetworkDiagnosticsLogPath()
+    {
+        if (_networkDiagnosticLogPath is null)
+        {
+            AddConsoleLine("network diagnostics log: no active log yet. Run net_diag on.");
+            return;
+        }
+
+        AddConsoleLine($"network diagnostics log: {_networkDiagnosticLogPath}");
     }
 
     private void ExportNetworkDiagnosticsHistory()
@@ -347,6 +370,52 @@ public partial class Game1
         catch (Exception ex)
         {
             AddConsoleLine($"network diagnostics export failed: {ex.Message}");
+        }
+    }
+
+    private void StartNetworkDiagnosticLog()
+    {
+        if (OperatingSystem.IsBrowser())
+        {
+            _networkDiagnosticLogPath = null;
+            return;
+        }
+
+        try
+        {
+            var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+            _networkDiagnosticLogPath = RuntimePaths.GetLogPath($"{NetworkDiagnosticLogFilePrefix}-{timestamp}.log");
+            File.WriteAllLines(
+                _networkDiagnosticLogPath,
+                [
+                    $"generated={DateTime.Now:O}",
+                    $"status=enabled",
+                    $"server={_networkClient.ServerDescription}",
+                    $"slot={_networkClient.LocalPlayerSlot}",
+                ]);
+        }
+        catch (Exception ex)
+        {
+            _networkDiagnosticLogPath = null;
+            AddConsoleLine($"network diagnostics log failed: {ex.Message}");
+        }
+    }
+
+    private void AppendNetworkDiagnosticLogLine(string line)
+    {
+        if (_networkDiagnosticLogPath is null || OperatingSystem.IsBrowser())
+        {
+            return;
+        }
+
+        try
+        {
+            File.AppendAllText(_networkDiagnosticLogPath, line + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            AddConsoleLine($"network diagnostics log write failed: {ex.Message}");
+            _networkDiagnosticLogPath = null;
         }
     }
 
@@ -458,7 +527,7 @@ public partial class Game1
         _networkDiagnosticOverlayLines.Add(
             string.Create(CultureInfo.InvariantCulture, $"view corr {averageRenderCorrectionPixels:F2}px max {_networkDiagnosticRenderCorrectionMaxPixels:F2}px last {_networkDiagnosticLatestRenderCorrectionPixels:F2}px snaps {_networkDiagnosticRenderCorrectionHardSnaps}"));
         _networkDiagnosticOverlayLines.Add(
-            string.Create(CultureInfo.InvariantCulture, $"timeline int {_smoothedSnapshotIntervalSeconds * 1000f:F1}ms jitter {_smoothedSnapshotJitterSeconds * 1000f:F1}ms back {_remotePlayerInterpolationBackTimeSeconds * 1000f:F1}ms err {timelineErrorMilliseconds:F1}ms"));
+            string.Create(CultureInfo.InvariantCulture, $"timeline int {_smoothedSnapshotIntervalSeconds * 1000f:F1}ms jitter {_smoothedSnapshotJitterSeconds * 1000f:F1}ms lback {_localPlayerInterpolationBackTimeSeconds * 1000f:F1}ms rback {_remotePlayerInterpolationBackTimeSeconds * 1000f:F1}ms err {timelineErrorMilliseconds:F1}ms"));
         _networkDiagnosticOverlayLines.Add(
             string.Create(CultureInfo.InvariantCulture, $"SNAPSIZE:{_networkDiagnosticLatestSnapshotBytes}B"));
         _networkDiagnosticOverlayLines.Add(
@@ -466,13 +535,15 @@ public partial class Game1
 
         _networkDiagnosticLastConsoleSummary = string.Create(
             CultureInfo.InvariantCulture,
-            $"netdiag fps={fps:F1} hitch33={_networkDiagnosticUpdateHitches33} recv={_networkDiagnosticReceivePackets / intervalSeconds:F1}/s send={_networkDiagnosticSentPackets / intervalSeconds:F1}/s snaps={_networkDiagnosticAppliedSnapshots / intervalSeconds:F1}/s burst={_networkDiagnosticMaxSnapshotsPerFrame} proc={averageProcessNetworkMessagesMilliseconds:F3}/{_networkDiagnosticProcessMessagesMaxMilliseconds:F3}ms apply={averageApplySnapshotMilliseconds:F3}/{_networkDiagnosticApplySnapshotMaxMilliseconds:F3}ms pred={averagePredictionErrorPixels:F2}/{_networkDiagnosticPredictionErrorMaxPixels:F2}px view={averageRenderCorrectionPixels:F2}/{_networkDiagnosticRenderCorrectionMaxPixels:F2}px snaps={_networkDiagnosticRenderCorrectionHardSnaps} gc={gen0Collections}/{gen1Collections}/{gen2Collections} mem={currentMemoryMegabytes:F1}MB");
-        _networkDiagnosticSummaryHistory.Add($"[{DateTime.Now:HH:mm:ss}] {_networkDiagnosticLastConsoleSummary}");
+            $"netdiag ping={_networkClient.EstimatedPingMilliseconds}ms queued={_queuedAuthoritativeSnapshots.Count} pendingIn={_networkClient.LastReceiveDiagnostics.PendingInboundMessages} fps={fps:F1} hitch33={_networkDiagnosticUpdateHitches33} recv={_networkDiagnosticReceivePackets / intervalSeconds:F1}/s recvKB={receiveKilobytesPerSecond:F1}/s send={_networkDiagnosticSentPackets / intervalSeconds:F1}/s snaps={_networkDiagnosticAppliedSnapshots / intervalSeconds:F1}/s payload={_networkDiagnosticReceiveMaxPayloadBytes}B burst={_networkDiagnosticMaxSnapshotsPerFrame} stale={_networkDiagnosticStaleSnapshots} missBase={_networkDiagnosticMissingBaselineSnapshots} rej={_networkDiagnosticRejectedSnapshots} delta/full={_networkDiagnosticProcessedDeltaSnapshots}/{_networkDiagnosticProcessedFullSnapshots} decode={averageReceiveDeserializeMilliseconds:F3}/{_networkDiagnosticReceiveDeserializeMaxMilliseconds:F3}ms proc={averageProcessNetworkMessagesMilliseconds:F3}/{_networkDiagnosticProcessMessagesMaxMilliseconds:F3}ms apply={averageApplySnapshotMilliseconds:F3}/{_networkDiagnosticApplySnapshotMaxMilliseconds:F3}ms interp={averageInterpolationMilliseconds:F3}/{_networkDiagnosticInterpolationMaxMilliseconds:F3}ms recon={averageReconcileMilliseconds:F3}/{_networkDiagnosticReconcileMaxMilliseconds:F3}ms pred={averagePredictionErrorPixels:F2}/{_networkDiagnosticPredictionErrorMaxPixels:F2}px view={averageRenderCorrectionPixels:F2}/{_networkDiagnosticRenderCorrectionMaxPixels:F2}px snaps={_networkDiagnosticRenderCorrectionHardSnaps} timeline={_smoothedSnapshotIntervalSeconds * 1000f:F1}/{_smoothedSnapshotJitterSeconds * 1000f:F1}/{_localPlayerInterpolationBackTimeSeconds * 1000f:F1}/{_remotePlayerInterpolationBackTimeSeconds * 1000f:F1}/{timelineErrorMilliseconds:F1}ms gc={gen0Collections}/{gen1Collections}/{gen2Collections} mem={currentMemoryMegabytes:F1}MB");
+        var summaryLine = $"[{DateTime.Now:HH:mm:ss}] {_networkDiagnosticLastConsoleSummary}";
+        _networkDiagnosticSummaryHistory.Add(summaryLine);
         while (_networkDiagnosticSummaryHistory.Count > NetworkDiagnosticHistoryLimit)
         {
             _networkDiagnosticSummaryHistory.RemoveAt(0);
         }
 
+        AppendNetworkDiagnosticLogLine(summaryLine);
         AddConsoleLine(_networkDiagnosticLastConsoleSummary);
         ResetNetworkDiagnosticSample();
     }

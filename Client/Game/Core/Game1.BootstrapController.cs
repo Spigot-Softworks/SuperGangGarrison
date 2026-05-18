@@ -288,6 +288,7 @@ public partial class Game1
             _game._browserBootstrapAtlasResolver = null;
             _game._runtimeComposition = null;
             _game._spriteFontOpaqueBoundsCache.Clear();
+            _game._levelBackgroundFileTexture?.Dispose();
             _game._menuBackgroundTexture?.Dispose();
             _game._menuBitmapFontTexture?.Dispose();
             _game._menuPlaqueTexture?.Dispose();
@@ -318,8 +319,15 @@ public partial class Game1
             _game.DisposeGarrisonBuilderEditorAssets();
             _game._gameRenderTarget?.Dispose();
             _game._gameRenderTarget = null;
+            _game._damageVignetteTexture?.Dispose();
+            _game._damageVignetteTexture = null;
+            _game._damageVignetteTextureWidth = 0;
+            _game._damageVignetteTextureHeight = 0;
             _game._deathCamCaptureTarget?.Dispose();
             _game._deathCamCaptureTarget = null;
+            _game._levelBackgroundFileTexture = null;
+            _game._levelBackgroundFileTexturePath = null;
+            _game._levelBackgroundFileFailedPath = null;
             _game._menuBackgroundTexture = null;
             _game._menuBackgroundTexturePath = null;
             _game._menuBitmapFontTexture = null;

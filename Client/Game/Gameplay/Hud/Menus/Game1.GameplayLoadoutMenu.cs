@@ -523,16 +523,7 @@ public partial class Game1
     private void DrawGameplayLoadoutMenuPreview(GameplayLoadoutMenuLayout layout, PlayerClass viewedClass, GameplayItemDefinition detailItem)
     {
         var portraitPosition = new Vector2(layout.PanelBounds.X + 300f * layout.Scale, layout.PanelBounds.Y + 242f * layout.Scale);
-        if (!TryDrawGameplayLoadoutMenuPortraitAnimation(viewedClass, portraitPosition, Color.White, 4f * layout.Scale))
-        {
-            var teamOffset = _world.LocalPlayerTeam == PlayerTeam.Blue ? 10 : 0;
-            TryDrawScreenSprite(
-                "ClassSelectPortraitS",
-                GameplayLoadoutMenuPresentation.GetClassSelectFrame(viewedClass) + teamOffset,
-                portraitPosition,
-                Color.White,
-                new Vector2(4f * layout.Scale, 4f * layout.Scale));
-        }
+        TryDrawGameplayLoadoutMenuPortraitAnimation(viewedClass, portraitPosition, Color.White, 4f * layout.Scale);
     }
 
     private void DrawGameplayLoadoutMenuOption(Rectangle bounds, GameplayLoadoutMenuSlotOption option, bool hovered, bool canEquipClass)
@@ -664,12 +655,7 @@ public partial class Game1
             }
         }
 
-        return TryDrawScreenSprite(
-            "ClassSelectPortraitS",
-            hoverIndex + (_world.LocalPlayerTeam == PlayerTeam.Blue ? 10 : 0),
-            position,
-            tint,
-            new Vector2(scale, scale));
+        return false;
     }
 
     private void ResetGameplayLoadoutPortraitAnimation()

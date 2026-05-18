@@ -58,7 +58,7 @@ public partial class Game1
                 return false;
             }
 
-            position = game.GetRenderPosition(game._world.LocalPlayer, allowInterpolation: false);
+            position = game.GetRenderPosition(game._world.LocalPlayer);
             return true;
         }
 
@@ -66,7 +66,7 @@ public partial class Game1
         {
             if (game.FindPlayerById(playerId) is { } player)
             {
-                position = game.GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, game._world.LocalPlayer));
+                position = game.GetRenderPosition(player);
                 return true;
             }
 

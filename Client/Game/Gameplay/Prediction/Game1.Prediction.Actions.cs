@@ -253,8 +253,7 @@ public partial class Game1
     private bool TryPredictedFireExperimentalOffhandPrimaryWeapon(PlayerEntity player, bool firePrimary)
     {
         if (!firePrimary
-            || !player.IsExperimentalOffhandEquipped
-            || !player.HasExperimentalOffhandWeapon)
+            || !player.IsExperimentalOffhandSelected)
         {
             return false;
         }
@@ -270,8 +269,19 @@ public partial class Game1
 
     private void ApplyPredictedSecondaryFire(PlayerEntity player, PredictedLocalInput predictedInput)
     {
+        var swappedWeaponThisTick = ApplyPredictedWeaponSwap(player, predictedInput);
         ApplyPredictedSecondaryAbility(player, predictedInput);
-        ApplyPredictedSecondaryWeaponFire(player, predictedInput);
+        ApplyPredictedSecondaryWeaponFire(player, predictedInput, swappedWeaponThisTick);
+    }
+
+    private bool ApplyPredictedWeaponSwap(PlayerEntity player, PredictedLocalInput predictedInput)
+    {
+        if (player.IsTaunting || !predictedInput.SwapWeaponPressed)
+        {
+            return false;
+        }
+
+        return TryPredictedToggleSecondaryWeapon(player);
     }
 
     private void ApplyPredictedSecondaryAbility(PlayerEntity player, PredictedLocalInput predictedInput)
@@ -309,11 +319,6 @@ public partial class Game1
         }
 
         if (player.ClassId == PlayerClass.Demoman)
-        {
-            return;
-        }
-
-        if (TryPredictedToggleSoldierOffhand(player))
         {
             return;
         }
@@ -367,49 +372,21 @@ public partial class Game1
             && predictedInput.AbilityPressed;
     }
 
-    private bool TryPredictedToggleSoldierOffhand(PlayerEntity player)
+    private bool TryPredictedToggleSecondaryWeapon(PlayerEntity player)
     {
-        if (player.ClassId != PlayerClass.Soldier || !player.HasExperimentalOffhandWeapon)
+        if (player.ClassId == PlayerClass.Medic
+            || !player.HasExperimentalOffhandWeapon)
         {
             return false;
         }
 
+        var isOffhandSelected = player.IsExperimentalOffhandSelected;
         if (player.IsAcquiredWeaponEquipped)
         {
             player.StowAcquiredWeapon();
         }
 
-        if (player.IsExperimentalOffhandEquipped)
-        {
-            player.StowExperimentalOffhandWeapon();
-        }
-        else
-        {
-            player.EquipExperimentalOffhandWeapon();
-        }
-
-        SyncPredictedLocalPlayerState(player);
-        return true;
-    }
-
-    private bool TryPredictedToggleMedicOffhand(PlayerEntity player)
-    {
-        if (player.ClassId != PlayerClass.Medic || !player.HasExperimentalOffhandWeapon)
-        {
-            return false;
-        }
-
-        if (player.IsMedicUbering || player.IsUbered)
-        {
-            return false;
-        }
-
-        if (player.IsAcquiredWeaponEquipped)
-        {
-            player.StowAcquiredWeapon();
-        }
-
-        if (player.IsExperimentalOffhandEquipped)
+        if (isOffhandSelected)
         {
             player.StowExperimentalOffhandWeapon();
         }
@@ -443,10 +420,16 @@ public partial class Game1
         return true;
     }
 
-    private void ApplyPredictedSecondaryWeaponFire(PlayerEntity player, PredictedLocalInput predictedInput)
+    private void ApplyPredictedSecondaryWeaponFire(PlayerEntity player, PredictedLocalInput predictedInput, bool swappedWeaponThisTick)
     {
         if (player.IsTaunting
-            || !predictedInput.AbilityPressed)
+            || !predictedInput.AbilityPressed
+            || swappedWeaponThisTick)
+        {
+            return;
+        }
+
+        if (!predictedInput.Input.SwapWeapon && TryPredictedToggleSecondaryWeapon(player))
         {
             return;
         }
@@ -470,11 +453,6 @@ public partial class Game1
         if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUtility)
             || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
         {
-            if (TryPredictedToggleMedicOffhand(player))
-            {
-                return;
-            }
-
             if (_predictedLocalActionState.IsMedicUberReady)
             {
                 TryPredictedStartMedicUber(player);
@@ -483,13 +461,17 @@ public partial class Game1
             return;
         }
 
-        if (player.ClassId != PlayerClass.Soldier
-            || !player.HasExperimentalOffhandWeapon)
+        if (!player.HasExperimentalOffhandWeapon)
         {
             return;
         }
 
-        TryPredictedToggleSoldierOffhand(player);
+        if (predictedInput.Input.SwapWeapon)
+        {
+            return;
+        }
+
+        TryPredictedToggleSecondaryWeapon(player);
     }
 
     private bool TryPredictedFirePrimaryWeapon(PlayerEntity player)

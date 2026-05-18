@@ -12,39 +12,19 @@ internal static class TextureDecodeUtility
     public static Texture2D LoadTexture(GraphicsDevice graphicsDevice, byte[] bytes, bool applyLegacyChromaKey)
     {
         ArgumentNullException.ThrowIfNull(graphicsDevice);
-        ArgumentNullException.ThrowIfNull(bytes);
+        var decoded = DecodeTextureData(bytes, applyLegacyChromaKey);
+        return CreateTexture(graphicsDevice, decoded.PixelData, decoded.Width, decoded.Height);
+    }
 
-        using var image = Image.Load<Rgba32>(bytes);
-        var pixelData = new Rgba32[image.Width * image.Height];
-        image.CopyPixelDataTo(pixelData);
-        if (applyLegacyChromaKey)
-        {
-            ApplyLegacyChromaKeyTransparency(pixelData, image.Width, image.Height);
-        }
-
-        var textureData = new XnaColor[pixelData.Length];
-        for (var index = 0; index < pixelData.Length; index += 1)
-        {
-            var pixel = pixelData[index];
-            if (pixel.A == 0)
-            {
-                textureData[index] = XnaColor.Transparent;
-                continue;
-            }
-
-            var premultipliedRed = (pixel.R * pixel.A + 127) / 255;
-            var premultipliedGreen = (pixel.G * pixel.A + 127) / 255;
-            var premultipliedBlue = (pixel.B * pixel.A + 127) / 255;
-            textureData[index] = new XnaColor(
-                (byte)premultipliedRed,
-                (byte)premultipliedGreen,
-                (byte)premultipliedBlue,
-                pixel.A);
-        }
-
-        var texture = new Texture2D(graphicsDevice, image.Width, image.Height);
-        texture.SetData(textureData);
-        return texture;
+    public static LoadedSpriteFrame LoadSpriteFrame(GraphicsDevice graphicsDevice, byte[] bytes, bool applyLegacyChromaKey)
+    {
+        ArgumentNullException.ThrowIfNull(graphicsDevice);
+        var decoded = DecodeTextureData(bytes, applyLegacyChromaKey);
+        var texture = CreateTexture(graphicsDevice, decoded.PixelData, decoded.Width, decoded.Height);
+        return new LoadedSpriteFrame(
+            texture,
+            OpaqueBounds: decoded.OpaqueBounds,
+            PixelSource: new LoadedSpriteFramePixelSource(decoded.PixelData, decoded.Width, decoded.Height));
     }
 
     public static LoadedSpriteFrame[] LoadFrameTextures(
@@ -110,12 +90,62 @@ internal static class TextureDecodeUtility
                 var opaqueBounds = maxX >= minX && maxY >= minY
                     ? new XnaRectangle(minX, minY, (maxX - minX) + 1, (maxY - minY) + 1)
                     : new XnaRectangle(0, 0, resolvedFrameWidth, resolvedFrameHeight);
-                frames[frameIndex] = new LoadedSpriteFrame(frameTexture, OpaqueBounds: opaqueBounds);
+                frames[frameIndex] = new LoadedSpriteFrame(
+                    frameTexture,
+                    OpaqueBounds: opaqueBounds,
+                    PixelSource: new LoadedSpriteFramePixelSource(framePixels, resolvedFrameWidth, resolvedFrameHeight));
                 frameIndex += 1;
             }
         }
 
         return frames;
+    }
+
+    private static DecodedTextureData DecodeTextureData(byte[] bytes, bool applyLegacyChromaKey)
+    {
+        ArgumentNullException.ThrowIfNull(bytes);
+
+        using var image = Image.Load<Rgba32>(bytes);
+        var pixelData = new Rgba32[image.Width * image.Height];
+        image.CopyPixelDataTo(pixelData);
+        if (applyLegacyChromaKey)
+        {
+            ApplyLegacyChromaKeyTransparency(pixelData, image.Width, image.Height);
+        }
+
+        var textureData = new XnaColor[pixelData.Length];
+        var minX = image.Width;
+        var minY = image.Height;
+        var maxX = -1;
+        var maxY = -1;
+        for (var index = 0; index < pixelData.Length; index += 1)
+        {
+            var premultipliedPixel = ToPremultipliedColor(pixelData[index]);
+            textureData[index] = premultipliedPixel;
+            if (premultipliedPixel.A == 0)
+            {
+                continue;
+            }
+
+            var x = index % image.Width;
+            var y = index / image.Width;
+            minX = Math.Min(minX, x);
+            minY = Math.Min(minY, y);
+            maxX = Math.Max(maxX, x);
+            maxY = Math.Max(maxY, y);
+        }
+
+        var opaqueBounds = maxX >= minX && maxY >= minY
+            ? new XnaRectangle(minX, minY, (maxX - minX) + 1, (maxY - minY) + 1)
+            : new XnaRectangle(0, 0, image.Width, image.Height);
+        return new DecodedTextureData(textureData, image.Width, image.Height, opaqueBounds);
+    }
+
+    private static Texture2D CreateTexture(GraphicsDevice graphicsDevice, XnaColor[] textureData, int width, int height)
+    {
+        var texture = new Texture2D(graphicsDevice, width, height);
+        texture.SetData(textureData);
+        return texture;
     }
 
     private static void ApplyLegacyChromaKeyTransparency(Rgba32[] pixelData, int width, int height)
@@ -206,4 +236,10 @@ internal static class TextureDecodeUtility
             (byte)premultipliedBlue,
             pixel.A);
     }
+
+    private sealed record DecodedTextureData(
+        XnaColor[] PixelData,
+        int Width,
+        int Height,
+        XnaRectangle OpaqueBounds);
 }

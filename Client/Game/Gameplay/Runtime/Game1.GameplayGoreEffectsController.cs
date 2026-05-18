@@ -307,7 +307,7 @@ public partial class Game1
                 return;
             }
 
-            var renderPosition = _game.GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _game._world.LocalPlayer));
+            var renderPosition = _game.GetRenderPosition(player);
             var roundedOrigin = Game1.GetRoundedPlayerSpriteOrigin(renderPosition);
             var facingScale = Game1.GetPlayerFacingScale(player);
             var splashCount = Math.Clamp(1 + (int)MathF.Floor(coating.Intensity * 3f), 1, 3);
@@ -570,7 +570,7 @@ public partial class Game1
                 return false;
             }
 
-            ownerPosition = _game.GetRenderPosition(owner, allowInterpolation: !ReferenceEquals(owner, _game._world.LocalPlayer));
+            ownerPosition = _game.GetRenderPosition(owner);
             return true;
         }
 

@@ -76,26 +76,31 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * MathF.Min(0.8f, alpha));
         TryDrawScreenSprite("ClassSelectS", 0, new Vector2(viewportWidth / 2f, _classSelectPanelY), Color.White * alpha, Vector2.One);
 
-        if (_classSelectHoverIndex < 0 || _classSelectPanelY < 120f)
-        {
-            return;
-        }
-
         var previewTeam = _pendingClassSelectTeam ?? _world.LocalPlayerTeam;
-        var teamOffset = previewTeam == PlayerTeam.Blue ? 10 : 0;
-        var drawX = GetClassSelectDrawX(_classSelectHoverIndex);
-        var previewPosition = new Vector2(panelLeft + drawX, 0f);
-        TryDrawScreenSprite("ClassSelectSpritesS", _classSelectHoverIndex + teamOffset, previewPosition, Color.White * alpha, Vector2.One);
-        if (!TryDrawClassSelectPortraitAnimation(_classSelectHoverIndex, previewTeam, new Vector2(panelLeft + 230f, 128f), Color.White * alpha))
+        if (_classSelectPanelY >= 120f && _classSelectHoverIndex >= 0)
         {
-            TryDrawScreenSprite("ClassSelectPortraitS", _classSelectHoverIndex + teamOffset, new Vector2(panelLeft + 230f, 128f), Color.White * alpha, new Vector2(4f, 4f));
+            var teamOffset = previewTeam == PlayerTeam.Blue ? 10 : 0;
+            var drawX = GetClassSelectDrawX(_classSelectHoverIndex);
+            var previewPosition = new Vector2(panelLeft + drawX, 0f);
+            TryDrawScreenSprite("ClassSelectSpritesS", _classSelectHoverIndex + teamOffset, previewPosition, Color.White * alpha, Vector2.One);
+
+            var lines = GetClassSelectDescription(_classSelectHoverIndex);
+            float[] lineY = [80f, 100f, 120f, 130f, 140f];
+            for (var index = 0; index < lines.Length; index += 1)
+            {
+                DrawBitmapFontText(lines[index], new Vector2(panelLeft + 495f, lineY[index]), Color.White * alpha, 1f);
+            }
         }
 
-        var lines = GetClassSelectDescription(_classSelectHoverIndex);
-        float[] lineY = [80f, 100f, 120f, 130f, 140f];
-        for (var index = 0; index < lines.Length; index += 1)
+        if (_classSelectPanelY >= 120f
+            && _classSelectPortraitAnimationHoverIndex >= 0
+            && !TryDrawClassSelectPortraitAnimation(
+                _classSelectPortraitAnimationHoverIndex,
+                _classSelectPortraitAnimationTeam ?? previewTeam,
+                new Vector2(panelLeft + 230f, 128f),
+                Color.White * alpha))
         {
-            DrawBitmapFontText(lines[index], new Vector2(panelLeft + 495f, lineY[index]), Color.White * alpha, 1f);
+            ResetClassSelectPortraitAnimation();
         }
     }
 
@@ -140,6 +145,12 @@ public partial class Game1
 
     private void ApplyDirectClassSelection(PlayerClass selectedClass)
     {
+        if (!IsClassAllowedForCurrentGameplaySession(selectedClass))
+        {
+            _menuStatusMessage = "Jump allows Rocketman or Detonator.";
+            return;
+        }
+
         WarmBrowserPlayableClassAssets(selectedClass, _pendingClassSelectTeam ?? _world.LocalPlayerTeam);
 
         if (_networkClient.IsConnected)
@@ -154,6 +165,11 @@ public partial class Game1
 
     private PlayerClass GetRandomPlayableClass()
     {
+        if (IsJumpSessionActive)
+        {
+            return GetRandomJumpClass();
+        }
+
         PlayerClass[] classes =
         [
             PlayerClass.Scout,
@@ -222,18 +238,25 @@ public partial class Game1
 
     private void AdvanceClassSelectPortraitAnimation()
     {
-        if (_classSelectHoverIndex < 0 || _classSelectPanelY < 120f)
+        if (_classSelectPanelY < 120f)
         {
             ResetClassSelectPortraitAnimation();
             return;
         }
 
         var previewTeam = _pendingClassSelectTeam ?? _world.LocalPlayerTeam;
-        if (_classSelectPortraitAnimationHoverIndex != _classSelectHoverIndex || _classSelectPortraitAnimationTeam != previewTeam)
+        if (_classSelectHoverIndex >= 0
+            && (_classSelectPortraitAnimationHoverIndex != _classSelectHoverIndex
+                || _classSelectPortraitAnimationTeam != previewTeam))
         {
             _classSelectPortraitAnimationHoverIndex = _classSelectHoverIndex;
             _classSelectPortraitAnimationTeam = previewTeam;
             _classSelectPortraitAnimationFrame = 0f;
+            return;
+        }
+
+        if (_classSelectPortraitAnimationHoverIndex < 0)
+        {
             return;
         }
 

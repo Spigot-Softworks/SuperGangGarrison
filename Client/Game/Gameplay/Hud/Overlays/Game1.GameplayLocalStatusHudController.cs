@@ -8,6 +8,35 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private const float PortraitRumbleDurationSeconds = 0.24f;
+    private const float DamageVignetteHoldDurationSeconds = 1f;
+    private const float DamageVignetteFadePerSecond = 0.18f;
+    private static readonly Color PortraitRumbleTintColor = new(255, 80, 80);
+
+    private void TriggerLocalHudPortraitDamageFeedback(int damageAmount)
+    {
+        if (!_portraitRumbleEnabled || damageAmount <= 0)
+        {
+            return;
+        }
+
+        _portraitRumbleSeed += 1;
+        _portraitRumbleRemainingSeconds = PortraitRumbleDurationSeconds;
+        _portraitRumbleIntensity = Math.Clamp(0.65f + (damageAmount / 75f), 0.75f, 1.35f);
+    }
+
+    private void TriggerLocalHudDamageVignette(int damageAmount)
+    {
+        if (!_damageVignetteEnabled || damageAmount <= 0)
+        {
+            return;
+        }
+
+        var addedIntensity = Math.Clamp(0.012f + (damageAmount / 520f), 0.018f, 0.11f);
+        _damageVignetteIntensity = Math.Clamp(_damageVignetteIntensity + addedIntensity, 0f, 0.28f);
+        _damageVignetteHoldSeconds = DamageVignetteHoldDurationSeconds;
+    }
+
     private sealed class GameplayLocalStatusHudController
     {
         private const string CoreReplicatedOwnerId = "core.player";
@@ -48,10 +77,13 @@ public partial class Game1
                 MathF.Round(5f / scale.X) * scale.X,
                 MathF.Round((viewportHeight - 75f) / scale.Y) * scale.Y
             );
+            var portraitPosition = basePosition;
+            var portraitColor = Color.White;
+            UpdateLocalHudPortraitDamageFeedback(ref portraitPosition, ref portraitColor);
             
             // Draw team-colored base health sprite
             var healthSpriteName = _game._world.LocalPlayer.Team == PlayerTeam.Blue ? "PlayerHealthBlu" : "PlayerHealthRed";
-            _game.TryDrawScreenSprite(healthSpriteName, 0, basePosition, Color.White, scale);
+            _game.TryDrawScreenSprite(healthSpriteName, 0, portraitPosition, portraitColor, scale);
             
             // Get background health sprite dimensions for masking
             var backgroundHealthSprite = _game.GetResolvedSprite(healthSpriteName);
@@ -79,19 +111,19 @@ public partial class Game1
                     var backgroundHeight = backgroundHealthSprite.Frames[0].Height * scale.Y;
                     
                     // Calculate center of background sprite
-                    var backgroundCenterX = basePosition.X + (backgroundWidth / 2f);
-                    var backgroundCenterY = basePosition.Y + (backgroundHeight / 2f);
+                    var backgroundCenterX = portraitPosition.X + (backgroundWidth / 2f);
+                    var backgroundCenterY = portraitPosition.Y + (backgroundHeight / 2f);
                     
                     // Account for sprite origin when centering
                     var spriteOrigin = characterSprite.Origin.ToVector2();
                     
                     // Calculate horizontal centering based on opaque bounds (trim transparent padding)
                     float characterCenterOffsetX;
-                    if (characterSprite.Frames[0].OpaqueBounds.HasValue)
+                    var opaqueBounds = characterSprite.Frames[0].OpaqueBounds;
+                    if (opaqueBounds.HasValue)
                     {
-                        var opaqueBounds = characterSprite.Frames[0].OpaqueBounds.Value;
-                        var opaqueWidth = opaqueBounds.Width;
-                        var opaqueCenterX = opaqueBounds.X + opaqueWidth / 2f;
+                        var opaqueWidth = opaqueBounds.Value.Width;
+                        var opaqueCenterX = opaqueBounds.Value.X + opaqueWidth / 2f;
                         characterCenterOffsetX = (opaqueCenterX - spriteOrigin.X) * characterScale.X;
                     }
                     else
@@ -114,7 +146,7 @@ public partial class Game1
                     
                     // Calculate masking - mask from bottom up to 1 sprite pixel into background sprite from its bottom
                     // Align to sprite pixel grid
-                    var maskLineY = basePosition.Y + MathF.Round((backgroundHealthSprite.Frames[0].Height - 2f) * scale.Y);
+                    var maskLineY = portraitPosition.Y + MathF.Round((backgroundHealthSprite.Frames[0].Height - 2f) * scale.Y);
                     var spriteBottomY = characterPosition.Y + (characterHeight - spriteOrigin.Y) * characterScale.Y;
                     var amountToMaskFromBottom = spriteBottomY - maskLineY;
                     
@@ -127,13 +159,13 @@ public partial class Game1
                         if (visibleHeight > 0)
                         {
                             var sourceRect = new Rectangle(0, 0, characterWidth, visibleHeight);
-                            _game.TryDrawScreenSpritePart(characterSpriteName, 0, sourceRect, characterPosition, Color.White, characterScale);
+                            _game.TryDrawScreenSpritePart(characterSpriteName, 0, sourceRect, characterPosition, portraitColor, characterScale);
                         }
                     }
                     else
                     {
                         // No masking needed
-                        _game.TryDrawScreenSprite(characterSpriteName, 0, characterPosition, Color.White, characterScale);
+                        _game.TryDrawScreenSprite(characterSpriteName, 0, characterPosition, portraitColor, characterScale);
                     }
                     
                     // Draw weapon sprite for the character (static, always facing right like HUD sprite)
@@ -154,7 +186,7 @@ public partial class Game1
                             var weaponPosition = new Vector2(weaponX, weaponY);
                             var weaponScale = new Vector2(facingScale * characterScale.X, characterScale.Y);
                             
-                            _game.TryDrawScreenSprite(weaponDefinition.NormalSpriteName, 0, weaponPosition, Color.White, weaponScale);
+                            _game.TryDrawScreenSprite(weaponDefinition.NormalSpriteName, 0, weaponPosition, portraitColor, weaponScale);
                         }
                     }
                 }
@@ -277,6 +309,60 @@ public partial class Game1
         public void DrawPyroAmmoHud() => DrawPyroAmmoHudCore();
         public void DrawHeavyAmmoHud() => DrawHeavyAmmoHudCore();
         public void DrawHeavySandwichHud() => DrawHeavySandwichHudCore();
+
+        public void DrawDamageVignette() => DrawDamageVignetteCore();
+
+        private void UpdateLocalHudPortraitDamageFeedback(ref Vector2 portraitPosition, ref Color portraitColor)
+        {
+            if (!_game._portraitRumbleEnabled || _game._portraitRumbleRemainingSeconds <= 0f)
+            {
+                _game._portraitRumbleRemainingSeconds = 0f;
+                _game._portraitRumbleIntensity = 0f;
+                return;
+            }
+
+            var progress = Math.Clamp(_game._portraitRumbleRemainingSeconds / PortraitRumbleDurationSeconds, 0f, 1f);
+            var falloff = progress * progress;
+            var shakePixels = 2.4f * _game._portraitRumbleIntensity * falloff;
+            var seed = _game._portraitRumbleSeed * 17.31f;
+            var phase = (PortraitRumbleDurationSeconds - _game._portraitRumbleRemainingSeconds) * 92f;
+            portraitPosition += new Vector2(
+                MathF.Sin(seed + phase) * shakePixels,
+                MathF.Cos((seed * 0.73f) + (phase * 1.37f)) * shakePixels * 0.65f);
+            portraitColor = Color.Lerp(Color.White, PortraitRumbleTintColor, Math.Clamp(0.75f * _game._portraitRumbleIntensity * progress, 0f, 1f));
+
+            _game._portraitRumbleRemainingSeconds = Math.Max(0f, _game._portraitRumbleRemainingSeconds - Math.Max(0f, _game._clientUpdateElapsedSeconds));
+        }
+
+        private void DrawDamageVignetteCore()
+        {
+            if (!_game._damageVignetteEnabled || _game._damageVignetteIntensity <= 0f)
+            {
+                _game._damageVignetteIntensity = 0f;
+                _game._damageVignetteHoldSeconds = 0f;
+                return;
+            }
+
+            var elapsedSeconds = Math.Max(0f, _game._clientUpdateElapsedSeconds);
+            if (_game._damageVignetteHoldSeconds > 0f)
+            {
+                _game._damageVignetteHoldSeconds = Math.Max(0f, _game._damageVignetteHoldSeconds - elapsedSeconds);
+            }
+            else
+            {
+                _game._damageVignetteIntensity = Math.Max(0f, _game._damageVignetteIntensity - (DamageVignetteFadePerSecond * elapsedSeconds));
+            }
+
+            if (_game._damageVignetteIntensity <= 0f || !_game.TryEnsureDamageVignetteTexture(out var texture))
+            {
+                return;
+            }
+
+            var alpha = Math.Clamp(_game._damageVignetteIntensity, 0f, 0.28f);
+            var tint = new Color(120, 0, 0) * alpha;
+            _game._spriteBatch.Draw(texture, new Rectangle(0, 0, _game.ViewportWidth, _game.ViewportHeight), tint);
+        }
+
         public void DrawSpySuperjumpHud() => DrawSpySuperjumpHudCore();
         public void DrawQuoteAmmoHud() => DrawQuoteAmmoHudCore();
         public void DrawDemomanStickyHud() => DrawDemomanStickyHudCore();

@@ -5,6 +5,9 @@ using System.Threading.Tasks;
 using OpenGarrison.Core;
 using OpenGarrison.Server;
 
+Directory.SetCurrentDirectory(AppContext.BaseDirectory);
+ContentRoot.Initialize("Content");
+
 const string protocolUuidString = "71eb5496-492b-b186-4770-06ccb30d3f8f";
 const int lobbyHeartbeatSeconds = 30;
 const int lobbyResolveSeconds = 600;

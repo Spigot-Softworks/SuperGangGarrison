@@ -80,9 +80,22 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
 
     public void RememberSnapshotState(SnapshotMessage snapshot)
     {
-        var fullSnapshot = snapshot.IsDelta
-            ? SnapshotDelta.ToFullSnapshot(snapshot)
-            : snapshot;
+        if (snapshot.IsDelta)
+        {
+            RememberResolvedSnapshotState(SnapshotDelta.ToFullSnapshot(snapshot));
+            return;
+        }
+
+        RememberResolvedSnapshotState(snapshot);
+    }
+
+    public void RememberResolvedSnapshotState(SnapshotMessage fullSnapshot)
+    {
+        if (fullSnapshot.IsDelta)
+        {
+            throw new InvalidOperationException("Resolved snapshot history must store non-delta snapshots.");
+        }
+
         var baseline = SnapshotBaselineState.FromSnapshot(fullSnapshot);
         if (!_snapshotStatesByFrame.ContainsKey(fullSnapshot.Frame))
         {

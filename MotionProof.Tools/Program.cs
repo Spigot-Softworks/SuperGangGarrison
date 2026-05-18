@@ -1,4 +1,5 @@
 using OpenGarrison.Core;
+using OpenGarrison.Core.BotBrain;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
@@ -314,7 +315,275 @@ internal static class MotionProofRunner
         var completed = distance <= options.GoalRadius;
         Console.WriteLine(
             $"motion-proof primitive result status={(completed ? "pass" : "fail")} distance={distance:0.0} radius={options.GoalRadius:0.0} elapsedMs={stopwatch.ElapsedMilliseconds} final=({bot.X:0.0},{bot.Y:0.0}) bottom={bot.Bottom:0.0}");
-        return completed ? 0 : 3;
+        if (!completed && !options.RequireObjectiveCompletion)
+        {
+            return 3;
+        }
+
+        if (options.RequireObjectiveCompletion)
+        {
+            var objectiveCompleted = ValidatePrimitiveObjectiveCompletion(world, bot, options, out var objectiveCompletionLine);
+            Console.WriteLine(objectiveCompletionLine);
+            if (!objectiveCompleted)
+            {
+                return 3;
+            }
+        }
+
+        if (options.ValidatePrimitivePath || options.RequirePrimitiveValidation)
+        {
+            var validation = ValidatePrimitivePath(world.Level, options.Team, options.ClassId, bot.IsCarryingIntel, start, goal, path, options);
+            Console.WriteLine(
+                $"motion-proof primitive validation cases={validation.CaseCount} passed={validation.PassedCount} failed={validation.FailedCount} passedAll={validation.PassedAll}");
+            foreach (var failure in validation.Failures.Take(8))
+            {
+                Console.WriteLine(
+                    $"motion-proof primitive validationFailure xOffset={failure.XOffset:0.0} bottomOffset={failure.BottomOffset:0.0} hSpeedOffset={failure.HorizontalSpeedOffset:0.0} vSpeedOffset={failure.VerticalSpeedOffset:0.0} distance={failure.Distance:0.0} final=({failure.FinalX:0.0},{failure.FinalY:0.0}) bottom={failure.FinalBottom:0.0} reason={failure.Reason}");
+            }
+
+            if (options.RequirePrimitiveValidation && !validation.PassedAll)
+            {
+                return 3;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.OutputProofTracePath)
+            || !string.IsNullOrWhiteSpace(options.OutputProofGraphPath))
+        {
+            var postReplayHoldTicks = Math.Max(
+                options.ProofTraceHoldTicks,
+                options.RequireObjectiveCompletion ? GetObjectiveProofTraceHoldTicks(world, options) : 0);
+            var samples = ReplayPrimitivePathSamples(
+                world.Level,
+                options.Team,
+                CharacterClassCatalog.GetDefinition(options.ClassId),
+                bot.IsCarryingIntel,
+                start,
+                path,
+                postReplayHoldTicks);
+            var candidateGraph = VerifiedNavCandidateBuilder.Build(world.Level, new VerifiedNavBuildOptions
+            {
+                Team = options.Team,
+                ClassId = options.ClassId,
+                DropHorizontalReach = options.VerifiedNavDropHorizontalReach,
+                JumpHorizontalReach = options.VerifiedNavJumpHorizontalReach,
+            });
+            var proofTrace = VerifiedNavProofTraceExtractor.Extract(
+                candidateGraph,
+                samples,
+                $"MotionProofPrimitive:{world.Level.Name}:a{world.Level.MapAreaIndex}:{options.Team}:{options.ClassId}:{goal.Label}");
+
+            if (!string.IsNullOrWhiteSpace(options.OutputProofTracePath))
+            {
+                WriteJsonArtifact(options.OutputProofTracePath, proofTrace);
+                Console.WriteLine($"motion-proof primitive proofTrace={Path.GetFullPath(options.OutputProofTracePath)} samples={proofTrace.SampleCount} surfaces={proofTrace.SurfaceTouchCount} edges={proofTrace.Edges.Count}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(options.OutputProofGraphPath))
+            {
+                var routeActionOnlyKinds = new HashSet<VerifiedNavProofRouteKind>();
+                if (options.OutputProofGraphRouteActionOnlyPickup)
+                {
+                    routeActionOnlyKinds.Add(VerifiedNavProofRouteKind.Pickup);
+                }
+
+                if (options.OutputProofGraphRouteActionOnlyReturn)
+                {
+                    routeActionOnlyKinds.Add(VerifiedNavProofRouteKind.Return);
+                }
+
+                var proofGraph = VerifiedNavProofGraphBuilder.Build(
+                    candidateGraph,
+                    [(VerifiedNavProofRouteKind.Pickup, proofTrace)],
+                    new VerifiedNavProofGraphBuildOptions
+                    {
+                        RouteActionOnlyKinds = routeActionOnlyKinds,
+                    });
+                WriteJsonArtifact(options.OutputProofGraphPath, proofGraph);
+                Console.WriteLine($"motion-proof primitive proofGraph={Path.GetFullPath(options.OutputProofGraphPath)} routes={proofGraph.Routes.Count} edges={proofGraph.Edges.Count} lanes={proofGraph.LaneSegments.Count}");
+            }
+        }
+
+        return 0;
+    }
+
+    private static PrimitiveValidationSummary ValidatePrimitivePath(
+        SimpleLevel level,
+        PlayerTeam team,
+        PlayerClass classId,
+        bool carryingIntel,
+        MotionState nominalStart,
+        MotionGoal goal,
+        MotionPath path,
+        MotionProofOptions options)
+    {
+        var classDefinition = CharacterClassCatalog.GetDefinition(classId);
+        var failures = new List<PrimitiveValidationFailure>();
+        var caseCount = 0;
+        foreach (var xOffset in options.PrimitiveValidationXOffsets)
+        {
+            foreach (var bottomOffset in options.PrimitiveValidationBottomOffsets)
+            {
+                foreach (var horizontalSpeedOffset in options.PrimitiveValidationHorizontalSpeedOffsets)
+                {
+                    foreach (var verticalSpeedOffset in options.PrimitiveValidationVerticalSpeedOffsets)
+                    {
+                        caseCount += 1;
+                        var start = nominalStart with
+                        {
+                            X = nominalStart.X + xOffset,
+                            Y = nominalStart.Y + bottomOffset,
+                            Bottom = nominalStart.Bottom + bottomOffset,
+                            HorizontalSpeed = nominalStart.HorizontalSpeed + horizontalSpeedOffset,
+                            VerticalSpeed = nominalStart.VerticalSpeed + verticalSpeedOffset,
+                            IsGrounded = nominalStart.IsGrounded && MathF.Abs(verticalSpeedOffset) < 0.001f,
+                        };
+                        var result = ReplayPrimitivePath(level, team, classDefinition, carryingIntel, start, goal, path);
+                        if (!result.Passed)
+                        {
+                            failures.Add(new PrimitiveValidationFailure(
+                                xOffset,
+                                bottomOffset,
+                                horizontalSpeedOffset,
+                                verticalSpeedOffset,
+                                result.Distance,
+                                result.Final.X,
+                                result.Final.Y,
+                                result.Final.Bottom,
+                                result.Reason));
+                        }
+                    }
+                }
+            }
+        }
+
+        return new PrimitiveValidationSummary(caseCount, caseCount - failures.Count, failures);
+    }
+
+    private static PrimitiveReplayResult ReplayPrimitivePath(
+        SimpleLevel level,
+        PlayerTeam team,
+        CharacterClassDefinition classDefinition,
+        bool carryingIntel,
+        MotionState start,
+        MotionGoal goal,
+        MotionPath path)
+    {
+        var player = CreatePlayerFromState(classDefinition, team, carryingIntel, start);
+        var previousInput = default(PlayerInputSnapshot);
+        foreach (var action in path.Actions)
+        {
+            for (var tick = 0; tick < action.Ticks; tick += 1)
+            {
+                var input = action.GetInput(tick, player);
+                var jumpPressed = input.Up && !previousInput.Up;
+                player.Advance(input, jumpPressed, level, team, TickSeconds);
+                previousInput = input;
+                var state = MotionState.FromPlayer(player);
+                if (!player.IsAlive)
+                {
+                    return new PrimitiveReplayResult(false, state, DistanceToGoal(state, goal), "dead");
+                }
+
+                if (IntersectsGoal(state, classDefinition, goal))
+                {
+                    return new PrimitiveReplayResult(true, state, 0f, "goal");
+                }
+            }
+        }
+
+        var final = MotionState.FromPlayer(player);
+        var distance = DistanceToGoal(final, goal);
+        return new PrimitiveReplayResult(distance <= MathF.Max(goal.Width, goal.Height), final, distance, "missed_goal");
+    }
+
+    private static List<TraversalLabTickSample> ReplayPrimitivePathSamples(
+        SimpleLevel level,
+        PlayerTeam team,
+        CharacterClassDefinition classDefinition,
+        bool carryingIntel,
+        MotionState start,
+        MotionPath path,
+        int postReplayHoldTicks = 0)
+    {
+        var samples = new List<TraversalLabTickSample>(path.TotalTicks + Math.Max(0, postReplayHoldTicks) + 1);
+        var player = CreatePlayerFromState(classDefinition, team, carryingIntel, start);
+        var previousInput = default(PlayerInputSnapshot);
+        AddSample(tick: 0, player, previousInput, "start");
+        var absoluteTick = 0;
+        foreach (var action in path.Actions)
+        {
+            for (var actionTick = 0; actionTick < action.Ticks; actionTick += 1)
+            {
+                var input = action.GetInput(actionTick, player);
+                var jumpPressed = input.Up && !previousInput.Up;
+                player.Advance(input, jumpPressed, level, team, TickSeconds);
+                previousInput = input;
+                absoluteTick += 1;
+                AddSample(absoluteTick, player, input, action.Kind.ToString());
+                if (!player.IsAlive)
+                {
+                    return samples;
+                }
+            }
+        }
+
+        if (postReplayHoldTicks > 0 && player.IsAlive)
+        {
+            var holdInput = default(PlayerInputSnapshot);
+            for (var holdTick = 0; holdTick < postReplayHoldTicks; holdTick += 1)
+            {
+                player.Advance(holdInput, jumpPressed: false, level, team, TickSeconds);
+                previousInput = holdInput;
+                absoluteTick += 1;
+                AddSample(absoluteTick, player, holdInput, "objective_hold");
+                if (!player.IsAlive)
+                {
+                    return samples;
+                }
+            }
+        }
+
+        return samples;
+
+        void AddSample(int tick, PlayerEntity player, PlayerInputSnapshot input, string label)
+        {
+            samples.Add(new TraversalLabTickSample(
+                tick,
+                player.X,
+                player.Y,
+                player.Bottom,
+                player.HorizontalSpeed,
+                player.VerticalSpeed,
+                player.IsGrounded,
+                player.FacingDirectionX,
+                SupportedBelow: false,
+                BlockedLeft: false,
+                BlockedRight: false,
+                input.Left,
+                input.Right,
+                input.Up,
+                input.Down,
+                input.FirePrimary,
+                input.FireSecondary,
+                input.UseAbility,
+                InputDropIntel: false,
+                player.IsCarryingIntel,
+                OverlapsEnemyIntelMarker: false,
+                OverlapsOwnIntelMarker: false,
+                IsInsideBlockingTeamGate: player.IsInsideBlockingTeamGate(level, team),
+                label));
+        }
+    }
+
+    private static int GetObjectiveProofTraceHoldTicks(SimulationWorld world, MotionProofOptions options)
+    {
+        var targetPoint = SelectObjectiveCompletionTargetPoint(world, options);
+        var captureTicks = options.ObjectiveHoldTicks > 0
+            ? options.ObjectiveHoldTicks
+            : Math.Max(0, world.KothUnlockTicksRemaining) + Math.Max(1, targetPoint?.CapTimeTicks ?? 0) + 90;
+
+        return Math.Clamp(captureTicks + 90, 1, 2400);
     }
 
     private static int RunGraphBake(
@@ -3016,6 +3285,77 @@ internal static class MotionProofRunner
             ?? (world.ControlPoints.Count > 0 ? world.ControlPoints[0] : null);
     }
 
+    private static bool ValidatePrimitiveObjectiveCompletion(
+        SimulationWorld world,
+        PlayerEntity bot,
+        MotionProofOptions options,
+        out string resultLine)
+    {
+        if (!IsControlPointObjectiveMode(world.MatchRules.Mode))
+        {
+            resultLine = $"motion-proof primitive objectiveValidation status=fail reason=unsupported_mode mode={world.MatchRules.Mode}";
+            return false;
+        }
+
+        var targetPoint = SelectObjectiveCompletionTargetPoint(world, options);
+        if (targetPoint is null)
+        {
+            resultLine = "motion-proof primitive objectiveValidation status=fail reason=missing_control_point";
+            return false;
+        }
+
+        var settleTicks = 0;
+        if (!world.IsPlayerInControlPointCaptureZone(bot, targetPoint.Index))
+        {
+            settleTicks = Math.Min(90, Math.Max(0, options.ObjectiveHoldTicks));
+            if (settleTicks > 0)
+            {
+                HoldInput(world, settleTicks);
+            }
+        }
+
+        if (!world.IsPlayerInControlPointCaptureZone(bot, targetPoint.Index))
+        {
+            resultLine =
+                $"motion-proof primitive objectiveValidation status=fail reason=not_in_capture_zone point={targetPoint.Index} " +
+                $"settleTicks={settleTicks} final=({bot.X:0.0},{bot.Y:0.0}) bottom={bot.Bottom:0.0}";
+            return false;
+        }
+
+        var initialCaps = bot.Caps;
+        var holdTicks = options.ObjectiveHoldTicks > 0
+            ? options.ObjectiveHoldTicks
+            : Math.Max(0, world.KothUnlockTicksRemaining) + Math.Max(1, targetPoint.CapTimeTicks) + 90;
+        HoldInput(world, holdTicks);
+        var completed = targetPoint.Team == options.Team || bot.Caps > initialCaps;
+        resultLine =
+            $"motion-proof primitive objectiveValidation status={(completed ? "pass" : "fail")} point={targetPoint.Index} " +
+            $"pointTeam={targetPoint.Team?.ToString() ?? "None"} holdTicks={holdTicks} caps={world.RedCaps}-{world.BlueCaps} playerCaps={bot.Caps} " +
+            $"final=({bot.X:0.0},{bot.Y:0.0}) bottom={bot.Bottom:0.0}";
+        return completed;
+    }
+
+    private static bool IsControlPointObjectiveMode(GameModeKind mode)
+        => mode is GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill;
+
+    private static ControlPointState? SelectObjectiveCompletionTargetPoint(SimulationWorld world, MotionProofOptions options)
+    {
+        if (IsKothMode(world.MatchRules.Mode))
+        {
+            return SelectKothTargetPoint(world, options.Team);
+        }
+
+        if (!options.GoalX.HasValue || !options.GoalY.HasValue)
+        {
+            return world.ControlPoints.FirstOrDefault(point => point.Team != options.Team)
+                ?? world.ControlPoints.FirstOrDefault();
+        }
+
+        return world.ControlPoints
+            .OrderBy(point => Distance(point.Marker.CenterX, point.Marker.CenterY, options.GoalX.Value, options.GoalY.Value))
+            .FirstOrDefault();
+    }
+
     private static MotionGoal SelectKothCaptureGoal(SimulationWorld world, ControlPointState targetPoint)
     {
         var captureZones = world.Level.GetRoomObjects(RoomObjectType.CaptureZone);
@@ -3060,6 +3400,7 @@ internal static class MotionProofRunner
             return null;
         }
 
+        RunNeutralPreTicks(world, options.PreTicks);
         world.PrepareLocalPlayerJoin();
         if (!world.TryPrepareNetworkPlayerJoin(BotSlot)
             || !world.TrySetNetworkPlayerTeam(BotSlot, options.Team)
@@ -3113,6 +3454,8 @@ internal static class MotionProofRunner
         var expanded = 0;
         var generated = 0;
         var rejected = 0;
+        var robustCandidates = 0;
+        var bestRobustPassed = -1;
         var bestDistance = DistanceToGoal(start, goal);
         var bestState = start;
         var stopwatch = Stopwatch.StartNew();
@@ -3130,10 +3473,14 @@ internal static class MotionProofRunner
             expanded += 1;
             if (IntersectsGoal(current.State, classDefinition, goal))
             {
-                path = BuildPath(nodes, current.Index);
-                stats =
-                    $"expanded={expanded} generated={generated} rejected={rejected} best={bestDistance:0.0} {FormatBestState(bestState)} ms={stopwatch.ElapsedMilliseconds} goal={goal.Label}";
-                return true;
+                var candidatePath = BuildPath(nodes, current.Index);
+                if (AcceptPrimitiveCandidate(candidatePath))
+                {
+                    path = candidatePath;
+                    stats =
+                        $"expanded={expanded} generated={generated} rejected={rejected} robustCandidates={robustCandidates} bestRobustPassed={bestRobustPassed} best={bestDistance:0.0} {FormatBestState(bestState)} ms={stopwatch.ElapsedMilliseconds} goal={goal.Label}";
+                    return true;
+                }
             }
 
             foreach (var action in actions)
@@ -3161,12 +3508,18 @@ internal static class MotionProofRunner
                 {
                     var goalNode = new SearchNode(nodes.Count, current.Index, nextState, actualAction, nextCost);
                     nodes.Add(goalNode);
-                    path = BuildPath(nodes, goalNode.Index);
                     bestState = nextState;
                     bestDistance = 0f;
-                    stats =
-                        $"expanded={expanded} generated={generated} rejected={rejected} best={bestDistance:0.0} {FormatBestState(bestState)} ms={stopwatch.ElapsedMilliseconds} goal={goal.Label}";
-                    return true;
+                    var candidatePath = BuildPath(nodes, goalNode.Index);
+                    if (AcceptPrimitiveCandidate(candidatePath))
+                    {
+                        path = candidatePath;
+                        stats =
+                            $"expanded={expanded} generated={generated} rejected={rejected} robustCandidates={robustCandidates} bestRobustPassed={bestRobustPassed} best={bestDistance:0.0} {FormatBestState(bestState)} ms={stopwatch.ElapsedMilliseconds} goal={goal.Label}";
+                        return true;
+                    }
+
+                    continue;
                 }
 
                 var nextDistance = DistanceToGoal(nextState, goal);
@@ -3190,8 +3543,38 @@ internal static class MotionProofRunner
         }
 
         stats =
-            $"expanded={expanded} generated={generated} rejected={rejected} best={bestDistance:0.0} {FormatBestState(bestState)} ms={stopwatch.ElapsedMilliseconds} goal={goal.Label}";
+            $"expanded={expanded} generated={generated} rejected={rejected} robustCandidates={robustCandidates} bestRobustPassed={bestRobustPassed} best={bestDistance:0.0} {FormatBestState(bestState)} ms={stopwatch.ElapsedMilliseconds} goal={goal.Label}";
         return false;
+
+        bool AcceptPrimitiveCandidate(MotionPath candidatePath)
+        {
+            if (!options.RequirePrimitiveValidation)
+            {
+                return true;
+            }
+
+            robustCandidates += 1;
+            var validation = ValidatePrimitivePath(level, team, classId, carryingIntel, start, goal, candidatePath, options);
+            bestRobustPassed = Math.Max(bestRobustPassed, validation.PassedCount);
+            return validation.PassedAll;
+        }
+    }
+
+    private static void RunNeutralPreTicks(SimulationWorld world, int ticks)
+    {
+        if (ticks <= 0)
+        {
+            return;
+        }
+
+        world.SetLocalInput(default);
+        world.SetEnemyInput(default);
+        for (var tick = 0; tick < ticks; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        Console.WriteLine($"motion-proof preTicks={ticks} controlPointSetupActive={world.ControlPointSetupActive} setupTicksRemaining={world.ControlPointSetupTicksRemaining}");
     }
 
     private static Dictionary<int, MotionPath> TryFindPrimitivePathsToGoals(
@@ -4197,7 +4580,7 @@ internal static class MotionProofRunner
 internal sealed class MotionProofOptions
 {
     public const string Usage =
-        "usage: dotnet run --project MotionProof.Tools -- --map Truefort --team Blue --class Heavy [--max-expanded N] [--search-budget-ms N] [--area N] [--output path] [--mirror-artifact path] [--bake-graph] [--repair-graph --graph path --output path] [--seed-walkable-grid N] [--seed-walkable-limit N] [--seed-search-budget-ms N] [--prove-graph --graph path --goal-x X --goal-y Y] [--solve-primitive --start-x X --start-bottom Y --goal-x X --goal-y Y [--start-carrying-intel]]";
+        "usage: dotnet run --project MotionProof.Tools -- --map Truefort --team Blue --class Heavy [--max-expanded N] [--search-budget-ms N] [--area N] [--output path] [--mirror-artifact path] [--bake-graph] [--repair-graph --graph path --output path] [--seed-walkable-grid N] [--seed-walkable-limit N] [--seed-search-budget-ms N] [--prove-graph --graph path --goal-x X --goal-y Y] [--solve-primitive --start-x X --start-bottom Y --goal-x X --goal-y Y [--start-carrying-intel] [--validate-primitive] [--require-primitive-validation] [--output-proof-graph path] [--route-action-only-pickup] [--proof-trace-hold-ticks N]]";
 
     public string MapName { get; private set; } = "Truefort";
     public int MapAreaIndex { get; private set; } = 1;
@@ -4207,13 +4590,23 @@ internal sealed class MotionProofOptions
     public int MaxExpandedNodes { get; private set; } = 80_000;
     public int GraphExpansionMaxNodes { get; private set; } = 16_000;
     public int SearchBudgetMilliseconds { get; private set; } = 20_000;
+    public int PreTicks { get; private set; }
     public string? OutputPath { get; private set; }
+    public string? OutputProofTracePath { get; private set; }
+    public string? OutputProofGraphPath { get; private set; }
+    public bool OutputProofGraphRouteActionOnlyPickup { get; private set; }
+    public bool OutputProofGraphRouteActionOnlyReturn { get; private set; }
     public string? MirrorArtifactPath { get; private set; }
     public bool BakeGraph { get; private set; }
     public bool RepairGraph { get; private set; }
     public bool WriteFailedGraph { get; private set; }
     public bool ProveGraph { get; private set; }
     public bool SolvePrimitivePath { get; private set; }
+    public bool ValidatePrimitivePath { get; private set; }
+    public bool RequirePrimitiveValidation { get; private set; }
+    public bool RequireObjectiveCompletion { get; private set; }
+    public int ObjectiveHoldTicks { get; private set; }
+    public int ProofTraceHoldTicks { get; private set; }
     public bool CombatSmoke { get; private set; }
     public string? GraphPath { get; private set; }
     public float? GoalX { get; private set; }
@@ -4255,10 +4648,16 @@ internal sealed class MotionProofOptions
     public float CoverageAnchorWeldRadius { get; private set; } = 144f;
     public int CoverageAnchorWeldSearchBudgetMilliseconds { get; private set; } = 250;
     public bool UseMultiGoalSeedSearch { get; private set; }
+    public float VerifiedNavDropHorizontalReach { get; private set; } = 360f;
+    public float VerifiedNavJumpHorizontalReach { get; private set; } = 360f;
     public List<MotionSeedStart> ExtraSeedStarts { get; } = new();
     public List<MotionSeedGoal> ExtraSeedGoals { get; } = new();
     public List<MotionSeedPath> ExplicitSeedPaths { get; } = new();
     public List<string> ProofSeedArtifactPaths { get; } = new();
+    public float[] PrimitiveValidationXOffsets { get; private set; } = { -24f, 0f, 24f };
+    public float[] PrimitiveValidationBottomOffsets { get; private set; } = { 0f };
+    public float[] PrimitiveValidationHorizontalSpeedOffsets { get; private set; } = { -60f, 0f, 60f };
+    public float[] PrimitiveValidationVerticalSpeedOffsets { get; private set; } = { -90f, 0f, 90f };
     public bool ShowHelp { get; private set; }
 
     public static MotionProofOptions Parse(IReadOnlyList<string> args)
@@ -4323,9 +4722,39 @@ internal sealed class MotionProofOptions
                 continue;
             }
 
+            if (arg.Equals("--pre-ticks", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                options.PreTicks = int.Parse(args[++index], CultureInfo.InvariantCulture);
+                continue;
+            }
+
             if (arg.Equals("--output", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
             {
                 options.OutputPath = args[++index];
+                continue;
+            }
+
+            if (arg.Equals("--output-proof-trace", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                options.OutputProofTracePath = args[++index];
+                continue;
+            }
+
+            if (arg.Equals("--output-proof-graph", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                options.OutputProofGraphPath = args[++index];
+                continue;
+            }
+
+            if (arg.Equals("--route-action-only-pickup", StringComparison.OrdinalIgnoreCase))
+            {
+                options.OutputProofGraphRouteActionOnlyPickup = true;
+                continue;
+            }
+
+            if (arg.Equals("--route-action-only-return", StringComparison.OrdinalIgnoreCase))
+            {
+                options.OutputProofGraphRouteActionOnlyReturn = true;
                 continue;
             }
 
@@ -4362,6 +4791,38 @@ internal sealed class MotionProofOptions
             if (arg.Equals("--solve-primitive", StringComparison.OrdinalIgnoreCase))
             {
                 options.SolvePrimitivePath = true;
+                continue;
+            }
+
+            if (arg.Equals("--validate-primitive", StringComparison.OrdinalIgnoreCase))
+            {
+                options.ValidatePrimitivePath = true;
+                continue;
+            }
+
+            if (arg.Equals("--require-primitive-validation", StringComparison.OrdinalIgnoreCase)
+                || arg.Equals("--require-validation", StringComparison.OrdinalIgnoreCase))
+            {
+                options.RequirePrimitiveValidation = true;
+                options.ValidatePrimitivePath = true;
+                continue;
+            }
+
+            if (arg.Equals("--require-objective-completion", StringComparison.OrdinalIgnoreCase))
+            {
+                options.RequireObjectiveCompletion = true;
+                continue;
+            }
+
+            if (arg.Equals("--objective-hold-ticks", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                options.ObjectiveHoldTicks = int.Parse(args[++index], CultureInfo.InvariantCulture);
+                continue;
+            }
+
+            if (arg.Equals("--proof-trace-hold-ticks", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                options.ProofTraceHoldTicks = Math.Max(0, int.Parse(args[++index], CultureInfo.InvariantCulture));
                 continue;
             }
 
@@ -4416,6 +4877,30 @@ internal sealed class MotionProofOptions
             if (arg.Equals("--start-carrying-intel", StringComparison.OrdinalIgnoreCase))
             {
                 options.StartCarryingIntel = true;
+                continue;
+            }
+
+            if (arg.Equals("--validation-x-offsets", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                options.PrimitiveValidationXOffsets = ParseFloatList(args[++index]);
+                continue;
+            }
+
+            if (arg.Equals("--validation-bottom-offsets", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                options.PrimitiveValidationBottomOffsets = ParseFloatList(args[++index]);
+                continue;
+            }
+
+            if (arg.Equals("--validation-horizontal-speeds", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                options.PrimitiveValidationHorizontalSpeedOffsets = ParseFloatList(args[++index]);
+                continue;
+            }
+
+            if (arg.Equals("--validation-vertical-speeds", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                options.PrimitiveValidationVerticalSpeedOffsets = ParseFloatList(args[++index]);
                 continue;
             }
 
@@ -4611,6 +5096,18 @@ internal sealed class MotionProofOptions
                 continue;
             }
 
+            if (arg.Equals("--verified-nav-drop-horizontal-reach", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                options.VerifiedNavDropHorizontalReach = float.Parse(args[++index], CultureInfo.InvariantCulture);
+                continue;
+            }
+
+            if (arg.Equals("--verified-nav-jump-horizontal-reach", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                options.VerifiedNavJumpHorizontalReach = float.Parse(args[++index], CultureInfo.InvariantCulture);
+                continue;
+            }
+
             if (arg.Equals("--seed-start", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
             {
                 var parts = args[++index].Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
@@ -4666,6 +5163,15 @@ internal sealed class MotionProofOptions
         return options;
     }
 
+    private static float[] ParseFloatList(string value)
+    {
+        var parsed = value
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => float.Parse(part, CultureInfo.InvariantCulture))
+            .ToArray();
+        return parsed.Length == 0 ? new[] { 0f } : parsed;
+    }
+
     private static string GetDefaultMovementProfileId(PlayerClass classId)
     {
         return classId switch
@@ -4700,6 +5206,32 @@ internal readonly record struct MotionSeedStart(float X, float Bottom);
 internal readonly record struct MotionSeedGoal(string Label, float X, float Bottom);
 
 internal readonly record struct MotionSeedPath(float StartX, float StartBottom, float GoalX, float GoalBottom, string Label);
+
+internal sealed record PrimitiveValidationSummary(
+    int CaseCount,
+    int PassedCount,
+    IReadOnlyList<PrimitiveValidationFailure> Failures)
+{
+    public int FailedCount => Failures.Count;
+    public bool PassedAll => FailedCount == 0;
+}
+
+internal readonly record struct PrimitiveValidationFailure(
+    float XOffset,
+    float BottomOffset,
+    float HorizontalSpeedOffset,
+    float VerticalSpeedOffset,
+    float Distance,
+    float FinalX,
+    float FinalY,
+    float FinalBottom,
+    string Reason);
+
+internal readonly record struct PrimitiveReplayResult(
+    bool Passed,
+    MotionState Final,
+    float Distance,
+    string Reason);
 
 internal readonly record struct MotionGraphBuildNode(int Id, MotionState State);
 

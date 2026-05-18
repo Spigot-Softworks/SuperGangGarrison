@@ -57,6 +57,11 @@ public partial class Game1
                 return MainMenuOverlayKind.LastToDieMenu;
             }
 
+            if (_game._jumpMenuOpen)
+            {
+                return MainMenuOverlayKind.JumpMenu;
+            }
+
             if (_game._pluginOptionsMenuOpen)
             {
                 return MainMenuOverlayKind.PluginOptionsMenu;
@@ -108,6 +113,9 @@ public partial class Game1
                 case MainMenuOverlayKind.LastToDieMenu:
                     _game.UpdateLastToDieMenu(keyboard, mouse);
                     return true;
+                case MainMenuOverlayKind.JumpMenu:
+                    _game.UpdateJumpMenu(keyboard, mouse);
+                    return true;
                 case MainMenuOverlayKind.PluginOptionsMenu:
                     _game.UpdatePluginOptionsMenu(keyboard, mouse);
                     return true;
@@ -134,6 +142,9 @@ public partial class Game1
                     return true;
                 case MainMenuOverlayKind.LastToDieMenu:
                     _game.DrawLastToDieMenu();
+                    return true;
+                case MainMenuOverlayKind.JumpMenu:
+                    _game.DrawJumpMenu();
                     return true;
                 case MainMenuOverlayKind.HostSetup:
                     _game.DrawHostSetupMenu();

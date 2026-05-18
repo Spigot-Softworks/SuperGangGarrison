@@ -110,7 +110,7 @@ public partial class Game1
 
         private ClientPlayerMarker BuildClientPlayerMarker(PlayerEntity player, bool isLocalPlayer)
         {
-            var renderPosition = _game.GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _game._world.LocalPlayer));
+            var renderPosition = _game.GetRenderPosition(player);
             return new ClientPlayerMarker(
                 player.Id,
                 player.DisplayName,

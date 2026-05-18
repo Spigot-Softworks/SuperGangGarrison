@@ -19,7 +19,7 @@ public partial class Game1
 
         public bool TryDrawPlayerSprite(PlayerEntity player, Vector2 cameraPosition, Color tint, PlayerBodySpriteSelection bodySelection)
         {
-            var renderPosition = _game.GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _game._world.LocalPlayer));
+            var renderPosition = _game.GetRenderPosition(player);
             return TryDrawPlayerSpriteAtPosition(player, renderPosition, cameraPosition, tint, bodySelection, true);
         }
 
@@ -120,14 +120,10 @@ public partial class Game1
             }
 
             var renderState = _game._playerRenderStates.GetValueOrDefault(_game.GetPlayerStateKey(player));
-            var animationImage = WrapAnimationImage(renderState?.BodyAnimationImage ?? 0f, _game.GetPlayerBodyAnimationLength(player));
-            var renderHorizontalSpeed = renderState?.RenderHorizontalSpeed ?? player.HorizontalSpeed;
-            var horizontalSourceStepSpeed = GetPlayerAnimationSourceStepSpeed(renderHorizontalSpeed);
+            var animationHorizontalSpeed = renderState?.AnimationHorizontalSpeed ?? player.HorizontalSpeed;
+            var horizontalSourceStepSpeed = GetPlayerAnimationSourceStepSpeed(animationHorizontalSpeed);
+            var animationImage = WrapAnimationImage(renderState?.BodyAnimationImage ?? 0f, _game.GetPlayerBodyAnimationLength(player, horizontalSourceStepSpeed));
             var appearsAirborne = renderState?.AppearsAirborne ?? !player.IsGrounded;
-            if (appearsAirborne && HasGroundSupportForPresentation(player))
-            {
-                appearsAirborne = false;
-            }
 
             if (_game._world.IsPlayerHumiliated(player))
             {
@@ -162,12 +158,12 @@ public partial class Game1
             }
             else if (player.ClassId == PlayerClass.Heavy && horizontalSourceStepSpeed < 3f)
             {
-                spriteName = GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.WalkSuffix ?? presentation.RunSuffix ?? presentation.BaseSuffix, "WalkS");
+                spriteName = GetWalkSpriteName(player);
                 isHeavySlowWalk = true;
             }
             else
             {
-                spriteName = GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.RunSuffix ?? presentation.BaseSuffix, "RunS");
+                spriteName = GetRunSpriteName(player);
                 isRunSprite = true;
             }
 
@@ -181,10 +177,10 @@ public partial class Game1
                 }
             }
 
-            // Add permanent vertical offset for Scout during running
-            if (isRunSprite && player.ClassId == PlayerClass.Scout)
+            if (isRunSprite && !appearsAirborne && player.ClassId == PlayerClass.Scout)
             {
-                equipmentOffset += 2f;
+                bodyYOffset -= 1f;
+                equipmentOffset += 1f;
             }
 
             if (isHeavySlowWalk)
@@ -215,6 +211,8 @@ public partial class Game1
         public static string? GetHeavyEatSpriteName(PlayerEntity player) => player.ClassId == PlayerClass.Heavy ? GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.HeavyEatSuffix ?? presentation.BaseSuffix, "OmnomnomnomS") : null;
         public static string? GetPlayerSpriteName(PlayerEntity player) => GetPlayerSpriteName(player.ClassId, player.Team);
         public static string? GetPlayerSpriteName(PlayerClass classId, PlayerTeam team) => GetPresentationSpriteName(classId, team, static presentation => presentation.BaseSuffix, "S");
+        public static string? GetRunSpriteName(PlayerEntity player) => GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.RunSuffix ?? presentation.BaseSuffix, "RunS");
+        public static string? GetWalkSpriteName(PlayerEntity player) => GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.WalkSuffix ?? presentation.RunSuffix ?? presentation.BaseSuffix, "WalkS");
 
         public static string? GetDeadBodySpriteName(PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind = DeadBodyAnimationKind.Default)
         {
@@ -432,25 +430,6 @@ public partial class Game1
             }
 
             return leanDirection;
-        }
-
-        private bool HasGroundSupportForPresentation(PlayerEntity player)
-        {
-            // Allow ground support detection even when going down (e.g., stairs)
-            // Extended airtime threshold to prevent jump frame on stairs
-            if (player.VerticalSpeed < -2.5f)
-            {
-                return false;
-            }
-
-            var playerScale = player.PlayerScale;
-            var probeY = player.Bottom + playerScale;
-            var leftProbeX = player.Left + MathF.Max(1f, 2f * playerScale);
-            var centerProbeX = player.X;
-            var rightProbeX = player.Right - MathF.Max(1f, 2f * playerScale);
-            return IsPointBlockedForPlayerCore(player, leftProbeX, probeY)
-                || IsPointBlockedForPlayerCore(player, centerProbeX, probeY)
-                || IsPointBlockedForPlayerCore(player, rightProbeX, probeY);
         }
 
         private bool IsPointBlockedForPlayerCore(PlayerEntity player, float x, float y)

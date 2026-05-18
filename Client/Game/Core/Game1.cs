@@ -71,6 +71,7 @@ public partial class Game1 : Game
         Online,
         Practice,
         LastToDie,
+        Jump,
     }
 
     private enum MainMenuPage
@@ -91,6 +92,7 @@ public partial class Game1 : Game
         Taunt,
         CallMedic,
         UseAbility,
+        SwapWeaponsCustom,
         InteractWeapon,
         ChangeTeam,
         ChangeClass,
@@ -168,6 +170,9 @@ public partial class Game1 : Game
     private SpriteBatch _spriteBatch = null!;
     private Texture2D _pixel = null!;
     private Effect _grayscaleEffect = null!;
+    private Texture2D? _levelBackgroundFileTexture;
+    private string? _levelBackgroundFileTexturePath;
+    private string? _levelBackgroundFileFailedPath;
     private LoadedSpriteFrame? _menuBackgroundTexture;
     private string? _menuBackgroundTexturePath;
     private string? _menuBackgroundFailedPath;
@@ -235,11 +240,15 @@ public partial class Game1 : Game
     private string? _activeReplayPath;
     private bool _killCamEnabled = true;
     private bool _positionSmoothingEnabled = false;
+    private float _smoothCameraMultiplier = ClientSettings.DefaultSmoothCameraMultiplier;
+    private bool _hasSmoothCameraY;
+    private float _smoothCameraY;
+    private float _smoothCameraPixelY;
     private string _lastGameplayWindowTitle = string.Empty;
     private IngameResolutionKind _ingameResolution = IngameResolutionKind.Aspect4x3;
     private int _particleMode;
     private int _flameRenderMode;
-    private MenuBackgroundMode _menuBackgroundMode = MenuBackgroundMode.Static;
+    private MenuBackgroundMode _menuBackgroundMode = MenuBackgroundMode.DefaultMaps;
     private int _gibLevel = 3;
     private int _corpseDurationMode;
     private int _frameRateLimit;
@@ -248,6 +257,16 @@ public partial class Game1 : Game
     private bool _showHealerEnabled = true;
     private bool _showHealingEnabled = true;
     private bool _showHealthBarEnabled;
+    private bool _portraitRumbleEnabled = true;
+    private float _portraitRumbleRemainingSeconds;
+    private float _portraitRumbleIntensity;
+    private int _portraitRumbleSeed;
+    private bool _damageVignetteEnabled = true;
+    private float _damageVignetteIntensity;
+    private float _damageVignetteHoldSeconds;
+    private Texture2D? _damageVignetteTexture;
+    private int _damageVignetteTextureWidth;
+    private int _damageVignetteTextureHeight;
     private bool _showPersistentSelfNameEnabled;
     private bool _spriteDropShadowEnabled;
     private bool _uberOutlineEnabled = true;
@@ -330,6 +349,11 @@ public partial class Game1 : Game
             _hostedServerRuntime,
             _graphics) = CreateRuntimeServices(this, _hostedServerConsole);
         _graphics.HardwareModeSwitch = false;
+        if (OperatingSystem.IsBrowser())
+        {
+            _graphics.PreparingDeviceSettings += ConfigureBrowserPresentationParameters;
+        }
+
         Content.RootDirectory = "Content";
         ClientRuntimeBootstrap.InitializeContentRoot(Content.RootDirectory);
         InitializeLocalDistributionAtlasManifestsIfPresent();
@@ -340,7 +364,7 @@ public partial class Game1 : Game
         ReinitializeSimulationForTickRate(SimulationConfig.DefaultTicksPerSecond);
         _assetManifest = OperatingSystem.IsBrowser()
             ? ClientRuntimeBootstrap.GetBrowserRuntimeAssetManifest() ?? GameMakerAssetManifestImporter.ImportProjectAssets()
-            : GameMakerAssetManifestImporter.ImportProjectAssets();
+            : GameMakerRuntimeAssetManifestLoader.LoadPackagedOrProjectAssets();
         StartBrowserBootstrapAssetPreloadIfNeeded();
         ApplyLoadedSettings();
 
@@ -356,6 +380,11 @@ public partial class Game1 : Game
             TargetElapsedTime = TimeSpan.FromSeconds(1d / ClientUpdateTicksPerSecond);
             InactiveSleepTime = TimeSpan.Zero;
         }
+    }
+
+    private static void ConfigureBrowserPresentationParameters(object? sender, PreparingDeviceSettingsEventArgs e)
+    {
+        e.GraphicsDeviceInformation.PresentationParameters.RenderTargetUsage = RenderTargetUsage.PreserveContents;
     }
 
     protected override void Initialize()

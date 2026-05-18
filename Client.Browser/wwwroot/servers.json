@@ -1,6 +1,14 @@
 {
   "servers": [
     {
+      "name": "Open Garrison Dedicated",
+      "host": "45-61-52-208.sslip.io",
+      "udpPort": 0,
+      "webSocketPort": 0,
+      "webSocketUrl": "wss://45-61-52-208.sslip.io/opengarrison/ws",
+      "private": false
+    },
+    {
       "name": "Local WebSocket",
       "host": "127.0.0.1",
       "udpPort": 0,

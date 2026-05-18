@@ -472,7 +472,7 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
                 return null;
             }
 
-            frames[frameIndex] = new LoadedSpriteFrame(TextureDecodeUtility.LoadTexture(_graphicsDevice, bytes, applyLegacyChromaKey: true));
+            frames[frameIndex] = TextureDecodeUtility.LoadSpriteFrame(_graphicsDevice, bytes, applyLegacyChromaKey: true);
         }
 
         return new LoadedGameMakerSprite(frames, new Point(spriteAsset.OriginX, spriteAsset.OriginY));

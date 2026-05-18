@@ -468,6 +468,7 @@ async function runPracticeScenario(page) {
 
   await runPostJoinCommands(page);
   await runPostJoinMovement(page);
+  await verifyResizeRecovery(page);
 
   const finalSummary = await waitForStableHost(page, practiceSpawnSettleTimeoutMs);
   if (finalSummary.hostFailed) {

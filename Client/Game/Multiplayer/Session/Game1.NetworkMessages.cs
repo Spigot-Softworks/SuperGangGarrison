@@ -22,7 +22,7 @@ public partial class Game1
 
         var latestBufferedSnapshotFrame = Math.Max(_lastAppliedSnapshotFrame, _lastBufferedSnapshotFrame);
         SnapshotMessage? latestResolvedSnapshot = null;
-        Dictionary<ulong, SnapshotMessage>? resolvedBatchSnapshotsByFrame = null;
+        Dictionary<ulong, SnapshotBaselineState>? resolvedBatchSnapshotsByFrame = null;
         List<SnapshotMessage>? resolvedBatchSnapshots = null;
         foreach (var message in messages)
         {

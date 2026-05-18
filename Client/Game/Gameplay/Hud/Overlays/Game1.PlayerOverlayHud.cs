@@ -16,6 +16,11 @@ public partial class Game1
         _gameplayLocalStatusHudController.DrawLocalHealthHud();
     }
 
+    private void DrawDamageVignette()
+    {
+        _gameplayLocalStatusHudController.DrawDamageVignette();
+    }
+
     private SentryEntity? GetLocalOwnedSentry()
     {
         return _gameplayEngineerHudController.GetLocalOwnedSentry();

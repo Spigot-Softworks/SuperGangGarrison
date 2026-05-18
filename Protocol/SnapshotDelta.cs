@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace OpenGarrison.Protocol;
 
 public static class SnapshotDelta
 {
+    private const int SnapshotPlayerSlotLookupSize = 256;
+
     public static SnapshotMessage ToFullSnapshot(SnapshotMessage snapshot, ISnapshotBaselineState? baseline = null)
     {
         if (!snapshot.IsDelta)
@@ -36,6 +37,7 @@ public static class SnapshotDelta
                 snapshot.Players,
                 snapshot.PlayerMovementStates,
                 snapshot.PlayerStatusStates,
+                snapshot.PlayerExtendedStatusStates,
                 snapshot.PlayerChatBubbleStates,
                 snapshot.RemovedPlayerIds),
             Sentries = MergeSentries(baseline?.Sentries, snapshot.Sentries, snapshot.SentryUpdateStates, snapshot.RemovedSentryIds),
@@ -54,6 +56,7 @@ public static class SnapshotDelta
             JumpPads = MergeEntities(baseline?.JumpPads, snapshot.JumpPads, snapshot.RemovedJumpPadIds, static state => state.Id),
             PlayerMovementStates = Array.Empty<SnapshotPlayerMovementState>(),
             PlayerStatusStates = Array.Empty<SnapshotPlayerStatusState>(),
+            PlayerExtendedStatusStates = Array.Empty<SnapshotPlayerExtendedStatusState>(),
             PlayerChatBubbleStates = Array.Empty<SnapshotPlayerChatBubbleState>(),
             RemovedPlayerIds = Array.Empty<int>(),
             RemovedSentryIds = Array.Empty<int>(),
@@ -81,6 +84,7 @@ public static class SnapshotDelta
             IsDelta = false,
             PlayerMovementStates = Array.Empty<SnapshotPlayerMovementState>(),
             PlayerStatusStates = Array.Empty<SnapshotPlayerStatusState>(),
+            PlayerExtendedStatusStates = Array.Empty<SnapshotPlayerExtendedStatusState>(),
             PlayerChatBubbleStates = Array.Empty<SnapshotPlayerChatBubbleState>(),
             SentryUpdateStates = Array.Empty<SnapshotSentryUpdateState>(),
             RemovedPlayerIds = Array.Empty<int>(),
@@ -101,23 +105,24 @@ public static class SnapshotDelta
         };
     }
 
-    private static List<SnapshotPlayerState> MergePlayers(
+    private static SnapshotPlayerState[] MergePlayers(
         IReadOnlyList<SnapshotPlayerState>? baseline,
         IReadOnlyList<SnapshotPlayerState> updates,
         IReadOnlyList<SnapshotPlayerMovementState> movementUpdates,
         IReadOnlyList<SnapshotPlayerStatusState> statusUpdates,
+        IReadOnlyList<SnapshotPlayerExtendedStatusState> extendedStatusUpdates,
         IReadOnlyList<SnapshotPlayerChatBubbleState> chatBubbleUpdates,
         IReadOnlyList<int> removedIds)
     {
-        var removed = removedIds.Count == 0 ? null : new HashSet<int>(removedIds);
-        var mergedBySlot = new Dictionary<int, SnapshotPlayerState>((baseline?.Count ?? 0) + updates.Count);
+        var removedSlots = CreatePlayerSlotRemovalLookup(removedIds);
+        var mergedBySlot = new SnapshotPlayerState?[SnapshotPlayerSlotLookupSize];
 
         if (baseline is not null)
         {
             for (var index = 0; index < baseline.Count; index += 1)
             {
                 var player = baseline[index];
-                if (removed?.Contains(player.Slot) == true)
+                if (IsRemovedPlayerSlot(removedSlots, player.Slot))
                 {
                     continue;
                 }
@@ -129,7 +134,7 @@ public static class SnapshotDelta
         for (var index = 0; index < updates.Count; index += 1)
         {
             var player = updates[index];
-            if (removed?.Contains(player.Slot) == true)
+            if (IsRemovedPlayerSlot(removedSlots, player.Slot))
             {
                 continue;
             }
@@ -140,8 +145,9 @@ public static class SnapshotDelta
         for (var index = 0; index < movementUpdates.Count; index += 1)
         {
             var movement = movementUpdates[index];
-            if (removed?.Contains(movement.Slot) == true
-                || !mergedBySlot.TryGetValue(movement.Slot, out var player))
+            var player = mergedBySlot[movement.Slot];
+            if (IsRemovedPlayerSlot(removedSlots, movement.Slot)
+                || player is null)
             {
                 continue;
             }
@@ -177,8 +183,9 @@ public static class SnapshotDelta
         for (var index = 0; index < statusUpdates.Count; index += 1)
         {
             var status = statusUpdates[index];
-            if (removed?.Contains(status.Slot) == true
-                || !mergedBySlot.TryGetValue(status.Slot, out var player))
+            var player = mergedBySlot[status.Slot];
+            if (IsRemovedPlayerSlot(removedSlots, status.Slot)
+                || player is null)
             {
                 continue;
             }
@@ -195,11 +202,50 @@ public static class SnapshotDelta
             };
         }
 
+        for (var index = 0; index < extendedStatusUpdates.Count; index += 1)
+        {
+            var status = extendedStatusUpdates[index];
+            var player = mergedBySlot[status.Slot];
+            if (IsRemovedPlayerSlot(removedSlots, status.Slot)
+                || player is null)
+            {
+                continue;
+            }
+
+            mergedBySlot[status.Slot] = player with
+            {
+                IsSpyCloaked = status.IsSpyCloaked,
+                SpyCloakAlpha = status.SpyCloakAlpha,
+                IsSpySuperjumping = status.IsSpySuperjumping,
+                SpySuperjumpHorizontalVelocity = status.SpySuperjumpHorizontalVelocity,
+                SpySuperjumpCooldownTicksRemaining = status.SpySuperjumpCooldownTicksRemaining,
+                SpyBackstabVisualTicksRemaining = status.SpyBackstabVisualTicksRemaining,
+                IsUbered = status.IsUbered,
+                IsKritzCritBoosted = status.IsKritzCritBoosted,
+                IsHeavyEating = status.IsHeavyEating,
+                HeavyEatTicksRemaining = status.HeavyEatTicksRemaining,
+                IsSniperScoped = status.IsSniperScoped,
+                SniperChargeTicks = status.SniperChargeTicks,
+                MedicNeedleCooldownTicks = status.MedicNeedleCooldownTicks,
+                MedicNeedleRefillTicks = status.MedicNeedleRefillTicks,
+                PyroAirblastCooldownTicks = status.PyroAirblastCooldownTicks,
+                PyroFlareCooldownTicks = status.PyroFlareCooldownTicks,
+                PyroPrimaryFuelScaled = status.PyroPrimaryFuelScaled,
+                IsPyroPrimaryRefilling = status.IsPyroPrimaryRefilling,
+                PyroFlameLoopTicksRemaining = status.PyroFlameLoopTicksRemaining,
+                PyroPrimaryRequiresReleaseAfterEmpty = status.PyroPrimaryRequiresReleaseAfterEmpty,
+                HeavyEatCooldownTicksRemaining = status.HeavyEatCooldownTicksRemaining,
+                MedicUberCharge = status.MedicUberCharge,
+                IsMedicUberReady = status.IsMedicUberReady,
+            };
+        }
+
         for (var index = 0; index < chatBubbleUpdates.Count; index += 1)
         {
             var chatBubble = chatBubbleUpdates[index];
-            if (removed?.Contains(chatBubble.Slot) == true
-                || !mergedBySlot.TryGetValue(chatBubble.Slot, out var player))
+            var player = mergedBySlot[chatBubble.Slot];
+            if (IsRemovedPlayerSlot(removedSlots, chatBubble.Slot)
+                || player is null)
             {
                 continue;
             }
@@ -212,19 +258,65 @@ public static class SnapshotDelta
             };
         }
 
-        return mergedBySlot
-            .OrderBy(static entry => entry.Key)
-            .Select(static entry => entry.Value)
-            .ToList();
+        var mergedCount = 0;
+        for (var slot = 0; slot < mergedBySlot.Length; slot += 1)
+        {
+            if (mergedBySlot[slot] is not null)
+            {
+                mergedCount += 1;
+            }
+        }
+
+        var merged = new SnapshotPlayerState[mergedCount];
+        var outputIndex = 0;
+        for (var slot = 0; slot < mergedBySlot.Length; slot += 1)
+        {
+            if (mergedBySlot[slot] is { } player)
+            {
+                merged[outputIndex++] = player;
+            }
+        }
+
+        return merged;
     }
 
-    private static List<SnapshotSentryState> MergeSentries(
+    private static IReadOnlyList<SnapshotSentryState> MergeSentries(
         IReadOnlyList<SnapshotSentryState>? baseline,
         IReadOnlyList<SnapshotSentryState> updates,
         IReadOnlyList<SnapshotSentryUpdateState> lightweightUpdates,
         IReadOnlyList<int> removedIds)
     {
-        var removed = removedIds.Count == 0 ? null : new HashSet<int>(removedIds);
+        if ((baseline is null || baseline.Count == 0) && updates.Count == 0)
+        {
+            return Array.Empty<SnapshotSentryState>();
+        }
+
+        if ((baseline is null || baseline.Count == 0) && lightweightUpdates.Count == 0)
+        {
+            if (removedIds.Count == 0)
+            {
+                return updates;
+            }
+
+            return FilterEntitiesByRemoval(updates, removedIds, static state => state.Id);
+        }
+
+        if (updates.Count == 0 && lightweightUpdates.Count == 0)
+        {
+            if (baseline is null || baseline.Count == 0)
+            {
+                return Array.Empty<SnapshotSentryState>();
+            }
+
+            if (removedIds.Count == 0)
+            {
+                return baseline;
+            }
+
+            return FilterEntitiesByRemoval(baseline, removedIds, static state => state.Id);
+        }
+
+        var removed = CreateRemovedEntityLookup(removedIds);
         var mergedById = new Dictionary<int, SnapshotSentryState>((baseline?.Count ?? 0) + updates.Count);
 
         if (baseline is not null)
@@ -232,7 +324,7 @@ public static class SnapshotDelta
             for (var index = 0; index < baseline.Count; index += 1)
             {
                 var sentry = baseline[index];
-                if (removed?.Contains(sentry.Id) == true)
+                if (IsRemovedEntity(removedIds, removed, sentry.Id))
                 {
                     continue;
                 }
@@ -245,7 +337,7 @@ public static class SnapshotDelta
         for (var index = 0; index < updates.Count; index += 1)
         {
             var sentry = updates[index];
-            if (removed?.Contains(sentry.Id) == true)
+            if (IsRemovedEntity(removedIds, removed, sentry.Id))
             {
                 continue;
             }
@@ -257,7 +349,7 @@ public static class SnapshotDelta
         for (var index = 0; index < lightweightUpdates.Count; index += 1)
         {
             var update = lightweightUpdates[index];
-            if (removed?.Contains(update.Id) == true
+            if (IsRemovedEntity(removedIds, removed, update.Id)
                 || !mergedById.TryGetValue(update.Id, out var sentry))
             {
                 continue;
@@ -277,19 +369,49 @@ public static class SnapshotDelta
             };
         }
 
-        return mergedById
-            .OrderBy(static entry => entry.Key)
-            .Select(static entry => entry.Value)
-            .ToList();
+        var merged = new SnapshotSentryState[mergedById.Count];
+        var mergedIndex = 0;
+        foreach (var entry in mergedById)
+        {
+            merged[mergedIndex++] = entry.Value;
+        }
+
+        Array.Sort(merged, static (left, right) => left.Id.CompareTo(right.Id));
+        return merged;
     }
 
-    private static List<T> MergeEntities<T>(
+    private static IReadOnlyList<T> MergeEntities<T>(
         IReadOnlyList<T>? baseline,
         IReadOnlyList<T> updates,
         IReadOnlyList<int> removedIds,
         Func<T, int> keySelector)
     {
-        var removed = removedIds.Count == 0 ? null : new HashSet<int>(removedIds);
+        if (baseline is null || baseline.Count == 0)
+        {
+            if (updates.Count == 0)
+            {
+                return Array.Empty<T>();
+            }
+
+            if (removedIds.Count == 0)
+            {
+                return updates;
+            }
+
+            return FilterEntitiesByRemoval(updates, removedIds, keySelector);
+        }
+
+        if (updates.Count == 0)
+        {
+            if (removedIds.Count == 0)
+            {
+                return baseline;
+            }
+
+            return FilterEntitiesByRemoval(baseline, removedIds, keySelector);
+        }
+
+        var removed = CreateRemovedEntityLookup(removedIds);
         var updatesById = new Dictionary<int, T>(updates.Count);
         for (var index = 0; index < updates.Count; index += 1)
         {
@@ -305,7 +427,7 @@ public static class SnapshotDelta
             {
                 var state = baseline[index];
                 var id = keySelector(state);
-                if (removed?.Contains(id) == true)
+                if (IsRemovedEntity(removedIds, removed, id))
                 {
                     continue;
                 }
@@ -324,7 +446,7 @@ public static class SnapshotDelta
         {
             var update = updates[index];
             var id = keySelector(update);
-            if (removed?.Contains(id) == true)
+            if (IsRemovedEntity(removedIds, removed, id))
             {
                 continue;
             }
@@ -336,5 +458,91 @@ public static class SnapshotDelta
         }
 
         return merged;
+    }
+
+    private static bool[]? CreatePlayerSlotRemovalLookup(IReadOnlyList<int> removedIds)
+    {
+        if (removedIds.Count == 0)
+        {
+            return null;
+        }
+
+        var removedSlots = new bool[SnapshotPlayerSlotLookupSize];
+        for (var index = 0; index < removedIds.Count; index += 1)
+        {
+            var removedId = removedIds[index];
+            if ((uint)removedId < SnapshotPlayerSlotLookupSize)
+            {
+                removedSlots[removedId] = true;
+            }
+        }
+
+        return removedSlots;
+    }
+
+    private static bool IsRemovedPlayerSlot(bool[]? removedSlots, int slot)
+    {
+        return removedSlots is not null
+            && (uint)slot < removedSlots.Length
+            && removedSlots[slot];
+    }
+
+    private static HashSet<int>? CreateRemovedEntityLookup(IReadOnlyList<int> removedIds)
+    {
+        return removedIds.Count > 4 ? new HashSet<int>(removedIds) : null;
+    }
+
+    private static bool IsRemovedEntity(IReadOnlyList<int> removedIds, HashSet<int>? removedLookup, int id)
+    {
+        if (removedLookup is not null)
+        {
+            return removedLookup.Contains(id);
+        }
+
+        for (var index = 0; index < removedIds.Count; index += 1)
+        {
+            if (removedIds[index] == id)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static T[] FilterEntitiesByRemoval<T>(
+        IReadOnlyList<T> states,
+        IReadOnlyList<int> removedIds,
+        Func<T, int> keySelector)
+    {
+        var removedLookup = CreateRemovedEntityLookup(removedIds);
+        var keptCount = 0;
+        for (var index = 0; index < states.Count; index += 1)
+        {
+            if (!IsRemovedEntity(removedIds, removedLookup, keySelector(states[index])))
+            {
+                keptCount += 1;
+            }
+        }
+
+        if (keptCount == 0)
+        {
+            return Array.Empty<T>();
+        }
+
+        var filtered = new T[keptCount];
+        var outputIndex = 0;
+        for (var index = 0; index < states.Count; index += 1)
+        {
+            var state = states[index];
+            if (IsRemovedEntity(removedIds, removedLookup, keySelector(state)))
+            {
+                continue;
+            }
+
+            filtered[outputIndex++] = state;
+        }
+
+        return filtered;
     }
 }

@@ -73,12 +73,32 @@ public partial class Game1
             }
         }
 
+        public void OpenJumpMenu(string? statusMessage = null)
+        {
+            PrepareForExclusiveMainMenuOverlayOpen();
+            _game.PrepareJumpMenuMapEntries();
+            _game._jumpMenuOpen = true;
+            _game._jumpMenuHoverIndex = 0;
+            _game._menuStatusMessage = statusMessage ?? string.Empty;
+        }
+
+        public void CloseJumpMenu(bool clearStatus = false)
+        {
+            _game._jumpMenuOpen = false;
+            _game._jumpMenuHoverIndex = -1;
+            if (clearStatus)
+            {
+                _game._menuStatusMessage = string.Empty;
+            }
+        }
+
         public void CloseMainMenuTransientOverlays()
         {
             _game.CloseLobbyBrowser(clearStatus: false);
             _game._manualConnectOpen = false;
             CloseHostSetupMenu(clearStatus: false);
             CloseCreditsMenu();
+            CloseJumpMenu(clearStatus: false);
             _game._connectionFlowController.DisableManualConnectEditing();
         }
 
@@ -86,6 +106,7 @@ public partial class Game1
         {
             CloseMainMenuTransientOverlays();
             CloseLastToDieMenu(clearStatus: false);
+            CloseJumpMenu(clearStatus: false);
             _game._practiceSetupOpen = false;
             _game._clientPowersOpen = false;
             _game._clientPowersOpenedFromGameplay = false;

@@ -11,7 +11,7 @@ public partial class Game1
     private Rectangle GetLocalPlayerRectangle(Vector2 cameraPosition)
     {
         var player = _world.LocalPlayer;
-        return GetPlayerScreenBounds(player, GetRenderPosition(player, allowInterpolation: false), cameraPosition);
+        return GetPlayerScreenBounds(player, GetRenderPosition(player), cameraPosition);
     }
 
     private void DrawGameplayWorld(
@@ -460,7 +460,7 @@ public partial class Game1
             : Color.OrangeRed;
         var playerSpriteTint = GetPlayerColor(_world.LocalPlayer, Color.White);
         var bodySelection = GetPlayerBodySpriteSelection(_world.LocalPlayer);
-        var renderPosition = GetRenderPosition(_world.LocalPlayer, allowInterpolation: false);
+        var renderPosition = GetRenderPosition(_world.LocalPlayer);
         DrawExperimentalDemoknightChargeBlur(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);
         DrawCapturedPointHealingGhosting(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
         TryDrawWeaponSpriteBackdrop(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);

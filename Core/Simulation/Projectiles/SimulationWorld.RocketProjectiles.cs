@@ -93,7 +93,7 @@ public sealed partial class SimulationWorld
 
     private static class RocketProjectileSystem
     {
-        private static readonly Lazy<GameMakerAssetManifest> s_gameMakerAssets = new(GameMakerAssetManifestImporter.ImportProjectAssets);
+        private static readonly Lazy<GameMakerAssetManifest> s_gameMakerAssets = new(GameMakerRuntimeAssetManifestLoader.LoadPackagedOrProjectAssets);
 
         public static void Advance(SimulationWorld world)
         {

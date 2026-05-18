@@ -109,6 +109,33 @@ public sealed class SimulationWorldStingerRocketTests
     }
 
     [Fact]
+    public void DisableSelfDamagePreservesRocketJumpImpulse()
+    {
+        var world = CreateSoldierWorld(new ExperimentalGameplaySettings(DisableSelfDamage: true));
+        var owner = world.LocalPlayer;
+        owner.TeleportTo(100f, 100f);
+        owner.ForceSetHealth(owner.MaxHealth);
+        var healthBefore = owner.Health;
+
+        var rocket = new RocketProjectileEntity(
+            id: 1,
+            team: owner.Team,
+            ownerId: owner.Id,
+            x: owner.X,
+            y: owner.Y,
+            speed: 0f,
+            directionRadians: 0f,
+            rangeAnchorOwnerId: owner.Id,
+            lastKnownRangeOriginX: owner.X,
+            lastKnownRangeOriginY: owner.Y);
+
+        InvokeRocketExplosion(world, rocket);
+
+        Assert.Equal(healthBefore, owner.Health);
+        Assert.True(GetPlayerSpeedMagnitude(owner) > 0f);
+    }
+
+    [Fact]
     public void DangerCloseChainExplosionDrainsQueueWithoutLeavingReentrantState()
     {
         var world = CreateSoldierWorld(new ExperimentalGameplaySettings(EnableSoldierDangerClose: true));

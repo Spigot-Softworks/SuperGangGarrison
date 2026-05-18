@@ -19,7 +19,7 @@ public partial class Game1
 
         public bool TryDrawWeaponSprite(PlayerEntity player, Vector2 cameraPosition, Color tint, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
         {
-            var renderPosition = _game.GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _game._world.LocalPlayer));
+            var renderPosition = _game.GetRenderPosition(player);
             return TryDrawWeaponSpriteAtPosition(player, renderPosition, cameraPosition, tint, visibilityAlpha, bodySelection);
         }
 
@@ -30,7 +30,7 @@ public partial class Game1
                 return false;
             }
 
-            var renderPosition = _game.GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _game._world.LocalPlayer));
+            var renderPosition = _game.GetRenderPosition(player);
             var weaponDefinition = GetWeaponRenderDefinition(player);
             if (weaponDefinition.NormalSpriteName is null)
             {
@@ -73,27 +73,13 @@ public partial class Game1
             var frameIndex = GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
             var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
             var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
-            var drawX = roundedOrigin.X + ((weaponDefinition.XOffset + anchorOrigin.X) * facingScale * playerScale);
+            var weaponAnchorOffsetX = weaponDefinition.XOffset + anchorOrigin.X;
+            var drawX = roundedOrigin.X + (weaponAnchorOffsetX * facingScale * playerScale);
             var drawY = roundedOrigin.Y + ((weaponDefinition.YOffset + bodySelection.EquipmentOffset + anchorOrigin.Y) * playerScale);
             var rotation = GetRenderWeaponRotation(player);
-
-            if (TryGetLocalFlamethrowerAimWorldPosition(player, cameraPosition, out var aimWorldX, out var aimWorldY))
+            if (TryApplyLocalWeaponAim(player, roundedOrigin, weaponAnchorOffsetX, playerScale, ref facingScale, ref drawX, drawY, out var localAimRotation))
             {
-                var aimRadians = System.MathF.Atan2(aimWorldY - drawY, aimWorldX - drawX);
-                var desiredFacingScale = facingScale;
-                var aimDeltaX = aimWorldX - drawX;
-                if (System.MathF.Abs(aimDeltaX) > 0.001f)
-                {
-                    desiredFacingScale = aimDeltaX < 0f ? -1f : 1f;
-                }
-                if (desiredFacingScale != facingScale)
-                {
-                    facingScale = desiredFacingScale;
-                    drawX = roundedOrigin.X + ((weaponDefinition.XOffset + anchorOrigin.X) * facingScale * playerScale);
-                    aimRadians = System.MathF.Atan2(aimWorldY - drawY, aimWorldX - drawX);
-                }
-
-                rotation = GetWeaponRotationFromAim(aimRadians, facingScale);
+                rotation = localAimRotation;
             }
 
             if (!_game._uberOutlineEnabled)
@@ -149,27 +135,13 @@ public partial class Game1
             var frameIndex = GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
             var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
             var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
-            var drawX = roundedOrigin.X + ((weaponDefinition.XOffset + anchorOrigin.X) * facingScale * playerScale);
+            var weaponAnchorOffsetX = weaponDefinition.XOffset + anchorOrigin.X;
+            var drawX = roundedOrigin.X + (weaponAnchorOffsetX * facingScale * playerScale);
             var drawY = roundedOrigin.Y + ((weaponDefinition.YOffset + bodySelection.EquipmentOffset + anchorOrigin.Y) * playerScale);
             var rotation = GetRenderWeaponRotation(player);
-
-            if (TryGetLocalFlamethrowerAimWorldPosition(player, cameraPosition, out var aimWorldX, out var aimWorldY))
+            if (TryApplyLocalWeaponAim(player, roundedOrigin, weaponAnchorOffsetX, playerScale, ref facingScale, ref drawX, drawY, out var localAimRotation))
             {
-                var aimRadians = System.MathF.Atan2(aimWorldY - drawY, aimWorldX - drawX);
-                var desiredFacingScale = facingScale;
-                var aimDeltaX = aimWorldX - drawX;
-                if (System.MathF.Abs(aimDeltaX) > 0.001f)
-                {
-                    desiredFacingScale = aimDeltaX < 0f ? -1f : 1f;
-                }
-                if (desiredFacingScale != facingScale)
-                {
-                    facingScale = desiredFacingScale;
-                    drawX = roundedOrigin.X + ((weaponDefinition.XOffset + anchorOrigin.X) * facingScale * playerScale);
-                    aimRadians = System.MathF.Atan2(aimWorldY - drawY, aimWorldX - drawX);
-                }
-
-                rotation = GetWeaponRotationFromAim(aimRadians, facingScale);
+                rotation = localAimRotation;
             }
 
             var position = new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y);
@@ -199,7 +171,7 @@ public partial class Game1
 
         public Vector2 GetWeaponShellSpawnOrigin(PlayerEntity player)
         {
-            var renderPosition = _game.GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _game._world.LocalPlayer));
+            var renderPosition = _game.GetRenderPosition(player);
             return GetRoundedPlayerSpriteOrigin(renderPosition);
         }
 
@@ -265,21 +237,56 @@ public partial class Game1
             return GetWeaponRotation(player);
         }
 
-        private bool TryGetLocalFlamethrowerAimWorldPosition(PlayerEntity player, Vector2 cameraPosition, out float aimWorldX, out float aimWorldY)
+        private bool TryApplyLocalWeaponAim(
+            PlayerEntity player,
+            Vector2 roundedOrigin,
+            float anchorOffsetX,
+            float playerScale,
+            ref float facingScale,
+            ref float drawX,
+            float drawY,
+            out float rotation)
+        {
+            rotation = 0f;
+            if (!TryGetLocalWeaponAimWorldPosition(player, out var aimWorldX, out var aimWorldY))
+            {
+                return false;
+            }
+
+            var aimRadians = System.MathF.Atan2(aimWorldY - drawY, aimWorldX - drawX);
+            var desiredFacingScale = facingScale;
+            var aimDeltaX = aimWorldX - drawX;
+            if (System.MathF.Abs(aimDeltaX) > 0.001f)
+            {
+                desiredFacingScale = aimDeltaX < 0f ? -1f : 1f;
+            }
+
+            if (desiredFacingScale != facingScale)
+            {
+                facingScale = desiredFacingScale;
+                drawX = roundedOrigin.X + (anchorOffsetX * facingScale * playerScale);
+                aimRadians = System.MathF.Atan2(aimWorldY - drawY, aimWorldX - drawX);
+            }
+
+            rotation = GetWeaponRotationFromAim(aimRadians, facingScale);
+            return true;
+        }
+
+        private bool TryGetLocalWeaponAimWorldPosition(PlayerEntity player, out float aimWorldX, out float aimWorldY)
         {
             aimWorldX = 0f;
             aimWorldY = 0f;
 
             if (!ReferenceEquals(player, _game._world.LocalPlayer)
                 || _game._networkClient.IsSpectator
-                || GetRenderWeaponStats(player).Kind != PrimaryWeaponKind.FlameThrower)
+                || _game.IsBackstabReplacementRenderActive(player)
+                || !_game._hasLatestLocalAimWorldPosition)
             {
                 return false;
             }
 
-            var mouse = _game.GetScaledMouseState(_game.GetConstrainedMouseState(Game1.GetCurrentMouseState()));
-            aimWorldX = cameraPosition.X + mouse.X;
-            aimWorldY = cameraPosition.Y + mouse.Y;
+            aimWorldX = _game._latestLocalAimWorldX;
+            aimWorldY = _game._latestLocalAimWorldY;
             return true;
         }
 
@@ -436,8 +443,14 @@ public partial class Game1
             var overlayFrameIndex = GetWeaponAnimationOverlayFrameIndex(player, overlaySprite.Frames.Count);
             var overlayRotation = GetRenderWeaponRotation(player) + MathHelper.ToRadians(overlayDefinition.RotationDegrees * facingScale);
             var playerScale = player.PlayerScale;
-            var drawX = roundedOrigin.X + ((weaponDefinition.XOffset + overlayDefinition.OffsetX + overlaySprite.Origin.X) * facingScale * playerScale);
+            var overlayAnchorOffsetX = weaponDefinition.XOffset + overlayDefinition.OffsetX + overlaySprite.Origin.X;
+            var drawX = roundedOrigin.X + (overlayAnchorOffsetX * facingScale * playerScale);
             var drawY = roundedOrigin.Y + ((weaponDefinition.YOffset + overlayDefinition.OffsetY + bodySelection.EquipmentOffset + overlaySprite.Origin.Y) * playerScale);
+            if (TryApplyLocalWeaponAim(player, roundedOrigin, overlayAnchorOffsetX, playerScale, ref facingScale, ref drawX, drawY, out var localAimRotation))
+            {
+                overlayRotation = localAimRotation + MathHelper.ToRadians(overlayDefinition.RotationDegrees * facingScale);
+            }
+
             var position = new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y);
             var scale = new Vector2(facingScale * playerScale, playerScale);
             _game.DrawSpriteFrameWithOptionalShadow(overlaySprite.Frames[overlayFrameIndex], position, tint, overlayRotation, overlaySprite.Origin.ToVector2(), scale);

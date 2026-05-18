@@ -55,6 +55,34 @@ public sealed class PlayerEntityMovementRegressionTests
             $"expected running jump apex to match standing jump, got standing={standingApexY:0.###} running={runningApexY:0.###}");
     }
 
+    [Fact]
+    public void ConflictBlueHeavyCanLeaveRightSpawnExitBoxChoke()
+    {
+        var level = SimpleLevelFactory.CreateImportedLevel("Conflict");
+        Assert.NotNull(level);
+        var spawn = level!.BlueSpawns.OrderByDescending(static candidate => candidate.X).First();
+        var player = new PlayerEntity(1, CharacterClassCatalog.Heavy, "Test");
+        player.Spawn(PlayerTeam.Blue, spawn.X, spawn.Y);
+        player.ResolveBlockingOverlap(level, PlayerTeam.Blue);
+        var wasGrounded = player.IsGrounded;
+
+        for (var tick = 0; tick < 600; tick += 1)
+        {
+            var jumpPressed = tick == 0 || (player.IsGrounded && !wasGrounded);
+            wasGrounded = player.IsGrounded;
+            player.Advance(
+                MoveRightInput with { Up = jumpPressed },
+                jumpPressed,
+                level,
+                PlayerTeam.Blue,
+                1d / SimulationConfig.DefaultTicksPerSecond);
+        }
+
+        Assert.True(
+            player.X > 3300f,
+            $"expected Heavy to clear Conflict blue right-exit box choke, got x={player.X:0.###} bounds=({player.Left:0.###},{player.Top:0.###},{player.Right:0.###},{player.Bottom:0.###})");
+    }
+
     private static float SimulateJumpApex(PlayerEntity player, SimpleLevel level, PlayerInputSnapshot initialInput)
     {
         const double dt = 1d / SimulationConfig.DefaultTicksPerSecond;
@@ -78,6 +106,20 @@ public sealed class PlayerEntityMovementRegressionTests
 
         return lowestY;
     }
+
+    private static readonly PlayerInputSnapshot MoveRightInput = new(
+        Left: false,
+        Right: true,
+        Up: false,
+        Down: false,
+        BuildSentry: false,
+        DestroySentry: false,
+        Taunt: false,
+        FirePrimary: false,
+        FireSecondary: false,
+        AimWorldX: 4096f,
+        AimWorldY: 630f,
+        DebugKill: false);
 
     private static PlayerEntity CreateGroundedScout()
     {

@@ -2,6 +2,12 @@ using System.Collections.Generic;
 
 namespace OpenGarrison.Core.BotBrain;
 
+public readonly record struct BotBrainChatBubbleContext(
+    string DirectTrace,
+    string SemanticRecoveryTrace,
+    int? MedicHealTargetId,
+    bool MedicHealTargetIsPocket);
+
 public sealed class BotBrainChatBubbleController
 {
     private const int FrameAlert = ChatBubbleFrameCatalog.Alert;
@@ -55,6 +61,44 @@ public sealed class BotBrainChatBubbleController
         PlayerInputSnapshot input,
         IReadOnlyDictionary<byte, PlayerTeam> controlledTeamsBySlot)
     {
+        return Update(
+            world,
+            slot,
+            self,
+            team,
+            new BotBrainChatBubbleContext(
+                BuildControllerTraversalTrace(controller),
+                controller.LastSemanticRecoveryTrace,
+                controller.LastMedicHealTargetId,
+                controller.LastMedicHealTargetIsPocket),
+            input,
+            controlledTeamsBySlot);
+    }
+
+    private static string BuildControllerTraversalTrace(BotBrainController controller)
+    {
+        if (string.IsNullOrWhiteSpace(controller.LastDirectDriveTrace))
+        {
+            return controller.LastTraversalTrace;
+        }
+
+        if (string.IsNullOrWhiteSpace(controller.LastTraversalTrace))
+        {
+            return controller.LastDirectDriveTrace;
+        }
+
+        return $"{controller.LastDirectDriveTrace} {controller.LastTraversalTrace}";
+    }
+
+    public PlayerInputSnapshot Update(
+        SimulationWorld world,
+        byte slot,
+        PlayerEntity self,
+        PlayerTeam team,
+        BotBrainChatBubbleContext context,
+        PlayerInputSnapshot input,
+        IReadOnlyDictionary<byte, PlayerTeam> controlledTeamsBySlot)
+    {
         var state = GetOrCreateState(slot, self);
         if (!self.IsAlive)
         {
@@ -97,13 +141,13 @@ public sealed class BotBrainChatBubbleController
             state.LowHealthCallIssued = false;
         }
 
-        if (TryTriggerCommunicationSignal(world, slot, self, team, controller, state, controlledTeamsBySlot))
+        if (TryTriggerCommunicationSignal(world, slot, self, team, context, state, controlledTeamsBySlot))
         {
             UpdateLiveState(self, state);
             return input;
         }
 
-        if (TrySelectReaction(world, slot, self, team, controller, state, out var reaction)
+        if (TrySelectReaction(world, slot, self, team, context, state, out var reaction)
             && TryTriggerReaction(world, slot, self, reaction, state))
         {
             MarkReaction(state, world.Frame, reaction);
@@ -132,7 +176,7 @@ public sealed class BotBrainChatBubbleController
         byte slot,
         PlayerEntity self,
         PlayerTeam team,
-        BotBrainController controller,
+        BotBrainChatBubbleContext context,
         BotBrainChatBubbleState state,
         out BotBrainChatBubbleReaction reaction)
     {
@@ -174,8 +218,8 @@ public sealed class BotBrainChatBubbleController
             return true;
         }
 
-        if (!string.IsNullOrEmpty(controller.LastSemanticRecoveryTrace)
-            || controller.LastDirectDriveTrace.Contains("recovery", StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrEmpty(context.SemanticRecoveryTrace)
+            || context.DirectTrace.Contains("recovery", StringComparison.OrdinalIgnoreCase))
         {
             reaction = new BotBrainChatBubbleReaction(FrameQuestion, BotBrainChatBubbleCategory.Recovery, Priority: 55);
             return true;
@@ -372,11 +416,11 @@ public sealed class BotBrainChatBubbleController
         byte slot,
         PlayerEntity self,
         PlayerTeam team,
-        BotBrainController controller,
+        BotBrainChatBubbleContext context,
         BotBrainChatBubbleState state,
         IReadOnlyDictionary<byte, PlayerTeam> controlledTeamsBySlot)
     {
-        if (!TryResolveCommunicationSignal(world, slot, self, team, controller, state, out var signal, out var firstReaction, out var followupReaction))
+        if (!TryResolveCommunicationSignal(world, slot, self, team, context, state, out var signal, out var firstReaction, out var followupReaction))
         {
             return false;
         }
@@ -423,15 +467,15 @@ public sealed class BotBrainChatBubbleController
         byte slot,
         PlayerEntity self,
         PlayerTeam team,
-        BotBrainController controller,
+        BotBrainChatBubbleContext context,
         BotBrainChatBubbleState state,
         out BotBubbleSignal signal,
         out BotBrainChatBubbleReaction firstReaction,
         out BotBrainChatBubbleReaction? followupReaction)
     {
         followupReaction = null;
-        var directTrace = controller.LastDirectDriveTrace;
-        if (TryResolveMedicPocketSignal(world, slot, self, team, controller, state, out signal, out firstReaction))
+        var directTrace = context.DirectTrace;
+        if (TryResolveMedicPocketSignal(world, slot, self, team, context, state, out signal, out firstReaction))
         {
             return true;
         }
@@ -497,22 +541,22 @@ public sealed class BotBrainChatBubbleController
         byte slot,
         PlayerEntity self,
         PlayerTeam team,
-        BotBrainController controller,
+        BotBrainChatBubbleContext context,
         BotBrainChatBubbleState state,
         out BotBubbleSignal signal,
         out BotBrainChatBubbleReaction firstReaction)
     {
         if (self.ClassId != PlayerClass.Medic
-            || !controller.LastMedicHealTargetIsPocket
-            || !controller.LastMedicHealTargetId.HasValue
-            || state.LastMedicPocketTargetId == controller.LastMedicHealTargetId.Value)
+            || !context.MedicHealTargetIsPocket
+            || !context.MedicHealTargetId.HasValue
+            || state.LastMedicPocketTargetId == context.MedicHealTargetId.Value)
         {
             signal = default;
             firstReaction = default;
             return false;
         }
 
-        var target = FindPlayerById(world, controller.LastMedicHealTargetId.Value);
+        var target = FindPlayerById(world, context.MedicHealTargetId.Value);
         if (target is null || !target.IsAlive || target.Team != team)
         {
             signal = default;
@@ -676,6 +720,7 @@ public sealed class BotBrainChatBubbleController
             DropIntel = false,
             UseAbility = false,
             InteractWeapon = false,
+            SwapWeapon = false,
         };
     }
 
