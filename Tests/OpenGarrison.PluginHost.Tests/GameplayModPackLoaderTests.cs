@@ -679,6 +679,7 @@ public sealed class GameplayModPackLoaderTests
             [],
             [],
             [],
+            [],
             0,
             0,
             0,

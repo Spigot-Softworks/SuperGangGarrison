@@ -90,21 +90,48 @@ public partial class Game1
             appearsAirborne = verticalSourceStepSpeed > 0.35f;
         }
 
+        // For remote network players not grounded, ensure they appear airborne if moving significantly
+        // Don't force to false when vertical speed is low - player might be at jump apex
         if (!isHumiliated && isRemoteNetworkPlayer && !player.IsGrounded)
         {
-            appearsAirborne = verticalSourceStepSpeed > 0.35f;
+            if (verticalSourceStepSpeed > 0.35f)
+            {
+                appearsAirborne = true;
+            }
         }
 
         // Small stair snaps can briefly clear grounded state without being a real jump/fall.
+        // Only apply this when player is actually grounded to avoid affecting jump apex
         if (appearsAirborne
+            && player.IsGrounded
             && horizontalSourceStepSpeed >= 0.2f
             && verticalSourceStepSpeed <= 0.35f)
         {
             appearsAirborne = false;
         }
 
-        if (!appearsAirborne && horizontalSourceStepSpeed < 0.2f)
+        // When standing still at an edge/platform, never use jump animation if grounded
+        // This ensures leaning animation is used instead
+        if (appearsAirborne
+            && player.IsGrounded
+            && horizontalSourceStepSpeed < 0.2f)
         {
+            appearsAirborne = false;
+        }
+
+        // Check for ground support beneath player to handle stairs and platform edges
+        // This prevents animation resets when IsGrounded flickers on stairs
+        var hasGroundSupport = appearsAirborne && HasGroundSupportBeneathPlayer(player);
+        if (hasGroundSupport)
+        {
+            appearsAirborne = false;
+        }
+
+        var isStill = !appearsAirborne && horizontalSourceStepSpeed < 0.2f;
+
+        if (isStill && !hasGroundSupport)
+        {
+            // Only reset animation if truly standing still (not on stairs/edges)
             animationImage = 0f;
         }
         else if (appearsAirborne)
@@ -113,6 +140,7 @@ public partial class Game1
         }
         else
         {
+            // Continue advancing animation (including on stairs with ground support)
             animationImage = WrapAnimationImage(
                 animationImage + GetPlayerAnimationAdvance(renderHorizontalSpeed, animationElapsedSeconds, GetPlayerFacingScale(player)),
                 GetPlayerBodyAnimationLength(player));
@@ -434,6 +462,54 @@ public partial class Game1
                 : player.IsGrounded;
     }
 
+    private bool HasGroundSupportBeneathPlayer(PlayerEntity player)
+    {
+        // Check if there's solid ground beneath the player, even if IsGrounded is false
+        // This helps with stairs and small platform edges
+        if (player.VerticalSpeed < -2.5f)
+        {
+            return false;
+        }
+
+        var playerScale = player.PlayerScale;
+        // Probe further down and wider to catch platform edges more reliably
+        var probeY = player.Bottom + (2f * playerScale);
+        var leftProbeX = player.Left + MathF.Max(0.5f, 1f * playerScale);
+        var centerProbeX = player.X;
+        var rightProbeX = player.Right - MathF.Max(0.5f, 1f * playerScale);
+        
+        // Also check slightly inside the player bounds for very narrow platforms
+        var innerLeftProbeX = player.X - (2f * playerScale);
+        var innerRightProbeX = player.X + (2f * playerScale);
+        
+        return IsPointBlocked(player, leftProbeX, probeY)
+            || IsPointBlocked(player, centerProbeX, probeY)
+            || IsPointBlocked(player, rightProbeX, probeY)
+            || IsPointBlocked(player, innerLeftProbeX, probeY)
+            || IsPointBlocked(player, innerRightProbeX, probeY);
+    }
+
+    private bool IsPointBlocked(PlayerEntity player, float x, float y)
+    {
+        foreach (var solid in _world.Level.Solids)
+        {
+            if (x >= solid.Left && x < solid.Right && y >= solid.Top && y < solid.Bottom)
+            {
+                return true;
+            }
+        }
+
+        foreach (var gate in _world.Level.GetBlockingTeamGates(player.Team, player.IsCarryingIntel))
+        {
+            if (x >= gate.Left && x < gate.Right && y >= gate.Top && y < gate.Bottom)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private PlayerRenderState GetOrCreatePlayerRenderState(int playerStateKey, PlayerEntity player)
     {
         if (_playerRenderStates.TryGetValue(playerStateKey, out var renderState))
@@ -686,7 +762,7 @@ public partial class Game1
             || (player.ClassId == PlayerClass.Sniper && player.IsSniperScoped)
             || _world.IsPlayerHumiliated(player)
                 ? 2f
-                : 4f;
+                : 8f;
     }
 
     private void QueueWeaponShellVisuals(PlayerEntity player, bool shotStarted, bool shellInserted)

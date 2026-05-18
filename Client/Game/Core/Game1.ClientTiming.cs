@@ -347,6 +347,7 @@ public partial class Game1
         {
             _goreSourceTickAccumulator -= 1f;
             AdvanceBloodVisuals();
+            AdvanceSniperTracerParticles();
         }
     }
 

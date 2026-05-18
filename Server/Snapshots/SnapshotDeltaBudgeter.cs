@@ -52,7 +52,7 @@ internal static class SnapshotDeltaBudgeter
         IReadOnlyList<Contribution> contributions,
         int targetPayloadBytes = TargetSnapshotPayloadBytes)
     {
-        var builder = new Builder(fullSnapshot, baseline?.Frame ?? 0, seedFromTemplateCollections: false);
+        var builder = new Builder(fullSnapshot, baseline?.Frame ?? 0, seedFromTemplateCollections: true);
         var snapshot = builder.Build();
         var serializePassCount = 0;
         byte[]? payload = null;
@@ -224,6 +224,7 @@ internal static class SnapshotDeltaBudgeter
     {
         builder.KillFeed.Clear();
         builder.CombatTraces.Clear();
+        builder.SniperAimIndicators.Clear();
         // Keep VisualEvents (rocket explosions) - let priority system decide
         // Keep DamageEvents - needed for client-side blood and hit feedback
         builder.SoundEvents.Clear();
@@ -401,6 +402,7 @@ internal static class SnapshotDeltaBudgeter
             Players = Array.Empty<SnapshotPlayerState>(),
             PlayerMovementStates = Array.Empty<SnapshotPlayerMovementState>(),
             CombatTraces = Array.Empty<SnapshotCombatTraceState>(),
+            SniperAimIndicators = Array.Empty<SnapshotSniperAimIndicatorState>(),
             Sentries = Array.Empty<SnapshotSentryState>(),
             Shots = Array.Empty<SnapshotShotState>(),
             Bubbles = Array.Empty<SnapshotShotState>(),
@@ -506,6 +508,7 @@ internal static class SnapshotDeltaBudgeter
             _template = template;
             BaselineFrame = baselineFrame;
             CombatTraces = seedFromTemplateCollections ? new List<SnapshotCombatTraceState>(template.CombatTraces) : [];
+            SniperAimIndicators = seedFromTemplateCollections ? new List<SnapshotSniperAimIndicatorState>(template.SniperAimIndicators) : [];
             KillFeed = seedFromTemplateCollections ? new List<SnapshotKillFeedEntry>(template.KillFeed) : [];
             VisualEvents = seedFromTemplateCollections ? new List<SnapshotVisualEvent>(template.VisualEvents) : [];
             DamageEvents = seedFromTemplateCollections ? new List<SnapshotDamageEvent>(template.DamageEvents) : [];
@@ -552,6 +555,7 @@ internal static class SnapshotDeltaBudgeter
             _template = other._template;
             BaselineFrame = other.BaselineFrame;
             CombatTraces = new List<SnapshotCombatTraceState>(other.CombatTraces);
+            SniperAimIndicators = new List<SnapshotSniperAimIndicatorState>(other.SniperAimIndicators);
             KillFeed = new List<SnapshotKillFeedEntry>(other.KillFeed);
             VisualEvents = new List<SnapshotVisualEvent>(other.VisualEvents);
             DamageEvents = new List<SnapshotDamageEvent>(other.DamageEvents);
@@ -595,6 +599,7 @@ internal static class SnapshotDeltaBudgeter
 
         public ulong BaselineFrame { get; }
         public List<SnapshotCombatTraceState> CombatTraces { get; }
+        public List<SnapshotSniperAimIndicatorState> SniperAimIndicators { get; }
         public List<SnapshotKillFeedEntry> KillFeed { get; }
         public List<SnapshotVisualEvent> VisualEvents { get; }
         public List<SnapshotDamageEvent> DamageEvents { get; }
@@ -651,6 +656,7 @@ internal static class SnapshotDeltaBudgeter
                 PlayerStatusStates = PlayerStatusStates.ToArray(),
                 PlayerChatBubbleStates = PlayerChatBubbleStates.ToArray(),
                 CombatTraces = CombatTraces.ToArray(),
+                SniperAimIndicators = SniperAimIndicators.ToArray(),
                 Sentries = Sentries.ToArray(),
                 SentryUpdateStates = SentryUpdateStates.ToArray(),
                 Shots = Shots.ToArray(),

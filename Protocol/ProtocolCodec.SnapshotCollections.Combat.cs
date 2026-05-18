@@ -359,4 +359,35 @@ public static partial class ProtocolCodec
 
         return combatTraces;
     }
+
+    private static void WriteSniperAimIndicators(BinaryWriter writer, IReadOnlyList<SnapshotSniperAimIndicatorState> indicators)
+    {
+        writer.Write((ushort)indicators.Count);
+        for (var index = 0; index < indicators.Count; index += 1)
+        {
+            var indicator = indicators[index];
+            writer.Write(indicator.SniperPlayerId);
+            writer.Write(indicator.X);
+            writer.Write(indicator.Y);
+            writer.Write(indicator.Team);
+            writer.Write(indicator.Transparency);
+        }
+    }
+
+    private static List<SnapshotSniperAimIndicatorState> ReadSniperAimIndicators(BinaryReader reader)
+    {
+        var count = reader.ReadUInt16();
+        var indicators = new List<SnapshotSniperAimIndicatorState>(count);
+        for (var index = 0; index < count; index += 1)
+        {
+            indicators.Add(new SnapshotSniperAimIndicatorState(
+                reader.ReadInt32(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadByte(),
+                reader.ReadSingle()));
+        }
+
+        return indicators;
+    }
 }

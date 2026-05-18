@@ -181,6 +181,12 @@ public partial class Game1
                 }
             }
 
+            // Add permanent vertical offset for Scout during running
+            if (isRunSprite && player.ClassId == PlayerClass.Scout)
+            {
+                equipmentOffset += 2f;
+            }
+
             if (isHeavySlowWalk)
             {
                 equipmentOffset = bodyYOffset;
@@ -430,7 +436,9 @@ public partial class Game1
 
         private bool HasGroundSupportForPresentation(PlayerEntity player)
         {
-            if (player.VerticalSpeed < 0f)
+            // Allow ground support detection even when going down (e.g., stairs)
+            // Extended airtime threshold to prevent jump frame on stairs
+            if (player.VerticalSpeed < -2.5f)
             {
                 return false;
             }
