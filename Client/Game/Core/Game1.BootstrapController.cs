@@ -316,6 +316,7 @@ public partial class Game1
             _game._gameplayLoadoutHelmetTexture?.Dispose();
             _game._gameplayLoadoutDogTagsTexture?.Dispose();
             _game._lastToDieLogoTexture?.Dispose();
+            _game.DisposeLastToDieBuffIconFrame();
             _game.DisposeGarrisonBuilderEditorAssets();
             _game._gameRenderTarget?.Dispose();
             _game._gameRenderTarget = null;
@@ -323,6 +324,7 @@ public partial class Game1
             _game._damageVignetteTexture = null;
             _game._damageVignetteTextureWidth = 0;
             _game._damageVignetteTextureHeight = 0;
+            _game._damageVignetteTextureIntensityBucket = -1;
             _game._deathCamCaptureTarget?.Dispose();
             _game._deathCamCaptureTarget = null;
             _game._levelBackgroundFileTexture = null;

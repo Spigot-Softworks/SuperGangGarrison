@@ -230,6 +230,7 @@ public sealed class BrowserBootstrapAssetCatalog(
             "Content/Sprites/Menu/Fonts/MenuBuildFontAtlas.png",
             "Content/Sprites/Menu/Fonts/MenuFontAtlas.png",
             "Content/Sprites/Menu/LastToDie/last2die.png",
+            "Content/Sprites/Menu/LastToDie/ltd_buff.png",
             "Content/Sprites/Menu/Title/background.png",
             "Content/Sprites/Menu/Title/background-4x3.png",
             "Content/Sprites/Menu/Title/background-5x4.png",
@@ -250,6 +251,7 @@ public sealed class BrowserBootstrapAssetCatalog(
         binaryPaths.Add("Content/Sounds/Music/ingame_l2d.ogg");
         binaryPaths.Add("Content/Sounds/Music/ltdgameover.fixed.ogg");
         binaryPaths.Add("Content/Sounds/Music/menu-l2d.fixed.ogg");
+        binaryPaths.Add("Content/Sounds/message.ogg");
 
         // Browser practice/Last To Die rely on shipped point-graph assets, and the browser runtime
         // cannot safely block on async fetches once gameplay startup begins.

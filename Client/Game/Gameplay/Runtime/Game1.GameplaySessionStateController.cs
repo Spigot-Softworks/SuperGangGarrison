@@ -63,6 +63,7 @@ public partial class Game1
             _game.ResetPracticeBotManagerState(releaseWorldSlots: true);
             Game1.ResetPracticeNavigationState();
             _game._networkClient.Disconnect();
+            _game.ClearSocialPresenceNetworkEndpoint();
             _game.ResetGameplayTransitionEffects();
             _game.ReinitializeSimulationForTickRate(SimulationConfig.DefaultTicksPerSecond);
             _game.ResetGameplayRuntimeState();

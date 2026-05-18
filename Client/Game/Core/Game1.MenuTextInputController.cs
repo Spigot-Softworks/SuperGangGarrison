@@ -99,6 +99,120 @@ public partial class Game1
             return TryHandlePlayerNameEdit(e.Character);
         }
 
+        public bool TryHandleFriendCodeEdit(char character)
+        {
+            switch (character)
+            {
+                case '\b':
+                {
+                    var result = _game.DeleteTextSelectionOrBackspace(
+                        _game._friendCodeInputBuffer,
+                        _game._friendCodeCursorIndex,
+                        _game._friendCodeSelectionStart);
+                    _game._friendCodeInputBuffer = result.Text;
+                    _game._friendCodeCursorIndex = result.CursorIndex;
+                    _game._friendCodeSelectionStart = result.SelectionStart;
+                    break;
+                }
+                case '\r':
+                case '\n':
+                    _game.TrySendFriendRequestFromInput();
+                    break;
+                default:
+                    if (char.IsAsciiLetterOrDigit(character) || character == '-')
+                    {
+                        var result = _game.InsertTextCharacterAtCursor(
+                            _game._friendCodeInputBuffer,
+                            char.ToUpperInvariant(character),
+                            _game._friendCodeCursorIndex,
+                            _game._friendCodeSelectionStart,
+                            20);
+                        _game._friendCodeInputBuffer = result.Text;
+                        _game._friendCodeCursorIndex = result.CursorIndex;
+                        _game._friendCodeSelectionStart = result.SelectionStart;
+                    }
+                    break;
+            }
+
+            return true;
+        }
+
+        public bool TryHandleFriendNicknameEdit(char character)
+        {
+            switch (character)
+            {
+                case '\b':
+                {
+                    var result = _game.DeleteTextSelectionOrBackspace(
+                        _game._friendNicknameInputBuffer,
+                        _game._friendNicknameCursorIndex,
+                        _game._friendNicknameSelectionStart);
+                    _game._friendNicknameInputBuffer = result.Text;
+                    _game._friendNicknameCursorIndex = result.CursorIndex;
+                    _game._friendNicknameSelectionStart = result.SelectionStart;
+                    break;
+                }
+                case '\r':
+                case '\n':
+                    _game.SaveFriendNicknameFromInput();
+                    break;
+                default:
+                    if (!char.IsControl(character) && character != '#')
+                    {
+                        var result = _game.InsertTextCharacterAtCursor(
+                            _game._friendNicknameInputBuffer,
+                            character,
+                            _game._friendNicknameCursorIndex,
+                            _game._friendNicknameSelectionStart,
+                            20);
+                        _game._friendNicknameInputBuffer = result.Text;
+                        _game._friendNicknameCursorIndex = result.CursorIndex;
+                        _game._friendNicknameSelectionStart = result.SelectionStart;
+                    }
+                    break;
+            }
+
+            return true;
+        }
+
+        public bool TryHandleFriendMessageEdit(char character)
+        {
+            switch (character)
+            {
+                case '\b':
+                {
+                    var result = _game.DeleteTextSelectionOrBackspace(
+                        _game._friendMessageInputBuffer,
+                        _game._friendMessageCursorIndex,
+                        _game._friendMessageSelectionStart);
+                    _game._friendMessageInputBuffer = result.Text;
+                    _game._friendMessageCursorIndex = result.CursorIndex;
+                    _game._friendMessageSelectionStart = result.SelectionStart;
+                    break;
+                }
+                case '\r':
+                case '\n':
+                    _game.TrySendSelectedFriendDirectMessageFromInput();
+                    break;
+                default:
+                    if (!char.IsControl(character))
+                    {
+                        var result = _game.InsertTextCharacterAtCursor(
+                            _game._friendMessageInputBuffer,
+                            character,
+                            _game._friendMessageCursorIndex,
+                            _game._friendMessageSelectionStart,
+                            500);
+                        _game._friendMessageInputBuffer = result.Text;
+                        _game._friendMessageCursorIndex = result.CursorIndex;
+                        _game._friendMessageSelectionStart = result.SelectionStart;
+                    }
+                    break;
+            }
+
+            return true;
+        }
+
         public bool TryHandlePlayerNameEdit(char character)
         {
             switch (character)

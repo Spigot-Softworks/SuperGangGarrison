@@ -30,6 +30,8 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
     public bool IsLoopbackConnection => Peer.IsLoopback;
     public string Name { get; set; } = name;
     public ulong BadgeMask { get; set; }
+    public string FriendCode { get; set; } = string.Empty;
+    public string PlayerCardJson { get; set; } = string.Empty;
     public TimeSpan ConnectedAt { get; } = lastSeen;
     public TimeSpan LastSeen { get; set; } = lastSeen;
     public PlayerInputSnapshot LatestReceivedInput { get; private set; }

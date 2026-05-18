@@ -260,6 +260,11 @@ public partial class Game1
         }
     }
 
+    private void PlayDirectMessageNotificationSound()
+    {
+        TryPlaySound(_runtimeAssets.GetSound("MessageSnd"), 0.88f, 0f, 0f);
+    }
+
     private void DisableAudio(string reason, Exception ex)
     {
         if (!_audioAvailable)

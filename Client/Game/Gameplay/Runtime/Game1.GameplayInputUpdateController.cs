@@ -26,6 +26,7 @@ public partial class Game1
             var cameraPosition = _game.GetCameraTopLeft(_game.ViewportWidth, _game.ViewportHeight, mouse.X, mouse.Y);
             _game.UpdateGarrisonBuilderEditor(keyboard, rawMouse, (float)gameTime.ElapsedGameTime.TotalSeconds);
             _game.UpdateNavEditor(keyboard, mouse, rawMouse, cameraPosition, (float)gameTime.ElapsedGameTime.TotalSeconds);
+            _game.UpdateScoreboardState(keyboard, mouse);
             var (gameplayInput, networkInput) = _game.BuildGameplayInputs(keyboard, mouse, cameraPosition);
             _game._latestLocalAimWorldX = cameraPosition.X + mouse.X;
             _game._latestLocalAimWorldY = cameraPosition.Y + mouse.Y;
@@ -44,7 +45,6 @@ public partial class Game1
             // even though gameplayInput is default in multiplayer (server authoritative)
             _game._world.SetLocalInput(networkInput);
             _game.UpdateBubbleMenuState(keyboard, mouse);
-            _game.UpdateScoreboardState(keyboard);
             return networkInput;
         }
     }

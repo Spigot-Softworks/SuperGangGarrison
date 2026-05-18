@@ -65,6 +65,35 @@ public partial class Game1
             : $"{MathF.Round(normalized * 100f)}%";
     }
 
+    private static string GetPlayerCardSizeLabel(int sizeMode)
+    {
+        return ClientSettings.NormalizePlayerCardSizeMode(sizeMode) switch
+        {
+            ClientSettings.PlayerCardSizeMedium => "Medium",
+            ClientSettings.PlayerCardSizeLarge => "Large",
+            _ => "Small",
+        };
+    }
+
+    private static string GetLowHealthColorModeLabel(LowHealthColorMode mode)
+    {
+        return ClientSettings.NormalizeLowHealthColorMode(mode) switch
+        {
+            LowHealthColorMode.None => "None",
+            _ => "Red",
+        };
+    }
+
+    private float GetPlayerCardSizeScale()
+    {
+        return ClientSettings.NormalizePlayerCardSizeMode(_playerCardSizeMode) switch
+        {
+            ClientSettings.PlayerCardSizeMedium => 0.75f,
+            ClientSettings.PlayerCardSizeLarge => 1f,
+            _ => 0.55f,
+        };
+    }
+
     private void BeginEditingPlayerName()
     {
         _editingPlayerName = true;
@@ -177,12 +206,36 @@ public partial class Game1
             <= 0.01f => ClientSettings.DefaultSmoothCameraMultiplier,
             < 0.5f => 0.6f,
             < 0.8f => 0.85f,
+            < 0.95f => 1f,
             _ => 0f,
         };
         if (_smoothCameraMultiplier <= 0f)
         {
             _hasSmoothCameraY = false;
         }
+
+        PersistClientSettings();
+    }
+
+    private void CyclePlayerCardSizeSetting()
+    {
+        _playerCardSizeMode = ClientSettings.NormalizePlayerCardSizeMode(_playerCardSizeMode) switch
+        {
+            ClientSettings.PlayerCardSizeSmall => ClientSettings.PlayerCardSizeMedium,
+            ClientSettings.PlayerCardSizeMedium => ClientSettings.PlayerCardSizeLarge,
+            _ => ClientSettings.PlayerCardSizeSmall,
+        };
+
+        PersistClientSettings();
+    }
+
+    private void CycleLowHealthColorModeSetting()
+    {
+        _lowHealthColorMode = ClientSettings.NormalizeLowHealthColorMode(_lowHealthColorMode) switch
+        {
+            LowHealthColorMode.Red => LowHealthColorMode.None,
+            _ => LowHealthColorMode.Red,
+        };
 
         PersistClientSettings();
     }
@@ -283,7 +336,7 @@ public partial class Game1
         if (!_damageVignetteEnabled)
         {
             _damageVignetteIntensity = 0f;
-            _damageVignetteHoldSeconds = 0f;
+            _damageVignetteFlashIntensity = 0f;
         }
 
         PersistClientSettings();

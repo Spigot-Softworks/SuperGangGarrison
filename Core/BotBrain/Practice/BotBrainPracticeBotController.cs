@@ -98,6 +98,7 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
             if (!_controllersBySlot.TryGetValue(slot, out var controller))
             {
                 controller = new BotBrainController();
+                controller.PreferEnemyPlayerObjective = controlledSlot.PreferEnemyPlayerObjective;
                 _controllersBySlot[slot] = controller;
                 _configuredSlots[slot] = controlledSlot;
                 continue;
@@ -105,13 +106,15 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
 
             if (_configuredSlots.TryGetValue(slot, out var previousSlot)
                 && previousSlot.Team == controlledSlot.Team
-                && previousSlot.ClassId == controlledSlot.ClassId)
+                && previousSlot.ClassId == controlledSlot.ClassId
+                && previousSlot.PreferEnemyPlayerObjective == controlledSlot.PreferEnemyPlayerObjective)
             {
                 continue;
             }
 
             _configuredSlots[slot] = controlledSlot;
             controller.Reset();
+            controller.PreferEnemyPlayerObjective = controlledSlot.PreferEnemyPlayerObjective;
         }
     }
 
@@ -138,7 +141,14 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
             if (!_controllersBySlot.TryGetValue(slot, out var controller))
             {
                 controller = new BotBrainController();
+                controller.PreferEnemyPlayerObjective = controlledSlot.PreferEnemyPlayerObjective;
                 _controllersBySlot[slot] = controller;
+                _configuredSlots[slot] = controlledSlot;
+            }
+            else if (controller.PreferEnemyPlayerObjective != controlledSlot.PreferEnemyPlayerObjective)
+            {
+                controller.Reset();
+                controller.PreferEnemyPlayerObjective = controlledSlot.PreferEnemyPlayerObjective;
                 _configuredSlots[slot] = controlledSlot;
             }
 

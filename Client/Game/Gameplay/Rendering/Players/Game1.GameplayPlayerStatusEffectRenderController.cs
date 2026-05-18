@@ -19,9 +19,12 @@ public partial class Game1
 
         public void TryDrawAdditionalHealthBar(PlayerEntity player, Vector2 cameraPosition, float visibilityAlpha)
         {
-            if (!_game._showHealthBarEnabled
+            var forceSpecialEnemyHealthBar = _game.ShouldForceLastToDieSpecialEnemyHealthBar(player);
+            if ((!_game._showHealthBarEnabled && !forceSpecialEnemyHealthBar)
                 || visibilityAlpha <= 0f
-                || (!ReferenceEquals(player, _game._world.LocalPlayer) && player.Team != _game._world.LocalPlayer.Team))
+                || (!ReferenceEquals(player, _game._world.LocalPlayer)
+                    && player.Team != _game._world.LocalPlayer.Team
+                    && !forceSpecialEnemyHealthBar))
             {
                 return;
             }

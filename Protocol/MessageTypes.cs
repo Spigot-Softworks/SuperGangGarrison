@@ -25,6 +25,7 @@ public enum MessageType : byte
     PlayerProfileUpdate = 18,
     ClientPluginMessage = 19,
     ServerPluginMessage = 20,
+    PlayerSocialProfileUpdate = 21,
 }
 
 public enum PluginMessagePayloadFormat : byte
@@ -66,7 +67,12 @@ public interface IProtocolMessage
     MessageType Type { get; }
 }
 
-public sealed record HelloMessage(string Name, int Version, ulong BadgeMask) : IProtocolMessage
+public sealed record HelloMessage(
+    string Name,
+    int Version,
+    ulong BadgeMask,
+    string FriendCode = "",
+    string PlayerCardJson = "") : IProtocolMessage
 {
     public MessageType Type => MessageType.Hello;
 }
@@ -192,9 +198,26 @@ public sealed record SnapshotAckMessage(ulong Frame) : IProtocolMessage
     public MessageType Type => MessageType.SnapshotAck;
 }
 
-public sealed record PlayerProfileUpdateMessage(string Name, ulong BadgeMask) : IProtocolMessage
+public sealed record PlayerProfileUpdateMessage(
+    string Name,
+    ulong BadgeMask,
+    string FriendCode = "",
+    string PlayerCardJson = "") : IProtocolMessage
 {
     public MessageType Type => MessageType.PlayerProfileUpdate;
+}
+
+public sealed record PlayerSocialProfileState(
+    byte Slot,
+    string DisplayName,
+    string FriendCode,
+    string PlayerCardJson);
+
+public sealed record PlayerSocialProfileUpdateMessage(
+    IReadOnlyList<PlayerSocialProfileState> Profiles,
+    IReadOnlyList<byte> RemovedSlots) : IProtocolMessage
+{
+    public MessageType Type => MessageType.PlayerSocialProfileUpdate;
 }
 
 public sealed record ClientPluginMessage(

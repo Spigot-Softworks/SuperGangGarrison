@@ -113,6 +113,11 @@ public static class RuntimePaths
         return ResolvePathUnderRoot(ConfigDirectory, fileName);
     }
 
+    public static string GetUserDataPath(string fileName)
+    {
+        return ResolvePathUnderRoot(UserDataRoot, fileName);
+    }
+
     public static string GetLogPath(string fileName)
     {
         return ResolvePathUnderRoot(LogsDirectory, fileName);

@@ -407,6 +407,150 @@ public partial class Game1
         set => _uiShellState.CreditsOpen = value;
     }
 
+    private bool _friendsMenuOpen
+    {
+        get => _uiShellState.FriendsMenuOpen;
+        set => _uiShellState.FriendsMenuOpen = value;
+    }
+
+    private int _friendsMenuHoverIndex
+    {
+        get => _uiShellState.FriendsMenuHoverIndex;
+        set => _uiShellState.FriendsMenuHoverIndex = value;
+    }
+
+    private int _friendsMenuSelectedIndex
+    {
+        get => _uiShellState.FriendsMenuSelectedIndex;
+        set => _uiShellState.FriendsMenuSelectedIndex = value;
+    }
+
+    private FriendsMenuTab _friendsMenuTab
+    {
+        get => _uiShellState.FriendsMenuTab;
+        set => _uiShellState.FriendsMenuTab = value;
+    }
+
+    private bool _friendsContextMenuOpen
+    {
+        get => _uiShellState.FriendsContextMenuOpen;
+        set => _uiShellState.FriendsContextMenuOpen = value;
+    }
+
+    private int _friendsContextMenuTargetIndex
+    {
+        get => _uiShellState.FriendsContextMenuTargetIndex;
+        set => _uiShellState.FriendsContextMenuTargetIndex = value;
+    }
+
+    private int _friendsContextMenuX
+    {
+        get => _uiShellState.FriendsContextMenuX;
+        set => _uiShellState.FriendsContextMenuX = value;
+    }
+
+    private int _friendsContextMenuY
+    {
+        get => _uiShellState.FriendsContextMenuY;
+        set => _uiShellState.FriendsContextMenuY = value;
+    }
+
+    private bool _playerCardOwnOpen
+    {
+        get => _uiShellState.PlayerCardOwnOpen;
+        set => _uiShellState.PlayerCardOwnOpen = value;
+    }
+
+    private bool _playerCardEditorOpen
+    {
+        get => _uiShellState.PlayerCardEditorOpen;
+        set => _uiShellState.PlayerCardEditorOpen = value;
+    }
+
+    private bool _playerCardDraggingPortrait
+    {
+        get => _uiShellState.PlayerCardDraggingPortrait;
+        set => _uiShellState.PlayerCardDraggingPortrait = value;
+    }
+
+    private int _playerCardActiveColorIndex
+    {
+        get => _uiShellState.PlayerCardActiveColorIndex;
+        set => _uiShellState.PlayerCardActiveColorIndex = value;
+    }
+
+    private bool _editingFriendCode
+    {
+        get => _uiShellState.EditingFriendCode;
+        set => _uiShellState.EditingFriendCode = value;
+    }
+
+    private bool _editingFriendNickname
+    {
+        get => _uiShellState.EditingFriendNickname;
+        set => _uiShellState.EditingFriendNickname = value;
+    }
+
+    private bool _editingFriendMessage
+    {
+        get => _uiShellState.EditingFriendMessage;
+        set => _uiShellState.EditingFriendMessage = value;
+    }
+
+    private string _friendNicknameInputBuffer
+    {
+        get => _uiShellState.FriendNicknameInputBuffer;
+        set => _uiShellState.FriendNicknameInputBuffer = value;
+    }
+
+    private int _friendNicknameCursorIndex
+    {
+        get => _uiShellState.FriendNicknameCursorIndex;
+        set => _uiShellState.FriendNicknameCursorIndex = value;
+    }
+
+    private int _friendNicknameSelectionStart
+    {
+        get => _uiShellState.FriendNicknameSelectionStart;
+        set => _uiShellState.FriendNicknameSelectionStart = value;
+    }
+
+    private string _friendCodeInputBuffer
+    {
+        get => _uiShellState.FriendCodeInputBuffer;
+        set => _uiShellState.FriendCodeInputBuffer = value;
+    }
+
+    private int _friendCodeCursorIndex
+    {
+        get => _uiShellState.FriendCodeCursorIndex;
+        set => _uiShellState.FriendCodeCursorIndex = value;
+    }
+
+    private int _friendCodeSelectionStart
+    {
+        get => _uiShellState.FriendCodeSelectionStart;
+        set => _uiShellState.FriendCodeSelectionStart = value;
+    }
+
+    private string _friendMessageInputBuffer
+    {
+        get => _uiShellState.FriendMessageInputBuffer;
+        set => _uiShellState.FriendMessageInputBuffer = value;
+    }
+
+    private int _friendMessageCursorIndex
+    {
+        get => _uiShellState.FriendMessageCursorIndex;
+        set => _uiShellState.FriendMessageCursorIndex = value;
+    }
+
+    private int _friendMessageSelectionStart
+    {
+        get => _uiShellState.FriendMessageSelectionStart;
+        set => _uiShellState.FriendMessageSelectionStart = value;
+    }
+
     private bool _creditsScrollInitialized
     {
         get => _uiShellState.CreditsScrollInitialized;
@@ -763,6 +907,30 @@ public partial class Game1
         public bool ClientPowersOpen;
         public bool ClientPowersOpenedFromGameplay;
         public bool CreditsOpen;
+        public bool FriendsMenuOpen;
+        public int FriendsMenuHoverIndex = -1;
+        public int FriendsMenuSelectedIndex = -1;
+        public FriendsMenuTab FriendsMenuTab = FriendsMenuTab.Friends;
+        public bool FriendsContextMenuOpen;
+        public int FriendsContextMenuTargetIndex = -1;
+        public int FriendsContextMenuX;
+        public int FriendsContextMenuY;
+        public bool PlayerCardOwnOpen;
+        public bool PlayerCardEditorOpen;
+        public bool PlayerCardDraggingPortrait;
+        public int PlayerCardActiveColorIndex;
+        public bool EditingFriendCode;
+        public bool EditingFriendNickname;
+        public bool EditingFriendMessage;
+        public string FriendNicknameInputBuffer = string.Empty;
+        public int FriendNicknameCursorIndex;
+        public int FriendNicknameSelectionStart;
+        public string FriendCodeInputBuffer = string.Empty;
+        public int FriendCodeCursorIndex;
+        public int FriendCodeSelectionStart;
+        public string FriendMessageInputBuffer = string.Empty;
+        public int FriendMessageCursorIndex;
+        public int FriendMessageSelectionStart;
         public bool CreditsScrollInitialized;
         public float CreditsScrollY;
         public bool InGameMenuOpen;

@@ -50,6 +50,36 @@ public sealed partial class SimulationWorld
         }
     }
 
+    public bool TryGetPlayerNetworkSlot(PlayerEntity player, out byte slot)
+    {
+        if (ReferenceEquals(player, LocalPlayer))
+        {
+            slot = LocalPlayerSlot;
+            return true;
+        }
+
+        foreach (var entry in _remoteSnapshotPlayersBySlot)
+        {
+            if (ReferenceEquals(entry.Value, player))
+            {
+                slot = entry.Key;
+                return true;
+            }
+        }
+
+        foreach (var entry in _additionalNetworkPlayersBySlot)
+        {
+            if (ReferenceEquals(entry.Value, player))
+            {
+                slot = entry.Key;
+                return true;
+            }
+        }
+
+        slot = 0;
+        return false;
+    }
+
     public int GetNetworkPlayerRespawnTicks(byte slot)
     {
         return slot switch

@@ -11,7 +11,7 @@
       "type": "integer",
       "minimum": 0,
       "maximum": 180,
-      "default": 60
+      "default": 36
     },
     "warningHealthThreshold": {
       "type": "integer",

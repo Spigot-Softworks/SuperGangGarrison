@@ -56,6 +56,9 @@ public partial class Game1
                 case ServerPluginMessage serverPluginMessage:
                     NotifyClientPluginsServerMessage(serverPluginMessage);
                     break;
+                case PlayerSocialProfileUpdateMessage socialProfileUpdate:
+                    HandlePlayerSocialProfileUpdateMessage(socialProfileUpdate);
+                    break;
                 case SnapshotMessage snapshot:
                     TryHandleSnapshotMessage(
                         snapshot,

@@ -6,6 +6,12 @@ namespace OpenGarrison.Client;
 
 internal sealed class ClientPluginStateStore
 {
+    private static readonly HashSet<string> DefaultDisabledPluginIds = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "randombackgrounds",
+        "teamonlyminimap",
+    };
+
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         WriteIndented = true,
@@ -30,7 +36,7 @@ internal sealed class ClientPluginStateStore
             return enabled;
         }
 
-        return !string.Equals(pluginId, "randombackgrounds", StringComparison.OrdinalIgnoreCase);
+        return !DefaultDisabledPluginIds.Contains(pluginId);
     }
 
     public void SetPluginEnabled(string pluginId, bool enabled)

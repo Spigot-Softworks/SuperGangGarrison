@@ -80,6 +80,11 @@ public sealed partial class SimulationWorld
 
     public bool IsExperimentalEngineerFloatingSentry(SentryEntity sentry)
     {
+        if (IsLastToDieDroneSentry(sentry))
+        {
+            return true;
+        }
+
         var owner = FindPlayerById(sentry.OwnerPlayerId);
         return sentry.IsBuilt
             && IsExperimentalEngineerPerkOwner(owner)

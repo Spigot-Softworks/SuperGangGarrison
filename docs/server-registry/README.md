@@ -1,23 +1,19 @@
 # OpenGarrison Server Registry
 
-Deploy `og2servers.php` to:
+Production registry endpoint:
 
 ```text
-https://your-website.com/API/og2servers.php
+https://api.unkind-dev.com/api/servers
 ```
 
-Optional: edit admin token before upload if you want manual remove/admin override:
+The old `og2servers.php` script remains in this folder as a lightweight standalone fallback. The current deployed backend lives in `services/opengarrison-api` and also accepts the legacy `/API/og2servers.php` route for compatibility.
 
-```php
-const REGISTRY_WRITE_TOKEN = 'change-me';
-```
-
-Use long random value. Clients do not need token. Dedicated servers do not need token for normal heartbeat.
+Clients do not need a token. Dedicated servers do not need a token for normal heartbeat.
 
 ## Client GET
 
 ```bash
-curl https://your-website.com/API/og2servers.php
+curl https://api.unkind-dev.com/api/servers
 ```
 
 Response shape:
@@ -58,48 +54,44 @@ sh run-server.sh --public-host server.example.com
 Optional overrides:
 
 ```bash
-sh run-server.sh --registry-url https://your-website.com/API/og2servers.php --public-host server.example.com --websocket-port 8191
+sh run-server.sh --registry-url https://api.unkind-dev.com/api/servers --public-host server.example.com --websocket-port 8191
 ```
 
 When the browser page is served over HTTPS, the game socket must be reachable as `wss://`. If the public browser URL is not `wss://server.example.com:8191/opengarrison/ws`, publish the external URL explicitly:
 
 ```bash
-sh run-server.sh --registry-url https://your-website.com/API/og2servers.php --public-host server.example.com --websocket-port 8191 --public-websocket-url wss://server.example.com/opengarrison/ws
+sh run-server.sh --registry-url https://api.unkind-dev.com/api/servers --public-host server.example.com --websocket-port 8191 --public-websocket-url wss://server.example.com/opengarrison/ws
 ```
 
 Terminate TLS at a reverse proxy or pass `--websocket-cert cert.pfx` to the built-in listener.
 
-If `--public-host` is omitted, PHP registry uses request IP. Use explicit host when server sits behind proxy, NAT, or DNS name.
+If `--public-host` is omitted, the registry uses request IP. Use explicit host when server sits behind proxy, NAT, or DNS name.
 
 Registry accepts public writes with guardrails:
 
-- Hostname must resolve to request IP unless admin token is provided.
 - Max 8 active servers per request IP.
-- Heartbeat per server is rate-limited to one write per 10 seconds.
 - Entries expire after 120 seconds.
 
 ```bash
-curl -X POST https://your-website.com/API/og2servers.php \
+curl -X POST https://api.unkind-dev.com/api/servers \
   -H "Content-Type: application/json" \
   -d "{\"name\":\"Test Server\",\"host\":\"server.example.com\",\"udpPort\":8190,\"webSocketPort\":8191,\"webSocketUrl\":\"wss://server.example.com/opengarrison/ws\",\"map\":\"ctf_orange\",\"mode\":\"CTF\",\"players\":2,\"maxPlayers\":16,\"spectators\":0,\"protocolVersion\":38}"
 ```
 
-Admin remove needs `REGISTRY_WRITE_TOKEN` configured:
+Admin remove needs `OPENGARRISON_REGISTRY_TOKEN` configured on the service:
 
 ```bash
-curl -X POST https://your-website.com/API/og2servers.php \
+curl -X POST https://api.unkind-dev.com/api/servers \
   -H "Content-Type: application/json" \
   -d "{\"token\":\"YOUR_TOKEN\",\"action\":\"remove\",\"serverId\":\"test-1\"}"
 ```
 
 ## Storage
 
-Script creates:
+The deployed service stores registry rows in:
 
 ```text
-api/og2servers-data/servers.json
-api/og2servers-data/servers.json.lock
-api/og2servers-data/.htaccess
+/var/lib/opengarrison-api/opengarrison.db
 ```
 
-No MySQL needed. `.htaccess` denies direct reads on Apache. Public API only exposes sanitized server fields.
+No MySQL needed. Public API only exposes sanitized server fields.

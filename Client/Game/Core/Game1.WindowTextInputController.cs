@@ -42,6 +42,21 @@ public partial class Game1
                 return;
             }
 
+            if (_game._mainMenuOpen && _game._friendsMenuOpen && _game._editingFriendNickname && _game._menuTextInputController.TryHandleFriendNicknameEdit(character))
+            {
+                return;
+            }
+
+            if (_game._mainMenuOpen && _game._friendsMenuOpen && _game._editingFriendCode && _game._menuTextInputController.TryHandleFriendCodeEdit(character))
+            {
+                return;
+            }
+
+            if (_game._mainMenuOpen && _game._friendsMenuOpen && _game._editingFriendMessage && _game._menuTextInputController.TryHandleFriendMessageEdit(character))
+            {
+                return;
+            }
+
             if (_game._mainMenuOpen && _game._hostSetupOpen && _game._hostSetupFlowController.HandleHostSetupTextInput(character))
             {
                 return;

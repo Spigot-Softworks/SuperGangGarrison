@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
@@ -14,6 +15,8 @@ public static partial class ProtocolCodec
     public const int MaxReasonBytes = 128;
     private const int MaxPasswordBytes = 64;
     public const int MaxChatBytes = 180;
+    public const int MaxFriendCodeBytes = 40;
+    public const int MaxPlayerCardBytes = 1024;
     public const int MaxPluginIdBytes = 80;
     public const int MaxPluginMessageTypeBytes = 80;
     public const int MaxPluginPayloadBytes = 1024;
@@ -195,7 +198,12 @@ public static partial class ProtocolCodec
 
             message = type switch
             {
-                MessageType.Hello => new HelloMessage(ReadString(reader, MaxPlayerNameBytes), reader.ReadInt32(), reader.ReadUInt64()),
+                MessageType.Hello => new HelloMessage(
+                    ReadString(reader, MaxPlayerNameBytes),
+                    reader.ReadInt32(),
+                    reader.ReadUInt64(),
+                    ReadString(reader, MaxFriendCodeBytes),
+                    ReadString(reader, MaxPlayerCardBytes)),
                 MessageType.Welcome => new WelcomeMessage(
                     ReadString(reader, MaxServerNameBytes),
                     reader.ReadInt32(),
@@ -253,7 +261,9 @@ public static partial class ProtocolCodec
                 MessageType.SnapshotAck => new SnapshotAckMessage(reader.ReadUInt64()),
                 MessageType.PlayerProfileUpdate => new PlayerProfileUpdateMessage(
                     ReadString(reader, MaxPlayerNameBytes),
-                    reader.ReadUInt64()),
+                    reader.ReadUInt64(),
+                    ReadString(reader, MaxFriendCodeBytes),
+                    ReadString(reader, MaxPlayerCardBytes)),
                 MessageType.ClientPluginMessage => new ClientPluginMessage(
                     ReadString(reader, MaxPluginIdBytes),
                     ReadString(reader, MaxPluginIdBytes),
@@ -268,6 +278,7 @@ public static partial class ProtocolCodec
                     ReadString(reader, MaxPluginPayloadBytes),
                     (PluginMessagePayloadFormat)reader.ReadByte(),
                     reader.ReadUInt16()),
+                MessageType.PlayerSocialProfileUpdate => ReadPlayerSocialProfileUpdate(reader),
                 MessageType.Snapshot => ReadSnapshot(reader),
                 _ => null,
             };
@@ -364,6 +375,8 @@ public static partial class ProtocolCodec
                 WriteString(writer, hello.Name, MaxPlayerNameBytes, nameof(hello.Name));
                 writer.Write(hello.Version);
                 writer.Write(hello.BadgeMask);
+                WriteString(writer, hello.FriendCode ?? string.Empty, MaxFriendCodeBytes, nameof(hello.FriendCode));
+                WriteString(writer, hello.PlayerCardJson ?? string.Empty, MaxPlayerCardBytes, nameof(hello.PlayerCardJson));
                 break;
             case WelcomeMessage welcome:
                 WriteString(writer, welcome.ServerName, MaxServerNameBytes, nameof(welcome.ServerName));
@@ -446,6 +459,8 @@ public static partial class ProtocolCodec
             case PlayerProfileUpdateMessage profileUpdate:
                 WriteString(writer, profileUpdate.Name, MaxPlayerNameBytes, nameof(profileUpdate.Name));
                 writer.Write(profileUpdate.BadgeMask);
+                WriteString(writer, profileUpdate.FriendCode ?? string.Empty, MaxFriendCodeBytes, nameof(profileUpdate.FriendCode));
+                WriteString(writer, profileUpdate.PlayerCardJson ?? string.Empty, MaxPlayerCardBytes, nameof(profileUpdate.PlayerCardJson));
                 break;
             case ClientPluginMessage clientPluginMessage:
                 WriteString(writer, clientPluginMessage.SourcePluginId, MaxPluginIdBytes, nameof(clientPluginMessage.SourcePluginId));
@@ -463,12 +478,64 @@ public static partial class ProtocolCodec
                 writer.Write((byte)serverPluginMessage.PayloadFormat);
                 writer.Write(serverPluginMessage.SchemaVersion);
                 break;
+            case PlayerSocialProfileUpdateMessage socialProfileUpdate:
+                WritePlayerSocialProfileUpdate(writer, socialProfileUpdate);
+                break;
             case SnapshotMessage snapshot:
                 WriteSnapshot(writer, snapshot);
                 break;
             default:
                 throw new InvalidOperationException($"Unsupported protocol message type: {message.GetType().Name}");
         }
+    }
+
+    private static void WritePlayerSocialProfileUpdate(BinaryWriter writer, PlayerSocialProfileUpdateMessage update)
+    {
+        var profileCount = update.Profiles?.Count ?? 0;
+        var removedCount = update.RemovedSlots?.Count ?? 0;
+        if (profileCount > byte.MaxValue || removedCount > byte.MaxValue)
+        {
+            throw new InvalidOperationException("Player social profile update exceeds protocol collection limits.");
+        }
+
+        writer.Write((byte)profileCount);
+        for (var index = 0; index < profileCount; index += 1)
+        {
+            var profile = update.Profiles![index];
+            writer.Write(profile.Slot);
+            WriteString(writer, profile.DisplayName ?? string.Empty, MaxPlayerNameBytes, nameof(profile.DisplayName));
+            WriteString(writer, profile.FriendCode ?? string.Empty, MaxFriendCodeBytes, nameof(profile.FriendCode));
+            WriteString(writer, profile.PlayerCardJson ?? string.Empty, MaxPlayerCardBytes, nameof(profile.PlayerCardJson));
+        }
+
+        writer.Write((byte)removedCount);
+        for (var index = 0; index < removedCount; index += 1)
+        {
+            writer.Write(update.RemovedSlots![index]);
+        }
+    }
+
+    private static PlayerSocialProfileUpdateMessage ReadPlayerSocialProfileUpdate(BinaryReader reader)
+    {
+        var profileCount = reader.ReadByte();
+        var profiles = new List<PlayerSocialProfileState>(profileCount);
+        for (var index = 0; index < profileCount; index += 1)
+        {
+            profiles.Add(new PlayerSocialProfileState(
+                reader.ReadByte(),
+                ReadString(reader, MaxPlayerNameBytes),
+                ReadString(reader, MaxFriendCodeBytes),
+                ReadString(reader, MaxPlayerCardBytes)));
+        }
+
+        var removedCount = reader.ReadByte();
+        var removedSlots = new byte[removedCount];
+        for (var index = 0; index < removedSlots.Length; index += 1)
+        {
+            removedSlots[index] = reader.ReadByte();
+        }
+
+        return new PlayerSocialProfileUpdateMessage(profiles, removedSlots);
     }
 
     private sealed class CountingStream : Stream

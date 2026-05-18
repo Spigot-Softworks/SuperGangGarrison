@@ -15,12 +15,13 @@ public partial class Game1
     private const int MaxQueuedAuthoritativeSnapshots = 4;
     private const float RemotePlayerTeleportSnapDistance = 128f;
     private const float RemotePlayerExtrapolationDurationSeconds = 0.07f;
-    private const float LocalPlayerMinimumInterpolationBackTimeSeconds = 0.035f;
-    private const float LocalPlayerMaximumInterpolationBackTimeSeconds = 0.09f;
-    private const float RemotePlayerMinimumInterpolationBackTimeSeconds = 0.06f;
-    private const float RemotePlayerMaximumInterpolationBackTimeSeconds = 0.14f;
+    private const float LocalPlayerMinimumInterpolationBackTimeSeconds = 0.028f;
+    private const float LocalPlayerMaximumInterpolationBackTimeSeconds = 0.075f;
+    private const float RemotePlayerMinimumInterpolationBackTimeSeconds = 0.042f;
+    private const float RemotePlayerMaximumInterpolationBackTimeSeconds = 0.105f;
     private const float ReplayMinimumInterpolationBackTimeSeconds = 0.02f;
     private const float ReplayMaximumInterpolationBackTimeSeconds = 0.06f;
+    private const float OfflineInterpolationTeleportSnapDistance = 128f;
     private const float SnapshotHistoryRetentionSeconds = 0.5f;
     // Projectiles are updated every few ticks - enable extrapolation to smooth between updates
     // This prevents jittering when the camera/player moves around projectiles
@@ -105,9 +106,14 @@ public partial class Game1
 
     private Vector2 GetRenderPosition(int entityId, float x, float y, bool allowInterpolation = true)
     {
-        if (!allowInterpolation || !_networkClient.IsConnected)
+        if (!allowInterpolation)
         {
             return new Vector2(x, y);
+        }
+
+        if (!_networkClient.IsConnected)
+        {
+            return _interpolatedEntityPositions.GetValueOrDefault(entityId, new Vector2(x, y));
         }
 
         if (_entityInterpolationTracks.TryGetValue(entityId, out var track))
@@ -184,7 +190,9 @@ public partial class Game1
     {
         if (!_networkClient.IsConnected)
         {
-            return new Vector2(intelState.X, intelState.Y);
+            return _interpolatedIntelPositions.GetValueOrDefault(
+                intelState.Team,
+                new Vector2(intelState.X, intelState.Y));
         }
 
         return _interpolatedIntelPositions.GetValueOrDefault(intelState.Team, new Vector2(intelState.X, intelState.Y));

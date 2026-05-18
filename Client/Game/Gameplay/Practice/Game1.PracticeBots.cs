@@ -328,6 +328,28 @@ public partial class Game1
             return [];
         }
 
+        if (_lastToDieRun?.CurrentSpecialRound is { IsSpecial: true } specialRound)
+        {
+            switch (specialRound.Kind)
+            {
+                case LastToDieSpecialRoundKind.AllOneClass:
+                    return Enumerable
+                        .Repeat(specialRound.SelectedClass ?? PickRandomLastToDieEligibleBotClass(excludeMedic: false), count)
+                        .ToList();
+                case LastToDieSpecialRoundKind.Giga:
+                    var gigaClasses = specialRound.GigaClasses.Length == 0
+                        ? PickRandomLastToDieGigaClasses(GetLastToDieGigaBossCount(_lastToDieRun.StageNumber))
+                        : specialRound.GigaClasses;
+                    var gigaList = gigaClasses.ToList();
+                    gigaList.Add(PlayerClass.Medic);
+                    return gigaList;
+                case LastToDieSpecialRoundKind.DroneSwarm:
+                    return [];
+                case LastToDieSpecialRoundKind.Haxton:
+                    return [PlayerClass.Demoman];
+            }
+        }
+
         if (_lastToDieRun is not null
             && _lastToDieRun.StageNumber == 1
             && count == 2)
@@ -569,7 +591,8 @@ public partial class Game1
             _controlledPracticeBotSlotsBuffer[entry.Key] = new ControlledBotSlot(
                 entry.Key,
                 entry.Value.Team,
-                entry.Value.ClassId);
+                entry.Value.ClassId,
+                IsLastToDieHaxtonSlot(entry.Key));
         }
 
         return _controlledPracticeBotSlotsBuffer;

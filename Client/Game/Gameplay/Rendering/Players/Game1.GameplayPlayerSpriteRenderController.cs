@@ -125,6 +125,11 @@ public partial class Game1
             var animationImage = WrapAnimationImage(renderState?.BodyAnimationImage ?? 0f, _game.GetPlayerBodyAnimationLength(player, horizontalSourceStepSpeed));
             var appearsAirborne = renderState?.AppearsAirborne ?? !player.IsGrounded;
 
+            if (_game.TryGetLastToDieHaxtonSpriteName(player, out var haxtonSpriteName))
+            {
+                return new PlayerBodySpriteSelection(haxtonSpriteName, animationImage, 0f, 0f, false, false);
+            }
+
             if (_game._world.IsPlayerHumiliated(player))
             {
                 return new PlayerBodySpriteSelection(GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.HumiliationSuffix ?? presentation.BaseSuffix, "HS"), animationImage, 0f, 0f, false, true);

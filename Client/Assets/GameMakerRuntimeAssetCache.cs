@@ -187,8 +187,7 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
 
         try
         {
-            using var stream = File.OpenRead(soundAsset.AudioPath);
-            cached = SoundEffect.FromStream(stream);
+            cached = SoundDecodeUtility.LoadSoundEffect(File.ReadAllBytes(soundAsset.AudioPath), soundAsset.AudioPath);
             _sounds[soundName] = cached;
             return cached;
         }

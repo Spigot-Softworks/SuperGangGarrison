@@ -72,9 +72,12 @@ internal sealed class ServerIncomingMessageDispatcher(
                 if (TryGetClient(remotePeer, out var profileClient))
                 {
                     profileClient.LastSeen = elapsedGetter();
-                    profileClient.Name = profileUpdate.Name;
-                    profileClient.BadgeMask = profileUpdate.BadgeMask;
-                    sessionManager.ApplyClientProfile(profileClient.Slot, profileUpdate.Name, profileUpdate.BadgeMask);
+                    sessionManager.ApplyClientProfile(
+                        profileClient.Slot,
+                        profileUpdate.Name,
+                        profileUpdate.BadgeMask,
+                        profileUpdate.FriendCode,
+                        profileUpdate.PlayerCardJson);
                 }
                 break;
             case InputStateMessage input:
@@ -135,7 +138,12 @@ internal sealed class ServerIncomingMessageDispatcher(
             existingClient.Name = hello.Name;
             existingClient.BadgeMask = hello.BadgeMask;
             existingClient.LastSeen = elapsedGetter();
-            sessionManager.ApplyClientProfile(existingClient.Slot, hello.Name, hello.BadgeMask);
+            sessionManager.ApplyClientProfile(
+                existingClient.Slot,
+                hello.Name,
+                hello.BadgeMask,
+                hello.FriendCode,
+                hello.PlayerCardJson);
             var existingMapMetadata = getCurrentMapMetadata();
             sendMessage(remotePeer, new WelcomeMessage(
                 serverName,
@@ -197,13 +205,15 @@ internal sealed class ServerIncomingMessageDispatcher(
         {
             IsAuthorized = !passwordRequired,
             BadgeMask = hello.BadgeMask,
+            FriendCode = hello.FriendCode.Trim(),
+            PlayerCardJson = hello.PlayerCardJson.Trim(),
         };
         clientsBySlot[assignedSlot] = client;
         if (SimulationWorld.IsPlayableNetworkPlayerSlot(assignedSlot))
         {
             world.TryPrepareNetworkPlayerJoin(assignedSlot);
         }
-        sessionManager.ApplyClientProfile(assignedSlot, hello.Name, hello.BadgeMask);
+        sessionManager.ApplyClientProfile(assignedSlot, hello.Name, hello.BadgeMask, hello.FriendCode, hello.PlayerCardJson);
 
         var mapMetadata = getCurrentMapMetadata();
         sendMessage(remotePeer, new WelcomeMessage(
