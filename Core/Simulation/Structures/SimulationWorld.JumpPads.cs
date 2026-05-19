@@ -7,11 +7,6 @@ public sealed partial class SimulationWorld
     private const float JumpPadJumpBoostMultiplier = 1.85f;
     private const float JumpPadLaunchEpsilon = 0.01f;
 
-    private static long GetJumpPadTriggerContactKey(int playerId, int padId)
-    {
-        return ((long)playerId << 32) | (uint)padId;
-    }
-
     public bool TryBuildLocalJumpPad()
     {
         return TryBuildJumpPad(LocalPlayer);
@@ -164,7 +159,7 @@ public sealed partial class SimulationWorld
         return null;
     }
 
-    private void HandleJumpPadTriggerTouch(PlayerEntity player)
+    private void HandleJumpPadTriggerContactEffects(PlayerEntity player)
     {
         if (!player.IsAlive)
         {
@@ -174,33 +169,15 @@ public sealed partial class SimulationWorld
         for (var index = 0; index < _jumpPads.Count; index += 1)
         {
             var pad = _jumpPads[index];
-            var key = GetJumpPadTriggerContactKey(player.Id, pad.Id);
             var inTriggerArea = IsJumpPadTriggerActive(pad)
                 && IsPlayerInJumpPadTriggerArea(player, pad);
-            var canUsePad = inTriggerArea
-                && CanUseJumpPad(player, pad);
 
             if (!inTriggerArea)
             {
-                _jumpPadTriggerContacts.Remove(key);
                 continue;
             }
 
             TryApplyExperimentalEnemyJumpPadEffects(player, pad);
-            if (!canUsePad)
-            {
-                _jumpPadTriggerContacts.Remove(key);
-                continue;
-            }
-
-            if (!_jumpPadTriggerContacts.Contains(key)
-                && player.IsGrounded
-                && player.VerticalSpeed >= 0f)
-            {
-                TryApplyJumpPadActivation(player, pad);
-            }
-
-            _jumpPadTriggerContacts.Add(key);
         }
     }
 
@@ -412,8 +389,6 @@ public sealed partial class SimulationWorld
 
             _entities.Remove(pad.Id);
             _jumpPads.RemoveAt(index);
-            var keyMask = (uint)pad.Id;
-            _jumpPadTriggerContacts.RemoveWhere(key => (key & 0xFFFFFFFF) == keyMask);
             RegisterWorldSoundEvent("ExplosionSnd", pad.X, pad.Y);
             RegisterVisualEffect("Explosion", pad.X, pad.Y);
             break;

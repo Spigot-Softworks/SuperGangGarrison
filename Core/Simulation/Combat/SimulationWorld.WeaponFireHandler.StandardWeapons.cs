@@ -48,15 +48,43 @@ public sealed partial class SimulationWorld
             float aimWorldX,
             float aimWorldY)
         {
-            var shotOriginY = weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + 1f;
+            // Calculate aim direction to determine facing
             var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
-            var aimDeltaY = aimWorldY - shotOriginY;
+            var aimDeltaY = aimWorldY - weaponOrigin.BaseY;
             if (aimDeltaX == 0f && aimDeltaY == 0f)
             {
                 aimDeltaX = attacker.FacingDirectionX;
             }
 
-            var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
+            var aimRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
+            var facingScale = MathF.Cos(aimRadians) < 0f ? -1f : 1f;
+
+            // Medigun weapon sprite values (from weapon.medigun.json and MedigunS.json):
+            // weaponOffsetX = -7, weaponOffsetY = 0, originX = 8, originY = 3
+            // This matches the healing beam anchor calculation exactly
+            const float medicWeaponOffsetX = -7f;
+            const float medicWeaponOffsetY = 0f;
+            const float medicWeaponSpriteOriginX = 8f;
+            const float medicWeaponSpriteOriginY = 3f;
+
+            var spawnX = weaponOrigin.BaseX + ((medicWeaponOffsetX + medicWeaponSpriteOriginX) * facingScale);
+            var spawnY = weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + (medicWeaponOffsetY + weaponOrigin.EquipmentOffset + medicWeaponSpriteOriginY);
+
+            // Needle sprite has origin at (0, 0) - top left corner
+            // Adjust spawn position so needle appears centered at the weapon anchor
+            // Needle sprite is roughly 2-3 pixels tall, so offset down by half
+            const float needleSpriteHeightOffset = -2f;
+            spawnY += needleSpriteHeightOffset;
+
+            // Calculate firing direction from spawn point
+            var shotAimDeltaX = aimWorldX - spawnX;
+            var shotAimDeltaY = aimWorldY - spawnY;
+            if (shotAimDeltaX == 0f && shotAimDeltaY == 0f)
+            {
+                shotAimDeltaX = facingScale;
+            }
+
+            var directionRadians = MathF.Atan2(shotAimDeltaY, shotAimDeltaX);
             if (!_world.RandomSpreadEnabled)
             {
                 directionRadians += GetDeterministicContinuousSpreadRadians(attacker.Id, 4f);
@@ -72,8 +100,8 @@ public sealed partial class SimulationWorld
                 MathF.Sin(directionRadians) * speed);
             SpawnNeedle(
                 attacker,
-                weaponOrigin.BaseX,
-                shotOriginY,
+                spawnX,
+                spawnY,
                 launchedVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
                 launchedVelocityY);
         }

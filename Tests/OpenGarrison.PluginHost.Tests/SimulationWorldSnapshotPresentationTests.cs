@@ -76,6 +76,7 @@ public sealed class SimulationWorldSnapshotPresentationTests
             BlueIntel: new SnapshotIntelState((byte)PlayerTeam.Blue, 0f, 0f, true, false, 0),
             Players: [localPlayer, remotePlayer],
             CombatTraces: [],
+            SniperAimIndicators: [],
             Sentries: [],
             Shots: [],
             Bubbles: [],

@@ -352,6 +352,7 @@ sealed class SnapshotBroadcaster
             ToSnapshotIntelState(_world.BlueIntel),
             Players: Array.Empty<SnapshotPlayerState>(),
             ConvertToArray(_world.CombatTraces, static trace => ToSnapshotCombatTraceState(trace)),
+            ConvertToArray(_world.SniperAimIndicators, static indicator => ToSnapshotSniperAimIndicatorState(indicator)),
             ConvertToArray(_world.Sentries, static sentry => ToSnapshotSentryState(sentry)),
             ConvertToArray(_world.Shots, static shot => ToSnapshotBulletState(shot)),
             ConvertToArray(_world.Bubbles, static bubble => ToSnapshotBubbleState(bubble)),

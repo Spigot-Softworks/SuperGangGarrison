@@ -420,6 +420,16 @@ internal static partial class ServerHelpers
             trace.IsCritical);
     }
 
+    internal static SnapshotSniperAimIndicatorState ToSnapshotSniperAimIndicatorState(SniperAimIndicator indicator)
+    {
+        return new SnapshotSniperAimIndicatorState(
+            indicator.SniperPlayerId,
+            indicator.X,
+            indicator.Y,
+            (byte)indicator.Team,
+            indicator.Transparency);
+    }
+
     internal static SnapshotSoundEvent ToSnapshotSoundEvent(WorldSoundEvent soundEvent, ulong fallbackEventId)
     {
         return new SnapshotSoundEvent(

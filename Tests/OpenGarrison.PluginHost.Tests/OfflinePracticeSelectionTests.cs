@@ -52,17 +52,17 @@ public sealed class OfflinePracticeSelectionTests
 
         Assert.Equal(
             [
-                "Conflict",
-                "Dirtbowl",
                 "Harvest",
+                "Gallery",
+                "Dirtbowl",
+                "Egypt",
+                "Valley",
                 "Eiger",
                 "Waterway",
-                "Gallery",
-                "Truefort",
-                "Montane",
-                "Valley",
+                "Conflict",
                 "Lumberyard",
-                "Egypt",
+                "Montane",
+                "Truefort",
                 "Corinth",
             ],
             rotation);

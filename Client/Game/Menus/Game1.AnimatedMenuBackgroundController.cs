@@ -46,9 +46,12 @@ public partial class Game1
                 return;
             }
 
+            var viewportWidth = _game.ViewportWidth;
+            var viewportHeight = _game.ViewportHeight;
+
             // Build list of available map names based on mode
             _mapNames.Clear();
-            
+
             if (mode == MenuBackgroundMode.DefaultMaps || mode == MenuBackgroundMode.AllMaps)
             {
                 // Add default maps
@@ -56,7 +59,7 @@ public partial class Game1
                     .Where(def => def.DefaultOrder > 0)
                     .Select(def => def.LevelName)
                     .ToList();
-                
+
                 _mapNames.AddRange(stockMaps);
             }
 
@@ -68,9 +71,28 @@ public partial class Game1
                     .Select(entry => entry.Name)
                     .Where(name => !_mapNames.Contains(name, StringComparer.OrdinalIgnoreCase))
                     .ToList();
-                
+
                 _mapNames.AddRange(customMapNames);
             }
+
+            if (_mapNames.Count == 0)
+            {
+                return;
+            }
+
+            // Filter maps by size - only keep maps that can fill the screen
+            var validMaps = new List<string>();
+            foreach (var mapName in _mapNames)
+            {
+                var level = SimpleLevelFactory.CreateImportedLevel(mapName);
+                if (level is not null && level.Bounds.Width >= viewportWidth && level.Bounds.Height >= viewportHeight)
+                {
+                    validMaps.Add(mapName);
+                }
+            }
+
+            _mapNames.Clear();
+            _mapNames.AddRange(validMaps);
 
             if (_mapNames.Count == 0)
             {
@@ -84,19 +106,29 @@ public partial class Game1
                 (_mapNames[i], _mapNames[j]) = (_mapNames[j], _mapNames[i]);
             }
 
-            // Load first map
-            _currentMapIndex = 0;
-            _currentMap = LoadMap(_mapNames[_currentMapIndex]);
-            if (_currentMap is null)
+            // Load first map - try up to all maps in case some fail
+            AnimatedBackgroundMapState? firstMap = null;
+            for (int attempt = 0; attempt < _mapNames.Count; attempt++)
+            {
+                firstMap = LoadMap(_mapNames[attempt]);
+                if (firstMap is not null)
+                {
+                    _currentMapIndex = attempt;
+                    break;
+                }
+            }
+
+            if (firstMap is null)
             {
                 _mapNames.Clear();
                 return;
             }
 
+            _currentMap = firstMap;
             InitializeMapCamera(_currentMap);
 
             _transitionTimer = 0f;
-            _currentTransitionDuration = MinTransitionDurationSeconds + 
+            _currentTransitionDuration = MinTransitionDurationSeconds +
                 (_random.NextSingle() * (MaxTransitionDurationSeconds - MinTransitionDurationSeconds));
             _fadeAlpha = 1f;
             _nextMapLoaded = false;
@@ -128,11 +160,22 @@ public partial class Game1
             // Load and initialize next map during fade-out to prevent jumps
             if (!_nextMapLoaded && _transitionTimer >= _currentTransitionDuration - FadeDurationSeconds)
             {
-                var nextMapIndex = (_currentMapIndex + 1) % _mapNames.Count;
-                _nextMap = LoadMap(_mapNames[nextMapIndex]);
-                if (_nextMap is not null)
+                // Try loading the next map, skip any that fail
+                for (int attempt = 0; attempt < _mapNames.Count; attempt++)
                 {
-                    InitializeMapCamera(_nextMap);
+                    var nextMapIndex = (_currentMapIndex + 1 + attempt) % _mapNames.Count;
+                    _nextMap = LoadMap(_mapNames[nextMapIndex]);
+                    if (_nextMap is not null)
+                    {
+                        InitializeMapCamera(_nextMap);
+                        _nextMapLoaded = true;
+                        break;
+                    }
+                }
+
+                // If we couldn't load any map, mark as loaded to prevent retry
+                if (!_nextMapLoaded)
+                {
                     _nextMapLoaded = true;
                 }
             }
@@ -159,15 +202,27 @@ public partial class Game1
             // Handle transition to next map
             if (_transitionTimer >= _currentTransitionDuration)
             {
-                // Transition to next map
-                _currentMapIndex = (_currentMapIndex + 1) % _mapNames.Count;
-                _currentMap = _nextMap;
-                _nextMap = null;
+                // Transition to next map if available, otherwise keep current map
+                if (_nextMap is not null)
+                {
+                    _currentMapIndex = (_currentMapIndex + 1) % _mapNames.Count;
+                    _currentMap = _nextMap;
+                    _nextMap = null;
+                }
+                else
+                {
+                    // No next map loaded, keep current and reinitialize camera for variety
+                    if (_currentMap is not null)
+                    {
+                        InitializeMapCamera(_currentMap);
+                    }
+                }
+
                 _transitionTimer = 0f;
-                _fadeAlpha = 1f; // Ensure new current map is fully visible
+                _fadeAlpha = 1f; // Ensure current map is fully visible
                 _nextMapLoaded = false;
                 // Pick a new random duration for the next map
-                _currentTransitionDuration = MinTransitionDurationSeconds + 
+                _currentTransitionDuration = MinTransitionDurationSeconds +
                     (_random.NextSingle() * (MaxTransitionDurationSeconds - MinTransitionDurationSeconds));
             }
         }
@@ -229,9 +284,9 @@ public partial class Game1
                         samplerState: SamplerState.PointClamp,
                         effect: _game._grayscaleEffect,
                         rasterizerState: RasterizerState.CullNone);
-                    
+
                     _game._spriteBatch.Draw(background, worldRectangle, Color.White * alpha);
-                    
+
                     // Restore normal SpriteBatch state
                     _game._spriteBatch.End();
                     _game._spriteBatch.Begin(

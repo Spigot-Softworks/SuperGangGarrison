@@ -257,7 +257,6 @@ public sealed partial class SimulationWorld
         RemoveEntities(_healthPacks);
         RemoveEntities(_deadBodies);
         RemoveEntities(_sentryGibs);
-        _jumpPadTriggerContacts.Clear();
         _pendingNewRocketIds.Clear();
         _clientPredictedProjectileIds.Clear();
         _terminatedProjectileIds.Clear();

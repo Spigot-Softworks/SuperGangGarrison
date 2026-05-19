@@ -181,6 +181,8 @@ public partial class Game1
             return;
         }
 
+        UpdateClientSniperAimIndicators();
+
         CaptureSmoothingTrackForLocalPlayer(snapshot);
         DetectFrozenSpyVisualsForMissingEnemySpies(snapshot);
         _lastAppliedSnapshotFrame = snapshot.Frame;

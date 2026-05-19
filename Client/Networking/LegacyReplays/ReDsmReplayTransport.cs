@@ -665,6 +665,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                     BlueIntel: BlueIntel.ToSnapshotState(),
                     Players: players,
                     CombatTraces: CreateSnapshotCombatTraces(),
+                    SniperAimIndicators: Array.Empty<SnapshotSniperAimIndicatorState>(),
                     Sentries: CreateSnapshotSentries(),
                     Shots: CreateSnapshotProjectiles(_shots),
                     Bubbles: CreateSnapshotProjectiles(_bubbles),

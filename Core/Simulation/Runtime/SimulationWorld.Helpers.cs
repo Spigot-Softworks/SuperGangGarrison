@@ -31,6 +31,78 @@ public sealed partial class SimulationWorld
             isCritical));
     }
 
+    private void ComputeSniperAimIndicators()
+    {
+        _sniperAimIndicators.Clear();
+
+        if (!SniperAimIndicatorEnabled)
+        {
+            return;
+        }
+
+        foreach (var player in EnumerateSimulatedPlayers())
+        {
+            // Only show aim indicator for scoped snipers
+            if (!player.IsSniperScoped || !player.IsAlive)
+            {
+                continue;
+            }
+
+            // Use rounded origin coordinates to match exactly how FireRifle works
+            // This prevents flickering when player position changes slightly between ticks
+            var originX = MathF.Round(player.X);
+            var originY = MathF.Round(player.Y);
+
+            // Calculate direction from weapon origin to aim point (matching FireRifle logic)
+            var aimDeltaX = player.AimWorldX - originX;
+            var aimDeltaY = player.AimWorldY - originY;
+            if (aimDeltaX == 0f && aimDeltaY == 0f)
+            {
+                aimDeltaX = player.FacingDirectionX;
+            }
+
+            var distance = MathF.Sqrt((aimDeltaX * aimDeltaX) + (aimDeltaY * aimDeltaY));
+            if (distance <= 0.0001f)
+            {
+                continue;
+            }
+
+            var directionX = aimDeltaX / distance;
+            var directionY = aimDeltaY / distance;
+            var maxDistance = 2000f; // Maximum raycast distance (same as rifle shot)
+
+            var hitResult = Combat.ResolveRifleHit(player, originX, originY, directionX, directionY, maxDistance);
+
+            // If we hit any cloaked spy (friendly or enemy) that's not visible, ignore them and use max distance
+            // This prevents revealing spy positions through the aim indicator
+            var effectiveDistance = hitResult.Distance;
+            if (hitResult.HitPlayer is not null)
+            {
+                var target = hitResult.HitPlayer;
+                if (target.ClassId == PlayerClass.Spy && target.IsSpyCloaked && !target.IsSpyVisibleToEnemies)
+                {
+                    effectiveDistance = maxDistance;
+                }
+            }
+
+            // Calculate the hit position using the same rounded origin
+            var hitX = originX + directionX * effectiveDistance;
+            var hitY = originY + directionY * effectiveDistance;
+
+            // Calculate transparency based on charge level
+            // 0 ticks = 0.25 (25%), max ticks (120) = 0.80 (80%)
+            var chargeRatio = MathF.Min(1f, player.SniperChargeTicks / (float)PlayerEntity.SniperChargeMaxTicks);
+            var transparency = 0.25f + (chargeRatio * 0.55f);
+
+            _sniperAimIndicators.Add(new SniperAimIndicator(
+                player.Id,
+                hitX,
+                hitY,
+                player.Team,
+                transparency));
+        }
+    }
+
     private static float DegreesToRadians(float degrees)
     {
         return degrees * (MathF.PI / 180f);

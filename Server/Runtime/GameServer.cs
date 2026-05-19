@@ -64,6 +64,7 @@ sealed partial class GameServer
     private int _botAutofillLastTick;
     private bool _secondaryAbilitiesEnabled;
     private bool _randomSpreadEnabled;
+    private bool _sniperAimIndicatorEnabled = true;
     private readonly int? _timeLimitMinutesOverride;
     private readonly int? _capLimitOverride;
     private readonly int? _respawnSecondsOverride;
