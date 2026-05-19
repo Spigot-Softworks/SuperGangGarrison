@@ -6,6 +6,7 @@ public static class BuiltInGameplayBehaviorIds
     public const string Flamethrower = "builtin.weapon.flamethrower";
     public const string RocketLauncher = "builtin.weapon.rocket_launcher";
     public const string MineLauncher = "builtin.weapon.mine_launcher";
+    public const string GrenadeLauncher = "builtin.weapon.grenade_launcher";
     public const string Minigun = "builtin.weapon.minigun";
     public const string Rifle = "builtin.weapon.rifle";
     public const string Medigun = "builtin.weapon.medigun";

@@ -321,6 +321,49 @@ public static partial class ProtocolCodec
         return mines;
     }
 
+    private static void WriteGrenadeStates(BinaryWriter writer, IReadOnlyList<SnapshotGrenadeState> grenades)
+    {
+        writer.Write((ushort)grenades.Count);
+        for (var index = 0; index < grenades.Count; index += 1)
+        {
+            var grenade = grenades[index];
+            writer.Write(grenade.Id);
+            writer.Write(grenade.Team);
+            writer.Write(grenade.OwnerId);
+            writer.Write(grenade.X);
+            writer.Write(grenade.Y);
+            writer.Write(grenade.PreviousX);
+            writer.Write(grenade.PreviousY);
+            writer.Write(grenade.VelocityX);
+            writer.Write(grenade.VelocityY);
+            writer.Write(grenade.FuseTicksLeft);
+            writer.Write(grenade.IsCritical);
+        }
+    }
+
+    private static List<SnapshotGrenadeState> ReadGrenadeStates(BinaryReader reader)
+    {
+        var count = reader.ReadUInt16();
+        var grenades = new List<SnapshotGrenadeState>(count);
+        for (var index = 0; index < count; index += 1)
+        {
+            grenades.Add(new SnapshotGrenadeState(
+                reader.ReadInt32(),
+                reader.ReadByte(),
+                reader.ReadInt32(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadInt32(),
+                reader.ReadBoolean()));
+        }
+
+        return grenades;
+    }
+
     private static void WriteCombatTraces(BinaryWriter writer, IReadOnlyList<SnapshotCombatTraceState> combatTraces)
     {
         writer.Write((ushort)combatTraces.Count);

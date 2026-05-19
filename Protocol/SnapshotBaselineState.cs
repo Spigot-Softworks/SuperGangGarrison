@@ -21,6 +21,7 @@ public interface ISnapshotBaselineState
     IReadOnlyList<SnapshotFlameState> Flames { get; }
     IReadOnlyList<SnapshotShotState> Flares { get; }
     IReadOnlyList<SnapshotMineState> Mines { get; }
+    IReadOnlyList<SnapshotGrenadeState> Grenades { get; }
     IReadOnlyList<SnapshotDeadBodyState> DeadBodies { get; }
     IReadOnlyList<SnapshotSentryGibState> SentryGibs { get; }
     IReadOnlyList<SnapshotPlayerGibState> PlayerGibs { get; }
@@ -44,6 +45,7 @@ public sealed record SnapshotBaselineState(
     IReadOnlyList<SnapshotFlameState> Flames,
     IReadOnlyList<SnapshotShotState> Flares,
     IReadOnlyList<SnapshotMineState> Mines,
+    IReadOnlyList<SnapshotGrenadeState> Grenades,
     IReadOnlyList<SnapshotDeadBodyState> DeadBodies,
     IReadOnlyList<SnapshotSentryGibState> SentryGibs,
     IReadOnlyList<SnapshotPlayerGibState> PlayerGibs,
@@ -69,6 +71,7 @@ public sealed record SnapshotBaselineState(
             snapshot.Flames,
             snapshot.Flares,
             snapshot.Mines,
+            snapshot.Grenades,
             snapshot.DeadBodies,
             snapshot.SentryGibs,
             snapshot.PlayerGibs,

@@ -382,7 +382,12 @@ public sealed partial class GameplayRuntimeRegistry
 
         foreach (var item in _items.Values)
         {
-            if (item.Slot != GameplayEquipmentSlot.Primary)
+            if (item.Slot == GameplayEquipmentSlot.Utility)
+            {
+                continue;
+            }
+
+            if (!TryGetPrimaryWeaponBinding(item.BehaviorId, out _))
             {
                 continue;
             }
@@ -497,6 +502,7 @@ public enum GameplayUtilityAbilityActionKind
 {
     None = 0,
     MedicUber = 1,
+    GrenadeLauncher = 2,
 }
 
 public readonly record struct GameplayUtilityAbilityRuntimeBinding(

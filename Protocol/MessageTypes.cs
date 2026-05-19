@@ -461,6 +461,19 @@ public sealed record SnapshotShotState(
     int TicksRemaining,
     bool IsCritical = false);
 
+public sealed record SnapshotGrenadeState(
+    int Id,
+    byte Team,
+    int OwnerId,
+    float X,
+    float Y,
+    float PreviousX,
+    float PreviousY,
+    float VelocityX,
+    float VelocityY,
+    int FuseTicksLeft,
+    bool IsCritical = false);
+
 public sealed record SnapshotRocketState(
     int Id,
     byte Team,
@@ -776,6 +789,8 @@ public sealed record SnapshotMessage(
     public IReadOnlyList<int> RemovedFlameIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedFlareIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedMineIds { get; init; } = Array.Empty<int>();
+    public IReadOnlyList<SnapshotGrenadeState> Grenades { get; init; } = Array.Empty<SnapshotGrenadeState>();
+    public IReadOnlyList<int> RemovedGrenadeIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedPlayerGibIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedDeadBodyIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedSentryGibIds { get; init; } = Array.Empty<int>();

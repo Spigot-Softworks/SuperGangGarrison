@@ -161,6 +161,33 @@ public static class CombatDecisionResolver
     private static bool IsCloakedSpy(PlayerEntity candidate) =>
         candidate.ClassId == PlayerClass.Spy && candidate.IsSpyCloaked;
 
+    public static bool IsPlayerVisibleToBot(PlayerEntity observer, PlayerEntity candidate)
+    {
+        if (candidate.ClassId != PlayerClass.Spy || !candidate.IsSpyCloaked)
+        {
+            return true;
+        }
+
+        if (!candidate.IsSpyVisibleToEnemies)
+        {
+            return false;
+        }
+
+        return candidate.IsCarryingIntel || !IsCloakedSpyBehindObserver(observer, candidate);
+    }
+
+    private static bool IsCloakedSpyBehindObserver(PlayerEntity observer, PlayerEntity spy)
+    {
+        var facingDirection = MathF.Sign(observer.FacingDirectionX);
+        if (facingDirection == 0f)
+        {
+            return false;
+        }
+
+        var spyDirection = MathF.Sign(spy.X - observer.X);
+        return spyDirection != 0f && spyDirection == -facingDirection;
+    }
+
     public static CombatFireDecision Resolve(
         SimulationWorld world,
         PlayerEntity self,

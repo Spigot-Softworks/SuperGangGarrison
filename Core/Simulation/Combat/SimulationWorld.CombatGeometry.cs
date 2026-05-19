@@ -78,6 +78,81 @@ public sealed partial class SimulationWorld
             return distance;
         }
 
+        // Like GetRayIntersectionDistanceWithRectangle but also returns the surface normal at the hit point.
+        private static (float Distance, float NormalX, float NormalY)? GetRayIntersectionWithNormalWithRectangle(
+            float originX,
+            float originY,
+            float directionX,
+            float directionY,
+            float left,
+            float top,
+            float right,
+            float bottom,
+            float maxDistance)
+        {
+            const float epsilon = 0.0001f;
+            var tMinX = float.NegativeInfinity;
+            var tMinY = float.NegativeInfinity;
+            var tMax = float.PositiveInfinity;
+
+            if (MathF.Abs(directionX) < epsilon)
+            {
+                if (originX < left || originX > right)
+                {
+                    return null;
+                }
+            }
+            else
+            {
+                var t1 = (left - originX) / directionX;
+                var t2 = (right - originX) / directionX;
+                tMinX = MathF.Min(t1, t2);
+                tMax = MathF.Min(tMax, MathF.Max(t1, t2));
+            }
+
+            if (MathF.Abs(directionY) < epsilon)
+            {
+                if (originY < top || originY > bottom)
+                {
+                    return null;
+                }
+            }
+            else
+            {
+                var t3 = (top - originY) / directionY;
+                var t4 = (bottom - originY) / directionY;
+                tMinY = MathF.Min(t3, t4);
+                tMax = MathF.Min(tMax, MathF.Max(t3, t4));
+            }
+
+            var tMin = MathF.Max(tMinX, tMinY);
+            if (tMax < 0f || tMin > tMax)
+            {
+                return null;
+            }
+
+            var distance = tMin >= 0f ? tMin : tMax;
+            if (distance < 0f || distance > maxDistance)
+            {
+                return null;
+            }
+
+            // Determine which face was hit: the axis whose slab constrained tMin.
+            float normalX, normalY;
+            if (tMinX >= tMinY)
+            {
+                normalX = directionX > 0f ? -1f : 1f;
+                normalY = 0f;
+            }
+            else
+            {
+                normalX = 0f;
+                normalY = directionY > 0f ? -1f : 1f;
+            }
+
+            return (distance, normalX, normalY);
+        }
+
         private static RectangleHitbox GetRayBounds(
             float originX,
             float originY,

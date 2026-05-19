@@ -9,4 +9,5 @@
   <resource name="NeedleAmmoS" type="RESOURCE"/>
   <resource name="ScattergunAmmoS" type="RESOURCE"/>
   <resource name="MinegunAmmoS" type="RESOURCE"/>
+  <resource name="GrenadeLauncherAmmoS" type="RESOURCE"/>
 </resources>

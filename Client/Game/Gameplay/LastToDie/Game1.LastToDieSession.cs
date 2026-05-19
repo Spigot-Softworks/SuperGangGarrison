@@ -665,6 +665,10 @@ public partial class Game1
         _lastToDieTimerReductionPopupTicksRemaining = 0;
         _lastToDieTimerReductionPopupRise = 0f;
         _lastToDieTimerReductionPopupSeconds = 0;
+        _world.TrySetNetworkPlayerMaxHealthOverride(
+            SimulationWorld.LocalPlayerSlot,
+            null,
+            refillHealth: true);
         _world.ClearLastToDieDroneSentries();
     }
 

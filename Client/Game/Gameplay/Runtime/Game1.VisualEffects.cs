@@ -86,6 +86,10 @@ public partial class Game1
         ResetPendingBrowserSoundEvents();
         _pendingNetworkSoundEvents.Clear();
         ResetExperimentalHealingHudIndicators();
+        _portraitRumbleRemainingSeconds = 0f;
+        _portraitRumbleIntensity = 0f;
+        _damageVignetteIntensity = 0f;
+        _damageVignetteFlashIntensity = 0f;
         _gameplayMaterialEffectsController.ResetTransientEffects();
         _rocketSmokeVisuals.Clear();
         _mineTrailVisuals.Clear();

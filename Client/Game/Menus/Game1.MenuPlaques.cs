@@ -165,7 +165,7 @@ public partial class Game1
         return LoadSpriteFrameFromPath(path);
     }
 
-    private PlaqueMenuLayout GetCenteredPlaqueMenuLayout(bool tall, int stackedButtonCount, bool includeBottomBarButton)
+    private PlaqueMenuLayout GetCenteredPlaqueMenuLayout(bool tall, int stackedButtonCount, bool includeSoloButton, bool includeBottomBarButton)
     {
         var backgroundTexture = tall ? _menuPlaqueTallTexture : _menuPlaqueTexture;
         var soloTexture = _menuTextBoxSoloTexture;
@@ -176,7 +176,7 @@ public partial class Game1
 
         var topOffset = 24f;
         var stackedGap = 14f;
-        var soloGap = 55f;
+        var soloGap = includeSoloButton ? 55f : 22f;
         var sideInset = 10f;
         var availableHeight = ViewportHeight - (includeBottomBarButton ? 110f : 48f);
         var scale = MathF.Min(1f, availableHeight / backgroundTexture.Height) * 0.68f;
@@ -189,6 +189,15 @@ public partial class Game1
         var plaqueHeight = MathF.Round(backgroundTexture.Height * scale);
         var leftMargin = MathF.Max(20f, ViewportWidth * 0.04f);
         var plaqueX = MathF.Round(leftMargin);
+        var estimatedStackHeight = (topOffset * scale)
+            + (stackedButtonCount * (soloTexture.Height * scale))
+            + Math.Max(0, stackedButtonCount - 1) * (stackedGap * scale)
+            + ((includeSoloButton ? soloGap + soloTexture.Height : soloGap) * scale);
+        if (!includeSoloButton)
+        {
+            plaqueHeight = MathF.Min(plaqueHeight, MathF.Round(estimatedStackHeight));
+        }
+
         var plaqueY = MathF.Round(MathF.Max(18f, (ViewportHeight - plaqueHeight - (includeBottomBarButton ? 74f : 0f)) * 0.5f));
         var plaqueBounds = new Rectangle((int)plaqueX, (int)plaqueY, (int)plaqueWidth, (int)plaqueHeight);
 
@@ -209,11 +218,15 @@ public partial class Game1
             currentY += buttonHeight + (int)MathF.Round(stackedGap * scale);
         }
 
-        var soloWidth = (int)MathF.Round(soloTexture.Width * scale);
-        var soloHeight = (int)MathF.Round(soloTexture.Height * scale);
-        var soloX = plaqueBounds.X + (int)MathF.Round(sideInset * scale);
-        var soloY = currentY + (int)MathF.Round((soloGap - stackedGap) * scale);
-        var soloBounds = new Rectangle(soloX, soloY, soloWidth, soloHeight);
+        var soloBounds = Rectangle.Empty;
+        if (includeSoloButton)
+        {
+            var soloWidth = (int)MathF.Round(soloTexture.Width * scale);
+            var soloHeight = (int)MathF.Round(soloTexture.Height * scale);
+            var soloX = plaqueBounds.X + (int)MathF.Round(sideInset * scale);
+            var soloY = currentY + (int)MathF.Round((soloGap - stackedGap) * scale);
+            soloBounds = new Rectangle(soloX, soloY, soloWidth, soloHeight);
+        }
 
         Rectangle? bottomBarBounds = null;
         Rectangle? bottomBarButtonBounds = null;
@@ -276,7 +289,7 @@ public partial class Game1
     private void DrawPlaqueMenuLayout(
         PlaqueMenuLayout layout,
         IReadOnlyList<MenuPageAction> stackedActions,
-        MenuPageAction soloAction,
+        MenuPageAction? soloAction,
         bool drawBottomBarButton,
         string bottomBarLabel,
         int hoveredStackedIndex,
@@ -303,7 +316,10 @@ public partial class Game1
             DrawPlaqueMenuButton(texture, layout.StackedButtonBounds[index], stackedActions[index].Label, hoveredStackedIndex == index, layout.Scale, textScaleMultiplier);
         }
 
-        DrawPlaqueMenuButton(_menuTextBoxSoloTexture, layout.SoloButtonBounds, soloAction.Label, soloHovered, layout.Scale, textScaleMultiplier);
+        if (soloAction.HasValue)
+        {
+            DrawPlaqueMenuButton(_menuTextBoxSoloTexture, layout.SoloButtonBounds, soloAction.Value.Label, soloHovered, layout.Scale, textScaleMultiplier);
+        }
 
         // Always draw bottom bar and runners in animated mode (outside gameplay)
         if (layout.BottomBarBounds.HasValue && _menuBackgroundMode != MenuBackgroundMode.Static)

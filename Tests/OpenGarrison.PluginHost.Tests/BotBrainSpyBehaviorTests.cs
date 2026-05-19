@@ -67,6 +67,39 @@ public sealed class BotBrainSpyBehaviorTests
         Assert.True(decision.FireSecondary);
     }
 
+    [Fact]
+    public void BotDoesNotTargetBackstabAnimatingCloakedSpyBehindIt()
+    {
+        var world = CreateCombatBotWorld(out var bot);
+        bot.TeleportTo(300f, 100f);
+        bot.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        var spy = AddNetworkPlayer(world, 2, PlayerClass.Spy, PlayerTeam.Blue, bot.X - 48f, bot.Y);
+        Assert.True(spy.TryToggleSpyCloak());
+        Assert.True(spy.TryStartSpyBackstab(0f));
+        Assert.True(spy.IsSpyVisibleToEnemies);
+
+        var target = TargetSelector.SelectCombatTarget(bot, world, bot.Team);
+
+        Assert.Null(target);
+    }
+
+    [Fact]
+    public void BotTargetsBackstabAnimatingCloakedSpyInFrontOfIt()
+    {
+        var world = CreateCombatBotWorld(out var bot);
+        bot.TeleportTo(300f, 100f);
+        bot.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        var spy = AddNetworkPlayer(world, 2, PlayerClass.Spy, PlayerTeam.Blue, bot.X + 48f, bot.Y);
+        Assert.True(spy.TryToggleSpyCloak());
+        Assert.True(spy.TryStartSpyBackstab(180f));
+        Assert.True(spy.IsSpyVisibleToEnemies);
+
+        var target = TargetSelector.SelectCombatTarget(bot, world, bot.Team);
+
+        Assert.NotNull(target);
+        Assert.Same(spy, target!.Value.Player);
+    }
+
     private static SimulationWorld CreateSpyWorld(out PlayerEntity spy)
     {
         var world = new SimulationWorld();
@@ -76,6 +109,18 @@ public sealed class BotBrainSpyBehaviorTests
         world.ForceRespawnLocalPlayer();
         spy = world.LocalPlayer;
         spy.TeleportTo(100f, 100f);
+        return world;
+    }
+
+    private static SimulationWorld CreateCombatBotWorld(out PlayerEntity bot)
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TrySetLocalClass(PlayerClass.Pyro));
+        SetCombatLevel(world);
+        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.ForceRespawnLocalPlayer();
+        bot = world.LocalPlayer;
+        bot.TeleportTo(100f, 100f);
         return world;
     }
 

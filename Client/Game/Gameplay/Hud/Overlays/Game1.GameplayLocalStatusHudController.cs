@@ -3,22 +3,24 @@
 using System.Globalization;
 using Microsoft.Xna.Framework;
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.Client;
 
 public partial class Game1
 {
     private const float PortraitRumbleDurationSeconds = 0.24f;
-    private const int LowHealthColorThreshold = 50;
-    private const float DamageVignetteLowHealthThresholdFraction = 0.5f;
+    private const float LowHealthHudThresholdMaxHealthDivisor = 3.5f;
+    private const float DamageVignettePersistentHealthFraction = 0.45f;
     private const float DamageVignetteFadeInPerSecond = 8f;
-    private const float DamageVignetteFadeOutPerSecond = 1.2f;
-    private const float DamageVignetteReactiveFadePerSecond = 1.75f;
-    private const float DamageVignetteReactiveMinimumIntensity = 0.2f;
-    private const float DamageVignetteReactiveMaximumIntensity = 0.56f;
-    private const float DamageVignetteReactiveDamageScale = 190f;
-    private const float DamageVignettePersistentMinimumIntensity = 0.08f;
+    private const float DamageVignetteFadeOutPerSecond = 0.75f;
+    private const float DamageVignetteReactiveFadePerSecond = 0.8f;
+    private const float DamageVignetteReactiveMinimumIntensity = 0.24f;
+    private const float DamageVignetteReactiveMaximumIntensity = 0.7f;
+    private const float DamageVignetteReactiveDamageScale = 165f;
+    private const float DamageVignettePersistentMinimumIntensity = 0.12f;
     private const float DamageVignettePersistentMaximumIntensity = 0.95f;
+    private const float DamageVignetteMinimumVisibleIntensity = 0.025f;
     private static readonly Color PortraitRumbleTintColor = new(255, 80, 80);
 
     private void TriggerLocalHudPortraitDamageFeedback(int damageAmount)
@@ -58,6 +60,8 @@ public partial class Game1
         private const string SoldierShotgunAmmoKey = "soldier_shotgun_ammo";
         private const string SoldierShotgunMaxAmmoKey = "soldier_shotgun_max_ammo";
         private const string SoldierShotgunReloadTicksKey = "soldier_shotgun_reload_ticks";
+        private const string DemomanGrenadeLauncherAmmoKey = "demoman_gl_ammo";
+        private const string DemomanGrenadeLauncherReloadTicksKey = "demoman_gl_reload_ticks";
 
         private static readonly Color AmmoHudBarColor = new(217, 217, 183);
         private static readonly Color AmmoHudTextColor = new(245, 235, 210);
@@ -234,7 +238,7 @@ public partial class Game1
             
             // Draw health text centered on top of the crosses
             var health = Math.Max(_game._world.LocalPlayer.Health, 0);
-            var hpColor = _game._lowHealthColorMode == LowHealthColorMode.Red && health < LowHealthColorThreshold
+            var hpColor = _game._lowHealthColorMode == LowHealthColorMode.Red && IsLocalHudLowHealth(_game._world.LocalPlayer)
                 ? Color.Red
                 : Color.White;
             var healthTextPosition = crossPosition + new Vector2((crossSprite?.Frames[0].Width ?? 0) * scale.X / 2f, (crossSprite?.Frames[0].Height ?? 0) * scale.Y / 2f);
@@ -273,19 +277,9 @@ public partial class Game1
                 case PrimaryWeaponKind.Rifle:
                     break;
                 default:
-                    var hudSpriteName = GetAmmoHudSpriteName();
-                    if (hudSpriteName is not null && _game.TryDrawScreenSprite(hudSpriteName, GetAmmoHudFrameIndex(), GetSourceHudPoint(728f, SourceAmmoHudBaseY + 86f), Color.White, new Vector2(2.4f, 2.4f)))
+                    if (!HasLocalDemomanGrenadeLauncher())
                     {
-                        if (!string.Equals(GetLocalDisplayedMainWeaponPresentationItemId(), "weapon.rocketlauncher", StringComparison.Ordinal))
-                        {
-                            var currentShells = GetLocalDisplayedMainWeaponCurrentShells();
-                            var ammoCountScale = GetAmmoCountBuildScaleForValue(currentShells);
-                            var reloadBarBottomSourceY = SourceAmmoHudBaseY + 98f;
-                            var ammoTextSourceY = reloadBarBottomSourceY - _game.MeasureMenuBitmapFontHeight(ammoCountScale);
-                            _game.DrawMenuBitmapFontText(currentShells.ToString(CultureInfo.InvariantCulture), GetSourceHudPoint(755f, ammoTextSourceY), AmmoHudTextColor, ammoCountScale);
-                        }
-
-                        DrawAmmoReloadBar(GetReloadAmmoHudBarRectangle());
+                        DrawStandardAmmoHudPanel(SourceAmmoHudBaseY + 86f);
                     }
                     break;
             }
@@ -395,8 +389,18 @@ public partial class Game1
             _game._damageVignetteFlashIntensity = Math.Max(
                 0f,
                 _game._damageVignetteFlashIntensity - (DamageVignetteReactiveFadePerSecond * elapsedSeconds));
+            if (_game._damageVignetteFlashIntensity <= DamageVignetteMinimumVisibleIntensity)
+            {
+                _game._damageVignetteFlashIntensity = 0f;
+            }
 
-            if (_game._damageVignetteIntensity <= 0f || !_game.TryEnsureDamageVignetteTexture(_game._damageVignetteIntensity, out var texture))
+            if (_game._damageVignetteIntensity <= DamageVignetteMinimumVisibleIntensity)
+            {
+                _game._damageVignetteIntensity = 0f;
+                return;
+            }
+
+            if (!_game.TryEnsureDamageVignetteTexture(_game._damageVignetteIntensity, out var texture))
             {
                 return;
             }
@@ -404,7 +408,7 @@ public partial class Game1
             _game._spriteBatch.Draw(texture, new Rectangle(0, 0, _game.ViewportWidth, _game.ViewportHeight), Color.White);
         }
 
-        private float GetDamageVignettePersistentTargetIntensity(float lowHealthDepth)
+        private static float GetDamageVignettePersistentTargetIntensity(float lowHealthDepth)
         {
             if (lowHealthDepth <= 0f)
             {
@@ -423,17 +427,29 @@ public partial class Game1
                 return 0f;
             }
 
-            var healthFraction = Math.Clamp(player.Health / (float)player.MaxHealth, 0f, 1f);
-            if (healthFraction >= DamageVignetteLowHealthThresholdFraction)
+            var lowHealthThreshold = player.MaxHealth * DamageVignettePersistentHealthFraction;
+            if (lowHealthThreshold <= 0f || player.Health > lowHealthThreshold)
             {
                 return 0f;
             }
 
             var lowHealthDepth = Math.Clamp(
-                (DamageVignetteLowHealthThresholdFraction - healthFraction) / DamageVignetteLowHealthThresholdFraction,
+                (lowHealthThreshold - Math.Max(0, player.Health)) / lowHealthThreshold,
                 0f,
                 1f);
             return lowHealthDepth;
+        }
+
+        private static bool IsLocalHudLowHealth(PlayerEntity player)
+        {
+            return player.Health <= GetLocalHudLowHealthThreshold(player);
+        }
+
+        private static float GetLocalHudLowHealthThreshold(PlayerEntity player)
+        {
+            return player.MaxHealth <= 0
+                ? 0f
+                : player.MaxHealth / LowHealthHudThresholdMaxHealthDivisor;
         }
 
         public void DrawSpySuperjumpHud() => DrawSpySuperjumpHudCore();
@@ -583,13 +599,80 @@ public partial class Game1
             var stickyCount = CountLocalOwnedStickyMines();
             var maxStickies = Math.Max(1, _game._world.LocalPlayer.PrimaryWeapon.MaxAmmo);
             var frameIndex = _game._world.LocalPlayer.Team == PlayerTeam.Blue ? 1 : 0;
-            if (!_game.TryDrawScreenSprite("StickyCounterS", frameIndex, GetSourceHudPoint(735f, 522f), Color.White, new Vector2(3f, 3f)))
+            if (!HasLocalDemomanGrenadeLauncher())
+            {
+                DrawStickyCounterHud(stickyCount, maxStickies, frameIndex, 522f);
+                return;
+            }
+
+            const float panelScale = 2.4f;
+            const float panelGapPixels = 4f;
+            const float fallbackPanelHeight = 38f;
+
+            var grenadeLauncherHudY = SourceAmmoHudBaseY + 86f;
+            var grenadeLauncherPanelHeight = GetHudSpriteFrameHeight("GrenadeLauncherAmmoS", panelScale, fallbackPanelHeight);
+            var mineLauncherPanelHeight = GetHudSpriteFrameHeight(GetAmmoHudSpriteName(), panelScale, fallbackPanelHeight);
+            var mineLauncherHudY = grenadeLauncherHudY - grenadeLauncherPanelHeight - panelGapPixels;
+            var stickyCounterY = mineLauncherHudY - mineLauncherPanelHeight - panelGapPixels;
+
+            DrawStandardAmmoHudPanel(mineLauncherHudY);
+            if (!DrawStickyCounterHud(stickyCount, maxStickies, frameIndex, stickyCounterY))
             {
                 return;
             }
 
-            _game.DrawHudTextLeftAligned(stickyCount.ToString(CultureInfo.InvariantCulture), GetSourceHudPoint(717f, 524f), AmmoHudBarColor, 1.5f);
-            _game.DrawHudTextLeftAligned($"/{maxStickies.ToString(CultureInfo.InvariantCulture)}", GetSourceHudPoint(730f, 524f), AmmoHudBarColor, 1.5f);
+            DrawGrenadeLauncherHud(grenadeLauncherHudY);
+        }
+
+        private bool DrawStickyCounterHud(int stickyCount, int maxStickies, int frameIndex, float sourceY)
+        {
+            if (!_game.TryDrawScreenSprite("StickyCounterS", frameIndex, GetSourceHudPoint(735f, sourceY), Color.White, new Vector2(3f, 3f)))
+            {
+                return false;
+            }
+
+            _game.DrawHudTextLeftAligned(stickyCount.ToString(CultureInfo.InvariantCulture), GetSourceHudPoint(717f, sourceY + 2f), AmmoHudBarColor, 1.5f);
+            _game.DrawHudTextLeftAligned($"/{maxStickies.ToString(CultureInfo.InvariantCulture)}", GetSourceHudPoint(730f, sourceY + 2f), AmmoHudBarColor, 1.5f);
+            return true;
+        }
+
+        private void DrawGrenadeLauncherHud(float sourceY)
+        {
+            var utilityItemId = _game._world.LocalPlayer.GameplayLoadoutState.UtilityItemId;
+            if (string.IsNullOrWhiteSpace(utilityItemId))
+            {
+                return;
+            }
+
+            var utilityItem = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(utilityItemId);
+            var presentation = utilityItem.Presentation;
+            var hudFrameIndex = _game._world.LocalPlayer.Team == PlayerTeam.Blue ? presentation.BlueTeamHudFrameOffset : 0;
+            var hudSpriteName = presentation.HudSpriteName ?? "GrenadeLauncherAmmoS";
+            if (!_game.TryDrawScreenSprite(hudSpriteName, hudFrameIndex, GetSourceHudPoint(728f, sourceY), Color.White, new Vector2(2.4f, 2.4f)))
+            {
+                return;
+            }
+
+            var currentAmmo = _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, DemomanGrenadeLauncherAmmoKey, out var replicatedAmmo)
+                ? replicatedAmmo
+                : _game._world.LocalPlayer.ExperimentalOffhandCurrentShells;
+            var reloadTicksRemaining = _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, DemomanGrenadeLauncherReloadTicksKey, out var replicatedReloadTicks)
+                ? Math.Max(0, replicatedReloadTicks)
+                : _game._world.LocalPlayer.ExperimentalOffhandReloadTicksUntilNextShell;
+            var weaponDefinition = _game._world.LocalPlayer.ExperimentalOffhandWeapon;
+            var maxAmmo = Math.Max(1, weaponDefinition?.MaxAmmo ?? utilityItem.Ammo.MaxAmmo);
+            var totalReloadTicks = Math.Max(1, weaponDefinition?.AmmoReloadTicks ?? (int)utilityItem.Ammo.ReloadSourceTicks);
+
+            var ammoCountScale = GetAmmoCountBuildScaleForValue(currentAmmo);
+            var reloadBarBottomSourceY = sourceY + 12f;
+            var ammoTextSourceY = reloadBarBottomSourceY - _game.MeasureMenuBitmapFontHeight(ammoCountScale);
+            var ammoColor = currentAmmo <= Math.Max(1, maxAmmo / 4) ? LowAmmoHudColor : AmmoHudTextColor;
+            _game.DrawMenuBitmapFontText(currentAmmo.ToString(CultureInfo.InvariantCulture), GetSourceHudPoint(755f, ammoTextSourceY), ammoColor, ammoCountScale);
+
+            var reloadProgress = currentAmmo >= maxAmmo || reloadTicksRemaining <= 0
+                ? 1f
+                : Math.Clamp(1f - (reloadTicksRemaining / (float)totalReloadTicks), 0f, 1f);
+            _game.DrawScreenHealthBar(GetSourceHudRectangle(689f, sourceY + 4f, 34f, 8f), reloadProgress, 1f, false, AmmoHudBarColor, Color.Black);
         }
 
         private void DrawExperimentalOffhandHudCore()
@@ -712,6 +795,45 @@ public partial class Game1
             return Math.Abs(ammoCount) < 10 ? 1f : AmmoCountBuildScale;
         }
 
+        private void DrawStandardAmmoHudPanel(float sourceY)
+        {
+            var hudSpriteName = GetAmmoHudSpriteName();
+            if (hudSpriteName is null || !_game.TryDrawScreenSprite(hudSpriteName, GetAmmoHudFrameIndex(), GetSourceHudPoint(728f, sourceY), Color.White, new Vector2(2.4f, 2.4f)))
+            {
+                return;
+            }
+
+            if (!string.Equals(GetLocalDisplayedMainWeaponPresentationItemId(), "weapon.rocketlauncher", StringComparison.Ordinal))
+            {
+                var currentShells = GetLocalDisplayedMainWeaponCurrentShells();
+                var ammoCountScale = GetAmmoCountBuildScaleForValue(currentShells);
+                var reloadBarBottomSourceY = sourceY + 12f;
+                var ammoTextSourceY = reloadBarBottomSourceY - _game.MeasureMenuBitmapFontHeight(ammoCountScale);
+                _game.DrawMenuBitmapFontText(currentShells.ToString(CultureInfo.InvariantCulture), GetSourceHudPoint(755f, ammoTextSourceY), AmmoHudTextColor, ammoCountScale);
+            }
+
+            DrawAmmoReloadBar(GetReloadAmmoHudBarRectangleAt(sourceY));
+        }
+
+        private float GetHudSpriteFrameHeight(string? spriteName, float scale, float fallbackHeight)
+        {
+            if (string.IsNullOrWhiteSpace(spriteName))
+            {
+                return fallbackHeight;
+            }
+
+            var sprite = _game._runtimeAssets.GetSprite(spriteName);
+            return sprite is not null && sprite.Frames.Count > 0
+                ? sprite.Frames[0].Height * scale
+                : fallbackHeight;
+        }
+
+        private bool HasLocalDemomanGrenadeLauncher()
+        {
+            return _game._world.LocalPlayer.ClassId == PlayerClass.Demoman
+                && _game._world.LocalPlayer.HasUtilityBehavior(BuiltInGameplayBehaviorIds.GrenadeLauncher);
+        }
+
         private void DrawPyroFlareHudCore(int frameIndex)
         {
             var flareCount = GetLocalDisplayedMainWeaponCurrentShells() / PlayerEntity.PyroFlareAmmoRequirement;
@@ -739,9 +861,14 @@ public partial class Game1
 
         private Rectangle GetReloadAmmoHudBarRectangleCore()
         {
+            return GetReloadAmmoHudBarRectangleAt(SourceAmmoHudBaseY + 86f);
+        }
+
+        private Rectangle GetReloadAmmoHudBarRectangleAt(float sourceY)
+        {
             return string.Equals(GetLocalDisplayedMainWeaponPresentationItemId(), "weapon.rocketlauncher", StringComparison.Ordinal)
-                ? GetSourceHudRectangle(689f, SourceAmmoHudBaseY + 90f, 34f, 8f)
-                : GetSourceHudRectangle(700f, SourceAmmoHudBaseY + 90f, 50f, 8f);
+                ? GetSourceHudRectangle(689f, sourceY + 4f, 34f, 8f)
+                : GetSourceHudRectangle(700f, sourceY + 4f, 50f, 8f);
         }
 
         private Vector2 GetSourceHudPointCore(float sourceX, float sourceY)

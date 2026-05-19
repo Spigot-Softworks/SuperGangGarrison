@@ -5,6 +5,7 @@
   <resource name="MinigunFS" type="RESOURCE"/>
   <resource name="RifleFS" type="RESOURCE"/>
   <resource name="MinegunFS" type="RESOURCE"/>
+  <resource name="GrenadeLauncherFS" type="RESOURCE"/>
   <resource name="ShotgunFS" type="RESOURCE"/>
   <resource name="MedigunFS" type="RESOURCE"/>
   <resource name="MedigunCritFS" type="RESOURCE"/>

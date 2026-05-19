@@ -79,6 +79,12 @@ public sealed partial class SimulationWorld
             return true;
         }
 
+        if (player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.GrenadeLauncher))
+        {
+            WeaponHandler.FireGrenadeLauncher(player, input.AimWorldX, input.AimWorldY);
+            return true;
+        }
+
         WeaponHandler.FireSoldierShotgun(player, input.AimWorldX, input.AimWorldY);
         return true;
     }

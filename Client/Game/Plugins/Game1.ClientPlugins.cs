@@ -75,6 +75,18 @@ public partial class Game1
         return _clientPluginUiBridgeController.HasClientPluginBubbleMenuOverride();
     }
 
+    private bool SetClientPluginEnabled(string pluginId, bool enabled)
+    {
+        var hadBubbleMenuOverride = HasClientPluginBubbleMenuOverride();
+        var applied = _clientPluginHost?.SetPluginEnabled(pluginId, enabled) ?? false;
+        if (applied && !enabled && hadBubbleMenuOverride && !HasClientPluginBubbleMenuOverride())
+        {
+            ResetBubbleMenuInteractionState();
+        }
+
+        return applied;
+    }
+
     private bool TryDrawClientPluginDeadBody(Vector2 cameraTopLeft, ClientDeadBodyRenderState deadBody)
     {
         return _clientPluginUiBridgeController.TryDrawClientPluginDeadBody(cameraTopLeft, deadBody);

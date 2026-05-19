@@ -293,6 +293,12 @@ public partial class Game1
         // Detect ability button edge (transition from off to on)
         var abilityPressed = input.UseAbility && !previousInput.UseAbility;
 
+        // Don't allow spy superjump if secondary abilities are disabled
+        if (!_world.ExperimentalGameplaySettings.EnableSecondaryAbilities)
+        {
+            return;
+        }
+
         // Start charging when UseAbility is first pressed (edge detection)
         // Don't start during backstab animation (TryStartSpySuperjumpCharge also checks this)
         if (abilityPressed && !localPlayer.IsSpyBackstabAnimating)

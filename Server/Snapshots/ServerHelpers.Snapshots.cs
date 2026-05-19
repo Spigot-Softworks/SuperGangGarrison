@@ -12,6 +12,8 @@ internal static partial class ServerHelpers
     private const string SoldierShotgunMaxAmmoKey = "soldier_shotgun_max_ammo";
     private const string SoldierShotgunReloadTicksKey = "soldier_shotgun_reload_ticks";
     private const string SoldierShotgunCooldownTicksKey = "soldier_shotgun_cooldown_ticks";
+    private const string DemomanGrenadeLauncherAmmoKey = "demoman_gl_ammo";
+    private const string DemomanGrenadeLauncherReloadTicksKey = "demoman_gl_reload_ticks";
 
     internal static SnapshotPlayerState ToSnapshotPlayerState(
         SimulationWorld world,
@@ -88,6 +90,24 @@ internal static partial class ServerHelpers
                 SoldierShotgunCooldownTicksKey,
                 SnapshotReplicatedStateValueKind.Whole,
                 player.ExperimentalOffhandCooldownTicks,
+                0f,
+                false));
+        }
+
+        if (player.ClassId == PlayerClass.Demoman)
+        {
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                DemomanGrenadeLauncherAmmoKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandCurrentShells,
+                0f,
+                false));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                DemomanGrenadeLauncherReloadTicksKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandReloadTicksUntilNextShell,
                 0f,
                 false));
         }
@@ -327,6 +347,22 @@ internal static partial class ServerHelpers
             mine.IsDestroyed,
             mine.ExplosionDamage,
             mine.IsCritical);
+    }
+
+    internal static SnapshotGrenadeState ToSnapshotGrenadeState(GrenadeProjectileEntity grenade)
+    {
+        return new SnapshotGrenadeState(
+            grenade.Id,
+            (byte)grenade.Team,
+            grenade.OwnerId,
+            grenade.X,
+            grenade.Y,
+            grenade.PreviousX,
+            grenade.PreviousY,
+            grenade.VelocityX,
+            grenade.VelocityY,
+            grenade.FuseTicksLeft,
+            grenade.IsCritical);
     }
 
     internal static SnapshotDeadBodyState ToSnapshotDeadBodyState(DeadBodyEntity deadBody)

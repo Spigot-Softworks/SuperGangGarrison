@@ -11,6 +11,7 @@ public enum PrimaryWeaponKind
     Medigun = 7,
     Revolver = 8,
     Blade = 9,
+    GrenadeLauncher = 10,
 }
 
 public sealed record PrimaryWeaponDefinition(

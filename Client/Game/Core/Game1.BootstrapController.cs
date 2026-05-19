@@ -320,11 +320,7 @@ public partial class Game1
             _game.DisposeGarrisonBuilderEditorAssets();
             _game._gameRenderTarget?.Dispose();
             _game._gameRenderTarget = null;
-            _game._damageVignetteTexture?.Dispose();
-            _game._damageVignetteTexture = null;
-            _game._damageVignetteTextureWidth = 0;
-            _game._damageVignetteTextureHeight = 0;
-            _game._damageVignetteTextureIntensityBucket = -1;
+            _game.DisposeDamageVignetteTextures();
             _game._deathCamCaptureTarget?.Dispose();
             _game._deathCamCaptureTarget = null;
             _game._levelBackgroundFileTexture = null;

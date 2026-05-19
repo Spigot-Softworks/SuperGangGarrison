@@ -211,6 +211,19 @@ public partial class Game1
         _bubbleMenuPendingFrame = null;
     }
 
+    private void ResetBubbleMenuInteractionState()
+    {
+        _bubbleMenuKind = BubbleMenuKind.None;
+        _bubbleMenuAlpha = 0.01f;
+        _bubbleMenuX = -30f;
+        _bubbleMenuClosing = false;
+        _bubbleMenuXPageIndex = 0;
+        _bubbleMenuSessionHadInteraction = false;
+        _bubbleMenuPendingFrame = null;
+        _suppressPrimaryFireUntilMouseRelease = false;
+        ResetClientPluginBubbleMenuInputState();
+    }
+
     private void BeginClosingBubbleMenu()
     {
         if (_bubbleMenuKind == BubbleMenuKind.None)

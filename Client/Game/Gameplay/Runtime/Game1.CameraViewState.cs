@@ -7,30 +7,39 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const float SmoothCameraSnapDeltaPixels = 256f;
-    private const float SmoothCameraMinSmoothTimeSeconds = 0.022f;
-    private const float SmoothCameraMaxSmoothTimeSeconds = 0.09f;
-    private const float SmoothCameraFastMaxSpeedPixelsPerSecond = 9000f;
-    private const float SmoothCameraSlowMaxSpeedPixelsPerSecond = 3600f;
-    private const float SmoothCameraMinVerticalWindowPixels = 0.75f;
-    private const float SmoothCameraMaxVerticalWindowPixels = 6f;
-    private const float SmoothCameraMinPixelHysteresisPixels = 0.2f;
-    private const float SmoothCameraMaxPixelHysteresisPixels = 0.7f;
-    private const float SmoothCameraPixelHysteresisCatchUpPixels = 18f;
-    private const float SmoothCameraTargetVelocityBlendTimeSeconds = 0.05f;
-    private const float SmoothCameraVelocityDeadZonePixelsPerSecond = 18f;
-    private const float SmoothCameraMinLookAheadSeconds = 0.008f;
-    private const float SmoothCameraMaxLookAheadSeconds = 0.02f;
-    private const float SmoothCameraMaxLookAheadPixels = 12f;
+    private const float SmoothCameraSnapDeltaPixels = 160f;
+    private const float SmoothCameraMinSmoothTimeSeconds = 0.014f;
+    private const float SmoothCameraMaxSmoothTimeSeconds = 0.055f;
+    private const float SmoothCameraFastMaxSpeedPixelsPerSecond = 16000f;
+    private const float SmoothCameraSlowMaxSpeedPixelsPerSecond = 7200f;
+    private const float SmoothCameraMinVerticalWindowPixels = 0.15f;
+    private const float SmoothCameraMaxVerticalWindowPixels = 2.25f;
     private float _smoothCameraVelocityY;
-    private bool _hasSmoothCameraPreviousTargetY;
-    private float _smoothCameraPreviousTargetY;
-    private float _smoothCameraTargetVelocityY;
 
     private Vector2 GetCameraTopLeft(int viewportWidth, int viewportHeight, int mouseX, int mouseY)
     {
-        var cameraTopLeft = CalculateBaseCameraTopLeft(viewportWidth, viewportHeight, mouseX, mouseY, trackLiveCamera: true);
+        var cameraTopLeft = CalculateBaseCameraTopLeft(viewportWidth, viewportHeight, mouseX, mouseY, trackLiveCamera: false);
         cameraTopLeft = ApplySmoothCameraY(cameraTopLeft);
+        cameraTopLeft = RoundToSourcePixels(cameraTopLeft + GetClientPluginCameraOffset() + GetLastToDieCameraShakeOffset());
+        TrackLiveCamera(cameraTopLeft);
+        _gameplayCameraTopLeft = cameraTopLeft;
+        _hasGameplayCameraTopLeft = true;
+        return cameraTopLeft;
+    }
+
+    private Vector2 GetGameplayInputCameraTopLeft(int viewportWidth, int viewportHeight, int mouseX, int mouseY)
+    {
+        if (_hasGameplayCameraTopLeft)
+        {
+            return _gameplayCameraTopLeft;
+        }
+
+        return GetUntrackedCameraTopLeft(viewportWidth, viewportHeight, mouseX, mouseY);
+    }
+
+    private Vector2 GetUntrackedCameraTopLeft(int viewportWidth, int viewportHeight, int mouseX, int mouseY)
+    {
+        var cameraTopLeft = CalculateBaseCameraTopLeft(viewportWidth, viewportHeight, mouseX, mouseY, trackLiveCamera: false);
         return RoundToSourcePixels(cameraTopLeft + GetClientPluginCameraOffset() + GetLastToDieCameraShakeOffset());
     }
 
@@ -219,7 +228,6 @@ public partial class Game1
         }
 
         var deltaSeconds = GetSmoothCameraDeltaSeconds();
-        UpdateSmoothCameraTargetVelocity(rawTargetY, deltaSeconds);
         var targetY = GetSmoothCameraTargetY(rawTargetY, multiplier);
         var smoothTimeSeconds = MathHelper.Lerp(
             SmoothCameraMinSmoothTimeSeconds,
@@ -242,7 +250,7 @@ public partial class Game1
         }
         else
         {
-            _smoothCameraPixelY = QuantizeSmoothCameraPixelY(_smoothCameraY, rawTargetY, multiplier);
+            _smoothCameraPixelY = QuantizeSmoothCameraPixelY(_smoothCameraY);
         }
 
         return new Vector2(cameraTopLeft.X, _smoothCameraPixelY);
@@ -252,8 +260,7 @@ public partial class Game1
     {
         _hasSmoothCameraY = false;
         _smoothCameraVelocityY = 0f;
-        _hasSmoothCameraPreviousTargetY = false;
-        _smoothCameraTargetVelocityY = 0f;
+        _hasGameplayCameraTopLeft = false;
     }
 
     private void ResetSmoothCameraState(float y)
@@ -261,39 +268,12 @@ public partial class Game1
         _smoothCameraY = y;
         _smoothCameraPixelY = RoundToSourcePixel(y);
         _smoothCameraVelocityY = 0f;
-        _smoothCameraPreviousTargetY = y;
-        _smoothCameraTargetVelocityY = 0f;
-        _hasSmoothCameraPreviousTargetY = true;
         _hasSmoothCameraY = true;
     }
 
     private float GetSmoothCameraDeltaSeconds()
     {
         return Math.Clamp(_clientUpdateElapsedSeconds, 1f / 240f, 1f / 20f);
-    }
-
-    private void UpdateSmoothCameraTargetVelocity(float targetY, float deltaSeconds)
-    {
-        if (!_hasSmoothCameraPreviousTargetY || deltaSeconds <= 0f)
-        {
-            _smoothCameraPreviousTargetY = targetY;
-            _smoothCameraTargetVelocityY = 0f;
-            _hasSmoothCameraPreviousTargetY = true;
-            return;
-        }
-
-        var measuredVelocityY = (targetY - _smoothCameraPreviousTargetY) / deltaSeconds;
-        _smoothCameraPreviousTargetY = targetY;
-        if (!float.IsFinite(measuredVelocityY))
-        {
-            measuredVelocityY = 0f;
-        }
-
-        var velocityBlend = 1f - MathF.Exp(-deltaSeconds / SmoothCameraTargetVelocityBlendTimeSeconds);
-        _smoothCameraTargetVelocityY = MathHelper.Lerp(
-            _smoothCameraTargetVelocityY,
-            measuredVelocityY,
-            Math.Clamp(velocityBlend, 0f, 1f));
     }
 
     private float GetSmoothCameraTargetY(float rawTargetY, float multiplier)
@@ -307,41 +287,12 @@ public partial class Game1
             ? _smoothCameraY
             : rawTargetY - (MathF.Sign(displacementY) * verticalWindowPixels);
 
-        var targetVelocityY = MathF.Abs(_smoothCameraTargetVelocityY) < SmoothCameraVelocityDeadZonePixelsPerSecond
-            ? 0f
-            : _smoothCameraTargetVelocityY;
-        var lookAheadSeconds = MathHelper.Lerp(
-            SmoothCameraMinLookAheadSeconds,
-            SmoothCameraMaxLookAheadSeconds,
-            multiplier);
-        var lookAheadY = Math.Clamp(
-            targetVelocityY * lookAheadSeconds,
-            -SmoothCameraMaxLookAheadPixels,
-            SmoothCameraMaxLookAheadPixels);
-
-        return windowedTargetY + lookAheadY;
+        return windowedTargetY;
     }
 
-    private float QuantizeSmoothCameraPixelY(float smoothY, float rawTargetY, float multiplier)
+    private static float QuantizeSmoothCameraPixelY(float smoothY)
     {
-        var desiredPixelY = RoundToSourcePixel(smoothY);
-        if (!float.IsFinite(_smoothCameraPixelY)
-            || MathF.Abs(rawTargetY - _smoothCameraPixelY) >= SmoothCameraPixelHysteresisCatchUpPixels)
-        {
-            return desiredPixelY;
-        }
-
-        var deltaFromCurrentPixel = smoothY - _smoothCameraPixelY;
-        var hysteresisPixels = MathHelper.Lerp(
-            SmoothCameraMinPixelHysteresisPixels,
-            SmoothCameraMaxPixelHysteresisPixels,
-            multiplier);
-        if (MathF.Abs(deltaFromCurrentPixel) < 0.5f + hysteresisPixels)
-        {
-            return _smoothCameraPixelY;
-        }
-
-        return desiredPixelY;
+        return RoundToSourcePixel(smoothY);
     }
 
     private static float SmoothDamp(

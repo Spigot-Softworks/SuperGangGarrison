@@ -7,6 +7,7 @@
   <resource name="MedigunCritS" type="RESOURCE"/>
   <resource name="MinigunS" type="RESOURCE"/>
   <resource name="MinegunS" type="RESOURCE"/>
+  <resource name="GrenadeLauncherS" type="RESOURCE"/>
   <resource name="FlamethrowerS" type="RESOURCE"/>
   <resource name="ScattergunS" type="RESOURCE"/>
   <resource name="ShotgunS" type="RESOURCE"/>

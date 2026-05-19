@@ -72,6 +72,12 @@ Windows:
 powershell -ExecutionPolicy Bypass -File .\scripts\package.ps1
 ```
 
+Release packages should pass an explicit updater version:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\package.ps1 -Platforms win-x64 -Version 1.0.1
+```
+
 Linux or macOS with PowerShell:
 
 ```bash

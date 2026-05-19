@@ -30,14 +30,21 @@ public partial class Game1
         {
             var buttons = new List<MenuPageButton>();
             var (stackedActions, soloAction, bottomBarLabel, bottomBarAction) = GetCurrentMainMenuActions();
-            var layout = _game.GetCenteredPlaqueMenuLayout(tall: false, stackedActions.Count, includeBottomBarButton: bottomBarAction is not null || _game._menuBackgroundMode != Core.MenuBackgroundMode.Static);
+            var layout = _game.GetCenteredPlaqueMenuLayout(
+                tall: false,
+                stackedActions.Count,
+                includeSoloButton: soloAction is not null,
+                includeBottomBarButton: bottomBarAction is not null || _game._menuBackgroundMode != Core.MenuBackgroundMode.Static);
 
             for (var index = 0; index < stackedActions.Count && index < layout.StackedButtonBounds.Length; index += 1)
             {
                 buttons.Add(new MenuPageButton(stackedActions[index].Label, layout.StackedButtonBounds[index], stackedActions[index].Activate));
             }
 
-            buttons.Add(new MenuPageButton(soloAction.Label, layout.SoloButtonBounds, soloAction.Activate));
+            if (soloAction is not null)
+            {
+                buttons.Add(new MenuPageButton(soloAction.Value.Label, layout.SoloButtonBounds, soloAction.Value.Activate));
+            }
 
             if (bottomBarAction is not null && layout.BottomBarButtonBounds.HasValue)
             {
@@ -59,7 +66,11 @@ public partial class Game1
         public void DrawCurrentMainMenuPage(IReadOnlyList<MenuPageButton> buttons)
         {
             var (stackedActions, soloAction, bottomBarLabel, bottomBarAction) = GetCurrentMainMenuActions();
-            var layout = _game.GetCenteredPlaqueMenuLayout(tall: false, stackedActions.Count, includeBottomBarButton: bottomBarAction is not null || _game._menuBackgroundMode != Core.MenuBackgroundMode.Static);
+            var layout = _game.GetCenteredPlaqueMenuLayout(
+                tall: false,
+                stackedActions.Count,
+                includeSoloButton: soloAction is not null,
+                includeBottomBarButton: bottomBarAction is not null || _game._menuBackgroundMode != Core.MenuBackgroundMode.Static);
             var hoveredStackedIndex = -1;
             var soloHovered = false;
             var bottomHovered = false;
@@ -84,7 +95,7 @@ public partial class Game1
                 {
                     hoveredStackedIndex = index;
                 }
-                else
+                else if (soloAction is not null)
                 {
                     soloHovered = true;
                 }
@@ -97,7 +108,7 @@ public partial class Game1
             }
         }
 
-        private (List<MenuPageAction> StackedActions, MenuPageAction SoloAction, string BottomBarLabel, Action? BottomBarAction) GetCurrentMainMenuActions()
+        private (List<MenuPageAction> StackedActions, MenuPageAction? SoloAction, string BottomBarLabel, Action? BottomBarAction) GetCurrentMainMenuActions()
         {
             return _game._mainMenuPage switch
             {
@@ -108,32 +119,32 @@ public partial class Game1
                         new MenuPageAction("Join (Lobby)", _game.OpenLobbyBrowser),
                         new MenuPageAction("Friends", _game.OpenFriendsMenu),
                     ],
-                    new MenuPageAction("Back", () => OpenMainMenuPage(MainMenuPage.Root)),
-                    string.Empty,
-                    null),
+                    null,
+                    "Back",
+                    () => OpenMainMenuPage(MainMenuPage.Root)),
                 MainMenuPage.PlayOffline => (
                     [
                         new MenuPageAction("Practice", _game.OpenPracticeSetupMenu),
                         new MenuPageAction("Minigames", () => OpenMainMenuPage(MainMenuPage.Minigames)),
                     ],
-                    new MenuPageAction("Back", () => OpenMainMenuPage(MainMenuPage.Root)),
-                    string.Empty,
-                    null),
+                    null,
+                    "Back",
+                    () => OpenMainMenuPage(MainMenuPage.Root)),
                 MainMenuPage.Minigames => (
                     [
                         new MenuPageAction("Jump", () => _game.OpenJumpMenu()),
                         new MenuPageAction("Last to Die", () => _game.OpenLastToDieMenu()),
                     ],
-                    new MenuPageAction("Back", () => OpenMainMenuPage(MainMenuPage.PlayOffline)),
-                    string.Empty,
-                    null),
+                    null,
+                    "Back",
+                    () => OpenMainMenuPage(MainMenuPage.PlayOffline)),
                 MainMenuPage.Credits => (
                     [
                         new MenuPageAction("Play Credits", _game.OpenCreditsMenu),
                     ],
-                    new MenuPageAction("Back", () => OpenMainMenuPage(MainMenuPage.Root)),
-                    string.Empty,
-                    null),
+                    null,
+                    "Back",
+                    () => OpenMainMenuPage(MainMenuPage.Root)),
                 _ => (
                     BuildRootMainMenuActions(),
                     new MenuPageAction("Credits", () => OpenMainMenuPage(MainMenuPage.Credits)),

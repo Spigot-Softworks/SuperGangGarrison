@@ -3,6 +3,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.Client;
 
@@ -31,14 +32,8 @@ public partial class Game1
             _binocularsFocusY);
         if (_bubbleMenuKind != BubbleMenuKind.None && !_bubbleMenuClosing)
         {
-            fullInput = fullInput with
-            {
-                FirePrimary = false,
-                FireSecondary = false,
-                UseAbility = false,
-                InteractWeapon = false,
-                SwapWeapon = false,
-            };
+            var preserveHealingPrimaryFire = ShouldPreserveHealingPrimaryFireWhileBubbleMenuOpen(fullInput);
+            fullInput = ApplyBubbleMenuGameplaySuppression(fullInput, preserveHealingPrimaryFire);
         }
 
         var blockedInput = ShouldPreserveAimWhileBlocked()
@@ -100,6 +95,32 @@ public partial class Game1
         TryShowEngineerJumpPadBuildNoticeOnUtilityPress(networkInput);
 
         return (gameplayInput, networkInput);
+    }
+
+    private bool ShouldPreserveHealingPrimaryFireWhileBubbleMenuOpen(PlayerInputSnapshot input)
+    {
+        if (!input.FirePrimary)
+        {
+            return false;
+        }
+
+        var player = _world.LocalPlayer;
+        return player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Medigun)
+            || (player.IsExperimentalOffhandSelected
+                && (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.Medigun)
+                    || player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit)));
+    }
+
+    internal static PlayerInputSnapshot ApplyBubbleMenuGameplaySuppression(PlayerInputSnapshot input, bool preservePrimaryFire)
+    {
+        return input with
+        {
+            FirePrimary = preservePrimaryFire && input.FirePrimary,
+            FireSecondary = false,
+            UseAbility = false,
+            InteractWeapon = false,
+            SwapWeapon = false,
+        };
     }
 
     private void SuppressPrimaryFireUntilMouseRelease()

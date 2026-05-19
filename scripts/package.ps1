@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string[]]$Platforms = @("win-x64", "linux-x64"),
+    [string]$Version = "",
     [switch]$RunTests,
     [switch]$SkipTests,
     [switch]$IncludeLegacyClrPlugins
@@ -38,6 +39,73 @@ function Invoke-DotNet {
     if ($LASTEXITCODE -ne 0) {
         throw "dotnet $($Arguments -join ' ') failed with exit code $LASTEXITCODE."
     }
+}
+
+function Normalize-PackageVersion {
+    param(
+        [string]$Value
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return ""
+    }
+
+    $clean = $Value.Trim()
+    if ($clean.StartsWith("refs/tags/", [System.StringComparison]::OrdinalIgnoreCase)) {
+        $clean = $clean.Substring("refs/tags/".Length)
+    }
+
+    $clean = $clean.TrimStart([char[]]@('v', 'V'))
+    $baseVersion = ($clean -split "[-+]", 2)[0]
+    $parsedVersion = $null
+    if (-not [System.Version]::TryParse($baseVersion, [ref]$parsedVersion)) {
+        return ""
+    }
+
+    return $clean
+}
+
+function Get-PackageVersion {
+    param(
+        [string]$RequestedVersion
+    )
+
+    $candidates = @(
+        $RequestedVersion,
+        $env:OPENGARRISON_PACKAGE_VERSION,
+        $env:GITHUB_REF_NAME,
+        $env:GITHUB_REF
+    )
+
+    foreach ($candidate in $candidates) {
+        $normalized = Normalize-PackageVersion -Value $candidate
+        if (-not [string]::IsNullOrWhiteSpace($normalized)) {
+            return $normalized
+        }
+    }
+
+    return "1.0.0"
+}
+
+function Get-AssemblyFileVersion {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PackageVersion
+    )
+
+    $baseVersion = ($PackageVersion -split "[-+]", 2)[0]
+    $parts = [System.Collections.Generic.List[string]]::new()
+    foreach ($part in $baseVersion.Split(".")) {
+        if ($parts.Count -lt 4) {
+            $parts.Add($part)
+        }
+    }
+
+    while ($parts.Count -lt 4) {
+        $parts.Add("0")
+    }
+
+    return [string]::Join(".", $parts)
 }
 
 function Get-ArchiveName {
@@ -558,6 +626,10 @@ function Publish-PackagedExamples {
 New-Item -ItemType Directory -Path $distRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $stagingRoot -Force | Out-Null
 
+$packageVersion = Get-PackageVersion -RequestedVersion $Version
+$assemblyFileVersion = Get-AssemblyFileVersion -PackageVersion $packageVersion
+Write-Host "[package] version: $packageVersion"
+
 $toolManifestPaths = @(
     (Join-Path $repoRoot ".config/dotnet-tools.json"),
     (Join-Path $repoRoot "dotnet-tools.json")
@@ -595,6 +667,11 @@ foreach ($runtimeIdentifier in $Platforms) {
             "/nr:false",
             "/m:1",
             "-p:OpenGarrisonPackageScriptOwnsContent=true",
+            "-p:Version=$packageVersion",
+            "-p:AssemblyVersion=$assemblyFileVersion",
+            "-p:FileVersion=$assemblyFileVersion",
+            "-p:InformationalVersion=$packageVersion",
+            "-p:IncludeSourceRevisionInInformationalVersion=false",
             "-o", $stagingDirectory
         )
     }
@@ -615,6 +692,7 @@ foreach ($runtimeIdentifier in $Platforms) {
     Copy-Item (Join-Path $repoRoot "Client/practice-bot-names.txt") (Join-Path $stagingDirectory "config/practice-bot-names.txt") -Force
     Copy-Item (Join-Path $repoRoot "sampleMapRotation.txt") (Join-Path $stagingDirectory "config/sampleMapRotation.txt") -Force
     Copy-Item (Join-Path $repoRoot "packaging/README.txt") (Join-Path $stagingDirectory "README.txt") -Force
+    Set-Content -Path (Join-Path $stagingDirectory "version.txt") -Value $packageVersion -NoNewline -Encoding ASCII
 
     if (Test-IsSelfContainedRuntime -RuntimeIdentifier $runtimeIdentifier) {
         Add-UnixLaunchers -OutputDirectory $stagingDirectory

@@ -99,7 +99,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     }
 
     [Fact]
-    public void TrySetLocalClassWithSameClassRespawnsWhenConfiguredTeamChanged()
+    public void TrySetLocalClassWithSameClassKillsAndRespawnsWhenConfiguredTeamChanged()
     {
         var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
         var originalTeam = world.LocalPlayer.Team;
@@ -110,8 +110,15 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         var changed = world.TrySetLocalClass(PlayerClass.Soldier);
 
         Assert.True(changed);
-        Assert.Equal(oppositeTeam, world.LocalPlayer.Team);
+        Assert.False(world.LocalPlayer.IsAlive);
+
+        for (var tick = 0; tick < world.Config.TicksPerSecond * 6; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
         Assert.True(world.LocalPlayer.IsAlive);
+        Assert.Equal(oppositeTeam, world.LocalPlayer.Team);
     }
 
     [Fact]
