@@ -120,8 +120,7 @@ public static class TargetSelector
             return false;
         }
 
-        // Don't target fully cloaked spies.
-        if (candidate.ClassId == PlayerClass.Spy && candidate.IsSpyCloaked && !candidate.IsSpyVisibleToEnemies)
+        if (!CombatDecisionResolver.IsPlayerVisibleToBot(self, candidate))
         {
             return false;
         }

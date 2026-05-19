@@ -43,6 +43,7 @@ public partial class Game1
             _game._hasSmoothedLocalPlayerRenderPosition = false;
             _game._predictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
             _game._lastPredictedRenderSmoothingTimeSeconds = -1d;
+            _game.ResetSmoothCameraState();
             _game._pendingPredictedInputs.Clear();
             _game._localPlayerSnapshotEntityId = null;
             _game._entityInterpolationTracks.Clear();

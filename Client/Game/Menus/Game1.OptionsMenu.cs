@@ -212,6 +212,7 @@ public partial class Game1
         if (_smoothCameraMultiplier <= 0f)
         {
             _hasSmoothCameraY = false;
+            _hasGameplayCameraTopLeft = false;
         }
 
         PersistClientSettings();

@@ -40,6 +40,7 @@ public sealed partial class SimulationWorld
     private readonly List<RocketProjectileEntity> _rockets = new();
     private readonly List<int> _pendingNewRocketIds = new();
     private readonly List<MineProjectileEntity> _mines = new();
+    private readonly List<GrenadeProjectileEntity> _grenades = new();
     private readonly List<SentryEntity> _sentries = new();
     private readonly List<JumpPadEntity> _jumpPads = new();
     private readonly List<CivilDefenseTurretEntity> _civilDefenseTurrets = new();
@@ -258,6 +259,8 @@ public sealed partial class SimulationWorld
 
     public IReadOnlyList<MineProjectileEntity> Mines => _mines;
 
+    public IReadOnlyList<GrenadeProjectileEntity> Grenades => _grenades;
+
     public IReadOnlyList<SentryEntity> Sentries => _sentries;
 
     public IReadOnlyList<JumpPadEntity> JumpPads => _jumpPads;
@@ -465,9 +468,10 @@ public sealed partial class SimulationWorld
         var definition = CharacterClassCatalog.GetDefinition(playerClass);
         if (definition.Id == GetNetworkPlayerClassDefinition(LocalPlayerSlot).Id)
         {
-            // Allow same-class selection to commit a pending team swap by forcing respawn.
+            // Allow same-class selection to commit a pending team swap.
+            // Use TryApplyNetworkPlayerClassChange so spawn-room and respawn-timer rules are respected.
             return LocalPlayer.Team != GetNetworkPlayerConfiguredTeam(LocalPlayerSlot)
-                && TryForceRespawnNetworkPlayer(LocalPlayerSlot);
+                && TryApplyNetworkPlayerClassChange(LocalPlayerSlot, definition);
         }
 
         return TryApplyNetworkPlayerClassChange(LocalPlayerSlot, definition);
@@ -672,6 +676,17 @@ public sealed partial class SimulationWorld
             if (runtimeRegistry.TryGetPrimaryWeaponBinding(secondaryItem.BehaviorId, out _))
             {
                 return runtimeRegistry.CreatePrimaryWeaponDefinition(secondaryItem);
+            }
+        }
+
+        // Also check utility slot for weapons (e.g., Demoman grenade launcher)
+        var utilityItemId = player.GameplayLoadoutState.UtilityItemId;
+        if (!string.IsNullOrWhiteSpace(utilityItemId))
+        {
+            var utilityItem = runtimeRegistry.GetRequiredItem(utilityItemId);
+            if (runtimeRegistry.TryGetPrimaryWeaponBinding(utilityItem.BehaviorId, out _))
+            {
+                return runtimeRegistry.CreatePrimaryWeaponDefinition(utilityItem);
             }
         }
 

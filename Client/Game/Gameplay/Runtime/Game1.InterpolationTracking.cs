@@ -106,6 +106,12 @@ public partial class Game1
             _activeInterpolatedEntityIds.Add(mine.Id);
         }
 
+        foreach (var grenade in _world.Grenades)
+        {
+            UpdateInterpolatedEntityPosition(grenade.Id, grenade.X, grenade.Y, entityRenderTimeSeconds);
+            _activeInterpolatedEntityIds.Add(grenade.Id);
+        }
+
         foreach (var gib in _world.PlayerGibs)
         {
             UpdateInterpolatedEntityPosition(gib.Id, gib.X, gib.Y, entityRenderTimeSeconds);
@@ -485,6 +491,12 @@ public partial class Game1
         {
             var mine = snapshot.Mines[mineIndex];
             CaptureProjectileInterpolationTarget(mine.Id, mine.X, mine.Y, new Vector2(mine.VelocityX, mine.VelocityY), 18f, snapshotServerTimeSeconds);
+        }
+
+        for (var grenadeIndex = 0; grenadeIndex < snapshot.Grenades.Count; grenadeIndex += 1)
+        {
+            var grenade = snapshot.Grenades[grenadeIndex];
+            CaptureProjectileInterpolationTarget(grenade.Id, grenade.X, grenade.Y, new Vector2(grenade.VelocityX, grenade.VelocityY), 24f, snapshotServerTimeSeconds);
         }
 
         CaptureIntelInterpolationTarget((PlayerTeam)snapshot.RedIntel.Team, snapshot.RedIntel.X, snapshot.RedIntel.Y, snapshotServerTimeSeconds);

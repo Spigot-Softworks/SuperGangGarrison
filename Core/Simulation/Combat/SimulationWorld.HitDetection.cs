@@ -6,6 +6,7 @@ public sealed partial class SimulationWorld
     private readonly record struct FlameHitResult(float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator);
     private readonly record struct RocketHitResult(float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator);
     private readonly record struct MineHitResult(float Distance, float HitX, float HitY, bool DestroyOnHit);
+    private readonly record struct GrenadeEnvironmentHit(float Distance, float HitX, float HitY, float NormalX, float NormalY);
     private readonly record struct RifleHitResult(float Distance, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator);
     private readonly record struct RectangleHitbox(float Left, float Top, float Right, float Bottom);
 
@@ -384,6 +385,12 @@ public sealed partial class SimulationWorld
 
     private MineHitResult? GetNearestMineHit(MineProjectileEntity mine, float directionX, float directionY, float maxDistance)
         => Combat.GetNearestMineHit(mine, directionX, directionY, maxDistance);
+
+    private GrenadeEnvironmentHit? GetNearestGrenadeEnvironmentHit(GrenadeProjectileEntity grenade, float directionX, float directionY, float maxDistance)
+        => Combat.GetNearestGrenadeEnvironmentHit(grenade, directionX, directionY, maxDistance);
+
+    private PlayerEntity? GetNearestGrenadePlayerHit(GrenadeProjectileEntity grenade, float directionX, float directionY, float maxDistance)
+        => Combat.GetNearestGrenadePlayerHit(grenade, directionX, directionY, maxDistance);
 
     private FlameHitResult? GetNearestFlameHit(FlameProjectileEntity flame, float directionX, float directionY, float maxDistance)
         => Combat.GetNearestFlameHit(flame, directionX, directionY, maxDistance);

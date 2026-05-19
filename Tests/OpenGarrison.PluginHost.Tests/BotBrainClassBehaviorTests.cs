@@ -295,6 +295,48 @@ public sealed class BotBrainClassBehaviorTests
     }
 
     [Fact]
+    public void PreferredEnemyPlayerSeekReusesGraphPathWhenGoalNodeStaysStable()
+    {
+        var world = CreateClassWorld(PlayerClass.Demoman, out var player);
+        player.TeleportTo(0f, 100f);
+        player.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        var enemy = AddNetworkPlayer(world, 2, PlayerClass.Scout, PlayerTeam.Blue, 780f, 100f);
+        enemy.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: -1f);
+        var controller = new BotBrainController(CreateWideStraightWalkGraph())
+        {
+            PreferEnemyPlayerObjective = true,
+        };
+
+        _ = controller.Think(player, world, PlayerTeam.Red);
+        enemy.TeleportTo(820f, 100f);
+        var input = controller.Think(player, world, PlayerTeam.Red);
+
+        Assert.Equal(2, controller.CurrentGoalNode);
+        Assert.True(input.Right);
+        Assert.Contains("reuseGoal", controller.LastDirectDriveTrace, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PreferredEnemyPlayerSeekUsesGraphRouteForDistantGoalProxy()
+    {
+        var world = CreateClassWorld(PlayerClass.Demoman, out var player);
+        player.TeleportTo(0f, 100f);
+        player.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        var enemy = AddNetworkPlayer(world, 2, PlayerClass.Scout, PlayerTeam.Blue, 1_200f, 100f);
+        enemy.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: -1f);
+        var controller = new BotBrainController(CreateWideStraightWalkGraph())
+        {
+            PreferEnemyPlayerObjective = true,
+        };
+
+        var input = controller.Think(player, world, PlayerTeam.Red);
+
+        Assert.Equal(2, controller.CurrentGoalNode);
+        Assert.True(input.Right);
+        Assert.Contains("directRoute=preferredEnemy", controller.LastDirectDriveTrace, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SteeringSkipsPassedInitialWalkAttachmentOnSameSurface()
     {
         var world = CreateClassWorld(PlayerClass.Pyro, out var player);
@@ -363,6 +405,30 @@ public sealed class BotBrainClassBehaviorTests
         var third = steeringMachine.Update(player, graph, path!, level, PlayerTeam.Red);
 
         Assert.True(first.Jump);
+        Assert.False(second.Jump);
+        Assert.True(third.Jump);
+    }
+
+    [Fact]
+    public void SteeringQuicklyHopsWhenNonWalkEdgePressesIntoJumpableObstacle()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Scout");
+        player.Spawn(PlayerTeam.Red, 100f, 100f);
+        player.TeleportTo(100f, 100f);
+        player.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        var level = CreateJumpableObstacleLevel(player, direction: 1f);
+        var graph = CreateObstacleFallGraph(player.X, player.Y, player.X + 160f, player.Y);
+        var path = graph.FindPath(0, 1, PlayerClass.Scout, team: PlayerTeam.Red);
+        Assert.NotNull(path);
+        path!.Advance();
+        var steeringMachine = new SteeringMachine();
+
+        var first = steeringMachine.Update(player, graph, path, level, PlayerTeam.Red);
+        var second = steeringMachine.Update(player, graph, path, level, PlayerTeam.Red);
+        var third = steeringMachine.Update(player, graph, path, level, PlayerTeam.Red);
+
+        Assert.Equal(1f, first.MoveDirection);
+        Assert.False(first.Jump);
         Assert.False(second.Jump);
         Assert.True(third.Jump);
     }
@@ -881,6 +947,18 @@ public sealed class BotBrainClassBehaviorTests
         return new NavGraph(nodes, adjacency, levelName: "Synthetic", mode: GameModeKind.CaptureTheFlag);
     }
 
+    private static NavGraph CreateObstacleFallGraph(float startX, float startY, float targetX, float targetY)
+    {
+        var nodes = new[]
+        {
+            new NavNode(startX, startY, NavNodeKind.Surface, 1),
+            new NavNode(targetX, targetY, NavNodeKind.Surface, 1),
+        };
+        var adjacency = CreateAdjacency(nodes.Length);
+        AddFallEdge(adjacency, 0, 1, MathF.Abs(targetX - startX));
+        return new NavGraph(nodes, adjacency, levelName: "Synthetic", mode: GameModeKind.CaptureTheFlag);
+    }
+
     private static NavGraph CreateSingleNodeGraph(float x, float y, GameModeKind mode)
     {
         var nodes = new[]
@@ -906,6 +984,20 @@ public sealed class BotBrainClassBehaviorTests
         return new NavGraph(nodes, adjacency, levelName: "Synthetic", mode: GameModeKind.CaptureTheFlag);
     }
 
+    private static NavGraph CreateWideStraightWalkGraph()
+    {
+        var nodes = new[]
+        {
+            new NavNode(0f, 100f, NavNodeKind.Ledge, 1),
+            new NavNode(400f, 100f, NavNodeKind.Surface, 1),
+            new NavNode(800f, 100f, NavNodeKind.Ledge, 1),
+        };
+        var adjacency = CreateAdjacency(nodes.Length);
+        AddWalkEdge(adjacency, 0, 1, 400f);
+        AddWalkEdge(adjacency, 1, 2, 400f);
+        return new NavGraph(nodes, adjacency, levelName: "Synthetic", mode: GameModeKind.CaptureTheFlag);
+    }
+
     private static List<NavEdge>[] CreateAdjacency(int count)
     {
         var adjacency = new List<NavEdge>[count];
@@ -921,5 +1013,11 @@ public sealed class BotBrainClassBehaviorTests
     {
         adjacency[from].Add(new NavEdge(to, NavEdgeKind.Walk, cost));
         adjacency[to].Add(new NavEdge(from, NavEdgeKind.Walk, cost));
+    }
+
+    private static void AddFallEdge(List<NavEdge>[] adjacency, int from, int to, float cost)
+    {
+        adjacency[from].Add(new NavEdge(to, NavEdgeKind.Fall, cost));
+        adjacency[to].Add(new NavEdge(from, NavEdgeKind.Fall, cost));
     }
 }

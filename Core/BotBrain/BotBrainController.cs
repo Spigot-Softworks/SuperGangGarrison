@@ -1160,7 +1160,7 @@ public sealed class BotBrainController
                 out directSteering,
                 out directTrace,
                 requireVerticalSeparation: false,
-                rejectDistantGoalProxy: true)
+                rejectDistantGoalProxy: false)
             || TryResolveLocalMotionRecovery(
                 world,
                 self,
@@ -3048,6 +3048,26 @@ public sealed class BotBrainController
             return false;
         }
 
+        if (_currentPath is not null
+            && !_currentPath.IsComplete
+            && goalNode >= 0
+            && goalNode == _goalNodeIndex
+            && !ShouldReplaceStalePathFromCurrentPosition(self, _navGraph, _currentPath))
+        {
+            _currentGoalPosition = (targetX, targetY);
+            _repathCooldownTicks = RepathIntervalTicks;
+            routedSteering = _steering.Update(self, _navGraph, _currentPath, world.Level, team);
+            if (routedSteering.RequestRepath)
+            {
+                HandleSteeringRepathRequest(self, team, routedSteering);
+                trace = $"directRoute={label}{routeTeamTrace} reject:repath dx:{dx:0.0} dy:{dy:0.0}";
+                return false;
+            }
+
+            trace = $"directRoute={label}{routeTeamTrace} reuseGoal dx:{dx:0.0} dy:{dy:0.0} goal:{goalNode} path:{_currentPath.Count}";
+            return true;
+        }
+
         var path = _navGraph.FindPath(startNode, goalNode, self.ClassId, activeBlockedEdges, routeTeam, self.IsCarryingIntel);
         if (path is null
             && (ShouldPreferCarrierReturnGraph(world, self)
@@ -4469,7 +4489,7 @@ public sealed class BotBrainController
                 continue;
             }
 
-            if (candidate.ClassId == PlayerClass.Spy && candidate.IsSpyCloaked && !candidate.IsSpyVisibleToEnemies)
+            if (!CombatDecisionResolver.IsPlayerVisibleToBot(self, candidate))
             {
                 continue;
             }
@@ -4509,7 +4529,7 @@ public sealed class BotBrainController
                 continue;
             }
 
-            if (candidate.ClassId == PlayerClass.Spy && candidate.IsSpyCloaked && !candidate.IsSpyVisibleToEnemies)
+            if (!CombatDecisionResolver.IsPlayerVisibleToBot(self, candidate))
             {
                 continue;
             }

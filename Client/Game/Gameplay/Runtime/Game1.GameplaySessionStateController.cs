@@ -17,6 +17,11 @@ public partial class Game1
 
         public void EnterGameplaySession(GameplaySessionKind sessionKind, bool openJoinMenus, string? statusMessage)
         {
+            if (sessionKind != GameplaySessionKind.LastToDie)
+            {
+                _game.ResetLastToDieState();
+            }
+
             _game._gameplaySessionKind = sessionKind;
             _game._practiceSessionElapsedTicks = 0;
             _game._pendingHostedConnectTicks = -1;

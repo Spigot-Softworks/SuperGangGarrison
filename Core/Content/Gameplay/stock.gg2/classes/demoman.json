@@ -30,7 +30,7 @@
       "displayName": "Stock",
       "primaryItemId": "weapon.minelauncher",
       "secondaryItemId": "ability.demoman-detonate",
-      "utilityItemId": "ability.demoman-utility"
+      "utilityItemId": "weapon.grenadelauncher"
     }
   },
   "defaultLoadoutId": "demoman.stock"

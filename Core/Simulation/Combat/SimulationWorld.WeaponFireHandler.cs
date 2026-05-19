@@ -191,6 +191,11 @@ public sealed partial class SimulationWorld
             _world.SpawnMine(owner, x, y, velocityX, velocityY, killFeedWeaponSpriteNameOverride);
         }
 
+        private void SpawnGrenade(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)
+        {
+            _world.SpawnGrenade(owner, x, y, velocityX, velocityY, killFeedWeaponSpriteNameOverride);
+        }
+
         private void SpawnNeedle(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
         {
             _world.SpawnNeedle(owner, x, y, velocityX, velocityY);

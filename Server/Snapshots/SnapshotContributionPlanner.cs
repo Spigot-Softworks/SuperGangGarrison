@@ -78,6 +78,20 @@ internal static class SnapshotContributionPlanner
             addedStateKind: SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
         AddEntityDelta(
             contributions,
+            fullSnapshot.Grenades,
+            baseline?.Grenades,
+            priority: 1115,
+            estimateUpdatedBytes: static state => 34,
+            estimatedRemovedBytes: 4,
+            focus,
+            static state => state.Id,
+            static state => state.X,
+            static state => state.Y,
+            static (builder, state) => builder.Grenades.Add(state),
+            static (builder, id) => builder.RemovedGrenadeIds.Add(id),
+            addedStateKind: SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
+        AddEntityDelta(
+            contributions,
             fullSnapshot.Flames,
             baseline?.Flames,
             priority: 1110,

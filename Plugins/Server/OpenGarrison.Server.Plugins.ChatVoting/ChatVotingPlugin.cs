@@ -156,9 +156,7 @@ public sealed class ChatVotingPlugin :
         {
             context.AdminOperations.SendSystemMessage(
                 e.Slot,
-                _config.AllowSpectatorsToVote
-                    ? "Only authorized players can start votes."
-                    : "Only authorized non-spectators can start votes.");
+                BuildIneligiblePlayerMessage(context.ServerState, e.Slot, "start votes"));
             return true;
         }
 
@@ -234,9 +232,7 @@ public sealed class ChatVotingPlugin :
         {
             context.AdminOperations.SendSystemMessage(
                 e.Slot,
-                _config.AllowSpectatorsToVote
-                    ? "Only authorized players can vote."
-                    : "Only authorized non-spectators can vote.");
+                BuildIneligiblePlayerMessage(context.ServerState, e.Slot, "vote"));
             return true;
         }
 
@@ -416,6 +412,26 @@ public sealed class ChatVotingPlugin :
 
         player = default;
         return false;
+    }
+
+    private string BuildIneligiblePlayerMessage(IOpenGarrisonServerReadOnlyState serverState, byte slot, string actionText)
+    {
+        var baseMessage = _config.AllowSpectatorsToVote
+            ? $"Only authorized players can {actionText}."
+            : $"Only authorized non-spectators can {actionText}.";
+        var player = serverState.GetPlayers().FirstOrDefault(entry => entry.Slot == slot);
+        if (player.Slot != slot)
+        {
+            return $"{baseMessage} Vote check could not find your slot {slot} in the player list.";
+        }
+
+        var state = player.IsSpectator
+            ? "spectator"
+            : player.IsAlive
+                ? "alive"
+                : "dead";
+        var auth = player.IsAuthorized ? "yes" : "pending";
+        return $"{baseMessage} Vote check saw slot={player.Slot} name={player.Name} state={state} auth={auth}.";
     }
 
     private static int GetRequiredYesVotes(int eligibleCount)

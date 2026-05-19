@@ -22,6 +22,7 @@ public sealed class SteeringMachine
     private const float TargetAboveJumpThreshold = -8f;
     private const int JumpRetryCooldownTicks = 6;
     private const int FastObstacleJumpRetryCooldownTicks = 2;
+    private const int PressedBlockerHopTicks = 3;
     private const float MinimumDelayedJumpRunupSpeed = 80f;
     private const int MaximumDelayedJumpRunupTicks = 18;
     private const int GroundedContinuationRecoveryTicks = 45;
@@ -45,6 +46,7 @@ public sealed class SteeringMachine
     private int _stuckTicks;
     private int _stuckEscapePhase;
     private int _stuckEscapeTicks;
+    private int _pressedBlockerTicks;
     private int _jumpRetryCooldownTicks;
     private int _trackedFromNode = -1;
     private int _trackedToNode = -1;
@@ -71,6 +73,7 @@ public sealed class SteeringMachine
 
         if (path is null || path.IsComplete || !player.IsAlive)
         {
+            _pressedBlockerTicks = 0;
             return output;
         }
 
@@ -79,6 +82,7 @@ public sealed class SteeringMachine
         {
             _stuckTicks = 0;
             _stuckEscapePhase = 0;
+            _pressedBlockerTicks = 0;
             _jumpRetryCooldownTicks = 0;
         }
 
@@ -93,6 +97,7 @@ public sealed class SteeringMachine
 
             _stuckTicks = 0;
             _stuckEscapePhase = 0;
+            _pressedBlockerTicks = 0;
             _jumpRetryCooldownTicks = 0;
         }
 
@@ -164,6 +169,7 @@ public sealed class SteeringMachine
         {
             ApplyStuckEscape(player, ref output);
         }
+        ApplyPressedBlockerHop(player, level, team, ref output);
 
         var fastJumpRetry = output.Jump
             && player.IsGrounded
@@ -193,6 +199,7 @@ public sealed class SteeringMachine
         _stuckTicks = 0;
         _stuckEscapePhase = 0;
         _stuckEscapeTicks = 0;
+        _pressedBlockerTicks = 0;
         _jumpRetryCooldownTicks = 0;
         _trackedFromNode = -1;
         _trackedToNode = -1;
@@ -1067,6 +1074,27 @@ public sealed class SteeringMachine
                     output.RequestRepath = true;
                 }
                 break;
+        }
+    }
+
+    private void ApplyPressedBlockerHop(
+        PlayerEntity player,
+        SimpleLevel level,
+        PlayerTeam team,
+        ref SteeringOutput output)
+    {
+        if (!player.IsGrounded
+            || output.MoveDirection == 0f
+            || !IsJumpableObstacleAhead(player, level, team, output.MoveDirection))
+        {
+            _pressedBlockerTicks = 0;
+            return;
+        }
+
+        _pressedBlockerTicks += 1;
+        if (_pressedBlockerTicks >= PressedBlockerHopTicks)
+        {
+            output.Jump = true;
         }
     }
 

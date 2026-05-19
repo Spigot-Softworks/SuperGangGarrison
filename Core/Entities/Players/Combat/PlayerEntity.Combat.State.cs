@@ -1,4 +1,5 @@
 using System;
+using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.Core;
 
@@ -152,6 +153,13 @@ public sealed partial class PlayerEntity
             AcquiredWeaponCooldownTicks = 0;
             AcquiredWeaponReloadTicksUntilNextShell = 0;
             IsAcquiredWeaponEquipped = false;
+        }
+        // Reset equipped slot to Primary if neither offhand nor acquired weapon is active.
+        // EquipExperimentalOffhandWeapon sets SelectedGameplayEquippedSlot = Secondary;
+        // StowExperimentalOffhandWeapon resets it, but HealAndResupply bypasses Stow.
+        if (!IsExperimentalOffhandEquipped && !IsAcquiredWeaponEquipped)
+        {
+            SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
         }
         HeavyEatCooldownTicksRemaining = 0;
         ResetPyroPrimaryStateFromCurrentAmmo();

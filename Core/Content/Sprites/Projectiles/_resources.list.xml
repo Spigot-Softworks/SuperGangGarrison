@@ -8,6 +8,8 @@
   <resource name="FlameS" type="RESOURCE"/>
   <resource name="FlareS" type="RESOURCE"/>
   <resource name="MineS" type="RESOURCE"/>
+  <resource name="RedGrenadeS" type="RESOURCE"/>
+  <resource name="BlueGrenadeS" type="RESOURCE"/>
   <resource name="NeedleS" type="RESOURCE"/>
   <resource name="BladeProjectileS" type="RESOURCE"/>
   <resource name="MineTrailS" type="RESOURCE"/>

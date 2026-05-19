@@ -2,6 +2,11 @@ on:
   release:
     types: [created]
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version to stamp into packages, for example 1.0.1'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -17,7 +22,14 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Package Linux and Windows
-        run: pwsh ./scripts/package.ps1 -Platforms linux-x64,win-x64
+        shell: pwsh
+        run: |
+          $version = "${{ github.event.inputs.version }}"
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            $version = "${{ github.event.release.tag_name }}"
+          }
+
+          pwsh ./scripts/package.ps1 -Platforms linux-x64,win-x64 -Version $version
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2

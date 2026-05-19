@@ -126,6 +126,9 @@ public sealed partial class SimulationWorld
                 case PrimaryWeaponKind.MineLauncher:
                     FireMineLauncher(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);
                     return;
+                case PrimaryWeaponKind.GrenadeLauncher:
+                    FireGrenadeLauncher(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);
+                    return;
                 case PrimaryWeaponKind.Revolver:
                     FireRevolver(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);
                     return;

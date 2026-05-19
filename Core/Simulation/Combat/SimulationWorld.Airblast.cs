@@ -48,6 +48,7 @@ public sealed partial class SimulationWorld
 
         ReflectEnemyRockets(player, aimRadians, poofX, poofY);
         ReflectEnemyFlares(player, aimRadians, poofX, poofY);
+        ReflectEnemyGrenades(player, aimRadians, poofX, poofY);
         PushEnemyMines(player.Team, aimRadians, poofX, poofY);
         ApplyAirblastToPlayers(player, sourceX, sourceY, aimRadians, poofX, poofY);
         PushLooseBodies(sourceX, sourceY, aimRadians, poofX, poofY);
@@ -137,6 +138,21 @@ public sealed partial class SimulationWorld
             }
 
             flare.Reflect(player.Id, player.Team, aimRadians);
+        }
+    }
+
+    private void ReflectEnemyGrenades(PlayerEntity player, float aimRadians, float poofX, float poofY)
+    {
+        for (var grenadeIndex = 0; grenadeIndex < _grenades.Count; grenadeIndex += 1)
+        {
+            var grenade = _grenades[grenadeIndex];
+            if (grenade.Team == player.Team
+                || !IsWithinAirblastMask(poofX, poofY, aimRadians, grenade.X, grenade.Y, PyroAirblastProjectileRadius))
+            {
+                continue;
+            }
+
+            grenade.Reflect(player.Id, player.Team, aimRadians);
         }
     }
 

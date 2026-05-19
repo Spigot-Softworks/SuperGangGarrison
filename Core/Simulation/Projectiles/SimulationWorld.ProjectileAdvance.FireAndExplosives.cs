@@ -218,6 +218,251 @@ public sealed partial class SimulationWorld
         }
     }
 
+    private void AdvanceGrenades()
+    {
+        for (var grenadeIndex = _grenades.Count - 1; grenadeIndex >= 0; grenadeIndex -= 1)
+        {
+            var grenade = _grenades[grenadeIndex];
+            grenade.AdvanceOneTick(_configuredGravityScale);
+
+            // Check if fuse has expired
+            if (grenade.FuseTicksLeft <= 0)
+            {
+                ExplodeGrenade(grenade);
+                RemoveGrenadeAt(grenadeIndex);
+                continue;
+            }
+
+            // Swept movement vector
+            var movementX = grenade.X - grenade.PreviousX;
+            var movementY = grenade.Y - grenade.PreviousY;
+            var movementDistance = MathF.Sqrt((movementX * movementX) + (movementY * movementY));
+            var directionX = movementDistance > 0.0001f ? movementX / movementDistance : 0f;
+            var directionY = movementDistance > 0.0001f ? movementY / movementDistance : 0f;
+
+            // Check for player/building collisions along swept path (instant explosion)
+            if (movementDistance > 0.0001f && GetNearestGrenadePlayerHit(grenade, directionX, directionY, movementDistance) is not null)
+            {
+                ExplodeGrenade(grenade);
+                RemoveGrenadeAt(grenadeIndex);
+                continue;
+            }
+
+            if (CheckGrenadeBuildingCollision(grenade, out _))
+            {
+                ExplodeGrenade(grenade);
+                RemoveGrenadeAt(grenadeIndex);
+                continue;
+            }
+
+            // Swept environment collision — bounce off walls
+            if (movementDistance > 0.0001f)
+            {
+                var envHit = GetNearestGrenadeEnvironmentHit(grenade, directionX, directionY, movementDistance);
+                if (envHit.HasValue)
+                {
+                    // Place the grenade at the hit surface, backed off slightly so it doesn't embed
+                    var backoffX = -directionX * GrenadeProjectileEntity.EnvironmentCollisionBackoffDistance;
+                    var backoffY = -directionY * GrenadeProjectileEntity.EnvironmentCollisionBackoffDistance;
+                    grenade.MoveTo(envHit.Value.HitX + backoffX, envHit.Value.HitY + backoffY);
+                    grenade.Bounce(envHit.Value.NormalX, envHit.Value.NormalY);
+                    // Visual-only random spin after bounce; magnitude scales with impact speed so slow-rolling grenades don't spin
+                    const float rotationImpulseReferenceSpeed = 12f;
+                    var speedFactor = float.Min(1f, movementDistance / rotationImpulseReferenceSpeed);
+                    var impulse = (Random.Shared.NextSingle() - 0.5f) * 0.9f * speedFactor;
+                    grenade.ApplyRotationImpulse(impulse);
+                }
+            }
+        }
+    }
+
+    private bool CheckGrenadePlayerCollision(GrenadeProjectileEntity grenade, out PlayerEntity? hitPlayer)
+    {
+        hitPlayer = null;
+        foreach (var player in EnumerateSimulatedPlayers())
+        {
+            if (!player.IsAlive || player.Team == grenade.Team)
+            {
+                continue;
+            }
+
+            var deltaX = grenade.X - player.X;
+            var deltaY = grenade.Y - player.Y;
+            var distanceSquared = (deltaX * deltaX) + (deltaY * deltaY);
+
+            if (distanceSquared < 100f) // ~10 pixel collision radius
+            {
+                hitPlayer = player;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private bool CheckGrenadeBuildingCollision(GrenadeProjectileEntity grenade, out SimulationEntity? hitBuilding)
+    {
+        hitBuilding = null;
+
+        // Check sentries
+        foreach (var sentry in _sentries)
+        {
+            if (sentry.Health <= 0 || sentry.Team == grenade.Team)
+            {
+                continue;
+            }
+
+            var deltaX = grenade.X - sentry.X;
+            var deltaY = grenade.Y - sentry.Y;
+            var distanceSquared = (deltaX * deltaX) + (deltaY * deltaY);
+
+            if (distanceSquared < 400f) // ~20 pixel collision radius for sentries
+            {
+                hitBuilding = sentry;
+                return true;
+            }
+        }
+
+        // Check jump pads
+        foreach (var jumpPad in _jumpPads)
+        {
+            if (jumpPad.IsDead || jumpPad.Team == grenade.Team)
+            {
+                continue;
+            }
+
+            var deltaX = grenade.X - jumpPad.X;
+            var deltaY = grenade.Y - jumpPad.Y;
+            var distanceSquared = (deltaX * deltaX) + (deltaY * deltaY);
+
+            if (distanceSquared < 400f) // ~20 pixel collision radius
+            {
+                hitBuilding = jumpPad;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void ExplodeGrenade(GrenadeProjectileEntity grenade)
+    {
+        var owner = FindPlayerById(grenade.OwnerId);
+
+        RegisterWorldSoundEvent("ExplosionSnd", grenade.X, grenade.Y);
+        RegisterVisualEffect("Explosion", grenade.X, grenade.Y);
+        ApplyDeadBodyExplosionImpulse(grenade.X, grenade.Y, GrenadeProjectileEntity.BlastRadius * 0.75f, 10f, GrenadeProjectileEntity.BlastRadius);
+        ApplyPlayerGibExplosionImpulse(grenade.X, grenade.Y, GrenadeProjectileEntity.BlastRadius * 0.75f, 15f, GrenadeProjectileEntity.BlastRadius);
+        RegisterExplosionTraces(grenade.X, grenade.Y);
+
+        // Damage players
+        var playersSnapshot = EnumerateSimulatedPlayers().ToArray();
+        foreach (var player in playersSnapshot)
+        {
+            if (!player.IsAlive)
+            {
+                continue;
+            }
+
+            var distance = GetExplosionDistanceToPlayer(this, player, grenade.X, grenade.Y);
+            if (distance >= GrenadeProjectileEntity.BlastRadius)
+            {
+                continue;
+            }
+
+            if (ShouldIgnoreFriendlyGroundedBlast(player, grenade.Team, grenade.OwnerId))
+            {
+                continue;
+            }
+
+            var factor = 1f - (distance / GrenadeProjectileEntity.BlastRadius);
+            if (factor <= GrenadeProjectileEntity.SplashThresholdFactor)
+            {
+                continue;
+            }
+
+            ApplyMineExplosionImpulse(player, grenade.X, grenade.Y, factor);
+            if (player.Id == grenade.OwnerId && player.Team == grenade.Team)
+            {
+                player.SetMovementStateIfAirborne(LegacyMovementState.ExplosionRecovery);
+            }
+            else
+            {
+                player.SetMovementStateIfAirborne(LegacyMovementState.FriendlyJuggle);
+            }
+
+            if (CanTeamDamagePlayer(grenade.Team, grenade.OwnerId, player))
+            {
+                RegisterBloodEffect(player.X, player.Y, PointDirectionDegrees(grenade.X, grenade.Y, player.X, player.Y) - 180f, 3);
+                var critMultiplier = (player.Id == grenade.OwnerId && player.Team == grenade.Team) ? 1f : grenade.CriticalDamageMultiplier;
+                var damage = grenade.ExplosionDamage * critMultiplier * factor;
+                if (player.Id == grenade.OwnerId && player.Team == grenade.Team)
+                {
+                    damage *= GrenadeProjectileEntity.SelfDamageScale;
+                }
+
+                if (ApplyPlayerContinuousDamage(player, damage, owner, PlayerEntity.SpyMineRevealAlpha))
+                {
+                    KillPlayer(
+                        player,
+                        gibbed: true,
+                        killer: owner,
+                        weaponSpriteName: grenade.KillFeedWeaponSpriteNameOverride ?? "GrenadeLauncherKL");
+                }
+            }
+        }
+
+        // Damage sentries
+        for (var sentryIndex = _sentries.Count - 1; sentryIndex >= 0; sentryIndex -= 1)
+        {
+            var sentry = _sentries[sentryIndex];
+            var distance = DistanceBetween(grenade.X, grenade.Y, sentry.X, sentry.Y);
+            if (distance >= GrenadeProjectileEntity.BlastRadius || sentry.Team == grenade.Team)
+            {
+                continue;
+            }
+
+            var factor = 1f - (distance / GrenadeProjectileEntity.BlastRadius);
+            if (factor <= GrenadeProjectileEntity.SplashThresholdFactor)
+            {
+                continue;
+            }
+
+            var damage = grenade.ExplosionDamage * GrenadeProjectileEntity.SentryDamageMultiplier * grenade.CriticalDamageMultiplier * factor;
+            if (ApplySentryDamage(sentry, (int)MathF.Ceiling(damage), owner))
+            {
+                DestroySentry(sentry, owner);
+            }
+        }
+
+        // Damage jump pads
+        for (var jumpPadIndex = _jumpPads.Count - 1; jumpPadIndex >= 0; jumpPadIndex -= 1)
+        {
+            var jumpPad = _jumpPads[jumpPadIndex];
+            var distance = DistanceBetween(grenade.X, grenade.Y, jumpPad.X, jumpPad.Y);
+            if (distance >= GrenadeProjectileEntity.BlastRadius || jumpPad.Team == grenade.Team || jumpPad.IsDead)
+            {
+                continue;
+            }
+
+            var factor = 1f - (distance / GrenadeProjectileEntity.BlastRadius);
+            if (factor <= GrenadeProjectileEntity.SplashThresholdFactor)
+            {
+                continue;
+            }
+
+            var damage = grenade.ExplosionDamage * grenade.CriticalDamageMultiplier * factor;
+            jumpPad.TakeDamage((int)MathF.Ceiling(damage));
+        }
+    }
+
+    private void RemoveGrenadeAt(int grenadeIndex)
+    {
+        var grenade = _grenades[grenadeIndex];
+        _entities.Remove(grenade.Id);
+        MarkProjectileTerminated(grenade.Id);
+        _grenades.RemoveAt(grenadeIndex);
+    }
+
     private void RemoveFlameAt(int flameIndex)
     {
         var flame = _flames[flameIndex];

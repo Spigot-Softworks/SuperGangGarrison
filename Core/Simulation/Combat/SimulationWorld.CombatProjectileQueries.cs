@@ -51,6 +51,69 @@ public sealed partial class SimulationWorld
             return nearestHit;
         }
 
+        public PlayerEntity? GetNearestGrenadePlayerHit(GrenadeProjectileEntity grenade, float directionX, float directionY, float maxDistance)
+        {
+            if (maxDistance <= 0.0001f)
+            {
+                return null;
+            }
+
+            var rayBounds = GetRayBounds(grenade.PreviousX, grenade.PreviousY, directionX, directionY, maxDistance);
+            PlayerEntity? nearestPlayer = null;
+            var nearestDistance = float.PositiveInfinity;
+            foreach (var player in EnumerateSimulatedPlayers())
+            {
+                if (!_world.CanTeamDamagePlayer(grenade.Team, grenade.OwnerId, player) || player.Id == grenade.OwnerId)
+                {
+                    continue;
+                }
+
+                GetPlayerPresentationHitBounds(_world, player, out var left, out var top, out var right, out var bottom);
+                if (!RayBoundsMayIntersectRectangle(rayBounds, left, top, right, bottom))
+                {
+                    continue;
+                }
+
+                var distance = GetRayIntersectionDistanceWithPlayer(grenade.PreviousX, grenade.PreviousY, directionX, directionY, _world, player, maxDistance);
+                if (distance.HasValue && distance.Value < nearestDistance)
+                {
+                    nearestPlayer = player;
+                    nearestDistance = distance.Value;
+                }
+            }
+
+            return nearestPlayer;
+        }
+
+        public GrenadeEnvironmentHit? GetNearestGrenadeEnvironmentHit(GrenadeProjectileEntity grenade, float directionX, float directionY, float maxDistance)
+        {
+            GrenadeEnvironmentHit? nearestHit = null;
+            var rayBounds = GetRayBounds(grenade.PreviousX, grenade.PreviousY, directionX, directionY, maxDistance);
+
+            foreach (var solid in GetPotentialSolidRaycastCandidates(rayBounds))
+            {
+                if (!RayBoundsMayIntersectRectangle(rayBounds, solid.Left, solid.Top, solid.Right, solid.Bottom)) { continue; }
+                var result = GetRayIntersectionWithNormalWithRectangle(grenade.PreviousX, grenade.PreviousY, directionX, directionY, solid.Left, solid.Top, solid.Right, solid.Bottom, maxDistance);
+                if (result.HasValue && (!nearestHit.HasValue || result.Value.Distance < nearestHit.Value.Distance))
+                {
+                    nearestHit = new GrenadeEnvironmentHit(result.Value.Distance, grenade.PreviousX + directionX * result.Value.Distance, grenade.PreviousY + directionY * result.Value.Distance, result.Value.NormalX, result.Value.NormalY);
+                }
+            }
+
+            foreach (var roomObject in Level.RoomObjects)
+            {
+                if (!TryGetProjectileRoomObjectHitbox(roomObject, ProjectileRoomObjectBlockerProfile.Standard, out var hitbox)) { continue; }
+                if (!RayBoundsMayIntersectRectangle(rayBounds, hitbox.Left, hitbox.Top, hitbox.Right, hitbox.Bottom)) { continue; }
+                var result = GetRayIntersectionWithNormalWithRectangle(grenade.PreviousX, grenade.PreviousY, directionX, directionY, hitbox.Left, hitbox.Top, hitbox.Right, hitbox.Bottom, maxDistance);
+                if (result.HasValue && (!nearestHit.HasValue || result.Value.Distance < nearestHit.Value.Distance))
+                {
+                    nearestHit = new GrenadeEnvironmentHit(result.Value.Distance, grenade.PreviousX + directionX * result.Value.Distance, grenade.PreviousY + directionY * result.Value.Distance, result.Value.NormalX, result.Value.NormalY);
+                }
+            }
+
+            return nearestHit;
+        }
+
         public FlameHitResult? GetNearestFlameHit(FlameProjectileEntity flame, float directionX, float directionY, float maxDistance)
         {
             FlameHitResult? nearestHit = null;

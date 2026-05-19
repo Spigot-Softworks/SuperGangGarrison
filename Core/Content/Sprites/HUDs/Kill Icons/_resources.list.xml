@@ -3,6 +3,7 @@
   <resource name="FlareReflectKL" type="RESOURCE"/>
   <resource name="FlareKLold" type="RESOURCE"/>
   <resource name="RocketReflectKL" type="RESOURCE"/>
+  <resource name="ReflectedGrenadeKL" type="RESOURCE"/>
   <resource name="MineReflectKL" type="RESOURCE"/>
   <resource name="ShotgunKL" type="RESOURCE"/>
   <resource name="RifleKL" type="RESOURCE"/>
@@ -27,6 +28,7 @@
   <resource name="BlueCaptureS" type="RESOURCE"/>
   <resource name="ScatterKL" type="RESOURCE"/>
   <resource name="RocketKL" type="RESOURCE"/>
+  <resource name="GrenadeLauncherKL" type="RESOURCE"/>
   <resource name="FlameKL" type="RESOURCE"/>
   <resource name="BackstabKL" type="RESOURCE"/>
   <resource name="DeadKL" type="RESOURCE"/>

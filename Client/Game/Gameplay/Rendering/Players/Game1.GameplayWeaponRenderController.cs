@@ -409,6 +409,19 @@ public partial class Game1
                 return CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(PlayerClass.Medic).Presentation;
             }
 
+            // Check if experimental offhand weapon is equipped (e.g., Soldier shotgun, Demoman grenade launcher)
+            if (player.IsExperimentalOffhandEquipped && player.ExperimentalOffhandWeapon is not null)
+            {
+                var offhandItemId = CharacterClassCatalog.RuntimeRegistry.TryResolvePrimaryWeaponItemId(player.ExperimentalOffhandWeapon, out var itemId)
+                    ? itemId
+                    : null;
+
+                if (!string.IsNullOrWhiteSpace(offhandItemId))
+                {
+                    return CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(offhandItemId).Presentation;
+                }
+            }
+
             var equippedItemId = player.GameplayLoadoutState.EquippedItemId;
             if (!string.IsNullOrWhiteSpace(equippedItemId))
             {

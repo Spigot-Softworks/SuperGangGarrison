@@ -101,7 +101,9 @@ public partial class Game1
             }
 
             var mouse = _game.GetScaledMouseState(_game.GetConstrainedMouseState(Game1.GetCurrentMouseState()));
-            return RoundToSourcePixels(_game.CalculateBaseCameraTopLeft(_game.ViewportWidth, _game.ViewportHeight, mouse.X, mouse.Y, trackLiveCamera: false));
+            return _game._hasGameplayCameraTopLeft
+                ? _game._gameplayCameraTopLeft
+                : _game.GetUntrackedCameraTopLeft(_game.ViewportWidth, _game.ViewportHeight, mouse.X, mouse.Y);
         }
 
         public Texture2D? GetClientPluginLevelBackgroundTexture()

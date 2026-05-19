@@ -193,6 +193,55 @@ public partial class Game1
                 }
             }
 
+            foreach (var grenade in _game._world.Grenades)
+            {
+                if (_game._particleMode == 2 && ((_game._world.Frame + grenade.Id) & 1) != 0)
+                {
+                    continue;
+                }
+
+                var velocityX = grenade.X - grenade.PreviousX;
+                var velocityY = grenade.Y - grenade.PreviousY;
+                if (MathF.Abs(velocityX) <= 0.001f && MathF.Abs(velocityY) <= 0.001f)
+                {
+                    continue;
+                }
+
+                if (!CanEmitBrowserVisual(_game._flameSmokeVisuals.Count, BrowserFlameSmokeVisualLimit))
+                {
+                    continue;
+                }
+
+                var renderPosition = _game.GetRenderPosition(grenade.Id, grenade.X, grenade.Y);
+                _game._flameSmokeVisuals.Add(new FlameSmokeVisual(
+                    renderPosition.X - (velocityX * 1.3f),
+                    renderPosition.Y - (velocityY * 1.3f),
+                    ((_game._visualRandom.NextSingle() * 3f) - 1.5f) * FlareSmokeSizeScale,
+                    ((_game._visualRandom.NextSingle() * 4f) - 2f) * FlareSmokeSizeScale,
+                    ((_game._visualRandom.NextSingle() * 6f) - 3f) * FlareSmokeSizeScale,
+                    ((_game._visualRandom.NextSingle() * 8f) - 4f) * FlareSmokeSizeScale,
+                    (3f + (_game._visualRandom.NextSingle() * 2.8f)) * FlareSmokeSizeScale,
+                    (8f + (_game._visualRandom.NextSingle() * 8f)) * FlareSmokeSizeScale,
+                    0.75f + (_game._visualRandom.NextSingle() * 0.15f),
+                    22 + _game._visualRandom.Next(12)));
+
+                if (_game._particleMode == 0
+                    && CanEmitBrowserVisual(_game._flameSmokeVisuals.Count, BrowserFlameSmokeVisualLimit))
+                {
+                    _game._flameSmokeVisuals.Add(new FlameSmokeVisual(
+                        renderPosition.X - (velocityX * 0.75f),
+                        renderPosition.Y - (velocityY * 0.75f),
+                        ((_game._visualRandom.NextSingle() * 3f) - 1.5f) * FlareSmokeSizeScale,
+                        ((_game._visualRandom.NextSingle() * 4f) - 2f) * FlareSmokeSizeScale,
+                        ((_game._visualRandom.NextSingle() * 6f) - 3f) * FlareSmokeSizeScale,
+                        ((_game._visualRandom.NextSingle() * 8f) - 4f) * FlareSmokeSizeScale,
+                        (3f + (_game._visualRandom.NextSingle() * 2.8f)) * FlareSmokeSizeScale,
+                        (8f + (_game._visualRandom.NextSingle() * 8f)) * FlareSmokeSizeScale,
+                        0.75f + (_game._visualRandom.NextSingle() * 0.15f),
+                        22 + _game._visualRandom.Next(12)));
+                }
+            }
+
             foreach (var flame in _game._world.Flames)
             {
                 if (flame.IsAttached)

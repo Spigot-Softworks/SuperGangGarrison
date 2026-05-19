@@ -247,6 +247,8 @@ public partial class Game1 : Game
     private bool _hasSmoothCameraY;
     private float _smoothCameraY;
     private float _smoothCameraPixelY;
+    private bool _hasGameplayCameraTopLeft;
+    private Vector2 _gameplayCameraTopLeft;
     private string _lastGameplayWindowTitle = string.Empty;
     private IngameResolutionKind _ingameResolution = IngameResolutionKind.Aspect4x3;
     private int _particleMode;
@@ -268,10 +270,9 @@ public partial class Game1 : Game
     private LowHealthColorMode _lowHealthColorMode = LowHealthColorMode.Red;
     private float _damageVignetteIntensity;
     private float _damageVignetteFlashIntensity;
-    private Texture2D? _damageVignetteTexture;
+    private readonly Dictionary<int, Texture2D> _damageVignetteTexturesByBucket = new();
     private int _damageVignetteTextureWidth;
     private int _damageVignetteTextureHeight;
-    private int _damageVignetteTextureIntensityBucket = -1;
     private bool _showPersistentSelfNameEnabled;
     private bool _spriteDropShadowEnabled;
     private int _playerCardSizeMode = ClientSettings.PlayerCardSizeSmall;

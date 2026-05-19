@@ -295,6 +295,26 @@ public sealed partial class SimulationWorld
         _entities.Add(mine.Id, mine);
     }
 
+    private void SpawnGrenade(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)
+    {
+        var grenade = new GrenadeProjectileEntity(
+            AllocateEntityId(),
+            owner.Team,
+            owner.Id,
+            x,
+            y,
+            velocityX,
+            velocityY,
+            killFeedWeaponSpriteNameOverride);
+        if (owner.IsKritzCritBoosted)
+        {
+            grenade.SetCritical();
+        }
+
+        _grenades.Add(grenade);
+        _entities.Add(grenade.Id, grenade);
+    }
+
     private int GetSimulationTicksFromSourceTicks(float sourceTicks)
     {
         return Math.Max(1, (int)MathF.Ceiling(sourceTicks * Config.TicksPerSecond / LegacyMovementModel.SourceTicksPerSecond));

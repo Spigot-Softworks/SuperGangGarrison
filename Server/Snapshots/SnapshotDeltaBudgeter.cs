@@ -316,7 +316,8 @@ internal static class SnapshotDeltaBudgeter
             + EstimateUShortCountCollection(snapshot.Rockets, EstimateRocketBytes)
             + EstimateUShortCountCollection(snapshot.RocketSpawnEvents, static _ => 76)
             + EstimateUShortCountCollection(snapshot.Flames, static _ => 50)
-            + EstimateUShortCountCollection(snapshot.Mines, static _ => 32);
+            + EstimateUShortCountCollection(snapshot.Mines, static _ => 32)
+            + EstimateUShortCountCollection(snapshot.Grenades, static _ => 48);
         var sentryBytes =
             EstimateUShortCountCollection(snapshot.Sentries, static _ => 44)
             + EstimateUShortCountCollection(snapshot.SentryUpdateStates, static _ => 37)
@@ -343,6 +344,7 @@ internal static class SnapshotDeltaBudgeter
             + EstimateEntityIdListBytes(snapshot.RemovedFlameIds)
             + EstimateEntityIdListBytes(snapshot.RemovedFlareIds)
             + EstimateEntityIdListBytes(snapshot.RemovedMineIds)
+            + EstimateEntityIdListBytes(snapshot.RemovedGrenadeIds)
             + EstimateEntityIdListBytes(snapshot.RemovedDeadBodyIds)
             + EstimateEntityIdListBytes(snapshot.RemovedSentryGibIds)
             + EstimateEntityIdListBytes(snapshot.RemovedJumpPadIds);
@@ -646,6 +648,7 @@ internal static class SnapshotDeltaBudgeter
             Flames = Array.Empty<SnapshotFlameState>(),
             Flares = Array.Empty<SnapshotShotState>(),
             Mines = Array.Empty<SnapshotMineState>(),
+            Grenades = Array.Empty<SnapshotGrenadeState>(),
             PlayerGibs = Array.Empty<SnapshotPlayerGibState>(),
             DeadBodies = Array.Empty<SnapshotDeadBodyState>(),
             ControlPoints = Array.Empty<SnapshotControlPointState>(),
@@ -669,6 +672,7 @@ internal static class SnapshotDeltaBudgeter
             RemovedFlameIds = Array.Empty<int>(),
             RemovedFlareIds = Array.Empty<int>(),
             RemovedMineIds = Array.Empty<int>(),
+            RemovedGrenadeIds = Array.Empty<int>(),
             RemovedPlayerGibIds = Array.Empty<int>(),
             RemovedDeadBodyIds = Array.Empty<int>(),
             RemovedSentryGibIds = Array.Empty<int>(),
@@ -710,6 +714,7 @@ internal static class SnapshotDeltaBudgeter
         {
             var changed = false;
             changed |= ClearIfAny(builder.Mines);
+            changed |= ClearIfAny(builder.Grenades);
             changed |= ClearIfAny(builder.Flames);
             changed |= ClearIfAny(builder.Rockets);
             changed |= ClearIfAny(builder.Sentries);
@@ -742,6 +747,7 @@ internal static class SnapshotDeltaBudgeter
         {
             var changed = false;
             changed |= ClearIfAny(builder.RemovedMineIds);
+            changed |= ClearIfAny(builder.RemovedGrenadeIds);
             changed |= ClearIfAny(builder.RemovedFlameIds);
             changed |= ClearIfAny(builder.RemovedRocketIds);
             changed |= ClearIfAny(builder.RemovedSentryIds);
@@ -806,6 +812,7 @@ internal static class SnapshotDeltaBudgeter
             Flames = seedFromTemplateCollections ? new TrackingList<SnapshotFlameState>(template.Flames) : [];
             Flares = seedFromTemplateCollections ? new TrackingList<SnapshotShotState>(template.Flares) : [];
             Mines = seedFromTemplateCollections ? new TrackingList<SnapshotMineState>(template.Mines) : [];
+            Grenades = seedFromTemplateCollections ? new TrackingList<SnapshotGrenadeState>(template.Grenades) : [];
             SentryGibs = seedFromTemplateCollections ? new TrackingList<SnapshotSentryGibState>(template.SentryGibs) : [];
             JumpPads = seedFromTemplateCollections ? new TrackingList<SnapshotJumpPadState>(template.JumpPads) : [];
             PlayerGibs = seedFromTemplateCollections ? new TrackingList<SnapshotPlayerGibState>(template.PlayerGibs) : [];
@@ -821,6 +828,7 @@ internal static class SnapshotDeltaBudgeter
             RemovedFlameIds = new TrackingList<int>(template.RemovedFlameIds);
             RemovedFlareIds = new TrackingList<int>(template.RemovedFlareIds);
             RemovedMineIds = new TrackingList<int>(template.RemovedMineIds);
+            RemovedGrenadeIds = new TrackingList<int>(template.RemovedGrenadeIds);
             RemovedSentryGibIds = new TrackingList<int>(template.RemovedSentryGibIds);
             RemovedJumpPadIds = new TrackingList<int>(template.RemovedJumpPadIds);
             RemovedPlayerGibIds = new TrackingList<int>(template.RemovedPlayerGibIds);
@@ -855,6 +863,7 @@ internal static class SnapshotDeltaBudgeter
             Flames = new TrackingList<SnapshotFlameState>(other.Flames);
             Flares = new TrackingList<SnapshotShotState>(other.Flares);
             Mines = new TrackingList<SnapshotMineState>(other.Mines);
+            Grenades = new TrackingList<SnapshotGrenadeState>(other.Grenades);
             SentryGibs = new TrackingList<SnapshotSentryGibState>(other.SentryGibs);
             PlayerGibs = new TrackingList<SnapshotPlayerGibState>(other.PlayerGibs);
             DeadBodies = new TrackingList<SnapshotDeadBodyState>(other.DeadBodies);
@@ -869,6 +878,7 @@ internal static class SnapshotDeltaBudgeter
             RemovedFlameIds = new TrackingList<int>(other.RemovedFlameIds);
             RemovedFlareIds = new TrackingList<int>(other.RemovedFlareIds);
             RemovedMineIds = new TrackingList<int>(other.RemovedMineIds);
+            RemovedGrenadeIds = new TrackingList<int>(other.RemovedGrenadeIds);
             RemovedSentryGibIds = new TrackingList<int>(other.RemovedSentryGibIds);
             JumpPads = new TrackingList<SnapshotJumpPadState>(other.JumpPads);
             RemovedJumpPadIds = new TrackingList<int>(other.RemovedJumpPadIds);
@@ -901,6 +911,7 @@ internal static class SnapshotDeltaBudgeter
         public TrackingList<SnapshotFlameState> Flames { get; } = [];
         public TrackingList<SnapshotShotState> Flares { get; } = [];
         public TrackingList<SnapshotMineState> Mines { get; } = [];
+        public TrackingList<SnapshotGrenadeState> Grenades { get; } = [];
         public TrackingList<SnapshotSentryGibState> SentryGibs { get; } = [];
         public TrackingList<SnapshotJumpPadState> JumpPads { get; } = [];
         public TrackingList<SnapshotPlayerGibState> PlayerGibs { get; } = [];
@@ -916,6 +927,7 @@ internal static class SnapshotDeltaBudgeter
         public TrackingList<int> RemovedFlameIds { get; } = [];
         public TrackingList<int> RemovedFlareIds { get; } = [];
         public TrackingList<int> RemovedMineIds { get; } = [];
+        public TrackingList<int> RemovedGrenadeIds { get; } = [];
         public TrackingList<int> RemovedSentryGibIds { get; } = [];
         public TrackingList<int> RemovedJumpPadIds { get; } = [];
         public TrackingList<int> RemovedPlayerGibIds { get; } = [];
@@ -950,6 +962,7 @@ internal static class SnapshotDeltaBudgeter
                 Flames = Flames.ToArrayCached(),
                 Flares = Flares.ToArrayCached(),
                 Mines = Mines.ToArrayCached(),
+                Grenades = Grenades.ToArrayCached(),
                 SentryGibs = SentryGibs.ToArrayCached(),
                 JumpPads = JumpPads.ToArrayCached(),
                 PlayerGibs = PlayerGibs.ToArrayCached(),
@@ -971,6 +984,7 @@ internal static class SnapshotDeltaBudgeter
                 RemovedFlameIds = RemovedFlameIds.ToArrayCached(),
                 RemovedFlareIds = RemovedFlareIds.ToArrayCached(),
                 RemovedMineIds = RemovedMineIds.ToArrayCached(),
+                RemovedGrenadeIds = RemovedGrenadeIds.ToArrayCached(),
                 RemovedSentryGibIds = RemovedSentryGibIds.ToArrayCached(),
                 RemovedJumpPadIds = RemovedJumpPadIds.ToArrayCached(),
                 RemovedPlayerGibIds = RemovedPlayerGibIds.ToArrayCached(),

@@ -193,8 +193,11 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public bool IsExperimentalOffhandSelected => HasExperimentalOffhandWeapon
         && !IsAcquiredWeaponEquipped
-        && GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Secondary
-        && string.Equals(GameplayLoadoutState.EquippedItemId, GameplayLoadoutState.SecondaryItemId, StringComparison.Ordinal);
+        && (GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Secondary
+            && string.Equals(GameplayLoadoutState.EquippedItemId, GameplayLoadoutState.SecondaryItemId, StringComparison.Ordinal)
+            || IsExperimentalOffhandEquipped
+            && GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Utility
+            && string.Equals(GameplayLoadoutState.EquippedItemId, GameplayLoadoutState.UtilityItemId, StringComparison.Ordinal));
 
     public PlayerClass? AcquiredWeaponClassId { get; private set; }
 
@@ -851,10 +854,26 @@ public sealed partial class PlayerEntity : SimulationEntity
         var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
         var secondaryItemId = ResolveRegisteredWeaponItemId(ExperimentalOffhandWeapon);
         var acquiredItemId = ResolveRegisteredWeaponItemId(AcquiredWeapon);
+        GameplayEquipmentSlot equippedSlot;
+        if (IsAcquiredWeaponEquipped)
+        {
+            equippedSlot = GameplayEquipmentSlot.Secondary;
+        }
+        else if (IsExperimentalOffhandEquipped)
+        {
+            equippedSlot = secondaryItemId is not null
+                ? GameplayEquipmentSlot.Secondary
+                : GameplayEquipmentSlot.Utility;
+        }
+        else
+        {
+            equippedSlot = SelectedGameplayEquippedSlot;
+        }
+
         return runtimeRegistry.CreatePlayerLoadoutState(
             ClassId,
             SelectedGameplayLoadoutId,
-            SelectedGameplayEquippedSlot,
+            equippedSlot,
             secondaryItemOverrideId: secondaryItemId,
             acquiredItemId: acquiredItemId);
     }

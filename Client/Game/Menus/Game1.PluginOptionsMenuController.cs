@@ -269,7 +269,7 @@ public partial class Game1
                 selectedEntry.IsEnabled ? "Enabled" : "Disabled",
                 Selectable: true,
                 IsHeader: false,
-                Activate: () => _game._clientPluginHost?.SetPluginEnabled(selectedEntry.PluginId, !selectedEntry.IsEnabled)));
+                Activate: () => _game.SetClientPluginEnabled(selectedEntry.PluginId, !selectedEntry.IsEnabled)));
             if (selectedEntry.IsEnabled && !selectedEntry.IsLoaded)
             {
                 rows.Add(new PluginOptionsMenuRow("Status", "Load failed", Selectable: false, IsHeader: false, Activate: null));

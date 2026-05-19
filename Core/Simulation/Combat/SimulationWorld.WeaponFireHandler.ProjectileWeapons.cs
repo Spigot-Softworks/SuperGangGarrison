@@ -432,5 +432,58 @@ public sealed partial class SimulationWorld
                     killFeedWeaponSpriteNameOverride);
             }
         }
+
+        public void FireGrenadeLauncher(PlayerEntity attacker, float aimWorldX, float aimWorldY)
+        {
+            var weaponDefinition = CharacterClassCatalog.RuntimeRegistry.CreatePrimaryWeaponDefinition(
+                StockGameplayModCatalog.Definition.Items["weapon.grenadelauncher"]);
+            FireGrenadeLauncher(
+                attacker,
+                weaponDefinition,
+                attacker.ClassId,
+                aimWorldX,
+                aimWorldY,
+                "GrenadeLauncherKL");
+        }
+
+        private void FireGrenadeLauncher(
+            PlayerEntity attacker,
+            PrimaryWeaponDefinition weaponDefinition,
+            PlayerClass weaponClassId,
+            float aimWorldX,
+            float aimWorldY,
+            string killFeedWeaponSpriteNameOverride)
+        {
+            var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
+            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
+            var aimDeltaY = aimWorldY - weaponOrigin.BaseY;
+            if (aimDeltaX == 0f && aimDeltaY == 0f)
+            {
+                aimDeltaX = attacker.FacingDirectionX;
+            }
+
+            var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
+            var spawnX = weaponOrigin.BaseX + MathF.Cos(directionRadians) * 10f;
+            var spawnY = weaponOrigin.BaseY + MathF.Sin(directionRadians) * 10f;
+            var projectileCount = GetExperimentalProjectilesPerShot(attacker, 1);
+            for (var projectileIndex = 0; projectileIndex < projectileCount; projectileIndex += 1)
+            {
+                var spreadOffset = projectileCount == 1
+                    ? 0f
+                    : DegreesToRadians((projectileIndex - ((projectileCount - 1) * 0.5f)) * 7.5f);
+                var finalAngle = directionRadians + spreadOffset;
+                var (finalVelocityX, finalVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
+                    attacker,
+                    MathF.Cos(finalAngle) * weaponDefinition.MinShotSpeed,
+                    MathF.Sin(finalAngle) * weaponDefinition.MinShotSpeed);
+                SpawnGrenade(
+                    attacker,
+                    spawnX,
+                    spawnY,
+                    finalVelocityX,
+                    finalVelocityY,
+                    killFeedWeaponSpriteNameOverride);
+            }
+        }
     }
 }

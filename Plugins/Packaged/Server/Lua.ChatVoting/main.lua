@@ -88,6 +88,25 @@ local function is_player_eligible(player)
         and (config.allowSpectatorsToVote or not player.isSpectator)
 end
 
+local function build_ineligible_player_message(slot, action_text)
+    local base = config.allowSpectatorsToVote
+        and ("Only authorized players can " .. action_text .. ".")
+        or ("Only authorized non-spectators can " .. action_text .. ".")
+    local players = plugin.host.get_players()
+    local player = find_player(slot, players)
+    if player == nil then
+        return base .. " Vote check could not find your slot " .. tostring(slot) .. " in the player list."
+    end
+
+    local state = player.isSpectator and "spectator" or (player.isAlive and "alive" or "dead")
+    return base
+        .. " Vote check saw slot=" .. tostring(player.slot)
+        .. " name=" .. tostring(player.name)
+        .. " state=" .. state
+        .. " auth=" .. (player.isAuthorized and "yes" or "pending")
+        .. "."
+end
+
 local function get_eligible_players(players)
     local result = {}
     local player_list = players or plugin.host.get_players()
@@ -252,7 +271,7 @@ local function try_start_vote(event, arguments, vote_kind)
     if initiator == nil then
         plugin.host.send_system_message(
             event.slot,
-            config.allowSpectatorsToVote and "Only authorized players can start votes." or "Only authorized non-spectators can start votes.")
+            build_ineligible_player_message(event.slot, "start votes"))
         return true
     end
 
@@ -321,7 +340,7 @@ local function try_register_vote(event, arguments)
     if player == nil then
         plugin.host.send_system_message(
             event.slot,
-            config.allowSpectatorsToVote and "Only authorized players can vote." or "Only authorized non-spectators can vote.")
+            build_ineligible_player_message(event.slot, "vote"))
         return true
     end
 

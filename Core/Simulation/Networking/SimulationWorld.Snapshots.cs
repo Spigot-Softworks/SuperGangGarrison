@@ -260,6 +260,7 @@ public sealed partial class SimulationWorld
                     entity.SetCritical();
             });
         ApplySnapshotMines(snapshot.Mines);
+        ApplySnapshotGrenades(snapshot.Grenades);
         ApplySnapshotGibSpawnEvents(snapshot.GibSpawnEvents);
         // Blood drops are now generated locally on the client - not synced from server
         ApplySnapshotDeadBodies(snapshot.DeadBodies);
@@ -667,6 +668,61 @@ public sealed partial class SimulationWorld
                         state.IsStickied,
                         state.IsDestroyed,
                         state.ExplosionDamage);
+                }
+            });
+    }
+
+    private void ApplySnapshotGrenades(IReadOnlyList<SnapshotGrenadeState> grenades)
+    {
+        SyncSnapshotEntities(
+            grenades,
+            _grenades,
+            static state => state.Id,
+            static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
+            state =>
+            {
+                var grenade = new GrenadeProjectileEntity(
+                    state.Id,
+                    (PlayerTeam)state.Team,
+                    state.OwnerId,
+                    state.X,
+                    state.Y,
+                    state.VelocityX,
+                    state.VelocityY);
+                if (state.IsCritical)
+                    grenade.SetCritical();
+                return grenade;
+            },
+            static (entity, state) => entity.ApplyNetworkState(
+                state.X,
+                state.Y,
+                state.PreviousX,
+                state.PreviousY,
+                state.VelocityX,
+                state.VelocityY,
+                isDestroyed: false,
+                GrenadeProjectileEntity.BaseExplosionDamage,
+                state.FuseTicksLeft),
+            (entity, state, isNewEntity) =>
+            {
+                if (isNewEntity && LocalPlayer is not null)
+                {
+                    // Track new projectiles for client-side prediction
+                    _clientPredictedProjectileIds.Add(state.Id);
+                }
+                // Only apply spawn state - client simulates grenade physics locally
+                if (isNewEntity)
+                {
+                    entity.ApplyNetworkState(
+                        state.X,
+                        state.Y,
+                        state.PreviousX,
+                        state.PreviousY,
+                        state.VelocityX,
+                        state.VelocityY,
+                        isDestroyed: false,
+                        GrenadeProjectileEntity.BaseExplosionDamage,
+                        state.FuseTicksLeft);
                 }
             });
     }

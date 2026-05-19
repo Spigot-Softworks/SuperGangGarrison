@@ -391,6 +391,7 @@ sealed class SnapshotBroadcaster
             ArenaBlueConsecutiveWins = _world.ArenaBlueConsecutiveWins,
             SentryGibs = ConvertToArray(_world.SentryGibs, static sentryGib => ToSnapshotSentryGibState(sentryGib)),
             JumpPads = ConvertToArray(_world.JumpPads, static jumpPad => ToSnapshotJumpPadState(jumpPad)),
+            Grenades = ConvertToArray(_world.Grenades, static grenade => ToSnapshotGrenadeState(grenade)),
             GibSpawnEvents = gibSpawnEvents,
             RocketSpawnEvents = rocketSpawnEvents,
         };
