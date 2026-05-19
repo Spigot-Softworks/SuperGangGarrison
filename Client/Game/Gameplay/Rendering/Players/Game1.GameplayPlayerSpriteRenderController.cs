@@ -185,7 +185,7 @@ public partial class Game1
             if (isRunSprite && !appearsAirborne && player.ClassId == PlayerClass.Scout)
             {
                 bodyYOffset -= 1f;
-                equipmentOffset -= 1f;
+                equipmentOffset += 1f;
             }
 
             if (isHeavySlowWalk)
@@ -435,38 +435,6 @@ public partial class Game1
             }
 
             return leanDirection;
-        }
-
-        public bool HasGroundSupportForPresentation(
-            PlayerEntity player,
-            Vector2 renderPosition,
-            float? maxSupportDistance = null,
-            bool suppressWhileRising = true)
-        {
-            if (suppressWhileRising && player.VerticalSpeed < 0f)
-            {
-                return false;
-            }
-
-            var playerScale = player.PlayerScale;
-            player.GetCollisionBoundsAt(renderPosition.X, renderPosition.Y, out var left, out _, out var right, out var bottom);
-            var supportDistance = MathF.Max(playerScale, maxSupportDistance ?? playerScale);
-            var sideInset = MathF.Max(1f, 2f * playerScale);
-            var leftProbeX = left + sideInset;
-            var centerProbeX = renderPosition.X;
-            var rightProbeX = right - sideInset;
-            for (var probeDistance = playerScale; probeDistance <= supportDistance + 0.001f; probeDistance += playerScale)
-            {
-                var probeY = bottom + probeDistance;
-                if (IsPointBlockedForPlayerCore(player, leftProbeX, probeY)
-                    || IsPointBlockedForPlayerCore(player, centerProbeX, probeY)
-                    || IsPointBlockedForPlayerCore(player, rightProbeX, probeY))
-                {
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         private bool IsPointBlockedForPlayerCore(PlayerEntity player, float x, float y)

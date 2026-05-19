@@ -769,14 +769,17 @@ public partial class Game1
             new Color(236, 236, 228));
         var rotation = GetVelocityRotation(needle.VelocityX, needle.VelocityY);
 
+        // Flip needle sprite vertically when traveling left to match weapon mirroring
+        var needleScale = needle.VelocityX < 0f ? new Vector2(1f, -1f) : Vector2.One;
+
         // Draw outline first (behind sprite) if critical
         if (needle.IsCritical)
         {
-            DrawCriticalProjectileOutline("NeedleS", 0, renderPosition.X, renderPosition.Y, cameraPosition, needle.Team, rotation);
+            DrawCriticalProjectileOutline("NeedleS", 0, renderPosition.X, renderPosition.Y, cameraPosition, needle.Team, rotation, needleScale);
         }
 
         // Draw main sprite
-        if (!TryDrawSprite("NeedleS", 0, renderPosition.X, renderPosition.Y, cameraPosition, needleColor, rotation))
+        if (!TryDrawSprite("NeedleS", 0, renderPosition.X, renderPosition.Y, cameraPosition, needleColor, rotation, needleScale))
         {
             var needleRectangle = new Rectangle(
                 (int)(renderPosition.X - 3f - cameraPosition.X),
@@ -801,7 +804,7 @@ public partial class Game1
         else if (needle.IsCritical)
         {
             // Draw screen blend overlay on top
-            DrawCriticalProjectileOverlay("NeedleS", 0, renderPosition.X, renderPosition.Y, cameraPosition, needle.Team, rotation);
+            DrawCriticalProjectileOverlay("NeedleS", 0, renderPosition.X, renderPosition.Y, cameraPosition, needle.Team, rotation, needleScale);
         }
     }
 

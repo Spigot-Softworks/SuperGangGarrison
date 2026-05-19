@@ -27,6 +27,7 @@ public partial class Game1
     private readonly List<RocketSmokeVisual> _rocketSmokeVisuals = new();
     private readonly Dictionary<int, FrozenSpyFrameState> _lastVisibleEnemySpyFrameStates = new();
     private readonly List<FrozenSpyVisual> _frozenSpyVisuals = new();
+    private readonly List<SniperTracerParticle> _sniperTracerParticles = new();
     private float _medigunBeamHelixPhase;
 
     private readonly record struct FrozenSpyFrameState(
@@ -157,6 +158,25 @@ public partial class Game1
     private void AdvanceBloodVisuals()
     {
         _gameplayGoreEffectsController.AdvanceBloodVisuals();
+    }
+
+    private void AdvanceSniperTracerParticles()
+    {
+        for (var index = _sniperTracerParticles.Count - 1; index >= 0; index -= 1)
+        {
+            var particle = _sniperTracerParticles[index];
+            particle.TicksRemaining -= 1;
+            if (particle.TicksRemaining <= 0)
+            {
+                _sniperTracerParticles.RemoveAt(index);
+                continue;
+            }
+
+            particle.X += particle.VelocityX;
+            particle.Y += particle.VelocityY;
+            particle.VelocityX *= 0.75f;
+            particle.VelocityY *= 0.75f;
+        }
     }
 
     private void AdvanceShellVisuals()
@@ -1055,6 +1075,33 @@ public partial class Game1
         public float X { get; }
 
         public float Y { get; }
+
+        public int TicksRemaining { get; set; }
+    }
+
+    private sealed class SniperTracerParticle
+    {
+        public const int LifetimeTicks = 30; // ~1.0s at 30 TPS
+
+        public SniperTracerParticle(float x, float y, float velocityX, float velocityY, Color color)
+        {
+            X = x;
+            Y = y;
+            VelocityX = velocityX;
+            VelocityY = velocityY;
+            Color = color;
+            TicksRemaining = LifetimeTicks;
+        }
+
+        public float X { get; set; }
+
+        public float Y { get; set; }
+
+        public float VelocityX { get; set; }
+
+        public float VelocityY { get; set; }
+
+        public Color Color { get; }
 
         public int TicksRemaining { get; set; }
     }

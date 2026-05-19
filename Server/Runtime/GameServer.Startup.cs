@@ -731,6 +731,16 @@ partial class GameServer
                 _world.RandomSpreadEnabled = value;
             });
         registry.RegisterBoolean(
+            "sv_sniper_aim_indicator",
+            "Enable or disable sniper aim indicator visibility.",
+            _sniperAimIndicatorEnabled,
+            () => _sniperAimIndicatorEnabled,
+            value =>
+            {
+                _sniperAimIndicatorEnabled = value;
+                _world.SniperAimIndicatorEnabled = value;
+            });
+        registry.RegisterBoolean(
             "sv_secondaryabilities",
             "Enable or disable secondary abilities on the server.",
             _secondaryAbilitiesEnabled,

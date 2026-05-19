@@ -46,6 +46,18 @@ public partial class Game1
 
     private void DrawSniperTracers(Vector2 cameraPosition)
     {
+        // Draw particles first (behind the tracer lines)
+        foreach (var particle in _sniperTracerParticles)
+        {
+            var t = particle.TicksRemaining / (float)SniperTracerParticle.LifetimeTicks;
+            var alpha = t * t * t; // Cubic ease-out: very fast fade at start, very slow at end
+            var size = 3f;
+            var drawColor = particle.Color * alpha;
+            var drawPos = new Vector2(particle.X - cameraPosition.X - size / 2f, particle.Y - cameraPosition.Y - size / 2f);
+            _spriteBatch.Draw(_pixel, new Rectangle((int)drawPos.X, (int)drawPos.Y, (int)size, (int)size), drawColor);
+        }
+
+        // Draw tracer lines
         foreach (var trace in _world.CombatTraces)
         {
             if (!trace.IsSniperTracer)
@@ -58,6 +70,112 @@ public partial class Game1
                 ? Color.Blue * alpha
                 : Color.Red * alpha;
             DrawWorldLine(trace.StartX, trace.StartY, trace.EndX, trace.EndY, cameraPosition, color, 2f);
+
+            // Spawn particles at the end of new traces (first frame only)
+            if (trace.TicksRemaining == 3)
+            {
+                var dirX = trace.EndX - trace.StartX;
+                var dirY = trace.EndY - trace.StartY;
+                var length = MathF.Sqrt(dirX * dirX + dirY * dirY);
+                if (length > 0.01f)
+                {
+                    dirX /= length;
+                    dirY /= length;
+
+                    var particleColor = trace.Team == PlayerTeam.Blue ? new Color(100, 150, 255) : new Color(255, 100, 100);
+                    var rng = new Random((int)(trace.EndX * 1000 + trace.EndY));
+
+                    for (int i = 0; i < 4; i++)
+                    {
+                        var angle = rng.NextDouble() * Math.PI * 2;
+                        var spread = 0.4f + (float)rng.NextDouble() * 0.3f;
+                        var speed = 5f + (float)rng.NextDouble() * 5f;
+                        var velX = -dirX * speed + (float)Math.Cos(angle) * spread * 3f;
+                        var velY = -dirY * speed + (float)Math.Sin(angle) * spread * 3f;
+
+                        _sniperTracerParticles.Add(new SniperTracerParticle(
+                            trace.EndX,
+                            trace.EndY,
+                            velX,
+                            velY,
+                            particleColor));
+                    }
+                }
+            }
+        }
+    }
+
+    private void DrawSniperAimIndicators(Vector2 cameraPosition)
+    {
+        if (_clientSniperAimIndicators.Count == 0)
+        {
+            return;
+        }
+
+        // Prepare indicator data for batch rendering
+        var indicatorData = new System.Collections.Generic.List<(int x, int y, Color outlineColor, Color centerColor)>(_clientSniperAimIndicators.Count);
+
+        foreach (var kvp in _clientSniperAimIndicators)
+        {
+            var indicator = kvp.Value;
+
+            // Get the team color
+            var baseColor = indicator.Team == PlayerTeam.Blue ? Color.Blue : Color.Red;
+
+            // Calculate fade-out multiplier based on remaining ticks
+            var fadeMultiplier = indicator.TicksRemaining / (float)SniperAimIndicatorFadeTicks;
+
+            // Apply transparency with fade-out
+            var alpha = indicator.BaseTransparency * fadeMultiplier;
+
+            // Outline uses base team color
+            var outlineColor = baseColor * alpha;
+
+            // Blue center needs to be brighter with more saturation for visibility
+            Color centerColor;
+            if (indicator.Team == PlayerTeam.Blue)
+            {
+                // Use a brighter, more saturated blue
+                var brightBlue = new Color(100, 180, 255);
+                // Less white blending to keep it more saturated
+                var lighterBlue = Color.Lerp(brightBlue, Color.White, 0.4f);
+                centerColor = lighterBlue * alpha;
+            }
+            else
+            {
+                var lighterRed = Color.Lerp(baseColor, Color.White, 0.6f);
+                centerColor = lighterRed * alpha;
+            }
+
+            // Draw position centered for a 3x3 pixel indicator (1px outline + 1x1 center, rounded)
+            var drawPosX = (int)(indicator.X - cameraPosition.X - 1f);
+            var drawPosY = (int)(indicator.Y - cameraPosition.Y - 1f);
+
+            indicatorData.Add((drawPosX, drawPosY, outlineColor, centerColor));
+        }
+
+        // Draw all rounded outlines with normal blending
+        // Outline pattern (1px thick, corners removed for rounded appearance):
+        //   . # .
+        //   # O #
+        //   . # .
+        foreach (var (x, y, outlineColor, _) in indicatorData)
+        {
+            // Top pixel
+            _spriteBatch.Draw(_pixel, new Rectangle(x + 1, y, 1, 1), outlineColor);
+
+            // Middle row: left and right pixels
+            _spriteBatch.Draw(_pixel, new Rectangle(x, y + 1, 1, 1), outlineColor);
+            _spriteBatch.Draw(_pixel, new Rectangle(x + 2, y + 1, 1, 1), outlineColor);
+
+            // Bottom pixel
+            _spriteBatch.Draw(_pixel, new Rectangle(x + 1, y + 2, 1, 1), outlineColor);
+        }
+
+        // Draw all 1x1 center pixels with lighter color
+        foreach (var (x, y, _, centerColor) in indicatorData)
+        {
+            _spriteBatch.Draw(_pixel, new Rectangle(x + 1, y + 1, 1, 1), centerColor);
         }
     }
 
@@ -197,7 +315,7 @@ public partial class Game1
         var end = new Vector2(endX - cameraPosition.X, endY - cameraPosition.Y);
         var toTarget = end - start;
         var distToTarget = toTarget.Length();
-        
+
         if (distToTarget <= 0.01f)
         {
             return;
@@ -206,13 +324,13 @@ public partial class Game1
         // Normalize directions
         var aimDir = aimDirection;
         aimDir.Normalize();
-        
+
         var targetDir = toTarget;
         targetDir.Normalize();
-        
+
         // Calculate alignment between aim direction and target direction
         var alignment = Vector2.Dot(aimDir, targetDir);
-        
+
         // If already pointing at target, draw straight line
         if (alignment > 0.98f)
         {
@@ -225,17 +343,17 @@ public partial class Game1
         // leveling out around the halfway point
         var controlDist = distToTarget * 0.5f;
         var controlPoint = start + aimDir * controlDist;
-        
+
         // Calculate perpendicular offset to curve from aim direction to target direction
         // perpendicular to aim direction
         var perpToAim = new Vector2(-aimDir.Y, aimDir.X);
-        
+
         // Check which direction to offset based on target location
         if (Vector2.Dot(perpToAim, targetDir) < 0)
         {
             perpToAim = -perpToAim;
         }
-        
+
         // Offset strength: how much curvature we need based on angle difference
         var turnAngle = MathF.Acos(MathF.Max(-1f, MathF.Min(1f, alignment)));
         var offsetAmount = distToTarget * 0.12f * (turnAngle / MathF.PI);
@@ -246,18 +364,18 @@ public partial class Game1
         const float beamWidth = 4f; // 4 pixels wide (2 blocks)
         const int segments = 32;
         var pixelatedCells = new System.Collections.Generic.HashSet<(int, int)>();
-        
+
         var curvePoints = new System.Collections.Generic.List<Vector2>(segments + 1);
         for (int i = 0; i <= segments; i++)
         {
             var t = (float)i / segments;
             var oneMinusT = 1f - t;
-            var point = oneMinusT * oneMinusT * start 
-                      + 2f * oneMinusT * t * controlPoint 
+            var point = oneMinusT * oneMinusT * start
+                      + 2f * oneMinusT * t * controlPoint
                       + t * t * end;
             curvePoints.Add(point);
         }
-        
+
         // For each segment of the curve, fill all grid cells that the thick line passes through
         for (int i = 0; i < curvePoints.Count - 1; i++)
         {
@@ -265,17 +383,17 @@ public partial class Game1
             var segEnd = curvePoints[i + 1];
             var segDir = segEnd - segStart;
             var segLength = segDir.Length();
-            
+
             if (segLength < 0.01f) continue;
-            
+
             segDir /= segLength;
             var perpDir = new Vector2(-segDir.Y, segDir.X);
-            
+
             // Fill cells perpendicular to the line at each sample point
             for (int j = 0; j <= (int)MathF.Ceiling(segLength); j++)
             {
                 var samplePoint = segStart + segDir * j;
-                
+
                 // Draw perpendicular thickness around the point
                 for (float offset = -beamWidth / 2f; offset <= beamWidth / 2f; offset += pixelSize)
                 {
@@ -286,7 +404,7 @@ public partial class Game1
                 }
             }
         }
-        
+
         // Draw all pixelated cells as 2x2 rectangles
         foreach (var (gridX, gridY) in pixelatedCells)
         {

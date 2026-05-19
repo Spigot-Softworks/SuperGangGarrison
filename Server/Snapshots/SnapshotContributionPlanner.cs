@@ -264,6 +264,15 @@ internal static class SnapshotContributionPlanner
             static (builder, state) => builder.CombatTraces.Add(state));
         AddPointEventContributions(
             contributions,
+            fullSnapshot.SniperAimIndicators,
+            priority: 846,
+            estimateBytes: static _ => 18,
+            focus,
+            static state => state.X,
+            static state => state.Y,
+            static (builder, state) => builder.SniperAimIndicators.Add(state));
+        AddPointEventContributions(
+            contributions,
             fullSnapshot.VisualEvents,
             priority: 840,
             estimateBytes: EstimateVisualEventBytes,

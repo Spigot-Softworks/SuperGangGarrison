@@ -206,6 +206,7 @@ internal static class SnapshotDeltaBudgeter
         var changed = false;
         changed |= ClearIfAny(builder.KillFeed);
         changed |= ClearIfAny(builder.CombatTraces);
+        changed |= ClearIfAny(builder.SniperAimIndicators);
         // Keep transient events here; let the contribution and reduction passes decide.
         // Keep DamageEvents - needed for client-side blood and hit feedback
         return changed;
@@ -322,6 +323,7 @@ internal static class SnapshotDeltaBudgeter
             + EstimateUShortCountCollection(snapshot.JumpPads, static _ => 22);
         var eventBytes =
             EstimateUShortCountCollection(snapshot.CombatTraces, static _ => 24)
+            + EstimateUShortCountCollection(snapshot.SniperAimIndicators, static _ => 18)
             + EstimateByteCountCollection(snapshot.KillFeed, EstimateKillFeedBytes)
             + EstimateUShortCountCollection(snapshot.VisualEvents, EstimateVisualEventBytes)
             + EstimateUShortCountCollection(snapshot.DamageEvents, static _ => 42)
@@ -633,6 +635,7 @@ internal static class SnapshotDeltaBudgeter
             PlayerMovementStates = Array.Empty<SnapshotPlayerMovementState>(),
             PlayerExtendedStatusStates = Array.Empty<SnapshotPlayerExtendedStatusState>(),
             CombatTraces = Array.Empty<SnapshotCombatTraceState>(),
+            SniperAimIndicators = Array.Empty<SnapshotSniperAimIndicatorState>(),
             Sentries = Array.Empty<SnapshotSentryState>(),
             Shots = Array.Empty<SnapshotShotState>(),
             Bubbles = Array.Empty<SnapshotShotState>(),
@@ -683,6 +686,7 @@ internal static class SnapshotDeltaBudgeter
             return changed;
         },
         static builder => ClearIfAny(builder.CombatTraces),
+        static builder => ClearIfAny(builder.SniperAimIndicators),
         static builder =>
         {
             var changed = false;
@@ -779,6 +783,7 @@ internal static class SnapshotDeltaBudgeter
             _template = template;
             BaselineFrame = baselineFrame;
             CombatTraces = seedFromTemplateCollections ? new TrackingList<SnapshotCombatTraceState>(template.CombatTraces) : [];
+            SniperAimIndicators = seedFromTemplateCollections ? new TrackingList<SnapshotSniperAimIndicatorState>(template.SniperAimIndicators) : [];
             KillFeed = seedFromTemplateCollections ? new TrackingList<SnapshotKillFeedEntry>(template.KillFeed) : [];
             VisualEvents = seedFromTemplateCollections ? new TrackingList<SnapshotVisualEvent>(template.VisualEvents) : [];
             DamageEvents = seedFromTemplateCollections ? new TrackingList<SnapshotDamageEvent>(template.DamageEvents) : [];
@@ -827,6 +832,7 @@ internal static class SnapshotDeltaBudgeter
             _template = other._template;
             BaselineFrame = other.BaselineFrame;
             CombatTraces = new TrackingList<SnapshotCombatTraceState>(other.CombatTraces);
+            SniperAimIndicators = new TrackingList<SnapshotSniperAimIndicatorState>(other.SniperAimIndicators);
             KillFeed = new TrackingList<SnapshotKillFeedEntry>(other.KillFeed);
             VisualEvents = new TrackingList<SnapshotVisualEvent>(other.VisualEvents);
             DamageEvents = new TrackingList<SnapshotDamageEvent>(other.DamageEvents);
@@ -872,6 +878,7 @@ internal static class SnapshotDeltaBudgeter
 
         public ulong BaselineFrame { get; }
         public TrackingList<SnapshotCombatTraceState> CombatTraces { get; }
+        public TrackingList<SnapshotSniperAimIndicatorState> SniperAimIndicators { get; }
         public TrackingList<SnapshotKillFeedEntry> KillFeed { get; }
         public TrackingList<SnapshotVisualEvent> VisualEvents { get; }
         public TrackingList<SnapshotDamageEvent> DamageEvents { get; }
@@ -931,6 +938,7 @@ internal static class SnapshotDeltaBudgeter
                 PlayerExtendedStatusStates = PlayerExtendedStatusStates.ToArrayCached(),
                 PlayerChatBubbleStates = PlayerChatBubbleStates.ToArrayCached(),
                 CombatTraces = CombatTraces.ToArrayCached(),
+                SniperAimIndicators = SniperAimIndicators.ToArrayCached(),
                 Sentries = Sentries.ToArrayCached(),
                 SentryUpdateStates = SentryUpdateStates.ToArrayCached(),
                 Shots = Shots.ToArrayCached(),

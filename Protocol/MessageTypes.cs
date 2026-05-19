@@ -639,6 +639,13 @@ public sealed record SnapshotCombatTraceState(
     bool IsSniperTracer,
     bool IsCritical = false);
 
+public sealed record SnapshotSniperAimIndicatorState(
+    int SniperPlayerId,
+    float X,
+    float Y,
+    byte Team,
+    float Transparency);
+
 public sealed record SnapshotSoundEvent(
     string SoundName,
     float X,
@@ -713,6 +720,7 @@ public sealed record SnapshotMessage(
     SnapshotIntelState BlueIntel,
     IReadOnlyList<SnapshotPlayerState> Players,
     IReadOnlyList<SnapshotCombatTraceState> CombatTraces,
+    IReadOnlyList<SnapshotSniperAimIndicatorState> SniperAimIndicators,
     IReadOnlyList<SnapshotSentryState> Sentries,
     IReadOnlyList<SnapshotShotState> Shots,
     IReadOnlyList<SnapshotShotState> Bubbles,

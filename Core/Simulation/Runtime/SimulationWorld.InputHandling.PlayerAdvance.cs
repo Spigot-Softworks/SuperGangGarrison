@@ -211,7 +211,7 @@ public sealed partial class SimulationWorld
 
         AdvancePendingRocketsForOwner(player.Id);
         player.CompleteMovement(Level, team, Config.FixedDeltaSeconds, startedGrounded, jumped, input.Down);
-        HandleJumpPadTriggerTouch(player);
+        HandleJumpPadTriggerContactEffects(player);
         TryRegisterIntelTrailEffect(player);
         UpdateSpawnRoomState(player);
         TryActivatePendingSpyBackstab(player);

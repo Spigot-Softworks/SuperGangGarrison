@@ -365,17 +365,22 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
-    public void JumpPadLaunchesEngineerOnContact()
+    public void JumpPadLaunchesEngineerOnlyWhenJumpIsPressed()
     {
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings());
         Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
         Assert.True(world.TryBuildLocalJumpPad());
-        for (var tick = 0; tick < 180 && world.LocalPlayer.VerticalSpeed >= 0f; tick += 1)
-        {
-            world.AdvanceOneTick();
-        }
+        var pad = Assert.Single(world.JumpPads);
+        AdvanceUntilJumpPadLanded(world, pad);
 
-        Assert.True(world.LocalPlayer.VerticalSpeed < 0f);
+        AdvanceTicks(world, 5);
+
+        Assert.True(world.LocalPlayer.VerticalSpeed >= -0.01f);
+        Assert.True(world.LocalPlayer.IsGrounded);
+
+        PressJump(world);
+
+        Assert.True(world.LocalPlayer.VerticalSpeed < -world.LocalPlayer.JumpSpeed);
         Assert.False(world.LocalPlayer.IsGrounded);
     }
 
@@ -386,12 +391,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
         Assert.True(world.TryBuildLocalJumpPad());
         var pad = Assert.Single(world.JumpPads);
-        for (var tick = 0; tick < 180 && !pad.HasLanded; tick += 1)
-        {
-            world.AdvanceOneTick();
-        }
-
-        Assert.True(pad.HasLanded);
+        AdvanceUntilJumpPadLanded(world, pad);
         var enemy = CreateBlueNetworkScout(world, 2);
         enemy.TeleportTo(pad.X + 96f, pad.Y - 8f);
         enemy.ResolveBlockingOverlap(world.Level, enemy.Team);
@@ -413,10 +413,9 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var baselineWorld = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings());
         Assert.True(baselineWorld.TryMoveLocalPlayerToControlPointSpawn());
         Assert.True(baselineWorld.TryBuildLocalJumpPad());
-        for (var tick = 0; tick < 180 && baselineWorld.LocalPlayer.VerticalSpeed >= 0f; tick += 1)
-        {
-            baselineWorld.AdvanceOneTick();
-        }
+        var baselinePad = Assert.Single(baselineWorld.JumpPads);
+        AdvanceUntilJumpPadLanded(baselineWorld, baselinePad);
+        PressJump(baselineWorld);
 
         var baselineLaunchSpeed = baselineWorld.LocalPlayer.VerticalSpeed;
 
@@ -424,17 +423,14 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(auraWorld.TryMoveLocalPlayerToControlPointSpawn());
         Assert.True(auraWorld.TryBuildLocalJumpPad());
         var auraPad = Assert.Single(auraWorld.JumpPads);
-        AdvanceTicks(auraWorld, 60);
+        AdvanceUntilJumpPadLanded(auraWorld, auraPad);
         auraWorld.TeleportLocalPlayer(auraPad.X + 24f, auraPad.Y);
         AdvanceTicks(auraWorld, 1);
 
         Assert.True(InvokeGetExperimentalMovementSpeedMultiplier(auraWorld.LocalPlayer) >= ExperimentalGameplaySettings.DefaultEngineerAuraEnergizerAuraMovementSpeedMultiplier);
 
         auraWorld.TeleportLocalPlayer(auraPad.X, auraPad.Y);
-        for (var tick = 0; tick < 180 && auraWorld.LocalPlayer.VerticalSpeed >= 0f; tick += 1)
-        {
-            auraWorld.AdvanceOneTick();
-        }
+        PressJump(auraWorld);
 
         Assert.True(InvokeGetExperimentalMovementSpeedMultiplier(auraWorld.LocalPlayer) > ExperimentalGameplaySettings.DefaultEngineerAuraEnergizerAuraMovementSpeedMultiplier);
         Assert.True(MathF.Abs(auraWorld.LocalPlayer.VerticalSpeed) < MathF.Abs(baselineLaunchSpeed));
@@ -456,6 +452,8 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         world.TeleportLocalPlayer(sentry.X + 112f, sentry.Y);
         Assert.True(world.TryBuildLocalJumpPad());
         var pad = Assert.Single(world.JumpPads);
+        AdvanceUntilJumpPadLanded(world, pad);
+        PressJump(world);
 
         for (var tick = 0; tick < 180 && MathF.Abs(world.LocalPlayer.X - sentry.X) > 24f; tick += 1)
         {
@@ -1577,6 +1575,24 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         return player;
     }
 
+    private static void PressJump(SimulationWorld world)
+    {
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: true,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 96f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+    }
+
     private static void PressSwapWeaponSpace(SimulationWorld world)
     {
         world.SetLocalInput(new PlayerInputSnapshot(
@@ -1709,6 +1725,16 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         {
             world.AdvanceOneTick();
         }
+    }
+
+    private static void AdvanceUntilJumpPadLanded(SimulationWorld world, JumpPadEntity pad)
+    {
+        for (var tick = 0; tick < 180 && !pad.HasLanded; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        Assert.True(pad.HasLanded);
     }
 
     private static (float X, float Y, float Distance) FindVisibleSentryTargetPosition(

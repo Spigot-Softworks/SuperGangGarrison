@@ -11,12 +11,6 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
     private const string CoreReplicatedOwnerId = "core.player";
-    private const float JumpPresentationLatchSeconds = 0.18f;
-    private const float GroundStepPresentationLatchSeconds = 0.12f;
-    private const float GroundStepPresentationMaxSupportDistance = 12f;
-    private const float GroundStepHorizontalSourceSpeedThreshold = 0.2f;
-    private const float GroundStepPhysicsVerticalSourceSpeedThreshold = 0.2f;
-    private const float GroundSupportAirborneClearVerticalSourceSpeedThreshold = 0.35f;
     private const string SoldierShotgunAmmoKey = "soldier_shotgun_ammo";
     private const string SoldierShotgunMaxAmmoKey = "soldier_shotgun_max_ammo";
     private const string SoldierShotgunReloadTicksKey = "soldier_shotgun_reload_ticks";
@@ -36,17 +30,9 @@ public partial class Game1
 
         public float RenderHorizontalSpeed { get; set; }
 
-        public float RenderVerticalSpeed { get; set; }
-
         public float AnimationHorizontalSpeed { get; set; }
 
         public bool AppearsAirborne { get; set; }
-
-        public float AirbornePresentationLatchSeconds { get; set; }
-
-        public float GroundStepPresentationLatchSeconds { get; set; }
-
-        public bool HasPresentationState { get; set; }
 
         public WeaponAnimationMode WeaponAnimationMode { get; set; }
 
@@ -87,73 +73,17 @@ public partial class Game1
         var renderHorizontalSpeed = GetPlayerRenderHorizontalSpeed(player, observedRenderVelocity);
         var renderVerticalSpeed = GetPlayerRenderVerticalSpeed(player, observedRenderVelocity);
         var animationHorizontalSpeed = GetPlayerPhysicsHorizontalSpeedForPresentation(player);
-        var renderPhysicsVerticalSpeed = GetPlayerPhysicsVerticalSpeedForPresentation(player);
         var horizontalSourceStepSpeed = GetPlayerAnimationSourceStepSpeed(animationHorizontalSpeed);
         var verticalSourceStepSpeed = GetPlayerAnimationSourceStepSpeed(renderVerticalSpeed);
-        var physicsVerticalSourceStepSpeed = GetPlayerAnimationSourceStepSpeed(renderPhysicsVerticalSpeed);
         var animationElapsedSeconds = GetPlayerAnimationElapsedSeconds();
+        var isRemoteNetworkPlayer = _networkClient.IsConnected && !ReferenceEquals(player, _world.LocalPlayer);
         var isHumiliated = _world.IsPlayerHumiliated(player);
         var animationImage = renderState.BodyAnimationImage;
-        var renderIsGrounded = GetPlayerRenderIsGrounded(player);
-        var previouslyPresentedGrounded = renderState.HasPresentationState && !renderState.AppearsAirborne;
-        var forceGroundStepPresentation = renderState.GroundStepPresentationLatchSeconds > 0f;
 
-        var canUseGroundStepPresentation = CanUseGroundStepPresentation(
-            player,
-            renderIsGrounded,
-            previouslyPresentedGrounded,
-            forceGroundStepPresentation,
-            horizontalSourceStepSpeed,
-            physicsVerticalSourceStepSpeed);
-        var hasGroundSupport = HasPlayerGroundSupportForPresentation(
-            player,
-            renderPosition,
-            canUseGroundStepPresentation ? GroundStepPresentationMaxSupportDistance : null,
-            suppressWhileRising: !canUseGroundStepPresentation);
-        if (canUseGroundStepPresentation && hasGroundSupport)
-        {
-            renderState.GroundStepPresentationLatchSeconds = MathF.Max(
-                renderState.GroundStepPresentationLatchSeconds,
-                GroundStepPresentationLatchSeconds);
-        }
-
-        if (ShouldStartLocalJumpPresentationLatch(player, hasGroundSupport))
-        {
-            renderState.AirbornePresentationLatchSeconds = MathF.Max(
-                renderState.AirbornePresentationLatchSeconds,
-                JumpPresentationLatchSeconds);
-        }
-
-        var jumpPresentationLatchActive = renderState.AirbornePresentationLatchSeconds > 0f;
-        var forceAirbornePresentation = jumpPresentationLatchActive
-            || ShouldForceAirbornePresentation(
-                renderPhysicsVerticalSpeed,
-                hasGroundSupport,
-                renderIsGrounded,
-                forceGroundStepPresentation);
-        var appearsAirborne = !renderIsGrounded;
-        if (forceGroundStepPresentation && !forceAirbornePresentation)
-        {
-            appearsAirborne = false;
-        }
-
-        if (!appearsAirborne && forceAirbornePresentation)
-        {
-            appearsAirborne = true;
-        }
-
+        var appearsAirborne = !GetPlayerRenderIsGrounded(player);
         if (appearsAirborne
-            && hasGroundSupport
-            && !forceAirbornePresentation
-            && physicsVerticalSourceStepSpeed <= GroundSupportAirborneClearVerticalSourceSpeedThreshold)
-        {
-            appearsAirborne = false;
-        }
-
-        if (appearsAirborne
-            && !forceAirbornePresentation
             && player.IsGrounded
-            && physicsVerticalSourceStepSpeed <= GroundSupportAirborneClearVerticalSourceSpeedThreshold)
+            && verticalSourceStepSpeed <= 0.35f)
         {
             appearsAirborne = false;
         }
@@ -161,6 +91,32 @@ public partial class Game1
         if (appearsAirborne && isHumiliated)
         {
             appearsAirborne = verticalSourceStepSpeed > 0.35f;
+        }
+
+        // For remote network players not grounded, ensure they appear airborne if moving significantly.
+        // Don't force to false when vertical speed is low - player might be at jump apex.
+        if (!isHumiliated && isRemoteNetworkPlayer && !player.IsGrounded)
+        {
+            if (verticalSourceStepSpeed > 0.35f)
+            {
+                appearsAirborne = true;
+            }
+        }
+
+        // Small stair snaps can briefly clear grounded state without being a real jump/fall.
+        if (appearsAirborne
+            && player.IsGrounded
+            && horizontalSourceStepSpeed >= 0.2f
+            && verticalSourceStepSpeed <= 0.35f)
+        {
+            appearsAirborne = false;
+        }
+
+        if (appearsAirborne
+            && player.IsGrounded
+            && horizontalSourceStepSpeed < 0.2f)
+        {
+            appearsAirborne = false;
         }
 
         if (!appearsAirborne && horizontalSourceStepSpeed < 0.2f)
@@ -180,12 +136,8 @@ public partial class Game1
 
         renderState.BodyAnimationImage = animationImage;
         renderState.RenderHorizontalSpeed = renderHorizontalSpeed;
-        renderState.RenderVerticalSpeed = renderVerticalSpeed;
         renderState.AnimationHorizontalSpeed = animationHorizontalSpeed;
         renderState.AppearsAirborne = appearsAirborne;
-        renderState.HasPresentationState = true;
-        renderState.AirbornePresentationLatchSeconds = MathF.Max(0f, renderState.AirbornePresentationLatchSeconds - animationElapsedSeconds);
-        renderState.GroundStepPresentationLatchSeconds = MathF.Max(0f, renderState.GroundStepPresentationLatchSeconds - animationElapsedSeconds);
         UpdatePlayerWeaponAnimationState(player, renderState, animationElapsedSeconds);
     }
 
@@ -489,24 +441,6 @@ public partial class Game1
         return player.VerticalSpeed;
     }
 
-    private float GetPlayerPhysicsVerticalSpeedForPresentation(PlayerEntity player)
-    {
-        if (_networkClient.IsConnected && ReferenceEquals(player, _world.LocalPlayer))
-        {
-            if (!IsPositionSmoothingActive() && TryGetLatestLocalServerVelocity(out var serverVelocity))
-            {
-                return serverVelocity.Y;
-            }
-
-            if (_hasPredictedLocalPlayerPosition)
-            {
-                return _predictedLocalPlayerVelocity.Y;
-            }
-        }
-
-        return player.VerticalSpeed;
-    }
-
     private bool TryGetLatestLocalServerVelocity(out Vector2 velocity)
     {
         var playerStateKey = GetResolvedLocalPlayerId();
@@ -792,87 +726,6 @@ public partial class Game1
         }
 
         return 4f;
-    }
-
-    private bool HasPlayerGroundSupportForPresentation(
-        PlayerEntity player,
-        Vector2 renderPosition,
-        float? maxSupportDistance = null,
-        bool suppressWhileRising = true)
-    {
-        return _gameplayPlayerSpriteRenderController.HasGroundSupportForPresentation(
-            player,
-            renderPosition,
-            maxSupportDistance,
-            suppressWhileRising);
-    }
-
-    private static bool CanUseGroundStepPresentation(
-        PlayerEntity player,
-        bool renderIsGrounded,
-        bool previouslyPresentedGrounded,
-        bool forceGroundStepPresentation,
-        float horizontalSourceStepSpeed,
-        float physicsVerticalSourceStepSpeed)
-    {
-        var hasGroundPresentationContinuity = player.IsGrounded
-            || renderIsGrounded
-            || previouslyPresentedGrounded
-            || forceGroundStepPresentation;
-        return hasGroundPresentationContinuity
-            && horizontalSourceStepSpeed >= GroundStepHorizontalSourceSpeedThreshold
-            && physicsVerticalSourceStepSpeed <= GroundStepPhysicsVerticalSourceSpeedThreshold;
-    }
-
-    private bool ShouldStartLocalJumpPresentationLatch(PlayerEntity player, bool hasGroundSupport)
-    {
-        if (!_networkClient.IsConnected
-            || !ReferenceEquals(player, _world.LocalPlayer)
-            || _world.LocalPlayerAwaitingJoin
-            || !player.IsAlive
-            || player.IsHeavyEating
-            || (player.IsTaunting && !player.IsRaging)
-            || player.IsUsingBinoculars
-            || player.IsSpyBackstabAnimating
-            || player.IsExperimentalCryoFrozen
-            || player.JumpSpeed <= 0f)
-        {
-            return false;
-        }
-
-        var jumpPressedThisFrame = _pendingPredictedJumpPress
-            || (_latestPredictedLocalInput.Up && !_previousPredictedLocalInput.Up);
-        if (!jumpPressedThisFrame)
-        {
-            return false;
-        }
-
-        return player.IsGrounded
-            || hasGroundSupport
-            || player.RemainingAirJumps > 0;
-    }
-
-    private static bool ShouldForceAirbornePresentation(
-        float physicsVerticalSpeed,
-        bool hasGroundSupport,
-        bool renderIsGrounded,
-        bool forceGroundStepPresentation)
-    {
-        var physicsVerticalSourceStepSpeed = GetPlayerAnimationSourceStepSpeed(physicsVerticalSpeed);
-        if (physicsVerticalSpeed < 0f
-            && physicsVerticalSourceStepSpeed > GroundSupportAirborneClearVerticalSourceSpeedThreshold)
-        {
-            return true;
-        }
-
-        if (renderIsGrounded || forceGroundStepPresentation)
-        {
-            return false;
-        }
-
-        return !hasGroundSupport
-            && physicsVerticalSpeed < 0f
-            && physicsVerticalSourceStepSpeed > GroundSupportAirborneClearVerticalSourceSpeedThreshold;
     }
 
     private void QueueWeaponShellVisuals(PlayerEntity player, bool shotStarted, bool shellInserted)
