@@ -224,7 +224,8 @@ public static partial class ProtocolCodec
                     reader.ReadByte(),
                     ReadString(reader, MaxPlayerNameBytes),
                     ReadString(reader, MaxChatBytes),
-                    reader.ReadBoolean()),
+                    reader.ReadBoolean(),
+                    stream.Position < stream.Length ? reader.ReadByte() : (byte)0),
                 MessageType.AutoBalanceNotice => new AutoBalanceNoticeMessage(
                     (AutoBalanceNoticeKind)reader.ReadByte(),
                     ReadString(reader, MaxPlayerNameBytes),
@@ -411,6 +412,7 @@ public static partial class ProtocolCodec
                 WriteString(writer, chatRelay.PlayerName, MaxPlayerNameBytes, nameof(chatRelay.PlayerName));
                 WriteString(writer, chatRelay.Text, MaxChatBytes, nameof(chatRelay.Text));
                 writer.Write(chatRelay.TeamOnly);
+                writer.Write(chatRelay.PlayerSlot);
                 break;
             case AutoBalanceNoticeMessage notice:
                 writer.Write((byte)notice.Kind);

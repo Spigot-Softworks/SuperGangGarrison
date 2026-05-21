@@ -479,6 +479,7 @@ public partial class Game1
         DrawExperimentalCryoOverlays(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
         DrawAfterburnOverlay(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha);
         DrawChatBubble(_world.LocalPlayer, cameraPosition);
+        DrawOverheadChatMessage(_world.LocalPlayer, cameraPosition);
         DrawLastToDieMissPopup(_world.LocalPlayer, cameraPosition);
         TryDrawAdditionalHealthBar(_world.LocalPlayer, cameraPosition, visibilityAlpha);
     }

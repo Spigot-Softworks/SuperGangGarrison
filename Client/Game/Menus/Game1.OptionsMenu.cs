@@ -84,6 +84,11 @@ public partial class Game1
         };
     }
 
+    private static string GetDamageVignetteIntensityLabel(int percent)
+    {
+        return $"{ClientSettings.NormalizeDamageVignetteIntensityPercent(percent)}%";
+    }
+
     private float GetPlayerCardSizeScale()
     {
         return ClientSettings.NormalizePlayerCardSizeMode(_playerCardSizeMode) switch
@@ -241,6 +246,15 @@ public partial class Game1
         PersistClientSettings();
     }
 
+    private void CycleDamageVignetteIntensitySetting()
+    {
+        var current = ClientSettings.NormalizeDamageVignetteIntensityPercent(_damageVignetteIntensityPercent);
+        _damageVignetteIntensityPercent = current <= 0
+            ? ClientSettings.DefaultDamageVignetteIntensityPercent
+            : current - 10;
+        PersistClientSettings();
+    }
+
     private void CycleFlameRenderModeSetting()
     {
         _flameRenderMode = (_flameRenderMode + 1) % 2;
@@ -316,6 +330,18 @@ public partial class Game1
     private void ToggleShowHealthBarSetting()
     {
         _showHealthBarEnabled = !_showHealthBarEnabled;
+        PersistClientSettings();
+    }
+
+    private void ToggleOverheadChatSetting()
+    {
+        _overheadChatEnabled = !_overheadChatEnabled;
+        if (!_overheadChatEnabled)
+        {
+            _localOverheadChatMessage = null;
+            _overheadChatMessagesBySlot.Clear();
+        }
+
         PersistClientSettings();
     }
 

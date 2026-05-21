@@ -51,6 +51,8 @@ public partial class Game1
             _game._entitySnapshotHistories.Clear();
             _game._intelSnapshotHistories.Clear();
             _game._remotePlayerSnapshotHistories.Clear();
+            _game._localOverheadChatMessage = null;
+            _game._overheadChatMessagesBySlot.Clear();
             _game.ResetSnapshotStateHistory();
             _game._interpolatedEntityPositions.Clear();
             _game._interpolatedIntelPositions.Clear();

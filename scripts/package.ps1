@@ -132,6 +132,30 @@ function Test-IsSelfContainedRuntime {
     return $RuntimeIdentifier -ne "win-x64"
 }
 
+function Test-IsWindowsRuntime {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RuntimeIdentifier
+    )
+
+    return $RuntimeIdentifier.StartsWith("win-", [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Get-RuntimeExecutableName {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RuntimeIdentifier,
+        [Parameter(Mandatory = $true)]
+        [string]$BaseName
+    )
+
+    if (Test-IsWindowsRuntime -RuntimeIdentifier $RuntimeIdentifier) {
+        return "$BaseName.exe"
+    }
+
+    return $BaseName
+}
+
 function New-PackageArchive {
     param(
         [Parameter(Mandatory = $true)]
@@ -479,10 +503,74 @@ set -eu
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 cd "$SCRIPT_DIR"
 chmod +x "./__EXECUTABLE__"
+if [ -f "./OG2.Game" ]; then
+    chmod +x "./OG2.Game"
+fi
 exec "./__EXECUTABLE__" "$@"
 '@.Replace("`r`n", "`n").Replace("__EXECUTABLE__", $ExecutableName)
 
     [System.IO.File]::WriteAllText($DestinationPath, $scriptContents, [System.Text.Encoding]::ASCII)
+}
+
+function Set-UnixExecutable {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    if (-not (Test-Path $Path)) {
+        return
+    }
+
+    if ([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)) {
+        return
+    }
+
+    $chmod = Get-Command chmod -ErrorAction SilentlyContinue
+    if ($chmod -eq $null) {
+        return
+    }
+
+    & chmod +x $Path
+    if ($LASTEXITCODE -ne 0) {
+        throw "chmod failed for '$Path'."
+    }
+}
+
+function Set-ClientEntrypointLayout {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$OutputDirectory,
+        [Parameter(Mandatory = $true)]
+        [string]$RuntimeIdentifier
+    )
+
+    $clientExecutableName = Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2"
+    $gameExecutableName = Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2.Game"
+    $launcherExecutableName = Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2.Launcher"
+
+    $clientExecutablePath = Join-Path $OutputDirectory $clientExecutableName
+    $gameExecutablePath = Join-Path $OutputDirectory $gameExecutableName
+    $launcherExecutablePath = Join-Path $OutputDirectory $launcherExecutableName
+
+    if (-not (Test-Path -LiteralPath $clientExecutablePath)) {
+        throw "Package is missing client executable '$clientExecutableName'."
+    }
+
+    if (-not (Test-Path -LiteralPath $launcherExecutablePath)) {
+        throw "Package is missing launcher executable '$launcherExecutableName'."
+    }
+
+    Copy-Item -LiteralPath $clientExecutablePath -Destination $gameExecutablePath -Force
+    Copy-Item -LiteralPath $launcherExecutablePath -Destination $clientExecutablePath -Force
+
+    if (-not (Test-IsWindowsRuntime -RuntimeIdentifier $RuntimeIdentifier)) {
+        Set-UnixExecutable -Path $clientExecutablePath
+        Set-UnixExecutable -Path $gameExecutablePath
+        Set-UnixExecutable -Path $launcherExecutablePath
+    }
+
+    Write-Host "[package] client entrypoint: $clientExecutableName launches updater; game binary is $gameExecutableName"
 }
 
 function Add-UnixLaunchers {
@@ -491,9 +579,19 @@ function Add-UnixLaunchers {
         [string]$OutputDirectory
     )
 
-    New-UnixLauncherScript -DestinationPath (Join-Path $OutputDirectory "run-client.sh") -ExecutableName "OG2"
-    New-UnixLauncherScript -DestinationPath (Join-Path $OutputDirectory "run-server.sh") -ExecutableName "OG2.Server"
-    New-UnixLauncherScript -DestinationPath (Join-Path $OutputDirectory "run-server-launcher.sh") -ExecutableName "OG2.ServerLauncher"
+    $launchers = @(
+        @{ Script = "run-client.sh"; Executable = "OG2" },
+        @{ Script = "run-server.sh"; Executable = "OG2.Server" },
+        @{ Script = "run-server-launcher.sh"; Executable = "OG2.ServerLauncher" }
+    )
+
+    foreach ($launcher in $launchers) {
+        $scriptPath = Join-Path $OutputDirectory $launcher.Script
+        $executablePath = Join-Path $OutputDirectory $launcher.Executable
+        New-UnixLauncherScript -DestinationPath $scriptPath -ExecutableName $launcher.Executable
+        Set-UnixExecutable -Path $scriptPath
+        Set-UnixExecutable -Path $executablePath
+    }
 }
 
 function Get-BundledPluginProjects {
@@ -693,6 +791,8 @@ foreach ($runtimeIdentifier in $Platforms) {
     Copy-Item (Join-Path $repoRoot "sampleMapRotation.txt") (Join-Path $stagingDirectory "config/sampleMapRotation.txt") -Force
     Copy-Item (Join-Path $repoRoot "packaging/README.txt") (Join-Path $stagingDirectory "README.txt") -Force
     Set-Content -Path (Join-Path $stagingDirectory "version.txt") -Value $packageVersion -NoNewline -Encoding ASCII
+
+    Set-ClientEntrypointLayout -OutputDirectory $stagingDirectory -RuntimeIdentifier $runtimeIdentifier
 
     if (Test-IsSelfContainedRuntime -RuntimeIdentifier $runtimeIdentifier) {
         Add-UnixLaunchers -OutputDirectory $stagingDirectory

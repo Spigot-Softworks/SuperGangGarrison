@@ -43,8 +43,10 @@ public partial class Game1
         _showHealerEnabled = _clientSettings.ShowHealerEnabled;
         _showHealingEnabled = _clientSettings.ShowHealingEnabled;
         _showHealthBarEnabled = _clientSettings.ShowHealthBarEnabled;
+        _overheadChatEnabled = _clientSettings.OverheadChatEnabled;
         _portraitRumbleEnabled = _clientSettings.PortraitRumbleEnabled;
         _damageVignetteEnabled = _clientSettings.DamageVignetteEnabled;
+        _damageVignetteIntensityPercent = ClientSettings.NormalizeDamageVignetteIntensityPercent(_clientSettings.DamageVignetteIntensityPercent);
         _lowHealthColorMode = ClientSettings.NormalizeLowHealthColorMode(_clientSettings.LowHealthColorMode);
         _showPersistentSelfNameEnabled = _clientSettings.ShowPersistentSelfNameEnabled;
         _positionSmoothingEnabled = _clientSettings.PositionSmoothingEnabled;
@@ -95,8 +97,10 @@ public partial class Game1
         _clientSettings.ShowHealerEnabled = _showHealerEnabled;
         _clientSettings.ShowHealingEnabled = _showHealingEnabled;
         _clientSettings.ShowHealthBarEnabled = _showHealthBarEnabled;
+        _clientSettings.OverheadChatEnabled = _overheadChatEnabled;
         _clientSettings.PortraitRumbleEnabled = _portraitRumbleEnabled;
         _clientSettings.DamageVignetteEnabled = _damageVignetteEnabled;
+        _clientSettings.DamageVignetteIntensityPercent = ClientSettings.NormalizeDamageVignetteIntensityPercent(_damageVignetteIntensityPercent);
         _clientSettings.LowHealthColorMode = ClientSettings.NormalizeLowHealthColorMode(_lowHealthColorMode);
         _clientSettings.ShowPersistentSelfNameEnabled = _showPersistentSelfNameEnabled;
         _clientSettings.PositionSmoothingEnabled = _positionSmoothingEnabled;

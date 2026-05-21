@@ -476,10 +476,10 @@ partial class GameServer
             _botAutofillMinPlayers,
             _botAutofillPerTeam);
 
-        var removedRed = _botManager.TrimTeam(PlayerTeam.Red, targetRedBots);
-        var removedBlue = _botManager.TrimTeam(PlayerTeam.Blue, targetBlueBots);
-        var addedRed = _botManager.TryFillTeam(PlayerTeam.Red, targetRedBots, requestedClass: null);
-        var addedBlue = _botManager.TryFillTeam(PlayerTeam.Blue, targetBlueBots, requestedClass: null);
+        var removedRed = _botManager.TrimAutofillTeam(PlayerTeam.Red, targetRedBots);
+        var removedBlue = _botManager.TrimAutofillTeam(PlayerTeam.Blue, targetBlueBots);
+        var addedRed = _botManager.FillAutofillTeam(PlayerTeam.Red, targetRedBots, requestedClass: null);
+        var addedBlue = _botManager.FillAutofillTeam(PlayerTeam.Blue, targetBlueBots, requestedClass: null);
         var totalDelta = removedRed + removedBlue + addedRed + addedBlue;
         if (totalDelta == 0)
         {

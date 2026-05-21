@@ -13,6 +13,12 @@ namespace OpenGarrison.Server;
 /// </summary>
 internal sealed class ServerBotManager
 {
+    internal enum ServerBotSource
+    {
+        Manual,
+        Autofill,
+    }
+
     private static readonly PlayerClass[] DefaultFillClassCycle =
     [
         PlayerClass.Scout,
@@ -98,6 +104,11 @@ internal sealed class ServerBotManager
     /// </summary>
     public bool TryAddBot(byte slot, PlayerTeam team, PlayerClass classId, string displayName)
     {
+        return TryAddBot(slot, team, classId, displayName, ServerBotSource.Manual);
+    }
+
+    private bool TryAddBot(byte slot, PlayerTeam team, PlayerClass classId, string displayName, ServerBotSource source)
+    {
         if (!IsValidServerBotSlot(slot) || !_isSlotAvailableForBot(slot))
         {
             return false;
@@ -133,7 +144,7 @@ internal sealed class ServerBotManager
         }
 
         _botDisplayNamePool.Reserve(resolvedDisplayName);
-        _botSlots[slot] = new ServerBotSlotState(slot, team, classId, resolvedDisplayName);
+        _botSlots[slot] = new ServerBotSlotState(slot, team, classId, resolvedDisplayName, source);
         _inputCache.Remove(slot);
         return true;
     }
@@ -212,6 +223,11 @@ internal sealed class ServerBotManager
     /// </summary>
     public int FillBots(int targetPerTeam, PlayerClass? requestedClass)
     {
+        return FillBots(targetPerTeam, requestedClass, ServerBotSource.Manual);
+    }
+
+    private int FillBots(int targetPerTeam, PlayerClass? requestedClass, ServerBotSource source)
+    {
         var addedCount = 0;
         
         // Count current bots per team
@@ -228,7 +244,7 @@ internal sealed class ServerBotManager
             if (blueCount < targetPerTeam)
             {
                 var playerClass = ResolveFillClass(PlayerTeam.Blue, blueCount, requestedClass);
-                if (TryAddBot(slot, PlayerTeam.Blue, playerClass, string.Empty))
+                if (TryAddBot(slot, PlayerTeam.Blue, playerClass, string.Empty, source))
                 {
                     blueCount++;
                     addedCount++;
@@ -240,7 +256,7 @@ internal sealed class ServerBotManager
             if (redCount < targetPerTeam)
             {
                 var playerClass = ResolveFillClass(PlayerTeam.Red, redCount, requestedClass);
-                if (TryAddBot(slot, PlayerTeam.Red, playerClass, string.Empty))
+                if (TryAddBot(slot, PlayerTeam.Red, playerClass, string.Empty, source))
                 {
                     redCount++;
                     addedCount++;
@@ -262,6 +278,11 @@ internal sealed class ServerBotManager
     /// </summary>
     public int TryFillTeam(PlayerTeam team, int targetCount, PlayerClass? requestedClass)
     {
+        return TryFillTeam(team, targetCount, requestedClass, ServerBotSource.Manual);
+    }
+
+    private int TryFillTeam(PlayerTeam team, int targetCount, PlayerClass? requestedClass, ServerBotSource source)
+    {
         if (team != PlayerTeam.Red && team != PlayerTeam.Blue)
         {
             return 0;
@@ -277,7 +298,7 @@ internal sealed class ServerBotManager
             }
 
             var playerClass = ResolveFillClass(team, currentCount + addedCount, requestedClass);
-            if (TryAddBot(slot, team, playerClass, string.Empty))
+            if (TryAddBot(slot, team, playerClass, string.Empty, source))
             {
                 addedCount++;
             }
@@ -305,6 +326,50 @@ internal sealed class ServerBotManager
             .ToArray();
         var currentCount = removableSlots.Length;
         if (currentCount <= clampedTargetCount)
+        {
+            return 0;
+        }
+
+        var removedCount = 0;
+        for (var index = 0; index < removableSlots.Length && currentCount > clampedTargetCount; index += 1)
+        {
+            if (!TryRemoveBot(removableSlots[index]))
+            {
+                continue;
+            }
+
+            currentCount -= 1;
+            removedCount += 1;
+        }
+
+        return removedCount;
+    }
+
+    public int FillAutofillTeam(PlayerTeam team, int targetCount, PlayerClass? requestedClass)
+    {
+        return TryFillTeam(team, targetCount, requestedClass, ServerBotSource.Autofill);
+    }
+
+    public int TrimAutofillTeam(PlayerTeam team, int targetCount)
+    {
+        if (team != PlayerTeam.Red && team != PlayerTeam.Blue)
+        {
+            return 0;
+        }
+
+        var clampedTargetCount = Math.Max(0, targetCount);
+        var currentCount = _botSlots.Values.Count(state => state.Team == team);
+        if (currentCount <= clampedTargetCount)
+        {
+            return 0;
+        }
+
+        var removableSlots = _botSlots.Values
+            .Where(state => state.Team == team && state.Source == ServerBotSource.Autofill)
+            .OrderByDescending(state => state.Slot)
+            .Select(state => state.Slot)
+            .ToArray();
+        if (removableSlots.Length == 0)
         {
             return 0;
         }
@@ -689,20 +754,22 @@ internal sealed class ServerBotManager
 /// </summary>
 internal readonly struct ServerBotSlotState
 {
-    public ServerBotSlotState(byte slot, PlayerTeam team, PlayerClass classId, string displayName)
+    public ServerBotSlotState(byte slot, PlayerTeam team, PlayerClass classId, string displayName, ServerBotManager.ServerBotSource source)
     {
         Slot = slot;
         Team = team;
         ClassId = classId;
         DisplayName = displayName;
+        Source = source;
     }
 
     public byte Slot { get; }
     public PlayerTeam Team { get; }
     public PlayerClass ClassId { get; }
     public string DisplayName { get; }
+    public ServerBotManager.ServerBotSource Source { get; }
 
-    public ServerBotSlotState WithTeam(PlayerTeam newTeam) => new(Slot, newTeam, ClassId, DisplayName);
-    public ServerBotSlotState WithClassId(PlayerClass newClassId) => new(Slot, Team, newClassId, DisplayName);
-    public ServerBotSlotState WithDisplayName(string newDisplayName) => new(Slot, Team, ClassId, newDisplayName);
+    public ServerBotSlotState WithTeam(PlayerTeam newTeam) => new(Slot, newTeam, ClassId, DisplayName, Source);
+    public ServerBotSlotState WithClassId(PlayerClass newClassId) => new(Slot, Team, newClassId, DisplayName, Source);
+    public ServerBotSlotState WithDisplayName(string newDisplayName) => new(Slot, Team, ClassId, newDisplayName, Source);
 }

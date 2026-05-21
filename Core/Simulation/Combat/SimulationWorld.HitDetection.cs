@@ -127,6 +127,19 @@ public sealed partial class SimulationWorld
         return mine;
     }
 
+    internal GrenadeProjectileEntity CombatTestSpawnGrenade(PlayerEntity owner, float x, float y, float velocityX = 0f, float velocityY = 0f)
+    {
+        var grenade = new GrenadeProjectileEntity(AllocateEntityId(), owner.Team, owner.Id, x, y, velocityX, velocityY);
+        _grenades.Add(grenade);
+        _entities[grenade.Id] = grenade;
+        return grenade;
+    }
+
+    internal void CombatTestExplodeGrenade(GrenadeProjectileEntity grenade)
+    {
+        ExplodeGrenade(grenade);
+    }
+
     internal BubbleProjectileEntity CombatTestSpawnBubble(PlayerEntity owner, float x, float y, float velocityX = 0f, float velocityY = 0f)
     {
         var bubble = new BubbleProjectileEntity(

@@ -6,6 +6,27 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class ProtocolCodecTests
 {
     [Fact]
+    public void ChatRelayMessageRoundTripsSenderSlot()
+    {
+        var message = new ChatRelayMessage(
+            Team: 1,
+            PlayerName: "Medic",
+            Text: "incoming",
+            TeamOnly: true,
+            PlayerSlot: 7);
+
+        var payload = ProtocolCodec.Serialize(message, ProtocolCompressionSettings.Disabled);
+
+        Assert.True(ProtocolCodec.TryDeserialize(payload, out var roundTripped));
+        var chatRelay = Assert.IsType<ChatRelayMessage>(roundTripped);
+        Assert.Equal((byte)1, chatRelay.Team);
+        Assert.Equal("Medic", chatRelay.PlayerName);
+        Assert.Equal("incoming", chatRelay.Text);
+        Assert.True(chatRelay.TeamOnly);
+        Assert.Equal((byte)7, chatRelay.PlayerSlot);
+    }
+
+    [Fact]
     public void PlayerSocialProfileUpdateRoundTrips()
     {
         var message = new PlayerSocialProfileUpdateMessage(

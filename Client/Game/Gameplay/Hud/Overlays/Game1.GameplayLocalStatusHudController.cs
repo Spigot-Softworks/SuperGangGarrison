@@ -2,6 +2,7 @@
 
 using System.Globalization;
 using Microsoft.Xna.Framework;
+using OpenGarrison.ClientShared;
 using OpenGarrison.Core;
 using OpenGarrison.GameplayModding;
 
@@ -13,13 +14,13 @@ public partial class Game1
     private const float LowHealthHudThresholdMaxHealthDivisor = 3.5f;
     private const float DamageVignettePersistentHealthFraction = 0.45f;
     private const float DamageVignetteFadeInPerSecond = 8f;
-    private const float DamageVignetteFadeOutPerSecond = 0.75f;
-    private const float DamageVignetteReactiveFadePerSecond = 0.8f;
-    private const float DamageVignetteReactiveMinimumIntensity = 0.24f;
-    private const float DamageVignetteReactiveMaximumIntensity = 0.7f;
-    private const float DamageVignetteReactiveDamageScale = 165f;
-    private const float DamageVignettePersistentMinimumIntensity = 0.12f;
-    private const float DamageVignettePersistentMaximumIntensity = 0.95f;
+    private const float DamageVignetteFadeOutPerSecond = 0.32f;
+    private const float DamageVignetteReactiveFadePerSecond = 0.36f;
+    private const float DamageVignetteReactiveMinimumIntensity = 0.34f;
+    private const float DamageVignetteReactiveMaximumIntensity = 0.88f;
+    private const float DamageVignetteReactiveDamageScale = 120f;
+    private const float DamageVignettePersistentMinimumIntensity = 0.24f;
+    private const float DamageVignettePersistentMaximumIntensity = 1f;
     private const float DamageVignetteMinimumVisibleIntensity = 0.025f;
     private static readonly Color PortraitRumbleTintColor = new(255, 80, 80);
 
@@ -45,7 +46,7 @@ public partial class Game1
         var addedIntensity = Math.Clamp(
             DamageVignetteReactiveMinimumIntensity + (damageAmount / DamageVignetteReactiveDamageScale),
             DamageVignetteReactiveMinimumIntensity,
-            DamageVignetteReactiveMaximumIntensity * 0.75f);
+            DamageVignetteReactiveMaximumIntensity);
         _damageVignetteFlashIntensity = Math.Clamp(
             _damageVignetteFlashIntensity + addedIntensity,
             0f,
@@ -363,7 +364,7 @@ public partial class Game1
             var lowHealthDepth = GetDamageVignetteLowHealthDepth();
             var persistentIntensity = GetDamageVignettePersistentTargetIntensity(lowHealthDepth);
             var flashIntensity = _game._damageVignetteFlashIntensity;
-            var flashMultiplier = MathHelper.Lerp(1f, 1.35f, lowHealthDepth);
+            var flashMultiplier = MathHelper.Lerp(1f, 1.75f, lowHealthDepth);
             var targetIntensity = Math.Clamp(
                 persistentIntensity + (flashIntensity * flashMultiplier),
                 0f,
@@ -375,15 +376,11 @@ public partial class Game1
                     targetIntensity,
                     _game._damageVignetteIntensity + (DamageVignetteFadeInPerSecond * elapsedSeconds));
             }
-            else if (targetIntensity <= 0f)
-            {
-                _game._damageVignetteIntensity = Math.Max(
-                    0f,
-                    _game._damageVignetteIntensity - (DamageVignetteFadeOutPerSecond * elapsedSeconds));
-            }
             else
             {
-                _game._damageVignetteIntensity = targetIntensity;
+                _game._damageVignetteIntensity = Math.Max(
+                    targetIntensity,
+                    _game._damageVignetteIntensity - (DamageVignetteFadeOutPerSecond * elapsedSeconds));
             }
 
             _game._damageVignetteFlashIntensity = Math.Max(
@@ -400,7 +397,14 @@ public partial class Game1
                 return;
             }
 
-            if (!_game.TryEnsureDamageVignetteTexture(_game._damageVignetteIntensity, out var texture))
+            var renderIntensity = _game._damageVignetteIntensity
+                * (ClientSettings.NormalizeDamageVignetteIntensityPercent(_game._damageVignetteIntensityPercent) / 100f);
+            if (renderIntensity <= DamageVignetteMinimumVisibleIntensity)
+            {
+                return;
+            }
+
+            if (!_game.TryEnsureDamageVignetteTexture(renderIntensity, out var texture))
             {
                 return;
             }
@@ -415,7 +419,7 @@ public partial class Game1
                 return 0f;
             }
 
-            var danger = lowHealthDepth * lowHealthDepth;
+            var danger = 1f - ((1f - lowHealthDepth) * (1f - lowHealthDepth));
             return MathHelper.Lerp(DamageVignettePersistentMinimumIntensity, DamageVignettePersistentMaximumIntensity, danger);
         }
 

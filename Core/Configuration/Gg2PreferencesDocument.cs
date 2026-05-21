@@ -11,6 +11,7 @@ public sealed class OpenGarrisonPreferencesDocument
     public const string DefaultApiBaseUrl = "https://api.unkind-dev.com";
     public const string DefaultLobbyHost = DefaultApiBaseUrl + "/api/servers";
     public const int DefaultLobbyPort = 443;
+    public const bool DefaultOverheadChatEnabled = true;
     private const string SettingsSection = "Settings";
     private const string ServerSection = "Server";
     private const string ConnectionSection = "Connection";
@@ -58,9 +59,13 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool ShowHealthBarEnabled { get; set; }
 
+    public bool OverheadChatEnabled { get; set; } = DefaultOverheadChatEnabled;
+
     public bool PortraitRumbleEnabled { get; set; } = true;
 
     public bool DamageVignetteEnabled { get; set; } = true;
+
+    public int DamageVignetteIntensityPercent { get; set; } = 100;
 
     public LowHealthColorMode LowHealthColorMode { get; set; } = LowHealthColorMode.Red;
 
@@ -140,8 +145,10 @@ public sealed class OpenGarrisonPreferencesDocument
             ShowHealerEnabled = ini.GetBool(SettingsSection, "Show Healer", true),
             ShowHealingEnabled = ini.GetBool(SettingsSection, "Show Healing", true),
             ShowHealthBarEnabled = ini.GetBool(SettingsSection, "Show Healthbar", false),
+            OverheadChatEnabled = ini.GetBool(SettingsSection, "Overhead Chat", DefaultOverheadChatEnabled),
             PortraitRumbleEnabled = ini.GetBool(SettingsSection, "Portrait Rumble", true),
             DamageVignetteEnabled = ini.GetBool(SettingsSection, "Damage Vignette", true),
+            DamageVignetteIntensityPercent = NormalizeDamageVignetteIntensityPercent(ini.GetInt(SettingsSection, "Damage Vignette Intensity", 100)),
             LowHealthColorMode = ParseLowHealthColorMode(ini.GetString(SettingsSection, "Low Health Color", LowHealthColorMode.Red.ToString())),
             ShowUberOutlinesEnabled = ini.GetBool(SettingsSection, "Show Uber Outlines", true),
             ProjectileTeamTintEnabled = ini.GetBool(SettingsSection, "Projectile Team Tint", true),
@@ -198,8 +205,10 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(SettingsSection, "Show Healer", ShowHealerEnabled);
         ini.SetBool(SettingsSection, "Show Healing", ShowHealingEnabled);
         ini.SetBool(SettingsSection, "Show Healthbar", ShowHealthBarEnabled);
+        ini.SetBool(SettingsSection, "Overhead Chat", OverheadChatEnabled);
         ini.SetBool(SettingsSection, "Portrait Rumble", PortraitRumbleEnabled);
         ini.SetBool(SettingsSection, "Damage Vignette", DamageVignetteEnabled);
+        ini.SetInt(SettingsSection, "Damage Vignette Intensity", NormalizeDamageVignetteIntensityPercent(DamageVignetteIntensityPercent));
         ini.SetString(SettingsSection, "Low Health Color", NormalizeLowHealthColorMode(LowHealthColorMode).ToString());
         ini.SetBool(SettingsSection, "Show Uber Outlines", ShowUberOutlinesEnabled);
         ini.SetBool(SettingsSection, "Projectile Team Tint", ProjectileTeamTintEnabled);
@@ -317,6 +326,12 @@ public sealed class OpenGarrisonPreferencesDocument
             LowHealthColorMode.Red => LowHealthColorMode.Red,
             _ => LowHealthColorMode.Red,
         };
+    }
+
+    private static int NormalizeDamageVignetteIntensityPercent(int percent)
+    {
+        var clamped = Math.Clamp(percent, 0, 100);
+        return Math.Clamp(((clamped + 5) / 10) * 10, 0, 100);
     }
 }
 

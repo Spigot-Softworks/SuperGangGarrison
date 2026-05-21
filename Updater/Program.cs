@@ -1,14 +1,13 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Formats.Tar;
 using System.IO.Compression;
 using System.Net.Http.Json;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
 
-const string DefaultManifestUrl = "https://api.unkind-dev.com/updates/windows-x64/stable/latest.json";
-const string GameExecutableName = "OG2.exe";
-const string LauncherExecutableName = "OG2.Launcher.exe";
+const string UpdateManifestBaseUrl = "https://api.unkind-dev.com/updates";
 const string VersionFileName = "version.txt";
 const string ApplyUpdateArgument = "--apply-update";
 
@@ -22,7 +21,7 @@ var appDirectory = AppContext.BaseDirectory;
 var manifestUrl = Environment.GetEnvironmentVariable("OPENGARRISON_UPDATE_MANIFEST");
 if (string.IsNullOrWhiteSpace(manifestUrl))
 {
-    manifestUrl = DefaultManifestUrl;
+    manifestUrl = GetDefaultManifestUrl();
 }
 
 using var updateUi = UpdateUi.Create();
@@ -76,6 +75,7 @@ static async Task RunApplyUpdateModeAsync(string[] args)
             sourceDirectory,
             destinationDirectory,
             progress => updateUi.Report(UpdateUiState.KnownProgress("Installing update...", progress)));
+        EnsurePackagedExecutablePermissions(destinationDirectory);
 
         File.WriteAllText(Path.Combine(destinationDirectory, VersionFileName), version.Trim());
         updateUi.Report(UpdateUiState.KnownProgress("Launching updated version...", 1d));
@@ -174,7 +174,7 @@ static async Task<UpdateApplyResult> TryApplyUpdateAsync(
     }
 
     updateUi.Report(UpdateUiState.Indeterminate("Preparing update..."));
-    ZipFile.ExtractToDirectory(packagePath, extractPath);
+    ExtractPackageArchive(packagePath, packageUri, extractPath);
 
     if (TryLaunchUpdateHelper(extractPath, appDirectory, manifest.Version, gameArgs))
     {
@@ -187,8 +187,43 @@ static async Task<UpdateApplyResult> TryApplyUpdateAsync(
         extractPath,
         appDirectory,
         progress => updateUi.Report(UpdateUiState.KnownProgress("Installing update...", progress)));
+    EnsurePackagedExecutablePermissions(appDirectory);
     File.WriteAllText(Path.Combine(appDirectory, VersionFileName), manifest.Version.Trim());
     return UpdateApplyResult.AppliedInProcess;
+}
+
+static string GetDefaultManifestUrl()
+{
+    return $"{UpdateManifestBaseUrl}/{GetUpdatePlatformSegment()}/stable/latest.json";
+}
+
+static string GetUpdatePlatformSegment()
+{
+    var architecture = RuntimeInformation.ProcessArchitecture switch
+    {
+        Architecture.Arm64 => "arm64",
+        Architecture.X64 => "x64",
+        Architecture.X86 => "x86",
+        Architecture.Arm => "arm",
+        _ => RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant(),
+    };
+
+    if (OperatingSystem.IsWindows())
+    {
+        return $"windows-{architecture}";
+    }
+
+    if (OperatingSystem.IsLinux())
+    {
+        return $"linux-{architecture}";
+    }
+
+    if (OperatingSystem.IsMacOS())
+    {
+        return $"macos-{architecture}";
+    }
+
+    return $"{RuntimeInformation.OSDescription.ToLowerInvariant().Replace(' ', '-')}-{architecture}";
 }
 
 static async Task DownloadPackageAsync(
@@ -234,18 +269,50 @@ static async Task DownloadPackageAsync(
     updateUi.Report(UpdateUiState.KnownProgress("Download complete.", 1d));
 }
 
-static bool TryLaunchUpdateHelper(string extractPath, string appDirectory, string version, string[] gameArgs)
+static void ExtractPackageArchive(string packagePath, Uri packageUri, string extractPath)
 {
-    if (!OperatingSystem.IsWindows())
+    Directory.CreateDirectory(extractPath);
+
+    var packageName = Path.GetFileName(packageUri.LocalPath);
+    if (packageName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
     {
-        return false;
+        ZipFile.ExtractToDirectory(packagePath, extractPath);
+        return;
     }
 
-    var helperPath = Path.Combine(extractPath, LauncherExecutableName);
+    if (packageName.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase)
+        || packageName.EndsWith(".tgz", StringComparison.OrdinalIgnoreCase))
+    {
+        var tarPath = Path.Combine(Path.GetDirectoryName(packagePath) ?? Path.GetTempPath(), "package.tar");
+        using (var packageStream = File.OpenRead(packagePath))
+        using (var gzipStream = new GZipStream(packageStream, CompressionMode.Decompress))
+        using (var tarStream = File.Create(tarPath))
+        {
+            gzipStream.CopyTo(tarStream);
+        }
+
+        TarFile.ExtractToDirectory(tarPath, extractPath, overwriteFiles: true);
+        return;
+    }
+
+    throw new InvalidOperationException($"Unsupported update package archive: {packageName}");
+}
+
+static bool TryLaunchUpdateHelper(string extractPath, string appDirectory, string version, string[] gameArgs)
+{
+    var launcherExecutableName = GetLauncherExecutableName();
+    var helperPath = Path.Combine(extractPath, launcherExecutableName);
+    if (!File.Exists(helperPath))
+    {
+        helperPath = Path.Combine(extractPath, "OG2.Launcher.exe");
+    }
+
     if (!File.Exists(helperPath))
     {
         return false;
     }
+
+    EnsureExecutablePermission(helperPath);
 
     try
     {
@@ -272,6 +339,34 @@ static bool TryLaunchUpdateHelper(string extractPath, string appDirectory, strin
     {
         return false;
     }
+}
+
+static string GetLauncherExecutableName()
+{
+    return OperatingSystem.IsWindows()
+        ? "OG2.Launcher.exe"
+        : "OG2.Launcher";
+}
+
+static string[] GetGameExecutableNames()
+{
+    return OperatingSystem.IsWindows()
+        ? ["OG2.Game.exe", "OG2.exe"]
+        : ["OG2.Game", "OG2"];
+}
+
+static string? GetGameExecutablePath(string appDirectory)
+{
+    foreach (var executableName in GetGameExecutableNames())
+    {
+        var executablePath = Path.Combine(appDirectory, executableName);
+        if (File.Exists(executablePath))
+        {
+            return executablePath;
+        }
+    }
+
+    return null;
 }
 
 static string FormatDownloadStatus(long downloadedBytes, long totalBytes, TimeSpan elapsed)
@@ -321,8 +416,8 @@ static string ReadCurrentVersion(string appDirectory)
         return File.ReadAllText(versionPath).Trim();
     }
 
-    var gamePath = Path.Combine(appDirectory, GameExecutableName);
-    if (File.Exists(gamePath))
+    var gamePath = GetGameExecutablePath(appDirectory);
+    if (!string.IsNullOrWhiteSpace(gamePath))
     {
         var version = FileVersionInfo.GetVersionInfo(gamePath).ProductVersion;
         if (!string.IsNullOrWhiteSpace(version))
@@ -404,6 +499,52 @@ static void CopyUpdatePayload(string sourceDirectory, string destinationDirector
     }
 }
 
+static void EnsurePackagedExecutablePermissions(string appDirectory)
+{
+    if (OperatingSystem.IsWindows())
+    {
+        return;
+    }
+
+    foreach (var relativePath in new[]
+    {
+        "OG2",
+        "OG2.Game",
+        "OG2.Launcher",
+        "OG2.Server",
+        "OG2.ServerLauncher",
+        "run-client.sh",
+        "run-server.sh",
+        "run-server-launcher.sh",
+    })
+    {
+        EnsureExecutablePermission(Path.Combine(appDirectory, relativePath));
+    }
+}
+
+static void EnsureExecutablePermission(string path)
+{
+    if (OperatingSystem.IsWindows() || !File.Exists(path))
+    {
+        return;
+    }
+
+    try
+    {
+        var mode = File.GetUnixFileMode(path);
+        File.SetUnixFileMode(
+            path,
+            mode
+            | UnixFileMode.UserExecute
+            | UnixFileMode.GroupExecute
+            | UnixFileMode.OtherExecute);
+    }
+    catch
+    {
+        // Best-effort only; archives built on Unix normally preserve execute bits.
+    }
+}
+
 static bool ShouldPreserveLocalPath(string relativePath)
 {
     var firstSegment = relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
@@ -413,11 +554,13 @@ static bool ShouldPreserveLocalPath(string relativePath)
 
 static void LaunchGame(string appDirectory, string[] args)
 {
-    var gamePath = Path.Combine(appDirectory, GameExecutableName);
-    if (!File.Exists(gamePath))
+    var gamePath = GetGameExecutablePath(appDirectory);
+    if (string.IsNullOrWhiteSpace(gamePath))
     {
         return;
     }
+
+    EnsureExecutablePermission(gamePath);
 
     var startInfo = new ProcessStartInfo
     {

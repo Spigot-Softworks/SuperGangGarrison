@@ -70,12 +70,12 @@ public partial class Game1
         var invCenterX = centerX <= 0f ? 0f : 1f / centerX;
         var invCenterY = centerY <= 0f ? 0f : 1f / centerY;
         var creep = SmoothStep(0f, 1f, intensity);
-        var innerRadius = MathHelper.Lerp(0.94f, 0.48f, creep);
-        var outerRadius = MathHelper.Lerp(1.38f, 1.04f, creep);
-        var edgeStart = MathHelper.Lerp(0.82f, 0.64f, creep);
-        var maxAlpha = MathHelper.Lerp(0.16f, 0.74f, creep);
-        var edgeBoost = MathHelper.Lerp(0.24f, 0.46f, creep);
-        var curve = MathHelper.Lerp(1.35f, 0.85f, creep);
+        var innerRadius = MathHelper.Lerp(0.9f, 0.4f, creep);
+        var outerRadius = MathHelper.Lerp(1.34f, 0.98f, creep);
+        var edgeStart = MathHelper.Lerp(0.78f, 0.58f, creep);
+        var maxAlpha = MathHelper.Lerp(0.26f, 0.92f, creep);
+        var edgeBoost = MathHelper.Lerp(0.32f, 0.58f, creep);
+        var curve = MathHelper.Lerp(1.18f, 0.72f, creep);
 
         for (var y = 0; y < height; y += 1)
         {
@@ -88,10 +88,10 @@ public partial class Game1
                 var radialMask = SmoothStep(innerRadius, outerRadius, radial);
                 var edgeMask = SmoothStep(edgeStart, 1f, edgeProximity) * edgeBoost;
                 var vignette = MathF.Pow(Math.Clamp(MathF.Max(radialMask, edgeMask), 0f, 1f), curve);
-                var alpha = Math.Clamp(vignette * maxAlpha, 0f, 0.8f);
+                var alpha = Math.Clamp(vignette * maxAlpha, 0f, 0.9f);
                 var alphaByte = (byte)MathF.Round(alpha * 255f);
-                var red = (byte)MathF.Round(MathHelper.Lerp(72f, 142f, creep) * alpha);
-                var green = (byte)MathF.Round(MathHelper.Lerp(0f, 7f, creep) * alpha);
+                var red = (byte)MathF.Round(MathHelper.Lerp(96f, 170f, creep) * alpha);
+                var green = (byte)MathF.Round(MathHelper.Lerp(0f, 8f, creep) * alpha);
                 pixels[(y * width) + x] = new Color(red, green, (byte)0, alphaByte);
             }
         }

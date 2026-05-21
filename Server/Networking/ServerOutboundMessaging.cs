@@ -88,7 +88,7 @@ internal sealed class ServerOutboundMessaging(
                 ("text", sanitized)
             ]);
         pluginHostGetter()?.NotifyChatReceived(chatEvent);
-        var relay = new ChatRelayMessage(team, client.Name, sanitized, teamOnly);
+        var relay = new ChatRelayMessage(team, client.Name, sanitized, teamOnly, client.Slot);
         foreach (var session in clientsBySlot.Values)
         {
             if (teamOnly)
