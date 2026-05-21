@@ -10,6 +10,7 @@ public partial class Game1
     private void HandleChatRelayMessage(ChatRelayMessage chatRelay)
     {
         AppendChatLine(chatRelay.PlayerName, chatRelay.Text, chatRelay.Team, chatRelay.TeamOnly);
+        TryShowOverheadChatMessage(chatRelay);
     }
 
     private void HandleAutoBalanceNoticeMessage(AutoBalanceNoticeMessage notice)

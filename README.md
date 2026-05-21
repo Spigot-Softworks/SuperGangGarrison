@@ -65,6 +65,8 @@ Then open `http://127.0.0.1:5014/`.
 ## Packaging
 
 Packaging is handled by the existing scripts in `scripts/` and docs in `packaging/`.
+In packaged builds, `OG2.exe` on Windows and `OG2` on Linux/macOS are the launcher/updater entrypoints;
+they check for updates before starting `OG2.Game.exe` / `OG2.Game`.
 
 Windows:
 
@@ -72,7 +74,9 @@ Windows:
 powershell -ExecutionPolicy Bypass -File .\scripts\package.ps1
 ```
 
-Release packages should pass an explicit updater version:
+Release packages should pass an explicit updater version. For the first auto-update from older packages
+that did not include `version.txt`, use a version greater than `1.0.0` because those binaries can report
+the SDK default product version:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\package.ps1 -Platforms win-x64 -Version 1.0.1

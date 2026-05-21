@@ -9,6 +9,10 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private const float OverheadChatMinWrapWidth = 96f;
+    private const float OverheadChatPreferredWrapWidth = 128f;
+    private const float OverheadChatMaxWrapWidth = 160f;
+
     private void DrawChatBubble(PlayerEntity player, Vector2 cameraPosition)
     {
         if (!player.IsChatBubbleVisible)
@@ -41,6 +45,159 @@ public partial class Game1
             Vector2.One,
             SpriteEffects.None,
             0f);
+    }
+
+    private void DrawOverheadChatMessage(PlayerEntity player, Vector2 cameraPosition)
+    {
+        if (!_overheadChatEnabled
+            || !TryGetOverheadChatMessageForPlayer(player, out var message))
+        {
+            return;
+        }
+
+        var visibilityAlpha = GetPlayerVisibilityAlpha(player);
+        if (visibilityAlpha <= 0f)
+        {
+            return;
+        }
+
+        var text = message.TeamOnly ? $"(TEAM) {message.Text}" : message.Text;
+        var maxTextWidth = GetOverheadChatTextWrapWidth(text);
+        var wrappedLines = WrapBitmapFontText(text, maxTextWidth, maxTextWidth);
+        if (wrappedLines.Count == 0)
+        {
+            return;
+        }
+
+        var lineHeight = MathF.Max(12f, MeasureBitmapFontHeight(1f) + 1f);
+        var textWidth = 0f;
+        for (var index = 0; index < wrappedLines.Count; index += 1)
+        {
+            textWidth = MathF.Max(textWidth, MeasureBitmapFontWidth(wrappedLines[index], 1f));
+        }
+
+        const int horizontalPadding = 5;
+        const int verticalPadding = 3;
+        var panelWidth = Math.Max(12, (int)MathF.Ceiling(textWidth) + (horizontalPadding * 2));
+        var panelHeight = Math.Max(12, (int)MathF.Ceiling((wrappedLines.Count * lineHeight) + (verticalPadding * 2)));
+        var renderPosition = GetRenderPosition(player);
+        var playerBounds = GetPlayerScreenBounds(player, renderPosition, cameraPosition);
+        var messageAlpha = GetOverheadChatMessageAlpha(message);
+        if (messageAlpha <= 0f)
+        {
+            return;
+        }
+
+        var fadeProgress = 1f - messageAlpha;
+        var targetY = playerBounds.Top - panelHeight - 16f - (player.IsChatBubbleVisible ? 14f : 0f) - (fadeProgress * 8f);
+        var panelX = playerBounds.Center.X - (panelWidth / 2f);
+        var maxPanelX = MathF.Max(4f, ViewportWidth - panelWidth - 4f);
+        panelX = Math.Clamp(panelX, 4f, maxPanelX);
+        var panelY = MathF.Max(4f, targetY);
+        var panelBounds = new Rectangle(
+            (int)MathF.Round(panelX),
+            (int)MathF.Round(panelY),
+            panelWidth,
+            panelHeight);
+
+        var overlayAlpha = Math.Clamp(visibilityAlpha * messageAlpha, 0f, 1f);
+        _spriteBatch.Draw(_pixel, panelBounds, Color.Black * overlayAlpha);
+        for (var index = 0; index < wrappedLines.Count; index += 1)
+        {
+            var line = wrappedLines[index];
+            var lineWidth = MeasureBitmapFontWidth(line, 1f);
+            var textPosition = new Vector2(
+                panelBounds.X + ((panelBounds.Width - lineWidth) / 2f),
+                panelBounds.Y + verticalPadding + (index * lineHeight));
+            DrawBitmapFontText(line, textPosition, Color.White * overlayAlpha, 1f);
+        }
+    }
+
+    private static float GetOverheadChatMessageAlpha(OverheadChatMessage message)
+    {
+        if (message.TicksRemaining >= OverheadChatMessageFadeTicks)
+        {
+            return 1f;
+        }
+
+        return Math.Clamp(message.TicksRemaining / (float)OverheadChatMessageFadeTicks, 0f, 1f);
+    }
+
+    private float GetOverheadChatTextWrapWidth(string text)
+    {
+        var availableWidth = MathF.Max(48f, ViewportWidth - 32f);
+        var maxWidth = MathF.Min(OverheadChatMaxWrapWidth, availableWidth);
+        var preferredWidth = MathF.Min(OverheadChatPreferredWrapWidth, maxWidth);
+        var textWidth = MeasureBitmapFontWidth(text, 1f);
+        if (textWidth <= preferredWidth)
+        {
+            return MathF.Max(1f, textWidth);
+        }
+
+        var desiredLineCount = Math.Max(2, (int)MathF.Ceiling(textWidth / preferredWidth));
+        var balancedWidth = textWidth / desiredLineCount;
+        var longestWordWidth = MeasureLongestOverheadChatWordWidth(text);
+        var minWrapWidth = MathF.Min(OverheadChatMinWrapWidth, maxWidth);
+        var targetWidth = MathF.Max(balancedWidth, MathF.Min(longestWordWidth, maxWidth));
+        return Math.Clamp(targetWidth, minWrapWidth, maxWidth);
+    }
+
+    private float MeasureLongestOverheadChatWordWidth(string text)
+    {
+        var longestWidth = 0f;
+        var wordStartIndex = 0;
+        for (var index = 0; index <= text.Length; index += 1)
+        {
+            if (index < text.Length && !char.IsWhiteSpace(text[index]))
+            {
+                continue;
+            }
+
+            if (index > wordStartIndex)
+            {
+                longestWidth = MathF.Max(longestWidth, MeasureBitmapFontWidth(text[wordStartIndex..index], 1f));
+            }
+
+            wordStartIndex = index + 1;
+        }
+
+        return longestWidth;
+    }
+
+    private bool TryGetOverheadChatMessageForPlayer(PlayerEntity player, out OverheadChatMessage message)
+    {
+        if (ReferenceEquals(player, _world.LocalPlayer) && _localOverheadChatMessage is not null)
+        {
+            message = _localOverheadChatMessage;
+            return true;
+        }
+
+        if (TryGetOverheadChatPlayerSlot(player, out var slot)
+            && _overheadChatMessagesBySlot.TryGetValue(slot, out var foundMessage))
+        {
+            message = foundMessage;
+            return true;
+        }
+
+        message = null!;
+        return false;
+    }
+
+    private bool TryGetOverheadChatPlayerSlot(PlayerEntity player, out byte slot)
+    {
+        if (ReferenceEquals(player, _world.LocalPlayer))
+        {
+            if (_networkClient.IsConnected)
+            {
+                slot = !_networkClient.IsSpectator ? _networkClient.LocalPlayerSlot : (byte)0;
+                return slot != 0;
+            }
+
+            slot = SimulationWorld.LocalPlayerSlot;
+            return true;
+        }
+
+        return _world.TryGetPlayerNetworkSlot(player, out slot);
     }
 
     private void DrawHealthBar(PlayerEntity player, Vector2 cameraPosition, Color fillColor, Color backColor, Color borderColor)

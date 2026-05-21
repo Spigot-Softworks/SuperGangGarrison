@@ -12,6 +12,7 @@ public sealed class ClientSettings
     public const int CorpseDurationDefault = 0;
     public const int CorpseDurationInfinite = 1;
     public const float DefaultSmoothCameraMultiplier = 0.35f;
+    public const int DefaultDamageVignetteIntensityPercent = 100;
     public const int PlayerCardSizeSmall = 0;
     public const int PlayerCardSizeMedium = 1;
     public const int PlayerCardSizeLarge = 2;
@@ -64,9 +65,13 @@ public sealed class ClientSettings
 
     public bool ShowHealthBarEnabled { get; set; }
 
+    public bool OverheadChatEnabled { get; set; } = OpenGarrisonPreferencesDocument.DefaultOverheadChatEnabled;
+
     public bool PortraitRumbleEnabled { get; set; } = true;
 
     public bool DamageVignetteEnabled { get; set; } = true;
+
+    public int DamageVignetteIntensityPercent { get; set; } = DefaultDamageVignetteIntensityPercent;
 
     public LowHealthColorMode LowHealthColorMode { get; set; } = LowHealthColorMode.Red;
 
@@ -171,8 +176,10 @@ public sealed class ClientSettings
             ShowHealerEnabled = document.ShowHealerEnabled,
             ShowHealingEnabled = document.ShowHealingEnabled,
             ShowHealthBarEnabled = document.ShowHealthBarEnabled,
+            OverheadChatEnabled = document.OverheadChatEnabled,
             PortraitRumbleEnabled = document.PortraitRumbleEnabled,
             DamageVignetteEnabled = document.DamageVignetteEnabled,
+            DamageVignetteIntensityPercent = NormalizeDamageVignetteIntensityPercent(document.DamageVignetteIntensityPercent),
             LowHealthColorMode = NormalizeLowHealthColorMode(document.LowHealthColorMode),
             ShowUberOutlinesEnabled = document.ShowUberOutlinesEnabled,
             ProjectileTeamTintEnabled = document.ProjectileTeamTintEnabled,
@@ -217,8 +224,10 @@ public sealed class ClientSettings
         preferences.ShowHealerEnabled = ShowHealerEnabled;
         preferences.ShowHealingEnabled = ShowHealingEnabled;
         preferences.ShowHealthBarEnabled = ShowHealthBarEnabled;
+        preferences.OverheadChatEnabled = OverheadChatEnabled;
         preferences.PortraitRumbleEnabled = PortraitRumbleEnabled;
         preferences.DamageVignetteEnabled = DamageVignetteEnabled;
+        preferences.DamageVignetteIntensityPercent = NormalizeDamageVignetteIntensityPercent(DamageVignetteIntensityPercent);
         preferences.LowHealthColorMode = NormalizeLowHealthColorMode(LowHealthColorMode);
         preferences.ShowUberOutlinesEnabled = ShowUberOutlinesEnabled;
         preferences.ProjectileTeamTintEnabled = ProjectileTeamTintEnabled;
@@ -254,6 +263,12 @@ public sealed class ClientSettings
             LowHealthColorMode.Red => LowHealthColorMode.Red,
             _ => LowHealthColorMode.Red,
         };
+    }
+
+    public static int NormalizeDamageVignetteIntensityPercent(int percent)
+    {
+        var clamped = Math.Clamp(percent, 0, 100);
+        return Math.Clamp(((clamped + 5) / 10) * 10, 0, 100);
     }
 }
 

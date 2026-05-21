@@ -241,16 +241,19 @@ public sealed partial class SimulationWorld
             var directionY = movementDistance > 0.0001f ? movementY / movementDistance : 0f;
 
             // Check for player/building collisions along swept path (instant explosion)
-            if (movementDistance > 0.0001f && GetNearestGrenadePlayerHit(grenade, directionX, directionY, movementDistance) is not null)
+            var directHitPlayer = movementDistance > 0.0001f
+                ? GetNearestGrenadePlayerHit(grenade, directionX, directionY, movementDistance)
+                : null;
+            if (directHitPlayer is not null)
             {
-                ExplodeGrenade(grenade);
+                ExplodeGrenade(grenade, directHitPlayer: directHitPlayer);
                 RemoveGrenadeAt(grenadeIndex);
                 continue;
             }
 
-            if (CheckGrenadeBuildingCollision(grenade, out _))
+            if (CheckGrenadeBuildingCollision(grenade, out var directHitBuilding))
             {
-                ExplodeGrenade(grenade);
+                ExplodeGrenade(grenade, directHitBuilding: directHitBuilding);
                 RemoveGrenadeAt(grenadeIndex);
                 continue;
             }
@@ -344,7 +347,10 @@ public sealed partial class SimulationWorld
         return false;
     }
 
-    private void ExplodeGrenade(GrenadeProjectileEntity grenade)
+    private void ExplodeGrenade(
+        GrenadeProjectileEntity grenade,
+        PlayerEntity? directHitPlayer = null,
+        SimulationEntity? directHitBuilding = null)
     {
         var owner = FindPlayerById(grenade.OwnerId);
 
@@ -392,6 +398,11 @@ public sealed partial class SimulationWorld
 
             if (CanTeamDamagePlayer(grenade.Team, grenade.OwnerId, player))
             {
+                if (ReferenceEquals(player, directHitPlayer))
+                {
+                    continue;
+                }
+
                 RegisterBloodEffect(player.X, player.Y, PointDirectionDegrees(grenade.X, grenade.Y, player.X, player.Y) - 180f, 3);
                 var critMultiplier = (player.Id == grenade.OwnerId && player.Team == grenade.Team) ? 1f : grenade.CriticalDamageMultiplier;
                 var damage = grenade.ExplosionDamage * critMultiplier * factor;
@@ -411,6 +422,11 @@ public sealed partial class SimulationWorld
             }
         }
 
+        if (directHitPlayer is not null)
+        {
+            ApplyGrenadeDirectImpactDamage(grenade, owner, directHitPlayer);
+        }
+
         // Damage sentries
         for (var sentryIndex = _sentries.Count - 1; sentryIndex >= 0; sentryIndex -= 1)
         {
@@ -423,6 +439,11 @@ public sealed partial class SimulationWorld
 
             var factor = 1f - (distance / GrenadeProjectileEntity.BlastRadius);
             if (factor <= GrenadeProjectileEntity.SplashThresholdFactor)
+            {
+                continue;
+            }
+
+            if (ReferenceEquals(sentry, directHitBuilding))
             {
                 continue;
             }
@@ -450,8 +471,63 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
+            if (ReferenceEquals(jumpPad, directHitBuilding))
+            {
+                continue;
+            }
+
             var damage = grenade.ExplosionDamage * grenade.CriticalDamageMultiplier * factor;
             jumpPad.TakeDamage((int)MathF.Ceiling(damage));
+        }
+
+        if (directHitBuilding is not null)
+        {
+            ApplyGrenadeDirectImpactDamage(grenade, owner, directHitBuilding);
+        }
+    }
+
+    private void ApplyGrenadeDirectImpactDamage(GrenadeProjectileEntity grenade, PlayerEntity? owner, PlayerEntity target)
+    {
+        if (!target.IsAlive || !CanTeamDamagePlayer(grenade.Team, grenade.OwnerId, target))
+        {
+            return;
+        }
+
+        RegisterBloodEffect(target.X, target.Y, PointDirectionDegrees(grenade.X, grenade.Y, target.X, target.Y) - 180f, 3);
+        var damage = Math.Max(1, (int)MathF.Round(GrenadeProjectileEntity.DirectHitDamage * grenade.CriticalDamageMultiplier));
+        if (ApplyPlayerDamage(target, damage, owner, PlayerEntity.SpyMineRevealAlpha))
+        {
+            KillPlayer(
+                target,
+                gibbed: true,
+                killer: owner,
+                weaponSpriteName: grenade.KillFeedWeaponSpriteNameOverride ?? "GrenadeLauncherKL");
+        }
+    }
+
+    private void ApplyGrenadeDirectImpactDamage(GrenadeProjectileEntity grenade, PlayerEntity? owner, SimulationEntity target)
+    {
+        var damage = Math.Max(1, (int)MathF.Round(GrenadeProjectileEntity.DirectHitDamage * grenade.CriticalDamageMultiplier));
+        if (target is SentryEntity sentry)
+        {
+            if (sentry.Health <= 0 || sentry.Team == grenade.Team)
+            {
+                return;
+            }
+
+            if (ApplySentryDamage(sentry, damage, owner))
+            {
+                DestroySentry(sentry, owner);
+            }
+        }
+        else if (target is JumpPadEntity jumpPad)
+        {
+            if (jumpPad.IsDead || jumpPad.Team == grenade.Team)
+            {
+                return;
+            }
+
+            jumpPad.TakeDamage(damage);
         }
     }
 

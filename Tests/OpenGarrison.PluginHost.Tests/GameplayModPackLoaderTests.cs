@@ -32,6 +32,7 @@ public sealed class GameplayModPackLoaderTests
                 Fullscreen = true,
                 VSync = true,
                 BotMode = OfflineBotControllerMode.BotBrain,
+                OverheadChatEnabled = true,
                 DisableLegacyGameplaySpriteFallback = true,
                 RecentConnection = new ClientRecentConnectionSettings
                 {
@@ -51,11 +52,63 @@ public sealed class GameplayModPackLoaderTests
             Assert.True(loaded.Fullscreen);
             Assert.True(loaded.VSync);
             Assert.Equal(OfflineBotControllerMode.BotBrain, loaded.BotMode);
+            Assert.True(loaded.OverheadChatEnabled);
             Assert.True(loaded.DisableLegacyGameplaySpriteFallback);
             Assert.Equal("example.invalid", loaded.RecentConnection.Host);
             Assert.Equal(9001, loaded.RecentConnection.Port);
             Assert.Equal("lobby.example.invalid", loaded.LobbyHost);
             Assert.Equal(5001, loaded.LobbyPort);
+        }
+        finally
+        {
+            if (Directory.Exists(rootDirectory))
+            {
+                Directory.Delete(rootDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void ClientSettingsDefaultsEnableOverheadChat()
+    {
+        var rootDirectory = Path.Combine(Path.GetTempPath(), "og2-client-settings-tests", Path.GetRandomFileName());
+        Directory.CreateDirectory(rootDirectory);
+        var settingsPath = Path.Combine(rootDirectory, ClientSettings.DefaultFileName);
+
+        try
+        {
+            var loaded = ClientSettings.Load(settingsPath);
+            var document = OpenGarrisonPreferencesDocument.Load(settingsPath);
+
+            Assert.True(loaded.OverheadChatEnabled);
+            Assert.True(document.OverheadChatEnabled);
+        }
+        finally
+        {
+            if (Directory.Exists(rootDirectory))
+            {
+                Directory.Delete(rootDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void ClientSettingsMissingOverheadChatKeyDefaultsEnabled()
+    {
+        var rootDirectory = Path.Combine(Path.GetTempPath(), "og2-client-settings-tests", Path.GetRandomFileName());
+        Directory.CreateDirectory(rootDirectory);
+        var settingsPath = Path.Combine(rootDirectory, ClientSettings.DefaultFileName);
+
+        try
+        {
+            File.WriteAllText(
+                settingsPath,
+                "[Settings]" + Environment.NewLine +
+                "PlayerName=Legacy" + Environment.NewLine);
+
+            var loaded = ClientSettings.Load(settingsPath);
+
+            Assert.True(loaded.OverheadChatEnabled);
         }
         finally
         {

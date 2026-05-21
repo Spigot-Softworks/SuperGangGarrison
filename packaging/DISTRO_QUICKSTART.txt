@@ -17,6 +17,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\package.ps1 -Platforms win-x6
 linux only:
 pwsh ./scripts/package.ps1 -Platforms linux-x64
 
+linux only with release version:
+pwsh ./scripts/package.ps1 -Platforms linux-x64 -Version 1.0.1
+
 macOS only:
 pwsh ./scripts/package.ps1 -Platforms osx-x64,osx-arm64
 
@@ -32,4 +35,7 @@ notes:
 - the package script stages publishes under `dist\_staging` before copying the finished package into `dist\<runtime-id>`
 - the package includes client/server content, default config files, `sampleMapRotation.txt`, packaging README, and bundled server plugins
 - the package writes `version.txt` at the package root; pass `-Version` for release builds so clients can compare updates reliably
+- the first auto-update from older packages that did not include `version.txt` should use a version greater than `1.0.0`
+- packaged clients should start with `OG2.exe` on Windows or `./OG2` / `sh run-client.sh` on Linux; that entrypoint checks the platform update manifest, then starts `OG2.Game.exe` / `OG2.Game`
+- if a Linux archive was built or extracted without executable bits, start with `sh run-client.sh`
 - packaging performs restore/publish only; verification happens separately from this script

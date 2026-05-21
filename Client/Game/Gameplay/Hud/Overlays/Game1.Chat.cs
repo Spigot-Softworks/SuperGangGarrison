@@ -3,8 +3,11 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using OpenGarrison.ClientShared;
+using OpenGarrison.Core;
+using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
 
@@ -17,6 +20,8 @@ public partial class Game1
     private const float ChatHudPanelHorizontalPadding = 6f;
     private const float ChatHudPanelVerticalPadding = 4f;
     private const float ChatHudPanelSpacing = 4f;
+    private const int OverheadChatMessageLifetimeTicks = 300;
+    private const int OverheadChatMessageFadeTicks = 45;
 
     private void OpenChat(bool teamOnly)
     {
@@ -52,10 +57,12 @@ public partial class Game1
             if (_networkClient.IsConnected)
             {
                 _networkClient.SendChat(text, teamOnly);
+                ShowLocalOverheadChatMessage(text, teamOnly);
             }
             else
             {
                 AppendChatLine(_world.LocalPlayer.DisplayName, text, (byte)_world.LocalPlayer.Team, teamOnly);
+                ShowLocalOverheadChatMessage(text, teamOnly);
             }
         }
 
@@ -201,6 +208,184 @@ public partial class Game1
                 _chatLines[index].TicksRemaining = 0;
             }
         }
+
+        AdvanceOverheadChatMessages();
+    }
+
+    private void TryShowOverheadChatMessage(ChatRelayMessage chatRelay)
+    {
+        if (!_overheadChatEnabled)
+        {
+            return;
+        }
+
+        if (!TryResolveOverheadChatPlayerSlot(chatRelay, out var slot))
+        {
+            return;
+        }
+
+        ShowOverheadChatMessage(slot, chatRelay.Text, chatRelay.TeamOnly);
+    }
+
+    private void ShowLocalOverheadChatMessage(string text, bool teamOnly)
+    {
+        if (!_overheadChatEnabled)
+        {
+            return;
+        }
+
+        var normalizedText = NormalizeOverheadChatText(text);
+        if (string.IsNullOrWhiteSpace(normalizedText))
+        {
+            return;
+        }
+
+        _localOverheadChatMessage = new OverheadChatMessage(
+            normalizedText,
+            teamOnly,
+            OverheadChatMessageLifetimeTicks);
+    }
+
+    private void ShowOverheadChatMessage(byte slot, string text, bool teamOnly)
+    {
+        if (!_overheadChatEnabled || slot == 0)
+        {
+            return;
+        }
+
+        var normalizedText = NormalizeOverheadChatText(text);
+        if (string.IsNullOrWhiteSpace(normalizedText))
+        {
+            return;
+        }
+
+        _overheadChatMessagesBySlot[slot] = new OverheadChatMessage(
+            normalizedText,
+            teamOnly,
+            OverheadChatMessageLifetimeTicks);
+    }
+
+    private void AdvanceOverheadChatMessages()
+    {
+        if (_localOverheadChatMessage is not null)
+        {
+            _localOverheadChatMessage.TicksRemaining -= 1;
+            if (_localOverheadChatMessage.TicksRemaining <= 0)
+            {
+                _localOverheadChatMessage = null;
+            }
+        }
+
+        if (_overheadChatMessagesBySlot.Count == 0)
+        {
+            return;
+        }
+
+        _staleOverheadChatSlots.Clear();
+        foreach (var entry in _overheadChatMessagesBySlot)
+        {
+            entry.Value.TicksRemaining -= 1;
+            if (entry.Value.TicksRemaining <= 0)
+            {
+                _staleOverheadChatSlots.Add(entry.Key);
+            }
+        }
+
+        for (var index = 0; index < _staleOverheadChatSlots.Count; index += 1)
+        {
+            _overheadChatMessagesBySlot.Remove(_staleOverheadChatSlots[index]);
+        }
+    }
+
+    private bool TryResolveOverheadChatPlayerSlot(ChatRelayMessage chatRelay, out byte slot)
+    {
+        if (chatRelay.PlayerSlot != 0)
+        {
+            if (IsOverheadChatPlayerSlotActive(chatRelay.PlayerSlot))
+            {
+                slot = chatRelay.PlayerSlot;
+                return true;
+            }
+
+            slot = 0;
+            return false;
+        }
+
+        return TryResolveOverheadChatPlayerSlotByName(chatRelay.PlayerName, chatRelay.Team, out slot);
+    }
+
+    private bool IsOverheadChatPlayerSlotActive(byte slot)
+    {
+        foreach (var candidate in EnumerateOverheadChatPlayerSlotCandidates())
+        {
+            if (candidate.Slot == slot)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool TryResolveOverheadChatPlayerSlotByName(string playerName, byte team, out byte slot)
+    {
+        slot = 0;
+        if (string.IsNullOrWhiteSpace(playerName) || playerName[0] == '[')
+        {
+            return false;
+        }
+
+        foreach (var candidate in EnumerateOverheadChatPlayerSlotCandidates())
+        {
+            if (team != 0 && (byte)candidate.Player.Team != team)
+            {
+                continue;
+            }
+
+            if (!string.Equals(candidate.Player.DisplayName, playerName, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (slot != 0)
+            {
+                slot = 0;
+                return false;
+            }
+
+            slot = candidate.Slot;
+        }
+
+        return slot != 0;
+    }
+
+    private IEnumerable<(byte Slot, PlayerEntity Player)> EnumerateOverheadChatPlayerSlotCandidates()
+    {
+        if (_networkClient.IsConnected && !_networkClient.IsSpectator && _networkClient.LocalPlayerSlot != 0)
+        {
+            yield return (_networkClient.LocalPlayerSlot, _world.LocalPlayer);
+        }
+        else if (!_networkClient.IsConnected)
+        {
+            yield return (SimulationWorld.LocalPlayerSlot, _world.LocalPlayer);
+        }
+
+        foreach (var player in EnumerateRemotePlayersForView())
+        {
+            if (_world.TryGetPlayerNetworkSlot(player, out var slot))
+            {
+                yield return (slot, player);
+            }
+        }
+    }
+
+    private static string NormalizeOverheadChatText(string text)
+    {
+        return (text ?? string.Empty)
+            .Trim()
+            .Replace("\r\n", " ", StringComparison.Ordinal)
+            .Replace('\r', ' ')
+            .Replace('\n', ' ');
     }
 
     private void UpdateChatScrollState(KeyboardState keyboard, MouseState mouse)

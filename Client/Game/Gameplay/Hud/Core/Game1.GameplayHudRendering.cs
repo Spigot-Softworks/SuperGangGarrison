@@ -44,6 +44,8 @@ public partial class Game1
         var deathCamActive = !_world.LocalPlayer.IsAlive && IsGameplayDeathCamActive();
         var localPlayerAlive = _world.LocalPlayer.IsAlive;
         WriteGameplayRenderTrace("hud begin");
+        DrawDamageVignette();
+        WriteGameplayRenderTrace("hud after damagevignette");
         DrawKillFeedHud();
         WriteGameplayRenderTrace("hud after killfeed");
         DrawClientPluginOverlayMenuHud();
@@ -132,8 +134,6 @@ public partial class Game1
         WriteGameplayRenderTrace("hud after naveditor");
         DrawChatHud();
         WriteGameplayRenderTrace("hud after chat");
-        DrawDamageVignette();
-        WriteGameplayRenderTrace("hud after damagevignette");
         
         // Draw binocular overlay last so HUD elements show through the transparent circles
         if (!_networkClient.IsSpectator && localPlayerAlive && !deathCamActive)

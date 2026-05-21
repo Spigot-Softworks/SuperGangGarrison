@@ -85,4 +85,42 @@ public sealed class ServerBotAutofillTests
         Assert.Equal(PlayerTeam.Blue, blueBot.Team);
         Assert.Equal(PlayerClass.Medic, blueBot.ClassId);
     }
+
+    [Fact]
+    public void AutofillTrimDoesNotRemoveManualBots()
+    {
+        var world = new SimulationWorld();
+        var botManager = new ServerBotManager(
+            world,
+            new SimulationConfig(),
+            new BotBrainPracticeBotController());
+
+        Assert.True(botManager.TryAddBot(2, PlayerTeam.Red, PlayerClass.Soldier, "Manual Red"));
+        Assert.Equal(0, botManager.TrimAutofillTeam(PlayerTeam.Red, 0));
+        Assert.Single(botManager.BotSlots.Values);
+        Assert.Contains(botManager.BotSlots.Values, state =>
+            state.Team == PlayerTeam.Red
+            && state.DisplayName == "Manual Red"
+            && state.Source == ServerBotManager.ServerBotSource.Manual);
+    }
+
+    [Fact]
+    public void AutofillTrimRemovesOnlyAutofillBotsWhenManualBotsAlsoExist()
+    {
+        var world = new SimulationWorld();
+        var botManager = new ServerBotManager(
+            world,
+            new SimulationConfig(),
+            new BotBrainPracticeBotController());
+
+        Assert.True(botManager.TryAddBot(2, PlayerTeam.Red, PlayerClass.Soldier, "Manual Red"));
+        Assert.Equal(1, botManager.FillAutofillTeam(PlayerTeam.Red, 2, requestedClass: PlayerClass.Medic));
+        Assert.Equal(1, botManager.TrimAutofillTeam(PlayerTeam.Red, 1));
+
+        Assert.Single(botManager.BotSlots.Values);
+        Assert.Contains(botManager.BotSlots.Values, state =>
+            state.Team == PlayerTeam.Red
+            && state.DisplayName == "Manual Red"
+            && state.Source == ServerBotManager.ServerBotSource.Manual);
+    }
 }

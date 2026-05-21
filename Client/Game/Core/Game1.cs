@@ -262,11 +262,13 @@ public partial class Game1 : Game
     private bool _showHealerEnabled = true;
     private bool _showHealingEnabled = true;
     private bool _showHealthBarEnabled;
+    private bool _overheadChatEnabled = OpenGarrisonPreferencesDocument.DefaultOverheadChatEnabled;
     private bool _portraitRumbleEnabled = true;
     private float _portraitRumbleRemainingSeconds;
     private float _portraitRumbleIntensity;
     private int _portraitRumbleSeed;
     private bool _damageVignetteEnabled = true;
+    private int _damageVignetteIntensityPercent = ClientSettings.DefaultDamageVignetteIntensityPercent;
     private LowHealthColorMode _lowHealthColorMode = LowHealthColorMode.Red;
     private float _damageVignetteIntensity;
     private float _damageVignetteFlashIntensity;
@@ -281,6 +283,9 @@ public partial class Game1 : Game
     private bool _wasWindowActive = true;
     private int _menuImageFrame;
     private readonly List<ChatLine> _chatLines = new();
+    private OverheadChatMessage? _localOverheadChatMessage;
+    private readonly Dictionary<byte, OverheadChatMessage> _overheadChatMessagesBySlot = new();
+    private readonly List<byte> _staleOverheadChatSlots = new();
     private readonly HashSet<string> _browserLoggedCriticalHudSpriteEvents = new(StringComparer.Ordinal);
     private ClientPluginOverlayMenuState? _clientPluginOverlayMenu;
     private int _browserDebugUpdateCount;
@@ -768,6 +773,15 @@ public partial class Game1 : Game
         public bool DirectMessage { get; }
 
         public int TicksRemaining { get; set; }
+    }
+
+    private sealed class OverheadChatMessage(string text, bool teamOnly, int ticksRemaining)
+    {
+        public string Text { get; } = text;
+
+        public bool TeamOnly { get; } = teamOnly;
+
+        public int TicksRemaining { get; set; } = ticksRemaining;
     }
 
     private sealed class ClientPluginOverlayMenuState(

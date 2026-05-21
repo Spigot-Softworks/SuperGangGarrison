@@ -5,6 +5,7 @@
     <AssemblyName>OG2.Launcher</AssemblyName>
     <RollForward>Major</RollForward>
     <PublishSingleFile>false</PublishSingleFile>
+    <ApplicationIcon>..\Client\Properties\Icon.ico</ApplicationIcon>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>

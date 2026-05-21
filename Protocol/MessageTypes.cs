@@ -121,7 +121,8 @@ public sealed record ChatRelayMessage(
     byte Team,
     string PlayerName,
     string Text,
-    bool TeamOnly = false) : IProtocolMessage
+    bool TeamOnly = false,
+    byte PlayerSlot = 0) : IProtocolMessage
 {
     public MessageType Type => MessageType.ChatRelay;
 }
