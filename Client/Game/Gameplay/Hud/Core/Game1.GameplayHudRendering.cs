@@ -60,6 +60,8 @@ public partial class Game1
         WriteGameplayRenderTrace("hud after deathcam");
         DrawWinBannerHud();
         WriteGameplayRenderTrace("hud after winbanner");
+        DrawPostGameMvpWinScreenHud();
+        WriteGameplayRenderTrace("hud after postgamemvp");
         DrawLastToDieHud();
         WriteGameplayRenderTrace("hud after lasttodie");
         DrawJumpHud();
@@ -98,6 +100,8 @@ public partial class Game1
             WriteGameplayRenderTrace("hud after spectatortrackedcrosshair");
             if (_networkClient.IsSpectator)
             {
+                DrawSpectatorBaselineHud(cameraPosition);
+                WriteGameplayRenderTrace("hud after spectatorbaseline");
                 var trackedPlayer = GetSpectatorFocusPlayer();
                 if (trackedPlayer is not null && GetPlayerIsSniperScoped(trackedPlayer))
                 {

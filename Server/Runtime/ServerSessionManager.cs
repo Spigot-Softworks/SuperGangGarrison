@@ -159,6 +159,15 @@ sealed class ServerSessionManager
             return;
         }
 
+        if (client.IsWatchOnly
+            && command.Kind is ControlCommandKind.SelectTeam
+                or ControlCommandKind.SelectClass
+                or ControlCommandKind.SelectGameplayLoadout)
+        {
+            _sendMessage(client.Peer, new ControlAckMessage(command.Sequence, command.Kind, false));
+            return;
+        }
+
         var accepted = command.Kind switch
         {
             ControlCommandKind.SelectTeam => ApplyRequestedTeam(client, command.Value),

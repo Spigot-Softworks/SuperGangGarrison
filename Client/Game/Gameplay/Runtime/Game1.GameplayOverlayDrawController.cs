@@ -1,6 +1,7 @@
 #nullable enable
 
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 
 namespace OpenGarrison.Client;
@@ -22,9 +23,10 @@ public partial class Game1
         {
             var viewportWidth = _game.ViewportWidth;
             var viewportHeight = _game.ViewportHeight;
+            var gameplayViewportHeight = _game.GetGameplayCameraViewportHeight(viewportHeight);
             var rawMouse = _game.GetConstrainedMouseState(Game1.GetCurrentMouseState());
             var mouse = _game.GetScaledMouseState(rawMouse);
-            var cameraPosition = _game.GetCameraTopLeft(viewportWidth, viewportHeight, mouse.X, mouse.Y);
+            var cameraPosition = _game.GetCameraTopLeft(viewportWidth, gameplayViewportHeight, mouse.X, mouse.Y);
             _game.PrepareLastToDieDeathFocusOverlayIfNeeded(viewportWidth, viewportHeight);
             if (!_game.IsLastToDieDeathFocusPresentationActive())
             {
@@ -35,7 +37,7 @@ public partial class Game1
             if (!_game.DrawLastToDieDeathFocusOverlay(viewportWidth, viewportHeight)
                 && !_game.DrawDeathCamCaptureOverlay(viewportWidth, viewportHeight))
             {
-                _worldDrawController.DrawGameplayWorldForCamera(cameraPosition, viewportWidth, viewportHeight);
+                DrawGameplayWorldForViewport(cameraPosition, viewportWidth, gameplayViewportHeight, viewportHeight);
             }
 
             _game.DrawGameplayHudLayers(mouse, cameraPosition);
@@ -45,6 +47,30 @@ public partial class Game1
             Game1.WriteGameplayRenderTrace("frame after endlogical");
             _game.DrawNavEditorPresentationOverlay(rawMouse);
             Game1.WriteGameplayRenderTrace("frame after naveditorpresentation");
+        }
+
+        private void DrawGameplayWorldForViewport(Vector2 cameraPosition, int viewportWidth, int gameplayViewportHeight, int viewportHeight)
+        {
+            if (!_game._networkClient.IsSpectator || gameplayViewportHeight >= viewportHeight)
+            {
+                _worldDrawController.DrawGameplayWorldForCamera(cameraPosition, viewportWidth, gameplayViewportHeight);
+                return;
+            }
+
+            _game._spriteBatch.End();
+            var previousScissor = _game.GraphicsDevice.ScissorRectangle;
+            using var scissorRasterizer = new RasterizerState
+            {
+                CullMode = CullMode.None,
+                ScissorTestEnable = true,
+            };
+
+            _game.GraphicsDevice.ScissorRectangle = new Rectangle(0, 0, viewportWidth, gameplayViewportHeight);
+            _game._spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: scissorRasterizer);
+            _worldDrawController.DrawGameplayWorldForCamera(cameraPosition, viewportWidth, gameplayViewportHeight);
+            _game._spriteBatch.End();
+            _game.GraphicsDevice.ScissorRectangle = previousScissor;
+            _game._spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
         }
     }
 }

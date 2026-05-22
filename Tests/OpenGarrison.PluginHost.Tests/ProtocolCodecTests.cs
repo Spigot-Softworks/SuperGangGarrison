@@ -6,6 +6,73 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class ProtocolCodecTests
 {
     [Fact]
+    public void HelloMessageRoundTripsConnectionIntent()
+    {
+        var message = new HelloMessage(
+            "Watcher",
+            ProtocolVersion.Current,
+            BadgeMask: 42,
+            FriendCode: "OG2-ABCD",
+            PlayerCardJson: "{}",
+            Intent: ConnectionIntent.Watch);
+
+        var payload = ProtocolCodec.Serialize(message, ProtocolCompressionSettings.Disabled);
+
+        Assert.True(ProtocolCodec.TryDeserialize(payload, out var roundTripped));
+        var hello = Assert.IsType<HelloMessage>(roundTripped);
+        Assert.Equal("Watcher", hello.Name);
+        Assert.Equal(ConnectionIntent.Watch, hello.Intent);
+    }
+
+    [Fact]
+    public void ServerDetailsMessagesRoundTrip()
+    {
+        var requestPayload = ProtocolCodec.Serialize(new ServerDetailsRequestMessage(), ProtocolCompressionSettings.Disabled);
+        Assert.True(ProtocolCodec.TryDeserialize(requestPayload, out var requestRoundTripped));
+        Assert.IsType<ServerDetailsRequestMessage>(requestRoundTripped);
+
+        var response = new ServerDetailsResponseMessage(
+            "Test Server",
+            "ctf_test",
+            GameMode: 1,
+            PlayerCount: 1,
+            MaxPlayerCount: 12,
+            SpectatorCount: 2,
+            RedScore: 3,
+            BlueScore: 4,
+            TimeRemainingTicks: 900,
+            TimeLimitTicks: 1800,
+            TickRate: 30,
+            [
+                new ServerDetailsRosterEntry(
+                    Slot: 1,
+                    Name: "Runner",
+                    Team: 1,
+                    ClassId: 1,
+                    IsSpectator: false,
+                    IsAlive: true,
+                    IsAwaitingJoin: false,
+                    Health: 110,
+                    MaxHealth: 125,
+                    Kills: 5,
+                    Deaths: 2,
+                    Assists: 1,
+                    Caps: 3,
+                    Points: 12.5f),
+            ]);
+
+        var responsePayload = ProtocolCodec.Serialize(response, ProtocolCompressionSettings.Disabled);
+
+        Assert.True(ProtocolCodec.TryDeserialize(responsePayload, out var responseRoundTripped));
+        var details = Assert.IsType<ServerDetailsResponseMessage>(responseRoundTripped);
+        Assert.Equal("Test Server", details.ServerName);
+        Assert.Equal(3, details.RedScore);
+        var rosterEntry = Assert.Single(details.Roster);
+        Assert.Equal("Runner", rosterEntry.Name);
+        Assert.Equal(12.5f, rosterEntry.Points);
+    }
+
+    [Fact]
     public void ChatRelayMessageRoundTripsSenderSlot()
     {
         var message = new ChatRelayMessage(

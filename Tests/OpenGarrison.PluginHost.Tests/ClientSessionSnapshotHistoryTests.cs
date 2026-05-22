@@ -62,6 +62,25 @@ public sealed class ClientSessionSnapshotHistoryTests
         Assert.Contains("non-delta", exception.Message);
     }
 
+    [Fact]
+    public void AcknowledgeSnapshotMarksSnapshotSoundEventsDelivered()
+    {
+        var client = new ClientSession(1, 101, new IPEndPoint(IPAddress.Loopback, 8190), "Tester", TimeSpan.Zero);
+        var snapshot = CreateSnapshot(20) with
+        {
+            SoundEvents =
+            [
+                new SnapshotSoundEvent("ExplosionSnd", 32f, 48f, EventId: 4001, SourceFrame: 20),
+            ],
+        };
+
+        client.RememberResolvedSnapshotState(snapshot);
+
+        Assert.False(client.HasAcknowledgedSoundEvent(4001));
+        client.AcknowledgeSnapshot(20);
+        Assert.True(client.HasAcknowledgedSoundEvent(4001));
+    }
+
     private static SnapshotMessage CreateSnapshot(ulong frame)
     {
         return new SnapshotMessage(

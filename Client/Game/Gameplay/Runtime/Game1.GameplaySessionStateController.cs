@@ -50,6 +50,7 @@ public partial class Game1
             _game.CloseGameplayOverlayState();
             _game._editingPlayerName = false;
             _game._gameplaySessionKind = GameplaySessionKind.None;
+            _game._onlineConnectionIntent = OnlineConnectionIntent.Join;
             _game._practiceSessionElapsedTicks = 0;
             _game._menuStatusMessage = statusMessage ?? string.Empty;
             _game._autoBalanceNoticeText = string.Empty;
@@ -74,6 +75,7 @@ public partial class Game1
             _game.ResetGameplayRuntimeState();
             _game._practiceSessionElapsedTicks = 0;
             _game.ResetSpectatorTracking(enableTracking: false);
+            _game._onlineConnectionIntent = OnlineConnectionIntent.Join;
             _game.ResetLastToDieState();
             _game.ResetJumpState();
             _game.InvalidateDiscordRichPresenceRefresh();

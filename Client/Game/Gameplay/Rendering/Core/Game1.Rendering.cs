@@ -181,45 +181,64 @@ public partial class Game1
 
     private bool DrawLevelBackground(Rectangle worldRectangle)
     {
+        if (TryGetLevelBackgroundTexture(out var background))
+        {
+            _spriteBatch.Draw(background, worldRectangle, Color.White);
+            return true;
+        }
+
+        _spriteBatch.Draw(_pixel, worldRectangle, new Color(34, 44, 60));
+        return false;
+    }
+
+    private bool TryGetLevelBackgroundTexture(out Texture2D texture)
+    {
         var backgroundName = _world.Level.BackgroundAssetName;
-        if (TryDrawLevelBackgroundFile(backgroundName, worldRectangle))
+        if (TryGetLevelBackgroundFileTexture(backgroundName, out texture))
         {
             return true;
         }
 
-        if (_runtimeAssets is null)
+        if (_runtimeAssets is not null
+            && !string.IsNullOrWhiteSpace(backgroundName)
+            && _runtimeAssets.GetBackground(backgroundName) is { } runtimeTexture)
         {
-            _spriteBatch.Draw(_pixel, worldRectangle, new Color(34, 44, 60));
-            return false;
+            texture = runtimeTexture;
+            return true;
         }
 
-        var background = string.IsNullOrWhiteSpace(backgroundName)
-            ? null
-            : _runtimeAssets.GetBackground(backgroundName);
-        if (background is null)
-        {
-            _spriteBatch.Draw(_pixel, worldRectangle, new Color(34, 44, 60));
-            return false;
-        }
-
-        _spriteBatch.Draw(background, worldRectangle, Color.White);
-        return true;
+        texture = null!;
+        return false;
     }
 
     private bool TryDrawLevelBackgroundFile(string? backgroundName, Rectangle worldRectangle)
     {
+        if (!TryGetLevelBackgroundFileTexture(backgroundName, out var texture))
+        {
+            return false;
+        }
+
+        _spriteBatch.Draw(texture, worldRectangle, Color.White);
+        return true;
+    }
+
+    private bool TryGetLevelBackgroundFileTexture(string? backgroundName, out Texture2D texture)
+    {
         if (string.IsNullOrWhiteSpace(backgroundName))
         {
+            texture = null!;
             return false;
         }
 
         if (!Path.IsPathRooted(backgroundName) && !backgroundName.Contains(Path.DirectorySeparatorChar) && !backgroundName.Contains(Path.AltDirectorySeparatorChar))
         {
+            texture = null!;
             return false;
         }
 
         if (string.Equals(_levelBackgroundFileFailedPath, backgroundName, StringComparison.OrdinalIgnoreCase))
         {
+            texture = null!;
             return false;
         }
 
@@ -244,6 +263,7 @@ public partial class Game1
                 if (bytes is null || bytes.Length == 0)
                 {
                     _levelBackgroundFileFailedPath = backgroundName;
+                    texture = null!;
                     return false;
                 }
 
@@ -254,26 +274,30 @@ public partial class Game1
             catch (IOException)
             {
                 _levelBackgroundFileFailedPath = backgroundName;
+                texture = null!;
                 return false;
             }
             catch (InvalidOperationException)
             {
                 _levelBackgroundFileFailedPath = backgroundName;
+                texture = null!;
                 return false;
             }
             catch (NotSupportedException)
             {
                 _levelBackgroundFileFailedPath = backgroundName;
+                texture = null!;
                 return false;
             }
         }
 
         if (_levelBackgroundFileTexture is null)
         {
+            texture = null!;
             return false;
         }
 
-        _spriteBatch.Draw(_levelBackgroundFileTexture, worldRectangle, Color.White);
+        texture = _levelBackgroundFileTexture;
         return true;
     }
 

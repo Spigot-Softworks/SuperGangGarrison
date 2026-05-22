@@ -35,6 +35,20 @@ public partial class Game1
             : player.HeavyEatCooldownTicksRemaining;
     }
 
+    private bool GetPlayerIsExperimentalGhostDashing(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.IsExperimentalGhostDashing
+            : player.IsExperimentalGhostDashing;
+    }
+
+    private int GetPlayerExperimentalGhostDashCooldownTicksRemaining(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.ExperimentalGhostDashCooldownTicksRemaining
+            : player.ExperimentalGhostDashCooldownTicksRemaining;
+    }
+
     private bool GetPlayerIsSniperScoped(PlayerEntity player)
     {
         if (!player.HasScopedSniperWeaponEquipped)

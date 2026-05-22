@@ -818,6 +818,50 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
+    public void HeavyUseAbilityInputStartsRampedGhostDashWithoutEatingSandvich()
+    {
+        var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+
+        var startX = world.LocalPlayer.X;
+        PressUseAbilitySpace(world);
+        var firstTickDistance = MathF.Abs(world.LocalPlayer.X - startX);
+
+        Assert.True(world.LocalPlayer.IsExperimentalGhostDashing);
+        Assert.False(world.LocalPlayer.IsHeavyEating);
+        Assert.Equal(GetHeavyGhostDashCooldownTicks(world), world.LocalPlayer.ExperimentalGhostDashCooldownTicksRemaining);
+
+        AdvanceTicks(world, GetHeavyGhostDashDurationTicks(world));
+
+        var totalDistance = MathF.Abs(world.LocalPlayer.X - startX);
+        Assert.True(firstTickDistance > 0f);
+        Assert.True(firstTickDistance < totalDistance * 0.25f);
+        Assert.True(totalDistance > 60f);
+        Assert.True(MathF.Abs(world.LocalPlayer.HorizontalSpeed) > 0f);
+        Assert.False(world.LocalPlayer.IsExperimentalGhostDashing);
+        Assert.True(world.LocalPlayer.ExperimentalGhostDashCooldownTicksRemaining > 0);
+    }
+
+    [Fact]
+    public void HeavyGhostDashRechargesAfterCooldown()
+    {
+        var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+
+        PressUseAbilitySpace(world);
+        ReleaseAllInput(world);
+        AdvanceTicks(world, GetHeavyGhostDashCooldownTicks(world) - 1);
+
+        Assert.Equal(0, world.LocalPlayer.ExperimentalGhostDashCooldownTicksRemaining);
+
+        PressUseAbilitySpace(world);
+
+        Assert.True(world.LocalPlayer.IsExperimentalGhostDashing);
+        Assert.Equal(GetHeavyGhostDashCooldownTicks(world), world.LocalPlayer.ExperimentalGhostDashCooldownTicksRemaining);
+    }
+
+    [Fact]
     public void NetworkSoldierSwapWeaponInputCanToggleOffhandBackToPrimary()
     {
         var world = CreateJoinedSoldierWorld(new ExperimentalGameplaySettings(EnableSoldierShotgunSecondaryWeapon: true));
@@ -1484,6 +1528,17 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         return world;
     }
 
+    private static SimulationWorld CreateJoinedHeavyWorld(ExperimentalGameplaySettings settings)
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TryLoadLevel("Harvest"));
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin(PlayerClass.Heavy);
+        world.ConfigureExperimentalGameplaySettings(settings);
+        return world;
+    }
+
     private static SimulationWorld CreateJoinedScoutWorld(ExperimentalGameplaySettings settings)
     {
         var world = new SimulationWorld();
@@ -1725,6 +1780,16 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         {
             world.AdvanceOneTick();
         }
+    }
+
+    private static int GetHeavyGhostDashDurationTicks(SimulationWorld world)
+    {
+        return Math.Max(1, (int)MathF.Round(world.Config.TicksPerSecond * ExperimentalGameplaySettings.HeavyGhostDashDurationSeconds));
+    }
+
+    private static int GetHeavyGhostDashCooldownTicks(SimulationWorld world)
+    {
+        return Math.Max(1, (int)MathF.Round(world.Config.TicksPerSecond * ExperimentalGameplaySettings.HeavyGhostDashCooldownSeconds));
     }
 
     private static void AdvanceUntilJumpPadLanded(SimulationWorld world, JumpPadEntity pad)

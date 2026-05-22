@@ -608,9 +608,24 @@ public sealed partial class SimulationWorld
             return true;
         }
 
+        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.HeavyUtility))
+        {
+            if (player.TryStartExperimentalGhostDash(
+                GetHeavyGhostDashDurationTicks(),
+                GetHeavyGhostDashCooldownTicks(),
+                global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultGhostDashNextAttackDamageMultiplier,
+                GetHeavyGhostDashImpulse(),
+                requireExperimentalDemoknight: false,
+                useMomentum: true))
+            {
+                RegisterWorldSoundEvent(ExperimentalDemoknightCatalog.ChargeStartSoundName, player.X, player.Y);
+            }
+
+            return true;
+        }
+
         if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.EngineerUtility)
             || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.DemomanUtility)
-            || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.HeavyUtility)
             || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SniperUtility)
             || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SpyUtility)
             || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.QuoteUtility))

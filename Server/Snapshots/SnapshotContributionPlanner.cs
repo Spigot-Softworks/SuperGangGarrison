@@ -266,7 +266,9 @@ internal static class SnapshotContributionPlanner
             focus,
             static state => state.X,
             static state => state.Y,
-            static (builder, state) => builder.SoundEvents.Add(state));
+            static (builder, state) => builder.SoundEvents.Add(state),
+            oldestFirst: true,
+            kind: SnapshotDeltaBudgeter.ContributionKind.TransientSoundEvent);
         AddPointEventContributions(
             contributions,
             fullSnapshot.CombatTraces,
@@ -933,9 +935,32 @@ internal static class SnapshotContributionPlanner
         Func<T, float> ySelector,
         Action<SnapshotDeltaBudgeter.Builder, T> addState,
         float maxDistanceFromFocus = float.MaxValue,
+        bool oldestFirst = false,
         SnapshotDeltaBudgeter.ContributionKind kind = SnapshotDeltaBudgeter.ContributionKind.Optional)
     {
         var maxDistanceSquared = maxDistanceFromFocus * maxDistanceFromFocus;
+        if (oldestFirst)
+        {
+            for (var index = 0; index < states.Count; index += 1)
+            {
+                var state = states[index];
+                var distanceSquared = DistanceSquared(focus.X, focus.Y, xSelector(state), ySelector(state));
+                if (distanceSquared > maxDistanceSquared)
+                {
+                    continue;
+                }
+
+                contributions.Add(new SnapshotDeltaBudgeter.Contribution(
+                    priority - index,
+                    distanceSquared,
+                    estimateBytes(state),
+                    builder => addState(builder, state),
+                    kind));
+            }
+
+            return;
+        }
+
         for (var index = states.Count - 1; index >= 0; index -= 1)
         {
             var state = states[index];

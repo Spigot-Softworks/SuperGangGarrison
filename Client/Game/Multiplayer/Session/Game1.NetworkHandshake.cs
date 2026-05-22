@@ -27,7 +27,7 @@ public partial class Game1
         if (passwordResult.Accepted)
         {
             CloseNetworkPasswordPrompt();
-            if (!_networkClient.IsSpectator)
+            if (!_networkClient.IsSpectator && !IsWatchOnlySession())
             {
                 OpenOnlineTeamSelection(clearPendingSelections: false, statusMessage: string.Empty);
             }

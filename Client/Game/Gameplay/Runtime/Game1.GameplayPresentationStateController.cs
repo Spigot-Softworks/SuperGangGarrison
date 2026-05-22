@@ -49,13 +49,7 @@ public partial class Game1
             var wantsMouseVisible = _game.ShouldShowGameplayMouseCursor();
             _game.IsMouseVisible = wantsMouseVisible && !_game.ShouldUseSoftwareMenuCursor();
 
-            var sessionTag = _game._networkClient.IsConnected
-                ? _game._networkClient.IsSpectator ? "Spectating" : "Online"
-                : _game.IsLastToDieSessionActive ? "Last to Die"
-                : _game.IsJumpSessionActive ? "Jump"
-                : _game.IsPracticeSessionActive ? "Practice"
-                : "Offline";
-            var title = $"OG2 - {sessionTag} - {_game._world.Level.Name}";
+            var title = WindowTitle;
             if (!string.Equals(_game._lastGameplayWindowTitle, title, StringComparison.Ordinal))
             {
                 _game._lastGameplayWindowTitle = title;

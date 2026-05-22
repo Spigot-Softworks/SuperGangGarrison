@@ -8,6 +8,9 @@
     <Deterministic>true</Deterministic>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <Product>Gang Garrison 2</Product>
+    <Company>Faucet Software</Company>
+    <Authors>Faucet Software</Authors>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'OpenGarrison.Core' or '$(MSBuildProjectName)' == 'OpenGarrison.Protocol'">

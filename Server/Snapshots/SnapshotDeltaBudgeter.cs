@@ -28,6 +28,7 @@ internal static class SnapshotDeltaBudgeter
         PlayerRosterUpdate,
         PlayerRemoval,
         EntityRemoval,
+        TransientSoundEvent,
         ProjectileSpawn,
     }
 
@@ -109,6 +110,12 @@ internal static class SnapshotDeltaBudgeter
             appliedContributions,
             SnapshotDeltaBudgeter.ContributionKind.LocalPlayerStatusUpdate,
             ref remainingBudget);
+        ApplyRequiredContributions(
+            builder,
+            orderedContributions,
+            appliedContributions,
+            SnapshotDeltaBudgeter.ContributionKind.TransientSoundEvent,
+            ref remainingBudget);
 
         for (var index = 0; index < orderedContributions.Length; index += 1)
         {
@@ -140,7 +147,7 @@ internal static class SnapshotDeltaBudgeter
                 payload = reducedBuilderSnapshot.Payload;
                 payloadSize = reducedBuilderSnapshot.UncompressedBytes;
             }
-            else if (TryReduceSnapshotForBudget(snapshot, targetPayloadBytes, ref serializePassCount) is { } reducedSnapshot)
+            else if (TryReduceSnapshotForBudget(builder.Build(), targetPayloadBytes, ref serializePassCount) is { } reducedSnapshot)
             {
                 snapshot = reducedSnapshot.Message;
                 payload = reducedSnapshot.Payload;
@@ -722,7 +729,7 @@ internal static class SnapshotDeltaBudgeter
             return changed;
         },
         static builder => RemoveLastIfAboveMinimum(builder.RocketSpawnEvents, minimumCount: 0),
-        static builder => ClearIfAny(builder.SoundEvents),
+        static builder => RemoveLastIfAboveMinimum(builder.SoundEvents, minimumCount: 1),
         static builder =>
         {
             var changed = false;

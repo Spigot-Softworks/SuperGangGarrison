@@ -23,6 +23,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1 : Game
 {
+    private const string WindowTitle = "Gang Garrison 2";
+
     private enum BubbleMenuKind
     {
         None,

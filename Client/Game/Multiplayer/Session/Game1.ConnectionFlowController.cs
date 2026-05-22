@@ -18,7 +18,20 @@ public partial class Game1
 
         public void OpenLobbyBrowser()
         {
+            OpenLobbyBrowser(LobbyBrowserMode.Join);
+        }
+
+        public void OpenWatchBrowser()
+        {
+            OpenLobbyBrowser(LobbyBrowserMode.Watch);
+        }
+
+        private void OpenLobbyBrowser(LobbyBrowserMode mode)
+        {
             _game._lobbyBrowserOpen = true;
+            _game._lobbyBrowserMode = mode;
+            _game._lobbyBrowserPage = LobbyBrowserPage.List;
+            _game.ClearLobbyBrowserDetails();
             _game._manualConnectOpen = false;
             _game._optionsMenuOpen = false;
             _game._pluginOptionsMenuOpen = false;
@@ -33,9 +46,11 @@ public partial class Game1
         public void CloseLobbyBrowser(bool clearStatus)
         {
             _game._lobbyBrowserOpen = false;
+            _game._lobbyBrowserPage = LobbyBrowserPage.List;
             _game._lobbyBrowserHoverIndex = -1;
             _game._lobbyBrowserRegistryRequestTask = null;
             _game.CloseLobbyBrowserLobbyClient();
+            _game.ClearLobbyBrowserDetails();
             if (clearStatus)
             {
                 _game._menuStatusMessage = string.Empty;
@@ -46,6 +61,8 @@ public partial class Game1
         {
             _game._lobbyBrowserRegistryRequestTask = null;
             _game.CloseLobbyBrowserLobbyClient();
+            _game.ClearLobbyBrowserDetails();
+            _game._lobbyBrowserPage = LobbyBrowserPage.List;
             if (!OperatingSystem.IsBrowser())
             {
                 _game.EnsureLobbyBrowserClient();
@@ -174,6 +191,37 @@ public partial class Game1
             _game.TryConnectToServer(entry.Endpoint, addConsoleFeedback: false);
         }
 
+        public void OpenSelectedLobbyEntryDetails()
+        {
+            if (!CanJoinSelectedLobbyEntry())
+            {
+                _game._menuStatusMessage = "Select an online server first.";
+                return;
+            }
+
+            var entry = _game._lobbyBrowserEntries[_game._lobbyBrowserSelectedIndex];
+            _game.OpenLobbyBrowserDetails(entry);
+        }
+
+        public void WatchSelectedLobbyEntry()
+        {
+            var entry = _game._lobbyBrowserDetailsEntry;
+            if (entry is null
+                && _game._lobbyBrowserSelectedIndex >= 0
+                && _game._lobbyBrowserSelectedIndex < _game._lobbyBrowserEntries.Count)
+            {
+                entry = _game._lobbyBrowserEntries[_game._lobbyBrowserSelectedIndex];
+            }
+
+            if (entry is null || !(entry.HasResponse || entry.CanJoinDirectly))
+            {
+                _game._lobbyBrowserDetailsStatus = "Select an online server first.";
+                return;
+            }
+
+            _game.TryConnectToServer(entry.Endpoint, addConsoleFeedback: false, OnlineConnectionIntent.Watch);
+        }
+
         public bool CanJoinSelectedLobbyEntry()
         {
             return _game._lobbyBrowserSelectedIndex >= 0
@@ -241,6 +289,16 @@ public partial class Game1
 
         public void OpenOnlineTeamSelection(bool clearPendingSelections, string statusMessage)
         {
+            if (_game.IsWatchOnlySession())
+            {
+                _game._teamSelectOpen = false;
+                _game._classSelectOpen = false;
+                _game._menuStatusMessage = string.IsNullOrWhiteSpace(statusMessage)
+                    ? "Watch mode cannot join teams."
+                    : statusMessage;
+                return;
+            }
+
             if (clearPendingSelections)
             {
                 _game._networkClient.ClearPendingTeamSelection();

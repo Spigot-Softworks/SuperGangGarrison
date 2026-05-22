@@ -23,6 +23,7 @@ public static partial class ProtocolCodec
     private const int MaxAssetNameBytes = 64;
     private const int MaxKillMessageBytes = 160;
     private const int MaxGameplayIdBytes = 96;
+    private const int MaxServerDetailsRosterEntries = 64;
     private static readonly UTF8Encoding Utf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
     // Position quantization: 0.25 pixel precision using int16 (-8192 to +8191 pixels range)
@@ -203,7 +204,8 @@ public static partial class ProtocolCodec
                     reader.ReadInt32(),
                     reader.ReadUInt64(),
                     ReadString(reader, MaxFriendCodeBytes),
-                    ReadString(reader, MaxPlayerCardBytes)),
+                    ReadString(reader, MaxPlayerCardBytes),
+                    stream.Position < stream.Length ? (ConnectionIntent)reader.ReadByte() : ConnectionIntent.Join),
                 MessageType.Welcome => new WelcomeMessage(
                     ReadString(reader, MaxServerNameBytes),
                     reader.ReadInt32(),
@@ -241,6 +243,8 @@ public static partial class ProtocolCodec
                     reader.ReadInt32(),
                     reader.ReadInt32(),
                     reader.ReadInt32()),
+                MessageType.ServerDetailsRequest => new ServerDetailsRequestMessage(),
+                MessageType.ServerDetailsResponse => ReadServerDetailsResponse(reader),
                 MessageType.InputState => new InputStateMessage(
                     reader.ReadUInt32(),
                     (InputButtons)reader.ReadUInt16(),
@@ -378,6 +382,7 @@ public static partial class ProtocolCodec
                 writer.Write(hello.BadgeMask);
                 WriteString(writer, hello.FriendCode ?? string.Empty, MaxFriendCodeBytes, nameof(hello.FriendCode));
                 WriteString(writer, hello.PlayerCardJson ?? string.Empty, MaxPlayerCardBytes, nameof(hello.PlayerCardJson));
+                writer.Write((byte)hello.Intent);
                 break;
             case WelcomeMessage welcome:
                 WriteString(writer, welcome.ServerName, MaxServerNameBytes, nameof(welcome.ServerName));
@@ -433,6 +438,11 @@ public static partial class ProtocolCodec
                 writer.Write(status.PlayerCount);
                 writer.Write(status.MaxPlayerCount);
                 writer.Write(status.SpectatorCount);
+                break;
+            case ServerDetailsRequestMessage:
+                break;
+            case ServerDetailsResponseMessage details:
+                WriteServerDetailsResponse(writer, details);
                 break;
             case InputStateMessage input:
                 writer.Write(input.Sequence);
@@ -538,6 +548,101 @@ public static partial class ProtocolCodec
         }
 
         return new PlayerSocialProfileUpdateMessage(profiles, removedSlots);
+    }
+
+    private static void WriteServerDetailsResponse(BinaryWriter writer, ServerDetailsResponseMessage details)
+    {
+        WriteString(writer, details.ServerName, MaxServerNameBytes, nameof(details.ServerName));
+        WriteString(writer, details.LevelName, MaxLevelNameBytes, nameof(details.LevelName));
+        writer.Write(details.GameMode);
+        writer.Write(details.PlayerCount);
+        writer.Write(details.MaxPlayerCount);
+        writer.Write(details.SpectatorCount);
+        writer.Write(details.RedScore);
+        writer.Write(details.BlueScore);
+        writer.Write(details.TimeRemainingTicks);
+        writer.Write(details.TimeLimitTicks);
+        writer.Write(details.TickRate);
+
+        var rosterCount = details.Roster?.Count ?? 0;
+        if (rosterCount > MaxServerDetailsRosterEntries)
+        {
+            throw new InvalidOperationException("Server details roster exceeds protocol collection limits.");
+        }
+
+        writer.Write((byte)rosterCount);
+        for (var index = 0; index < rosterCount; index += 1)
+        {
+            var entry = details.Roster![index];
+            writer.Write(entry.Slot);
+            WriteString(writer, entry.Name ?? string.Empty, MaxPlayerNameBytes, nameof(entry.Name));
+            writer.Write(entry.Team);
+            writer.Write(entry.ClassId);
+            writer.Write(entry.IsSpectator);
+            writer.Write(entry.IsAlive);
+            writer.Write(entry.IsAwaitingJoin);
+            writer.Write(entry.Health);
+            writer.Write(entry.MaxHealth);
+            writer.Write(entry.Kills);
+            writer.Write(entry.Deaths);
+            writer.Write(entry.Assists);
+            writer.Write(entry.Caps);
+            writer.Write(entry.Points);
+        }
+    }
+
+    private static ServerDetailsResponseMessage ReadServerDetailsResponse(BinaryReader reader)
+    {
+        var serverName = ReadString(reader, MaxServerNameBytes);
+        var levelName = ReadString(reader, MaxLevelNameBytes);
+        var gameMode = reader.ReadByte();
+        var playerCount = reader.ReadInt32();
+        var maxPlayerCount = reader.ReadInt32();
+        var spectatorCount = reader.ReadInt32();
+        var redScore = reader.ReadInt32();
+        var blueScore = reader.ReadInt32();
+        var timeRemainingTicks = reader.ReadInt32();
+        var timeLimitTicks = reader.ReadInt32();
+        var tickRate = reader.ReadInt32();
+        var rosterCount = reader.ReadByte();
+        if (rosterCount > MaxServerDetailsRosterEntries)
+        {
+            throw new IOException("Server details roster exceeds protocol collection limits.");
+        }
+
+        var roster = new List<ServerDetailsRosterEntry>(rosterCount);
+        for (var index = 0; index < rosterCount; index += 1)
+        {
+            roster.Add(new ServerDetailsRosterEntry(
+                reader.ReadByte(),
+                ReadString(reader, MaxPlayerNameBytes),
+                reader.ReadByte(),
+                reader.ReadByte(),
+                reader.ReadBoolean(),
+                reader.ReadBoolean(),
+                reader.ReadBoolean(),
+                reader.ReadInt16(),
+                reader.ReadInt16(),
+                reader.ReadInt16(),
+                reader.ReadInt16(),
+                reader.ReadInt16(),
+                reader.ReadInt16(),
+                reader.ReadSingle()));
+        }
+
+        return new ServerDetailsResponseMessage(
+            serverName,
+            levelName,
+            gameMode,
+            playerCount,
+            maxPlayerCount,
+            spectatorCount,
+            redScore,
+            blueScore,
+            timeRemainingTicks,
+            timeLimitTicks,
+            tickRate,
+            roster);
     }
 
     private sealed class CountingStream : Stream

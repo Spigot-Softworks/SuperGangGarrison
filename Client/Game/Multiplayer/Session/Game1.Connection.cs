@@ -48,6 +48,11 @@ public partial class Game1
         return _gameplaySessionController.TryConnectToServer(endpoint, addConsoleFeedback);
     }
 
+    private bool TryConnectToServer(NetworkEndpoint endpoint, bool addConsoleFeedback, OnlineConnectionIntent intent)
+    {
+        return _gameplaySessionController.TryConnectToServer(endpoint, addConsoleFeedback, intent);
+    }
+
     private bool TryPlayLegacyReplay(string replayPath, bool addConsoleFeedback, bool clearQueuedReplays = true)
     {
         return _gameplaySessionController.TryPlayLegacyReplay(replayPath, addConsoleFeedback, clearQueuedReplays);

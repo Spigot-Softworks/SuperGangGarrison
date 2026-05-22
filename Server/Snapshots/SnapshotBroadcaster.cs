@@ -465,7 +465,48 @@ sealed class SnapshotBroadcaster
             RemovedPlayerIds = removedPlayerIds.Count == 0 ? Array.Empty<int>() : removedPlayerIds.ToArray(),
             LocalDeathCam = ToSnapshotDeathCamState(_world.GetNetworkPlayerDeathCam(client.Slot)),
             StringCacheUpdates = stringCacheUpdates,
+            SoundEvents = FilterUnacknowledgedSoundEvents(sharedSnapshot.Template.SoundEvents, client),
         };
+    }
+
+    private static IReadOnlyList<SnapshotSoundEvent> FilterUnacknowledgedSoundEvents(
+        IReadOnlyList<SnapshotSoundEvent> soundEvents,
+        ClientSession client)
+    {
+        if (soundEvents.Count == 0)
+        {
+            return Array.Empty<SnapshotSoundEvent>();
+        }
+
+        List<SnapshotSoundEvent>? filtered = null;
+        for (var index = 0; index < soundEvents.Count; index += 1)
+        {
+            var soundEvent = soundEvents[index];
+            if (client.HasAcknowledgedSoundEvent(soundEvent.EventId))
+            {
+                filtered ??= CopySoundEvents(soundEvents, index);
+                continue;
+            }
+
+            filtered?.Add(soundEvent);
+        }
+
+        return filtered is null
+            ? soundEvents
+            : filtered.Count == 0
+                ? Array.Empty<SnapshotSoundEvent>()
+                : filtered.ToArray();
+    }
+
+    private static List<SnapshotSoundEvent> CopySoundEvents(IReadOnlyList<SnapshotSoundEvent> soundEvents, int count)
+    {
+        var copied = new List<SnapshotSoundEvent>(soundEvents.Count);
+        for (var index = 0; index < count; index += 1)
+        {
+            copied.Add(soundEvents[index]);
+        }
+
+        return copied;
     }
 
     private static bool ShouldHideSpyFromViewer(PlayerEntity player, PlayerEntity? viewer)

@@ -57,28 +57,6 @@ public partial class Game1
             return cameraTopLeft;
         }
 
-        if (_networkClient.IsSpectator && GetSpectatorFocusPlayer() is PlayerEntity trackedPlayer)
-        {
-            if (GetPlayerIsUsingBinoculars(trackedPlayer))
-            {
-                cameraTopLeft = GetBinocularsCameraTopLeft(trackedPlayer, viewportWidth, viewportHeight);
-                if (trackLiveCamera)
-                {
-                    TrackLiveCamera(cameraTopLeft);
-                }
-                return cameraTopLeft;
-            }
-            else if (GetPlayerIsSniperScoped(trackedPlayer))
-            {
-                cameraTopLeft = GetSpectatorScopedSniperCameraTopLeft(trackedPlayer, viewportWidth, viewportHeight);
-                if (trackLiveCamera)
-                {
-                    TrackLiveCamera(cameraTopLeft);
-                }
-                return cameraTopLeft;
-            }
-        }
-
         var localViewPosition = GetLocalViewPosition();
         if (_world.LocalPlayer.IsAlive && GetPlayerIsUsingBinoculars(_world.LocalPlayer))
         {
@@ -112,17 +90,6 @@ public partial class Game1
     {
         if (_networkClient.IsSpectator)
         {
-            if (_respawnCameraDetached)
-            {
-                return _respawnCameraCenter;
-            }
-
-            var spectatorFocus = GetSpectatorFocusPlayer();
-            if (spectatorFocus is not null)
-            {
-                return GetRenderPosition(spectatorFocus);
-            }
-
             return _respawnCameraCenter;
         }
 

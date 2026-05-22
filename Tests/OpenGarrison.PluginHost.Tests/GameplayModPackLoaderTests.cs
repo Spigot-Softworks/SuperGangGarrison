@@ -168,6 +168,18 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal("assets/directhit/DirectHit.blue.png", pack.Assets.Sprites["stock.gg2.weapon.directhit.world"].FramePaths[1]);
         Assert.Equal(2, pack.Assets.Sprites["stock.gg2.weapon.directhit.recoil"].FramePaths.Count);
         Assert.Equal(50, pack.Assets.Sprites["stock.gg2.weapon.directhit.hud"].FrameWidth);
+        Assert.True(pack.Assets.Sprites.ContainsKey("MvpRedMedicS"));
+        var redMedicMvpSprite = pack.Assets.Sprites["MvpRedMedicS"];
+        Assert.Equal(3, redMedicMvpSprite.FramePaths.Count);
+        Assert.Equal("assets/mvp/red/medic/nonwinner_0.png", redMedicMvpSprite.FramePaths[0]);
+        Assert.Equal(26, redMedicMvpSprite.OriginX);
+        Assert.Equal(52, redMedicMvpSprite.OriginY);
+        Assert.True(pack.Assets.Sprites.ContainsKey("MvpRedHeavyWinnerS"));
+        var redHeavyWinnerMvpSprite = pack.Assets.Sprites["MvpRedHeavyWinnerS"];
+        Assert.Equal(2, redHeavyWinnerMvpSprite.FramePaths.Count);
+        Assert.Equal("assets/mvp/red/heavy/winner_1.png", redHeavyWinnerMvpSprite.FramePaths[1]);
+        Assert.Equal(26, redHeavyWinnerMvpSprite.OriginX);
+        Assert.Equal(52, redHeavyWinnerMvpSprite.OriginY);
     }
 
     [Fact]

@@ -69,6 +69,29 @@ public sealed class OfflinePracticeSelectionTests
     }
 
     [Fact]
+    public void DefaultPracticeMapSelectionUsesHarvest()
+    {
+        var setupStateType = typeof(Game1).GetNestedType("PracticeSetupState", BindingFlags.NonPublic);
+        var state = Activator.CreateInstance(setupStateType!, nonPublic: true)!;
+        var mapEntriesProperty = setupStateType!.GetProperty("MapEntries", BindingFlags.Instance | BindingFlags.Public);
+        var buildMapEntriesMethod = setupStateType.GetMethod("BuildMapEntries", BindingFlags.Public | BindingFlags.Static);
+        var normalizeMethod = setupStateType.GetMethod("Normalize", BindingFlags.Instance | BindingFlags.Public);
+        var selectedEntryMethod = setupStateType.GetMethod("GetSelectedMapEntry", BindingFlags.Instance | BindingFlags.Public);
+
+        Assert.NotNull(mapEntriesProperty);
+        Assert.NotNull(buildMapEntriesMethod);
+        Assert.NotNull(normalizeMethod);
+        Assert.NotNull(selectedEntryMethod);
+
+        mapEntriesProperty.SetValue(state, buildMapEntriesMethod.Invoke(null, null));
+        normalizeMethod.Invoke(state, null);
+
+        var selectedEntry = selectedEntryMethod.Invoke(state, null);
+        Assert.NotNull(selectedEntry);
+        Assert.Equal("Harvest", GetPracticeMapLevelName(selectedEntry));
+    }
+
+    [Fact]
     public void DefaultLastToDieRotationRemainsKingOfTheHillOnly()
     {
         var harvestEntry = CreatePracticeMapEntry("Harvest", GameModeKind.KingOfTheHill);

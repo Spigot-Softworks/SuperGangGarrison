@@ -46,18 +46,18 @@ public partial class Game1
                 return;
             }
 
-            var blurCount = player.IsExperimentalGhostDashVisible ? 5 : 2;
+            var blurCount = player.IsExperimentalGhostDashVisible ? 7 : 2;
             var blurTint = player.IsExperimentalGhostDashVisible
-                ? Color.Lerp(spriteTint, new Color(188, 208, 220), 0.55f)
+                ? Color.Lerp(spriteTint, new Color(200, 220, 235), 0.62f)
                 : spriteTint * 0.45f;
             for (var blurIndex = 0; blurIndex < blurCount; blurIndex += 1)
             {
                 var offsetDistance = player.IsExperimentalGhostDashVisible
-                    ? 6f + (blurIndex * 8f)
+                    ? 7f + (blurIndex * 9f)
                     : 5f + (blurIndex * 6f);
                 var blurPosition = renderPosition - blurDirection * offsetDistance;
                 var blurAlpha = visibilityAlpha * (player.IsExperimentalGhostDashVisible
-                    ? MathF.Max(0.12f, 0.42f - (blurIndex * 0.06f))
+                    ? MathF.Max(0.16f, 0.56f - (blurIndex * 0.065f))
                     : (blurIndex == 0 ? 0.18f : 0.1f));
                 var tint = blurTint * blurAlpha;
                 _game.TryDrawPlayerSpriteAtPosition(player, blurPosition, cameraPosition, tint, bodySelection, drawIntelOverlay: false);

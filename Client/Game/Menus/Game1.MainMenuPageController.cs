@@ -117,7 +117,7 @@ public partial class Game1
                         new MenuPageAction("Host Match", _game.OpenHostSetupMenu),
                         new MenuPageAction("Join (IP)", _game.OpenManualConnectMenu),
                         new MenuPageAction("Join (Lobby)", _game.OpenLobbyBrowser),
-                        new MenuPageAction("Friends", _game.OpenFriendsMenu),
+                        new MenuPageAction("Watch", _game.OpenWatchBrowser),
                     ],
                     null,
                     "Back",

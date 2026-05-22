@@ -53,6 +53,21 @@ public sealed partial class SimulationWorld
         return 75f;
     }
 
+    private int GetHeavyGhostDashDurationTicks()
+    {
+        return Math.Max(1, (int)MathF.Round(Config.TicksPerSecond * global::OpenGarrison.Core.ExperimentalGameplaySettings.HeavyGhostDashDurationSeconds));
+    }
+
+    private int GetHeavyGhostDashCooldownTicks()
+    {
+        return Math.Max(1, (int)MathF.Round(Config.TicksPerSecond * global::OpenGarrison.Core.ExperimentalGameplaySettings.HeavyGhostDashCooldownSeconds));
+    }
+
+    private static float GetHeavyGhostDashImpulse()
+    {
+        return GetExperimentalGhostDashImpulse() * global::OpenGarrison.Core.ExperimentalGameplaySettings.HeavyGhostDashImpulseScale;
+    }
+
     private int GetExperimentalFinalRocketBurstDelayTicks()
     {
         return Math.Max(1, (int)MathF.Round(Config.TicksPerSecond * 0.25f));

@@ -45,6 +45,7 @@ public partial class Game1
 
         RemoveStalePlayerRenderState();
         AdvanceGameplayClientTicks(clientTicks);
+        UpdatePostGameMvpWinScreenState(keyboard, clientTicks);
         PlayPendingVisualEvents();
         PlayPendingSoundEvents();
         DispatchPendingDamageEventsToPlugins();
