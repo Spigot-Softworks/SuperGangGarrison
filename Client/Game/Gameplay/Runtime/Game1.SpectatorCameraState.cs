@@ -1,6 +1,8 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
+using Microsoft.Xna.Framework;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
@@ -47,6 +49,7 @@ public partial class Game1
     {
         _spectatorTrackedPlayerId = null;
         _spectatorTrackingEnabled = enableTracking;
+        _spectatorCameraMode = enableTracking ? SpectatorCameraMode.Auto : SpectatorCameraMode.Normal;
     }
 
     private void CycleSpectatorTracking(bool forward)
@@ -77,12 +80,45 @@ public partial class Game1
         var trackedPlayer = candidates[nextIndex];
         _spectatorTrackedPlayerId = trackedPlayer.Id;
         _spectatorTrackingEnabled = true;
+        _spectatorCameraMode = SpectatorCameraMode.Normal;
         _respawnCameraDetached = false;
         _respawnCameraCenter = GetRenderPosition(trackedPlayer);
         if (!wasTracking)
         {
             ShowNotice(NoticeKind.PlayerTrackEnable);
         }
+    }
+
+    private void CycleSpectatorCameraMode()
+    {
+        _spectatorCameraMode = _spectatorCameraMode switch
+        {
+            SpectatorCameraMode.RedIntel => SpectatorCameraMode.BlueIntel,
+            SpectatorCameraMode.BlueIntel => SpectatorCameraMode.Auto,
+            SpectatorCameraMode.Auto => SpectatorCameraMode.Normal,
+            _ => SpectatorCameraMode.RedIntel,
+        };
+        _spectatorTrackingEnabled = false;
+        _spectatorTrackedPlayerId = null;
+        _respawnCameraDetached = _spectatorCameraMode == SpectatorCameraMode.Normal;
+        _menuStatusMessage = _spectatorCameraMode switch
+        {
+            SpectatorCameraMode.RedIntel => "Tracking RED intelligence.",
+            SpectatorCameraMode.BlueIntel => "Tracking BLU intelligence.",
+            SpectatorCameraMode.Auto => "Auto spectator camera.",
+            _ => "Free spectator camera.",
+        };
+    }
+
+    private static float GetSpectatorTickScale(float deltaSeconds)
+    {
+        return MathF.Max(0.1f, MathF.Min(4f, deltaSeconds * 30f));
+    }
+
+    private static float GetSpectatorLerpFactor(float perSourceTickFactor, float deltaSeconds)
+    {
+        var clamped = MathHelper.Clamp(perSourceTickFactor, 0f, 1f);
+        return 1f - MathF.Pow(1f - clamped, GetSpectatorTickScale(deltaSeconds));
     }
 
     private List<PlayerEntity> GetSpectatorTrackingCandidates()

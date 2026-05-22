@@ -6,12 +6,14 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using OpenGarrison.Core;
+using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
 
 public partial class Game1
 {
     private const long LobbyBrowserQueryTimeoutMilliseconds = 1500;
+    private const long LobbyBrowserDetailsQueryTimeoutMilliseconds = 2500;
     private const long LobbyBrowserLobbyConnectTimeoutMilliseconds = 2500;
     private const long LobbyBrowserLobbyReadTimeoutMilliseconds = 6000;
     private const string DefaultLobbyRegistryPath = "servers.json";
@@ -30,6 +32,14 @@ public partial class Game1
     private int _lobbyBrowserLobbyServersRead;
     private long _lobbyBrowserLobbyStartedAtMilliseconds;
     private bool _lobbyBrowserLobbyHandshakeSent;
+    private LobbyBrowserMode _lobbyBrowserMode = LobbyBrowserMode.Join;
+    private LobbyBrowserPage _lobbyBrowserPage = LobbyBrowserPage.List;
+    private LobbyBrowserEntry? _lobbyBrowserDetailsEntry;
+    private ServerDetailsResponseMessage? _lobbyBrowserDetailsResponse;
+    private string _lobbyBrowserDetailsStatus = string.Empty;
+    private bool _lobbyBrowserDetailsRequestInFlight;
+    private long _lobbyBrowserDetailsRequestStartedAtMilliseconds;
+    private INetworkClientMessageTransport? _lobbyBrowserDetailsTransport;
 
     private string LobbyServerHost => string.IsNullOrWhiteSpace(_clientSettings.LobbyHost)
         ? OpenGarrisonPreferencesDocument.DefaultLobbyHost
@@ -93,6 +103,18 @@ public partial class Game1
         public string PingLabel => PingMilliseconds >= 0 ? $"{PingMilliseconds} ms" : "-";
         public bool IsPrivate { get; set; }
         public bool IsLobbyEntry { get; set; }
+    }
+
+    private enum LobbyBrowserMode
+    {
+        Join,
+        Watch,
+    }
+
+    private enum LobbyBrowserPage
+    {
+        List,
+        Details,
     }
 
     private readonly record struct LobbyBrowserTarget(string DisplayName, NetworkEndpoint Endpoint);

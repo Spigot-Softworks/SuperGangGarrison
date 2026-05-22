@@ -6,6 +6,7 @@ sealed class ServerLaunchOptions
 {
     private const string DefaultLobbyHost = OpenGarrisonPreferencesDocument.DefaultLobbyHost;
     private const int DefaultLobbyPort = OpenGarrisonPreferencesDocument.DefaultLobbyPort;
+    private const string LegacyLobbyHost = "OpenGarrison.game-host.org";
 
     private ServerLaunchOptions()
     {
@@ -80,7 +81,7 @@ sealed class ServerLaunchOptions
         string? serverPassword = string.IsNullOrWhiteSpace(settings.Password) ? null : settings.Password;
         string? rconPassword = string.IsNullOrWhiteSpace(settings.RconPassword) ? null : settings.RconPassword;
         var useLobbyServer = settings.UseLobbyServer;
-        var lobbyHost = string.IsNullOrWhiteSpace(settings.LobbyHost) ? DefaultLobbyHost : settings.LobbyHost;
+        var lobbyHost = NormalizeLobbyHost(settings.LobbyHost);
         var lobbyPort = settings.LobbyPort > 0 ? settings.LobbyPort : DefaultLobbyPort;
         string? registryUrlOverride = null;
         string? registryToken = Environment.GetEnvironmentVariable("OPENGARRISON_REGISTRY_TOKEN");
@@ -290,7 +291,7 @@ sealed class ServerLaunchOptions
 
             if (string.Equals(arg, "--lobby-host", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Length)
             {
-                lobbyHost = args[index + 1];
+                lobbyHost = NormalizeLobbyHost(args[index + 1]);
                 useLobbyServer = true;
                 index += 1;
                 continue;
@@ -391,7 +392,9 @@ sealed class ServerLaunchOptions
             }
         }
 
-        var registryUrl = ResolveRegistryUrl(registryUrlOverride, lobbyHost, lobbyPort);
+        var registryUrl = useLobbyServer
+            ? ResolveRegistryUrl(registryUrlOverride, lobbyHost, lobbyPort)
+            : null;
         var useLegacyLobbyServer = useLobbyServer
             && registryUrlOverride is null
             && !LooksLikeHttpRegistryEndpoint(lobbyHost);
@@ -447,6 +450,19 @@ sealed class ServerLaunchOptions
         }
 
         return uri.ToString();
+    }
+
+    private static string NormalizeLobbyHost(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return DefaultLobbyHost;
+        }
+
+        var trimmed = value.Trim();
+        return string.Equals(trimmed, LegacyLobbyHost, StringComparison.OrdinalIgnoreCase)
+            ? DefaultLobbyHost
+            : trimmed;
     }
 
     private static Uri? ResolveRegistryUrl(string? overrideUrl, string lobbyHost, int lobbyPort)

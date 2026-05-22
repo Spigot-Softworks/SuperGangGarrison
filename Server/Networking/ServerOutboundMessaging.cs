@@ -46,6 +46,26 @@ internal sealed class ServerOutboundMessaging(
                 spectatorCount));
     }
 
+    public void SendServerDetails(ServerTransportPeer remotePeer)
+    {
+        var spectatorCount = clientsBySlot.Keys.Count(ServerHelpers.IsSpectatorSlot);
+        SendMessage(
+            remotePeer,
+            new ServerDetailsResponseMessage(
+                serverName,
+                world.Level.Name,
+                (byte)world.MatchRules.Mode,
+                clientsBySlot.Count - spectatorCount,
+                maxPlayableClients,
+                spectatorCount,
+                world.RedCaps,
+                world.BlueCaps,
+                world.MatchState.TimeRemainingTicks,
+                world.MatchRules.TimeLimitTicks,
+                world.Config.TicksPerSecond,
+                BuildServerDetailsRoster()));
+    }
+
     public void BroadcastChat(ClientSession client, string text, bool teamOnly)
     {
         var sanitized = text.Trim();
@@ -164,6 +184,57 @@ internal sealed class ServerOutboundMessaging(
         }
 
         return profiles;
+    }
+
+    private List<ServerDetailsRosterEntry> BuildServerDetailsRoster()
+    {
+        var entries = new List<ServerDetailsRosterEntry>(clientsBySlot.Count);
+        foreach (var (_, client) in clientsBySlot.OrderBy(static pair => pair.Key))
+        {
+            var isSpectator = ServerHelpers.IsSpectatorSlot(client.Slot);
+            if (!isSpectator && world.TryGetNetworkPlayer(client.Slot, out var player))
+            {
+                entries.Add(new ServerDetailsRosterEntry(
+                    client.Slot,
+                    client.Name,
+                    (byte)player.Team,
+                    (byte)player.ClassId,
+                    IsSpectator: false,
+                    player.IsAlive,
+                    IsAwaitingJoin: false,
+                    ClampToShort(player.Health),
+                    ClampToShort(player.MaxHealth),
+                    ClampToShort(player.Kills),
+                    ClampToShort(player.Deaths),
+                    ClampToShort(player.Assists),
+                    ClampToShort(player.Caps),
+                    player.Points));
+                continue;
+            }
+
+            entries.Add(new ServerDetailsRosterEntry(
+                client.Slot,
+                client.Name,
+                Team: 0,
+                ClassId: 0,
+                IsSpectator: true,
+                IsAlive: false,
+                IsAwaitingJoin: true,
+                Health: 0,
+                MaxHealth: 0,
+                Kills: 0,
+                Deaths: 0,
+                Assists: 0,
+                Caps: 0,
+                Points: 0f));
+        }
+
+        return entries;
+    }
+
+    private static short ClampToShort(int value)
+    {
+        return (short)Math.Clamp(value, short.MinValue, short.MaxValue);
     }
 
     private void BroadcastPlayerSocialProfileUpdate(PlayerSocialProfileUpdateMessage message)

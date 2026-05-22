@@ -24,6 +24,7 @@ internal sealed class ServerIncomingMessageDispatcher(
     Func<(bool IsCustomMap, string MapDownloadUrl, string MapContentHash)> getCurrentMapMetadata,
     Action<ServerTransportPeer, IProtocolMessage> sendMessage,
     Action<ServerTransportPeer> sendServerStatus,
+    Action<ServerTransportPeer> sendServerDetails,
     Action<ClientSession, string, bool> broadcastChat,
     Action<string, (string Key, object? Value)[]> logServerEvent,
     Action<string> log,
@@ -36,6 +37,9 @@ internal sealed class ServerIncomingMessageDispatcher(
         {
             case ServerStatusRequestMessage:
                 sendServerStatus(remotePeer);
+                break;
+            case ServerDetailsRequestMessage:
+                sendServerDetails(remotePeer);
                 break;
             case HelloMessage hello:
                 HandleHello(hello, remotePeer);
@@ -135,8 +139,16 @@ internal sealed class ServerIncomingMessageDispatcher(
         var existingClient = FindClient(clientsBySlot, remotePeer);
         if (existingClient is not null)
         {
+            if (hello.Intent == ConnectionIntent.Watch && !IsSpectatorSlot(existingClient.Slot))
+            {
+                log($"[server] rejected watch refresh {remoteDescription}; existing slot is playable slot={existingClient.Slot}");
+                sendMessage(remotePeer, new ConnectionDeniedMessage("Existing session is not a spectator."));
+                return;
+            }
+
             existingClient.Name = hello.Name;
             existingClient.BadgeMask = hello.BadgeMask;
+            existingClient.IsWatchOnly = existingClient.IsWatchOnly || hello.Intent == ConnectionIntent.Watch;
             existingClient.LastSeen = elapsedGetter();
             sessionManager.ApplyClientProfile(
                 existingClient.Slot,
@@ -187,16 +199,20 @@ internal sealed class ServerIncomingMessageDispatcher(
             return;
         }
 
-        var assignedSlot = FindAvailableSlot(
-            clientsBySlot,
-            maxTotalClients,
-            maxSpectatorClients,
-            maxPlayableClients,
-            isPlayableSlotAvailable);
+        var watchOnly = hello.Intent == ConnectionIntent.Watch;
+        var assignedSlot = watchOnly
+            ? FindAvailableSpectatorSlot(clientsBySlot, maxTotalClients, maxSpectatorClients)
+            : FindAvailableSlot(
+                clientsBySlot,
+                maxTotalClients,
+                maxSpectatorClients,
+                maxPlayableClients,
+                isPlayableSlotAvailable);
         if (assignedSlot == 0)
         {
-            log($"[server] rejected client {remoteDescription}; server is full");
-            sendMessage(remotePeer, new ConnectionDeniedMessage("Server is full."));
+            var reason = watchOnly ? "Spectator slots are full." : "Server is full.";
+            log($"[server] rejected client {remoteDescription}; {reason}");
+            sendMessage(remotePeer, new ConnectionDeniedMessage(reason));
             return;
         }
 
@@ -207,6 +223,7 @@ internal sealed class ServerIncomingMessageDispatcher(
             BadgeMask = hello.BadgeMask,
             FriendCode = hello.FriendCode.Trim(),
             PlayerCardJson = hello.PlayerCardJson.Trim(),
+            IsWatchOnly = watchOnly,
         };
         clientsBySlot[assignedSlot] = client;
         if (SimulationWorld.IsPlayableNetworkPlayerSlot(assignedSlot))

@@ -42,11 +42,17 @@ public partial class Game1
     {
         var wasSpectator = _networkClient.IsSpectator;
         _networkClient.SetLocalPlayerSlot(slotChanged.PlayerSlot);
+        if (IsWatchOnlySession() && !_networkClient.IsSpectator)
+        {
+            ReturnToMainMenuWithNetworkStatus("Watch session was moved to a playable slot.");
+            return;
+        }
+
         if (_networkClient.IsSpectator)
         {
             EnterOnlineSpectatorState("Connected as spectator.");
         }
-        else if (wasSpectator)
+        else if (wasSpectator && !IsWatchOnlySession())
         {
             EnterOnlineClassSelectionState(string.Empty);
         }
@@ -70,7 +76,7 @@ public partial class Game1
             ControlCommandKind.SelectGameplayLoadout => "loadout selection rejected",
             _ => "control command rejected",
         };
-        if (ack.Kind == ControlCommandKind.SelectTeam && _networkClient.IsSpectator)
+        if (ack.Kind == ControlCommandKind.SelectTeam && _networkClient.IsSpectator && !IsWatchOnlySession())
         {
             OpenOnlineTeamSelection(clearPendingSelections: false, statusMessage: description);
         }

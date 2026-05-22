@@ -505,7 +505,7 @@ public partial class Game1
 
     private void DrawWinBannerHud()
     {
-        if (!_world.MatchState.IsEnded)
+        if (!_world.MatchState.IsEnded || ShouldDrawPostGameMvpWinScreen())
         {
             return;
         }

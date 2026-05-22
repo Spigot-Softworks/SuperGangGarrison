@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics;
 using System.Linq;
+using System.Security.Cryptography;
 
 namespace OpenGarrison.Client;
 
@@ -38,6 +39,7 @@ public partial class Game1
     private readonly Dictionary<byte, PracticeBotSlotState> _practiceBotSlots = new();
     private readonly Dictionary<byte, PlayerInputSnapshot> _browserPracticeBotInputCache = new();
     private readonly Dictionary<byte, ControlledBotSlot> _controlledPracticeBotSlotsBuffer = new();
+    private readonly List<ManualPracticeBotRequest> _manualPracticeBotRequests = new();
     private readonly PracticeBotDisplayNamePool _practiceBotDisplayNamePool = new();
     [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "Practice bots intentionally sit behind a controller seam so client and server bot plumbing can select different controller implementations.")]
     private IPracticeBotController _practiceBotController = new BotBrainPracticeBotController();
@@ -69,6 +71,22 @@ public partial class Game1
         }
 
         public byte Slot { get; }
+
+        public PlayerTeam Team { get; }
+
+        public PlayerClass ClassId { get; }
+
+        public string DisplayName { get; }
+    }
+
+    private sealed class ManualPracticeBotRequest
+    {
+        public ManualPracticeBotRequest(PlayerTeam team, PlayerClass classId, string displayName)
+        {
+            Team = team;
+            ClassId = classId;
+            DisplayName = displayName.Trim();
+        }
 
         public PlayerTeam Team { get; }
 
@@ -173,46 +191,40 @@ public partial class Game1
             return desiredSlots;
         }
 
-        var classCycle = GetEligiblePracticeBotClassCycle();
-        nextSlot = AppendDesiredPracticeBotSlots(
+        nextSlot = AppendRandomizedDesiredPracticeBotSlots(
             desiredSlots,
             nextSlot,
             localTeam,
             GetOfflineFriendlyBotCount(),
-            classCycle,
-            classOffset: 0);
-        _ = AppendDesiredPracticeBotSlots(
+            guaranteeSecondMedic: true);
+        nextSlot = AppendRandomizedDesiredPracticeBotSlots(
             desiredSlots,
             nextSlot,
             GetOpposingTeam(localTeam),
             GetOfflineEnemyBotCount(),
-            classCycle,
-            classOffset: 3);
+            guaranteeSecondMedic: true);
+        nextSlot = AppendManualDesiredPracticeBotSlots(desiredSlots, nextSlot);
         return desiredSlots;
     }
 
-    private byte AppendDesiredPracticeBotSlots(
+    private byte AppendManualDesiredPracticeBotSlots(
         Dictionary<byte, PracticeBotSlotState> desiredSlots,
-        byte startSlot,
-        PlayerTeam team,
-        int count,
-        PlayerClass[] classCycle,
-        int classOffset)
+        byte startSlot)
     {
         var nextSlot = startSlot;
-        if (count <= 0 || classCycle.Length == 0)
+        for (var index = 0; index < _manualPracticeBotRequests.Count && nextSlot <= SimulationWorld.MaxPlayableNetworkPlayers; index += 1)
         {
-            return nextSlot;
-        }
-
-        for (var index = 0; index < count && nextSlot <= SimulationWorld.MaxPlayableNetworkPlayers; index += 1)
-        {
-            var classId = classCycle[(index + classOffset) % classCycle.Length];
+            var request = _manualPracticeBotRequests[index];
+            var teamBotNumber = desiredSlots.Values.Count(slot => slot.Team == request.Team) + 1;
+            var displayName = string.IsNullOrWhiteSpace(request.DisplayName)
+                ? _practiceBotDisplayNamePool.GetOrAssign(nextSlot, request.Team, teamBotNumber)
+                : request.DisplayName;
+            _practiceBotDisplayNamePool.Reserve(displayName);
             desiredSlots[nextSlot] = new PracticeBotSlotState(
                 nextSlot,
-                team,
-                classId,
-                _practiceBotDisplayNamePool.GetOrAssign(nextSlot, team, index + 1));
+                request.Team,
+                request.ClassId,
+                displayName);
             nextSlot += 1;
         }
 
@@ -270,7 +282,8 @@ public partial class Game1
         Dictionary<byte, PracticeBotSlotState> desiredSlots,
         byte startSlot,
         PlayerTeam team,
-        int count)
+        int count,
+        bool guaranteeSecondMedic = false)
     {
         var nextSlot = startSlot;
         if (count <= 0)
@@ -287,12 +300,27 @@ public partial class Game1
         var eligibleSet = new HashSet<PlayerClass>(eligibleClasses);
         var randomizedPool = BuildRandomizedPracticeBotClassPool(eligibleClasses);
         var randomizedIndex = 0;
+        var hasMedic = eligibleSet.Contains(PlayerClass.Medic);
         for (var index = 0; index < count && nextSlot <= SimulationWorld.MaxPlayableNetworkPlayers; index += 1)
         {
-            var classId = _practiceBotSlots.TryGetValue(nextSlot, out var existing)
-                          && eligibleSet.Contains(existing.ClassId)
-                ? existing.ClassId
-                : randomizedPool[randomizedIndex++ % randomizedPool.Count];
+            var forceMedic = guaranteeSecondMedic && index == 1 && hasMedic;
+            var avoidMedic = guaranteeSecondMedic && count > 1 && index == 0 && eligibleSet.Count > 1;
+            PlayerClass classId;
+            if (forceMedic)
+            {
+                classId = PlayerClass.Medic;
+            }
+            else if (_practiceBotSlots.TryGetValue(nextSlot, out var existing)
+                     && eligibleSet.Contains(existing.ClassId)
+                     && (!avoidMedic || existing.ClassId != PlayerClass.Medic))
+            {
+                classId = existing.ClassId;
+            }
+            else
+            {
+                classId = TakeRandomPracticeBotClass(randomizedPool, ref randomizedIndex, avoidMedic);
+            }
+
             desiredSlots[nextSlot] = new PracticeBotSlotState(
                 nextSlot,
                 team,
@@ -304,12 +332,29 @@ public partial class Game1
         return nextSlot;
     }
 
-    private List<PlayerClass> BuildRandomizedPracticeBotClassPool(PlayerClass[] eligibleClasses)
+    private static PlayerClass TakeRandomPracticeBotClass(
+        List<PlayerClass> randomizedPool,
+        ref int randomizedIndex,
+        bool avoidMedic)
+    {
+        for (var attempts = 0; attempts < randomizedPool.Count; attempts += 1)
+        {
+            var classId = randomizedPool[randomizedIndex++ % randomizedPool.Count];
+            if (!avoidMedic || classId != PlayerClass.Medic)
+            {
+                return classId;
+            }
+        }
+
+        return randomizedPool[0];
+    }
+
+    private static List<PlayerClass> BuildRandomizedPracticeBotClassPool(PlayerClass[] eligibleClasses)
     {
         var pool = eligibleClasses.ToList();
         for (var index = pool.Count - 1; index > 0; index -= 1)
         {
-            var swapIndex = _visualRandom.Next(index + 1);
+            var swapIndex = RandomNumberGenerator.GetInt32(index + 1);
             (pool[index], pool[swapIndex]) = (pool[swapIndex], pool[index]);
         }
 
@@ -438,6 +483,160 @@ public partial class Game1
     private void InitializePracticeBotNamePoolForMatch()
     {
         _practiceBotDisplayNamePool.Reset();
+    }
+
+    private void ClearManualPracticeBotRequests()
+    {
+        _manualPracticeBotRequests.Clear();
+    }
+
+    private void TryHandlePracticeBotConsoleCommand(string[] parts)
+    {
+        if (!IsPracticeSessionActive)
+        {
+            AddConsoleLine("practice_bot commands require an active Practice session.");
+            return;
+        }
+
+        if (parts.Length < 2)
+        {
+            PrintPracticeBotConsoleRoster();
+            AddConsoleLine("usage: practice_bot <add|list|clear> ...");
+            return;
+        }
+
+        switch (parts[1].ToLowerInvariant())
+        {
+            case "add":
+                TryAddManualPracticeBotFromConsole(parts);
+                break;
+            case "list":
+                PrintPracticeBotConsoleRoster();
+                break;
+            case "clear":
+                ClearManualPracticeBotsFromConsole();
+                break;
+            default:
+                AddConsoleLine("usage: practice_bot add <friendly|enemy|red|blue> <class> [name]");
+                AddConsoleLine("usage: practice_bot <list|clear>");
+                break;
+        }
+    }
+
+    private void TryAddManualPracticeBotFromConsole(string[] parts)
+    {
+        if (_navEditorScoreTrioActive)
+        {
+            AddConsoleLine("practice_bot add is unavailable while nav editor score trio is active.");
+            return;
+        }
+
+        if (parts.Length < 4
+            || !TryParsePracticeBotTeam(parts[2], out var team)
+            || !TryParsePlayerClass(parts[3], out var playerClass))
+        {
+            AddConsoleLine("usage: practice_bot add <friendly|enemy|red|blue> <scout|engineer|pyro|soldier|demoman|heavy|sniper|medic|spy|quote> [name]");
+            return;
+        }
+
+        var maxPracticeBotCount = SimulationWorld.MaxPlayableNetworkPlayers - SimulationWorld.LocalPlayerSlot;
+        if (_practiceBotSlots.Count >= maxPracticeBotCount)
+        {
+            AddConsoleLine("practice bot roster is full.");
+            return;
+        }
+
+        var displayName = parts.Length > 4
+            ? string.Join(' ', parts.Skip(4)).Trim()
+            : string.Empty;
+        var existingSlots = _practiceBotSlots.Keys.ToHashSet();
+        _manualPracticeBotRequests.Add(new ManualPracticeBotRequest(team, playerClass, displayName));
+        SyncPracticeBotRoster(_world.LocalPlayerTeam);
+
+        var addedSlot = _practiceBotSlots.Keys
+            .Where(slot => !existingSlots.Contains(slot))
+            .OrderBy(static slot => slot)
+            .FirstOrDefault();
+        if (addedSlot == 0 || !_practiceBotSlots.TryGetValue(addedSlot, out var addedState))
+        {
+            _manualPracticeBotRequests.RemoveAt(_manualPracticeBotRequests.Count - 1);
+            SyncPracticeBotRoster(_world.LocalPlayerTeam);
+            AddConsoleLine("unable to add practice bot.");
+            return;
+        }
+
+        AddConsoleLine($"practice bot added slot={addedState.Slot} team={addedState.Team} class={addedState.ClassId} name={addedState.DisplayName}");
+    }
+
+    private void ClearManualPracticeBotsFromConsole()
+    {
+        var clearedCount = _manualPracticeBotRequests.Count;
+        if (clearedCount == 0)
+        {
+            AddConsoleLine("no manual practice bots to clear.");
+            return;
+        }
+
+        _manualPracticeBotRequests.Clear();
+        SyncPracticeBotRoster(_world.LocalPlayerTeam);
+        AddConsoleLine($"cleared {clearedCount} manual practice bot{(clearedCount == 1 ? string.Empty : "s")}.");
+    }
+
+    private void PrintPracticeBotConsoleRoster()
+    {
+        if (_practiceBotSlots.Count == 0)
+        {
+            AddConsoleLine("practice bots: none");
+            return;
+        }
+
+        AddConsoleLine($"practice bots: active={_practiceBotSlots.Count} manual={_manualPracticeBotRequests.Count}");
+        foreach (var entry in _practiceBotSlots.OrderBy(static entry => entry.Key))
+        {
+            var bot = entry.Value;
+            AddConsoleLine($"practice bot slot={bot.Slot} team={bot.Team} class={bot.ClassId} name={bot.DisplayName}");
+        }
+    }
+
+    private bool TryParsePracticeBotTeam(string value, out PlayerTeam team)
+    {
+        team = default;
+        var normalized = value.Trim();
+        if (normalized.Equals("friendly", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("friend", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("ally", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("allied", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("local", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("team", StringComparison.OrdinalIgnoreCase))
+        {
+            team = _world.LocalPlayerTeam;
+            return true;
+        }
+
+        if (normalized.Equals("enemy", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("opponent", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("opposing", StringComparison.OrdinalIgnoreCase))
+        {
+            team = GetOpposingTeam(_world.LocalPlayerTeam);
+            return true;
+        }
+
+        if (normalized.Equals("red", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("r", StringComparison.OrdinalIgnoreCase))
+        {
+            team = PlayerTeam.Red;
+            return true;
+        }
+
+        if (normalized.Equals("blue", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("blu", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("b", StringComparison.OrdinalIgnoreCase))
+        {
+            team = PlayerTeam.Blue;
+            return true;
+        }
+
+        return false;
     }
 
     private void UpdatePracticeBots()

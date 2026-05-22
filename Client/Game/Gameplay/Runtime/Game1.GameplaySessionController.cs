@@ -81,6 +81,11 @@ public partial class Game1
             return _onlineSessionController.TryConnectToServer(endpoint, addConsoleFeedback);
         }
 
+        public bool TryConnectToServer(NetworkEndpoint endpoint, bool addConsoleFeedback, OnlineConnectionIntent intent)
+        {
+            return _onlineSessionController.TryConnectToServer(endpoint, addConsoleFeedback, intent);
+        }
+
         public bool TryPlayLegacyReplay(string replayPath, bool addConsoleFeedback, bool clearQueuedReplays = true)
         {
             return _onlineSessionController.TryPlayLegacyReplay(replayPath, addConsoleFeedback, clearQueuedReplays);

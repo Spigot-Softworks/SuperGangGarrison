@@ -43,7 +43,7 @@ public partial class Game1
             var iconColor = isUberDisabled ? new Color(128, 128, 128) : Color.White;
             var textColor = isUberDisabled ? new Color(108, 108, 92) : new Color(0xD9, 0xD9, 0xB7);
             _game.TryDrawScreenSprite("UberHudS", hudFrameIndex, new Vector2(viewportWidth - 80f, viewportHeight - 85f), iconColor, new Vector2(2f, 2f));
-            _game.DrawMenuTextCentered("SUPERBURST", new Vector2(viewportWidth - 71f, viewportHeight - 89f), textColor, 0.567f);
+            _game.DrawHudTextCentered("SUPERBURST", new Vector2(viewportWidth - 71f, viewportHeight - 89f), textColor, 0.72f);
         }
 
         public void DrawMedicAssistHud()
@@ -194,14 +194,15 @@ public partial class Game1
             var frame = sprite.Frames[Math.Clamp(frameIndex, 0, sprite.Frames.Count - 1)];
             var viewportWidth = _game.ViewportWidth;
             var viewportHeight = _game.ViewportHeight;
-            var textWidth = _game.MeasureBitmapFontWidth(label, 0.7f);
+            const float textScale = 1f;
+            var textWidth = _game.MeasureBitmapFontWidth(label, textScale);
             var hudWidth = (int)MathF.Ceiling(textWidth) + 20;
             var hudHeight = 40;
             var hudX = (viewportWidth / 2) - (hudWidth / 2);
             var hudY = (int)MathF.Round(viewportHeight * viewportYRatio);
             var destination = new Rectangle(hudX, hudY, hudWidth, hudHeight);
             _game.DrawLoadedSpriteFrame(frame, destination, Color.White * 0.5f);
-            _game.DrawHudTextCentered(label, new Vector2(viewportWidth / 2f, hudY + 12f), Color.White * textAlpha, 0.7f);
+            _game.DrawHudTextCentered(label, new Vector2(viewportWidth / 2f, hudY + 12f), Color.White * textAlpha, textScale);
             _game.DrawScreenHealthBar(new Rectangle(hudX + 10, hudY + 20, Math.Max(1, hudWidth - 20), 8), value, maxValue, false, Color.White, Color.Black);
         }
 

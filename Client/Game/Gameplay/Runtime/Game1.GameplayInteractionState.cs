@@ -68,9 +68,16 @@ public partial class Game1
             && !IsGameplayMenuOpen();
     }
 
+    private bool IsWatchOnlySession()
+    {
+        return _networkClient.IsConnected
+            && _onlineConnectionIntent == OnlineConnectionIntent.Watch;
+    }
+
     private bool CanToggleGameplaySelectionMenus()
     {
         return !_passwordPromptOpen
+            && !IsWatchOnlySession()
             && !HasOpenGameplayOverlay()
             && !ShouldBlockGameplayForGarrisonBuilder()
             && !_consoleOpen

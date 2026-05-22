@@ -461,6 +461,12 @@ public partial class Game1
             return;
         }
 
+        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.HeavyUtility))
+        {
+            TryPredictedStartHeavyGhostDash(player);
+            return;
+        }
+
         if (!player.HasExperimentalOffhandWeapon)
         {
             return;
@@ -513,6 +519,38 @@ public partial class Game1
 
         SyncPredictedLocalPlayerState(player);
         return true;
+    }
+
+    private bool TryPredictedStartHeavyGhostDash(PlayerEntity player)
+    {
+        if (!player.TryStartExperimentalGhostDash(
+            GetPredictedHeavyGhostDashDurationTicks(),
+            GetPredictedHeavyGhostDashCooldownTicks(),
+            ExperimentalGameplaySettings.DefaultGhostDashNextAttackDamageMultiplier,
+            GetPredictedHeavyGhostDashImpulse(),
+            requireExperimentalDemoknight: false,
+            useMomentum: true))
+        {
+            return false;
+        }
+
+        SyncPredictedLocalPlayerState(player);
+        return true;
+    }
+
+    private int GetPredictedHeavyGhostDashDurationTicks()
+    {
+        return Math.Max(1, (int)MathF.Round(_config.TicksPerSecond * ExperimentalGameplaySettings.HeavyGhostDashDurationSeconds));
+    }
+
+    private int GetPredictedHeavyGhostDashCooldownTicks()
+    {
+        return Math.Max(1, (int)MathF.Round(_config.TicksPerSecond * ExperimentalGameplaySettings.HeavyGhostDashCooldownSeconds));
+    }
+
+    private static float GetPredictedHeavyGhostDashImpulse()
+    {
+        return 75f * ExperimentalGameplaySettings.HeavyGhostDashImpulseScale;
     }
 
     private bool TryPredictedToggleSniperScope(PlayerEntity player)

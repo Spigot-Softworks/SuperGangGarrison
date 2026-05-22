@@ -23,7 +23,11 @@ public partial class Game1
             _game.UpdateGameplayMenuState(keyboard, mouse);
             _game.UpdateRespawnCameraState((float)gameTime.ElapsedGameTime.TotalSeconds, keyboard);
             _game.UpdateBotBrainCorridorRecorderHotkeys(keyboard);
-            var cameraPosition = _game.GetGameplayInputCameraTopLeft(_game.ViewportWidth, _game.ViewportHeight, mouse.X, mouse.Y);
+            var cameraPosition = _game.GetGameplayInputCameraTopLeft(
+                _game.ViewportWidth,
+                _game.GetGameplayCameraViewportHeight(_game.ViewportHeight),
+                mouse.X,
+                mouse.Y);
             _game.UpdateGarrisonBuilderEditor(keyboard, rawMouse, (float)gameTime.ElapsedGameTime.TotalSeconds);
             _game.UpdateNavEditor(keyboard, mouse, rawMouse, cameraPosition, (float)gameTime.ElapsedGameTime.TotalSeconds);
             _game.UpdateScoreboardState(keyboard, mouse);

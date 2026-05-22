@@ -14,12 +14,26 @@ public partial class Game1
 
     private void OpenGameplayTeamSelection()
     {
+        if (IsWatchOnlySession())
+        {
+            CloseGameplaySelectionMenus();
+            _menuStatusMessage = "Watch mode cannot join teams.";
+            return;
+        }
+
         _teamSelectOpen = true;
         _classSelectOpen = false;
     }
 
     private void OpenGameplayClassSelection()
     {
+        if (IsWatchOnlySession())
+        {
+            CloseGameplaySelectionMenus();
+            _menuStatusMessage = "Watch mode cannot select classes.";
+            return;
+        }
+
         _classSelectOpen = true;
         _teamSelectOpen = false;
         WarmBrowserClassSelectionAssets(_pendingClassSelectTeam ?? _world.LocalPlayerTeam);
@@ -27,6 +41,13 @@ public partial class Game1
 
     private void ToggleGameplayTeamSelection()
     {
+        if (IsWatchOnlySession())
+        {
+            CloseGameplaySelectionMenus();
+            _menuStatusMessage = "Watch mode cannot join teams.";
+            return;
+        }
+
         var shouldOpen = !_teamSelectOpen;
         _teamSelectOpen = shouldOpen;
         if (shouldOpen)
@@ -37,6 +58,13 @@ public partial class Game1
 
     private void ToggleGameplayClassSelection()
     {
+        if (IsWatchOnlySession())
+        {
+            CloseGameplaySelectionMenus();
+            _menuStatusMessage = "Watch mode cannot select classes.";
+            return;
+        }
+
         var shouldOpen = !_classSelectOpen;
         _classSelectOpen = shouldOpen;
         if (shouldOpen)
@@ -47,6 +75,12 @@ public partial class Game1
 
     private void BeginOnlineSpectateSelection()
     {
+        if (IsWatchOnlySession())
+        {
+            CloseGameplaySelectionMenus();
+            return;
+        }
+
         _networkClient.QueueSpectateSelection();
         CloseGameplaySelectionMenus();
         _menuStatusMessage = "Switching to spectator mode...";
@@ -54,6 +88,13 @@ public partial class Game1
 
     private void BeginOnlineTeamSelection(PlayerTeam selectedTeam)
     {
+        if (IsWatchOnlySession())
+        {
+            CloseGameplaySelectionMenus();
+            _menuStatusMessage = "Watch mode cannot join teams.";
+            return;
+        }
+
         _networkClient.QueueTeamSelection(selectedTeam);
         if (_networkClient.IsSpectator)
         {

@@ -820,6 +820,7 @@ public sealed class ServerAdminFoundationTests
             static () => (false, string.Empty, string.Empty),
             (_, message) => sentMessages.Add(message),
             static _ => { },
+            static _ => { },
             (_, text, _) => broadcastAttempts.Add(text),
             static (_, _) => { },
             static _ => { });
@@ -830,6 +831,116 @@ public sealed class ServerAdminFoundationTests
         var rejection = Assert.Single(sentMessages);
         var relay = Assert.IsType<ChatRelayMessage>(rejection);
         Assert.Contains("gagged", relay.Text, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ServerIncomingMessageDispatcherReturnsDetailsWithoutAllocatingClient()
+    {
+        var world = new SimulationWorld();
+        var clients = new Dictionary<byte, ClientSession>();
+        var sessionManager = CreateSessionManager(world, clients);
+        var sentMessages = new List<IProtocolMessage>();
+        var dispatcher = new ServerIncomingMessageDispatcher(
+            new SimulationConfig(),
+            "Test Server",
+            passwordRequired: false,
+            maxPlayableClients: 24,
+            maxTotalClients: 32,
+            maxSpectatorClients: 8,
+            clients,
+            sessionManager,
+            world,
+            () => TimeSpan.Zero,
+            static () => null,
+            static () => 999,
+            static _ => null,
+            static _ => { },
+            static () => (false, string.Empty, string.Empty),
+            (_, message) => sentMessages.Add(message),
+            static _ => { },
+            peer => sentMessages.Add(new ServerDetailsResponseMessage(
+                "Test Server",
+                "ctf_truefort",
+                GameMode: 1,
+                PlayerCount: 0,
+                MaxPlayerCount: 24,
+                SpectatorCount: 0,
+                RedScore: 0,
+                BlueScore: 0,
+                TimeRemainingTicks: 0,
+                TimeLimitTicks: 0,
+                TickRate: 30,
+                [])),
+            static (_, _, _) => { },
+            static (_, _) => { },
+            static _ => { });
+
+        dispatcher.Dispatch(new ServerDetailsRequestMessage(), new IPEndPoint(IPAddress.Loopback, 8190));
+
+        Assert.Empty(clients);
+        Assert.IsType<ServerDetailsResponseMessage>(Assert.Single(sentMessages));
+    }
+
+    [Fact]
+    public void ServerIncomingMessageDispatcherWatchHelloAllocatesSpectatorSlot()
+    {
+        var world = new SimulationWorld();
+        var clients = new Dictionary<byte, ClientSession>();
+        var sessionManager = CreateSessionManager(world, clients);
+        var sentMessages = new List<IProtocolMessage>();
+        var dispatcher = new ServerIncomingMessageDispatcher(
+            new SimulationConfig(),
+            "Test Server",
+            passwordRequired: false,
+            maxPlayableClients: 1,
+            maxTotalClients: 2,
+            maxSpectatorClients: 1,
+            clients,
+            sessionManager,
+            world,
+            () => TimeSpan.Zero,
+            static () => null,
+            static () => 999,
+            static _ => null,
+            static _ => { },
+                static () => (false, string.Empty, string.Empty),
+                (_, message) => sentMessages.Add(message),
+                static _ => { },
+                static _ => { },
+                static (_, _, _) => { },
+            static (_, _) => { },
+            static _ => { });
+
+        dispatcher.Dispatch(
+            new HelloMessage("Watcher", ProtocolVersion.Current, 0, Intent: ConnectionIntent.Watch),
+            new IPEndPoint(IPAddress.Loopback, 8190));
+
+        var client = Assert.Single(clients).Value;
+        Assert.Equal(SimulationWorld.FirstSpectatorSlot, client.Slot);
+        Assert.True(client.IsWatchOnly);
+        var welcome = Assert.IsType<WelcomeMessage>(Assert.Single(sentMessages));
+        Assert.Equal(SimulationWorld.FirstSpectatorSlot, welcome.PlayerSlot);
+        Assert.False(clients.ContainsKey(1));
+    }
+
+    [Fact]
+    public void ServerSessionManagerRejectsPlayableControlsForWatchOnlyClient()
+    {
+        var world = new SimulationWorld();
+        var client = new ClientSession(SimulationWorld.FirstSpectatorSlot, 101, new IPEndPoint(IPAddress.Loopback, 8190), "Watcher", TimeSpan.Zero)
+        {
+            IsAuthorized = true,
+            IsWatchOnly = true,
+        };
+        var clients = new Dictionary<byte, ClientSession> { [client.Slot] = client };
+        var sentMessages = new List<IProtocolMessage>();
+        var sessionManager = CreateSessionManager(world, clients, (_, message) => sentMessages.Add(message));
+
+        sessionManager.HandleControlCommand(client, new ControlCommandMessage(1, ControlCommandKind.SelectTeam, (byte)PlayerTeam.Red));
+
+        var ack = Assert.IsType<ControlAckMessage>(Assert.Single(sentMessages));
+        Assert.False(ack.Accepted);
+        Assert.Equal(SimulationWorld.FirstSpectatorSlot, client.Slot);
     }
 
     [Fact]
@@ -932,10 +1043,11 @@ public sealed class ServerAdminFoundationTests
                 static () => 999,
                 static _ => null,
                 static _ => { },
-                static () => (false, string.Empty, string.Empty),
-                (_, message) => sentMessages.Add(message),
-                static _ => { },
-                static (_, _, _) => { },
+            static () => (false, string.Empty, string.Empty),
+            (_, message) => sentMessages.Add(message),
+            static _ => { },
+            static _ => { },
+            static (_, _, _) => { },
                 static (_, _) => { },
                 static _ => { },
                 banService: banService);
@@ -977,6 +1089,7 @@ public sealed class ServerAdminFoundationTests
             static _ => { },
             static () => (false, string.Empty, string.Empty),
             static (_, _) => { },
+            static _ => { },
             static _ => { },
             static (_, _, _) => { },
             static (_, _) => { },
@@ -1967,6 +2080,7 @@ public sealed class ServerAdminFoundationTests
             static _ => { },
             static () => (false, string.Empty, string.Empty),
             static (_, _) => { },
+            static _ => { },
             static _ => { },
             static (_, _, _) => { },
             static (_, _) => { },

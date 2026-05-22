@@ -575,7 +575,7 @@ partial class GameServer
 
     private void InitializeHttpRegistryHeartbeat()
     {
-        if (!_useLobbyServer || _registryUrl is null)
+        if (_registryUrl is null)
         {
             return;
         }
@@ -833,6 +833,7 @@ partial class GameServer
             _eventReporter.GetCurrentMapMetadata,
             _outboundMessaging.SendMessage,
             _outboundMessaging.SendServerStatus,
+            _outboundMessaging.SendServerDetails,
             _outboundMessaging.BroadcastChat,
             _eventReporter.WriteEvent,
             Console.WriteLine,

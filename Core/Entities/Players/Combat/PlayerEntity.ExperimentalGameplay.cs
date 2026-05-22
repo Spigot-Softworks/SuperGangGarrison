@@ -699,9 +699,15 @@ public sealed partial class PlayerEntity
         ExperimentalDemoknightPostRageRegenTicksRemaining = Math.Max(0, durationTicks);
     }
 
-    public bool TryStartExperimentalGhostDash(int dashTicks, int cooldownTicks, float nextAttackDamageMultiplier, float dashImpulse)
+    public bool TryStartExperimentalGhostDash(
+        int dashTicks,
+        int cooldownTicks,
+        float nextAttackDamageMultiplier,
+        float dashImpulse,
+        bool requireExperimentalDemoknight = true,
+        bool useMomentum = false)
     {
-        if (!IsExperimentalDemoknightEnabled
+        if ((requireExperimentalDemoknight && !IsExperimentalDemoknightEnabled)
             || !IsAlive
             || IsHeavyEating
             || IsTaunting
@@ -718,8 +724,13 @@ public sealed partial class PlayerEntity
         ExperimentalGhostDashTicksRemaining = dashTicks;
         ExperimentalGhostDashVisibilityTicksRemaining = dashTicks;
         ExperimentalGhostDashCooldownTicksRemaining = cooldownTicks;
+        ExperimentalGhostDashUsesMomentum = useMomentum;
+        ExperimentalGhostDashInitialTicks = Math.Max(1, dashTicks);
+        ExperimentalGhostDashInitialDistance = MathF.Max(0f, dashImpulse);
+        ExperimentalGhostDashDistanceTraveled = 0f;
         ExperimentalGhostDashDistanceRemaining = MathF.Max(0f, dashImpulse);
-        ExperimentalGhostDashSpeedPerSecondValue = dashImpulse <= 0f ? 0f : dashImpulse / 0.08f;
+        ExperimentalGhostDashSpeedPerSecondValue = useMomentum || dashImpulse <= 0f ? 0f : dashImpulse / 0.08f;
+        ExperimentalGhostDashMomentumDirectionX = FacingDirectionX < 0f ? -1f : 1f;
         ExperimentalGhostDashNextAttackDamageMultiplierValue = nextAttackDamageMultiplier;
         return true;
     }
@@ -1054,6 +1065,11 @@ public sealed partial class PlayerEntity
                 ExperimentalGhostDashTicksRemaining = 0;
                 ExperimentalGhostDashDistanceRemaining = 0f;
                 ExperimentalGhostDashSpeedPerSecondValue = 0f;
+                ExperimentalGhostDashUsesMomentum = false;
+                ExperimentalGhostDashInitialTicks = 0;
+                ExperimentalGhostDashInitialDistance = 0f;
+                ExperimentalGhostDashDistanceTraveled = 0f;
+                ExperimentalGhostDashMomentumDirectionX = 1f;
             }
         }
 
@@ -1127,6 +1143,11 @@ public sealed partial class PlayerEntity
         ExperimentalGhostDashVisibilityTicksRemaining = 0;
         ExperimentalGhostDashDistanceRemaining = 0f;
         ExperimentalGhostDashSpeedPerSecondValue = 0f;
+        ExperimentalGhostDashUsesMomentum = false;
+        ExperimentalGhostDashInitialTicks = 0;
+        ExperimentalGhostDashInitialDistance = 0f;
+        ExperimentalGhostDashDistanceTraveled = 0f;
+        ExperimentalGhostDashMomentumDirectionX = 1f;
         ExperimentalGhostDashNextAttackDamageMultiplierValue = 1f;
         ExperimentalLuckyBastardTicksRemaining = 0;
         ExperimentalLuckyBastardReviveHealth = 0;

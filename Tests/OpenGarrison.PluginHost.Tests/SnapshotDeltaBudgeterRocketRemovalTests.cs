@@ -11,7 +11,7 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class SnapshotDeltaBudgeterRocketRemovalTests
 {
     [Fact]
-    public void BuildBudgetedSnapshotDropsExplosionSoundBeforeRocketRemovalWhenReducingOverage()
+    public void BuildBudgetedSnapshotKeepsExplosionSoundBeforeRocketRemovalWhenReducingOverage()
     {
         var rocket = CreateRocketState(42);
         var baseline = CreateSnapshot(900) with
@@ -59,16 +59,17 @@ public sealed class SnapshotDeltaBudgeterRocketRemovalTests
                 Priority: 850,
                 DistanceSquared: 0f,
                 EstimatedBytes: 1,
-                Apply: builder => builder.SoundEvents.Add(soundEvent)),
+                Apply: builder => builder.SoundEvents.Add(soundEvent),
+                Kind: SnapshotDeltaBudgeter.ContributionKind.TransientSoundEvent),
         };
 
         var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes);
         var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
 
         Assert.True(result.Payload.Length <= targetPayloadBytes);
-        Assert.Contains(rocket.Id, result.Message.RemovedRocketIds);
-        Assert.Empty(result.Message.SoundEvents);
-        Assert.Empty(merged.Rockets);
+        Assert.Empty(result.Message.RemovedRocketIds);
+        Assert.Single(result.Message.SoundEvents);
+        Assert.Single(merged.Rockets);
     }
 
     [Fact]

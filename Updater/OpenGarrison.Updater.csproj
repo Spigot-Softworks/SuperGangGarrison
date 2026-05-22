@@ -3,6 +3,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>OG2.Launcher</AssemblyName>
+    <AssemblyTitle>Gang Garrison 2 Launcher</AssemblyTitle>
     <RollForward>Major</RollForward>
     <PublishSingleFile>false</PublishSingleFile>
     <ApplicationIcon>..\Client\Properties\Icon.ico</ApplicationIcon>

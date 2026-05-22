@@ -135,6 +135,12 @@ public partial class Game1
             return;
         }
 
+        if (IsKeyPressed(keyboard, Keys.LeftControl) || IsKeyPressed(keyboard, Keys.RightControl))
+        {
+            CycleSpectatorCameraMode();
+            return;
+        }
+
         if (IsKeyPressed(keyboard, Keys.Add) || IsKeyPressed(keyboard, Keys.OemPlus) ||
             (mouse.RightButton == ButtonState.Pressed && _previousMouse.RightButton != ButtonState.Pressed))
         {

@@ -5,6 +5,8 @@ using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
+using System.Reflection;
 using OpenGarrison.Client.Plugins;
 using OpenGarrison.ClientShared;
 using OpenGarrison.Core;
@@ -87,6 +89,29 @@ public partial class Game1
     private static string GetDamageVignetteIntensityLabel(int percent)
     {
         return $"{ClientSettings.NormalizeDamageVignetteIntensityPercent(percent)}%";
+    }
+
+    private static string GetApplicationVersionLabel()
+    {
+        var versionPath = Path.Combine(AppContext.BaseDirectory, "version.txt");
+        if (File.Exists(versionPath))
+        {
+            var version = File.ReadAllText(versionPath).Trim();
+            if (!string.IsNullOrWhiteSpace(version))
+            {
+                return version;
+            }
+        }
+
+        var informationalVersion = typeof(Game1).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion;
+        if (!string.IsNullOrWhiteSpace(informationalVersion))
+        {
+            return informationalVersion;
+        }
+
+        return typeof(Game1).Assembly.GetName().Version?.ToString() ?? "dev";
     }
 
     private float GetPlayerCardSizeScale()

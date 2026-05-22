@@ -18,7 +18,7 @@ public partial class Game1
         private static readonly int[] CapLimitOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
         private static readonly int[] RespawnOptions = [0, 3, 5, 10, 15];
         private static readonly int[] BotCountOptions = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-        public int MapIndex { get; set; }
+        public int MapIndex { get; set; } = -1;
         public List<PracticeMapEntry> MapEntries { get; set; } = new();
         public int TickRate { get; set; } = SimulationConfig.DefaultTicksPerSecond;
         public int TimeLimitMinutes { get; set; } = 15;
@@ -107,8 +107,8 @@ public partial class Game1
 
         public int FindDefaultMapIndex()
         {
-            var valleyIndex = MapEntries.FindIndex(entry => string.Equals(entry.LevelName, "Valley", StringComparison.OrdinalIgnoreCase));
-            return valleyIndex >= 0 ? valleyIndex : 0;
+            var harvestIndex = MapEntries.FindIndex(entry => string.Equals(entry.LevelName, "Harvest", StringComparison.OrdinalIgnoreCase));
+            return harvestIndex >= 0 ? harvestIndex : 0;
         }
 
         public PracticeMapEntry? GetSelectedMapEntry()

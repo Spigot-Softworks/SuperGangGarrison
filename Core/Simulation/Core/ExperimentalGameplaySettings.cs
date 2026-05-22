@@ -156,6 +156,9 @@ public sealed record ExperimentalGameplaySettings(
     public const float DefaultGhostDashDurationSeconds = 0.5f;
     public const float DefaultGhostDashCooldownSeconds = 1f;
     public const float DefaultGhostDashNextAttackDamageMultiplier = 1.4f;
+    public const float HeavyGhostDashDurationSeconds = DefaultGhostDashDurationSeconds * 0.5f;
+    public const float HeavyGhostDashCooldownSeconds = 12f;
+    public const float HeavyGhostDashImpulseScale = 1f;
     public const int DefaultEngineerGuardianMatrixSentryBonusHealth = 100;
     public const float DefaultEngineerIncendiaryEnhancementsCloseRange = 118f;
     public const float DefaultEngineerIncendiaryEnhancementsBurnDurationSourceTicks = 75f;

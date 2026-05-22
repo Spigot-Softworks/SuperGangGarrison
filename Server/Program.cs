@@ -14,7 +14,7 @@ const int lobbyResolveSeconds = 600;
 const double clientTimeoutSeconds = 5;
 const double passwordTimeoutSeconds = 30;
 const double passwordRetrySeconds = 2;
-const ulong transientEventReplayTicks = 6;
+const int transientEventReplaySeconds = 2;
 const int autoBalanceDelaySeconds = 10;
 const int autoBalanceNewPlayerGraceSeconds = 60;
 
@@ -28,6 +28,7 @@ var config = new SimulationConfig
     TicksPerSecond = launchOptions.TickRate,
     EnableLocalDummies = false,
 };
+var transientEventReplayTicks = (ulong)(config.TicksPerSecond * transientEventReplaySeconds);
 
 // Configure protocol compression based on server settings
 ServerProtocolCompression.Configure(launchOptions.Settings.SnapshotCompressionEnabled);

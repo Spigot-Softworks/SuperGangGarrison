@@ -193,8 +193,18 @@ public sealed partial class PlayerEntity
     {
         if (!IsExperimentalGhostDashing
             || ExperimentalGhostDashDistanceRemaining <= 0f
-            || ExperimentalGhostDashSpeedPerSecondValue <= 0f
             || deltaSeconds <= 0f)
+        {
+            return;
+        }
+
+        if (ExperimentalGhostDashUsesMomentum)
+        {
+            ApplyExperimentalMomentumGhostDashMovement(level, team, allowDropdownFallThrough);
+            return;
+        }
+
+        if (ExperimentalGhostDashSpeedPerSecondValue <= 0f)
         {
             return;
         }
@@ -209,5 +219,56 @@ public sealed partial class PlayerEntity
 
         MoveWithCollisions(level, team, FacingDirectionX * moveDistance, 0f, allowDropdownFallThrough);
         ExperimentalGhostDashDistanceRemaining = MathF.Max(0f, ExperimentalGhostDashDistanceRemaining - moveDistance);
+    }
+
+    private void ApplyExperimentalMomentumGhostDashMovement(SimpleLevel level, PlayerTeam team, bool allowDropdownFallThrough)
+    {
+        if (ExperimentalGhostDashInitialTicks <= 0 || ExperimentalGhostDashInitialDistance <= 0f)
+        {
+            return;
+        }
+
+        var elapsedTicks = Math.Clamp(
+            ExperimentalGhostDashInitialTicks - ExperimentalGhostDashTicksRemaining,
+            0,
+            ExperimentalGhostDashInitialTicks - 1);
+        var nextProgress = (elapsedTicks + 1) / (float)ExperimentalGhostDashInitialTicks;
+        var targetDistance = ExperimentalGhostDashInitialDistance * SmoothStepProgress(nextProgress);
+        var moveDistance = MathF.Max(0f, targetDistance - ExperimentalGhostDashDistanceTraveled);
+        moveDistance = MathF.Min(moveDistance, ExperimentalGhostDashDistanceRemaining);
+        if (moveDistance <= 0f)
+        {
+            return;
+        }
+
+        var previousX = X;
+        MoveWithCollisions(level, team, ExperimentalGhostDashMomentumDirectionX * moveDistance, 0f, allowDropdownFallThrough);
+        var movedDistance = MathF.Abs(X - previousX);
+        ExperimentalGhostDashDistanceTraveled += moveDistance;
+        ExperimentalGhostDashDistanceRemaining = MathF.Max(0f, ExperimentalGhostDashInitialDistance - ExperimentalGhostDashDistanceTraveled);
+
+        if (movedDistance <= 0.001f)
+        {
+            ExperimentalGhostDashDistanceRemaining = 0f;
+            return;
+        }
+
+        if (nextProgress >= 1f)
+        {
+            const float residualMomentumPerTick = 3.25f;
+            var residualSpeed = residualMomentumPerTick * LegacyMovementModel.SourceTicksPerSecond;
+            var residualVelocity = ExperimentalGhostDashMomentumDirectionX * residualSpeed;
+            if (MathF.Sign(HorizontalSpeed) != MathF.Sign(residualVelocity)
+                || MathF.Abs(HorizontalSpeed) < residualSpeed)
+            {
+                HorizontalSpeed = residualVelocity;
+            }
+        }
+    }
+
+    private static float SmoothStepProgress(float progress)
+    {
+        progress = float.Clamp(progress, 0f, 1f);
+        return progress * progress * (3f - (2f * progress));
     }
 }

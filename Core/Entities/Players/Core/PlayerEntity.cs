@@ -344,13 +344,23 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     private int ExperimentalGhostDashTicksRemaining { get; set; }
 
-    private int ExperimentalGhostDashCooldownTicksRemaining { get; set; }
+    public int ExperimentalGhostDashCooldownTicksRemaining { get; private set; }
 
     private int ExperimentalGhostDashVisibilityTicksRemaining { get; set; }
 
     private float ExperimentalGhostDashDistanceRemaining { get; set; }
 
     private float ExperimentalGhostDashSpeedPerSecondValue { get; set; }
+
+    private bool ExperimentalGhostDashUsesMomentum { get; set; }
+
+    private int ExperimentalGhostDashInitialTicks { get; set; }
+
+    private float ExperimentalGhostDashInitialDistance { get; set; }
+
+    private float ExperimentalGhostDashDistanceTraveled { get; set; }
+
+    private float ExperimentalGhostDashMomentumDirectionX { get; set; } = 1f;
 
     private float ExperimentalGhostDashNextAttackDamageMultiplierValue { get; set; } = 1f;
 

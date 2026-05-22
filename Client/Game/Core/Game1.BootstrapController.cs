@@ -3,7 +3,6 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using OpenGarrison.Core;
-using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
 
@@ -106,9 +105,7 @@ public partial class Game1
             {
                 _game.Window.TextInput += _game.OnWindowTextInput;
             }
-            _game.Window.Title = _game._startupMode == GameStartupMode.ServerLauncher
-                ? $"OG2.ServerLauncher - Proto (Protocol v{ProtocolVersion.Current})"
-                : $"OG2 - Proto (Protocol v{ProtocolVersion.Current})";
+            _game.Window.Title = WindowTitle;
             _game._menuImageFrame = _game._visualRandom.Next(2);
             _game._playerNameEditBuffer = _game._world.LocalPlayer.DisplayName;
             _game.AddConsoleLine("debug console ready (`)");

@@ -12,8 +12,12 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
     private const int MinimumSnapshotHistoryLimit = 12;
     private const int SnapshotHistorySlackFrames = 12;
     private const int MaximumSnapshotHistoryLimit = 48;
+    private const int AcknowledgedSoundEventHistoryLimit = 4096;
     private readonly Dictionary<ulong, SnapshotBaselineState> _snapshotStatesByFrame = new();
     private readonly Queue<ulong> _snapshotFrameOrder = new();
+    private readonly Dictionary<ulong, ulong[]> _snapshotSoundEventIdsByFrame = new();
+    private readonly HashSet<ulong> _acknowledgedSoundEventIds = new();
+    private readonly Queue<ulong> _acknowledgedSoundEventOrder = new();
 
     public ClientSession(byte slot, int userId, IPEndPoint endPoint, string name, TimeSpan lastSeen)
         : this(slot, userId, ServerTransportPeer.FromUdpEndPoint(endPoint), name, lastSeen)
@@ -45,6 +49,7 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
     public uint LastGameplayLoadoutCommandSequence { get; set; }
     public ulong LastAcknowledgedSnapshotFrame { get; private set; }
     public bool IsAuthorized { get; set; } = true;
+    public bool IsWatchOnly { get; set; }
     public TimeSpan LastPasswordRequestSentAt { get; set; } = TimeSpan.MinValue;
     public OpenGarrisonServerAdminPermissions AdminPermissions { get; set; } = OpenGarrisonServerAdminPermissions.None;
     public TimeSpan AdminAuthenticatedAt { get; set; } = TimeSpan.MinValue;
@@ -105,6 +110,7 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
         }
 
         _snapshotStatesByFrame[fullSnapshot.Frame] = baseline;
+        RememberSnapshotSoundEvents(fullSnapshot);
         TrimSnapshotHistory();
     }
 
@@ -115,6 +121,7 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
             return;
         }
 
+        AcknowledgeSnapshotSoundEvents(frame);
         LastAcknowledgedSnapshotFrame = frame;
         PruneOlderSnapshotHistory(frame);
     }
@@ -124,11 +131,19 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
         return _snapshotStatesByFrame.TryGetValue(frame, out snapshot!);
     }
 
+    public bool HasAcknowledgedSoundEvent(ulong eventId)
+    {
+        return eventId != 0 && _acknowledgedSoundEventIds.Contains(eventId);
+    }
+
     public void ResetSnapshotHistory()
     {
         LastAcknowledgedSnapshotFrame = 0;
         _snapshotStatesByFrame.Clear();
         _snapshotFrameOrder.Clear();
+        _snapshotSoundEventIdsByFrame.Clear();
+        _acknowledgedSoundEventIds.Clear();
+        _acknowledgedSoundEventOrder.Clear();
     }
 
     private void TrimSnapshotHistory()
@@ -138,6 +153,7 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
         {
             var oldestFrame = _snapshotFrameOrder.Dequeue();
             _snapshotStatesByFrame.Remove(oldestFrame);
+            _snapshotSoundEventIdsByFrame.Remove(oldestFrame);
             if (oldestFrame == LastAcknowledgedSnapshotFrame)
             {
                 LastAcknowledgedSnapshotFrame = 0;
@@ -149,7 +165,63 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
     {
         while (_snapshotFrameOrder.Count > 0 && _snapshotFrameOrder.Peek() < acknowledgedFrame)
         {
-            _snapshotStatesByFrame.Remove(_snapshotFrameOrder.Dequeue());
+            var removedFrame = _snapshotFrameOrder.Dequeue();
+            _snapshotStatesByFrame.Remove(removedFrame);
+            _snapshotSoundEventIdsByFrame.Remove(removedFrame);
+        }
+    }
+
+    private void RememberSnapshotSoundEvents(SnapshotMessage snapshot)
+    {
+        if (snapshot.SoundEvents.Count == 0)
+        {
+            _snapshotSoundEventIdsByFrame.Remove(snapshot.Frame);
+            return;
+        }
+
+        var soundEventIds = new List<ulong>(snapshot.SoundEvents.Count);
+        for (var index = 0; index < snapshot.SoundEvents.Count; index += 1)
+        {
+            var eventId = snapshot.SoundEvents[index].EventId;
+            if (eventId != 0)
+            {
+                soundEventIds.Add(eventId);
+            }
+        }
+
+        if (soundEventIds.Count == 0)
+        {
+            _snapshotSoundEventIdsByFrame.Remove(snapshot.Frame);
+            return;
+        }
+
+        _snapshotSoundEventIdsByFrame[snapshot.Frame] = soundEventIds.ToArray();
+    }
+
+    private void AcknowledgeSnapshotSoundEvents(ulong frame)
+    {
+        if (!_snapshotSoundEventIdsByFrame.TryGetValue(frame, out var soundEventIds))
+        {
+            return;
+        }
+
+        for (var index = 0; index < soundEventIds.Length; index += 1)
+        {
+            AddAcknowledgedSoundEvent(soundEventIds[index]);
+        }
+    }
+
+    private void AddAcknowledgedSoundEvent(ulong eventId)
+    {
+        if (eventId == 0 || !_acknowledgedSoundEventIds.Add(eventId))
+        {
+            return;
+        }
+
+        _acknowledgedSoundEventOrder.Enqueue(eventId);
+        while (_acknowledgedSoundEventOrder.Count > AcknowledgedSoundEventHistoryLimit)
+        {
+            _acknowledgedSoundEventIds.Remove(_acknowledgedSoundEventOrder.Dequeue());
         }
     }
 

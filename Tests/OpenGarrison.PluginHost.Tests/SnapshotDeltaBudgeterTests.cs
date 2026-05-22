@@ -391,6 +391,41 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
+    public void BuildContributionsTreatsSoundEventsAsReliableOldestFirstTransientEvents()
+    {
+        var baseline = CreateSnapshot(610);
+        var current = CreateSnapshot(611) with
+        {
+            SoundEvents =
+            [
+                new SnapshotSoundEvent("older-sound", 128f, 96f, EventId: 41, SourceFrame: 610),
+                new SnapshotSoundEvent("newer-sound", 128f, 96f, EventId: 42, SourceFrame: 611),
+            ],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+
+        var soundContributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world)
+            .Where(static contribution => contribution.Kind == SnapshotDeltaBudgeter.ContributionKind.TransientSoundEvent)
+            .OrderByDescending(static contribution => contribution.Priority)
+            .ToArray();
+        var builder = new SnapshotDeltaBudgeter.Builder(current, baseline.Frame, seedFromTemplateCollections: false);
+        foreach (var contribution in soundContributions)
+        {
+            contribution.Apply(builder);
+        }
+
+        Assert.Equal(2, soundContributions.Length);
+        Assert.True(soundContributions[0].Priority > soundContributions[1].Priority);
+        Assert.Equal(["older-sound", "newer-sound"], builder.SoundEvents.Select(static sound => sound.SoundName).ToArray());
+    }
+
+    [Fact]
     public void TransientEventBufferRetainsGibSpawnEventsForReplay()
     {
         var world = new SimulationWorld();

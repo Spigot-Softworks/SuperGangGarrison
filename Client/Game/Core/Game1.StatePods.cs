@@ -8,6 +8,20 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private enum OnlineConnectionIntent
+    {
+        Join,
+        Watch,
+    }
+
+    private enum SpectatorCameraMode
+    {
+        Normal = 0,
+        RedIntel = 1,
+        BlueIntel = 2,
+        Auto = 3,
+    }
+
     private readonly UiShellState _uiShellState = new();
     private readonly GameplaySessionState _gameplaySessionState = new();
 
@@ -405,6 +419,18 @@ public partial class Game1
     {
         get => _uiShellState.CreditsOpen;
         set => _uiShellState.CreditsOpen = value;
+    }
+
+    private SpectatorCameraMode _spectatorCameraMode
+    {
+        get => _gameplaySessionState.SpectatorCameraMode;
+        set => _gameplaySessionState.SpectatorCameraMode = value;
+    }
+
+    private OnlineConnectionIntent _onlineConnectionIntent
+    {
+        get => _gameplaySessionState.OnlineConnectionIntent;
+        set => _gameplaySessionState.OnlineConnectionIntent = value;
     }
 
     private bool _friendsMenuOpen
@@ -989,6 +1015,8 @@ public partial class Game1
         public int? LocalPlayerSnapshotEntityId;
         public int? SpectatorTrackedPlayerId;
         public bool SpectatorTrackingEnabled;
+        public SpectatorCameraMode SpectatorCameraMode = SpectatorCameraMode.Auto;
+        public OnlineConnectionIntent OnlineConnectionIntent;
         public string ObservedGameplayLevelName = string.Empty;
         public int ObservedGameplayMapAreaIndex = -1;
         public GameplaySessionKind GameplaySessionKind;

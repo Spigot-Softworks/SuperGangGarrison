@@ -26,6 +26,14 @@ public enum MessageType : byte
     ClientPluginMessage = 19,
     ServerPluginMessage = 20,
     PlayerSocialProfileUpdate = 21,
+    ServerDetailsRequest = 22,
+    ServerDetailsResponse = 23,
+}
+
+public enum ConnectionIntent : byte
+{
+    Join = 0,
+    Watch = 1,
 }
 
 public enum PluginMessagePayloadFormat : byte
@@ -72,7 +80,8 @@ public sealed record HelloMessage(
     int Version,
     ulong BadgeMask,
     string FriendCode = "",
-    string PlayerCardJson = "") : IProtocolMessage
+    string PlayerCardJson = "",
+    ConnectionIntent Intent = ConnectionIntent.Join) : IProtocolMessage
 {
     public MessageType Type => MessageType.Hello;
 }
@@ -162,6 +171,44 @@ public sealed record ServerStatusResponseMessage(
     int SpectatorCount) : IProtocolMessage
 {
     public MessageType Type => MessageType.ServerStatusResponse;
+}
+
+public sealed record ServerDetailsRequestMessage : IProtocolMessage
+{
+    public MessageType Type => MessageType.ServerDetailsRequest;
+}
+
+public sealed record ServerDetailsRosterEntry(
+    byte Slot,
+    string Name,
+    byte Team,
+    byte ClassId,
+    bool IsSpectator,
+    bool IsAlive,
+    bool IsAwaitingJoin,
+    short Health,
+    short MaxHealth,
+    short Kills,
+    short Deaths,
+    short Assists,
+    short Caps,
+    float Points);
+
+public sealed record ServerDetailsResponseMessage(
+    string ServerName,
+    string LevelName,
+    byte GameMode,
+    int PlayerCount,
+    int MaxPlayerCount,
+    int SpectatorCount,
+    int RedScore,
+    int BlueScore,
+    int TimeRemainingTicks,
+    int TimeLimitTicks,
+    int TickRate,
+    IReadOnlyList<ServerDetailsRosterEntry> Roster) : IProtocolMessage
+{
+    public MessageType Type => MessageType.ServerDetailsResponse;
 }
 
 public sealed record InputStateMessage(

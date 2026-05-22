@@ -58,6 +58,7 @@ internal sealed class NetworkGameClient : IDisposable
     private ulong _pendingHelloBadgeMask;
     private string _pendingHelloFriendCode = string.Empty;
     private string _pendingHelloPlayerCardJson = string.Empty;
+    private ConnectionIntent _pendingHelloIntent = ConnectionIntent.Join;
     private long _connectStartedAtMilliseconds = -1;
     private long _lastHelloSentAtMilliseconds = -1;
     private long _lastServerMessageReceivedAtMilliseconds = -1;
@@ -99,7 +100,8 @@ internal sealed class NetworkGameClient : IDisposable
         ulong badgeMask,
         out string error,
         string friendCode = "",
-        string playerCardJson = "")
+        string playerCardJson = "",
+        ConnectionIntent intent = ConnectionIntent.Join)
     {
         error = string.Empty;
         var armedDemoRecordingPath = _demoRecorder is null ? _armedDemoRecordingPath : null;
@@ -116,7 +118,7 @@ internal sealed class NetworkGameClient : IDisposable
                 return false;
             }
 
-            return Connect(transport, playerName, badgeMask, out error, friendCode, playerCardJson);
+            return Connect(transport, playerName, badgeMask, out error, friendCode, playerCardJson, intent);
         }
         catch (SocketException ex)
         {
@@ -132,7 +134,8 @@ internal sealed class NetworkGameClient : IDisposable
         ulong badgeMask,
         out string error,
         string friendCode = "",
-        string playerCardJson = "")
+        string playerCardJson = "",
+        ConnectionIntent intent = ConnectionIntent.Join)
     {
         error = string.Empty;
         ArgumentNullException.ThrowIfNull(transport);
@@ -172,6 +175,7 @@ internal sealed class NetworkGameClient : IDisposable
         _pendingHelloBadgeMask = badgeMask;
         _pendingHelloFriendCode = NormalizeSocialProfileField(friendCode, ProtocolCodec.MaxFriendCodeBytes);
         _pendingHelloPlayerCardJson = NormalizeSocialProfileField(playerCardJson, ProtocolCodec.MaxPlayerCardBytes);
+        _pendingHelloIntent = intent;
         _connectStartedAtMilliseconds = _clock.ElapsedMilliseconds;
         _lastHelloSentAtMilliseconds = -1;
         LocalPlayerSlot = 0;
@@ -208,6 +212,7 @@ internal sealed class NetworkGameClient : IDisposable
         _pendingHelloBadgeMask = 0UL;
         _pendingHelloFriendCode = string.Empty;
         _pendingHelloPlayerCardJson = string.Empty;
+        _pendingHelloIntent = ConnectionIntent.Join;
         _connectStartedAtMilliseconds = -1;
         _lastHelloSentAtMilliseconds = -1;
         _lastServerMessageReceivedAtMilliseconds = -1;
@@ -1032,7 +1037,8 @@ internal sealed class NetworkGameClient : IDisposable
             ProtocolVersion.Current,
             _pendingHelloBadgeMask,
             _pendingHelloFriendCode,
-            _pendingHelloPlayerCardJson));
+            _pendingHelloPlayerCardJson,
+            _pendingHelloIntent));
         _lastHelloSentAtMilliseconds = _clock.ElapsedMilliseconds;
     }
 

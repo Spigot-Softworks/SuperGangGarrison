@@ -157,6 +157,8 @@ public partial class Game1
             IsHeavyEating = player.IsHeavyEating,
             HeavyEatTicksRemaining = player.HeavyEatTicksRemaining,
             HeavyEatCooldownTicksRemaining = player.HeavyEatCooldownTicksRemaining,
+            IsExperimentalGhostDashing = player.IsExperimentalGhostDashing,
+            ExperimentalGhostDashCooldownTicksRemaining = player.ExperimentalGhostDashCooldownTicksRemaining,
             IsSniperScoped = player.IsSniperScoped,
             SniperChargeTicks = player.SniperChargeTicks,
             IsUsingBinoculars = player.IsUsingBinoculars,
@@ -257,6 +259,8 @@ public partial class Game1
         public bool IsHeavyEating;
         public int HeavyEatTicksRemaining;
         public int HeavyEatCooldownTicksRemaining;
+        public bool IsExperimentalGhostDashing;
+        public int ExperimentalGhostDashCooldownTicksRemaining;
         public bool IsSniperScoped;
         public int SniperChargeTicks;
         public bool IsUsingBinoculars;

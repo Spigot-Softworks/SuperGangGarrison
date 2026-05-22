@@ -75,6 +75,11 @@ public partial class Game1
 
         public bool TryConnectToServer(NetworkEndpoint endpoint, bool addConsoleFeedback)
         {
+            return TryConnectToServer(endpoint, addConsoleFeedback, OnlineConnectionIntent.Join);
+        }
+
+        public bool TryConnectToServer(NetworkEndpoint endpoint, bool addConsoleFeedback, OnlineConnectionIntent intent)
+        {
             if (!_game._bootstrapController.CanEnterGameplaySession(out var bootstrapReason))
             {
                 _game.SetNetworkStatus(bootstrapReason ?? "Browser client assets are still loading.");
@@ -82,8 +87,10 @@ public partial class Game1
             }
 
             _game.ClearReplayQueue(clearActiveReplayPath: true);
+            _game._onlineConnectionIntent = intent;
             if (!endpoint.TryResolveForCurrentRuntime(out var host, out var port, out var transport))
             {
+                _game._onlineConnectionIntent = OnlineConnectionIntent.Join;
                 _game.SetNetworkStatus("Connect failed: endpoint does not support this runtime.");
                 if (addConsoleFeedback)
                 {
@@ -100,7 +107,8 @@ public partial class Game1
                     _game._world.LocalPlayer.BadgeMask,
                     out var error,
                     _game._clientIdentity.FriendCode,
-                    PlayerCardProfile.Serialize(_game._clientIdentity.PlayerCard)))
+                    PlayerCardProfile.Serialize(_game._clientIdentity.PlayerCard),
+                    ToProtocolConnectionIntent(intent)))
             {
                 _game.SetSocialPresenceNetworkEndpoint(endpoint);
                 _game.RecordRecentConnection(host, port);
@@ -112,15 +120,17 @@ public partial class Game1
                 _game._world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings());
                 _game.CloseLobbyBrowser(clearStatus: false);
                 var transportLabel = transport == NetworkEndpointTransport.WebSocket ? "WebSocket" : "UDP";
-                _game.SetNetworkStatus($"Connecting to {host}:{port} over {transportLabel}...");
+                var actionLabel = intent == OnlineConnectionIntent.Watch ? "Watching" : "Connecting to";
+                _game.SetNetworkStatus($"{actionLabel} {host}:{port} over {transportLabel}...");
                 if (addConsoleFeedback)
                 {
-                    _game.AddNetworkConsoleLine($"connecting to {host}:{port} over {transportLabel}");
+                    _game.AddNetworkConsoleLine($"{actionLabel.ToLowerInvariant()} {host}:{port} over {transportLabel}");
                 }
 
                 return true;
             }
 
+            _game._onlineConnectionIntent = OnlineConnectionIntent.Join;
             _game.SetNetworkStatus($"Connect failed: {error}");
             if (addConsoleFeedback)
             {
@@ -156,6 +166,7 @@ public partial class Game1
 
             if (_game._networkClient.Connect(transport, _game._world.LocalPlayer.DisplayName, _game._world.LocalPlayer.BadgeMask, out error))
             {
+                _game._onlineConnectionIntent = OnlineConnectionIntent.Join;
                 _game._activeReplayPath = replayPath.Trim();
                 _game.ClearOnlinePlayerSocialProfiles();
                 _game.ResetGameplayRuntimeState();
@@ -201,6 +212,7 @@ public partial class Game1
 
             if (_game._networkClient.Connect(transport, _game._world.LocalPlayer.DisplayName, _game._world.LocalPlayer.BadgeMask, out error))
             {
+                _game._onlineConnectionIntent = OnlineConnectionIntent.Join;
                 _game._activeReplayPath = demoPath.Trim();
                 _game.ClearOnlinePlayerSocialProfiles();
                 _game.ResetGameplayRuntimeState();
@@ -249,6 +261,14 @@ public partial class Game1
             _game.ReinitializeSimulationForTickRate(welcome.TickRate);
             _game._world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings());
             _game._networkClient.SetLocalPlayerSlot(welcome.PlayerSlot);
+            if (_game._onlineConnectionIntent == OnlineConnectionIntent.Watch
+                && !_game._networkClient.IsSpectator)
+            {
+                _game._networkClient.Disconnect();
+                _game.ReturnToMainMenuWithNetworkStatus("Watch connection returned a playable slot.");
+                return;
+            }
+
             _game._networkClient.SetServerDescription(welcome.ServerName);
             _game._networkClient.SetServerMaxPlayerCount(welcome.MaxPlayerCount);
             _game.ResetSpectatorTracking(enableTracking: _game._networkClient.IsSpectator);
@@ -266,13 +286,20 @@ public partial class Game1
             _game.ResetGameplayTransitionEffects();
             _sessionController.EnterGameplaySession(
                 GameplaySessionKind.Online,
-                openJoinMenus: !_game._networkClient.IsSpectator,
+                openJoinMenus: _game._onlineConnectionIntent != OnlineConnectionIntent.Watch && !_game._networkClient.IsSpectator,
                 statusMessage: _game._networkClient.IsSpectator ? "Connected as spectator." : string.Empty);
             _game.StopMenuMusic();
             _game.AddNetworkConsoleLine(
                 _game._networkClient.IsSpectator
                     ? $"connected to {welcome.ServerName} ({welcome.LevelName}) as spectator tickrate={welcome.TickRate}"
                     : $"connected to {welcome.ServerName} ({welcome.LevelName}) tickrate={welcome.TickRate}");
+        }
+
+        private static ConnectionIntent ToProtocolConnectionIntent(OnlineConnectionIntent intent)
+        {
+            return intent == OnlineConnectionIntent.Watch
+                ? ConnectionIntent.Watch
+                : ConnectionIntent.Join;
         }
     }
 }

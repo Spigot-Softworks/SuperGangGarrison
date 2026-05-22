@@ -271,6 +271,7 @@ public partial class Game1
                     {
                         DrawHeavySandwichHud();
                     }
+                    DrawHeavyGhostDashHud();
                     break;
                 case PrimaryWeaponKind.Blade:
                     DrawQuoteAmmoHud();
@@ -326,6 +327,7 @@ public partial class Game1
         public void DrawPyroAmmoHud() => DrawPyroAmmoHudCore();
         public void DrawHeavyAmmoHud() => DrawHeavyAmmoHudCore();
         public void DrawHeavySandwichHud() => DrawHeavySandwichHudCore();
+        public void DrawHeavyGhostDashHud() => DrawHeavyGhostDashHudCore();
 
         public void DrawDamageVignette() => DrawDamageVignetteCore();
 
@@ -561,6 +563,24 @@ public partial class Game1
 
             var cooldownRemaining = Math.Clamp(_game.GetPlayerHeavyEatCooldownTicksRemaining(_game._world.LocalPlayer), 0, PlayerEntity.HeavySandvichCooldownTicks);
             _game.DrawScreenHealthBar(GetSourceHudRectangle(715f, 528f, 35f, 5f), PlayerEntity.HeavySandvichCooldownTicks - cooldownRemaining, PlayerEntity.HeavySandvichCooldownTicks, false, AmmoHudBarColor, Color.Black);
+        }
+
+        private void DrawHeavyGhostDashHudCore()
+        {
+            var player = _game._world.LocalPlayer;
+            if (player.ClassId != PlayerClass.Heavy)
+            {
+                return;
+            }
+
+            var maxCooldownTicks = Math.Max(1, (int)MathF.Round(_game._config.TicksPerSecond * ExperimentalGameplaySettings.HeavyGhostDashCooldownSeconds));
+            var cooldownRemaining = Math.Clamp(_game.GetPlayerExperimentalGhostDashCooldownTicksRemaining(player), 0, maxCooldownTicks);
+            var isDashing = _game.GetPlayerIsExperimentalGhostDashing(player);
+            var isReady = !isDashing && cooldownRemaining <= 0;
+            var meterFraction = isReady ? 1f : 1f - (cooldownRemaining / (float)maxCooldownTicks);
+            var meterColor = isDashing ? new Color(226, 188, 92) : AmmoHudBarColor;
+
+            _game.DrawScreenHealthBar(GetSourceHudRectangle(706f, 498f, 48f, 5f), meterFraction, 1f, false, meterColor, Color.Black);
         }
 
         private void DrawSpySuperjumpHudCore()
