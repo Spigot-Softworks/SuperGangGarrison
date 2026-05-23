@@ -254,6 +254,26 @@ public sealed partial class SimulationWorld
                 maxDistance);
         }
 
+        private static float? GetRayIntersectionDistanceWithJumpPad(
+            float originX,
+            float originY,
+            float directionX,
+            float directionY,
+            JumpPadEntity jumpPad,
+            float maxDistance)
+        {
+            return GetRayIntersectionDistanceWithRectangle(
+                originX,
+                originY,
+                directionX,
+                directionY,
+                jumpPad.X - (JumpPadEntity.HitboxWidth / 2f),
+                jumpPad.Y - (JumpPadEntity.HitboxHeight / 2f),
+                jumpPad.X + (JumpPadEntity.HitboxWidth / 2f),
+                jumpPad.Y + (JumpPadEntity.HitboxHeight / 2f),
+                maxDistance);
+        }
+
         private static float? GetRayIntersectionDistanceWithGenerator(
             float originX,
             float originY,

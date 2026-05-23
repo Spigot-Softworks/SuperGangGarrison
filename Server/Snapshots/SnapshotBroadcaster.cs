@@ -393,6 +393,7 @@ sealed class SnapshotBroadcaster
             CompetitiveReadyUpTicksRemaining = _world.CompetitiveReadyUpTicksRemaining,
             SentryGibs = ConvertToArray(_world.SentryGibs, static sentryGib => ToSnapshotSentryGibState(sentryGib)),
             JumpPads = ConvertToArray(_world.JumpPads, static jumpPad => ToSnapshotJumpPadState(jumpPad)),
+            JumpPadGibs = ConvertToArray(_world.JumpPadGibs, static jumpPadGib => ToSnapshotJumpPadGibState(jumpPadGib)),
             Grenades = ConvertToArray(_world.Grenades, static grenade => ToSnapshotGrenadeState(grenade)),
             GibSpawnEvents = gibSpawnEvents,
             RocketSpawnEvents = rocketSpawnEvents,

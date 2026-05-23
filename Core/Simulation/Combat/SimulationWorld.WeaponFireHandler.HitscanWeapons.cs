@@ -56,6 +56,10 @@ public sealed partial class SimulationWorld
             {
                 TryDamageGenerator(result.HitGenerator.Team, damage, attacker);
             }
+            else if (result.HitJumpPad is not null)
+            {
+                result.HitJumpPad.TakeDamage(damage);
+            }
             else if (result.Distance < rifleDistance)
             {
                 RegisterImpactEffect(
