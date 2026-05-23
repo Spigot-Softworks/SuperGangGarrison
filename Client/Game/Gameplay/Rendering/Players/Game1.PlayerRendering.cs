@@ -57,7 +57,8 @@ public partial class Game1
         float RecoilDurationSeconds,
         float ReloadDurationSeconds,
         float ScopedRecoilDurationSeconds = 0f,
-        bool LoopRecoilWhileActive = false);
+        bool LoopRecoilWhileActive = false,
+        bool LoopReloadAnimation = false);
 
     private readonly record struct WeaponAnimationOverlayDefinition(
         string? CarrierSpriteName,
@@ -81,11 +82,16 @@ public partial class Game1
 
     private static Rectangle GetPlayerScreenBounds(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition)
     {
-        player.GetCollisionBoundsAt(renderPosition.X, renderPosition.Y, out var left, out var top, out var right, out var bottom);
-        var screenLeft = (int)MathF.Floor(left - cameraPosition.X);
-        var screenTop = (int)MathF.Floor(top - cameraPosition.Y);
-        var screenRight = (int)MathF.Ceiling(right - cameraPosition.X);
-        var screenBottom = (int)MathF.Ceiling(bottom - cameraPosition.Y);
+        // Derive the screen bounds from the same sprite screen origin the player sprite is drawn at
+        // (RoundToSourcePixels(renderPosition) - cameraPosition). Both quantities are integers so their
+        // difference is an integer, and the collision offsets are then added to that stable base rather
+        // than having sub-pixel renderPosition jitter influence which integer Floor/Ceiling snaps to.
+        var spriteScreenX = MathF.Round(renderPosition.X, MidpointRounding.AwayFromZero) - cameraPosition.X;
+        var spriteScreenY = MathF.Round(renderPosition.Y, MidpointRounding.AwayFromZero) - cameraPosition.Y;
+        var screenLeft = (int)MathF.Floor(spriteScreenX + player.CollisionLeftOffset);
+        var screenTop = (int)MathF.Floor(spriteScreenY + player.CollisionTopOffset);
+        var screenRight = (int)MathF.Ceiling(spriteScreenX + player.CollisionRightOffset);
+        var screenBottom = (int)MathF.Ceiling(spriteScreenY + player.CollisionBottomOffset);
         return new Rectangle(
             screenLeft,
             screenTop,

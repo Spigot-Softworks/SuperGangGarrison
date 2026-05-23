@@ -21,6 +21,7 @@ public sealed record GameplayItemPresentationDefinition(
     int ReloadDurationSourceTicks = 0,
     int ScopedRecoilDurationSourceTicks = 0,
     bool LoopRecoilWhileActive = false,
+    bool LoopReloadAnimation = true,
     int BlueTeamHudFrameOffset = 1,
     bool UseAmmoCountForHudFrame = false,
     int BlueTeamAmmoHudFrameOffset = 0,
