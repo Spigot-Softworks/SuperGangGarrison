@@ -225,7 +225,7 @@ public sealed partial class SimulationWorld
                     collisionObjectName = $"Generator:{hitResult.HitGenerator.Team}";
                 }
 
-                if (hitResult.HitPlayer is null && hitResult.HitSentry is null && hitResult.HitGenerator is null)
+                if (hitResult.HitPlayer is null && hitResult.HitSentry is null && hitResult.HitGenerator is null && hitResult.HitJumpPad is null)
                 {
                     // The legacy GameMaker rocket uses a collision mask, so it explodes a few pixels
                     // before the projectile origin would mathematically touch the wall.
@@ -241,7 +241,8 @@ public sealed partial class SimulationWorld
                 if (rocket.IsFading
                     && hitResult.HitPlayer is null
                     && hitResult.HitSentry is null
-                    && hitResult.HitGenerator is null)
+                    && hitResult.HitGenerator is null
+                    && hitResult.HitJumpPad is null)
                 {
                     world.RemoveRocketAt(rocketIndex);
                 }

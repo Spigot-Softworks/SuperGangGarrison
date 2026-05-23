@@ -54,6 +54,7 @@ public sealed partial class SimulationWorld
             if (!wasLanded && pad.HasLanded)
             {
                 RegisterWorldSoundEvent("SentryFloorSnd", pad.X, pad.Y);
+                RegisterWorldSoundEvent("SentryBuildSnd", pad.X, pad.Y);
             }
 
             if (pad.HasLanded)
@@ -183,7 +184,7 @@ public sealed partial class SimulationWorld
 
     private static bool IsJumpPadTriggerActive(JumpPadEntity pad)
     {
-        return pad.HasLanded && !pad.IsDead;
+        return pad.HasLanded && pad.IsBuilt && !pad.IsDead;
     }
 
     private static bool CanUseJumpPad(PlayerEntity player, JumpPadEntity pad)
@@ -391,7 +392,49 @@ public sealed partial class SimulationWorld
             _jumpPads.RemoveAt(index);
             RegisterWorldSoundEvent("ExplosionSnd", pad.X, pad.Y);
             RegisterVisualEffect("Explosion", pad.X, pad.Y);
+            SpawnJumpPadGibs(pad.Team, pad.X, pad.Y);
             break;
+        }
+    }
+
+    private void SpawnJumpPadGibs(PlayerTeam team, float x, float y)
+    {
+        var gib = new JumpPadGibEntity(AllocateEntityId(), team, x, y);
+        _jumpPadGibs.Add(gib);
+        _entities.Add(gib.Id, gib);
+    }
+
+    private void AdvanceJumpPadGibs()
+    {
+        for (var gibIndex = _jumpPadGibs.Count - 1; gibIndex >= 0; gibIndex -= 1)
+        {
+            var gib = _jumpPadGibs[gibIndex];
+            gib.AdvanceOneTick();
+            var pickedUp = false;
+            foreach (var player in EnumerateSimulatedPlayers())
+            {
+                if (!player.IsAlive || player.ClassId != PlayerClass.Engineer || player.Metal >= player.MaxMetal)
+                {
+                    continue;
+                }
+
+                if (!player.IntersectsMarker(gib.X, gib.Y, JumpPadGibEntity.PickupRadius, JumpPadGibEntity.PickupRadius))
+                {
+                    continue;
+                }
+
+                player.AddMetal(JumpPadGibEntity.MetalValue);
+                pickedUp = true;
+                break;
+            }
+
+            if (!pickedUp && !gib.IsExpired)
+            {
+                continue;
+            }
+
+            _entities.Remove(gib.Id);
+            _jumpPadGibs.RemoveAt(gibIndex);
         }
     }
 

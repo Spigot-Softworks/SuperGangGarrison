@@ -155,7 +155,7 @@ internal sealed class ServerReadOnlyStateView(
                 pad.Y,
                 pad.Health,
                 JumpPadEntity.MaxHealth,
-                IsBuilt: true,
+                pad.IsBuilt,
                 pad.IsDead,
                 pad.HasLanded,
                 HasActiveTarget: false)))

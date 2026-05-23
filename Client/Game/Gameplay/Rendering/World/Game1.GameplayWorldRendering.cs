@@ -199,6 +199,19 @@ public partial class Game1
             }
         }
 
+        foreach (var gib in _world.JumpPadGibs)
+        {
+            if (!TryDrawJumpPadGib(gib, cameraPosition))
+            {
+                var gibRectangle = new Rectangle(
+                    (int)(gib.X - 6f - cameraPosition.X),
+                    (int)(gib.Y - 6f - cameraPosition.Y),
+                    12,
+                    12);
+                _spriteBatch.Draw(_pixel, gibRectangle, new Color(160, 170, 175));
+            }
+        }
+
         foreach (var droppedWeapon in _world.DroppedWeapons)
         {
             DrawDroppedWeapon(droppedWeapon, cameraPosition);

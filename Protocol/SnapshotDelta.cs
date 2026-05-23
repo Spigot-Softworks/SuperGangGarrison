@@ -55,6 +55,7 @@ public static class SnapshotDelta
             SentryGibs = MergeEntities(baseline?.SentryGibs, snapshot.SentryGibs, snapshot.RemovedSentryGibIds, static state => state.Id),
             PlayerGibs = MergeEntities(baseline?.PlayerGibs, snapshot.PlayerGibs, snapshot.RemovedPlayerGibIds, static state => state.Id),
             JumpPads = MergeEntities(baseline?.JumpPads, snapshot.JumpPads, snapshot.RemovedJumpPadIds, static state => state.Id),
+            JumpPadGibs = MergeEntities(baseline?.JumpPadGibs, snapshot.JumpPadGibs, snapshot.RemovedJumpPadGibIds, static state => state.Id),
             PlayerMovementStates = Array.Empty<SnapshotPlayerMovementState>(),
             PlayerStatusStates = Array.Empty<SnapshotPlayerStatusState>(),
             PlayerExtendedStatusStates = Array.Empty<SnapshotPlayerExtendedStatusState>(),
@@ -74,6 +75,7 @@ public static class SnapshotDelta
             RemovedPlayerGibIds = Array.Empty<int>(),
             RemovedDeadBodyIds = Array.Empty<int>(),
             RemovedSentryGibIds = Array.Empty<int>(),
+            RemovedJumpPadGibIds = Array.Empty<int>(),
             RemovedJumpPadIds = Array.Empty<int>(),
         };
     }
@@ -104,6 +106,7 @@ public static class SnapshotDelta
             RemovedPlayerGibIds = Array.Empty<int>(),
             RemovedDeadBodyIds = Array.Empty<int>(),
             RemovedSentryGibIds = Array.Empty<int>(),
+            RemovedJumpPadGibIds = Array.Empty<int>(),
             RemovedJumpPadIds = Array.Empty<int>(),
         };
     }

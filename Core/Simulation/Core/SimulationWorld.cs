@@ -50,6 +50,7 @@ public sealed partial class SimulationWorld
     private readonly List<DroppedWeaponEntity> _droppedWeapons = new();
     private readonly List<DeadBodyEntity> _deadBodies = new();
     private readonly List<SentryGibEntity> _sentryGibs = new();
+    private readonly List<JumpPadGibEntity> _jumpPadGibs = new();
     private readonly List<GeneratorState> _generators = new();
     private readonly List<WorldSoundEvent> _pendingSoundEvents = new();
     private readonly List<WorldVisualEvent> _pendingVisualEvents = new();
@@ -278,6 +279,8 @@ public sealed partial class SimulationWorld
     public IReadOnlyList<DeadBodyEntity> DeadBodies => _deadBodies;
 
     public IReadOnlyList<SentryGibEntity> SentryGibs => _sentryGibs;
+
+    public IReadOnlyList<JumpPadGibEntity> JumpPadGibs => _jumpPadGibs;
 
     public IReadOnlyList<WorldSoundEvent> PendingSoundEvents => _pendingSoundEvents;
 
