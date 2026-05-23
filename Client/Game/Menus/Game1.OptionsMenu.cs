@@ -431,6 +431,12 @@ public partial class Game1
         PersistClientSettings();
     }
 
+    private void ToggleWeaponRotationStyleSetting()
+    {
+        _pixelPerfectWeaponRotation = !_pixelPerfectWeaponRotation;
+        PersistClientSettings();
+    }
+
     private void ToggleAudioMuteSetting()
     {
         _audioMuted = !_audioMuted;

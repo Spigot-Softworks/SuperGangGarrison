@@ -235,6 +235,17 @@ public partial class Game1
                 _game._runtimeAssets = new GameMakerRuntimeAssetCache(_game.GraphicsDevice, _game._assetManifest);
             }
 
+            if (_game._rotatedWeaponSprites is null && !OperatingSystem.IsBrowser())
+            {
+                var rotatedRoot = _game._assetManifest.SourceRootPath is not null
+                    ? System.IO.Path.Combine(_game._assetManifest.SourceRootPath, "Sprites", "WeaponsRotated")
+                    : ContentRoot.GetPath("Sprites", "WeaponsRotated");
+                if (System.IO.Directory.Exists(rotatedRoot))
+                {
+                    _game._rotatedWeaponSprites = new RotatedWeaponSpriteCache(_game.GraphicsDevice, rotatedRoot);
+                }
+            }
+
             if (_game._gameplayModAssets is not null && _game._runtimeComposition is not null)
             {
                 return;
@@ -280,6 +291,8 @@ public partial class Game1
             _game._networkClient.Dispose();
             _game._gameplayModAssets?.Dispose();
             _game._runtimeAssets?.Dispose();
+            _game._rotatedWeaponSprites?.Dispose();
+            _game._rotatedWeaponSprites = null;
             _game._browserAtlasTextureCache?.Dispose();
             _game._browserAtlasTextureCache = null;
             _game._browserBootstrapAtlasResolver = null;

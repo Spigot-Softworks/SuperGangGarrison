@@ -42,6 +42,8 @@ public partial class Game1
 
         public float WeaponAnimationElapsedSeconds { get; set; }
 
+        public bool ReloadAnimationCompleted { get; set; }
+
         public int PreviousAmmoCount { get; set; }
 
         public int PreviousCooldownTicks { get; set; }
@@ -198,6 +200,7 @@ public partial class Game1
 
         if (shotStarted)
         {
+            renderState.ReloadAnimationCompleted = false;
             if (useScopedRecoilSprite)
             {
                 StartWeaponAnimation(renderState, WeaponAnimationMode.ScopedRecoil, weaponRenderDefinition.ScopedRecoilDurationSeconds);
@@ -213,6 +216,11 @@ public partial class Game1
         }
         else
         {
+            if (reloadRestarted)
+            {
+                renderState.ReloadAnimationCompleted = false;
+            }
+
             switch (renderState.WeaponAnimationMode)
             {
                 case WeaponAnimationMode.Recoil when renderState.WeaponAnimationTimeRemainingSeconds <= 0f:
@@ -239,11 +247,16 @@ public partial class Game1
                     }
                     else if (renderState.WeaponAnimationTimeRemainingSeconds <= 0f)
                     {
+                        if (!weaponRenderDefinition.LoopReloadAnimation)
+                        {
+                            renderState.ReloadAnimationCompleted = true;
+                        }
                         StopWeaponAnimation(renderState);
                     }
                     break;
                 case WeaponAnimationMode.Idle:
-                    if (ShouldShowReloadAnimation(player, weaponStats, weaponRenderDefinition, currentAmmoCount, maxAmmoCount, currentReloadTicks))
+                    if (!renderState.ReloadAnimationCompleted
+                        && ShouldShowReloadAnimation(player, weaponStats, weaponRenderDefinition, currentAmmoCount, maxAmmoCount, currentReloadTicks))
                     {
                         StartWeaponAnimation(renderState, WeaponAnimationMode.Reload, weaponRenderDefinition.ReloadDurationSeconds);
                     }

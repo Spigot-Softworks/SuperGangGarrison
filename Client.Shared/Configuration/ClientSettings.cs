@@ -93,6 +93,8 @@ public sealed class ClientSettings
 
     public bool SpriteDropShadowEnabled { get; set; }
 
+    public bool PixelPerfectWeaponRotation { get; set; } = true;
+
     public bool DisableLegacyGameplaySpriteFallback { get; set; }
 
     public int PlayerCardSizeMode { get; set; } = PlayerCardSizeSmall;
@@ -197,6 +199,7 @@ public sealed class ClientSettings
             PositionSmoothingEnabled = document.PositionSmoothingEnabled,
             SmoothCameraMultiplier = Math.Clamp(document.SmoothCameraMultiplier, 0f, 1f),
             SpriteDropShadowEnabled = document.SpriteDropShadowEnabled,
+            PixelPerfectWeaponRotation = document.PixelPerfectWeaponRotation,
             DisableLegacyGameplaySpriteFallback = document.DisableLegacyGameplaySpriteFallback,
             PlayerCardSizeMode = NormalizePlayerCardSizeMode(document.PlayerCardSizeMode),
             RecentConnection = new ClientRecentConnectionSettings
@@ -247,6 +250,7 @@ public sealed class ClientSettings
         preferences.PositionSmoothingEnabled = PositionSmoothingEnabled;
         preferences.SmoothCameraMultiplier = Math.Clamp(SmoothCameraMultiplier, 0f, 1f);
         preferences.SpriteDropShadowEnabled = SpriteDropShadowEnabled;
+        preferences.PixelPerfectWeaponRotation = PixelPerfectWeaponRotation;
         preferences.FrameRateLimit = FrameRateLimit;
         preferences.DisableLegacyGameplaySpriteFallback = DisableLegacyGameplaySpriteFallback;
         preferences.PlayerCardSizeMode = NormalizePlayerCardSizeMode(PlayerCardSizeMode);
