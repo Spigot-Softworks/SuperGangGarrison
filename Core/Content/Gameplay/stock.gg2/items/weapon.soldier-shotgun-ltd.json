@@ -16,6 +16,18 @@
     "ammoRegenPerTick": 0,
     "refillsAllAtOnce": false
   },
+  "combat": {
+    "fireSoundName": "ShotgunSnd"
+  },
+  "ability": {
+    "category": "secondary",
+    "activation": "pressed",
+    "executorId": "builtin.ability.experimental_ltd.soldier_secondary",
+    "tags": [ "experimental_ltd", "soldier", "stinger", "turret", "thundergunner" ],
+    "parameters": {
+      "requiresExperimentalFlag": true
+    }
+  },
   "presentation": {
     "worldSpriteName": "stock.gg2.weapon.soldier-shotgun.world",
     "recoilSpriteName": "stock.gg2.weapon.soldier-shotgun.recoil",
@@ -25,7 +37,14 @@
     "weaponOffsetY": -2.0,
     "recoilDurationSourceTicks": 20,
     "reloadDurationSourceTicks": 15,
-    "blueTeamHudFrameOffset": 1
+    "blueTeamHudFrameOffset": 1,
+    "hud": {
+      "displayKind": "ammoPanel",
+      "stackGroup": "weapon",
+      "order": 60,
+      "stateProvider": "secondaryAmmo",
+      "hideWhenUnavailable": true
+    }
   },
   "description": {
     "summary": "Soldier shotgun perk for Last to Die mode.",

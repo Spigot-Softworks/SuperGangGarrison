@@ -132,6 +132,80 @@ public readonly record struct OpenGarrisonServerPlayerRespawnEvent(
     float WorldX,
     float WorldY);
 
+public sealed class OpenGarrisonServerGameplayAbilityInputEvent(
+    long frame,
+    int playerId,
+    PlayerClass classId,
+    PlayerTeam team,
+    string itemId,
+    string behaviorId,
+    string abilityCategory,
+    string activation,
+    string executorId,
+    string phase,
+    IReadOnlyList<string> tags)
+{
+    public long Frame { get; } = frame;
+
+    public int PlayerId { get; } = playerId;
+
+    public PlayerClass ClassId { get; } = classId;
+
+    public PlayerTeam Team { get; } = team;
+
+    public string ItemId { get; } = itemId;
+
+    public string BehaviorId { get; } = behaviorId;
+
+    public string AbilityCategory { get; } = abilityCategory;
+
+    public string Activation { get; } = activation;
+
+    public string ExecutorId { get; } = executorId;
+
+    public string Phase { get; } = phase;
+
+    public IReadOnlyList<string> Tags { get; } = tags;
+
+    public bool IsCancelled { get; private set; }
+
+    public void Cancel()
+    {
+        IsCancelled = true;
+    }
+}
+
+public readonly record struct OpenGarrisonServerGameplayAbilityUsedEvent(
+    long Frame,
+    int PlayerId,
+    PlayerClass ClassId,
+    PlayerTeam Team,
+    string ItemId,
+    string BehaviorId,
+    string AbilityCategory,
+    string Activation,
+    string ExecutorId,
+    string Phase,
+    IReadOnlyList<string> Tags,
+    bool Handled,
+    bool ConsumedInput);
+
+public readonly record struct OpenGarrisonServerGameplayAbilityStateChangedEvent(
+    long Frame,
+    int PlayerId,
+    PlayerClass ClassId,
+    PlayerTeam Team,
+    string OwnerId,
+    string StateKey,
+    GameplayReplicatedStateValueKind ValueKind,
+    bool HasPreviousValue,
+    int PreviousIntValue,
+    int CurrentIntValue,
+    float PreviousFloatValue,
+    float CurrentFloatValue,
+    bool PreviousBoolValue,
+    bool CurrentBoolValue);
+
 public interface IOpenGarrisonServerSemanticGameplayHooks
 {
     void OnDamage(OpenGarrisonServerDamageEvent e) { }
@@ -155,4 +229,10 @@ public interface IOpenGarrisonServerSemanticGameplayHooks
     void OnPlayerSpawned(OpenGarrisonServerPlayerSpawnEvent e) { }
 
     void OnPlayerRespawned(OpenGarrisonServerPlayerRespawnEvent e) { }
+
+    void OnGameplayAbilityInput(OpenGarrisonServerGameplayAbilityInputEvent e) { }
+
+    void OnGameplayAbilityUsed(OpenGarrisonServerGameplayAbilityUsedEvent e) { }
+
+    void OnGameplayAbilityStateChanged(OpenGarrisonServerGameplayAbilityStateChangedEvent e) { }
 }

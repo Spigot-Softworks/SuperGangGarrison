@@ -634,8 +634,7 @@ public partial class Game1
             var customDefaultOrder = OpenGarrisonStockMapCatalog.Definitions.Count + 1;
             foreach (var sourceLevel in sourceLevels)
             {
-                var isCustomMap = Path.GetExtension(sourceLevel.RoomSourcePath).Equals(".png", StringComparison.OrdinalIgnoreCase)
-                    && !stockDefinitions.ContainsKey(sourceLevel.Name);
+                var isCustomMap = sourceLevel.IsCustomMap;
                 var hasStockDefinition = stockDefinitions.TryGetValue(sourceLevel.Name, out var definition);
                 var displayName = hasStockDefinition ? definition.DisplayName : sourceLevel.Name;
                 var iniKey = hasStockDefinition ? definition.IniKey : sourceLevel.Name;

@@ -98,6 +98,22 @@ public sealed partial class SimulationWorld
             return false;
         }
 
+        var wouldBeFatal = damage >= target.Health;
+        if (ShouldCancelDamage(
+                DamageTargetKind.Player,
+                target.Id,
+                target.Id,
+                target.Team,
+                attacker,
+                damage,
+                wouldBeFatal,
+                target.X,
+                target.Y)
+            || (wouldBeFatal && ShouldCancelDeath(target, gibbed: false, attacker, weaponSpriteName: null)))
+        {
+            return false;
+        }
+
         var died = target.ApplyDamage(damage, spyRevealAlpha);
         var appliedDamage = Math.Max(0, healthBefore - target.Health);
         RegisterPlayerDamageDealer(target, attacker, appliedDamage);
@@ -169,6 +185,23 @@ public sealed partial class SimulationWorld
             return false;
         }
 
+        var roundedDamage = Math.Max(1, (int)MathF.Ceiling(damage));
+        var wouldBeFatal = damage >= target.Health;
+        if (ShouldCancelDamage(
+                DamageTargetKind.Player,
+                target.Id,
+                target.Id,
+                target.Team,
+                attacker,
+                roundedDamage,
+                wouldBeFatal,
+                target.X,
+                target.Y)
+            || (wouldBeFatal && ShouldCancelDeath(target, gibbed: false, attacker, weaponSpriteName: null)))
+        {
+            return false;
+        }
+
         var died = target.ApplyContinuousDamage(damage, spyRevealAlpha);
         var appliedDamage = Math.Max(0, healthBefore - target.Health);
         RegisterPlayerDamageDealer(target, attacker, appliedDamage);
@@ -206,6 +239,21 @@ public sealed partial class SimulationWorld
             return false;
         }
 
+        var wouldBeFatal = damage >= target.Health;
+        if (ShouldCancelDamage(
+                DamageTargetKind.Sentry,
+                target.Id,
+                -1,
+                target.Team,
+                attacker,
+                damage,
+                wouldBeFatal,
+                target.X,
+                target.Y))
+        {
+            return false;
+        }
+
         var healthBefore = target.Health;
         var destroyed = target.ApplyDamage(damage);
         RegisterDamageEvent(
@@ -228,6 +276,22 @@ public sealed partial class SimulationWorld
 
         damage = ScaleConfiguredDamage(damage);
         if (damage <= 0f)
+        {
+            return false;
+        }
+
+        var roundedDamage = Math.Max(1, (int)MathF.Ceiling(damage));
+        var wouldBeFatal = damage >= target.Health;
+        if (ShouldCancelDamage(
+                DamageTargetKind.Generator,
+                (int)target.Team,
+                -1,
+                target.Team,
+                attacker,
+                roundedDamage,
+                wouldBeFatal,
+                target.Marker.CenterX,
+                target.Marker.CenterY))
         {
             return false;
         }

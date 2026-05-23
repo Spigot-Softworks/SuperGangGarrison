@@ -69,6 +69,8 @@ public sealed class ClientSettings
 
     public bool PortraitRumbleEnabled { get; set; } = true;
 
+    public bool PostGameMvpArtEnabled { get; set; }
+
     public bool DamageVignetteEnabled { get; set; } = true;
 
     public int DamageVignetteIntensityPercent { get; set; } = DefaultDamageVignetteIntensityPercent;
@@ -178,6 +180,7 @@ public sealed class ClientSettings
             ShowHealthBarEnabled = document.ShowHealthBarEnabled,
             OverheadChatEnabled = document.OverheadChatEnabled,
             PortraitRumbleEnabled = document.PortraitRumbleEnabled,
+            PostGameMvpArtEnabled = document.PostGameMvpArtEnabled,
             DamageVignetteEnabled = document.DamageVignetteEnabled,
             DamageVignetteIntensityPercent = NormalizeDamageVignetteIntensityPercent(document.DamageVignetteIntensityPercent),
             LowHealthColorMode = NormalizeLowHealthColorMode(document.LowHealthColorMode),
@@ -226,6 +229,7 @@ public sealed class ClientSettings
         preferences.ShowHealthBarEnabled = ShowHealthBarEnabled;
         preferences.OverheadChatEnabled = OverheadChatEnabled;
         preferences.PortraitRumbleEnabled = PortraitRumbleEnabled;
+        preferences.PostGameMvpArtEnabled = PostGameMvpArtEnabled;
         preferences.DamageVignetteEnabled = DamageVignetteEnabled;
         preferences.DamageVignetteIntensityPercent = NormalizeDamageVignetteIntensityPercent(DamageVignetteIntensityPercent);
         preferences.LowHealthColorMode = NormalizeLowHealthColorMode(LowHealthColorMode);

@@ -28,6 +28,23 @@ public sealed partial class SimulationWorld
                 killFeedWeaponSpriteNameOverride: "ShotgunKL");
         }
 
+        public void FireExperimentalOffhandWeapon(PlayerEntity attacker, string? behaviorId, float aimWorldX, float aimWorldY)
+        {
+            var weaponDefinition = attacker.ExperimentalOffhandWeapon;
+            if (weaponDefinition is null)
+            {
+                return;
+            }
+
+            DispatchPrimaryWeaponFire(
+                attacker,
+                weaponDefinition,
+                behaviorId,
+                attacker.ClassId,
+                aimWorldX,
+                aimWorldY);
+        }
+
         public void FireAcquiredWeapon(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
             var weaponClassId = attacker.AcquiredWeaponClassId;
@@ -64,6 +81,19 @@ public sealed partial class SimulationWorld
             var binding = ResolvePrimaryWeaponRuntimeBinding(behaviorId, weaponDefinition);
             var resolvedKillFeedWeaponSpriteName = killFeedWeaponSpriteNameOverride ?? CharacterClassCatalog.GetPrimaryWeaponKillFeedSprite(weaponClassId);
             TryRegisterPrimaryWeaponFireSound(attacker, weaponDefinition, binding);
+            if (TryDispatchPrimaryWeaponExecutor(
+                    attacker,
+                    weaponDefinition,
+                    binding,
+                    behaviorId,
+                    weaponClassId,
+                    aimWorldX,
+                    aimWorldY,
+                    resolvedKillFeedWeaponSpriteName))
+            {
+                return;
+            }
+
             DispatchPrimaryWeaponByKind(
                 attacker,
                 weaponDefinition,
@@ -96,6 +126,55 @@ public sealed partial class SimulationWorld
             {
                 RegisterSoundEvent(attacker, fireSoundName);
             }
+        }
+
+        private bool TryDispatchPrimaryWeaponExecutor(
+            PlayerEntity attacker,
+            PrimaryWeaponDefinition weaponDefinition,
+            GameplayPrimaryWeaponRuntimeBinding binding,
+            string? behaviorId,
+            PlayerClass weaponClassId,
+            float aimWorldX,
+            float aimWorldY,
+            string resolvedKillFeedWeaponSpriteName)
+        {
+            if (binding.Executor is not { } executor)
+            {
+                return false;
+            }
+
+            var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
+            var sourceX = weaponOrigin.BaseX;
+            var sourceY = weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + weaponOrigin.EquipmentOffset;
+            var aimDeltaX = aimWorldX - sourceX;
+            var aimDeltaY = aimWorldY - sourceY;
+            if (aimDeltaX == 0f && aimDeltaY == 0f)
+            {
+                aimDeltaX = attacker.FacingDirectionX == 0f ? 1f : attacker.FacingDirectionX;
+            }
+
+            var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
+            var itemId = CharacterClassCatalog.RuntimeRegistry.TryResolvePrimaryWeaponItemId(weaponDefinition, out var resolvedItemId)
+                ? resolvedItemId
+                : string.Empty;
+            var result = executor.Handle(new GameplayPrimaryWeaponContext
+            {
+                World = _world,
+                Player = attacker,
+                Weapon = weaponDefinition,
+                ItemId = itemId,
+                BehaviorId = string.IsNullOrWhiteSpace(behaviorId) ? binding.BehaviorId : behaviorId.Trim(),
+                WeaponClassId = weaponClassId,
+                SourceX = sourceX,
+                SourceY = sourceY,
+                AimWorldX = aimWorldX,
+                AimWorldY = aimWorldY,
+                DirectionX = MathF.Cos(directionRadians),
+                DirectionY = MathF.Sin(directionRadians),
+                DirectionRadians = directionRadians,
+                KillFeedWeaponSpriteName = resolvedKillFeedWeaponSpriteName,
+            });
+            return result.Handled || binding.WeaponKind == PrimaryWeaponKind.Custom;
         }
 
         private void DispatchPrimaryWeaponByKind(
@@ -137,6 +216,8 @@ public sealed partial class SimulationWorld
                     return;
                 case PrimaryWeaponKind.RocketLauncher:
                     FireRocketLauncher(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);
+                    return;
+                case PrimaryWeaponKind.Custom:
                     return;
                 default:
                     FirePelletWeapon(attacker, weaponDefinition, aimWorldX, aimWorldY, weaponClassId, killFeedWeaponSpriteNameOverride, pelletSpawnDistance, pelletCountMultiplier, spreadMultiplier, forceGibOnKill);

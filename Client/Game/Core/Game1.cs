@@ -23,7 +23,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1 : Game
 {
-    private const string WindowTitle = "Gang Garrison 2";
+    private const string WindowTitle = "Super Gang Garrison";
 
     private enum BubbleMenuKind
     {
@@ -226,6 +226,7 @@ public partial class Game1 : Game
     private MouseState _previousMouse;
     private Point _lastKnownMousePosition;
     private bool _suppressPrimaryFireUntilMouseRelease;
+    private bool _suppressSecondaryFireUntilMouseRelease;
     private Vector2 _respawnCameraCenter;
     private bool _respawnCameraDetached;
     private NoticeState? _notice;
@@ -266,6 +267,7 @@ public partial class Game1 : Game
     private bool _showHealthBarEnabled;
     private bool _overheadChatEnabled = OpenGarrisonPreferencesDocument.DefaultOverheadChatEnabled;
     private bool _portraitRumbleEnabled = true;
+    private bool _postGameMvpArtEnabled;
     private float _portraitRumbleRemainingSeconds;
     private float _portraitRumbleIntensity;
     private int _portraitRumbleSeed;
@@ -384,6 +386,7 @@ public partial class Game1 : Game
             : GameMakerRuntimeAssetManifestLoader.LoadPackagedOrProjectAssets();
         StartBrowserBootstrapAssetPreloadIfNeeded();
         ApplyLoadedSettings();
+        LoadHudLayout();
 
         if (OperatingSystem.IsBrowser())
         {
@@ -754,13 +757,14 @@ public partial class Game1 : Game
 
     private sealed class ChatLine
     {
-        public ChatLine(string playerName, string text, byte team, bool teamOnly, bool directMessage = false)
+        public ChatLine(string playerName, string text, byte team, bool teamOnly, bool directMessage = false, byte playerSlot = 0)
         {
             PlayerName = playerName;
             Text = text;
             Team = team;
             TeamOnly = teamOnly;
             DirectMessage = directMessage;
+            PlayerSlot = playerSlot;
             TicksRemaining = 600;
         }
 
@@ -773,6 +777,8 @@ public partial class Game1 : Game
         public bool TeamOnly { get; }
 
         public bool DirectMessage { get; }
+
+        public byte PlayerSlot { get; }
 
         public int TicksRemaining { get; set; }
     }

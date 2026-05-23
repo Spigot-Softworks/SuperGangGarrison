@@ -21,8 +21,7 @@ public sealed partial class SimulationWorld
             var capWinner = GetCapLimitWinner();
             if (capWinner.HasValue)
             {
-                _world.MatchState = _world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = capWinner };
-                _world.QueuePendingMapChange();
+                _world.TryEndRound(capWinner, "score_limit");
                 return;
             }
 
@@ -33,12 +32,7 @@ public sealed partial class SimulationWorld
                     return;
                 }
 
-                _world.MatchState = _world.MatchState with
-                {
-                    Phase = MatchPhase.Ended,
-                    WinnerTeam = GetHigherCapWinner(),
-                };
-                _world.QueuePendingMapChange();
+                _world.TryEndRound(GetHigherCapWinner(), "overtime_settled");
                 return;
             }
 
@@ -53,8 +47,7 @@ public sealed partial class SimulationWorld
 
             if (AreObjectivesSettled())
             {
-                _world.MatchState = _world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = GetHigherCapWinner() };
-                _world.QueuePendingMapChange();
+                _world.TryEndRound(GetHigherCapWinner(), "time_limit");
                 return;
             }
 

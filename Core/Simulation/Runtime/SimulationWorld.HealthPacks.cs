@@ -23,6 +23,17 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
+                if (ShouldCancelPickup(
+                        WorldPickupKind.HealthPack,
+                        player,
+                        healthPack.Id,
+                        healthPack.Size.ToString(),
+                        healthPack.X,
+                        healthPack.Y))
+                {
+                    continue;
+                }
+
                 var healAmount = healthPack.GetHealAmount(player) * player.ExperimentalHealthPackHealingMultiplier;
                 if (ApplyHealingWithFeedback(
                         player,

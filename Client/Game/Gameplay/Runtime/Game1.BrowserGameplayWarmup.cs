@@ -85,7 +85,10 @@ public partial class Game1
 
         foreach (var classId in BrowserWarmupClassOrder)
         {
-            WarmBrowserClassAssets(classId, team, includeExtendedAnimations: false);
+            if (CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(classId, out _))
+            {
+                WarmBrowserClassAssets(classId, team, includeExtendedAnimations: false);
+            }
         }
 
         WarmBrowserSprite("CrosshairS");
@@ -113,6 +116,11 @@ public partial class Game1
     private void WarmBrowserClassAssets(PlayerClass classId, PlayerTeam team, bool includeExtendedAnimations)
     {
         if (!OperatingSystem.IsBrowser())
+        {
+            return;
+        }
+
+        if (!CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(classId, out _))
         {
             return;
         }

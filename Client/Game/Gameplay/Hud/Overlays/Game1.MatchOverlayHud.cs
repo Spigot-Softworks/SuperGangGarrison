@@ -25,8 +25,6 @@ public partial class Game1
     {
         var viewportWidth = ViewportWidth;
         var centerX = viewportWidth / 2f;
-        var objectiveHudY = ToObjectiveHudY(560f);
-        var objectiveHudCounterY = ToObjectiveHudY(563f);
 
         DrawControlPointTimer(centerX);
 
@@ -35,7 +33,17 @@ public partial class Game1
             return;
         }
 
-        var drawX = centerX - MathF.Floor(_world.ControlPoints.Count / 2f) * 48f;
+        if (!TryResolveHudElement(HudElementId.MatchObjectiveStatus, out var resolved))
+        {
+            return;
+        }
+
+        var origin = resolved.Origin;
+        var scale = resolved.Layout.Scale;
+        var objectiveHudY = origin.Y;
+        var objectiveHudCounterY = origin.Y + (3f * scale);
+        var drawX = origin.X - MathF.Floor(_world.ControlPoints.Count / 2f) * 48f * scale;
+        var firstX = drawX;
         for (var index = 0; index < _world.ControlPoints.Count; index += 1)
         {
             var point = _world.ControlPoints[index];
@@ -53,21 +61,30 @@ public partial class Game1
                 progressFrame = teamOffset + Math.Clamp((int)MathF.Floor(progress * 30f), 0, 30);
             }
 
-            TryDrawScreenSprite("ControlPointStatusS", progressFrame, new Vector2(drawX, objectiveHudY), Color.White, new Vector2(3f, 3f));
+            TryDrawScreenSprite("ControlPointStatusS", progressFrame, new Vector2(drawX, objectiveHudY), Color.White, new Vector2(3f * scale, 3f * scale));
 
             if (point.IsLocked)
             {
-                TryDrawScreenSprite("ControlPointLockS", 0, new Vector2(drawX, objectiveHudY), Color.White, new Vector2(3f, 3f));
+                TryDrawScreenSprite("ControlPointLockS", 0, new Vector2(drawX, objectiveHudY), Color.White, new Vector2(3f * scale, 3f * scale));
             }
 
             if (point.Cappers > 0 && !point.IsLocked)
             {
-                TryDrawScreenSprite("ControlPointCappersS", 0, new Vector2(drawX, objectiveHudY), Color.White, new Vector2(3f, 3f));
-                DrawHudTextCentered(point.Cappers.ToString(CultureInfo.InvariantCulture), new Vector2(drawX + 13f, objectiveHudCounterY), Color.Black, 1.5f);
+                TryDrawScreenSprite("ControlPointCappersS", 0, new Vector2(drawX, objectiveHudY), Color.White, new Vector2(3f * scale, 3f * scale));
+                DrawHudTextCentered(point.Cappers.ToString(CultureInfo.InvariantCulture), new Vector2(drawX + (13f * scale), objectiveHudCounterY), Color.Black, 1.5f * scale);
             }
 
-            drawX += 60f;
+            drawX += 60f * scale;
         }
+
+        var lastX = drawX - (60f * scale);
+        UpdateHudElementBounds(
+            HudElementId.MatchObjectiveStatus,
+            new Rectangle(
+                (int)MathF.Round(firstX - (24f * scale)),
+                (int)MathF.Round(origin.Y - (24f * scale)),
+                Math.Max(1, (int)MathF.Round((lastX - firstX) + (72f * scale))),
+                Math.Max(1, (int)MathF.Round(64f * scale))));
     }
 
     private void DrawControlPointTimer(float centerX)
@@ -85,7 +102,8 @@ public partial class Game1
         if (_world.ControlPointSetupActive && _world.ControlPointSetupTicksRemaining > 0)
         {
             TryDrawScreenSprite("TimerHudS", teamOffset, timerPosition, Color.White, new Vector2(3f, 3f));
-            var setupFrame = Math.Clamp((int)MathF.Floor((_world.ControlPointSetupTicksRemaining / 1800f) * 12f), 0, 12);
+            var setupDurationTicks = Math.Max(1, _world.ControlPointSetupDurationTicks);
+            var setupFrame = Math.Clamp((int)MathF.Floor((_world.ControlPointSetupTicksRemaining / (float)setupDurationTicks) * 12f), 0, 12);
             TryDrawScreenSprite("TimerS", setupFrame, new Vector2(centerX + 39f, 30f), Color.White, new Vector2(3f, 3f));
 
             DrawHudTimerText(centerX, FormatHudTimerText(_world.ControlPointSetupTicksRemaining));
@@ -109,8 +127,23 @@ public partial class Game1
     {
         var viewportWidth = ViewportWidth;
         var centerX = viewportWidth / 2f;
-        var objectiveHudY = ToObjectiveHudY(560f);
-        var objectiveHudCounterY = ToObjectiveHudY(563f);
+        var objectiveOrigin = new Vector2(centerX, ToObjectiveHudY(560f));
+        var objectiveScale = 1f;
+        if (TryResolveHudElement(HudElementId.MatchObjectiveStatus, out var objectiveResolved))
+        {
+            objectiveOrigin = objectiveResolved.Origin;
+            objectiveScale = objectiveResolved.Layout.Scale;
+            UpdateHudElementBounds(
+                HudElementId.MatchObjectiveStatus,
+                new Rectangle(
+                    (int)MathF.Round(objectiveOrigin.X - (42f * objectiveScale)),
+                    (int)MathF.Round(objectiveOrigin.Y - (24f * objectiveScale)),
+                    Math.Max(1, (int)MathF.Round(84f * objectiveScale)),
+                    Math.Max(1, (int)MathF.Round(64f * objectiveScale))));
+        }
+
+        var objectiveHudY = objectiveOrigin.Y;
+        var objectiveHudCounterY = objectiveOrigin.Y + (3f * objectiveScale);
         DrawMatchTimerHud(centerX);
 
         var statusBaseFrame = _world.ArenaPointTeam switch
@@ -123,17 +156,17 @@ public partial class Game1
             ? statusBaseFrame + Math.Clamp((int)MathF.Floor((_world.ArenaCappingTicks / Math.Max(1f, _world.ArenaPointCapTimeTicks)) * 30f), 0, 30)
             : statusBaseFrame;
 
-        TryDrawScreenSprite("ControlPointStatusS", progressFrame, new Vector2(centerX, objectiveHudY), Color.White, new Vector2(3f, 3f));
+        TryDrawScreenSprite("ControlPointStatusS", progressFrame, new Vector2(objectiveOrigin.X, objectiveHudY), Color.White, new Vector2(3f * objectiveScale, 3f * objectiveScale));
 
         if (_world.ArenaPointLocked)
         {
             var unlockSeconds = Math.Max(1, (int)MathF.Ceiling(_world.ArenaUnlockTicksRemaining / (float)_config.TicksPerSecond));
-            DrawHudTextCentered(unlockSeconds.ToString(CultureInfo.InvariantCulture), new Vector2(centerX, ToObjectiveHudY(562f)), Color.White, 1f);
+            DrawHudTextCentered(unlockSeconds.ToString(CultureInfo.InvariantCulture), new Vector2(objectiveOrigin.X, objectiveOrigin.Y + (2f * objectiveScale)), Color.White, 1f * objectiveScale);
         }
         else if (_world.ArenaCappers > 0)
         {
-            TryDrawScreenSprite("ControlPointCappersS", 0, new Vector2(centerX, objectiveHudY), Color.White, new Vector2(3f, 3f));
-            DrawHudTextCentered(_world.ArenaCappers.ToString(CultureInfo.InvariantCulture), new Vector2(centerX + 13f, objectiveHudCounterY), Color.Black, 1f);
+            TryDrawScreenSprite("ControlPointCappersS", 0, new Vector2(objectiveOrigin.X, objectiveHudY), Color.White, new Vector2(3f * objectiveScale, 3f * objectiveScale));
+            DrawHudTextCentered(_world.ArenaCappers.ToString(CultureInfo.InvariantCulture), new Vector2(objectiveOrigin.X + (13f * objectiveScale), objectiveHudCounterY), Color.Black, 1f * objectiveScale);
         }
 
         TryDrawScreenSprite("ArenaPlayerCountS", 0, new Vector2(centerX, 71f), Color.White, new Vector2(2f, 2f));
@@ -184,30 +217,36 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, fallbackRectangle, fallbackColor);
     }
 
-    private void DrawScorePanelCapLimit(float centerX, int viewportHeight)
+    private void DrawScorePanelCapLimit(Vector2 panelOrigin, float panelScale)
     {
         if (_world.MatchRules.CapLimit <= 9)
         {
-            DrawHudTextCentered(_world.MatchRules.CapLimit.ToString(CultureInfo.InvariantCulture), new Vector2(centerX - 2f, viewportHeight - 15f), Color.Black, 2f);
+            DrawHudTextCentered(_world.MatchRules.CapLimit.ToString(CultureInfo.InvariantCulture), panelOrigin + new Vector2(-2f * panelScale, -15f * panelScale), Color.Black, 2f * panelScale);
             return;
         }
 
         if (_world.MatchRules.CapLimit > 999)
         {
-            DrawCenteredHudSprite("infinity", 0, new Vector2(centerX - 3f, viewportHeight - 17f), Color.White, new Vector2(2f, 2f));
+            DrawCenteredHudSprite("infinity", 0, panelOrigin + new Vector2(-3f * panelScale, -17f * panelScale), Color.White, new Vector2(2f * panelScale, 2f * panelScale));
             return;
         }
 
-        DrawHudTextCentered(_world.MatchRules.CapLimit.ToString(CultureInfo.InvariantCulture), new Vector2(centerX - 2f, viewportHeight - 15f), Color.Black, 1f);
+        DrawHudTextCentered(_world.MatchRules.CapLimit.ToString(CultureInfo.InvariantCulture), panelOrigin + new Vector2(-2f * panelScale, -15f * panelScale), Color.Black, 1f * panelScale);
     }
 
-    private void DrawFallbackScorePanelHud(float centerX, int viewportHeight)
+    private void DrawFallbackScorePanelHud(Vector2 panelOrigin, float panelScale)
     {
-        var panel = new Rectangle((int)MathF.Round(centerX - 168f), viewportHeight - 72, 336, 54);
-        var teamPanelHeight = panel.Height - 16;
-        var leftTeamPanel = new Rectangle(panel.X + 8, panel.Y + 8, 112, teamPanelHeight);
-        var rightTeamPanel = new Rectangle(panel.Right - 120, panel.Y + 8, 112, teamPanelHeight);
-        var centerPanel = new Rectangle((int)MathF.Round(centerX - 32f), panel.Y + 8, 64, teamPanelHeight);
+        var panel = new Rectangle(
+            (int)MathF.Round(panelOrigin.X - (168f * panelScale)),
+            (int)MathF.Round(panelOrigin.Y - (72f * panelScale)),
+            Math.Max(1, (int)MathF.Round(336f * panelScale)),
+            Math.Max(1, (int)MathF.Round(54f * panelScale)));
+        var inset = Math.Max(1, (int)MathF.Round(8f * panelScale));
+        var teamPanelWidth = Math.Max(1, (int)MathF.Round(112f * panelScale));
+        var teamPanelHeight = Math.Max(1, panel.Height - (inset * 2));
+        var leftTeamPanel = new Rectangle(panel.X + inset, panel.Y + inset, teamPanelWidth, teamPanelHeight);
+        var rightTeamPanel = new Rectangle(panel.Right - inset - teamPanelWidth, panel.Y + inset, teamPanelWidth, teamPanelHeight);
+        var centerPanel = new Rectangle((int)MathF.Round(panelOrigin.X - (32f * panelScale)), panel.Y + inset, Math.Max(1, (int)MathF.Round(64f * panelScale)), teamPanelHeight);
 
         DrawInsetHudPanel(panel, new Color(42, 36, 28), new Color(208, 198, 170));
         _spriteBatch.Draw(_pixel, leftTeamPanel, new Color(171, 78, 70));
@@ -317,9 +356,19 @@ public partial class Game1
 
     private void DrawKillFeedHud()
     {
-        const float rowHeight = 20f;
-        var viewportWidth = ViewportWidth;
-        var y = 59f;
+        if (!TryResolveHudElement(HudElementId.MatchKillFeed, out var resolved))
+        {
+            return;
+        }
+
+        var scale = resolved.Layout.Scale;
+        var rowHeight = 20f * scale;
+        var feedRight = resolved.Origin.X;
+        var y = resolved.Origin.Y;
+        var minX = feedRight - (340f * scale);
+        var maxX = feedRight;
+        var minY = y - (3f * scale);
+        var maxY = y + (104f * scale);
         KillFeedEntry? previousEntry = null;
         foreach (var entry in _world.KillFeed)
         {
@@ -328,29 +377,42 @@ public partial class Game1
                 continue;
             }
 
-            DrawKillFeedEntry(entry, viewportWidth, y);
+            var entryBounds = DrawKillFeedEntry(entry, feedRight, y, scale);
+            minX = MathF.Min(minX, entryBounds.Left);
+            maxX = MathF.Max(maxX, entryBounds.Right);
+            minY = MathF.Min(minY, entryBounds.Top);
+            maxY = MathF.Max(maxY, entryBounds.Bottom);
             y += rowHeight;
             previousEntry = entry;
         }
+
+        UpdateHudElementBounds(
+            HudElementId.MatchKillFeed,
+            new Rectangle(
+                (int)MathF.Round(minX),
+                (int)MathF.Round(minY),
+                Math.Max(1, (int)MathF.Round(maxX - minX)),
+                Math.Max(1, (int)MathF.Round(maxY - minY))));
     }
 
-    private void DrawKillFeedEntry(KillFeedEntry entry, int viewportWidth, float y)
+    private Rectangle DrawKillFeedEntry(KillFeedEntry entry, float feedRight, float y, float scale)
     {
-        const float leftPadding = 8f;
-        const float rightPadding = 10f;
-        const float iconSpacing = 6f;
+        var leftPadding = 8f * scale;
+        var rightPadding = 10f * scale;
+        var iconSpacing = 6f * scale;
+        var textScale = 1f * scale;
         var localPlayerId = GetResolvedLocalPlayerId();
         var isLocalInvolved = entry.KillerPlayerId == localPlayerId || entry.VictimPlayerId == localPlayerId;
         var hideVictimName = ShouldSuppressKillFeedVictimName(entry);
         var victimName = hideVictimName ? string.Empty : entry.VictimName;
         SplitKillFeedMessage(entry, out var messagePrefix, out var messageHighlight, out var messageSuffix);
-        var killerWidth = string.IsNullOrEmpty(entry.KillerName) ? 0f : MeasureBitmapFontWidth(entry.KillerName, 1f);
-        var messagePrefixWidth = string.IsNullOrEmpty(messagePrefix) ? 0f : MeasureBitmapFontWidth(messagePrefix, 1f);
-        var messageHighlightWidth = string.IsNullOrEmpty(messageHighlight) ? 0f : MeasureBitmapFontWidth(messageHighlight, 1f);
-        var messageSuffixWidth = string.IsNullOrEmpty(messageSuffix) ? 0f : MeasureBitmapFontWidth(messageSuffix, 1f);
-        var victimWidth = MeasureBitmapFontWidth(victimName, 1f);
+        var killerWidth = string.IsNullOrEmpty(entry.KillerName) ? 0f : MeasureBitmapFontWidth(entry.KillerName, textScale);
+        var messagePrefixWidth = string.IsNullOrEmpty(messagePrefix) ? 0f : MeasureBitmapFontWidth(messagePrefix, textScale);
+        var messageHighlightWidth = string.IsNullOrEmpty(messageHighlight) ? 0f : MeasureBitmapFontWidth(messageHighlight, textScale);
+        var messageSuffixWidth = string.IsNullOrEmpty(messageSuffix) ? 0f : MeasureBitmapFontWidth(messageSuffix, textScale);
+        var victimWidth = MeasureBitmapFontWidth(victimName, textScale);
         var weaponSprite = GetResolvedSprite(entry.WeaponSpriteName);
-        var weaponWidth = weaponSprite?.Frames.Count > 0 ? weaponSprite.Frames[0].Width : 0f;
+        var weaponWidth = weaponSprite?.Frames.Count > 0 ? weaponSprite.Frames[0].Width * scale : 0f;
         var hasWeaponIcon = weaponSprite is not null && weaponSprite.Frames.Count > 0;
         var contentWidth = killerWidth
             + (hasWeaponIcon ? weaponWidth + iconSpacing : 0f)
@@ -359,25 +421,26 @@ public partial class Game1
             + messageSuffixWidth
             + victimWidth;
         var backgroundWidth = contentWidth + leftPadding + rightPadding;
-        var backgroundLeft = viewportWidth - backgroundWidth - 4f;
-        var backgroundHeight = Math.Max(16f, MeasureBitmapFontHeight(1f) + 8f);
+        var backgroundLeft = feedRight - backgroundWidth;
+        var backgroundHeight = Math.Max(16f * scale, MeasureBitmapFontHeight(textScale) + (8f * scale));
+        var bounds = new Rectangle(
+            (int)MathF.Floor(backgroundLeft),
+            (int)MathF.Floor(y - (3f * scale)),
+            (int)MathF.Ceiling(backgroundWidth),
+            (int)MathF.Ceiling(backgroundHeight));
         DrawInsetRoundedHudPanel(
-            new Rectangle(
-                (int)MathF.Floor(backgroundLeft),
-                (int)MathF.Floor(y - 3f),
-                (int)MathF.Ceiling(backgroundWidth),
-                (int)MathF.Ceiling(backgroundHeight)),
+            bounds,
             isLocalInvolved ? new Color(217, 217, 183) : new Color(49, 45, 26),
             isLocalInvolved ? new Color(235, 232, 198) : new Color(68, 61, 38),
-            6);
+            Math.Max(1, (int)MathF.Round(6f * scale)));
 
         var currentX = backgroundLeft + leftPadding;
-        var textY = y + 2f;
+        var textY = y + (2f * scale);
         var messageColor = isLocalInvolved ? Color.Black : Color.White;
         var highlightColor = new Color(232, 46, 46);
         if (!string.IsNullOrEmpty(entry.KillerName))
         {
-            DrawBitmapFontText(entry.KillerName, new Vector2(currentX, textY), GetKillFeedTextColor(entry.KillerTeam), 1f);
+            DrawBitmapFontText(entry.KillerName, new Vector2(currentX, textY), GetKillFeedTextColor(entry.KillerTeam), textScale);
             currentX += killerWidth;
         }
 
@@ -387,32 +450,34 @@ public partial class Game1
             var frameIndex = resolvedWeaponSprite.Frames.Count > 1 && isLocalInvolved ? 1 : 0;
             currentX += iconSpacing * 0.5f;
             var iconCenterX = currentX + (weaponWidth / 2f);
-            DrawCenteredHudSprite(entry.WeaponSpriteName, frameIndex, new Vector2(iconCenterX, y + 7f), Color.White, Vector2.One);
+            DrawCenteredHudSprite(entry.WeaponSpriteName, frameIndex, new Vector2(iconCenterX, y + (7f * scale)), Color.White, new Vector2(scale, scale));
             currentX += weaponWidth + (iconSpacing * 0.5f);
         }
 
         if (!string.IsNullOrEmpty(messagePrefix))
         {
-            DrawBitmapFontText(messagePrefix, new Vector2(currentX, textY), messageColor, 1f);
+            DrawBitmapFontText(messagePrefix, new Vector2(currentX, textY), messageColor, textScale);
             currentX += messagePrefixWidth;
         }
 
         if (!string.IsNullOrEmpty(messageHighlight))
         {
-            DrawBitmapFontText(messageHighlight, new Vector2(currentX, textY), highlightColor, 1f);
+            DrawBitmapFontText(messageHighlight, new Vector2(currentX, textY), highlightColor, textScale);
             currentX += messageHighlightWidth;
         }
 
         if (!string.IsNullOrEmpty(messageSuffix))
         {
-            DrawBitmapFontText(messageSuffix, new Vector2(currentX, textY), messageColor, 1f);
+            DrawBitmapFontText(messageSuffix, new Vector2(currentX, textY), messageColor, textScale);
             currentX += messageSuffixWidth;
         }
 
         if (!string.IsNullOrEmpty(victimName))
         {
-            DrawBitmapFontText(victimName, new Vector2(currentX, textY), GetKillFeedTextColor(entry.VictimTeam), 1f);
+            DrawBitmapFontText(victimName, new Vector2(currentX, textY), GetKillFeedTextColor(entry.VictimTeam), textScale);
         }
+
+        return bounds;
     }
 
     private static bool ShouldSuppressKillFeedVictimName(KillFeedEntry entry)
@@ -571,7 +636,7 @@ public partial class Game1
             1f);
     }
 
-    private void DrawIntelPanelElement(TeamIntelligenceState intelState, Vector2 position)
+    private void DrawIntelPanelElement(TeamIntelligenceState intelState, Vector2 position, float scale = 1f)
     {
         var isEnemyIntelForLocalPlayer = intelState.Team != _world.LocalPlayer.Team;
         var localPlayerCarryingEnemyIntel = isEnemyIntelForLocalPlayer && _world.LocalPlayer.IsCarryingIntel;
@@ -595,22 +660,22 @@ public partial class Game1
         TryDrawScreenSprite(
             "IntelReturnTimeS",
             GetIntelReturnTimerFrameIndex(intelState),
-            new Vector2(position.X + (intelState.Team == PlayerTeam.Blue ? -26f : -27f), position.Y - 27f),
+            new Vector2(position.X + ((intelState.Team == PlayerTeam.Blue ? -26f : -27f) * scale), position.Y - (27f * scale)),
             Color.White,
-            new Vector2(3f, 3f));
+            new Vector2(3f * scale, 3f * scale));
         TryDrawScreenSprite(
             "IntelArrowS",
             arrowFrame,
             position,
             Color.White,
-            new Vector2(3f, 3f),
+            new Vector2(3f * scale, 3f * scale),
             directionDegrees * (MathF.PI / 180f));
         TryDrawScreenSprite(
             "IntelStatusS",
             statusFrame,
             position,
             Color.White,
-            new Vector2(2f, 2f));
+            new Vector2(2f * scale, 2f * scale));
     }
 
     private static int GetIntelReturnTimerFrameIndex(TeamIntelligenceState intelState)

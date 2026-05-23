@@ -140,18 +140,25 @@ public sealed partial class SimulationWorld
 
     public bool TryApplyNetworkPlayerClassSelection(byte slot, PlayerClass playerClass)
     {
+        return CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(playerClass, out var binding)
+            && TryApplyNetworkPlayerClassSelection(slot, binding.ClassId);
+    }
+
+    public bool TryApplyNetworkPlayerClassSelection(byte slot, string gameplayClassId)
+    {
         if (IsNetworkPlayerAwaitingJoin(slot))
         {
-            return TryCompleteNetworkPlayerJoinState(slot, playerClass);
+            return TryCompleteNetworkPlayerJoinState(slot, gameplayClassId);
         }
 
         if (slot == LocalPlayerSlot)
         {
-            return TrySetLocalClass(playerClass);
+            return TrySetLocalClass(gameplayClassId);
         }
 
-        var definition = CharacterClassCatalog.GetDefinition(playerClass);
-        if (!TryGetNetworkPlayer(slot, out var player) || definition.Id == GetNetworkPlayerClassDefinition(slot).Id)
+        var definition = CharacterClassCatalog.GetDefinition(gameplayClassId);
+        if (!TryGetNetworkPlayer(slot, out var player)
+            || string.Equals(definition.GameplayClassId, GetNetworkPlayerClassDefinition(slot).GameplayClassId, StringComparison.Ordinal))
         {
             return false;
         }
@@ -166,7 +173,15 @@ public sealed partial class SimulationWorld
 
     public void SetPendingLocalPlayerClass(PlayerClass playerClass)
     {
-        var definition = CharacterClassCatalog.GetDefinition(playerClass);
+        if (CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(playerClass, out var binding))
+        {
+            SetPendingLocalPlayerClass(binding.ClassId);
+        }
+    }
+
+    public void SetPendingLocalPlayerClass(string gameplayClassId)
+    {
+        var definition = CharacterClassCatalog.GetDefinition(gameplayClassId);
         TrySetNetworkPlayerClassDefinition(LocalPlayerSlot, definition);
         LocalPlayer.SetClassDefinition(definition);
         SyncExperimentalGameplayLoadout(LocalPlayerSlot, LocalPlayer);
@@ -300,7 +315,7 @@ public sealed partial class SimulationWorld
 
         var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
         var normalizedItemId = string.IsNullOrWhiteSpace(itemId) ? null : itemId.Trim();
-        if (!runtimeRegistry.CanUseSecondaryOverrideItem(player.ClassId, player.SelectedGameplayLoadoutId, normalizedItemId))
+        if (!runtimeRegistry.CanUseSecondaryOverrideItem(player.GameplayClassId, player.SelectedGameplayLoadoutId, normalizedItemId))
         {
             return false;
         }
@@ -313,9 +328,9 @@ public sealed partial class SimulationWorld
         PrimaryWeaponDefinition? weaponDefinition = null;
         if (!string.IsNullOrWhiteSpace(normalizedItemId))
         {
-            var selectedLoadout = runtimeRegistry.TryGetLoadout(player.ClassId, player.SelectedGameplayLoadoutId, out var resolvedLoadout)
+            var selectedLoadout = runtimeRegistry.TryGetLoadout(player.GameplayClassId, player.SelectedGameplayLoadoutId, out var resolvedLoadout)
                 ? resolvedLoadout
-                : runtimeRegistry.GetDefaultLoadout(player.ClassId);
+                : runtimeRegistry.GetDefaultLoadout(player.GameplayClassId);
             if (!string.Equals(selectedLoadout.SecondaryItemId, normalizedItemId, StringComparison.Ordinal))
             {
                 weaponDefinition = runtimeRegistry.CreatePrimaryWeaponDefinition(runtimeRegistry.GetRequiredItem(normalizedItemId));
@@ -335,7 +350,7 @@ public sealed partial class SimulationWorld
 
         var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
         var normalizedItemId = string.IsNullOrWhiteSpace(itemId) ? null : itemId.Trim();
-        if (!runtimeRegistry.CanUseAcquiredItem(player.ClassId, normalizedItemId))
+        if (!runtimeRegistry.CanUseAcquiredItem(player.GameplayClassId, normalizedItemId))
         {
             return false;
         }

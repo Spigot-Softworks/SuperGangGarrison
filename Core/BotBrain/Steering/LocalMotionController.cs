@@ -575,7 +575,7 @@ public sealed class LocalMotionController
                 level.Name,
                 level.MapAreaIndex,
                 self.Team,
-                self.ClassId,
+                self.BotGraphClassId,
                 target.Kind,
                 Quantize(self.X, TargetBucketSize),
                 Quantize(self.Bottom, VerticalBucketSize),

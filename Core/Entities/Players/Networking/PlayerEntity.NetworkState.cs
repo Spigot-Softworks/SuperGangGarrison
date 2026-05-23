@@ -309,7 +309,7 @@ public sealed partial class PlayerEntity
             : GameplayEquipmentSlot.Primary;
 
         if (CharacterClassCatalog.RuntimeRegistry.TryCreateValidatedPlayerLoadoutState(
-                ClassId,
+                GameplayClassId,
                 gameplayLoadoutId,
                 equippedSlot,
                 string.IsNullOrWhiteSpace(gameplaySecondaryItemId) ? null : gameplaySecondaryItemId,

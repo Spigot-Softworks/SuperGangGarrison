@@ -72,6 +72,11 @@ public partial class Game1
                 return GameplayOverlayKind.OptionsMenu;
             }
 
+            if (_game._hudEditorOpen)
+            {
+                return GameplayOverlayKind.HudEditor;
+            }
+
             if (_game._inGameMenuOpen)
             {
                 return GameplayOverlayKind.InGameMenu;
@@ -126,6 +131,9 @@ public partial class Game1
                     return;
                 case GameplayOverlayKind.OptionsMenu:
                     _game.UpdateOptionsMenu(keyboard, mouse);
+                    return;
+                case GameplayOverlayKind.HudEditor:
+                    _game.UpdateHudEditor(keyboard, mouse);
                     return;
                 case GameplayOverlayKind.InGameMenu:
                     _game.UpdateInGameMenu(keyboard, mouse);

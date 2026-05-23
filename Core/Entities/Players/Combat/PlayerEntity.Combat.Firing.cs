@@ -112,9 +112,10 @@ public sealed partial class PlayerEntity
         return true;
     }
 
-    public bool TryFireQuoteBubble()
+    public bool TryFireQuoteBubble(int activeProjectileLimit = QuoteBubbleLimit)
     {
-        if (!IsAlive || ClassId != PlayerClass.Quote || IsHeavyEating || IsTaunting || PrimaryCooldownTicks > 0 || QuoteBubbleCount >= QuoteBubbleLimit)
+        activeProjectileLimit = Math.Max(0, activeProjectileLimit);
+        if (!IsAlive || IsHeavyEating || IsTaunting || PrimaryCooldownTicks > 0 || QuoteBubbleCount >= activeProjectileLimit)
         {
             return false;
         }
@@ -123,46 +124,53 @@ public sealed partial class PlayerEntity
         return true;
     }
 
-    public bool TryFireQuoteBlade()
+    public bool TryFireQuoteBlade(int energyCost = QuoteBladeEnergyCost, int activeProjectileLimit = QuoteBladeMaxOut)
     {
+        energyCost = Math.Max(0, energyCost);
+        activeProjectileLimit = Math.Max(0, activeProjectileLimit);
         if (!IsAlive
-            || ClassId != PlayerClass.Quote
             || IsHeavyEating
             || IsTaunting
             || PrimaryCooldownTicks > 0
-            || QuoteBladesOut >= QuoteBladeMaxOut
-            || CurrentShells < QuoteBladeEnergyCost)
+            || QuoteBladesOut >= activeProjectileLimit
+            || CurrentShells < energyCost)
         {
             return false;
         }
 
-        CurrentShells -= QuoteBladeEnergyCost;
+        CurrentShells -= energyCost;
         PrimaryCooldownTicks = GetPrimaryCooldownAfterShot();
         return true;
     }
 
-    public bool TryFirePyroAirblast()
+    public bool TryFirePyroAirblast(
+        int fuelCost = PyroAirblastCost,
+        int reloadTicks = PyroAirblastReloadTicks,
+        int noFlameTicks = PyroAirblastNoFlameTicks)
     {
-        if (!CanFirePyroAirblast())
+        fuelCost = Math.Max(0, fuelCost);
+        reloadTicks = Math.Max(1, reloadTicks);
+        noFlameTicks = Math.Max(0, noFlameTicks);
+        if (!CanFirePyroAirblast(fuelCost))
         {
             return false;
         }
 
-        SetPyroPrimaryFuelScaled(GetPyroPrimaryFuelScaledValue() - (PyroAirblastCost * PyroPrimaryFuelScale));
-        PyroAirblastCooldownTicks = ApplyExperimentalWeaponCycleMultiplier(PyroAirblastReloadTicks);
+        SetPyroPrimaryFuelScaled(GetPyroPrimaryFuelScaledValue() - (fuelCost * PyroPrimaryFuelScale));
+        PyroAirblastCooldownTicks = ApplyExperimentalWeaponCycleMultiplier(reloadTicks);
         if (IsUsingAcquiredPyroWeapon())
         {
             AcquiredWeaponCooldownTicks = int.Max(
                 AcquiredWeaponCooldownTicks,
-                ApplyExperimentalWeaponCycleMultiplier(PyroAirblastNoFlameTicks));
-            AcquiredWeaponReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(PyroAirblastReloadTicks);
+                ApplyExperimentalWeaponCycleMultiplier(noFlameTicks));
+            AcquiredWeaponReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(reloadTicks);
         }
         else
         {
             PrimaryCooldownTicks = int.Max(
                 PrimaryCooldownTicks,
-                ApplyExperimentalWeaponCycleMultiplier(PyroAirblastNoFlameTicks));
-            ReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(PyroAirblastReloadTicks);
+                ApplyExperimentalWeaponCycleMultiplier(noFlameTicks));
+            ReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(reloadTicks);
         }
 
         IsPyroPrimaryRefilling = false;
@@ -226,13 +234,14 @@ public sealed partial class PlayerEntity
         return true;
     }
 
-    public bool CanFirePyroAirblast()
+    public bool CanFirePyroAirblast(int fuelCost = PyroAirblastCost)
     {
+        fuelCost = Math.Max(0, fuelCost);
         return IsAlive
             && HasPyroWeaponEquipped
             && !IsTaunting
             && PyroAirblastCooldownTicks <= 0
-            && GetPyroPrimaryFuelScaledValue() >= PyroAirblastCost * PyroPrimaryFuelScale;
+            && GetPyroPrimaryFuelScaledValue() >= fuelCost * PyroPrimaryFuelScale;
     }
 
     public bool TryPreparePyroPrimaryFireAttempt()

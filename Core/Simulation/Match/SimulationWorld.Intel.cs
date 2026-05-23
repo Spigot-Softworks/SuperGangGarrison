@@ -80,6 +80,17 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        if (ShouldCancelPickup(
+                WorldPickupKind.Intelligence,
+                player,
+                (int)enemyIntel.Team,
+                enemyIntel.Team.ToString(),
+                enemyIntel.X,
+                enemyIntel.Y))
+        {
+            return;
+        }
+
         var carriedRechargeTicks = enemyIntel.IsDropped ? enemyIntel.ReturnTicksRemaining : 0f;
         enemyIntel.PickUp();
         player.PickUpIntel(carriedRechargeTicks);
@@ -105,23 +116,22 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        if (!TryAwardTeamScore(player.Team, 1, "intel_capture", player.Id))
+        {
+            return;
+        }
+
         player.ScoreIntel();
         AwardObjectiveCapturePoints(player);
         GetEnemyIntelState(player.Team).ResetToBase();
         RegisterWorldSoundEvent("IntelPutSnd", player.X, player.Y);
         RecordIntelCapturedObjectiveLog(player);
 
-        if (player.Team == PlayerTeam.Blue)
+        if (player.Team == PlayerTeam.Red)
         {
-            BlueCaps += 1;
-        }
-        else
-        {
-            RedCaps += 1;
             if (ShouldEndMatchOnRedTeamIntelCapture())
             {
-                MatchState = MatchState with { Phase = MatchPhase.Ended, WinnerTeam = PlayerTeam.Red };
-                QueuePendingMapChange();
+                TryEndRound(PlayerTeam.Red, "special_red_intel_capture");
             }
         }
     }

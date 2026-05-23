@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 
 namespace OpenGarrison.PluginHost.Tests;
 
+[Collection(ContentRootTestGroup.Name)]
 public sealed class GameplayModPackLoaderTests
 {
     [Fact]
@@ -129,8 +130,14 @@ public sealed class GameplayModPackLoaderTests
         Assert.True(pack.Items.ContainsKey("weapon.scattergun"));
         Assert.True(pack.Items.ContainsKey("weapon.directhit"));
         Assert.True(pack.Classes.ContainsKey("soldier"));
+        Assert.False(pack.Classes.ContainsKey("quote"));
         Assert.Equal("soldier.stock", pack.Classes["soldier"].DefaultLoadoutId);
         Assert.True(pack.Classes["soldier"].Loadouts.ContainsKey("soldier.direct-hit"));
+        var soldierRuntime = pack.Classes["soldier"].Runtime;
+        Assert.NotNull(soldierRuntime);
+        Assert.Equal(nameof(PlayerClass.Soldier), soldierRuntime!.PlayerClass);
+        Assert.True(soldierRuntime.SupportsExperimentalAcquiredWeapon);
+        Assert.Equal("RocketKL", soldierRuntime.PrimaryWeaponKillFeedSprite);
         var soldierPresentation = pack.Classes["soldier"].Presentation;
         Assert.NotNull(soldierPresentation);
         Assert.Equal("Soldier", soldierPresentation.SpritePrefix);
@@ -199,6 +206,319 @@ public sealed class GameplayModPackLoaderTests
         Assert.False(paintrain.Ownership.DefaultGranted);
         Assert.True(paintrain.Ownership.GrantOnAcquire);
         Assert.Equal(ExperimentalDemoknightCatalog.PaintrainItemId, paintrain.Id);
+    }
+
+    [Fact]
+    public void StockGameplayPackExposesAbilityMetadataForStockAbilities()
+    {
+        var pack = StockGameplayModCatalog.Definition;
+
+        var pyroAirblast = pack.Items["ability.pyro-airblast"].Ability;
+        Assert.NotNull(pyroAirblast);
+        Assert.Equal(GameplayAbilityConstants.SecondaryCategory, pyroAirblast!.Category);
+        Assert.Equal(GameplayAbilityConstants.PressedActivation, pyroAirblast.Activation);
+        Assert.Equal(BuiltInGameplayBehaviorIds.PyroAirblast, pyroAirblast.ExecutorId);
+
+        var heavyUtility = pack.Items["ability.heavy-utility"].Ability;
+        Assert.NotNull(heavyUtility);
+        Assert.Equal(GameplayAbilityConstants.UtilityCategory, heavyUtility!.Category);
+        Assert.Equal(GameplayAbilityConstants.PressedActivation, heavyUtility.Activation);
+        Assert.Equal(BuiltInGameplayBehaviorIds.HeavyGhostDash, heavyUtility.ExecutorId);
+        Assert.Contains("dash", heavyUtility.Tags);
+        Assert.Equal(12, heavyUtility.Parameters["cooldownSeconds"].GetInt32());
+        Assert.Equal(0.5f, heavyUtility.Parameters["movementDurationSeconds"].GetSingle());
+        Assert.True(heavyUtility.Parameters["useMomentum"].GetBoolean());
+
+        var soldierExperimentalSecondary = pack.Items["weapon.soldier-shotgun"].Ability;
+        Assert.NotNull(soldierExperimentalSecondary);
+        Assert.Equal(GameplayAbilityConstants.SecondaryCategory, soldierExperimentalSecondary!.Category);
+        Assert.Equal(BuiltInGameplayBehaviorIds.ExperimentalSoldierSecondary, soldierExperimentalSecondary.ExecutorId);
+        Assert.Contains("experimental_ltd", soldierExperimentalSecondary.Tags);
+
+        var medigunNeedles = pack.Items["weapon.medigun"].Ability;
+        Assert.NotNull(medigunNeedles);
+        Assert.Equal(GameplayAbilityConstants.SecondaryCategory, medigunNeedles!.Category);
+        Assert.Equal(GameplayAbilityConstants.HeldActivation, medigunNeedles.Activation);
+        Assert.Equal(BuiltInGameplayBehaviorIds.MedicNeedlegun, medigunNeedles.ExecutorId);
+
+        Assert.False(pack.Items.ContainsKey("ability.quote-blade-throw"));
+        Assert.False(pack.Items.ContainsKey("ability.quote-utility"));
+    }
+
+    [Fact]
+    public void StockGameplayPackExposesHiddenPassiveAndTauntAbilityItems()
+    {
+        var pack = StockGameplayModCatalog.Definition;
+
+        var passive = pack.Items["ability.experimental-ltd-passive"].Ability;
+        Assert.NotNull(passive);
+        Assert.Equal(GameplayAbilityConstants.PassiveCategory, passive!.Category);
+        Assert.Equal(GameplayAbilityConstants.PassiveTickActivation, passive.Activation);
+        Assert.Equal(BuiltInGameplayBehaviorIds.ExperimentalLtdPassive, passive.ExecutorId);
+        Assert.Contains("experimental_ltd", passive.Tags);
+
+        var rage = pack.Items["ability.experimental-ltd-rage"].Ability;
+        Assert.NotNull(rage);
+        Assert.Equal(GameplayAbilityConstants.TauntCategory, rage!.Category);
+        Assert.Equal(GameplayAbilityConstants.PressedActivation, rage.Activation);
+        Assert.Equal(BuiltInGameplayBehaviorIds.ExperimentalLtdRage, rage.ExecutorId);
+
+        var soldierStock = pack.Classes["soldier"].Loadouts["soldier.stock"];
+        Assert.NotNull(soldierStock.AbilityItemIds);
+        Assert.Contains("ability.experimental-ltd-passive", soldierStock.AbilityItemIds!);
+        Assert.Contains("ability.experimental-ltd-rage", soldierStock.AbilityItemIds!);
+
+        var heavyStock = pack.Classes["heavy"].Loadouts["heavy.stock"];
+        Assert.NotNull(heavyStock.AbilityItemIds);
+        Assert.Contains("ability.experimental-ltd-passive", heavyStock.AbilityItemIds!);
+        Assert.DoesNotContain("ability.experimental-ltd-rage", heavyStock.AbilityItemIds!);
+    }
+
+    [Fact]
+    public void GameplayAbilityConstantsLabelBuiltInAndReservedCategories()
+    {
+        Assert.True(GameplayAbilityConstants.IsBuiltInDispatchedCategory(GameplayAbilityConstants.SecondaryCategory));
+        Assert.True(GameplayAbilityConstants.IsBuiltInDispatchedCategory(GameplayAbilityConstants.UtilityCategory));
+        Assert.True(GameplayAbilityConstants.IsBuiltInDispatchedCategory(GameplayAbilityConstants.PassiveCategory));
+        Assert.True(GameplayAbilityConstants.IsBuiltInDispatchedCategory(GameplayAbilityConstants.TauntCategory));
+
+        Assert.True(GameplayAbilityConstants.IsReservedCategory(GameplayAbilityConstants.MovementCategory));
+        Assert.True(GameplayAbilityConstants.IsReservedCategory(GameplayAbilityConstants.PrimaryAltCategory));
+        Assert.True(GameplayAbilityConstants.IsReservedCategory(GameplayAbilityConstants.StatusCategory));
+
+        Assert.False(GameplayAbilityConstants.IsBuiltInDispatchedCategory(GameplayAbilityConstants.MovementCategory));
+        Assert.False(GameplayAbilityConstants.IsReservedCategory(GameplayAbilityConstants.UtilityCategory));
+    }
+
+    [Fact]
+    public void StockGameplayPackExposesHudMetadata()
+    {
+        var pack = StockGameplayModCatalog.Definition;
+
+        var soldierShotgunHud = pack.Items["weapon.soldier-shotgun"].Presentation.Hud;
+        Assert.NotNull(soldierShotgunHud);
+        Assert.Equal(GameplayItemHudDisplayKinds.AmmoPanel, soldierShotgunHud!.DisplayKind);
+        Assert.Equal(GameplayItemHudStackGroups.Weapon, soldierShotgunHud.StackGroup);
+        Assert.Equal(GameplayItemHudStateProviders.SecondaryAmmo, soldierShotgunHud.StateProvider);
+        Assert.Equal(60, soldierShotgunHud.Order);
+
+        var grenadeLauncherHud = pack.Items["weapon.grenadelauncher"].Presentation.Hud;
+        Assert.NotNull(grenadeLauncherHud);
+        Assert.Equal(GameplayItemHudDisplayKinds.AmmoPanel, grenadeLauncherHud!.DisplayKind);
+        Assert.Equal(GameplayItemHudStateProviders.UtilityAmmo, grenadeLauncherHud.StateProvider);
+        Assert.Equal(40, grenadeLauncherHud.Order);
+
+        var sandvichHud = pack.Items["ability.heavy-sandvich"].Presentation.Hud;
+        Assert.NotNull(sandvichHud);
+        Assert.Equal(GameplayItemHudDisplayKinds.CooldownIcon, sandvichHud!.DisplayKind);
+        Assert.Equal(GameplayItemHudStackGroups.Ability, sandvichHud.StackGroup);
+        Assert.Equal(GameplayItemHudStateProviders.HeavySandvichCooldown, sandvichHud.StateProvider);
+
+        var heavyUtilityHud = pack.Items["ability.heavy-utility"].Presentation.Hud;
+        Assert.Equal("ChargeJumpS", pack.Items["ability.heavy-utility"].Presentation.HudSpriteName);
+        Assert.NotNull(heavyUtilityHud);
+        Assert.Equal(GameplayItemHudStackGroups.Ability, heavyUtilityHud!.StackGroup);
+        Assert.Equal(GameplayItemHudStateProviders.AbilityCooldown, heavyUtilityHud.StateProvider);
+        Assert.Equal(GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId, heavyUtilityHud.StateOwner);
+        Assert.Equal(GameplayAbilityReplicatedState.HeavyDashCooldownTicksKey, heavyUtilityHud.CooldownKey);
+        Assert.Equal(360, heavyUtilityHud.MaxCooldown);
+        Assert.Equal(GameplayAbilityReplicatedState.HeavyDashActiveKey, heavyUtilityHud.ActiveKey);
+    }
+
+    [Fact]
+    public void GameplayPackLoaderRejectsUnsupportedHudMetadata()
+    {
+        var rootDirectory = Path.Combine(Path.GetTempPath(), "og2-gameplay-pack-tests", Path.GetRandomFileName());
+        var packDirectory = Path.Combine(rootDirectory, "bad-hud-metadata");
+        Directory.CreateDirectory(Path.Combine(packDirectory, "items"));
+
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(packDirectory, "pack.json"),
+                """
+                {
+                  "id": "bad.hud.metadata",
+                  "displayName": "Bad HUD Metadata",
+                  "version": "1.0.0"
+                }
+                """);
+            File.WriteAllText(
+                Path.Combine(packDirectory, "items", "weapon.bad.json"),
+                """
+                {
+                  "id": "weapon.bad",
+                  "displayName": "Bad Weapon",
+                  "slot": "Primary",
+                  "behaviorId": "builtin.weapon.pellet_gun",
+                  "ammo": {
+                    "maxAmmo": 1
+                  },
+                  "presentation": {
+                    "hudSpriteName": "BadHudS",
+                    "hud": {
+                      "displayKind": "unsupportedPanel",
+                      "stackGroup": "weapon"
+                    }
+                  }
+                }
+                """);
+
+            var ex = Assert.Throws<InvalidOperationException>(() => GameplayModPackDirectoryLoader.LoadFromDirectory(packDirectory));
+            Assert.Contains("unsupported display kind", ex.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(rootDirectory))
+            {
+                Directory.Delete(rootDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void GameplayPackLoaderLeavesAbilityMetadataOmittedWhenDataDoesNotDeclareIt()
+    {
+        var rootDirectory = Path.Combine(Path.GetTempPath(), "og2-gameplay-pack-tests", Path.GetRandomFileName());
+        var packDirectory = Path.Combine(rootDirectory, "explicit-ability");
+        Directory.CreateDirectory(Path.Combine(packDirectory, "items"));
+
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(packDirectory, "pack.json"),
+                """
+                {
+                  "id": "explicit.ability",
+                  "displayName": "Explicit Ability",
+                  "version": "1.0.0"
+                }
+                """);
+            File.WriteAllText(
+                Path.Combine(packDirectory, "items", "ability.legacy-airblast.json"),
+                """
+                {
+                  "id": "ability.legacy-airblast",
+                  "displayName": "Legacy Airblast",
+                  "slot": "Secondary",
+                  "behaviorId": "builtin.ability.pyro_airblast",
+                  "ammo": {},
+                  "presentation": {}
+                }
+                """);
+
+            var pack = GameplayModPackDirectoryLoader.LoadFromDirectory(packDirectory);
+            var ability = pack.Items["ability.legacy-airblast"].Ability;
+
+            Assert.Null(ability);
+        }
+        finally
+        {
+            if (Directory.Exists(rootDirectory))
+            {
+                Directory.Delete(rootDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void GameplayPackLoaderRejectsUnsupportedAbilityActivation()
+    {
+        var rootDirectory = Path.Combine(Path.GetTempPath(), "og2-gameplay-pack-tests", Path.GetRandomFileName());
+        var packDirectory = Path.Combine(rootDirectory, "bad-ability");
+        Directory.CreateDirectory(Path.Combine(packDirectory, "items"));
+
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(packDirectory, "pack.json"),
+                """
+                {
+                  "id": "bad.ability",
+                  "displayName": "Bad Ability",
+                  "version": "1.0.0"
+                }
+                """);
+            File.WriteAllText(
+                Path.Combine(packDirectory, "items", "ability.bad.json"),
+                """
+                {
+                  "id": "ability.bad",
+                  "displayName": "Bad Ability",
+                  "slot": "Utility",
+                  "behaviorId": "builtin.utility.heavy",
+                  "ability": {
+                    "category": "utility",
+                    "activation": "whenever",
+                    "executorId": "builtin.ability.heavy_ghost_dash"
+                  },
+                  "ammo": {},
+                  "presentation": {}
+                }
+                """);
+
+            var exception = Assert.Throws<InvalidOperationException>(() => GameplayModPackDirectoryLoader.LoadFromDirectory(packDirectory));
+            Assert.Contains("unsupported activation", exception.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            if (Directory.Exists(rootDirectory))
+            {
+                Directory.Delete(rootDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void GameplayPackLoaderRejectsMalformedKnownAbilityParameter()
+    {
+        var rootDirectory = Path.Combine(Path.GetTempPath(), "og2-gameplay-pack-tests", Path.GetRandomFileName());
+        var packDirectory = Path.Combine(rootDirectory, "bad-ability-parameter");
+        Directory.CreateDirectory(Path.Combine(packDirectory, "items"));
+
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(packDirectory, "pack.json"),
+                """
+                {
+                  "id": "bad.ability-parameter",
+                  "displayName": "Bad Ability Parameter",
+                  "version": "1.0.0"
+                }
+                """);
+            File.WriteAllText(
+                Path.Combine(packDirectory, "items", "ability.bad-parameter.json"),
+                """
+                {
+                  "id": "ability.bad-parameter",
+                  "displayName": "Bad Ability Parameter",
+                  "slot": "Utility",
+                  "behaviorId": "builtin.utility.heavy",
+                  "ability": {
+                    "category": "utility",
+                    "activation": "pressed",
+                    "executorId": "builtin.ability.heavy_ghost_dash",
+                    "parameters": {
+                      "cooldownSeconds": "six"
+                    }
+                  },
+                  "ammo": {},
+                  "presentation": {}
+                }
+                """);
+
+            var exception = Assert.Throws<InvalidOperationException>(() => GameplayModPackDirectoryLoader.LoadFromDirectory(packDirectory));
+            Assert.Contains("cooldownSeconds", exception.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("numeric", exception.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            if (Directory.Exists(rootDirectory))
+            {
+                Directory.Delete(rootDirectory, recursive: true);
+            }
+        }
     }
 
     [Fact]
@@ -333,6 +653,211 @@ public sealed class GameplayModPackLoaderTests
                 Directory.Delete(rootDirectory, recursive: true);
             }
         }
+    }
+
+    [Fact]
+    public void RuntimeRegistryCanOverrideExistingRuntimeClassSlotWhenExplicitlyAllowed()
+    {
+        var registry = GameplayRuntimeRegistry.CreateStock();
+        var loadout = new GameplayClassLoadoutDefinition(
+            "plugin.example.soldier.stock",
+            "Stock",
+            "plugin.example.weapon.blade");
+        var overridePack = new GameplayModPackDefinition(
+            "plugin.example",
+            "Example Override Gameplay Pack",
+            new Version(1, 0, 0),
+            new Dictionary<string, GameplayItemDefinition>(StringComparer.Ordinal)
+            {
+                ["plugin.example.weapon.blade"] = new(
+                    "plugin.example.weapon.blade",
+                    "Plugin Blade",
+                    GameplayEquipmentSlot.Primary,
+                    BuiltInGameplayBehaviorIds.Blade,
+                    new GameplayItemAmmoDefinition(
+                        MaxAmmo: 100,
+                        AmmoPerUse: 0,
+                        ProjectilesPerUse: 1,
+                        UseDelaySourceTicks: 5,
+                        ReloadSourceTicks: 0),
+                    new GameplayItemPresentationDefinition()),
+            },
+            new Dictionary<string, GameplayClassDefinition>(StringComparer.Ordinal)
+            {
+                ["plugin.example.soldier"] = new(
+                    "plugin.example.soldier",
+                    "Plugin Soldier",
+                    new GameplayClassMovementDefinition(
+                        MaxHealth: 140,
+                        CollisionLeft: -7.0f,
+                        CollisionTop: -12.0f,
+                        CollisionRight: 8.0f,
+                        CollisionBottom: 12.0f,
+                        RunPower: 1.07f,
+                        JumpStrength: 8.3f,
+                        MaxAirJumps: 0,
+                        TauntLengthFrames: 16),
+                    new Dictionary<string, GameplayClassLoadoutDefinition>(StringComparer.Ordinal)
+                    {
+                        [loadout.Id] = loadout,
+                    },
+                    loadout.Id,
+                    new GameplayClassPresentationDefinition("Soldier"),
+                    new GameplayClassRuntimeDefinition(
+                        PlayerClass: "Soldier",
+                        SupportsExperimentalAcquiredWeapon: false,
+                        PrimaryWeaponKillFeedSprite: "RocketKL")),
+            },
+            GameplayModPackAssetCatalog.Empty);
+
+        Assert.False(registry.TryRegisterModPack(overridePack, allowRuntimeClassBindingOverride: false, out var error));
+        Assert.Contains("conflicts with existing binding", error, StringComparison.Ordinal);
+
+        Assert.True(registry.TryRegisterModPack(overridePack, allowRuntimeClassBindingOverride: true, out error), error);
+        Assert.Equal("Plugin Soldier", registry.GetClassDefinition(PlayerClass.Soldier).DisplayName);
+        Assert.Equal("plugin.example.weapon.blade", registry.GetDefaultLoadout(PlayerClass.Soldier).PrimaryItemId);
+        Assert.Equal("Plugin Blade", registry.CreateCharacterClassDefinition(PlayerClass.Soldier).PrimaryWeapon.DisplayName);
+    }
+
+    [Fact]
+    public void RuntimeRegistryAcceptsPluginClassWithoutLegacyPlayerClassBinding()
+    {
+        var registry = GameplayRuntimeRegistry.CreateStock();
+        var loadout = new GameplayClassLoadoutDefinition(
+            "plugin.example.ranger.stock",
+            "Stock",
+            "plugin.example.weapon.carbine");
+        var modPack = new GameplayModPackDefinition(
+            "plugin.example",
+            "Example Plugin Classes",
+            new Version(1, 0, 0),
+            new Dictionary<string, GameplayItemDefinition>(StringComparer.Ordinal)
+            {
+                ["plugin.example.weapon.carbine"] = new(
+                    "plugin.example.weapon.carbine",
+                    "Ranger Carbine",
+                    GameplayEquipmentSlot.Primary,
+                    BuiltInGameplayBehaviorIds.PelletGun,
+                    new GameplayItemAmmoDefinition(
+                        MaxAmmo: 6,
+                        AmmoPerUse: 1,
+                        ProjectilesPerUse: 4,
+                        UseDelaySourceTicks: 18,
+                        ReloadSourceTicks: 15,
+                        SpreadDegrees: 5f,
+                        MinProjectileSpeed: 11f,
+                        AdditionalProjectileSpeed: 4f,
+                        AutoReloads: true),
+                    new GameplayItemPresentationDefinition()),
+            },
+            new Dictionary<string, GameplayClassDefinition>(StringComparer.Ordinal)
+            {
+                ["plugin.example.ranger"] = new(
+                    "plugin.example.ranger",
+                    "Plugin Ranger",
+                    new GameplayClassMovementDefinition(
+                        MaxHealth: 110,
+                        CollisionLeft: -6.0f,
+                        CollisionTop: -10.0f,
+                        CollisionRight: 7.0f,
+                        CollisionBottom: 24.0f,
+                        RunPower: 1.35f,
+                        JumpStrength: 8.3f,
+                        MaxAirJumps: 1,
+                        TauntLengthFrames: 8),
+                    new Dictionary<string, GameplayClassLoadoutDefinition>(StringComparer.Ordinal)
+                    {
+                        [loadout.Id] = loadout,
+                    },
+                    loadout.Id,
+                    new GameplayClassPresentationDefinition("Scout"),
+                    new GameplayClassRuntimeDefinition(
+                        BasePlayerClass: "Scout",
+                        BotGraphPlayerClass: "Soldier",
+                        SupportsExperimentalAcquiredWeapon: false,
+                        PrimaryWeaponKillFeedSprite: "ScatterKL")),
+            },
+            GameplayModPackAssetCatalog.Empty);
+
+        Assert.True(registry.TryRegisterModPack(modPack, allowRuntimeClassBindingOverride: false, out var error), error);
+
+        Assert.True(registry.TryGetClassBinding("plugin.example.ranger", out var binding));
+        Assert.False(binding.BindsLegacyPlayerClass);
+        Assert.Equal(PlayerClass.Scout, binding.PlayerClass);
+        Assert.Equal(PlayerClass.Scout, binding.BasePlayerClass);
+        Assert.Equal(PlayerClass.Soldier, binding.BotGraphPlayerClass);
+        Assert.Equal("plugin.example.ranger", binding.ClassId);
+        Assert.Contains(registry.RuntimeClassBindings, candidate => candidate.ClassId == "plugin.example.ranger");
+
+        var classDefinition = registry.CreateCharacterClassDefinition("plugin.example.ranger");
+        Assert.Equal(PlayerClass.Scout, classDefinition.Id);
+        Assert.Equal("plugin.example.ranger", classDefinition.GameplayClassId);
+        Assert.Equal("plugin.example", classDefinition.GameplayModPackId);
+        Assert.Equal(PlayerClass.Soldier, classDefinition.BotGraphClassId);
+        Assert.Equal("Plugin Ranger", classDefinition.DisplayName);
+        Assert.Equal("Ranger Carbine", classDefinition.PrimaryWeapon.DisplayName);
+        Assert.Equal("plugin.example.weapon.carbine", registry.GetDefaultLoadout("plugin.example.ranger").PrimaryItemId);
+    }
+
+    [Theory]
+    [InlineData("Client")]
+    [InlineData("Server")]
+    public void PackagedQuoteCurlyGameplayPackLoads(string hostFolder)
+    {
+        var packDirectory = ProjectSourceLocator.FindDirectory(Path.Combine(
+            "Plugins",
+            "Packaged",
+            hostFolder,
+            "Lua.QuoteCurly",
+            "Gameplay",
+            "quote-curly.gg2"));
+
+        Assert.False(string.IsNullOrWhiteSpace(packDirectory));
+        var pack = GameplayModPackDirectoryLoader.LoadFromDirectory(packDirectory!);
+        Assert.Equal("plugin.quote-curly", pack.Id);
+        Assert.True(pack.Items.ContainsKey("plugin.quote-curly.weapon.blade"));
+        Assert.True(pack.Items.ContainsKey("plugin.quote-curly.weapon.ranger-carbine"));
+        var quoteBladeThrow = pack.Items["plugin.quote-curly.ability.blade-throw"].Ability;
+        Assert.NotNull(quoteBladeThrow);
+        Assert.Equal(PlayerEntity.QuoteBladeEnergyCost, quoteBladeThrow!.Parameters["energyCost"].GetInt32());
+        Assert.Equal(PlayerEntity.QuoteBladeMaxOut, quoteBladeThrow.Parameters["activeProjectileLimit"].GetInt32());
+        Assert.Equal(PlayerEntity.QuoteBladeLifetimeTicks, quoteBladeThrow.Parameters["lifetimeTicks"].GetInt32());
+        Assert.True(pack.Classes.TryGetValue("plugin.quote-curly.quote", out var gameplayClass));
+        Assert.Equal("Quote", gameplayClass!.Runtime?.PlayerClass);
+        Assert.Equal(
+            "plugin.quote-curly.weapon.blade",
+            gameplayClass.Loadouts[gameplayClass.DefaultLoadoutId].PrimaryItemId);
+        Assert.True(pack.Classes.TryGetValue("plugin.quote-curly.ranger", out var rangerClass));
+        Assert.Equal(string.Empty, rangerClass!.Runtime?.PlayerClass);
+        Assert.Equal("Scout", rangerClass.Runtime?.BasePlayerClass);
+        Assert.Equal("Scout", rangerClass.Runtime?.BotGraphPlayerClass);
+        Assert.Equal(
+            "plugin.quote-curly.weapon.ranger-carbine",
+            rangerClass.Loadouts[rangerClass.DefaultLoadoutId].PrimaryItemId);
+    }
+
+    [Fact]
+    public void PackagedQuoteCurlyGameplayPackRegistersQuoteRuntimeBinding()
+    {
+        var registry = GameplayRuntimeRegistry.CreateStock();
+        Assert.False(registry.TryGetClassBinding(PlayerClass.Quote, out _));
+
+        var packDirectory = ProjectSourceLocator.FindDirectory(Path.Combine(
+            "Plugins",
+            "Packaged",
+            "Server",
+            "Lua.QuoteCurly",
+            "Gameplay",
+            "quote-curly.gg2"));
+
+        Assert.False(string.IsNullOrWhiteSpace(packDirectory));
+        var pack = GameplayModPackDirectoryLoader.LoadFromDirectory(packDirectory!);
+
+        Assert.True(registry.TryRegisterModPack(pack, allowRuntimeClassBindingOverride: true, out var error), error);
+        Assert.True(registry.TryGetClassBinding(PlayerClass.Quote, out var quoteBinding));
+        Assert.Equal("plugin.quote-curly.quote", quoteBinding.ClassId);
+        Assert.Equal("Quote/Curly", registry.GetClassDefinition(PlayerClass.Quote).DisplayName);
+        Assert.Equal("plugin.quote-curly.weapon.blade", registry.GetDefaultLoadout(PlayerClass.Quote).PrimaryItemId);
     }
 
     [Fact]
@@ -571,6 +1096,11 @@ public sealed class GameplayModPackLoaderTests
     {
         var registry = GameplayRuntimeRegistry.CreateStock();
 
+        var soldierBinding = registry.GetRequiredClassBinding(PlayerClass.Soldier);
+        Assert.Equal("soldier", soldierBinding.ClassId);
+        Assert.True(soldierBinding.SupportsExperimentalAcquiredWeapon);
+        Assert.Equal("RocketKL", soldierBinding.PrimaryWeaponKillFeedSprite);
+        Assert.False(registry.TryGetClassBinding(PlayerClass.Quote, out _));
         Assert.True(registry.TryResolveBoundPlayerClassForPrimaryItem("weapon.rocketlauncher", out var soldierClass));
         Assert.Equal(PlayerClass.Soldier, soldierClass);
         Assert.False(registry.TryResolveBoundPlayerClassForPrimaryItem(ExperimentalDemoknightCatalog.EyelanderItemId, out _));
@@ -623,21 +1153,26 @@ public sealed class GameplayModPackLoaderTests
         var stockRevolver = registry.CreatePrimaryWeaponDefinition(registry.GetRequiredItem("weapon.revolver"));
         var diamondback = registry.CreatePrimaryWeaponDefinition(registry.GetRequiredItem("weapon.diamondback"));
         var stockFlamethrower = registry.CreatePrimaryWeaponDefinition(registry.GetRequiredItem("weapon.flamethrower"));
+        var stockBlade = registry.CreatePrimaryWeaponDefinition(registry.GetRequiredItem("weapon.blade"));
 
         Assert.NotNull(stockRocketLauncher.RocketCombat);
         Assert.Equal(RocketProjectileEntity.DirectHitDamage, stockRocketLauncher.RocketCombat!.DirectHitDamage);
         Assert.Equal(RocketProjectileEntity.ExplosionDamage, stockRocketLauncher.RocketCombat.ExplosionDamage);
+        Assert.Equal("RocketSnd", stockRocketLauncher.FireSoundName);
         Assert.Equal(15f, blackBox.DirectHitHealAmount);
 
         Assert.Equal(ShotProjectileEntity.DamagePerHit, stockMinigun.DirectHitDamage);
+        Assert.Equal("ChaingunSnd", stockMinigun.FireSoundName);
         Assert.Equal(10f, brassBeast.DirectHitDamage);
 
         Assert.Equal(RevolverProjectileEntity.DamagePerHit, stockRevolver.DirectHitDamage);
+        Assert.Equal("RevolverSnd", stockRevolver.FireSoundName);
         Assert.Equal(24f, diamondback.DirectHitDamage);
         Assert.Equal(21f, diamondback.MinShotSpeed);
 
         Assert.Equal(FlameProjectileEntity.DirectHitDamage, stockFlamethrower.DirectHitDamage);
         Assert.Equal(FlameProjectileEntity.BurnDamagePerTick, stockFlamethrower.DamagePerTick);
+        Assert.Equal(PlayerEntity.QuoteBubbleLimit, stockBlade.ActiveProjectileLimit);
     }
 
     [Fact]

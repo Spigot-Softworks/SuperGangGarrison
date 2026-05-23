@@ -10,6 +10,8 @@ public sealed partial class SimulationWorld
     private const float AcquiredMedigunHealsplosionMaxDamage = 110f;
     private const float AcquiredMedigunHealsplosionSelfHealing = 120f;
     private const float AcquiredMedigunHealsplosionMinimumDamageFactor = 0.12f;
+    private const float MedicUberChargeGainPerTickHealthyTarget = 1.75f;
+    private const float MedicUberChargeGainPerTickDamagedTarget = 2.5f;
 
     public string GetMedicSummary()
     {
@@ -162,16 +164,9 @@ public sealed partial class SimulationWorld
 
         if (!medic.IsMedicUbering)
         {
-            var uberGain = 1f;
-            if (target.Health < target.MaxHealth)
-            {
-                uberGain += 0.5f;
-            }
-            if (target.Health < target.MaxHealth / 2f)
-            {
-                uberGain += 1f;
-            }
-
+            var uberGain = target.Health < target.MaxHealth || ControlPointSetupActive
+                ? MedicUberChargeGainPerTickDamagedTarget
+                : MedicUberChargeGainPerTickHealthyTarget;
             medic.AddMedicUberCharge(uberGain);
         }
 

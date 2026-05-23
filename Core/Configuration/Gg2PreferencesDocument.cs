@@ -63,6 +63,8 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool PortraitRumbleEnabled { get; set; } = true;
 
+    public bool PostGameMvpArtEnabled { get; set; }
+
     public bool DamageVignetteEnabled { get; set; } = true;
 
     public int DamageVignetteIntensityPercent { get; set; } = 100;
@@ -147,6 +149,7 @@ public sealed class OpenGarrisonPreferencesDocument
             ShowHealthBarEnabled = ini.GetBool(SettingsSection, "Show Healthbar", false),
             OverheadChatEnabled = ini.GetBool(SettingsSection, "Overhead Chat", DefaultOverheadChatEnabled),
             PortraitRumbleEnabled = ini.GetBool(SettingsSection, "Portrait Rumble", true),
+            PostGameMvpArtEnabled = ini.GetBool(SettingsSection, "MVP Art", false),
             DamageVignetteEnabled = ini.GetBool(SettingsSection, "Damage Vignette", true),
             DamageVignetteIntensityPercent = NormalizeDamageVignetteIntensityPercent(ini.GetInt(SettingsSection, "Damage Vignette Intensity", 100)),
             LowHealthColorMode = ParseLowHealthColorMode(ini.GetString(SettingsSection, "Low Health Color", LowHealthColorMode.Red.ToString())),
@@ -207,6 +210,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(SettingsSection, "Show Healthbar", ShowHealthBarEnabled);
         ini.SetBool(SettingsSection, "Overhead Chat", OverheadChatEnabled);
         ini.SetBool(SettingsSection, "Portrait Rumble", PortraitRumbleEnabled);
+        ini.SetBool(SettingsSection, "MVP Art", PostGameMvpArtEnabled);
         ini.SetBool(SettingsSection, "Damage Vignette", DamageVignetteEnabled);
         ini.SetInt(SettingsSection, "Damage Vignette Intensity", NormalizeDamageVignetteIntensityPercent(DamageVignetteIntensityPercent));
         ini.SetString(SettingsSection, "Low Health Color", NormalizeLowHealthColorMode(LowHealthColorMode).ToString());
@@ -246,6 +250,8 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(ServerAdvancedSection, "BotAutofillEnabled", HostSettings.BotAutofillEnabled);
         ini.SetInt(ServerAdvancedSection, "BotAutofillMinPlayers", HostSettings.BotAutofillMinPlayers);
         ini.SetInt(ServerAdvancedSection, "BotAutofillPerTeam", HostSettings.BotAutofillPerTeam);
+        ini.SetBool(ServerAdvancedSection, "CompetitiveReadyUpEnabled", HostSettings.CompetitiveReadyUpEnabled);
+        ini.SetInt(ServerAdvancedSection, "CompetitiveSetupSeconds", HostSettings.CompetitiveSetupSeconds);
         ini.SetInt(ServerAdvancedSection, "MaxPlayableClients", MaxPlayableClients);
         ini.SetInt(ServerAdvancedSection, "MaxTotalClients", MaxTotalClients);
         ini.SetInt(ServerAdvancedSection, "MaxSpectatorClients", MaxSpectatorClients);
@@ -369,6 +375,10 @@ public sealed class OpenGarrisonHostSettings
 
     public bool RandomSpreadEnabled { get; set; } = true;
 
+    public bool CompetitiveReadyUpEnabled { get; set; }
+
+    public int CompetitiveSetupSeconds { get; set; } = 10;
+
     public bool DedicatedModeEnabled { get; set; }
 
     public string MapRotationFile { get; set; } = string.Empty;
@@ -443,6 +453,8 @@ public sealed class OpenGarrisonHostSettings
             AutoBalanceEnabled = AutoBalanceEnabled,
             SecondaryAbilitiesEnabled = SecondaryAbilitiesEnabled,
             RandomSpreadEnabled = RandomSpreadEnabled,
+            CompetitiveReadyUpEnabled = CompetitiveReadyUpEnabled,
+            CompetitiveSetupSeconds = CompetitiveSetupSeconds,
             DedicatedModeEnabled = DedicatedModeEnabled,
             MapRotationFile = MapRotationFile,
             StockMapRotation = StockMapRotation.Select(entry => entry.Clone()).ToList(),
@@ -475,6 +487,8 @@ public sealed class OpenGarrisonHostSettings
             LobbyAnnounceEnabled = ini.GetBool("Settings", "UseLobby", true),
             AutoBalanceEnabled = ini.GetBool("Server", "AutoBalance", true),
             SecondaryAbilitiesEnabled = ini.GetBool("Server", "SecondaryAbilities", true),
+            CompetitiveReadyUpEnabled = ini.GetBool("Server.Advanced", "CompetitiveReadyUpEnabled", false),
+            CompetitiveSetupSeconds = Math.Clamp(ini.GetInt("Server.Advanced", "CompetitiveSetupSeconds", 10), 0, 120),
             DedicatedModeEnabled = ini.GetBool("Server", "Dedicated", false),
             MapRotationFile = ini.GetString("Server", "MapRotation", string.Empty),
             StockMapRotation = OpenGarrisonStockMapCatalog.LoadFrom(ini, legacySelectedMap),

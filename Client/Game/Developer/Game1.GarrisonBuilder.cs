@@ -1690,34 +1690,16 @@ public partial class Game1
 
         try
         {
-            Directory.CreateDirectory(outputDirectory);
-            var written = 0;
-            foreach (var resource in _builderDocument.Resources.Values)
-            {
-                CustomMapBuilderResourceCodec.WriteDecompiledFile(resource, outputDirectory);
-                written += 1;
-            }
-
-            if (!string.IsNullOrWhiteSpace(_builderDocument.WalkmaskImagePath) && File.Exists(_builderDocument.WalkmaskImagePath))
-            {
-                File.Copy(_builderDocument.WalkmaskImagePath, Path.Combine(outputDirectory, "walkmask.png"), overwrite: true);
-                written += 1;
-            }
-            else if (!string.IsNullOrWhiteSpace(_builderDocument.EmbeddedWalkmaskSection))
-            {
-                WriteGarrisonBuilderWalkmaskPng(_builderDocument.EmbeddedWalkmaskSection, Path.Combine(outputDirectory, "walkmask.png"));
-                written += 1;
-            }
-
-            var metadataPath = Path.Combine(outputDirectory, "metadata.json");
-            File.WriteAllText(metadataPath, JsonSerializer.Serialize(_builderDocument.BuildExportMetadata(), BuilderMetadataJsonOptions));
+            UpdateGarrisonBuilderDocumentEntities();
+            var manifestPath = Path.Combine(outputDirectory, $"{_builderDocument.NormalizeForEditing().Name}.json");
+            CustomMapPackageExporter.Export(_builderDocument, manifestPath);
             _builderResourceOutputDirectoryBuffer = outputDirectory;
-            _builderStatus = $"exported {written} resources";
-            AddConsoleLine($"builder resources exported: {outputDirectory}");
+            _builderStatus = $"exported package {Path.GetFileName(manifestPath)}";
+            AddConsoleLine($"builder package exported: {manifestPath}");
         }
         catch (Exception ex)
         {
-            _builderStatus = $"resource export failed: {ex.Message}";
+            _builderStatus = $"package export failed: {ex.Message}";
             AddConsoleLine(_builderStatus);
         }
     }
@@ -2470,10 +2452,10 @@ public partial class Game1
         _builderPathSelectionStart = _builderPathCursorIndex;
         _builderStatus = field switch
         {
-            GarrisonBuilderPathField.OpenMap => "enter a PNG map path to open",
+            GarrisonBuilderPathField.OpenMap => "enter a PNG or JSON map path to open",
             GarrisonBuilderPathField.Background => "enter a background PNG path",
             GarrisonBuilderPathField.Walkmask => "enter a walkmask PNG path",
-            GarrisonBuilderPathField.Save => "enter an output PNG path",
+            GarrisonBuilderPathField.Save => "enter an output PNG or JSON package path",
             GarrisonBuilderPathField.ResourceName => "enter a resource name",
             GarrisonBuilderPathField.ResourcePath => "enter a PNG/GIF resource path",
             GarrisonBuilderPathField.ResourceOutputDirectory => "enter a directory for decompiled resources",
@@ -2521,7 +2503,7 @@ public partial class Game1
         switch (field)
         {
             case GarrisonBuilderPathField.OpenMap:
-                return TryChooseGarrisonBuilderFile("Load map PNG", "PNG files (*.png)|*.png|All files (*.*)|*.*", _builderOpenMapBuffer, out _builderOpenMapBuffer)
+                return TryChooseGarrisonBuilderFile("Load map", "Map files (*.png;*.json)|*.png;*.json|PNG files (*.png)|*.png|JSON packages (*.json)|*.json|All files (*.*)|*.*", _builderOpenMapBuffer, out _builderOpenMapBuffer)
                     && ApplyChosenGarrisonBuilderPath(field);
             case GarrisonBuilderPathField.Background:
                 return TryChooseGarrisonBuilderFile("Load background PNG", "PNG files (*.png)|*.png|All files (*.*)|*.*", _builderBackgroundPathBuffer, out _builderBackgroundPathBuffer)
@@ -2536,7 +2518,7 @@ public partial class Game1
                 return TryChooseGarrisonBuilderFolder("Choose resource output directory", _builderResourceOutputDirectoryBuffer, out _builderResourceOutputDirectoryBuffer)
                     && ApplyChosenGarrisonBuilderPath(field);
             case GarrisonBuilderPathField.Save:
-                return TryChooseGarrisonBuilderSaveFile("Save map PNG", "PNG files (*.png)|*.png|All files (*.*)|*.*", _builderSavePathBuffer, out _builderSavePathBuffer)
+                return TryChooseGarrisonBuilderSaveFile("Save map", "Package manifests (*.json)|*.json|Legacy PNG files (*.png)|*.png|All files (*.*)|*.*", _builderSavePathBuffer, out _builderSavePathBuffer)
                     && ApplyChosenGarrisonBuilderPath(field);
             default:
                 return false;
@@ -3244,7 +3226,17 @@ public partial class Game1
             return;
         }
 
-        var editableDocument = CustomMapBuilderPngImporter.Import(path);
+        var isPackage = Path.GetExtension(path).Equals(".json", StringComparison.OrdinalIgnoreCase);
+        var editableDocument = isPackage
+            ? CustomMapPackageImporter.ImportDocument(path)
+            : CustomMapBuilderPngImporter.Import(path);
+        if (isPackage && editableDocument is null)
+        {
+            _builderStatus = "package open failed";
+            AddConsoleLine(_builderStatus);
+            return;
+        }
+
         var runtimeImport = editableDocument is null ? CustomMapPngImporter.Import(path) : null;
         _builderDocument = editableDocument?.NormalizeForEditing() ?? CustomMapBuilderDocument.CreateEmpty(Path.GetFileNameWithoutExtension(path)) with
         {
@@ -3259,10 +3251,12 @@ public partial class Game1
         _builderOpenMapBuffer = path;
         _builderDirty = false;
         _builderStatus = editableDocument is not null
-            ? $"opened editable map with {_builderEntities.Count} entities"
+            ? isPackage
+                ? $"opened package map with {_builderEntities.Count} entities"
+                : $"opened editable map with {_builderEntities.Count} entities"
             : runtimeImport is null
-            ? "opened PNG as background"
-            : "opened compiled map as background";
+                ? "opened PNG as background"
+                : "opened compiled map as background";
         AddConsoleLine($"builder opened: {path}");
         AddConsoleLine(_builderStatus);
     }
@@ -3323,7 +3317,16 @@ public partial class Game1
                 return;
             }
 
-            CustomMapPngExporter.Export(_builderDocument, _builderSavePath);
+            if (CustomMapPackageExporter.IsPackageOutputPath(_builderSavePath))
+            {
+                CustomMapPackageExporter.Export(_builderDocument, _builderSavePath);
+                _builderSavePath = CustomMapPackageExporter.ResolveManifestOutputPath(_builderDocument, _builderSavePath);
+            }
+            else
+            {
+                CustomMapPngExporter.Export(_builderDocument, _builderSavePath);
+            }
+
             _builderSavePathBuffer = _builderSavePath;
             _builderDirty = false;
             _builderStatus = $"saved {Path.GetFileName(_builderSavePath)}";

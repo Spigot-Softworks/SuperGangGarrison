@@ -1,3 +1,4 @@
+using System;
 using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Core;
@@ -42,11 +43,14 @@ public sealed partial class SimulationWorld
         var utilityItemId = _snapshotStringCache.Resolve(snapshotPlayer.GameplayUtilityItemCacheId, snapshotPlayer.GameplayUtilityItemId);
         var equippedItemId = _snapshotStringCache.Resolve(snapshotPlayer.GameplayEquippedItemCacheId, snapshotPlayer.GameplayEquippedItemId);
         var acquiredItemId = _snapshotStringCache.Resolve(snapshotPlayer.GameplayAcquiredItemCacheId, snapshotPlayer.GameplayAcquiredItemId);
+        var gameplayClassId = _snapshotStringCache.Resolve(snapshotPlayer.GameplayClassCacheId, snapshotPlayer.GameplayClassId);
+        var classDefinition = ResolveSnapshotClassDefinition(snapshotPlayer, gameplayClassId);
 
+        ApplySnapshotNetworkPlayerReady(snapshotPlayer.Slot, snapshotPlayer.IsReady);
         player.SetDisplayName(snapshotPlayer.Name);
         player.ApplyNetworkState(
             (PlayerTeam)snapshotPlayer.Team,
-            CharacterClassCatalog.GetDefinition((PlayerClass)snapshotPlayer.ClassId),
+            classDefinition,
             snapshotPlayer.IsAlive,
             snapshotPlayer.X,
             snapshotPlayer.Y,
@@ -127,6 +131,20 @@ public sealed partial class SimulationWorld
             snapshotPlayer.PlayerScale,
             offhandCooldownTicks: snapshotPlayer.OffhandCooldownTicks,
             offhandReloadTicks: snapshotPlayer.OffhandReloadTicks);
+    }
+
+    private static CharacterClassDefinition ResolveSnapshotClassDefinition(SnapshotPlayerState snapshotPlayer, string gameplayClassId)
+    {
+        if (!string.IsNullOrWhiteSpace(gameplayClassId)
+            && CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(gameplayClassId, out _))
+        {
+            return CharacterClassCatalog.GetDefinition(gameplayClassId);
+        }
+
+        var playerClass = Enum.IsDefined(typeof(PlayerClass), (int)snapshotPlayer.ClassId)
+            ? (PlayerClass)snapshotPlayer.ClassId
+            : PlayerClass.Scout;
+        return CharacterClassCatalog.GetDefinition(playerClass);
     }
 
     private static GameplayReplicatedStateEntry[] ConvertReplicatedStateEntries(IReadOnlyList<SnapshotReplicatedStateEntry>? entries)
@@ -833,9 +851,10 @@ public sealed partial class SimulationWorld
             if (!hadRemotePlayer)
             {
                 ReserveEntityId(snapshotPlayer.PlayerId);
+                var gameplayClassId = _snapshotStringCache.Resolve(snapshotPlayer.GameplayClassCacheId, snapshotPlayer.GameplayClassId);
                 player = new PlayerEntity(
                     snapshotPlayer.PlayerId,
-                    CharacterClassCatalog.GetDefinition((PlayerClass)snapshotPlayer.ClassId),
+                    ResolveSnapshotClassDefinition(snapshotPlayer, gameplayClassId),
                     snapshotPlayer.Name);
                 _remoteSnapshotPlayersBySlot[snapshotPlayer.Slot] = player;
             }
@@ -881,6 +900,7 @@ public sealed partial class SimulationWorld
             var slot = _snapshotStaleRemotePlayerSlots[index];
             if (_remoteSnapshotPlayersBySlot.Remove(slot, out var removedPlayer))
             {
+                ApplySnapshotNetworkPlayerReady(slot, ready: false);
                 _presentedNetworkGibDeathCountsByPlayerId.Remove(removedPlayer.Id);
             }
         }

@@ -389,6 +389,8 @@ sealed class SnapshotBroadcaster
             ArenaCappers = _world.ArenaCappers,
             ArenaRedConsecutiveWins = _world.ArenaRedConsecutiveWins,
             ArenaBlueConsecutiveWins = _world.ArenaBlueConsecutiveWins,
+            CompetitiveReadyUpPhase = (byte)_world.CompetitiveReadyUpPhase,
+            CompetitiveReadyUpTicksRemaining = _world.CompetitiveReadyUpTicksRemaining,
             SentryGibs = ConvertToArray(_world.SentryGibs, static sentryGib => ToSnapshotSentryGibState(sentryGib)),
             JumpPads = ConvertToArray(_world.JumpPads, static jumpPad => ToSnapshotJumpPadState(jumpPad)),
             Grenades = ConvertToArray(_world.Grenades, static grenade => ToSnapshotGrenadeState(grenade)),
@@ -638,7 +640,7 @@ sealed class SnapshotBroadcaster
 
     private static List<(string value, ushort cacheId)> CollectReferencedCachedStrings(List<SnapshotPlayerState> players)
     {
-        var referenced = new List<(string, ushort)>(players.Count * 7);
+        var referenced = new List<(string, ushort)>(players.Count * 8);
 
         foreach (var player in players)
         {
@@ -656,6 +658,8 @@ sealed class SnapshotBroadcaster
                 referenced.Add((player.GameplayEquippedItemId, player.GameplayEquippedItemCacheId));
             if (player.GameplayAcquiredItemCacheId != 0)
                 referenced.Add((player.GameplayAcquiredItemId, player.GameplayAcquiredItemCacheId));
+            if (player.GameplayClassCacheId != 0)
+                referenced.Add((player.GameplayClassId, player.GameplayClassCacheId));
         }
 
         return referenced;

@@ -10,19 +10,22 @@ public static class StockGameplayModCatalog
 
     public static string GetClassId(PlayerClass playerClass)
     {
-        return playerClass switch
+        foreach (var gameplayClass in Definition.Classes.Values)
         {
-            PlayerClass.Engineer => "engineer",
-            PlayerClass.Pyro => "pyro",
-            PlayerClass.Soldier => "soldier",
-            PlayerClass.Demoman => "demoman",
-            PlayerClass.Heavy => "heavy",
-            PlayerClass.Sniper => "sniper",
-            PlayerClass.Medic => "medic",
-            PlayerClass.Spy => "spy",
-            PlayerClass.Quote => "quote",
-            _ => "scout",
-        };
+            var runtime = gameplayClass.Runtime;
+            if (runtime is null)
+            {
+                continue;
+            }
+
+            if (Enum.TryParse<PlayerClass>(runtime.PlayerClass, ignoreCase: true, out var runtimePlayerClass)
+                && runtimePlayerClass == playerClass)
+            {
+                return gameplayClass.Id;
+            }
+        }
+
+        return Definition.Classes.ContainsKey("scout") ? "scout" : Definition.Classes.Keys.First();
     }
 
     public static GameplayClassDefinition GetClassDefinition(PlayerClass playerClass)

@@ -56,6 +56,13 @@ It is written for engine contributors who are adding new seams, extending existi
 - Add a seam when the host can describe the capability in stable gameplay, rendering, UI, audio, state, or messaging terms.
 - Do not add a seam that only mirrors one internal call site or one plugin's private workaround.
 
+Gameplay ability authoring has its own narrower public contract in
+[GAMEPLAY_ABILITIES.md](C:/Users/level/Desktop/OpenGarrison%20Active/OpenGarrison-Fork/Plugins/GAMEPLAY_ABILITIES.md).
+When extending ability support, keep new operations bounded and server-owned:
+plugins may register ability or primary weapon metadata, provide Lua executors,
+and request validated simulation actions, but they should not receive raw
+simulation object ownership.
+
 ## Callback Design Rules
 
 When adding a new callback:

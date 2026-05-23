@@ -1,6 +1,11 @@
 {
   "id": "scout",
   "displayName": "Scout",
+  "runtime": {
+    "playerClass": "Scout",
+    "supportsExperimentalAcquiredWeapon": true,
+    "primaryWeaponKillFeedSprite": "ScatterKL"
+  },
   "movement": {
     "maxHealth": 100,
     "collisionLeft": -6.0,
@@ -29,7 +34,8 @@
       "id": "scout.stock",
       "displayName": "Stock",
       "primaryItemId": "weapon.scattergun",
-      "utilityItemId": "ability.scout-utility"
+      "utilityItemId": "ability.scout-utility",
+      "abilityItemIds": [ "ability.experimental-ltd-passive" ]
     }
   },
   "defaultLoadoutId": "scout.stock"

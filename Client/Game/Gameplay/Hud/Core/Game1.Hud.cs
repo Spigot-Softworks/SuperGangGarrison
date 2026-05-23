@@ -52,7 +52,7 @@ public partial class Game1
             return;
         }
 
-        _scoreboardHoveredPlayerRow = null;
+        ClearScoreboardPlayerInteractionState();
         if (_scoreboardAlpha > 0.02f)
         {
             _scoreboardAlpha = AdvanceClosingAlpha(_scoreboardAlpha, 0.02f);

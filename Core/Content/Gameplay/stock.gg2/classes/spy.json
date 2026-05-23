@@ -1,6 +1,11 @@
 {
   "id": "spy",
   "displayName": "Spy",
+  "runtime": {
+    "playerClass": "Spy",
+    "supportsExperimentalAcquiredWeapon": true,
+    "primaryWeaponKillFeedSprite": "RevolverKL"
+  },
   "movement": {
     "maxHealth": 100,
     "collisionLeft": -6.0,
@@ -30,14 +35,16 @@
       "displayName": "Stock",
       "primaryItemId": "weapon.revolver",
       "secondaryItemId": "ability.spy-cloak",
-      "utilityItemId": "ability.spy-utility"
+      "utilityItemId": "ability.spy-utility",
+      "abilityItemIds": [ "ability.experimental-ltd-passive" ]
     },
     "spy.diamondback": {
       "id": "spy.diamondback",
       "displayName": "Diamondback",
       "primaryItemId": "weapon.diamondback",
       "secondaryItemId": "ability.spy-cloak",
-      "utilityItemId": "ability.spy-utility"
+      "utilityItemId": "ability.spy-utility",
+      "abilityItemIds": [ "ability.experimental-ltd-passive" ]
     }
   },
   "defaultLoadoutId": "spy.stock"

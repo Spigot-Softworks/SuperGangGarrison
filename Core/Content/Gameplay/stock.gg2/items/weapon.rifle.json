@@ -13,6 +13,9 @@
     "ammoRegenPerTick": 0,
     "refillsAllAtOnce": false
   },
+  "combat": {
+    "fireSoundName": "SniperSnd"
+  },
   "presentation": {
     "worldSpriteName": "RifleS",
     "recoilSpriteName": "RifleFS",

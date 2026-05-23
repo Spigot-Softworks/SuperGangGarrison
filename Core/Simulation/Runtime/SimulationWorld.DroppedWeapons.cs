@@ -29,13 +29,23 @@ public sealed partial class SimulationWorld
         {
             var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
             var pickedWeaponItemId = runtimeRegistry.GetPrimaryItem(nearbyWeapon.WeaponClassId).Id;
-            if (!runtimeRegistry.CanUseAcquiredItem(player.ClassId, pickedWeaponItemId))
+            if (!runtimeRegistry.CanUseAcquiredItem(player.GameplayClassId, pickedWeaponItemId))
             {
                 return;
             }
 
             var previousWeaponClassId = player.AcquiredWeaponClassId;
             var pickedWeaponClassId = nearbyWeapon.WeaponClassId;
+            if (ShouldCancelPickup(
+                    WorldPickupKind.DroppedWeapon,
+                    player,
+                    nearbyWeapon.Id,
+                    pickedWeaponClassId.ToString(),
+                    nearbyWeapon.X,
+                    nearbyWeapon.Y))
+            {
+                return;
+            }
 
             if (previousWeaponClassId.HasValue && previousWeaponClassId.Value != pickedWeaponClassId)
             {

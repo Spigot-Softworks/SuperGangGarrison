@@ -10,6 +10,7 @@ internal sealed class ServerRuntimeEventReporter(
     ServerMapMetadataResolver mapMetadataResolver)
 {
     private readonly Dictionary<int, bool> _lastObservedPlayerAliveById = new();
+    private readonly Dictionary<(int PlayerId, string OwnerId, string StateKey), GameplayReplicatedStateEntry> _lastObservedAbilityStateByPlayerAndKey = new();
     private int _lastObservedRedCaps;
     private int _lastObservedBlueCaps;
     private MatchPhase _lastObservedMatchPhase;
@@ -35,6 +36,7 @@ internal sealed class ServerRuntimeEventReporter(
         _lastObservedMatchPhase = world.MatchState.Phase;
         _lastObservedKillFeedCount = world.KillFeed.Count;
         _lastObservedPlayerAliveById.Clear();
+        _lastObservedAbilityStateByPlayerAndKey.Clear();
         _lastObservedPlayerCapsById.Clear();
         _lastObservedSentryBuiltById.Clear();
         _observedSpawnedPlayerIds.Clear();
@@ -47,6 +49,11 @@ internal sealed class ServerRuntimeEventReporter(
             if (player.IsAlive)
             {
                 _observedSpawnedPlayerIds.Add(player.Id);
+            }
+
+            foreach (var entry in GameplayAbilityReplicatedState.CreateEntries(player))
+            {
+                _lastObservedAbilityStateByPlayerAndKey[(player.Id, entry.OwnerId, entry.Key)] = entry;
             }
         }
 
@@ -102,6 +109,8 @@ internal sealed class ServerRuntimeEventReporter(
         PublishIntelEvents();
         PublishControlPointEvents();
         PublishPlayerCapEvents();
+        PublishGameplayAbilityEvents();
+        PublishGameplayAbilityStateChangedEvents();
 
         if (world.RedCaps != _lastObservedRedCaps || world.BlueCaps != _lastObservedBlueCaps)
         {
@@ -292,6 +301,109 @@ internal sealed class ServerRuntimeEventReporter(
         {
             _lastObservedPlayerCapsById.Remove(stalePlayerIds[index]);
         }
+    }
+
+    private void PublishGameplayAbilityEvents()
+    {
+        var pluginHost = pluginHostGetter();
+        foreach (var abilityEvent in world.DrainPendingGameplayAbilityEvents())
+        {
+            if (!abilityEvent.Handled || abilityEvent.Cancelled)
+            {
+                continue;
+            }
+
+            WriteEvent(
+                "gameplay_ability_used",
+                ("frame", abilityEvent.Frame),
+                ("player_id", abilityEvent.PlayerId),
+                ("class_id", abilityEvent.ClassId),
+                ("team", abilityEvent.Team),
+                ("item_id", abilityEvent.ItemId),
+                ("behavior_id", abilityEvent.BehaviorId),
+                ("ability_category", abilityEvent.AbilityCategory),
+                ("activation", abilityEvent.Activation),
+                ("executor_id", abilityEvent.ExecutorId),
+                ("phase", abilityEvent.Phase),
+                ("consumed_input", abilityEvent.ConsumedInput));
+            pluginHost?.NotifyGameplayAbilityUsed(abilityEvent);
+        }
+    }
+
+    private void PublishGameplayAbilityStateChangedEvents()
+    {
+        var pluginHost = pluginHostGetter();
+        var observedKeys = new HashSet<(int PlayerId, string OwnerId, string StateKey)>();
+        foreach (var (_, player) in world.EnumerateActiveNetworkPlayers())
+        {
+            foreach (var entry in GameplayAbilityReplicatedState.CreateEntries(player))
+            {
+                var key = (player.Id, entry.OwnerId, entry.Key);
+                observedKeys.Add(key);
+                var hasPreviousValue = _lastObservedAbilityStateByPlayerAndKey.TryGetValue(key, out var previousEntry);
+                if (hasPreviousValue && AbilityStateEntryValuesEqual(previousEntry, entry))
+                {
+                    continue;
+                }
+
+                WriteEvent(
+                    "gameplay_ability_state_changed",
+                    ("frame", world.Frame),
+                    ("player_id", player.Id),
+                    ("class_id", player.ClassId),
+                    ("team", player.Team),
+                    ("owner_id", entry.OwnerId),
+                    ("state_key", entry.Key),
+                    ("value_kind", entry.Kind),
+                    ("has_previous_value", hasPreviousValue),
+                    ("previous_int_value", previousEntry?.IntValue ?? 0),
+                    ("current_int_value", entry.IntValue),
+                    ("previous_float_value", previousEntry?.FloatValue ?? 0f),
+                    ("current_float_value", entry.FloatValue),
+                    ("previous_bool_value", previousEntry?.BoolValue ?? false),
+                    ("current_bool_value", entry.BoolValue));
+                pluginHost?.NotifyGameplayAbilityStateChanged(new OpenGarrisonServerGameplayAbilityStateChangedEvent(
+                    world.Frame,
+                    player.Id,
+                    player.ClassId,
+                    player.Team,
+                    entry.OwnerId,
+                    entry.Key,
+                    entry.Kind,
+                    hasPreviousValue,
+                    previousEntry?.IntValue ?? 0,
+                    entry.IntValue,
+                    previousEntry?.FloatValue ?? 0f,
+                    entry.FloatValue,
+                    previousEntry?.BoolValue ?? false,
+                    entry.BoolValue));
+                _lastObservedAbilityStateByPlayerAndKey[key] = entry;
+            }
+        }
+
+        var staleKeys = _lastObservedAbilityStateByPlayerAndKey.Keys
+            .Where(key => !observedKeys.Contains(key))
+            .ToArray();
+        for (var index = 0; index < staleKeys.Length; index += 1)
+        {
+            _lastObservedAbilityStateByPlayerAndKey.Remove(staleKeys[index]);
+        }
+    }
+
+    private static bool AbilityStateEntryValuesEqual(GameplayReplicatedStateEntry left, GameplayReplicatedStateEntry right)
+    {
+        if (left.Kind != right.Kind)
+        {
+            return false;
+        }
+
+        return left.Kind switch
+        {
+            GameplayReplicatedStateValueKind.Whole => left.IntValue == right.IntValue,
+            GameplayReplicatedStateValueKind.Scalar => MathF.Abs(left.FloatValue - right.FloatValue) <= 0.0001f,
+            GameplayReplicatedStateValueKind.Toggle => left.BoolValue == right.BoolValue,
+            _ => false,
+        };
     }
 
     private void PublishDamageEvents(SnapshotTransientEvents transientEvents)

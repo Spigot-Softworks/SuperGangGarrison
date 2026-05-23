@@ -3,6 +3,12 @@
   "displayName": "Pyro Utility",
   "slot": "Utility",
   "behaviorId": "builtin.utility.pyro",
+  "ability": {
+    "category": "utility",
+    "activation": "pressed",
+    "executorId": "builtin.ability.pyro_airblast",
+    "tags": [ "airblast", "movement", "cooldown", "suppresses_primary" ]
+  },
   "ammo": {},
   "presentation": {}
 }

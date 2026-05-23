@@ -16,6 +16,9 @@
     "ammoRegenPerTick": 0,
     "refillsAllAtOnce": true
   },
+  "combat": {
+    "fireSoundName": "RevolverSnd"
+  },
   "presentation": {
     "worldSpriteName": "RevolverS",
     "recoilSpriteName": "RevolverFS",

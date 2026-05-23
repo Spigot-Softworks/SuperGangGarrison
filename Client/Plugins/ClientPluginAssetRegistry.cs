@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 using OpenGarrison.Client.Plugins;
+using OpenGarrison.PluginHost;
 
 namespace OpenGarrison.Client;
 
@@ -242,12 +243,9 @@ internal sealed class ClientPluginAssetRegistry(
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentException.ThrowIfNullOrWhiteSpace(relativePath);
 
-        var combinedPath = Path.GetFullPath(Path.Combine(_pluginDirectory, relativePath));
-        if (!combinedPath.StartsWith(_pluginDirectory, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException($"Plugin asset path escapes plugin directory for '{pluginId}': {relativePath}");
-        }
-
-        return combinedPath;
+        return OpenGarrisonPluginPathContainment.ResolveContainedPath(
+            _pluginDirectory,
+            relativePath,
+            $"Plugin asset path escapes plugin directory for '{pluginId}': {relativePath}");
     }
 }

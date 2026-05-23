@@ -588,6 +588,8 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
                     AimWorldX: world.LocalPlayer.X + 128f,
                     AimWorldY: world.LocalPlayer.Y,
                     DebugKill: false),
+                default(PlayerInputSnapshot),
+                GameplayAbilityInputPhase.Pressed,
                 world.LocalPlayer.X,
                 world.LocalPlayer.Y,
             ]);
@@ -629,6 +631,8 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
                     AimWorldX: world.LocalPlayer.X + 128f,
                     AimWorldY: world.LocalPlayer.Y,
                     DebugKill: false),
+                default(PlayerInputSnapshot),
+                GameplayAbilityInputPhase.Pressed,
                 world.LocalPlayer.X,
                 world.LocalPlayer.Y,
             ]);
@@ -681,7 +685,14 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         TryHandleNetworkSecondaryAbilityMethod.Invoke(
             world,
-            [world.LocalPlayer, default(PlayerInputSnapshot), world.LocalPlayer.X, world.LocalPlayer.Y]);
+            [
+                world.LocalPlayer,
+                default(PlayerInputSnapshot),
+                default(PlayerInputSnapshot),
+                GameplayAbilityInputPhase.Pressed,
+                world.LocalPlayer.X,
+                world.LocalPlayer.Y,
+            ]);
 
         Assert.Single(world.Sentries);
         Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
@@ -824,19 +835,40 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         AdvanceTicks(world, 1);
         Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
 
+        var invulnerabilityTicks = GetHeavyGhostDashDurationTicks(world);
+        var movementTicks = GetHeavyGhostDashMovementDurationTicks(world);
         var startX = world.LocalPlayer.X;
         PressUseAbilitySpace(world);
         var firstTickDistance = MathF.Abs(world.LocalPlayer.X - startX);
+        var previousX = world.LocalPlayer.X;
+        var dashDeltas = new float[movementTicks];
+        dashDeltas[0] = firstTickDistance;
+        var movedAfterInvulnerabilityEnded = false;
 
         Assert.True(world.LocalPlayer.IsExperimentalGhostDashing);
         Assert.False(world.LocalPlayer.IsHeavyEating);
         Assert.Equal(GetHeavyGhostDashCooldownTicks(world), world.LocalPlayer.ExperimentalGhostDashCooldownTicksRemaining);
+        Assert.True(movementTicks > invulnerabilityTicks);
 
-        AdvanceTicks(world, GetHeavyGhostDashDurationTicks(world));
+        for (var tick = 1; tick < movementTicks; tick += 1)
+        {
+            AdvanceTicks(world, 1);
+            var delta = MathF.Abs(world.LocalPlayer.X - previousX);
+            dashDeltas[tick] = delta;
+            previousX = world.LocalPlayer.X;
+            if (tick >= invulnerabilityTicks)
+            {
+                Assert.False(world.LocalPlayer.IsExperimentalGhostDashing);
+                movedAfterInvulnerabilityEnded |= delta > 0.01f;
+            }
+        }
 
         var totalDistance = MathF.Abs(world.LocalPlayer.X - startX);
+        var peakTickDistance = dashDeltas.Max();
         Assert.True(firstTickDistance > 0f);
-        Assert.True(firstTickDistance < totalDistance * 0.25f);
+        Assert.True(firstTickDistance < peakTickDistance * 0.5f);
+        Assert.True(dashDeltas[^1] < peakTickDistance * 0.5f);
+        Assert.True(movedAfterInvulnerabilityEnded);
         Assert.True(totalDistance > 60f);
         Assert.True(MathF.Abs(world.LocalPlayer.HorizontalSpeed) > 0f);
         Assert.False(world.LocalPlayer.IsExperimentalGhostDashing);
@@ -859,6 +891,66 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         Assert.True(world.LocalPlayer.IsExperimentalGhostDashing);
         Assert.Equal(GetHeavyGhostDashCooldownTicks(world), world.LocalPlayer.ExperimentalGhostDashCooldownTicksRemaining);
+    }
+
+    [Fact]
+    public void HeavyAbilityInputRoutesThroughDispatcherAndRecordsUsedEvent()
+    {
+        var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+
+        PressUseAbilitySpace(world);
+
+        var abilityEvent = Assert.Single(world.DrainPendingGameplayAbilityEvents());
+        Assert.True(abilityEvent.Handled);
+        Assert.True(abilityEvent.ConsumedInput);
+        Assert.False(abilityEvent.Cancelled);
+        Assert.Equal(world.LocalPlayer.Id, abilityEvent.PlayerId);
+        Assert.Equal("ability.heavy-utility", abilityEvent.ItemId);
+        Assert.Equal(GameplayAbilityConstants.UtilityCategory, abilityEvent.AbilityCategory);
+        Assert.Equal(BuiltInGameplayBehaviorIds.HeavyGhostDash, abilityEvent.ExecutorId);
+        Assert.Equal(GameplayAbilityInputPhase.Pressed, abilityEvent.Phase);
+        Assert.True(world.LocalPlayer.IsExperimentalGhostDashing);
+    }
+
+    [Fact]
+    public void HeavyAbilityInputCanBeCancelledBeforeExecution()
+    {
+        var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        var intercepted = false;
+        world.GameplayAbilityInputInterceptor = abilityEvent =>
+        {
+            intercepted = true;
+            Assert.Equal("ability.heavy-utility", abilityEvent.ItemId);
+            Assert.Equal(BuiltInGameplayBehaviorIds.HeavyGhostDash, abilityEvent.ExecutorId);
+            return true;
+        };
+
+        PressUseAbilitySpace(world);
+
+        Assert.True(intercepted);
+        Assert.False(world.LocalPlayer.IsExperimentalGhostDashing);
+        Assert.Equal(0, world.LocalPlayer.ExperimentalGhostDashCooldownTicksRemaining);
+        var abilityEvent = Assert.Single(world.DrainPendingGameplayAbilityEvents());
+        Assert.True(abilityEvent.Cancelled);
+        Assert.True(abilityEvent.ConsumedInput);
+        Assert.False(abilityEvent.Handled);
+    }
+
+    [Fact]
+    public void StockAbilityStateIsMirroredThroughCoreAbilityReplicatedState()
+    {
+        var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+
+        PressUseAbilitySpace(world);
+
+        Assert.True(GameplayAbilityReplicatedState.TryGetInt(
+            world.LocalPlayer,
+            GameplayAbilityReplicatedState.HeavyDashCooldownTicksKey,
+            out var cooldownTicks));
+        Assert.Equal(GetHeavyGhostDashCooldownTicks(world), cooldownTicks);
     }
 
     [Fact]
@@ -1787,6 +1879,17 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         return Math.Max(1, (int)MathF.Round(world.Config.TicksPerSecond * ExperimentalGameplaySettings.HeavyGhostDashDurationSeconds));
     }
 
+    private static int GetHeavyGhostDashMovementDurationTicks(SimulationWorld world)
+    {
+        var ability = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem("ability.heavy-utility").Ability!;
+        return GameplayAbilityParameterReader.GetTicks(
+            ability,
+            "movementDurationTicks",
+            "movementDurationSeconds",
+            GetHeavyGhostDashDurationTicks(world),
+            world.Config.TicksPerSecond);
+    }
+
     private static int GetHeavyGhostDashCooldownTicks(SimulationWorld world)
     {
         return Math.Max(1, (int)MathF.Round(world.Config.TicksPerSecond * ExperimentalGameplaySettings.HeavyGhostDashCooldownSeconds));
@@ -1851,7 +1954,14 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         TryHandleNetworkSecondaryAbilityMethod.Invoke(
             world,
-            [world.LocalPlayer, default(PlayerInputSnapshot), world.LocalPlayer.X, world.LocalPlayer.Y]);
+            [
+                world.LocalPlayer,
+                default(PlayerInputSnapshot),
+                default(PlayerInputSnapshot),
+                GameplayAbilityInputPhase.Pressed,
+                world.LocalPlayer.X,
+                world.LocalPlayer.Y,
+            ]);
     }
 
     private static bool InvokeTryHandleExperimentalRageActivation(SimulationWorld world, PlayerEntity player)

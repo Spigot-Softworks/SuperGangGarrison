@@ -53,7 +53,7 @@ public partial class Game1
             _postGameMvpPresentationTicks = Math.Min(3600, _postGameMvpPresentationTicks + clientTicks);
         }
 
-        if (IsPostGameMvpArtTogglePressed(keyboard))
+        if (_postGameMvpArtEnabled && IsPostGameMvpArtTogglePressed(keyboard))
         {
             _postGameMvpArtHidden = !_postGameMvpArtHidden;
         }
@@ -81,7 +81,7 @@ public partial class Game1
         var entries = BuildPostGameMvpEntries(winnerTeam);
         var layout = GetPostGameMvpLayout();
 
-        if (!_postGameMvpArtHidden)
+        if (_postGameMvpArtEnabled && !_postGameMvpArtHidden)
         {
             DrawPostGameMvpArt(entries, layout);
         }
@@ -309,13 +309,13 @@ public partial class Game1
         }
 
         const float labelScale = 1f;
-        var label = TrimBitmapMenuText(SanitizeScoreboardText(entry.Player.DisplayName), 126f, labelScale);
-        var labelWidth = MeasureBitmapFontWidth(label, labelScale);
+        var label = TrimPostGameMvpText(SanitizeScoreboardText(entry.Player.DisplayName), 126f, labelScale);
+        var labelWidth = MeasureMenuBitmapFontWidth(label, labelScale);
         var labelPosition = new Vector2(
             MathF.Round(position.X - (labelWidth * 0.5f)),
             MathF.Round(MathF.Max(8f, position.Y - topExtent - 22f)));
-        DrawBitmapFontText(label, labelPosition + new Vector2(2f, 2f), Color.Black * (0.8f * progress), labelScale);
-        DrawBitmapFontText(label, labelPosition, Color.White * progress, labelScale);
+        DrawPostGameMvpText(label, labelPosition + new Vector2(2f, 2f), Color.Black * (0.8f * progress), labelScale);
+        DrawPostGameMvpText(label, labelPosition, Color.White * progress, labelScale);
     }
 
     private Vector2 GetPostGameMvpArtTarget(int rank, PostGameMvpLayout layout)
@@ -407,11 +407,11 @@ public partial class Game1
     {
         const float rowTextScale = 0.72f;
         var rowY = boardCenter.Y + rowOffsetY;
-        var name = TrimBitmapMenuText(SanitizeScoreboardText(entry.Player.DisplayName), 94f, rowTextScale);
-        DrawBitmapFontText(name, new Vector2(boardCenter.X - 130f, rowY), Color.White, rowTextScale);
-        DrawBitmapFontTextRightAligned(entry.Player.Kills.ToString(CultureInfo.InvariantCulture), new Vector2(boardCenter.X - 2f, rowY), Color.White, rowTextScale);
-        DrawBitmapFontTextRightAligned(entry.Player.HealPoints.ToString(CultureInfo.InvariantCulture), new Vector2(boardCenter.X + 82f, rowY), Color.White, rowTextScale);
-        DrawBitmapFontTextRightAligned(entry.Score.ToString(CultureInfo.InvariantCulture), new Vector2(boardCenter.X + 136f, rowY), Color.White, rowTextScale);
+        var name = TrimPostGameMvpText(SanitizeScoreboardText(entry.Player.DisplayName), 94f, rowTextScale);
+        DrawPostGameMvpText(name, new Vector2(boardCenter.X - 130f, rowY), Color.White, rowTextScale);
+        DrawPostGameMvpTextRightAligned(entry.Player.Kills.ToString(CultureInfo.InvariantCulture), new Vector2(boardCenter.X - 2f, rowY), Color.White, rowTextScale);
+        DrawPostGameMvpTextRightAligned(entry.Player.HealPoints.ToString(CultureInfo.InvariantCulture), new Vector2(boardCenter.X + 82f, rowY), Color.White, rowTextScale);
+        DrawPostGameMvpTextRightAligned(entry.Score.ToString(CultureInfo.InvariantCulture), new Vector2(boardCenter.X + 136f, rowY), Color.White, rowTextScale);
     }
 
     private void DrawPostGameMvpFallbackBoard(PlayerTeam winnerTeam, Vector2 boardCenter)
@@ -428,14 +428,48 @@ public partial class Game1
             ? new Color(91, 119, 142)
             : new Color(177, 93, 88);
         DrawInsetHudPanel(bounds, teamColor, innerColor);
-        DrawBitmapFontTextCentered(
+        DrawPostGameMvpTextCentered(
             winnerTeam == PlayerTeam.Blue ? "BLUE TEAM WON!" : "RED TEAM WON!",
             new Vector2(boardCenter.X, bounds.Y + 46f),
             Color.White,
             1f);
-        DrawBitmapFontText("MVPs", new Vector2(bounds.X + 12f, bounds.Y + 72f), Color.White, 1f);
-        DrawBitmapFontText("Kills", new Vector2(bounds.X + 90f, bounds.Y + 72f), Color.White, 1f);
-        DrawBitmapFontText("Healing", new Vector2(bounds.X + 154f, bounds.Y + 72f), Color.White, 1f);
-        DrawBitmapFontText("Score", new Vector2(bounds.X + 232f, bounds.Y + 72f), Color.White, 1f);
+        DrawPostGameMvpText("MVPs", new Vector2(bounds.X + 12f, bounds.Y + 72f), Color.White, 1f);
+        DrawPostGameMvpText("Kills", new Vector2(bounds.X + 90f, bounds.Y + 72f), Color.White, 1f);
+        DrawPostGameMvpText("Healing", new Vector2(bounds.X + 154f, bounds.Y + 72f), Color.White, 1f);
+        DrawPostGameMvpText("Score", new Vector2(bounds.X + 232f, bounds.Y + 72f), Color.White, 1f);
+    }
+
+    private void DrawPostGameMvpText(string text, Vector2 position, Color color, float scale)
+    {
+        DrawMenuBitmapFontText(text, position, color, scale);
+    }
+
+    private void DrawPostGameMvpTextCentered(string text, Vector2 position, Color color, float scale)
+    {
+        var width = MeasureMenuBitmapFontWidth(text, scale);
+        var height = MeasureMenuBitmapFontHeight(scale);
+        DrawPostGameMvpText(text, new Vector2(position.X - (width * 0.5f), position.Y - (height * 0.5f)), color, scale);
+    }
+
+    private void DrawPostGameMvpTextRightAligned(string text, Vector2 position, Color color, float scale)
+    {
+        DrawPostGameMvpText(text, new Vector2(position.X - MeasureMenuBitmapFontWidth(text, scale), position.Y), color, scale);
+    }
+
+    private string TrimPostGameMvpText(string text, float maxWidth, float scale)
+    {
+        if (string.IsNullOrEmpty(text) || MeasureMenuBitmapFontWidth(text, scale) <= maxWidth)
+        {
+            return text;
+        }
+
+        const string ellipsis = "...";
+        var trimmed = text;
+        while (trimmed.Length > 0 && MeasureMenuBitmapFontWidth(trimmed + ellipsis, scale) > maxWidth)
+        {
+            trimmed = trimmed[..^1];
+        }
+
+        return trimmed.Length == 0 ? ellipsis : trimmed + ellipsis;
     }
 }

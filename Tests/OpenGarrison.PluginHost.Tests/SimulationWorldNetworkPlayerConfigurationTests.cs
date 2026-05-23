@@ -57,6 +57,22 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     }
 
     [Fact]
+    public void NetworkPlayerClassSelectionAcceptsGameplayClassId()
+    {
+        var world = new SimulationWorld();
+        var gameplayClassId = CharacterClassCatalog.Soldier.GameplayClassId;
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, gameplayClassId));
+
+        Assert.True(world.TryGetNetworkPlayer(2, out var remotePlayer));
+        Assert.Equal(PlayerClass.Soldier, remotePlayer.ClassId);
+        Assert.Equal(gameplayClassId, remotePlayer.GameplayClassId);
+        Assert.Equal("soldier.stock", remotePlayer.SelectedGameplayLoadoutId);
+        Assert.Equal("weapon.rocketlauncher", remotePlayer.GameplayLoadoutState.PrimaryItemId);
+    }
+
+    [Fact]
     public void TrySetNetworkPlayerGameplayEquippedSlotSelectsHeavySecondaryWhenAvailable()
     {
         var world = CreateWorldWithLocalClass(PlayerClass.Heavy);

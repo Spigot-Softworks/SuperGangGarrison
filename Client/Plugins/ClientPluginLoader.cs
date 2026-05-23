@@ -62,10 +62,7 @@ internal static class ClientPluginLoader
             discoveredPluginsById[luaCandidate.Manifest.Id] = luaPlugin;
         }
 
-        return discoveredPlugins
-            .OrderBy(plugin => plugin.DisplayName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(plugin => plugin.PluginId, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        return PlanDiscoveredPlugins(discoveredPlugins, log);
     }
 
     private static DiscoveredPlugin[] DiscoverFromBrowserBundle(
@@ -106,6 +103,12 @@ internal static class ClientPluginLoader
                 continue;
             }
 
+            if (!OpenGarrisonPluginManifestLoader.TryValidateHostApiCompatibility(manifest, OpenGarrisonPluginHostApi.CreateClientDefault(), out error))
+            {
+                log($"[plugin] incompatible Lua manifest \"{manifestPath}\": {error}");
+                continue;
+            }
+
             var pluginRelativeDirectory = Path.GetDirectoryName(manifestPath.Replace('/', Path.DirectorySeparatorChar)) ?? string.Empty;
             var browserPluginRoot = Path.Combine("Plugins", "Client");
             var relativePluginDirectory = Path.GetRelativePath(browserPluginRoot, pluginRelativeDirectory);
@@ -137,10 +140,7 @@ internal static class ClientPluginLoader
                 manifest));
         }
 
-        return discoveredPlugins
-            .OrderBy(plugin => plugin.DisplayName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(plugin => plugin.PluginId, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        return PlanDiscoveredPlugins(discoveredPlugins, log);
     }
 
     public static IReadOnlyList<DiscoveredPlugin> DiscoverFromAssemblies(
@@ -237,10 +237,7 @@ internal static class ClientPluginLoader
             }
         }
 
-        return discoveredPlugins
-            .OrderBy(plugin => plugin.DisplayName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(plugin => plugin.PluginId, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        return PlanDiscoveredPlugins(discoveredPlugins, log);
     }
 
     private static IEnumerable<AssemblyCandidate> EnumerateAssemblyCandidates(string pluginsDirectory, Action<string> log)
@@ -266,6 +263,12 @@ internal static class ClientPluginLoader
 
             if (manifest.Runtime != OpenGarrisonPluginRuntimeKind.Clr)
             {
+                continue;
+            }
+
+            if (!OpenGarrisonPluginManifestLoader.TryValidateHostApiCompatibility(manifest, OpenGarrisonPluginHostApi.CreateClientDefault(), out error))
+            {
+                log($"[plugin] incompatible manifest \"{manifestPath}\": {error}");
                 continue;
             }
 
@@ -311,6 +314,12 @@ internal static class ClientPluginLoader
 
             if (manifest.Type != OpenGarrisonPluginType.Client || manifest.Runtime != OpenGarrisonPluginRuntimeKind.Lua)
             {
+                continue;
+            }
+
+            if (!OpenGarrisonPluginManifestLoader.TryValidateHostApiCompatibility(manifest, OpenGarrisonPluginHostApi.CreateClientDefault(), out error))
+            {
+                log($"[plugin] incompatible Lua manifest \"{manifestPath}\": {error}");
                 continue;
             }
 
@@ -378,6 +387,12 @@ internal static class ClientPluginLoader
             return false;
         }
 
+        if (!OpenGarrisonPluginManifestLoader.TryValidateHostApiCompatibility(manifest, OpenGarrisonPluginHostApi.CreateClientDefault(), out var compatibilityError))
+        {
+            log($"[plugin] manifest for \"{pluginTypeName}\" declared incompatible host API: {compatibilityError}");
+            return false;
+        }
+
         return true;
     }
 
@@ -387,6 +402,21 @@ internal static class ClientPluginLoader
         return coveredDirectories.Any(coveredDirectory =>
             string.Equals(coveredDirectory, fullPluginDirectory, StringComparison.OrdinalIgnoreCase)
             || fullPluginDirectory.StartsWith(coveredDirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static DiscoveredPlugin[] PlanDiscoveredPlugins(IEnumerable<DiscoveredPlugin> discoveredPlugins, Action<string> log)
+    {
+        var result = OpenGarrisonPluginManifestPlanner.PlanLoadOrder(
+            discoveredPlugins
+                .OrderBy(plugin => plugin.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(plugin => plugin.PluginId, StringComparer.OrdinalIgnoreCase),
+            static plugin => plugin.Manifest);
+        foreach (var warning in result.Warnings)
+        {
+            log(warning);
+        }
+
+        return result.Plugins.ToArray();
     }
 
     internal sealed record DiscoveredPlugin(

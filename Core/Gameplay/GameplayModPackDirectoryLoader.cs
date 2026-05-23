@@ -64,7 +64,9 @@ public static class GameplayModPackDirectoryLoader
 
                 return item with
                 {
+                    Presentation = NormalizeItemPresentation(item.Presentation ?? new GameplayItemPresentationDefinition(), filePath),
                     Ownership = item.Ownership ?? new GameplayItemOwnershipDefinition(),
+                    Ability = NormalizeAbilityDefinition(item, filePath),
                 };
             });
         var itemsById = items.ToDictionary(static item => item.Id, StringComparer.Ordinal);
@@ -120,11 +122,13 @@ public static class GameplayModPackDirectoryLoader
                     ValidateReferencedItem(itemsById, loadout.PrimaryItemId, GameplayEquipmentSlot.Primary, gameplayClass.Id, loadout.Id, filePath);
                     ValidateOptionalReferencedItem(itemsById, loadout.SecondaryItemId, GameplayEquipmentSlot.Secondary, gameplayClass.Id, loadout.Id, filePath);
                     ValidateOptionalReferencedItem(itemsById, loadout.UtilityItemId, GameplayEquipmentSlot.Utility, gameplayClass.Id, loadout.Id, filePath);
+                    ValidateReferencedAbilityItems(itemsById, loadout.AbilityItemIds, gameplayClass.Id, loadout.Id, filePath);
                 }
 
                 return gameplayClass with
                 {
                     Presentation = NormalizePresentation(gameplayClass.Presentation),
+                    Runtime = NormalizeRuntime(gameplayClass.Runtime, filePath),
                 };
             });
         var classesById = classes.ToDictionary(static gameplayClass => gameplayClass.Id, StringComparer.Ordinal);
@@ -151,7 +155,7 @@ public static class GameplayModPackDirectoryLoader
         ArgumentException.ThrowIfNullOrWhiteSpace(packDirectoryName);
 
         var runtimePath = ContentRoot.GetPath("Gameplay", packDirectoryName);
-        if (Directory.Exists(runtimePath))
+        if (Directory.Exists(runtimePath) && HasPackMetadata(runtimePath))
         {
             return runtimePath;
         }
@@ -174,7 +178,7 @@ public static class GameplayModPackDirectoryLoader
     private static string? FindGameplayRootDirectory()
     {
         var runtimePath = ContentRoot.GetPath("Gameplay");
-        if (Directory.Exists(runtimePath))
+        if (Directory.Exists(runtimePath) && HasAnyPackMetadata(runtimePath))
         {
             return runtimePath;
         }
@@ -192,6 +196,17 @@ public static class GameplayModPackDirectoryLoader
         }
 
         return null;
+    }
+
+    private static bool HasAnyPackMetadata(string gameplayRootDirectory)
+    {
+        return Directory.Exists(gameplayRootDirectory)
+            && Directory.GetDirectories(gameplayRootDirectory).Any(HasPackMetadata);
+    }
+
+    private static bool HasPackMetadata(string packDirectory)
+    {
+        return File.Exists(Path.Combine(packDirectory, PackMetadataFileName));
     }
 
     private static T LoadRequiredJson<T>(string path)
@@ -280,12 +295,257 @@ public static class GameplayModPackDirectoryLoader
         }
     }
 
+    private static void ValidateReferencedAbilityItems(
+        IReadOnlyDictionary<string, GameplayItemDefinition> items,
+        IReadOnlyList<string>? itemIds,
+        string classId,
+        string loadoutId,
+        string filePath)
+    {
+        if (itemIds is null)
+        {
+            return;
+        }
+
+        foreach (var itemId in itemIds)
+        {
+            if (string.IsNullOrWhiteSpace(itemId) || !items.TryGetValue(itemId, out var item))
+            {
+                throw new InvalidOperationException($"Gameplay class \"{classId}\" loadout \"{loadoutId}\" references unknown ability item \"{itemId}\" in \"{filePath}\".");
+            }
+
+            if (item.Ability is null)
+            {
+                throw new InvalidOperationException($"Gameplay class \"{classId}\" loadout \"{loadoutId}\" ability item \"{itemId}\" does not declare ability metadata in \"{filePath}\".");
+            }
+        }
+    }
+
     private static void ValidateRequiredText(string? value, string fieldName, string filePath)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
             throw new InvalidOperationException($"Required gameplay field \"{fieldName}\" was empty in \"{filePath}\".");
         }
+    }
+
+    private static GameplayItemPresentationDefinition NormalizeItemPresentation(GameplayItemPresentationDefinition presentation, string filePath)
+    {
+        var hud = NormalizeHudPresentation(presentation.Hud, presentation.HudSpriteName, filePath);
+        return presentation with
+        {
+            Hud = hud,
+        };
+    }
+
+    private static GameplayItemHudPresentationDefinition? NormalizeHudPresentation(
+        GameplayItemHudPresentationDefinition? hud,
+        string? hudSpriteName,
+        string filePath)
+    {
+        if (hud is null)
+        {
+            return null;
+        }
+
+        var displayKind = hud.DisplayKind?.Trim() ?? string.Empty;
+        var stackGroup = hud.StackGroup?.Trim() ?? string.Empty;
+        var stateProvider = hud.StateProvider?.Trim() ?? string.Empty;
+        var stateOwner = hud.StateOwner?.Trim() ?? string.Empty;
+        var cooldownKey = hud.CooldownKey?.Trim() ?? string.Empty;
+        var activeKey = hud.ActiveKey?.Trim() ?? string.Empty;
+        var disabledKey = hud.DisabledKey?.Trim() ?? string.Empty;
+
+        if (displayKind.Length > 0 && !IsKnownHudDisplayKind(displayKind))
+        {
+            throw new InvalidOperationException($"Gameplay HUD metadata declared unsupported display kind \"{displayKind}\" in \"{filePath}\".");
+        }
+
+        if (stackGroup.Length > 0 && !IsKnownHudStackGroup(stackGroup))
+        {
+            throw new InvalidOperationException($"Gameplay HUD metadata declared unsupported stack group \"{stackGroup}\" in \"{filePath}\".");
+        }
+
+        if (stateProvider.Length > 0 && !IsKnownHudStateProvider(stateProvider))
+        {
+            throw new InvalidOperationException($"Gameplay HUD metadata declared unsupported state provider \"{stateProvider}\" in \"{filePath}\".");
+        }
+
+        if (string.Equals(displayKind, GameplayItemHudDisplayKinds.AmmoPanel, StringComparison.Ordinal)
+            && string.IsNullOrWhiteSpace(hudSpriteName))
+        {
+            throw new InvalidOperationException($"Gameplay HUD ammo panel metadata requires a presentation hudSpriteName in \"{filePath}\".");
+        }
+
+        return hud with
+        {
+            DisplayKind = displayKind,
+            StackGroup = stackGroup,
+            StateProvider = stateProvider,
+            StateOwner = stateOwner,
+            CooldownKey = cooldownKey,
+            MaxCooldown = Math.Max(0, hud.MaxCooldown),
+            ActiveKey = activeKey,
+            DisabledKey = disabledKey,
+        };
+    }
+
+    private static bool IsKnownHudDisplayKind(string displayKind)
+    {
+        return string.Equals(displayKind, GameplayItemHudDisplayKinds.None, StringComparison.Ordinal)
+            || string.Equals(displayKind, GameplayItemHudDisplayKinds.AmmoPanel, StringComparison.Ordinal)
+            || string.Equals(displayKind, GameplayItemHudDisplayKinds.Meter, StringComparison.Ordinal)
+            || string.Equals(displayKind, GameplayItemHudDisplayKinds.CooldownIcon, StringComparison.Ordinal)
+            || string.Equals(displayKind, GameplayItemHudDisplayKinds.Count, StringComparison.Ordinal)
+            || string.Equals(displayKind, GameplayItemHudDisplayKinds.Prompt, StringComparison.Ordinal);
+    }
+
+    private static bool IsKnownHudStackGroup(string stackGroup)
+    {
+        return string.Equals(stackGroup, GameplayItemHudStackGroups.Weapon, StringComparison.Ordinal)
+            || string.Equals(stackGroup, GameplayItemHudStackGroups.Ability, StringComparison.Ordinal)
+            || string.Equals(stackGroup, GameplayItemHudStackGroups.Status, StringComparison.Ordinal);
+    }
+
+    private static bool IsKnownHudStateProvider(string stateProvider)
+    {
+        return string.Equals(stateProvider, GameplayItemHudStateProviders.PrimaryAmmo, StringComparison.Ordinal)
+            || string.Equals(stateProvider, GameplayItemHudStateProviders.SecondaryAmmo, StringComparison.Ordinal)
+            || string.Equals(stateProvider, GameplayItemHudStateProviders.UtilityAmmo, StringComparison.Ordinal)
+            || string.Equals(stateProvider, GameplayItemHudStateProviders.ReloadProgress, StringComparison.Ordinal)
+            || string.Equals(stateProvider, GameplayItemHudStateProviders.Cooldown, StringComparison.Ordinal)
+            || string.Equals(stateProvider, GameplayItemHudStateProviders.AbilityCooldown, StringComparison.Ordinal)
+            || string.Equals(stateProvider, GameplayItemHudStateProviders.HeavySandvichCooldown, StringComparison.Ordinal)
+            || string.Equals(stateProvider, GameplayItemHudStateProviders.HeavyGhostDashCooldown, StringComparison.Ordinal)
+            || string.Equals(stateProvider, GameplayItemHudStateProviders.SpySuperjumpCooldown, StringComparison.Ordinal)
+            || string.Equals(stateProvider, GameplayItemHudStateProviders.StickyCount, StringComparison.Ordinal)
+            || string.Equals(stateProvider, GameplayItemHudStateProviders.Uber, StringComparison.Ordinal)
+            || string.Equals(stateProvider, GameplayItemHudStateProviders.Metal, StringComparison.Ordinal)
+            || string.Equals(stateProvider, GameplayItemHudStateProviders.Sentry, StringComparison.Ordinal);
+    }
+
+    private static GameplayAbilityDefinition? NormalizeAbilityDefinition(GameplayItemDefinition item, string filePath)
+    {
+        var ability = item.Ability;
+        if (ability is null)
+        {
+            return null;
+        }
+
+        var category = string.IsNullOrWhiteSpace(ability.Category)
+            ? GetDefaultAbilityCategory(item.Slot)
+            : ability.Category.Trim();
+        var activation = string.IsNullOrWhiteSpace(ability.Activation)
+            ? GameplayAbilityConstants.PressedActivation
+            : ability.Activation.Trim();
+        var executorId = string.IsNullOrWhiteSpace(ability.ExecutorId)
+            ? item.BehaviorId.Trim()
+            : ability.ExecutorId.Trim();
+
+        ValidateRequiredText(category, nameof(GameplayAbilityDefinition.Category), filePath);
+        ValidateRequiredText(activation, nameof(GameplayAbilityDefinition.Activation), filePath);
+        ValidateRequiredText(executorId, nameof(GameplayAbilityDefinition.ExecutorId), filePath);
+        if (!IsKnownAbilityActivation(activation))
+        {
+            throw new InvalidOperationException($"Gameplay ability \"{item.Id}\" declared unsupported activation \"{activation}\" in \"{filePath}\".");
+        }
+
+        var normalizedAbility = ability with
+        {
+            Category = category,
+            Activation = activation,
+            ExecutorId = executorId,
+            Tags = NormalizeAbilityTags(ability.Tags),
+            Parameters = ability.Parameters ?? new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase),
+        };
+        ValidateKnownAbilityParameters(item.Id, normalizedAbility, filePath);
+        return normalizedAbility;
+    }
+
+    private static void ValidateKnownAbilityParameters(string itemId, GameplayAbilityDefinition ability, string filePath)
+    {
+        if (ability.Parameters.Count == 0)
+        {
+            return;
+        }
+
+        switch (ability.ExecutorId)
+        {
+            case BuiltInGameplayBehaviorIds.PyroAirblast:
+                ValidateNumberParameters(itemId, ability, filePath, "cost", "cooldownTicks", "cooldownSeconds", "noFlameTicks", "noFlameSeconds");
+                return;
+            case BuiltInGameplayBehaviorIds.HeavySandvich:
+                ValidateNumberParameters(itemId, ability, filePath, "durationTicks", "durationSeconds", "cooldownTicks", "cooldownSeconds", "totalHeal");
+                return;
+            case BuiltInGameplayBehaviorIds.MedicNeedlegun:
+                ValidateNumberParameters(itemId, ability, filePath, "fireCooldownTicks", "fireCooldownSeconds", "refillTicks", "refillSeconds");
+                return;
+            case BuiltInGameplayBehaviorIds.SpySuperjump:
+                ValidateNumberParameters(itemId, ability, filePath, "maxChargeTicks", "cooldownTicks", "cooldownSeconds", "minVelocity", "maxVelocity");
+                return;
+            case BuiltInGameplayBehaviorIds.QuoteBladeThrow:
+                ValidateNumberParameters(itemId, ability, filePath, "energyCost", "activeProjectileLimit", "lifetimeTicks");
+                return;
+            case BuiltInGameplayBehaviorIds.HeavyGhostDash:
+                ValidateNumberParameters(itemId, ability, filePath, "durationTicks", "durationSeconds", "movementDurationTicks", "movementDurationSeconds", "cooldownTicks", "cooldownSeconds", "impulse", "nextAttackDamageMultiplier");
+                ValidateBoolParameters(itemId, ability, filePath, "useMomentum");
+                return;
+        }
+    }
+
+    private static void ValidateNumberParameters(string itemId, GameplayAbilityDefinition ability, string filePath, params string[] parameterNames)
+    {
+        for (var index = 0; index < parameterNames.Length; index += 1)
+        {
+            var parameterName = parameterNames[index];
+            if (ability.Parameters.TryGetValue(parameterName, out var parameter)
+                && parameter.ValueKind != JsonValueKind.Number)
+            {
+                throw new InvalidOperationException($"Gameplay ability \"{itemId}\" parameter \"{parameterName}\" must be numeric in \"{filePath}\".");
+            }
+        }
+    }
+
+    private static void ValidateBoolParameters(string itemId, GameplayAbilityDefinition ability, string filePath, params string[] parameterNames)
+    {
+        for (var index = 0; index < parameterNames.Length; index += 1)
+        {
+            var parameterName = parameterNames[index];
+            if (ability.Parameters.TryGetValue(parameterName, out var parameter)
+                && parameter.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+            {
+                throw new InvalidOperationException($"Gameplay ability \"{itemId}\" parameter \"{parameterName}\" must be boolean in \"{filePath}\".");
+            }
+        }
+    }
+
+    private static string GetDefaultAbilityCategory(GameplayEquipmentSlot slot)
+    {
+        return slot == GameplayEquipmentSlot.Utility
+            ? GameplayAbilityConstants.UtilityCategory
+            : GameplayAbilityConstants.SecondaryCategory;
+    }
+
+    private static bool IsKnownAbilityActivation(string activation)
+    {
+        return string.Equals(activation, GameplayAbilityConstants.PressedActivation, StringComparison.Ordinal)
+            || string.Equals(activation, GameplayAbilityConstants.HeldActivation, StringComparison.Ordinal)
+            || string.Equals(activation, GameplayAbilityConstants.ReleasedActivation, StringComparison.Ordinal)
+            || string.Equals(activation, GameplayAbilityConstants.PassiveTickActivation, StringComparison.Ordinal);
+    }
+
+    private static IReadOnlyList<string> NormalizeAbilityTags(IReadOnlyList<string>? tags)
+    {
+        if (tags is null || tags.Count == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        return tags
+            .Select(static tag => tag?.Trim() ?? string.Empty)
+            .Where(static tag => tag.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
     }
 
     private static GameplaySpriteMaskDefinition? NormalizeMask(GameplaySpriteMaskDefinition? mask)
@@ -326,6 +586,36 @@ public static class GameplayModPackDirectoryLoader
             IntelSuffix = NormalizeOptionalPresentationSuffix(presentation.IntelSuffix),
             ScopedSuffix = NormalizeOptionalPresentationSuffix(presentation.ScopedSuffix),
             HeavyEatSuffix = NormalizeOptionalPresentationSuffix(presentation.HeavyEatSuffix),
+        };
+    }
+
+    private static GameplayClassRuntimeDefinition? NormalizeRuntime(GameplayClassRuntimeDefinition? runtime, string filePath)
+    {
+        if (runtime is null)
+        {
+            return null;
+        }
+
+        ValidateRequiredText(runtime.PrimaryWeaponKillFeedSprite, nameof(GameplayClassRuntimeDefinition.PrimaryWeaponKillFeedSprite), filePath);
+        var playerClass = runtime.PlayerClass?.Trim() ?? string.Empty;
+        var basePlayerClass = runtime.BasePlayerClass?.Trim() ?? string.Empty;
+        if (basePlayerClass.Length == 0)
+        {
+            basePlayerClass = playerClass.Length == 0 ? nameof(PlayerClass.Scout) : playerClass;
+        }
+
+        var botGraphPlayerClass = runtime.BotGraphPlayerClass?.Trim() ?? string.Empty;
+        if (botGraphPlayerClass.Length == 0)
+        {
+            botGraphPlayerClass = basePlayerClass;
+        }
+
+        return runtime with
+        {
+            PlayerClass = playerClass,
+            BasePlayerClass = basePlayerClass,
+            BotGraphPlayerClass = botGraphPlayerClass,
+            PrimaryWeaponKillFeedSprite = runtime.PrimaryWeaponKillFeedSprite.Trim(),
         };
     }
 

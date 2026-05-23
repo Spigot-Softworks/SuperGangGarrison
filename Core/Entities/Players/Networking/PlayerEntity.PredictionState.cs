@@ -304,7 +304,7 @@ public sealed partial class PlayerEntity
         IsChatBubbleFading = state.IsChatBubbleFading;
         ChatBubbleTicksRemaining = state.ChatBubbleTicksRemaining;
         SelectedGameplayLoadoutId = string.IsNullOrWhiteSpace(state.SelectedGameplayLoadoutId)
-            ? CharacterClassCatalog.RuntimeRegistry.GetDefaultLoadout(ClassId).Id
+            ? CharacterClassCatalog.RuntimeRegistry.GetDefaultLoadout(GameplayClassId).Id
             : state.SelectedGameplayLoadoutId;
         SelectedGameplayEquippedSlot = state.SelectedGameplayEquippedSlot;
         PyroPrimaryFuelScaledValue = state.PyroPrimaryFuelScaled;

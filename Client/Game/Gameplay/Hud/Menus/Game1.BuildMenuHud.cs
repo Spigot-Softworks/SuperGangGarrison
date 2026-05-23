@@ -32,6 +32,12 @@ public partial class Game1
             return;
         }
 
+        if (_scoreboardOpen || _scoreboardAlpha > 0.02f)
+        {
+            AdvanceBuildMenuAnimation();
+            return;
+        }
+
         var player = _world.LocalPlayer;
         var specialPressed = mouse.RightButton == ButtonState.Pressed && _previousMouse.RightButton == ButtonState.Released;
         if (specialPressed)

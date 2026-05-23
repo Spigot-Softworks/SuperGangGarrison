@@ -1,6 +1,11 @@
 {
   "id": "medic",
   "displayName": "Medic",
+  "runtime": {
+    "playerClass": "Medic",
+    "supportsExperimentalAcquiredWeapon": true,
+    "primaryWeaponKillFeedSprite": "NeedleKL"
+  },
   "movement": {
     "maxHealth": 120,
     "collisionLeft": -7.0,
@@ -30,7 +35,8 @@
       "displayName": "Stock",
       "primaryItemId": "weapon.medigun",
       "secondaryItemId": "weapon.medigun.crit",
-      "utilityItemId": "ability.medic-uber"
+      "utilityItemId": "ability.medic-uber",
+      "abilityItemIds": [ "ability.experimental-ltd-passive" ]
     }
   },
   "defaultLoadoutId": "medic.stock"

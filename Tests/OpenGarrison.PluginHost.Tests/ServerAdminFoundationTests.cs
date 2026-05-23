@@ -2138,6 +2138,16 @@ public sealed class ServerAdminFoundationTests
 
         public IReadOnlyList<OpenGarrisonServerGameplayItemInfo> GetGameplayItems(string? modPackId = null) => [];
 
+        public IReadOnlyList<OpenGarrisonServerGameplayAbilityInfo> GetGameplayAbilities() => [];
+
+        public IReadOnlyList<OpenGarrisonServerGameplayAbilityInfo> GetPlayerGameplayAbilities(int playerId) => [];
+
+        public bool TryGetPlayerGameplayAbility(int playerId, string category, out OpenGarrisonServerGameplayAbilityInfo ability)
+        {
+            ability = default;
+            return false;
+        }
+
         public IReadOnlyList<OpenGarrisonServerGameplayItemInfo> GetOwnedGameplayItems(byte slot) => [];
 
         public IReadOnlyList<OpenGarrisonServerGameplayLoadoutInfo> GetGameplayLoadoutsForClass(string classId) => [];
@@ -2161,6 +2171,24 @@ public sealed class ServerAdminFoundationTests
         }
 
         public bool TryGetPlayerReplicatedStateBool(byte slot, string ownerPluginId, string stateKey, out bool value)
+        {
+            value = false;
+            return false;
+        }
+
+        public bool TryGetPlayerReplicatedStateInt(int playerId, string ownerPluginId, string stateKey, out int value)
+        {
+            value = 0;
+            return false;
+        }
+
+        public bool TryGetPlayerReplicatedStateFloat(int playerId, string ownerPluginId, string stateKey, out float value)
+        {
+            value = 0f;
+            return false;
+        }
+
+        public bool TryGetPlayerReplicatedStateBool(int playerId, string ownerPluginId, string stateKey, out bool value)
         {
             value = false;
             return false;

@@ -8,15 +8,15 @@ public sealed partial class PlayerEntity
     public bool TrySelectGameplayLoadout(string? loadoutId)
     {
         var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
-        var resolvedLoadoutId = runtimeRegistry.CanUseLoadout(ClassId, loadoutId)
-            ? (string.IsNullOrWhiteSpace(loadoutId) ? runtimeRegistry.GetDefaultLoadout(ClassId).Id : loadoutId.Trim())
+        var resolvedLoadoutId = runtimeRegistry.CanUseLoadout(GameplayClassId, loadoutId)
+            ? (string.IsNullOrWhiteSpace(loadoutId) ? runtimeRegistry.GetDefaultLoadout(GameplayClassId).Id : loadoutId.Trim())
             : null;
         if (string.IsNullOrWhiteSpace(resolvedLoadoutId))
         {
             return false;
         }
 
-        if (!runtimeRegistry.CanUseLoadout(ClassId, resolvedLoadoutId, OwnsGameplayItem))
+        if (!runtimeRegistry.CanUseLoadout(GameplayClassId, resolvedLoadoutId, OwnsGameplayItem))
         {
             return false;
         }
@@ -34,7 +34,7 @@ public sealed partial class PlayerEntity
     public bool TrySelectGameplayEquippedSlot(GameplayEquipmentSlot equippedSlot)
     {
         if (!CharacterClassCatalog.RuntimeRegistry.CanEquipSlot(
-                ClassId,
+                GameplayClassId,
                 SelectedGameplayLoadoutId,
                 equippedSlot,
                 ResolveRegisteredWeaponItemId(ExperimentalOffhandWeapon),
@@ -58,7 +58,7 @@ public sealed partial class PlayerEntity
     {
         var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
         var registeredItemId = ResolveRegisteredWeaponItemId(weaponDefinition);
-        if (!runtimeRegistry.CanUseSecondaryOverrideItem(ClassId, SelectedGameplayLoadoutId, registeredItemId)
+        if (!runtimeRegistry.CanUseSecondaryOverrideItem(GameplayClassId, SelectedGameplayLoadoutId, registeredItemId)
             || (!string.IsNullOrWhiteSpace(registeredItemId) && !OwnsGameplayItem(registeredItemId)))
         {
             weaponDefinition = null;
@@ -105,7 +105,7 @@ public sealed partial class PlayerEntity
     {
         if (ExperimentalOffhandWeapon is null
             || !IsAlive
-            || !CharacterClassCatalog.RuntimeRegistry.CanEquipSlot(ClassId, SelectedGameplayLoadoutId, GameplayEquipmentSlot.Secondary, ResolveRegisteredWeaponItemId(ExperimentalOffhandWeapon), GameplayLoadoutState.AcquiredItemId))
+            || !CharacterClassCatalog.RuntimeRegistry.CanEquipSlot(GameplayClassId, SelectedGameplayLoadoutId, GameplayEquipmentSlot.Secondary, ResolveRegisteredWeaponItemId(ExperimentalOffhandWeapon), GameplayLoadoutState.AcquiredItemId))
         {
             return;
         }
@@ -134,7 +134,7 @@ public sealed partial class PlayerEntity
         if (!weaponClassId.HasValue
             || ClassId != PlayerClass.Soldier
             || !OwnsGameplayItem(acquiredItemId)
-            || !runtimeRegistry.CanUseAcquiredItem(ClassId, acquiredItemId))
+            || !runtimeRegistry.CanUseAcquiredItem(GameplayClassId, acquiredItemId))
         {
             weaponClassId = null;
         }
@@ -204,7 +204,7 @@ public sealed partial class PlayerEntity
     {
         if (!HasAcquiredWeapon
             || !IsAlive
-            || !CharacterClassCatalog.RuntimeRegistry.CanEquipSlot(ClassId, SelectedGameplayLoadoutId, GameplayEquipmentSlot.Secondary, ResolveRegisteredWeaponItemId(ExperimentalOffhandWeapon), GameplayLoadoutState.AcquiredItemId))
+            || !CharacterClassCatalog.RuntimeRegistry.CanEquipSlot(GameplayClassId, SelectedGameplayLoadoutId, GameplayEquipmentSlot.Secondary, ResolveRegisteredWeaponItemId(ExperimentalOffhandWeapon), GameplayLoadoutState.AcquiredItemId))
         {
             return;
         }

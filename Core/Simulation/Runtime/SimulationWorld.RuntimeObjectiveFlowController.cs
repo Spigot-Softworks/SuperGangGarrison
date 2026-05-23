@@ -25,6 +25,11 @@ public sealed partial class SimulationWorld
 
         public void AdvanceObjectives()
         {
+            if (_world.CompetitiveObjectivesLocked)
+            {
+                return;
+            }
+
             switch (_world.MatchRules.Mode)
             {
                 case GameModeKind.Arena:
@@ -50,6 +55,11 @@ public sealed partial class SimulationWorld
 
         public void AdvanceResolution()
         {
+            if (_world.CompetitiveObjectivesLocked)
+            {
+                return;
+            }
+
             switch (_world.MatchRules.Mode)
             {
                 case GameModeKind.Arena:

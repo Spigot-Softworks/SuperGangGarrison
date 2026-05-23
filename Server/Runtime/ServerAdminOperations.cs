@@ -24,7 +24,11 @@ internal sealed class ServerAdminOperations(
     ServerBanService? banService = null,
     Func<string>? demoRecordingStatusGetter = null,
     Func<string?, OpenGarrisonServerDemoRecordingResult>? demoRecordingStarter = null,
-    Func<OpenGarrisonServerDemoRecordingResult>? demoRecordingStopper = null) : IOpenGarrisonServerAdminOperations
+    Func<OpenGarrisonServerDemoRecordingResult>? demoRecordingStopper = null,
+    Func<byte, PlayerTeam, OpenGarrisonServerDecisionResult>? beforeTeamChange = null,
+    Func<byte, PlayerClass, OpenGarrisonServerDecisionResult>? beforeClassChange = null,
+    Func<byte, string, OpenGarrisonServerDecisionResult>? beforeLoadoutChange = null,
+    Func<string, int, bool, OpenGarrisonServerDecisionResult>? beforeMapChange = null) : IOpenGarrisonServerAdminOperations
 {
     private const int MaxPlayerNameLength = 20;
     private const string DefaultPlayerName = "Player";
@@ -185,14 +189,35 @@ internal sealed class ServerAdminOperations(
 
     public bool TryMoveToSpectator(byte slot) => sessionManagerGetter().TryMoveClientToSpectator(slot);
 
-    public bool TrySetTeam(byte slot, PlayerTeam team) => sessionManagerGetter().TrySetClientTeam(slot, team);
+    public bool TrySetTeam(byte slot, PlayerTeam team)
+    {
+        if (IsCancelled(beforeTeamChange?.Invoke(slot, team), $"team change for slot {slot} to {team}"))
+        {
+            return false;
+        }
 
-    public bool TrySetClass(byte slot, PlayerClass playerClass) => sessionManagerGetter().TrySetClientClass(slot, playerClass);
+        return sessionManagerGetter().TrySetClientTeam(slot, team);
+    }
+
+    public bool TrySetClass(byte slot, PlayerClass playerClass)
+    {
+        if (IsCancelled(beforeClassChange?.Invoke(slot, playerClass), $"class change for slot {slot} to {playerClass}"))
+        {
+            return false;
+        }
+
+        return sessionManagerGetter().TrySetClientClass(slot, playerClass);
+    }
 
     public bool TrySetGameplayLoadout(byte slot, string loadoutId)
     {
         if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
             || string.IsNullOrWhiteSpace(loadoutId))
+        {
+            return false;
+        }
+
+        if (IsCancelled(beforeLoadoutChange?.Invoke(slot, loadoutId), $"loadout change for slot {slot} to {loadoutId}"))
         {
             return false;
         }
@@ -410,6 +435,11 @@ internal sealed class ServerAdminOperations(
 
     public bool TryChangeMap(string levelName, int mapAreaIndex = 1, bool preservePlayerStats = false)
     {
+        if (IsCancelled(beforeMapChange?.Invoke(levelName, mapAreaIndex, preservePlayerStats), $"map change to {levelName} area {mapAreaIndex}"))
+        {
+            return false;
+        }
+
         var world = worldGetter();
         var transition = new MapChangeTransition(
             world.Level.Name,
@@ -434,6 +464,19 @@ internal sealed class ServerAdminOperations(
         mapRotationManagerGetter().AlignCurrentMap(levelName);
         snapshotBroadcasterGetter().ResetTransientEvents();
         log($"[server] admin changed map to {world.Level.Name} area {world.Level.MapAreaIndex}/{world.Level.MapAreaCount}");
+        return true;
+    }
+
+    private bool IsCancelled(OpenGarrisonServerDecisionResult? decision, string action)
+    {
+        if (decision is not { IsCancelled: true } cancelledDecision)
+        {
+            return false;
+        }
+
+        log(string.IsNullOrWhiteSpace(cancelledDecision.Reason)
+            ? $"[plugin] cancelled {action}."
+            : $"[plugin] cancelled {action}: {cancelledDecision.Reason}");
         return true;
     }
 

@@ -17,20 +17,26 @@ public sealed partial class PlayerEntity
         return true;
     }
 
-    public bool TryStartHeavySelfHeal()
+    public bool TryStartHeavySelfHeal(
+        int durationTicks = HeavyEatDurationTicks,
+        int cooldownTicks = HeavySandvichCooldownTicks,
+        float totalHeal = 200f)
     {
         if (!IsAlive || ClassId != PlayerClass.Heavy || IsHeavyEating || IsTaunting || HeavyEatCooldownTicksRemaining > 0)
         {
             return false;
         }
 
+        durationTicks = Math.Max(1, durationTicks);
+        cooldownTicks = Math.Max(1, cooldownTicks);
         IsHeavyEating = true;
-        HeavyEatTicksRemaining = HeavyEatDurationTicks;
+        HeavyEatTicksRemaining = durationTicks;
         if (Health < MaxHealth)
         {
-            HeavyEatCooldownTicksRemaining = HeavySandvichCooldownTicks;
+            HeavyEatCooldownTicksRemaining = cooldownTicks;
         }
 
+        HeavyEatHealPerTickValue = MathF.Max(0f, totalHeal) / durationTicks;
         HeavyHealingAccumulator = 0f;
         return true;
     }
@@ -70,7 +76,7 @@ public sealed partial class PlayerEntity
         }
 
         HeavyEatTicksRemaining -= 1;
-        HeavyHealingAccumulator += HeavyEatHealPerTick;
+        HeavyHealingAccumulator += HeavyEatHealPerTickValue;
         var wholeHealing = (int)HeavyHealingAccumulator;
         if (wholeHealing > 0)
         {
@@ -86,6 +92,7 @@ public sealed partial class PlayerEntity
         IsHeavyEating = false;
         HeavyEatTicksRemaining = 0;
         HeavyHealingAccumulator = 0f;
+        HeavyEatHealPerTickValue = HeavyEatHealPerTick;
         IsTaunting = false;
         TauntFrameIndex = 0f;
     }
@@ -244,7 +251,9 @@ public sealed partial class PlayerEntity
         IsMedicUberReady = true;
     }
 
-    public bool TryFireMedicNeedle()
+    public bool TryFireMedicNeedle(
+        int fireCooldownTicks = MedicNeedleFireCooldownTicks,
+        int refillTicks = MedicNeedleRefillTicksDefault)
     {
         if (!IsAlive
             || ClassId != PlayerClass.Medic
@@ -257,12 +266,14 @@ public sealed partial class PlayerEntity
         }
 
         CurrentShells -= 1;
-        MedicNeedleCooldownTicks = ApplyExperimentalWeaponCycleMultiplier(MedicNeedleFireCooldownTicks);
-        MedicNeedleRefillTicks = ApplyExperimentalReloadMultiplier(MedicNeedleRefillTicksDefault);
+        MedicNeedleCooldownTicks = ApplyExperimentalWeaponCycleMultiplier(Math.Max(1, fireCooldownTicks));
+        MedicNeedleRefillTicks = ApplyExperimentalReloadMultiplier(Math.Max(1, refillTicks));
         return true;
     }
 
-    public bool TryFireAcquiredMedicNeedle()
+    public bool TryFireAcquiredMedicNeedle(
+        int fireCooldownTicks = MedicNeedleFireCooldownTicks,
+        int refillTicks = MedicNeedleRefillTicksDefault)
     {
         if (!IsAlive
             || !HasAcquiredMedigunEquipped
@@ -280,8 +291,8 @@ public sealed partial class PlayerEntity
         SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Secondary;
         RefreshGameplayLoadoutState();
         AcquiredWeaponCurrentShells -= 1;
-        MedicNeedleCooldownTicks = ApplyExperimentalWeaponCycleMultiplier(MedicNeedleFireCooldownTicks);
-        MedicNeedleRefillTicks = ApplyExperimentalReloadMultiplier(MedicNeedleRefillTicksDefault);
+        MedicNeedleCooldownTicks = ApplyExperimentalWeaponCycleMultiplier(Math.Max(1, fireCooldownTicks));
+        MedicNeedleRefillTicks = ApplyExperimentalReloadMultiplier(Math.Max(1, refillTicks));
         return true;
     }
 
@@ -501,9 +512,10 @@ public sealed partial class PlayerEntity
         SpySuperjumpChargeStartMovementButtons = 0;
     }
 
-    public void IncrementSpySuperjumpCharge(float aimDirectionDegrees)
+    public void IncrementSpySuperjumpCharge(float aimDirectionDegrees, int maxChargeTicks = SpySuperjumpMaxChargeTicks)
     {
-        if (SpySuperjumpChargeTicks < SpySuperjumpMaxChargeTicks)
+        maxChargeTicks = Math.Max(1, maxChargeTicks);
+        if (SpySuperjumpChargeTicks < maxChargeTicks)
         {
             SpySuperjumpChargeTicks += 1;
         }
@@ -512,7 +524,13 @@ public sealed partial class PlayerEntity
         SpySuperjumpChargeDirectionDegrees = aimDirectionDegrees;
     }
 
-    public bool TryReleaseSpySuperjump(out float velocityX, out float velocityY)
+    public bool TryReleaseSpySuperjump(
+        out float velocityX,
+        out float velocityY,
+        int maxChargeTicks = SpySuperjumpMaxChargeTicks,
+        float minVelocity = SpySuperjumpMinVelocity,
+        float maxVelocity = SpySuperjumpMaxVelocity,
+        int cooldownTicks = SpySuperjumpCooldownTicks)
     {
         velocityX = 0f;
         velocityY = 0f;
@@ -523,8 +541,13 @@ public sealed partial class PlayerEntity
         }
 
         // Calculate velocity before clearing state
-        var chargeFraction = float.Min(1f, SpySuperjumpChargeTicks / (float)SpySuperjumpMaxChargeTicks);
-        var velocity = SpySuperjumpMinVelocity + (SpySuperjumpMaxVelocity - SpySuperjumpMinVelocity) * chargeFraction;
+        maxChargeTicks = Math.Max(1, maxChargeTicks);
+        cooldownTicks = Math.Max(1, cooldownTicks);
+        minVelocity = MathF.Max(0f, minVelocity);
+        maxVelocity = MathF.Max(minVelocity, maxVelocity);
+
+        var chargeFraction = float.Min(1f, SpySuperjumpChargeTicks / (float)maxChargeTicks);
+        var velocity = minVelocity + (maxVelocity - minVelocity) * chargeFraction;
 
         var radians = SpySuperjumpChargeDirectionDegrees * (MathF.PI / 180f);
         var calculatedVelocityX = MathF.Cos(radians) * velocity;
@@ -546,7 +569,7 @@ public sealed partial class PlayerEntity
         velocityY = calculatedVelocityY;
         IsSpySuperjumping = true;
         SpySuperjumpHorizontalVelocity = velocityX; // Store horizontal velocity to maintain during flight
-        SpySuperjumpCooldownTicksRemaining = SpySuperjumpCooldownTicks; // Start cooldown
+        SpySuperjumpCooldownTicksRemaining = cooldownTicks; // Start cooldown
 
         return true;
     }

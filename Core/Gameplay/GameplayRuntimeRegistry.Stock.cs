@@ -22,7 +22,7 @@ public sealed partial class GameplayRuntimeRegistry
         var stockModPack = discoveredModPacks.FirstOrDefault(static pack =>
             string.Equals(pack.Id, StockGameplayModCatalog.Definition.Id, StringComparison.Ordinal))
             ?? StockGameplayModCatalog.Definition;
-        registry.RegisterModPack(stockModPack, CreateStockClassBindings(stockModPack.Id));
+        registry.RegisterModPack(stockModPack, CreateClassBindingsFromRuntimeMetadata(stockModPack));
 
         foreach (var modPack in discoveredModPacks)
         {
@@ -31,7 +31,7 @@ public sealed partial class GameplayRuntimeRegistry
                 continue;
             }
 
-            registry.RegisterModPack(modPack, []);
+            registry.RegisterModPack(modPack, CreateClassBindingsFromRuntimeMetadata(modPack));
         }
 
         return registry;
@@ -39,48 +39,83 @@ public sealed partial class GameplayRuntimeRegistry
 
     private void RegisterBuiltInBehaviorBindings()
     {
-        RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.PelletGun, PrimaryWeaponKind.PelletGun, FireSoundName: "ShotgunSnd"));
+        RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.PelletGun, PrimaryWeaponKind.PelletGun));
         RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Flamethrower, PrimaryWeaponKind.FlameThrower));
-        RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.RocketLauncher, PrimaryWeaponKind.RocketLauncher, FireSoundName: "RocketSnd"));
-        RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.MineLauncher, PrimaryWeaponKind.MineLauncher, FireSoundName: "MinegunSnd"));
-        RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.GrenadeLauncher, PrimaryWeaponKind.GrenadeLauncher, FireSoundName: "MinegunSnd"));
-        RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Minigun, PrimaryWeaponKind.Minigun, FireSoundName: "ChaingunSnd"));
-        RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Rifle, PrimaryWeaponKind.Rifle, FireSoundName: "SniperSnd"));
+        RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.RocketLauncher, PrimaryWeaponKind.RocketLauncher));
+        RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.MineLauncher, PrimaryWeaponKind.MineLauncher));
+        RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.GrenadeLauncher, PrimaryWeaponKind.GrenadeLauncher));
+        RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Minigun, PrimaryWeaponKind.Minigun));
+        RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Rifle, PrimaryWeaponKind.Rifle));
         RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Medigun, PrimaryWeaponKind.Medigun));
         RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.MedigunCrit, PrimaryWeaponKind.Medigun));
-        RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Revolver, PrimaryWeaponKind.Revolver, FireSoundName: "RevolverSnd"));
+        RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Revolver, PrimaryWeaponKind.Revolver));
         RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Blade, PrimaryWeaponKind.Blade));
-        RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.EngineerPda, GameplaySecondaryAbilityActionKind.EngineerPda));
-        RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.PyroAirblast, GameplaySecondaryAbilityActionKind.PyroAirblast));
-        RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.DemomanDetonate, GameplaySecondaryAbilityActionKind.DemomanDetonate, UsesHeldInput: true));
-        RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.HeavySandvich, GameplaySecondaryAbilityActionKind.HeavySandvich));
-        RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.SniperScope, GameplaySecondaryAbilityActionKind.SniperScope));
-        RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.MedicNeedlegun, GameplaySecondaryAbilityActionKind.MedicNeedlegun));
-        RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.SpyCloak, GameplaySecondaryAbilityActionKind.SpyCloak));
-        RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.QuoteBladeThrow, GameplaySecondaryAbilityActionKind.QuoteBladeThrow, UsesHeldInput: true));
-        RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.Flamethrower, GameplaySecondaryAbilityActionKind.PyroAirblast));
-        RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.MineLauncher, GameplaySecondaryAbilityActionKind.DemomanDetonate, UsesHeldInput: true));
-        RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.Rifle, GameplaySecondaryAbilityActionKind.SniperScope));
-        RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.Medigun, GameplaySecondaryAbilityActionKind.MedicNeedlegun));
-        RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.MedigunCrit, GameplaySecondaryAbilityActionKind.MedicNeedlegun));
-        RegisterUtilityAbilityBehavior(new GameplayUtilityAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.MedicUber, GameplayUtilityAbilityActionKind.MedicUber));
-        RegisterUtilityAbilityBehavior(new GameplayUtilityAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.GrenadeLauncher, GameplayUtilityAbilityActionKind.GrenadeLauncher));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.EngineerPda, static context => context.World.ExecuteEngineerPdaAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.PyroAirblast, static context => context.World.ExecutePyroAirblastAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.DemomanDetonate, static context => context.World.ExecuteDemomanDetonateAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.HeavySandvich, static context => context.World.ExecuteHeavySandvichAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SniperScope, static context => context.World.ExecuteSniperScopeAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SniperBinoculars, static context => context.World.ExecuteSniperBinocularsAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.MedicNeedlegun, static context => context.World.ExecuteMedicNeedlegunAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.MedicUber, static context => context.World.ExecuteMedicUberAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SpyCloak, static context => context.World.ExecuteSpyCloakAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SpySuperjump, static context => context.World.ExecuteSpySuperjumpAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.QuoteBladeThrow, static context => context.World.ExecuteQuoteBladeThrowAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.ScoutTaunt, static context => context.World.ExecuteScoutTauntAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SoldierSecondaryToggle, static context => context.World.ExecuteSoldierSecondaryToggleAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.EngineerJumpPad, static context => context.World.ExecuteEngineerJumpPadAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.HeavyGhostDash, static context => context.World.ExecuteHeavyGhostDashAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.ExperimentalSoldierSecondary, static context => context.World.ExecuteExperimentalSoldierSecondaryAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.ExperimentalLtdPassive, static context => context.World.ExecuteExperimentalLtdPassiveAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.ExperimentalLtdRage, static context => context.World.ExecuteExperimentalLtdRageAbility(context));
     }
 
-    private static GameplayClassRuntimeBinding[] CreateStockClassBindings(string modPackId)
+    private static GameplayClassRuntimeBinding[] CreateClassBindingsFromRuntimeMetadata(GameplayModPackDefinition modPack)
     {
-        return
-        [
-            new GameplayClassRuntimeBinding(PlayerClass.Scout, modPackId, "scout", SupportsExperimentalAcquiredWeapon: true, "ScatterKL"),
-            new GameplayClassRuntimeBinding(PlayerClass.Engineer, modPackId, "engineer", SupportsExperimentalAcquiredWeapon: true, "ShotgunKL"),
-            new GameplayClassRuntimeBinding(PlayerClass.Pyro, modPackId, "pyro", SupportsExperimentalAcquiredWeapon: true, "FlameKL"),
-            new GameplayClassRuntimeBinding(PlayerClass.Soldier, modPackId, "soldier", SupportsExperimentalAcquiredWeapon: true, "RocketKL"),
-            new GameplayClassRuntimeBinding(PlayerClass.Demoman, modPackId, "demoman", SupportsExperimentalAcquiredWeapon: true, "MineKL"),
-            new GameplayClassRuntimeBinding(PlayerClass.Heavy, modPackId, "heavy", SupportsExperimentalAcquiredWeapon: true, "MinigunKL"),
-            new GameplayClassRuntimeBinding(PlayerClass.Sniper, modPackId, "sniper", SupportsExperimentalAcquiredWeapon: true, "RifleKL"),
-            new GameplayClassRuntimeBinding(PlayerClass.Medic, modPackId, "medic", SupportsExperimentalAcquiredWeapon: true, "NeedleKL"),
-            new GameplayClassRuntimeBinding(PlayerClass.Spy, modPackId, "spy", SupportsExperimentalAcquiredWeapon: true, "RevolverKL"),
-            new GameplayClassRuntimeBinding(PlayerClass.Quote, modPackId, "quote", SupportsExperimentalAcquiredWeapon: false, "BladeKL"),
-        ];
+        ArgumentNullException.ThrowIfNull(modPack);
+        var bindings = new List<GameplayClassRuntimeBinding>();
+        foreach (var gameplayClass in modPack.Classes.Values)
+        {
+            var runtime = gameplayClass.Runtime;
+            if (runtime is null)
+            {
+                continue;
+            }
+
+            var bindsLegacyPlayerClass = !string.IsNullOrWhiteSpace(runtime.PlayerClass);
+            var basePlayerClassName = string.IsNullOrWhiteSpace(runtime.BasePlayerClass)
+                ? (bindsLegacyPlayerClass ? runtime.PlayerClass : nameof(PlayerClass.Scout))
+                : runtime.BasePlayerClass;
+            var botGraphPlayerClassName = string.IsNullOrWhiteSpace(runtime.BotGraphPlayerClass)
+                ? basePlayerClassName
+                : runtime.BotGraphPlayerClass;
+            if (!Enum.TryParse<PlayerClass>(basePlayerClassName, ignoreCase: true, out var basePlayerClass))
+            {
+                throw new InvalidOperationException($"Gameplay class \"{gameplayClass.Id}\" in mod pack \"{modPack.Id}\" declares unsupported base player class \"{basePlayerClassName}\".");
+            }
+
+            if (!Enum.TryParse<PlayerClass>(botGraphPlayerClassName, ignoreCase: true, out var botGraphPlayerClass))
+            {
+                throw new InvalidOperationException($"Gameplay class \"{gameplayClass.Id}\" in mod pack \"{modPack.Id}\" declares unsupported bot graph player class \"{botGraphPlayerClassName}\".");
+            }
+
+            var playerClass = basePlayerClass;
+            if (bindsLegacyPlayerClass && !Enum.TryParse<PlayerClass>(runtime.PlayerClass, ignoreCase: true, out playerClass))
+            {
+                throw new InvalidOperationException($"Gameplay class \"{gameplayClass.Id}\" in mod pack \"{modPack.Id}\" declares unsupported player class slot \"{runtime.PlayerClass}\".");
+            }
+
+            bindings.Add(new GameplayClassRuntimeBinding(
+                playerClass,
+                modPack.Id,
+                gameplayClass.Id,
+                runtime.SupportsExperimentalAcquiredWeapon,
+                runtime.PrimaryWeaponKillFeedSprite,
+                basePlayerClass,
+                botGraphPlayerClass,
+                bindsLegacyPlayerClass));
+        }
+
+        return bindings.ToArray();
     }
 }

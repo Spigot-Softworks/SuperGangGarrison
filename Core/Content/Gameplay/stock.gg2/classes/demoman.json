@@ -1,6 +1,11 @@
 {
   "id": "demoman",
   "displayName": "Demoman",
+  "runtime": {
+    "playerClass": "Demoman",
+    "supportsExperimentalAcquiredWeapon": true,
+    "primaryWeaponKillFeedSprite": "MineKL"
+  },
   "movement": {
     "maxHealth": 120,
     "collisionLeft": -7.0,
@@ -30,7 +35,8 @@
       "displayName": "Stock",
       "primaryItemId": "weapon.minelauncher",
       "secondaryItemId": "ability.demoman-detonate",
-      "utilityItemId": "weapon.grenadelauncher"
+      "utilityItemId": "weapon.grenadelauncher",
+      "abilityItemIds": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     }
   },
   "defaultLoadoutId": "demoman.stock"

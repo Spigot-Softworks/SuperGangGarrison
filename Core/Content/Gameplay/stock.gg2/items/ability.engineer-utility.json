@@ -3,6 +3,12 @@
   "displayName": "Engineer Utility",
   "slot": "Utility",
   "behaviorId": "builtin.utility.engineer",
+  "ability": {
+    "category": "utility",
+    "activation": "pressed",
+    "executorId": "builtin.ability.engineer_jump_pad",
+    "tags": [ "build", "jump_pad" ]
+  },
   "ammo": {},
   "presentation": {}
 }

@@ -20,6 +20,7 @@ internal sealed class LuaServerPlugin(
     IOpenGarrisonServerClientHooks,
     IOpenGarrisonServerChatHooks,
     IOpenGarrisonServerChatCommandHooks,
+    IOpenGarrisonServerDecisionHooks,
     IOpenGarrisonServerPluginMessageHooks,
     IOpenGarrisonServerMapHooks,
     IOpenGarrisonServerGameplayHooks,
@@ -42,9 +43,11 @@ internal sealed class LuaServerPlugin(
     private OpenGarrisonServerAdminIdentity? _activeCommandIdentity;
     private bool _callbacksDisabled;
     private readonly Dictionary<Guid, DynValue> _scheduledCallbacks = [];
+    private readonly Queue<LuaDeferredServerAction> _deferredServerActions = [];
     private const long CallbackAutoYieldCounter = 1000;
     private const int MaxCallbackResumeCount = 4096;
     private const int MaxInitializeResumeCount = 65536;
+    private const int MaxDeferredServerActions = 256;
 
     public string Id => manifest.Id;
 
@@ -59,7 +62,10 @@ internal sealed class LuaServerPlugin(
         try
         {
             _context = context;
-            var entryPointPath = Path.GetFullPath(Path.Combine(pluginDirectory, manifest.EntryPoint));
+            var entryPointPath = OpenGarrisonPluginPathContainment.ResolveContainedPath(
+                pluginDirectory,
+                manifest.EntryPoint,
+                "Lua entry point escapes plugin directory.");
             if (!File.Exists(entryPointPath))
             {
                 throw new FileNotFoundException($"Lua entry point was not found: {entryPointPath}", entryPointPath);
@@ -85,6 +91,7 @@ internal sealed class LuaServerPlugin(
     public void Shutdown()
     {
         CancelAllScheduledCallbacks();
+        _deferredServerActions.Clear();
         ExecuteInPhase(ServerLuaCallbackPhase.Shutdown, () => CallIfPresent("shutdown"));
         _callbackCache.Clear();
         _pluginTable = null;
@@ -101,7 +108,11 @@ internal sealed class LuaServerPlugin(
 
     public void OnServerStopped() => ExecuteInPhase(ServerLuaCallbackPhase.Lifecycle, () => CallIfPresent("on_server_stopped"));
 
-    public void OnServerHeartbeat(TimeSpan uptime) => ExecuteInPhase(ServerLuaCallbackPhase.Update, () => CallIfPresent("on_server_heartbeat", DynValue.NewNumber(uptime.TotalSeconds)));
+    public void OnServerHeartbeat(TimeSpan uptime) => ExecuteInPhase(ServerLuaCallbackPhase.Update, () =>
+    {
+        CallIfPresent("on_server_heartbeat", DynValue.NewNumber(uptime.TotalSeconds));
+        DrainDeferredServerActions();
+    });
 
     public void OnHelloReceived(HelloReceivedEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_hello_received", ToDynValue(e)));
 
@@ -116,6 +127,72 @@ internal sealed class LuaServerPlugin(
     public void OnPlayerClassChanged(PlayerClassChangedEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_player_class_changed", ToDynValue(e)));
 
     public void OnChatReceived(ChatReceivedEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_chat_received", ToDynValue(e)));
+
+    public OpenGarrisonServerDecisionResult BeforeChatMessage(ChatReceivedEvent e)
+    {
+        return ExecuteInPhase(ServerLuaCallbackPhase.Event, () =>
+            TryInvokeCallback("before_chat_message", out var result, ToDynValue(e))
+                ? ReadDecisionResult(result)
+                : OpenGarrisonServerDecisionResult.Continue);
+    }
+
+    public OpenGarrisonServerDecisionResult BeforeTeamChange(OpenGarrisonServerTeamChangeRequest e)
+    {
+        return ExecuteServerDecisionCallback("before_team_change", e);
+    }
+
+    public OpenGarrisonServerDecisionResult BeforeClassChange(OpenGarrisonServerClassChangeRequest e)
+    {
+        return ExecuteServerDecisionCallback("before_class_change", e);
+    }
+
+    public OpenGarrisonServerDecisionResult BeforeLoadoutChange(OpenGarrisonServerLoadoutChangeRequest e)
+    {
+        return ExecuteServerDecisionCallback("before_loadout_change", e);
+    }
+
+    public OpenGarrisonServerDecisionResult BeforeMapChange(OpenGarrisonServerMapChangeRequest e)
+    {
+        return ExecuteServerDecisionCallback("before_map_change", e);
+    }
+
+    public OpenGarrisonServerDecisionResult BeforeSpawn(OpenGarrisonServerSpawnRequest e)
+    {
+        return ExecuteServerDecisionCallback("before_spawn", e);
+    }
+
+    public OpenGarrisonServerDecisionResult BeforeDamage(OpenGarrisonServerDamageRequest e)
+    {
+        return ExecuteServerDecisionCallback("before_damage", e);
+    }
+
+    public OpenGarrisonServerDecisionResult BeforeDeath(OpenGarrisonServerDeathRequest e)
+    {
+        return ExecuteServerDecisionCallback("before_death", e);
+    }
+
+    public OpenGarrisonServerDecisionResult BeforePickup(OpenGarrisonServerPickupRequest e)
+    {
+        return ExecuteServerDecisionCallback("before_pickup", e);
+    }
+
+    public OpenGarrisonServerDecisionResult BeforeScore(OpenGarrisonServerScoreRequest e)
+    {
+        return ExecuteServerDecisionCallback("before_score", e);
+    }
+
+    public OpenGarrisonServerDecisionResult BeforeRoundEnd(OpenGarrisonServerRoundEndRequest e)
+    {
+        return ExecuteServerDecisionCallback("before_round_end", e);
+    }
+
+    private OpenGarrisonServerDecisionResult ExecuteServerDecisionCallback(string callbackName, object e)
+    {
+        return ExecuteInPhase(ServerLuaCallbackPhase.Event, () =>
+            TryInvokeCallback(callbackName, out var result, ToDynValue(e))
+                ? ReadDecisionResult(result)
+                : OpenGarrisonServerDecisionResult.Continue);
+    }
 
     public bool TryHandleChatMessage(OpenGarrisonServerChatMessageContext context, ChatReceivedEvent e)
     {
@@ -181,6 +258,188 @@ internal sealed class LuaServerPlugin(
     public void OnPlayerSpawned(OpenGarrisonServerPlayerSpawnEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_player_spawned", ToDynValue(e)));
 
     public void OnPlayerRespawned(OpenGarrisonServerPlayerRespawnEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_player_respawned", ToDynValue(e)));
+
+    public void OnGameplayAbilityInput(OpenGarrisonServerGameplayAbilityInputEvent e)
+    {
+        ExecuteInPhase(ServerLuaCallbackPhase.Event, () =>
+        {
+            if (TryInvokeCallback("on_gameplay_ability_input", out var result, ToDynValue(e))
+                && result.Type == DataType.Boolean
+                && !result.Boolean)
+            {
+                e.Cancel();
+            }
+        });
+    }
+
+    public void OnGameplayAbilityUsed(OpenGarrisonServerGameplayAbilityUsedEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_gameplay_ability_used", ToDynValue(e)));
+
+    public void OnGameplayAbilityStateChanged(OpenGarrisonServerGameplayAbilityStateChangedEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_gameplay_ability_state_changed", ToDynValue(e)));
+
+    private static OpenGarrisonServerDecisionResult ReadDecisionResult(DynValue result)
+    {
+        if (result.IsNil() || result.Type == DataType.Void)
+        {
+            return OpenGarrisonServerDecisionResult.Continue;
+        }
+
+        if (result.Type == DataType.Boolean)
+        {
+            return result.Boolean
+                ? OpenGarrisonServerDecisionResult.Cancel()
+                : OpenGarrisonServerDecisionResult.Continue;
+        }
+
+        if (result.Type == DataType.String)
+        {
+            return string.IsNullOrWhiteSpace(result.String)
+                ? OpenGarrisonServerDecisionResult.Continue
+                : OpenGarrisonServerDecisionResult.Cancel(result.String);
+        }
+
+        if (result.Type == DataType.Table)
+        {
+            var table = result.Table;
+            var cancelValue = ReadField(table, "cancel", "Cancel", "cancelled", "Cancelled", "isCancelled", "IsCancelled");
+            var isCancelled = cancelValue.Type switch
+            {
+                DataType.Boolean => cancelValue.Boolean,
+                DataType.Number => Math.Abs(cancelValue.Number) > double.Epsilon,
+                DataType.String => bool.Parse(cancelValue.String),
+                _ => false,
+            };
+            var reason = ReadOptionalStringField(table, "reason", "Reason") ?? string.Empty;
+            return isCancelled
+                ? OpenGarrisonServerDecisionResult.Cancel(reason)
+                : OpenGarrisonServerDecisionResult.Continue;
+        }
+
+        return OpenGarrisonServerDecisionResult.Continue;
+    }
+
+    private GameplayAbilityResult ExecuteGameplayAbility(GameplayAbilityContext context)
+    {
+        return ExecuteInPhase(ServerLuaCallbackPhase.AbilityExecution, () =>
+        {
+            if (!TryInvokeCallback("on_gameplay_ability_execute", out var result, ToDynValue(CreateLuaGameplayAbilityExecutionEvent(context))))
+            {
+                return GameplayAbilityResult.Ignored;
+            }
+
+            return ReadGameplayAbilityExecutionResult(result);
+        });
+    }
+
+    private GameplayPrimaryWeaponResult ExecuteGameplayPrimaryWeapon(GameplayPrimaryWeaponContext context)
+    {
+        return ExecuteInPhase(ServerLuaCallbackPhase.PrimaryWeaponExecution, () =>
+        {
+            if (!TryInvokeCallback("on_gameplay_primary_weapon_execute", out var result, ToDynValue(CreateLuaGameplayPrimaryWeaponExecutionEvent(context))))
+            {
+                return GameplayPrimaryWeaponResult.Ignored;
+            }
+
+            return ReadGameplayPrimaryWeaponExecutionResult(result);
+        });
+    }
+
+    private object CreateLuaGameplayAbilityExecutionEvent(GameplayAbilityContext context)
+    {
+        return new
+        {
+            Frame = context.World.Frame,
+            PlayerId = context.Player.Id,
+            context.Player.ClassId,
+            context.Player.Team,
+            ItemId = context.Item.Id,
+            context.Item.BehaviorId,
+            AbilityCategory = context.Ability.Category,
+            context.Ability.Activation,
+            context.Ability.ExecutorId,
+            Phase = context.Phase.ToString(),
+            Tags = context.Ability.Tags.ToArray(),
+            Parameters = context.Ability.Parameters.ToDictionary(
+                static pair => pair.Key,
+                static pair => JsonElementToObject(pair.Value),
+                StringComparer.Ordinal),
+            context.SourceX,
+            context.SourceY,
+            context.Input.AimWorldX,
+            context.Input.AimWorldY,
+        };
+    }
+
+    private static object CreateLuaGameplayPrimaryWeaponExecutionEvent(GameplayPrimaryWeaponContext context)
+    {
+        return new
+        {
+            Frame = context.World.Frame,
+            PlayerId = context.Player.Id,
+            context.Player.ClassId,
+            context.Player.Team,
+            context.ItemId,
+            context.BehaviorId,
+            WeaponClassId = context.WeaponClassId,
+            Weapon = new
+            {
+                context.Weapon.DisplayName,
+                Kind = context.Weapon.Kind.ToString(),
+                context.Weapon.MaxAmmo,
+                context.Weapon.AmmoPerShot,
+                context.Weapon.ProjectilesPerShot,
+                context.Weapon.ReloadDelayTicks,
+                context.Weapon.AmmoReloadTicks,
+                context.Weapon.SpreadDegrees,
+                context.Weapon.MinShotSpeed,
+                context.Weapon.AdditionalRandomShotSpeed,
+                context.Weapon.DirectHitDamage,
+                context.Weapon.DamagePerTick,
+                context.Weapon.DirectHitHealAmount,
+                context.Weapon.ActiveProjectileLimit,
+            },
+            context.SourceX,
+            context.SourceY,
+            context.AimWorldX,
+            context.AimWorldY,
+            context.DirectionX,
+            context.DirectionY,
+            context.DirectionRadians,
+            context.KillFeedWeaponSpriteName,
+        };
+    }
+
+    private static GameplayAbilityResult ReadGameplayAbilityExecutionResult(DynValue result)
+    {
+        if (result.Type == DataType.Boolean)
+        {
+            return result.Boolean ? GameplayAbilityResult.HandledAndConsumed : GameplayAbilityResult.Ignored;
+        }
+
+        if (result.Type != DataType.Table)
+        {
+            return GameplayAbilityResult.Ignored;
+        }
+
+        var handled = ReadOptionalBoolField(result.Table, false, "handled", "Handled");
+        var consumedInput = ReadOptionalBoolField(result.Table, handled, "consumedInput", "ConsumedInput", "consumed_input");
+        var suppressPrimary = ReadOptionalBoolField(result.Table, false, "suppressPrimary", "SuppressPrimary", "suppress_primary");
+        return new GameplayAbilityResult(handled, consumedInput, suppressPrimary);
+    }
+
+    private static GameplayPrimaryWeaponResult ReadGameplayPrimaryWeaponExecutionResult(DynValue result)
+    {
+        if (result.Type == DataType.Boolean)
+        {
+            return result.Boolean ? GameplayPrimaryWeaponResult.HandledResult : GameplayPrimaryWeaponResult.Ignored;
+        }
+
+        if (result.Type != DataType.Table)
+        {
+            return GameplayPrimaryWeaponResult.Ignored;
+        }
+
+        return new GameplayPrimaryWeaponResult(ReadOptionalBoolField(result.Table, false, "handled", "Handled"));
+    }
 
     private void CallIfPresent(string functionName, params DynValue[] args)
     {
@@ -324,7 +583,65 @@ internal sealed class LuaServerPlugin(
 
         host["get_manifest"] = DynValue.NewCallback((_, _) => ToDynValue(context.Manifest));
         host["get_host_api"] = DynValue.NewCallback((_, _) => ToDynValue(context.HostApi));
+        host["register_command"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanRegisterLuaCommand("register_command", "Lua command registration"))
+            {
+                return DynValue.False;
+            }
+
+            var registration = ReadLuaCommandRegistration(ReadArgument(args, 0));
+            context.RegisterCommand(registration.Command, registration.RequiredPermissions, registration.Aliases);
+            return DynValue.True;
+        });
         host["get_server_state"] = DynValue.NewCallback((_, _) => DynValue.NewTable(CreateServerStateTable(script, context.ServerState)));
+        host["get_match_state"] = DynValue.NewCallback((_, _) => ToDynValue(context.ServerState.GetMatchState()));
+        host["get_objectives"] = DynValue.NewCallback((_, _) => ToDynValue(context.ServerState.GetObjectives()));
+        host["get_buildables"] = DynValue.NewCallback((_, _) => ToDynValue(context.ServerState.GetBuildables()));
+        host["get_projectiles"] = DynValue.NewCallback((_, _) => ToDynValue(context.ServerState.GetProjectiles()));
+        host["get_recent_events"] = DynValue.NewCallback((_, _) => ToDynValue(context.ServerState.GetRecentEvents()));
+        host["get_map_region"] = DynValue.NewCallback((_, args) =>
+        {
+            var query = ReadOptionalTableArgument(args, 0);
+            if (query is not null)
+            {
+                return ToDynValue(context.ServerState.GetMapRegion(
+                    ReadOptionalFloatField(query, 0f, "x", "X", "centerX", "CenterX", "center_x"),
+                    ReadOptionalFloatField(query, 0f, "y", "Y", "centerY", "CenterY", "center_y"),
+                    ReadOptionalFloatField(query, 256f, "radius", "Radius"),
+                    ReadOptionalIntField(query, 128, "limit", "Limit")));
+            }
+
+            return ToDynValue(context.ServerState.GetMapRegion(
+                (float)ReadDoubleArgument(args, 0),
+                (float)ReadDoubleArgument(args, 1),
+                (float)ReadOptionalDoubleArgument(args, 2, 256d),
+                ReadOptionalIntArgument(args, 3, 128)));
+        });
+        host["has_line_of_sight"] = DynValue.NewCallback((_, args) =>
+        {
+            var query = ReadOptionalTableArgument(args, 0);
+            if (query is not null)
+            {
+                return ToDynValue(context.ServerState.HasLineOfSight(
+                    ReadOptionalFloatField(query, 0f, "originX", "OriginX", "origin_x", "x1"),
+                    ReadOptionalFloatField(query, 0f, "originY", "OriginY", "origin_y", "y1"),
+                    ReadOptionalFloatField(query, 0f, "targetX", "TargetX", "target_x", "x2"),
+                    ReadOptionalFloatField(query, 0f, "targetY", "TargetY", "target_y", "y2"),
+                    ReadOptionalEnumField<PlayerTeam>(query, "team", "Team", "targetTeam", "TargetTeam", "target_team")));
+            }
+
+            return ToDynValue(context.ServerState.HasLineOfSight(
+                (float)ReadDoubleArgument(args, 0),
+                (float)ReadDoubleArgument(args, 1),
+                (float)ReadDoubleArgument(args, 2),
+                (float)ReadDoubleArgument(args, 3),
+                ReadOptionalEnumArgument<PlayerTeam>(args, 4)));
+        });
+        host["get_player_state"] = DynValue.NewCallback((_, args) =>
+            TryResolvePlayerStateQuery(context.ServerState, ReadArgument(args, 0), out var player)
+                ? DynValue.NewTable(CreatePlayerInfoTable(script, player))
+                : DynValue.Nil);
         host["get_admin_summary"] = DynValue.NewCallback((_, _) => DynValue.NewTable(CreateAdminSummaryTable(script, context)));
         host["get_players"] = DynValue.NewCallback((_, _) => DynValue.NewTable(CreatePlayerListTable(script, context.ServerState.GetPlayers())));
         host["resolve_targets"] = DynValue.NewCallback((_, args) =>
@@ -350,6 +667,17 @@ internal sealed class LuaServerPlugin(
             var modPackId = ReadOptionalStringArgument(args, 0);
             return ToDynValue(context.ServerState.GetGameplayItems(modPackId));
         });
+        host["get_gameplay_abilities"] = DynValue.NewCallback((_, _) =>
+            ToDynValue(context.ServerState.GetGameplayAbilities()));
+        host["get_player_gameplay_abilities"] = DynValue.NewCallback((_, args) =>
+            ToDynValue(context.ServerState.GetPlayerGameplayAbilities(ReadIntArgument(args, 0))));
+        host["get_player_gameplay_ability"] = DynValue.NewCallback((_, args) =>
+            context.ServerState.TryGetPlayerGameplayAbility(
+                ReadIntArgument(args, 0),
+                ReadStringArgument(args, 1),
+                out var ability)
+                ? ToDynValue(ability)
+                : DynValue.Nil);
         host["get_owned_gameplay_items"] = DynValue.NewCallback((_, args) =>
             ToDynValue(context.ServerState.GetOwnedGameplayItems(ReadByteArgument(args, 0))));
         host["get_gameplay_loadouts_for_class"] = DynValue.NewCallback((_, args) =>
@@ -446,6 +774,15 @@ internal sealed class LuaServerPlugin(
             }
 
             return DynValue.NewBoolean(CancelScheduledTask(context, ReadStringArgument(args, 0)));
+        });
+        host["enqueue_action"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanEnqueueServerAction("enqueue_action", "deferred server action"))
+            {
+                return DynValue.False;
+            }
+
+            return DynValue.NewBoolean(EnqueueDeferredServerAction(ReadDeferredServerAction(args)));
         });
         host["get_available_gameplay_secondary_items"] = DynValue.NewCallback((_, args) =>
             ToDynValue(context.ServerState.GetAvailableGameplaySecondaryItems(ReadByteArgument(args, 0))));
@@ -841,6 +1178,30 @@ internal sealed class LuaServerPlugin(
                 schemaVersion);
             return DynValue.True;
         });
+        host["get_player_replicated_state_int"] = DynValue.NewCallback((_, args) =>
+            context.ServerState.TryGetPlayerReplicatedStateInt(
+                ReadIntArgument(args, 0),
+                ReadStringArgument(args, 1),
+                ReadStringArgument(args, 2),
+                out var value)
+                ? DynValue.NewNumber(value)
+                : DynValue.Nil);
+        host["get_player_replicated_state_float"] = DynValue.NewCallback((_, args) =>
+            context.ServerState.TryGetPlayerReplicatedStateFloat(
+                ReadIntArgument(args, 0),
+                ReadStringArgument(args, 1),
+                ReadStringArgument(args, 2),
+                out var value)
+                ? DynValue.NewNumber(value)
+                : DynValue.Nil);
+        host["get_player_replicated_state_bool"] = DynValue.NewCallback((_, args) =>
+            context.ServerState.TryGetPlayerReplicatedStateBool(
+                ReadIntArgument(args, 0),
+                ReadStringArgument(args, 1),
+                ReadStringArgument(args, 2),
+                out var value)
+                ? DynValue.NewBoolean(value)
+                : DynValue.Nil);
         host["set_player_replicated_state_int"] = DynValue.NewCallback((_, args) =>
         {
             var slot = ReadByteArgument(args, 0);
@@ -901,8 +1262,1043 @@ internal sealed class LuaServerPlugin(
 
             return DynValue.NewBoolean(context.ClearPlayerReplicatedState(slot, normalizedStateKey));
         });
+        host["try_apply_gameplay_impulse"] = DynValue.NewCallback((_, args) =>
+        {
+            var playerId = ReadIntArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_apply_gameplay_impulse", $"player {playerId}")
+                && context.TryApplyGameplayImpulse(
+                    playerId,
+                    (float)ReadDoubleArgument(args, 1),
+                    (float)ReadDoubleArgument(args, 2)));
+        });
+        host["try_set_gameplay_ability_cooldown"] = DynValue.NewCallback((_, args) =>
+        {
+            var playerId = ReadIntArgument(args, 0);
+            if (!CanIssueServerMutation("try_set_gameplay_ability_cooldown", $"player {playerId}"))
+            {
+                return DynValue.False;
+            }
 
+            if (!TryNormalizeReplicatedStateKey("try_set_gameplay_ability_cooldown", ReadStringArgument(args, 1), out var normalizedCooldownKey))
+            {
+                return DynValue.False;
+            }
+
+            return DynValue.NewBoolean(context.TrySetGameplayAbilityCooldown(playerId, normalizedCooldownKey, ReadIntArgument(args, 2)));
+        });
+        host["try_apply_gameplay_damage"] = DynValue.NewCallback((_, args) =>
+        {
+            var targetPlayerId = ReadIntArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_apply_gameplay_damage", $"player {targetPlayerId}")
+                && context.TryApplyGameplayDamage(
+                    targetPlayerId,
+                    (float)ReadDoubleArgument(args, 1),
+                    ReadOptionalNullableIntArgument(args, 2),
+                    ReadOptionalStringArgument(args, 3)));
+        });
+        host["try_apply_gameplay_healing"] = DynValue.NewCallback((_, args) =>
+        {
+            var playerId = ReadIntArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_apply_gameplay_healing", $"player {playerId}")
+                && context.TryApplyGameplayHealing(playerId, (float)ReadDoubleArgument(args, 1)));
+        });
+        host["try_apply_gameplay_status_effect"] = DynValue.NewCallback((_, args) =>
+        {
+            var playerId = ReadIntArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_apply_gameplay_status_effect", $"player {playerId}")
+                && context.TryApplyGameplayStatusEffect(
+                    playerId,
+                    ReadStringArgument(args, 1),
+                    ReadIntArgument(args, 2),
+                    (float)ReadOptionalDoubleArgument(args, 3, 0d)));
+        });
+        host["try_spawn_gameplay_projectile"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanIssueServerMutation("try_spawn_gameplay_projectile", "gameplay projectile"))
+            {
+                return DynValue.False;
+            }
+
+            var request = ReadGameplayProjectileSpawnRequest(ReadArgument(args, 0));
+            return context.TrySpawnGameplayProjectile(request, out var projectileId)
+                ? DynValue.NewNumber(projectileId)
+                : DynValue.False;
+        });
+        host["register_gameplay_ability"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanRegisterGameplayAbility("register_gameplay_ability", "gameplay ability registration"))
+            {
+                return DynValue.False;
+            }
+
+            var registration = ReadGameplayAbilityRegistration(ReadArgument(args, 0));
+            if (context.TryRegisterGameplayAbility(registration, out var errorMessage))
+            {
+                return DynValue.True;
+            }
+
+            context.Log($"[lua-plugin] register_gameplay_ability rejected for {manifest.Id}: {errorMessage}");
+            return DynValue.False;
+        });
+        host["override_gameplay_ability"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanRegisterGameplayAbility("override_gameplay_ability", "gameplay ability override"))
+            {
+                return DynValue.False;
+            }
+
+            var itemId = ReadStringArgument(args, 0);
+            var patch = ReadGameplayAbilityPatch(ReadArgument(args, 1));
+            if (context.TryOverrideGameplayAbility(itemId, patch, out var errorMessage))
+            {
+                return DynValue.True;
+            }
+
+            context.Log($"[lua-plugin] override_gameplay_ability rejected for {manifest.Id}: {errorMessage}");
+            return DynValue.False;
+        });
+        host["register_gameplay_ability_executor"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanRegisterGameplayAbility("register_gameplay_ability_executor", "gameplay ability executor registration"))
+            {
+                return DynValue.False;
+            }
+
+            var executorId = ReadStringArgument(args, 0);
+            if (context.TryRegisterGameplayAbilityExecutor(executorId, new LuaGameplayAbilityExecutor(this), out var errorMessage))
+            {
+                return DynValue.True;
+            }
+
+            context.Log($"[lua-plugin] register_gameplay_ability_executor rejected for {manifest.Id}: {errorMessage}");
+            return DynValue.False;
+        });
+        host["register_gameplay_primary_weapon_behavior"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanRegisterGameplayAbility("register_gameplay_primary_weapon_behavior", "gameplay primary weapon behavior registration"))
+            {
+                return DynValue.False;
+            }
+
+            var (behaviorId, fireSoundName) = ReadGameplayPrimaryWeaponBehaviorRegistration(args);
+            if (context.TryRegisterGameplayPrimaryWeaponBehavior(behaviorId, new LuaGameplayPrimaryWeaponExecutor(this), fireSoundName, out var errorMessage))
+            {
+                return DynValue.True;
+            }
+
+            context.Log($"[lua-plugin] register_gameplay_primary_weapon_behavior rejected for {manifest.Id}: {errorMessage}");
+            return DynValue.False;
+        });
+        host["register_gameplay_weapon_item"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanRegisterGameplayAbility("register_gameplay_weapon_item", "gameplay weapon item registration"))
+            {
+                return DynValue.False;
+            }
+
+            var registration = ReadGameplayWeaponItemRegistration(ReadArgument(args, 0));
+            if (context.TryRegisterGameplayWeaponItem(registration, out var errorMessage))
+            {
+                return DynValue.True;
+            }
+
+            context.Log($"[lua-plugin] register_gameplay_weapon_item rejected for {manifest.Id}: {errorMessage}");
+            return DynValue.False;
+        });
+        host["register_gameplay_loadout"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanRegisterGameplayAbility("register_gameplay_loadout", "gameplay loadout registration"))
+            {
+                return DynValue.False;
+            }
+
+            var registration = ReadGameplayLoadoutRegistration(ReadArgument(args, 0));
+            if (context.TryRegisterGameplayLoadout(registration, out var errorMessage))
+            {
+                return DynValue.True;
+            }
+
+            context.Log($"[lua-plugin] register_gameplay_loadout rejected for {manifest.Id}: {errorMessage}");
+            return DynValue.False;
+        });
+        host["register_gameplay_slot_item"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanRegisterGameplayAbility("register_gameplay_slot_item", "gameplay slot item registration"))
+            {
+                return DynValue.False;
+            }
+
+            var registration = ReadGameplaySlotItemRegistration(ReadArgument(args, 0));
+            if (context.TryRegisterGameplaySlotItem(registration, out var errorMessage))
+            {
+                return DynValue.True;
+            }
+
+            context.Log($"[lua-plugin] register_gameplay_slot_item rejected for {manifest.Id}: {errorMessage}");
+            return DynValue.False;
+        });
+
+        ValidateLuaHostApiSurface(OpenGarrisonPluginType.Server, context.HostApi, host);
         return host;
+    }
+
+    private static void ValidateLuaHostApiSurface(OpenGarrisonPluginType hostType, OpenGarrisonPluginHostApi hostApi, Table host)
+    {
+        if (hostApi.HostType != hostType)
+        {
+            throw new InvalidOperationException($"Lua host API type mismatch. Expected {hostType}, got {hostApi.HostType}.");
+        }
+
+        var surface = hostApi.RuntimeSurfaces.FirstOrDefault(static surface => surface.Runtime == OpenGarrisonPluginRuntimeKind.Lua);
+        if (surface is null)
+        {
+            throw new InvalidOperationException("Lua host API surface is missing.");
+        }
+
+        var advertisedFunctions = surface.Functions.ToHashSet(StringComparer.Ordinal);
+        var actualFunctions = host.Pairs
+            .Where(static pair => pair.Key.Type == DataType.String && !IsHostMetadataKey(pair.Key.String))
+            .Select(static pair => pair.Key.String)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var missingBindings = advertisedFunctions
+            .Except(actualFunctions, StringComparer.Ordinal)
+            .OrderBy(static name => name, StringComparer.Ordinal)
+            .ToArray();
+        var undocumentedBindings = actualFunctions
+            .Except(advertisedFunctions, StringComparer.Ordinal)
+            .OrderBy(static name => name, StringComparer.Ordinal)
+            .ToArray();
+
+        if (missingBindings.Length > 0 || undocumentedBindings.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"Lua host API surface mismatch for {hostType}. Missing bindings: {FormatFunctionList(missingBindings)}. Undocumented bindings: {FormatFunctionList(undocumentedBindings)}.");
+        }
+    }
+
+    private static string FormatFunctionList(string[] functions)
+    {
+        return functions.Length == 0 ? "none" : string.Join(", ", functions);
+    }
+
+    private static bool IsHostMetadataKey(string key)
+    {
+        return key is "plugin_id" or "plugin_directory" or "config_directory" or "maps_directory";
+    }
+
+    private LuaCommandRegistration ReadLuaCommandRegistration(DynValue value)
+    {
+        if (value.Type != DataType.Table)
+        {
+            throw new InvalidOperationException("Lua command registration must be a table.");
+        }
+
+        var table = value.Table;
+        var name = ReadRequiredStringField(table, "name", "Name");
+        var description = ReadOptionalStringField(table, "description", "Description", "displayName", "DisplayName") ?? string.Empty;
+        var usage = ReadOptionalStringField(table, "usage", "Usage") ?? name;
+        var aliases = ReadStringListField(table, "aliases", "Aliases") ?? [];
+        var requiredPermissions = ReadAdminPermissions(ReadField(
+            table,
+            "permission",
+            "permissions",
+            "Permission",
+            "Permissions",
+            "requiredPermission",
+            "requiredPermissions"));
+        var handler = ReadRequiredFunctionField(table, "handler", "Handler");
+
+        return new LuaCommandRegistration(
+            new LuaServerCommand(this, name, description, usage, handler),
+            requiredPermissions,
+            aliases);
+    }
+
+    private LuaDeferredServerAction ReadDeferredServerAction(CallbackArguments args)
+    {
+        var actionValue = ReadArgument(args, 0);
+        string actionType;
+        Table? actionTable;
+        if (actionValue.Type == DataType.String)
+        {
+            actionType = actionValue.CastToString();
+            actionTable = ReadOptionalTableArgument(args, 1);
+        }
+        else if (actionValue.Type == DataType.Table)
+        {
+            actionTable = actionValue.Table;
+            actionType = ReadRequiredStringField(actionTable, "type", "Type", "action", "Action", "name", "Name");
+        }
+        else
+        {
+            throw new InvalidOperationException("Deferred server action must be a table or an action name plus a table.");
+        }
+
+        if (actionTable is null)
+        {
+            throw new InvalidOperationException($"Deferred server action \"{actionType}\" requires an argument table.");
+        }
+
+        return CreateDeferredServerAction(actionType, actionTable);
+    }
+
+    private LuaDeferredServerAction CreateDeferredServerAction(string actionType, Table table)
+    {
+        var normalizedActionType = NormalizeDeferredActionType(actionType);
+        switch (normalizedActionType)
+        {
+            case "broadcastsystemmessage":
+            {
+                var text = ReadRequiredStringField(table, "text", "Text", "message", "Message");
+                return new LuaDeferredServerAction(actionType, context =>
+                {
+                    context.AdminOperations.BroadcastSystemMessage(text);
+                    return true;
+                });
+            }
+
+            case "sendsystemmessage":
+            {
+                var slot = ReadRequiredByteField(table, "slot", "Slot");
+                var text = ReadRequiredStringField(table, "text", "Text", "message", "Message");
+                return new LuaDeferredServerAction(actionType, context =>
+                {
+                    context.AdminOperations.SendSystemMessage(slot, text);
+                    return true;
+                });
+            }
+
+            case "setplayername":
+            case "trysetplayername":
+            {
+                var slot = ReadRequiredByteField(table, "slot", "Slot");
+                var name = ReadRequiredStringField(table, "name", "Name", "newName", "NewName", "new_name");
+                return new LuaDeferredServerAction(actionType, context => context.AdminOperations.TryRenamePlayer(slot, name));
+            }
+
+            case "setteam":
+            case "trysetteam":
+            {
+                var slot = ReadRequiredByteField(table, "slot", "Slot");
+                var team = ReadRequiredEnumField<PlayerTeam>(table, "team", "Team");
+                return new LuaDeferredServerAction(actionType, context => context.AdminOperations.TrySetTeam(slot, team));
+            }
+
+            case "setclass":
+            case "trysetclass":
+            {
+                var slot = ReadRequiredByteField(table, "slot", "Slot");
+                var playerClass = ReadRequiredEnumField<PlayerClass>(table, "class", "Class", "playerClass", "PlayerClass", "player_class");
+                return new LuaDeferredServerAction(actionType, context => context.AdminOperations.TrySetClass(slot, playerClass));
+            }
+
+            case "forcekill":
+            case "tryforcekill":
+            {
+                var slot = ReadRequiredByteField(table, "slot", "Slot");
+                return new LuaDeferredServerAction(actionType, context => context.AdminOperations.TryForceKill(slot));
+            }
+
+            case "changemap":
+            case "trychangemap":
+            {
+                var levelName = ReadRequiredStringField(table, "levelName", "LevelName", "level", "Level", "map", "Map");
+                var mapAreaIndex = ReadOptionalIntField(table, 1, "mapAreaIndex", "MapAreaIndex", "areaIndex", "AreaIndex", "area", "Area");
+                var preservePlayerStats = ReadOptionalBoolField(table, false, "preservePlayerStats", "PreservePlayerStats", "preserve_stats");
+                return new LuaDeferredServerAction(actionType, context => context.AdminOperations.TryChangeMap(levelName, mapAreaIndex, preservePlayerStats));
+            }
+
+            case "setcvar":
+            {
+                var name = ReadRequiredStringField(table, "name", "Name", "cvar", "Cvar");
+                var value = ReadRequiredStringField(table, "value", "Value");
+                var allowProtectedMutation = CanAccessProtectedCvars();
+                return new LuaDeferredServerAction(actionType, context =>
+                {
+                    if (context.Cvars.TrySet(name, value, allowProtectedMutation, out var _, out var errorMessage))
+                    {
+                        return true;
+                    }
+
+                    context.Log($"[lua-plugin] deferred action \"{actionType}\" rejected for {manifest.Id} cvar {name}: {errorMessage}");
+                    return false;
+                });
+            }
+
+            default:
+                throw new InvalidOperationException($"Unsupported deferred server action \"{actionType}\".");
+        }
+    }
+
+    private static string NormalizeDeferredActionType(string value)
+    {
+        return new string(value
+            .Where(static ch => ch != '_' && ch != '-' && !char.IsWhiteSpace(ch))
+            .Select(char.ToLowerInvariant)
+            .ToArray());
+    }
+
+    private IReadOnlyList<string> ExecuteLuaCommandHandler(
+        DynValue handler,
+        OpenGarrisonServerCommandContext commandContext,
+        string arguments)
+    {
+        if (_script is null)
+        {
+            return [$"[server] command failed: Lua plugin {manifest.Id} is not initialized."];
+        }
+
+        var previousIdentity = _activeCommandIdentity;
+        _activeCommandIdentity = commandContext.Identity;
+        try
+        {
+            return ExecuteInPhase(ServerLuaCallbackPhase.CommandInteraction, () =>
+            {
+                var commandContextTable = CreateCommandExecutionContext(commandContext, arguments);
+                var result = InvokeCallbackWithLimits(handler, [commandContextTable, DynValue.NewString(arguments)]);
+                return ReadLuaCommandResponseLines(result);
+            });
+        }
+        finally
+        {
+            _activeCommandIdentity = previousIdentity;
+        }
+    }
+
+    private DynValue CreateCommandExecutionContext(OpenGarrisonServerCommandContext context, string arguments)
+    {
+        if (_script is null)
+        {
+            return DynValue.Nil;
+        }
+
+        var table = new Table(_script)
+        {
+            ["identity"] = ToDynValue(context.Identity),
+            ["is_authenticated_admin"] = context.Identity.IsAuthenticated,
+            ["source"] = context.Source.ToString(),
+            ["arguments"] = arguments,
+            ["has_permission"] = DynValue.NewCallback((_, args) =>
+                DynValue.NewBoolean(context.HasPermission(ReadAdminPermissions(ReadArgument(args, 0))))),
+            ["require_permission"] = DynValue.NewCallback((_, args) =>
+            {
+                var requiredPermissions = ReadAdminPermissions(ReadArgument(args, 0));
+                if (!context.HasPermission(requiredPermissions))
+                {
+                    throw new InvalidOperationException($"Command requires {requiredPermissions}.");
+                }
+
+                return DynValue.True;
+            }),
+        };
+
+        return DynValue.NewTable(table);
+    }
+
+    private static IReadOnlyList<string> ReadLuaCommandResponseLines(DynValue result)
+    {
+        if (result.IsNil() || result.Type == DataType.Void)
+        {
+            return [];
+        }
+
+        if (result.Type == DataType.Table)
+        {
+            return result.Table.Pairs
+                .Where(static pair => pair.Key.Type == DataType.Number)
+                .OrderBy(static pair => pair.Key.Number)
+                .Select(static pair => pair.Value.CastToString())
+                .Where(static line => !string.IsNullOrWhiteSpace(line))
+                .ToArray();
+        }
+
+        var text = result.CastToString();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return [];
+        }
+
+        return text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+
+    private static DynValue ReadRequiredFunctionField(Table table, params string[] names)
+    {
+        var value = ReadField(table, names);
+        if (value.Type != DataType.Function)
+        {
+            throw new InvalidOperationException($"Field \"{names[0]}\" must be a function.");
+        }
+
+        return value;
+    }
+
+    private static OpenGarrisonServerAdminPermissions ReadAdminPermissions(DynValue value)
+    {
+        if (value.IsNil())
+        {
+            return OpenGarrisonServerAdminPermissions.None;
+        }
+
+        if (value.Type == DataType.Number)
+        {
+            return (OpenGarrisonServerAdminPermissions)(int)value.Number;
+        }
+
+        if (value.Type == DataType.String)
+        {
+            return ParseAdminPermissions(value.String);
+        }
+
+        if (value.Type != DataType.Table)
+        {
+            throw new InvalidOperationException("Permission must be a string, number, or table.");
+        }
+
+        var permissions = OpenGarrisonServerAdminPermissions.None;
+        foreach (var pair in value.Table.Pairs)
+        {
+            if (pair.Key.Type == DataType.Number)
+            {
+                permissions |= ReadAdminPermissions(pair.Value);
+                continue;
+            }
+
+            if (pair.Key.Type == DataType.String && ReadOptionalBoolValue(pair.Value, defaultValue: true))
+            {
+                permissions |= ParseAdminPermissions(pair.Key.String);
+            }
+        }
+
+        return permissions;
+    }
+
+    private static OpenGarrisonServerAdminPermissions ParseAdminPermissions(string permissionText)
+    {
+        if (string.IsNullOrWhiteSpace(permissionText))
+        {
+            return OpenGarrisonServerAdminPermissions.None;
+        }
+
+        var permissions = OpenGarrisonServerAdminPermissions.None;
+        foreach (var permissionPart in permissionText.Split([',', '|', ';', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!TryParseAdminPermission(permissionPart, out var parsedPermission))
+            {
+                throw new InvalidOperationException($"Unknown server permission \"{permissionPart}\".");
+            }
+
+            permissions |= parsedPermission;
+        }
+
+        return permissions;
+    }
+
+    private static bool TryParseAdminPermission(string permissionText, out OpenGarrisonServerAdminPermissions permission)
+    {
+        var normalizedPermissionText = NormalizePermissionName(permissionText);
+        foreach (var permissionName in Enum.GetNames<OpenGarrisonServerAdminPermissions>())
+        {
+            if (string.Equals(NormalizePermissionName(permissionName), normalizedPermissionText, StringComparison.OrdinalIgnoreCase)
+                && Enum.TryParse(permissionName, out permission))
+            {
+                return true;
+            }
+        }
+
+        permission = OpenGarrisonServerAdminPermissions.None;
+        return false;
+    }
+
+    private static string NormalizePermissionName(string permissionText)
+    {
+        return new string(permissionText
+            .Where(static ch => ch != '_' && ch != '-' && !char.IsWhiteSpace(ch))
+            .ToArray());
+    }
+
+    private static bool ReadOptionalBoolValue(DynValue value, bool defaultValue)
+    {
+        if (value.IsNil())
+        {
+            return defaultValue;
+        }
+
+        return value.Type switch
+        {
+            DataType.Boolean => value.Boolean,
+            DataType.Number => Math.Abs(value.Number) > double.Epsilon,
+            _ => bool.Parse(value.CastToString()),
+        };
+    }
+
+    private static (string BehaviorId, string? FireSoundName) ReadGameplayPrimaryWeaponBehaviorRegistration(CallbackArguments args)
+    {
+        var value = ReadArgument(args, 0);
+        if (value.Type == DataType.Table)
+        {
+            var table = value.Table;
+            return (
+                ReadRequiredStringField(table, "behaviorId", "BehaviorId", "behavior_id"),
+                ReadOptionalStringField(table, "fireSoundName", "FireSoundName", "fire_sound_name"));
+        }
+
+        return (ReadStringArgument(args, 0), ReadOptionalStringArgument(args, 1));
+    }
+
+    private static GameplayWeaponItemRegistration ReadGameplayWeaponItemRegistration(DynValue value)
+    {
+        if (value.Type != DataType.Table)
+        {
+            throw new InvalidOperationException("Gameplay weapon item registration must be a Lua table.");
+        }
+
+        var table = value.Table;
+        return new GameplayWeaponItemRegistration(
+            ReadRequiredStringField(table, "itemId", "ItemId", "item_id"),
+            ReadRequiredStringField(table, "displayName", "DisplayName", "display_name"),
+            ReadGameplayEquipmentSlotField(table),
+            ReadRequiredStringField(table, "behaviorId", "BehaviorId", "behavior_id"),
+            ReadOptionalGameplayItemAmmoDefinition(table) ?? new GameplayItemAmmoDefinition(),
+            ReadOptionalStringField(table, "modPackId", "ModPackId", "mod_pack_id"),
+            ReadOptionalGameplayItemPresentationDefinition(table),
+            ReadOptionalGameplayItemCombatDefinition(table),
+            ReadOptionalGameplayItemOwnershipDefinition(table),
+            ReadOptionalGameplayItemDescriptionDefinition(table));
+    }
+
+    private static GameplayAbilityRegistration ReadGameplayAbilityRegistration(DynValue value)
+    {
+        if (value.Type != DataType.Table)
+        {
+            throw new InvalidOperationException("Gameplay ability registration must be a Lua table.");
+        }
+
+        var table = value.Table;
+        var abilityTable = ReadOptionalTableField(table, "ability", "Ability") ?? table;
+        var behaviorId = ReadRequiredStringField(table, "behaviorId", "BehaviorId", "behavior_id");
+        return new GameplayAbilityRegistration(
+            ReadRequiredStringField(table, "itemId", "ItemId", "item_id"),
+            ReadRequiredStringField(table, "displayName", "DisplayName", "display_name"),
+            ReadGameplayEquipmentSlotField(table),
+            behaviorId,
+            new GameplayAbilityDefinition(
+                Category: ReadRequiredStringField(abilityTable, "category", "Category"),
+                Activation: ReadRequiredStringField(abilityTable, "activation", "Activation"),
+                ExecutorId: ReadOptionalStringField(abilityTable, "executorId", "ExecutorId", "executor_id") ?? behaviorId,
+                Tags: ReadStringListField(abilityTable, "tags", "Tags") ?? [],
+                Parameters: ReadJsonElementDictionaryField(abilityTable, "parameters", "Parameters") ?? new Dictionary<string, JsonElement>(StringComparer.Ordinal)),
+            ReadOptionalStringField(table, "modPackId", "ModPackId", "mod_pack_id"),
+            ReadOptionalGameplayItemPresentationDefinition(table));
+    }
+
+    private static GameplayAbilityPatch ReadGameplayAbilityPatch(DynValue value)
+    {
+        if (value.Type != DataType.Table)
+        {
+            throw new InvalidOperationException("Gameplay ability patch must be a Lua table.");
+        }
+
+        var table = value.Table;
+        return new GameplayAbilityPatch(
+            ReadOptionalStringField(table, "category", "Category"),
+            ReadOptionalStringField(table, "activation", "Activation"),
+            ReadOptionalStringField(table, "executorId", "ExecutorId", "executor_id"),
+            ReadStringListField(table, "tags", "Tags"),
+            ReadJsonElementDictionaryField(table, "parameters", "Parameters"));
+    }
+
+    private static GameplayLoadoutRegistration ReadGameplayLoadoutRegistration(DynValue value)
+    {
+        if (value.Type != DataType.Table)
+        {
+            throw new InvalidOperationException("Gameplay loadout registration must be a Lua table.");
+        }
+
+        var table = value.Table;
+        return new GameplayLoadoutRegistration(
+            ReadRequiredStringField(table, "classId", "ClassId", "class_id"),
+            ReadRequiredStringField(table, "loadoutId", "LoadoutId", "loadout_id"),
+            ReadRequiredStringField(table, "displayName", "DisplayName", "display_name"),
+            ReadRequiredStringField(table, "primaryItemId", "PrimaryItemId", "primary_item_id"),
+            ReadOptionalStringField(table, "secondaryItemId", "SecondaryItemId", "secondary_item_id"),
+            ReadOptionalStringField(table, "utilityItemId", "UtilityItemId", "utility_item_id"),
+            ReadStringListField(table, "abilityItemIds", "AbilityItemIds", "ability_item_ids"),
+            ReadOptionalStringField(table, "modPackId", "ModPackId", "mod_pack_id"));
+    }
+
+    private static GameplaySlotItemRegistration ReadGameplaySlotItemRegistration(DynValue value)
+    {
+        if (value.Type != DataType.Table)
+        {
+            throw new InvalidOperationException("Gameplay slot item registration must be a Lua table.");
+        }
+
+        var table = value.Table;
+        return new GameplaySlotItemRegistration(
+            ReadRequiredStringField(table, "classId", "ClassId", "class_id"),
+            ReadGameplayEquipmentSlotField(table),
+            ReadRequiredStringField(table, "itemId", "ItemId", "item_id"),
+            ReadOptionalStringField(table, "loadoutId", "LoadoutId", "loadout_id"),
+            ReadOptionalStringField(table, "displayName", "DisplayName", "display_name"),
+            ReadOptionalStringField(table, "baseLoadoutId", "BaseLoadoutId", "base_loadout_id"),
+            ReadOptionalStringField(table, "modPackId", "ModPackId", "mod_pack_id"));
+    }
+
+    private static GameplayProjectileSpawnRequest ReadGameplayProjectileSpawnRequest(DynValue value)
+    {
+        if (value.Type != DataType.Table)
+        {
+            throw new InvalidOperationException("Gameplay projectile spawn request must be a Lua table.");
+        }
+
+        var table = value.Table;
+        return new GameplayProjectileSpawnRequest(
+            ReadRequiredIntField(table, "ownerPlayerId", "OwnerPlayerId", "owner_player_id"),
+            ReadRequiredStringField(table, "kind", "Kind"),
+            ReadOptionalFloatField(table, 0f, "x", "X"),
+            ReadOptionalFloatField(table, 0f, "y", "Y"),
+            ReadOptionalFloatField(table, 0f, "velocityX", "VelocityX", "velocity_x"),
+            ReadOptionalFloatField(table, 0f, "velocityY", "VelocityY", "velocity_y"),
+            ReadOptionalFloatField(table, 0f, "speed", "Speed"),
+            ReadOptionalFloatField(table, 0f, "directionRadians", "DirectionRadians", "direction_radians"),
+            ReadOptionalFloatField(table, 0f, "damage", "Damage"),
+            ReadOptionalStringField(table, "killFeedWeaponSpriteName", "KillFeedWeaponSpriteName", "kill_feed_weapon_sprite_name"));
+    }
+
+    private static GameplayItemPresentationDefinition? ReadOptionalGameplayItemPresentationDefinition(Table table)
+    {
+        var presentationTable = ReadOptionalTableField(table, "presentation", "Presentation");
+        if (presentationTable is null)
+        {
+            return null;
+        }
+
+        return new GameplayItemPresentationDefinition(
+            WorldSpriteName: ReadOptionalStringField(presentationTable, "worldSpriteName", "WorldSpriteName", "world_sprite_name"),
+            RecoilSpriteName: ReadOptionalStringField(presentationTable, "recoilSpriteName", "RecoilSpriteName", "recoil_sprite_name"),
+            ReloadSpriteName: ReadOptionalStringField(presentationTable, "reloadSpriteName", "ReloadSpriteName", "reload_sprite_name"),
+            RecoilCarrierSpriteName: ReadOptionalStringField(presentationTable, "recoilCarrierSpriteName", "RecoilCarrierSpriteName", "recoil_carrier_sprite_name"),
+            RecoilOverlaySpriteName: ReadOptionalStringField(presentationTable, "recoilOverlaySpriteName", "RecoilOverlaySpriteName", "recoil_overlay_sprite_name"),
+            RecoilOverlayOffsetX: ReadOptionalFloatField(presentationTable, 0f, "recoilOverlayOffsetX", "RecoilOverlayOffsetX", "recoil_overlay_offset_x"),
+            RecoilOverlayOffsetY: ReadOptionalFloatField(presentationTable, 0f, "recoilOverlayOffsetY", "RecoilOverlayOffsetY", "recoil_overlay_offset_y"),
+            RecoilOverlayRotationDegrees: ReadOptionalFloatField(presentationTable, 0f, "recoilOverlayRotationDegrees", "RecoilOverlayRotationDegrees", "recoil_overlay_rotation_degrees"),
+            ReloadCarrierSpriteName: ReadOptionalStringField(presentationTable, "reloadCarrierSpriteName", "ReloadCarrierSpriteName", "reload_carrier_sprite_name"),
+            ReloadOverlaySpriteName: ReadOptionalStringField(presentationTable, "reloadOverlaySpriteName", "ReloadOverlaySpriteName", "reload_overlay_sprite_name"),
+            ReloadOverlayOffsetX: ReadOptionalFloatField(presentationTable, 0f, "reloadOverlayOffsetX", "ReloadOverlayOffsetX", "reload_overlay_offset_x"),
+            ReloadOverlayOffsetY: ReadOptionalFloatField(presentationTable, 0f, "reloadOverlayOffsetY", "ReloadOverlayOffsetY", "reload_overlay_offset_y"),
+            ReloadOverlayRotationDegrees: ReadOptionalFloatField(presentationTable, 0f, "reloadOverlayRotationDegrees", "ReloadOverlayRotationDegrees", "reload_overlay_rotation_degrees"),
+            HudSpriteName: ReadOptionalStringField(presentationTable, "hudSpriteName", "HudSpriteName", "hud_sprite_name"),
+            WeaponOffsetX: ReadOptionalFloatField(presentationTable, 0f, "weaponOffsetX", "WeaponOffsetX", "weapon_offset_x"),
+            WeaponOffsetY: ReadOptionalFloatField(presentationTable, 0f, "weaponOffsetY", "WeaponOffsetY", "weapon_offset_y"),
+            RecoilDurationSourceTicks: ReadOptionalIntField(presentationTable, 0, "recoilDurationSourceTicks", "RecoilDurationSourceTicks", "recoil_duration_source_ticks"),
+            ReloadDurationSourceTicks: ReadOptionalIntField(presentationTable, 0, "reloadDurationSourceTicks", "ReloadDurationSourceTicks", "reload_duration_source_ticks"),
+            ScopedRecoilDurationSourceTicks: ReadOptionalIntField(presentationTable, 0, "scopedRecoilDurationSourceTicks", "ScopedRecoilDurationSourceTicks", "scoped_recoil_duration_source_ticks"),
+            LoopRecoilWhileActive: ReadOptionalBoolField(presentationTable, false, "loopRecoilWhileActive", "LoopRecoilWhileActive", "loop_recoil_while_active"),
+            BlueTeamHudFrameOffset: ReadOptionalIntField(presentationTable, 1, "blueTeamHudFrameOffset", "BlueTeamHudFrameOffset", "blue_team_hud_frame_offset"),
+            UseAmmoCountForHudFrame: ReadOptionalBoolField(presentationTable, false, "useAmmoCountForHudFrame", "UseAmmoCountForHudFrame", "use_ammo_count_for_hud_frame"),
+            BlueTeamAmmoHudFrameOffset: ReadOptionalIntField(presentationTable, 0, "blueTeamAmmoHudFrameOffset", "BlueTeamAmmoHudFrameOffset", "blue_team_ammo_hud_frame_offset"),
+            Hud: ReadOptionalGameplayItemHudPresentationDefinition(presentationTable));
+    }
+
+    private static GameplayItemAmmoDefinition? ReadOptionalGameplayItemAmmoDefinition(Table table)
+    {
+        var ammoTable = ReadOptionalTableField(table, "ammo", "Ammo");
+        if (ammoTable is null)
+        {
+            return null;
+        }
+
+        return new GameplayItemAmmoDefinition(
+            MaxAmmo: ReadOptionalIntField(ammoTable, 0, "maxAmmo", "MaxAmmo", "max_ammo"),
+            AmmoPerUse: ReadOptionalIntField(ammoTable, 0, "ammoPerUse", "AmmoPerUse", "ammo_per_use", "ammoPerShot", "AmmoPerShot", "ammo_per_shot"),
+            ProjectilesPerUse: ReadOptionalIntField(ammoTable, 0, "projectilesPerUse", "ProjectilesPerUse", "projectiles_per_use", "projectilesPerShot", "ProjectilesPerShot", "projectiles_per_shot"),
+            UseDelaySourceTicks: ReadOptionalIntField(ammoTable, 0, "useDelaySourceTicks", "UseDelaySourceTicks", "use_delay_source_ticks", "reloadDelayTicks", "ReloadDelayTicks", "reload_delay_ticks"),
+            ReloadSourceTicks: ReadOptionalIntField(ammoTable, 0, "reloadSourceTicks", "ReloadSourceTicks", "reload_source_ticks", "ammoReloadTicks", "AmmoReloadTicks", "ammo_reload_ticks"),
+            SpreadDegrees: ReadOptionalFloatField(ammoTable, 0f, "spreadDegrees", "SpreadDegrees", "spread_degrees"),
+            MinProjectileSpeed: ReadOptionalFloatField(ammoTable, 0f, "minProjectileSpeed", "MinProjectileSpeed", "min_projectile_speed", "minShotSpeed", "MinShotSpeed", "min_shot_speed"),
+            AdditionalProjectileSpeed: ReadOptionalFloatField(ammoTable, 0f, "additionalProjectileSpeed", "AdditionalProjectileSpeed", "additional_projectile_speed", "additionalRandomShotSpeed", "AdditionalRandomShotSpeed", "additional_random_shot_speed"),
+            AutoReloads: ReadOptionalBoolField(ammoTable, true, "autoReloads", "AutoReloads", "auto_reloads"),
+            AmmoRegenPerTick: ReadOptionalIntField(ammoTable, 0, "ammoRegenPerTick", "AmmoRegenPerTick", "ammo_regen_per_tick"),
+            RefillsAllAtOnce: ReadOptionalBoolField(ammoTable, false, "refillsAllAtOnce", "RefillsAllAtOnce", "refills_all_at_once"));
+    }
+
+    private static GameplayItemCombatDefinition? ReadOptionalGameplayItemCombatDefinition(Table table)
+    {
+        var combatTable = ReadOptionalTableField(table, "combat", "Combat");
+        if (combatTable is null)
+        {
+            return null;
+        }
+
+        return new GameplayItemCombatDefinition(
+            FireSoundName: ReadOptionalStringField(combatTable, "fireSoundName", "FireSoundName", "fire_sound_name"),
+            DirectHitDamage: ReadOptionalFloatField(combatTable, null, "directHitDamage", "DirectHitDamage", "direct_hit_damage"),
+            DamagePerTick: ReadOptionalFloatField(combatTable, null, "damagePerTick", "DamagePerTick", "damage_per_tick"),
+            DirectHitHealAmount: ReadOptionalFloatField(combatTable, null, "directHitHealAmount", "DirectHitHealAmount", "direct_hit_heal_amount"),
+            ActiveProjectileLimit: ReadOptionalIntField(combatTable, null, "activeProjectileLimit", "ActiveProjectileLimit", "active_projectile_limit"),
+            Rocket: ReadOptionalGameplayRocketCombatDefinition(combatTable));
+    }
+
+    private static GameplayRocketCombatDefinition? ReadOptionalGameplayRocketCombatDefinition(Table combatTable)
+    {
+        var rocketTable = ReadOptionalTableField(combatTable, "rocket", "Rocket");
+        if (rocketTable is null)
+        {
+            return null;
+        }
+
+        return new GameplayRocketCombatDefinition(
+            DirectHitDamage: ReadOptionalIntField(rocketTable, 25, "directHitDamage", "DirectHitDamage", "direct_hit_damage"),
+            ExplosionDamage: ReadOptionalFloatField(rocketTable, 30f, "explosionDamage", "ExplosionDamage", "explosion_damage"),
+            BlastRadius: ReadOptionalFloatField(rocketTable, 65f, "blastRadius", "BlastRadius", "blast_radius"),
+            SplashThresholdFactor: ReadOptionalFloatField(rocketTable, 0.25f, "splashThresholdFactor", "SplashThresholdFactor", "splash_threshold_factor"));
+    }
+
+    private static GameplayItemOwnershipDefinition? ReadOptionalGameplayItemOwnershipDefinition(Table table)
+    {
+        var ownershipTable = ReadOptionalTableField(table, "ownership", "Ownership");
+        if (ownershipTable is null)
+        {
+            return null;
+        }
+
+        return new GameplayItemOwnershipDefinition(
+            TrackOwnership: ReadOptionalBoolField(ownershipTable, false, "trackOwnership", "TrackOwnership", "track_ownership"),
+            DefaultGranted: ReadOptionalBoolField(ownershipTable, true, "defaultGranted", "DefaultGranted", "default_granted"),
+            GrantOnAcquire: ReadOptionalBoolField(ownershipTable, false, "grantOnAcquire", "GrantOnAcquire", "grant_on_acquire"),
+            GrantKey: ReadOptionalStringField(ownershipTable, "grantKey", "GrantKey", "grant_key"));
+    }
+
+    private static GameplayItemDescriptionDefinition? ReadOptionalGameplayItemDescriptionDefinition(Table table)
+    {
+        var descriptionTable = ReadOptionalTableField(table, "description", "Description");
+        if (descriptionTable is null)
+        {
+            return null;
+        }
+
+        return new GameplayItemDescriptionDefinition(
+            Summary: ReadOptionalStringField(descriptionTable, "summary", "Summary"),
+            PositiveAttributes: ReadStringListField(descriptionTable, "positiveAttributes", "PositiveAttributes", "positive_attributes"),
+            NegativeAttributes: ReadStringListField(descriptionTable, "negativeAttributes", "NegativeAttributes", "negative_attributes"),
+            Notes: ReadStringListField(descriptionTable, "notes", "Notes"));
+    }
+
+    private static GameplayItemHudPresentationDefinition? ReadOptionalGameplayItemHudPresentationDefinition(Table presentationTable)
+    {
+        var hudTable = ReadOptionalTableField(presentationTable, "hud", "Hud");
+        if (hudTable is null)
+        {
+            return null;
+        }
+
+        return new GameplayItemHudPresentationDefinition(
+            DisplayKind: ReadOptionalStringField(hudTable, "displayKind", "DisplayKind", "display_kind") ?? string.Empty,
+            StackGroup: ReadOptionalStringField(hudTable, "stackGroup", "StackGroup", "stack_group") ?? string.Empty,
+            Order: ReadOptionalIntField(hudTable, 0, "order", "Order"),
+            StateProvider: ReadOptionalStringField(hudTable, "stateProvider", "StateProvider", "state_provider") ?? string.Empty,
+            HideWhenUnavailable: ReadOptionalBoolField(hudTable, false, "hideWhenUnavailable", "HideWhenUnavailable", "hide_when_unavailable"),
+            ShowWhenEquippedOnly: ReadOptionalBoolField(hudTable, false, "showWhenEquippedOnly", "ShowWhenEquippedOnly", "show_when_equipped_only"),
+            StateOwner: ReadOptionalStringField(hudTable, "stateOwner", "StateOwner", "state_owner") ?? string.Empty,
+            CooldownKey: ReadOptionalStringField(hudTable, "cooldownKey", "CooldownKey", "cooldown_key") ?? string.Empty,
+            MaxCooldown: ReadOptionalIntField(hudTable, 0, "maxCooldown", "MaxCooldown", "max_cooldown"),
+            ActiveKey: ReadOptionalStringField(hudTable, "activeKey", "ActiveKey", "active_key") ?? string.Empty,
+            DisabledKey: ReadOptionalStringField(hudTable, "disabledKey", "DisabledKey", "disabled_key") ?? string.Empty);
+    }
+
+    private static GameplayEquipmentSlot ReadGameplayEquipmentSlotField(Table table)
+    {
+        var value = ReadField(table, "slot", "Slot");
+        if (value.Type == DataType.Number)
+        {
+            var slot = (GameplayEquipmentSlot)(int)value.Number;
+            if (Enum.IsDefined(slot))
+            {
+                return slot;
+            }
+        }
+
+        if (Enum.TryParse<GameplayEquipmentSlot>(value.CastToString(), ignoreCase: true, out var parsedSlot))
+        {
+            return parsedSlot;
+        }
+
+        throw new InvalidOperationException($"Unknown gameplay equipment slot \"{value}\".");
+    }
+
+    private static string ReadRequiredStringField(Table table, params string[] names)
+    {
+        var value = ReadField(table, names);
+        if (value.IsNil())
+        {
+            throw new InvalidOperationException($"Missing required field \"{names[0]}\".");
+        }
+
+        return value.CastToString();
+    }
+
+    private static int ReadRequiredIntField(Table table, params string[] names)
+    {
+        var value = ReadField(table, names);
+        if (value.IsNil())
+        {
+            throw new InvalidOperationException($"Missing required field \"{names[0]}\".");
+        }
+
+        return (int)value.Number;
+    }
+
+    private static byte ReadRequiredByteField(Table table, params string[] names)
+    {
+        var value = ReadField(table, names);
+        if (value.IsNil())
+        {
+            throw new InvalidOperationException($"Missing required field \"{names[0]}\".");
+        }
+
+        return ReadByteValue(value);
+    }
+
+    private static TEnum ReadRequiredEnumField<TEnum>(Table table, params string[] names) where TEnum : struct, Enum
+    {
+        var value = ReadField(table, names);
+        if (value.IsNil())
+        {
+            throw new InvalidOperationException($"Missing required field \"{names[0]}\".");
+        }
+
+        if (TryParseEnumValue(value, out TEnum enumValue))
+        {
+            return enumValue;
+        }
+
+        throw new InvalidOperationException($"Invalid {typeof(TEnum).Name} value \"{value.CastToString()}\".");
+    }
+
+    private static int ReadOptionalIntField(Table table, int defaultValue, params string[] names)
+    {
+        var value = ReadField(table, names);
+        return value.IsNil() ? defaultValue : (int)value.Number;
+    }
+
+    private static int? ReadOptionalIntField(Table table, int? defaultValue, params string[] names)
+    {
+        var value = ReadField(table, names);
+        return value.IsNil() ? defaultValue : (int)value.Number;
+    }
+
+    private static float ReadOptionalFloatField(Table table, float defaultValue, params string[] names)
+    {
+        var value = ReadField(table, names);
+        return value.IsNil() ? defaultValue : (float)value.Number;
+    }
+
+    private static float? ReadOptionalFloatField(Table table, float? defaultValue, params string[] names)
+    {
+        var value = ReadField(table, names);
+        return value.IsNil() ? defaultValue : (float)value.Number;
+    }
+
+    private static string? ReadOptionalStringField(Table table, params string[] names)
+    {
+        var value = ReadField(table, names);
+        if (value.IsNil())
+        {
+            return null;
+        }
+
+        var text = value.CastToString();
+        return string.IsNullOrWhiteSpace(text) ? null : text;
+    }
+
+    private static Table? ReadOptionalTableField(Table table, params string[] names)
+    {
+        var value = ReadField(table, names);
+        return value.Type == DataType.Table ? value.Table : null;
+    }
+
+    private static TEnum? ReadOptionalEnumField<TEnum>(Table table, params string[] names) where TEnum : struct, Enum
+    {
+        var value = ReadField(table, names);
+        return TryParseEnumValue(value, out TEnum parsed) ? parsed : null;
+    }
+
+    private static DynValue ReadField(Table table, params string[] names)
+    {
+        for (var index = 0; index < names.Length; index += 1)
+        {
+            var value = table.Get(names[index]);
+            if (!value.IsNil())
+            {
+                return value;
+            }
+        }
+
+        return DynValue.Nil;
+    }
+
+    private static IReadOnlyList<string>? ReadStringListField(Table table, params string[] names)
+    {
+        var value = ReadField(table, names);
+        if (value.IsNil())
+        {
+            return null;
+        }
+
+        if (value.Type == DataType.String)
+        {
+            return value.String
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(static tag => tag.Length > 0)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+        }
+
+        if (value.Type != DataType.Table)
+        {
+            throw new InvalidOperationException($"Field \"{names[0]}\" must be a string or table.");
+        }
+
+        return value.Table.Pairs
+            .Where(static pair => pair.Key.Type == DataType.Number)
+            .OrderBy(static pair => pair.Key.Number)
+            .Select(static pair => pair.Value.CastToString())
+            .Where(static tag => !string.IsNullOrWhiteSpace(tag))
+            .Select(static tag => tag.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static IReadOnlyDictionary<string, JsonElement>? ReadJsonElementDictionaryField(Table table, params string[] names)
+    {
+        var value = ReadField(table, names);
+        if (value.IsNil())
+        {
+            return null;
+        }
+
+        if (value.Type != DataType.Table)
+        {
+            throw new InvalidOperationException($"Field \"{names[0]}\" must be a table.");
+        }
+
+        var result = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        foreach (var pair in value.Table.Pairs)
+        {
+            if (pair.Key.Type != DataType.String)
+            {
+                continue;
+            }
+
+            result[pair.Key.String] = JsonSerializer.SerializeToElement(DynValueToPlainObject(pair.Value), JsonOptions);
+        }
+
+        return result;
     }
 
     private DynValue ScheduleLuaCallback(
@@ -1157,14 +2553,10 @@ internal sealed class LuaServerPlugin(
     private static string ResolveConfigPath(string configDirectory, string relativePath)
     {
         var normalizedRelativePath = string.IsNullOrWhiteSpace(relativePath) ? "config.json" : relativePath;
-        var fullConfigDirectory = Path.GetFullPath(configDirectory);
-        var combinedPath = Path.GetFullPath(Path.Combine(fullConfigDirectory, normalizedRelativePath));
-        if (!combinedPath.StartsWith(fullConfigDirectory, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException("Plugin config path escapes config directory.");
-        }
-
-        return combinedPath;
+        return OpenGarrisonPluginPathContainment.ResolveContainedPath(
+            configDirectory,
+            normalizedRelativePath,
+            "Plugin config path escapes config directory.");
     }
 
     private DynValue CreateCommandInteractionContext(OpenGarrisonServerChatMessageContext context)
@@ -1256,6 +2648,81 @@ internal sealed class LuaServerPlugin(
             functionName,
             target,
             "Use scheduler control during initialize, lifecycle, update, event, or command callbacks.");
+    }
+
+    private bool CanEnqueueServerAction(string functionName, string target)
+    {
+        if (IsDeferredServerActionPhaseAllowed(_currentCallbackPhase))
+        {
+            return true;
+        }
+
+        return RejectHostOperation(
+            functionName,
+            target,
+            "Enqueue deferred server actions during initialize, lifecycle, update, event, or command callbacks.");
+    }
+
+    private bool EnqueueDeferredServerAction(LuaDeferredServerAction action)
+    {
+        if (_deferredServerActions.Count >= MaxDeferredServerActions)
+        {
+            _context?.Log($"[lua-plugin] enqueue_action rejected for {manifest.Id}: deferred server action queue is full.");
+            return false;
+        }
+
+        _deferredServerActions.Enqueue(action);
+        return true;
+    }
+
+    private void DrainDeferredServerActions()
+    {
+        if (_context is null)
+        {
+            _deferredServerActions.Clear();
+            return;
+        }
+
+        while (_deferredServerActions.TryDequeue(out var action))
+        {
+            try
+            {
+                if (!action.Execute(_context))
+                {
+                    _context.Log($"[lua-plugin] deferred action \"{action.ActionType}\" returned false for {manifest.Id}.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _context.Log($"[lua-plugin] deferred action \"{action.ActionType}\" failed for {manifest.Id}: {ex.Message}");
+            }
+        }
+    }
+
+    private bool CanRegisterGameplayAbility(string functionName, string target)
+    {
+        if (_currentCallbackPhase == ServerLuaCallbackPhase.Initialize)
+        {
+            return true;
+        }
+
+        return RejectHostOperation(
+            functionName,
+            target,
+            "Register or override gameplay abilities during initialize before the ability registry is sealed.");
+    }
+
+    private bool CanRegisterLuaCommand(string functionName, string target)
+    {
+        if (_currentCallbackPhase == ServerLuaCallbackPhase.Initialize)
+        {
+            return true;
+        }
+
+        return RejectHostOperation(
+            functionName,
+            target,
+            "Register Lua commands during initialize before the command registry is exposed to players.");
     }
 
     private bool RejectHostOperation(string functionName, string target, string guidance)
@@ -1363,6 +2830,8 @@ internal sealed class LuaServerPlugin(
             // Admin/chat command callbacks are human-driven and may need to emit
             // multiple status lines or perform bounded catalog/search work.
             ServerLuaCallbackPhase.CommandInteraction => TimeSpan.FromSeconds(5),
+            ServerLuaCallbackPhase.AbilityExecution => TimeSpan.FromMilliseconds(5),
+            ServerLuaCallbackPhase.PrimaryWeaponExecution => TimeSpan.FromMilliseconds(5),
             ServerLuaCallbackPhase.Event => TimeSpan.FromMilliseconds(10),
             _ => TimeSpan.FromMilliseconds(10),
         };
@@ -1389,6 +2858,8 @@ internal sealed class LuaServerPlugin(
             ServerLuaCallbackPhase.Update => "an update callback",
             ServerLuaCallbackPhase.Query => "a query callback",
             ServerLuaCallbackPhase.CommandInteraction => "a command callback",
+            ServerLuaCallbackPhase.AbilityExecution => "an ability execution callback",
+            ServerLuaCallbackPhase.PrimaryWeaponExecution => "a primary weapon execution callback",
             ServerLuaCallbackPhase.Event => "a server event callback",
             _ => "an unknown callback",
         };
@@ -1399,6 +2870,8 @@ internal sealed class LuaServerPlugin(
         return phase is ServerLuaCallbackPhase.Initialize
             or ServerLuaCallbackPhase.Lifecycle
             or ServerLuaCallbackPhase.Update
+            or ServerLuaCallbackPhase.AbilityExecution
+            or ServerLuaCallbackPhase.PrimaryWeaponExecution
             or ServerLuaCallbackPhase.Event
             or ServerLuaCallbackPhase.CommandInteraction;
     }
@@ -1407,6 +2880,8 @@ internal sealed class LuaServerPlugin(
     {
         return phase is ServerLuaCallbackPhase.Lifecycle
             or ServerLuaCallbackPhase.Update
+            or ServerLuaCallbackPhase.AbilityExecution
+            or ServerLuaCallbackPhase.PrimaryWeaponExecution
             or ServerLuaCallbackPhase.Event
             or ServerLuaCallbackPhase.CommandInteraction;
     }
@@ -1416,6 +2891,19 @@ internal sealed class LuaServerPlugin(
         return phase is ServerLuaCallbackPhase.Initialize
             or ServerLuaCallbackPhase.Lifecycle
             or ServerLuaCallbackPhase.Update
+            or ServerLuaCallbackPhase.AbilityExecution
+            or ServerLuaCallbackPhase.PrimaryWeaponExecution
+            or ServerLuaCallbackPhase.Event
+            or ServerLuaCallbackPhase.CommandInteraction;
+    }
+
+    private static bool IsDeferredServerActionPhaseAllowed(ServerLuaCallbackPhase phase)
+    {
+        return phase is ServerLuaCallbackPhase.Initialize
+            or ServerLuaCallbackPhase.Lifecycle
+            or ServerLuaCallbackPhase.Update
+            or ServerLuaCallbackPhase.AbilityExecution
+            or ServerLuaCallbackPhase.PrimaryWeaponExecution
             or ServerLuaCallbackPhase.Event
             or ServerLuaCallbackPhase.CommandInteraction;
     }
@@ -1442,6 +2930,58 @@ internal sealed class LuaServerPlugin(
         }
 
         return DynValue.NewTable(table);
+    }
+
+    private static bool TryResolvePlayerStateQuery(
+        IOpenGarrisonServerReadOnlyState state,
+        DynValue query,
+        out OpenGarrisonServerPlayerInfo player)
+    {
+        player = default;
+        if (query.IsNil())
+        {
+            return false;
+        }
+
+        if (query.Type != DataType.Table)
+        {
+            return state.TryGetPlayerStateBySlot(ReadByteValue(query), out player);
+        }
+
+        var table = query.Table;
+        var slot = ReadField(table, "slot", "Slot");
+        if (!slot.IsNil())
+        {
+            return state.TryGetPlayerStateBySlot(ReadByteValue(slot), out player);
+        }
+
+        var playerId = ReadField(table, "playerId", "PlayerId", "player_id");
+        if (!playerId.IsNil())
+        {
+            return state.TryGetPlayerStateByPlayerId(ReadIntValue(playerId), out player);
+        }
+
+        var queryKind = ReadOptionalStringField(table, "by", "kind");
+        var queryValue = ReadField(table, "value", "id");
+        if (queryKind is null || queryValue.IsNil())
+        {
+            return false;
+        }
+
+        return NormalizePlayerStateQueryKind(queryKind) switch
+        {
+            "slot" => state.TryGetPlayerStateBySlot(ReadByteValue(queryValue), out player),
+            "playerid" => state.TryGetPlayerStateByPlayerId(ReadIntValue(queryValue), out player),
+            _ => false,
+        };
+    }
+
+    private static string NormalizePlayerStateQueryKind(string value)
+    {
+        return new string(value
+            .Where(static ch => ch != '_' && ch != '-' && !char.IsWhiteSpace(ch))
+            .Select(char.ToLowerInvariant)
+            .ToArray());
     }
 
     private static Table CreateServerStateTable(Script script, IOpenGarrisonServerReadOnlyState state)
@@ -1520,6 +3060,21 @@ internal sealed class LuaServerPlugin(
         SetNamedValue(table, nameof(player.GameplayAcquiredItemId), DynValue.NewString(player.GameplayAcquiredItemId));
         SetNamedValue(table, nameof(player.GameplayEquippedSlot), DynValue.NewString(player.GameplayEquippedSlot.ToString()));
         SetNamedValue(table, nameof(player.GameplayEquippedItemId), DynValue.NewString(player.GameplayEquippedItemId));
+        SetNamedValue(table, nameof(player.WorldX), player.WorldX.HasValue ? DynValue.NewNumber(player.WorldX.Value) : DynValue.Nil);
+        SetNamedValue(table, nameof(player.WorldY), player.WorldY.HasValue ? DynValue.NewNumber(player.WorldY.Value) : DynValue.Nil);
+        SetNamedValue(table, nameof(player.HorizontalSpeed), player.HorizontalSpeed.HasValue ? DynValue.NewNumber(player.HorizontalSpeed.Value) : DynValue.Nil);
+        SetNamedValue(table, nameof(player.VerticalSpeed), player.VerticalSpeed.HasValue ? DynValue.NewNumber(player.VerticalSpeed.Value) : DynValue.Nil);
+        SetNamedValue(table, nameof(player.Health), player.Health.HasValue ? DynValue.NewNumber(player.Health.Value) : DynValue.Nil);
+        SetNamedValue(table, nameof(player.MaxHealth), player.MaxHealth.HasValue ? DynValue.NewNumber(player.MaxHealth.Value) : DynValue.Nil);
+        SetNamedValue(table, nameof(player.CurrentAmmo), player.CurrentAmmo.HasValue ? DynValue.NewNumber(player.CurrentAmmo.Value) : DynValue.Nil);
+        SetNamedValue(table, nameof(player.MaxAmmo), player.MaxAmmo.HasValue ? DynValue.NewNumber(player.MaxAmmo.Value) : DynValue.Nil);
+        SetNamedValue(table, nameof(player.Kills), player.Kills.HasValue ? DynValue.NewNumber(player.Kills.Value) : DynValue.Nil);
+        SetNamedValue(table, nameof(player.Deaths), player.Deaths.HasValue ? DynValue.NewNumber(player.Deaths.Value) : DynValue.Nil);
+        SetNamedValue(table, nameof(player.Assists), player.Assists.HasValue ? DynValue.NewNumber(player.Assists.Value) : DynValue.Nil);
+        SetNamedValue(table, nameof(player.Caps), player.Caps.HasValue ? DynValue.NewNumber(player.Caps.Value) : DynValue.Nil);
+        SetNamedValue(table, nameof(player.Points), player.Points.HasValue ? DynValue.NewNumber(player.Points.Value) : DynValue.Nil);
+        SetNamedValue(table, nameof(player.IsCarryingIntel), DynValue.NewBoolean(player.IsCarryingIntel));
+        SetNamedValue(table, nameof(player.IsInSpawnRoom), DynValue.NewBoolean(player.IsInSpawnRoom));
         return table;
     }
 
@@ -1636,7 +3191,11 @@ internal sealed class LuaServerPlugin(
 
     private static byte ReadByteArgument(CallbackArguments args, int index)
     {
-        var dynValue = ReadArgument(args, index);
+        return ReadByteValue(ReadArgument(args, index));
+    }
+
+    private static byte ReadByteValue(DynValue dynValue)
+    {
         return dynValue.Type == DataType.Number
             ? (byte)dynValue.Number
             : byte.Parse(dynValue.CastToString(), CultureInfo.InvariantCulture);
@@ -1675,7 +3234,11 @@ internal sealed class LuaServerPlugin(
 
     private static int ReadIntArgument(CallbackArguments args, int index)
     {
-        var dynValue = ReadArgument(args, index);
+        return ReadIntValue(ReadArgument(args, index));
+    }
+
+    private static int ReadIntValue(DynValue dynValue)
+    {
         return dynValue.Type == DataType.Number
             ? (int)dynValue.Number
             : int.Parse(dynValue.CastToString(), CultureInfo.InvariantCulture);
@@ -1694,9 +3257,35 @@ internal sealed class LuaServerPlugin(
             : int.Parse(dynValue.CastToString(), CultureInfo.InvariantCulture);
     }
 
+    private static int? ReadOptionalNullableIntArgument(CallbackArguments args, int index)
+    {
+        var dynValue = ReadArgument(args, index);
+        if (dynValue.IsNil())
+        {
+            return null;
+        }
+
+        return dynValue.Type == DataType.Number
+            ? (int)dynValue.Number
+            : int.Parse(dynValue.CastToString(), CultureInfo.InvariantCulture);
+    }
+
     private static double ReadDoubleArgument(CallbackArguments args, int index)
     {
         var dynValue = ReadArgument(args, index);
+        return dynValue.Type == DataType.Number
+            ? dynValue.Number
+            : double.Parse(dynValue.CastToString(), CultureInfo.InvariantCulture);
+    }
+
+    private static double ReadOptionalDoubleArgument(CallbackArguments args, int index, double defaultValue)
+    {
+        var dynValue = ReadArgument(args, index);
+        if (dynValue.IsNil())
+        {
+            return defaultValue;
+        }
+
         return dynValue.Type == DataType.Number
             ? dynValue.Number
             : double.Parse(dynValue.CastToString(), CultureInfo.InvariantCulture);
@@ -1742,6 +3331,32 @@ internal sealed class LuaServerPlugin(
         };
     }
 
+    private static bool ReadOptionalBoolField(Table? table, bool defaultValue, params string[] fieldNames)
+    {
+        if (table is null)
+        {
+            return defaultValue;
+        }
+
+        for (var index = 0; index < fieldNames.Length; index += 1)
+        {
+            var dynValue = table.Get(fieldNames[index]);
+            if (dynValue.IsNil())
+            {
+                continue;
+            }
+
+            return dynValue.Type switch
+            {
+                DataType.Boolean => dynValue.Boolean,
+                DataType.Number => Math.Abs(dynValue.Number) > double.Epsilon,
+                _ => bool.Parse(dynValue.CastToString()),
+            };
+        }
+
+        return defaultValue;
+    }
+
     private static PluginMessagePayloadFormat ReadOptionalEnumArgument(CallbackArguments args, int index, PluginMessagePayloadFormat defaultValue)
     {
         var dynValue = ReadArgument(args, index);
@@ -1750,9 +3365,18 @@ internal sealed class LuaServerPlugin(
             : value;
     }
 
+    private static TEnum? ReadOptionalEnumArgument<TEnum>(CallbackArguments args, int index) where TEnum : struct, Enum
+    {
+        return TryParseEnumValue(ReadArgument(args, index), out TEnum value) ? value : null;
+    }
+
     private static bool TryParseEnumArgument<TEnum>(CallbackArguments args, int index, out TEnum value) where TEnum : struct, Enum
     {
-        var dynValue = ReadArgument(args, index);
+        return TryParseEnumValue(ReadArgument(args, index), out value);
+    }
+
+    private static bool TryParseEnumValue<TEnum>(DynValue dynValue, out TEnum value) where TEnum : struct, Enum
+    {
         if (dynValue.IsNil())
         {
             value = default;
@@ -1826,6 +3450,54 @@ internal sealed class LuaServerPlugin(
         return OpenGarrisonPluginManifestLoader.GetManifestPath(pluginDirectory);
     }
 
+    private sealed class LuaGameplayAbilityExecutor(LuaServerPlugin plugin) : IGameplayAbilityExecutor
+    {
+        public GameplayAbilityResult Handle(GameplayAbilityContext context)
+        {
+            return plugin.ExecuteGameplayAbility(context);
+        }
+    }
+
+    private sealed class LuaGameplayPrimaryWeaponExecutor(LuaServerPlugin plugin) : IGameplayPrimaryWeaponExecutor
+    {
+        public GameplayPrimaryWeaponResult Handle(GameplayPrimaryWeaponContext context)
+        {
+            return plugin.ExecuteGameplayPrimaryWeapon(context);
+        }
+    }
+
+    private sealed class LuaServerCommand(
+        LuaServerPlugin plugin,
+        string name,
+        string description,
+        string usage,
+        DynValue handler) : IOpenGarrisonServerCommand
+    {
+        public string Name { get; } = name;
+
+        public string Description { get; } = description;
+
+        public string Usage { get; } = usage;
+
+        public Task<IReadOnlyList<string>> ExecuteAsync(
+            OpenGarrisonServerCommandContext context,
+            string arguments,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(plugin.ExecuteLuaCommandHandler(handler, context, arguments));
+        }
+    }
+
+    private sealed record LuaCommandRegistration(
+        IOpenGarrisonServerCommand Command,
+        OpenGarrisonServerAdminPermissions RequiredPermissions,
+        IReadOnlyList<string> Aliases);
+
+    private sealed record LuaDeferredServerAction(
+        string ActionType,
+        Func<IOpenGarrisonServerPluginContext, bool> Execute);
+
     private enum ServerLuaCallbackPhase
     {
         None,
@@ -1835,6 +3507,8 @@ internal sealed class LuaServerPlugin(
         Update,
         Query,
         CommandInteraction,
+        AbilityExecution,
+        PrimaryWeaponExecution,
         Event,
     }
 }

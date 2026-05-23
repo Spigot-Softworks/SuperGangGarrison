@@ -38,7 +38,15 @@ public sealed partial class SimulationWorld
 
     public void CompleteLocalPlayerJoin(PlayerClass playerClass)
     {
-        TryCompleteNetworkPlayerJoinState(LocalPlayerSlot, playerClass);
+        if (CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(playerClass, out var binding))
+        {
+            CompleteLocalPlayerJoin(binding.ClassId);
+        }
+    }
+
+    public void CompleteLocalPlayerJoin(string gameplayClassId)
+    {
+        TryCompleteNetworkPlayerJoinState(LocalPlayerSlot, gameplayClassId);
     }
 
     public bool TryReleaseNetworkPlayerSlot(byte slot)
@@ -60,6 +68,7 @@ public sealed partial class SimulationWorld
 
         TryClearNetworkPlayerInputOverride(slot);
         TryDropCarriedIntel(player);
+        TrySetNetworkPlayerReady(slot, ready: false);
         RemoveOwnedSpyArtifacts(player.Id);
         RemoveOwnedSentries(player.Id);
         RemoveOwnedMines(player.Id);
@@ -149,7 +158,11 @@ public sealed partial class SimulationWorld
 
         var team = GetNetworkPlayerConfiguredTeam(slot);
         player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
-        SpawnPlayerResolved(player, team, ReserveSpawn(player, team, slot));
+        if (!SpawnPlayerResolved(player, team, ReserveSpawn(player, team, slot)))
+        {
+            return false;
+        }
+
         SyncExperimentalGameplayLoadout(slot, player);
         return true;
     }
@@ -186,7 +199,12 @@ public sealed partial class SimulationWorld
 
     private bool TryCompleteNetworkPlayerJoinState(byte slot, PlayerClass playerClass)
     {
-        var definition = CharacterClassCatalog.GetDefinition(playerClass);
+        return TryCompleteNetworkPlayerJoinState(slot, CharacterClassCatalog.GetDefinition(playerClass).GameplayClassId);
+    }
+
+    private bool TryCompleteNetworkPlayerJoinState(byte slot, string gameplayClassId)
+    {
+        var definition = CharacterClassCatalog.GetDefinition(gameplayClassId);
         if (slot != LocalPlayerSlot)
         {
             EnsureAdditionalNetworkPlayer(slot);

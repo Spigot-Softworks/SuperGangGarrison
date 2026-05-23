@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace OpenGarrison.GameplayModding;
 
 public sealed record GameplayClassLoadoutDefinition(
@@ -5,4 +7,5 @@ public sealed record GameplayClassLoadoutDefinition(
     string DisplayName,
     string PrimaryItemId,
     string? SecondaryItemId = null,
-    string? UtilityItemId = null);
+    string? UtilityItemId = null,
+    IReadOnlyList<string>? AbilityItemIds = null);

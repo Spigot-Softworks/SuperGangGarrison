@@ -2959,9 +2959,112 @@ local function handle_admin_menu(context, event)
     return true
 end
 
+local function dispatch_garrison_tools_command(context, event, command_name, arguments)
+    if command_name == "help" then
+        return handle_help(event, arguments)
+    elseif command_name == "status" then
+        return handle_status(context, event)
+    elseif command_name == "cvars" then
+        return handle_cvars(event, arguments)
+    elseif command_name == "cvar" then
+        return handle_cvar(event, arguments)
+    elseif command_name == "seffect" then
+        return handle_seffect(event, arguments)
+    elseif command_name == "say" then
+        return handle_say(event, arguments)
+    elseif command_name == "psay" then
+        return handle_psay(event, arguments)
+    elseif command_name == "kick" then
+        return handle_kick(event, arguments)
+    elseif command_name == "ban" then
+        return handle_ban(event, arguments)
+    elseif command_name == "banip" then
+        return handle_banip(context, event, arguments)
+    elseif command_name == "unban" then
+        return handle_unban(event, arguments)
+    elseif command_name == "slay" then
+        return handle_slay(event, arguments)
+    elseif command_name == "burn" then
+        return handle_burn(event, arguments)
+    elseif command_name == "gag" then
+        return handle_gag(event, arguments)
+    elseif command_name == "rename" then
+        return handle_rename(event, arguments)
+    elseif command_name == "bots" then
+        return handle_bots(event, arguments)
+    elseif command_name == "map" then
+        return handle_map(event, arguments)
+    elseif command_name == "nextmap" then
+        return handle_nextmap(event, arguments)
+    elseif command_name == "demo" then
+        return handle_demo(event, arguments)
+    elseif command_name == "adminmenu" then
+        return handle_admin_menu(context, event)
+    end
+
+    return false
+end
+
+local function create_registered_command_event(context)
+    local identity = context ~= nil and context.identity or nil
+    local slot = identity ~= nil and (identity.sourceSlot or identity.SourceSlot or identity.source_slot) or nil
+    if slot == nil then
+        return nil
+    end
+
+    return {
+        slot = slot,
+        playerName = identity.displayName or identity.DisplayName or "Admin",
+        text = "",
+        team = nil,
+        teamOnly = false
+    }
+end
+
+local function register_garrison_tools_command(host, spec)
+    if spec == nil or spec.name == nil or spec.name == "auth" or spec.name == "logout" then
+        return
+    end
+
+    local aliases = {}
+    if spec.name == "help" then
+        table.insert(aliases, "!gt")
+    end
+
+    if spec.aliases ~= nil then
+        for _, alias in ipairs(spec.aliases) do
+            table.insert(aliases, "!gt_" .. tostring(alias))
+        end
+    end
+
+    host.register_command({
+        name = "!gt_" .. spec.name,
+        aliases = aliases,
+        usage = spec.usage or ("!gt_" .. spec.name),
+        description = spec.summary or "",
+        permission = "FullAccess",
+        handler = function(context)
+            local event = create_registered_command_event(context)
+            if event == nil then
+                return "[GT] command is only available from player chat."
+            end
+
+            dispatch_garrison_tools_command(context, event, spec.name, context.arguments or "")
+            return nil
+        end
+    })
+end
+
+local function register_garrison_tools_commands(host)
+    for index = 1, get_command_catalog_count() do
+        register_garrison_tools_command(host, command_specs[index])
+    end
+end
+
 function plugin.initialize(host)
     plugin.host = host
     config = load_config()
+    register_garrison_tools_commands(host)
     host.log("GarrisonTools initialized")
 end
 
@@ -3018,49 +3121,7 @@ function plugin.try_handle_chat_message(context, e)
         return true
     end
 
-    if command_name == "help" then
-        return handle_help(e, arguments)
-    elseif command_name == "status" then
-        return handle_status(context, e)
-    elseif command_name == "cvars" then
-        return handle_cvars(e, arguments)
-    elseif command_name == "cvar" then
-        return handle_cvar(e, arguments)
-    elseif command_name == "seffect" then
-        return handle_seffect(e, arguments)
-    elseif command_name == "say" then
-        return handle_say(e, arguments)
-    elseif command_name == "psay" then
-        return handle_psay(e, arguments)
-    elseif command_name == "kick" then
-        return handle_kick(e, arguments)
-    elseif command_name == "ban" then
-        return handle_ban(e, arguments)
-    elseif command_name == "banip" then
-        return handle_banip(context, e, arguments)
-    elseif command_name == "unban" then
-        return handle_unban(e, arguments)
-    elseif command_name == "slay" then
-        return handle_slay(e, arguments)
-    elseif command_name == "burn" then
-        return handle_burn(e, arguments)
-    elseif command_name == "gag" then
-        return handle_gag(e, arguments)
-    elseif command_name == "rename" then
-        return handle_rename(e, arguments)
-    elseif command_name == "bots" then
-        return handle_bots(e, arguments)
-    elseif command_name == "map" then
-        return handle_map(e, arguments)
-    elseif command_name == "nextmap" then
-        return handle_nextmap(e, arguments)
-    elseif command_name == "demo" then
-        return handle_demo(e, arguments)
-    elseif command_name == "adminmenu" then
-        return handle_admin_menu(context, e)
-    end
-
-    return false
+    return dispatch_garrison_tools_command(context, e, command_name, arguments)
 end
 
 return plugin

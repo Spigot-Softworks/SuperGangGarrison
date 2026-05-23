@@ -50,29 +50,45 @@ public partial class Game1
             return;
         }
 
-        var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
-        var centerX = viewportWidth / 2f;
-        if (!TryDrawScreenSprite("CTFHUDS", 0, new Vector2(centerX + 1f, viewportHeight + 100f), Color.White, new Vector2(3f, 3f)))
+        var defaultPanelOrigin = new Vector2(ViewportWidth / 2f, viewportHeight);
+        var panelOrigin = defaultPanelOrigin;
+        var panelScale = 1f;
+        if (TryResolveHudElement(HudElementId.MatchCtfPanel, out var ctfPanel))
         {
-            DrawFallbackScorePanelHud(centerX, viewportHeight);
+            panelOrigin = ctfPanel.Origin;
+            panelScale = ctfPanel.Layout.Scale;
+            UpdateHudElementBounds(
+                HudElementId.MatchCtfPanel,
+                new Rectangle(
+                    (int)MathF.Round(panelOrigin.X - (180f * panelScale)),
+                    (int)MathF.Round(panelOrigin.Y - (72f * panelScale)),
+                    Math.Max(1, (int)MathF.Round(360f * panelScale)),
+                    Math.Max(1, (int)MathF.Round(78f * panelScale))));
+        }
+
+        Vector2 PanelPoint(float xOffset, float yOffset) => panelOrigin + new Vector2(xOffset * panelScale, yOffset * panelScale);
+
+        if (!TryDrawScreenSprite("CTFHUDS", 0, PanelPoint(1f, 100f), Color.White, new Vector2(3f * panelScale, 3f * panelScale)))
+        {
+            DrawFallbackScorePanelHud(panelOrigin, panelScale);
         }
 
         if (_world.MatchRules.Mode == GameModeKind.CaptureTheFlag)
         {
-            DrawBuildHudTextCentered(_world.RedCaps.ToString(CultureInfo.InvariantCulture), new Vector2(centerX - 135f, viewportHeight - 30f), CtfBuildScoreTextColor, 2f);
-            DrawBuildHudTextCentered(_world.BlueCaps.ToString(CultureInfo.InvariantCulture), new Vector2(centerX + 130f, viewportHeight - 30f), CtfBuildScoreTextColor, 2f);
+            DrawBuildHudTextCentered(_world.RedCaps.ToString(CultureInfo.InvariantCulture), PanelPoint(-135f, -30f), CtfBuildScoreTextColor, 2f * panelScale);
+            DrawBuildHudTextCentered(_world.BlueCaps.ToString(CultureInfo.InvariantCulture), PanelPoint(130f, -30f), CtfBuildScoreTextColor, 2f * panelScale);
         }
         else
         {
-            DrawHudTextCentered(_world.RedCaps.ToString(CultureInfo.InvariantCulture), new Vector2(centerX - 135f, viewportHeight - 30f), Color.Black, 2f);
-            DrawHudTextCentered(_world.BlueCaps.ToString(CultureInfo.InvariantCulture), new Vector2(centerX + 130f, viewportHeight - 30f), Color.Black, 2f);
+            DrawHudTextCentered(_world.RedCaps.ToString(CultureInfo.InvariantCulture), PanelPoint(-135f, -30f), Color.Black, 2f * panelScale);
+            DrawHudTextCentered(_world.BlueCaps.ToString(CultureInfo.InvariantCulture), PanelPoint(130f, -30f), Color.Black, 2f * panelScale);
         }
 
-        DrawScorePanelCapLimit(centerX, viewportHeight);
+        DrawScorePanelCapLimit(panelOrigin, panelScale);
 
-        DrawIntelPanelElement(_world.RedIntel, new Vector2(centerX - 65f, viewportHeight - 50f));
-        DrawIntelPanelElement(_world.BlueIntel, new Vector2(centerX + 60f, viewportHeight - 50f));
-        DrawMatchTimerHud(centerX);
+        DrawIntelPanelElement(_world.RedIntel, PanelPoint(-65f, -50f), panelScale);
+        DrawIntelPanelElement(_world.BlueIntel, PanelPoint(60f, -50f), panelScale);
+        DrawMatchTimerHud(ViewportWidth / 2f);
     }
 }

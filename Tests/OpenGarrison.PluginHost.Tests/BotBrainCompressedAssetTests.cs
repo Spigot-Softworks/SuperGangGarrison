@@ -6,6 +6,7 @@ using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
 
+[Collection(ContentRootTestGroup.Name)]
 public sealed class BotBrainCompressedAssetTests
 {
     [Fact]

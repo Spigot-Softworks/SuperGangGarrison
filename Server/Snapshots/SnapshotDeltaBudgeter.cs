@@ -441,7 +441,7 @@ internal static class SnapshotDeltaBudgeter
 
     private static int EstimatePlayerBytes(SnapshotPlayerState player)
     {
-        var bytes = 206
+        var bytes = 207
             + EstimateStringBytes(player.Name)
             + EstimateCachedStringBytes(player.GameplayModPackCacheId, player.GameplayModPackId)
             + EstimateCachedStringBytes(player.GameplayLoadoutCacheId, player.GameplayLoadoutId)
@@ -450,6 +450,7 @@ internal static class SnapshotDeltaBudgeter
             + EstimateCachedStringBytes(player.GameplayUtilityItemCacheId, player.GameplayUtilityItemId)
             + EstimateCachedStringBytes(player.GameplayEquippedItemCacheId, player.GameplayEquippedItemId)
             + EstimateCachedStringBytes(player.GameplayAcquiredItemCacheId, player.GameplayAcquiredItemId)
+            + EstimateCachedStringBytes(player.GameplayClassCacheId, player.GameplayClassId)
             + EstimateGameplayIdListBytes(player.OwnedGameplayItemIds)
             + EstimateReplicatedStateEntriesBytes(player.ReplicatedStates);
         return bytes;

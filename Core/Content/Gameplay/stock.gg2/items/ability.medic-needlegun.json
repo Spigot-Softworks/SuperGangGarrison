@@ -3,6 +3,16 @@
   "displayName": "Needlegun",
   "slot": "Secondary",
   "behaviorId": "builtin.ability.medic_needlegun",
+  "ability": {
+    "category": "secondary",
+    "activation": "held",
+    "executorId": "builtin.ability.medic_needlegun",
+    "tags": [ "projectile", "cooldown" ],
+    "parameters": {
+      "fireCooldownTicks": 3,
+      "refillTicks": 55
+    }
+  },
   "ammo": {},
   "presentation": {}
 }

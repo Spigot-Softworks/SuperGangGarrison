@@ -1456,7 +1456,8 @@ internal static class BotBrainClassMask
             yield return CharacterClassCatalog.Demoman;
         }
 
-        if ((mask & For(PlayerClass.Quote)) != 0)
+        if ((mask & For(PlayerClass.Quote)) != 0
+            && CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(PlayerClass.Quote, out _))
         {
             yield return CharacterClassCatalog.Quote;
         }

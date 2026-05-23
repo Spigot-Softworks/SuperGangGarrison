@@ -176,7 +176,7 @@ public sealed class ObjectiveTapeExecutor
         }
 
         var moveDirection = ResolveMoveDirection(self, sample);
-        var sameClassTape = _activeTape.PlayerClass == self.ClassId;
+        var sameClassTape = _activeTape.PlayerClass == self.BotGraphClassId;
         var replaySampleButtons = sameClassTape && !isMotionProofSampleLane;
         var actionHintTrace = string.Empty;
         tapeSteering.MoveDirection = moveDirection;
@@ -239,7 +239,7 @@ public sealed class ObjectiveTapeExecutor
             seenTeamTapes += 1;
             foreach (var segment in tape.Segments)
             {
-                if (!SupportsClass(tape, self.ClassId, segment))
+                if (!SupportsClass(tape, self.BotGraphClassId, segment))
                 {
                     rejectedClass += 1;
                     continue;
@@ -311,7 +311,7 @@ public sealed class ObjectiveTapeExecutor
                     + (endpointDistance * 0.65f)
                     + (startIndex * 0.25f)
                     + (actionTicks * 0.1f)
-                    + GetTapeSelectionPenalty(tape, self.ClassId, segment);
+                    + GetTapeSelectionPenalty(tape, self.BotGraphClassId, segment);
                 if (score >= bestScore)
                 {
                     continue;
@@ -865,7 +865,7 @@ public sealed class ObjectiveTapeExecutor
         BotBrainObjectiveTapeSample lastSample,
         bool hasCertifiedPortal)
     {
-        if (segment.Actions.Count == 0 || tape.PlayerClass == self.ClassId)
+        if (segment.Actions.Count == 0 || tape.PlayerClass == self.BotGraphClassId)
         {
             return true;
         }
@@ -892,7 +892,7 @@ public sealed class ObjectiveTapeExecutor
             currentGoal.X,
             currentGoal.Y,
             startNode,
-            self.ClassId,
+            self.BotGraphClassId,
             team: team,
             carryingIntel: segment.RequiresCarryingIntel,
             verticalWeight: 8f,
@@ -909,7 +909,7 @@ public sealed class ObjectiveTapeExecutor
             return false;
         }
 
-        var path = graph.FindPath(startNode, goalNode, self.ClassId, team: team, carryingIntel: segment.RequiresCarryingIntel);
+        var path = graph.FindPath(startNode, goalNode, self.BotGraphClassId, team: team, carryingIntel: segment.RequiresCarryingIntel);
         return path is not null && path.Count >= 2;
     }
 

@@ -17,6 +17,7 @@
     "refillsAllAtOnce": false
   },
   "combat": {
+    "fireSoundName": "ChaingunSnd",
     "directHitDamage": 7.0
   },
   "presentation": {

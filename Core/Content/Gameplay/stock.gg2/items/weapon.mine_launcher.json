@@ -16,6 +16,9 @@
     "ammoRegenPerTick": 0,
     "refillsAllAtOnce": false
   },
+  "combat": {
+    "fireSoundName": "MinegunSnd"
+  },
   "presentation": {
     "worldSpriteName": "MinegunS",
     "recoilSpriteName": "MinegunFS",
@@ -25,6 +28,13 @@
     "weaponOffsetY": -2.0,
     "recoilDurationSourceTicks": 26,
     "reloadDurationSourceTicks": 15,
-    "blueTeamHudFrameOffset": 1
+    "blueTeamHudFrameOffset": 1,
+    "hud": {
+      "displayKind": "ammoPanel",
+      "stackGroup": "weapon",
+      "order": 100,
+      "stateProvider": "primaryAmmo",
+      "hideWhenUnavailable": true
+    }
   }
 }

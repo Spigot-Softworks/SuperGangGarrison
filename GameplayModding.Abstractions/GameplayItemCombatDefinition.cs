@@ -5,4 +5,5 @@ public sealed record GameplayItemCombatDefinition(
     float? DirectHitDamage = null,
     float? DamagePerTick = null,
     float? DirectHitHealAmount = null,
+    int? ActiveProjectileLimit = null,
     GameplayRocketCombatDefinition? Rocket = null);

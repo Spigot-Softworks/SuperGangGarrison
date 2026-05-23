@@ -14,7 +14,9 @@ public static class SimpleLevelFactory
         string Name,
         GameModeKind Mode,
         string RoomSourcePath,
-        string? CollisionMaskSourcePath);
+        string? CollisionMaskSourcePath,
+        CustomMapSourceKind SourceKind,
+        bool IsCustomMap);
 
     public static SimpleLevel CreateScoutPrototypeLevel(float mapScale = 1f)
     {
@@ -34,10 +36,21 @@ public static class SimpleLevelFactory
             }
         }
 
-        var isCustomMap = Path.GetExtension(levelSpec.RoomSourcePath).Equals(".png", StringComparison.OrdinalIgnoreCase);
+        var usesCustomMapRuntimeFormat = levelSpec.SourceKind is CustomMapSourceKind.LegacyPng or CustomMapSourceKind.Package;
         GameMakerRoomMetadata? importedRoom;
         IReadOnlyList<LevelSolid> importedSolids;
-        if (isCustomMap)
+        if (levelSpec.SourceKind == CustomMapSourceKind.Package)
+        {
+            var customMap = CustomMapPackageImporter.Import(levelSpec.RoomSourcePath);
+            if (customMap is null)
+            {
+                return null;
+            }
+
+            importedRoom = customMap.Room;
+            importedSolids = customMap.Solids;
+        }
+        else if (levelSpec.SourceKind == CustomMapSourceKind.LegacyPng)
         {
             var customMap = CustomMapPngImporter.Import(levelSpec.RoomSourcePath);
             if (customMap is null)
@@ -81,7 +94,7 @@ public static class SimpleLevelFactory
         {
             blueSpawns = importedRoom.BlueSpawns;
         }
-        if (isCustomMap && (redSpawns.Count == 0 || blueSpawns.Count == 0))
+        if (usesCustomMapRuntimeFormat && (redSpawns.Count == 0 || blueSpawns.Count == 0))
         {
             return null;
         }
@@ -99,7 +112,7 @@ public static class SimpleLevelFactory
         var roomObjects = FilterByArea(importedRoom.RoomObjects, areaFilter);
         var floorY = FindFloorBelowSpawn(importedSolids, spawn)
             ?? MathF.Min(bounds.Height - 40f, spawn.Y + 360f);
-        if (isCustomMap && importedSolids.Count == 0)
+        if (usesCustomMapRuntimeFormat && importedSolids.Count == 0)
         {
             return null;
         }
@@ -148,7 +161,11 @@ public static class SimpleLevelFactory
                 definition.LevelName,
                 definition.Mode,
                 stockMapSource.RoomSourcePath,
-                stockMapSource.CollisionMaskSourcePath));
+                stockMapSource.CollisionMaskSourcePath,
+                Path.GetExtension(stockMapSource.RoomSourcePath).Equals(".png", StringComparison.OrdinalIgnoreCase)
+                    ? CustomMapSourceKind.LegacyPng
+                    : CustomMapSourceKind.StockRoom,
+                IsCustomMap: false));
         }
 
         AppendCustomMapEntries(entries);
@@ -282,7 +299,9 @@ public static class SimpleLevelFactory
                 continue;
             }
 
-            foreach (var mapFile in Directory.EnumerateFiles(customMapsDirectory, "*.png"))
+            foreach (var mapFile in Directory
+                .EnumerateFiles(customMapsDirectory, "*.png", SearchOption.TopDirectoryOnly)
+                .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase))
             {
                 var mapName = Path.GetFileNameWithoutExtension(mapFile);
                 if (string.IsNullOrWhiteSpace(mapName)
@@ -297,7 +316,52 @@ public static class SimpleLevelFactory
                     continue;
                 }
 
-                entries.Add(new LevelCatalogEntry(mapName, DetectMode(imported.Room), mapFile, null));
+                entries.Add(new LevelCatalogEntry(
+                    mapName,
+                    DetectMode(imported.Room),
+                    mapFile,
+                    null,
+                    CustomMapSourceKind.LegacyPng,
+                    IsCustomMap: true));
+            }
+        }
+
+        foreach (var customMapsDirectory in RuntimePaths.MapSearchDirectories)
+        {
+            if (!Directory.Exists(customMapsDirectory))
+            {
+                continue;
+            }
+
+            foreach (var packageDirectory in Directory
+                .EnumerateDirectories(customMapsDirectory, "*", SearchOption.TopDirectoryOnly)
+                .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase))
+            {
+                if (!CustomMapPackageImporter.TryFindManifestInDirectory(packageDirectory, out var manifestPath))
+                {
+                    continue;
+                }
+
+                var mapName = Path.GetFileNameWithoutExtension(manifestPath);
+                if (string.IsNullOrWhiteSpace(mapName)
+                    || !discoveredCustomMapNames.Add(mapName))
+                {
+                    continue;
+                }
+
+                var imported = CustomMapPackageImporter.Import(manifestPath);
+                if (imported is null)
+                {
+                    continue;
+                }
+
+                entries.Add(new LevelCatalogEntry(
+                    mapName,
+                    DetectMode(imported.Room),
+                    manifestPath,
+                    null,
+                    CustomMapSourceKind.Package,
+                    IsCustomMap: true));
             }
         }
     }

@@ -45,7 +45,8 @@ internal static class KeyboardInputMapper
             IsUsingBinoculars: isUsingBinoculars,
             BinocularsFocusX: isUsingBinoculars ? binocularsFocusX : localPlayerX,
             BinocularsFocusY: isUsingBinoculars ? binocularsFocusY : localPlayerY,
-            SwapWeapon: swapWeapon);
+            SwapWeapon: swapWeapon,
+            ReadyUp: keyboard.IsKeyDown(Keys.F4));
     }
 
     internal static bool IsSwapWeaponInputDown(

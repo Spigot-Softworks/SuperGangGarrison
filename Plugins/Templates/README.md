@@ -15,6 +15,11 @@ plugin runtime understands today.
 - `ServerClr` is the baseline manifest for packaged C# server plugins.
 - `ServerLua` is a runnable first-pass Lua server plugin template.
 - `ServerLua.ChatVoting` is a runnable Lua server voting plugin template.
+- `ServerLua.GameplayAbility` is a runnable Lua server gameplay ability template
+  with a Spacebar action, plugin-owned cooldown HUD state, and hidden passive
+  cooldown ticking.
+- `ServerLua.PrimaryWeapon` is a runnable Lua server primary weapon template
+  that registers a custom weapon behavior, weapon item, and loadout.
 
 Ready-to-run packaged example installs live separately under `Plugins/Packaged/`
 so release packages can ship examples without conflating them with authoring
@@ -26,5 +31,6 @@ The current Lua hosts are intentionally narrow:
   HUD/scoreboard drawing, lightweight audio playback, and options/config-backed
   presentation plugins.
 - Server Lua currently targets lifecycle, gameplay/map/chat/client events,
-  semantic server events, bounded admin actions, replicated state, and plugin
-  messaging.
+  semantic server events, bounded admin actions, replicated state, plugin
+  messaging, registered gameplay abilities, and registered primary weapon
+  behaviors.

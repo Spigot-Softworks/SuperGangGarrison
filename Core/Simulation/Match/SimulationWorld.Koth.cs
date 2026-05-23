@@ -108,8 +108,7 @@ public sealed partial class SimulationWorld
         var objectiveWinner = ResolveKothObjectiveWinner();
         if (objectiveWinner.HasValue)
         {
-            MatchState = MatchState with { Phase = MatchPhase.Ended, WinnerTeam = objectiveWinner };
-            QueuePendingMapChange();
+            TryEndRound(objectiveWinner, "koth_objective");
             return;
         }
 
@@ -118,12 +117,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        MatchState = MatchState with
-        {
-            Phase = MatchPhase.Ended,
-            WinnerTeam = GetKothTimerLeader(),
-        };
-        QueuePendingMapChange();
+        TryEndRound(GetKothTimerLeader(), "koth_time_limit");
     }
 
     private void ApplySnapshotKoth(SnapshotMessage snapshot)

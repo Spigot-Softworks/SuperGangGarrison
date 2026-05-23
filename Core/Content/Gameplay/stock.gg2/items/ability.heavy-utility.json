@@ -3,6 +3,34 @@
   "displayName": "Heavy Utility",
   "slot": "Utility",
   "behaviorId": "builtin.utility.heavy",
+  "ability": {
+    "category": "utility",
+    "activation": "pressed",
+    "executorId": "builtin.ability.heavy_ghost_dash",
+    "tags": [ "movement", "dash", "cooldown", "charge" ],
+    "parameters": {
+      "durationSeconds": 0.25,
+      "movementDurationSeconds": 0.5,
+      "cooldownSeconds": 12,
+      "impulse": 75,
+      "nextAttackDamageMultiplier": 1.4,
+      "useMomentum": true
+    }
+  },
   "ammo": {},
-  "presentation": {}
+  "presentation": {
+    "hudSpriteName": "ChargeJumpS",
+    "blueTeamHudFrameOffset": 1,
+    "hud": {
+      "displayKind": "meter",
+      "stackGroup": "ability",
+      "order": 81,
+      "stateProvider": "abilityCooldown",
+      "stateOwner": "core.ability",
+      "cooldownKey": "heavy_dash_cooldown_ticks",
+      "maxCooldown": 360,
+      "activeKey": "heavy_dash_active",
+      "hideWhenUnavailable": true
+    }
+  }
 }

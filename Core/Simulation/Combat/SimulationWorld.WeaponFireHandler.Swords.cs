@@ -4,7 +4,7 @@ public sealed partial class SimulationWorld
 {
     private sealed partial class WeaponFireHandler
     {
-        public void FireQuoteBlade(PlayerEntity attacker, float aimWorldX, float aimWorldY)
+        public void FireQuoteBlade(PlayerEntity attacker, float aimWorldX, float aimWorldY, int lifetimeTicks = PlayerEntity.QuoteBladeLifetimeTicks)
         {
             RegisterSoundEvent(attacker, "BladeSnd");
             var weaponOrigin = GetSourceWeaponOrigin(attacker);
@@ -33,7 +33,8 @@ public sealed partial class SimulationWorld
                 weaponOrigin.BaseY + directionY * 5f,
                 launchedVelocityX + inheritedVelocityX,
                 launchedVelocityY + inheritedVelocityY,
-                hitDamage);
+                hitDamage,
+                lifetimeTicks);
         }
 
         public void FireExperimentalDemoknightSword(PlayerEntity attacker, float aimWorldX, float aimWorldY)

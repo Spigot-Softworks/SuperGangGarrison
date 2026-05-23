@@ -13,6 +13,12 @@
     "ammoRegenPerTick": 0,
     "refillsAllAtOnce": false
   },
+  "ability": {
+    "category": "secondary",
+    "activation": "held",
+    "executorId": "builtin.ability.medic_needlegun",
+    "tags": [ "projectile", "cooldown" ]
+  },
   "presentation": {
     "worldSpriteName": "MedigunS",
     "recoilSpriteName": "MedigunFS",

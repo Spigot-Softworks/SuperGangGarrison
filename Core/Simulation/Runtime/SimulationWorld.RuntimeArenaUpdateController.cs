@@ -91,9 +91,14 @@ public sealed partial class SimulationWorld
 
             if (_world._arenaCappingTicks >= ArenaPointCapTimeTicksDefault && _world._arenaCappingTeam.HasValue)
             {
-                _world._arenaPointTeam = _world._arenaCappingTeam.Value;
-                _world.MatchState = _world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = _world._arenaPointTeam.Value };
-                if (_world._arenaPointTeam.Value == PlayerTeam.Red)
+                var winner = _world._arenaCappingTeam.Value;
+                if (!_world.TryEndRound(winner, "arena_point_capture"))
+                {
+                    return;
+                }
+
+                _world._arenaPointTeam = winner;
+                if (winner == PlayerTeam.Red)
                 {
                     _world._arenaRedConsecutiveWins += 1;
                     _world._arenaBlueConsecutiveWins = 0;
@@ -104,7 +109,6 @@ public sealed partial class SimulationWorld
                     _world._arenaRedConsecutiveWins = 0;
                 }
 
-                _world.QueuePendingMapChange();
             }
         }
     }

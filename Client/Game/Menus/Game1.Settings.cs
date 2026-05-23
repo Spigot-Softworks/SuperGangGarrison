@@ -45,6 +45,7 @@ public partial class Game1
         _showHealthBarEnabled = _clientSettings.ShowHealthBarEnabled;
         _overheadChatEnabled = _clientSettings.OverheadChatEnabled;
         _portraitRumbleEnabled = _clientSettings.PortraitRumbleEnabled;
+        _postGameMvpArtEnabled = _clientSettings.PostGameMvpArtEnabled;
         _damageVignetteEnabled = _clientSettings.DamageVignetteEnabled;
         _damageVignetteIntensityPercent = ClientSettings.NormalizeDamageVignetteIntensityPercent(_clientSettings.DamageVignetteIntensityPercent);
         _lowHealthColorMode = ClientSettings.NormalizeLowHealthColorMode(_clientSettings.LowHealthColorMode);
@@ -99,6 +100,7 @@ public partial class Game1
         _clientSettings.ShowHealthBarEnabled = _showHealthBarEnabled;
         _clientSettings.OverheadChatEnabled = _overheadChatEnabled;
         _clientSettings.PortraitRumbleEnabled = _portraitRumbleEnabled;
+        _clientSettings.PostGameMvpArtEnabled = _postGameMvpArtEnabled;
         _clientSettings.DamageVignetteEnabled = _damageVignetteEnabled;
         _clientSettings.DamageVignetteIntensityPercent = ClientSettings.NormalizeDamageVignetteIntensityPercent(_damageVignetteIntensityPercent);
         _clientSettings.LowHealthColorMode = ClientSettings.NormalizeLowHealthColorMode(_lowHealthColorMode);

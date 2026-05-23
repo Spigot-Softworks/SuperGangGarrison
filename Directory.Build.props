@@ -8,7 +8,7 @@
     <Deterministic>true</Deterministic>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
-    <Product>Gang Garrison 2</Product>
+    <Product>Super Gang Garrison</Product>
     <Company>Faucet Software</Company>
     <Authors>Faucet Software</Authors>
   </PropertyGroup>
