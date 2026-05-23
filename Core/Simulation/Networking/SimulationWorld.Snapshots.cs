@@ -489,6 +489,17 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
+            // Skip re-spawning rockets that were already terminated on the client.
+            // RocketSpawnEvents are retained and replayed for several seconds by the server, so
+            // the same spawn event can arrive after the rocket has already been removed (e.g. it
+            // exploded and ApplySnapshotRockets cleaned it up). Without this guard the rocket
+            // would be recreated from its birth position every snapshot frame until the event
+            // expires, producing a ghost rocket that repeatedly flickers near the fire point.
+            if (_terminatedProjectileIds.Contains(e.Id))
+            {
+                continue;
+            }
+
             ReserveEntityId(e.Id);
             var rocket = new RocketProjectileEntity(
                 e.Id,
