@@ -102,7 +102,12 @@ public partial class Game1
             panelHeight);
 
         var overlayAlpha = Math.Clamp(visibilityAlpha * messageAlpha, 0f, 1f);
-        _spriteBatch.Draw(_pixel, panelBounds, Color.Black * overlayAlpha);
+        DrawRoundedRectangleOutline(
+            panelBounds,
+            new Color(0, 0, 0) * (0.40f * overlayAlpha),
+            new Color(49, 45, 26) * (0.40f * overlayAlpha),
+            outlineThickness: 2,
+            radius: 6);
         for (var index = 0; index < wrappedLines.Count; index += 1)
         {
             var line = wrappedLines[index];
