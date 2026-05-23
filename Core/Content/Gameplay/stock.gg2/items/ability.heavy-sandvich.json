@@ -7,7 +7,7 @@
     "category": "secondary",
     "activation": "pressed",
     "executorId": "builtin.ability.heavy_sandvich",
-    "tags": [ "heal", "cooldown" ],
+    "tags": [ "core_m2", "heal", "cooldown" ],
     "parameters": {
       "durationTicks": 124,
       "cooldownTicks": 1350,

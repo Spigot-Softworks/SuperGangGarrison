@@ -191,7 +191,7 @@ public sealed partial class PlayerEntity
 
     private void ApplyExperimentalGhostDashMovement(SimpleLevel level, PlayerTeam team, float deltaSeconds, bool allowDropdownFallThrough)
     {
-        if (ExperimentalGhostDashMovementTicksRemaining <= 0
+        if (ExperimentalGhostDashMovementTicksRemaining < 0
             || ExperimentalGhostDashDistanceRemaining <= 0f
             || deltaSeconds <= 0f)
         {
@@ -219,6 +219,11 @@ public sealed partial class PlayerEntity
 
         MoveWithCollisions(level, team, FacingDirectionX * moveDistance, 0f, allowDropdownFallThrough);
         ExperimentalGhostDashDistanceRemaining = MathF.Max(0f, ExperimentalGhostDashDistanceRemaining - moveDistance);
+        if (ExperimentalGhostDashMovementTicksRemaining <= 0 || ExperimentalGhostDashDistanceRemaining <= 0f)
+        {
+            ExperimentalGhostDashMovementTicksRemaining = 0;
+            ResetExperimentalGhostDashMovementState();
+        }
     }
 
     private void ApplyExperimentalMomentumGhostDashMovement(SimpleLevel level, PlayerTeam team, bool allowDropdownFallThrough)
@@ -229,10 +234,10 @@ public sealed partial class PlayerEntity
         }
 
         var elapsedTicks = Math.Clamp(
-            ExperimentalGhostDashInitialTicks - ExperimentalGhostDashMovementTicksRemaining,
-            0,
-            ExperimentalGhostDashInitialTicks - 1);
-        var nextProgress = (elapsedTicks + 1) / (float)ExperimentalGhostDashInitialTicks;
+            ExperimentalGhostDashInitialTicks - ExperimentalGhostDashMovementTicksRemaining + 1,
+            1,
+            ExperimentalGhostDashInitialTicks);
+        var nextProgress = elapsedTicks / (float)ExperimentalGhostDashInitialTicks;
         var targetDistance = ExperimentalGhostDashInitialDistance * SmoothStepProgress(nextProgress);
         var moveDistance = MathF.Max(0f, targetDistance - ExperimentalGhostDashDistanceTraveled);
         moveDistance = MathF.Min(moveDistance, ExperimentalGhostDashDistanceRemaining);
@@ -244,25 +249,47 @@ public sealed partial class PlayerEntity
         var previousX = X;
         MoveWithCollisions(level, team, ExperimentalGhostDashMomentumDirectionX * moveDistance, 0f, allowDropdownFallThrough);
         var movedDistance = MathF.Abs(X - previousX);
+        if (movedDistance > 0.001f)
+        {
+            ExperimentalGhostDashLastMoveDistance = movedDistance;
+        }
+
         ExperimentalGhostDashDistanceTraveled += moveDistance;
         ExperimentalGhostDashDistanceRemaining = MathF.Max(0f, ExperimentalGhostDashInitialDistance - ExperimentalGhostDashDistanceTraveled);
 
         if (movedDistance <= 0.001f)
         {
+            ApplyExperimentalGhostDashResidualMomentum();
             ExperimentalGhostDashDistanceRemaining = 0f;
+            ExperimentalGhostDashMovementTicksRemaining = 0;
+            ResetExperimentalGhostDashMovementState();
             return;
         }
 
         if (nextProgress >= 1f)
         {
-            const float residualMomentumPerTick = 3.25f;
-            var residualSpeed = residualMomentumPerTick * LegacyMovementModel.SourceTicksPerSecond;
-            var residualVelocity = ExperimentalGhostDashMomentumDirectionX * residualSpeed;
-            if (MathF.Sign(HorizontalSpeed) != MathF.Sign(residualVelocity)
-                || MathF.Abs(HorizontalSpeed) < residualSpeed)
-            {
-                HorizontalSpeed = residualVelocity;
-            }
+            ApplyExperimentalGhostDashResidualMomentum();
+            ExperimentalGhostDashMovementTicksRemaining = 0;
+            ResetExperimentalGhostDashMovementState();
+        }
+    }
+
+    private void ApplyExperimentalGhostDashResidualMomentum()
+    {
+        if (!ExperimentalGhostDashUsesMomentum || ExperimentalGhostDashLastMoveDistance <= 0.001f)
+        {
+            return;
+        }
+
+        const float minimumResidualMomentumPerTick = 1.25f;
+        var residualSpeed = MathF.Max(
+            ExperimentalGhostDashLastMoveDistance,
+            minimumResidualMomentumPerTick) * LegacyMovementModel.SourceTicksPerSecond;
+        var residualVelocity = ExperimentalGhostDashMomentumDirectionX * residualSpeed;
+        if (MathF.Sign(HorizontalSpeed) != MathF.Sign(residualVelocity)
+            || MathF.Abs(HorizontalSpeed) < residualSpeed)
+        {
+            HorizontalSpeed = residualVelocity;
         }
     }
 

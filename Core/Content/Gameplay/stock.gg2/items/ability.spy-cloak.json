@@ -7,7 +7,7 @@
     "category": "secondary",
     "activation": "pressed",
     "executorId": "builtin.ability.spy_cloak",
-    "tags": [ "cloak", "toggle" ]
+    "tags": [ "core_m2", "cloak", "toggle" ]
   },
   "ammo": {},
   "presentation": {}

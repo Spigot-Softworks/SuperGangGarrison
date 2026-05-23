@@ -246,13 +246,16 @@ public static class BotNavigationAssetStore
             return false;
         }
 
-        var cacheKey = Path.GetFullPath(readablePath);
-        var fileInfo = new FileInfo(readablePath);
+        if (!BotBrainJsonAssetIO.TryGetReadableMetadata(readablePath, out var cacheKey, out var lastWriteTicks, out var length))
+        {
+            return false;
+        }
+
         lock (AssetFileCacheSync)
         {
             if (AssetFileCache.TryGetValue(cacheKey, out var cached)
-                && cached.LastWriteTicks == fileInfo.LastWriteTimeUtc.Ticks
-                && cached.Length == fileInfo.Length
+                && cached.LastWriteTicks == lastWriteTicks
+                && cached.Length == length
                 && IsCompatible(cached.Asset, level))
             {
                 asset = cached.Asset;
@@ -277,7 +280,7 @@ public static class BotNavigationAssetStore
 
         lock (AssetFileCacheSync)
         {
-            AssetFileCache[cacheKey] = new CachedAssetFile(fileInfo.LastWriteTimeUtc.Ticks, fileInfo.Length, loaded);
+            AssetFileCache[cacheKey] = new CachedAssetFile(lastWriteTicks, length, loaded);
         }
 
         asset = loaded;
@@ -296,6 +299,19 @@ public static class BotNavigationAssetStore
             return "missing";
         }
 
+        if (BotBrainJsonAssetIO.TryGetReadableMetadata(readablePath, out var cacheKey, out var lastWriteTicks, out var length))
+        {
+            lock (AssetFileCacheSync)
+            {
+                if (AssetFileCache.TryGetValue(cacheKey, out var cached)
+                    && cached.LastWriteTicks == lastWriteTicks
+                    && cached.Length == length)
+                {
+                    return InspectAsset(cached.Asset, level, expectedFingerprint);
+                }
+            }
+        }
+
         BotNavigationAsset? loaded;
         try
         {
@@ -311,27 +327,32 @@ public static class BotNavigationAssetStore
             return "empty_asset";
         }
 
-        if (loaded.FormatVersion != CurrentFormatVersion)
+        return InspectAsset(loaded, level, expectedFingerprint);
+    }
+
+    private static string InspectAsset(BotNavigationAsset asset, SimpleLevel level, string expectedFingerprint)
+    {
+        if (asset.FormatVersion != CurrentFormatVersion)
         {
-            return $"format_mismatch:{loaded.FormatVersion}!={CurrentFormatVersion}";
+            return $"format_mismatch:{asset.FormatVersion}!={CurrentFormatVersion}";
         }
 
-        if (!string.Equals(loaded.LevelName, level.Name, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(asset.LevelName, level.Name, StringComparison.OrdinalIgnoreCase))
         {
-            return $"level_mismatch:{loaded.LevelName}!={level.Name}";
+            return $"level_mismatch:{asset.LevelName}!={level.Name}";
         }
 
-        if (loaded.MapAreaIndex != level.MapAreaIndex)
+        if (asset.MapAreaIndex != level.MapAreaIndex)
         {
-            return $"area_mismatch:{loaded.MapAreaIndex}!={level.MapAreaIndex}";
+            return $"area_mismatch:{asset.MapAreaIndex}!={level.MapAreaIndex}";
         }
 
-        if (!string.Equals(loaded.LevelFingerprint, expectedFingerprint, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(asset.LevelFingerprint, expectedFingerprint, StringComparison.OrdinalIgnoreCase))
         {
-            return $"fingerprint_mismatch:{TrimFingerprint(loaded.LevelFingerprint)}!={TrimFingerprint(expectedFingerprint)}";
+            return $"fingerprint_mismatch:{TrimFingerprint(asset.LevelFingerprint)}!={TrimFingerprint(expectedFingerprint)}";
         }
 
-        return $"compatible:nodes={loaded.Nodes.Count}:edges={loaded.Edges.Count}:anchors={loaded.Anchors.Count}";
+        return $"compatible:nodes={asset.Nodes.Count}:edges={asset.Edges.Count}:anchors={asset.Anchors.Count}";
     }
 
     private static NavGraph CacheGraph(SimpleLevel level, BotNavigationAsset asset)
@@ -382,7 +403,7 @@ public static class BotNavigationAssetStore
         File.WriteAllText(path, JsonSerializer.Serialize(asset, SerializerOptions));
         lock (AssetFileCacheSync)
         {
-            AssetFileCache.Remove(Path.GetFullPath(path));
+            AssetFileCache.Remove(BotBrainJsonAssetIO.GetCacheKey(path));
         }
     }
 

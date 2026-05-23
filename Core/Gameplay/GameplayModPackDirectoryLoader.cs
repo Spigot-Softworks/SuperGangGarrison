@@ -355,6 +355,10 @@ public static class GameplayModPackDirectoryLoader
         var cooldownKey = hud.CooldownKey?.Trim() ?? string.Empty;
         var activeKey = hud.ActiveKey?.Trim() ?? string.Empty;
         var disabledKey = hud.DisabledKey?.Trim() ?? string.Empty;
+        var widgetId = hud.WidgetId?.Trim() ?? string.Empty;
+        var widgetOwner = hud.WidgetOwner?.Trim() ?? string.Empty;
+        var widgetCallback = hud.WidgetCallback?.Trim() ?? string.Empty;
+        var anchor = hud.Anchor?.Trim() ?? string.Empty;
 
         if (displayKind.Length > 0 && !IsKnownHudDisplayKind(displayKind))
         {
@@ -377,6 +381,21 @@ public static class GameplayModPackDirectoryLoader
             throw new InvalidOperationException($"Gameplay HUD ammo panel metadata requires a presentation hudSpriteName in \"{filePath}\".");
         }
 
+        if (string.Equals(displayKind, GameplayItemHudDisplayKinds.Custom, StringComparison.Ordinal))
+        {
+            if (string.IsNullOrWhiteSpace(widgetCallback) && string.IsNullOrWhiteSpace(widgetId))
+            {
+                throw new InvalidOperationException($"Gameplay HUD custom metadata requires widgetId or widgetCallback in \"{filePath}\".");
+            }
+
+            if (!string.IsNullOrWhiteSpace(widgetCallback)
+                && string.IsNullOrWhiteSpace(widgetOwner)
+                && string.IsNullOrWhiteSpace(stateOwner))
+            {
+                throw new InvalidOperationException($"Gameplay HUD custom metadata requires widgetOwner or stateOwner in \"{filePath}\".");
+            }
+        }
+
         return hud with
         {
             DisplayKind = displayKind,
@@ -387,6 +406,10 @@ public static class GameplayModPackDirectoryLoader
             MaxCooldown = Math.Max(0, hud.MaxCooldown),
             ActiveKey = activeKey,
             DisabledKey = disabledKey,
+            WidgetId = widgetId,
+            WidgetOwner = widgetOwner,
+            WidgetCallback = widgetCallback,
+            Anchor = anchor,
         };
     }
 
@@ -396,6 +419,7 @@ public static class GameplayModPackDirectoryLoader
             || string.Equals(displayKind, GameplayItemHudDisplayKinds.AmmoPanel, StringComparison.Ordinal)
             || string.Equals(displayKind, GameplayItemHudDisplayKinds.Meter, StringComparison.Ordinal)
             || string.Equals(displayKind, GameplayItemHudDisplayKinds.CooldownIcon, StringComparison.Ordinal)
+            || string.Equals(displayKind, GameplayItemHudDisplayKinds.Custom, StringComparison.Ordinal)
             || string.Equals(displayKind, GameplayItemHudDisplayKinds.Count, StringComparison.Ordinal)
             || string.Equals(displayKind, GameplayItemHudDisplayKinds.Prompt, StringComparison.Ordinal);
     }
@@ -415,6 +439,7 @@ public static class GameplayModPackDirectoryLoader
             || string.Equals(stateProvider, GameplayItemHudStateProviders.ReloadProgress, StringComparison.Ordinal)
             || string.Equals(stateProvider, GameplayItemHudStateProviders.Cooldown, StringComparison.Ordinal)
             || string.Equals(stateProvider, GameplayItemHudStateProviders.AbilityCooldown, StringComparison.Ordinal)
+            || string.Equals(stateProvider, GameplayItemHudStateProviders.Custom, StringComparison.Ordinal)
             || string.Equals(stateProvider, GameplayItemHudStateProviders.HeavySandvichCooldown, StringComparison.Ordinal)
             || string.Equals(stateProvider, GameplayItemHudStateProviders.HeavyGhostDashCooldown, StringComparison.Ordinal)
             || string.Equals(stateProvider, GameplayItemHudStateProviders.SpySuperjumpCooldown, StringComparison.Ordinal)

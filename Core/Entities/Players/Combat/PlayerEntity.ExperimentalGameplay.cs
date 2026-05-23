@@ -122,6 +122,10 @@ public sealed partial class PlayerEntity
 
     private int ExperimentalGravitonVisualTicksRemaining { get; set; }
 
+    private int DirectFireSlowTicksRemaining { get; set; }
+
+    private float DirectFireSlowMovementMultiplierValue { get; set; } = 1f;
+
     public float ServerMovementSpeedScale => ServerMovementSpeedScaleValue;
 
     public float ServerGravityScale => ServerGravityScaleValue;
@@ -139,6 +143,8 @@ public sealed partial class PlayerEntity
         : 0f;
 
     public bool IsExperimentalCryoSlowed => ExperimentalCryoSlowTicksRemaining > 0;
+
+    public bool IsDirectFireSlowed => DirectFireSlowTicksRemaining > 0;
 
     public bool IsExperimentalCryoFrozen => ExperimentalCryoFreezeTicksRemaining > 0;
 
@@ -564,6 +570,20 @@ public sealed partial class PlayerEntity
             1f);
     }
 
+    public void RefreshDirectFireSlow(int ticks, float movementMultiplier)
+    {
+        if (!IsAlive || ticks <= 0)
+        {
+            return;
+        }
+
+        DirectFireSlowTicksRemaining = Math.Max(DirectFireSlowTicksRemaining, ticks);
+        DirectFireSlowMovementMultiplierValue = Math.Clamp(
+            Math.Min(DirectFireSlowMovementMultiplierValue, movementMultiplier),
+            0.05f,
+            1f);
+    }
+
     public void RefreshExperimentalGravitonEffect(int ticks)
     {
         if (!IsAlive || ticks <= 0)
@@ -731,6 +751,7 @@ public sealed partial class PlayerEntity
         ExperimentalGhostDashInitialTicks = dashMovementTicks;
         ExperimentalGhostDashInitialDistance = MathF.Max(0f, dashImpulse);
         ExperimentalGhostDashDistanceTraveled = 0f;
+        ExperimentalGhostDashLastMoveDistance = 0f;
         ExperimentalGhostDashDistanceRemaining = MathF.Max(0f, dashImpulse);
         ExperimentalGhostDashSpeedPerSecondValue = useMomentum || dashImpulse <= 0f ? 0f : dashImpulse / 0.08f;
         ExperimentalGhostDashMomentumDirectionX = FacingDirectionX < 0f ? -1f : 1f;
@@ -984,6 +1005,16 @@ public sealed partial class PlayerEntity
             }
         }
 
+        if (DirectFireSlowTicksRemaining > 0)
+        {
+            DirectFireSlowTicksRemaining -= 1;
+            if (DirectFireSlowTicksRemaining <= 0)
+            {
+                DirectFireSlowTicksRemaining = 0;
+                DirectFireSlowMovementMultiplierValue = 1f;
+            }
+        }
+
         if (ExperimentalConfusionTicksRemaining > 0)
         {
             ExperimentalConfusionTicksRemaining -= 1;
@@ -1074,7 +1105,7 @@ public sealed partial class PlayerEntity
             ExperimentalGhostDashMovementTicksRemaining -= 1;
             if (ExperimentalGhostDashMovementTicksRemaining <= 0)
             {
-                ResetExperimentalGhostDashMovementState();
+                ExperimentalGhostDashMovementTicksRemaining = 0;
             }
         }
 
@@ -1194,6 +1225,8 @@ public sealed partial class PlayerEntity
         ExperimentalJumpPadSlowTicksRemaining = 0;
         ExperimentalJumpPadSlowMovementSpeedMultiplierValue = 1f;
         ExperimentalGravitonVisualTicksRemaining = 0;
+        DirectFireSlowTicksRemaining = 0;
+        DirectFireSlowMovementMultiplierValue = 1f;
         IsExperimentalDemoknightCharging = false;
         ExperimentalDemoknightChargeRechargeAccumulator = 0f;
         ExperimentalDemoknightChargeTicksRemaining = IsExperimentalDemoknightEnabled
@@ -1211,6 +1244,7 @@ public sealed partial class PlayerEntity
         ExperimentalGhostDashInitialTicks = 0;
         ExperimentalGhostDashInitialDistance = 0f;
         ExperimentalGhostDashDistanceTraveled = 0f;
+        ExperimentalGhostDashLastMoveDistance = 0f;
         ExperimentalGhostDashMomentumDirectionX = 1f;
     }
 
@@ -1244,6 +1278,11 @@ public sealed partial class PlayerEntity
         if (ExperimentalJumpPadSlowTicksRemaining > 0)
         {
             multiplier *= ExperimentalJumpPadSlowMovementSpeedMultiplierValue;
+        }
+
+        if (DirectFireSlowTicksRemaining > 0)
+        {
+            multiplier *= DirectFireSlowMovementMultiplierValue;
         }
 
         return multiplier;

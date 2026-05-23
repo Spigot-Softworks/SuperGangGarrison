@@ -222,7 +222,7 @@ internal static class HostedServerBootstrapper
 
         arguments.Add(options.LobbyAnnounce ? "--lobby" : "--no-lobby");
         arguments.Add(options.AutoBalance ? "--auto-balance" : "--no-auto-balance");
-        arguments.Add(options.SecondaryAbilitiesEnabled ? "--secondary-abilities" : "--no-secondary-abilities");
+        arguments.Add(options.SecondaryAbilitiesEnabled ? "--special-abilities" : "--no-special-abilities");
         return string.Join(' ', arguments);
     }
 

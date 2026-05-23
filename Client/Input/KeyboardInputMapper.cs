@@ -21,8 +21,7 @@ internal static class KeyboardInputMapper
         var mouseWorldY = cameraY + mouse.Y;
         var swapWeaponsBinding = InputBindingsSettings.NormalizeSwapWeaponsBinding(bindings.SwapWeaponsBinding);
         var swapWeapon = IsSwapWeaponInputDown(bindings, swapWeaponsBinding, keyboard, mouse);
-        var fireSecondary = mouse.RightButton == ButtonState.Pressed
-            && swapWeaponsBinding != WeaponSwapBindingMode.MouseSecondary;
+        var fireSecondary = mouse.RightButton == ButtonState.Pressed;
         var interactWeapon = keyboard.IsKeyDown(bindings.InteractWeapon)
             && !IsKeyboardKeyReservedForSwapWeapons(bindings, swapWeaponsBinding, bindings.InteractWeapon);
         

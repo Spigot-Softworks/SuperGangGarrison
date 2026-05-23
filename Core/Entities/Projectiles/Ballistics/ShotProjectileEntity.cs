@@ -18,7 +18,10 @@ public sealed class ShotProjectileEntity : SimulationEntity
         bool forceGibOnKill = false,
         string? killFeedWeaponSpriteNameOverride = null,
         int? sourceSentryId = null,
-        bool applyExperimentalEngineerSentryPerkEffects = false) : base(id)
+        bool applyExperimentalEngineerSentryPerkEffects = false,
+        float playerKnockbackScale = 1f,
+        float? playerSlowMovementMultiplier = null,
+        int playerSlowRefreshTicks = 0) : base(id)
     {
         Team = team;
         OwnerId = ownerId;
@@ -31,6 +34,11 @@ public sealed class ShotProjectileEntity : SimulationEntity
         KillFeedWeaponSpriteNameOverride = killFeedWeaponSpriteNameOverride;
         SourceSentryId = sourceSentryId;
         ApplyExperimentalEngineerSentryPerkEffects = applyExperimentalEngineerSentryPerkEffects;
+        PlayerKnockbackScale = Math.Max(0f, playerKnockbackScale);
+        PlayerSlowMovementMultiplier = playerSlowMovementMultiplier.HasValue
+            ? Math.Clamp(playerSlowMovementMultiplier.Value, 0.05f, 1f)
+            : null;
+        PlayerSlowRefreshTicks = Math.Max(0, playerSlowRefreshTicks);
         TicksRemaining = LifetimeTicks;
     }
 
@@ -59,6 +67,12 @@ public sealed class ShotProjectileEntity : SimulationEntity
     public int? SourceSentryId { get; }
 
     public bool ApplyExperimentalEngineerSentryPerkEffects { get; }
+
+    public float PlayerKnockbackScale { get; private set; }
+
+    public float? PlayerSlowMovementMultiplier { get; private set; }
+
+    public int PlayerSlowRefreshTicks { get; private set; }
 
     public bool IsCritical { get; private set; }
 
@@ -113,5 +127,8 @@ public sealed class ShotProjectileEntity : SimulationEntity
         VelocityY = velocityY;
         TicksRemaining = ticksRemaining;
         DamageValue = DamagePerHit;
+        PlayerKnockbackScale = 1f;
+        PlayerSlowMovementMultiplier = null;
+        PlayerSlowRefreshTicks = 0;
     }
 }

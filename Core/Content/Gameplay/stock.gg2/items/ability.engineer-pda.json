@@ -7,7 +7,7 @@
     "category": "secondary",
     "activation": "pressed",
     "executorId": "builtin.ability.engineer_pda",
-    "tags": [ "build", "sentry", "experimental_ltd" ]
+    "tags": [ "core_m2", "build", "sentry", "experimental_ltd" ]
   },
   "ammo": {},
   "presentation": {}

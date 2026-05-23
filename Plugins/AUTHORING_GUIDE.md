@@ -161,10 +161,10 @@ Common client callbacks:
 Useful client host APIs include:
 
 - State: `get_client_state`, `get_client_runtime_state`, `is_connected`, `is_gameplay_active`, `is_spectator`.
-- Local player: `get_local_player_id`, `get_local_player_team`, `get_local_player_class`, `get_local_player_health`, `try_get_local_player_world_position`.
+- Local player: `get_local_player_id`, `get_local_player_team`, `get_local_player_class`, `get_local_player_health`, `get_local_gameplay_item_ids`, `get_local_gameplay_ability_item_ids`, `try_get_local_player_world_position`.
 - Markers: `get_player_markers`, `get_sentry_markers`, `get_objective_markers`.
 - Drawing/assets: `register_texture_asset`, `register_sound_asset`, `play_sound`, `color`, `vec2`.
-- UI: `register_hud_widget`, `register_scoreboard_panel`, `register_scoreboard_player_action`, `show_overlay_panel`, `show_overlay_menu`, `hide_overlay_menu`, `show_prompt`, `show_notice`.
+- UI: `register_hud_widget`, `register_gameplay_ability_hud_widget`, `register_scoreboard_panel`, `register_scoreboard_player_action`, `show_overlay_panel`, `show_overlay_menu`, `hide_overlay_menu`, `show_prompt`, `show_notice`.
 - Input: `register_hotkey`, `capture_hotkey_input`, `clear_hotkey_capture`, `was_hotkey_pressed`.
 - Chat: `register_chat_filter`, `register_chat_command`.
 - Messaging: `send_message_to_server`.
@@ -182,6 +182,13 @@ end
 ```
 
 Draw callbacks run often. Keep them fast, avoid file I/O, and cache anything expensive.
+
+Ability-specific HUD should use `presentation.hud` metadata when the ability item
+owns the UI. A Lua ability can set `displayKind = "custom"`, `widgetOwner`, and
+`widgetCallback`; the matching client Lua plugin implements that callback. For
+client-only presentation on an existing item, register
+`host.register_gameplay_ability_hud_widget({ itemId = "...", draw = function(...) end })`
+so the widget is only drawn while the local player has that gameplay item.
 
 ### Client Options
 

@@ -85,6 +85,7 @@ internal static class ServerPluginRuntimeFactory
             lobbyPort,
             passwordRequired,
             autoBalanceEnabledGetter,
+            () => world.ExperimentalGameplaySettings.EnableSecondaryAbilities,
             respawnSecondsGetter,
             () => mapRotationManager,
             mapRotationFile,

@@ -39,6 +39,7 @@ const maxPumpDurationMs = Number.parseFloat(process.env.OG_BROWSER_MAX_PUMP_MS ?
 const maxPracticeShellReadyMs = Number.parseInt(process.env.OG_BROWSER_MAX_SHELL_READY_MS ?? "45000", 10);
 const practiceEnemyBots = clampPracticeBotCount(process.env.OG_BROWSER_PRACTICE_ENEMY_BOTS ?? "0");
 const practiceFriendlyBots = clampPracticeBotCount(process.env.OG_BROWSER_PRACTICE_FRIENDLY_BOTS ?? "0");
+const practiceClass = (process.env.OG_BROWSER_PRACTICE_CLASS ?? "Pyro").trim();
 const scenario = (process.env.OG_BROWSER_SCENARIO ?? "practice").trim().toLowerCase();
 if (!["practice", "dedicated"].includes(scenario)) {
   throw new Error(`Unsupported OG_BROWSER_SCENARIO=${scenario}. Expected 'practice' or 'dedicated'.`);
@@ -463,7 +464,7 @@ async function runPracticeScenario(page) {
 
   const joinPracticeStartedAt = Date.now();
   await page.evaluate(() => globalThis.OpenGarrisonBrowserHost?.resetMetrics?.());
-  await joinPracticeAndExerciseRapidFire(page);
+  await joinPracticeAndExerciseRapidFire(page, practiceClass);
   timings.practiceJoinAndExerciseMs = Date.now() - joinPracticeStartedAt;
 
   await runPostJoinCommands(page);
@@ -652,7 +653,7 @@ async function waitForGameplayShell(page, timeoutMs) {
   );
 }
 
-async function joinPracticeAndExerciseRapidFire(page) {
+async function joinPracticeAndExerciseRapidFire(page, preferredClass) {
   const teamSelectState = await waitForAutomationState(
     page,
     (state) => state && state.teamSelectOpen,
@@ -667,7 +668,7 @@ async function joinPracticeAndExerciseRapidFire(page) {
     15_000,
     "class select"
   );
-  await clickAutomationAction(page, classSelectState.classSelectButtons, "Pyro");
+  await clickAutomationAction(page, classSelectState.classSelectButtons, preferredClass);
 
   const spawnedState = await waitForAutomationState(
     page,

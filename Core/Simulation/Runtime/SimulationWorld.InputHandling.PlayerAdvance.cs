@@ -55,7 +55,9 @@ public sealed partial class SimulationWorld
         var abilityPressed = input.UseAbility && !previousInput.UseAbility;
         var abilityReleased = !input.UseAbility && previousInput.UseAbility;
         var swapWeaponPressed = input.SwapWeapon && !previousInput.SwapWeapon;
-        var secondaryWeaponTriggeredPyroSelfAirblast = player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.PyroUtility)
+        var specialAbilitiesEnabled = ExperimentalGameplaySettings.EnableSecondaryAbilities;
+        var secondaryWeaponTriggeredPyroSelfAirblast = specialAbilitiesEnabled
+            && player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.PyroUtility)
             && abilityPressed
             && player.CanFirePyroAirblast();
         var interactWeaponPressed = input.InteractWeapon && !previousInput.InteractWeapon;
@@ -132,32 +134,35 @@ public sealed partial class SimulationWorld
             TryApplyJumpPadJumpBoostFromPlayerJump(player, jumped);
         }
 
+        var secondaryAbilityConsumedInput = false;
         if (player.ClassId == PlayerClass.Medic)
         {
             if (input.FireSecondary)
             {
-                TryHandleNetworkSecondaryAbility(
+                var secondaryResult = TryHandleNetworkSecondaryAbility(
                     player,
                     input,
                     previousInput,
                     GameplayAbilityInputPhase.Held,
                     preAdvanceX,
                     preAdvanceY);
+                secondaryAbilityConsumedInput = secondaryResult.ConsumedInput;
             }
         }
         else if ((allowHeldSecondaryAbility && input.FireSecondary) || (!allowHeldSecondaryAbility && secondaryAbilityPressed))
         {
-            TryHandleNetworkSecondaryAbility(
+            var secondaryResult = TryHandleNetworkSecondaryAbility(
                 player,
                 input,
                 previousInput,
                 allowHeldSecondaryAbility ? GameplayAbilityInputPhase.Held : GameplayAbilityInputPhase.Pressed,
                 preAdvanceX,
                 preAdvanceY);
+            secondaryAbilityConsumedInput = secondaryResult.ConsumedInput;
         }
 
         var swappedWeaponThisTick = false;
-        if (swapWeaponPressed)
+        if (swapWeaponPressed && !secondaryAbilityConsumedInput)
         {
             swappedWeaponThisTick = TryHandleNetworkWeaponSwap(player);
         }

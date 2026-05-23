@@ -333,9 +333,11 @@ public sealed partial class SimulationWorld
         return true;
     }
 
-    private static bool TryHandleNetworkWeaponSwap(PlayerEntity player)
+    private bool TryHandleNetworkWeaponSwap(PlayerEntity player)
     {
-        if (player.IsTaunting || player.IsExperimentalCryoFrozen)
+        if (!ExperimentalGameplaySettings.EnableSecondaryAbilities
+            || player.IsTaunting
+            || player.IsExperimentalCryoFrozen)
         {
             return false;
         }
@@ -424,6 +426,11 @@ public sealed partial class SimulationWorld
             return false;
         }
 
+        if (!ExperimentalGameplaySettings.EnableSecondaryAbilities)
+        {
+            return false;
+        }
+
         if (swappedWeaponThisTick)
         {
             return true;
@@ -433,11 +440,6 @@ public sealed partial class SimulationWorld
         if (!input.SwapWeapon && TryHandleNetworkWeaponSwap(player))
         {
             return true;
-        }
-
-        if (!ExperimentalGameplaySettings.EnableSecondaryAbilities)
-        {
-            return false;
         }
 
         var dispatchResult = TryDispatchGameplayAbility(
@@ -477,7 +479,8 @@ public sealed partial class SimulationWorld
 
     private void TryHandleNetworkWeaponInteraction(PlayerEntity player)
     {
-        if (TryHandleExperimentalEngineerAlternateWeaponInteraction(player))
+        if (ExperimentalGameplaySettings.EnableSecondaryAbilities
+            && TryHandleExperimentalEngineerAlternateWeaponInteraction(player))
         {
             return;
         }

@@ -86,6 +86,13 @@ public partial class Game1
         };
     }
 
+    private static string GetHudWeaponDisplayModeLabel(bool showOnlyActiveWeapon)
+    {
+        return showOnlyActiveWeapon
+            ? "Show Only Active Weapon"
+            : "Show All Weapons";
+    }
+
     private static string GetDamageVignetteIntensityLabel(int percent)
     {
         return $"{ClientSettings.NormalizeDamageVignetteIntensityPercent(percent)}%";
@@ -355,6 +362,12 @@ public partial class Game1
     private void ToggleShowHealthBarSetting()
     {
         _showHealthBarEnabled = !_showHealthBarEnabled;
+        PersistClientSettings();
+    }
+
+    private void ToggleHudWeaponDisplayModeSetting()
+    {
+        _hudShowOnlyActiveWeapon = !_hudShowOnlyActiveWeapon;
         PersistClientSettings();
     }
 

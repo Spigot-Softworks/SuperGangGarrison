@@ -269,8 +269,12 @@ public partial class Game1
 
     private void ApplyPredictedSecondaryFire(PlayerEntity player, PredictedLocalInput predictedInput)
     {
+        if (ApplyPredictedSecondaryAbility(player, predictedInput))
+        {
+            return;
+        }
+
         var swappedWeaponThisTick = ApplyPredictedWeaponSwap(player, predictedInput);
-        ApplyPredictedSecondaryAbility(player, predictedInput);
         ApplyPredictedSecondaryWeaponFire(player, predictedInput, swappedWeaponThisTick);
     }
 
@@ -284,23 +288,23 @@ public partial class Game1
         return TryPredictedToggleSecondaryWeapon(player);
     }
 
-    private void ApplyPredictedSecondaryAbility(PlayerEntity player, PredictedLocalInput predictedInput)
+    private bool ApplyPredictedSecondaryAbility(PlayerEntity player, PredictedLocalInput predictedInput)
     {
         if (player.IsTaunting)
         {
-            return;
+            return false;
         }
 
         if (player.ClassId == PlayerClass.Medic)
         {
             if (!predictedInput.Input.FireSecondary)
             {
-                return;
+                return false;
             }
 
             if (TryPredictedFireMedicNeedle(player))
             {
-                return;
+                return true;
             }
 
             if (_predictedLocalActionState.IsMedicUberReady && predictedInput.Input.FirePrimary)
@@ -308,25 +312,25 @@ public partial class Game1
                 TryPredictedStartMedicUber(player);
             }
 
-            return;
+            return true;
         }
 
         var useHeldSecondary = player.ClassId is PlayerClass.Demoman or PlayerClass.Quote;
         if ((!useHeldSecondary && !predictedInput.SecondaryAbilityPressed)
             || (useHeldSecondary && !predictedInput.Input.FireSecondary))
         {
-            return;
+            return false;
         }
 
         if (player.ClassId == PlayerClass.Demoman)
         {
-            return;
+            return true;
         }
 
         if (player.ClassId == PlayerClass.Heavy)
         {
             TryPredictedStartHeavySelfHeal(player);
-            return;
+            return true;
         }
 
         if (player.ClassId == PlayerClass.Pyro)
@@ -341,13 +345,13 @@ public partial class Game1
                 SyncPredictedLocalPlayerState(player);
             }
 
-            return;
+            return true;
         }
 
         if (player.HasScopedSniperWeaponEquipped)
         {
             TryPredictedToggleSniperScope(player);
-            return;
+            return true;
         }
 
         if (player.ClassId == PlayerClass.Spy)
@@ -357,13 +361,16 @@ public partial class Game1
                 TryPredictedToggleSpyCloak(player);
             }
 
-            return;
+            return true;
         }
 
         if (player.ClassId == PlayerClass.Quote && player.TryFireQuoteBlade())
         {
             SyncPredictedLocalPlayerState(player);
+            return true;
         }
+
+        return player.ClassId == PlayerClass.Quote;
     }
 
     private static bool IsPredictedPyroSelfAirblastInput(PlayerEntity player, PredictedLocalInput predictedInput)
@@ -529,7 +536,8 @@ public partial class Game1
             ExperimentalGameplaySettings.DefaultGhostDashNextAttackDamageMultiplier,
             GetPredictedHeavyGhostDashImpulse(),
             requireExperimentalDemoknight: false,
-            useMomentum: true))
+            useMomentum: true,
+            movementTicks: GetPredictedHeavyGhostDashMovementDurationTicks()))
         {
             return false;
         }
@@ -541,6 +549,11 @@ public partial class Game1
     private int GetPredictedHeavyGhostDashDurationTicks()
     {
         return Math.Max(1, (int)MathF.Round(_config.TicksPerSecond * ExperimentalGameplaySettings.HeavyGhostDashDurationSeconds));
+    }
+
+    private int GetPredictedHeavyGhostDashMovementDurationTicks()
+    {
+        return Math.Max(1, (int)MathF.Round(_config.TicksPerSecond * ExperimentalGameplaySettings.HeavyGhostDashMovementDurationSeconds));
     }
 
     private int GetPredictedHeavyGhostDashCooldownTicks()

@@ -128,7 +128,7 @@ internal sealed class HostedServerConsoleState
             _statusPlayers = $"0/{maxPlayers}";
             _statusLobby = lobbyAnnounce ? "Enabled" : "Disabled";
             _statusMap = selectedMapDisplayName ?? "Waiting for map bootstrap";
-            _statusRules = $"{timeLimitMinutes} min | cap {capLimit} | respawn {respawnSeconds}s | auto-balance {(autoBalance ? "on" : "off")} | secondary abilities {(secondaryAbilitiesEnabled ? "on" : "off")}";
+            _statusRules = $"{timeLimitMinutes} min | cap {capLimit} | respawn {respawnSeconds}s | auto-balance {(autoBalance ? "on" : "off")} | special abilities {(secondaryAbilitiesEnabled ? "on" : "off")}";
             _statusRuntime = "Launching dedicated server...";
             _statusWorld = "Waiting for world bootstrap";
         }
@@ -325,6 +325,11 @@ internal sealed class HostedServerConsoleState
             if (ruleValues.TryGetValue("autoBalance", out var autoBalance))
             {
                 ruleParts.Add($"auto-balance {autoBalance}");
+            }
+
+            if (ruleValues.TryGetValue("specialAbilities", out var specialAbilities))
+            {
+                ruleParts.Add($"special abilities {specialAbilities}");
             }
 
             if (ruleParts.Count > 0)

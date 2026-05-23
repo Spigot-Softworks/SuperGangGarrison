@@ -52,7 +52,8 @@ public sealed partial class SimulationWorld
         {
             if (item.Ability is not { } ability
                 || !AbilityCategoryMatches(ability, category)
-                || !AbilityActivationMatches(ability, phase))
+                || !AbilityActivationMatches(ability, phase)
+                || IsGameplayAbilityBlockedBySpecialAbilitiesSetting(ability))
             {
                 continue;
             }
@@ -79,6 +80,11 @@ public sealed partial class SimulationWorld
         float sourceX,
         float sourceY)
     {
+        if (!ExperimentalGameplaySettings.EnableSecondaryAbilities)
+        {
+            return;
+        }
+
         foreach (var item in ResolveAllPlayerGameplayAbilityItems(player))
         {
             if (item.Ability is not { } ability
@@ -185,6 +191,22 @@ public sealed partial class SimulationWorld
         }
 
         return !player.IsTaunting || ability.Tags.Contains("allowed_while_taunting", StringComparer.Ordinal);
+    }
+
+    private bool IsGameplayAbilityBlockedBySpecialAbilitiesSetting(GameplayAbilityDefinition ability)
+    {
+        if (ExperimentalGameplaySettings.EnableSecondaryAbilities)
+        {
+            return false;
+        }
+
+        return !IsCoreSecondaryInputAbility(ability);
+    }
+
+    private static bool IsCoreSecondaryInputAbility(GameplayAbilityDefinition ability)
+    {
+        return string.Equals(ability.Category, GameplayAbilityConstants.SecondaryCategory, StringComparison.Ordinal)
+            && ability.Tags.Contains(GameplayAbilityConstants.CoreSecondaryInputTag, StringComparer.Ordinal);
     }
 
     private static bool AbilityCategoryMatches(GameplayAbilityDefinition ability, string category)
@@ -467,6 +489,24 @@ public sealed partial class SimulationWorld
             "cooldownSeconds",
             PlayerEntity.HeavySandvichCooldownTicks,
             Config.TicksPerSecond);
+        if (context.Player.IsHeavyEating)
+        {
+            var cancelCooldownTicks = GameplayAbilityParameterReader.GetTicks(
+                context.Ability,
+                "cancelCooldownTicks",
+                "cancelCooldownSeconds",
+                cooldownTicks * 2,
+                Config.TicksPerSecond);
+            var cancelCooldownMultiplier = GameplayAbilityParameterReader.GetFloat(
+                context.Ability,
+                "cancelCooldownMultiplier",
+                1f,
+                minValue: 0f);
+            return new GameplayAbilityResult(
+                context.Player.TryCancelHeavySelfHeal((int)MathF.Round(cancelCooldownTicks * cancelCooldownMultiplier)),
+                ConsumedInput: true);
+        }
+
         var totalHeal = GameplayAbilityParameterReader.GetFloat(
             context.Ability,
             "totalHeal",
@@ -682,7 +722,7 @@ public sealed partial class SimulationWorld
             context.Ability,
             "movementDurationTicks",
             "movementDurationSeconds",
-            durationTicks,
+            GetHeavyGhostDashMovementDurationTicks(),
             Config.TicksPerSecond);
         var impulse = GameplayAbilityParameterReader.GetFloat(
             context.Ability,

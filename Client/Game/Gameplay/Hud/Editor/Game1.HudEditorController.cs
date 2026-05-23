@@ -49,7 +49,7 @@ public partial class Game1
             var clickPressed = mouse.LeftButton == ButtonState.Pressed && _game._previousMouse.LeftButton != ButtonState.Pressed;
             var clickReleased = mouse.LeftButton != ButtonState.Pressed && _game._previousMouse.LeftButton == ButtonState.Pressed;
             var mousePosition = mouse.Position.ToVector2();
-            GetToolbarBounds(out var gridBounds, out var snapBounds, out var shrinkBounds, out var growBounds, out var resetBounds, out var doneBounds);
+            GetToolbarBounds(out var gridBounds, out var snapBounds, out var shrinkBounds, out var growBounds, out var addAbilityBounds, out var resetBounds, out var doneBounds);
 
             if (clickPressed)
             {
@@ -76,6 +76,12 @@ public partial class Game1
                 if (growBounds.Contains(mouse.Position))
                 {
                     ResizeSelectedElement(ElementScaleStep);
+                    return;
+                }
+
+                if (addAbilityBounds.Contains(mouse.Position))
+                {
+                    _game.AddHudEditorDummyAbilitySlot();
                     return;
                 }
 
@@ -159,7 +165,7 @@ public partial class Game1
                          .Values
                          .OrderByDescending(static element => element.Layout.Layer))
             {
-                if (element.Layout.Locked || !element.Bounds.Contains(mousePosition))
+                if (element.Layout.Locked || !GetEditorElementBounds(element).Contains(mousePosition))
                 {
                     continue;
                 }
@@ -205,44 +211,96 @@ public partial class Game1
             {
                 var selected = string.Equals(_selectedElementId, element.Layout.Id, StringComparison.Ordinal);
                 var color = selected ? new Color(255, 236, 160) : new Color(120, 210, 255);
-                DrawRectangleOutline(element.Bounds, color * (selected ? 0.95f : 0.7f), selected ? 2 : 1);
+                DrawRectangleOutline(GetEditorElementBounds(element), color * (selected ? 0.95f : 0.7f), selected ? 2 : 1);
             }
+        }
+
+        private Rectangle GetEditorElementBounds(HudResolvedElement element)
+        {
+            var bounds = element.Bounds.Width > 0 && element.Bounds.Height > 0
+                ? element.Bounds
+                : element.Layout.ResolveBounds(element.Origin);
+            var viewportBounds = new Rectangle(0, 0, _game.ViewportWidth, _game.ViewportHeight);
+            bounds = Rectangle.Intersect(bounds, viewportBounds);
+            if (bounds.Width <= 0 || bounds.Height <= 0)
+            {
+                return Rectangle.Empty;
+            }
+
+            const int minimumHandleSize = 8;
+            if (bounds.Width < minimumHandleSize)
+            {
+                var inflateX = (minimumHandleSize - bounds.Width + 1) / 2;
+                bounds.Inflate(inflateX, 0);
+            }
+
+            if (bounds.Height < minimumHandleSize)
+            {
+                var inflateY = (minimumHandleSize - bounds.Height + 1) / 2;
+                bounds.Inflate(0, inflateY);
+            }
+
+            return Rectangle.Intersect(bounds, viewportBounds);
         }
 
         private void DrawToolbar()
         {
-            GetToolbarBounds(out var gridBounds, out var snapBounds, out var shrinkBounds, out var growBounds, out var resetBounds, out var doneBounds);
+            GetToolbarBounds(out var gridBounds, out var snapBounds, out var shrinkBounds, out var growBounds, out var addAbilityBounds, out var resetBounds, out var doneBounds);
             var mouse = Game1.GetCurrentMouseState();
             DrawToolbarPanel(gridBounds, $"Grid {(_game._hudLayoutProfile.GridVisible ? "On" : "Off")}", gridBounds.Contains(mouse.Position));
             DrawToolbarPanel(snapBounds, $"Snap {(_game._hudLayoutProfile.SnapEnabled ? "On" : "Off")}", snapBounds.Contains(mouse.Position));
-            DrawToolbarPanel(shrinkBounds, "-", shrinkBounds.Contains(mouse.Position));
-            DrawToolbarPanel(growBounds, "+", growBounds.Contains(mouse.Position));
+            DrawResizeToolbarButton(shrinkBounds, plus: false, shrinkBounds.Contains(mouse.Position));
+            DrawResizeToolbarButton(growBounds, plus: true, growBounds.Contains(mouse.Position));
+            DrawToolbarPanel(addAbilityBounds, "Ability +", addAbilityBounds.Contains(mouse.Position));
             DrawToolbarPanel(resetBounds, "Reset", resetBounds.Contains(mouse.Position));
             DrawToolbarPanel(doneBounds, "Done", doneBounds.Contains(mouse.Position));
         }
 
         private void DrawToolbarPanel(Rectangle bounds, string label, bool hovered)
         {
-            var textScale = bounds.Width >= 112 ? 1f : 0.86f;
+            var textScale = bounds.Width >= 112 ? 1f : bounds.Width >= 92 ? 0.86f : 0.74f;
             _game.DrawMenuButtonCentered(bounds, label, hovered, textScale);
         }
 
-        private void GetToolbarBounds(out Rectangle gridBounds, out Rectangle snapBounds, out Rectangle shrinkBounds, out Rectangle growBounds, out Rectangle resetBounds, out Rectangle doneBounds)
+        private void DrawResizeToolbarButton(Rectangle bounds, bool plus, bool hovered)
+        {
+            _game.DrawMenuButtonCentered(bounds, string.Empty, hovered, 1f);
+
+            var color = Color.White;
+            var thickness = Math.Max(2, bounds.Height / 12);
+            var length = Math.Max(12, Math.Min(bounds.Width, bounds.Height) / 2);
+            var centerX = bounds.X + (bounds.Width / 2);
+            var centerY = bounds.Y + (bounds.Height / 2);
+            _game._spriteBatch.Draw(
+                _game._pixel,
+                new Rectangle(centerX - (length / 2), centerY - (thickness / 2), length, thickness),
+                color);
+            if (plus)
+            {
+                _game._spriteBatch.Draw(
+                    _game._pixel,
+                    new Rectangle(centerX - (thickness / 2), centerY - (length / 2), thickness, length),
+                    color);
+            }
+        }
+
+        private void GetToolbarBounds(out Rectangle gridBounds, out Rectangle snapBounds, out Rectangle shrinkBounds, out Rectangle growBounds, out Rectangle addAbilityBounds, out Rectangle resetBounds, out Rectangle doneBounds)
         {
             const int gap = 8;
             const int resizeButtonWidth = 44;
-            var availableWidth = Math.Max(0, _game.ViewportWidth - 16 - (gap * 5) - (resizeButtonWidth * 2));
+            var availableWidth = Math.Max(0, _game.ViewportWidth - 16 - (gap * 6) - (resizeButtonWidth * 2));
             var maxButtonWidth = _game.ViewportWidth < 620 ? 104 : 132;
-            var buttonWidth = Math.Clamp(availableWidth / 4, 68, maxButtonWidth);
+            var buttonWidth = Math.Clamp(availableWidth / 5, 68, maxButtonWidth);
             var buttonHeight = 36;
-            var totalWidth = (buttonWidth * 4) + (resizeButtonWidth * 2) + (gap * 5);
+            var totalWidth = (buttonWidth * 5) + (resizeButtonWidth * 2) + (gap * 6);
             var x = Math.Max(8, (_game.ViewportWidth - totalWidth) / 2);
             var y = 12;
             gridBounds = new Rectangle(x, y, buttonWidth, buttonHeight);
             snapBounds = new Rectangle(gridBounds.Right + gap, y, buttonWidth, buttonHeight);
             shrinkBounds = new Rectangle(snapBounds.Right + gap, y, resizeButtonWidth, buttonHeight);
             growBounds = new Rectangle(shrinkBounds.Right + gap, y, resizeButtonWidth, buttonHeight);
-            resetBounds = new Rectangle(growBounds.Right + gap, y, buttonWidth, buttonHeight);
+            addAbilityBounds = new Rectangle(growBounds.Right + gap, y, buttonWidth, buttonHeight);
+            resetBounds = new Rectangle(addAbilityBounds.Right + gap, y, buttonWidth, buttonHeight);
             doneBounds = new Rectangle(resetBounds.Right + gap, y, buttonWidth, buttonHeight);
         }
 

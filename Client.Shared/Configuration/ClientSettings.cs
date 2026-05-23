@@ -12,7 +12,7 @@ public sealed class ClientSettings
     public const int CorpseDurationDefault = 0;
     public const int CorpseDurationInfinite = 1;
     public const float DefaultSmoothCameraMultiplier = 0.35f;
-    public const int DefaultDamageVignetteIntensityPercent = 100;
+    public const int DefaultDamageVignetteIntensityPercent = OpenGarrisonPreferencesDocument.DefaultDamageVignetteIntensityPercent;
     public const int PlayerCardSizeSmall = 0;
     public const int PlayerCardSizeMedium = 1;
     public const int PlayerCardSizeLarge = 2;
@@ -64,6 +64,8 @@ public sealed class ClientSettings
     public bool ShowHealingEnabled { get; set; } = true;
 
     public bool ShowHealthBarEnabled { get; set; }
+
+    public bool HudShowOnlyActiveWeapon { get; set; }
 
     public bool OverheadChatEnabled { get; set; } = OpenGarrisonPreferencesDocument.DefaultOverheadChatEnabled;
 
@@ -178,6 +180,7 @@ public sealed class ClientSettings
             ShowHealerEnabled = document.ShowHealerEnabled,
             ShowHealingEnabled = document.ShowHealingEnabled,
             ShowHealthBarEnabled = document.ShowHealthBarEnabled,
+            HudShowOnlyActiveWeapon = document.HudShowOnlyActiveWeapon,
             OverheadChatEnabled = document.OverheadChatEnabled,
             PortraitRumbleEnabled = document.PortraitRumbleEnabled,
             PostGameMvpArtEnabled = document.PostGameMvpArtEnabled,
@@ -227,6 +230,7 @@ public sealed class ClientSettings
         preferences.ShowHealerEnabled = ShowHealerEnabled;
         preferences.ShowHealingEnabled = ShowHealingEnabled;
         preferences.ShowHealthBarEnabled = ShowHealthBarEnabled;
+        preferences.HudShowOnlyActiveWeapon = HudShowOnlyActiveWeapon;
         preferences.OverheadChatEnabled = OverheadChatEnabled;
         preferences.PortraitRumbleEnabled = PortraitRumbleEnabled;
         preferences.PostGameMvpArtEnabled = PostGameMvpArtEnabled;
@@ -271,8 +275,7 @@ public sealed class ClientSettings
 
     public static int NormalizeDamageVignetteIntensityPercent(int percent)
     {
-        var clamped = Math.Clamp(percent, 0, 100);
-        return Math.Clamp(((clamped + 5) / 10) * 10, 0, 100);
+        return Math.Clamp(percent, 0, 100);
     }
 }
 

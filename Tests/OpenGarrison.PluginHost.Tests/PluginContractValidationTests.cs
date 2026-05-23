@@ -973,6 +973,10 @@ public sealed class PluginContractValidationTests
             return false;
         }
 
+        public IReadOnlyList<string> GetLocalGameplayItemIds() => [];
+
+        public IReadOnlyList<string> GetLocalGameplayAbilityItemIds() => [];
+
         public bool WasKeyPressedThisFrame(Keys key) => false;
     }
 

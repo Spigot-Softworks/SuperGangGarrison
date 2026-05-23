@@ -363,10 +363,11 @@ public partial class Game1
 
         var scale = resolved.Layout.Scale;
         var rowHeight = 20f * scale;
-        var feedRight = resolved.Origin.X;
+        var alignment = KillFeedHudAlignmentResolver.Resolve(resolved.Bounds.Center.X, ViewportWidth);
+        var feedAnchorX = KillFeedHudAlignmentResolver.ResolveAnchorX(resolved.Bounds, alignment);
         var y = resolved.Origin.Y;
-        var minX = feedRight - (340f * scale);
-        var maxX = feedRight;
+        var minX = (float)resolved.Bounds.Left;
+        var maxX = (float)resolved.Bounds.Right;
         var minY = y - (3f * scale);
         var maxY = y + (104f * scale);
         KillFeedEntry? previousEntry = null;
@@ -377,7 +378,7 @@ public partial class Game1
                 continue;
             }
 
-            var entryBounds = DrawKillFeedEntry(entry, feedRight, y, scale);
+            var entryBounds = DrawKillFeedEntry(entry, feedAnchorX, y, scale, alignment);
             minX = MathF.Min(minX, entryBounds.Left);
             maxX = MathF.Max(maxX, entryBounds.Right);
             minY = MathF.Min(minY, entryBounds.Top);
@@ -395,7 +396,7 @@ public partial class Game1
                 Math.Max(1, (int)MathF.Round(maxY - minY))));
     }
 
-    private Rectangle DrawKillFeedEntry(KillFeedEntry entry, float feedRight, float y, float scale)
+    private Rectangle DrawKillFeedEntry(KillFeedEntry entry, float feedAnchorX, float y, float scale, KillFeedHudAlignment alignment)
     {
         var leftPadding = 8f * scale;
         var rightPadding = 10f * scale;
@@ -421,7 +422,7 @@ public partial class Game1
             + messageSuffixWidth
             + victimWidth;
         var backgroundWidth = contentWidth + leftPadding + rightPadding;
-        var backgroundLeft = feedRight - backgroundWidth;
+        var backgroundLeft = KillFeedHudAlignmentResolver.ResolveEntryLeft(feedAnchorX, backgroundWidth, alignment);
         var backgroundHeight = Math.Max(16f * scale, MeasureBitmapFontHeight(textScale) + (8f * scale));
         var bounds = new Rectangle(
             (int)MathF.Floor(backgroundLeft),
@@ -690,5 +691,56 @@ public partial class Game1
         return intelState.Team == PlayerTeam.Blue
             ? frame
             : Math.Clamp(frame + 17, 18, 33);
+    }
+}
+
+internal enum KillFeedHudAlignment
+{
+    Left,
+    Center,
+    Right,
+}
+
+internal static class KillFeedHudAlignmentResolver
+{
+    private const float LeftAlignmentThreshold = 0.4f;
+    private const float RightAlignmentThreshold = 0.6f;
+
+    public static KillFeedHudAlignment Resolve(float elementCenterX, int viewportWidth)
+    {
+        if (viewportWidth <= 0)
+        {
+            return KillFeedHudAlignment.Right;
+        }
+
+        var normalizedX = elementCenterX / viewportWidth;
+        if (normalizedX < LeftAlignmentThreshold)
+        {
+            return KillFeedHudAlignment.Left;
+        }
+
+        return normalizedX > RightAlignmentThreshold
+            ? KillFeedHudAlignment.Right
+            : KillFeedHudAlignment.Center;
+    }
+
+    public static float ResolveAnchorX(Rectangle bounds, KillFeedHudAlignment alignment)
+    {
+        return alignment switch
+        {
+            KillFeedHudAlignment.Left => bounds.Left,
+            KillFeedHudAlignment.Center => bounds.Left + (bounds.Width / 2f),
+            _ => bounds.Right,
+        };
+    }
+
+    public static float ResolveEntryLeft(float anchorX, float entryWidth, KillFeedHudAlignment alignment)
+    {
+        return alignment switch
+        {
+            KillFeedHudAlignment.Left => anchorX,
+            KillFeedHudAlignment.Center => anchorX - (entryWidth / 2f),
+            _ => anchorX - entryWidth,
+        };
     }
 }

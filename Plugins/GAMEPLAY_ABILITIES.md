@@ -128,6 +128,21 @@ taunt interception, or a passive tick:
 The dispatcher does not create cooldown behavior by itself. The executor writes
 state, and HUD metadata reads that state.
 
+### Stock/Data HUD Widgets
+
+Stock abilities and alternate weapons should use data-backed HUD metadata before
+adding class-specific HUD code:
+
+- `displayKind: "meter"` with `stackGroup: "ability"` draws the standard
+  cooldown/charge meter from replicated ability state.
+- `displayKind: "ammoPanel"` with `stackGroup: "weapon"` draws the reusable
+  weapon ammo panel for alternate weapons.
+- `displayKind: "custom"` can point at a reusable stock renderer by `widgetId`.
+  Current built-in widget IDs are `abilityCooldownMeter` and `weaponAmmoPanel`.
+
+Adding a new stock HUD shape should mean adding one reusable renderer ID and
+referencing it from item JSON, not hardcoding a class-specific HUD branch.
+
 ## Stock Weapon Item Template
 
 Use a weapon item when the player fires through the primary weapon path. A
@@ -421,6 +436,61 @@ end
 `try_set_gameplay_ability_cooldown` writes cooldown state under the current
 plugin id. Match `presentation.hud.stateOwner` to the plugin id so the client
 HUD can read it.
+
+Lua abilities can also declare a custom ability-owned HUD widget in the same
+ability registration. The server ability owns state; the paired client Lua
+plugin owns drawing:
+
+```lua
+host.register_gameplay_ability({
+    itemId = "ability.example-dash",
+    displayName = "Example Dash",
+    slot = "Utility",
+    behaviorId = "plugin.example.dash",
+    ability = {
+        category = "utility",
+        activation = "pressed",
+        executorId = "plugin.example.dash"
+    },
+    presentation = {
+        hud = {
+            displayKind = "custom",
+            stackGroup = "ability",
+            order = 90,
+            stateOwner = "example.server.plugin",
+            cooldownKey = "example_dash_cooldown",
+            widgetId = "example-dash-hud",
+            widgetOwner = "example.client.plugin",
+            widgetCallback = "draw_example_dash_hud",
+            anchor = "bottom_right"
+        }
+    }
+})
+```
+
+The matching client plugin only defines the named callback:
+
+```lua
+function plugin.draw_example_dash_hud(canvas, ability)
+    local host = plugin.host
+    local player_id = ability.localPlayerId
+    local cooldown = host.get_player_replicated_state_int(
+        player_id,
+        ability.stateOwner,
+        ability.cooldownKey) or 0
+
+    canvas.draw_bitmap_text(
+        "Dash " .. tostring(cooldown),
+        16,
+        canvas.viewport_height - 32,
+        host.color(255, 255, 255, 255))
+end
+```
+
+For client-only widgets that cannot change the ability JSON, use
+`host.register_gameplay_ability_hud_widget({ itemId = "...", draw = function(...) end })`.
+Unlike generic `register_hud_widget`, this only draws when the local player has
+that gameplay item.
 
 ## Lua Loadout Attachment
 

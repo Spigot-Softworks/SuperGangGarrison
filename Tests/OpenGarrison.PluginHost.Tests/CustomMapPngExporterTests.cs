@@ -329,6 +329,75 @@ public sealed class CustomMapPngExporterTests
     }
 
     [Fact]
+    public void StockHarvestUsesPackageTemplate()
+    {
+        try
+        {
+            SimpleLevelFactory.ClearCachedCatalog();
+            var entry = Assert.Single(
+                SimpleLevelFactory.GetAvailableSourceLevels(),
+                candidate => candidate.Name == "Harvest");
+
+            Assert.False(entry.IsCustomMap);
+            Assert.Equal(CustomMapSourceKind.Package, entry.SourceKind);
+            Assert.EndsWith(
+                Path.Combine("StockMaps", "Harvest", "Harvest.json"),
+                entry.RoomSourcePath,
+                StringComparison.OrdinalIgnoreCase);
+
+            var level = SimpleLevelFactory.CreateImportedLevel("Harvest");
+
+            Assert.NotNull(level);
+            Assert.Equal("Harvest", level.Name);
+            Assert.Equal(GameModeKind.KingOfTheHill, level.Mode);
+            Assert.NotEmpty(level.Solids);
+            Assert.NotEmpty(level.RedSpawns);
+            Assert.NotEmpty(level.BlueSpawns);
+            Assert.Contains(level.RoomObjects, roomObject => roomObject.IsSingleKothControlPoint());
+        }
+        finally
+        {
+            SimpleLevelFactory.ClearCachedCatalog();
+        }
+    }
+
+    [Fact]
+    public void PackageImporterReadsBrowserCatalogPackageFiles()
+    {
+        using var workspace = TempWorkspace.Create();
+        var packageDirectory = workspace.PathFor("browser_package");
+        Directory.CreateDirectory(packageDirectory);
+        var backgroundPath = workspace.PathFor("background.png");
+        var walkmaskPath = workspace.PathFor("walkmask.png");
+        WriteSolidPng(backgroundPath, 4, 2, new Rgba32(32, 64, 96, 255));
+        WriteWalkmaskPng(walkmaskPath);
+
+        var manifestPath = Path.Combine(packageDirectory, "browser_package.json");
+        CustomMapPackageExporter.Export(CreateSpawnOnlyDocument(backgroundPath, walkmaskPath, 6f, 18f) with
+        {
+            Name = "browser_package",
+        }, manifestPath);
+
+        var assets = CustomMapPackageImporter.GetPackageContentFiles(manifestPath)
+            .Select(file => new KeyValuePair<string, byte[]>(
+                $"Content/StockMaps/browser_package/{file.RelativePath}",
+                File.ReadAllBytes(file.FullPath)))
+            .ToArray();
+        using var browserCatalog = BrowserCatalogScope.Create("Content", assets);
+        var browserManifestPath = ContentRoot.GetPath("StockMaps", "browser_package", "browser_package.json");
+
+        var imported = CustomMapPackageImporter.Import(browserManifestPath);
+
+        Assert.NotNull(imported);
+        Assert.Equal("browser_package", imported.Room.Name);
+        Assert.Equal(24f, imported.Room.Bounds.Width);
+        Assert.Equal(12f, imported.Room.Bounds.Height);
+        Assert.NotEmpty(imported.Solids);
+        Assert.Single(imported.Room.RedSpawns);
+        Assert.Single(imported.Room.BlueSpawns);
+    }
+
+    [Fact]
     public void PackageImporterRejectsUnsafeOrMissingImagePaths()
     {
         using var workspace = TempWorkspace.Create();
@@ -719,6 +788,30 @@ public sealed class CustomMapPngExporterTests
             {
                 Directory.Delete(_root, recursive: true);
             }
+        }
+    }
+
+    private sealed class BrowserCatalogScope : IDisposable
+    {
+        private readonly string _originalContentRoot;
+
+        private BrowserCatalogScope(string rootPath, IEnumerable<KeyValuePair<string, byte[]>> assets)
+        {
+            _originalContentRoot = ContentRoot.Path;
+            ContentRoot.Initialize(rootPath);
+            BrowserContentCatalog.SetBinaryAssets(assets);
+        }
+
+        public static BrowserCatalogScope Create(string rootPath, IEnumerable<KeyValuePair<string, byte[]>> assets)
+        {
+            return new BrowserCatalogScope(rootPath, assets);
+        }
+
+        public void Dispose()
+        {
+            BrowserContentCatalog.SetBinaryAssets([]);
+            ContentRoot.Initialize(_originalContentRoot);
+            SimpleLevelFactory.ClearCachedCatalog();
         }
     }
 

@@ -24,6 +24,7 @@ internal sealed partial class LuaClientPlugin
         _registeredTextureAtlases.Clear();
         _registeredTextureRegions.Clear();
         _hudWidgets.Clear();
+        _abilityHudWidgets.Clear();
         _scoreboardPanels.Clear();
         _scoreboardPlayerActions.Clear();
         _chatFilters.Clear();
@@ -170,7 +171,8 @@ internal sealed partial class LuaClientPlugin
         }
 
         var hasLegacyCallback = HasCallback("on_gameplay_hud_draw");
-        if (!hasLegacyCallback && _hudWidgets.Count == 0)
+        var hasAbilityHudWidgets = HasGameplayAbilityHudWidgets();
+        if (!hasLegacyCallback && _hudWidgets.Count == 0 && !hasAbilityHudWidgets)
         {
             return;
         }
@@ -187,6 +189,7 @@ internal sealed partial class LuaClientPlugin
                 }
 
                 DrawRegisteredHudWidgets(canvasValue);
+                DrawGameplayAbilityHudWidgets(canvasValue);
             }
             finally
             {

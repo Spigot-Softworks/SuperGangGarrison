@@ -1261,7 +1261,11 @@ public sealed class ServerAdminFoundationTests
                 return false;
             });
 
-        var fillTask = Task.Run(() => botManager.TryFillTeam(PlayerTeam.Blue, targetCount: 1, PlayerClass.Soldier));
+        var fillTask = Task.Factory.StartNew(
+            () => botManager.TryFillTeam(PlayerTeam.Blue, targetCount: 1, PlayerClass.Soldier),
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
         var completedTask = await Task.WhenAny(fillTask, Task.Delay(TimeSpan.FromSeconds(1)));
 
         Assert.Same(fillTask, completedTask);
@@ -1282,7 +1286,11 @@ public sealed class ServerAdminFoundationTests
                 return false;
             });
 
-        var fillTask = Task.Run(() => botManager.FillBots(targetPerTeam: 1, PlayerClass.Soldier));
+        var fillTask = Task.Factory.StartNew(
+            () => botManager.FillBots(targetPerTeam: 1, PlayerClass.Soldier),
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
         var completedTask = await Task.WhenAny(fillTask, Task.Delay(TimeSpan.FromSeconds(1)));
 
         Assert.Same(fillTask, completedTask);

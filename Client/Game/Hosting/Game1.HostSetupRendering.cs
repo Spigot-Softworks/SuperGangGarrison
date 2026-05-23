@@ -216,7 +216,7 @@ public partial class Game1
 
         DrawHostSetupContentButton(layout, lobbyBounds, _hostLobbyAnnounceEnabled ? "Lobby Announce: On" : "Lobby Announce: Off", _hostLobbyAnnounceEnabled, buttonScale);
         DrawHostSetupContentButton(layout, autoBalanceBounds, _hostAutoBalanceEnabled ? "Auto-balance: On" : "Auto-balance: Off", _hostAutoBalanceEnabled, buttonScale);
-        DrawHostSetupContentButton(layout, secondaryAbilitiesBounds, _hostSecondaryAbilitiesEnabled ? "Secondary Abilities: On" : "Secondary Abilities: Off", _hostSecondaryAbilitiesEnabled, buttonScale);
+        DrawHostSetupContentButton(layout, secondaryAbilitiesBounds, _hostSecondaryAbilitiesEnabled ? "Special Abilities: On" : "Special Abilities: Off", _hostSecondaryAbilitiesEnabled, buttonScale);
 
         var contentHeight = GetHostSetupContentHeight(layout);
         if (contentHeight > layout.ContentViewportBounds.Height)

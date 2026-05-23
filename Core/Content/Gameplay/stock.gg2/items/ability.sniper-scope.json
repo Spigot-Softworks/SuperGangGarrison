@@ -7,7 +7,7 @@
     "category": "secondary",
     "activation": "pressed",
     "executorId": "builtin.ability.sniper_scope",
-    "tags": [ "scope", "toggle", "charge" ]
+    "tags": [ "core_m2", "scope", "toggle", "charge" ]
   },
   "ammo": {},
   "presentation": {}

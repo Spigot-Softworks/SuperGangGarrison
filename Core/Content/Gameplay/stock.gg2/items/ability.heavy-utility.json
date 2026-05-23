@@ -10,7 +10,7 @@
     "tags": [ "movement", "dash", "cooldown", "charge" ],
     "parameters": {
       "durationSeconds": 0.25,
-      "movementDurationSeconds": 0.5,
+      "movementDurationSeconds": 0.75,
       "cooldownSeconds": 12,
       "impulse": 75,
       "nextAttackDamageMultiplier": 1.4,
@@ -19,8 +19,6 @@
   },
   "ammo": {},
   "presentation": {
-    "hudSpriteName": "ChargeJumpS",
-    "blueTeamHudFrameOffset": 1,
     "hud": {
       "displayKind": "meter",
       "stackGroup": "ability",

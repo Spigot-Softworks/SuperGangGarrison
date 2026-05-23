@@ -475,6 +475,9 @@ public sealed partial class GameplayRuntimeRegistry
             DirectHitDamage: resolvedDirectHitDamage,
             DamagePerTick: resolvedDamagePerTick,
             DirectHitHealAmount: item.Combat?.DirectHitHealAmount,
+            PlayerKnockbackScale: Math.Max(0f, item.Combat?.PlayerKnockbackScale ?? 1f),
+            PlayerSlowMovementMultiplier: NormalizePlayerSlowMovementMultiplier(item.Combat?.PlayerSlowMovementMultiplier),
+            PlayerSlowRefreshSourceTicks: Math.Max(0, item.Combat?.PlayerSlowRefreshSourceTicks ?? 0),
             RocketCombat: resolvedRocketCombat,
             AutoReloads: item.Ammo.AutoReloads,
             AmmoRegenPerTick: item.Ammo.AmmoRegenPerTick,
@@ -512,6 +515,13 @@ public sealed partial class GameplayRuntimeRegistry
 
         return weaponKind == PrimaryWeaponKind.FlameThrower
             ? FlameProjectileEntity.BurnDamagePerTick
+            : null;
+    }
+
+    private static float? NormalizePlayerSlowMovementMultiplier(float? multiplier)
+    {
+        return multiplier.HasValue
+            ? Math.Clamp(multiplier.Value, 0.05f, 1f)
             : null;
     }
 

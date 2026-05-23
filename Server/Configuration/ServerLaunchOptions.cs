@@ -253,14 +253,18 @@ sealed class ServerLaunchOptions
                 continue;
             }
 
-            if (string.Equals(arg, "--secondary-abilities", StringComparison.OrdinalIgnoreCase)
+            if (string.Equals(arg, "--special-abilities", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--specialabilities", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--secondary-abilities", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(arg, "--secondaryabilities", StringComparison.OrdinalIgnoreCase))
             {
                 secondaryAbilitiesEnabled = true;
                 continue;
             }
 
-            if (string.Equals(arg, "--no-secondary-abilities", StringComparison.OrdinalIgnoreCase)
+            if (string.Equals(arg, "--no-special-abilities", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--no-specialabilities", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--no-secondary-abilities", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(arg, "--no-secondaryabilities", StringComparison.OrdinalIgnoreCase))
             {
                 secondaryAbilitiesEnabled = false;

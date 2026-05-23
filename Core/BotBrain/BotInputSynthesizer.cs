@@ -56,7 +56,8 @@ public static class BotInputSynthesizer
     {
         var useAbility = combat.UseAbility;
         var swapWeapon = input.SwapWeapon;
-        if (self.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SoldierSecondaryWeapon))
+        var firePrimary = combat.FirePrimary;
+        if (ShouldDriveOffhandWeaponSelection(self))
         {
             if (self.HasExperimentalOffhandWeapon)
             {
@@ -65,6 +66,11 @@ public static class BotInputSynthesizer
                 {
                     swapWeapon = true;
                 }
+
+                if (wantsOffhand && !self.IsExperimentalOffhandSelected)
+                {
+                    firePrimary = false;
+                }
             }
 
             useAbility = false;
@@ -72,10 +78,21 @@ public static class BotInputSynthesizer
 
         return input with
         {
-            FirePrimary = combat.FirePrimary,
+            FirePrimary = firePrimary,
             FireSecondary = combat.FireSecondary,
             UseAbility = useAbility,
             SwapWeapon = swapWeapon,
         };
+    }
+
+    private static bool ShouldDriveOffhandWeaponSelection(PlayerEntity self)
+    {
+        if (self.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SoldierSecondaryWeapon))
+        {
+            return true;
+        }
+
+        return self.ClassId == PlayerClass.Demoman
+            && self.ExperimentalOffhandWeapon?.Kind == PrimaryWeaponKind.GrenadeLauncher;
     }
 }

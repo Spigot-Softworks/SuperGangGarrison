@@ -15,6 +15,12 @@ internal static class HudLayoutDefaults
     private const float MainAmmoSourceY = SourceAmmoHudBaseY + 86f;
     private const float AbilitySourceX = 730f;
     private const float AbilitySourceY = 515f;
+    private const float DefaultAbilityWidgetTopY = 494f;
+    private const float AbilityWidgetGap = 10f;
+    private const float EngineerSentrySourceX = 696f;
+    private const float EngineerSentryWidth = 86f;
+    private const float EngineerSentryHeight = 64f;
+    private const float EngineerSentrySourceY = DefaultAbilityWidgetTopY - AbilityWidgetGap - EngineerSentryHeight;
 
     public static IReadOnlyDictionary<string, HudElementLayout> Create()
     {
@@ -102,9 +108,9 @@ internal static class HudLayoutDefaults
 
             [HudElementId.ClassEngineerSentry] = new(
                 HudElementId.ClassEngineerSentry,
-                HudAnchor.BottomLeft,
-                new Vector2(5f, -145f),
-                new Vector2(96f, 72f),
+                HudAnchor.BottomRight,
+                new Vector2(EngineerSentrySourceX - SourceHudWidth, EngineerSentrySourceY - SourceHudHeight),
+                new Vector2(EngineerSentryWidth, EngineerSentryHeight),
                 Vector2.Zero,
                 Layer: 51),
         };

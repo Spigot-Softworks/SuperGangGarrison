@@ -13,6 +13,14 @@ public sealed class CombatDecisionMemory
     public int ZoomToShootTicks { get; set; } = 50;
 
     public int LastPyroReflectProjectileId { get; set; } = -1;
+
+    public int LastHeavyDashThreatProjectileId { get; set; } = -1;
+
+    public int DemomanGrenadePreferenceTicks { get; set; }
+
+    public int DemomanGrenadeDecisionCooldownTicks { get; set; }
+
+    public int DemomanGrenadeDecisionSerial { get; set; }
 }
 
 public readonly record struct CombatFireDecision(
@@ -82,6 +90,13 @@ public static class CombatDecisionResolver
     private const float PyroReflectAccurateWindowTicks = 8f;
     private const float PyroReflectMistimeWindowTicks = 16f;
     private const float PyroReflectLatePanicWindowTicks = 1.5f;
+    private const float HeavyDashThreatDetectionDistance = 340f;
+    private const float HeavyDashThreatLaneRadius = 64f;
+    private const float HeavyDashThreatWindowTicks = 14f;
+    private const float DemomanGrenadeMinDistance = 90f;
+    private const float DemomanGrenadeMaxDistance = 520f;
+    private const int DemomanGrenadeLoadedPreferenceTicks = 12;
+    private const int DemomanGrenadeReloadPreferenceTicks = 52;
 
     public static PlayerEntity? FindBestMedicHealTarget(
         SimulationWorld world,
@@ -199,7 +214,7 @@ public static class CombatDecisionResolver
         var isBeingHealed = IsPlayerBeingHealed(world, self);
         var firePrimary = ResolvePrimaryFire(world, self, combatTarget, healTarget, memory, isBeingHealed);
         var fireSecondary = ResolveSecondaryFire(world, self, combatTarget, healTarget, memory, isBeingHealed);
-        var useAbility = ResolveAbilityInputFromLoadout(self, combatTarget, healTarget, firePrimary, fireSecondary);
+        var useAbility = ResolveAbilityInputFromLoadout(world, self, combatTarget, healTarget, firePrimary, fireSecondary, memory);
         ApplyReloadDiscipline(self, memory, ref firePrimary, ref fireSecondary, ref useAbility);
         return new CombatFireDecision(firePrimary, fireSecondary, useAbility);
     }
@@ -491,15 +506,23 @@ public static class CombatDecisionResolver
     }
 
     private static bool ResolveAbilityInputFromLoadout(
+        SimulationWorld world,
         PlayerEntity self,
         BotBrainCombatTarget? combatTarget,
         PlayerEntity? healTarget,
         bool firePrimary,
-        bool fireSecondary)
+        bool fireSecondary,
+        CombatDecisionMemory memory)
     {
         if (self.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
         {
             return self.IsMedicUberReady && (self.Health < 40 || healTarget is { Health: < 50 });
+        }
+
+        if (self.HasUtilityBehavior(BuiltInGameplayBehaviorIds.HeavyUtility)
+            && ShouldHeavyDashIncomingFire(world, self, memory))
+        {
+            return true;
         }
 
         if (combatTarget is not { } target)
@@ -520,7 +543,85 @@ public static class CombatDecisionResolver
                 && DistanceBetween(self.X, self.Y, target.X, target.Y) <= SoldierShotgunDistance;
         }
 
+        if (ShouldDemomanUseGrenadeLauncher(self, target, fireSecondary, memory))
+        {
+            return true;
+        }
+
         return false;
+    }
+
+    private static bool ShouldDemomanUseGrenadeLauncher(
+        PlayerEntity self,
+        BotBrainCombatTarget target,
+        bool fireSecondary,
+        CombatDecisionMemory memory)
+    {
+        if (self.ClassId != PlayerClass.Demoman
+            || fireSecondary
+            || self.ExperimentalOffhandWeapon?.Kind != PrimaryWeaponKind.GrenadeLauncher)
+        {
+            memory.DemomanGrenadePreferenceTicks = 0;
+            return false;
+        }
+
+        var distance = DistanceBetween(self.X, self.Y, target.X, target.Y);
+        if (distance is < DemomanGrenadeMinDistance or > DemomanGrenadeMaxDistance)
+        {
+            memory.DemomanGrenadePreferenceTicks = 0;
+            return false;
+        }
+
+        if (self.IsExperimentalOffhandSelected && memory.DemomanGrenadePreferenceTicks > 0)
+        {
+            memory.DemomanGrenadePreferenceTicks -= 1;
+            return true;
+        }
+
+        if (memory.DemomanGrenadeDecisionCooldownTicks > 0)
+        {
+            memory.DemomanGrenadeDecisionCooldownTicks -= 1;
+            return false;
+        }
+
+        memory.DemomanGrenadeDecisionSerial += 1;
+        var targetId = target.Player?.Id
+            ?? target.Sentry?.Id
+            ?? (target.Generator is null ? 0 : (int)target.Team);
+        memory.DemomanGrenadeDecisionCooldownTicks = 36 + PositiveModulo(
+            (self.Id * 7) + (targetId * 11) + (memory.DemomanGrenadeDecisionSerial * 5),
+            24);
+
+        if (PositiveModulo(memory.DemomanGrenadeDecisionSerial + self.Id + targetId, 3) != 0)
+        {
+            return false;
+        }
+
+        memory.DemomanGrenadePreferenceTicks = self.ExperimentalOffhandCurrentShells > 0
+            ? DemomanGrenadeLoadedPreferenceTicks
+            : DemomanGrenadeReloadPreferenceTicks;
+        return true;
+    }
+
+    private static bool ShouldHeavyDashIncomingFire(
+        SimulationWorld world,
+        PlayerEntity self,
+        CombatDecisionMemory memory)
+    {
+        if (self.ClassId != PlayerClass.Heavy
+            || self.IsHeavyEating
+            || self.IsExperimentalGhostDashing
+            || self.ExperimentalGhostDashCooldownTicksRemaining > 0
+            || !TryFindIncomingHeavyDashThreat(world, self, out var projectile)
+            || memory.LastHeavyDashThreatProjectileId == projectile.Id
+            || projectile.TimeToClosestPointTicks > HeavyDashThreatWindowTicks
+            || !ShouldHeavyDashIncomingProjectile(self, projectile.Id))
+        {
+            return false;
+        }
+
+        memory.LastHeavyDashThreatProjectileId = projectile.Id;
+        return true;
     }
 
     private static void UpdateReloadMemory(PlayerEntity self, CombatDecisionMemory memory)
@@ -698,9 +799,128 @@ public static class CombatDecisionResolver
         projectile = new IncomingReflectProjectile(projectileId, timeToClosestPointTicks);
     }
 
+    private static bool TryFindIncomingHeavyDashThreat(
+        SimulationWorld world,
+        PlayerEntity self,
+        out IncomingReflectProjectile projectile)
+    {
+        projectile = default;
+        var bestScore = float.PositiveInfinity;
+
+        foreach (var rocket in world.Rockets)
+        {
+            var velocityX = MathF.Cos(rocket.DirectionRadians) * rocket.Speed;
+            var velocityY = MathF.Sin(rocket.DirectionRadians) * rocket.Speed;
+            TryConsiderHeavyDashProjectile(self, rocket.Team, rocket.OwnerId, rocket.Id, rocket.X, rocket.Y, velocityX, velocityY, ref bestScore, ref projectile);
+        }
+
+        foreach (var flare in world.Flares)
+        {
+            TryConsiderHeavyDashProjectile(self, flare.Team, flare.OwnerId, flare.Id, flare.X, flare.Y, flare.VelocityX, flare.VelocityY, ref bestScore, ref projectile);
+        }
+
+        foreach (var grenade in world.Grenades)
+        {
+            if (grenade.IsDestroyed)
+            {
+                continue;
+            }
+
+            TryConsiderHeavyDashProjectile(self, grenade.Team, grenade.OwnerId, grenade.Id, grenade.X, grenade.Y, grenade.VelocityX, grenade.VelocityY, ref bestScore, ref projectile);
+        }
+
+        foreach (var shot in world.Shots)
+        {
+            if (shot.IsExpired)
+            {
+                continue;
+            }
+
+            TryConsiderHeavyDashProjectile(self, shot.Team, shot.OwnerId, shot.Id, shot.X, shot.Y, shot.VelocityX, shot.VelocityY, ref bestScore, ref projectile);
+        }
+
+        foreach (var needle in world.Needles)
+        {
+            if (needle.IsExpired)
+            {
+                continue;
+            }
+
+            TryConsiderHeavyDashProjectile(self, needle.Team, needle.OwnerId, needle.Id, needle.X, needle.Y, needle.VelocityX, needle.VelocityY, ref bestScore, ref projectile);
+        }
+
+        foreach (var revolverShot in world.RevolverShots)
+        {
+            if (revolverShot.IsExpired)
+            {
+                continue;
+            }
+
+            TryConsiderHeavyDashProjectile(self, revolverShot.Team, revolverShot.OwnerId, revolverShot.Id, revolverShot.X, revolverShot.Y, revolverShot.VelocityX, revolverShot.VelocityY, ref bestScore, ref projectile);
+        }
+
+        return projectile.Id != 0;
+    }
+
+    private static void TryConsiderHeavyDashProjectile(
+        PlayerEntity self,
+        PlayerTeam projectileTeam,
+        int ownerId,
+        int projectileId,
+        float x,
+        float y,
+        float velocityX,
+        float velocityY,
+        ref float bestScore,
+        ref IncomingReflectProjectile projectile)
+    {
+        if (projectileTeam == self.Team || ownerId == self.Id)
+        {
+            return;
+        }
+
+        var speedSq = (velocityX * velocityX) + (velocityY * velocityY);
+        if (speedSq <= 0.001f)
+        {
+            return;
+        }
+
+        var speed = MathF.Sqrt(speedSq);
+        var toPlayerX = self.X - x;
+        var toPlayerY = self.Y - y;
+        var closingDistance = ((toPlayerX * velocityX) + (toPlayerY * velocityY)) / speed;
+        if (closingDistance <= 0f || closingDistance > HeavyDashThreatDetectionDistance)
+        {
+            return;
+        }
+
+        var distanceToProjectile = DistanceBetween(self.X, self.Y, x, y);
+        var perpendicularSq = MathF.Max(0f, (distanceToProjectile * distanceToProjectile) - (closingDistance * closingDistance));
+        var perpendicularDistance = MathF.Sqrt(perpendicularSq);
+        if (perpendicularDistance > HeavyDashThreatLaneRadius)
+        {
+            return;
+        }
+
+        var timeToClosestPointTicks = closingDistance / speed;
+        var score = timeToClosestPointTicks + (perpendicularDistance / HeavyDashThreatLaneRadius);
+        if (score >= bestScore)
+        {
+            return;
+        }
+
+        bestScore = score;
+        projectile = new IncomingReflectProjectile(projectileId, timeToClosestPointTicks);
+    }
+
     private static bool ShouldPyroReflectAccurately(PlayerEntity self, int projectileId)
     {
         return PositiveModulo(HashCode.Combine(self.Id, projectileId, 0x51A7), 100) < 50;
+    }
+
+    private static bool ShouldHeavyDashIncomingProjectile(PlayerEntity self, int projectileId)
+    {
+        return PositiveModulo((self.Id * 31) ^ (projectileId * 131) ^ 0x6D, 100) < 35;
     }
 
     private static bool ShouldPrimaryWeaponFire(PlayerEntity self, float distanceToTarget)

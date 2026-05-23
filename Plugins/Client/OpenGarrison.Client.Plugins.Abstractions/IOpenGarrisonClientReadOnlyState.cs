@@ -71,6 +71,10 @@ public interface IOpenGarrisonClientReadOnlyState
     bool WasKeyPressedThisFrame(Keys key);
 #endif
 
+    IReadOnlyList<string> GetLocalGameplayItemIds();
+
+    IReadOnlyList<string> GetLocalGameplayAbilityItemIds();
+
     IReadOnlyList<ClientPlayerMarker> GetPlayerMarkers();
 
     IReadOnlyList<ClientSentryMarker> GetSentryMarkers();

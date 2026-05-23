@@ -8,6 +8,8 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using MoonSharp.Interpreter;
 using OpenGarrison.Client.Plugins;
+using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 using OpenGarrison.PluginHost;
 using OpenGarrison.Protocol;
 using SixLabors.ImageSharp.PixelFormats;
@@ -57,6 +59,7 @@ internal sealed partial class LuaClientPlugin(
     private readonly Dictionary<string, OwnedTextureSequence> _ownedTextureSequences = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DynValue> _callbackCache = new(StringComparer.Ordinal);
     private readonly List<LuaHudWidgetRegistration> _hudWidgets = [];
+    private readonly List<LuaAbilityHudWidgetRegistration> _abilityHudWidgets = [];
     private readonly List<LuaScoreboardPanelRegistration> _scoreboardPanels = [];
     private readonly List<LuaScoreboardPlayerActionRegistration> _scoreboardPlayerActions = [];
     private readonly List<LuaChatFilterRegistration> _chatFilters = [];
@@ -219,6 +222,8 @@ internal sealed partial class LuaClientPlugin(
         host["get_local_player_id"] = DynValue.NewCallback((_, _) => DynValue.NewNumber(context.ClientState.LocalPlayerId ?? -1));
         host["get_local_player_team"] = DynValue.NewCallback((_, _) => DynValue.NewString(context.ClientState.LocalPlayerTeam.ToString()));
         host["get_local_player_class"] = DynValue.NewCallback((_, _) => DynValue.NewString(context.ClientState.LocalPlayerClass.ToString()));
+        host["get_local_gameplay_item_ids"] = DynValue.NewCallback((_, _) => ToDynValue(context.ClientState.GetLocalGameplayItemIds()));
+        host["get_local_gameplay_ability_item_ids"] = DynValue.NewCallback((_, _) => ToDynValue(context.ClientState.GetLocalGameplayAbilityItemIds()));
         host["get_local_player_health"] = DynValue.NewCallback((_, _) =>
             DynValue.NewNumber(context.ClientState.TryGetLocalPlayerHealth(out var health, out _) ? health : -1));
         host["get_local_player_max_health"] = DynValue.NewCallback((_, _) =>
@@ -418,6 +423,16 @@ internal sealed partial class LuaClientPlugin(
             }
 
             RegisterHudWidget(ReadRequiredTableArgument(args, 0));
+            return DynValue.True;
+        });
+        host["register_gameplay_ability_hud_widget"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanUseClientUiMutation("register_gameplay_ability_hud_widget", "gameplay ability HUD widget registration"))
+            {
+                return DynValue.False;
+            }
+
+            RegisterGameplayAbilityHudWidget(ReadRequiredTableArgument(args, 0));
             return DynValue.True;
         });
         host["register_scoreboard_panel"] = DynValue.NewCallback((_, args) =>
@@ -1230,6 +1245,18 @@ internal sealed partial class LuaClientPlugin(
         _hudWidgets.Add(new LuaHudWidgetRegistration(id, anchor, order, drawCallback));
     }
 
+    private void RegisterGameplayAbilityHudWidget(Table table)
+    {
+        var itemId = ReadRequiredStringField(table, "itemId", "ItemId", "item_id", "abilityItemId", "AbilityItemId", "ability_item_id");
+        var id = ReadOptionalStringField(table, "id", "Id", "name", "Name") ?? itemId;
+        var anchor = ReadOptionalStringField(table, "anchor", "Anchor") ?? "bottom_right";
+        var order = ReadOptionalIntField(table, 0, "order", "Order");
+        var drawCallback = ReadRequiredCallbackField(table, "draw", "Draw", "callback", "Callback");
+
+        _abilityHudWidgets.RemoveAll(widget => string.Equals(widget.Id, id, StringComparison.Ordinal));
+        _abilityHudWidgets.Add(new LuaAbilityHudWidgetRegistration(id, itemId, anchor, order, drawCallback));
+    }
+
     private void RegisterScoreboardPanel(Table table)
     {
         var id = ReadRequiredStringField(table, "id", "Id", "name", "Name");
@@ -1299,6 +1326,147 @@ internal sealed partial class LuaClientPlugin(
                 canvasValue,
                 ToDynValue(new { widget.Id, widget.Anchor, widget.Order }));
         }
+    }
+
+    private bool HasGameplayAbilityHudWidgets()
+    {
+        if (_context is null)
+        {
+            return false;
+        }
+
+        return _abilityHudWidgets.Count > 0 || GetLocalCustomGameplayAbilityHudItems(_context.ClientState).Any();
+    }
+
+    private void DrawGameplayAbilityHudWidgets(DynValue canvasValue)
+    {
+        if (_context is null)
+        {
+            return;
+        }
+
+        var state = _context.ClientState;
+        var localItemIds = state.GetLocalGameplayItemIds()
+            .Where(static itemId => !string.IsNullOrWhiteSpace(itemId))
+            .ToHashSet(StringComparer.Ordinal);
+        if (localItemIds.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var widget in _abilityHudWidgets
+                     .OrderBy(static widget => widget.Order)
+                     .ThenBy(static widget => widget.Id, StringComparer.Ordinal))
+        {
+            if (!localItemIds.Contains(widget.ItemId))
+            {
+                continue;
+            }
+
+            CallRegisteredUiCallback(
+                "gameplay ability HUD widget",
+                widget.Id,
+                widget.DrawCallback,
+                canvasValue,
+                ToDynValue(CreateAbilityHudWidgetContext(widget, state)));
+        }
+
+        foreach (var item in GetLocalCustomGameplayAbilityHudItems(state)
+                     .OrderBy(static item => GetHudRowOrder(item.Presentation.Hud))
+                     .ThenBy(static item => item.Id, StringComparer.Ordinal))
+        {
+            var hud = item.Presentation.Hud!;
+            var callbackName = hud.WidgetCallback.Trim();
+            if (!TryGetCachedCallbackFunction(callbackName, out var callback))
+            {
+                continue;
+            }
+
+            var widgetId = string.IsNullOrWhiteSpace(hud.WidgetId) ? item.Id : hud.WidgetId.Trim();
+            CallRegisteredUiCallback(
+                "gameplay ability HUD widget",
+                widgetId,
+                callback,
+                canvasValue,
+                ToDynValue(CreateAbilityHudWidgetContext(item, state)));
+        }
+    }
+
+    private IEnumerable<GameplayItemDefinition> GetLocalCustomGameplayAbilityHudItems(IOpenGarrisonClientReadOnlyState state)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var itemId in state.GetLocalGameplayItemIds())
+        {
+            if (string.IsNullOrWhiteSpace(itemId) || !seen.Add(itemId))
+            {
+                continue;
+            }
+
+            if (!CharacterClassCatalog.RuntimeRegistry.TryGetGameplayAbilityDefinition(itemId, out var item, out _)
+                || item.Presentation.Hud is not { } hud
+                || !IsCustomAbilityHudForThisPlugin(hud))
+            {
+                continue;
+            }
+
+            yield return item;
+        }
+    }
+
+    private bool IsCustomAbilityHudForThisPlugin(GameplayItemHudPresentationDefinition hud)
+    {
+        if (!string.Equals(hud.DisplayKind, GameplayItemHudDisplayKinds.Custom, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(hud.StackGroup, GameplayItemHudStackGroups.Ability, StringComparison.OrdinalIgnoreCase)
+            || string.IsNullOrWhiteSpace(hud.WidgetCallback))
+        {
+            return false;
+        }
+
+        var owner = string.IsNullOrWhiteSpace(hud.WidgetOwner) ? hud.StateOwner : hud.WidgetOwner;
+        return string.Equals(owner?.Trim(), manifest.Id, StringComparison.Ordinal);
+    }
+
+    private object CreateAbilityHudWidgetContext(LuaAbilityHudWidgetRegistration widget, IOpenGarrisonClientReadOnlyState state)
+    {
+        return new
+        {
+            widget.Id,
+            widget.ItemId,
+            widget.Anchor,
+            widget.Order,
+            LocalPlayerId = state.LocalPlayerId ?? -1,
+        };
+    }
+
+    private object CreateAbilityHudWidgetContext(GameplayItemDefinition item, IOpenGarrisonClientReadOnlyState state)
+    {
+        var hud = item.Presentation.Hud!;
+        var ability = item.Ability!;
+        var widgetId = string.IsNullOrWhiteSpace(hud.WidgetId) ? item.Id : hud.WidgetId.Trim();
+        var anchor = string.IsNullOrWhiteSpace(hud.Anchor) ? "bottom_right" : hud.Anchor.Trim();
+        return new
+        {
+            Id = widgetId,
+            ItemId = item.Id,
+            item.DisplayName,
+            Slot = item.Slot.ToString(),
+            ability.Category,
+            ability.Activation,
+            ability.ExecutorId,
+            Anchor = anchor,
+            Order = GetHudRowOrder(hud),
+            hud.StateOwner,
+            hud.CooldownKey,
+            hud.MaxCooldown,
+            hud.ActiveKey,
+            hud.DisabledKey,
+            LocalPlayerId = state.LocalPlayerId ?? -1,
+        };
+    }
+
+    private static int GetHudRowOrder(GameplayItemHudPresentationDefinition? hud)
+    {
+        return hud is null ? 0 : hud.Order;
     }
 
     private void DrawRegisteredScoreboardPanels(DynValue canvasValue, DynValue stateValue)
@@ -3192,6 +3360,13 @@ internal sealed partial class LuaClientPlugin(
 
     private sealed record LuaHudWidgetRegistration(
         string Id,
+        string Anchor,
+        int Order,
+        DynValue DrawCallback);
+
+    private sealed record LuaAbilityHudWidgetRegistration(
+        string Id,
+        string ItemId,
         string Anchor,
         int Order,
         DynValue DrawCallback);

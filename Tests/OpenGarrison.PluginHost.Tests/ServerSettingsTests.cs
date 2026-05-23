@@ -38,4 +38,27 @@ public sealed class ServerSettingsTests
         Assert.Equal(10, reloaded.BotAutofillMinPlayers);
         Assert.Equal(5, reloaded.BotAutofillPerTeam);
     }
+
+    [Fact]
+    public void HostSettingsPreferSpecialAbilitiesKeyOverLegacySecondaryAbilitiesKey()
+    {
+        var configPath = Path.Combine(
+            Path.GetTempPath(),
+            "OpenGarrison.PluginHost.Tests",
+            Guid.NewGuid().ToString("N"),
+            OpenGarrisonPreferencesDocument.DefaultFileName);
+        Directory.CreateDirectory(Path.GetDirectoryName(configPath)!);
+
+        File.WriteAllText(
+            configPath,
+            """
+            [Server]
+            SpecialAbilities=0
+            SecondaryAbilities=1
+            """);
+
+        var preferences = OpenGarrisonPreferencesDocument.Load(configPath);
+
+        Assert.False(preferences.HostSettings.SecondaryAbilitiesEnabled);
+    }
 }

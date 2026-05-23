@@ -196,7 +196,8 @@ public static class CustomMapPackageExporter
             return;
         }
 
-        File.WriteAllBytes(outputPath, bytes);
+        using var image = Image.Load<Rgba32>(bytes);
+        image.Save(outputPath, new PngEncoder());
     }
 
     private static void WriteWalkmaskPng(string embeddedWalkmaskSection, string outputPath)

@@ -56,11 +56,6 @@ public partial class Game1
         _gameplayLocalStatusHudController.DrawHeavyAmmoHud();
     }
 
-    private void DrawHeavySandwichHud()
-    {
-        _gameplayLocalStatusHudController.DrawHeavySandwichHud();
-    }
-
     private void DrawQuoteAmmoHud()
     {
         _gameplayLocalStatusHudController.DrawQuoteAmmoHud();
@@ -121,19 +116,9 @@ public partial class Game1
         _gameplayMedicHudController.DrawMedicHud();
     }
 
-    private void DrawMedicAssistHud()
-    {
-        _gameplayMedicHudController.DrawMedicAssistHud();
-    }
-
     private void DrawEngineerHud()
     {
         _gameplayEngineerHudController.DrawEngineerHud();
-    }
-
-    private void DrawCenterStatusHud(string label, float value, float maxValue, float viewportYRatio, float textAlpha)
-    {
-        _gameplayMedicHudController.DrawCenterStatusHud(label, value, maxValue, viewportYRatio, textAlpha);
     }
 
     private PlayerEntity? FindMedicHealingPlayer(int playerId)

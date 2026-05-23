@@ -78,11 +78,28 @@ public partial class Game1
         private const float SourceMainAmmoHudY = SourceAmmoHudBaseY + 86f;
         private const float SourceAbilityHudX = 730f;
         private const float SourceAbilityHudY = 515f;
-        private const string DefaultAbilityCooldownHudSpriteName = "ChargeJumpS";
+        private const string DefaultAbilityHudSpriteName = "StickyCounterS";
+        private const float DefaultAbilityHudSourceX = 735f;
+        private const float DefaultAbilityHudSpriteScale = 3f;
+        private const float DefaultAbilityHudSpriteWidth = 22f;
+        private const float DefaultAbilityHudSpriteHeight = 15f;
+        private const float DefaultAbilityHudSpriteOriginX = 11f;
+        private const float DefaultAbilityHudSpriteOriginY = 7f;
+        private const float DefaultAbilityHudWidth = DefaultAbilityHudSpriteWidth * DefaultAbilityHudSpriteScale;
+        private const float DefaultAbilityHudHeight = DefaultAbilityHudSpriteHeight * DefaultAbilityHudSpriteScale;
+        private const float AbilityHudPlaqueDrawScale = 2f;
+        private const float AbilityHudPlaqueSpriteWidth = 38f;
+        private const float AbilityHudPlaqueSpriteHeight = 28f;
+        private const float AbilityHudPlaqueOriginX = 19f;
+        private const float AbilityHudPlaqueOriginY = 14f;
+        private const float AbilityHudPlaqueWidth = AbilityHudPlaqueSpriteWidth * AbilityHudPlaqueDrawScale;
+        private const float AbilityHudPlaqueHeight = AbilityHudPlaqueSpriteHeight * AbilityHudPlaqueDrawScale;
         private const float WeaponHudPanelScale = 2.4f;
         private const float WeaponHudPanelGapPixels = 4f;
+        private const float AbilityHudWidgetGapPixels = 10f;
         private const float WeaponHudFallbackPanelHeight = 38f;
         private const int WeaponHudOrderAcquired = 10;
+        private const int WeaponHudOrderStowedPrimary = 20;
         private const int WeaponHudOrderUtility = 40;
         private const int WeaponHudOrderSecondary = 60;
         private const int WeaponHudOrderAbility = 80;
@@ -100,7 +117,25 @@ public partial class Game1
             Action<float> Draw,
             float? LegacySourceY = null,
             bool ReservesFlowSpace = true,
-            int Order = 0);
+            int Order = 0,
+            AbilityHudWidgetMetrics? AbilityMetrics = null,
+            Vector2? EditorBoundsOffset = null,
+            Vector2? EditorBoundsSize = null);
+
+        private sealed record AbilityHudWidgetMetrics(
+            float SourceX,
+            string? SpriteName,
+            float SpriteScale,
+            Vector2 FallbackBoundsOffset,
+            Vector2 FallbackBoundsSize);
+
+        private sealed record AbilityHudWidget(
+            string ElementId,
+            WeaponHudRow Row,
+            float SourceX,
+            float SourceY,
+            int LayerOffset,
+            AbilityHudWidgetMetrics Metrics);
 
         public GameplayLocalStatusHudController(Game1 game)
         {
@@ -355,6 +390,74 @@ public partial class Game1
             }
         }
 
+        public void CollectAbilityHudElements(List<HudElementInstance> elements)
+        {
+            if (!_game._world.LocalPlayer.IsAlive)
+            {
+                return;
+            }
+
+            foreach (var widget in BuildAbilityHudWidgets())
+            {
+                _game.SetHudElementRuntimeDefault(CreateAbilityHudElementLayout(widget));
+                elements.Add(new HudElementInstance(
+                    widget.ElementId,
+                    HudElementRendererId.LocalAbilityWidget,
+                    HudElementLayerLocalAbilityStack + widget.LayerOffset));
+            }
+        }
+
+        public void DrawAbilityHudElement(string id)
+        {
+            if (!_game._world.LocalPlayer.IsAlive)
+            {
+                return;
+            }
+
+            var widget = BuildAbilityHudWidgets()
+                .FirstOrDefault(candidate => string.Equals(candidate.ElementId, id, StringComparison.Ordinal));
+            if (widget is null || !_game.TryResolveHudElement(widget.ElementId, out var resolved))
+            {
+                return;
+            }
+
+            var previousSourceHudOffset = _sourceHudOffset;
+            var previousSourceHudScaleOrigin = _sourceHudScaleOrigin;
+            var previousSourceHudScale = _sourceHudScale;
+            var defaultOrigin = GetUnshiftedSourceHudPoint(widget.SourceX, widget.SourceY);
+            _sourceHudOffset = resolved.Origin - defaultOrigin;
+            _sourceHudScaleOrigin = resolved.Origin;
+            _sourceHudScale = resolved.Layout.Scale;
+            try
+            {
+                widget.Row.Draw(widget.SourceY);
+                _game.UpdateHudElementBounds(widget.ElementId, resolved.Layout.ResolveBounds(resolved.Origin));
+            }
+            finally
+            {
+                _sourceHudOffset = previousSourceHudOffset;
+                _sourceHudScaleOrigin = previousSourceHudScaleOrigin;
+                _sourceHudScale = previousSourceHudScale;
+            }
+        }
+
+        public HudElementLayout CreateAbilityStackedHudElementLayout(
+            string id,
+            float sourceX,
+            Vector2 boundsOffset,
+            Vector2 boundsSize,
+            int layer)
+        {
+            var sourceY = GetNextAbilityStackSourceY(boundsOffset, boundsSize);
+            return new HudElementLayout(
+                id,
+                HudAnchor.BottomRight,
+                new Vector2(sourceX - SourceHudWidth, sourceY - SourceHudHeight),
+                boundsSize,
+                boundsOffset,
+                Layer: layer);
+        }
+
         private void DrawWeaponStackHud()
         {
             var rows = BuildWeaponHudRows();
@@ -377,13 +480,23 @@ public partial class Game1
                     GetMainAmmoHudPanelHeight(),
                     _ => DrawDemoknightHud(),
                     SourceMainAmmoHudY,
-                    Order: WeaponHudOrderPrimary));
+                    Order: WeaponHudOrderPrimary,
+                    EditorBoundsOffset: new Vector2(-64f, -70f),
+                    EditorBoundsSize: new Vector2(132f, 98f)));
                 return rows;
             }
 
             var displayedWeaponStats = GetLocalDisplayedMainWeaponStats();
             var hasGrenadeLauncher = HasLocalDemomanGrenadeLauncher();
-            if (hasGrenadeLauncher)
+            var showOnlyActiveWeapon = _game._hudShowOnlyActiveWeapon;
+            var selectedOffhandItemId = IsLocalDisplayedOffhandWeaponSelected()
+                ? GetLocalDisplayedOffhandPresentationItemId()
+                : null;
+            var selectedUtilityItem = string.Equals(
+                selectedOffhandItemId,
+                _game._world.LocalPlayer.GameplayLoadoutState.UtilityItemId,
+                StringComparison.Ordinal);
+            if (!showOnlyActiveWeapon && hasGrenadeLauncher && !selectedUtilityItem)
             {
                 var utilityItem = TryGetLocalUtilityHudItem(out var resolvedUtilityItem)
                     ? resolvedUtilityItem
@@ -407,20 +520,25 @@ public partial class Game1
                     Order: GetHudRowOrder(utilityHud, WeaponHudOrderUtility)));
             }
 
-            AddPrimaryWeaponHudRow(rows, displayedWeaponStats, hasGrenadeLauncher);
+            AddPrimaryWeaponHudRow(rows, displayedWeaponStats, !showOnlyActiveWeapon && hasGrenadeLauncher && !selectedUtilityItem);
 
-            if (ShouldDrawAcquiredWeaponHud())
+            if (!showOnlyActiveWeapon && selectedOffhandItemId is not null)
             {
+                AddStowedPrimaryWeaponHudRow(rows);
+            }
+
+            if (!showOnlyActiveWeapon && ShouldDrawAcquiredWeaponHud())
+            {
+                var alternateItemId = GetLocalAlternatePrimaryWeaponPresentationItemId();
+                var alternateItem = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(alternateItemId);
                 rows.Add(new WeaponHudRow(
                     "local.weapon.acquired",
-                    44f,
-                    _ => DrawAcquiredWeaponHud(),
-                    507f,
-                    ReservesFlowSpace: false,
+                    GetHudSpriteFrameHeight(alternateItem.Presentation.HudSpriteName, WeaponHudPanelScale, WeaponHudFallbackPanelHeight),
+                    DrawAcquiredWeaponHudRow,
                     Order: WeaponHudOrderAcquired));
             }
 
-            if (ShouldDrawSecondaryWeaponHudRow(out var secondaryItem))
+            if (!showOnlyActiveWeapon && ShouldDrawSecondaryWeaponHudRow(out var secondaryItem))
             {
                 rows.Add(new WeaponHudRow(
                     "local.weapon.secondary",
@@ -429,7 +547,11 @@ public partial class Game1
                     Order: WeaponHudOrderSecondary));
             }
 
-            AddConfiguredUtilityHudRow(rows, hasGrenadeLauncher);
+            if (!showOnlyActiveWeapon)
+            {
+                AddConfiguredUtilityHudRow(rows, hasGrenadeLauncher || selectedUtilityItem);
+            }
+
             return rows;
         }
 
@@ -444,15 +566,148 @@ public partial class Game1
                 var maxStickies = Math.Max(1, _game._world.LocalPlayer.PrimaryWeapon.MaxAmmo);
                 var frameIndex = _game._world.LocalPlayer.Team == PlayerTeam.Blue ? 1 : 0;
                 rows.Add(new WeaponHudRow(
-                    "class.demoman.sticky",
+                    HudElementId.LocalAbility("class.demoman.sticky"),
                     GetHudSpriteFrameHeight("StickyCounterS", 3f, 36f),
                     sourceY => DrawStickyCounterHud(stickyCount, maxStickies, frameIndex, sourceY),
                     GetDemomanStickyAbilityHudSourceY(hasGrenadeLauncher),
-                    Order: hasGrenadeLauncher ? WeaponHudOrderPostPrimaryAbility : WeaponHudOrderAbility));
+                    Order: hasGrenadeLauncher ? WeaponHudOrderPostPrimaryAbility : WeaponHudOrderAbility,
+                    AbilityMetrics: new AbilityHudWidgetMetrics(
+                        735f,
+                        "StickyCounterS",
+                        3f,
+                        new Vector2(-33f, -21f),
+                        new Vector2(66f, 42f))));
             }
 
             AddConfiguredAbilityHudRows(rows);
             return rows;
+        }
+
+        private List<AbilityHudWidget> BuildAbilityHudWidgets()
+        {
+            var widgets = new List<AbilityHudWidget>();
+            float? flowTopSourceY = null;
+            foreach (var row in BuildAbilityHudRows().OrderBy(static row => row.Order))
+            {
+                if (row.AbilityMetrics is null)
+                {
+                    continue;
+                }
+
+                var (boundsOffset, boundsSize) = GetAbilityHudWidgetBounds(row.AbilityMetrics);
+                var sourceY = row.LegacySourceY
+                    ?? (flowTopSourceY.HasValue
+                        ? flowTopSourceY.Value - AbilityHudWidgetGapPixels - boundsOffset.Y - boundsSize.Y
+                        : SourceAbilityHudY);
+                widgets.Add(new AbilityHudWidget(
+                    HudElementId.LocalAbilitySlot(widgets.Count),
+                    row,
+                    row.AbilityMetrics.SourceX,
+                    sourceY,
+                    widgets.Count,
+                    row.AbilityMetrics));
+
+                if (row.ReservesFlowSpace)
+                {
+                    var topSourceY = sourceY + boundsOffset.Y;
+                    flowTopSourceY = flowTopSourceY.HasValue
+                        ? Math.Min(flowTopSourceY.Value, topSourceY)
+                        : topSourceY;
+                }
+            }
+
+            for (var dummyIndex = 0; dummyIndex < _game.GetHudEditorDummyAbilitySlotCount(); dummyIndex += 1)
+            {
+                var dummyRow = CreateDummyAbilityHudRow(widgets.Count);
+                var metrics = dummyRow.AbilityMetrics!;
+                var (boundsOffset, boundsSize) = GetAbilityHudWidgetBounds(metrics);
+                var sourceY = flowTopSourceY.HasValue
+                    ? flowTopSourceY.Value - AbilityHudWidgetGapPixels - boundsOffset.Y - boundsSize.Y
+                    : SourceAbilityHudY;
+                widgets.Add(new AbilityHudWidget(
+                    HudElementId.LocalAbilitySlot(widgets.Count),
+                    dummyRow,
+                    metrics.SourceX,
+                    sourceY,
+                    widgets.Count,
+                    metrics));
+
+                var topSourceY = sourceY + boundsOffset.Y;
+                flowTopSourceY = flowTopSourceY.HasValue
+                    ? Math.Min(flowTopSourceY.Value, topSourceY)
+                    : topSourceY;
+            }
+
+            return widgets;
+        }
+
+        private HudElementLayout CreateAbilityHudElementLayout(AbilityHudWidget widget)
+        {
+            var (boundsOffset, boundsSize) = GetAbilityHudWidgetBounds(widget.Metrics);
+            return new HudElementLayout(
+                widget.ElementId,
+                HudAnchor.BottomRight,
+                new Vector2(widget.SourceX - SourceHudWidth, widget.SourceY - SourceHudHeight),
+                boundsSize,
+                boundsOffset,
+                Layer: HudElementLayerLocalAbilityStack + widget.LayerOffset);
+        }
+
+        private float GetNextAbilityStackSourceY(Vector2 boundsOffset, Vector2 boundsSize)
+        {
+            var flowTopSourceY = GetAbilityStackFlowTopSourceY();
+            return flowTopSourceY - AbilityHudWidgetGapPixels - boundsOffset.Y - boundsSize.Y;
+        }
+
+        private float GetAbilityStackFlowTopSourceY()
+        {
+            float? flowTopSourceY = null;
+            foreach (var widget in BuildAbilityHudWidgets())
+            {
+                if (!widget.Row.ReservesFlowSpace)
+                {
+                    continue;
+                }
+
+                var (boundsOffset, _) = GetAbilityHudWidgetBounds(widget.Metrics);
+                var topSourceY = widget.SourceY + boundsOffset.Y;
+                flowTopSourceY = flowTopSourceY.HasValue
+                    ? Math.Min(flowTopSourceY.Value, topSourceY)
+                    : topSourceY;
+            }
+
+            return flowTopSourceY ?? (SourceAbilityHudY + GetAbilityHudFallbackBoundsOffset(DefaultAbilityHudSpriteName).Y);
+        }
+
+        private (Vector2 BoundsOffset, Vector2 BoundsSize) GetAbilityHudWidgetBounds(AbilityHudWidgetMetrics metrics)
+        {
+            if (!string.IsNullOrWhiteSpace(metrics.SpriteName))
+            {
+                var sprite = _game.GetResolvedSprite(metrics.SpriteName);
+                if (sprite is not null && sprite.Frames.Count > 0)
+                {
+                    var size = new Vector2(sprite.Frames[0].Width * metrics.SpriteScale, sprite.Frames[0].Height * metrics.SpriteScale);
+                    var offset = -sprite.Origin.ToVector2() * metrics.SpriteScale;
+                    return (offset, size);
+                }
+            }
+
+            return (metrics.FallbackBoundsOffset, metrics.FallbackBoundsSize);
+        }
+
+        private WeaponHudRow CreateDummyAbilityHudRow(int slotIndex)
+        {
+            return new WeaponHudRow(
+                $"local.ability.dummy.{slotIndex + 1}",
+                DefaultAbilityHudHeight,
+                DrawDummyAbilityHud,
+                Order: WeaponHudOrderAbility + slotIndex,
+                AbilityMetrics: new AbilityHudWidgetMetrics(
+                    DefaultAbilityHudSourceX,
+                    DefaultAbilityHudSpriteName,
+                    DefaultAbilityHudSpriteScale,
+                    GetAbilityHudFallbackBoundsOffset(DefaultAbilityHudSpriteName),
+                    GetAbilityHudFallbackBoundsSize(DefaultAbilityHudSpriteName)));
         }
 
         private bool TryGetLocalUtilityHudItem(out GameplayItemDefinition item)
@@ -492,6 +747,17 @@ public partial class Game1
                         Order: WeaponHudOrderPrimary));
                     return;
             }
+        }
+
+        private void AddStowedPrimaryWeaponHudRow(List<WeaponHudRow> rows)
+        {
+            var primaryItemId = _game._world.LocalPlayer.GameplayLoadoutState.PrimaryItemId;
+            var primaryItem = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(primaryItemId);
+            rows.Add(new WeaponHudRow(
+                "local.weapon.primary.stowed",
+                GetHudSpriteFrameHeight(primaryItem.Presentation.HudSpriteName, WeaponHudPanelScale, WeaponHudFallbackPanelHeight),
+                DrawStowedPrimaryWeaponHudRow,
+                Order: WeaponHudOrderStowedPrimary));
         }
 
         private void AddConfiguredUtilityHudRow(List<WeaponHudRow> rows, bool hasGrenadeLauncher)
@@ -540,13 +806,21 @@ public partial class Game1
                 }
 
                 var hudSpriteName = GetAbilityCooldownHudSpriteName(item);
-                var height = GetHudSpriteFrameHeight(hudSpriteName, 2f, 28f);
+                var sourceX = GetAbilityHudSourceX(hudSpriteName);
+                var spriteScale = GetAbilityHudSpriteScale(hudSpriteName);
+                var height = GetAbilityCooldownHudHeight(hudSpriteName);
                 rows.Add(new WeaponHudRow(
-                    $"local.ability.{item.Id}",
+                    HudElementId.LocalAbility(item.Id),
                     height,
                     sourceY => DrawConfiguredAbilityCooldownHud(item, sourceY),
                     GetConfiguredAbilityLegacySourceY(item),
-                    Order: GetHudRowOrder(hud, WeaponHudOrderAbility)));
+                    Order: GetHudRowOrder(hud, WeaponHudOrderAbility),
+                    AbilityMetrics: new AbilityHudWidgetMetrics(
+                        sourceX,
+                        hudSpriteName,
+                        spriteScale,
+                        GetAbilityHudFallbackBoundsOffset(hudSpriteName),
+                        GetAbilityHudFallbackBoundsSize(hudSpriteName))));
             }
         }
 
@@ -572,7 +846,6 @@ public partial class Game1
             return item.Ability?.ExecutorId switch
             {
                 BuiltInGameplayBehaviorIds.HeavySandvich => SourceAbilityHudY,
-                BuiltInGameplayBehaviorIds.HeavyGhostDash => 498f,
                 BuiltInGameplayBehaviorIds.SpySuperjump => SourceAbilityHudY,
                 _ => null,
             };
@@ -581,8 +854,42 @@ public partial class Game1
         private static string GetAbilityCooldownHudSpriteName(GameplayItemDefinition item)
         {
             return string.IsNullOrWhiteSpace(item.Presentation.HudSpriteName)
-                ? DefaultAbilityCooldownHudSpriteName
-                : item.Presentation.HudSpriteName!;
+                ? DefaultAbilityHudSpriteName
+                : item.Presentation.HudSpriteName!.Trim();
+        }
+
+        private float GetAbilityCooldownHudHeight(string hudSpriteName)
+        {
+            return GetHudSpriteFrameHeight(hudSpriteName, GetAbilityHudSpriteScale(hudSpriteName), GetAbilityHudFallbackBoundsSize(hudSpriteName).Y);
+        }
+
+        private static float GetAbilityHudSourceX(string spriteName)
+        {
+            return IsDefaultAbilityHudSprite(spriteName) ? DefaultAbilityHudSourceX : SourceAbilityHudX;
+        }
+
+        private static float GetAbilityHudSpriteScale(string spriteName)
+        {
+            return IsDefaultAbilityHudSprite(spriteName) ? DefaultAbilityHudSpriteScale : AbilityHudPlaqueDrawScale;
+        }
+
+        private static Vector2 GetAbilityHudFallbackBoundsOffset(string spriteName)
+        {
+            return IsDefaultAbilityHudSprite(spriteName)
+                ? new Vector2(-DefaultAbilityHudSpriteOriginX * DefaultAbilityHudSpriteScale, -DefaultAbilityHudSpriteOriginY * DefaultAbilityHudSpriteScale)
+                : new Vector2(-AbilityHudPlaqueOriginX * AbilityHudPlaqueDrawScale, -AbilityHudPlaqueOriginY * AbilityHudPlaqueDrawScale);
+        }
+
+        private static Vector2 GetAbilityHudFallbackBoundsSize(string spriteName)
+        {
+            return IsDefaultAbilityHudSprite(spriteName)
+                ? new Vector2(DefaultAbilityHudWidth, DefaultAbilityHudHeight)
+                : new Vector2(AbilityHudPlaqueWidth, AbilityHudPlaqueHeight);
+        }
+
+        private static bool IsDefaultAbilityHudSprite(string spriteName)
+        {
+            return string.Equals(spriteName, DefaultAbilityHudSpriteName, StringComparison.Ordinal);
         }
 
         private IEnumerable<GameplayItemDefinition> GetLocalConfiguredAbilityHudItems()
@@ -606,14 +913,18 @@ public partial class Game1
         private static bool IsAbilityMeterHud(GameplayItemHudPresentationDefinition hud)
         {
             return string.Equals(hud.DisplayKind, GameplayItemHudDisplayKinds.Meter, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(hud.DisplayKind, GameplayItemHudDisplayKinds.CooldownIcon, StringComparison.OrdinalIgnoreCase);
+                || string.Equals(hud.DisplayKind, GameplayItemHudDisplayKinds.CooldownIcon, StringComparison.OrdinalIgnoreCase)
+                || (string.Equals(hud.DisplayKind, GameplayItemHudDisplayKinds.Custom, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(hud.WidgetId, GameplayItemHudWidgetIds.AbilityCooldownMeter, StringComparison.OrdinalIgnoreCase));
         }
 
         private static bool IsWeaponAmmoPanelHud(GameplayItemHudPresentationDefinition? hud)
         {
             return hud is not null
                 && string.Equals(hud.StackGroup, GameplayItemHudStackGroups.Weapon, StringComparison.OrdinalIgnoreCase)
-                && string.Equals(hud.DisplayKind, GameplayItemHudDisplayKinds.AmmoPanel, StringComparison.OrdinalIgnoreCase);
+                && (string.Equals(hud.DisplayKind, GameplayItemHudDisplayKinds.AmmoPanel, StringComparison.OrdinalIgnoreCase)
+                    || (string.Equals(hud.DisplayKind, GameplayItemHudDisplayKinds.Custom, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(hud.WidgetId, GameplayItemHudWidgetIds.WeaponAmmoPanel, StringComparison.OrdinalIgnoreCase)));
         }
 
         private static int GetHudRowOrder(GameplayItemHudPresentationDefinition? hud, int fallbackOrder)
@@ -623,24 +934,40 @@ public partial class Game1
 
         private void DrawWeaponHudRows(List<WeaponHudRow> rows)
         {
-            var minSourceX = 586f;
-            var maxSourceX = 800f;
-            var minSourceY = 492f;
-            var maxSourceY = 596f;
+            const float defaultBoundsLeft = 664f;
+            const float defaultBoundsTopOffset = -24f;
+            const float defaultBoundsWidth = 128f;
+            const float defaultBoundsHeight = 52f;
+            var minSourceX = float.PositiveInfinity;
+            var maxSourceX = float.NegativeInfinity;
+            var minSourceY = float.PositiveInfinity;
+            var maxSourceY = float.NegativeInfinity;
             var flowTopSourceY = SourceMainAmmoHudY;
 
             foreach (var row in rows.OrderBy(static row => row.Order))
             {
                 var sourceY = row.LegacySourceY ?? (flowTopSourceY - row.Height - WeaponHudPanelGapPixels);
                 row.Draw(sourceY);
+                var boundsOffset = row.EditorBoundsOffset ?? new Vector2(defaultBoundsLeft - 728f, defaultBoundsTopOffset);
+                var boundsSize = row.EditorBoundsSize ?? new Vector2(defaultBoundsWidth, defaultBoundsHeight);
 
                 if (row.ReservesFlowSpace)
                 {
                     flowTopSourceY = Math.Min(flowTopSourceY, sourceY);
                 }
 
-                minSourceY = Math.Min(minSourceY, sourceY - 8f);
-                maxSourceY = Math.Max(maxSourceY, sourceY + row.Height + 10f);
+                minSourceX = Math.Min(minSourceX, 728f + boundsOffset.X);
+                maxSourceX = Math.Max(maxSourceX, 728f + boundsOffset.X + boundsSize.X);
+                minSourceY = Math.Min(minSourceY, sourceY + boundsOffset.Y);
+                maxSourceY = Math.Max(maxSourceY, sourceY + boundsOffset.Y + boundsSize.Y);
+            }
+
+            if (!float.IsFinite(minSourceX)
+                || !float.IsFinite(maxSourceX)
+                || !float.IsFinite(minSourceY)
+                || !float.IsFinite(maxSourceY))
+            {
+                return;
             }
 
             UpdateWeaponStackBounds(minSourceX, minSourceY, maxSourceX - minSourceX, maxSourceY - minSourceY);
@@ -661,7 +988,7 @@ public partial class Game1
 
             foreach (var row in rows.OrderBy(static row => row.Order))
             {
-                var sourceY = row.LegacySourceY ?? (flowTopSourceY - row.Height - WeaponHudPanelGapPixels);
+                var sourceY = row.LegacySourceY ?? (flowTopSourceY - row.Height - AbilityHudWidgetGapPixels);
                 row.Draw(sourceY);
 
                 if (row.ReservesFlowSpace)
@@ -700,8 +1027,6 @@ public partial class Game1
         public void DrawDemoknightHud() => DrawDemoknightHudCore();
         public void DrawPyroAmmoHud() => DrawPyroAmmoHudCore();
         public void DrawHeavyAmmoHud() => DrawHeavyAmmoHudCore();
-        public void DrawHeavySandwichHud() => DrawHeavySandwichHudCore();
-        public void DrawHeavyGhostDashHud() => DrawHeavyGhostDashHudCore();
 
         public void DrawDamageVignette() => DrawDamageVignetteCore();
 
@@ -837,7 +1162,7 @@ public partial class Game1
         public void DrawDemomanStickyHud() => DrawDemomanStickyHudCore();
         public void DrawExperimentalOffhandHud() => DrawExperimentalOffhandHudCore();
         public void DrawAcquiredMedigunPrompt() => DrawAcquiredMedigunPromptCore();
-        public void DrawAcquiredWeaponHud() => DrawAcquiredWeaponHudCore();
+        public void DrawAcquiredWeaponHud() => DrawAcquiredWeaponHudCore(SourceMainAmmoHudY - GetAcquiredWeaponHudRowHeight() - WeaponHudPanelGapPixels);
         public void DrawPyroFlareHud(int frameIndex) => DrawPyroFlareHudCore(frameIndex);
         private void DrawPyroFlareHud(int frameIndex, float sourceY) => DrawPyroFlareHudCore(frameIndex, sourceY);
         public bool TryDrawSourceAmmoHudSprite(string spriteName, int frameIndex) => TryDrawSourceAmmoHudSpriteCore(spriteName, frameIndex);
@@ -935,34 +1260,6 @@ public partial class Game1
             DrawSourceAmmoHudBar(689f, sourceY + 4f, 34f, currentShells, maxShells, barColor);
         }
 
-        private void DrawHeavySandwichHudCore()
-        {
-            if (_game._world.LocalPlayer.ClassId != PlayerClass.Heavy)
-            {
-                return;
-            }
-
-            var sandwichHudSpriteName = StockGameplayModCatalog.GetSecondaryItem(PlayerClass.Heavy)?.Presentation.HudSpriteName ?? "SandwichHudS";
-            if (!_game.TryDrawScreenSprite(sandwichHudSpriteName, _game._world.LocalPlayer.Team == PlayerTeam.Blue ? 1 : 0, GetSourceHudPoint(730f, 515f), Color.White, GetSourceHudSpriteScale(new Vector2(2f, 2f))))
-            {
-                return;
-            }
-
-            var cooldownRemaining = Math.Clamp(_game.GetPlayerHeavyEatCooldownTicksRemaining(_game._world.LocalPlayer), 0, PlayerEntity.HeavySandvichCooldownTicks);
-            _game.DrawScreenHealthBar(GetSourceHudRectangle(715f, 528f, 35f, 5f), PlayerEntity.HeavySandvichCooldownTicks - cooldownRemaining, PlayerEntity.HeavySandvichCooldownTicks, false, AmmoHudBarColor, Color.Black);
-        }
-
-        private void DrawHeavyGhostDashHudCore()
-        {
-            var utilityItemId = _game._world.LocalPlayer.GameplayLoadoutState.UtilityItemId;
-            if (string.IsNullOrWhiteSpace(utilityItemId))
-            {
-                return;
-            }
-
-            DrawConfiguredAbilityCooldownHud(CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(utilityItemId), 498f);
-        }
-
         private void DrawSpySuperjumpHudCore()
         {
             var utilityItemId = _game._world.LocalPlayer.GameplayLoadoutState.UtilityItemId;
@@ -984,14 +1281,16 @@ public partial class Game1
             var presentation = item.Presentation;
             var iconColor = isDisabled ? DisabledAmmoHudColor : Color.White;
             var hudSpriteName = GetAbilityCooldownHudSpriteName(item);
-            var hasHudPlaque = !string.IsNullOrWhiteSpace(hudSpriteName);
-            if (hasHudPlaque)
+            var frameIndex = GetAbilityHudFrameIndex(presentation, hudSpriteName);
+            var drewHudPlaque = _game.TryDrawScreenSprite(
+                hudSpriteName,
+                frameIndex,
+                GetSourceHudPoint(GetAbilityHudSourceX(hudSpriteName), sourceY),
+                iconColor,
+                GetSourceHudSpriteScale(new Vector2(GetAbilityHudSpriteScale(hudSpriteName), GetAbilityHudSpriteScale(hudSpriteName))));
+            if (!drewHudPlaque && !IsDefaultAbilityHudSprite(hudSpriteName))
             {
-                var frameIndex = _game._world.LocalPlayer.Team == PlayerTeam.Blue ? presentation.BlueTeamHudFrameOffset : 0;
-                if (!_game.TryDrawScreenSprite(hudSpriteName, frameIndex, GetSourceHudPoint(730f, sourceY), iconColor, GetSourceHudSpriteScale(new Vector2(2f, 2f))))
-                {
-                    return;
-                }
+                DrawDefaultAbilityCooldownHudPlaque(sourceY, isDisabled);
             }
 
             cooldownRemaining = Math.Clamp(cooldownRemaining, 0, maxCooldownTicks);
@@ -1003,10 +1302,36 @@ public partial class Game1
                 : isActive
                 ? new Color(226, 188, 92)
                 : AmmoHudBarColor;
-            var barRectangle = hasHudPlaque
-                ? GetSourceHudRectangle(715f, sourceY + 13f, 35f, 5f)
-                : GetSourceHudRectangle(706f, sourceY, 48f, 5f);
+            var barRectangle = GetSourceHudRectangle(715f, sourceY + 13f, 35f, 5f);
             _game.DrawScreenHealthBar(barRectangle, meterFraction, 1f, false, meterColor, Color.Black);
+        }
+
+        private void DrawDummyAbilityHud(float sourceY)
+        {
+            DrawDefaultAbilityCooldownHudPlaque(sourceY, disabled: false);
+            _game.DrawScreenHealthBar(GetSourceHudRectangle(715f, sourceY + 13f, 35f, 5f), 1f, 1f, false, AmmoHudBarColor, Color.Black);
+        }
+
+        private void DrawDefaultAbilityCooldownHudPlaque(float sourceY, bool disabled)
+        {
+            var iconColor = disabled ? DisabledAmmoHudColor : Color.White;
+            var frameIndex = _game._world.LocalPlayer.Team == PlayerTeam.Blue ? 1 : 0;
+            _game.TryDrawScreenSprite(
+                DefaultAbilityHudSpriteName,
+                frameIndex,
+                GetSourceHudPoint(DefaultAbilityHudSourceX, sourceY),
+                iconColor,
+                GetSourceHudSpriteScale(new Vector2(DefaultAbilityHudSpriteScale, DefaultAbilityHudSpriteScale)));
+        }
+
+        private int GetAbilityHudFrameIndex(GameplayItemPresentationDefinition presentation, string hudSpriteName)
+        {
+            if (IsDefaultAbilityHudSprite(hudSpriteName))
+            {
+                return _game._world.LocalPlayer.Team == PlayerTeam.Blue ? 1 : 0;
+            }
+
+            return _game._world.LocalPlayer.Team == PlayerTeam.Blue ? presentation.BlueTeamHudFrameOffset : 0;
         }
 
         private bool TryResolveAbilityCooldownHudState(
@@ -1320,6 +1645,11 @@ public partial class Game1
         private bool ShouldDrawSecondaryWeaponHudRow(out GameplayItemDefinition item)
         {
             item = null!;
+            if (_game._world.LocalPlayer.IsExperimentalOffhandSelected)
+            {
+                return false;
+            }
+
             var hasReplicatedShotgun = _game._world.LocalPlayer.TryGetReplicatedStateBool(CoreReplicatedOwnerId, SoldierShotgunAvailableKey, out var replicatedShotgunAvailable)
                 && replicatedShotgunAvailable;
 
@@ -1359,7 +1689,24 @@ public partial class Game1
             _game.DrawBitmapFontTextCentered("LEFT CLICK FOR HEALSPLOSION", position, textColor, 1.2f);
         }
 
-        private void DrawAcquiredWeaponHudCore()
+        private void DrawStowedPrimaryWeaponHudRow(float sourceY)
+        {
+            var player = _game._world.LocalPlayer;
+            DrawWeaponAmmoHudPanel(
+                player.GameplayLoadoutState.PrimaryItemId,
+                _game.GetPlayerCurrentShells(player),
+                Math.Max(1, player.MaxShells),
+                GetLocalPrimaryWeaponReloadProgress(),
+                sourceY,
+                Color.White);
+        }
+
+        private void DrawAcquiredWeaponHudRow(float sourceY)
+        {
+            DrawAcquiredWeaponHudCore(sourceY);
+        }
+
+        private void DrawAcquiredWeaponHudCore(float sourceY)
         {
             if (!ShouldDrawAcquiredWeaponHud())
             {
@@ -1367,27 +1714,22 @@ public partial class Game1
             }
 
             var weaponItemId = GetLocalAlternatePrimaryWeaponPresentationItemId();
-            var presentation = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(weaponItemId).Presentation;
-            var frameIndex = _game._world.LocalPlayer.Team == PlayerTeam.Blue ? presentation.BlueTeamHudFrameOffset : 0;
-            var iconPosition = GetSourceHudPoint(614f, 507f);
-            var iconTint = Color.White * 0.72f;
-            var iconDrawn = presentation.HudSpriteName is not null && _game.TryDrawScreenSprite(presentation.HudSpriteName, frameIndex, iconPosition, iconTint, GetSourceHudSpriteScale(new Vector2(1.5f, 1.5f)));
-            if (!iconDrawn)
-            {
-                _game.DrawBitmapFontText(weaponItemId.ToUpperInvariant(), GetSourceHudPoint(586f, 510f), iconTint, GetSourceHudTextScale(0.68f));
-            }
-
             var currentShells = GetLocalAlternatePrimaryWeaponCurrentShells();
             var maxShells = Math.Max(1, GetLocalAlternatePrimaryWeaponMaxShells());
             var reloadProgress = GetLocalAlternatePrimaryWeaponReloadProgress();
-            var ammoColor = currentShells <= Math.Max(1, maxShells / 4) ? LowAmmoHudColor : AmmoHudTextColor;
-            var ammoCountScale = GetAmmoCountBuildScaleForValue(currentShells);
-            _game.DrawBitmapFontText("Q", GetSourceHudPoint(610f, 500f), new Color(210, 210, 210), GetSourceHudTextScale(0.72f));
-            var acquiredReloadBarBottomSourceY = 542f;
-            var acquiredAmmoTextSourceY = acquiredReloadBarBottomSourceY - _game.MeasureMenuBitmapFontHeight(ammoCountScale);
-            _game.DrawMenuBitmapFontText(currentShells.ToString(CultureInfo.InvariantCulture), GetSourceHudPoint(640f, acquiredAmmoTextSourceY), ammoColor, GetSourceHudTextScale(ammoCountScale));
-            _game.DrawScreenHealthBar(GetSourceHudRectangle(610f, 531f, 55f, 5f), currentShells, maxShells, false, AmmoHudBarColor, Color.Black);
-            _game.DrawScreenHealthBar(GetSourceHudRectangle(610f, 538f, 55f, 4f), reloadProgress, 1f, false, new Color(188, 188, 188), Color.Black);
+            DrawWeaponAmmoHudPanel(weaponItemId, currentShells, maxShells, reloadProgress, sourceY, Color.White);
+        }
+
+        private float GetAcquiredWeaponHudRowHeight()
+        {
+            if (!ShouldDrawAcquiredWeaponHud())
+            {
+                return WeaponHudFallbackPanelHeight;
+            }
+
+            var weaponItemId = GetLocalAlternatePrimaryWeaponPresentationItemId();
+            var item = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(weaponItemId);
+            return GetHudSpriteFrameHeight(item.Presentation.HudSpriteName, WeaponHudPanelScale, WeaponHudFallbackPanelHeight);
         }
 
         private bool ShouldDrawAcquiredWeaponHud()
@@ -1395,6 +1737,31 @@ public partial class Game1
             return _game._world.LocalPlayer.ClassId == PlayerClass.Soldier
                 && _game._world.LocalPlayer.HasAcquiredWeapon
                 && _game._world.LocalPlayer.AcquiredWeaponClassId.HasValue;
+        }
+
+        private float GetLocalPrimaryWeaponReloadProgress()
+        {
+            var player = _game._world.LocalPlayer;
+            var currentShells = _game.GetPlayerCurrentShells(player);
+            var maxShells = Math.Max(1, player.MaxShells);
+            if (currentShells >= maxShells)
+            {
+                return 1f;
+            }
+
+            if (player.ClassId == PlayerClass.Medic)
+            {
+                return GetMedicNeedleReloadProgress(currentShells, maxShells, _game.GetPlayerMedicNeedleRefillTicks(player));
+            }
+
+            var reloadTicksRemaining = _game.GetPlayerReloadTicksUntilNextShell(player);
+            if (reloadTicksRemaining <= 0)
+            {
+                return 1f;
+            }
+
+            var reloadTicksTotal = Math.Max(1, player.PrimaryWeapon.AmmoReloadTicks);
+            return Math.Clamp(1f - (reloadTicksRemaining / (float)reloadTicksTotal), 0f, 1f);
         }
 
         private static float GetAmmoCountBuildScaleForValue(int ammoCount)
@@ -1420,6 +1787,44 @@ public partial class Game1
             }
 
             DrawAmmoReloadBar(GetReloadAmmoHudBarRectangleAt(sourceY));
+        }
+
+        private void DrawWeaponAmmoHudPanel(string itemId, int currentShells, int maxShells, float reloadProgress, float sourceY, Color tint)
+        {
+            var item = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(itemId);
+            var presentation = item.Presentation;
+            if (string.IsNullOrWhiteSpace(presentation.HudSpriteName))
+            {
+                return;
+            }
+
+            var frameIndex = GetWeaponHudFrameIndex(presentation, currentShells);
+            if (!_game.TryDrawScreenSprite(presentation.HudSpriteName, frameIndex, GetSourceHudPoint(728f, sourceY), tint, GetSourceHudSpriteScale(new Vector2(WeaponHudPanelScale, WeaponHudPanelScale))))
+            {
+                return;
+            }
+
+            if (!string.Equals(itemId, "weapon.rocketlauncher", StringComparison.Ordinal))
+            {
+                var ammoCountScale = GetAmmoCountBuildScaleForValue(currentShells);
+                var reloadBarBottomSourceY = sourceY + 12f;
+                var ammoTextSourceY = reloadBarBottomSourceY - _game.MeasureMenuBitmapFontHeight(ammoCountScale);
+                var ammoColor = currentShells <= Math.Max(1, maxShells / 4) ? LowAmmoHudColor : AmmoHudTextColor;
+                _game.DrawMenuBitmapFontText(currentShells.ToString(CultureInfo.InvariantCulture), GetSourceHudPoint(755f, ammoTextSourceY), ammoColor, GetSourceHudTextScale(ammoCountScale));
+            }
+
+            _game.DrawScreenHealthBar(GetWeaponReloadAmmoHudBarRectangleAt(itemId, sourceY), reloadProgress, 1f, false, AmmoHudBarColor, Color.Black);
+        }
+
+        private int GetWeaponHudFrameIndex(GameplayItemPresentationDefinition presentation, int currentShells)
+        {
+            if (presentation.UseAmmoCountForHudFrame)
+            {
+                return currentShells
+                    + (_game._world.LocalPlayerTeam == PlayerTeam.Blue ? presentation.BlueTeamAmmoHudFrameOffset : 0);
+            }
+
+            return _game._world.LocalPlayerTeam == PlayerTeam.Blue ? presentation.BlueTeamHudFrameOffset : 0;
         }
 
         private float GetHudSpriteFrameHeight(string? spriteName, float scale, float fallbackHeight)
@@ -1522,7 +1927,12 @@ public partial class Game1
 
         private Rectangle GetReloadAmmoHudBarRectangleAt(float sourceY)
         {
-            return string.Equals(GetLocalDisplayedMainWeaponPresentationItemId(), "weapon.rocketlauncher", StringComparison.Ordinal)
+            return GetWeaponReloadAmmoHudBarRectangleAt(GetLocalDisplayedMainWeaponPresentationItemId(), sourceY);
+        }
+
+        private Rectangle GetWeaponReloadAmmoHudBarRectangleAt(string itemId, float sourceY)
+        {
+            return string.Equals(itemId, "weapon.rocketlauncher", StringComparison.Ordinal)
                 ? GetSourceHudRectangle(689f, sourceY + 4f, 34f, 8f)
                 : GetSourceHudRectangle(700f, sourceY + 4f, 50f, 8f);
         }
@@ -1630,6 +2040,25 @@ public partial class Game1
                 return Math.Clamp(1f - (reloadTicksUntilNextShell / (float)reloadTicks), 0f, 1f);
             }
 
+            if (ReferenceEquals(player, _game._world.LocalPlayer) && IsLocalDisplayedOffhandWeaponSelected())
+            {
+                var currentShells = GetLocalDisplayedOffhandCurrentShells();
+                var maxShells = GetLocalDisplayedOffhandMaxShells();
+                if (currentShells >= maxShells)
+                {
+                    return 1f;
+                }
+
+                var reloadTicksUntilNextShell = GetLocalDisplayedOffhandReloadTicks();
+                if (reloadTicksUntilNextShell <= 0)
+                {
+                    return 1f;
+                }
+
+                var reloadTicks = Math.Max(1, player.ExperimentalOffhandWeapon?.AmmoReloadTicks ?? 1);
+                return Math.Clamp(1f - (reloadTicksUntilNextShell / (float)reloadTicks), 0f, 1f);
+            }
+
             var displayedShells = _game.GetPlayerCurrentShells(player);
             if (displayedShells >= player.MaxShells)
             {
@@ -1654,12 +2083,91 @@ public partial class Game1
         private bool IsLocalDisplayedMainWeaponAcquiredCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented;
         private string GetLocalDisplayedMainWeaponPresentationItemIdCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented
             ? _game._world.LocalPlayer.GameplayLoadoutState.AcquiredItemId ?? _game._world.LocalPlayer.GameplayLoadoutState.PrimaryItemId
-            : _game._world.LocalPlayer.GameplayLoadoutState.PrimaryItemId;
-        private PrimaryWeaponDefinition GetLocalDisplayedMainWeaponStatsCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented ? _game._world.LocalPlayer.AcquiredWeapon ?? _game._world.LocalPlayer.PrimaryWeapon : _game._world.LocalPlayer.PrimaryWeapon;
-        private int GetLocalDisplayedMainWeaponCurrentShellsCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented ? _game._world.LocalPlayer.AcquiredWeaponCurrentShells : _game.GetPlayerCurrentShells(_game._world.LocalPlayer);
-        private int GetLocalDisplayedMainWeaponMaxShellsCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented ? _game._world.LocalPlayer.AcquiredWeaponMaxShells : _game._world.LocalPlayer.MaxShells;
-        private int GetLocalDisplayedMainWeaponCooldownTicksCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented ? _game._world.LocalPlayer.AcquiredWeaponCooldownTicks : _game.GetPlayerPrimaryCooldownTicks(_game._world.LocalPlayer);
-        private int GetLocalDisplayedMainWeaponReloadTicksCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented ? _game._world.LocalPlayer.AcquiredWeaponReloadTicksUntilNextShell : _game.GetPlayerReloadTicksUntilNextShell(_game._world.LocalPlayer);
+            : IsLocalDisplayedOffhandWeaponSelected()
+                ? GetLocalDisplayedOffhandPresentationItemId()
+                : _game._world.LocalPlayer.GameplayLoadoutState.PrimaryItemId;
+        private PrimaryWeaponDefinition GetLocalDisplayedMainWeaponStatsCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented
+            ? _game._world.LocalPlayer.AcquiredWeapon ?? _game._world.LocalPlayer.PrimaryWeapon
+            : IsLocalDisplayedOffhandWeaponSelected()
+                ? _game._world.LocalPlayer.ExperimentalOffhandWeapon ?? _game._world.LocalPlayer.PrimaryWeapon
+                : _game._world.LocalPlayer.PrimaryWeapon;
+        private int GetLocalDisplayedMainWeaponCurrentShellsCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented
+            ? _game._world.LocalPlayer.AcquiredWeaponCurrentShells
+            : IsLocalDisplayedOffhandWeaponSelected()
+                ? GetLocalDisplayedOffhandCurrentShells()
+                : _game.GetPlayerCurrentShells(_game._world.LocalPlayer);
+        private int GetLocalDisplayedMainWeaponMaxShellsCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented
+            ? _game._world.LocalPlayer.AcquiredWeaponMaxShells
+            : IsLocalDisplayedOffhandWeaponSelected()
+                ? GetLocalDisplayedOffhandMaxShells()
+                : _game._world.LocalPlayer.MaxShells;
+        private int GetLocalDisplayedMainWeaponCooldownTicksCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented
+            ? _game._world.LocalPlayer.AcquiredWeaponCooldownTicks
+            : IsLocalDisplayedOffhandWeaponSelected()
+                ? _game._world.LocalPlayer.ExperimentalOffhandCooldownTicks
+                : _game.GetPlayerPrimaryCooldownTicks(_game._world.LocalPlayer);
+        private int GetLocalDisplayedMainWeaponReloadTicksCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented
+            ? _game._world.LocalPlayer.AcquiredWeaponReloadTicksUntilNextShell
+            : IsLocalDisplayedOffhandWeaponSelected()
+                ? GetLocalDisplayedOffhandReloadTicks()
+                : _game.GetPlayerReloadTicksUntilNextShell(_game._world.LocalPlayer);
+
+        private bool IsLocalDisplayedOffhandWeaponSelected()
+        {
+            return !_game._world.LocalPlayer.IsAcquiredWeaponPresented
+                && _game._world.LocalPlayer.IsExperimentalOffhandSelected
+                && _game._world.LocalPlayer.ExperimentalOffhandWeapon is not null;
+        }
+
+        private string GetLocalDisplayedOffhandPresentationItemId()
+        {
+            var player = _game._world.LocalPlayer;
+            if (!string.IsNullOrWhiteSpace(player.GameplayLoadoutState.EquippedItemId))
+            {
+                return player.GameplayLoadoutState.EquippedItemId;
+            }
+
+            return player.GameplayLoadoutState.SecondaryItemId
+                ?? player.GameplayLoadoutState.UtilityItemId
+                ?? player.GameplayLoadoutState.PrimaryItemId;
+        }
+
+        private int GetLocalDisplayedOffhandCurrentShells()
+        {
+            var player = _game._world.LocalPlayer;
+            if (string.Equals(player.EquippedBehaviorId, BuiltInGameplayBehaviorIds.GrenadeLauncher, StringComparison.Ordinal)
+                && player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, DemomanGrenadeLauncherAmmoKey, out var replicatedGrenadeAmmo))
+            {
+                return replicatedGrenadeAmmo;
+            }
+
+            return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunAmmoKey, out var replicatedShotgunAmmo)
+                ? replicatedShotgunAmmo
+                : player.ExperimentalOffhandCurrentShells;
+        }
+
+        private int GetLocalDisplayedOffhandMaxShells()
+        {
+            var player = _game._world.LocalPlayer;
+            return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunMaxAmmoKey, out var replicatedShotgunMaxAmmo)
+                ? Math.Max(1, replicatedShotgunMaxAmmo)
+                : Math.Max(1, player.ExperimentalOffhandMaxShells);
+        }
+
+        private int GetLocalDisplayedOffhandReloadTicks()
+        {
+            var player = _game._world.LocalPlayer;
+            if (string.Equals(player.EquippedBehaviorId, BuiltInGameplayBehaviorIds.GrenadeLauncher, StringComparison.Ordinal)
+                && player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, DemomanGrenadeLauncherReloadTicksKey, out var replicatedGrenadeReloadTicks))
+            {
+                return Math.Max(0, replicatedGrenadeReloadTicks);
+            }
+
+            return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunReloadTicksKey, out var replicatedShotgunReloadTicks)
+                ? Math.Max(0, replicatedShotgunReloadTicks)
+                : player.ExperimentalOffhandReloadTicksUntilNextShell;
+        }
+
         private string GetLocalAlternatePrimaryWeaponPresentationItemIdCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented
             ? _game._world.LocalPlayer.GameplayLoadoutState.PrimaryItemId
             : _game._world.LocalPlayer.GameplayLoadoutState.AcquiredItemId ?? _game._world.LocalPlayer.GameplayLoadoutState.PrimaryItemId;

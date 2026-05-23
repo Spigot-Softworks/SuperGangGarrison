@@ -18,6 +18,7 @@ internal sealed class ServerConsoleSummaryBuilder(
     int lobbyPort,
     bool passwordRequired,
     Func<bool> autoBalanceEnabledGetter,
+    Func<bool> specialAbilitiesEnabledGetter,
     Func<int> respawnSecondsGetter,
     Func<MapRotationManager> mapRotationManagerGetter,
     string? mapRotationFile,
@@ -60,9 +61,10 @@ internal sealed class ServerConsoleSummaryBuilder(
     {
         var world = worldGetter();
         var autoBalanceValue = autoBalanceEnabledGetter() ? "enabled" : "disabled";
+        var specialAbilitiesValue = specialAbilitiesEnabledGetter() ? "enabled" : "disabled";
         var respawnSeconds = respawnSecondsGetter();
         lines.Add(
-            $"[server] rules | timeLimit={world.MatchRules.TimeLimitMinutes} | capLimit={world.MatchRules.CapLimit} | respawn={respawnSeconds} | playerScale={world.ConfiguredPlayerScale:G9} | autoBalance={autoBalanceValue}");
+            $"[server] rules | timeLimit={world.MatchRules.TimeLimitMinutes} | capLimit={world.MatchRules.CapLimit} | respawn={respawnSeconds} | playerScale={world.ConfiguredPlayerScale:G9} | autoBalance={autoBalanceValue} | specialAbilities={specialAbilitiesValue}");
     }
 
     public void AddLobbySummary(List<string> lines)

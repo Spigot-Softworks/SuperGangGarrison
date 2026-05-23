@@ -14,6 +14,7 @@ public partial class Game1
     private HudEditorController? _hudEditorController;
     private bool _hudEditorOpen;
     private bool _hudEditorOpenedFromOptions;
+    private int _hudEditorDummyAbilitySlotCount;
 
     private HudEditorController HudEditor => _hudEditorController ??= new HudEditorController(this);
 
@@ -36,6 +37,7 @@ public partial class Game1
     private void BeginHudElementFrame()
     {
         _hudResolvedElements.Clear();
+        _hudLayoutProfile.ClearRuntimeDefaults();
     }
 
     private bool TryResolveHudElement(string id, out HudResolvedElement resolved)
@@ -76,6 +78,11 @@ public partial class Game1
         _hudResolvedElements[id] = resolved with { Bounds = bounds };
     }
 
+    private void SetHudElementRuntimeDefault(HudElementLayout layout)
+    {
+        _hudLayoutProfile.SetRuntimeDefault(layout);
+    }
+
     private Dictionary<string, HudResolvedElement> GetHudEditorElements()
     {
         return new Dictionary<string, HudResolvedElement>(_hudResolvedElements, StringComparer.Ordinal);
@@ -101,6 +108,7 @@ public partial class Game1
 
         _hudEditorOpen = true;
         _hudEditorOpenedFromOptions = openedFromOptions;
+        _hudEditorDummyAbilitySlotCount = 0;
         _optionsMenuOpen = false;
         _optionsMenuOpenedFromGameplay = false;
         _inGameMenuOpen = false;
@@ -116,6 +124,7 @@ public partial class Game1
         _hudEditorOpen = false;
         SaveHudLayout();
         HudEditor.Close();
+        _hudEditorDummyAbilitySlotCount = 0;
 
         if (_hudEditorOpenedFromOptions && !_mainMenuOpen)
         {
@@ -137,5 +146,20 @@ public partial class Game1
     private void DrawHudEditor()
     {
         HudEditor.Draw();
+    }
+
+    private int GetHudEditorDummyAbilitySlotCount()
+    {
+        return _hudEditorOpen ? _hudEditorDummyAbilitySlotCount : 0;
+    }
+
+    private void AddHudEditorDummyAbilitySlot()
+    {
+        if (!_hudEditorOpen)
+        {
+            return;
+        }
+
+        _hudEditorDummyAbilitySlotCount = Math.Min(_hudEditorDummyAbilitySlotCount + 1, 8);
     }
 }
