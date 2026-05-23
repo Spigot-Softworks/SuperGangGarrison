@@ -19,4 +19,7 @@ public sealed record CharacterClassDefinition(
     float Gravity,
     float JumpSpeed,
     int MaxAirJumps,
-    int TauntLengthFrames);
+    int TauntLengthFrames,
+    string GameplayClassId = "",
+    string GameplayModPackId = "",
+    PlayerClass BotGraphClassId = PlayerClass.Scout);

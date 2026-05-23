@@ -34,25 +34,25 @@ public static class CharacterClassCatalog
 
     public static PrimaryWeaponDefinition ExperimentalDemoknightEyelander { get; } = RuntimeRegistry.CreatePrimaryWeaponDefinition(StockGameplayModCatalog.GetExperimentalDemoknightEyelanderItem());
 
-    public static CharacterClassDefinition Scout { get; } = RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Scout);
+    public static CharacterClassDefinition Scout => RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Scout);
 
-    public static CharacterClassDefinition Engineer { get; } = RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Engineer);
+    public static CharacterClassDefinition Engineer => RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Engineer);
 
-    public static CharacterClassDefinition Pyro { get; } = RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Pyro);
+    public static CharacterClassDefinition Pyro => RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Pyro);
 
-    public static CharacterClassDefinition Soldier { get; } = RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Soldier);
+    public static CharacterClassDefinition Soldier => RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Soldier);
 
-    public static CharacterClassDefinition Demoman { get; } = RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Demoman);
+    public static CharacterClassDefinition Demoman => RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Demoman);
 
-    public static CharacterClassDefinition Heavy { get; } = RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Heavy);
+    public static CharacterClassDefinition Heavy => RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Heavy);
 
-    public static CharacterClassDefinition Sniper { get; } = RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Sniper);
+    public static CharacterClassDefinition Sniper => RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Sniper);
 
-    public static CharacterClassDefinition Medic { get; } = RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Medic);
+    public static CharacterClassDefinition Medic => RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Medic);
 
-    public static CharacterClassDefinition Spy { get; } = RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Spy);
+    public static CharacterClassDefinition Spy => RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Spy);
 
-    public static CharacterClassDefinition Quote { get; } = RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Quote);
+    public static CharacterClassDefinition Quote => RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Quote);
 
     public static CharacterClassDefinition GetDefinition(PlayerClass playerClass)
     {
@@ -71,13 +71,28 @@ public static class CharacterClassCatalog
         };
     }
 
+    public static CharacterClassDefinition GetDefinition(string gameplayClassId)
+    {
+        return RuntimeRegistry.CreateCharacterClassDefinition(gameplayClassId);
+    }
+
     public static bool SupportsExperimentalAcquiredWeapon(PlayerClass playerClass)
     {
         return RuntimeRegistry.SupportsExperimentalAcquiredWeapon(playerClass);
     }
 
+    public static bool SupportsExperimentalAcquiredWeapon(string gameplayClassId)
+    {
+        return RuntimeRegistry.SupportsExperimentalAcquiredWeapon(gameplayClassId);
+    }
+
     public static string GetPrimaryWeaponKillFeedSprite(PlayerClass playerClass)
     {
         return RuntimeRegistry.GetPrimaryWeaponKillFeedSprite(playerClass);
+    }
+
+    public static string GetPrimaryWeaponKillFeedSprite(string gameplayClassId)
+    {
+        return RuntimeRegistry.GetPrimaryWeaponKillFeedSprite(gameplayClassId);
     }
 }

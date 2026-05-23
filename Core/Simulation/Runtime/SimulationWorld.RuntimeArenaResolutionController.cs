@@ -53,13 +53,17 @@ public sealed partial class SimulationWorld
                 return;
             }
 
-            _world.MatchState = _world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = null };
-            _world.QueuePendingMapChange();
+            _world.TryEndRound(null, "arena_time_limit");
         }
 
         private void EndArenaRound(PlayerTeam winner)
         {
             if (_world.MatchState.IsEnded)
+            {
+                return;
+            }
+
+            if (!_world.TryEndRound(winner, "arena_elimination"))
             {
                 return;
             }
@@ -75,8 +79,6 @@ public sealed partial class SimulationWorld
                 _world._arenaRedConsecutiveWins = 0;
             }
 
-            _world.MatchState = _world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = winner };
-            _world.QueuePendingMapChange();
         }
     }
 }

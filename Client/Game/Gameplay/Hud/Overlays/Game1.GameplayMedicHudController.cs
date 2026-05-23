@@ -27,8 +27,23 @@ public partial class Game1
 
             var viewportWidth = _game.ViewportWidth;
             var viewportHeight = _game.ViewportHeight;
+            var defaultIconPosition = new Vector2(viewportWidth - 80f, viewportHeight - 85f);
+            if (!_game.TryResolveHudElement(HudElementId.ClassMedicUber, out var resolved))
+            {
+                return;
+            }
+
+            var iconPosition = resolved.Origin;
+            var hudScale = resolved.Layout.Scale;
+            Vector2 TransformPoint(Vector2 point) => iconPosition + ((point - defaultIconPosition) * hudScale);
+
             var hudFrameIndex = _game._world.LocalPlayer.Team == PlayerTeam.Blue ? 1 : 0;
-            var uberRectangle = new Rectangle(viewportWidth - 135, viewportHeight - 100, 120, 32);
+            var uberPosition = TransformPoint(new Vector2(viewportWidth - 135f, viewportHeight - 100f));
+            var uberRectangle = new Rectangle(
+                (int)MathF.Round(uberPosition.X),
+                (int)MathF.Round(uberPosition.Y),
+                Math.Max(1, (int)MathF.Round(120f * hudScale)),
+                Math.Max(1, (int)MathF.Round(32f * hudScale)));
             var uberCharge = _game.GetPlayerMedicUberCharge(_game._world.LocalPlayer);
             var uberIsReady = uberCharge >= PlayerEntity.MedicUberMaxCharge;
             var uberFullColor = _game._world.LocalPlayer.Team == PlayerTeam.Blue
@@ -42,8 +57,8 @@ public partial class Game1
             var isUberDisabled = _game._world.LocalPlayer.IsCarryingIntel && !isKritz;
             var iconColor = isUberDisabled ? new Color(128, 128, 128) : Color.White;
             var textColor = isUberDisabled ? new Color(108, 108, 92) : new Color(0xD9, 0xD9, 0xB7);
-            _game.TryDrawScreenSprite("UberHudS", hudFrameIndex, new Vector2(viewportWidth - 80f, viewportHeight - 85f), iconColor, new Vector2(2f, 2f));
-            _game.DrawHudTextCentered("SUPERBURST", new Vector2(viewportWidth - 71f, viewportHeight - 89f), textColor, 0.72f);
+            _game.TryDrawScreenSprite("UberHudS", hudFrameIndex, iconPosition, iconColor, new Vector2(2f * hudScale, 2f * hudScale));
+            _game.DrawHudTextCentered("SUPERBURST", TransformPoint(new Vector2(viewportWidth - 71f, viewportHeight - 89f)), textColor, 0.72f * hudScale);
         }
 
         public void DrawMedicAssistHud()
@@ -98,6 +113,7 @@ public partial class Game1
             {
                 if (ReferenceEquals(teammate, localPlayer)
                     || teammate.Team != localPlayer.Team
+                    || _game.IsPlayerMutedByScoreboardSlot(teammate)
                     || !teammate.IsChatBubbleVisible
                     || (teammate.ChatBubbleFrameIndex != 45 && teammate.ChatBubbleFrameIndex != 49)
                     || viewBounds.Contains((int)teammate.X, (int)teammate.Y))

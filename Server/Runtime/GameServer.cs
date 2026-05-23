@@ -65,6 +65,9 @@ sealed partial class GameServer
     private bool _secondaryAbilitiesEnabled;
     private bool _randomSpreadEnabled;
     private bool _sniperAimIndicatorEnabled = true;
+    private bool _competitiveReadyUpEnabled;
+    private int _competitiveSetupSeconds;
+    private readonly HashSet<byte> _competitiveReadyButtonDownSlots = new();
     private readonly int? _timeLimitMinutesOverride;
     private readonly int? _capLimitOverride;
     private readonly int? _respawnSecondsOverride;
@@ -142,6 +145,8 @@ sealed partial class GameServer
         bool autoBalanceEnabled,
         bool secondaryAbilitiesEnabled,
         bool randomSpreadEnabled,
+        bool competitiveReadyUpEnabled,
+        int competitiveSetupSeconds,
         int? timeLimitMinutesOverride,
         int? capLimitOverride,
         int? respawnSecondsOverride,
@@ -186,6 +191,8 @@ sealed partial class GameServer
         _autoBalanceEnabled = autoBalanceEnabled;
         _secondaryAbilitiesEnabled = secondaryAbilitiesEnabled;
         _randomSpreadEnabled = randomSpreadEnabled;
+        _competitiveReadyUpEnabled = competitiveReadyUpEnabled;
+        _competitiveSetupSeconds = Math.Clamp(competitiveSetupSeconds, 0, 120);
         _timeLimitMinutesOverride = timeLimitMinutesOverride;
         _capLimitOverride = capLimitOverride;
         _respawnSecondsOverride = respawnSecondsOverride;

@@ -382,6 +382,18 @@ public partial class Game1
         PersistClientSettings();
     }
 
+    private void TogglePostGameMvpArtSetting()
+    {
+        _postGameMvpArtEnabled = !_postGameMvpArtEnabled;
+        _postGameMvpArtHidden = false;
+        if (!_postGameMvpArtEnabled)
+        {
+            _postGameMvpArtFrameSelections.Clear();
+        }
+
+        PersistClientSettings();
+    }
+
     private void ToggleDamageVignetteSetting()
     {
         _damageVignetteEnabled = !_damageVignetteEnabled;

@@ -12,6 +12,7 @@ public enum PrimaryWeaponKind
     Revolver = 8,
     Blade = 9,
     GrenadeLauncher = 10,
+    Custom = 100,
 }
 
 public sealed record PrimaryWeaponDefinition(
@@ -32,4 +33,5 @@ public sealed record PrimaryWeaponDefinition(
     RocketCombatDefinition? RocketCombat = null,
     bool AutoReloads = true,
     int AmmoRegenPerTick = 0,
-    bool RefillsAllAtOnce = false);
+    bool RefillsAllAtOnce = false,
+    int? ActiveProjectileLimit = null);

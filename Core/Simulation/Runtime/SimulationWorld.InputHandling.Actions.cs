@@ -85,6 +85,14 @@ public sealed partial class SimulationWorld
             return true;
         }
 
+        var offhandBehaviorId = player.EquippedBehaviorId ?? player.SecondaryBehaviorId ?? player.UtilityBehaviorId;
+        if (CharacterClassCatalog.RuntimeRegistry.TryGetPrimaryWeaponBinding(offhandBehaviorId, out var secondaryBinding)
+            && secondaryBinding.Executor is not null)
+        {
+            WeaponHandler.FireExperimentalOffhandWeapon(player, offhandBehaviorId, input.AimWorldX, input.AimWorldY);
+            return true;
+        }
+
         WeaponHandler.FireSoldierShotgun(player, input.AimWorldX, input.AimWorldY);
         return true;
     }
@@ -194,7 +202,8 @@ public sealed partial class SimulationWorld
 
         if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Blade))
         {
-            if (input.FirePrimary && player.TryFireQuoteBubble())
+            var activeProjectileLimit = player.PrimaryWeapon.ActiveProjectileLimit ?? PlayerEntity.QuoteBubbleLimit;
+            if (input.FirePrimary && player.TryFireQuoteBubble(activeProjectileLimit))
             {
                 FirePrimaryWeapon(player, input.AimWorldX, input.AimWorldY);
             }
@@ -249,166 +258,38 @@ public sealed partial class SimulationWorld
         return false;
     }
 
-    private void TryHandleNetworkSecondaryAbility(PlayerEntity player, PlayerInputSnapshot input, float sourceX, float sourceY)
+    private GameplayAbilityResult TryHandleNetworkSecondaryAbility(
+        PlayerEntity player,
+        PlayerInputSnapshot input,
+        PlayerInputSnapshot previousInput,
+        GameplayAbilityInputPhase phase,
+        float sourceX,
+        float sourceY)
     {
-        // Allow demoman to detonate mines even while taunting
-        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
-        if (runtimeRegistry.TryGetSecondaryAbilityBinding(player.SecondaryBehaviorId, out var secondaryBinding)
-            && secondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.DemomanDetonate
-            && !player.IsExperimentalDemoknightEnabled)
+        var dispatchResult = TryDispatchGameplayAbility(
+            player,
+            input,
+            previousInput,
+            phase,
+            GameplayAbilityConstants.SecondaryCategory,
+            sourceX,
+            sourceY);
+        if (dispatchResult.ConsumedInput)
         {
-            DetonateOwnedMines(player.Id);
-            return;
+            return dispatchResult;
         }
 
         if (player.IsTaunting)
         {
-            return;
+            return GameplayAbilityResult.Ignored;
         }
 
         if (player.IsExperimentalCryoFrozen)
         {
-            return;
+            return GameplayAbilityResult.Ignored;
         }
 
-        if (TryHandleExperimentalSoldierStingerDetonation(player))
-        {
-            return;
-        }
-
-        if (TryHandleExperimentalSoldierCivilDefenseTurret(player))
-        {
-            return;
-        }
-
-        if (TryHandleExperimentalSoldierThundergunner(player, input))
-        {
-            return;
-        }
-
-        if (player.IsExperimentalDemoknightEnabled)
-        {
-            if (ExperimentalGameplaySettings.EnableDemoknightGhostDash)
-            {
-                if (player.TryStartExperimentalGhostDash(
-                    GetExperimentalGhostDashDurationTicks(),
-                    GetExperimentalGhostDashCooldownTicks(),
-                    global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultGhostDashNextAttackDamageMultiplier,
-                    GetExperimentalGhostDashImpulse()))
-                {
-                    RegisterWorldSoundEvent(ExperimentalDemoknightCatalog.ChargeStartSoundName, player.X, player.Y);
-                }
-
-                return;
-            }
-
-            if (player.IsExperimentalDemoknightCharging)
-            {
-                player.CancelExperimentalDemoknightCharge(depleteMeter: true);
-            }
-            else if (player.TryStartExperimentalDemoknightCharge())
-            {
-                RegisterWorldSoundEvent(ExperimentalDemoknightCatalog.ChargeStartSoundName, player.X, player.Y);
-            }
-
-            return;
-        }
-
-        if (player.ClassId == PlayerClass.Engineer
-            && HasExperimentalEngineerDestinyPunctuator(player))
-        {
-            TryHandleExperimentalEngineerDestinyPunctuatorBlast(player, input);
-            return;
-        }
-
-        if (player.ClassId == PlayerClass.Engineer
-            && !player.IsAcquiredWeaponEquipped
-            && HasExperimentalEngineerAlternateWeaponAvailable(player))
-        {
-            HandleEngineerPdaSentryCommand(player);
-            return;
-        }
-
-        runtimeRegistry.TryGetSecondaryAbilityBinding(player.EquippedBehaviorId, out var equippedBinding);
-        runtimeRegistry.TryGetUtilityAbilityBinding(player.UtilityBehaviorId, out var utilityBinding);
-        var resolvedSecondaryBinding = player.IsAcquiredWeaponEquipped ? equippedBinding : secondaryBinding;
-
-        if (resolvedSecondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.SniperScope)
-        {
-            player.TryToggleSniperScope();
-            return;
-        }
-
-        if (resolvedSecondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.EngineerPda)
-        {
-            if (TryHandleExperimentalEngineerDestinyPunctuatorBlast(player, input))
-            {
-                return;
-            }
-
-            HandleEngineerPdaSentryCommand(player);
-            return;
-        }
-
-        if (resolvedSecondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.HeavySandvich)
-        {
-            player.TryStartHeavySelfHeal();
-            return;
-        }
-
-        if (resolvedSecondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.PyroAirblast)
-        {
-            if (player.TryFirePyroAirblast())
-            {
-                TriggerPyroAirblast(player, input.AimWorldX, input.AimWorldY, input.FirePrimary);
-            }
-
-            return;
-        }
-
-        if (resolvedSecondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.SpyCloak)
-        {
-            if (!input.FirePrimary)
-            {
-                player.TryToggleSpyCloak();
-            }
-
-            return;
-        }
-
-        if (resolvedSecondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.MedicNeedlegun
-            || utilityBinding.ActionKind == GameplayUtilityAbilityActionKind.MedicUber)
-        {
-            if (player.IsAcquiredWeaponEquipped)
-            {
-                if (player.TryFireAcquiredMedicNeedle())
-                {
-                    WeaponHandler.FireAcquiredMedicNeedle(player, input.AimWorldX, input.AimWorldY);
-                    return;
-                }
-            }
-            else if (player.TryFireMedicNeedle())
-            {
-                FireMedicNeedle(player, input.AimWorldX, input.AimWorldY);
-                return;
-            }
-
-            if (player.IsMedicUberReady && input.FirePrimary && utilityBinding.ActionKind == GameplayUtilityAbilityActionKind.MedicUber)
-            {
-                if (player.TryStartMedicUber())
-                {
-                    AwardMedicUberActivationPoints(player);
-                }
-            }
-
-            return;
-        }
-
-        if (resolvedSecondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.QuoteBladeThrow
-            && player.TryFireQuoteBlade())
-        {
-            WeaponHandler.FireQuoteBlade(player, input.AimWorldX, input.AimWorldY);
-        }
+        return GameplayAbilityResult.Ignored;
     }
 
     private void HandleEngineerPdaSentryCommand(PlayerEntity player)
@@ -531,9 +412,14 @@ public sealed partial class SimulationWorld
         return true;
     }
 
-    private bool TryHandleNetworkAbilityInput(PlayerEntity player, PlayerInputSnapshot input, bool swappedWeaponThisTick)
+    private bool TryHandleNetworkAbilityInput(
+        PlayerEntity player,
+        PlayerInputSnapshot input,
+        PlayerInputSnapshot previousInput,
+        GameplayAbilityInputPhase phase,
+        bool swappedWeaponThisTick)
     {
-        if (player.IsTaunting)
+        if (player.IsTaunting && !CanUseUtilityAbilityWhileTaunting(player, phase))
         {
             return false;
         }
@@ -554,9 +440,17 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        if (TryHandleNetworkUtilityAbility(player, input))
+        var dispatchResult = TryDispatchGameplayAbility(
+            player,
+            input,
+            previousInput,
+            phase,
+            GameplayAbilityConstants.UtilityCategory,
+            player.X,
+            player.Y);
+        if (dispatchResult.ConsumedInput)
         {
-            return false;
+            return true;
         }
 
         // Backward-compatible fallback for sessions where a secondary weapon is enabled
@@ -569,97 +463,10 @@ public sealed partial class SimulationWorld
         return false;
     }
 
-    private bool TryHandleNetworkUtilityAbility(PlayerEntity player, PlayerInputSnapshot input)
+    private static bool CanUseUtilityAbilityWhileTaunting(PlayerEntity player, GameplayAbilityInputPhase phase)
     {
-        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.ScoutUtility))
-        {
-            player.TryStartTaunt();
-            return true;
-        }
-
-        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SoldierSecondaryWeapon))
-        {
-            if (!input.SwapWeapon)
-            {
-                TryHandleLegacyNetworkSecondaryWeaponToggle(player, input);
-            }
-
-            return true;
-        }
-
-        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUtility)
-            || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
-        {
-            if (player.IsMedicUberReady && player.TryStartMedicUber())
-            {
-                AwardMedicUberActivationPoints(player);
-            }
-
-            return true;
-        }
-
-        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.PyroUtility))
-        {
-            if (player.TryFirePyroAirblast())
-            {
-                TriggerPyroSelfAirblast(player, input.AimWorldX, input.AimWorldY, input.FirePrimary);
-            }
-
-            return true;
-        }
-
-        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.HeavyUtility))
-        {
-            if (player.TryStartExperimentalGhostDash(
-                GetHeavyGhostDashDurationTicks(),
-                GetHeavyGhostDashCooldownTicks(),
-                global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultGhostDashNextAttackDamageMultiplier,
-                GetHeavyGhostDashImpulse(),
-                requireExperimentalDemoknight: false,
-                useMomentum: true))
-            {
-                RegisterWorldSoundEvent(ExperimentalDemoknightCatalog.ChargeStartSoundName, player.X, player.Y);
-            }
-
-            return true;
-        }
-
-        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.EngineerUtility)
-            || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.DemomanUtility)
-            || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SniperUtility)
-            || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SpyUtility)
-            || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.QuoteUtility))
-        {
-            if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.EngineerUtility))
-            {
-                if (!TryDestroyJumpPad(player))
-                {
-                    TryBuildJumpPad(player);
-                }
-
-                return true;
-            }
-
-            if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SpyUtility))
-            {
-                // Spy superjump ability - do NOT call TryHandleNetworkSecondaryAbility
-                // which would trigger cloak
-                return true;
-            }
-            
-            if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SniperUtility))
-            {
-                // Sniper binoculars ability - do NOT call TryHandleNetworkSecondaryAbility
-                // which would trigger scope
-                player.TryToggleBinoculars();
-                return true;
-            }
-
-            TryHandleNetworkSecondaryAbility(player, input, player.X, player.Y);
-            return true;
-        }
-
-        return false;
+        _ = phase;
+        return player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.DemomanUtility);
     }
 
     private static void TryHandleLegacyNetworkSecondaryWeaponToggle(PlayerEntity player, PlayerInputSnapshot input)
@@ -775,18 +582,22 @@ public sealed partial class SimulationWorld
 
     private static bool ShouldUseHeldSecondaryAbility(PlayerEntity player)
     {
-        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
-        if (!runtimeRegistry.TryGetSecondaryAbilityBinding(player.SecondaryBehaviorId, out var secondaryBinding))
+        if (!TryResolveSecondaryGameplayAbilityItem(player, out var item)
+            || item.Ability is not { } ability)
         {
             return false;
         }
 
-        if (secondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.DemomanDetonate)
-        {
-            return !player.IsExperimentalDemoknightEnabled;
-        }
+        return string.Equals(ability.Activation, GameplayAbilityConstants.HeldActivation, StringComparison.Ordinal)
+            && !(string.Equals(ability.ExecutorId, BuiltInGameplayBehaviorIds.DemomanDetonate, StringComparison.Ordinal)
+                && player.IsExperimentalDemoknightEnabled);
+    }
 
-        return secondaryBinding.UsesHeldInput;
+    private static bool ShouldUseHeldUtilityAbility(PlayerEntity player)
+    {
+        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+        return runtimeRegistry.TryGetGameplayAbilityDefinition(player.GameplayLoadoutState.UtilityItemId, out _, out var ability)
+            && string.Equals(ability.Activation, GameplayAbilityConstants.HeldActivation, StringComparison.Ordinal);
     }
 
     private void TryActivatePendingSpyBackstab(PlayerEntity player)

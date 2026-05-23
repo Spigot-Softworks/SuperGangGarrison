@@ -456,7 +456,12 @@ public partial class Game1
     {
         var renderPosition = GetRenderPosition(droppedWeapon.Id, droppedWeapon.X, droppedWeapon.Y);
         var alpha = droppedWeapon.Alpha;
-        var presentation = StockGameplayModCatalog.GetPrimaryItem(droppedWeapon.WeaponClassId).Presentation;
+        if (!CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(droppedWeapon.WeaponClassId, out _))
+        {
+            return;
+        }
+
+        var presentation = CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(droppedWeapon.WeaponClassId).Presentation;
         var spriteName = presentation.WorldSpriteName;
         var frameIndex = droppedWeapon.Team == PlayerTeam.Blue ? 1 : 0;
         var rotation = droppedWeapon.HasLanded

@@ -3,6 +3,12 @@
   "displayName": "Scope",
   "slot": "Secondary",
   "behaviorId": "builtin.ability.sniper_scope",
+  "ability": {
+    "category": "secondary",
+    "activation": "pressed",
+    "executorId": "builtin.ability.sniper_scope",
+    "tags": [ "scope", "toggle", "charge" ]
+  },
   "ammo": {},
   "presentation": {}
 }

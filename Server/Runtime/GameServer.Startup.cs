@@ -106,6 +106,8 @@ partial class GameServer
             _autoBalanceEnabled,
             _secondaryAbilitiesEnabled,
             _randomSpreadEnabled,
+            _competitiveReadyUpEnabled,
+            _competitiveSetupSeconds,
             _timeLimitMinutesOverride,
             _capLimitOverride,
             _respawnSecondsOverride,
@@ -145,6 +147,7 @@ partial class GameServer
     {
         _pluginHost?.LoadPlugins();
         _pluginHost?.NotifyServerStarting();
+        CharacterClassCatalog.RuntimeRegistry.SealAbilityDefinitions();
 
         Console.WriteLine($"OG2.Server booting at {_config.TicksPerSecond} ticks/sec.");
         Console.WriteLine($"Protocol version: {ProtocolVersion.Current}");
@@ -180,6 +183,9 @@ partial class GameServer
         Console.WriteLine($"Auto-balance: {(_autoBalanceEnabled ? "Enabled" : "Disabled")}");
         Console.WriteLine($"Random bullet spread: {(_randomSpreadEnabled ? "Enabled" : "Disabled")}");
         Console.WriteLine($"Secondary abilities: {(_secondaryAbilitiesEnabled ? "Enabled" : "Disabled")}");
+        Console.WriteLine(_competitiveReadyUpEnabled
+            ? $"Competitive ready-up: enabled (setup {_competitiveSetupSeconds} seconds)"
+            : "Competitive ready-up: disabled");
         Console.WriteLine($"Level: {_world.Level.Name} area={_world.Level.MapAreaIndex}/{_world.Level.MapAreaCount} imported={_world.Level.ImportedFromSource} mode={_world.MatchRules.Mode}");
         Console.WriteLine($"World bounds: {_world.Bounds.Width}x{_world.Bounds.Height}");
         var botNavigationPreloaded = PreloadBotNavigationForCurrentLevel(out var botNavigationPreloadMs);
@@ -273,6 +279,7 @@ partial class GameServer
                     () =>
                     {
                         _sessionManager.PreparePlayableClientInputsForNextTick();
+                        ProcessCompetitiveReadyUpBeforeSimulationTick();
                         _botManager.FeedBotInputsBeforeSimulationAdvance();
                     },
                     () =>
@@ -457,12 +464,26 @@ partial class GameServer
             _banService);
         _pluginCommandRegistry = pluginRuntime.CommandRegistry;
         _pluginHost = pluginRuntime.PluginHost;
+        _world.GameplayAbilityInputInterceptor = abilityEvent => _pluginHost?.TryNotifyGameplayAbilityInput(abilityEvent) ?? false;
+        _world.SpawnDecisionInterceptor = request => ToWorldDecision(_pluginHost?.BeforeSpawn(request));
+        _world.DamageDecisionInterceptor = request => ToWorldDecision(_pluginHost?.BeforeDamage(request));
+        _world.DeathDecisionInterceptor = request => ToWorldDecision(_pluginHost?.BeforeDeath(request));
+        _world.PickupDecisionInterceptor = request => ToWorldDecision(_pluginHost?.BeforePickup(request));
+        _world.ScoreDecisionInterceptor = request => ToWorldDecision(_pluginHost?.BeforeScore(request));
+        _world.RoundEndDecisionInterceptor = request => ToWorldDecision(_pluginHost?.BeforeRoundEnd(request));
         _serverState = pluginRuntime.ServerState;
         _adminOperations = pluginRuntime.AdminOperations;
         _adminChatRouter = new ServerAdminChatRouter(
             _adminSessionManager,
             () => _pluginHost,
             (slot, text) => _adminOperations.SendSystemMessage(slot, text));
+    }
+
+    private static WorldDecisionResult ToWorldDecision(OpenGarrisonServerDecisionResult? decision)
+    {
+        return decision is { IsCancelled: true } cancelled
+            ? WorldDecisionResult.Cancel(cancelled.Reason)
+            : WorldDecisionResult.Continue;
     }
 
     private void ApplyBotAutofill()
@@ -755,6 +776,32 @@ partial class GameServer
                         EnableSoldierShotgunSecondaryWeapon = value,
                     });
             });
+        registry.RegisterBoolean(
+            "sv_competitive_readyup",
+            "Start each round in skirmish until a majority of active players ready up with F4.",
+            _competitiveReadyUpEnabled,
+            () => _world.CompetitiveReadyUpEnabled,
+            value =>
+            {
+                _competitiveReadyUpEnabled = value;
+                _world.SetCompetitiveReadyUpEnabled(value);
+                if (!value)
+                {
+                    _competitiveReadyButtonDownSlots.Clear();
+                }
+            });
+        registry.RegisterInteger(
+            "sv_competitive_setup_seconds",
+            "Spawn-door setup duration after competitive ready-up completes.",
+            _competitiveSetupSeconds,
+            () => _world.CompetitiveSetupSeconds,
+            value =>
+            {
+                _competitiveSetupSeconds = Math.Clamp(value, 0, 120);
+                _world.SetCompetitiveSetupSeconds(_competitiveSetupSeconds);
+            },
+            minValue: 0,
+            maxValue: 120);
         registry.RegisterString(
             "sv_map",
             "Current loaded map level name.",

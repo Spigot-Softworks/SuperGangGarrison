@@ -5,7 +5,9 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.PluginHost;
 using OpenGarrison.Protocol;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace OpenGarrison.Client;
 
@@ -153,9 +155,33 @@ internal sealed class ClientPluginContext(
             showOverlayMenu(title, subtitle, breadcrumb, entries);
         }
 
+        public void ShowOverlayPanel(ClientPluginOverlayPanel panel)
+        {
+            showOverlayMenu(
+                panel.Title,
+                panel.Subtitle,
+                panel.Breadcrumb,
+                panel.Controls.Select(FormatOverlayControl).ToArray());
+        }
+
         public void HideOverlayMenu()
         {
             hideOverlayMenu();
+        }
+
+        private static string FormatOverlayControl(ClientPluginOverlayControl control)
+        {
+            return control.Kind switch
+            {
+                ClientPluginOverlayControlKind.Button => control.IsEnabled ? $"[Button] {control.Label}" : $"[Button disabled] {control.Label}",
+                ClientPluginOverlayControlKind.Toggle => string.Equals(control.Value, "true", StringComparison.OrdinalIgnoreCase)
+                    ? $"[x] {control.Label}"
+                    : $"[ ] {control.Label}",
+                ClientPluginOverlayControlKind.Slider => string.IsNullOrWhiteSpace(control.Value) ? control.Label : $"{control.Label}: {control.Value}",
+                ClientPluginOverlayControlKind.Input => string.IsNullOrWhiteSpace(control.Value) ? $"{control.Label}: " : $"{control.Label}: {control.Value}",
+                ClientPluginOverlayControlKind.Divider => string.IsNullOrWhiteSpace(control.Label) ? "-----" : $"-- {control.Label} --",
+                _ => control.Label,
+            };
         }
     }
 }

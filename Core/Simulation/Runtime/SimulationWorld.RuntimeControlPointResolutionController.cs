@@ -37,6 +37,7 @@ public sealed partial class SimulationWorld
                 }
                 else if (_world._controlPointSetupTicksRemaining == ticksPerSecond)
                 {
+                    _world.ApplyControlPointSetupMatchRules();
                     _world.MatchState = _world.MatchState with { TimeRemainingTicks = _world.MatchRules.TimeLimitTicks };
                     _world.RegisterWorldSoundEvent("SirenSnd", _world.LocalPlayer.X, _world.LocalPlayer.Y);
                 }
@@ -58,15 +59,13 @@ public sealed partial class SimulationWorld
             var winner = ResolveWinner(overtimeActive);
             if (winner.HasValue)
             {
-                _world.MatchState = _world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = winner };
-                _world.QueuePendingMapChange();
+                _world.TryEndRound(winner, "control_point_objective");
                 return;
             }
 
             if (_world.MatchState.TimeRemainingTicks <= 0 && !overtimeActive)
             {
-                _world.MatchState = _world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = null };
-                _world.QueuePendingMapChange();
+                _world.TryEndRound(null, "control_point_time_limit");
             }
             else if (!overtimeActive && _world.MatchState.IsOvertime)
             {

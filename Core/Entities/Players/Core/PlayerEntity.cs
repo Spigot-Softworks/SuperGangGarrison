@@ -18,6 +18,7 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const int HeavySandvichCooldownTicks = 1350;
     private const float HealingCabinetSoundCooldownSeconds = 4f;
     private static readonly float HeavyEatHealPerTick = 200f / HeavyEatDurationTicks;
+    private float HeavyEatHealPerTickValue { get; set; } = HeavyEatHealPerTick;
     private const float StepUpHeight = 6f;
     private const float StepSupportEpsilon = 2f;
     public const float SniperScopedMoveScale = 2f / 3f;
@@ -76,7 +77,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         ClassDefinition = classDefinition;
         DisplayName = SanitizeDisplayName(displayName);
         FacingDirectionX = 1f;
-        SelectedGameplayLoadoutId = CharacterClassCatalog.RuntimeRegistry.GetDefaultLoadout(classDefinition.Id).Id;
+        SelectedGameplayLoadoutId = CharacterClassCatalog.RuntimeRegistry.GetDefaultLoadout(GameplayClassId).Id;
         SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
         GameplayLoadoutState = CreateGameplayLoadoutState();
     }
@@ -88,6 +89,14 @@ public sealed partial class PlayerEntity : SimulationEntity
     public CharacterClassDefinition ClassDefinition { get; private set; }
 
     public PlayerClass ClassId => ClassDefinition.Id;
+
+    public string GameplayClassId => string.IsNullOrWhiteSpace(ClassDefinition.GameplayClassId)
+        ? CharacterClassCatalog.RuntimeRegistry.GetRequiredClassBinding(ClassId).ClassId
+        : ClassDefinition.GameplayClassId;
+
+    public PlayerClass BotGraphClassId => string.IsNullOrWhiteSpace(ClassDefinition.GameplayClassId)
+        ? ClassId
+        : ClassDefinition.BotGraphClassId;
 
     public string ClassName => ClassDefinition.DisplayName;
 
@@ -348,6 +357,8 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     private int ExperimentalGhostDashVisibilityTicksRemaining { get; set; }
 
+    private int ExperimentalGhostDashMovementTicksRemaining { get; set; }
+
     private float ExperimentalGhostDashDistanceRemaining { get; set; }
 
     private float ExperimentalGhostDashSpeedPerSecondValue { get; set; }
@@ -558,7 +569,7 @@ public sealed partial class PlayerEntity : SimulationEntity
     public void SetClassDefinition(CharacterClassDefinition classDefinition)
     {
         ClassDefinition = classDefinition;
-        SelectedGameplayLoadoutId = CharacterClassCatalog.RuntimeRegistry.GetDefaultLoadout(classDefinition.Id).Id;
+        SelectedGameplayLoadoutId = CharacterClassCatalog.RuntimeRegistry.GetDefaultLoadout(GameplayClassId).Id;
         SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
         Health = int.Clamp(Health, 0, MaxHealth);
         CurrentShells = int.Clamp(CurrentShells, 0, MaxShells);
@@ -623,6 +634,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         IsHeavyEating = false;
         HeavyEatTicksRemaining = 0;
         HeavyEatCooldownTicksRemaining = 0;
+        HeavyEatHealPerTickValue = HeavyEatHealPerTick;
         HeavyHealingAccumulator = 0f;
         IsTaunting = false;
         TauntFrameIndex = 0f;
@@ -881,7 +893,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         }
 
         return runtimeRegistry.CreatePlayerLoadoutState(
-            ClassId,
+            GameplayClassId,
             SelectedGameplayLoadoutId,
             equippedSlot,
             secondaryItemOverrideId: secondaryItemId,

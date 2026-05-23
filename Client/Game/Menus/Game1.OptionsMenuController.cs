@@ -433,6 +433,7 @@ public partial class Game1
                 new("Overhead Chat", _game._overheadChatEnabled ? "Enabled" : "Disabled", _game.ToggleOverheadChatSetting, OptionsMenuTab.Gameplay),
                 new("Low HP Color", Game1.GetLowHealthColorModeLabel(_game._lowHealthColorMode), _game.CycleLowHealthColorModeSetting, OptionsMenuTab.Gameplay),
                 new("Portrait Rumble", _game._portraitRumbleEnabled ? "Enabled" : "Disabled", _game.TogglePortraitRumbleSetting, OptionsMenuTab.Gameplay),
+                new("MVP Art", _game._postGameMvpArtEnabled ? "Enabled" : "Disabled", _game.TogglePostGameMvpArtSetting, OptionsMenuTab.Gameplay),
                 new("Damage Vignette", _game._damageVignetteEnabled ? "Enabled" : "Disabled", _game.ToggleDamageVignetteSetting, OptionsMenuTab.Gameplay),
                 new("Vignette Intensity", Game1.GetDamageVignetteIntensityLabel(_game._damageVignetteIntensityPercent), _game.CycleDamageVignetteIntensitySetting, OptionsMenuTab.Gameplay),
                 new("Persistent Name", _game._showPersistentSelfNameEnabled ? "Enabled" : "Disabled", _game.TogglePersistentSelfNameSetting, OptionsMenuTab.Gameplay),
@@ -443,6 +444,7 @@ public partial class Game1
                 new("Playercard Size", Game1.GetPlayerCardSizeLabel(_game._playerCardSizeMode), _game.CyclePlayerCardSizeSetting, OptionsMenuTab.Gameplay),
                 new("Bot Controller", Game1.GetBotModeLabel(_game._clientSettings.BotMode), _game.CycleBotModeSetting, OptionsMenuTab.Gameplay),
                 new("Swap Weapons", _game.GetSwapWeaponsBindingLabel(), _game.CycleSwapWeaponsBindingSetting, OptionsMenuTab.Gameplay),
+                new("Edit HUD", _game._mainMenuOpen ? "In game only" : string.Empty, OpenHudEditorFromOptions, OptionsMenuTab.Gameplay),
                 new("Controls", string.Empty, OpenControlsMenuFromOptions, OptionsMenuTab.Gameplay),
             };
 
@@ -690,6 +692,11 @@ public partial class Game1
         private void OpenPluginOptionsMenuFromOptions()
         {
             OpenPluginOptionsMenu(_game._optionsMenuOpenedFromGameplay);
+        }
+
+        private void OpenHudEditorFromOptions()
+        {
+            _game.OpenHudEditor(openedFromOptions: true);
         }
 
         private static string GetParticleModeLabel(int particleMode)

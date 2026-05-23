@@ -396,9 +396,66 @@ local function handle_cancel_vote(event)
     return true
 end
 
+local function create_chat_command_event(context)
+    local identity = context ~= nil and context.identity or nil
+    local slot = identity ~= nil and (identity.sourceSlot or identity.SourceSlot or identity.source_slot) or nil
+    if slot == nil then
+        return nil
+    end
+
+    return {
+        slot = slot,
+        playerName = identity.displayName or identity.DisplayName or "Player",
+        text = "",
+        team = nil,
+        teamOnly = false
+    }
+end
+
+local function register_vote_command(host, name, aliases, usage, handler)
+    host.register_command({
+        name = name,
+        aliases = aliases,
+        usage = usage,
+        handler = function(context)
+            local event = create_chat_command_event(context)
+            if event == nil then
+                return "[vote] command is only available from player chat."
+            end
+
+            expire_vote_if_needed()
+            handler(event, context.arguments or "")
+            return nil
+        end
+    })
+end
+
+local function register_vote_commands(host)
+    register_vote_command(host, "!votemap", {}, "!votemap <mapName> [area]", function(event, arguments)
+        return try_start_vote(event, arguments, "change_map_now")
+    end)
+    register_vote_command(host, "!votenextround", {}, "!votenextround <mapName> [area]", function(event, arguments)
+        return try_start_vote(event, arguments, "change_map_next_round")
+    end)
+    register_vote_command(host, "!vote", {}, "!vote <yes|no>", function(event, arguments)
+        return try_register_vote(event, arguments)
+    end)
+    register_vote_command(host, "!yes", {}, "!yes", function(event)
+        return try_register_vote(event, "yes")
+    end)
+    register_vote_command(host, "!no", {}, "!no", function(event)
+        return try_register_vote(event, "no")
+    end)
+    register_vote_command(host, "!votes", { "!votestatus" }, "!votes", function(event)
+        return handle_vote_status(event.slot)
+    end)
+    register_vote_command(host, "!cancelvote", {}, "!cancelvote", handle_cancel_vote)
+end
+
 function plugin.initialize(host)
     plugin.host = host
     config = load_config()
+    register_vote_commands(host)
     host.log("Lua Chat Voting initialized")
 end
 

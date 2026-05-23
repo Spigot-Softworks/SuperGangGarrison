@@ -36,6 +36,8 @@ sealed class ServerLaunchOptions
     public bool AutoBalanceEnabled { get; private init; }
     public bool SecondaryAbilitiesEnabled { get; private init; }
     public bool RandomSpreadEnabled { get; private init; }
+    public bool CompetitiveReadyUpEnabled { get; private init; }
+    public int CompetitiveSetupSeconds { get; private init; } = 10;
     public int? TimeLimitMinutesOverride { get; private init; }
     public int? CapLimitOverride { get; private init; }
     public int? RespawnSecondsOverride { get; private init; }
@@ -97,6 +99,8 @@ sealed class ServerLaunchOptions
         var autoBalanceEnabled = settings.AutoBalanceEnabled;
         var secondaryAbilitiesEnabled = settings.SecondaryAbilitiesEnabled;
         var randomSpreadEnabled = settings.RandomSpreadEnabled;
+        var competitiveReadyUpEnabled = settings.CompetitiveReadyUpEnabled;
+        var competitiveSetupSeconds = Math.Clamp(settings.CompetitiveSetupSeconds, 0, 120);
         var webSocketPort = port;
         var webSocketPortExplicitlySet = false;
         string? webSocketCertificatePath = null;
@@ -277,6 +281,30 @@ sealed class ServerLaunchOptions
                 continue;
             }
 
+            if (string.Equals(arg, "--competitive-readyup", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--competitive-ready-up", StringComparison.OrdinalIgnoreCase))
+            {
+                competitiveReadyUpEnabled = true;
+                continue;
+            }
+
+            if (string.Equals(arg, "--no-competitive-readyup", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--no-competitive-ready-up", StringComparison.OrdinalIgnoreCase))
+            {
+                competitiveReadyUpEnabled = false;
+                continue;
+            }
+
+            if ((string.Equals(arg, "--competitive-setup-seconds", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(arg, "--competitive-setup", StringComparison.OrdinalIgnoreCase))
+                && index + 1 < args.Length
+                && int.TryParse(args[index + 1], out var parsedCompetitiveSetupSeconds))
+            {
+                competitiveSetupSeconds = Math.Clamp(parsedCompetitiveSetupSeconds, 0, 120);
+                index += 1;
+                continue;
+            }
+
             if (string.Equals(arg, "--lobby", StringComparison.OrdinalIgnoreCase))
             {
                 useLobbyServer = true;
@@ -425,6 +453,8 @@ sealed class ServerLaunchOptions
             AutoBalanceEnabled = autoBalanceEnabled,
             SecondaryAbilitiesEnabled = secondaryAbilitiesEnabled,
             RandomSpreadEnabled = randomSpreadEnabled,
+            CompetitiveReadyUpEnabled = competitiveReadyUpEnabled,
+            CompetitiveSetupSeconds = competitiveSetupSeconds,
             TimeLimitMinutesOverride = timeLimitMinutesOverride,
             CapLimitOverride = capLimitOverride,
             RespawnSecondsOverride = respawnSecondsOverride,

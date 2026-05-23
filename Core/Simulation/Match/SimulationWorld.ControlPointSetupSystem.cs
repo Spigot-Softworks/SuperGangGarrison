@@ -6,9 +6,36 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private const int ControlPointSetupTicksDefault = 1800;
+    private const int ControlPointSetupDurationSeconds = 30;
+    private const int ControlPointAttackTimeLimitMinutes = 3;
 
     private sealed record ControlPointZone(RoomObjectMarker Marker, int ControlPointIndex);
+
+    public int ControlPointSetupDurationTicks => GetControlPointSetupDurationTicks();
+
+    private int GetControlPointSetupDurationTicks()
+    {
+        return Math.Max(1, Config.TicksPerSecond * ControlPointSetupDurationSeconds);
+    }
+
+    private int GetControlPointAttackTimeLimitTicks()
+    {
+        return Math.Max(1, ControlPointAttackTimeLimitMinutes * Config.TicksPerSecond * 60);
+    }
+
+    private void ApplyControlPointSetupMatchRules()
+    {
+        if (!_controlPointSetupMode)
+        {
+            return;
+        }
+
+        MatchRules = MatchRules with
+        {
+            TimeLimitMinutes = ControlPointAttackTimeLimitMinutes,
+            TimeLimitTicks = GetControlPointAttackTimeLimitTicks(),
+        };
+    }
 
     private static class ControlPointSetupSystem
     {
@@ -25,13 +52,15 @@ public sealed partial class SimulationWorld
             if (world._controlPoints.Count == 0)
             {
                 world._controlPointSetupMode = hasSetupGates;
-                world._controlPointSetupTicksRemaining = hasSetupGates ? ControlPointSetupTicksDefault : 0;
+                world.ApplyControlPointSetupMatchRules();
+                world._controlPointSetupTicksRemaining = hasSetupGates ? world.GetControlPointSetupDurationTicks() : 0;
                 UpdateSetupGates(world);
                 return;
             }
 
             world._controlPointSetupMode = hasSetupGates;
-            world._controlPointSetupTicksRemaining = world._controlPointSetupMode ? ControlPointSetupTicksDefault : 0;
+            world.ApplyControlPointSetupMatchRules();
+            world._controlPointSetupTicksRemaining = world._controlPointSetupMode ? world.GetControlPointSetupDurationTicks() : 0;
             UpdateSetupGates(world);
 
             AssignCapTimes(world);

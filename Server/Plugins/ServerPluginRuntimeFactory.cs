@@ -66,7 +66,11 @@ internal static class ServerPluginRuntimeFactory
             {
                 var success = demoRecorder.TryStop(out var status, out var error);
                 return new OpenGarrisonServerDemoRecordingResult(success, status, error);
-            });
+            },
+            beforeTeamChange: (slot, team) => pluginHost?.BeforeTeamChange(slot, team) ?? OpenGarrisonServerDecisionResult.Continue,
+            beforeClassChange: (slot, playerClass) => pluginHost?.BeforeClassChange(slot, playerClass) ?? OpenGarrisonServerDecisionResult.Continue,
+            beforeLoadoutChange: (slot, loadoutId) => pluginHost?.BeforeLoadoutChange(slot, loadoutId) ?? OpenGarrisonServerDecisionResult.Continue,
+            beforeMapChange: (levelName, areaIndex, preservePlayerStats) => pluginHost?.BeforeMapChange(levelName, areaIndex, preservePlayerStats) ?? OpenGarrisonServerDecisionResult.Continue);
         var consoleSummaryBuilder = new ServerConsoleSummaryBuilder(
             config,
             port,

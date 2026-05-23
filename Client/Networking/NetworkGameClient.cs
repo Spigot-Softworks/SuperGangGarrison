@@ -410,6 +410,16 @@ internal sealed class NetworkGameClient : IDisposable
         QueueControlCommand(ControlCommandKind.SelectClass, (byte)playerClass);
     }
 
+    public void QueueGameplayClassSelection(string gameplayClassId)
+    {
+        if (string.IsNullOrWhiteSpace(gameplayClassId))
+        {
+            return;
+        }
+
+        QueueControlCommand(ControlCommandKind.SelectClass, 0, gameplayClassId.Trim());
+    }
+
     public void QueueSpectateSelection()
     {
         QueueControlCommand(ControlCommandKind.Spectate, 0);
@@ -520,6 +530,7 @@ internal sealed class NetworkGameClient : IDisposable
         if (input.UseAbility) buttons |= InputButtons.UseAbility;
         if (input.InteractWeapon) buttons |= InputButtons.InteractWeapon;
         if (input.SwapWeapon) buttons |= InputButtons.SwapWeapon;
+        if (input.ReadyUp) buttons |= InputButtons.ReadyUp;
 
         SendPendingControlCommands();
         var sequence = _nextInputSequence++;

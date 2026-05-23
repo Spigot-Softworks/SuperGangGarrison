@@ -19,10 +19,19 @@ public static class BuiltInGameplayBehaviorIds
     public const string DemomanDetonate = "builtin.ability.demoman_detonate";
     public const string HeavySandvich = "builtin.ability.heavy_sandvich";
     public const string SniperScope = "builtin.ability.sniper_scope";
+    public const string SniperBinoculars = "builtin.ability.sniper_binoculars";
     public const string MedicNeedlegun = "builtin.ability.medic_needlegun";
     public const string MedicUber = "builtin.ability.medic_uber";
     public const string SpyCloak = "builtin.ability.spy_cloak";
+    public const string SpySuperjump = "builtin.ability.spy_superjump";
     public const string QuoteBladeThrow = "builtin.ability.quote_blade_throw";
+    public const string ScoutTaunt = "builtin.ability.scout_taunt";
+    public const string SoldierSecondaryToggle = "builtin.ability.soldier_secondary_toggle";
+    public const string EngineerJumpPad = "builtin.ability.engineer_jump_pad";
+    public const string HeavyGhostDash = "builtin.ability.heavy_ghost_dash";
+    public const string ExperimentalSoldierSecondary = "builtin.ability.experimental_ltd.soldier_secondary";
+    public const string ExperimentalLtdPassive = "builtin.ability.experimental_ltd.passive";
+    public const string ExperimentalLtdRage = "builtin.ability.experimental_ltd.rage";
 
     public const string ScoutUtility = "builtin.utility.scout";
     public const string EngineerUtility = "builtin.utility.engineer";

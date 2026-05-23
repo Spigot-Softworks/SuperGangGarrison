@@ -1,6 +1,11 @@
 {
   "id": "sniper",
   "displayName": "Sniper",
+  "runtime": {
+    "playerClass": "Sniper",
+    "supportsExperimentalAcquiredWeapon": true,
+    "primaryWeaponKillFeedSprite": "RifleKL"
+  },
   "movement": {
     "maxHealth": 120,
     "collisionLeft": -6.0,
@@ -31,7 +36,8 @@
       "displayName": "Stock",
       "primaryItemId": "weapon.rifle",
       "secondaryItemId": "ability.sniper-scope",
-      "utilityItemId": "ability.sniper-utility"
+      "utilityItemId": "ability.sniper-utility",
+      "abilityItemIds": [ "ability.experimental-ltd-passive" ]
     }
   },
   "defaultLoadoutId": "sniper.stock"

@@ -1,8 +1,0 @@
-{
-  "id": "ability.quote-utility",
-  "displayName": "Quote Utility",
-  "slot": "Utility",
-  "behaviorId": "builtin.utility.quote",
-  "ammo": {},
-  "presentation": {}
-}

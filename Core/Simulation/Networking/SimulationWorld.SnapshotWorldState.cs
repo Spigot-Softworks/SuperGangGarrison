@@ -40,6 +40,7 @@ public sealed partial class SimulationWorld
         RedCaps = snapshot.RedCaps;
         BlueCaps = snapshot.BlueCaps;
         SpectatorCount = Math.Max(0, snapshot.SpectatorCount);
+        ApplySnapshotCompetitiveReadyUp(snapshot.CompetitiveReadyUpPhase, snapshot.CompetitiveReadyUpTicksRemaining);
 
         ApplySnapshotSpectators(snapshot.Players);
         ApplySnapshotObjectives(snapshot);

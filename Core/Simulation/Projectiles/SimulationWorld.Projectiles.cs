@@ -52,7 +52,7 @@ public sealed partial class SimulationWorld
         _entities.Add(bubble.Id, bubble);
     }
 
-    private void SpawnBlade(PlayerEntity owner, float x, float y, float velocityX, float velocityY, int hitDamage)
+    private void SpawnBlade(PlayerEntity owner, float x, float y, float velocityX, float velocityY, int hitDamage, int lifetimeTicks = PlayerEntity.QuoteBladeLifetimeTicks)
     {
         var blade = new BladeProjectileEntity(
             AllocateEntityId(),
@@ -62,7 +62,8 @@ public sealed partial class SimulationWorld
             y,
             velocityX,
             velocityY,
-            hitDamage);
+            hitDamage,
+            lifetimeTicks);
         if (owner.IsKritzCritBoosted)
         {
             blade.SetCritical();

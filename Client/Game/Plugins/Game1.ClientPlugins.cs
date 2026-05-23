@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -195,6 +196,23 @@ public partial class Game1
                 bluePlayerCount,
                 redCenterText,
                 blueCenterText));
+    }
+
+    private IReadOnlyList<ClientScoreboardPlayerAction> GetClientPluginScoreboardPlayerActions(ScoreboardPlayerRow row)
+    {
+        return _clientPluginHost?.GetScoreboardPlayerActions(CreateClientPluginScoreboardPlayerActionContext(row))
+            ?? Array.Empty<ClientScoreboardPlayerAction>();
+    }
+
+    private ClientScoreboardPlayerActionContext CreateClientPluginScoreboardPlayerActionContext(ScoreboardPlayerRow row)
+    {
+        return new ClientScoreboardPlayerActionContext(
+            row.Slot,
+            row.Player.Id,
+            row.Player.DisplayName,
+            ToClientPluginTeam(row.Player.Team),
+            ToClientPluginClass(row.Player.ClassId),
+            row.IsLocal);
     }
 
     private void ResetClientPluginGameplayEventState()

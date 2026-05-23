@@ -21,8 +21,7 @@ public sealed partial class SimulationWorld
             var winner = GetCapLimitWinner();
             if (winner.HasValue)
             {
-                _world.MatchState = _world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = winner };
-                _world.QueuePendingMapChange();
+                _world.TryEndRound(winner, "score_limit");
                 return;
             }
 
@@ -35,8 +34,7 @@ public sealed partial class SimulationWorld
                 }
             }
 
-            _world.MatchState = _world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = GetHigherCapWinner() };
-            _world.QueuePendingMapChange();
+            _world.TryEndRound(GetHigherCapWinner(), "time_limit");
         }
 
         private PlayerTeam? GetCapLimitWinner()

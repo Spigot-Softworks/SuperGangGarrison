@@ -36,6 +36,8 @@ internal static class ServerRuntimeBootstrapFactory
         bool autoBalanceEnabled,
         bool secondaryAbilitiesEnabled,
         bool randomSpreadEnabled,
+        bool competitiveReadyUpEnabled,
+        int competitiveSetupSeconds,
         int? timeLimitMinutesOverride,
         int? capLimitOverride,
         int? respawnSecondsOverride,
@@ -66,6 +68,8 @@ internal static class ServerRuntimeBootstrapFactory
 
         var world = new SimulationWorld(config);
         world.RandomSpreadEnabled = randomSpreadEnabled;
+        world.SetCompetitiveSetupSeconds(competitiveSetupSeconds);
+        world.SetCompetitiveReadyUpEnabled(competitiveReadyUpEnabled);
         world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
             EnableSecondaryAbilities: secondaryAbilitiesEnabled,
             EnableSoldierShotgunSecondaryWeapon: secondaryAbilitiesEnabled));

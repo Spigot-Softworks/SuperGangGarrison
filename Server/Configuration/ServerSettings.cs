@@ -35,6 +35,10 @@ sealed class ServerSettings
 
     public bool RandomSpreadEnabled { get; set; } = true;
 
+    public bool CompetitiveReadyUpEnabled { get; set; }
+
+    public int CompetitiveSetupSeconds { get; set; } = 10;
+
     public int TimeLimitMinutes { get; set; } = 15;
 
     public int CapLimit { get; set; } = 5;
@@ -127,6 +131,8 @@ sealed class ServerSettings
             AutoBalanceEnabled = hostDefaults.AutoBalanceEnabled,
             SecondaryAbilitiesEnabled = hostDefaults.SecondaryAbilitiesEnabled,
             RandomSpreadEnabled = hostDefaults.RandomSpreadEnabled,
+            CompetitiveReadyUpEnabled = hostDefaults.CompetitiveReadyUpEnabled,
+            CompetitiveSetupSeconds = hostDefaults.CompetitiveSetupSeconds,
             TimeLimitMinutes = hostDefaults.TimeLimitMinutes,
             CapLimit = hostDefaults.CapLimit,
             RespawnSeconds = hostDefaults.RespawnSeconds,
@@ -154,6 +160,8 @@ sealed class ServerSettings
         hostDefaults.AutoBalanceEnabled = AutoBalanceEnabled;
         hostDefaults.SecondaryAbilitiesEnabled = SecondaryAbilitiesEnabled;
         hostDefaults.RandomSpreadEnabled = RandomSpreadEnabled;
+        hostDefaults.CompetitiveReadyUpEnabled = CompetitiveReadyUpEnabled;
+        hostDefaults.CompetitiveSetupSeconds = Math.Clamp(CompetitiveSetupSeconds, 0, 120);
         hostDefaults.TimeLimitMinutes = TimeLimitMinutes;
         hostDefaults.CapLimit = CapLimit;
         hostDefaults.RespawnSeconds = RespawnSeconds;

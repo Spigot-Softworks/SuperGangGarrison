@@ -9,4 +9,5 @@ public sealed record GameplayItemDefinition(
     GameplayItemPresentationDefinition Presentation,
     GameplayItemCombatDefinition? Combat = null,
     GameplayItemOwnershipDefinition? Ownership = null,
-    GameplayItemDescriptionDefinition? Description = null);
+    GameplayItemDescriptionDefinition? Description = null,
+    GameplayAbilityDefinition? Ability = null);

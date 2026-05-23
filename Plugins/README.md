@@ -2,6 +2,12 @@
 
 `Plugins` is the only source tree for plugin projects in this repo.
 
+For installing and using plugins, see the end-user guide:
+[USER_GUIDE.md](USER_GUIDE.md).
+
+For writing Lua plugins, see the authoring guide:
+[AUTHORING_GUIDE.md](AUTHORING_GUIDE.md).
+
 ## Layout
 
 - Client plugin abstractions live under `Plugins/Client/OpenGarrison.Client.Plugins.Abstractions/`.
@@ -37,7 +43,7 @@
   engine object access.
 - Client plugin config should live under `config/plugins/client/<pluginId>/`.
 - Server plugin config should live under `config/plugins/server/<pluginId>/`.
-- Engine-side seam and runtime safety rules are defined in [PLUGIN_HOST_CONTRACT.md](C:/Users/level/Desktop/OpenGarrison%20Active/OpenGarrison-Fork/Plugins/PLUGIN_HOST_CONTRACT.md).
+- Engine-side seam and runtime safety rules are defined in [PLUGIN_HOST_CONTRACT.md](PLUGIN_HOST_CONTRACT.md).
 
 ## Lua-First Policy
 
@@ -71,6 +77,7 @@
   mutations through admin operations, replicated state, and client messaging.
 - Lua authoring templates live under `Plugins/Templates/`.
 - Ready-to-run packaged Lua examples live under `Plugins/Packaged/` and are copied into packaged runtime outputs.
+- Server-authoritative special abilities are documented in [GAMEPLAY_ABILITIES.md](GAMEPLAY_ABILITIES.md).
 
 ## Deprecation Direction
 

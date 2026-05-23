@@ -16,6 +16,9 @@
     "ammoRegenPerTick": 0,
     "refillsAllAtOnce": false
   },
+  "combat": {
+    "fireSoundName": "ShotgunSnd"
+  },
   "presentation": {
     "worldSpriteName": "ScattergunS",
     "recoilSpriteName": "ScattergunFS",

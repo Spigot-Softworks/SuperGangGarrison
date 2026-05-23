@@ -8,7 +8,15 @@ public sealed record GameplayClassDefinition(
     GameplayClassMovementDefinition Movement,
     IReadOnlyDictionary<string, GameplayClassLoadoutDefinition> Loadouts,
     string DefaultLoadoutId,
-    GameplayClassPresentationDefinition? Presentation = null);
+    GameplayClassPresentationDefinition? Presentation = null,
+    GameplayClassRuntimeDefinition? Runtime = null);
+
+public sealed record GameplayClassRuntimeDefinition(
+    string PlayerClass = "",
+    string BasePlayerClass = "",
+    string BotGraphPlayerClass = "",
+    bool SupportsExperimentalAcquiredWeapon = true,
+    string PrimaryWeaponKillFeedSprite = "");
 
 public sealed record GameplayClassPresentationDefinition(
     string SpritePrefix,

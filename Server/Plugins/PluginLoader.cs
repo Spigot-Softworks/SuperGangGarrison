@@ -38,34 +38,29 @@ internal static class PluginLoader
             }
         }
 
-        var preferredLuaPluginIds = EnumerateLuaPluginCandidates(searchDirectories, log)
+        var luaCandidates = EnumerateLuaPluginCandidates(searchDirectories, log).ToList();
+        var preferredLuaPluginIds = luaCandidates
             .Select(candidate => candidate.Manifest.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var loadedPlugins = LoadFromLoadedAssemblies(loadedAssemblies, preferredLuaPluginIds, contextFactory, log);
-        var loadedPluginIds = new HashSet<string>(loadedPlugins.Select(entry => entry.Plugin.Id), StringComparer.OrdinalIgnoreCase);
-        foreach (var luaCandidate in EnumerateLuaPluginCandidates(searchDirectories, log))
+        var pluginCandidates = CreatePluginLoadCandidatesFromLoadedAssemblies(loadedAssemblies, preferredLuaPluginIds, log);
+        var candidatePluginIds = new HashSet<string>(pluginCandidates.Select(candidate => candidate.Manifest.Id), StringComparer.OrdinalIgnoreCase);
+        foreach (var luaCandidate in luaCandidates)
         {
-            try
+            if (!candidatePluginIds.Add(luaCandidate.Manifest.Id))
             {
-                if (!loadedPluginIds.Add(luaCandidate.Manifest.Id))
-                {
-                    log($"[plugin] skipped duplicate plugin id \"{luaCandidate.Manifest.Id}\" from Lua manifest \"{luaCandidate.ManifestPath}\"");
-                    continue;
-                }
+                log($"[plugin] skipped duplicate plugin id \"{luaCandidate.Manifest.Id}\" from Lua manifest \"{luaCandidate.ManifestPath}\"");
+                continue;
+            }
 
-                var plugin = new LuaServerPlugin(luaCandidate.Manifest, luaCandidate.PluginDirectory);
-                var context = contextFactory(plugin, luaCandidate.Manifest, luaCandidate.PluginDirectory);
-                plugin.Initialize(context);
-                loadedPlugins.Add(new LoadedPlugin(plugin, context, luaCandidate.PluginDirectory));
-            }
-            catch (Exception ex)
-            {
-                log($"[plugin] failed to initialize Lua plugin \"{luaCandidate.Manifest.Id}\": {ex.Message}");
-            }
+            pluginCandidates.Add(new PluginLoadCandidate(
+                luaCandidate.Manifest,
+                luaCandidate.PluginDirectory,
+                luaCandidate.ManifestPath,
+                () => new LuaServerPlugin(luaCandidate.Manifest, luaCandidate.PluginDirectory)));
         }
 
-        return loadedPlugins;
+        return LoadPlannedCandidates(pluginCandidates, contextFactory, log);
     }
 
     public static IReadOnlyList<LoadedPlugin> LoadFromAssemblies(
@@ -78,16 +73,19 @@ internal static class PluginLoader
                 assembly,
                 Path.GetDirectoryName(assembly.Location) ?? string.Empty,
                 Manifest: null));
-        return LoadFromLoadedAssemblies(loadedAssemblies, new HashSet<string>(StringComparer.OrdinalIgnoreCase), contextFactory, log);
+        var pluginCandidates = CreatePluginLoadCandidatesFromLoadedAssemblies(
+            loadedAssemblies,
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            log);
+        return LoadPlannedCandidates(pluginCandidates, contextFactory, log);
     }
 
-    private static List<LoadedPlugin> LoadFromLoadedAssemblies(
+    private static List<PluginLoadCandidate> CreatePluginLoadCandidatesFromLoadedAssemblies(
         IEnumerable<LoadedAssembly> loadedAssemblies,
         HashSet<string> preferredLuaPluginIds,
-        Func<IOpenGarrisonServerPlugin, OpenGarrisonPluginManifest, string, IOpenGarrisonServerPluginContext> contextFactory,
         Action<string> log)
     {
-        var loadedPlugins = new List<LoadedPlugin>();
+        var pluginCandidates = new List<PluginLoadCandidate>();
         var loadedPluginIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var loadedAssembly in loadedAssemblies)
         {
@@ -125,14 +123,48 @@ internal static class PluginLoader
                         continue;
                     }
 
-                    var context = contextFactory(plugin, manifest, loadedAssembly.PluginDirectory);
-                    plugin.Initialize(context);
-                    loadedPlugins.Add(new LoadedPlugin(plugin, context, loadedAssembly.PluginDirectory));
+                    pluginCandidates.Add(new PluginLoadCandidate(
+                        manifest,
+                        loadedAssembly.PluginDirectory,
+                        loadedAssembly.Assembly.FullName ?? loadedAssembly.Assembly.Location,
+                        () => plugin));
                 }
                 catch (Exception ex)
                 {
-                    log($"[plugin] failed to initialize \"{type.FullName}\": {ex.Message}");
+                    log($"[plugin] failed to inspect \"{type.FullName}\": {ex.Message}");
                 }
+            }
+        }
+
+        return pluginCandidates;
+    }
+
+    private static List<LoadedPlugin> LoadPlannedCandidates(
+        IEnumerable<PluginLoadCandidate> pluginCandidates,
+        Func<IOpenGarrisonServerPlugin, OpenGarrisonPluginManifest, string, IOpenGarrisonServerPluginContext> contextFactory,
+        Action<string> log)
+    {
+        var plannedCandidates = OpenGarrisonPluginManifestPlanner.PlanLoadOrder(
+            pluginCandidates,
+            static candidate => candidate.Manifest);
+        foreach (var warning in plannedCandidates.Warnings)
+        {
+            log(warning);
+        }
+
+        var loadedPlugins = new List<LoadedPlugin>();
+        foreach (var candidate in plannedCandidates.Plugins)
+        {
+            try
+            {
+                var plugin = candidate.CreatePlugin();
+                var context = contextFactory(plugin, candidate.Manifest, candidate.PluginDirectory);
+                plugin.Initialize(context);
+                loadedPlugins.Add(new LoadedPlugin(plugin, context, candidate.PluginDirectory));
+            }
+            catch (Exception ex)
+            {
+                log($"[plugin] failed to initialize \"{candidate.Manifest.Id}\" from \"{candidate.SourceDescription}\": {ex.Message}");
             }
         }
 
@@ -162,6 +194,12 @@ internal static class PluginLoader
 
             if (manifest.Runtime != OpenGarrisonPluginRuntimeKind.Clr)
             {
+                continue;
+            }
+
+            if (!OpenGarrisonPluginManifestLoader.TryValidateHostApiCompatibility(manifest, OpenGarrisonPluginHostApi.CreateServerDefault(), out error))
+            {
+                log($"[plugin] incompatible manifest \"{manifestPath}\": {error}");
                 continue;
             }
 
@@ -219,6 +257,12 @@ internal static class PluginLoader
 
                 if (manifest.Type != OpenGarrisonPluginType.Server || manifest.Runtime != OpenGarrisonPluginRuntimeKind.Lua)
                 {
+                    continue;
+                }
+
+                if (!OpenGarrisonPluginManifestLoader.TryValidateHostApiCompatibility(manifest, OpenGarrisonPluginHostApi.CreateServerDefault(), out error))
+                {
+                    log($"[plugin] incompatible Lua manifest \"{fullManifestPath}\": {error}");
                     continue;
                 }
 
@@ -287,6 +331,12 @@ internal static class PluginLoader
             return false;
         }
 
+        if (!OpenGarrisonPluginManifestLoader.TryValidateHostApiCompatibility(manifest, OpenGarrisonPluginHostApi.CreateServerDefault(), out var compatibilityError))
+        {
+            log($"[plugin] manifest for \"{pluginTypeName}\" declared incompatible host API: {compatibilityError}");
+            return false;
+        }
+
         return true;
     }
 
@@ -314,6 +364,12 @@ internal static class PluginLoader
         Assembly Assembly,
         string PluginDirectory,
         OpenGarrisonPluginManifest? Manifest);
+
+    private sealed record PluginLoadCandidate(
+        OpenGarrisonPluginManifest Manifest,
+        string PluginDirectory,
+        string SourceDescription,
+        Func<IOpenGarrisonServerPlugin> CreatePlugin);
 
     private sealed record LuaPluginCandidate(
         string ManifestPath,

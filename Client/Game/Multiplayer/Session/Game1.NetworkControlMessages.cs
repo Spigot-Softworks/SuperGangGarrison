@@ -9,8 +9,24 @@ public partial class Game1
 {
     private void HandleChatRelayMessage(ChatRelayMessage chatRelay)
     {
-        AppendChatLine(chatRelay.PlayerName, chatRelay.Text, chatRelay.Team, chatRelay.TeamOnly);
+        if (IsChatRelayMuted(chatRelay))
+        {
+            return;
+        }
+
+        AppendChatLine(chatRelay.PlayerName, chatRelay.Text, chatRelay.Team, chatRelay.TeamOnly, chatRelay.PlayerSlot);
         TryShowOverheadChatMessage(chatRelay);
+    }
+
+    private bool IsChatRelayMuted(ChatRelayMessage chatRelay)
+    {
+        if (chatRelay.PlayerSlot != 0)
+        {
+            return IsScoreboardSlotMuted(chatRelay.PlayerSlot);
+        }
+
+        return TryResolveOverheadChatPlayerSlot(chatRelay, out var slot)
+            && IsScoreboardSlotMuted(slot);
     }
 
     private void HandleAutoBalanceNoticeMessage(AutoBalanceNoticeMessage notice)

@@ -90,6 +90,8 @@ public static partial class ProtocolCodec
         writer.Write(snapshot.ArenaCappers);
         writer.Write(snapshot.ArenaRedConsecutiveWins);
         writer.Write(snapshot.ArenaBlueConsecutiveWins);
+        writer.Write(snapshot.CompetitiveReadyUpPhase);
+        writer.Write(snapshot.CompetitiveReadyUpTicksRemaining);
         WriteControlPointStates(writer, snapshot.ControlPoints);
         WriteGeneratorStates(writer, snapshot.Generators);
         WriteDeathCamState(writer, snapshot.LocalDeathCam);
@@ -174,6 +176,8 @@ public static partial class ProtocolCodec
         var arenaCappers = reader.ReadInt32();
         var arenaRedConsecutiveWins = reader.ReadInt32();
         var arenaBlueConsecutiveWins = reader.ReadInt32();
+        var competitiveReadyUpPhase = reader.ReadByte();
+        var competitiveReadyUpTicksRemaining = reader.ReadInt32();
         var controlPoints = ReadControlPointStates(reader);
         var generators = ReadGeneratorStates(reader);
         var deathCam = ReadDeathCamState(reader);
@@ -237,6 +241,8 @@ public static partial class ProtocolCodec
             ArenaCappers = arenaCappers,
             ArenaRedConsecutiveWins = arenaRedConsecutiveWins,
             ArenaBlueConsecutiveWins = arenaBlueConsecutiveWins,
+            CompetitiveReadyUpPhase = competitiveReadyUpPhase,
+            CompetitiveReadyUpTicksRemaining = competitiveReadyUpTicksRemaining,
             BaselineFrame = baselineFrame,
             IsDelta = isDelta,
             PlayerMovementStates = playerMovementStates,
@@ -435,6 +441,10 @@ public static partial class ProtocolCodec
             writer.Write(player.OffhandCooldownTicks);
             writer.Write(player.OffhandReloadTicks);
             writer.Write(player.GibDeaths);
+            writer.Write(player.IsReady);
+            writer.Write(player.GameplayClassCacheId);
+            if (player.GameplayClassCacheId == 0)
+                WriteString(writer, player.GameplayClassId, MaxGameplayIdBytes, nameof(player.GameplayClassId));
         }
     }
 
@@ -544,6 +554,9 @@ public static partial class ProtocolCodec
             var offhandCooldownTicks = reader.ReadInt32();
             var offhandReloadTicks = reader.ReadInt32();
             var gibDeaths = reader.ReadInt16();
+            var isReady = reader.ReadBoolean();
+            var gameplayClassCacheId = reader.ReadUInt16();
+            var gameplayClassId = gameplayClassCacheId == 0 ? ReadString(reader, MaxGameplayIdBytes) : string.Empty;
 
             players.Add(new SnapshotPlayerState(
                 slot, playerId, name, team, classId, isAlive, isAwaitingJoin, isSpectator,
@@ -571,7 +584,8 @@ public static partial class ProtocolCodec
                 gameplaySecondaryItemCacheId, gameplayUtilityItemCacheId,
                 gameplayEquippedItemCacheId, gameplayAcquiredItemCacheId,
                 ownedGameplayItemIds, replicatedStates, playerScale, aimWorldX, aimWorldY,
-                offhandCooldownTicks, offhandReloadTicks, gibDeaths));
+                offhandCooldownTicks, offhandReloadTicks, gibDeaths, isReady,
+                gameplayClassId, gameplayClassCacheId));
         }
 
         return players;

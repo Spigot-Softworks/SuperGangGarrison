@@ -36,8 +36,13 @@ public sealed partial class SimulationWorld
         return true;
     }
 
-    private void SpawnPlayerResolved(PlayerEntity player, PlayerTeam team, float x, float y, bool clearMedicHealingTarget = true)
+    private bool SpawnPlayerResolved(PlayerEntity player, PlayerTeam team, float x, float y, bool clearMedicHealingTarget = true)
     {
+        if (ShouldCancelSpawn(player, team, x, y))
+        {
+            return false;
+        }
+
         player.Spawn(team, x, y);
         player.ResolveBlockingOverlap(Level, team);
         UpdateSpawnRoomState(player);
@@ -45,19 +50,26 @@ public sealed partial class SimulationWorld
         {
             player.ClearMedicHealingTarget();
         }
+
+        return true;
     }
 
-    private void SpawnPlayerResolved(PlayerEntity player, PlayerTeam team, SpawnPoint spawn, bool clearMedicHealingTarget = true)
+    private bool SpawnPlayerResolved(PlayerEntity player, PlayerTeam team, SpawnPoint spawn, bool clearMedicHealingTarget = true)
     {
-        SpawnPlayerResolved(player, team, spawn.X, spawn.Y, clearMedicHealingTarget);
+        return SpawnPlayerResolved(player, team, spawn.X, spawn.Y, clearMedicHealingTarget);
     }
 
-    private void RespawnConfiguredNetworkPlayer(byte slot, PlayerEntity player)
+    private bool RespawnConfiguredNetworkPlayer(byte slot, PlayerEntity player)
     {
         var team = GetNetworkPlayerConfiguredTeam(slot);
         player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
-        SpawnPlayerResolved(player, team, ReserveSpawn(player, team, slot));
+        if (!SpawnPlayerResolved(player, team, ReserveSpawn(player, team, slot)))
+        {
+            return false;
+        }
+
         SyncExperimentalGameplayLoadout(slot, player);
+        return true;
     }
 
     private void RespawnPlayersForNewRound()

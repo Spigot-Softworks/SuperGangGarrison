@@ -23,4 +23,52 @@ public sealed record GameplayItemPresentationDefinition(
     bool LoopRecoilWhileActive = false,
     int BlueTeamHudFrameOffset = 1,
     bool UseAmmoCountForHudFrame = false,
-    int BlueTeamAmmoHudFrameOffset = 0);
+    int BlueTeamAmmoHudFrameOffset = 0,
+    GameplayItemHudPresentationDefinition? Hud = null);
+
+public sealed record GameplayItemHudPresentationDefinition(
+    string DisplayKind = "",
+    string StackGroup = "",
+    int Order = 0,
+    string StateProvider = "",
+    bool HideWhenUnavailable = false,
+    bool ShowWhenEquippedOnly = false,
+    string StateOwner = "",
+    string CooldownKey = "",
+    int MaxCooldown = 0,
+    string ActiveKey = "",
+    string DisabledKey = "");
+
+public static class GameplayItemHudDisplayKinds
+{
+    public const string None = "none";
+    public const string AmmoPanel = "ammoPanel";
+    public const string Meter = "meter";
+    public const string CooldownIcon = "cooldownIcon";
+    public const string Count = "count";
+    public const string Prompt = "prompt";
+}
+
+public static class GameplayItemHudStackGroups
+{
+    public const string Weapon = "weapon";
+    public const string Ability = "ability";
+    public const string Status = "status";
+}
+
+public static class GameplayItemHudStateProviders
+{
+    public const string PrimaryAmmo = "primaryAmmo";
+    public const string SecondaryAmmo = "secondaryAmmo";
+    public const string UtilityAmmo = "utilityAmmo";
+    public const string ReloadProgress = "reloadProgress";
+    public const string Cooldown = "cooldown";
+    public const string AbilityCooldown = "abilityCooldown";
+    public const string HeavySandvichCooldown = "heavySandvichCooldown";
+    public const string HeavyGhostDashCooldown = "heavyGhostDashCooldown";
+    public const string SpySuperjumpCooldown = "spySuperjumpCooldown";
+    public const string StickyCount = "stickyCount";
+    public const string Uber = "uber";
+    public const string Metal = "metal";
+    public const string Sentry = "sentry";
+}

@@ -705,7 +705,8 @@ public sealed partial class PlayerEntity
         float nextAttackDamageMultiplier,
         float dashImpulse,
         bool requireExperimentalDemoknight = true,
-        bool useMomentum = false)
+        bool useMomentum = false,
+        int? movementTicks = null)
     {
         if ((requireExperimentalDemoknight && !IsExperimentalDemoknightEnabled)
             || !IsAlive
@@ -721,11 +722,13 @@ public sealed partial class PlayerEntity
             return false;
         }
 
+        var dashMovementTicks = Math.Max(1, movementTicks ?? dashTicks);
         ExperimentalGhostDashTicksRemaining = dashTicks;
-        ExperimentalGhostDashVisibilityTicksRemaining = dashTicks;
+        ExperimentalGhostDashVisibilityTicksRemaining = Math.Max(dashTicks, dashMovementTicks);
         ExperimentalGhostDashCooldownTicksRemaining = cooldownTicks;
+        ExperimentalGhostDashMovementTicksRemaining = dashMovementTicks;
         ExperimentalGhostDashUsesMomentum = useMomentum;
-        ExperimentalGhostDashInitialTicks = Math.Max(1, dashTicks);
+        ExperimentalGhostDashInitialTicks = dashMovementTicks;
         ExperimentalGhostDashInitialDistance = MathF.Max(0f, dashImpulse);
         ExperimentalGhostDashDistanceTraveled = 0f;
         ExperimentalGhostDashDistanceRemaining = MathF.Max(0f, dashImpulse);
@@ -1063,13 +1066,15 @@ public sealed partial class PlayerEntity
             if (ExperimentalGhostDashTicksRemaining <= 0)
             {
                 ExperimentalGhostDashTicksRemaining = 0;
-                ExperimentalGhostDashDistanceRemaining = 0f;
-                ExperimentalGhostDashSpeedPerSecondValue = 0f;
-                ExperimentalGhostDashUsesMomentum = false;
-                ExperimentalGhostDashInitialTicks = 0;
-                ExperimentalGhostDashInitialDistance = 0f;
-                ExperimentalGhostDashDistanceTraveled = 0f;
-                ExperimentalGhostDashMomentumDirectionX = 1f;
+            }
+        }
+
+        if (ExperimentalGhostDashMovementTicksRemaining > 0)
+        {
+            ExperimentalGhostDashMovementTicksRemaining -= 1;
+            if (ExperimentalGhostDashMovementTicksRemaining <= 0)
+            {
+                ResetExperimentalGhostDashMovementState();
             }
         }
 
@@ -1141,13 +1146,8 @@ public sealed partial class PlayerEntity
         ExperimentalGhostDashTicksRemaining = 0;
         ExperimentalGhostDashCooldownTicksRemaining = 0;
         ExperimentalGhostDashVisibilityTicksRemaining = 0;
-        ExperimentalGhostDashDistanceRemaining = 0f;
-        ExperimentalGhostDashSpeedPerSecondValue = 0f;
-        ExperimentalGhostDashUsesMomentum = false;
-        ExperimentalGhostDashInitialTicks = 0;
-        ExperimentalGhostDashInitialDistance = 0f;
-        ExperimentalGhostDashDistanceTraveled = 0f;
-        ExperimentalGhostDashMomentumDirectionX = 1f;
+        ExperimentalGhostDashMovementTicksRemaining = 0;
+        ResetExperimentalGhostDashMovementState();
         ExperimentalGhostDashNextAttackDamageMultiplierValue = 1f;
         ExperimentalLuckyBastardTicksRemaining = 0;
         ExperimentalLuckyBastardReviveHealth = 0;
@@ -1201,6 +1201,17 @@ public sealed partial class PlayerEntity
             : 0;
         ResetExperimentalDemoknightChargeMovementState();
         ResetRageState();
+    }
+
+    private void ResetExperimentalGhostDashMovementState()
+    {
+        ExperimentalGhostDashDistanceRemaining = 0f;
+        ExperimentalGhostDashSpeedPerSecondValue = 0f;
+        ExperimentalGhostDashUsesMomentum = false;
+        ExperimentalGhostDashInitialTicks = 0;
+        ExperimentalGhostDashInitialDistance = 0f;
+        ExperimentalGhostDashDistanceTraveled = 0f;
+        ExperimentalGhostDashMomentumDirectionX = 1f;
     }
 
     private float GetExperimentalMovementSpeedMultiplier()

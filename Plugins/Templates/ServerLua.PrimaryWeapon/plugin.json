@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "sample.server.lua-primary-weapon",
+  "displayName": "Lua Primary Weapon",
+  "version": "1.0.0",
+  "type": "Server",
+  "runtime": "Lua",
+  "entryPoint": "main.lua",
+  "description": "Runnable Lua server template for registering a custom primary weapon behavior, weapon item, and loadout.",
+  "compatibility": {
+    "hostApiVersion": "1.0"
+  }
+}

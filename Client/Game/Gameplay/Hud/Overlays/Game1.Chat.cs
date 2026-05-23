@@ -5,6 +5,7 @@ using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenGarrison.Client.Plugins;
 using OpenGarrison.ClientShared;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
@@ -52,6 +53,24 @@ public partial class Game1
             {
                 ResetChatInputState(requireOpenKeyRelease: true);
                 return;
+            }
+
+            if (_clientPluginHost is not null)
+            {
+                var pluginChatResult = _clientPluginHost.ProcessOutgoingChat(new ClientChatSubmitContext(text, teamOnly));
+                if (pluginChatResult.IsCancelled || pluginChatResult.IsHandled)
+                {
+                    ResetChatInputState(requireOpenKeyRelease: true);
+                    return;
+                }
+
+                text = pluginChatResult.Text.Trim();
+                teamOnly = pluginChatResult.TeamOnly;
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    ResetChatInputState(requireOpenKeyRelease: true);
+                    return;
+                }
             }
 
             if (_networkClient.IsConnected)
@@ -151,8 +170,13 @@ public partial class Game1
         return !string.IsNullOrWhiteSpace(messageText);
     }
 
-    private void AppendChatLine(string playerName, string text, byte team, bool teamOnly)
+    private void AppendChatLine(string playerName, string text, byte team, bool teamOnly, byte playerSlot = 0)
     {
+        if (IsScoreboardSlotMuted(playerSlot))
+        {
+            return;
+        }
+
         var channelPrefix = teamOnly ? "(TEAM) " : string.Empty;
         var line = string.IsNullOrWhiteSpace(playerName)
             ? $"{channelPrefix}{text}"
@@ -162,7 +186,7 @@ public partial class Game1
             _chatScrollOffset += 1;
         }
 
-        _chatLines.Add(new ChatLine(playerName, text, team, teamOnly));
+        _chatLines.Add(new ChatLine(playerName, text, team, teamOnly, playerSlot: playerSlot));
         while (_chatLines.Count > MaxChatHistoryLines)
         {
             _chatLines.RemoveAt(0);
@@ -224,6 +248,11 @@ public partial class Game1
             return;
         }
 
+        if (IsScoreboardSlotMuted(slot))
+        {
+            return;
+        }
+
         ShowOverheadChatMessage(slot, chatRelay.Text, chatRelay.TeamOnly);
     }
 
@@ -248,7 +277,7 @@ public partial class Game1
 
     private void ShowOverheadChatMessage(byte slot, string text, bool teamOnly)
     {
-        if (!_overheadChatEnabled || slot == 0)
+        if (!_overheadChatEnabled || slot == 0 || IsScoreboardSlotMuted(slot))
         {
             return;
         }

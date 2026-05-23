@@ -34,6 +34,7 @@ public partial class Game1
 
     private void DrawGameplayHudLayers(MouseState mouse, Vector2 cameraPosition)
     {
+        BeginHudElementFrame();
         var browserHudDrawStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
         if (IsLastToDieDeathFocusPresentationActive())
         {
@@ -70,23 +71,24 @@ public partial class Game1
         WriteGameplayRenderTrace("hud after lasttodie-combat");
         if (!_networkClient.IsSpectator && localPlayerAlive && !deathCamActive)
         {
-            DrawLocalHealthHud();
+            CollectGameplayHudElements();
+            DrawGameplayHudElements(0, 10);
             WriteGameplayRenderTrace("hud after localhealth");
             DrawLastToDieBuffIcon(mouse);
             WriteGameplayRenderTrace("hud after ltdbufficon");
             DrawExperimentalHealingHudIndicators();
             WriteGameplayRenderTrace("hud after experimentalhealing");
-            DrawAmmoHud();
+            DrawGameplayHudElements(11, 29);
             WriteGameplayRenderTrace("hud after ammo");
             DrawSniperHud(mouse);
             WriteGameplayRenderTrace("hud after sniper");
-            DrawMedicHud();
+            DrawGameplayHudElements(30, 39);
             WriteGameplayRenderTrace("hud after medic");
             DrawMedicAssistHud();
             WriteGameplayRenderTrace("hud after medicassist");
             DrawHealerRadarHud(cameraPosition, mouse);
             WriteGameplayRenderTrace("hud after healerradar");
-            DrawEngineerHud();
+            DrawGameplayHudElements(40, int.MaxValue);
             WriteGameplayRenderTrace("hud after engineer");
         }
 
@@ -268,6 +270,10 @@ public partial class Game1
             case GameplayOverlayKind.OptionsMenu:
                 DrawOptionsMenu();
                 WriteGameplayRenderTrace("modal after options");
+                break;
+            case GameplayOverlayKind.HudEditor:
+                DrawHudEditor();
+                WriteGameplayRenderTrace("modal after hudeditor");
                 break;
             case GameplayOverlayKind.ControlsMenu:
                 DrawControlsMenu();

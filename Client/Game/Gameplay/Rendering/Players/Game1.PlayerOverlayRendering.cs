@@ -15,7 +15,7 @@ public partial class Game1
 
     private void DrawChatBubble(PlayerEntity player, Vector2 cameraPosition)
     {
-        if (!player.IsChatBubbleVisible)
+        if (!player.IsChatBubbleVisible || IsPlayerMutedByScoreboardSlot(player))
         {
             return;
         }
@@ -49,7 +49,8 @@ public partial class Game1
 
     private void DrawOverheadChatMessage(PlayerEntity player, Vector2 cameraPosition)
     {
-        if (!_overheadChatEnabled
+        if (IsPlayerMutedByScoreboardSlot(player)
+            || !_overheadChatEnabled
             || !TryGetOverheadChatMessageForPlayer(player, out var message))
         {
             return;

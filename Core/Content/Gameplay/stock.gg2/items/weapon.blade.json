@@ -16,6 +16,9 @@
     "ammoRegenPerTick": 1,
     "refillsAllAtOnce": false
   },
+  "combat": {
+    "activeProjectileLimit": 25
+  },
   "presentation": {
     "worldSpriteName": "BladeS",
     "hudSpriteName": "BladeAmmoS",

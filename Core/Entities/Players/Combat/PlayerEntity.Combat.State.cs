@@ -84,6 +84,7 @@ public sealed partial class PlayerEntity
         IsHeavyEating = false;
         HeavyEatTicksRemaining = 0;
         HeavyEatCooldownTicksRemaining = 0;
+        HeavyEatHealPerTickValue = HeavyEatHealPerTick;
         HeavyHealingAccumulator = 0f;
         IsTaunting = false;
         TauntFrameIndex = 0f;
@@ -238,10 +239,7 @@ public sealed partial class PlayerEntity
 
     public void IncrementQuoteBubbleCount()
     {
-        if (ClassId == PlayerClass.Quote)
-        {
-            QuoteBubbleCount += 1;
-        }
+        QuoteBubbleCount += 1;
     }
 
     public void DecrementQuoteBubbleCount()
@@ -251,10 +249,7 @@ public sealed partial class PlayerEntity
 
     public void IncrementQuoteBladeCount()
     {
-        if (ClassId == PlayerClass.Quote)
-        {
-            QuoteBladesOut += 1;
-        }
+        QuoteBladesOut += 1;
     }
 
     public void DecrementQuoteBladeCount()

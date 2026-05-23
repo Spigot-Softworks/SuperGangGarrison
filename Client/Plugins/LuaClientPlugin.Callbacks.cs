@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using Microsoft.Xna.Framework;
 using MoonSharp.Interpreter;
 using OpenGarrison.Client.Plugins;
@@ -22,6 +23,11 @@ internal sealed partial class LuaClientPlugin
         _registeredTextures.Clear();
         _registeredTextureAtlases.Clear();
         _registeredTextureRegions.Clear();
+        _hudWidgets.Clear();
+        _scoreboardPanels.Clear();
+        _scoreboardPlayerActions.Clear();
+        _chatFilters.Clear();
+        _chatCommands.Clear();
         _callbackCache.Clear();
         _pendingLocalDamageEvents.Clear();
         _pendingHealEvents.Clear();
@@ -158,7 +164,13 @@ internal sealed partial class LuaClientPlugin
 
     public void OnGameplayHudDraw(IOpenGarrisonClientHudCanvas canvas)
     {
-        if (_script is null || _pluginTable is null || !HasCallback("on_gameplay_hud_draw"))
+        if (_script is null || _pluginTable is null)
+        {
+            return;
+        }
+
+        var hasLegacyCallback = HasCallback("on_gameplay_hud_draw");
+        if (!hasLegacyCallback && _hudWidgets.Count == 0)
         {
             return;
         }
@@ -168,7 +180,13 @@ internal sealed partial class LuaClientPlugin
             _activeHudCanvas = canvas;
             try
             {
-                CallIfPresent("on_gameplay_hud_draw", GetCachedGameplayHudCanvas(canvas));
+                var canvasValue = GetCachedGameplayHudCanvas(canvas);
+                if (hasLegacyCallback)
+                {
+                    CallIfPresent("on_gameplay_hud_draw", canvasValue);
+                }
+
+                DrawRegisteredHudWidgets(canvasValue);
             }
             finally
             {
@@ -183,7 +201,13 @@ internal sealed partial class LuaClientPlugin
 
     public void OnScoreboardDraw(IOpenGarrisonClientScoreboardCanvas canvas, ClientScoreboardRenderState state)
     {
-        if (_script is null || _pluginTable is null || !HasCallback("on_scoreboard_draw"))
+        if (_script is null || _pluginTable is null)
+        {
+            return;
+        }
+
+        var hasLegacyCallback = HasCallback("on_scoreboard_draw");
+        if (!hasLegacyCallback && _scoreboardPanels.Count == 0)
         {
             return;
         }
@@ -194,13 +218,136 @@ internal sealed partial class LuaClientPlugin
             _activeScoreboardCanvas = canvas;
             try
             {
-                CallIfPresent("on_scoreboard_draw", GetCachedScoreboardHudCanvas(canvas), ToDynValue(state));
+                var canvasValue = GetCachedScoreboardHudCanvas(canvas);
+                var stateValue = ToDynValue(state);
+                if (hasLegacyCallback)
+                {
+                    CallIfPresent("on_scoreboard_draw", canvasValue, stateValue);
+                }
+
+                DrawRegisteredScoreboardPanels(canvasValue, stateValue);
             }
             finally
             {
                 _activeScoreboardCanvas = null;
                 _activeHudCanvas = null;
             }
+        });
+    }
+
+    public IReadOnlyList<ClientScoreboardPlayerAction> GetScoreboardPlayerActions(ClientScoreboardPlayerActionContext context)
+    {
+        if (_script is null || _pluginTable is null || _scoreboardPlayerActions.Count == 0)
+        {
+            return Array.Empty<ClientScoreboardPlayerAction>();
+        }
+
+        return _scoreboardPlayerActions
+            .OrderBy(static action => action.Order)
+            .ThenBy(static action => action.Id, StringComparer.Ordinal)
+            .Select(action => new ClientScoreboardPlayerAction(
+                action.Id,
+                action.Label,
+                action.Order,
+                activateContext => ExecuteInPhase(
+                    LuaCallbackPhase.ScoreboardInteraction,
+                    () => TryInvokeRegisteredCallback(
+                        "scoreboard player action",
+                        action.Id,
+                        action.ActivateCallback,
+                        out _,
+                        ToDynValue(activateContext)))))
+            .ToArray();
+    }
+
+    public ClientChatSubmitResult BeforeChatSubmit(ClientChatSubmitContext context)
+    {
+        if (_script is null || _pluginTable is null || _chatFilters.Count == 0)
+        {
+            return new ClientChatSubmitResult(context.Text, context.TeamOnly);
+        }
+
+        return ExecuteInPhase(LuaCallbackPhase.ChatInteraction, () =>
+        {
+            var result = new ClientChatSubmitResult(context.Text, context.TeamOnly);
+            foreach (var filter in _chatFilters
+                         .OrderBy(static filter => filter.Order)
+                         .ThenBy(static filter => filter.Id, StringComparer.Ordinal))
+            {
+                if (!TryInvokeRegisteredCallback(
+                        "chat filter",
+                        filter.Id,
+                        filter.Callback,
+                        out var callbackResult,
+                        ToDynValue(new ClientChatSubmitContext(result.Text, result.TeamOnly))))
+                {
+                    continue;
+                }
+
+                result = ReadChatSubmitResult(callbackResult, result);
+                if (result.IsCancelled || result.IsHandled)
+                {
+                    return result;
+                }
+            }
+
+            return result;
+        });
+    }
+
+    public bool TryHandleChatCommand(ClientChatSubmitContext context)
+    {
+        if (_script is null
+            || _pluginTable is null
+            || _chatCommands.Count == 0
+            || !TryParseChatCommand(context.Text, out var commandName, out var arguments))
+        {
+            return false;
+        }
+
+        var command = _chatCommands
+            .FirstOrDefault(candidate =>
+                string.Equals(candidate.Name, commandName, StringComparison.OrdinalIgnoreCase)
+                || candidate.Aliases.Any(alias => string.Equals(alias, commandName, StringComparison.OrdinalIgnoreCase)));
+        if (command is null)
+        {
+            return false;
+        }
+
+        return ExecuteInPhase(LuaCallbackPhase.ChatInteraction, () =>
+        {
+            if (!TryInvokeRegisteredCallback(
+                    "chat command",
+                    command.Name,
+                    command.Callback,
+                    out var result,
+                    ToDynValue(new LuaClientChatCommandContext(
+                        context.Text,
+                        context.TeamOnly,
+                        commandName,
+                        arguments,
+                        SplitCommandArguments(arguments)))))
+            {
+                return false;
+            }
+
+            if (result.IsNil() || result.Type == DataType.Void)
+            {
+                return true;
+            }
+
+            if (result.Type == DataType.Boolean)
+            {
+                return result.Boolean;
+            }
+
+            if (result.Type == DataType.Table)
+            {
+                return ReadOptionalBoolField(result.Table, defaultValue: true, "handled", "Handled", "isHandled", "IsHandled")
+                    || ReadOptionalBoolField(result.Table, defaultValue: false, "cancel", "Cancel", "cancelled", "Cancelled", "canceled", "Canceled");
+            }
+
+            return result.CastToBool();
         });
     }
 

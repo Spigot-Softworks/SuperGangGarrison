@@ -1,4 +1,5 @@
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 using OpenGarrison.PluginHost;
 using OpenGarrison.Protocol;
 using OpenGarrison.Server.Plugins;
@@ -22,6 +23,7 @@ internal sealed class PluginHost
     private readonly string _mapsDirectory;
     private readonly OpenGarrisonPluginHostApi _hostApi = OpenGarrisonPluginHostApi.CreateServerDefault();
     private readonly List<PluginLoader.LoadedPlugin> _loadedPlugins = new();
+    private readonly HashSet<string> _registeredManifestGameplayPackIds = new(StringComparer.Ordinal);
 
     public PluginHost(
         Func<SimulationWorld> worldGetter,
@@ -124,12 +126,49 @@ internal sealed class PluginHost
 
     public bool TryHandleChatMessage(ChatReceivedEvent e)
     {
+        var decision = DispatchDecision(
+            hook => hook.BeforeChatMessage(e),
+            "before_chat_message");
+        if (decision.IsCancelled)
+        {
+            if (!string.IsNullOrWhiteSpace(decision.Reason))
+            {
+                _log($"[plugin] chat message from slot {e.Slot} cancelled: {decision.Reason}");
+            }
+
+            return true;
+        }
+
         var context = new OpenGarrisonServerChatMessageContext(
             _serverState,
             _adminOperations,
             _cvarRegistry,
             _scheduler,
             _adminIdentityResolver(e.Slot));
+        if (IsPluginChatCommandText(e.Text)
+            && _commandRegistry.TryExecute(
+                e.Text,
+                new OpenGarrisonServerCommandContext(
+                    _serverState,
+                    _adminOperations,
+                    _cvarRegistry,
+                    _scheduler,
+                    context.Identity,
+                    OpenGarrisonServerCommandSource.PrivateChat),
+                System.Threading.CancellationToken.None,
+                out var commandResponseLines))
+        {
+            foreach (var line in commandResponseLines)
+            {
+                if (!string.IsNullOrWhiteSpace(line))
+                {
+                    _adminOperations.SendSystemMessage(e.Slot, line);
+                }
+            }
+
+            return true;
+        }
+
         foreach (var loadedPlugin in _loadedPlugins)
         {
             if (loadedPlugin.Plugin is not IOpenGarrisonServerChatCommandHooks hook)
@@ -151,6 +190,136 @@ internal sealed class PluginHost
         }
 
         return false;
+    }
+
+    private static bool IsPluginChatCommandText(string text)
+    {
+        var trimmed = text.TrimStart();
+        return trimmed.Length > 1 && trimmed[0] is '!' or '/';
+    }
+
+    public OpenGarrisonServerDecisionResult BeforeTeamChange(byte slot, PlayerTeam team)
+    {
+        return DispatchDecision(
+            hook => hook.BeforeTeamChange(new OpenGarrisonServerTeamChangeRequest(slot, team)),
+            "before_team_change");
+    }
+
+    public OpenGarrisonServerDecisionResult BeforeClassChange(byte slot, PlayerClass playerClass)
+    {
+        return DispatchDecision(
+            hook => hook.BeforeClassChange(new OpenGarrisonServerClassChangeRequest(slot, playerClass)),
+            "before_class_change");
+    }
+
+    public OpenGarrisonServerDecisionResult BeforeLoadoutChange(byte slot, string loadoutId)
+    {
+        return DispatchDecision(
+            hook => hook.BeforeLoadoutChange(new OpenGarrisonServerLoadoutChangeRequest(slot, loadoutId)),
+            "before_loadout_change");
+    }
+
+    public OpenGarrisonServerDecisionResult BeforeMapChange(string levelName, int mapAreaIndex, bool preservePlayerStats)
+    {
+        return DispatchDecision(
+            hook => hook.BeforeMapChange(new OpenGarrisonServerMapChangeRequest(levelName, mapAreaIndex, preservePlayerStats)),
+            "before_map_change");
+    }
+
+    public OpenGarrisonServerDecisionResult BeforeSpawn(WorldSpawnDecisionRequest e)
+    {
+        return DispatchDecision(
+            hook => hook.BeforeSpawn(new OpenGarrisonServerSpawnRequest(
+                e.Frame,
+                e.Slot,
+                e.PlayerId,
+                e.PlayerName,
+                e.Team,
+                e.PlayerClass,
+                e.WorldX,
+                e.WorldY,
+                e.IsRespawn)),
+            "before_spawn");
+    }
+
+    public OpenGarrisonServerDecisionResult BeforeDamage(WorldDamageDecisionRequest e)
+    {
+        return DispatchDecision(
+            hook => hook.BeforeDamage(new OpenGarrisonServerDamageRequest(
+                e.Frame,
+                e.TargetKind,
+                e.TargetEntityId,
+                e.TargetPlayerId,
+                e.TargetTeam,
+                e.AttackerPlayerId,
+                e.AttackerTeam,
+                e.Amount,
+                e.WouldBeFatal,
+                e.WorldX,
+                e.WorldY)),
+            "before_damage");
+    }
+
+    public OpenGarrisonServerDecisionResult BeforeDeath(WorldDeathDecisionRequest e)
+    {
+        return DispatchDecision(
+            hook => hook.BeforeDeath(new OpenGarrisonServerDeathRequest(
+                e.Frame,
+                e.Slot,
+                e.VictimPlayerId,
+                e.VictimName,
+                e.VictimTeam,
+                e.VictimClass,
+                e.KillerPlayerId,
+                e.KillerName,
+                e.KillerTeam,
+                e.WeaponSpriteName,
+                e.Gibbed)),
+            "before_death");
+    }
+
+    public OpenGarrisonServerDecisionResult BeforePickup(WorldPickupDecisionRequest e)
+    {
+        return DispatchDecision(
+            hook => hook.BeforePickup(new OpenGarrisonServerPickupRequest(
+                e.Frame,
+                e.Kind.ToString(),
+                e.Slot,
+                e.PlayerId,
+                e.PlayerName,
+                e.Team,
+                e.PickupEntityId,
+                e.PickupValue,
+                e.WorldX,
+                e.WorldY)),
+            "before_pickup");
+    }
+
+    public OpenGarrisonServerDecisionResult BeforeScore(WorldScoreDecisionRequest e)
+    {
+        return DispatchDecision(
+            hook => hook.BeforeScore(new OpenGarrisonServerScoreRequest(
+                e.Frame,
+                e.Team,
+                e.Delta,
+                e.RedCaps,
+                e.BlueCaps,
+                e.ActorPlayerId,
+                e.Reason)),
+            "before_score");
+    }
+
+    public OpenGarrisonServerDecisionResult BeforeRoundEnd(WorldRoundEndDecisionRequest e)
+    {
+        return DispatchDecision(
+            hook => hook.BeforeRoundEnd(new OpenGarrisonServerRoundEndRequest(
+                e.Frame,
+                e.GameMode,
+                e.WinnerTeam,
+                e.RedCaps,
+                e.BlueCaps,
+                e.Reason)),
+            "before_round_end");
     }
 
     public void NotifyMapChanging(MapChangingEvent e) => Dispatch<IOpenGarrisonServerMapHooks>(hook => hook.OnMapChanging(e));
@@ -192,6 +361,39 @@ internal sealed class PluginHost
                 e.WorldX,
                 e.WorldY)));
         }
+    }
+
+    public bool TryNotifyGameplayAbilityInput(WorldGameplayAbilityEvent e)
+    {
+        var inputEvent = ToGameplayAbilityInputEvent(e);
+        foreach (var loadedPlugin in _loadedPlugins)
+        {
+            if (loadedPlugin.Plugin is not IOpenGarrisonServerSemanticGameplayHooks hook)
+            {
+                continue;
+            }
+
+            try
+            {
+                hook.OnGameplayAbilityInput(inputEvent);
+            }
+            catch (Exception ex)
+            {
+                _log($"[plugin] ability input hook failed for {loadedPlugin.Plugin.Id}: {ex.Message}");
+            }
+        }
+
+        return inputEvent.IsCancelled;
+    }
+
+    public void NotifyGameplayAbilityUsed(WorldGameplayAbilityEvent e)
+    {
+        Dispatch<IOpenGarrisonServerSemanticGameplayHooks>(hook => hook.OnGameplayAbilityUsed(ToGameplayAbilityUsedEvent(e)));
+    }
+
+    public void NotifyGameplayAbilityStateChanged(OpenGarrisonServerGameplayAbilityStateChangedEvent e)
+    {
+        Dispatch<IOpenGarrisonServerSemanticGameplayHooks>(hook => hook.OnGameplayAbilityStateChanged(e));
     }
 
     public void NotifyClientPluginMessage(OpenGarrisonServerPluginMessageEnvelope e)
@@ -281,6 +483,7 @@ internal sealed class PluginHost
         Directory.CreateDirectory(pluginDirectory);
         Directory.CreateDirectory(configDirectory);
         Directory.CreateDirectory(_mapsDirectory);
+        RegisterManifestGameplayPacks(manifest, pluginDirectory);
         return new ServerPluginContext(
             plugin.Id,
             pluginDirectory,
@@ -292,18 +495,68 @@ internal sealed class PluginHost
             _adminOperations,
             _cvarRegistry,
             _scheduler,
-            (slot, targetPluginId, messageType, payload, payloadFormat, schemaVersion) => TrySendMessageToClient(plugin.Id, slot, targetPluginId, messageType, payload, payloadFormat, schemaVersion),
-            (targetPluginId, messageType, payload, payloadFormat, schemaVersion) => TryBroadcastMessageToClients(plugin.Id, targetPluginId, messageType, payload, payloadFormat, schemaVersion),
+            (slot, targetPluginId, messageType, payload, payloadFormat, schemaVersion) => TrySendMessageToClient(plugin.Id, manifest, slot, targetPluginId, messageType, payload, payloadFormat, schemaVersion),
+            (targetPluginId, messageType, payload, payloadFormat, schemaVersion) => TryBroadcastMessageToClients(plugin.Id, manifest, targetPluginId, messageType, payload, payloadFormat, schemaVersion),
             (ownerId, slot, stateKey, value) => TrySetPlayerReplicatedState(slot, static (player, pluginId, key, stateValue) => player.SetReplicatedStateInt(pluginId, key, stateValue), ownerId, stateKey, value),
             (ownerId, slot, stateKey, value) => TrySetPlayerReplicatedState(slot, static (player, pluginId, key, stateValue) => player.SetReplicatedStateFloat(pluginId, key, stateValue), ownerId, stateKey, value),
             (ownerId, slot, stateKey, value) => TrySetPlayerReplicatedState(slot, static (player, pluginId, key, stateValue) => player.SetReplicatedStateBool(pluginId, key, stateValue), ownerId, stateKey, value),
             (ownerId, slot, stateKey) => TryClearPlayerReplicatedState(slot, ownerId, stateKey),
+            TryRegisterGameplayAbility,
+            TryOverrideGameplayAbility,
+            TryRegisterGameplayAbilityExecutor,
+            TryRegisterGameplayPrimaryWeaponBehavior,
+            TryRegisterGameplayWeaponItem,
+            TryRegisterGameplayLoadout,
+            TryRegisterGameplaySlotItem,
+            (playerId, velocityX, velocityY) => _worldGetter().TryApplyGameplayImpulse(playerId, velocityX, velocityY),
+            (ownerId, playerId, cooldownKey, ticks) => TrySetGameplayAbilityCooldown(ownerId, playerId, cooldownKey, ticks),
+            (targetPlayerId, amount, attackerPlayerId, weaponSpriteName) => _worldGetter().TryApplyGameplayDamage(targetPlayerId, amount, attackerPlayerId, weaponSpriteName),
+            (playerId, amount) => _worldGetter().TryApplyGameplayHealing(playerId, amount),
+            (playerId, statusEffectId, ticks, value) => _worldGetter().TryApplyGameplayStatusEffect(playerId, statusEffectId, ticks, value),
+            (GameplayProjectileSpawnRequest request, out int projectileId) => _worldGetter().TrySpawnGameplayProjectile(request, out projectileId),
             _commandRegistry,
             _log);
     }
 
+    private void RegisterManifestGameplayPacks(OpenGarrisonPluginManifest manifest, string pluginDirectory)
+    {
+        foreach (var gameplayPack in manifest.GameplayPacks)
+        {
+            var packDirectory = OpenGarrisonPluginPathContainment.ResolveContainedPath(
+                pluginDirectory,
+                gameplayPack.Path,
+                "manifest gameplayPacks path escapes plugin directory.");
+            GameplayModPackDefinition modPack;
+            try
+            {
+                modPack = GameplayModPackDirectoryLoader.LoadFromDirectory(packDirectory);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Manifest gameplay pack \"{gameplayPack.Path}\" could not be loaded: {ex.Message}", ex);
+            }
+
+            if (_registeredManifestGameplayPackIds.Contains(modPack.Id))
+            {
+                continue;
+            }
+
+            if (!CharacterClassCatalog.RuntimeRegistry.TryRegisterModPack(
+                    modPack,
+                    gameplayPack.AllowRuntimeClassBindingOverride,
+                    out var errorMessage))
+            {
+                throw new InvalidOperationException($"Manifest gameplay pack \"{modPack.Id}\" could not be registered: {errorMessage}");
+            }
+
+            _registeredManifestGameplayPackIds.Add(modPack.Id);
+            _log($"[plugin] registered gameplay pack {modPack.DisplayName} ({modPack.Id} {modPack.Version})");
+        }
+    }
+
     private void TrySendMessageToClient(
         string sourcePluginId,
+        OpenGarrisonPluginManifest? sourceManifest,
         byte slot,
         string targetPluginId,
         string messageType,
@@ -326,11 +579,28 @@ internal sealed class PluginHost
             return;
         }
 
+        var manifest = sourceManifest
+            ?? FindLoadedPlugin(sourcePluginId)?.Context.Manifest;
+        if (manifest is not null
+            && !OpenGarrisonPluginManifestMessageContractPolicy.TryValidateOutgoing(
+                manifest,
+                normalizedTargetPluginId,
+                normalizedMessageType,
+                payloadFormat.ToString(),
+                schemaVersion,
+                OpenGarrisonPluginManifestMessageContractPolicy.DirectionServerToClient,
+                out error))
+        {
+            _log($"[plugin] rejected outbound plugin message for {sourcePluginId}: {error}");
+            return;
+        }
+
         _sendMessageToClient(slot, sourcePluginId, normalizedTargetPluginId, normalizedMessageType, normalizedPayload, payloadFormat, schemaVersion);
     }
 
     private void TryBroadcastMessageToClients(
         string sourcePluginId,
+        OpenGarrisonPluginManifest? sourceManifest,
         string targetPluginId,
         string messageType,
         string payload,
@@ -347,6 +617,22 @@ internal sealed class PluginHost
                 out var normalizedMessageType,
                 out var normalizedPayload,
                 out var error))
+        {
+            _log($"[plugin] rejected outbound plugin message for {sourcePluginId}: {error}");
+            return;
+        }
+
+        var manifest = sourceManifest
+            ?? FindLoadedPlugin(sourcePluginId)?.Context.Manifest;
+        if (manifest is not null
+            && !OpenGarrisonPluginManifestMessageContractPolicy.TryValidateOutgoing(
+                manifest,
+                normalizedTargetPluginId,
+                normalizedMessageType,
+                payloadFormat.ToString(),
+                schemaVersion,
+                OpenGarrisonPluginManifestMessageContractPolicy.DirectionServerToClient,
+                out error))
         {
             _log($"[plugin] rejected outbound plugin message for {sourcePluginId}: {error}");
             return;
@@ -384,6 +670,136 @@ internal sealed class PluginHost
             && player.ClearReplicatedState(ownerId, normalizedStateKey);
     }
 
+    private bool TrySetGameplayAbilityCooldown(string ownerId, int playerId, string cooldownKey, int ticks)
+    {
+        if (!GameplayReplicatedStateContract.TryNormalizeIdentifier(cooldownKey, out var normalizedCooldownKey))
+        {
+            _log($"[plugin] rejected ability cooldown write for {ownerId}: cooldown key must be a non-empty ASCII identifier up to {GameplayReplicatedStateContract.MaxIdentifierLength} characters.");
+            return false;
+        }
+
+        return _worldGetter().TrySetGameplayAbilityCooldown(playerId, ownerId, normalizedCooldownKey, ticks);
+    }
+
+    private bool TryRegisterGameplayAbility(string pluginId, GameplayAbilityRegistration registration, out string errorMessage)
+    {
+        var modPackId = string.IsNullOrWhiteSpace(registration.ModPackId)
+            ? $"plugin.{pluginId}"
+            : registration.ModPackId;
+        if (CharacterClassCatalog.RuntimeRegistry.TryRegisterGameplayAbility(registration with { ModPackId = modPackId }, out errorMessage))
+        {
+            return true;
+        }
+
+        _log($"[plugin] gameplay ability registration rejected for {pluginId}: {errorMessage}");
+        return false;
+    }
+
+    private bool TryOverrideGameplayAbility(string pluginId, string itemId, GameplayAbilityPatch patch, out string errorMessage)
+    {
+        if (CharacterClassCatalog.RuntimeRegistry.TryOverrideGameplayAbility(itemId, patch, out errorMessage))
+        {
+            return true;
+        }
+
+        _log($"[plugin] gameplay ability override rejected for {pluginId}: {errorMessage}");
+        return false;
+    }
+
+    private bool TryRegisterGameplayAbilityExecutor(string pluginId, string executorId, IGameplayAbilityExecutor executor, out string errorMessage)
+    {
+        var normalizedExecutorId = string.IsNullOrWhiteSpace(executorId)
+            ? string.Empty
+            : executorId.Trim();
+        if (!normalizedExecutorId.StartsWith($"plugin.{pluginId}.", StringComparison.Ordinal)
+            && !normalizedExecutorId.StartsWith($"{pluginId}.", StringComparison.Ordinal))
+        {
+            errorMessage = $"Plugin ability executor ids must start with \"plugin.{pluginId}.\" or \"{pluginId}.\".";
+            return false;
+        }
+
+        if (CharacterClassCatalog.RuntimeRegistry.TryRegisterGameplayAbilityExecutor(normalizedExecutorId, executor, out errorMessage))
+        {
+            return true;
+        }
+
+        _log($"[plugin] gameplay ability executor registration rejected for {pluginId}: {errorMessage}");
+        return false;
+    }
+
+    private bool TryRegisterGameplayPrimaryWeaponBehavior(
+        string pluginId,
+        string behaviorId,
+        IGameplayPrimaryWeaponExecutor executor,
+        string? fireSoundName,
+        out string errorMessage)
+    {
+        var normalizedBehaviorId = string.IsNullOrWhiteSpace(behaviorId)
+            ? string.Empty
+            : behaviorId.Trim();
+        if (!normalizedBehaviorId.StartsWith($"plugin.{pluginId}.", StringComparison.Ordinal)
+            && !normalizedBehaviorId.StartsWith($"{pluginId}.", StringComparison.Ordinal))
+        {
+            errorMessage = $"Plugin primary weapon behavior ids must start with \"plugin.{pluginId}.\" or \"{pluginId}.\".";
+            return false;
+        }
+
+        var binding = new GameplayPrimaryWeaponRuntimeBinding(
+            normalizedBehaviorId,
+            PrimaryWeaponKind.Custom,
+            string.IsNullOrWhiteSpace(fireSoundName) ? null : fireSoundName.Trim(),
+            executor);
+        if (CharacterClassCatalog.RuntimeRegistry.TryRegisterPrimaryWeaponBehavior(binding, out errorMessage))
+        {
+            return true;
+        }
+
+        _log($"[plugin] gameplay primary weapon behavior registration rejected for {pluginId}: {errorMessage}");
+        return false;
+    }
+
+    private bool TryRegisterGameplayWeaponItem(string pluginId, GameplayWeaponItemRegistration registration, out string errorMessage)
+    {
+        var modPackId = string.IsNullOrWhiteSpace(registration.ModPackId)
+            ? $"plugin.{pluginId}"
+            : registration.ModPackId;
+        if (CharacterClassCatalog.RuntimeRegistry.TryRegisterGameplayWeaponItem(registration with { ModPackId = modPackId }, out errorMessage))
+        {
+            return true;
+        }
+
+        _log($"[plugin] gameplay weapon item registration rejected for {pluginId}: {errorMessage}");
+        return false;
+    }
+
+    private bool TryRegisterGameplayLoadout(string pluginId, GameplayLoadoutRegistration registration, out string errorMessage)
+    {
+        var modPackId = string.IsNullOrWhiteSpace(registration.ModPackId)
+            ? $"plugin.{pluginId}"
+            : registration.ModPackId;
+        if (CharacterClassCatalog.RuntimeRegistry.TryRegisterGameplayLoadout(registration with { ModPackId = modPackId }, out errorMessage))
+        {
+            return true;
+        }
+
+        _log($"[plugin] gameplay loadout registration rejected for {pluginId}: {errorMessage}");
+        return false;
+    }
+
+    private bool TryRegisterGameplaySlotItem(string pluginId, GameplaySlotItemRegistration registration, out string errorMessage)
+    {
+        var modPackId = string.IsNullOrWhiteSpace(registration.ModPackId)
+            ? $"plugin.{pluginId}"
+            : registration.ModPackId;
+        if (CharacterClassCatalog.RuntimeRegistry.TryRegisterGameplaySlotItem(registration with { ModPackId = modPackId }, out errorMessage))
+        {
+            return true;
+        }
+
+        _log($"[plugin] gameplay slot item registration rejected for {pluginId}: {errorMessage}");
+        return false;
+    }
+
     private string ResolvePluginDirectory(IOpenGarrisonServerPlugin plugin, string pluginDirectory)
     {
         if (!string.IsNullOrWhiteSpace(pluginDirectory))
@@ -417,6 +833,40 @@ internal sealed class PluginHost
         return null;
     }
 
+    private static OpenGarrisonServerGameplayAbilityInputEvent ToGameplayAbilityInputEvent(WorldGameplayAbilityEvent e)
+    {
+        return new OpenGarrisonServerGameplayAbilityInputEvent(
+            e.Frame,
+            e.PlayerId,
+            e.ClassId,
+            e.Team,
+            e.ItemId,
+            e.BehaviorId,
+            e.AbilityCategory,
+            e.Activation,
+            e.ExecutorId,
+            e.Phase.ToString(),
+            e.Tags.ToArray());
+    }
+
+    private static OpenGarrisonServerGameplayAbilityUsedEvent ToGameplayAbilityUsedEvent(WorldGameplayAbilityEvent e)
+    {
+        return new OpenGarrisonServerGameplayAbilityUsedEvent(
+            e.Frame,
+            e.PlayerId,
+            e.ClassId,
+            e.Team,
+            e.ItemId,
+            e.BehaviorId,
+            e.AbilityCategory,
+            e.Activation,
+            e.ExecutorId,
+            e.Phase.ToString(),
+            e.Tags.ToArray(),
+            e.Handled,
+            e.ConsumedInput);
+    }
+
     private void Dispatch<THook>(Action<THook> callback) where THook : class
     {
         foreach (var loadedPlugin in _loadedPlugins)
@@ -435,5 +885,33 @@ internal sealed class PluginHost
                 _log($"[plugin] hook failed for {loadedPlugin.Plugin.Id}: {ex.Message}");
             }
         }
+    }
+
+    private OpenGarrisonServerDecisionResult DispatchDecision(
+        Func<IOpenGarrisonServerDecisionHooks, OpenGarrisonServerDecisionResult> callback,
+        string hookName)
+    {
+        foreach (var loadedPlugin in _loadedPlugins)
+        {
+            if (loadedPlugin.Plugin is not IOpenGarrisonServerDecisionHooks hook)
+            {
+                continue;
+            }
+
+            try
+            {
+                var decision = callback(hook);
+                if (decision.IsCancelled)
+                {
+                    return decision;
+                }
+            }
+            catch (Exception ex)
+            {
+                _log($"[plugin] decision hook {hookName} failed for {loadedPlugin.Plugin.Id}: {ex.Message}");
+            }
+        }
+
+        return OpenGarrisonServerDecisionResult.Continue;
     }
 }

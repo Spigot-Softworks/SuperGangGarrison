@@ -48,6 +48,20 @@ internal static partial class ServerHelpers
                 entry.BoolValue))
             .ToList();
 
+        replicatedStates.AddRange(GameplayAbilityReplicatedState.CreateEntries(player)
+            .Select(static entry => new SnapshotReplicatedStateEntry(
+                entry.OwnerId,
+                entry.Key,
+                entry.Kind switch
+                {
+                    GameplayReplicatedStateValueKind.Whole => SnapshotReplicatedStateValueKind.Whole,
+                    GameplayReplicatedStateValueKind.Scalar => SnapshotReplicatedStateValueKind.Scalar,
+                    _ => SnapshotReplicatedStateValueKind.Toggle,
+                },
+                entry.IntValue,
+                entry.FloatValue,
+                entry.BoolValue)));
+
         if (player.ClassId == PlayerClass.Soldier)
         {
             replicatedStates.Add(new SnapshotReplicatedStateEntry(
@@ -210,7 +224,10 @@ internal static partial class ServerHelpers
             AimWorldY: player.AimWorldY,
             OffhandCooldownTicks: player.ExperimentalOffhandCooldownTicks,
             OffhandReloadTicks: player.ExperimentalOffhandReloadTicksUntilNextShell,
-            GibDeaths: (short)Math.Clamp(player.GibDeaths, 0, short.MaxValue));
+            GibDeaths: (short)Math.Clamp(player.GibDeaths, 0, short.MaxValue),
+            IsReady: world.IsNetworkPlayerReady(slot),
+            GameplayClassId: player.GameplayClassId,
+            GameplayClassCacheId: stringCache.GetOrAddCacheId(player.GameplayClassId));
     }
 
     internal static SnapshotIntelState ToSnapshotIntelState(TeamIntelligenceState intel)

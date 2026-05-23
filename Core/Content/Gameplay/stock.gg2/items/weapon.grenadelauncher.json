@@ -16,6 +16,9 @@
     "ammoRegenPerTick": 0,
     "refillsAllAtOnce": false
   },
+  "combat": {
+    "fireSoundName": "MinegunSnd"
+  },
   "presentation": {
     "worldSpriteName": "GrenadeLauncherS",
     "recoilSpriteName": "GrenadeLauncherFS",
@@ -25,7 +28,14 @@
     "weaponOffsetY": -6.0,
     "recoilDurationSourceTicks": 26,
     "reloadDurationSourceTicks": 30,
-    "blueTeamHudFrameOffset": 1
+    "blueTeamHudFrameOffset": 1,
+    "hud": {
+      "displayKind": "ammoPanel",
+      "stackGroup": "weapon",
+      "order": 40,
+      "stateProvider": "utilityAmmo",
+      "hideWhenUnavailable": true
+    }
   },
   "description": {
     "summary": "Secondary grenade launcher for Detonator.",

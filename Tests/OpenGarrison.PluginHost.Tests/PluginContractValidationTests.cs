@@ -1,4 +1,7 @@
 using System.Reflection;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Client;
@@ -98,6 +101,82 @@ public sealed class PluginContractValidationTests
         Assert.Equal("sample.server.plugin", broadcastMessage.SourcePluginId);
         Assert.Equal("target.plugin", broadcastMessage.TargetPluginId);
         Assert.Equal("score.update", broadcastMessage.MessageType);
+    }
+
+    [Fact]
+    public void ClientPluginHostEnforcesDeclaredOutgoingMessageContracts()
+    {
+        var logLines = new List<string>();
+        var state = new FakeClientPluginHostState();
+        var rootPath = CreateTempRoot();
+        var host = new ClientPluginHost(
+            state,
+            null!,
+            Path.Combine(rootPath, "plugins"),
+            Path.Combine(rootPath, "config"),
+            Path.Combine(rootPath, "state.json"),
+            logLines.Add);
+        var manifest = CreateMessageContractManifest(
+            "sample.client.plugin",
+            OpenGarrisonPluginType.Client,
+            [new OpenGarrisonPluginManifestMessageContract
+            {
+                TargetPluginId = "target.plugin",
+                MessageType = "allowed.update",
+                PayloadFormat = "Json",
+                SchemaVersion = 2,
+                Direction = "ClientToServer",
+            }]);
+
+        InvokeClientSendMessage(host, "sample.client.plugin", manifest, "target.plugin", "blocked.update", "{}", PluginMessagePayloadFormat.Json, 2);
+        InvokeClientSendMessage(host, "sample.client.plugin", manifest, "target.plugin", "allowed.update", "{}", PluginMessagePayloadFormat.Json, 2);
+
+        var sentMessage = Assert.Single(state.SentMessages);
+        Assert.Equal("allowed.update", sentMessage.MessageType);
+        Assert.Contains(logLines, line => line.Contains("No manifest message contract allows", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ServerPluginHostEnforcesDeclaredOutgoingMessageContracts()
+    {
+        var logLines = new List<string>();
+        var sentMessages = new List<(byte Slot, string SourcePluginId, string TargetPluginId, string MessageType, string Payload, PluginMessagePayloadFormat PayloadFormat, ushort SchemaVersion)>();
+        var rootPath = CreateTempRoot();
+        var host = new OpenGarrison.Server.PluginHost(
+            static () => throw new InvalidOperationException("Unexpected world access during message validation test."),
+            new PluginCommandRegistry(),
+            new FakeServerReadOnlyState(),
+            new FakeServerAdminOperations(),
+            new FakeServerCvarRegistry(),
+            new FakeServerScheduler(),
+            static slot => OpenGarrisonServerAdminIdentity.CreateUnauthenticated(slot),
+            (slot, sourcePluginId, targetPluginId, messageType, payload, payloadFormat, schemaVersion) =>
+                sentMessages.Add((slot, sourcePluginId, targetPluginId, messageType, payload, payloadFormat, schemaVersion)),
+            static (_, _, _, _, _, _) => { },
+            Path.Combine(rootPath, "plugins"),
+            Path.Combine(rootPath, "config"),
+            Path.Combine(rootPath, "maps"),
+            logLines.Add);
+        var plugin = new FakeServerPlugin("sample.server.plugin");
+        var manifest = CreateMessageContractManifest(
+            plugin.Id,
+            OpenGarrisonPluginType.Server,
+            [new OpenGarrisonPluginManifestMessageContract
+            {
+                TargetPluginId = "target.plugin",
+                MessageType = "allowed.update",
+                PayloadFormat = "Json",
+                SchemaVersion = 2,
+                Direction = "ServerToClient",
+            }]);
+        var context = CreateServerContext(host, plugin, Path.Combine(rootPath, "plugins", plugin.Id), manifest);
+
+        context.SendMessageToClient(3, "target.plugin", "blocked.update", "{}", PluginMessagePayloadFormat.Json, 2);
+        context.SendMessageToClient(3, "target.plugin", "allowed.update", "{}", PluginMessagePayloadFormat.Json, 2);
+
+        var sentMessage = Assert.Single(sentMessages);
+        Assert.Equal("allowed.update", sentMessage.MessageType);
+        Assert.Contains(logLines, line => line.Contains("No manifest message contract allows", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -211,6 +290,49 @@ public sealed class PluginContractValidationTests
     }
 
     [Fact]
+    public void ServerPluginHostRoutesChatThroughRegisteredCommandsBeforeLegacyHooks()
+    {
+        var logLines = new List<string>();
+        var rootPath = CreateTempRoot();
+        var adminOperations = new FakeServerAdminOperations();
+        var host = new OpenGarrison.Server.PluginHost(
+            static () => throw new InvalidOperationException("Unexpected world access during chat command routing test."),
+            new PluginCommandRegistry(),
+            new FakeServerReadOnlyState(),
+            adminOperations,
+            new FakeServerCvarRegistry(),
+            new FakeServerScheduler(),
+            static slot => new OpenGarrisonServerAdminIdentity(
+                $"Player {slot}",
+                OpenGarrisonServerAdminAuthority.RconSession,
+                OpenGarrisonServerAdminPermissions.FullAccess,
+                slot),
+            static (_, _, _, _, _, _, _) => { },
+            static (_, _, _, _, _, _) => { },
+            Path.Combine(rootPath, "plugins"),
+            Path.Combine(rootPath, "config"),
+            Path.Combine(rootPath, "maps"),
+            logLines.Add);
+        var plugin = new FakeServerPlugin("sample.server.plugin");
+        var context = CreateServerContext(host, plugin, Path.Combine(rootPath, "plugins", plugin.Id));
+        context.RegisterCommand(
+            new FakeServerCommand("!sample", static (commandContext, arguments) =>
+            [
+                $"slot {commandContext.Identity.SourceSlot}",
+                $"args {arguments}",
+            ]),
+            OpenGarrisonServerAdminPermissions.None,
+            ["!s"]);
+
+        Assert.True(host.TryHandleChatMessage(new ChatReceivedEvent(7, "Tester", "!s alpha beta", Team: null, TeamOnly: false)));
+        Assert.Equal(2, adminOperations.SystemMessages.Count);
+        Assert.Equal((byte)7, adminOperations.SystemMessages[0].Slot);
+        Assert.Equal("slot 7", adminOperations.SystemMessages[0].Text);
+        Assert.Equal((byte)7, adminOperations.SystemMessages[1].Slot);
+        Assert.Equal("args alpha beta", adminOperations.SystemMessages[1].Text);
+    }
+
+    [Fact]
     public void CompatibilityHeaderRejectsMessagesOutsideDeclaredContract()
     {
         var header = new PluginMessageCompatibilityHeader(
@@ -304,6 +426,303 @@ public sealed class PluginContractValidationTests
         Assert.True(File.Exists(Path.Combine(customRuntimeDirectory, "custom.txt")));
     }
 
+    [Fact]
+    public void ClientPluginStateDefaultsQuoteCurlyEnabled()
+    {
+        var rootPath = CreateTempRoot();
+        var stateStore = new ClientPluginStateStore(
+            Path.Combine(rootPath, "plugins.json"),
+            _ => { });
+
+        Assert.True(stateStore.IsPluginEnabled("quote-curly"));
+    }
+
+    [Fact]
+    public void PluginPathContainmentRejectsSiblingPrefixEscapes()
+    {
+        var rootPath = CreateTempRoot();
+        var pluginDirectory = Path.Combine(rootPath, "Plugin");
+        var siblingDirectory = Path.Combine(rootPath, "PluginSibling");
+        Directory.CreateDirectory(pluginDirectory);
+        Directory.CreateDirectory(siblingDirectory);
+
+        var siblingPath = Path.Combine(siblingDirectory, "main.lua");
+        Assert.False(OpenGarrisonPluginPathContainment.IsPathContained(pluginDirectory, siblingPath));
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            OpenGarrisonPluginPathContainment.ResolveContainedPath(
+                pluginDirectory,
+                Path.Combine("..", "PluginSibling", "main.lua"),
+                "escape"));
+        Assert.Equal("escape", ex.Message);
+    }
+
+    [Fact]
+    public void ManifestLoaderRejectsEntryPointOutsidePluginDirectory()
+    {
+        var rootPath = CreateTempRoot();
+        var pluginDirectory = Path.Combine(rootPath, "Plugin");
+        var siblingDirectory = Path.Combine(rootPath, "PluginSibling");
+        Directory.CreateDirectory(pluginDirectory);
+        Directory.CreateDirectory(siblingDirectory);
+
+        var manifest = CreateLuaManifest(
+            OpenGarrisonPluginType.Client,
+            Path.Combine("..", "PluginSibling", "main.lua"),
+            hostApiVersion: "1.0");
+
+        Assert.False(OpenGarrisonPluginManifestLoader.TryResolveEntryPointPath(manifest, pluginDirectory, out var entryPointPath, out var error));
+        Assert.Equal(string.Empty, entryPointPath);
+        Assert.Contains("escapes plugin directory", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ManifestLoaderReadsEcosystemMetadataAndValidatesConfigSchema()
+    {
+        var rootPath = CreateTempRoot();
+        var pluginDirectory = Path.Combine(rootPath, "Plugin");
+        Directory.CreateDirectory(pluginDirectory);
+        Directory.CreateDirectory(Path.Combine(pluginDirectory, "Gameplay", "example.gg2"));
+        File.WriteAllText(Path.Combine(pluginDirectory, "config.schema.json"), """{"type":"object","properties":{}}""");
+        File.WriteAllText(Path.Combine(pluginDirectory, "Gameplay", "example.gg2", "pack.json"), """
+            {
+              "id": "tests.example",
+              "displayName": "Test Gameplay Pack",
+              "version": "1.0.0"
+            }
+            """);
+        File.WriteAllText(Path.Combine(pluginDirectory, "plugin.json"), """
+            {
+              "schemaVersion": 1,
+              "id": "tests.lua-plugin",
+              "displayName": "Test Lua Plugin",
+              "version": "1.0.0",
+              "type": "Client",
+              "runtime": "Lua",
+              "entryPoint": "main.lua",
+              "compatibility": { "hostApiVersion": "1.0" },
+              "configSchemaPath": "config.schema.json",
+              "dependencies": [
+                { "id": "required.plugin", "version": "1.2.3" }
+              ],
+              "optionalDependencies": [
+                { "id": "optional.plugin" }
+              ],
+              "conflicts": [ "conflicting.plugin" ],
+              "loadOrder": {
+                "before": [ "late.plugin" ],
+                "after": [ "early.plugin" ]
+              },
+              "permissions": [
+                { "id": "client.ui", "description": "Draw HUD widgets.", "required": true }
+              ],
+              "messageContracts": [
+                {
+                  "targetPluginId": "server.plugin",
+                  "messageType": "score.update",
+                  "payloadFormat": "Json",
+                  "schemaVersion": 1,
+                  "direction": "ClientToServer"
+                }
+              ],
+              "gameplayPacks": [
+                {
+                  "path": "Gameplay/example.gg2",
+                  "allowRuntimeClassBindingOverride": true
+                }
+              ]
+            }
+            """);
+
+        Assert.True(OpenGarrisonPluginManifestLoader.TryLoadFromPath(
+            Path.Combine(pluginDirectory, "plugin.json"),
+            out var manifest,
+            out var error), error);
+
+        Assert.Equal("required.plugin", Assert.Single(manifest.Dependencies).Id);
+        Assert.Equal("optional.plugin", Assert.Single(manifest.OptionalDependencies).Id);
+        Assert.Equal("conflicting.plugin", Assert.Single(manifest.Conflicts));
+        Assert.Equal("late.plugin", Assert.Single(manifest.LoadOrder.Before));
+        Assert.Equal("early.plugin", Assert.Single(manifest.LoadOrder.After));
+        Assert.Equal("client.ui", Assert.Single(manifest.Permissions).Id);
+        Assert.Equal("score.update", Assert.Single(manifest.MessageContracts).MessageType);
+        var gameplayPack = Assert.Single(manifest.GameplayPacks);
+        Assert.Equal("Gameplay/example.gg2", gameplayPack.Path);
+        Assert.True(gameplayPack.AllowRuntimeClassBindingOverride);
+    }
+
+    [Fact]
+    public void ManifestLoaderRejectsInvalidEcosystemMetadata()
+    {
+        Assert.False(OpenGarrisonPluginManifestLoader.TryLoadFromJson("""
+            {
+              "schemaVersion": 1,
+              "id": "tests.lua-plugin",
+              "displayName": "Test Lua Plugin",
+              "version": "1.0.0",
+              "type": "Client",
+              "runtime": "Lua",
+              "entryPoint": "main.lua",
+              "compatibility": { "hostApiVersion": "1.0" },
+              "conflicts": [ "tests.lua-plugin" ]
+            }
+            """, out _, out var error));
+        Assert.Contains("conflicts", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ManifestLoaderRejectsEscapingConfigSchemaPath()
+    {
+        var rootPath = CreateTempRoot();
+        var pluginDirectory = Path.Combine(rootPath, "Plugin");
+        Directory.CreateDirectory(pluginDirectory);
+        File.WriteAllText(Path.Combine(pluginDirectory, "plugin.json"), """
+            {
+              "schemaVersion": 1,
+              "id": "tests.lua-plugin",
+              "displayName": "Test Lua Plugin",
+              "version": "1.0.0",
+              "type": "Client",
+              "runtime": "Lua",
+              "entryPoint": "main.lua",
+              "compatibility": { "hostApiVersion": "1.0" },
+              "configSchemaPath": "../config.schema.json"
+            }
+            """);
+
+        Assert.False(OpenGarrisonPluginManifestLoader.TryLoadFromPath(
+            Path.Combine(pluginDirectory, "plugin.json"),
+            out _,
+            out var error));
+        Assert.Contains("configSchemaPath escapes plugin directory", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ManifestLoaderRejectsEscapingGameplayPackPath()
+    {
+        var rootPath = CreateTempRoot();
+        var pluginDirectory = Path.Combine(rootPath, "Plugin");
+        Directory.CreateDirectory(pluginDirectory);
+        File.WriteAllText(Path.Combine(pluginDirectory, "plugin.json"), """
+            {
+              "schemaVersion": 1,
+              "id": "tests.lua-plugin",
+              "displayName": "Test Lua Plugin",
+              "version": "1.0.0",
+              "type": "Client",
+              "runtime": "Lua",
+              "entryPoint": "main.lua",
+              "compatibility": { "hostApiVersion": "1.0" },
+              "gameplayPacks": [
+                { "path": "../Gameplay/example.gg2" }
+              ]
+            }
+            """);
+
+        Assert.False(OpenGarrisonPluginManifestLoader.TryLoadFromPath(
+            Path.Combine(pluginDirectory, "plugin.json"),
+            out _,
+            out var error));
+        Assert.Contains("gameplayPacks path escapes plugin directory", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ManifestLoaderRejectsUnsupportedHostApiVersion()
+    {
+        var manifest = CreateLuaManifest(
+            OpenGarrisonPluginType.Client,
+            "main.lua",
+            hostApiVersion: "999.0");
+
+        Assert.False(OpenGarrisonPluginManifestLoader.TryValidateHostApiCompatibility(
+            manifest,
+            OpenGarrisonPluginHostApi.CreateClientDefault(),
+            out var error));
+        Assert.Contains("requires host API version 999.0", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ManifestPlannerAppliesDependenciesConflictsAndLoadOrderHints()
+    {
+        var plugins = new[]
+        {
+            CreatePlannedPlugin("dependent.plugin", dependencies: [new OpenGarrisonPluginManifestDependency { Id = "base.plugin" }]),
+            CreatePlannedPlugin("conflicting.plugin", conflicts: ["base.plugin"]),
+            CreatePlannedPlugin("late.plugin"),
+            CreatePlannedPlugin("base.plugin", before: ["late.plugin"]),
+            CreatePlannedPlugin("optional.plugin", optionalDependencies: [new OpenGarrisonPluginManifestDependency { Id = "base.plugin" }]),
+            CreatePlannedPlugin("missing-dependency.plugin", dependencies: [new OpenGarrisonPluginManifestDependency { Id = "not.installed" }]),
+        };
+
+        var result = OpenGarrisonPluginManifestPlanner.PlanLoadOrder(plugins, static plugin => plugin.Manifest);
+
+        Assert.Equal(
+            ["base.plugin", "dependent.plugin", "late.plugin", "optional.plugin"],
+            result.Plugins.Select(static plugin => plugin.Manifest.Id).ToArray());
+        Assert.Contains(result.Warnings, warning => warning.Contains("conflicting.plugin", StringComparison.Ordinal));
+        Assert.Contains(result.Warnings, warning => warning.Contains("missing-dependency.plugin", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ClientLuaHostApiAdvertisesCurrentRuntimeSurface()
+    {
+        var functions = GetLuaFunctions(OpenGarrisonPluginHostApi.CreateClientDefault(), OpenGarrisonPluginType.Client);
+
+        AssertContainsAll(functions,
+            "get_client_runtime_state",
+            "get_player_markers",
+            "get_sentry_markers",
+            "get_objective_markers",
+            "show_notice",
+            "show_overlay_menu",
+            "show_prompt",
+            "register_hotkey",
+            "register_hud_widget",
+            "register_scoreboard_panel",
+            "capture_hotkey_input",
+            "send_message_to_server",
+            "format_key_display_name",
+            "try_get_local_player_world_position");
+    }
+
+    [Fact]
+    public void ServerLuaHostApiAdvertisesCurrentRuntimeSurface()
+    {
+        var functions = GetLuaFunctions(OpenGarrisonPluginHostApi.CreateServerDefault(), OpenGarrisonPluginType.Server);
+
+        AssertContainsAll(functions,
+            "get_admin_summary",
+            "resolve_targets",
+            "get_cvars",
+            "set_cvar",
+            "register_command",
+            "get_match_state",
+            "get_player_state",
+            "get_objectives",
+            "get_buildables",
+            "get_projectiles",
+            "get_recent_events",
+            "enqueue_action",
+            "schedule_once",
+            "cancel_scheduled_task",
+            "try_ban_player",
+            "try_set_player_scale",
+            "get_bot_slots",
+            "try_start_demo_recording",
+            "register_gameplay_ability_executor");
+    }
+
+    [Fact]
+    public void GeneratedLuaHostApiSurfaceMatchesHostBindings()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var expectedClientFunctions = ScanLuaHostBindings(Path.Combine(repositoryRoot, "Client", "Plugins", "LuaClientPlugin.cs"));
+        var expectedServerFunctions = ScanLuaHostBindings(Path.Combine(repositoryRoot, "Server", "Plugins", "LuaServerPlugin.cs"));
+
+        Assert.Equal(expectedClientFunctions, OpenGarrisonLuaHostApiSurface.ClientFunctions);
+        Assert.Equal(expectedServerFunctions, OpenGarrisonLuaHostApiSurface.ServerFunctions);
+    }
+
     private static void InvokeClientSendMessage(
         ClientPluginHost host,
         string sourcePluginId,
@@ -313,19 +732,49 @@ public sealed class PluginContractValidationTests
         PluginMessagePayloadFormat payloadFormat,
         ushort schemaVersion)
     {
-        var method = typeof(ClientPluginHost).GetMethod("SendMessageToServer", BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        method!.Invoke(host, [sourcePluginId, targetPluginId, messageType, payload, payloadFormat, schemaVersion]);
+        var method = typeof(ClientPluginHost)
+            .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
+            .Single(method => method.Name == "SendMessageToServer" && method.GetParameters().Length == 6);
+        method.Invoke(host, [sourcePluginId, targetPluginId, messageType, payload, payloadFormat, schemaVersion]);
+    }
+
+    private static void InvokeClientSendMessage(
+        ClientPluginHost host,
+        string sourcePluginId,
+        OpenGarrisonPluginManifest sourceManifest,
+        string targetPluginId,
+        string messageType,
+        string payload,
+        PluginMessagePayloadFormat payloadFormat,
+        ushort schemaVersion)
+    {
+        var method = typeof(ClientPluginHost)
+            .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
+            .Single(method => method.Name == "SendMessageToServer" && method.GetParameters().Length == 7);
+        method.Invoke(host, [sourcePluginId, sourceManifest, targetPluginId, messageType, payload, payloadFormat, schemaVersion]);
     }
 
     private static IOpenGarrisonServerPluginContext CreateServerContext(OpenGarrison.Server.PluginHost host, IOpenGarrisonServerPlugin plugin, string pluginDirectory)
+    {
+        return CreateServerContext(
+            host,
+            plugin,
+            pluginDirectory,
+            OpenGarrisonPluginManifest.CreateClr(plugin.Id, plugin.DisplayName, plugin.Version, OpenGarrisonPluginType.Server, "Plugin.dll", plugin.GetType().FullName));
+    }
+
+    private static IOpenGarrisonServerPluginContext CreateServerContext(
+        OpenGarrison.Server.PluginHost host,
+        IOpenGarrisonServerPlugin plugin,
+        string pluginDirectory,
+        OpenGarrisonPluginManifest manifest)
     {
         var method = typeof(OpenGarrison.Server.PluginHost).GetMethod("CreateContext", BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(method);
         return Assert.IsAssignableFrom<IOpenGarrisonServerPluginContext>(method!.Invoke(host,
         [
             plugin,
-            OpenGarrisonPluginManifest.CreateClr(plugin.Id, plugin.DisplayName, plugin.Version, OpenGarrisonPluginType.Server, "Plugin.dll", plugin.GetType().FullName),
+            manifest,
             pluginDirectory,
         ]));
     }
@@ -336,6 +785,114 @@ public sealed class PluginContractValidationTests
         Directory.CreateDirectory(path);
         return path;
     }
+
+    private static OpenGarrisonPluginManifest CreateLuaManifest(
+        OpenGarrisonPluginType pluginType,
+        string entryPoint,
+        string hostApiVersion)
+    {
+        return new OpenGarrisonPluginManifest
+        {
+            Id = "tests.lua-plugin",
+            DisplayName = "Test Lua Plugin",
+            Version = "1.0.0",
+            Type = pluginType,
+            Runtime = OpenGarrisonPluginRuntimeKind.Lua,
+            EntryPoint = entryPoint,
+            Compatibility = new OpenGarrisonPluginManifestCompatibility(hostApiVersion),
+        };
+    }
+
+    private static OpenGarrisonPluginManifest CreateMessageContractManifest(
+        string pluginId,
+        OpenGarrisonPluginType pluginType,
+        IReadOnlyList<OpenGarrisonPluginManifestMessageContract> messageContracts)
+    {
+        return OpenGarrisonPluginManifest.CreateClr(
+            pluginId,
+            pluginId,
+            new Version(1, 0),
+            pluginType,
+            "Plugin.dll",
+            "Plugin") with
+        {
+            MessageContracts = messageContracts,
+        };
+    }
+
+    private static PlannedPlugin CreatePlannedPlugin(
+        string id,
+        IReadOnlyList<OpenGarrisonPluginManifestDependency>? dependencies = null,
+        IReadOnlyList<OpenGarrisonPluginManifestDependency>? optionalDependencies = null,
+        IReadOnlyList<string>? conflicts = null,
+        IReadOnlyList<string>? before = null,
+        IReadOnlyList<string>? after = null)
+    {
+        return new PlannedPlugin(new OpenGarrisonPluginManifest
+        {
+            Id = id,
+            DisplayName = id,
+            Version = "1.0.0",
+            Type = OpenGarrisonPluginType.Client,
+            Runtime = OpenGarrisonPluginRuntimeKind.Lua,
+            EntryPoint = "main.lua",
+            Dependencies = dependencies ?? Array.Empty<OpenGarrisonPluginManifestDependency>(),
+            OptionalDependencies = optionalDependencies ?? Array.Empty<OpenGarrisonPluginManifestDependency>(),
+            Conflicts = conflicts ?? Array.Empty<string>(),
+            LoadOrder = new OpenGarrisonPluginManifestLoadOrderHints
+            {
+                Before = before ?? Array.Empty<string>(),
+                After = after ?? Array.Empty<string>(),
+            },
+        });
+    }
+
+    private static IReadOnlyList<string> GetLuaFunctions(OpenGarrisonPluginHostApi hostApi, OpenGarrisonPluginType expectedHostType)
+    {
+        Assert.Equal(expectedHostType, hostApi.HostType);
+        var surface = Assert.Single(hostApi.RuntimeSurfaces, surface => surface.Runtime == OpenGarrisonPluginRuntimeKind.Lua);
+        Assert.Equal(hostApi.ApiVersion, surface.ApiVersion);
+        Assert.Equal(surface.Functions.Count, surface.Functions.Distinct(StringComparer.Ordinal).Count());
+        return surface.Functions;
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "OpenGarrison.sln"))
+                && File.Exists(Path.Combine(directory.FullName, "Client", "Plugins", "LuaClientPlugin.cs"))
+                && File.Exists(Path.Combine(directory.FullName, "Server", "Plugins", "LuaServerPlugin.cs")))
+            {
+                return directory.FullName;
+            }
+
+            directory = directory.Parent;
+        }
+
+        throw new InvalidOperationException("Could not find repository root.");
+    }
+
+    private static IReadOnlyList<string> ScanLuaHostBindings(string sourcePath)
+    {
+        var source = File.ReadAllText(sourcePath);
+        return Regex.Matches(source, """host\["(?<name>[A-Za-z0-9_]+)"\]\s*=""", RegexOptions.CultureInvariant)
+            .Select(match => match.Groups["name"].Value)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static void AssertContainsAll(IReadOnlyCollection<string> values, params string[] expectedValues)
+    {
+        foreach (var expectedValue in expectedValues)
+        {
+            Assert.Contains(expectedValue, values);
+        }
+    }
+
+    private sealed record PlannedPlugin(OpenGarrisonPluginManifest Manifest);
 
     private sealed class FakeClientPluginHostState : IOpenGarrisonClientReadOnlyState, ClientPluginMessageSink
     {
@@ -436,6 +993,25 @@ public sealed class PluginContractValidationTests
         }
     }
 
+    private sealed class FakeServerCommand(
+        string name,
+        Func<OpenGarrisonServerCommandContext, string, IReadOnlyList<string>> execute) : IOpenGarrisonServerCommand
+    {
+        public string Name { get; } = name;
+
+        public string Description => "Fake command";
+
+        public string Usage => name;
+
+        public Task<IReadOnlyList<string>> ExecuteAsync(
+            OpenGarrisonServerCommandContext context,
+            string arguments,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(execute(context, arguments));
+        }
+    }
+
     private sealed class FakeServerReadOnlyState : IOpenGarrisonServerReadOnlyState
     {
         public string ServerName => "test";
@@ -455,6 +1031,16 @@ public sealed class PluginContractValidationTests
         public IReadOnlyList<OpenGarrisonServerGameplayClassInfo> GetGameplayClasses(string? modPackId = null) => [];
 
         public IReadOnlyList<OpenGarrisonServerGameplayItemInfo> GetGameplayItems(string? modPackId = null) => [];
+
+        public IReadOnlyList<OpenGarrisonServerGameplayAbilityInfo> GetGameplayAbilities() => [];
+
+        public IReadOnlyList<OpenGarrisonServerGameplayAbilityInfo> GetPlayerGameplayAbilities(int playerId) => [];
+
+        public bool TryGetPlayerGameplayAbility(int playerId, string category, out OpenGarrisonServerGameplayAbilityInfo ability)
+        {
+            ability = default;
+            return false;
+        }
 
         public IReadOnlyList<OpenGarrisonServerGameplayItemInfo> GetOwnedGameplayItems(byte slot) => [];
 
@@ -483,16 +1069,37 @@ public sealed class PluginContractValidationTests
             value = false;
             return false;
         }
+
+        public bool TryGetPlayerReplicatedStateInt(int playerId, string ownerPluginId, string stateKey, out int value)
+        {
+            value = 0;
+            return false;
+        }
+
+        public bool TryGetPlayerReplicatedStateFloat(int playerId, string ownerPluginId, string stateKey, out float value)
+        {
+            value = 0f;
+            return false;
+        }
+
+        public bool TryGetPlayerReplicatedStateBool(int playerId, string ownerPluginId, string stateKey, out bool value)
+        {
+            value = false;
+            return false;
+        }
     }
 
     private sealed class FakeServerAdminOperations : IOpenGarrisonServerAdminOperations
     {
+        public List<(byte Slot, string Text)> SystemMessages { get; } = [];
+
         public void BroadcastSystemMessage(string text)
         {
         }
 
         public void SendSystemMessage(byte slot, string text)
         {
+            SystemMessages.Add((slot, text));
         }
 
         public bool TryRenamePlayer(byte slot, string newName) => true;

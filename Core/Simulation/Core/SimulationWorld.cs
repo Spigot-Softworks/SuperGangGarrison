@@ -465,8 +465,14 @@ public sealed partial class SimulationWorld
 
     public bool TrySetLocalClass(PlayerClass playerClass)
     {
-        var definition = CharacterClassCatalog.GetDefinition(playerClass);
-        if (definition.Id == GetNetworkPlayerClassDefinition(LocalPlayerSlot).Id)
+        return CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(playerClass, out var binding)
+            && TrySetLocalClass(binding.ClassId);
+    }
+
+    public bool TrySetLocalClass(string gameplayClassId)
+    {
+        var definition = CharacterClassCatalog.GetDefinition(gameplayClassId);
+        if (string.Equals(definition.GameplayClassId, GetNetworkPlayerClassDefinition(LocalPlayerSlot).GameplayClassId, StringComparison.Ordinal))
         {
             // Allow same-class selection to commit a pending team swap.
             // Use TryApplyNetworkPlayerClassChange so spawn-room and respawn-timer rules are respected.
@@ -479,7 +485,12 @@ public sealed partial class SimulationWorld
 
     public bool TrySetEnemyClass(PlayerClass playerClass)
     {
-        var definition = CharacterClassCatalog.GetDefinition(playerClass);
+        if (!CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(playerClass, out var binding))
+        {
+            return false;
+        }
+
+        var definition = CharacterClassCatalog.GetDefinition(binding.ClassId);
         if (definition.Id == _enemyDummyClassDefinition.Id)
         {
             return false;

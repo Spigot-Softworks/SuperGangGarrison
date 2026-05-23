@@ -28,7 +28,14 @@ public static class CustomMapPngImporter
         {
             return null;
         }
-        if (string.IsNullOrWhiteSpace(levelData))
+        return ImportLevelData(Path.GetFileNameWithoutExtension(pngPath), pngPath, levelData);
+    }
+
+    public static Result? ImportLevelData(string mapName, string backgroundImagePath, string levelData)
+    {
+        if (string.IsNullOrWhiteSpace(mapName)
+            || string.IsNullOrWhiteSpace(backgroundImagePath)
+            || string.IsNullOrWhiteSpace(levelData))
         {
             return null;
         }
@@ -57,7 +64,7 @@ public static class CustomMapPngImporter
         }
 
         var visuals = DecodeVisualMetadata(metadata, visualScale);
-        var room = BuildRoomMetadata(Path.GetFileNameWithoutExtension(pngPath), pngPath, bounds, entities, visuals);
+        var room = BuildRoomMetadata(mapName.Trim(), backgroundImagePath, bounds, entities, visuals);
         return new Result(room, solids);
     }
 

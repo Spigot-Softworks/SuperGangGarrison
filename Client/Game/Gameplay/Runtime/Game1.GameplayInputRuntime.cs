@@ -17,6 +17,12 @@ public partial class Game1
             _suppressPrimaryFireUntilMouseRelease = false;
         }
 
+        if (_suppressSecondaryFireUntilMouseRelease
+            && mouse.RightButton != ButtonState.Pressed)
+        {
+            _suppressSecondaryFireUntilMouseRelease = false;
+        }
+
         UpdateBinocularsFocusPosition(keyboard, (float)_config.FixedDeltaSeconds);
 
         var fullInput = KeyboardInputMapper.BuildGameplaySnapshot(
@@ -48,6 +54,22 @@ public partial class Game1
             ? blockedInput
             : fullInput;
 
+        if (_scoreboardOpen || _scoreboardAlpha > 0.02f)
+        {
+            gameplayInput = gameplayInput with
+            {
+                FirePrimary = false,
+                FireSecondary = false,
+                SwapWeapon = false,
+            };
+            networkInput = networkInput with
+            {
+                FirePrimary = false,
+                FireSecondary = false,
+                SwapWeapon = false,
+            };
+        }
+
         if (_suppressPrimaryFireUntilMouseRelease)
         {
             gameplayInput = gameplayInput with
@@ -60,6 +82,20 @@ public partial class Game1
             {
                 FirePrimary = false,
                 UseAbility = false,
+                SwapWeapon = false,
+            };
+        }
+
+        if (_suppressSecondaryFireUntilMouseRelease)
+        {
+            gameplayInput = gameplayInput with
+            {
+                FireSecondary = false,
+                SwapWeapon = false,
+            };
+            networkInput = networkInput with
+            {
+                FireSecondary = false,
                 SwapWeapon = false,
             };
         }
@@ -130,6 +166,11 @@ public partial class Game1
 
     private void UpdateSpectatorTrackingHotkeys(KeyboardState keyboard, MouseState mouse)
     {
+        if (_scoreboardOpen || keyboard.IsKeyDown(_inputBindings.ShowScoreboard))
+        {
+            return;
+        }
+
         if (!CanUseSpectatorTrackingHotkeys())
         {
             return;

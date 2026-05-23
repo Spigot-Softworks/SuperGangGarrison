@@ -14,9 +14,9 @@ public partial class Game1
         var viewportHeight = ViewportHeight;
         var centerX = viewportWidth / 2f;
 
-        DrawKothPointStatus(centerX);
-        DrawKothTeamTimer(centerX - 132f, viewportHeight - 28f, PlayerTeam.Red, _world.KothRedTimerTicksRemaining, IsKothTimerActive(PlayerTeam.Red));
-        DrawKothTeamTimer(centerX + 132f, viewportHeight - 28f, PlayerTeam.Blue, _world.KothBlueTimerTicksRemaining, IsKothTimerActive(PlayerTeam.Blue));
+        DrawKothPointStatus();
+        DrawKothTeamTimer(HudElementId.MatchKothRedTimer, centerX - 132f, viewportHeight - 28f, PlayerTeam.Red, _world.KothRedTimerTicksRemaining, IsKothTimerActive(PlayerTeam.Red));
+        DrawKothTeamTimer(HudElementId.MatchKothBlueTimer, centerX + 132f, viewportHeight - 28f, PlayerTeam.Blue, _world.KothBlueTimerTicksRemaining, IsKothTimerActive(PlayerTeam.Blue));
 
         if (_world.KothUnlockTicksRemaining > 0)
         {
@@ -24,16 +24,24 @@ public partial class Game1
         }
     }
 
-    private void DrawKothPointStatus(float centerX)
+    private void DrawKothPointStatus()
     {
         if (_world.ControlPoints.Count == 0)
         {
             return;
         }
 
-        var objectiveHudY = ToObjectiveHudY(560f);
-        var objectiveHudCounterY = ToObjectiveHudY(563f);
-        var drawX = centerX - MathF.Floor(_world.ControlPoints.Count / 2f) * 48f;
+        if (!TryResolveHudElement(HudElementId.MatchObjectiveStatus, out var resolved))
+        {
+            return;
+        }
+
+        var origin = resolved.Origin;
+        var scale = resolved.Layout.Scale;
+        var objectiveHudY = origin.Y;
+        var objectiveHudCounterY = origin.Y + (3f * scale);
+        var drawX = origin.X - MathF.Floor(_world.ControlPoints.Count / 2f) * 48f * scale;
+        var firstX = drawX;
         for (var index = 0; index < _world.ControlPoints.Count; index += 1)
         {
             var point = _world.ControlPoints[index];
@@ -51,33 +59,57 @@ public partial class Game1
                 progressFrame = teamOffset + Math.Clamp((int)MathF.Floor(progress * 30f), 0, 30);
             }
 
-            TryDrawScreenSprite("ControlPointStatusS", progressFrame, new Vector2(drawX, objectiveHudY), Color.White, new Vector2(3f, 3f));
+            TryDrawScreenSprite("ControlPointStatusS", progressFrame, new Vector2(drawX, objectiveHudY), Color.White, new Vector2(3f * scale, 3f * scale));
 
             if (point.IsLocked)
             {
-                TryDrawScreenSprite("ControlPointLockS", 0, new Vector2(drawX, objectiveHudY), Color.White, new Vector2(3f, 3f));
+                TryDrawScreenSprite("ControlPointLockS", 0, new Vector2(drawX, objectiveHudY), Color.White, new Vector2(3f * scale, 3f * scale));
             }
 
             if (point.Cappers > 0 && !point.IsLocked)
             {
-                TryDrawScreenSprite("ControlPointCappersS", 0, new Vector2(drawX, objectiveHudY), Color.White, new Vector2(3f, 3f));
-                DrawHudTextCentered(point.Cappers.ToString(CultureInfo.InvariantCulture), new Vector2(drawX + 13f, objectiveHudCounterY), Color.Black, 1.5f);
+                TryDrawScreenSprite("ControlPointCappersS", 0, new Vector2(drawX, objectiveHudY), Color.White, new Vector2(3f * scale, 3f * scale));
+                DrawHudTextCentered(point.Cappers.ToString(CultureInfo.InvariantCulture), new Vector2(drawX + (13f * scale), objectiveHudCounterY), Color.Black, 1.5f * scale);
             }
 
-            drawX += 60f;
+            drawX += 60f * scale;
         }
+
+        var lastX = drawX - (60f * scale);
+        UpdateHudElementBounds(
+            HudElementId.MatchObjectiveStatus,
+            new Rectangle(
+                (int)MathF.Round(firstX - (24f * scale)),
+                (int)MathF.Round(origin.Y - (24f * scale)),
+                Math.Max(1, (int)MathF.Round((lastX - firstX) + (72f * scale))),
+                Math.Max(1, (int)MathF.Round(64f * scale))));
     }
 
-    private void DrawKothTeamTimer(float centerX, float y, PlayerTeam team, int ticksRemaining, bool isActive)
+    private void DrawKothTeamTimer(string elementId, float defaultCenterX, float defaultY, PlayerTeam team, int ticksRemaining, bool isActive)
     {
+        var center = new Vector2(defaultCenterX, defaultY);
+        var scale = 1f;
+        if (TryResolveHudElement(elementId, out var resolved))
+        {
+            center = resolved.Origin;
+            scale = resolved.Layout.Scale;
+            UpdateHudElementBounds(
+                elementId,
+                new Rectangle(
+                    (int)MathF.Round(center.X - (54f * scale)),
+                    (int)MathF.Round(center.Y - (24f * scale)),
+                    Math.Max(1, (int)MathF.Round(108f * scale)),
+                    Math.Max(1, (int)MathF.Round(46f * scale))));
+        }
+
         var color = team == PlayerTeam.Red
             ? new Color(220, 110, 90)
             : new Color(100, 160, 235);
         var label = team == PlayerTeam.Red ? "RED" : "BLU";
         var textColor = isActive ? color : Color.White;
 
-        DrawHudTextCentered(FormatHudTimerText(ticksRemaining), new Vector2(centerX, y), textColor, 2f);
-        DrawHudTextCentered(label, new Vector2(centerX, y - 18f), textColor * 0.95f, 1f);
+        DrawHudTextCentered(FormatHudTimerText(ticksRemaining), center, textColor, 2f * scale);
+        DrawHudTextCentered(label, center + new Vector2(0f, -18f * scale), textColor * 0.95f, 1f * scale);
     }
 
     private bool IsKothTimerActive(PlayerTeam team)

@@ -779,6 +779,7 @@ internal static class SnapshotContributionPlanner
             || player.IsAlive != baselinePlayer.IsAlive
             || player.IsAwaitingJoin != baselinePlayer.IsAwaitingJoin
             || player.IsSpectator != baselinePlayer.IsSpectator
+            || player.IsReady != baselinePlayer.IsReady
             || player.PlayerScale != baselinePlayer.PlayerScale;
     }
 
@@ -1032,6 +1033,7 @@ internal static class SnapshotContributionPlanner
             + EstimateStringBytes(player.GameplayUtilityItemId)
             + EstimateStringBytes(player.GameplayEquippedItemId)
             + EstimateStringBytes(player.GameplayAcquiredItemId)
+            + EstimateStringBytes(player.GameplayClassId)
             + EstimateGameplayIdListBytes(player.OwnedGameplayItemIds)
             + EstimateReplicatedStateEntryBytes(player.ReplicatedStates);
     }

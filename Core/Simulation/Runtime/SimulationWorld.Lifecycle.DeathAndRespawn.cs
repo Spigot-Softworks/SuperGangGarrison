@@ -27,6 +27,11 @@ public sealed partial class SimulationWorld
             gibbed = true;
         }
 
+        if (ShouldCancelDeath(player, gibbed, killer, weaponSpriteName))
+        {
+            return;
+        }
+
         var assistingPlayer = killer is not null && !ReferenceEquals(killer, player)
             ? ResolveAssistPlayer(player, killer)
             : null;
@@ -49,14 +54,7 @@ public sealed partial class SimulationWorld
 
             if (MatchRules.Mode == GameModeKind.TeamDeathmatch && killer.Team != player.Team)
             {
-                if (killer.Team == PlayerTeam.Red)
-                {
-                    RedCaps += 1;
-                }
-                else if (killer.Team == PlayerTeam.Blue)
-                {
-                    BlueCaps += 1;
-                }
+                TryAwardTeamScore(killer.Team, 1, "team_deathmatch_kill", killer.Id);
             }
         }
 

@@ -134,7 +134,7 @@ public sealed partial class SimulationWorld
         _mapChangeReady = false;
     }
 
-    private void RestartCurrentRound(bool preservePlayerStats)
+    private void RestartCurrentRound(bool preservePlayerStats, bool enterCompetitiveSkirmish = true)
     {
         _pendingMapChangeTicks = -1;
         _mapChangeReady = false;
@@ -175,6 +175,12 @@ public sealed partial class SimulationWorld
         _nextBlueSpawnIndex = 0;
         ClearDynamicEntities();
         RespawnPlayersForNewRound();
+        if (_competitiveReadyUpEnabled
+            && enterCompetitiveSkirmish
+            && !_suppressCompetitiveSkirmishOnNextRoundRestart)
+        {
+            BeginCompetitiveSkirmish(clearReadyPlayers: true);
+        }
     }
 
     private void ResetModeStateForNewMap()
@@ -291,6 +297,7 @@ public sealed partial class SimulationWorld
             }
 
             TryDropCarriedIntel(player);
+            TrySetNetworkPlayerReady(slot, ready: false);
             TrySetNetworkPlayerAwaitingJoin(slot, true);
             TrySetNetworkPlayerRespawnTicks(slot, 0);
             SetNetworkPlayerDeathCam(slot, null);

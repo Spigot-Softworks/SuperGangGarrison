@@ -10,6 +10,7 @@ public static class JsonConfigurationFile
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         AllowTrailingCommas = true,
+        PropertyNameCaseInsensitive = true,
         ReadCommentHandling = JsonCommentHandling.Skip,
         WriteIndented = true,
     };

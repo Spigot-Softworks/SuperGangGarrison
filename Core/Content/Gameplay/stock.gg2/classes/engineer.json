@@ -1,6 +1,11 @@
 {
   "id": "engineer",
   "displayName": "Engineer",
+  "runtime": {
+    "playerClass": "Engineer",
+    "supportsExperimentalAcquiredWeapon": true,
+    "primaryWeaponKillFeedSprite": "ShotgunKL"
+  },
   "movement": {
     "maxHealth": 120,
     "collisionLeft": -6.0,
@@ -30,7 +35,8 @@
       "displayName": "Stock",
       "primaryItemId": "weapon.shotgun",
       "secondaryItemId": "ability.engineer-pda",
-      "utilityItemId": "ability.engineer-utility"
+      "utilityItemId": "ability.engineer-utility",
+      "abilityItemIds": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     }
   },
   "defaultLoadoutId": "engineer.stock"

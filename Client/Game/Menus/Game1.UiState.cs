@@ -37,6 +37,7 @@ public partial class Game1
         PracticeSetup,
         PluginOptionsMenu,
         OptionsMenu,
+        HudEditor,
         InGameMenu,
         LoadoutMenu,
         DebugMenu,
@@ -128,6 +129,7 @@ public partial class Game1
             GameplayOverlayKind.None => false,
             GameplayOverlayKind.LastToDieStageClear => false,
             GameplayOverlayKind.QuitPrompt => false,
+            GameplayOverlayKind.HudEditor => false,
             _ => true,
         };
     }
@@ -143,12 +145,14 @@ public partial class Game1
             && !ShouldBlockGameplayForNavEditor()
             && !ShouldBlockGameplayForGarrisonBuilder()
             && !_consoleOpen
+            && !_hudEditorOpen
             && !ShouldSuppressGameplayHudForActiveOverlay();
     }
 
     private bool ShouldShowGameplayMouseCursor()
     {
         return _passwordPromptOpen
+            || _scoreboardOpen
             || IsGameplaySelectionOverlayVisible()
             || HasOpenGameplayBlockingMenu()
             || ShouldBlockGameplayForGarrisonBuilder();

@@ -191,7 +191,7 @@ public sealed partial class PlayerEntity
 
     private void ApplyExperimentalGhostDashMovement(SimpleLevel level, PlayerTeam team, float deltaSeconds, bool allowDropdownFallThrough)
     {
-        if (!IsExperimentalGhostDashing
+        if (ExperimentalGhostDashMovementTicksRemaining <= 0
             || ExperimentalGhostDashDistanceRemaining <= 0f
             || deltaSeconds <= 0f)
         {
@@ -229,7 +229,7 @@ public sealed partial class PlayerEntity
         }
 
         var elapsedTicks = Math.Clamp(
-            ExperimentalGhostDashInitialTicks - ExperimentalGhostDashTicksRemaining,
+            ExperimentalGhostDashInitialTicks - ExperimentalGhostDashMovementTicksRemaining,
             0,
             ExperimentalGhostDashInitialTicks - 1);
         var nextProgress = (elapsedTicks + 1) / (float)ExperimentalGhostDashInitialTicks;

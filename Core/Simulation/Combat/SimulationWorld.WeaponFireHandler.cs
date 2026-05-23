@@ -115,9 +115,9 @@ public sealed partial class SimulationWorld
             _world.SpawnBubble(owner, x, y, velocityX, velocityY);
         }
 
-        private void SpawnBlade(PlayerEntity owner, float x, float y, float velocityX, float velocityY, int hitDamage)
+        private void SpawnBlade(PlayerEntity owner, float x, float y, float velocityX, float velocityY, int hitDamage, int lifetimeTicks = PlayerEntity.QuoteBladeLifetimeTicks)
         {
-            _world.SpawnBlade(owner, x, y, velocityX, velocityY, hitDamage);
+            _world.SpawnBlade(owner, x, y, velocityX, velocityY, hitDamage, lifetimeTicks);
         }
 
         private void SpawnFlame(

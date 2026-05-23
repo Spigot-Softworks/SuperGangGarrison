@@ -36,6 +36,7 @@ internal sealed class ClientPluginHost
     private readonly OpenGarrisonPluginHostApi _hostApi = OpenGarrisonPluginHostApi.CreateClientDefault();
     private readonly List<ClientPluginLoader.DiscoveredPlugin> _discoveredPlugins = new();
     private readonly List<LoadedPluginEntry> _loadedPlugins = new();
+    private readonly HashSet<string> _registeredManifestGameplayPackIds = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<RegisteredHotkey>> _registeredHotkeys = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _hotkeyCaptureEnabledPlugins = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, List<RegisteredMenuEntry>> _registeredMenuEntries = new(StringComparer.OrdinalIgnoreCase);
@@ -227,6 +228,83 @@ internal sealed class ClientPluginHost
             DispatchHook<IOpenGarrisonClientScoreboardHooks>(entry, hook => hook.OnScoreboardDraw(canvas, state), "scoreboard");
             DispatchHook<IOpenGarrisonClientScoreboardLegacyHooks>(entry, hook => hook.OnScoreboardDraw(canvas, state), "scoreboard-legacy");
         }
+    }
+
+    public ClientChatSubmitResult ProcessOutgoingChat(ClientChatSubmitContext context)
+    {
+        foreach (var entry in _loadedPlugins)
+        {
+            if (entry.LoadedPlugin.Plugin is not IOpenGarrisonClientChatCommandHooks hook)
+            {
+                continue;
+            }
+
+            try
+            {
+                if (hook.TryHandleChatCommand(context))
+                {
+                    return new ClientChatSubmitResult(context.Text, context.TeamOnly, IsCancelled: true, IsHandled: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                _log($"[plugin] chat command hook failed for {entry.DiscoveredPlugin.PluginId}: {ex.Message}");
+            }
+        }
+
+        var result = new ClientChatSubmitResult(context.Text, context.TeamOnly);
+        foreach (var entry in _loadedPlugins)
+        {
+            if (entry.LoadedPlugin.Plugin is not IOpenGarrisonClientChatHooks hook)
+            {
+                continue;
+            }
+
+            try
+            {
+                result = hook.BeforeChatSubmit(new ClientChatSubmitContext(result.Text, result.TeamOnly));
+                if (result.IsCancelled || result.IsHandled)
+                {
+                    return result;
+                }
+            }
+            catch (Exception ex)
+            {
+                _log($"[plugin] chat filter hook failed for {entry.DiscoveredPlugin.PluginId}: {ex.Message}");
+            }
+        }
+
+        return result;
+    }
+
+    public IReadOnlyList<ClientScoreboardPlayerAction> GetScoreboardPlayerActions(ClientScoreboardPlayerActionContext context)
+    {
+        var actions = new List<ClientScoreboardPlayerAction>();
+        foreach (var entry in _loadedPlugins)
+        {
+            if (entry.LoadedPlugin.Plugin is not IOpenGarrisonClientScoreboardPlayerActionHooks hook)
+            {
+                continue;
+            }
+
+            try
+            {
+                actions.AddRange(hook.GetScoreboardPlayerActions(context));
+            }
+            catch (Exception ex)
+            {
+                _log($"[plugin] scoreboard player action hook failed for {entry.DiscoveredPlugin.PluginId}: {ex.Message}");
+            }
+        }
+
+        actions.Sort(static (left, right) =>
+        {
+            var orderComparison = left.Order.CompareTo(right.Order);
+            return orderComparison != 0
+                ? orderComparison
+                : string.Compare(left.Label, right.Label, StringComparison.OrdinalIgnoreCase);
+        });
+        return actions;
     }
 
     public IReadOnlyList<ClientPluginMenuEntry> GetMenuEntries(ClientPluginMenuLocation location)
@@ -702,6 +780,7 @@ internal sealed class ClientPluginHost
             Directory.CreateDirectory(configDirectory);
         }
 
+        RegisterManifestGameplayPacks(manifest, pluginDirectory);
         var assetRegistry = new ClientPluginAssetRegistry(plugin.Id, pluginDirectory, _graphicsDevice);
         return new ClientPluginContext(
             plugin.Id,
@@ -719,8 +798,35 @@ internal sealed class ClientPluginHost
             (text, durationTicks, playSound) => ShowNotice(plugin.Id, text, durationTicks, playSound),
             (title, subtitle, breadcrumb, entries) => ShowOverlayMenu(plugin.Id, title, subtitle, breadcrumb, entries),
             () => HideOverlayMenu(plugin.Id),
-            (targetPluginId, messageType, payload, payloadFormat, schemaVersion) => SendMessageToServer(plugin.Id, targetPluginId, messageType, payload, payloadFormat, schemaVersion),
+            (targetPluginId, messageType, payload, payloadFormat, schemaVersion) => SendMessageToServer(plugin.Id, manifest, targetPluginId, messageType, payload, payloadFormat, schemaVersion),
             _log);
+    }
+
+    private void RegisterManifestGameplayPacks(OpenGarrisonPluginManifest manifest, string pluginDirectory)
+    {
+        foreach (var gameplayPack in manifest.GameplayPacks)
+        {
+            var packDirectory = OpenGarrisonPluginPathContainment.ResolveContainedPath(
+                pluginDirectory,
+                gameplayPack.Path,
+                "manifest gameplayPacks path escapes plugin directory.");
+            var modPack = GameplayModPackDirectoryLoader.LoadFromDirectory(packDirectory);
+            if (_registeredManifestGameplayPackIds.Contains(modPack.Id))
+            {
+                continue;
+            }
+
+            if (!CharacterClassCatalog.RuntimeRegistry.TryRegisterModPack(
+                    modPack,
+                    gameplayPack.AllowRuntimeClassBindingOverride,
+                    out var errorMessage))
+            {
+                throw new InvalidOperationException($"Manifest gameplay pack \"{modPack.Id}\" could not be registered: {errorMessage}");
+            }
+
+            _registeredManifestGameplayPackIds.Add(modPack.Id);
+            _log($"[plugin] registered gameplay pack {modPack.DisplayName} ({modPack.Id} {modPack.Version})");
+        }
     }
 
     private Keys RegisterHotkey(string pluginId, string hotkeyId, string displayName, Keys defaultKey)
@@ -864,6 +970,18 @@ internal sealed class ClientPluginHost
         PluginMessagePayloadFormat payloadFormat,
         ushort schemaVersion)
     {
+        SendMessageToServer(sourcePluginId, sourceManifest: null, targetPluginId, messageType, payload, payloadFormat, schemaVersion);
+    }
+
+    private void SendMessageToServer(
+        string sourcePluginId,
+        OpenGarrisonPluginManifest? sourceManifest,
+        string targetPluginId,
+        string messageType,
+        string payload,
+        PluginMessagePayloadFormat payloadFormat,
+        ushort schemaVersion)
+    {
         if (_sendPluginMessage is null && _clientState is not ClientPluginMessageSink)
         {
             _log($"[plugin] client plugin messaging unavailable for {sourcePluginId}.");
@@ -882,6 +1000,22 @@ internal sealed class ClientPluginHost
                     out var normalizedMessageType,
                     out var normalizedPayload,
                     out var error))
+            {
+                _log($"[plugin] rejected outbound plugin message for {sourcePluginId}: {error}");
+                return;
+            }
+
+            var manifest = sourceManifest
+                ?? FindLoadedPlugin(sourcePluginId)?.DiscoveredPlugin.Manifest;
+            if (manifest is not null
+                && !OpenGarrisonPluginManifestMessageContractPolicy.TryValidateOutgoing(
+                    manifest,
+                    normalizedTargetPluginId,
+                    normalizedMessageType,
+                    payloadFormat.ToString(),
+                    schemaVersion,
+                    OpenGarrisonPluginManifestMessageContractPolicy.DirectionClientToServer,
+                    out error))
             {
                 _log($"[plugin] rejected outbound plugin message for {sourcePluginId}: {error}");
                 return;

@@ -152,8 +152,8 @@ internal static class DevMessageService
                 }
 
                 var body = changes.Length == 0
-                    ? $"Updates have been made to Gang Garrison 2.\n\nVersion {versionLabel} is newer than the source parity target v{SourceParityVersionLabel}."
-                    : $"Updates have been made to Gang Garrison 2.\n\n{NormalizeDisplayText(changes)}";
+                    ? $"Updates have been made to Super Gang Garrison.\n\nVersion {versionLabel} is newer than the source parity target v{SourceParityVersionLabel}."
+                    : $"Updates have been made to Super Gang Garrison.\n\n{NormalizeDisplayText(changes)}";
                 entries.Add(new DevMessageEntry(
                     DevMessageEntryKind.UpdateAvailable,
                     $"Update Available ({versionLabel})",

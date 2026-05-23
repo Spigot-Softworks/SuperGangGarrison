@@ -202,6 +202,7 @@ public sealed class ProtocolCodecTests
                     GameplayEquippedSlot: 1,
                     GameplayEquippedItemId: "scattergun",
                     GameplayAcquiredItemId: "scattergun",
+                    GameplayClassId: "plugin.example.ranger",
                     OwnedGameplayItemIds: ["scattergun", "pistol"],
                     ReplicatedStates:
                     [
@@ -312,6 +313,7 @@ public sealed class ProtocolCodecTests
         var player = Assert.Single(roundTrippedSnapshot.Players);
         Assert.Equal(9, player.MedicHealTargetId);
         Assert.True(player.IsMedicHealing);
+        Assert.Equal("plugin.example.ranger", player.GameplayClassId);
         var rocketSpawn = Assert.Single(roundTrippedSnapshot.RocketSpawnEvents);
         Assert.Equal(901, rocketSpawn.Id);
         Assert.True(rocketSpawn.ExplodeImmediately);

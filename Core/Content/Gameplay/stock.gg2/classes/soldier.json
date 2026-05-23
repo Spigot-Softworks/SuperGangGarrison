@@ -1,6 +1,11 @@
 {
   "id": "soldier",
   "displayName": "Soldier",
+  "runtime": {
+    "playerClass": "Soldier",
+    "supportsExperimentalAcquiredWeapon": true,
+    "primaryWeaponKillFeedSprite": "RocketKL"
+  },
   "movement": {
     "maxHealth": 175,
     "collisionLeft": -6.0,
@@ -30,21 +35,24 @@
       "displayName": "Stock",
       "primaryItemId": "weapon.rocketlauncher",
       "secondaryItemId": "weapon.soldier-shotgun",
-      "utilityItemId": "ability.soldier-utility"
+      "utilityItemId": "ability.soldier-utility",
+      "abilityItemIds": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     },
     "soldier.direct-hit": {
       "id": "soldier.direct-hit",
       "displayName": "Direct Hit",
       "primaryItemId": "weapon.directhit",
       "secondaryItemId": "weapon.soldier-shotgun",
-      "utilityItemId": "ability.soldier-utility"
+      "utilityItemId": "ability.soldier-utility",
+      "abilityItemIds": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     },
     "soldier.black-box": {
       "id": "soldier.black-box",
       "displayName": "Black Box",
       "primaryItemId": "weapon.blackbox",
       "secondaryItemId": "weapon.soldier-shotgun",
-      "utilityItemId": "ability.soldier-utility"
+      "utilityItemId": "ability.soldier-utility",
+      "abilityItemIds": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     }
   },
   "defaultLoadoutId": "soldier.stock"

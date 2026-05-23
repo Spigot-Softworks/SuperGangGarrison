@@ -22,8 +22,11 @@ internal sealed partial class LuaClientPlugin(
     IOpenGarrisonClientLifecycleHooks,
     IOpenGarrisonClientUpdateHooks,
     IOpenGarrisonClientPluginMessageHooks,
+    IOpenGarrisonClientChatHooks,
+    IOpenGarrisonClientChatCommandHooks,
     IOpenGarrisonClientHudHooks,
     IOpenGarrisonClientScoreboardHooks,
+    IOpenGarrisonClientScoreboardPlayerActionHooks,
     IOpenGarrisonClientSoundHooks,
     IOpenGarrisonClientDamageHooks,
     IOpenGarrisonClientSemanticGameplayHooks,
@@ -53,6 +56,11 @@ internal sealed partial class LuaClientPlugin(
     private readonly Dictionary<string, ClientPluginTextureRegion> _registeredTextureRegions = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, OwnedTextureSequence> _ownedTextureSequences = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DynValue> _callbackCache = new(StringComparer.Ordinal);
+    private readonly List<LuaHudWidgetRegistration> _hudWidgets = [];
+    private readonly List<LuaScoreboardPanelRegistration> _scoreboardPanels = [];
+    private readonly List<LuaScoreboardPlayerActionRegistration> _scoreboardPlayerActions = [];
+    private readonly List<LuaChatFilterRegistration> _chatFilters = [];
+    private readonly List<LuaChatCommandRegistration> _chatCommands = [];
     private readonly List<DynValue> _pendingLocalDamageEvents = [];
     private readonly List<DynValue> _pendingHealEvents = [];
     private DynValue _cachedClientState = DynValue.Nil;
@@ -93,7 +101,10 @@ internal sealed partial class LuaClientPlugin(
         try
         {
             _context = context;
-            var entryPointPath = Path.GetFullPath(Path.Combine(pluginDirectory, manifest.EntryPoint));
+            var entryPointPath = OpenGarrisonPluginPathContainment.ResolveContainedPath(
+                pluginDirectory,
+                manifest.EntryPoint,
+                "Lua entry point escapes plugin directory.");
             if (OperatingSystem.IsBrowser())
             {
                 if (!BrowserPluginFileSystem.TryReadAllText(entryPointPath, out var browserScriptSource))
@@ -229,6 +240,30 @@ internal sealed partial class LuaClientPlugin(
             DynValue.NewBoolean(context.ClientState.IsPlayerVisibleToLocalViewer(ReadIntArgument(args, 0))));
         host["is_player_cloaked"] = DynValue.NewCallback((_, args) =>
             DynValue.NewBoolean(context.ClientState.IsPlayerCloaked(ReadIntArgument(args, 0))));
+        host["get_player_replicated_state_int"] = DynValue.NewCallback((_, args) =>
+            context.ClientState.TryGetPlayerReplicatedStateInt(
+                ReadIntArgument(args, 0),
+                ReadStringArgument(args, 1),
+                ReadStringArgument(args, 2),
+                out var value)
+                ? DynValue.NewNumber(value)
+                : DynValue.Nil);
+        host["get_player_replicated_state_float"] = DynValue.NewCallback((_, args) =>
+            context.ClientState.TryGetPlayerReplicatedStateFloat(
+                ReadIntArgument(args, 0),
+                ReadStringArgument(args, 1),
+                ReadStringArgument(args, 2),
+                out var value)
+                ? DynValue.NewNumber(value)
+                : DynValue.Nil);
+        host["get_player_replicated_state_bool"] = DynValue.NewCallback((_, args) =>
+            context.ClientState.TryGetPlayerReplicatedStateBool(
+                ReadIntArgument(args, 0),
+                ReadStringArgument(args, 1),
+                ReadStringArgument(args, 2),
+                out var value)
+                ? DynValue.NewBoolean(value)
+                : DynValue.Nil);
         host["vec2"] = DynValue.NewCallback((_, args) =>
             DynValue.NewTable(CreateVectorTable(script, ReadOptionalFloatArgument(args, 0, 0f), ReadOptionalFloatArgument(args, 1, 0f))));
         host["color"] = DynValue.NewCallback((_, args) =>
@@ -375,6 +410,56 @@ internal sealed partial class LuaClientPlugin(
             context.Ui.RegisterMenuEntry(menuEntryId, label, location, () => InvokeMenuCallback(callbackName), order);
             return DynValue.True;
         });
+        host["register_hud_widget"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanUseClientUiMutation("register_hud_widget", "HUD widget registration"))
+            {
+                return DynValue.False;
+            }
+
+            RegisterHudWidget(ReadRequiredTableArgument(args, 0));
+            return DynValue.True;
+        });
+        host["register_scoreboard_panel"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanUseClientUiMutation("register_scoreboard_panel", "scoreboard panel registration"))
+            {
+                return DynValue.False;
+            }
+
+            RegisterScoreboardPanel(ReadRequiredTableArgument(args, 0));
+            return DynValue.True;
+        });
+        host["register_scoreboard_player_action"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanUseClientUiMutation("register_scoreboard_player_action", "scoreboard player action registration"))
+            {
+                return DynValue.False;
+            }
+
+            RegisterScoreboardPlayerAction(ReadRequiredTableArgument(args, 0));
+            return DynValue.True;
+        });
+        host["register_chat_filter"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanUseClientUiMutation("register_chat_filter", "chat filter registration"))
+            {
+                return DynValue.False;
+            }
+
+            RegisterChatFilter(ReadRequiredTableArgument(args, 0));
+            return DynValue.True;
+        });
+        host["register_chat_command"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanUseClientUiMutation("register_chat_command", "chat command registration"))
+            {
+                return DynValue.False;
+            }
+
+            RegisterChatCommand(ReadRequiredTableArgument(args, 0));
+            return DynValue.True;
+        });
         host["show_notice"] = DynValue.NewCallback((_, args) =>
         {
             if (!CanUseClientUiMutation("show_notice", "notice surface"))
@@ -400,6 +485,26 @@ internal sealed partial class LuaClientPlugin(
                 ReadOptionalStringArgument(args, 1, string.Empty),
                 ReadOptionalStringArgument(args, 2, string.Empty),
                 ReadOverlayMenuEntriesArgument(args, 3, ClientPluginOverlayMenuLimit));
+            return DynValue.True;
+        });
+        host["show_prompt"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanUseClientUiMutation("show_prompt", "prompt surface"))
+            {
+                return DynValue.False;
+            }
+
+            ShowPrompt(context.Ui, args);
+            return DynValue.True;
+        });
+        host["show_overlay_panel"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanUseClientUiMutation("show_overlay_panel", "overlay panel surface"))
+            {
+                return DynValue.False;
+            }
+
+            ShowOverlayPanel(context.Ui, args);
             return DynValue.True;
         });
         host["hide_overlay_menu"] = DynValue.NewCallback((_, _) =>
@@ -503,7 +608,53 @@ internal sealed partial class LuaClientPlugin(
             return ToDynValue(files);
         });
 
+        ValidateLuaHostApiSurface(OpenGarrisonPluginType.Client, context.HostApi, host);
         return host;
+    }
+
+    private static void ValidateLuaHostApiSurface(OpenGarrisonPluginType hostType, OpenGarrisonPluginHostApi hostApi, Table host)
+    {
+        if (hostApi.HostType != hostType)
+        {
+            throw new InvalidOperationException($"Lua host API type mismatch. Expected {hostType}, got {hostApi.HostType}.");
+        }
+
+        var surface = hostApi.RuntimeSurfaces.FirstOrDefault(static surface => surface.Runtime == OpenGarrisonPluginRuntimeKind.Lua);
+        if (surface is null)
+        {
+            throw new InvalidOperationException("Lua host API surface is missing.");
+        }
+
+        var advertisedFunctions = surface.Functions.ToHashSet(StringComparer.Ordinal);
+        var actualFunctions = host.Pairs
+            .Where(static pair => pair.Key.Type == DataType.String && !IsHostMetadataKey(pair.Key.String))
+            .Select(static pair => pair.Key.String)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var missingBindings = advertisedFunctions
+            .Except(actualFunctions, StringComparer.Ordinal)
+            .OrderBy(static name => name, StringComparer.Ordinal)
+            .ToArray();
+        var undocumentedBindings = actualFunctions
+            .Except(advertisedFunctions, StringComparer.Ordinal)
+            .OrderBy(static name => name, StringComparer.Ordinal)
+            .ToArray();
+
+        if (missingBindings.Length > 0 || undocumentedBindings.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"Lua host API surface mismatch for {hostType}. Missing bindings: {FormatFunctionList(missingBindings)}. Undocumented bindings: {FormatFunctionList(undocumentedBindings)}.");
+        }
+    }
+
+    private static string FormatFunctionList(string[] functions)
+    {
+        return functions.Length == 0 ? "none" : string.Join(", ", functions);
+    }
+
+    private static bool IsHostMetadataKey(string key)
+    {
+        return key is "plugin_id" or "plugin_directory" or "config_directory";
     }
 
     private DynValue GetCachedClientFrameEvent(ClientFrameEvent value)
@@ -1021,6 +1172,12 @@ internal sealed partial class LuaClientPlugin(
 
     private ClientScoreboardPanelLocation ReadScoreboardLocation()
     {
+        var firstRegisteredPanel = GetFirstRegisteredScoreboardPanel();
+        if (firstRegisteredPanel is not null)
+        {
+            return firstRegisteredPanel.Location;
+        }
+
         var text = ReadPluginStringValue("scoreboard_panel_location", "get_scoreboard_panel_location");
         return Enum.TryParse<ClientScoreboardPanelLocation>(text, ignoreCase: true, out var location)
             ? location
@@ -1029,6 +1186,12 @@ internal sealed partial class LuaClientPlugin(
 
     private int ReadScoreboardOrder()
     {
+        var firstRegisteredPanel = GetFirstRegisteredScoreboardPanel();
+        if (firstRegisteredPanel is not null)
+        {
+            return firstRegisteredPanel.Order;
+        }
+
         if (_script is null || _pluginTable is null)
         {
             return 0;
@@ -1046,6 +1209,280 @@ internal sealed partial class LuaClientPlugin(
 
         var value = _pluginTable.Get("scoreboard_panel_order");
         return value.Type == DataType.Number ? (int)value.Number : 0;
+    }
+
+    private LuaScoreboardPanelRegistration? GetFirstRegisteredScoreboardPanel()
+    {
+        return _scoreboardPanels
+            .OrderBy(static panel => panel.Order)
+            .ThenBy(static panel => panel.Id, StringComparer.Ordinal)
+            .FirstOrDefault();
+    }
+
+    private void RegisterHudWidget(Table table)
+    {
+        var id = ReadRequiredStringField(table, "id", "Id", "name", "Name");
+        var anchor = ReadOptionalStringField(table, "anchor", "Anchor") ?? "top_left";
+        var order = ReadOptionalIntField(table, 0, "order", "Order");
+        var drawCallback = ReadRequiredCallbackField(table, "draw", "Draw", "callback", "Callback");
+
+        _hudWidgets.RemoveAll(widget => string.Equals(widget.Id, id, StringComparison.Ordinal));
+        _hudWidgets.Add(new LuaHudWidgetRegistration(id, anchor, order, drawCallback));
+    }
+
+    private void RegisterScoreboardPanel(Table table)
+    {
+        var id = ReadRequiredStringField(table, "id", "Id", "name", "Name");
+        var location = ReadScoreboardPanelLocationField(table, ClientScoreboardPanelLocation.Footer, "location", "Location");
+        var order = ReadOptionalIntField(table, 0, "order", "Order");
+        var drawCallback = ReadRequiredCallbackField(table, "draw", "Draw", "callback", "Callback");
+
+        _scoreboardPanels.RemoveAll(panel => string.Equals(panel.Id, id, StringComparison.Ordinal));
+        _scoreboardPanels.Add(new LuaScoreboardPanelRegistration(id, location, order, drawCallback));
+    }
+
+    private void RegisterScoreboardPlayerAction(Table table)
+    {
+        var id = ReadRequiredStringField(table, "id", "Id", "name", "Name");
+        var label = ReadOptionalStringField(table, "label", "Label", "displayName", "DisplayName") ?? id;
+        var order = ReadOptionalIntField(table, 0, "order", "Order");
+        var callback = ReadRequiredCallbackField(table, "activate", "Activate", "handler", "Handler", "callback", "Callback");
+
+        _scoreboardPlayerActions.RemoveAll(action => string.Equals(action.Id, id, StringComparison.Ordinal));
+        _scoreboardPlayerActions.Add(new LuaScoreboardPlayerActionRegistration(id, label, order, callback));
+    }
+
+    private void RegisterChatFilter(Table table)
+    {
+        var id = ReadRequiredStringField(table, "id", "Id", "name", "Name");
+        var order = ReadOptionalIntField(table, 0, "order", "Order", "priority", "Priority");
+        var callback = ReadRequiredCallbackField(table, "handler", "Handler", "filter", "Filter", "callback", "Callback");
+
+        _chatFilters.RemoveAll(filter => string.Equals(filter.Id, id, StringComparison.Ordinal));
+        _chatFilters.Add(new LuaChatFilterRegistration(id, order, callback));
+    }
+
+    private void RegisterChatCommand(Table table)
+    {
+        var name = NormalizeLuaChatCommandName(ReadRequiredStringField(table, "name", "Name", "id", "Id"));
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new InvalidOperationException("Chat command name must not be empty.");
+        }
+
+        var aliases = ReadStringListField(table, 16, "aliases", "Aliases")
+            .Select(NormalizeLuaChatCommandName)
+            .Where(static alias => !string.IsNullOrWhiteSpace(alias))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var callback = ReadRequiredCallbackField(table, "handler", "Handler", "callback", "Callback");
+
+        _chatCommands.RemoveAll(command => string.Equals(command.Name, name, StringComparison.OrdinalIgnoreCase));
+        _chatCommands.Add(new LuaChatCommandRegistration(name, aliases, callback));
+    }
+
+    private static string NormalizeLuaChatCommandName(string commandName)
+    {
+        return commandName.Trim().TrimStart('/', '!').ToLowerInvariant();
+    }
+
+    private void DrawRegisteredHudWidgets(DynValue canvasValue)
+    {
+        foreach (var widget in _hudWidgets
+                     .OrderBy(static widget => widget.Order)
+                     .ThenBy(static widget => widget.Id, StringComparer.Ordinal))
+        {
+            CallRegisteredUiCallback(
+                "HUD widget",
+                widget.Id,
+                widget.DrawCallback,
+                canvasValue,
+                ToDynValue(new { widget.Id, widget.Anchor, widget.Order }));
+        }
+    }
+
+    private void DrawRegisteredScoreboardPanels(DynValue canvasValue, DynValue stateValue)
+    {
+        foreach (var panel in _scoreboardPanels
+                     .OrderBy(static panel => panel.Order)
+                     .ThenBy(static panel => panel.Id, StringComparer.Ordinal))
+        {
+            CallRegisteredUiCallback(
+                "scoreboard panel",
+                panel.Id,
+                panel.DrawCallback,
+                canvasValue,
+                stateValue,
+                ToDynValue(new { panel.Id, Location = panel.Location.ToString(), panel.Order }));
+        }
+    }
+
+    private void CallRegisteredUiCallback(string registrationKind, string registrationId, DynValue callback, params DynValue[] args)
+    {
+        _ = TryInvokeRegisteredCallback(registrationKind, registrationId, callback, out _, args);
+    }
+
+    private bool TryInvokeRegisteredCallback(string registrationKind, string registrationId, DynValue callback, out DynValue result, params DynValue[] args)
+    {
+        result = DynValue.Nil;
+        try
+        {
+            result = InvokeCallbackWithLimits(callback, args);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            DisableCallbacks($"{registrationKind} \"{registrationId}\" failed during {DescribePhase(_currentCallbackPhase)}: {ex.Message}");
+            LogCallbackFailure($"{registrationKind}:{registrationId}", ex);
+            return false;
+        }
+    }
+
+    private ClientChatSubmitResult ReadChatSubmitResult(DynValue value, ClientChatSubmitResult current)
+    {
+        if (value.IsNil() || value.Type == DataType.Void)
+        {
+            return current;
+        }
+
+        if (value.Type == DataType.Boolean)
+        {
+            return value.Boolean
+                ? current
+                : current with { IsCancelled = true };
+        }
+
+        if (value.Type == DataType.String)
+        {
+            return current with { Text = value.String };
+        }
+
+        if (value.Type != DataType.Table)
+        {
+            return current;
+        }
+
+        var table = value.Table;
+        var text = ReadOptionalStringField(table, "text", "Text") ?? current.Text;
+        var teamOnly = ReadOptionalBoolField(table, current.TeamOnly, "teamOnly", "TeamOnly", "team_only");
+        var isCancelled = ReadOptionalBoolField(
+            table,
+            current.IsCancelled,
+            "cancel",
+            "Cancel",
+            "cancelled",
+            "Cancelled",
+            "canceled",
+            "Canceled",
+            "isCancelled",
+            "IsCancelled");
+        var isHandled = ReadOptionalBoolField(table, current.IsHandled, "handled", "Handled", "isHandled", "IsHandled");
+        return new ClientChatSubmitResult(text, teamOnly, isCancelled, isHandled);
+    }
+
+    private static bool TryParseChatCommand(string text, out string commandName, out string arguments)
+    {
+        commandName = string.Empty;
+        arguments = string.Empty;
+        if (string.IsNullOrWhiteSpace(text) || text[0] is not ('/' or '!'))
+        {
+            return false;
+        }
+
+        var trimmed = text.Trim();
+        var firstWhitespace = trimmed.IndexOfAny(new[] { ' ', '\t' });
+        var rawName = firstWhitespace < 0
+            ? trimmed[1..]
+            : trimmed[1..firstWhitespace];
+        commandName = NormalizeLuaChatCommandName(rawName);
+        arguments = firstWhitespace < 0
+            ? string.Empty
+            : trimmed[(firstWhitespace + 1)..].Trim();
+        return !string.IsNullOrWhiteSpace(commandName);
+    }
+
+    private static IReadOnlyList<string> SplitCommandArguments(string arguments)
+    {
+        return string.IsNullOrWhiteSpace(arguments)
+            ? Array.Empty<string>()
+            : arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+
+    private void ShowPrompt(IOpenGarrisonClientPluginUi ui, CallbackArguments args)
+    {
+        var firstArgument = ReadArgument(args, 0);
+        if (firstArgument.Type == DataType.Table)
+        {
+            var table = firstArgument.Table;
+            ui.ShowOverlayMenu(
+                ReadOptionalStringField(table, "title", "Title") ?? string.Empty,
+                ReadOptionalStringField(table, "message", "Message", "subtitle", "Subtitle", "body", "Body") ?? string.Empty,
+                ReadOptionalStringField(table, "breadcrumb", "Breadcrumb") ?? string.Empty,
+                ReadStringListField(table, ClientPluginOverlayMenuLimit, "options", "Options", "entries", "Entries"));
+            return;
+        }
+
+        ui.ShowOverlayMenu(
+            ReadOptionalStringArgument(args, 0, string.Empty),
+            ReadOptionalStringArgument(args, 1, string.Empty),
+            string.Empty,
+            ReadOverlayMenuEntriesArgument(args, 2, ClientPluginOverlayMenuLimit));
+    }
+
+    private void ShowOverlayPanel(IOpenGarrisonClientPluginUi ui, CallbackArguments args)
+    {
+        var table = ReadRequiredTableArgument(args, 0);
+        ui.ShowOverlayPanel(new ClientPluginOverlayPanel(
+            ReadOptionalStringField(table, "title", "Title") ?? string.Empty,
+            ReadOptionalStringField(table, "subtitle", "Subtitle", "message", "Message", "body", "Body") ?? string.Empty,
+            ReadOptionalStringField(table, "breadcrumb", "Breadcrumb") ?? string.Empty,
+            ReadOverlayPanelControls(table, ClientPluginOverlayMenuLimit)));
+    }
+
+    private static IReadOnlyList<ClientPluginOverlayControl> ReadOverlayPanelControls(Table table, int maxCount)
+    {
+        var value = ReadField(table, "controls", "Controls", "entries", "Entries", "options", "Options");
+        if (value.Type == DataType.String)
+        {
+            return value.String
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Take(maxCount)
+                .Select(static text => new ClientPluginOverlayControl(text, text))
+                .ToArray();
+        }
+
+        if (value.Type != DataType.Table)
+        {
+            return Array.Empty<ClientPluginOverlayControl>();
+        }
+
+        return value.Table.Pairs
+            .Where(static pair => pair.Key.Type == DataType.Number)
+            .OrderBy(static pair => pair.Key.Number)
+            .Take(maxCount)
+            .Select(static pair => ReadOverlayPanelControl(pair.Value))
+            .Where(static control => !string.IsNullOrWhiteSpace(control.Label))
+            .ToArray();
+    }
+
+    private static ClientPluginOverlayControl ReadOverlayPanelControl(DynValue value)
+    {
+        if (value.Type != DataType.Table)
+        {
+            var text = value.CastToString();
+            return new ClientPluginOverlayControl(text, text);
+        }
+
+        var table = value.Table;
+        var id = ReadOptionalStringField(table, "id", "Id", "name", "Name") ?? Guid.NewGuid().ToString("N");
+        var label = ReadOptionalStringField(table, "label", "Label", "text", "Text") ?? id;
+        var kindText = ReadOptionalStringField(table, "kind", "Kind", "type", "Type") ?? ClientPluginOverlayControlKind.Text.ToString();
+        var kind = Enum.TryParse<ClientPluginOverlayControlKind>(kindText, ignoreCase: true, out var parsedKind)
+            ? parsedKind
+            : ClientPluginOverlayControlKind.Text;
+        var valueText = ReadOptionalStringField(table, "value", "Value") ?? string.Empty;
+        var isEnabled = ReadOptionalBoolField(table, defaultValue: true, "enabled", "Enabled", "isEnabled", "IsEnabled");
+        return new ClientPluginOverlayControl(id, label, kind, valueText, isEnabled);
     }
 
     private string ReadPluginStringValue(string fieldName, string getterName)
@@ -1143,8 +1580,10 @@ internal sealed partial class LuaClientPlugin(
         return phase is LuaCallbackPhase.Initialize
             or LuaCallbackPhase.Lifecycle
             or LuaCallbackPhase.Update
+            or LuaCallbackPhase.ChatInteraction
             or LuaCallbackPhase.BubbleMenuInput
             or LuaCallbackPhase.OptionsInteraction
+            or LuaCallbackPhase.ScoreboardInteraction
             or LuaCallbackPhase.MenuInteraction;
     }
 
@@ -1153,8 +1592,10 @@ internal sealed partial class LuaClientPlugin(
         return phase is LuaCallbackPhase.Initialize
             or LuaCallbackPhase.Lifecycle
             or LuaCallbackPhase.Update
+            or LuaCallbackPhase.ChatInteraction
             or LuaCallbackPhase.BubbleMenuInput
             or LuaCallbackPhase.OptionsInteraction
+            or LuaCallbackPhase.ScoreboardInteraction
             or LuaCallbackPhase.MenuInteraction;
     }
 
@@ -1162,8 +1603,10 @@ internal sealed partial class LuaClientPlugin(
     {
         return phase is LuaCallbackPhase.Lifecycle
             or LuaCallbackPhase.Update
+            or LuaCallbackPhase.ChatInteraction
             or LuaCallbackPhase.BubbleMenuInput
             or LuaCallbackPhase.OptionsInteraction
+            or LuaCallbackPhase.ScoreboardInteraction
             or LuaCallbackPhase.MenuInteraction;
     }
 
@@ -1180,6 +1623,8 @@ internal sealed partial class LuaClientPlugin(
             LuaCallbackPhase.GameplayHudDraw => "gameplay HUD draw",
             LuaCallbackPhase.ScoreboardQuery => "a scoreboard query",
             LuaCallbackPhase.ScoreboardDraw => "scoreboard draw",
+            LuaCallbackPhase.ScoreboardInteraction => "scoreboard interaction",
+            LuaCallbackPhase.ChatInteraction => "chat interaction",
             LuaCallbackPhase.DeadBodyDraw => "dead-body draw",
             LuaCallbackPhase.BubbleMenuInput => "bubble-menu input",
             LuaCallbackPhase.BubbleMenuDraw => "bubble-menu draw",
@@ -1245,6 +1690,8 @@ internal sealed partial class LuaClientPlugin(
             LuaCallbackPhase.GameplayHudDraw => TimeSpan.FromMilliseconds(8),
             LuaCallbackPhase.ScoreboardQuery => TimeSpan.FromMilliseconds(4),
             LuaCallbackPhase.ScoreboardDraw => TimeSpan.FromMilliseconds(4),
+            LuaCallbackPhase.ScoreboardInteraction => TimeSpan.FromMilliseconds(20),
+            LuaCallbackPhase.ChatInteraction => TimeSpan.FromMilliseconds(20),
             LuaCallbackPhase.DeadBodyDraw => TimeSpan.FromMilliseconds(4),
             LuaCallbackPhase.BubbleMenuInput => TimeSpan.FromMilliseconds(4),
             LuaCallbackPhase.BubbleMenuDraw => TimeSpan.FromMilliseconds(4),
@@ -1774,14 +2221,7 @@ internal sealed partial class LuaClientPlugin(
 
     private static string ResolveContainedPath(string rootDirectory, string relativePath, string errorMessage)
     {
-        var fullRootDirectory = Path.GetFullPath(rootDirectory);
-        var combinedPath = Path.GetFullPath(Path.Combine(fullRootDirectory, relativePath));
-        if (!combinedPath.StartsWith(fullRootDirectory, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException(errorMessage);
-        }
-
-        return combinedPath;
+        return OpenGarrisonPluginPathContainment.ResolveContainedPath(rootDirectory, relativePath, errorMessage);
     }
 
     private static string ReadStringArgument(CallbackArguments args, int index)
@@ -2393,6 +2833,130 @@ internal sealed partial class LuaClientPlugin(
         return null;
     }
 
+    private static DynValue ReadField(Table table, params string[] names)
+    {
+        for (var index = 0; index < names.Length; index += 1)
+        {
+            var dynValue = table.Get(names[index]);
+            if (!dynValue.IsNil())
+            {
+                return dynValue;
+            }
+        }
+
+        return DynValue.Nil;
+    }
+
+    private static Table ReadRequiredTableArgument(CallbackArguments args, int index)
+    {
+        var value = ReadArgument(args, index);
+        if (value.Type != DataType.Table)
+        {
+            throw new InvalidOperationException("Expected a Lua table argument.");
+        }
+
+        return value.Table;
+    }
+
+    private static string ReadRequiredStringField(Table table, params string[] names)
+    {
+        var value = ReadField(table, names);
+        if (value.IsNil())
+        {
+            throw new InvalidOperationException($"Missing required field \"{names[0]}\".");
+        }
+
+        return value.CastToString();
+    }
+
+    private static string? ReadOptionalStringField(Table table, params string[] names)
+    {
+        var value = ReadField(table, names);
+        if (value.IsNil())
+        {
+            return null;
+        }
+
+        var text = value.CastToString();
+        return string.IsNullOrWhiteSpace(text) ? null : text;
+    }
+
+    private static int ReadOptionalIntField(Table table, int defaultValue, params string[] names)
+    {
+        var value = ReadField(table, names);
+        return value.Type == DataType.Number ? (int)value.Number : defaultValue;
+    }
+
+    private static bool ReadOptionalBoolField(Table table, bool defaultValue, params string[] names)
+    {
+        var value = ReadField(table, names);
+        if (value.IsNil())
+        {
+            return defaultValue;
+        }
+
+        return value.Type == DataType.Boolean
+            ? value.Boolean
+            : bool.Parse(value.CastToString());
+    }
+
+    private DynValue ReadRequiredCallbackField(Table table, params string[] names)
+    {
+        var value = ReadField(table, names);
+        if (value.Type is DataType.Function or DataType.ClrFunction)
+        {
+            return value;
+        }
+
+        if (value.Type == DataType.String && TryGetCachedCallbackFunction(value.String, out var callback))
+        {
+            return callback;
+        }
+
+        throw new InvalidOperationException($"Missing required callback field \"{names[0]}\".");
+    }
+
+    private static ClientScoreboardPanelLocation ReadScoreboardPanelLocationField(
+        Table table,
+        ClientScoreboardPanelLocation defaultValue,
+        params string[] names)
+    {
+        var value = ReadField(table, names);
+        return value.IsNil() || !Enum.TryParse<ClientScoreboardPanelLocation>(value.CastToString(), ignoreCase: true, out var location)
+            ? defaultValue
+            : location;
+    }
+
+    private static IReadOnlyList<string> ReadStringListField(Table table, int maxCount, params string[] names)
+    {
+        if (maxCount <= 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        var value = ReadField(table, names);
+        if (value.Type == DataType.String)
+        {
+            return value.String
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Take(maxCount)
+                .ToArray();
+        }
+
+        if (value.Type != DataType.Table)
+        {
+            return Array.Empty<string>();
+        }
+
+        return value.Table.Pairs
+            .Where(pair => pair.Key.Type == DataType.Number)
+            .OrderBy(pair => pair.Key.Number)
+            .Select(pair => pair.Value.CastToString())
+            .Where(text => !string.IsNullOrWhiteSpace(text))
+            .Take(maxCount)
+            .ToArray();
+    }
+
     private static IReadOnlyList<string> ReadOverlayMenuEntriesArgument(CallbackArguments args, int index, int maxCount)
     {
         var dynValue = ReadArgument(args, index);
@@ -2551,6 +3115,8 @@ internal sealed partial class LuaClientPlugin(
         GameplayHudDraw,
         ScoreboardQuery,
         ScoreboardDraw,
+        ScoreboardInteraction,
+        ChatInteraction,
         DeadBodyDraw,
         BubbleMenuInput,
         BubbleMenuDraw,
@@ -2623,6 +3189,41 @@ internal sealed partial class LuaClientPlugin(
         ClientPlayerMarker[] PlayerMarkers,
         ClientSentryMarker[] SentryMarkers,
         ClientObjectiveMarker[] ObjectiveMarkers);
+
+    private sealed record LuaHudWidgetRegistration(
+        string Id,
+        string Anchor,
+        int Order,
+        DynValue DrawCallback);
+
+    private sealed record LuaScoreboardPanelRegistration(
+        string Id,
+        ClientScoreboardPanelLocation Location,
+        int Order,
+        DynValue DrawCallback);
+
+    private sealed record LuaScoreboardPlayerActionRegistration(
+        string Id,
+        string Label,
+        int Order,
+        DynValue ActivateCallback);
+
+    private sealed record LuaChatFilterRegistration(
+        string Id,
+        int Order,
+        DynValue Callback);
+
+    private sealed record LuaChatCommandRegistration(
+        string Name,
+        IReadOnlyList<string> Aliases,
+        DynValue Callback);
+
+    private sealed record LuaClientChatCommandContext(
+        string Text,
+        bool TeamOnly,
+        string Name,
+        string Arguments,
+        IReadOnlyList<string> ArgumentList);
 
     private readonly record struct LuaClientStateCacheKey(
         bool IsConnected,

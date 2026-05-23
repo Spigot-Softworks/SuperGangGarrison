@@ -17,6 +17,7 @@
     "refillsAllAtOnce": false
   },
   "combat": {
+    "fireSoundName": "RocketSnd",
     "directHitHealAmount": 15.0
   },
   "presentation": {

@@ -3,6 +3,12 @@
   "displayName": "Invisibility Watch",
   "slot": "Secondary",
   "behaviorId": "builtin.ability.spy_cloak",
+  "ability": {
+    "category": "secondary",
+    "activation": "pressed",
+    "executorId": "builtin.ability.spy_cloak",
+    "tags": [ "cloak", "toggle" ]
+  },
   "ammo": {},
   "presentation": {}
 }

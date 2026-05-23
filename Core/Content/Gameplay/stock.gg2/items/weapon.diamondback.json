@@ -17,6 +17,7 @@
     "refillsAllAtOnce": true
   },
   "combat": {
+    "fireSoundName": "RevolverSnd",
     "directHitDamage": 24.0
   },
   "presentation": {

@@ -1,3 +1,6 @@
+using System.Net;
+using System.Net.Http.Headers;
+using OpenGarrison.Client;
 using OpenGarrison.Core;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -252,6 +255,291 @@ public sealed class CustomMapPngExporterTests
     }
 
     [Fact]
+    public void PackageFolderIsDiscoveredAndImportsRuntimeMap()
+    {
+        using var workspace = TempWorkspace.Create();
+        var previousMapsDirectory = Environment.GetEnvironmentVariable("OPENGARRISON_MAPS_DIR");
+        Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", workspace.PathFor("Maps"));
+        try
+        {
+            Directory.CreateDirectory(RuntimePaths.MapsDirectory);
+            var packageDirectory = Path.Combine(RuntimePaths.MapsDirectory, "package_custom");
+            Directory.CreateDirectory(packageDirectory);
+            var backgroundPath = workspace.PathFor("background.png");
+            var walkmaskPath = workspace.PathFor("walkmask.png");
+            var layerPath = workspace.PathFor("clouds.png");
+            var foregroundPath = workspace.PathFor("foreground.png");
+            WriteSolidPng(backgroundPath, 4, 2, new Rgba32(32, 64, 96, 255));
+            WriteWalkmaskPng(walkmaskPath);
+            WriteSolidPng(layerPath, 2, 2, new Rgba32(100, 120, 140, 255));
+            WriteSolidPng(foregroundPath, 2, 2, new Rgba32(200, 120, 80, 255));
+
+            var document = new CustomMapBuilderDocument(
+                Name: "package_custom",
+                BackgroundImagePath: backgroundPath,
+                WalkmaskImagePath: walkmaskPath,
+                Scale: 6f,
+                Metadata: new Dictionary<string, string>
+                {
+                    ["background"] = "ffffff",
+                    ["void"] = "000000",
+                },
+                Entities:
+                [
+                    CustomMapBuilderEntity.Create("redspawn", 6f, 6f),
+                    CustomMapBuilderEntity.Create("bluespawn", 18f, 6f),
+                    CustomMapBuilderEntity.Create("redintel", 8f, 6f),
+                    CustomMapBuilderEntity.Create("blueintel", 16f, 6f),
+                ],
+                Resources: new Dictionary<string, CustomMapBuilderResource>
+                {
+                    ["clouds"] = CustomMapBuilderResourceCodec.FromFile("clouds", layerPath, CustomMapBuilderResourceKind.ParallaxLayer),
+                    ["front"] = CustomMapBuilderResourceCodec.FromFile("front", foregroundPath, CustomMapBuilderResourceKind.Foreground),
+                },
+                ParallaxLayers:
+                [
+                    new CustomMapBuilderParallaxLayer(0, "clouds", 0.5f, 0.75f),
+                ]);
+            CustomMapPackageExporter.Export(document, Path.Combine(packageDirectory, "package_custom.json"));
+
+            SimpleLevelFactory.ClearCachedCatalog();
+            var discovered = SimpleLevelFactory.GetAvailableSourceLevels();
+            var entry = Assert.Single(discovered, entry => entry.Name == "package_custom");
+            Assert.True(entry.IsCustomMap);
+            Assert.Equal(CustomMapSourceKind.Package, entry.SourceKind);
+
+            var level = SimpleLevelFactory.CreateImportedLevel("package_custom");
+
+            Assert.NotNull(level);
+            Assert.Equal("package_custom", level.Name);
+            Assert.Equal(24f, level.Bounds.Width);
+            Assert.Equal(12f, level.Bounds.Height);
+            Assert.Single(level.RedSpawns);
+            Assert.Single(level.BlueSpawns);
+            Assert.Equal(2, level.IntelBases.Count);
+            Assert.Single(level.CustomMapVisuals.ParallaxLayers);
+            Assert.NotNull(level.CustomMapVisuals.Foreground);
+            Assert.EndsWith(Path.Combine("package_custom", "background.png"), level.BackgroundAssetName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", previousMapsDirectory);
+            SimpleLevelFactory.ClearCachedCatalog();
+        }
+    }
+
+    [Fact]
+    public void PackageImporterRejectsUnsafeOrMissingImagePaths()
+    {
+        using var workspace = TempWorkspace.Create();
+        var packageDirectory = workspace.PathFor("unsafe_map");
+        Directory.CreateDirectory(packageDirectory);
+        WriteWalkmaskPng(Path.Combine(packageDirectory, "walkmask.png"));
+
+        var unsafeManifestPath = Path.Combine(packageDirectory, "unsafe_map.json");
+        File.WriteAllText(
+            unsafeManifestPath,
+            """
+            {
+              "formatVersion": 1,
+              "name": "unsafe_map",
+              "scale": 6,
+              "backgroundImage": "../background.png",
+              "walkmaskImage": "walkmask.png",
+              "entities": [
+                { "type": "redspawn", "x": 6, "y": 6 },
+                { "type": "bluespawn", "x": 18, "y": 6 }
+              ]
+            }
+            """);
+        Assert.Null(CustomMapPackageImporter.Import(unsafeManifestPath));
+
+        var missingManifestPath = Path.Combine(packageDirectory, "missing_map.json");
+        File.WriteAllText(
+            missingManifestPath,
+            """
+            {
+              "formatVersion": 1,
+              "name": "missing_map",
+              "scale": 6,
+              "backgroundImage": "missing.png",
+              "walkmaskImage": "walkmask.png",
+              "entities": [
+                { "type": "redspawn", "x": 6, "y": 6 },
+                { "type": "bluespawn", "x": 18, "y": 6 }
+              ]
+            }
+            """);
+        Assert.Null(CustomMapPackageImporter.Import(missingManifestPath));
+    }
+
+    [Fact]
+    public void PackageHashChangesWhenManifestOrReferencedPngChanges()
+    {
+        using var workspace = TempWorkspace.Create();
+        var packageDirectory = workspace.PathFor("hash_map");
+        Directory.CreateDirectory(packageDirectory);
+        var backgroundPath = workspace.PathFor("background.png");
+        var walkmaskPath = workspace.PathFor("walkmask.png");
+        WriteSolidPng(backgroundPath, 4, 2, new Rgba32(32, 64, 96, 255));
+        WriteWalkmaskPng(walkmaskPath);
+
+        var manifestPath = Path.Combine(packageDirectory, "hash_map.json");
+        CustomMapPackageExporter.Export(CreateSpawnOnlyDocument(backgroundPath, walkmaskPath, 6f, 18f) with
+        {
+            Name = "hash_map",
+        }, manifestPath);
+
+        var firstHash = CustomMapHashService.ComputePackageSha256(manifestPath);
+        WriteSolidPng(Path.Combine(packageDirectory, "background.png"), 4, 2, new Rgba32(80, 40, 20, 255));
+        var imageChangedHash = CustomMapHashService.ComputePackageSha256(manifestPath);
+        File.WriteAllText(
+            manifestPath,
+            File.ReadAllText(manifestPath).Replace("\"background\": \"ffffff\"", "\"background\": \"010203\""));
+        var manifestChangedHash = CustomMapHashService.ComputePackageSha256(manifestPath);
+
+        Assert.NotEmpty(firstHash);
+        Assert.NotEqual(firstHash, imageChangedHash);
+        Assert.NotEqual(imageChangedHash, manifestChangedHash);
+    }
+
+    [Fact]
+    public void CustomMapSyncDownloadsPackageManifestAndImagesAtomically()
+    {
+        using var workspace = TempWorkspace.Create();
+        var previousMapsDirectory = Environment.GetEnvironmentVariable("OPENGARRISON_MAPS_DIR");
+        Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", workspace.PathFor("ClientMaps"));
+        try
+        {
+            Directory.CreateDirectory(RuntimePaths.MapsDirectory);
+            var serverPackageDirectory = workspace.PathFor(Path.Combine("ServerMaps", "sync_map"));
+            Directory.CreateDirectory(serverPackageDirectory);
+            var backgroundPath = workspace.PathFor("server-background.png");
+            var walkmaskPath = workspace.PathFor("server-walkmask.png");
+            WriteSolidPng(backgroundPath, 4, 2, new Rgba32(20, 70, 120, 255));
+            WriteWalkmaskPng(walkmaskPath);
+            var sourceManifestPath = Path.Combine(serverPackageDirectory, "sync_map.json");
+            CustomMapPackageExporter.Export(CreateSpawnOnlyDocument(backgroundPath, walkmaskPath, 6f, 18f) with
+            {
+                Name = "sync_map",
+            }, sourceManifestPath);
+
+            File.WriteAllBytes(CustomMapLocatorStore.GetMapPath("sync_map"), "not the package"u8.ToArray());
+            var packageHash = CustomMapHashService.ComputePackageSha256(sourceManifestPath);
+            var manifestUrl = "https://example.invalid/maps/sync_map/sync_map.json";
+            using var httpClient = CreatePackageHttpClient(sourceManifestPath, manifestUrl);
+
+            var available = CustomMapSyncService.EnsureMapAvailable(
+                "sync_map",
+                isCustomMap: true,
+                manifestUrl,
+                $"sha256:{packageHash}",
+                httpClient,
+                out var error);
+
+            Assert.True(available, error);
+            Assert.False(File.Exists(CustomMapLocatorStore.GetMapPath("sync_map")));
+            var finalManifestPath = CustomMapLocatorStore.GetPackageManifestPath("sync_map");
+            Assert.True(File.Exists(finalManifestPath));
+            Assert.NotNull(CustomMapPackageImporter.Import(finalManifestPath));
+            Assert.Empty(Directory.EnumerateDirectories(RuntimePaths.MapsDirectory, "*.download"));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", previousMapsDirectory);
+            SimpleLevelFactory.ClearCachedCatalog();
+        }
+    }
+
+    [Fact]
+    public void CustomMapSyncCleansTempPackageFilesOnFailure()
+    {
+        using var workspace = TempWorkspace.Create();
+        var previousMapsDirectory = Environment.GetEnvironmentVariable("OPENGARRISON_MAPS_DIR");
+        Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", workspace.PathFor("ClientMaps"));
+        try
+        {
+            Directory.CreateDirectory(RuntimePaths.MapsDirectory);
+            var manifestUrl = "https://example.invalid/maps/broken_map/broken_map.json";
+            var manifestBytes = """
+                {
+                  "formatVersion": 1,
+                  "name": "broken_map",
+                  "scale": 6,
+                  "backgroundImage": "background.png",
+                  "walkmaskImage": "walkmask.png",
+                  "entities": [
+                    { "type": "redspawn", "x": 6, "y": 6 },
+                    { "type": "bluespawn", "x": 18, "y": 6 }
+                  ]
+                }
+                """u8.ToArray();
+            using var httpClient = new HttpClient(new StubHttpMessageHandler(new Dictionary<string, StubHttpResponse>
+            {
+                [new Uri(manifestUrl).AbsolutePath] = new(manifestBytes, "application/json"),
+            }));
+
+            var available = CustomMapSyncService.EnsureMapAvailable(
+                "broken_map",
+                isCustomMap: true,
+                manifestUrl,
+                "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                httpClient,
+                out _);
+
+            Assert.False(available);
+            Assert.False(Directory.Exists(CustomMapLocatorStore.GetPackageDirectory("broken_map")));
+            Assert.Empty(Directory.EnumerateDirectories(RuntimePaths.MapsDirectory, "*.download"));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", previousMapsDirectory);
+            SimpleLevelFactory.ClearCachedCatalog();
+        }
+    }
+
+    [Fact]
+    public void CustomMapSyncStillDownloadsLegacyPng()
+    {
+        using var workspace = TempWorkspace.Create();
+        var previousMapsDirectory = Environment.GetEnvironmentVariable("OPENGARRISON_MAPS_DIR");
+        Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", workspace.PathFor("ClientMaps"));
+        try
+        {
+            Directory.CreateDirectory(RuntimePaths.MapsDirectory);
+            var backgroundPath = workspace.PathFor("background.png");
+            var walkmaskPath = workspace.PathFor("walkmask.png");
+            var serverMapPath = workspace.PathFor("legacy_sync.png");
+            WriteSolidPng(backgroundPath, 4, 2, new Rgba32(32, 64, 96, 255));
+            WriteWalkmaskPng(walkmaskPath);
+            CustomMapPngExporter.Export(CreateSpawnOnlyDocument(backgroundPath, walkmaskPath, 6f, 18f), serverMapPath);
+            var mapUrl = "https://example.invalid/maps/legacy_sync.png";
+            using var httpClient = new HttpClient(new StubHttpMessageHandler(new Dictionary<string, StubHttpResponse>
+            {
+                [new Uri(mapUrl).AbsolutePath] = new(File.ReadAllBytes(serverMapPath), "image/png"),
+            }));
+
+            var available = CustomMapSyncService.EnsureMapAvailable(
+                "legacy_sync",
+                isCustomMap: true,
+                mapUrl,
+                CustomMapHashService.ComputeMd5(serverMapPath),
+                httpClient,
+                out var error);
+
+            Assert.True(available, error);
+            var localPath = CustomMapLocatorStore.GetMapPath("legacy_sync");
+            Assert.True(File.Exists(localPath));
+            Assert.NotNull(CustomMapPngImporter.Import(localPath));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", previousMapsDirectory);
+            SimpleLevelFactory.ClearCachedCatalog();
+        }
+    }
+
+    [Fact]
     public void RuntimeImporterReadsUntypedLegacyVisualMetadata()
     {
         var harvestPath = ProjectSourceLocator.FindFile(Path.Combine("Core", "Content", "StockMaps", "koth_harvest.png"));
@@ -353,6 +641,58 @@ public sealed class CustomMapPngExporterTests
         }
 
         image.SaveAsPng(path);
+    }
+
+    private static HttpClient CreatePackageHttpClient(string manifestPath, string manifestUrl)
+    {
+        var manifestUri = new Uri(manifestUrl);
+        var responses = new Dictionary<string, StubHttpResponse>(StringComparer.OrdinalIgnoreCase);
+        foreach (var file in CustomMapPackageImporter.GetPackageContentFiles(manifestPath))
+        {
+            var uri = file.RelativePath.Equals(Path.GetFileName(manifestPath), StringComparison.OrdinalIgnoreCase)
+                ? manifestUri
+                : new Uri(manifestUri, file.RelativePath);
+            var contentType = file.RelativePath.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
+                ? "application/json"
+                : "image/png";
+            responses[uri.AbsolutePath] = new StubHttpResponse(File.ReadAllBytes(file.FullPath), contentType);
+        }
+
+        return new HttpClient(new StubHttpMessageHandler(responses));
+    }
+
+    private readonly record struct StubHttpResponse(byte[] Content, string ContentType);
+
+    private sealed class StubHttpMessageHandler(IReadOnlyDictionary<string, StubHttpResponse> responses) : HttpMessageHandler
+    {
+        protected override HttpResponseMessage Send(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return CreateResponse(request);
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(CreateResponse(request));
+        }
+
+        private HttpResponseMessage CreateResponse(HttpRequestMessage request)
+        {
+            var path = request.RequestUri?.AbsolutePath ?? string.Empty;
+            if (!responses.TryGetValue(path, out var response))
+            {
+                return new HttpResponseMessage(HttpStatusCode.NotFound)
+                {
+                    Content = new StringContent("not found"),
+                };
+            }
+
+            var content = new ByteArrayContent(response.Content);
+            content.Headers.ContentType = new MediaTypeHeaderValue(response.ContentType);
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = content,
+            };
+        }
     }
 
     private sealed class TempWorkspace : IDisposable

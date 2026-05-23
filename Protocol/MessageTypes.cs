@@ -68,6 +68,7 @@ public enum InputButtons : ushort
     UseAbility = 1 << 11,
     InteractWeapon = 1 << 12,
     SwapWeapon = 1 << 13,
+    ReadyUp = 1 << 14,
 }
 
 public interface IProtocolMessage
@@ -391,7 +392,10 @@ public sealed record SnapshotPlayerState(
     // are visible to other players without waiting for the budget-limited full-state update.
     int OffhandCooldownTicks = 0,
     int OffhandReloadTicks = 0,
-    short GibDeaths = 0);
+    short GibDeaths = 0,
+    bool IsReady = false,
+    string GameplayClassId = "",
+    ushort GameplayClassCacheId = 0);
 
 public sealed record SnapshotPlayerMovementState(
     byte Slot,
@@ -818,6 +822,8 @@ public sealed record SnapshotMessage(
     public int ArenaCappers { get; init; }
     public int ArenaRedConsecutiveWins { get; init; }
     public int ArenaBlueConsecutiveWins { get; init; }
+    public byte CompetitiveReadyUpPhase { get; init; }
+    public int CompetitiveReadyUpTicksRemaining { get; init; }
 
     public ulong BaselineFrame { get; init; }
     public bool IsDelta { get; init; }

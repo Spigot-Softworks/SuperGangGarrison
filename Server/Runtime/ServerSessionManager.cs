@@ -171,7 +171,7 @@ sealed class ServerSessionManager
         var accepted = command.Kind switch
         {
             ControlCommandKind.SelectTeam => ApplyRequestedTeam(client, command.Value),
-            ControlCommandKind.SelectClass => ApplyRequestedClass(client.Slot, command.Value),
+            ControlCommandKind.SelectClass => ApplyRequestedClass(client.Slot, command.Value, command.TextValue),
             ControlCommandKind.Spectate => ApplyRequestedSpectate(client),
             ControlCommandKind.SelectGameplayLoadout => ApplyRequestedGameplayLoadout(client.Slot, command.TextValue, command.Value),
             _ => false,
@@ -278,7 +278,7 @@ sealed class ServerSessionManager
     public bool TrySetClientClass(byte slot, PlayerClass playerClass)
     {
         return _clientsBySlot.ContainsKey(slot)
-            && ApplyRequestedClass(slot, (byte)playerClass);
+            && ApplyRequestedClass(slot, (byte)playerClass, string.Empty);
     }
 
     public void PruneTimedOutClients()
@@ -369,22 +369,45 @@ sealed class ServerSessionManager
         return true;
     }
 
-    private bool ApplyRequestedClass(byte slot, byte requestedClass)
+    private bool ApplyRequestedClass(byte slot, byte requestedClass, string requestedGameplayClassId)
     {
-        if (!Enum.IsDefined(typeof(PlayerClass), (int)requestedClass))
+        CharacterClassDefinition definition;
+        if (!string.IsNullOrWhiteSpace(requestedGameplayClassId))
         {
-            return false;
-        }
+            var gameplayClassId = requestedGameplayClassId.Trim();
+            if (!CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(gameplayClassId, out _))
+            {
+                return false;
+            }
 
-        var playerClass = (PlayerClass)requestedClass;
-        if (!_world.TryApplyNetworkPlayerClassSelection(slot, playerClass))
+            definition = CharacterClassCatalog.GetDefinition(gameplayClassId);
+            if (!_world.TryApplyNetworkPlayerClassSelection(slot, gameplayClassId))
+            {
+                return false;
+            }
+        }
+        else if (Enum.IsDefined(typeof(PlayerClass), (int)requestedClass))
+        {
+            var playerClass = (PlayerClass)requestedClass;
+            if (!CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(playerClass, out _))
+            {
+                return false;
+            }
+
+            definition = CharacterClassCatalog.GetDefinition(playerClass);
+            if (!_world.TryApplyNetworkPlayerClassSelection(slot, playerClass))
+            {
+                return false;
+            }
+        }
+        else
         {
             return false;
         }
 
         if (_clientsBySlot.TryGetValue(slot, out var client))
         {
-            _playerClassChanged(client, playerClass);
+            _playerClassChanged(client, definition.Id);
         }
 
         return true;

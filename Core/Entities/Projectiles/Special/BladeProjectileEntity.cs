@@ -10,7 +10,8 @@ public sealed class BladeProjectileEntity : SimulationEntity
         float y,
         float velocityX,
         float velocityY,
-        int hitDamage) : base(id)
+        int hitDamage,
+        int ticksRemaining = PlayerEntity.QuoteBladeLifetimeTicks) : base(id)
     {
         Team = team;
         OwnerId = ownerId;
@@ -19,7 +20,7 @@ public sealed class BladeProjectileEntity : SimulationEntity
         VelocityX = velocityX;
         VelocityY = velocityY;
         HitDamage = hitDamage;
-        TicksRemaining = PlayerEntity.QuoteBladeLifetimeTicks;
+        TicksRemaining = Math.Max(1, ticksRemaining);
     }
 
     public PlayerTeam Team { get; }

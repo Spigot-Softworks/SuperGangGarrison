@@ -37,6 +37,15 @@ internal sealed class PluginCommandRegistry
         Register(command, pluginId, requiredPermissions, []);
     }
 
+    public void RegisterPluginCommand(
+        IOpenGarrisonServerCommand command,
+        string pluginId,
+        OpenGarrisonServerAdminPermissions requiredPermissions,
+        IReadOnlyList<string> aliases)
+    {
+        Register(command, pluginId, requiredPermissions, aliases);
+    }
+
     public IReadOnlyList<(string Name, string Description, string Usage, string OwnerId, bool IsBuiltIn, OpenGarrisonServerAdminPermissions RequiredPermissions)> GetPrimaryCommands()
     {
         return _primaryCommands

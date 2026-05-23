@@ -135,7 +135,41 @@ public static class CustomMapLocatorStore
         return Path.Combine(RuntimePaths.MapsDirectory, $"{normalized}.png");
     }
 
-    private static string GetLocatorPath(string normalizedLevelName)
+    public static string GetPackageDirectory(string levelName)
+    {
+        var normalized = TryNormalizeLevelName(levelName, out var safeLevelName)
+            ? safeLevelName
+            : levelName.Trim();
+        return Path.Combine(RuntimePaths.MapsDirectory, normalized);
+    }
+
+    public static string GetPackageManifestPath(string levelName)
+    {
+        var normalized = TryNormalizeLevelName(levelName, out var safeLevelName)
+            ? safeLevelName
+            : levelName.Trim();
+        return Path.Combine(GetPackageDirectory(normalized), $"{normalized}.json");
+    }
+
+    public static bool TryGetPackageManifestPath(string levelName, out string manifestPath)
+    {
+        manifestPath = string.Empty;
+        if (!TryNormalizeLevelName(levelName, out var normalizedLevelName))
+        {
+            return false;
+        }
+
+        var packageDirectory = GetPackageDirectory(normalizedLevelName);
+        if (!CustomMapPackageImporter.TryFindManifestInDirectory(packageDirectory, out var discoveredManifestPath))
+        {
+            return false;
+        }
+
+        manifestPath = discoveredManifestPath;
+        return true;
+    }
+
+    public static string GetLocatorPath(string normalizedLevelName)
     {
         return Path.Combine(RuntimePaths.MapsDirectory, $"{normalizedLevelName}.locator");
     }

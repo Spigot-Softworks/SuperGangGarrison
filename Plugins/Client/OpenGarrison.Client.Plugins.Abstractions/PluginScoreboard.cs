@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -32,4 +34,24 @@ public interface IOpenGarrisonClientScoreboardHooks
     int ScoreboardPanelOrder => 0;
 
     void OnScoreboardDraw(IOpenGarrisonClientScoreboardCanvas canvas, ClientScoreboardRenderState state);
+}
+
+public sealed record ClientScoreboardPlayerActionContext(
+    byte Slot,
+    int PlayerId,
+    string PlayerName,
+    ClientPluginTeam Team,
+    ClientPluginClass PlayerClass,
+    bool IsLocalPlayer);
+
+public sealed record ClientScoreboardPlayerAction(
+    string Id,
+    string Label,
+    int Order,
+    Action<ClientScoreboardPlayerActionContext> Activate);
+
+public interface IOpenGarrisonClientScoreboardPlayerActionHooks
+{
+    IReadOnlyList<ClientScoreboardPlayerAction> GetScoreboardPlayerActions(ClientScoreboardPlayerActionContext context)
+        => Array.Empty<ClientScoreboardPlayerAction>();
 }

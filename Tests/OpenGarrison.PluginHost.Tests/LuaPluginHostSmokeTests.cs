@@ -672,6 +672,212 @@ public sealed class LuaPluginHostSmokeTests
     }
 
     [Fact]
+    public void ClientLuaHostReadsReplicatedAbilityState()
+    {
+        using var tempDirectory = new TempDirectory();
+        var pluginDirectory = tempDirectory.CreateSubdirectory("ClientLuaReplicatedAbilityState");
+        File.WriteAllText(Path.Combine(pluginDirectory, "plugin.json"), """
+            {
+              "schemaVersion": 1,
+              "id": "tests.client.lua-replicated-ability-state",
+              "displayName": "Lua Client Replicated Ability State",
+              "version": "1.0.0",
+              "type": "Client",
+              "runtime": "Lua",
+              "entryPoint": "main.lua",
+              "compatibility": { "hostApiVersion": "1.0" }
+            }
+            """);
+        File.WriteAllText(Path.Combine(pluginDirectory, "main.lua"), """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                local cooldown = host.get_player_replicated_state_int(1, "core.ability", "heavy_dash_cooldown_ticks")
+                local charge = host.get_player_replicated_state_float(1, "core.ability", "medic_uber_charge")
+                local ready = host.get_player_replicated_state_bool(1, "core.ability", "medic_uber_ready")
+                local missing = host.get_player_replicated_state_int(1, "core.ability", "missing_key")
+                host.save_json_config("replicated-ability-state.json", {
+                    cooldown = cooldown,
+                    charge = charge,
+                    ready = ready,
+                    missing_is_nil = missing == nil
+                })
+            end
+
+            return plugin
+            """);
+
+        var logs = new List<string>();
+        var configDirectory = tempDirectory.CreateSubdirectory("ClientConfig");
+        Assert.True(
+            OpenGarrisonPluginManifestLoader.TryLoadFromPath(Path.Combine(pluginDirectory, "plugin.json"), out var manifest, out var manifestError),
+            manifestError);
+
+        var fakeContext = new FakeClientPluginContext(manifest, pluginDirectory, configDirectory, logs);
+        fakeContext.StateImpl.IntReplicatedStates[(1, "core.ability", "heavy_dash_cooldown_ticks")] = 12;
+        fakeContext.StateImpl.FloatReplicatedStates[(1, "core.ability", "medic_uber_charge")] = 0.75f;
+        fakeContext.StateImpl.BoolReplicatedStates[(1, "core.ability", "medic_uber_ready")] = true;
+
+        var discoveredPlugins = ClientPluginLoader.DiscoverFromDirectory(tempDirectory.RootPath, logs.Add);
+        var discoveredPlugin = Assert.Single(discoveredPlugins);
+        var loadedPlugin = ClientPluginLoader.TryLoadDiscoveredPlugin(
+            discoveredPlugin,
+            (_, _, _) => fakeContext,
+            logs.Add);
+
+        Assert.NotNull(loadedPlugin);
+        using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(configDirectory, "replicated-ability-state.json")));
+        Assert.Equal(12, json.RootElement.GetProperty("cooldown").GetInt32());
+        Assert.Equal(0.75, json.RootElement.GetProperty("charge").GetDouble(), precision: 3);
+        Assert.True(json.RootElement.GetProperty("ready").GetBoolean());
+        Assert.True(json.RootElement.GetProperty("missing_is_nil").GetBoolean());
+    }
+
+    [Fact]
+    public void ClientLuaHostRegistersStructuredHudAndScoreboardUi()
+    {
+        using var tempDirectory = new TempDirectory();
+        var logs = new List<string>();
+        var loadedPlugin = LoadAdHocClientLuaPlugin(
+            "tests.client.lua-structured-ui",
+            "Lua Client Structured UI",
+            """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+                host.register_hud_widget({
+                    id = "status",
+                    anchor = "top_right",
+                    order = 10,
+                    draw = function(canvas, widget)
+                        canvas.draw_bitmap_text("widget " .. widget.anchor, 8, 10, host.color(255, 255, 255, 255))
+                    end
+                })
+                host.register_scoreboard_panel({
+                    id = "summary",
+                    location = "HeaderRight",
+                    order = -5,
+                    draw = function(canvas, state, panel)
+                        canvas.draw_bitmap_text_right_aligned("panel " .. panel.location, 100, 20, host.color(255, 255, 255, 255))
+                    end
+                })
+                host.register_scoreboard_player_action({
+                    id = "inspect",
+                    label = "Inspect",
+                    order = 3,
+                    activate = function(player)
+                        host.save_json_config("scoreboard-action.json", {
+                            playerName = player.playerName,
+                            slot = player.slot
+                        })
+                    end
+                })
+                host.register_chat_filter({
+                    id = "suffix",
+                    order = 1,
+                    handler = function(chat)
+                        return {
+                            text = chat.text .. " filtered",
+                            teamOnly = true
+                        }
+                    end
+                })
+                host.register_chat_command({
+                    name = "localtest",
+                    aliases = { "lt" },
+                    handler = function(command)
+                        host.save_json_config("chat-command.json", {
+                            name = command.name,
+                            arguments = command.arguments
+                        })
+                    end
+                })
+                host.show_prompt({
+                    title = "Prompt",
+                    message = "Choose",
+                    options = { "A", "B" }
+                })
+                host.show_overlay_panel({
+                    title = "Panel",
+                    subtitle = "Controls",
+                    controls = {
+                        { id = "apply", label = "Apply", kind = "Button" },
+                        { id = "enabled", label = "Enabled", kind = "Toggle", value = "true" }
+                    }
+                })
+            end
+
+            return plugin
+            """,
+            tempDirectory,
+            logs);
+
+        Assert.NotNull(loadedPlugin.Context.UiImpl.OverlayMenu);
+        Assert.Equal("Prompt", loadedPlugin.Context.UiImpl.OverlayMenu!.Title);
+        Assert.Equal("Choose", loadedPlugin.Context.UiImpl.OverlayMenu.Subtitle);
+        Assert.Equal(["A", "B"], loadedPlugin.Context.UiImpl.OverlayMenu.Entries);
+        Assert.NotNull(loadedPlugin.Context.UiImpl.OverlayPanel);
+        Assert.Equal("Panel", loadedPlugin.Context.UiImpl.OverlayPanel!.Title);
+        Assert.Equal(2, loadedPlugin.Context.UiImpl.OverlayPanel.Controls.Count);
+
+        var hudHooks = Assert.IsAssignableFrom<IOpenGarrisonClientHudHooks>(loadedPlugin.Plugin);
+        var hudCanvas = new FakeHudCanvas();
+        hudHooks.OnGameplayHudDraw(hudCanvas);
+        Assert.Equal(1, hudCanvas.BitmapTextDrawCount);
+
+        var scoreboardHooks = Assert.IsAssignableFrom<IOpenGarrisonClientScoreboardHooks>(loadedPlugin.Plugin);
+        Assert.Equal(ClientScoreboardPanelLocation.HeaderRight, scoreboardHooks.ScoreboardPanelLocation);
+        Assert.Equal(-5, scoreboardHooks.ScoreboardPanelOrder);
+
+        var scoreboardCanvas = new FakeHudCanvas();
+        scoreboardHooks.OnScoreboardDraw(
+            scoreboardCanvas,
+            new ClientScoreboardRenderState(
+                new Rectangle(0, 0, 320, 160),
+                1f,
+                "Test Server",
+                "ctf_test",
+                RedPlayerCount: 1,
+                BluePlayerCount: 2,
+                RedCenterText: "RED",
+                BlueCenterText: "BLU"));
+        Assert.Equal(1, scoreboardCanvas.BitmapTextDrawCount);
+
+        var scoreboardActionHooks = Assert.IsAssignableFrom<IOpenGarrisonClientScoreboardPlayerActionHooks>(loadedPlugin.Plugin);
+        var action = Assert.Single(scoreboardActionHooks.GetScoreboardPlayerActions(new ClientScoreboardPlayerActionContext(
+            4,
+            44,
+            "Target",
+            ClientPluginTeam.Blue,
+            ClientPluginClass.Soldier,
+            IsLocalPlayer: false)));
+        Assert.Equal("Inspect", action.Label);
+        action.Activate(new ClientScoreboardPlayerActionContext(
+            4,
+            44,
+            "Target",
+            ClientPluginTeam.Blue,
+            ClientPluginClass.Soldier,
+            IsLocalPlayer: false));
+
+        var filteredChat = Assert.IsAssignableFrom<IOpenGarrisonClientChatHooks>(loadedPlugin.Plugin)
+            .BeforeChatSubmit(new ClientChatSubmitContext("hello", TeamOnly: false));
+        Assert.Equal("hello filtered", filteredChat.Text);
+        Assert.True(filteredChat.TeamOnly);
+
+        Assert.True(Assert.IsAssignableFrom<IOpenGarrisonClientChatCommandHooks>(loadedPlugin.Plugin)
+            .TryHandleChatCommand(new ClientChatSubmitContext("!lt one two", TeamOnly: false)));
+        using var scoreboardActionJson = JsonDocument.Parse(File.ReadAllText(Path.Combine(loadedPlugin.ConfigDirectory, "scoreboard-action.json")));
+        Assert.Equal("Target", scoreboardActionJson.RootElement.GetProperty("playerName").GetString());
+        Assert.Equal(4, scoreboardActionJson.RootElement.GetProperty("slot").GetInt32());
+        using var chatCommandJson = JsonDocument.Parse(File.ReadAllText(Path.Combine(loadedPlugin.ConfigDirectory, "chat-command.json")));
+        Assert.Equal("lt", chatCommandJson.RootElement.GetProperty("name").GetString());
+        Assert.Equal("one two", chatCommandJson.RootElement.GetProperty("arguments").GetString());
+        Assert.DoesNotContain(logs, log => log.Contains("callback failure", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void ServerLuaPluginLoaderBootstrapsLuaPluginAndPersistsConfig()
     {
         using var tempDirectory = new TempDirectory();
@@ -748,6 +954,1203 @@ public sealed class LuaPluginHostSmokeTests
         var json = JsonDocument.Parse(File.ReadAllText(configPath));
         Assert.Equal(15, json.RootElement.GetProperty("count").GetInt32());
         Assert.Contains(logs, log => log.Contains("server initialized", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ServerLuaHostRegistersCommandsThroughCommandRegistryWithPermissions()
+    {
+        using var tempDirectory = new TempDirectory();
+        var pluginDirectory = tempDirectory.CreateSubdirectory("ServerLuaCommandApi");
+        File.WriteAllText(Path.Combine(pluginDirectory, "plugin.json"), """
+            {
+              "schemaVersion": 1,
+              "id": "tests.server.lua-command-api",
+              "displayName": "Lua Server Command API",
+              "version": "1.0.0",
+              "type": "Server",
+              "runtime": "Lua",
+              "entryPoint": "main.lua",
+              "compatibility": { "hostApiVersion": "1.0" }
+            }
+            """);
+        File.WriteAllText(Path.Combine(pluginDirectory, "main.lua"), """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+                host.register_command({
+                    name = "lua_rename",
+                    aliases = { "lr" },
+                    usage = "lua_rename <name>",
+                    description = "Rename test target.",
+                    permission = "manage_players",
+                    handler = function(context, arguments)
+                        context.require_permission("ManagePlayers")
+                        host.try_set_player_name(2, arguments)
+                        return { "renamed " .. arguments, "source " .. context.source }
+                    end
+                })
+            end
+
+            return plugin
+            """);
+
+        var logs = new List<string>();
+        Assert.True(
+            OpenGarrisonPluginManifestLoader.TryLoadFromPath(Path.Combine(pluginDirectory, "plugin.json"), out var manifest, out var manifestError),
+            manifestError);
+
+        var fakeContext = new FakeServerPluginContext(
+            manifest,
+            pluginDirectory,
+            tempDirectory.CreateSubdirectory("ServerConfig"),
+            tempDirectory.CreateSubdirectory("Maps"),
+            logs);
+
+        var loadedPlugins = PluginLoader.LoadFromSearchDirectories(
+            [new PluginLoader.PluginSearchDirectory(tempDirectory.RootPath, SearchOption.AllDirectories)],
+            (_, _, _) => fakeContext,
+            logs.Add);
+
+        Assert.True(loadedPlugins.Count == 1, string.Join(Environment.NewLine, logs));
+        var registeredCommand = Assert.Single(fakeContext.RegisteredCommands);
+        Assert.Equal("lua_rename", registeredCommand.Command.Name);
+        Assert.Equal(OpenGarrisonServerAdminPermissions.ManagePlayers, registeredCommand.RequiredPermissions);
+        Assert.Contains("lr", registeredCommand.Aliases);
+
+        var unauthorizedContext = CreateCommandContext(fakeContext, OpenGarrisonServerAdminIdentity.CreateUnauthenticated(1));
+        Assert.True(fakeContext.CommandRegistry.TryExecute("lua_rename Blocked", unauthorizedContext, CancellationToken.None, out var unauthorizedLines));
+        Assert.Contains("requires ManagePlayers", Assert.Single(unauthorizedLines), StringComparison.Ordinal);
+        Assert.Empty(fakeContext.AdminImpl.RenameRequests);
+
+        var authorizedContext = CreateCommandContext(
+            fakeContext,
+            new OpenGarrisonServerAdminIdentity(
+                "Test Admin",
+                OpenGarrisonServerAdminAuthority.RconSession,
+                OpenGarrisonServerAdminPermissions.ManagePlayers,
+                SourceSlot: 1));
+        Assert.True(fakeContext.CommandRegistry.TryExecute("lr Renamed", authorizedContext, CancellationToken.None, out var authorizedLines));
+        Assert.Contains("renamed Renamed", authorizedLines);
+        Assert.Contains("source PrivateChat", authorizedLines);
+        Assert.Contains(fakeContext.AdminImpl.RenameRequests, request => request.Slot == 2 && request.NewName == "Renamed");
+    }
+
+    [Fact]
+    public void ServerLuaDecisionHooksCanCancelSupportedMutations()
+    {
+        using var tempDirectory = new TempDirectory();
+        var pluginDirectory = tempDirectory.CreateSubdirectory("ServerLuaBeforeChat");
+        File.WriteAllText(Path.Combine(pluginDirectory, "plugin.json"), """
+            {
+              "schemaVersion": 1,
+              "id": "tests.server.lua-before-chat",
+              "displayName": "Lua Server Before Chat",
+              "version": "1.0.0",
+              "type": "Server",
+              "runtime": "Lua",
+              "entryPoint": "main.lua",
+              "compatibility": { "hostApiVersion": "1.0" }
+            }
+            """);
+        File.WriteAllText(Path.Combine(pluginDirectory, "main.lua"), """
+            local plugin = {}
+
+            function plugin.before_chat_message(e)
+                if e.text == "blocked" then
+                    return { cancel = true, reason = "blocked by lua" }
+                end
+
+                return { cancel = false }
+            end
+
+            function plugin.before_team_change(e)
+                if e.team == "Blue" then
+                    return "blue team blocked"
+                end
+            end
+
+            function plugin.before_class_change(e)
+                return e.playerClass == "Spy"
+            end
+
+            function plugin.before_loadout_change(e)
+                if e.loadoutId == "restricted" then
+                    return { cancelled = true, reason = "restricted loadout" }
+                end
+            end
+
+            function plugin.before_map_change(e)
+                if e.levelName == "ctf_blocked" then
+                    return { cancel = true }
+                end
+            end
+
+            function plugin.before_spawn(e)
+                return e.playerName == "Blocked"
+            end
+
+            function plugin.before_damage(e)
+                if e.targetPlayerId == 99 then
+                    return { cancel = true, reason = "protected target" }
+                end
+            end
+
+            function plugin.before_death(e)
+                return e.victimName == "Immortal"
+            end
+
+            function plugin.before_pickup(e)
+                return e.kind == "HealthPack" and e.pickupValue == "Large"
+            end
+
+            function plugin.before_score(e)
+                return e.reason == "blocked_score"
+            end
+
+            function plugin.before_round_end(e)
+                return e.reason == "blocked_round"
+            end
+
+            return plugin
+            """);
+
+        var logs = new List<string>();
+        Assert.True(
+            OpenGarrisonPluginManifestLoader.TryLoadFromPath(Path.Combine(pluginDirectory, "plugin.json"), out var manifest, out var manifestError),
+            manifestError);
+
+        var fakeContext = new FakeServerPluginContext(
+            manifest,
+            pluginDirectory,
+            tempDirectory.CreateSubdirectory("ServerConfig"),
+            tempDirectory.CreateSubdirectory("Maps"),
+            logs);
+
+        var loadedPlugins = PluginLoader.LoadFromSearchDirectories(
+            [new PluginLoader.PluginSearchDirectory(tempDirectory.RootPath, SearchOption.AllDirectories)],
+            (_, _, _) => fakeContext,
+            logs.Add);
+
+        var loadedPlugin = Assert.Single(loadedPlugins);
+        var decisionHooks = Assert.IsAssignableFrom<IOpenGarrisonServerDecisionHooks>(loadedPlugin.Plugin);
+
+        var blockedDecision = decisionHooks.BeforeChatMessage(new ChatReceivedEvent(1, "Tester", "blocked", Team: null, TeamOnly: false));
+        Assert.True(blockedDecision.IsCancelled);
+        Assert.Equal("blocked by lua", blockedDecision.Reason);
+
+        var allowedDecision = decisionHooks.BeforeChatMessage(new ChatReceivedEvent(1, "Tester", "allowed", Team: null, TeamOnly: false));
+        Assert.False(allowedDecision.IsCancelled);
+
+        var blockedTeamDecision = decisionHooks.BeforeTeamChange(new OpenGarrisonServerTeamChangeRequest(1, PlayerTeam.Blue));
+        Assert.True(blockedTeamDecision.IsCancelled);
+        Assert.Equal("blue team blocked", blockedTeamDecision.Reason);
+        Assert.False(decisionHooks.BeforeTeamChange(new OpenGarrisonServerTeamChangeRequest(1, PlayerTeam.Red)).IsCancelled);
+
+        Assert.True(decisionHooks.BeforeClassChange(new OpenGarrisonServerClassChangeRequest(1, PlayerClass.Spy)).IsCancelled);
+        Assert.False(decisionHooks.BeforeClassChange(new OpenGarrisonServerClassChangeRequest(1, PlayerClass.Scout)).IsCancelled);
+
+        var loadoutDecision = decisionHooks.BeforeLoadoutChange(new OpenGarrisonServerLoadoutChangeRequest(1, "restricted"));
+        Assert.True(loadoutDecision.IsCancelled);
+        Assert.Equal("restricted loadout", loadoutDecision.Reason);
+
+        Assert.True(decisionHooks.BeforeMapChange(new OpenGarrisonServerMapChangeRequest("ctf_blocked", 1, PreservePlayerStats: false)).IsCancelled);
+        Assert.False(decisionHooks.BeforeMapChange(new OpenGarrisonServerMapChangeRequest("ctf_allowed", 1, PreservePlayerStats: false)).IsCancelled);
+
+        Assert.True(decisionHooks.BeforeSpawn(new OpenGarrisonServerSpawnRequest(1, 2, 22, "Blocked", PlayerTeam.Red, PlayerClass.Scout, 10f, 20f, IsRespawn: true)).IsCancelled);
+        Assert.False(decisionHooks.BeforeSpawn(new OpenGarrisonServerSpawnRequest(1, 2, 22, "Allowed", PlayerTeam.Red, PlayerClass.Scout, 10f, 20f, IsRespawn: true)).IsCancelled);
+
+        var damageDecision = decisionHooks.BeforeDamage(new OpenGarrisonServerDamageRequest(
+            2,
+            OpenGarrison.Core.DamageTargetKind.Player,
+            99,
+            99,
+            PlayerTeam.Blue,
+            22,
+            PlayerTeam.Red,
+            50,
+            false,
+            10f,
+            20f));
+        Assert.True(damageDecision.IsCancelled);
+        Assert.Equal("protected target", damageDecision.Reason);
+        Assert.False(decisionHooks.BeforeDeath(new OpenGarrisonServerDeathRequest(3, 2, 22, "Mortal", PlayerTeam.Red, PlayerClass.Scout, 99, "Killer", PlayerTeam.Blue, "weapon", Gibbed: false)).IsCancelled);
+        Assert.True(decisionHooks.BeforeDeath(new OpenGarrisonServerDeathRequest(3, 2, 22, "Immortal", PlayerTeam.Red, PlayerClass.Scout, 99, "Killer", PlayerTeam.Blue, "weapon", Gibbed: false)).IsCancelled);
+        Assert.True(decisionHooks.BeforePickup(new OpenGarrisonServerPickupRequest(4, "HealthPack", 2, 22, "Runner", PlayerTeam.Red, 10, "Large", 100f, 120f)).IsCancelled);
+        Assert.False(decisionHooks.BeforePickup(new OpenGarrisonServerPickupRequest(4, "DroppedWeapon", 2, 22, "Runner", PlayerTeam.Red, 10, "Large", 100f, 120f)).IsCancelled);
+        Assert.True(decisionHooks.BeforeScore(new OpenGarrisonServerScoreRequest(5, PlayerTeam.Red, Delta: 1, RedCaps: 0, BlueCaps: 0, ActorPlayerId: 22, Reason: "blocked_score")).IsCancelled);
+        Assert.False(decisionHooks.BeforeScore(new OpenGarrisonServerScoreRequest(5, PlayerTeam.Red, Delta: 1, RedCaps: 0, BlueCaps: 0, ActorPlayerId: 22, Reason: "allowed_score")).IsCancelled);
+        Assert.True(decisionHooks.BeforeRoundEnd(new OpenGarrisonServerRoundEndRequest(6, GameModeKind.CaptureTheFlag, WinnerTeam: PlayerTeam.Red, RedCaps: 2, BlueCaps: 1, Reason: "blocked_round")).IsCancelled);
+        Assert.False(decisionHooks.BeforeRoundEnd(new OpenGarrisonServerRoundEndRequest(6, GameModeKind.CaptureTheFlag, WinnerTeam: PlayerTeam.Red, RedCaps: 2, BlueCaps: 1, Reason: "allowed_round")).IsCancelled);
+    }
+
+    [Fact]
+    public void ServerLuaHostExposesStableReadModelQueries()
+    {
+        using var tempDirectory = new TempDirectory();
+        var pluginDirectory = tempDirectory.CreateSubdirectory("ServerLuaReadModel");
+        File.WriteAllText(Path.Combine(pluginDirectory, "plugin.json"), """
+            {
+              "schemaVersion": 1,
+              "id": "tests.server.lua-read-model",
+              "displayName": "Lua Server Read Model",
+              "version": "1.0.0",
+              "type": "Server",
+              "runtime": "Lua",
+              "entryPoint": "main.lua",
+              "compatibility": { "hostApiVersion": "1.0" }
+            }
+            """);
+        File.WriteAllText(Path.Combine(pluginDirectory, "main.lua"), """
+            local plugin = {}
+
+            local function list_count(value)
+                if value == nil then
+                    return 0
+                end
+                if value.length ~= nil then
+                    return value.length
+                end
+                if value.Length ~= nil then
+                    return value.Length
+                end
+
+                local count = 0
+                for _, _ in pairs(value) do
+                    count = count + 1
+                end
+                return count
+            end
+
+            function plugin.initialize(host)
+                local match = host.get_match_state()
+                local slot_player = host.get_player_state(1)
+                local id_player = host.get_player_state({ playerId = 22 })
+                local kind_player = host.get_player_state({ by = "player_id", value = 22 })
+                local missing_player = host.get_player_state({ slot = 99 })
+                local objectives = host.get_objectives()
+                local buildables = host.get_buildables()
+                local projectiles = host.get_projectiles()
+                local recent_events = host.get_recent_events()
+                local map_region = host.get_map_region({ x = 100, y = 200, radius = 64, limit = 4 })
+                local visibility = host.has_line_of_sight({
+                    originX = 1,
+                    originY = 2,
+                    targetX = 3,
+                    targetY = 4,
+                    team = "Red"
+                })
+
+                host.save_json_config("read-model.json", {
+                    levelName = match.levelName,
+                    playerCount = match.playerCount,
+                    activePlayerCount = match.activePlayerCount,
+                    spectatorCount = match.spectatorCount,
+                    slotPlayerName = slot_player.name,
+                    slotPlayerHealth = slot_player.health,
+                    idPlayerName = id_player.name,
+                    kindPlayerName = kind_player.name,
+                    missingPlayerIsNil = missing_player == nil,
+                    controlPointCount = list_count(objectives.controlPoints),
+                    buildableCount = list_count(buildables),
+                    projectileCount = list_count(projectiles),
+                    recentEventCount = list_count(recent_events),
+                    mapRegionRadius = map_region.radius,
+                    mapSolidCount = list_count(map_region.solids),
+                    hasLineOfSight = visibility.hasLineOfSight,
+                    visibilityTeam = visibility.team
+                })
+            end
+
+            return plugin
+            """);
+
+        var logs = new List<string>();
+        Assert.True(
+            OpenGarrisonPluginManifestLoader.TryLoadFromPath(Path.Combine(pluginDirectory, "plugin.json"), out var manifest, out var manifestError),
+            manifestError);
+
+        var configDirectory = tempDirectory.CreateSubdirectory("ServerConfig");
+        var fakeContext = new FakeServerPluginContext(
+            manifest,
+            pluginDirectory,
+            configDirectory,
+            tempDirectory.CreateSubdirectory("Maps"),
+            logs);
+        fakeContext.StateImpl.Players.Add(new OpenGarrisonServerPlayerInfo(
+            1,
+            101,
+            "Runner",
+            IsSpectator: false,
+            IsAuthorized: false,
+            IsGagged: false,
+            IsAlive: true,
+            PlayerId: 11,
+            Team: PlayerTeam.Red,
+            PlayerClass: PlayerClass.Scout,
+            PlayerScale: 1f,
+            EndPoint: "127.0.0.1:8190",
+            GameplayLoadoutId: "stock",
+            GameplaySecondaryItemId: string.Empty,
+            GameplayAcquiredItemId: string.Empty,
+            GameplayEquippedSlot: GameplayEquipmentSlot.Primary,
+            GameplayEquippedItemId: "weapon.scattergun",
+            Health: 125,
+            MaxHealth: 125));
+        fakeContext.StateImpl.Players.Add(new OpenGarrisonServerPlayerInfo(
+            2,
+            202,
+            "Rocketman",
+            IsSpectator: false,
+            IsAuthorized: false,
+            IsGagged: false,
+            IsAlive: true,
+            PlayerId: 22,
+            Team: PlayerTeam.Blue,
+            PlayerClass: PlayerClass.Soldier,
+            PlayerScale: 1f,
+            EndPoint: "127.0.0.1:8191",
+            GameplayLoadoutId: "stock",
+            GameplaySecondaryItemId: string.Empty,
+            GameplayAcquiredItemId: string.Empty,
+            GameplayEquippedSlot: GameplayEquipmentSlot.Primary,
+            GameplayEquippedItemId: "weapon.rocketlauncher"));
+        fakeContext.StateImpl.Players.Add(new OpenGarrisonServerPlayerInfo(
+            3,
+            303,
+            "Spectator",
+            IsSpectator: true,
+            IsAuthorized: false,
+            IsGagged: false,
+            IsAlive: false,
+            PlayerId: null,
+            Team: null,
+            PlayerClass: null,
+            PlayerScale: 1f,
+            EndPoint: "127.0.0.1:8192",
+            GameplayLoadoutId: string.Empty,
+            GameplaySecondaryItemId: string.Empty,
+            GameplayAcquiredItemId: string.Empty,
+            GameplayEquippedSlot: GameplayEquipmentSlot.Primary,
+            GameplayEquippedItemId: string.Empty));
+        fakeContext.StateImpl.Objectives = new OpenGarrisonServerObjectiveStateInfo(
+            [new OpenGarrisonServerControlPointInfo(0, 100f, 200f, 42f, 42f, PlayerTeam.Red, null, 0f, 120, 0, 0, 0, IsLocked: false, HasHealingAura: true)],
+            [],
+            []);
+        fakeContext.StateImpl.Buildables.Add(new OpenGarrisonServerBuildableInfo(
+            "sentry",
+            500,
+            22,
+            PlayerTeam.Blue,
+            128f,
+            256f,
+            100,
+            100,
+            IsBuilt: true,
+            IsDead: false,
+            HasLanded: true,
+            HasActiveTarget: false));
+        fakeContext.StateImpl.Projectiles.Add(new OpenGarrisonServerProjectileInfo(
+            "rocket",
+            600,
+            22,
+            PlayerTeam.Blue,
+            140f,
+            260f,
+            130f,
+            260f,
+            VelocityX: null,
+            VelocityY: null,
+            DirectionRadians: 0f,
+            Speed: 12f,
+            TicksRemaining: 120,
+            IsCritical: false,
+            IsDestroyed: false));
+        fakeContext.StateImpl.RecentEvents.Add(new OpenGarrisonServerRecentEventInfo(
+            "damage",
+            "Player",
+            EventId: 700,
+            SourceFrame: 10,
+            WorldX: 140f,
+            WorldY: 260f,
+            Amount: 30,
+            TargetEntityId: 11,
+            TargetPlayerId: 11,
+            AttackerPlayerId: 22,
+            WasFatal: false));
+
+        var loadedPlugins = PluginLoader.LoadFromSearchDirectories(
+            [new PluginLoader.PluginSearchDirectory(tempDirectory.RootPath, SearchOption.AllDirectories)],
+            (_, _, _) => fakeContext,
+            logs.Add);
+
+        Assert.True(loadedPlugins.Count == 1, string.Join(Environment.NewLine, logs));
+
+        var configPath = Path.Combine(configDirectory, "read-model.json");
+        Assert.True(File.Exists(configPath));
+        using var json = JsonDocument.Parse(File.ReadAllText(configPath));
+        Assert.Equal("ctf_test", json.RootElement.GetProperty("levelName").GetString());
+        Assert.Equal(3, json.RootElement.GetProperty("playerCount").GetInt32());
+        Assert.Equal(2, json.RootElement.GetProperty("activePlayerCount").GetInt32());
+        Assert.Equal(1, json.RootElement.GetProperty("spectatorCount").GetInt32());
+        Assert.Equal("Runner", json.RootElement.GetProperty("slotPlayerName").GetString());
+        Assert.Equal(125, json.RootElement.GetProperty("slotPlayerHealth").GetInt32());
+        Assert.Equal("Rocketman", json.RootElement.GetProperty("idPlayerName").GetString());
+        Assert.Equal("Rocketman", json.RootElement.GetProperty("kindPlayerName").GetString());
+        Assert.True(json.RootElement.GetProperty("missingPlayerIsNil").GetBoolean());
+        Assert.Equal(1, json.RootElement.GetProperty("controlPointCount").GetInt32());
+        Assert.Equal(1, json.RootElement.GetProperty("buildableCount").GetInt32());
+        Assert.Equal(1, json.RootElement.GetProperty("projectileCount").GetInt32());
+        Assert.Equal(1, json.RootElement.GetProperty("recentEventCount").GetInt32());
+        Assert.Equal(64, json.RootElement.GetProperty("mapRegionRadius").GetInt32());
+        Assert.Equal(0, json.RootElement.GetProperty("mapSolidCount").GetInt32());
+        Assert.True(json.RootElement.GetProperty("hasLineOfSight").GetBoolean());
+        Assert.Equal("Red", json.RootElement.GetProperty("visibilityTeam").GetString());
+    }
+
+    [Fact]
+    public void ServerLuaHostRunsDeferredActionsOnHeartbeat()
+    {
+        using var tempDirectory = new TempDirectory();
+        var pluginDirectory = tempDirectory.CreateSubdirectory("ServerLuaDeferredActions");
+        File.WriteAllText(Path.Combine(pluginDirectory, "plugin.json"), """
+            {
+              "schemaVersion": 1,
+              "id": "tests.server.lua-deferred-actions",
+              "displayName": "Lua Server Deferred Actions",
+              "version": "1.0.0",
+              "type": "Server",
+              "runtime": "Lua",
+              "entryPoint": "main.lua",
+              "compatibility": { "hostApiVersion": "1.0" }
+            }
+            """);
+        File.WriteAllText(Path.Combine(pluginDirectory, "main.lua"), """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+            end
+
+            function plugin.on_chat_received(e)
+                plugin.host.enqueue_action({
+                    type = "send_system_message",
+                    slot = e.slot,
+                    text = "queued " .. e.text
+                })
+                plugin.host.enqueue_action("try_set_player_name", {
+                    slot = e.slot,
+                    name = "Deferred " .. e.slot
+                })
+            end
+
+            return plugin
+            """);
+
+        var logs = new List<string>();
+        Assert.True(
+            OpenGarrisonPluginManifestLoader.TryLoadFromPath(Path.Combine(pluginDirectory, "plugin.json"), out var manifest, out var manifestError),
+            manifestError);
+
+        var fakeContext = new FakeServerPluginContext(
+            manifest,
+            pluginDirectory,
+            tempDirectory.CreateSubdirectory("ServerConfig"),
+            tempDirectory.CreateSubdirectory("Maps"),
+            logs);
+
+        var loadedPlugins = PluginLoader.LoadFromSearchDirectories(
+            [new PluginLoader.PluginSearchDirectory(tempDirectory.RootPath, SearchOption.AllDirectories)],
+            (_, _, _) => fakeContext,
+            logs.Add);
+
+        var loadedPlugin = Assert.Single(loadedPlugins);
+        var chatHooks = Assert.IsAssignableFrom<IOpenGarrisonServerChatHooks>(loadedPlugin.Plugin);
+        chatHooks.OnChatReceived(new ChatReceivedEvent(1, "Tester", "hello", Team: null, TeamOnly: false));
+
+        Assert.Empty(fakeContext.AdminImpl.SystemMessages);
+        Assert.Empty(fakeContext.AdminImpl.RenameRequests);
+
+        var updateHooks = Assert.IsAssignableFrom<IOpenGarrisonServerUpdateHooks>(loadedPlugin.Plugin);
+        updateHooks.OnServerHeartbeat(TimeSpan.FromSeconds(5));
+
+        Assert.Contains(fakeContext.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text == "queued hello");
+        Assert.Contains(fakeContext.AdminImpl.RenameRequests, request => request.Slot == 1 && request.NewName == "Deferred 1");
+    }
+
+    [Fact]
+    public void ServerLuaHostExposesAbilityCatalogStateAndStartupRegistration()
+    {
+        using var tempDirectory = new TempDirectory();
+        var pluginDirectory = tempDirectory.CreateSubdirectory("ServerLuaAbilityApi");
+        File.WriteAllText(Path.Combine(pluginDirectory, "plugin.json"), """
+            {
+              "schemaVersion": 1,
+              "id": "tests.server.lua-ability-api",
+              "displayName": "Lua Server Ability API",
+              "version": "1.0.0",
+              "type": "Server",
+              "runtime": "Lua",
+              "entryPoint": "main.lua",
+              "compatibility": { "hostApiVersion": "1.0" }
+            }
+            """);
+        File.WriteAllText(Path.Combine(pluginDirectory, "main.lua"), """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+                local abilities = host.get_gameplay_abilities()
+                local player_abilities = host.get_player_gameplay_abilities(10)
+                local utility = host.get_player_gameplay_ability(10, "utility")
+                local cooldown = host.get_player_replicated_state_int(10, "core.ability", "heavy_dash_cooldown_ticks")
+                local ready = host.get_player_replicated_state_bool(10, "core.ability", "medic_uber_ready")
+                local executor_id = "plugin.tests.server.lua-ability-api.dash"
+                local executor_registered = host.register_gameplay_ability_executor(executor_id)
+                local registered = host.register_gameplay_ability({
+                    itemId = "ability.plugin-dash",
+                    displayName = "Plugin Dash",
+                    slot = "Utility",
+                    behaviorId = executor_id,
+                    ability = {
+                        category = "utility",
+                        activation = "pressed",
+                        executorId = executor_id,
+                        tags = { "movement", "dash" },
+                        parameters = { duration = 0.5 }
+                    },
+                    presentation = {
+                        hud = {
+                            displayKind = "meter",
+                            stackGroup = "ability",
+                            stateProvider = "abilityCooldown",
+                            stateOwner = "tests.server.lua-ability-api",
+                            cooldownKey = "plugin_dash_cooldown",
+                            maxCooldown = 42,
+                            activeKey = "plugin_dash_active",
+                            disabledKey = "plugin_dash_disabled"
+                        }
+                    }
+                })
+                local overridden = host.override_gameplay_ability("ability.heavy-utility", {
+                    activation = "held",
+                    tags = { "patched" },
+                    parameters = { cooldown = 9 }
+                })
+                local loadout_registered = host.register_gameplay_loadout({
+                    classId = "heavy",
+                    loadoutId = "heavy.plugin-dash",
+                    displayName = "Plugin Dash",
+                    primaryItemId = "weapon.minigun",
+                    secondaryItemId = "ability.heavy-sandvich",
+                    utilityItemId = "ability.plugin-dash"
+                })
+                local slot_item_registered = host.register_gameplay_slot_item({
+                    classId = "spy",
+                    slot = "Utility",
+                    itemId = "ability.plugin-dash",
+                    loadoutId = "spy.plugin-dash",
+                    displayName = "Plugin Dash",
+                    baseLoadoutId = "spy.stock"
+                })
+
+                host.save_json_config("ability-api.json", {
+                    ability_count = abilities[1] ~= nil and 1 or 0,
+                    player_ability_count = player_abilities[1] ~= nil and 1 or 0,
+                    utility_item_id = utility.itemId,
+                    cooldown = cooldown,
+                    ready = ready,
+                    executor_registered = executor_registered,
+                    registered = registered,
+                    overridden = overridden,
+                    loadout_registered = loadout_registered,
+                    slot_item_registered = slot_item_registered
+                })
+            end
+
+            function plugin.on_gameplay_ability_execute(e)
+                local projectile_id = plugin.host.try_spawn_gameplay_projectile({
+                    ownerPlayerId = e.playerId,
+                    kind = "rocket",
+                    x = e.sourceX,
+                    y = e.sourceY,
+                    speed = 4,
+                    directionRadians = 0
+                })
+                plugin.host.try_apply_gameplay_impulse(e.playerId, 12, -4)
+                plugin.host.try_set_gameplay_ability_cooldown(e.playerId, "plugin_dash_cooldown", 42)
+                plugin.host.try_apply_gameplay_damage(e.playerId, 3, e.playerId, "DashKL")
+                plugin.host.try_apply_gameplay_healing(e.playerId, 5)
+                plugin.host.try_apply_gameplay_status_effect(e.playerId, "movement_boost", 9, 1.5)
+                plugin.host.save_json_config("ability-execute.json", {
+                    item_id = e.itemId,
+                    executor_id = e.executorId,
+                    parameter_duration = e.parameters.duration,
+                    projectile_id = projectile_id
+                })
+                return { handled = true, consumedInput = true }
+            end
+
+            return plugin
+            """);
+
+        var logs = new List<string>();
+        var configDirectory = tempDirectory.CreateSubdirectory("ServerConfig");
+        Assert.True(
+            OpenGarrisonPluginManifestLoader.TryLoadFromPath(Path.Combine(pluginDirectory, "plugin.json"), out var manifest, out var manifestError),
+            manifestError);
+
+        var fakeContext = new FakeServerPluginContext(
+            manifest,
+            pluginDirectory,
+            configDirectory,
+            tempDirectory.CreateSubdirectory("Maps"),
+            logs);
+        fakeContext.StateImpl.Abilities.Add(new OpenGarrisonServerGameplayAbilityInfo(
+            "stock.gg2",
+            "ability.heavy-utility",
+            "Heavy Utility",
+            GameplayEquipmentSlot.Utility,
+            BuiltInGameplayBehaviorIds.HeavyUtility,
+            GameplayAbilityConstants.UtilityCategory,
+            GameplayAbilityConstants.PressedActivation,
+            BuiltInGameplayBehaviorIds.HeavyGhostDash,
+            ["dash"],
+            new Dictionary<string, string>(StringComparer.Ordinal)));
+        fakeContext.StateImpl.IntReplicatedStates[(10, "core.ability", "heavy_dash_cooldown_ticks")] = 18;
+        fakeContext.StateImpl.BoolReplicatedStates[(10, "core.ability", "medic_uber_ready")] = true;
+
+        var loadedPlugins = PluginLoader.LoadFromSearchDirectories(
+            [new PluginLoader.PluginSearchDirectory(tempDirectory.RootPath, SearchOption.AllDirectories)],
+            (_, _, _) => fakeContext,
+            logs.Add);
+
+        Assert.Single(loadedPlugins);
+        using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(configDirectory, "ability-api.json")));
+        Assert.Equal(1, json.RootElement.GetProperty("ability_count").GetInt32());
+        Assert.Equal(1, json.RootElement.GetProperty("player_ability_count").GetInt32());
+        Assert.Equal("ability.heavy-utility", json.RootElement.GetProperty("utility_item_id").GetString());
+        Assert.Equal(18, json.RootElement.GetProperty("cooldown").GetInt32());
+        Assert.True(json.RootElement.GetProperty("ready").GetBoolean());
+        Assert.True(json.RootElement.GetProperty("executor_registered").GetBoolean());
+        Assert.True(json.RootElement.GetProperty("registered").GetBoolean());
+        Assert.True(json.RootElement.GetProperty("overridden").GetBoolean());
+        Assert.True(json.RootElement.GetProperty("loadout_registered").GetBoolean());
+        Assert.True(json.RootElement.GetProperty("slot_item_registered").GetBoolean());
+
+        var registeredExecutor = Assert.Single(fakeContext.RegisteredGameplayAbilityExecutors);
+        var registeredAbility = Assert.Single(fakeContext.RegisteredGameplayAbilities);
+        Assert.Equal("ability.plugin-dash", registeredAbility.ItemId);
+        Assert.Equal("utility", registeredAbility.Ability.Category);
+        Assert.Contains("dash", registeredAbility.Ability.Tags);
+        Assert.Equal(0.5, registeredAbility.Ability.Parameters["duration"].GetDouble(), precision: 3);
+        var registeredAbilityHud = Assert.IsType<GameplayItemHudPresentationDefinition>(registeredAbility.Presentation?.Hud);
+        Assert.Equal("tests.server.lua-ability-api", registeredAbilityHud.StateOwner);
+        Assert.Equal("plugin_dash_cooldown", registeredAbilityHud.CooldownKey);
+        Assert.Equal(42, registeredAbilityHud.MaxCooldown);
+        Assert.Equal("plugin_dash_active", registeredAbilityHud.ActiveKey);
+        Assert.Equal("plugin_dash_disabled", registeredAbilityHud.DisabledKey);
+
+        var overrideEntry = Assert.Single(fakeContext.GameplayAbilityOverrides);
+        Assert.Equal("ability.heavy-utility", overrideEntry.ItemId);
+        Assert.Equal("held", overrideEntry.Patch.Activation);
+        Assert.Contains("patched", overrideEntry.Patch.Tags!);
+        Assert.Equal(9, overrideEntry.Patch.Parameters!["cooldown"].GetInt32());
+        var registeredLoadout = Assert.Single(fakeContext.RegisteredGameplayLoadouts);
+        Assert.Equal("heavy", registeredLoadout.ClassId);
+        Assert.Equal("heavy.plugin-dash", registeredLoadout.LoadoutId);
+        Assert.Equal("ability.plugin-dash", registeredLoadout.UtilityItemId);
+        var registeredSlotItem = Assert.Single(fakeContext.RegisteredGameplaySlotItems);
+        Assert.Equal("spy", registeredSlotItem.ClassId);
+        Assert.Equal(GameplayEquipmentSlot.Utility, registeredSlotItem.Slot);
+        Assert.Equal("ability.plugin-dash", registeredSlotItem.ItemId);
+
+        var world = new SimulationWorld();
+        var player = new PlayerEntity(10, CharacterClassCatalog.RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Heavy));
+        var abilityItem = new GameplayItemDefinition(
+            "ability.plugin-dash",
+            "Plugin Dash",
+            GameplayEquipmentSlot.Utility,
+            registeredExecutor.ExecutorId,
+            new GameplayItemAmmoDefinition(),
+            new GameplayItemPresentationDefinition(),
+            Ability: registeredAbility.Ability);
+        var executionResult = registeredExecutor.Executor.Handle(new GameplayAbilityContext
+        {
+            World = world,
+            Player = player,
+            Item = abilityItem,
+            Ability = registeredAbility.Ability,
+            Phase = GameplayAbilityInputPhase.Pressed,
+            Input = new PlayerInputSnapshot(false, false, false, false, false, false, false, false, false, 20f, 30f, false),
+            PreviousInput = new PlayerInputSnapshot(false, false, false, false, false, false, false, false, false, 0f, 0f, false),
+            SourceX = 5f,
+            SourceY = 6f,
+        });
+        Assert.True(executionResult.Handled);
+        Assert.True(executionResult.ConsumedInput);
+        using var executeJson = JsonDocument.Parse(File.ReadAllText(Path.Combine(configDirectory, "ability-execute.json")));
+        Assert.Equal("ability.plugin-dash", executeJson.RootElement.GetProperty("item_id").GetString());
+        Assert.Equal(registeredExecutor.ExecutorId, executeJson.RootElement.GetProperty("executor_id").GetString());
+        Assert.Equal(0.5, executeJson.RootElement.GetProperty("parameter_duration").GetDouble(), precision: 3);
+        Assert.Equal(1, executeJson.RootElement.GetProperty("projectile_id").GetInt32());
+        Assert.Contains(fakeContext.GameplayImpulses, request => request.PlayerId == 10 && request.VelocityX == 12f && request.VelocityY == -4f);
+        Assert.Contains(fakeContext.GameplayAbilityCooldowns, request => request.PlayerId == 10 && request.CooldownKey == "plugin_dash_cooldown" && request.Ticks == 42);
+        Assert.Contains(fakeContext.GameplayDamageRequests, request => request.TargetPlayerId == 10 && request.Amount == 3f && request.AttackerPlayerId == 10 && request.WeaponSpriteName == "DashKL");
+        Assert.Contains(fakeContext.GameplayHealingRequests, request => request.PlayerId == 10 && request.Amount == 5f);
+        Assert.Contains(fakeContext.GameplayStatusEffectRequests, request => request.PlayerId == 10 && request.StatusEffectId == "movement_boost" && request.Ticks == 9 && request.Value == 1.5f);
+        var projectileRequest = Assert.Single(fakeContext.GameplayProjectileSpawnRequests);
+        Assert.Equal("rocket", projectileRequest.Kind);
+        Assert.Equal(10, projectileRequest.OwnerPlayerId);
+    }
+
+    [Fact]
+    public void ServerLuaHostRegistersAndExecutesPrimaryWeaponBehavior()
+    {
+        using var tempDirectory = new TempDirectory();
+        var pluginDirectory = tempDirectory.CreateSubdirectory("ServerLuaPrimaryWeaponApi");
+        File.WriteAllText(Path.Combine(pluginDirectory, "plugin.json"), """
+            {
+              "schemaVersion": 1,
+              "id": "tests.server.lua-primary-weapon",
+              "displayName": "Lua Server Primary Weapon API",
+              "version": "1.0.0",
+              "type": "Server",
+              "runtime": "Lua",
+              "entryPoint": "main.lua",
+              "compatibility": { "hostApiVersion": "1.0" }
+            }
+            """);
+        File.WriteAllText(Path.Combine(pluginDirectory, "main.lua"), """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+                local behavior_id = "plugin.tests.server.lua-primary-weapon.nailgun"
+                local behavior_registered = host.register_gameplay_primary_weapon_behavior({
+                    behaviorId = behavior_id,
+                    fireSoundName = "NeedleSnd"
+                })
+                local weapon_registered = host.register_gameplay_weapon_item({
+                    itemId = "weapon.plugin-nailgun",
+                    displayName = "Plugin Nailgun",
+                    slot = "Secondary",
+                    behaviorId = behavior_id,
+                    ammo = {
+                        maxAmmo = 30,
+                        ammoPerUse = 1,
+                        projectilesPerUse = 1,
+                        useDelaySourceTicks = 4,
+                        reloadSourceTicks = 2,
+                        minProjectileSpeed = 9
+                    },
+                    presentation = {
+                        hud = {
+                            displayKind = "ammoPanel",
+                            stackGroup = "weapon",
+                            stateProvider = "secondaryAmmo"
+                        }
+                    }
+                })
+                local slot_item_registered = host.register_gameplay_slot_item({
+                    classId = "scout",
+                    slot = "Secondary",
+                    itemId = "weapon.plugin-nailgun",
+                    loadoutId = "scout.plugin-nailgun",
+                    displayName = "Plugin Nailgun",
+                    baseLoadoutId = "scout.stock"
+                })
+
+                host.save_json_config("primary-api.json", {
+                    behavior_registered = behavior_registered,
+                    weapon_registered = weapon_registered,
+                    slot_item_registered = slot_item_registered
+                })
+            end
+
+            function plugin.on_gameplay_primary_weapon_execute(e)
+                local velocity_x = e.directionX * e.weapon.minShotSpeed
+                local velocity_y = e.directionY * e.weapon.minShotSpeed
+                local projectile_id = plugin.host.try_spawn_gameplay_projectile({
+                    ownerPlayerId = e.playerId,
+                    kind = "needle",
+                    x = e.sourceX,
+                    y = e.sourceY,
+                    velocityX = velocity_x,
+                    velocityY = velocity_y,
+                    killFeedWeaponSpriteName = e.killFeedWeaponSpriteName
+                })
+                plugin.host.save_json_config("primary-execute.json", {
+                    item_id = e.itemId,
+                    behavior_id = e.behaviorId,
+                    weapon_kind = e.weapon.kind,
+                    weapon_max_ammo = e.weapon.maxAmmo,
+                    projectile_id = projectile_id,
+                    velocity_x = velocity_x,
+                    velocity_y = velocity_y
+                })
+                return { handled = true }
+            end
+
+            return plugin
+            """);
+
+        var logs = new List<string>();
+        var configDirectory = tempDirectory.CreateSubdirectory("ServerConfig");
+        Assert.True(
+            OpenGarrisonPluginManifestLoader.TryLoadFromPath(Path.Combine(pluginDirectory, "plugin.json"), out var manifest, out var manifestError),
+            manifestError);
+
+        var fakeContext = new FakeServerPluginContext(
+            manifest,
+            pluginDirectory,
+            configDirectory,
+            tempDirectory.CreateSubdirectory("Maps"),
+            logs);
+
+        var loadedPlugins = PluginLoader.LoadFromSearchDirectories(
+            [new PluginLoader.PluginSearchDirectory(tempDirectory.RootPath, SearchOption.AllDirectories)],
+            (_, _, _) => fakeContext,
+            logs.Add);
+
+        Assert.Single(loadedPlugins);
+        using var apiJson = JsonDocument.Parse(File.ReadAllText(Path.Combine(configDirectory, "primary-api.json")));
+        Assert.True(apiJson.RootElement.GetProperty("behavior_registered").GetBoolean());
+        Assert.True(apiJson.RootElement.GetProperty("weapon_registered").GetBoolean());
+        Assert.True(apiJson.RootElement.GetProperty("slot_item_registered").GetBoolean());
+
+        var registeredBehavior = Assert.Single(fakeContext.RegisteredGameplayPrimaryWeaponBehaviors);
+        Assert.Equal("plugin.tests.server.lua-primary-weapon.nailgun", registeredBehavior.BehaviorId);
+        Assert.Equal("NeedleSnd", registeredBehavior.FireSoundName);
+        var registeredWeapon = Assert.Single(fakeContext.RegisteredGameplayWeaponItems);
+        Assert.Equal("weapon.plugin-nailgun", registeredWeapon.ItemId);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, registeredWeapon.Slot);
+        Assert.Equal(30, registeredWeapon.Ammo.MaxAmmo);
+        Assert.Equal(9f, registeredWeapon.Ammo.MinProjectileSpeed);
+        Assert.Equal(GameplayItemHudStateProviders.SecondaryAmmo, registeredWeapon.Presentation?.Hud?.StateProvider);
+        var registeredSlotItem = Assert.Single(fakeContext.RegisteredGameplaySlotItems);
+        Assert.Equal("scout", registeredSlotItem.ClassId);
+        Assert.Equal("weapon.plugin-nailgun", registeredSlotItem.ItemId);
+
+        var world = new SimulationWorld();
+        var player = new PlayerEntity(10, CharacterClassCatalog.RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Scout));
+        var weapon = new PrimaryWeaponDefinition(
+            "Plugin Nailgun",
+            PrimaryWeaponKind.Custom,
+            MaxAmmo: 30,
+            AmmoPerShot: 1,
+            ProjectilesPerShot: 1,
+            ReloadDelayTicks: 4,
+            AmmoReloadTicks: 2,
+            SpreadDegrees: 0f,
+            MinShotSpeed: 9f,
+            AdditionalRandomShotSpeed: 0f);
+        var result = registeredBehavior.Executor.Handle(new GameplayPrimaryWeaponContext
+        {
+            World = world,
+            Player = player,
+            Weapon = weapon,
+            ItemId = "weapon.plugin-nailgun",
+            BehaviorId = registeredBehavior.BehaviorId,
+            WeaponClassId = PlayerClass.Scout,
+            SourceX = 5f,
+            SourceY = 6f,
+            AimWorldX = 100f,
+            AimWorldY = 6f,
+            DirectionX = 1f,
+            DirectionY = 0f,
+            DirectionRadians = 0f,
+            KillFeedWeaponSpriteName = "NeedleKL",
+        });
+
+        Assert.True(result.Handled);
+        using var executeJson = JsonDocument.Parse(File.ReadAllText(Path.Combine(configDirectory, "primary-execute.json")));
+        Assert.Equal("weapon.plugin-nailgun", executeJson.RootElement.GetProperty("item_id").GetString());
+        Assert.Equal(registeredBehavior.BehaviorId, executeJson.RootElement.GetProperty("behavior_id").GetString());
+        Assert.Equal("Custom", executeJson.RootElement.GetProperty("weapon_kind").GetString());
+        Assert.Equal(30, executeJson.RootElement.GetProperty("weapon_max_ammo").GetInt32());
+        Assert.Equal(1, executeJson.RootElement.GetProperty("projectile_id").GetInt32());
+        Assert.Equal(9f, executeJson.RootElement.GetProperty("velocity_x").GetSingle());
+        Assert.Equal(0f, executeJson.RootElement.GetProperty("velocity_y").GetSingle());
+        var projectileRequest = Assert.Single(fakeContext.GameplayProjectileSpawnRequests);
+        Assert.Equal(GameplayProjectileKinds.Needle, projectileRequest.Kind);
+        Assert.Equal(10, projectileRequest.OwnerPlayerId);
+        Assert.Equal(9f, projectileRequest.VelocityX);
+        Assert.Equal("NeedleKL", projectileRequest.KillFeedWeaponSpriteName);
+    }
+
+    [Fact]
+    public void ServerLuaGameplayAbilityTemplateRegistersAndExecutesAdvertisedFlows()
+    {
+        using var tempDirectory = new TempDirectory();
+        var logs = new List<string>();
+        var loadedPlugin = LoadServerLuaTemplate(
+            "ServerLua.GameplayAbility",
+            "sample.server.lua-gameplay-ability",
+            tempDirectory,
+            logs);
+
+        var context = loadedPlugin.Context;
+        var dashAbility = Assert.Single(context.RegisteredGameplayAbilities, ability => ability.ItemId == "ability.sample-force-dash");
+        var passiveAbility = Assert.Single(context.RegisteredGameplayAbilities, ability => ability.ItemId == "ability.sample-force-dash-passive");
+        Assert.Equal(GameplayAbilityConstants.UtilityCategory, dashAbility.Ability.Category);
+        Assert.Equal(GameplayAbilityConstants.PressedActivation, dashAbility.Ability.Activation);
+        Assert.Equal(GameplayAbilityConstants.PassiveCategory, passiveAbility.Ability.Category);
+        Assert.Equal(GameplayAbilityConstants.PassiveTickActivation, passiveAbility.Ability.Activation);
+        Assert.NotNull(dashAbility.Presentation?.Hud);
+        Assert.Equal(GameplayItemHudStateProviders.AbilityCooldown, dashAbility.Presentation!.Hud!.StateProvider);
+        Assert.Equal("sample.server.lua-gameplay-ability", dashAbility.Presentation.Hud.StateOwner);
+        Assert.Equal("sample_force_dash_cooldown", dashAbility.Presentation.Hud.CooldownKey);
+
+        var loadout = Assert.Single(context.RegisteredGameplayLoadouts);
+        Assert.Equal("heavy", loadout.ClassId);
+        Assert.Equal("ability.sample-force-dash", loadout.UtilityItemId);
+        Assert.NotNull(loadout.AbilityItemIds);
+        Assert.Contains("ability.sample-force-dash-passive", loadout.AbilityItemIds!);
+
+        var dashExecutor = Assert.Single(context.RegisteredGameplayAbilityExecutors, executor => executor.ExecutorId == dashAbility.Ability.ExecutorId);
+        var passiveExecutor = Assert.Single(context.RegisteredGameplayAbilityExecutors, executor => executor.ExecutorId == passiveAbility.Ability.ExecutorId);
+        var world = new SimulationWorld();
+        var player = new PlayerEntity(10, CharacterClassCatalog.RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Heavy));
+        var dashItem = CreateAbilityItemDefinition(dashAbility);
+        var passiveItem = CreateAbilityItemDefinition(passiveAbility);
+
+        var dashResult = dashExecutor.Executor.Handle(new GameplayAbilityContext
+        {
+            World = world,
+            Player = player,
+            Item = dashItem,
+            Ability = dashAbility.Ability,
+            Phase = GameplayAbilityInputPhase.Pressed,
+            Input = new PlayerInputSnapshot(false, false, false, false, false, false, false, false, false, 20f, 30f, false),
+            PreviousInput = new PlayerInputSnapshot(false, false, false, false, false, false, false, false, false, 0f, 0f, false),
+            SourceX = 5f,
+            SourceY = 6f,
+        });
+        Assert.True(dashResult.Handled);
+        Assert.True(dashResult.ConsumedInput);
+        Assert.Contains(context.GameplayImpulses, request => request.PlayerId == 10 && request.VelocityX == 12f && request.VelocityY == -4f);
+        Assert.Contains(context.GameplayAbilityCooldowns, request => request.PlayerId == 10 && request.CooldownKey == "sample_force_dash_cooldown" && request.Ticks == 180);
+
+        context.GameplayAbilityCooldowns.Clear();
+        context.StateImpl.IntReplicatedStates[(10, "sample.server.lua-gameplay-ability", "sample_force_dash_cooldown")] = 3;
+
+        var passiveResult = passiveExecutor.Executor.Handle(new GameplayAbilityContext
+        {
+            World = world,
+            Player = player,
+            Item = passiveItem,
+            Ability = passiveAbility.Ability,
+            Phase = GameplayAbilityInputPhase.PassiveTick,
+            Input = new PlayerInputSnapshot(false, false, false, false, false, false, false, false, false, 20f, 30f, false),
+            PreviousInput = new PlayerInputSnapshot(false, false, false, false, false, false, false, false, false, 0f, 0f, false),
+            SourceX = 5f,
+            SourceY = 6f,
+        });
+        Assert.True(passiveResult.Handled);
+        Assert.False(passiveResult.ConsumedInput);
+        Assert.Contains(context.GameplayAbilityCooldowns, request => request.PlayerId == 10 && request.CooldownKey == "sample_force_dash_cooldown" && request.Ticks == 2);
+        Assert.DoesNotContain(logs, log => log.Contains("callback failure", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void ServerLuaPrimaryWeaponTemplateRegistersAndExecutesAdvertisedFlows()
+    {
+        using var tempDirectory = new TempDirectory();
+        var logs = new List<string>();
+        var loadedPlugin = LoadServerLuaTemplate(
+            "ServerLua.PrimaryWeapon",
+            "sample.server.lua-primary-weapon",
+            tempDirectory,
+            logs);
+
+        var context = loadedPlugin.Context;
+        var behavior = Assert.Single(context.RegisteredGameplayPrimaryWeaponBehaviors);
+        Assert.Equal("plugin.sample.server.lua-primary-weapon.nailgun", behavior.BehaviorId);
+        Assert.Equal("NeedleSnd", behavior.FireSoundName);
+        var weaponItem = Assert.Single(context.RegisteredGameplayWeaponItems);
+        Assert.Equal("weapon.sample-nailgun", weaponItem.ItemId);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, weaponItem.Slot);
+        Assert.Equal(30, weaponItem.Ammo.MaxAmmo);
+        Assert.Equal(9f, weaponItem.Ammo.MinProjectileSpeed);
+        var toggleAbility = Assert.Single(context.RegisteredGameplayAbilities);
+        Assert.Equal("ability.sample-nailgun-toggle", toggleAbility.ItemId);
+        Assert.Equal(BuiltInGameplayBehaviorIds.SoldierSecondaryToggle, toggleAbility.Ability.ExecutorId);
+        var loadout = Assert.Single(context.RegisteredGameplayLoadouts);
+        Assert.Equal("scout", loadout.ClassId);
+        Assert.Equal("weapon.sample-nailgun", loadout.SecondaryItemId);
+        Assert.Equal("ability.sample-nailgun-toggle", loadout.UtilityItemId);
+
+        var world = new SimulationWorld();
+        var player = new PlayerEntity(10, CharacterClassCatalog.RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Scout));
+        var result = behavior.Executor.Handle(new GameplayPrimaryWeaponContext
+        {
+            World = world,
+            Player = player,
+            Weapon = new PrimaryWeaponDefinition(
+                "Sample Nailgun",
+                PrimaryWeaponKind.Custom,
+                MaxAmmo: 30,
+                AmmoPerShot: 1,
+                ProjectilesPerShot: 1,
+                ReloadDelayTicks: 4,
+                AmmoReloadTicks: 2,
+                SpreadDegrees: 0f,
+                MinShotSpeed: 9f,
+                AdditionalRandomShotSpeed: 0f),
+            ItemId = "weapon.sample-nailgun",
+            BehaviorId = behavior.BehaviorId,
+            WeaponClassId = PlayerClass.Scout,
+            SourceX = 5f,
+            SourceY = 6f,
+            AimWorldX = 100f,
+            AimWorldY = 6f,
+            DirectionX = 1f,
+            DirectionY = 0f,
+            DirectionRadians = 0f,
+            KillFeedWeaponSpriteName = "NeedleKL",
+        });
+
+        Assert.True(result.Handled);
+        var projectileRequest = Assert.Single(context.GameplayProjectileSpawnRequests);
+        Assert.Equal(GameplayProjectileKinds.Needle, projectileRequest.Kind);
+        Assert.Equal(9f, projectileRequest.VelocityX);
+    }
+
+    [Fact]
+    public void ServerLuaAbilityInputEventCanCancelAndUsedEventIsObservable()
+    {
+        using var tempDirectory = new TempDirectory();
+        var pluginDirectory = tempDirectory.CreateSubdirectory("ServerLuaAbilityEvents");
+        File.WriteAllText(Path.Combine(pluginDirectory, "plugin.json"), """
+            {
+              "schemaVersion": 1,
+              "id": "tests.server.lua-ability-events",
+              "displayName": "Lua Server Ability Events",
+              "version": "1.0.0",
+              "type": "Server",
+              "runtime": "Lua",
+              "entryPoint": "main.lua",
+              "compatibility": { "hostApiVersion": "1.0" }
+            }
+            """);
+        File.WriteAllText(Path.Combine(pluginDirectory, "main.lua"), """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+            end
+
+            function plugin.on_gameplay_ability_input(e)
+                plugin.host.save_json_config("ability-input.json", {
+                    item_id = e.itemId,
+                    category = e.abilityCategory,
+                    phase = e.phase
+                })
+                return false
+            end
+
+            function plugin.on_gameplay_ability_used(e)
+                plugin.host.save_json_config("ability-used.json", {
+                    item_id = e.itemId,
+                    handled = e.handled,
+                    consumed_input = e.consumedInput
+                })
+            end
+
+            function plugin.on_gameplay_ability_state_changed(e)
+                plugin.host.save_json_config("ability-state.json", {
+                    player_id = e.playerId,
+                    owner_id = e.ownerId,
+                    state_key = e.stateKey,
+                    value_kind = e.valueKind,
+                    current_int_value = e.currentIntValue
+                })
+            end
+
+            return plugin
+            """);
+
+        var logs = new List<string>();
+        var configDirectory = tempDirectory.CreateSubdirectory("ServerConfig");
+        Assert.True(
+            OpenGarrisonPluginManifestLoader.TryLoadFromPath(Path.Combine(pluginDirectory, "plugin.json"), out var manifest, out var manifestError),
+            manifestError);
+
+        var fakeContext = new FakeServerPluginContext(
+            manifest,
+            pluginDirectory,
+            configDirectory,
+            tempDirectory.CreateSubdirectory("Maps"),
+            logs);
+
+        var loadedPlugins = PluginLoader.LoadFromSearchDirectories(
+            [new PluginLoader.PluginSearchDirectory(tempDirectory.RootPath, SearchOption.AllDirectories)],
+            (_, _, _) => fakeContext,
+            logs.Add);
+        var loadedPlugin = Assert.Single(loadedPlugins);
+        var hooks = Assert.IsAssignableFrom<IOpenGarrisonServerSemanticGameplayHooks>(loadedPlugin.Plugin);
+
+        var inputEvent = new OpenGarrisonServerGameplayAbilityInputEvent(
+            1,
+            10,
+            PlayerClass.Heavy,
+            PlayerTeam.Red,
+            "ability.heavy-utility",
+            BuiltInGameplayBehaviorIds.HeavyUtility,
+            GameplayAbilityConstants.UtilityCategory,
+            GameplayAbilityConstants.PressedActivation,
+            BuiltInGameplayBehaviorIds.HeavyGhostDash,
+            GameplayAbilityInputPhase.Pressed.ToString(),
+            ["dash"]);
+        hooks.OnGameplayAbilityInput(inputEvent);
+        hooks.OnGameplayAbilityUsed(new OpenGarrisonServerGameplayAbilityUsedEvent(
+            1,
+            10,
+            PlayerClass.Heavy,
+            PlayerTeam.Red,
+            "ability.heavy-utility",
+            BuiltInGameplayBehaviorIds.HeavyUtility,
+            GameplayAbilityConstants.UtilityCategory,
+            GameplayAbilityConstants.PressedActivation,
+            BuiltInGameplayBehaviorIds.HeavyGhostDash,
+            GameplayAbilityInputPhase.Pressed.ToString(),
+            ["dash"],
+            Handled: true,
+            ConsumedInput: true));
+        hooks.OnGameplayAbilityStateChanged(new OpenGarrisonServerGameplayAbilityStateChangedEvent(
+            2,
+            10,
+            PlayerClass.Heavy,
+            PlayerTeam.Red,
+            GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+            GameplayAbilityReplicatedState.HeavyDashCooldownTicksKey,
+            GameplayReplicatedStateValueKind.Whole,
+            HasPreviousValue: true,
+            PreviousIntValue: 0,
+            CurrentIntValue: 360,
+            PreviousFloatValue: 0f,
+            CurrentFloatValue: 0f,
+            PreviousBoolValue: false,
+            CurrentBoolValue: false));
+
+        Assert.True(inputEvent.IsCancelled);
+        using var inputJson = JsonDocument.Parse(File.ReadAllText(Path.Combine(configDirectory, "ability-input.json")));
+        Assert.Equal("ability.heavy-utility", inputJson.RootElement.GetProperty("item_id").GetString());
+        Assert.Equal("utility", inputJson.RootElement.GetProperty("category").GetString());
+        Assert.Equal("Pressed", inputJson.RootElement.GetProperty("phase").GetString());
+
+        using var usedJson = JsonDocument.Parse(File.ReadAllText(Path.Combine(configDirectory, "ability-used.json")));
+        Assert.Equal("ability.heavy-utility", usedJson.RootElement.GetProperty("item_id").GetString());
+        Assert.True(usedJson.RootElement.GetProperty("handled").GetBoolean());
+        Assert.True(usedJson.RootElement.GetProperty("consumed_input").GetBoolean());
+
+        using var stateJson = JsonDocument.Parse(File.ReadAllText(Path.Combine(configDirectory, "ability-state.json")));
+        Assert.Equal(10, stateJson.RootElement.GetProperty("player_id").GetInt32());
+        Assert.Equal("core.ability", stateJson.RootElement.GetProperty("owner_id").GetString());
+        Assert.Equal("heavy_dash_cooldown_ticks", stateJson.RootElement.GetProperty("state_key").GetString());
+        Assert.Equal("Whole", stateJson.RootElement.GetProperty("value_kind").GetString());
+        Assert.Equal(360, stateJson.RootElement.GetProperty("current_int_value").GetInt32());
     }
 
     [Fact]
@@ -1186,7 +2589,14 @@ public sealed class LuaPluginHostSmokeTests
                 local secondaryItems = plugin.host.get_available_gameplay_secondary_items(1)
                 local acquiredItems = plugin.host.get_available_gameplay_acquired_items(1)
 
-                if packs[1] ~= nil and packs[1].modPackId == "stock.gg2" then
+                local foundStockPack = false
+                for _, pack in pairs(packs) do
+                    if pack ~= nil and pack.modPackId == "stock.gg2" then
+                        foundStockPack = true
+                    end
+                end
+
+                if foundStockPack then
                     plugin.host.log("gameplay-pack-ok")
                 end
 
@@ -2315,6 +3725,36 @@ public sealed class LuaPluginHostSmokeTests
         return new LoadedClientLuaTemplate(loadedPlugin!.Plugin, context, configDirectory);
     }
 
+    private static LoadedServerLuaTemplate LoadServerLuaTemplate(
+        string folderName,
+        string pluginId,
+        TempDirectory tempDirectory,
+        List<string> logs)
+    {
+        var repoRoot = FindRepositoryRoot();
+        var pluginDirectory = Path.Combine(repoRoot, "Plugins", "Templates", folderName);
+        var manifestPath = Path.Combine(pluginDirectory, "plugin.json");
+        Assert.True(OpenGarrisonPluginManifestLoader.TryLoadFromPath(manifestPath, out var manifest, out var manifestError), manifestError);
+
+        var configDirectory = tempDirectory.CreateSubdirectory(pluginId.Replace('.', '_') + "_config");
+        var context = new FakeServerPluginContext(
+            manifest,
+            pluginDirectory,
+            configDirectory,
+            tempDirectory.CreateSubdirectory(pluginId.Replace('.', '_') + "_maps"),
+            logs);
+
+        var loadedPlugins = PluginLoader.LoadFromSearchDirectories(
+            [new PluginLoader.PluginSearchDirectory(pluginDirectory, SearchOption.TopDirectoryOnly)],
+            (_, _, _) => context,
+            logs.Add);
+
+        Assert.True(loadedPlugins.Count == 1, string.Join(Environment.NewLine, logs));
+        var loadedPlugin = loadedPlugins[0];
+        Assert.Equal(pluginId, loadedPlugin.Plugin.Id);
+        return new LoadedServerLuaTemplate(loadedPlugin.Plugin, context, configDirectory);
+    }
+
     private static LoadedClientLuaTemplate LoadPackagedClientLuaPlugin(
         string folderName,
         string pluginId,
@@ -2367,6 +3807,18 @@ public sealed class LuaPluginHostSmokeTests
         return new LoadedServerLuaTemplate(loadedPlugin.Plugin, context, configDirectory);
     }
 
+    private static GameplayItemDefinition CreateAbilityItemDefinition(GameplayAbilityRegistration registration)
+    {
+        return new GameplayItemDefinition(
+            registration.ItemId,
+            registration.DisplayName,
+            registration.Slot,
+            registration.BehaviorId,
+            new GameplayItemAmmoDefinition(),
+            registration.Presentation ?? new GameplayItemPresentationDefinition(),
+            Ability: registration.Ability);
+    }
+
     private static OpenGarrisonServerChatMessageContext CreateAdminChatContext(FakeServerPluginContext context, byte slot)
     {
         return new OpenGarrisonServerChatMessageContext(
@@ -2379,6 +3831,19 @@ public sealed class LuaPluginHostSmokeTests
                 OpenGarrisonServerAdminAuthority.RconSession,
                 OpenGarrisonServerAdminPermissions.FullAccess,
                 slot));
+    }
+
+    private static OpenGarrisonServerCommandContext CreateCommandContext(
+        FakeServerPluginContext context,
+        OpenGarrisonServerAdminIdentity identity)
+    {
+        return new OpenGarrisonServerCommandContext(
+            context.ServerState,
+            context.AdminOperations,
+            context.Cvars,
+            context.Scheduler,
+            identity,
+            OpenGarrisonServerCommandSource.PrivateChat);
     }
 
     private static List<GarrisonToolsCommandSpec> ExtractGarrisonToolsCommandSpecs(string mainLua)
@@ -2597,6 +4062,9 @@ public sealed class LuaPluginHostSmokeTests
         public List<ClientPlayerMarker> PlayerMarkers { get; set; } = [];
         public List<ClientSentryMarker> SentryMarkers { get; set; } = [];
         public List<ClientObjectiveMarker> ObjectiveMarkers { get; set; } = [];
+        public Dictionary<(int PlayerId, string OwnerPluginId, string StateKey), int> IntReplicatedStates { get; } = [];
+        public Dictionary<(int PlayerId, string OwnerPluginId, string StateKey), float> FloatReplicatedStates { get; } = [];
+        public Dictionary<(int PlayerId, string OwnerPluginId, string StateKey), bool> BoolReplicatedStates { get; } = [];
 
         public IReadOnlyList<ClientPlayerMarker> GetPlayerMarkers() => PlayerMarkers;
         public IReadOnlyList<ClientSentryMarker> GetSentryMarkers() => SentryMarkers;
@@ -2618,20 +4086,17 @@ public sealed class LuaPluginHostSmokeTests
 
         public bool TryGetPlayerReplicatedStateBool(int playerId, string ownerPluginId, string stateKey, out bool value)
         {
-            value = default;
-            return false;
+            return BoolReplicatedStates.TryGetValue((playerId, ownerPluginId, stateKey), out value);
         }
 
         public bool TryGetPlayerReplicatedStateFloat(int playerId, string ownerPluginId, string stateKey, out float value)
         {
-            value = default;
-            return false;
+            return FloatReplicatedStates.TryGetValue((playerId, ownerPluginId, stateKey), out value);
         }
 
         public bool TryGetPlayerReplicatedStateInt(int playerId, string ownerPluginId, string stateKey, out int value)
         {
-            value = default;
-            return false;
+            return IntReplicatedStates.TryGetValue((playerId, ownerPluginId, stateKey), out value);
         }
 
         public bool TryGetPlayerWorldPosition(int playerId, out Vector2 position)
@@ -2732,6 +4197,8 @@ public sealed class LuaPluginHostSmokeTests
 
         public FakeOverlayMenuState? OverlayMenu { get; private set; }
 
+        public ClientPluginOverlayPanel? OverlayPanel { get; private set; }
+
         public void RegisterMenuEntry(string menuEntryId, string label, ClientPluginMenuLocation location, Action activate, int order = 0)
         {
             MenuEntries.Add((menuEntryId, label, location, order, activate));
@@ -2747,9 +4214,15 @@ public sealed class LuaPluginHostSmokeTests
             OverlayMenu = new FakeOverlayMenuState(title, subtitle, breadcrumb, entries.ToArray());
         }
 
+        public void ShowOverlayPanel(ClientPluginOverlayPanel panel)
+        {
+            OverlayPanel = panel;
+        }
+
         public void HideOverlayMenu()
         {
             OverlayMenu = null;
+            OverlayPanel = null;
         }
     }
 
@@ -2895,6 +4368,36 @@ public sealed class LuaPluginHostSmokeTests
 
         public List<(byte Slot, string StateKey)> ClearedReplicatedStateKeys { get; } = [];
 
+        public List<(int PlayerId, float VelocityX, float VelocityY)> GameplayImpulses { get; } = [];
+
+        public List<(int PlayerId, string CooldownKey, int Ticks)> GameplayAbilityCooldowns { get; } = [];
+
+        public List<(int TargetPlayerId, float Amount, int? AttackerPlayerId, string? WeaponSpriteName)> GameplayDamageRequests { get; } = [];
+
+        public List<(int PlayerId, float Amount)> GameplayHealingRequests { get; } = [];
+
+        public List<(int PlayerId, string StatusEffectId, int Ticks, float Value)> GameplayStatusEffectRequests { get; } = [];
+
+        public List<GameplayProjectileSpawnRequest> GameplayProjectileSpawnRequests { get; } = [];
+
+        public List<GameplayAbilityRegistration> RegisteredGameplayAbilities { get; } = [];
+
+        public List<(string ItemId, GameplayAbilityPatch Patch)> GameplayAbilityOverrides { get; } = [];
+
+        public List<(string ExecutorId, IGameplayAbilityExecutor Executor)> RegisteredGameplayAbilityExecutors { get; } = [];
+
+        public List<(string BehaviorId, IGameplayPrimaryWeaponExecutor Executor, string? FireSoundName)> RegisteredGameplayPrimaryWeaponBehaviors { get; } = [];
+
+        public List<GameplayWeaponItemRegistration> RegisteredGameplayWeaponItems { get; } = [];
+
+        public List<GameplayLoadoutRegistration> RegisteredGameplayLoadouts { get; } = [];
+
+        public List<GameplaySlotItemRegistration> RegisteredGameplaySlotItems { get; } = [];
+
+        public PluginCommandRegistry CommandRegistry { get; } = new();
+
+        public List<(IOpenGarrisonServerCommand Command, OpenGarrisonServerAdminPermissions RequiredPermissions, IReadOnlyList<string> Aliases)> RegisteredCommands { get; } = [];
+
         public IOpenGarrisonServerReadOnlyState ServerState => StateImpl;
 
         public IOpenGarrisonServerAdminOperations AdminOperations => AdminImpl;
@@ -2914,10 +4417,54 @@ public sealed class LuaPluginHostSmokeTests
             return true;
         }
 
+        public bool TryApplyGameplayImpulse(int playerId, float velocityX, float velocityY)
+        {
+            GameplayImpulses.Add((playerId, velocityX, velocityY));
+            return true;
+        }
+
+        public bool TrySetGameplayAbilityCooldown(int playerId, string cooldownKey, int ticks)
+        {
+            GameplayAbilityCooldowns.Add((playerId, cooldownKey, ticks));
+            return true;
+        }
+
+        public bool TryApplyGameplayDamage(int targetPlayerId, float amount, int? attackerPlayerId = null, string? weaponSpriteName = null)
+        {
+            GameplayDamageRequests.Add((targetPlayerId, amount, attackerPlayerId, weaponSpriteName));
+            return true;
+        }
+
+        public bool TryApplyGameplayHealing(int playerId, float amount)
+        {
+            GameplayHealingRequests.Add((playerId, amount));
+            return true;
+        }
+
+        public bool TryApplyGameplayStatusEffect(int playerId, string statusEffectId, int ticks, float value = 0f)
+        {
+            GameplayStatusEffectRequests.Add((playerId, statusEffectId, ticks, value));
+            return true;
+        }
+
+        public bool TrySpawnGameplayProjectile(GameplayProjectileSpawnRequest request, out int projectileId)
+        {
+            GameplayProjectileSpawnRequests.Add(request);
+            projectileId = GameplayProjectileSpawnRequests.Count;
+            return true;
+        }
+
         public void Log(string message) => _logs.Add(message);
 
         public void RegisterCommand(IOpenGarrisonServerCommand command, OpenGarrisonServerAdminPermissions requiredPermissions)
         {
+            RegisterCommand(command, requiredPermissions, []);
+        }
+
+        public void RegisterCommand(IOpenGarrisonServerCommand command, OpenGarrisonServerAdminPermissions requiredPermissions, IReadOnlyList<string> aliases)
+        {
+            RegisteredCommands.Add((command, requiredPermissions, aliases));
+            CommandRegistry.RegisterPluginCommand(command, PluginId, requiredPermissions, aliases);
         }
 
         public void SendMessageToClient(byte slot, string targetPluginId, string messageType, string payload, PluginMessagePayloadFormat payloadFormat, ushort schemaVersion)
@@ -2942,6 +4489,55 @@ public sealed class LuaPluginHostSmokeTests
             ReplicatedStateWrites.Add(("int", slot, stateKey, value));
             return true;
         }
+
+        public bool TryRegisterGameplayAbility(GameplayAbilityRegistration registration, out string errorMessage)
+        {
+            RegisteredGameplayAbilities.Add(registration);
+            errorMessage = string.Empty;
+            return true;
+        }
+
+        public bool TryOverrideGameplayAbility(string itemId, GameplayAbilityPatch patch, out string errorMessage)
+        {
+            GameplayAbilityOverrides.Add((itemId, patch));
+            errorMessage = string.Empty;
+            return true;
+        }
+
+        public bool TryRegisterGameplayAbilityExecutor(string executorId, IGameplayAbilityExecutor executor, out string errorMessage)
+        {
+            RegisteredGameplayAbilityExecutors.Add((executorId, executor));
+            errorMessage = string.Empty;
+            return true;
+        }
+
+        public bool TryRegisterGameplayPrimaryWeaponBehavior(string behaviorId, IGameplayPrimaryWeaponExecutor executor, string? fireSoundName, out string errorMessage)
+        {
+            RegisteredGameplayPrimaryWeaponBehaviors.Add((behaviorId, executor, fireSoundName));
+            errorMessage = string.Empty;
+            return true;
+        }
+
+        public bool TryRegisterGameplayWeaponItem(GameplayWeaponItemRegistration registration, out string errorMessage)
+        {
+            RegisteredGameplayWeaponItems.Add(registration);
+            errorMessage = string.Empty;
+            return true;
+        }
+
+        public bool TryRegisterGameplayLoadout(GameplayLoadoutRegistration registration, out string errorMessage)
+        {
+            RegisteredGameplayLoadouts.Add(registration);
+            errorMessage = string.Empty;
+            return true;
+        }
+
+        public bool TryRegisterGameplaySlotItem(GameplaySlotItemRegistration registration, out string errorMessage)
+        {
+            RegisteredGameplaySlotItems.Add(registration);
+            errorMessage = string.Empty;
+            return true;
+        }
     }
 
     private sealed class FakeServerReadOnlyState : IOpenGarrisonServerReadOnlyState
@@ -2956,6 +4552,14 @@ public sealed class LuaPluginHostSmokeTests
         public int RedCaps => 0;
         public int BlueCaps => 0;
         public readonly List<OpenGarrisonServerPlayerInfo> Players = [];
+        public readonly List<OpenGarrisonServerGameplayAbilityInfo> Abilities = [];
+        public OpenGarrisonServerObjectiveStateInfo Objectives = new([], [], []);
+        public readonly List<OpenGarrisonServerBuildableInfo> Buildables = [];
+        public readonly List<OpenGarrisonServerProjectileInfo> Projectiles = [];
+        public readonly List<OpenGarrisonServerRecentEventInfo> RecentEvents = [];
+        public readonly Dictionary<(int PlayerId, string OwnerPluginId, string StateKey), int> IntReplicatedStates = [];
+        public readonly Dictionary<(int PlayerId, string OwnerPluginId, string StateKey), float> FloatReplicatedStates = [];
+        public readonly Dictionary<(int PlayerId, string OwnerPluginId, string StateKey), bool> BoolReplicatedStates = [];
 
         public IReadOnlyList<OpenGarrisonServerGameplayLoadoutInfo> GetAvailableGameplayLoadouts(byte slot) => [];
 
@@ -3067,6 +4671,16 @@ public sealed class LuaPluginHostSmokeTests
                 .ToArray();
         }
 
+        public IReadOnlyList<OpenGarrisonServerGameplayAbilityInfo> GetGameplayAbilities() => Abilities;
+
+        public IReadOnlyList<OpenGarrisonServerGameplayAbilityInfo> GetPlayerGameplayAbilities(int playerId) => Abilities;
+
+        public bool TryGetPlayerGameplayAbility(int playerId, string category, out OpenGarrisonServerGameplayAbilityInfo ability)
+        {
+            ability = Abilities.FirstOrDefault(candidate => string.Equals(candidate.Category, category, StringComparison.Ordinal));
+            return !string.IsNullOrWhiteSpace(ability.ItemId);
+        }
+
         public IReadOnlyList<OpenGarrisonServerGameplayLoadoutInfo> GetGameplayLoadoutsForClass(string classId)
         {
             var gameplayClass = CharacterClassCatalog.RuntimeRegistry.GetRequiredClass(classId);
@@ -3085,6 +4699,14 @@ public sealed class LuaPluginHostSmokeTests
 
         public IReadOnlyList<OpenGarrisonServerPlayerInfo> GetPlayers() => Players;
 
+        public OpenGarrisonServerObjectiveStateInfo GetObjectives() => Objectives;
+
+        public IReadOnlyList<OpenGarrisonServerBuildableInfo> GetBuildables() => Buildables;
+
+        public IReadOnlyList<OpenGarrisonServerProjectileInfo> GetProjectiles() => Projectiles;
+
+        public IReadOnlyList<OpenGarrisonServerRecentEventInfo> GetRecentEvents() => RecentEvents;
+
         public bool TryGetPlayerReplicatedStateBool(byte slot, string ownerPluginId, string stateKey, out bool value)
         {
             value = default;
@@ -3101,6 +4723,21 @@ public sealed class LuaPluginHostSmokeTests
         {
             value = default;
             return false;
+        }
+
+        public bool TryGetPlayerReplicatedStateBool(int playerId, string ownerPluginId, string stateKey, out bool value)
+        {
+            return BoolReplicatedStates.TryGetValue((playerId, ownerPluginId, stateKey), out value);
+        }
+
+        public bool TryGetPlayerReplicatedStateFloat(int playerId, string ownerPluginId, string stateKey, out float value)
+        {
+            return FloatReplicatedStates.TryGetValue((playerId, ownerPluginId, stateKey), out value);
+        }
+
+        public bool TryGetPlayerReplicatedStateInt(int playerId, string ownerPluginId, string stateKey, out int value)
+        {
+            return IntReplicatedStates.TryGetValue((playerId, ownerPluginId, stateKey), out value);
         }
     }
 

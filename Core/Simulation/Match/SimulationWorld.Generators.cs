@@ -54,6 +54,11 @@ public sealed partial class SimulationWorld
 
     private bool TryDamageGenerator(PlayerTeam targetTeam, float damage, PlayerEntity? attacker = null)
     {
+        if (CompetitiveObjectivesLocked)
+        {
+            return false;
+        }
+
         var generator = GetGenerator(targetTeam);
         if (generator is null || generator.IsDestroyed)
         {
@@ -78,13 +83,9 @@ public sealed partial class SimulationWorld
         }
 
         var winner = GetOpposingTeam(generator.Team);
-        if (winner == PlayerTeam.Red)
+        if (!TryAwardTeamScore(winner, 1, "generator_destroyed"))
         {
-            RedCaps += 1;
-        }
-        else
-        {
-            BlueCaps += 1;
+            return;
         }
 
         RegisterWorldSoundEvent("ExplosionSnd", generator.Marker.CenterX, generator.Marker.CenterY);
@@ -94,8 +95,7 @@ public sealed partial class SimulationWorld
         RecordGeneratorDestroyedObjectiveLog(winner);
         ApplyGeneratorExplosion(generator);
 
-        MatchState = MatchState with { Phase = MatchPhase.Ended, WinnerTeam = winner };
-        QueuePendingMapChange();
+        TryEndRound(winner, "generator_destroyed");
     }
 
     private void ApplyGeneratorExplosion(GeneratorState generator)

@@ -132,7 +132,7 @@ public partial class Game1
                 .Where(level => !hiddenStockLevelNames.Contains(level.Name))
                 .Select(level =>
                 {
-                    var isCustomMap = Path.GetExtension(level.RoomSourcePath).Equals(".png", StringComparison.OrdinalIgnoreCase);
+                    var isCustomMap = level.IsCustomMap;
                     var displayName = stockDefinitions.TryGetValue(level.Name, out var definition)
                         ? definition.DisplayName
                         : level.Name;

@@ -231,7 +231,7 @@ public sealed class BotBrainController
             _objectiveTapeAsset = BotBrainObjectiveTapeStore.TryLoad(world.Level, out var tapeAsset)
                 ? tapeAsset
                 : null;
-            _verifiedProofGraphAsset = VerifiedNavProofGraphAssetStore.TryLoad(world.Level, team, self.ClassId, out var proofGraphAsset)
+            _verifiedProofGraphAsset = VerifiedNavProofGraphAssetStore.TryLoad(world.Level, team, self.BotGraphClassId, out var proofGraphAsset)
                 ? proofGraphAsset
                 : null;
             _lastLevel = world.Level;
@@ -589,7 +589,7 @@ public sealed class BotBrainController
                 _currentGoalPosition.X,
                 _currentGoalPosition.Y,
                 startNode,
-                self.ClassId,
+                self.BotGraphClassId,
                 team: team,
                 carryingIntel: self.IsCarryingIntel)
             : _navGraph.FindNearestNode(_currentGoalPosition.X, _currentGoalPosition.Y);
@@ -619,7 +619,7 @@ public sealed class BotBrainController
         var goalNode = exactGoalNode;
         var preserveExactControlObjective = ShouldPreserveExactControlObjective();
         var rejectDistantGoalProxy = ShouldRejectCarrierReturnDistantGoalProxy(_lastLevel, self, team, _currentGoalPosition);
-        var refreshedPath = _navGraph.FindPath(startNode, goalNode, self.ClassId, activeBlockedEdges, team, self.IsCarryingIntel);
+        var refreshedPath = _navGraph.FindPath(startNode, goalNode, self.BotGraphClassId, activeBlockedEdges, team, self.IsCarryingIntel);
 
         if (refreshedPath is null && !(preserveExactControlObjective && activeBlockedEdges is not null))
         {
@@ -627,13 +627,13 @@ public sealed class BotBrainController
                 _currentGoalPosition.X,
                 _currentGoalPosition.Y,
                 startNode,
-                self.ClassId,
+                self.BotGraphClassId,
                 activeBlockedEdges,
                 team,
                 self.IsCarryingIntel);
             refreshedPath = !IsRejectedDistantDirectSeekRouteGoalProxy(_navGraph, goalNode, _currentGoalPosition.X, _currentGoalPosition.Y, rejectDistantGoalProxy)
                 && (goalNode != startNode || exactGoalNode == startNode)
-                ? _navGraph.FindPath(startNode, goalNode, self.ClassId, activeBlockedEdges, team, self.IsCarryingIntel)
+                ? _navGraph.FindPath(startNode, goalNode, self.BotGraphClassId, activeBlockedEdges, team, self.IsCarryingIntel)
                 : null;
         }
 
@@ -645,7 +645,7 @@ public sealed class BotBrainController
             _blockedEdges.Clear();
             activeBlockedEdges = null;
             goalNode = exactGoalNode;
-            refreshedPath = _navGraph.FindPath(startNode, goalNode, self.ClassId, team: team, carryingIntel: self.IsCarryingIntel);
+            refreshedPath = _navGraph.FindPath(startNode, goalNode, self.BotGraphClassId, team: team, carryingIntel: self.IsCarryingIntel);
         }
 
         // A fallback reachable goal can still resolve to the current goal even when
@@ -859,7 +859,7 @@ public sealed class BotBrainController
             ? _blockedEdges.Keys.ToHashSet()
             : [];
         activeBlockedEdges.Add(failedBlock);
-        var continuationPath = _navGraph.FindPath(startNode, _goalNodeIndex, self.ClassId, activeBlockedEdges, team, self.IsCarryingIntel);
+        var continuationPath = _navGraph.FindPath(startNode, _goalNodeIndex, self.BotGraphClassId, activeBlockedEdges, team, self.IsCarryingIntel);
         if (continuationPath is null)
         {
             return false;
@@ -3011,7 +3011,7 @@ public sealed class BotBrainController
             targetX,
             targetY,
             startNode,
-            self.ClassId,
+            self.BotGraphClassId,
             activeBlockedEdges,
             team: routeTeam,
             carryingIntel: self.IsCarryingIntel,
@@ -3068,13 +3068,13 @@ public sealed class BotBrainController
             return true;
         }
 
-        var path = _navGraph.FindPath(startNode, goalNode, self.ClassId, activeBlockedEdges, routeTeam, self.IsCarryingIntel);
+        var path = _navGraph.FindPath(startNode, goalNode, self.BotGraphClassId, activeBlockedEdges, routeTeam, self.IsCarryingIntel);
         if (path is null
             && (ShouldPreferCarrierReturnGraph(world, self)
                 || !self.IsCarryingIntel
                 || !ShouldPreserveCarrierFailedEdgeBlocks(world.Level, self)))
         {
-            path = _navGraph.FindPath(startNode, goalNode, self.ClassId, team: routeTeam, carryingIntel: self.IsCarryingIntel);
+            path = _navGraph.FindPath(startNode, goalNode, self.BotGraphClassId, team: routeTeam, carryingIntel: self.IsCarryingIntel);
         }
         if (path is null || path.Count < 2)
         {
