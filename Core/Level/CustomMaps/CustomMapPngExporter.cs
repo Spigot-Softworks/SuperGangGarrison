@@ -73,7 +73,23 @@ public static class CustomMapPngExporter
     public static string BuildWalkmaskSection(string walkmaskImagePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(walkmaskImagePath);
-        using var image = Image.Load<Rgba32>(walkmaskImagePath);
+        Image<Rgba32>? loadedImage = null;
+        if (File.Exists(walkmaskImagePath))
+        {
+            loadedImage = Image.Load<Rgba32>(walkmaskImagePath);
+        }
+        else if (BrowserContentCatalog.TryGetBinaryForPath(walkmaskImagePath, out var walkmaskBytes)
+            && walkmaskBytes.Length > 0)
+        {
+            loadedImage = Image.Load<Rgba32>(walkmaskBytes);
+        }
+
+        if (loadedImage is null)
+        {
+            throw new FileNotFoundException($"Walkmask image \"{walkmaskImagePath}\" was not found.", walkmaskImagePath);
+        }
+
+        using var image = loadedImage;
         if (image.Width <= 0 || image.Height <= 0)
         {
             throw new InvalidOperationException($"Walkmask image \"{walkmaskImagePath}\" is empty.");

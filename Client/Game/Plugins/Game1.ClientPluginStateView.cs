@@ -2,9 +2,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Client.Plugins;
+using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
@@ -120,6 +122,64 @@ public partial class Game1
 
             value = default;
             return false;
+        }
+
+        public IReadOnlyList<string> GetLocalGameplayItemIds()
+        {
+            if (game._networkClient.IsSpectator)
+            {
+                return [];
+            }
+
+            return EnumerateLocalGameplayItemIds(includeHiddenAbilities: true)
+                .Where(static itemId => !string.IsNullOrWhiteSpace(itemId))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+        }
+
+        public IReadOnlyList<string> GetLocalGameplayAbilityItemIds()
+        {
+            if (game._networkClient.IsSpectator)
+            {
+                return [];
+            }
+
+            return EnumerateLocalGameplayItemIds(includeHiddenAbilities: true)
+                .Where(static itemId => !string.IsNullOrWhiteSpace(itemId))
+                .Distinct(StringComparer.Ordinal)
+                .Where(static itemId => CharacterClassCatalog.RuntimeRegistry.TryGetGameplayAbilityDefinition(itemId, out _, out _))
+                .ToArray();
+        }
+
+        private IEnumerable<string?> EnumerateLocalGameplayItemIds(bool includeHiddenAbilities)
+        {
+            var loadout = game._world.LocalPlayer.GameplayLoadoutState;
+            foreach (var itemId in new[]
+                {
+                    loadout.PrimaryItemId,
+                    loadout.SecondaryItemId,
+                    loadout.UtilityItemId,
+                    loadout.AcquiredItemId,
+                    loadout.EquippedItemId,
+                })
+            {
+                yield return itemId;
+            }
+
+            if (!includeHiddenAbilities
+                || !CharacterClassCatalog.RuntimeRegistry.TryGetLoadout(
+                    game._world.LocalPlayer.GameplayClassId,
+                    game._world.LocalPlayer.SelectedGameplayLoadoutId,
+                    out var selectedLoadout)
+                || selectedLoadout.AbilityItemIds is null)
+            {
+                yield break;
+            }
+
+            foreach (var itemId in selectedLoadout.AbilityItemIds)
+            {
+                yield return itemId;
+            }
         }
 
 #if !BROWSER_KNI

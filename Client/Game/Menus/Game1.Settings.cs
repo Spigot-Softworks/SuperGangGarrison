@@ -43,6 +43,7 @@ public partial class Game1
         _showHealerEnabled = _clientSettings.ShowHealerEnabled;
         _showHealingEnabled = _clientSettings.ShowHealingEnabled;
         _showHealthBarEnabled = _clientSettings.ShowHealthBarEnabled;
+        _hudShowOnlyActiveWeapon = _clientSettings.HudShowOnlyActiveWeapon;
         _overheadChatEnabled = _clientSettings.OverheadChatEnabled;
         _portraitRumbleEnabled = _clientSettings.PortraitRumbleEnabled;
         _postGameMvpArtEnabled = _clientSettings.PostGameMvpArtEnabled;
@@ -98,6 +99,7 @@ public partial class Game1
         _clientSettings.ShowHealerEnabled = _showHealerEnabled;
         _clientSettings.ShowHealingEnabled = _showHealingEnabled;
         _clientSettings.ShowHealthBarEnabled = _showHealthBarEnabled;
+        _clientSettings.HudShowOnlyActiveWeapon = _hudShowOnlyActiveWeapon;
         _clientSettings.OverheadChatEnabled = _overheadChatEnabled;
         _clientSettings.PortraitRumbleEnabled = _portraitRumbleEnabled;
         _clientSettings.PostGameMvpArtEnabled = _postGameMvpArtEnabled;

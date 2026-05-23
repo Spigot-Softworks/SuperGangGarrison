@@ -12,6 +12,7 @@ public sealed class OpenGarrisonPreferencesDocument
     public const string DefaultLobbyHost = DefaultApiBaseUrl + "/api/servers";
     public const int DefaultLobbyPort = 443;
     public const bool DefaultOverheadChatEnabled = true;
+    public const int DefaultDamageVignetteIntensityPercent = 65;
     private const string SettingsSection = "Settings";
     private const string ServerSection = "Server";
     private const string ConnectionSection = "Connection";
@@ -59,6 +60,8 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool ShowHealthBarEnabled { get; set; }
 
+    public bool HudShowOnlyActiveWeapon { get; set; }
+
     public bool OverheadChatEnabled { get; set; } = DefaultOverheadChatEnabled;
 
     public bool PortraitRumbleEnabled { get; set; } = true;
@@ -67,7 +70,7 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool DamageVignetteEnabled { get; set; } = true;
 
-    public int DamageVignetteIntensityPercent { get; set; } = 100;
+    public int DamageVignetteIntensityPercent { get; set; } = DefaultDamageVignetteIntensityPercent;
 
     public LowHealthColorMode LowHealthColorMode { get; set; } = LowHealthColorMode.Red;
 
@@ -147,11 +150,12 @@ public sealed class OpenGarrisonPreferencesDocument
             ShowHealerEnabled = ini.GetBool(SettingsSection, "Show Healer", true),
             ShowHealingEnabled = ini.GetBool(SettingsSection, "Show Healing", true),
             ShowHealthBarEnabled = ini.GetBool(SettingsSection, "Show Healthbar", false),
+            HudShowOnlyActiveWeapon = ini.GetBool(SettingsSection, "HUD Show Only Active Weapon", false),
             OverheadChatEnabled = ini.GetBool(SettingsSection, "Overhead Chat", DefaultOverheadChatEnabled),
             PortraitRumbleEnabled = ini.GetBool(SettingsSection, "Portrait Rumble", true),
             PostGameMvpArtEnabled = ini.GetBool(SettingsSection, "MVP Art", false),
             DamageVignetteEnabled = ini.GetBool(SettingsSection, "Damage Vignette", true),
-            DamageVignetteIntensityPercent = NormalizeDamageVignetteIntensityPercent(ini.GetInt(SettingsSection, "Damage Vignette Intensity", 100)),
+            DamageVignetteIntensityPercent = NormalizeDamageVignetteIntensityPercent(ini.GetInt(SettingsSection, "Damage Vignette Intensity", DefaultDamageVignetteIntensityPercent)),
             LowHealthColorMode = ParseLowHealthColorMode(ini.GetString(SettingsSection, "Low Health Color", LowHealthColorMode.Red.ToString())),
             ShowUberOutlinesEnabled = ini.GetBool(SettingsSection, "Show Uber Outlines", true),
             ProjectileTeamTintEnabled = ini.GetBool(SettingsSection, "Projectile Team Tint", true),
@@ -208,6 +212,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(SettingsSection, "Show Healer", ShowHealerEnabled);
         ini.SetBool(SettingsSection, "Show Healing", ShowHealingEnabled);
         ini.SetBool(SettingsSection, "Show Healthbar", ShowHealthBarEnabled);
+        ini.SetBool(SettingsSection, "HUD Show Only Active Weapon", HudShowOnlyActiveWeapon);
         ini.SetBool(SettingsSection, "Overhead Chat", OverheadChatEnabled);
         ini.SetBool(SettingsSection, "Portrait Rumble", PortraitRumbleEnabled);
         ini.SetBool(SettingsSection, "MVP Art", PostGameMvpArtEnabled);
@@ -235,6 +240,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(ServerSection, "Respawn Time", HostSettings.RespawnSeconds);
         ini.SetInt(ServerSection, "Time Limit", HostSettings.TimeLimitMinutes);
         ini.SetString(ServerSection, "Password", HostSettings.Password);
+        ini.SetBool(ServerSection, "SpecialAbilities", HostSettings.SecondaryAbilitiesEnabled);
         ini.SetBool(ServerSection, "SecondaryAbilities", HostSettings.SecondaryAbilitiesEnabled);
 
         OpenGarrisonStockMapCatalog.SaveTo(ini, HostSettings.StockMapRotation);
@@ -336,9 +342,9 @@ public sealed class OpenGarrisonPreferencesDocument
 
     private static int NormalizeDamageVignetteIntensityPercent(int percent)
     {
-        var clamped = Math.Clamp(percent, 0, 100);
-        return Math.Clamp(((clamped + 5) / 10) * 10, 0, 100);
+        return Math.Clamp(percent, 0, 100);
     }
+
 }
 
 public sealed class OpenGarrisonHostSettings
@@ -486,7 +492,9 @@ public sealed class OpenGarrisonHostSettings
                 SimulationWorld.MaxPlayableNetworkPlayers / 2),
             LobbyAnnounceEnabled = ini.GetBool("Settings", "UseLobby", true),
             AutoBalanceEnabled = ini.GetBool("Server", "AutoBalance", true),
-            SecondaryAbilitiesEnabled = ini.GetBool("Server", "SecondaryAbilities", true),
+            SecondaryAbilitiesEnabled = ini.ContainsKey("Server", "SpecialAbilities")
+                ? ini.GetBool("Server", "SpecialAbilities", true)
+                : ini.GetBool("Server", "SecondaryAbilities", true),
             CompetitiveReadyUpEnabled = ini.GetBool("Server.Advanced", "CompetitiveReadyUpEnabled", false),
             CompetitiveSetupSeconds = Math.Clamp(ini.GetInt("Server.Advanced", "CompetitiveSetupSeconds", 10), 0, 120),
             DedicatedModeEnabled = ini.GetBool("Server", "Dedicated", false),

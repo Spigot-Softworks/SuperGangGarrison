@@ -34,4 +34,7 @@ public sealed record PrimaryWeaponDefinition(
     bool AutoReloads = true,
     int AmmoRegenPerTick = 0,
     bool RefillsAllAtOnce = false,
-    int? ActiveProjectileLimit = null);
+    int? ActiveProjectileLimit = null,
+    float PlayerKnockbackScale = 1f,
+    float? PlayerSlowMovementMultiplier = null,
+    int PlayerSlowRefreshSourceTicks = 0);

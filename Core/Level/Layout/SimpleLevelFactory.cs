@@ -162,9 +162,7 @@ public static class SimpleLevelFactory
                 definition.Mode,
                 stockMapSource.RoomSourcePath,
                 stockMapSource.CollisionMaskSourcePath,
-                Path.GetExtension(stockMapSource.RoomSourcePath).Equals(".png", StringComparison.OrdinalIgnoreCase)
-                    ? CustomMapSourceKind.LegacyPng
-                    : CustomMapSourceKind.StockRoom,
+                ResolveSourceKind(stockMapSource.RoomSourcePath),
                 IsCustomMap: false));
         }
 
@@ -394,6 +392,12 @@ public static class SimpleLevelFactory
 
     private static (string? RoomSourcePath, string? CollisionMaskSourcePath) FindStockMapSource(OpenGarrisonStockMapDefinition definition)
     {
+        var packageManifestPath = FindStockMapPackageSourcePath(definition);
+        if (!string.IsNullOrWhiteSpace(packageManifestPath))
+        {
+            return (packageManifestPath, null);
+        }
+
         var roomFileName = $"{definition.LevelName}.xml";
         var collisionSpriteName = $"{definition.LevelName}S.images";
         var runtimeRoomPath = ContentRoot.GetPath("Rooms", "Maps", roomFileName);
@@ -425,6 +429,63 @@ public static class SimpleLevelFactory
         }
 
         return (FindStockMapPngSourcePath(definition), null);
+    }
+
+    private static CustomMapSourceKind ResolveSourceKind(string sourcePath)
+    {
+        var extension = Path.GetExtension(sourcePath);
+        if (extension.Equals(".json", StringComparison.OrdinalIgnoreCase))
+        {
+            return CustomMapSourceKind.Package;
+        }
+
+        if (extension.Equals(".png", StringComparison.OrdinalIgnoreCase))
+        {
+            return CustomMapSourceKind.LegacyPng;
+        }
+
+        return CustomMapSourceKind.StockRoom;
+    }
+
+    private static string? FindStockMapPackageSourcePath(OpenGarrisonStockMapDefinition definition)
+    {
+        foreach (var relativePath in EnumerateStockMapPackageManifestRelativePaths(definition))
+        {
+            var parts = relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var runtimePath = ContentRoot.GetPath(parts);
+            if (IsReadablePackageManifest(runtimePath))
+            {
+                return runtimePath;
+            }
+
+            var projectContentPath = ProjectSourceLocator.FindFile(Path.Combine("Core", "Content", relativePath));
+            if (!string.IsNullOrWhiteSpace(projectContentPath)
+                && IsReadablePackageManifest(projectContentPath))
+            {
+                return projectContentPath;
+            }
+
+            var sourceContentPath = ProjectSourceLocator.FindFile(Path.Combine(ContentRoot.Path, relativePath));
+            if (!string.IsNullOrWhiteSpace(sourceContentPath)
+                && IsReadablePackageManifest(sourceContentPath))
+            {
+                return sourceContentPath;
+            }
+        }
+
+        return null;
+    }
+
+    private static IEnumerable<string> EnumerateStockMapPackageManifestRelativePaths(OpenGarrisonStockMapDefinition definition)
+    {
+        yield return Path.Combine("StockMaps", definition.LevelName, $"{definition.LevelName}.json");
+        yield return Path.Combine("StockMaps", definition.IniKey, $"{definition.IniKey}.json");
+    }
+
+    private static bool IsReadablePackageManifest(string path)
+    {
+        return !string.IsNullOrWhiteSpace(path)
+            && CustomMapPackageImporter.TryReadManifest(path, out _, out _);
     }
 
     private static string? FindStockMapPngSourcePath(OpenGarrisonStockMapDefinition definition)

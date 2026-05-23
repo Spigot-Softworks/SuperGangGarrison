@@ -169,12 +169,6 @@ public partial class Game1
         set => _uiShellState.ClassSelectPortraitAnimationHoverIndex = value;
     }
 
-    private int _classSelectPluginScrollRow
-    {
-        get => _uiShellState.ClassSelectPluginScrollRow;
-        set => _uiShellState.ClassSelectPluginScrollRow = value;
-    }
-
     private PlayerTeam? _classSelectPortraitAnimationTeam
     {
         get => _uiShellState.ClassSelectPortraitAnimationTeam;
@@ -897,7 +891,6 @@ public partial class Game1
         public float ClassSelectPanelY = -120f;
         public int ClassSelectHoverIndex = -1;
         public int ClassSelectPortraitAnimationHoverIndex = -1;
-        public int ClassSelectPluginScrollRow;
         public PlayerTeam? ClassSelectPortraitAnimationTeam;
         public float ClassSelectPortraitAnimationFrame;
         public int GameplayLoadoutPortraitAnimationHoverIndex = -1;

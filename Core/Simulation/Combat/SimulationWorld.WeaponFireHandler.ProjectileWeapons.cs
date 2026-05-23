@@ -54,7 +54,12 @@ public sealed partial class SimulationWorld
                 launchedVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
                 launchedVelocityY,
                 weaponDefinition.DirectHitDamage ?? ShotProjectileEntity.DamagePerHit,
-                killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
+                killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride,
+                playerKnockbackScale: weaponDefinition.PlayerKnockbackScale,
+                playerSlowMovementMultiplier: weaponDefinition.PlayerSlowMovementMultiplier,
+                playerSlowRefreshTicks: weaponDefinition.PlayerSlowRefreshSourceTicks > 0
+                    ? _world.GetSimulationTicksFromSourceTicks(weaponDefinition.PlayerSlowRefreshSourceTicks)
+                    : 0);
         }
 
         private float GetWeaponSpreadRadians(int attackerId, float spreadDegrees, int pelletIndex = 0, int projectilesPerShot = 1)

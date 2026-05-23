@@ -16,6 +16,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     private static readonly MethodInfo UpdateExperimentalEngineerFreezeRayMethod = GetRequiredNonPublicMethod("UpdateExperimentalEngineerFreezeRay");
     private static readonly MethodInfo ApplyExperimentalSentryPlayerHitMethod = GetRequiredNonPublicMethod("ApplyExperimentalSentryPlayerHit");
     private static readonly MethodInfo SpawnRocketMethod = GetRequiredNonPublicMethod("SpawnRocket");
+    private static readonly MethodInfo SpawnShotMethod = GetRequiredNonPublicMethod("SpawnShot");
     private static readonly MethodInfo TryResolveExperimentalEngineerRocketTrackingDirectionMethod = GetRequiredNonPublicMethod("TryResolveExperimentalEngineerRocketTrackingDirection");
     private static readonly MethodInfo GetExperimentalSentryReloadTicksMethod = GetRequiredNonPublicMethod("GetExperimentalSentryReloadTicks");
     private static readonly MethodInfo GetExperimentalSentryIdleResetTicksMethod = GetRequiredNonPublicMethod("GetExperimentalSentryIdleResetTicks");
@@ -122,6 +123,116 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         world.AdvanceOneTick();
 
         Assert.Single(world.Sentries);
+    }
+
+    [Fact]
+    public void StockEngineerRightClickBuildsSentryWhenSpecialAbilitiesAreDisabled()
+    {
+        var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableSecondaryAbilities: false));
+
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        PressFireSecondary(world);
+
+        Assert.Single(world.Sentries);
+        AssertCoreSecondaryAbilityEvent(world, "ability.engineer-pda", BuiltInGameplayBehaviorIds.EngineerPda);
+    }
+
+    [Fact]
+    public void StockPyroRightClickAirblastsWhenSpecialAbilitiesAreDisabled()
+    {
+        var world = CreateJoinedPyroWorld(new ExperimentalGameplaySettings(EnableSecondaryAbilities: false));
+        AdvanceTicks(world, 1);
+
+        PressFireSecondary(world);
+
+        Assert.True(world.LocalPlayer.PyroAirblastCooldownTicks > 0);
+        AssertCoreSecondaryAbilityEvent(world, "ability.pyro-airblast", BuiltInGameplayBehaviorIds.PyroAirblast);
+    }
+
+    [Fact]
+    public void StockDemomanRightClickDetonatesInsteadOfSwappingWhenMouseSecondaryIsSwapBound()
+    {
+        var world = CreateJoinedDemomanWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        FirePrimaryOnce(world);
+        Assert.NotEmpty(world.Mines);
+
+        ReleaseAllInput(world);
+        PressFireSecondaryAndSwapWeapon(world);
+
+        Assert.Empty(world.Mines);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+        AssertCoreSecondaryAbilityEvent(world, "ability.demoman-detonate", BuiltInGameplayBehaviorIds.DemomanDetonate);
+    }
+
+    [Fact]
+    public void StockDemomanRightClickDetonatesWhenSpecialAbilitiesAreDisabled()
+    {
+        var world = CreateJoinedDemomanWorld(new ExperimentalGameplaySettings(EnableSecondaryAbilities: false));
+        AdvanceTicks(world, 1);
+        Assert.False(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        FirePrimaryOnce(world);
+        Assert.NotEmpty(world.Mines);
+
+        ReleaseAllInput(world);
+        PressFireSecondary(world);
+
+        Assert.Empty(world.Mines);
+        AssertCoreSecondaryAbilityEvent(world, "ability.demoman-detonate", BuiltInGameplayBehaviorIds.DemomanDetonate);
+    }
+
+    [Fact]
+    public void StockHeavyRightClickUsesSandvichWhenSpecialAbilitiesAreDisabled()
+    {
+        var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings(EnableSecondaryAbilities: false));
+        AdvanceTicks(world, 1);
+        world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth - 80);
+
+        PressFireSecondary(world);
+
+        Assert.True(world.LocalPlayer.IsHeavyEating);
+        AssertCoreSecondaryAbilityEvent(world, "ability.heavy-sandvich", BuiltInGameplayBehaviorIds.HeavySandvich);
+    }
+
+    [Fact]
+    public void StockMedicRightClickFiresNeedlesWhenSpecialAbilitiesAreDisabled()
+    {
+        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings(EnableSecondaryAbilities: false));
+        AdvanceTicks(world, 1);
+
+        PressFireSecondary(world);
+
+        Assert.NotEmpty(world.Needles);
+        AssertCoreSecondaryAbilityEvent(world, "weapon.medigun.crit", BuiltInGameplayBehaviorIds.MedicNeedlegun);
+    }
+
+    [Fact]
+    public void StockSniperRightClickScopesInsteadOfSwappingWhenMouseSecondaryIsSwapBound()
+    {
+        var world = CreateJoinedSniperWorld(new ExperimentalGameplaySettings(EnableSecondaryAbilities: false));
+        AdvanceTicks(world, 1);
+
+        PressFireSecondaryAndSwapWeapon(world);
+
+        Assert.True(world.LocalPlayer.IsSniperScoped);
+        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+        AssertCoreSecondaryAbilityEvent(world, "ability.sniper-scope", BuiltInGameplayBehaviorIds.SniperScope);
+    }
+
+    [Fact]
+    public void StockSpyRightClickCloaksInsteadOfSwappingWhenMouseSecondaryIsSwapBound()
+    {
+        var world = CreateJoinedSpyWorld(new ExperimentalGameplaySettings(EnableSecondaryAbilities: false));
+        AdvanceTicks(world, 1);
+
+        PressFireSecondaryAndSwapWeapon(world);
+
+        Assert.True(world.LocalPlayer.IsSpyCloaked);
+        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+        AssertCoreSecondaryAbilityEvent(world, "ability.spy-cloak", BuiltInGameplayBehaviorIds.SpyCloak);
     }
 
     [Fact]
@@ -870,9 +981,74 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(dashDeltas[^1] < peakTickDistance * 0.5f);
         Assert.True(movedAfterInvulnerabilityEnded);
         Assert.True(totalDistance > 60f);
-        Assert.True(MathF.Abs(world.LocalPlayer.HorizontalSpeed) > 0f);
+        Assert.True(
+            MathF.Abs(world.LocalPlayer.HorizontalSpeed) > 0f,
+            $"expected residual momentum; speed={world.LocalPlayer.HorizontalSpeed:0.###} x={world.LocalPlayer.X:0.###} total={totalDistance:0.###} peak={peakTickDistance:0.###} lastDelta={dashDeltas[^1]:0.###}");
         Assert.False(world.LocalPlayer.IsExperimentalGhostDashing);
         Assert.True(world.LocalPlayer.ExperimentalGhostDashCooldownTicksRemaining > 0);
+    }
+
+    [Fact]
+    public void HeavyRightClickCancelsSandvichWithDoubleCooldown()
+    {
+        var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth - 80);
+
+        PressFireSecondary(world);
+
+        Assert.True(world.LocalPlayer.IsHeavyEating);
+        Assert.Equal(PlayerEntity.HeavySandvichCooldownTicks, world.LocalPlayer.HeavyEatCooldownTicksRemaining);
+
+        ReleaseAllInput(world);
+        PressFireSecondary(world);
+
+        Assert.False(world.LocalPlayer.IsHeavyEating);
+        Assert.Equal(0, world.LocalPlayer.HeavyEatTicksRemaining);
+        Assert.Equal(PlayerEntity.HeavySandvichCooldownTicks * 2, world.LocalPlayer.HeavyEatCooldownTicksRemaining);
+    }
+
+    [Fact]
+    public void HeavyMinigunShotEffectsApplyIncreasedKnockbackAndMovementSlow()
+    {
+        var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        var target = CreateBlueNetworkScout(world, 2);
+        target.ForceSetHealth(999);
+        target.TeleportTo(world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
+        AdvanceTicks(world, 1);
+        var stockMinigun = CharacterClassCatalog.RuntimeRegistry.CreatePrimaryWeaponDefinition(
+            CharacterClassCatalog.RuntimeRegistry.GetRequiredItem("weapon.minigun"));
+        var baselineSpeedMultiplier = InvokeGetExperimentalMovementSpeedMultiplier(target);
+        var baselineHorizontalSpeed = MathF.Abs(target.HorizontalSpeed);
+        var slowTicks = Math.Max(
+            1,
+            (int)MathF.Ceiling(stockMinigun.PlayerSlowRefreshSourceTicks * world.Config.TicksPerSecond / LegacyMovementModel.SourceTicksPerSecond));
+
+        InvokeSpawnShot(
+            world,
+            world.LocalPlayer,
+            target.X - 12f,
+            target.Y,
+            12f,
+            0f,
+            stockMinigun.DirectHitDamage ?? ShotProjectileEntity.DamagePerHit,
+            stockMinigun.PlayerKnockbackScale,
+            stockMinigun.PlayerSlowMovementMultiplier,
+            slowTicks);
+        for (var tick = 0; tick < 20 && !target.IsDirectFireSlowed; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        Assert.True(
+            target.IsDirectFireSlowed,
+            $"target was not slowed; health={target.Health}, shots={world.Shots.Count}, target=({target.X:0.###},{target.Y:0.###}), heavy=({world.LocalPlayer.X:0.###},{world.LocalPlayer.Y:0.###})");
+        Assert.True(target.Health < 999);
+        Assert.True(MathF.Abs(target.HorizontalSpeed) > baselineHorizontalSpeed);
+        Assert.True(stockMinigun.PlayerKnockbackScale > 1f);
+        Assert.Equal(baselineSpeedMultiplier * 0.97f, InvokeGetExperimentalMovementSpeedMultiplier(target), precision: 3);
     }
 
     [Fact]
@@ -951,6 +1127,82 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
             GameplayAbilityReplicatedState.HeavyDashCooldownTicksKey,
             out var cooldownTicks));
         Assert.Equal(GetHeavyGhostDashCooldownTicks(world), cooldownTicks);
+    }
+
+    [Fact]
+    public void SpecialAbilitiesDisabledLeavesCoreRightClickButBlocksUtilityAbilityDispatch()
+    {
+        var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings(EnableSecondaryAbilities: false));
+        AdvanceTicks(world, 1);
+
+        world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth - 80);
+        PressFireSecondary(world);
+
+        Assert.True(world.LocalPlayer.IsHeavyEating);
+        AssertCoreSecondaryAbilityEvent(world, "ability.heavy-sandvich", BuiltInGameplayBehaviorIds.HeavySandvich);
+
+        ReleaseAllInput(world);
+        PressUseAbilitySpace(world);
+
+        Assert.False(world.LocalPlayer.IsExperimentalGhostDashing);
+        Assert.Equal(0, world.LocalPlayer.ExperimentalGhostDashCooldownTicksRemaining);
+        Assert.Empty(world.DrainPendingGameplayAbilityEvents());
+    }
+
+    [Fact]
+    public void SpecialAbilitiesDisabledBlocksDataDrivenSecondaryWeapons()
+    {
+        var world = CreateJoinedSoldierWorld(new ExperimentalGameplaySettings(
+            EnableSecondaryAbilities: false,
+            EnableSoldierShotgunSecondaryWeapon: true));
+        AdvanceTicks(world, 1);
+
+        Assert.False(world.LocalPlayer.HasExperimentalOffhandWeapon);
+
+        PressSwapWeaponSpace(world);
+
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+    }
+
+    [Fact]
+    public void DisablingSpecialAbilitiesAtRuntimeResyncsExistingSecondaryWeapons()
+    {
+        var world = CreateJoinedSoldierWorld(new ExperimentalGameplaySettings(EnableSoldierShotgunSecondaryWeapon: true));
+        var networkSoldier = CreateNetworkSoldier(world, 2);
+        AdvanceTicks(world, 1);
+
+        PressSwapWeaponSpace(world);
+        PressNetworkSwapWeaponSpace(world, 2, networkSoldier);
+
+        Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.True(networkSoldier.IsExperimentalOffhandEquipped);
+
+        world.ConfigureExperimentalGameplaySettings(world.ExperimentalGameplaySettings with
+        {
+            EnableSecondaryAbilities = false,
+            EnableSoldierShotgunSecondaryWeapon = false,
+        });
+
+        Assert.False(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.False(networkSoldier.HasExperimentalOffhandWeapon);
+        Assert.False(networkSoldier.IsExperimentalOffhandEquipped);
+    }
+
+    [Fact]
+    public void SpecialAbilitiesDisabledBlocksPassiveAbilityDispatch()
+    {
+        var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(
+            EnableSecondaryAbilities: false,
+            EnablePassiveHealthRegeneration: true));
+        AdvanceTicks(world, 1);
+        world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth - 30);
+
+        AdvanceTicks(world, world.Config.TicksPerSecond);
+
+        Assert.Equal(world.LocalPlayer.MaxHealth - 30, world.LocalPlayer.Health);
+        Assert.Empty(world.DrainPendingGameplayAbilityEvents());
     }
 
     [Fact]
@@ -1631,6 +1883,50 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         return world;
     }
 
+    private static SimulationWorld CreateJoinedPyroWorld(ExperimentalGameplaySettings settings)
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TryLoadLevel("Harvest"));
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin(PlayerClass.Pyro);
+        world.ConfigureExperimentalGameplaySettings(settings);
+        return world;
+    }
+
+    private static SimulationWorld CreateJoinedDemomanWorld(ExperimentalGameplaySettings settings)
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TryLoadLevel("Harvest"));
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin(PlayerClass.Demoman);
+        world.ConfigureExperimentalGameplaySettings(settings);
+        return world;
+    }
+
+    private static SimulationWorld CreateJoinedSniperWorld(ExperimentalGameplaySettings settings)
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TryLoadLevel("Harvest"));
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin(PlayerClass.Sniper);
+        world.ConfigureExperimentalGameplaySettings(settings);
+        return world;
+    }
+
+    private static SimulationWorld CreateJoinedSpyWorld(ExperimentalGameplaySettings settings)
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TryLoadLevel("Harvest"));
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin(PlayerClass.Spy);
+        world.ConfigureExperimentalGameplaySettings(settings);
+        return world;
+    }
+
     private static SimulationWorld CreateJoinedScoutWorld(ExperimentalGameplaySettings settings)
     {
         var world = new SimulationWorld();
@@ -1778,6 +2074,81 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
             UseAbility: true,
             SwapWeapon: false));
         world.AdvanceOneTick();
+    }
+
+    private static void PressFireSecondaryAndSwapWeapon(SimulationWorld world)
+    {
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: true,
+            AimWorldX: world.LocalPlayer.X + 96f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false,
+            UseAbility: false,
+            SwapWeapon: true));
+        world.AdvanceOneTick();
+    }
+
+    private static void PressFireSecondary(SimulationWorld world)
+    {
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: true,
+            AimWorldX: world.LocalPlayer.X + 96f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false,
+            UseAbility: false,
+            SwapWeapon: false));
+        world.AdvanceOneTick();
+    }
+
+    private static void FirePrimaryOnce(SimulationWorld world)
+    {
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 96f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false,
+            UseAbility: false,
+            SwapWeapon: false));
+        world.AdvanceOneTick();
+    }
+
+    private static void AssertCoreSecondaryAbilityEvent(
+        SimulationWorld world,
+        string expectedItemId,
+        string expectedExecutorId)
+    {
+        var abilityEvent = Assert.Single(world.DrainPendingGameplayAbilityEvents());
+        Assert.True(abilityEvent.Handled);
+        Assert.True(abilityEvent.ConsumedInput);
+        Assert.False(abilityEvent.Cancelled);
+        Assert.Equal(expectedItemId, abilityEvent.ItemId);
+        Assert.Equal(GameplayAbilityConstants.SecondaryCategory, abilityEvent.AbilityCategory);
+        Assert.Equal(expectedExecutorId, abilityEvent.ExecutorId);
+        Assert.Contains(GameplayAbilityConstants.CoreSecondaryInputTag, abilityEvent.Tags);
     }
 
     private static void PressNetworkSwapWeaponSpace(SimulationWorld world, byte slot, PlayerEntity player)
@@ -2025,6 +2396,37 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
                 visualScale,
                 trackingLockTicksRemaining,
                 null,
+            ]);
+    }
+
+    private static void InvokeSpawnShot(
+        SimulationWorld world,
+        PlayerEntity owner,
+        float x,
+        float y,
+        float velocityX,
+        float velocityY,
+        float damagePerHit,
+        float playerKnockbackScale,
+        float? playerSlowMovementMultiplier,
+        int playerSlowRefreshTicks)
+    {
+        SpawnShotMethod.Invoke(
+            world,
+            [
+                owner,
+                x,
+                y,
+                velocityX,
+                velocityY,
+                damagePerHit,
+                false,
+                null,
+                null,
+                false,
+                playerKnockbackScale,
+                playerSlowMovementMultiplier,
+                playerSlowRefreshTicks,
             ]);
     }
 

@@ -3,20 +3,12 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const float PluginClassSelectStartX = 24f;
-    private const float PluginClassSelectStartY = 158f;
-    private const float PluginClassSelectColumnWidth = 190f;
-    private const float PluginClassSelectRowHeight = 18f;
-    private const int PluginClassSelectColumns = 4;
-
     private void UpdateClassSelect(MouseState mouse)
     {
         if (!_classSelectOpen)
@@ -68,7 +60,6 @@ public partial class Game1
         }
 
         var panelLeft = (ViewportWidth / 2f) - 400f;
-        UpdateClassSelectPluginScroll(mouse);
         _classSelectHoverIndex = GetClassSelectHoverIndex(mouse.X, mouse.Y, panelLeft);
         AdvanceClassSelectPortraitAnimation();
         var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
@@ -121,28 +112,23 @@ public partial class Game1
             ResetClassSelectPortraitAnimation();
         }
 
-        DrawPluginClassSelectEntries(panelLeft, alpha);
     }
 
-    private int GetClassSelectHoverIndex(int mouseX, int mouseY, float panelLeft)
+    private static int GetClassSelectHoverIndex(int mouseX, int mouseY, float panelLeft)
     {
-        if (mouseY < 50)
+        if (mouseY >= 50)
         {
-            int[] leftEdges = [24, 64, 104, 156, 196, 236, 288, 328, 368, 420];
-            for (var index = 0; index < leftEdges.Length; index += 1)
-            {
-                var left = panelLeft + leftEdges[index];
-                if (mouseX > left && mouseX < left + 36f)
-                {
-                    return index;
-                }
-            }
+            return -1;
         }
 
-        if (_classSelectPanelY >= 120f
-            && TryGetPluginClassSelectHoverIndex(mouseX, mouseY, panelLeft, out var pluginHoverIndex))
+        int[] leftEdges = [24, 64, 104, 156, 196, 236, 288, 328, 368, 420];
+        for (var index = 0; index < leftEdges.Length; index += 1)
         {
-            return pluginHoverIndex;
+            var left = panelLeft + leftEdges[index];
+            if (mouseX > left && mouseX < left + 36f)
+            {
+                return index;
+            }
         }
 
         return -1;
@@ -163,18 +149,6 @@ public partial class Game1
             8 => PlayerClass.Sniper,
             _ => GetRandomPlayableClass(),
         };
-
-        if (hoverIndex >= 10)
-        {
-            var entries = GetPluginClassSelectEntries();
-            var entryIndex = hoverIndex - 10;
-            if ((uint)entryIndex < (uint)entries.Count)
-            {
-                return ApplyDirectGameplayClassSelection(entries[entryIndex].GameplayClassId);
-            }
-
-            return false;
-        }
 
         return ApplyDirectClassSelection(selectedClass);
     }
@@ -207,39 +181,6 @@ public partial class Game1
         }
     }
 
-    private bool ApplyDirectGameplayClassSelection(string gameplayClassId)
-    {
-        if (!CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(gameplayClassId, out var binding))
-        {
-            return false;
-        }
-
-        if (!IsClassAllowedForCurrentGameplaySession(binding.PlayerClass))
-        {
-            _menuStatusMessage = "Jump allows Rocketman or Detonator.";
-            return false;
-        }
-
-        WarmBrowserPlayableClassAssets(binding.PlayerClass, _pendingClassSelectTeam ?? _world.LocalPlayerTeam);
-
-        if (_networkClient.IsConnected)
-        {
-            _networkClient.QueueGameplayClassSelection(gameplayClassId);
-            return true;
-        }
-
-        if (_world.LocalPlayerAwaitingJoin)
-        {
-            _world.CompleteLocalPlayerJoin(gameplayClassId);
-            ApplyPracticeDummyPreferencesAfterJoin();
-            return true;
-        }
-
-        _world.TrySetLocalClass(gameplayClassId);
-        ApplyPracticeDummyPreferencesAfterJoin();
-        return true;
-    }
-
     private PlayerClass GetRandomPlayableClass()
     {
         if (IsJumpSessionActive)
@@ -261,12 +202,20 @@ public partial class Game1
             PlayerClass.Quote,
         ];
 
-        var availableClasses = classes
-            .Where(static playerClass => CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(playerClass, out _))
-            .ToArray();
-        return availableClasses.Length == 0
+        var availableClasses = new PlayerClass[classes.Length];
+        var availableClassCount = 0;
+        for (var index = 0; index < classes.Length; index += 1)
+        {
+            if (CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(classes[index], out _))
+            {
+                availableClasses[availableClassCount] = classes[index];
+                availableClassCount += 1;
+            }
+        }
+
+        return availableClassCount == 0
             ? PlayerClass.Scout
-            : availableClasses[_visualRandom.Next(availableClasses.Length)];
+            : availableClasses[_visualRandom.Next(availableClassCount)];
     }
 
     private static int GetClassSelectDrawX(int hoverIndex)
@@ -300,115 +249,6 @@ public partial class Game1
         };
         return true;
     }
-
-    private void DrawPluginClassSelectEntries(float panelLeft, float alpha)
-    {
-        if (_classSelectPanelY < 120f)
-        {
-            return;
-        }
-
-        var entries = GetPluginClassSelectEntries();
-        if (entries.Count == 0)
-        {
-            return;
-        }
-
-        ClampClassSelectPluginScroll(entries.Count);
-        var visibleRows = GetPluginClassSelectVisibleRows();
-        var startIndex = _classSelectPluginScrollRow * PluginClassSelectColumns;
-        var endIndex = Math.Min(entries.Count, startIndex + (visibleRows * PluginClassSelectColumns));
-        for (var index = startIndex; index < endIndex; index += 1)
-        {
-            var visibleIndex = index - startIndex;
-            var column = visibleIndex % PluginClassSelectColumns;
-            var row = visibleIndex / PluginClassSelectColumns;
-            var hoverIndex = 10 + index;
-            var color = hoverIndex == _classSelectHoverIndex ? Color.Yellow : Color.White;
-            DrawBitmapFontText(
-                entries[index].DisplayName,
-                new Vector2(panelLeft + PluginClassSelectStartX + (column * PluginClassSelectColumnWidth), PluginClassSelectStartY + (row * PluginClassSelectRowHeight)),
-                color * alpha,
-                1f);
-        }
-    }
-
-    private bool TryGetPluginClassSelectHoverIndex(int mouseX, int mouseY, float panelLeft, out int hoverIndex)
-    {
-        hoverIndex = -1;
-        var entries = GetPluginClassSelectEntries();
-        if (entries.Count == 0)
-        {
-            return false;
-        }
-
-        ClampClassSelectPluginScroll(entries.Count);
-        var localX = mouseX - (panelLeft + PluginClassSelectStartX);
-        var localY = mouseY - PluginClassSelectStartY;
-        if (localX < 0f || localY < 0f)
-        {
-            return false;
-        }
-
-        var column = (int)(localX / PluginClassSelectColumnWidth);
-        var row = (int)(localY / PluginClassSelectRowHeight);
-        if (column < 0 || column >= PluginClassSelectColumns || row >= GetPluginClassSelectVisibleRows())
-        {
-            return false;
-        }
-
-        var entryIndex = ((_classSelectPluginScrollRow + row) * PluginClassSelectColumns) + column;
-        if ((uint)entryIndex >= (uint)entries.Count)
-        {
-            return false;
-        }
-
-        hoverIndex = 10 + entryIndex;
-        return true;
-    }
-
-    private void UpdateClassSelectPluginScroll(MouseState mouse)
-    {
-        var entries = GetPluginClassSelectEntries();
-        ClampClassSelectPluginScroll(entries.Count);
-        var wheelDelta = mouse.ScrollWheelValue - _previousMouse.ScrollWheelValue;
-        if (wheelDelta == 0 || entries.Count == 0)
-        {
-            return;
-        }
-
-        var direction = wheelDelta > 0 ? -1 : 1;
-        _classSelectPluginScrollRow += direction;
-        ClampClassSelectPluginScroll(entries.Count);
-    }
-
-    private void ClampClassSelectPluginScroll(int entryCount)
-    {
-        var rows = (entryCount + PluginClassSelectColumns - 1) / PluginClassSelectColumns;
-        var maxScrollRow = Math.Max(0, rows - GetPluginClassSelectVisibleRows());
-        _classSelectPluginScrollRow = Math.Clamp(_classSelectPluginScrollRow, 0, maxScrollRow);
-    }
-
-    private int GetPluginClassSelectVisibleRows()
-    {
-        return Math.Max(1, (int)MathF.Floor((ViewportHeight - PluginClassSelectStartY - 16f) / PluginClassSelectRowHeight));
-    }
-
-    private static IReadOnlyList<ClassSelectEntry> GetPluginClassSelectEntries()
-    {
-        return CharacterClassCatalog.RuntimeRegistry.RuntimeClassBindings
-            .Where(static binding => !string.Equals(binding.ModPackId, StockGameplayModCatalog.Definition.Id, StringComparison.Ordinal))
-            .OrderBy(static binding => CharacterClassCatalog.RuntimeRegistry.GetClassDefinition(binding.ClassId).DisplayName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(static binding => binding.ClassId, StringComparer.Ordinal)
-            .Select(static binding =>
-            {
-                var gameplayClass = CharacterClassCatalog.RuntimeRegistry.GetClassDefinition(binding.ClassId);
-                return new ClassSelectEntry(binding.ClassId, gameplayClass.DisplayName);
-            })
-            .ToArray();
-    }
-
-    private readonly record struct ClassSelectEntry(string GameplayClassId, string DisplayName);
 
     private static string[] GetClassSelectDescription(int hoverIndex)
     {

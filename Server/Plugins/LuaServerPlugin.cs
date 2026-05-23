@@ -2108,7 +2108,11 @@ internal sealed class LuaServerPlugin(
             CooldownKey: ReadOptionalStringField(hudTable, "cooldownKey", "CooldownKey", "cooldown_key") ?? string.Empty,
             MaxCooldown: ReadOptionalIntField(hudTable, 0, "maxCooldown", "MaxCooldown", "max_cooldown"),
             ActiveKey: ReadOptionalStringField(hudTable, "activeKey", "ActiveKey", "active_key") ?? string.Empty,
-            DisabledKey: ReadOptionalStringField(hudTable, "disabledKey", "DisabledKey", "disabled_key") ?? string.Empty);
+            DisabledKey: ReadOptionalStringField(hudTable, "disabledKey", "DisabledKey", "disabled_key") ?? string.Empty,
+            WidgetId: ReadOptionalStringField(hudTable, "widgetId", "WidgetId", "widget_id") ?? string.Empty,
+            WidgetOwner: ReadOptionalStringField(hudTable, "widgetOwner", "WidgetOwner", "widget_owner", "widgetPluginId", "WidgetPluginId", "widget_plugin_id") ?? string.Empty,
+            WidgetCallback: ReadOptionalStringField(hudTable, "widgetCallback", "WidgetCallback", "widget_callback", "drawCallback", "DrawCallback", "draw_callback") ?? string.Empty,
+            Anchor: ReadOptionalStringField(hudTable, "anchor", "Anchor") ?? string.Empty);
     }
 
     private static GameplayEquipmentSlot ReadGameplayEquipmentSlotField(Table table)

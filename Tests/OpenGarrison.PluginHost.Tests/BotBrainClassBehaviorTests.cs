@@ -34,6 +34,51 @@ public sealed class BotBrainClassBehaviorTests
     }
 
     [Fact]
+    public void HeavySometimesDashesToDodgeIncomingFire()
+    {
+        var world = CreateClassWorld(PlayerClass.Heavy, out var heavy);
+        var projectileId = FindProjectileIdForHeavyDash(heavy);
+        AddIncomingRocket(world, projectileId, heavy, timeToImpactTicks: 8f);
+
+        var decision = CombatDecisionResolver.Resolve(world, heavy, null, null, new CombatDecisionMemory());
+
+        Assert.True(decision.UseAbility);
+        Assert.False(decision.FireSecondary);
+    }
+
+    [Fact]
+    public void DemomanSometimesSwapsToGrenadeLauncherInCombat()
+    {
+        var world = CreateClassWorld(PlayerClass.Demoman, out var demoman);
+        Assert.Equal(PrimaryWeaponKind.GrenadeLauncher, demoman.ExperimentalOffhandWeapon?.Kind);
+        var target = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue, demoman.X + 240f, demoman.Y);
+        var combatTarget = new BotBrainCombatTarget(BotBrainCombatTargetKind.Player, target.Team, target.X, target.Y, Player: target);
+        var memory = new CombatDecisionMemory();
+        CombatFireDecision decision = default;
+
+        for (var tick = 0; tick < 180; tick += 1)
+        {
+            decision = CombatDecisionResolver.Resolve(world, demoman, combatTarget, null, memory);
+            if (decision.UseAbility)
+            {
+                break;
+            }
+        }
+
+        Assert.True(decision.UseAbility);
+        var input = BotInputSynthesizer.Synthesize(
+            demoman,
+            default,
+            target.X,
+            target.Y,
+            decision,
+            default);
+        Assert.True(input.SwapWeapon);
+        Assert.False(input.UseAbility);
+        Assert.False(input.FirePrimary);
+    }
+
+    [Fact]
     public void SoldierBotPulsesSwapWeaponForShotgunAndLauncherSelection()
     {
         var soldier = new PlayerEntity(1, CharacterClassCatalog.Soldier, "Soldier");
@@ -207,6 +252,40 @@ public sealed class BotBrainClassBehaviorTests
     }
 
     [Fact]
+    public void CtfEngineerPatrolsAroundBuiltIntelSentry()
+    {
+        var world = CreateClassWorld(PlayerClass.Engineer, out var engineer);
+        engineer.TeleportTo(100f, 100f);
+        engineer.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        Assert.True(world.TryBuildLocalSentry());
+        var controller = new BotBrainController(CreateSingleNodeGraph(engineer.X, engineer.Y, GameModeKind.CaptureTheFlag));
+
+        var lateralTicks = CountLateralInputTicks(controller, engineer, world, PlayerTeam.Red, ticks: 90);
+
+        Assert.True(lateralTicks > 0);
+        Assert.Contains("engineerIntelDefense=patrol", controller.LastDirectDriveTrace);
+    }
+
+    [Fact]
+    public void CtfEngineerChasesEnemyCarrierWhenOwnIntelIsPickedUp()
+    {
+        var world = CreateClassWorld(PlayerClass.Engineer, out var engineer);
+        engineer.TeleportTo(100f, 100f);
+        engineer.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        var carrier = AddNetworkPlayer(world, 2, PlayerClass.Scout, PlayerTeam.Blue, engineer.X + 200f, engineer.Y);
+        carrier.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: -1f);
+        world.RedIntel.PickUp();
+        carrier.PickUpIntel();
+        var controller = new BotBrainController(CreateSingleNodeGraph(engineer.X, engineer.Y, GameModeKind.CaptureTheFlag));
+
+        var input = controller.Think(engineer, world, PlayerTeam.Red);
+
+        Assert.True(input.Right);
+        Assert.False(input.BuildSentry);
+        Assert.Contains("Carrier", controller.LastDirectDriveTrace, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void BotStrafesWhileHoldingLockedKothPoint()
     {
         var world = CreateKothWorld(PlayerTeam.Red, PlayerClass.Heavy, out var player);
@@ -241,7 +320,7 @@ public sealed class BotBrainClassBehaviorTests
     }
 
     [Fact]
-    public void BotMovesAwayFromNearbyPlayerWhileCapturingControlPoint()
+    public void BotClearsNearbyEnemyBeforeSettlingOntoControlPoint()
     {
         var world = CreateControlPointWorld(PlayerTeam.Red, PlayerClass.Heavy, out var player);
         var point = Assert.Single(world.ControlPoints, point => point.Team is null);
@@ -255,10 +334,33 @@ public sealed class BotBrainClassBehaviorTests
 
         var input = controller.Think(player, world, PlayerTeam.Red);
 
-        Assert.True(input.Left);
-        Assert.False(input.Right);
-        Assert.Equal(-1f, controller.LastSteeringOutput.MoveDirection);
-        Assert.Contains("spacing:cluster", controller.LastDirectDriveTrace);
+        Assert.False(input.Left);
+        Assert.True(input.Right);
+        Assert.Equal(1f, controller.LastSteeringOutput.MoveDirection);
+        Assert.Contains("controlPointClearEnemy", controller.LastDirectDriveTrace);
+    }
+
+    [Fact]
+    public void ControlPointCaptureMovementIsDesynchronizedByTeam()
+    {
+        var redWorld = CreateControlPointWorld(PlayerTeam.Red, PlayerClass.Heavy, out var redPlayer);
+        var redPoint = Assert.Single(redWorld.ControlPoints, point => point.Team is null);
+        redPoint.CappingTeam = PlayerTeam.Red;
+        redPlayer.TeleportTo(redPoint.HealingAuraCenterX, redPoint.HealingAuraCenterY);
+        redPlayer.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        var redController = new BotBrainController(CreateSingleNodeGraph(redPlayer.X, redPlayer.Y, GameModeKind.ControlPoint));
+
+        var blueWorld = CreateControlPointWorld(PlayerTeam.Blue, PlayerClass.Heavy, out var bluePlayer);
+        var bluePoint = Assert.Single(blueWorld.ControlPoints, point => point.Team is null);
+        bluePoint.CappingTeam = PlayerTeam.Blue;
+        bluePlayer.TeleportTo(bluePoint.HealingAuraCenterX, bluePoint.HealingAuraCenterY);
+        bluePlayer.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: -1f);
+        var blueController = new BotBrainController(CreateSingleNodeGraph(bluePlayer.X, bluePlayer.Y, GameModeKind.ControlPoint));
+
+        var redPattern = CaptureMovementPattern(redController, redPlayer, redWorld, PlayerTeam.Red, ticks: 48);
+        var bluePattern = CaptureMovementPattern(blueController, bluePlayer, blueWorld, PlayerTeam.Blue, ticks: 48);
+
+        Assert.NotEqual(redPattern, bluePattern);
     }
 
     [Fact]
@@ -592,6 +694,22 @@ public sealed class BotBrainClassBehaviorTests
         throw new InvalidOperationException("Could not find deterministic Pyro reflect projectile id.");
     }
 
+    private static int FindProjectileIdForHeavyDash(PlayerEntity heavy)
+    {
+        var method = typeof(CombatDecisionResolver).GetMethod("ShouldHeavyDashIncomingProjectile", BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        for (var id = 1; id < 512; id += 1)
+        {
+            var result = (bool)method!.Invoke(null, [heavy, id])!;
+            if (result)
+            {
+                return id;
+            }
+        }
+
+        throw new InvalidOperationException("Could not find deterministic Heavy dash projectile id.");
+    }
+
     private static bool InvokeShouldPreferCarrierReturnGraph(SimpleLevel level, PlayerEntity player)
     {
         var method = typeof(BotBrainController).GetMethod(
@@ -694,6 +812,29 @@ public sealed class BotBrainClassBehaviorTests
         }
 
         return lateralTicks;
+    }
+
+    private static string CaptureMovementPattern(
+        BotBrainController controller,
+        PlayerEntity player,
+        SimulationWorld world,
+        PlayerTeam team,
+        int ticks)
+    {
+        var pattern = new char[ticks];
+        for (var tick = 0; tick < ticks; tick += 1)
+        {
+            var input = controller.Think(player, world, team);
+            pattern[tick] = input.Up
+                ? 'U'
+                : input.Left
+                    ? 'L'
+                    : input.Right
+                        ? 'R'
+                        : '.';
+        }
+
+        return new string(pattern);
     }
 
     private static void SetCombatLevel(SimulationWorld world)

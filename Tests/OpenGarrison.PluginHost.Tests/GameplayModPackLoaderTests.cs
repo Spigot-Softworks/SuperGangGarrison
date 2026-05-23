@@ -34,6 +34,7 @@ public sealed class GameplayModPackLoaderTests
                 VSync = true,
                 BotMode = OfflineBotControllerMode.BotBrain,
                 OverheadChatEnabled = true,
+                HudShowOnlyActiveWeapon = true,
                 DisableLegacyGameplaySpriteFallback = true,
                 RecentConnection = new ClientRecentConnectionSettings
                 {
@@ -54,6 +55,7 @@ public sealed class GameplayModPackLoaderTests
             Assert.True(loaded.VSync);
             Assert.Equal(OfflineBotControllerMode.BotBrain, loaded.BotMode);
             Assert.True(loaded.OverheadChatEnabled);
+            Assert.True(loaded.HudShowOnlyActiveWeapon);
             Assert.True(loaded.DisableLegacyGameplaySpriteFallback);
             Assert.Equal("example.invalid", loaded.RecentConnection.Host);
             Assert.Equal(9001, loaded.RecentConnection.Port);
@@ -83,6 +85,8 @@ public sealed class GameplayModPackLoaderTests
 
             Assert.True(loaded.OverheadChatEnabled);
             Assert.True(document.OverheadChatEnabled);
+            Assert.Equal(65, loaded.DamageVignetteIntensityPercent);
+            Assert.Equal(65, document.DamageVignetteIntensityPercent);
         }
         finally
         {
@@ -110,6 +114,7 @@ public sealed class GameplayModPackLoaderTests
             var loaded = ClientSettings.Load(settingsPath);
 
             Assert.True(loaded.OverheadChatEnabled);
+            Assert.Equal(65, loaded.DamageVignetteIntensityPercent);
         }
         finally
         {
@@ -226,7 +231,7 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal(BuiltInGameplayBehaviorIds.HeavyGhostDash, heavyUtility.ExecutorId);
         Assert.Contains("dash", heavyUtility.Tags);
         Assert.Equal(12, heavyUtility.Parameters["cooldownSeconds"].GetInt32());
-        Assert.Equal(0.5f, heavyUtility.Parameters["movementDurationSeconds"].GetSingle());
+        Assert.Equal(0.75f, heavyUtility.Parameters["movementDurationSeconds"].GetSingle());
         Assert.True(heavyUtility.Parameters["useMomentum"].GetBoolean());
 
         var soldierExperimentalSecondary = pack.Items["weapon.soldier-shotgun"].Ability;
@@ -315,7 +320,7 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal(GameplayItemHudStateProviders.HeavySandvichCooldown, sandvichHud.StateProvider);
 
         var heavyUtilityHud = pack.Items["ability.heavy-utility"].Presentation.Hud;
-        Assert.Equal("ChargeJumpS", pack.Items["ability.heavy-utility"].Presentation.HudSpriteName);
+        Assert.Null(pack.Items["ability.heavy-utility"].Presentation.HudSpriteName);
         Assert.NotNull(heavyUtilityHud);
         Assert.Equal(GameplayItemHudStackGroups.Ability, heavyUtilityHud!.StackGroup);
         Assert.Equal(GameplayItemHudStateProviders.AbilityCooldown, heavyUtilityHud.StateProvider);
@@ -511,6 +516,99 @@ public sealed class GameplayModPackLoaderTests
             var exception = Assert.Throws<InvalidOperationException>(() => GameplayModPackDirectoryLoader.LoadFromDirectory(packDirectory));
             Assert.Contains("cooldownSeconds", exception.Message, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("numeric", exception.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            if (Directory.Exists(rootDirectory))
+            {
+                Directory.Delete(rootDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void GameplayPackLoaderAcceptsCustomHudMetadata()
+    {
+        var rootDirectory = Path.Combine(Path.GetTempPath(), "og2-gameplay-pack-tests", Path.GetRandomFileName());
+        var packDirectory = Path.Combine(rootDirectory, "custom-hud-metadata");
+        Directory.CreateDirectory(Path.Combine(packDirectory, "items"));
+
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(packDirectory, "pack.json"),
+                """
+                {
+                  "id": "custom.hud.metadata",
+                  "displayName": "Custom HUD Metadata",
+                  "version": "1.0.0"
+                }
+                """);
+            File.WriteAllText(
+                Path.Combine(packDirectory, "items", "ability.custom.json"),
+                """
+                {
+                  "id": "ability.custom",
+                  "displayName": "Custom Ability",
+                  "slot": "Utility",
+                  "behaviorId": "builtin.ability.heavy_ghost_dash",
+                  "ability": {
+                    "category": "utility",
+                    "activation": "pressed",
+                    "executorId": "builtin.ability.heavy_ghost_dash"
+                  },
+                  "ammo": {},
+                  "presentation": {
+                    "hud": {
+                      "displayKind": "custom",
+                      "stackGroup": "ability",
+                      "stateProvider": "abilityCooldown",
+                      "stateOwner": "tests.server.custom",
+                      "cooldownKey": "custom_cooldown",
+                      "widgetId": "custom-widget",
+                      "widgetOwner": "tests.client.custom",
+                      "widgetCallback": "draw_custom_widget",
+                      "anchor": "bottom_right"
+                    }
+                  }
+                }
+                """);
+            File.WriteAllText(
+                Path.Combine(packDirectory, "items", "weapon.custom-panel.json"),
+                """
+                {
+                  "id": "weapon.custom-panel",
+                  "displayName": "Custom Panel Weapon",
+                  "slot": "Secondary",
+                  "behaviorId": "builtin.weapon.pellet_gun",
+                  "ammo": {
+                    "maxAmmo": 6
+                  },
+                  "presentation": {
+                    "hudSpriteName": "ShotgunAmmoS",
+                    "hud": {
+                      "displayKind": "custom",
+                      "stackGroup": "weapon",
+                      "stateProvider": "secondaryAmmo",
+                      "widgetId": "weaponAmmoPanel"
+                    }
+                  }
+                }
+                """);
+
+            var pack = GameplayModPackDirectoryLoader.LoadFromDirectory(packDirectory);
+            var abilityHud = pack.Items["ability.custom"].Presentation.Hud;
+            Assert.NotNull(abilityHud);
+            Assert.Equal(GameplayItemHudDisplayKinds.Custom, abilityHud!.DisplayKind);
+            Assert.Equal("custom-widget", abilityHud.WidgetId);
+            Assert.Equal("tests.client.custom", abilityHud.WidgetOwner);
+            Assert.Equal("draw_custom_widget", abilityHud.WidgetCallback);
+            Assert.Equal("bottom_right", abilityHud.Anchor);
+
+            var weaponHud = pack.Items["weapon.custom-panel"].Presentation.Hud;
+            Assert.NotNull(weaponHud);
+            Assert.Equal(GameplayItemHudDisplayKinds.Custom, weaponHud!.DisplayKind);
+            Assert.Equal(GameplayItemHudWidgetIds.WeaponAmmoPanel, weaponHud.WidgetId);
         }
         finally
         {
@@ -1149,6 +1247,7 @@ public sealed class GameplayModPackLoaderTests
         var stockRocketLauncher = registry.CreatePrimaryWeaponDefinition(registry.GetRequiredItem("weapon.rocketlauncher"));
         var blackBox = registry.CreatePrimaryWeaponDefinition(registry.GetRequiredItem("weapon.blackbox"));
         var stockMinigun = registry.CreatePrimaryWeaponDefinition(registry.GetRequiredItem("weapon.minigun"));
+        var tomislav = registry.CreatePrimaryWeaponDefinition(registry.GetRequiredItem("weapon.tomislav"));
         var brassBeast = registry.CreatePrimaryWeaponDefinition(registry.GetRequiredItem("weapon.brassbeast"));
         var stockRevolver = registry.CreatePrimaryWeaponDefinition(registry.GetRequiredItem("weapon.revolver"));
         var diamondback = registry.CreatePrimaryWeaponDefinition(registry.GetRequiredItem("weapon.diamondback"));
@@ -1163,6 +1262,9 @@ public sealed class GameplayModPackLoaderTests
 
         Assert.Equal(ShotProjectileEntity.DamagePerHit, stockMinigun.DirectHitDamage);
         Assert.Equal("ChaingunSnd", stockMinigun.FireSoundName);
+        AssertHeavyBulletPlayerEffects(stockMinigun);
+        AssertHeavyBulletPlayerEffects(tomislav);
+        AssertHeavyBulletPlayerEffects(brassBeast);
         Assert.Equal(10f, brassBeast.DirectHitDamage);
 
         Assert.Equal(RevolverProjectileEntity.DamagePerHit, stockRevolver.DirectHitDamage);
@@ -1173,6 +1275,13 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal(FlameProjectileEntity.DirectHitDamage, stockFlamethrower.DirectHitDamage);
         Assert.Equal(FlameProjectileEntity.BurnDamagePerTick, stockFlamethrower.DamagePerTick);
         Assert.Equal(PlayerEntity.QuoteBubbleLimit, stockBlade.ActiveProjectileLimit);
+
+        static void AssertHeavyBulletPlayerEffects(PrimaryWeaponDefinition weapon)
+        {
+            Assert.Equal(1.05f, weapon.PlayerKnockbackScale);
+            Assert.Equal(0.97f, weapon.PlayerSlowMovementMultiplier);
+            Assert.Equal(6, weapon.PlayerSlowRefreshSourceTicks);
+        }
     }
 
     [Fact]

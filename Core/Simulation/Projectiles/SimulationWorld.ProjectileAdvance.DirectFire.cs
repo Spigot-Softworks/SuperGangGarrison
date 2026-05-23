@@ -47,7 +47,19 @@ public sealed partial class SimulationWorld
                         if (!hitResult.HitPlayer.IsUbered)
                         {
                             var bulletKnockbackPerSecond = 0.5f * LegacyMovementModel.SourceTicksPerSecond;
-                            hitResult.HitPlayer.AddImpulse(directionX * bulletKnockbackPerSecond, directionY * bulletKnockbackPerSecond);
+                            if (shot.PlayerKnockbackScale > 0f)
+                            {
+                                hitResult.HitPlayer.AddImpulse(
+                                    directionX * bulletKnockbackPerSecond * shot.PlayerKnockbackScale,
+                                    directionY * bulletKnockbackPerSecond * shot.PlayerKnockbackScale);
+                            }
+
+                            if (shot.PlayerSlowMovementMultiplier.HasValue && shot.PlayerSlowRefreshTicks > 0)
+                            {
+                                hitResult.HitPlayer.RefreshDirectFireSlow(
+                                    shot.PlayerSlowRefreshTicks,
+                                    shot.PlayerSlowMovementMultiplier.Value);
+                            }
                         }
 
                         var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(shot.DamageValue * shot.CriticalDamageMultiplier), out var damageFlags);

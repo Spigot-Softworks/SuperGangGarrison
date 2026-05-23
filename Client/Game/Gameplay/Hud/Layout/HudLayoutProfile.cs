@@ -15,6 +15,8 @@ internal sealed class HudLayoutProfile
 
     public Dictionary<string, HudElementLayoutOverride> UnknownOverrides { get; } = new(StringComparer.Ordinal);
 
+    private readonly Dictionary<string, HudElementLayout> _runtimeDefaults = new(StringComparer.Ordinal);
+
     public bool GridVisible { get; set; } = true;
 
     public bool SnapEnabled { get; set; } = true;
@@ -25,9 +27,19 @@ internal sealed class HudLayoutProfile
 
     public IReadOnlyDictionary<string, HudElementLayout> Defaults { get; } = HudLayoutDefaults.Create();
 
+    public void ClearRuntimeDefaults()
+    {
+        _runtimeDefaults.Clear();
+    }
+
+    public void SetRuntimeDefault(HudElementLayout layout)
+    {
+        _runtimeDefaults[layout.Id] = layout;
+    }
+
     public bool TryResolve(string id, int viewportWidth, int viewportHeight, out HudResolvedElement resolved)
     {
-        if (!Defaults.TryGetValue(id, out var defaultLayout))
+        if (!TryGetDefaultLayout(id, out var defaultLayout))
         {
             resolved = default;
             return false;
@@ -47,7 +59,7 @@ internal sealed class HudLayoutProfile
 
     public bool TryResolveEvenIfHidden(string id, int viewportWidth, int viewportHeight, out HudResolvedElement resolved)
     {
-        if (!Defaults.TryGetValue(id, out var defaultLayout))
+        if (!TryGetDefaultLayout(id, out var defaultLayout))
         {
             resolved = default;
             return false;
@@ -61,7 +73,7 @@ internal sealed class HudLayoutProfile
 
     public void SetElementOrigin(string id, Vector2 origin, int viewportWidth, int viewportHeight)
     {
-        if (!Defaults.TryGetValue(id, out var defaultLayout))
+        if (!TryGetDefaultLayout(id, out var defaultLayout))
         {
             return;
         }
@@ -76,11 +88,12 @@ internal sealed class HudLayoutProfile
             Scale = current.Scale,
             Visible = current.Visible,
         };
+        UnknownOverrides.Remove(id);
     }
 
     public bool SetElementScale(string id, float scale)
     {
-        if (!Defaults.TryGetValue(id, out var defaultLayout))
+        if (!TryGetDefaultLayout(id, out var defaultLayout))
         {
             return false;
         }
@@ -94,17 +107,20 @@ internal sealed class HudLayoutProfile
             Scale = NormalizeElementScale(scale),
             Visible = current.Visible,
         };
+        UnknownOverrides.Remove(id);
         return true;
     }
 
     public void ResetElements()
     {
         Overrides.Clear();
+        UnknownOverrides.Clear();
     }
 
     private HudElementLayout ApplyOverride(HudElementLayout defaultLayout)
     {
-        if (!Overrides.TryGetValue(defaultLayout.Id, out var entry))
+        if (!Overrides.TryGetValue(defaultLayout.Id, out var entry)
+            && !UnknownOverrides.TryGetValue(defaultLayout.Id, out entry))
         {
             return defaultLayout;
         }
@@ -116,6 +132,16 @@ internal sealed class HudLayoutProfile
             Scale = NormalizeElementScale(entry.Scale ?? defaultLayout.Scale),
             Visible = entry.Visible ?? defaultLayout.Visible,
         };
+    }
+
+    private bool TryGetDefaultLayout(string id, out HudElementLayout defaultLayout)
+    {
+        if (_runtimeDefaults.TryGetValue(id, out defaultLayout!))
+        {
+            return true;
+        }
+
+        return Defaults.TryGetValue(id, out defaultLayout!);
     }
 
     private static float NormalizeElementScale(float scale)

@@ -310,7 +310,7 @@ public partial class Game1
 
         const float labelScale = 1f;
         var label = TrimPostGameMvpText(SanitizeScoreboardText(entry.Player.DisplayName), 126f, labelScale);
-        var labelWidth = MeasureMenuBitmapFontWidth(label, labelScale);
+        var labelWidth = MeasureBitmapFontWidth(label, labelScale);
         var labelPosition = new Vector2(
             MathF.Round(position.X - (labelWidth * 0.5f)),
             MathF.Round(MathF.Max(8f, position.Y - topExtent - 22f)));
@@ -405,7 +405,7 @@ public partial class Game1
 
     private void DrawPostGameMvpBoardRow(PostGameMvpEntry entry, Vector2 boardCenter, float rowOffsetY)
     {
-        const float rowTextScale = 0.72f;
+        const float rowTextScale = 1f;
         var rowY = boardCenter.Y + rowOffsetY;
         var name = TrimPostGameMvpText(SanitizeScoreboardText(entry.Player.DisplayName), 94f, rowTextScale);
         DrawPostGameMvpText(name, new Vector2(boardCenter.X - 130f, rowY), Color.White, rowTextScale);
@@ -441,31 +441,31 @@ public partial class Game1
 
     private void DrawPostGameMvpText(string text, Vector2 position, Color color, float scale)
     {
-        DrawMenuBitmapFontText(text, position, color, scale);
+        DrawBitmapFontText(text, position, color, scale);
     }
 
     private void DrawPostGameMvpTextCentered(string text, Vector2 position, Color color, float scale)
     {
-        var width = MeasureMenuBitmapFontWidth(text, scale);
-        var height = MeasureMenuBitmapFontHeight(scale);
+        var width = MeasureBitmapFontWidth(text, scale);
+        var height = MeasureBitmapFontHeight(scale);
         DrawPostGameMvpText(text, new Vector2(position.X - (width * 0.5f), position.Y - (height * 0.5f)), color, scale);
     }
 
     private void DrawPostGameMvpTextRightAligned(string text, Vector2 position, Color color, float scale)
     {
-        DrawPostGameMvpText(text, new Vector2(position.X - MeasureMenuBitmapFontWidth(text, scale), position.Y), color, scale);
+        DrawPostGameMvpText(text, new Vector2(position.X - MeasureBitmapFontWidth(text, scale), position.Y), color, scale);
     }
 
     private string TrimPostGameMvpText(string text, float maxWidth, float scale)
     {
-        if (string.IsNullOrEmpty(text) || MeasureMenuBitmapFontWidth(text, scale) <= maxWidth)
+        if (string.IsNullOrEmpty(text) || MeasureBitmapFontWidth(text, scale) <= maxWidth)
         {
             return text;
         }
 
         const string ellipsis = "...";
         var trimmed = text;
-        while (trimmed.Length > 0 && MeasureMenuBitmapFontWidth(trimmed + ellipsis, scale) > maxWidth)
+        while (trimmed.Length > 0 && MeasureBitmapFontWidth(trimmed + ellipsis, scale) > maxWidth)
         {
             trimmed = trimmed[..^1];
         }

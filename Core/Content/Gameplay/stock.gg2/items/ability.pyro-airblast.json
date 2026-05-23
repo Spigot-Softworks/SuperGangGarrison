@@ -7,7 +7,7 @@
     "category": "secondary",
     "activation": "pressed",
     "executorId": "builtin.ability.pyro_airblast",
-    "tags": [ "airblast", "cooldown", "suppresses_primary" ],
+    "tags": [ "core_m2", "airblast", "cooldown", "suppresses_primary" ],
     "parameters": {
       "cost": 40,
       "cooldownTicks": 40,

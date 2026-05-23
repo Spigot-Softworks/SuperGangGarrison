@@ -22,6 +22,7 @@ public static class GameplayAbilityConstants
     public const string PassiveTickActivation = "passive_tick";
 
     public const string CoreAbilityReplicatedStateOwnerId = "core.ability";
+    public const string CoreSecondaryInputTag = "core_m2";
 
     public static bool IsBuiltInDispatchedCategory(string? category)
     {

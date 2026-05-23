@@ -12,7 +12,10 @@ public sealed partial class SimulationWorld
         bool forceGibOnKill = false,
         string? killFeedWeaponSpriteNameOverride = null,
         int? sourceSentryId = null,
-        bool applyExperimentalEngineerSentryPerkEffects = false)
+        bool applyExperimentalEngineerSentryPerkEffects = false,
+        float playerKnockbackScale = 1f,
+        float? playerSlowMovementMultiplier = null,
+        int playerSlowRefreshTicks = 0)
     {
         var shot = new ShotProjectileEntity(
             AllocateEntityId(),
@@ -26,7 +29,10 @@ public sealed partial class SimulationWorld
             forceGibOnKill,
             killFeedWeaponSpriteNameOverride,
             sourceSentryId,
-            applyExperimentalEngineerSentryPerkEffects);
+            applyExperimentalEngineerSentryPerkEffects,
+            playerKnockbackScale,
+            playerSlowMovementMultiplier,
+            playerSlowRefreshTicks);
         if (owner.IsKritzCritBoosted)
         {
             shot.SetCritical();

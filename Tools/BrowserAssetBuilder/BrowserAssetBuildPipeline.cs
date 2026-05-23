@@ -485,8 +485,8 @@ internal static class BrowserAssetBuildPipeline
         var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var path in manifest.Backgrounds.Values.Select(static background => background.ImagePath)
                      .Concat(manifest.Sounds.Values.Select(static sound => sound.AudioPath))
-                     .Concat(Directory.EnumerateFiles(Path.Combine(context.ContentRoot, "StockMaps"), "*.png", SearchOption.TopDirectoryOnly)
-                         .Select(static path => NormalizeContentRelativePath(path)))
+                     .Concat(EnumerateDirectoryFiles(context, "StockMaps", "*.png", SearchOption.AllDirectories))
+                     .Concat(EnumerateDirectoryFiles(context, "StockMaps", "*.json", SearchOption.AllDirectories))
                      .Concat(EnumerateRuntimeContentPaths(context))
                      .Where(static path => !string.IsNullOrWhiteSpace(path)))
         {
@@ -517,6 +517,26 @@ internal static class BrowserAssetBuildPipeline
         }
 
         foreach (var path in EnumerateDirectoryFiles(context, "BotNavScoreRoutes", "*.json", SearchOption.TopDirectoryOnly))
+        {
+            yield return path;
+        }
+
+        foreach (var path in EnumerateDirectoryFiles(context, "BotBrainNav", "*.json", SearchOption.TopDirectoryOnly))
+        {
+            yield return path;
+        }
+
+        foreach (var path in EnumerateDirectoryFiles(context, "BotBrainTapes", "*.json", SearchOption.TopDirectoryOnly))
+        {
+            yield return path;
+        }
+
+        foreach (var path in EnumerateDirectoryFiles(context, "BotBrainProofGraphs", "*.json", SearchOption.TopDirectoryOnly))
+        {
+            yield return path;
+        }
+
+        foreach (var path in EnumerateDirectoryFiles(context, "BotBrainCorridors", "*.json", SearchOption.TopDirectoryOnly))
         {
             yield return path;
         }

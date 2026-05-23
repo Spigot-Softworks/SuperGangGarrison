@@ -61,8 +61,6 @@ public partial class Game1
         WriteGameplayRenderTrace("hud after deathcam");
         DrawWinBannerHud();
         WriteGameplayRenderTrace("hud after winbanner");
-        DrawPostGameMvpWinScreenHud();
-        WriteGameplayRenderTrace("hud after postgamemvp");
         DrawLastToDieHud();
         WriteGameplayRenderTrace("hud after lasttodie");
         DrawJumpHud();
@@ -84,8 +82,6 @@ public partial class Game1
             WriteGameplayRenderTrace("hud after sniper");
             DrawGameplayHudElements(30, 39);
             WriteGameplayRenderTrace("hud after medic");
-            DrawMedicAssistHud();
-            WriteGameplayRenderTrace("hud after medicassist");
             DrawHealerRadarHud(cameraPosition, mouse);
             WriteGameplayRenderTrace("hud after healerradar");
             DrawGameplayHudElements(40, int.MaxValue);
@@ -147,6 +143,9 @@ public partial class Game1
             DrawBinocularOverlay();
             WriteGameplayRenderTrace("hud after binocular");
         }
+
+        DrawPostGameMvpWinScreenHud();
+        WriteGameplayRenderTrace("hud after postgamemvp");
         
         RecordBrowserHudDrawDuration(browserHudDrawStartTimestamp);
     }

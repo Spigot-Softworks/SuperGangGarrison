@@ -11,6 +11,13 @@ public partial class Game1
 {
     private sealed class GameplayMedicHudController
     {
+        private const float HealingTargetHudYRatio = 450f / 600f;
+        private const float HealerStackedHudYRatio = 490f / 600f;
+        private const float MedicAssistHudFallbackWidth = 220f;
+        private const float MedicAssistHudHeight = 40f;
+        private const int MedicAssistDummyHealth = 125;
+        private const int MedicAssistDummyUberCharge = 1200;
+
         private readonly Game1 _game;
 
         public GameplayMedicHudController(Game1 game)
@@ -44,6 +51,11 @@ public partial class Game1
                 (int)MathF.Round(uberPosition.Y),
                 Math.Max(1, (int)MathF.Round(120f * hudScale)),
                 Math.Max(1, (int)MathF.Round(32f * hudScale)));
+            var iconBounds = new Rectangle(
+                (int)MathF.Round(iconPosition.X - (34f * 2f * hudScale)),
+                (int)MathF.Round(iconPosition.Y - (11f * 2f * hudScale)),
+                Math.Max(1, (int)MathF.Round(68f * 2f * hudScale)),
+                Math.Max(1, (int)MathF.Round(23f * 2f * hudScale)));
             var uberCharge = _game.GetPlayerMedicUberCharge(_game._world.LocalPlayer);
             var uberIsReady = uberCharge >= PlayerEntity.MedicUberMaxCharge;
             var uberFullColor = _game._world.LocalPlayer.Team == PlayerTeam.Blue
@@ -58,38 +70,71 @@ public partial class Game1
             var iconColor = isUberDisabled ? new Color(128, 128, 128) : Color.White;
             var textColor = isUberDisabled ? new Color(108, 108, 92) : new Color(0xD9, 0xD9, 0xB7);
             _game.TryDrawScreenSprite("UberHudS", hudFrameIndex, iconPosition, iconColor, new Vector2(2f * hudScale, 2f * hudScale));
-            _game.DrawHudTextCentered("SUPERBURST", TransformPoint(new Vector2(viewportWidth - 71f, viewportHeight - 89f)), textColor, 0.72f * hudScale);
+            _game.DrawHudTextCentered("SUPERBURST", TransformPoint(new Vector2(viewportWidth - 71f, viewportHeight - 89f)), textColor, 1f * hudScale);
+            _game.UpdateHudElementBounds(HudElementId.ClassMedicUber, Rectangle.Union(iconBounds, uberRectangle));
         }
 
-        public void DrawMedicAssistHud()
+        public void CollectMedicAssistHudElements(HudElementContext context, List<HudElementInstance> elements)
         {
             if (!_game._world.LocalPlayer.IsAlive)
             {
                 return;
             }
 
-            var healingTarget = _game._world.LocalPlayer.ClassId == PlayerClass.Medic
-                && _game._world.LocalPlayer.IsMedicHealing
-                && _game._world.LocalPlayer.MedicHealTargetId.HasValue
-                    ? _game.FindPlayerById(_game._world.LocalPlayer.MedicHealTargetId.Value)
-                    : null;
-            if (healingTarget is not null && !healingTarget.IsAlive)
+            var healingTarget = GetLocalMedicHealingTarget();
+            var healer = FindMedicHealingPlayer(_game.GetPlayerStateKey(_game._world.LocalPlayer));
+            var showHealingTarget = _game._showHealingEnabled
+                && (healingTarget is not null || (_game._hudEditorOpen && _game._world.LocalPlayer.ClassId == PlayerClass.Medic));
+            if (showHealingTarget)
             {
-                healingTarget = null;
+                SetMedicAssistRuntimeDefault(HudElementId.ClassMedicHealingTarget, HealingTargetHudYRatio, HudElementLayerClassMedicAssist);
+                context.AddIfRegistered(elements, HudElementId.ClassMedicHealingTarget);
+            }
+
+            var showHealer = _game._showHealerEnabled && (healer is not null || _game._hudEditorOpen);
+            if (showHealer)
+            {
+                var yRatio = showHealingTarget ? HealerStackedHudYRatio : HealingTargetHudYRatio;
+                SetMedicAssistRuntimeDefault(HudElementId.ClassMedicHealer, yRatio, HudElementLayerClassMedicAssist + 1);
+                context.AddIfRegistered(elements, HudElementId.ClassMedicHealer);
+            }
+        }
+
+        public void DrawMedicHealingTargetHud()
+        {
+            if (!_game._showHealingEnabled || !_game._world.LocalPlayer.IsAlive)
+            {
+                return;
+            }
+
+            var healingTarget = GetLocalMedicHealingTarget();
+            if (healingTarget is null && !_game._hudEditorOpen)
+            {
+                return;
+            }
+
+            var label = healingTarget is null ? "Healing: Target" : $"Healing: {GetHudPlayerLabel(healingTarget)}";
+            var value = healingTarget?.Health ?? MedicAssistDummyHealth;
+            var maxValue = healingTarget?.MaxHealth ?? MedicAssistDummyHealth;
+            DrawCenterStatusHud(HudElementId.ClassMedicHealingTarget, label, value, maxValue, 0.7f);
+        }
+
+        public void DrawMedicHealerHud()
+        {
+            if (!_game._showHealerEnabled || !_game._world.LocalPlayer.IsAlive)
+            {
+                return;
             }
 
             var healer = FindMedicHealingPlayer(_game.GetPlayerStateKey(_game._world.LocalPlayer));
-            var drewHealingHud = false;
-            if (_game._showHealingEnabled && healingTarget is not null)
+            if (healer is null && !_game._hudEditorOpen)
             {
-                DrawCenterStatusHud($"Healing: {GetHudPlayerLabel(healingTarget)}", healingTarget.Health, healingTarget.MaxHealth, 450f / 600f, 0.7f);
-                drewHealingHud = true;
+                return;
             }
 
-            if (_game._showHealerEnabled && healer is not null)
-            {
-                DrawCenterStatusHud($"Healer: {GetHudPlayerLabel(healer)}", healer.MedicUberCharge, 2000f, drewHealingHud ? 490f / 600f : 450f / 600f, 0.5f);
-            }
+            var label = healer is null ? "Healer: Medic" : $"Healer: {GetHudPlayerLabel(healer)}";
+            var value = healer?.MedicUberCharge ?? MedicAssistDummyUberCharge;
+            DrawCenterStatusHud(HudElementId.ClassMedicHealer, label, value, PlayerEntity.MedicUberMaxCharge, 0.5f);
         }
 
         public void DrawHealerRadarHud(Vector2 cameraPosition, MouseState mouse)
@@ -198,7 +243,29 @@ public partial class Game1
             }
         }
 
-        public void DrawCenterStatusHud(string label, float value, float maxValue, float viewportYRatio, float textAlpha)
+        private PlayerEntity? GetLocalMedicHealingTarget()
+        {
+            var healingTarget = _game._world.LocalPlayer.ClassId == PlayerClass.Medic
+                && _game._world.LocalPlayer.IsMedicHealing
+                && _game._world.LocalPlayer.MedicHealTargetId.HasValue
+                    ? _game.FindPlayerById(_game._world.LocalPlayer.MedicHealTargetId.Value)
+                    : null;
+            return healingTarget is not null && healingTarget.IsAlive ? healingTarget : null;
+        }
+
+        private void SetMedicAssistRuntimeDefault(string id, float viewportYRatio, int layer)
+        {
+            var y = MathF.Round(_game.ViewportHeight * viewportYRatio);
+            _game.SetHudElementRuntimeDefault(new HudElementLayout(
+                id,
+                HudAnchor.TopCenter,
+                new Vector2(0f, y),
+                new Vector2(MedicAssistHudFallbackWidth, MedicAssistHudHeight),
+                new Vector2(-MedicAssistHudFallbackWidth * 0.5f, 0f),
+                Layer: layer));
+        }
+
+        public void DrawCenterStatusHud(string id, string label, float value, float maxValue, float textAlpha)
         {
             var sprite = _game.GetResolvedSprite("HealedHudS");
             if (sprite is null || sprite.Frames.Count == 0)
@@ -206,20 +273,35 @@ public partial class Game1
                 return;
             }
 
+            if (!_game.TryResolveHudElement(id, out var resolved))
+            {
+                return;
+            }
+
             var frameIndex = _game._world.LocalPlayer.Team == PlayerTeam.Blue ? 1 : 0;
             var frame = sprite.Frames[Math.Clamp(frameIndex, 0, sprite.Frames.Count - 1)];
-            var viewportWidth = _game.ViewportWidth;
-            var viewportHeight = _game.ViewportHeight;
             const float textScale = 1f;
-            var textWidth = _game.MeasureBitmapFontWidth(label, textScale);
-            var hudWidth = (int)MathF.Ceiling(textWidth) + 20;
-            var hudHeight = 40;
-            var hudX = (viewportWidth / 2) - (hudWidth / 2);
-            var hudY = (int)MathF.Round(viewportHeight * viewportYRatio);
+            var hudScale = resolved.Layout.Scale;
+            var textWidth = _game.MeasureBitmapFontWidth(label, textScale * hudScale);
+            var hudWidth = Math.Max(1, (int)MathF.Ceiling(textWidth + (20f * hudScale)));
+            var hudHeight = Math.Max(1, (int)MathF.Round(MedicAssistHudHeight * hudScale));
+            var hudX = (int)MathF.Round(resolved.Origin.X - (hudWidth * 0.5f));
+            var hudY = (int)MathF.Round(resolved.Origin.Y);
             var destination = new Rectangle(hudX, hudY, hudWidth, hudHeight);
             _game.DrawLoadedSpriteFrame(frame, destination, Color.White * 0.5f);
-            _game.DrawHudTextCentered(label, new Vector2(viewportWidth / 2f, hudY + 12f), Color.White * textAlpha, textScale);
-            _game.DrawScreenHealthBar(new Rectangle(hudX + 10, hudY + 20, Math.Max(1, hudWidth - 20), 8), value, maxValue, false, Color.White, Color.Black);
+            _game.DrawHudTextCentered(label, new Vector2(resolved.Origin.X, hudY + (12f * hudScale)), Color.White * textAlpha, textScale * hudScale);
+            _game.DrawScreenHealthBar(
+                new Rectangle(
+                    hudX + (int)MathF.Round(10f * hudScale),
+                    hudY + (int)MathF.Round(20f * hudScale),
+                    Math.Max(1, hudWidth - (int)MathF.Round(20f * hudScale)),
+                    Math.Max(1, (int)MathF.Round(8f * hudScale))),
+                value,
+                maxValue,
+                false,
+                Color.White,
+                Color.Black);
+            _game.UpdateHudElementBounds(id, destination);
         }
 
         public PlayerEntity? FindMedicHealingPlayer(int playerId)

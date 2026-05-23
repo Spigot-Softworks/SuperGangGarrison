@@ -6,4 +6,7 @@ public sealed record GameplayItemCombatDefinition(
     float? DamagePerTick = null,
     float? DirectHitHealAmount = null,
     int? ActiveProjectileLimit = null,
-    GameplayRocketCombatDefinition? Rocket = null);
+    GameplayRocketCombatDefinition? Rocket = null,
+    float? PlayerKnockbackScale = null,
+    float? PlayerSlowMovementMultiplier = null,
+    int? PlayerSlowRefreshSourceTicks = null);

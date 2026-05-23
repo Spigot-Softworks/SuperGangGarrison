@@ -182,7 +182,7 @@ partial class GameServer
 
         Console.WriteLine($"Auto-balance: {(_autoBalanceEnabled ? "Enabled" : "Disabled")}");
         Console.WriteLine($"Random bullet spread: {(_randomSpreadEnabled ? "Enabled" : "Disabled")}");
-        Console.WriteLine($"Secondary abilities: {(_secondaryAbilitiesEnabled ? "Enabled" : "Disabled")}");
+        Console.WriteLine($"Special abilities: {(_secondaryAbilitiesEnabled ? "Enabled" : "Disabled")}");
         Console.WriteLine(_competitiveReadyUpEnabled
             ? $"Competitive ready-up: enabled (setup {_competitiveSetupSeconds} seconds)"
             : "Competitive ready-up: disabled");
@@ -762,20 +762,29 @@ partial class GameServer
                 _world.SniperAimIndicatorEnabled = value;
             });
         registry.RegisterBoolean(
-            "sv_secondaryabilities",
-            "Enable or disable secondary abilities on the server.",
+            "sv_specialabilities",
+            "Enable or disable class special abilities, modular gameplay abilities, and ability-owned alternate weapons on the server.",
             _secondaryAbilitiesEnabled,
             () => _world.ExperimentalGameplaySettings.EnableSecondaryAbilities,
-            value =>
-            {
-                _secondaryAbilitiesEnabled = value;
-                _world.ConfigureExperimentalGameplaySettings(
-                    _world.ExperimentalGameplaySettings with
-                    {
-                        EnableSecondaryAbilities = value,
-                        EnableSoldierShotgunSecondaryWeapon = value,
-                    });
-            });
+            SetSpecialAbilitiesEnabled);
+        registry.RegisterBoolean(
+            "sv_special_abilities",
+            "Alias for sv_specialabilities.",
+            _secondaryAbilitiesEnabled,
+            () => _world.ExperimentalGameplaySettings.EnableSecondaryAbilities,
+            SetSpecialAbilitiesEnabled);
+        registry.RegisterBoolean(
+            "sv_secondaryabilities",
+            "Legacy alias for sv_specialabilities.",
+            _secondaryAbilitiesEnabled,
+            () => _world.ExperimentalGameplaySettings.EnableSecondaryAbilities,
+            SetSpecialAbilitiesEnabled);
+        registry.RegisterBoolean(
+            "sv_secondary_abilities",
+            "Legacy alias for sv_specialabilities.",
+            _secondaryAbilitiesEnabled,
+            () => _world.ExperimentalGameplaySettings.EnableSecondaryAbilities,
+            SetSpecialAbilitiesEnabled);
         registry.RegisterBoolean(
             "sv_competitive_readyup",
             "Start each round in skirmish until a majority of active players ready up with F4.",
@@ -841,6 +850,17 @@ partial class GameServer
             maxValue: 12);
         registry.EnableRuntimeProtectionPersistence(RuntimePaths.GetConfigPath("server-cvar-policy.json"));
         return registry;
+    }
+
+    private void SetSpecialAbilitiesEnabled(bool value)
+    {
+        _secondaryAbilitiesEnabled = value;
+        _world.ConfigureExperimentalGameplaySettings(
+            _world.ExperimentalGameplaySettings with
+            {
+                EnableSecondaryAbilities = value,
+                EnableSoldierShotgunSecondaryWeapon = value,
+            });
     }
 
     private void InitializeGameplayOwnershipService()

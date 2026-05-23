@@ -7,7 +7,7 @@
     "category": "secondary",
     "activation": "held",
     "executorId": "builtin.ability.demoman_detonate",
-    "tags": [ "detonate", "allowed_while_taunting", "experimental_ltd" ]
+    "tags": [ "core_m2", "detonate", "allowed_while_taunting", "experimental_ltd" ]
   },
   "ammo": {},
   "presentation": {}

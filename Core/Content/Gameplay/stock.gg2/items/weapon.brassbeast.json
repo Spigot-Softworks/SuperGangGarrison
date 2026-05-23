@@ -18,7 +18,10 @@
   },
   "combat": {
     "fireSoundName": "ChaingunSnd",
-    "directHitDamage": 10.0
+    "directHitDamage": 10.0,
+    "playerKnockbackScale": 1.05,
+    "playerSlowMovementMultiplier": 0.97,
+    "playerSlowRefreshSourceTicks": 6
   },
   "presentation": {
     "worldSpriteName": "stock.gg2.weapon.brassbeast.world",

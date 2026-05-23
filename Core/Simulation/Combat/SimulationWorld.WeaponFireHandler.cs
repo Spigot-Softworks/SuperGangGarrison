@@ -105,9 +105,23 @@ public sealed partial class SimulationWorld
             float velocityY,
             float damagePerHit = ShotProjectileEntity.DamagePerHit,
             bool forceGibOnKill = false,
-            string? killFeedWeaponSpriteNameOverride = null)
+            string? killFeedWeaponSpriteNameOverride = null,
+            float playerKnockbackScale = 1f,
+            float? playerSlowMovementMultiplier = null,
+            int playerSlowRefreshTicks = 0)
         {
-            _world.SpawnShot(owner, x, y, velocityX, velocityY, damagePerHit, forceGibOnKill, killFeedWeaponSpriteNameOverride);
+            _world.SpawnShot(
+                owner,
+                x,
+                y,
+                velocityX,
+                velocityY,
+                damagePerHit,
+                forceGibOnKill,
+                killFeedWeaponSpriteNameOverride,
+                playerKnockbackScale: playerKnockbackScale,
+                playerSlowMovementMultiplier: playerSlowMovementMultiplier,
+                playerSlowRefreshTicks: playerSlowRefreshTicks);
         }
 
         private void SpawnBubble(PlayerEntity owner, float x, float y, float velocityX, float velocityY)

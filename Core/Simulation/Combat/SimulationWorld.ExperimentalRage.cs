@@ -58,6 +58,11 @@ public sealed partial class SimulationWorld
         return Math.Max(1, (int)MathF.Round(Config.TicksPerSecond * global::OpenGarrison.Core.ExperimentalGameplaySettings.HeavyGhostDashDurationSeconds));
     }
 
+    private int GetHeavyGhostDashMovementDurationTicks()
+    {
+        return Math.Max(1, (int)MathF.Round(Config.TicksPerSecond * global::OpenGarrison.Core.ExperimentalGameplaySettings.HeavyGhostDashMovementDurationSeconds));
+    }
+
     private int GetHeavyGhostDashCooldownTicks()
     {
         return Math.Max(1, (int)MathF.Round(Config.TicksPerSecond * global::OpenGarrison.Core.ExperimentalGameplaySettings.HeavyGhostDashCooldownSeconds));

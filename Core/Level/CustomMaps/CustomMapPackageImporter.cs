@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 
 namespace OpenGarrison.Core;
@@ -32,7 +33,7 @@ public static class CustomMapPackageImporter
         error = string.Empty;
         try
         {
-            if (string.IsNullOrWhiteSpace(manifestPath) || !File.Exists(manifestPath))
+            if (string.IsNullOrWhiteSpace(manifestPath) || !PackageFileExists(manifestPath))
             {
                 error = "Package manifest was not found.";
                 return false;
@@ -44,8 +45,14 @@ public static class CustomMapPackageImporter
                 return false;
             }
 
+            if (!TryReadPackageText(manifestPath, out var manifestJson))
+            {
+                error = "Package manifest could not be read.";
+                return false;
+            }
+
             manifest = JsonSerializer.Deserialize<CustomMapPackageManifest>(
-                File.ReadAllText(manifestPath),
+                manifestJson,
                 CustomMapPackageManifest.JsonOptions) ?? new CustomMapPackageManifest();
             if (manifest.FormatVersion != 1)
             {
@@ -193,7 +200,7 @@ public static class CustomMapPackageImporter
             return false;
         }
 
-        if (requireFileExists && !File.Exists(candidatePath))
+        if (requireFileExists && !PackageFileExists(candidatePath))
         {
             return false;
         }
@@ -243,9 +250,13 @@ public static class CustomMapPackageImporter
             }
 
             var kind = ParseResourceKind(manifestResource.Kind);
-            resources[manifestResource.Name.Trim()] = CustomMapBuilderResourceCodec
-                .FromFile(manifestResource.Name.Trim(), resourcePath, kind)
-                .NormalizeForEditing();
+            if (!TryCreateResource(manifestResource.Name.Trim(), resourcePath, kind, out var resource))
+            {
+                error = $"Package resource \"{manifestResource.Name}\" must reference a PNG image.";
+                return false;
+            }
+
+            resources[resource.Name] = resource;
         }
 
         var entities = new List<CustomMapBuilderEntity>();
@@ -340,6 +351,58 @@ public static class CustomMapPackageImporter
             "entitysprite" or "entity_sprite" => CustomMapBuilderResourceKind.EntitySprite,
             _ => CustomMapBuilderResourceKind.GenericImage,
         };
+    }
+
+    private static bool TryCreateResource(
+        string name,
+        string path,
+        CustomMapBuilderResourceKind kind,
+        out CustomMapBuilderResource resource)
+    {
+        resource = default;
+        if (!TryReadPackageBytes(path, out var bytes)
+            || !CustomMapBuilderResourceCodec.IsSupportedImage(bytes))
+        {
+            return false;
+        }
+
+        resource = new CustomMapBuilderResource(name, path, kind, bytes).NormalizeForEditing();
+        return true;
+    }
+
+    private static bool PackageFileExists(string path)
+    {
+        return File.Exists(path)
+            || BrowserContentCatalog.TryGetBinaryForPath(path, out _);
+    }
+
+    private static bool TryReadPackageText(string path, out string text)
+    {
+        text = string.Empty;
+        if (File.Exists(path))
+        {
+            text = File.ReadAllText(path);
+            return true;
+        }
+
+        if (!BrowserContentCatalog.TryGetBinaryForPath(path, out var bytes) || bytes.Length == 0)
+        {
+            return false;
+        }
+
+        text = Encoding.UTF8.GetString(bytes);
+        return true;
+    }
+
+    private static bool TryReadPackageBytes(string path, out byte[] bytes)
+    {
+        if (File.Exists(path))
+        {
+            bytes = File.ReadAllBytes(path);
+            return true;
+        }
+
+        return BrowserContentCatalog.TryGetBinaryForPath(path, out bytes);
     }
 
     private static float NormalizeScale(float scale)

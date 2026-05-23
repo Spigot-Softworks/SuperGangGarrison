@@ -41,6 +41,23 @@ public sealed partial class PlayerEntity
         return true;
     }
 
+    public bool TryCancelHeavySelfHeal(int cooldownTicks = HeavySandvichCooldownTicks * 2)
+    {
+        if (!IsAlive || ClassId != PlayerClass.Heavy || !IsHeavyEating)
+        {
+            return false;
+        }
+
+        IsHeavyEating = false;
+        HeavyEatTicksRemaining = 0;
+        HeavyHealingAccumulator = 0f;
+        HeavyEatHealPerTickValue = HeavyEatHealPerTick;
+        HeavyEatCooldownTicksRemaining = Math.Max(1, cooldownTicks);
+        IsTaunting = false;
+        TauntFrameIndex = 0f;
+        return true;
+    }
+
     private void AdvanceTauntState()
     {
         if (!IsTaunting)

@@ -265,6 +265,7 @@ public partial class Game1 : Game
     private bool _showHealerEnabled = true;
     private bool _showHealingEnabled = true;
     private bool _showHealthBarEnabled;
+    private bool _hudShowOnlyActiveWeapon;
     private bool _overheadChatEnabled = OpenGarrisonPreferencesDocument.DefaultOverheadChatEnabled;
     private bool _portraitRumbleEnabled = true;
     private bool _postGameMvpArtEnabled;

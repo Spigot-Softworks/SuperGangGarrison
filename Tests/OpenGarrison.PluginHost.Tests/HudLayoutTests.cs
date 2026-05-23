@@ -30,6 +30,37 @@ public sealed class HudLayoutTests
     }
 
     [Fact]
+    public void EngineerSentryDefaultStacksAboveAbilityArea()
+    {
+        var profile = new HudLayoutProfile();
+        Assert.True(profile.TryResolve(HudElementId.ClassEngineerSentry, 1280, 720, out var sentry));
+        Assert.True(profile.TryResolve(HudElementId.LocalHealth, 1280, 720, out var health));
+
+        var expected = HudLayoutResolver.ResolveLegacySourcePoint(696f, 420f, 1280, 720);
+        Assert.Equal(expected.X, sentry.Origin.X, precision: 3);
+        Assert.Equal(expected.Y, sentry.Origin.Y, precision: 3);
+        Assert.False(sentry.Bounds.Intersects(health.Bounds));
+    }
+
+    [Fact]
+    public void KillFeedAlignmentFollowsResolvedScreenRegion()
+    {
+        var bounds = new Rectangle(100, 40, 340, 104);
+
+        Assert.Equal(KillFeedHudAlignment.Left, KillFeedHudAlignmentResolver.Resolve(300f, 1000));
+        Assert.Equal(KillFeedHudAlignment.Center, KillFeedHudAlignmentResolver.Resolve(500f, 1000));
+        Assert.Equal(KillFeedHudAlignment.Right, KillFeedHudAlignmentResolver.Resolve(700f, 1000));
+
+        Assert.Equal(100f, KillFeedHudAlignmentResolver.ResolveAnchorX(bounds, KillFeedHudAlignment.Left), precision: 3);
+        Assert.Equal(270f, KillFeedHudAlignmentResolver.ResolveAnchorX(bounds, KillFeedHudAlignment.Center), precision: 3);
+        Assert.Equal(440f, KillFeedHudAlignmentResolver.ResolveAnchorX(bounds, KillFeedHudAlignment.Right), precision: 3);
+
+        Assert.Equal(100f, KillFeedHudAlignmentResolver.ResolveEntryLeft(100f, 120f, KillFeedHudAlignment.Left), precision: 3);
+        Assert.Equal(210f, KillFeedHudAlignmentResolver.ResolveEntryLeft(270f, 120f, KillFeedHudAlignment.Center), precision: 3);
+        Assert.Equal(320f, KillFeedHudAlignmentResolver.ResolveEntryLeft(440f, 120f, KillFeedHudAlignment.Right), precision: 3);
+    }
+
+    [Fact]
     public void LayoutStoreRoundTripsElementOverrides()
     {
         var path = Path.Combine(Path.GetTempPath(), $"opengarrison-hud-layout-{Guid.NewGuid():N}.json");
@@ -171,6 +202,33 @@ public sealed class HudLayoutTests
         var defaults = HudLayoutDefaults.Create()[HudElementId.LocalAbilityStack];
         Assert.Equal(MathF.Round(defaults.Size.X * 1.5f), resolved.Bounds.Width);
         Assert.Equal(MathF.Round(defaults.Size.Y * 1.5f), resolved.Bounds.Height);
+    }
+
+    [Fact]
+    public void RuntimeDefaultResolvesSavedDynamicAbilityWidgetOverride()
+    {
+        var profile = new HudLayoutProfile();
+        var id = HudElementId.LocalAbilitySlot(1);
+        profile.UnknownOverrides[id] = new HudElementLayoutOverride
+        {
+            Anchor = HudAnchor.BottomRight,
+            OffsetX = -128f,
+            OffsetY = -96f,
+            Scale = 1.3f,
+            Visible = true,
+        };
+        profile.SetRuntimeDefault(new HudElementLayout(
+            id,
+            HudAnchor.BottomRight,
+            new Vector2(-70f, -85f),
+            new Vector2(76f, 56f),
+            new Vector2(-38f, -28f),
+            Layer: 21));
+
+        Assert.True(profile.TryResolve(id, 1280, 720, out var resolved));
+        Assert.Equal(1152f, resolved.Origin.X, precision: 3);
+        Assert.Equal(624f, resolved.Origin.Y, precision: 3);
+        Assert.Equal(1.3f, resolved.Layout.Scale, precision: 3);
     }
 
     [Fact]

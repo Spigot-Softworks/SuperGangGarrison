@@ -68,6 +68,9 @@ public sealed class BotBrainController
     private const float CapturePointClusterVerticalRange = 40f;
     private const float CapturePointDirectSeekDistance = 360f;
     private const float CapturePointDirectSeekVerticalRange = 300f;
+    private const float CapturePointClearEnemyDistance = 260f;
+    private const float CapturePointClearEnemyVerticalRange = 120f;
+    private const float CapturePointClearSelfInterestDistance = 420f;
     private const float ArenaCaptureDirectDriveHorizontalRange = 420f;
     private const float ArenaCaptureDirectDriveVerticalMin = -320f;
     private const float ArenaCaptureDirectDriveVerticalMax = 80f;
@@ -121,6 +124,12 @@ public sealed class BotBrainController
     private const float StaleFirstWaypointHorizontalDistance = 220f;
     private const float StaleFirstWaypointVerticalDistance = 160f;
     private const float EngineerCtfDefenseHoldRadius = 96f;
+    private const float EngineerCtfDefenseCombatChaseDistance = 520f;
+    private const float EngineerCtfPatrolOffset = 64f;
+    private const float EngineerCtfPatrolTargetDeadZone = 8f;
+    private const int EngineerCtfPatrolCycleTicks = 180;
+    private const int EngineerCtfPatrolLegTicks = 70;
+    private const int EngineerCtfPatrolPauseTicks = 20;
     private const float EngineerCtfSentryBuildRadius = 88f;
     private const float EngineerCtfSentryDefendedRadius = 220f;
     private const int EngineerCtfBuildRetryIntervalTicks = 30;
@@ -972,12 +981,17 @@ public sealed class BotBrainController
             return true;
         }
 
-        if (TryResolveCaptureTheFlagEngineerDefenseSeek(world, self, team, steeringOutput, out directSteering, out directTrace))
+        if (TryResolveCaptureTheFlagEngineerDefenseSeek(world, self, team, combatTarget, steeringOutput, out directSteering, out directTrace))
         {
             return true;
         }
 
         if (TryResolveCaptureTheFlagDirectSeek(world, self, team, steeringOutput, out directSteering, out directTrace))
+        {
+            return true;
+        }
+
+        if (TryResolveControlPointEnemyClearSeek(world, self, team, steeringOutput, out directSteering, out directTrace))
         {
             return true;
         }
@@ -1363,6 +1377,7 @@ public sealed class BotBrainController
         SimulationWorld world,
         PlayerEntity self,
         PlayerTeam team,
+        BotBrainCombatTarget? combatTarget,
         SteeringOutput steeringOutput,
         out SteeringOutput directSteering,
         out string directTrace)
@@ -1370,6 +1385,18 @@ public sealed class BotBrainController
         directSteering = steeringOutput;
         directTrace = string.Empty;
         if (!IsCaptureTheFlagEngineerDefender(world, self))
+        {
+            return false;
+        }
+
+        var ownIntel = GetOwnIntelState(world, team);
+        if (ownIntel.IsCarried)
+        {
+            return false;
+        }
+
+        if (combatTarget is { Kind: BotBrainCombatTargetKind.Player, Player: { } target }
+            && DistanceBetween(self.X, self.Y, target.X, target.Y) <= EngineerCtfDefenseCombatChaseDistance)
         {
             return false;
         }
@@ -1389,6 +1416,14 @@ public sealed class BotBrainController
         if (distance <= EngineerCtfDefenseHoldRadius)
         {
             _proofRouteExecutor.Reset();
+            if (defendedSentry is not null && !ownIntel.IsDropped)
+            {
+                directSteering = ResolveEngineerCaptureTheFlagBasePatrol(self, anchor, steeringOutput, out var patrolTrace);
+                ApplyEngineerCaptureTheFlagDefenseAim(world, team, anchor, ref directSteering);
+                directTrace = $"engineerIntelDefense=patrol team:{team} dx:{dx:0.0} dy:{dy:0.0} dist:{distance:0.0} sentry:1 {patrolTrace}";
+                return true;
+            }
+
             directSteering = steeringOutput;
             directSteering.MoveDirection = MathF.Abs(dx) <= DroppedIntelNearHorizontalDeadZone
                 ? 0f
@@ -1461,6 +1496,34 @@ public sealed class BotBrainController
         return false;
     }
 
+    private SteeringOutput ResolveEngineerCaptureTheFlagBasePatrol(
+        PlayerEntity self,
+        (float X, float Y) anchor,
+        SteeringOutput steeringOutput,
+        out string trace)
+    {
+        var steering = steeringOutput;
+        var phase = PositiveModulo(
+            _thinkTicks + (self.Id * 19) + ((int)self.Team * 29),
+            EngineerCtfPatrolCycleTicks);
+        var targetOffset = phase switch
+        {
+            < EngineerCtfPatrolLegTicks => -EngineerCtfPatrolOffset,
+            < EngineerCtfPatrolLegTicks + EngineerCtfPatrolPauseTicks => 0f,
+            < (EngineerCtfPatrolLegTicks * 2) + EngineerCtfPatrolPauseTicks => EngineerCtfPatrolOffset,
+            _ => 0f,
+        };
+        var targetX = anchor.X + targetOffset;
+        var dx = targetX - self.X;
+        steering.MoveDirection = MathF.Abs(dx) <= EngineerCtfPatrolTargetDeadZone
+            ? 0f
+            : dx > 0f ? 1f : -1f;
+        steering.Jump = false;
+        steering.DropDown = false;
+        trace = $"target:{targetX:0.0} phase:{phase} move:{steering.MoveDirection:0}";
+        return steering;
+    }
+
     private PlayerInputSnapshot ApplyEngineerCaptureTheFlagDefenseInput(
         SimulationWorld world,
         PlayerEntity self,
@@ -1468,6 +1531,11 @@ public sealed class BotBrainController
         PlayerInputSnapshot input)
     {
         if (!IsCaptureTheFlagEngineerDefender(world, self))
+        {
+            return input;
+        }
+
+        if (GetOwnIntelState(world, team).IsCarried)
         {
             return input;
         }
@@ -1632,6 +1700,11 @@ public sealed class BotBrainController
             return false;
         }
 
+        if (GetOwnIntelState(world, team).IsCarried)
+        {
+            return false;
+        }
+
         var anchor = ResolveEngineerCaptureTheFlagDefenseAnchor(world, team);
         if (DistanceBetween(self.X, self.Y, anchor.X, anchor.Y) > EngineerCtfSentryBuildRadius)
         {
@@ -1649,6 +1722,11 @@ public sealed class BotBrainController
     {
         if (!IsCaptureTheFlagEngineerDefender(world, self)
             || !self.IsAlive)
+        {
+            return false;
+        }
+
+        if (GetOwnIntelState(world, team).IsCarried)
         {
             return false;
         }
@@ -3382,6 +3460,136 @@ public sealed class BotBrainController
         return false;
     }
 
+    private bool TryResolveControlPointEnemyClearSeek(
+        SimulationWorld world,
+        PlayerEntity self,
+        PlayerTeam team,
+        SteeringOutput steeringOutput,
+        out SteeringOutput directSteering,
+        out string directTrace)
+    {
+        directSteering = steeringOutput;
+        directTrace = string.Empty;
+        if (!TryFindControlPointEnemyClearTarget(world, self, team, out var target, out var point))
+        {
+            return false;
+        }
+
+        var dx = target.X - self.X;
+        var dy = target.Y - self.Y;
+        if (MathF.Abs(dy) <= CapturePointClearEnemyVerticalRange
+            && MathF.Abs(dx) <= CapturePointClearEnemyDistance)
+        {
+            directSteering.MoveDirection = MathF.Abs(dx) <= 1f ? 0f : dx > 0f ? 1f : -1f;
+            directSteering.Jump = steeringOutput.Jump || dy < -24f;
+            directSteering.DropDown = false;
+            directTrace = $"controlPointClearEnemy point:{point.Index} player:{target.Id} direct dx:{dx:0.0} dy:{dy:0.0} move:{directSteering.MoveDirection:0}";
+            return true;
+        }
+
+        if (TryRouteToDirectSeekTarget(
+                world,
+                self,
+                team,
+                target.X,
+                target.Y,
+                $"controlPointClearEnemy point:{point.Index} player:{target.Id}",
+                steeringOutput,
+                out directSteering,
+                out directTrace,
+                requireVerticalSeparation: false)
+            || TryResolveLocalMotionRecovery(
+                world,
+                self,
+                new DirectDriveTarget(
+                    DirectDriveTargetKind.Enemy,
+                    target.X,
+                    target.Y,
+                    $"controlPointClearEnemy point:{point.Index} player:{target.Id}"),
+                steeringOutput,
+                out directSteering,
+                out directTrace))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryFindControlPointEnemyClearTarget(
+        SimulationWorld world,
+        PlayerEntity self,
+        PlayerTeam team,
+        out PlayerEntity target,
+        out ControlPointState point)
+    {
+        target = null!;
+        point = null!;
+        if (world.MatchRules.Mode is not (GameModeKind.Arena or GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill))
+        {
+            return false;
+        }
+
+        var opposingTeam = team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
+        var bestScore = float.PositiveInfinity;
+        foreach (var candidatePoint in world.ControlPoints)
+        {
+            var selfDx = candidatePoint.HealingAuraCenterX - self.X;
+            var selfDy = candidatePoint.HealingAuraCenterY - self.Y;
+            var selfDistance = MathF.Sqrt((selfDx * selfDx) + (selfDy * selfDy));
+            if (selfDistance > CapturePointClearSelfInterestDistance
+                && !world.IsPlayerInControlPointCaptureZone(self, candidatePoint.Index))
+            {
+                continue;
+            }
+
+            foreach (var candidate in CombatDecisionResolver.EnumeratePlayers(world))
+            {
+                if (!candidate.IsAlive || candidate.Id == self.Id)
+                {
+                    continue;
+                }
+
+                var treatAsFriendlyFireTarget = SimulationWorld.ShouldTreatPlayerAsExperimentalFriendlyFireTarget(self, candidate);
+                if (candidate.Team != opposingTeam && !treatAsFriendlyFireTarget)
+                {
+                    continue;
+                }
+
+                if (!CombatDecisionResolver.IsPlayerVisibleToBot(self, candidate)
+                    || !CombatDecisionResolver.HasLineOfSight(world, self.X, self.Y, candidate.X, candidate.Y, self.Team, self.IsCarryingIntel))
+                {
+                    continue;
+                }
+
+                var enemyDx = candidate.X - candidatePoint.HealingAuraCenterX;
+                var enemyDy = candidate.Y - candidatePoint.HealingAuraCenterY;
+                var enemyNearPoint = world.IsPlayerInControlPointCaptureZone(candidate, candidatePoint.Index)
+                    || (MathF.Sqrt((enemyDx * enemyDx) + (enemyDy * enemyDy)) <= CapturePointClearEnemyDistance
+                        && MathF.Abs(enemyDy) <= CapturePointClearEnemyVerticalRange);
+                if (!enemyNearPoint)
+                {
+                    continue;
+                }
+
+                var dx = candidate.X - self.X;
+                var dy = candidate.Y - self.Y;
+                var distanceSq = (dx * dx) + (dy * dy);
+                var score = distanceSq + (world.IsPlayerInControlPointCaptureZone(candidate, candidatePoint.Index) ? 0f : 10_000f);
+                if (score >= bestScore)
+                {
+                    continue;
+                }
+
+                bestScore = score;
+                target = candidate;
+                point = candidatePoint;
+            }
+        }
+
+        return target is not null;
+    }
+
     private static bool ShouldSuspendGraphRoutingForControlPointCapture(
         SimulationWorld world,
         PlayerEntity self,
@@ -4037,10 +4245,29 @@ public sealed class BotBrainController
             return;
         }
 
+        if (TryFindControlPointEnemyClearTarget(world, self, team, out _, out _))
+        {
+            return;
+        }
+
+        var style = ResolveCapturePointHoldStyle(self, team, point);
+        if (style == CapturePointHoldStyle.Hold)
+        {
+            steeringOutput.MoveDirection = 0f;
+            steeringOutput.Jump = false;
+            steeringOutput.DropDown = false;
+            LastDirectDriveTrace = string.IsNullOrWhiteSpace(LastDirectDriveTrace)
+                ? $"captureHold point:{point.Index} reason:{reason} style:hold"
+                : $"{LastDirectDriveTrace} captureHold point:{point.Index} reason:{reason} style:hold";
+            return;
+        }
+
         var centerBand = Math.Clamp(point.Marker.Width * CaptureStrafeCenterBand, CapturePointLaneTargetDeadZone, 32f);
         var laneTargetX = ResolveCapturePointLaneTargetX(world, self, team, point);
         var dxFromTarget = self.X - laneTargetX;
-        var phase = Math.Abs((_thinkTicks + (point.Index * 7)) % CaptureStrafeHopCycleTicks);
+        var phase = PositiveModulo(
+            _thinkTicks + (self.Id * 11) + ((int)team * 17) + (point.Index * 7),
+            CaptureStrafeHopCycleTicks);
         var inHopWindow = phase >= CaptureStrafeHopSideTicks * 2
             && phase < (CaptureStrafeHopSideTicks * 2) + CaptureStrafeHopWindowTicks;
         var tapDirection = ResolveCaptureStrafeTapDirection(phase);
@@ -4060,17 +4287,38 @@ public sealed class BotBrainController
 
         steeringOutput.MoveDirection = moveDirection;
         steeringOutput.DropDown = false;
-        if (self.IsGrounded && inHopWindow)
+        if (style == CapturePointHoldStyle.StrafeHop && self.IsGrounded && inHopWindow)
         {
             steeringOutput.Jump = true;
+        }
+        else
+        {
+            steeringOutput.Jump = false;
         }
 
         var spacingSuffix = string.IsNullOrWhiteSpace(spacingTrace)
             ? string.Empty
             : $" spacing:{spacingTrace}";
         LastDirectDriveTrace = string.IsNullOrWhiteSpace(LastDirectDriveTrace)
-            ? $"captureStrafeHop point:{point.Index} reason:{reason} move:{moveDirection} phase:{phase}{spacingSuffix}"
-            : $"{LastDirectDriveTrace} captureStrafeHop point:{point.Index} reason:{reason} move:{moveDirection} phase:{phase}{spacingSuffix}";
+            ? $"captureStrafeHop point:{point.Index} reason:{reason} style:{style} move:{moveDirection} phase:{phase}{spacingSuffix}"
+            : $"{LastDirectDriveTrace} captureStrafeHop point:{point.Index} reason:{reason} style:{style} move:{moveDirection} phase:{phase}{spacingSuffix}";
+    }
+
+    private CapturePointHoldStyle ResolveCapturePointHoldStyle(
+        PlayerEntity self,
+        PlayerTeam team,
+        ControlPointState point)
+    {
+        var styleEpoch = _thinkTicks / 150;
+        var style = PositiveModulo(
+            (self.Id * 5) + (point.Index * 3) + ((int)team * 2) + styleEpoch,
+            3);
+        return style switch
+        {
+            0 => CapturePointHoldStyle.Hold,
+            1 => CapturePointHoldStyle.Strafe,
+            _ => CapturePointHoldStyle.StrafeHop,
+        };
     }
 
     private static bool TryResolveCapturePointSpacingMove(
@@ -4507,6 +4755,19 @@ public sealed class BotBrainController
         }
 
         return target is not null;
+    }
+
+    private static int PositiveModulo(int value, int modulo)
+    {
+        var result = value % modulo;
+        return result < 0 ? result + modulo : result;
+    }
+
+    private enum CapturePointHoldStyle
+    {
+        Hold,
+        Strafe,
+        StrafeHop,
     }
 
     private static bool TryFindNearestIntelCarrier(

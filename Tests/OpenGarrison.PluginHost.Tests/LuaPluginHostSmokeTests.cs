@@ -878,6 +878,46 @@ public sealed class LuaPluginHostSmokeTests
     }
 
     [Fact]
+    public void ClientLuaHostRegistersGameplayAbilityScopedHudWidget()
+    {
+        using var tempDirectory = new TempDirectory();
+        var logs = new List<string>();
+        var loadedPlugin = LoadAdHocClientLuaPlugin(
+            "tests.client.lua-ability-hud-widget",
+            "Lua Client Ability HUD Widget",
+            """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+                host.register_gameplay_ability_hud_widget({
+                    itemId = "ability.plugin-dash",
+                    id = "plugin-dash-hud",
+                    anchor = "bottom_right",
+                    order = 25,
+                    draw = function(canvas, ability)
+                        canvas.draw_bitmap_text("ability " .. ability.itemId, 8, 10, host.color(255, 255, 255, 255))
+                    end
+                })
+            end
+
+            return plugin
+            """,
+            tempDirectory,
+            logs);
+
+        var hudHooks = Assert.IsAssignableFrom<IOpenGarrisonClientHudHooks>(loadedPlugin.Plugin);
+        var hiddenCanvas = new FakeHudCanvas();
+        hudHooks.OnGameplayHudDraw(hiddenCanvas);
+        Assert.Equal(0, hiddenCanvas.BitmapTextDrawCount);
+
+        loadedPlugin.Context.StateImpl.LocalGameplayItemIds.Add("ability.plugin-dash");
+        var visibleCanvas = new FakeHudCanvas();
+        hudHooks.OnGameplayHudDraw(visibleCanvas);
+        Assert.Equal(1, visibleCanvas.BitmapTextDrawCount);
+    }
+
+    [Fact]
     public void ServerLuaPluginLoaderBootstrapsLuaPluginAndPersistsConfig()
     {
         using var tempDirectory = new TempDirectory();
@@ -1528,7 +1568,11 @@ public sealed class LuaPluginHostSmokeTests
                             cooldownKey = "plugin_dash_cooldown",
                             maxCooldown = 42,
                             activeKey = "plugin_dash_active",
-                            disabledKey = "plugin_dash_disabled"
+                            disabledKey = "plugin_dash_disabled",
+                            widgetId = "plugin-dash-widget",
+                            widgetOwner = "tests.client.lua-ability-api",
+                            widgetCallback = "draw_plugin_dash",
+                            anchor = "bottom_right"
                         }
                     }
                 })
@@ -1650,6 +1694,10 @@ public sealed class LuaPluginHostSmokeTests
         Assert.Equal(42, registeredAbilityHud.MaxCooldown);
         Assert.Equal("plugin_dash_active", registeredAbilityHud.ActiveKey);
         Assert.Equal("plugin_dash_disabled", registeredAbilityHud.DisabledKey);
+        Assert.Equal("plugin-dash-widget", registeredAbilityHud.WidgetId);
+        Assert.Equal("tests.client.lua-ability-api", registeredAbilityHud.WidgetOwner);
+        Assert.Equal("draw_plugin_dash", registeredAbilityHud.WidgetCallback);
+        Assert.Equal("bottom_right", registeredAbilityHud.Anchor);
 
         var overrideEntry = Assert.Single(fakeContext.GameplayAbilityOverrides);
         Assert.Equal("ability.heavy-utility", overrideEntry.ItemId);
@@ -4059,6 +4107,8 @@ public sealed class LuaPluginHostSmokeTests
         public float SoundEffectsVolumeScale { get; set; } = 1f;
         public Vector2 CameraTopLeft { get; set; } = Vector2.Zero;
         public Vector2 LocalPlayerPosition { get; set; } = new(10f, 20f);
+        public List<string> LocalGameplayItemIds { get; } = [];
+        public List<string> LocalGameplayAbilityItemIds { get; } = [];
         public List<ClientPlayerMarker> PlayerMarkers { get; set; } = [];
         public List<ClientSentryMarker> SentryMarkers { get; set; } = [];
         public List<ClientObjectiveMarker> ObjectiveMarkers { get; set; } = [];
@@ -4069,6 +4119,8 @@ public sealed class LuaPluginHostSmokeTests
         public IReadOnlyList<ClientPlayerMarker> GetPlayerMarkers() => PlayerMarkers;
         public IReadOnlyList<ClientSentryMarker> GetSentryMarkers() => SentryMarkers;
         public IReadOnlyList<ClientObjectiveMarker> GetObjectiveMarkers() => ObjectiveMarkers;
+        public IReadOnlyList<string> GetLocalGameplayItemIds() => LocalGameplayItemIds;
+        public IReadOnlyList<string> GetLocalGameplayAbilityItemIds() => LocalGameplayAbilityItemIds;
         public bool IsPlayerCloaked(int playerId) => false;
         public bool IsPlayerVisibleToLocalViewer(int playerId) => true;
         public bool TryGetLocalPlayerHealth(out int health, out int maxHealth)

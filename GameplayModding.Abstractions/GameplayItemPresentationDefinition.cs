@@ -37,7 +37,11 @@ public sealed record GameplayItemHudPresentationDefinition(
     string CooldownKey = "",
     int MaxCooldown = 0,
     string ActiveKey = "",
-    string DisabledKey = "");
+    string DisabledKey = "",
+    string WidgetId = "",
+    string WidgetOwner = "",
+    string WidgetCallback = "",
+    string Anchor = "");
 
 public static class GameplayItemHudDisplayKinds
 {
@@ -45,6 +49,7 @@ public static class GameplayItemHudDisplayKinds
     public const string AmmoPanel = "ammoPanel";
     public const string Meter = "meter";
     public const string CooldownIcon = "cooldownIcon";
+    public const string Custom = "custom";
     public const string Count = "count";
     public const string Prompt = "prompt";
 }
@@ -64,6 +69,7 @@ public static class GameplayItemHudStateProviders
     public const string ReloadProgress = "reloadProgress";
     public const string Cooldown = "cooldown";
     public const string AbilityCooldown = "abilityCooldown";
+    public const string Custom = "custom";
     public const string HeavySandvichCooldown = "heavySandvichCooldown";
     public const string HeavyGhostDashCooldown = "heavyGhostDashCooldown";
     public const string SpySuperjumpCooldown = "spySuperjumpCooldown";
@@ -71,4 +77,10 @@ public static class GameplayItemHudStateProviders
     public const string Uber = "uber";
     public const string Metal = "metal";
     public const string Sentry = "sentry";
+}
+
+public static class GameplayItemHudWidgetIds
+{
+    public const string AbilityCooldownMeter = "abilityCooldownMeter";
+    public const string WeaponAmmoPanel = "weaponAmmoPanel";
 }

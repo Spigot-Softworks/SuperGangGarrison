@@ -371,6 +371,8 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     private float ExperimentalGhostDashDistanceTraveled { get; set; }
 
+    private float ExperimentalGhostDashLastMoveDistance { get; set; }
+
     private float ExperimentalGhostDashMomentumDirectionX { get; set; } = 1f;
 
     private float ExperimentalGhostDashNextAttackDamageMultiplierValue { get; set; } = 1f;

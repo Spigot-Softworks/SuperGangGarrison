@@ -416,7 +416,19 @@ public sealed partial class SimulationWorld
             ClearDroppedWeapons();
         }
 
-        SyncExperimentalGameplayLoadout(LocalPlayerSlot, LocalPlayer);
+        SyncExperimentalGameplayLoadouts();
+    }
+
+    private void SyncExperimentalGameplayLoadouts()
+    {
+        for (var index = 0; index < NetworkPlayerSlots.Count; index += 1)
+        {
+            var slot = NetworkPlayerSlots[index];
+            if (IsNetworkPlayerEnabled(slot) && TryGetNetworkPlayer(slot, out var player))
+            {
+                SyncExperimentalGameplayLoadout(slot, player);
+            }
+        }
     }
 
 
@@ -599,6 +611,7 @@ public sealed partial class SimulationWorld
 
     private void SyncExperimentalGameplayLoadout(byte slot, PlayerEntity player)
     {
+        var specialAbilitiesEnabled = ExperimentalGameplaySettings.EnableSecondaryAbilities;
         if (slot != LocalPlayerSlot)
         {
             player.SetExperimentalDemoknightEnabled(false);
@@ -617,7 +630,9 @@ public sealed partial class SimulationWorld
             player.SetExperimentalDemoknightChargeFullControlEnabled(false);
             player.ConfigureExperimentalDemoknightPostRageRegeneration(0f);
             player.StartExperimentalDemoknightPostRageRegeneration(0);
-            player.SetExperimentalOffhandWeapon(ResolveGameplaySecondaryWeapon(player, allowSoldierShotgun: false, allowSoldierShotgunLtd: false));
+            player.SetExperimentalOffhandWeapon(specialAbilitiesEnabled
+                ? ResolveGameplaySecondaryWeapon(player, allowSoldierShotgun: false, allowSoldierShotgunLtd: false)
+                : null);
             player.SetAcquiredWeapon(null);
             ApplyNetworkPlayerMaxHealthOverride(slot, player, refillHealth: false);
             return;
@@ -661,10 +676,12 @@ public sealed partial class SimulationWorld
             player.ConfigureExperimentalDemoknightPostRageRegeneration(0f);
             player.StartExperimentalDemoknightPostRageRegeneration(0);
         }
-        player.SetExperimentalOffhandWeapon(ResolveGameplaySecondaryWeapon(
-            player,
-            allowSoldierShotgun: ExperimentalGameplaySettings.EnableSoldierShotgunSecondaryWeapon,
-            allowSoldierShotgunLtd: ExperimentalGameplaySettings.EnableSoldierShotgunLtdPerk));
+        player.SetExperimentalOffhandWeapon(specialAbilitiesEnabled
+            ? ResolveGameplaySecondaryWeapon(
+                player,
+                allowSoldierShotgun: ExperimentalGameplaySettings.EnableSoldierShotgunSecondaryWeapon,
+                allowSoldierShotgunLtd: ExperimentalGameplaySettings.EnableSoldierShotgunLtdPerk)
+            : null);
         if (!ExperimentalGameplaySettings.EnableEnemyDroppedWeapons
             || player.ClassId != PlayerClass.Soldier)
         {
