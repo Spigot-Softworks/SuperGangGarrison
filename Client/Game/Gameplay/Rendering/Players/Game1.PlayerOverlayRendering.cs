@@ -37,7 +37,7 @@ public partial class Game1
 
         DrawLoadedSpriteFrame(
             sprite.Frames[frameIndex],
-            new Vector2(MathF.Round(renderPosition.X) + 10f - cameraPosition.X, MathF.Round(renderPosition.Y) - 18f - cameraPosition.Y),
+            new Vector2(MathF.Round(renderPosition.X, MidpointRounding.AwayFromZero) + 10f - cameraPosition.X, MathF.Round(renderPosition.Y, MidpointRounding.AwayFromZero) - 18f - cameraPosition.Y),
             null,
             Color.White * alpha,
             0f,

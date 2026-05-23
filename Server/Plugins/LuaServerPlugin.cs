@@ -1999,6 +1999,7 @@ internal sealed class LuaServerPlugin(
             ReloadDurationSourceTicks: ReadOptionalIntField(presentationTable, 0, "reloadDurationSourceTicks", "ReloadDurationSourceTicks", "reload_duration_source_ticks"),
             ScopedRecoilDurationSourceTicks: ReadOptionalIntField(presentationTable, 0, "scopedRecoilDurationSourceTicks", "ScopedRecoilDurationSourceTicks", "scoped_recoil_duration_source_ticks"),
             LoopRecoilWhileActive: ReadOptionalBoolField(presentationTable, false, "loopRecoilWhileActive", "LoopRecoilWhileActive", "loop_recoil_while_active"),
+            LoopReloadAnimation: ReadOptionalBoolField(presentationTable, true, "loopReloadAnimation", "LoopReloadAnimation", "loop_reload_animation"),
             BlueTeamHudFrameOffset: ReadOptionalIntField(presentationTable, 1, "blueTeamHudFrameOffset", "BlueTeamHudFrameOffset", "blue_team_hud_frame_offset"),
             UseAmmoCountForHudFrame: ReadOptionalBoolField(presentationTable, false, "useAmmoCountForHudFrame", "UseAmmoCountForHudFrame", "use_ammo_count_for_hud_frame"),
             BlueTeamAmmoHudFrameOffset: ReadOptionalIntField(presentationTable, 0, "blueTeamAmmoHudFrameOffset", "BlueTeamAmmoHudFrameOffset", "blue_team_ammo_hud_frame_offset"),

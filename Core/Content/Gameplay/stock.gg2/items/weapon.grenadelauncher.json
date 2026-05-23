@@ -26,8 +26,9 @@
     "hudSpriteName": "GrenadeLauncherAmmoS",
     "weaponOffsetX": -14.0,
     "weaponOffsetY": -6.0,
-    "recoilDurationSourceTicks": 26,
+    "recoilDurationSourceTicks": 17,
     "reloadDurationSourceTicks": 30,
+    "loopReloadAnimation": false,
     "blueTeamHudFrameOffset": 1,
     "hud": {
       "displayKind": "ammoPanel",

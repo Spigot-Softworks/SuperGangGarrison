@@ -7,7 +7,7 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class ClientBubbleMenuInputSuppressionTests
 {
     [Fact]
-    public void BubbleMenuSuppressionCanPreservePrimaryFireForHeldHealing()
+    public void BubbleMenuSuppressionOnlySuppressesInteractAndSwap()
     {
         var input = new PlayerInputSnapshot(
             Left: true,
@@ -27,14 +27,12 @@ public sealed class ClientBubbleMenuInputSuppressionTests
             InteractWeapon: true,
             SwapWeapon: true);
 
-        var preserved = Game1.ApplyBubbleMenuGameplaySuppression(input, preservePrimaryFire: true);
-        var suppressed = Game1.ApplyBubbleMenuGameplaySuppression(input, preservePrimaryFire: false);
+        var result = Game1.ApplyBubbleMenuGameplaySuppression(input);
 
-        Assert.True(preserved.FirePrimary);
-        Assert.False(preserved.FireSecondary);
-        Assert.False(preserved.UseAbility);
-        Assert.False(preserved.InteractWeapon);
-        Assert.False(preserved.SwapWeapon);
-        Assert.False(suppressed.FirePrimary);
+        Assert.True(result.FirePrimary);
+        Assert.True(result.FireSecondary);
+        Assert.True(result.UseAbility);
+        Assert.False(result.InteractWeapon);
+        Assert.False(result.SwapWeapon);
     }
 }

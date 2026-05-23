@@ -64,7 +64,9 @@ public partial class Game1
             var labelPosition = new Vector2(screenPosition.X, screenPosition.Y - textHeight);
             var teamColor = player.Team == PlayerTeam.Blue ? new Color(80, 150, 240) : new Color(210, 90, 90);
             var alpha = Math.Clamp(visibilityAlpha, 0.55f, 1f);
-            _game.DrawBitmapFontTextCentered(label, labelPosition + Vector2.One, Color.Black * alpha, 1f);
+            var shadowColor = Color.Black * alpha;
+            _game.DrawBitmapFontTextCentered(label, labelPosition + new Vector2(0.5f, 0.5f), shadowColor, 1f);
+            _game.DrawBitmapFontTextCentered(label, labelPosition + new Vector2(1f, 1f), shadowColor, 1f);
             _game.DrawBitmapFontTextCentered(label, labelPosition, teamColor * alpha, 1f);
         }
 
