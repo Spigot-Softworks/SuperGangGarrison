@@ -93,6 +93,11 @@ public sealed partial class SimulationWorld
                 {
                     TryDamageGenerator(hitResult.HitGenerator.Team, shot.DamageValue * shot.CriticalDamageMultiplier, owner);
                 }
+                else if (hitResult.HitJumpPad is not null)
+                {
+                    hitResult.HitJumpPad.TakeDamage((int)MathF.Round(shot.DamageValue * shot.CriticalDamageMultiplier));
+                    RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
+                }
                 else
                 {
                     RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
@@ -173,6 +178,10 @@ public sealed partial class SimulationWorld
                     {
                         TryDamageGenerator(hitResult.HitGenerator.Team, blade.HitDamage * blade.CriticalDamageMultiplier, owner);
                     }
+                    else if (hitResult.HitJumpPad is not null)
+                    {
+                        hitResult.HitJumpPad.TakeDamage((int)MathF.Round(blade.HitDamage * blade.CriticalDamageMultiplier));
+                    }
                     else
                     {
                         RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
@@ -238,6 +247,10 @@ public sealed partial class SimulationWorld
                 else if (hitResult.HitGenerator is not null)
                 {
                     TryDamageGenerator(hitResult.HitGenerator.Team, NeedleProjectileEntity.DamagePerHit * needle.CriticalDamageMultiplier, owner);
+                }
+                else if (hitResult.HitJumpPad is not null)
+                {
+                    hitResult.HitJumpPad.TakeDamage((int)MathF.Round(NeedleProjectileEntity.DamagePerHit * needle.CriticalDamageMultiplier));
                 }
                 else
                 {
@@ -305,6 +318,11 @@ public sealed partial class SimulationWorld
                 else if (hitResult.HitGenerator is not null)
                 {
                     TryDamageGenerator(hitResult.HitGenerator.Team, shot.DamageValue * shot.CriticalDamageMultiplier, owner);
+                }
+                else if (hitResult.HitJumpPad is not null)
+                {
+                    hitResult.HitJumpPad.TakeDamage((int)MathF.Round(shot.DamageValue * shot.CriticalDamageMultiplier));
+                    RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
                 }
                 else
                 {

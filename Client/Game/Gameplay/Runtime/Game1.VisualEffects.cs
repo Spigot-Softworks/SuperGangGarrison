@@ -27,6 +27,9 @@ public partial class Game1
     private readonly List<RocketSmokeVisual> _rocketSmokeVisuals = new();
     private readonly Dictionary<int, FrozenSpyFrameState> _lastVisibleEnemySpyFrameStates = new();
     private readonly List<FrozenSpyVisual> _frozenSpyVisuals = new();
+    private readonly Dictionary<int, FrozenSpyFrameState> _lastHeavyDashFrameStates = new();
+    private readonly Dictionary<int, int> _heavyDashTrailTickCounters = new();
+    private readonly Dictionary<int, Vector2> _heavyDashTrailLastSpawnPositions = new();
     private readonly List<SniperTracerParticle> _sniperTracerParticles = new();
     private float _medigunBeamHelixPhase;
 
@@ -101,6 +104,9 @@ public partial class Game1
         _pendingNetworkDamageEvents.Clear();
         _frozenSpyVisuals.Clear();
         _lastVisibleEnemySpyFrameStates.Clear();
+        _lastHeavyDashFrameStates.Clear();
+        _heavyDashTrailTickCounters.Clear();
+        _heavyDashTrailLastSpawnPositions.Clear();
     }
 
     private bool TryCreateExplosionVisual(WorldSoundEvent soundEvent, out ExplosionVisual? explosion)
@@ -617,6 +623,71 @@ public partial class Game1
     {
         _lastVisibleEnemySpyFrameStates.Remove(playerId);
         RemoveFrozenSpyVisualsForPlayer(playerId);
+    }
+
+    private void RecordHeavyDashFrameState(
+        PlayerEntity player,
+        string spriteName,
+        int frameIndex,
+        Vector2 renderPosition,
+        Vector2 origin,
+        Vector2 scale,
+        float bodyYOffset,
+        Color tint,
+        bool drawIntelOverlay)
+    {
+        _lastHeavyDashFrameStates[player.Id] = new FrozenSpyFrameState(
+            spriteName,
+            frameIndex,
+            renderPosition,
+            scale,
+            origin,
+            bodyYOffset,
+            tint,
+            drawIntelOverlay);
+    }
+
+    // Minimum position change (in world pixels) between trail freeze frames
+    private const float HeavyDashTrailSpawnDistanceThreshold = 8f;
+
+    private void AdvanceHeavyDashTrailVisuals()
+    {
+        foreach (var player in EnumerateRenderablePlayers())
+        {
+            if (!player.IsAlive || player.ClassId != PlayerClass.Heavy)
+            {
+                continue;
+            }
+
+            // ExperimentalGhostDashEnablesTrail is only set for the local player via prediction;
+            // for remote players it is always false, so only enforce it for the local player.
+            var trailEnabled = !IsUsingPredictedLocalState(player) || player.ExperimentalGhostDashEnablesTrail;
+            if (!GetPlayerIsExperimentalGhostDashing(player) || !trailEnabled)
+            {
+                _heavyDashTrailTickCounters.Remove(player.Id);
+                _lastHeavyDashFrameStates.Remove(player.Id);
+                _heavyDashTrailLastSpawnPositions.Remove(player.Id);
+                continue;
+            }
+
+            if (!_lastHeavyDashFrameStates.TryGetValue(player.Id, out var frameState))
+            {
+                continue;
+            }
+
+            // Only spawn if Heavy has moved far enough since the last freeze frame
+            var currentPos = frameState.RenderPosition;
+            if (_heavyDashTrailLastSpawnPositions.TryGetValue(player.Id, out var lastPos)
+                && (currentPos - lastPos).LengthSquared() < HeavyDashTrailSpawnDistanceThreshold * HeavyDashTrailSpawnDistanceThreshold)
+            {
+                continue;
+            }
+
+            // Spawn trail ghost at 50% opacity by halving the tint; it then fades to 0 over lifetime.
+            var trailFrameState = frameState with { Tint = frameState.Tint * 0.5f };
+            _frozenSpyVisuals.Add(new FrozenSpyVisual(player.Id, trailFrameState, lifetimeTicks: 30));
+            _heavyDashTrailLastSpawnPositions[player.Id] = currentPos;
+        }
     }
 
     private void SpawnBackstabVisual(int ownerId, PlayerTeam team, float x, float y, float directionDegrees)

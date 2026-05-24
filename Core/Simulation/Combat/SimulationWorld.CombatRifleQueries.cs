@@ -12,12 +12,14 @@ public sealed partial class SimulationWorld
                 HitPlayer = null;
                 HitSentry = null;
                 HitGenerator = null;
+                HitJumpPad = null;
             }
 
             public float NearestDistance;
             public PlayerEntity? HitPlayer;
             public SentryEntity? HitSentry;
             public GeneratorState? HitGenerator;
+            public JumpPadEntity? HitJumpPad;
         }
 
         public RifleHitResult ResolveRifleHit(PlayerEntity attacker, float directionX, float directionY, float maxDistance)
@@ -31,9 +33,10 @@ public sealed partial class SimulationWorld
             UpdateNearestRifleHitFromRoomObjects(ref hitState, originX, originY, directionX, directionY);
             UpdateNearestRifleHitFromGenerators(ref hitState, attacker, originX, originY, directionX, directionY);
             UpdateNearestRifleHitFromSentries(ref hitState, attacker, originX, originY, directionX, directionY);
+            UpdateNearestRifleHitFromJumpPads(ref hitState, attacker, originX, originY, directionX, directionY);
             UpdateNearestRifleHitFromPlayers(ref hitState, attacker, originX, originY, directionX, directionY);
 
-            return new RifleHitResult(hitState.NearestDistance, hitState.HitPlayer, hitState.HitSentry, hitState.HitGenerator);
+            return new RifleHitResult(hitState.NearestDistance, hitState.HitPlayer, hitState.HitSentry, hitState.HitGenerator) { HitJumpPad = hitState.HitJumpPad };
         }
 
         private void UpdateNearestRifleHitFromSolids(ref RifleHitState hitState, float originX, float originY, float directionX, float directionY)
@@ -96,6 +99,7 @@ public sealed partial class SimulationWorld
             hitState.HitPlayer = null;
             hitState.HitSentry = null;
             hitState.HitGenerator = null;
+            hitState.HitJumpPad = null;
         }
 
         private static void UpdateNearestRifleSentryHit(ref RifleHitState hitState, float distance, SentryEntity sentry)
@@ -104,6 +108,7 @@ public sealed partial class SimulationWorld
             hitState.HitPlayer = null;
             hitState.HitSentry = sentry;
             hitState.HitGenerator = null;
+            hitState.HitJumpPad = null;
         }
 
         private static void UpdateNearestRifleGeneratorHit(ref RifleHitState hitState, float distance, GeneratorState generator)
@@ -112,6 +117,7 @@ public sealed partial class SimulationWorld
             hitState.HitPlayer = null;
             hitState.HitSentry = null;
             hitState.HitGenerator = generator;
+            hitState.HitJumpPad = null;
         }
 
         private static void UpdateNearestRiflePlayerHit(ref RifleHitState hitState, float distance, PlayerEntity player)
@@ -120,6 +126,24 @@ public sealed partial class SimulationWorld
             hitState.HitPlayer = player;
             hitState.HitSentry = null;
             hitState.HitGenerator = null;
+            hitState.HitJumpPad = null;
+        }
+
+        private void UpdateNearestRifleHitFromJumpPads(ref RifleHitState hitState, PlayerEntity attacker, float originX, float originY, float directionX, float directionY)
+        {
+            foreach (var pad in _jumpPads)
+            {
+                if (pad.Team == attacker.Team || !pad.IsBuilt || pad.IsDead) { continue; }
+                var distance = GetRayIntersectionDistanceWithJumpPad(originX, originY, directionX, directionY, pad, hitState.NearestDistance);
+                if (distance.HasValue)
+                {
+                    hitState.NearestDistance = distance.Value;
+                    hitState.HitPlayer = null;
+                    hitState.HitSentry = null;
+                    hitState.HitGenerator = null;
+                    hitState.HitJumpPad = pad;
+                }
+            }
         }
     }
 }

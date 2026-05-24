@@ -43,7 +43,7 @@ public partial class Game1
 
         DrawLoadedSpriteFrame(
             sprite.Frames[frameIndex],
-            new Vector2(MathF.Round(renderPosition.X) + 10f - cameraPosition.X, MathF.Round(renderPosition.Y) - 18f - cameraPosition.Y),
+            new Vector2(MathF.Round(renderPosition.X, MidpointRounding.AwayFromZero) + 10f - cameraPosition.X, MathF.Round(renderPosition.Y, MidpointRounding.AwayFromZero) - 18f - cameraPosition.Y),
             null,
             Color.White * alpha,
             0f,
@@ -157,7 +157,12 @@ public partial class Game1
             panelHeight);
 
         var overlayAlpha = Math.Clamp(visibilityAlpha * messageAlpha, 0f, 1f);
-        _spriteBatch.Draw(_pixel, panelBounds, Color.Black * overlayAlpha);
+        DrawRoundedRectangleOutline(
+            panelBounds,
+            new Color(0, 0, 0) * (0.40f * overlayAlpha),
+            new Color(49, 45, 26) * (0.40f * overlayAlpha),
+            outlineThickness: 2,
+            radius: 6);
         for (var index = 0; index < wrappedLines.Count; index += 1)
         {
             var line = wrappedLines[index];

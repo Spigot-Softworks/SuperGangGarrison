@@ -395,6 +395,12 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     private bool ExperimentalGhostDashUsesMomentum { get; set; }
 
+    internal float ExperimentalGhostDashBurstSpeedMultiplier { get; private set; }
+
+    private bool ExperimentalGhostDashDisablesGravity { get; set; }
+
+    public bool ExperimentalGhostDashEnablesTrail { get; private set; }
+
     private int ExperimentalGhostDashInitialTicks { get; set; }
 
     private float ExperimentalGhostDashInitialDistance { get; set; }

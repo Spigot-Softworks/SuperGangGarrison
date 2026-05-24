@@ -29,4 +29,7 @@
   <resource name="SpectatorHealthFill" type="RESOURCE"/>
   <resource name="JumpPadBlue" type="RESOURCE"/>
   <resource name="JumpPadRed" type="RESOURCE"/>
+  <resource name="JumpPadBlueBuild" type="RESOURCE"/>
+  <resource name="JumpPadRedBuild" type="RESOURCE"/>
+  <resource name="JumpPadGibsS" type="RESOURCE"/>
 </resources>

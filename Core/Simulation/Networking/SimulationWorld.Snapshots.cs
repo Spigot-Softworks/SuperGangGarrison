@@ -283,6 +283,7 @@ public sealed partial class SimulationWorld
         // Blood drops are now generated locally on the client - not synced from server
         ApplySnapshotDeadBodies(snapshot.DeadBodies);
         ApplySnapshotSentryGibs(snapshot.SentryGibs);
+        ApplySnapshotJumpPadGibs(snapshot.JumpPadGibs);
     }
 
     private void ApplySnapshotJumpPads(IReadOnlyList<SnapshotJumpPadState> jumpPads)
@@ -302,7 +303,8 @@ public sealed partial class SimulationWorld
                 state.X,
                 state.Y,
                 state.Health,
-                state.HasLanded));
+                state.HasLanded,
+                state.IsBuilt));
     }
 
     private void ApplySnapshotSentries(IReadOnlyList<SnapshotSentryState> sentries)
@@ -485,6 +487,17 @@ public sealed partial class SimulationWorld
             }
 
             if (_entities.ContainsKey(e.Id))
+            {
+                continue;
+            }
+
+            // Skip re-spawning rockets that were already terminated on the client.
+            // RocketSpawnEvents are retained and replayed for several seconds by the server, so
+            // the same spawn event can arrive after the rocket has already been removed (e.g. it
+            // exploded and ApplySnapshotRockets cleaned it up). Without this guard the rocket
+            // would be recreated from its birth position every snapshot frame until the event
+            // expires, producing a ghost rocket that repeatedly flickers near the fire point.
+            if (_terminatedProjectileIds.Contains(e.Id))
             {
                 continue;
             }
@@ -789,6 +802,35 @@ public sealed partial class SimulationWorld
             static (entity, state) =>
                 entity.Team == (PlayerTeam)state.Team,
             state => new SentryGibEntity(
+                state.Id,
+                (PlayerTeam)state.Team,
+                state.X,
+                state.Y),
+            static (entity, state) => entity.ApplyNetworkState(
+                state.X,
+                state.Y,
+                state.TicksRemaining),
+            static (entity, state, isNewEntity) =>
+            {
+                if (isNewEntity)
+                {
+                    entity.ApplyNetworkState(
+                        state.X,
+                        state.Y,
+                        state.TicksRemaining);
+                }
+            });
+    }
+
+    private void ApplySnapshotJumpPadGibs(IReadOnlyList<SnapshotJumpPadGibState> jumpPadGibs)
+    {
+        SyncSnapshotEntities(
+            jumpPadGibs,
+            _jumpPadGibs,
+            static state => state.Id,
+            static (entity, state) =>
+                entity.Team == (PlayerTeam)state.Team,
+            state => new JumpPadGibEntity(
                 state.Id,
                 (PlayerTeam)state.Team,
                 state.X,

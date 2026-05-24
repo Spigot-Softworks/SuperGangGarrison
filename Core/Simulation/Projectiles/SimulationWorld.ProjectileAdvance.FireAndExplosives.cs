@@ -69,6 +69,11 @@ public sealed partial class SimulationWorld
                     TryDamageGenerator(hitResult.HitGenerator.Team, (int)(flame.DirectHitDamageValue * flame.CriticalDamageMultiplier), owner);
                     flame.Destroy();
                 }
+                else if (hitResult.HitJumpPad is not null)
+                {
+                    hitResult.HitJumpPad.TakeDamage((int)(flame.DirectHitDamageValue * flame.CriticalDamageMultiplier));
+                    flame.Destroy();
+                }
                 else
                 {
                     flame.Destroy();
@@ -152,6 +157,10 @@ public sealed partial class SimulationWorld
                 else if (hitResult.HitGenerator is not null)
                 {
                     TryDamageGenerator(hitResult.HitGenerator.Team, FlareProjectileEntity.DamagePerHit * flare.CriticalDamageMultiplier, owner);
+                }
+                else if (hitResult.HitJumpPad is not null)
+                {
+                    hitResult.HitJumpPad.TakeDamage((int)MathF.Round(FlareProjectileEntity.DamagePerHit * flare.CriticalDamageMultiplier));
                 }
 
                 flare.Destroy();

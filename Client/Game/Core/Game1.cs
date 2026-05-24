@@ -211,6 +211,7 @@ public partial class Game1 : Game
     private LoadedSpriteFrame? _gameplayLoadoutDogTagsTexture;
     private GameMakerRuntimeAssetCache _runtimeAssets = null!;
     private GameplayModAssetCache _gameplayModAssets = null!;
+    private RotatedWeaponSpriteCache? _rotatedWeaponSprites;
     private ClientRuntimeComposition? _runtimeComposition;
     private readonly Dictionary<LoadedSpriteFrame, Rectangle> _spriteFontOpaqueBoundsCache = new();
     private KeyboardState _previousKeyboard;
@@ -283,6 +284,7 @@ public partial class Game1 : Game
     private int _damageVignetteTextureHeight;
     private bool _showPersistentSelfNameEnabled;
     private bool _spriteDropShadowEnabled;
+    private bool _pixelPerfectWeaponRotation = true;
     private int _playerCardSizeMode = ClientSettings.PlayerCardSizeSmall;
     private bool _uberOutlineEnabled = true;
     private bool _projectileTeamTintEnabled = true;

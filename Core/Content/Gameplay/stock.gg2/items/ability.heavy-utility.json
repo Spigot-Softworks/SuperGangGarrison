@@ -10,12 +10,11 @@
     "tags": [ "movement", "dash", "cooldown", "charge" ],
     "parameters": {
       "durationSeconds": 0.25,
-      "movementDurationSeconds": 0.53571427,
       "cooldownSeconds": 12,
-      "impulse": 75,
       "nextAttackDamageMultiplier": 1.4,
-      "useMomentum": true,
-      "slideVelocityPerTick": 3.0
+      "burstSpeedMultiplier": 4.0,
+      "disableGravity": true,
+      "enableGhostTrail": true
     }
   },
   "ammo": {},
