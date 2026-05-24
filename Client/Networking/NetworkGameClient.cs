@@ -465,6 +465,29 @@ internal sealed class NetworkGameClient : IDisposable
         Send(new ChatSubmitMessage(text, teamOnly));
     }
 
+    public void SendCustomBubbleUpload(byte slot, uint revision, byte[] rgba64Pixels)
+    {
+        if (!IsConnected
+            || IsAwaitingWelcome
+            || IsReplayConnection
+            || rgba64Pixels.Length != ProtocolCodec.CustomBubbleRgba64PayloadBytes)
+        {
+            return;
+        }
+
+        Send(new CustomBubbleUploadMessage(slot, revision, rgba64Pixels));
+    }
+
+    public void SendCustomBubbleClear()
+    {
+        if (!IsConnected || IsAwaitingWelcome || IsReplayConnection)
+        {
+            return;
+        }
+
+        Send(new CustomBubbleClearMessage(0));
+    }
+
     public void UpdatePlayerProfile(string playerName, ulong badgeMask, string? friendCode = null, string? playerCardJson = null)
     {
         _pendingHelloPlayerName = playerName;
@@ -931,6 +954,8 @@ internal sealed class NetworkGameClient : IDisposable
             or SessionSlotChangedMessage
             or ControlAckMessage
             or PlayerSocialProfileUpdateMessage
+            or CustomBubbleStateMessage
+            or CustomBubbleClearMessage
             or ServerPluginMessage;
     }
 

@@ -28,6 +28,9 @@ public enum MessageType : byte
     PlayerSocialProfileUpdate = 21,
     ServerDetailsRequest = 22,
     ServerDetailsResponse = 23,
+    CustomBubbleUpload = 24,
+    CustomBubbleState = 25,
+    CustomBubbleClear = 26,
 }
 
 public enum ConnectionIntent : byte
@@ -267,6 +270,28 @@ public sealed record PlayerSocialProfileUpdateMessage(
     IReadOnlyList<byte> RemovedSlots) : IProtocolMessage
 {
     public MessageType Type => MessageType.PlayerSocialProfileUpdate;
+}
+
+public sealed record CustomBubbleUploadMessage(
+    byte Slot,
+    uint Revision,
+    byte[] Rgba64Pixels) : IProtocolMessage
+{
+    public MessageType Type => MessageType.CustomBubbleUpload;
+}
+
+public sealed record CustomBubbleStateMessage(
+    byte PlayerSlot,
+    byte Slot,
+    uint Revision,
+    byte[] Rgba64Pixels) : IProtocolMessage
+{
+    public MessageType Type => MessageType.CustomBubbleState;
+}
+
+public sealed record CustomBubbleClearMessage(byte PlayerSlot) : IProtocolMessage
+{
+    public MessageType Type => MessageType.CustomBubbleClear;
 }
 
 public sealed record ClientPluginMessage(

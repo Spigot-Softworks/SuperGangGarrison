@@ -39,6 +39,7 @@ public partial class Game1
             _game._pluginOptionsMenuOpenedFromGameplay = false;
             _game._controlsMenuOpen = false;
             _game._controlsMenuOpenedFromGameplay = false;
+            _game._customBubbleEditorOpen = false;
             _game._inGameMenuOpen = false;
             _game._gameplayLoadoutMenuOpen = false;
             _game._gameplayLoadoutMenuAwaitingEscapeRelease = false;

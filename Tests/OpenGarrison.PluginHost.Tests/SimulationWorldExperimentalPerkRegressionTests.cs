@@ -948,6 +948,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         var invulnerabilityTicks = GetHeavyGhostDashDurationTicks(world);
         var movementTicks = GetHeavyGhostDashMovementDurationTicks(world);
+        var originalMovementTicks = Math.Max(1, (int)MathF.Round(world.Config.TicksPerSecond * 0.75f));
         var startX = world.LocalPlayer.X;
         PressUseAbilitySpace(world);
         var firstTickDistance = MathF.Abs(world.LocalPlayer.X - startX);
@@ -957,9 +958,11 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var movedAfterInvulnerabilityEnded = false;
 
         Assert.True(world.LocalPlayer.IsExperimentalGhostDashing);
+        Assert.InRange(world.LocalPlayer.ExperimentalGhostDashTrailAlpha, 0f, 0.5f);
         Assert.False(world.LocalPlayer.IsHeavyEating);
         Assert.Equal(GetHeavyGhostDashCooldownTicks(world), world.LocalPlayer.ExperimentalGhostDashCooldownTicksRemaining);
         Assert.True(movementTicks > invulnerabilityTicks);
+        Assert.True(movementTicks < originalMovementTicks);
 
         for (var tick = 1; tick < movementTicks; tick += 1)
         {
@@ -982,10 +985,29 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(movedAfterInvulnerabilityEnded);
         Assert.True(totalDistance > 60f);
         Assert.True(
-            MathF.Abs(world.LocalPlayer.HorizontalSpeed) > 0f,
+            MathF.Abs(world.LocalPlayer.HorizontalSpeed) >= ExperimentalGameplaySettings.HeavyGhostDashSlideVelocityPerTick * LegacyMovementModel.SourceTicksPerSecond * 0.99f,
             $"expected residual momentum; speed={world.LocalPlayer.HorizontalSpeed:0.###} x={world.LocalPlayer.X:0.###} total={totalDistance:0.###} peak={peakTickDistance:0.###} lastDelta={dashDeltas[^1]:0.###}");
         Assert.False(world.LocalPlayer.IsExperimentalGhostDashing);
+        Assert.True(world.LocalPlayer.IsExperimentalGhostDashVisible);
+        Assert.True(world.LocalPlayer.ExperimentalGhostDashTrailAlpha > 0f);
         Assert.True(world.LocalPlayer.ExperimentalGhostDashCooldownTicksRemaining > 0);
+
+        world.SetLocalInput(default);
+        var slideTrailTicks = 0;
+        for (var tick = 0; tick < 90 && MathF.Abs(world.LocalPlayer.HorizontalSpeed) > 0f; tick += 1)
+        {
+            AdvanceTicks(world, 1);
+            if (MathF.Abs(world.LocalPlayer.HorizontalSpeed) > 0f)
+            {
+                slideTrailTicks += world.LocalPlayer.IsExperimentalGhostDashVisible ? 1 : 0;
+                Assert.True(world.LocalPlayer.ExperimentalGhostDashTrailAlpha > 0f);
+            }
+        }
+
+        Assert.True(slideTrailTicks > 0);
+        Assert.Equal(0f, world.LocalPlayer.HorizontalSpeed, 3);
+        Assert.False(world.LocalPlayer.IsExperimentalGhostDashVisible);
+        Assert.Equal(0f, world.LocalPlayer.ExperimentalGhostDashTrailAlpha);
     }
 
     [Fact]

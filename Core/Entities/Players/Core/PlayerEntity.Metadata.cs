@@ -57,6 +57,15 @@ public sealed partial class PlayerEntity
         return false;
     }
 
+    private bool HasReplicatedCoreAbilityToggle(string key)
+    {
+        return TryGetReplicatedStateBool(
+                GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                key,
+                out var value)
+            && value;
+    }
+
     public bool SetReplicatedStateInt(string ownerId, string key, int value)
     {
         return SetReplicatedState(new GameplayReplicatedStateEntry(ownerId, key, GameplayReplicatedStateValueKind.Whole, IntValue: value));

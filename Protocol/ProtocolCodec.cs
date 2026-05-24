@@ -20,6 +20,7 @@ public static partial class ProtocolCodec
     public const int MaxPluginIdBytes = 80;
     public const int MaxPluginMessageTypeBytes = 80;
     public const int MaxPluginPayloadBytes = 1024;
+    public const int CustomBubbleRgba64PayloadBytes = 72 * 58 * 8;
     private const int MaxAssetNameBytes = 64;
     private const int MaxKillMessageBytes = 160;
     private const int MaxGameplayIdBytes = 96;
@@ -284,6 +285,16 @@ public static partial class ProtocolCodec
                     (PluginMessagePayloadFormat)reader.ReadByte(),
                     reader.ReadUInt16()),
                 MessageType.PlayerSocialProfileUpdate => ReadPlayerSocialProfileUpdate(reader),
+                MessageType.CustomBubbleUpload => new CustomBubbleUploadMessage(
+                    reader.ReadByte(),
+                    reader.ReadUInt32(),
+                    ReadCustomBubblePixels(reader)),
+                MessageType.CustomBubbleState => new CustomBubbleStateMessage(
+                    reader.ReadByte(),
+                    reader.ReadByte(),
+                    reader.ReadUInt32(),
+                    ReadCustomBubblePixels(reader)),
+                MessageType.CustomBubbleClear => new CustomBubbleClearMessage(reader.ReadByte()),
                 MessageType.Snapshot => ReadSnapshot(reader),
                 _ => null,
             };
@@ -493,12 +504,54 @@ public static partial class ProtocolCodec
             case PlayerSocialProfileUpdateMessage socialProfileUpdate:
                 WritePlayerSocialProfileUpdate(writer, socialProfileUpdate);
                 break;
+            case CustomBubbleUploadMessage customBubbleUpload:
+                writer.Write(customBubbleUpload.Slot);
+                writer.Write(customBubbleUpload.Revision);
+                WriteCustomBubblePixels(writer, customBubbleUpload.Rgba64Pixels, nameof(customBubbleUpload.Rgba64Pixels));
+                break;
+            case CustomBubbleStateMessage customBubbleState:
+                writer.Write(customBubbleState.PlayerSlot);
+                writer.Write(customBubbleState.Slot);
+                writer.Write(customBubbleState.Revision);
+                WriteCustomBubblePixels(writer, customBubbleState.Rgba64Pixels, nameof(customBubbleState.Rgba64Pixels));
+                break;
+            case CustomBubbleClearMessage customBubbleClear:
+                writer.Write(customBubbleClear.PlayerSlot);
+                break;
             case SnapshotMessage snapshot:
                 WriteSnapshot(writer, snapshot);
                 break;
             default:
                 throw new InvalidOperationException($"Unsupported protocol message type: {message.GetType().Name}");
         }
+    }
+
+    private static void WriteCustomBubblePixels(BinaryWriter writer, byte[]? pixels, string fieldName)
+    {
+        if (pixels is null || pixels.Length != CustomBubbleRgba64PayloadBytes)
+        {
+            throw new InvalidOperationException($"{fieldName} must be exactly {CustomBubbleRgba64PayloadBytes} bytes.");
+        }
+
+        writer.Write((ushort)pixels.Length);
+        writer.Write(pixels);
+    }
+
+    private static byte[] ReadCustomBubblePixels(BinaryReader reader)
+    {
+        var length = reader.ReadUInt16();
+        if (length != CustomBubbleRgba64PayloadBytes)
+        {
+            throw new IOException($"Custom bubble payload must be exactly {CustomBubbleRgba64PayloadBytes} bytes.");
+        }
+
+        var pixels = reader.ReadBytes(length);
+        if (pixels.Length != length)
+        {
+            throw new EndOfStreamException();
+        }
+
+        return pixels;
     }
 
     private static void WritePlayerSocialProfileUpdate(BinaryWriter writer, PlayerSocialProfileUpdateMessage update)

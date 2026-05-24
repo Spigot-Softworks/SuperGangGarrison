@@ -59,6 +59,12 @@ public partial class Game1
                 case PlayerSocialProfileUpdateMessage socialProfileUpdate:
                     HandlePlayerSocialProfileUpdateMessage(socialProfileUpdate);
                     break;
+                case CustomBubbleStateMessage customBubbleState:
+                    HandleCustomBubbleStateMessage(customBubbleState);
+                    break;
+                case CustomBubbleClearMessage customBubbleClear:
+                    HandleCustomBubbleClearMessage(customBubbleClear);
+                    break;
                 case SnapshotMessage snapshot:
                     TryHandleSnapshotMessage(
                         snapshot,

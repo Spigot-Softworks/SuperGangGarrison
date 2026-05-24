@@ -21,6 +21,12 @@ public partial class Game1
         }
 
         var renderPosition = GetRenderPosition(player);
+        if (ChatBubbleFrameCatalog.TryGetCustomBubbleSlot(player.ChatBubbleFrameIndex, out var customBubbleSlot))
+        {
+            DrawCustomChatBubble(player, customBubbleSlot, renderPosition, cameraPosition);
+            return;
+        }
+
         var sprite = GetResolvedSprite("BubblesS");
         if (sprite is null || sprite.Frames.Count == 0)
         {
@@ -45,6 +51,55 @@ public partial class Game1
             Vector2.One,
             SpriteEffects.None,
             0f);
+    }
+
+    private void DrawCustomChatBubble(PlayerEntity player, int slotIndex, Vector2 renderPosition, Vector2 cameraPosition)
+    {
+        if (!_showCustomBubbles)
+        {
+            return;
+        }
+
+        if (!TryGetCustomBubbleTextureForPlayer(player, slotIndex, out var artTexture))
+        {
+            return;
+        }
+
+        var alpha = Math.Clamp(player.ChatBubbleAlpha, 0f, 1f) * GetPlayerVisibilityAlpha(player);
+        if (alpha <= 0f)
+        {
+            return;
+        }
+
+        var anchor = new Vector2(
+            MathF.Round(renderPosition.X) + 10f - cameraPosition.X,
+            MathF.Round(renderPosition.Y) - 18f - cameraPosition.Y);
+        var shellOrigin = new Vector2(CustomBubbleShellOriginX, CustomBubbleShellOriginY);
+        var shellScale = new Vector2(CustomBubbleGameplayScale);
+        var shellTopLeft = anchor - (shellOrigin * CustomBubbleGameplayScale);
+        var shellBounds = new Rectangle(
+            (int)MathF.Round(shellTopLeft.X),
+            (int)MathF.Round(shellTopLeft.Y),
+            (int)MathF.Round(CustomBubbleShellPixelWidth * CustomBubbleGameplayScale),
+            (int)MathF.Round(CustomBubbleShellPixelHeight * CustomBubbleGameplayScale));
+        var shellFrame = GetCustomBubbleShellFrame();
+        if (shellFrame is null)
+        {
+            return;
+        }
+
+        DrawLoadedSpriteFrame(
+            shellFrame,
+            anchor,
+            null,
+            Color.White * alpha,
+            0f,
+            shellOrigin,
+            shellScale,
+            SpriteEffects.None,
+            0f);
+
+        _spriteBatch.Draw(artTexture, shellBounds, Color.White * alpha);
     }
 
     private void DrawOverheadChatMessage(PlayerEntity player, Vector2 cameraPosition)

@@ -1,0 +1,10 @@
+﻿{
+    "id":  "MvpRedSoldierS",
+    "framePaths":  [
+                       "assets/mvp/red/soldier/nonwinner_0.png",
+                       "assets/mvp/red/soldier/nonwinner_1.png",
+                       "assets/mvp/red/soldier/nonwinner_2.png"
+                   ],
+    "originX":  26,
+    "originY":  52
+}

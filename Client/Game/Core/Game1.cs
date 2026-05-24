@@ -103,6 +103,7 @@ public partial class Game1 : Game
         OpenBubbleMenuZ,
         OpenBubbleMenuX,
         OpenBubbleMenuC,
+        CustomBubble,
     }
 
     private const int ProcessedNetworkEventHistoryLimit = 4096;
@@ -387,6 +388,7 @@ public partial class Game1 : Game
             : GameMakerRuntimeAssetManifestLoader.LoadPackagedOrProjectAssets();
         StartBrowserBootstrapAssetPreloadIfNeeded();
         ApplyLoadedSettings();
+        ApplyLoadedCustomBubbleSettings();
         LoadHudLayout();
 
         if (OperatingSystem.IsBrowser())

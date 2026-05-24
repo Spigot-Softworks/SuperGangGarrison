@@ -35,6 +35,7 @@ public sealed class BotBrainChatBubbleController
     private const int ResponseCooldownTicks = 180;
     private const int DirectSeekRedXDelayTicks = 45;
     private const int MedicPocketResponseDelayTicks = 35;
+    private const float KillTauntDelaySeconds = 1.6f;
     private const float AllyResponseDistance = 560f;
     private const int SignalChancePercent = 24;
     private const int AllyResponseChancePercent = 28;
@@ -109,17 +110,24 @@ public sealed class BotBrainChatBubbleController
             state.LastKnownHealth = self.Health;
             state.LastKills = self.Kills;
             state.LastCaps = self.Caps;
+            state.PendingKillTauntFrame = null;
             return input;
         }
 
         ProcessPendingBubbles(world, slot, self, state, controlledTeamsBySlot);
+        input = ApplyPendingKillTauntInput(world, self, state, input);
 
         var killCelebration = self.Kills > state.LastKills;
         var captureCelebration = self.Caps > state.LastCaps;
         if (killCelebration || captureCelebration)
         {
             var ctfCaptureCelebration = captureCelebration && world.MatchRules.Mode == GameModeKind.CaptureTheFlag;
-            if (killCelebration || ctfCaptureCelebration)
+            if (killCelebration)
+            {
+                ScheduleKillTaunt(world, state);
+            }
+
+            if (ctfCaptureCelebration)
             {
                 input = ApplyTauntCelebrationInput(input);
             }
@@ -169,6 +177,38 @@ public sealed class BotBrainChatBubbleController
         state.LastKnownHealth = self.Health;
         state.LastKills = self.Kills;
         state.LastCaps = self.Caps;
+    }
+
+    private static PlayerInputSnapshot ApplyPendingKillTauntInput(
+        SimulationWorld world,
+        PlayerEntity self,
+        BotBrainChatBubbleState state,
+        PlayerInputSnapshot input)
+    {
+        if (!state.PendingKillTauntFrame.HasValue
+            || world.Frame < state.PendingKillTauntFrame.Value)
+        {
+            return input;
+        }
+
+        if (self.IsTaunting)
+        {
+            state.PendingKillTauntFrame = world.Frame + 1;
+            return input;
+        }
+
+        state.PendingKillTauntFrame = null;
+        return ApplyTauntCelebrationInput(input);
+    }
+
+    private static void ScheduleKillTaunt(SimulationWorld world, BotBrainChatBubbleState state)
+    {
+        state.PendingKillTauntFrame = world.Frame + ResolveKillTauntDelayTicks(world);
+    }
+
+    private static int ResolveKillTauntDelayTicks(SimulationWorld world)
+    {
+        return Math.Max(1, (int)MathF.Round(world.Config.TicksPerSecond * KillTauntDelaySeconds));
     }
 
     private static bool TrySelectReaction(
@@ -995,6 +1035,8 @@ public sealed class BotBrainChatBubbleController
         public int LastKills { get; set; }
 
         public int LastCaps { get; set; }
+
+        public long? PendingKillTauntFrame { get; set; }
 
         public int? LastSeenCombatTargetId { get; set; }
 

@@ -281,11 +281,12 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        const float minimumResidualMomentumPerTick = 1.25f;
         var residualSpeed = MathF.Max(
             ExperimentalGhostDashLastMoveDistance,
-            minimumResidualMomentumPerTick) * LegacyMovementModel.SourceTicksPerSecond;
+            ExperimentalGhostDashSlideVelocityPerTick) * LegacyMovementModel.SourceTicksPerSecond;
         var residualVelocity = ExperimentalGhostDashMomentumDirectionX * residualSpeed;
+        ExperimentalGhostDashSlideVisualSpeedPerSecond = residualSpeed;
+        ExperimentalGhostDashSlideVisualInitialSpeedPerSecond = residualSpeed;
         if (MathF.Sign(HorizontalSpeed) != MathF.Sign(residualVelocity)
             || MathF.Abs(HorizontalSpeed) < residualSpeed)
         {

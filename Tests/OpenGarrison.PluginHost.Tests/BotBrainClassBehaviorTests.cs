@@ -286,7 +286,7 @@ public sealed class BotBrainClassBehaviorTests
     }
 
     [Fact]
-    public void BotStrafesWhileHoldingLockedKothPoint()
+    public void BotDoesNotCaptureStrafeOnOwnedKothPoint()
     {
         var world = CreateKothWorld(PlayerTeam.Red, PlayerClass.Heavy, out var player);
         var point = Assert.Single(world.ControlPoints);
@@ -298,8 +298,9 @@ public sealed class BotBrainClassBehaviorTests
 
         var lateralTicks = CountLateralInputTicks(controller, player, world, PlayerTeam.Red, ticks: 32);
 
-        Assert.True(lateralTicks >= 8);
-        Assert.Contains("reason:lockedHold", controller.LastDirectDriveTrace);
+        Assert.Equal(0, lateralTicks);
+        Assert.DoesNotContain("lockedHold", controller.LastDirectDriveTrace);
+        Assert.DoesNotContain("captureStrafeHop", controller.LastDirectDriveTrace);
     }
 
     [Fact]
@@ -328,7 +329,7 @@ public sealed class BotBrainClassBehaviorTests
         point.CappingTeam = PlayerTeam.Red;
         player.TeleportTo(point.HealingAuraCenterX, point.HealingAuraCenterY);
         player.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
-        var enemy = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue, point.HealingAuraCenterX + 8f, point.HealingAuraCenterY);
+        var enemy = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue, point.HealingAuraCenterX + 160f, point.HealingAuraCenterY);
         enemy.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: -1f);
         var controller = new BotBrainController(CreateSingleNodeGraph(player.X, player.Y, GameModeKind.ControlPoint));
 
@@ -338,6 +339,62 @@ public sealed class BotBrainClassBehaviorTests
         Assert.True(input.Right);
         Assert.Equal(1f, controller.LastSteeringOutput.MoveDirection);
         Assert.Contains("controlPointClearEnemy", controller.LastDirectDriveTrace);
+    }
+
+    [Fact]
+    public void BotClearsEnemyOnOwnedPointInsteadOfCaptureHolding()
+    {
+        var world = CreateKothWorld(PlayerTeam.Red, PlayerClass.Heavy, out var player);
+        var point = Assert.Single(world.ControlPoints);
+        point.Team = PlayerTeam.Red;
+        point.IsLocked = true;
+        point.CappingTeam = PlayerTeam.Blue;
+        player.TeleportTo(point.HealingAuraCenterX, point.HealingAuraCenterY);
+        player.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        var enemy = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue, point.HealingAuraCenterX + 8f, point.HealingAuraCenterY);
+        enemy.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: -1f);
+        var controller = new BotBrainController(CreateSingleNodeGraph(player.X, player.Y, GameModeKind.KingOfTheHill));
+
+        var input = controller.Think(player, world, PlayerTeam.Red);
+
+        Assert.True(input.Left);
+        Assert.False(input.Right);
+        Assert.Equal(-1f, controller.LastSteeringOutput.MoveDirection);
+        Assert.Contains("controlPointClearEnemy", controller.LastDirectDriveTrace);
+        Assert.DoesNotContain("lockedHold", controller.LastDirectDriveTrace);
+    }
+
+    [Fact]
+    public void BotBacksAwayFromPointBlankCombatTarget()
+    {
+        var world = CreateClassWorld(PlayerClass.Heavy, out var player);
+        player.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        var enemy = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue, player.X + 8f, player.Y);
+        enemy.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: -1f);
+        var controller = new BotBrainController(CreateSingleNodeGraph(player.X, player.Y, GameModeKind.CaptureTheFlag));
+
+        var input = controller.Think(player, world, PlayerTeam.Red);
+
+        Assert.True(input.Left);
+        Assert.False(input.Right);
+        Assert.Equal(-1f, controller.LastSteeringOutput.MoveDirection);
+        Assert.Contains("combat:spacing", controller.LastDirectDriveTrace);
+    }
+
+    [Fact]
+    public void BotKeepsMovingWhileEngagingAtCombatRange()
+    {
+        var world = CreateClassWorld(PlayerClass.Heavy, out var player);
+        player.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        var enemy = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue, player.X + 150f, player.Y);
+        enemy.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: -1f);
+        var controller = new BotBrainController(CreateSingleNodeGraph(player.X, player.Y, GameModeKind.CaptureTheFlag));
+
+        var input = controller.Think(player, world, PlayerTeam.Red);
+
+        Assert.True(input.Left || input.Right);
+        Assert.NotEqual(0f, controller.LastSteeringOutput.MoveDirection);
+        Assert.Contains("combat:spacing", controller.LastDirectDriveTrace);
     }
 
     [Fact]

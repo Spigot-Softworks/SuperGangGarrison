@@ -726,7 +726,8 @@ public sealed partial class PlayerEntity
         float dashImpulse,
         bool requireExperimentalDemoknight = true,
         bool useMomentum = false,
-        int? movementTicks = null)
+        int? movementTicks = null,
+        float slideVelocityPerTick = ExperimentalGameplaySettings.DefaultGhostDashSlideVelocityPerTick)
     {
         if ((requireExperimentalDemoknight && !IsExperimentalDemoknightEnabled)
             || !IsAlive
@@ -755,6 +756,10 @@ public sealed partial class PlayerEntity
         ExperimentalGhostDashDistanceRemaining = MathF.Max(0f, dashImpulse);
         ExperimentalGhostDashSpeedPerSecondValue = useMomentum || dashImpulse <= 0f ? 0f : dashImpulse / 0.08f;
         ExperimentalGhostDashMomentumDirectionX = FacingDirectionX < 0f ? -1f : 1f;
+        ExperimentalGhostDashSlideVelocityPerTick = MathF.Max(0f, slideVelocityPerTick);
+        ExperimentalGhostDashSlideVisualSpeedPerSecond = 0f;
+        ExperimentalGhostDashSlideVisualInitialSpeedPerSecond = 0f;
+        ExperimentalGhostDashTrailAlphaValue = 0.12f;
         ExperimentalGhostDashNextAttackDamageMultiplierValue = nextAttackDamageMultiplier;
         return true;
     }
@@ -1118,6 +1123,8 @@ public sealed partial class PlayerEntity
             }
         }
 
+        AdvanceExperimentalGhostDashTrailVisualState();
+
         if (ExperimentalLuckyBastardTicksRemaining > 0)
         {
             ExperimentalLuckyBastardTicksRemaining -= 1;
@@ -1179,6 +1186,7 @@ public sealed partial class PlayerEntity
         ExperimentalGhostDashVisibilityTicksRemaining = 0;
         ExperimentalGhostDashMovementTicksRemaining = 0;
         ResetExperimentalGhostDashMovementState();
+        ResetExperimentalGhostDashVisualState();
         ExperimentalGhostDashNextAttackDamageMultiplierValue = 1f;
         ExperimentalLuckyBastardTicksRemaining = 0;
         ExperimentalLuckyBastardReviveHealth = 0;
@@ -1246,6 +1254,61 @@ public sealed partial class PlayerEntity
         ExperimentalGhostDashDistanceTraveled = 0f;
         ExperimentalGhostDashLastMoveDistance = 0f;
         ExperimentalGhostDashMomentumDirectionX = 1f;
+        ExperimentalGhostDashSlideVelocityPerTick = ExperimentalGameplaySettings.DefaultGhostDashSlideVelocityPerTick;
+    }
+
+    private void AdvanceExperimentalGhostDashTrailVisualState()
+    {
+        const float trailRampPerTick = 1f / 6f;
+        var dashMovementVisible = ExperimentalGhostDashTicksRemaining > 0
+            || ExperimentalGhostDashMovementTicksRemaining > 0
+            || ExperimentalGhostDashDistanceRemaining > 0f
+            || ExperimentalGhostDashVisibilityTicksRemaining > 0;
+        if (!dashMovementVisible && ExperimentalGhostDashSlideVisualSpeedPerSecond <= 0f)
+        {
+            ExperimentalGhostDashTrailAlphaValue = 0f;
+            return;
+        }
+
+        ExperimentalGhostDashTrailAlphaValue = MathF.Min(1f, ExperimentalGhostDashTrailAlphaValue + trailRampPerTick);
+        if (ExperimentalGhostDashSlideVisualSpeedPerSecond <= 0f)
+        {
+            return;
+        }
+
+        var nextSlideSpeed = LegacyMovementModel.AdvanceHorizontalSpeed(
+            ExperimentalGhostDashSlideVisualSpeedPerSecond,
+            RunPower,
+            movementScale: 1f,
+            hasHorizontalInput: false,
+            horizontalDirection: 0f,
+            state: LegacyMovementState.None,
+            isCarryingIntel: false,
+            deltaSeconds: 1f / LegacyMovementModel.SourceTicksPerSecond);
+        ExperimentalGhostDashSlideVisualSpeedPerSecond = MathF.Max(0f, MathF.Abs(nextSlideSpeed));
+        if (ExperimentalGhostDashSlideVisualSpeedPerSecond <= 0f)
+        {
+            ResetExperimentalGhostDashVisualState();
+            return;
+        }
+
+        if (!dashMovementVisible && ExperimentalGhostDashSlideVisualInitialSpeedPerSecond > 0f)
+        {
+            var slideFraction = float.Clamp(
+                ExperimentalGhostDashSlideVisualSpeedPerSecond / ExperimentalGhostDashSlideVisualInitialSpeedPerSecond,
+                0f,
+                1f);
+            ExperimentalGhostDashTrailAlphaValue = MathF.Min(
+                ExperimentalGhostDashTrailAlphaValue,
+                MathF.Max(0.18f, slideFraction));
+        }
+    }
+
+    private void ResetExperimentalGhostDashVisualState()
+    {
+        ExperimentalGhostDashSlideVisualSpeedPerSecond = 0f;
+        ExperimentalGhostDashSlideVisualInitialSpeedPerSecond = 0f;
+        ExperimentalGhostDashTrailAlphaValue = 0f;
     }
 
     private float GetExperimentalMovementSpeedMultiplier()

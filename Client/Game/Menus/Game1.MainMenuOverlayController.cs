@@ -77,6 +77,11 @@ public partial class Game1
                 return MainMenuOverlayKind.OptionsMenu;
             }
 
+            if (_game._customBubbleEditorOpen)
+            {
+                return MainMenuOverlayKind.CustomBubbleEditor;
+            }
+
             return MainMenuOverlayKind.None;
         }
 
@@ -130,6 +135,9 @@ public partial class Game1
                 case MainMenuOverlayKind.OptionsMenu:
                     _game.UpdateOptionsMenu(keyboard, mouse);
                     return true;
+                case MainMenuOverlayKind.CustomBubbleEditor:
+                    _game.UpdateCustomBubbleEditor(keyboard, mouse);
+                    return true;
                 default:
                     return false;
             }
@@ -141,6 +149,9 @@ public partial class Game1
             {
                 case MainMenuOverlayKind.OptionsMenu:
                     _game.DrawOptionsMenu();
+                    return true;
+                case MainMenuOverlayKind.CustomBubbleEditor:
+                    _game.DrawCustomBubbleEditor();
                     return true;
                 case MainMenuOverlayKind.PluginOptionsMenu:
                     _game.DrawPluginOptionsMenu();

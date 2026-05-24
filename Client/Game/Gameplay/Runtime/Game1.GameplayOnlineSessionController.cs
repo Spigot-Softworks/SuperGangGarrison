@@ -293,6 +293,7 @@ public partial class Game1
                 _game._networkClient.IsSpectator
                     ? $"connected to {welcome.ServerName} ({welcome.LevelName}) as spectator tickrate={welcome.TickRate}"
                     : $"connected to {welcome.ServerName} ({welcome.LevelName}) tickrate={welcome.TickRate}");
+            _game.UploadSelectedCustomBubbleState();
         }
 
         private static ConnectionIntent ToProtocolConnectionIntent(OnlineConnectionIntent intent)

@@ -39,7 +39,7 @@ public static class PrimitiveDirectDrive
             new DirectDriveTarget(DirectDriveTargetKind.Enemy, target.X, target.Y, $"enemy player:{target.Id}"),
             pathSteering,
             MaxDriveDistance,
-            useCombatRange: false,
+            useCombatRange: true,
             out directSteering,
             out trace);
     }
@@ -115,16 +115,17 @@ public static class PrimitiveDirectDrive
         directSteering.MoveDirection = moveDirection;
         directSteering.Jump = jump || pathSteering.Jump;
         directSteering.DropDown = dropDown;
-        trace = $"directDrive={target.Label} dx:{dx:0.0} dy:{dy:0.0} dist:{distance:0.0} move:{moveDirection:0} jump:{(directSteering.Jump ? 1 : 0)} drop:{(directSteering.DropDown ? 1 : 0)}";
+        var modeTrace = useCombatRange ? " combat:spacing" : string.Empty;
+        trace = $"directDrive={target.Label}{modeTrace} dx:{dx:0.0} dy:{dy:0.0} dist:{distance:0.0} move:{moveDirection:0} jump:{(directSteering.Jump ? 1 : 0)} drop:{(directSteering.DropDown ? 1 : 0)}";
         return true;
     }
 
-    private static int ResolveCombatMoveDirection(PlayerEntity self, float distance, float dx)
+    internal static int ResolveCombatMoveDirection(PlayerEntity self, float distance, float dx)
     {
         var preferredRange = ResolvePreferredRange(self);
         if (distance < preferredRange.Min)
         {
-            return GetMoveDirection(-dx);
+            return ResolveCombatAwayDirection(self, dx);
         }
 
         if (distance > preferredRange.Max)
@@ -132,17 +133,45 @@ public static class PrimitiveDirectDrive
             return GetMoveDirection(dx);
         }
 
-        return MathF.Abs(dx) > preferredRange.HorizontalTolerance
-            ? GetMoveDirection(dx)
-            : 0;
+        var horizontalDistance = MathF.Abs(dx);
+        if (preferredRange.Min > 0f
+            && horizontalDistance < preferredRange.Min + (preferredRange.HorizontalTolerance * 0.5f))
+        {
+            return ResolveCombatAwayDirection(self, dx);
+        }
+
+        if (horizontalDistance > preferredRange.Max - (preferredRange.HorizontalTolerance * 0.5f))
+        {
+            return GetMoveDirection(dx);
+        }
+
+        return ResolveCombatLateralDirection(self, dx);
+    }
+
+    private static int ResolveCombatLateralDirection(PlayerEntity self, float dx)
+    {
+        var awayDirection = ResolveCombatAwayDirection(self, dx);
+        return self.Id % 2 == 0
+            ? awayDirection
+            : -awayDirection;
+    }
+
+    private static int ResolveCombatAwayDirection(PlayerEntity self, float dx)
+    {
+        if (MathF.Abs(dx) > 1f)
+        {
+            return dx > 0f ? -1 : 1;
+        }
+
+        return self.Id % 2 == 0 ? 1 : -1;
     }
 
     private static (float Min, float Max, float HorizontalTolerance) ResolvePreferredRange(PlayerEntity self)
     {
         return self.PrimaryWeapon.Kind switch
         {
-            PrimaryWeaponKind.Blade => (0f, 56f, 10f),
-            PrimaryWeaponKind.FlameThrower => (0f, 130f, 20f),
+            PrimaryWeaponKind.Blade => (24f, 56f, 10f),
+            PrimaryWeaponKind.FlameThrower => (45f, 130f, 20f),
             PrimaryWeaponKind.Minigun => (90f, 260f, 48f),
             PrimaryWeaponKind.Rifle => (170f, 340f, 72f),
             PrimaryWeaponKind.RocketLauncher => (120f, 300f, 56f),

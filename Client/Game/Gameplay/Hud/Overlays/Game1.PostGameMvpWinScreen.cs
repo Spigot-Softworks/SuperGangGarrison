@@ -80,13 +80,18 @@ public partial class Game1
         var winnerTeam = _world.MatchState.WinnerTeam!.Value;
         var entries = BuildPostGameMvpEntries(winnerTeam);
         var layout = GetPostGameMvpLayout();
+        var drawArt = _postGameMvpArtEnabled && !_postGameMvpArtHidden;
 
-        if (_postGameMvpArtEnabled && !_postGameMvpArtHidden)
+        if (drawArt)
         {
             DrawPostGameMvpArt(entries, layout);
         }
 
         DrawPostGameMvpBoard(winnerTeam, entries, layout);
+        if (drawArt)
+        {
+            DrawPostGameMvpArtToggleHint();
+        }
     }
 
     private List<PostGameMvpEntry> BuildPostGameMvpEntries(PlayerTeam team)
@@ -151,7 +156,7 @@ public partial class Game1
         }
 
         boardCenterY = MathF.Max(220f, boardCenterY);
-        var artScale = Math.Clamp(ViewportHeight / 90f, 5.25f, 7f);
+        var artScale = Math.Clamp(ViewportHeight / 72f, 6.5625f, 8.75f);
         return new PostGameMvpLayout(
             new Vector2(ViewportWidth / 2f, boardCenterY),
             new Vector2(artScale, artScale));
@@ -290,6 +295,15 @@ public partial class Game1
         {
             DrawPostGameMvpNameLabel(entries[1], rank: 2, layout);
         }
+    }
+
+    private void DrawPostGameMvpArtToggleHint()
+    {
+        const string hint = "Press SHIFT to hide";
+        const float hintScale = 1f;
+        var position = new Vector2(ViewportWidth * 0.5f, 24f);
+        DrawPostGameMvpTextCentered(hint, position + new Vector2(2f, 2f), Color.Black * 0.8f, hintScale);
+        DrawPostGameMvpTextCentered(hint, position, Color.White, hintScale);
     }
 
     private void DrawPostGameMvpNameLabel(PostGameMvpEntry entry, int rank, PostGameMvpLayout layout)

@@ -331,9 +331,39 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public float ExperimentalDemoknightChargeAcceleration { get; private set; }
 
-    public bool IsExperimentalGhostDashing => ExperimentalGhostDashTicksRemaining > 0;
+    public bool IsExperimentalGhostDashing
+        => ExperimentalGhostDashTicksRemaining > 0
+            || HasReplicatedCoreAbilityToggle(GameplayAbilityReplicatedState.HeavyDashActiveKey);
 
-    public bool IsExperimentalGhostDashVisible => ExperimentalGhostDashVisibilityTicksRemaining > 0;
+    public bool IsExperimentalGhostDashVisible
+        => ExperimentalGhostDashVisibilityTicksRemaining > 0
+            || ExperimentalGhostDashSlideVisualSpeedPerSecond > 0f
+            || HasReplicatedCoreAbilityToggle(GameplayAbilityReplicatedState.HeavyDashVisibleKey)
+            || HasReplicatedCoreAbilityToggle(GameplayAbilityReplicatedState.HeavyDashActiveKey);
+
+    public float ExperimentalGhostDashTrailAlpha
+    {
+        get
+        {
+            if (TryGetReplicatedStateFloat(
+                    GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                    GameplayAbilityReplicatedState.HeavyDashTrailAlphaKey,
+                    out var replicatedTrailAlpha))
+            {
+                return float.Clamp(replicatedTrailAlpha, 0f, 1f);
+            }
+
+            if (ExperimentalGhostDashTrailAlphaValue > 0f)
+            {
+                return float.Clamp(ExperimentalGhostDashTrailAlphaValue, 0f, 1f);
+            }
+
+            return HasReplicatedCoreAbilityToggle(GameplayAbilityReplicatedState.HeavyDashVisibleKey)
+                || HasReplicatedCoreAbilityToggle(GameplayAbilityReplicatedState.HeavyDashActiveKey)
+                ? 1f
+                : 0f;
+        }
+    }
 
     private bool ExperimentalSoldierAmmoRegeneratesWhileSwappedOutEnabled { get; set; }
 
@@ -374,6 +404,14 @@ public sealed partial class PlayerEntity : SimulationEntity
     private float ExperimentalGhostDashLastMoveDistance { get; set; }
 
     private float ExperimentalGhostDashMomentumDirectionX { get; set; } = 1f;
+
+    private float ExperimentalGhostDashSlideVelocityPerTick { get; set; } = ExperimentalGameplaySettings.DefaultGhostDashSlideVelocityPerTick;
+
+    private float ExperimentalGhostDashSlideVisualSpeedPerSecond { get; set; }
+
+    private float ExperimentalGhostDashSlideVisualInitialSpeedPerSecond { get; set; }
+
+    private float ExperimentalGhostDashTrailAlphaValue { get; set; }
 
     private float ExperimentalGhostDashNextAttackDamageMultiplierValue { get; set; } = 1f;
 

@@ -1,0 +1,11 @@
+﻿{
+    "id":  "MvpRedSpyS",
+    "framePaths":  [
+                       "assets/mvp/red/spy/nonwinner_0.png",
+                       "assets/mvp/red/spy/nonwinner_1.png",
+                       "assets/mvp/red/spy/nonwinner_2.png",
+                       "assets/mvp/red/spy/nonwinner_3.png"
+                   ],
+    "originX":  26,
+    "originY":  52
+}

@@ -735,6 +735,11 @@ public sealed partial class SimulationWorld
             ExperimentalGameplaySettings.DefaultGhostDashNextAttackDamageMultiplier,
             minValue: 1.0001f);
         var useMomentum = GameplayAbilityParameterReader.GetBool(context.Ability, "useMomentum", defaultValue: true);
+        var slideVelocityPerTick = GameplayAbilityParameterReader.GetFloat(
+            context.Ability,
+            "slideVelocityPerTick",
+            ExperimentalGameplaySettings.HeavyGhostDashSlideVelocityPerTick,
+            minValue: 0f);
         if (!context.Player.TryStartExperimentalGhostDash(
                 durationTicks,
                 cooldownTicks,
@@ -742,7 +747,8 @@ public sealed partial class SimulationWorld
                 impulse,
                 requireExperimentalDemoknight: false,
                 useMomentum: useMomentum,
-                movementTicks: movementTicks))
+                movementTicks: movementTicks,
+                slideVelocityPerTick: slideVelocityPerTick))
         {
             return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
         }

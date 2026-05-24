@@ -17,7 +17,8 @@ public partial class Game1
         var bodyVisibilityScale = GetSpyBackstabBodyVisibilityScale(player);
         if (player.IsExperimentalGhostDashVisible)
         {
-            return 0.42f * bodyVisibilityScale;
+            var trailAlpha = Math.Clamp(player.ExperimentalGhostDashTrailAlpha, 0f, 1f);
+            return (1f + ((0.42f - 1f) * trailAlpha)) * bodyVisibilityScale;
         }
 
         if (_world.IsPlayerInsideExperimentalEngineerMisdirectionFieldForVisuals(player))

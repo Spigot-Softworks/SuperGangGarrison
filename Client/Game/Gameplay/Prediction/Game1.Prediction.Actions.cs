@@ -530,14 +530,16 @@ public partial class Game1
 
     private bool TryPredictedStartHeavyGhostDash(PlayerEntity player)
     {
+        var ability = GetPredictedHeavyGhostDashAbility(player);
         if (!player.TryStartExperimentalGhostDash(
-            GetPredictedHeavyGhostDashDurationTicks(),
-            GetPredictedHeavyGhostDashCooldownTicks(),
-            ExperimentalGameplaySettings.DefaultGhostDashNextAttackDamageMultiplier,
-            GetPredictedHeavyGhostDashImpulse(),
+            GetPredictedHeavyGhostDashDurationTicks(ability),
+            GetPredictedHeavyGhostDashCooldownTicks(ability),
+            GetPredictedHeavyGhostDashNextAttackDamageMultiplier(ability),
+            GetPredictedHeavyGhostDashImpulse(ability),
             requireExperimentalDemoknight: false,
-            useMomentum: true,
-            movementTicks: GetPredictedHeavyGhostDashMovementDurationTicks()))
+            useMomentum: GetPredictedHeavyGhostDashUseMomentum(ability),
+            movementTicks: GetPredictedHeavyGhostDashMovementDurationTicks(ability),
+            slideVelocityPerTick: GetPredictedHeavyGhostDashSlideVelocityPerTick(ability)))
         {
             return false;
         }
@@ -546,24 +548,89 @@ public partial class Game1
         return true;
     }
 
-    private int GetPredictedHeavyGhostDashDurationTicks()
+    private static GameplayAbilityDefinition? GetPredictedHeavyGhostDashAbility(PlayerEntity player)
     {
-        return Math.Max(1, (int)MathF.Round(_config.TicksPerSecond * ExperimentalGameplaySettings.HeavyGhostDashDurationSeconds));
+        return CharacterClassCatalog.RuntimeRegistry.TryGetGameplayAbilityDefinition(
+                player.GameplayLoadoutState.UtilityItemId,
+                out _,
+                out var ability)
+            ? ability
+            : null;
     }
 
-    private int GetPredictedHeavyGhostDashMovementDurationTicks()
+    private int GetPredictedHeavyGhostDashDurationTicks(GameplayAbilityDefinition? ability)
     {
-        return Math.Max(1, (int)MathF.Round(_config.TicksPerSecond * ExperimentalGameplaySettings.HeavyGhostDashMovementDurationSeconds));
+        return ability is null
+            ? Math.Max(1, (int)MathF.Round(_config.TicksPerSecond * ExperimentalGameplaySettings.HeavyGhostDashDurationSeconds))
+            : GameplayAbilityParameterReader.GetTicks(
+                ability,
+                "durationTicks",
+                "durationSeconds",
+                Math.Max(1, (int)MathF.Round(_config.TicksPerSecond * ExperimentalGameplaySettings.HeavyGhostDashDurationSeconds)),
+                _config.TicksPerSecond);
     }
 
-    private int GetPredictedHeavyGhostDashCooldownTicks()
+    private int GetPredictedHeavyGhostDashMovementDurationTicks(GameplayAbilityDefinition? ability)
     {
-        return Math.Max(1, (int)MathF.Round(_config.TicksPerSecond * ExperimentalGameplaySettings.HeavyGhostDashCooldownSeconds));
+        return ability is null
+            ? Math.Max(1, (int)MathF.Round(_config.TicksPerSecond * ExperimentalGameplaySettings.HeavyGhostDashMovementDurationSeconds))
+            : GameplayAbilityParameterReader.GetTicks(
+                ability,
+                "movementDurationTicks",
+                "movementDurationSeconds",
+                Math.Max(1, (int)MathF.Round(_config.TicksPerSecond * ExperimentalGameplaySettings.HeavyGhostDashMovementDurationSeconds)),
+                _config.TicksPerSecond);
     }
 
-    private static float GetPredictedHeavyGhostDashImpulse()
+    private int GetPredictedHeavyGhostDashCooldownTicks(GameplayAbilityDefinition? ability)
     {
-        return 75f * ExperimentalGameplaySettings.HeavyGhostDashImpulseScale;
+        return ability is null
+            ? Math.Max(1, (int)MathF.Round(_config.TicksPerSecond * ExperimentalGameplaySettings.HeavyGhostDashCooldownSeconds))
+            : GameplayAbilityParameterReader.GetTicks(
+                ability,
+                "cooldownTicks",
+                "cooldownSeconds",
+                Math.Max(1, (int)MathF.Round(_config.TicksPerSecond * ExperimentalGameplaySettings.HeavyGhostDashCooldownSeconds)),
+                _config.TicksPerSecond);
+    }
+
+    private static float GetPredictedHeavyGhostDashImpulse(GameplayAbilityDefinition? ability)
+    {
+        return ability is null
+            ? 75f * ExperimentalGameplaySettings.HeavyGhostDashImpulseScale
+            : GameplayAbilityParameterReader.GetFloat(
+                ability,
+                "impulse",
+                75f * ExperimentalGameplaySettings.HeavyGhostDashImpulseScale,
+                minValue: 0f);
+    }
+
+    private static float GetPredictedHeavyGhostDashNextAttackDamageMultiplier(GameplayAbilityDefinition? ability)
+    {
+        return ability is null
+            ? ExperimentalGameplaySettings.DefaultGhostDashNextAttackDamageMultiplier
+            : GameplayAbilityParameterReader.GetFloat(
+                ability,
+                "nextAttackDamageMultiplier",
+                ExperimentalGameplaySettings.DefaultGhostDashNextAttackDamageMultiplier,
+                minValue: 1.0001f);
+    }
+
+    private static bool GetPredictedHeavyGhostDashUseMomentum(GameplayAbilityDefinition? ability)
+    {
+        return ability is null
+            || GameplayAbilityParameterReader.GetBool(ability, "useMomentum", defaultValue: true);
+    }
+
+    private static float GetPredictedHeavyGhostDashSlideVelocityPerTick(GameplayAbilityDefinition? ability)
+    {
+        return ability is null
+            ? ExperimentalGameplaySettings.HeavyGhostDashSlideVelocityPerTick
+            : GameplayAbilityParameterReader.GetFloat(
+                ability,
+                "slideVelocityPerTick",
+                ExperimentalGameplaySettings.HeavyGhostDashSlideVelocityPerTick,
+                minValue: 0f);
     }
 
     private bool TryPredictedToggleSniperScope(PlayerEntity player)
