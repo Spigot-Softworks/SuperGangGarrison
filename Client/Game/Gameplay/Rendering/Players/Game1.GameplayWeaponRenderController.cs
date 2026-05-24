@@ -335,10 +335,16 @@ public partial class Game1
                 // the unflipped sprite renders correctly mirrored.  For the baked-sprite lookup we
                 // need the horizontally-mirrored angle instead: lookupRot = 2π − rotation, wrapped
                 // to (−π, π].  The negative X scale on the baked sprite handles the visual flip.
+                //
+                // Remote players receive AimDirectionDegrees quantized to [0°, 360°), so the raw
+                // rotation can be in (π, 2π] for top-right aim angles (e.g. 315° = −45°).
+                // Normalise to (−π, π] first so the baked-angle index is always in range.
                 var lookupRotation = rotation;
+                if (lookupRotation >  System.MathF.PI) lookupRotation -= 2f * System.MathF.PI;
+                if (lookupRotation < -System.MathF.PI) lookupRotation += 2f * System.MathF.PI;
                 if (facingScale < 0f)
                 {
-                    lookupRotation = 2f * System.MathF.PI - rotation;
+                    lookupRotation = 2f * System.MathF.PI - lookupRotation;
                     if (lookupRotation >  System.MathF.PI) lookupRotation -= 2f * System.MathF.PI;
                     if (lookupRotation < -System.MathF.PI) lookupRotation += 2f * System.MathF.PI;
                 }

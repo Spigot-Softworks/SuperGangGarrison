@@ -261,6 +261,7 @@ public static class SnapshotDelta
                 IsChatBubbleVisible = chatBubble.IsChatBubbleVisible,
                 ChatBubbleFrameIndex = chatBubble.ChatBubbleFrameIndex,
                 ChatBubbleAlpha = chatBubble.ChatBubbleAlpha,
+                IsTypingChatMessage = chatBubble.IsTypingChatMessage,
             };
         }
 

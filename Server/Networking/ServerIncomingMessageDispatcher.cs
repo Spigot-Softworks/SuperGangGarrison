@@ -93,6 +93,8 @@ internal sealed class ServerIncomingMessageDispatcher(
                     {
                         world.TryTriggerNetworkPlayerChatBubble(inputClient.Slot, input.ChatBubbleFrameIndex);
                     }
+
+                    world.SetNetworkPlayerIsTypingChatMessage(inputClient.Slot, input.Buttons.HasFlag(InputButtons.IsTypingChatMessage));
                 }
                 break;
             case ControlCommandMessage command:

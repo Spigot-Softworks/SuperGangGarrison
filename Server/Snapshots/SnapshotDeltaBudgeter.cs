@@ -569,6 +569,7 @@ internal static class SnapshotDeltaBudgeter
             IsChatBubbleVisible = false,
             ChatBubbleFrameIndex = 0,
             ChatBubbleAlpha = 0f,
+            IsTypingChatMessage = false,
             // Weapon state trimming - clear if at default values
             MedicNeedleCooldownTicks = 0,
             MedicNeedleRefillTicks = 0,
@@ -598,6 +599,7 @@ internal static class SnapshotDeltaBudgeter
             IsChatBubbleVisible = false,
             ChatBubbleFrameIndex = 0,
             ChatBubbleAlpha = 0f,
+            IsTypingChatMessage = false,
             Points = 0f,
             HealPoints = 0,
             ActiveDominationCount = 0,

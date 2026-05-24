@@ -23,6 +23,7 @@
   <resource name="SentryTurretLogS" type="RESOURCE"/>
   <resource name="DeathCamHealthBarS" type="RESOURCE"/>
   <resource name="BubblesS" type="RESOURCE"/>
+  <resource name="BubbleWrite" type="RESOURCE"/>
   <resource name="Boot" type="RESOURCE"/>
   <resource name="SpectatorHealthCross" type="RESOURCE"/>
   <resource name="SpeedBoostS" type="RESOURCE"/>
