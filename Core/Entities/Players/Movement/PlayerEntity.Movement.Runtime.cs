@@ -219,6 +219,13 @@ public sealed partial class PlayerEntity
             }
         }
 
+        // During Heavy ghost dash, ignore all directional input so the burst decelerates naturally
+        if (ClassId == PlayerClass.Heavy && IsExperimentalGhostDashing)
+        {
+            hasHorizontalInput = false;
+            horizontalDirection = 0f;
+        }
+
         // Special handling for spy superjump: preserve momentum but allow air control
         if (IsSpySuperjumping && !IsGrounded)
         {
@@ -304,7 +311,12 @@ public sealed partial class PlayerEntity
         GetCollisionBounds(out _, out _, out _, out var previousBottom);
 
         var gravityPerTick = 0f;
-        if (!startedGrounded || jumped)
+        if (IsExperimentalGhostDashing && ExperimentalGhostDashDisablesGravity)
+        {
+            // Freeze vertically for the duration of the dash
+            VerticalSpeed = 0f;
+        }
+        else if (!startedGrounded || jumped)
         {
             gravityPerTick = GetServerScaledAirborneGravityPerTick(MovementState);
             if (ShouldCancelGravityForSourceSpinjump(level, team, gravityPerTick))
