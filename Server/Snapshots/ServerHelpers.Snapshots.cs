@@ -269,7 +269,18 @@ internal static partial class ServerHelpers
             pad.X,
             pad.Y,
             pad.Health,
-            pad.HasLanded);
+            pad.HasLanded,
+            pad.IsBuilt);
+    }
+
+    internal static SnapshotJumpPadGibState ToSnapshotJumpPadGibState(JumpPadGibEntity jumpPadGib)
+    {
+        return new SnapshotJumpPadGibState(
+            jumpPadGib.Id,
+            (byte)jumpPadGib.Team,
+            jumpPadGib.X,
+            jumpPadGib.Y,
+            jumpPadGib.TicksRemaining);
     }
 
     internal static SnapshotShotState ToSnapshotBulletState(ShotProjectileEntity shot)

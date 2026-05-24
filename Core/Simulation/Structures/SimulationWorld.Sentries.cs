@@ -6,7 +6,7 @@ public sealed partial class SimulationWorld
     private const float SentryBuildProximityRadius = 50f;
     private const float SentryDestroyBlastRadius = 65f;
     private const float SentryDestroyKnockbackPerTick = 4f;
-    private readonly record struct SentryTarget(PlayerEntity? Player, GeneratorState? Generator, SentryEntity? Sentry, float X, float Y, int? PlayerId);
+    private readonly record struct SentryTarget(PlayerEntity? Player, GeneratorState? Generator, SentryEntity? Sentry, JumpPadEntity? JumpPad, float X, float Y, int? PlayerId);
 
     public bool TryBuildLocalSentry()
     {
@@ -278,7 +278,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var candidate = new SentryTarget(player, null, null, player.X, player.Y, player.Id);
+            var candidate = new SentryTarget(player, null, null, null, player.X, player.Y, player.Id);
             if (owner is not null
                 && IsExperimentalEngineerPriorityTarget(owner, player)
                 && distance < preferredDistance)
@@ -323,7 +323,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            nearestTarget = new SentryTarget(null, generator, null, generator.Marker.CenterX, generator.Marker.CenterY, null);
+            nearestTarget = new SentryTarget(null, generator, null, null, generator.Marker.CenterX, generator.Marker.CenterY, null);
             nearestDistance = distance;
         }
 
@@ -355,7 +355,39 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            nearestTarget = new SentryTarget(null, null, targetSentry, targetSentry.X, targetSentry.Y, null);
+            nearestTarget = new SentryTarget(null, null, targetSentry, null, targetSentry.X, targetSentry.Y, null);
+            nearestDistance = distance;
+        }
+
+        for (var index = 0; index < _jumpPads.Count; index += 1)
+        {
+            var targetPad = _jumpPads[index];
+            if (targetPad.Team == sentry.Team || !targetPad.IsBuilt || targetPad.IsDead)
+            {
+                continue;
+            }
+
+            var distance = DistanceBetween(sentry.X, sentry.Y, targetPad.X, targetPad.Y);
+            if (distance > SentryEntity.TargetRange || distance >= nearestDistance)
+            {
+                continue;
+            }
+
+            var targetAngle = PointDirectionDegrees(sentry.X, sentry.Y, targetPad.X, targetPad.Y);
+            var withinAllowedArc = targetAngle <= 45f
+                || targetAngle >= 315f
+                || (targetAngle >= 135f && targetAngle <= 225f);
+            if (!withinAllowedArc)
+            {
+                continue;
+            }
+
+            if (!HasObstacleLineOfSight(sentry.X, sentry.Y, targetPad.X, targetPad.Y))
+            {
+                continue;
+            }
+
+            nearestTarget = new SentryTarget(null, null, null, targetPad, targetPad.X, targetPad.Y, null);
             nearestDistance = distance;
         }
 

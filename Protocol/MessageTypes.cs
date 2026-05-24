@@ -636,6 +636,13 @@ public sealed record SnapshotSentryGibState(
     float Y,
     int TicksRemaining);
 
+public sealed record SnapshotJumpPadGibState(
+    int Id,
+    byte Team,
+    float X,
+    float Y,
+    int TicksRemaining);
+
 public sealed record SnapshotJumpPadState(
     int Id,
     int OwnerPlayerId,
@@ -643,7 +650,8 @@ public sealed record SnapshotJumpPadState(
     float X,
     float Y,
     int Health,
-    bool HasLanded);
+    bool HasLanded,
+    bool IsBuilt = false);
 
 public sealed record SnapshotPlayerGibState(
     int Id,
@@ -851,6 +859,8 @@ public sealed record SnapshotMessage(
     public IReadOnlyList<SnapshotSentryGibState> SentryGibs { get; init; } = Array.Empty<SnapshotSentryGibState>();
     public IReadOnlyList<SnapshotJumpPadState> JumpPads { get; init; } = Array.Empty<SnapshotJumpPadState>();
     public IReadOnlyList<int> RemovedJumpPadIds { get; init; } = Array.Empty<int>();
+    public IReadOnlyList<SnapshotJumpPadGibState> JumpPadGibs { get; init; } = Array.Empty<SnapshotJumpPadGibState>();
+    public IReadOnlyList<int> RemovedJumpPadGibIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<SnapshotPlayerGibState> PlayerGibs { get; init; } = Array.Empty<SnapshotPlayerGibState>();
     public IReadOnlyList<SnapshotGibSpawnEvent> GibSpawnEvents { get; init; } = Array.Empty<SnapshotGibSpawnEvent>();
     public IReadOnlyList<SnapshotRocketSpawnEvent> RocketSpawnEvents { get; init; } = Array.Empty<SnapshotRocketSpawnEvent>();

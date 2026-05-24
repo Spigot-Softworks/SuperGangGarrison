@@ -283,6 +283,7 @@ public sealed partial class SimulationWorld
         // Blood drops are now generated locally on the client - not synced from server
         ApplySnapshotDeadBodies(snapshot.DeadBodies);
         ApplySnapshotSentryGibs(snapshot.SentryGibs);
+        ApplySnapshotJumpPadGibs(snapshot.JumpPadGibs);
     }
 
     private void ApplySnapshotJumpPads(IReadOnlyList<SnapshotJumpPadState> jumpPads)
@@ -302,7 +303,8 @@ public sealed partial class SimulationWorld
                 state.X,
                 state.Y,
                 state.Health,
-                state.HasLanded));
+                state.HasLanded,
+                state.IsBuilt));
     }
 
     private void ApplySnapshotSentries(IReadOnlyList<SnapshotSentryState> sentries)
@@ -800,6 +802,35 @@ public sealed partial class SimulationWorld
             static (entity, state) =>
                 entity.Team == (PlayerTeam)state.Team,
             state => new SentryGibEntity(
+                state.Id,
+                (PlayerTeam)state.Team,
+                state.X,
+                state.Y),
+            static (entity, state) => entity.ApplyNetworkState(
+                state.X,
+                state.Y,
+                state.TicksRemaining),
+            static (entity, state, isNewEntity) =>
+            {
+                if (isNewEntity)
+                {
+                    entity.ApplyNetworkState(
+                        state.X,
+                        state.Y,
+                        state.TicksRemaining);
+                }
+            });
+    }
+
+    private void ApplySnapshotJumpPadGibs(IReadOnlyList<SnapshotJumpPadGibState> jumpPadGibs)
+    {
+        SyncSnapshotEntities(
+            jumpPadGibs,
+            _jumpPadGibs,
+            static state => state.Id,
+            static (entity, state) =>
+                entity.Team == (PlayerTeam)state.Team,
+            state => new JumpPadGibEntity(
                 state.Id,
                 (PlayerTeam)state.Team,
                 state.X,

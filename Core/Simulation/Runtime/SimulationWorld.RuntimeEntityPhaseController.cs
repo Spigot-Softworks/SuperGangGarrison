@@ -31,6 +31,7 @@ public sealed partial class SimulationWorld
             _world.AdvanceBloodDrops();
             _world.AdvanceDeadBodies();
             _world.AdvanceSentryGibs();
+            _world.AdvanceJumpPadGibs();
         }
 
         public void AdvanceLocalPlayerOnly()

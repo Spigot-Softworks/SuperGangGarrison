@@ -4,9 +4,12 @@ public sealed class JumpPadEntity : SimulationEntity
 {
     public const float Width = 20f;
     public const float Height = 20f;
+    public const float HitboxWidth = 28f;
+    public const float HitboxHeight = 8f;
     public const float GravityPerTick = 0.6f;
     public const float MaxFallSpeed = 10f;
     public const int MaxHealth = 50;
+    public const int InitialHealth = 12;
 
     public JumpPadEntity(int id, int ownerPlayerId, PlayerTeam team, float x, float y) : base(id)
     {
@@ -14,7 +17,7 @@ public sealed class JumpPadEntity : SimulationEntity
         Team = team;
         X = x;
         Y = y;
-        Health = MaxHealth;
+        Health = InitialHealth;
     }
 
     public int OwnerPlayerId { get; }
@@ -28,6 +31,8 @@ public sealed class JumpPadEntity : SimulationEntity
     public float VerticalSpeed { get; private set; } = 0.001f;
 
     public bool HasLanded { get; private set; }
+
+    public bool IsBuilt { get; private set; }
 
     public int Health { get; private set; }
 
@@ -64,6 +69,19 @@ public sealed class JumpPadEntity : SimulationEntity
                 HasLanded = true;
             }
         }
+
+        if (HasLanded && !IsBuilt)
+        {
+            if (Health < MaxHealth)
+            {
+                Health = int.Min(MaxHealth, Health + 2);
+            }
+
+            if (Health >= MaxHealth)
+            {
+                IsBuilt = true;
+            }
+        }
     }
 
     public bool IsNear(float x, float y, float radius)
@@ -78,12 +96,13 @@ public sealed class JumpPadEntity : SimulationEntity
         Health = int.Max(0, Health - amount);
     }
 
-    public void ApplyNetworkState(float x, float y, int health, bool hasLanded)
+    public void ApplyNetworkState(float x, float y, int health, bool hasLanded, bool isBuilt)
     {
         X = x;
         Y = y;
         Health = health;
         HasLanded = hasLanded;
+        IsBuilt = isBuilt;
     }
 
     private bool IntersectsSolid(LevelSolid solid)

@@ -2,12 +2,24 @@
 
 public sealed partial class SimulationWorld
 {
-    private readonly record struct ShotHitResult(float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator);
-    private readonly record struct FlameHitResult(float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator);
-    private readonly record struct RocketHitResult(float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator);
+    private readonly record struct ShotHitResult(float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)
+    {
+        public JumpPadEntity? HitJumpPad { get; init; }
+    }
+    private readonly record struct FlameHitResult(float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)
+    {
+        public JumpPadEntity? HitJumpPad { get; init; }
+    }
+    private readonly record struct RocketHitResult(float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)
+    {
+        public JumpPadEntity? HitJumpPad { get; init; }
+    }
     private readonly record struct MineHitResult(float Distance, float HitX, float HitY, bool DestroyOnHit);
     private readonly record struct GrenadeEnvironmentHit(float Distance, float HitX, float HitY, float NormalX, float NormalY);
-    private readonly record struct RifleHitResult(float Distance, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator);
+    private readonly record struct RifleHitResult(float Distance, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)
+    {
+        public JumpPadEntity? HitJumpPad { get; init; }
+    }
     private readonly record struct RectangleHitbox(float Left, float Top, float Right, float Bottom);
 
     internal void CombatTestSetLevel(SimpleLevel level)
