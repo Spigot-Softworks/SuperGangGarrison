@@ -560,7 +560,8 @@ internal static class SnapshotContributionPlanner
             player.Slot,
             player.IsChatBubbleVisible,
             player.ChatBubbleFrameIndex,
-            player.ChatBubbleAlpha);
+            player.ChatBubbleAlpha,
+            player.IsTypingChatMessage);
     }
 
     private static SnapshotPlayerExtendedStatusState ToPlayerExtendedStatusState(SnapshotPlayerState player)
@@ -679,6 +680,7 @@ internal static class SnapshotContributionPlanner
             IsChatBubbleVisible = baselinePlayer.IsChatBubbleVisible,
             ChatBubbleFrameIndex = baselinePlayer.ChatBubbleFrameIndex,
             ChatBubbleAlpha = baselinePlayer.ChatBubbleAlpha,
+            IsTypingChatMessage = baselinePlayer.IsTypingChatMessage,
             Kills = baselinePlayer.Kills,
             Deaths = baselinePlayer.Deaths,
             Caps = baselinePlayer.Caps,
@@ -782,7 +784,8 @@ internal static class SnapshotContributionPlanner
     {
         return player.IsChatBubbleVisible != baselinePlayer.IsChatBubbleVisible
             || player.ChatBubbleFrameIndex != baselinePlayer.ChatBubbleFrameIndex
-            || player.ChatBubbleAlpha != baselinePlayer.ChatBubbleAlpha;
+            || player.ChatBubbleAlpha != baselinePlayer.ChatBubbleAlpha
+            || player.IsTypingChatMessage != baselinePlayer.IsTypingChatMessage;
     }
 
     private static bool IsPlayerRosterCriticalChange(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)

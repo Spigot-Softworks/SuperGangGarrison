@@ -96,6 +96,16 @@ public sealed partial class SimulationWorld
         }
     }
 
+    public void SetNetworkPlayerIsTypingChatMessage(byte slot, bool isTyping)
+    {
+        if (!TryGetNetworkPlayer(slot, out var player))
+        {
+            return;
+        }
+
+        player.IsTypingChatMessage = isTyping;
+    }
+
     public bool TrySetNetworkPlayerTeam(byte slot, PlayerTeam team)
     {
         if (TryGetNetworkPlayer(slot, out var configuredPlayer) && configuredPlayer.Team != team)

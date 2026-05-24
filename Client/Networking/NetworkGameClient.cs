@@ -531,6 +531,7 @@ internal sealed class NetworkGameClient : IDisposable
         if (input.InteractWeapon) buttons |= InputButtons.InteractWeapon;
         if (input.SwapWeapon) buttons |= InputButtons.SwapWeapon;
         if (input.ReadyUp) buttons |= InputButtons.ReadyUp;
+        if (input.IsTypingChatMessage) buttons |= InputButtons.IsTypingChatMessage;
 
         SendPendingControlCommands();
         var sequence = _nextInputSequence++;

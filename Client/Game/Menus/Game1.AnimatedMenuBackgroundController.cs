@@ -138,7 +138,9 @@ public partial class Game1
         public void Reset()
         {
             _mapNames.Clear();
+            _currentMap?.Dispose();
             _currentMap = null;
+            _nextMap?.Dispose();
             _nextMap = null;
             _isInitialized = false;
             _nextMapLoaded = false;
@@ -206,6 +208,7 @@ public partial class Game1
                 if (_nextMap is not null)
                 {
                     _currentMapIndex = (_currentMapIndex + 1) % _mapNames.Count;
+                    _currentMap?.Dispose();
                     _currentMap = _nextMap;
                     _nextMap = null;
                 }
@@ -252,11 +255,39 @@ public partial class Game1
                 return null;
             }
 
-            return new AnimatedBackgroundMapState
+            var mapState = new AnimatedBackgroundMapState
             {
                 Level = level,
                 MapName = mapName
             };
+
+            var visuals = level.CustomMapVisuals;
+            if (!ReferenceEquals(visuals, CustomMapVisualMetadata.Empty))
+            {
+                mapState.ImageScale = MathF.Max(0.01f, visuals.ImageScale);
+
+                if (TryParseGmlColor(visuals.BackgroundColor, out var bgColor))
+                {
+                    mapState.BackgroundColor = bgColor;
+                }
+
+                foreach (var layer in visuals.ParallaxLayers.OrderBy(static l => l.Index))
+                {
+                    try
+                    {
+                        var texture = TextureDecodeUtility.LoadTexture(_game.GraphicsDevice, layer.Resource.Bytes, applyLegacyChromaKey: false);
+                        mapState.ParallaxLayers.Add((texture, layer.XFactor, layer.YFactor));
+                    }
+                    catch (InvalidOperationException)
+                    {
+                    }
+                    catch (NotSupportedException)
+                    {
+                    }
+                }
+            }
+
+            return mapState;
         }
 
         private void DrawMap(AnimatedBackgroundMapState mapState, int viewportWidth, int viewportHeight, float alpha)
@@ -271,33 +302,93 @@ public partial class Game1
                 (int)level.Bounds.Width,
                 (int)level.Bounds.Height);
 
-            // Draw level background with grayscale effect
+            // Draw solid backdrop color (fills the viewport behind all texture layers)
+            if (mapState.BackgroundColor.HasValue)
+            {
+                _game._spriteBatch.Draw(
+                    _game._pixel,
+                    new Rectangle(0, 0, viewportWidth, viewportHeight),
+                    mapState.BackgroundColor.Value * alpha);
+            }
+
+            var hasParallaxLayers = mapState.ParallaxLayers.Count > 0;
             var backgroundName = level.BackgroundAssetName;
+            Texture2D? stockBackground = null;
             if (_game._runtimeAssets is not null && !string.IsNullOrWhiteSpace(backgroundName))
             {
-                var background = _game._runtimeAssets.GetBackground(backgroundName);
-                if (background is not null)
+                stockBackground = _game._runtimeAssets.GetBackground(backgroundName);
+            }
+
+            if (hasParallaxLayers || stockBackground is not null)
+            {
+                // Draw parallax layers and main background with grayscale effect
+                _game._spriteBatch.End();
+                _game._spriteBatch.Begin(
+                    samplerState: SamplerState.PointClamp,
+                    effect: _game._grayscaleEffect,
+                    rasterizerState: RasterizerState.CullNone);
+
+                foreach (var (texture, xFactor, yFactor) in mapState.ParallaxLayers)
                 {
-                    // End current batch and restart with grayscale effect
-                    _game._spriteBatch.End();
-                    _game._spriteBatch.Begin(
-                        samplerState: SamplerState.PointClamp,
-                        effect: _game._grayscaleEffect,
-                        rasterizerState: RasterizerState.CullNone);
-
-                    _game._spriteBatch.Draw(background, worldRectangle, Color.White * alpha);
-
-                    // Restore normal SpriteBatch state
-                    _game._spriteBatch.End();
-                    _game._spriteBatch.Begin(
-                        samplerState: SamplerState.PointClamp,
-                        rasterizerState: RasterizerState.CullNone);
-                    return;
+                    DrawParallaxLayer(texture, xFactor, yFactor, cameraPosition, viewportWidth, viewportHeight, mapState.ImageScale, alpha);
                 }
+
+                if (stockBackground is not null)
+                {
+                    _game._spriteBatch.Draw(stockBackground, worldRectangle, Color.White * alpha);
+                }
+
+                // Restore normal SpriteBatch state
+                _game._spriteBatch.End();
+                _game._spriteBatch.Begin(
+                    samplerState: SamplerState.PointClamp,
+                    rasterizerState: RasterizerState.CullNone);
+                return;
             }
 
             // Fallback background
             _game._spriteBatch.Draw(_game._pixel, worldRectangle, new Color(34, 44, 60) * alpha);
+        }
+
+        private void DrawParallaxLayer(Texture2D texture, float xFactor, float yFactor, Vector2 cameraPosition, int viewportWidth, int viewportHeight, float imageScale, float alpha)
+        {
+            var scaledWidth = texture.Width * imageScale;
+            var scaledHeight = texture.Height * imageScale;
+            if (scaledWidth <= 0.01f || scaledHeight <= 0.01f)
+            {
+                return;
+            }
+
+            var xOrigin = cameraPosition.X + (viewportWidth / 2f) - (scaledWidth / 2f);
+            var yOrigin = cameraPosition.Y + (viewportHeight / 2f) - (scaledHeight / 2f);
+            var xParallax = MathF.Abs(xFactor) > 0.0001f
+                ? xOrigin / (xFactor * xFactor)
+                : 0f;
+            var yParallax = MathF.Abs(yFactor) > 0.0001f
+                ? yOrigin / (yFactor * yFactor)
+                : 0f;
+
+            var worldX = xOrigin - xParallax;
+            var screenY = yOrigin - yParallax - cameraPosition.Y;
+            var firstScreenX = worldX - cameraPosition.X;
+            while (firstScreenX > 0f)
+            {
+                firstScreenX -= scaledWidth;
+            }
+
+            for (var screenX = firstScreenX; screenX < viewportWidth; screenX += scaledWidth)
+            {
+                _game._spriteBatch.Draw(
+                    texture,
+                    new Vector2(screenX, screenY),
+                    null,
+                    Color.White * alpha,
+                    0f,
+                    Vector2.Zero,
+                    imageScale,
+                    SpriteEffects.None,
+                    0f);
+            }
         }
 
         private static void AddPointsAlongLine(List<Vector2> points, Vector2 start, Vector2 end)
@@ -456,12 +547,23 @@ public partial class Game1
             mapState.CameraPosition = new Vector2(clampedX, clampedY);
         }
 
-        private sealed class AnimatedBackgroundMapState
+        private sealed class AnimatedBackgroundMapState : IDisposable
         {
             public SimpleLevel Level { get; set; } = null!;
             public string MapName { get; set; } = string.Empty;
             public Vector2 CameraPosition { get; set; }
             public Vector2 ScrollVector { get; set; }
+            public Color? BackgroundColor { get; set; }
+            public float ImageScale { get; set; } = 1f;
+            public List<(Texture2D Texture, float XFactor, float YFactor)> ParallaxLayers { get; } = new();
+
+            public void Dispose()
+            {
+                foreach (var (texture, _, _) in ParallaxLayers)
+                {
+                    texture.Dispose();
+                }
+            }
         }
     }
 }

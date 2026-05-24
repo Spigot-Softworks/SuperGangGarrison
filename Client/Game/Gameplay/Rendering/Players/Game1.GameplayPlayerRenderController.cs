@@ -54,6 +54,7 @@ public partial class Game1
             _game.DrawAfterburnOverlay(player, renderPosition, cameraPosition, visibilityAlpha);
             _game.DrawDominationIndicator(player, cameraPosition, visibilityAlpha);
             _game.DrawChatBubble(player, cameraPosition);
+            _game.DrawWriteBubble(player, cameraPosition);
             _game.DrawOverheadChatMessage(player, cameraPosition);
             _game.TryDrawAdditionalHealthBar(player, cameraPosition, visibilityAlpha);
         }
