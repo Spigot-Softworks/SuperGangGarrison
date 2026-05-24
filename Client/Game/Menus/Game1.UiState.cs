@@ -21,6 +21,7 @@ public partial class Game1
         JumpMenu,
         PluginOptionsMenu,
         OptionsMenu,
+        CustomBubbleEditor,
     }
 
     private enum GameplayOverlayKind
@@ -37,6 +38,7 @@ public partial class Game1
         PracticeSetup,
         PluginOptionsMenu,
         OptionsMenu,
+        CustomBubbleEditor,
         HudEditor,
         InGameMenu,
         LoadoutMenu,

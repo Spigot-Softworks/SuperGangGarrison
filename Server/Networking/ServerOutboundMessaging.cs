@@ -20,6 +20,8 @@ internal sealed class ServerOutboundMessaging(
     Action<string> log,
     Action<IProtocolMessage>? recordBroadcastMessage = null)
 {
+    private readonly Dictionary<byte, ServerCustomBubbleState> _customBubblesBySlot = new();
+
     public void SendMessage(ServerTransportPeer remotePeer, IProtocolMessage message)
     {
         var payload = ProtocolCodec.Serialize(message, ServerProtocolCompression.Settings);
@@ -171,6 +173,53 @@ internal sealed class ServerOutboundMessaging(
             [slot]));
     }
 
+    public void ReceiveCustomBubbleUpload(ClientSession client, CustomBubbleUploadMessage upload)
+    {
+        if (!client.IsAuthorized
+            || upload.Slot >= ChatBubbleFrameCatalog.CustomBubbleSlotCount
+            || upload.Rgba64Pixels.Length != ProtocolCodec.CustomBubbleRgba64PayloadBytes)
+        {
+            return;
+        }
+
+        var pixels = (byte[])upload.Rgba64Pixels.Clone();
+        _customBubblesBySlot[client.Slot] = new ServerCustomBubbleState(upload.Slot, upload.Revision, pixels);
+        BroadcastCustomBubbleState(client.Slot, upload.Slot, upload.Revision, pixels);
+    }
+
+    public void ReceiveCustomBubbleClear(ClientSession client)
+    {
+        if (!client.IsAuthorized)
+        {
+            return;
+        }
+
+        BroadcastCustomBubbleClear(client.Slot);
+    }
+
+    public void BroadcastCustomBubbleClear(byte slot)
+    {
+        _customBubblesBySlot.Remove(slot);
+        var message = new CustomBubbleClearMessage(slot);
+        foreach (var client in clientsBySlot.Values)
+        {
+            if (client.IsAuthorized)
+            {
+                SendMessage(client.Peer, message);
+            }
+        }
+
+        recordBroadcastMessage?.Invoke(message);
+    }
+
+    public void SendCustomBubbleStatesToClient(ServerTransportPeer remotePeer)
+    {
+        foreach (var (slot, state) in _customBubblesBySlot)
+        {
+            SendMessage(remotePeer, new CustomBubbleStateMessage(slot, state.Slot, state.Revision, state.Rgba64Pixels));
+        }
+    }
+
     private List<PlayerSocialProfileState> BuildPlayerSocialProfiles()
     {
         var profiles = new List<PlayerSocialProfileState>(clientsBySlot.Count);
@@ -247,6 +296,20 @@ internal sealed class ServerOutboundMessaging(
         recordBroadcastMessage?.Invoke(message);
     }
 
+    private void BroadcastCustomBubbleState(byte playerSlot, byte slot, uint revision, byte[] pixels)
+    {
+        var message = new CustomBubbleStateMessage(playerSlot, slot, revision, pixels);
+        foreach (var client in clientsBySlot.Values)
+        {
+            if (client.IsAuthorized)
+            {
+                SendMessage(client.Peer, message);
+            }
+        }
+
+        recordBroadcastMessage?.Invoke(message);
+    }
+
     public void BroadcastPluginMessage(
         string sourcePluginId,
         string targetPluginId,
@@ -300,4 +363,6 @@ internal sealed class ServerOutboundMessaging(
     {
         transport.Send(remotePeer, payload);
     }
+
+    private sealed record ServerCustomBubbleState(byte Slot, uint Revision, byte[] Rgba64Pixels);
 }

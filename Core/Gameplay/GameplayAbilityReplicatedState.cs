@@ -15,6 +15,8 @@ public static class GameplayAbilityReplicatedState
     public const string SpySuperjumpDisabledKey = "spy_superjump_disabled";
     public const string HeavyDashCooldownTicksKey = "heavy_dash_cooldown_ticks";
     public const string HeavyDashActiveKey = "heavy_dash_active";
+    public const string HeavyDashVisibleKey = "heavy_dash_visible";
+    public const string HeavyDashTrailAlphaKey = "heavy_dash_trail_alpha";
 
     public static IReadOnlyList<GameplayReplicatedStateEntry> CreateEntries(PlayerEntity player)
     {
@@ -36,6 +38,8 @@ public static class GameplayAbilityReplicatedState
                 Whole(HeavyEatCooldownTicksKey, player.HeavyEatCooldownTicksRemaining),
                 Whole(HeavyDashCooldownTicksKey, player.ExperimentalGhostDashCooldownTicksRemaining),
                 Toggle(HeavyDashActiveKey, player.IsExperimentalGhostDashing),
+                Toggle(HeavyDashVisibleKey, player.IsExperimentalGhostDashVisible),
+                Scalar(HeavyDashTrailAlphaKey, player.ExperimentalGhostDashTrailAlpha),
             ],
             PlayerClass.Sniper =>
             [
@@ -82,6 +86,7 @@ public static class GameplayAbilityReplicatedState
         value = key switch
         {
             MedicUberChargeKey when player.ClassId == PlayerClass.Medic => player.MedicUberCharge,
+            HeavyDashTrailAlphaKey when player.ClassId == PlayerClass.Heavy => player.ExperimentalGhostDashTrailAlpha,
             SpyCloakAlphaKey when player.ClassId == PlayerClass.Spy => player.SpyCloakAlpha,
             _ => default,
         };
@@ -89,6 +94,7 @@ public static class GameplayAbilityReplicatedState
         return key switch
         {
             MedicUberChargeKey => player.ClassId == PlayerClass.Medic,
+            HeavyDashTrailAlphaKey => player.ClassId == PlayerClass.Heavy,
             SpyCloakAlphaKey => player.ClassId == PlayerClass.Spy,
             _ => false,
         };
@@ -100,6 +106,7 @@ public static class GameplayAbilityReplicatedState
         {
             MedicUberReadyKey when player.ClassId == PlayerClass.Medic => player.IsMedicUberReady,
             HeavyDashActiveKey when player.ClassId == PlayerClass.Heavy => player.IsExperimentalGhostDashing,
+            HeavyDashVisibleKey when player.ClassId == PlayerClass.Heavy => player.IsExperimentalGhostDashVisible,
             SpySuperjumpActiveKey when player.ClassId == PlayerClass.Spy => player.SpySuperjumpChargeTicks > 0 || player.IsSpySuperjumping,
             SpySuperjumpDisabledKey when player.ClassId == PlayerClass.Spy => player.IsCarryingIntel,
             _ => default,
@@ -108,7 +115,7 @@ public static class GameplayAbilityReplicatedState
         return key switch
         {
             MedicUberReadyKey => player.ClassId == PlayerClass.Medic,
-            HeavyDashActiveKey => player.ClassId == PlayerClass.Heavy,
+            HeavyDashActiveKey or HeavyDashVisibleKey => player.ClassId == PlayerClass.Heavy,
             SpySuperjumpActiveKey or SpySuperjumpDisabledKey => player.ClassId == PlayerClass.Spy,
             _ => false,
         };

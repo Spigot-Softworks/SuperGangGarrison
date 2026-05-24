@@ -138,16 +138,22 @@ internal static class ServerRuntimeBootstrapFactory
             {
                 snapshotBroadcaster?.RemoveClientState(client.Slot);
                 eventReporter.NotifyClientDisconnected(client, reason);
+                outboundMessaging.BroadcastCustomBubbleClear(client.Slot);
                 outboundMessaging.BroadcastPlayerSocialProfileRemoval(client.Slot);
             },
             _ => outboundMessaging.BroadcastPlayerSocialProfiles(),
-            eventReporter.NotifyPasswordAccepted,
+            client =>
+            {
+                eventReporter.NotifyPasswordAccepted(client);
+                outboundMessaging.SendCustomBubbleStatesToClient(client.Peer);
+            },
             eventReporter.NotifyPlayerTeamChanged,
             eventReporter.NotifyPlayerClassChanged,
             IsPlayableSlotAvailableForClient,
             (oldSlot, newSlot) =>
             {
                 snapshotBroadcaster?.MoveClientState(oldSlot, newSlot);
+                outboundMessaging.BroadcastCustomBubbleClear(oldSlot);
                 outboundMessaging.BroadcastPlayerSocialProfileRemoval(oldSlot);
                 outboundMessaging.BroadcastPlayerSocialProfiles();
             });

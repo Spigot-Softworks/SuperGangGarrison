@@ -53,6 +53,8 @@ public sealed class InputBindingsSettings
 
     public Keys OpenBubbleMenuC { get; set; } = Keys.C;
 
+    public Keys CustomBubble { get; set; } = Keys.R;
+
     public Keys ToggleClassMenu
     {
         get => ChangeClass;
@@ -112,6 +114,7 @@ public sealed class InputBindingsSettings
         document.SetInt("Controls", "bubbleMenuZ", (int)OpenBubbleMenuZ);
         document.SetInt("Controls", "bubbleMenuX", (int)OpenBubbleMenuX);
         document.SetInt("Controls", "bubbleMenuC", (int)OpenBubbleMenuC);
+        document.SetInt("Controls", "customBubble", (int)CustomBubble);
 
         document.Save(resolvedPath);
     }
@@ -143,6 +146,7 @@ public sealed class InputBindingsSettings
             OpenBubbleMenuZ = ReadKey(document, "bubbleMenuZ", Keys.Z),
             OpenBubbleMenuX = ReadKey(document, "bubbleMenuX", Keys.X),
             OpenBubbleMenuC = ReadKey(document, "bubbleMenuC", Keys.C),
+            CustomBubble = ReadKey(document, "customBubble", Keys.R),
         };
     }
 

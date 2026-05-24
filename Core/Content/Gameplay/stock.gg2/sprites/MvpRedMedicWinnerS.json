@@ -1,8 +1,8 @@
-{
-  "id": "MvpRedMedicWinnerS",
-  "framePaths": [
-    "assets/mvp/red/medic/winner_0.png"
-  ],
-  "originX": 26,
-  "originY": 52
+﻿{
+    "id":  "MvpRedMedicWinnerS",
+    "framePaths":  [
+                       "assets/mvp/red/medic/winner_0.png"
+                   ],
+    "originX":  26,
+    "originY":  52
 }

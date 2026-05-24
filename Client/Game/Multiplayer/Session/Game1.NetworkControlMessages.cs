@@ -74,6 +74,7 @@ public partial class Game1
         }
 
         AddNetworkConsoleLine($"session slot changed to {_networkClient.LocalPlayerSlot}");
+        UploadSelectedCustomBubbleState();
     }
 
     private void HandleControlAckMessage(ControlAckMessage ack)

@@ -3480,10 +3480,11 @@ public sealed class BotBrainController
         if (MathF.Abs(dy) <= CapturePointClearEnemyVerticalRange
             && MathF.Abs(dx) <= CapturePointClearEnemyDistance)
         {
-            directSteering.MoveDirection = MathF.Abs(dx) <= 1f ? 0f : dx > 0f ? 1f : -1f;
+            var distance = MathF.Sqrt((dx * dx) + (dy * dy));
+            directSteering.MoveDirection = PrimitiveDirectDrive.ResolveCombatMoveDirection(self, distance, dx);
             directSteering.Jump = steeringOutput.Jump || dy < -24f;
             directSteering.DropDown = false;
-            directTrace = $"controlPointClearEnemy point:{point.Index} player:{target.Id} direct dx:{dx:0.0} dy:{dy:0.0} move:{directSteering.MoveDirection:0}";
+            directTrace = $"controlPointClearEnemy point:{point.Index} player:{target.Id} direct combat:spacing dx:{dx:0.0} dy:{dy:0.0} move:{directSteering.MoveDirection:0}";
             return true;
         }
 
@@ -4641,22 +4642,17 @@ public sealed class BotBrainController
         PlayerTeam team,
         bool currentGoalPoint)
     {
+        if (point.Team == team)
+        {
+            return null;
+        }
+
         if (point.IsLocked)
         {
-            if (point.Team != team)
-            {
-                return "lockedCapture";
-            }
-
-            return currentGoalPoint ? "lockedHold" : null;
+            return currentGoalPoint ? "lockedCapture" : null;
         }
 
-        if (point.Team != team)
-        {
-            return point.CappingTeam == team ? "capture" : "captureStaging";
-        }
-
-        return point.CappingTeam.HasValue ? "defend" : null;
+        return point.CappingTeam == team ? "capture" : "captureStaging";
     }
 
     private static bool ShouldDirectSeekEnemiesAfterKothCapture(SimulationWorld world, PlayerTeam team)

@@ -25,7 +25,8 @@ public partial class Game1
             || _inputBindings.ToggleConsole == key
             || _inputBindings.OpenBubbleMenuZ == key
             || _inputBindings.OpenBubbleMenuX == key
-            || _inputBindings.OpenBubbleMenuC == key;
+            || _inputBindings.OpenBubbleMenuC == key
+            || _inputBindings.CustomBubble == key;
     }
 
     private bool IsSwapWeaponsKeyboardBindingKey(Keys key)

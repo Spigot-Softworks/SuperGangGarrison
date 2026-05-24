@@ -270,6 +270,10 @@ public partial class Game1
                 DrawOptionsMenu();
                 WriteGameplayRenderTrace("modal after options");
                 break;
+            case GameplayOverlayKind.CustomBubbleEditor:
+                DrawCustomBubbleEditor();
+                WriteGameplayRenderTrace("modal after custombubbleeditor");
+                break;
             case GameplayOverlayKind.HudEditor:
                 DrawHudEditor();
                 WriteGameplayRenderTrace("modal after hudeditor");

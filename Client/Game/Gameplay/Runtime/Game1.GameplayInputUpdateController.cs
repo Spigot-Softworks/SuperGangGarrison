@@ -49,6 +49,7 @@ public partial class Game1
             // even though gameplayInput is default in multiplayer (server authoritative)
             _game._world.SetLocalInput(networkInput);
             _game.UpdateBubbleMenuState(keyboard, mouse);
+            _game.UpdateCustomBubbleHotkey(keyboard);
             return networkInput;
         }
     }

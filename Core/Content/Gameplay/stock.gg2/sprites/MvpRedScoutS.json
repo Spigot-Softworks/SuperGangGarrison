@@ -1,0 +1,11 @@
+﻿{
+    "id":  "MvpRedScoutS",
+    "framePaths":  [
+                       "assets/mvp/red/scout/nonwinner_0.png",
+                       "assets/mvp/red/scout/nonwinner_1.png",
+                       "assets/mvp/red/scout/nonwinner_2.png",
+                       "assets/mvp/red/scout/nonwinner_3.png"
+                   ],
+    "originX":  26,
+    "originY":  52
+}

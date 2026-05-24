@@ -29,7 +29,10 @@ internal sealed class ServerIncomingMessageDispatcher(
     Action<string, (string Key, object? Value)[]> logServerEvent,
     Action<string> log,
     Func<byte, bool>? isPlayableSlotAvailable = null,
-    ServerBanService? banService = null)
+    ServerBanService? banService = null,
+    Action<ClientSession, CustomBubbleUploadMessage>? receiveCustomBubbleUpload = null,
+    Action<ClientSession>? receiveCustomBubbleClear = null,
+    Action<ServerTransportPeer>? sendCustomBubbleStates = null)
 {
     public void Dispatch(IProtocolMessage message, ServerTransportPeer remotePeer)
     {
@@ -82,6 +85,20 @@ internal sealed class ServerIncomingMessageDispatcher(
                         profileUpdate.BadgeMask,
                         profileUpdate.FriendCode,
                         profileUpdate.PlayerCardJson);
+                }
+                break;
+            case CustomBubbleUploadMessage customBubbleUpload:
+                if (TryGetAuthorizedClient(remotePeer, out var customBubbleClient))
+                {
+                    customBubbleClient.LastSeen = elapsedGetter();
+                    receiveCustomBubbleUpload?.Invoke(customBubbleClient, customBubbleUpload);
+                }
+                break;
+            case CustomBubbleClearMessage:
+                if (TryGetAuthorizedClient(remotePeer, out var customBubbleClearClient))
+                {
+                    customBubbleClearClient.LastSeen = elapsedGetter();
+                    receiveCustomBubbleClear?.Invoke(customBubbleClearClient);
                 }
                 break;
             case InputStateMessage input:
@@ -173,6 +190,10 @@ internal sealed class ServerIncomingMessageDispatcher(
                 sendMessage(remotePeer, new PasswordRequestMessage());
                 existingClient.LastPasswordRequestSentAt = elapsedGetter();
             }
+            else
+            {
+                sendCustomBubbleStates?.Invoke(remotePeer);
+            }
 
             log($"[server] client refreshed {remoteDescription} slot={existingClient.Slot} name=\"{hello.Name}\" version={hello.Version}");
             return;
@@ -248,6 +269,10 @@ internal sealed class ServerIncomingMessageDispatcher(
         {
             sendMessage(remotePeer, new PasswordRequestMessage());
             client.LastPasswordRequestSentAt = elapsedGetter();
+        }
+        else
+        {
+            sendCustomBubbleStates?.Invoke(remotePeer);
         }
 
         if (remoteAddress is not null)

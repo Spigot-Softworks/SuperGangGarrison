@@ -119,6 +119,51 @@ public sealed class ProtocolCodecTests
     }
 
     [Fact]
+    public void CustomBubbleUploadRoundTripsRgba64Payload()
+    {
+        var pixels = CreateCustomBubblePixels();
+        var message = new CustomBubbleUploadMessage(Slot: 2, Revision: 42, pixels);
+
+        var payload = ProtocolCodec.Serialize(message, ProtocolCompressionSettings.Disabled);
+
+        Assert.True(ProtocolCodec.TryDeserialize(payload, out var roundTripped));
+        var upload = Assert.IsType<CustomBubbleUploadMessage>(roundTripped);
+        Assert.Equal((byte)2, upload.Slot);
+        Assert.Equal(42u, upload.Revision);
+        Assert.Equal(pixels, upload.Rgba64Pixels);
+    }
+
+    [Fact]
+    public void CustomBubbleStateAndClearRoundTrip()
+    {
+        var pixels = CreateCustomBubblePixels();
+        var statePayload = ProtocolCodec.Serialize(
+            new CustomBubbleStateMessage(PlayerSlot: 7, Slot: 1, Revision: 9, pixels),
+            ProtocolCompressionSettings.Disabled);
+
+        Assert.True(ProtocolCodec.TryDeserialize(statePayload, out var stateRoundTripped));
+        var state = Assert.IsType<CustomBubbleStateMessage>(stateRoundTripped);
+        Assert.Equal((byte)7, state.PlayerSlot);
+        Assert.Equal((byte)1, state.Slot);
+        Assert.Equal(9u, state.Revision);
+        Assert.Equal(pixels, state.Rgba64Pixels);
+
+        var clearPayload = ProtocolCodec.Serialize(new CustomBubbleClearMessage(7), ProtocolCompressionSettings.Disabled);
+        Assert.True(ProtocolCodec.TryDeserialize(clearPayload, out var clearRoundTripped));
+        var clear = Assert.IsType<CustomBubbleClearMessage>(clearRoundTripped);
+        Assert.Equal((byte)7, clear.PlayerSlot);
+    }
+
+    [Fact]
+    public void CustomBubbleUploadRejectsWrongPayloadLength()
+    {
+        Assert.Throws<InvalidOperationException>(() =>
+            ProtocolCodec.Serialize(
+                new CustomBubbleUploadMessage(0, 1, new byte[ProtocolCodec.CustomBubbleRgba64PayloadBytes - 1]),
+                ProtocolCompressionSettings.Disabled));
+    }
+
+    [Fact]
     public void MeasureSerializedSizeMatchesSerializedSnapshotPayloadLength()
     {
         var snapshot = new SnapshotMessage(
@@ -436,5 +481,16 @@ public sealed class ProtocolCodecTests
         var player = Assert.Single(merged.Players);
         Assert.Equal(8, player.MedicHealTargetId);
         Assert.True(player.IsMedicHealing);
+    }
+
+    private static byte[] CreateCustomBubblePixels()
+    {
+        var pixels = new byte[ProtocolCodec.CustomBubbleRgba64PayloadBytes];
+        for (var index = 0; index < pixels.Length; index += 1)
+        {
+            pixels[index] = (byte)(index % byte.MaxValue);
+        }
+
+        return pixels;
     }
 }

@@ -30,6 +30,7 @@ public partial class Game1
             (ControlsMenuBinding.OpenBubbleMenuZ, $"{bubbleMenuBindingPrefix} Z:", _inputBindings.OpenBubbleMenuZ),
             (ControlsMenuBinding.OpenBubbleMenuX, $"{bubbleMenuBindingPrefix} X:", _inputBindings.OpenBubbleMenuX),
             (ControlsMenuBinding.OpenBubbleMenuC, $"{bubbleMenuBindingPrefix} C:", _inputBindings.OpenBubbleMenuC),
+            (ControlsMenuBinding.CustomBubble, "Custom Bubble:", _inputBindings.CustomBubble),
         ];
     }
 
@@ -86,6 +87,9 @@ public partial class Game1
             case ControlsMenuBinding.OpenBubbleMenuC:
                 _inputBindings.OpenBubbleMenuC = key;
                 break;
+            case ControlsMenuBinding.CustomBubble:
+                _inputBindings.CustomBubble = key;
+                break;
         }
     }
 
@@ -110,6 +114,7 @@ public partial class Game1
             ControlsMenuBinding.OpenBubbleMenuZ => $"{bubbleMenuBindingPrefix} Z",
             ControlsMenuBinding.OpenBubbleMenuX => $"{bubbleMenuBindingPrefix} X",
             ControlsMenuBinding.OpenBubbleMenuC => $"{bubbleMenuBindingPrefix} C",
+            ControlsMenuBinding.CustomBubble => "Custom Bubble",
             _ => "Binding",
         };
     }

@@ -905,7 +905,10 @@ partial class GameServer
             _eventReporter.WriteEvent,
             Console.WriteLine,
             slot => !_botManager.BotSlots.ContainsKey(slot),
-            _banService);
+            _banService,
+            receiveCustomBubbleUpload: _outboundMessaging.ReceiveCustomBubbleUpload,
+            receiveCustomBubbleClear: _outboundMessaging.ReceiveCustomBubbleClear,
+            sendCustomBubbleStates: _outboundMessaging.SendCustomBubbleStatesToClient);
         _incomingPacketPump = new OpenGarrison.Server.ServerIncomingPacketPump(
             _messageTransport,
             messageDispatcher,

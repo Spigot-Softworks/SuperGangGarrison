@@ -72,6 +72,11 @@ public partial class Game1
                 return GameplayOverlayKind.OptionsMenu;
             }
 
+            if (_game._customBubbleEditorOpen)
+            {
+                return GameplayOverlayKind.CustomBubbleEditor;
+            }
+
             if (_game._hudEditorOpen)
             {
                 return GameplayOverlayKind.HudEditor;
@@ -131,6 +136,9 @@ public partial class Game1
                     return;
                 case GameplayOverlayKind.OptionsMenu:
                     _game.UpdateOptionsMenu(keyboard, mouse);
+                    return;
+                case GameplayOverlayKind.CustomBubbleEditor:
+                    _game.UpdateCustomBubbleEditor(keyboard, mouse);
                     return;
                 case GameplayOverlayKind.HudEditor:
                     _game.UpdateHudEditor(keyboard, mouse);

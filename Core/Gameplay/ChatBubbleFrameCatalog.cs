@@ -13,6 +13,8 @@ public static class ChatBubbleFrameCatalog
     public const int Deny = 44;
     public const int Medic = 45;
     public const int Burning = 49;
+    public const int CustomBubbleFrameBase = 1000;
+    public const int CustomBubbleSlotCount = 3;
 
     public static int GetIntelFrame(PlayerTeam team)
     {
@@ -35,5 +37,22 @@ public static class ChatBubbleFrameCatalog
             PlayerClass.Sniper => offset + 8,
             _ => Alert,
         };
+    }
+
+    public static int GetCustomBubbleFrame(int slotIndex)
+    {
+        return CustomBubbleFrameBase + Math.Clamp(slotIndex, 0, CustomBubbleSlotCount - 1);
+    }
+
+    public static bool TryGetCustomBubbleSlot(int frameIndex, out int slotIndex)
+    {
+        slotIndex = frameIndex - CustomBubbleFrameBase;
+        if (slotIndex is >= 0 and < CustomBubbleSlotCount)
+        {
+            return true;
+        }
+
+        slotIndex = -1;
+        return false;
     }
 }

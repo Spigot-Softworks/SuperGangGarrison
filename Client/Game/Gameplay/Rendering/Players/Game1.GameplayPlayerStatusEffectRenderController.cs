@@ -34,7 +34,11 @@ public partial class Game1
 
         public void DrawExperimentalDemoknightChargeBlur(PlayerEntity player, Vector2 cameraPosition, Color spriteTint, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
         {
-            if ((!player.IsExperimentalDemoknightCharging && !player.IsExperimentalGhostDashVisible) || visibilityAlpha <= 0.05f)
+            var ghostTrailAlpha = player.IsExperimentalGhostDashVisible
+                ? float.Clamp(player.ExperimentalGhostDashTrailAlpha, 0f, 1f)
+                : 0f;
+            var drawGhostTrail = ghostTrailAlpha > 0.02f;
+            if ((!player.IsExperimentalDemoknightCharging && !drawGhostTrail) || visibilityAlpha <= 0.05f)
             {
                 return;
             }
@@ -46,18 +50,18 @@ public partial class Game1
                 return;
             }
 
-            var blurCount = player.IsExperimentalGhostDashVisible ? 7 : 2;
-            var blurTint = player.IsExperimentalGhostDashVisible
+            var blurCount = drawGhostTrail ? Math.Max(1, (int)MathF.Ceiling(7f * ghostTrailAlpha)) : 2;
+            var blurTint = drawGhostTrail
                 ? Color.Lerp(spriteTint, new Color(200, 220, 235), 0.62f)
                 : spriteTint * 0.45f;
             for (var blurIndex = 0; blurIndex < blurCount; blurIndex += 1)
             {
-                var offsetDistance = player.IsExperimentalGhostDashVisible
-                    ? 7f + (blurIndex * 9f)
+                var offsetDistance = drawGhostTrail
+                    ? 4f + (ghostTrailAlpha * 3f) + (blurIndex * 9f)
                     : 5f + (blurIndex * 6f);
                 var blurPosition = renderPosition - blurDirection * offsetDistance;
-                var blurAlpha = visibilityAlpha * (player.IsExperimentalGhostDashVisible
-                    ? MathF.Max(0.16f, 0.56f - (blurIndex * 0.065f))
+                var blurAlpha = visibilityAlpha * (drawGhostTrail
+                    ? ghostTrailAlpha * MathF.Max(0.16f, 0.56f - (blurIndex * 0.065f))
                     : (blurIndex == 0 ? 0.18f : 0.1f));
                 var tint = blurTint * blurAlpha;
                 _game.TryDrawPlayerSpriteAtPosition(player, blurPosition, cameraPosition, tint, bodySelection, drawIntelOverlay: false);
