@@ -224,6 +224,7 @@ public partial class Game1
             AdvanceFlameSmokeVisuals();
             AdvanceLooseSheetVisuals();
             AdvanceFrozenSpyVisuals();
+            AdvanceHeavyDashTrailVisuals();
             AdvanceImmediateNetworkDeadBodies();
             AdvanceMedigunBeamHelixPhase();
 

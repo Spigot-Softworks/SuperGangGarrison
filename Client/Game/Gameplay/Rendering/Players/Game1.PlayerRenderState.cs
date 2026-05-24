@@ -121,7 +121,11 @@ public partial class Game1
             appearsAirborne = false;
         }
 
-        if (!appearsAirborne && horizontalSourceStepSpeed < 0.2f)
+        if (player.ClassId == PlayerClass.Heavy && GetPlayerIsExperimentalGhostDashing(player))
+        {
+            // Freeze the movement frame for the duration of the heavy ghost dash
+        }
+        else if (!appearsAirborne && horizontalSourceStepSpeed < 0.2f)
         {
             animationImage = 0f;
         }

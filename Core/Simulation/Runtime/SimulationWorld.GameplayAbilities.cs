@@ -735,17 +735,39 @@ public sealed partial class SimulationWorld
             ExperimentalGameplaySettings.DefaultGhostDashNextAttackDamageMultiplier,
             minValue: 1.0001f);
         var useMomentum = GameplayAbilityParameterReader.GetBool(context.Ability, "useMomentum", defaultValue: true);
+        var burstSpeedMultiplier = GameplayAbilityParameterReader.GetFloat(
+            context.Ability,
+            "burstSpeedMultiplier",
+            ExperimentalGameplaySettings.HeavyGhostDashBurstSpeedMultiplier,
+            minValue: 0f);
+        var disableGravity = GameplayAbilityParameterReader.GetBool(
+            context.Ability,
+            "disableGravity",
+            defaultValue: ExperimentalGameplaySettings.HeavyGhostDashDisableGravityDefault);
+        var enableGhostTrail = GameplayAbilityParameterReader.GetBool(
+            context.Ability,
+            "enableGhostTrail",
+            defaultValue: ExperimentalGameplaySettings.HeavyGhostDashEnableGhostTrailDefault);
         if (!context.Player.TryStartExperimentalGhostDash(
                 durationTicks,
                 cooldownTicks,
                 nextAttackDamageMultiplier,
-                impulse,
+                dashImpulse: 0f,
                 requireExperimentalDemoknight: false,
-                useMomentum: useMomentum,
-                movementTicks: movementTicks))
+                useMomentum: false,
+                movementTicks: 0,
+                burstSpeedMultiplier: burstSpeedMultiplier,
+                disableGravity: disableGravity,
+                enableGhostTrail: enableGhostTrail))
         {
             return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
         }
+
+        // Initial horizontal burst — decelerates naturally via friction
+        var burstSpeed = LegacyMovementModel.GetMaxRunSpeed(context.Player.RunPower) * context.Player.ExperimentalGhostDashBurstSpeedMultiplier;
+        context.Player.ApplyVelocityImpulse(
+            context.Player.FacingDirectionX >= 0f ? burstSpeed : -burstSpeed,
+            velocityY: 0f);
 
         RegisterWorldSoundEvent(ExperimentalDemoknightCatalog.ChargeStartSoundName, context.Player.X, context.Player.Y);
         return GameplayAbilityResult.HandledAndConsumed;

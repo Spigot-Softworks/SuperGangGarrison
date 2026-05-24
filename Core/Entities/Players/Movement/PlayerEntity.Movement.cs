@@ -74,6 +74,11 @@ public sealed partial class PlayerEntity
 
     public void AddImpulse(float velocityX, float velocityY)
     {
+        if (ClassId == PlayerClass.Heavy && IsExperimentalGhostDashing)
+        {
+            return;
+        }
+
         HorizontalSpeed += velocityX;
         VerticalSpeed += velocityY;
         if (velocityY < 0f)

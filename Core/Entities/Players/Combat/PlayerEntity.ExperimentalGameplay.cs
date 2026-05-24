@@ -726,7 +726,10 @@ public sealed partial class PlayerEntity
         float dashImpulse,
         bool requireExperimentalDemoknight = true,
         bool useMomentum = false,
-        int? movementTicks = null)
+        int? movementTicks = null,
+        float burstSpeedMultiplier = 4f,
+        bool disableGravity = true,
+        bool enableGhostTrail = true)
     {
         if ((requireExperimentalDemoknight && !IsExperimentalDemoknightEnabled)
             || !IsAlive
@@ -748,6 +751,9 @@ public sealed partial class PlayerEntity
         ExperimentalGhostDashCooldownTicksRemaining = cooldownTicks;
         ExperimentalGhostDashMovementTicksRemaining = dashMovementTicks;
         ExperimentalGhostDashUsesMomentum = useMomentum;
+        ExperimentalGhostDashBurstSpeedMultiplier = MathF.Max(0f, burstSpeedMultiplier);
+        ExperimentalGhostDashDisablesGravity = disableGravity;
+        ExperimentalGhostDashEnablesTrail = enableGhostTrail;
         ExperimentalGhostDashInitialTicks = dashMovementTicks;
         ExperimentalGhostDashInitialDistance = MathF.Max(0f, dashImpulse);
         ExperimentalGhostDashDistanceTraveled = 0f;
@@ -1241,6 +1247,9 @@ public sealed partial class PlayerEntity
         ExperimentalGhostDashDistanceRemaining = 0f;
         ExperimentalGhostDashSpeedPerSecondValue = 0f;
         ExperimentalGhostDashUsesMomentum = false;
+        ExperimentalGhostDashBurstSpeedMultiplier = 0f;
+        ExperimentalGhostDashDisablesGravity = false;
+        ExperimentalGhostDashEnablesTrail = false;
         ExperimentalGhostDashInitialTicks = 0;
         ExperimentalGhostDashInitialDistance = 0f;
         ExperimentalGhostDashDistanceTraveled = 0f;
