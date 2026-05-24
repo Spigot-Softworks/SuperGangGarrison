@@ -785,6 +785,10 @@ public sealed partial class SimulationWorld
         {
             TryDamageGenerator(target.Generator.Team, SentryEntity.HitDamage, owner);
         }
+        else if (target.JumpPad is not null)
+        {
+            target.JumpPad.TakeDamage(SentryEntity.HitDamage);
+        }
 
         if (ExperimentalGameplaySettings.EnableEngineerCaveatInjector
             && sentry.ConsecutiveShotsFired % global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerCaveatInjectorShotInterval == 0)
@@ -814,6 +818,10 @@ public sealed partial class SimulationWorld
         else if (target.Generator is not null)
         {
             TryDamageGenerator(target.Generator.Team, SentryEntity.HitDamage, owner);
+        }
+        else if (target.JumpPad is not null)
+        {
+            target.JumpPad.TakeDamage(SentryEntity.HitDamage);
         }
 
         int pelletDamage = Math.Max(
@@ -892,6 +900,10 @@ public sealed partial class SimulationWorld
         else if (hit.HitGenerator is not null)
         {
             TryDamageGenerator(hit.HitGenerator.Team, global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerPrecisionInstantiatorDamage, owner);
+        }
+        else if (hit.HitJumpPad is not null)
+        {
+            hit.HitJumpPad.TakeDamage(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerPrecisionInstantiatorDamage);
         }
     }
 

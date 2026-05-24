@@ -16,6 +16,7 @@ public partial class Game1
 {
     private const int MaxChatHistoryLines = 128;
     private const int ClosedChatVisibleLineLimit = 6;
+    private const int OpenChatFixedLineCount = 7;
     private const int ChatScrollStep = 3;
     private const float ChatHudPanelMargin = 12f;
     private const float ChatHudPanelHorizontalPadding = 6f;
@@ -459,43 +460,117 @@ public partial class Game1
 
     private void ClampChatScrollOffset()
     {
-        _chatScrollOffset = Math.Clamp(_chatScrollOffset, 0, Math.Max(0, _chatLines.Count - 1));
+        _chatScrollOffset = Math.Clamp(_chatScrollOffset, 0, Math.Max(0, _chatLines.Count - OpenChatFixedLineCount));
     }
 
     private void DrawChatHud()
     {
         var baseX = 18f;
-        var maxPanelWidth = GetChatHudMaxPanelWidth(baseX);
+        var lineHeight = GetChatHudLineHeight();
         var promptPrefix = _chatTeamOnly ? "(TEAM) > " : "> ";
         var maxInputWidth = Math.Max(24f, Math.Max(280, ViewportWidth / 3) - 18f - MeasureBitmapFontWidth(promptPrefix, 1f));
         var promptLines = WrapBitmapFontText(GetTextWithCursor(_chatInput, _chatInputCursorIndex), maxInputWidth, maxInputWidth);
-        var promptLineHeight = GetChatHudLineHeight();
-        var promptHeight = Math.Max(24, (int)MathF.Ceiling(promptLines.Count * promptLineHeight + 12f));
+        var promptHeight = Math.Max(24, (int)MathF.Ceiling(promptLines.Count * lineHeight + 12f));
         var promptRectangle = new Rectangle(
             12,
             ViewportHeight - 94 - promptHeight,
             Math.Max(280, ViewportWidth / 3),
             promptHeight);
-        var maxChatHeight = Math.Max(72f, promptRectangle.Y - 24f);
+        var maxPanelWidth = promptRectangle.Width;
+        var fixedOpenContentHeight = OpenChatFixedLineCount * lineHeight;
+        var maxChatHeight = _chatOpen ? fixedOpenContentHeight : Math.Max(72f, promptRectangle.Y - 24f);
         var visibleLines = GetVisibleChatLines(maxPanelWidth, maxChatHeight, _chatOpen);
-        var totalChatHeight = 0f;
-        for (var index = 0; index < visibleLines.Count; index += 1)
-        {
-            totalChatHeight += MeasureChatLineHeight(visibleLines[index], maxPanelWidth);
-            if (index < visibleLines.Count - 1)
-            {
-                totalChatHeight += ChatHudPanelSpacing;
-            }
-        }
 
-        var baseY = promptRectangle.Y - 14f - totalChatHeight;
-        for (var index = 0; index < visibleLines.Count; index += 1)
+        if (visibleLines.Count > 0 || _chatOpen)
         {
-            var line = visibleLines[index];
-            var alpha = _chatOpen ? 1f : MathF.Min(1f, line.TicksRemaining / 120f);
-            var linePosition = new Vector2(baseX, baseY);
-            DrawChatLine(line, linePosition, alpha, maxPanelWidth);
-            baseY += MeasureChatLineHeight(line, maxPanelWidth) + ChatHudPanelSpacing;
+            int panelHeight;
+            if (_chatOpen)
+            {
+                panelHeight = (int)MathF.Ceiling(fixedOpenContentHeight + ChatHudPanelVerticalPadding * 2f);
+            }
+            else
+            {
+                var totalChatContentHeight = 0f;
+                for (var index = 0; index < visibleLines.Count; index += 1)
+                {
+                    totalChatContentHeight += MeasureChatLineHeight(visibleLines[index], maxPanelWidth);
+                }
+
+                panelHeight = (int)MathF.Ceiling(totalChatContentHeight + ChatHudPanelVerticalPadding * 2f);
+            }
+
+            var panelY = promptRectangle.Y - 10 - panelHeight;
+            var chatPanelRect = new Rectangle(promptRectangle.X, panelY, promptRectangle.Width, panelHeight);
+
+            float fillAlpha, borderAlpha;
+            if (_chatOpen)
+            {
+                fillAlpha = 0.70f;
+                borderAlpha = 0.70f;
+            }
+            else
+            {
+                var maxLineAlpha = 0f;
+                for (var index = 0; index < visibleLines.Count; index += 1)
+                {
+                    maxLineAlpha = MathF.Max(maxLineAlpha, MathF.Min(1f, visibleLines[index].TicksRemaining / 120f));
+                }
+
+                fillAlpha = 0.40f * maxLineAlpha;
+                borderAlpha = 0.40f * maxLineAlpha;
+            }
+
+            DrawRoundedRectangleOutline(
+                chatPanelRect,
+                new Color(0, 0, 0) * fillAlpha,
+                new Color(49, 45, 26) * borderAlpha,
+                outlineThickness: 2,
+                radius: 6);
+
+            float startTextY;
+            if (_chatOpen)
+            {
+                // Fill from bottom: compute total content height and start below panel bottom
+                var totalContentHeight = 0f;
+                for (var index = 0; index < visibleLines.Count; index += 1)
+                {
+                    totalContentHeight += MeasureChatLineHeight(visibleLines[index], maxPanelWidth);
+                }
+
+                startTextY = chatPanelRect.Bottom - ChatHudPanelVerticalPadding - totalContentHeight;
+            }
+            else
+            {
+                startTextY = panelY + ChatHudPanelVerticalPadding;
+            }
+
+            var textY = startTextY;
+            for (var index = 0; index < visibleLines.Count; index += 1)
+            {
+                var line = visibleLines[index];
+                var alpha = _chatOpen ? 1f : MathF.Min(1f, line.TicksRemaining / 120f);
+                DrawChatLine(line, new Vector2(baseX, textY), alpha, maxPanelWidth);
+                textY += MeasureChatLineHeight(line, maxPanelWidth);
+            }
+
+            if (_chatOpen && _chatLines.Count > OpenChatFixedLineCount)
+            {
+                const int scrollbarWidth = 4;
+                const int scrollbarMargin = 3;
+                var trackX = chatPanelRect.Right - scrollbarWidth - scrollbarMargin;
+                var trackY = chatPanelRect.Y + scrollbarMargin;
+                var trackHeight = chatPanelRect.Height - scrollbarMargin * 2;
+                var thumbHeightRatio = (float)OpenChatFixedLineCount / MathF.Max(1f, _chatLines.Count);
+                var thumbHeight = (int)MathF.Max(8f, trackHeight * thumbHeightRatio);
+                var scrollFraction = _chatScrollOffset / MathF.Max(1f, _chatLines.Count - OpenChatFixedLineCount);
+                var thumbY = trackY + (int)MathF.Round((trackHeight - thumbHeight) * (1f - scrollFraction));
+                thumbY = Math.Clamp(thumbY, trackY, trackY + trackHeight - thumbHeight);
+
+                DrawInsetHudPanel(new Rectangle(trackX, trackY, scrollbarWidth, trackHeight),
+                    new Color(30, 30, 30, 180), new Color(20, 20, 20, 180));
+                DrawInsetHudPanel(new Rectangle(trackX, thumbY, scrollbarWidth, thumbHeight),
+                    new Color(130, 120, 95, 220), new Color(160, 150, 120, 220));
+            }
         }
 
         if (!_chatOpen)
@@ -503,9 +578,8 @@ public partial class Game1
             return;
         }
 
-        DrawInsetHudPanel(promptRectangle, new Color(0, 0, 0, 220), new Color(49, 45, 26, 220));
+        DrawRoundedRectangleOutline(promptRectangle, new Color(0, 0, 0) * 0.70f, new Color(49, 45, 26) * 0.70f, outlineThickness: 2, radius: 6);
         DrawChatPrompt(promptRectangle, promptPrefix, promptLines);
-        DrawChatScrollStatus(promptRectangle);
     }
 
     private void DrawChatLine(ChatLine line, Vector2 position, float alpha, float maxPanelWidth)
@@ -524,16 +598,6 @@ public partial class Game1
             Math.Max(24f, maxContentWidth - speakerWidth),
             maxContentWidth);
         var lineHeight = GetChatHudLineHeight();
-        var width = Math.Max(
-            96f,
-            GetWrappedChatPanelWidth(wrappedMessageLines, speakerWidth) + (ChatHudPanelHorizontalPadding * 2f));
-        var height = Math.Max(
-            16f,
-            GetWrappedChatPanelHeight(wrappedMessageLines.Count, lineHeight));
-        DrawInsetHudPanel(
-            new Rectangle((int)(position.X - 6f), (int)(position.Y - 2f), (int)MathF.Ceiling(width), (int)MathF.Ceiling(height)),
-            new Color(0, 0, 0) * (0.82f * alpha),
-            new Color(49, 45, 26) * (0.82f * alpha));
 
         for (var lineIndex = 0; lineIndex < wrappedMessageLines.Count; lineIndex += 1)
         {
@@ -632,7 +696,8 @@ public partial class Game1
             line.Text,
             Math.Max(24f, maxContentWidth - MeasureBitmapFontWidth(speakerPrefix, 1f)),
             maxContentWidth);
-        return GetWrappedChatPanelHeight(wrappedMessageLines.Count, GetChatHudLineHeight());
+        var lineHeight = GetChatHudLineHeight();
+        return Math.Max(lineHeight, wrappedMessageLines.Count * lineHeight);
     }
 
     private float GetWrappedChatPanelWidth(List<string> wrappedLines, float firstLinePrefixWidth)
@@ -706,13 +771,12 @@ public partial class Game1
         while (startIndex >= 0)
         {
             var lineHeight = MeasureChatLineHeight(sourceLines[startIndex], maxPanelWidth);
-            var additionalHeight = totalHeight > 0f ? ChatHudPanelSpacing : 0f;
-            if (startIndex < newestVisibleIndex && totalHeight + additionalHeight + lineHeight > maxChatHeight)
+            if (startIndex < newestVisibleIndex && totalHeight + lineHeight > maxChatHeight)
             {
                 break;
             }
 
-            totalHeight += additionalHeight + lineHeight;
+            totalHeight += lineHeight;
             startIndex -= 1;
         }
 

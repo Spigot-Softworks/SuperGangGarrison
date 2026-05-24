@@ -388,6 +388,7 @@ public static partial class ProtocolCodec
             writer.Write(pad.Y);
             writer.Write(pad.Health);
             writer.Write(pad.HasLanded);
+            writer.Write(pad.IsBuilt);
         }
     }
 
@@ -404,9 +405,41 @@ public static partial class ProtocolCodec
                 reader.ReadSingle(),
                 reader.ReadSingle(),
                 reader.ReadInt32(),
+                reader.ReadBoolean(),
                 reader.ReadBoolean()));
         }
 
         return jumpPads;
+    }
+
+    private static void WriteJumpPadGibStates(BinaryWriter writer, IReadOnlyList<SnapshotJumpPadGibState> jumpPadGibs)
+    {
+        writer.Write((ushort)jumpPadGibs.Count);
+        for (var index = 0; index < jumpPadGibs.Count; index += 1)
+        {
+            var gib = jumpPadGibs[index];
+            writer.Write(gib.Id);
+            writer.Write(gib.Team);
+            writer.Write(gib.X);
+            writer.Write(gib.Y);
+            writer.Write(gib.TicksRemaining);
+        }
+    }
+
+    private static List<SnapshotJumpPadGibState> ReadJumpPadGibStates(BinaryReader reader)
+    {
+        var count = reader.ReadUInt16();
+        var jumpPadGibs = new List<SnapshotJumpPadGibState>(count);
+        for (var index = 0; index < count; index += 1)
+        {
+            jumpPadGibs.Add(new SnapshotJumpPadGibState(
+                reader.ReadInt32(),
+                reader.ReadByte(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadInt32()));
+        }
+
+        return jumpPadGibs;
     }
 }
