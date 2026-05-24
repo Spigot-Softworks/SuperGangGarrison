@@ -24,6 +24,8 @@ public sealed partial class SimulationWorld
 
         private List<GeneratorState> _generators => _world._generators;
 
+        private List<JumpPadEntity> _jumpPads => _world._jumpPads;
+
         private IEnumerable<PlayerEntity> EnumerateSimulatedPlayers()
         {
             return _world.EnumerateSimulatedPlayers();

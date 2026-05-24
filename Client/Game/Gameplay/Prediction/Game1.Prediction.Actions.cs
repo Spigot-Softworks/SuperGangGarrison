@@ -203,6 +203,11 @@ public partial class Game1
             return;
         }
 
+        if (player.ClassId == PlayerClass.Heavy && player.IsExperimentalGhostDashing)
+        {
+            return;
+        }
+
         if (player.PrimaryWeapon.Kind == PrimaryWeaponKind.Medigun)
         {
             if (!predictedInput.Input.FirePrimary)
@@ -531,17 +536,29 @@ public partial class Game1
     private bool TryPredictedStartHeavyGhostDash(PlayerEntity player)
     {
         var ability = GetPredictedHeavyGhostDashAbility(player);
+        var useMomentum = GetPredictedHeavyGhostDashUseMomentum(ability);
         if (!player.TryStartExperimentalGhostDash(
             GetPredictedHeavyGhostDashDurationTicks(ability),
             GetPredictedHeavyGhostDashCooldownTicks(ability),
             GetPredictedHeavyGhostDashNextAttackDamageMultiplier(ability),
-            GetPredictedHeavyGhostDashImpulse(ability),
+            useMomentum ? GetPredictedHeavyGhostDashImpulse(ability) : 0f,
             requireExperimentalDemoknight: false,
-            useMomentum: GetPredictedHeavyGhostDashUseMomentum(ability),
-            movementTicks: GetPredictedHeavyGhostDashMovementDurationTicks(ability),
-            slideVelocityPerTick: GetPredictedHeavyGhostDashSlideVelocityPerTick(ability)))
+            useMomentum: useMomentum,
+            movementTicks: useMomentum ? GetPredictedHeavyGhostDashMovementDurationTicks(ability) : 0,
+            slideVelocityPerTick: GetPredictedHeavyGhostDashSlideVelocityPerTick(ability),
+            burstSpeedMultiplier: GetPredictedHeavyGhostDashBurstSpeedMultiplier(ability),
+            disableGravity: GetPredictedHeavyGhostDashDisableGravity(ability),
+            enableGhostTrail: GetPredictedHeavyGhostDashEnableGhostTrail(ability)))
         {
             return false;
+        }
+
+        if (!useMomentum && player.ExperimentalGhostDashBurstSpeedMultiplier > 0f)
+        {
+            var burstSpeed = LegacyMovementModel.GetMaxRunSpeed(player.RunPower) * player.ExperimentalGhostDashBurstSpeedMultiplier;
+            player.ApplyVelocityImpulse(
+                player.FacingDirectionX >= 0f ? burstSpeed : -burstSpeed,
+                velocityY: 0f);
         }
 
         SyncPredictedLocalPlayerState(player);
@@ -618,8 +635,9 @@ public partial class Game1
 
     private static bool GetPredictedHeavyGhostDashUseMomentum(GameplayAbilityDefinition? ability)
     {
+        var hasBurstParameters = HasPredictedHeavyGhostDashBurstParameters(ability);
         return ability is null
-            || GameplayAbilityParameterReader.GetBool(ability, "useMomentum", defaultValue: true);
+            || GameplayAbilityParameterReader.GetBool(ability, "useMomentum", defaultValue: !hasBurstParameters);
     }
 
     private static float GetPredictedHeavyGhostDashSlideVelocityPerTick(GameplayAbilityDefinition? ability)
@@ -631,6 +649,45 @@ public partial class Game1
                 "slideVelocityPerTick",
                 ExperimentalGameplaySettings.HeavyGhostDashSlideVelocityPerTick,
                 minValue: 0f);
+    }
+
+    private static float GetPredictedHeavyGhostDashBurstSpeedMultiplier(GameplayAbilityDefinition? ability)
+    {
+        return ability is null
+            ? ExperimentalGameplaySettings.HeavyGhostDashBurstSpeedMultiplier
+            : GameplayAbilityParameterReader.GetFloat(
+                ability,
+                "burstSpeedMultiplier",
+                ExperimentalGameplaySettings.HeavyGhostDashBurstSpeedMultiplier,
+                minValue: 0f);
+    }
+
+    private static bool GetPredictedHeavyGhostDashDisableGravity(GameplayAbilityDefinition? ability)
+    {
+        return ability is null
+            ? ExperimentalGameplaySettings.HeavyGhostDashDisableGravityDefault
+            : GameplayAbilityParameterReader.GetBool(
+                ability,
+                "disableGravity",
+                ExperimentalGameplaySettings.HeavyGhostDashDisableGravityDefault);
+    }
+
+    private static bool GetPredictedHeavyGhostDashEnableGhostTrail(GameplayAbilityDefinition? ability)
+    {
+        return ability is null
+            ? ExperimentalGameplaySettings.HeavyGhostDashEnableGhostTrailDefault
+            : GameplayAbilityParameterReader.GetBool(
+                ability,
+                "enableGhostTrail",
+                ExperimentalGameplaySettings.HeavyGhostDashEnableGhostTrailDefault);
+    }
+
+    private static bool HasPredictedHeavyGhostDashBurstParameters(GameplayAbilityDefinition? ability)
+    {
+        return ability is not null
+            && (ability.Parameters.ContainsKey("burstSpeedMultiplier")
+                || ability.Parameters.ContainsKey("disableGravity")
+                || ability.Parameters.ContainsKey("enableGhostTrail"));
     }
 
     private bool TryPredictedToggleSniperScope(PlayerEntity player)

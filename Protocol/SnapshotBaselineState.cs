@@ -26,6 +26,7 @@ public interface ISnapshotBaselineState
     IReadOnlyList<SnapshotSentryGibState> SentryGibs { get; }
     IReadOnlyList<SnapshotPlayerGibState> PlayerGibs { get; }
     IReadOnlyList<SnapshotJumpPadState> JumpPads { get; }
+    IReadOnlyList<SnapshotJumpPadGibState> JumpPadGibs { get; }
 }
 
 public sealed record SnapshotBaselineState(
@@ -49,7 +50,8 @@ public sealed record SnapshotBaselineState(
     IReadOnlyList<SnapshotDeadBodyState> DeadBodies,
     IReadOnlyList<SnapshotSentryGibState> SentryGibs,
     IReadOnlyList<SnapshotPlayerGibState> PlayerGibs,
-    IReadOnlyList<SnapshotJumpPadState> JumpPads) : ISnapshotBaselineState
+    IReadOnlyList<SnapshotJumpPadState> JumpPads,
+    IReadOnlyList<SnapshotJumpPadGibState> JumpPadGibs) : ISnapshotBaselineState
 {
     public static SnapshotBaselineState FromSnapshot(SnapshotMessage snapshot)
     {
@@ -75,6 +77,7 @@ public sealed record SnapshotBaselineState(
             snapshot.DeadBodies,
             snapshot.SentryGibs,
             snapshot.PlayerGibs,
-            snapshot.JumpPads);
+            snapshot.JumpPads,
+            snapshot.JumpPadGibs);
     }
 }

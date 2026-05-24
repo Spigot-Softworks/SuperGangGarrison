@@ -590,7 +590,11 @@ internal static class BrowserAssetBuildPipeline
 
     private static void PruneLegacyDistributionArtifacts(BrowserAssetBuildContext context)
     {
-        DeleteFiles(EnumerateFiles(Path.Combine(context.OutputContentRoot, "Sprites"), "*.png", SearchOption.AllDirectories));
+        // WeaponsRotated strips are loaded directly at runtime by RotatedWeaponSpriteCache —
+        // they must not be pruned along with the regular sprite PNG originals.
+        var weaponsRotatedDir = Path.Combine(context.OutputContentRoot, "Sprites", "WeaponsRotated") + Path.DirectorySeparatorChar;
+        DeleteFiles(EnumerateFiles(Path.Combine(context.OutputContentRoot, "Sprites"), "*.png", SearchOption.AllDirectories)
+            .Where(p => !p.StartsWith(weaponsRotatedDir, StringComparison.OrdinalIgnoreCase)));
         DeleteFiles(EnumerateFiles(Path.Combine(context.OutputContentRoot, "Gameplay", "stock.gg2", "assets"), "*.png", SearchOption.AllDirectories));
         DeleteFiles(EnumerateFiles(Path.Combine(context.OutputContentRoot, "Gameplay", "stock.gg2", "sprites"), "*.json", SearchOption.TopDirectoryOnly));
 

@@ -36,6 +36,16 @@ public sealed partial class SimulationWorld
             };
         }
 
+        // Disable shooting during Heavy ghost dash
+        if (player.ClassId == PlayerClass.Heavy && player.IsExperimentalGhostDashing)
+        {
+            input = input with
+            {
+                FirePrimary = false,
+                FireSecondary = false,
+            };
+        }
+
         player.SetAimWorldPosition(input.AimWorldX, input.AimWorldY);
         
         // Update binoculars focus position if active

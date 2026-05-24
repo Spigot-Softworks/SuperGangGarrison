@@ -734,23 +734,53 @@ public sealed partial class SimulationWorld
             "nextAttackDamageMultiplier",
             ExperimentalGameplaySettings.DefaultGhostDashNextAttackDamageMultiplier,
             minValue: 1.0001f);
-        var useMomentum = GameplayAbilityParameterReader.GetBool(context.Ability, "useMomentum", defaultValue: true);
+        var hasBurstParameters = context.Ability.Parameters.ContainsKey("burstSpeedMultiplier")
+            || context.Ability.Parameters.ContainsKey("disableGravity")
+            || context.Ability.Parameters.ContainsKey("enableGhostTrail");
+        var useMomentum = GameplayAbilityParameterReader.GetBool(
+            context.Ability,
+            "useMomentum",
+            defaultValue: !hasBurstParameters);
         var slideVelocityPerTick = GameplayAbilityParameterReader.GetFloat(
             context.Ability,
             "slideVelocityPerTick",
             ExperimentalGameplaySettings.HeavyGhostDashSlideVelocityPerTick,
             minValue: 0f);
+        var burstSpeedMultiplier = GameplayAbilityParameterReader.GetFloat(
+            context.Ability,
+            "burstSpeedMultiplier",
+            ExperimentalGameplaySettings.HeavyGhostDashBurstSpeedMultiplier,
+            minValue: 0f);
+        var disableGravity = GameplayAbilityParameterReader.GetBool(
+            context.Ability,
+            "disableGravity",
+            defaultValue: ExperimentalGameplaySettings.HeavyGhostDashDisableGravityDefault);
+        var enableGhostTrail = GameplayAbilityParameterReader.GetBool(
+            context.Ability,
+            "enableGhostTrail",
+            defaultValue: ExperimentalGameplaySettings.HeavyGhostDashEnableGhostTrailDefault);
         if (!context.Player.TryStartExperimentalGhostDash(
                 durationTicks,
                 cooldownTicks,
                 nextAttackDamageMultiplier,
-                impulse,
+                dashImpulse: useMomentum ? impulse : 0f,
                 requireExperimentalDemoknight: false,
                 useMomentum: useMomentum,
-                movementTicks: movementTicks,
-                slideVelocityPerTick: slideVelocityPerTick))
+                movementTicks: useMomentum ? movementTicks : 0,
+                slideVelocityPerTick: slideVelocityPerTick,
+                burstSpeedMultiplier: burstSpeedMultiplier,
+                disableGravity: disableGravity,
+                enableGhostTrail: enableGhostTrail))
         {
             return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
+        }
+
+        if (!useMomentum && context.Player.ExperimentalGhostDashBurstSpeedMultiplier > 0f)
+        {
+            var burstSpeed = LegacyMovementModel.GetMaxRunSpeed(context.Player.RunPower) * context.Player.ExperimentalGhostDashBurstSpeedMultiplier;
+            context.Player.ApplyVelocityImpulse(
+                context.Player.FacingDirectionX >= 0f ? burstSpeed : -burstSpeed,
+                velocityY: 0f);
         }
 
         RegisterWorldSoundEvent(ExperimentalDemoknightCatalog.ChargeStartSoundName, context.Player.X, context.Player.Y);

@@ -1579,7 +1579,7 @@ public partial class Game1
             var ammoCountScale = GetAmmoCountBuildScaleForValue(currentAmmo);
             var reloadBarBottomSourceY = sourceY + 12f;
             var ammoTextSourceY = reloadBarBottomSourceY - _game.MeasureMenuBitmapFontHeight(ammoCountScale);
-            var ammoColor = currentAmmo <= Math.Max(1, maxAmmo / 4) ? LowAmmoHudColor : AmmoHudTextColor;
+            var ammoColor = currentAmmo < maxAmmo && currentAmmo <= Math.Max(1, maxAmmo / 4) ? LowAmmoHudColor : AmmoHudTextColor;
             _game.DrawMenuBitmapFontText(currentAmmo.ToString(CultureInfo.InvariantCulture), GetSourceHudPoint(755f, ammoTextSourceY), ammoColor, GetSourceHudTextScale(ammoCountScale));
 
             var reloadProgress = currentAmmo >= maxAmmo || reloadTicksRemaining <= 0

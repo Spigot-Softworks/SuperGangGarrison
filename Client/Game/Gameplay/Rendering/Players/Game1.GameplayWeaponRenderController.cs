@@ -93,11 +93,13 @@ public partial class Game1
             }
 
             var position = new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y);
-            var scale = new Vector2(facingScale * playerScale, playerScale);
+            ResolveBakedFrame(player, spriteName, frameIndex, rotation,
+                sprite, facingScale, playerScale,
+                out var drawFrame, out var drawOrigin, out var drawRotation, out var scale);
             var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
             var outlineTint = Color.Lerp(teamColor, Color.White, 0.75f);
-            _game.DrawSpriteFrameShadow(sprite.Frames[frameIndex], position, tint, rotation, sprite.Origin.ToVector2(), scale);
-            _game.DrawSpriteFrameOutline(sprite.Frames[frameIndex], position, outlineTint, rotation, sprite.Origin.ToVector2(), scale);
+            _game.DrawSpriteFrameShadow(drawFrame, position, tint, drawRotation, drawOrigin, scale);
+            _game.DrawSpriteFrameOutline(drawFrame, position, outlineTint, drawRotation, drawOrigin, scale);
             return true;
         }
 
@@ -155,23 +157,25 @@ public partial class Game1
             }
 
             var position = new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y);
-            var scale = new Vector2(facingScale * playerScale, playerScale);
+            ResolveBakedFrame(player, spriteName, frameIndex, rotation,
+                sprite, facingScale, playerScale,
+                out var drawFrame, out var drawOrigin, out var drawRotation, out var scale);
             if (_game.IsKritzUberWeaponOnlyVisual(player) && _game._uberOutlineEnabled)
             {
                 var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
                 var outlineTint = Color.Lerp(teamColor, Color.White, 0.75f);
-                _game.DrawSpriteFrameOutline(sprite.Frames[frameIndex], position, outlineTint, rotation, sprite.Origin.ToVector2(), scale);
+                _game.DrawSpriteFrameOutline(drawFrame, position, outlineTint, drawRotation, drawOrigin, scale);
             }
 
             if (player.IsUbered)
             {
-                _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, tint, rotation, sprite.Origin.ToVector2(), scale);
+                _game.DrawSpriteFrameWithOptionalShadow(drawFrame, position, tint, drawRotation, drawOrigin, scale);
                 var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
-                _game.DrawSpriteFrameFlatColor(sprite.Frames[frameIndex], position, teamColor * 0.45f, rotation, sprite.Origin.ToVector2(), scale);
+                _game.DrawSpriteFrameFlatColor(drawFrame, position, teamColor * 0.45f, drawRotation, drawOrigin, scale);
             }
             else
             {
-                _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, tint, rotation, sprite.Origin.ToVector2(), scale);
+                _game.DrawSpriteFrameWithOptionalShadow(drawFrame, position, tint, drawRotation, drawOrigin, scale);
             }
 
             DrawWeaponAnimationOverlay(player, weaponAnimationMode, weaponDefinition, roundedOrigin, cameraPosition, tint, bodySelection, facingScale);
@@ -303,6 +307,57 @@ public partial class Game1
         public Vector2 GetWeaponAnchorOrigin(WeaponRenderDefinition weaponDefinition, LoadedGameMakerSprite currentSprite)
         {
             return GetWeaponAnchorOriginCore(weaponDefinition, currentSprite);
+        }
+
+        /// <summary>
+        /// Selects the pre-baked rotation frame when available, otherwise falls back to the
+        /// original sprite frame.  Backstab is always rendered via the original path because
+        /// it only flips left/right with no angular rotation.
+        /// </summary>
+        private void ResolveBakedFrame(
+            PlayerEntity player,
+            string spriteName,
+            int frameIndex,
+            float rotation,
+            LoadedGameMakerSprite sprite,
+            float facingScale,
+            float playerScale,
+            out LoadedSpriteFrame drawFrame,
+            out Vector2 drawOrigin,
+            out float drawRotation,
+            out Vector2 drawScale)
+        {
+            if (!_game.IsBackstabReplacementRenderActive(player)
+                && _game._pixelPerfectWeaponRotation
+                && _game._rotatedWeaponSprites is not null)
+            {
+                // For left-facing weapons GetWeaponRotationFromAim adds +π to rotation so that
+                // the unflipped sprite renders correctly mirrored.  For the baked-sprite lookup we
+                // need the horizontally-mirrored angle instead: lookupRot = 2π − rotation, wrapped
+                // to (−π, π].  The negative X scale on the baked sprite handles the visual flip.
+                var lookupRotation = rotation;
+                if (facingScale < 0f)
+                {
+                    lookupRotation = 2f * System.MathF.PI - rotation;
+                    if (lookupRotation >  System.MathF.PI) lookupRotation -= 2f * System.MathF.PI;
+                    if (lookupRotation < -System.MathF.PI) lookupRotation += 2f * System.MathF.PI;
+                }
+
+                if (_game._rotatedWeaponSprites.TryGetBakedFrame(spriteName, frameIndex, lookupRotation,
+                        out var bakedFrame, out var bakedOrigin))
+                {
+                    drawFrame = bakedFrame;
+                    drawOrigin = bakedOrigin;
+                    drawRotation = 0f;
+                    drawScale = new Vector2(facingScale * playerScale * 2f, playerScale * 2f);
+                    return;
+                }
+            }
+
+            drawFrame = sprite.Frames[frameIndex];
+            drawOrigin = sprite.Origin.ToVector2();
+            drawRotation = rotation;
+            drawScale = new Vector2(facingScale * playerScale, playerScale);
         }
 
         public WeaponAnimationMode GetPlayerWeaponAnimationMode(PlayerEntity player)

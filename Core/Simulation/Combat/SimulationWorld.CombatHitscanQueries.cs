@@ -21,6 +21,7 @@ public sealed partial class SimulationWorld
             UpdateNearestProjectileHitFromGates(ref nearestHit, shot, shot.PreviousX, shot.PreviousY, directionX, directionY, maxDistance, UpdateNearestHit);
             UpdateNearestProjectileHitFromSentries(ref nearestHit, shot, shot.Team, shot.PreviousX, shot.PreviousY, directionX, directionY, maxDistance, UpdateNearestHit);
             UpdateNearestProjectileHitFromGenerators(ref nearestHit, shot, shot.Team, shot.PreviousX, shot.PreviousY, directionX, directionY, maxDistance, UpdateNearestHit);
+            UpdateNearestProjectileHitFromJumpPads(ref nearestHit, shot.Team, shot.PreviousX, shot.PreviousY, directionX, directionY, maxDistance);
             UpdateNearestProjectileHitFromPlayers(ref nearestHit, shot, shot.Team, shot.OwnerId, shot.PreviousX, shot.PreviousY, directionX, directionY, maxDistance, UpdateNearestHit);
             return nearestHit;
         }
@@ -32,6 +33,7 @@ public sealed partial class SimulationWorld
             UpdateNearestProjectileHitFromGates(ref nearestHit, needle, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
             UpdateNearestProjectileHitFromSentries(ref nearestHit, needle, needle.Team, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
             UpdateNearestProjectileHitFromGenerators(ref nearestHit, needle, needle.Team, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
+            UpdateNearestProjectileHitFromJumpPads(ref nearestHit, needle.Team, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance);
             UpdateNearestProjectileHitFromPlayers(ref nearestHit, needle, needle.Team, needle.OwnerId, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
             return nearestHit;
         }
@@ -43,6 +45,7 @@ public sealed partial class SimulationWorld
             UpdateNearestProjectileHitFromGates(ref nearestHit, shot, shot.PreviousX, shot.PreviousY, directionX, directionY, maxDistance, UpdateNearestRevolverHit);
             UpdateNearestProjectileHitFromSentries(ref nearestHit, shot, shot.Team, shot.PreviousX, shot.PreviousY, directionX, directionY, maxDistance, UpdateNearestRevolverHit);
             UpdateNearestProjectileHitFromGenerators(ref nearestHit, shot, shot.Team, shot.PreviousX, shot.PreviousY, directionX, directionY, maxDistance, UpdateNearestRevolverHit);
+            UpdateNearestProjectileHitFromJumpPads(ref nearestHit, shot.Team, shot.PreviousX, shot.PreviousY, directionX, directionY, maxDistance);
             UpdateNearestProjectileHitFromPlayers(ref nearestHit, shot, shot.Team, shot.OwnerId, shot.PreviousX, shot.PreviousY, directionX, directionY, maxDistance, UpdateNearestRevolverHit);
             return nearestHit;
         }
@@ -209,6 +212,30 @@ public sealed partial class SimulationWorld
         {
             if (nearestHit.HasValue && nearestHit.Value.Distance <= distance) { return; }
             nearestHit = new ShotHitResult(distance, shot.PreviousX + directionX * distance, shot.PreviousY + directionY * distance, player, sentry, generator);
+        }
+
+        private void UpdateNearestProjectileHitFromJumpPads(
+            ref ShotHitResult? nearestHit,
+            PlayerTeam projectileTeam,
+            float previousX,
+            float previousY,
+            float directionX,
+            float directionY,
+            float maxDistance)
+        {
+            var rayBounds = GetRayBounds(previousX, previousY, directionX, directionY, maxDistance);
+            var halfW = JumpPadEntity.HitboxWidth / 2f;
+            var halfH = JumpPadEntity.HitboxHeight / 2f;
+            foreach (var pad in _jumpPads)
+            {
+                if (pad.Team == projectileTeam || !pad.IsBuilt || pad.IsDead) { continue; }
+                if (!RayBoundsMayIntersectRectangle(rayBounds, pad.X - halfW, pad.Y - halfH, pad.X + halfW, pad.Y + halfH)) { continue; }
+                var distance = GetRayIntersectionDistanceWithJumpPad(previousX, previousY, directionX, directionY, pad, maxDistance);
+                if (distance.HasValue && (!nearestHit.HasValue || distance.Value < nearestHit.Value.Distance))
+                {
+                    nearestHit = new ShotHitResult(distance.Value, previousX + directionX * distance.Value, previousY + directionY * distance.Value, null, null, null) { HitJumpPad = pad };
+                }
+            }
         }
     }
 }

@@ -512,8 +512,8 @@ public static class GameplayModPackDirectoryLoader
                 ValidateNumberParameters(itemId, ability, filePath, "energyCost", "activeProjectileLimit", "lifetimeTicks");
                 return;
             case BuiltInGameplayBehaviorIds.HeavyGhostDash:
-                ValidateNumberParameters(itemId, ability, filePath, "durationTicks", "durationSeconds", "movementDurationTicks", "movementDurationSeconds", "cooldownTicks", "cooldownSeconds", "impulse", "nextAttackDamageMultiplier", "slideVelocityPerTick");
-                ValidateBoolParameters(itemId, ability, filePath, "useMomentum");
+                ValidateNumberParameters(itemId, ability, filePath, "durationTicks", "durationSeconds", "movementDurationTicks", "movementDurationSeconds", "cooldownTicks", "cooldownSeconds", "impulse", "nextAttackDamageMultiplier", "slideVelocityPerTick", "burstSpeedMultiplier");
+                ValidateBoolParameters(itemId, ability, filePath, "useMomentum", "disableGravity", "enableGhostTrail");
                 return;
         }
     }

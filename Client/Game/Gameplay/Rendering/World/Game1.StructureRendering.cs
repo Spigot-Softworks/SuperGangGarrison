@@ -303,6 +303,34 @@ public partial class Game1
     private bool TryDrawJumpPad(JumpPadEntity jumpPad, Vector2 cameraPosition)
     {
         var spriteName = jumpPad.Team == PlayerTeam.Blue ? "JumpPadBlue" : "JumpPadRed";
+        var buildSpriteName = jumpPad.Team == PlayerTeam.Blue ? "JumpPadBlueBuild" : "JumpPadRedBuild";
+        var renderPosition = RoundToSourcePixels(GetRenderPosition(jumpPad.Id, jumpPad.X, jumpPad.Y));
+        var jumpPadRenderYOffset = jumpPad.HasLanded ? 10f : 0f;
+
+        if (!jumpPad.IsBuilt)
+        {
+            var buildSprite = _runtimeAssets.GetSprite(buildSpriteName);
+            if (buildSprite is null || buildSprite.Frames.Count == 0)
+            {
+                return false;
+            }
+
+            var buildProgress = (jumpPad.Health - JumpPadEntity.InitialHealth) / (float)(JumpPadEntity.MaxHealth - JumpPadEntity.InitialHealth);
+            var buildFrame = (int)MathF.Floor(buildProgress * (buildSprite.Frames.Count - 1));
+            buildFrame = Math.Clamp(buildFrame, 0, buildSprite.Frames.Count - 1);
+            DrawLoadedSpriteFrame(
+                buildSprite.Frames[buildFrame],
+                new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y + jumpPadRenderYOffset - cameraPosition.Y),
+                null,
+                Color.White,
+                0f,
+                buildSprite.Origin.ToVector2(),
+                Vector2.One,
+                SpriteEffects.None,
+                0f);
+            return true;
+        }
+
         var sprite = _runtimeAssets.GetSprite(spriteName);
         if (sprite is null || sprite.Frames.Count == 0)
         {
@@ -315,11 +343,31 @@ public partial class Game1
             ? (int)((Environment.TickCount64 / millisecondsPerFrame) % animatedFrameCount)
             : 0;
 
-        var renderPosition = RoundToSourcePixels(GetRenderPosition(jumpPad.Id, jumpPad.X, jumpPad.Y));
-        var jumpPadRenderYOffset = jumpPad.HasLanded ? 10f : 0f;
         DrawLoadedSpriteFrame(
             sprite.Frames[frameIndex],
             new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y + jumpPadRenderYOffset - cameraPosition.Y),
+            null,
+            Color.White,
+            0f,
+            sprite.Origin.ToVector2(),
+            Vector2.One,
+            SpriteEffects.None,
+            0f);
+        return true;
+    }
+
+    private bool TryDrawJumpPadGib(JumpPadGibEntity gib, Vector2 cameraPosition)
+    {
+        var sprite = GetResolvedSprite("JumpPadGibsS");
+        if (sprite is null || sprite.Frames.Count == 0)
+        {
+            return false;
+        }
+
+        var frameIndex = Math.Clamp(gib.Team == PlayerTeam.Blue ? 1 : 0, 0, sprite.Frames.Count - 1);
+        DrawLoadedSpriteFrame(
+            sprite.Frames[frameIndex],
+            new Vector2(gib.X - cameraPosition.X, gib.Y - cameraPosition.Y),
             null,
             Color.White,
             0f,

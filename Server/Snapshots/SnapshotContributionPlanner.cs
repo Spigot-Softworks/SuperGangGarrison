@@ -246,6 +246,21 @@ internal static class SnapshotContributionPlanner
             static (builder, id) => builder.RemovedSentryGibIds.Add(id),
             (state, baselineState, currentFrame, id) => ((currentFrame + id) % CosmeticEntityUpdateIntervalTicks) != 0,
             frame);
+        AddEntityDelta(
+            contributions,
+            fullSnapshot.JumpPadGibs,
+            baseline?.JumpPadGibs,
+            priority: 360,
+            estimateUpdatedBytes: static state => 17,
+            estimatedRemovedBytes: 4,
+            focus,
+            static state => state.Id,
+            static state => state.X,
+            static state => state.Y,
+            static (builder, state) => builder.JumpPadGibs.Add(state),
+            static (builder, id) => builder.RemovedJumpPadGibIds.Add(id),
+            (state, baselineState, currentFrame, id) => ((currentFrame + id) % CosmeticEntityUpdateIntervalTicks) != 0,
+            frame);
         // Transient gameplay events are replayed for reliability. Let snapshot
         // budgeting decide what fits instead of pre-dropping events by focus.
         AddPointEventContributions(

@@ -231,9 +231,9 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal(BuiltInGameplayBehaviorIds.HeavyGhostDash, heavyUtility.ExecutorId);
         Assert.Contains("dash", heavyUtility.Tags);
         Assert.Equal(12, heavyUtility.Parameters["cooldownSeconds"].GetInt32());
-        Assert.Equal(ExperimentalGameplaySettings.HeavyGhostDashMovementDurationSeconds, heavyUtility.Parameters["movementDurationSeconds"].GetSingle(), 5);
-        Assert.True(heavyUtility.Parameters["useMomentum"].GetBoolean());
-        Assert.Equal(ExperimentalGameplaySettings.HeavyGhostDashSlideVelocityPerTick, heavyUtility.Parameters["slideVelocityPerTick"].GetSingle());
+        Assert.Equal(ExperimentalGameplaySettings.HeavyGhostDashBurstSpeedMultiplier, heavyUtility.Parameters["burstSpeedMultiplier"].GetSingle());
+        Assert.True(heavyUtility.Parameters["disableGravity"].GetBoolean());
+        Assert.True(heavyUtility.Parameters["enableGhostTrail"].GetBoolean());
 
         var soldierExperimentalSecondary = pack.Items["weapon.soldier-shotgun"].Ability;
         Assert.NotNull(soldierExperimentalSecondary);

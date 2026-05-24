@@ -38,8 +38,7 @@ public partial class Game1
             _binocularsFocusY);
         if (_bubbleMenuKind != BubbleMenuKind.None && !_bubbleMenuClosing)
         {
-            var preserveHealingPrimaryFire = ShouldPreserveHealingPrimaryFireWhileBubbleMenuOpen(fullInput);
-            fullInput = ApplyBubbleMenuGameplaySuppression(fullInput, preserveHealingPrimaryFire);
+            fullInput = ApplyBubbleMenuGameplaySuppression(fullInput);
         }
 
         var blockedInput = ShouldPreserveAimWhileBlocked()
@@ -147,13 +146,10 @@ public partial class Game1
                     || player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit)));
     }
 
-    internal static PlayerInputSnapshot ApplyBubbleMenuGameplaySuppression(PlayerInputSnapshot input, bool preservePrimaryFire)
+    internal static PlayerInputSnapshot ApplyBubbleMenuGameplaySuppression(PlayerInputSnapshot input)
     {
         return input with
         {
-            FirePrimary = preservePrimaryFire && input.FirePrimary,
-            FireSecondary = false,
-            UseAbility = false,
             InteractWeapon = false,
             SwapWeapon = false,
         };
