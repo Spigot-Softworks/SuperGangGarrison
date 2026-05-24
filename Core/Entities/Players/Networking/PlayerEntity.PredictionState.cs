@@ -91,6 +91,7 @@ public sealed partial class PlayerEntity
         float ChatBubbleAlpha,
         bool IsChatBubbleFading,
         int ChatBubbleTicksRemaining,
+        bool IsTypingChatMessage = false,
         string? SelectedGameplayLoadoutId = null,
         GameplayEquipmentSlot SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary,
         int PyroFlareCooldownTicks = 0,
@@ -195,6 +196,7 @@ public sealed partial class PlayerEntity
             ChatBubbleAlpha,
             IsChatBubbleFading,
             ChatBubbleTicksRemaining,
+            IsTypingChatMessage,
             SelectedGameplayLoadoutId,
             SelectedGameplayEquippedSlot,
             PyroFlareCooldownTicks,
@@ -303,6 +305,7 @@ public sealed partial class PlayerEntity
         ChatBubbleAlpha = state.ChatBubbleAlpha;
         IsChatBubbleFading = state.IsChatBubbleFading;
         ChatBubbleTicksRemaining = state.ChatBubbleTicksRemaining;
+        IsTypingChatMessage = state.IsTypingChatMessage;
         SelectedGameplayLoadoutId = string.IsNullOrWhiteSpace(state.SelectedGameplayLoadoutId)
             ? CharacterClassCatalog.RuntimeRegistry.GetDefaultLoadout(GameplayClassId).Id
             : state.SelectedGameplayLoadoutId;

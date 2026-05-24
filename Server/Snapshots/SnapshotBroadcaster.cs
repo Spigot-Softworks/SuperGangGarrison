@@ -614,6 +614,7 @@ sealed class SnapshotBroadcaster
             IsChatBubbleVisible: false,
             ChatBubbleFrameIndex: 0,
             ChatBubbleAlpha: 0f,
+            IsTypingChatMessage: false,
             Assists: 0,
             BadgeMask: client.BadgeMask,
             GameplayModPackId: string.Empty,

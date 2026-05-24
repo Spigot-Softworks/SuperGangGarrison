@@ -126,6 +126,8 @@ public partial class Game1
         gameplayInput = ApplyClientOnlineSmokeInputPattern(gameplayInput);
         networkInput = ApplyClientOnlineSmokeInputPattern(networkInput);
 
+        networkInput = networkInput with { IsTypingChatMessage = _chatOpen };
+
         UpdateBuildMenuState(keyboard, mouse);
         TryShowEngineerJumpPadBuildNoticeOnUtilityPress(networkInput);
 
