@@ -34,6 +34,8 @@ public partial class Game1
 
         public bool AppearsAirborne { get; set; }
 
+        public float AirborneDelaySeconds { get; set; }
+
         public WeaponAnimationMode WeaponAnimationMode { get; set; }
 
         public float WeaponAnimationDurationSeconds { get; set; }
@@ -121,7 +123,40 @@ public partial class Game1
             appearsAirborne = false;
         }
 
-        if (!appearsAirborne && horizontalSourceStepSpeed < 0.2f)
+        // Avoid flickering to jump animation during brief airborne states (e.g. stair steps, ledge gaps).
+        // Stair step-ups shift Y directly without changing VerticalSpeed, so use physics velocity
+        // (player.VerticalSpeed) rather than the render velocity (which includes position deltas).
+        // Jumps produce large upward physics velocity (>1.5 source steps/tick) — show immediately.
+        // Knockback effects (airblast, explosions) also show jump animation immediately.
+        // Otherwise, require a short continuous airborne period before switching to jump animation.
+        if (appearsAirborne && !isHumiliated)
+        {
+            var physicsVerticalSourceStepSpeed = GetPlayerAnimationSourceStepSpeed(player.VerticalSpeed);
+            var isJumping = player.VerticalSpeed < 0f && physicsVerticalSourceStepSpeed > 1.5f;
+            if (isJumping || player.MovementState != LegacyMovementState.None)
+            {
+                renderState.AirborneDelaySeconds = 1f;
+            }
+            else
+            {
+                renderState.AirborneDelaySeconds += animationElapsedSeconds;
+            }
+
+            if (renderState.AirborneDelaySeconds < 0.15f)
+            {
+                appearsAirborne = false;
+            }
+        }
+        else
+        {
+            renderState.AirborneDelaySeconds = 0f;
+        }
+
+        if (player.ClassId == PlayerClass.Heavy && GetPlayerIsExperimentalGhostDashing(player))
+        {
+            // Freeze the movement frame for the duration of the heavy ghost dash
+        }
+        else if (!appearsAirborne && horizontalSourceStepSpeed < 0.2f)
         {
             animationImage = 0f;
         }
