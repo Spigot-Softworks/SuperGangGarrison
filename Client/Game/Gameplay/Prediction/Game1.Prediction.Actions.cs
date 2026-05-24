@@ -203,6 +203,11 @@ public partial class Game1
             return;
         }
 
+        if (player.ClassId == PlayerClass.Heavy && player.IsExperimentalGhostDashing)
+        {
+            return;
+        }
+
         if (player.PrimaryWeapon.Kind == PrimaryWeaponKind.Medigun)
         {
             if (!predictedInput.Input.FirePrimary)
@@ -534,13 +539,21 @@ public partial class Game1
             GetPredictedHeavyGhostDashDurationTicks(),
             GetPredictedHeavyGhostDashCooldownTicks(),
             ExperimentalGameplaySettings.DefaultGhostDashNextAttackDamageMultiplier,
-            GetPredictedHeavyGhostDashImpulse(),
+            dashImpulse: 0f,
             requireExperimentalDemoknight: false,
-            useMomentum: true,
-            movementTicks: GetPredictedHeavyGhostDashMovementDurationTicks()))
+            useMomentum: false,
+            movementTicks: 0,
+            burstSpeedMultiplier: ExperimentalGameplaySettings.HeavyGhostDashBurstSpeedMultiplier,
+            disableGravity: ExperimentalGameplaySettings.HeavyGhostDashDisableGravityDefault,
+            enableGhostTrail: ExperimentalGameplaySettings.HeavyGhostDashEnableGhostTrailDefault))
         {
             return false;
         }
+
+        var burstSpeed = LegacyMovementModel.GetMaxRunSpeed(player.RunPower) * player.ExperimentalGhostDashBurstSpeedMultiplier;
+        player.ApplyVelocityImpulse(
+            player.FacingDirectionX >= 0f ? burstSpeed : -burstSpeed,
+            velocityY: 0f);
 
         SyncPredictedLocalPlayerState(player);
         return true;

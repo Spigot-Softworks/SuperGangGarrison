@@ -103,6 +103,20 @@ public partial class Game1
                     drawIntelOverlay);
             }
 
+            if (player.ClassId == PlayerClass.Heavy && _game.GetPlayerIsExperimentalGhostDashing(player))
+            {
+                _game.RecordHeavyDashFrameState(
+                    player,
+                    spriteName,
+                    frameIndex,
+                    renderPosition,
+                    sprite.Origin.ToVector2(),
+                    scale,
+                    bodyYOffset,
+                    tint,
+                    drawIntelOverlay);
+            }
+
             return true;
         }
 

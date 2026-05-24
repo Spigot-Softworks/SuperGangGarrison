@@ -37,9 +37,17 @@ public partial class Game1
 
     private bool GetPlayerIsExperimentalGhostDashing(PlayerEntity player)
     {
-        return IsUsingPredictedLocalState(player)
-            ? _predictedLocalActionState.IsExperimentalGhostDashing
-            : player.IsExperimentalGhostDashing;
+        if (IsUsingPredictedLocalState(player))
+        {
+            return _predictedLocalActionState.IsExperimentalGhostDashing;
+        }
+
+        // For remote players, IsExperimentalGhostDashing is not serialized into snapshots.
+        // Use the replicated toggle that the server sends for HUD and visual purposes.
+        return player.TryGetReplicatedStateBool(
+            GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+            GameplayAbilityReplicatedState.HeavyDashActiveKey,
+            out var isDashing) && isDashing;
     }
 
     private int GetPlayerExperimentalGhostDashCooldownTicksRemaining(PlayerEntity player)
