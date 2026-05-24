@@ -393,6 +393,7 @@ public static partial class ProtocolCodec
             writer.Write(player.IsChatBubbleVisible);
             writer.Write(player.ChatBubbleFrameIndex);
             writer.Write(player.ChatBubbleAlpha);
+            writer.Write(player.IsTypingChatMessage);
             writer.Write(player.BurnIntensity);
             writer.Write(player.BurnDurationSourceTicks);
             writer.Write(player.BurnDecayDelaySourceTicksRemaining);
@@ -512,6 +513,7 @@ public static partial class ProtocolCodec
             var isChatBubbleVisible = reader.ReadBoolean();
             var chatBubbleFrameIndex = reader.ReadInt32();
             var chatBubbleAlpha = reader.ReadSingle();
+            var isTypingChatMessage = reader.ReadBoolean();
             var burnIntensity = reader.ReadSingle();
             var burnDurationSourceTicks = reader.ReadSingle();
             var burnDecayDelaySourceTicksRemaining = reader.ReadSingle();
@@ -576,7 +578,7 @@ public static partial class ProtocolCodec
                 isSniperScoped, sniperChargeTicks, isUsingBinoculars, binocularsFocusX, binocularsFocusY,
                 facingDirectionX, aimDirectionDegrees,
                 isTaunting, tauntFrameIndex, isChatBubbleVisible, chatBubbleFrameIndex, chatBubbleAlpha,
-                burnIntensity, burnDurationSourceTicks, burnDecayDelaySourceTicksRemaining,
+                isTypingChatMessage, burnIntensity, burnDurationSourceTicks, burnDecayDelaySourceTicksRemaining,
                 burnIntensityDecayPerSourceTick, burnedByPlayerId, movementState,
                 primaryCooldownTicks, reloadTicksUntilNextShell, medicNeedleCooldownTicks,
                 medicNeedleRefillTicks, pyroAirblastCooldownTicks, pyroFlareCooldownTicks,
@@ -727,7 +729,7 @@ public static partial class ProtocolCodec
         {
             var state = states[index];
             writer.Write(state.Slot);
-            writer.Write(GetChatBubbleFlags(state.IsChatBubbleVisible));
+            writer.Write(GetChatBubbleFlags(state.IsChatBubbleVisible, state.IsTypingChatMessage));
             writer.Write((ushort)Math.Clamp(state.ChatBubbleFrameIndex, 0, ushort.MaxValue));
             writer.Write((byte)Math.Clamp((int)MathF.Round(Math.Clamp(state.ChatBubbleAlpha, 0f, 1f) * QuantizedChatBubbleAlphaScale), 0, byte.MaxValue));
         }
@@ -739,11 +741,14 @@ public static partial class ProtocolCodec
         var states = new List<SnapshotPlayerChatBubbleState>(stateCount);
         for (var index = 0; index < stateCount; index += 1)
         {
+            var slot = reader.ReadByte();
+            var chatBubbleFlags = reader.ReadByte();
             states.Add(new SnapshotPlayerChatBubbleState(
-                reader.ReadByte(),
-                IsChatBubbleVisibleFromFlags(reader.ReadByte()),
+                slot,
+                IsChatBubbleVisibleFromFlags(chatBubbleFlags),
                 reader.ReadUInt16(),
-                reader.ReadByte() / QuantizedChatBubbleAlphaScale));
+                reader.ReadByte() / QuantizedChatBubbleAlphaScale,
+                IsTypingFromChatBubbleFlags(chatBubbleFlags)));
         }
 
         return states;
@@ -854,9 +859,11 @@ public static partial class ProtocolCodec
 
     private static bool IsCarryingIntelFromFlags(byte flags) => (flags & 0x01) != 0;
 
-    private static byte GetChatBubbleFlags(bool isVisible) => isVisible ? (byte)0x01 : (byte)0x00;
+    private static byte GetChatBubbleFlags(bool isVisible, bool isTyping) => (byte)((isVisible ? 0x01 : 0x00) | (isTyping ? 0x02 : 0x00));
 
     private static bool IsChatBubbleVisibleFromFlags(byte flags) => (flags & 0x01) != 0;
+
+    private static bool IsTypingFromChatBubbleFlags(byte flags) => (flags & 0x02) != 0;
 
     private static byte GetPlayerExtendedStatusFlags0(SnapshotPlayerExtendedStatusState state)
     {

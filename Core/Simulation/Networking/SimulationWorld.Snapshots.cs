@@ -130,7 +130,8 @@ public sealed partial class SimulationWorld
             ConvertReplicatedStateEntries(snapshotPlayer.ReplicatedStates),
             snapshotPlayer.PlayerScale,
             offhandCooldownTicks: snapshotPlayer.OffhandCooldownTicks,
-            offhandReloadTicks: snapshotPlayer.OffhandReloadTicks);
+            offhandReloadTicks: snapshotPlayer.OffhandReloadTicks,
+            isTypingChatMessage: snapshotPlayer.IsTypingChatMessage);
     }
 
     private static CharacterClassDefinition ResolveSnapshotClassDefinition(SnapshotPlayerState snapshotPlayer, string gameplayClassId)

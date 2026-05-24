@@ -90,7 +90,8 @@ public partial class Game1
         }
 
         var fadeProgress = 1f - messageAlpha;
-        var targetY = playerBounds.Top - panelHeight - 16f - (player.IsChatBubbleVisible ? 14f : 0f) - (fadeProgress * 8f);
+        var isWriteBubbleVisible = player.IsAlive && (ReferenceEquals(player, _world.LocalPlayer) ? _chatOpen : player.IsTypingChatMessage);
+        var targetY = playerBounds.Top - panelHeight - 16f - ((player.IsChatBubbleVisible || isWriteBubbleVisible) ? 14f : 0f) - (fadeProgress * 8f);
         var panelX = playerBounds.Center.X - (panelWidth / 2f);
         var maxPanelX = MathF.Max(4f, ViewportWidth - panelWidth - 4f);
         panelX = Math.Clamp(panelX, 4f, maxPanelX);
@@ -204,6 +205,41 @@ public partial class Game1
         }
 
         return _world.TryGetPlayerNetworkSlot(player, out slot);
+    }
+
+    private void DrawWriteBubble(PlayerEntity player, Vector2 cameraPosition)
+    {
+        var isTyping = ReferenceEquals(player, _world.LocalPlayer) ? _chatOpen : player.IsTypingChatMessage;
+        if (!isTyping || !player.IsAlive)
+        {
+            return;
+        }
+
+        var sprite = GetResolvedSprite("BubbleWrite");
+        if (sprite is null || sprite.Frames.Count == 0)
+        {
+            return;
+        }
+
+        const int ticksPerFrame = 15;
+        var frameIndex = (_writeBubbleTick / ticksPerFrame) % sprite.Frames.Count;
+        var renderPosition = GetRenderPosition(player);
+        var alpha = GetPlayerVisibilityAlpha(player);
+        if (alpha <= 0f)
+        {
+            return;
+        }
+
+        DrawLoadedSpriteFrame(
+            sprite.Frames[frameIndex],
+            new Vector2(MathF.Round(renderPosition.X, MidpointRounding.AwayFromZero) + 10f - cameraPosition.X, MathF.Round(renderPosition.Y, MidpointRounding.AwayFromZero) - 18f - cameraPosition.Y),
+            null,
+            Color.White * alpha,
+            0f,
+            sprite.Origin.ToVector2(),
+            Vector2.One,
+            SpriteEffects.None,
+            0f);
     }
 
     private void DrawHealthBar(PlayerEntity player, Vector2 cameraPosition, Color fillColor, Color backColor, Color borderColor)
