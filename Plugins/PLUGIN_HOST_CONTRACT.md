@@ -57,7 +57,7 @@ It is written for engine contributors who are adding new seams, extending existi
 - Do not add a seam that only mirrors one internal call site or one plugin's private workaround.
 
 Gameplay ability authoring has its own narrower public contract in
-[GAMEPLAY_ABILITIES.md](C:/Users/level/Desktop/OpenGarrison%20Active/OpenGarrison-Fork/Plugins/GAMEPLAY_ABILITIES.md).
+[GAMEPLAY_ABILITIES.md](GAMEPLAY_ABILITIES.md).
 When extending ability support, keep new operations bounded and server-owned:
 plugins may register ability or primary weapon metadata, provide Lua executors,
 and request validated simulation actions, but they should not receive raw

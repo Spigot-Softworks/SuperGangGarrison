@@ -1,6 +1,7 @@
 #nullable enable
 
 using OpenGarrison.Core;
+using System.Globalization;
 
 namespace OpenGarrison.ClientShared;
 
@@ -10,6 +11,7 @@ public sealed class CustomBubbleDocument
     public const int BubbleHeight = 58;
     public const int BytesPerPixel = 8;
     public const int SlotCount = 3;
+    public const int PaletteColorCount = 64;
     public const int Rgba64ByteCount = BubbleWidth * BubbleHeight * BytesPerPixel;
     private const int LegacyBubbleWidth = 32;
     private const int LegacyBubbleHeight = 32;
@@ -21,6 +23,8 @@ public sealed class CustomBubbleDocument
     public int SelectedSlot { get; set; }
 
     public List<CustomBubbleSlotDocument> Slots { get; set; } = [];
+
+    public List<string> CustomPalette { get; set; } = [];
 
     public static CustomBubbleDocument Load(string? path = null)
     {
@@ -119,9 +123,35 @@ public sealed class CustomBubbleDocument
         slot.Revision = slot.Revision == uint.MaxValue ? 1u : slot.Revision + 1u;
     }
 
+    public bool TryGetCustomPaletteColorHex(int colorIndex, out string colorHex)
+    {
+        colorHex = string.Empty;
+        if (colorIndex < 0 || colorIndex >= PaletteColorCount)
+        {
+            return false;
+        }
+
+        Normalize();
+        colorHex = CustomPalette[colorIndex];
+        return !string.IsNullOrWhiteSpace(colorHex);
+    }
+
+    public void SetCustomPaletteColorHex(int colorIndex, string colorHex)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(colorHex);
+        if (!TryNormalizeColorHex(colorHex, out var normalizedHex))
+        {
+            throw new ArgumentException("Custom palette colors must be 8-digit RGBA hex values.", nameof(colorHex));
+        }
+
+        Normalize();
+        CustomPalette[NormalizePaletteIndex(colorIndex)] = normalizedHex;
+    }
+
     public void Normalize()
     {
         SelectedSlot = NormalizeSlotIndex(SelectedSlot);
+        NormalizeCustomPalette();
         Slots ??= [];
         while (Slots.Count < SlotCount)
         {
@@ -168,6 +198,56 @@ public sealed class CustomBubbleDocument
     public static int NormalizeSlotIndex(int slotIndex)
     {
         return Math.Clamp(slotIndex, 0, SlotCount - 1);
+    }
+
+    private static int NormalizePaletteIndex(int colorIndex)
+    {
+        return Math.Clamp(colorIndex, 0, PaletteColorCount - 1);
+    }
+
+    private void NormalizeCustomPalette()
+    {
+        CustomPalette ??= [];
+        while (CustomPalette.Count < PaletteColorCount)
+        {
+            CustomPalette.Add(string.Empty);
+        }
+
+        if (CustomPalette.Count > PaletteColorCount)
+        {
+            CustomPalette.RemoveRange(PaletteColorCount, CustomPalette.Count - PaletteColorCount);
+        }
+
+        for (var index = 0; index < CustomPalette.Count; index += 1)
+        {
+            if (string.IsNullOrWhiteSpace(CustomPalette[index]))
+            {
+                CustomPalette[index] = string.Empty;
+                continue;
+            }
+
+            if (TryNormalizeColorHex(CustomPalette[index], out var normalizedHex))
+            {
+                CustomPalette[index] = normalizedHex;
+                continue;
+            }
+
+            CustomPalette[index] = string.Empty;
+        }
+    }
+
+    private static bool TryNormalizeColorHex(string colorHex, out string normalizedHex)
+    {
+        normalizedHex = string.Empty;
+        var trimmed = colorHex.Trim().TrimStart('#');
+        if (trimmed.Length != 8
+            || !uint.TryParse(trimmed, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out _))
+        {
+            return false;
+        }
+
+        normalizedHex = trimmed.ToUpperInvariant();
+        return true;
     }
 
     private static byte[] UpgradeLegacyPixels(byte[] legacyPixels)

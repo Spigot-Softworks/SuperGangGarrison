@@ -64,6 +64,38 @@ public sealed class CustomBubbleDocumentTests
         Assert.Throws<ArgumentException>(() => document.SetSlotPixels(0, new byte[CustomBubbleDocument.Rgba64ByteCount - 1]));
     }
 
+    [Fact]
+    public void CustomPaletteNormalizesAndRoundTripsRgbaHex()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"opengarrison-custom-palette-{Guid.NewGuid():N}.json");
+        try
+        {
+            var document = new CustomBubbleDocument
+            {
+                CustomPalette = ["not-a-color"],
+            };
+
+            document.Normalize();
+            Assert.Equal(CustomBubbleDocument.PaletteColorCount, document.CustomPalette.Count);
+            Assert.False(document.TryGetCustomPaletteColorHex(0, out _));
+
+            document.SetCustomPaletteColorHex(5, "#1234ABCD");
+            document.Save(path);
+
+            var loaded = CustomBubbleDocument.Load(path);
+
+            Assert.True(loaded.TryGetCustomPaletteColorHex(5, out var colorHex));
+            Assert.Equal("1234ABCD", colorHex);
+        }
+        finally
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+    }
+
     private static byte[] CreatePixels(byte seed)
     {
         var pixels = new byte[CustomBubbleDocument.Rgba64ByteCount];

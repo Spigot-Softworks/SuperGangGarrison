@@ -5,8 +5,12 @@
 # List the maps you would like to play through, one on each line.
 # For built-in maps, the names are identical to the ones used in the
 # [Maps] section of the ini file.
-# For external maps, the name should be the filename of the map, excluding
-# the .png file extension.
+# Custom maps placed in the Maps folder next to the game/server executable
+# are picked up automatically. Reference them by map name, by .png filename,
+# or by package manifest path. For example, all of these resolve to my_map:
+#    my_map
+#    my_map.png
+#    Maps/my_map/my_map.json
 
 # Maps may be repeated.  Although it doesn't make sense to play the same
 # map twice in a row, you could play some maps more often than others.

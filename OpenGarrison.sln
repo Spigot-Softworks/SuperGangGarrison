@@ -73,6 +73,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "WeaponRotationBaker", "Weap
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Tools.WeaponRotationBaker", "Tools\WeaponRotationBaker\OpenGarrison.Tools.WeaponRotationBaker.csproj", "{572F511D-A7EE-40DA-BE03-52F6428C1CC1}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MapPackageBuilder", "MapPackageBuilder", "{5B6E59A6-4F41-BB09-E543-E3CDAD3C979F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Tools.MapPackageBuilder", "Tools\MapPackageBuilder\OpenGarrison.Tools.MapPackageBuilder.csproj", "{FD68585E-C2B2-48A6-96BD-FD04DCE46905}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -355,6 +359,18 @@ Global
 		{572F511D-A7EE-40DA-BE03-52F6428C1CC1}.Release|x64.Build.0 = Release|Any CPU
 		{572F511D-A7EE-40DA-BE03-52F6428C1CC1}.Release|x86.ActiveCfg = Release|Any CPU
 		{572F511D-A7EE-40DA-BE03-52F6428C1CC1}.Release|x86.Build.0 = Release|Any CPU
+		{FD68585E-C2B2-48A6-96BD-FD04DCE46905}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FD68585E-C2B2-48A6-96BD-FD04DCE46905}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FD68585E-C2B2-48A6-96BD-FD04DCE46905}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{FD68585E-C2B2-48A6-96BD-FD04DCE46905}.Debug|x64.Build.0 = Debug|Any CPU
+		{FD68585E-C2B2-48A6-96BD-FD04DCE46905}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{FD68585E-C2B2-48A6-96BD-FD04DCE46905}.Debug|x86.Build.0 = Debug|Any CPU
+		{FD68585E-C2B2-48A6-96BD-FD04DCE46905}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FD68585E-C2B2-48A6-96BD-FD04DCE46905}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FD68585E-C2B2-48A6-96BD-FD04DCE46905}.Release|x64.ActiveCfg = Release|Any CPU
+		{FD68585E-C2B2-48A6-96BD-FD04DCE46905}.Release|x64.Build.0 = Release|Any CPU
+		{FD68585E-C2B2-48A6-96BD-FD04DCE46905}.Release|x86.ActiveCfg = Release|Any CPU
+		{FD68585E-C2B2-48A6-96BD-FD04DCE46905}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -386,6 +402,8 @@ Global
 		{8BA3D397-DCA4-4886-AAF8-36AB6FBE7345} = {E4D06EF3-4A34-0221-57B6-390073E3859C}
 		{D432AC10-C20D-DD99-1CE0-E41D4D1E0478} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 		{572F511D-A7EE-40DA-BE03-52F6428C1CC1} = {D432AC10-C20D-DD99-1CE0-E41D4D1E0478}
+		{5B6E59A6-4F41-BB09-E543-E3CDAD3C979F} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
+		{FD68585E-C2B2-48A6-96BD-FD04DCE46905} = {5B6E59A6-4F41-BB09-E543-E3CDAD3C979F}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {51ECE597-0299-4753-B7F5-4E8EDECD7BB4}

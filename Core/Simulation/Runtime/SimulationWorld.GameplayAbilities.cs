@@ -737,10 +737,16 @@ public sealed partial class SimulationWorld
         var hasBurstParameters = context.Ability.Parameters.ContainsKey("burstSpeedMultiplier")
             || context.Ability.Parameters.ContainsKey("disableGravity")
             || context.Ability.Parameters.ContainsKey("enableGhostTrail");
+        var forceStockBurstDash = IsStockHeavyGhostDashUtility(context.Item, context.Ability);
         var useMomentum = GameplayAbilityParameterReader.GetBool(
             context.Ability,
             "useMomentum",
             defaultValue: !hasBurstParameters);
+        if (forceStockBurstDash)
+        {
+            useMomentum = false;
+        }
+
         var slideVelocityPerTick = GameplayAbilityParameterReader.GetFloat(
             context.Ability,
             "slideVelocityPerTick",
@@ -785,5 +791,12 @@ public sealed partial class SimulationWorld
 
         RegisterWorldSoundEvent(ExperimentalDemoknightCatalog.ChargeStartSoundName, context.Player.X, context.Player.Y);
         return GameplayAbilityResult.HandledAndConsumed;
+    }
+
+    private static bool IsStockHeavyGhostDashUtility(GameplayItemDefinition item, GameplayAbilityDefinition ability)
+    {
+        return string.Equals(item.Id, StockGameplayModCatalog.HeavyUtilityItemId, StringComparison.Ordinal)
+            && string.Equals(item.BehaviorId, BuiltInGameplayBehaviorIds.HeavyUtility, StringComparison.Ordinal)
+            && string.Equals(ability.ExecutorId, BuiltInGameplayBehaviorIds.HeavyGhostDash, StringComparison.Ordinal);
     }
 }

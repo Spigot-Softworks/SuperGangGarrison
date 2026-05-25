@@ -3,12 +3,29 @@ using System;
 using System.Reflection;
 using OpenGarrison.Client;
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class OfflinePracticeSelectionTests
 {
+    [Fact]
+    public void HeavyDashPredictionFallbackUsesStockBurstDash()
+    {
+        var method = typeof(Game1).GetMethod(
+            "GetPredictedHeavyGhostDashUseMomentum",
+            BindingFlags.NonPublic | BindingFlags.Static,
+            binder: null,
+            [typeof(GameplayAbilityDefinition)],
+            modifiers: null);
+
+        Assert.NotNull(method);
+        var useMomentum = (bool)method!.Invoke(null, [null])!;
+
+        Assert.False(useMomentum);
+    }
+
     [Fact]
     public void PracticeMapSelectionIncludesEveryStockMap()
     {

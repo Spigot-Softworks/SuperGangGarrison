@@ -183,13 +183,10 @@ static async Task<UpdateApplyResult> TryApplyUpdateAsync(
         return UpdateApplyResult.DelegatedToHelper;
     }
 
-    CopyUpdatePayload(
-        extractPath,
-        appDirectory,
-        progress => updateUi.Report(UpdateUiState.KnownProgress("Installing update...", progress)));
-    EnsurePackagedExecutablePermissions(appDirectory);
-    File.WriteAllText(Path.Combine(appDirectory, VersionFileName), manifest.Version.Trim());
-    return UpdateApplyResult.AppliedInProcess;
+    // Packaged updates must install through a detached helper, never over the running updater process.
+    updateUi.Report(UpdateUiState.KnownProgress("Update helper unavailable.", 0d));
+    await Task.Delay(900).ConfigureAwait(false);
+    return UpdateApplyResult.NoUpdate;
 }
 
 static string GetDefaultManifestUrl()
@@ -300,14 +297,11 @@ static void ExtractPackageArchive(string packagePath, Uri packageUri, string ext
 
 static bool TryLaunchUpdateHelper(string extractPath, string appDirectory, string version, string[] gameArgs)
 {
-    var launcherExecutableName = GetLauncherExecutableName();
-    var helperPath = Path.Combine(extractPath, launcherExecutableName);
-    if (!File.Exists(helperPath))
-    {
-        helperPath = Path.Combine(extractPath, "OG2.Launcher.exe");
-    }
+    var helperPath = GetUpdaterHelperExecutableNames()
+        .Select(executableName => Path.Combine(extractPath, executableName))
+        .FirstOrDefault(File.Exists);
 
-    if (!File.Exists(helperPath))
+    if (helperPath is null)
     {
         return false;
     }
@@ -341,11 +335,11 @@ static bool TryLaunchUpdateHelper(string extractPath, string appDirectory, strin
     }
 }
 
-static string GetLauncherExecutableName()
+static string[] GetUpdaterHelperExecutableNames()
 {
     return OperatingSystem.IsWindows()
-        ? "OG2.Launcher.exe"
-        : "OG2.Launcher";
+        ? ["OG2.Updater.exe", "OG2.Launcher.exe"]
+        : ["OG2.Updater", "OG2.Launcher"];
 }
 
 static string[] GetGameExecutableNames()
@@ -510,6 +504,7 @@ static void EnsurePackagedExecutablePermissions(string appDirectory)
     {
         "OG2",
         "OG2.Game",
+        "OG2.Updater",
         "OG2.Launcher",
         "OG2.Server",
         "OG2.ServerLauncher",

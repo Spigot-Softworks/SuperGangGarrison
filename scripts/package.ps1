@@ -235,6 +235,26 @@ function Invoke-GenerateDistributionAtlases {
     )
 }
 
+function Invoke-PublishDistributionMaps {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot,
+        [Parameter(Mandatory = $true)]
+        [string]$DestinationDirectory
+    )
+
+    Invoke-DotNet -Arguments @(
+        "run",
+        "--project",
+        (Join-Path $RepoRoot "Tools\MapPackageBuilder\OpenGarrison.Tools.MapPackageBuilder.csproj"),
+        "--",
+        (Join-Path $RepoRoot "Maps"),
+        (Join-Path $RepoRoot "Core\Content\StockMaps"),
+        $DestinationDirectory,
+        "--drop-unconverted-legacy-pngs"
+    )
+}
+
 function Restore-CollisionMaskImages {
     param(
         [Parameter(Mandatory = $true)]
@@ -547,30 +567,34 @@ function Set-ClientEntrypointLayout {
 
     $clientExecutableName = Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2"
     $gameExecutableName = Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2.Game"
-    $launcherExecutableName = Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2.Launcher"
+    $updaterExecutableName = Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2.Updater"
+    $legacyLauncherExecutableName = Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2.Launcher"
 
     $clientExecutablePath = Join-Path $OutputDirectory $clientExecutableName
     $gameExecutablePath = Join-Path $OutputDirectory $gameExecutableName
-    $launcherExecutablePath = Join-Path $OutputDirectory $launcherExecutableName
+    $updaterExecutablePath = Join-Path $OutputDirectory $updaterExecutableName
+    $legacyLauncherExecutablePath = Join-Path $OutputDirectory $legacyLauncherExecutableName
 
     if (-not (Test-Path -LiteralPath $clientExecutablePath)) {
         throw "Package is missing client executable '$clientExecutableName'."
     }
 
-    if (-not (Test-Path -LiteralPath $launcherExecutablePath)) {
-        throw "Package is missing launcher executable '$launcherExecutableName'."
+    if (-not (Test-Path -LiteralPath $updaterExecutablePath)) {
+        throw "Package is missing updater executable '$updaterExecutableName'."
     }
 
     Copy-Item -LiteralPath $clientExecutablePath -Destination $gameExecutablePath -Force
-    Copy-Item -LiteralPath $launcherExecutablePath -Destination $clientExecutablePath -Force
+    Copy-Item -LiteralPath $updaterExecutablePath -Destination $clientExecutablePath -Force
+    Copy-Item -LiteralPath $updaterExecutablePath -Destination $legacyLauncherExecutablePath -Force
 
     if (-not (Test-IsWindowsRuntime -RuntimeIdentifier $RuntimeIdentifier)) {
         Set-UnixExecutable -Path $clientExecutablePath
         Set-UnixExecutable -Path $gameExecutablePath
-        Set-UnixExecutable -Path $launcherExecutablePath
+        Set-UnixExecutable -Path $updaterExecutablePath
+        Set-UnixExecutable -Path $legacyLauncherExecutablePath
     }
 
-    Write-Host "[package] client entrypoint: $clientExecutableName launches updater; game binary is $gameExecutableName"
+    Write-Host "[package] client entrypoint: $clientExecutableName launches updater; game binary is $gameExecutableName; compatibility updater helper is $legacyLauncherExecutableName"
 }
 
 function Add-UnixLaunchers {
@@ -776,10 +800,7 @@ foreach ($runtimeIdentifier in $Platforms) {
 
     Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "Core/Content") -DestinationDirectory (Join-Path $stagingDirectory "Content")
     Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "Client/Content") -DestinationDirectory (Join-Path $stagingDirectory "Content")
-    $mapsDirectory = Join-Path $repoRoot "Maps"
-    if (Test-Path $mapsDirectory) {
-        Copy-DirectoryContents -SourceDirectory $mapsDirectory -DestinationDirectory (Join-Path $stagingDirectory "Maps")
-    }
+    Invoke-PublishDistributionMaps -RepoRoot $repoRoot -DestinationDirectory (Join-Path $stagingDirectory "Maps")
 
     Invoke-GenerateDistributionAtlases -RepoRoot $repoRoot -ContentDirectory (Join-Path $stagingDirectory "Content")
     Restore-CollisionMaskImages -RepoRoot $repoRoot -ContentDirectory (Join-Path $stagingDirectory "Content")

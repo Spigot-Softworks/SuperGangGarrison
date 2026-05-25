@@ -110,6 +110,7 @@ public static class SimpleLevelFactory
         var spawn = redSpawns[0];
         var intelBases = FilterByArea(importedRoom.IntelBases, areaFilter);
         var roomObjects = FilterByArea(importedRoom.RoomObjects, areaFilter);
+        var movingPlatforms = FilterByArea(importedRoom.MovingPlatforms, areaFilter);
         var floorY = FindFloorBelowSpawn(importedSolids, spawn)
             ?? MathF.Min(bounds.Height - 40f, spawn.Y + 360f);
         if (usesCustomMapRuntimeFormat && importedSolids.Count == 0)
@@ -137,7 +138,8 @@ public static class SimpleLevelFactory
             importedFromSource: true,
             areaTransitionMarkers: importedRoom.AreaTransitionMarkers,
             unsupportedSourceEntities: importedRoom.UnsupportedEntities,
-            customMapVisuals: importedRoom.CustomMapVisuals);
+            customMapVisuals: importedRoom.CustomMapVisuals,
+            movingPlatforms: movingPlatforms);
         return SimpleLevelScaling.ApplyUniformScale(level, mapScale);
     }
 
@@ -289,41 +291,11 @@ public static class SimpleLevelFactory
             return;
         }
 
-        var discoveredCustomMapNames = new HashSet<string>(NameComparer);
-        foreach (var customMapsDirectory in RuntimePaths.MapSearchDirectories)
-        {
-            if (!Directory.Exists(customMapsDirectory))
-            {
-                continue;
-            }
+        CustomMapLegacyPackageAutoConverter.ConvertTopLevelLegacyPngs(RuntimePaths.MapSearchDirectories);
 
-            foreach (var mapFile in Directory
-                .EnumerateFiles(customMapsDirectory, "*.png", SearchOption.TopDirectoryOnly)
-                .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase))
-            {
-                var mapName = Path.GetFileNameWithoutExtension(mapFile);
-                if (string.IsNullOrWhiteSpace(mapName)
-                    || !discoveredCustomMapNames.Add(mapName))
-                {
-                    continue;
-                }
-
-                var imported = CustomMapPngImporter.Import(mapFile);
-                if (imported is null)
-                {
-                    continue;
-                }
-
-                entries.Add(new LevelCatalogEntry(
-                    mapName,
-                    DetectMode(imported.Room),
-                    mapFile,
-                    null,
-                    CustomMapSourceKind.LegacyPng,
-                    IsCustomMap: true));
-            }
-        }
-
+        var discoveredCustomMapNames = new HashSet<string>(
+            entries.Select(static entry => entry.Name),
+            NameComparer);
         foreach (var customMapsDirectory in RuntimePaths.MapSearchDirectories)
         {
             if (!Directory.Exists(customMapsDirectory))
@@ -341,8 +313,7 @@ public static class SimpleLevelFactory
                 }
 
                 var mapName = Path.GetFileNameWithoutExtension(manifestPath);
-                if (string.IsNullOrWhiteSpace(mapName)
-                    || !discoveredCustomMapNames.Add(mapName))
+                if (string.IsNullOrWhiteSpace(mapName))
                 {
                     continue;
                 }
@@ -353,12 +324,47 @@ public static class SimpleLevelFactory
                     continue;
                 }
 
+                if (!discoveredCustomMapNames.Add(mapName))
+                {
+                    continue;
+                }
+
                 entries.Add(new LevelCatalogEntry(
                     mapName,
                     DetectMode(imported.Room),
                     manifestPath,
                     null,
                     CustomMapSourceKind.Package,
+                    IsCustomMap: true));
+            }
+
+            foreach (var mapFile in Directory
+                .EnumerateFiles(customMapsDirectory, "*.png", SearchOption.TopDirectoryOnly)
+                .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase))
+            {
+                var mapName = Path.GetFileNameWithoutExtension(mapFile);
+                if (string.IsNullOrWhiteSpace(mapName))
+                {
+                    continue;
+                }
+
+                var imported = CustomMapPngImporter.Import(mapFile);
+                if (imported is null)
+                {
+                    continue;
+                }
+
+                if (!discoveredCustomMapNames.Add(mapName))
+                {
+                    continue;
+                }
+
+                entries.Add(new LevelCatalogEntry(
+                    mapName,
+                    DetectMode(imported.Room),
+                    mapFile,
+                    null,
+                    CustomMapSourceKind.LegacyPng,
                     IsCustomMap: true));
             }
         }
@@ -595,6 +601,15 @@ public static class SimpleLevelFactory
         {
             return source
                 .Cast<RoomObjectMarker>()
+                .Where(marker => includeY(marker.Y))
+                .Cast<T>()
+                .ToArray();
+        }
+
+        if (typeof(T) == typeof(MovingPlatformMarker))
+        {
+            return source
+                .Cast<MovingPlatformMarker>()
                 .Where(marker => includeY(marker.Y))
                 .Cast<T>()
                 .ToArray();

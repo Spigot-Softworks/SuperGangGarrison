@@ -65,7 +65,7 @@ Then open `http://127.0.0.1:5014/`.
 ## Packaging
 
 Packaging is handled by the existing scripts in `scripts/` and docs in `packaging/`.
-In packaged builds, `OG2.exe` on Windows and `OG2` on Linux/macOS are the launcher/updater entrypoints;
+In packaged builds, `OG2.exe` on Windows and `OG2` on Linux/macOS are the updater entrypoints;
 they check for updates before starting `OG2.Game.exe` / `OG2.Game`.
 
 Windows:

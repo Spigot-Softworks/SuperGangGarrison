@@ -39,6 +39,33 @@ public sealed class ServerAdminFoundationTests
     }
 
     [Fact]
+    public void PluginCommandRegistryMatchesChatPrefixesForRegisteredCommandNames()
+    {
+        var registry = new PluginCommandRegistry();
+        registry.RegisterBuiltIn(
+            "where",
+            "Show position.",
+            "/where",
+            (_, arguments, _) => Task.FromResult<IReadOnlyList<string>>([$"where:{arguments}"]));
+        registry.RegisterBuiltIn(
+            "!vote",
+            "Vote.",
+            "!vote <yes|no>",
+            (_, arguments, _) => Task.FromResult<IReadOnlyList<string>>([$"vote:{arguments}"]));
+
+        var context = CreateCommandContext(OpenGarrisonServerAdminIdentity.CreateUnauthenticated(1));
+
+        Assert.True(registry.TryExecute("/where @me", context, CancellationToken.None, out var slashResponse));
+        Assert.Equal("where:@me", Assert.Single(slashResponse));
+
+        Assert.True(registry.TryExecute("!where @me", context, CancellationToken.None, out var bangResponse));
+        Assert.Equal("where:@me", Assert.Single(bangResponse));
+
+        Assert.True(registry.TryExecute("/vote yes", context, CancellationToken.None, out var prefixedRegistrationResponse));
+        Assert.Equal("vote:yes", Assert.Single(prefixedRegistrationResponse));
+    }
+
+    [Fact]
     public void ServerCvarRegistryRedactsProtectedValuesAndAppliesTypedUpdates()
     {
         var registry = new ServerCvarRegistry();

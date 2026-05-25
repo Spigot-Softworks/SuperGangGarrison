@@ -26,16 +26,9 @@ public static class CustomMapDescriptorResolver
             return false;
         }
 
-        var sourceKind = CustomMapSourceKind.LegacyPng;
-        var contentPath = CustomMapLocatorStore.GetMapPath(normalizedLevelName);
-        if (!File.Exists(contentPath))
+        if (!TryFindCustomMapSource(normalizedLevelName, out var contentPath, out var sourceKind))
         {
-            if (!CustomMapLocatorStore.TryGetPackageManifestPath(normalizedLevelName, out contentPath))
-            {
-                return false;
-            }
-
-            sourceKind = CustomMapSourceKind.Package;
+            return false;
         }
 
         var lastWriteUtcTicks = ResolveContentLastWriteTicks(contentPath, sourceKind);
@@ -46,6 +39,8 @@ public static class CustomMapDescriptorResolver
         lock (Sync)
         {
             if (Cache.TryGetValue(normalizedLevelName, out var cached)
+                && cached.SourceKind == sourceKind
+                && string.Equals(cached.ContentPath, contentPath, StringComparison.OrdinalIgnoreCase)
                 && cached.LastWriteUtcTicks == lastWriteUtcTicks)
             {
                 if (cached.LocatorLastWriteUtcTicks == locatorLastWriteUtcTicks)
@@ -84,11 +79,35 @@ public static class CustomMapDescriptorResolver
         var resolved = new CustomMapDescriptor(normalizedLevelName, contentPath, sourceKind, sourceUrl, contentHash, md5Hash, sha256Hash);
         lock (Sync)
         {
-            Cache[normalizedLevelName] = new CachedDescriptor(lastWriteUtcTicks, locatorLastWriteUtcTicks, resolved);
+            Cache[normalizedLevelName] = new CachedDescriptor(sourceKind, contentPath, lastWriteUtcTicks, locatorLastWriteUtcTicks, resolved);
         }
 
         descriptor = resolved;
         return true;
+    }
+
+    private static bool TryFindCustomMapSource(
+        string normalizedLevelName,
+        out string contentPath,
+        out CustomMapSourceKind sourceKind)
+    {
+        contentPath = string.Empty;
+        sourceKind = default;
+        foreach (var entry in SimpleLevelFactory.GetAvailableSourceLevels())
+        {
+            if (!entry.IsCustomMap
+                || !entry.Name.Equals(normalizedLevelName, StringComparison.OrdinalIgnoreCase)
+                || entry.SourceKind is not (CustomMapSourceKind.LegacyPng or CustomMapSourceKind.Package))
+            {
+                continue;
+            }
+
+            contentPath = entry.RoomSourcePath;
+            sourceKind = entry.SourceKind;
+            return File.Exists(contentPath);
+        }
+
+        return false;
     }
 
     private static long ResolveContentLastWriteTicks(string contentPath, CustomMapSourceKind sourceKind)
@@ -104,5 +123,10 @@ public static class CustomMapDescriptorResolver
             : files.Max(file => File.GetLastWriteTimeUtc(file.FullPath).Ticks);
     }
 
-    private sealed record CachedDescriptor(long LastWriteUtcTicks, long LocatorLastWriteUtcTicks, CustomMapDescriptor Descriptor);
+    private sealed record CachedDescriptor(
+        CustomMapSourceKind SourceKind,
+        string ContentPath,
+        long LastWriteUtcTicks,
+        long LocatorLastWriteUtcTicks,
+        CustomMapDescriptor Descriptor);
 }

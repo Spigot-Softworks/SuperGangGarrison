@@ -14,6 +14,9 @@ public partial class Game1
 {
     private const int BrowserPendingSoundEventLifetimeTicks = 30;
     private const int BrowserPendingSoundEventLimit = 96;
+    private const int RecentGibSoundEchoLifetimeTicks = 18;
+    private const int RecentGibSoundEchoLimit = 16;
+    private const float RecentGibSoundEchoDistanceSquared = 64f * 64f;
 
     private sealed class PendingBrowserSoundEvent
     {
@@ -30,6 +33,25 @@ public partial class Game1
         public float X { get; }
 
         public float Y { get; }
+
+        public int TicksRemaining { get; set; }
+    }
+
+    private sealed class RecentGibSoundEvent
+    {
+        public RecentGibSoundEvent(float x, float y, bool isNetworkEvent, int ticksRemaining)
+        {
+            X = x;
+            Y = y;
+            IsNetworkEvent = isNetworkEvent;
+            TicksRemaining = ticksRemaining;
+        }
+
+        public float X { get; }
+
+        public float Y { get; }
+
+        public bool IsNetworkEvent { get; }
 
         public int TicksRemaining { get; set; }
     }
@@ -67,6 +89,7 @@ public partial class Game1
     private readonly Queue<ulong> _processedKillFeedEventOrder = new();
     private readonly List<PendingBrowserSoundEvent> _pendingBrowserSoundEvents = new();
     private readonly List<WorldSoundEvent> _pendingNetworkSoundEvents = new();
+    private readonly List<RecentGibSoundEvent> _recentGibSoundEvents = new();
 
     private void LoadMenuMusic()
     {
@@ -241,6 +264,74 @@ public partial class Game1
     private void ResetPendingBrowserSoundEvents()
     {
         _pendingBrowserSoundEvents.Clear();
+    }
+
+    private static bool IsGibSoundEvent(WorldSoundEvent soundEvent)
+    {
+        return string.Equals(soundEvent.SoundName, "Gibbing", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void AdvanceRecentGibSoundEvents()
+    {
+        for (var index = _recentGibSoundEvents.Count - 1; index >= 0; index -= 1)
+        {
+            _recentGibSoundEvents[index].TicksRemaining -= 1;
+            if (_recentGibSoundEvents[index].TicksRemaining <= 0)
+            {
+                _recentGibSoundEvents.RemoveAt(index);
+            }
+        }
+    }
+
+    private bool ShouldSuppressPredictedGibSoundEcho(WorldSoundEvent soundEvent)
+    {
+        if (!IsGibSoundEvent(soundEvent))
+        {
+            return false;
+        }
+
+        var isNetworkEvent = soundEvent.EventId != 0;
+        for (var index = 0; index < _recentGibSoundEvents.Count; index += 1)
+        {
+            var recent = _recentGibSoundEvents[index];
+            if (recent.IsNetworkEvent == isNetworkEvent)
+            {
+                continue;
+            }
+
+            var deltaX = soundEvent.X - recent.X;
+            var deltaY = soundEvent.Y - recent.Y;
+            if ((deltaX * deltaX) + (deltaY * deltaY) <= RecentGibSoundEchoDistanceSquared)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void RememberPlayedGibSound(WorldSoundEvent soundEvent)
+    {
+        if (!IsGibSoundEvent(soundEvent))
+        {
+            return;
+        }
+
+        while (_recentGibSoundEvents.Count >= RecentGibSoundEchoLimit)
+        {
+            _recentGibSoundEvents.RemoveAt(0);
+        }
+
+        _recentGibSoundEvents.Add(new RecentGibSoundEvent(
+            soundEvent.X,
+            soundEvent.Y,
+            soundEvent.EventId != 0,
+            RecentGibSoundEchoLifetimeTicks));
+    }
+
+    private void ResetRecentGibSoundEvents()
+    {
+        _recentGibSoundEvents.Clear();
     }
 
     private void TryPlaySound(SoundEffect? sound, float volume, float pitch, float pan)

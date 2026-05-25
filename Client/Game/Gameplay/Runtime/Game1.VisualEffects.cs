@@ -87,6 +87,7 @@ public partial class Game1
         ResetImmediateNetworkDeadBodies();
         _gameplayGoreEffectsController.ResetTransientEffects();
         ResetPendingBrowserSoundEvents();
+        ResetRecentGibSoundEvents();
         _pendingNetworkSoundEvents.Clear();
         ResetExperimentalHealingHudIndicators();
         _portraitRumbleRemainingSeconds = 0f;

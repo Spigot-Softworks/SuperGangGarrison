@@ -9,4 +9,5 @@ public sealed record LocalDeathCamState(
     int Health,
     int MaxHealth,
     int RemainingTicks,
-    int InitialTicks = 0);
+    int InitialTicks = 0,
+    int FocusPlayerId = 0);

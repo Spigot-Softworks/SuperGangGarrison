@@ -154,7 +154,7 @@ public partial class Game1
                 players.Add(_world.LocalPlayer);
             }
 
-            foreach (var player in EnumerateRemotePlayersForView())
+            foreach (var player in _world.RemoteSnapshotScoreboardPlayers)
             {
                 if (player.Team != team)
                 {

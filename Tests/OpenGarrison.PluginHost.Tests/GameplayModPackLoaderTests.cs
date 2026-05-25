@@ -1073,6 +1073,32 @@ public sealed class GameplayModPackLoaderTests
     }
 
     [Fact]
+    public void GameplayPackLookupPrefersProjectSourceContentWhenUsingDefaultContentRoot()
+    {
+        var originalContentRoot = ContentRoot.Path;
+        try
+        {
+            ContentRoot.Initialize("Content");
+
+            var packDirectory = GameplayModPackDirectoryLoader.FindPackDirectory(StockGameplayModCatalog.StockPackDirectoryName);
+
+            Assert.NotNull(packDirectory);
+            var normalizedPackDirectory = Path.GetFullPath(packDirectory!)
+                .Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar)
+                .TrimEnd(Path.DirectorySeparatorChar);
+            var expectedSuffix = Path.Combine("Core", "Content", "Gameplay", StockGameplayModCatalog.StockPackDirectoryName)
+                .Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+            Assert.True(
+                normalizedPackDirectory.EndsWith(expectedSuffix, StringComparison.OrdinalIgnoreCase),
+                $"expected project source pack path ending with {expectedSuffix}, got {normalizedPackDirectory}");
+        }
+        finally
+        {
+            ContentRoot.Initialize(originalContentRoot);
+        }
+    }
+
+    [Fact]
     public void ClientRuntimeBootstrapInitializesContentRoot()
     {
         ClientRuntimeBootstrap.InitializeContentRoot("Content");

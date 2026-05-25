@@ -73,6 +73,8 @@ internal static partial class ServerHelpers
             return File.ReadAllLines(rotationPath)
                 .Select(line => line.Trim())
                 .Where(line => !string.IsNullOrWhiteSpace(line) && !line.StartsWith('#'))
+                .Select(NormalizeMapName)
+                .Where(line => !string.IsNullOrWhiteSpace(line))
                 .ToList();
         }
 
@@ -146,13 +148,35 @@ internal static partial class ServerHelpers
             return string.Empty;
         }
 
-        var trimmed = mapName.Trim();
+        var trimmed = NormalizeMapRotationToken(mapName);
         if (OpenGarrisonStockMapCatalog.TryGetDefinition(trimmed, out var stockDefinition))
         {
             return stockDefinition.LevelName;
         }
 
         return trimmed;
+    }
+
+    private static string NormalizeMapRotationToken(string mapName)
+    {
+        var trimmed = mapName.Trim().Trim('"');
+        if (trimmed.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        var normalizedSeparators = trimmed.Replace('\\', '/');
+        var lastSeparatorIndex = normalizedSeparators.LastIndexOf('/');
+        if (lastSeparatorIndex >= 0 && lastSeparatorIndex < normalizedSeparators.Length - 1)
+        {
+            normalizedSeparators = normalizedSeparators[(lastSeparatorIndex + 1)..];
+        }
+
+        var extension = Path.GetExtension(normalizedSeparators);
+        return extension.Equals(".png", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".json", StringComparison.OrdinalIgnoreCase)
+            ? Path.GetFileNameWithoutExtension(normalizedSeparators)
+            : normalizedSeparators;
     }
 
     private static bool HasKnownMapPrefix(string mapName)

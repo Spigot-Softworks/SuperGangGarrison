@@ -273,26 +273,26 @@
     {
       "index": 0,
       "resourceName": "bg_layer0",
-      "xFactor": 1,
-      "yFactor": 1
+      "xFactor": 10,
+      "yFactor": 10
     },
     {
       "index": 4,
       "resourceName": "bg_layer4",
-      "xFactor": 1,
-      "yFactor": 1
+      "xFactor": 6,
+      "yFactor": 6
     },
     {
       "index": 5,
       "resourceName": "bg_layer5",
-      "xFactor": 1,
-      "yFactor": 1
+      "xFactor": 5,
+      "yFactor": 5
     },
     {
       "index": 6,
       "resourceName": "bg_layer6",
-      "xFactor": 1,
-      "yFactor": 1
+      "xFactor": 4,
+      "yFactor": 4
     }
   ]
 }

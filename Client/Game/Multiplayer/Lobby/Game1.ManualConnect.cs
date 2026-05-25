@@ -160,8 +160,8 @@ public partial class Game1
         var viewportHeight = ViewportHeight;
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.7f);
 
-        var panelWidth = 520;
-        var panelHeight = 220;
+        var panelWidth = Math.Max(1, Math.Min(viewportWidth - 32, 520));
+        var panelHeight = Math.Max(1, Math.Min(viewportHeight - 32, 220));
         var panel = new Rectangle(
             (viewportWidth - panelWidth) / 2,
             (viewportHeight - panelHeight) / 2,
@@ -176,7 +176,7 @@ public partial class Game1
 
         var masked = new string('*', _passwordEditBuffer.Length);
         DrawMenuInputBoxScaled(
-            new Rectangle(panel.X + 28, panel.Y + 92, panel.Width - 56, 36),
+            new Rectangle(panel.X + 28, panel.Y + 92, Math.Max(1, panel.Width - 56), 36),
             masked,
             active: true,
             1f,

@@ -37,6 +37,7 @@ public sealed class BotBrainChatBubbleController
     private const int MedicPocketResponseDelayTicks = 35;
     private const float KillTauntDelaySeconds = 1.6f;
     private const float AllyResponseDistance = 560f;
+    private const int NearbyHumanTauntChancePercent = 50;
     private const int SignalChancePercent = 24;
     private const int AllyResponseChancePercent = 28;
     private const int MaxAllyResponsesPerSignal = 2;
@@ -110,12 +111,14 @@ public sealed class BotBrainChatBubbleController
             state.LastKnownHealth = self.Health;
             state.LastKills = self.Kills;
             state.LastCaps = self.Caps;
+            state.ObservedHumanTaunters.Clear();
             state.PendingKillTauntFrame = null;
             return input;
         }
 
         ProcessPendingBubbles(world, slot, self, state, controlledTeamsBySlot);
         input = ApplyPendingKillTauntInput(world, self, state, input);
+        input = ApplyNearbyHumanTauntInput(world, slot, self, team, state, input, controlledTeamsBySlot);
 
         var killCelebration = self.Kills > state.LastKills;
         var captureCelebration = self.Caps > state.LastCaps;
@@ -209,6 +212,92 @@ public sealed class BotBrainChatBubbleController
     private static int ResolveKillTauntDelayTicks(SimulationWorld world)
     {
         return Math.Max(1, (int)MathF.Round(world.Config.TicksPerSecond * KillTauntDelaySeconds));
+    }
+
+    private static PlayerInputSnapshot ApplyNearbyHumanTauntInput(
+        SimulationWorld world,
+        byte slot,
+        PlayerEntity self,
+        PlayerTeam team,
+        BotBrainChatBubbleState state,
+        PlayerInputSnapshot input,
+        IReadOnlyDictionary<byte, PlayerTeam> controlledTeamsBySlot)
+    {
+        PruneObservedHumanTaunters(world, state, controlledTeamsBySlot);
+
+        var shouldTaunt = false;
+        foreach (var (candidateSlot, candidate) in world.EnumerateActiveNetworkPlayers())
+        {
+            if (candidateSlot == slot
+                || controlledTeamsBySlot.ContainsKey(candidateSlot)
+                || !candidate.IsAlive
+                || candidate.Team != team
+                || !candidate.IsTaunting
+                || DistanceSquared(self.X, self.Y, candidate.X, candidate.Y) > AllyResponseDistance * AllyResponseDistance)
+            {
+                continue;
+            }
+
+            var newlyObserved = state.ObservedHumanTaunters.Add(candidate.Id);
+            if (newlyObserved
+                && !input.Taunt
+                && !self.IsTaunting
+                && ShouldMirrorNearbyHumanTaunt(world.Frame, slot, candidate.Id))
+            {
+                shouldTaunt = true;
+            }
+        }
+
+        return shouldTaunt
+            ? ApplyTauntCelebrationInput(input)
+            : input;
+    }
+
+    private static void PruneObservedHumanTaunters(
+        SimulationWorld world,
+        BotBrainChatBubbleState state,
+        IReadOnlyDictionary<byte, PlayerTeam> controlledTeamsBySlot)
+    {
+        if (state.ObservedHumanTaunters.Count == 0)
+        {
+            return;
+        }
+
+        state.ObservedHumanTaunters.RemoveWhere(playerId => !IsNonControlledPlayerTaunting(world, controlledTeamsBySlot, playerId));
+    }
+
+    private static bool IsNonControlledPlayerTaunting(
+        SimulationWorld world,
+        IReadOnlyDictionary<byte, PlayerTeam> controlledTeamsBySlot,
+        int playerId)
+    {
+        foreach (var (slot, player) in world.EnumerateActiveNetworkPlayers())
+        {
+            if (!controlledTeamsBySlot.ContainsKey(slot)
+                && player.Id == playerId
+                && player.IsAlive
+                && player.IsTaunting)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ShouldMirrorNearbyHumanTaunt(long frame, byte botSlot, int humanPlayerId)
+    {
+        unchecked
+        {
+            var hash = (uint)frame * 0x45d9f3bu;
+            hash ^= (uint)botSlot * 0x119de1f3u;
+            hash ^= (uint)humanPlayerId * 0x3449b1fdu;
+            hash ^= 0x6d2b79f5u;
+            hash ^= hash >> 16;
+            hash *= 0x7feb352du;
+            hash ^= hash >> 15;
+            return hash % 100u < NearbyHumanTauntChancePercent;
+        }
     }
 
     private static bool TrySelectReaction(
@@ -1037,6 +1126,8 @@ public sealed class BotBrainChatBubbleController
         public int LastCaps { get; set; }
 
         public long? PendingKillTauntFrame { get; set; }
+
+        public HashSet<int> ObservedHumanTaunters { get; } = [];
 
         public int? LastSeenCombatTargetId { get; set; }
 

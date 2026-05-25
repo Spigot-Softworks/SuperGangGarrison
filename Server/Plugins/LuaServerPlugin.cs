@@ -1677,12 +1677,18 @@ internal sealed class LuaServerPlugin(
             return DynValue.Nil;
         }
 
+        var sourceSlot = context.Identity.SourceSlot.HasValue
+            ? DynValue.NewNumber(context.Identity.SourceSlot.Value)
+            : DynValue.Nil;
         var table = new Table(_script)
         {
             ["identity"] = ToDynValue(context.Identity),
             ["is_authenticated_admin"] = context.Identity.IsAuthenticated,
             ["source"] = context.Source.ToString(),
             ["arguments"] = arguments,
+            ["slot"] = sourceSlot,
+            ["sourceSlot"] = sourceSlot,
+            ["source_slot"] = sourceSlot,
             ["has_permission"] = DynValue.NewCallback((_, args) =>
                 DynValue.NewBoolean(context.HasPermission(ReadAdminPermissions(ReadArgument(args, 0))))),
             ["require_permission"] = DynValue.NewCallback((_, args) =>
@@ -2919,7 +2925,7 @@ internal sealed class LuaServerPlugin(
         var index = 1;
         foreach (var item in values)
         {
-            table[index] = ToDynValue(script, item, depth);
+            table.Set(DynValue.NewNumber(index), ToDynValue(script, item, depth));
             index += 1;
         }
 
@@ -3035,7 +3041,7 @@ internal sealed class LuaServerPlugin(
         var table = new Table(script);
         for (var index = 0; index < players.Count; index += 1)
         {
-            table[index + 1] = DynValue.NewTable(CreatePlayerInfoTable(script, players[index]));
+            table.Set(DynValue.NewNumber(index + 1), DynValue.NewTable(CreatePlayerInfoTable(script, players[index])));
         }
 
         return table;

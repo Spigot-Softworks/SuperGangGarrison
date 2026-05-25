@@ -93,7 +93,7 @@ public partial class Game1
 
             _game.DrawBitmapFontText("Debug Options", new Vector2(panel.X + debugRowHorizontalPadding, panel.Y + 14f), Color.White, debugHeaderScale);
 
-            for (var index = 0; index < rows.Count; index += 1)
+            for (var index = 0; index < rows.Count && index < rowBounds.Length; index += 1)
             {
                 var rowRect = rowBounds[index];
                 var isHovered = index == _game._debugMenuHoverIndex;
@@ -124,16 +124,17 @@ public partial class Game1
         {
             rowCount = Math.Max(1, rowCount);
             rowHeight = 48;
-            var panelWidth = 400;
-            var panelHeight = 60 + (rowCount * rowHeight);
+            var panelWidth = Math.Max(1, Math.Min(400, _game.ViewportWidth - 24));
+            var panelHeight = Math.Max(1, Math.Min(60 + (rowCount * rowHeight), _game.ViewportHeight - 24));
 
             var panelX = (_game.ViewportWidth - panelWidth) / 2;
             var panelY = (_game.ViewportHeight - panelHeight) / 2;
             panel = new Rectangle(panelX, panelY, panelWidth, panelHeight);
 
-            rowBounds = new Rectangle[rowCount];
+            var visibleRowCount = Math.Max(1, Math.Min(rowCount, (panel.Height - 50) / rowHeight));
+            rowBounds = new Rectangle[visibleRowCount];
             var currentY = panel.Y + 50;
-            for (var index = 0; index < rowCount; index += 1)
+            for (var index = 0; index < rowBounds.Length; index += 1)
             {
                 rowBounds[index] = new Rectangle(panel.X, currentY, panelWidth, rowHeight - 2);
                 currentY += rowHeight;

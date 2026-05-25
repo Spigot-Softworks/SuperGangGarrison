@@ -1027,7 +1027,13 @@ public sealed class LuaPluginHostSmokeTests
                     handler = function(context, arguments)
                         context.require_permission("ManagePlayers")
                         host.try_set_player_name(2, arguments)
-                        return { "renamed " .. arguments, "source " .. context.source }
+                        return {
+                            "renamed " .. arguments,
+                            "source " .. context.source,
+                            "slot " .. tostring(context.slot),
+                            "sourceSlot " .. tostring(context.sourceSlot),
+                            "source_slot " .. tostring(context.source_slot)
+                        }
                     end
                 })
             end
@@ -1059,7 +1065,7 @@ public sealed class LuaPluginHostSmokeTests
         Assert.Contains("lr", registeredCommand.Aliases);
 
         var unauthorizedContext = CreateCommandContext(fakeContext, OpenGarrisonServerAdminIdentity.CreateUnauthenticated(1));
-        Assert.True(fakeContext.CommandRegistry.TryExecute("lua_rename Blocked", unauthorizedContext, CancellationToken.None, out var unauthorizedLines));
+        Assert.True(fakeContext.CommandRegistry.TryExecute("!lua_rename Blocked", unauthorizedContext, CancellationToken.None, out var unauthorizedLines));
         Assert.Contains("requires ManagePlayers", Assert.Single(unauthorizedLines), StringComparison.Ordinal);
         Assert.Empty(fakeContext.AdminImpl.RenameRequests);
 
@@ -1070,9 +1076,12 @@ public sealed class LuaPluginHostSmokeTests
                 OpenGarrisonServerAdminAuthority.RconSession,
                 OpenGarrisonServerAdminPermissions.ManagePlayers,
                 SourceSlot: 1));
-        Assert.True(fakeContext.CommandRegistry.TryExecute("lr Renamed", authorizedContext, CancellationToken.None, out var authorizedLines));
+        Assert.True(fakeContext.CommandRegistry.TryExecute("/lr Renamed", authorizedContext, CancellationToken.None, out var authorizedLines));
         Assert.Contains("renamed Renamed", authorizedLines);
         Assert.Contains("source PrivateChat", authorizedLines);
+        Assert.Contains("slot 1", authorizedLines);
+        Assert.Contains("sourceSlot 1", authorizedLines);
+        Assert.Contains("source_slot 1", authorizedLines);
         Assert.Contains(fakeContext.AdminImpl.RenameRequests, request => request.Slot == 2 && request.NewName == "Renamed");
     }
 
@@ -2824,6 +2833,34 @@ public sealed class LuaPluginHostSmokeTests
     }
 
     [Fact]
+    public void PackagedServerLuaChatVotingStartsVoteForAuthorizedPlayerSlot()
+    {
+        using var tempDirectory = new TempDirectory();
+        var logs = new List<string>();
+        var loadedPlugin = LoadPackagedServerLuaPlugin("Lua.ChatVoting", "chat.voting", tempDirectory, logs);
+        loadedPlugin.Context.StateImpl.Players.Add(CreateServerPlayer(slot: 1, userId: 101, name: "Voter"));
+
+        var commandContext = CreateCommandContext(
+            loadedPlugin.Context,
+            new OpenGarrisonServerAdminIdentity(
+                "Voter",
+                OpenGarrisonServerAdminAuthority.None,
+                OpenGarrisonServerAdminPermissions.None,
+                SourceSlot: 1));
+
+        Assert.True(loadedPlugin.Context.CommandRegistry.TryExecute("!votemap ctf_truefort", commandContext, CancellationToken.None, out var responseLines));
+
+        Assert.Empty(responseLines);
+        var systemMessages = string.Join(Environment.NewLine, loadedPlugin.Context.AdminImpl.SystemMessages.Select(message => message.Text));
+        Assert.True(
+            !systemMessages.Contains("could not find your slot", StringComparison.OrdinalIgnoreCase),
+            systemMessages);
+        Assert.Contains(
+            loadedPlugin.Context.AdminImpl.BroadcastSystemMessages,
+            message => message.Contains("Voter started votemap for Truefort", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void PackagedServerLuaGarrisonToolsHandlesHelpStatusAndCvars()
     {
         using var tempDirectory = new TempDirectory();
@@ -3892,6 +3929,36 @@ public sealed class LuaPluginHostSmokeTests
             context.Scheduler,
             identity,
             OpenGarrisonServerCommandSource.PrivateChat);
+    }
+
+    private static OpenGarrisonServerPlayerInfo CreateServerPlayer(
+        byte slot,
+        int userId,
+        string name,
+        bool isSpectator = false,
+        bool isAuthorized = true,
+        bool isAlive = true,
+        PlayerTeam? team = PlayerTeam.Red,
+        PlayerClass? playerClass = PlayerClass.Soldier)
+    {
+        return new OpenGarrisonServerPlayerInfo(
+            slot,
+            userId,
+            name,
+            IsSpectator: isSpectator,
+            IsAuthorized: isAuthorized,
+            IsGagged: false,
+            IsAlive: isAlive,
+            PlayerId: isSpectator ? null : slot,
+            Team: isSpectator ? null : team,
+            PlayerClass: isSpectator ? null : playerClass,
+            PlayerScale: 1f,
+            EndPoint: $"127.0.0.1:{8190 + slot}",
+            GameplayLoadoutId: "stock",
+            GameplaySecondaryItemId: string.Empty,
+            GameplayAcquiredItemId: string.Empty,
+            GameplayEquippedSlot: GameplayEquipmentSlot.Primary,
+            GameplayEquippedItemId: "weapon.rocketlauncher");
     }
 
     private static List<GarrisonToolsCommandSpec> ExtractGarrisonToolsCommandSpecs(string mainLua)

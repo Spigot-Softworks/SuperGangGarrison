@@ -230,7 +230,8 @@ internal static class SnapshotContributionPlanner
             static state => state.X,
             static state => state.Y,
             static (builder, state) => builder.DeadBodies.Add(state),
-            static (builder, id) => builder.RemovedDeadBodyIds.Add(id));
+            static (builder, id) => builder.RemovedDeadBodyIds.Add(id),
+            addedStateKind: SnapshotDeltaBudgeter.ContributionKind.EntityFirstAppearance);
         AddEntityDelta(
             contributions,
             fullSnapshot.SentryGibs,
