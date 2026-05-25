@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using System;
 using OpenGarrison.Client.Plugins;
+using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
 
@@ -48,6 +49,8 @@ public partial class Game1
 
     private void UpdateBubbleMenuState(KeyboardState keyboard, MouseState mouse)
     {
+        TryHandleBinocularsPlayerPing(mouse);
+
         if (ShouldCloseBubbleMenuForGameplayState())
         {
             BeginClosingBubbleMenu();
@@ -522,5 +525,84 @@ public partial class Game1
         }
 
         _world.SetLocalPlayerChatBubble(bubbleFrame);
+    }
+
+    // When the sniper has binoculars active, a left-click on a player emits the
+    // speech bubble corresponding to that player's class, identical to selecting
+    // it from the bubble menu manually.
+    private void TryHandleBinocularsPlayerPing(MouseState mouse)
+    {
+        if (_world.LocalPlayer.ClassId != PlayerClass.Sniper
+            || !GetPlayerIsUsingBinoculars(_world.LocalPlayer)
+            || _bubbleMenuKind != BubbleMenuKind.None
+            || !_world.LocalPlayer.IsAlive
+            || _world.MatchState.IsEnded
+            || _chatOpen)
+        {
+            return;
+        }
+
+        var leftMousePressed = mouse.LeftButton == ButtonState.Pressed
+            && _previousMouse.LeftButton != ButtonState.Pressed;
+        if (!leftMousePressed)
+        {
+            return;
+        }
+
+        // Pick the player nearest to the mouse cursor's world position in the binoculars view.
+        // _latestLocalAimWorldX/Y is already the cursor's world position (set by PrepareFrame).
+        var pickWorldX = _hasLatestLocalAimWorldPosition ? _latestLocalAimWorldX : _binocularsFocusX;
+        var pickWorldY = _hasLatestLocalAimWorldPosition ? _latestLocalAimWorldY : _binocularsFocusY;
+        const float pickRadius = 30f;
+        var bestDistanceSquared = pickRadius * pickRadius;
+        PlayerEntity? target = null;
+
+        foreach (var player in EnumerateRenderablePlayers())
+        {
+            if (ReferenceEquals(player, _world.LocalPlayer)
+                || !player.IsAlive
+                || GetPlayerVisibilityAlpha(player) <= 0f
+                || IsSpyHiddenFromLocalViewer(player))
+            {
+                continue;
+            }
+
+            var renderPosition = GetRenderPosition(player);
+            var dx = renderPosition.X - pickWorldX;
+            var dy = renderPosition.Y - pickWorldY;
+            var distanceSquared = dx * dx + dy * dy;
+            if (distanceSquared > bestDistanceSquared)
+            {
+                continue;
+            }
+
+            bestDistanceSquared = distanceSquared;
+            target = player;
+        }
+
+        if (target is null)
+        {
+            return;
+        }
+
+        SuppressPrimaryFireUntilMouseRelease();
+
+        // Bubble frames: Red 0-8, Blue 10-18 (offset +10). Class→frame index mapping:
+        // Scout=0, Pyro=1, Soldier=2, Heavy=3, Demoman=4, Medic=5, Engineer=6, Spy=7, Sniper=8
+        var classIndex = target.ClassId switch
+        {
+            PlayerClass.Scout    => 0,
+            PlayerClass.Pyro     => 1,
+            PlayerClass.Soldier  => 2,
+            PlayerClass.Heavy    => 3,
+            PlayerClass.Demoman  => 4,
+            PlayerClass.Medic    => 5,
+            PlayerClass.Engineer => 6,
+            PlayerClass.Spy      => 7,
+            PlayerClass.Sniper   => 8,
+            _                    => 0,
+        };
+        var bubbleFrame = target.Team == PlayerTeam.Blue ? classIndex + 10 : classIndex;
+        ApplyLocalChatBubble(bubbleFrame);
     }
 }
