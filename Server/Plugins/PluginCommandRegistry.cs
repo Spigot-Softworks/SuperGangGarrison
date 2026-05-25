@@ -117,15 +117,15 @@ internal sealed class PluginCommandRegistry
     {
         foreach (var entry in _commandsByName.OrderByDescending(entry => entry.Key.Length))
         {
-            if (!IsCommandNameMatch(commandLine, entry.Key))
+            if (!TryGetCommandNameMatchLength(commandLine, entry.Key, out var commandNameLength))
             {
                 continue;
             }
 
             commandName = entry.Key;
-            arguments = commandLine.Length == entry.Key.Length
+            arguments = commandLine.Length == commandNameLength
                 ? string.Empty
-                : commandLine[entry.Key.Length..].Trim();
+                : commandLine[commandNameLength..].Trim();
             registration = entry.Value;
             return true;
         }
@@ -136,12 +136,46 @@ internal sealed class PluginCommandRegistry
         return false;
     }
 
+    private static bool TryGetCommandNameMatchLength(string commandLine, string registeredName, out int matchLength)
+    {
+        if (IsCommandNameMatch(commandLine, registeredName))
+        {
+            matchLength = registeredName.Length;
+            return true;
+        }
+
+        var commandPrefixLength = GetChatCommandPrefixLength(commandLine);
+        var registeredPrefixLength = GetChatCommandPrefixLength(registeredName);
+        if (commandPrefixLength == 0 && registeredPrefixLength == 0)
+        {
+            matchLength = 0;
+            return false;
+        }
+
+        var normalizedCommandLine = commandLine[commandPrefixLength..];
+        var normalizedRegisteredName = registeredName[registeredPrefixLength..];
+        if (normalizedRegisteredName.Length == 0
+            || !IsCommandNameMatch(normalizedCommandLine, normalizedRegisteredName))
+        {
+            matchLength = 0;
+            return false;
+        }
+
+        matchLength = commandPrefixLength + normalizedRegisteredName.Length;
+        return true;
+    }
+
     private static bool IsCommandNameMatch(string commandLine, string registeredName)
     {
         return commandLine.Equals(registeredName, StringComparison.OrdinalIgnoreCase)
             || (commandLine.Length > registeredName.Length
                 && char.IsWhiteSpace(commandLine[registeredName.Length])
                 && commandLine.StartsWith(registeredName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static int GetChatCommandPrefixLength(string value)
+    {
+        return value.Length > 0 && value[0] is '!' or '/' ? 1 : 0;
     }
 
     private void Register(

@@ -27,7 +27,7 @@ internal static class GameplayLoadoutMenuPresentation
         const float baseWidth = 600f;
         const float baseHeight = 600f;
         var scale = MathF.Min((viewportWidth - 24f) / baseWidth, (viewportHeight - 24f) / baseHeight);
-        scale = MathF.Max(1f, scale);
+        scale = MathF.Max(0.1f, scale);
         var panelWidth = (int)MathF.Round(baseWidth * scale);
         var panelHeight = (int)MathF.Round(baseHeight * scale);
         var panel = new Rectangle((viewportWidth - panelWidth) / 2, (viewportHeight - panelHeight) / 2, panelWidth, panelHeight);

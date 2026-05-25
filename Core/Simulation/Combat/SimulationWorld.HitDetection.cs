@@ -28,6 +28,7 @@ public sealed partial class SimulationWorld
         MatchRules = CreateDefaultMatchRules(level.Mode);
         MatchState = CreateInitialMatchState(MatchRules);
         ResetModeStateForNewRound();
+        ResetMovingPlatformsForLevel();
     }
 
     internal void CombatTestAddSentry(SentryEntity sentry)

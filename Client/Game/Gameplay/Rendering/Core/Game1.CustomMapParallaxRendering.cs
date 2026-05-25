@@ -178,7 +178,22 @@ public partial class Game1
             TryParseGmlColor(source.BackgroundColor, out var backgroundColor) ? backgroundColor : null,
             TryParseGmlColor(source.VoidColor, out var voidColor) ? voidColor : null,
             layers,
-            foreground);
+            foreground,
+            LoadRuntimeCustomMapVisualResources(source));
+    }
+
+    private Dictionary<string, Texture2D> LoadRuntimeCustomMapVisualResources(CustomMapVisualMetadata source)
+    {
+        var resources = new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
+        foreach (var resource in source.Resources.Values)
+        {
+            if (TryLoadCustomMapVisualTexture(resource, out var texture))
+            {
+                resources[resource.Name] = texture;
+            }
+        }
+
+        return resources;
     }
 
     private bool TryLoadCustomMapVisualTexture(CustomMapVisualResource resource, out Texture2D texture)
@@ -204,6 +219,29 @@ public partial class Game1
         _loadedCustomMapVisuals?.Dispose();
         _loadedCustomMapVisuals = null;
         _loadedCustomMapVisualsSource = null;
+    }
+
+    private bool TryGetRuntimeCustomMapVisualResourceTexture(string resourceName, out Texture2D texture)
+    {
+        texture = null!;
+        if (string.IsNullOrWhiteSpace(resourceName))
+        {
+            return false;
+        }
+
+        var visuals = GetRuntimeCustomMapVisuals();
+        if (visuals is null)
+        {
+            return false;
+        }
+
+        if (visuals.Resources.TryGetValue(resourceName.Trim(), out var foundTexture))
+        {
+            texture = foundTexture;
+            return true;
+        }
+
+        return false;
     }
 
     private static bool TryParseGmlColor(string? rawValue, out Color color)
@@ -257,13 +295,15 @@ public partial class Game1
             Color? backgroundColor,
             Color? voidColor,
             IReadOnlyList<RuntimeCustomMapParallaxLayer> parallaxLayers,
-            Texture2D? foreground)
+            Texture2D? foreground,
+            IReadOnlyDictionary<string, Texture2D> resources)
         {
             ImageScale = imageScale;
             BackgroundColor = backgroundColor;
             VoidColor = voidColor;
             ParallaxLayers = parallaxLayers;
             Foreground = foreground;
+            Resources = resources;
         }
 
         public float ImageScale { get; }
@@ -276,6 +316,8 @@ public partial class Game1
 
         public Texture2D? Foreground { get; }
 
+        public IReadOnlyDictionary<string, Texture2D> Resources { get; }
+
         public void Dispose()
         {
             foreach (var layer in ParallaxLayers)
@@ -284,6 +326,10 @@ public partial class Game1
             }
 
             Foreground?.Dispose();
+            foreach (var resource in Resources.Values)
+            {
+                resource.Dispose();
+            }
         }
     }
 }

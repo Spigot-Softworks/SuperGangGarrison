@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Reflection;
 using OpenGarrison.Client;
 using OpenGarrison.Core;
 using SixLabors.ImageSharp;
@@ -58,6 +59,85 @@ public sealed class CustomMapPngExporterTests
                 entry => entry.LevelName == "menu_custom");
             Assert.True(customEntry.IsCustomMap);
             Assert.Equal(3, customEntry.Order);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", previousMapsDirectory);
+            SimpleLevelFactory.ClearCachedCatalog();
+        }
+    }
+
+    [Fact]
+    public void LegacyCustomMapPngAutoConvertsToPackageOnDiscovery()
+    {
+        using var workspace = TempWorkspace.Create();
+        var previousMapsDirectory = Environment.GetEnvironmentVariable("OPENGARRISON_MAPS_DIR");
+        Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", workspace.PathFor("Maps"));
+        try
+        {
+            Directory.CreateDirectory(RuntimePaths.MapsDirectory);
+            var backgroundPath = workspace.PathFor("background.png");
+            var walkmaskPath = workspace.PathFor("walkmask.png");
+            var legacyMapPath = Path.Combine(RuntimePaths.MapsDirectory, "legacy_auto.png");
+            WriteSolidPng(backgroundPath, 4, 2, new Rgba32(32, 64, 96, 255));
+            WriteWalkmaskPng(walkmaskPath);
+            CustomMapPngExporter.Export(CreateSpawnOnlyDocument(backgroundPath, walkmaskPath, 6f, 18f), legacyMapPath);
+
+            SimpleLevelFactory.ClearCachedCatalog();
+            var discovered = SimpleLevelFactory.GetAvailableSourceLevels();
+            var entry = Assert.Single(discovered, entry => entry.Name == "legacy_auto");
+            var manifestPath = Path.Combine(RuntimePaths.MapsDirectory, "legacy_auto", "legacy_auto.json");
+
+            Assert.Equal(CustomMapSourceKind.Package, entry.SourceKind);
+            Assert.Equal(manifestPath, entry.RoomSourcePath);
+            Assert.True(File.Exists(legacyMapPath));
+            Assert.True(File.Exists(manifestPath));
+            Assert.NotNull(CustomMapPackageImporter.Import(manifestPath));
+
+            var level = SimpleLevelFactory.CreateImportedLevel("legacy_auto");
+            Assert.NotNull(level);
+            Assert.NotEmpty(level.Solids);
+            Assert.Single(level.RedSpawns);
+            Assert.Single(level.BlueSpawns);
+
+            Assert.True(CustomMapDescriptorResolver.TryResolve("legacy_auto", out var descriptor));
+            Assert.Equal(CustomMapSourceKind.Package, descriptor.SourceKind);
+            Assert.StartsWith("sha256:", descriptor.ContentHash, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", previousMapsDirectory);
+            SimpleLevelFactory.ClearCachedCatalog();
+        }
+    }
+
+    [Fact]
+    public void LegacyCustomMapPngFallsBackWhenPackageDirectoryBlocksAutoConversion()
+    {
+        using var workspace = TempWorkspace.Create();
+        var previousMapsDirectory = Environment.GetEnvironmentVariable("OPENGARRISON_MAPS_DIR");
+        Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", workspace.PathFor("Maps"));
+        try
+        {
+            Directory.CreateDirectory(RuntimePaths.MapsDirectory);
+            var backgroundPath = workspace.PathFor("background.png");
+            var walkmaskPath = workspace.PathFor("walkmask.png");
+            var legacyMapPath = Path.Combine(RuntimePaths.MapsDirectory, "legacy_blocked.png");
+            WriteSolidPng(backgroundPath, 4, 2, new Rgba32(32, 64, 96, 255));
+            WriteWalkmaskPng(walkmaskPath);
+            CustomMapPngExporter.Export(CreateSpawnOnlyDocument(backgroundPath, walkmaskPath, 6f, 18f), legacyMapPath);
+
+            var packageDirectory = Path.Combine(RuntimePaths.MapsDirectory, "legacy_blocked");
+            Directory.CreateDirectory(packageDirectory);
+            File.WriteAllText(Path.Combine(packageDirectory, "notes.txt"), "reserved");
+
+            SimpleLevelFactory.ClearCachedCatalog();
+            var discovered = SimpleLevelFactory.GetAvailableSourceLevels();
+            var entry = Assert.Single(discovered, entry => entry.Name == "legacy_blocked");
+
+            Assert.Equal(CustomMapSourceKind.LegacyPng, entry.SourceKind);
+            Assert.Equal(legacyMapPath, entry.RoomSourcePath);
+            Assert.False(File.Exists(Path.Combine(packageDirectory, "legacy_blocked.json")));
         }
         finally
         {
@@ -354,11 +434,90 @@ public sealed class CustomMapPngExporterTests
             Assert.NotEmpty(level.RedSpawns);
             Assert.NotEmpty(level.BlueSpawns);
             Assert.Contains(level.RoomObjects, roomObject => roomObject.IsSingleKothControlPoint());
+            var layers = level.CustomMapVisuals.ParallaxLayers.ToDictionary(static layer => layer.Index);
+            Assert.Equal(10f, layers[0].XFactor);
+            Assert.Equal(6f, layers[4].XFactor);
+            Assert.Equal(5f, layers[5].XFactor);
+            Assert.Equal(4f, layers[6].XFactor);
         }
         finally
         {
             SimpleLevelFactory.ClearCachedCatalog();
         }
+    }
+
+    [Fact]
+    public void StockMapPackageTemplateInMapsFolderDoesNotCreateCustomDuplicate()
+    {
+        using var workspace = TempWorkspace.Create();
+        var previousMapsDirectory = Environment.GetEnvironmentVariable("OPENGARRISON_MAPS_DIR");
+        Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", workspace.PathFor("Maps"));
+        try
+        {
+            var sourceHarvestDirectory = Path.GetDirectoryName(FindRepoFile("Core", "Content", "StockMaps", "Harvest", "Harvest.json"));
+            Assert.False(string.IsNullOrWhiteSpace(sourceHarvestDirectory));
+            CopyDirectoryContents(sourceHarvestDirectory!, Path.Combine(RuntimePaths.MapsDirectory, "Harvest"));
+
+            SimpleLevelFactory.ClearCachedCatalog();
+            var harvestEntries = SimpleLevelFactory.GetAvailableSourceLevels()
+                .Where(entry => entry.Name == "Harvest")
+                .ToArray();
+
+            var harvestEntry = Assert.Single(harvestEntries);
+            Assert.False(harvestEntry.IsCustomMap);
+            Assert.Equal(CustomMapSourceKind.Package, harvestEntry.SourceKind);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", previousMapsDirectory);
+            SimpleLevelFactory.ClearCachedCatalog();
+        }
+    }
+
+    [Fact]
+    public void PackageDirectoryPublisherConvertsLegacyPngsAndCopiesStockTemplates()
+    {
+        using var workspace = TempWorkspace.Create();
+        var sourceMapsDirectory = workspace.PathFor("SourceMaps");
+        var sourceStockMapsDirectory = workspace.PathFor("SourceStockMaps");
+        var destinationMapsDirectory = workspace.PathFor("PublishedMaps");
+        Directory.CreateDirectory(sourceMapsDirectory);
+        Directory.CreateDirectory(sourceStockMapsDirectory);
+
+        var backgroundPath = workspace.PathFor("background.png");
+        var walkmaskPath = workspace.PathFor("walkmask.png");
+        WriteSolidPng(backgroundPath, 4, 2, new Rgba32(32, 64, 96, 255));
+        WriteWalkmaskPng(walkmaskPath);
+
+        CustomMapPngExporter.Export(
+            CreateSpawnOnlyDocument(backgroundPath, walkmaskPath, 6f, 18f) with
+            {
+                Name = "legacy_template",
+            },
+            Path.Combine(sourceMapsDirectory, "legacy_template.png"));
+
+        var stockHarvestDirectory = Path.Combine(sourceStockMapsDirectory, "Harvest");
+        Directory.CreateDirectory(stockHarvestDirectory);
+        CustomMapPackageExporter.Export(
+            CreateSpawnOnlyDocument(backgroundPath, walkmaskPath, 6f, 18f) with
+            {
+                Name = "Harvest",
+            },
+            Path.Combine(stockHarvestDirectory, "Harvest.json"));
+
+        var result = CustomMapPackageDirectoryPublisher.Publish(
+            sourceMapsDirectory,
+            sourceStockMapsDirectory,
+            destinationMapsDirectory);
+
+        Assert.Equal(1, result.CopiedTopLevelLegacyPngCount);
+        Assert.Equal(1, result.ConvertedLegacyPngCount);
+        Assert.Equal(0, result.KeptLegacyPngCount);
+        Assert.Equal(0, result.DroppedLegacyPngCount);
+        Assert.Equal(1, result.CopiedStockPackageCount);
+        Assert.False(File.Exists(Path.Combine(destinationMapsDirectory, "legacy_template.png")));
+        Assert.NotNull(CustomMapPackageImporter.Import(Path.Combine(destinationMapsDirectory, "legacy_template", "legacy_template.json")));
+        Assert.NotNull(CustomMapPackageImporter.Import(Path.Combine(destinationMapsDirectory, "Harvest", "Harvest.json")));
     }
 
     [Fact]
@@ -623,6 +782,134 @@ public sealed class CustomMapPngExporterTests
     }
 
     [Fact]
+    public void BuilderImporterKeepsLegacyParallaxDefaultsWhenFactorsAreMissing()
+    {
+        var harvestPath = FindRepoFile("Core", "Content", "StockMaps", "koth_harvest.png");
+
+        var editable = CustomMapBuilderPngImporter.Import(harvestPath);
+
+        Assert.NotNull(editable);
+        var layers = editable.ParallaxLayers.ToDictionary(static layer => layer.Index);
+        Assert.Equal(10f, layers[0].XFactor);
+        Assert.Equal(10f, layers[0].YFactor);
+        Assert.Equal(6f, layers[4].XFactor);
+        Assert.Equal(5f, layers[5].XFactor);
+        Assert.Equal(4f, layers[6].XFactor);
+    }
+
+    [Fact]
+    public void RuntimeImporterCreatesMovingPlatformsFromCustomMapEntities()
+    {
+        using var workspace = TempWorkspace.Create();
+        var backgroundPath = workspace.PathFor("background.png");
+        var walkmaskPath = workspace.PathFor("walkmask.png");
+        var outputPath = workspace.PathFor("moving_platform.png");
+        WriteSolidPng(backgroundPath, 10, 10, new Rgba32(16, 32, 48, 255));
+        WriteSolidPng(walkmaskPath, 10, 10, new Rgba32(255, 255, 255, 255));
+
+        var document = new CustomMapBuilderDocument(
+            Name: "moving_platform",
+            BackgroundImagePath: backgroundPath,
+            WalkmaskImagePath: walkmaskPath,
+            Scale: 6f,
+            Metadata: new Dictionary<string, string>(),
+            Entities:
+            [
+                CustomMapBuilderEntity.Create("redspawn", 6f, 6f),
+                CustomMapBuilderEntity.Create("bluespawn", 18f, 6f),
+                CustomMapBuilderEntity.Create(
+                    "moving_platform",
+                    30f,
+                    42f,
+                    new Dictionary<string, string>
+                    {
+                        ["scale"] = "2",
+                        ["left"] = "18",
+                        ["top"] = "36",
+                        ["upspeed"] = "4",
+                        ["downspeed"] = "2",
+                        ["trigger"] = "1",
+                        ["resetMoveStatus"] = "0",
+                        ["resource"] = "lift",
+                    }),
+            ],
+            Resources: new Dictionary<string, CustomMapBuilderResource>
+            {
+                ["lift"] = CustomMapBuilderResourceCodec.FromFile(
+                    "lift",
+                    backgroundPath,
+                    CustomMapBuilderResourceKind.EntitySprite),
+            },
+            ParallaxLayers: []);
+
+        CustomMapPngExporter.Export(document, outputPath);
+        var imported = CustomMapPngImporter.Import(outputPath);
+
+        Assert.NotNull(imported);
+        var platform = Assert.Single(imported.Room.MovingPlatforms);
+        Assert.Equal(30f, platform.X);
+        Assert.Equal(42f, platform.Y);
+        Assert.Equal(120f, platform.Width);
+        Assert.Equal(12f, platform.Height);
+        Assert.Equal(18f, platform.TravelX);
+        Assert.Equal(-36f, platform.TravelY);
+        Assert.Equal(4f, platform.UpSpeed);
+        Assert.Equal(2f, platform.DownSpeed);
+        Assert.Equal(1, platform.TriggerMode);
+        Assert.False(platform.ResetMovementState);
+        Assert.Equal("lift", platform.ResourceName);
+        Assert.DoesNotContain("moving_platform", imported.Room.UnsupportedEntities);
+        Assert.True(imported.Room.CustomMapVisuals.Resources.ContainsKey("lift"));
+    }
+
+    [Fact]
+    public void SimulationWorldMovesStandingPlayersWithMovingPlatforms()
+    {
+        var world = new SimulationWorld();
+        var platformTop = 160f;
+        var level = new SimpleLevel(
+            "moving_platform_runtime",
+            GameModeKind.CaptureTheFlag,
+            new WorldBounds(500f, 300f),
+            mapScale: 1f,
+            backgroundAssetName: null,
+            mapAreaIndex: 1,
+            mapAreaCount: 1,
+            localSpawn: new SpawnPoint(100f, 100f),
+            redSpawns: [new SpawnPoint(100f, 100f)],
+            blueSpawns: [new SpawnPoint(300f, 100f)],
+            intelBases: [],
+            roomObjects: [],
+            floorY: 260f,
+            solids: [],
+            importedFromSource: true,
+            movingPlatforms:
+            [
+                new MovingPlatformMarker(
+                    80f,
+                    platformTop,
+                    80f,
+                    6f,
+                    TravelX: 30f,
+                    TravelY: 0f,
+                    UpSpeed: 3f,
+                    DownSpeed: 3f,
+                    TriggerMode: 0,
+                    ResetMovementState: true),
+            ]);
+        SetWorldLevel(world, level);
+        world.LocalPlayer.TeleportTo(100f, platformTop - world.LocalPlayer.CollisionBottomOffset);
+        var playerStartX = world.LocalPlayer.X;
+        var platformStartX = world.MovingPlatforms[0].X;
+
+        world.AdvanceOneTick();
+
+        Assert.True(world.MovingPlatforms[0].X > platformStartX);
+        Assert.True(world.LocalPlayer.X > playerStartX);
+        Assert.True(world.LocalPlayer.IsGrounded);
+    }
+
+    [Fact]
     public void RuntimeImporterKeepsGg2CompatibleScaleWhenEmbeddedScaleWouldClipEntities()
     {
         using var workspace = TempWorkspace.Create();
@@ -710,6 +997,22 @@ public sealed class CustomMapPngExporterTests
         }
 
         image.SaveAsPng(path);
+    }
+
+    private static void CopyDirectoryContents(string sourceDirectory, string destinationDirectory)
+    {
+        Directory.CreateDirectory(destinationDirectory);
+        foreach (var sourceFile in Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.TopDirectoryOnly))
+        {
+            File.Copy(sourceFile, Path.Combine(destinationDirectory, Path.GetFileName(sourceFile)), overwrite: true);
+        }
+
+        foreach (var sourceSubdirectory in Directory.EnumerateDirectories(sourceDirectory, "*", SearchOption.TopDirectoryOnly))
+        {
+            CopyDirectoryContents(
+                sourceSubdirectory,
+                Path.Combine(destinationDirectory, Path.GetFileName(sourceSubdirectory)));
+        }
     }
 
     private static HttpClient CreatePackageHttpClient(string manifestPath, string manifestUrl)
@@ -830,5 +1133,12 @@ public sealed class CustomMapPngExporterTests
         }
 
         throw new FileNotFoundException($"Could not find repo file {string.Join('/', parts)}.");
+    }
+
+    private static void SetWorldLevel(SimulationWorld world, SimpleLevel level)
+    {
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        method.Invoke(world, [level]);
     }
 }

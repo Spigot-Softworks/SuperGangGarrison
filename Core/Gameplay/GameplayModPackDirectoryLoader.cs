@@ -154,13 +154,21 @@ public static class GameplayModPackDirectoryLoader
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(packDirectoryName);
 
+        var projectContentPath = ProjectSourceLocator.FindDirectory(Path.Combine("Core", "Content", "Gameplay", packDirectoryName));
+        if (ShouldPreferProjectContentRoot()
+            && !string.IsNullOrWhiteSpace(projectContentPath)
+            && Directory.Exists(projectContentPath)
+            && HasPackMetadata(projectContentPath))
+        {
+            return projectContentPath;
+        }
+
         var runtimePath = ContentRoot.GetPath("Gameplay", packDirectoryName);
         if (Directory.Exists(runtimePath) && HasPackMetadata(runtimePath))
         {
             return runtimePath;
         }
 
-        var projectContentPath = ProjectSourceLocator.FindDirectory(Path.Combine("Core", "Content", "Gameplay", packDirectoryName));
         if (!string.IsNullOrWhiteSpace(projectContentPath) && Directory.Exists(projectContentPath))
         {
             return projectContentPath;
@@ -177,13 +185,21 @@ public static class GameplayModPackDirectoryLoader
 
     private static string? FindGameplayRootDirectory()
     {
+        var projectContentPath = ProjectSourceLocator.FindDirectory(Path.Combine("Core", "Content", "Gameplay"));
+        if (ShouldPreferProjectContentRoot()
+            && !string.IsNullOrWhiteSpace(projectContentPath)
+            && Directory.Exists(projectContentPath)
+            && HasAnyPackMetadata(projectContentPath))
+        {
+            return projectContentPath;
+        }
+
         var runtimePath = ContentRoot.GetPath("Gameplay");
         if (Directory.Exists(runtimePath) && HasAnyPackMetadata(runtimePath))
         {
             return runtimePath;
         }
 
-        var projectContentPath = ProjectSourceLocator.FindDirectory(Path.Combine("Core", "Content", "Gameplay"));
         if (!string.IsNullOrWhiteSpace(projectContentPath) && Directory.Exists(projectContentPath))
         {
             return projectContentPath;
@@ -196,6 +212,11 @@ public static class GameplayModPackDirectoryLoader
         }
 
         return null;
+    }
+
+    private static bool ShouldPreferProjectContentRoot()
+    {
+        return string.Equals(ContentRoot.Path, "Content", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool HasAnyPackMetadata(string gameplayRootDirectory)

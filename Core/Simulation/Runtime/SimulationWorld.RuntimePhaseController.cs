@@ -4,20 +4,23 @@ public sealed partial class SimulationWorld
 {
     private sealed class RuntimePhaseController
     {
+        private readonly SimulationWorld _world;
         private readonly RuntimeEntityPhaseController _entityPhaseController;
         private readonly RuntimeMatchPhaseController _matchPhaseController;
 
         public RuntimePhaseController(SimulationWorld world)
         {
+            _world = world;
             _entityPhaseController = new RuntimeEntityPhaseController(world);
             _matchPhaseController = new RuntimeMatchPhaseController(world);
         }
 
         public void AdvanceClientPredictionPhase()
         {
-            // Client prediction: projectiles only
-            // Server remains authoritative for all players (including local player)
+            // Client prediction: projectiles and deterministic map motion only.
+            // Server remains authoritative for all players (including local player).
             _entityPhaseController.AdvanceProjectileAndTransientEntityPhase();
+            _world.AdvanceMovingPlatforms();
         }
 
         public void AdvanceProjectilePhaseOnly()

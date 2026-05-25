@@ -5,6 +5,7 @@ namespace OpenGarrison.Core;
 public static class StockGameplayModCatalog
 {
     public const string StockPackDirectoryName = "stock.gg2";
+    public const string HeavyUtilityItemId = "ability.heavy-utility";
 
     public static GameplayModPackDefinition Definition { get; } = LoadDefinition();
 

@@ -196,7 +196,11 @@ public partial class Game1
             return new LastToDieMenuLayout(Rectangle.Empty, Rectangle.Empty, [], 1f);
         }
 
-        var scale = MathF.Min(1f, (ViewportHeight - 72f) / Math.Max(1f, plaqueTexture.Height)) * 0.78f;
+        var scale = MathF.Min(
+            1f,
+            MathF.Min(
+                (ViewportWidth - 48f) / Math.Max(1f, plaqueTexture.Width),
+                (ViewportHeight - 72f) / Math.Max(1f, plaqueTexture.Height))) * 0.78f;
         if (scale <= 0f)
         {
             scale = 0.78f;

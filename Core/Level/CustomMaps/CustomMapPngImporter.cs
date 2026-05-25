@@ -10,6 +10,11 @@ public static class CustomMapPngImporter
 {
     private const float DefaultCustomMapScale = 6f;
     private const float DefaultMoveBoxPushPowerPerTick = 5f;
+    private const float DefaultMovingPlatformWidth = 60f;
+    private const float DefaultMovingPlatformHeight = 6f;
+    private const float DefaultMovingPlatformTravelTop = 60f;
+    private const float DefaultMovingPlatformTravelLeft = 0f;
+    private const float DefaultMovingPlatformSpeed = 3f;
     private static readonly byte[] PngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
 
     public sealed record Result(GameMakerRoomMetadata Room, IReadOnlyList<LevelSolid> Solids);
@@ -337,6 +342,7 @@ public static class CustomMapPngImporter
         var blueSpawns = new List<SpawnPoint>();
         var intelBases = new List<IntelBaseMarker>();
         var roomObjects = new List<RoomObjectMarker>();
+        var movingPlatforms = new List<MovingPlatformMarker>();
         var areaTransitionMarkers = new List<AreaTransitionMarker>();
         var unsupportedEntities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -344,10 +350,11 @@ public static class CustomMapPngImporter
         {
             var entity = entities[index];
             var entityType = entity.Type.Trim();
+            var normalizedEntityType = NormalizeEntityTypeName(entityType);
             var x = entity.X;
             var y = entity.Y;
 
-            switch (entityType.ToLowerInvariant())
+            switch (normalizedEntityType)
             {
                 case "redspawn":
                     redSpawns.Add(new SpawnPoint(x, y));
@@ -368,7 +375,11 @@ public static class CustomMapPngImporter
                     areaTransitionMarkers.Add(new AreaTransitionMarker(x, y, AreaTransitionDirection.Previous, entityType));
                     break;
                 default:
-                    if (TryCreateRoomObject(entity, out var marker))
+                    if (TryCreateMovingPlatform(entity, out var movingPlatform))
+                    {
+                        movingPlatforms.Add(movingPlatform);
+                    }
+                    else if (TryCreateRoomObject(entity, out var marker))
                     {
                         roomObjects.Add(marker);
                     }
@@ -395,22 +406,28 @@ public static class CustomMapPngImporter
                 .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
                 .ToArray(),
             CustomMapVisuals = visuals,
+            MovingPlatforms = movingPlatforms.ToArray(),
         };
     }
 
     private static CustomMapVisualMetadata DecodeVisualMetadata(IReadOnlyDictionary<string, string> metadata, float mapScale)
     {
+        var visualResources = new Dictionary<string, CustomMapVisualResource>(StringComparer.OrdinalIgnoreCase);
+        foreach (var resource in CustomMapBuilderResourceCodec.DecodeResourcesFromMetadata(metadata).Values)
+        {
+            if (CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var resourceBytes))
+            {
+                visualResources[resource.Name] = new CustomMapVisualResource(resource.Name, resourceBytes);
+            }
+        }
+
         var parallaxLayers = new List<CustomMapParallaxLayer>();
         for (var index = 0; index < 7; index += 1)
         {
             var key = $"bg_layer{index}";
-            if (!metadata.TryGetValue(key, out var encodedResource)
-                || !CustomMapBuilderResourceCodec.TryDecodeLegacyString(
-                    key,
-                    encodedResource,
-                    CustomMapBuilderResourceKind.ParallaxLayer,
-                    out var resource)
-                || !CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var bytes))
+            if (!visualResources.TryGetValue(key, out var resource)
+                && (!metadata.TryGetValue(key, out var resourceName)
+                    || !visualResources.TryGetValue(resourceName.Trim(), out resource)))
             {
                 continue;
             }
@@ -419,22 +436,16 @@ public static class CustomMapPngImporter
                 index,
                 ResolveParallaxFactor(metadata, $"layer{index}xfactor", 10f - index),
                 ResolveParallaxFactor(metadata, $"layer{index}yfactor", 10f - index),
-                new CustomMapVisualResource(resource.Name, bytes)));
+                resource));
         }
 
         CustomMapVisualResource? foreground = null;
-        if (metadata.TryGetValue("bg_foreground", out var encodedForeground)
-            && CustomMapBuilderResourceCodec.TryDecodeLegacyString(
-                "bg_foreground",
-                encodedForeground,
-                CustomMapBuilderResourceKind.Foreground,
-                out var foregroundResource)
-            && CustomMapBuilderResourceCodec.TryGetResourceBytes(foregroundResource, out var foregroundBytes))
+        if (visualResources.TryGetValue("bg_foreground", out var foregroundResource))
         {
-            foreground = new CustomMapVisualResource(foregroundResource.Name, foregroundBytes);
+            foreground = foregroundResource;
         }
 
-        if (parallaxLayers.Count == 0 && foreground is null)
+        if (parallaxLayers.Count == 0 && foreground is null && visualResources.Count == 0)
         {
             return CustomMapVisualMetadata.Empty;
         }
@@ -444,7 +455,8 @@ public static class CustomMapPngImporter
             BackgroundColor: metadata.TryGetValue("background", out var backgroundColor) ? backgroundColor : null,
             VoidColor: metadata.TryGetValue("void", out var voidColor) ? voidColor : null,
             ParallaxLayers: parallaxLayers,
-            Foreground: foreground);
+            Foreground: foreground,
+            Resources: visualResources);
     }
 
     private static float ResolveParallaxFactor(
@@ -461,6 +473,7 @@ public static class CustomMapPngImporter
     private static bool TryCreateRoomObject(ImportedEntity entity, out RoomObjectMarker marker)
     {
         var entityType = entity.Type;
+        var normalizedEntityType = NormalizeEntityTypeName(entityType);
         var x = entity.X;
         var y = entity.Y;
         var xScale = MathF.Abs(entity.XScale) <= 0f ? 1f : MathF.Abs(entity.XScale);
@@ -468,7 +481,7 @@ public static class CustomMapPngImporter
         var resetMoveStatus = ResolveResetMoveStatus(entity.Properties);
         var moveBoxImpulse = ResolveMoveBoxImpulse(entity.Properties);
 
-        marker = entityType.ToLowerInvariant() switch
+        marker = normalizedEntityType switch
         {
             "spawnroom" => CreateMarker(RoomObjectType.SpawnRoom, x, y, 42f, 42f, "sprite64", xScale, yScale, sourceName: entityType),
             "cabinets" or "healingcabinet" or "medcabinet" => CreateMarker(RoomObjectType.HealingCabinet, x, y, 32f, 48f, "sprite74", xScale, yScale, sourceName: entityType),
@@ -485,12 +498,12 @@ public static class CustomMapPngImporter
             "intelgatevertical" => CreateMarker(RoomObjectType.IntelGate, x, y, 6f, 60f, "sprite45", xScale, yScale, sourceName: entityType),
             "intelgatehorizontal" => CreateMarker(RoomObjectType.IntelGate, x, y, 60f, 6f, "sprite44", xScale, yScale, sourceName: entityType),
             "playerwall" => CreateMarker(RoomObjectType.PlayerWall, x, y, 6f, 60f, "sprite45", xScale, yScale, sourceName: entityType),
-            "playerwallhorizontal" or "playerwall_horizontal" => CreateMarker(RoomObjectType.PlayerWall, x, y, 60f, 6f, "sprite44", xScale, yScale, sourceName: entityType),
+            "playerwallhorizontal" => CreateMarker(RoomObjectType.PlayerWall, x, y, 60f, 6f, "sprite44", xScale, yScale, sourceName: entityType),
             "leftdoor" => CreateMarker(RoomObjectType.PlayerWall, x, y, 6f, 60f, "sprite45", xScale, yScale, sourceName: entityType),
             "rightdoor" => CreateMarker(RoomObjectType.PlayerWall, x, y, 6f, 60f, "sprite45", xScale, yScale, sourceName: entityType),
             "dropdownplatform" => CreateMarker(RoomObjectType.DropdownPlatform, x, y, 60f, 6f, "sprite44", xScale, yScale, sourceName: entityType, value: resetMoveStatus),
             "bulletwall" => CreateMarker(RoomObjectType.BulletWall, x, y, 6f, 60f, "sprite45", xScale, yScale, sourceName: entityType),
-            "bulletwallhorizontal" or "bulletwall_horizontal" => CreateMarker(RoomObjectType.BulletWall, x, y, 60f, 6f, "sprite44", xScale, yScale, sourceName: entityType),
+            "bulletwallhorizontal" => CreateMarker(RoomObjectType.BulletWall, x, y, 60f, 6f, "sprite44", xScale, yScale, sourceName: entityType),
             "moveboxup" => CreateMarker(RoomObjectType.MoveBoxUp, x, y, 42f, 42f, "sprite64", xScale, yScale, sourceName: entityType, value: moveBoxImpulse),
             "moveboxdown" => CreateMarker(RoomObjectType.MoveBoxDown, x, y, 42f, 42f, "sprite64", xScale, yScale, sourceName: entityType, value: moveBoxImpulse),
             "moveboxleft" => CreateMarker(RoomObjectType.MoveBoxLeft, x, y, 42f, 42f, "sprite64", xScale, yScale, sourceName: entityType, value: moveBoxImpulse),
@@ -508,7 +521,43 @@ public static class CustomMapPngImporter
             _ => default,
         };
 
-        return marker.Type != default || entityType.Equals("spawnroom", StringComparison.OrdinalIgnoreCase);
+        return marker.Type != default;
+    }
+
+    private static bool TryCreateMovingPlatform(ImportedEntity entity, out MovingPlatformMarker marker)
+    {
+        marker = default;
+        var entityType = entity.Type;
+        if (!NormalizeEntityTypeName(entityType).Equals("movingplatform", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var platformScale = ResolvePositiveFloat(entity.Properties, "scale", 1f);
+        var travelX = ResolveFloat(entity.Properties, "left", DefaultMovingPlatformTravelLeft);
+        var travelY = -ResolveFloat(entity.Properties, "top", DefaultMovingPlatformTravelTop);
+        var upSpeed = ResolvePositiveFloat(entity.Properties, "upspeed", DefaultMovingPlatformSpeed);
+        var downSpeed = ResolvePositiveFloat(entity.Properties, "downspeed", DefaultMovingPlatformSpeed);
+        var triggerMode = (int)Math.Clamp(ResolveFloat(entity.Properties, "trigger", 0f), 0f, 2f);
+        var resetMovementState = ResolveResetMoveStatus(entity.Properties) > 0.5f;
+        var resourceName = entity.Properties.TryGetValue("resource", out var rawResource)
+            ? rawResource.Trim()
+            : string.Empty;
+
+        marker = new MovingPlatformMarker(
+            entity.X,
+            entity.Y,
+            DefaultMovingPlatformWidth * platformScale,
+            DefaultMovingPlatformHeight * platformScale,
+            travelX,
+            travelY,
+            upSpeed,
+            downSpeed,
+            triggerMode,
+            resetMovementState,
+            resourceName,
+            entityType);
+        return true;
     }
 
     private static RoomObjectMarker CreateMarker(
@@ -777,6 +826,21 @@ public static class CustomMapPngImporter
         return 1f;
     }
 
+    private static float ResolveFloat(IReadOnlyDictionary<string, string> properties, string key, float fallback)
+    {
+        return properties.TryGetValue(key, out var rawValue)
+            && float.TryParse(rawValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedValue)
+            && float.IsFinite(parsedValue)
+            ? parsedValue
+            : fallback;
+    }
+
+    private static float ResolvePositiveFloat(IReadOnlyDictionary<string, string> properties, string key, float fallback)
+    {
+        var value = ResolveFloat(properties, key, fallback);
+        return value > 0f ? value : fallback;
+    }
+
     private static float ResolveMoveBoxImpulse(IReadOnlyDictionary<string, string> properties)
     {
         if (properties.TryGetValue("speed", out var rawValue)
@@ -811,5 +875,24 @@ public static class CustomMapPngImporter
 
         value = 0f;
         return false;
+    }
+
+    private static string NormalizeEntityTypeName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder(value.Length);
+        foreach (var character in value)
+        {
+            if (char.IsLetterOrDigit(character))
+            {
+                builder.Append(char.ToLowerInvariant(character));
+            }
+        }
+
+        return builder.ToString();
     }
 }

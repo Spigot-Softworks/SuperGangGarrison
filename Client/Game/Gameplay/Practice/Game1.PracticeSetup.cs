@@ -287,19 +287,20 @@ public partial class Game1
             panelHeight);
 
         var compactLayout = panel.Height < 580 || panel.Width < 640;
-        var padding = compactLayout ? 20 : 28;
-        var rowHeight = compactLayout ? 36 : 42;
-        var rowGap = compactLayout ? 8 : 10;
-        var selectorButtonWidth = compactLayout ? 34 : 40;
-        var contentTop = panel.Y + (compactLayout ? 58 : 72);
-        var labelWidth = compactLayout ? 126 : 150;
+        var shortLayout = panel.Height < 500;
+        var padding = shortLayout ? 16 : compactLayout ? 20 : 28;
+        var rowHeight = shortLayout ? 30 : compactLayout ? 36 : 42;
+        var rowGap = shortLayout ? 4 : compactLayout ? 8 : 10;
+        var selectorButtonWidth = shortLayout ? 30 : compactLayout ? 34 : 40;
+        var contentTop = panel.Y + (shortLayout ? 46 : compactLayout ? 58 : 72);
+        var labelWidth = shortLayout ? 112 : compactLayout ? 126 : 150;
         var selectorLeft = panel.X + padding + labelWidth;
         var selectorWidth = panel.Width - (padding * 2) - labelWidth;
         var selectorValueWidth = selectorWidth - (selectorButtonWidth * 2) - 16;
-        var buttonHeight = compactLayout ? 36 : 42;
-        var actionGap = compactLayout ? 8 : 12;
+        var buttonHeight = shortLayout ? 32 : compactLayout ? 36 : 42;
+        var actionGap = shortLayout ? 6 : compactLayout ? 8 : 12;
         var actionWidth = (panel.Width - (padding * 2) - (actionGap * 2)) / 3;
-        var actionsY = panel.Bottom - padding - buttonHeight - 4;
+        var actionsY = panel.Bottom - padding - buttonHeight - (shortLayout ? 0 : 4);
 
         var mapLeftBounds = new Rectangle(selectorLeft, contentTop, selectorButtonWidth, rowHeight);
         var mapValueBounds = new Rectangle(mapLeftBounds.Right + 8, contentTop, selectorValueWidth, rowHeight);

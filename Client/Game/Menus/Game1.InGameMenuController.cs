@@ -29,7 +29,7 @@ public partial class Game1
             _game._optionsMenuOpen = false;
             _game._pluginOptionsMenuOpen = false;
             _game._controlsMenuOpen = false;
-            _game._customBubbleEditorOpen = false;
+            _game.DismissCustomBubbleEditor();
             _game._editingPlayerName = false;
             _game._pendingControlsBinding = null;
         }

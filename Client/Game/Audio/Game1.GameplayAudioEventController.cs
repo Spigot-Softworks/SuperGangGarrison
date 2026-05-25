@@ -128,6 +128,7 @@ public partial class Game1
         public void PlayPendingSoundEvents()
         {
             ReplayPendingBrowserSoundEvents();
+            _game.AdvanceRecentGibSoundEvents();
 
             for (var index = 0; index < _game._pendingNetworkSoundEvents.Count; index += 1)
             {
@@ -168,6 +169,11 @@ public partial class Game1
                 return;
             }
 
+            if (_game.ShouldSuppressPredictedGibSoundEcho(soundEvent))
+            {
+                return;
+            }
+
             var resolvedSoundName = string.Equals(soundEvent.SoundName, "HealExplosionSnd", StringComparison.OrdinalIgnoreCase)
                 ? "ExplosionSnd"
                 : soundEvent.SoundName;
@@ -176,7 +182,10 @@ public partial class Game1
                 return;
             }
 
-            TryPlayResolvedWorldSound(resolvedSoundName, soundEvent.X, soundEvent.Y, allowBrowserDefer: OperatingSystem.IsBrowser());
+            if (TryPlayResolvedWorldSound(resolvedSoundName, soundEvent.X, soundEvent.Y, allowBrowserDefer: OperatingSystem.IsBrowser()))
+            {
+                _game.RememberPlayedGibSound(soundEvent);
+            }
         }
 
         private void ReplayPendingBrowserSoundEvents()

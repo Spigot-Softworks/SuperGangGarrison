@@ -136,7 +136,8 @@ public sealed partial class SimulationWorld
                     killer.Health,
                     killer.MaxHealth,
                     deathCamTicks,
-                    deathCamTicks);
+                    deathCamTicks,
+                    killer.Id);
             }
             else
             {
@@ -197,7 +198,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        LocalDeathCam = LocalDeathCam with { RemainingTicks = LocalDeathCam.RemainingTicks - 1 };
+        LocalDeathCam = AdvanceDeathCamState(LocalDeathCam);
         AdvanceAdditionalNetworkDeathCams();
     }
 
@@ -217,7 +218,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            _networkPlayerDeathCams[entry.Key] = entry.Value with { RemainingTicks = entry.Value.RemainingTicks - 1 };
+            _networkPlayerDeathCams[entry.Key] = AdvanceDeathCamState(entry.Value);
         }
 
         for (var index = 0; index < staleSlots.Count; index += 1)
@@ -241,6 +242,27 @@ public sealed partial class SimulationWorld
         }
 
         _networkPlayerDeathCams[slot] = deathCam;
+    }
+
+    private LocalDeathCamState AdvanceDeathCamState(LocalDeathCamState deathCam)
+    {
+        return ResolveTrackedDeathCamFocus(deathCam with { RemainingTicks = deathCam.RemainingTicks - 1 });
+    }
+
+    private LocalDeathCamState ResolveTrackedDeathCamFocus(LocalDeathCamState deathCam)
+    {
+        if (deathCam.FocusPlayerId <= 0 || FindPlayerById(deathCam.FocusPlayerId) is not { } focusPlayer)
+        {
+            return deathCam;
+        }
+
+        return deathCam with
+        {
+            FocusX = focusPlayer.X,
+            FocusY = focusPlayer.Y,
+            Health = focusPlayer.Health,
+            MaxHealth = focusPlayer.MaxHealth,
+        };
     }
 
     private void AdvanceNetworkRespawnTimer(byte slot)

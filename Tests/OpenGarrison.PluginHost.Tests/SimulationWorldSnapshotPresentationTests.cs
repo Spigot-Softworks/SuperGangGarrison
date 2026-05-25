@@ -1,3 +1,4 @@
+using System.Reflection;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 using Xunit;
@@ -52,12 +53,95 @@ public sealed class SimulationWorldSnapshotPresentationTests
         Assert.DoesNotContain(world.PendingVisualEvents, visualEvent => visualEvent.EffectName == "GibBlood");
     }
 
+    [Fact]
+    public void ApplySnapshotRetainsMissingEnemySpyForScoreboard()
+    {
+        var world = new SimulationWorld();
+        var localPlayer = CreatePlayerState(1, 101, "Local", PlayerTeam.Red, PlayerClass.Scout, isAlive: true, gibDeaths: 0);
+        var remoteSpy = CreatePlayerState(2, 202, "Remote Spy", PlayerTeam.Blue, PlayerClass.Spy, isAlive: true, gibDeaths: 0) with
+        {
+            X = 64f,
+        };
+        var visibleSnapshot = CreateSnapshot(world, 120, localPlayer, remoteSpy);
+        var hiddenSnapshot = CreateSnapshot(world, 121, localPlayer);
+
+        Assert.True(world.ApplySnapshot(visibleSnapshot, localPlayerSlot: 1));
+        Assert.Single(world.RemoteSnapshotPlayers);
+        Assert.Single(world.RemoteSnapshotScoreboardPlayers);
+
+        Assert.True(world.ApplySnapshot(hiddenSnapshot, localPlayerSlot: 1));
+
+        Assert.Empty(world.RemoteSnapshotPlayers);
+        var scoreboardPlayer = Assert.Single(world.RemoteSnapshotScoreboardPlayers);
+        Assert.Equal(remoteSpy.PlayerId, scoreboardPlayer.Id);
+        Assert.True(world.TryGetPlayerNetworkSlot(scoreboardPlayer, out var slot));
+        Assert.Equal(remoteSpy.Slot, slot);
+    }
+
+    [Fact]
+    public void ApplySnapshotRemovesMissingNonSpyFromScoreboard()
+    {
+        var world = new SimulationWorld();
+        var localPlayer = CreatePlayerState(1, 101, "Local", PlayerTeam.Red, PlayerClass.Scout, isAlive: true, gibDeaths: 0);
+        var remoteSoldier = CreatePlayerState(2, 202, "Remote Soldier", PlayerTeam.Blue, PlayerClass.Soldier, isAlive: true, gibDeaths: 0);
+        var visibleSnapshot = CreateSnapshot(world, 130, localPlayer, remoteSoldier);
+        var removedSnapshot = CreateSnapshot(world, 131, localPlayer);
+
+        Assert.True(world.ApplySnapshot(visibleSnapshot, localPlayerSlot: 1));
+        Assert.Single(world.RemoteSnapshotScoreboardPlayers);
+
+        Assert.True(world.ApplySnapshot(removedSnapshot, localPlayerSlot: 1));
+
+        Assert.Empty(world.RemoteSnapshotPlayers);
+        Assert.Empty(world.RemoteSnapshotScoreboardPlayers);
+    }
+
+    [Fact]
+    public void GetNetworkPlayerDeathCamRefreshesTrackedKillerFocus()
+    {
+        var world = new SimulationWorld();
+        world.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.TryGetNetworkPlayer(2, out var killer));
+        killer.TeleportTo(128f, 96f);
+
+        var killMethod = typeof(SimulationWorld).GetMethod("KillPlayer", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(killMethod);
+        _ = killMethod!.Invoke(
+            world,
+            [
+                world.LocalPlayer,
+                false,
+                killer,
+                "RocketKL",
+                DeadBodyAnimationKind.Default,
+                null,
+                null,
+                null,
+                true,
+                true,
+                true,
+            ]);
+
+        killer.TeleportTo(320f, 192f);
+
+        var deathCam = world.GetNetworkPlayerDeathCam(SimulationWorld.LocalPlayerSlot);
+        Assert.NotNull(deathCam);
+        Assert.Equal(killer.X, deathCam!.FocusX);
+        Assert.Equal(killer.Y, deathCam.FocusY);
+    }
+
     private static SnapshotMessage CreateSnapshot(
         SimulationWorld world,
         ulong frame,
         SnapshotPlayerState localPlayer,
-        SnapshotPlayerState remotePlayer)
+        SnapshotPlayerState? remotePlayer = null)
     {
+        var players = remotePlayer is null
+            ? new[] { localPlayer }
+            : new[] { localPlayer, remotePlayer };
         return new SnapshotMessage(
             frame,
             TickRate: 60,
@@ -74,7 +158,7 @@ public sealed class SimulationWorldSnapshotPresentationTests
             LastProcessedInputSequence: 0,
             RedIntel: new SnapshotIntelState((byte)PlayerTeam.Red, 0f, 0f, true, false, 0),
             BlueIntel: new SnapshotIntelState((byte)PlayerTeam.Blue, 0f, 0f, true, false, 0),
-            Players: [localPlayer, remotePlayer],
+            Players: players,
             CombatTraces: [],
             SniperAimIndicators: [],
             Sentries: [],

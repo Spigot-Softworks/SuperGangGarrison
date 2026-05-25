@@ -8,6 +8,8 @@ namespace OpenGarrison.Client;
 
 internal static class SoundDecodeUtility
 {
+    internal readonly record struct DecodedSoundData(byte[] PcmBytes, int SampleRate, AudioChannels Channels);
+
     public static SoundEffect LoadSoundEffect(byte[] bytes, string assetName)
     {
         ArgumentNullException.ThrowIfNull(bytes);
@@ -18,8 +20,253 @@ internal static class SoundDecodeUtility
             return LoadOggSoundEffect(bytes, assetName);
         }
 
+        if (string.Equals(Path.GetExtension(assetName), ".wav", StringComparison.OrdinalIgnoreCase))
+        {
+            if (TryDecodeWavePcm16(bytes, out var decodedWave))
+            {
+                return new SoundEffect(decodedWave.PcmBytes, decodedWave.SampleRate, decodedWave.Channels);
+            }
+
+            if (OperatingSystem.IsBrowser())
+            {
+                throw new NotSupportedException($"Unsupported WAV encoding for {assetName}.");
+            }
+        }
+
         using var stream = new MemoryStream(bytes, writable: false);
         return SoundEffect.FromStream(stream);
+    }
+
+    internal static bool TryDecodeWavePcm16(byte[] bytes, out DecodedSoundData decodedSound)
+    {
+        decodedSound = default;
+        if (bytes.Length < 44
+            || !HasAscii(bytes, 0, "RIFF")
+            || !HasAscii(bytes, 8, "WAVE"))
+        {
+            return false;
+        }
+
+        var offset = 12;
+        WaveFormatInfo? format = null;
+        ReadOnlySpan<byte> data = default;
+        while (offset + 8 <= bytes.Length)
+        {
+            var chunkId = bytes.AsSpan(offset, 4);
+            var chunkLength = BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset + 4, 4));
+            offset += 8;
+            if (chunkLength > int.MaxValue || offset + (int)chunkLength > bytes.Length)
+            {
+                return false;
+            }
+
+            var chunk = bytes.AsSpan(offset, (int)chunkLength);
+            if (chunkId.SequenceEqual("fmt "u8))
+            {
+                if (!TryReadWaveFormat(chunk, out var parsedFormat))
+                {
+                    return false;
+                }
+
+                format = parsedFormat;
+            }
+            else if (chunkId.SequenceEqual("data"u8))
+            {
+                data = chunk;
+            }
+
+            offset += (int)chunkLength;
+            if ((chunkLength & 1u) != 0u)
+            {
+                offset += 1;
+            }
+        }
+
+        if (format is not { } waveFormat || data.Length == 0)
+        {
+            return false;
+        }
+
+        var channels = waveFormat.Channels == 1 ? AudioChannels.Mono : AudioChannels.Stereo;
+        var pcmBytes = waveFormat.Encoding switch
+        {
+            WaveEncoding.Pcm when waveFormat.BitsPerSample == 16 => CopyAlignedPcm16(data),
+            WaveEncoding.Pcm when waveFormat.BitsPerSample == 8 => ConvertPcm8ToPcm16(data),
+            WaveEncoding.Pcm when waveFormat.BitsPerSample == 24 => ConvertPcm24ToPcm16(data),
+            WaveEncoding.Pcm when waveFormat.BitsPerSample == 32 => ConvertPcm32ToPcm16(data),
+            WaveEncoding.IeeeFloat when waveFormat.BitsPerSample == 32 => ConvertFloat32ToPcm16(data),
+            _ => null,
+        };
+
+        if (pcmBytes is null || pcmBytes.Length == 0)
+        {
+            return false;
+        }
+
+        decodedSound = new DecodedSoundData(pcmBytes, waveFormat.SampleRate, channels);
+        return true;
+    }
+
+    private static bool TryReadWaveFormat(ReadOnlySpan<byte> chunk, out WaveFormatInfo format)
+    {
+        format = default;
+        if (chunk.Length < 16)
+        {
+            return false;
+        }
+
+        var formatTag = BinaryPrimitives.ReadUInt16LittleEndian(chunk[..2]);
+        var channels = BinaryPrimitives.ReadUInt16LittleEndian(chunk.Slice(2, 2));
+        var sampleRate = BinaryPrimitives.ReadUInt32LittleEndian(chunk.Slice(4, 4));
+        var blockAlign = BinaryPrimitives.ReadUInt16LittleEndian(chunk.Slice(12, 2));
+        var bitsPerSample = BinaryPrimitives.ReadUInt16LittleEndian(chunk.Slice(14, 2));
+        if (channels is < 1 or > 2 || sampleRate == 0 || sampleRate > int.MaxValue || blockAlign == 0)
+        {
+            return false;
+        }
+
+        var encoding = formatTag switch
+        {
+            1 => WaveEncoding.Pcm,
+            3 => WaveEncoding.IeeeFloat,
+            0xFFFE when TryReadWaveExtensibleEncoding(chunk, out var extensibleEncoding) => extensibleEncoding,
+            _ => WaveEncoding.Unsupported,
+        };
+
+        if (encoding == WaveEncoding.Unsupported)
+        {
+            return false;
+        }
+
+        format = new WaveFormatInfo(encoding, channels, (int)sampleRate, blockAlign, bitsPerSample);
+        return true;
+    }
+
+    private static bool TryReadWaveExtensibleEncoding(ReadOnlySpan<byte> chunk, out WaveEncoding encoding)
+    {
+        encoding = WaveEncoding.Unsupported;
+        if (chunk.Length < 40)
+        {
+            return false;
+        }
+
+        var subFormat = chunk.Slice(24, 16);
+        if (subFormat.SequenceEqual(PcmSubFormatGuidBytes))
+        {
+            encoding = WaveEncoding.Pcm;
+            return true;
+        }
+
+        if (subFormat.SequenceEqual(IeeeFloatSubFormatGuidBytes))
+        {
+            encoding = WaveEncoding.IeeeFloat;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static byte[]? CopyAlignedPcm16(ReadOnlySpan<byte> data)
+    {
+        var length = data.Length - (data.Length % sizeof(short));
+        if (length <= 0)
+        {
+            return null;
+        }
+
+        return data[..length].ToArray();
+    }
+
+    private static byte[]? ConvertPcm8ToPcm16(ReadOnlySpan<byte> data)
+    {
+        if (data.Length == 0)
+        {
+            return null;
+        }
+
+        var pcmBytes = new byte[data.Length * sizeof(short)];
+        for (var index = 0; index < data.Length; index += 1)
+        {
+            var sample = (short)((data[index] - 128) << 8);
+            BinaryPrimitives.WriteInt16LittleEndian(pcmBytes.AsSpan(index * sizeof(short), sizeof(short)), sample);
+        }
+
+        return pcmBytes;
+    }
+
+    private static byte[]? ConvertPcm24ToPcm16(ReadOnlySpan<byte> data)
+    {
+        var sampleCount = data.Length / 3;
+        if (sampleCount <= 0)
+        {
+            return null;
+        }
+
+        var pcmBytes = new byte[sampleCount * sizeof(short)];
+        for (var index = 0; index < sampleCount; index += 1)
+        {
+            var sourceOffset = index * 3;
+            var value = data[sourceOffset]
+                | (data[sourceOffset + 1] << 8)
+                | (data[sourceOffset + 2] << 16);
+            if ((value & 0x800000) != 0)
+            {
+                value |= unchecked((int)0xFF000000);
+            }
+
+            var sample = (short)(value >> 8);
+            BinaryPrimitives.WriteInt16LittleEndian(pcmBytes.AsSpan(index * sizeof(short), sizeof(short)), sample);
+        }
+
+        return pcmBytes;
+    }
+
+    private static byte[]? ConvertPcm32ToPcm16(ReadOnlySpan<byte> data)
+    {
+        var sampleCount = data.Length / sizeof(int);
+        if (sampleCount <= 0)
+        {
+            return null;
+        }
+
+        var pcmBytes = new byte[sampleCount * sizeof(short)];
+        for (var index = 0; index < sampleCount; index += 1)
+        {
+            var value = BinaryPrimitives.ReadInt32LittleEndian(data.Slice(index * sizeof(int), sizeof(int)));
+            var sample = (short)(value >> 16);
+            BinaryPrimitives.WriteInt16LittleEndian(pcmBytes.AsSpan(index * sizeof(short), sizeof(short)), sample);
+        }
+
+        return pcmBytes;
+    }
+
+    private static byte[]? ConvertFloat32ToPcm16(ReadOnlySpan<byte> data)
+    {
+        var sampleCount = data.Length / sizeof(float);
+        if (sampleCount <= 0)
+        {
+            return null;
+        }
+
+        var pcmBytes = new byte[sampleCount * sizeof(short)];
+        for (var index = 0; index < sampleCount; index += 1)
+        {
+            var value = BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32LittleEndian(data.Slice(index * sizeof(float), sizeof(float))));
+            var clamped = Math.Clamp(value, -1f, 1f);
+            var sample = clamped >= 0f
+                ? (short)Math.Round(clamped * short.MaxValue)
+                : (short)Math.Round(clamped * -short.MinValue);
+            BinaryPrimitives.WriteInt16LittleEndian(pcmBytes.AsSpan(index * sizeof(short), sizeof(short)), sample);
+        }
+
+        return pcmBytes;
+    }
+
+    private static bool HasAscii(byte[] bytes, int offset, string text)
+    {
+        return offset >= 0
+            && offset + text.Length <= bytes.Length
+            && bytes.AsSpan(offset, text.Length).SequenceEqual(System.Text.Encoding.ASCII.GetBytes(text));
     }
 
     private static SoundEffect LoadOggSoundEffect(byte[] bytes, string assetName)
@@ -109,5 +356,37 @@ internal static class SoundDecodeUtility
                 : (short)Math.Round(clamped * -short.MinValue);
             BinaryPrimitives.WriteInt16LittleEndian(destination.Slice(index * sizeof(short), sizeof(short)), value);
         }
+    }
+
+    private static readonly byte[] PcmSubFormatGuidBytes =
+    [
+        0x01, 0x00, 0x00, 0x00,
+        0x00, 0x00,
+        0x10, 0x00,
+        0x80, 0x00,
+        0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71,
+    ];
+
+    private static readonly byte[] IeeeFloatSubFormatGuidBytes =
+    [
+        0x03, 0x00, 0x00, 0x00,
+        0x00, 0x00,
+        0x10, 0x00,
+        0x80, 0x00,
+        0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71,
+    ];
+
+    private readonly record struct WaveFormatInfo(
+        WaveEncoding Encoding,
+        int Channels,
+        int SampleRate,
+        int BlockAlign,
+        int BitsPerSample);
+
+    private enum WaveEncoding
+    {
+        Unsupported,
+        Pcm,
+        IeeeFloat,
     }
 }

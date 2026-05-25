@@ -883,6 +883,7 @@ public sealed partial class SimulationWorld
     {
         _snapshotSeenRemotePlayerSlots.Clear();
         _remoteSnapshotPlayers.Clear();
+        _remoteSnapshotScoreboardPlayers.Clear();
         _remoteSnapshotAwaitingJoinSlots.Clear();
         _remoteSnapshotAwaitingJoinPlayerIds.Clear();
         foreach (var snapshotPlayer in snapshotPlayers)
@@ -940,12 +941,47 @@ public sealed partial class SimulationWorld
         for (var index = 0; index < _snapshotStaleRemotePlayerSlots.Count; index += 1)
         {
             var slot = _snapshotStaleRemotePlayerSlots[index];
-            if (_remoteSnapshotPlayersBySlot.Remove(slot, out var removedPlayer))
+            if (!_remoteSnapshotPlayersBySlot.TryGetValue(slot, out var removedPlayer))
+            {
+                continue;
+            }
+
+            if (ShouldRetainMissingRemoteSnapshotPlayerForScoreboard(removedPlayer))
+            {
+                continue;
+            }
+
+            if (_remoteSnapshotPlayersBySlot.Remove(slot))
             {
                 ApplySnapshotNetworkPlayerReady(slot, ready: false);
                 _presentedNetworkGibDeathCountsByPlayerId.Remove(removedPlayer.Id);
             }
         }
+
+        for (var slot = LocalPlayerSlot; slot <= MaxPlayableNetworkPlayers; slot += 1)
+        {
+            if (_remoteSnapshotPlayersBySlot.TryGetValue((byte)slot, out var player))
+            {
+                _remoteSnapshotScoreboardPlayers.Add(player);
+            }
+        }
+    }
+
+    private bool ShouldRetainMissingRemoteSnapshotPlayerForScoreboard(PlayerEntity player)
+    {
+        return LocalPlayer.IsAlive
+            && player.Team != LocalPlayer.Team
+            && player.ClassId == PlayerClass.Spy
+            && !player.IsSpyVisibleToEnemies
+            && !player.IsSpyBackstabAnimating
+            && IsRemoteSpyHiddenFromLocalPlayer(player);
+    }
+
+    private bool IsRemoteSpyHiddenFromLocalPlayer(PlayerEntity spy)
+    {
+        var radians = MathF.PI * LocalPlayer.AimDirectionDegrees / 180f;
+        var viewerFacingSign = MathF.Cos(radians) < 0f ? -1 : 1;
+        return Math.Sign(spy.X - LocalPlayer.X) == -viewerFacingSign;
     }
 
     private void SynchronizeNetworkGibDeathPresentationCount(int playerId, int observedGibDeaths)

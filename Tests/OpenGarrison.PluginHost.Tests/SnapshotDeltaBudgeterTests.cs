@@ -1264,6 +1264,46 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
+    public void BuildContributionsMarksNewDeadBodiesAsRequiredEntityAppearances()
+    {
+        var deadBody = new SnapshotDeadBodyState(
+            Id: 701,
+            SourcePlayerId: 202,
+            Team: (byte)PlayerTeam.Blue,
+            ClassId: (byte)PlayerClass.Soldier,
+            AnimationKind: (byte)DeadBodyAnimationKind.Default,
+            X: 128f,
+            Y: 96f,
+            Width: 24f,
+            Height: 48f,
+            HorizontalSpeed: 0f,
+            VerticalSpeed: 0f,
+            FacingLeft: false,
+            TicksRemaining: 90);
+        var current = CreateSnapshot(360) with
+        {
+            DeadBodies = [deadBody],
+        };
+        var baseline = SnapshotBaselineState.FromSnapshot(CreateSnapshot(359));
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+
+        var contribution = Assert.Single(contributions.Where(static entry => entry.Kind == SnapshotDeltaBudgeter.ContributionKind.EntityFirstAppearance));
+        var builder = new SnapshotDeltaBudgeter.Builder(current, baseline.Frame, seedFromTemplateCollections: false);
+        contribution.Apply(builder);
+        var snapshot = builder.Build();
+        var includedDeadBody = Assert.Single(snapshot.DeadBodies);
+        Assert.Equal(deadBody.Id, includedDeadBody.Id);
+    }
+
+    [Fact]
     public void BuildBudgetedSnapshotPrioritizesUndeliveredPlayersOverKnownMovementUpdates()
     {
         var knownPlayers = Enumerable.Range(0, 4)

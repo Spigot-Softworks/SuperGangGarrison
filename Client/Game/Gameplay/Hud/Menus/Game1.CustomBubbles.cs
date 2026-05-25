@@ -99,17 +99,27 @@ public partial class Game1
 
     private void CloseCustomBubbleEditor()
     {
-        _customBubbleEditorOpen = false;
-        CustomBubbleEditor.Close();
         var returnToOptions = _customBubbleEditorReturnToOptions;
         var returnFromGameplay = _customBubbleEditorReturnFromGameplayOptions;
-        _customBubbleEditorReturnToOptions = false;
-        _customBubbleEditorReturnFromGameplayOptions = false;
+        DismissCustomBubbleEditor();
         if (returnToOptions)
         {
             OpenOptionsMenu(returnFromGameplay);
             _optionsPageIndex = 2;
         }
+    }
+
+    private void DismissCustomBubbleEditor()
+    {
+        if (!_customBubbleEditorOpen)
+        {
+            return;
+        }
+
+        _customBubbleEditorOpen = false;
+        _customBubbleEditorReturnToOptions = false;
+        _customBubbleEditorReturnFromGameplayOptions = false;
+        _customBubbleEditorController?.Close();
     }
 
     private void SaveCustomBubbleEditorPixels(int slotIndex, byte[] pixels)

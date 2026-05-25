@@ -32,6 +32,7 @@ public partial class Game1
         DrawCustomMapParallaxBackgrounds(cameraPosition);
         var hasLevelBackground = DrawLevelBackground(worldRectangle);
         DrawFallbackLevelSolids(cameraPosition, hasLevelBackground);
+        DrawMovingPlatforms(cameraPosition);
         DrawGameplayEffectsAndProjectiles(cameraPosition);
         DrawGameplayStructures(cameraPosition);
         DrawGameplayMapMarkers(cameraPosition, hasLevelBackground, centerLine, centerColumn, worldTopBorder, worldBottomBorder, worldLeftBorder, worldRightBorder, spawnRectangle);

@@ -6,6 +6,10 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <Deterministic>true</Deterministic>
+    <OpenGarrisonSourceRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)'))</OpenGarrisonSourceRoot>
+    <OpenGarrisonMappedSourceRoot>/_/OpenGarrison/</OpenGarrisonMappedSourceRoot>
+    <PathMap Condition="'$(PathMap)' == ''">$(OpenGarrisonSourceRoot)=$(OpenGarrisonMappedSourceRoot)</PathMap>
+    <PathMap Condition="'$(PathMap)' != ''">$(PathMap),$(OpenGarrisonSourceRoot)=$(OpenGarrisonMappedSourceRoot)</PathMap>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
     <Product>Super Gang Garrison</Product>

@@ -45,6 +45,15 @@ local function clamp(value, minimum, maximum)
     return value
 end
 
+local function normalize_slot(slot)
+    local numeric = tonumber(slot)
+    if numeric == nil then
+        return slot
+    end
+
+    return numeric
+end
+
 local function load_config()
     local loaded = plugin.host.load_json_config("chat-voting.json", default_config)
     local normalized = {
@@ -71,10 +80,11 @@ local function parse_command(text)
     return string.lower(command_name), arguments
 end
 
-local function find_player(slot)
-    local players = plugin.host.get_players()
-    for _, player in ipairs(players) do
-        if player.slot == slot then
+local function find_player(slot, players)
+    local normalized_slot = normalize_slot(slot)
+    local player_list = players or plugin.host.get_players()
+    for _, player in pairs(player_list) do
+        if normalize_slot(player.slot) == normalized_slot then
             return player
         end
     end
@@ -109,7 +119,7 @@ end
 
 local function get_eligible_players()
     local result = {}
-    for _, player in ipairs(plugin.host.get_players()) do
+    for _, player in pairs(plugin.host.get_players()) do
         if is_player_eligible(player) then
             table.insert(result, player)
         end
@@ -263,6 +273,7 @@ local function try_resolve_level(arguments)
 end
 
 local function try_start_vote(event, arguments, vote_kind)
+    event.slot = normalize_slot(event.slot)
     local initiator = try_get_eligible_player(event.slot)
     if initiator == nil then
         plugin.host.send_system_message(
@@ -325,6 +336,7 @@ local function try_start_vote(event, arguments, vote_kind)
 end
 
 local function try_register_vote(event, arguments)
+    event.slot = normalize_slot(event.slot)
     if active_vote == nil then
         plugin.host.send_system_message(event.slot, "There is no active vote.")
         return true
@@ -379,12 +391,13 @@ local function handle_vote_status(slot)
 end
 
 local function handle_cancel_vote(event)
+    event.slot = normalize_slot(event.slot)
     if active_vote == nil then
         plugin.host.send_system_message(event.slot, "There is no active vote.")
         return true
     end
 
-    if active_vote.initiator_slot ~= event.slot then
+    if normalize_slot(active_vote.initiator_slot) ~= event.slot then
         plugin.host.send_system_message(event.slot, "Only the player who started the vote can cancel it.")
         return true
     end
@@ -403,6 +416,7 @@ local function create_chat_command_event(context)
         return nil
     end
 
+    slot = normalize_slot(slot)
     return {
         slot = slot,
         playerName = identity.displayName or identity.DisplayName or "Player",

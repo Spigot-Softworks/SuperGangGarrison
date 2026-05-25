@@ -491,4 +491,109 @@ public sealed partial class PlayerEntity
 
         return CanOccupy(level, team, x, y);
     }
+
+    public bool IsStandingOnMovingPlatform(float platformLeft, float platformTop, float platformRight)
+    {
+        const float verticalTolerance = 1.5f;
+        const float horizontalInset = 1f;
+        return Right - horizontalInset > platformLeft
+            && Left + horizontalInset < platformRight
+            && Bottom >= platformTop - verticalTolerance
+            && Bottom <= platformTop + verticalTolerance;
+    }
+
+    public bool TryLandOnMovingPlatform(
+        SimpleLevel level,
+        PlayerTeam team,
+        float platformLeft,
+        float platformTop,
+        float platformRight,
+        float previousBottom,
+        bool allowFallThrough,
+        bool resetMovementState)
+    {
+        if (allowFallThrough || VerticalSpeed < 0f)
+        {
+            return false;
+        }
+
+        const float horizontalInset = 1f;
+        if (Right - horizontalInset <= platformLeft
+            || Left + horizontalInset >= platformRight
+            || previousBottom > platformTop + 0.1f
+            || Bottom < platformTop - 2f)
+        {
+            return false;
+        }
+
+        return TrySnapToMovingPlatformTop(level, team, platformTop, resetMovementState);
+    }
+
+    public bool TryLiftOntoMovingPlatform(
+        SimpleLevel level,
+        PlayerTeam team,
+        float platformLeft,
+        float platformTop,
+        float platformRight,
+        float previousPlatformBottom,
+        bool resetMovementState)
+    {
+        const float horizontalInset = 1f;
+        if (Right - horizontalInset <= platformLeft
+            || Left + horizontalInset >= platformRight
+            || Bottom < platformTop - 2f
+            || Bottom > previousPlatformBottom + 1f)
+        {
+            return false;
+        }
+
+        return TrySnapToMovingPlatformTop(level, team, platformTop, resetMovementState);
+    }
+
+    public bool TryMoveWithMovingPlatform(SimpleLevel level, PlayerTeam team, float deltaX, float deltaY, bool resetMovementState)
+    {
+        if (!IsAlive)
+        {
+            return false;
+        }
+
+        var targetX = X + deltaX;
+        var targetY = Y + deltaY;
+        if (!TryCanOccupyWithinBounds(level, team, targetX, targetY))
+        {
+            return false;
+        }
+
+        X = targetX;
+        Y = targetY;
+        IsGrounded = true;
+        RemainingAirJumps = MaxAirJumps;
+        VerticalSpeed = 0f;
+        if (resetMovementState)
+        {
+            MovementState = LegacyMovementState.None;
+        }
+
+        return true;
+    }
+
+    private bool TrySnapToMovingPlatformTop(SimpleLevel level, PlayerTeam team, float platformTop, bool resetMovementState)
+    {
+        var targetY = platformTop - CollisionBottomOffset;
+        if (!TryCanOccupyWithinBounds(level, team, X, targetY))
+        {
+            return false;
+        }
+
+        Y = targetY;
+        IsGrounded = true;
+        RemainingAirJumps = MaxAirJumps;
+        VerticalSpeed = 0f;
+        if (resetMovementState)
+        {
+            MovementState = LegacyMovementState.None;
+        }
+
+        return true;
+    }
 }

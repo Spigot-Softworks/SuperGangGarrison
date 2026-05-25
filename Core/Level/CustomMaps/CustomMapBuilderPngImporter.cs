@@ -117,17 +117,25 @@ public static class CustomMapBuilderPngImporter
                 resourceName = layerKey;
             }
 
-            var xFactor = TryParseFloat(metadata, $"layer{index}xfactor", out var parsedXFactor) ? parsedXFactor : 1f;
-            var yFactor = TryParseFloat(metadata, $"layer{index}yfactor", out var parsedYFactor) ? parsedYFactor : 1f;
+            var defaultFactor = GetLegacyDefaultParallaxFactor(index);
+            var hasXFactor = TryParseFloat(metadata, $"layer{index}xfactor", out var parsedXFactor);
+            var hasYFactor = TryParseFloat(metadata, $"layer{index}yfactor", out var parsedYFactor);
+            var xFactor = hasXFactor ? parsedXFactor : defaultFactor;
+            var yFactor = hasYFactor ? parsedYFactor : defaultFactor;
             if (!string.IsNullOrWhiteSpace(resourceName)
-                || Math.Abs(xFactor - 1f) > float.Epsilon
-                || Math.Abs(yFactor - 1f) > float.Epsilon)
+                || hasXFactor
+                || hasYFactor)
             {
                 layers.Add(new CustomMapBuilderParallaxLayer(index, resourceName, xFactor, yFactor).NormalizeForEditing());
             }
         }
 
         return layers;
+    }
+
+    private static float GetLegacyDefaultParallaxFactor(int index)
+    {
+        return 10f - index;
     }
 
     private static Dictionary<string, string> DecodeScalarMap(GgonValue.Map map)

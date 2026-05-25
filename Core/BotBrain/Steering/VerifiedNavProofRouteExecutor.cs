@@ -5,6 +5,9 @@ public sealed class VerifiedNavProofRouteExecutor
     private const float SurfaceHorizontalTolerance = 18f;
     private const float SurfaceBottomTolerance = 14f;
     private const float EntryWindow = 34f;
+    private const float EdgeTransitCorridorDistance = 36f;
+    private const float EdgeTransitEndpointPadding = 48f;
+    private const float EdgeTransitVerticalPadding = 36f;
     private const float MaxEdgeDivergence = 360f;
     private const float MaxRouteDivergence = 520f;
     private const float MaxActionOnlyRouteStartDivergence = 24f;
@@ -199,12 +202,13 @@ public sealed class VerifiedNavProofRouteExecutor
             }
         }
 
+        var edgeTransit = IsGroundedEdgeTransit(edge, self, currentSurfaceId);
         proofSteering = baseSteering;
-        ApplyEdgeSteering(self, edge, currentSurfaceId, ref proofSteering);
+        ApplyEdgeSteering(self, edge, currentSurfaceId, edgeTransit, ref proofSteering);
         LastTrace =
             $"proofGraph=route:{_activeKind} edgeIndex:{_routeEdgeIndex}/{_activeRoute.EdgeIds.Count} edge:{edge.Id} " +
             $"from:{edge.FromSurfaceId} to:{edge.ToSurfaceId} ticks:{ticksOnEdge} routeTicks:{thinkTick - _routeStartThinkTick + 1} " +
-            $"surface:{currentSurfaceId} dist:{routeDistance:0.0} exitDist:{distanceToExit:0.0} " +
+            $"surface:{currentSurfaceId} transit:{(edgeTransit ? 1 : 0)} dist:{routeDistance:0.0} exitDist:{distanceToExit:0.0} " +
             $"move:{proofSteering.MoveDirection:0} jump:{(proofSteering.Jump ? 1 : 0)} drop:{(proofSteering.DropDown ? 1 : 0)}";
         return true;
     }
@@ -342,12 +346,11 @@ public sealed class VerifiedNavProofRouteExecutor
                     continue;
                 }
 
-                if (!CanAttachAtInteriorEdge(self, currentSurfaceId, edge))
+                if (!TryResolveInteriorAttachmentDistance(self, currentSurfaceId, edge, out var attachmentDistance))
                 {
                     continue;
                 }
 
-                var attachmentDistance = Distance(self.X, self.Bottom, edge.EntryX, edge.EntryBottom);
                 if (attachmentDistance > MaxRouteAttachmentDivergence || attachmentDistance >= selectedStartDistance)
                 {
                     continue;
@@ -407,23 +410,53 @@ public sealed class VerifiedNavProofRouteExecutor
         return true;
     }
 
-    private static bool CanAttachAtInteriorEdge(PlayerEntity self, int currentSurfaceId, VerifiedNavProofGraphEdge edge)
+    private static bool TryResolveInteriorAttachmentDistance(
+        PlayerEntity self,
+        int currentSurfaceId,
+        VerifiedNavProofGraphEdge edge,
+        out float distance)
     {
+        distance = float.PositiveInfinity;
         var entryDistance = Distance(self.X, self.Bottom, edge.EntryX, edge.EntryBottom);
         if (edge.Actions.Count > 0)
         {
-            return entryDistance <= EntryWindow
-                && MathF.Abs(self.Bottom - edge.EntryBottom) <= SurfaceBottomTolerance;
+            if (entryDistance <= EntryWindow
+                && MathF.Abs(self.Bottom - edge.EntryBottom) <= SurfaceBottomTolerance)
+            {
+                distance = entryDistance;
+                return true;
+            }
+
+            if (IsGroundedEdgeTransit(edge, self, currentSurfaceId))
+            {
+                distance = DistanceToSegment(self.X, self.Bottom, edge.EntryX, edge.EntryBottom, edge.ExitX, edge.ExitBottom);
+                return true;
+            }
+
+            return false;
         }
 
         if (IsKnownSurfaceMatch(currentSurfaceId, edge.FromSurfaceId)
             || IsKnownSurfaceMatch(currentSurfaceId, edge.ToSurfaceId))
         {
+            distance = 0f;
             return true;
         }
 
-        return entryDistance <= EntryWindow
-            && MathF.Abs(self.Bottom - edge.EntryBottom) <= SurfaceBottomTolerance;
+        if (IsGroundedEdgeTransit(edge, self, currentSurfaceId))
+        {
+            distance = DistanceToSegment(self.X, self.Bottom, edge.EntryX, edge.EntryBottom, edge.ExitX, edge.ExitBottom);
+            return true;
+        }
+
+        if (entryDistance <= EntryWindow
+            && MathF.Abs(self.Bottom - edge.EntryBottom) <= SurfaceBottomTolerance)
+        {
+            distance = entryDistance;
+            return true;
+        }
+
+        return false;
     }
 
     private int FindLaneSegmentIndexForEdge(
@@ -1124,12 +1157,13 @@ public sealed class VerifiedNavProofRouteExecutor
         PlayerEntity self,
         VerifiedNavProofGraphEdge edge,
         int currentSurfaceId,
+        bool edgeTransit,
         ref SteeringOutput steering)
     {
         var entryActionWindow = GetEntryActionWindow(edge);
         var atEntry = IsKnownSurfaceMatch(currentSurfaceId, edge.FromSurfaceId)
             && MathF.Abs(self.X - edge.EntryX) <= entryActionWindow;
-        var seekingEntry = !_edgeActionStarted && !atEntry;
+        var seekingEntry = !_edgeActionStarted && !atEntry && !edgeTransit;
         if ((_edgeActionStarted || atEntry) && TryResolveProofAction(edge, out var action))
         {
             steering.MoveDirection = action.MoveDirection;
@@ -1362,6 +1396,31 @@ public sealed class VerifiedNavProofRouteExecutor
 
     private static bool IsKnownSurfaceMatch(int currentSurfaceId, int targetSurfaceId)
         => targetSurfaceId >= 0 && currentSurfaceId == targetSurfaceId;
+
+    private static bool IsGroundedEdgeTransit(VerifiedNavProofGraphEdge edge, PlayerEntity self, int currentSurfaceId)
+    {
+        if (!self.IsGrounded
+            || IsKnownSurfaceMatch(currentSurfaceId, edge.FromSurfaceId)
+            || IsKnownSurfaceMatch(currentSurfaceId, edge.ToSurfaceId)
+            || edge.FromSurfaceId < 0
+            || edge.ToSurfaceId < 0
+            || MathF.Abs(edge.ExitBottom - edge.EntryBottom) <= SurfaceBottomTolerance)
+        {
+            return false;
+        }
+
+        var minX = MathF.Min(edge.EntryX, edge.ExitX) - EdgeTransitEndpointPadding;
+        var maxX = MathF.Max(edge.EntryX, edge.ExitX) + EdgeTransitEndpointPadding;
+        var minBottom = MathF.Min(edge.EntryBottom, edge.ExitBottom) - EdgeTransitVerticalPadding;
+        var maxBottom = MathF.Max(edge.EntryBottom, edge.ExitBottom) + EdgeTransitVerticalPadding;
+        if (self.X < minX || self.X > maxX || self.Bottom < minBottom || self.Bottom > maxBottom)
+        {
+            return false;
+        }
+
+        var distance = DistanceToSegment(self.X, self.Bottom, edge.EntryX, edge.EntryBottom, edge.ExitX, edge.ExitBottom);
+        return distance <= EdgeTransitCorridorDistance;
+    }
 
     private bool TryResolveLaneRecovery(
         VerifiedNavProofLaneSegment segment,

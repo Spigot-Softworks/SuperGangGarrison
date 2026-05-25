@@ -28,6 +28,7 @@ internal static class SnapshotDeltaBudgeter
         PlayerRosterUpdate,
         PlayerRemoval,
         EntityRemoval,
+        EntityFirstAppearance,
         TransientSoundEvent,
         ProjectileSpawn,
     }
@@ -97,6 +98,12 @@ internal static class SnapshotDeltaBudgeter
             orderedContributions,
             appliedContributions,
             SnapshotDeltaBudgeter.ContributionKind.EntityRemoval,
+            ref remainingBudget);
+        ApplyRequiredContributions(
+            builder,
+            orderedContributions,
+            appliedContributions,
+            SnapshotDeltaBudgeter.ContributionKind.EntityFirstAppearance,
             ref remainingBudget);
         ApplyRequiredContributions(
             builder,

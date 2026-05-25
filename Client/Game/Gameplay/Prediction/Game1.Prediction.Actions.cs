@@ -536,7 +536,7 @@ public partial class Game1
     private bool TryPredictedStartHeavyGhostDash(PlayerEntity player)
     {
         var ability = GetPredictedHeavyGhostDashAbility(player);
-        var useMomentum = GetPredictedHeavyGhostDashUseMomentum(ability);
+        var useMomentum = GetPredictedHeavyGhostDashUseMomentum(player, ability);
         if (!player.TryStartExperimentalGhostDash(
             GetPredictedHeavyGhostDashDurationTicks(ability),
             GetPredictedHeavyGhostDashCooldownTicks(ability),
@@ -635,9 +635,29 @@ public partial class Game1
 
     private static bool GetPredictedHeavyGhostDashUseMomentum(GameplayAbilityDefinition? ability)
     {
+        if (ability is null)
+        {
+            return false;
+        }
+
         var hasBurstParameters = HasPredictedHeavyGhostDashBurstParameters(ability);
-        return ability is null
-            || GameplayAbilityParameterReader.GetBool(ability, "useMomentum", defaultValue: !hasBurstParameters);
+        return GameplayAbilityParameterReader.GetBool(ability, "useMomentum", defaultValue: !hasBurstParameters);
+    }
+
+    private static bool GetPredictedHeavyGhostDashUseMomentum(PlayerEntity player, GameplayAbilityDefinition? ability)
+    {
+        if (IsPredictedStockHeavyGhostDashUtility(player, ability))
+        {
+            return false;
+        }
+
+        return GetPredictedHeavyGhostDashUseMomentum(ability);
+    }
+
+    private static bool IsPredictedStockHeavyGhostDashUtility(PlayerEntity player, GameplayAbilityDefinition? ability)
+    {
+        return string.Equals(player.GameplayLoadoutState.UtilityItemId, StockGameplayModCatalog.HeavyUtilityItemId, StringComparison.Ordinal)
+            && (ability is null || string.Equals(ability.ExecutorId, BuiltInGameplayBehaviorIds.HeavyGhostDash, StringComparison.Ordinal));
     }
 
     private static float GetPredictedHeavyGhostDashSlideVelocityPerTick(GameplayAbilityDefinition? ability)

@@ -2033,7 +2033,7 @@ internal sealed partial class LuaClientPlugin(
         var index = 1;
         foreach (var item in values)
         {
-            table[index] = ToDynValue(script, item, depth);
+            table.Set(DynValue.NewNumber(index), ToDynValue(script, item, depth));
             index += 1;
         }
 
@@ -2725,7 +2725,7 @@ internal sealed partial class LuaClientPlugin(
         var table = new Table(script);
         for (var index = 0; index < values.Count; index += 1)
         {
-            table[index + 1] = DynValue.NewTable(factory(script, values[index]));
+            table.Set(DynValue.NewNumber(index + 1), DynValue.NewTable(factory(script, values[index])));
         }
 
         return DynValue.NewTable(table);

@@ -2,6 +2,7 @@ using OpenGarrison.Core;
 using OpenGarrison.GameplayModding;
 using System.Linq;
 using System.Reflection;
+using System.Text.Json;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
@@ -969,6 +970,85 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(totalDistance > 10f);
         Assert.False(world.LocalPlayer.IsExperimentalGhostDashing);
         Assert.True(world.LocalPlayer.ExperimentalGhostDashCooldownTicksRemaining > 0);
+    }
+
+    [Fact]
+    public void StockHeavyGhostDashTreatsStaleMomentumContentAsBurst()
+    {
+        var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+
+        using var staleParameters = JsonDocument.Parse(
+            """
+            {
+              "durationSeconds": 0.25,
+              "movementDurationSeconds": 0.75,
+              "cooldownSeconds": 12,
+              "impulse": 75,
+              "nextAttackDamageMultiplier": 1.4,
+              "slideVelocityPerTick": 3,
+              "useMomentum": true
+            }
+            """);
+        var staleAbility = new GameplayAbilityDefinition(
+            Category: GameplayAbilityConstants.UtilityCategory,
+            Activation: GameplayAbilityConstants.PressedActivation,
+            ExecutorId: BuiltInGameplayBehaviorIds.HeavyGhostDash,
+            Parameters: staleParameters.RootElement
+                .EnumerateObject()
+                .ToDictionary(property => property.Name, property => property.Value.Clone(), StringComparer.OrdinalIgnoreCase));
+        var item = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(StockGameplayModCatalog.HeavyUtilityItemId) with
+        {
+            Ability = staleAbility,
+        };
+        var input = new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 96f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false,
+            UseAbility: true,
+            SwapWeapon: true);
+        world.LocalPlayer.ApplyVelocityImpulse(0f, 0f);
+
+        var executeMethod = typeof(SimulationWorld).GetMethod(
+            "ExecuteHeavyGhostDashAbility",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(executeMethod);
+
+        var result = (GameplayAbilityResult)executeMethod!.Invoke(
+            world,
+            [
+                new GameplayAbilityContext
+                {
+                    World = world,
+                    Player = world.LocalPlayer,
+                    Item = item,
+                    Ability = staleAbility,
+                    Phase = GameplayAbilityInputPhase.Pressed,
+                    Input = input,
+                    PreviousInput = default,
+                    SourceX = world.LocalPlayer.X,
+                    SourceY = world.LocalPlayer.Y,
+                },
+            ])!;
+        var expectedBurstSpeed = LegacyMovementModel.GetMaxRunSpeed(world.LocalPlayer.RunPower)
+            * ExperimentalGameplaySettings.HeavyGhostDashBurstSpeedMultiplier;
+
+        Assert.True(result.Handled);
+        Assert.True(result.ConsumedInput);
+        Assert.True(world.LocalPlayer.IsExperimentalGhostDashing);
+        Assert.True(world.LocalPlayer.IsExperimentalGhostDashVisible);
+        Assert.False(world.LocalPlayer.IsHeavyEating);
+        Assert.True(MathF.Abs(world.LocalPlayer.HorizontalSpeed) >= expectedBurstSpeed * 0.95f);
     }
 
     [Fact]
@@ -2235,7 +2315,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static int GetHeavyGhostDashMovementDurationTicks(SimulationWorld world)
     {
-        var ability = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem("ability.heavy-utility").Ability!;
+        var ability = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(StockGameplayModCatalog.HeavyUtilityItemId).Ability!;
         return GameplayAbilityParameterReader.GetTicks(
             ability,
             "movementDurationTicks",

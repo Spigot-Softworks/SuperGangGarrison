@@ -51,6 +51,7 @@ public sealed partial class SimulationWorld
     private readonly List<DeadBodyEntity> _deadBodies = new();
     private readonly List<SentryGibEntity> _sentryGibs = new();
     private readonly List<JumpPadGibEntity> _jumpPadGibs = new();
+    private readonly List<MovingPlatformRuntimeState> _movingPlatforms = new();
     private readonly List<GeneratorState> _generators = new();
     private readonly List<WorldSoundEvent> _pendingSoundEvents = new();
     private readonly List<WorldVisualEvent> _pendingVisualEvents = new();
@@ -60,6 +61,7 @@ public sealed partial class SimulationWorld
     private readonly List<WorldHealingEvent> _pendingHealingEvents = new();
     private readonly Queue<DangerCloseExplosionRequest> _pendingDangerCloseExplosions = new();
     private readonly List<PlayerEntity> _remoteSnapshotPlayers = new();
+    private readonly List<PlayerEntity> _remoteSnapshotScoreboardPlayers = new();
     private readonly List<ScoreboardSpectatorEntry> _spectators = new();
     private readonly Dictionary<byte, PlayerEntity> _remoteSnapshotPlayersBySlot = new();
     private readonly HashSet<int> _snapshotSeenEntityIds = new();
@@ -268,6 +270,8 @@ public sealed partial class SimulationWorld
 
     public IReadOnlyList<CivilDefenseTurretEntity> CivilDefenseTurrets => _civilDefenseTurrets;
 
+    public IReadOnlyList<MovingPlatformRuntimeState> MovingPlatforms => _movingPlatforms;
+
     public IReadOnlyList<PlayerGibEntity> PlayerGibs => _playerGibs;
 
     public IReadOnlyList<BloodDropEntity> BloodDrops => _bloodDrops;
@@ -294,6 +298,8 @@ public sealed partial class SimulationWorld
 
     public IReadOnlyList<PlayerEntity> RemoteSnapshotPlayers => _remoteSnapshotPlayers;
 
+    public IReadOnlyList<PlayerEntity> RemoteSnapshotScoreboardPlayers => _remoteSnapshotScoreboardPlayers;
+
     public IReadOnlySet<byte> RemoteSnapshotAwaitingJoinSlots => _remoteSnapshotAwaitingJoinSlots;
 
     public bool EnemyPlayerEnabled { get; private set; } = true;
@@ -305,12 +311,17 @@ public sealed partial class SimulationWorld
 
     public LocalDeathCamState? GetNetworkPlayerDeathCam(byte slot)
     {
+        LocalDeathCamState? deathCam;
         if (slot == LocalPlayerSlot)
         {
-            return LocalDeathCam;
+            deathCam = LocalDeathCam;
+        }
+        else
+        {
+            deathCam = _networkPlayerDeathCams.GetValueOrDefault(slot);
         }
 
-        return _networkPlayerDeathCams.GetValueOrDefault(slot);
+        return deathCam is null ? null : ResolveTrackedDeathCamFocus(deathCam);
     }
 
     public PlayerTeam? ArenaPointTeam => _arenaPointTeam;

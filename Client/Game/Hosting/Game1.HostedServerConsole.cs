@@ -116,6 +116,7 @@ public partial class Game1
 
     private string TrimConsoleText(string text, float maxWidth)
     {
+        text = SanitizeConsoleFontText(text);
         if (string.IsNullOrEmpty(text) || _consoleFont.MeasureString(text).X <= maxWidth)
         {
             return text;
@@ -129,5 +130,10 @@ public partial class Game1
         }
 
         return trimmed.Length == 0 ? ellipsis : trimmed + ellipsis;
+    }
+
+    private string SanitizeConsoleFontText(string text)
+    {
+        return SpriteFontTextSanitizer.Sanitize(text, _consoleFont.Characters);
     }
 }

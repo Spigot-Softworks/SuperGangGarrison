@@ -62,6 +62,7 @@ public sealed partial class SimulationWorld
 
         public void AdvancePostPlayerEntityPhase()
         {
+            _world.AdvanceMovingPlatforms();
             _world.AdvanceHealthPacks();
             _world.AdvanceDroppedWeapons();
             _world.AdvanceAfterburnAlertBubbles();

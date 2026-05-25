@@ -52,7 +52,7 @@ public static class RuntimePaths
             var configuredMapsDirectory = Environment.GetEnvironmentVariable("OPENGARRISON_MAPS_DIR");
             var path = !string.IsNullOrWhiteSpace(configuredMapsDirectory)
                 ? configuredMapsDirectory
-                : Path.Combine(UserDataRoot, "Maps");
+                : ApplicationMapsDirectory;
             if (!OperatingSystem.IsBrowser())
             {
                 Directory.CreateDirectory(path);
@@ -62,7 +62,11 @@ public static class RuntimePaths
         }
     }
 
-    public static string LegacyApplicationMapsDirectory => Path.Combine(ApplicationRoot, "Maps");
+    public static string ApplicationMapsDirectory => Path.Combine(ApplicationRoot, "Maps");
+
+    public static string LegacyApplicationMapsDirectory => ApplicationMapsDirectory;
+
+    public static string LegacyUserMapsDirectory => Path.Combine(GetDefaultUserDocumentsDirectory(), "OpenGarrison", "Maps");
 
     public static IReadOnlyList<string> MapSearchDirectories
     {
@@ -75,7 +79,8 @@ public static class RuntimePaths
 
             var directories = new List<string>();
             AddUniqueDirectory(directories, MapsDirectory);
-            AddUniqueDirectory(directories, LegacyApplicationMapsDirectory);
+            AddUniqueDirectory(directories, ApplicationMapsDirectory);
+            AddUniqueDirectory(directories, LegacyUserMapsDirectory);
             return directories;
         }
     }

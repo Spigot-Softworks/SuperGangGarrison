@@ -246,7 +246,10 @@ public partial class Game1
         DrawClientPowersScrollBar(listBounds, headerHeight, rowHeight, layout.VisibleRowCount);
 
         var footerText = $"Showing {_clientPowersScrollOffset + 1}-{Math.Max(_clientPowersScrollOffset + 1, endIndex)} of {ClientPowerEntries.Length}. Click a row to toggle it.";
-        DrawBitmapFontText(footerText, new Vector2(panel.X + padding, panel.Bottom - (compactLayout ? 62f : 68f)), new Color(210, 210, 210), 0.88f);
+        var footerY = Math.Min(
+            panel.Bottom - (compactLayout ? 62f : 68f),
+            layout.BackBounds.Y - 24f);
+        DrawBitmapFontText(footerText, new Vector2(panel.X + padding, footerY), new Color(210, 210, 210), 0.88f);
         DrawMenuButtonScaled(layout.BackBounds, _clientPowersOpenedFromGameplay ? "Back to Pause Menu" : "Back", false, 1f);
     }
 

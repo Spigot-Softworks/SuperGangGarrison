@@ -17,4 +17,6 @@ public sealed record GameMakerRoomMetadata(
     public IReadOnlyList<string> UnsupportedEntities { get; init; } = Array.Empty<string>();
 
     public CustomMapVisualMetadata CustomMapVisuals { get; init; } = CustomMapVisualMetadata.Empty;
+
+    public IReadOnlyList<MovingPlatformMarker> MovingPlatforms { get; init; } = Array.Empty<MovingPlatformMarker>();
 }

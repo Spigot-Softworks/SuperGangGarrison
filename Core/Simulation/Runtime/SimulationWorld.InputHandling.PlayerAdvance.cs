@@ -202,7 +202,9 @@ public sealed partial class SimulationWorld
         }
 
         AdvancePendingRocketsForOwner(player.Id);
+        var previousBottom = preAdvanceY + player.CollisionBottomOffset;
         player.CompleteMovement(Level, team, Config.FixedDeltaSeconds, startedGrounded, jumped, input.Down);
+        ResolveMovingPlatformLanding(player, previousBottom, input.Down);
         HandleJumpPadTriggerContactEffects(player);
         TryRegisterIntelTrailEffect(player);
         UpdateSpawnRoomState(player);
