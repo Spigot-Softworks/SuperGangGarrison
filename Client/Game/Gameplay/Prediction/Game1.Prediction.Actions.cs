@@ -465,11 +465,7 @@ public partial class Game1
         if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUtility)
             || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
         {
-            if (_predictedLocalActionState.IsMedicUberReady)
-            {
-                TryPredictedStartMedicUber(player);
-            }
-
+            TryPredictedToggleMedicMedigun(player);
             return;
         }
 
@@ -630,6 +626,20 @@ public partial class Game1
     private bool TryPredictedStartMedicUber(PlayerEntity player)
     {
         if (!player.TryStartMedicUber())
+        {
+            return false;
+        }
+
+        SyncPredictedLocalPlayerState(player);
+        return true;
+    }
+
+    private bool TryPredictedToggleMedicMedigun(PlayerEntity player)
+    {
+        var targetSlot = player.GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Secondary
+            ? GameplayEquipmentSlot.Primary
+            : GameplayEquipmentSlot.Secondary;
+        if (!player.TrySelectGameplayEquippedSlot(targetSlot))
         {
             return false;
         }
