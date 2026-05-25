@@ -300,11 +300,13 @@ public partial class Game1 : Game
     private int _browserDebugMenuCount;
     private float _binocularsFocusX;
     private float _binocularsFocusY;
-    private float _binocularsFocusTargetX;
-    private float _binocularsFocusTargetY;
     private bool _wasBinocularsActive;
-    private const float BinocularsMovementSpeed = 66.5f;
-    private const float BinocularsSmoothingFactor = 0.15f;
+    private const float BinocularsMovementSpeed = 600f;
+    // Local focus may run this far ahead of the server-echoed focus at full speed.
+    // Beyond this, speed scales linearly to zero at BinocularsLocalAdvanceMaxDistance.
+    private const float BinocularsLocalAdvanceSlowdownStart = 300f;
+    // Local focus is fully stopped at this many pixels ahead of the server-echoed focus.
+    private const float BinocularsLocalAdvanceMaxDistance = 400f;
     private Texture2D? _binocularOverlayMask;
     private int _binocularOverlayMaskWidth;
     private int _binocularOverlayMaskHeight;

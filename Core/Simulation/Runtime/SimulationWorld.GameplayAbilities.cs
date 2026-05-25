@@ -575,6 +575,21 @@ public sealed partial class SimulationWorld
         return GameplayAbilityResult.HandledAndConsumed;
     }
 
+    internal GameplayAbilityResult ExecuteMedicMedigunSwapAbility(GameplayAbilityContext context)
+    {
+        var player = context.Player;
+        if (!player.IsAlive || player.ClassId != PlayerClass.Medic)
+        {
+            return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
+        }
+
+        var targetSlot = player.GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Secondary
+            ? GameplayEquipmentSlot.Primary
+            : GameplayEquipmentSlot.Secondary;
+        player.TrySelectGameplayEquippedSlot(targetSlot);
+        return GameplayAbilityResult.HandledAndConsumed;
+    }
+
     internal GameplayAbilityResult ExecuteSpyCloakAbility(GameplayAbilityContext context)
     {
         if (context.Input.FirePrimary)

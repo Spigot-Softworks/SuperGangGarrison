@@ -149,8 +149,20 @@ public partial class Game1
     private Vector2 GetBinocularsCameraTopLeft(PlayerEntity player, int viewportWidth, int viewportHeight)
     {
         var playerPosition = GetRenderPosition(player);
-        var binocularsFocusX = player.BinocularsFocusX;
-        var binocularsFocusY = player.BinocularsFocusY;
+        // For the local player, always use the locally-maintained focus position — it is updated
+        // every frame and is independent of the prediction system. Remote/spectated players use
+        // the server-synced entity state.
+        float binocularsFocusX, binocularsFocusY;
+        if (ReferenceEquals(player, _world.LocalPlayer))
+        {
+            binocularsFocusX = _binocularsFocusX;
+            binocularsFocusY = _binocularsFocusY;
+        }
+        else
+        {
+            binocularsFocusX = player.BinocularsFocusX;
+            binocularsFocusY = player.BinocularsFocusY;
+        }
         
         // Clamp the view distance to max binoculars range
         var deltaX = binocularsFocusX - playerPosition.X;
