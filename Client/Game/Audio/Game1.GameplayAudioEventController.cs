@@ -127,6 +127,7 @@ public partial class Game1
 
         public void PlayPendingSoundEvents()
         {
+            _game.BeginExplosionSoundDeduplicationFrame();
             ReplayPendingBrowserSoundEvents();
 
             for (var index = 0; index < _game._pendingNetworkSoundEvents.Count; index += 1)
@@ -176,7 +177,17 @@ public partial class Game1
                 return;
             }
 
-            TryPlayResolvedWorldSound(resolvedSoundName, soundEvent.X, soundEvent.Y, allowBrowserDefer: OperatingSystem.IsBrowser());
+            var isExplosionSound = string.Equals(resolvedSoundName, "ExplosionSnd", StringComparison.OrdinalIgnoreCase);
+            if (isExplosionSound && _game.HasPlayedExplosionSoundThisFrame(soundEvent.X, soundEvent.Y))
+            {
+                return;
+            }
+
+            if (TryPlayResolvedWorldSound(resolvedSoundName, soundEvent.X, soundEvent.Y, allowBrowserDefer: OperatingSystem.IsBrowser())
+                && isExplosionSound)
+            {
+                _game.RecordPlayedExplosionSoundThisFrame(soundEvent.X, soundEvent.Y);
+            }
         }
 
         private void ReplayPendingBrowserSoundEvents()
