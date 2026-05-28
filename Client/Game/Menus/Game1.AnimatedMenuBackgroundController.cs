@@ -258,7 +258,8 @@ public partial class Game1
             var mapState = new AnimatedBackgroundMapState
             {
                 Level = level,
-                MapName = mapName
+                MapName = mapName,
+                IsCustomMap = !OpenGarrisonStockMapCatalog.TryGetDefinition(mapName, out _)
             };
 
             var visuals = level.CustomMapVisuals;
@@ -417,75 +418,105 @@ public partial class Game1
         {
             var level = mapState.Level;
 
-            // Collect all possible focus points (spawn points, control points, and navigation nodes)
-            var focusPoints = new List<Vector2>();
+            Vector2 focusPoint;
 
-            // Add bot navigation nodes if available (default maps have this)
-            if (BotNavigationAssetStore.TryLoadShipped(level, out var navAsset))
+            if (mapState.IsCustomMap)
             {
-                foreach (var node in navAsset.Nodes)
+                // For custom maps: two-step random selection from gameplay element categories
+                // Step 1: collect available categories
+                var spawnPoints = new List<Vector2>();
+                foreach (var spawn in level.RedSpawns)
+                    spawnPoints.Add(new Vector2(spawn.X, spawn.Y));
+                foreach (var spawn in level.BlueSpawns)
+                    spawnPoints.Add(new Vector2(spawn.X, spawn.Y));
+
+                var controlPoints = new List<Vector2>();
+                foreach (var cp in level.GetRoomObjects(RoomObjectType.ControlPoint))
+                    controlPoints.Add(new Vector2(cp.CenterX, cp.CenterY));
+                foreach (var cp in level.GetRoomObjects(RoomObjectType.ArenaControlPoint))
+                    controlPoints.Add(new Vector2(cp.CenterX, cp.CenterY));
+                foreach (var cp in level.GetRoomObjects(RoomObjectType.CaptureZone))
+                    controlPoints.Add(new Vector2(cp.CenterX, cp.CenterY));
+
+                var intelPoints = new List<Vector2>();
+                foreach (var intel in level.IntelBases)
+                    intelPoints.Add(new Vector2(intel.X, intel.Y));
+
+                var resupplyPoints = new List<Vector2>();
+                foreach (var cabinet in level.GetRoomObjects(RoomObjectType.HealingCabinet))
+                    resupplyPoints.Add(new Vector2(cabinet.CenterX, cabinet.CenterY));
+
+                // Build list of non-empty categories
+                var categories = new List<List<Vector2>>();
+                if (spawnPoints.Count > 0) categories.Add(spawnPoints);
+                if (controlPoints.Count > 0) categories.Add(controlPoints);
+                if (intelPoints.Count > 0) categories.Add(intelPoints);
+                if (resupplyPoints.Count > 0) categories.Add(resupplyPoints);
+
+                if (categories.Count > 0)
                 {
-                    focusPoints.Add(new Vector2(node.X, node.Y));
+                    // Step 1: pick a random category
+                    var chosenCategory = categories[_random.Next(categories.Count)];
+                    // Step 2: pick a random element from that category
+                    focusPoint = chosenCategory[_random.Next(chosenCategory.Count)];
+                }
+                else
+                {
+                    focusPoint = new Vector2(level.Bounds.Width / 2f, level.Bounds.Height / 2f);
                 }
             }
+            else
+            {
+                // For default maps: use nav nodes + spawn/objective interpolated points for rich coverage
+                var focusPoints = new List<Vector2>();
 
-            // Collect spawn points
-            var spawnPoints = new List<Vector2>();
-            foreach (var spawn in level.RedSpawns)
-            {
-                var spawnPos = new Vector2(spawn.X, spawn.Y);
-                spawnPoints.Add(spawnPos);
-                focusPoints.Add(spawnPos);
-            }
-            foreach (var spawn in level.BlueSpawns)
-            {
-                var spawnPos = new Vector2(spawn.X, spawn.Y);
-                spawnPoints.Add(spawnPos);
-                focusPoints.Add(spawnPos);
-            }
-
-            // Collect objectives (control points and intel bases)
-            var objectives = new List<Vector2>();
-            var controlPoints = level.GetRoomObjects(RoomObjectType.ControlPoint);
-            foreach (var cp in controlPoints)
-            {
-                var cpPos = new Vector2(cp.CenterX, cp.CenterY);
-                objectives.Add(cpPos);
-                focusPoints.Add(cpPos);
-            }
-            foreach (var intel in level.IntelBases)
-            {
-                var intelPos = new Vector2(intel.X, intel.Y);
-                objectives.Add(intelPos);
-                focusPoints.Add(intelPos);
-            }
-
-            // Add points along lines from spawns to objectives
-            foreach (var spawn in spawnPoints)
-            {
-                foreach (var objective in objectives)
+                if (BotNavigationAssetStore.TryLoadShipped(level, out var navAsset))
                 {
-                    AddPointsAlongLine(focusPoints, spawn, objective);
+                    foreach (var node in navAsset.Nodes)
+                        focusPoints.Add(new Vector2(node.X, node.Y));
                 }
-            }
 
-            // Add points along lines from objectives to other objectives
-            for (int i = 0; i < objectives.Count; i++)
-            {
-                for (int j = i + 1; j < objectives.Count; j++)
+                var spawnPoints = new List<Vector2>();
+                foreach (var spawn in level.RedSpawns)
                 {
-                    AddPointsAlongLine(focusPoints, objectives[i], objectives[j]);
+                    var spawnPos = new Vector2(spawn.X, spawn.Y);
+                    spawnPoints.Add(spawnPos);
+                    focusPoints.Add(spawnPos);
                 }
-            }
+                foreach (var spawn in level.BlueSpawns)
+                {
+                    var spawnPos = new Vector2(spawn.X, spawn.Y);
+                    spawnPoints.Add(spawnPos);
+                    focusPoints.Add(spawnPos);
+                }
 
-            // If no focus points, use map center
-            if (focusPoints.Count == 0)
-            {
-                focusPoints.Add(new Vector2(level.Bounds.Width / 2f, level.Bounds.Height / 2f));
-            }
+                var objectives = new List<Vector2>();
+                foreach (var cp in level.GetRoomObjects(RoomObjectType.ControlPoint))
+                {
+                    var cpPos = new Vector2(cp.CenterX, cp.CenterY);
+                    objectives.Add(cpPos);
+                    focusPoints.Add(cpPos);
+                }
+                foreach (var intel in level.IntelBases)
+                {
+                    var intelPos = new Vector2(intel.X, intel.Y);
+                    objectives.Add(intelPos);
+                    focusPoints.Add(intelPos);
+                }
 
-            // Pick a random focus point
-            var focusPoint = focusPoints[_random.Next(focusPoints.Count)];
+                foreach (var spawn in spawnPoints)
+                    foreach (var objective in objectives)
+                        AddPointsAlongLine(focusPoints, spawn, objective);
+
+                for (int i = 0; i < objectives.Count; i++)
+                    for (int j = i + 1; j < objectives.Count; j++)
+                        AddPointsAlongLine(focusPoints, objectives[i], objectives[j]);
+
+                if (focusPoints.Count == 0)
+                    focusPoints.Add(new Vector2(level.Bounds.Width / 2f, level.Bounds.Height / 2f));
+
+                focusPoint = focusPoints[_random.Next(focusPoints.Count)];
+            }
 
             // Add random offset (up to 50px in each direction)
             var randomOffsetX = (_random.NextSingle() - 0.5f) * 2f * MaxOffsetPixels;
@@ -551,6 +582,7 @@ public partial class Game1
         {
             public SimpleLevel Level { get; set; } = null!;
             public string MapName { get; set; } = string.Empty;
+            public bool IsCustomMap { get; set; }
             public Vector2 CameraPosition { get; set; }
             public Vector2 ScrollVector { get; set; }
             public Color? BackgroundColor { get; set; }
