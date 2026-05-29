@@ -72,6 +72,7 @@ public enum InputButtons : ushort
     InteractWeapon = 1 << 12,
     SwapWeapon = 1 << 13,
     ReadyUp = 1 << 14,
+    IsTypingChatMessage = 1 << 15,
 }
 
 public interface IProtocolMessage
@@ -369,6 +370,7 @@ public sealed record SnapshotPlayerState(
     bool IsChatBubbleVisible,
     int ChatBubbleFrameIndex,
     float ChatBubbleAlpha,
+    bool IsTypingChatMessage = false,
     float BurnIntensity = 0f,
     float BurnDurationSourceTicks = 0f,
     float BurnDecayDelaySourceTicksRemaining = 0f,
@@ -460,7 +462,8 @@ public sealed record SnapshotPlayerChatBubbleState(
     byte Slot,
     bool IsChatBubbleVisible,
     int ChatBubbleFrameIndex,
-    float ChatBubbleAlpha);
+    float ChatBubbleAlpha,
+    bool IsTypingChatMessage = false);
 
 public sealed record SnapshotPlayerExtendedStatusState(
     byte Slot,

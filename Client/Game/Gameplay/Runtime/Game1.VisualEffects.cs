@@ -544,6 +544,11 @@ public partial class Game1
         _gameplayMaterialEffectsController.QueueWeaponShellVisual(player, delaySeconds, count, classId);
     }
 
+    private void QueueWeaponShellVisual(PlayerEntity player, float delaySeconds, int count, PlayerClass classId, string spriteName)
+    {
+        _gameplayMaterialEffectsController.QueueWeaponShellVisual(player, delaySeconds, count, classId, spriteName);
+    }
+
     private bool IsShellBlocked(float x, float y)
     {
         return _gameplayMaterialEffectsController.IsShellBlocked(x, y);
@@ -1012,13 +1017,14 @@ public partial class Game1
 
     private sealed class PendingWeaponShellVisual
     {
-        public PendingWeaponShellVisual(int playerId, PlayerClass classId, PlayerTeam team, float delaySeconds, int count)
+        public PendingWeaponShellVisual(int playerId, PlayerClass classId, PlayerTeam team, float delaySeconds, int count, string? spriteName = null)
         {
             PlayerId = playerId;
             ClassId = classId;
             Team = team;
             DelaySeconds = delaySeconds;
             Count = count;
+            SpriteName = spriteName;
         }
 
         public int PlayerId { get; }
@@ -1030,11 +1036,13 @@ public partial class Game1
         public float DelaySeconds { get; set; }
 
         public int Count { get; }
+
+        public string? SpriteName { get; }
     }
 
     private sealed class ShellVisual
     {
-        public ShellVisual(float x, float y, float velocityX, float velocityY, int frameIndex, float rotationDegrees, float rotationSpeedDegrees, int fadeDelayTicks)
+        public ShellVisual(float x, float y, float velocityX, float velocityY, int frameIndex, float rotationDegrees, float rotationSpeedDegrees, int fadeDelayTicks, string? spriteName = null)
         {
             X = x;
             Y = y;
@@ -1044,6 +1052,7 @@ public partial class Game1
             RotationDegrees = rotationDegrees;
             RotationSpeedDegrees = rotationSpeedDegrees;
             TicksUntilFade = fadeDelayTicks;
+            SpriteName = spriteName;
         }
 
         public float X { get; set; }
@@ -1055,6 +1064,8 @@ public partial class Game1
         public float VelocityY { get; set; }
 
         public int FrameIndex { get; }
+
+        public string? SpriteName { get; }
 
         public float RotationDegrees { get; set; }
 

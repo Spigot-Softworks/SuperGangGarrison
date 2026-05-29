@@ -777,14 +777,18 @@ public partial class Game1
         // Flip needle sprite vertically when traveling left to match weapon mirroring
         var needleScale = needle.VelocityX < 0f ? new Vector2(1f, -1f) : Vector2.One;
 
+        // Use NailS sprite for Scout's nailgun projectiles, NeedleS for Medic needles
+        var owner = FindPlayerById(needle.OwnerId);
+        var needleSpriteName = owner?.ClassId == PlayerClass.Scout ? "NailS" : "NeedleS";
+
         // Draw outline first (behind sprite) if critical
         if (needle.IsCritical)
         {
-            DrawCriticalProjectileOutline("NeedleS", 0, renderPosition.X, renderPosition.Y, cameraPosition, needle.Team, rotation, needleScale);
+            DrawCriticalProjectileOutline(needleSpriteName, 0, renderPosition.X, renderPosition.Y, cameraPosition, needle.Team, rotation, needleScale);
         }
 
         // Draw main sprite
-        if (!TryDrawSprite("NeedleS", 0, renderPosition.X, renderPosition.Y, cameraPosition, needleColor, rotation, needleScale))
+        if (!TryDrawSprite(needleSpriteName, 0, renderPosition.X, renderPosition.Y, cameraPosition, needleColor, rotation, needleScale))
         {
             var needleRectangle = new Rectangle(
                 (int)(renderPosition.X - 3f - cameraPosition.X),
@@ -809,7 +813,7 @@ public partial class Game1
         else if (needle.IsCritical)
         {
             // Draw screen blend overlay on top
-            DrawCriticalProjectileOverlay("NeedleS", 0, renderPosition.X, renderPosition.Y, cameraPosition, needle.Team, rotation, needleScale);
+            DrawCriticalProjectileOverlay(needleSpriteName, 0, renderPosition.X, renderPosition.Y, cameraPosition, needle.Team, rotation, needleScale);
         }
     }
 

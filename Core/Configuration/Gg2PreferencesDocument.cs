@@ -12,7 +12,7 @@ public sealed class OpenGarrisonPreferencesDocument
     public const string DefaultLobbyHost = DefaultApiBaseUrl + "/api/servers";
     public const int DefaultLobbyPort = 443;
     public const bool DefaultOverheadChatEnabled = true;
-    public const int DefaultDamageVignetteIntensityPercent = 65;
+    public const int DefaultDamageVignetteIntensityPercent = 100;
     private const string SettingsSection = "Settings";
     private const string ServerSection = "Server";
     private const string ConnectionSection = "Connection";

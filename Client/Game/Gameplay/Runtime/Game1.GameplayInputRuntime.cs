@@ -9,7 +9,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private (PlayerInputSnapshot GameplayInput, PlayerInputSnapshot NetworkInput) BuildGameplayInputs(KeyboardState keyboard, MouseState mouse, Vector2 cameraPosition)
+    private (PlayerInputSnapshot GameplayInput, PlayerInputSnapshot NetworkInput) BuildGameplayInputs(KeyboardState keyboard, MouseState mouse, Vector2 cameraPosition, float deltaSeconds)
     {
         if (_suppressPrimaryFireUntilMouseRelease
             && mouse.LeftButton != ButtonState.Pressed)
@@ -23,7 +23,7 @@ public partial class Game1
             _suppressSecondaryFireUntilMouseRelease = false;
         }
 
-        UpdateBinocularsFocusPosition(keyboard, (float)_config.FixedDeltaSeconds);
+        UpdateBinocularsFocusPosition(keyboard, deltaSeconds);
 
         var fullInput = KeyboardInputMapper.BuildGameplaySnapshot(
             _inputBindings,
@@ -126,6 +126,8 @@ public partial class Game1
         gameplayInput = ApplyClientOnlineSmokeInputPattern(gameplayInput);
         networkInput = ApplyClientOnlineSmokeInputPattern(networkInput);
 
+        networkInput = networkInput with { IsTypingChatMessage = _chatOpen };
+
         UpdateBuildMenuState(keyboard, mouse);
         TryShowEngineerJumpPadBuildNoticeOnUtilityPress(networkInput);
 
@@ -213,21 +215,18 @@ public partial class Game1
 
     private void UpdateBinocularsFocusPosition(KeyboardState keyboard, float deltaSeconds)
     {
-        var isUsingBinoculars = _world.LocalPlayer.IsUsingBinoculars;
+        var isUsingBinoculars = GetPlayerIsUsingBinoculars(_world.LocalPlayer);
         
         // Initialize focus position when binoculars are first activated
         if (isUsingBinoculars && !_wasBinocularsActive)
         {
             _binocularsFocusX = _world.LocalPlayer.X;
             _binocularsFocusY = _world.LocalPlayer.Y;
-            _binocularsFocusTargetX = _world.LocalPlayer.X;
-            _binocularsFocusTargetY = _world.LocalPlayer.Y;
         }
         
         _wasBinocularsActive = isUsingBinoculars;
         
-        // Reset focus position when binoculars are deactivated
-        if (!isUsingBinoculars)
+        if (!isUsingBinoculars || _chatOpen || _world.IsPlayerHumiliated(_world.LocalPlayer))
         {
             return;
         }
@@ -253,36 +252,43 @@ public partial class Game1
             moveDirectionY += 1f;
         }
         
-        // Normalize direction to prevent faster diagonal movement
         var directionLength = MathF.Sqrt(moveDirectionX * moveDirectionX + moveDirectionY * moveDirectionY);
-        if (directionLength > 0f)
+        if (directionLength == 0f)
         {
-            moveDirectionX /= directionLength;
-            moveDirectionY /= directionLength;
-            
-            // Apply movement to target position
-            var moveSpeed = BinocularsMovementSpeed * deltaSeconds;
-            _binocularsFocusTargetX += moveDirectionX * moveSpeed;
-            _binocularsFocusTargetY += moveDirectionY * moveSpeed;
+            return;
         }
 
-        // Clamp target to max distance from player
+        moveDirectionX /= directionLength;
+        moveDirectionY /= directionLength;
+
+        // Scale speed down as the local focus gets ahead of the server-acknowledged position.
+        // This prevents panning into areas the server hasn't sent snapshot data for yet.
+        // Speed drops linearly to zero once the local focus is BinocularsLocalAdvanceMaxDistance
+        // pixels ahead of the last server-echoed focus, and recovers as the server catches up.
+        var serverFocusX = _world.LocalPlayer.BinocularsFocusX;
+        var serverFocusY = _world.LocalPlayer.BinocularsFocusY;
+        var advanceDeltaX = _binocularsFocusX - serverFocusX;
+        var advanceDeltaY = _binocularsFocusY - serverFocusY;
+        var advanceDistance = MathF.Sqrt(advanceDeltaX * advanceDeltaX + advanceDeltaY * advanceDeltaY);
+        var slowdownRange = BinocularsLocalAdvanceMaxDistance - BinocularsLocalAdvanceSlowdownStart;
+        var speedMultiplier = MathF.Max(0f, 1f - MathF.Max(0f, advanceDistance - BinocularsLocalAdvanceSlowdownStart) / slowdownRange);
+
+        var moveSpeed = BinocularsMovementSpeed * speedMultiplier * deltaSeconds;
+        _binocularsFocusX += moveDirectionX * moveSpeed;
+        _binocularsFocusY += moveDirectionY * moveSpeed;
+
+        // Clamp to max distance from player
         var playerX = _world.LocalPlayer.X;
         var playerY = _world.LocalPlayer.Y;
-        var deltaX = _binocularsFocusTargetX - playerX;
-        var deltaY = _binocularsFocusTargetY - playerY;
+        var deltaX = _binocularsFocusX - playerX;
+        var deltaY = _binocularsFocusY - playerY;
         var distance = MathF.Sqrt(deltaX * deltaX + deltaY * deltaY);
         
         if (distance > PlayerEntity.BinocularsMaxViewDistance)
         {
             var scale = PlayerEntity.BinocularsMaxViewDistance / distance;
-            _binocularsFocusTargetX = playerX + deltaX * scale;
-            _binocularsFocusTargetY = playerY + deltaY * scale;
+            _binocularsFocusX = playerX + deltaX * scale;
+            _binocularsFocusY = playerY + deltaY * scale;
         }
-        
-        // Smoothly interpolate current position toward target using frame-rate independent exponential smoothing
-        var smoothing = 1f - MathF.Pow(1f - BinocularsSmoothingFactor, deltaSeconds * 60f);
-        _binocularsFocusX = MathHelper.Lerp(_binocularsFocusX, _binocularsFocusTargetX, smoothing);
-        _binocularsFocusY = MathHelper.Lerp(_binocularsFocusY, _binocularsFocusTargetY, smoothing);
     }
 }

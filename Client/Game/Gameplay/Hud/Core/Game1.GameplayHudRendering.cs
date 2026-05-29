@@ -134,15 +134,15 @@ public partial class Game1
         WriteGameplayRenderTrace("hud after garrisonbuilder");
         DrawNavEditorOverlay(mouse, cameraPosition);
         WriteGameplayRenderTrace("hud after naveditor");
-        DrawChatHud();
-        WriteGameplayRenderTrace("hud after chat");
-        
-        // Draw binocular overlay last so HUD elements show through the transparent circles
+        // Draw binocular overlay before chat so chat renders on top
         if (!_networkClient.IsSpectator && localPlayerAlive && !deathCamActive)
         {
             DrawBinocularOverlay();
             WriteGameplayRenderTrace("hud after binocular");
         }
+
+        DrawChatHud();
+        WriteGameplayRenderTrace("hud after chat");
 
         DrawPostGameMvpWinScreenHud();
         WriteGameplayRenderTrace("hud after postgamemvp");

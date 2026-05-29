@@ -149,6 +149,7 @@ internal static partial class ServerHelpers
             BinocularsFocusX: message.BinocularsFocusX,
             BinocularsFocusY: message.BinocularsFocusY,
             SwapWeapon: buttons.HasFlag(InputButtons.SwapWeapon),
-            ReadyUp: buttons.HasFlag(InputButtons.ReadyUp));
+            ReadyUp: buttons.HasFlag(InputButtons.ReadyUp),
+            IsTypingChatMessage: buttons.HasFlag(InputButtons.IsTypingChatMessage));
     }
 }

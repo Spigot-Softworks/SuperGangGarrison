@@ -510,6 +510,8 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public bool IsChatBubbleVisible { get; private set; }
 
+    public bool IsTypingChatMessage { get; set; }
+
     public int ChatBubbleFrameIndex { get; private set; }
 
     public float ChatBubbleAlpha { get; private set; }
