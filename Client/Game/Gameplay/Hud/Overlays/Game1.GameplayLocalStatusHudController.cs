@@ -2137,9 +2137,23 @@ public partial class Game1
 
         private bool IsLocalDisplayedOffhandWeaponSelected()
         {
-            return !_game._world.LocalPlayer.IsAcquiredWeaponPresented
-                && _game._world.LocalPlayer.IsExperimentalOffhandSelected
-                && _game._world.LocalPlayer.ExperimentalOffhandWeapon is not null;
+            var player = _game._world.LocalPlayer;
+            if (player.IsAcquiredWeaponPresented
+                || !player.IsExperimentalOffhandSelected
+                || player.ExperimentalOffhandWeapon is null)
+            {
+                return false;
+            }
+
+            // Medic's mediguns are utility offhand weapons; the needlegun is always the
+            // displayed ammo weapon regardless of which medigun slot is selected.
+            if (player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.Medigun)
+                || player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit))
+            {
+                return false;
+            }
+
+            return true;
         }
 
         private string GetLocalDisplayedOffhandPresentationItemId()
