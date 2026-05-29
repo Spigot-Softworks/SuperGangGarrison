@@ -16,14 +16,15 @@ public partial class Game1
     private const float LowHealthHudThresholdMaxHealthDivisor = 3.5f;
     private const float DamageVignettePersistentHealthFraction = 0.45f;
     private const float DamageVignetteFadeInPerSecond = 8f;
-    private const float DamageVignetteFadeOutPerSecond = 0.32f;
-    private const float DamageVignetteReactiveFadePerSecond = 0.36f;
+    private const float DamageVignetteFadeOutPerSecond = 8.0f;
+    private const float DamageVignetteReactiveFadePerSecond = 1.0f;
     private const float DamageVignetteReactiveMinimumIntensity = 0.34f;
     private const float DamageVignetteReactiveMaximumIntensity = 0.88f;
     private const float DamageVignetteReactiveDamageScale = 120f;
     private const float DamageVignettePersistentMinimumIntensity = 0.24f;
     private const float DamageVignettePersistentMaximumIntensity = 1f;
-    private const float DamageVignetteMinimumVisibleIntensity = 0.025f;
+    private const float DamageVignetteMinimumVisibleIntensity = 0.002f;
+    private const float DamageVignetteDrawAlphaFadeThreshold = 0.12f;
     private static readonly Color PortraitRumbleTintColor = new(255, 80, 80);
 
     private void TriggerLocalHudPortraitDamageFeedback(int damageAmount)
@@ -65,6 +66,9 @@ public partial class Game1
         private const string SoldierShotgunReloadTicksKey = "soldier_shotgun_reload_ticks";
         private const string DemomanGrenadeLauncherAmmoKey = "demoman_gl_ammo";
         private const string DemomanGrenadeLauncherReloadTicksKey = "demoman_gl_reload_ticks";
+        private const string ScoutNailgunAmmoKey = "scout_nailgun_ammo";
+        private const string ScoutNailgunMaxAmmoKey = "scout_nailgun_max_ammo";
+        private const string ScoutNailgunReloadTicksKey = "scout_nailgun_reload_ticks";
 
         private static readonly Color AmmoHudBarColor = new(217, 217, 183);
         private static readonly Color AmmoHudTextColor = new(245, 235, 210);
@@ -1099,7 +1103,8 @@ public partial class Game1
             }
 
             var renderIntensity = _game._damageVignetteIntensity
-                * (ClientSettings.NormalizeDamageVignetteIntensityPercent(_game._damageVignetteIntensityPercent) / 100f);
+                * (ClientSettings.NormalizeDamageVignetteIntensityPercent(_game._damageVignetteIntensityPercent) / 100f)
+                * 0.65f;
             if (renderIntensity <= DamageVignetteMinimumVisibleIntensity)
             {
                 return;
@@ -1110,7 +1115,8 @@ public partial class Game1
                 return;
             }
 
-            _game._spriteBatch.Draw(texture, new Rectangle(0, 0, _game.ViewportWidth, _game.ViewportHeight), Color.White);
+            var drawAlpha = Math.Min(1.0f, renderIntensity / DamageVignetteDrawAlphaFadeThreshold);
+            _game._spriteBatch.Draw(texture, new Rectangle(0, 0, _game.ViewportWidth, _game.ViewportHeight), Color.White * drawAlpha);
         }
 
         private static float GetDamageVignettePersistentTargetIntensity(float lowHealthDepth)
@@ -1618,13 +1624,18 @@ public partial class Game1
                 _game.DrawBitmapFontText("SHOTGUN", GetSourceHudPoint(shotgunPanelSourceX - 24f, shotgunPanelSourceY + 3f), Color.White, GetSourceHudTextScale(0.72f));
             }
 
-            var currentShells = _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunAmmoKey, out var replicatedOffhandAmmo)
+            var isScout = _game._world.LocalPlayer.ClassId == PlayerClass.Scout;
+            var offhandAmmoKey = isScout ? ScoutNailgunAmmoKey : SoldierShotgunAmmoKey;
+            var offhandMaxAmmoKey = isScout ? ScoutNailgunMaxAmmoKey : SoldierShotgunMaxAmmoKey;
+            var offhandReloadKey = isScout ? ScoutNailgunReloadTicksKey : SoldierShotgunReloadTicksKey;
+
+            var currentShells = _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, offhandAmmoKey, out var replicatedOffhandAmmo)
                 ? replicatedOffhandAmmo
                 : _game._world.LocalPlayer.ExperimentalOffhandCurrentShells;
-            var maxShells = _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunMaxAmmoKey, out var replicatedOffhandMaxAmmo)
+            var maxShells = _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, offhandMaxAmmoKey, out var replicatedOffhandMaxAmmo)
                 ? Math.Max(1, replicatedOffhandMaxAmmo)
                 : Math.Max(1, _game._world.LocalPlayer.ExperimentalOffhandMaxShells);
-            var reloadTicksRemaining = _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunReloadTicksKey, out var replicatedOffhandReloadTicks)
+            var reloadTicksRemaining = _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, offhandReloadKey, out var replicatedOffhandReloadTicks)
                 ? Math.Max(0, replicatedOffhandReloadTicks)
                 : _game._world.LocalPlayer.ExperimentalOffhandReloadTicksUntilNextShell;
             var reloadTicksPerShell = Math.Max(1, _game._world.LocalPlayer.ExperimentalOffhandWeapon?.AmmoReloadTicks ?? CharacterClassCatalog.SoldierShotgun.AmmoReloadTicks);
@@ -1665,14 +1676,26 @@ public partial class Game1
 
         private bool ShouldDrawSecondaryWeaponHudRow(GameplayItemDefinition item, bool hasReplicatedSecondaryAvailability)
         {
-            if (_game._world.LocalPlayer.HasExperimentalOffhandWeapon || hasReplicatedSecondaryAvailability)
+            if (hasReplicatedSecondaryAvailability)
             {
                 return true;
             }
 
+            var localPlayer = _game._world.LocalPlayer;
+            if (localPlayer.HasExperimentalOffhandWeapon)
+            {
+                var offhandItemId = CharacterClassCatalog.RuntimeRegistry.TryResolvePrimaryWeaponItemId(
+                    localPlayer.ExperimentalOffhandWeapon, out var resolvedId) ? resolvedId : null;
+                if (string.Equals(offhandItemId, item.Id, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
             var hud = item.Presentation.Hud;
             return IsWeaponAmmoPanelHud(hud)
-                && !string.IsNullOrWhiteSpace(item.Presentation.HudSpriteName);
+                && !string.IsNullOrWhiteSpace(item.Presentation.HudSpriteName)
+                && !(hud?.HideWhenUnavailable ?? false);
         }
 
         private void DrawAcquiredMedigunPromptCore()
@@ -2141,6 +2164,12 @@ public partial class Game1
                 return replicatedGrenadeAmmo;
             }
 
+            if (player.ClassId == PlayerClass.Scout
+                && player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, ScoutNailgunAmmoKey, out var replicatedNailgunAmmo))
+            {
+                return replicatedNailgunAmmo;
+            }
+
             return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunAmmoKey, out var replicatedShotgunAmmo)
                 ? replicatedShotgunAmmo
                 : player.ExperimentalOffhandCurrentShells;
@@ -2149,6 +2178,12 @@ public partial class Game1
         private int GetLocalDisplayedOffhandMaxShells()
         {
             var player = _game._world.LocalPlayer;
+            if (player.ClassId == PlayerClass.Scout
+                && player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, ScoutNailgunMaxAmmoKey, out var replicatedNailgunMaxAmmo))
+            {
+                return Math.Max(1, replicatedNailgunMaxAmmo);
+            }
+
             return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunMaxAmmoKey, out var replicatedShotgunMaxAmmo)
                 ? Math.Max(1, replicatedShotgunMaxAmmo)
                 : Math.Max(1, player.ExperimentalOffhandMaxShells);
@@ -2161,6 +2196,12 @@ public partial class Game1
                 && player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, DemomanGrenadeLauncherReloadTicksKey, out var replicatedGrenadeReloadTicks))
             {
                 return Math.Max(0, replicatedGrenadeReloadTicks);
+            }
+
+            if (player.ClassId == PlayerClass.Scout
+                && player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, ScoutNailgunReloadTicksKey, out var replicatedNailgunReloadTicks))
+            {
+                return Math.Max(0, replicatedNailgunReloadTicks);
             }
 
             return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunReloadTicksKey, out var replicatedShotgunReloadTicks)

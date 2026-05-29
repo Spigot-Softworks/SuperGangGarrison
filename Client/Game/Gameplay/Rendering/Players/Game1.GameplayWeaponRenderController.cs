@@ -477,7 +477,12 @@ public partial class Game1
                     ? itemId
                     : null;
 
-                if (!string.IsNullOrWhiteSpace(offhandItemId))
+                // Guard against stale ExperimentalOffhandWeapon persisting across class changes
+                // online: only use the offhand presentation if the weapon's item ID still matches
+                // the player's current secondary or utility loadout slot.
+                if (!string.IsNullOrWhiteSpace(offhandItemId)
+                    && (string.Equals(offhandItemId, player.GameplayLoadoutState.SecondaryItemId, StringComparison.Ordinal)
+                        || string.Equals(offhandItemId, player.GameplayLoadoutState.UtilityItemId, StringComparison.Ordinal)))
                 {
                     return CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(offhandItemId).Presentation;
                 }
