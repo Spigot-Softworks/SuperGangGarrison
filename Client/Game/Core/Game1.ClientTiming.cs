@@ -163,7 +163,7 @@ public partial class Game1
                 outboundNetworkInput = outboundNetworkInput with { Up = true };
             }
 
-            var sentInputSequence = _networkClient.SendInput(outboundNetworkInput);
+            var sentInputSequence = _networkClient.SendInput(outboundNetworkInput, _world.LocalPlayer.X, _world.LocalPlayer.Y);
             if (_pendingPredictedJumpPress && sentInputSequence != 0)
             {
                 _latchedJumpPressSequence = sentInputSequence;
