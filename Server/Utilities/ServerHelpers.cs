@@ -126,7 +126,7 @@ internal static partial class ServerHelpers
         return slot >= SimulationWorld.FirstSpectatorSlot;
     }
 
-    internal static PlayerInputSnapshot ToCoreInput(InputStateMessage message)
+    internal static PlayerInputSnapshot ToCoreInput(InputStateMessage message, float playerX, float playerY)
     {
         var buttons = message.Buttons;
         return new PlayerInputSnapshot(
@@ -139,8 +139,8 @@ internal static partial class ServerHelpers
             Taunt: buttons.HasFlag(InputButtons.Taunt),
             FirePrimary: buttons.HasFlag(InputButtons.FirePrimary),
             FireSecondary: buttons.HasFlag(InputButtons.FireSecondary),
-            AimWorldX: message.AimWorldX,
-            AimWorldY: message.AimWorldY,
+            AimWorldX: playerX + message.AimRelX,
+            AimWorldY: playerY + message.AimRelY,
             DebugKill: buttons.HasFlag(InputButtons.DebugKill),
             DropIntel: buttons.HasFlag(InputButtons.DropIntel),
             UseAbility: buttons.HasFlag(InputButtons.UseAbility),
