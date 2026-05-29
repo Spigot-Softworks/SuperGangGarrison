@@ -583,7 +583,7 @@ public sealed partial class SimulationWorld
             return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
         }
 
-        if (player.IsUbered)
+        if (player.IsMedicUbering)
         {
             return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
         }
