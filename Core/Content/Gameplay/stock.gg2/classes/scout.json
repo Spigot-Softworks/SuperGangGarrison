@@ -34,7 +34,8 @@
       "id": "scout.stock",
       "displayName": "Stock",
       "primaryItemId": "weapon.scattergun",
-      "utilityItemId": "ability.scout-utility",
+      "secondaryItemId": "weapon.scout-nailgun",
+      "utilityItemId": "ability.scout-nailgun-utility",
       "abilityItemIds": [ "ability.experimental-ltd-passive" ]
     }
   },

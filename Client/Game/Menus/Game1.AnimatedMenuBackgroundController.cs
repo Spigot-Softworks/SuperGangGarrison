@@ -138,7 +138,9 @@ public partial class Game1
         public void Reset()
         {
             _mapNames.Clear();
+            _currentMap?.Dispose();
             _currentMap = null;
+            _nextMap?.Dispose();
             _nextMap = null;
             _isInitialized = false;
             _nextMapLoaded = false;
@@ -206,6 +208,7 @@ public partial class Game1
                 if (_nextMap is not null)
                 {
                     _currentMapIndex = (_currentMapIndex + 1) % _mapNames.Count;
+                    _currentMap?.Dispose();
                     _currentMap = _nextMap;
                     _nextMap = null;
                 }
@@ -252,11 +255,40 @@ public partial class Game1
                 return null;
             }
 
-            return new AnimatedBackgroundMapState
+            var mapState = new AnimatedBackgroundMapState
             {
                 Level = level,
-                MapName = mapName
+                MapName = mapName,
+                IsCustomMap = !OpenGarrisonStockMapCatalog.TryGetDefinition(mapName, out _)
             };
+
+            var visuals = level.CustomMapVisuals;
+            if (!ReferenceEquals(visuals, CustomMapVisualMetadata.Empty))
+            {
+                mapState.ImageScale = MathF.Max(0.01f, visuals.ImageScale);
+
+                if (TryParseGmlColor(visuals.BackgroundColor, out var bgColor))
+                {
+                    mapState.BackgroundColor = bgColor;
+                }
+
+                foreach (var layer in visuals.ParallaxLayers.OrderBy(static l => l.Index))
+                {
+                    try
+                    {
+                        var texture = TextureDecodeUtility.LoadTexture(_game.GraphicsDevice, layer.Resource.Bytes, applyLegacyChromaKey: false);
+                        mapState.ParallaxLayers.Add((texture, layer.XFactor, layer.YFactor));
+                    }
+                    catch (InvalidOperationException)
+                    {
+                    }
+                    catch (NotSupportedException)
+                    {
+                    }
+                }
+            }
+
+            return mapState;
         }
 
         private void DrawMap(AnimatedBackgroundMapState mapState, int viewportWidth, int viewportHeight, float alpha)
@@ -271,33 +303,93 @@ public partial class Game1
                 (int)level.Bounds.Width,
                 (int)level.Bounds.Height);
 
-            // Draw level background with grayscale effect
+            // Draw solid backdrop color (fills the viewport behind all texture layers)
+            if (mapState.BackgroundColor.HasValue)
+            {
+                _game._spriteBatch.Draw(
+                    _game._pixel,
+                    new Rectangle(0, 0, viewportWidth, viewportHeight),
+                    mapState.BackgroundColor.Value * alpha);
+            }
+
+            var hasParallaxLayers = mapState.ParallaxLayers.Count > 0;
             var backgroundName = level.BackgroundAssetName;
+            Texture2D? stockBackground = null;
             if (_game._runtimeAssets is not null && !string.IsNullOrWhiteSpace(backgroundName))
             {
-                var background = _game._runtimeAssets.GetBackground(backgroundName);
-                if (background is not null)
+                stockBackground = _game._runtimeAssets.GetBackground(backgroundName);
+            }
+
+            if (hasParallaxLayers || stockBackground is not null)
+            {
+                // Draw parallax layers and main background with grayscale effect
+                _game._spriteBatch.End();
+                _game._spriteBatch.Begin(
+                    samplerState: SamplerState.PointClamp,
+                    effect: _game._grayscaleEffect,
+                    rasterizerState: RasterizerState.CullNone);
+
+                foreach (var (texture, xFactor, yFactor) in mapState.ParallaxLayers)
                 {
-                    // End current batch and restart with grayscale effect
-                    _game._spriteBatch.End();
-                    _game._spriteBatch.Begin(
-                        samplerState: SamplerState.PointClamp,
-                        effect: _game._grayscaleEffect,
-                        rasterizerState: RasterizerState.CullNone);
-
-                    _game._spriteBatch.Draw(background, worldRectangle, Color.White * alpha);
-
-                    // Restore normal SpriteBatch state
-                    _game._spriteBatch.End();
-                    _game._spriteBatch.Begin(
-                        samplerState: SamplerState.PointClamp,
-                        rasterizerState: RasterizerState.CullNone);
-                    return;
+                    DrawParallaxLayer(texture, xFactor, yFactor, cameraPosition, viewportWidth, viewportHeight, mapState.ImageScale, alpha);
                 }
+
+                if (stockBackground is not null)
+                {
+                    _game._spriteBatch.Draw(stockBackground, worldRectangle, Color.White * alpha);
+                }
+
+                // Restore normal SpriteBatch state
+                _game._spriteBatch.End();
+                _game._spriteBatch.Begin(
+                    samplerState: SamplerState.PointClamp,
+                    rasterizerState: RasterizerState.CullNone);
+                return;
             }
 
             // Fallback background
             _game._spriteBatch.Draw(_game._pixel, worldRectangle, new Color(34, 44, 60) * alpha);
+        }
+
+        private void DrawParallaxLayer(Texture2D texture, float xFactor, float yFactor, Vector2 cameraPosition, int viewportWidth, int viewportHeight, float imageScale, float alpha)
+        {
+            var scaledWidth = texture.Width * imageScale;
+            var scaledHeight = texture.Height * imageScale;
+            if (scaledWidth <= 0.01f || scaledHeight <= 0.01f)
+            {
+                return;
+            }
+
+            var xOrigin = cameraPosition.X + (viewportWidth / 2f) - (scaledWidth / 2f);
+            var yOrigin = cameraPosition.Y + (viewportHeight / 2f) - (scaledHeight / 2f);
+            var xParallax = MathF.Abs(xFactor) > 0.0001f
+                ? xOrigin / (xFactor * xFactor)
+                : 0f;
+            var yParallax = MathF.Abs(yFactor) > 0.0001f
+                ? yOrigin / (yFactor * yFactor)
+                : 0f;
+
+            var worldX = xOrigin - xParallax;
+            var screenY = yOrigin - yParallax - cameraPosition.Y;
+            var firstScreenX = worldX - cameraPosition.X;
+            while (firstScreenX > 0f)
+            {
+                firstScreenX -= scaledWidth;
+            }
+
+            for (var screenX = firstScreenX; screenX < viewportWidth; screenX += scaledWidth)
+            {
+                _game._spriteBatch.Draw(
+                    texture,
+                    new Vector2(screenX, screenY),
+                    null,
+                    Color.White * alpha,
+                    0f,
+                    Vector2.Zero,
+                    imageScale,
+                    SpriteEffects.None,
+                    0f);
+            }
         }
 
         private static void AddPointsAlongLine(List<Vector2> points, Vector2 start, Vector2 end)
@@ -326,75 +418,105 @@ public partial class Game1
         {
             var level = mapState.Level;
 
-            // Collect all possible focus points (spawn points, control points, and navigation nodes)
-            var focusPoints = new List<Vector2>();
+            Vector2 focusPoint;
 
-            // Add bot navigation nodes if available (default maps have this)
-            if (BotNavigationAssetStore.TryLoadShipped(level, out var navAsset))
+            if (mapState.IsCustomMap)
             {
-                foreach (var node in navAsset.Nodes)
+                // For custom maps: two-step random selection from gameplay element categories
+                // Step 1: collect available categories
+                var spawnPoints = new List<Vector2>();
+                foreach (var spawn in level.RedSpawns)
+                    spawnPoints.Add(new Vector2(spawn.X, spawn.Y));
+                foreach (var spawn in level.BlueSpawns)
+                    spawnPoints.Add(new Vector2(spawn.X, spawn.Y));
+
+                var controlPoints = new List<Vector2>();
+                foreach (var cp in level.GetRoomObjects(RoomObjectType.ControlPoint))
+                    controlPoints.Add(new Vector2(cp.CenterX, cp.CenterY));
+                foreach (var cp in level.GetRoomObjects(RoomObjectType.ArenaControlPoint))
+                    controlPoints.Add(new Vector2(cp.CenterX, cp.CenterY));
+                foreach (var cp in level.GetRoomObjects(RoomObjectType.CaptureZone))
+                    controlPoints.Add(new Vector2(cp.CenterX, cp.CenterY));
+
+                var intelPoints = new List<Vector2>();
+                foreach (var intel in level.IntelBases)
+                    intelPoints.Add(new Vector2(intel.X, intel.Y));
+
+                var resupplyPoints = new List<Vector2>();
+                foreach (var cabinet in level.GetRoomObjects(RoomObjectType.HealingCabinet))
+                    resupplyPoints.Add(new Vector2(cabinet.CenterX, cabinet.CenterY));
+
+                // Build list of non-empty categories
+                var categories = new List<List<Vector2>>();
+                if (spawnPoints.Count > 0) categories.Add(spawnPoints);
+                if (controlPoints.Count > 0) categories.Add(controlPoints);
+                if (intelPoints.Count > 0) categories.Add(intelPoints);
+                if (resupplyPoints.Count > 0) categories.Add(resupplyPoints);
+
+                if (categories.Count > 0)
                 {
-                    focusPoints.Add(new Vector2(node.X, node.Y));
+                    // Step 1: pick a random category
+                    var chosenCategory = categories[_random.Next(categories.Count)];
+                    // Step 2: pick a random element from that category
+                    focusPoint = chosenCategory[_random.Next(chosenCategory.Count)];
+                }
+                else
+                {
+                    focusPoint = new Vector2(level.Bounds.Width / 2f, level.Bounds.Height / 2f);
                 }
             }
+            else
+            {
+                // For default maps: use nav nodes + spawn/objective interpolated points for rich coverage
+                var focusPoints = new List<Vector2>();
 
-            // Collect spawn points
-            var spawnPoints = new List<Vector2>();
-            foreach (var spawn in level.RedSpawns)
-            {
-                var spawnPos = new Vector2(spawn.X, spawn.Y);
-                spawnPoints.Add(spawnPos);
-                focusPoints.Add(spawnPos);
-            }
-            foreach (var spawn in level.BlueSpawns)
-            {
-                var spawnPos = new Vector2(spawn.X, spawn.Y);
-                spawnPoints.Add(spawnPos);
-                focusPoints.Add(spawnPos);
-            }
-
-            // Collect objectives (control points and intel bases)
-            var objectives = new List<Vector2>();
-            var controlPoints = level.GetRoomObjects(RoomObjectType.ControlPoint);
-            foreach (var cp in controlPoints)
-            {
-                var cpPos = new Vector2(cp.CenterX, cp.CenterY);
-                objectives.Add(cpPos);
-                focusPoints.Add(cpPos);
-            }
-            foreach (var intel in level.IntelBases)
-            {
-                var intelPos = new Vector2(intel.X, intel.Y);
-                objectives.Add(intelPos);
-                focusPoints.Add(intelPos);
-            }
-
-            // Add points along lines from spawns to objectives
-            foreach (var spawn in spawnPoints)
-            {
-                foreach (var objective in objectives)
+                if (BotNavigationAssetStore.TryLoadShipped(level, out var navAsset))
                 {
-                    AddPointsAlongLine(focusPoints, spawn, objective);
+                    foreach (var node in navAsset.Nodes)
+                        focusPoints.Add(new Vector2(node.X, node.Y));
                 }
-            }
 
-            // Add points along lines from objectives to other objectives
-            for (int i = 0; i < objectives.Count; i++)
-            {
-                for (int j = i + 1; j < objectives.Count; j++)
+                var spawnPoints = new List<Vector2>();
+                foreach (var spawn in level.RedSpawns)
                 {
-                    AddPointsAlongLine(focusPoints, objectives[i], objectives[j]);
+                    var spawnPos = new Vector2(spawn.X, spawn.Y);
+                    spawnPoints.Add(spawnPos);
+                    focusPoints.Add(spawnPos);
                 }
-            }
+                foreach (var spawn in level.BlueSpawns)
+                {
+                    var spawnPos = new Vector2(spawn.X, spawn.Y);
+                    spawnPoints.Add(spawnPos);
+                    focusPoints.Add(spawnPos);
+                }
 
-            // If no focus points, use map center
-            if (focusPoints.Count == 0)
-            {
-                focusPoints.Add(new Vector2(level.Bounds.Width / 2f, level.Bounds.Height / 2f));
-            }
+                var objectives = new List<Vector2>();
+                foreach (var cp in level.GetRoomObjects(RoomObjectType.ControlPoint))
+                {
+                    var cpPos = new Vector2(cp.CenterX, cp.CenterY);
+                    objectives.Add(cpPos);
+                    focusPoints.Add(cpPos);
+                }
+                foreach (var intel in level.IntelBases)
+                {
+                    var intelPos = new Vector2(intel.X, intel.Y);
+                    objectives.Add(intelPos);
+                    focusPoints.Add(intelPos);
+                }
 
-            // Pick a random focus point
-            var focusPoint = focusPoints[_random.Next(focusPoints.Count)];
+                foreach (var spawn in spawnPoints)
+                    foreach (var objective in objectives)
+                        AddPointsAlongLine(focusPoints, spawn, objective);
+
+                for (int i = 0; i < objectives.Count; i++)
+                    for (int j = i + 1; j < objectives.Count; j++)
+                        AddPointsAlongLine(focusPoints, objectives[i], objectives[j]);
+
+                if (focusPoints.Count == 0)
+                    focusPoints.Add(new Vector2(level.Bounds.Width / 2f, level.Bounds.Height / 2f));
+
+                focusPoint = focusPoints[_random.Next(focusPoints.Count)];
+            }
 
             // Add random offset (up to 50px in each direction)
             var randomOffsetX = (_random.NextSingle() - 0.5f) * 2f * MaxOffsetPixels;
@@ -456,12 +578,24 @@ public partial class Game1
             mapState.CameraPosition = new Vector2(clampedX, clampedY);
         }
 
-        private sealed class AnimatedBackgroundMapState
+        private sealed class AnimatedBackgroundMapState : IDisposable
         {
             public SimpleLevel Level { get; set; } = null!;
             public string MapName { get; set; } = string.Empty;
+            public bool IsCustomMap { get; set; }
             public Vector2 CameraPosition { get; set; }
             public Vector2 ScrollVector { get; set; }
+            public Color? BackgroundColor { get; set; }
+            public float ImageScale { get; set; } = 1f;
+            public List<(Texture2D Texture, float XFactor, float YFactor)> ParallaxLayers { get; } = new();
+
+            public void Dispose()
+            {
+                foreach (var (texture, _, _) in ParallaxLayers)
+                {
+                    texture.Dispose();
+                }
+            }
         }
     }
 }

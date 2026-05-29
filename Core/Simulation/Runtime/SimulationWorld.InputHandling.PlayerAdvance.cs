@@ -24,6 +24,12 @@ public sealed partial class SimulationWorld
                 BuildSentry = false,
                 DestroySentry = false,
             };
+
+            // Force exit binoculars at the start of humiliation
+            if (player.IsUsingBinoculars)
+            {
+                player.TryToggleBinoculars();
+            }
         }
         
         // Disable shooting while using binoculars

@@ -90,6 +90,9 @@ public partial class Game1
     private readonly List<PendingBrowserSoundEvent> _pendingBrowserSoundEvents = new();
     private readonly List<WorldSoundEvent> _pendingNetworkSoundEvents = new();
     private readonly List<RecentGibSoundEvent> _recentGibSoundEvents = new();
+    private readonly List<PlayedExplosionSoundThisFrame> _playedExplosionSoundsThisFrame = new();
+
+    private readonly record struct PlayedExplosionSoundThisFrame(float X, float Y);
 
     private void LoadMenuMusic()
     {
@@ -244,6 +247,32 @@ public partial class Game1
     private void PlayPendingSoundEvents()
     {
         _gameplayAudioEventController.PlayPendingSoundEvents();
+    }
+
+    private void BeginExplosionSoundDeduplicationFrame()
+    {
+        _playedExplosionSoundsThisFrame.Clear();
+    }
+
+    private bool HasPlayedExplosionSoundThisFrame(float x, float y)
+    {
+        const float epsilon = 0.01f;
+        for (var index = 0; index < _playedExplosionSoundsThisFrame.Count; index += 1)
+        {
+            var played = _playedExplosionSoundsThisFrame[index];
+            if (MathF.Abs(played.X - x) <= epsilon
+                && MathF.Abs(played.Y - y) <= epsilon)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void RecordPlayedExplosionSoundThisFrame(float x, float y)
+    {
+        _playedExplosionSoundsThisFrame.Add(new PlayedExplosionSoundThisFrame(x, y));
     }
 
     private void EnqueuePendingBrowserSoundEvent(string soundName, float x, float y)

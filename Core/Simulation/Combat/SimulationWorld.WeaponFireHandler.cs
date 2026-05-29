@@ -215,6 +215,11 @@ public sealed partial class SimulationWorld
             _world.SpawnNeedle(owner, x, y, velocityX, velocityY);
         }
 
+        private void SpawnNail(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
+        {
+            _world.SpawnNail(owner, x, y, velocityX, velocityY);
+        }
+
         private static float DegreesToRadians(float degrees)
         {
             return SimulationWorld.DegreesToRadians(degrees);

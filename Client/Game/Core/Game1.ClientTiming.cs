@@ -25,6 +25,7 @@ public partial class Game1
     private bool _hasLatestLocalAimWorldPosition;
     private float _latestLocalAimWorldX;
     private float _latestLocalAimWorldY;
+    private int _writeBubbleTick;
 
     private int ConsumeClientTickCount(GameTime gameTime)
     {
@@ -52,6 +53,7 @@ public partial class Game1
         _hasLatestLocalAimWorldPosition = false;
         _latestLocalAimWorldX = 0f;
         _latestLocalAimWorldY = 0f;
+        _writeBubbleTick = 0;
     }
 
     private void ClearPendingPredictedInputEdges()
@@ -213,6 +215,7 @@ public partial class Game1
             AdvanceClientSideSuperjumpCharging();
             AdvanceSpySuperjumpTrajectoryAnimation();
             AdvanceChatHud();
+            AdvanceWriteBubbleTick();
             UpdateNoticeState();
             AdvanceExplosionVisuals();
             AdvanceImpactVisuals();
@@ -239,6 +242,11 @@ public partial class Game1
 
             AdvanceBackstabVisuals();
         }
+    }
+
+    private void AdvanceWriteBubbleTick()
+    {
+        _writeBubbleTick += 1;
     }
 
     private void AdvancePredictedAfterburnVisuals()

@@ -442,6 +442,8 @@ public sealed partial class SimulationWorld
         {
             var weaponDefinition = CharacterClassCatalog.RuntimeRegistry.CreatePrimaryWeaponDefinition(
                 StockGameplayModCatalog.Definition.Items["weapon.grenadelauncher"]);
+            var binding = ResolvePrimaryWeaponRuntimeBinding(attacker.UtilityBehaviorId, weaponDefinition);
+            TryRegisterPrimaryWeaponFireSound(attacker, weaponDefinition, binding);
             FireGrenadeLauncher(
                 attacker,
                 weaponDefinition,

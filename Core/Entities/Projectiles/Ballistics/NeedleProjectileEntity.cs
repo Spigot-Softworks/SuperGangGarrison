@@ -1,10 +1,12 @@
 namespace OpenGarrison.Core;
 
-public sealed class NeedleProjectileEntity : SimulationEntity
+public class NeedleProjectileEntity : SimulationEntity
 {
     public const int LifetimeTicks = 40;
     public const int DamagePerHit = 4;
     public const float GravityPerTick = 0.2f;
+
+    public virtual int Damage => DamagePerHit;
 
     public NeedleProjectileEntity(
         int id,

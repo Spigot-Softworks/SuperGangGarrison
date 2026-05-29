@@ -87,7 +87,8 @@ public sealed partial class PlayerEntity
         float playerScale = 1f,
         int offhandCooldownTicks = 0,
         int offhandReloadTicks = 0,
-        int gibDeaths = 0)
+        int gibDeaths = 0,
+        bool isTypingChatMessage = false)
     {
         Team = team;
         ClassDefinition = classDefinition;
@@ -216,6 +217,7 @@ public sealed partial class PlayerEntity
         IsChatBubbleVisible = isChatBubbleVisible;
         ChatBubbleFrameIndex = chatBubbleFrameIndex;
         ChatBubbleAlpha = chatBubbleAlpha;
+        IsTypingChatMessage = isTypingChatMessage;
         IsChatBubbleFading = false;
         ChatBubbleTicksRemaining = 0;
         MedicHealTargetId = isMedicHealing && medicHealTargetId >= 0 ? medicHealTargetId : null;
