@@ -70,7 +70,24 @@ public partial class Game1
             var iconColor = isUberDisabled ? new Color(128, 128, 128) : Color.White;
             var textColor = isUberDisabled ? new Color(108, 108, 92) : new Color(0xD9, 0xD9, 0xB7);
             _game.TryDrawScreenSprite("UberHudS", hudFrameIndex, iconPosition, iconColor, new Vector2(2f * hudScale, 2f * hudScale));
-            _game.DrawHudTextCentered("SUPERBURST", TransformPoint(new Vector2(viewportWidth - 71f, viewportHeight - 89f)), textColor, 1f * hudScale);
+
+            // Draw SUPER / BURST (or CRITS / CRAZE for kritz) stacked left-aligned after the '+' icon
+            var labelScale = 0.5f * hudScale;
+            var labelLineHeight = _game.MeasureMenuBitmapFontHeight(labelScale);
+            var labelOrigin = TransformPoint(new Vector2(viewportWidth - 123f, viewportHeight - 89f - labelLineHeight - 1f));
+            var labelTop = isKritz ? "CRITS" : "SUPER";
+            var labelBottom = isKritz ? "CRAZE" : "BURST";
+            _game.DrawMenuBitmapFontText(labelTop, new Vector2(labelOrigin.X, labelOrigin.Y), textColor, labelScale);
+            _game.DrawMenuBitmapFontText(labelBottom, new Vector2(labelOrigin.X, labelOrigin.Y + labelLineHeight + 2f * hudScale - 1f * hudScale), textColor, labelScale);
+
+            // Draw percentage right-aligned on the right side
+            var percentScale = 1f * hudScale;
+            var percentValue = (int)MathF.Round(100f * Math.Clamp((float)uberCharge / PlayerEntity.MedicUberMaxCharge, 0f, 1f));
+            var percentText = $"{percentValue}%";
+            var percentWidth = _game.MeasureMenuBitmapFontWidth(percentText, percentScale);
+            var percentHeight = _game.MeasureMenuBitmapFontHeight(percentScale);
+            var percentAnchor = TransformPoint(new Vector2(viewportWidth - 16f, viewportHeight - 85f - percentHeight / 2f));
+            _game.DrawMenuBitmapFontText(percentText, new Vector2(percentAnchor.X - percentWidth, percentAnchor.Y), textColor, percentScale);
             _game.UpdateHudElementBounds(HudElementId.ClassMedicUber, Rectangle.Union(iconBounds, uberRectangle));
         }
 
@@ -116,7 +133,8 @@ public partial class Game1
             var label = healingTarget is null ? "Healing: Target" : $"Healing: {GetHudPlayerLabel(healingTarget)}";
             var value = healingTarget?.Health ?? MedicAssistDummyHealth;
             var maxValue = healingTarget?.MaxHealth ?? MedicAssistDummyHealth;
-            DrawCenterStatusHud(HudElementId.ClassMedicHealingTarget, label, value, maxValue, 0.7f);
+            var targetTeam = healingTarget?.Team ?? _game._world.LocalPlayer.Team;
+            DrawCenterStatusHud(HudElementId.ClassMedicHealingTarget, label, value, maxValue, 0.7f, targetTeam);
         }
 
         public void DrawMedicHealerHud()
@@ -134,7 +152,8 @@ public partial class Game1
 
             var label = healer is null ? "Healer: Medic" : $"Healer: {GetHudPlayerLabel(healer)}";
             var value = healer?.MedicUberCharge ?? MedicAssistDummyUberCharge;
-            DrawCenterStatusHud(HudElementId.ClassMedicHealer, label, value, PlayerEntity.MedicUberMaxCharge, 0.5f);
+            var healerTeam = healer?.Team ?? _game._world.LocalPlayer.Team;
+            DrawCenterStatusHud(HudElementId.ClassMedicHealer, label, value, PlayerEntity.MedicUberMaxCharge, 0.5f, healerTeam);
         }
 
         public void DrawHealerRadarHud(Vector2 cameraPosition, MouseState mouse)
@@ -265,21 +284,13 @@ public partial class Game1
                 Layer: layer));
         }
 
-        public void DrawCenterStatusHud(string id, string label, float value, float maxValue, float textAlpha)
+        public void DrawCenterStatusHud(string id, string label, float value, float maxValue, float textAlpha, PlayerTeam team)
         {
-            var sprite = _game.GetResolvedSprite("HealedHudS");
-            if (sprite is null || sprite.Frames.Count == 0)
-            {
-                return;
-            }
-
             if (!_game.TryResolveHudElement(id, out var resolved))
             {
                 return;
             }
 
-            var frameIndex = _game._world.LocalPlayer.Team == PlayerTeam.Blue ? 1 : 0;
-            var frame = sprite.Frames[Math.Clamp(frameIndex, 0, sprite.Frames.Count - 1)];
             const float textScale = 1f;
             var hudScale = resolved.Layout.Scale;
             var textWidth = _game.MeasureBitmapFontWidth(label, textScale * hudScale);
@@ -288,19 +299,24 @@ public partial class Game1
             var hudX = (int)MathF.Round(resolved.Origin.X - (hudWidth * 0.5f));
             var hudY = (int)MathF.Round(resolved.Origin.Y);
             var destination = new Rectangle(hudX, hudY, hudWidth, hudHeight);
-            _game.DrawLoadedSpriteFrame(frame, destination, Color.White * 0.5f);
-            _game.DrawHudTextCentered(label, new Vector2(resolved.Origin.X, hudY + (12f * hudScale)), Color.White * textAlpha, textScale * hudScale);
-            _game.DrawScreenHealthBar(
-                new Rectangle(
-                    hudX + (int)MathF.Round(10f * hudScale),
-                    hudY + (int)MathF.Round(20f * hudScale),
-                    Math.Max(1, hudWidth - (int)MathF.Round(20f * hudScale)),
-                    Math.Max(1, (int)MathF.Round(8f * hudScale))),
-                value,
-                maxValue,
-                false,
-                Color.White,
-                Color.Black);
+            var fillColor = team == PlayerTeam.Blue ? new Color(0x48, 0x5C, 0x67) : new Color(0xA5, 0x46, 0x40);
+            _game.DrawRoundedRectangleFillThenBorder(destination, fillColor * 0.6f, new Color(0xD9, 0xD9, 0xB7) * 0.6f, outlineThickness: 2, radius: 8);
+            var textColor = new Color(0xD9, 0xD9, 0xB7);
+            _game.DrawHudTextCentered(label, new Vector2(resolved.Origin.X, hudY + (12f * hudScale)), textColor * textAlpha, textScale * hudScale);
+            var barX = hudX + (int)MathF.Round(10f * hudScale);
+            var barY = hudY + (int)MathF.Round(20f * hudScale);
+            var barTotalWidth = Math.Max(1, hudWidth - (int)MathF.Round(20f * hudScale));
+            var barHeight = Math.Max(1, (int)MathF.Round(8f * hudScale));
+            var fillWidth = maxValue > 0f ? Math.Clamp((int)MathF.Round(barTotalWidth * MathF.Max(0f, value) / maxValue), 0, barTotalWidth) : 0;
+            if (fillWidth > 0)
+            {
+                _game._spriteBatch.Draw(_game._pixel, new Rectangle(barX, barY, fillWidth, barHeight), textColor * 0.6f);
+            }
+            var emptyWidth = barTotalWidth - fillWidth;
+            if (emptyWidth > 0)
+            {
+                _game._spriteBatch.Draw(_game._pixel, new Rectangle(barX + fillWidth, barY, emptyWidth, barHeight), Color.Black * 0.6f);
+            }
             _game.UpdateHudElementBounds(id, destination);
         }
 

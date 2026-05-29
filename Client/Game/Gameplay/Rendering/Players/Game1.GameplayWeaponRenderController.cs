@@ -215,7 +215,8 @@ public partial class Game1
             }
 
             if (ReferenceEquals(player, _game._world.LocalPlayer)
-                && _game._hasLatestLocalAimWorldPosition)
+                && _game._hasLatestLocalAimWorldPosition
+                && _game._useLocalWeaponRotation)
             {
                 var aimDeltaX = _game._latestLocalAimWorldX - player.X;
                 if (System.MathF.Abs(aimDeltaX) > 0.001f)
@@ -237,7 +238,8 @@ public partial class Game1
             }
 
             if (ReferenceEquals(player, _game._world.LocalPlayer)
-                && _game._hasLatestLocalAimWorldPosition)
+                && _game._hasLatestLocalAimWorldPosition
+                && _game._useLocalWeaponRotation)
             {
                 var aimDeltaX = _game._latestLocalAimWorldX - player.X;
                 var aimDeltaY = _game._latestLocalAimWorldY - player.Y;
@@ -294,7 +296,8 @@ public partial class Game1
             if (!ReferenceEquals(player, _game._world.LocalPlayer)
                 || _game._networkClient.IsSpectator
                 || _game.IsBackstabReplacementRenderActive(player)
-                || !_game._hasLatestLocalAimWorldPosition)
+                || !_game._hasLatestLocalAimWorldPosition
+                || !_game._useLocalWeaponRotation)
             {
                 return false;
             }
