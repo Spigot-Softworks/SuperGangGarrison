@@ -219,8 +219,8 @@ public sealed record ServerDetailsResponseMessage(
 public sealed record InputStateMessage(
     uint Sequence,
     InputButtons Buttons,
-    float AimWorldX,
-    float AimWorldY,
+    float AimRelX,
+    float AimRelY,
     int ChatBubbleFrameIndex,
     bool IsUsingBinoculars = false,
     float BinocularsFocusX = 0f,

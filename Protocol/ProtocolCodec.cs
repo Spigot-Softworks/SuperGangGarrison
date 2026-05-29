@@ -458,8 +458,8 @@ public static partial class ProtocolCodec
             case InputStateMessage input:
                 writer.Write(input.Sequence);
                 writer.Write((ushort)input.Buttons);
-                writer.Write(input.AimWorldX);
-                writer.Write(input.AimWorldY);
+                writer.Write(input.AimRelX);
+                writer.Write(input.AimRelY);
                 writer.Write(input.ChatBubbleFrameIndex);
                 writer.Write(input.IsUsingBinoculars);
                 writer.Write(input.BinocularsFocusX);

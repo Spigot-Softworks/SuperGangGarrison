@@ -427,6 +427,7 @@ public partial class Game1
                 new("In-Game Music Volume", $"{_game._ingameMusicVolumePercent}%", () => _game.AdjustIngameMusicVolume(5), OptionsMenuTab.Audio),
                 new("SFX Volume", $"{_game._soundEffectsVolumePercent}%", () => _game.AdjustSoundEffectsVolume(5), OptionsMenuTab.Audio),
                 new("Mute All Audio (F12)", _game._audioMuted ? "Muted" : "Unmuted", _game.ToggleAudioMuteSetting, OptionsMenuTab.Audio),
+                new("Weapon rotation", _game._useLocalWeaponRotation ? "Local (snappier)" : "Remote (accurate)", _game.ToggleWeaponRotationSourceSetting, OptionsMenuTab.Gameplay),
                 new("Healer Radar", _game._healerRadarEnabled ? "Enabled" : "Disabled", _game.ToggleHealerRadarSetting, OptionsMenuTab.Gameplay),
                 new("Show Healer", _game._showHealerEnabled ? "Enabled" : "Disabled", _game.ToggleShowHealerSetting, OptionsMenuTab.Gameplay),
                 new("Show Healing", _game._showHealingEnabled ? "Enabled" : "Disabled", _game.ToggleShowHealingSetting, OptionsMenuTab.Gameplay),

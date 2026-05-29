@@ -102,6 +102,113 @@ public partial class Game1
         }
     }
 
+    // Draws fill first, then only the border ring pixels on top (outline does not appear behind the fill).
+    private void DrawRoundedRectangleFillThenBorder(Rectangle bounds, Color fillColor, Color outlineColor, int outlineThickness, int radius)
+    {
+        var innerRadius = Math.Max(0, radius - outlineThickness);
+        var inner = new Rectangle(
+            bounds.X + outlineThickness,
+            bounds.Y + outlineThickness,
+            bounds.Width - (outlineThickness * 2),
+            bounds.Height - (outlineThickness * 2));
+
+        if (inner.Width > 0 && inner.Height > 0)
+        {
+            DrawRoundedRectangle(inner, fillColor, innerRadius);
+        }
+
+        DrawRoundedRectangleBorder(bounds, outlineColor, outlineThickness, radius);
+    }
+
+    // Draws only the border ring pixels of a rounded rectangle (no fill).
+    private void DrawRoundedRectangleBorder(Rectangle bounds, Color color, int outlineThickness, int radius)
+    {
+        if (bounds.Width <= 0 || bounds.Height <= 0)
+        {
+            return;
+        }
+
+        radius = Math.Clamp(radius, 0, Math.Min(bounds.Width, bounds.Height) / 2);
+        var radiusSquared = radius * radius;
+
+        var inner = new Rectangle(
+            bounds.X + outlineThickness,
+            bounds.Y + outlineThickness,
+            bounds.Width - (outlineThickness * 2),
+            bounds.Height - (outlineThickness * 2));
+        var innerRadius = Math.Clamp(radius - outlineThickness, 0, inner.Width > 0 && inner.Height > 0 ? Math.Min(inner.Width, inner.Height) / 2 : 0);
+        var innerRadiusSquared = innerRadius * innerRadius;
+
+        for (var y = 0; y < bounds.Height; y += 1)
+        {
+            float outerInset;
+            if (y < radius)
+            {
+                var dy = radius - y - 0.5f;
+                outerInset = MathF.Round(radius - MathF.Sqrt(MathF.Max(0f, radiusSquared - (dy * dy))));
+            }
+            else if (y >= bounds.Height - radius)
+            {
+                var dy = y - (bounds.Height - radius) + 0.5f;
+                outerInset = MathF.Round(radius - MathF.Sqrt(MathF.Max(0f, radiusSquared - (dy * dy))));
+            }
+            else
+            {
+                outerInset = 0f;
+            }
+
+            var outerRowX = bounds.X + (int)outerInset;
+            var outerRowEndX = bounds.X + bounds.Width - (int)outerInset;
+            var outerRowWidth = outerRowEndX - outerRowX;
+            if (outerRowWidth <= 0)
+            {
+                continue;
+            }
+
+            var innerY = y - outlineThickness;
+            int innerRowX;
+            int innerRowEndX;
+            if (inner.Width > 0 && inner.Height > 0 && innerY >= 0 && innerY < inner.Height)
+            {
+                float innerInset;
+                if (innerY < innerRadius)
+                {
+                    var dy = innerRadius - innerY - 0.5f;
+                    innerInset = MathF.Round(innerRadius - MathF.Sqrt(MathF.Max(0f, innerRadiusSquared - (dy * dy))));
+                }
+                else if (innerY >= inner.Height - innerRadius)
+                {
+                    var dy = innerY - (inner.Height - innerRadius) + 0.5f;
+                    innerInset = MathF.Round(innerRadius - MathF.Sqrt(MathF.Max(0f, innerRadiusSquared - (dy * dy))));
+                }
+                else
+                {
+                    innerInset = 0f;
+                }
+
+                innerRowX = inner.X + (int)innerInset;
+                innerRowEndX = inner.X + inner.Width - (int)innerInset;
+            }
+            else
+            {
+                innerRowX = outerRowEndX;
+                innerRowEndX = outerRowEndX;
+            }
+
+            var leftWidth = innerRowX - outerRowX;
+            if (leftWidth > 0)
+            {
+                _spriteBatch.Draw(_pixel, new Rectangle(outerRowX, bounds.Y + y, leftWidth, 1), color);
+            }
+
+            var rightWidth = outerRowEndX - innerRowEndX;
+            if (rightWidth > 0)
+            {
+                _spriteBatch.Draw(_pixel, new Rectangle(innerRowEndX, bounds.Y + y, rightWidth, 1), color);
+            }
+        }
+    }
+
     private void DrawRoundedRectangle(Rectangle bounds, Color color, int radius)
     {
         if (bounds.Width <= 0 || bounds.Height <= 0)
