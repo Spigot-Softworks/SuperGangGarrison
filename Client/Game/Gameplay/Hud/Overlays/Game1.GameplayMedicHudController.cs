@@ -57,12 +57,7 @@ public partial class Game1
                 Math.Max(1, (int)MathF.Round(68f * 2f * hudScale)),
                 Math.Max(1, (int)MathF.Round(23f * 2f * hudScale)));
             var uberCharge = _game.GetPlayerMedicUberCharge(_game._world.LocalPlayer);
-            var uberIsReady = uberCharge >= PlayerEntity.MedicUberMaxCharge;
-            var uberFullColor = _game._world.LocalPlayer.Team == PlayerTeam.Blue
-                ? new Color(92, 160, 238)
-                : new Color(238, 92, 92);
-            var uberFillColor = uberIsReady ? uberFullColor : Color.White;
-            _game.DrawScreenHealthBar(uberRectangle, uberCharge, PlayerEntity.MedicUberMaxCharge, false, uberFillColor, Color.Black);
+            _game.DrawScreenHealthBar(uberRectangle, uberCharge, PlayerEntity.MedicUberMaxCharge, false, Color.White, Color.Black);
 
             // Darken the uber icon and text when carrying intel with regular medigun (kritz can still activate)
             var isKritz = _game._world.LocalPlayer.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit);
