@@ -237,7 +237,8 @@ public sealed partial class SimulationWorld
                     var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(needle.Damage * needle.CriticalDamageMultiplier), out var damageFlags);
                     if (ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
                     {
-                        KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "NailgunKL");
+                        var killFeedSprite = needle is NailProjectileEntity ? "NailgunKL" : "NeedleKL";
+                        KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: killFeedSprite);
                     }
                 }
                 else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)MathF.Round(needle.Damage * needle.CriticalDamageMultiplier), owner))

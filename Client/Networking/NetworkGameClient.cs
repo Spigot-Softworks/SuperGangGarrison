@@ -532,7 +532,7 @@ internal sealed class NetworkGameClient : IDisposable
             schemaVersion));
     }
 
-    public uint SendInput(PlayerInputSnapshot input)
+    public uint SendInput(PlayerInputSnapshot input, float localPlayerX, float localPlayerY)
     {
         if (!IsConnected)
         {
@@ -561,8 +561,8 @@ internal sealed class NetworkGameClient : IDisposable
         var inputMessage = new InputStateMessage(
             sequence, 
             buttons, 
-            input.AimWorldX, 
-            input.AimWorldY, 
+            input.AimWorldX - localPlayerX, 
+            input.AimWorldY - localPlayerY, 
             _pendingChatBubbleFrameIndex,
             input.IsUsingBinoculars,
             input.BinocularsFocusX,

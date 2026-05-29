@@ -60,6 +60,7 @@ public partial class Game1
 
         _spriteDropShadowEnabled = _clientSettings.SpriteDropShadowEnabled;
         _pixelPerfectWeaponRotation = _clientSettings.PixelPerfectWeaponRotation;
+        _useLocalWeaponRotation = _clientSettings.UseLocalWeaponRotation;
         _playerCardSizeMode = ClientSettings.NormalizePlayerCardSizeMode(_clientSettings.PlayerCardSizeMode);
         _uberOutlineEnabled = _clientSettings.ShowUberOutlinesEnabled;
         _projectileTeamTintEnabled = _clientSettings.ProjectileTeamTintEnabled;
@@ -112,6 +113,7 @@ public partial class Game1
         _clientSettings.SmoothCameraMultiplier = NormalizeSmoothCameraMultiplier(_smoothCameraMultiplier);
         _clientSettings.SpriteDropShadowEnabled = _spriteDropShadowEnabled;
         _clientSettings.PixelPerfectWeaponRotation = _pixelPerfectWeaponRotation;
+        _clientSettings.UseLocalWeaponRotation = _useLocalWeaponRotation;
         _clientSettings.PlayerCardSizeMode = ClientSettings.NormalizePlayerCardSizeMode(_playerCardSizeMode);
         _clientSettings.ShowUberOutlinesEnabled = _uberOutlineEnabled;
         _clientSettings.ProjectileTeamTintEnabled = _projectileTeamTintEnabled;

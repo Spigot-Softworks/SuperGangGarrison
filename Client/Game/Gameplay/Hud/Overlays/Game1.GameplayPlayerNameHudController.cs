@@ -3,6 +3,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Core;
+using System;
 
 namespace OpenGarrison.Client;
 
@@ -59,15 +60,30 @@ public partial class Game1
 
             var renderPosition = _game.GetRenderPosition(player);
             var bounds = GetPlayerScreenBounds(player, renderPosition, cameraPosition);
-            var screenPosition = new Vector2(bounds.Left + (bounds.Width * 0.5f), bounds.Top - 13f);
-            var textHeight = _game.MeasureBitmapFontHeight(1f);
-            var labelPosition = new Vector2(screenPosition.X, screenPosition.Y - textHeight);
-            var teamColor = player.Team == PlayerTeam.Blue ? new Color(80, 150, 240) : new Color(210, 90, 90);
             var alpha = Math.Clamp(visibilityAlpha, 0.55f, 1f);
-            var shadowColor = Color.Black * alpha;
-            _game.DrawBitmapFontTextCentered(label, labelPosition + new Vector2(0.5f, 0.5f), shadowColor, 1f);
-            _game.DrawBitmapFontTextCentered(label, labelPosition + new Vector2(1f, 1f), shadowColor, 1f);
-            _game.DrawBitmapFontTextCentered(label, labelPosition, teamColor * alpha, 1f);
+            var teamFillColor = player.Team == PlayerTeam.Blue ? new Color(0x48, 0x5C, 0x67) : new Color(0xA5, 0x46, 0x40);
+            var teamOutlineColor = player.Team == PlayerTeam.Blue ? new Color(0x35, 0x44, 0x4D) : new Color(0x7E, 0x35, 0x30);
+            var textColor = new Color(0xD9, 0xD9, 0xB7);
+
+            const int horizontalPadding = 2;
+            const int verticalPadding = 2;
+            var textWidth = _game.MeasureBitmapFontWidth(label, 1f);
+            var textHeight = _game.MeasureBitmapFontHeight(1f);
+            var panelWidth = (int)MathF.Ceiling(textWidth) + (horizontalPadding * 2);
+            var panelHeight = (int)MathF.Ceiling(textHeight) + (verticalPadding * 2);
+
+            var panelCenterX = bounds.Left + (bounds.Width * 0.5f);
+            var panelBottom = bounds.Top - 13f;
+            var panelX = (int)MathF.Round(panelCenterX - (panelWidth / 2f));
+            var panelY = (int)MathF.Round(panelBottom - panelHeight);
+            var panelBounds = new Rectangle(panelX, panelY, panelWidth, panelHeight);
+
+            _game.DrawRoundedRectangleOutline(panelBounds, teamFillColor * (alpha * 0.6f), teamOutlineColor * (alpha * 0.6f), outlineThickness: 2, radius: 4);
+
+            var textPosition = new Vector2(
+                panelBounds.X + ((panelBounds.Width - textWidth) / 2f),
+                panelBounds.Y + verticalPadding);
+            _game.DrawBitmapFontText(label, textPosition, textColor * (alpha * 0.6f), 1f);
         }
 
         public PlayerEntity? GetHoveredPlayerForNameHud(MouseState mouse, Vector2 cameraPosition)

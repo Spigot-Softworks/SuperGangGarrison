@@ -273,6 +273,7 @@ public partial class Game1
                 return System.MathF.Cos(radians) < 0f ? -1f : 1f;
             }
             if (ReferenceEquals(player, _game._world.LocalPlayer)
+                && _game._useLocalWeaponRotation
                 && _game.TryGetLocalPlayerAimDirection(player, out var aimDirectionDegrees))
             {
                 var radians = System.MathF.PI * aimDirectionDegrees / 180f;
