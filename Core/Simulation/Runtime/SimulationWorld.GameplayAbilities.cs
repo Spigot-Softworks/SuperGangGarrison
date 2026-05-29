@@ -583,6 +583,11 @@ public sealed partial class SimulationWorld
             return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
         }
 
+        if (player.IsUbered)
+        {
+            return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
+        }
+
         var targetSlot = player.GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Secondary
             ? GameplayEquipmentSlot.Primary
             : GameplayEquipmentSlot.Secondary;

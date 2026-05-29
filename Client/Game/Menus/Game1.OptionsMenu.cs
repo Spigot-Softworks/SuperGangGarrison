@@ -437,6 +437,12 @@ public partial class Game1
         PersistClientSettings();
     }
 
+    private void ToggleWeaponRotationSourceSetting()
+    {
+        _useLocalWeaponRotation = !_useLocalWeaponRotation;
+        PersistClientSettings();
+    }
+
     private void ToggleAudioMuteSetting()
     {
         _audioMuted = !_audioMuted;
