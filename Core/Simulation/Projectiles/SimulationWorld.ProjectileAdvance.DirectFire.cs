@@ -234,23 +234,23 @@ public sealed partial class SimulationWorld
                 if (hitResult.HitPlayer is not null)
                 {
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
-                    var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(NeedleProjectileEntity.DamagePerHit * needle.CriticalDamageMultiplier), out var damageFlags);
+                    var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(needle.Damage * needle.CriticalDamageMultiplier), out var damageFlags);
                     if (ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
                     {
-                        KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "NeedleKL");
+                        KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "NailgunKL");
                     }
                 }
-                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)MathF.Round(NeedleProjectileEntity.DamagePerHit * needle.CriticalDamageMultiplier), owner))
+                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)MathF.Round(needle.Damage * needle.CriticalDamageMultiplier), owner))
                 {
                     DestroySentry(hitResult.HitSentry, owner);
                 }
                 else if (hitResult.HitGenerator is not null)
                 {
-                    TryDamageGenerator(hitResult.HitGenerator.Team, NeedleProjectileEntity.DamagePerHit * needle.CriticalDamageMultiplier, owner);
+                    TryDamageGenerator(hitResult.HitGenerator.Team, needle.Damage * needle.CriticalDamageMultiplier, owner);
                 }
                 else if (hitResult.HitJumpPad is not null)
                 {
-                    hitResult.HitJumpPad.TakeDamage((int)MathF.Round(NeedleProjectileEntity.DamagePerHit * needle.CriticalDamageMultiplier));
+                    hitResult.HitJumpPad.TakeDamage((int)MathF.Round(needle.Damage * needle.CriticalDamageMultiplier));
                 }
                 else
                 {
