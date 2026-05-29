@@ -80,6 +80,25 @@ public sealed partial class SimulationWorld
         _entities.Add(blade.Id, blade);
     }
 
+    private void SpawnNail(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
+    {
+        var nail = new NailProjectileEntity(
+            AllocateEntityId(),
+            owner.Team,
+            owner.Id,
+            x,
+            y,
+            velocityX,
+            velocityY);
+        if (owner.IsKritzCritBoosted)
+        {
+            nail.SetCritical();
+        }
+
+        _needles.Add(nail);
+        _entities.Add(nail.Id, nail);
+    }
+
     private void SpawnNeedle(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
     {
         var needle = new NeedleProjectileEntity(

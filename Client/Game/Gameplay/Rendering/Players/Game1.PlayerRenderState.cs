@@ -15,6 +15,10 @@ public partial class Game1
     private const string SoldierShotgunMaxAmmoKey = "soldier_shotgun_max_ammo";
     private const string SoldierShotgunReloadTicksKey = "soldier_shotgun_reload_ticks";
     private const string SoldierShotgunCooldownTicksKey = "soldier_shotgun_cooldown_ticks";
+    private const string ScoutNailgunAmmoKey = "scout_nailgun_ammo";
+    private const string ScoutNailgunMaxAmmoKey = "scout_nailgun_max_ammo";
+    private const string ScoutNailgunReloadTicksKey = "scout_nailgun_reload_ticks";
+    private const string ScoutNailgunCooldownTicksKey = "scout_nailgun_cooldown_ticks";
 
     private enum WeaponAnimationMode
     {
@@ -226,7 +230,7 @@ public partial class Game1
         if (player.ClassId == PlayerClass.Sniper)
         {
             UpdateSniperWeaponAnimationState(player, renderState, weaponRenderDefinition, shotStarted);
-            QueueWeaponShellVisuals(player, shotStarted, ammoIncreased);
+            QueueWeaponShellVisuals(player, shotStarted, ammoIncreased, reloadRestarted);
             renderState.PreviousAmmoCount = currentAmmoCount;
             renderState.PreviousCooldownTicks = currentCooldownTicks;
             renderState.PreviousReloadTicks = currentReloadTicks;
@@ -299,7 +303,7 @@ public partial class Game1
             }
         }
 
-        QueueWeaponShellVisuals(player, shotStarted, ammoIncreased);
+        QueueWeaponShellVisuals(player, shotStarted, ammoIncreased, reloadRestarted);
         renderState.PreviousAmmoCount = currentAmmoCount;
         renderState.PreviousCooldownTicks = currentCooldownTicks;
         renderState.PreviousReloadTicks = currentReloadTicks;
@@ -556,6 +560,16 @@ public partial class Game1
             return player.ExperimentalOffhandCurrentShells;
         }
 
+        if (ShouldPresentExperimentalScoutNailgun(player))
+        {
+            if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, ScoutNailgunAmmoKey, out var replicatedAmmo))
+            {
+                return Math.Max(0, replicatedAmmo);
+            }
+
+            return player.ExperimentalOffhandCurrentShells;
+        }
+
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
         {
             return player.ExperimentalOffhandCurrentShells;
@@ -578,6 +592,16 @@ public partial class Game1
         if (ShouldPresentExperimentalSoldierShotgun(player))
         {
             if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunCooldownTicksKey, out var replicatedCooldownTicks))
+            {
+                return Math.Max(0, replicatedCooldownTicks);
+            }
+
+            return player.ExperimentalOffhandCooldownTicks;
+        }
+
+        if (ShouldPresentExperimentalScoutNailgun(player))
+        {
+            if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, ScoutNailgunCooldownTicksKey, out var replicatedCooldownTicks))
             {
                 return Math.Max(0, replicatedCooldownTicks);
             }
@@ -626,6 +650,16 @@ public partial class Game1
             return player.ExperimentalOffhandReloadTicksUntilNextShell;
         }
 
+        if (ShouldPresentExperimentalScoutNailgun(player))
+        {
+            if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, ScoutNailgunReloadTicksKey, out var replicatedReloadTicks))
+            {
+                return Math.Max(0, replicatedReloadTicks);
+            }
+
+            return player.ExperimentalOffhandReloadTicksUntilNextShell;
+        }
+
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
         {
             return player.ExperimentalOffhandReloadTicksUntilNextShell;
@@ -664,6 +698,13 @@ public partial class Game1
                 : player.ExperimentalOffhandMaxShells;
         }
 
+        if (ShouldPresentExperimentalScoutNailgun(player))
+        {
+            return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, ScoutNailgunMaxAmmoKey, out var replicatedMaxAmmo)
+                ? Math.Max(1, replicatedMaxAmmo)
+                : player.ExperimentalOffhandMaxShells;
+        }
+
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
         {
             return player.ExperimentalOffhandMaxShells;
@@ -692,6 +733,11 @@ public partial class Game1
         if (ShouldPresentExperimentalSoldierShotgun(player))
         {
             return player.ExperimentalOffhandWeapon ?? CharacterClassCatalog.SoldierShotgun;
+        }
+
+        if (ShouldPresentExperimentalScoutNailgun(player))
+        {
+            return player.ExperimentalOffhandWeapon ?? player.PrimaryWeapon;
         }
 
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
@@ -753,6 +799,11 @@ public partial class Game1
             return "offhand:soldier";
         }
 
+        if (ShouldPresentExperimentalScoutNailgun(player))
+        {
+            return "offhand:scout";
+        }
+
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
         {
             return "offhand:demoman";
@@ -774,6 +825,13 @@ public partial class Game1
         // GameplayEquippedSlot is delivered via movement deltas and is the authoritative
         // presentation signal. Replicated shotgun toggles can lag under snapshot budgeting,
         // so they must not keep the shotgun visible after the slot returns to primary.
+        return player.IsExperimentalOffhandPresented
+            || player.GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Secondary;
+    }
+
+    private static bool ShouldPresentExperimentalScoutNailgun(PlayerEntity player)
+    {
+        if (player.ClassId != PlayerClass.Scout) return false;
         return player.IsExperimentalOffhandPresented
             || player.GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Secondary;
     }
@@ -819,7 +877,7 @@ public partial class Game1
         return 4f;
     }
 
-    private void QueueWeaponShellVisuals(PlayerEntity player, bool shotStarted, bool shellInserted)
+    private void QueueWeaponShellVisuals(PlayerEntity player, bool shotStarted, bool shellInserted, bool reloadRestarted = false)
     {
         if (_particleMode != 0)
         {
@@ -835,7 +893,13 @@ public partial class Game1
             case PlayerClass.Engineer when shotStarted:
                 QueueWeaponShellVisual(player, delaySeconds: GetSourceTicksAsSeconds(10f), count: 1, shellClassId);
                 break;
-            case PlayerClass.Scout when shellInserted:
+            case PlayerClass.Scout when ShouldPresentExperimentalScoutNailgun(player) && shotStarted:
+                // Nailgun magazine drops on every reload. shotStarted resets the pending drop on each
+                // new shot (matching the medic needlegun pattern), so the drop only fires after the
+                // final shot of a burst. Delay = recoil (9 ticks) + 3rd frame of reload (2/20 * 28).
+                QueueResettingWeaponShellVisual(player, delaySeconds: GetSourceTicksAsSeconds(9f + 2f / 20f * 28f), count: 1, "NailgunMagS");
+                break;
+            case PlayerClass.Scout when shellInserted && !ShouldPresentExperimentalScoutNailgun(player):
                 QueueWeaponShellVisual(player, delaySeconds: 0f, count: 1, shellClassId);
                 break;
             case PlayerClass.Sniper when shotStarted:
@@ -869,6 +933,28 @@ public partial class Game1
         }
 
         QueueWeaponShellVisual(player, delaySeconds, count);
+    }
+
+    private void QueueResettingWeaponShellVisual(PlayerEntity player, float delaySeconds, int count, string spriteName)
+    {
+        if (_particleMode != 0 || count <= 0)
+        {
+            return;
+        }
+
+        var playerStateKey = GetPlayerStateKey(player);
+        for (var pendingIndex = _pendingWeaponShellVisuals.Count - 1; pendingIndex >= 0; pendingIndex -= 1)
+        {
+            var pendingShell = _pendingWeaponShellVisuals[pendingIndex];
+            if (pendingShell.PlayerId == playerStateKey
+                && pendingShell.ClassId == player.ClassId
+                && pendingShell.SpriteName == spriteName)
+            {
+                _pendingWeaponShellVisuals.RemoveAt(pendingIndex);
+            }
+        }
+
+        QueueWeaponShellVisual(player, delaySeconds, count, player.ClassId, spriteName);
     }
 
     private static void StartWeaponAnimation(PlayerRenderState renderState, WeaponAnimationMode mode, float durationSeconds, bool preserveElapsed = false)

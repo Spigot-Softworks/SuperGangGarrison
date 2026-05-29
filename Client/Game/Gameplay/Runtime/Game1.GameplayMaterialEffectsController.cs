@@ -202,10 +202,10 @@ public partial class Game1
                 return;
             }
 
-            var shellSprite = _game.GetResolvedSprite("ShellS");
             for (var index = 0; index < _game._shellVisuals.Count; index += 1)
             {
                 var shell = _game._shellVisuals[index];
+                var shellSprite = _game.GetResolvedSprite(shell.SpriteName ?? "ShellS");
                 if (shellSprite is not null && shellSprite.Frames.Count > 0)
                 {
                     var frameIndex = Math.Clamp(shell.FrameIndex, 0, shellSprite.Frames.Count - 1);
@@ -231,6 +231,16 @@ public partial class Game1
             }
 
             _game._pendingWeaponShellVisuals.Add(new PendingWeaponShellVisual(_game.GetPlayerStateKey(player), classId, player.Team, Math.Max(0f, delaySeconds), count));
+        }
+
+        public void QueueWeaponShellVisual(PlayerEntity player, float delaySeconds, int count, PlayerClass classId, string spriteName)
+        {
+            if (_game._particleMode != 0 || count <= 0)
+            {
+                return;
+            }
+
+            _game._pendingWeaponShellVisuals.Add(new PendingWeaponShellVisual(_game.GetPlayerStateKey(player), classId, player.Team, Math.Max(0f, delaySeconds), count, spriteName));
         }
 
         public void SpawnLooseSheetVisual(float x, float y, float initialHorizontalSpeed)
@@ -305,11 +315,11 @@ public partial class Game1
 
             for (var shellIndex = 0; shellIndex < pendingShell.Count; shellIndex += 1)
             {
-                SpawnWeaponShellVisual(player, pendingShell.ClassId, pendingShell.Team);
+                SpawnWeaponShellVisual(player, pendingShell.ClassId, pendingShell.Team, pendingShell.SpriteName);
             }
         }
 
-        private void SpawnWeaponShellVisual(PlayerEntity player, PlayerClass classId, PlayerTeam team)
+        private void SpawnWeaponShellVisual(PlayerEntity player, PlayerClass classId, PlayerTeam team, string? spriteName = null)
         {
             var spawnPosition = _game.GetWeaponShellSpawnOrigin(player);
             var facingScale = GetPlayerFacingScale(player);
@@ -319,6 +329,19 @@ public partial class Game1
             var speed = ScaleSourceTickDistance(2f + (_game._visualRandom.NextSingle() * 3f));
             var velocityOffsetX = 0f;
             var velocityOffsetY = 0f;
+
+            if (spriteName == "NailgunMagS")
+            {
+                // Spawn at x=18, y=12 in weapon sprite space (weapon anchor at playerOrigin + (-10+9)*facingScale, playerOrigin+0)
+                // → from player body origin: +17*facingScale horizontal, +12 vertical
+                spawnPosition.X += 5f * facingScale;
+                spawnPosition.Y += 8f;
+                var velX = ScaleSourceTickDistance(-1.5f) * facingScale;
+                var velY = -ScaleSourceTickDistance(1.5f);
+                var rotSpeed = ScaleSourceTickDistance(6f + (_game._visualRandom.NextSingle() * 4f)) * (_game._visualRandom.Next(2) == 0 ? -1f : 1f);
+                _game._shellVisuals.Add(new ShellVisual(spawnPosition.X, spawnPosition.Y, velX, velY, 0, _game._visualRandom.NextSingle() * 360f, rotSpeed, fadeDelayTicks: (int)MathF.Round(GetSourceTicksAsSeconds(45f) * ClientUpdateTicksPerSecond), spriteName: "NailgunMagS"));
+                return;
+            }
 
             switch (classId)
             {
