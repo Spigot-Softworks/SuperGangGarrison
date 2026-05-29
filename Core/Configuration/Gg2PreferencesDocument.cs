@@ -96,6 +96,8 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool PixelPerfectWeaponRotation { get; set; } = true;
 
+    public bool UseLocalWeaponRotation { get; set; } = false;
+
     public bool DisableLegacyGameplaySpriteFallback { get; set; }
 
     public int PlayerCardSizeMode { get; set; }
@@ -170,6 +172,7 @@ public sealed class OpenGarrisonPreferencesDocument
             SmoothCameraMultiplier = Math.Clamp(ini.GetFloat(SettingsSection, "Smooth Camera Multiplier", 0.35f), 0f, 1f),
             SpriteDropShadowEnabled = ini.GetBool(SettingsSection, "Sprite Drop Shadow", true),
             PixelPerfectWeaponRotation = ini.GetBool(SettingsSection, "Pixel Perfect Weapon Rotation", true),
+            UseLocalWeaponRotation = ini.GetBool(SettingsSection, "Use Local Weapon Rotation", false),
             DisableLegacyGameplaySpriteFallback = ini.GetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", false),
             PlayerCardSizeMode = Math.Clamp(ini.GetInt(SettingsSection, "Playercard Size", 0), 0, 2),
             RecentConnectionHost = ini.GetString(ConnectionSection, "Host", "127.0.0.1"),
@@ -233,6 +236,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetFloat(SettingsSection, "Smooth Camera Multiplier", Math.Clamp(SmoothCameraMultiplier, 0f, 1f));
         ini.SetBool(SettingsSection, "Sprite Drop Shadow", SpriteDropShadowEnabled);
         ini.SetBool(SettingsSection, "Pixel Perfect Weapon Rotation", PixelPerfectWeaponRotation);
+        ini.SetBool(SettingsSection, "Use Local Weapon Rotation", UseLocalWeaponRotation);
         ini.SetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", DisableLegacyGameplaySpriteFallback);
         ini.SetInt(SettingsSection, "Playercard Size", Math.Clamp(PlayerCardSizeMode, 0, 2));
 

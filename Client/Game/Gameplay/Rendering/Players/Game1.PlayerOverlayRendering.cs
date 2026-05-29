@@ -103,10 +103,17 @@ public partial class Game1
             panelHeight);
 
         var overlayAlpha = Math.Clamp(visibilityAlpha * messageAlpha, 0f, 1f);
+        var teamFillColor = player.Team == PlayerTeam.Red
+            ? new Color(0xA5, 0x46, 0x40)
+            : new Color(0x48, 0x5C, 0x67);
+        var textAndOutlineColor = new Color(0xD9, 0xD9, 0xB7);
+        var outlineColor = player.Team == PlayerTeam.Red
+            ? new Color(0x7E, 0x35, 0x30)
+            : new Color(0x35, 0x44, 0x4D);
         DrawRoundedRectangleOutline(
             panelBounds,
-            new Color(0, 0, 0) * (0.40f * overlayAlpha),
-            new Color(49, 45, 26) * (0.40f * overlayAlpha),
+            teamFillColor * overlayAlpha,
+            outlineColor * overlayAlpha,
             outlineThickness: 2,
             radius: 6);
         for (var index = 0; index < wrappedLines.Count; index += 1)
@@ -116,7 +123,7 @@ public partial class Game1
             var textPosition = new Vector2(
                 panelBounds.X + ((panelBounds.Width - lineWidth) / 2f),
                 panelBounds.Y + verticalPadding + (index * lineHeight));
-            DrawBitmapFontText(line, textPosition, Color.White * overlayAlpha, 1f);
+            DrawBitmapFontText(line, textPosition, textAndOutlineColor * overlayAlpha, 1f);
         }
     }
 
