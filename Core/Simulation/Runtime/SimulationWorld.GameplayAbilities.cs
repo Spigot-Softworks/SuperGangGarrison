@@ -709,6 +709,22 @@ public sealed partial class SimulationWorld
         return GameplayAbilityResult.HandledAndConsumed;
     }
 
+    internal GameplayAbilityResult ExecuteScoutNailgunToggleAbility(GameplayAbilityContext context)
+    {
+        if (!context.Input.SwapWeapon)
+        {
+            TryHandleLegacyNetworkSecondaryWeaponToggle(context.Player, context.Input);
+        }
+
+        return GameplayAbilityResult.HandledAndConsumed;
+    }
+
+    internal GameplayPrimaryWeaponResult ExecuteScoutNailgunPrimaryWeapon(GameplayPrimaryWeaponContext context)
+    {
+        WeaponHandler.FireScoutNailgun(context.Player, context.AimWorldX, context.AimWorldY);
+        return GameplayPrimaryWeaponResult.HandledResult;
+    }
+
     internal GameplayAbilityResult ExecuteEngineerJumpPadAbility(GameplayAbilityContext context)
     {
         if (!TryDestroyJumpPad(context.Player))

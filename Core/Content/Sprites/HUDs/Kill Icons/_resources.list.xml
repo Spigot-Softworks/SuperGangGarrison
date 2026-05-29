@@ -13,6 +13,7 @@
   <resource name="MinigunKL" type="RESOURCE"/>
   <resource name="RevolverKL" type="RESOURCE"/>
   <resource name="NeedleKL" type="RESOURCE"/>
+  <resource name="NailgunKL" type="RESOURCE"/>
   <resource name="BladeKL" type="RESOURCE"/>
   <resource name="EyelanderKL" type="RESOURCE"/>
   <resource name="PaintrainKL" type="RESOURCE"/>

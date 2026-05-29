@@ -85,8 +85,8 @@ public sealed class GameplayModPackLoaderTests
 
             Assert.True(loaded.OverheadChatEnabled);
             Assert.True(document.OverheadChatEnabled);
-            Assert.Equal(65, loaded.DamageVignetteIntensityPercent);
-            Assert.Equal(65, document.DamageVignetteIntensityPercent);
+            Assert.Equal(100, loaded.DamageVignetteIntensityPercent);
+            Assert.Equal(100, document.DamageVignetteIntensityPercent);
         }
         finally
         {

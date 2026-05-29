@@ -3,8 +3,8 @@
   "angleStartDegrees": -90,
   "angleStepDegrees": 7.5,
   "spriteNames": [
-    "SoldierShotgunFRS",
-    "SoldierShotgunFS",
-    "SoldierShotgunS"
+    "NailgunFRS",
+    "NailgunFS",
+    "NailgunS"
   ]
 }
