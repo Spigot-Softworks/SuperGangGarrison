@@ -22,6 +22,7 @@ internal static class ServerRuntimeBootstrapFactory
         string? requestedMap,
         string? mapRotationFile,
         IReadOnlyList<string> stockMapRotation,
+        bool mapRotationShuffleEnabled,
         int maxNewHelloAttemptsPerWindow,
         TimeSpan helloAttemptWindow,
         TimeSpan helloCooldown,
@@ -49,6 +50,7 @@ internal static class ServerRuntimeBootstrapFactory
         ulong transientEventReplayTicks,
         Func<ServerAdminChatRouter?> adminChatRouterGetter,
         Func<PluginHost?> pluginHostGetter,
+        Func<CustomMapDescriptor, string>? customMapDownloadUrlProvider,
         string serverName,
         Action<string, (string Key, object? Value)[]> writeEvent,
         Action<string> log)
@@ -82,7 +84,13 @@ internal static class ServerRuntimeBootstrapFactory
         }
 
         world.AutoRestartOnMapChange = false;
-        var mapRotationManager = new MapRotationManager(world, requestedMap, mapRotationFile, stockMapRotation, log);
+        var mapRotationManager = new MapRotationManager(
+            world,
+            requestedMap,
+            mapRotationFile,
+            stockMapRotation,
+            log,
+            mapRotationShuffleEnabled);
         world.DespawnEnemyDummy();
         world.TryPrepareNetworkPlayerJoin(SimulationWorld.LocalPlayerSlot);
 
@@ -98,7 +106,7 @@ internal static class ServerRuntimeBootstrapFactory
             passwordFailureWindow,
             passwordCooldown,
             () => clock.Elapsed);
-        var mapMetadataResolver = new ServerMapMetadataResolver(world);
+        var mapMetadataResolver = new ServerMapMetadataResolver(world, customMapDownloadUrlProvider);
         var eventReporter = new ServerRuntimeEventReporter(world, pluginHostGetter, writeEvent, mapMetadataResolver);
         eventReporter.ResetObservedGameplayState();
         ServerBotManager? botManager = null;

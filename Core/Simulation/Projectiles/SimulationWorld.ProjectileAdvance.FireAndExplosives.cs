@@ -361,6 +361,11 @@ public sealed partial class SimulationWorld
         PlayerEntity? directHitPlayer = null,
         SimulationEntity? directHitBuilding = null)
     {
+        if (ClientPredictionMode)
+        {
+            return;
+        }
+
         var owner = FindPlayerById(grenade.OwnerId);
 
         RegisterWorldSoundEvent("ExplosionSnd", grenade.X, grenade.Y);

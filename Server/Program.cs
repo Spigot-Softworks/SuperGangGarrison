@@ -53,6 +53,7 @@ var server = new GameServer(
     launchOptions.MapRotationFile,
     launchOptions.EventLogPath,
     launchOptions.StockMapRotation,
+    launchOptions.MapRotationShuffleEnabled,
     launchOptions.MaxPlayableClients,
     launchOptions.MaxTotalClients,
     launchOptions.MaxSpectatorClients,

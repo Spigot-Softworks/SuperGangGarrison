@@ -2,7 +2,9 @@ using OpenGarrison.Core;
 
 namespace OpenGarrison.Server;
 
-internal sealed class ServerMapMetadataResolver(SimulationWorld world)
+internal sealed class ServerMapMetadataResolver(
+    SimulationWorld world,
+    Func<CustomMapDescriptor, string>? mapDownloadUrlProvider = null)
 {
     private string _cachedMapMetadataLevelName = string.Empty;
     private bool _cachedIsCustomMap;
@@ -21,7 +23,10 @@ internal sealed class ServerMapMetadataResolver(SimulationWorld world)
         if (CustomMapDescriptorResolver.TryResolve(levelName, out var descriptor))
         {
             _cachedIsCustomMap = true;
-            _cachedMapDownloadUrl = descriptor.SourceUrl;
+            var localDownloadUrl = mapDownloadUrlProvider?.Invoke(descriptor) ?? string.Empty;
+            _cachedMapDownloadUrl = string.IsNullOrWhiteSpace(localDownloadUrl)
+                ? descriptor.SourceUrl
+                : localDownloadUrl.Trim();
             _cachedMapContentHash = descriptor.ContentHash;
         }
         else

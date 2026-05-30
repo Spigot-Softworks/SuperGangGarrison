@@ -53,7 +53,9 @@ partial class GameServer
 
     private void InitializeWebSocketHost()
     {
-        if (_webSocketPort <= 0)
+        var enableWebSocket = _webSocketPort > 0;
+        var httpPort = ResolveMapDownloadPort();
+        if (httpPort <= 0)
         {
             return;
         }
@@ -61,18 +63,22 @@ partial class GameServer
         try
         {
             _webSocketHost = new OpenGarrison.Server.WebSocketServerHost(
-                _webSocketPort,
-                _webSocketCertificatePath,
-                _webSocketCertificatePassword,
+                httpPort,
+                enableWebSocket ? _webSocketCertificatePath : null,
+                enableWebSocket ? _webSocketCertificatePassword : null,
                 (OpenGarrison.Server.CompositeServerMessageTransport)_messageTransport,
-                Console.WriteLine);
+                Console.WriteLine,
+                enableWebSocket: enableWebSocket,
+                enableMapDownloads: true);
             _webSocketHost.Start();
+            _mapDownloadEndpointAvailable = true;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[server] failed to start WebSocket listener: {ex.Message}");
+            Console.WriteLine($"[server] failed to start HTTP listener: {ex.Message}");
             _webSocketHost?.Dispose();
             _webSocketHost = null;
+            _mapDownloadEndpointAvailable = false;
         }
     }
 
@@ -92,6 +98,7 @@ partial class GameServer
             _requestedMap,
             _mapRotationFile,
             _stockMapRotation,
+            _mapRotationShuffleEnabled,
             MaxNewHelloAttemptsPerWindow,
             HelloAttemptWindow,
             HelloCooldown,
@@ -119,6 +126,7 @@ partial class GameServer
             _transientEventReplayTicks,
             () => _adminChatRouter,
             () => _pluginHost,
+            BuildCustomMapDownloadUrl,
             _serverName,
             eventLog.Write,
             Console.WriteLine);
@@ -152,9 +160,12 @@ partial class GameServer
         Console.WriteLine($"OG2.Server booting at {_config.TicksPerSecond} ticks/sec.");
         Console.WriteLine($"Protocol version: {ProtocolVersion.Current}");
         Console.WriteLine($"UDP bind: 0.0.0.0:{_port}");
-        Console.WriteLine(_webSocketHost is null
+        Console.WriteLine(_webSocketPort <= 0 || _webSocketHost is null
             ? "[server] WebSocket: disabled"
             : $"[server] WebSocket: {(_webSocketCertificatePath is null ? "ws" : "wss")}://0.0.0.0:{_webSocketPort}/opengarrison/ws");
+        Console.WriteLine(_mapDownloadEndpointAvailable
+            ? $"[server] custom map downloads: enabled on port {ResolveMapDownloadPort()}"
+            : "[server] custom map downloads: unavailable");
         Console.WriteLine($"Name: {_serverName}");
         Console.WriteLine($"Max players: {_maxPlayableClients}");
         Console.WriteLine(_botAutofillEnabled
@@ -243,6 +254,23 @@ partial class GameServer
         return string.IsNullOrWhiteSpace(fingerprint)
             ? string.Empty
             : fingerprint[..Math.Min(12, fingerprint.Length)];
+    }
+
+    private int ResolveMapDownloadPort()
+    {
+        return _webSocketPort > 0 ? _webSocketPort : _port;
+    }
+
+    private string BuildCustomMapDownloadUrl(CustomMapDescriptor descriptor)
+    {
+        return _mapDownloadEndpointAvailable
+            ? ServerMapDownloadEndpoint.BuildAdvertisedDownloadUrl(
+                descriptor,
+                _publicWebSocketUrl,
+                _publicHost,
+                ResolveMapDownloadPort(),
+                preferHttps: _webSocketPort > 0 && !string.IsNullOrWhiteSpace(_webSocketCertificatePath))
+            : descriptor.SourceUrl;
     }
 
     private bool PreloadBotNavigationForCurrentLevel(out double elapsedMilliseconds)
@@ -816,6 +844,16 @@ partial class GameServer
             "Current loaded map level name.",
             _world.Level.Name,
             () => _world.Level.Name);
+        registry.RegisterBoolean(
+            "sv_map_rotation_shuffle",
+            "Enable randomized map selection when advancing through the map rotation.",
+            _mapRotationShuffleEnabled,
+            () => _mapRotationManager.MapRotationShuffleEnabled,
+            value =>
+            {
+                _mapRotationShuffleEnabled = value;
+                _mapRotationManager.MapRotationShuffleEnabled = value;
+            });
         registry.RegisterInteger(
             "sv_maxplayers",
             "Configured playable slot count.",

@@ -1,8 +1,10 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Sockets;
 using System.Reflection;
 using OpenGarrison.Client;
 using OpenGarrison.Core;
+using OpenGarrison.Server;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using Xunit;
@@ -680,6 +682,145 @@ public sealed class CustomMapPngExporterTests
     }
 
     [Fact]
+    public void CustomMapSyncResolvesServerRelativePackageUrl()
+    {
+        using var workspace = TempWorkspace.Create();
+        var previousMapsDirectory = Environment.GetEnvironmentVariable("OPENGARRISON_MAPS_DIR");
+        Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", workspace.PathFor("ClientMaps"));
+        try
+        {
+            Directory.CreateDirectory(RuntimePaths.MapsDirectory);
+            var serverPackageDirectory = workspace.PathFor(Path.Combine("ServerMaps", "relative_sync"));
+            Directory.CreateDirectory(serverPackageDirectory);
+            var backgroundPath = workspace.PathFor("server-background.png");
+            var walkmaskPath = workspace.PathFor("server-walkmask.png");
+            WriteSolidPng(backgroundPath, 4, 2, new Rgba32(20, 70, 120, 255));
+            WriteWalkmaskPng(walkmaskPath);
+            var sourceManifestPath = Path.Combine(serverPackageDirectory, "relative_sync.json");
+            CustomMapPackageExporter.Export(CreateSpawnOnlyDocument(backgroundPath, walkmaskPath, 6f, 18f) with
+            {
+                Name = "relative_sync",
+            }, sourceManifestPath);
+
+            var relativeManifestUrl = "/opengarrison/maps/relative_sync/relative_sync.json";
+            var absoluteManifestUrl = $"http://example.invalid{relativeManifestUrl}";
+            var packageHash = CustomMapHashService.ComputePackageSha256(sourceManifestPath);
+            using var httpClient = CreatePackageHttpClient(sourceManifestPath, absoluteManifestUrl);
+
+            var available = CustomMapSyncService.EnsureMapAvailable(
+                "relative_sync",
+                isCustomMap: true,
+                relativeManifestUrl,
+                $"sha256:{packageHash}",
+                new Uri("http://example.invalid:8190/"),
+                httpClient,
+                out var error);
+
+            Assert.True(available, error);
+            var finalManifestPath = CustomMapLocatorStore.GetPackageManifestPath("relative_sync");
+            Assert.True(File.Exists(finalManifestPath));
+            Assert.NotNull(CustomMapPackageImporter.Import(finalManifestPath));
+            Assert.Equal(
+                "http://example.invalid:8190/opengarrison/maps/relative_sync/relative_sync.json",
+                CustomMapLocatorStore.TryReadMapUrl("relative_sync"));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", previousMapsDirectory);
+            SimpleLevelFactory.ClearCachedCatalog();
+        }
+    }
+
+    [Fact]
+    public async Task ServerMapDownloadEndpointServesPackageManifestAndImages()
+    {
+        using var workspace = TempWorkspace.Create();
+        var previousMapsDirectory = Environment.GetEnvironmentVariable("OPENGARRISON_MAPS_DIR");
+        Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", workspace.PathFor("ServerMaps"));
+        try
+        {
+            Directory.CreateDirectory(RuntimePaths.MapsDirectory);
+            var packageDirectory = Path.Combine(RuntimePaths.MapsDirectory, "served_pkg");
+            Directory.CreateDirectory(packageDirectory);
+            var backgroundPath = workspace.PathFor("served-background.png");
+            var walkmaskPath = workspace.PathFor("served-walkmask.png");
+            WriteSolidPng(backgroundPath, 20, 10, new Rgba32(88, 120, 44, 255));
+            WriteSolidPng(walkmaskPath, 20, 10, new Rgba32(255, 255, 255, 255));
+            CustomMapPackageExporter.Export(CreateSpawnOnlyDocument(backgroundPath, walkmaskPath, 6f, 18f) with
+            {
+                Name = "served_pkg",
+            }, Path.Combine(packageDirectory, "served_pkg.json"));
+            SimpleLevelFactory.ClearCachedCatalog();
+
+            Assert.True(CustomMapDescriptorResolver.TryResolve("served_pkg", out var descriptor));
+            var port = GetFreeTcpPort();
+            using var udp = new UdpClient(0);
+            using var host = new WebSocketServerHost(
+                port,
+                certificatePath: null,
+                certificatePassword: null,
+                new CompositeServerMessageTransport(udp),
+                _ => { },
+                enableWebSocket: false,
+                enableMapDownloads: true);
+            host.Start();
+
+            using var httpClient = new HttpClient();
+            var manifestUri = new Uri($"http://127.0.0.1:{port}{ServerMapDownloadEndpoint.BuildRelativeDownloadUrl(descriptor)}");
+            var manifestJson = await httpClient.GetStringAsync(manifestUri);
+            var backgroundBytes = await httpClient.GetByteArrayAsync(new Uri(manifestUri, "background.png"));
+            var missingResponse = await httpClient.GetAsync(new Uri(manifestUri, "missing.png"));
+
+            Assert.Contains("\"name\": \"served_pkg\"", manifestJson, StringComparison.Ordinal);
+            Assert.NotEmpty(backgroundBytes);
+            Assert.Equal(HttpStatusCode.NotFound, missingResponse.StatusCode);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", previousMapsDirectory);
+            SimpleLevelFactory.ClearCachedCatalog();
+        }
+    }
+
+    [Fact]
+    public void ServerMapMetadataResolverAdvertisesHostedCustomMapUrl()
+    {
+        using var workspace = TempWorkspace.Create();
+        var previousMapsDirectory = Environment.GetEnvironmentVariable("OPENGARRISON_MAPS_DIR");
+        Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", workspace.PathFor("ServerMaps"));
+        try
+        {
+            Directory.CreateDirectory(RuntimePaths.MapsDirectory);
+            var packageDirectory = Path.Combine(RuntimePaths.MapsDirectory, "metadata_pkg");
+            Directory.CreateDirectory(packageDirectory);
+            var backgroundPath = workspace.PathFor("metadata-background.png");
+            var walkmaskPath = workspace.PathFor("metadata-walkmask.png");
+            WriteSolidPng(backgroundPath, 20, 10, new Rgba32(40, 90, 120, 255));
+            WriteSolidPng(walkmaskPath, 20, 10, new Rgba32(255, 255, 255, 255));
+            CustomMapPackageExporter.Export(CreateSpawnOnlyDocument(backgroundPath, walkmaskPath, 6f, 18f) with
+            {
+                Name = "metadata_pkg",
+            }, Path.Combine(packageDirectory, "metadata_pkg.json"));
+            SimpleLevelFactory.ClearCachedCatalog();
+
+            var world = new SimulationWorld();
+            Assert.True(world.TryLoadLevel("metadata_pkg", mapAreaIndex: 1, preservePlayerStats: false));
+            var resolver = new ServerMapMetadataResolver(world, ServerMapDownloadEndpoint.BuildRelativeDownloadUrl);
+
+            var metadata = resolver.GetCurrentMapMetadata();
+
+            Assert.True(metadata.IsCustomMap);
+            Assert.Equal("/opengarrison/maps/metadata_pkg/metadata_pkg.json", metadata.MapDownloadUrl);
+            Assert.StartsWith("sha256:", metadata.MapContentHash, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", previousMapsDirectory);
+            SimpleLevelFactory.ClearCachedCatalog();
+        }
+    }
+
+    [Fact]
     public void CustomMapSyncCleansTempPackageFilesOnFailure()
     {
         using var workspace = TempWorkspace.Create();
@@ -1031,6 +1172,13 @@ public sealed class CustomMapPngExporterTests
         }
 
         return new HttpClient(new StubHttpMessageHandler(responses));
+    }
+
+    private static int GetFreeTcpPort()
+    {
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        return ((IPEndPoint)listener.LocalEndpoint).Port;
     }
 
     private readonly record struct StubHttpResponse(byte[] Content, string ContentType);

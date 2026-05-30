@@ -58,7 +58,7 @@ public sealed class GameplayModAssetCache(GraphicsDevice graphicsDevice) : IDisp
         }
     }
 
-    public LoadedGameMakerSprite? GetSprite(string spriteId)
+    public LoadedGameMakerSprite? GetSprite(string spriteId, bool allowBrowserLazyFallback = true)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (_sprites.TryGetValue(spriteId, out var sprite))
@@ -69,7 +69,7 @@ public sealed class GameplayModAssetCache(GraphicsDevice graphicsDevice) : IDisp
         if (!_registeredSprites.TryGetValue(spriteId, out var registeredSprite))
         {
             return TryGetAtlasSprite(spriteId)
-                ?? (OperatingSystem.IsBrowser()
+                ?? (OperatingSystem.IsBrowser() && allowBrowserLazyFallback
                     ? TryGetBrowserSprite(spriteId, null)
                     : null);
         }

@@ -80,6 +80,11 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        if (player.IsInsideBlockingTeamGate(Level, player.Team, carryingIntel: true))
+        {
+            return;
+        }
+
         if (ShouldCancelPickup(
                 WorldPickupKind.Intelligence,
                 player,

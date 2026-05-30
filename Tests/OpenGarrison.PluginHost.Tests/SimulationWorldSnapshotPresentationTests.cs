@@ -32,6 +32,30 @@ public sealed class SimulationWorldSnapshotPresentationTests
     }
 
     [Fact]
+    public void TryPresentNetworkGibDeathSuppressesLaterSnapshotDuplicate()
+    {
+        var world = new SimulationWorld();
+        var initialSnapshot = CreateSnapshot(
+            world,
+            frame: 105,
+            localPlayer: CreatePlayerState(1, 101, "Local", PlayerTeam.Red, PlayerClass.Scout, isAlive: true, gibDeaths: 0),
+            remotePlayer: CreatePlayerState(2, 202, "Remote", PlayerTeam.Blue, PlayerClass.Soldier, isAlive: true, gibDeaths: 0));
+        var deathSnapshot = CreateSnapshot(
+            world,
+            frame: 106,
+            localPlayer: CreatePlayerState(1, 101, "Local", PlayerTeam.Red, PlayerClass.Scout, isAlive: true, gibDeaths: 0),
+            remotePlayer: CreatePlayerState(2, 202, "Remote", PlayerTeam.Blue, PlayerClass.Soldier, isAlive: false, gibDeaths: 1));
+
+        Assert.True(world.ApplySnapshot(initialSnapshot, localPlayerSlot: 1));
+        Assert.True(world.TryPresentNetworkGibDeath(202, gibDeaths: 1));
+        var immediateGibCount = world.PlayerGibs.Count;
+
+        Assert.True(world.ApplySnapshot(deathSnapshot, localPlayerSlot: 1));
+
+        Assert.Equal(immediateGibCount, world.PlayerGibs.Count);
+    }
+
+    [Fact]
     public void ApplySnapshotDoesNotSpawnRemotePlayerGibsWhenAlreadyDeadStateAdvances()
     {
         var world = new SimulationWorld();
@@ -76,6 +100,30 @@ public sealed class SimulationWorldSnapshotPresentationTests
         Assert.Equal(remoteSpy.PlayerId, scoreboardPlayer.Id);
         Assert.True(world.TryGetPlayerNetworkSlot(scoreboardPlayer, out var slot));
         Assert.Equal(remoteSpy.Slot, slot);
+    }
+
+    [Fact]
+    public void ApplySnapshotRetainsMissingBackstabAnimatingEnemySpyForScoreboard()
+    {
+        var world = new SimulationWorld();
+        var localPlayer = CreatePlayerState(1, 101, "Local", PlayerTeam.Red, PlayerClass.Scout, isAlive: true, gibDeaths: 0);
+        var remoteSpy = CreatePlayerState(2, 202, "Remote Spy", PlayerTeam.Blue, PlayerClass.Spy, isAlive: true, gibDeaths: 0) with
+        {
+            X = 64f,
+            IsSpyCloaked = true,
+            SpyCloakAlpha = 0f,
+            SpyBackstabVisualTicksRemaining = 24,
+        };
+        var visibleSnapshot = CreateSnapshot(world, 125, localPlayer, remoteSpy);
+        var hiddenSnapshot = CreateSnapshot(world, 126, localPlayer);
+
+        Assert.True(world.ApplySnapshot(visibleSnapshot, localPlayerSlot: 1));
+
+        Assert.True(world.ApplySnapshot(hiddenSnapshot, localPlayerSlot: 1));
+
+        Assert.Empty(world.RemoteSnapshotPlayers);
+        var scoreboardPlayer = Assert.Single(world.RemoteSnapshotScoreboardPlayers);
+        Assert.Equal(remoteSpy.PlayerId, scoreboardPlayer.Id);
     }
 
     [Fact]

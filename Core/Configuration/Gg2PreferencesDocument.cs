@@ -241,6 +241,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(SettingsSection, "Playercard Size", Math.Clamp(PlayerCardSizeMode, 0, 2));
 
         ini.SetString(ServerSection, "MapRotation", HostSettings.MapRotationFile);
+        ini.SetBool(ServerSection, "MapRotationShuffle", HostSettings.MapRotationShuffleEnabled);
         ini.SetBool(ServerSection, "Dedicated", HostSettings.DedicatedModeEnabled);
         ini.SetString(ServerSection, "ServerName", HostSettings.ServerName);
         ini.SetInt(ServerSection, "CapLimit", HostSettings.CapLimit);
@@ -397,6 +398,8 @@ public sealed class OpenGarrisonHostSettings
 
     public string MapRotationFile { get; set; } = string.Empty;
 
+    public bool MapRotationShuffleEnabled { get; set; }
+
     public List<OpenGarrisonMapRotationEntry> StockMapRotation { get; set; } = OpenGarrisonStockMapCatalog.CreateDefaultEntries();
 
     public string GetFirstIncludedMapLevelName()
@@ -471,6 +474,7 @@ public sealed class OpenGarrisonHostSettings
             CompetitiveSetupSeconds = CompetitiveSetupSeconds,
             DedicatedModeEnabled = DedicatedModeEnabled,
             MapRotationFile = MapRotationFile,
+            MapRotationShuffleEnabled = MapRotationShuffleEnabled,
             StockMapRotation = StockMapRotation.Select(entry => entry.Clone()).ToList(),
         };
     }
@@ -507,6 +511,7 @@ public sealed class OpenGarrisonHostSettings
             CompetitiveSetupSeconds = Math.Clamp(ini.GetInt("Server.Advanced", "CompetitiveSetupSeconds", 10), 0, 120),
             DedicatedModeEnabled = ini.GetBool("Server", "Dedicated", false),
             MapRotationFile = ini.GetString("Server", "MapRotation", string.Empty),
+            MapRotationShuffleEnabled = ini.GetBool("Server", "MapRotationShuffle", false),
             StockMapRotation = OpenGarrisonStockMapCatalog.LoadFrom(ini, legacySelectedMap),
         };
     }

@@ -1,4 +1,5 @@
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 
 namespace OpenGarrison.Core;
@@ -18,6 +19,10 @@ public static class BrowserGameMakerAssetManifestLoader
         ArgumentNullException.ThrowIfNull(httpClient);
 
         var json = await httpClient.GetStringAsync(BrowserManifestPath, cancellationToken).ConfigureAwait(false);
+        BrowserContentCatalog.AddOrUpdateBinaryAssets(
+            [
+                new KeyValuePair<string, byte[]>(BrowserManifestPath, Encoding.UTF8.GetBytes(json)),
+            ]);
         var document = JsonSerializer.Deserialize<BrowserGameMakerAssetManifestDocument>(json, JsonOptions)
             ?? throw new InvalidOperationException($"Browser GameMaker asset manifest \"{BrowserManifestPath}\" could not be deserialized.");
         return document.ToManifest();

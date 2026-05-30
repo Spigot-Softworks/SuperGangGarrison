@@ -57,6 +57,49 @@ public sealed class CustomBubbleDocumentTests
     }
 
     [Fact]
+    public void NormalizeRejectsOversizedSlotPayloadBeforeDecode()
+    {
+        var document = new CustomBubbleDocument
+        {
+            Slots =
+            [
+                new CustomBubbleSlotDocument
+                {
+                    Rgba64Base64 = new string('A', 100_000),
+                    Revision = 9,
+                },
+            ],
+        };
+
+        document.Normalize();
+
+        Assert.Equal(string.Empty, document.Slots[0].Rgba64Base64);
+        Assert.False(document.HasSlot(0));
+    }
+
+    [Fact]
+    public void LoadResetsOversizedJsonDocument()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"opengarrison-custom-bubbles-oversized-{Guid.NewGuid():N}.json");
+        try
+        {
+            File.WriteAllText(path, "{\"slots\":[{\"rgba64Base64\":\"" + new string('A', 300_000) + "\"}]}");
+
+            var loaded = CustomBubbleDocument.Load(path);
+
+            Assert.False(loaded.HasSlot(0));
+            Assert.True(new FileInfo(path).Length < 300_000);
+        }
+        finally
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+    }
+
+    [Fact]
     public void SetSlotPixelsRequiresExactRgba64Length()
     {
         var document = new CustomBubbleDocument();

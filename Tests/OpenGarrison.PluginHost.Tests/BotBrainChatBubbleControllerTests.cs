@@ -104,6 +104,7 @@ public sealed class BotBrainChatBubbleControllerTests
         new(
             DirectTrace: string.Empty,
             SemanticRecoveryTrace: string.Empty,
+            CombatTarget: null,
             MedicHealTargetId: null,
             MedicHealTargetIsPocket: false);
 

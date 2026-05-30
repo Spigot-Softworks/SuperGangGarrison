@@ -5,7 +5,7 @@ namespace OpenGarrison.Core;
 public sealed class GrenadeProjectileEntity : SimulationEntity
 {
     public const float BlastRadius = 65f;
-    public const float DirectHitDamage = 55f;
+    public const float DirectHitDamage = 35f;
     public const float BaseExplosionDamage = 30f; // Base splash damage.
     public const float GravityPerTick = 0.8f;
     public const float MaxFallSpeed = 20f;

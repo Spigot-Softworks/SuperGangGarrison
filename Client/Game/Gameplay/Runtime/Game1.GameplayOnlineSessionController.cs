@@ -87,6 +87,7 @@ public partial class Game1
             }
 
             _game.ClearReplayQueue(clearActiveReplayPath: true);
+            _game.ClearPendingNetworkMapSync();
             _game._onlineConnectionIntent = intent;
             if (!endpoint.TryResolveForCurrentRuntime(out var host, out var port, out var transport))
             {
@@ -247,12 +248,19 @@ public partial class Game1
                 return;
             }
 
-            if (!CustomMapSyncService.EnsureMapAvailable(
-                    welcome.LevelName,
-                    welcome.IsCustomMap,
-                    welcome.MapDownloadUrl,
-                    welcome.MapContentHash,
-                    out var welcomeMapError))
+            var mapSyncStatus = _game.TryEnsureNetworkMapAvailable(
+                welcome.LevelName,
+                welcome.IsCustomMap,
+                welcome.MapDownloadUrl,
+                welcome.MapContentHash,
+                out var welcomeMapError);
+            if (mapSyncStatus == NetworkMapSyncStatus.Pending)
+            {
+                _game.QueueWelcomeAfterNetworkMapSync(welcome);
+                return;
+            }
+
+            if (mapSyncStatus == NetworkMapSyncStatus.Failed)
             {
                 _game.ReturnToMainMenuWithNetworkStatus(welcomeMapError, $"custom map sync failed: {welcomeMapError}");
                 return;

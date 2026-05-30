@@ -1,0 +1,11 @@
+﻿{
+    "id":  "MvpBlueMedicS",
+    "framePaths":  [
+                       "assets/mvp/blue/medic/nonwinner_0.png",
+                       "assets/mvp/blue/medic/nonwinner_1.png",
+                       "assets/mvp/blue/medic/nonwinner_2.png",
+                       "assets/mvp/blue/medic/nonwinner_3.png"
+                   ],
+    "originX":  26,
+    "originY":  52
+}

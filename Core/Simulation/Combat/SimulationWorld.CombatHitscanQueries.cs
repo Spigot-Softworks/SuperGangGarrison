@@ -112,7 +112,7 @@ public sealed partial class SimulationWorld
             var rayBounds = GetRayBounds(previousX, previousY, directionX, directionY, maxDistance);
             foreach (var player in EnumerateSimulatedPlayers())
             {
-                if (!_world.CanTeamDamagePlayer(projectileTeam, ownerId, player) || player.Id == ownerId) { continue; }
+                if (!player.IsAlive || player.Id == ownerId) { continue; }
                 GetPlayerPresentationHitBounds(_world, player, out var left, out var top, out var right, out var bottom);
                 if (!RayBoundsMayIntersectRectangle(
                     rayBounds,
@@ -125,7 +125,17 @@ public sealed partial class SimulationWorld
                 }
 
                 var distance = GetRayIntersectionDistanceWithPlayer(previousX, previousY, directionX, directionY, _world, player, maxDistance);
-                if (distance.HasValue) { updateHit(ref nearestHit, projectile, directionX, directionY, distance.Value, player, null, null); }
+                if (!distance.HasValue) { continue; }
+
+                updateHit(
+                    ref nearestHit,
+                    projectile,
+                    directionX,
+                    directionY,
+                    distance.Value,
+                    _world.CanTeamDamagePlayer(projectileTeam, ownerId, player) ? player : null,
+                    null,
+                    null);
             }
         }
 

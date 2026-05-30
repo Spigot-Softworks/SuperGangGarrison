@@ -107,6 +107,12 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
         return cached;
     }
 
+    public bool ContainsSprite(string spriteName)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return _manifest.Sprites.ContainsKey(spriteName);
+    }
+
     private static int ExtractTrailingNumber(string fileNameWithoutExtension)
     {
         var trailingDigits = new string(fileNameWithoutExtension.Reverse().TakeWhile(char.IsDigit).Reverse().ToArray());

@@ -1,0 +1,11 @@
+﻿{
+    "id":  "MvpBlueDemomanS",
+    "framePaths":  [
+                       "assets/mvp/blue/demoman/nonwinner_0.png",
+                       "assets/mvp/blue/demoman/nonwinner_1.png",
+                       "assets/mvp/blue/demoman/nonwinner_2.png",
+                       "assets/mvp/blue/demoman/nonwinner_3.png"
+                   ],
+    "originX":  26,
+    "originY":  52
+}

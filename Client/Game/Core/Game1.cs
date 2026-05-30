@@ -375,11 +375,6 @@ public partial class Game1 : Game
         _friendList = FriendListDocument.Load();
         _presenceClient = new OpenGarrisonPresenceClient();
         _graphics.HardwareModeSwitch = false;
-        if (OperatingSystem.IsBrowser())
-        {
-            _graphics.PreparingDeviceSettings += ConfigureBrowserPresentationParameters;
-        }
-
         Content.RootDirectory = "Content";
         ClientRuntimeBootstrap.InitializeContentRoot(Content.RootDirectory);
         InitializeLocalDistributionAtlasManifestsIfPresent();
@@ -408,11 +403,6 @@ public partial class Game1 : Game
             TargetElapsedTime = TimeSpan.FromSeconds(1d / ClientUpdateTicksPerSecond);
             InactiveSleepTime = TimeSpan.Zero;
         }
-    }
-
-    private static void ConfigureBrowserPresentationParameters(object? sender, PreparingDeviceSettingsEventArgs e)
-    {
-        e.GraphicsDeviceInformation.PresentationParameters.RenderTargetUsage = RenderTargetUsage.PreserveContents;
     }
 
     protected override void Initialize()

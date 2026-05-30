@@ -13,6 +13,7 @@ public partial class Game1
 {
     private void ProcessNetworkMessages()
     {
+        UpdatePendingNetworkMapSync();
         var processStartTimestamp = _networkDiagnosticsEnabled ? Stopwatch.GetTimestamp() : 0L;
         var messages = _networkClient.ReceiveMessages();
         if (_networkDiagnosticsEnabled)

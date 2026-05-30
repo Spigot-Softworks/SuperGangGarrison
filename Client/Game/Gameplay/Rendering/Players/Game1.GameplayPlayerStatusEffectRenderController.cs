@@ -190,8 +190,8 @@ public partial class Game1
 
             DrawNapalmCoveredOverlay(player, renderPosition, cameraPosition, visibilityAlpha);
 
-            var alpha = player.BurnVisualAlpha * visibilityAlpha;
-            if (alpha <= 0f)
+            var burnAlpha = player.BurnVisualAlpha;
+            if (burnAlpha <= 0f || visibilityAlpha <= 0f)
             {
                 return;
             }
@@ -232,7 +232,7 @@ public partial class Game1
                         renderPosition.X + offsetX,
                         renderPosition.Y + offsetY,
                         scale: basePrimaryScale,
-                        alphaScale: alpha,
+                        alphaScale: burnAlpha,
                         motionX: player.HorizontalSpeed,
                         motionY: player.VerticalSpeed);
                 }
@@ -261,7 +261,7 @@ public partial class Game1
                         outlineX,
                         outlineY,
                         scale: minOutlineScale + _game._visualRandom.NextSingle() * outlineScaleRange,
-                        alphaScale: alpha * 0.75f,
+                        alphaScale: burnAlpha * 0.75f,
                         motionX: player.HorizontalSpeed,
                         motionY: player.VerticalSpeed);
                 }
@@ -286,7 +286,7 @@ public partial class Game1
                         emitX,
                         emitY,
                         scale: emitScale,
-                        alphaScale: alpha * 0.65f,
+                        alphaScale: burnAlpha * 0.65f,
                         motionX: 0f,
                         motionY: -3f - _game._visualRandom.NextSingle() * 2f);
 
@@ -306,12 +306,12 @@ public partial class Game1
                     }
                 }
 
-                _game.DrawProceduralFlameParticles(cells, cameraPosition, topOutlineOnly: true);
+                _game.DrawProceduralFlameParticles(cells, cameraPosition, topOutlineOnly: true, drawAlpha: visibilityAlpha);
                 return;
             }
 
             var sprite = _game.GetResolvedSprite("FlameS");
-            var flameColor = Color.White * alpha;
+            var flameColor = Color.White * (burnAlpha * visibilityAlpha);
             for (var flameIndex = 0; flameIndex < count; flameIndex += 1)
             {
                 player.GetBurnVisualOffset(flameIndex, sourceFrame, out var offsetX, out var offsetY);

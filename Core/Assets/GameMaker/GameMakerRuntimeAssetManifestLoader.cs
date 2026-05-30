@@ -13,6 +13,13 @@ public static class GameMakerRuntimeAssetManifestLoader
 
     public static GameMakerAssetManifest LoadPackagedOrProjectAssets()
     {
+        if (OperatingSystem.IsBrowser())
+        {
+            return TryLoadFromBrowserContentCatalog(out var browserManifest)
+                ? browserManifest
+                : GameMakerAssetManifestImporter.ImportProjectAssets();
+        }
+
         var attemptedPaths = GetManifestCandidatePaths();
         foreach (var manifestPath in attemptedPaths)
         {
@@ -63,6 +70,33 @@ public static class GameMakerRuntimeAssetManifestLoader
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or NotSupportedException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryLoadFromBrowserContentCatalog(out GameMakerAssetManifest manifest)
+    {
+        manifest = null!;
+        if (!BrowserContentCatalog.TryGetText("Content/" + ManifestRelativePath, out var json))
+        {
+            return false;
+        }
+
+        try
+        {
+            var document = JsonSerializer.Deserialize<BrowserGameMakerAssetManifestDocument>(
+                json,
+                JsonOptions);
+            if (document is null)
+            {
+                return false;
+            }
+
+            manifest = document.ToManifest();
+            return true;
+        }
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
         {
             return false;
         }

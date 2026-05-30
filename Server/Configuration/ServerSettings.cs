@@ -23,6 +23,8 @@ sealed class ServerSettings
 
     public string MapRotationFile { get; set; } = string.Empty;
 
+    public bool MapRotationShuffleEnabled { get; set; }
+
     public int MaxPlayableClients { get; set; } = 10;
 
     public int MaxTotalClients { get; set; } = 10;
@@ -125,6 +127,7 @@ sealed class ServerSettings
             LobbyPort = preferences.LobbyPort,
             RequestedMap = string.Empty,
             MapRotationFile = hostDefaults.MapRotationFile,
+            MapRotationShuffleEnabled = hostDefaults.MapRotationShuffleEnabled,
             MaxPlayableClients = maxPlayableClients,
             MaxTotalClients = maxTotalClients,
             MaxSpectatorClients = maxSpectatorClients,
@@ -157,6 +160,7 @@ sealed class ServerSettings
         hostDefaults.Password = Password;
         hostDefaults.LobbyAnnounceEnabled = UseLobbyServer;
         hostDefaults.MapRotationFile = MapRotationFile;
+        hostDefaults.MapRotationShuffleEnabled = MapRotationShuffleEnabled;
         hostDefaults.AutoBalanceEnabled = AutoBalanceEnabled;
         hostDefaults.SecondaryAbilitiesEnabled = SecondaryAbilitiesEnabled;
         hostDefaults.RandomSpreadEnabled = RandomSpreadEnabled;

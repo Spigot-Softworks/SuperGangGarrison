@@ -113,6 +113,7 @@ public sealed class OfflinePracticeSelectionTests
     {
         var harvestEntry = CreatePracticeMapEntry("Harvest", GameModeKind.KingOfTheHill);
         var conflictEntry = CreatePracticeMapEntry("Conflict", GameModeKind.CaptureTheFlag);
+        var customKothEntry = CreatePracticeMapEntry("downloaded_koth", GameModeKind.KingOfTheHill, isCustomMap: true);
         var practiceMapEntryType = typeof(Game1).GetNestedType("PracticeMapEntry", BindingFlags.NonPublic);
         var method = typeof(Game1).GetMethod(
             "IsEligibleLastToDieRotationMap",
@@ -125,6 +126,7 @@ public sealed class OfflinePracticeSelectionTests
         Assert.NotNull(method);
         Assert.True((bool)method.Invoke(null, [harvestEntry])!);
         Assert.False((bool)method.Invoke(null, [conflictEntry])!);
+        Assert.False((bool)method.Invoke(null, [customKothEntry])!);
     }
 
     [Fact]
@@ -151,6 +153,7 @@ public sealed class OfflinePracticeSelectionTests
         Assert.True(InvokeLastToDieRotationEligibility(eligibilityMethod, engineerKind, CreatePracticeMapEntry("Conflict", GameModeKind.CaptureTheFlag)));
         Assert.True(InvokeLastToDieRotationEligibility(eligibilityMethod, engineerKind, CreatePracticeMapEntry("Eiger", GameModeKind.CaptureTheFlag)));
         Assert.False(InvokeLastToDieRotationEligibility(eligibilityMethod, engineerKind, CreatePracticeMapEntry("Valley", GameModeKind.KingOfTheHill)));
+        Assert.False(InvokeLastToDieRotationEligibility(eligibilityMethod, engineerKind, CreatePracticeMapEntry("Conflict", GameModeKind.CaptureTheFlag, isCustomMap: true)));
     }
 
     private static IEnumerable<object> BuildPracticeMapEntries()
@@ -162,7 +165,7 @@ public sealed class OfflinePracticeSelectionTests
         return ((IEnumerable)method.Invoke(null, null)!).Cast<object>();
     }
 
-    private static object CreatePracticeMapEntry(string levelName, GameModeKind mode)
+    private static object CreatePracticeMapEntry(string levelName, GameModeKind mode, bool isCustomMap = false)
     {
         var entryType = typeof(Game1).GetNestedType("PracticeMapEntry", BindingFlags.NonPublic);
         var constructor = entryType?.GetConstructor(
@@ -172,7 +175,7 @@ public sealed class OfflinePracticeSelectionTests
             modifiers: null);
 
         Assert.NotNull(constructor);
-        return constructor.Invoke([levelName, levelName, mode, false]);
+        return constructor.Invoke([levelName, levelName, mode, isCustomMap]);
     }
 
     private static string GetPracticeMapLevelName(object entry)

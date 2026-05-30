@@ -32,10 +32,13 @@ public sealed partial class SimulationWorld
             var wasAlive = LocalPlayer.IsAlive;
             var previousGibDeaths = LocalPlayer.GibDeaths;
 
+            SynchronizeNetworkGibDeathPresentationCount(LocalPlayer.Id, localPlayerState.GibDeaths);
             ApplySnapshotPlayer(LocalPlayer, localPlayerState);
             var diedThisSnapshot = wasAlive && !LocalPlayer.IsAlive;
             var wasGibbedDeath = localPlayerState.GibDeaths > previousGibDeaths;
-            if (diedThisSnapshot && wasGibbedDeath)
+            if (diedThisSnapshot
+                && wasGibbedDeath
+                && TryMarkNetworkGibDeathPresented(LocalPlayer.Id, localPlayerState.GibDeaths))
             {
                 SpawnClientPlayerGibsFromNetworkDeath(LocalPlayer);
             }

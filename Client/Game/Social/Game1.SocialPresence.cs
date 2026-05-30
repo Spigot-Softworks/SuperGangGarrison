@@ -49,6 +49,10 @@ public partial class Game1
     private void PumpSocialPresence(double elapsedSeconds)
     {
         CompleteSocialPresenceTasks();
+        if (OperatingSystem.IsBrowser())
+        {
+            return;
+        }
 
         _socialPresenceSecondsUntilHeartbeat = Math.Max(0d, _socialPresenceSecondsUntilHeartbeat - Math.Max(0d, elapsedSeconds));
         var heartbeat = BuildSocialPresenceHeartbeatRequest();
@@ -244,7 +248,7 @@ public partial class Game1
 
     private void RefreshFriendPresence()
     {
-        if (_friendsPresenceRequestTask is not null)
+        if (OperatingSystem.IsBrowser() || _friendsPresenceRequestTask is not null)
         {
             return;
         }
@@ -255,7 +259,7 @@ public partial class Game1
 
     private void RefreshFriendRequests()
     {
-        if (_friendRequestsRefreshTask is not null)
+        if (OperatingSystem.IsBrowser() || _friendRequestsRefreshTask is not null)
         {
             return;
         }
@@ -266,7 +270,7 @@ public partial class Game1
 
     private void PollDirectMessages()
     {
-        if (_directMessagesPollTask is not null)
+        if (OperatingSystem.IsBrowser() || _directMessagesPollTask is not null)
         {
             return;
         }
@@ -364,6 +368,12 @@ public partial class Game1
 
     private bool TrySendDirectMessage(string targetFriendCode, string text, bool echoToChat)
     {
+        if (OperatingSystem.IsBrowser())
+        {
+            _menuStatusMessage = "Direct messages are unavailable in browser builds.";
+            return false;
+        }
+
         if (_directMessageSendTask is not null)
         {
             _menuStatusMessage = "Message send already in progress.";
@@ -388,6 +398,11 @@ public partial class Game1
 
     private void SendSocialPresenceOffline()
     {
+        if (OperatingSystem.IsBrowser())
+        {
+            return;
+        }
+
         try
         {
             _socialPresenceOfflineTask = _presenceClient.SendOfflineAsync(_clientIdentity);

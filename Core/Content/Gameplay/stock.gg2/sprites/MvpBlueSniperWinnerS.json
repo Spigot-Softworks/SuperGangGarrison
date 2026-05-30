@@ -1,0 +1,9 @@
+﻿{
+    "id":  "MvpBlueSniperWinnerS",
+    "framePaths":  [
+                       "assets/mvp/blue/sniper/winner_0.png",
+                       "assets/mvp/blue/sniper/winner_1.png"
+                   ],
+    "originX":  26,
+    "originY":  52
+}

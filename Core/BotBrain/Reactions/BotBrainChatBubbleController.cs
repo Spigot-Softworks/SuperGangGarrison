@@ -5,6 +5,7 @@ namespace OpenGarrison.Core.BotBrain;
 public readonly record struct BotBrainChatBubbleContext(
     string DirectTrace,
     string SemanticRecoveryTrace,
+    BotBrainCombatTarget? CombatTarget,
     int? MedicHealTargetId,
     bool MedicHealTargetIsPocket);
 
@@ -71,6 +72,7 @@ public sealed class BotBrainChatBubbleController
             new BotBrainChatBubbleContext(
                 BuildControllerTraversalTrace(controller),
                 controller.LastSemanticRecoveryTrace,
+                controller.LastCombatTarget,
                 controller.LastMedicHealTargetId,
                 controller.LastMedicHealTargetIsPocket),
             input,
@@ -338,7 +340,7 @@ public sealed class BotBrainChatBubbleController
             return true;
         }
 
-        var combatTarget = TargetSelector.SelectCombatTarget(self, world, team);
+        var combatTarget = context.CombatTarget;
         if (combatTarget is { Kind: BotBrainCombatTargetKind.Player, Player: { } target }
             && state.LastSeenCombatTargetId != target.Id)
         {
@@ -639,7 +641,7 @@ public sealed class BotBrainChatBubbleController
             return true;
         }
 
-        var combatTarget = TargetSelector.SelectCombatTarget(self, world, team);
+        var combatTarget = context.CombatTarget;
         if (combatTarget is { Kind: BotBrainCombatTargetKind.Player, Player: { } target }
             && IsDirectEnemySeekTrace(directTrace)
             && state.LastDirectSeekTargetId != target.Id)

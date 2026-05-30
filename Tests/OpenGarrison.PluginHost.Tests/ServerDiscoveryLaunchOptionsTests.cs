@@ -82,6 +82,27 @@ public sealed class ServerDiscoveryLaunchOptionsTests
     }
 
     [Fact]
+    public void MapRotationShuffleLaunchAliasesOverrideSettings()
+    {
+        var fromSettings = ServerLaunchOptions.Load([], _ => new ServerSettings
+        {
+            MapRotationShuffleEnabled = true,
+        });
+        var disabled = ServerLaunchOptions.Load(["--no-shuffle-map-rotation"], _ => new ServerSettings
+        {
+            MapRotationShuffleEnabled = true,
+        });
+        var enabled = ServerLaunchOptions.Load(["--map-rotation-shuffle"], _ => new ServerSettings
+        {
+            MapRotationShuffleEnabled = false,
+        });
+
+        Assert.True(fromSettings.MapRotationShuffleEnabled);
+        Assert.False(disabled.MapRotationShuffleEnabled);
+        Assert.True(enabled.MapRotationShuffleEnabled);
+    }
+
+    [Fact]
     public void HostedServerLaunchArgumentsUseSpecialAbilitySwitches()
     {
         var target = new OpenGarrison.Client.HostedServerLaunchTarget("OG2.Server.exe", string.Empty, AppContext.BaseDirectory);

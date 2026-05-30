@@ -38,6 +38,25 @@ public sealed class SimulationWorldGrenadeDamageTests
         Assert.Equal(healthBefore - (int)GrenadeProjectileEntity.BaseExplosionDamage, enemy.Health);
     }
 
+    [Fact]
+    public void ClientPredictionGrenadeExplosionDoesNotEmitPresentationOrDamage()
+    {
+        var world = CreateCombatWorld();
+        world.ClientPredictionMode = true;
+        var owner = world.LocalPlayer;
+        owner.TeleportTo(-500f, 0f);
+        var enemy = AddEnemy(world, id: 2, x: 32f, y: 0f);
+        var healthBefore = enemy.Health;
+
+        var grenade = SpawnGrenade(world, owner, x: enemy.X, y: enemy.Y);
+        ExplodeGrenade(world, grenade);
+
+        Assert.Equal(healthBefore, enemy.Health);
+        Assert.Empty(world.PendingSoundEvents);
+        Assert.Empty(world.PendingVisualEvents);
+        Assert.Empty(world.PendingDamageEvents);
+    }
+
     private static SimulationWorld CreateCombatWorld()
     {
         var world = new SimulationWorld();

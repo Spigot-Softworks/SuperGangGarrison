@@ -403,7 +403,7 @@ public sealed partial class SimulationWorld
         {
             if (CountOwnedMines(attacker.Id) >= weaponDefinition.MaxAmmo)
             {
-                _world.ExplodeOldestMine(attacker.Id);
+                _world.ExplodeOldestMine(attacker.Id, triggerNearbyMines: false);
             }
 
             var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
