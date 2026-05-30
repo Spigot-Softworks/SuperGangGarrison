@@ -88,6 +88,7 @@ internal sealed class NetworkGameClient : IDisposable
     public string? ReplayMapName { get; private set; }
     public DateTime? ReplayDateUtc { get; private set; }
     public int ServerMaxPlayerCount { get; private set; }
+    public Uri? MapDownloadBaseUri { get; private set; }
     public int SimulatedLatencyMilliseconds { get; private set; }
     public int EstimatedPingMilliseconds { get; private set; } = -1;
     public ReceiveDiagnostics LastReceiveDiagnostics { get; private set; }
@@ -113,12 +114,19 @@ internal sealed class NetworkGameClient : IDisposable
 
         try
         {
+            var hasMapDownloadBaseUri = CustomMapSyncService.TryCreateServerDownloadBaseUri(host, port, out var mapDownloadBaseUri);
             if (!NetworkClientMessageTransportRegistry.TryConnect(host, port, out var transport, out error) || transport is null)
             {
                 return false;
             }
 
-            return Connect(transport, playerName, badgeMask, out error, friendCode, playerCardJson, intent);
+            if (!Connect(transport, playerName, badgeMask, out error, friendCode, playerCardJson, intent))
+            {
+                return false;
+            }
+
+            MapDownloadBaseUri = hasMapDownloadBaseUri ? mapDownloadBaseUri : null;
+            return true;
         }
         catch (SocketException ex)
         {
@@ -203,6 +211,7 @@ internal sealed class NetworkGameClient : IDisposable
         IsReplayConnection = false;
         LocalPlayerSlot = 0;
         ServerDescription = null;
+        MapDownloadBaseUri = null;
         ReplayDisplayName = null;
         ReplayServerName = null;
         ReplayMapName = null;

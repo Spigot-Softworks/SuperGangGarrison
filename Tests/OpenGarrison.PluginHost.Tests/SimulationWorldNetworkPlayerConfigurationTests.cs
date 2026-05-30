@@ -138,6 +138,22 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     }
 
     [Fact]
+    public void TrySetLocalClassDoesNotSpawnRemainsForClassChange()
+    {
+        var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
+        world.ForceRespawnLocalPlayer();
+        world.LocalPlayer.TeleportTo(512f, 256f);
+
+        var changed = world.TrySetLocalClass(PlayerClass.Scout);
+
+        Assert.True(changed);
+        Assert.False(world.LocalPlayer.IsAlive);
+        Assert.Empty(world.DeadBodies);
+        Assert.Empty(world.PlayerGibs);
+        Assert.DoesNotContain(world.PendingSoundEvents, soundEvent => soundEvent.SoundName == "Gibbing" || soundEvent.SoundName == "DeathSnd");
+    }
+
+    [Fact]
     public void ChangingLocalTeamDoesNotRespawnOtherJoinedPlayers()
     {
         var world = CreateWorldWithLocalClass(PlayerClass.Soldier);

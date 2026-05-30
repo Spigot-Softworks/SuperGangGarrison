@@ -29,6 +29,7 @@ sealed class ServerLaunchOptions
     public string? MapRotationFile { get; private init; }
     public string EventLogPath { get; private init; } = string.Empty;
     public IReadOnlyList<string> StockMapRotation { get; private init; } = Array.Empty<string>();
+    public bool MapRotationShuffleEnabled { get; private init; }
     public int TickRate { get; private init; } = SimulationConfig.DefaultTicksPerSecond;
     public int MaxPlayableClients { get; private init; }
     public int MaxTotalClients { get; private init; }
@@ -92,6 +93,7 @@ sealed class ServerLaunchOptions
         string? mapRotationFile = string.IsNullOrWhiteSpace(settings.MapRotationFile) ? null : settings.MapRotationFile;
         var eventLogPath = PersistentServerEventLog.GetDefaultPath(now);
         var stockMapRotation = OpenGarrisonStockMapCatalog.GetOrderedIncludedMapLevelNames(settings.HostDefaults.StockMapRotation);
+        var mapRotationShuffleEnabled = settings.MapRotationShuffleEnabled;
         var tickRate = SimulationConfig.NormalizeTicksPerSecond(settings.TickRate);
         int? timeLimitMinutesOverride = settings.TimeLimitMinutes > 0 ? Math.Clamp(settings.TimeLimitMinutes, 1, 255) : null;
         int? capLimitOverride = settings.CapLimit > 0 ? Math.Clamp(settings.CapLimit, 1, 255) : null;
@@ -185,6 +187,20 @@ sealed class ServerLaunchOptions
             {
                 mapRotationFile = args[index + 1];
                 index += 1;
+                continue;
+            }
+
+            if (string.Equals(arg, "--shuffle-map-rotation", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--map-rotation-shuffle", StringComparison.OrdinalIgnoreCase))
+            {
+                mapRotationShuffleEnabled = true;
+                continue;
+            }
+
+            if (string.Equals(arg, "--no-shuffle-map-rotation", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--no-map-rotation-shuffle", StringComparison.OrdinalIgnoreCase))
+            {
+                mapRotationShuffleEnabled = false;
                 continue;
             }
 
@@ -450,6 +466,7 @@ sealed class ServerLaunchOptions
             MapRotationFile = mapRotationFile,
             EventLogPath = eventLogPath,
             StockMapRotation = stockMapRotation,
+            MapRotationShuffleEnabled = mapRotationShuffleEnabled,
             TickRate = tickRate,
             MaxPlayableClients = maxPlayableClients,
             MaxTotalClients = maxTotalClients,

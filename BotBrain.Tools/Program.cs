@@ -1652,6 +1652,11 @@ static void RunBotTraversalSoak(
 {
     var maps = GetTraversalSoakMaps(rawOptions, options.MapName);
     var failOnAcceptance = GetRosterBool(rawOptions, "fail-on-acceptance", true);
+    if (GetRosterBool(rawOptions, "load-packaged-quote-curly", true))
+    {
+        RegisterPackagedQuoteCurlyGameplayPackIfAvailable(FindRepoRoot(AppContext.BaseDirectory));
+    }
+
     var allPassed = true;
     var results = new List<TraversalSoakRunResult>(maps.Count);
     foreach (var mapName in maps)
@@ -1680,6 +1685,41 @@ static void RunBotTraversalSoak(
     }
 }
 
+static void RegisterPackagedQuoteCurlyGameplayPackIfAvailable(string repoRoot)
+{
+    if (CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(PlayerClass.Quote, out _))
+    {
+        Console.WriteLine("soakQuoteCurlyPack=already-loaded");
+        return;
+    }
+
+    var packDirectory = Path.Combine(
+        repoRoot,
+        "Plugins",
+        "Packaged",
+        "Server",
+        "Lua.QuoteCurly",
+        "Gameplay",
+        "quote-curly.gg2");
+    if (!Directory.Exists(packDirectory))
+    {
+        Console.WriteLine($"soakQuoteCurlyPack=missing path=\"{packDirectory}\"");
+        return;
+    }
+
+    var pack = GameplayModPackDirectoryLoader.LoadFromDirectory(packDirectory);
+    if (!CharacterClassCatalog.RuntimeRegistry.TryRegisterModPack(
+        pack,
+        allowRuntimeClassBindingOverride: true,
+        out var errorMessage))
+    {
+        throw new InvalidOperationException(
+            $"Failed to register packaged Quote/Curly gameplay pack for traversal soak: {errorMessage}");
+    }
+
+    Console.WriteLine($"soakQuoteCurlyPack=loaded id:{pack.Id} path=\"{packDirectory}\"");
+}
+
 static TraversalSoakRunResult RunBotTraversalSoakMap(
     string mapName,
     BotBrainCanaryOptions options,
@@ -1701,7 +1741,7 @@ static TraversalSoakRunResult RunBotTraversalSoakMap(
         ? SimulationWorld.MaxPlayableNetworkPlayers
         : SimulationWorld.MaxPlayableNetworkPlayers - 1;
     var botCount = Math.Clamp(requestedBots, 1, maxBots);
-    PlayerClass[] classCycle =
+    PlayerClass[] defaultClassCycle =
     [
         PlayerClass.Scout,
         PlayerClass.Pyro,
@@ -1714,6 +1754,7 @@ static TraversalSoakRunResult RunBotTraversalSoakMap(
         PlayerClass.Sniper,
         PlayerClass.Quote,
     ];
+    var classCycle = ResolveTraversalSoakClassCycle(rawOptions, defaultClassCycle);
 
     var world = new SimulationWorld();
     if (!world.TryLoadLevel(mapName, areaIndex, preservePlayerStats: false))
@@ -1763,6 +1804,7 @@ static TraversalSoakRunResult RunBotTraversalSoakMap(
         $"inertFailTicks:{inertFailTicks} stagnantWindowTicks:{stagnantWindowTicks} " +
         $"stagnantDistance:{stagnantDistance:0.0} oscillationWindowTicks:{oscillationWindowTicks} " +
         $"oscillationFlips:{oscillationFlips} oscillationDistance:{oscillationDistance:0.0} " +
+        $"classCycle:{string.Join('+', classCycle.Select(static classId => classId.ToString()))} " +
         $"failOnAcceptance:{(failOnAcceptance ? 1 : 0)}");
     foreach (var entry in stats.Values.OrderBy(static stat => stat.Slot))
     {
@@ -1776,6 +1818,7 @@ static TraversalSoakRunResult RunBotTraversalSoakMap(
     var redFirstCapTick = -1;
     var blueFirstCapTick = -1;
     long totalThinkStopwatchTicks = 0;
+    long totalTickStopwatchTicks = 0;
     long maxTickThinkStopwatchTicks = 0;
     var controlledThinkTicks = 0L;
     for (var tick = 1; tick <= ticks; tick += 1)
@@ -1805,6 +1848,7 @@ static TraversalSoakRunResult RunBotTraversalSoakMap(
 
         world.AdvanceOneTick();
         var tickThinkElapsed = Stopwatch.GetTimestamp() - tickThinkStart;
+        totalTickStopwatchTicks += tickThinkElapsed;
         if (tickThinkElapsed > maxTickThinkStopwatchTicks)
         {
             maxTickThinkStopwatchTicks = tickThinkElapsed;
@@ -1845,10 +1889,11 @@ static TraversalSoakRunResult RunBotTraversalSoakMap(
             var maxInertTicks = stats.Values.Select(static stat => stat.MaxConsecutiveInertTicks).DefaultIfEmpty().Max();
             var oscillationEvents = stats.Values.Sum(static stat => stat.OscillationEvents);
             var avgThinkMsPerTick = StopwatchTicksToMilliseconds(totalThinkStopwatchTicks) / tick;
+            var avgTickMsPerTick = StopwatchTicksToMilliseconds(totalTickStopwatchTicks) / tick;
             Console.WriteLine(
                 $"soakTick={tick} redCaps:{world.RedCaps - initialRedCaps} blueCaps:{world.BlueCaps - initialBlueCaps} " +
                 $"maxInertTicks:{maxInertTicks} oscillationEvents:{oscillationEvents} " +
-                $"avgThinkMsPerTick:{avgThinkMsPerTick:0.000} " +
+                $"avgThinkMsPerTick:{avgThinkMsPerTick:0.000} avgTickMsPerTick:{avgTickMsPerTick:0.000} " +
                 $"{FormatPracticeRosterIntelState("redIntel", world.RedIntel)} {FormatPracticeRosterIntelState("blueIntel", world.BlueIntel)}");
             foreach (var entry in stats.Values
                          .OrderByDescending(static stat => stat.ConsecutiveInertTicks)
@@ -1872,7 +1917,9 @@ static TraversalSoakRunResult RunBotTraversalSoakMap(
     var passed = ctfCapsPassed && inertPassed && oscillationPassed;
     var reason = FormatTraversalSoakResultReason(ctfCapsPassed, inertPassed, oscillationPassed);
     var totalThinkMs = StopwatchTicksToMilliseconds(totalThinkStopwatchTicks);
+    var totalTickMs = StopwatchTicksToMilliseconds(totalTickStopwatchTicks);
     var avgThinkMsPerTickFinal = ticks > 0 ? totalThinkMs / ticks : 0d;
+    var avgTickMsPerTickFinal = ticks > 0 ? totalTickMs / ticks : 0d;
     var avgThinkMsPerBotTick = controlledThinkTicks > 0 ? totalThinkMs / controlledThinkTicks : 0d;
     var maxTickThinkMs = StopwatchTicksToMilliseconds(maxTickThinkStopwatchTicks);
 
@@ -1881,6 +1928,7 @@ static TraversalSoakRunResult RunBotTraversalSoakMap(
         $"redCaps:{finalRedCaps} blueCaps:{finalBlueCaps} redFirstCapTick:{redFirstCapTick} blueFirstCapTick:{blueFirstCapTick} " +
         $"maxInertTicks:{finalMaxInertTicks} inertFailTicks:{inertFailTicks} oscillationEvents:{finalOscillationEvents} " +
         $"totalThinkMs:{totalThinkMs:0.000} avgThinkMsPerTick:{avgThinkMsPerTickFinal:0.000} " +
+        $"totalTickMs:{totalTickMs:0.000} avgTickMsPerTick:{avgTickMsPerTickFinal:0.000} " +
         $"avgThinkMsPerBotTick:{avgThinkMsPerBotTick:0.0000} maxTickThinkMs:{maxTickThinkMs:0.000}");
     foreach (var entry in stats.Values.OrderBy(static stat => stat.Slot))
     {
@@ -1888,6 +1936,37 @@ static TraversalSoakRunResult RunBotTraversalSoakMap(
     }
 
     return new TraversalSoakRunResult(world.Level.Name, world.Level.MapAreaIndex, passed, reason);
+}
+
+static PlayerClass[] ResolveTraversalSoakClassCycle(
+    IReadOnlyDictionary<string, string> rawOptions,
+    PlayerClass[] fallback)
+{
+    if (!rawOptions.TryGetValue("class-cycle", out var classCycleText)
+        && !rawOptions.TryGetValue("classes", out classCycleText))
+    {
+        return fallback;
+    }
+
+    var classes = new List<PlayerClass>();
+    foreach (var token in classCycleText.Split(
+        [',', ';', '|'],
+        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+    {
+        if (!Enum.TryParse<PlayerClass>(token, ignoreCase: true, out var classId))
+        {
+            throw new InvalidOperationException($"Unsupported traversal soak class \"{token}\".");
+        }
+
+        classes.Add(classId);
+    }
+
+    if (classes.Count == 0)
+    {
+        throw new InvalidOperationException("Traversal soak class-cycle cannot be empty.");
+    }
+
+    return classes.ToArray();
 }
 
 static bool TryConfigureTraversalSoakBot(

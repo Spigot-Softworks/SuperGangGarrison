@@ -973,8 +973,7 @@ public sealed partial class SimulationWorld
         return LocalPlayer.IsAlive
             && player.Team != LocalPlayer.Team
             && player.ClassId == PlayerClass.Spy
-            && !player.IsSpyVisibleToEnemies
-            && !player.IsSpyBackstabAnimating
+            && (!player.IsSpyVisibleToEnemies || player.IsSpyBackstabAnimating)
             && IsRemoteSpyHiddenFromLocalPlayer(player);
     }
 
@@ -1017,6 +1016,41 @@ public sealed partial class SimulationWorld
 
         _presentedNetworkGibDeathCountsByPlayerId[playerId] = gibDeaths;
         return true;
+    }
+
+    public bool TryPresentNetworkGibDeath(int playerId, int gibDeaths)
+    {
+        var player = FindNetworkPresentationPlayerById(playerId);
+        if (player is null)
+        {
+            return false;
+        }
+
+        if (!TryMarkNetworkGibDeathPresented(playerId, gibDeaths))
+        {
+            return false;
+        }
+
+        SpawnClientPlayerGibsFromNetworkDeath(player);
+        return true;
+    }
+
+    private PlayerEntity? FindNetworkPresentationPlayerById(int playerId)
+    {
+        if (LocalPlayer.Id == playerId)
+        {
+            return LocalPlayer;
+        }
+
+        foreach (var player in _remoteSnapshotPlayersBySlot.Values)
+        {
+            if (player.Id == playerId)
+            {
+                return player;
+            }
+        }
+
+        return FindPlayerById(playerId);
     }
 
     private void SyncSnapshotEntities<TState, TEntity>(

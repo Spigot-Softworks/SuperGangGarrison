@@ -87,9 +87,18 @@ public sealed partial class SimulationWorld
         {
             foreach (var player in EnumerateSimulatedPlayers())
             {
-                if (!_world.CanPlayerDamagePlayer(attacker, player) || player.Id == attacker.Id) { continue; }
+                if (!player.IsAlive || player.Id == attacker.Id) { continue; }
                 var distance = GetRayIntersectionDistanceWithPlayer(originX, originY, directionX, directionY, _world, player, hitState.NearestDistance);
-                if (distance.HasValue) { UpdateNearestRiflePlayerHit(ref hitState, distance.Value, player); }
+                if (!distance.HasValue) { continue; }
+
+                if (_world.CanPlayerDamagePlayer(attacker, player))
+                {
+                    UpdateNearestRiflePlayerHit(ref hitState, distance.Value, player);
+                }
+                else
+                {
+                    UpdateNearestRifleObstacleHit(ref hitState, distance.Value);
+                }
             }
         }
 

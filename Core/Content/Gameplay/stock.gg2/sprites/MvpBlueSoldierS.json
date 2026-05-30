@@ -1,0 +1,10 @@
+﻿{
+    "id":  "MvpBlueSoldierS",
+    "framePaths":  [
+                       "assets/mvp/blue/soldier/nonwinner_0.png",
+                       "assets/mvp/blue/soldier/nonwinner_1.png",
+                       "assets/mvp/blue/soldier/nonwinner_2.png"
+                   ],
+    "originX":  26,
+    "originY":  52
+}

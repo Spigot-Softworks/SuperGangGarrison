@@ -1,3 +1,5 @@
+using System.Buffers;
+
 namespace OpenGarrison.Core.BotBrain;
 
 /// <summary>
@@ -33,78 +35,138 @@ public static class TargetSelector
         }
 
         var opposingTeam = ownTeam == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
-        BotBrainCombatTarget? bestTarget = null;
-        var bestDistance = ResolveMaxEngagementRange(self);
+        var maxEngagementRange = ResolveMaxEngagementRange(self);
+        var maxEngagementDistanceSquared = maxEngagementRange * maxEngagementRange;
+        var candidates = ArrayPool<BotBrainTargetCandidate>.Shared.Rent(16);
+        var candidateCount = 0;
+        var sequence = 0;
 
-        foreach (var generator in world.Generators)
+        try
         {
-            if (generator.Team == ownTeam || generator.IsDestroyed)
+            foreach (var generator in world.Generators)
             {
-                continue;
+                if (generator.Team == ownTeam || generator.IsDestroyed)
+                {
+                    continue;
+                }
+
+                var targetX = generator.Marker.CenterX;
+                var targetY = generator.Marker.CenterY;
+                var distanceSquared = DistanceSquared(self.X, self.Y, targetX, targetY);
+                if (distanceSquared >= maxEngagementDistanceSquared)
+                {
+                    continue;
+                }
+
+                AddCandidate(new BotBrainCombatTarget(
+                    BotBrainCombatTargetKind.Generator,
+                    generator.Team,
+                    targetX,
+                    targetY,
+                    Generator: generator), distanceSquared);
             }
 
-            var targetX = generator.Marker.CenterX;
-            var targetY = generator.Marker.CenterY;
-            if (!CombatDecisionResolver.HasLineOfSight(world, self.X, self.Y, targetX, targetY, self.Team, self.IsCarryingIntel))
+            foreach (var candidate in CombatDecisionResolver.EnumeratePlayers(world))
             {
-                continue;
+                if (!IsValidTarget(candidate, self, opposingTeam))
+                {
+                    continue;
+                }
+
+                var distanceSquared = DistanceSquared(self.X, self.Y, candidate.X, candidate.Y);
+                if (distanceSquared >= maxEngagementDistanceSquared)
+                {
+                    continue;
+                }
+
+                AddCandidate(new BotBrainCombatTarget(
+                    BotBrainCombatTargetKind.Player,
+                    candidate.Team,
+                    candidate.X,
+                    candidate.Y,
+                    Player: candidate), distanceSquared);
             }
 
-            var distance = Distance(self.X, self.Y, targetX, targetY);
-            if (distance >= bestDistance)
+            foreach (var sentry in world.Sentries)
             {
-                continue;
+                if (sentry.Team == ownTeam || sentry.Health <= 0)
+                {
+                    continue;
+                }
+
+                var distanceSquared = DistanceSquared(self.X, self.Y, sentry.X, sentry.Y);
+                if (distanceSquared >= maxEngagementDistanceSquared)
+                {
+                    continue;
+                }
+
+                AddCandidate(new BotBrainCombatTarget(
+                    BotBrainCombatTargetKind.Sentry,
+                    sentry.Team,
+                    sentry.X,
+                    sentry.Y,
+                    Sentry: sentry), distanceSquared);
             }
 
-            bestDistance = distance;
-            bestTarget = new BotBrainCombatTarget(BotBrainCombatTargetKind.Generator, generator.Team, targetX, targetY, Generator: generator);
+            if (candidateCount == 0)
+            {
+                return null;
+            }
+
+            if (candidateCount > 1)
+            {
+                Array.Sort(candidates, 0, candidateCount, BotBrainTargetCandidateDistanceComparer.Instance);
+            }
+
+            for (var index = 0; index < candidateCount; index += 1)
+            {
+                var target = candidates[index].Target;
+                if (CombatDecisionResolver.HasLineOfSight(world, self.X, self.Y, target.X, target.Y, self.Team, self.IsCarryingIntel))
+                {
+                    return target;
+                }
+            }
+
+            return null;
+        }
+        finally
+        {
+            Array.Clear(candidates, 0, candidateCount);
+            ArrayPool<BotBrainTargetCandidate>.Shared.Return(candidates);
         }
 
-        foreach (var candidate in CombatDecisionResolver.EnumeratePlayers(world))
+        void AddCandidate(BotBrainCombatTarget target, float distanceSquared)
         {
-            if (!IsValidTarget(candidate, self, opposingTeam))
+            if (candidateCount == candidates.Length)
             {
-                continue;
+                var replacement = ArrayPool<BotBrainTargetCandidate>.Shared.Rent(candidates.Length * 2);
+                Array.Copy(candidates, replacement, candidates.Length);
+                Array.Clear(candidates, 0, candidateCount);
+                ArrayPool<BotBrainTargetCandidate>.Shared.Return(candidates);
+                candidates = replacement;
             }
 
-            if (!CombatDecisionResolver.HasLineOfSight(world, self.X, self.Y, candidate.X, candidate.Y, self.Team, self.IsCarryingIntel))
-            {
-                continue;
-            }
-
-            var distance = Distance(self.X, self.Y, candidate.X, candidate.Y);
-            if (distance >= bestDistance)
-            {
-                continue;
-            }
-
-            bestDistance = distance;
-            bestTarget = new BotBrainCombatTarget(BotBrainCombatTargetKind.Player, candidate.Team, candidate.X, candidate.Y, Player: candidate);
+            candidates[candidateCount] = new BotBrainTargetCandidate(target, distanceSquared, sequence++);
+            candidateCount += 1;
         }
+    }
 
-        foreach (var sentry in world.Sentries)
+    private readonly record struct BotBrainTargetCandidate(
+        BotBrainCombatTarget Target,
+        float DistanceSquared,
+        int Sequence);
+
+    private sealed class BotBrainTargetCandidateDistanceComparer : IComparer<BotBrainTargetCandidate>
+    {
+        public static readonly BotBrainTargetCandidateDistanceComparer Instance = new();
+
+        public int Compare(BotBrainTargetCandidate left, BotBrainTargetCandidate right)
         {
-            if (sentry.Team == ownTeam || sentry.Health <= 0)
-            {
-                continue;
-            }
-
-            if (!CombatDecisionResolver.HasLineOfSight(world, self.X, self.Y, sentry.X, sentry.Y, self.Team, self.IsCarryingIntel))
-            {
-                continue;
-            }
-
-            var distance = Distance(self.X, self.Y, sentry.X, sentry.Y);
-            if (distance >= bestDistance)
-            {
-                continue;
-            }
-
-            bestDistance = distance;
-            bestTarget = new BotBrainCombatTarget(BotBrainCombatTargetKind.Sentry, sentry.Team, sentry.X, sentry.Y, Sentry: sentry);
+            var distanceComparison = left.DistanceSquared.CompareTo(right.DistanceSquared);
+            return distanceComparison != 0
+                ? distanceComparison
+                : left.Sequence.CompareTo(right.Sequence);
         }
-
-        return bestTarget;
     }
 
     private static bool IsValidTarget(PlayerEntity candidate, PlayerEntity self, PlayerTeam opposingTeam)
@@ -128,11 +190,11 @@ public static class TargetSelector
         return true;
     }
 
-    private static float Distance(float ax, float ay, float bx, float by)
+    private static float DistanceSquared(float ax, float ay, float bx, float by)
     {
         var dx = bx - ax;
         var dy = by - ay;
-        return MathF.Sqrt((dx * dx) + (dy * dy));
+        return (dx * dx) + (dy * dy);
     }
 
     private static float ResolveMaxEngagementRange(PlayerEntity self)

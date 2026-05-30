@@ -1,5 +1,6 @@
 using OpenGarrison.Core;
 using OpenGarrison.Core.BotBrain;
+using System.Collections.Generic;
 using System.Reflection;
 using Xunit;
 
@@ -58,6 +59,56 @@ public sealed class BotBrainMedicHealTargetTests
         var target = CombatDecisionResolver.FindBestMedicHealTarget(world, medic, PlayerTeam.Red);
 
         Assert.Same(heavy, target);
+    }
+
+    [Fact]
+    public void MedicHealTargetPrioritizesHumanMedicCallOverPocketTarget()
+    {
+        var world = CreateMedicTargetWorld(
+            out var medic,
+            out var scout,
+            out var soldier,
+            out var heavy);
+        scout.ForceSetHealth(scout.MaxHealth);
+        soldier.ForceSetHealth(soldier.MaxHealth);
+        heavy.ForceSetHealth(heavy.MaxHealth);
+        scout.TriggerChatBubble(ChatBubbleFrameCatalog.Medic);
+
+        var selection = CombatDecisionResolver.FindBestMedicHealTargetSelection(
+            world,
+            medic,
+            PlayerTeam.Red,
+            new Dictionary<byte, PlayerTeam> { [SimulationWorld.LocalPlayerSlot] = PlayerTeam.Red });
+
+        Assert.Same(scout, selection.Target);
+        Assert.Equal(MedicHealTargetSelectionKind.HumanMedicCall, selection.Kind);
+    }
+
+    [Fact]
+    public void MedicHealTargetDoesNotTreatControlledBotMedicBubbleAsHumanCall()
+    {
+        var world = CreateMedicTargetWorld(
+            out var medic,
+            out var scout,
+            out var soldier,
+            out var heavy);
+        scout.ForceSetHealth(scout.MaxHealth);
+        soldier.ForceSetHealth(soldier.MaxHealth);
+        heavy.ForceSetHealth(heavy.MaxHealth);
+        scout.TriggerChatBubble(ChatBubbleFrameCatalog.Medic);
+
+        var selection = CombatDecisionResolver.FindBestMedicHealTargetSelection(
+            world,
+            medic,
+            PlayerTeam.Red,
+            new Dictionary<byte, PlayerTeam>
+            {
+                [SimulationWorld.LocalPlayerSlot] = PlayerTeam.Red,
+                [2] = PlayerTeam.Red,
+            });
+
+        Assert.Same(heavy, selection.Target);
+        Assert.Equal(MedicHealTargetSelectionKind.Pocket, selection.Kind);
     }
 
     private static SimulationWorld CreateMedicTargetWorld(

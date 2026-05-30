@@ -18,13 +18,23 @@ sealed class MapRotationManager
     private readonly SimulationWorld _world;
     private readonly Action<string> _log;
     private readonly List<string> _mapRotation;
+    private readonly Random _shuffleRandom;
     private int _mapRotationIndex;
     private QueuedNextRoundMap? _queuedNextRoundMap;
 
-    public MapRotationManager(SimulationWorld world, string? requestedMap, string? mapRotationFile, IReadOnlyList<string> stockMapRotation, Action<string> log)
+    public MapRotationManager(
+        SimulationWorld world,
+        string? requestedMap,
+        string? mapRotationFile,
+        IReadOnlyList<string> stockMapRotation,
+        Action<string> log,
+        bool mapRotationShuffleEnabled = false,
+        Random? shuffleRandom = null)
     {
         _world = world;
         _log = log;
+        _shuffleRandom = shuffleRandom ?? new Random();
+        MapRotationShuffleEnabled = mapRotationShuffleEnabled;
 
         var rotation = LoadMapRotation(mapRotationFile, stockMapRotation);
         if (rotation.Count == 0)
@@ -70,9 +80,12 @@ sealed class MapRotationManager
         }
         else if (_mapRotation.Count > 0)
         {
-            _mapRotationIndex = (_mapRotationIndex + 1) % _mapRotation.Count;
+            _mapRotationIndex = MapRotationShuffleEnabled
+                ? SelectShuffledRotationIndex(currentLevelName)
+                : (_mapRotationIndex + 1) % _mapRotation.Count;
             nextMap = _mapRotation[_mapRotationIndex];
-            _log($"[server] advancing to next map {nextMap} (winner {(winner.HasValue ? winner.Value.ToString() : "tie")})");
+            var rotationMode = MapRotationShuffleEnabled ? "random map" : "next map";
+            _log($"[server] advancing to {rotationMode} {nextMap} (winner {(winner.HasValue ? winner.Value.ToString() : "tie")})");
         }
         else
         {
@@ -109,6 +122,8 @@ sealed class MapRotationManager
     public IReadOnlyList<string> MapRotation => _mapRotation;
 
     public int CurrentRotationIndex => _mapRotationIndex;
+
+    public bool MapRotationShuffleEnabled { get; set; }
 
     public bool TrySetNextRoundMap(string levelName, int mapAreaIndex = 1)
     {
@@ -171,6 +186,31 @@ sealed class MapRotationManager
         }
 
         _mapRotationIndex = Math.Max(0, FindMapRotationIndex(_mapRotation, _world.Level.Name));
+    }
+
+    private int SelectShuffledRotationIndex(string currentLevelName)
+    {
+        if (_mapRotation.Count <= 1)
+        {
+            return 0;
+        }
+
+        var currentMap = NormalizeMapName(currentLevelName);
+        var candidates = new List<int>(_mapRotation.Count - 1);
+        for (var index = 0; index < _mapRotation.Count; index += 1)
+        {
+            if (!string.Equals(NormalizeMapName(_mapRotation[index]), currentMap, StringComparison.OrdinalIgnoreCase))
+            {
+                candidates.Add(index);
+            }
+        }
+
+        if (candidates.Count == 0)
+        {
+            return _shuffleRandom.Next(_mapRotation.Count);
+        }
+
+        return candidates[_shuffleRandom.Next(candidates.Count)];
     }
 
     private readonly record struct QueuedNextRoundMap(string LevelName, int AreaIndex);

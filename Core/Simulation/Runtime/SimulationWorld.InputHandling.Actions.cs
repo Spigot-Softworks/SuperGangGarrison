@@ -32,12 +32,6 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        // Mine launcher at limit: explode oldest mine to make room
-        if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MineLauncher) && input.FirePrimary && CountOwnedMines(player.Id) >= player.PrimaryWeapon.MaxAmmo)
-        {
-            ExplodeOldestMine(player.Id);
-        }
-
         if (primaryPressed && TryHandleExperimentalSoldierStingerPrimaryBurst(player))
         {
             return;
@@ -138,13 +132,6 @@ public sealed partial class SimulationWorld
                 TryTriggerAcquiredMedigunHealsplosion(player);
             }
 
-            return true;
-        }
-
-        if (player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MineLauncher)
-            && input.FirePrimary
-            && CountOwnedMines(player.Id) >= player.AcquiredWeaponMaxShells)
-        {
             return true;
         }
 

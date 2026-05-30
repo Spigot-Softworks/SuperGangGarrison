@@ -17,6 +17,10 @@ public partial class Game1
     private const int RecentGibSoundEchoLifetimeTicks = 18;
     private const int RecentGibSoundEchoLimit = 16;
     private const float RecentGibSoundEchoDistanceSquared = 64f * 64f;
+    private const int RecentProjectileSoundEchoLifetimeTicks = 18;
+    private const int RecentProjectileSoundEchoLimit = 32;
+    private const float RecentProjectileExplosionSoundEchoDistanceSquared = 64f * 64f;
+    private const float RecentProjectileFireSoundEchoDistanceSquared = 24f * 24f;
 
     private sealed class PendingBrowserSoundEvent
     {
@@ -46,6 +50,28 @@ public partial class Game1
             IsNetworkEvent = isNetworkEvent;
             TicksRemaining = ticksRemaining;
         }
+
+        public float X { get; }
+
+        public float Y { get; }
+
+        public bool IsNetworkEvent { get; }
+
+        public int TicksRemaining { get; set; }
+    }
+
+    private sealed class RecentProjectileSoundEvent
+    {
+        public RecentProjectileSoundEvent(string soundName, float x, float y, bool isNetworkEvent, int ticksRemaining)
+        {
+            SoundName = soundName;
+            X = x;
+            Y = y;
+            IsNetworkEvent = isNetworkEvent;
+            TicksRemaining = ticksRemaining;
+        }
+
+        public string SoundName { get; }
 
         public float X { get; }
 
@@ -90,6 +116,7 @@ public partial class Game1
     private readonly List<PendingBrowserSoundEvent> _pendingBrowserSoundEvents = new();
     private readonly List<WorldSoundEvent> _pendingNetworkSoundEvents = new();
     private readonly List<RecentGibSoundEvent> _recentGibSoundEvents = new();
+    private readonly List<RecentProjectileSoundEvent> _recentProjectileSoundEvents = new();
     private readonly List<PlayedExplosionSoundThisFrame> _playedExplosionSoundsThisFrame = new();
 
     private readonly record struct PlayedExplosionSoundThisFrame(float X, float Y);
@@ -361,6 +388,96 @@ public partial class Game1
     private void ResetRecentGibSoundEvents()
     {
         _recentGibSoundEvents.Clear();
+    }
+
+    private static string NormalizeProjectileSoundEchoName(string soundName)
+    {
+        return string.Equals(soundName, "HealExplosionSnd", StringComparison.OrdinalIgnoreCase)
+            ? "ExplosionSnd"
+            : soundName;
+    }
+
+    private static bool IsProjectileSoundEchoCandidate(string soundName)
+    {
+        return string.Equals(soundName, "ExplosionSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "HealExplosionSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "RocketSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "DirecthitSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "MinegunSnd", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static float GetProjectileSoundEchoDistanceSquared(string soundName)
+    {
+        return string.Equals(NormalizeProjectileSoundEchoName(soundName), "ExplosionSnd", StringComparison.OrdinalIgnoreCase)
+            ? RecentProjectileExplosionSoundEchoDistanceSquared
+            : RecentProjectileFireSoundEchoDistanceSquared;
+    }
+
+    private void AdvanceRecentProjectileSoundEvents()
+    {
+        for (var index = _recentProjectileSoundEvents.Count - 1; index >= 0; index -= 1)
+        {
+            _recentProjectileSoundEvents[index].TicksRemaining -= 1;
+            if (_recentProjectileSoundEvents[index].TicksRemaining <= 0)
+            {
+                _recentProjectileSoundEvents.RemoveAt(index);
+            }
+        }
+    }
+
+    private bool ShouldSuppressPredictedProjectileSoundEcho(string resolvedSoundName, WorldSoundEvent soundEvent)
+    {
+        if (!IsProjectileSoundEchoCandidate(resolvedSoundName))
+        {
+            return false;
+        }
+
+        var normalizedSoundName = NormalizeProjectileSoundEchoName(resolvedSoundName);
+        var isNetworkEvent = soundEvent.EventId != 0;
+        var maxDistanceSquared = GetProjectileSoundEchoDistanceSquared(normalizedSoundName);
+        for (var index = 0; index < _recentProjectileSoundEvents.Count; index += 1)
+        {
+            var recent = _recentProjectileSoundEvents[index];
+            if (recent.IsNetworkEvent == isNetworkEvent
+                || !string.Equals(recent.SoundName, normalizedSoundName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var deltaX = soundEvent.X - recent.X;
+            var deltaY = soundEvent.Y - recent.Y;
+            if ((deltaX * deltaX) + (deltaY * deltaY) <= maxDistanceSquared)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void RememberPlayedProjectileSound(string resolvedSoundName, WorldSoundEvent soundEvent)
+    {
+        if (!IsProjectileSoundEchoCandidate(resolvedSoundName))
+        {
+            return;
+        }
+
+        while (_recentProjectileSoundEvents.Count >= RecentProjectileSoundEchoLimit)
+        {
+            _recentProjectileSoundEvents.RemoveAt(0);
+        }
+
+        _recentProjectileSoundEvents.Add(new RecentProjectileSoundEvent(
+            NormalizeProjectileSoundEchoName(resolvedSoundName),
+            soundEvent.X,
+            soundEvent.Y,
+            soundEvent.EventId != 0,
+            RecentProjectileSoundEchoLifetimeTicks));
+    }
+
+    private void ResetRecentProjectileSoundEvents()
+    {
+        _recentProjectileSoundEvents.Clear();
     }
 
     private void TryPlaySound(SoundEffect? sound, float volume, float pitch, float pan)

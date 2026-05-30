@@ -22,12 +22,14 @@ public partial class Game1
 
     private void ReturnToMainMenuWithNetworkStatus(string statusMessage, string consoleMessage)
     {
+        ClearPendingNetworkMapSync();
         ReturnToMainMenu(statusMessage);
         AddNetworkConsoleLine(consoleMessage);
     }
 
     private void ReturnToMainMenuWithNetworkStatus(string statusMessage)
     {
+        ClearPendingNetworkMapSync();
         ReturnToMainMenu(statusMessage);
         AddNetworkConsoleLine(statusMessage);
     }

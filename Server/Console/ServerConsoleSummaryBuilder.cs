@@ -89,8 +89,9 @@ internal sealed class ServerConsoleSummaryBuilder(
         var rotation = mapRotationManager.MapRotation;
         var currentIndex = rotation.Count == 0 ? 0 : Math.Clamp(mapRotationManager.CurrentRotationIndex + 1, 1, rotation.Count);
         var source = string.IsNullOrWhiteSpace(mapRotationFile) ? "stock" : mapRotationFile!;
+        var shuffle = mapRotationManager.MapRotationShuffleEnabled ? "enabled" : "disabled";
         var entries = rotation.Count == 0 ? world.Level.Name : string.Join(", ", rotation);
-        lines.Add($"[server] rotation | source={source} | current={currentIndex}/{Math.Max(1, rotation.Count)} | entries={entries}");
+        lines.Add($"[server] rotation | source={source} | current={currentIndex}/{Math.Max(1, rotation.Count)} | shuffle={shuffle} | entries={entries}");
     }
 
     public void AddPlayersSummary(List<string> lines)

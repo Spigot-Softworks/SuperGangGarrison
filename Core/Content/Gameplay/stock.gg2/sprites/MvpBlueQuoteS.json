@@ -1,0 +1,10 @@
+﻿{
+    "id":  "MvpBlueQuoteS",
+    "framePaths":  [
+                       "assets/mvp/blue/quote/nonwinner_0.png",
+                       "assets/mvp/blue/quote/nonwinner_1.png",
+                       "assets/mvp/blue/quote/nonwinner_2.png"
+                   ],
+    "originX":  26,
+    "originY":  52
+}

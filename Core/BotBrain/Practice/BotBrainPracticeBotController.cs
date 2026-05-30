@@ -122,17 +122,30 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
         SimulationWorld world,
         IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots)
     {
+        return BuildInputsForSlots(world, controlledSlots, new List<byte>(controlledSlots.Keys));
+    }
+
+    public IReadOnlyDictionary<byte, PlayerInputSnapshot> BuildInputsForSlots(
+        SimulationWorld world,
+        IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots,
+        IReadOnlyCollection<byte> slotsToThink)
+    {
         ConfigureSpawnOverrides(world, controlledSlots);
 
-        var inputs = new Dictionary<byte, PlayerInputSnapshot>(controlledSlots.Count);
+        var inputs = new Dictionary<byte, PlayerInputSnapshot>(slotsToThink.Count);
         _controlledTeamsBySlot.Clear();
         foreach (var (slot, controlledSlot) in controlledSlots)
         {
             _controlledTeamsBySlot[slot] = controlledSlot.Team;
         }
 
-        foreach (var (slot, controlledSlot) in controlledSlots)
+        foreach (var slot in slotsToThink)
         {
+            if (!controlledSlots.TryGetValue(slot, out var controlledSlot))
+            {
+                continue;
+            }
+
             if (!world.TryGetNetworkPlayer(slot, out var player))
             {
                 continue;
@@ -152,7 +165,7 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
                 _configuredSlots[slot] = controlledSlot;
             }
 
-            var input = controller.Think(player, world, controlledSlot.Team);
+            var input = controller.Think(player, world, controlledSlot.Team, _controlledTeamsBySlot);
             inputs[slot] = _chatBubbles.Update(
                 world,
                 slot,

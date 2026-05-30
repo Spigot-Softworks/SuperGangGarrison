@@ -67,7 +67,7 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private void ExplodeMine(MineProjectileEntity mine)
+    private void ExplodeMine(MineProjectileEntity mine, bool triggerNearbyMines = true)
     {
         var owner = FindPlayerById(mine.OwnerId);
         for (var mineIndex = _mines.Count - 1; mineIndex >= 0; mineIndex -= 1)
@@ -182,7 +182,11 @@ public sealed partial class SimulationWorld
             TryDamageGenerator(generator.Team, damage, owner);
         }
 
-        TriggerNearbyMines(mine);
+        if (triggerNearbyMines)
+        {
+            TriggerNearbyMines(mine);
+        }
+
         AffectRocketsInMineBlast(mine);
         DestroyBubblesInMineBlast(mine);
     }
@@ -200,7 +204,7 @@ public sealed partial class SimulationWorld
         return null;
     }
 
-    internal void ExplodeOldestMine(int ownerId)
+    internal void ExplodeOldestMine(int ownerId, bool triggerNearbyMines = true)
     {
         MineProjectileEntity? oldestMine = null;
         foreach (var mine in _mines)
@@ -215,7 +219,7 @@ public sealed partial class SimulationWorld
 
         if (oldestMine is not null)
         {
-            ExplodeMine(oldestMine);
+            ExplodeMine(oldestMine, triggerNearbyMines);
         }
     }
 

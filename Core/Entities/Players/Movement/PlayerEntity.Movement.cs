@@ -60,8 +60,11 @@ public sealed partial class PlayerEntity
     }
 
     public bool IsInsideBlockingTeamGate(SimpleLevel level, PlayerTeam team)
+        => IsInsideBlockingTeamGate(level, team, IsCarryingIntel);
+
+    public bool IsInsideBlockingTeamGate(SimpleLevel level, PlayerTeam team, bool carryingIntel)
     {
-        foreach (var gate in level.GetBlockingTeamGates(team, IsCarryingIntel))
+        foreach (var gate in level.GetBlockingTeamGates(team, carryingIntel))
         {
             if (Intersects(gate))
             {

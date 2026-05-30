@@ -21,6 +21,7 @@ public sealed class ServerSettingsTests
         {
             ServerName = "Bot Server",
             RconPassword = "rcon-secret",
+            MapRotationShuffleEnabled = true,
             BotAutofillEnabled = true,
             BotAutofillMinPlayers = 10,
             BotAutofillPerTeam = 5,
@@ -29,11 +30,13 @@ public sealed class ServerSettingsTests
         settings.Save(configPath);
 
         var preferences = OpenGarrisonPreferencesDocument.Load(configPath);
+        Assert.True(preferences.HostSettings.MapRotationShuffleEnabled);
         Assert.True(preferences.HostSettings.BotAutofillEnabled);
         Assert.Equal(10, preferences.HostSettings.BotAutofillMinPlayers);
         Assert.Equal(5, preferences.HostSettings.BotAutofillPerTeam);
 
         var reloaded = ServerSettings.Load(configPath);
+        Assert.True(reloaded.MapRotationShuffleEnabled);
         Assert.True(reloaded.BotAutofillEnabled);
         Assert.Equal(10, reloaded.BotAutofillMinPlayers);
         Assert.Equal(5, reloaded.BotAutofillPerTeam);

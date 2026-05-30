@@ -52,6 +52,7 @@ sealed partial class GameServer
     private readonly string? _mapRotationFile;
     private readonly string _eventLogPath;
     private readonly IReadOnlyList<string> _stockMapRotation;
+    private bool _mapRotationShuffleEnabled;
     private readonly int _maxPlayableClients;
     private readonly int _maxTotalClients;
     private readonly int _maxSpectatorClients;
@@ -90,6 +91,7 @@ sealed partial class GameServer
     private UdpClient _udp = null!;
     private OpenGarrison.Server.IServerMessageTransport _messageTransport = null!;
     private OpenGarrison.Server.WebSocketServerHost? _webSocketHost;
+    private bool _mapDownloadEndpointAvailable;
     private LobbyServerRegistrar? _lobbyRegistrar;
     private HttpServerRegistryHeartbeat? _httpRegistryHeartbeat;
     private SimulationWorld _world = null!;
@@ -137,6 +139,7 @@ sealed partial class GameServer
         string? mapRotationFile,
         string eventLogPath,
         IReadOnlyList<string> stockMapRotation,
+        bool mapRotationShuffleEnabled,
         int maxPlayableClients,
         int maxTotalClients,
         int maxSpectatorClients,
@@ -183,6 +186,7 @@ sealed partial class GameServer
         _mapRotationFile = mapRotationFile;
         _eventLogPath = eventLogPath;
         _stockMapRotation = stockMapRotation;
+        _mapRotationShuffleEnabled = mapRotationShuffleEnabled;
         _maxPlayableClients = maxPlayableClients;
         _maxTotalClients = maxTotalClients;
         _maxSpectatorClients = maxSpectatorClients;

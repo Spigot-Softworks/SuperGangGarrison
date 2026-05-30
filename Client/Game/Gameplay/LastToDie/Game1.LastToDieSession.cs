@@ -1515,6 +1515,11 @@ public partial class Game1
 
     private static bool IsEligibleLastToDieRotationMap(LastToDieSurvivorKind survivorKind, PracticeMapEntry entry)
     {
+        if (entry.IsCustomMap)
+        {
+            return false;
+        }
+
         return survivorKind switch
         {
             LastToDieSurvivorKind.Engineer => LastToDieEngineerRotationMapNames.Contains(entry.LevelName),

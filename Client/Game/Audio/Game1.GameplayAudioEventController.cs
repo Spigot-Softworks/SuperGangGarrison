@@ -130,6 +130,7 @@ public partial class Game1
             _game.BeginExplosionSoundDeduplicationFrame();
             ReplayPendingBrowserSoundEvents();
             _game.AdvanceRecentGibSoundEvents();
+            _game.AdvanceRecentProjectileSoundEvents();
 
             for (var index = 0; index < _game._pendingNetworkSoundEvents.Count; index += 1)
             {
@@ -189,11 +190,17 @@ public partial class Game1
                 return;
             }
 
+            if (_game.ShouldSuppressPredictedProjectileSoundEcho(resolvedSoundName, soundEvent))
+            {
+                return;
+            }
+
             if (!TryPlayResolvedWorldSound(resolvedSoundName, soundEvent.X, soundEvent.Y, allowBrowserDefer: OperatingSystem.IsBrowser()))
             {
                 return;
             }
 
+            _game.RememberPlayedProjectileSound(resolvedSoundName, soundEvent);
             if (isExplosionSound)
             {
                 _game.RecordPlayedExplosionSoundThisFrame(soundEvent.X, soundEvent.Y);

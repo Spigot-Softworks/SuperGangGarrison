@@ -23,13 +23,18 @@ public partial class Game1
     {
         if ((!string.Equals(snapshot.LevelName, _world.Level.Name, StringComparison.OrdinalIgnoreCase)
                 || snapshot.MapAreaIndex != _world.Level.MapAreaIndex)
-            && !CustomMapSyncService.EnsureMapAvailable(
+            && TryEnsureNetworkMapAvailable(
                 snapshot.LevelName,
                 snapshot.IsCustomMap,
                 snapshot.MapDownloadUrl,
                 snapshot.MapContentHash,
-                out var snapshotMapError))
+                out var snapshotMapError) is not NetworkMapSyncStatus.Available)
         {
+            if (string.IsNullOrWhiteSpace(snapshotMapError))
+            {
+                return false;
+            }
+
             ReturnToMainMenuWithNetworkStatus(snapshotMapError, $"custom map sync failed: {snapshotMapError}");
             return false;
         }

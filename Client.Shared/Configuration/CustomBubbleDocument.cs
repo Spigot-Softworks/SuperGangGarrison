@@ -16,6 +16,11 @@ public sealed class CustomBubbleDocument
     private const int LegacyBubbleWidth = 32;
     private const int LegacyBubbleHeight = 32;
     private const int LegacyRgba64ByteCount = LegacyBubbleWidth * LegacyBubbleHeight * BytesPerPixel;
+    private const int Rgba64Base64Length = ((Rgba64ByteCount + 2) / 3) * 4;
+    private const int LegacyRgba64Base64Length = ((LegacyRgba64ByteCount + 2) / 3) * 4;
+    private const int MaxPaletteColorTextLength = 16;
+    private const int MaxBase64WhitespaceSlack = 16;
+    private const long MaxDocumentBytes = 256 * 1024;
     public const string DefaultRelativePath = "CustomBubbles/custom-bubbles.json";
 
     public bool ShowCustomBubbles { get; set; } = true;
@@ -36,9 +41,30 @@ public sealed class CustomBubbleDocument
         }
 
         var resolvedPath = path ?? RuntimePaths.GetUserDataPath(DefaultRelativePath);
-        var document = JsonConfigurationFile.LoadOrCreate(resolvedPath, static () => new CustomBubbleDocument());
+        if (!CanLoadDocument(resolvedPath))
+        {
+            var fallbackDocument = new CustomBubbleDocument();
+            fallbackDocument.Normalize();
+            TrySave(resolvedPath, fallbackDocument);
+            return fallbackDocument;
+        }
+
+        CustomBubbleDocument document;
+        try
+        {
+            document = JsonConfigurationFile.LoadOrCreate(resolvedPath, static () => new CustomBubbleDocument());
+        }
+        catch (IOException)
+        {
+            document = new CustomBubbleDocument();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            document = new CustomBubbleDocument();
+        }
+
         document.Normalize();
-        document.Save(resolvedPath);
+        TrySave(resolvedPath, document);
         return document;
     }
 
@@ -70,33 +96,19 @@ public sealed class CustomBubbleDocument
 
         Normalize();
         var slot = Slots[slotIndex];
-        if (string.IsNullOrWhiteSpace(slot.Rgba64Base64))
+        if (string.IsNullOrEmpty(slot.Rgba64Base64))
         {
             return false;
         }
 
-        try
+        if (TryDecodeSlotPixels(slot.Rgba64Base64, out var decoded, out _, out _))
         {
-            var decoded = Convert.FromBase64String(slot.Rgba64Base64);
-            if (decoded.Length == Rgba64ByteCount)
-            {
-                pixels = decoded;
-                revision = slot.Revision;
-                return true;
-            }
+            pixels = decoded;
+            revision = slot.Revision;
+            return true;
+        }
 
-            if (decoded.Length == LegacyRgba64ByteCount)
-            {
-                pixels = UpgradeLegacyPixels(decoded);
-                revision = slot.Revision;
-                return true;
-            }
-            return false;
-        }
-        catch (FormatException)
-        {
-            return false;
-        }
+        return false;
     }
 
     public void SetSlotPixels(int slotIndex, byte[] pixels)
@@ -167,28 +179,20 @@ public sealed class CustomBubbleDocument
         {
             Slots[index] ??= new CustomBubbleSlotDocument();
             var slot = Slots[index];
-            if (string.IsNullOrWhiteSpace(slot.Rgba64Base64))
+            if (string.IsNullOrEmpty(slot.Rgba64Base64))
             {
                 slot.Rgba64Base64 = string.Empty;
                 continue;
             }
 
-            try
+            if (TryDecodeSlotPixels(slot.Rgba64Base64, out _, out var normalizedBase64, out _))
             {
-                var decoded = Convert.FromBase64String(slot.Rgba64Base64);
-                if (decoded.Length == Rgba64ByteCount)
+                if (!string.Equals(slot.Rgba64Base64, normalizedBase64, StringComparison.Ordinal))
                 {
-                    continue;
+                    slot.Rgba64Base64 = normalizedBase64;
                 }
 
-                if (decoded.Length == LegacyRgba64ByteCount)
-                {
-                    slot.Rgba64Base64 = Convert.ToBase64String(UpgradeLegacyPixels(decoded));
-                    continue;
-                }
-            }
-            catch (FormatException)
-            {
+                continue;
             }
 
             slot.Rgba64Base64 = string.Empty;
@@ -239,6 +243,11 @@ public sealed class CustomBubbleDocument
     private static bool TryNormalizeColorHex(string colorHex, out string normalizedHex)
     {
         normalizedHex = string.Empty;
+        if (colorHex.Length > MaxPaletteColorTextLength)
+        {
+            return false;
+        }
+
         var trimmed = colorHex.Trim().TrimStart('#');
         if (trimmed.Length != 8
             || !uint.TryParse(trimmed, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out _))
@@ -248,6 +257,90 @@ public sealed class CustomBubbleDocument
 
         normalizedHex = trimmed.ToUpperInvariant();
         return true;
+    }
+
+    private static bool TryDecodeSlotPixels(
+        string? rgba64Base64,
+        out byte[] pixels,
+        out string normalizedBase64,
+        out bool upgradedLegacy)
+    {
+        pixels = [];
+        normalizedBase64 = string.Empty;
+        upgradedLegacy = false;
+        if (string.IsNullOrEmpty(rgba64Base64)
+            || rgba64Base64.Length > Rgba64Base64Length + MaxBase64WhitespaceSlack)
+        {
+            return false;
+        }
+
+        var trimmed = rgba64Base64.Trim();
+        if (trimmed.Length != Rgba64Base64Length && trimmed.Length != LegacyRgba64Base64Length)
+        {
+            return false;
+        }
+
+        byte[] decoded;
+        try
+        {
+            decoded = Convert.FromBase64String(trimmed);
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+
+        if (decoded.Length == Rgba64ByteCount)
+        {
+            pixels = decoded;
+            normalizedBase64 = trimmed;
+            return true;
+        }
+
+        if (decoded.Length == LegacyRgba64ByteCount)
+        {
+            pixels = UpgradeLegacyPixels(decoded);
+            normalizedBase64 = Convert.ToBase64String(pixels);
+            upgradedLegacy = true;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool CanLoadDocument(string path)
+    {
+        if (!File.Exists(path))
+        {
+            return true;
+        }
+
+        try
+        {
+            return new FileInfo(path).Length <= MaxDocumentBytes;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static void TrySave(string path, CustomBubbleDocument document)
+    {
+        try
+        {
+            document.Save(path);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 
     private static byte[] UpgradeLegacyPixels(byte[] legacyPixels)

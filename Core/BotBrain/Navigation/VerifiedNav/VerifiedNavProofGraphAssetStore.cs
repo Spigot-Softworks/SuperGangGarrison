@@ -18,6 +18,8 @@ public static class VerifiedNavProofGraphAssetStore
         ReadCommentHandling = JsonCommentHandling.Skip,
         Converters = { new JsonStringEnumConverter() },
     };
+    private static readonly object AssetCacheSync = new();
+    private static readonly Dictionary<string, VerifiedNavProofGraphAsset> AssetCache = new(StringComparer.OrdinalIgnoreCase);
 
     public static bool IsEnabled()
     {
@@ -69,6 +71,17 @@ public static class VerifiedNavProofGraphAssetStore
             return false;
         }
 
+        var cacheKey = BotBrainJsonAssetIO.GetCacheKey(path);
+        lock (AssetCacheSync)
+        {
+            if (AssetCache.TryGetValue(cacheKey, out var cachedAsset)
+                && IsValidForRequest(cachedAsset, level, team, classId))
+            {
+                asset = cachedAsset;
+                return true;
+            }
+        }
+
         try
         {
             asset = BotBrainJsonAssetIO.Deserialize<VerifiedNavProofGraphAsset>(path, SerializerOptions)!;
@@ -79,19 +92,33 @@ public static class VerifiedNavProofGraphAssetStore
             return false;
         }
 
-        if (asset is null
-            || !string.Equals(asset.LevelName, level.Name, StringComparison.OrdinalIgnoreCase)
-            || asset.MapAreaIndex != level.MapAreaIndex
-            || asset.Team != team
-            || asset.ClassId != classId
-            || asset.Routes.Count == 0
-            || asset.Edges.Count == 0)
+        if (!IsValidForRequest(asset, level, team, classId))
         {
             asset = null!;
             return false;
         }
 
+        lock (AssetCacheSync)
+        {
+            AssetCache[cacheKey] = asset;
+        }
+
         return true;
+    }
+
+    private static bool IsValidForRequest(
+        VerifiedNavProofGraphAsset? asset,
+        SimpleLevel level,
+        PlayerTeam team,
+        PlayerClass classId)
+    {
+        return asset is not null
+            && string.Equals(asset.LevelName, level.Name, StringComparison.OrdinalIgnoreCase)
+            && asset.MapAreaIndex == level.MapAreaIndex
+            && asset.Team == team
+            && asset.ClassId == classId
+            && asset.Routes.Count > 0
+            && asset.Edges.Count > 0;
     }
 
     private static string ResolveDefaultArtifactPath(SimpleLevel level, PlayerTeam team, PlayerClass classId)
@@ -114,6 +141,11 @@ public static class VerifiedNavProofGraphAssetStore
     {
         var shippedFileName = $"{level.Name}.a{level.MapAreaIndex}.{team}.{classId}.verified-proof-graph.json";
         var contentRootPath = ContentRoot.GetPath("BotBrainProofGraphs", shippedFileName);
+        if (OperatingSystem.IsBrowser())
+        {
+            return contentRootPath;
+        }
+
         if (File.Exists(contentRootPath))
         {
             return contentRootPath;

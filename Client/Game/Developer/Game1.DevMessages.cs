@@ -11,7 +11,7 @@ public partial class Game1
 {
     private void EnsureDevMessageCheckStarted()
     {
-        if (_devMessageCheckStarted || IsServerLauncherMode)
+        if (_devMessageCheckStarted || IsServerLauncherMode || OperatingSystem.IsBrowser())
         {
             return;
         }

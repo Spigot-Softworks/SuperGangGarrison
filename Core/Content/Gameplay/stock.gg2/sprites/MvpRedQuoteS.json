@@ -1,0 +1,10 @@
+﻿{
+    "id":  "MvpRedQuoteS",
+    "framePaths":  [
+                       "assets/mvp/red/quote/nonwinner_0.png",
+                       "assets/mvp/red/quote/nonwinner_1.png",
+                       "assets/mvp/red/quote/nonwinner_2.png"
+                   ],
+    "originX":  26,
+    "originY":  52
+}

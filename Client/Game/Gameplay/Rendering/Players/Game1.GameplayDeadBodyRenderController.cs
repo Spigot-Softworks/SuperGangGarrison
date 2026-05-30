@@ -231,6 +231,12 @@ public partial class Game1
             _game._gameplayGoreEffectsController.SpawnImmediateFatalDamageVisuals(damageEvent.X, damageEvent.Y, damageEvent.Amount);
 
             var targetPlayer = _game.FindPlayerById(damageEvent.TargetEntityId);
+            if (targetPlayer is not null
+                && TryQueueImmediateNetworkGibPresentation(resolvedSnapshot, damageEvent, targetPlayer))
+            {
+                return;
+            }
+
             var plannedDeadBody = ImmediateNetworkDeathPresentationPlanner.TryCreate(
                 resolvedSnapshot,
                 damageEvent,
@@ -253,6 +259,24 @@ public partial class Game1
                 deadBody.Height,
                 deadBody.FacingLeft,
                 deadBody.TicksRemaining);
+        }
+
+        private bool TryQueueImmediateNetworkGibPresentation(SnapshotMessage resolvedSnapshot, SnapshotDamageEvent damageEvent, PlayerEntity targetPlayer)
+        {
+            for (var index = 0; index < resolvedSnapshot.Players.Count; index += 1)
+            {
+                var snapshotPlayer = resolvedSnapshot.Players[index];
+                if (snapshotPlayer.PlayerId != damageEvent.TargetEntityId)
+                {
+                    continue;
+                }
+
+                return !snapshotPlayer.IsAlive
+                    && snapshotPlayer.GibDeaths > targetPlayer.GibDeaths
+                    && _game._world.TryPresentNetworkGibDeath(damageEvent.TargetEntityId, snapshotPlayer.GibDeaths);
+            }
+
+            return false;
         }
 
         public ClientDeadBodyAnimationKind ResolveClientPluginDeadBodyAnimationKind(int sourcePlayerId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind)

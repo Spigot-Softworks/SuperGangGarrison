@@ -1,5 +1,6 @@
 using OpenGarrison.Core;
 using OpenGarrison.Core.BotBrain;
+using System;
 using System.Reflection;
 using Xunit;
 
@@ -31,6 +32,29 @@ public sealed class BotBrainClassBehaviorTests
 
         Assert.True(decision.FireSecondary);
         Assert.False(decision.UseAbility);
+    }
+
+    [Fact]
+    public void HarvestPyroEscapesRightSpoolPocket()
+    {
+        var world = CreateImportedWorld("Harvest");
+        Assert.True(world.TrySetLocalClass(PlayerClass.Pyro));
+        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.ForceRespawnLocalPlayer();
+        var pyro = world.LocalPlayer;
+        pyro.TeleportTo(3022f, 762f);
+        pyro.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: -1f);
+        var controller = new BotBrainController();
+
+        PlayerInputSnapshot input = default;
+        for (var tick = 0; tick < 12; tick += 1)
+        {
+            input = controller.Think(pyro, world, PlayerTeam.Red);
+        }
+
+        Assert.True(input.Left);
+        Assert.True(input.Up);
+        Assert.Contains("harvestRightSpoolEscape", controller.LastDirectDriveTrace, StringComparison.Ordinal);
     }
 
     [Fact]

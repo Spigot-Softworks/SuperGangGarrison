@@ -282,6 +282,11 @@ public partial class Game1
             return;
         }
 
+        if (_intelInterpolationTracks.TryGetValue(intelState.Team, out existingTrack))
+        {
+            current = EvaluateInterpolationTrack(existingTrack);
+        }
+
         CaptureOfflineInterpolationTrack(
             _intelInterpolationTracks,
             intelState.Team,
@@ -308,6 +313,11 @@ public partial class Game1
         {
             _interpolatedEntityPositions[entityId] = EvaluateInterpolationTrack(existingTrack);
             return;
+        }
+
+        if (_entityInterpolationTracks.TryGetValue(entityId, out existingTrack))
+        {
+            current = EvaluateInterpolationTrack(existingTrack);
         }
 
         CaptureOfflineInterpolationTrack(

@@ -1,0 +1,11 @@
+﻿{
+    "id":  "MvpBluePyroS",
+    "framePaths":  [
+                       "assets/mvp/blue/pyro/nonwinner_0.png",
+                       "assets/mvp/blue/pyro/nonwinner_1.png",
+                       "assets/mvp/blue/pyro/nonwinner_2.png",
+                       "assets/mvp/blue/pyro/nonwinner_3.png"
+                   ],
+    "originX":  26,
+    "originY":  52
+}

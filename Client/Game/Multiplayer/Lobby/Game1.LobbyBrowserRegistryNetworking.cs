@@ -2,6 +2,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Net;
+using System.Net.Sockets;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
@@ -49,7 +51,7 @@ public partial class Game1
             var name = string.IsNullOrWhiteSpace(entry.Name) ? entry.Host : entry.Name.Trim();
             var lobbyEntry = AddLobbyBrowserEntry(
                 FormatLobbyDisplayName(name, entry.IsPrivate),
-                new NetworkEndpoint(entry.Host.Trim(), entry.UdpPort, entry.WebSocketPort, entry.WebSocketUrl),
+                CreateRegistryNetworkEndpoint(entry),
                 entry.IsPrivate,
                 isLobbyEntry: true);
             if (lobbyEntry is not null)
@@ -92,6 +94,56 @@ public partial class Game1
             lobbyEntry.SpectatorCount = Math.Max(0, registryEntry.Spectators);
             lobbyEntry.PingMilliseconds = -1;
         }
+    }
+
+    private static NetworkEndpoint CreateRegistryNetworkEndpoint(LobbyRegistryServerEntry entry)
+    {
+        var host = entry.Host.Trim();
+        var webSocketUrl = entry.WebSocketUrl;
+        if (OperatingSystem.IsBrowser()
+            && string.IsNullOrWhiteSpace(webSocketUrl)
+            && entry.WebSocketPort is > 0 and <= 65535
+            && TryCreateBrowserPublicWebSocketUrl(host, out var browserWebSocketUrl))
+        {
+            webSocketUrl = browserWebSocketUrl;
+        }
+
+        return new NetworkEndpoint(host, entry.UdpPort, entry.WebSocketPort, webSocketUrl);
+    }
+
+    private static bool TryCreateBrowserPublicWebSocketUrl(string host, out string webSocketUrl)
+    {
+        webSocketUrl = string.Empty;
+        if (!IPAddress.TryParse(host, out var address)
+            || address.AddressFamily != AddressFamily.InterNetwork
+            || !IsPublicIPv4Address(address))
+        {
+            return false;
+        }
+
+        var octets = address.GetAddressBytes();
+        var sslipHost = string.Join('-', octets) + ".sslip.io";
+        webSocketUrl = $"wss://{sslipHost}/opengarrison/ws";
+        return true;
+    }
+
+    private static bool IsPublicIPv4Address(IPAddress address)
+    {
+        var octets = address.GetAddressBytes();
+        if (octets.Length != 4)
+        {
+            return false;
+        }
+
+        return octets[0] switch
+        {
+            0 or 10 or 127 => false,
+            169 when octets[1] == 254 => false,
+            172 when octets[1] is >= 16 and <= 31 => false,
+            192 when octets[1] == 168 => false,
+            100 when octets[1] is >= 64 and <= 127 => false,
+            _ => true,
+        };
     }
 
     private static async Task<List<LobbyRegistryServerEntry>> LoadLobbyRegistryEntriesAsync(string endpoint)

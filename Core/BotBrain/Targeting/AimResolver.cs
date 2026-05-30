@@ -18,11 +18,6 @@ public sealed class AimResolver
     /// </summary>
     private const float TraversalAimAheadDistance = 120f;
 
-    /// <summary>
-    /// Vertical offset to aim slightly above center-mass for better hit probability.
-    /// </summary>
-    private const float CombatAimVerticalOffset = 0.3f;
-
     public (float AimX, float AimY) Resolve(
         PlayerEntity self,
         BotBrainCombatTarget? combatTarget,
@@ -33,7 +28,7 @@ public sealed class AimResolver
     {
         if (healTarget is not null && healTarget.IsAlive)
         {
-            return ResolvePlayerAim(self, healTarget);
+            return ResolvePlayerAim(healTarget, applyJitter: false);
         }
 
         if (combatTarget is { } target)
@@ -47,16 +42,17 @@ public sealed class AimResolver
     private (float AimX, float AimY) ResolveCombatAim(PlayerEntity self, BotBrainCombatTarget target)
     {
         return target.Player is { } player
-            ? ResolvePlayerAim(self, player)
+            ? ResolvePlayerAim(player, applyJitter: true)
             : ApplyJitter(target.X, target.Y);
     }
 
-    private (float AimX, float AimY) ResolvePlayerAim(PlayerEntity self, PlayerEntity target)
+    private (float AimX, float AimY) ResolvePlayerAim(PlayerEntity target, bool applyJitter)
     {
-        // Aim at center-mass with slight upward bias and jitter.
-        var targetCenterX = target.X;
-        var targetCenterY = target.Y - (target.Height * CombatAimVerticalOffset);
-        return ApplyJitter(targetCenterX, targetCenterY);
+        var targetX = target.X;
+        var targetY = ResolvePlayerAimFocusY(target);
+        return applyJitter
+            ? ApplyJitter(targetX, targetY)
+            : (targetX, targetY);
     }
 
     private (float AimX, float AimY) ApplyJitter(float targetX, float targetY)
@@ -78,11 +74,14 @@ public sealed class AimResolver
             return (steering.AimOverrideX, steering.AimOverrideY);
         }
 
-        // If we have a path, aim toward the current waypoint.
+        var neutralAimY = ResolvePlayerAimFocusY(self);
+
+        // If we have a path, face the current waypoint horizontally without tracking
+        // waypoint elevation; otherwise bots stare into floors while traversing drops.
         if (graph is not null && path is not null && !path.IsComplete)
         {
             var target = graph.GetNode(path.CurrentNode);
-            return (target.X, target.Y);
+            return (target.X, neutralAimY);
         }
 
         // Otherwise, aim in the direction we're moving.
@@ -90,6 +89,9 @@ public sealed class AimResolver
             ? steering.MoveDirection * TraversalAimAheadDistance
             : self.FacingDirectionX * TraversalAimAheadDistance);
 
-        return (aimX, self.Y);
+        return (aimX, neutralAimY);
     }
+
+    private static float ResolvePlayerAimFocusY(PlayerEntity player) =>
+        player.Y - MathF.Min(8f, player.Height * 0.25f);
 }

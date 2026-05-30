@@ -1,0 +1,11 @@
+﻿{
+    "id":  "MvpBlueHeavyS",
+    "framePaths":  [
+                       "assets/mvp/blue/heavy/nonwinner_0.png",
+                       "assets/mvp/blue/heavy/nonwinner_1.png",
+                       "assets/mvp/blue/heavy/nonwinner_2.png",
+                       "assets/mvp/blue/heavy/nonwinner_3.png"
+                   ],
+    "originX":  26,
+    "originY":  52
+}

@@ -917,9 +917,15 @@ public partial class Game1
         bool topOutlineOnly = false,
         bool useFlareColors = false,
         bool useCriticalColors = false,
-        PlayerTeam criticalTeam = PlayerTeam.Blue)
+        PlayerTeam criticalTeam = PlayerTeam.Blue,
+        float drawAlpha = 1f)
     {
         const float cellSize = 2f;
+        var clampedDrawAlpha = Math.Clamp(drawAlpha, 0f, 1f);
+        if (clampedDrawAlpha <= 0f)
+        {
+            return;
+        }
 
         static bool IsBoundaryCell(System.Collections.Generic.Dictionary<(int, int), float> map, int gx, int gy)
         {
@@ -1014,6 +1020,7 @@ public partial class Game1
                     pixelColor = new Color(255, 242, 130);  // near-white (overlap core)
             }
 
+            pixelColor *= clampedDrawAlpha;
             var rect = new Rectangle(
                 (int)MathF.Round((gx * cellSize) - cameraPosition.X),
                 (int)MathF.Round((gy * cellSize) - cameraPosition.Y),
@@ -1026,9 +1033,10 @@ public partial class Game1
     private void DrawProceduralFlameParticles(
         System.Collections.Generic.Dictionary<(int, int), float> cells,
         Vector2 cameraPosition,
-        bool topOutlineOnly = false)
+        bool topOutlineOnly = false,
+        float drawAlpha = 1f)
     {
-        DrawProceduralFlameCells(cells, cameraPosition, topOutlineOnly, useFlareColors: false, useCriticalColors: false);
+        DrawProceduralFlameCells(cells, cameraPosition, topOutlineOnly, useFlareColors: false, useCriticalColors: false, drawAlpha: drawAlpha);
     }
 
     private void AccumulateFlameParticle(

@@ -529,17 +529,17 @@ sealed class SnapshotBroadcaster
             return false;
         }
 
-        if (player.IsSpyVisibleToEnemies)
+        if (!viewer.IsAlive)
         {
             return false;
         }
 
         if (player.IsSpyBackstabAnimating)
         {
-            return false;
+            return IsSpyHiddenFromViewer(player, viewer);
         }
 
-        if (!viewer.IsAlive)
+        if (player.IsSpyVisibleToEnemies)
         {
             return false;
         }

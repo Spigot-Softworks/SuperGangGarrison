@@ -14,6 +14,8 @@ internal sealed class WebSocketServerHost : IDisposable
     private readonly string? _certificatePassword;
     private readonly CompositeServerMessageTransport _transport;
     private readonly Action<string> _log;
+    private readonly bool _enableWebSocket;
+    private readonly bool _enableMapDownloads;
     private WebApplication? _application;
 
     public WebSocketServerHost(
@@ -21,13 +23,17 @@ internal sealed class WebSocketServerHost : IDisposable
         string? certificatePath,
         string? certificatePassword,
         CompositeServerMessageTransport transport,
-        Action<string> log)
+        Action<string> log,
+        bool enableWebSocket = true,
+        bool enableMapDownloads = true)
     {
         _port = port;
         _certificatePath = string.IsNullOrWhiteSpace(certificatePath) ? null : certificatePath;
         _certificatePassword = string.IsNullOrWhiteSpace(certificatePassword) ? null : certificatePassword;
         _transport = transport;
         _log = log;
+        _enableWebSocket = enableWebSocket;
+        _enableMapDownloads = enableMapDownloads;
     }
 
     public void Start()
@@ -55,11 +61,20 @@ internal sealed class WebSocketServerHost : IDisposable
         });
 
         var app = builder.Build();
-        app.UseWebSockets(new WebSocketOptions
+        if (_enableWebSocket)
         {
-            KeepAliveInterval = TimeSpan.FromSeconds(20),
-        });
-        app.Map("/opengarrison/ws", HandleWebSocketAsync);
+            app.UseWebSockets(new WebSocketOptions
+            {
+                KeepAliveInterval = TimeSpan.FromSeconds(20),
+            });
+            app.Map("/opengarrison/ws", HandleWebSocketAsync);
+        }
+
+        if (_enableMapDownloads)
+        {
+            ServerMapDownloadEndpoint.Map(app);
+        }
+
         app.MapGet("/", static context =>
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
@@ -68,7 +83,16 @@ internal sealed class WebSocketServerHost : IDisposable
         app.StartAsync().GetAwaiter().GetResult();
         _application = app;
         var scheme = _certificatePath is null ? "ws" : "wss";
-        _log($"[server] WebSocket listener enabled on {scheme}://0.0.0.0:{_port}/opengarrison/ws");
+        if (_enableWebSocket)
+        {
+            _log($"[server] WebSocket listener enabled on {scheme}://0.0.0.0:{_port}/opengarrison/ws");
+        }
+
+        if (_enableMapDownloads)
+        {
+            var mapScheme = _certificatePath is null ? "http" : "https";
+            _log($"[server] custom map downloads enabled on {mapScheme}://0.0.0.0:{_port}{ServerMapDownloadEndpoint.RoutePrefix}/");
+        }
     }
 
     public void Dispose()
