@@ -35,9 +35,9 @@ public partial class Game1
             _game._menuBottomBarRunners.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
 
             _game.UpdateLobbyBrowserResponses();
+            _game.UpdateGarrisonBuilderEditor(keyboard, mouse, 1f / 60f);
             if (_game._builderEditorEnabled)
             {
-                _game.UpdateGarrisonBuilderEditor(keyboard, mouse, 1f / 60f);
                 return;
             }
 

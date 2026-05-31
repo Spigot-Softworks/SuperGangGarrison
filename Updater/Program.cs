@@ -24,6 +24,8 @@ if (string.IsNullOrWhiteSpace(manifestUrl))
     manifestUrl = GetDefaultManifestUrl();
 }
 
+LogUpdaterEvent(appDirectory, $"starting updater appDirectory=\"{appDirectory}\" manifestUrl=\"{manifestUrl}\"");
+
 using var updateUi = UpdateUi.Create();
 var launchGame = true;
 try
@@ -36,9 +38,10 @@ catch (OperationCanceledException)
     updateUi.Report(UpdateUiState.KnownProgress("Update canceled. Launching installed version...", 0d));
     await Task.Delay(450).ConfigureAwait(false);
 }
-catch
+catch (Exception ex)
 {
     // Launch should remain reliable even when the updater endpoint is offline or a package is bad.
+    LogUpdaterEvent(appDirectory, "update check failed; launching installed version", ex);
     if (updateUi.IsVisible)
     {
         updateUi.Report(UpdateUiState.KnownProgress("Update failed. Launching installed version...", 0d));
@@ -71,6 +74,7 @@ static async Task RunApplyUpdateModeAsync(string[] args)
         updateUi.Report(UpdateUiState.Indeterminate("Installing update..."));
         WaitForProcessExit(parentProcessId, TimeSpan.FromSeconds(30));
 
+        LogUpdaterEvent(destinationDirectory, $"applying update source=\"{sourceDirectory}\" destination=\"{destinationDirectory}\" version=\"{version}\"");
         CopyUpdatePayload(
             sourceDirectory,
             destinationDirectory,
@@ -86,8 +90,9 @@ static async Task RunApplyUpdateModeAsync(string[] args)
         updateUi.Report(UpdateUiState.KnownProgress("Update canceled. Launching installed version...", 0d));
         await Task.Delay(450).ConfigureAwait(false);
     }
-    catch
+    catch (Exception ex)
     {
+        LogUpdaterEvent(destinationDirectory, "update install failed; launching installed version", ex);
         updateUi.Report(UpdateUiState.KnownProgress("Update failed. Launching installed version...", 0d));
         await Task.Delay(900).ConfigureAwait(false);
     }
@@ -303,6 +308,7 @@ static bool TryLaunchUpdateHelper(string extractPath, string appDirectory, strin
 
     if (helperPath is null)
     {
+        LogUpdaterEvent(appDirectory, $"update helper missing in extracted package \"{extractPath}\"");
         return false;
     }
 
@@ -327,10 +333,19 @@ static bool TryLaunchUpdateHelper(string extractPath, string appDirectory, strin
             startInfo.ArgumentList.Add(argument);
         }
 
-        return Process.Start(startInfo) is not null;
+        var process = Process.Start(startInfo);
+        if (process is null)
+        {
+            LogUpdaterEvent(appDirectory, $"update helper did not start \"{helperPath}\"");
+            return false;
+        }
+
+        LogUpdaterEvent(appDirectory, $"delegated update to helper \"{helperPath}\"");
+        return true;
     }
-    catch
+    catch (Exception ex)
     {
+        LogUpdaterEvent(appDirectory, $"update helper launch failed \"{helperPath}\"", ex);
         return false;
     }
 }
@@ -354,13 +369,33 @@ static string? GetGameExecutablePath(string appDirectory)
     foreach (var executableName in GetGameExecutableNames())
     {
         var executablePath = Path.Combine(appDirectory, executableName);
-        if (File.Exists(executablePath))
+        if (File.Exists(executablePath) && !IsUpdaterExecutable(executablePath))
         {
             return executablePath;
         }
     }
 
     return null;
+}
+
+static bool IsUpdaterExecutable(string executablePath)
+{
+    try
+    {
+        var currentProcessPath = Environment.ProcessPath;
+        if (!string.IsNullOrWhiteSpace(currentProcessPath)
+            && string.Equals(Path.GetFullPath(executablePath), Path.GetFullPath(currentProcessPath), StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var fileDescription = FileVersionInfo.GetVersionInfo(executablePath).FileDescription;
+        return fileDescription?.Contains("Updater", StringComparison.OrdinalIgnoreCase) == true;
+    }
+    catch
+    {
+        return false;
+    }
 }
 
 static string FormatDownloadStatus(long downloadedBytes, long totalBytes, TimeSpan elapsed)
@@ -552,6 +587,9 @@ static void LaunchGame(string appDirectory, string[] args)
     var gamePath = GetGameExecutablePath(appDirectory);
     if (string.IsNullOrWhiteSpace(gamePath))
     {
+        NotifyLaunchFailure(
+            appDirectory,
+            "Super Gang Garrison could not find OG2.Game.exe. Extract the full OpenGarrison zip to a folder, then start OG2.exe from that extracted folder.");
         return;
     }
 
@@ -568,7 +606,82 @@ static void LaunchGame(string appDirectory, string[] args)
         startInfo.ArgumentList.Add(argument);
     }
 
-    Process.Start(startInfo);
+    try
+    {
+        var process = Process.Start(startInfo);
+        if (process is null)
+        {
+            NotifyLaunchFailure(appDirectory, $"Super Gang Garrison could not start the game executable:\n{gamePath}");
+            return;
+        }
+
+        LogUpdaterEvent(appDirectory, $"launched game \"{gamePath}\" pid={process.Id}");
+    }
+    catch (Exception ex)
+    {
+        NotifyLaunchFailure(appDirectory, $"Super Gang Garrison could not start the game executable:\n{gamePath}", ex);
+    }
+}
+
+static void NotifyLaunchFailure(string appDirectory, string message, Exception? exception = null)
+{
+    LogUpdaterEvent(appDirectory, message, exception);
+
+    var logPath = GetUpdaterLogPath(appDirectory);
+    var details = string.IsNullOrWhiteSpace(logPath)
+        ? message
+        : $"{message}\n\nA launcher log was written to:\n{logPath}";
+
+    if (exception is not null)
+    {
+        details += $"\n\n{exception.GetType().Name}: {exception.Message}";
+    }
+
+    if (OperatingSystem.IsWindows())
+    {
+        WindowsMessageBox.Show(details, "Super Gang Garrison launch failed");
+        return;
+    }
+
+    Console.Error.WriteLine(details);
+}
+
+static void LogUpdaterEvent(string appDirectory, string message, Exception? exception = null)
+{
+    var logPath = GetUpdaterLogPath(appDirectory);
+    if (string.IsNullOrWhiteSpace(logPath))
+    {
+        return;
+    }
+
+    try
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(logPath) ?? appDirectory);
+        var text = $"{DateTimeOffset.Now:O} {message}";
+        if (exception is not null)
+        {
+            text += $"{Environment.NewLine}{exception}";
+        }
+
+        File.AppendAllText(logPath, text + Environment.NewLine);
+    }
+    catch
+    {
+        // Logging must never prevent the game from launching.
+    }
+}
+
+static string GetUpdaterLogPath(string appDirectory)
+{
+    if (!string.IsNullOrWhiteSpace(appDirectory))
+    {
+        return Path.Combine(appDirectory, "logs", "updater.log");
+    }
+
+    var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+    return string.IsNullOrWhiteSpace(localAppData)
+        ? string.Empty
+        : Path.Combine(localAppData, "OpenGarrison", "logs", "updater.log");
 }
 
 internal enum UpdateApplyResult
@@ -1128,4 +1241,22 @@ internal sealed class WindowsUpdateUi : IUpdateUi
             this.bottom = bottom;
         }
     }
+}
+
+internal static class WindowsMessageBox
+{
+    public static void Show(string text, string caption)
+    {
+        try
+        {
+            _ = MessageBox(IntPtr.Zero, text, caption, 0x00000010);
+        }
+        catch
+        {
+            // If user32 is unavailable or the process cannot show UI, the log still has the failure.
+        }
+    }
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int MessageBox(IntPtr hWnd, string lpText, string lpCaption, uint uType);
 }

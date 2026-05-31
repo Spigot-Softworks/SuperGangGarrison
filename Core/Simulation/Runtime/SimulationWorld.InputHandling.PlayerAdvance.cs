@@ -14,6 +14,7 @@ public sealed partial class SimulationWorld
         var preAdvanceX = player.X;
         var preAdvanceY = player.Y;
         var isHumiliated = IsPlayerHumiliated(player);
+        player.ObserveTauntInput(input.Taunt);
 
         if (isHumiliated)
         {

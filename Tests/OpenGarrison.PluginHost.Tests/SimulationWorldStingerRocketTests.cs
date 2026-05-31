@@ -171,6 +171,7 @@ public sealed class SimulationWorldStingerRocketTests
                 null,
                 true,
                 true,
+                false,
                 true,
             ]);
 

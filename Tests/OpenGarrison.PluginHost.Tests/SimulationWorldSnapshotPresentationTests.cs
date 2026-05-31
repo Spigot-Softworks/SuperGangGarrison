@@ -145,6 +145,25 @@ public sealed class SimulationWorldSnapshotPresentationTests
     }
 
     [Fact]
+    public void LocalGoreEffectsDisabledSuppressesPlayerGibsAndBloodDrops()
+    {
+        var world = new SimulationWorld { LocalGoreEffectsEnabled = false };
+        world.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+
+        InvokeRegisterBloodEffect(world, world.LocalPlayer.X, world.LocalPlayer.Y, directionDegrees: 0f, count: 3);
+
+        Assert.Empty(world.BloodDrops);
+        Assert.DoesNotContain(world.PendingVisualEvents, static visualEvent => visualEvent.EffectName == "Blood");
+
+        InvokeKillPlayer(world, world.LocalPlayer, gibbed: true);
+
+        Assert.Equal(1, world.LocalPlayer.GibDeaths);
+        Assert.Empty(world.PlayerGibs);
+        Assert.Empty(world.BloodDrops);
+        Assert.DoesNotContain(world.PendingVisualEvents, static visualEvent => visualEvent.EffectName == "GibBlood");
+    }
+
+    [Fact]
     public void GetNetworkPlayerDeathCamRefreshesTrackedKillerFocus()
     {
         var world = new SimulationWorld();
@@ -170,6 +189,7 @@ public sealed class SimulationWorldSnapshotPresentationTests
                 null,
                 true,
                 true,
+                false,
                 true,
             ]);
 
@@ -296,5 +316,34 @@ public sealed class SimulationWorldSnapshotPresentationTests
             ChatBubbleFrameIndex: 0,
             ChatBubbleAlpha: 0f,
             GibDeaths: gibDeaths);
+    }
+
+    private static void InvokeRegisterBloodEffect(SimulationWorld world, float x, float y, float directionDegrees, int count)
+    {
+        var method = typeof(SimulationWorld).GetMethod("RegisterBloodEffect", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        _ = method!.Invoke(world, [x, y, directionDegrees, count]);
+    }
+
+    private static void InvokeKillPlayer(SimulationWorld world, PlayerEntity player, bool gibbed)
+    {
+        var method = typeof(SimulationWorld).GetMethod("KillPlayer", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        _ = method!.Invoke(
+            world,
+            [
+                player,
+                gibbed,
+                null,
+                "ExplodeKL",
+                DeadBodyAnimationKind.Default,
+                null,
+                null,
+                null,
+                true,
+                true,
+                false,
+                true,
+            ]);
     }
 }

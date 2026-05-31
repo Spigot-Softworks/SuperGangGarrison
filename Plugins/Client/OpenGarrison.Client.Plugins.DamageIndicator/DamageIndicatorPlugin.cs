@@ -16,6 +16,9 @@ public sealed class DamageIndicatorPlugin :
     private const float RollupIdleSeconds = 2f;
     private const float WorldIndicatorRiseSpeed = 150f;
     private const float HudIndicatorRiseSpeed = 150f;
+    private const int WorldIndicatorPlacementDamagePoint = 0;
+    private const int WorldIndicatorPlacementAbovePlayer = 1;
+    private const float AbovePlayerYOffset = 34f;
     private static readonly Color OffWhite = new(217, 217, 183);
     private static readonly Color WareyaGreen = new(0, 255, 0);
     private static readonly Color LorganRed = Color.Red;
@@ -103,6 +106,13 @@ public sealed class DamageIndicatorPlugin :
 
     public void OnLocalDamage(LocalDamageEvent e)
     {
+        if (e.ReceivedByLocalPlayer
+            && e.TargetKind == DamageTargetKind.Player
+            && e.AttackerPlayerId == e.TargetEntityId)
+        {
+            return;
+        }
+
         if (!e.DealtByLocalPlayer && !e.AssistedByLocalPlayer)
         {
             return;
@@ -176,6 +186,32 @@ public sealed class DamageIndicatorPlugin :
                             _config.StereoDing = value;
                             SaveConfig();
                         }),
+                    new ClientPluginChoiceOptionItem(
+                        "World number position",
+                        () => _config.WorldIndicatorPlacement,
+                        value =>
+                        {
+                            _config.WorldIndicatorPlacement = value;
+                            SaveConfig();
+                        },
+                        [
+                            new ClientPluginChoiceOptionValue(WorldIndicatorPlacementDamagePoint, "Damage point"),
+                            new ClientPluginChoiceOptionValue(WorldIndicatorPlacementAbovePlayer, "Above player"),
+                        ]),
+                    new ClientPluginChoiceOptionItem(
+                        "Damage number scale",
+                        () => NormalizeScalePercent(_config.ScalePercent),
+                        value =>
+                        {
+                            _config.ScalePercent = NormalizeScalePercent(value);
+                            SaveConfig();
+                        },
+                        [
+                            new ClientPluginChoiceOptionValue(100, "100%"),
+                            new ClientPluginChoiceOptionValue(75, "75%"),
+                            new ClientPluginChoiceOptionValue(50, "50%"),
+                            new ClientPluginChoiceOptionValue(25, "25%"),
+                        ]),
                 ]),
         ];
     }
@@ -280,7 +316,7 @@ public sealed class DamageIndicatorPlugin :
         {
             var indicator = _worldIndicators[index];
             var position = ResolveWorldIndicatorPosition(canvas, indicator);
-            var scale = 1f + MathF.Floor(indicator.Amount / 100f);
+            var scale = (1f + MathF.Floor(indicator.Amount / 100f)) * GetConfiguredScaleMultiplier();
             DrawDamageText(
                 canvas,
                 $"-{indicator.Amount}",
@@ -299,6 +335,7 @@ public sealed class DamageIndicatorPlugin :
         {
             var indicator = _hudIndicators[index];
             var (position, scale, bottomAligned) = GetHudAnchor(canvas, indicator.YOffset);
+            scale *= GetConfiguredScaleMultiplier();
             DrawDamageText(
                 canvas,
                 $"-{indicator.Amount}",
@@ -319,22 +356,41 @@ public sealed class DamageIndicatorPlugin :
         }
 
         var (position, scale, bottomAligned) = GetHudAnchor(canvas, 0f);
+        scale *= GetConfiguredScaleMultiplier();
         DrawDamageText(canvas, $"-{_rollingDamage}", position, scale, 1f, _rollingDamageFlags, centered: false, bottomAligned: bottomAligned);
     }
 
     private Vector2 ResolveWorldIndicatorPosition(IOpenGarrisonClientHudCanvas canvas, WorldDamageIndicator indicator)
     {
         var worldPosition = indicator.WorldPosition;
-        if (indicator.TargetKind == DamageTargetKind.Player
+        if (_config.WorldIndicatorPlacement == WorldIndicatorPlacementAbovePlayer
+            && indicator.TargetKind == DamageTargetKind.Player
             && _context is not null
             && _context.ClientState.IsPlayerVisibleToLocalViewer(indicator.TargetEntityId)
             && !_context.ClientState.IsPlayerCloaked(indicator.TargetEntityId)
             && _context.ClientState.TryGetPlayerWorldPosition(indicator.TargetEntityId, out var playerPosition))
         {
-            worldPosition = playerPosition;
+            worldPosition = playerPosition + new Vector2(0f, -AbovePlayerYOffset);
         }
 
         return canvas.WorldToScreen(worldPosition);
+    }
+
+    private float GetConfiguredScaleMultiplier()
+    {
+        return NormalizeScalePercent(_config.ScalePercent) / 100f;
+    }
+
+    private static int NormalizeScalePercent(int scalePercent)
+    {
+        return scalePercent switch
+        {
+            25 or 50 or 75 or 100 => scalePercent,
+            <= 25 => 25,
+            <= 50 => 50,
+            <= 75 => 75,
+            _ => 100,
+        };
     }
 
     private (Vector2 Position, float Scale, bool BottomAligned) GetHudAnchor(IOpenGarrisonClientHudCanvas canvas, float yOffset)

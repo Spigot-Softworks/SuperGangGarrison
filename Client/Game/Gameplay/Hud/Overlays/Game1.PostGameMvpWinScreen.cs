@@ -24,6 +24,7 @@ public partial class Game1
     private const float PostGameMvpWinnerNameHintGap = 8f;
     private const float PostGameMvpWinnerOpaqueTopFallbackPixels = 8f;
     private const float PostGameMvpSideAnchorStartRatio = 0.7f;
+    private const float PostGameMvpArtScaleFactor = 0.63f;
 
     private readonly record struct PostGameMvpEntry(PlayerEntity Player, int Score);
     private readonly record struct PostGameMvpLayout(Vector2 BoardCenter, Vector2 ArtScale);
@@ -165,7 +166,7 @@ public partial class Game1
         }
 
         boardCenterY = MathF.Max(220f, boardCenterY);
-        var artScale = Math.Clamp(ViewportHeight / 72f, 6.5625f, 8.75f);
+        var artScale = Math.Clamp((ViewportHeight / 72f) * PostGameMvpArtScaleFactor, 6.5625f * PostGameMvpArtScaleFactor, 8.75f * PostGameMvpArtScaleFactor);
         return new PostGameMvpLayout(
             new Vector2(ViewportWidth / 2f, boardCenterY),
             new Vector2(artScale, artScale));

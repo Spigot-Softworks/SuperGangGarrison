@@ -17,6 +17,10 @@ internal sealed class DamageIndicatorConfig
 
     public bool StereoDing { get; set; }
 
+    public int WorldIndicatorPlacement { get; set; }
+
+    public int ScalePercent { get; set; } = 100;
+
     public static DamageIndicatorConfig Load(string path)
     {
         try

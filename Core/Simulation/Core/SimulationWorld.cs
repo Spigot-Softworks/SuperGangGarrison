@@ -187,6 +187,8 @@ public sealed partial class SimulationWorld
     /// </summary>
     public bool ClientPredictionMode { get; set; }
 
+    public bool LocalGoreEffectsEnabled { get; set; } = true;
+
     public int GetDeterministicSpreadShotIndex(int attackerId)
     {
         var index = _deterministicSpreadShotIndexByPlayerId.TryGetValue(attackerId, out var currentIndex)

@@ -255,6 +255,7 @@ public partial class Game1
             var dealtByLocalPlayer = damageEvent.AttackerPlayerId == localPlayerId;
             var assistedByLocalPlayer = damageEvent.AssistedByPlayerId == localPlayerId;
             var receivedByLocalPlayer = damageEvent.TargetKind == CoreDamageTargetKind.Player && damageEvent.TargetEntityId == localPlayerId;
+            var isSelfDamage = dealtByLocalPlayer && receivedByLocalPlayer;
             if (!dealtByLocalPlayer && !assistedByLocalPlayer && !receivedByLocalPlayer)
             {
                 return;
@@ -266,14 +267,14 @@ public partial class Game1
                 damageEvent.TargetEntityId,
                 new Vector2(damageEvent.X, damageEvent.Y),
                 damageEvent.WasFatal,
-                dealtByLocalPlayer,
+                dealtByLocalPlayer && !isSelfDamage,
                 assistedByLocalPlayer,
                 receivedByLocalPlayer,
                 damageEvent.AttackerPlayerId,
                 damageEvent.AssistedByPlayerId,
                 (LocalDamageFlags)damageEvent.Flags);
             _game._clientPluginHost?.NotifyLocalDamage(pluginEvent);
-            if (dealtByLocalPlayer || assistedByLocalPlayer)
+            if ((dealtByLocalPlayer && !isSelfDamage) || assistedByLocalPlayer)
             {
                 _game._clientPluginHost?.NotifyHitConfirmed(new ClientHitConfirmedEvent(
                     pluginEvent.Amount,
@@ -293,6 +294,7 @@ public partial class Game1
             var dealtByLocalPlayer = damageEvent.AttackerPlayerId == localPlayerId;
             var assistedByLocalPlayer = damageEvent.AssistedByPlayerId == localPlayerId;
             var receivedByLocalPlayer = damageEvent.TargetKind == (byte)ClientPluginDamageTargetKind.Player && damageEvent.TargetEntityId == localPlayerId;
+            var isSelfDamage = dealtByLocalPlayer && receivedByLocalPlayer;
             if (!dealtByLocalPlayer && !assistedByLocalPlayer && !receivedByLocalPlayer)
             {
                 return;
@@ -304,14 +306,14 @@ public partial class Game1
                 damageEvent.TargetEntityId,
                 new Vector2(damageEvent.X, damageEvent.Y),
                 damageEvent.WasFatal,
-                dealtByLocalPlayer,
+                dealtByLocalPlayer && !isSelfDamage,
                 assistedByLocalPlayer,
                 receivedByLocalPlayer,
                 damageEvent.AttackerPlayerId,
                 damageEvent.AssistedByPlayerId,
                 LocalDamageFlags.None);
             _game._clientPluginHost?.NotifyLocalDamage(pluginEvent);
-            if (dealtByLocalPlayer || assistedByLocalPlayer)
+            if ((dealtByLocalPlayer && !isSelfDamage) || assistedByLocalPlayer)
             {
                 _game._clientPluginHost?.NotifyHitConfirmed(new ClientHitConfirmedEvent(
                     pluginEvent.Amount,

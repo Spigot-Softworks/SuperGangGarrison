@@ -207,7 +207,10 @@ public partial class Game1
                 ratio = Math.Clamp(player.Metal / Math.Max(1f, player.MaxMetal), 0f, 1f);
                 return true;
             case PlayerClass.Heavy:
-                ratio = 1f - Math.Clamp(player.HeavyEatCooldownTicksRemaining / (float)Math.Max(1, PlayerEntity.HeavySandvichCooldownTicks), 0f, 1f);
+                var heavyCooldownDuration = player.HeavyEatCooldownTicksRemaining > 0
+                    ? player.HeavyEatCooldownDurationTicks
+                    : PlayerEntity.HeavySandvichCooldownTicks;
+                ratio = 1f - Math.Clamp(player.HeavyEatCooldownTicksRemaining / (float)Math.Max(1, heavyCooldownDuration), 0f, 1f);
                 return true;
             default:
                 ratio = 0f;

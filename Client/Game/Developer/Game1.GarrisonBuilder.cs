@@ -180,7 +180,7 @@ public partial class Game1
             {
                 DisableGarrisonBuilderEditor("builder disabled");
             }
-            else
+            else if (CanOpenGarrisonBuilderFromShortcut())
             {
                 EnableGarrisonBuilderEditor();
             }
@@ -3064,6 +3064,11 @@ public partial class Game1
         _builderEditorEnabled = false;
         _builderStatus = reason;
         InvalidateDiscordRichPresenceRefresh();
+    }
+
+    private bool CanOpenGarrisonBuilderFromShortcut()
+    {
+        return _mainMenuOpen;
     }
 
     private void LoadGarrisonBuilderEditorAssets()

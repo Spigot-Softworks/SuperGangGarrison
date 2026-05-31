@@ -138,7 +138,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     }
 
     [Fact]
-    public void TrySetLocalClassDoesNotSpawnRemainsForClassChange()
+    public void TrySetLocalClassSpawnsCorpseForClassChange()
     {
         var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
         world.ForceRespawnLocalPlayer();
@@ -148,9 +148,10 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
 
         Assert.True(changed);
         Assert.False(world.LocalPlayer.IsAlive);
-        Assert.Empty(world.DeadBodies);
+        Assert.Single(world.DeadBodies);
         Assert.Empty(world.PlayerGibs);
-        Assert.DoesNotContain(world.PendingSoundEvents, soundEvent => soundEvent.SoundName == "Gibbing" || soundEvent.SoundName == "DeathSnd");
+        Assert.DoesNotContain(world.PendingSoundEvents, soundEvent => soundEvent.SoundName == "Gibbing");
+        Assert.Contains(world.PendingSoundEvents, soundEvent => soundEvent.SoundName is "DeathSnd1" or "DeathSnd2");
     }
 
     [Fact]
@@ -217,7 +218,8 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     private static SimulationWorld CreateWorldWithLocalClass(PlayerClass playerClass)
     {
         var world = new SimulationWorld();
-        Assert.True(world.TrySetLocalClass(playerClass));
+        world.PrepareLocalPlayerJoin();
+        world.CompleteLocalPlayerJoin(playerClass);
         Assert.Equal(playerClass, world.LocalPlayer.ClassId);
         return world;
     }

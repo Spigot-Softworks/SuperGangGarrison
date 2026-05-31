@@ -415,8 +415,11 @@ public sealed partial class SimulationWorld
             }
 
             var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
-            var spawnX = weaponOrigin.BaseX + MathF.Cos(directionRadians) * 10f;
-            var spawnY = weaponOrigin.BaseY + MathF.Sin(directionRadians) * 10f;
+            var nominalSpawnX = weaponOrigin.BaseX + MathF.Cos(directionRadians) * 10f;
+            var nominalSpawnY = weaponOrigin.BaseY + MathF.Sin(directionRadians) * 10f;
+            var spawnBlocked = _world.IsProjectileSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, nominalSpawnX, nominalSpawnY);
+            var spawnX = spawnBlocked ? weaponOrigin.BaseX : nominalSpawnX;
+            var spawnY = spawnBlocked ? weaponOrigin.BaseY : nominalSpawnY;
             var projectileCount = GetExperimentalProjectilesPerShot(attacker, 1);
             for (var projectileIndex = 0; projectileIndex < projectileCount; projectileIndex += 1)
             {

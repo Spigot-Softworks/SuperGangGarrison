@@ -184,9 +184,7 @@ public sealed partial class PlayerEntity
         KritzCritBoostTicksRemaining = isKritzCritBoosted ? DefaultUberRefreshTicks : 0;
         IsHeavyEating = isHeavyEating;
         HeavyEatTicksRemaining = Math.Max(0, heavyEatTicksRemaining);
-        HeavyEatCooldownTicksRemaining = ClassId == PlayerClass.Heavy
-            ? Math.Max(0, heavyEatCooldownTicksRemaining)
-            : 0;
+        ApplyObservedHeavyEatCooldown(heavyEatCooldownTicksRemaining);
         IsSniperScoped = isSniperScoped;
         SniperChargeTicks = Math.Max(0, sniperChargeTicks);
         IsUsingBinoculars = isUsingBinoculars;

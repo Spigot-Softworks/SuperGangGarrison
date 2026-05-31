@@ -779,7 +779,7 @@ foreach ($runtimeIdentifier in $Platforms) {
             "-r", $runtimeIdentifier
         )
 
-        Invoke-DotNet -Arguments @(
+        $publishArguments = @(
             "publish",
             $projectPath,
             "-c", $configuration,
@@ -796,6 +796,8 @@ foreach ($runtimeIdentifier in $Platforms) {
             "-p:IncludeSourceRevisionInInformationalVersion=false",
             "-o", $stagingDirectory
         )
+
+        Invoke-DotNet -Arguments $publishArguments
     }
 
     Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "Core/Content") -DestinationDirectory (Join-Path $stagingDirectory "Content")

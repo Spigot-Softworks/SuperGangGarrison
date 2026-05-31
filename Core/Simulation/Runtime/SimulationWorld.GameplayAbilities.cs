@@ -572,6 +572,7 @@ public sealed partial class SimulationWorld
         }
 
         AwardMedicUberActivationPoints(context.Player);
+        RegisterWorldSoundEvent("UberStartSnd", context.Player.X, context.Player.Y);
         return GameplayAbilityResult.HandledAndConsumed;
     }
 

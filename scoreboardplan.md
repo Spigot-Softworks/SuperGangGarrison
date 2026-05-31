@@ -29,4 +29,4 @@
 - Name labels are positioned from the visible top of the portrait art; the winner label is also constrained below the `Press SHIFT to hide` hint.
 - Side portraits align their lower visible silhouette edge to the outer MVP board edge, so transparent padding and flipped third-place art do not skew placement.
 - The top hint reads `Press SHIFT to hide`, uses the same font, and has a drop shadow.
-- MVP art target scale is 25% larger than the original implementation.
+- MVP art target scale is reduced to 63% of the previous oversized pass.

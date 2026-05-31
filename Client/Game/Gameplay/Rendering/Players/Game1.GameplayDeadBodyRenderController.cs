@@ -29,36 +29,39 @@ internal static class ImmediateNetworkDeathPresentationPlanner
     {
         if (!damageEvent.WasFatal
             || damageEvent.TargetKind != (byte)OpenGarrison.Core.DamageTargetKind.Player
-            || targetPlayer is null
-            || targetPlayer.IsAlive
-            || HasAuthoritativeDeadBodyForPlayer(resolvedSnapshot, damageEvent.TargetEntityId))
+            || !TryGetAuthoritativeDeadBodyForPlayer(resolvedSnapshot, damageEvent.TargetEntityId, out var authoritativeDeadBody))
         {
             return null;
         }
 
         return new ImmediateNetworkDeadBodyPresentationState(
             damageEvent.TargetEntityId,
-            targetPlayer.ClassId,
-            targetPlayer.Team,
-            DeadBodyAnimationKind.Default,
-            targetPlayer.X,
-            targetPlayer.Y,
-            targetPlayer.Width,
-            targetPlayer.Height,
-            targetPlayer.FacingDirectionX < 0f,
+            (PlayerClass)authoritativeDeadBody.ClassId,
+            (PlayerTeam)authoritativeDeadBody.Team,
+            (DeadBodyAnimationKind)authoritativeDeadBody.AnimationKind,
+            authoritativeDeadBody.X,
+            authoritativeDeadBody.Y,
+            authoritativeDeadBody.Width,
+            authoritativeDeadBody.Height,
+            authoritativeDeadBody.FacingLeft,
             lifetimeTicks);
     }
 
-    internal static bool HasAuthoritativeDeadBodyForPlayer(SnapshotMessage resolvedSnapshot, int sourcePlayerId)
+    internal static bool TryGetAuthoritativeDeadBodyForPlayer(
+        SnapshotMessage resolvedSnapshot,
+        int sourcePlayerId,
+        out SnapshotDeadBodyState deadBody)
     {
         for (var index = 0; index < resolvedSnapshot.DeadBodies.Count; index += 1)
         {
             if (resolvedSnapshot.DeadBodies[index].SourcePlayerId == sourcePlayerId)
             {
+                deadBody = resolvedSnapshot.DeadBodies[index];
                 return true;
             }
         }
 
+        deadBody = default!;
         return false;
     }
 }
@@ -271,9 +274,15 @@ public partial class Game1
                     continue;
                 }
 
-                return !snapshotPlayer.IsAlive
+                if (!snapshotPlayer.IsAlive
                     && snapshotPlayer.GibDeaths > targetPlayer.GibDeaths
-                    && _game._world.TryPresentNetworkGibDeath(damageEvent.TargetEntityId, snapshotPlayer.GibDeaths);
+                    && _game._world.TryPresentNetworkGibDeath(damageEvent.TargetEntityId, snapshotPlayer.GibDeaths))
+                {
+                    _game.PlayPredictedGibSound(damageEvent.X, damageEvent.Y);
+                    return true;
+                }
+
+                return false;
             }
 
             return false;

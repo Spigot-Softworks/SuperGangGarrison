@@ -39,6 +39,7 @@ public sealed partial class SimulationWorld
 
         public void AdvancePostPlayerMatchPhase()
         {
+            _world.EmitPendingMedicUberReadyPresentation();
             _world.AdvanceExperimentalRageState();
             _objectiveFlowController.AdvanceObjectives();
             _objectiveFlowController.AdvanceResolution();
