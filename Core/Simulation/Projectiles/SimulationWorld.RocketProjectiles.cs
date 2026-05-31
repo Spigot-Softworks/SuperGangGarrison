@@ -124,6 +124,33 @@ public sealed partial class SimulationWorld
 
                 world._pendingNewRocketIds.RemoveAt(pendingIndex);
                 AdvanceRocket(world, rocketIndex, deltaSeconds);
+
+                // Update the pending spawn event to the post-advance position so that clients
+                // reconstructing the rocket from the spawn event (e.g. when the main Rockets
+                // list is budget-dropped) start it at the in-flight position rather than the
+                // raw spawn origin, preventing a one-frame flash at the spawn point.
+                var advancedRocketIndex = FindRocketIndex(world, rocketId);
+                if (advancedRocketIndex >= 0)
+                {
+                    var advancedRocket = world._rockets[advancedRocketIndex];
+                    for (var spawnEventIndex = world._pendingRocketSpawnEvents.Count - 1; spawnEventIndex >= 0; spawnEventIndex -= 1)
+                    {
+                        if (world._pendingRocketSpawnEvents[spawnEventIndex].Id != rocketId)
+                        {
+                            continue;
+                        }
+
+                        var spawnEvent = world._pendingRocketSpawnEvents[spawnEventIndex];
+                        world._pendingRocketSpawnEvents[spawnEventIndex] = spawnEvent with
+                        {
+                            X = advancedRocket.X,
+                            Y = advancedRocket.Y,
+                            PreviousX = advancedRocket.PreviousX,
+                            PreviousY = advancedRocket.PreviousY,
+                        };
+                        break;
+                    }
+                }
             }
         }
 

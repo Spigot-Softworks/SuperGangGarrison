@@ -48,6 +48,18 @@ public sealed partial class SimulationWorld
 
         ApplySnapshotNetworkPlayerReady(snapshotPlayer.Slot, snapshotPlayer.IsReady);
         player.SetDisplayName(snapshotPlayer.Name);
+
+        // The snapshot baseline freezes TauntFrameIndex at the value it had when the taunt
+        // started (always 0) and never advances it, because SnapshotDelta.MergePlayers
+        // preserves the baseline value for ongoing taunts. Applying that frozen value every
+        // tick would reset the animation back to frame 0 each snapshot, causing the "stuck on
+        // one frame" behaviour. Instead, preserve the locally-advancing frame when both the
+        // entity and the snapshot agree the player is still taunting. A fresh taunt start
+        // (entity was not taunting, snapshot says taunting) still initialises from the snapshot.
+        var tauntFrameIndex = player.IsTaunting && snapshotPlayer.IsTaunting
+            ? player.TauntFrameIndex
+            : snapshotPlayer.TauntFrameIndex;
+
         player.ApplyNetworkState(
             (PlayerTeam)snapshotPlayer.Team,
             classDefinition,
@@ -91,7 +103,7 @@ public sealed partial class SimulationWorld
             snapshotPlayer.AimWorldX,
             snapshotPlayer.AimWorldY,
             snapshotPlayer.IsTaunting,
-            snapshotPlayer.TauntFrameIndex,
+            tauntFrameIndex,
             snapshotPlayer.IsChatBubbleVisible,
             snapshotPlayer.ChatBubbleFrameIndex,
             snapshotPlayer.ChatBubbleAlpha,
@@ -197,7 +209,9 @@ public sealed partial class SimulationWorld
                 entity.ApplyNetworkState(state.X, state.Y, state.VelocityX, state.VelocityY, state.TicksRemaining);
                 if (state.IsCritical && !entity.IsCritical)
                     entity.SetCritical();
-            });
+            },
+            entity => TryRegisterServerTerminatedProjectilePlayerHitEffect(
+                entity.X, entity.Y, entity.PreviousX, entity.PreviousY, entity.Team, entity.OwnerId));
         ApplySnapshotShots(
             snapshot.Bubbles,
             _bubbles,
@@ -223,7 +237,9 @@ public sealed partial class SimulationWorld
                 entity.ApplyNetworkState(state.X, state.Y, state.VelocityX, state.VelocityY, state.TicksRemaining, hitDamage: 0);
                 if (state.IsCritical && !entity.IsCritical)
                     entity.SetCritical();
-            });
+            },
+            entity => TryRegisterServerTerminatedProjectilePlayerHitEffect(
+                entity.X, entity.Y, entity.PreviousX, entity.PreviousY, entity.Team, entity.OwnerId, bloodCount: 6));
         ApplySnapshotShots(
             snapshot.Needles,
             _needles,
@@ -240,7 +256,9 @@ public sealed partial class SimulationWorld
                 entity.ApplyNetworkState(state.X, state.Y, state.VelocityX, state.VelocityY, state.TicksRemaining);
                 if (state.IsCritical && !entity.IsCritical)
                     entity.SetCritical();
-            });
+            },
+            entity => TryRegisterServerTerminatedProjectilePlayerHitEffect(
+                entity.X, entity.Y, entity.PreviousX, entity.PreviousY, entity.Team, entity.OwnerId));
         ApplySnapshotShots(
             snapshot.RevolverShots,
             _revolverShots,
@@ -257,7 +275,9 @@ public sealed partial class SimulationWorld
                 entity.ApplyNetworkState(state.X, state.Y, state.VelocityX, state.VelocityY, state.TicksRemaining);
                 if (state.IsCritical && !entity.IsCritical)
                     entity.SetCritical();
-            });
+            },
+            entity => TryRegisterServerTerminatedProjectilePlayerHitEffect(
+                entity.X, entity.Y, entity.PreviousX, entity.PreviousY, entity.Team, entity.OwnerId));
         ApplySnapshotRockets(snapshot.Rockets);
         ApplySnapshotRocketSpawnEvents(snapshot.RocketSpawnEvents);
         ApplySnapshotFlames(snapshot.Flames);
@@ -372,11 +392,45 @@ public sealed partial class SimulationWorld
         List<T> target,
         Func<T, SnapshotShotState, bool> canReuse,
         Func<SnapshotShotState, T> factory,
-        Action<T, SnapshotShotState> applyState)
+        Action<T, SnapshotShotState> applyState,
+        Action<T>? onServerTerminated = null)
         where T : SimulationEntity
     {
+        var filteredShots = FilterTerminatedProjectiles(shots, static state => state.Id);
+
+        // When connected as a multiplayer client, fire hit feedback for client-predicted
+        // projectiles that the server removed before the local simulation detected the hit.
+        // This happens when the server's authoritative enemy positions are ahead of the
+        // client's local estimates, causing a hit on the server a tick or two before the
+        // client's simulation would detect it. Without this, blood effects and plugin-based
+        // damage sounds are silently dropped even though damage was dealt.
+        if (onServerTerminated is not null)
+        {
+            for (var i = 0; i < target.Count; i++)
+            {
+                var entity = target[i];
+                if (!_clientPredictedProjectileIds.Contains(entity.Id))
+                    continue;
+
+                var foundInFilteredShots = false;
+                for (var j = 0; j < filteredShots.Count; j++)
+                {
+                    if (filteredShots[j].Id == entity.Id)
+                    {
+                        foundInFilteredShots = true;
+                        break;
+                    }
+                }
+
+                if (!foundInFilteredShots)
+                {
+                    onServerTerminated(entity);
+                }
+            }
+        }
+
         SyncSnapshotEntities(
-            shots,
+            filteredShots,
             target,
             static state => state.Id,
             canReuse,
@@ -397,10 +451,113 @@ public sealed partial class SimulationWorld
             });
     }
 
+    /// <summary>
+    /// When a client-predicted projectile is removed by the server snapshot before the local
+    /// simulation detected the hit, fire a blood effect at the nearest enemy player along the
+    /// projectile's backward trajectory. This recovers visual feedback (blood, plugin damage
+    /// sounds) that would otherwise be silently dropped due to latency-induced position
+    /// divergence between server and client.
+    /// </summary>
+    private void TryRegisterServerTerminatedProjectilePlayerHitEffect(
+        float shotX, float shotY, float prevShotX, float prevShotY,
+        PlayerTeam team, int ownerId, int bloodCount = 1)
+    {
+        var dirX = shotX - prevShotX;
+        var dirY = shotY - prevShotY;
+        var dist = MathF.Sqrt(dirX * dirX + dirY * dirY);
+        if (dist < 0.0001f)
+            return;
+
+        dirX /= dist;
+        dirY /= dist;
+
+        // Cast a segment extending backward from the shot's current position to find a player
+        // the shot may have already passed through due to server/client position divergence.
+        // Also extends slightly forward in case the server was one tick ahead.
+        const float BackwardReach = 300f;
+        const float ForwardReach = 50f;
+        const float HitRadius = 25f;
+
+        var rayOriginX = shotX - dirX * BackwardReach;
+        var rayOriginY = shotY - dirY * BackwardReach;
+        var totalRayLength = BackwardReach + ForwardReach;
+
+        PlayerEntity? nearestPlayer = null;
+        var nearestProjection = float.PositiveInfinity;
+
+        foreach (var player in EnumerateSimulatedPlayers())
+        {
+            if (!player.IsAlive || !CanTeamDamagePlayer(team, ownerId, player) || player.Id == ownerId)
+                continue;
+
+            var dx = player.X - rayOriginX;
+            var dy = player.Y - rayOriginY;
+            var projection = (dx * dirX) + (dy * dirY);
+            if (projection < 0f || projection > totalRayLength)
+                continue;
+
+            var perpDistSq = (dx * dx + dy * dy) - (projection * projection);
+            if (perpDistSq > HitRadius * HitRadius)
+                continue;
+
+            if (projection < nearestProjection)
+            {
+                nearestProjection = projection;
+                nearestPlayer = player;
+            }
+        }
+
+        if (nearestPlayer is not null)
+        {
+            RegisterBloodEffect(
+                nearestPlayer.X, nearestPlayer.Y,
+                MathF.Atan2(dirY, dirX) * (180f / MathF.PI) - 180f,
+                bloodCount);
+        }
+    }
+
+    /// <summary>
+    /// Returns the input list with any entries whose ID is already in
+    /// <see cref="_terminatedProjectileIds"/> removed. Baseline-preserved states for
+    /// locally-terminated projectiles must not ghost-respawn them while the server's
+    /// EntityRemoval contribution is still in transit.
+    /// Allocates a new list only when at least one entry is filtered; otherwise returns
+    /// the original reference (zero allocation on the common path).
+    /// </summary>
+    private IReadOnlyList<TState> FilterTerminatedProjectiles<TState>(
+        IReadOnlyList<TState> states,
+        Func<TState, int> idSelector)
+    {
+        if (_terminatedProjectileIds.Count == 0)
+        {
+            return states;
+        }
+
+        List<TState>? filtered = null;
+        for (var i = 0; i < states.Count; i++)
+        {
+            if (_terminatedProjectileIds.Contains(idSelector(states[i])))
+            {
+                if (filtered is null)
+                {
+                    filtered = new List<TState>(states.Count - 1);
+                    for (var j = 0; j < i; j++)
+                        filtered.Add(states[j]);
+                }
+            }
+            else
+            {
+                filtered?.Add(states[i]);
+            }
+        }
+
+        return filtered ?? states;
+    }
+
     private void ApplySnapshotRockets(IReadOnlyList<SnapshotRocketState> rockets)
     {
         SyncSnapshotEntities(
-            rockets,
+            FilterTerminatedProjectiles(rockets, static state => state.Id),
             _rockets,
             static state => state.Id,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
@@ -556,7 +713,7 @@ public sealed partial class SimulationWorld
     private void ApplySnapshotFlames(IReadOnlyList<SnapshotFlameState> flames)
     {
         SyncSnapshotEntities(
-            flames,
+            FilterTerminatedProjectiles(flames, static state => state.Id),
             _flames,
             static state => state.Id,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
@@ -656,7 +813,7 @@ public sealed partial class SimulationWorld
     private void ApplySnapshotMines(IReadOnlyList<SnapshotMineState> mines)
     {
         SyncSnapshotEntities(
-            mines,
+            FilterTerminatedProjectiles(mines, static state => state.Id),
             _mines,
             static state => state.Id,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
@@ -707,7 +864,7 @@ public sealed partial class SimulationWorld
     private void ApplySnapshotGrenades(IReadOnlyList<SnapshotGrenadeState> grenades)
     {
         SyncSnapshotEntities(
-            grenades,
+            FilterTerminatedProjectiles(grenades, static state => state.Id),
             _grenades,
             static state => state.Id,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,

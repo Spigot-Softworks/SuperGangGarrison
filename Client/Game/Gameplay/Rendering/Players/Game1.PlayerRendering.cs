@@ -426,6 +426,11 @@ public partial class Game1
 
     private bool IsKritzUberWeaponOnlyVisual(PlayerEntity player)
     {
+        if (player.IsKritzCritBoosted)
+        {
+            return true;
+        }
+
         if (player.ClassId == PlayerClass.Medic
             && player.IsMedicUbering
             && player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit))
