@@ -23,6 +23,7 @@ public sealed partial class SimulationWorld
     private const string ClassChangeKillFeedSuffix = " bid farewell, cruel world!";
     private const int CombatTraceLifetimeTicks = 3;
     private const int KillFeedLifetimeTicks = 150;
+    private const int KillFeedLocalInvolvedLifetimeTicks = 300;
     private const int DefaultGibLevel = 3;
     private readonly Dictionary<int, SimulationEntity> _entities = new();
     private readonly List<CombatTrace> _combatTraces = new();
@@ -122,7 +123,7 @@ public sealed partial class SimulationWorld
     private int _nextBlueSpawnIndex;
     private int _enemyStrafeDirection = -1;
     private int _enemyStrafeTicksRemaining;
-    private int _killFeedTrimTicks;
+    private readonly List<int> _killFeedEntryLifetimes = new();
     private ulong _nextKillFeedEventId = 1;
     private long _lastKillFeedRecordedFrame = -1;
     private int _pendingMapChangeTicks = -1;

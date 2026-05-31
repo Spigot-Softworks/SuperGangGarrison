@@ -697,6 +697,7 @@ public static partial class ProtocolCodec
             writer.Write(QuantizeScaledUInt16(state.Metal, QuantizedMetalScale));
             writer.Write(GetStatusFlags(state.IsCarryingIntel));
             writer.Write(QuantizeScaledUInt16(state.IntelRechargeTicks, QuantizedIntelRechargeScale));
+            WriteReplicatedStateEntries(writer, state.SecondaryAmmoStates);
         }
     }
 
@@ -714,7 +715,8 @@ public static partial class ProtocolCodec
                 reader.ReadInt16(),
                 ReadScaledUInt16(reader, QuantizedMetalScale),
                 IsCarryingIntelFromFlags(reader.ReadByte()),
-                ReadScaledUInt16(reader, QuantizedIntelRechargeScale)));
+                ReadScaledUInt16(reader, QuantizedIntelRechargeScale),
+                ReadReplicatedStateEntries(reader)));
         }
 
         return states;

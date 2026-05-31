@@ -163,7 +163,7 @@ public sealed partial class SimulationWorld
         TrySetNetworkPlayerRespawnTicks(LocalPlayerSlot, 0);
         _enemyDummyRespawnTicks = 0;
         LocalDeathCam = null;
-        _killFeedTrimTicks = 0;
+        _killFeedEntryLifetimes.Clear();
         _combatTraces.Clear();
         _killFeed.Clear();
         _pendingSoundEvents.Clear();

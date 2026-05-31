@@ -666,9 +666,9 @@ public partial class Game1
                 continue;
             }
 
-            // ExperimentalGhostDashEnablesTrail is only set for the local player via prediction;
-            // for remote players it is always false, so only enforce it for the local player.
-            var trailEnabled = !IsUsingPredictedLocalState(player) || player.ExperimentalGhostDashEnablesTrail;
+            // ExperimentalGhostDashEnablesTrail is a local visual flag set during ability execution.
+            // Use the predicted state getter so it works correctly for the local player online.
+            var trailEnabled = GetPlayerExperimentalGhostDashEnablesTrail(player);
             if (!GetPlayerIsExperimentalGhostDashing(player) || !trailEnabled)
             {
                 _heavyDashTrailTickCounters.Remove(player.Id);
