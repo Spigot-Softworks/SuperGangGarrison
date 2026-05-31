@@ -41,6 +41,7 @@ public sealed partial class PlayerEntity
         bool IsHeavyEating,
         int HeavyEatTicksRemaining,
         int HeavyEatCooldownTicksRemaining,
+        int HeavyEatCooldownDurationTicks,
         float HeavyHealingAccumulator,
         bool IsTaunting,
         float TauntFrameIndex,
@@ -146,6 +147,7 @@ public sealed partial class PlayerEntity
             IsHeavyEating,
             HeavyEatTicksRemaining,
             HeavyEatCooldownTicksRemaining,
+            HeavyEatCooldownDurationTicks,
             HeavyHealingAccumulator,
             IsTaunting,
             TauntFrameIndex,
@@ -254,6 +256,9 @@ public sealed partial class PlayerEntity
         IsHeavyEating = state.IsHeavyEating;
         HeavyEatTicksRemaining = state.HeavyEatTicksRemaining;
         HeavyEatCooldownTicksRemaining = state.HeavyEatCooldownTicksRemaining;
+        HeavyEatCooldownDurationTicks = HeavyEatCooldownTicksRemaining > 0
+            ? Math.Max(1, state.HeavyEatCooldownDurationTicks)
+            : HeavySandvichCooldownTicks;
         HeavyHealingAccumulator = state.HeavyHealingAccumulator;
         IsTaunting = state.IsTaunting;
         TauntFrameIndex = state.TauntFrameIndex;

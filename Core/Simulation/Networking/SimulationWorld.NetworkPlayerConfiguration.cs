@@ -432,7 +432,8 @@ public sealed partial class SimulationWorld
                 weaponSpriteName: "DeadKL",
                 killFeedMessage: player.IsInSpawnRoom ? null : player.DisplayName + ClassChangeKillFeedSuffix,
                 createDeathCam: false,
-                spawnRemains: false,
+                spawnRemains: true,
+                forceCorpseRemains: true,
                 recordKillFeed: !player.IsInSpawnRoom);
         }
 

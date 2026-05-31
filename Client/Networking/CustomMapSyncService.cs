@@ -9,6 +9,7 @@ namespace OpenGarrison.Client;
 
 internal static class CustomMapSyncService
 {
+    private static readonly char[] SchemePrefixSeparators = ['/', '?', '#'];
     private static readonly HttpClient HttpClient = new()
     {
         Timeout = TimeSpan.FromSeconds(30),
@@ -74,21 +75,34 @@ internal static class CustomMapSyncService
         }
 
         var expectedHash = CustomMapHashService.ParseHash(mapContentHash);
-        var downloadUrl = ResolveDownloadUrl(normalizedLevelName, mapDownloadUrl, serverDownloadBaseUri);
+        var downloadUrl = ResolveDownloadUrl(normalizedLevelName, mapDownloadUrl, serverDownloadBaseUri, out var downloadUrlError);
         var mapPath = CustomMapLocatorStore.GetMapPath(normalizedLevelName);
         var hasExpectedHash = expectedHash.HasValue;
         if (File.Exists(mapPath)
             && (!hasExpectedHash || CustomMapHashService.FileMatchesHash(mapPath, expectedHash)))
         {
-            CacheLocator(normalizedLevelName, downloadUrl, expectedHash);
+            if (string.IsNullOrWhiteSpace(downloadUrlError))
+            {
+                CacheLocator(normalizedLevelName, downloadUrl, expectedHash);
+            }
+
             return CustomMapSyncResult.Ok;
         }
 
         if (CustomMapLocatorStore.TryGetPackageManifestPath(normalizedLevelName, out var packageManifestPath)
             && (!hasExpectedHash || CustomMapHashService.PackageMatchesHash(packageManifestPath, expectedHash)))
         {
-            CacheLocator(normalizedLevelName, downloadUrl, expectedHash);
+            if (string.IsNullOrWhiteSpace(downloadUrlError))
+            {
+                CacheLocator(normalizedLevelName, downloadUrl, expectedHash);
+            }
+
             return CustomMapSyncResult.Ok;
+        }
+
+        if (!string.IsNullOrWhiteSpace(downloadUrlError))
+        {
+            return CustomMapSyncResult.Fail(downloadUrlError);
         }
 
         if (string.IsNullOrWhiteSpace(downloadUrl))
@@ -167,21 +181,35 @@ internal static class CustomMapSyncService
         }
 
         var expectedHash = CustomMapHashService.ParseHash(mapContentHash);
-        var downloadUrl = ResolveDownloadUrl(normalizedLevelName, mapDownloadUrl, serverDownloadBaseUri);
+        var downloadUrl = ResolveDownloadUrl(normalizedLevelName, mapDownloadUrl, serverDownloadBaseUri, out var downloadUrlError);
         var mapPath = CustomMapLocatorStore.GetMapPath(normalizedLevelName);
         var hasExpectedHash = expectedHash.HasValue;
         if (File.Exists(mapPath)
             && (!hasExpectedHash || CustomMapHashService.FileMatchesHash(mapPath, expectedHash)))
         {
-            CacheLocator(normalizedLevelName, downloadUrl, expectedHash);
+            if (string.IsNullOrWhiteSpace(downloadUrlError))
+            {
+                CacheLocator(normalizedLevelName, downloadUrl, expectedHash);
+            }
+
             return true;
         }
 
         if (CustomMapLocatorStore.TryGetPackageManifestPath(normalizedLevelName, out var packageManifestPath)
             && (!hasExpectedHash || CustomMapHashService.PackageMatchesHash(packageManifestPath, expectedHash)))
         {
-            CacheLocator(normalizedLevelName, downloadUrl, expectedHash);
+            if (string.IsNullOrWhiteSpace(downloadUrlError))
+            {
+                CacheLocator(normalizedLevelName, downloadUrl, expectedHash);
+            }
+
             return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(downloadUrlError))
+        {
+            error = downloadUrlError;
+            return false;
         }
 
         if (string.IsNullOrWhiteSpace(downloadUrl))
@@ -253,26 +281,123 @@ internal static class CustomMapSyncService
         return true;
     }
 
-    private static string ResolveDownloadUrl(string levelName, string mapDownloadUrl, Uri? serverDownloadBaseUri)
+    private static string ResolveDownloadUrl(
+        string levelName,
+        string mapDownloadUrl,
+        Uri? serverDownloadBaseUri,
+        out string error)
     {
+        error = string.Empty;
+
         if (!string.IsNullOrWhiteSpace(mapDownloadUrl))
         {
             var trimmedUrl = mapDownloadUrl.Trim();
-            if (Uri.TryCreate(trimmedUrl, UriKind.Absolute, out var absoluteUri))
+            return ResolveDownloadUrlValue(trimmedUrl, serverDownloadBaseUri, out error);
+        }
+
+        var cachedUrl = CustomMapLocatorStore.TryReadMapUrl(levelName);
+        return string.IsNullOrWhiteSpace(cachedUrl)
+            ? string.Empty
+            : ResolveDownloadUrlValue(cachedUrl.Trim(), null, out error);
+    }
+
+    private static string ResolveDownloadUrlValue(string trimmedUrl, Uri? serverDownloadBaseUri, out string error)
+    {
+        error = string.Empty;
+
+        if (Uri.TryCreate(trimmedUrl, UriKind.Absolute, out var absoluteUri))
+        {
+            if (IsSupportedDownloadUri(absoluteUri))
             {
                 return absoluteUri.ToString();
             }
 
-            if (serverDownloadBaseUri is not null
-                && Uri.TryCreate(serverDownloadBaseUri, trimmedUrl, out var resolvedUri))
+            error = FormatUnsupportedDownloadUrlScheme(absoluteUri.Scheme);
+            return string.Empty;
+        }
+
+        if (TryGetSchemeLikePrefix(trimmedUrl, out var scheme))
+        {
+            error = FormatUnsupportedDownloadUrlScheme(scheme);
+            return string.Empty;
+        }
+
+        if (serverDownloadBaseUri is not null
+            && Uri.TryCreate(serverDownloadBaseUri, trimmedUrl, out var resolvedUri))
+        {
+            if (IsSupportedDownloadUri(resolvedUri))
             {
                 return resolvedUri.ToString();
             }
 
-            return trimmedUrl;
+            error = FormatUnsupportedDownloadUrlScheme(resolvedUri.Scheme);
+            return string.Empty;
         }
 
-        return CustomMapLocatorStore.TryReadMapUrl(levelName) ?? string.Empty;
+        return trimmedUrl;
+    }
+
+    private static bool TryGetSchemeLikePrefix(string value, out string scheme)
+    {
+        scheme = string.Empty;
+        var colonIndex = value.IndexOf(':');
+        if (colonIndex <= 0)
+        {
+            return false;
+        }
+
+        var separatorIndex = value.IndexOfAny(SchemePrefixSeparators);
+        if (separatorIndex >= 0 && separatorIndex < colonIndex)
+        {
+            return false;
+        }
+
+        scheme = value[..colonIndex].Trim();
+        return scheme.Length > 0;
+    }
+
+    private static bool TryCreateSupportedDownloadUri(
+        string value,
+        string invalidLabel,
+        out Uri uri,
+        out string error)
+    {
+        error = string.Empty;
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var createdUri))
+        {
+            uri = null!;
+            error = $"Invalid {invalidLabel}: {value}";
+            return false;
+        }
+
+        if (!IsSupportedDownloadUri(createdUri))
+        {
+            uri = null!;
+            error = FormatUnsupportedDownloadUrlScheme(createdUri.Scheme);
+            return false;
+        }
+
+        uri = createdUri;
+        return true;
+    }
+
+    private static bool IsSupportedDownloadUri(Uri uri)
+    {
+        return string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSupportedDownloadUrl(string value)
+    {
+        return !string.IsNullOrWhiteSpace(value)
+            && Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
+            && IsSupportedDownloadUri(uri);
+    }
+
+    private static string FormatUnsupportedDownloadUrlScheme(string scheme)
+    {
+        var displayScheme = string.IsNullOrWhiteSpace(scheme) ? "(empty)" : scheme;
+        return $"Unsupported map download URL scheme: {displayScheme}. Server must provide an http or https map download URL.";
     }
 
     private static Uri EnsureTrailingSlash(Uri uri)
@@ -285,7 +410,8 @@ internal static class CustomMapSyncService
 
     private static bool ShouldDownloadPackage(string mapDownloadUrl, CustomMapHashValue expectedHash)
     {
-        if (Uri.TryCreate(mapDownloadUrl, UriKind.Absolute, out var uri))
+        if (Uri.TryCreate(mapDownloadUrl, UriKind.Absolute, out var uri)
+            && IsSupportedDownloadUri(uri))
         {
             var extension = Path.GetExtension(uri.AbsolutePath);
             if (extension.Equals(".png", StringComparison.OrdinalIgnoreCase))
@@ -310,9 +436,8 @@ internal static class CustomMapSyncService
         out string error)
     {
         error = string.Empty;
-        if (!Uri.TryCreate(mapDownloadUrl, UriKind.Absolute, out var mapUri))
+        if (!TryCreateSupportedDownloadUri(mapDownloadUrl, "map download URL", out var mapUri, out error))
         {
-            error = $"Invalid map download URL: {mapDownloadUrl}";
             return false;
         }
 
@@ -386,9 +511,9 @@ internal static class CustomMapSyncService
         string mapPath,
         CustomMapHashValue expectedHash)
     {
-        if (!Uri.TryCreate(mapDownloadUrl, UriKind.Absolute, out var mapUri))
+        if (!TryCreateSupportedDownloadUri(mapDownloadUrl, "map download URL", out var mapUri, out var error))
         {
-            return CustomMapSyncResult.Fail($"Invalid map download URL: {mapDownloadUrl}");
+            return CustomMapSyncResult.Fail(error);
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(mapPath)!);
@@ -444,9 +569,8 @@ internal static class CustomMapSyncService
         out string error)
     {
         error = string.Empty;
-        if (!Uri.TryCreate(manifestDownloadUrl, UriKind.Absolute, out var manifestUri))
+        if (!TryCreateSupportedDownloadUri(manifestDownloadUrl, "map package manifest URL", out var manifestUri, out error))
         {
-            error = $"Invalid map package manifest URL: {manifestDownloadUrl}";
             return false;
         }
 
@@ -556,9 +680,9 @@ internal static class CustomMapSyncService
         string manifestDownloadUrl,
         CustomMapHashValue expectedHash)
     {
-        if (!Uri.TryCreate(manifestDownloadUrl, UriKind.Absolute, out var manifestUri))
+        if (!TryCreateSupportedDownloadUri(manifestDownloadUrl, "map package manifest URL", out var manifestUri, out var packageError))
         {
-            return CustomMapSyncResult.Fail($"Invalid map package manifest URL: {manifestDownloadUrl}");
+            return CustomMapSyncResult.Fail(packageError);
         }
 
         var finalDirectory = CustomMapLocatorStore.GetPackageDirectory(levelName);
@@ -779,8 +903,11 @@ internal static class CustomMapSyncService
         }
 
         var existing = CustomMapLocatorStore.TryReadMapMetadata(levelName);
+        var existingSourceUrl = existing?.SourceUrl ?? string.Empty;
         var sourceUrl = string.IsNullOrWhiteSpace(mapDownloadUrl)
-            ? existing?.SourceUrl ?? string.Empty
+            ? IsSupportedDownloadUrl(existingSourceUrl)
+                ? existingSourceUrl.Trim()
+                : string.Empty
             : mapDownloadUrl.Trim();
         var md5Hash = expectedHash.Algorithm == CustomMapHashAlgorithm.Md5
             ? expectedHash.Value

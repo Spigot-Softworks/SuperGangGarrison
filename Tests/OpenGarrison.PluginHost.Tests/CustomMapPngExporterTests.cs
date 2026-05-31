@@ -731,6 +731,67 @@ public sealed class CustomMapPngExporterTests
         }
     }
 
+    [Theory]
+    [InlineData("file:///tmp/bad_scheme.png", "file")]
+    [InlineData(",file:///tmp/bad_scheme.png", ",file")]
+    public void CustomMapSyncRejectsUnsupportedMapDownloadScheme(string mapUrl, string expectedScheme)
+    {
+        using var workspace = TempWorkspace.Create();
+        var previousMapsDirectory = Environment.GetEnvironmentVariable("OPENGARRISON_MAPS_DIR");
+        Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", workspace.PathFor("ClientMaps"));
+        try
+        {
+            using var httpClient = new HttpClient(new StubHttpMessageHandler(new Dictionary<string, StubHttpResponse>()));
+
+            var available = CustomMapSyncService.EnsureMapAvailable(
+                "bad_scheme",
+                isCustomMap: true,
+                mapUrl,
+                string.Empty,
+                httpClient,
+                out var error);
+
+            Assert.False(available);
+            Assert.Contains("Unsupported map download URL scheme", error, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(expectedScheme, error, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", previousMapsDirectory);
+            SimpleLevelFactory.ClearCachedCatalog();
+        }
+    }
+
+    [Fact]
+    public void CustomMapSyncRejectsUnsupportedCachedMapDownloadScheme()
+    {
+        using var workspace = TempWorkspace.Create();
+        var previousMapsDirectory = Environment.GetEnvironmentVariable("OPENGARRISON_MAPS_DIR");
+        Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", workspace.PathFor("ClientMaps"));
+        try
+        {
+            CustomMapLocatorStore.WriteMapUrl("cached_bad_scheme", ",file:///tmp/cached_bad_scheme.png");
+            using var httpClient = new HttpClient(new StubHttpMessageHandler(new Dictionary<string, StubHttpResponse>()));
+
+            var available = CustomMapSyncService.EnsureMapAvailable(
+                "cached_bad_scheme",
+                isCustomMap: true,
+                mapDownloadUrl: string.Empty,
+                mapContentHash: string.Empty,
+                httpClient,
+                out var error);
+
+            Assert.False(available);
+            Assert.Contains("Unsupported map download URL scheme", error, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(",file", error, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", previousMapsDirectory);
+            SimpleLevelFactory.ClearCachedCatalog();
+        }
+    }
+
     [Fact]
     public async Task ServerMapDownloadEndpointServesPackageManifestAndImages()
     {
@@ -767,13 +828,21 @@ public sealed class CustomMapPngExporterTests
 
             using var httpClient = new HttpClient();
             var manifestUri = new Uri($"http://127.0.0.1:{port}{ServerMapDownloadEndpoint.BuildRelativeDownloadUrl(descriptor)}");
-            var manifestJson = await httpClient.GetStringAsync(manifestUri);
+            var manifestResponse = await httpClient.GetAsync(manifestUri);
+            var manifestJson = await manifestResponse.Content.ReadAsStringAsync();
             var backgroundBytes = await httpClient.GetByteArrayAsync(new Uri(manifestUri, "background.png"));
             var missingResponse = await httpClient.GetAsync(new Uri(manifestUri, "missing.png"));
+            using var optionsRequest = new HttpRequestMessage(HttpMethod.Options, manifestUri);
+            var optionsResponse = await httpClient.SendAsync(optionsRequest);
 
+            Assert.Equal(HttpStatusCode.OK, manifestResponse.StatusCode);
             Assert.Contains("\"name\": \"served_pkg\"", manifestJson, StringComparison.Ordinal);
+            Assert.Equal("*", manifestResponse.Headers.GetValues("Access-Control-Allow-Origin").Single());
             Assert.NotEmpty(backgroundBytes);
             Assert.Equal(HttpStatusCode.NotFound, missingResponse.StatusCode);
+            Assert.Equal("*", missingResponse.Headers.GetValues("Access-Control-Allow-Origin").Single());
+            Assert.Equal(HttpStatusCode.NoContent, optionsResponse.StatusCode);
+            Assert.Equal("*", optionsResponse.Headers.GetValues("Access-Control-Allow-Origin").Single());
         }
         finally
         {
@@ -811,6 +880,46 @@ public sealed class CustomMapPngExporterTests
 
             Assert.True(metadata.IsCustomMap);
             Assert.Equal("/opengarrison/maps/metadata_pkg/metadata_pkg.json", metadata.MapDownloadUrl);
+            Assert.StartsWith("sha256:", metadata.MapContentHash, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", previousMapsDirectory);
+            SimpleLevelFactory.ClearCachedCatalog();
+        }
+    }
+
+    [Fact]
+    public void ServerMapMetadataResolverDoesNotAdvertiseUnsupportedSourceUrl()
+    {
+        using var workspace = TempWorkspace.Create();
+        var previousMapsDirectory = Environment.GetEnvironmentVariable("OPENGARRISON_MAPS_DIR");
+        Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", workspace.PathFor("ServerMaps"));
+        try
+        {
+            Directory.CreateDirectory(RuntimePaths.MapsDirectory);
+            var packageDirectory = Path.Combine(RuntimePaths.MapsDirectory, "unsupported_source_pkg");
+            Directory.CreateDirectory(packageDirectory);
+            var backgroundPath = workspace.PathFor("unsupported-source-background.png");
+            var walkmaskPath = workspace.PathFor("unsupported-source-walkmask.png");
+            WriteSolidPng(backgroundPath, 20, 10, new Rgba32(40, 90, 120, 255));
+            WriteSolidPng(walkmaskPath, 20, 10, new Rgba32(255, 255, 255, 255));
+            var manifestPath = Path.Combine(packageDirectory, "unsupported_source_pkg.json");
+            CustomMapPackageExporter.Export(CreateSpawnOnlyDocument(backgroundPath, walkmaskPath, 6f, 18f) with
+            {
+                Name = "unsupported_source_pkg",
+            }, manifestPath);
+            CustomMapLocatorStore.WriteMapUrl("unsupported_source_pkg", ",file:///tmp/unsupported_source_pkg.json");
+            SimpleLevelFactory.ClearCachedCatalog();
+
+            var world = new SimulationWorld();
+            Assert.True(world.TryLoadLevel("unsupported_source_pkg", mapAreaIndex: 1, preservePlayerStats: false));
+            var resolver = new ServerMapMetadataResolver(world);
+
+            var metadata = resolver.GetCurrentMapMetadata();
+
+            Assert.True(metadata.IsCustomMap);
+            Assert.Empty(metadata.MapDownloadUrl);
             Assert.StartsWith("sha256:", metadata.MapContentHash, StringComparison.OrdinalIgnoreCase);
         }
         finally

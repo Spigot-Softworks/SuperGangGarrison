@@ -7,14 +7,71 @@ public sealed partial class PlayerEntity
 
     public bool TryStartTaunt()
     {
-        if (!IsAlive || IsTaunting || IsHeavyEating || IsSpyCloaked || IsSpyBackstabAnimating || IsExperimentalDemoknightCharging)
+        if (!IsAlive
+            || IsTaunting
+            || IsHeavyEating
+            || IsSpyCloaked
+            || IsSpyBackstabAnimating
+            || IsExperimentalDemoknightCharging
+            || TauntRestartCooldownTicksRemaining > 0
+            || TauntInputReleaseRequired)
         {
             return false;
         }
 
         IsTaunting = true;
         TauntFrameIndex = 0f;
+        TauntInputReleaseRequired = true;
         return true;
+    }
+
+    public void ObserveTauntInput(bool isHeld)
+    {
+        if (!isHeld)
+        {
+            TauntInputReleaseRequired = false;
+        }
+    }
+
+    private void SetHeavyEatCooldownDuration(int cooldownTicks)
+    {
+        HeavyEatCooldownDurationTicks = Math.Max(1, cooldownTicks);
+    }
+
+    private void SetHeavyEatCooldown(int cooldownTicks)
+    {
+        SetHeavyEatCooldownDuration(cooldownTicks);
+        HeavyEatCooldownTicksRemaining = HeavyEatCooldownDurationTicks;
+    }
+
+    private void ClearHeavyEatCooldown()
+    {
+        HeavyEatCooldownTicksRemaining = 0;
+        HeavyEatCooldownDurationTicks = HeavySandvichCooldownTicks;
+    }
+
+    private void ApplyObservedHeavyEatCooldown(int cooldownTicks)
+    {
+        if (ClassId != PlayerClass.Heavy)
+        {
+            ClearHeavyEatCooldown();
+            return;
+        }
+
+        var observedCooldownTicks = Math.Max(0, cooldownTicks);
+        if (observedCooldownTicks <= 0)
+        {
+            ClearHeavyEatCooldown();
+            return;
+        }
+
+        var previousCooldownTicks = HeavyEatCooldownTicksRemaining;
+        HeavyEatCooldownTicksRemaining = observedCooldownTicks;
+        if (observedCooldownTicks > previousCooldownTicks
+            || observedCooldownTicks > HeavyEatCooldownDurationTicks)
+        {
+            HeavyEatCooldownDurationTicks = Math.Max(HeavySandvichCooldownTicks, observedCooldownTicks);
+        }
     }
 
     public bool TryStartHeavySelfHeal(
@@ -29,11 +86,12 @@ public sealed partial class PlayerEntity
 
         durationTicks = Math.Max(1, durationTicks);
         cooldownTicks = Math.Max(1, cooldownTicks);
+        SetHeavyEatCooldownDuration(cooldownTicks);
         IsHeavyEating = true;
         HeavyEatTicksRemaining = durationTicks;
         if (Health < MaxHealth)
         {
-            HeavyEatCooldownTicksRemaining = cooldownTicks;
+            SetHeavyEatCooldown(cooldownTicks);
         }
 
         HeavyEatHealPerTickValue = MathF.Max(0f, totalHeal) / durationTicks;
@@ -52,7 +110,7 @@ public sealed partial class PlayerEntity
         HeavyEatTicksRemaining = 0;
         HeavyHealingAccumulator = 0f;
         HeavyEatHealPerTickValue = HeavyEatHealPerTick;
-        HeavyEatCooldownTicksRemaining = Math.Max(1, cooldownTicks);
+        SetHeavyEatCooldown(cooldownTicks);
         IsTaunting = false;
         TauntFrameIndex = 0f;
         return true;
@@ -60,6 +118,11 @@ public sealed partial class PlayerEntity
 
     private void AdvanceTauntState()
     {
+        if (TauntRestartCooldownTicksRemaining > 0)
+        {
+            TauntRestartCooldownTicksRemaining -= 1;
+        }
+
         if (!IsTaunting)
         {
             return;
@@ -73,6 +136,7 @@ public sealed partial class PlayerEntity
         }
 
         IsTaunting = false;
+        TauntRestartCooldownTicksRemaining = TauntRestartCooldownTicks;
     }
 
     private void AdvanceHeavyState()
@@ -80,6 +144,10 @@ public sealed partial class PlayerEntity
         if (HeavyEatCooldownTicksRemaining > 0 && (!IsHeavyEating || Health >= MaxHealth))
         {
             HeavyEatCooldownTicksRemaining -= 1;
+            if (HeavyEatCooldownTicksRemaining <= 0)
+            {
+                HeavyEatCooldownDurationTicks = HeavySandvichCooldownTicks;
+            }
         }
 
         if (!IsHeavyEating)
@@ -89,7 +157,7 @@ public sealed partial class PlayerEntity
 
         if (Health < MaxHealth)
         {
-            HeavyEatCooldownTicksRemaining = HeavySandvichCooldownTicks;
+            SetHeavyEatCooldown(HeavyEatCooldownDurationTicks);
         }
 
         HeavyEatTicksRemaining -= 1;
@@ -239,6 +307,7 @@ public sealed partial class PlayerEntity
 
         IsMedicUbering = true;
         IsMedicUberReady = false;
+        MedicUberReadyPresentationPending = false;
         return true;
     }
 
@@ -249,11 +318,13 @@ public sealed partial class PlayerEntity
             return;
         }
 
+        var wasReady = IsMedicUberReady;
         MedicUberCharge = float.Min(MedicUberMaxCharge, MedicUberCharge + amount);
         if (MedicUberCharge >= MedicUberMaxCharge)
         {
             MedicUberCharge = MedicUberMaxCharge;
             IsMedicUberReady = true;
+            MedicUberReadyPresentationPending |= !wasReady;
         }
     }
 
@@ -264,25 +335,43 @@ public sealed partial class PlayerEntity
             return;
         }
 
+        var wasReady = IsMedicUberReady;
         MedicUberCharge = MedicUberMaxCharge;
         IsMedicUberReady = true;
+        MedicUberReadyPresentationPending |= !wasReady;
+    }
+
+    public bool TryConsumeMedicUberReadyPresentation()
+    {
+        if (!MedicUberReadyPresentationPending)
+        {
+            return false;
+        }
+
+        MedicUberReadyPresentationPending = false;
+        return IsAlive && ClassId == PlayerClass.Medic && IsMedicUberReady;
     }
 
     public bool TryFireMedicNeedle(
         int fireCooldownTicks = MedicNeedleFireCooldownTicks,
         int refillTicks = MedicNeedleRefillTicksDefault)
     {
+        var ignoreAmmoCost = HasInfiniteAmmoFromUber;
         if (!IsAlive
             || ClassId != PlayerClass.Medic
             || IsTaunting
             || IsMedicHealing
             || MedicNeedleCooldownTicks > 0
-            || CurrentShells <= 0)
+            || (!ignoreAmmoCost && CurrentShells <= 0))
         {
             return false;
         }
 
-        CurrentShells -= 1;
+        if (!ignoreAmmoCost)
+        {
+            CurrentShells -= 1;
+        }
+
         MedicNeedleCooldownTicks = ApplyExperimentalWeaponCycleMultiplier(Math.Max(1, fireCooldownTicks));
         MedicNeedleRefillTicks = ApplyExperimentalReloadMultiplier(Math.Max(1, refillTicks));
         return true;
@@ -292,13 +381,14 @@ public sealed partial class PlayerEntity
         int fireCooldownTicks = MedicNeedleFireCooldownTicks,
         int refillTicks = MedicNeedleRefillTicksDefault)
     {
+        var ignoreAmmoCost = HasInfiniteAmmoFromUber;
         if (!IsAlive
             || !HasAcquiredMedigunEquipped
             || IsHeavyEating
             || IsTaunting
             || IsSpyCloaked
             || MedicNeedleCooldownTicks > 0
-            || AcquiredWeaponCurrentShells <= 0)
+            || (!ignoreAmmoCost && AcquiredWeaponCurrentShells <= 0))
         {
             return false;
         }
@@ -307,7 +397,11 @@ public sealed partial class PlayerEntity
         IsAcquiredWeaponEquipped = true;
         SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Secondary;
         RefreshGameplayLoadoutState();
-        AcquiredWeaponCurrentShells -= 1;
+        if (!ignoreAmmoCost)
+        {
+            AcquiredWeaponCurrentShells -= 1;
+        }
+
         MedicNeedleCooldownTicks = ApplyExperimentalWeaponCycleMultiplier(Math.Max(1, fireCooldownTicks));
         MedicNeedleRefillTicks = ApplyExperimentalReloadMultiplier(Math.Max(1, refillTicks));
         return true;
@@ -465,7 +559,7 @@ public sealed partial class PlayerEntity
 
         if (IsMedicUbering)
         {
-            MedicUberCharge = float.Max(0f, MedicUberCharge - 10f);
+            MedicUberCharge = float.Max(0f, MedicUberCharge - MedicUberChargeDrainPerSourceTick);
             if (MedicUberCharge <= 0f)
             {
                 MedicUberCharge = 0f;

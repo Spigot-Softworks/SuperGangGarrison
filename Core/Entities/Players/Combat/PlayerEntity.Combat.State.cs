@@ -83,11 +83,13 @@ public sealed partial class PlayerEntity
         ExtinguishAfterburn();
         IsHeavyEating = false;
         HeavyEatTicksRemaining = 0;
-        HeavyEatCooldownTicksRemaining = 0;
+        ClearHeavyEatCooldown();
         HeavyEatHealPerTickValue = HeavyEatHealPerTick;
         HeavyHealingAccumulator = 0f;
         IsTaunting = false;
         TauntFrameIndex = 0f;
+        TauntRestartCooldownTicksRemaining = 0;
+        TauntInputReleaseRequired = false;
         IsSniperScoped = false;
         SniperChargeTicks = 0;
         UberTicksRemaining = 0;
@@ -162,7 +164,7 @@ public sealed partial class PlayerEntity
         {
             SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
         }
-        HeavyEatCooldownTicksRemaining = 0;
+        ClearHeavyEatCooldown();
         ResetPyroPrimaryStateFromCurrentAmmo();
         ResetAcquiredPyroStateFromCurrentAmmo();
         ReloadTicksUntilNextShell = 0;

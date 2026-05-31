@@ -19,7 +19,7 @@ public partial class Game1
     {
         AdvancePredictedWeaponState(player);
         AdvancePredictedEngineerState(player);
-        AdvancePredictedHeavyState();
+        AdvancePredictedHeavyState(player);
         AdvancePredictedSniperState(player);
         AdvancePredictedMedicState(player);
         AdvancePredictedSpyState(player);
@@ -83,11 +83,27 @@ public partial class Game1
         }
     }
 
-    private void AdvancePredictedHeavyState()
+    private void AdvancePredictedHeavyState(PlayerEntity player)
     {
+        if (_predictedLocalActionState.HeavyEatCooldownTicksRemaining > 0
+            && (!_predictedLocalActionState.IsHeavyEating || player.Health >= player.MaxHealth))
+        {
+            _predictedLocalActionState.HeavyEatCooldownTicksRemaining -= 1;
+            if (_predictedLocalActionState.HeavyEatCooldownTicksRemaining <= 0)
+            {
+                _predictedLocalActionState.HeavyEatCooldownDurationTicks = PlayerEntity.HeavySandvichCooldownTicks;
+            }
+        }
+
         if (!_predictedLocalActionState.IsHeavyEating)
         {
             return;
+        }
+
+        if (player.Health < player.MaxHealth)
+        {
+            _predictedLocalActionState.HeavyEatCooldownTicksRemaining =
+                Math.Max(1, _predictedLocalActionState.HeavyEatCooldownDurationTicks);
         }
 
         _predictedLocalActionState.HeavyEatTicksRemaining = Math.Max(0, _predictedLocalActionState.HeavyEatTicksRemaining - 1);
@@ -123,7 +139,7 @@ public partial class Game1
 
         if (_predictedLocalActionState.IsMedicUbering)
         {
-            _predictedLocalActionState.MedicUberCharge = float.Max(0f, _predictedLocalActionState.MedicUberCharge - 10f);
+            _predictedLocalActionState.MedicUberCharge = float.Max(0f, _predictedLocalActionState.MedicUberCharge - PlayerEntity.MedicUberChargeDrainPerSourceTick);
             if (_predictedLocalActionState.MedicUberCharge <= 0f)
             {
                 _predictedLocalActionState.MedicUberCharge = 0f;

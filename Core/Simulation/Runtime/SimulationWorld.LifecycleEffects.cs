@@ -11,6 +11,11 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        if (!LocalGoreEffectsEnabled)
+        {
+            return;
+        }
+
         var inheritedVelocityX = player.HorizontalSpeed * (float)Config.FixedDeltaSeconds;
         var inheritedVelocityY = player.VerticalSpeed * (float)Config.FixedDeltaSeconds;
         SpawnPlayerGibSet(player, "GibS", DefaultGibLevel, randomFrameCount: 7, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 210, horizontalFriction: 0.4f, rotationFriction: 0.6f, bloodChance: 1.8f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, experimentalCryoTinted: experimentalCryoTinted, emitNetworkEvents: false);
@@ -42,6 +47,11 @@ public sealed partial class SimulationWorld
 
     private void SpawnPlayerGibsForNetworkDeath(PlayerEntity player)
     {
+        if (!LocalGoreEffectsEnabled)
+        {
+            return;
+        }
+
         var inheritedVelocityX = player.HorizontalSpeed * (float)Config.FixedDeltaSeconds;
         var inheritedVelocityY = player.VerticalSpeed * (float)Config.FixedDeltaSeconds;
         SpawnPlayerGibSet(player, "GibS", DefaultGibLevel, randomFrameCount: 7, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 210, horizontalFriction: 0.4f, rotationFriction: 0.6f, bloodChance: 1.8f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, emitNetworkEvents: false);
@@ -69,6 +79,11 @@ public sealed partial class SimulationWorld
 
     public void SpawnClientPlayerGibsFromNetworkDeath(PlayerEntity player)
     {
+        if (!LocalGoreEffectsEnabled)
+        {
+            return;
+        }
+
         SpawnPlayerGibsForNetworkDeath(player);
         RegisterVisualEffect("GibBlood", player.X, player.Y, count: DefaultGibLevel);
         SpawnBloodDrops(player.X, player.Y, DefaultGibLevel * 14, 10f, 13f, spreadRadius: 11f, experimentalCryoTinted: player.IsExperimentalCryoFrozen);
@@ -92,6 +107,11 @@ public sealed partial class SimulationWorld
         bool experimentalCryoTinted = false,
         bool emitNetworkEvents = true)
     {
+        if (!LocalGoreEffectsEnabled)
+        {
+            return;
+        }
+
         for (var index = 0; index < count; index += 1)
         {
             var resolvedFrameIndex = frameIndex ?? _random.Next(randomFrameCount);
@@ -138,6 +158,11 @@ public sealed partial class SimulationWorld
 
     private void TrySpawnExperimentalDemoknightDecapitationRemains(PlayerEntity victim, float launchDirectionX, float launchDirectionY)
     {
+        if (!LocalGoreEffectsEnabled)
+        {
+            return;
+        }
+
         var headSpriteName = ExperimentalDemoknightCatalog.GetDecapitatedHeadSpriteName(victim.ClassId, victim.Team);
         if (string.IsNullOrWhiteSpace(headSpriteName))
         {
@@ -246,6 +271,12 @@ public sealed partial class SimulationWorld
 
     private void AdvancePlayerGibs()
     {
+        if (!LocalGoreEffectsEnabled)
+        {
+            RemoveEntities(_playerGibs);
+            return;
+        }
+
         for (var gibIndex = _playerGibs.Count - 1; gibIndex >= 0; gibIndex -= 1)
         {
             var gib = _playerGibs[gibIndex];
@@ -263,6 +294,12 @@ public sealed partial class SimulationWorld
 
     private void AdvanceBloodDrops()
     {
+        if (!LocalGoreEffectsEnabled)
+        {
+            RemoveEntities(_bloodDrops);
+            return;
+        }
+
         for (var dropIndex = _bloodDrops.Count - 1; dropIndex >= 0; dropIndex -= 1)
         {
             var bloodDrop = _bloodDrops[dropIndex];
@@ -281,6 +318,11 @@ public sealed partial class SimulationWorld
 
     private void TrySpawnBloodDropFromGib(PlayerGibEntity gib)
     {
+        if (!LocalGoreEffectsEnabled)
+        {
+            return;
+        }
+
         if (gib.IsExpired || gib.BloodChance <= 0f)
         {
             return;
@@ -306,6 +348,11 @@ public sealed partial class SimulationWorld
 
     private void SpawnBloodDrops(float x, float y, int count, float velocityRangeX, float velocityRangeY, float spreadRadius = 0f, bool experimentalCryoTinted = false)
     {
+        if (!LocalGoreEffectsEnabled)
+        {
+            return;
+        }
+
         for (var index = 0; index < count; index += 1)
         {
             var offsetX = spreadRadius <= 0f ? 0f : (_random.NextSingle() * ((spreadRadius * 2f) + 1f)) - spreadRadius;
@@ -323,6 +370,11 @@ public sealed partial class SimulationWorld
     /// </summary>
     public void SpawnClientBloodFromDamage(float x, float y, int damageAmount)
     {
+        if (!LocalGoreEffectsEnabled)
+        {
+            return;
+        }
+
         if (damageAmount <= 0)
         {
             return;

@@ -3,6 +3,7 @@
 using Microsoft.Xna.Framework.Audio;
 using System;
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
@@ -38,6 +39,7 @@ public partial class Game1
                 PrimaryWeaponKind.Medigun,
                 "MedigunSnd",
                 ref _game._localMedigunSoundInstance);
+            UpdateLocalUberIdleAudio();
         }
 
         public bool IsLocalRapidFireWeaponSoundActive(PrimaryWeaponKind weaponKind)
@@ -120,6 +122,7 @@ public partial class Game1
             StopLocalRapidFireWeaponSound(ref _game._localChaingunSoundInstance);
             StopLocalRapidFireWeaponSound(ref _game._localFlamethrowerSoundInstance);
             StopLocalRapidFireWeaponSound(ref _game._localMedigunSoundInstance);
+            StopLocalRapidFireWeaponSound(ref _game._localUberIdleSoundInstance);
         }
 
         public void StopAndDisposeLocalRapidFireWeaponAudio()
@@ -127,6 +130,29 @@ public partial class Game1
             StopAndDisposeLocalRapidFireWeaponSound(ref _game._localChaingunSoundInstance);
             StopAndDisposeLocalRapidFireWeaponSound(ref _game._localFlamethrowerSoundInstance);
             StopAndDisposeLocalRapidFireWeaponSound(ref _game._localMedigunSoundInstance);
+            StopAndDisposeLocalRapidFireWeaponSound(ref _game._localUberIdleSoundInstance);
+        }
+
+        private void UpdateLocalUberIdleAudio()
+        {
+            var player = _game._world.LocalPlayer;
+            if (_game._mainMenuOpen
+                || _game._world.LocalPlayerAwaitingJoin
+                || !player.IsAlive
+                || player.ClassId != PlayerClass.Medic
+                || !player.IsMedicUberReady
+                || !player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber)
+                || _game._world.MatchState.IsEnded)
+            {
+                StopLocalRapidFireWeaponSound(ref _game._localUberIdleSoundInstance);
+                return;
+            }
+
+            UpdateLoopedWorldSound(
+                "UberIdleSnd",
+                player.X,
+                player.Y,
+                ref _game._localUberIdleSoundInstance);
         }
 
         private void UpdateLocalRapidFireWeaponAudio(
@@ -140,6 +166,15 @@ public partial class Game1
                 return;
             }
 
+            UpdateLoopedWorldSound(soundName, _game._world.LocalPlayer.X, _game._world.LocalPlayer.Y, ref instance);
+        }
+
+        private void UpdateLoopedWorldSound(
+            string soundName,
+            float worldX,
+            float worldY,
+            ref SoundEffectInstance? instance)
+        {
             if (instance is null)
             {
                 var sound = _game._runtimeAssets.GetSound(soundName);
@@ -160,7 +195,7 @@ public partial class Game1
                 }
             }
 
-            var (volume, pan) = GetWorldSoundMix(_game._world.LocalPlayer.X, _game._world.LocalPlayer.Y);
+            var (volume, pan) = GetWorldSoundMix(worldX, worldY);
             if (volume <= 0f)
             {
                 StopLocalRapidFireWeaponSound(ref instance);

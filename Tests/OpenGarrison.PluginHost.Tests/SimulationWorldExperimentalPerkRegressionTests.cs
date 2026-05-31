@@ -94,6 +94,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
                 null,
                 true,
                 true,
+                false,
                 true,
             ]);
 
@@ -1062,6 +1063,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         Assert.True(world.LocalPlayer.IsHeavyEating);
         Assert.Equal(PlayerEntity.HeavySandvichCooldownTicks, world.LocalPlayer.HeavyEatCooldownTicksRemaining);
+        Assert.Equal(PlayerEntity.HeavySandvichCooldownTicks, world.LocalPlayer.HeavyEatCooldownDurationTicks);
 
         ReleaseAllInput(world);
         PressFireSecondary(world);
@@ -1069,6 +1071,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.False(world.LocalPlayer.IsHeavyEating);
         Assert.Equal(0, world.LocalPlayer.HeavyEatTicksRemaining);
         Assert.Equal(PlayerEntity.HeavySandvichCooldownTicks * 2, world.LocalPlayer.HeavyEatCooldownTicksRemaining);
+        Assert.Equal(PlayerEntity.HeavySandvichCooldownTicks * 2, world.LocalPlayer.HeavyEatCooldownDurationTicks);
     }
 
     [Fact]

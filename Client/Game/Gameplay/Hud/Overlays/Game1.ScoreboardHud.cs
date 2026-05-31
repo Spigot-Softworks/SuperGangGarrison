@@ -80,8 +80,9 @@ public partial class Game1
         const float scoreboardBlueScoreOutwardOffset = 8f;
         if (isKothMode)
         {
-            DrawBitmapFontTextCentered(redCenterText, new Vector2(xcenter - 16f - scoreboardRedScoreOutwardOffset, yoffset + 6f), Color.White * alpha, 1.3f);
-            DrawBitmapFontTextCentered(blueCenterText, new Vector2(xcenter + 12f + scoreboardBlueScoreOutwardOffset, yoffset + 6f), Color.White * alpha, 1.3f);
+            const float scoreboardKothTimerSideOffset = 68f;
+            DrawBitmapFontTextCentered(redCenterText, new Vector2(xcenter - scoreboardKothTimerSideOffset, yoffset + 6f), Color.White * alpha, 1.3f);
+            DrawBitmapFontTextCentered(blueCenterText, new Vector2(xcenter + scoreboardKothTimerSideOffset, yoffset + 6f), Color.White * alpha, 1.3f);
         }
         else
         {

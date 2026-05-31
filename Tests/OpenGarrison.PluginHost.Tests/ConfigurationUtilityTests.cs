@@ -38,6 +38,59 @@ public sealed class ConfigurationUtilityTests
     }
 
     [Fact]
+    public void UserDataRootUsesConfiguredWritableDirectory()
+    {
+        var previous = Environment.GetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT");
+        var root = Path.Combine(Path.GetTempPath(), "opengarrison-userdata-tests", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT", root);
+
+            var resolved = RuntimePaths.UserDataRoot;
+
+            Assert.Equal(Path.GetFullPath(root), Path.GetFullPath(resolved));
+            Assert.True(Directory.Exists(resolved));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT", previous);
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void UserDataRootFallsBackWhenConfiguredPathIsNotDirectory()
+    {
+        var previous = Environment.GetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT");
+        var root = Path.Combine(Path.GetTempPath(), "opengarrison-userdata-tests", Guid.NewGuid().ToString("N"));
+        var filePath = Path.Combine(root, "not-a-directory");
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            File.WriteAllText(filePath, "not a directory");
+            Environment.SetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT", filePath);
+
+            var resolved = RuntimePaths.UserDataRoot;
+
+            Assert.NotEqual(Path.GetFullPath(filePath), Path.GetFullPath(resolved));
+            Assert.True(Directory.Exists(resolved));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT", previous);
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void FindFileLocatesContentUnderAssetsProbeRoot()
     {
         var relativePath = Path.Combine("locator-tests", Guid.NewGuid().ToString("N"), "marker.txt");

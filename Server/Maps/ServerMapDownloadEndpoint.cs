@@ -12,6 +12,7 @@ internal static class ServerMapDownloadEndpoint
     {
         ArgumentNullException.ThrowIfNull(app);
 
+        app.MapMethods($"{RoutePrefix}/{{**path}}", new[] { "OPTIONS" }, HandleOptionsAsync);
         app.MapGet($"{RoutePrefix}/{{levelName}}/{{**relativePath}}", HandlePackageFileAsync);
         app.MapGet($"{RoutePrefix}/{{fileName}}", HandleLegacyFileAsync);
     }
@@ -38,6 +39,7 @@ internal static class ServerMapDownloadEndpoint
 
     private static async Task HandlePackageFileAsync(HttpContext context, string levelName, string? relativePath)
     {
+        ApplyDownloadHeaders(context);
         if (!CustomMapLocatorStore.TryNormalizeLevelName(levelName, out var normalizedLevelName)
             || string.IsNullOrWhiteSpace(relativePath)
             || !CustomMapDescriptorResolver.TryResolve(normalizedLevelName, out var descriptor)
@@ -62,6 +64,7 @@ internal static class ServerMapDownloadEndpoint
 
     private static async Task HandleLegacyFileAsync(HttpContext context, string fileName)
     {
+        ApplyDownloadHeaders(context);
         if (!Path.GetExtension(fileName).Equals(".png", StringComparison.OrdinalIgnoreCase)
             || !CustomMapLocatorStore.TryNormalizeLevelName(Path.GetFileNameWithoutExtension(fileName), out var normalizedLevelName)
             || !CustomMapDescriptorResolver.TryResolve(normalizedLevelName, out var descriptor)
@@ -74,8 +77,16 @@ internal static class ServerMapDownloadEndpoint
         await SendFileAsync(context, descriptor.LocalFilePath, "image/png").ConfigureAwait(false);
     }
 
+    private static Task HandleOptionsAsync(HttpContext context)
+    {
+        ApplyDownloadHeaders(context);
+        context.Response.StatusCode = StatusCodes.Status204NoContent;
+        return Task.CompletedTask;
+    }
+
     private static async Task SendFileAsync(HttpContext context, string fullPath, string contentType)
     {
+        ApplyDownloadHeaders(context);
         if (!File.Exists(fullPath))
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
@@ -85,6 +96,16 @@ internal static class ServerMapDownloadEndpoint
         context.Response.ContentType = contentType;
         context.Response.Headers.CacheControl = "no-store";
         await context.Response.SendFileAsync(fullPath, context.RequestAborted).ConfigureAwait(false);
+    }
+
+    private static void ApplyDownloadHeaders(HttpContext context)
+    {
+        context.Response.Headers["Access-Control-Allow-Origin"] = "*";
+        context.Response.Headers["Access-Control-Allow-Methods"] = "GET, OPTIONS";
+        context.Response.Headers["Access-Control-Allow-Headers"] = "Content-Type, Range";
+        context.Response.Headers["Access-Control-Expose-Headers"] = "Content-Length, Content-Type";
+        context.Response.Headers["Cross-Origin-Resource-Policy"] = "cross-origin";
+        context.Response.Headers.CacheControl = "no-store";
     }
 
     private static string GetContentType(string relativePath)

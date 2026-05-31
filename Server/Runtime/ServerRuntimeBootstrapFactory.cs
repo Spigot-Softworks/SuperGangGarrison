@@ -69,6 +69,7 @@ internal static class ServerRuntimeBootstrapFactory
         }
 
         var world = new SimulationWorld(config);
+        world.LocalGoreEffectsEnabled = false;
         world.RandomSpreadEnabled = randomSpreadEnabled;
         world.SetCompetitiveSetupSeconds(competitiveSetupSeconds);
         world.SetCompetitiveReadyUpEnabled(competitiveReadyUpEnabled);

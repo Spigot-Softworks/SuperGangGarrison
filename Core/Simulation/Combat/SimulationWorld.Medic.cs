@@ -268,6 +268,20 @@ public sealed partial class SimulationWorld
         }
     }
 
+    private void EmitPendingMedicUberReadyPresentation()
+    {
+        foreach (var player in EnumerateSimulatedPlayers())
+        {
+            if (!player.TryConsumeMedicUberReadyPresentation())
+            {
+                continue;
+            }
+
+            player.TriggerChatBubble(ChatBubbleFrameCatalog.UberReady);
+            RegisterWorldSoundEvent("UberChargedSnd", player.X, player.Y);
+        }
+    }
+
     private PlayerEntity? AcquireMedicHealingTarget(PlayerEntity medic, float aimWorldX, float aimWorldY)
     {
         return AcquireMedicBeamTarget(medic, aimWorldX, aimWorldY, requireSameTeam: true);

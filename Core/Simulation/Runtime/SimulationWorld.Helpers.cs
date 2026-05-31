@@ -166,6 +166,11 @@ public sealed partial class SimulationWorld
 
     private void RegisterBloodEffect(float x, float y, float directionDegrees, int count = 1)
     {
+        if (!LocalGoreEffectsEnabled)
+        {
+            return;
+        }
+
         var normalizedDirectionDegrees = NormalizeAngleDegrees(directionDegrees);
         _pendingVisualEvents.Add(new WorldVisualEvent("Blood", x, y, normalizedDirectionDegrees, Math.Max(1, count)));
         SpawnImpactBloodDrops(x, y, normalizedDirectionDegrees, count);

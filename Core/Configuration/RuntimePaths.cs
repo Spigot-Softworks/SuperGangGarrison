@@ -21,11 +21,27 @@ public static class RuntimePaths
             }
 
             var configuredRoot = Environment.GetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT");
-            var path = !string.IsNullOrWhiteSpace(configuredRoot)
-                ? configuredRoot
-                : Path.Combine(GetDefaultUserDocumentsDirectory(), "OpenGarrison");
-            Directory.CreateDirectory(path);
-            return path;
+            if (!string.IsNullOrWhiteSpace(configuredRoot)
+                && TryCreateDirectory(configuredRoot, out var configuredPath))
+            {
+                return configuredPath;
+            }
+
+            var documentsPath = Path.Combine(GetDefaultUserDocumentsDirectory(), "OpenGarrison");
+            if (TryCreateDirectory(documentsPath, out var userDataPath))
+            {
+                return userDataPath;
+            }
+
+            var localAppDataPath = Path.Combine(GetDefaultLocalApplicationDataDirectory(), "OpenGarrison");
+            if (TryCreateDirectory(localAppDataPath, out userDataPath))
+            {
+                return userDataPath;
+            }
+
+            var applicationFallbackPath = Path.Combine(ApplicationRoot, "UserData");
+            Directory.CreateDirectory(applicationFallbackPath);
+            return applicationFallbackPath;
         }
     }
 
@@ -176,6 +192,45 @@ public static class RuntimePaths
         return string.IsNullOrWhiteSpace(documents)
             ? ApplicationRoot
             : documents;
+    }
+
+    private static string GetDefaultLocalApplicationDataDirectory()
+    {
+        var localApplicationData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        return string.IsNullOrWhiteSpace(localApplicationData)
+            ? ApplicationRoot
+            : localApplicationData;
+    }
+
+    private static bool TryCreateDirectory(string path, out string fullPath)
+    {
+        fullPath = string.Empty;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            fullPath = Path.GetFullPath(path);
+            Directory.CreateDirectory(fullPath);
+            return Directory.Exists(fullPath);
+        }
+        catch (ArgumentException)
+        {
+        }
+        catch (IOException)
+        {
+        }
+        catch (NotSupportedException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+
+        fullPath = string.Empty;
+        return false;
     }
 
     private static void AddUniqueDirectory(List<string> directories, string path)

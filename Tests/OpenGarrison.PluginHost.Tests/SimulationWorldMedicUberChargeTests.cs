@@ -24,6 +24,56 @@ public sealed class SimulationWorldMedicUberChargeTests
         Assert.Equal(target.Id, medic.MedicHealTargetId);
     }
 
+    [Fact]
+    public void MedicUberReadyTransitionEmitsSoundAndBubble()
+    {
+        var world = CreateMedicHealWorld(out var medic, out _);
+
+        medic.FillMedicUberCharge();
+        world.AdvanceOneTick();
+
+        Assert.True(medic.IsMedicUberReady);
+        Assert.Equal(ChatBubbleFrameCatalog.UberReady, medic.ChatBubbleFrameIndex);
+        Assert.Contains(world.PendingSoundEvents, soundEvent => soundEvent.SoundName == "UberChargedSnd");
+    }
+
+    [Fact]
+    public void MedicUberDrainsOverEightSeconds()
+    {
+        var world = CreateMedicHealWorld(out var medic, out _);
+        var durationTicks = (int)(PlayerEntity.MedicUberDurationSeconds * world.Config.TicksPerSecond);
+
+        medic.FillMedicUberCharge();
+        Assert.True(medic.TryStartMedicUber());
+
+        for (var tick = 0; tick < durationTicks - 1; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        Assert.True(medic.IsMedicUbering);
+        Assert.True(medic.MedicUberCharge > 0f);
+
+        world.AdvanceOneTick();
+        world.AdvanceOneTick();
+
+        Assert.False(medic.IsMedicUbering);
+        Assert.Equal(0f, medic.MedicUberCharge);
+    }
+
+    [Fact]
+    public void UberedPlayerCanFirePrimaryWithoutAmmo()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Soldier);
+        player.Spawn(PlayerTeam.Red, 100f, 100f);
+        player.ForceSetAmmo(0);
+        player.RefreshUber();
+
+        Assert.True(player.TryFirePrimaryWeapon());
+        Assert.Equal(0, player.CurrentShells);
+        Assert.True(player.LastPrimaryShotIgnoredAmmoCost);
+    }
+
     private static SimulationWorld CreateMedicHealWorld(out PlayerEntity medic, out PlayerEntity target)
     {
         var world = new SimulationWorld();

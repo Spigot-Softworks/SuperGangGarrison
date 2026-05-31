@@ -15,6 +15,7 @@ public sealed partial class SimulationWorld
         string? killFeedMessage = null,
         bool createDeathCam = true,
         bool spawnRemains = true,
+        bool forceCorpseRemains = false,
         bool recordKillFeed = true)
     {
         if (player.IsAlive && player.IsExperimentalLuckyBastardActive)
@@ -22,7 +23,11 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (player.IsExperimentalCryoFrozen)
+        if (forceCorpseRemains)
+        {
+            gibbed = false;
+        }
+        else if (player.IsExperimentalCryoFrozen)
         {
             gibbed = true;
         }

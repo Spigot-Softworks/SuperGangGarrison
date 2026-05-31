@@ -30,6 +30,8 @@ public sealed partial class PlayerEntity : SimulationEntity
     private const float MedicHealAmountPerTick = 1f;
     private const float MedicHalfHealAmountPerTick = 0.5f;
     public const float MedicUberMaxCharge = 2000f;
+    public const float MedicUberDurationSeconds = 8f;
+    public const float MedicUberChargeDrainPerSourceTick = MedicUberMaxCharge / (MedicUberDurationSeconds * LegacyMovementModel.SourceTicksPerSecond);
     public const int MedicNeedleRefillTicksDefault = 55;
     public const int MedicNeedleFireCooldownTicks = 3;
     public const int IntelRechargeMaxTicks = 900;
@@ -67,6 +69,7 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const int PyroPrimaryRefillBufferTicks = 7;
     public const int PyroPrimaryEmptyCooldownTicks = PyroPrimaryRefillBufferTicks * 2;
     public const int PyroFlameLoopMaintainTicks = 2;
+    private const int TauntRestartCooldownTicks = 30;
     private const float TauntFrameStepPerTick = 0.3f;
     private const int ChatBubbleHoldTicks = 60;
     private const float ChatBubbleFadePerTick = 0.05f;
@@ -259,9 +262,15 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public int HeavyEatCooldownTicksRemaining { get; private set; }
 
+    public int HeavyEatCooldownDurationTicks { get; private set; } = HeavySandvichCooldownTicks;
+
     public bool IsTaunting { get; private set; }
 
     public float TauntFrameIndex { get; private set; }
+
+    public int TauntRestartCooldownTicksRemaining { get; private set; }
+
+    private bool TauntInputReleaseRequired { get; set; }
 
     public float HeavyHealingAccumulator { get; private set; }
 
@@ -280,6 +289,11 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const float BinocularsMoveScale = 0.0f;
 
     public bool IsUbered => UberTicksRemaining > 0;
+
+    public bool HasInfiniteAmmoFromUber => IsUbered
+        || ClassId == PlayerClass.Medic
+        && IsMedicUbering
+        && !HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit);
 
     public int UberTicksRemaining { get; private set; }
 
@@ -304,6 +318,8 @@ public sealed partial class PlayerEntity : SimulationEntity
     public bool IsMedicUberReady { get; private set; }
 
     public bool IsMedicUbering { get; private set; }
+
+    public bool MedicUberReadyPresentationPending { get; private set; }
 
     public int MedicNeedleCooldownTicks { get; private set; }
 
@@ -681,11 +697,13 @@ public sealed partial class PlayerEntity : SimulationEntity
         ExtinguishAfterburn();
         IsHeavyEating = false;
         HeavyEatTicksRemaining = 0;
-        HeavyEatCooldownTicksRemaining = 0;
+        ClearHeavyEatCooldown();
         HeavyEatHealPerTickValue = HeavyEatHealPerTick;
         HeavyHealingAccumulator = 0f;
         IsTaunting = false;
         TauntFrameIndex = 0f;
+        TauntRestartCooldownTicksRemaining = 0;
+        TauntInputReleaseRequired = false;
         IsSniperScoped = false;
         SniperChargeTicks = 0;
         IsUsingBinoculars = false;
@@ -700,6 +718,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         {
             MedicUberCharge = ClassId == PlayerClass.Medic ? 0f : 0f;
             IsMedicUberReady = false;
+            MedicUberReadyPresentationPending = false;
         }
 
         IsMedicUbering = false;

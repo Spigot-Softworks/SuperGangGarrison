@@ -97,6 +97,7 @@ public partial class Game1
     private SoundEffectInstance? _localChaingunSoundInstance;
     private SoundEffectInstance? _localFlamethrowerSoundInstance;
     private SoundEffectInstance? _localMedigunSoundInstance;
+    private SoundEffectInstance? _localUberIdleSoundInstance;
     private bool _audioAvailable = true;
     private bool _audioMuted;
     private int _menuMusicVolumePercent = 70;
@@ -274,6 +275,40 @@ public partial class Game1
     private void PlayPendingSoundEvents()
     {
         _gameplayAudioEventController.PlayPendingSoundEvents();
+    }
+
+    private void PlayPredictedGibSound(float worldX, float worldY)
+    {
+        if (!_audioAvailable)
+        {
+            return;
+        }
+
+        var soundEvent = new WorldSoundEvent("Gibbing", worldX, worldY, SourceFrame: (ulong)Math.Max(0, _world.Frame));
+        if (ShouldSuppressPredictedGibSoundEcho(soundEvent))
+        {
+            return;
+        }
+
+        var sound = _runtimeAssets.GetSound(soundEvent.SoundName);
+        if (sound is null)
+        {
+            if (OperatingSystem.IsBrowser())
+            {
+                EnqueuePendingBrowserSoundEvent(soundEvent.SoundName, worldX, worldY);
+            }
+
+            return;
+        }
+
+        var (volume, pan) = GetWorldSoundMix(worldX, worldY);
+        if (volume <= 0f)
+        {
+            return;
+        }
+
+        TryPlaySound(sound, volume, 0f, pan);
+        RememberPlayedGibSound(soundEvent);
     }
 
     private void BeginExplosionSoundDeduplicationFrame()

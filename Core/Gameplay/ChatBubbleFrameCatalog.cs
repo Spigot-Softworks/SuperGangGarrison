@@ -12,6 +12,7 @@ public static class ChatBubbleFrameCatalog
     public const int Confirm = 43;
     public const int Deny = 44;
     public const int Medic = 45;
+    public const int UberReady = 46;
     public const int Burning = 49;
     public const int CustomBubbleFrameBase = 1000;
     public const int CustomBubbleSlotCount = 3;

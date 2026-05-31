@@ -35,6 +35,13 @@ public partial class Game1
             : player.HeavyEatCooldownTicksRemaining;
     }
 
+    private int GetPlayerHeavyEatCooldownDurationTicks(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? Math.Max(1, _predictedLocalActionState.HeavyEatCooldownDurationTicks)
+            : Math.Max(1, player.HeavyEatCooldownDurationTicks);
+    }
+
     private bool GetPlayerIsExperimentalGhostDashing(PlayerEntity player)
     {
         if (IsUsingPredictedLocalState(player))

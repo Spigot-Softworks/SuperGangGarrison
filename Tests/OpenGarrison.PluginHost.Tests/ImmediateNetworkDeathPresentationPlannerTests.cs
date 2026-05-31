@@ -10,7 +10,7 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class ImmediateNetworkDeathPresentationPlannerTests
 {
     [Fact]
-    public void TryCreateReturnsTemporaryDeadBodyForFatalPlayerDamageWithoutAuthoritativeCorpse()
+    public void TryCreateSkipsTemporaryDeadBodyWithoutAuthoritativeCorpse()
     {
         var plannerMethod = GetPlannerMethod();
         var targetPlayer = CreateDeadPlayer(playerId: 7, PlayerTeam.Blue, PlayerClass.Soldier, x: 100f, y: 200f, facingDirectionX: 1f);
@@ -29,18 +29,11 @@ public sealed class ImmediateNetworkDeathPresentationPlannerTests
 
         var result = plannerMethod.Invoke(null, [snapshot, damageEvent, targetPlayer, 90]);
 
-        Assert.NotNull(result);
-        Assert.Equal(7, GetPresentationValue<int>(result!, "SourcePlayerId"));
-        Assert.Equal(PlayerClass.Soldier, GetPresentationValue<PlayerClass>(result!, "ClassId"));
-        Assert.Equal(PlayerTeam.Blue, GetPresentationValue<PlayerTeam>(result!, "Team"));
-        Assert.Equal(100f, GetPresentationValue<float>(result!, "X"));
-        Assert.Equal(200f, GetPresentationValue<float>(result!, "Y"));
-        Assert.False(GetPresentationValue<bool>(result!, "FacingLeft"));
-        Assert.Equal(90, GetPresentationValue<int>(result!, "TicksRemaining"));
+        Assert.Null(result);
     }
 
     [Fact]
-    public void TryCreateSkipsTemporaryDeadBodyWhenAuthoritativeCorpseAlreadyExists()
+    public void TryCreateReturnsTemporaryDeadBodyFromAuthoritativeCorpse()
     {
         var plannerMethod = GetPlannerMethod();
         var targetPlayer = CreateDeadPlayer(playerId: 7, PlayerTeam.Red, PlayerClass.Medic, x: 144f, y: 88f, facingDirectionX: -1f);
@@ -75,7 +68,15 @@ public sealed class ImmediateNetworkDeathPresentationPlannerTests
 
         var result = plannerMethod.Invoke(null, [snapshot, damageEvent, targetPlayer, 90]);
 
-        Assert.Null(result);
+        Assert.NotNull(result);
+        Assert.Equal(7, GetPresentationValue<int>(result!, "SourcePlayerId"));
+        Assert.Equal(PlayerClass.Medic, GetPresentationValue<PlayerClass>(result!, "ClassId"));
+        Assert.Equal(PlayerTeam.Red, GetPresentationValue<PlayerTeam>(result!, "Team"));
+        Assert.Equal(DeadBodyAnimationKind.Default, GetPresentationValue<DeadBodyAnimationKind>(result!, "AnimationKind"));
+        Assert.Equal(144f, GetPresentationValue<float>(result!, "X"));
+        Assert.Equal(88f, GetPresentationValue<float>(result!, "Y"));
+        Assert.True(GetPresentationValue<bool>(result!, "FacingLeft"));
+        Assert.Equal(90, GetPresentationValue<int>(result!, "TicksRemaining"));
     }
 
     private static MethodInfo GetPlannerMethod()

@@ -1376,10 +1376,13 @@ public partial class Game1
                         "cooldownSeconds",
                         PlayerEntity.HeavySandvichCooldownTicks,
                         _game._config.TicksPerSecond);
-                    cooldownRemaining = Math.Clamp(
-                        _game.GetPlayerHeavyEatCooldownTicksRemaining(player),
-                        0,
-                        maxCooldownTicks);
+                    var heavyEatCooldownRemaining = _game.GetPlayerHeavyEatCooldownTicksRemaining(player);
+                    if (heavyEatCooldownRemaining > 0)
+                    {
+                        maxCooldownTicks = _game.GetPlayerHeavyEatCooldownDurationTicks(player);
+                    }
+
+                    cooldownRemaining = Math.Clamp(heavyEatCooldownRemaining, 0, maxCooldownTicks);
                     return true;
                 case BuiltInGameplayBehaviorIds.HeavyGhostDash:
                     if (player.ClassId != PlayerClass.Heavy)

@@ -88,6 +88,35 @@ public sealed class SimulationWorldCombatBlockingTests
     }
 
     [Fact]
+    public void MineLauncherDoesNotStartStickyInsideBlockedMuzzleOffset()
+    {
+        const float solidLeft = 85f;
+        var world = new SimulationWorld();
+        SetCombatLevel(world, CreateLevel(
+            roomObjects: [],
+            solids:
+            [
+                new LevelSolid(solidLeft, 80f, 32f, 32f),
+            ]));
+        Assert.True(world.TrySetLocalClass(PlayerClass.Demoman));
+        world.ForceRespawnLocalPlayer();
+        var player = world.LocalPlayer;
+        player.TeleportTo(80f, 96f);
+
+        Assert.True(player.TryFirePrimaryWeapon());
+        InvokeFirePrimaryWeapon(world, player, 160f, 96f);
+
+        var mine = Assert.Single(world.Mines);
+        Assert.True(mine.X < solidLeft);
+
+        world.AdvanceOneTick();
+
+        mine = Assert.Single(world.Mines);
+        Assert.True(mine.IsStickied);
+        Assert.True(mine.X < solidLeft);
+    }
+
+    [Fact]
     public void IntelPickupRejectsPickupThatWouldMakeCurrentTeamGateBlocking()
     {
         var world = new SimulationWorld();
@@ -120,7 +149,7 @@ public sealed class SimulationWorldCombatBlockingTests
         return world;
     }
 
-    private static SimpleLevel CreateLevel(IReadOnlyList<RoomObjectMarker> roomObjects)
+    private static SimpleLevel CreateLevel(IReadOnlyList<RoomObjectMarker> roomObjects, IReadOnlyList<LevelSolid>? solids = null)
     {
         return new SimpleLevel(
             name: "combat_blocking_test",
@@ -140,7 +169,7 @@ public sealed class SimulationWorldCombatBlockingTests
             ],
             roomObjects: roomObjects,
             floorY: 2048f,
-            solids: [],
+            solids: solids ?? [],
             importedFromSource: false);
     }
 
@@ -222,6 +251,13 @@ public sealed class SimulationWorldCombatBlockingTests
         var method = typeof(SimulationWorld).GetMethod("TryHandleNetworkPrimaryFire", BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, [player, input, primaryPressed, suppressPyroPrimaryThisTick]);
+    }
+
+    private static void InvokeFirePrimaryWeapon(SimulationWorld world, PlayerEntity player, float aimWorldX, float aimWorldY)
+    {
+        var method = typeof(SimulationWorld).GetMethod("FirePrimaryWeapon", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        _ = method!.Invoke(world, [player, aimWorldX, aimWorldY]);
     }
 
     private static int GetMineCount(SimulationWorld world)
