@@ -69,15 +69,10 @@ public partial class Game1
 
         if (TryGetActiveBackstabVisual(player, out var animation))
         {
-            if (!ReferenceEquals(player, _world.LocalPlayer) && !GetPlayerIsSpyBackstabAnimating(player))
-            {
-                return 1f;
-            }
-
             return Math.Clamp(1f - animation.Alpha, 0f, 1f);
         }
 
-        if (!ReferenceEquals(player, _world.LocalPlayer) || !GetPlayerIsSpyBackstabAnimating(player))
+        if (!GetPlayerIsSpyBackstabAnimating(player))
         {
             return 1f;
         }
@@ -143,23 +138,19 @@ public partial class Game1
         }
 
         var hasActiveVisual = TryGetActiveBackstabVisual(player, out _);
-        if (ReferenceEquals(player, _world.LocalPlayer))
-        {
-            return hasActiveVisual || GetPlayerIsSpyBackstabAnimating(player);
-        }
-
-        return hasActiveVisual && GetPlayerIsSpyBackstabAnimating(player);
+        // Use || for both local and remote players: show the backstab replacement render
+        // whenever the visual entity exists OR the server tick counter says animating.
+        // Using && for remote players caused the animation to silently disappear when the
+        // BackstabBlue/Red visual event was dropped under snapshot budget pressure (it is
+        // Optional while sound events are required), or when the event arrived after the
+        // tick counter had already expired.
+        return hasActiveVisual || GetPlayerIsSpyBackstabAnimating(player);
     }
 
     private float GetBackstabReplacementDirectionDegrees(PlayerEntity player)
     {
         if (TryGetActiveBackstabVisual(player, out var animation))
         {
-            if (!ReferenceEquals(player, _world.LocalPlayer) && !GetPlayerIsSpyBackstabAnimating(player))
-            {
-                return player.AimDirectionDegrees;
-            }
-
             return animation.DirectionDegrees;
         }
 
