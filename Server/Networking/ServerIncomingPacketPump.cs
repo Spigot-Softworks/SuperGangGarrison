@@ -31,6 +31,10 @@ internal sealed class ServerIncomingPacketPump(
             {
                 log("[server] ignoring UDP connection reset from disconnected client");
             }
+            catch (Exception ex)
+            {
+                log($"[server] unhandled exception processing incoming packet: {ex}");
+            }
         }
     }
 }
