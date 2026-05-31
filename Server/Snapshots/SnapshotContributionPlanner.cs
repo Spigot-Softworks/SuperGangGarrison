@@ -18,6 +18,7 @@ internal static class SnapshotContributionPlanner
     private const int SnapshotPlayerFixedBytes = 220;
     private const int SnapshotPlayerMovementBytes = 28;
     private const int SnapshotPlayerStatusBytes = 20;
+    private const string CoreReplicatedOwnerId = "core.player";
     private const int SnapshotPlayerExtendedStatusBytes = 26;
     private const int SnapshotPlayerChatBubbleBytes = 10;
     private const int ProjectileSnapshotUpdateIntervalTicks = 1;
@@ -460,7 +461,7 @@ internal static class SnapshotContributionPlanner
                 contributions.Add(new SnapshotDeltaBudgeter.Contribution(
                     statusPriority,
                     DistanceSquared(focus.X, focus.Y, player.X, player.Y),
-                    SnapshotPlayerStatusBytes,
+                    SnapshotPlayerStatusBytes + EstimateReplicatedStateEntryBytes(statusState.SecondaryAmmoStates),
                     builder => builder.PlayerStatusStates.Add(statusState),
                     player.Slot == viewerSlot
                         ? SnapshotDeltaBudgeter.ContributionKind.LocalPlayerStatusUpdate
@@ -551,7 +552,8 @@ internal static class SnapshotContributionPlanner
             player.MaxAmmo,
             player.Metal,
             player.IsCarryingIntel,
-            player.IntelRechargeTicks);
+            player.IntelRechargeTicks,
+            ExtractSecondaryAmmoStates(player.ReplicatedStates));
     }
 
     private static SnapshotPlayerChatBubbleState ToPlayerChatBubbleState(SnapshotPlayerState player)
@@ -607,7 +609,9 @@ internal static class SnapshotContributionPlanner
             || player.IsMedicHealing != baselinePlayer.IsMedicHealing
             || player.MovementState != baselinePlayer.MovementState
             || player.IsTaunting != baselinePlayer.IsTaunting
-            || player.TauntFrameIndex != baselinePlayer.TauntFrameIndex
+            // TauntFrameIndex is intentionally excluded: clients advance it locally once a taunt
+            // starts, and sending it every tick would cause unnecessary movement deltas without
+            // benefit (the SnapshotDelta merge ignores it for ongoing taunts anyway).
             || player.BurnIntensity != baselinePlayer.BurnIntensity
             || player.GameplayEquippedSlot != baselinePlayer.GameplayEquippedSlot
             || player.PrimaryCooldownTicks != baselinePlayer.PrimaryCooldownTicks
@@ -777,7 +781,83 @@ internal static class SnapshotContributionPlanner
             || player.MaxAmmo != baselinePlayer.MaxAmmo
             || player.Metal != baselinePlayer.Metal
             || player.IsCarryingIntel != baselinePlayer.IsCarryingIntel
-            || player.IntelRechargeTicks != baselinePlayer.IntelRechargeTicks;
+            || player.IntelRechargeTicks != baselinePlayer.IntelRechargeTicks
+            || HasSecondaryAmmoChanged(player.ReplicatedStates, baselinePlayer.ReplicatedStates);
+    }
+
+    // Returns true if any secondary/utility ammo count (keys containing "_ammo" under core.player)
+    // differs between current and baseline ReplicatedStates.
+    private static bool HasSecondaryAmmoChanged(
+        IReadOnlyList<SnapshotReplicatedStateEntry>? current,
+        IReadOnlyList<SnapshotReplicatedStateEntry>? baseline)
+    {
+        var currentCount = current?.Count ?? 0;
+        var baselineCount = baseline?.Count ?? 0;
+        // Check every ammo entry in current against baseline
+        for (var i = 0; i < currentCount; i++)
+        {
+            var entry = current![i];
+            if (!string.Equals(entry.OwnerId, CoreReplicatedOwnerId, StringComparison.Ordinal)
+                || entry.Key.IndexOf("_ammo", StringComparison.Ordinal) < 0)
+            {
+                continue;
+            }
+            var found = false;
+            for (var j = 0; j < baselineCount; j++)
+            {
+                var b = baseline![j];
+                if (string.Equals(entry.Key, b.Key, StringComparison.Ordinal))
+                {
+                    found = true;
+                    if (entry.IntValue != b.IntValue) return true;
+                    break;
+                }
+            }
+            if (!found) return true;
+        }
+        // Check whether any ammo entry was removed (present in baseline but not current)
+        for (var j = 0; j < baselineCount; j++)
+        {
+            var b = baseline![j];
+            if (!string.Equals(b.OwnerId, CoreReplicatedOwnerId, StringComparison.Ordinal)
+                || b.Key.IndexOf("_ammo", StringComparison.Ordinal) < 0)
+            {
+                continue;
+            }
+            var found = false;
+            for (var i = 0; i < currentCount; i++)
+            {
+                if (string.Equals(b.Key, current![i].Key, StringComparison.Ordinal))
+                {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) return true;
+        }
+        return false;
+    }
+
+    // Extracts the secondary/utility ammo ReplicatedState entries (keys containing "_ammo"
+    // under core.player) that should be included in the high-priority status update.
+    private static SnapshotReplicatedStateEntry[] ExtractSecondaryAmmoStates(
+        IReadOnlyList<SnapshotReplicatedStateEntry>? entries)
+    {
+        if (entries is null || entries.Count == 0)
+        {
+            return Array.Empty<SnapshotReplicatedStateEntry>();
+        }
+        var ammoEntries = new List<SnapshotReplicatedStateEntry>(entries.Count);
+        for (var i = 0; i < entries.Count; i++)
+        {
+            var entry = entries[i];
+            if (string.Equals(entry.OwnerId, CoreReplicatedOwnerId, StringComparison.Ordinal)
+                && entry.Key.IndexOf("_ammo", StringComparison.Ordinal) >= 0)
+            {
+                ammoEntries.Add(entry);
+            }
+        }
+        return ammoEntries.Count > 0 ? ammoEntries.ToArray() : Array.Empty<SnapshotReplicatedStateEntry>();
     }
 
     private static bool HasPlayerChatBubbleChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)

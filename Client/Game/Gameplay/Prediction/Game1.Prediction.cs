@@ -158,6 +158,7 @@ public partial class Game1
             HeavyEatTicksRemaining = player.HeavyEatTicksRemaining,
             HeavyEatCooldownTicksRemaining = player.HeavyEatCooldownTicksRemaining,
             IsExperimentalGhostDashing = player.IsExperimentalGhostDashing,
+            ExperimentalGhostDashEnablesTrail = player.ExperimentalGhostDashEnablesTrail,
             ExperimentalGhostDashCooldownTicksRemaining = player.ExperimentalGhostDashCooldownTicksRemaining,
             IsSniperScoped = player.IsSniperScoped,
             SniperChargeTicks = player.SniperChargeTicks,
@@ -260,6 +261,7 @@ public partial class Game1
         public int HeavyEatTicksRemaining;
         public int HeavyEatCooldownTicksRemaining;
         public bool IsExperimentalGhostDashing;
+        public bool ExperimentalGhostDashEnablesTrail;
         public int ExperimentalGhostDashCooldownTicksRemaining;
         public bool IsSniperScoped;
         public int SniperChargeTicks;
