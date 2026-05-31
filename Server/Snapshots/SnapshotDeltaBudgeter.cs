@@ -28,6 +28,7 @@ internal static class SnapshotDeltaBudgeter
         PlayerRosterUpdate,
         PlayerRemoval,
         EntityRemoval,
+        EntityStateUpdate,
         EntityFirstAppearance,
         TransientSoundEvent,
         ProjectileSpawn,
@@ -104,6 +105,12 @@ internal static class SnapshotDeltaBudgeter
             orderedContributions,
             appliedContributions,
             SnapshotDeltaBudgeter.ContributionKind.EntityFirstAppearance,
+            ref remainingBudget);
+        ApplyRequiredContributions(
+            builder,
+            orderedContributions,
+            appliedContributions,
+            SnapshotDeltaBudgeter.ContributionKind.EntityStateUpdate,
             ref remainingBudget);
         ApplyRequiredContributions(
             builder,
@@ -687,7 +694,6 @@ internal static class SnapshotDeltaBudgeter
             Mines = Array.Empty<SnapshotMineState>(),
             Grenades = Array.Empty<SnapshotGrenadeState>(),
             PlayerGibs = Array.Empty<SnapshotPlayerGibState>(),
-            DeadBodies = Array.Empty<SnapshotDeadBodyState>(),
             ControlPoints = Array.Empty<SnapshotControlPointState>(),
             Generators = Array.Empty<SnapshotGeneratorState>(),
             LocalDeathCam = null,
@@ -712,7 +718,6 @@ internal static class SnapshotDeltaBudgeter
             RemovedMineIds = Array.Empty<int>(),
             RemovedGrenadeIds = Array.Empty<int>(),
             RemovedPlayerGibIds = Array.Empty<int>(),
-            RemovedDeadBodyIds = Array.Empty<int>(),
             RemovedSentryGibIds = Array.Empty<int>(),
             RemovedJumpPadIds = Array.Empty<int>(),
             RemovedJumpPadGibIds = Array.Empty<int>(),
@@ -728,7 +733,6 @@ internal static class SnapshotDeltaBudgeter
             changed |= ClearIfAny(builder.GibSpawnEvents);
             changed |= ClearIfAny(builder.SentryGibs);
             changed |= ClearIfAny(builder.JumpPadGibs);
-            changed |= ClearIfAny(builder.DeadBodies);
             return changed;
         },
         // Drop small projectile motion-only updates one collection at a time (least important first)
@@ -773,7 +777,6 @@ internal static class SnapshotDeltaBudgeter
             changed |= ClearIfAny(builder.RemovedSentryGibIds);
             changed |= ClearIfAny(builder.RemovedJumpPadGibIds);
             changed |= ClearIfAny(builder.RemovedJumpPadIds);
-            changed |= ClearIfAny(builder.RemovedDeadBodyIds);
             return changed;
         },
         static builder =>

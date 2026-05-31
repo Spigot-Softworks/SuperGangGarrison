@@ -434,9 +434,6 @@ public partial class Game1
                 new("Healthbar", _game._showHealthBarEnabled ? "Enabled" : "Disabled", _game.ToggleShowHealthBarSetting, OptionsMenuTab.Gameplay),
                 new("Hud", Game1.GetHudWeaponDisplayModeLabel(_game._hudShowOnlyActiveWeapon), _game.ToggleHudWeaponDisplayModeSetting, OptionsMenuTab.Gameplay),
                 new("Overhead Chat", _game._overheadChatEnabled ? "Enabled" : "Disabled", _game.ToggleOverheadChatSetting, OptionsMenuTab.Gameplay),
-                new("Show Custom Bubbles", _game._showCustomBubbles ? "Enabled" : "Disabled", _game.ToggleCustomBubbleVisibilitySetting, OptionsMenuTab.Gameplay),
-                new("Custom Bubble", _game.GetSelectedCustomBubbleSlotLabel(), _game.CycleCustomBubbleSlotSetting, OptionsMenuTab.Gameplay),
-                new("Edit Bubble", string.Empty, OpenCustomBubbleEditorFromOptions, OptionsMenuTab.Gameplay),
                 new("Low HP Color", Game1.GetLowHealthColorModeLabel(_game._lowHealthColorMode), _game.CycleLowHealthColorModeSetting, OptionsMenuTab.Gameplay),
                 new("Portrait Rumble", _game._portraitRumbleEnabled ? "Enabled" : "Disabled", _game.TogglePortraitRumbleSetting, OptionsMenuTab.Gameplay),
                 new("MVP Art", _game._postGameMvpArtEnabled ? "Enabled" : "Disabled", _game.TogglePostGameMvpArtSetting, OptionsMenuTab.Gameplay),
@@ -703,11 +700,6 @@ public partial class Game1
         private void OpenHudEditorFromOptions()
         {
             _game.OpenHudEditor(openedFromOptions: true);
-        }
-
-        private void OpenCustomBubbleEditorFromOptions()
-        {
-            _game.OpenCustomBubbleEditorFromOptions();
         }
 
         private static string GetParticleModeLabel(int particleMode)

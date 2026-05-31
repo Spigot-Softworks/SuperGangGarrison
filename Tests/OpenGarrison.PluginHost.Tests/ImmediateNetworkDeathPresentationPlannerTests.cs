@@ -79,6 +79,45 @@ public sealed class ImmediateNetworkDeathPresentationPlannerTests
         Assert.Equal(90, GetPresentationValue<int>(result!, "TicksRemaining"));
     }
 
+    [Fact]
+    public void TryCreateSkipsOldCorpseFromPreviousDeath()
+    {
+        var plannerMethod = GetPlannerMethod();
+        var targetPlayer = CreateDeadPlayer(playerId: 7, PlayerTeam.Red, PlayerClass.Medic, x: 144f, y: 88f, facingDirectionX: -1f);
+        var snapshot = CreateSnapshot(
+        [
+            new SnapshotDeadBodyState(
+                Id: 301,
+                SourcePlayerId: 7,
+                Team: (byte)PlayerTeam.Red,
+                ClassId: (byte)PlayerClass.Medic,
+                AnimationKind: (byte)DeadBodyAnimationKind.Default,
+                X: 144f,
+                Y: 88f,
+                Width: targetPlayer.Width,
+                Height: targetPlayer.Height,
+                HorizontalSpeed: 0f,
+                VerticalSpeed: 0f,
+                FacingLeft: true,
+                TicksRemaining: 120),
+        ]);
+        var damageEvent = new SnapshotDamageEvent(
+            Amount: 120,
+            AttackerPlayerId: 2,
+            AssistedByPlayerId: -1,
+            TargetKind: (byte)DamageTargetKind.Player,
+            TargetEntityId: 7,
+            X: 144f,
+            Y: 88f,
+            WasFatal: true,
+            EventId: 20,
+            SourceFrame: 32);
+
+        var result = plannerMethod.Invoke(null, [snapshot, damageEvent, targetPlayer, 90]);
+
+        Assert.Null(result);
+    }
+
     private static MethodInfo GetPlannerMethod()
     {
         var plannerType = typeof(Game1).Assembly.GetType("OpenGarrison.Client.ImmediateNetworkDeathPresentationPlanner");

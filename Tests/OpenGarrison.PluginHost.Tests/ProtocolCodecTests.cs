@@ -279,7 +279,7 @@ public sealed class ProtocolCodecTests
             LocalDeathCam: null,
             KillFeed: [new SnapshotKillFeedEntry("Scout", 1, "scattergun", "Pyro", 2, "Scout fragged Pyro", 0, 5, 5, 6)],
             VisualEvents: [new SnapshotVisualEvent("spark", 10f, 20f, 45f, 1, 55)],
-            DamageEvents: [new SnapshotDamageEvent(45, 5, -1, 1, 6, 10f, 20f, false, 66, 101)],
+            DamageEvents: [new SnapshotDamageEvent(45, 5, -1, 1, 6, 10f, 20f, false, EventId: 66, SourceFrame: 101, Flags: 6)],
             SoundEvents: [new SnapshotSoundEvent("rocket_fire", 11f, 21f, 77, 101)],
             IsCustomMap: true,
             MapDownloadUrl: "https://example.invalid/map.zip",

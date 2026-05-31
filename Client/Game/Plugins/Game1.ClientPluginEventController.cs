@@ -99,6 +99,7 @@ public partial class Game1
                 var damageEvent = localDamageEvents[index];
                 TryTrackLastToDieDamageDealt(damageEvent.AttackerPlayerId, damageEvent.Amount);
                 _game.ObserveLastToDieDamageEvent(damageEvent);
+                _game.ObserveHeavyDashDodgeDamageEvent(damageEvent);
                 TryTriggerLocalPortraitDamageFeedback(damageEvent);
                 TryTriggerLocalDamageVignette(damageEvent);
 
@@ -112,6 +113,7 @@ public partial class Game1
             {
                 var damageEvent = _game._pendingNetworkDamageEvents[index];
                 TryTrackLastToDieDamageDealt(damageEvent.AttackerPlayerId, damageEvent.Amount);
+                _game.ObserveHeavyDashDodgeDamageEvent(damageEvent);
                 TryTriggerLocalPortraitDamageFeedback(damageEvent);
                 TryTriggerLocalDamageVignette(damageEvent);
             }
@@ -311,7 +313,7 @@ public partial class Game1
                 receivedByLocalPlayer,
                 damageEvent.AttackerPlayerId,
                 damageEvent.AssistedByPlayerId,
-                LocalDamageFlags.None);
+                (LocalDamageFlags)damageEvent.Flags);
             _game._clientPluginHost?.NotifyLocalDamage(pluginEvent);
             if ((dealtByLocalPlayer && !isSelfDamage) || assistedByLocalPlayer)
             {

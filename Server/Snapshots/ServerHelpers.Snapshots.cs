@@ -558,7 +558,8 @@ internal static partial class ServerHelpers
             damageEvent.Y,
             damageEvent.WasFatal,
             damageEvent.EventId == 0 ? fallbackEventId : damageEvent.EventId,
-            damageEvent.SourceFrame);
+            damageEvent.SourceFrame,
+            (byte)damageEvent.Flags);
     }
 
     internal static SnapshotKillFeedEntry ToSnapshotKillFeedEntry(KillFeedEntry entry)

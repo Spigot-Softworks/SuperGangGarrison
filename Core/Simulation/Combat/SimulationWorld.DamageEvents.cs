@@ -78,6 +78,11 @@ public sealed partial class SimulationWorld
         }
 
         var healthBefore = target.Health;
+        if (TryRegisterExperimentalGhostDashEvade(target, attacker, damageFlags))
+        {
+            return false;
+        }
+
         if (TryEvadeExperimentalDamage(target, attacker, damage, damageFlags))
         {
             return false;
@@ -165,6 +170,11 @@ public sealed partial class SimulationWorld
         }
 
         var healthBefore = target.Health;
+        if (TryRegisterExperimentalGhostDashEvade(target, attacker, damageFlags))
+        {
+            return false;
+        }
+
         if (TryEvadeExperimentalDamage(target, attacker, damage, damageFlags))
         {
             return false;
@@ -223,6 +233,32 @@ public sealed partial class SimulationWorld
         }
         TryRegisterCombatComboHit(attacker, target, appliedDamage);
         return died;
+    }
+
+    private bool TryRegisterExperimentalGhostDashEvade(
+        PlayerEntity target,
+        PlayerEntity? attacker,
+        DamageEventFlags damageFlags)
+    {
+        if (!target.IsExperimentalGhostDashing
+            || attacker is null
+            || ReferenceEquals(attacker, target)
+            || attacker.Team == target.Team)
+        {
+            return false;
+        }
+
+        RegisterDamageEvent(
+            attacker,
+            DamageTargetKind.Player,
+            target.Id,
+            target.X,
+            target.Y,
+            amount: 0,
+            wasFatal: false,
+            target,
+            damageFlags | DamageEventFlags.Evaded | DamageEventFlags.GhostDash);
+        return true;
     }
 
     private bool ApplySentryDamage(SentryEntity target, int damage, PlayerEntity? attacker)

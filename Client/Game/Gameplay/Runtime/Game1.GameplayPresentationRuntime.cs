@@ -63,6 +63,7 @@ public partial class Game1
         }
         UpdateLastToDieSession(clientTicks);
         UpdateLastToDieCombatFeedbackPresentation();
+        UpdateHeavyDashDodgePopup();
         UpdateTeamSelect(keyboard, mouse);
         UpdateClassSelect(mouse);
         RecordBrowserPresentationDuration(browserPresentationStartTimestamp);

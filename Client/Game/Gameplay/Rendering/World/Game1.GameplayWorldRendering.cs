@@ -496,6 +496,7 @@ public partial class Game1
         DrawWriteBubble(_world.LocalPlayer, cameraPosition);
         DrawOverheadChatMessage(_world.LocalPlayer, cameraPosition);
         DrawLastToDieMissPopup(_world.LocalPlayer, cameraPosition);
+        DrawHeavyDashDodgePopup(_world.LocalPlayer, cameraPosition);
         TryDrawAdditionalHealthBar(_world.LocalPlayer, cameraPosition, visibilityAlpha);
     }
 

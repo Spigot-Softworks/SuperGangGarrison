@@ -32,6 +32,7 @@ public partial class Game1
     private bool _customBubbleEditorOpen;
     private bool _customBubbleEditorReturnToOptions;
     private bool _customBubbleEditorReturnFromGameplayOptions;
+    private bool _customBubbleEditorReturnToProfile;
     private bool _showCustomBubbles = true;
     private int _selectedCustomBubbleSlot;
 
@@ -58,6 +59,14 @@ public partial class Game1
         UploadSelectedCustomBubbleState();
     }
 
+    private void SelectCustomBubbleSlotSetting(int slotIndex)
+    {
+        _selectedCustomBubbleSlot = CustomBubbleDocument.NormalizeSlotIndex(slotIndex);
+        PersistCustomBubbleDocument();
+        InvalidateLocalCustomBubbleRenderState();
+        UploadSelectedCustomBubbleState();
+    }
+
     private void PersistCustomBubbleDocument()
     {
         _customBubbleDocument.ShowCustomBubbles = _showCustomBubbles;
@@ -75,22 +84,25 @@ public partial class Game1
         return $"Bubble {CustomBubbleDocument.NormalizeSlotIndex(slotIndex) + 1}";
     }
 
-    private void OpenCustomBubbleEditorFromOptions()
+    private void OpenCustomBubbleEditorFromProfile(int slotIndex)
     {
-        OpenCustomBubbleEditor(returnToOptions: true, returnFromGameplayOptions: _optionsMenuOpenedFromGameplay);
+        SelectCustomBubbleSlotSetting(slotIndex);
+        OpenCustomBubbleEditor(returnToOptions: false, returnFromGameplayOptions: false, returnToProfile: true);
     }
 
-    private void OpenCustomBubbleEditor(bool returnToOptions, bool returnFromGameplayOptions)
+    private void OpenCustomBubbleEditor(bool returnToOptions, bool returnFromGameplayOptions, bool returnToProfile = false)
     {
         _customBubbleEditorOpen = true;
         _customBubbleEditorReturnToOptions = returnToOptions;
         _customBubbleEditorReturnFromGameplayOptions = returnFromGameplayOptions;
+        _customBubbleEditorReturnToProfile = returnToProfile;
         _optionsMenuOpen = false;
         _optionsMenuOpenedFromGameplay = false;
         _pluginOptionsMenuOpen = false;
         _pluginOptionsMenuOpenedFromGameplay = false;
         _controlsMenuOpen = false;
         _controlsMenuOpenedFromGameplay = false;
+        _friendsMenuOpen = false;
         _inGameMenuOpen = false;
         _inGameMenuAwaitingEscapeRelease = false;
         _editingPlayerName = false;
@@ -101,8 +113,18 @@ public partial class Game1
     {
         var returnToOptions = _customBubbleEditorReturnToOptions;
         var returnFromGameplay = _customBubbleEditorReturnFromGameplayOptions;
+        var returnToProfile = _customBubbleEditorReturnToProfile;
         DismissCustomBubbleEditor();
-        if (returnToOptions)
+        if (returnToProfile)
+        {
+            _mainMenuOverlayStateController.OpenFriendsMenu();
+            _friendsMenuTab = FriendsMenuTab.Bubble;
+            _editingFriendCode = false;
+            _editingFriendMessage = false;
+            _editingFriendNickname = false;
+            _menuStatusMessage = string.Empty;
+        }
+        else if (returnToOptions)
         {
             OpenOptionsMenu(returnFromGameplay);
             _optionsPageIndex = 2;
@@ -119,6 +141,7 @@ public partial class Game1
         _customBubbleEditorOpen = false;
         _customBubbleEditorReturnToOptions = false;
         _customBubbleEditorReturnFromGameplayOptions = false;
+        _customBubbleEditorReturnToProfile = false;
         _customBubbleEditorController?.Close();
     }
 

@@ -775,7 +775,8 @@ public sealed record SnapshotDamageEvent(
     float Y,
     bool WasFatal,
     ulong EventId = 0,
-    ulong SourceFrame = 0);
+    ulong SourceFrame = 0,
+    byte Flags = 0);
 
 public enum SnapshotReplicatedStateValueKind : byte
 {

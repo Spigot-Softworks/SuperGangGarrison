@@ -1295,12 +1295,67 @@ public sealed class SnapshotDeltaBudgeterTests
 
         var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
 
-        var contribution = Assert.Single(contributions.Where(static entry => entry.Kind == SnapshotDeltaBudgeter.ContributionKind.EntityFirstAppearance));
+        var contribution = Assert.Single(
+            contributions,
+            static entry => entry.Kind == SnapshotDeltaBudgeter.ContributionKind.EntityFirstAppearance);
         var builder = new SnapshotDeltaBudgeter.Builder(current, baseline.Frame, seedFromTemplateCollections: false);
         contribution.Apply(builder);
         var snapshot = builder.Build();
         var includedDeadBody = Assert.Single(snapshot.DeadBodies);
         Assert.Equal(deadBody.Id, includedDeadBody.Id);
+    }
+
+    [Fact]
+    public void BuildContributionsMarksKnownDeadBodyUpdatesAsRequiredEntityStateUpdates()
+    {
+        var baselineDeadBody = new SnapshotDeadBodyState(
+            Id: 702,
+            SourcePlayerId: 203,
+            Team: (byte)PlayerTeam.Red,
+            ClassId: (byte)PlayerClass.Heavy,
+            AnimationKind: (byte)DeadBodyAnimationKind.Default,
+            X: 128f,
+            Y: 96f,
+            Width: 28f,
+            Height: 50f,
+            HorizontalSpeed: 0f,
+            VerticalSpeed: 0f,
+            FacingLeft: false,
+            TicksRemaining: 300);
+        var updatedDeadBody = baselineDeadBody with
+        {
+            Y = 112f,
+            VerticalSpeed = 4f,
+            TicksRemaining = 284,
+        };
+        var baseline = SnapshotBaselineState.FromSnapshot(CreateSnapshot(369) with
+        {
+            DeadBodies = [baselineDeadBody],
+        });
+        var current = CreateSnapshot(370) with
+        {
+            DeadBodies = [updatedDeadBody],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+
+        var contribution = Assert.Single(
+            contributions,
+            static entry => entry.Kind == SnapshotDeltaBudgeter.ContributionKind.EntityStateUpdate);
+        var builder = new SnapshotDeltaBudgeter.Builder(current, baseline.Frame, seedFromTemplateCollections: false);
+        contribution.Apply(builder);
+        var snapshot = builder.Build();
+        var includedDeadBody = Assert.Single(snapshot.DeadBodies);
+        Assert.Equal(updatedDeadBody.Id, includedDeadBody.Id);
+        Assert.Equal(updatedDeadBody.Y, includedDeadBody.Y);
+        Assert.Equal(updatedDeadBody.TicksRemaining, includedDeadBody.TicksRemaining);
     }
 
     [Fact]

@@ -56,7 +56,7 @@ public partial class Game1
                 var friendsBounds = _game.GetBottomRightPlaqueButtonBounds(layout);
                 if (friendsBounds != Rectangle.Empty)
                 {
-                    buttons.Add(new MenuPageButton("Friends", friendsBounds, _game.OpenFriendsMenu, IsBottomBarRightButton: true));
+                    buttons.Add(new MenuPageButton("Profile", friendsBounds, _game.OpenFriendsMenu, IsBottomBarRightButton: true));
                 }
             }
 
@@ -104,7 +104,7 @@ public partial class Game1
             _game.DrawPlaqueMenuLayout(layout, stackedActions, soloAction, bottomBarAction is not null, bottomBarLabel, hoveredStackedIndex, soloHovered, bottomHovered, 1.15f);
             if (_game._mainMenuPage == MainMenuPage.Root)
             {
-                _game.DrawBottomRightPlaqueButton(layout, "Friends", bottomRightHovered, 1.15f);
+                _game.DrawBottomRightPlaqueButton(layout, "Profile", bottomRightHovered, 1.15f);
             }
         }
 

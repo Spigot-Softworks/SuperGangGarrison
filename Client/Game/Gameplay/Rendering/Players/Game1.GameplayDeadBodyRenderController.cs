@@ -21,6 +21,9 @@ internal readonly record struct ImmediateNetworkDeadBodyPresentationState(
 
 internal static class ImmediateNetworkDeathPresentationPlanner
 {
+    private const int FreshAuthoritativeDeadBodyMaxElapsedTicks = 90;
+    private const float FreshAuthoritativeDeadBodyMaxDistance = 96f;
+
     internal static ImmediateNetworkDeadBodyPresentationState? TryCreate(
         SnapshotMessage resolvedSnapshot,
         SnapshotDamageEvent damageEvent,
@@ -29,7 +32,7 @@ internal static class ImmediateNetworkDeathPresentationPlanner
     {
         if (!damageEvent.WasFatal
             || damageEvent.TargetKind != (byte)OpenGarrison.Core.DamageTargetKind.Player
-            || !TryGetAuthoritativeDeadBodyForPlayer(resolvedSnapshot, damageEvent.TargetEntityId, out var authoritativeDeadBody))
+            || !TryGetFreshAuthoritativeDeadBodyForPlayer(resolvedSnapshot, damageEvent, targetPlayer, out var authoritativeDeadBody))
         {
             return null;
         }
@@ -47,22 +50,50 @@ internal static class ImmediateNetworkDeathPresentationPlanner
             lifetimeTicks);
     }
 
-    internal static bool TryGetAuthoritativeDeadBodyForPlayer(
+    internal static bool TryGetFreshAuthoritativeDeadBodyForPlayer(
         SnapshotMessage resolvedSnapshot,
-        int sourcePlayerId,
+        SnapshotDamageEvent damageEvent,
+        PlayerEntity? targetPlayer,
         out SnapshotDeadBodyState deadBody)
     {
+        var sourcePlayerId = damageEvent.TargetEntityId;
+        var referenceX = targetPlayer?.X ?? damageEvent.X;
+        var referenceY = targetPlayer?.Y ?? damageEvent.Y;
+        var maxDistanceSquared = FreshAuthoritativeDeadBodyMaxDistance * FreshAuthoritativeDeadBodyMaxDistance;
+        var bestTicksRemaining = int.MinValue;
+        SnapshotDeadBodyState bestDeadBody = default!;
+        var found = false;
         for (var index = 0; index < resolvedSnapshot.DeadBodies.Count; index += 1)
         {
-            if (resolvedSnapshot.DeadBodies[index].SourcePlayerId == sourcePlayerId)
+            var candidate = resolvedSnapshot.DeadBodies[index];
+            if (candidate.SourcePlayerId != sourcePlayerId)
             {
-                deadBody = resolvedSnapshot.DeadBodies[index];
-                return true;
+                continue;
+            }
+
+            var elapsedTicks = DeadBodyEntity.LifetimeTicks - candidate.TicksRemaining;
+            if (elapsedTicks < 0 || elapsedTicks > FreshAuthoritativeDeadBodyMaxElapsedTicks)
+            {
+                continue;
+            }
+
+            var distanceX = candidate.X - referenceX;
+            var distanceY = candidate.Y - referenceY;
+            if ((distanceX * distanceX) + (distanceY * distanceY) > maxDistanceSquared)
+            {
+                continue;
+            }
+
+            if (!found || candidate.TicksRemaining > bestTicksRemaining)
+            {
+                found = true;
+                bestTicksRemaining = candidate.TicksRemaining;
+                bestDeadBody = candidate;
             }
         }
 
-        deadBody = default!;
-        return false;
+        deadBody = bestDeadBody;
+        return found;
     }
 }
 
@@ -143,6 +174,7 @@ public partial class Game1
                 var renderPosition = _game.GetRenderPosition(deadBody.Id, deadBody.X, deadBody.Y);
                 _game._trackedDeadBodyVisuals[deadBody.Id] = new RetainedDeadBodyVisual(deadBody.Id, deadBody.SourcePlayerId, deadBody.ClassId, deadBody.Team, deadBody.AnimationKind, renderPosition.X, renderPosition.Y, deadBody.Width, deadBody.Height, deadBody.FacingLeft, deadBody.TicksRemaining);
                 _game._staleTrackedDeadBodyIds.Remove(deadBody.Id);
+                RemoveRetainedDeadBody(deadBody.Id);
             }
 
             for (var index = 0; index < _game._staleTrackedDeadBodyIds.Count; index += 1)
@@ -150,7 +182,11 @@ public partial class Game1
                 var deadBodyId = _game._staleTrackedDeadBodyIds[index];
                 if (_game._trackedDeadBodyVisuals.TryGetValue(deadBodyId, out var retainedDeadBody))
                 {
-                    _game._retainedDeadBodies.Add(retainedDeadBody);
+                    if (retainedDeadBody.TicksRemaining <= 15)
+                    {
+                        _game._retainedDeadBodies.Add(retainedDeadBody);
+                    }
+
                     _game._trackedDeadBodyVisuals.Remove(deadBodyId);
                 }
             }
@@ -167,6 +203,7 @@ public partial class Game1
             foreach (var deadBody in _game._world.DeadBodies)
             {
                 _game._staleImmediateNetworkDeadBodyPlayerIds.Remove(deadBody.SourcePlayerId);
+                _game._immediateNetworkDeadBodies.Remove(deadBody.SourcePlayerId);
             }
 
             for (var index = _game._staleImmediateNetworkDeadBodyPlayerIds.Count - 1; index >= 0; index -= 1)
@@ -179,6 +216,17 @@ public partial class Game1
                 }
 
                 _game._immediateNetworkDeadBodies.Remove(sourcePlayerId);
+            }
+        }
+
+        private void RemoveRetainedDeadBody(int deadBodyId)
+        {
+            for (var index = _game._retainedDeadBodies.Count - 1; index >= 0; index -= 1)
+            {
+                if (_game._retainedDeadBodies[index].Id == deadBodyId)
+                {
+                    _game._retainedDeadBodies.RemoveAt(index);
+                }
             }
         }
 
