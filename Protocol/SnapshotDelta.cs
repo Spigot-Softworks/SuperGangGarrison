@@ -162,6 +162,8 @@ public static class SnapshotDelta
             // Otherwise let client simulation advance the frame locally
             var isTauntStarting = !player.IsTaunting && movement.IsTaunting;
 
+            var aimRadians = movement.AimDirectionDegrees * (MathF.PI / 180f);
+            const float AimProjectionDistance = 2048f;
             mergedBySlot[movement.Slot] = player with
             {
                 X = movement.X,
@@ -172,6 +174,8 @@ public static class SnapshotDelta
                 RemainingAirJumps = movement.RemainingAirJumps,
                 FacingDirectionX = movement.FacingDirectionX,
                 AimDirectionDegrees = movement.AimDirectionDegrees,
+                AimWorldX = movement.X + MathF.Cos(aimRadians) * AimProjectionDistance,
+                AimWorldY = movement.Y + MathF.Sin(aimRadians) * AimProjectionDistance,
                 MedicHealTargetId = movement.MedicHealTargetId,
                 IsMedicHealing = movement.IsMedicHealing,
                 MovementState = movement.MovementState,
@@ -205,6 +209,9 @@ public static class SnapshotDelta
                 Metal = status.Metal,
                 IsCarryingIntel = status.IsCarryingIntel,
                 IntelRechargeTicks = status.IntelRechargeTicks,
+                ReplicatedStates = status.SecondaryAmmoStates is { Count: > 0 }
+                    ? MergeReplicatedStateAmmoUpdates(player.ReplicatedStates, status.SecondaryAmmoStates)
+                    : player.ReplicatedStates,
             };
         }
 
@@ -285,6 +292,39 @@ public static class SnapshotDelta
         }
 
         return merged;
+    }
+
+    // Merges ammo-specific ReplicatedState entries from a status update into the player's existing
+    // ReplicatedStates, replacing any entry with the same OwnerId+Key and appending new ones.
+    private static SnapshotReplicatedStateEntry[] MergeReplicatedStateAmmoUpdates(
+        IReadOnlyList<SnapshotReplicatedStateEntry>? baseline,
+        IReadOnlyList<SnapshotReplicatedStateEntry> updates)
+    {
+        var baselineCount = baseline?.Count ?? 0;
+        var merged = new List<SnapshotReplicatedStateEntry>(baselineCount + updates.Count);
+        for (var i = 0; i < baselineCount; i++)
+        {
+            var entry = baseline![i];
+            var isReplaced = false;
+            for (var j = 0; j < updates.Count; j++)
+            {
+                if (string.Equals(entry.OwnerId, updates[j].OwnerId, StringComparison.Ordinal)
+                    && string.Equals(entry.Key, updates[j].Key, StringComparison.Ordinal))
+                {
+                    isReplaced = true;
+                    break;
+                }
+            }
+            if (!isReplaced)
+            {
+                merged.Add(entry);
+            }
+        }
+        for (var j = 0; j < updates.Count; j++)
+        {
+            merged.Add(updates[j]);
+        }
+        return merged.ToArray();
     }
 
     private static IReadOnlyList<SnapshotSentryState> MergeSentries(

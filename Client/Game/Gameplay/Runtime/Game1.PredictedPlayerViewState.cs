@@ -50,6 +50,13 @@ public partial class Game1
             out var isDashing) && isDashing;
     }
 
+    private bool GetPlayerExperimentalGhostDashEnablesTrail(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.ExperimentalGhostDashEnablesTrail
+            : player.ExperimentalGhostDashEnablesTrail;
+    }
+
     private int GetPlayerExperimentalGhostDashCooldownTicksRemaining(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)

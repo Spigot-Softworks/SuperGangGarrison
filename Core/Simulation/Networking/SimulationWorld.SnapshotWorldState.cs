@@ -110,11 +110,46 @@ public sealed partial class SimulationWorld
 
     private void ApplySnapshotKillFeed(IReadOnlyList<SnapshotKillFeedEntry> killFeed)
     {
-        _killFeed.Clear();
+        // Advance local aging one step per snapshot received so entries expire
+        // at roughly the same rate as they do on the server.
+        AdvanceKillFeed();
+
+        // Additive merge: only add entries whose EventId is not yet in the local
+        // list. This prevents flicker when the kill feed is absent from a snapshot
+        // due to budget trimming, and lets the client maintain its own state.
         for (var killFeedIndex = 0; killFeedIndex < killFeed.Count; killFeedIndex += 1)
         {
             var entry = killFeed[killFeedIndex];
-            _killFeed.Add(new KillFeedEntry(
+            var alreadyPresent = false;
+            for (var existingIndex = 0; existingIndex < _killFeed.Count; existingIndex += 1)
+            {
+                if (_killFeed[existingIndex].EventId == entry.EventId)
+                {
+                    alreadyPresent = true;
+                    break;
+                }
+            }
+
+            if (alreadyPresent)
+            {
+                continue;
+            }
+
+            // Insert in EventId-ascending order so oldest entries are first and
+            // new events always appear at the bottom of the feed.
+            var insertIndex = _killFeed.Count;
+            for (var i = 0; i < _killFeed.Count; i += 1)
+            {
+                if (_killFeed[i].EventId > entry.EventId)
+                {
+                    insertIndex = i;
+                    break;
+                }
+            }
+
+            var isLocalInvolved = entry.KillerPlayerId == LocalPlayer.Id || entry.VictimPlayerId == LocalPlayer.Id;
+            var lifetime = isLocalInvolved ? KillFeedLocalInvolvedLifetimeTicks : KillFeedLifetimeTicks;
+            _killFeed.Insert(insertIndex, new KillFeedEntry(
                 entry.KillerName,
                 (PlayerTeam)entry.KillerTeam,
                 entry.WeaponSpriteName,
@@ -127,8 +162,15 @@ public sealed partial class SimulationWorld
                 entry.VictimPlayerId,
                 (KillFeedSpecialType)entry.SpecialType,
                 entry.EventId));
+            _killFeedEntryLifetimes.Insert(insertIndex, lifetime);
         }
 
-        _killFeedTrimTicks = _killFeed.Count > 0 ? KillFeedLifetimeTicks : 0;
+        // Keep the local list bounded in case the client accumulates more entries
+        // than the server would normally allow.
+        while (_killFeed.Count > 5)
+        {
+            _killFeed.RemoveAt(0);
+            _killFeedEntryLifetimes.RemoveAt(0);
+        }
     }
 }
