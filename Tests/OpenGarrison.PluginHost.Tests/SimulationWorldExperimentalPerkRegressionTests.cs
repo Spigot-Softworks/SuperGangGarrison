@@ -974,6 +974,28 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
+    public void HeavyGhostDashRegistersEvadedDamageEvent()
+    {
+        var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        var attacker = CreateBlueNetworkScout(world, 2);
+        var healthBefore = world.LocalPlayer.Health;
+
+        PressUseAbilitySpace(world);
+        world.DrainPendingDamageEvents();
+        Assert.True(world.LocalPlayer.IsExperimentalGhostDashing);
+
+        Assert.False(InvokeApplyPlayerDamage(world, world.LocalPlayer, 25, attacker));
+        Assert.Equal(healthBefore, world.LocalPlayer.Health);
+        var damageEvent = Assert.Single(world.DrainPendingDamageEvents());
+        Assert.Equal(0, damageEvent.Amount);
+        Assert.Equal(world.LocalPlayer.Id, damageEvent.TargetEntityId);
+        Assert.True(damageEvent.Flags.HasFlag(DamageEventFlags.Evaded));
+        Assert.True(damageEvent.Flags.HasFlag(DamageEventFlags.GhostDash));
+    }
+
+    [Fact]
     public void StockHeavyGhostDashTreatsStaleMomentumContentAsBurst()
     {
         var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());

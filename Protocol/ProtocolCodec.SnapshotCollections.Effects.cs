@@ -317,6 +317,7 @@ public static partial class ProtocolCodec
             writer.Write(damageEvent.WasFatal);
             writer.Write(damageEvent.EventId);
             writer.Write(damageEvent.SourceFrame);
+            writer.Write(damageEvent.Flags);
         }
     }
 
@@ -336,7 +337,8 @@ public static partial class ProtocolCodec
                 reader.ReadSingle(),
                 reader.ReadBoolean(),
                 reader.ReadUInt64(),
-                reader.ReadUInt64()));
+                reader.ReadUInt64(),
+                reader.ReadByte()));
         }
 
         return damageEvents;

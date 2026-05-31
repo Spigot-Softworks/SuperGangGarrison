@@ -232,6 +232,7 @@ internal static class SnapshotContributionPlanner
             static state => state.Y,
             static (builder, state) => builder.DeadBodies.Add(state),
             static (builder, id) => builder.RemovedDeadBodyIds.Add(id),
+            updatedStateKind: SnapshotDeltaBudgeter.ContributionKind.EntityStateUpdate,
             addedStateKind: SnapshotDeltaBudgeter.ContributionKind.EntityFirstAppearance);
         AddEntityDelta(
             contributions,
@@ -897,6 +898,7 @@ internal static class SnapshotContributionPlanner
         Action<SnapshotDeltaBudgeter.Builder, int> addRemovedId,
         Func<T, T, long, int, bool>? shouldSkipMotionOnlyUpdate = null,
         long currentWorldFrame = 0,
+        SnapshotDeltaBudgeter.ContributionKind updatedStateKind = SnapshotDeltaBudgeter.ContributionKind.Optional,
         SnapshotDeltaBudgeter.ContributionKind addedStateKind = SnapshotDeltaBudgeter.ContributionKind.Optional) where T : notnull
     {
         var delta = DiffEntities(currentStates, baselineStates, idSelector);
@@ -941,7 +943,7 @@ internal static class SnapshotContributionPlanner
                 DistanceSquared(focus.X, focus.Y, xSelector(state), ySelector(state)),
                 estimateUpdatedBytes(state),
                 builder => addState(builder, state),
-                isKnownEntity ? SnapshotDeltaBudgeter.ContributionKind.Optional : addedStateKind));
+                isKnownEntity ? updatedStateKind : addedStateKind));
         }
     }
 

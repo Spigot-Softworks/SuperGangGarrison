@@ -16,6 +16,7 @@ public partial class Game1
         Friends,
         Requests,
         Messages,
+        Bubble,
     }
 
     private enum FriendsContextMenuAction
@@ -40,6 +41,9 @@ public partial class Game1
         Rectangle ListBounds,
         Rectangle MessageAreaBounds,
         Rectangle MessageInputBounds,
+        Rectangle CustomBubbleVisibilityBounds,
+        Rectangle[] CustomBubbleSlotBounds,
+        Rectangle[] CustomBubbleEditBounds,
         Rectangle[] RowBounds,
         bool CompactLayout);
 
@@ -181,6 +185,9 @@ public partial class Game1
                 break;
             case FriendsMenuTab.Messages:
                 UpdateFriendMessagesTabClick(point, layout);
+                break;
+            case FriendsMenuTab.Bubble:
+                UpdateFriendBubbleTabClick(point, layout);
                 break;
         }
     }
@@ -380,6 +387,37 @@ public partial class Game1
         _editingFriendMessage = false;
     }
 
+    private void UpdateFriendBubbleTabClick(Point point, FriendsMenuLayout layout)
+    {
+        ResetTextFieldClickTarget();
+        _editingFriendNickname = false;
+        _editingFriendCode = false;
+        _editingFriendMessage = false;
+
+        if (layout.CustomBubbleVisibilityBounds.Contains(point))
+        {
+            ToggleCustomBubbleVisibilitySetting();
+            _menuStatusMessage = _showCustomBubbles ? "Custom bubbles enabled." : "Custom bubbles hidden.";
+            return;
+        }
+
+        for (var index = 0; index < layout.CustomBubbleSlotBounds.Length; index += 1)
+        {
+            if (layout.CustomBubbleSlotBounds[index].Contains(point))
+            {
+                SelectCustomBubbleSlotSetting(index);
+                _menuStatusMessage = $"{GetCustomBubbleSlotLabel(index)} selected.";
+                return;
+            }
+
+            if (layout.CustomBubbleEditBounds[index].Contains(point))
+            {
+                OpenCustomBubbleEditorFromProfile(index);
+                return;
+            }
+        }
+    }
+
     private void DrawFriendsMenu()
     {
         var layout = GetFriendsMenuLayout();
@@ -410,6 +448,9 @@ public partial class Game1
             case FriendsMenuTab.Messages:
                 DrawFriendMessagesTab(layout);
                 break;
+            case FriendsMenuTab.Bubble:
+                DrawFriendBubbleTab(layout);
+                break;
         }
 
         if (!string.IsNullOrWhiteSpace(_menuStatusMessage))
@@ -435,10 +476,11 @@ public partial class Game1
 
     private void DrawFriendsTabs(FriendsMenuLayout layout)
     {
-        string[] labels = ["Friends", "Requests", "Messages"];
+        string[] labels = ["Friends", "Requests", "Messages", "Bubble"];
+        var scale = layout.CompactLayout ? 0.72f : 0.76f;
         for (var index = 0; index < layout.TabBounds.Length; index += 1)
         {
-            DrawMenuButtonScaled(layout.TabBounds[index], labels[index], index == (int)_friendsMenuTab, 1f);
+            DrawMenuButtonScaled(layout.TabBounds[index], labels[index], index == (int)_friendsMenuTab, scale);
         }
     }
 
@@ -517,6 +559,25 @@ public partial class Game1
             1f,
             _friendMessageCursorIndex,
             _friendMessageSelectionStart);
+    }
+
+    private void DrawFriendBubbleTab(FriendsMenuLayout layout)
+    {
+        DrawBitmapFontText("CUSTOM BUBBLES", new Vector2(layout.CustomBubbleVisibilityBounds.X + 2f, layout.CustomBubbleVisibilityBounds.Y - 18f), Color.White, 1f);
+        DrawMenuButtonScaled(
+            layout.CustomBubbleVisibilityBounds,
+            _showCustomBubbles ? "Bubbles: On" : "Bubbles: Off",
+            _showCustomBubbles,
+            1f);
+
+        for (var index = 0; index < layout.CustomBubbleSlotBounds.Length; index += 1)
+        {
+            var hasSlot = _customBubbleDocument.HasSlot(index);
+            var selected = index == _selectedCustomBubbleSlot;
+            var slotLabel = $"{GetCustomBubbleSlotLabel(index)}{(hasSlot ? string.Empty : " Empty")}";
+            DrawMenuButtonScaled(layout.CustomBubbleSlotBounds[index], slotLabel, selected, 1f);
+            DrawMenuButtonScaled(layout.CustomBubbleEditBounds[index], "Edit", false, 1f);
+        }
     }
 
     private void DrawFriendRow(int index, Rectangle bounds, Rectangle listBounds, bool compactLayout)
@@ -716,7 +777,7 @@ public partial class Game1
     private FriendsMenuLayout GetFriendsMenuLayout()
     {
         var rightMargin = Math.Max(18, (int)MathF.Round(ViewportWidth * 0.035f));
-        var panelWidth = Math.Min(ViewportWidth - 32, ViewportWidth >= 1024 ? 330 : 310);
+        var panelWidth = Math.Min(ViewportWidth - 32, ViewportWidth >= 1024 ? 360 : 322);
         if (ViewportWidth - panelWidth - rightMargin < 16)
         {
             rightMargin = 16;
@@ -747,8 +808,9 @@ public partial class Game1
 
         var tabGap = 6;
         var tabY = nicknameBounds.Bottom + (compactLayout ? 14 : 16);
-        var tabWidth = (panel.Width - (padding * 2) - (tabGap * 2)) / 3;
-        var tabBounds = new Rectangle[3];
+        const int tabCount = 4;
+        var tabWidth = (panel.Width - (padding * 2) - (tabGap * (tabCount - 1))) / tabCount;
+        var tabBounds = new Rectangle[tabCount];
         for (var index = 0; index < tabBounds.Length; index += 1)
         {
             tabBounds[index] = new Rectangle(panel.X + padding + (index * (tabWidth + tabGap)), tabY, tabWidth, 30);
@@ -786,10 +848,33 @@ public partial class Game1
             listBounds = new Rectangle(panel.X + padding, listTop, panel.Width - (padding * 2), Math.Max(90, listBottom - listTop));
         }
 
+        var customBubbleVisibilityBounds = Rectangle.Empty;
+        var customBubbleSlotBounds = Array.Empty<Rectangle>();
+        var customBubbleEditBounds = Array.Empty<Rectangle>();
+        if (_friendsMenuTab == FriendsMenuTab.Bubble)
+        {
+            customBubbleVisibilityBounds = new Rectangle(listBounds.X, listBounds.Y, listBounds.Width, fieldHeight);
+            customBubbleSlotBounds = new Rectangle[CustomBubbleDocument.SlotCount];
+            customBubbleEditBounds = new Rectangle[CustomBubbleDocument.SlotCount];
+            var editWidth = compactLayout ? 72 : 78;
+            var bubbleRowHeight = compactLayout ? 32 : 34;
+            var rowGap = compactLayout ? 8 : 10;
+            var slotWidth = listBounds.Width - editWidth - 8;
+            var rowY = customBubbleVisibilityBounds.Bottom + (compactLayout ? 20 : 24);
+            for (var index = 0; index < CustomBubbleDocument.SlotCount; index += 1)
+            {
+                customBubbleSlotBounds[index] = new Rectangle(listBounds.X, rowY + (index * (bubbleRowHeight + rowGap)), slotWidth, bubbleRowHeight);
+                customBubbleEditBounds[index] = new Rectangle(customBubbleSlotBounds[index].Right + 8, customBubbleSlotBounds[index].Y, editWidth, bubbleRowHeight);
+            }
+        }
+
         var rowHeight = compactLayout ? 28 : 30;
-        var visibleRowCount = _friendsMenuTab == FriendsMenuTab.Messages
-            ? Math.Clamp(listBounds.Height / rowHeight, 1, 18)
-            : Math.Clamp(listBounds.Height / rowHeight, 3, 18);
+        var visibleRowCount = _friendsMenuTab switch
+        {
+            FriendsMenuTab.Bubble => 0,
+            FriendsMenuTab.Messages => Math.Clamp(listBounds.Height / rowHeight, 1, 18),
+            _ => Math.Clamp(listBounds.Height / rowHeight, 3, 18),
+        };
         var rowBounds = new Rectangle[visibleRowCount];
         for (var index = 0; index < rowBounds.Length; index += 1)
         {
@@ -808,6 +893,9 @@ public partial class Game1
             listBounds,
             messageAreaBounds,
             messageInputBounds,
+            customBubbleVisibilityBounds,
+            customBubbleSlotBounds,
+            customBubbleEditBounds,
             rowBounds,
             compactLayout);
     }
@@ -818,6 +906,7 @@ public partial class Game1
         {
             FriendsMenuTab.Requests => _friendRequestEntries.Count,
             FriendsMenuTab.Messages => _friendList.Friends.Count,
+            FriendsMenuTab.Bubble => 0,
             _ => _friendList.Friends.Count,
         };
     }
