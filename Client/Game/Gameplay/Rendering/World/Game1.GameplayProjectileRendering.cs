@@ -521,34 +521,55 @@ public partial class Game1
 
         var bodySelection = GetPlayerBodySpriteSelection(medic);
         var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
-        var renderAim = GetRenderAimWorldPosition(medic);
-        if (!IsFiniteVector(renderAim))
-        {
-            weaponForwardDirection = medic.FacingDirectionX < 0f ? new Vector2(-1f, 0f) : new Vector2(1f, 0f);
-            return roundedOrigin;
-        }
-
         var playerScale = medic.PlayerScale;
 
-        var facingScale = MathF.Abs(renderAim.X - roundedOrigin.X) > 0.001f
-            ? (renderAim.X < roundedOrigin.X ? -1f : 1f)
-            : (medic.FacingDirectionX < 0f ? -1f : 1f);
+        float facingScale, aimDirectionX, aimDirectionY;
+
+        if (_networkClient.IsConnected && !ReferenceEquals(medic, _world.LocalPlayer))
+        {
+            // For remote players, derive the weapon direction from AimDirectionDegrees so the
+            // beam origin tracks the weapon visual (which is also driven by AimDirectionDegrees)
+            // rather than a separately-interpolated aim world position that can lag behind.
+            facingScale = GameplayPlayerSpriteRenderController.IsFacingLeftByAim(medic) ? -1f : 1f;
+            var aimRadians = MathF.PI * medic.AimDirectionDegrees / 180f;
+            aimDirectionX = MathF.Cos(aimRadians);
+            aimDirectionY = MathF.Sin(aimRadians);
+        }
+        else
+        {
+            var renderAim = (_networkClient.IsConnected && !_useLocalWeaponRotation)
+                ? new Vector2(medic.AimWorldX, medic.AimWorldY)
+                : GetRenderAimWorldPosition(medic);
+            if (!IsFiniteVector(renderAim))
+            {
+                weaponForwardDirection = medic.FacingDirectionX < 0f ? new Vector2(-1f, 0f) : new Vector2(1f, 0f);
+                return roundedOrigin;
+            }
+
+            facingScale = MathF.Abs(renderAim.X - roundedOrigin.X) > 0.001f
+                ? (renderAim.X < roundedOrigin.X ? -1f : 1f)
+                : (medic.FacingDirectionX < 0f ? -1f : 1f);
+
+            var drawXLocal = roundedOrigin.X + ((weaponDefinition.XOffset + anchorOrigin.X) * facingScale * playerScale);
+            var drawYLocal = roundedOrigin.Y + ((weaponDefinition.YOffset + bodySelection.EquipmentOffset + anchorOrigin.Y) * playerScale);
+
+            var aimDeltaX = renderAim.X - drawXLocal;
+            var aimDeltaY = renderAim.Y - drawYLocal;
+            var aimLength = MathF.Sqrt((aimDeltaX * aimDeltaX) + (aimDeltaY * aimDeltaY));
+            if (aimLength <= 0.001f)
+            {
+                weaponForwardDirection = new Vector2(facingScale, 0f);
+                return new Vector2(drawXLocal, drawYLocal);
+            }
+
+            aimDirectionX = aimDeltaX / aimLength;
+            aimDirectionY = aimDeltaY / aimLength;
+        }
+
+        weaponForwardDirection = new Vector2(aimDirectionX, aimDirectionY);
 
         var drawX = roundedOrigin.X + ((weaponDefinition.XOffset + anchorOrigin.X) * facingScale * playerScale);
         var drawY = roundedOrigin.Y + ((weaponDefinition.YOffset + bodySelection.EquipmentOffset + anchorOrigin.Y) * playerScale);
-
-        var aimDeltaX = renderAim.X - drawX;
-        var aimDeltaY = renderAim.Y - drawY;
-        var aimLength = MathF.Sqrt((aimDeltaX * aimDeltaX) + (aimDeltaY * aimDeltaY));
-        if (aimLength <= 0.001f)
-        {
-            weaponForwardDirection = new Vector2(facingScale, 0f);
-            return new Vector2(drawX, drawY);
-        }
-
-        var aimDirectionX = aimDeltaX / aimLength;
-        var aimDirectionY = aimDeltaY / aimLength;
-        weaponForwardDirection = new Vector2(aimDirectionX, aimDirectionY);
 
         var tipDistance = Math.Max(0f, (sprite.Frames[0].Width - anchorOrigin.X) * playerScale);
         return new Vector2(

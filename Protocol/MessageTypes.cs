@@ -431,7 +431,10 @@ public sealed record SnapshotPlayerStatusState(
     short MaxAmmo,
     float Metal,
     bool IsCarryingIntel,
-    float IntelRechargeTicks);
+    float IntelRechargeTicks,
+    // Secondary/utility weapon ammo (e.g. soldier shotgun, grenade launcher, scout nailgun).
+    // Mirrors the primary ammo path so these values are never dropped under budget pressure.
+    IReadOnlyList<SnapshotReplicatedStateEntry>? SecondaryAmmoStates = null);
 
 public sealed record SnapshotPlayerChatBubbleState(
     byte Slot,

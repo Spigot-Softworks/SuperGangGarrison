@@ -6,22 +6,17 @@ public sealed partial class SimulationWorld
     {
         if (_killFeed.Count == 0)
         {
-            _killFeedTrimTicks = 0;
             return;
         }
 
-        if (_killFeedTrimTicks > 0)
-        {
-            _killFeedTrimTicks -= 1;
-        }
-
-        if (_killFeedTrimTicks > 0)
+        _killFeedEntryLifetimes[0] -= 1;
+        if (_killFeedEntryLifetimes[0] > 0)
         {
             return;
         }
 
         _killFeed.RemoveAt(0);
-        _killFeedTrimTicks = _killFeed.Count > 0 ? KillFeedLifetimeTicks : 0;
+        _killFeedEntryLifetimes.RemoveAt(0);
     }
 
     private void RecordKillFeedEntry(
@@ -98,13 +93,13 @@ public sealed partial class SimulationWorld
         }
 
         _killFeed.Add(entry);
+        _killFeedEntryLifetimes.Add(KillFeedLifetimeTicks);
         _lastKillFeedRecordedFrame = Frame;
         if (_killFeed.Count > 5)
         {
             _killFeed.RemoveAt(0);
+            _killFeedEntryLifetimes.RemoveAt(0);
         }
-
-        _killFeedTrimTicks = KillFeedLifetimeTicks;
     }
 
     private void RecordObjectiveLogEntry(PlayerTeam team, string name, string messageText, string weaponSpriteName = "", int playerId = -1)

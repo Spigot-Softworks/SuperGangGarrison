@@ -116,6 +116,16 @@ internal static class SnapshotDeltaBudgeter
             appliedContributions,
             SnapshotDeltaBudgeter.ContributionKind.TransientSoundEvent,
             ref remainingBudget);
+        // Projectile spawns (first appearance of any bullet/rocket/etc.) are treated as
+        // required so that new projectiles are never silently dropped under budget pressure.
+        // Subsequent position-only updates for known projectiles are still Optional and
+        // compete with other data, since clients predict projectile motion locally.
+        ApplyRequiredContributions(
+            builder,
+            orderedContributions,
+            appliedContributions,
+            SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn,
+            ref remainingBudget);
 
         for (var index = 0; index < orderedContributions.Length; index += 1)
         {
@@ -212,8 +222,11 @@ internal static class SnapshotDeltaBudgeter
     {
         var changed = false;
         changed |= ClearIfAny(builder.KillFeed);
-        changed |= ClearIfAny(builder.CombatTraces);
-        changed |= ClearIfAny(builder.SniperAimIndicators);
+        // CombatTraces (tracers) and SniperAimIndicators are NOT pre-cleared here.
+        // They are dropped one-at-a-time (farthest-first) in BudgetDropSteps after
+        // gibs and small projectiles, so the packet is filled to the maximum before
+        // any tracer is removed. Entries that don't fit will reappear in the next
+        // snapshot because CombatTraces persist for CombatTraceLifetimeTicks ticks.
         // Keep transient events here; let the contribution and reduction passes decide.
         // Keep DamageEvents - needed for client-side blood and hit feedback
         return changed;
@@ -555,9 +568,14 @@ internal static class SnapshotDeltaBudgeter
         // soldier_shotgun_equipped that clients need even under budget pressure. Drop Whole/Scalar
         // int entries since the animation-critical cooldown/reload values now arrive via the movement
         // delta (OffhandCooldownTicks / OffhandReloadTicks fields).
+        // Exception: ammo count entries (keys containing "_ammo" under core.player) are preserved here
+        // as a safety net; they also ship via the high-priority status path but keeping them here
+        // ensures correctness if both arrive in the same snapshot.
         var reducedReplicatedStates = player.ReplicatedStates is { Count: > 0 }
             ? player.ReplicatedStates
-                .Where(static e => e.Kind == SnapshotReplicatedStateValueKind.Toggle)
+                .Where(static e => e.Kind == SnapshotReplicatedStateValueKind.Toggle
+                    || (string.Equals(e.OwnerId, "core.player", StringComparison.Ordinal)
+                        && e.Key.IndexOf("_ammo", StringComparison.Ordinal) >= 0))
                 .ToArray()
             : Array.Empty<SnapshotReplicatedStateEntry>();
 
@@ -696,15 +714,7 @@ internal static class SnapshotDeltaBudgeter
 
     private static readonly Func<Builder, bool>[] BudgetDropSteps =
     [
-        static builder =>
-        {
-            var changed = false;
-            changed |= ClearIfAny(builder.VisualEvents);
-            changed |= ClearIfAny(builder.KillFeed);
-            return changed;
-        },
-        static builder => ClearIfAny(builder.CombatTraces),
-        static builder => ClearIfAny(builder.SniperAimIndicators),
+        static builder => ClearIfAny(builder.KillFeed),
         static builder =>
         {
             var changed = false;
@@ -714,20 +724,31 @@ internal static class SnapshotDeltaBudgeter
             changed |= ClearIfAny(builder.DeadBodies);
             return changed;
         },
+        // Drop small projectile motion-only updates one collection at a time (least important first)
+        // rather than clearing all bullets in one step. Spawn events for these projectiles are now
+        // required contributions (applied before the optional loop), so only redundant position
+        // updates reach this reduction path.
+        static builder => ClearIfAny(builder.Flares),
+        static builder => ClearIfAny(builder.Blades),
+        static builder => ClearIfAny(builder.Bubbles),
+        static builder => ClearIfAny(builder.Needles),
+        static builder => ClearIfAny(builder.RevolverShots),
+        static builder => ClearIfAny(builder.Shots),
+        // Drop SniperAimIndicators and CombatTraces one entry at a time (farthest-first, since the
+        // contribution planner adds nearest entries first). This ensures the packet is filled to the
+        // maximum before any tracer is dropped, and entries at the edge of the viewport go first.
+        // CombatTraces persist for CombatTraceLifetimeTicks ticks in the world simulation, so any
+        // entry that is dropped here will reappear automatically in the next snapshot(s).
+        static builder => RemoveLastIfAboveMinimum(builder.SniperAimIndicators, minimumCount: 0),
+        static builder => RemoveLastIfAboveMinimum(builder.CombatTraces, minimumCount: 0),
         static builder =>
         {
+            // VisualEvents (explosions, impacts, etc.) are dropped together with the
+            // projectile collections that produce them. This prevents a grenade/mine/rocket
+            // from disappearing in one snapshot while its explosion visual is withheld until
+            // a later snapshot due to budget pressure.
             var changed = false;
-            changed |= ClearIfAny(builder.Flares);
-            changed |= ClearIfAny(builder.Blades);
-            changed |= ClearIfAny(builder.Bubbles);
-            changed |= ClearIfAny(builder.Needles);
-            changed |= ClearIfAny(builder.RevolverShots);
-            changed |= ClearIfAny(builder.Shots);
-            return changed;
-        },
-        static builder =>
-        {
-            var changed = false;
+            changed |= ClearIfAny(builder.VisualEvents);
             changed |= ClearIfAny(builder.Mines);
             changed |= ClearIfAny(builder.Grenades);
             changed |= ClearIfAny(builder.Flames);
