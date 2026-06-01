@@ -118,6 +118,7 @@ public sealed class DamageIndicatorPlugin :
             _rollingDamage += e.Amount;
             _rollingDamageFlags |= e.Flags;
             _rollingDamageTimerSeconds = RollupIdleSeconds;
+            PlayDing(e.TargetWorldPosition);
             return;
         }
 

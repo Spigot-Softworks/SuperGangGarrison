@@ -158,10 +158,6 @@ public static class SnapshotDelta
                 continue;
             }
 
-            // Only update TauntFrameIndex if taunt is starting (wasn't taunting before)
-            // Otherwise let client simulation advance the frame locally
-            var isTauntStarting = !player.IsTaunting && movement.IsTaunting;
-
             var aimRadians = movement.AimDirectionDegrees * (MathF.PI / 180f);
             const float AimProjectionDistance = 2048f;
             mergedBySlot[movement.Slot] = player with
@@ -180,7 +176,6 @@ public static class SnapshotDelta
                 IsMedicHealing = movement.IsMedicHealing,
                 MovementState = movement.MovementState,
                 IsTaunting = movement.IsTaunting,
-                TauntFrameIndex = isTauntStarting ? movement.TauntFrameIndex : player.TauntFrameIndex,
                 BurnIntensity = movement.BurnIntensity,
                 GameplayEquippedSlot = movement.GameplayEquippedSlot,
                 PrimaryCooldownTicks = movement.PrimaryCooldownTicks,
@@ -238,7 +233,6 @@ public static class SnapshotDelta
                 IsHeavyEating = status.IsHeavyEating,
                 HeavyEatTicksRemaining = status.HeavyEatTicksRemaining,
                 IsSniperScoped = status.IsSniperScoped,
-                SniperChargeTicks = status.SniperChargeTicks,
                 MedicNeedleCooldownTicks = status.MedicNeedleCooldownTicks,
                 MedicNeedleRefillTicks = status.MedicNeedleRefillTicks,
                 PyroAirblastCooldownTicks = status.PyroAirblastCooldownTicks,

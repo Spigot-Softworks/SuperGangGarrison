@@ -123,6 +123,12 @@ public partial class Game1
             };
         }
 
+        if (_autoFireActive)
+        {
+            gameplayInput = gameplayInput with { FirePrimary = true };
+            networkInput = networkInput with { FirePrimary = true };
+        }
+
         gameplayInput = ApplyClientOnlineSmokeInputPattern(gameplayInput);
         networkInput = ApplyClientOnlineSmokeInputPattern(networkInput);
 

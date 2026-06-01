@@ -78,6 +78,13 @@ public partial class Game1
     private int _nextClientBackstabVisualId = -1;
     private int _spySuperjumpTrajectoryAnimationTicks;
 
+    // Per-player cloak-reveal timers triggered when a cloaked spy superjumps (visual only).
+    // Key = player ID. Cancelled if the spy uncloaks while the timer is running.
+    private const int SpySuperjumpCloakRevealTicks = 60; // 1 second at 60 ticks/sec
+    private const float SpySuperjumpCloakRevealStartAlpha = 0.4f;
+    private readonly Dictionary<int, int> _spySuperjumpCloakRevealTicks = new();
+    private readonly HashSet<int> _prevSuperjumpingPlayerIds = new();
+
     private readonly record struct PresentedExplosionVisual(float X, float Y);
 
     private void ResetTransientPresentationEffects()
