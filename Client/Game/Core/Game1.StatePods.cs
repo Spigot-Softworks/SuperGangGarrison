@@ -511,6 +511,12 @@ public partial class Game1
         set => _uiShellState.EditingFriendCode = value;
     }
 
+    private bool _friendsMenuAddingFriend
+    {
+        get => _uiShellState.FriendsMenuAddingFriend;
+        set => _uiShellState.FriendsMenuAddingFriend = value;
+    }
+
     private bool _editingFriendNickname
     {
         get => _uiShellState.EditingFriendNickname;
@@ -946,6 +952,7 @@ public partial class Game1
         public bool PlayerCardDraggingPortrait;
         public int PlayerCardActiveColorIndex;
         public bool EditingFriendCode;
+        public bool FriendsMenuAddingFriend;
         public bool EditingFriendNickname;
         public bool EditingFriendMessage;
         public string FriendNicknameInputBuffer = string.Empty;

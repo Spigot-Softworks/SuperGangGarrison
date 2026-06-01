@@ -932,6 +932,15 @@ public partial class Game1
             _friendCodeInputBuffer = result.Text.ToUpperInvariant();
             _friendCodeCursorIndex = result.CursorIndex;
             _friendCodeSelectionStart = result.SelectionStart;
+            if (_friendsMenuAddingFriend
+                && (TryExtractFriendCodeFromText(pasteText, out var pastedFriendCode)
+                    || TryExtractFriendCodeFromText(_friendCodeInputBuffer, out pastedFriendCode)))
+            {
+                _friendCodeInputBuffer = pastedFriendCode;
+                InitializeFriendCodeCursor();
+                TrySendFriendRequestFromInput();
+            }
+
             return true;
         }
 

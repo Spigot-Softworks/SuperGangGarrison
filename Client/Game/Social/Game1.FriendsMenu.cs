@@ -36,8 +36,7 @@ public partial class Game1
         Rectangle PlayerCardButtonBounds,
         Rectangle NicknameBounds,
         Rectangle OwnCodeBounds,
-        Rectangle CopyCodeBounds,
-        Rectangle FriendCodeBounds,
+        Rectangle AddCodeBounds,
         Rectangle ListBounds,
         Rectangle MessageAreaBounds,
         Rectangle MessageInputBounds,
@@ -122,6 +121,7 @@ public partial class Game1
             _editingFriendNickname = false;
             _editingFriendCode = false;
             _editingFriendMessage = false;
+            _friendsMenuAddingFriend = false;
             ResetTextFieldClickTarget();
             if (_friendsMenuTab == FriendsMenuTab.Requests)
             {
@@ -223,7 +223,7 @@ public partial class Game1
             }
 
             var canOpenBlankMenu = _friendsMenuTab == FriendsMenuTab.Friends
-                && (layout.ListBounds.Contains(point) || layout.FriendCodeBounds.Contains(point));
+                && (layout.ListBounds.Contains(point) || (_friendsMenuAddingFriend && layout.OwnCodeBounds.Contains(point)));
             if (rowIndex >= 0 || canOpenBlankMenu)
             {
                 OpenFriendsContextMenu(point);
@@ -317,13 +317,28 @@ public partial class Game1
     private void UpdateFriendsTabClick(Point point, FriendsMenuLayout layout)
     {
         _editingFriendMessage = false;
-        if (layout.OwnCodeBounds.Contains(point) || layout.CopyCodeBounds.Contains(point))
+        if (layout.AddCodeBounds.Contains(point))
         {
-            CopyOwnFriendCodeToClipboard();
+            _editingFriendNickname = false;
+            _editingFriendMessage = false;
+            if (_friendsMenuAddingFriend)
+            {
+                _friendsMenuAddingFriend = false;
+                _editingFriendCode = false;
+                _friendCodeInputBuffer = string.Empty;
+                InitializeFriendCodeCursor();
+                _menuStatusMessage = string.Empty;
+                return;
+            }
+
+            _friendsMenuAddingFriend = true;
+            _editingFriendCode = true;
+            InitializeFriendCodeCursor();
+            _menuStatusMessage = "Paste a friend code.";
             return;
         }
 
-        if (layout.FriendCodeBounds.Contains(point))
+        if (_friendsMenuAddingFriend && layout.OwnCodeBounds.Contains(point))
         {
             _editingFriendNickname = false;
             _editingFriendCode = true;
@@ -477,27 +492,25 @@ public partial class Game1
     private void DrawFriendsTabs(FriendsMenuLayout layout)
     {
         string[] labels = ["Friends", "Requests", "Messages", "Bubble"];
-        var scale = layout.CompactLayout ? 0.72f : 0.76f;
         for (var index = 0; index < layout.TabBounds.Length; index += 1)
         {
-            DrawMenuButtonScaled(layout.TabBounds[index], labels[index], index == (int)_friendsMenuTab, scale);
+            DrawMenuButtonScaled(layout.TabBounds[index], labels[index], index == (int)_friendsMenuTab, 1f);
         }
     }
 
     private void DrawFriendsTab(FriendsMenuLayout layout)
     {
-        DrawBitmapFontText("Your Friend Code", new Vector2(layout.OwnCodeBounds.X, layout.OwnCodeBounds.Y - 16f), Color.White, 1f);
-        DrawMenuInputBoxScaled(layout.OwnCodeBounds, _clientIdentity.FriendCode, active: false, 1f);
-        DrawMenuButtonScaled(layout.CopyCodeBounds, "Copy", false, 1f);
-
-        DrawBitmapFontText("Add Friend Code", new Vector2(layout.FriendCodeBounds.X, layout.FriendCodeBounds.Y - 16f), Color.White, 1f);
+        var codeLabel = _friendsMenuAddingFriend ? "Add Friend Code" : "Your Friend Code";
+        var codeText = _friendsMenuAddingFriend ? _friendCodeInputBuffer : _clientIdentity.FriendCode;
+        DrawBitmapFontText(codeLabel, new Vector2(layout.OwnCodeBounds.X, layout.OwnCodeBounds.Y - 16f), Color.White, 1f);
         DrawMenuInputBoxScaled(
-            layout.FriendCodeBounds,
-            _friendCodeInputBuffer,
-            _editingFriendCode,
+            layout.OwnCodeBounds,
+            codeText,
+            _friendsMenuAddingFriend && _editingFriendCode,
             1f,
-            _friendCodeCursorIndex,
-            _friendCodeSelectionStart);
+            _friendsMenuAddingFriend ? _friendCodeCursorIndex : -1,
+            _friendsMenuAddingFriend ? _friendCodeSelectionStart : -1);
+        DrawMenuButtonScaled(layout.AddCodeBounds, _friendsMenuAddingFriend ? "Back" : "Add", _friendsMenuAddingFriend, 1f);
 
         DrawRoundedRectangleOutline(layout.ListBounds, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 1, radius: 6);
         DrawBitmapFontText("NAME", new Vector2(layout.ListBounds.X + 10f, layout.ListBounds.Y - 20f), Color.White, 1f);
@@ -796,7 +809,7 @@ public partial class Game1
         var compactLayout = panel.Height < 470;
         var padding = compactLayout ? 16 : 18;
         var fieldHeight = 32;
-        var smallButtonWidth = compactLayout ? 78 : 84;
+        var addButtonWidth = compactLayout ? 62 : 66;
         var refreshWidth = compactLayout ? 86 : 92;
         var playerCardButtonWidth = compactLayout ? 58 : 62;
         var inlineGap = 10;
@@ -806,25 +819,32 @@ public partial class Game1
         var playerCardButtonBounds = new Rectangle(nicknameBounds.Right + inlineGap, nicknameBounds.Y, playerCardButtonWidth, fieldHeight);
         var refreshBounds = new Rectangle(playerCardButtonBounds.Right + inlineGap, nicknameBounds.Y, refreshWidth, fieldHeight);
 
-        var tabGap = 6;
+        var tabGap = 8;
         var tabY = nicknameBounds.Bottom + (compactLayout ? 14 : 16);
         const int tabCount = 4;
-        var tabWidth = (panel.Width - (padding * 2) - (tabGap * (tabCount - 1))) / tabCount;
+        const int tabColumns = 2;
+        var tabWidth = (panel.Width - (padding * 2) - tabGap) / tabColumns;
+        var tabHeight = 30;
         var tabBounds = new Rectangle[tabCount];
         for (var index = 0; index < tabBounds.Length; index += 1)
         {
-            tabBounds[index] = new Rectangle(panel.X + padding + (index * (tabWidth + tabGap)), tabY, tabWidth, 30);
+            var column = index % tabColumns;
+            var row = index / tabColumns;
+            tabBounds[index] = new Rectangle(
+                panel.X + padding + (column * (tabWidth + tabGap)),
+                tabY + (row * (tabHeight + tabGap)),
+                tabWidth,
+                tabHeight);
         }
 
-        var inlineFieldWidth = panel.Width - (padding * 2) - smallButtonWidth - 8;
-        var contentTop = tabBounds[0].Bottom + (compactLayout ? 34 : 38);
+        var inlineFieldWidth = panel.Width - (padding * 2) - addButtonWidth - 8;
+        var contentTop = tabBounds[^1].Bottom + (compactLayout ? 34 : 38);
         var ownCodeBounds = new Rectangle(panel.X + padding, contentTop, inlineFieldWidth, fieldHeight);
-        var copyCodeBounds = new Rectangle(ownCodeBounds.Right + 8, ownCodeBounds.Y, smallButtonWidth, fieldHeight);
-        var friendCodeBounds = new Rectangle(panel.X + padding, ownCodeBounds.Bottom + 32, panel.Width - (padding * 2), fieldHeight);
+        var addCodeBounds = new Rectangle(ownCodeBounds.Right + 8, ownCodeBounds.Y, addButtonWidth, fieldHeight);
 
         var listTop = _friendsMenuTab == FriendsMenuTab.Friends
-            ? friendCodeBounds.Bottom + 32
-            : tabBounds[0].Bottom + 36;
+            ? ownCodeBounds.Bottom + 32
+            : tabBounds[^1].Bottom + 36;
         var listBottom = panel.Bottom - padding;
         var messageInputBounds = Rectangle.Empty;
         var messageAreaBounds = Rectangle.Empty;
@@ -888,8 +908,7 @@ public partial class Game1
             playerCardButtonBounds,
             nicknameBounds,
             ownCodeBounds,
-            copyCodeBounds,
-            friendCodeBounds,
+            addCodeBounds,
             listBounds,
             messageAreaBounds,
             messageInputBounds,
@@ -913,7 +932,11 @@ public partial class Game1
 
     private void TrySendFriendRequestFromInput()
     {
-        TrySendFriendRequest(_friendCodeInputBuffer, clearFriendCodeInput: true);
+        if (TrySendFriendRequest(_friendCodeInputBuffer, clearFriendCodeInput: true))
+        {
+            _friendsMenuAddingFriend = false;
+            _editingFriendCode = false;
+        }
     }
 
     private bool TrySendFriendRequestToCode(string friendCode)
@@ -944,6 +967,73 @@ public partial class Game1
 
         _menuStatusMessage = "Sending request...";
         return true;
+    }
+
+    private static bool TryExtractFriendCodeFromText(string? text, out string friendCode)
+    {
+        if (ClientIdentityDocument.TryNormalizeFriendCode(text, out friendCode))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            friendCode = string.Empty;
+            return false;
+        }
+
+        var candidateStart = -1;
+        for (var index = 0; index <= text.Length; index += 1)
+        {
+            var candidateChar = index < text.Length ? text[index] : '\0';
+            var allowed = index < text.Length && (char.IsAsciiLetterOrDigit(candidateChar) || candidateChar == '-');
+            if (allowed)
+            {
+                if (candidateStart < 0)
+                {
+                    candidateStart = index;
+                }
+
+                continue;
+            }
+
+            if (candidateStart >= 0)
+            {
+                var candidate = text[candidateStart..index];
+                if (ClientIdentityDocument.TryNormalizeFriendCode(candidate, out friendCode))
+                {
+                    return true;
+                }
+
+                candidateStart = -1;
+            }
+        }
+
+        var compact = new string(text.Where(char.IsAsciiLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
+        for (var prefixIndex = 0; prefixIndex <= compact.Length - 11; prefixIndex += 1)
+        {
+            if (string.Compare(compact, prefixIndex, "OG2", 0, 3, StringComparison.Ordinal) != 0)
+            {
+                continue;
+            }
+
+            for (var suffixLength = 16; suffixLength >= 8; suffixLength -= 1)
+            {
+                var totalLength = 3 + suffixLength;
+                if (prefixIndex + totalLength > compact.Length)
+                {
+                    continue;
+                }
+
+                if (ClientIdentityDocument.TryNormalizeFriendCode(compact.Substring(prefixIndex, totalLength), out friendCode))
+                {
+                    return true;
+                }
+            }
+        }
+
+        friendCode = string.Empty;
+        return false;
     }
 
     private bool CanSendFriendRequestToCode(string friendCodeText, out string friendCode, out string failureMessage)
@@ -1035,17 +1125,11 @@ public partial class Game1
         _friendNicknameInputBuffer = nickname;
         InitializeFriendNicknameCursor();
         _editingFriendNickname = false;
+        _friendsMenuAddingFriend = true;
         _editingFriendCode = true;
         _lastSocialPresenceSignature = string.Empty;
         _socialPresenceSecondsUntilHeartbeat = 0d;
         _menuStatusMessage = "Nickname saved.";
-    }
-
-    private void CopyOwnFriendCodeToClipboard()
-    {
-        _menuStatusMessage = TrySetClipboardText(_clientIdentity.FriendCode)
-            ? "Friend code copied."
-            : $"Your friend code is {_clientIdentity.FriendCode}.";
     }
 
     private static string NormalizeFriendNickname(string value)
