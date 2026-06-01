@@ -62,7 +62,8 @@ public partial class Game1
             _game.InitializeFriendNicknameCursor();
             var needsNickname = string.IsNullOrWhiteSpace(_game._clientIdentity.DisplayName);
             _game._editingFriendNickname = needsNickname;
-            _game._editingFriendCode = !needsNickname;
+            _game._friendsMenuAddingFriend = false;
+            _game._editingFriendCode = false;
             _game.InitializeFriendCodeCursor();
             _game._menuStatusMessage = needsNickname ? "Choose a nickname for friends." : string.Empty;
             _game.RefreshFriendPresence();
@@ -75,6 +76,7 @@ public partial class Game1
             _game.CloseFriendsContextMenu();
             _game.ClosePlayerCardOverlay();
             _game._editingFriendCode = false;
+            _game._friendsMenuAddingFriend = false;
             _game._editingFriendNickname = false;
             if (clearStatus)
             {
