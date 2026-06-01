@@ -179,10 +179,24 @@ public partial class Game1
         {
             _predictedLocalActionState.SpyCloakAlpha = 1f;
             _predictedLocalActionState.IsSpyVisibleToEnemies = false;
+            _predictedLocalActionState.SpySuperjumpChargeTicks = 0;
+            _predictedLocalActionState.IsSpySuperjumping = false;
+            _predictedLocalActionState.SpySuperjumpHorizontalVelocity = 0f;
+            _predictedLocalActionState.SpySuperjumpCooldownTicksRemaining = 0;
             _predictedLocalActionState.SpyBackstabWindupTicksRemaining = 0;
             _predictedLocalActionState.SpyBackstabRecoveryTicksRemaining = 0;
             _predictedLocalActionState.SpyBackstabVisualTicksRemaining = 0;
             return;
+        }
+
+        if (_predictedLocalActionState.SpySuperjumpCooldownTicksRemaining > 0)
+        {
+            _predictedLocalActionState.SpySuperjumpCooldownTicksRemaining -= 1;
+        }
+        if (_predictedLocalActionState.IsSpySuperjumping && player.IsGrounded)
+        {
+            _predictedLocalActionState.IsSpySuperjumping = false;
+            _predictedLocalActionState.SpySuperjumpHorizontalVelocity = 0f;
         }
 
         _predictedLocalActionState.SpyCloakAlpha = _predictedLocalActionState.IsSpyCloaked

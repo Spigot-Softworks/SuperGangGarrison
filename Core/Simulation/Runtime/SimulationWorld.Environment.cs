@@ -1,3 +1,5 @@
+using OpenGarrison.GameplayModding;
+
 namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
@@ -161,13 +163,8 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var needsCabinet = player.Health < player.MaxHealth
-                || player.Metal < player.MaxMetal
-                || player.CurrentShells < player.PrimaryWeapon.MaxAmmo
-                || player.ReloadTicksUntilNextShell > 0
-                || player.MedicNeedleRefillTicks > 0
-                || player.IsBurning
-                || player.HeavyEatCooldownTicksRemaining > 0;
+            var needsCabinet = player.NeedsHealingCabinetResupply()
+                || HasConfiguredGameplayAbilityCooldownForResupply(player);
             if (!needsCabinet)
             {
                 continue;
@@ -175,6 +172,7 @@ public sealed partial class SimulationWorld
 
             usingHealingCabinet = true;
             player.HealAndResupply();
+            ClearConfiguredGameplayAbilityCooldownsForResupply(player);
             if (player.CanPlayHealingCabinetSound())
             {
                 RegisterWorldSoundEvent("CbntHealSnd", player.X, player.Y);
@@ -183,6 +181,57 @@ public sealed partial class SimulationWorld
         }
 
         player.SetHealingCabinetState(usingHealingCabinet);
+    }
+
+    private static bool HasConfiguredGameplayAbilityCooldownForResupply(PlayerEntity player)
+    {
+        foreach (var item in ResolveAllPlayerGameplayAbilityItems(player))
+        {
+            if (TryResolveConfiguredAbilityCooldownState(item, out var stateOwner, out var cooldownKey)
+                && player.TryGetReplicatedStateInt(stateOwner, cooldownKey, out var cooldownTicks)
+                && cooldownTicks > 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void ClearConfiguredGameplayAbilityCooldownsForResupply(PlayerEntity player)
+    {
+        foreach (var item in ResolveAllPlayerGameplayAbilityItems(player))
+        {
+            if (!TryResolveConfiguredAbilityCooldownState(item, out var stateOwner, out var cooldownKey)
+                || !player.TryGetReplicatedStateInt(stateOwner, cooldownKey, out var cooldownTicks)
+                || cooldownTicks <= 0)
+            {
+                continue;
+            }
+
+            player.SetGameplayAbilityCooldownReplicatedState(stateOwner, cooldownKey, 0);
+        }
+    }
+
+    private static bool TryResolveConfiguredAbilityCooldownState(
+        GameplayItemDefinition item,
+        out string stateOwner,
+        out string cooldownKey)
+    {
+        stateOwner = string.Empty;
+        cooldownKey = string.Empty;
+        var hud = item.Presentation.Hud;
+        if (hud is null
+            || !string.Equals(hud.StateProvider, GameplayItemHudStateProviders.AbilityCooldown, StringComparison.OrdinalIgnoreCase)
+            || string.IsNullOrWhiteSpace(hud.StateOwner)
+            || string.IsNullOrWhiteSpace(hud.CooldownKey))
+        {
+            return false;
+        }
+
+        stateOwner = hud.StateOwner.Trim();
+        cooldownKey = hud.CooldownKey.Trim();
+        return !string.Equals(stateOwner, GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId, StringComparison.Ordinal);
     }
 
     private void ApplyRoomForces(PlayerEntity player)

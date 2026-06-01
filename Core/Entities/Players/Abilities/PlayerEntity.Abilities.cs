@@ -554,8 +554,11 @@ public sealed partial class PlayerEntity
     {
         if (ClassId != PlayerClass.Medic)
         {
+            MedicPassiveRegenElapsedSourceTicks = 0;
             return;
         }
+
+        AdvanceMedicPassiveRegenState();
 
         if (IsMedicUbering)
         {
@@ -590,6 +593,48 @@ public sealed partial class PlayerEntity
             CurrentShells = MaxShells;
             MedicNeedleRefillTicks = 0;
         }
+    }
+
+    private void AdvanceUnscathedTime()
+    {
+        TimeUnscathedSourceTicks = int.Min(
+            MedicPassiveRegenUnscathedCapSourceTicks,
+            TimeUnscathedSourceTicks + 1);
+    }
+
+    private void ResetUnscathedTime()
+    {
+        TimeUnscathedSourceTicks = 0;
+    }
+
+    private void ResetPassiveRegenState()
+    {
+        TimeUnscathedSourceTicks = 0;
+        MedicPassiveRegenElapsedSourceTicks = 0;
+    }
+
+    private void AdvanceMedicPassiveRegenState()
+    {
+        if (Health >= MaxHealth)
+        {
+            MedicPassiveRegenElapsedSourceTicks = (MedicPassiveRegenElapsedSourceTicks + 1)
+                % MedicPassiveRegenIntervalSourceTicks;
+            return;
+        }
+
+        MedicPassiveRegenElapsedSourceTicks += 1;
+        if (MedicPassiveRegenElapsedSourceTicks < MedicPassiveRegenIntervalSourceTicks)
+        {
+            return;
+        }
+
+        MedicPassiveRegenElapsedSourceTicks = 0;
+        var healAmount = TimeUnscathedSourceTicks < MedicPassiveRegenFirstThresholdSourceTicks
+            ? 3
+            : TimeUnscathedSourceTicks < MedicPassiveRegenSecondThresholdSourceTicks
+                ? 4
+                : 5;
+        Health = int.Min(MaxHealth, Health + healAmount);
     }
 
     public bool TryStartSpySuperjumpCharge(float aimDirectionDegrees, bool leftHeld, bool rightHeld, bool upHeld, bool downHeld)

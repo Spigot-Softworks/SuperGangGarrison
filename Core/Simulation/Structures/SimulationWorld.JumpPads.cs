@@ -184,7 +184,7 @@ public sealed partial class SimulationWorld
 
     private static bool IsJumpPadTriggerActive(JumpPadEntity pad)
     {
-        return pad.HasLanded && pad.IsBuilt && !pad.IsDead;
+        return pad.HasLanded && !pad.IsDead;
     }
 
     private static bool CanUseJumpPad(PlayerEntity player, JumpPadEntity pad)

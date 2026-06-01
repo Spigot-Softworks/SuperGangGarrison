@@ -104,4 +104,38 @@ public sealed class PlayerEntityMetadataTests
         Assert.Equal(100, updatedValue);
         Assert.Equal(16, player.GetReplicatedStateEntries().Count);
     }
+
+    [Fact]
+    public void GameplayAbilityCooldownReplicatedStateAutoCountsDown()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Test");
+        player.Spawn(PlayerTeam.Red, 100f, 100f);
+
+        Assert.True(player.SetGameplayAbilityCooldownReplicatedState("plugin.ability", "dash_cooldown", 3));
+
+        player.AdvanceTickState(default, 1d / 30d);
+        Assert.True(player.TryGetReplicatedStateInt("plugin.ability", "dash_cooldown", out var cooldownTicks));
+        Assert.Equal(2, cooldownTicks);
+
+        player.AdvanceTickState(default, 1d / 30d);
+        player.AdvanceTickState(default, 1d / 30d);
+
+        Assert.True(player.TryGetReplicatedStateInt("plugin.ability", "dash_cooldown", out cooldownTicks));
+        Assert.Equal(0, cooldownTicks);
+    }
+
+    [Fact]
+    public void GameplayAbilityCooldownReplicatedStateStopsCountingAfterManualClear()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Test");
+        player.Spawn(PlayerTeam.Red, 100f, 100f);
+
+        Assert.True(player.SetGameplayAbilityCooldownReplicatedState("plugin.ability", "dash_cooldown", 3));
+        Assert.True(player.SetGameplayAbilityCooldownReplicatedState("plugin.ability", "dash_cooldown", 0));
+
+        player.AdvanceTickState(default, 1d / 30d);
+
+        Assert.True(player.TryGetReplicatedStateInt("plugin.ability", "dash_cooldown", out var cooldownTicks));
+        Assert.Equal(0, cooldownTicks);
+    }
 }

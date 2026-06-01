@@ -974,6 +974,28 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
+    public void HealingCabinetRefreshesSpecialAbilityCooldowns()
+    {
+        var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+
+        PressUseAbilitySpace(world);
+        Assert.True(world.LocalPlayer.ExperimentalGhostDashCooldownTicksRemaining > 0);
+
+        world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth);
+        world.LocalPlayer.ForceSetAmmo(world.LocalPlayer.MaxShells);
+        world.SetLocalInput(default);
+        var cabinet = world.Level.GetRoomObjects(RoomObjectType.HealingCabinet).First();
+        world.TeleportLocalPlayer(cabinet.CenterX, cabinet.CenterY);
+
+        world.AdvanceOneTick();
+
+        Assert.True(world.LocalPlayer.IsUsingHealingCabinet);
+        Assert.Equal(0, world.LocalPlayer.ExperimentalGhostDashCooldownTicksRemaining);
+    }
+
+    [Fact]
     public void HeavyGhostDashRegistersEvadedDamageEvent()
     {
         var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());
@@ -1144,6 +1166,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
 
         PressUseAbilitySpace(world);
         ReleaseAllInput(world);
@@ -1617,6 +1640,24 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
+    public void EnemyEngineerSentryDoesNotInheritIncendiaryOrCryonicMunitions()
+    {
+        var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(
+            EnableEngineerIncendiaryEnhancements: true,
+            EnableEngineerCryonicMunitions: true));
+        var enemyEngineer = CreateBlueNetworkEngineer(world, 2);
+        var sentry = new SentryEntity(9000, enemyEngineer.Id, enemyEngineer.Team, enemyEngineer.X, enemyEngineer.Y, 1f);
+        sentry.ForceBuilt();
+        world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth);
+
+        InvokeApplyExperimentalSentryPlayerHit(world, sentry, enemyEngineer, world.LocalPlayer, SentryEntity.HitDamage);
+
+        Assert.Equal(0f, world.LocalPlayer.BurnDurationSourceTicks);
+        Assert.False(world.LocalPlayer.IsExperimentalCryoSlowed);
+        Assert.False(world.LocalPlayer.IsExperimentalCryoFrozen);
+    }
+
+    [Fact]
     public void FreezeRayFrozenKillsSpawnCryoTintedGibsAndBlood()
     {
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerFreezeRay: true));
@@ -1828,6 +1869,49 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
                 Assert.True(shot.ApplyExperimentalEngineerSentryPerkEffects);
                 Assert.Equal(sentry.Id, shot.SourceSentryId);
             });
+    }
+
+    [Fact]
+    public void EnemyEngineerSentryDoesNotInheritBuckshotConversion()
+    {
+        var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerBuckshotConversion: true));
+        var enemyEngineer = CreateBlueNetworkEngineer(world, 2);
+        var sentry = BuildAndCompleteNetworkSentry(world, 2, enemyEngineer);
+        PlaceLocalPlayerInVisibleSentryLane(world, sentry, preferredDistance: 180f, minimumDistance: 132f);
+
+        AdvanceUntilSentryFired(world, sentry, 1);
+
+        Assert.Empty(world.Shots);
+    }
+
+    [Fact]
+    public void EnemyEngineerSentryDoesNotInheritPrecisionInstantiatorDamage()
+    {
+        var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerPrecisionInstantiator: true));
+        var enemyEngineer = CreateBlueNetworkEngineer(world, 2);
+        var sentry = BuildAndCompleteNetworkSentry(world, 2, enemyEngineer);
+        PlaceLocalPlayerInVisibleSentryLane(world, sentry, preferredDistance: 180f, minimumDistance: 132f);
+        var healthBefore = world.LocalPlayer.Health;
+
+        AdvanceUntilSentryFired(world, sentry, 1);
+
+        Assert.Equal(SentryEntity.HitDamage, healthBefore - world.LocalPlayer.Health);
+    }
+
+    [Fact]
+    public void EnemyEngineerSentryDoesNotInheritCaveatInjector()
+    {
+        var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerCaveatInjector: true));
+        var enemyEngineer = CreateBlueNetworkEngineer(world, 2);
+        var sentry = BuildAndCompleteNetworkSentry(world, 2, enemyEngineer);
+        PlaceLocalPlayerInVisibleSentryLane(world, sentry, preferredDistance: 180f, minimumDistance: 132f);
+
+        AdvanceUntilSentryFired(
+            world,
+            sentry,
+            ExperimentalGameplaySettings.DefaultEngineerCaveatInjectorShotInterval);
+
+        Assert.Empty(world.Rockets);
     }
 
     [Fact]
@@ -2088,11 +2172,47 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         return sentry;
     }
 
+    private static SentryEntity BuildAndCompleteNetworkSentry(SimulationWorld world, byte ownerSlot, PlayerEntity owner)
+    {
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        owner.TeleportTo(world.LocalPlayer.X + 160f, world.LocalPlayer.Y);
+        owner.SetSpawnRoomState(false);
+        Assert.True(world.TrySetNetworkPlayerInput(
+            ownerSlot,
+            new PlayerInputSnapshot(
+                Left: false,
+                Right: false,
+                Up: false,
+                Down: false,
+                BuildSentry: true,
+                DestroySentry: false,
+                Taunt: false,
+                FirePrimary: false,
+                FireSecondary: false,
+                AimWorldX: owner.X + 96f,
+                AimWorldY: owner.Y,
+                DebugKill: false)));
+        world.AdvanceOneTick();
+        Assert.True(world.TrySetNetworkPlayerInput(ownerSlot, default));
+        var sentry = Assert.Single(world.Sentries, candidate => candidate.OwnerPlayerId == owner.Id);
+        sentry.ForceBuilt();
+        return sentry;
+    }
+
     private static PlayerEntity CreateBlueNetworkScout(SimulationWorld world, byte slot)
     {
         Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
         Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
         Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Scout));
+        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        return player;
+    }
+
+    private static PlayerEntity CreateBlueNetworkEngineer(SimulationWorld world, byte slot)
+    {
+        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Engineer));
         Assert.True(world.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
@@ -2407,6 +2527,33 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         return bestCandidate
             ?? throw new Xunit.Sdk.XunitException("Could not place enemy in visible sentry lane.");
+    }
+
+    private static void PlaceLocalPlayerInVisibleSentryLane(
+        SimulationWorld world,
+        SentryEntity sentry,
+        float preferredDistance,
+        float minimumDistance)
+    {
+        var targetPosition = FindVisibleSentryTargetPosition(
+            world,
+            sentry,
+            world.LocalPlayer,
+            preferredDistance,
+            minimumDistance);
+        world.LocalPlayer.TeleportTo(targetPosition.X, targetPosition.Y);
+        world.LocalPlayer.SetSpawnRoomState(false);
+        world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth);
+    }
+
+    private static void AdvanceUntilSentryFired(SimulationWorld world, SentryEntity sentry, int shotCount)
+    {
+        for (var tick = 0; tick < 240 && sentry.ConsecutiveShotsFired < shotCount; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        Assert.True(sentry.ConsecutiveShotsFired >= shotCount);
     }
 
     private static void InvokeEngineerPda(SimulationWorld world)

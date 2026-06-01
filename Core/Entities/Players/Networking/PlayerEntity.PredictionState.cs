@@ -38,6 +38,8 @@ public sealed partial class PlayerEntity
         int ExperimentalOffhandReloadTicksUntilNextShell,
         bool IsExperimentalOffhandEquipped,
         float ContinuousDamageAccumulator,
+        int TimeUnscathedSourceTicks,
+        int MedicPassiveRegenElapsedSourceTicks,
         bool IsHeavyEating,
         int HeavyEatTicksRemaining,
         int HeavyEatCooldownTicksRemaining,
@@ -144,6 +146,8 @@ public sealed partial class PlayerEntity
             ExperimentalOffhandReloadTicksUntilNextShell,
             IsExperimentalOffhandEquipped,
             ContinuousDamageAccumulator,
+            TimeUnscathedSourceTicks,
+            MedicPassiveRegenElapsedSourceTicks,
             IsHeavyEating,
             HeavyEatTicksRemaining,
             HeavyEatCooldownTicksRemaining,
@@ -253,6 +257,8 @@ public sealed partial class PlayerEntity
         ExperimentalOffhandReloadTicksUntilNextShell = Math.Max(0, state.ExperimentalOffhandReloadTicksUntilNextShell);
         IsExperimentalOffhandEquipped = state.ExperimentalOffhandWeapon is not null && state.IsExperimentalOffhandEquipped;
         ContinuousDamageAccumulator = state.ContinuousDamageAccumulator;
+        TimeUnscathedSourceTicks = state.TimeUnscathedSourceTicks;
+        MedicPassiveRegenElapsedSourceTicks = state.MedicPassiveRegenElapsedSourceTicks;
         IsHeavyEating = state.IsHeavyEating;
         HeavyEatTicksRemaining = state.HeavyEatTicksRemaining;
         HeavyEatCooldownTicksRemaining = state.HeavyEatCooldownTicksRemaining;

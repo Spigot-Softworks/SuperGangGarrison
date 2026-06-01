@@ -20,7 +20,7 @@ public sealed partial class SimulationWorld
     {
         var player = FindPlayerById(playerId);
         return player is not null
-            && player.SetReplicatedStateInt(ownerId, cooldownKey, Math.Max(0, ticks));
+            && player.SetGameplayAbilityCooldownReplicatedState(ownerId, cooldownKey, ticks);
     }
 
     public bool TryApplyGameplayHealing(int playerId, float amount)

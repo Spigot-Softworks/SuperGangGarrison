@@ -1,6 +1,5 @@
 using System.Net.Http;
 using System.Text;
-using OpenGarrison.Core;
 
 namespace OpenGarrison.ClientShared;
 
@@ -236,11 +235,6 @@ public sealed class BrowserBootstrapAssetCatalog(
             "Content/Sprites/Menu/Title/background-4x3.png",
             "Content/Sprites/Menu/Title/background-5x4.png",
         };
-
-        foreach (var definition in OpenGarrisonStockMapCatalog.Definitions)
-        {
-            binaryPaths.Add($"Content/StockMaps/{definition.IniKey}.png");
-        }
 
         for (var index = 1; index <= 6; index += 1)
         {

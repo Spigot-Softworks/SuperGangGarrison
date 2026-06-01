@@ -977,6 +977,69 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
+    public void SnapshotDeltaStatusUpdateClearsRemovedSecondaryWeaponRuntimeState()
+    {
+        var baselineSoldier = CreatePlayerState(2, 1092, "Remote Soldier") with
+        {
+            ClassId = (byte)PlayerClass.Soldier,
+            ReplicatedStates =
+            [
+                new SnapshotReplicatedStateEntry(
+                    "core.player",
+                    "soldier_shotgun_equipped",
+                    SnapshotReplicatedStateValueKind.Toggle,
+                    BoolValue: true),
+                new SnapshotReplicatedStateEntry(
+                    "core.player",
+                    "soldier_shotgun_ammo",
+                    SnapshotReplicatedStateValueKind.Whole,
+                    IntValue: 2),
+                new SnapshotReplicatedStateEntry(
+                    "core.player",
+                    "soldier_shotgun_reload_ticks",
+                    SnapshotReplicatedStateValueKind.Whole,
+                    IntValue: 18),
+                new SnapshotReplicatedStateEntry(
+                    "core.player",
+                    "soldier_shotgun_cooldown_ticks",
+                    SnapshotReplicatedStateValueKind.Whole,
+                    IntValue: 6),
+            ],
+        };
+        var baseline = CreateSnapshot(1090) with
+        {
+            Players = [baselineSoldier],
+        };
+        var delta = CreateSnapshot(1091) with
+        {
+            IsDelta = true,
+            BaselineFrame = baseline.Frame,
+            PlayerStatusStates =
+            [
+                new SnapshotPlayerStatusState(
+                    baselineSoldier.Slot,
+                    baselineSoldier.Health,
+                    baselineSoldier.MaxHealth,
+                    baselineSoldier.Ammo,
+                    baselineSoldier.MaxAmmo,
+                    baselineSoldier.Metal,
+                    baselineSoldier.IsCarryingIntel,
+                    baselineSoldier.IntelRechargeTicks,
+                    SecondaryAmmoStates: []),
+            ],
+        };
+
+        var merged = SnapshotDelta.ToFullSnapshot(delta, baseline);
+
+        var mergedSoldier = Assert.Single(merged.Players);
+        var states = mergedSoldier.ReplicatedStates ?? [];
+        Assert.Contains(states, state => state.Key == "soldier_shotgun_equipped" && state.BoolValue);
+        Assert.DoesNotContain(states, state => state.Key == "soldier_shotgun_ammo");
+        Assert.DoesNotContain(states, state => state.Key == "soldier_shotgun_reload_ticks");
+        Assert.DoesNotContain(states, state => state.Key == "soldier_shotgun_cooldown_ticks");
+    }
+
+    [Fact]
     public void BuildContributionsDefersLowFrequencyPlayerDetailBetweenRefreshWindows()
     {
         var localPlayer = CreatePlayerState(1, 1001, "Viewer");
@@ -1233,6 +1296,59 @@ public sealed class SnapshotDeltaBudgeterTests
         var mergedSoldier = Assert.Single(merged.Players);
         Assert.Equal("weapon.soldier-shotgun", mergedSoldier.GameplayEquippedItemId);
         Assert.Equal((byte)GameplayEquipmentSlot.Secondary, mergedSoldier.GameplayEquippedSlot);
+    }
+
+    [Fact]
+    public void BuildBudgetedSnapshotReductionPreservesPluginAbilityCooldownHudState()
+    {
+        var baselineHeavy = CreatePlayerState(2, 912, "Remote Heavy") with
+        {
+            ClassId = (byte)PlayerClass.Heavy,
+            GameplayModPackId = "stock.gg2",
+            GameplayLoadoutId = "heavy.stock",
+            GameplayPrimaryItemId = "weapon.minigun",
+            GameplaySecondaryItemId = "ability.heavy-sandvich",
+            GameplayUtilityItemId = "ability.sample-force-dash",
+            GameplayEquippedItemId = "weapon.minigun",
+        };
+        var currentHeavy = baselineHeavy with
+        {
+            OwnedGameplayItemIds =
+            [
+                "inventory.remote-heavy-primary",
+                "inventory.remote-heavy-secondary",
+                "inventory.remote-heavy-utility",
+                "inventory.remote-heavy-cosmetic",
+            ],
+            ReplicatedStates =
+            [
+                new SnapshotReplicatedStateEntry(
+                    "sample.server.lua-gameplay-ability",
+                    "sample_force_dash_cooldown",
+                    SnapshotReplicatedStateValueKind.Whole,
+                    IntValue: 42),
+                new SnapshotReplicatedStateEntry(
+                    "sample.server.lua-gameplay-ability",
+                    "debug_score",
+                    SnapshotReplicatedStateValueKind.Whole,
+                    IntValue: 99),
+            ],
+        };
+        var method = typeof(SnapshotDeltaBudgeter).GetMethod(
+            "ReducePlayerStateForBudget",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.NotNull(method);
+
+        var deltaPlayer = (SnapshotPlayerState)method.Invoke(null, new object[] { currentHeavy })!;
+        Assert.Contains(
+            deltaPlayer.ReplicatedStates ?? [],
+            state => state.OwnerId == "sample.server.lua-gameplay-ability"
+                && state.Key == "sample_force_dash_cooldown"
+                && state.IntValue == 42);
+        Assert.DoesNotContain(
+            deltaPlayer.ReplicatedStates ?? [],
+            state => state.OwnerId == "sample.server.lua-gameplay-ability"
+                && state.Key == "debug_score");
     }
 
     [Fact]

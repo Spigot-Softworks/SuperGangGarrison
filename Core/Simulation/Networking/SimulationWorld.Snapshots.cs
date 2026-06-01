@@ -143,6 +143,7 @@ public sealed partial class SimulationWorld
             snapshotPlayer.PlayerScale,
             offhandCooldownTicks: snapshotPlayer.OffhandCooldownTicks,
             offhandReloadTicks: snapshotPlayer.OffhandReloadTicks,
+            gibDeaths: snapshotPlayer.GibDeaths,
             isTypingChatMessage: snapshotPlayer.IsTypingChatMessage);
     }
 

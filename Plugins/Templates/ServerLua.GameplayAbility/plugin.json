@@ -6,7 +6,7 @@
   "type": "Server",
   "runtime": "Lua",
   "entryPoint": "main.lua",
-  "description": "Runnable Lua server template for registering a Spacebar ability with cooldown HUD state and a hidden passive tick ability.",
+  "description": "Runnable Lua server template for registering a Spacebar ability with server-counted cooldown HUD state.",
   "compatibility": {
     "hostApiVersion": "1.0"
   },

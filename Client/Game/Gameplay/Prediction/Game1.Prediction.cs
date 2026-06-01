@@ -166,8 +166,10 @@ public partial class Game1
             IsUsingBinoculars = player.IsUsingBinoculars,
             IsSpyCloaked = player.IsSpyCloaked,
             SpyCloakAlpha = player.SpyCloakAlpha,
+            SpySuperjumpChargeTicks = player.SpySuperjumpChargeTicks,
             IsSpySuperjumping = player.IsSpySuperjumping,
             SpySuperjumpHorizontalVelocity = player.SpySuperjumpHorizontalVelocity,
+            SpySuperjumpCooldownTicksRemaining = player.SpySuperjumpCooldownTicksRemaining,
             IsSpyVisibleToEnemies = player.IsSpyVisibleToEnemies,
             SpyBackstabWindupTicksRemaining = player.SpyBackstabWindupTicksRemaining,
             SpyBackstabRecoveryTicksRemaining = player.SpyBackstabRecoveryTicksRemaining,
@@ -175,6 +177,7 @@ public partial class Game1
             MedicUberCharge = player.MedicUberCharge,
             Metal = player.Metal,
             IntelRechargeTicks = player.IntelRechargeTicks,
+            IsCarryingIntel = player.IsCarryingIntel,
             IsMedicUberReady = player.IsMedicUberReady,
             IsMedicUbering = player.IsMedicUbering,
             MedicNeedleCooldownTicks = player.MedicNeedleCooldownTicks,
@@ -270,8 +273,10 @@ public partial class Game1
         public bool IsUsingBinoculars;
         public bool IsSpyCloaked;
         public float SpyCloakAlpha;
+        public int SpySuperjumpChargeTicks;
         public bool IsSpySuperjumping;
         public float SpySuperjumpHorizontalVelocity;
+        public int SpySuperjumpCooldownTicksRemaining;
         public bool IsSpyVisibleToEnemies;
         public int SpyBackstabWindupTicksRemaining;
         public int SpyBackstabRecoveryTicksRemaining;
@@ -279,6 +284,7 @@ public partial class Game1
         public float MedicUberCharge;
         public float Metal;
         public float IntelRechargeTicks;
+        public bool IsCarryingIntel;
         public bool IsMedicUberReady;
         public bool IsMedicUbering;
         public int MedicNeedleCooldownTicks;

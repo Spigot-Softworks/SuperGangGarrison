@@ -15,6 +15,7 @@ public sealed partial class PlayerEntity
 
         RevealSpy(spyRevealAlpha);
         Health = int.Max(0, Health - damage);
+        ResetUnscathedTime();
         return Health == 0;
     }
 
@@ -84,6 +85,7 @@ public sealed partial class PlayerEntity
         IsHeavyEating = false;
         HeavyEatTicksRemaining = 0;
         ClearHeavyEatCooldown();
+        ResetPassiveRegenState();
         HeavyEatHealPerTickValue = HeavyEatHealPerTick;
         HeavyHealingAccumulator = 0f;
         IsTaunting = false;
@@ -138,6 +140,40 @@ public sealed partial class PlayerEntity
         }
     }
 
+    public bool NeedsHealingCabinetResupply()
+    {
+        return Health < MaxHealth
+            || Metal < MaxMetal
+            || CurrentShells < PrimaryWeapon.MaxAmmo
+            || ReloadTicksUntilNextShell > 0
+            || MedicNeedleRefillTicks > 0
+            || IsBurning
+            || HasGameplayResupplyCooldown()
+            || HasGameplayResupplyAmmoDeficit();
+    }
+
+    private bool HasGameplayResupplyCooldown()
+    {
+        return HeavyEatCooldownTicksRemaining > 0
+            || ExperimentalGhostDashCooldownTicksRemaining > 0
+            || SpySuperjumpCooldownTicksRemaining > 0
+            || MedicNeedleCooldownTicks > 0
+            || PyroAirblastCooldownTicks > 0
+            || PyroFlareCooldownTicks > 0
+            || ExperimentalOffhandCooldownTicks > 0
+            || ExperimentalOffhandReloadTicksUntilNextShell > 0
+            || AcquiredWeaponCooldownTicks > 0
+            || AcquiredWeaponReloadTicksUntilNextShell > 0;
+    }
+
+    private bool HasGameplayResupplyAmmoDeficit()
+    {
+        return ExperimentalOffhandWeapon is not null
+            && ExperimentalOffhandCurrentShells < ExperimentalOffhandWeapon.MaxAmmo
+            || AcquiredWeapon is not null
+            && AcquiredWeaponCurrentShells < AcquiredWeapon.MaxAmmo;
+    }
+
     public void HealAndResupply()
     {
         Health = MaxHealth;
@@ -164,13 +200,23 @@ public sealed partial class PlayerEntity
         {
             SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
         }
-        ClearHeavyEatCooldown();
+        ClearGameplayAbilityCooldownsForResupply();
         ResetPyroPrimaryStateFromCurrentAmmo();
         ResetAcquiredPyroStateFromCurrentAmmo();
         ReloadTicksUntilNextShell = 0;
         MedicNeedleRefillTicks = 0;
         ExtinguishAfterburn();
         RefreshGameplayLoadoutState();
+    }
+
+    private void ClearGameplayAbilityCooldownsForResupply()
+    {
+        ClearHeavyEatCooldown();
+        ExperimentalGhostDashCooldownTicksRemaining = 0;
+        SpySuperjumpCooldownTicksRemaining = 0;
+        MedicNeedleCooldownTicks = 0;
+        PyroAirblastCooldownTicks = 0;
+        PyroFlareCooldownTicks = 0;
     }
 
     public void AdvanceEngineerResources()

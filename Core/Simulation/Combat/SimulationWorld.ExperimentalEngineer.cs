@@ -746,14 +746,17 @@ public sealed partial class SimulationWorld
     private bool FireExperimentalSentry(SentryEntity sentry, PlayerEntity owner, SentryTarget target, int reloadTicks, int idleResetTicks)
     {
         sentry.FireAt(target.X, target.Y, reloadTicks, idleResetTicks);
+        var ownerHasExperimentalEngineerPerks = IsExperimentalEngineerPerkOwner(owner);
 
-        if (ExperimentalGameplaySettings.EnableEngineerPrecisionInstantiator)
+        if (ownerHasExperimentalEngineerPerks
+            && ExperimentalGameplaySettings.EnableEngineerPrecisionInstantiator)
         {
             FireExperimentalPrecisionSentryShot(sentry, owner, target);
             return true;
         }
 
-        if (ExperimentalGameplaySettings.EnableEngineerBuckshotConversion)
+        if (ownerHasExperimentalEngineerPerks
+            && ExperimentalGameplaySettings.EnableEngineerBuckshotConversion)
         {
             FireExperimentalBuckshotSentryShot(sentry, owner, target);
             return true;
@@ -790,7 +793,8 @@ public sealed partial class SimulationWorld
             target.JumpPad.TakeDamage(SentryEntity.HitDamage);
         }
 
-        if (ExperimentalGameplaySettings.EnableEngineerCaveatInjector
+        if (IsExperimentalEngineerPerkOwner(owner)
+            && ExperimentalGameplaySettings.EnableEngineerCaveatInjector
             && sentry.ConsecutiveShotsFired % global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerCaveatInjectorShotInterval == 0)
         {
             FireExperimentalCaveatMiniRockets(sentry, owner, target);
@@ -864,7 +868,8 @@ public sealed partial class SimulationWorld
                 applyExperimentalEngineerSentryPerkEffects: true);
         }
 
-        if (ExperimentalGameplaySettings.EnableEngineerCaveatInjector
+        if (IsExperimentalEngineerPerkOwner(owner)
+            && ExperimentalGameplaySettings.EnableEngineerCaveatInjector
             && sentry.ConsecutiveShotsFired % global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerCaveatInjectorShotInterval == 0)
         {
             FireExperimentalCaveatMiniRockets(sentry, owner, target);
@@ -934,7 +939,7 @@ public sealed partial class SimulationWorld
 
         ApplyExperimentalSentryDamageRewards(sentry, owner, Math.Max(0, healthBefore - target.Health));
 
-        if (!target.IsAlive)
+        if (!target.IsAlive || !IsExperimentalEngineerPerkOwner(owner))
         {
             return;
         }

@@ -78,6 +78,30 @@ public sealed class SimulationWorldSnapshotPresentationTests
     }
 
     [Fact]
+    public void ApplySnapshotDoesNotSpawnRemotePlayerGibsForNormalDeathAfterEarlierGibDeath()
+    {
+        var world = new SimulationWorld();
+        var aliveAfterEarlierGibSnapshot = CreateSnapshot(
+            world,
+            frame: 115,
+            localPlayer: CreatePlayerState(1, 101, "Local", PlayerTeam.Red, PlayerClass.Scout, isAlive: true, gibDeaths: 0),
+            remotePlayer: CreatePlayerState(2, 202, "Remote", PlayerTeam.Blue, PlayerClass.Soldier, isAlive: true, gibDeaths: 1));
+        var normalDeathSnapshot = CreateSnapshot(
+            world,
+            frame: 116,
+            localPlayer: CreatePlayerState(1, 101, "Local", PlayerTeam.Red, PlayerClass.Scout, isAlive: true, gibDeaths: 0),
+            remotePlayer: CreatePlayerState(2, 202, "Remote", PlayerTeam.Blue, PlayerClass.Soldier, isAlive: false, gibDeaths: 1));
+
+        Assert.True(world.ApplySnapshot(aliveAfterEarlierGibSnapshot, localPlayerSlot: 1));
+        Assert.Empty(world.PlayerGibs);
+
+        Assert.True(world.ApplySnapshot(normalDeathSnapshot, localPlayerSlot: 1));
+
+        Assert.Empty(world.PlayerGibs);
+        Assert.DoesNotContain(world.PendingVisualEvents, visualEvent => visualEvent.EffectName == "GibBlood");
+    }
+
+    [Fact]
     public void ApplySnapshotRetainsMissingEnemySpyForScoreboard()
     {
         var world = new SimulationWorld();

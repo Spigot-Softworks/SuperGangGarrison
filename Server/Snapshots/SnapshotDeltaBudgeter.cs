@@ -579,17 +579,17 @@ internal static class SnapshotDeltaBudgeter
     private static SnapshotPlayerState ReducePlayerStateForBudget(SnapshotPlayerState player)
     {
         // Keep Toggle (bool) ReplicatedStates entries — these carry low-frequency state like
-        // soldier_shotgun_equipped that clients need even under budget pressure. Drop Whole/Scalar
-        // int entries since the animation-critical cooldown/reload values now arrive via the movement
-        // delta (OffhandCooldownTicks / OffhandReloadTicks fields).
+        // soldier_shotgun_equipped that clients need even under budget pressure. Most Whole/Scalar
+        // int entries can be dropped since the animation-critical cooldown/reload values now arrive
+        // via the movement delta (OffhandCooldownTicks / OffhandReloadTicks fields).
         // Exception: ammo count entries (keys containing "_ammo" under core.player) are preserved here
         // as a safety net; they also ship via the high-priority status path but keeping them here
         // ensures correctness if both arrive in the same snapshot.
+        // Plugin ability cooldowns are also kept because the HUD reads them from replicated state.
         var reducedReplicatedStates = player.ReplicatedStates is { Count: > 0 }
             ? player.ReplicatedStates
                 .Where(static e => e.Kind == SnapshotReplicatedStateValueKind.Toggle
-                    || (string.Equals(e.OwnerId, "core.player", StringComparison.Ordinal)
-                        && e.Key.IndexOf("_ammo", StringComparison.Ordinal) >= 0))
+                    || IsBudgetCriticalReplicatedState(e))
                 .ToArray()
             : Array.Empty<SnapshotReplicatedStateEntry>();
 
@@ -619,6 +619,15 @@ internal static class SnapshotDeltaBudgeter
             IsMedicHealing = player.IsMedicHealing && player.MedicHealTargetId >= 0 ? player.IsMedicHealing : false,
             MedicHealTargetId = player.IsMedicHealing && player.MedicHealTargetId >= 0 ? player.MedicHealTargetId : -1,
         };
+    }
+
+    private static bool IsBudgetCriticalReplicatedState(SnapshotReplicatedStateEntry entry)
+    {
+        return (string.Equals(entry.OwnerId, "core.player", StringComparison.Ordinal)
+                && entry.Key.IndexOf("_ammo", StringComparison.Ordinal) >= 0)
+            || (!string.Equals(entry.OwnerId, "core.player", StringComparison.Ordinal)
+                && entry.Kind == SnapshotReplicatedStateValueKind.Whole
+                && entry.Key.IndexOf("cooldown", StringComparison.OrdinalIgnoreCase) >= 0);
     }
 
     private static SnapshotPlayerState ReducePlayerStateAggressivelyForBudget(SnapshotPlayerState player)
