@@ -32,6 +32,10 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const float MedicUberMaxCharge = 2000f;
     public const float MedicUberDurationSeconds = 8f;
     public const float MedicUberChargeDrainPerSourceTick = MedicUberMaxCharge / (MedicUberDurationSeconds * LegacyMovementModel.SourceTicksPerSecond);
+    public const int MedicPassiveRegenIntervalSourceTicks = 30;
+    public const int MedicPassiveRegenUnscathedCapSourceTicks = 10 * 30;
+    public const int MedicPassiveRegenFirstThresholdSourceTicks = 7 * 30;
+    public const int MedicPassiveRegenSecondThresholdSourceTicks = 14 * 30;
     public const int MedicNeedleRefillTicksDefault = 55;
     public const int MedicNeedleFireCooldownTicks = 3;
     public const int IntelRechargeMaxTicks = 900;
@@ -508,6 +512,10 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public int HealingReceived { get; private set; }
 
+    public int TimeUnscathedSourceTicks { get; private set; }
+
+    private int MedicPassiveRegenElapsedSourceTicks { get; set; }
+
     public int CurrentCombo { get; private set; }
 
     public int HighestCombo { get; private set; }
@@ -694,6 +702,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         bool clearSpawnRoomState)
     {
         ContinuousDamageAccumulator = 0f;
+        ResetPassiveRegenState();
         ExtinguishAfterburn();
         IsHeavyEating = false;
         HeavyEatTicksRemaining = 0;

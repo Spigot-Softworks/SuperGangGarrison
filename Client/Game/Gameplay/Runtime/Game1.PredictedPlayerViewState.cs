@@ -71,6 +71,27 @@ public partial class Game1
             : player.ExperimentalGhostDashCooldownTicksRemaining;
     }
 
+    private int GetPlayerSpySuperjumpCooldownTicksRemaining(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.SpySuperjumpCooldownTicksRemaining
+            : player.SpySuperjumpCooldownTicksRemaining;
+    }
+
+    private bool GetPlayerIsSpySuperjumpActive(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.SpySuperjumpChargeTicks > 0 || _predictedLocalActionState.IsSpySuperjumping
+            : player.SpySuperjumpChargeTicks > 0 || player.IsSpySuperjumping;
+    }
+
+    private bool GetPlayerIsCarryingIntel(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.IsCarryingIntel
+            : player.IsCarryingIntel;
+    }
+
     private bool GetPlayerIsSniperScoped(PlayerEntity player)
     {
         if (!player.HasScopedSniperWeaponEquipped)

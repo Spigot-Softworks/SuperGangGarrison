@@ -209,9 +209,9 @@ public static class SnapshotDelta
                 Metal = status.Metal,
                 IsCarryingIntel = status.IsCarryingIntel,
                 IntelRechargeTicks = status.IntelRechargeTicks,
-                ReplicatedStates = status.SecondaryAmmoStates is { Count: > 0 }
-                    ? MergeReplicatedStateAmmoUpdates(player.ReplicatedStates, status.SecondaryAmmoStates)
-                    : player.ReplicatedStates,
+                ReplicatedStates = MergeSecondaryWeaponStateUpdates(
+                    player.ReplicatedStates,
+                    status.SecondaryAmmoStates ?? Array.Empty<SnapshotReplicatedStateEntry>()),
             };
         }
 
@@ -294,9 +294,10 @@ public static class SnapshotDelta
         return merged;
     }
 
-    // Merges ammo-specific ReplicatedState entries from a status update into the player's existing
-    // ReplicatedStates, replacing any entry with the same OwnerId+Key and appending new ones.
-    private static SnapshotReplicatedStateEntry[] MergeReplicatedStateAmmoUpdates(
+    // Merges secondary weapon ReplicatedState entries from a status update into the player's existing
+    // ReplicatedStates. Runtime reload/cooldown states used to be full-player fields; clear them here
+    // so an old baseline cannot mask the movement-delta weapon state.
+    private static SnapshotReplicatedStateEntry[] MergeSecondaryWeaponStateUpdates(
         IReadOnlyList<SnapshotReplicatedStateEntry>? baseline,
         IReadOnlyList<SnapshotReplicatedStateEntry> updates)
     {
@@ -305,6 +306,11 @@ public static class SnapshotDelta
         for (var i = 0; i < baselineCount; i++)
         {
             var entry = baseline![i];
+            if (IsSecondaryWeaponRuntimeReplicatedState(entry))
+            {
+                continue;
+            }
+
             var isReplaced = false;
             for (var j = 0; j < updates.Count; j++)
             {
@@ -325,6 +331,18 @@ public static class SnapshotDelta
             merged.Add(updates[j]);
         }
         return merged.ToArray();
+    }
+
+    private static bool IsSecondaryWeaponRuntimeReplicatedState(SnapshotReplicatedStateEntry entry)
+    {
+        if (!string.Equals(entry.OwnerId, "core.player", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return entry.Key.IndexOf("_ammo", StringComparison.Ordinal) >= 0
+            || entry.Key.EndsWith("_reload_ticks", StringComparison.Ordinal)
+            || entry.Key.EndsWith("_cooldown_ticks", StringComparison.Ordinal);
     }
 
     private static IReadOnlyList<SnapshotSentryState> MergeSentries(

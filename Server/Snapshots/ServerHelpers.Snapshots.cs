@@ -10,14 +10,9 @@ internal static partial class ServerHelpers
     private const string SoldierShotgunEquippedKey = "soldier_shotgun_equipped";
     private const string SoldierShotgunAmmoKey = "soldier_shotgun_ammo";
     private const string SoldierShotgunMaxAmmoKey = "soldier_shotgun_max_ammo";
-    private const string SoldierShotgunReloadTicksKey = "soldier_shotgun_reload_ticks";
-    private const string SoldierShotgunCooldownTicksKey = "soldier_shotgun_cooldown_ticks";
     private const string DemomanGrenadeLauncherAmmoKey = "demoman_gl_ammo";
-    private const string DemomanGrenadeLauncherReloadTicksKey = "demoman_gl_reload_ticks";
     private const string ScoutNailgunAmmoKey = "scout_nailgun_ammo";
     private const string ScoutNailgunMaxAmmoKey = "scout_nailgun_max_ammo";
-    private const string ScoutNailgunReloadTicksKey = "scout_nailgun_reload_ticks";
-    private const string ScoutNailgunCooldownTicksKey = "scout_nailgun_cooldown_ticks";
 
     internal static SnapshotPlayerState ToSnapshotPlayerState(
         SimulationWorld world,
@@ -96,20 +91,6 @@ internal static partial class ServerHelpers
                 player.ExperimentalOffhandMaxShells,
                 0f,
                 false));
-            replicatedStates.Add(new SnapshotReplicatedStateEntry(
-                CoreReplicatedOwnerId,
-                SoldierShotgunReloadTicksKey,
-                SnapshotReplicatedStateValueKind.Whole,
-                player.ExperimentalOffhandReloadTicksUntilNextShell,
-                0f,
-                false));
-            replicatedStates.Add(new SnapshotReplicatedStateEntry(
-                CoreReplicatedOwnerId,
-                SoldierShotgunCooldownTicksKey,
-                SnapshotReplicatedStateValueKind.Whole,
-                player.ExperimentalOffhandCooldownTicks,
-                0f,
-                false));
         }
 
         if (player.ClassId == PlayerClass.Demoman)
@@ -119,13 +100,6 @@ internal static partial class ServerHelpers
                 DemomanGrenadeLauncherAmmoKey,
                 SnapshotReplicatedStateValueKind.Whole,
                 player.ExperimentalOffhandCurrentShells,
-                0f,
-                false));
-            replicatedStates.Add(new SnapshotReplicatedStateEntry(
-                CoreReplicatedOwnerId,
-                DemomanGrenadeLauncherReloadTicksKey,
-                SnapshotReplicatedStateValueKind.Whole,
-                player.ExperimentalOffhandReloadTicksUntilNextShell,
                 0f,
                 false));
         }
@@ -144,20 +118,6 @@ internal static partial class ServerHelpers
                 ScoutNailgunMaxAmmoKey,
                 SnapshotReplicatedStateValueKind.Whole,
                 player.ExperimentalOffhandMaxShells,
-                0f,
-                false));
-            replicatedStates.Add(new SnapshotReplicatedStateEntry(
-                CoreReplicatedOwnerId,
-                ScoutNailgunReloadTicksKey,
-                SnapshotReplicatedStateValueKind.Whole,
-                player.ExperimentalOffhandReloadTicksUntilNextShell,
-                0f,
-                false));
-            replicatedStates.Add(new SnapshotReplicatedStateEntry(
-                CoreReplicatedOwnerId,
-                ScoutNailgunCooldownTicksKey,
-                SnapshotReplicatedStateValueKind.Whole,
-                player.ExperimentalOffhandCooldownTicks,
                 0f,
                 false));
         }

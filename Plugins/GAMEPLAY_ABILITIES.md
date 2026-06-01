@@ -435,7 +435,8 @@ end
 
 `try_set_gameplay_ability_cooldown` writes cooldown state under the current
 plugin id. Match `presentation.hud.stateOwner` to the plugin id so the client
-HUD can read it.
+HUD can read it. Cooldowns written through this operation count down
+server-side once per source tick and remain available as replicated HUD state.
 
 Lua abilities can also declare a custom ability-owned HUD widget in the same
 ability registration. The server ability owns state; the paired client Lua
@@ -629,28 +630,12 @@ Custom primary weapon callbacks run after the normal ammo/cooldown gate. A
 custom behavior that returns `false` or `nil` does not fall back to stock pellet
 fire.
 
-## Passive Cooldowns
+## Server-Counted Cooldowns
 
-Lua ability cooldowns are ordinary replicated state. If a plugin cooldown needs
-to tick down every simulation tick, add a hidden passive ability:
-
-```lua
-host.register_gameplay_ability({
-    itemId = "ability.example-passive",
-    displayName = "Example Passive",
-    slot = "Utility",
-    behaviorId = "plugin.example.passive",
-    ability = {
-        category = "passive",
-        activation = "passive_tick",
-        executorId = "plugin.example.passive",
-        tags = { "passive", "cooldown_tick" }
-    }
-})
-```
-
-Attach it through `abilityItemIds` and decrement plugin-owned cooldown state
-inside the passive executor.
+Lua ability cooldowns written with `try_set_gameplay_ability_cooldown` count
+down automatically on the server. Hidden passive abilities are no longer needed
+for cooldown ticking; reserve `passive_tick` abilities for passive gameplay
+effects that need custom per-tick logic.
 
 ## Lua Stock Overrides
 

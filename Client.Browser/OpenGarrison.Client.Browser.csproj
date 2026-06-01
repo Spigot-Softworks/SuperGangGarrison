@@ -50,7 +50,7 @@
   </ItemGroup>
 
   <Target Name="SyncCoreContentToBrowserWwwroot"
-          BeforeTargets="Build"
+          BeforeTargets="ResolveProjectStaticWebAssets"
           Condition="'$(DesignTimeBuild)' != 'true'">
     <ItemGroup>
       <BrowserMirroredContent Include="..\Core\Content\**\*"
@@ -58,7 +58,8 @@
       <BrowserCompiledClientContent Include="..\Client\Content\bin\DesktopGL\Content\**\*" />
       <BrowserStaleSourceFiles Include="$(MSBuildProjectDirectory)\wwwroot\Content\**\*.cs" />
       <BrowserStaticWebAssetCacheFiles Include="$(IntermediateOutputPath)*.dswa.cache.json;
-                                           $(IntermediateOutputPath)swae.*.cache" />
+                                           $(IntermediateOutputPath)swae.*.cache;
+                                           $(IntermediateOutputPath)staticwebassets.build.json.cache" />
     </ItemGroup>
 
     <Delete Files="@(BrowserStaticWebAssetCacheFiles)" />
@@ -73,6 +74,13 @@
           DestinationFiles="@(BrowserCompiledClientContent->'$(MSBuildProjectDirectory)\wwwroot\Content\%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true" />
     <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\..\Tools\BrowserAssetBuilder\OpenGarrison.Tools.BrowserAssetBuilder.csproj&quot; -- &quot;$(MSBuildProjectDirectory)\wwwroot\Content&quot; &quot;$(MSBuildProjectDirectory)\..\Plugins\Packaged\Client&quot;" />
+    <ItemGroup>
+      <Content Remove="wwwroot\Content\**\*;wwwroot\Plugins\**\*" />
+      <Content Include="wwwroot\Content\**\*;wwwroot\Plugins\**\*"
+               Exclude="wwwroot\Content\**\*.cs"
+               CopyToOutputDirectory="PreserveNewest"
+               CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
   </Target>
 
   <Target Name="CleanBrowserMirroredContent" AfterTargets="Clean">

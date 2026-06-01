@@ -1949,11 +1949,8 @@ public sealed class LuaPluginHostSmokeTests
 
         var context = loadedPlugin.Context;
         var dashAbility = Assert.Single(context.RegisteredGameplayAbilities, ability => ability.ItemId == "ability.sample-force-dash");
-        var passiveAbility = Assert.Single(context.RegisteredGameplayAbilities, ability => ability.ItemId == "ability.sample-force-dash-passive");
         Assert.Equal(GameplayAbilityConstants.UtilityCategory, dashAbility.Ability.Category);
         Assert.Equal(GameplayAbilityConstants.PressedActivation, dashAbility.Ability.Activation);
-        Assert.Equal(GameplayAbilityConstants.PassiveCategory, passiveAbility.Ability.Category);
-        Assert.Equal(GameplayAbilityConstants.PassiveTickActivation, passiveAbility.Ability.Activation);
         Assert.NotNull(dashAbility.Presentation?.Hud);
         Assert.Equal(GameplayItemHudStateProviders.AbilityCooldown, dashAbility.Presentation!.Hud!.StateProvider);
         Assert.Equal("sample.server.lua-gameplay-ability", dashAbility.Presentation.Hud.StateOwner);
@@ -1962,15 +1959,12 @@ public sealed class LuaPluginHostSmokeTests
         var loadout = Assert.Single(context.RegisteredGameplayLoadouts);
         Assert.Equal("heavy", loadout.ClassId);
         Assert.Equal("ability.sample-force-dash", loadout.UtilityItemId);
-        Assert.NotNull(loadout.AbilityItemIds);
-        Assert.Contains("ability.sample-force-dash-passive", loadout.AbilityItemIds!);
+        Assert.True(loadout.AbilityItemIds is null || loadout.AbilityItemIds.Count == 0);
 
         var dashExecutor = Assert.Single(context.RegisteredGameplayAbilityExecutors, executor => executor.ExecutorId == dashAbility.Ability.ExecutorId);
-        var passiveExecutor = Assert.Single(context.RegisteredGameplayAbilityExecutors, executor => executor.ExecutorId == passiveAbility.Ability.ExecutorId);
         var world = new SimulationWorld();
         var player = new PlayerEntity(10, CharacterClassCatalog.RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Heavy));
         var dashItem = CreateAbilityItemDefinition(dashAbility);
-        var passiveItem = CreateAbilityItemDefinition(passiveAbility);
 
         var dashResult = dashExecutor.Executor.Handle(new GameplayAbilityContext
         {
@@ -1989,24 +1983,6 @@ public sealed class LuaPluginHostSmokeTests
         Assert.Contains(context.GameplayImpulses, request => request.PlayerId == 10 && request.VelocityX == 12f && request.VelocityY == -4f);
         Assert.Contains(context.GameplayAbilityCooldowns, request => request.PlayerId == 10 && request.CooldownKey == "sample_force_dash_cooldown" && request.Ticks == 180);
 
-        context.GameplayAbilityCooldowns.Clear();
-        context.StateImpl.IntReplicatedStates[(10, "sample.server.lua-gameplay-ability", "sample_force_dash_cooldown")] = 3;
-
-        var passiveResult = passiveExecutor.Executor.Handle(new GameplayAbilityContext
-        {
-            World = world,
-            Player = player,
-            Item = passiveItem,
-            Ability = passiveAbility.Ability,
-            Phase = GameplayAbilityInputPhase.PassiveTick,
-            Input = new PlayerInputSnapshot(false, false, false, false, false, false, false, false, false, 20f, 30f, false),
-            PreviousInput = new PlayerInputSnapshot(false, false, false, false, false, false, false, false, false, 0f, 0f, false),
-            SourceX = 5f,
-            SourceY = 6f,
-        });
-        Assert.True(passiveResult.Handled);
-        Assert.False(passiveResult.ConsumedInput);
-        Assert.Contains(context.GameplayAbilityCooldowns, request => request.PlayerId == 10 && request.CooldownKey == "sample_force_dash_cooldown" && request.Ticks == 2);
         Assert.DoesNotContain(logs, log => log.Contains("callback failure", StringComparison.OrdinalIgnoreCase));
     }
 

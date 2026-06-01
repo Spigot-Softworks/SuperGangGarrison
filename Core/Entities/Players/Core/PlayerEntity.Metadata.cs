@@ -7,6 +7,7 @@ namespace OpenGarrison.Core;
 public sealed partial class PlayerEntity
 {
     private Dictionary<string, GameplayReplicatedStateEntry> ReplicatedStateEntries { get; } = new(StringComparer.Ordinal);
+    private HashSet<string> GameplayAbilityCooldownReplicatedStateKeys { get; } = new(StringComparer.Ordinal);
 
     public void SetDisplayName(string? displayName)
     {
@@ -71,6 +72,27 @@ public sealed partial class PlayerEntity
         return SetReplicatedState(new GameplayReplicatedStateEntry(ownerId, key, GameplayReplicatedStateValueKind.Whole, IntValue: value));
     }
 
+    public bool SetGameplayAbilityCooldownReplicatedState(string ownerId, string key, int ticks)
+    {
+        var clampedTicks = Math.Max(0, ticks);
+        if (!SetReplicatedStateInt(ownerId, key, clampedTicks)
+            || !TryCreateReplicatedStateDictionaryKey(ownerId, key, out var dictionaryKey))
+        {
+            return false;
+        }
+
+        if (clampedTicks > 0)
+        {
+            GameplayAbilityCooldownReplicatedStateKeys.Add(dictionaryKey);
+        }
+        else
+        {
+            GameplayAbilityCooldownReplicatedStateKeys.Remove(dictionaryKey);
+        }
+
+        return true;
+    }
+
     public bool SetReplicatedStateFloat(string ownerId, string key, float value)
     {
         return SetReplicatedState(new GameplayReplicatedStateEntry(ownerId, key, GameplayReplicatedStateValueKind.Scalar, FloatValue: value));
@@ -83,13 +105,19 @@ public sealed partial class PlayerEntity
 
     public bool ClearReplicatedState(string ownerId, string key)
     {
-        return TryCreateReplicatedStateDictionaryKey(ownerId, key, out var dictionaryKey)
-            && ReplicatedStateEntries.Remove(dictionaryKey);
+        if (!TryCreateReplicatedStateDictionaryKey(ownerId, key, out var dictionaryKey))
+        {
+            return false;
+        }
+
+        GameplayAbilityCooldownReplicatedStateKeys.Remove(dictionaryKey);
+        return ReplicatedStateEntries.Remove(dictionaryKey);
     }
 
     internal void ReplaceReplicatedStateEntries(IEnumerable<GameplayReplicatedStateEntry> entries)
     {
         ReplicatedStateEntries.Clear();
+        GameplayAbilityCooldownReplicatedStateKeys.Clear();
         foreach (var entry in entries)
         {
             if (ReplicatedStateEntries.Count >= MaxReplicatedStateEntries)
@@ -107,6 +135,31 @@ public sealed partial class PlayerEntity
         }
 
         RefreshServerGameplayTuningFromReplicatedStateEntries();
+    }
+
+    private void AdvanceGameplayAbilityCooldownReplicatedStates()
+    {
+        if (GameplayAbilityCooldownReplicatedStateKeys.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var dictionaryKey in GameplayAbilityCooldownReplicatedStateKeys.ToArray())
+        {
+            if (!ReplicatedStateEntries.TryGetValue(dictionaryKey, out var entry)
+                || entry.Kind != GameplayReplicatedStateValueKind.Whole)
+            {
+                GameplayAbilityCooldownReplicatedStateKeys.Remove(dictionaryKey);
+                continue;
+            }
+
+            var ticks = Math.Max(0, entry.IntValue - 1);
+            ReplicatedStateEntries[dictionaryKey] = entry with { IntValue = ticks };
+            if (ticks <= 0)
+            {
+                GameplayAbilityCooldownReplicatedStateKeys.Remove(dictionaryKey);
+            }
+        }
     }
 
     private bool SetReplicatedState(GameplayReplicatedStateEntry entry)

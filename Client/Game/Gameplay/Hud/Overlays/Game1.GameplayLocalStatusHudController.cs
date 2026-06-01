@@ -63,12 +63,9 @@ public partial class Game1
         private const string SoldierShotgunAvailableKey = "soldier_shotgun_available";
         private const string SoldierShotgunAmmoKey = "soldier_shotgun_ammo";
         private const string SoldierShotgunMaxAmmoKey = "soldier_shotgun_max_ammo";
-        private const string SoldierShotgunReloadTicksKey = "soldier_shotgun_reload_ticks";
         private const string DemomanGrenadeLauncherAmmoKey = "demoman_gl_ammo";
-        private const string DemomanGrenadeLauncherReloadTicksKey = "demoman_gl_reload_ticks";
         private const string ScoutNailgunAmmoKey = "scout_nailgun_ammo";
         private const string ScoutNailgunMaxAmmoKey = "scout_nailgun_max_ammo";
-        private const string ScoutNailgunReloadTicksKey = "scout_nailgun_reload_ticks";
 
         private static readonly Color AmmoHudBarColor = new(217, 217, 183);
         private static readonly Color AmmoHudTextColor = new(245, 235, 210);
@@ -831,7 +828,9 @@ public partial class Game1
         private static bool IsAbilityCooldownHudStateProvider(string stateProvider)
         {
             return string.Equals(stateProvider, GameplayItemHudStateProviders.AbilityCooldown, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(stateProvider, GameplayItemHudStateProviders.HeavySandvichCooldown, StringComparison.OrdinalIgnoreCase);
+                || string.Equals(stateProvider, GameplayItemHudStateProviders.HeavySandvichCooldown, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(stateProvider, GameplayItemHudStateProviders.HeavyGhostDashCooldown, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(stateProvider, GameplayItemHudStateProviders.SpySuperjumpCooldown, StringComparison.OrdinalIgnoreCase);
         }
 
         private float GetDemomanStickyAbilityHudSourceY(bool hasGrenadeLauncher)
@@ -1357,11 +1356,6 @@ public partial class Game1
                 return false;
             }
 
-            if (TryResolveGenericAbilityCooldownHudState(item, ability, player, out cooldownRemaining, out maxCooldownTicks, out isActive, out isDisabled))
-            {
-                return true;
-            }
-
             switch (ability.ExecutorId)
             {
                 case BuiltInGameplayBehaviorIds.HeavySandvich:
@@ -1396,12 +1390,7 @@ public partial class Game1
                         "cooldownSeconds",
                         Math.Max(1, (int)MathF.Round(_game._config.TicksPerSecond * ExperimentalGameplaySettings.HeavyGhostDashCooldownSeconds)),
                         _game._config.TicksPerSecond);
-                    cooldownRemaining = player.TryGetReplicatedStateInt(
-                        GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
-                        GameplayAbilityReplicatedState.HeavyDashCooldownTicksKey,
-                        out var replicatedHeavyDashCooldown)
-                        ? replicatedHeavyDashCooldown
-                        : _game.GetPlayerExperimentalGhostDashCooldownTicksRemaining(player);
+                    cooldownRemaining = _game.GetPlayerExperimentalGhostDashCooldownTicksRemaining(player);
                     isActive = _game.GetPlayerIsExperimentalGhostDashing(player);
                     return true;
                 case BuiltInGameplayBehaviorIds.SpySuperjump:
@@ -1416,18 +1405,13 @@ public partial class Game1
                         "cooldownSeconds",
                         PlayerEntity.SpySuperjumpCooldownTicks,
                         _game._config.TicksPerSecond);
-                    cooldownRemaining = player.TryGetReplicatedStateInt(
-                        GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
-                        GameplayAbilityReplicatedState.SpySuperjumpCooldownTicksKey,
-                        out var replicatedSpySuperjumpCooldown)
-                        ? replicatedSpySuperjumpCooldown
-                        : player.SpySuperjumpCooldownTicksRemaining;
-                    isActive = player.SpySuperjumpChargeTicks > 0 || player.IsSpySuperjumping;
-                    isDisabled = player.IsCarryingIntel;
+                    cooldownRemaining = _game.GetPlayerSpySuperjumpCooldownTicksRemaining(player);
+                    isActive = _game.GetPlayerIsSpySuperjumpActive(player);
+                    isDisabled = _game.GetPlayerIsCarryingIntel(player);
                     return true;
-                default:
-                    return false;
             }
+
+            return TryResolveGenericAbilityCooldownHudState(item, ability, player, out cooldownRemaining, out maxCooldownTicks, out isActive, out isDisabled);
         }
 
         private bool TryResolveGenericAbilityCooldownHudState(
@@ -1454,9 +1438,9 @@ public partial class Game1
 
             var stateOwner = hud.StateOwner.Trim();
             var cooldownKey = hud.CooldownKey.Trim();
-            if (!player.TryGetReplicatedStateInt(stateOwner, cooldownKey, out cooldownRemaining)
-                && !(string.Equals(stateOwner, GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId, StringComparison.Ordinal)
-                    && GameplayAbilityReplicatedState.TryGetInt(player, cooldownKey, out cooldownRemaining)))
+            var isCoreAbilityState = string.Equals(stateOwner, GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId, StringComparison.Ordinal);
+            if (!(isCoreAbilityState && GameplayAbilityReplicatedState.TryGetInt(player, cooldownKey, out cooldownRemaining))
+                && !player.TryGetReplicatedStateInt(stateOwner, cooldownKey, out cooldownRemaining))
             {
                 return false;
             }
@@ -1470,20 +1454,18 @@ public partial class Game1
             if (!string.IsNullOrWhiteSpace(hud.ActiveKey))
             {
                 var activeKey = hud.ActiveKey.Trim();
-                isActive = player.TryGetReplicatedStateBool(stateOwner, activeKey, out var replicatedActive)
-                    ? replicatedActive
-                    : string.Equals(stateOwner, GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId, StringComparison.Ordinal)
-                        && GameplayAbilityReplicatedState.TryGetBool(player, activeKey, out replicatedActive)
+                isActive = isCoreAbilityState && GameplayAbilityReplicatedState.TryGetBool(player, activeKey, out var coreActive)
+                    ? coreActive
+                    : player.TryGetReplicatedStateBool(stateOwner, activeKey, out var replicatedActive)
                         && replicatedActive;
             }
 
             if (!string.IsNullOrWhiteSpace(hud.DisabledKey))
             {
                 var disabledKey = hud.DisabledKey.Trim();
-                isDisabled = player.TryGetReplicatedStateBool(stateOwner, disabledKey, out var replicatedDisabled)
-                    ? replicatedDisabled
-                    : string.Equals(stateOwner, GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId, StringComparison.Ordinal)
-                        && GameplayAbilityReplicatedState.TryGetBool(player, disabledKey, out replicatedDisabled)
+                isDisabled = isCoreAbilityState && GameplayAbilityReplicatedState.TryGetBool(player, disabledKey, out var coreDisabled)
+                    ? coreDisabled
+                    : player.TryGetReplicatedStateBool(stateOwner, disabledKey, out var replicatedDisabled)
                         && replicatedDisabled;
             }
 
@@ -1578,9 +1560,7 @@ public partial class Game1
             var currentAmmo = _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, DemomanGrenadeLauncherAmmoKey, out var replicatedAmmo)
                 ? replicatedAmmo
                 : _game._world.LocalPlayer.ExperimentalOffhandCurrentShells;
-            var reloadTicksRemaining = _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, DemomanGrenadeLauncherReloadTicksKey, out var replicatedReloadTicks)
-                ? Math.Max(0, replicatedReloadTicks)
-                : _game._world.LocalPlayer.ExperimentalOffhandReloadTicksUntilNextShell;
+            var reloadTicksRemaining = _game._world.LocalPlayer.ExperimentalOffhandReloadTicksUntilNextShell;
             var weaponDefinition = _game._world.LocalPlayer.ExperimentalOffhandWeapon;
             var maxAmmo = Math.Max(1, weaponDefinition?.MaxAmmo ?? utilityItem.Ammo.MaxAmmo);
             var totalReloadTicks = Math.Max(1, weaponDefinition?.AmmoReloadTicks ?? (int)utilityItem.Ammo.ReloadSourceTicks);
@@ -1630,7 +1610,6 @@ public partial class Game1
             var isScout = _game._world.LocalPlayer.ClassId == PlayerClass.Scout;
             var offhandAmmoKey = isScout ? ScoutNailgunAmmoKey : SoldierShotgunAmmoKey;
             var offhandMaxAmmoKey = isScout ? ScoutNailgunMaxAmmoKey : SoldierShotgunMaxAmmoKey;
-            var offhandReloadKey = isScout ? ScoutNailgunReloadTicksKey : SoldierShotgunReloadTicksKey;
 
             var currentShells = _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, offhandAmmoKey, out var replicatedOffhandAmmo)
                 ? replicatedOffhandAmmo
@@ -1638,9 +1617,7 @@ public partial class Game1
             var maxShells = _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, offhandMaxAmmoKey, out var replicatedOffhandMaxAmmo)
                 ? Math.Max(1, replicatedOffhandMaxAmmo)
                 : Math.Max(1, _game._world.LocalPlayer.ExperimentalOffhandMaxShells);
-            var reloadTicksRemaining = _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, offhandReloadKey, out var replicatedOffhandReloadTicks)
-                ? Math.Max(0, replicatedOffhandReloadTicks)
-                : _game._world.LocalPlayer.ExperimentalOffhandReloadTicksUntilNextShell;
+            var reloadTicksRemaining = _game._world.LocalPlayer.ExperimentalOffhandReloadTicksUntilNextShell;
             var reloadTicksPerShell = Math.Max(1, _game._world.LocalPlayer.ExperimentalOffhandWeapon?.AmmoReloadTicks ?? CharacterClassCatalog.SoldierShotgun.AmmoReloadTicks);
             var reloadProgress = currentShells >= maxShells
                 ? 1f
@@ -2209,21 +2186,7 @@ public partial class Game1
         private int GetLocalDisplayedOffhandReloadTicks()
         {
             var player = _game._world.LocalPlayer;
-            if (string.Equals(player.EquippedBehaviorId, BuiltInGameplayBehaviorIds.GrenadeLauncher, StringComparison.Ordinal)
-                && player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, DemomanGrenadeLauncherReloadTicksKey, out var replicatedGrenadeReloadTicks))
-            {
-                return Math.Max(0, replicatedGrenadeReloadTicks);
-            }
-
-            if (player.ClassId == PlayerClass.Scout
-                && player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, ScoutNailgunReloadTicksKey, out var replicatedNailgunReloadTicks))
-            {
-                return Math.Max(0, replicatedNailgunReloadTicks);
-            }
-
-            return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunReloadTicksKey, out var replicatedShotgunReloadTicks)
-                ? Math.Max(0, replicatedShotgunReloadTicks)
-                : player.ExperimentalOffhandReloadTicksUntilNextShell;
+            return player.ExperimentalOffhandReloadTicksUntilNextShell;
         }
 
         private string GetLocalAlternatePrimaryWeaponPresentationItemIdCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented

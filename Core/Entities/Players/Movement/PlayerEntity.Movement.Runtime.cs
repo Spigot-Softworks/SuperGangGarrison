@@ -120,6 +120,8 @@ public sealed partial class PlayerEntity
                 IntelPickupCooldownTicks -= 1;
             }
 
+            AdvanceUnscathedTime();
+            AdvanceGameplayAbilityCooldownReplicatedStates();
             AdvanceEngineerResources();
             AdvanceExperimentalPowerState();
             AdvanceWeaponState();

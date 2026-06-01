@@ -13,12 +13,8 @@ public partial class Game1
     private const string CoreReplicatedOwnerId = "core.player";
     private const string SoldierShotgunAmmoKey = "soldier_shotgun_ammo";
     private const string SoldierShotgunMaxAmmoKey = "soldier_shotgun_max_ammo";
-    private const string SoldierShotgunReloadTicksKey = "soldier_shotgun_reload_ticks";
-    private const string SoldierShotgunCooldownTicksKey = "soldier_shotgun_cooldown_ticks";
     private const string ScoutNailgunAmmoKey = "scout_nailgun_ammo";
     private const string ScoutNailgunMaxAmmoKey = "scout_nailgun_max_ammo";
-    private const string ScoutNailgunReloadTicksKey = "scout_nailgun_reload_ticks";
-    private const string ScoutNailgunCooldownTicksKey = "scout_nailgun_cooldown_ticks";
 
     private enum WeaponAnimationMode
     {
@@ -591,21 +587,11 @@ public partial class Game1
 
         if (ShouldPresentExperimentalSoldierShotgun(player))
         {
-            if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunCooldownTicksKey, out var replicatedCooldownTicks))
-            {
-                return Math.Max(0, replicatedCooldownTicks);
-            }
-
             return player.ExperimentalOffhandCooldownTicks;
         }
 
         if (ShouldPresentExperimentalScoutNailgun(player))
         {
-            if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, ScoutNailgunCooldownTicksKey, out var replicatedCooldownTicks))
-            {
-                return Math.Max(0, replicatedCooldownTicks);
-            }
-
             return player.ExperimentalOffhandCooldownTicks;
         }
 
@@ -642,21 +628,11 @@ public partial class Game1
 
         if (ShouldPresentExperimentalSoldierShotgun(player))
         {
-            if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunReloadTicksKey, out var replicatedReloadTicks))
-            {
-                return Math.Max(0, replicatedReloadTicks);
-            }
-
             return player.ExperimentalOffhandReloadTicksUntilNextShell;
         }
 
         if (ShouldPresentExperimentalScoutNailgun(player))
         {
-            if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, ScoutNailgunReloadTicksKey, out var replicatedReloadTicks))
-            {
-                return Math.Max(0, replicatedReloadTicks);
-            }
-
             return player.ExperimentalOffhandReloadTicksUntilNextShell;
         }
 

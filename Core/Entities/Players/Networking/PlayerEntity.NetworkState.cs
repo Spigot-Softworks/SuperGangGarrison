@@ -90,6 +90,7 @@ public sealed partial class PlayerEntity
         int gibDeaths = 0,
         bool isTypingChatMessage = false)
     {
+        var previousHealth = Health;
         Team = team;
         ClassDefinition = classDefinition;
         SetPlayerScale(playerScale);
@@ -107,6 +108,14 @@ public sealed partial class PlayerEntity
         ExperimentalDemoknightChargeAcceleration = 0f;
         IsAlive = isAlive;
         Health = int.Clamp(health, 0, MaxHealth);
+        if (!isAlive)
+        {
+            ResetPassiveRegenState();
+        }
+        else if (Health < previousHealth)
+        {
+            ResetUnscathedTime();
+        }
         CurrentShells = int.Clamp(currentShells, 0, MaxShells);
         if (ClassId == PlayerClass.Pyro)
         {
