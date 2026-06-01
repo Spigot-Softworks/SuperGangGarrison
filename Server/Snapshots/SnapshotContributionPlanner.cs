@@ -15,11 +15,19 @@ internal static class SnapshotContributionPlanner
     private const int LocalPlayerStatusPriorityBonus = 250;
     private const int PlayerChatBubblePriority = 1125;
     private const int RemovedPlayerEstimatedBytes = 6;
-    private const int SnapshotPlayerFixedBytes = 220;
+    // Byte budget estimates per player contribution type. These must stay at or above the
+    // true serialized size so the budgeter does not over-admit contributions.
+    // SnapshotPlayerFixedBytes accounts for the full WriteSnapshotPlayers entry:
+    //   ~247 fixed bytes (all strings cache-hit, empty owned-item / replicated-state lists)
+    //   + ~18 bytes for a typical player name (16 chars + 2-byte length prefix)
+    //   = ~265 bytes. Keep a small margin above the true value.
+    private const int SnapshotPlayerFixedBytes = 265;
     private const int SnapshotPlayerMovementBytes = 28;
     private const int SnapshotPlayerStatusBytes = 20;
     private const string CoreReplicatedOwnerId = "core.player";
-    private const int SnapshotPlayerExtendedStatusBytes = 26;
+    // WriteSnapshotPlayerExtendedStatusStates per entry: 30 bytes
+    //   (1 slot + 2 flag bytes + 1 spy-cloak byte + 14 uint16 fields × 2 bytes each)
+    private const int SnapshotPlayerExtendedStatusBytes = 32;
     private const int SnapshotPlayerChatBubbleBytes = 10;
     private const int ProjectileSnapshotUpdateIntervalTicks = 1;
     private const int CosmeticEntityUpdateIntervalTicks = 8;
@@ -531,7 +539,6 @@ internal static class SnapshotContributionPlanner
             player.AimDirectionDegrees,
             player.MovementState,
             player.IsTaunting,
-            player.TauntFrameIndex,
             player.BurnIntensity,
             player.GameplayEquippedSlot,
             player.PrimaryCooldownTicks,
@@ -581,7 +588,6 @@ internal static class SnapshotContributionPlanner
             player.IsHeavyEating,
             player.HeavyEatTicksRemaining,
             player.IsSniperScoped,
-            player.SniperChargeTicks,
             player.MedicNeedleCooldownTicks,
             player.MedicNeedleRefillTicks,
             player.PyroAirblastCooldownTicks,
@@ -644,7 +650,6 @@ internal static class SnapshotContributionPlanner
             IsMedicHealing = baselinePlayer.IsMedicHealing,
             MovementState = baselinePlayer.MovementState,
             IsTaunting = baselinePlayer.IsTaunting,
-            TauntFrameIndex = baselinePlayer.TauntFrameIndex,
             BurnIntensity = baselinePlayer.BurnIntensity,
             GameplayEquippedSlot = baselinePlayer.GameplayEquippedSlot,
             PrimaryCooldownTicks = baselinePlayer.PrimaryCooldownTicks,
@@ -669,7 +674,6 @@ internal static class SnapshotContributionPlanner
             IsHeavyEating = baselinePlayer.IsHeavyEating,
             HeavyEatTicksRemaining = baselinePlayer.HeavyEatTicksRemaining,
             IsSniperScoped = baselinePlayer.IsSniperScoped,
-            SniperChargeTicks = baselinePlayer.SniperChargeTicks,
             MedicNeedleCooldownTicks = baselinePlayer.MedicNeedleCooldownTicks,
             MedicNeedleRefillTicks = baselinePlayer.MedicNeedleRefillTicks,
             PyroAirblastCooldownTicks = baselinePlayer.PyroAirblastCooldownTicks,
@@ -729,7 +733,6 @@ internal static class SnapshotContributionPlanner
             || player.IsHeavyEating != baselinePlayer.IsHeavyEating
             || player.HeavyEatTicksRemaining != baselinePlayer.HeavyEatTicksRemaining
             || player.IsSniperScoped != baselinePlayer.IsSniperScoped
-            || player.SniperChargeTicks != baselinePlayer.SniperChargeTicks
             || player.MedicNeedleCooldownTicks != baselinePlayer.MedicNeedleCooldownTicks
             || player.MedicNeedleRefillTicks != baselinePlayer.MedicNeedleRefillTicks
             || player.PyroAirblastCooldownTicks != baselinePlayer.PyroAirblastCooldownTicks

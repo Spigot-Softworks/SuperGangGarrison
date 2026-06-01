@@ -228,6 +228,7 @@ public partial class Game1 : Game
     private Point _lastKnownMousePosition;
     private bool _suppressPrimaryFireUntilMouseRelease;
     private bool _suppressSecondaryFireUntilMouseRelease;
+    private bool _autoFireActive;
     private Vector2 _respawnCameraCenter;
     private bool _respawnCameraDetached;
     private NoticeState? _notice;

@@ -18,6 +18,7 @@ public sealed partial class SimulationWorld
             // Client prediction: projectiles only
             // Server remains authoritative for all players (including local player)
             _entityPhaseController.AdvanceProjectileAndTransientEntityPhase();
+            _entityPhaseController.AdvanceRemoteSnapshotPlayerTauntStates();
         }
 
         public void AdvanceProjectilePhaseOnly()

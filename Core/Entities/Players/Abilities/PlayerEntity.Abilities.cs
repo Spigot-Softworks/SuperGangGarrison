@@ -58,6 +58,15 @@ public sealed partial class PlayerEntity
         return true;
     }
 
+    public void AdvanceTauntFrameLocally(double deltaSeconds)
+    {
+        var ticks = ConsumeLegacyStateTicks((float)deltaSeconds);
+        for (var tick = 0; tick < ticks; tick += 1)
+        {
+            AdvanceTauntState();
+        }
+    }
+
     private void AdvanceTauntState()
     {
         if (!IsTaunting)
@@ -396,9 +405,10 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        SpyCloakAlpha = IsSpyCloaked
+        var baseAlpha = IsSpyCloaked
             ? float.Max(0f, SpyCloakAlpha - SpyCloakFadePerTick)
             : float.Min(1f, SpyCloakAlpha + SpyCloakFadePerTick);
+        SpyCloakAlpha = baseAlpha;
 
         if (SpyBackstabVisualTicksRemaining > 0)
         {

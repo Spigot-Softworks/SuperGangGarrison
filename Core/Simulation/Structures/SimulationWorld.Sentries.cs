@@ -141,7 +141,7 @@ public sealed partial class SimulationWorld
     private void AdvanceLastToDieDroneSentry(SentryEntity sentry)
     {
         sentry.AdvanceFloatingRuntime();
-        if (!LocalPlayer.IsAlive || LocalPlayer.Team == sentry.Team)
+        if (!LocalPlayer.IsAlive || LocalPlayer.Team == sentry.Team || LocalPlayer.IsSpyBackstabAnimating)
         {
             sentry.SetTarget(null, sentry.X + sentry.FacingDirectionX, sentry.Y, hasTarget: false);
             return;
@@ -254,6 +254,12 @@ public sealed partial class SimulationWorld
             if (player.ClassId == PlayerClass.Spy
                 && player.IsSpyCloaked
                 && !player.IsSpyVisibleToEnemies)
+            {
+                continue;
+            }
+
+            // Spy performing a backstab should not trigger sentry fire.
+            if (player.IsSpyBackstabAnimating)
             {
                 continue;
             }

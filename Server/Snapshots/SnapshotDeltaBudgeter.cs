@@ -632,7 +632,6 @@ internal static class SnapshotDeltaBudgeter
             IsHeavyEating = false,
             HeavyEatTicksRemaining = 0,
             IsSniperScoped = false,
-            SniperChargeTicks = 0,
             BurnIntensity = 0f,
             BurnDurationSourceTicks = 0f,
             BurnDecayDelaySourceTicksRemaining = 0f,
