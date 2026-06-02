@@ -59,7 +59,7 @@ public partial class Game1
             _classSelectPanelY = MathF.Min(120f, _classSelectPanelY + ScaleLegacyUiDistance(15f));
         }
 
-        var panelLeft = (ViewportWidth / 2f) - 400f;
+        var panelLeft = GetClassSelectPanelLeft(ViewportWidth);
         var mouseHoverIndex = GetClassSelectHoverIndex(mouse.X, mouse.Y, panelLeft);
         if (ShouldUseMouseMenuHover(mouse) && mouseHoverIndex >= 0)
         {
@@ -103,10 +103,10 @@ public partial class Game1
     {
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
-        var panelLeft = (viewportWidth / 2f) - 400f;
+        var panelLeft = GetClassSelectPanelLeft(viewportWidth);
         var alpha = Math.Clamp(_classSelectAlpha, 0.01f, 0.99f);
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * MathF.Min(0.8f, alpha));
-        TryDrawScreenSprite("ClassSelectS", 0, new Vector2(viewportWidth / 2f, _classSelectPanelY), Color.White * alpha, Vector2.One);
+        DrawClassSelectBackground(panelLeft, viewportWidth, alpha);
 
         var previewTeam = _pendingClassSelectTeam ?? _world.LocalPlayerTeam;
         if (_classSelectPanelY >= 120f && _classSelectHoverIndex >= 0 && _classSelectHoverIndex < 10)
@@ -136,6 +136,24 @@ public partial class Game1
             ResetClassSelectPortraitAnimation();
         }
 
+    }
+
+    private void DrawClassSelectBackground(float panelLeft, int viewportWidth, float alpha)
+    {
+        var stretchWidth = MathF.Max(0f, viewportWidth - panelLeft - 800f);
+        if (stretchWidth > 0f)
+        {
+            TryDrawScreenSprite("ClassSelectBS", 0, new Vector2(panelLeft + 800f, _classSelectPanelY), Color.White * alpha, new Vector2(stretchWidth, 1f));
+        }
+
+        TryDrawScreenSprite("ClassSelectS", 0, new Vector2(panelLeft + 400f, _classSelectPanelY), Color.White * alpha, Vector2.One);
+    }
+
+    private static float GetClassSelectPanelLeft(int viewportWidth)
+    {
+        return viewportWidth >= 800
+            ? 0f
+            : (viewportWidth / 2f) - 400f;
     }
 
     private static int GetClassSelectHoverIndex(int mouseX, int mouseY, float panelLeft)

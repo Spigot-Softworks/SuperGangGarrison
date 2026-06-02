@@ -265,6 +265,8 @@ public static partial class ProtocolCodec
                     (ControlCommandKind)reader.ReadByte(),
                     reader.ReadBoolean()),
                 MessageType.SnapshotAck => new SnapshotAckMessage(reader.ReadUInt64()),
+                MessageType.PingRequest => new PingRequestMessage(reader.ReadUInt32()),
+                MessageType.PingResponse => new PingResponseMessage(reader.ReadUInt32()),
                 MessageType.PlayerProfileUpdate => new PlayerProfileUpdateMessage(
                     ReadString(reader, MaxPlayerNameBytes),
                     reader.ReadUInt64(),
@@ -478,6 +480,12 @@ public static partial class ProtocolCodec
                 break;
             case SnapshotAckMessage snapshotAck:
                 writer.Write(snapshotAck.Frame);
+                break;
+            case PingRequestMessage pingRequest:
+                writer.Write(pingRequest.Sequence);
+                break;
+            case PingResponseMessage pingResponse:
+                writer.Write(pingResponse.Sequence);
                 break;
             case PlayerProfileUpdateMessage profileUpdate:
                 WriteString(writer, profileUpdate.Name, MaxPlayerNameBytes, nameof(profileUpdate.Name));

@@ -31,6 +31,8 @@ public enum MessageType : byte
     CustomBubbleUpload = 24,
     CustomBubbleState = 25,
     CustomBubbleClear = 26,
+    PingRequest = 27,
+    PingResponse = 28,
 }
 
 public enum ConnectionIntent : byte
@@ -249,6 +251,16 @@ public sealed record ControlAckMessage(
 public sealed record SnapshotAckMessage(ulong Frame) : IProtocolMessage
 {
     public MessageType Type => MessageType.SnapshotAck;
+}
+
+public sealed record PingRequestMessage(uint Sequence) : IProtocolMessage
+{
+    public MessageType Type => MessageType.PingRequest;
+}
+
+public sealed record PingResponseMessage(uint Sequence) : IProtocolMessage
+{
+    public MessageType Type => MessageType.PingResponse;
 }
 
 public sealed record PlayerProfileUpdateMessage(

@@ -242,13 +242,11 @@ public partial class Game1
             return null;
         }
 
-        var existing = _lobbyBrowserEntries.FirstOrDefault(entry =>
-            entry.Endpoint.Host.Equals(endpoint.Host, StringComparison.OrdinalIgnoreCase)
-            && entry.Endpoint.UdpPort == endpoint.UdpPort
-            && entry.Endpoint.WebSocketPort == endpoint.WebSocketPort
-            && entry.Endpoint.WebSocketUrl.Equals(endpoint.WebSocketUrl, StringComparison.OrdinalIgnoreCase));
+        var existing = _lobbyBrowserEntries.FirstOrDefault(entry => ShouldMergeLobbyBrowserEndpoint(entry.Endpoint, endpoint));
         if (existing is not null)
         {
+            var hadUdpQuery = existing.QueryEndPoint is not null;
+            existing.Endpoint = MergeLobbyBrowserEndpoint(existing.Endpoint, endpoint);
             if (isLobbyEntry)
             {
                 existing.IsLobbyEntry = true;
@@ -257,6 +255,11 @@ public partial class Game1
                 {
                     existing.DisplayName = displayName;
                 }
+            }
+
+            if (!hadUdpQuery && existing.Endpoint.HasUdpEndpoint && _lobbyBrowserClient is not null)
+            {
+                QueryLobbyBrowserEntry(existing);
             }
 
             return existing;
@@ -275,6 +278,53 @@ public partial class Game1
 
         QueryLobbyBrowserEntry(entry);
         return entry;
+    }
+
+    private static bool ShouldMergeLobbyBrowserEndpoint(NetworkEndpoint existing, NetworkEndpoint incoming)
+    {
+        if (!string.IsNullOrWhiteSpace(existing.WebSocketUrl)
+            && !string.IsNullOrWhiteSpace(incoming.WebSocketUrl)
+            && existing.WebSocketUrl.Equals(incoming.WebSocketUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!existing.Host.Equals(incoming.Host, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (existing.HasUdpEndpoint && incoming.HasUdpEndpoint && existing.UdpPort == incoming.UdpPort)
+        {
+            return true;
+        }
+
+        if (!existing.HasWebSocketEndpoint || !incoming.HasWebSocketEndpoint)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(existing.WebSocketUrl)
+            && !string.IsNullOrWhiteSpace(incoming.WebSocketUrl))
+        {
+            return existing.WebSocketUrl.Equals(incoming.WebSocketUrl, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return existing.WebSocketPort is > 0
+            && incoming.WebSocketPort is > 0
+            && existing.WebSocketPort == incoming.WebSocketPort;
+    }
+
+    private static NetworkEndpoint MergeLobbyBrowserEndpoint(NetworkEndpoint existing, NetworkEndpoint incoming)
+    {
+        var host = string.IsNullOrWhiteSpace(existing.Host) ? incoming.Host : existing.Host;
+        var udpPort = incoming.UdpPort is > 0 and <= 65535 ? incoming.UdpPort : existing.UdpPort;
+        var webSocketPort = incoming.WebSocketPort is > 0 and <= 65535 ? incoming.WebSocketPort : existing.WebSocketPort;
+        var webSocketUrl = !string.IsNullOrWhiteSpace(incoming.WebSocketUrl)
+            ? incoming.WebSocketUrl.Trim()
+            : existing.WebSocketUrl;
+
+        return new NetworkEndpoint(host, udpPort, webSocketPort, webSocketUrl);
     }
 
     private static string FormatLobbyDisplayName(string name, bool isPrivate)

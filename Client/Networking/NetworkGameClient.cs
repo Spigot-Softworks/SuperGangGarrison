@@ -40,6 +40,8 @@ internal sealed class NetworkGameClient : IDisposable
     private const long LocalWelcomeTimeoutMilliseconds = 30000;
     private const long LocalConnectedTimeoutMilliseconds = 30000;
     private const int MaxTrackedInputRoundTrips = 512;
+    private const int MaxTrackedPingRoundTrips = 32;
+    private const long PingIntervalMilliseconds = 1000;
 
     [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "The client transport seam must support browser WebSocket adapters.")]
     private INetworkClientMessageTransport? _transport;
@@ -52,8 +54,11 @@ internal sealed class NetworkGameClient : IDisposable
     private readonly Queue<PendingMessage> _pendingInboundMessages = new();
     private readonly Queue<TrackedInputRoundTrip> _trackedInputRoundTrips = new();
     private readonly Dictionary<uint, long> _trackedInputRoundTripTimes = new();
+    private readonly Queue<TrackedPingRoundTrip> _trackedPingRoundTrips = new();
+    private readonly Dictionary<uint, long> _trackedPingRoundTripTimes = new();
     private readonly Queue<PendingDelayedInput> _pendingDelayedInputs = new();
     private ulong _networkInputTick;
+    private uint _nextPingSequence = 1;
     private string? _pendingHelloPlayerName;
     private ulong _pendingHelloBadgeMask;
     private string _pendingHelloFriendCode = string.Empty;
@@ -61,6 +66,7 @@ internal sealed class NetworkGameClient : IDisposable
     private ConnectionIntent _pendingHelloIntent = ConnectionIntent.Join;
     private long _connectStartedAtMilliseconds = -1;
     private long _lastHelloSentAtMilliseconds = -1;
+    private long _lastPingSentAtMilliseconds = -1;
     private long _lastServerMessageReceivedAtMilliseconds = -1;
     private string? _lastDisconnectReason;
     private OpenGarrisonDemoRecordingWriter? _demoRecorder;
@@ -71,6 +77,8 @@ internal sealed class NetworkGameClient : IDisposable
     private int _demoRecordingLastDueMilliseconds;
     private long _demoRecordingStartedAtMilliseconds = -1;
     private string? _lastCompletedDemoRecordingNotice;
+    private bool _hasProtocolPingSample;
+    private int _smoothedPingMilliseconds = -1;
 
     public bool CollectDiagnostics { get; set; }
 
@@ -207,7 +215,10 @@ internal sealed class NetworkGameClient : IDisposable
         _pendingDelayedInputs.Clear();
         _trackedInputRoundTrips.Clear();
         _trackedInputRoundTripTimes.Clear();
+        _trackedPingRoundTrips.Clear();
+        _trackedPingRoundTripTimes.Clear();
         _networkInputTick = 0;
+        _nextPingSequence = 1;
         IsReplayConnection = false;
         LocalPlayerSlot = 0;
         ServerDescription = null;
@@ -224,7 +235,10 @@ internal sealed class NetworkGameClient : IDisposable
         _pendingHelloIntent = ConnectionIntent.Join;
         _connectStartedAtMilliseconds = -1;
         _lastHelloSentAtMilliseconds = -1;
+        _lastPingSentAtMilliseconds = -1;
         _lastServerMessageReceivedAtMilliseconds = -1;
+        _hasProtocolPingSample = false;
+        _smoothedPingMilliseconds = -1;
         EstimatedPingMilliseconds = -1;
         LastReceiveDiagnostics = default;
         TotalSendDiagnostics = default;
@@ -608,7 +622,11 @@ internal sealed class NetworkGameClient : IDisposable
 
             if (tracked.Sequence == sequence)
             {
-                EstimatedPingMilliseconds = (int)Math.Clamp(nowMilliseconds - sentAtMilliseconds, 0L, int.MaxValue);
+                var inputAckMilliseconds = (int)Math.Clamp(nowMilliseconds - sentAtMilliseconds, 0L, int.MaxValue);
+                if (!_hasProtocolPingSample)
+                {
+                    EstimatedPingMilliseconds = inputAckMilliseconds;
+                }
             }
         }
     }
@@ -657,6 +675,8 @@ internal sealed class NetworkGameClient : IDisposable
 
         FlushHandshakeState();
         FlushTransportState();
+        FlushPendingOutboundPackets();
+        FlushPingState();
         FlushPendingOutboundPackets();
         transport = _transport;
         if (!IsConnected || transport is null)
@@ -714,6 +734,10 @@ internal sealed class NetworkGameClient : IDisposable
                 {
                     _pendingInboundMessages.Enqueue(new PendingMessage(_clock.ElapsedMilliseconds + SimulatedLatencyMilliseconds, message));
                 }
+                else if (TryHandleInternalMessage(message))
+                {
+                    continue;
+                }
                 else
                 {
                     messages.Add(message);
@@ -731,7 +755,11 @@ internal sealed class NetworkGameClient : IDisposable
         FlushConnectedState();
         while (_pendingInboundMessages.Count > 0 && _pendingInboundMessages.Peek().ReleaseAtMilliseconds <= _clock.ElapsedMilliseconds)
         {
-            messages.Add(_pendingInboundMessages.Dequeue().Message);
+            var message = _pendingInboundMessages.Dequeue().Message;
+            if (!TryHandleInternalMessage(message))
+            {
+                messages.Add(message);
+            }
         }
 
         LastReceiveDiagnostics = collectDiagnostics
@@ -991,6 +1019,83 @@ internal sealed class NetworkGameClient : IDisposable
         }
     }
 
+    private void FlushPingState()
+    {
+        if (!IsConnected || IsAwaitingWelcome || IsReplayConnection)
+        {
+            return;
+        }
+
+        var nowMilliseconds = _clock.ElapsedMilliseconds;
+        if (_lastPingSentAtMilliseconds >= 0
+            && nowMilliseconds - _lastPingSentAtMilliseconds < PingIntervalMilliseconds)
+        {
+            return;
+        }
+
+        var sequence = _nextPingSequence++;
+        _lastPingSentAtMilliseconds = nowMilliseconds;
+        _trackedPingRoundTrips.Enqueue(new TrackedPingRoundTrip(sequence, nowMilliseconds));
+        _trackedPingRoundTripTimes[sequence] = nowMilliseconds;
+        while (_trackedPingRoundTrips.Count > MaxTrackedPingRoundTrips)
+        {
+            var dropped = _trackedPingRoundTrips.Dequeue();
+            _trackedPingRoundTripTimes.Remove(dropped.Sequence);
+        }
+
+        Send(new PingRequestMessage(sequence));
+    }
+
+    private bool TryHandleInternalMessage(IProtocolMessage message)
+    {
+        if (message is not PingResponseMessage pingResponse)
+        {
+            return false;
+        }
+
+        AcknowledgePing(pingResponse.Sequence);
+        return true;
+    }
+
+    private void AcknowledgePing(uint sequence)
+    {
+        if (sequence == 0 || _trackedPingRoundTrips.Count == 0)
+        {
+            return;
+        }
+
+        var nowMilliseconds = _clock.ElapsedMilliseconds;
+        while (_trackedPingRoundTrips.Count > 0 && _trackedPingRoundTrips.Peek().Sequence <= sequence)
+        {
+            var tracked = _trackedPingRoundTrips.Dequeue();
+            if (!_trackedPingRoundTripTimes.Remove(tracked.Sequence, out var sentAtMilliseconds))
+            {
+                continue;
+            }
+
+            if (tracked.Sequence == sequence)
+            {
+                var pingMilliseconds = (int)Math.Clamp(nowMilliseconds - sentAtMilliseconds, 0L, int.MaxValue);
+                _hasProtocolPingSample = true;
+                EstimatedPingMilliseconds = SmoothPingSample(pingMilliseconds);
+            }
+        }
+    }
+
+    private int SmoothPingSample(int pingMilliseconds)
+    {
+        if (_smoothedPingMilliseconds < 0)
+        {
+            _smoothedPingMilliseconds = pingMilliseconds;
+        }
+        else
+        {
+            _smoothedPingMilliseconds = (int)Math.Round((_smoothedPingMilliseconds * 3d + pingMilliseconds) / 4d);
+        }
+
+        return _smoothedPingMilliseconds;
+    }
+
     private void SendPendingControlCommands()
     {
         if (!IsConnected)
@@ -1149,6 +1254,7 @@ internal sealed class NetworkGameClient : IDisposable
 
     private sealed record PendingControlCommand(uint Sequence, ControlCommandKind Kind, byte Value, string TextValue);
     private sealed record TrackedInputRoundTrip(uint Sequence, long SentAtMilliseconds);
+    private sealed record TrackedPingRoundTrip(uint Sequence, long SentAtMilliseconds);
     private sealed record PendingPacket(long ReleaseAtMilliseconds, byte[] Payload);
     private sealed record PendingMessage(long ReleaseAtMilliseconds, IProtocolMessage Message);
 }

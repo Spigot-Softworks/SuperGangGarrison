@@ -108,7 +108,7 @@ public partial class Game1
             // Draw OpenGarrison logo in top right when using animated background
             if (_game._menuBackgroundMode != MenuBackgroundMode.Static)
             {
-                DrawAnimatedMenuLogo(viewportWidth, viewportHeight);
+                DrawAnimatedMenuLogo(viewportWidth);
             }
 
             if (_game._builderEditorEnabled)
@@ -308,7 +308,7 @@ public partial class Game1
             _game.DrawBitmapFontTextRightAligned(_game._menuBackgroundAttributionText, position, Color.White, scale);
         }
 
-        private void DrawAnimatedMenuLogo(int viewportWidth, int viewportHeight)
+        private void DrawAnimatedMenuLogo(int viewportWidth)
         {
             var sprite = _game.GetResolvedSprite("OpenGarrisonLogoS");
             if (sprite is null || sprite.Frames.Count == 0)
@@ -317,26 +317,20 @@ public partial class Game1
             }
 
             const float padding = 20f;
-            const float maxLogoWidth = 420f;
-            const float maxLogoViewportWidthRatio = 0.42f;
-            const float maxLogoViewportHeightRatio = 0.18f;
+            const float logoScale = 1.3f;
 
             var frame = sprite.Frames[0];
-            var targetWidth = Math.Min(maxLogoWidth, MathF.Max(1f, viewportWidth * maxLogoViewportWidthRatio));
-            var targetHeight = MathF.Max(1f, viewportHeight * maxLogoViewportHeightRatio);
-            var logoScale = Math.Min(targetWidth / Math.Max(1f, frame.Width), targetHeight / Math.Max(1f, frame.Height));
-            var logoWidth = frame.Width * logoScale;
-
-            var logoX = viewportWidth - logoWidth - padding;
+            var visibleLogoSource = new Rectangle(22, 17, 332, 82);
+            var logoX = MathF.Max(padding, viewportWidth - (visibleLogoSource.Width * logoScale) - padding);
             var logoY = padding;
 
             _game.DrawLoadedSpriteFrame(
                 frame,
                 new Vector2(logoX, logoY),
-                null,
+                visibleLogoSource,
                 Color.White,
                 0f,
-                sprite.Origin.ToVector2(),
+                Vector2.Zero,
                 new Vector2(logoScale, logoScale),
                 SpriteEffects.None,
                 0f);
