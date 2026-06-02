@@ -420,6 +420,27 @@ public partial class Game1
 
     private void UpdateChatScrollState(KeyboardState keyboard, MouseState mouse)
     {
+        if (_chatOpen && TryGetOpenChatScrollbarTrackBounds(out var trackBounds))
+        {
+            var chatScrollOffset = _chatScrollOffset;
+            if (TryHandleInvertedScrollbarDrag(
+                    mouse,
+                    _previousMouse,
+                    ScrollbarOwners.ChatHud,
+                    trackBounds,
+                    ref chatScrollOffset,
+                    _chatLines.Count,
+                    OpenChatFixedLineCount,
+                    minThumbHeight: 8))
+            {
+                _chatScrollOffset = chatScrollOffset;
+                ClampChatScrollOffset();
+                return;
+            }
+
+            _chatScrollOffset = chatScrollOffset;
+        }
+
         var wheelDelta = mouse.ScrollWheelValue - _previousMouse.ScrollWheelValue;
         if (wheelDelta != 0)
         {
@@ -461,6 +482,39 @@ public partial class Game1
     private void ClampChatScrollOffset()
     {
         _chatScrollOffset = Math.Clamp(_chatScrollOffset, 0, Math.Max(0, _chatLines.Count - OpenChatFixedLineCount));
+    }
+
+    private bool TryGetOpenChatScrollbarTrackBounds(out Rectangle trackBounds)
+    {
+        trackBounds = default;
+        if (!_chatOpen || _chatLines.Count <= OpenChatFixedLineCount)
+        {
+            return false;
+        }
+
+        var lineHeight = GetChatHudLineHeight();
+        var promptPrefix = _chatTeamOnly ? "(TEAM) > " : "> ";
+        var maxInputWidth = Math.Max(24f, Math.Max(280, ViewportWidth / 3) - 18f - MeasureBitmapFontWidth(promptPrefix, 1f));
+        var promptLines = WrapBitmapFontText(GetTextWithCursor(_chatInput, _chatInputCursorIndex), maxInputWidth, maxInputWidth);
+        var promptHeight = Math.Max(24, (int)MathF.Ceiling(promptLines.Count * lineHeight + 12f));
+        var promptRectangle = new Rectangle(
+            12,
+            ViewportHeight - 94 - promptHeight,
+            Math.Max(280, ViewportWidth / 3),
+            promptHeight);
+        var fixedOpenContentHeight = OpenChatFixedLineCount * lineHeight;
+        var panelHeight = (int)MathF.Ceiling(fixedOpenContentHeight + ChatHudPanelVerticalPadding * 2f);
+        var panelY = promptRectangle.Y - 10 - panelHeight;
+        var chatPanelRect = new Rectangle(promptRectangle.X, panelY, promptRectangle.Width, panelHeight);
+
+        const int scrollbarWidth = 4;
+        const int scrollbarMargin = 3;
+        trackBounds = new Rectangle(
+            chatPanelRect.Right - scrollbarWidth - scrollbarMargin,
+            chatPanelRect.Y + scrollbarMargin,
+            scrollbarWidth,
+            chatPanelRect.Height - (scrollbarMargin * 2));
+        return true;
     }
 
     private void DrawChatHud()

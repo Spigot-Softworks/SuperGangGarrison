@@ -20,6 +20,7 @@ partial class GameServer
         using var eventLog = new PersistentServerEventLog(_eventLogPath, Console.WriteLine);
         InitializeUdpTransport(udp);
         ApplyRuntimeBootstrap(CreateRuntimeBootstrap(eventLog));
+        ApplyHostGameplayDefaults();
         InitializeWebSocketHost();
         InitializeGameplayOwnershipService();
         InitializePluginRuntime();
@@ -122,6 +123,42 @@ partial class GameServer
             _serverName,
             eventLog.Write,
             Console.WriteLine);
+    }
+
+    private void ApplyHostGameplayDefaults()
+    {
+        var host = _hostGameplayDefaults;
+
+        _autoBalanceEnabled = host.AutoBalanceEnabled;
+        _secondaryAbilitiesEnabled = host.SecondaryAbilitiesEnabled;
+        _randomSpreadEnabled = host.RandomSpreadEnabled;
+        _competitiveReadyUpEnabled = host.CompetitiveReadyUpEnabled;
+        _competitiveSetupSeconds = Math.Clamp(host.CompetitiveSetupSeconds, 0, 120);
+        _botAutofillEnabled = host.BotAutofillEnabled;
+        _botAutofillMinPlayers = Math.Clamp(host.BotAutofillMinPlayers, 0, SimulationWorld.MaxPlayableNetworkPlayers);
+        _botAutofillPerTeam = Math.Clamp(host.BotAutofillPerTeam, 0, SimulationWorld.MaxPlayableNetworkPlayers / 2);
+        _sniperAimIndicatorEnabled = host.SniperAimIndicatorEnabled;
+
+        _world.RandomSpreadEnabled = host.RandomSpreadEnabled;
+        _world.SniperAimIndicatorEnabled = host.SniperAimIndicatorEnabled;
+        _world.SetCompetitiveReadyUpEnabled(host.CompetitiveReadyUpEnabled);
+        _world.SetCompetitiveSetupSeconds(_competitiveSetupSeconds);
+        _world.SetRoundEndFriendlyFire(host.RoundEndFriendlyFireEnabled);
+        _world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
+            EnableSecondaryAbilities: host.SecondaryAbilitiesEnabled,
+            EnableSoldierShotgunSecondaryWeapon: host.SecondaryAbilitiesEnabled));
+        _world.ConfigureMatchDefaults(
+            timeLimitMinutes: Math.Clamp(host.TimeLimitMinutes, 1, 255),
+            capLimit: Math.Clamp(host.CapLimit, 1, 255),
+            respawnSeconds: Math.Clamp(host.RespawnSeconds, 0, 255));
+        _world.SetPlayerScale(host.PlayerScale);
+        _world.SetMapScale(host.MapScale);
+        _world.SetMovementSpeedScale(host.MovementSpeedScale);
+        _world.SetProjectileSpeedScale(host.ProjectileSpeedScale);
+        _world.SetDamageScale(host.DamageScale);
+        _world.SetGravityScale(host.GravityScale);
+        _world.SetHorizontalSpeedClampPerTick(host.HorizontalSpeedClampPerTick);
+        _world.SetVerticalSpeedClampPerTick(host.VerticalSpeedClampPerTick);
     }
 
     private void ApplyRuntimeBootstrap(OpenGarrison.Server.ServerRuntimeBootstrap runtime)

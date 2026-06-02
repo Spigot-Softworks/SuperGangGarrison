@@ -128,6 +128,30 @@ public partial class Game1
             _clientPowersScrollOffset = GetMaxClientPowersScrollOffset(layout.VisibleRowCount);
         }
 
+        const int headerHeight = 30;
+        const int rowHeight = 30;
+        var trackBounds = new Rectangle(
+            layout.ListBounds.Right - 10,
+            layout.ListBounds.Y + headerHeight + 6,
+            4,
+            (layout.VisibleRowCount * rowHeight) - 4);
+        var clientPowersScrollOffset = _clientPowersScrollOffset;
+        if (TryHandleScrollbarDrag(
+                mouse,
+                _previousMouse,
+                ScrollbarOwners.ClientPowersMenu,
+                trackBounds,
+                ref clientPowersScrollOffset,
+                ClientPowerEntries.Length,
+                layout.VisibleRowCount,
+                minThumbHeight: 18))
+        {
+            _clientPowersScrollOffset = clientPowersScrollOffset;
+            return;
+        }
+
+        _clientPowersScrollOffset = clientPowersScrollOffset;
+
         var wheelDelta = mouse.ScrollWheelValue - _previousMouse.ScrollWheelValue;
         if (wheelDelta != 0)
         {
@@ -152,8 +176,6 @@ public partial class Game1
             return;
         }
 
-        const int headerHeight = 30;
-        const int rowHeight = 30;
         var clickedRow = (mouse.Y - (layout.ListBounds.Y + headerHeight + 6)) / rowHeight;
         if (clickedRow < 0 || clickedRow >= layout.VisibleRowCount)
         {

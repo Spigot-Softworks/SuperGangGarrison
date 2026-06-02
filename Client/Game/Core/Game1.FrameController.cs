@@ -99,6 +99,7 @@ public partial class Game1
             }
 
             _game.HandleActiveTextFieldKeyboardShortcuts(keyboard, gameTime.ElapsedGameTime.TotalSeconds);
+            _game.UpdateMenuStatusMessageExpiry();
 
             if (TryUpdateNonGameplayFrame(gameTime, keyboard, mouse, clientTicks))
             {

@@ -23,9 +23,27 @@ public partial class Game1
         public void UpdatePluginOptionsMenu(KeyboardState keyboard, MouseState mouse)
         {
             var rows = BuildPluginOptionsMenuRows();
-            GetPluginOptionsPanelLayout(out _, out var listBounds, out var backBounds, out _, out var rowHeight);
+            GetPluginOptionsPanelLayout(out var panel, out var listBounds, out var backBounds, out _, out var rowHeight);
             var visibleRowCount = Math.Max(1, Math.Min(rows.Count, listBounds.Height / rowHeight));
             ClampPluginOptionsScrollOffset(rows.Count, visibleRowCount);
+
+            var trackBounds = new Rectangle(panel.Right - 20, listBounds.Y, 8, listBounds.Height);
+            var pluginOptionsScrollOffset = _game._pluginOptionsScrollOffset;
+            if (_game.TryHandleScrollbarDrag(
+                    mouse,
+                    _game._previousMouse,
+                    ScrollbarOwners.PluginOptionsMenu,
+                    trackBounds,
+                    ref pluginOptionsScrollOffset,
+                    rows.Count,
+                    visibleRowCount))
+            {
+                _game._pluginOptionsScrollOffset = pluginOptionsScrollOffset;
+                return;
+            }
+
+            _game._pluginOptionsScrollOffset = pluginOptionsScrollOffset;
+
             var wheelDelta = mouse.ScrollWheelValue - _game._previousMouse.ScrollWheelValue;
 
             if (_game._pendingPluginOptionsKeyItem is not null)

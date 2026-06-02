@@ -1,0 +1,4 @@
+{
+  "dotnet.defaultSolution": "OpenGarrison.sln",
+  "dotnet.preferCSharpExtension": true
+}

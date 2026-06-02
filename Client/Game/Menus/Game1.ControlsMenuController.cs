@@ -80,9 +80,26 @@ public partial class Game1
                 return;
             }
 
-            GetControlsMenuPanelLayout(out _, out var listBounds, out var backBounds, out _, out var rowHeight);
+            GetControlsMenuPanelLayout(out var panel, out var listBounds, out var backBounds, out _, out var rowHeight);
             var visibleRowCount = Math.Max(1, listBounds.Height / rowHeight);
             ClampControlsScrollOffset(bindingItems.Count, visibleRowCount);
+
+            var trackBounds = new Rectangle(panel.Right - 20, listBounds.Y, 8, listBounds.Height);
+            var controlsScrollOffset = _game._controlsScrollOffset;
+            if (_game.TryHandleScrollbarDrag(
+                    mouse,
+                    _game._previousMouse,
+                    ScrollbarOwners.ControlsMenu,
+                    trackBounds,
+                    ref controlsScrollOffset,
+                    bindingItems.Count,
+                    visibleRowCount))
+            {
+                _game._controlsScrollOffset = controlsScrollOffset;
+                return;
+            }
+
+            _game._controlsScrollOffset = controlsScrollOffset;
 
             var wheelDelta = mouse.ScrollWheelValue - _game._previousMouse.ScrollWheelValue;
             if (wheelDelta != 0 && listBounds.Contains(mouse.Position))
