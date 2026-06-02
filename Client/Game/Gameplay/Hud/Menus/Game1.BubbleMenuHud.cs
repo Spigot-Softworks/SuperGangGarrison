@@ -61,7 +61,8 @@ public partial class Game1
         var leftMousePressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
         var leftMouseDown = mouse.LeftButton == ButtonState.Pressed;
         var leftMouseReleased = mouse.LeftButton == ButtonState.Released && _previousMouse.LeftButton == ButtonState.Pressed;
-        var callMedicPressed = IsBindingPressed(keyboard, mouse, _inputBindings.CallMedic);
+        var callMedicPressed = IsBindingPressed(keyboard, mouse, _inputBindings.CallMedic)
+            || (IsControllerGameplayInputActive() && IsControllerButtonPressed(Buttons.Y));
         var openZPressed = IsBindingPressed(keyboard, mouse, _inputBindings.OpenBubbleMenuZ);
         var openXPressed = IsBindingPressed(keyboard, mouse, _inputBindings.OpenBubbleMenuX);
         var openCPressed = IsBindingPressed(keyboard, mouse, _inputBindings.OpenBubbleMenuC);

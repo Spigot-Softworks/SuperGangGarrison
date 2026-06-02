@@ -83,7 +83,7 @@ public partial class Game1
     private sealed class LobbyBrowserEntry(string displayName, NetworkEndpoint endpoint)
     {
         public string DisplayName { get; set; } = displayName;
-        public NetworkEndpoint Endpoint { get; } = endpoint;
+        public NetworkEndpoint Endpoint { get; set; } = endpoint;
         public string Host => Endpoint.Host;
         public int Port => Endpoint.QueryPort;
         public string AddressLabel => Endpoint.AddressLabel;

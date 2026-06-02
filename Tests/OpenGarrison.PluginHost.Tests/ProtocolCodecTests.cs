@@ -73,6 +73,20 @@ public sealed class ProtocolCodecTests
     }
 
     [Fact]
+    public void PingMessagesRoundTrip()
+    {
+        var requestPayload = ProtocolCodec.Serialize(new PingRequestMessage(123), ProtocolCompressionSettings.Disabled);
+        Assert.True(ProtocolCodec.TryDeserialize(requestPayload, out var requestRoundTripped));
+        var request = Assert.IsType<PingRequestMessage>(requestRoundTripped);
+        Assert.Equal(123u, request.Sequence);
+
+        var responsePayload = ProtocolCodec.Serialize(new PingResponseMessage(123), ProtocolCompressionSettings.Disabled);
+        Assert.True(ProtocolCodec.TryDeserialize(responsePayload, out var responseRoundTripped));
+        var response = Assert.IsType<PingResponseMessage>(responseRoundTripped);
+        Assert.Equal(123u, response.Sequence);
+    }
+
+    [Fact]
     public void ChatRelayMessageRoundTripsSenderSlot()
     {
         var message = new ChatRelayMessage(

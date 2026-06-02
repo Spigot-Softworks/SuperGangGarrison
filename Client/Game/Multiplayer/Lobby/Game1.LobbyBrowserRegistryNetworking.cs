@@ -92,7 +92,6 @@ public partial class Game1
             lobbyEntry.PlayerCount = Math.Max(0, registryEntry.Players);
             lobbyEntry.MaxPlayerCount = Math.Max(0, registryEntry.MaxPlayers);
             lobbyEntry.SpectatorCount = Math.Max(0, registryEntry.Spectators);
-            lobbyEntry.PingMilliseconds = -1;
         }
     }
 

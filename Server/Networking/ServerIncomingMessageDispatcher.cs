@@ -75,6 +75,14 @@ internal sealed class ServerIncomingMessageDispatcher(
                     ackClient.AcknowledgeSnapshot(snapshotAck.Frame);
                 }
                 break;
+            case PingRequestMessage pingRequest:
+                if (TryGetClient(remotePeer, out var pingClient))
+                {
+                    pingClient.LastSeen = elapsedGetter();
+                }
+
+                sendMessage(remotePeer, new PingResponseMessage(pingRequest.Sequence));
+                break;
             case PlayerProfileUpdateMessage profileUpdate:
                 if (TryGetClient(remotePeer, out var profileClient))
                 {
