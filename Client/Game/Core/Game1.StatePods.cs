@@ -870,7 +870,7 @@ public partial class Game1
     private string _menuStatusMessage
     {
         get => _uiShellState.MenuStatusMessage;
-        set => _uiShellState.MenuStatusMessage = value;
+        set => SetMenuStatusMessageInternal(value, persist: false);
     }
 
     private ControlsMenuBinding? _pendingControlsBinding
@@ -1007,6 +1007,7 @@ public partial class Game1
         public int ChatInputCursorIndex;
         public int ChatInputSelectionStart;
         public string MenuStatusMessage = string.Empty;
+        public DateTime? MenuStatusMessageClearAtUtc;
         public ControlsMenuBinding? PendingControlsBinding;
     }
 

@@ -12,10 +12,22 @@ public partial class Game1
         DrawMenuInputBoxScaled(bounds, text, active, 1f);
     }
 
-    private void DrawMenuInputBoxScaled(Rectangle bounds, string text, bool active, float textScale, int cursorIndex = -1, int selectionStart = -1)
+    private void DrawMenuInputBoxScaled(
+        Rectangle bounds,
+        string text,
+        bool active,
+        float textScale,
+        int cursorIndex = -1,
+        int selectionStart = -1,
+        bool enabled = true)
     {
-        _spriteBatch.Draw(_pixel, bounds, active ? new Color(67, 60, 55) : new Color(53, 47, 42));
-        var borderColor = new Color(213, 205, 188);
+        var fillColor = !enabled
+            ? new Color(42, 38, 36)
+            : active
+                ? new Color(67, 60, 55)
+                : new Color(53, 47, 42);
+        var borderColor = enabled ? new Color(213, 205, 188) : new Color(120, 114, 108);
+        _spriteBatch.Draw(_pixel, bounds, fillColor);
         _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Y, bounds.Width, 1), borderColor);
         _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Bottom - 1, bounds.Width, 1), borderColor);
         _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Y, 1, bounds.Height), borderColor);
@@ -51,9 +63,10 @@ public partial class Game1
             }
         }
 
-        var display = active ? GetTextWithCursor(text, cursorIndex) : text;
+        var display = active && enabled ? GetTextWithCursor(text, cursorIndex) : text;
         var trimmedDisplay = TrimBitmapMenuText(display, bounds.Width - 16f, textScale);
-        DrawBitmapFontText(trimmedDisplay, new Vector2(textAreaX, textY), Color.White, textScale);
+        var textColor = enabled ? Color.White : new Color(118, 114, 108);
+        DrawBitmapFontText(trimmedDisplay, new Vector2(textAreaX, textY), textColor, textScale);
     }
 
     private void DrawMenuButton(Rectangle bounds, string label, bool highlighted)
@@ -61,21 +74,30 @@ public partial class Game1
         DrawMenuButtonScaled(bounds, label, highlighted, 1f);
     }
 
-    private void DrawMenuButtonScaled(Rectangle bounds, string label, bool highlighted, float textScale)
+    private void DrawMenuButtonScaled(Rectangle bounds, string label, bool highlighted, float textScale, bool enabled = true)
     {
-        var fillColor = highlighted ? new Color(77, 69, 63) : new Color(54, 47, 41);
-        var outlineColor = new Color(213, 205, 188);
+        var fillColor = !enabled
+            ? new Color(42, 38, 36)
+            : highlighted
+                ? new Color(77, 69, 63)
+                : new Color(54, 47, 41);
+        var outlineColor = enabled ? new Color(213, 205, 188) : new Color(120, 114, 108);
         DrawRoundedRectangleOutline(bounds, fillColor, outlineColor, outlineThickness: 2, radius: 8);
 
         var trimmedLabel = TrimBitmapMenuText(label, bounds.Width - 28f, textScale);
         var textY = bounds.Y + MathF.Max(4f, ((bounds.Height - MeasureBitmapFontHeight(textScale)) * 0.5f) - 1f);
-        DrawBitmapFontText(trimmedLabel, new Vector2(bounds.X + 14f, textY), Color.White, textScale);
+        var textColor = enabled ? Color.White : new Color(118, 114, 108);
+        DrawBitmapFontText(trimmedLabel, new Vector2(bounds.X + 14f, textY), textColor, textScale);
     }
 
-    private void DrawMenuButtonCentered(Rectangle bounds, string label, bool highlighted, float textScale)
+    private void DrawMenuButtonCentered(Rectangle bounds, string label, bool highlighted, float textScale, bool enabled = true)
     {
-        var fillColor = highlighted ? new Color(77, 69, 63) : new Color(54, 47, 41);
-        var outlineColor = new Color(213, 205, 188);
+        var fillColor = !enabled
+            ? new Color(42, 38, 36)
+            : highlighted
+                ? new Color(77, 69, 63)
+                : new Color(54, 47, 41);
+        var outlineColor = enabled ? new Color(213, 205, 188) : new Color(120, 114, 108);
         DrawRoundedRectangleOutline(bounds, fillColor, outlineColor, outlineThickness: 2, radius: 8);
 
         var trimmedLabel = label.Length <= 1
@@ -83,7 +105,8 @@ public partial class Game1
             : TrimBitmapMenuText(label, bounds.Width - 28f, textScale);
         var textX = bounds.X + ((bounds.Width - MeasureBitmapFontWidth(trimmedLabel, textScale)) * 0.5f);
         var textY = bounds.Y + MathF.Max(4f, ((bounds.Height - MeasureBitmapFontHeight(textScale)) * 0.5f) - 1f);
-        DrawBitmapFontText(trimmedLabel, new Vector2(textX, textY), Color.White, textScale);
+        var textColor = enabled ? Color.White : new Color(118, 114, 108);
+        DrawBitmapFontText(trimmedLabel, new Vector2(textX, textY), textColor, textScale);
     }
 
     private void DrawRoundedRectangleOutline(Rectangle bounds, Color fillColor, Color outlineColor, int outlineThickness, int radius)

@@ -92,17 +92,21 @@ public partial class Game1
             request.MapRotationFile);
     }
 
-    private void ToggleSelectedHostMap()
+    private void AddSelectedAvailableMapToPlaylist()
     {
-        _hostSetupState.ToggleSelectedMap();
-        EnsureSelectedHostMapVisible();
+        _hostSetupState.AddSelectedAvailableMapToPlaylist();
         _menuStatusMessage = string.Empty;
     }
 
-    private void MoveSelectedHostMap(int direction)
+    private void RemoveSelectedPlaylistMap()
     {
-        _hostSetupState.MoveSelectedMap(direction);
-        EnsureSelectedHostMapVisible();
+        _hostSetupState.RemoveSelectedPlaylistMap();
+        _menuStatusMessage = string.Empty;
+    }
+
+    private void MoveSelectedPlaylistMap(int direction)
+    {
+        _hostSetupState.MoveSelectedPlaylistMap(direction);
         _menuStatusMessage = string.Empty;
     }
 
@@ -137,7 +141,8 @@ public partial class Game1
             ViewportWidth,
             ViewportHeight,
             _hostMapEntries.Count,
-            IsServerLauncherMode);
+            IsServerLauncherMode,
+            _hostSetupScreen);
         _hostSetupState.EnsureSelectedMapVisible(layout.VisibleRowCapacity);
     }
 }

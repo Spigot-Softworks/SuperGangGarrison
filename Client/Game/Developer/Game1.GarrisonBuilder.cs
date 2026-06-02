@@ -955,6 +955,30 @@ public partial class Game1
 
     private void UpdateLegacyGarrisonBuilderScroll(MouseState mouse)
     {
+        var actionBounds = GetLegacyGarrisonBuilderActionBounds();
+        var visibleRows = _builderActionVisibleRows;
+        if (_builderActionDefinitions.Length > visibleRows)
+        {
+            var height = visibleRows * LegacyBuilderButtonHeight;
+            var trackBounds = new Rectangle(
+                actionBounds.X + LegacyBuilderButtonWidth + 1,
+                actionBounds.Y + 2,
+                LegacyBuilderHeaderWidth - LegacyBuilderButtonWidth - 3,
+                Math.Max(4, height - 4));
+            if (TryHandleScrollbarDrag(
+                    mouse,
+                    _previousMouse,
+                    ScrollbarOwners.GarrisonBuilderActions,
+                    trackBounds,
+                    ref _builderActionScrollIndex,
+                    _builderActionDefinitions.Length,
+                    visibleRows,
+                    minThumbHeight: 8))
+            {
+                return;
+            }
+        }
+
         var wheelDelta = mouse.ScrollWheelValue - _previousMouse.ScrollWheelValue;
         if (wheelDelta == 0)
         {

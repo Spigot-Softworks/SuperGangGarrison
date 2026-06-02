@@ -37,7 +37,7 @@ public partial class Game1
         {
             if (!_game._bootstrapController.CanEnterGameplaySession(out var bootstrapReason))
             {
-                _game._menuStatusMessage = bootstrapReason ?? "Browser client assets are still loading.";
+                _game.SetPersistedMenuStatusMessage(bootstrapReason ?? "Browser client assets are still loading.");
                 return;
             }
 

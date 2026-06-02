@@ -227,7 +227,12 @@ public partial class Game1
 
         public void UpdateHostSetupMenu(MouseState mouse)
         {
-            var layout = HostSetupMenuLayoutCalculator.CreateMenuLayout(_game.ViewportWidth, _game.ViewportHeight, _game._hostMapEntries.Count, _game.IsServerLauncherMode);
+            var layout = HostSetupMenuLayoutCalculator.CreateMenuLayout(
+                _game.ViewportWidth,
+                _game.ViewportHeight,
+                _game._hostMapEntries.Count,
+                _game.IsServerLauncherMode,
+                _game._hostSetupScreen);
             _game.ClampHostSetupContentScrollOffset(layout);
             var clickPressed = mouse.LeftButton == ButtonState.Pressed && _game._previousMouse.LeftButton != ButtonState.Pressed;
 
@@ -242,9 +247,28 @@ public partial class Game1
                 return;
             }
 
-            _game._hostSetupState.ClampMapScrollOffset(layout.VisibleRowCapacity);
-            HandleHostSetupListScroll(mouse, layout);
-            UpdateHostSetupHoverIndex(mouse, layout);
+            switch (_game._hostSetupScreen)
+            {
+                case HostSetupScreen.Options:
+                    _game.HandleHostSetupOptionsMenu(mouse, clickPressed);
+                    return;
+                case HostSetupScreen.Maps:
+                    HandleHostSetupMapsMenu(mouse, clickPressed, layout);
+                    return;
+                default:
+                    HandleHostSetupMainMenu(mouse, clickPressed, layout);
+                    return;
+            }
+        }
+
+        private void HandleHostSetupMainMenu(MouseState mouse, bool clickPressed, HostSetupMenuLayout layout)
+        {
+            HandleHostSetupContentScroll(mouse, layout);
+            if (_game.ScrollbarDrag.IsActive)
+            {
+                return;
+            }
+
             if (!clickPressed)
             {
                 return;
@@ -256,7 +280,18 @@ public partial class Game1
             }
 
             _game.ResetTextFieldClickTarget();
-            HandleHostSetupSettingsMenuClick(mouse, layout);
+            HandleHostSetupMainMenuClick(mouse, layout);
+        }
+
+        private void HandleHostSetupMapsMenu(MouseState mouse, bool clickPressed, HostSetupMenuLayout layout)
+        {
+            var mapsLayout = HostSetupMapsMenuLayoutCalculator.Create(
+                _game.ViewportWidth,
+                _game.ViewportHeight,
+                _game.IsServerLauncherMode);
+            var rightClickPressed = mouse.RightButton == ButtonState.Pressed
+                && _game._previousMouse.RightButton != ButtonState.Pressed;
+            _game.UpdateHostSetupMapsMenu(mouse, clickPressed, rightClickPressed, mapsLayout);
         }
 
         private bool TryHandleHostSetupTextFieldClick(MouseState mouse, HostSetupMenuLayout layout)
@@ -267,9 +302,6 @@ public partial class Game1
             var passwordBounds = _game.GetHostSetupScrolledContentBounds(layout.PasswordBounds);
             var rconPasswordBounds = _game.GetHostSetupScrolledContentBounds(layout.RconPasswordBounds);
             var rotationFileBounds = _game.GetHostSetupScrolledContentBounds(layout.RotationFileBounds);
-            var timeLimitBounds = _game.GetHostSetupScrolledContentBounds(layout.TimeLimitBounds);
-            var capLimitBounds = _game.GetHostSetupScrolledContentBounds(layout.CapLimitBounds);
-            var respawnBounds = _game.GetHostSetupScrolledContentBounds(layout.RespawnBounds);
             var clickPoint = mouse.Position;
 
             if (HostSetupContentContains(layout, serverNameBounds, clickPoint))
@@ -327,45 +359,31 @@ public partial class Game1
                 return true;
             }
 
+            var usePlaylistFileToggleBounds = HostSetupMainScreenLayout.GetUsePlaylistFileToggleBounds(
+                rotationFileBounds,
+                layout.CompactLayout);
+            if (HostSetupContentContains(layout, usePlaylistFileToggleBounds, clickPoint))
+            {
+                _game._hostUsePlaylistFile = !_game._hostUsePlaylistFile;
+                if (!_game._hostUsePlaylistFile && _game._hostSetupEditField == HostSetupEditField.MapRotationFile)
+                {
+                    FocusHostSetupField(HostSetupEditField.None);
+                }
+
+                return true;
+            }
+
             if (HostSetupContentContains(layout, rotationFileBounds, clickPoint))
             {
+                if (!_game._hostUsePlaylistFile)
+                {
+                    return true;
+                }
+
                 FocusHostSetupField(HostSetupEditField.MapRotationFile);
                 if (_game.IsTextFieldDoubleClick(TextFieldClickTarget.HostSetupMapRotationFile))
                 {
                     _game.SelectAllTextInActiveField(TextFieldClickTarget.HostSetupMapRotationFile);
-                }
-
-                return true;
-            }
-
-            if (HostSetupContentContains(layout, timeLimitBounds, clickPoint))
-            {
-                FocusHostSetupField(HostSetupEditField.TimeLimit);
-                if (_game.IsTextFieldDoubleClick(TextFieldClickTarget.HostSetupTimeLimit))
-                {
-                    _game.SelectAllTextInActiveField(TextFieldClickTarget.HostSetupTimeLimit);
-                }
-
-                return true;
-            }
-
-            if (HostSetupContentContains(layout, capLimitBounds, clickPoint))
-            {
-                FocusHostSetupField(HostSetupEditField.CapLimit);
-                if (_game.IsTextFieldDoubleClick(TextFieldClickTarget.HostSetupCapLimit))
-                {
-                    _game.SelectAllTextInActiveField(TextFieldClickTarget.HostSetupCapLimit);
-                }
-
-                return true;
-            }
-
-            if (HostSetupContentContains(layout, respawnBounds, clickPoint))
-            {
-                FocusHostSetupField(HostSetupEditField.RespawnSeconds);
-                if (_game.IsTextFieldDoubleClick(TextFieldClickTarget.HostSetupRespawnSeconds))
-                {
-                    _game.SelectAllTextInActiveField(TextFieldClickTarget.HostSetupRespawnSeconds);
                 }
 
                 return true;
@@ -397,7 +415,22 @@ public partial class Game1
                     break;
                 case '\r':
                 case '\n':
-                    _game.TryHostFromSetup();
+                    if (_game._hostSetupScreen == HostSetupScreen.Options)
+                    {
+                        _game._hostSetupState.NavigateToMainScreen();
+                        FocusHostSetupField(HostSetupEditField.ServerName);
+                    }
+                    else if (_game._hostSetupScreen == HostSetupScreen.Maps)
+                    {
+                        _game.CloseAllHostSetupMapPreviews();
+                        _game._hostSetupState.ConfirmMapsScreen();
+                        FocusHostSetupField(HostSetupEditField.ServerName);
+                    }
+                    else
+                    {
+                        _game.TryHostFromSetup();
+                    }
+
                     break;
                 default:
                     _game.HandleHostSetupFieldCharacterInput(character);
@@ -423,6 +456,7 @@ public partial class Game1
         public void SelectHostSetupSettingsTab()
         {
             _game._hostSetupTab = HostSetupTab.Settings;
+            _game._hostSetupState.NavigateToMainScreen();
             FocusHostSetupField(HostSetupEditField.ServerName);
         }
 
@@ -573,6 +607,42 @@ public partial class Game1
                 return;
             }
 
+            HandleHostSetupContentScroll(mouse, layout, wheelDelta, stepCount);
+        }
+
+        private void HandleHostSetupContentScroll(MouseState mouse, HostSetupMenuLayout layout, int wheelDelta = 0, int stepCount = 0)
+        {
+            var contentHeight = Game1.GetHostSetupContentHeight(layout);
+            var maxContentScroll = Math.Max(0, contentHeight - layout.ContentViewportBounds.Height);
+            var hostSetupContentScrollOffset = _game._hostSetupContentScrollOffset;
+            if (maxContentScroll > 0
+                && _game.TryHandleScrollbarRangeDrag(
+                    mouse,
+                    _game._previousMouse,
+                    ScrollbarOwners.HostSetupContent,
+                    layout.ContentScrollbarTrackBounds,
+                    ref hostSetupContentScrollOffset,
+                    maxContentScroll,
+                    layout.ContentViewportBounds.Height,
+                    contentHeight))
+            {
+                _game._hostSetupContentScrollOffset = hostSetupContentScrollOffset;
+                return;
+            }
+
+            _game._hostSetupContentScrollOffset = hostSetupContentScrollOffset;
+
+            if (wheelDelta == 0)
+            {
+                wheelDelta = mouse.ScrollWheelValue - _game._previousMouse.ScrollWheelValue;
+                if (wheelDelta == 0)
+                {
+                    return;
+                }
+
+                stepCount = Math.Max(1, Math.Abs(wheelDelta) / 120);
+            }
+
             if (layout.ContentViewportBounds.Contains(mouse.Position))
             {
                 _game._hostSetupContentScrollOffset = Math.Clamp(
@@ -582,7 +652,7 @@ public partial class Game1
             }
         }
 
-        private void HandleHostSetupSettingsMenuClick(MouseState mouse, HostSetupMenuLayout layout)
+        private void HandleHostSetupMainMenuClick(MouseState mouse, HostSetupMenuLayout layout)
         {
             var serverNameBounds = _game.GetHostSetupScrolledContentBounds(layout.ServerNameBounds);
             var portBounds = _game.GetHostSetupScrolledContentBounds(layout.PortBounds);
@@ -590,16 +660,9 @@ public partial class Game1
             var passwordBounds = _game.GetHostSetupScrolledContentBounds(layout.PasswordBounds);
             var rconPasswordBounds = _game.GetHostSetupScrolledContentBounds(layout.RconPasswordBounds);
             var rotationFileBounds = _game.GetHostSetupScrolledContentBounds(layout.RotationFileBounds);
-            var timeLimitBounds = _game.GetHostSetupScrolledContentBounds(layout.TimeLimitBounds);
-            var capLimitBounds = _game.GetHostSetupScrolledContentBounds(layout.CapLimitBounds);
-            var respawnBounds = _game.GetHostSetupScrolledContentBounds(layout.RespawnBounds);
-            var listRowsBounds = _game.GetHostSetupScrolledContentBounds(layout.ListRowsBounds);
-            var toggleBounds = _game.GetHostSetupScrolledContentBounds(layout.ToggleBounds);
-            var moveUpBounds = _game.GetHostSetupScrolledContentBounds(layout.MoveUpBounds);
-            var moveDownBounds = _game.GetHostSetupScrolledContentBounds(layout.MoveDownBounds);
             var lobbyBounds = _game.GetHostSetupScrolledContentBounds(layout.LobbyBounds);
-            var autoBalanceBounds = _game.GetHostSetupScrolledContentBounds(layout.AutoBalanceBounds);
-            var secondaryAbilitiesBounds = _game.GetHostSetupScrolledContentBounds(layout.SecondaryAbilitiesBounds);
+            var optionsButtonBounds = _game.GetHostSetupScrolledContentBounds(layout.OptionsButtonBounds);
+            var mapsButtonBounds = _game.GetHostSetupScrolledContentBounds(layout.MapsButtonBounds);
 
             if (HostSetupContentContains(layout, serverNameBounds, mouse.Position))
             {
@@ -631,52 +694,27 @@ public partial class Game1
                 return;
             }
 
+            var usePlaylistFileToggleBounds = HostSetupMainScreenLayout.GetUsePlaylistFileToggleBounds(
+                rotationFileBounds,
+                layout.CompactLayout);
+            if (HostSetupContentContains(layout, usePlaylistFileToggleBounds, mouse.Position))
+            {
+                _game._hostUsePlaylistFile = !_game._hostUsePlaylistFile;
+                if (!_game._hostUsePlaylistFile && _game._hostSetupEditField == HostSetupEditField.MapRotationFile)
+                {
+                    FocusHostSetupField(HostSetupEditField.None);
+                }
+
+                return;
+            }
+
             if (HostSetupContentContains(layout, rotationFileBounds, mouse.Position))
             {
-                FocusHostSetupField(HostSetupEditField.MapRotationFile);
-                return;
-            }
+                if (_game._hostUsePlaylistFile)
+                {
+                    FocusHostSetupField(HostSetupEditField.MapRotationFile);
+                }
 
-            if (HostSetupContentContains(layout, timeLimitBounds, mouse.Position))
-            {
-                FocusHostSetupField(HostSetupEditField.TimeLimit);
-                return;
-            }
-
-            if (HostSetupContentContains(layout, capLimitBounds, mouse.Position))
-            {
-                FocusHostSetupField(HostSetupEditField.CapLimit);
-                return;
-            }
-
-            if (HostSetupContentContains(layout, respawnBounds, mouse.Position))
-            {
-                FocusHostSetupField(HostSetupEditField.RespawnSeconds);
-                return;
-            }
-
-            if (_game._hostSetupHoverIndex >= 0 && HostSetupContentContains(layout, listRowsBounds, mouse.Position))
-            {
-                _game._hostMapIndex = _game._hostSetupHoverIndex;
-                ClearHostSetupFocus();
-                return;
-            }
-
-            if (HostSetupContentContains(layout, toggleBounds, mouse.Position))
-            {
-                _game.ToggleSelectedHostMap();
-                return;
-            }
-
-            if (HostSetupContentContains(layout, moveUpBounds, mouse.Position))
-            {
-                _game.MoveSelectedHostMap(-1);
-                return;
-            }
-
-            if (HostSetupContentContains(layout, moveDownBounds, mouse.Position))
-            {
-                _game.MoveSelectedHostMap(1);
                 return;
             }
 
@@ -686,15 +724,27 @@ public partial class Game1
                 return;
             }
 
-            if (HostSetupContentContains(layout, autoBalanceBounds, mouse.Position))
+            if (HostSetupContentContains(layout, optionsButtonBounds, mouse.Position))
             {
-                _game._hostAutoBalanceEnabled = !_game._hostAutoBalanceEnabled;
+                _game._hostSetupState.NavigateToOptionsScreen();
                 return;
             }
 
-            if (HostSetupContentContains(layout, secondaryAbilitiesBounds, mouse.Position))
+            if (HostSetupContentContains(layout, mapsButtonBounds, mouse.Position))
             {
-                _game._hostSecondaryAbilitiesEnabled = !_game._hostSecondaryAbilitiesEnabled;
+                if (_game._hostUsePlaylistFile)
+                {
+                    return;
+                }
+
+                _game._hostSetupState.NavigateToMapsScreen();
+                var mapsLayout = HostSetupMenuLayoutCalculator.CreateMenuLayout(
+                    _game.ViewportWidth,
+                    _game.ViewportHeight,
+                    _game._hostMapEntries.Count,
+                    _game.IsServerLauncherMode,
+                    HostSetupScreen.Maps);
+                _game._hostSetupState.ClampMapScrollOffset(mapsLayout.VisibleRowCapacity);
                 return;
             }
 

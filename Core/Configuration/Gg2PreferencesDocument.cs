@@ -241,6 +241,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(SettingsSection, "Playercard Size", Math.Clamp(PlayerCardSizeMode, 0, 2));
 
         ini.SetString(ServerSection, "MapRotation", HostSettings.MapRotationFile);
+        ini.SetBool(ServerSection, "UsePlaylistFile", HostSettings.UsePlaylistFile);
         ini.SetBool(ServerSection, "Dedicated", HostSettings.DedicatedModeEnabled);
         ini.SetString(ServerSection, "ServerName", HostSettings.ServerName);
         ini.SetInt(ServerSection, "CapLimit", HostSettings.CapLimit);
@@ -266,6 +267,17 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(ServerAdvancedSection, "BotAutofillPerTeam", HostSettings.BotAutofillPerTeam);
         ini.SetBool(ServerAdvancedSection, "CompetitiveReadyUpEnabled", HostSettings.CompetitiveReadyUpEnabled);
         ini.SetInt(ServerAdvancedSection, "CompetitiveSetupSeconds", HostSettings.CompetitiveSetupSeconds);
+        ini.SetBool(ServerAdvancedSection, "RandomSpreadEnabled", HostSettings.RandomSpreadEnabled);
+        ini.SetBool(ServerAdvancedSection, "SniperAimIndicatorEnabled", HostSettings.SniperAimIndicatorEnabled);
+        ini.SetBool(ServerAdvancedSection, "RoundEndFriendlyFireEnabled", HostSettings.RoundEndFriendlyFireEnabled);
+        ini.SetFloat(ServerAdvancedSection, "PlayerScale", HostSettings.PlayerScale);
+        ini.SetFloat(ServerAdvancedSection, "MapScale", HostSettings.MapScale);
+        ini.SetFloat(ServerAdvancedSection, "MovementSpeedScale", HostSettings.MovementSpeedScale);
+        ini.SetFloat(ServerAdvancedSection, "ProjectileSpeedScale", HostSettings.ProjectileSpeedScale);
+        ini.SetFloat(ServerAdvancedSection, "DamageScale", HostSettings.DamageScale);
+        ini.SetFloat(ServerAdvancedSection, "GravityScale", HostSettings.GravityScale);
+        ini.SetFloat(ServerAdvancedSection, "HorizontalSpeedClampPerTick", HostSettings.HorizontalSpeedClampPerTick);
+        ini.SetFloat(ServerAdvancedSection, "VerticalSpeedClampPerTick", HostSettings.VerticalSpeedClampPerTick);
         ini.SetInt(ServerAdvancedSection, "MaxPlayableClients", MaxPlayableClients);
         ini.SetInt(ServerAdvancedSection, "MaxTotalClients", MaxTotalClients);
         ini.SetInt(ServerAdvancedSection, "MaxSpectatorClients", MaxSpectatorClients);
@@ -389,13 +401,35 @@ public sealed class OpenGarrisonHostSettings
 
     public bool RandomSpreadEnabled { get; set; } = true;
 
+    public bool SniperAimIndicatorEnabled { get; set; } = true;
+
+    public bool RoundEndFriendlyFireEnabled { get; set; }
+
     public bool CompetitiveReadyUpEnabled { get; set; }
 
     public int CompetitiveSetupSeconds { get; set; } = 10;
 
+    public float PlayerScale { get; set; } = 1f;
+
+    public float MapScale { get; set; } = 1f;
+
+    public float MovementSpeedScale { get; set; } = 1f;
+
+    public float ProjectileSpeedScale { get; set; } = 1f;
+
+    public float DamageScale { get; set; } = 1f;
+
+    public float GravityScale { get; set; } = 1f;
+
+    public float HorizontalSpeedClampPerTick { get; set; } = LegacyMovementModel.MaxStepSpeedPerTick;
+
+    public float VerticalSpeedClampPerTick { get; set; } = LegacyMovementModel.MaxStepSpeedPerTick;
+
     public bool DedicatedModeEnabled { get; set; }
 
     public string MapRotationFile { get; set; } = string.Empty;
+
+    public bool UsePlaylistFile { get; set; }
 
     public List<OpenGarrisonMapRotationEntry> StockMapRotation { get; set; } = OpenGarrisonStockMapCatalog.CreateDefaultEntries();
 
@@ -467,10 +501,21 @@ public sealed class OpenGarrisonHostSettings
             AutoBalanceEnabled = AutoBalanceEnabled,
             SecondaryAbilitiesEnabled = SecondaryAbilitiesEnabled,
             RandomSpreadEnabled = RandomSpreadEnabled,
+            SniperAimIndicatorEnabled = SniperAimIndicatorEnabled,
+            RoundEndFriendlyFireEnabled = RoundEndFriendlyFireEnabled,
             CompetitiveReadyUpEnabled = CompetitiveReadyUpEnabled,
             CompetitiveSetupSeconds = CompetitiveSetupSeconds,
+            PlayerScale = PlayerScale,
+            MapScale = MapScale,
+            MovementSpeedScale = MovementSpeedScale,
+            ProjectileSpeedScale = ProjectileSpeedScale,
+            DamageScale = DamageScale,
+            GravityScale = GravityScale,
+            HorizontalSpeedClampPerTick = HorizontalSpeedClampPerTick,
+            VerticalSpeedClampPerTick = VerticalSpeedClampPerTick,
             DedicatedModeEnabled = DedicatedModeEnabled,
             MapRotationFile = MapRotationFile,
+            UsePlaylistFile = UsePlaylistFile,
             StockMapRotation = StockMapRotation.Select(entry => entry.Clone()).ToList(),
         };
     }
@@ -503,10 +548,30 @@ public sealed class OpenGarrisonHostSettings
             SecondaryAbilitiesEnabled = ini.ContainsKey("Server", "SpecialAbilities")
                 ? ini.GetBool("Server", "SpecialAbilities", true)
                 : ini.GetBool("Server", "SecondaryAbilities", true),
+            RandomSpreadEnabled = ini.ContainsKey("Server.Advanced", "RandomSpreadEnabled")
+                ? ini.GetBool("Server.Advanced", "RandomSpreadEnabled", true)
+                : true,
+            SniperAimIndicatorEnabled = ini.GetBool("Server.Advanced", "SniperAimIndicatorEnabled", true),
+            RoundEndFriendlyFireEnabled = ini.GetBool("Server.Advanced", "RoundEndFriendlyFireEnabled", false),
             CompetitiveReadyUpEnabled = ini.GetBool("Server.Advanced", "CompetitiveReadyUpEnabled", false),
             CompetitiveSetupSeconds = Math.Clamp(ini.GetInt("Server.Advanced", "CompetitiveSetupSeconds", 10), 0, 120),
+            PlayerScale = PlayerEntity.ClampPlayerScale(ini.GetFloat("Server.Advanced", "PlayerScale", 1f)),
+            MapScale = float.Clamp(ini.GetFloat("Server.Advanced", "MapScale", 1f), 0.25f, 4f),
+            MovementSpeedScale = float.Clamp(ini.GetFloat("Server.Advanced", "MovementSpeedScale", 1f), 0.1f, 4f),
+            ProjectileSpeedScale = float.Clamp(ini.GetFloat("Server.Advanced", "ProjectileSpeedScale", 1f), 0.1f, 4f),
+            DamageScale = float.Clamp(ini.GetFloat("Server.Advanced", "DamageScale", 1f), 0f, 10f),
+            GravityScale = float.Clamp(ini.GetFloat("Server.Advanced", "GravityScale", 1f), 0f, 4f),
+            HorizontalSpeedClampPerTick = float.Clamp(
+                ini.GetFloat("Server.Advanced", "HorizontalSpeedClampPerTick", LegacyMovementModel.MaxStepSpeedPerTick),
+                1f,
+                60f),
+            VerticalSpeedClampPerTick = float.Clamp(
+                ini.GetFloat("Server.Advanced", "VerticalSpeedClampPerTick", LegacyMovementModel.MaxStepSpeedPerTick),
+                1f,
+                60f),
             DedicatedModeEnabled = ini.GetBool("Server", "Dedicated", false),
             MapRotationFile = ini.GetString("Server", "MapRotation", string.Empty),
+            UsePlaylistFile = ini.GetBool("Server", "UsePlaylistFile", false),
             StockMapRotation = OpenGarrisonStockMapCatalog.LoadFrom(ini, legacySelectedMap),
         };
     }
@@ -668,7 +733,7 @@ public static class OpenGarrisonStockMapCatalog
         {
             var configuredEntry = entryList.FirstOrDefault(candidate =>
                 string.Equals(candidate.IniKey, entry.IniKey, StringComparison.OrdinalIgnoreCase));
-            ini.SetInt(MapsSection, entry.IniKey, Math.Max(0, configuredEntry?.Order ?? entry.DefaultOrder));
+            ini.SetInt(MapsSection, entry.IniKey, Math.Max(0, configuredEntry?.Order ?? 0));
         }
 
         foreach (var entry in entryList.Where(entry => entry.IsCustomMap || !TryGetDefinition(entry.LevelName, out _)))
@@ -695,6 +760,15 @@ public static class OpenGarrisonStockMapCatalog
         return GetOrderedEntries(entries)
             .Where(entry => entry.Order > 0)
             .Select(entry => entry.LevelName)
+            .ToArray();
+    }
+
+    public static IReadOnlyList<string> GetDefaultPlaylistIniKeys()
+    {
+        return Definitions
+            .Where(definition => definition.DefaultOrder > 0)
+            .OrderBy(definition => definition.DefaultOrder)
+            .Select(definition => definition.IniKey)
             .ToArray();
     }
 

@@ -79,7 +79,8 @@ var server = new GameServer(
     transientEventReplayTicks,
     launchOptions.Settings.PersistentGameplayOwnershipEnabled,
     launchOptions.Settings.PersistentGameplayOwnershipIdentityMode,
-    launchOptions.Settings.PersistentGameplayOwnershipFile);
+    launchOptions.Settings.PersistentGameplayOwnershipFile,
+    launchOptions.Settings.HostDefaults);
 
 using var shutdownCts = new CancellationTokenSource();
 var sessionInfo = new HostedServerSessionInfo

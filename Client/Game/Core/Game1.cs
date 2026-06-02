@@ -58,7 +58,9 @@ public partial class Game1 : Game
         TimeLimit,
         CapLimit,
         RespawnSeconds,
+        AdvancedCvar,
         ServerConsoleCommand,
+        MapNameFilter,
     }
 
     private enum HostSetupTab
