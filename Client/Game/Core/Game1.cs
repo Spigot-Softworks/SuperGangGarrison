@@ -106,6 +106,21 @@ public partial class Game1 : Game
         CustomBubble,
     }
 
+    private enum ControllerControlsMenuBinding
+    {
+        Jump,
+        PrimaryFire,
+        SecondaryFire,
+        UseAbility,
+        Interact,
+        SwapWeapon,
+        Scoreboard,
+        Pause,
+        AimDistance,
+        ChangeTeam,
+        ChangeClass,
+    }
+
     private const int ProcessedNetworkEventHistoryLimit = 4096;
     private readonly GameStartupMode _startupMode;
     private readonly FrameController _frameController;

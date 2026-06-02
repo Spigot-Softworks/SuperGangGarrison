@@ -109,7 +109,7 @@ public partial class Game1
                 _gameplayLoadoutMenuAwaitingEscapeRelease = false;
             }
         }
-        else if (IsKeyPressed(keyboard, Keys.Escape))
+        else if (IsKeyPressed(keyboard, Keys.Escape) || IsControllerMenuBackPressed())
         {
             CloseGameplayLoadoutMenu();
             OpenInGameMenu();
@@ -126,7 +126,25 @@ public partial class Game1
         }
 
         var buttons = BuildGameplayLoadoutMenuButtons();
-        _gameplayLoadoutMenuHoverIndex = GameplayLoadoutMenuState.GetHoveredButtonIndex(mouse, buttons);
+        if (TryUpdateGameplayLoadoutControllerInput(buttons))
+        {
+            AdvanceGameplayLoadoutMenuPortraitAnimation(GetGameplayLoadoutMenuSafeViewedClass());
+            return;
+        }
+
+        if (ShouldUseMouseMenuHover(mouse))
+        {
+            _gameplayLoadoutMenuHoverIndex = GameplayLoadoutMenuState.GetHoveredButtonIndex(mouse, buttons);
+        }
+        else if (IsControllerMenuInputActive() && _gameplayLoadoutMenuHoverIndex < 0 && buttons.Count > 0)
+        {
+            _gameplayLoadoutMenuHoverIndex = GetGameplayLoadoutClassButtonIndex(buttons, GetGameplayLoadoutMenuSafeViewedClass());
+            if (_gameplayLoadoutMenuHoverIndex < 0)
+            {
+                _gameplayLoadoutMenuHoverIndex = 0;
+            }
+        }
+
         AdvanceGameplayLoadoutMenuPortraitAnimation(GetGameplayLoadoutMenuSafeViewedClass());
 
         var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
@@ -136,6 +154,89 @@ public partial class Game1
         }
 
         buttons[_gameplayLoadoutMenuHoverIndex].Activate();
+    }
+
+    private bool TryUpdateGameplayLoadoutControllerInput(List<GameplayLoadoutMenuButton> buttons)
+    {
+        if (!IsControllerMenuInputActive())
+        {
+            return false;
+        }
+
+        if (TryConsumeControllerMenuNavigation(out var horizontalStep, out var verticalStep))
+        {
+            if (horizontalStep != 0)
+            {
+                var classButtonIndex = GetGameplayLoadoutClassButtonIndex(buttons, _gameplayLoadoutMenuHoverIndex);
+                if (classButtonIndex >= 0)
+                {
+                    var nextClassButtonIndex = MoveControllerMenuSelectionClamped(
+                        classButtonIndex,
+                        GameplayLoadoutMenuPresentation.ClassStripOrder.Length,
+                        horizontalStep);
+                    _gameplayLoadoutMenuHoverIndex = nextClassButtonIndex;
+                    buttons[nextClassButtonIndex].Activate();
+                    return true;
+                }
+
+                ShiftGameplayLoadoutViewedClass(horizontalStep);
+                _gameplayLoadoutMenuHoverIndex = GetGameplayLoadoutClassButtonIndex(buttons, GetGameplayLoadoutMenuSafeViewedClass());
+                if (_gameplayLoadoutMenuHoverIndex < 0 && buttons.Count > 0)
+                {
+                    _gameplayLoadoutMenuHoverIndex = 0;
+                }
+
+                return true;
+            }
+
+            if (verticalStep != 0)
+            {
+                _gameplayLoadoutMenuHoverIndex = MoveControllerMenuSelection(
+                    _gameplayLoadoutMenuHoverIndex,
+                    buttons.Count,
+                    verticalStep);
+                return true;
+            }
+        }
+
+        if (IsControllerMenuConfirmPressed())
+        {
+            if (_gameplayLoadoutMenuHoverIndex < 0 && buttons.Count > 0)
+            {
+                _gameplayLoadoutMenuHoverIndex = 0;
+            }
+
+            if (_gameplayLoadoutMenuHoverIndex >= 0 && _gameplayLoadoutMenuHoverIndex < buttons.Count)
+            {
+                buttons[_gameplayLoadoutMenuHoverIndex].Activate();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static int GetGameplayLoadoutClassButtonIndex(List<GameplayLoadoutMenuButton> buttons, int buttonIndex)
+    {
+        return buttonIndex >= 0
+            && buttonIndex < buttons.Count
+            && buttons[buttonIndex].Kind == GameplayLoadoutMenuButtonKind.Class
+            ? buttonIndex
+            : -1;
+    }
+
+    private static int GetGameplayLoadoutClassButtonIndex(List<GameplayLoadoutMenuButton> buttons, PlayerClass playerClass)
+    {
+        for (var index = 0; index < buttons.Count; index += 1)
+        {
+            if (buttons[index].Kind == GameplayLoadoutMenuButtonKind.Class
+                && buttons[index].ClassId == playerClass)
+            {
+                return index;
+            }
+        }
+
+        return -1;
     }
 
     private void DrawGameplayLoadoutMenu()

@@ -90,7 +90,8 @@ public partial class Game1
             switch (GetActiveOverlay())
             {
                 case MainMenuOverlayKind.HostSetup:
-                    if (keyboard.IsKeyDown(Keys.Escape) && !_game._previousKeyboard.IsKeyDown(Keys.Escape))
+                    if ((keyboard.IsKeyDown(Keys.Escape) && !_game._previousKeyboard.IsKeyDown(Keys.Escape))
+                        || _game.IsControllerMenuBackPressed())
                     {
                         if (!_game.TryHandleServerLauncherBackAction())
                         {

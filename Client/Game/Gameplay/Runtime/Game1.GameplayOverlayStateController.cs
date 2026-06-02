@@ -47,6 +47,7 @@ public partial class Game1
             _game._quitPromptOpen = false;
             _game._quitPromptHoverIndex = -1;
             _game._pendingControlsBinding = null;
+            _game._pendingControllerControlsBinding = null;
         }
 
         private void CloseJoinAndCommunicationOverlays()

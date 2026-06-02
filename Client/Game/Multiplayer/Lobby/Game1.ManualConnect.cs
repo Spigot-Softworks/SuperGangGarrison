@@ -8,6 +8,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private int _manualConnectControllerIndex;
+
     private void UpdateManualConnectMenu(KeyboardState keyboard, MouseState mouse)
     {
         GetManualConnectLayout(
@@ -18,7 +20,8 @@ public partial class Game1
             out var backBounds,
             out _);
 
-        if (keyboard.IsKeyDown(Keys.Escape) && !_previousKeyboard.IsKeyDown(Keys.Escape))
+        if ((keyboard.IsKeyDown(Keys.Escape) && !_previousKeyboard.IsKeyDown(Keys.Escape))
+            || IsControllerMenuBackPressed())
         {
             CloseManualConnectMenu(clearStatus: false);
             return;
@@ -35,6 +38,11 @@ public partial class Game1
             return;
         }
 
+        if (TryUpdateManualConnectControllerInput())
+        {
+            return;
+        }
+
         var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
         if (!clickPressed)
         {
@@ -44,6 +52,7 @@ public partial class Game1
         var point = new Point(mouse.X, mouse.Y);
         if (hostBounds.Contains(point))
         {
+            _manualConnectControllerIndex = 0;
             _connectionFlowController.SetManualConnectEditingField(editHost: true);
             if (IsTextFieldDoubleClick(TextFieldClickTarget.ManualConnectHost))
             {
@@ -52,6 +61,7 @@ public partial class Game1
         }
         else if (portBounds.Contains(point))
         {
+            _manualConnectControllerIndex = 1;
             _connectionFlowController.SetManualConnectEditingField(editHost: false);
             if (IsTextFieldDoubleClick(TextFieldClickTarget.ManualConnectPort))
             {
@@ -63,12 +73,72 @@ public partial class Game1
             ResetTextFieldClickTarget();
             if (connectBounds.Contains(point))
             {
+                _manualConnectControllerIndex = 2;
                 TryConnectFromMenu();
             }
             else if (backBounds.Contains(point))
             {
+                _manualConnectControllerIndex = 3;
                 CloseManualConnectMenu(clearStatus: false);
             }
+        }
+    }
+
+    private bool TryUpdateManualConnectControllerInput()
+    {
+        if (!IsControllerMenuInputActive())
+        {
+            return false;
+        }
+
+        if (TryConsumeControllerMenuNavigation(out var horizontalStep, out var verticalStep))
+        {
+            var step = verticalStep != 0 ? verticalStep : horizontalStep;
+            if (step != 0)
+            {
+                _manualConnectControllerIndex = MoveControllerMenuSelectionClamped(_manualConnectControllerIndex, 4, step);
+                ApplyManualConnectControllerSelection();
+                return true;
+            }
+        }
+
+        if (!IsControllerMenuConfirmPressed())
+        {
+            return false;
+        }
+
+        switch (_manualConnectControllerIndex)
+        {
+            case 0:
+                _connectionFlowController.SetManualConnectEditingField(editHost: true);
+                break;
+            case 1:
+                _connectionFlowController.SetManualConnectEditingField(editHost: false);
+                break;
+            case 2:
+                TryConnectFromMenu();
+                break;
+            default:
+                CloseManualConnectMenu(clearStatus: false);
+                break;
+        }
+
+        return true;
+    }
+
+    private void ApplyManualConnectControllerSelection()
+    {
+        if (_manualConnectControllerIndex == 0)
+        {
+            _connectionFlowController.SetManualConnectEditingField(editHost: true);
+        }
+        else if (_manualConnectControllerIndex == 1)
+        {
+            _connectionFlowController.SetManualConnectEditingField(editHost: false);
+        }
+        else
+        {
+            _connectionFlowController.DisableManualConnectEditing();
         }
     }
 
@@ -76,7 +146,7 @@ public partial class Game1
     {
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
-        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.78f);
+        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.86f);
 
         // Draw bottom bar and runners (in animated mode only) - behind everything else
         if (_menuBackgroundMode != MenuBackgroundMode.Static)
@@ -97,6 +167,7 @@ public partial class Game1
             out var compactLayout);
         const float labelScale = 1f;
         const float buttonScale = 1f;
+        var mouse = GetScaledMouseState(GetConstrainedMouseState(Game1.GetCurrentMouseState()));
         DrawRoundedRectangleOutline(panel, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 2, radius: 8);
 
         DrawBitmapFontText("Host", new Vector2(hostBounds.X, hostBounds.Y - 16f), Color.White, labelScale);
@@ -105,19 +176,29 @@ public partial class Game1
         DrawMenuInputBoxScaled(
             hostBounds,
             _connectHostBuffer,
-            _editingConnectHost,
+            _editingConnectHost || hostBounds.Contains(mouse.Position),
             buttonScale,
             _connectHostCursorIndex,
             _connectHostSelectionStart);
         DrawMenuInputBoxScaled(
             portBounds,
             _connectPortBuffer,
-            _editingConnectPort,
+            _editingConnectPort || portBounds.Contains(mouse.Position),
             buttonScale,
             _connectPortCursorIndex,
             _connectPortSelectionStart);
-        DrawMenuButtonScaled(connectBounds, "Connect", false, buttonScale);
-        DrawMenuButtonScaled(backBounds, "Back", false, buttonScale);
+        DrawMenuButtonScaled(
+            connectBounds,
+            "Connect",
+            (IsControllerMenuInputActive() && _manualConnectControllerIndex == 2)
+                || connectBounds.Contains(mouse.Position),
+            buttonScale);
+        DrawMenuButtonScaled(
+            backBounds,
+            "Back",
+            (IsControllerMenuInputActive() && _manualConnectControllerIndex == 3)
+                || backBounds.Contains(mouse.Position),
+            buttonScale);
 
         if (!string.IsNullOrWhiteSpace(_menuStatusMessage))
         {

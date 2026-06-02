@@ -64,9 +64,20 @@ public partial class Game1
         }
         else if (_world.LocalPlayer.IsAlive && GetPlayerIsSniperScoped(_world.LocalPlayer))
         {
-            cameraTopLeft = new Vector2(
-                localViewPosition.X + mouseX - viewportWidth,
-                localViewPosition.Y + mouseY - viewportHeight);
+            if (IsControllerGameplayInputActive() && _hasLatestLocalAimWorldPosition)
+            {
+                var aimWorldPosition = new Vector2(_latestLocalAimWorldX, _latestLocalAimWorldY);
+                var scopedCameraCenter = (localViewPosition + aimWorldPosition) / 2f;
+                cameraTopLeft = new Vector2(
+                    scopedCameraCenter.X - (viewportWidth / 2f),
+                    scopedCameraCenter.Y - (viewportHeight / 2f));
+            }
+            else
+            {
+                cameraTopLeft = new Vector2(
+                    localViewPosition.X + mouseX - viewportWidth,
+                    localViewPosition.Y + mouseY - viewportHeight);
+            }
         }
         else
         {

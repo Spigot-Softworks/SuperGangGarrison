@@ -63,6 +63,7 @@ public partial class Game1
                 _game._previousKeyboard = keyboard;
                 _game._previousMouse = mouse;
             }
+            _game.UpdateControllerInputState(windowActive, keyboard, mouse);
 
             if (OperatingSystem.IsBrowser() && windowActive)
             {
@@ -125,7 +126,8 @@ public partial class Game1
 
         private bool TryHandlePasswordPromptCancel(KeyboardState keyboard, MouseState mouse)
         {
-            if (!_game._passwordPromptOpen || !keyboard.IsKeyDown(Keys.Escape) || _game._previousKeyboard.IsKeyDown(Keys.Escape))
+            var escapePressed = keyboard.IsKeyDown(Keys.Escape) && !_game._previousKeyboard.IsKeyDown(Keys.Escape);
+            if (!_game._passwordPromptOpen || (!escapePressed && !_game.IsControllerMenuBackPressed()))
             {
                 return false;
             }

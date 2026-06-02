@@ -14,6 +14,8 @@ public partial class Game1
         _pluginOptionsMenuOpen = false;
         CloseCreditsMenu();
         _controlsMenuOpen = false;
+        _pendingControlsBinding = null;
+        _pendingControllerControlsBinding = null;
 
         if (closeHostSetup)
         {

@@ -47,20 +47,50 @@ public partial class Game1
                     _game._debugMenuAwaitingEscapeRelease = false;
                 }
             }
-            else if (_game.IsKeyPressed(keyboard, Keys.Escape))
+            else if (_game.IsKeyPressed(keyboard, Keys.Escape) || _game.IsControllerMenuBackPressed())
             {
                 CloseDebugMenu();
                 return;
             }
 
-            _game._debugMenuHoverIndex = -1;
-            for (var index = 0; index < rowBounds.Length; index += 1)
+            if (_game.TryConsumeControllerMenuNavigation(out _, out var verticalStep) && verticalStep != 0)
             {
-                if (rowBounds[index].Contains(mouse.Position))
+                _game._debugMenuHoverIndex = MoveControllerMenuSelection(
+                    _game._debugMenuHoverIndex,
+                    rows.Count,
+                    verticalStep);
+            }
+            else if (_game.IsControllerMenuInputActive())
+            {
+                if (_game._debugMenuHoverIndex < 0 && rows.Count > 0)
                 {
-                    _game._debugMenuHoverIndex = index;
-                    break;
+                    _game._debugMenuHoverIndex = 0;
                 }
+            }
+            else
+            {
+                _game._debugMenuHoverIndex = -1;
+            }
+
+            if (_game.ShouldUseMouseMenuHover(mouse))
+            {
+                _game._debugMenuHoverIndex = -1;
+                for (var index = 0; index < rowBounds.Length; index += 1)
+                {
+                    if (rowBounds[index].Contains(mouse.Position))
+                    {
+                        _game._debugMenuHoverIndex = index;
+                        break;
+                    }
+                }
+            }
+
+            if (_game.IsControllerMenuConfirmPressed()
+                && _game._debugMenuHoverIndex >= 0
+                && _game._debugMenuHoverIndex < rows.Count)
+            {
+                rows[_game._debugMenuHoverIndex].Activate?.Invoke();
+                return;
             }
 
             var clickPressed = mouse.LeftButton == ButtonState.Pressed && _game._previousMouse.LeftButton != ButtonState.Pressed;

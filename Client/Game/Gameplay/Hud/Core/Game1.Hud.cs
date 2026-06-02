@@ -55,7 +55,8 @@ public partial class Game1
     private void UpdateScoreboardState(KeyboardState keyboard, MouseState mouse)
     {
         _scoreboardOpen = CanShowGameplayScoreboard()
-            && IsBindingDown(keyboard, mouse, _inputBindings.ShowScoreboard);
+            && (IsBindingDown(keyboard, mouse, _inputBindings.ShowScoreboard)
+                || IsControllerBindingDown(_clientSettings.ControllerScoreboardButton));
 
         if (_scoreboardOpen)
         {

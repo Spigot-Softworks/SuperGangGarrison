@@ -102,6 +102,8 @@ public partial class Game1
         _pluginOptionsMenuOpenedFromGameplay = false;
         _controlsMenuOpen = false;
         _controlsMenuOpenedFromGameplay = false;
+        _pendingControlsBinding = null;
+        _pendingControllerControlsBinding = null;
         _friendsMenuOpen = false;
         _inGameMenuOpen = false;
         _inGameMenuAwaitingEscapeRelease = false;

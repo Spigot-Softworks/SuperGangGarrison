@@ -60,10 +60,34 @@ public partial class Game1
         }
 
         var panelLeft = (ViewportWidth / 2f) - 400f;
-        _classSelectHoverIndex = GetClassSelectHoverIndex(mouse.X, mouse.Y, panelLeft);
+        var mouseHoverIndex = GetClassSelectHoverIndex(mouse.X, mouse.Y, panelLeft);
+        if (ShouldUseMouseMenuHover(mouse) && mouseHoverIndex >= 0)
+        {
+            _classSelectHoverIndex = mouseHoverIndex;
+        }
+        else if (!IsControllerMenuInputActive())
+        {
+            _classSelectHoverIndex = -1;
+        }
+
+        if (TryConsumeControllerMenuNavigation(out var horizontalStep, out _) && horizontalStep != 0)
+        {
+            _classSelectHoverIndex = MoveControllerMenuSelectionClamped(_classSelectHoverIndex, 10, horizontalStep);
+        }
+        else if (IsControllerMenuInputActive() && _classSelectHoverIndex < 0)
+        {
+            _classSelectHoverIndex = 0;
+        }
+
         AdvanceClassSelectPortraitAnimation();
+        if (IsControllerMenuBackPressed())
+        {
+            CloseGameplaySelectionMenus();
+            return;
+        }
+
         var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
-        if (!clickPressed || _classSelectHoverIndex < 0)
+        if ((!clickPressed && !IsControllerMenuConfirmPressed()) || _classSelectHoverIndex < 0)
         {
             return;
         }

@@ -85,7 +85,8 @@ public partial class Game1
             WriteGameplayRenderTrace("hud after experimentalhealing");
             DrawGameplayHudElements(11, 29);
             WriteGameplayRenderTrace("hud after ammo");
-            DrawSniperHud(mouse);
+            var aimScreenPosition = GetEffectiveAimScreenPosition(mouse, cameraPosition);
+            DrawSniperHud(aimScreenPosition);
             WriteGameplayRenderTrace("hud after sniper");
             DrawGameplayHudElements(30, 39);
             WriteGameplayRenderTrace("hud after medic");
@@ -183,7 +184,7 @@ public partial class Game1
         DrawLoadedSpriteFrame(crosshairSprite.Frames[frameIndex], screenPosition, null, Color.White, 0f, crosshairSprite.Origin.ToVector2(), Vector2.One, SpriteEffects.None, 0f);
     }
 
-    private void DrawGameplayModalOverlays(MouseState mouse)
+    private void DrawGameplayModalOverlays(MouseState mouse, Vector2 cameraPosition)
     {
         var browserModalDrawStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
         if (_gameplayHudHidden)
@@ -232,7 +233,15 @@ public partial class Game1
         }
         else if (CanDrawGameplayCrosshair())
         {
-            DrawCrosshair(mouse);
+            var aimScreenPosition = GetEffectiveAimScreenPosition(mouse, cameraPosition);
+            if (ShouldDrawControllerAimLine())
+            {
+                DrawControllerAimLine(cameraPosition, aimScreenPosition);
+            }
+            else
+            {
+                DrawCrosshair(aimScreenPosition);
+            }
             WriteGameplayRenderTrace("modal after crosshair");
         }
 

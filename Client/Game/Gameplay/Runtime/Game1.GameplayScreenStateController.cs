@@ -29,7 +29,9 @@ public partial class Game1
 
             var openPublicChatPressed = _game.CanUseGameplayChatShortcut() && _game.IsChatShortcutPressed(keyboard, Keys.Y);
             var openTeamChatPressed = _game.CanUseGameplayChatShortcut() && _game.IsChatShortcutPressed(keyboard, Keys.U);
-            var pausePressed = GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || escapePressed;
+            var controllerChangeTeamPressed = _game.IsControllerBindingPressed(_game._clientSettings.ControllerChangeTeamButton);
+            var controllerChangeClassPressed = _game.IsControllerBindingPressed(_game._clientSettings.ControllerChangeClassButton);
+            var pausePressed = _game.IsControllerBindingPressed(_game._clientSettings.ControllerPauseButton) || escapePressed;
 
             if (_game.CanOpenGameplayChat()
                 && (openPublicChatPressed || openTeamChatPressed))
@@ -53,11 +55,11 @@ public partial class Game1
 
             if (_game.CanToggleGameplaySelectionMenus())
             {
-                if (changeTeamPressed)
+                if (changeTeamPressed || controllerChangeTeamPressed)
                 {
                     _game.ToggleGameplayTeamSelection();
                 }
-                else if (!_game._world.LocalPlayerAwaitingJoin && changeClassPressed)
+                else if (!_game._world.LocalPlayerAwaitingJoin && (changeClassPressed || controllerChangeClassPressed))
                 {
                     _game.ToggleGameplayClassSelection();
                 }

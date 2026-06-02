@@ -39,7 +39,31 @@ public partial class Game1
         }
 
         var panelLeft = (ViewportWidth / 2f) - 400f;
-        _teamSelectHoverIndex = GetTeamSelectHoverIndex(mouse.X, mouse.Y, panelLeft);
+        var mouseHoverIndex = GetTeamSelectHoverIndex(mouse.X, mouse.Y, panelLeft);
+        if (ShouldUseMouseMenuHover(mouse) && mouseHoverIndex >= 0)
+        {
+            _teamSelectHoverIndex = mouseHoverIndex;
+        }
+        else if (!IsControllerMenuInputActive())
+        {
+            _teamSelectHoverIndex = -1;
+        }
+
+        if (TryConsumeControllerMenuNavigation(out var horizontalStep, out _) && horizontalStep != 0)
+        {
+            _teamSelectHoverIndex = MoveControllerMenuSelectionClamped(_teamSelectHoverIndex, 4, horizontalStep);
+        }
+        else if (IsControllerMenuInputActive() && _teamSelectHoverIndex < 0)
+        {
+            _teamSelectHoverIndex = 0;
+        }
+
+        if (IsControllerMenuBackPressed() && !_world.LocalPlayerAwaitingJoin)
+        {
+            CloseGameplaySelectionMenus();
+            return;
+        }
+
         var selectionFromKeyboard = GetTeamSelectKeyboardSelection(keyboard);
         if (selectionFromKeyboard >= 0)
         {
@@ -49,13 +73,18 @@ public partial class Game1
         }
 
         var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
-        if (!clickPressed || _teamSelectHoverIndex < 0)
+        var controllerConfirmPressed = IsControllerMenuConfirmPressed();
+        if ((!clickPressed && !controllerConfirmPressed) || _teamSelectHoverIndex < 0)
         {
             return;
         }
 
         SuppressPrimaryFireUntilMouseRelease();
         ApplyTeamSelection(_teamSelectHoverIndex);
+        if (controllerConfirmPressed)
+        {
+            ConsumeControllerMenuConfirmPress();
+        }
     }
 
     private void DrawTeamSelectHud()

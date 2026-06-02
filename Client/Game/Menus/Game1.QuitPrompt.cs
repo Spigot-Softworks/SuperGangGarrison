@@ -10,7 +10,7 @@ public partial class Game1
     private void OpenQuitPrompt()
     {
         _quitPromptOpen = true;
-        _quitPromptHoverIndex = -1;
+        _quitPromptHoverIndex = IsControllerMenuInputActive() ? 1 : -1;
     }
 
     private void CloseQuitPrompt()
@@ -26,7 +26,7 @@ public partial class Game1
             return false;
         }
 
-        if (IsKeyPressed(keyboard, Keys.Escape))
+        if (IsKeyPressed(keyboard, Keys.Escape) || IsControllerMenuBackPressed())
         {
             CloseQuitPrompt();
             return true;
@@ -39,11 +39,35 @@ public partial class Game1
         }
 
         GetQuitPromptLayout(out _, out var confirmBounds, out var cancelBounds, out _);
-        _quitPromptHoverIndex = confirmBounds.Contains(mouse.Position)
-            ? 0
-            : cancelBounds.Contains(mouse.Position)
-                ? 1
-                : -1;
+        if (TryConsumeControllerMenuNavigation(out var horizontalStep, out _) && horizontalStep != 0)
+        {
+            _quitPromptHoverIndex = MoveControllerMenuSelectionClamped(_quitPromptHoverIndex, 2, horizontalStep);
+        }
+        else if (IsControllerMenuInputActive() && _quitPromptHoverIndex < 0)
+        {
+            _quitPromptHoverIndex = 1;
+        }
+
+        if (ShouldUseMouseMenuHover(mouse))
+        {
+            _quitPromptHoverIndex = confirmBounds.Contains(mouse.Position)
+                ? 0
+                : cancelBounds.Contains(mouse.Position)
+                    ? 1
+                    : _quitPromptHoverIndex;
+        }
+
+        if (IsControllerMenuConfirmPressed())
+        {
+            if (_quitPromptHoverIndex == 0)
+            {
+                Exit();
+                return true;
+            }
+
+            CloseQuitPrompt();
+            return true;
+        }
 
         var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
         if (!clickPressed)

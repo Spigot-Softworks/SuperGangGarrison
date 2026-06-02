@@ -104,6 +104,86 @@ public partial class Game1
         return $"{ClientSettings.NormalizeDamageVignetteIntensityPercent(percent)}%";
     }
 
+    private static string GetControllerInputModeLabel(ControllerInputMode mode)
+    {
+        return OpenGarrisonPreferencesDocument.NormalizeControllerInputMode(mode) switch
+        {
+            ControllerInputMode.Off => "Off",
+            ControllerInputMode.On => "On",
+            _ => "Auto",
+        };
+    }
+
+    private static string GetControllerReticleModeLabel(ControllerReticleMode mode)
+    {
+        return OpenGarrisonPreferencesDocument.NormalizeControllerReticleMode(mode) switch
+        {
+            ControllerReticleMode.AimLine => "Aim Line",
+            _ => "Cursor",
+        };
+    }
+
+    private static string GetControllerPercentLabel(float value)
+    {
+        return $"{MathF.Round(value * 100f)}%";
+    }
+
+    private static string GetControllerPixelsLabel(float value)
+    {
+        return $"{MathF.Round(value)} px";
+    }
+
+    private static string GetControllerSpeedLabel(float value)
+    {
+        return $"{MathF.Round(value)} px/s";
+    }
+
+    private static readonly ControllerButtonBinding[] ControllerButtonBindingCycle =
+    [
+        ControllerButtonBinding.None,
+        ControllerButtonBinding.A,
+        ControllerButtonBinding.B,
+        ControllerButtonBinding.X,
+        ControllerButtonBinding.Y,
+        ControllerButtonBinding.LeftShoulder,
+        ControllerButtonBinding.RightShoulder,
+        ControllerButtonBinding.LeftTrigger,
+        ControllerButtonBinding.RightTrigger,
+        ControllerButtonBinding.Back,
+        ControllerButtonBinding.Start,
+        ControllerButtonBinding.LeftStick,
+        ControllerButtonBinding.RightStick,
+        ControllerButtonBinding.DPadUp,
+        ControllerButtonBinding.DPadDown,
+        ControllerButtonBinding.DPadLeft,
+        ControllerButtonBinding.DPadRight,
+    ];
+
+    private static string GetControllerButtonBindingLabel(ControllerButtonBinding binding)
+    {
+        return OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(binding) switch
+        {
+            ControllerButtonBinding.None => "Unbound",
+            ControllerButtonBinding.A => "Cross / A",
+            ControllerButtonBinding.B => "Circle / B",
+            ControllerButtonBinding.X => "Square / X",
+            ControllerButtonBinding.Y => "Triangle / Y",
+            ControllerButtonBinding.LeftShoulder => "L1 / LB",
+            ControllerButtonBinding.RightShoulder => "R1 / RB",
+            ControllerButtonBinding.LeftTrigger => "L2 / LT",
+            ControllerButtonBinding.RightTrigger => "R2 / RT",
+            ControllerButtonBinding.Back => "Share / Back",
+            ControllerButtonBinding.Start => "Options / Start",
+            ControllerButtonBinding.LeftStick => "L3",
+            ControllerButtonBinding.RightStick => "R3",
+            ControllerButtonBinding.DPadUp => "D-Pad Up",
+            ControllerButtonBinding.DPadDown => "D-Pad Down",
+            ControllerButtonBinding.DPadLeft => "D-Pad Left",
+            ControllerButtonBinding.DPadRight => "D-Pad Right",
+            var normalized => normalized.ToString(),
+        };
+    }
+
     private static string GetApplicationVersionLabel()
     {
         return _cachedApplicationVersionLabel ??= LoadApplicationVersionLabel();
@@ -336,6 +416,245 @@ public partial class Game1
             _ => WeaponSwapBindingMode.Space,
         };
         PersistInputBindings();
+    }
+
+    private void CycleControllerInputModeSetting()
+    {
+        _clientSettings.ControllerInputMode = OpenGarrisonPreferencesDocument.NormalizeControllerInputMode(_clientSettings.ControllerInputMode) switch
+        {
+            ControllerInputMode.Auto => ControllerInputMode.On,
+            ControllerInputMode.On => ControllerInputMode.Off,
+            _ => ControllerInputMode.Auto,
+        };
+        PersistClientSettings();
+    }
+
+    private void CycleControllerReticleModeSetting()
+    {
+        _clientSettings.ControllerReticleMode = OpenGarrisonPreferencesDocument.NormalizeControllerReticleMode(_clientSettings.ControllerReticleMode) switch
+        {
+            ControllerReticleMode.Cursor => ControllerReticleMode.AimLine,
+            _ => ControllerReticleMode.Cursor,
+        };
+        PersistClientSettings();
+    }
+
+    private void ToggleControllerAimAssistSetting()
+    {
+        _clientSettings.ControllerAimAssistEnabled = !_clientSettings.ControllerAimAssistEnabled;
+        PersistClientSettings();
+    }
+
+    private void ToggleControllerFlickToChangeDirectionsSetting()
+    {
+        _clientSettings.ControllerFlickToChangeDirections = !_clientSettings.ControllerFlickToChangeDirections;
+        PersistClientSettings();
+    }
+
+    private void CycleControllerAimAssistStrengthSetting()
+    {
+        AdjustControllerAimAssistStrengthSetting(0.1f);
+    }
+
+    private void AdjustControllerAimAssistStrengthSetting(float delta)
+    {
+        var current = OpenGarrisonPreferencesDocument.NormalizeControllerAimAssistStrength(_clientSettings.ControllerAimAssistStrength);
+        var next = current + delta;
+        if (next > 1f)
+        {
+            next = 0f;
+        }
+        else if (next < 0f)
+        {
+            next = 1f;
+        }
+
+        _clientSettings.ControllerAimAssistStrength = OpenGarrisonPreferencesDocument.NormalizeControllerAimAssistStrength(next);
+        PersistClientSettings();
+    }
+
+    private void CycleControllerAimDeadzoneSetting()
+    {
+        AdjustControllerAimDeadzoneSetting(0.05f);
+    }
+
+    private void AdjustControllerAimDeadzoneSetting(float delta)
+    {
+        var current = OpenGarrisonPreferencesDocument.NormalizeControllerAimDeadzone(_clientSettings.ControllerAimDeadzone);
+        var next = current + delta;
+        if (next > 0.5f)
+        {
+            next = 0.05f;
+        }
+        else if (next < 0.05f)
+        {
+            next = 0.5f;
+        }
+
+        _clientSettings.ControllerAimDeadzone = OpenGarrisonPreferencesDocument.NormalizeControllerAimDeadzone(next);
+        PersistClientSettings();
+    }
+
+    private void CycleControllerScopedPrecisionSpeedSetting()
+    {
+        AdjustControllerScopedPrecisionSpeedSetting(30f);
+    }
+
+    private void AdjustControllerScopedPrecisionSpeedSetting(float delta)
+    {
+        var current = OpenGarrisonPreferencesDocument.NormalizeControllerScopedPrecisionSpeed(_clientSettings.ControllerScopedPrecisionSpeed);
+        var next = current + delta;
+        if (next > 420f)
+        {
+            next = 60f;
+        }
+        else if (next < 60f)
+        {
+            next = 420f;
+        }
+
+        _clientSettings.ControllerScopedPrecisionSpeed = OpenGarrisonPreferencesDocument.NormalizeControllerScopedPrecisionSpeed(next);
+        PersistClientSettings();
+    }
+
+    private void CycleControllerAimDistanceTier1Setting()
+    {
+        AdjustControllerAimDistanceTier1Setting(16f);
+    }
+
+    private void AdjustControllerAimDistanceTier1Setting(float delta)
+    {
+        _clientSettings.ControllerAimDistanceTier1 = AdjustControllerAimDistance(
+            _clientSettings.ControllerAimDistanceTier1,
+            OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier1,
+            delta);
+        PersistClientSettings();
+    }
+
+    private void CycleControllerAimDistanceTier2Setting()
+    {
+        AdjustControllerAimDistanceTier2Setting(16f);
+    }
+
+    private void AdjustControllerAimDistanceTier2Setting(float delta)
+    {
+        _clientSettings.ControllerAimDistanceTier2 = AdjustControllerAimDistance(
+            _clientSettings.ControllerAimDistanceTier2,
+            OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier2,
+            delta);
+        PersistClientSettings();
+    }
+
+    private void CycleControllerAimDistanceTier3Setting()
+    {
+        AdjustControllerAimDistanceTier3Setting(16f);
+    }
+
+    private void AdjustControllerAimDistanceTier3Setting(float delta)
+    {
+        _clientSettings.ControllerAimDistanceTier3 = AdjustControllerAimDistance(
+            _clientSettings.ControllerAimDistanceTier3,
+            OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier3,
+            delta);
+        PersistClientSettings();
+    }
+
+    private static float AdjustControllerAimDistance(float current, float fallback, float delta)
+    {
+        var normalized = OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(current, fallback);
+        var next = normalized + delta;
+        if (next > 320f)
+        {
+            next = 48f;
+        }
+        else if (next < 48f)
+        {
+            next = 320f;
+        }
+
+        return OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(next, fallback);
+    }
+
+    private void AdjustControllerButtonBindingSetting(
+        ControllerButtonBinding current,
+        Action<ControllerButtonBinding> apply,
+        int step)
+    {
+        if (step == 0)
+        {
+            return;
+        }
+
+        var normalized = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(current);
+        var currentIndex = Array.IndexOf(ControllerButtonBindingCycle, normalized);
+        if (currentIndex < 0)
+        {
+            currentIndex = 0;
+        }
+
+        var nextIndex = (currentIndex + step) % ControllerButtonBindingCycle.Length;
+        if (nextIndex < 0)
+        {
+            nextIndex += ControllerButtonBindingCycle.Length;
+        }
+
+        apply(ControllerButtonBindingCycle[nextIndex]);
+        PersistClientSettings();
+    }
+
+    private void AdjustControllerJumpButtonSetting(int step)
+    {
+        AdjustControllerButtonBindingSetting(_clientSettings.ControllerJumpButton, value => _clientSettings.ControllerJumpButton = value, step);
+    }
+
+    private void AdjustControllerPrimaryFireButtonSetting(int step)
+    {
+        AdjustControllerButtonBindingSetting(_clientSettings.ControllerPrimaryFireButton, value => _clientSettings.ControllerPrimaryFireButton = value, step);
+    }
+
+    private void AdjustControllerSecondaryFireButtonSetting(int step)
+    {
+        AdjustControllerButtonBindingSetting(_clientSettings.ControllerSecondaryFireButton, value => _clientSettings.ControllerSecondaryFireButton = value, step);
+    }
+
+    private void AdjustControllerUseAbilityButtonSetting(int step)
+    {
+        AdjustControllerButtonBindingSetting(_clientSettings.ControllerUseAbilityButton, value => _clientSettings.ControllerUseAbilityButton = value, step);
+    }
+
+    private void AdjustControllerInteractButtonSetting(int step)
+    {
+        AdjustControllerButtonBindingSetting(_clientSettings.ControllerInteractButton, value => _clientSettings.ControllerInteractButton = value, step);
+    }
+
+    private void AdjustControllerSwapWeaponButtonSetting(int step)
+    {
+        AdjustControllerButtonBindingSetting(_clientSettings.ControllerSwapWeaponButton, value => _clientSettings.ControllerSwapWeaponButton = value, step);
+    }
+
+    private void AdjustControllerScoreboardButtonSetting(int step)
+    {
+        AdjustControllerButtonBindingSetting(_clientSettings.ControllerScoreboardButton, value => _clientSettings.ControllerScoreboardButton = value, step);
+    }
+
+    private void AdjustControllerPauseButtonSetting(int step)
+    {
+        AdjustControllerButtonBindingSetting(_clientSettings.ControllerPauseButton, value => _clientSettings.ControllerPauseButton = value, step);
+    }
+
+    private void AdjustControllerAimDistanceButtonSetting(int step)
+    {
+        AdjustControllerButtonBindingSetting(_clientSettings.ControllerAimDistanceButton, value => _clientSettings.ControllerAimDistanceButton = value, step);
+    }
+
+    private void AdjustControllerChangeTeamButtonSetting(int step)
+    {
+        AdjustControllerButtonBindingSetting(_clientSettings.ControllerChangeTeamButton, value => _clientSettings.ControllerChangeTeamButton = value, step);
+    }
+
+    private void AdjustControllerChangeClassButtonSetting(int step)
+    {
+        AdjustControllerButtonBindingSetting(_clientSettings.ControllerChangeClassButton, value => _clientSettings.ControllerChangeClassButton = value, step);
     }
 
     private string GetSwapWeaponsBindingLabel()

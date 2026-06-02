@@ -115,6 +115,8 @@ public partial class Game1
         _inGameMenuAwaitingEscapeRelease = false;
         _controlsMenuOpen = false;
         _controlsMenuOpenedFromGameplay = false;
+        _pendingControlsBinding = null;
+        _pendingControllerControlsBinding = null;
         _pluginOptionsMenuOpen = false;
         HudEditor.Open();
     }
