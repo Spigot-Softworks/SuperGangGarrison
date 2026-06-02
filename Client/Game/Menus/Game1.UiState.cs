@@ -97,7 +97,7 @@ public partial class Game1
 
     private bool CanDrawGameplayBubbleHud()
     {
-        return !_networkClient.IsSpectator
+        return !IsLocalSpectatorPresentationActive()
             && _world.LocalPlayer.IsAlive
             && !IsGameplayDeathCamActive();
     }
@@ -112,7 +112,7 @@ public partial class Game1
             || _classSelectOpen
             || _gameplayLoadoutMenuOpen
             || _passwordPromptOpen
-            || _networkClient.IsSpectator
+            || IsLocalSpectatorPresentationActive()
             || _world.LocalPlayerAwaitingJoin
             || !_world.LocalPlayer.IsAlive
             || _world.LocalPlayer.ClassId != PlayerClass.Engineer
@@ -141,7 +141,7 @@ public partial class Game1
         return !_teamSelectOpen
             && _teamSelectAlpha <= 0.02f
             && !_gameplayLoadoutMenuOpen
-            && !_networkClient.IsSpectator
+            && !IsLocalSpectatorPresentationActive()
             && _world.LocalPlayer.IsAlive
             && !IsGameplayDeathCamActive()
             && !ShouldBlockGameplayForNavEditor()

@@ -22,20 +22,20 @@ internal static class KeyboardInputMapper
         var swapWeaponsBinding = InputBindingsSettings.NormalizeSwapWeaponsBinding(bindings.SwapWeaponsBinding);
         var swapWeapon = IsSwapWeaponInputDown(bindings, swapWeaponsBinding, keyboard, mouse);
         var fireSecondary = mouse.RightButton == ButtonState.Pressed;
-        var interactWeapon = keyboard.IsKeyDown(bindings.InteractWeapon)
-            && !IsKeyboardKeyReservedForSwapWeapons(bindings, swapWeaponsBinding, bindings.InteractWeapon);
+        var interactWeapon = InputBindingInput.IsDown(bindings.InteractWeapon, keyboard, mouse)
+            && !IsBindingReservedForSwapWeapons(bindings, swapWeaponsBinding, bindings.InteractWeapon);
         
         return new PlayerInputSnapshot(
-            Left: keyboard.IsKeyDown(bindings.MoveLeft) || keyboard.IsKeyDown(Keys.Left),
-            Right: keyboard.IsKeyDown(bindings.MoveRight) || keyboard.IsKeyDown(Keys.Right),
-            Up: keyboard.IsKeyDown(bindings.MoveUp) || keyboard.IsKeyDown(Keys.Up),
-            Down: keyboard.IsKeyDown(bindings.MoveDown) || keyboard.IsKeyDown(Keys.Down),
+            Left: InputBindingInput.IsDown(bindings.MoveLeft, keyboard, mouse) || keyboard.IsKeyDown(Keys.Left),
+            Right: InputBindingInput.IsDown(bindings.MoveRight, keyboard, mouse) || keyboard.IsKeyDown(Keys.Right),
+            Up: InputBindingInput.IsDown(bindings.MoveUp, keyboard, mouse) || keyboard.IsKeyDown(Keys.Up),
+            Down: InputBindingInput.IsDown(bindings.MoveDown, keyboard, mouse) || keyboard.IsKeyDown(Keys.Down),
             BuildSentry: false,
             DestroySentry: false,
-            Taunt: keyboard.IsKeyDown(bindings.Taunt),
+            Taunt: InputBindingInput.IsDown(bindings.Taunt, keyboard, mouse),
             FirePrimary: mouse.LeftButton == ButtonState.Pressed,
             FireSecondary: fireSecondary,
-            UseAbility: keyboard.IsKeyDown(bindings.UseAbility),
+            UseAbility: InputBindingInput.IsDown(bindings.UseAbility, keyboard, mouse),
             InteractWeapon: interactWeapon,
             AimWorldX: mouseWorldX,
             AimWorldY: mouseWorldY,
@@ -59,21 +59,22 @@ internal static class KeyboardInputMapper
             WeaponSwapBindingMode.Space => keyboard.IsKeyDown(Keys.Space),
             WeaponSwapBindingMode.MouseSecondary => mouse.RightButton == ButtonState.Pressed,
             WeaponSwapBindingMode.Q => keyboard.IsKeyDown(Keys.Q),
-            WeaponSwapBindingMode.Custom => keyboard.IsKeyDown(bindings.SwapWeaponsCustomKey),
+            WeaponSwapBindingMode.Custom => InputBindingInput.IsDown(bindings.SwapWeaponsCustomKey, keyboard, mouse),
             _ => keyboard.IsKeyDown(Keys.Space),
         };
     }
 
-    private static bool IsKeyboardKeyReservedForSwapWeapons(
+    private static bool IsBindingReservedForSwapWeapons(
         InputBindingsSettings bindings,
         WeaponSwapBindingMode binding,
-        Keys key)
+        InputBinding inputBinding)
     {
         return binding switch
         {
-            WeaponSwapBindingMode.Space => key == Keys.Space,
-            WeaponSwapBindingMode.Q => key == Keys.Q,
-            WeaponSwapBindingMode.Custom => key == bindings.SwapWeaponsCustomKey,
+            WeaponSwapBindingMode.Space => inputBinding.IsKeyboardKey(Keys.Space),
+            WeaponSwapBindingMode.MouseSecondary => inputBinding.Kind == InputBindingKind.Mouse && inputBinding.MouseButton == InputMouseButton.Right,
+            WeaponSwapBindingMode.Q => inputBinding.IsKeyboardKey(Keys.Q),
+            WeaponSwapBindingMode.Custom => inputBinding == bindings.SwapWeaponsCustomKey,
             _ => false,
         };
     }

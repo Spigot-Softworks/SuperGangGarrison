@@ -164,19 +164,18 @@ public partial class Game1
         CustomBubbleEditor.Draw();
     }
 
-    private bool CanTriggerCustomBubble(KeyboardState keyboard)
+    private bool CanTriggerCustomBubble(KeyboardState keyboard, MouseState mouse)
     {
-        return keyboard.IsKeyDown(_inputBindings.CustomBubble)
-            && !_previousKeyboard.IsKeyDown(_inputBindings.CustomBubble)
+        return IsBindingPressed(keyboard, mouse, _inputBindings.CustomBubble)
             && !ShouldCloseBubbleMenuForGameplayState()
-            && !_networkClient.IsSpectator
+            && !IsLocalSpectatorPresentationActive()
             && _world.LocalPlayer.IsAlive
             && !IsGameplayInputBlocked();
     }
 
-    private void UpdateCustomBubbleHotkey(KeyboardState keyboard)
+    private void UpdateCustomBubbleHotkey(KeyboardState keyboard, MouseState mouse)
     {
-        if (!CanTriggerCustomBubble(keyboard)
+        if (!CanTriggerCustomBubble(keyboard, mouse)
             || !_customBubbleDocument.HasSlot(_selectedCustomBubbleSlot))
         {
             return;

@@ -23,6 +23,7 @@ public partial class Game1
             }
 
             _game._gameplaySessionKind = sessionKind;
+            _game._offlinePracticeSpectatorMode = false;
             _game._practiceSessionElapsedTicks = 0;
             _game._pendingHostedConnectTicks = -1;
             _game._pendingHostedConnectPort = 8190;
@@ -51,6 +52,7 @@ public partial class Game1
             _game._editingPlayerName = false;
             _game._gameplaySessionKind = GameplaySessionKind.None;
             _game._onlineConnectionIntent = OnlineConnectionIntent.Join;
+            _game._offlinePracticeSpectatorMode = false;
             _game._practiceSessionElapsedTicks = 0;
             _game._menuStatusMessage = statusMessage ?? string.Empty;
             _game._autoBalanceNoticeText = string.Empty;
@@ -74,6 +76,7 @@ public partial class Game1
             _game.ReinitializeSimulationForTickRate(SimulationConfig.DefaultTicksPerSecond);
             _game.ResetGameplayRuntimeState();
             _game._practiceSessionElapsedTicks = 0;
+            _game._offlinePracticeSpectatorMode = false;
             _game.ResetSpectatorTracking(enableTracking: false);
             _game._onlineConnectionIntent = OnlineConnectionIntent.Join;
             _game.ResetLastToDieState();

@@ -294,7 +294,7 @@ public partial class Game1
             aimWorldY = 0f;
 
             if (!ReferenceEquals(player, _game._world.LocalPlayer)
-                || _game._networkClient.IsSpectator
+                || _game.IsLocalSpectatorPresentationActive()
                 || _game.IsBackstabReplacementRenderActive(player)
                 || !_game._hasLatestLocalAimWorldPosition
                 || !_game._useLocalWeaponRotation)

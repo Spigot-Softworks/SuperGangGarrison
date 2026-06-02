@@ -11,7 +11,7 @@ public partial class Game1
 {
     private PlayerEntity? GetSpectatorFocusPlayer()
     {
-        if (_networkClient.IsSpectator && !_spectatorTrackingEnabled)
+        if (IsLocalSpectatorPresentationActive() && !_spectatorTrackingEnabled)
         {
             return null;
         }

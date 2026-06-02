@@ -148,7 +148,7 @@ public partial class Game1
         var players = new List<PlayerEntity>();
         if (_networkClient.IsConnected)
         {
-            if (!_networkClient.IsSpectator
+            if (!IsLocalSpectatorPresentationActive()
                 && !_world.LocalPlayerAwaitingJoin
                 && _world.LocalPlayer.Team == team)
             {
@@ -643,7 +643,7 @@ public partial class Game1
                 _spriteBatch.Draw(_pixel, GetScoreboardPlayerRowBounds(team, index, xoffset, yoffset, xsize), teamColor * (alpha * 0.16f));
             }
 
-            if (!_networkClient.IsSpectator && _world.LocalPlayer.Team == player.Team)
+            if (!IsLocalSpectatorPresentationActive() && _world.LocalPlayer.Team == player.Team)
             {
                 TryDrawScreenSprite("Icon", GetScoreboardIconFrame(player.ClassId), new Vector2(iconX, rowY), Color.White * alpha, Vector2.One);
                 TryDrawScreenSprite("Icon", GetScoreboardIconFrame(player.ClassId), new Vector2(iconX, rowY), teamColor * (alpha * 0.2f), Vector2.One);

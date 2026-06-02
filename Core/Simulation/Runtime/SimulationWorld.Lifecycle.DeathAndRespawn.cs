@@ -321,7 +321,7 @@ public sealed partial class SimulationWorld
         }
 
         EnemyPlayer.SetClassDefinition(_enemyDummyClassDefinition);
-        SpawnPlayerResolved(EnemyPlayer, _enemyDummyTeam, ReserveSpawn(EnemyPlayer, _enemyDummyTeam));
+        SpawnPlayerResolved(EnemyPlayer, _enemyDummyTeam, ReserveSpawn(EnemyPlayer, _enemyDummyTeam), playRespawnSound: true);
     }
 
     private void SpawnDeadBody(PlayerEntity player, DeadBodyAnimationKind animationKind = DeadBodyAnimationKind.Default)

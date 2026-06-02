@@ -16,7 +16,7 @@ public partial class Game1
 {
     private bool CanOpenGameplayLoadoutMenu()
     {
-        if (_networkClient.IsSpectator || _world.LocalPlayerAwaitingJoin)
+        if (IsLocalSpectatorPresentationActive() || _world.LocalPlayerAwaitingJoin)
         {
             return false;
         }

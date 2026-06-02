@@ -20,7 +20,7 @@ public partial class Game1
 
         public void DrawPersistentSelfNameHud(Vector2 cameraPosition)
         {
-            if (!_game._showPersistentSelfNameEnabled || _game._networkClient.IsSpectator || !_game._world.LocalPlayer.IsAlive)
+            if (!_game._showPersistentSelfNameEnabled || _game.IsLocalSpectatorPresentationActive() || !_game._world.LocalPlayer.IsAlive)
             {
                 return;
             }

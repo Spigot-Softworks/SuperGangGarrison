@@ -156,7 +156,7 @@ public partial class Game1
             if (!_game._healerRadarEnabled
                 || !_game._world.LocalPlayer.IsAlive
                 || _game._world.LocalPlayer.ClassId != PlayerClass.Medic
-                || _game._networkClient.IsSpectator)
+                || _game.IsLocalSpectatorPresentationActive())
             {
                 return;
             }

@@ -22,7 +22,7 @@ public partial class Game1
         public List<ClientPlayerMarker> GetClientPluginPlayerMarkers()
         {
             var markers = new List<ClientPlayerMarker>();
-            if (!_game._networkClient.IsSpectator && _game._world.LocalPlayer.IsAlive)
+            if (!_game.IsLocalSpectatorPresentationActive() && _game._world.LocalPlayer.IsAlive)
             {
                 markers.Add(BuildClientPlayerMarker(_game._world.LocalPlayer, isLocalPlayer: true));
             }
@@ -64,7 +64,7 @@ public partial class Game1
 
         public List<ClientObjectiveMarker> GetClientPluginObjectiveMarkers()
         {
-            if (_game._networkClient.IsSpectator)
+            if (_game.IsLocalSpectatorPresentationActive())
             {
                 return [];
             }

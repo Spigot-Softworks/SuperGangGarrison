@@ -52,17 +52,20 @@ public partial class Game1
             _game.DrawExperimentalEssenceExtractorOverlay(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
             _game.DrawExperimentalCryoOverlays(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
             _game.DrawAfterburnOverlay(player, renderPosition, cameraPosition, visibilityAlpha);
-            _game.DrawDominationIndicator(player, cameraPosition, visibilityAlpha);
-            _game.DrawChatBubble(player, cameraPosition);
-            _game.DrawWriteBubble(player, cameraPosition);
-            _game.DrawOverheadChatMessage(player, cameraPosition);
-            _game.DrawHeavyDashDodgePopup(player, cameraPosition);
-            _game.TryDrawAdditionalHealthBar(player, cameraPosition, visibilityAlpha);
+            if (!_game._gameplayHudHidden)
+            {
+                _game.DrawDominationIndicator(player, cameraPosition, visibilityAlpha);
+                _game.DrawChatBubble(player, cameraPosition);
+                _game.DrawWriteBubble(player, cameraPosition);
+                _game.DrawOverheadChatMessage(player, cameraPosition);
+                _game.DrawHeavyDashDodgePopup(player, cameraPosition);
+                _game.TryDrawAdditionalHealthBar(player, cameraPosition, visibilityAlpha);
+            }
         }
 
         public IEnumerable<PlayerEntity> EnumerateRenderablePlayers()
         {
-            if (!_game._networkClient.IsSpectator)
+            if (!_game.IsLocalSpectatorPresentationActive())
             {
                 yield return _game._world.LocalPlayer;
             }

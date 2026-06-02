@@ -43,6 +43,12 @@ public partial class Game1
         set => _gameplaySessionState.SpectatorTrackingEnabled = value;
     }
 
+    private bool _offlinePracticeSpectatorMode
+    {
+        get => _gameplaySessionState.OfflinePracticeSpectatorMode;
+        set => _gameplaySessionState.OfflinePracticeSpectatorMode = value;
+    }
+
     private string _observedGameplayLevelName
     {
         get => _gameplaySessionState.ObservedGameplayLevelName;
@@ -347,6 +353,12 @@ public partial class Game1
     {
         get => _uiShellState.MainMenuOpen;
         set => _uiShellState.MainMenuOpen = value;
+    }
+
+    private bool _mainMenuChromeHidden
+    {
+        get => _uiShellState.MainMenuChromeHidden;
+        set => _uiShellState.MainMenuChromeHidden = value;
     }
 
     private bool _optionsMenuOpen
@@ -927,6 +939,7 @@ public partial class Game1
         public int StartupSplashTicks;
         public float StartupSplashFrame;
         public bool MainMenuOpen = true;
+        public bool MainMenuChromeHidden;
         public bool OptionsMenuOpen;
         public bool OptionsMenuOpenedFromGameplay;
         public bool PluginOptionsMenuOpen;
@@ -1022,6 +1035,7 @@ public partial class Game1
         public int? LocalPlayerSnapshotEntityId;
         public int? SpectatorTrackedPlayerId;
         public bool SpectatorTrackingEnabled;
+        public bool OfflinePracticeSpectatorMode;
         public SpectatorCameraMode SpectatorCameraMode = SpectatorCameraMode.Auto;
         public OnlineConnectionIntent OnlineConnectionIntent;
         public string ObservedGameplayLevelName = string.Empty;

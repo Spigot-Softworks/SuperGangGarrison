@@ -80,7 +80,7 @@ public partial class Game1
 
         public int? GetClientPluginLocalPlayerId()
         {
-            if (_game._networkClient.IsSpectator)
+            if (_game.IsLocalSpectatorPresentationActive())
             {
                 return null;
             }

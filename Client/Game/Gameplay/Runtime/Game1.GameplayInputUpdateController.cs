@@ -21,7 +21,7 @@ public partial class Game1
         {
             _game.UpdateGameplayScreenState(keyboard, mouse);
             _game.UpdateGameplayMenuState(keyboard, mouse);
-            _game.UpdateRespawnCameraState((float)gameTime.ElapsedGameTime.TotalSeconds, keyboard);
+            _game.UpdateRespawnCameraState((float)gameTime.ElapsedGameTime.TotalSeconds, keyboard, mouse);
             _game.UpdateBotBrainCorridorRecorderHotkeys(keyboard);
             var cameraPosition = _game.GetGameplayInputCameraTopLeft(
                 _game.ViewportWidth,
@@ -49,7 +49,7 @@ public partial class Game1
             // even though gameplayInput is default in multiplayer (server authoritative)
             _game._world.SetLocalInput(networkInput);
             _game.UpdateBubbleMenuState(keyboard, mouse);
-            _game.UpdateCustomBubbleHotkey(keyboard);
+            _game.UpdateCustomBubbleHotkey(keyboard, mouse);
             return networkInput;
         }
     }

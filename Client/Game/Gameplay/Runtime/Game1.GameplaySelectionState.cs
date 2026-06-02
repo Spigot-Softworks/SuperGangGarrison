@@ -86,6 +86,24 @@ public partial class Game1
         _menuStatusMessage = "Switching to spectator mode...";
     }
 
+    private void BeginOfflinePracticeSpectateSelection()
+    {
+        if (!IsPracticeSessionActive)
+        {
+            _menuStatusMessage = GetOfflineSpectateUnavailableMessage();
+            return;
+        }
+
+        _offlinePracticeSpectatorMode = true;
+        _world.PrepareLocalPlayerJoin();
+        ApplyPracticeTeamSelection(_world.LocalPlayerTeam);
+        ResetSpectatorTracking(enableTracking: true);
+        _respawnCameraDetached = false;
+        _respawnCameraCenter = GetDefaultFreeCameraCenter();
+        CloseGameplaySelectionMenus();
+        _menuStatusMessage = "Spectating Practice.";
+    }
+
     private void BeginOnlineTeamSelection(PlayerTeam selectedTeam)
     {
         if (IsWatchOnlySession())
@@ -120,6 +138,7 @@ public partial class Game1
 
     private void ApplyOfflineClassSelection(PlayerClass selectedClass)
     {
+        ClearOfflinePracticeSpectatorMode();
         if (_world.LocalPlayerAwaitingJoin)
         {
             _world.CompleteLocalPlayerJoin(selectedClass);
@@ -129,5 +148,17 @@ public partial class Game1
 
         _world.TrySetLocalClass(selectedClass);
         ApplyPracticeDummyPreferencesAfterJoin();
+    }
+
+    private void ClearOfflinePracticeSpectatorMode()
+    {
+        if (!_offlinePracticeSpectatorMode)
+        {
+            return;
+        }
+
+        _offlinePracticeSpectatorMode = false;
+        ResetSpectatorTracking(enableTracking: false);
+        _respawnCameraDetached = false;
     }
 }

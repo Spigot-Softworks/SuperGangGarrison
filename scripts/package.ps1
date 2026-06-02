@@ -65,6 +65,19 @@ function Normalize-PackageVersion {
     return $clean
 }
 
+function Get-GitPackageVersion {
+    try {
+        $description = (& git -C $repoRoot describe --tags --dirty --match "v[0-9]*" 2>$null | Select-Object -First 1)
+        if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($description)) {
+            return $description
+        }
+    }
+    catch {
+    }
+
+    return ""
+}
+
 function Get-PackageVersion {
     param(
         [string]$RequestedVersion
@@ -74,7 +87,8 @@ function Get-PackageVersion {
         $RequestedVersion,
         $env:OPENGARRISON_PACKAGE_VERSION,
         $env:GITHUB_REF_NAME,
-        $env:GITHUB_REF
+        $env:GITHUB_REF,
+        (Get-GitPackageVersion)
     )
 
     foreach ($candidate in $candidates) {

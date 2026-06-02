@@ -58,6 +58,14 @@ public partial class Game1
                     return;
                 }
 
+                if (InputBindingInput.TryGetPressedBindableMouseButton(mouse, _game._previousMouse, out var mouseBinding))
+                {
+                    _game.ApplyControlsBinding(_game._pendingControlsBinding.Value, mouseBinding);
+                    _game.PersistInputBindings();
+                    _game._pendingControlsBinding = null;
+                    return;
+                }
+
                 foreach (var key in keyboard.GetPressedKeys())
                 {
                     if (_game._previousKeyboard.IsKeyDown(key))
@@ -65,7 +73,7 @@ public partial class Game1
                         continue;
                     }
 
-                    _game.ApplyControlsBinding(_game._pendingControlsBinding.Value, key);
+                    _game.ApplyControlsBinding(_game._pendingControlsBinding.Value, InputBinding.FromKey(key));
                     _game.PersistInputBindings();
                     _game._pendingControlsBinding = null;
                     return;
@@ -154,7 +162,7 @@ public partial class Game1
             const float rowColumnGap = 20f;
 
             var title = _game._pendingControlsBinding.HasValue
-                ? $"Press a key for {_game.GetControlsBindingLabel(_game._pendingControlsBinding.Value)}"
+                ? $"Press key or mouse for {_game.GetControlsBindingLabel(_game._pendingControlsBinding.Value)}"
                 : "Controls";
             _game.DrawBitmapFontText(title, new Vector2(listBounds.X, panel.Y + 14f), Color.White, headerScale);
 
@@ -186,7 +194,7 @@ public partial class Game1
 
                 var labelX = rowBounds.X + rowHorizontalPadding;
                 var valueRightX = rowBounds.Right - rowHorizontalPadding;
-                var valueText = Game1.GetBindingDisplayName(item.Key);
+                var valueText = Game1.GetBindingDisplayName(item.Input);
                 var trimmedValue = _game.TrimBitmapMenuText(valueText, rowBounds.Width * 0.42f, textScale);
                 var valueWidth = _game.MeasureBitmapFontWidth(trimmedValue, textScale);
                 var valueX = valueRightX - valueWidth;
