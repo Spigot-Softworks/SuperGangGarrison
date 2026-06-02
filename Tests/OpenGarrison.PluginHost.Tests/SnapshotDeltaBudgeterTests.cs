@@ -1701,14 +1701,12 @@ public sealed class SnapshotDeltaBudgeterTests
             IsHeavyEating: false,
             HeavyEatTicksRemaining: 0,
             IsSniperScoped: false,
-            SniperChargeTicks: 0,
             IsUsingBinoculars: false,
             BinocularsFocusX: 0f,
             BinocularsFocusY: 0f,
             FacingDirectionX: 1f,
             AimDirectionDegrees: 0f,
             IsTaunting: false,
-            TauntFrameIndex: 0f,
             IsChatBubbleVisible: false,
             ChatBubbleFrameIndex: 0,
             ChatBubbleAlpha: 0f);
@@ -1728,7 +1726,6 @@ public sealed class SnapshotDeltaBudgeterTests
             player.AimDirectionDegrees,
             player.MovementState,
             player.IsTaunting,
-            player.TauntFrameIndex,
             player.BurnIntensity);
     }
 }

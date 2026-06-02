@@ -49,16 +49,22 @@ public sealed partial class SimulationWorld
         ApplySnapshotNetworkPlayerReady(snapshotPlayer.Slot, snapshotPlayer.IsReady);
         player.SetDisplayName(snapshotPlayer.Name);
 
-        // The snapshot baseline freezes TauntFrameIndex at the value it had when the taunt
-        // started (always 0) and never advances it, because SnapshotDelta.MergePlayers
-        // preserves the baseline value for ongoing taunts. Applying that frozen value every
-        // tick would reset the animation back to frame 0 each snapshot, causing the "stuck on
-        // one frame" behaviour. Instead, preserve the locally-advancing frame when both the
-        // entity and the snapshot agree the player is still taunting. A fresh taunt start
-        // (entity was not taunting, snapshot says taunting) still initialises from the snapshot.
-        var tauntFrameIndex = player.IsTaunting && snapshotPlayer.IsTaunting
+        // Preserve the locally-advancing taunt frame when the player is still taunting.
+        // When the server stops sending IsTaunting (taunt finished server-side), allow the
+        // local animation to complete naturally rather than cutting it off mid-way — this
+        // corrects for the latency offset where the client started counting from 0 while
+        // the server was already partway through. Only hard-stop when the player dies.
+        var localIsTaunting = snapshotPlayer.IsTaunting
+            || (player.IsTaunting && snapshotPlayer.IsAlive);
+        var tauntFrameIndex = localIsTaunting && player.IsTaunting
             ? player.TauntFrameIndex
-            : snapshotPlayer.TauntFrameIndex;
+            : 0f;
+
+        // Preserve the locally-advancing sniper charge when the player is still scoped;
+        // reset to 0 on scope start so the simulation begins from 0.
+        var sniperChargeTicks = player.IsSniperScoped && snapshotPlayer.IsSniperScoped
+            ? player.SniperChargeTicks
+            : 0;
 
         player.ApplyNetworkState(
             (PlayerTeam)snapshotPlayer.Team,
@@ -94,7 +100,7 @@ public sealed partial class SimulationWorld
             snapshotPlayer.IsHeavyEating,
             snapshotPlayer.HeavyEatTicksRemaining,
             snapshotPlayer.IsSniperScoped,
-            snapshotPlayer.SniperChargeTicks,
+            sniperChargeTicks,
             snapshotPlayer.IsUsingBinoculars,
             snapshotPlayer.BinocularsFocusX,
             snapshotPlayer.BinocularsFocusY,
@@ -102,7 +108,7 @@ public sealed partial class SimulationWorld
             snapshotPlayer.AimDirectionDegrees,
             snapshotPlayer.AimWorldX,
             snapshotPlayer.AimWorldY,
-            snapshotPlayer.IsTaunting,
+            localIsTaunting,
             tauntFrameIndex,
             snapshotPlayer.IsChatBubbleVisible,
             snapshotPlayer.ChatBubbleFrameIndex,
@@ -1035,6 +1041,23 @@ public sealed partial class SimulationWorld
                 e.BloodChance);
             _playerGibs.Add(gib);
             _entities.Add(gib.Id, gib);
+        }
+    }
+
+    internal void AdvanceRemoteSnapshotPlayerTauntStates()
+    {
+        if (LocalPlayer.IsAlive && LocalPlayer.IsTaunting)
+        {
+            LocalPlayer.AdvanceTauntFrameLocally(Config.FixedDeltaSeconds);
+        }
+
+        for (var index = 0; index < _remoteSnapshotPlayers.Count; index += 1)
+        {
+            var player = _remoteSnapshotPlayers[index];
+            if (player.IsAlive && player.IsTaunting)
+            {
+                player.AdvanceTauntFrameLocally(Config.FixedDeltaSeconds);
+            }
         }
     }
 

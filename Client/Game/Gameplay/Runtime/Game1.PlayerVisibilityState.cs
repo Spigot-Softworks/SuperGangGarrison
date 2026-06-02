@@ -32,6 +32,15 @@ public partial class Game1
         }
 
         var cloakAlpha = Math.Clamp(GetPlayerSpyCloakAlpha(player), 0f, 1f);
+
+        // Apply superjump visual reveal on top (purely cosmetic, no gameplay implication)
+        if (_spySuperjumpCloakRevealTicks.TryGetValue(player.Id, out var revealTicksRemaining) && revealTicksRemaining > 0)
+        {
+            var revealAlpha = SpySuperjumpCloakRevealStartAlpha
+                * (revealTicksRemaining / (float)SpySuperjumpCloakRevealTicks);
+            cloakAlpha = Math.Max(cloakAlpha, revealAlpha);
+        }
+
         if (IsLocalSpectatorPresentationActive())
         {
             var allyAlpha = GetPlayerIsSpyBackstabReady(player)

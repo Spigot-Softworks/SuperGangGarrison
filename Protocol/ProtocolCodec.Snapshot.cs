@@ -12,7 +12,6 @@ public static partial class ProtocolCodec
     private const float QuantizedChatBubbleAlphaScale = 255f;
     private const float QuantizedSpyCloakAlphaScale = 255f;
     private const float QuantizedMedicUberChargeScale = 4f;
-    private const float QuantizedMovementTauntFrameScale = 4f;
     private const float QuantizedMovementBurnIntensityScale = 100f;
 
     private static void WriteSnapshot(BinaryWriter writer, SnapshotMessage snapshot)
@@ -382,14 +381,12 @@ public static partial class ProtocolCodec
             writer.Write(player.IsHeavyEating);
             writer.Write(player.HeavyEatTicksRemaining);
             writer.Write(player.IsSniperScoped);
-            writer.Write(player.SniperChargeTicks);
             writer.Write(player.IsUsingBinoculars);
             writer.Write(player.BinocularsFocusX);
             writer.Write(player.BinocularsFocusY);
             writer.Write(player.FacingDirectionX);
             writer.Write(player.AimDirectionDegrees);
             writer.Write(player.IsTaunting);
-            writer.Write(player.TauntFrameIndex);
             writer.Write(player.IsChatBubbleVisible);
             writer.Write(player.ChatBubbleFrameIndex);
             writer.Write(player.ChatBubbleAlpha);
@@ -502,14 +499,12 @@ public static partial class ProtocolCodec
             var isHeavyEating = reader.ReadBoolean();
             var heavyEatTicksRemaining = reader.ReadInt32();
             var isSniperScoped = reader.ReadBoolean();
-            var sniperChargeTicks = reader.ReadInt32();
             var isUsingBinoculars = reader.ReadBoolean();
             var binocularsFocusX = reader.ReadSingle();
             var binocularsFocusY = reader.ReadSingle();
             var facingDirectionX = reader.ReadSingle();
             var aimDirectionDegrees = reader.ReadSingle();
             var isTaunting = reader.ReadBoolean();
-            var tauntFrameIndex = reader.ReadSingle();
             var isChatBubbleVisible = reader.ReadBoolean();
             var chatBubbleFrameIndex = reader.ReadInt32();
             var chatBubbleAlpha = reader.ReadSingle();
@@ -575,9 +570,9 @@ public static partial class ProtocolCodec
                 isSpyCloaked, spyCloakAlpha, isSpySuperjumping, spySuperjumpHorizontalVelocity,
                 spySuperjumpCooldownTicksRemaining, spyBackstabVisualTicksRemaining,
                 isUbered, isKritzCritBoosted, isHeavyEating, heavyEatTicksRemaining,
-                isSniperScoped, sniperChargeTicks, isUsingBinoculars, binocularsFocusX, binocularsFocusY,
+                isSniperScoped, isUsingBinoculars, binocularsFocusX, binocularsFocusY,
                 facingDirectionX, aimDirectionDegrees,
-                isTaunting, tauntFrameIndex, isChatBubbleVisible, chatBubbleFrameIndex, chatBubbleAlpha,
+                isTaunting, isChatBubbleVisible, chatBubbleFrameIndex, chatBubbleAlpha,
                 isTypingChatMessage, burnIntensity, burnDurationSourceTicks, burnDecayDelaySourceTicksRemaining,
                 burnIntensityDecayPerSourceTick, burnedByPlayerId, movementState,
                 primaryCooldownTicks, reloadTicksUntilNextShell, medicNeedleCooldownTicks,
@@ -620,7 +615,6 @@ public static partial class ProtocolCodec
             WriteVariableInt32(writer, state.RemainingAirJumps);
             writer.Write(QuantizeAngleDegrees(state.AimDirectionDegrees));
             writer.Write(state.MovementState);
-            writer.Write(QuantizeScaledUInt16(state.TauntFrameIndex, QuantizedMovementTauntFrameScale));
             writer.Write(QuantizeScaledUInt16(state.BurnIntensity, QuantizedMovementBurnIntensityScale));
             writer.Write(state.GameplayEquippedSlot);
             WriteVariableInt32(writer, state.PrimaryCooldownTicks);
@@ -646,7 +640,6 @@ public static partial class ProtocolCodec
             var remainingAirJumps = ReadVariableInt32(reader);
             var aimDirectionDegrees = ReadQuantizedAngleDegrees(reader);
             var movementState = reader.ReadByte();
-            var tauntFrameIndex = ReadScaledUInt16(reader, QuantizedMovementTauntFrameScale);
             var burnIntensity = ReadScaledUInt16(reader, QuantizedMovementBurnIntensityScale);
             var gameplayEquippedSlot = reader.ReadByte();
             var primaryCooldownTicks = ReadVariableInt32(reader);
@@ -667,7 +660,6 @@ public static partial class ProtocolCodec
                 aimDirectionDegrees,
                 movementState,
                 IsTauntingFromFlags(flags),
-                tauntFrameIndex,
                 burnIntensity,
                 gameplayEquippedSlot,
                 primaryCooldownTicks,
@@ -772,7 +764,6 @@ public static partial class ProtocolCodec
             writer.Write((ushort)Math.Clamp(state.SpySuperjumpCooldownTicksRemaining, 0, ushort.MaxValue));
             writer.Write((ushort)Math.Clamp(state.SpyBackstabVisualTicksRemaining, 0, ushort.MaxValue));
             writer.Write((ushort)Math.Clamp(state.HeavyEatTicksRemaining, 0, ushort.MaxValue));
-            writer.Write((ushort)Math.Clamp(state.SniperChargeTicks, 0, ushort.MaxValue));
             writer.Write((ushort)Math.Clamp(state.MedicNeedleCooldownTicks, 0, ushort.MaxValue));
             writer.Write((ushort)Math.Clamp(state.MedicNeedleRefillTicks, 0, ushort.MaxValue));
             writer.Write((ushort)Math.Clamp(state.PyroAirblastCooldownTicks, 0, ushort.MaxValue));
@@ -806,7 +797,6 @@ public static partial class ProtocolCodec
                 IsPlayerExtendedHeavyEating(flags0),
                 reader.ReadUInt16(),
                 IsPlayerExtendedSniperScoped(flags0),
-                reader.ReadUInt16(),
                 reader.ReadUInt16(),
                 reader.ReadUInt16(),
                 reader.ReadUInt16(),
