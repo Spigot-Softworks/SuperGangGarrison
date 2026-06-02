@@ -213,6 +213,7 @@ public partial class Game1
             AdvancePredictedAfterburnVisuals();
             AdvanceClientSideSuperjumpCharging();
             AdvanceSpySuperjumpTrajectoryAnimation();
+            AdvanceSpySuperjumpCloakReveal();
             AdvanceChatHud();
             AdvanceWriteBubbleTick();
             UpdateNoticeState();
@@ -378,6 +379,95 @@ public partial class Game1
         else
         {
             _spySuperjumpTrajectoryAnimationTicks = 0;
+        }
+    }
+
+    private void AdvanceSpySuperjumpCloakReveal()
+    {
+        if (!_networkClient.IsConnected)
+        {
+            _spySuperjumpCloakRevealTicks.Clear();
+            _prevSuperjumpingPlayerIds.Clear();
+            return;
+        }
+
+        AdvanceSpySuperjumpCloakRevealForPlayer(_world.LocalPlayer);
+        for (var i = 0; i < _world.RemoteSnapshotPlayers.Count; i += 1)
+        {
+            AdvanceSpySuperjumpCloakRevealForPlayer(_world.RemoteSnapshotPlayers[i]);
+        }
+
+        // Clean up entries for players that are no longer tracked
+        var toRemove = new List<int>();
+        foreach (var id in _spySuperjumpCloakRevealTicks.Keys)
+        {
+            var found = _world.LocalPlayer?.Id == id;
+            if (!found)
+            {
+                for (var i = 0; i < _world.RemoteSnapshotPlayers.Count; i += 1)
+                {
+                    if (_world.RemoteSnapshotPlayers[i].Id == id)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            if (!found)
+            {
+                toRemove.Add(id);
+            }
+        }
+        foreach (var id in toRemove)
+        {
+            _spySuperjumpCloakRevealTicks.Remove(id);
+            _prevSuperjumpingPlayerIds.Remove(id);
+        }
+    }
+
+    private void AdvanceSpySuperjumpCloakRevealForPlayer(PlayerEntity? player)
+    {
+        if (player is null || player.ClassId != PlayerClass.Spy)
+        {
+            return;
+        }
+
+        var id = player.Id;
+        var wasSuperjumping = _prevSuperjumpingPlayerIds.Contains(id);
+        var isSuperjumping = player.IsSpySuperjumping;
+
+        // Transition: just started superjumping while cloaked → start reveal
+        if (isSuperjumping && !wasSuperjumping && player.IsSpyCloaked)
+        {
+            _spySuperjumpCloakRevealTicks[id] = SpySuperjumpCloakRevealTicks;
+        }
+
+        if (isSuperjumping)
+        {
+            _prevSuperjumpingPlayerIds.Add(id);
+        }
+        else
+        {
+            _prevSuperjumpingPlayerIds.Remove(id);
+        }
+
+        // If the spy uncloaked, the reveal is irrelevant — cancel it
+        if (!player.IsSpyCloaked)
+        {
+            _spySuperjumpCloakRevealTicks.Remove(id);
+            return;
+        }
+
+        if (_spySuperjumpCloakRevealTicks.TryGetValue(id, out var ticks))
+        {
+            if (ticks <= 0)
+            {
+                _spySuperjumpCloakRevealTicks.Remove(id);
+            }
+            else
+            {
+                _spySuperjumpCloakRevealTicks[id] = ticks - 1;
+            }
         }
     }
 

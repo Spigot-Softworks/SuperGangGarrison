@@ -40,6 +40,11 @@ public sealed partial class SimulationWorld
             _world.AdvancePlayableNetworkPlayer(SimulationWorld.LocalPlayerSlot);
         }
 
+        public void AdvanceRemoteSnapshotPlayerTauntStates()
+        {
+            _world.AdvanceRemoteSnapshotPlayerTauntStates();
+        }
+
         public void AdvancePlayerSimulationPhase()
         {
             for (var index = 0; index < NetworkPlayerSlots.Count; index += 1)
@@ -47,6 +52,7 @@ public sealed partial class SimulationWorld
                 _world.AdvancePlayableNetworkPlayer(NetworkPlayerSlots[index]);
             }
 
+            _world.AdvanceRemoteSnapshotPlayerTauntStates();
             _world.AdvanceEnemyDummy();
 
             if (_world.FriendlyDummyEnabled && _world.FriendlyDummy.IsAlive)

@@ -21,6 +21,7 @@ public sealed partial class SimulationWorld
             // Server remains authoritative for all players (including local player).
             _entityPhaseController.AdvanceProjectileAndTransientEntityPhase();
             _world.AdvanceMovingPlatforms();
+            _entityPhaseController.AdvanceRemoteSnapshotPlayerTauntStates();
         }
 
         public void AdvanceProjectilePhaseOnly()
