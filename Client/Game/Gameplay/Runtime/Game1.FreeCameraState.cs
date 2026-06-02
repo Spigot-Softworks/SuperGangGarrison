@@ -12,13 +12,13 @@ public partial class Game1
     private bool IsRespawnFreeCameraActive()
     {
         return ShouldBlockGameplayForNavEditor()
-            || _networkClient.IsSpectator
+            || IsLocalSpectatorPresentationActive()
             || (!_world.LocalPlayerAwaitingJoin
                 && !_world.LocalPlayer.IsAlive
                 && _world.LocalDeathCam is null);
     }
 
-    private void UpdateRespawnCameraState(float deltaSeconds, KeyboardState keyboard)
+    private void UpdateRespawnCameraState(float deltaSeconds, KeyboardState keyboard, MouseState mouse)
     {
         if (!IsRespawnFreeCameraActive())
         {
@@ -27,9 +27,9 @@ public partial class Game1
             return;
         }
 
-        if (_networkClient.IsSpectator)
+        if (IsLocalSpectatorPresentationActive())
         {
-            UpdateSpectatorCameraState(deltaSeconds, keyboard);
+            UpdateSpectatorCameraState(deltaSeconds, keyboard, mouse);
             return;
         }
 
@@ -43,23 +43,23 @@ public partial class Game1
             var moveAmount = 600f * deltaSeconds;
             var moved = false;
 
-            if (keyboard.IsKeyDown(_inputBindings.MoveLeft))
+            if (IsBindingDown(keyboard, mouse, _inputBindings.MoveLeft))
             {
                 _respawnCameraCenter.X -= moveAmount;
                 moved = true;
             }
-            else if (keyboard.IsKeyDown(_inputBindings.MoveRight))
+            else if (IsBindingDown(keyboard, mouse, _inputBindings.MoveRight))
             {
                 _respawnCameraCenter.X += moveAmount;
                 moved = true;
             }
 
-            if (keyboard.IsKeyDown(_inputBindings.MoveUp))
+            if (IsBindingDown(keyboard, mouse, _inputBindings.MoveUp))
             {
                 _respawnCameraCenter.Y -= moveAmount;
                 moved = true;
             }
-            else if (keyboard.IsKeyDown(_inputBindings.MoveDown))
+            else if (IsBindingDown(keyboard, mouse, _inputBindings.MoveDown))
             {
                 _respawnCameraCenter.Y += moveAmount;
                 moved = true;
@@ -67,7 +67,7 @@ public partial class Game1
 
             if (moved)
             {
-                if (_networkClient.IsSpectator && _spectatorTrackingEnabled)
+                if (IsLocalSpectatorPresentationActive() && _spectatorTrackingEnabled)
                 {
                     _spectatorTrackingEnabled = false;
                     _spectatorTrackedPlayerId = null;
@@ -81,14 +81,14 @@ public partial class Game1
         _respawnCameraCenter = ClampRespawnCameraCenter(_respawnCameraCenter);
     }
 
-    private void UpdateSpectatorCameraState(float deltaSeconds, KeyboardState keyboard)
+    private void UpdateSpectatorCameraState(float deltaSeconds, KeyboardState keyboard, MouseState mouse)
     {
         if (!_respawnCameraDetached && _respawnCameraCenter == Vector2.Zero)
         {
             _respawnCameraCenter = GetDefaultFreeCameraCenter();
         }
 
-        if (TryApplySpectatorManualCameraMovement(deltaSeconds, keyboard))
+        if (TryApplySpectatorManualCameraMovement(deltaSeconds, keyboard, mouse))
         {
             _respawnCameraCenter = ClampRespawnCameraCenter(_respawnCameraCenter);
             return;
@@ -136,30 +136,30 @@ public partial class Game1
         _respawnCameraCenter = ClampRespawnCameraCenter(_respawnCameraCenter);
     }
 
-    private bool TryApplySpectatorManualCameraMovement(float deltaSeconds, KeyboardState keyboard)
+    private bool TryApplySpectatorManualCameraMovement(float deltaSeconds, KeyboardState keyboard, MouseState mouse)
     {
         if (ShouldBlockGameplayForNavEditor() || !IsGameplayInputBlocked())
         {
             var moveAmount = 600f * deltaSeconds;
             var moved = false;
 
-            if (keyboard.IsKeyDown(_inputBindings.MoveLeft))
+            if (IsBindingDown(keyboard, mouse, _inputBindings.MoveLeft))
             {
                 _respawnCameraCenter.X -= moveAmount;
                 moved = true;
             }
-            else if (keyboard.IsKeyDown(_inputBindings.MoveRight))
+            else if (IsBindingDown(keyboard, mouse, _inputBindings.MoveRight))
             {
                 _respawnCameraCenter.X += moveAmount;
                 moved = true;
             }
 
-            if (keyboard.IsKeyDown(_inputBindings.MoveUp))
+            if (IsBindingDown(keyboard, mouse, _inputBindings.MoveUp))
             {
                 _respawnCameraCenter.Y -= moveAmount;
                 moved = true;
             }
-            else if (keyboard.IsKeyDown(_inputBindings.MoveDown))
+            else if (IsBindingDown(keyboard, mouse, _inputBindings.MoveDown))
             {
                 _respawnCameraCenter.Y += moveAmount;
                 moved = true;

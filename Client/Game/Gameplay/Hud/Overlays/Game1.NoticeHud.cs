@@ -39,7 +39,7 @@ public partial class Game1
 
     private void UpdateLocalSentryNotice()
     {
-        if (_networkClient.IsSpectator || _world.LocalPlayerAwaitingJoin)
+        if (IsLocalSpectatorPresentationActive() || _world.LocalPlayerAwaitingJoin)
         {
             _hadLocalSentry = false;
             return;
@@ -56,7 +56,7 @@ public partial class Game1
 
     private void UpdateIntelNotice()
     {
-        if (_networkClient.IsSpectator || _world.LocalPlayerAwaitingJoin)
+        if (IsLocalSpectatorPresentationActive() || _world.LocalPlayerAwaitingJoin)
         {
             _wasCarryingIntel = false;
             return;

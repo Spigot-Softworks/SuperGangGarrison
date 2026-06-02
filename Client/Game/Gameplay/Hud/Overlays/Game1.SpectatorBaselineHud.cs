@@ -26,7 +26,7 @@ public partial class Game1
 
     private int GetGameplayCameraViewportHeight(int viewportHeight)
     {
-        if (!_networkClient.IsSpectator)
+        if (!IsLocalSpectatorPresentationActive())
         {
             return viewportHeight;
         }
@@ -41,7 +41,7 @@ public partial class Game1
 
     private void DrawSpectatorBaselineHud(Vector2 cameraPosition)
     {
-        if (!_networkClient.IsSpectator)
+        if (!IsLocalSpectatorPresentationActive())
         {
             return;
         }

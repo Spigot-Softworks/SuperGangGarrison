@@ -139,7 +139,7 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private bool TryForceRespawnNetworkPlayer(byte slot)
+    private bool TryForceRespawnNetworkPlayer(byte slot, bool playRespawnSound = true)
     {
         if (slot != LocalPlayerSlot)
         {
@@ -158,7 +158,7 @@ public sealed partial class SimulationWorld
 
         var team = GetNetworkPlayerConfiguredTeam(slot);
         player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
-        if (!SpawnPlayerResolved(player, team, ReserveSpawn(player, team, slot)))
+        if (!SpawnPlayerResolved(player, team, ReserveSpawn(player, team, slot), playRespawnSound: playRespawnSound))
         {
             return false;
         }
@@ -217,6 +217,6 @@ public sealed partial class SimulationWorld
 
         player.SetClassDefinition(definition);
         SyncExperimentalGameplayLoadout(slot, player);
-        return TryForceRespawnNetworkPlayer(slot);
+        return TryForceRespawnNetworkPlayer(slot, playRespawnSound: false);
     }
 }

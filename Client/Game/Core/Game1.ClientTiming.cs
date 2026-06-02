@@ -84,7 +84,7 @@ public partial class Game1
 
         var jumpPressed = networkInput.Up
             && ((!previousPredictedInput.Up)
-                || (keyboard.IsKeyDown(_inputBindings.MoveUp) && !_previousKeyboard.IsKeyDown(_inputBindings.MoveUp))
+                || InputBindingInput.IsPressed(_inputBindings.MoveUp, keyboard, _previousKeyboard, mouse, _previousMouse)
                 || (keyboard.IsKeyDown(Keys.Up) && !_previousKeyboard.IsKeyDown(Keys.Up)));
         if (jumpPressed)
         {
@@ -109,8 +109,7 @@ public partial class Game1
         }
 
         var abilityPressed = networkInput.UseAbility
-            && keyboard.IsKeyDown(_inputBindings.UseAbility)
-            && !_previousKeyboard.IsKeyDown(_inputBindings.UseAbility);
+            && InputBindingInput.IsPressed(_inputBindings.UseAbility, keyboard, _previousKeyboard, mouse, _previousMouse);
         if (abilityPressed)
         {
             _pendingPredictedAbilityPress = true;

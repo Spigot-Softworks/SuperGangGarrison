@@ -74,7 +74,7 @@ public partial class Game1
                 _game._mainMenuOpen,
                 !_game._startupSplashOpen && !_game._mainMenuOpen,
                 _game._networkClient.IsConnected,
-                _game._networkClient.IsSpectator));
+                _game.IsLocalSpectatorPresentationActive()));
             if (notifyStartTimestamp > 0)
             {
                 _game.RecordClientPerformanceMetric(ClientPerformanceMetric.PluginFrame, Game1.GetDiagnosticsElapsedMilliseconds(notifyStartTimestamp));

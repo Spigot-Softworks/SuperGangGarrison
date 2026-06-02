@@ -23,7 +23,7 @@ public partial class Game1
             _suppressSecondaryFireUntilMouseRelease = false;
         }
 
-        UpdateBinocularsFocusPosition(keyboard, deltaSeconds);
+        UpdateBinocularsFocusPosition(keyboard, mouse, deltaSeconds);
 
         var fullInput = KeyboardInputMapper.BuildGameplaySnapshot(
             _inputBindings,
@@ -44,7 +44,7 @@ public partial class Game1
         var blockedInput = ShouldPreserveAimWhileBlocked()
             ? BuildAimOnlyGameplaySnapshot(fullInput)
             : default;
-        var gameplayInput = _networkClient.IsConnected
+        var gameplayInput = _networkClient.IsConnected || IsLocalSpectatorPresentationActive()
             ? default
             : IsGameplayInputBlocked()
                 ? blockedInput
@@ -164,7 +164,7 @@ public partial class Game1
 
     private void UpdateSpectatorTrackingHotkeys(KeyboardState keyboard, MouseState mouse)
     {
-        if (_scoreboardOpen || keyboard.IsKeyDown(_inputBindings.ShowScoreboard))
+        if (_scoreboardOpen || IsBindingDown(keyboard, mouse, _inputBindings.ShowScoreboard))
         {
             return;
         }
@@ -213,7 +213,7 @@ public partial class Game1
         };
     }
 
-    private void UpdateBinocularsFocusPosition(KeyboardState keyboard, float deltaSeconds)
+    private void UpdateBinocularsFocusPosition(KeyboardState keyboard, MouseState mouse, float deltaSeconds)
     {
         var isUsingBinoculars = GetPlayerIsUsingBinoculars(_world.LocalPlayer);
         
@@ -235,19 +235,19 @@ public partial class Game1
         var moveDirectionX = 0f;
         var moveDirectionY = 0f;
         
-        if (keyboard.IsKeyDown(_inputBindings.MoveLeft) || keyboard.IsKeyDown(Keys.Left))
+        if (IsBindingDown(keyboard, mouse, _inputBindings.MoveLeft) || keyboard.IsKeyDown(Keys.Left))
         {
             moveDirectionX -= 1f;
         }
-        if (keyboard.IsKeyDown(_inputBindings.MoveRight) || keyboard.IsKeyDown(Keys.Right))
+        if (IsBindingDown(keyboard, mouse, _inputBindings.MoveRight) || keyboard.IsKeyDown(Keys.Right))
         {
             moveDirectionX += 1f;
         }
-        if (keyboard.IsKeyDown(_inputBindings.MoveUp) || keyboard.IsKeyDown(Keys.Up))
+        if (IsBindingDown(keyboard, mouse, _inputBindings.MoveUp) || keyboard.IsKeyDown(Keys.Up))
         {
             moveDirectionY -= 1f;
         }
-        if (keyboard.IsKeyDown(_inputBindings.MoveDown) || keyboard.IsKeyDown(Keys.Down))
+        if (IsBindingDown(keyboard, mouse, _inputBindings.MoveDown) || keyboard.IsKeyDown(Keys.Down))
         {
             moveDirectionY += 1f;
         }

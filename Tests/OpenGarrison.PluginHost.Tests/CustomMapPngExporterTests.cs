@@ -449,6 +449,67 @@ public sealed class CustomMapPngExporterTests
     }
 
     [Fact]
+    public void StockConflictUsesPackageTemplateWithSeparateVisualLayers()
+    {
+        try
+        {
+            SimpleLevelFactory.ClearCachedCatalog();
+            var entry = Assert.Single(
+                SimpleLevelFactory.GetAvailableSourceLevels(),
+                candidate => candidate.Name == "Conflict");
+
+            Assert.False(entry.IsCustomMap);
+            Assert.Equal(CustomMapSourceKind.Package, entry.SourceKind);
+            Assert.EndsWith(
+                Path.Combine("StockMaps", "Conflict", "Conflict.json"),
+                entry.RoomSourcePath,
+                StringComparison.OrdinalIgnoreCase);
+            Assert.Null(entry.CollisionMaskSourcePath);
+
+            var level = SimpleLevelFactory.CreateImportedLevel("Conflict");
+
+            Assert.NotNull(level);
+            Assert.Equal("Conflict", level.Name);
+            Assert.Equal(GameModeKind.CaptureTheFlag, level.Mode);
+            Assert.Equal(4458f, level.Bounds.Width);
+            Assert.Equal(1614f, level.Bounds.Height);
+            Assert.NotEmpty(level.Solids);
+            Assert.NotEmpty(level.RedSpawns);
+            Assert.NotEmpty(level.BlueSpawns);
+            Assert.Equal(2, level.IntelBases.Count);
+            Assert.EndsWith(
+                Path.Combine("StockMaps", "Conflict", "background.png"),
+                level.BackgroundAssetName,
+                StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(2f, level.CustomMapVisuals.ImageScale);
+            Assert.NotNull(level.CustomMapVisuals.Foreground);
+            Assert.Equal("bg_foreground", level.CustomMapVisuals.Foreground.Name);
+            Assert.Equal(0f, level.CustomMapVisuals.ForegroundOffsetX);
+            Assert.Equal(0f, level.CustomMapVisuals.ForegroundOffsetY);
+            Assert.Equal(File.ReadAllBytes(FindRepoFile("Core", "Content", "StockMaps", "Conflict", "bg_foreground.png")), level.CustomMapVisuals.Foreground.Bytes);
+            Assert.NotEqual(File.ReadAllBytes(FindRepoFile("ctf_conflict.png")), level.CustomMapVisuals.Foreground.Bytes);
+
+            var layers = level.CustomMapVisuals.ParallaxLayers.ToDictionary(static layer => layer.Index);
+            Assert.Equal([0, 1, 2, 3, 4, 5], layers.Keys.OrderBy(static key => key).ToArray());
+            Assert.Equal(10f, layers[0].XFactor);
+            Assert.Equal(9f, layers[1].XFactor);
+            Assert.Equal(8f, layers[2].XFactor);
+            Assert.Equal(7f, layers[3].XFactor);
+            Assert.Equal(6f, layers[4].XFactor);
+            Assert.Equal(5f, layers[5].XFactor);
+
+            using var sourceImage = Image.Load<Rgba32>(FindRepoFile("Core", "Content", "StockMaps", "Conflict", "background.png"));
+            using var foregroundImage = Image.Load<Rgba32>(level.CustomMapVisuals.Foreground.Bytes);
+            Assert.Equal(sourceImage.Width, foregroundImage.Width);
+            Assert.Equal(sourceImage.Height, foregroundImage.Height);
+        }
+        finally
+        {
+            SimpleLevelFactory.ClearCachedCatalog();
+        }
+    }
+
+    [Fact]
     public void StockMapPackageTemplateInMapsFolderDoesNotCreateCustomDuplicate()
     {
         using var workspace = TempWorkspace.Create();

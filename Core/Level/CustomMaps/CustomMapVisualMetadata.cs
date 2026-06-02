@@ -8,6 +8,10 @@ public sealed record CustomMapVisualMetadata(
     CustomMapVisualResource? Foreground,
     IReadOnlyDictionary<string, CustomMapVisualResource> Resources)
 {
+    public float ForegroundOffsetX { get; init; }
+
+    public float ForegroundOffsetY { get; init; }
+
     public static CustomMapVisualMetadata Empty { get; } = new(
         ImageScale: 1f,
         BackgroundColor: null,

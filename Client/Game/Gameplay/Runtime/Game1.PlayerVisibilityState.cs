@@ -32,7 +32,7 @@ public partial class Game1
         }
 
         var cloakAlpha = Math.Clamp(GetPlayerSpyCloakAlpha(player), 0f, 1f);
-        if (_networkClient.IsSpectator)
+        if (IsLocalSpectatorPresentationActive())
         {
             var allyAlpha = GetPlayerIsSpyBackstabReady(player)
                 ? Math.Max(cloakAlpha, PlayerEntity.SpyMinAllyCloakAlpha)
@@ -104,7 +104,7 @@ public partial class Game1
 
     private bool IsSpyHiddenFromLocalViewer(PlayerEntity player)
     {
-        if (_networkClient.IsSpectator
+        if (IsLocalSpectatorPresentationActive()
             || ReferenceEquals(player, _world.LocalPlayer)
             || player.ClassId != PlayerClass.Spy
             || player.Team == _world.LocalPlayer.Team
@@ -118,7 +118,7 @@ public partial class Game1
 
     private bool IsSpyHiddenFromLocalViewer(int ownerId, PlayerTeam ownerTeam, float spyX)
     {
-        if (_networkClient.IsSpectator
+        if (IsLocalSpectatorPresentationActive()
             || !_world.LocalPlayer.IsAlive
             || ownerId == _world.LocalPlayer.Id
             || ownerTeam == _world.LocalPlayer.Team)

@@ -10,23 +10,23 @@ public partial class Game1
 {
     private bool IsGameplayBindingKey(Keys key)
     {
-        return _inputBindings.MoveUp == key
-            || _inputBindings.MoveDown == key
-            || _inputBindings.MoveLeft == key
-            || _inputBindings.MoveRight == key
-            || _inputBindings.Taunt == key
-            || _inputBindings.CallMedic == key
-            || _inputBindings.UseAbility == key
+        return _inputBindings.MoveUp.IsKeyboardKey(key)
+            || _inputBindings.MoveDown.IsKeyboardKey(key)
+            || _inputBindings.MoveLeft.IsKeyboardKey(key)
+            || _inputBindings.MoveRight.IsKeyboardKey(key)
+            || _inputBindings.Taunt.IsKeyboardKey(key)
+            || _inputBindings.CallMedic.IsKeyboardKey(key)
+            || _inputBindings.UseAbility.IsKeyboardKey(key)
             || IsSwapWeaponsKeyboardBindingKey(key)
-            || _inputBindings.InteractWeapon == key
-            || _inputBindings.ChangeTeam == key
-            || _inputBindings.ChangeClass == key
-            || _inputBindings.ShowScoreboard == key
-            || _inputBindings.ToggleConsole == key
-            || _inputBindings.OpenBubbleMenuZ == key
-            || _inputBindings.OpenBubbleMenuX == key
-            || _inputBindings.OpenBubbleMenuC == key
-            || _inputBindings.CustomBubble == key;
+            || _inputBindings.InteractWeapon.IsKeyboardKey(key)
+            || _inputBindings.ChangeTeam.IsKeyboardKey(key)
+            || _inputBindings.ChangeClass.IsKeyboardKey(key)
+            || _inputBindings.ShowScoreboard.IsKeyboardKey(key)
+            || _inputBindings.ToggleConsole.IsKeyboardKey(key)
+            || _inputBindings.OpenBubbleMenuZ.IsKeyboardKey(key)
+            || _inputBindings.OpenBubbleMenuX.IsKeyboardKey(key)
+            || _inputBindings.OpenBubbleMenuC.IsKeyboardKey(key)
+            || _inputBindings.CustomBubble.IsKeyboardKey(key);
     }
 
     private bool IsSwapWeaponsKeyboardBindingKey(Keys key)
@@ -35,7 +35,7 @@ public partial class Game1
         {
             WeaponSwapBindingMode.Space => key == Keys.Space,
             WeaponSwapBindingMode.Q => key == Keys.Q,
-            WeaponSwapBindingMode.Custom => key == _inputBindings.SwapWeaponsCustomKey,
+            WeaponSwapBindingMode.Custom => _inputBindings.SwapWeaponsCustomKey.IsKeyboardKey(key),
             _ => false,
         };
     }

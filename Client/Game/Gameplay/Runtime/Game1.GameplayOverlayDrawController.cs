@@ -42,6 +42,10 @@ public partial class Game1
 
             _game.DrawGameplayHudLayers(mouse, cameraPosition);
             _game.DrawGameplayModalOverlays(mouse);
+            if (!_game._gameplayHudHidden)
+            {
+                _game.DrawVersionOverlay();
+            }
             Game1.WriteGameplayRenderTrace("frame before endlogical");
             _game.EndLogicalFrame();
             Game1.WriteGameplayRenderTrace("frame after endlogical");
@@ -51,7 +55,7 @@ public partial class Game1
 
         private void DrawGameplayWorldForViewport(Vector2 cameraPosition, int viewportWidth, int gameplayViewportHeight, int viewportHeight)
         {
-            if (!_game._networkClient.IsSpectator || gameplayViewportHeight >= viewportHeight)
+            if (!_game.IsLocalSpectatorPresentationActive() || gameplayViewportHeight >= viewportHeight)
             {
                 _worldDrawController.DrawGameplayWorldForCamera(cameraPosition, viewportWidth, gameplayViewportHeight);
                 return;

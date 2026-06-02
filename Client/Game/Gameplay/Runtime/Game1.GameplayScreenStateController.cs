@@ -19,8 +19,8 @@ public partial class Game1
         public void UpdateGameplayScreenState(KeyboardState keyboard, MouseState mouse)
         {
             var escapePressed = _game.IsKeyPressed(keyboard, Keys.Escape);
-            var changeTeamPressed = _game.IsKeyPressed(keyboard, _game._inputBindings.ChangeTeam);
-            var changeClassPressed = _game.IsKeyPressed(keyboard, _game._inputBindings.ChangeClass);
+            var changeTeamPressed = _game.IsBindingPressed(keyboard, mouse, _game._inputBindings.ChangeTeam);
+            var changeClassPressed = _game.IsBindingPressed(keyboard, mouse, _game._inputBindings.ChangeClass);
             if (_game._chatSubmitAwaitingOpenKeyRelease
                 && !Game1.IsChatShortcutHeld(keyboard))
             {

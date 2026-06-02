@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
@@ -15,6 +16,11 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private const string ApplicationVersionFileName = "version.txt";
+    private const string DevelopmentVersionLabel = "dev";
+
+    private static string? _cachedApplicationVersionLabel;
+
     private static OfflineBotControllerMode GetNextBotMode(OfflineBotControllerMode botMode)
     {
         return OfflineBotControllerMode.BotBrain;
@@ -100,25 +106,162 @@ public partial class Game1
 
     private static string GetApplicationVersionLabel()
     {
-        var versionPath = Path.Combine(AppContext.BaseDirectory, "version.txt");
-        if (File.Exists(versionPath))
+        return _cachedApplicationVersionLabel ??= LoadApplicationVersionLabel();
+    }
+
+    private static string LoadApplicationVersionLabel()
+    {
+        foreach (var candidate in EnumerateApplicationVersionCandidates())
         {
-            var version = File.ReadAllText(versionPath).Trim();
-            if (!string.IsNullOrWhiteSpace(version))
+            if (TryNormalizeApplicationVersionLabel(candidate, out var version)
+                && !IsDefaultSdkVersionLabel(version))
             {
                 return version;
             }
         }
 
-        var informationalVersion = typeof(Game1).Assembly
+        return DevelopmentVersionLabel;
+    }
+
+    private static IEnumerable<string> EnumerateApplicationVersionCandidates()
+    {
+        if (OperatingSystem.IsBrowser())
+        {
+            foreach (var version in EnumerateBrowserApplicationVersionCandidates())
+            {
+                yield return version;
+            }
+        }
+        else
+        {
+            foreach (var versionPath in EnumerateApplicationVersionFilePaths())
+            {
+                if (TryReadVersionFile(versionPath, out var version))
+                {
+                    yield return version;
+                }
+            }
+
+            var processPath = Environment.ProcessPath;
+            if (!string.IsNullOrWhiteSpace(processPath))
+            {
+                var productVersion = FileVersionInfo.GetVersionInfo(processPath).ProductVersion;
+                if (!string.IsNullOrWhiteSpace(productVersion))
+                {
+                    yield return productVersion;
+                }
+            }
+        }
+
+        var assembly = typeof(Game1).Assembly;
+        var informationalVersion = assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
             ?.InformationalVersion;
         if (!string.IsNullOrWhiteSpace(informationalVersion))
         {
-            return informationalVersion;
+            yield return informationalVersion;
         }
 
-        return typeof(Game1).Assembly.GetName().Version?.ToString() ?? "dev";
+        var assemblyVersion = assembly.GetName().Version?.ToString();
+        if (!string.IsNullOrWhiteSpace(assemblyVersion))
+        {
+            yield return assemblyVersion;
+        }
+    }
+
+    private static IEnumerable<string> EnumerateBrowserApplicationVersionCandidates()
+    {
+        foreach (var relativePath in new[] { ApplicationVersionFileName, $"Content/{ApplicationVersionFileName}" })
+        {
+            if (BrowserContentCatalog.TryGetText(relativePath, out var version))
+            {
+                yield return version;
+            }
+        }
+    }
+
+    private static IEnumerable<string> EnumerateApplicationVersionFilePaths()
+    {
+        var directories = new List<string>();
+        AddVersionProbeDirectory(directories, AppContext.BaseDirectory);
+        AddVersionProbeDirectory(directories, RuntimePaths.ApplicationRoot);
+        AddVersionProbeDirectory(directories, Path.GetDirectoryName(Environment.ProcessPath));
+        AddVersionProbeDirectory(directories, Directory.GetCurrentDirectory());
+
+        foreach (var directory in directories)
+        {
+            var current = directory;
+            for (var depth = 0; depth < 4 && !string.IsNullOrWhiteSpace(current); depth += 1)
+            {
+                yield return Path.Combine(current, ApplicationVersionFileName);
+                current = Directory.GetParent(current)?.FullName ?? string.Empty;
+            }
+        }
+    }
+
+    private static void AddVersionProbeDirectory(List<string> directories, string? directory)
+    {
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            return;
+        }
+
+        try
+        {
+            var fullPath = Path.GetFullPath(directory);
+            if (!directories.Contains(fullPath, StringComparer.OrdinalIgnoreCase))
+            {
+                directories.Add(fullPath);
+            }
+        }
+        catch (ArgumentException)
+        {
+        }
+        catch (NotSupportedException)
+        {
+        }
+    }
+
+    private static bool TryReadVersionFile(string path, out string version)
+    {
+        version = string.Empty;
+        try
+        {
+            if (!File.Exists(path))
+            {
+                return false;
+            }
+
+            version = File.ReadAllText(path);
+            return !string.IsNullOrWhiteSpace(version);
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryNormalizeApplicationVersionLabel(string? rawVersion, out string version)
+    {
+        version = rawVersion?.Trim() ?? string.Empty;
+        return !string.IsNullOrWhiteSpace(version);
+    }
+
+    private static bool IsDefaultSdkVersionLabel(string version)
+    {
+        var comparable = version.Trim();
+        if (comparable.StartsWith('v') || comparable.StartsWith('V'))
+        {
+            comparable = comparable[1..];
+        }
+
+        comparable = comparable.Split(['-', '+'], 2)[0];
+        return string.Equals(comparable, "1.0.0", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(comparable, "1.0.0.0", StringComparison.OrdinalIgnoreCase);
     }
 
     private float GetPlayerCardSizeScale()

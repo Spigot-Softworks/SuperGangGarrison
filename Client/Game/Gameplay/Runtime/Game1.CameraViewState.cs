@@ -88,7 +88,7 @@ public partial class Game1
 
     private Vector2 GetLocalViewPosition()
     {
-        if (_networkClient.IsSpectator)
+        if (IsLocalSpectatorPresentationActive())
         {
             return _respawnCameraCenter;
         }
@@ -120,7 +120,7 @@ public partial class Game1
 
     private Vector2 GetDefaultFreeCameraCenter()
     {
-        if (_networkClient.IsSpectator)
+        if (IsLocalSpectatorPresentationActive())
         {
             var spectatorFocus = GetSpectatorFocusPlayer();
             if (spectatorFocus is not null)
@@ -314,7 +314,7 @@ public partial class Game1
             return false;
         }
 
-        if (_networkClient.IsSpectator)
+        if (IsLocalSpectatorPresentationActive())
         {
             var spectatorFocus = GetSpectatorFocusPlayer();
             return spectatorFocus is null

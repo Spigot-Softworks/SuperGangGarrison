@@ -87,8 +87,12 @@ public partial class Game1
                 _game.ToggleAudioMute();
             }
 
-            var toggleConsolePressed = keyboard.IsKeyDown(_game._inputBindings.ToggleConsole)
-                && !_game._previousKeyboard.IsKeyDown(_game._inputBindings.ToggleConsole);
+            var toggleConsolePressed = InputBindingInput.IsPressed(
+                _game._inputBindings.ToggleConsole,
+                keyboard,
+                _game._previousKeyboard,
+                mouse,
+                _game._previousMouse);
             if (toggleConsolePressed && !_game._mainMenuOpen)
             {
                 _game._consoleOpen = !_game._consoleOpen;
@@ -97,6 +101,8 @@ public partial class Game1
                     _game.InitializeConsoleInputCursor();
                 }
             }
+
+            _game.UpdateConsoleScrollState(keyboard, mouse);
 
             _game.HandleActiveTextFieldKeyboardShortcuts(keyboard, gameTime.ElapsedGameTime.TotalSeconds);
 
@@ -158,7 +164,7 @@ public partial class Game1
             _game._world.SetLocalInput(default);
             _game._previousKeyboard = keyboard;
             _game._previousMouse = mouse;
-            _game.IsMouseVisible = !_game.ShouldUseSoftwareMenuCursor();
+            _game.IsMouseVisible = !_game._mainMenuChromeHidden && !_game.ShouldUseSoftwareMenuCursor();
             return true;
         }
 
@@ -173,6 +179,7 @@ public partial class Game1
             {
                 _game.BeginLogicalFrame(new Color(24, 32, 48));
                 _game.DrawStartupSplash();
+                _game.DrawVersionOverlay();
                 _game.EndLogicalFrame();
                 return true;
             }
@@ -184,9 +191,14 @@ public partial class Game1
 
             _game.BeginLogicalFrame(new Color(24, 32, 48));
             _game._menuController.Draw();
-            if (_game.ShouldDrawSoftwareMenuCursor())
+            if (!_game._mainMenuChromeHidden && _game.ShouldDrawSoftwareMenuCursor())
             {
                 _game.DrawSoftwareMenuCursor(_game.GetScaledMouseState(_game.GetConstrainedMouseState(Game1.GetCurrentMouseState())));
+            }
+
+            if (!_game._mainMenuChromeHidden)
+            {
+                _game.DrawVersionOverlay();
             }
 
             _game.EndLogicalFrame();

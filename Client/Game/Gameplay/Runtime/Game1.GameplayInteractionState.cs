@@ -58,7 +58,7 @@ public partial class Game1
 
     private bool CanUseSpectatorTrackingHotkeys()
     {
-        return _networkClient.IsSpectator
+        return IsLocalSpectatorPresentationActive()
             && !_consoleOpen
             && !ShouldBlockGameplayForGarrisonBuilder()
             && !_chatOpen
@@ -66,6 +66,11 @@ public partial class Game1
             && !_teamSelectOpen
             && !_classSelectOpen
             && !IsGameplayMenuOpen();
+    }
+
+    private bool IsLocalSpectatorPresentationActive()
+    {
+        return _networkClient.IsSpectator || _offlinePracticeSpectatorMode;
     }
 
     private bool IsWatchOnlySession()

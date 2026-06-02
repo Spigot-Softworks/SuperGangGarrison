@@ -6,14 +6,18 @@ using System.Globalization;
 using System.Linq;
 using OpenGarrison.Core;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Input;
 
 namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int ConsoleHistoryLimit = 8;
+    private const int ConsoleHistoryLimit = 256;
+    private const int ConsoleScrollStep = 4;
     private bool _consoleOpen;
+    private bool _gameplayHudHidden;
     private string _consoleInput = string.Empty;
+    private int _consoleScrollOffset;
     private readonly List<string> _consoleHistory = new();
 
     private bool TryHandleEnemyDummyConsoleCommand(string commandText)
@@ -81,10 +85,16 @@ public partial class Game1
         switch (command)
         {
             case "help":
-                AddConsoleLine("help, clear, connect <host> [port], replay_play <path>, demo_play <path>, demo_record <start [path]|stop|cancel|status>, replay_queue <path|status|clear>, replay_pause <on|off|toggle|status>, replay_speed <percent>, replay_status, replay_stop, disconnect, net_delay <ms>, net_diag/netdiag/net-diag <on|off|status|clear|export|path>, bot_diag <on|off|status|clear>, debug <0|1>, bots <server bot command>, practice_bot <add|list|clear>, nav_edit <on|off|status|save|reload|rebuild>, builder <on|off|new|open|bg|wm|save|status>, score_route_rec <start|stop|save|cancel|status> ..., spawn_dummy (offline training), despawn_dummy (offline training), spawn_friendly_dummy (offline support), despawn_friendly_dummy (offline support), set_name <text>, set_dummy_name <text> (offline training), set_friendly_name <text> (offline support), set_friendly_dummy_hp <n> (offline support), killme, respawn_me, build_sentry, destroy_sentry, give_intel, drop_intel, set_hp <n>, set_ammo <n>, set_class <scout|engineer|pyro|soldier|demoman|heavy|sniper|medic|spy|quote>, load_map <map>, teleport <x> <y>, fill_uber, ltd_win, ltd_forcespecial <a|b|c|d>, show_import, show_engineer, show_medic");
+                AddConsoleLine("help, clear, hide_hud <on|off|toggle|status>, hud <show|hide|on|off|toggle|status>, connect <host> [port], replay_play <path>, demo_play <path>, demo_record <start [path]|stop|cancel|status>, replay_queue <path|status|clear>, replay_pause <on|off|toggle|status>, replay_speed <percent>, replay_status, replay_stop, disconnect, net_delay <ms>, net_diag/netdiag/net-diag <on|off|status|clear|export|path>, bot_diag <on|off|status|clear>, debug <0|1>, bots <server bot command>, practice_bot <add|list|clear>, nav_edit <on|off|status|save|reload|rebuild>, builder <on|off|new|open|bg|wm|save|status>, score_route_rec <start|stop|save|cancel|status> ..., spawn_dummy (offline training), despawn_dummy (offline training), spawn_friendly_dummy (offline support), despawn_friendly_dummy (offline support), set_name <text>, set_dummy_name <text> (offline training), set_friendly_name <text> (offline support), set_friendly_dummy_hp <n> (offline support), killme, respawn_me, build_sentry, destroy_sentry, give_intel, drop_intel, set_hp <n>, set_ammo <n>, set_class <scout|engineer|pyro|soldier|demoman|heavy|sniper|medic|spy|quote>, load_map <map>, teleport <x> <y>, fill_uber, ltd_win, ltd_forcespecial <a|b|c|d>, show_import, show_engineer, show_medic");
                 break;
             case "clear":
                 _consoleHistory.Clear();
+                _consoleScrollOffset = 0;
+                break;
+            case "hide_hud":
+            case "hide_ui":
+            case "hud":
+                HandleHudVisibilityConsoleCommand(command, parts);
                 break;
             case "connect":
                 if (parts.Length >= 2)
@@ -733,26 +743,165 @@ public partial class Game1
             || value.Equals("quote", StringComparison.OrdinalIgnoreCase);
     }
 
+    private void HandleHudVisibilityConsoleCommand(string command, string[] parts)
+    {
+        if (parts.Length < 2)
+        {
+            AddConsoleLine(_gameplayHudHidden ? "hud is hidden" : "hud is visible");
+            return;
+        }
+
+        var option = parts[1].ToLowerInvariant();
+        switch (command)
+        {
+            case "hud":
+                switch (option)
+                {
+                    case "hide":
+                    case "off":
+                        SetGameplayHudHidden(true);
+                        break;
+                    case "show":
+                    case "on":
+                        SetGameplayHudHidden(false);
+                        break;
+                    case "toggle":
+                        SetGameplayHudHidden(!_gameplayHudHidden);
+                        break;
+                    case "status":
+                        AddConsoleLine(_gameplayHudHidden ? "hud is hidden" : "hud is visible");
+                        break;
+                    default:
+                        AddConsoleLine("usage: hud <show|hide|on|off|toggle|status>");
+                        break;
+                }
+
+                break;
+            default:
+                switch (option)
+                {
+                    case "on":
+                    case "hide":
+                        SetGameplayHudHidden(true);
+                        break;
+                    case "off":
+                    case "show":
+                        SetGameplayHudHidden(false);
+                        break;
+                    case "toggle":
+                        SetGameplayHudHidden(!_gameplayHudHidden);
+                        break;
+                    case "status":
+                        AddConsoleLine(_gameplayHudHidden ? "hud is hidden" : "hud is visible");
+                        break;
+                    default:
+                        AddConsoleLine("usage: hide_hud <on|off|toggle|status>");
+                        break;
+                }
+
+                break;
+        }
+    }
+
+    private void SetGameplayHudHidden(bool hidden)
+    {
+        _gameplayHudHidden = hidden;
+        AddConsoleLine(hidden ? "hud hidden" : "hud visible");
+    }
+
+    private void UpdateConsoleScrollState(KeyboardState keyboard, MouseState mouse)
+    {
+        if (!_consoleOpen)
+        {
+            return;
+        }
+
+        var wheelDelta = mouse.ScrollWheelValue - _previousMouse.ScrollWheelValue;
+        if (wheelDelta != 0)
+        {
+            var stepCount = Math.Max(1, Math.Abs(wheelDelta) / 120);
+            ScrollConsoleHistory(wheelDelta > 0 ? stepCount : -stepCount);
+        }
+
+        if (IsKeyPressed(keyboard, Keys.PageUp))
+        {
+            ScrollConsoleHistory(ConsoleScrollStep);
+        }
+        else if (IsKeyPressed(keyboard, Keys.PageDown))
+        {
+            ScrollConsoleHistory(-ConsoleScrollStep);
+        }
+        else if (IsKeyPressed(keyboard, Keys.Home))
+        {
+            _consoleScrollOffset = GetConsoleMaxScrollOffset();
+        }
+        else if (IsKeyPressed(keyboard, Keys.End))
+        {
+            _consoleScrollOffset = 0;
+        }
+
+        ClampConsoleScrollOffset();
+    }
+
+    private void ScrollConsoleHistory(int delta)
+    {
+        _consoleScrollOffset = Math.Max(0, _consoleScrollOffset + delta);
+        ClampConsoleScrollOffset();
+    }
+
+    private void ClampConsoleScrollOffset()
+    {
+        _consoleScrollOffset = Math.Clamp(_consoleScrollOffset, 0, GetConsoleMaxScrollOffset());
+    }
+
+    private int GetConsoleMaxScrollOffset()
+    {
+        if (_consoleFont is null)
+        {
+            return 0;
+        }
+
+        var maxTextWidth = Math.Max(1f, ViewportWidth - 60f);
+        var availableLineCount = Math.Max(1, (180 - 52) / 18);
+        var wrappedLines = BuildWrappedConsoleLines(maxTextWidth);
+        return Math.Max(0, wrappedLines.Count - availableLineCount);
+    }
+
+    private List<string> BuildWrappedConsoleLines(float maxTextWidth)
+    {
+        var wrappedLines = new List<string>();
+        foreach (var line in _consoleHistory)
+        {
+            AppendWrappedConsoleLines(wrappedLines, line, maxTextWidth);
+        }
+
+        return wrappedLines;
+    }
+
     private void DrawConsoleOverlay()
     {
         var overlayRectangle = new Rectangle(18, 18, ViewportWidth - 36, 180);
         _spriteBatch.Draw(_pixel, overlayRectangle, new Color(10, 14, 18, 210));
         _spriteBatch.Draw(_pixel, new Rectangle(overlayRectangle.X, overlayRectangle.Y, overlayRectangle.Width, 2), new Color(245, 215, 120));
 
-        var wrappedLines = new List<string>();
         var maxTextWidth = overlayRectangle.Width - 24f;
-        foreach (var line in _consoleHistory)
-        {
-            AppendWrappedConsoleLines(wrappedLines, line, maxTextWidth);
-        }
+        var wrappedLines = BuildWrappedConsoleLines(maxTextWidth);
 
         var availableLineCount = Math.Max(1, (overlayRectangle.Height - 52) / 18);
-        var firstLineIndex = Math.Max(0, wrappedLines.Count - availableLineCount);
+        var maxScrollOffset = Math.Max(0, wrappedLines.Count - availableLineCount);
+        _consoleScrollOffset = Math.Clamp(_consoleScrollOffset, 0, maxScrollOffset);
+        var firstLineIndex = Math.Max(0, wrappedLines.Count - availableLineCount - _consoleScrollOffset);
+        var lastLineIndex = Math.Min(wrappedLines.Count, firstLineIndex + availableLineCount);
         var linePosition = new Vector2(overlayRectangle.X + 12, overlayRectangle.Y + 10);
-        for (var index = firstLineIndex; index < wrappedLines.Count; index += 1)
+        for (var index = firstLineIndex; index < lastLineIndex; index += 1)
         {
             _spriteBatch.DrawString(_consoleFont, wrappedLines[index], linePosition, new Color(230, 232, 235));
             linePosition.Y += 18f;
+        }
+
+        if (maxScrollOffset > 0)
+        {
+            DrawConsoleScrollIndicator(overlayRectangle, maxScrollOffset);
         }
 
         var promptPrefix = "> ";
@@ -779,6 +928,29 @@ public partial class Game1
                 GetTextWithCursor(_consoleInput, _consoleInputCursorIndex),
                 new Vector2(promptPosition.X + promptPrefixWidth, promptPosition.Y),
                 new Color(255, 245, 190));
+        }
+    }
+
+    private void DrawConsoleScrollIndicator(Rectangle overlayRectangle, int maxScrollOffset)
+    {
+        var trackBounds = new Rectangle(overlayRectangle.Right - 10, overlayRectangle.Y + 10, 4, overlayRectangle.Height - 62);
+        _spriteBatch.Draw(_pixel, trackBounds, new Color(50, 58, 66, 180));
+
+        var thumbHeight = Math.Max(18, trackBounds.Height / 4);
+        var thumbTravel = Math.Max(0, trackBounds.Height - thumbHeight);
+        var thumbY = trackBounds.Y + (int)MathF.Round((1f - (_consoleScrollOffset / (float)Math.Max(1, maxScrollOffset))) * thumbTravel);
+        var thumbBounds = new Rectangle(trackBounds.X, thumbY, trackBounds.Width, thumbHeight);
+        _spriteBatch.Draw(_pixel, thumbBounds, new Color(245, 215, 120, 220));
+
+        if (_consoleScrollOffset > 0)
+        {
+            var label = $"{_consoleScrollOffset} older";
+            var labelSize = _consoleFont.MeasureString(label);
+            _spriteBatch.DrawString(
+                _consoleFont,
+                label,
+                new Vector2(overlayRectangle.Right - labelSize.X - 18f, overlayRectangle.Bottom - 52f),
+                new Color(180, 190, 200));
         }
     }
 
@@ -842,10 +1014,18 @@ public partial class Game1
             return;
         }
 
+        var wasScrolledBack = _consoleScrollOffset > 0;
         _consoleHistory.Add(line);
+        if (wasScrolledBack)
+        {
+            _consoleScrollOffset += 1;
+        }
+
         while (_consoleHistory.Count > ConsoleHistoryLimit)
         {
             _consoleHistory.RemoveAt(0);
         }
+
+        ClampConsoleScrollOffset();
     }
 }

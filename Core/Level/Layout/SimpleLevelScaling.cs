@@ -78,6 +78,11 @@ internal static class SimpleLevelScaling
             return metadata;
         }
 
-        return metadata with { ImageScale = metadata.ImageScale * scale };
+        return metadata with
+        {
+            ImageScale = metadata.ImageScale * scale,
+            ForegroundOffsetX = metadata.ForegroundOffsetX * scale,
+            ForegroundOffsetY = metadata.ForegroundOffsetY * scale,
+        };
     }
 }

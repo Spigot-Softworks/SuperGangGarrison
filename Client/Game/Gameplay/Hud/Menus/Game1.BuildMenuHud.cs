@@ -115,7 +115,7 @@ public partial class Game1
         }
 
         var player = _world.LocalPlayer;
-        if (_networkClient.IsSpectator
+        if (IsLocalSpectatorPresentationActive()
             || player.ClassId != PlayerClass.Engineer
             || !player.IsAlive
             || player.IsInSpawnRoom

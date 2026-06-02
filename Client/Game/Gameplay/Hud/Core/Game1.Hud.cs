@@ -36,10 +36,26 @@ public partial class Game1
             && !(_clientPluginHost?.IsCapturedHotkeyPressed(key) ?? false);
     }
 
+    private static bool IsBindingDown(KeyboardState keyboard, MouseState mouse, InputBinding binding)
+    {
+        return InputBindingInput.IsDown(binding, keyboard, mouse);
+    }
+
+    private bool IsBindingPressed(KeyboardState keyboard, MouseState mouse, InputBinding binding)
+    {
+        if (binding.Kind == InputBindingKind.Keyboard
+            && (_clientPluginHost?.IsCapturedHotkeyPressed(binding.Key) ?? false))
+        {
+            return false;
+        }
+
+        return InputBindingInput.IsPressed(binding, keyboard, _previousKeyboard, mouse, _previousMouse);
+    }
+
     private void UpdateScoreboardState(KeyboardState keyboard, MouseState mouse)
     {
         _scoreboardOpen = CanShowGameplayScoreboard()
-            && keyboard.IsKeyDown(_inputBindings.ShowScoreboard);
+            && IsBindingDown(keyboard, mouse, _inputBindings.ShowScoreboard);
 
         if (_scoreboardOpen)
         {

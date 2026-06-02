@@ -42,6 +42,13 @@ public partial class Game1
             return;
         }
 
+        if (_gameplayHudHidden)
+        {
+            WriteGameplayRenderTrace("hud hidden");
+            RecordBrowserHudDrawDuration(browserHudDrawStartTimestamp);
+            return;
+        }
+
         var deathCamActive = !_world.LocalPlayer.IsAlive && IsGameplayDeathCamActive();
         var localPlayerAlive = _world.LocalPlayer.IsAlive;
         WriteGameplayRenderTrace("hud begin");
@@ -67,7 +74,7 @@ public partial class Game1
         WriteGameplayRenderTrace("hud after jump");
         DrawLastToDieCombatFeedbackHud();
         WriteGameplayRenderTrace("hud after lasttodie-combat");
-        if (!_networkClient.IsSpectator && localPlayerAlive && !deathCamActive)
+        if (!IsLocalSpectatorPresentationActive() && localPlayerAlive && !deathCamActive)
         {
             CollectGameplayHudElements();
             DrawGameplayHudElements(0, 10);
@@ -96,7 +103,7 @@ public partial class Game1
             WriteGameplayRenderTrace("hud after hoveredplayername");
             DrawSpectatorTrackedPlayerCrosshair(cameraPosition);
             WriteGameplayRenderTrace("hud after spectatortrackedcrosshair");
-            if (_networkClient.IsSpectator)
+            if (IsLocalSpectatorPresentationActive())
             {
                 DrawSpectatorBaselineHud(cameraPosition);
                 WriteGameplayRenderTrace("hud after spectatorbaseline");
@@ -135,7 +142,7 @@ public partial class Game1
         DrawNavEditorOverlay(mouse, cameraPosition);
         WriteGameplayRenderTrace("hud after naveditor");
         // Draw binocular overlay before chat so chat renders on top
-        if (!_networkClient.IsSpectator && localPlayerAlive && !deathCamActive)
+        if (!IsLocalSpectatorPresentationActive() && localPlayerAlive && !deathCamActive)
         {
             DrawBinocularOverlay();
             WriteGameplayRenderTrace("hud after binocular");
@@ -152,7 +159,7 @@ public partial class Game1
 
     private void DrawSpectatorTrackedPlayerCrosshair(Vector2 cameraPosition)
     {
-        if (!_networkClient.IsSpectator)
+        if (!IsLocalSpectatorPresentationActive())
         {
             return;
         }
@@ -179,6 +186,18 @@ public partial class Game1
     private void DrawGameplayModalOverlays(MouseState mouse)
     {
         var browserModalDrawStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
+        if (_gameplayHudHidden)
+        {
+            if (_consoleOpen)
+            {
+                DrawConsoleOverlay();
+                WriteGameplayRenderTrace("modal after console");
+            }
+
+            RecordBrowserModalDrawDuration(browserModalDrawStartTimestamp);
+            return;
+        }
+
         if (IsLastToDieDeathFocusPresentationActive())
         {
             if (IsLastToDieFailureOverlayActive())

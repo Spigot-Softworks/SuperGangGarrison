@@ -144,7 +144,7 @@ public sealed partial class SimulationWorld
         }
 
         player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
-        SpawnPlayerResolved(player, team, ReserveSpawn(player, team, slot));
+        SpawnPlayerResolved(player, team, ReserveSpawn(player, team, slot), playRespawnSound: true);
         return true;
     }
 
@@ -426,14 +426,15 @@ public sealed partial class SimulationWorld
 
         if (player.IsAlive)
         {
+            var classChangeCreatesRemains = !player.IsInSpawnRoom;
             RemoveOwnedSpyArtifacts(player.Id);
             KillPlayer(
                 player,
                 weaponSpriteName: "DeadKL",
                 killFeedMessage: player.IsInSpawnRoom ? null : player.DisplayName + ClassChangeKillFeedSuffix,
                 createDeathCam: false,
-                spawnRemains: true,
-                forceCorpseRemains: true,
+                spawnRemains: classChangeCreatesRemains,
+                forceCorpseRemains: classChangeCreatesRemains,
                 recordKillFeed: !player.IsInSpawnRoom);
         }
 

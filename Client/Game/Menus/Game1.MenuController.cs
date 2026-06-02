@@ -41,6 +41,21 @@ public partial class Game1
                 return;
             }
 
+            if (_game.IsKeyPressed(keyboard, Keys.F11))
+            {
+                _game._mainMenuChromeHidden = !_game._mainMenuChromeHidden;
+                _game._mainMenuHoverIndex = -1;
+                _game._mainMenuBottomBarHover = false;
+                return;
+            }
+
+            if (_game._mainMenuChromeHidden)
+            {
+                _game._mainMenuHoverIndex = -1;
+                _game._mainMenuBottomBarHover = false;
+                return;
+            }
+
             if (_game.UpdateDevMessagePopup(keyboard, mouse))
             {
                 return;
@@ -80,6 +95,12 @@ public partial class Game1
                 {
                     _game._spriteBatch.Draw(_game._pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), new Color(26, 24, 20));
                 }
+            }
+
+            if (_game._mainMenuChromeHidden && !_game._builderEditorEnabled)
+            {
+                _game.DrawMainMenuBottomBar();
+                return;
             }
 
             DrawMenuBackgroundAttribution();

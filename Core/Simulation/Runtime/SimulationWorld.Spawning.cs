@@ -36,7 +36,13 @@ public sealed partial class SimulationWorld
         return true;
     }
 
-    private bool SpawnPlayerResolved(PlayerEntity player, PlayerTeam team, float x, float y, bool clearMedicHealingTarget = true)
+    private bool SpawnPlayerResolved(
+        PlayerEntity player,
+        PlayerTeam team,
+        float x,
+        float y,
+        bool clearMedicHealingTarget = true,
+        bool playRespawnSound = false)
     {
         if (ShouldCancelSpawn(player, team, x, y))
         {
@@ -51,19 +57,29 @@ public sealed partial class SimulationWorld
             player.ClearMedicHealingTarget();
         }
 
+        if (playRespawnSound)
+        {
+            RegisterWorldSoundEvent("RespawnSnd", player.X, player.Y);
+        }
+
         return true;
     }
 
-    private bool SpawnPlayerResolved(PlayerEntity player, PlayerTeam team, SpawnPoint spawn, bool clearMedicHealingTarget = true)
+    private bool SpawnPlayerResolved(
+        PlayerEntity player,
+        PlayerTeam team,
+        SpawnPoint spawn,
+        bool clearMedicHealingTarget = true,
+        bool playRespawnSound = false)
     {
-        return SpawnPlayerResolved(player, team, spawn.X, spawn.Y, clearMedicHealingTarget);
+        return SpawnPlayerResolved(player, team, spawn.X, spawn.Y, clearMedicHealingTarget, playRespawnSound);
     }
 
     private bool RespawnConfiguredNetworkPlayer(byte slot, PlayerEntity player)
     {
         var team = GetNetworkPlayerConfiguredTeam(slot);
         player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
-        if (!SpawnPlayerResolved(player, team, ReserveSpawn(player, team, slot)))
+        if (!SpawnPlayerResolved(player, team, ReserveSpawn(player, team, slot), playRespawnSound: true))
         {
             return false;
         }
@@ -96,7 +112,7 @@ public sealed partial class SimulationWorld
         if (EnemyPlayerEnabled)
         {
             EnemyPlayer.SetClassDefinition(_enemyDummyClassDefinition);
-            SpawnPlayerResolved(EnemyPlayer, _enemyDummyTeam, ReserveSpawn(EnemyPlayer, _enemyDummyTeam));
+            SpawnPlayerResolved(EnemyPlayer, _enemyDummyTeam, ReserveSpawn(EnemyPlayer, _enemyDummyTeam), playRespawnSound: true);
             _enemyDummyRespawnTicks = 0;
         }
         else
@@ -115,7 +131,7 @@ public sealed partial class SimulationWorld
             else
             {
                 var friendlySpawn = FindFriendlyDummySpawnNearLocalPlayer();
-                SpawnPlayerResolved(FriendlyDummy, GetNetworkPlayerConfiguredTeam(LocalPlayerSlot), friendlySpawn.X, friendlySpawn.Y);
+                SpawnPlayerResolved(FriendlyDummy, GetNetworkPlayerConfiguredTeam(LocalPlayerSlot), friendlySpawn.X, friendlySpawn.Y, playRespawnSound: true);
             }
         }
         else

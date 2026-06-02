@@ -96,12 +96,21 @@ public partial class Game1
         // Draw bottom bar and runners (in animated mode only)
         if (_menuBackgroundMode != MenuBackgroundMode.Static)
         {
-            const int bottomBarHeight = 76;
-            var barY = viewportHeight - bottomBarHeight;
-            var bottomBarBounds = new Rectangle(0, barY, viewportWidth, bottomBarHeight);
-            _spriteBatch.Draw(_pixel, bottomBarBounds, new Color(0x57, 0x4f, 0x47));
-            _menuBottomBarRunners.Draw(bottomBarBounds);
+            DrawMainMenuBottomBar();
         }
+    }
+
+    private void DrawMainMenuBottomBar()
+    {
+        if (_menuBackgroundMode == MenuBackgroundMode.Static)
+        {
+            return;
+        }
+
+        const int bottomBarHeight = 76;
+        var bottomBarBounds = new Rectangle(0, ViewportHeight - bottomBarHeight, ViewportWidth, bottomBarHeight);
+        _spriteBatch.Draw(_pixel, bottomBarBounds, new Color(0x57, 0x4f, 0x47));
+        _menuBottomBarRunners.Draw(bottomBarBounds);
     }
 
     private void DrawMenuStatusText()

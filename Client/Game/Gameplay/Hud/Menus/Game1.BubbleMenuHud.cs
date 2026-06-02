@@ -61,10 +61,10 @@ public partial class Game1
         var leftMousePressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
         var leftMouseDown = mouse.LeftButton == ButtonState.Pressed;
         var leftMouseReleased = mouse.LeftButton == ButtonState.Released && _previousMouse.LeftButton == ButtonState.Pressed;
-        var callMedicPressed = keyboard.IsKeyDown(_inputBindings.CallMedic) && !_previousKeyboard.IsKeyDown(_inputBindings.CallMedic);
-        var openZPressed = keyboard.IsKeyDown(_inputBindings.OpenBubbleMenuZ) && !_previousKeyboard.IsKeyDown(_inputBindings.OpenBubbleMenuZ);
-        var openXPressed = keyboard.IsKeyDown(_inputBindings.OpenBubbleMenuX) && !_previousKeyboard.IsKeyDown(_inputBindings.OpenBubbleMenuX);
-        var openCPressed = keyboard.IsKeyDown(_inputBindings.OpenBubbleMenuC) && !_previousKeyboard.IsKeyDown(_inputBindings.OpenBubbleMenuC);
+        var callMedicPressed = IsBindingPressed(keyboard, mouse, _inputBindings.CallMedic);
+        var openZPressed = IsBindingPressed(keyboard, mouse, _inputBindings.OpenBubbleMenuZ);
+        var openXPressed = IsBindingPressed(keyboard, mouse, _inputBindings.OpenBubbleMenuX);
+        var openCPressed = IsBindingPressed(keyboard, mouse, _inputBindings.OpenBubbleMenuC);
 
         if (callMedicPressed)
         {
@@ -160,13 +160,13 @@ public partial class Game1
         }
     }
 
-    private bool IsCurrentBubbleMenuKeyHeld(KeyboardState keyboard)
+    private bool IsCurrentBubbleMenuKeyHeld(KeyboardState keyboard, MouseState mouse)
     {
         return _bubbleMenuKind switch
         {
-            BubbleMenuKind.Z => keyboard.IsKeyDown(_inputBindings.OpenBubbleMenuZ),
-            BubbleMenuKind.X => keyboard.IsKeyDown(_inputBindings.OpenBubbleMenuX),
-            BubbleMenuKind.C => keyboard.IsKeyDown(_inputBindings.OpenBubbleMenuC),
+            BubbleMenuKind.Z => IsBindingDown(keyboard, mouse, _inputBindings.OpenBubbleMenuZ),
+            BubbleMenuKind.X => IsBindingDown(keyboard, mouse, _inputBindings.OpenBubbleMenuX),
+            BubbleMenuKind.C => IsBindingDown(keyboard, mouse, _inputBindings.OpenBubbleMenuC),
             _ => true,
         };
     }

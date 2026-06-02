@@ -87,9 +87,7 @@ public partial class Game1
             return "Spectator mode is not available in Jump.";
         }
 
-        return IsPracticeSessionActive
-            ? "Spectator mode is not available in Practice."
-            : "Spectator mode requires a network session.";
+        return "Spectator mode requires a network session.";
     }
 
     private static PlayerTeam GetOpposingTeam(PlayerTeam localTeam)

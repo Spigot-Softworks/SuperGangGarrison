@@ -9,7 +9,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private List<(ControlsMenuBinding Binding, string Label, Keys Key)> GetControlsMenuBindings()
+    private List<(ControlsMenuBinding Binding, string Label, InputBinding Input)> GetControlsMenuBindings()
     {
         var bubbleMenuBindingPrefix = GetBubbleMenuBindingPrefix();
         return
@@ -34,61 +34,61 @@ public partial class Game1
         ];
     }
 
-    private void ApplyControlsBinding(ControlsMenuBinding binding, Keys key)
+    private void ApplyControlsBinding(ControlsMenuBinding binding, InputBinding input)
     {
         switch (binding)
         {
             case ControlsMenuBinding.MoveUp:
-                _inputBindings.MoveUp = key;
+                _inputBindings.MoveUp = input;
                 break;
             case ControlsMenuBinding.MoveLeft:
-                _inputBindings.MoveLeft = key;
+                _inputBindings.MoveLeft = input;
                 break;
             case ControlsMenuBinding.MoveRight:
-                _inputBindings.MoveRight = key;
+                _inputBindings.MoveRight = input;
                 break;
             case ControlsMenuBinding.MoveDown:
-                _inputBindings.MoveDown = key;
+                _inputBindings.MoveDown = input;
                 break;
             case ControlsMenuBinding.Taunt:
-                _inputBindings.Taunt = key;
+                _inputBindings.Taunt = input;
                 break;
             case ControlsMenuBinding.CallMedic:
-                _inputBindings.CallMedic = key;
+                _inputBindings.CallMedic = input;
                 break;
             case ControlsMenuBinding.UseAbility:
-                _inputBindings.UseAbility = key;
+                _inputBindings.UseAbility = input;
                 break;
             case ControlsMenuBinding.SwapWeaponsCustom:
-                _inputBindings.SwapWeaponsCustomKey = key;
+                _inputBindings.SwapWeaponsCustomKey = input;
                 _inputBindings.SwapWeaponsBinding = WeaponSwapBindingMode.Custom;
                 break;
             case ControlsMenuBinding.InteractWeapon:
-                _inputBindings.InteractWeapon = key;
+                _inputBindings.InteractWeapon = input;
                 break;
             case ControlsMenuBinding.ChangeTeam:
-                _inputBindings.ChangeTeam = key;
+                _inputBindings.ChangeTeam = input;
                 break;
             case ControlsMenuBinding.ChangeClass:
-                _inputBindings.ChangeClass = key;
+                _inputBindings.ChangeClass = input;
                 break;
             case ControlsMenuBinding.ShowScoreboard:
-                _inputBindings.ShowScoreboard = key;
+                _inputBindings.ShowScoreboard = input;
                 break;
             case ControlsMenuBinding.ToggleConsole:
-                _inputBindings.ToggleConsole = key;
+                _inputBindings.ToggleConsole = input;
                 break;
             case ControlsMenuBinding.OpenBubbleMenuZ:
-                _inputBindings.OpenBubbleMenuZ = key;
+                _inputBindings.OpenBubbleMenuZ = input;
                 break;
             case ControlsMenuBinding.OpenBubbleMenuX:
-                _inputBindings.OpenBubbleMenuX = key;
+                _inputBindings.OpenBubbleMenuX = input;
                 break;
             case ControlsMenuBinding.OpenBubbleMenuC:
-                _inputBindings.OpenBubbleMenuC = key;
+                _inputBindings.OpenBubbleMenuC = input;
                 break;
             case ControlsMenuBinding.CustomBubble:
-                _inputBindings.CustomBubble = key;
+                _inputBindings.CustomBubble = input;
                 break;
         }
     }
@@ -126,7 +126,17 @@ public partial class Game1
             : "Bubble Menu";
     }
 
-    private static string GetBindingDisplayName(Keys key)
+    private static string GetBindingDisplayName(InputBinding input)
+    {
+        return input.Kind switch
+        {
+            InputBindingKind.Keyboard => GetKeyBindingDisplayName(input.Key),
+            InputBindingKind.Mouse => GetMouseBindingDisplayName(input.MouseButton),
+            _ => "Unbound",
+        };
+    }
+
+    private static string GetKeyBindingDisplayName(Keys key)
     {
         return key switch
         {
@@ -149,6 +159,19 @@ public partial class Game1
             Keys.PageUp => "PgUp",
             Keys.PageDown => "PgDn",
             _ => key.ToString(),
+        };
+    }
+
+    private static string GetMouseBindingDisplayName(InputMouseButton button)
+    {
+        return button switch
+        {
+            InputMouseButton.Left => "Mouse 1",
+            InputMouseButton.Right => "Mouse 2",
+            InputMouseButton.Middle => "Mouse 3",
+            InputMouseButton.XButton1 => "Mouse 4",
+            InputMouseButton.XButton2 => "Mouse 5",
+            _ => "Mouse",
         };
     }
 }

@@ -353,7 +353,7 @@ public partial class Game1
         {
             var pluginHost = _game._clientPluginHost;
             var localPlayer = _game._world.LocalPlayer;
-            if (pluginHost is null || _game._networkClient.IsSpectator)
+            if (pluginHost is null || _game.IsLocalSpectatorPresentationActive())
             {
                 _game._clientPluginPreviousLocalAlive = localPlayer.IsAlive;
                 _game._clientPluginPreviousLocalHealth = localPlayer.Health;

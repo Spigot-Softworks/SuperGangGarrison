@@ -167,6 +167,10 @@ public partial class Game1
             {
                 BeginOnlineSpectateSelection();
             }
+            else if (IsPracticeSessionActive)
+            {
+                BeginOfflinePracticeSpectateSelection();
+            }
             else
             {
                 _menuStatusMessage = GetOfflineSpectateUnavailableMessage();
@@ -245,7 +249,7 @@ public partial class Game1
     private int GetTeamCount(PlayerTeam team)
     {
         var count = 0;
-        if (!_networkClient.IsSpectator && !_world.LocalPlayerAwaitingJoin && _world.LocalPlayer.Team == team)
+        if (!IsLocalSpectatorPresentationActive() && !_world.LocalPlayerAwaitingJoin && _world.LocalPlayer.Team == team)
         {
             count += 1;
         }

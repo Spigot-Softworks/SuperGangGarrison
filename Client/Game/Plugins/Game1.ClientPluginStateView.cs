@@ -19,7 +19,7 @@ public partial class Game1
         public bool IsMainMenuOpen => game._mainMenuOpen;
         public bool IsGameplayActive => !game._startupSplashOpen && !game._mainMenuOpen;
         public bool IsGameplayInputBlocked => game.IsGameplayInputBlocked();
-        public bool IsSpectator => game._networkClient.IsSpectator;
+        public bool IsSpectator => game.IsLocalSpectatorPresentationActive();
         public bool IsDeathCamActive => game._killCamEnabled && !game._world.LocalPlayer.IsAlive && game._world.LocalDeathCam is not null;
         public ulong WorldFrame => (ulong)Math.Max(0, game._world.Frame);
         public int TickRate => game._config.TicksPerSecond;
@@ -30,17 +30,17 @@ public partial class Game1
         public int ViewportWidth => game.ViewportWidth;
         public int ViewportHeight => game.ViewportHeight;
         public int? LocalPlayerId => game.GetClientPluginLocalPlayerId();
-        public ClientPluginTeam LocalPlayerTeam => game._networkClient.IsSpectator ? ClientPluginTeam.None : ToClientPluginTeam(game._world.LocalPlayer.Team);
-        public ClientPluginClass LocalPlayerClass => game._networkClient.IsSpectator ? ClientPluginClass.Unknown : ToClientPluginClass(game._world.LocalPlayer.ClassId);
-        public bool IsLocalPlayerAlive => !game._networkClient.IsSpectator && game._world.LocalPlayer.IsAlive;
-        public bool IsLocalPlayerScoped => !game._networkClient.IsSpectator && game._world.LocalPlayer.IsSniperScoped;
-        public bool IsLocalPlayerHealing => !game._networkClient.IsSpectator && game._world.LocalPlayer.IsMedicHealing;
+        public ClientPluginTeam LocalPlayerTeam => game.IsLocalSpectatorPresentationActive() ? ClientPluginTeam.None : ToClientPluginTeam(game._world.LocalPlayer.Team);
+        public ClientPluginClass LocalPlayerClass => game.IsLocalSpectatorPresentationActive() ? ClientPluginClass.Unknown : ToClientPluginClass(game._world.LocalPlayer.ClassId);
+        public bool IsLocalPlayerAlive => !game.IsLocalSpectatorPresentationActive() && game._world.LocalPlayer.IsAlive;
+        public bool IsLocalPlayerScoped => !game.IsLocalSpectatorPresentationActive() && game._world.LocalPlayer.IsSniperScoped;
+        public bool IsLocalPlayerHealing => !game.IsLocalSpectatorPresentationActive() && game._world.LocalPlayer.IsMedicHealing;
         public float SoundEffectsVolumeScale => game.GetSoundEffectsVolumeScale();
         public Vector2 CameraTopLeft => game.GetCurrentClientPluginCameraTopLeft();
 
         public bool TryGetLocalPlayerHealth(out int health, out int maxHealth)
         {
-            if (game._networkClient.IsSpectator)
+            if (game.IsLocalSpectatorPresentationActive())
             {
                 health = default;
                 maxHealth = default;
@@ -54,7 +54,7 @@ public partial class Game1
 
         public bool TryGetLocalPlayerWorldPosition(out Vector2 position)
         {
-            if (game._networkClient.IsSpectator)
+            if (game.IsLocalSpectatorPresentationActive())
             {
                 position = default;
                 return false;
@@ -126,7 +126,7 @@ public partial class Game1
 
         public IReadOnlyList<string> GetLocalGameplayItemIds()
         {
-            if (game._networkClient.IsSpectator)
+            if (game.IsLocalSpectatorPresentationActive())
             {
                 return [];
             }
@@ -139,7 +139,7 @@ public partial class Game1
 
         public IReadOnlyList<string> GetLocalGameplayAbilityItemIds()
         {
-            if (game._networkClient.IsSpectator)
+            if (game.IsLocalSpectatorPresentationActive())
             {
                 return [];
             }

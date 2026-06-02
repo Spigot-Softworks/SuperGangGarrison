@@ -138,11 +138,13 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     }
 
     [Fact]
-    public void TrySetLocalClassSpawnsCorpseForClassChange()
+    public void TrySetLocalClassOutsideSpawnSpawnsCorpseForClassChange()
     {
         var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
         world.ForceRespawnLocalPlayer();
+        _ = world.DrainPendingSoundEvents();
         world.LocalPlayer.TeleportTo(512f, 256f);
+        world.LocalPlayer.SetSpawnRoomState(false);
 
         var changed = world.TrySetLocalClass(PlayerClass.Scout);
 
@@ -152,6 +154,55 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         Assert.Empty(world.PlayerGibs);
         Assert.DoesNotContain(world.PendingSoundEvents, soundEvent => soundEvent.SoundName == "Gibbing");
         Assert.Contains(world.PendingSoundEvents, soundEvent => soundEvent.SoundName is "DeathSnd1" or "DeathSnd2");
+    }
+
+    [Fact]
+    public void TrySetLocalClassInSpawnDoesNotSpawnCorpseOrDeathSound()
+    {
+        var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
+        world.LocalPlayer.SetSpawnRoomState(true);
+
+        var changed = world.TrySetLocalClass(PlayerClass.Scout);
+
+        Assert.True(changed);
+        Assert.False(world.LocalPlayer.IsAlive);
+        Assert.Empty(world.DeadBodies);
+        Assert.Empty(world.PlayerGibs);
+        Assert.DoesNotContain(world.PendingSoundEvents, soundEvent => soundEvent.SoundName == "Gibbing");
+        Assert.DoesNotContain(world.PendingSoundEvents, soundEvent => soundEvent.SoundName is "DeathSnd1" or "DeathSnd2");
+    }
+
+    [Fact]
+    public void TrySetLocalClassInSpawnPlaysRespawnSoundAfterRespawn()
+    {
+        var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
+        world.LocalPlayer.SetSpawnRoomState(true);
+
+        Assert.True(world.TrySetLocalClass(PlayerClass.Scout));
+
+        world.AdvanceOneTick();
+
+        Assert.True(world.LocalPlayer.IsAlive);
+        Assert.Equal(PlayerClass.Scout, world.LocalPlayer.ClassId);
+        Assert.Contains(world.PendingSoundEvents, soundEvent => soundEvent.SoundName == "RespawnSnd");
+    }
+
+    [Fact]
+    public void TimedRespawnAfterDeathPlaysRespawnSound()
+    {
+        var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
+        world.LocalPlayer.SetSpawnRoomState(false);
+
+        world.ForceKillLocalPlayer();
+        _ = world.DrainPendingSoundEvents();
+
+        for (var tick = 0; tick < world.Config.TicksPerSecond * 6 && !world.LocalPlayer.IsAlive; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        Assert.True(world.LocalPlayer.IsAlive);
+        Assert.Contains(world.PendingSoundEvents, soundEvent => soundEvent.SoundName == "RespawnSnd");
     }
 
     [Fact]
@@ -220,6 +271,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         var world = new SimulationWorld();
         world.PrepareLocalPlayerJoin();
         world.CompleteLocalPlayerJoin(playerClass);
+        _ = world.DrainPendingSoundEvents();
         Assert.Equal(playerClass, world.LocalPlayer.ClassId);
         return world;
     }

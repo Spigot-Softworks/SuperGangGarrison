@@ -51,7 +51,9 @@ public partial class Game1
         {
             _spriteBatch.Draw(
                 visuals.Foreground,
-                new Vector2(-cameraPosition.X, -cameraPosition.Y),
+                new Vector2(
+                    -cameraPosition.X + visuals.ForegroundOffsetX,
+                    -cameraPosition.Y + visuals.ForegroundOffsetY),
                 null,
                 Color.White,
                 0f,
@@ -179,7 +181,9 @@ public partial class Game1
             TryParseGmlColor(source.VoidColor, out var voidColor) ? voidColor : null,
             layers,
             foreground,
-            LoadRuntimeCustomMapVisualResources(source));
+            LoadRuntimeCustomMapVisualResources(source),
+            source.ForegroundOffsetX,
+            source.ForegroundOffsetY);
     }
 
     private Dictionary<string, Texture2D> LoadRuntimeCustomMapVisualResources(CustomMapVisualMetadata source)
@@ -296,7 +300,9 @@ public partial class Game1
             Color? voidColor,
             IReadOnlyList<RuntimeCustomMapParallaxLayer> parallaxLayers,
             Texture2D? foreground,
-            IReadOnlyDictionary<string, Texture2D> resources)
+            IReadOnlyDictionary<string, Texture2D> resources,
+            float foregroundOffsetX,
+            float foregroundOffsetY)
         {
             ImageScale = imageScale;
             BackgroundColor = backgroundColor;
@@ -304,6 +310,8 @@ public partial class Game1
             ParallaxLayers = parallaxLayers;
             Foreground = foreground;
             Resources = resources;
+            ForegroundOffsetX = foregroundOffsetX;
+            ForegroundOffsetY = foregroundOffsetY;
         }
 
         public float ImageScale { get; }
@@ -317,6 +325,10 @@ public partial class Game1
         public Texture2D? Foreground { get; }
 
         public IReadOnlyDictionary<string, Texture2D> Resources { get; }
+
+        public float ForegroundOffsetX { get; }
+
+        public float ForegroundOffsetY { get; }
 
         public void Dispose()
         {
