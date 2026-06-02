@@ -131,9 +131,9 @@ public partial class Game1
         _gameplayMedicHudController.DrawHealerRadarHud(cameraPosition, mouse);
     }
 
-    private void DrawSniperHud(MouseState mouse)
+    private void DrawSniperHud(Vector2 screenAimPosition)
     {
-        _gameplayAimHudController.DrawSniperHud(mouse);
+        _gameplayAimHudController.DrawSniperHud(screenAimPosition);
     }
 
     private void DrawPersistentSelfNameHud(Vector2 cameraPosition)
@@ -156,9 +156,14 @@ public partial class Game1
         return _gameplayPlayerNameHudController.GetHoveredPlayerForNameHud(mouse, cameraPosition);
     }
 
-    private void DrawCrosshair(MouseState mouse)
+    private void DrawCrosshair(Vector2 screenPosition)
     {
-        _gameplayAimHudController.DrawCrosshair(mouse);
+        _gameplayAimHudController.DrawCrosshair(screenPosition);
+    }
+
+    private void DrawControllerAimLine(Vector2 cameraPosition, Vector2 screenAimPosition)
+    {
+        _gameplayAimHudController.DrawControllerAimLine(cameraPosition, screenAimPosition);
     }
 
     private int CountLocalOwnedStickyMines()

@@ -51,28 +51,45 @@ public partial class Game1
             out var backBounds,
             out _);
 
-        if (keyboard.IsKeyDown(Keys.Escape) && !_previousKeyboard.IsKeyDown(Keys.Escape))
+        if ((keyboard.IsKeyDown(Keys.Escape) && !_previousKeyboard.IsKeyDown(Keys.Escape))
+            || IsControllerMenuBackPressed())
         {
             CloseLobbyBrowser(clearStatus: false);
             return;
         }
 
-        _lobbyBrowserHoverIndex = -1;
-        for (var index = 0; index < rowBounds.Length; index += 1)
+        if (TryConsumeControllerMenuNavigation(out _, out var verticalStep) && verticalStep != 0)
         {
-            if (index >= _lobbyBrowserEntries.Count)
+            _lobbyBrowserSelectedIndex = MoveControllerMenuSelectionClamped(
+                _lobbyBrowserSelectedIndex,
+                _lobbyBrowserEntries.Count,
+                verticalStep);
+            _lobbyBrowserHoverIndex = _lobbyBrowserSelectedIndex;
+        }
+        else if (ShouldUseMouseMenuHover(mouse))
+        {
+            _lobbyBrowserHoverIndex = -1;
+            for (var index = 0; index < rowBounds.Length; index += 1)
             {
-                break;
-            }
+                if (index >= _lobbyBrowserEntries.Count)
+                {
+                    break;
+                }
 
-            if (rowBounds[index].Contains(mouse.Position))
-            {
-                _lobbyBrowserHoverIndex = index;
-                break;
+                if (rowBounds[index].Contains(mouse.Position))
+                {
+                    _lobbyBrowserHoverIndex = index;
+                    break;
+                }
             }
         }
+        else
+        {
+            _lobbyBrowserHoverIndex = _lobbyBrowserSelectedIndex;
+        }
 
-        if (keyboard.IsKeyDown(Keys.Enter) && !_previousKeyboard.IsKeyDown(Keys.Enter))
+        if ((keyboard.IsKeyDown(Keys.Enter) && !_previousKeyboard.IsKeyDown(Keys.Enter))
+            || IsControllerMenuConfirmPressed())
         {
             if (_lobbyBrowserMode == LobbyBrowserMode.Watch)
             {
@@ -139,13 +156,15 @@ public partial class Game1
             out var backBounds,
             out _);
 
-        if (keyboard.IsKeyDown(Keys.Escape) && !_previousKeyboard.IsKeyDown(Keys.Escape))
+        if ((keyboard.IsKeyDown(Keys.Escape) && !_previousKeyboard.IsKeyDown(Keys.Escape))
+            || IsControllerMenuBackPressed())
         {
             CloseLobbyBrowserDetails();
             return;
         }
 
-        if (keyboard.IsKeyDown(Keys.Enter) && !_previousKeyboard.IsKeyDown(Keys.Enter))
+        if ((keyboard.IsKeyDown(Keys.Enter) && !_previousKeyboard.IsKeyDown(Keys.Enter))
+            || IsControllerMenuConfirmPressed())
         {
             WatchSelectedLobbyEntry();
             return;
@@ -176,7 +195,7 @@ public partial class Game1
     {
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
-        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.78f);
+        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.86f);
 
         // Draw bottom bar and runners (in animated mode only) - behind everything else
         if (_menuBackgroundMode != MenuBackgroundMode.Static)
@@ -207,6 +226,7 @@ public partial class Game1
         const float headerScale = 1f;
         const float rowScale = 1f;
         const float buttonScale = 1f;
+        var mouse = GetScaledMouseState(GetConstrainedMouseState(Game1.GetCurrentMouseState()));
         DrawRoundedRectangleOutline(panel, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 2, radius: 8);
         DrawRoundedRectangleOutline(listBounds, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 1, radius: 6);
 
@@ -228,9 +248,9 @@ public partial class Game1
             var highlighted = index == _lobbyBrowserSelectedIndex;
             var hovered = index == _lobbyBrowserHoverIndex;
             var background = highlighted
-                ? new Color(95, 72, 68)
+                ? new Color(54, 40, 38)
                 : hovered
-                    ? new Color(75, 67, 62)
+                    ? new Color(36, 32, 29)
                     : new Color(54, 47, 41);
             _spriteBatch.Draw(_pixel, bounds, background);
 
@@ -251,13 +271,13 @@ public partial class Game1
             DrawBitmapFontText(TrimBitmapMenuText(entry.PingLabel, pingColumnWidth, rowScale), new Vector2(pingColumnX, rowTextY), statusColor, rowScale);
         }
 
-        DrawMenuButtonScaled(refreshBounds, "Refresh", false, buttonScale);
-        DrawMenuButtonScaled(joinBounds, _lobbyBrowserMode == LobbyBrowserMode.Watch ? "View" : "Join", CanJoinSelectedLobbyEntry(), buttonScale);
+        DrawMenuButtonScaled(refreshBounds, "Refresh", refreshBounds.Contains(mouse.Position), buttonScale);
+        DrawMenuButtonScaled(joinBounds, _lobbyBrowserMode == LobbyBrowserMode.Watch ? "View" : "Join", joinBounds.Contains(mouse.Position), buttonScale);
         if (_lobbyBrowserMode == LobbyBrowserMode.Join)
         {
-            DrawMenuButtonScaled(manualBounds, "Manual", false, buttonScale);
+            DrawMenuButtonScaled(manualBounds, "Manual", manualBounds.Contains(mouse.Position), buttonScale);
         }
-        DrawMenuButtonScaled(backBounds, "Back", false, buttonScale);
+        DrawMenuButtonScaled(backBounds, "Back", backBounds.Contains(mouse.Position), buttonScale);
 
         if (!string.IsNullOrWhiteSpace(_menuStatusMessage))
         {
@@ -306,9 +326,10 @@ public partial class Game1
         DrawBitmapFontText("ROSTER", new Vector2(rosterBounds.X + 12f, rosterBounds.Y - 22f), Color.White, 1f);
         DrawServerDetailsRoster(details, rosterBounds, compactLayout);
 
-        DrawMenuButtonScaled(refreshBounds, "Refresh", false, 1f);
-        DrawMenuButtonScaled(watchBounds, "Watch", CanWatchLobbyBrowserDetails(), 1f);
-        DrawMenuButtonScaled(backBounds, "Back", false, 1f);
+        var mouse = GetScaledMouseState(GetConstrainedMouseState(Game1.GetCurrentMouseState()));
+        DrawMenuButtonScaled(refreshBounds, "Refresh", refreshBounds.Contains(mouse.Position), 1f);
+        DrawMenuButtonScaled(watchBounds, "Watch", watchBounds.Contains(mouse.Position), 1f);
+        DrawMenuButtonScaled(backBounds, "Back", backBounds.Contains(mouse.Position), 1f);
 
         if (!string.IsNullOrWhiteSpace(_lobbyBrowserDetailsStatus))
         {

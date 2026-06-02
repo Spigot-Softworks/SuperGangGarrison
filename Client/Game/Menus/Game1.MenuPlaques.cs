@@ -346,11 +346,11 @@ public partial class Game1
 
         if (texture is not null)
         {
-            DrawLoadedSpriteFrame(texture, bounds, hovered ? new Color(210, 210, 210) : Color.White);
+            DrawLoadedSpriteFrame(texture, bounds, hovered ? new Color(172, 166, 154) : Color.White);
         }
         else
         {
-            _spriteBatch.Draw(_pixel, bounds, hovered ? new Color(194, 186, 168) : new Color(224, 216, 194));
+            _spriteBatch.Draw(_pixel, bounds, hovered ? new Color(170, 162, 146) : new Color(224, 216, 194));
         }
 
         DrawCenteredMenuFontText(label, bounds, new Color(82, 71, 59), plaqueScale, textScaleMultiplier);

@@ -3357,6 +3357,8 @@ public partial class Game1
         _optionsMenuOpen = false;
         _pluginOptionsMenuOpen = false;
         _controlsMenuOpen = false;
+        _pendingControlsBinding = null;
+        _pendingControllerControlsBinding = null;
         _editingPlayerName = false;
         EnableGarrisonBuilderEditor();
         _builderGameModeMenuOpen = true;

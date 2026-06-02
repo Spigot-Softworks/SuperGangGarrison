@@ -36,6 +36,7 @@ public partial class Game1
         {
             PrepareForExclusiveMainMenuOverlayOpen();
             _game._manualConnectOpen = true;
+            _game._manualConnectControllerIndex = 0;
             _game._connectionFlowController.SetManualConnectEditingField(editHost: true);
             _game._menuStatusMessage = string.Empty;
         }
@@ -151,6 +152,8 @@ public partial class Game1
             _game._optionsMenuOpen = false;
             _game._pluginOptionsMenuOpen = false;
             _game._controlsMenuOpen = false;
+            _game._pendingControlsBinding = null;
+            _game._pendingControllerControlsBinding = null;
             _game.DismissCustomBubbleEditor();
             _game._editingPlayerName = false;
         }

@@ -32,6 +32,7 @@ public partial class Game1
             _game.DismissCustomBubbleEditor();
             _game._editingPlayerName = false;
             _game._pendingControlsBinding = null;
+            _game._pendingControllerControlsBinding = null;
         }
 
         public void CloseInGameMenu()
@@ -53,29 +54,52 @@ public partial class Game1
                     _game._inGameMenuAwaitingEscapeRelease = false;
                 }
             }
-            else if (_game.IsKeyPressed(keyboard, Keys.Escape))
+            else if (_game.IsKeyPressed(keyboard, Keys.Escape) || _game.IsControllerMenuBackPressed())
             {
                 CloseInGameMenu();
                 return;
             }
 
-            _game._inGameMenuHoverIndex = -1;
+            var mouseHoverIndex = -1;
             for (var index = 0; index < itemBounds.Length; index += 1)
             {
                 if (itemBounds[index].Contains(mouse.Position))
                 {
-                    _game._inGameMenuHoverIndex = index;
+                    mouseHoverIndex = index;
                     break;
                 }
             }
 
+            if (_game.ShouldUseMouseMenuHover(mouse) && mouseHoverIndex >= 0)
+            {
+                _game._inGameMenuHoverIndex = mouseHoverIndex;
+            }
+            else if (!_game.IsControllerMenuInputActive())
+            {
+                _game._inGameMenuHoverIndex = -1;
+            }
+
+            if (_game.TryConsumeControllerMenuNavigation(out _, out var verticalStep) && verticalStep != 0)
+            {
+                _game._inGameMenuHoverIndex = MoveControllerMenuSelection(_game._inGameMenuHoverIndex, items.Count, verticalStep);
+            }
+            else if (_game.IsControllerMenuInputActive() && items.Count > 0 && _game._inGameMenuHoverIndex < 0)
+            {
+                _game._inGameMenuHoverIndex = 0;
+            }
+
             var clickPressed = mouse.LeftButton == ButtonState.Pressed && _game._previousMouse.LeftButton != ButtonState.Pressed;
-            if (!clickPressed || _game._inGameMenuHoverIndex < 0)
+            var controllerConfirmPressed = _game.IsControllerMenuConfirmPressed();
+            if ((!clickPressed && !controllerConfirmPressed) || _game._inGameMenuHoverIndex < 0)
             {
                 return;
             }
 
             items[_game._inGameMenuHoverIndex].Activate();
+            if (controllerConfirmPressed)
+            {
+                _game.ConsumeControllerMenuConfirmPress();
+            }
         }
 
         public void DrawInGameMenu()
@@ -177,17 +201,12 @@ public partial class Game1
                         _game.OpenOptionsMenu(fromGameplay: true);
                         CloseInGameMenu();
                     }),
-                    new("Loadout", () =>
-                    {
-                        _game.OpenGameplayLoadoutMenu();
-                        CloseInGameMenu();
-                    }),
                     new("Leave Last To Die", () => _game.ReturnToLastToDieMenu("Last To Die ended.")),
                     new("Quit Game", _game.OpenQuitPrompt),
                 };
                 if (_game._debugMenuEnabled)
                 {
-                    lastToDieActions.Insert(3, new MenuPageAction("Debug", () =>
+                    lastToDieActions.Insert(2, new MenuPageAction("Debug", () =>
                     {
                         _game.OpenDebugMenu();
                         CloseInGameMenu();
@@ -208,27 +227,15 @@ public partial class Game1
                         CloseInGameMenu();
                     }),
                     new("Practice Setup", _game.OpenPracticeSetupMenu),
-                    new("Experimental Settings", () => _game.OpenClientPowersMenu(fromGameplay: true)),
-                    new("Restart Practice", () =>
-                    {
-                        CloseInGameMenu();
-                        _game.RestartPracticeSession();
-                    }),
                     new("Leave Practice", () => _game.ReturnToMainMenu(_game.GetGameplayExitStatusMessage())),
                     new("Quit Game", _game.OpenQuitPrompt),
                 };
-                if (_game.CanOpenGameplayLoadoutMenu())
-                {
-                    practiceActions.Insert(1, new MenuPageAction("Loadout", () =>
-                    {
-                        _game.OpenGameplayLoadoutMenu();
-                        CloseInGameMenu();
-                    }));
-                }
+
+                AddGameplaySelectionActions(practiceActions);
 
                 if (_game._debugMenuEnabled)
                 {
-                    var insertIndex = _game.CanOpenGameplayLoadoutMenu() ? 6 : 5;
+                    var insertIndex = Math.Min(practiceActions.Count, 5);
                     practiceActions.Insert(insertIndex, new MenuPageAction("Debug", () =>
                     {
                         _game.OpenDebugMenu();
@@ -251,18 +258,12 @@ public partial class Game1
                 new("Disconnect", () => _game.ReturnToMainMenu(_game.GetGameplayExitStatusMessage())),
                 new("Quit Game", _game.OpenQuitPrompt),
             };
-            if (_game.CanOpenGameplayLoadoutMenu())
-            {
-                defaultActions.Insert(1, new MenuPageAction("Loadout", () =>
-                {
-                    _game.OpenGameplayLoadoutMenu();
-                    CloseInGameMenu();
-                }));
-            }
+
+            AddGameplaySelectionActions(defaultActions);
 
             if (_game._debugMenuEnabled)
             {
-                var insertIndex = _game.CanOpenGameplayLoadoutMenu() ? 2 : 1;
+                var insertIndex = Math.Min(defaultActions.Count, 3);
                 defaultActions.Insert(insertIndex, new MenuPageAction("Debug", () =>
                 {
                     _game.OpenDebugMenu();
@@ -272,6 +273,32 @@ public partial class Game1
 
             _game.AddPluginMenuActions(defaultActions, ClientPluginMenuLocation.InGameMenu, insertIndex: 1);
             return defaultActions;
+        }
+
+        private void AddGameplaySelectionActions(List<MenuPageAction> actions)
+        {
+            if (!_game.CanOfferGameplaySelectionMenusFromInGameMenu())
+            {
+                return;
+            }
+
+            var insertIndex = Math.Min(actions.Count, actions.Count > 1 ? 2 : 1);
+            actions.Insert(insertIndex, new MenuPageAction("Select Team", () =>
+            {
+                CloseInGameMenu();
+                _game.OpenGameplayTeamSelection();
+            }));
+
+            if (_game._world.LocalPlayerAwaitingJoin)
+            {
+                return;
+            }
+
+            actions.Insert(insertIndex + 1, new MenuPageAction("Select Class", () =>
+            {
+                CloseInGameMenu();
+                _game.OpenGameplayClassSelection();
+            }));
         }
     }
 }

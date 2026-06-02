@@ -119,14 +119,15 @@ public partial class Game1
                 return;
             }
 
-            if (_game._friendsMenuOpen)
+            var activeOverlay = _game._mainMenuOverlayController.GetActiveOverlay();
+            if (activeOverlay != MainMenuOverlayKind.None)
             {
                 var buttons = _game.BuildMainMenuButtons();
                 _game.LogBrowserMenuState(buttons.Count);
                 _game.DrawCurrentMainMenuPage(buttons);
-                _game.DrawFriendsMenu();
+                _game._mainMenuOverlayController.TryDraw();
             }
-            else if (!_game._mainMenuOverlayController.TryDraw())
+            else
             {
                 var buttons = _game.BuildMainMenuButtons();
                 _game.LogBrowserMenuState(buttons.Count);
@@ -145,7 +146,7 @@ public partial class Game1
 
         private void UpdateMainMenu(KeyboardState keyboard, MouseState mouse)
         {
-            if (_game.IsKeyPressed(keyboard, Keys.Escape))
+            if (_game.IsKeyPressed(keyboard, Keys.Escape) || _game.IsControllerMenuBackPressed())
             {
                 if (_game._optionsMenuOpen)
                 {
@@ -171,8 +172,8 @@ public partial class Game1
             }
 
             var buttons = _game.BuildMainMenuButtons();
-            _game._mainMenuHoverIndex = -1;
-            _game._mainMenuBottomBarHover = false;
+            var mouseHoverIndex = -1;
+            var mouseBottomBarHover = false;
             for (var index = 0; index < buttons.Count; index += 1)
             {
                 if (!buttons[index].Bounds.Contains(mouse.Position))
@@ -180,13 +181,39 @@ public partial class Game1
                     continue;
                 }
 
-                _game._mainMenuHoverIndex = index;
-                _game._mainMenuBottomBarHover = buttons[index].IsBottomBarButton;
+                mouseHoverIndex = index;
+                mouseBottomBarHover = buttons[index].IsBottomBarButton;
                 break;
             }
 
+            if (_game.ShouldUseMouseMenuHover(mouse) && mouseHoverIndex >= 0)
+            {
+                _game._mainMenuHoverIndex = mouseHoverIndex;
+                _game._mainMenuBottomBarHover = mouseBottomBarHover;
+            }
+            else if (!_game.IsControllerMenuInputActive())
+            {
+                _game._mainMenuHoverIndex = -1;
+                _game._mainMenuBottomBarHover = false;
+            }
+
+            if (_game.TryConsumeControllerMenuNavigation(out var horizontalStep, out var verticalStep) && buttons.Count > 0)
+            {
+                var step = verticalStep != 0 ? verticalStep : horizontalStep;
+                if (step != 0)
+                {
+                    _game._mainMenuHoverIndex = MoveControllerMenuSelection(_game._mainMenuHoverIndex, buttons.Count, step);
+                    _game._mainMenuBottomBarHover = buttons[_game._mainMenuHoverIndex].IsBottomBarButton;
+                }
+            }
+            else if (_game.IsControllerMenuInputActive() && buttons.Count > 0 && _game._mainMenuHoverIndex < 0)
+            {
+                _game._mainMenuHoverIndex = 0;
+                _game._mainMenuBottomBarHover = buttons[0].IsBottomBarButton;
+            }
+
             var clickPressed = mouse.LeftButton == ButtonState.Pressed && _game._previousMouse.LeftButton != ButtonState.Pressed;
-            if (clickPressed && _game._mainMenuHoverIndex >= 0)
+            if ((clickPressed || _game.IsControllerMenuConfirmPressed()) && _game._mainMenuHoverIndex >= 0)
             {
                 buttons[_game._mainMenuHoverIndex].Activate();
             }
@@ -289,13 +316,17 @@ public partial class Game1
                 return;
             }
 
-            const float logoScale = 4f;
             const float padding = 20f;
-            
+            const float maxLogoWidth = 420f;
+            const float maxLogoViewportWidthRatio = 0.42f;
+            const float maxLogoViewportHeightRatio = 0.18f;
+
             var frame = sprite.Frames[0];
+            var targetWidth = Math.Min(maxLogoWidth, MathF.Max(1f, viewportWidth * maxLogoViewportWidthRatio));
+            var targetHeight = MathF.Max(1f, viewportHeight * maxLogoViewportHeightRatio);
+            var logoScale = Math.Min(targetWidth / Math.Max(1f, frame.Width), targetHeight / Math.Max(1f, frame.Height));
             var logoWidth = frame.Width * logoScale;
-            
-            // Position in top right corner: screen width - logo width - padding
+
             var logoX = viewportWidth - logoWidth - padding;
             var logoY = padding;
 

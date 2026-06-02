@@ -14,7 +14,7 @@ public partial class Game1
 
     private void DrawMenuInputBoxScaled(Rectangle bounds, string text, bool active, float textScale, int cursorIndex = -1, int selectionStart = -1)
     {
-        _spriteBatch.Draw(_pixel, bounds, active ? new Color(67, 60, 55) : new Color(53, 47, 42));
+        _spriteBatch.Draw(_pixel, bounds, active ? new Color(36, 32, 29) : new Color(53, 47, 42));
         var borderColor = new Color(213, 205, 188);
         _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Y, bounds.Width, 1), borderColor);
         _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Bottom - 1, bounds.Width, 1), borderColor);
@@ -63,7 +63,7 @@ public partial class Game1
 
     private void DrawMenuButtonScaled(Rectangle bounds, string label, bool highlighted, float textScale)
     {
-        var fillColor = highlighted ? new Color(77, 69, 63) : new Color(54, 47, 41);
+        var fillColor = highlighted ? new Color(36, 32, 29) : new Color(54, 47, 41);
         var outlineColor = new Color(213, 205, 188);
         DrawRoundedRectangleOutline(bounds, fillColor, outlineColor, outlineThickness: 2, radius: 8);
 
@@ -74,7 +74,7 @@ public partial class Game1
 
     private void DrawMenuButtonCentered(Rectangle bounds, string label, bool highlighted, float textScale)
     {
-        var fillColor = highlighted ? new Color(77, 69, 63) : new Color(54, 47, 41);
+        var fillColor = highlighted ? new Color(36, 32, 29) : new Color(54, 47, 41);
         var outlineColor = new Color(213, 205, 188);
         DrawRoundedRectangleOutline(bounds, fillColor, outlineColor, outlineThickness: 2, radius: 8);
 

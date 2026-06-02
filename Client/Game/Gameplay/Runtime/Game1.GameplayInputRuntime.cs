@@ -36,6 +36,7 @@ public partial class Game1
             _world.LocalPlayer.IsUsingBinoculars,
             _binocularsFocusX,
             _binocularsFocusY);
+        fullInput = ApplyControllerGameplayInput(fullInput, deltaSeconds);
         if (_bubbleMenuKind != BubbleMenuKind.None && !_bubbleMenuClosing)
         {
             fullInput = ApplyBubbleMenuGameplaySuppression(fullInput);
@@ -166,6 +167,29 @@ public partial class Game1
     private void SuppressPrimaryFireUntilMouseRelease()
     {
         _suppressPrimaryFireUntilMouseRelease = true;
+    }
+
+    private void SuppressSecondaryFireUntilMouseRelease()
+    {
+        _suppressSecondaryFireUntilMouseRelease = true;
+    }
+
+    private void SuppressMouseFireAfterGameplayInputUnblocks(bool wasGameplayInputBlocked, MouseState mouse)
+    {
+        if (!wasGameplayInputBlocked || IsGameplayInputBlocked())
+        {
+            return;
+        }
+
+        if (mouse.LeftButton == ButtonState.Pressed)
+        {
+            SuppressPrimaryFireUntilMouseRelease();
+        }
+
+        if (mouse.RightButton == ButtonState.Pressed)
+        {
+            SuppressSecondaryFireUntilMouseRelease();
+        }
     }
 
     private void UpdateSpectatorTrackingHotkeys(KeyboardState keyboard, MouseState mouse)

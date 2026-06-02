@@ -34,6 +34,16 @@ public partial class Game1
             "Other",
         };
 
+        private const string MenuMusicVolumeLabel = "Menu Music Volume";
+        private const string InGameMusicVolumeLabel = "In-Game Music Volume";
+        private const string SoundEffectsVolumeLabel = "SFX Volume";
+        private const string ControllerAimAssistStrengthLabel = "Aim Assist Strength";
+        private const string ControllerAimDeadzoneLabel = "Stick Deadzone";
+        private const string ControllerScopedAimSpeedLabel = "Scoped Aim Speed";
+        private const string ControllerAimDistanceTier1Label = "Aim Distance 1";
+        private const string ControllerAimDistanceTier2Label = "Aim Distance 2";
+        private const string ControllerAimDistanceTier3Label = "Aim Distance 3";
+
         private readonly Game1 _game;
 
         public OptionsMenuController(Game1 game)
@@ -52,6 +62,7 @@ public partial class Game1
             _game._selectedPluginOptionsPluginId = null;
             _game._controlsMenuOpen = false;
             _game._pendingControlsBinding = null;
+            _game._pendingControllerControlsBinding = null;
             _game._optionsHoverIndex = -1;
             _game._pluginOptionsHoverIndex = -1;
             _game._controlsHoverIndex = -1;
@@ -110,7 +121,10 @@ public partial class Game1
             _game._controlsMenuOpen = true;
             _game._controlsMenuOpenedFromGameplay = fromGameplay;
             _game._controlsHoverIndex = -1;
+            _game._controlsScrollOffset = 0;
+            _game._controlsPageIndex = 0;
             _game._pendingControlsBinding = null;
+            _game._pendingControllerControlsBinding = null;
             _game._optionsMenuOpen = false;
             _game._pluginOptionsMenuOpen = false;
             _game._editingPlayerName = false;
@@ -122,7 +136,9 @@ public partial class Game1
             _game._controlsMenuOpen = false;
             _game._controlsMenuOpenedFromGameplay = false;
             _game._controlsHoverIndex = -1;
+            _game._controlsScrollOffset = 0;
             _game._pendingControlsBinding = null;
+            _game._pendingControllerControlsBinding = null;
 
             if (_game._mainMenuOpen || reopenInGameMenu)
             {
@@ -198,6 +214,11 @@ public partial class Game1
             var visibleRowCount = Math.Max(1, listBounds.Height / rowHeight);
             ClampOptionsScrollOffset(actions.Count, visibleRowCount);
 
+            if (TryUpdateOptionsControllerInput(actions, visibleRowCount))
+            {
+                return;
+            }
+
             const float optionsRowValueHorizontalPadding = 14f;
             const float optionsRowValueTextScale = 1f;
             var wheelDelta = mouse.ScrollWheelValue - _game._previousMouse.ScrollWheelValue;
@@ -224,12 +245,23 @@ public partial class Game1
                 }
             }
 
-            _game._optionsHoverIndex = -1;
-            if (backBounds.Contains(mouse.Position))
+            if (_game.IsControllerMenuInputActive())
+            {
+                if (_game._optionsHoverIndex < 0 && actions.Count > 0)
+                {
+                    _game._optionsHoverIndex = 0;
+                }
+            }
+            else
+            {
+                _game._optionsHoverIndex = -1;
+            }
+
+            if (_game.ShouldUseMouseMenuHover(mouse) && backBounds.Contains(mouse.Position))
             {
                 _game._optionsHoverIndex = actions.Count;
             }
-            else if (listBounds.Contains(mouse.Position))
+            else if (_game.ShouldUseMouseMenuHover(mouse) && listBounds.Contains(mouse.Position))
             {
                 var visibleIndex = (mouse.Y - listBounds.Y) / rowHeight;
                 var hoverIndex = _game._optionsScrollOffset + visibleIndex;
@@ -252,46 +284,166 @@ public partial class Game1
             }
 
             var selectedAction = actions[_game._optionsHoverIndex];
-            if (selectedAction.Label is "Menu Music Volume" or "In-Game Music Volume" or "SFX Volume")
+            if (IsOptionsStepperRow(selectedAction.Label))
             {
                 var visibleIndex = _game._optionsHoverIndex - _game._optionsScrollOffset;
                 var rowBounds = new Rectangle(listBounds.X, listBounds.Y + (visibleIndex * rowHeight), listBounds.Width, rowHeight);
                 var valueRightX = rowBounds.Right - optionsRowValueHorizontalPadding;
-                var displayValue = selectedAction.Label == "SFX Volume"
-                    ? $"< {selectedAction.Value} >"
-                    : $"< {selectedAction.Value} >";
+                var displayValue = $"< {selectedAction.Value} >";
                 var valueWidth = _game.MeasureBitmapFontWidth(displayValue, optionsRowValueTextScale);
                 var valueX = valueRightX - valueWidth;
                 if (mouse.X < valueX + (valueWidth / 2))
                 {
-                    if (selectedAction.Label == "Menu Music Volume")
-                    {
-                        _game.AdjustMenuMusicVolume(-5);
-                        return;
-                    }
-
-                    if (selectedAction.Label == "In-Game Music Volume")
-                    {
-                        _game.AdjustIngameMusicVolume(-5);
-                        return;
-                    }
-
-                    if (selectedAction.Label == "SFX Volume")
-                    {
-                        _game.AdjustSoundEffectsVolume(-5);
-                        return;
-                    }
+                    TryAdjustOptionsStepperValue(selectedAction.Label, -1);
+                    return;
                 }
             }
 
             selectedAction.Activate();
         }
 
+        private bool TryUpdateOptionsControllerInput(IReadOnlyList<OptionsMenuAction> actions, int visibleRowCount)
+        {
+            if (!_game.IsControllerMenuInputActive())
+            {
+                return false;
+            }
+
+            if (_game.IsControllerMenuBackPressed())
+            {
+                CloseOptionsMenu();
+                return true;
+            }
+
+            var handled = false;
+            if (_game.TryConsumeControllerMenuNavigation(out var horizontalStep, out var verticalStep))
+            {
+                if (verticalStep != 0)
+                {
+                    _game._optionsHoverIndex = MoveControllerMenuSelection(
+                        _game._optionsHoverIndex,
+                        actions.Count + 1,
+                        verticalStep);
+                    EnsureOptionsControllerSelectionVisible(actions.Count, visibleRowCount);
+                    handled = true;
+                }
+                else if (horizontalStep != 0)
+                {
+                    if (_game._optionsHoverIndex >= 0 && _game._optionsHoverIndex < actions.Count)
+                    {
+                        var selectedAction = actions[_game._optionsHoverIndex];
+                        if (TryAdjustOptionsStepperValue(selectedAction.Label, horizontalStep))
+                        {
+                            return true;
+                        }
+                    }
+
+                    _game._optionsPageIndex = Math.Clamp(_game._optionsPageIndex + horizontalStep, 0, OptionsMenuTabLabels.Length - 1);
+                    _game._optionsScrollOffset = 0;
+                    _game._optionsHoverIndex = actions.Count > 0 ? 0 : -1;
+                    handled = true;
+                }
+            }
+
+            if (_game.IsControllerMenuConfirmPressed())
+            {
+                if (_game._optionsHoverIndex < 0 && actions.Count > 0)
+                {
+                    _game._optionsHoverIndex = 0;
+                }
+
+                if (_game._optionsHoverIndex == actions.Count)
+                {
+                    CloseOptionsMenu();
+                    return true;
+                }
+
+                if (_game._optionsHoverIndex >= 0 && _game._optionsHoverIndex < actions.Count)
+                {
+                    actions[_game._optionsHoverIndex].Activate();
+                    return true;
+                }
+            }
+
+            return handled;
+        }
+
+        private bool TryAdjustOptionsStepperValue(string label, int step)
+        {
+            if (step == 0)
+            {
+                return false;
+            }
+
+            switch (label)
+            {
+                case MenuMusicVolumeLabel:
+                    _game.AdjustMenuMusicVolume(step * 5);
+                    return true;
+                case InGameMusicVolumeLabel:
+                    _game.AdjustIngameMusicVolume(step * 5);
+                    return true;
+                case SoundEffectsVolumeLabel:
+                    _game.AdjustSoundEffectsVolume(step * 5);
+                    return true;
+                case ControllerAimAssistStrengthLabel:
+                    _game.AdjustControllerAimAssistStrengthSetting(step * 0.1f);
+                    return true;
+                case ControllerAimDeadzoneLabel:
+                    _game.AdjustControllerAimDeadzoneSetting(step * 0.05f);
+                    return true;
+                case ControllerScopedAimSpeedLabel:
+                    _game.AdjustControllerScopedPrecisionSpeedSetting(step * 30f);
+                    return true;
+                case ControllerAimDistanceTier1Label:
+                    _game.AdjustControllerAimDistanceTier1Setting(step * 16f);
+                    return true;
+                case ControllerAimDistanceTier2Label:
+                    _game.AdjustControllerAimDistanceTier2Setting(step * 16f);
+                    return true;
+                case ControllerAimDistanceTier3Label:
+                    _game.AdjustControllerAimDistanceTier3Setting(step * 16f);
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static bool IsOptionsStepperRow(string label)
+        {
+            return label is MenuMusicVolumeLabel
+                or InGameMusicVolumeLabel
+                or SoundEffectsVolumeLabel
+                or ControllerAimAssistStrengthLabel
+                or ControllerAimDeadzoneLabel
+                or ControllerScopedAimSpeedLabel
+                or ControllerAimDistanceTier1Label
+                or ControllerAimDistanceTier2Label
+                or ControllerAimDistanceTier3Label;
+        }
+
+        private void EnsureOptionsControllerSelectionVisible(int actionCount, int visibleRowCount)
+        {
+            if (_game._optionsHoverIndex < 0 || _game._optionsHoverIndex >= actionCount)
+            {
+                return;
+            }
+
+            if (_game._optionsHoverIndex < _game._optionsScrollOffset)
+            {
+                _game._optionsScrollOffset = _game._optionsHoverIndex;
+            }
+            else if (_game._optionsHoverIndex >= _game._optionsScrollOffset + visibleRowCount)
+            {
+                _game._optionsScrollOffset = _game._optionsHoverIndex - visibleRowCount + 1;
+            }
+        }
+
         public void DrawOptionsMenu()
         {
             var viewportWidth = _game.ViewportWidth;
             var viewportHeight = _game.ViewportHeight;
-            _game._spriteBatch.Draw(_game._pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.78f);
+            _game._spriteBatch.Draw(_game._pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.86f);
 
             // Draw bottom bar and runners (in animated mode only) - behind everything else
             if (_game._menuBackgroundMode != MenuBackgroundMode.Static)
@@ -305,6 +457,7 @@ public partial class Game1
 
             var actions = BuildOptionsMenuActions();
             GetOptionsMenuPanelLayout(out var panel, out var listBounds, out var backBounds, out var compactLayout, out var rowHeight);
+            var mouse = _game.GetScaledMouseState(_game.GetConstrainedMouseState(Game1.GetCurrentMouseState()));
             var visibleRowCount = Math.Max(1, listBounds.Height / rowHeight);
             ClampOptionsScrollOffset(actions.Count, visibleRowCount);
 
@@ -336,8 +489,8 @@ public partial class Game1
             {
                 var visibleRow = index - _game._optionsScrollOffset;
                 var rowBounds = new Rectangle(listBounds.X, listBounds.Y + (visibleRow * rowHeight), listBounds.Width, rowHeightWithoutSpacing);
-                var isHovered = index == _game._optionsHoverIndex;
-                _game._spriteBatch.Draw(_game._pixel, rowBounds, isHovered ? new Color(75, 67, 62) : new Color(54, 47, 41));
+                var isHovered = index == _game._optionsHoverIndex || rowBounds.Contains(mouse.Position);
+                _game._spriteBatch.Draw(_game._pixel, rowBounds, isHovered ? new Color(36, 32, 29) : new Color(54, 47, 41));
 
                 var textScale = compactLayout ? optionsCompactRowTextScale : optionsRowTextScale;
                 var textY = rowBounds.Y + ((rowBounds.Height - _game.MeasureBitmapFontHeight(textScale)) * 0.5f);
@@ -347,7 +500,7 @@ public partial class Game1
                 var valueRightX = rowBounds.Right - optionsRowHorizontalPadding;
                 var displayValue = row.Label switch
                 {
-                    "Menu Music Volume" or "In-Game Music Volume" or "SFX Volume" => $"< {row.Value} >",
+                    _ when IsOptionsStepperRow(row.Label) => $"< {row.Value} >",
                     _ => row.Value,
                 };
                 var trimmedValue = _game.TrimBitmapMenuText(displayValue, rowBounds.Width * 0.42f, textScale);
@@ -399,7 +552,7 @@ public partial class Game1
                 _game._spriteBatch.Draw(_game._pixel, thumbBounds, new Color(105, 105, 105));
             }
 
-            var backHovered = _game._optionsHoverIndex == actions.Count;
+            var backHovered = _game._optionsHoverIndex == actions.Count || backBounds.Contains(mouse.Position);
             _game.DrawMenuButtonScaled(backBounds, "Back", backHovered, 1f);
         }
 
@@ -423,9 +576,9 @@ public partial class Game1
                 new("V Sync", _game._graphics.SynchronizeWithVerticalRetrace ? "Enabled" : "Disabled", _game.ToggleVSyncSetting, OptionsMenuTab.Graphics),
                 new("Reset Window Size", string.Empty, _game.ResetWindowSize, OptionsMenuTab.Graphics),
                 new("Music", GetMusicModeLabel(_game._musicMode), _game.CycleMusicModeSetting, OptionsMenuTab.Audio),
-                new("Menu Music Volume", $"{_game._menuMusicVolumePercent}%", () => _game.AdjustMenuMusicVolume(5), OptionsMenuTab.Audio),
-                new("In-Game Music Volume", $"{_game._ingameMusicVolumePercent}%", () => _game.AdjustIngameMusicVolume(5), OptionsMenuTab.Audio),
-                new("SFX Volume", $"{_game._soundEffectsVolumePercent}%", () => _game.AdjustSoundEffectsVolume(5), OptionsMenuTab.Audio),
+                new(MenuMusicVolumeLabel, $"{_game._menuMusicVolumePercent}%", () => _game.AdjustMenuMusicVolume(5), OptionsMenuTab.Audio),
+                new(InGameMusicVolumeLabel, $"{_game._ingameMusicVolumePercent}%", () => _game.AdjustIngameMusicVolume(5), OptionsMenuTab.Audio),
+                new(SoundEffectsVolumeLabel, $"{_game._soundEffectsVolumePercent}%", () => _game.AdjustSoundEffectsVolume(5), OptionsMenuTab.Audio),
                 new("Mute All Audio (F12)", _game._audioMuted ? "Muted" : "Unmuted", _game.ToggleAudioMuteSetting, OptionsMenuTab.Audio),
                 new("Weapon rotation", _game._useLocalWeaponRotation ? "Local (snappier)" : "Remote (accurate)", _game.ToggleWeaponRotationSourceSetting, OptionsMenuTab.Gameplay),
                 new("Healer Radar", _game._healerRadarEnabled ? "Enabled" : "Disabled", _game.ToggleHealerRadarSetting, OptionsMenuTab.Gameplay),
@@ -447,6 +600,16 @@ public partial class Game1
                 new("Playercard Size", Game1.GetPlayerCardSizeLabel(_game._playerCardSizeMode), _game.CyclePlayerCardSizeSetting, OptionsMenuTab.Gameplay),
                 new("Bot Controller", Game1.GetBotModeLabel(_game._clientSettings.BotMode), _game.CycleBotModeSetting, OptionsMenuTab.Gameplay),
                 new("Swap Weapons", _game.GetSwapWeaponsBindingLabel(), _game.CycleSwapWeaponsBindingSetting, OptionsMenuTab.Gameplay),
+                new("Controller Input", Game1.GetControllerInputModeLabel(_game._clientSettings.ControllerInputMode), _game.CycleControllerInputModeSetting, OptionsMenuTab.Gameplay),
+                new("Controller Reticle", Game1.GetControllerReticleModeLabel(_game._clientSettings.ControllerReticleMode), _game.CycleControllerReticleModeSetting, OptionsMenuTab.Gameplay),
+                new("Controller Assist", _game._clientSettings.ControllerAimAssistEnabled ? "Enabled" : "Disabled", _game.ToggleControllerAimAssistSetting, OptionsMenuTab.Gameplay),
+                new("Flick to change directions", _game._clientSettings.ControllerFlickToChangeDirections ? "Enabled" : "Disabled", _game.ToggleControllerFlickToChangeDirectionsSetting, OptionsMenuTab.Gameplay),
+                new(ControllerAimAssistStrengthLabel, Game1.GetControllerPercentLabel(OpenGarrisonPreferencesDocument.NormalizeControllerAimAssistStrength(_game._clientSettings.ControllerAimAssistStrength)), _game.CycleControllerAimAssistStrengthSetting, OptionsMenuTab.Gameplay),
+                new(ControllerAimDeadzoneLabel, Game1.GetControllerPercentLabel(OpenGarrisonPreferencesDocument.NormalizeControllerAimDeadzone(_game._clientSettings.ControllerAimDeadzone)), _game.CycleControllerAimDeadzoneSetting, OptionsMenuTab.Gameplay),
+                new(ControllerScopedAimSpeedLabel, Game1.GetControllerSpeedLabel(OpenGarrisonPreferencesDocument.NormalizeControllerScopedPrecisionSpeed(_game._clientSettings.ControllerScopedPrecisionSpeed)), _game.CycleControllerScopedPrecisionSpeedSetting, OptionsMenuTab.Gameplay),
+                new(ControllerAimDistanceTier1Label, Game1.GetControllerPixelsLabel(OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(_game._clientSettings.ControllerAimDistanceTier1, OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier1)), _game.CycleControllerAimDistanceTier1Setting, OptionsMenuTab.Gameplay),
+                new(ControllerAimDistanceTier2Label, Game1.GetControllerPixelsLabel(OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(_game._clientSettings.ControllerAimDistanceTier2, OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier2)), _game.CycleControllerAimDistanceTier2Setting, OptionsMenuTab.Gameplay),
+                new(ControllerAimDistanceTier3Label, Game1.GetControllerPixelsLabel(OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(_game._clientSettings.ControllerAimDistanceTier3, OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier3)), _game.CycleControllerAimDistanceTier3Setting, OptionsMenuTab.Gameplay),
                 new("Edit HUD", _game._mainMenuOpen ? "In game only" : string.Empty, OpenHudEditorFromOptions, OptionsMenuTab.Gameplay),
                 new("Controls", string.Empty, OpenControlsMenuFromOptions, OptionsMenuTab.Gameplay),
             };

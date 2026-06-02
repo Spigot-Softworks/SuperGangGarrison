@@ -16,7 +16,9 @@ public partial class Game1
     private void UpdateCreditsMenu(KeyboardState keyboard, MouseState mouse)
     {
         EnsureCreditsViewState();
-        if (keyboard.IsKeyDown(Keys.Escape) && !_previousKeyboard.IsKeyDown(Keys.Escape))
+        if ((keyboard.IsKeyDown(Keys.Escape) && !_previousKeyboard.IsKeyDown(Keys.Escape))
+            || IsControllerMenuBackPressed()
+            || IsControllerMenuConfirmPressed())
         {
             CloseCreditsMenu();
             return;
@@ -40,6 +42,13 @@ public partial class Game1
         else if (wheelDelta < 0)
         {
             _creditsScrollY = Math.Max(GetCreditsMinimumScrollY(), _creditsScrollY - scrollStep);
+        }
+        else if (TryConsumeControllerMenuNavigation(out _, out var verticalStep) && verticalStep != 0)
+        {
+            _creditsScrollY = Math.Clamp(
+                _creditsScrollY - (verticalStep * scrollStep),
+                GetCreditsMinimumScrollY(),
+                GetCreditsInitialScrollY());
         }
         else
         {

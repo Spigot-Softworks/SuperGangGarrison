@@ -28,6 +28,8 @@ public partial class Game1
             _game._pluginOptionsMenuOpen = false;
             _game.CloseCreditsMenu();
             _game._controlsMenuOpen = false;
+            _game._pendingControlsBinding = null;
+            _game._pendingControllerControlsBinding = null;
             _game.CloseHostSetupMenu();
             SelectHostSetupSettingsTab();
             _game.OpenHostSetupMenu();

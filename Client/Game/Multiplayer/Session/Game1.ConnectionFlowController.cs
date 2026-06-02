@@ -36,6 +36,9 @@ public partial class Game1
             _game._optionsMenuOpen = false;
             _game._pluginOptionsMenuOpen = false;
             _game._creditsOpen = false;
+            _game._controlsMenuOpen = false;
+            _game._pendingControlsBinding = null;
+            _game._pendingControllerControlsBinding = null;
             _game._editingPlayerName = false;
             DisableManualConnectEditing();
             _game._lobbyBrowserSelectedIndex = -1;
@@ -86,6 +89,7 @@ public partial class Game1
         {
             CloseLobbyBrowser(clearStatus: false);
             _game._manualConnectOpen = true;
+            _game._manualConnectControllerIndex = 0;
             SetManualConnectEditingField(editHost: true);
             _game._menuStatusMessage = string.Empty;
         }
@@ -93,6 +97,7 @@ public partial class Game1
         public void CloseManualConnectMenu(bool clearStatus)
         {
             _game._manualConnectOpen = false;
+            _game._manualConnectControllerIndex = 0;
             DisableManualConnectEditing();
             if (clearStatus)
             {
@@ -260,6 +265,8 @@ public partial class Game1
             _game._optionsMenuOpen = false;
             _game._pluginOptionsMenuOpen = false;
             _game._controlsMenuOpen = false;
+            _game._pendingControlsBinding = null;
+            _game._pendingControllerControlsBinding = null;
             _game._teamSelectOpen = false;
             _game._classSelectOpen = false;
         }

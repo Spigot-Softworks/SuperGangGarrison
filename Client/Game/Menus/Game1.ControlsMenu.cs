@@ -2,6 +2,7 @@
 
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
+using OpenGarrison.Core;
 using System;
 using System.Collections.Generic;
 
@@ -31,6 +32,24 @@ public partial class Game1
             (ControlsMenuBinding.OpenBubbleMenuX, $"{bubbleMenuBindingPrefix} X:", _inputBindings.OpenBubbleMenuX),
             (ControlsMenuBinding.OpenBubbleMenuC, $"{bubbleMenuBindingPrefix} C:", _inputBindings.OpenBubbleMenuC),
             (ControlsMenuBinding.CustomBubble, "Custom Bubble:", _inputBindings.CustomBubble),
+        ];
+    }
+
+    private List<(ControllerControlsMenuBinding Binding, string Label, ControllerButtonBinding Input)> GetControllerControlsMenuBindings()
+    {
+        return
+        [
+            (ControllerControlsMenuBinding.Jump, "Jump:", _clientSettings.ControllerJumpButton),
+            (ControllerControlsMenuBinding.PrimaryFire, "Primary Fire:", _clientSettings.ControllerPrimaryFireButton),
+            (ControllerControlsMenuBinding.SecondaryFire, "Secondary Fire:", _clientSettings.ControllerSecondaryFireButton),
+            (ControllerControlsMenuBinding.UseAbility, "Utility Ability:", _clientSettings.ControllerUseAbilityButton),
+            (ControllerControlsMenuBinding.Interact, "Interact:", _clientSettings.ControllerInteractButton),
+            (ControllerControlsMenuBinding.SwapWeapon, "Swap Weapon:", _clientSettings.ControllerSwapWeaponButton),
+            (ControllerControlsMenuBinding.Scoreboard, "Show Scores:", _clientSettings.ControllerScoreboardButton),
+            (ControllerControlsMenuBinding.Pause, "Pause/Menu:", _clientSettings.ControllerPauseButton),
+            (ControllerControlsMenuBinding.AimDistance, "Aim Distance:", _clientSettings.ControllerAimDistanceButton),
+            (ControllerControlsMenuBinding.ChangeTeam, "Change Team:", _clientSettings.ControllerChangeTeamButton),
+            (ControllerControlsMenuBinding.ChangeClass, "Change Class:", _clientSettings.ControllerChangeClassButton),
         ];
     }
 
@@ -93,6 +112,49 @@ public partial class Game1
         }
     }
 
+    private void ApplyControllerControlsBinding(ControllerControlsMenuBinding binding, ControllerButtonBinding input)
+    {
+        input = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(input);
+        switch (binding)
+        {
+            case ControllerControlsMenuBinding.Jump:
+                _clientSettings.ControllerJumpButton = input;
+                break;
+            case ControllerControlsMenuBinding.PrimaryFire:
+                _clientSettings.ControllerPrimaryFireButton = input;
+                break;
+            case ControllerControlsMenuBinding.SecondaryFire:
+                _clientSettings.ControllerSecondaryFireButton = input;
+                break;
+            case ControllerControlsMenuBinding.UseAbility:
+                _clientSettings.ControllerUseAbilityButton = input;
+                break;
+            case ControllerControlsMenuBinding.Interact:
+                _clientSettings.ControllerInteractButton = input;
+                break;
+            case ControllerControlsMenuBinding.SwapWeapon:
+                _clientSettings.ControllerSwapWeaponButton = input;
+                break;
+            case ControllerControlsMenuBinding.Scoreboard:
+                _clientSettings.ControllerScoreboardButton = input;
+                break;
+            case ControllerControlsMenuBinding.Pause:
+                _clientSettings.ControllerPauseButton = input;
+                break;
+            case ControllerControlsMenuBinding.AimDistance:
+                _clientSettings.ControllerAimDistanceButton = input;
+                break;
+            case ControllerControlsMenuBinding.ChangeTeam:
+                _clientSettings.ControllerChangeTeamButton = input;
+                break;
+            case ControllerControlsMenuBinding.ChangeClass:
+                _clientSettings.ControllerChangeClassButton = input;
+                break;
+        }
+
+        PersistClientSettings();
+    }
+
     private string GetControlsBindingLabel(ControlsMenuBinding binding)
     {
         var bubbleMenuBindingPrefix = GetBubbleMenuBindingPrefix();
@@ -115,6 +177,25 @@ public partial class Game1
             ControlsMenuBinding.OpenBubbleMenuX => $"{bubbleMenuBindingPrefix} X",
             ControlsMenuBinding.OpenBubbleMenuC => $"{bubbleMenuBindingPrefix} C",
             ControlsMenuBinding.CustomBubble => "Custom Bubble",
+            _ => "Binding",
+        };
+    }
+
+    private static string GetControllerControlsBindingLabel(ControllerControlsMenuBinding binding)
+    {
+        return binding switch
+        {
+            ControllerControlsMenuBinding.Jump => "Jump",
+            ControllerControlsMenuBinding.PrimaryFire => "Primary Fire",
+            ControllerControlsMenuBinding.SecondaryFire => "Secondary Fire",
+            ControllerControlsMenuBinding.UseAbility => "Utility Ability",
+            ControllerControlsMenuBinding.Interact => "Interact",
+            ControllerControlsMenuBinding.SwapWeapon => "Swap Weapon",
+            ControllerControlsMenuBinding.Scoreboard => "Show Scores",
+            ControllerControlsMenuBinding.Pause => "Pause/Menu",
+            ControllerControlsMenuBinding.AimDistance => "Aim Distance",
+            ControllerControlsMenuBinding.ChangeTeam => "Change Team",
+            ControllerControlsMenuBinding.ChangeClass => "Change Class",
             _ => "Binding",
         };
     }

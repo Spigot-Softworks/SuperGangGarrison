@@ -30,7 +30,7 @@ public partial class Game1
 
             if (_game._pendingPluginOptionsKeyItem is not null)
             {
-                if (_game.IsKeyPressed(keyboard, Keys.Escape))
+                if (_game.IsKeyPressed(keyboard, Keys.Escape) || _game.IsControllerMenuBackPressed())
                 {
                     _game._pendingPluginOptionsKeyItem = null;
                     return;
@@ -59,7 +59,7 @@ public partial class Game1
                 return;
             }
 
-            if (_game.IsKeyPressed(keyboard, Keys.Escape))
+            if (_game.IsKeyPressed(keyboard, Keys.Escape) || _game.IsControllerMenuBackPressed())
             {
                 if (_game._selectedPluginOptionsPluginId is not null)
                 {
@@ -68,6 +68,11 @@ public partial class Game1
                 }
 
                 _game.ClosePluginOptionsMenu();
+                return;
+            }
+
+            if (TryUpdatePluginOptionsControllerInput(rows, visibleRowCount))
+            {
                 return;
             }
 
@@ -80,11 +85,23 @@ public partial class Game1
                     Math.Max(0, rows.Count - visibleRowCount));
             }
 
-            if (backBounds.Contains(mouse.Position))
+            if (_game.IsControllerMenuInputActive())
+            {
+                if (_game._pluginOptionsHoverIndex < 0)
+                {
+                    _game._pluginOptionsHoverIndex = FindNextSelectablePluginOptionsIndex(rows, -1, 1);
+                }
+            }
+            else
+            {
+                _game._pluginOptionsHoverIndex = -1;
+            }
+
+            if (_game.ShouldUseMouseMenuHover(mouse) && backBounds.Contains(mouse.Position))
             {
                 _game._pluginOptionsHoverIndex = rows.Count;
             }
-            else if (listBounds.Contains(mouse.Position))
+            else if (_game.ShouldUseMouseMenuHover(mouse) && listBounds.Contains(mouse.Position))
             {
                 var visibleHoverIndex = (mouse.Y - listBounds.Y) / rowHeight;
                 var hoverIndex = _game._pluginOptionsScrollOffset + visibleHoverIndex;
@@ -126,11 +143,103 @@ public partial class Game1
             rows[_game._pluginOptionsHoverIndex].Activate?.Invoke();
         }
 
+        private bool TryUpdatePluginOptionsControllerInput(IReadOnlyList<PluginOptionsMenuRow> rows, int visibleRowCount)
+        {
+            if (!_game.IsControllerMenuInputActive())
+            {
+                return false;
+            }
+
+            var handled = false;
+            if (_game.TryConsumeControllerMenuNavigation(out _, out var verticalStep) && verticalStep != 0)
+            {
+                _game._pluginOptionsHoverIndex = MovePluginOptionsControllerSelection(rows, _game._pluginOptionsHoverIndex, verticalStep);
+                EnsurePluginOptionsControllerSelectionVisible(rows.Count, visibleRowCount);
+                handled = true;
+            }
+
+            if (_game.IsControllerMenuConfirmPressed())
+            {
+                if (_game._pluginOptionsHoverIndex < 0)
+                {
+                    _game._pluginOptionsHoverIndex = FindNextSelectablePluginOptionsIndex(rows, -1, 1);
+                }
+
+                if (_game._pluginOptionsHoverIndex == rows.Count)
+                {
+                    if (_game._selectedPluginOptionsPluginId is not null)
+                    {
+                        CloseSelectedPluginOptionsDetail();
+                    }
+                    else
+                    {
+                        _game.ClosePluginOptionsMenu();
+                    }
+
+                    return true;
+                }
+
+                if (_game._pluginOptionsHoverIndex >= 0 && _game._pluginOptionsHoverIndex < rows.Count)
+                {
+                    rows[_game._pluginOptionsHoverIndex].Activate?.Invoke();
+                    return true;
+                }
+            }
+
+            return handled;
+        }
+
+        private void EnsurePluginOptionsControllerSelectionVisible(int rowCount, int visibleRowCount)
+        {
+            if (_game._pluginOptionsHoverIndex < 0 || _game._pluginOptionsHoverIndex >= rowCount)
+            {
+                return;
+            }
+
+            if (_game._pluginOptionsHoverIndex < _game._pluginOptionsScrollOffset)
+            {
+                _game._pluginOptionsScrollOffset = _game._pluginOptionsHoverIndex;
+            }
+            else if (_game._pluginOptionsHoverIndex >= _game._pluginOptionsScrollOffset + visibleRowCount)
+            {
+                _game._pluginOptionsScrollOffset = _game._pluginOptionsHoverIndex - visibleRowCount + 1;
+            }
+        }
+
+        private static int MovePluginOptionsControllerSelection(IReadOnlyList<PluginOptionsMenuRow> rows, int currentIndex, int step)
+        {
+            var itemCount = rows.Count + 1;
+            if (itemCount <= 0 || step == 0)
+            {
+                return currentIndex;
+            }
+
+            var index = currentIndex < 0
+                ? (step > 0 ? -1 : itemCount)
+                : currentIndex;
+
+            for (var checkedCount = 0; checkedCount < itemCount; checkedCount += 1)
+            {
+                index = (index + step + itemCount) % itemCount;
+                if (index == rows.Count || (index >= 0 && rows[index].Selectable))
+                {
+                    return index;
+                }
+            }
+
+            return currentIndex;
+        }
+
+        private static int FindNextSelectablePluginOptionsIndex(IReadOnlyList<PluginOptionsMenuRow> rows, int currentIndex, int step)
+        {
+            return MovePluginOptionsControllerSelection(rows, currentIndex, step);
+        }
+
         public void DrawPluginOptionsMenu()
         {
             var viewportWidth = _game.ViewportWidth;
             var viewportHeight = _game.ViewportHeight;
-            _game._spriteBatch.Draw(_game._pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.78f);
+            _game._spriteBatch.Draw(_game._pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.86f);
 
             // Draw bottom bar and runners (in animated mode only) - behind everything else
             if (_game._menuBackgroundMode != MenuBackgroundMode.Static)
@@ -144,6 +253,7 @@ public partial class Game1
 
             var rows = BuildPluginOptionsMenuRows();
             GetPluginOptionsPanelLayout(out var panel, out var listBounds, out var backBounds, out var compactLayout, out var rowHeight);
+            var mouse = _game.GetScaledMouseState(_game.GetConstrainedMouseState(Game1.GetCurrentMouseState()));
             var visibleRowCount = Math.Max(1, Math.Min(rows.Count, listBounds.Height / rowHeight));
             ClampPluginOptionsScrollOffset(rows.Count, visibleRowCount);
 
@@ -175,8 +285,8 @@ public partial class Game1
                 var row = rows[index];
                 var visibleRow = index - _game._pluginOptionsScrollOffset;
                 var rowBounds = new Rectangle(listBounds.X, listBounds.Y + (visibleRow * rowHeight), listBounds.Width, rowHeight - 2);
-                var isHovered = index == _game._pluginOptionsHoverIndex;
-                var rowFill = isHovered ? new Color(75, 67, 62) : new Color(54, 47, 41);
+                var isHovered = index == _game._pluginOptionsHoverIndex || rowBounds.Contains(mouse.Position);
+                var rowFill = isHovered ? new Color(36, 32, 29) : new Color(54, 47, 41);
                 _game._spriteBatch.Draw(_game._pixel, rowBounds, rowFill);
 
                 var textScale = compactLayout ? compactRowTextScale : rowTextScale;
@@ -220,7 +330,7 @@ public partial class Game1
                     compactLayout ? 0.92f : 1f);
             }
 
-            var backHovered = _game._pluginOptionsHoverIndex == rows.Count;
+            var backHovered = _game._pluginOptionsHoverIndex == rows.Count || backBounds.Contains(mouse.Position);
             _game.DrawMenuButtonScaled(backBounds, "Back", backHovered, 1f);
         }
 

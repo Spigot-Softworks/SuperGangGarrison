@@ -9,6 +9,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private int _clientPowersControllerIndex;
+
     private enum ClientPowerToggleKind
     {
         StickyGibBlood,
@@ -71,6 +73,7 @@ public partial class Game1
         _clientPowersOpen = true;
         _clientPowersOpenedFromGameplay = fromGameplay;
         _clientPowersScrollOffset = 0;
+        _clientPowersControllerIndex = 0;
         if (fromGameplay)
         {
             CloseInGameMenu();
@@ -85,6 +88,7 @@ public partial class Game1
         _clientPowersOpen = false;
         _clientPowersOpenedFromGameplay = false;
         _clientPowersScrollOffset = 0;
+        _clientPowersControllerIndex = 0;
 
         if (reopenInGameMenu)
         {
@@ -97,7 +101,7 @@ public partial class Game1
         var layout = GetClientPowersLayout();
         ClampClientPowersScrollOffset(layout.VisibleRowCount);
 
-        if (IsKeyPressed(keyboard, Keys.Escape))
+        if (IsKeyPressed(keyboard, Keys.Escape) || IsControllerMenuBackPressed())
         {
             CloseClientPowersMenu();
             return;
@@ -128,6 +132,11 @@ public partial class Game1
             _clientPowersScrollOffset = GetMaxClientPowersScrollOffset(layout.VisibleRowCount);
         }
 
+        if (TryUpdateClientPowersControllerInput(layout.VisibleRowCount))
+        {
+            return;
+        }
+
         var wheelDelta = mouse.ScrollWheelValue - _previousMouse.ScrollWheelValue;
         if (wheelDelta != 0)
         {
@@ -143,6 +152,7 @@ public partial class Game1
 
         if (layout.BackBounds.Contains(mouse.Position))
         {
+            _clientPowersControllerIndex = ClientPowerEntries.Length;
             CloseClientPowersMenu();
             return;
         }
@@ -166,7 +176,59 @@ public partial class Game1
             return;
         }
 
+        _clientPowersControllerIndex = entryIndex;
         TogglePracticeClientPower(ClientPowerEntries[entryIndex].Kind);
+    }
+
+    private bool TryUpdateClientPowersControllerInput(int visibleRowCount)
+    {
+        if (!IsControllerMenuInputActive())
+        {
+            return false;
+        }
+
+        if (TryConsumeControllerMenuNavigation(out _, out var verticalStep) && verticalStep != 0)
+        {
+            _clientPowersControllerIndex = MoveControllerMenuSelectionClamped(
+                _clientPowersControllerIndex,
+                ClientPowerEntries.Length + 1,
+                verticalStep);
+            EnsureClientPowersControllerSelectionVisible(visibleRowCount);
+            return true;
+        }
+
+        if (!IsControllerMenuConfirmPressed())
+        {
+            return false;
+        }
+
+        if (_clientPowersControllerIndex >= ClientPowerEntries.Length)
+        {
+            CloseClientPowersMenu();
+            return true;
+        }
+
+        TogglePracticeClientPower(ClientPowerEntries[_clientPowersControllerIndex].Kind);
+        return true;
+    }
+
+    private void EnsureClientPowersControllerSelectionVisible(int visibleRowCount)
+    {
+        if (_clientPowersControllerIndex < 0 || _clientPowersControllerIndex >= ClientPowerEntries.Length)
+        {
+            return;
+        }
+
+        if (_clientPowersControllerIndex < _clientPowersScrollOffset)
+        {
+            _clientPowersScrollOffset = _clientPowersControllerIndex;
+        }
+        else if (_clientPowersControllerIndex >= _clientPowersScrollOffset + visibleRowCount)
+        {
+            _clientPowersScrollOffset = _clientPowersControllerIndex - visibleRowCount + 1;
+        }
+
+        ClampClientPowersScrollOffset(visibleRowCount);
     }
 
     private void DrawClientPowersMenu()
@@ -231,7 +293,10 @@ public partial class Game1
         {
             var rowBounds = new Rectangle(listBounds.X + 6, rowY - 3, listBounds.Width - 22, rowHeight - 2);
             var alternate = ((index - _clientPowersScrollOffset) & 1) == 0;
-            _spriteBatch.Draw(_pixel, rowBounds, alternate ? new Color(34, 37, 43, 150) : new Color(27, 29, 35, 150));
+            var selected = IsControllerMenuInputActive() && index == _clientPowersControllerIndex;
+            _spriteBatch.Draw(_pixel, rowBounds, selected
+                ? new Color(65, 67, 76, 220)
+                : alternate ? new Color(34, 37, 43, 150) : new Color(27, 29, 35, 150));
 
             var entry = ClientPowerEntries[index];
             var enabled = GetPracticeClientPowerEnabled(entry.Kind);
@@ -250,7 +315,11 @@ public partial class Game1
             panel.Bottom - (compactLayout ? 62f : 68f),
             layout.BackBounds.Y - 24f);
         DrawBitmapFontText(footerText, new Vector2(panel.X + padding, footerY), new Color(210, 210, 210), 0.88f);
-        DrawMenuButtonScaled(layout.BackBounds, _clientPowersOpenedFromGameplay ? "Back to Pause Menu" : "Back", false, 1f);
+        DrawMenuButtonScaled(
+            layout.BackBounds,
+            _clientPowersOpenedFromGameplay ? "Back to Pause Menu" : "Back",
+            IsControllerMenuInputActive() && _clientPowersControllerIndex >= ClientPowerEntries.Length,
+            1f);
     }
 
     private ClientPowersLayout GetClientPowersLayout()

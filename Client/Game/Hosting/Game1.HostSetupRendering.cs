@@ -12,7 +12,7 @@ public partial class Game1
     {
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
-        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.78f);
+        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.86f);
 
         // Draw bottom bar and runners (in animated mode only) - behind everything else
         if (_menuBackgroundMode != MenuBackgroundMode.Static)
@@ -36,6 +36,7 @@ public partial class Game1
         const float infoScale = 1f;
         const float inputScale = 1f;
         const float buttonScale = 1f;
+        var mouse = GetScaledMouseState(GetConstrainedMouseState(Game1.GetCurrentMouseState()));
         DrawRoundedRectangleOutline(panel, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 2, radius: 8);
 
         var hostHeaderText = "HOST A SERVER";
@@ -52,8 +53,8 @@ public partial class Game1
         if (IsServerLauncherMode)
         {
             var tabLayout = HostSetupMenuLayoutCalculator.CreateServerLauncherTabLayout(panel);
-            DrawMenuButton(tabLayout.SettingsTabBounds, "Settings", _hostSetupTab == HostSetupTab.Settings);
-            DrawMenuButton(tabLayout.ConsoleTabBounds, "Server Console", _hostSetupTab == HostSetupTab.ServerConsole);
+            DrawMenuButton(tabLayout.SettingsTabBounds, "Settings", _hostSetupTab == HostSetupTab.Settings || tabLayout.SettingsTabBounds.Contains(mouse.Position));
+            DrawMenuButton(tabLayout.ConsoleTabBounds, "Server Console", _hostSetupTab == HostSetupTab.ServerConsole || tabLayout.ConsoleTabBounds.Contains(mouse.Position));
         }
 
         if (IsServerLauncherMode && _hostSetupTab == HostSetupTab.ServerConsole)
@@ -132,11 +133,11 @@ public partial class Game1
 
             if (index == _hostMapIndex)
             {
-                _spriteBatch.Draw(_pixel, rowBounds, new Color(95, 72, 68));
+                _spriteBatch.Draw(_pixel, rowBounds, new Color(54, 40, 38));
             }
             else if (index == _hostSetupHoverIndex)
             {
-                _spriteBatch.Draw(_pixel, rowBounds, new Color(75, 67, 62));
+                _spriteBatch.Draw(_pixel, rowBounds, new Color(36, 32, 29));
             }
             else
             {
@@ -180,9 +181,9 @@ public partial class Game1
 
         var selectedMap = GetSelectedHostMapEntry();
         var selectedIncluded = selectedMap is not null && selectedMap.Order > 0;
-        DrawHostSetupContentButton(layout, toggleBounds, selectedIncluded ? "Exclude" : "Include", selectedIncluded, buttonScale);
-        DrawHostSetupContentButton(layout, moveUpBounds, "Up", false, buttonScale);
-        DrawHostSetupContentButton(layout, moveDownBounds, "Down", false, buttonScale);
+        DrawHostSetupContentButton(layout, toggleBounds, selectedIncluded ? "Exclude" : "Include", selectedIncluded || toggleBounds.Contains(mouse.Position), buttonScale);
+        DrawHostSetupContentButton(layout, moveUpBounds, "Up", moveUpBounds.Contains(mouse.Position), buttonScale);
+        DrawHostSetupContentButton(layout, moveDownBounds, "Down", moveDownBounds.Contains(mouse.Position), buttonScale);
 
         var labelColor = new Color(210, 210, 210);
         DrawHostSetupContentText(layout, "Server Name", new Vector2(serverNameBounds.X, serverNameBounds.Y - 16f), labelColor, fieldLabelScale);
@@ -214,9 +215,9 @@ public partial class Game1
         DrawHostSetupContentText(layout, compactLayout ? "Respawn (sec)" : "Respawn Time (secs)", new Vector2(respawnBounds.X, respawnBounds.Y - 16f), labelColor, fieldLabelScale);
         DrawHostSetupContentInput(layout, respawnBounds, _hostRespawnSecondsBuffer, _hostSetupEditField == HostSetupEditField.RespawnSeconds, inputScale, _hostRespawnSecondsCursorIndex, _hostRespawnSecondsSelectionStart);
 
-        DrawHostSetupContentButton(layout, lobbyBounds, _hostLobbyAnnounceEnabled ? "Lobby Announce: On" : "Lobby Announce: Off", _hostLobbyAnnounceEnabled, buttonScale);
-        DrawHostSetupContentButton(layout, autoBalanceBounds, _hostAutoBalanceEnabled ? "Auto-balance: On" : "Auto-balance: Off", _hostAutoBalanceEnabled, buttonScale);
-        DrawHostSetupContentButton(layout, secondaryAbilitiesBounds, _hostSecondaryAbilitiesEnabled ? "Special Abilities: On" : "Special Abilities: Off", _hostSecondaryAbilitiesEnabled, buttonScale);
+        DrawHostSetupContentButton(layout, lobbyBounds, _hostLobbyAnnounceEnabled ? "Lobby Announce: On" : "Lobby Announce: Off", _hostLobbyAnnounceEnabled || lobbyBounds.Contains(mouse.Position), buttonScale);
+        DrawHostSetupContentButton(layout, autoBalanceBounds, _hostAutoBalanceEnabled ? "Auto-balance: On" : "Auto-balance: Off", _hostAutoBalanceEnabled || autoBalanceBounds.Contains(mouse.Position), buttonScale);
+        DrawHostSetupContentButton(layout, secondaryAbilitiesBounds, _hostSecondaryAbilitiesEnabled ? "Special Abilities: On" : "Special Abilities: Off", _hostSecondaryAbilitiesEnabled || secondaryAbilitiesBounds.Contains(mouse.Position), buttonScale);
 
         var contentHeight = GetHostSetupContentHeight(layout);
         if (contentHeight > layout.ContentViewportBounds.Height)
@@ -235,11 +236,11 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, footerBounds, new Color(54, 47, 41, 235));
         _spriteBatch.Draw(_pixel, new Rectangle(panel.X, layout.FooterTop, panel.Width, 2), new Color(80, 80, 80));
 
-        DrawMenuButtonScaled(layout.HostBounds, GetHostSetupPrimaryButtonLabel(), false, buttonScale);
-        DrawMenuButtonScaled(layout.BackBounds, GetHostSetupSecondaryButtonLabel(), IsServerLauncherMode && IsHostedServerRunning, buttonScale);
+        DrawMenuButtonScaled(layout.HostBounds, GetHostSetupPrimaryButtonLabel(), layout.HostBounds.Contains(mouse.Position), buttonScale);
+        DrawMenuButtonScaled(layout.BackBounds, GetHostSetupSecondaryButtonLabel(), (IsServerLauncherMode && IsHostedServerRunning) || layout.BackBounds.Contains(mouse.Position), buttonScale);
         if (IsServerLauncherMode && !IsHostedServerRunning)
         {
-            DrawMenuButtonScaled(layout.TerminalButtonBounds, "Run In Terminal", false, buttonScale);
+            DrawMenuButtonScaled(layout.TerminalButtonBounds, "Run In Terminal", layout.TerminalButtonBounds.Contains(mouse.Position), buttonScale);
         }
 
         if (IsServerLauncherMode && IsHostedServerRunning)

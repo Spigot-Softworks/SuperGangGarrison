@@ -92,6 +92,18 @@ public partial class Game1
             && !IsGameplayDeathCamActive();
     }
 
+    private bool CanOfferGameplaySelectionMenusFromInGameMenu()
+    {
+        return !_passwordPromptOpen
+            && !IsWatchOnlySession()
+            && !ShouldBlockGameplayForGarrisonBuilder()
+            && !_consoleOpen
+            && !_chatOpen
+            && !IsLastToDieSessionActive
+            && !_world.MatchState.IsEnded
+            && !IsGameplayDeathCamActive();
+    }
+
     private bool CanOpenInGamePauseMenu()
     {
         return !_consoleOpen

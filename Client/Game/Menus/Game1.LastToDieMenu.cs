@@ -61,7 +61,7 @@ public partial class Game1
         }
 
         var layout = GetLastToDieMenuLayout(buttonLabels.Length, _lastToDieMenuPage == LastToDieMenuPage.Stats);
-        if (IsKeyPressed(keyboard, Keys.Escape))
+        if (IsKeyPressed(keyboard, Keys.Escape) || IsControllerMenuBackPressed())
         {
             if (_lastToDieMenuPage == LastToDieMenuPage.Stats)
             {
@@ -88,17 +88,30 @@ public partial class Game1
             SetLastToDieMenuHoverIndex((_lastToDieMenuHoverIndex + 1 + buttonLabels.Length) % buttonLabels.Length, buttonLabels.Length);
         }
 
-        var hoveredButtonIndex = GetHoveredLastToDieMenuButtonIndex(mouse.Position, layout);
+        if (TryConsumeControllerMenuNavigation(out _, out var verticalStep) && verticalStep != 0)
+        {
+            SetLastToDieMenuHoverIndex(
+                MoveControllerMenuSelection(_lastToDieMenuHoverIndex, buttonLabels.Length, verticalStep),
+                buttonLabels.Length);
+        }
+
+        var hoveredButtonIndex = ShouldUseMouseMenuHover(mouse)
+            ? GetHoveredLastToDieMenuButtonIndex(mouse.Position, layout)
+            : -1;
         if (hoveredButtonIndex >= 0)
         {
             _lastToDieMenuHoverIndex = hoveredButtonIndex;
+        }
+        else if (IsControllerMenuInputActive() && _lastToDieMenuHoverIndex < 0)
+        {
+            SetLastToDieMenuHoverIndex(0, buttonLabels.Length);
         }
         else if (_lastToDieMenuHoverIndex < 0 && buttonLabels.Length > 0)
         {
             _lastToDieMenuHoverIndex = Math.Clamp(_lastToDieMenuHoverIndex, -1, buttonLabels.Length - 1);
         }
 
-        if (IsKeyPressed(keyboard, Keys.Enter))
+        if (IsKeyPressed(keyboard, Keys.Enter) || IsControllerMenuConfirmPressed())
         {
             ActivateLastToDieMenuButton(_lastToDieMenuHoverIndex >= 0 ? _lastToDieMenuHoverIndex : 0);
             return;

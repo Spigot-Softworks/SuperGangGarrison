@@ -19,8 +19,10 @@ public partial class Game1
 
         public PlayerInputSnapshot PrepareFrame(GameTime gameTime, KeyboardState keyboard, MouseState mouse, MouseState rawMouse)
         {
+            var wasGameplayInputBlocked = _game.IsGameplayInputBlocked();
             _game.UpdateGameplayScreenState(keyboard, mouse);
             _game.UpdateGameplayMenuState(keyboard, mouse);
+            _game.SuppressMouseFireAfterGameplayInputUnblocks(wasGameplayInputBlocked, mouse);
             _game.UpdateRespawnCameraState((float)gameTime.ElapsedGameTime.TotalSeconds, keyboard, mouse);
             _game.UpdateBotBrainCorridorRecorderHotkeys(keyboard);
             var cameraPosition = _game.GetGameplayInputCameraTopLeft(
@@ -32,8 +34,8 @@ public partial class Game1
             _game.UpdateNavEditor(keyboard, mouse, rawMouse, cameraPosition, (float)gameTime.ElapsedGameTime.TotalSeconds);
             _game.UpdateScoreboardState(keyboard, mouse);
             var (gameplayInput, networkInput) = _game.BuildGameplayInputs(keyboard, mouse, cameraPosition, (float)gameTime.ElapsedGameTime.TotalSeconds);
-            _game._latestLocalAimWorldX = cameraPosition.X + mouse.X;
-            _game._latestLocalAimWorldY = cameraPosition.Y + mouse.Y;
+            _game._latestLocalAimWorldX = networkInput.AimWorldX;
+            _game._latestLocalAimWorldY = networkInput.AimWorldY;
             _game._hasLatestLocalAimWorldPosition = true;
             _game.SetNavEditorTraversalCaptureInput(gameplayInput);
             _game.SetScoreRouteRecorderCaptureInput(gameplayInput);

@@ -18,7 +18,7 @@ public partial class Game1
             _game = game;
         }
 
-        public void DrawSniperHud(MouseState mouse)
+        public void DrawSniperHud(Vector2 screenAimPosition)
         {
             if (!_game._world.LocalPlayer.HasScopedSniperWeaponEquipped || !_game.GetPlayerIsSniperScoped(_game._world.LocalPlayer))
             {
@@ -29,11 +29,11 @@ public partial class Game1
             var chargeScaleX = IsFacingLeftByAim(_game._world.LocalPlayer) ? 1f : -1f;
             if (damage < 85)
             {
-                _game.TryDrawScreenSprite("ChargeS", 0, new Vector2(mouse.X + 15f * chargeScaleX, mouse.Y - 10f), Color.White * 0.25f, new Vector2(chargeScaleX, 1f));
+                _game.TryDrawScreenSprite("ChargeS", 0, screenAimPosition + new Vector2(15f * chargeScaleX, -10f), Color.White * 0.25f, new Vector2(chargeScaleX, 1f));
             }
             else
             {
-                _game.TryDrawScreenSprite("FullChargeS", 0, new Vector2(mouse.X + 65f * chargeScaleX, mouse.Y), Color.White, Vector2.One);
+                _game.TryDrawScreenSprite("FullChargeS", 0, screenAimPosition + new Vector2(65f * chargeScaleX, 0f), Color.White, Vector2.One);
             }
 
             var chargeWidth = (int)MathF.Ceiling(damage * 40f / 85f);
@@ -42,7 +42,7 @@ public partial class Game1
                 return;
             }
 
-            _game.TryDrawScreenSpritePart("ChargeS", 1, new Rectangle(0, 0, chargeWidth, 20), new Vector2(mouse.X + 15f * chargeScaleX, mouse.Y - 10f), Color.White * 0.8f, new Vector2(chargeScaleX, 1f));
+            _game.TryDrawScreenSpritePart("ChargeS", 1, new Rectangle(0, 0, chargeWidth, 20), screenAimPosition + new Vector2(15f * chargeScaleX, -10f), Color.White * 0.8f, new Vector2(chargeScaleX, 1f));
         }
 
         public void DrawSpectatorSniperHud(PlayerEntity player, Vector2 screenAimPosition)
@@ -73,7 +73,7 @@ public partial class Game1
             _game.TryDrawScreenSpritePart("ChargeS", 1, new Rectangle(0, 0, chargeWidth, 20), chargePosition, Color.White * 0.8f, new Vector2(chargeScaleX, 1f));
         }
 
-        public void DrawCrosshair(MouseState mouse)
+        public void DrawCrosshair(Vector2 screenPosition)
         {
             var crosshair = _game.GetResolvedSprite("CrosshairS");
             if (crosshair is null || crosshair.Frames.Count == 0)
@@ -81,7 +81,63 @@ public partial class Game1
                 return;
             }
 
-            _game.DrawLoadedSpriteFrame(crosshair.Frames[0], new Vector2(mouse.X, mouse.Y), null, Color.White, 0f, crosshair.Origin.ToVector2(), Vector2.One, SpriteEffects.None, 0f);
+            _game.DrawLoadedSpriteFrame(crosshair.Frames[0], screenPosition, null, Color.White, 0f, crosshair.Origin.ToVector2(), Vector2.One, SpriteEffects.None, 0f);
+        }
+
+        public void DrawControllerAimLine(Vector2 cameraPosition, Vector2 screenAimPosition)
+        {
+            if (!_game._world.LocalPlayer.IsAlive)
+            {
+                return;
+            }
+
+            var playerScreenPosition = _game.GetRenderPosition(_game._world.LocalPlayer) - cameraPosition;
+            var delta = screenAimPosition - playerScreenPosition;
+            var length = delta.Length();
+            if (length <= 1f)
+            {
+                return;
+            }
+
+            var direction = delta / length;
+            var lineStart = playerScreenPosition + (direction * MathF.Min(12f, length * 0.25f));
+            var lineEnd = screenAimPosition;
+            var lineLength = (lineEnd - lineStart).Length();
+            if (lineLength <= 1f)
+            {
+                return;
+            }
+
+            const int segments = 12;
+            const float fadeStart = 0.58f;
+            for (var index = 0; index < segments; index += 1)
+            {
+                var segmentStartT = index / (float)segments;
+                var segmentEndT = (index + 1) / (float)segments;
+                var segmentStart = Vector2.Lerp(lineStart, lineEnd, segmentStartT);
+                var segmentEnd = Vector2.Lerp(lineStart, lineEnd, segmentEndT);
+                var fadeT = Math.Clamp((segmentEndT - fadeStart) / (1f - fadeStart), 0f, 1f);
+                var alpha = MathHelper.Lerp(0.9f, 0f, fadeT);
+                if (alpha <= 0.01f)
+                {
+                    continue;
+                }
+
+                DrawScreenLine(segmentStart, segmentEnd, Color.White * alpha, 1f);
+            }
+        }
+
+        private void DrawScreenLine(Vector2 start, Vector2 end, Color color, float thickness)
+        {
+            var delta = end - start;
+            var length = delta.Length();
+            if (length <= 0f)
+            {
+                return;
+            }
+
+            var angle = MathF.Atan2(delta.Y, delta.X);
+            _game._spriteBatch.Draw(_game._pixel, start, null, color, angle, Vector2.Zero, new Vector2(length, thickness), SpriteEffects.None, 0f);
         }
     }
 }

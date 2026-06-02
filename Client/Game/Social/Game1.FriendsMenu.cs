@@ -57,9 +57,15 @@ public partial class Game1
         CompleteSocialPresenceTasks();
         var layout = GetFriendsMenuLayout();
 
-        if (keyboard.IsKeyDown(Keys.Escape) && !_previousKeyboard.IsKeyDown(Keys.Escape))
+        if ((keyboard.IsKeyDown(Keys.Escape) && !_previousKeyboard.IsKeyDown(Keys.Escape))
+            || IsControllerMenuBackPressed())
         {
             _mainMenuOverlayStateController.CloseFriendsMenu(clearStatus: false);
+            return;
+        }
+
+        if (TryUpdateFriendsMenuControllerInput(layout))
+        {
             return;
         }
 
@@ -74,7 +80,14 @@ public partial class Game1
             return;
         }
 
-        _friendsMenuHoverIndex = GetFriendsMenuRowIndexAtPoint(mouse.Position, layout);
+        if (ShouldUseMouseMenuHover(mouse))
+        {
+            _friendsMenuHoverIndex = GetFriendsMenuRowIndexAtPoint(mouse.Position, layout);
+        }
+        else
+        {
+            _friendsMenuHoverIndex = _friendsMenuSelectedIndex;
+        }
 
         var leftClickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
         var rightClickPressed = mouse.RightButton == ButtonState.Pressed && _previousMouse.RightButton != ButtonState.Pressed;
@@ -113,25 +126,7 @@ public partial class Game1
                 continue;
             }
 
-            _friendsMenuTab = (FriendsMenuTab)index;
-            _friendsMenuSelectedIndex = -1;
-            _friendsMenuHoverIndex = -1;
-            CloseFriendsContextMenu();
-            ClosePlayerCardOverlay();
-            _editingFriendNickname = false;
-            _editingFriendCode = false;
-            _editingFriendMessage = false;
-            _friendsMenuAddingFriend = false;
-            ResetTextFieldClickTarget();
-            if (_friendsMenuTab == FriendsMenuTab.Requests)
-            {
-                RefreshFriendRequests();
-            }
-            else if (_friendsMenuTab == FriendsMenuTab.Messages)
-            {
-                SelectDefaultFriendMessageTarget();
-                PollDirectMessages();
-            }
+            SelectFriendsMenuTab((FriendsMenuTab)index);
 
             return;
         }
@@ -190,6 +185,89 @@ public partial class Game1
                 UpdateFriendBubbleTabClick(point, layout);
                 break;
         }
+    }
+
+    private bool TryUpdateFriendsMenuControllerInput(FriendsMenuLayout layout)
+    {
+        if (!IsControllerMenuInputActive()
+            || _editingFriendNickname
+            || _editingFriendCode
+            || _editingFriendMessage
+            || _playerCardOwnOpen
+            || _playerCardEditorOpen)
+        {
+            return false;
+        }
+
+        if (TryConsumeControllerMenuNavigation(out var horizontalStep, out var verticalStep))
+        {
+            if (horizontalStep != 0)
+            {
+                SelectFriendsMenuTab((FriendsMenuTab)MoveControllerMenuSelection((int)_friendsMenuTab, layout.TabBounds.Length, horizontalStep));
+                return true;
+            }
+
+            if (verticalStep != 0)
+            {
+                var visibleCount = Math.Min(GetVisibleFriendsMenuRowCount(), GetFriendsMenuActiveRowCount());
+                _friendsMenuSelectedIndex = MoveControllerMenuSelectionClamped(_friendsMenuSelectedIndex, visibleCount, verticalStep);
+                _friendsMenuHoverIndex = _friendsMenuSelectedIndex;
+                return true;
+            }
+        }
+
+        if (!IsControllerMenuConfirmPressed())
+        {
+            return false;
+        }
+
+        if (_friendsMenuTab == FriendsMenuTab.Friends)
+        {
+            TryJoinSelectedFriend();
+            return true;
+        }
+
+        if (_friendsMenuTab == FriendsMenuTab.Messages)
+        {
+            TrySelectSelectedFriendForDirectMessage();
+            return true;
+        }
+
+        return false;
+    }
+
+    private void SelectFriendsMenuTab(FriendsMenuTab tab)
+    {
+        _friendsMenuTab = tab;
+        _friendsMenuSelectedIndex = -1;
+        _friendsMenuHoverIndex = -1;
+        CloseFriendsContextMenu();
+        ClosePlayerCardOverlay();
+        _editingFriendNickname = false;
+        _editingFriendCode = false;
+        _editingFriendMessage = false;
+        _friendsMenuAddingFriend = false;
+        ResetTextFieldClickTarget();
+        if (_friendsMenuTab == FriendsMenuTab.Requests)
+        {
+            RefreshFriendRequests();
+        }
+        else if (_friendsMenuTab == FriendsMenuTab.Messages)
+        {
+            SelectDefaultFriendMessageTarget();
+            PollDirectMessages();
+        }
+    }
+
+    private int GetFriendsMenuActiveRowCount()
+    {
+        return _friendsMenuTab switch
+        {
+            FriendsMenuTab.Requests => _friendRequestEntries.Count,
+            FriendsMenuTab.Messages => _friendList.Friends.Count,
+            FriendsMenuTab.Friends => _friendList.Friends.Count,
+            _ => 0,
+        };
     }
 
     private int GetFriendsMenuRowIndexAtPoint(Point point, FriendsMenuLayout layout)

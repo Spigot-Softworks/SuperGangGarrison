@@ -101,6 +101,48 @@ public sealed class ClientSettings
 
     public int PlayerCardSizeMode { get; set; } = PlayerCardSizeSmall;
 
+    public ControllerInputMode ControllerInputMode { get; set; } = ControllerInputMode.Auto;
+
+    public ControllerReticleMode ControllerReticleMode { get; set; } = ControllerReticleMode.Cursor;
+
+    public bool ControllerAimAssistEnabled { get; set; } = true;
+
+    public bool ControllerFlickToChangeDirections { get; set; } = OpenGarrisonPreferencesDocument.DefaultControllerFlickToChangeDirections;
+
+    public float ControllerAimAssistStrength { get; set; } = OpenGarrisonPreferencesDocument.DefaultControllerAimAssistStrength;
+
+    public float ControllerAimDeadzone { get; set; } = OpenGarrisonPreferencesDocument.DefaultControllerAimDeadzone;
+
+    public float ControllerScopedPrecisionSpeed { get; set; } = OpenGarrisonPreferencesDocument.DefaultControllerScopedPrecisionSpeed;
+
+    public float ControllerAimDistanceTier1 { get; set; } = OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier1;
+
+    public float ControllerAimDistanceTier2 { get; set; } = OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier2;
+
+    public float ControllerAimDistanceTier3 { get; set; } = OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier3;
+
+    public ControllerButtonBinding ControllerJumpButton { get; set; } = OpenGarrisonPreferencesDocument.DefaultControllerJumpButton;
+
+    public ControllerButtonBinding ControllerPrimaryFireButton { get; set; } = OpenGarrisonPreferencesDocument.DefaultControllerPrimaryFireButton;
+
+    public ControllerButtonBinding ControllerSecondaryFireButton { get; set; } = OpenGarrisonPreferencesDocument.DefaultControllerSecondaryFireButton;
+
+    public ControllerButtonBinding ControllerUseAbilityButton { get; set; } = OpenGarrisonPreferencesDocument.DefaultControllerUseAbilityButton;
+
+    public ControllerButtonBinding ControllerInteractButton { get; set; } = OpenGarrisonPreferencesDocument.DefaultControllerInteractButton;
+
+    public ControllerButtonBinding ControllerSwapWeaponButton { get; set; } = OpenGarrisonPreferencesDocument.DefaultControllerSwapWeaponButton;
+
+    public ControllerButtonBinding ControllerScoreboardButton { get; set; } = OpenGarrisonPreferencesDocument.DefaultControllerScoreboardButton;
+
+    public ControllerButtonBinding ControllerPauseButton { get; set; } = OpenGarrisonPreferencesDocument.DefaultControllerPauseButton;
+
+    public ControllerButtonBinding ControllerAimDistanceButton { get; set; } = OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceButton;
+
+    public ControllerButtonBinding ControllerChangeTeamButton { get; set; } = OpenGarrisonPreferencesDocument.DefaultControllerChangeTeamButton;
+
+    public ControllerButtonBinding ControllerChangeClassButton { get; set; } = OpenGarrisonPreferencesDocument.DefaultControllerChangeClassButton;
+
     public ClientRecentConnectionSettings RecentConnection { get; set; } = new();
 
     public OpenGarrisonHostSettings HostDefaults { get; set; } = new();
@@ -205,6 +247,27 @@ public sealed class ClientSettings
             UseLocalWeaponRotation = document.UseLocalWeaponRotation,
             DisableLegacyGameplaySpriteFallback = document.DisableLegacyGameplaySpriteFallback,
             PlayerCardSizeMode = NormalizePlayerCardSizeMode(document.PlayerCardSizeMode),
+            ControllerInputMode = OpenGarrisonPreferencesDocument.NormalizeControllerInputMode(document.ControllerInputMode),
+            ControllerReticleMode = OpenGarrisonPreferencesDocument.NormalizeControllerReticleMode(document.ControllerReticleMode),
+            ControllerAimAssistEnabled = document.ControllerAimAssistEnabled,
+            ControllerFlickToChangeDirections = document.ControllerFlickToChangeDirections,
+            ControllerAimAssistStrength = OpenGarrisonPreferencesDocument.NormalizeControllerAimAssistStrength(document.ControllerAimAssistStrength),
+            ControllerAimDeadzone = OpenGarrisonPreferencesDocument.NormalizeControllerAimDeadzone(document.ControllerAimDeadzone),
+            ControllerScopedPrecisionSpeed = OpenGarrisonPreferencesDocument.NormalizeControllerScopedPrecisionSpeed(document.ControllerScopedPrecisionSpeed),
+            ControllerAimDistanceTier1 = OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(document.ControllerAimDistanceTier1, OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier1),
+            ControllerAimDistanceTier2 = OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(document.ControllerAimDistanceTier2, OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier2),
+            ControllerAimDistanceTier3 = OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(document.ControllerAimDistanceTier3, OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier3),
+            ControllerJumpButton = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(document.ControllerJumpButton),
+            ControllerPrimaryFireButton = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(document.ControllerPrimaryFireButton),
+            ControllerSecondaryFireButton = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(document.ControllerSecondaryFireButton),
+            ControllerUseAbilityButton = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(document.ControllerUseAbilityButton),
+            ControllerInteractButton = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(document.ControllerInteractButton),
+            ControllerSwapWeaponButton = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(document.ControllerSwapWeaponButton),
+            ControllerScoreboardButton = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(document.ControllerScoreboardButton),
+            ControllerPauseButton = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(document.ControllerPauseButton),
+            ControllerAimDistanceButton = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(document.ControllerAimDistanceButton),
+            ControllerChangeTeamButton = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(document.ControllerChangeTeamButton),
+            ControllerChangeClassButton = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(document.ControllerChangeClassButton),
             RecentConnection = new ClientRecentConnectionSettings
             {
                 Host = document.RecentConnectionHost,
@@ -258,6 +321,27 @@ public sealed class ClientSettings
         preferences.FrameRateLimit = FrameRateLimit;
         preferences.DisableLegacyGameplaySpriteFallback = DisableLegacyGameplaySpriteFallback;
         preferences.PlayerCardSizeMode = NormalizePlayerCardSizeMode(PlayerCardSizeMode);
+        preferences.ControllerInputMode = OpenGarrisonPreferencesDocument.NormalizeControllerInputMode(ControllerInputMode);
+        preferences.ControllerReticleMode = OpenGarrisonPreferencesDocument.NormalizeControllerReticleMode(ControllerReticleMode);
+        preferences.ControllerAimAssistEnabled = ControllerAimAssistEnabled;
+        preferences.ControllerFlickToChangeDirections = ControllerFlickToChangeDirections;
+        preferences.ControllerAimAssistStrength = OpenGarrisonPreferencesDocument.NormalizeControllerAimAssistStrength(ControllerAimAssistStrength);
+        preferences.ControllerAimDeadzone = OpenGarrisonPreferencesDocument.NormalizeControllerAimDeadzone(ControllerAimDeadzone);
+        preferences.ControllerScopedPrecisionSpeed = OpenGarrisonPreferencesDocument.NormalizeControllerScopedPrecisionSpeed(ControllerScopedPrecisionSpeed);
+        preferences.ControllerAimDistanceTier1 = OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(ControllerAimDistanceTier1, OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier1);
+        preferences.ControllerAimDistanceTier2 = OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(ControllerAimDistanceTier2, OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier2);
+        preferences.ControllerAimDistanceTier3 = OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(ControllerAimDistanceTier3, OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier3);
+        preferences.ControllerJumpButton = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(ControllerJumpButton);
+        preferences.ControllerPrimaryFireButton = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(ControllerPrimaryFireButton);
+        preferences.ControllerSecondaryFireButton = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(ControllerSecondaryFireButton);
+        preferences.ControllerUseAbilityButton = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(ControllerUseAbilityButton);
+        preferences.ControllerInteractButton = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(ControllerInteractButton);
+        preferences.ControllerSwapWeaponButton = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(ControllerSwapWeaponButton);
+        preferences.ControllerScoreboardButton = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(ControllerScoreboardButton);
+        preferences.ControllerPauseButton = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(ControllerPauseButton);
+        preferences.ControllerAimDistanceButton = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(ControllerAimDistanceButton);
+        preferences.ControllerChangeTeamButton = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(ControllerChangeTeamButton);
+        preferences.ControllerChangeClassButton = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(ControllerChangeClassButton);
         preferences.RecentConnectionHost = RecentConnection.Host;
         preferences.RecentConnectionPort = RecentConnection.Port;
         preferences.HostSettings = HostDefaults.Clone();

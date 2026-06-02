@@ -765,6 +765,12 @@ public partial class Game1
         set => _uiShellState.ControlsScrollOffset = value;
     }
 
+    private int _controlsPageIndex
+    {
+        get => _uiShellState.ControlsPageIndex;
+        set => _uiShellState.ControlsPageIndex = value;
+    }
+
     private int _lobbyBrowserHoverIndex
     {
         get => _uiShellState.LobbyBrowserHoverIndex;
@@ -897,6 +903,12 @@ public partial class Game1
         set => _uiShellState.PendingControlsBinding = value;
     }
 
+    private ControllerControlsMenuBinding? _pendingControllerControlsBinding
+    {
+        get => _uiShellState.PendingControllerControlsBinding;
+        set => _uiShellState.PendingControllerControlsBinding = value;
+    }
+
     private sealed class UiShellState
     {
         public bool TeamSelectOpen;
@@ -1006,6 +1018,7 @@ public partial class Game1
         public ClientPluginKeyOptionItem? PendingPluginOptionsKeyItem;
         public int ControlsHoverIndex = -1;
         public int ControlsScrollOffset;
+        public int ControlsPageIndex;
         public int LobbyBrowserHoverIndex = -1;
         public int LobbyBrowserSelectedIndex = -1;
         public int ClientPowersScrollOffset;
@@ -1028,6 +1041,7 @@ public partial class Game1
         public int ChatInputSelectionStart;
         public string MenuStatusMessage = string.Empty;
         public ControlsMenuBinding? PendingControlsBinding;
+        public ControllerControlsMenuBinding? PendingControllerControlsBinding;
     }
 
     private sealed class GameplaySessionState

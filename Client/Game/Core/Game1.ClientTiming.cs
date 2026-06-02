@@ -101,15 +101,19 @@ public partial class Game1
         }
 
         var secondaryAbilityPressed = networkInput.FireSecondary
-            && mouse.RightButton == ButtonState.Pressed
-            && _previousMouse.RightButton != ButtonState.Pressed;
+            && (mouse.RightButton == ButtonState.Pressed
+                && _previousMouse.RightButton != ButtonState.Pressed
+                || _latestAimUsesController
+                && !previousPredictedInput.FireSecondary);
         if (secondaryAbilityPressed)
         {
             _pendingPredictedSecondaryAbilityPress = true;
         }
 
         var abilityPressed = networkInput.UseAbility
-            && InputBindingInput.IsPressed(_inputBindings.UseAbility, keyboard, _previousKeyboard, mouse, _previousMouse);
+            && (InputBindingInput.IsPressed(_inputBindings.UseAbility, keyboard, _previousKeyboard, mouse, _previousMouse)
+                || _latestAimUsesController
+                && !previousPredictedInput.UseAbility);
         if (abilityPressed)
         {
             _pendingPredictedAbilityPress = true;
@@ -137,6 +141,11 @@ public partial class Game1
         if (_pendingPredictedSwapWeaponPress && !input.SwapWeapon)
         {
             input = input with { SwapWeapon = true };
+        }
+
+        if (_pendingPredictedAbilityPress && !input.UseAbility)
+        {
+            input = input with { UseAbility = true };
         }
 
         return input;

@@ -114,18 +114,12 @@ public partial class Game1
         }
 
         _networkClient.QueueTeamSelection(selectedTeam);
-        if (_networkClient.IsSpectator)
+        _menuStatusMessage = selectedTeam switch
         {
-            CloseGameplaySelectionMenus();
-            _menuStatusMessage = selectedTeam switch
-            {
-                PlayerTeam.Red => "Joining RED team...",
-                PlayerTeam.Blue => "Joining BLU team...",
-                _ => "Joining team...",
-            };
-            return;
-        }
-
+            PlayerTeam.Red => "Joining RED team. Select a class.",
+            PlayerTeam.Blue => "Joining BLU team. Select a class.",
+            _ => "Joining team. Select a class.",
+        };
         OpenGameplayClassSelection();
     }
 

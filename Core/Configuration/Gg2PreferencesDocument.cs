@@ -13,6 +13,24 @@ public sealed class OpenGarrisonPreferencesDocument
     public const int DefaultLobbyPort = 443;
     public const bool DefaultOverheadChatEnabled = true;
     public const int DefaultDamageVignetteIntensityPercent = 100;
+    public const float DefaultControllerAimAssistStrength = 0.6f;
+    public const float DefaultControllerAimDeadzone = 0.22f;
+    public const float DefaultControllerScopedPrecisionSpeed = 180f;
+    public const float DefaultControllerAimDistanceTier1 = 96f;
+    public const float DefaultControllerAimDistanceTier2 = 160f;
+    public const float DefaultControllerAimDistanceTier3 = 240f;
+    public const bool DefaultControllerFlickToChangeDirections = true;
+    public const ControllerButtonBinding DefaultControllerJumpButton = ControllerButtonBinding.A;
+    public const ControllerButtonBinding DefaultControllerPrimaryFireButton = ControllerButtonBinding.RightTrigger;
+    public const ControllerButtonBinding DefaultControllerSecondaryFireButton = ControllerButtonBinding.LeftTrigger;
+    public const ControllerButtonBinding DefaultControllerUseAbilityButton = ControllerButtonBinding.RightShoulder;
+    public const ControllerButtonBinding DefaultControllerInteractButton = ControllerButtonBinding.X;
+    public const ControllerButtonBinding DefaultControllerSwapWeaponButton = ControllerButtonBinding.Y;
+    public const ControllerButtonBinding DefaultControllerScoreboardButton = ControllerButtonBinding.Back;
+    public const ControllerButtonBinding DefaultControllerPauseButton = ControllerButtonBinding.Start;
+    public const ControllerButtonBinding DefaultControllerAimDistanceButton = ControllerButtonBinding.RightStick;
+    public const ControllerButtonBinding DefaultControllerChangeTeamButton = ControllerButtonBinding.None;
+    public const ControllerButtonBinding DefaultControllerChangeClassButton = ControllerButtonBinding.None;
     private const string SettingsSection = "Settings";
     private const string ServerSection = "Server";
     private const string ConnectionSection = "Connection";
@@ -102,6 +120,48 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public int PlayerCardSizeMode { get; set; }
 
+    public ControllerInputMode ControllerInputMode { get; set; } = ControllerInputMode.Auto;
+
+    public ControllerReticleMode ControllerReticleMode { get; set; } = ControllerReticleMode.Cursor;
+
+    public bool ControllerAimAssistEnabled { get; set; } = true;
+
+    public bool ControllerFlickToChangeDirections { get; set; } = DefaultControllerFlickToChangeDirections;
+
+    public float ControllerAimAssistStrength { get; set; } = DefaultControllerAimAssistStrength;
+
+    public float ControllerAimDeadzone { get; set; } = DefaultControllerAimDeadzone;
+
+    public float ControllerScopedPrecisionSpeed { get; set; } = DefaultControllerScopedPrecisionSpeed;
+
+    public float ControllerAimDistanceTier1 { get; set; } = DefaultControllerAimDistanceTier1;
+
+    public float ControllerAimDistanceTier2 { get; set; } = DefaultControllerAimDistanceTier2;
+
+    public float ControllerAimDistanceTier3 { get; set; } = DefaultControllerAimDistanceTier3;
+
+    public ControllerButtonBinding ControllerJumpButton { get; set; } = DefaultControllerJumpButton;
+
+    public ControllerButtonBinding ControllerPrimaryFireButton { get; set; } = DefaultControllerPrimaryFireButton;
+
+    public ControllerButtonBinding ControllerSecondaryFireButton { get; set; } = DefaultControllerSecondaryFireButton;
+
+    public ControllerButtonBinding ControllerUseAbilityButton { get; set; } = DefaultControllerUseAbilityButton;
+
+    public ControllerButtonBinding ControllerInteractButton { get; set; } = DefaultControllerInteractButton;
+
+    public ControllerButtonBinding ControllerSwapWeaponButton { get; set; } = DefaultControllerSwapWeaponButton;
+
+    public ControllerButtonBinding ControllerScoreboardButton { get; set; } = DefaultControllerScoreboardButton;
+
+    public ControllerButtonBinding ControllerPauseButton { get; set; } = DefaultControllerPauseButton;
+
+    public ControllerButtonBinding ControllerAimDistanceButton { get; set; } = DefaultControllerAimDistanceButton;
+
+    public ControllerButtonBinding ControllerChangeTeamButton { get; set; } = DefaultControllerChangeTeamButton;
+
+    public ControllerButtonBinding ControllerChangeClassButton { get; set; } = DefaultControllerChangeClassButton;
+
     public string RecentConnectionHost { get; set; } = "127.0.0.1";
 
     public int RecentConnectionPort { get; set; } = 8190;
@@ -175,6 +235,27 @@ public sealed class OpenGarrisonPreferencesDocument
             UseLocalWeaponRotation = ini.GetBool(SettingsSection, "Use Local Weapon Rotation", false),
             DisableLegacyGameplaySpriteFallback = ini.GetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", false),
             PlayerCardSizeMode = Math.Clamp(ini.GetInt(SettingsSection, "Playercard Size", 0), 0, 2),
+            ControllerInputMode = ParseControllerInputMode(ini.GetString(SettingsSection, "Controller Input Mode", ControllerInputMode.Auto.ToString())),
+            ControllerReticleMode = ParseControllerReticleMode(ini.GetString(SettingsSection, "Controller Reticle Mode", ControllerReticleMode.Cursor.ToString())),
+            ControllerAimAssistEnabled = ini.GetBool(SettingsSection, "Controller Aim Assist", true),
+            ControllerFlickToChangeDirections = ini.GetBool(SettingsSection, "Controller Flick To Change Directions", DefaultControllerFlickToChangeDirections),
+            ControllerAimAssistStrength = NormalizeControllerAimAssistStrength(ini.GetFloat(SettingsSection, "Controller Aim Assist Strength", DefaultControllerAimAssistStrength)),
+            ControllerAimDeadzone = NormalizeControllerAimDeadzone(ini.GetFloat(SettingsSection, "Controller Aim Deadzone", DefaultControllerAimDeadzone)),
+            ControllerScopedPrecisionSpeed = NormalizeControllerScopedPrecisionSpeed(ini.GetFloat(SettingsSection, "Controller Scoped Precision Speed", DefaultControllerScopedPrecisionSpeed)),
+            ControllerAimDistanceTier1 = NormalizeControllerAimDistance(ini.GetFloat(SettingsSection, "Controller Aim Distance 1", DefaultControllerAimDistanceTier1), DefaultControllerAimDistanceTier1),
+            ControllerAimDistanceTier2 = NormalizeControllerAimDistance(ini.GetFloat(SettingsSection, "Controller Aim Distance 2", DefaultControllerAimDistanceTier2), DefaultControllerAimDistanceTier2),
+            ControllerAimDistanceTier3 = NormalizeControllerAimDistance(ini.GetFloat(SettingsSection, "Controller Aim Distance 3", DefaultControllerAimDistanceTier3), DefaultControllerAimDistanceTier3),
+            ControllerJumpButton = ReadControllerButtonBinding(ini, "Controller Jump Button", DefaultControllerJumpButton),
+            ControllerPrimaryFireButton = ReadControllerButtonBinding(ini, "Controller Primary Fire Button", DefaultControllerPrimaryFireButton),
+            ControllerSecondaryFireButton = ReadControllerButtonBinding(ini, "Controller Secondary Fire Button", DefaultControllerSecondaryFireButton),
+            ControllerUseAbilityButton = ReadControllerButtonBinding(ini, "Controller Utility Ability Button", DefaultControllerUseAbilityButton),
+            ControllerInteractButton = ReadControllerButtonBinding(ini, "Controller Interact Button", DefaultControllerInteractButton),
+            ControllerSwapWeaponButton = ReadControllerButtonBinding(ini, "Controller Swap Weapon Button", DefaultControllerSwapWeaponButton),
+            ControllerScoreboardButton = ReadControllerButtonBinding(ini, "Controller Scoreboard Button", DefaultControllerScoreboardButton),
+            ControllerPauseButton = ReadControllerButtonBinding(ini, "Controller Pause Button", DefaultControllerPauseButton),
+            ControllerAimDistanceButton = ReadControllerButtonBinding(ini, "Controller Aim Distance Button", DefaultControllerAimDistanceButton),
+            ControllerChangeTeamButton = ReadControllerButtonBinding(ini, "Controller Change Team Button", DefaultControllerChangeTeamButton),
+            ControllerChangeClassButton = ReadControllerButtonBinding(ini, "Controller Change Class Button", DefaultControllerChangeClassButton),
             RecentConnectionHost = ini.GetString(ConnectionSection, "Host", "127.0.0.1"),
             RecentConnectionPort = ini.GetInt(ConnectionSection, "Port", 8190),
             HostSettings = OpenGarrisonHostSettings.LoadFrom(ini, legacySelectedMap),
@@ -239,6 +320,27 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(SettingsSection, "Use Local Weapon Rotation", UseLocalWeaponRotation);
         ini.SetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", DisableLegacyGameplaySpriteFallback);
         ini.SetInt(SettingsSection, "Playercard Size", Math.Clamp(PlayerCardSizeMode, 0, 2));
+        ini.SetString(SettingsSection, "Controller Input Mode", NormalizeControllerInputMode(ControllerInputMode).ToString());
+        ini.SetString(SettingsSection, "Controller Reticle Mode", NormalizeControllerReticleMode(ControllerReticleMode).ToString());
+        ini.SetBool(SettingsSection, "Controller Aim Assist", ControllerAimAssistEnabled);
+        ini.SetBool(SettingsSection, "Controller Flick To Change Directions", ControllerFlickToChangeDirections);
+        ini.SetFloat(SettingsSection, "Controller Aim Assist Strength", NormalizeControllerAimAssistStrength(ControllerAimAssistStrength));
+        ini.SetFloat(SettingsSection, "Controller Aim Deadzone", NormalizeControllerAimDeadzone(ControllerAimDeadzone));
+        ini.SetFloat(SettingsSection, "Controller Scoped Precision Speed", NormalizeControllerScopedPrecisionSpeed(ControllerScopedPrecisionSpeed));
+        ini.SetFloat(SettingsSection, "Controller Aim Distance 1", NormalizeControllerAimDistance(ControllerAimDistanceTier1, DefaultControllerAimDistanceTier1));
+        ini.SetFloat(SettingsSection, "Controller Aim Distance 2", NormalizeControllerAimDistance(ControllerAimDistanceTier2, DefaultControllerAimDistanceTier2));
+        ini.SetFloat(SettingsSection, "Controller Aim Distance 3", NormalizeControllerAimDistance(ControllerAimDistanceTier3, DefaultControllerAimDistanceTier3));
+        ini.SetString(SettingsSection, "Controller Jump Button", NormalizeControllerButtonBinding(ControllerJumpButton).ToString());
+        ini.SetString(SettingsSection, "Controller Primary Fire Button", NormalizeControllerButtonBinding(ControllerPrimaryFireButton).ToString());
+        ini.SetString(SettingsSection, "Controller Secondary Fire Button", NormalizeControllerButtonBinding(ControllerSecondaryFireButton).ToString());
+        ini.SetString(SettingsSection, "Controller Utility Ability Button", NormalizeControllerButtonBinding(ControllerUseAbilityButton).ToString());
+        ini.SetString(SettingsSection, "Controller Interact Button", NormalizeControllerButtonBinding(ControllerInteractButton).ToString());
+        ini.SetString(SettingsSection, "Controller Swap Weapon Button", NormalizeControllerButtonBinding(ControllerSwapWeaponButton).ToString());
+        ini.SetString(SettingsSection, "Controller Scoreboard Button", NormalizeControllerButtonBinding(ControllerScoreboardButton).ToString());
+        ini.SetString(SettingsSection, "Controller Pause Button", NormalizeControllerButtonBinding(ControllerPauseButton).ToString());
+        ini.SetString(SettingsSection, "Controller Aim Distance Button", NormalizeControllerButtonBinding(ControllerAimDistanceButton).ToString());
+        ini.SetString(SettingsSection, "Controller Change Team Button", NormalizeControllerButtonBinding(ControllerChangeTeamButton).ToString());
+        ini.SetString(SettingsSection, "Controller Change Class Button", NormalizeControllerButtonBinding(ControllerChangeClassButton).ToString());
 
         ini.SetString(ServerSection, "MapRotation", HostSettings.MapRotationFile);
         ini.SetBool(ServerSection, "MapRotationShuffle", HostSettings.MapRotationShuffleEnabled);
@@ -310,6 +412,104 @@ public sealed class OpenGarrisonPreferencesDocument
     private static OfflineBotControllerMode NormalizeBotMode(OfflineBotControllerMode mode)
     {
         return BotBrain.PracticeBotControllerFactory.NormalizeMode(mode);
+    }
+
+    private static ControllerInputMode ParseControllerInputMode(string value)
+    {
+        return Enum.TryParse<ControllerInputMode>(value, ignoreCase: true, out var mode)
+            ? NormalizeControllerInputMode(mode)
+            : ControllerInputMode.Auto;
+    }
+
+    public static ControllerInputMode NormalizeControllerInputMode(ControllerInputMode mode)
+    {
+        return mode switch
+        {
+            ControllerInputMode.Off => ControllerInputMode.Off,
+            ControllerInputMode.Auto => ControllerInputMode.Auto,
+            ControllerInputMode.On => ControllerInputMode.On,
+            _ => ControllerInputMode.Auto,
+        };
+    }
+
+    private static ControllerReticleMode ParseControllerReticleMode(string value)
+    {
+        return Enum.TryParse<ControllerReticleMode>(value, ignoreCase: true, out var mode)
+            ? NormalizeControllerReticleMode(mode)
+            : ControllerReticleMode.Cursor;
+    }
+
+    public static ControllerReticleMode NormalizeControllerReticleMode(ControllerReticleMode mode)
+    {
+        return mode switch
+        {
+            ControllerReticleMode.Cursor => ControllerReticleMode.Cursor,
+            ControllerReticleMode.AimLine => ControllerReticleMode.AimLine,
+            _ => ControllerReticleMode.Cursor,
+        };
+    }
+
+    private static ControllerButtonBinding ReadControllerButtonBinding(
+        IniConfigurationFile ini,
+        string key,
+        ControllerButtonBinding fallback)
+    {
+        var value = ini.GetString(SettingsSection, key, fallback.ToString());
+        return ParseControllerButtonBinding(value, fallback);
+    }
+
+    public static ControllerButtonBinding ParseControllerButtonBinding(string value, ControllerButtonBinding fallback)
+    {
+        return Enum.TryParse<ControllerButtonBinding>(value, ignoreCase: true, out var binding)
+            ? NormalizeControllerButtonBinding(binding)
+            : NormalizeControllerButtonBinding(fallback);
+    }
+
+    public static ControllerButtonBinding NormalizeControllerButtonBinding(ControllerButtonBinding binding)
+    {
+        return binding switch
+        {
+            ControllerButtonBinding.None => ControllerButtonBinding.None,
+            ControllerButtonBinding.A => ControllerButtonBinding.A,
+            ControllerButtonBinding.B => ControllerButtonBinding.B,
+            ControllerButtonBinding.X => ControllerButtonBinding.X,
+            ControllerButtonBinding.Y => ControllerButtonBinding.Y,
+            ControllerButtonBinding.LeftShoulder => ControllerButtonBinding.LeftShoulder,
+            ControllerButtonBinding.RightShoulder => ControllerButtonBinding.RightShoulder,
+            ControllerButtonBinding.LeftTrigger => ControllerButtonBinding.LeftTrigger,
+            ControllerButtonBinding.RightTrigger => ControllerButtonBinding.RightTrigger,
+            ControllerButtonBinding.Back => ControllerButtonBinding.Back,
+            ControllerButtonBinding.Start => ControllerButtonBinding.Start,
+            ControllerButtonBinding.LeftStick => ControllerButtonBinding.LeftStick,
+            ControllerButtonBinding.RightStick => ControllerButtonBinding.RightStick,
+            ControllerButtonBinding.DPadUp => ControllerButtonBinding.DPadUp,
+            ControllerButtonBinding.DPadDown => ControllerButtonBinding.DPadDown,
+            ControllerButtonBinding.DPadLeft => ControllerButtonBinding.DPadLeft,
+            ControllerButtonBinding.DPadRight => ControllerButtonBinding.DPadRight,
+            _ => ControllerButtonBinding.None,
+        };
+    }
+
+    public static float NormalizeControllerAimAssistStrength(float strength)
+    {
+        return Math.Clamp(strength, 0f, 1f);
+    }
+
+    public static float NormalizeControllerAimDeadzone(float deadzone)
+    {
+        return Math.Clamp(deadzone, 0.01f, 0.95f);
+    }
+
+    public static float NormalizeControllerScopedPrecisionSpeed(float speed)
+    {
+        return Math.Clamp(speed, 10f, 1200f);
+    }
+
+    public static float NormalizeControllerAimDistance(float distance, float fallback)
+    {
+        return float.IsFinite(distance)
+            ? Math.Clamp(distance, 16f, 960f)
+            : fallback;
     }
 
     private static IngameResolutionKind NormalizeIngameResolution(IngameResolutionKind ingameResolution)
