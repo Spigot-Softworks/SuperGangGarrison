@@ -17,4 +17,10 @@ public sealed record GameMakerRoomMetadata(
     public IReadOnlyList<string> UnsupportedEntities { get; init; } = Array.Empty<string>();
 
     public CustomMapVisualMetadata CustomMapVisuals { get; init; } = CustomMapVisualMetadata.Empty;
+
+    public CustomMapControlPointSettings ControlPointSettings { get; init; } = CustomMapControlPointSettings.Default;
+
+    public MapLogicGraph LogicGraph { get; init; } = MapLogicGraph.Empty;
+
+    public MapLogicActivatorSet LogicActivators { get; init; } = MapLogicActivatorSet.Empty;
 }

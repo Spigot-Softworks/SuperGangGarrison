@@ -52,7 +52,8 @@ public sealed partial class SimulationWorld
                 _world.AdvancePlayableNetworkPlayer(NetworkPlayerSlots[index]);
             }
 
-            _world.AdvanceRemoteSnapshotPlayerTauntStates();
+            // Taunt frames are advanced inside PlayerEntity.AdvanceTickState during full
+            // simulation. AdvanceRemoteSnapshotPlayerTauntStates is client-prediction only.
             _world.AdvanceEnemyDummy();
 
             if (_world.FriendlyDummyEnabled && _world.FriendlyDummy.IsAlive)

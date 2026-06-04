@@ -231,6 +231,7 @@ public sealed partial class SimulationWorld
 
         ApplyHealingCabinets(player);
         ApplyRoomHazards(player);
+        ApplyTeleportZones(player);
         if (!player.IsAlive)
         {
             return;

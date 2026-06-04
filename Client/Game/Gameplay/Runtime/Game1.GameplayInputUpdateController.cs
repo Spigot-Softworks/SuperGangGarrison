@@ -28,7 +28,7 @@ public partial class Game1
                 _game.GetGameplayCameraViewportHeight(_game.ViewportHeight),
                 mouse.X,
                 mouse.Y);
-            _game.UpdateGarrisonBuilderEditor(keyboard, rawMouse, (float)gameTime.ElapsedGameTime.TotalSeconds);
+            _game.UpdateGarrisonBuilderEditor(keyboard, mouse, (float)gameTime.ElapsedGameTime.TotalSeconds);
             _game.UpdateNavEditor(keyboard, mouse, rawMouse, cameraPosition, (float)gameTime.ElapsedGameTime.TotalSeconds);
             _game.UpdateScoreboardState(keyboard, mouse);
             var (gameplayInput, networkInput) = _game.BuildGameplayInputs(keyboard, mouse, cameraPosition, (float)gameTime.ElapsedGameTime.TotalSeconds);

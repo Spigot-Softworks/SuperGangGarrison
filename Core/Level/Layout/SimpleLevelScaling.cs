@@ -30,14 +30,24 @@ internal static class SimpleLevelScaling
             level.ImportedFromSource,
             level.AreaTransitionMarkers.Select(marker => Scale(marker, clampedScale)).ToArray(),
             level.UnsupportedSourceEntities.ToArray(),
-            Scale(level.CustomMapVisuals, clampedScale))
+            Scale(level.CustomMapVisuals, clampedScale),
+            level.ControlPointSettings,
+            level.LogicGraph,
+            level.LogicActivators)
         {
             ControlPointSetupGatesActive = level.ControlPointSetupGatesActive,
             ForcedBlockingTeamGates = level.ForcedBlockingTeamGates,
         };
     }
 
-    private static SpawnPoint Scale(SpawnPoint spawn, float scale) => new(spawn.X * scale, spawn.Y * scale);
+    private static SpawnPoint Scale(SpawnPoint spawn, float scale) => new(
+        spawn.X * scale,
+        spawn.Y * scale,
+        spawn.Role,
+        spawn.LinkedControlPointIndex,
+        spawn.UseCondition,
+        spawn.Priority,
+        spawn.LogicSignalNodeIndex);
 
     private static IntelBaseMarker Scale(IntelBaseMarker marker, float scale) => new(marker.Team, marker.X * scale, marker.Y * scale);
 
@@ -50,7 +60,13 @@ internal static class SimpleLevelScaling
         marker.SpriteName,
         marker.Team,
         marker.SourceName,
-        marker.Value * scale);
+        marker.Value * scale,
+        marker.InitialOwnership,
+        marker.LockRules,
+        marker.CapTimeMultiplier,
+        marker.IsCapTimeMultiplierCustom,
+        marker.Barrier,
+        marker.DirectionalWall);
 
     private static LevelSolid Scale(LevelSolid solid, float scale) => new(solid.X * scale, solid.Y * scale, solid.Width * scale, solid.Height * scale);
 

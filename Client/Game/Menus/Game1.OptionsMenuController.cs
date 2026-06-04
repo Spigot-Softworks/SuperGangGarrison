@@ -473,7 +473,6 @@ public partial class Game1
                 allActions.Add(new OptionsMenuAction("Plugin Options", string.Empty, OpenPluginOptionsMenuFromOptions, OptionsMenuTab.Other));
             }
 
-            allActions.Add(new OptionsMenuAction("Map Builder", string.Empty, _game.OpenGarrisonBuilderFromOptions, OptionsMenuTab.Other));
             if (currentTab == OptionsMenuTab.Replays)
             {
                 allActions.AddRange(BuildReplayMenuActions());

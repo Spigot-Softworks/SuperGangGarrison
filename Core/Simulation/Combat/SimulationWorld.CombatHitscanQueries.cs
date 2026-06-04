@@ -18,7 +18,7 @@ public sealed partial class SimulationWorld
         {
             ShotHitResult? nearestHit = null;
             UpdateNearestProjectileHitFromSolids(ref nearestHit, shot, shot.PreviousX, shot.PreviousY, directionX, directionY, maxDistance, UpdateNearestHit);
-            UpdateNearestProjectileHitFromGates(ref nearestHit, shot, shot.PreviousX, shot.PreviousY, directionX, directionY, maxDistance, UpdateNearestHit);
+            UpdateNearestProjectileHitFromGates(ref nearestHit, shot.Team, shot, shot.PreviousX, shot.PreviousY, directionX, directionY, maxDistance, UpdateNearestHit);
             UpdateNearestProjectileHitFromSentries(ref nearestHit, shot, shot.Team, shot.PreviousX, shot.PreviousY, directionX, directionY, maxDistance, UpdateNearestHit);
             UpdateNearestProjectileHitFromGenerators(ref nearestHit, shot, shot.Team, shot.PreviousX, shot.PreviousY, directionX, directionY, maxDistance, UpdateNearestHit);
             UpdateNearestProjectileHitFromJumpPads(ref nearestHit, shot.Team, shot.PreviousX, shot.PreviousY, directionX, directionY, maxDistance);
@@ -30,7 +30,7 @@ public sealed partial class SimulationWorld
         {
             ShotHitResult? nearestHit = null;
             UpdateNearestProjectileHitFromSolids(ref nearestHit, needle, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
-            UpdateNearestProjectileHitFromGates(ref nearestHit, needle, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
+            UpdateNearestProjectileHitFromGates(ref nearestHit, needle.Team, needle, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
             UpdateNearestProjectileHitFromSentries(ref nearestHit, needle, needle.Team, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
             UpdateNearestProjectileHitFromGenerators(ref nearestHit, needle, needle.Team, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
             UpdateNearestProjectileHitFromJumpPads(ref nearestHit, needle.Team, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance);
@@ -42,7 +42,7 @@ public sealed partial class SimulationWorld
         {
             ShotHitResult? nearestHit = null;
             UpdateNearestProjectileHitFromSolids(ref nearestHit, shot, shot.PreviousX, shot.PreviousY, directionX, directionY, maxDistance, UpdateNearestRevolverHit);
-            UpdateNearestProjectileHitFromGates(ref nearestHit, shot, shot.PreviousX, shot.PreviousY, directionX, directionY, maxDistance, UpdateNearestRevolverHit);
+            UpdateNearestProjectileHitFromGates(ref nearestHit, shot.Team, shot, shot.PreviousX, shot.PreviousY, directionX, directionY, maxDistance, UpdateNearestRevolverHit);
             UpdateNearestProjectileHitFromSentries(ref nearestHit, shot, shot.Team, shot.PreviousX, shot.PreviousY, directionX, directionY, maxDistance, UpdateNearestRevolverHit);
             UpdateNearestProjectileHitFromGenerators(ref nearestHit, shot, shot.Team, shot.PreviousX, shot.PreviousY, directionX, directionY, maxDistance, UpdateNearestRevolverHit);
             UpdateNearestProjectileHitFromJumpPads(ref nearestHit, shot.Team, shot.PreviousX, shot.PreviousY, directionX, directionY, maxDistance);
@@ -75,6 +75,7 @@ public sealed partial class SimulationWorld
 
         private void UpdateNearestProjectileHitFromGates<TProjectile>(
             ref ShotHitResult? nearestHit,
+            PlayerTeam projectileTeam,
             TProjectile projectile,
             float previousX,
             float previousY,
@@ -84,16 +85,68 @@ public sealed partial class SimulationWorld
             UpdateProjectileHit<TProjectile> updateHit)
         {
             var rayBounds = GetRayBounds(previousX, previousY, directionX, directionY, maxDistance);
-            foreach (var roomObject in Level.RoomObjects)
+            for (var roomObjectIndex = 0; roomObjectIndex < Level.RoomObjects.Count; roomObjectIndex += 1)
             {
-                if (!IsBlockingProjectileRoomObject(roomObject)) { continue; }
+                if (!Level.IsRoomObjectActive(roomObjectIndex))
+                {
+                    continue;
+                }
+
+                var roomObject = Level.RoomObjects[roomObjectIndex];
                 if (!RayBoundsMayIntersectRectangle(rayBounds, roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom))
                 {
                     continue;
                 }
 
                 var distance = GetRayIntersectionDistanceWithRectangle(previousX, previousY, directionX, directionY, roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom, maxDistance);
-                if (distance.HasValue) { updateHit(ref nearestHit, projectile, directionX, directionY, distance.Value, null, null, null); }
+                if (!distance.HasValue)
+                {
+                    continue;
+                }
+
+                if (roomObject.Type == RoomObjectType.Barrier)
+                {
+                    var searchDistance = nearestHit.HasValue ? nearestHit.Value.Distance : maxDistance;
+                    if (!BarrierProjectileRaycast.TryRaycastMarker(
+                            roomObject.Barrier,
+                            projectileTeam,
+                            roomObject,
+                            previousX,
+                            previousY,
+                            directionX,
+                            directionY,
+                            searchDistance,
+                            out var barrierDistance))
+                    {
+                        continue;
+                    }
+
+                    updateHit(ref nearestHit, projectile, directionX, directionY, barrierDistance, null, null, null);
+                    continue;
+                }
+
+                if (roomObject.Type == RoomObjectType.DirectionalWall)
+                {
+                    var hitX = previousX + (directionX * distance.Value);
+                    var hitY = previousY + (directionY * distance.Value);
+                    if (!DirectionalWallCollision.BlocksProjectilePath(
+                            roomObject.DirectionalWall,
+                            projectileTeam,
+                            roomObject,
+                            previousX,
+                            previousY,
+                            hitX,
+                            hitY))
+                    {
+                        continue;
+                    }
+                }
+                else if (!IsBlockingProjectileRoomObject(roomObject, projectileTeam))
+                {
+                    continue;
+                }
+
+                updateHit(ref nearestHit, projectile, directionX, directionY, distance.Value, null, null, null);
             }
         }
 

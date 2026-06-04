@@ -71,6 +71,7 @@ public static class CustomMapPackageExporter
             FormatVersion = 1,
             Name = Path.GetFileNameWithoutExtension(manifestPath),
             Scale = normalized.Scale,
+            VisualScale = normalized.VisualScale,
             BackgroundImage = backgroundFileName,
             WalkmaskImage = walkmaskFileName,
             Metadata = BuildManifestMetadata(normalized),
@@ -113,6 +114,8 @@ public static class CustomMapPackageExporter
         {
             if (pair.Key.Equals("type", StringComparison.OrdinalIgnoreCase)
                 || pair.Key.Equals("scale", StringComparison.OrdinalIgnoreCase)
+                || pair.Key.Equals("walkmaskScale", StringComparison.OrdinalIgnoreCase)
+                || pair.Key.Equals("visualScale", StringComparison.OrdinalIgnoreCase)
                 || pair.Key.Equals("bg_foreground", StringComparison.OrdinalIgnoreCase)
                 || pair.Key.StartsWith("bg_layer", StringComparison.OrdinalIgnoreCase)
                 || pair.Key.EndsWith("xfactor", StringComparison.OrdinalIgnoreCase)
@@ -257,6 +260,7 @@ public static class CustomMapPackageExporter
             CustomMapBuilderResourceKind.ParallaxLayer => "parallaxLayer",
             CustomMapBuilderResourceKind.Foreground => "foreground",
             CustomMapBuilderResourceKind.EntitySprite => "entitySprite",
+            CustomMapBuilderResourceKind.CustomSprite => "customSprite",
             _ => "genericImage",
         };
     }

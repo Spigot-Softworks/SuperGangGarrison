@@ -84,10 +84,10 @@ public partial class Game1
         var outlineColor = enabled ? new Color(213, 205, 188) : new Color(120, 114, 108);
         DrawRoundedRectangleOutline(bounds, fillColor, outlineColor, outlineThickness: 2, radius: 8);
 
-        var trimmedLabel = TrimBitmapMenuText(label, bounds.Width - 28f, textScale);
-        var textY = bounds.Y + MathF.Max(4f, ((bounds.Height - MeasureBitmapFontHeight(textScale)) * 0.5f) - 1f);
+        var fittedScale = GetBitmapFontScaleToFit(label, bounds.Width - 28f, bounds.Height - 8f, textScale);
+        var textY = bounds.Y + MathF.Max(4f, ((bounds.Height - MeasureBitmapFontHeight(fittedScale)) * 0.5f) - 1f);
         var textColor = enabled ? Color.White : new Color(118, 114, 108);
-        DrawBitmapFontText(trimmedLabel, new Vector2(bounds.X + 14f, textY), textColor, textScale);
+        DrawBitmapFontText(label, new Vector2(bounds.X + 14f, textY), textColor, fittedScale);
     }
 
     private void DrawMenuButtonCentered(Rectangle bounds, string label, bool highlighted, float textScale, bool enabled = true)
@@ -100,13 +100,43 @@ public partial class Game1
         var outlineColor = enabled ? new Color(213, 205, 188) : new Color(120, 114, 108);
         DrawRoundedRectangleOutline(bounds, fillColor, outlineColor, outlineThickness: 2, radius: 8);
 
-        var trimmedLabel = label.Length <= 1
-            ? label
-            : TrimBitmapMenuText(label, bounds.Width - 28f, textScale);
-        var textX = bounds.X + ((bounds.Width - MeasureBitmapFontWidth(trimmedLabel, textScale)) * 0.5f);
-        var textY = bounds.Y + MathF.Max(4f, ((bounds.Height - MeasureBitmapFontHeight(textScale)) * 0.5f) - 1f);
+        if (string.IsNullOrWhiteSpace(label))
+        {
+            return;
+        }
+
+        var fittedScale = GetBitmapFontScaleToFit(label, bounds.Width - 16f, bounds.Height - 8f, textScale);
+        var measuredWidth = MeasureBitmapFontWidth(label, fittedScale);
+        var textX = bounds.X + ((bounds.Width - measuredWidth) * 0.5f);
+        var textY = bounds.Y + MathF.Max(4f, ((bounds.Height - MeasureBitmapFontHeight(fittedScale)) * 0.5f) - 1f);
         var textColor = enabled ? Color.White : new Color(118, 114, 108);
-        DrawBitmapFontText(trimmedLabel, new Vector2(textX, textY), textColor, textScale);
+        DrawBitmapFontText(label, new Vector2(textX, textY), textColor, fittedScale);
+    }
+
+    private float GetBitmapFontScaleToFit(string text, float maxWidth, float maxHeight, float baseScale = 1f)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return baseScale;
+        }
+
+        var measuredWidth = MeasureBitmapFontWidth(text, 1f);
+        var measuredHeight = MeasureBitmapFontHeight(1f);
+        if (measuredWidth <= 0f || measuredHeight <= 0f)
+        {
+            return baseScale;
+        }
+
+        var widthScale = maxWidth / measuredWidth;
+        var heightScale = maxHeight / measuredHeight;
+        var uniformScale = GetUniformBitmapFontScale();
+        var fitted = MathF.Min(baseScale, MathF.Min(widthScale, heightScale));
+        return MathF.Max(uniformScale, fitted);
+    }
+
+    private float GetMinimumLegibleBitmapFontScale()
+    {
+        return GetUniformBitmapFontScale();
     }
 
     private void DrawRoundedRectangleOutline(Rectangle bounds, Color fillColor, Color outlineColor, int outlineThickness, int radius)

@@ -178,7 +178,8 @@ public partial class Game1
             TryParseGmlColor(source.BackgroundColor, out var backgroundColor) ? backgroundColor : null,
             TryParseGmlColor(source.VoidColor, out var voidColor) ? voidColor : null,
             layers,
-            foreground);
+            foreground,
+            source.SpriteResources);
     }
 
     private bool TryLoadCustomMapVisualTexture(CustomMapVisualResource resource, out Texture2D texture)
@@ -204,6 +205,7 @@ public partial class Game1
         _loadedCustomMapVisuals?.Dispose();
         _loadedCustomMapVisuals = null;
         _loadedCustomMapVisualsSource = null;
+        ClearCustomMapSpriteTextureCache();
     }
 
     private static bool TryParseGmlColor(string? rawValue, out Color color)
@@ -257,13 +259,15 @@ public partial class Game1
             Color? backgroundColor,
             Color? voidColor,
             IReadOnlyList<RuntimeCustomMapParallaxLayer> parallaxLayers,
-            Texture2D? foreground)
+            Texture2D? foreground,
+            IReadOnlyDictionary<string, CustomMapVisualResource> spriteResources)
         {
             ImageScale = imageScale;
             BackgroundColor = backgroundColor;
             VoidColor = voidColor;
             ParallaxLayers = parallaxLayers;
             Foreground = foreground;
+            SpriteResources = spriteResources;
         }
 
         public float ImageScale { get; }
@@ -275,6 +279,8 @@ public partial class Game1
         public IReadOnlyList<RuntimeCustomMapParallaxLayer> ParallaxLayers { get; }
 
         public Texture2D? Foreground { get; }
+
+        public IReadOnlyDictionary<string, CustomMapVisualResource> SpriteResources { get; }
 
         public void Dispose()
         {

@@ -50,6 +50,7 @@ public partial class Game1
         Rectangle Bounds,
         Action Activate,
         bool IsBottomBarButton = false,
+        bool IsBottomBarCenterButton = false,
         bool IsBottomBarRightButton = false);
 
     private readonly record struct PlaqueMenuLayout(
@@ -262,6 +263,34 @@ public partial class Game1
             layout.BottomBarBounds.Value.Y + (layout.BottomBarBounds.Value.Height - buttonHeight) / 2,
             buttonWidth,
             buttonHeight);
+    }
+
+    private Rectangle GetBottomCenterPlaqueButtonBounds(PlaqueMenuLayout layout)
+    {
+        if (!layout.BottomBarBounds.HasValue || _menuTextBoxSoloTexture is null)
+        {
+            return Rectangle.Empty;
+        }
+
+        var buttonWidth = (int)MathF.Round(_menuTextBoxSoloTexture.Width * layout.Scale);
+        var buttonHeight = (int)MathF.Round(_menuTextBoxSoloTexture.Height * layout.Scale);
+        var x = (ViewportWidth - buttonWidth) / 2;
+        return new Rectangle(
+            x,
+            layout.BottomBarBounds.Value.Y + (layout.BottomBarBounds.Value.Height - buttonHeight) / 2,
+            buttonWidth,
+            buttonHeight);
+    }
+
+    private void DrawBottomCenterPlaqueButton(PlaqueMenuLayout layout, string label, bool hovered, float textScaleMultiplier)
+    {
+        var bounds = GetBottomCenterPlaqueButtonBounds(layout);
+        if (bounds == Rectangle.Empty)
+        {
+            return;
+        }
+
+        DrawPlaqueMenuButton(_menuTextBoxSoloTexture, bounds, label, hovered, layout.Scale, textScaleMultiplier);
     }
 
     private void DrawBottomRightPlaqueButton(PlaqueMenuLayout layout, string label, bool hovered, float textScaleMultiplier)

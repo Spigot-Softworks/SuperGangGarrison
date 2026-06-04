@@ -5,14 +5,19 @@ public sealed record CustomMapVisualMetadata(
     string? BackgroundColor,
     string? VoidColor,
     IReadOnlyList<CustomMapParallaxLayer> ParallaxLayers,
-    CustomMapVisualResource? Foreground)
+    CustomMapVisualResource? Foreground,
+    IReadOnlyDictionary<string, CustomMapVisualResource> SpriteResources)
 {
     public static CustomMapVisualMetadata Empty { get; } = new(
         ImageScale: 1f,
         BackgroundColor: null,
         VoidColor: null,
         ParallaxLayers: Array.Empty<CustomMapParallaxLayer>(),
-        Foreground: null);
+        Foreground: null,
+        SpriteResources: EmptySpriteResources);
+
+    private static readonly IReadOnlyDictionary<string, CustomMapVisualResource> EmptySpriteResources =
+        new Dictionary<string, CustomMapVisualResource>(StringComparer.OrdinalIgnoreCase);
 }
 
 public sealed record CustomMapParallaxLayer(

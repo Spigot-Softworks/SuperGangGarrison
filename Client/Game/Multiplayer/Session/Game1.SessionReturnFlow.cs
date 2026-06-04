@@ -8,6 +8,7 @@ public partial class Game1
 {
     private void ReturnToMainMenu(string? statusMessage = null)
     {
+        _garrisonBuilderQuickTestActive = false;
         _gameplaySessionController.ReturnToMainMenu(statusMessage);
     }
 

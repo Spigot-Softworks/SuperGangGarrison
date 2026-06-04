@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "camerashake",
+  "displayName": "Camera Shake",
+  "version": "1.0.0",
+  "type": "Client",
+  "runtime": "Lua",
+  "entryPoint": "main.lua",
+  "description": "Official Lua implementation of the Camera Shake plugin built on world-sound and camera seams.",
+  "compatibility": {
+    "hostApiVersion": "1.0"
+  },
+  "configSchemaPath": "config.schema.json",
+  "tags": [
+    "client",
+    "lua",
+    "camera",
+    "audio"
+  ]
+}
