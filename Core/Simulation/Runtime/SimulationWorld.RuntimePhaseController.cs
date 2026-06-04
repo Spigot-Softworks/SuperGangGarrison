@@ -19,6 +19,7 @@ public sealed partial class SimulationWorld
         {
             // Client prediction: projectiles and deterministic map motion only.
             // Server remains authoritative for all players (including local player).
+            _world.AdvanceAuthoritativeMapLogicRuntime();
             _entityPhaseController.AdvanceProjectileAndTransientEntityPhase();
             _world.AdvanceMovingPlatforms();
             _entityPhaseController.AdvanceRemoteSnapshotPlayerTauntStates();

@@ -42,9 +42,12 @@ public sealed partial class SimulationWorld
             point.RedCappers = 0;
             point.BlueCappers = 0;
             point.IsLocked = true;
-            point.Team = MatchRules.Mode == GameModeKind.DoubleKingOfTheHill
-                ? GetInitialDualKothOwner(point.Marker)
-                : null;
+            var context = new ControlPointOwnershipContext(
+                point.Index,
+                _controlPoints.Count,
+                _controlPointSetupMode,
+                MatchRules.Mode);
+            point.Team = ControlPointOwnershipResolver.ResolveInitialTeam(point.Marker, in context);
         }
     }
 

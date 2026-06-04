@@ -18,7 +18,7 @@ public sealed class SimulationWorldProjectileSpawnBlockingTests
                     new LevelSolid(100f, 50f, 20f, 20f),
                 ]));
 
-        var blocked = InvokeProjectileSpawnBlocked(world, 0f, 50f, 20f, 50f);
+        var blocked = InvokeProjectileSpawnBlocked(world, 0f, 50f, 20f, 50f, PlayerTeam.Red);
 
         Assert.False(blocked);
     }
@@ -35,16 +35,22 @@ public sealed class SimulationWorldProjectileSpawnBlockingTests
                     new LevelSolid(10f, 40f, 8f, 20f),
                 ]));
 
-        var blocked = InvokeProjectileSpawnBlocked(world, 0f, 50f, 20f, 50f);
+        var blocked = InvokeProjectileSpawnBlocked(world, 0f, 50f, 20f, 50f, PlayerTeam.Red);
 
         Assert.True(blocked);
     }
 
-    private static bool InvokeProjectileSpawnBlocked(SimulationWorld world, float originX, float originY, float targetX, float targetY)
+    private static bool InvokeProjectileSpawnBlocked(
+        SimulationWorld world,
+        float originX,
+        float originY,
+        float targetX,
+        float targetY,
+        PlayerTeam shotTeam)
     {
         var method = typeof(SimulationWorld).GetMethod("CombatTestIsProjectileSpawnBlocked", BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(method);
-        var result = method!.Invoke(world, [originX, originY, targetX, targetY]);
+        var result = method!.Invoke(world, [originX, originY, targetX, targetY, shotTeam]);
         Assert.IsType<bool>(result);
         return (bool)result!;
     }

@@ -182,6 +182,7 @@ public partial class Game1
             layers,
             foreground,
             LoadRuntimeCustomMapVisualResources(source),
+            source.SpriteResources,
             source.ForegroundOffsetX,
             source.ForegroundOffsetY);
     }
@@ -223,6 +224,7 @@ public partial class Game1
         _loadedCustomMapVisuals?.Dispose();
         _loadedCustomMapVisuals = null;
         _loadedCustomMapVisualsSource = null;
+        ClearCustomMapSpriteTextureCache();
     }
 
     private bool TryGetRuntimeCustomMapVisualResourceTexture(string resourceName, out Texture2D texture)
@@ -301,6 +303,7 @@ public partial class Game1
             IReadOnlyList<RuntimeCustomMapParallaxLayer> parallaxLayers,
             Texture2D? foreground,
             IReadOnlyDictionary<string, Texture2D> resources,
+            IReadOnlyDictionary<string, CustomMapVisualResource> spriteResources,
             float foregroundOffsetX,
             float foregroundOffsetY)
         {
@@ -310,6 +313,7 @@ public partial class Game1
             ParallaxLayers = parallaxLayers;
             Foreground = foreground;
             Resources = resources;
+            SpriteResources = spriteResources;
             ForegroundOffsetX = foregroundOffsetX;
             ForegroundOffsetY = foregroundOffsetY;
         }
@@ -325,6 +329,8 @@ public partial class Game1
         public Texture2D? Foreground { get; }
 
         public IReadOnlyDictionary<string, Texture2D> Resources { get; }
+
+        public IReadOnlyDictionary<string, CustomMapVisualResource> SpriteResources { get; }
 
         public float ForegroundOffsetX { get; }
 

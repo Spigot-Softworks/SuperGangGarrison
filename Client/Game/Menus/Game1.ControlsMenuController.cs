@@ -85,6 +85,23 @@ public partial class Game1
                 return;
             }
 
+            var trackBounds = new Rectangle(panel.Right - 20, listBounds.Y, 8, listBounds.Height);
+            var controlsScrollOffset = _game._controlsScrollOffset;
+            if (_game.TryHandleScrollbarDrag(
+                    mouse,
+                    _game._previousMouse,
+                    ScrollbarOwners.ControlsMenu,
+                    trackBounds,
+                    ref controlsScrollOffset,
+                    itemCount,
+                    visibleRowCount))
+            {
+                _game._controlsScrollOffset = controlsScrollOffset;
+                return;
+            }
+
+            _game._controlsScrollOffset = controlsScrollOffset;
+
             var wheelDelta = mouse.ScrollWheelValue - _game._previousMouse.ScrollWheelValue;
             if (wheelDelta != 0 && listBounds.Contains(mouse.Position))
             {

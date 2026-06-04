@@ -9,7 +9,16 @@ public readonly record struct RoomObjectMarker(
     string SpriteName,
     PlayerTeam? Team = null,
     string SourceName = "",
-    float Value = 0f)
+    float Value = 0f,
+    ControlPointInitialOwnership InitialOwnership = ControlPointInitialOwnership.ModeDefault,
+    ControlPointLockRules LockRules = default,
+    float CapTimeMultiplier = 1f,
+    bool IsCapTimeMultiplierCustom = false,
+    BarrierConfiguration Barrier = default,
+    DirectionalWallConfiguration DirectionalWall = default,
+    TeleportZoneConfiguration TeleportZone = default,
+    PlayerTriggerZoneConfiguration PlayerTriggerZone = default,
+    CustomMapSpriteConfiguration CustomMapSprite = default)
 {
     public float Left => X;
 
@@ -22,4 +31,6 @@ public readonly record struct RoomObjectMarker(
     public float CenterX => X + (Width / 2f);
 
     public float CenterY => Y + (Height / 2f);
+
+    public (float Multiplier, bool IsCustom) CapTimeMultiplierSettings => (CapTimeMultiplier, IsCapTimeMultiplierCustom);
 }

@@ -850,7 +850,7 @@ public sealed partial class SimulationWorld
                 + (_random.NextSingle() * CharacterClassCatalog.Scattergun.AdditionalRandomShotSpeed);
             var spawnX = sentry.X + directionX * 14f;
             var spawnY = sentry.Y + directionY * 14f;
-            if (IsProjectileSpawnBlocked(sentry.X, sentry.Y, spawnX, spawnY))
+            if (IsProjectileSpawnBlocked(sentry.X, sentry.Y, spawnX, spawnY, sentry.Team))
             {
                 RegisterImpactEffect(spawnX, spawnY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
                 continue;

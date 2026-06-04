@@ -30,7 +30,7 @@ public sealed partial class SimulationWorld
             var hitState = new RifleHitState(maxDistance);
 
             UpdateNearestRifleHitFromSolids(ref hitState, originX, originY, directionX, directionY);
-            UpdateNearestRifleHitFromRoomObjects(ref hitState, originX, originY, directionX, directionY);
+            UpdateNearestRifleHitFromRoomObjects(ref hitState, attacker, originX, originY, directionX, directionY);
             UpdateNearestRifleHitFromGenerators(ref hitState, attacker, originX, originY, directionX, directionY);
             UpdateNearestRifleHitFromSentries(ref hitState, attacker, originX, originY, directionX, directionY);
             UpdateNearestRifleHitFromJumpPads(ref hitState, attacker, originX, originY, directionX, directionY);
@@ -48,13 +48,62 @@ public sealed partial class SimulationWorld
             }
         }
 
-        private void UpdateNearestRifleHitFromRoomObjects(ref RifleHitState hitState, float originX, float originY, float directionX, float directionY)
+        private void UpdateNearestRifleHitFromRoomObjects(
+            ref RifleHitState hitState,
+            PlayerEntity attacker,
+            float originX,
+            float originY,
+            float directionX,
+            float directionY)
         {
             foreach (var roomObject in Level.RoomObjects)
             {
-                if (!IsBlockingHitscanRoomObject(roomObject)) { continue; }
                 var distance = GetRayIntersectionDistanceWithRectangle(originX, originY, directionX, directionY, roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom, hitState.NearestDistance);
-                if (distance.HasValue) { UpdateNearestRifleObstacleHit(ref hitState, distance.Value); }
+                if (!distance.HasValue)
+                {
+                    continue;
+                }
+
+                if (roomObject.Type == RoomObjectType.Barrier)
+                {
+                    var hitX = originX + (directionX * distance.Value);
+                    var hitY = originY + (directionY * distance.Value);
+                    if (!BarrierCollision.BlocksHitscan(
+                            roomObject.Barrier,
+                            attacker.Team,
+                            attacker.IsCarryingIntel,
+                            roomObject,
+                            originX,
+                            originY,
+                            hitX,
+                            hitY))
+                    {
+                        continue;
+                    }
+                }
+                else if (roomObject.Type == RoomObjectType.DirectionalWall)
+                {
+                    var hitX = originX + (directionX * distance.Value);
+                    var hitY = originY + (directionY * distance.Value);
+                    if (!DirectionalWallCollision.BlocksHitscan(
+                            roomObject.DirectionalWall,
+                            attacker.Team,
+                            attacker.IsCarryingIntel,
+                            roomObject,
+                            originX,
+                            originY,
+                            hitX,
+                            hitY))
+                    {
+                        continue;
+                    }
+                }
+                else if (!IsBlockingHitscanRoomObject(roomObject, attacker.Team, attacker.IsCarryingIntel))
+                {
+                    continue;
+                }
+
+                UpdateNearestRifleObstacleHit(ref hitState, distance.Value);
             }
         }
 

@@ -40,7 +40,38 @@ public static class CustomMapBuilderValidator
         ValidateObjectiveMode(normalized.Entities, effectiveMode, issues);
         ValidateGates(normalized.Entities, issues);
         ValidateMapSolids(normalized, issues);
+        ValidateControlPointSettings(normalized, issues);
         return new CustomMapBuilderValidationResult(effectiveMode, issues);
+    }
+
+    private static void ValidateControlPointSettings(
+        CustomMapBuilderDocument document,
+        List<CustomMapBuilderValidationIssue> issues)
+    {
+        if (!ControlPointMapSettingsMetadata.ParseOverrideInitialCps(document.Metadata))
+        {
+            return;
+        }
+
+        foreach (var entity in document.Entities)
+        {
+            if (!ControlPointOwnershipResolver.IsControlPointEntity(entity.Type))
+            {
+                continue;
+            }
+
+            var rules = ControlPointLockDependencyMetadata.Parse(entity.Properties);
+            if (!ControlPointLockDependencyMetadata.HasConflictingRules(rules))
+            {
+                continue;
+            }
+
+            var index = ControlPointOwnershipResolver.ResolveControlPointIndex(entity);
+            AddError(
+                issues,
+                "cp_lock_rule_conflict",
+                $"Control point #{index} cannot use the same control point and team for both Lock when and Unlock when.");
+        }
     }
 
     public static CustomMapBuilderGameMode InferGameMode(IReadOnlyList<CustomMapBuilderEntity> entities)
@@ -70,7 +101,7 @@ public static class CustomMapBuilderValidator
             return CustomMapBuilderGameMode.CaptureTheFlag;
         }
 
-        var controlPoints = CountControlPoints(entities);
+        var controlPoints = CustomMapBuilderEntityNormalization.CountControlPointsNormalized(entities);
         if (controlPoints > 0)
         {
             return Count(entities, "SetupGate") > 0
@@ -85,14 +116,14 @@ public static class CustomMapBuilderValidator
         IReadOnlyList<CustomMapBuilderEntity> entities,
         List<CustomMapBuilderValidationIssue> issues)
     {
-        if (Count(entities, "redspawn") == 0)
+        if (!HasBaseTeamSpawn(entities, "red"))
         {
-            AddError(issues, "missing_red_spawn", "Every map needs at least one redspawn.");
+            AddError(issues, "missing_red_spawn", "Every map needs at least one red spawn.");
         }
 
-        if (Count(entities, "bluespawn") == 0)
+        if (!HasBaseTeamSpawn(entities, "blue"))
         {
-            AddError(issues, "missing_blue_spawn", "Every map needs at least one bluespawn.");
+            AddError(issues, "missing_blue_spawn", "Every map needs at least one blue spawn.");
         }
     }
 
@@ -234,7 +265,7 @@ public static class CustomMapBuilderValidator
         string code,
         string message)
     {
-        var count = CountControlPoints(entities);
+        var count = CustomMapBuilderEntityNormalization.CountControlPointsNormalized(entities);
         if (count < minimum || count > maximum)
         {
             AddError(issues, code, message);
@@ -269,14 +300,17 @@ public static class CustomMapBuilderValidator
         }
     }
 
-    private static int CountControlPoints(IReadOnlyList<CustomMapBuilderEntity> entities)
+    private static bool HasBaseTeamSpawn(IReadOnlyList<CustomMapBuilderEntity> entities, string team)
     {
-        return entities.Count(static entity =>
-            entity.Type.Equals("controlPoint1", StringComparison.OrdinalIgnoreCase)
-            || entity.Type.Equals("controlPoint2", StringComparison.OrdinalIgnoreCase)
-            || entity.Type.Equals("controlPoint3", StringComparison.OrdinalIgnoreCase)
-            || entity.Type.Equals("controlPoint4", StringComparison.OrdinalIgnoreCase)
-            || entity.Type.Equals("controlPoint5", StringComparison.OrdinalIgnoreCase));
+        foreach (var entity in entities)
+        {
+            if (CustomMapBuilderEntityNormalization.CountsAsTeamSpawn(entity, team))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static int Count(IReadOnlyList<CustomMapBuilderEntity> entities, string type)

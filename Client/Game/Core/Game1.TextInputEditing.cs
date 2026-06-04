@@ -60,6 +60,7 @@ public partial class Game1
         HostSetupTimeLimit,
         HostSetupCapLimit,
         HostSetupRespawnSeconds,
+        HostSetupAdvancedCvar,
         HostSetupConsoleCommand,
     }
 
@@ -273,6 +274,10 @@ public partial class Game1
                 _hostRespawnSecondsCursorIndex = _hostRespawnSecondsBuffer.Length;
                 _hostRespawnSecondsSelectionStart = 0;
                 break;
+            case TextFieldClickTarget.HostSetupAdvancedCvar:
+                _hostSetupState.AdvancedCvarCursorIndex = _hostSetupState.GetActiveAdvancedCvarEditBuffer().Length;
+                _hostSetupState.AdvancedCvarSelectionStart = 0;
+                break;
             case TextFieldClickTarget.HostSetupConsoleCommand:
                 _hostedServerConsole.CommandInputCursorIndex = _hostedServerConsole.CommandInput.Length;
                 _hostedServerConsole.CommandInputSelectionStart = 0;
@@ -371,7 +376,7 @@ public partial class Game1
         {
             selectedText = GetSelectedText(_hostRconPasswordBuffer, _hostRconPasswordCursorIndex, _hostRconPasswordSelectionStart);
         }
-        else if (_mainMenuOpen && _hostSetupOpen && _hostSetupEditField == HostSetupEditField.MapRotationFile)
+        else if (_mainMenuOpen && _hostSetupOpen && _hostSetupEditField == HostSetupEditField.MapRotationFile && _hostUsePlaylistFile)
         {
             selectedText = GetSelectedText(_hostMapRotationFileBuffer, _hostMapRotationFileCursorIndex, _hostMapRotationFileSelectionStart);
         }
@@ -386,6 +391,11 @@ public partial class Game1
         else if (_mainMenuOpen && _hostSetupOpen && _hostSetupEditField == HostSetupEditField.RespawnSeconds)
         {
             selectedText = GetSelectedText(_hostRespawnSecondsBuffer, _hostRespawnSecondsCursorIndex, _hostRespawnSecondsSelectionStart);
+        }
+        else if (_mainMenuOpen && _hostSetupOpen && _hostSetupEditField == HostSetupEditField.AdvancedCvar)
+        {
+            var buffer = _hostSetupState.GetActiveAdvancedCvarEditBuffer();
+            selectedText = GetSelectedText(buffer, _hostSetupState.AdvancedCvarCursorIndex, _hostSetupState.AdvancedCvarSelectionStart);
         }
         else if (_mainMenuOpen && _hostSetupOpen && _hostSetupTab == HostSetupTab.ServerConsole && _hostSetupEditField == HostSetupEditField.ServerConsoleCommand)
         {
@@ -494,6 +504,7 @@ public partial class Game1
                 HostSetupEditField.TimeLimit => TextFieldClickTarget.HostSetupTimeLimit,
                 HostSetupEditField.CapLimit => TextFieldClickTarget.HostSetupCapLimit,
                 HostSetupEditField.RespawnSeconds => TextFieldClickTarget.HostSetupRespawnSeconds,
+                HostSetupEditField.AdvancedCvar => TextFieldClickTarget.HostSetupAdvancedCvar,
                 HostSetupEditField.ServerConsoleCommand when _hostSetupTab == HostSetupTab.ServerConsole => TextFieldClickTarget.HostSetupConsoleCommand,
                 _ => TextFieldClickTarget.None,
             };
@@ -732,7 +743,7 @@ public partial class Game1
             return false;
         }
 
-        if (_mainMenuOpen && _hostSetupOpen && _hostSetupEditField == HostSetupEditField.MapRotationFile)
+        if (_mainMenuOpen && _hostSetupOpen && _hostSetupEditField == HostSetupEditField.MapRotationFile && _hostUsePlaylistFile)
         {
             if (CutSelectionFromField(
                 _hostMapRotationFileBuffer,
@@ -802,6 +813,26 @@ public partial class Game1
                 _hostRespawnSecondsBuffer = newText;
                 _hostRespawnSecondsCursorIndex = newCursorIndex;
                 _hostRespawnSecondsSelectionStart = newSelectionStart;
+                return true;
+            }
+
+            return false;
+        }
+
+        if (_mainMenuOpen && _hostSetupOpen && _hostSetupEditField == HostSetupEditField.AdvancedCvar)
+        {
+            var buffer = _hostSetupState.GetActiveAdvancedCvarEditBuffer();
+            if (CutSelectionFromField(
+                buffer,
+                _hostSetupState.AdvancedCvarCursorIndex,
+                _hostSetupState.AdvancedCvarSelectionStart,
+                out var newText,
+                out var newCursorIndex,
+                out var newSelectionStart))
+            {
+                _hostSetupState.SetActiveAdvancedCvarEditBuffer(newText);
+                _hostSetupState.AdvancedCvarCursorIndex = newCursorIndex;
+                _hostSetupState.AdvancedCvarSelectionStart = newSelectionStart;
                 return true;
             }
 
@@ -1064,7 +1095,7 @@ public partial class Game1
             return true;
         }
 
-        if (_mainMenuOpen && _hostSetupOpen && _hostSetupEditField == HostSetupEditField.MapRotationFile)
+        if (_mainMenuOpen && _hostSetupOpen && _hostSetupEditField == HostSetupEditField.MapRotationFile && _hostUsePlaylistFile)
         {
             var result = InsertTextAtCursor(
                 _hostMapRotationFileBuffer,
@@ -1121,6 +1152,27 @@ public partial class Game1
             _hostRespawnSecondsBuffer = result.Text;
             _hostRespawnSecondsCursorIndex = result.CursorIndex;
             _hostRespawnSecondsSelectionStart = result.SelectionStart;
+            return true;
+        }
+
+        if (_mainMenuOpen && _hostSetupOpen && _hostSetupEditField == HostSetupEditField.AdvancedCvar)
+        {
+            var buffer = _hostSetupState.GetActiveAdvancedCvarEditBuffer();
+            if (!HostSetupServerCvarCatalog.TryGetDefinition(_hostSetupState.ActiveAdvancedCvarName ?? string.Empty, out var definition))
+            {
+                return false;
+            }
+
+            var result = InsertTextAtCursor(
+                buffer,
+                pasteText,
+                _hostSetupState.AdvancedCvarCursorIndex,
+                _hostSetupState.AdvancedCvarSelectionStart,
+                24,
+                c => HostSetupServerCvarCatalog.IsValidInputCharacter(definition, c));
+            _hostSetupState.SetActiveAdvancedCvarEditBuffer(result.Text);
+            _hostSetupState.AdvancedCvarCursorIndex = result.CursorIndex;
+            _hostSetupState.AdvancedCvarSelectionStart = result.SelectionStart;
             return true;
         }
 
@@ -1221,7 +1273,7 @@ public partial class Game1
                 _hostRconPasswordSelectionStart = result.SelectionStart;
                 break;
             }
-            case HostSetupEditField.MapRotationFile:
+            case HostSetupEditField.MapRotationFile when _hostUsePlaylistFile:
             {
                 var result = DeleteTextSelectionOrBackspace(_hostMapRotationFileBuffer, _hostMapRotationFileCursorIndex, _hostMapRotationFileSelectionStart);
                 _hostMapRotationFileBuffer = result.Text;
@@ -1251,6 +1303,27 @@ public partial class Game1
                 _hostRespawnSecondsBuffer = result.Text;
                 _hostRespawnSecondsCursorIndex = result.CursorIndex;
                 _hostRespawnSecondsSelectionStart = result.SelectionStart;
+                break;
+            }
+            case HostSetupEditField.AdvancedCvar:
+            {
+                var buffer = _hostSetupState.GetActiveAdvancedCvarEditBuffer();
+                var result = DeleteTextSelectionOrBackspace(buffer, _hostSetupState.AdvancedCvarCursorIndex, _hostSetupState.AdvancedCvarSelectionStart);
+                _hostSetupState.SetActiveAdvancedCvarEditBuffer(result.Text);
+                _hostSetupState.AdvancedCvarCursorIndex = result.CursorIndex;
+                _hostSetupState.AdvancedCvarSelectionStart = result.SelectionStart;
+                break;
+            }
+            case HostSetupEditField.MapNameFilter:
+            {
+                var result = DeleteTextSelectionOrBackspace(
+                    _hostSetupState.AvailableMapNameFilterBuffer,
+                    _hostSetupState.AvailableMapNameFilterCursorIndex,
+                    _hostSetupState.AvailableMapNameFilterSelectionStart);
+                _hostSetupState.AvailableMapNameFilterBuffer = result.Text;
+                _hostSetupState.AvailableMapNameFilterCursorIndex = result.CursorIndex;
+                _hostSetupState.AvailableMapNameFilterSelectionStart = result.SelectionStart;
+                _hostSetupState.NotifyAvailableFiltersChanged();
                 break;
             }
             case HostSetupEditField.ServerConsoleCommand:
@@ -1314,7 +1387,7 @@ public partial class Game1
                 _hostRconPasswordSelectionStart = result.SelectionStart;
                 break;
             }
-            case HostSetupEditField.MapRotationFile:
+            case HostSetupEditField.MapRotationFile when _hostUsePlaylistFile:
             {
                 var result = InsertTextCharacterAtCursor(_hostMapRotationFileBuffer, character, _hostMapRotationFileCursorIndex, _hostMapRotationFileSelectionStart, 180);
                 _hostMapRotationFileBuffer = result.Text;
@@ -1344,6 +1417,41 @@ public partial class Game1
                 _hostRespawnSecondsBuffer = result.Text;
                 _hostRespawnSecondsCursorIndex = result.CursorIndex;
                 _hostRespawnSecondsSelectionStart = result.SelectionStart;
+                break;
+            }
+            case HostSetupEditField.AdvancedCvar:
+            {
+                if (!HostSetupServerCvarCatalog.TryGetDefinition(_hostSetupState.ActiveAdvancedCvarName ?? string.Empty, out var definition)
+                    || !HostSetupServerCvarCatalog.IsValidInputCharacter(definition, character))
+                {
+                    break;
+                }
+
+                var buffer = _hostSetupState.GetActiveAdvancedCvarEditBuffer();
+                var result = InsertTextAtCursor(
+                    buffer,
+                    character.ToString(),
+                    _hostSetupState.AdvancedCvarCursorIndex,
+                    _hostSetupState.AdvancedCvarSelectionStart,
+                    24,
+                    c => HostSetupServerCvarCatalog.IsValidInputCharacter(definition, c));
+                _hostSetupState.SetActiveAdvancedCvarEditBuffer(result.Text);
+                _hostSetupState.AdvancedCvarCursorIndex = result.CursorIndex;
+                _hostSetupState.AdvancedCvarSelectionStart = result.SelectionStart;
+                break;
+            }
+            case HostSetupEditField.MapNameFilter:
+            {
+                var result = InsertTextCharacterAtCursor(
+                    _hostSetupState.AvailableMapNameFilterBuffer,
+                    character,
+                    _hostSetupState.AvailableMapNameFilterCursorIndex,
+                    _hostSetupState.AvailableMapNameFilterSelectionStart,
+                    48);
+                _hostSetupState.AvailableMapNameFilterBuffer = result.Text;
+                _hostSetupState.AvailableMapNameFilterCursorIndex = result.CursorIndex;
+                _hostSetupState.AvailableMapNameFilterSelectionStart = result.SelectionStart;
+                _hostSetupState.NotifyAvailableFiltersChanged();
                 break;
             }
             case HostSetupEditField.ServerConsoleCommand:
@@ -1792,7 +1900,7 @@ public partial class Game1
                     }
 
                     return true;
-                case HostSetupEditField.MapRotationFile:
+                case HostSetupEditField.MapRotationFile when _hostUsePlaylistFile:
                     if (leftRepeat)
                     {
                         var result = MoveTextCursorLeft(_hostMapRotationFileCursorIndex, _hostMapRotationFileSelectionStart, shiftHeld);
@@ -1856,6 +1964,25 @@ public partial class Game1
                     }
 
                     return true;
+                case HostSetupEditField.AdvancedCvar:
+                {
+                    var buffer = _hostSetupState.GetActiveAdvancedCvarEditBuffer();
+                    if (leftRepeat)
+                    {
+                        var result = MoveTextCursorLeft(_hostSetupState.AdvancedCvarCursorIndex, _hostSetupState.AdvancedCvarSelectionStart, shiftHeld);
+                        _hostSetupState.AdvancedCvarCursorIndex = result.CursorIndex;
+                        _hostSetupState.AdvancedCvarSelectionStart = result.SelectionStart;
+                    }
+
+                    if (rightRepeat)
+                    {
+                        var result = MoveTextCursorRight(_hostSetupState.AdvancedCvarCursorIndex, _hostSetupState.AdvancedCvarSelectionStart, buffer, shiftHeld);
+                        _hostSetupState.AdvancedCvarCursorIndex = result.CursorIndex;
+                        _hostSetupState.AdvancedCvarSelectionStart = result.SelectionStart;
+                    }
+
+                    return true;
+                }
                 case HostSetupEditField.ServerConsoleCommand:
                     if (leftRepeat)
                     {
@@ -2124,7 +2251,7 @@ public partial class Game1
                 _hostRconPasswordCursorIndex = _hostRconPasswordBuffer.Length;
                 _hostRconPasswordSelectionStart = _hostRconPasswordCursorIndex;
                 break;
-            case HostSetupEditField.MapRotationFile:
+            case HostSetupEditField.MapRotationFile when _hostUsePlaylistFile:
                 _hostMapRotationFileCursorIndex = _hostMapRotationFileBuffer.Length;
                 _hostMapRotationFileSelectionStart = _hostMapRotationFileCursorIndex;
                 break;
@@ -2139,6 +2266,14 @@ public partial class Game1
             case HostSetupEditField.RespawnSeconds:
                 _hostRespawnSecondsCursorIndex = _hostRespawnSecondsBuffer.Length;
                 _hostRespawnSecondsSelectionStart = _hostRespawnSecondsCursorIndex;
+                break;
+            case HostSetupEditField.AdvancedCvar:
+                _hostSetupState.AdvancedCvarCursorIndex = _hostSetupState.GetActiveAdvancedCvarEditBuffer().Length;
+                _hostSetupState.AdvancedCvarSelectionStart = _hostSetupState.AdvancedCvarCursorIndex;
+                break;
+            case HostSetupEditField.MapNameFilter:
+                _hostSetupState.AvailableMapNameFilterCursorIndex = _hostSetupState.AvailableMapNameFilterBuffer.Length;
+                _hostSetupState.AvailableMapNameFilterSelectionStart = _hostSetupState.AvailableMapNameFilterCursorIndex;
                 break;
             case HostSetupEditField.ServerConsoleCommand:
                 _hostedServerConsole.CommandInputCursorIndex = _hostedServerConsole.CommandInput.Length;

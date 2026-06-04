@@ -11,6 +11,7 @@ public sealed record CustomMapBuilderDocument(
     string BackgroundImagePath,
     string WalkmaskImagePath,
     float Scale,
+    float VisualScale,
     IReadOnlyDictionary<string, string> Metadata,
     IReadOnlyList<CustomMapBuilderEntity> Entities,
     IReadOnlyDictionary<string, CustomMapBuilderResource> Resources,
@@ -26,6 +27,7 @@ public sealed record CustomMapBuilderDocument(
         BackgroundImagePath: string.Empty,
         WalkmaskImagePath: string.Empty,
         Scale: DefaultScale,
+        VisualScale: DefaultScale,
         Metadata: CreateDefaultMetadata(DefaultScale),
         Entities: Array.Empty<CustomMapBuilderEntity>(),
         Resources: new ReadOnlyDictionary<string, CustomMapBuilderResource>(
@@ -34,11 +36,14 @@ public sealed record CustomMapBuilderDocument(
 
     public CustomMapBuilderDocument NormalizeForEditing()
     {
+        var walkmaskScale = NormalizeScale(Scale);
+        var visualScale = NormalizeScale(VisualScale > 0f ? VisualScale : walkmaskScale);
         return this with
         {
             Name = NormalizeName(Name),
-            Scale = NormalizeScale(Scale),
-            Metadata = NormalizeMetadata(Metadata, Scale),
+            Scale = walkmaskScale,
+            VisualScale = visualScale,
+            Metadata = NormalizeMetadata(Metadata, walkmaskScale, visualScale),
             Entities = Entities
                 .Where(static entity => !string.IsNullOrWhiteSpace(entity.Type))
                 .Select(static entity => entity.NormalizeForEditing())
@@ -61,6 +66,8 @@ public sealed record CustomMapBuilderDocument(
             ["background"] = GetMetadataValue(normalized.Metadata, "background", DefaultBackgroundColor),
             ["void"] = GetMetadataValue(normalized.Metadata, "void", DefaultVoidColor),
             ["scale"] = normalized.Scale.ToString(CultureInfo.InvariantCulture),
+            ["walkmaskScale"] = normalized.Scale.ToString(CultureInfo.InvariantCulture),
+            ["visualScale"] = normalized.VisualScale.ToString(CultureInfo.InvariantCulture),
         };
 
         foreach (var layer in normalized.ParallaxLayers)
@@ -111,7 +118,8 @@ public sealed record CustomMapBuilderDocument(
 
     private static ReadOnlyDictionary<string, string> NormalizeMetadata(
         IReadOnlyDictionary<string, string>? metadata,
-        float scale)
+        float walkmaskScale,
+        float visualScale)
     {
         var normalized = metadata is null
             ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -120,7 +128,10 @@ public sealed record CustomMapBuilderDocument(
         normalized["type"] = "meta";
         normalized.TryAdd("background", DefaultBackgroundColor);
         normalized.TryAdd("void", DefaultVoidColor);
-        normalized["scale"] = NormalizeScale(scale).ToString(CultureInfo.InvariantCulture);
+        normalized["scale"] = NormalizeScale(walkmaskScale).ToString(CultureInfo.InvariantCulture);
+        normalized["walkmaskScale"] = NormalizeScale(walkmaskScale).ToString(CultureInfo.InvariantCulture);
+        normalized["visualScale"] = NormalizeScale(visualScale).ToString(CultureInfo.InvariantCulture);
+        ControlPointMapSettingsMetadata.StripLegacyMetadataKeys(normalized);
         return new ReadOnlyDictionary<string, string>(normalized);
     }
 
@@ -154,6 +165,35 @@ public sealed record CustomMapBuilderDocument(
     private static float NormalizeScale(float scale)
     {
         return float.IsFinite(scale) && scale > 0f ? scale : DefaultScale;
+    }
+
+    public static float ResolveWalkmaskScale(IReadOnlyDictionary<string, string> metadata, float fallback = DefaultScale)
+    {
+        if (TryReadMetadataScale(metadata, "walkmaskScale", out var walkmaskScale))
+        {
+            return walkmaskScale;
+        }
+
+        return TryReadMetadataScale(metadata, "scale", out var legacyScale)
+            ? legacyScale
+            : fallback;
+    }
+
+    public static float ResolveVisualScale(IReadOnlyDictionary<string, string> metadata, float walkmaskScale)
+    {
+        return TryReadMetadataScale(metadata, "visualScale", out var visualScale)
+            ? visualScale
+            : walkmaskScale;
+    }
+
+    private static bool TryReadMetadataScale(IReadOnlyDictionary<string, string> metadata, string key, out float scale)
+    {
+        scale = DefaultScale;
+        return metadata.TryGetValue(key, out var scaleText)
+            && float.TryParse(scaleText, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedScale)
+            && parsedScale > 0f
+            && float.IsFinite(parsedScale)
+            && (scale = parsedScale) > 0f;
     }
 
     private static string GetMetadataValue(IReadOnlyDictionary<string, string> metadata, string key, string fallback)

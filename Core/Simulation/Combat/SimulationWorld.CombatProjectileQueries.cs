@@ -34,7 +34,7 @@ public sealed partial class SimulationWorld
         {
             RocketHitResult? nearestHit = null;
             UpdateNearestEnvironmentProjectileHitFromSolids(ref nearestHit, rocket, rocket.PreviousX, rocket.PreviousY, directionX, directionY, maxDistance, destroyOnHit: false, UpdateNearestRocketEnvironmentHit);
-            UpdateNearestEnvironmentProjectileHitFromRoomObjects(ref nearestHit, rocket, rocket.PreviousX, rocket.PreviousY, directionX, directionY, maxDistance, ProjectileRoomObjectBlockerProfile.Standard, destroyOnHit: false, UpdateNearestRocketEnvironmentHit);
+            UpdateNearestEnvironmentProjectileHitFromRoomObjects(ref nearestHit, rocket.Team, rocket, rocket.PreviousX, rocket.PreviousY, directionX, directionY, maxDistance, ProjectileRoomObjectBlockerProfile.Standard, destroyOnHit: false, UpdateNearestRocketEnvironmentHit);
             UpdateNearestTargetProjectileHitFromSentries(ref nearestHit, rocket, rocket.Team, rocket.PreviousX, rocket.PreviousY, directionX, directionY, maxDistance, UpdateNearestRocketHit);
             UpdateNearestTargetProjectileHitFromGenerators(ref nearestHit, rocket, rocket.Team, rocket.PreviousX, rocket.PreviousY, directionX, directionY, maxDistance, UpdateNearestRocketHit);
             UpdateNearestRocketHitFromJumpPads(ref nearestHit, rocket, rocket.Team, rocket.PreviousX, rocket.PreviousY, directionX, directionY, maxDistance);
@@ -48,7 +48,7 @@ public sealed partial class SimulationWorld
             UpdateNearestEnvironmentProjectileHitFromSolids(ref nearestHit, mine, mine.PreviousX, mine.PreviousY, directionX, directionY, maxDistance, destroyOnHit: false, UpdateNearestMineHit);
             UpdateNearestTargetProjectileHitFromSentries(ref nearestHit, mine, mine.Team, mine.PreviousX, mine.PreviousY, directionX, directionY, maxDistance, UpdateNearestMineTargetHit);
             UpdateNearestMineHitFromGenerators(ref nearestHit, mine, mine.Team, mine.PreviousX, mine.PreviousY, directionX, directionY, maxDistance);
-            UpdateNearestEnvironmentProjectileHitFromRoomObjects(ref nearestHit, mine, mine.PreviousX, mine.PreviousY, directionX, directionY, maxDistance, ProjectileRoomObjectBlockerProfile.Standard, destroyOnHit: true, UpdateNearestMineHit);
+            UpdateNearestEnvironmentProjectileHitFromRoomObjects(ref nearestHit, mine.Team, mine, mine.PreviousX, mine.PreviousY, directionX, directionY, maxDistance, ProjectileRoomObjectBlockerProfile.Standard, destroyOnHit: true, UpdateNearestMineHit);
             return nearestHit;
         }
 
@@ -103,7 +103,7 @@ public sealed partial class SimulationWorld
 
             foreach (var roomObject in Level.RoomObjects)
             {
-                if (!TryGetProjectileRoomObjectHitbox(roomObject, ProjectileRoomObjectBlockerProfile.Standard, out var hitbox)) { continue; }
+                if (!TryGetProjectileRoomObjectHitbox(roomObject, grenade.Team, ProjectileRoomObjectBlockerProfile.Standard, out var hitbox)) { continue; }
                 if (!RayBoundsMayIntersectRectangle(rayBounds, hitbox.Left, hitbox.Top, hitbox.Right, hitbox.Bottom)) { continue; }
                 var result = GetRayIntersectionWithNormalWithRectangle(grenade.PreviousX, grenade.PreviousY, directionX, directionY, hitbox.Left, hitbox.Top, hitbox.Right, hitbox.Bottom, maxDistance);
                 if (result.HasValue && (!nearestHit.HasValue || result.Value.Distance < nearestHit.Value.Distance))
@@ -119,7 +119,7 @@ public sealed partial class SimulationWorld
         {
             FlameHitResult? nearestHit = null;
             UpdateNearestEnvironmentProjectileHitFromSolids(ref nearestHit, flame, flame.PreviousX, flame.PreviousY, directionX, directionY, maxDistance, destroyOnHit: false, UpdateNearestFlameEnvironmentHit);
-            UpdateNearestEnvironmentProjectileHitFromRoomObjects(ref nearestHit, flame, flame.PreviousX, flame.PreviousY, directionX, directionY, maxDistance, ProjectileRoomObjectBlockerProfile.Flame, destroyOnHit: false, UpdateNearestFlameEnvironmentHit);
+            UpdateNearestEnvironmentProjectileHitFromRoomObjects(ref nearestHit, flame.Team, flame, flame.PreviousX, flame.PreviousY, directionX, directionY, maxDistance, ProjectileRoomObjectBlockerProfile.Flame, destroyOnHit: false, UpdateNearestFlameEnvironmentHit);
             UpdateNearestTargetProjectileHitFromSentries(ref nearestHit, flame, flame.Team, flame.PreviousX, flame.PreviousY, directionX, directionY, maxDistance, UpdateNearestFlameHit);
             UpdateNearestTargetProjectileHitFromGenerators(ref nearestHit, flame, flame.Team, flame.PreviousX, flame.PreviousY, directionX, directionY, maxDistance, UpdateNearestFlameHit);
             UpdateNearestFlameHitFromJumpPads(ref nearestHit, flame, flame.Team, flame.PreviousX, flame.PreviousY, directionX, directionY, maxDistance);
@@ -131,7 +131,7 @@ public sealed partial class SimulationWorld
         {
             ShotHitResult? nearestHit = null;
             UpdateNearestEnvironmentProjectileHitFromSolids(ref nearestHit, flare, flare.PreviousX, flare.PreviousY, directionX, directionY, maxDistance, destroyOnHit: false, UpdateNearestFlareEnvironmentHit);
-            UpdateNearestEnvironmentProjectileHitFromRoomObjects(ref nearestHit, flare, flare.PreviousX, flare.PreviousY, directionX, directionY, maxDistance, ProjectileRoomObjectBlockerProfile.Standard, destroyOnHit: false, UpdateNearestFlareEnvironmentHit);
+            UpdateNearestEnvironmentProjectileHitFromRoomObjects(ref nearestHit, flare.Team, flare, flare.PreviousX, flare.PreviousY, directionX, directionY, maxDistance, ProjectileRoomObjectBlockerProfile.Standard, destroyOnHit: false, UpdateNearestFlareEnvironmentHit);
             UpdateNearestTargetProjectileHitFromSentries(ref nearestHit, flare, flare.Team, flare.PreviousX, flare.PreviousY, directionX, directionY, maxDistance, UpdateNearestFlareHit);
             UpdateNearestTargetProjectileHitFromGenerators(ref nearestHit, flare, flare.Team, flare.PreviousX, flare.PreviousY, directionX, directionY, maxDistance, UpdateNearestFlareHit);
             UpdateNearestFlareHitFromJumpPads(ref nearestHit, flare, flare.Team, flare.PreviousX, flare.PreviousY, directionX, directionY, maxDistance);
@@ -143,7 +143,7 @@ public sealed partial class SimulationWorld
         {
             ShotHitResult? nearestHit = null;
             UpdateNearestEnvironmentProjectileHitFromSolids(ref nearestHit, blade, blade.PreviousX, blade.PreviousY, directionX, directionY, maxDistance, destroyOnHit: false, UpdateNearestBladeEnvironmentHit);
-            UpdateNearestEnvironmentProjectileHitFromRoomObjects(ref nearestHit, blade, blade.PreviousX, blade.PreviousY, directionX, directionY, maxDistance, ProjectileRoomObjectBlockerProfile.Standard, destroyOnHit: false, UpdateNearestBladeEnvironmentHit);
+            UpdateNearestEnvironmentProjectileHitFromRoomObjects(ref nearestHit, blade.Team, blade, blade.PreviousX, blade.PreviousY, directionX, directionY, maxDistance, ProjectileRoomObjectBlockerProfile.Standard, destroyOnHit: false, UpdateNearestBladeEnvironmentHit);
             UpdateNearestTargetProjectileHitFromSentries(ref nearestHit, blade, blade.Team, blade.PreviousX, blade.PreviousY, directionX, directionY, maxDistance, UpdateNearestBladeHit);
             UpdateNearestTargetProjectileHitFromGenerators(ref nearestHit, blade, blade.Team, blade.PreviousX, blade.PreviousY, directionX, directionY, maxDistance, UpdateNearestBladeHit);
             UpdateNearestBladeHitFromJumpPads(ref nearestHit, blade, blade.Team, blade.PreviousX, blade.PreviousY, directionX, directionY, maxDistance);
@@ -178,6 +178,7 @@ public sealed partial class SimulationWorld
 
         private void UpdateNearestEnvironmentProjectileHitFromRoomObjects<TProjectile, THit>(
             ref THit? nearestHit,
+            PlayerTeam projectileTeam,
             TProjectile projectile,
             float previousX,
             float previousY,
@@ -190,16 +191,64 @@ public sealed partial class SimulationWorld
             where THit : struct
         {
             var rayBounds = GetRayBounds(previousX, previousY, directionX, directionY, maxDistance);
-            foreach (var roomObject in Level.RoomObjects)
+            for (var roomObjectIndex = 0; roomObjectIndex < Level.RoomObjects.Count; roomObjectIndex += 1)
             {
-                if (!TryGetProjectileRoomObjectHitbox(roomObject, blockerProfile, out var hitbox)) { continue; }
+                if (!Level.IsRoomObjectActive(roomObjectIndex))
+                {
+                    continue;
+                }
+
+                var roomObject = Level.RoomObjects[roomObjectIndex];
+                if (!TryGetProjectileRoomObjectHitbox(roomObject, projectileTeam, blockerProfile, out var hitbox)) { continue; }
                 if (!RayBoundsMayIntersectRectangle(rayBounds, hitbox.Left, hitbox.Top, hitbox.Right, hitbox.Bottom))
                 {
                     continue;
                 }
 
                 var distance = GetRayIntersectionDistanceWithRectangle(previousX, previousY, directionX, directionY, hitbox.Left, hitbox.Top, hitbox.Right, hitbox.Bottom, maxDistance);
-                if (distance.HasValue) { updateHit(ref nearestHit, projectile, directionX, directionY, distance.Value, destroyOnHit); }
+                if (!distance.HasValue)
+                {
+                    continue;
+                }
+
+                if (roomObject.Type == RoomObjectType.Barrier)
+                {
+                    if (!BarrierProjectileRaycast.TryRaycastMarker(
+                            roomObject.Barrier,
+                            projectileTeam,
+                            roomObject,
+                            previousX,
+                            previousY,
+                            directionX,
+                            directionY,
+                            maxDistance,
+                            out var barrierDistance))
+                    {
+                        continue;
+                    }
+
+                    updateHit(ref nearestHit, projectile, directionX, directionY, barrierDistance, destroyOnHit);
+                    continue;
+                }
+
+                if (roomObject.Type == RoomObjectType.DirectionalWall)
+                {
+                    var hitX = previousX + (directionX * distance.Value);
+                    var hitY = previousY + (directionY * distance.Value);
+                    if (!DirectionalWallCollision.BlocksProjectilePath(
+                            roomObject.DirectionalWall,
+                            projectileTeam,
+                            roomObject,
+                            previousX,
+                            previousY,
+                            hitX,
+                            hitY))
+                    {
+                        continue;
+                    }
+                }
+
+                updateHit(ref nearestHit, projectile, directionX, directionY, distance.Value, destroyOnHit);
             }
         }
 
@@ -383,13 +432,27 @@ public sealed partial class SimulationWorld
 
         private bool TryGetProjectileRoomObjectHitbox(
             RoomObjectMarker roomObject,
+            PlayerTeam projectileTeam,
             ProjectileRoomObjectBlockerProfile blockerProfile,
             out RectangleHitbox hitbox)
         {
             switch (blockerProfile)
             {
                 case ProjectileRoomObjectBlockerProfile.Standard:
-                    if (IsBlockingProjectileRoomObject(roomObject))
+                    if (roomObject.Type == RoomObjectType.Barrier && BarrierCollision.BlocksProjectile(roomObject.Barrier, projectileTeam))
+                    {
+                        hitbox = new RectangleHitbox(roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom);
+                        return true;
+                    }
+
+                    if (roomObject.Type == RoomObjectType.DirectionalWall
+                        && roomObject.DirectionalWall.AffectsProjectiles)
+                    {
+                        hitbox = new RectangleHitbox(roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom);
+                        return true;
+                    }
+
+                    if (IsBlockingProjectileRoomObject(roomObject, projectileTeam))
                     {
                         hitbox = new RectangleHitbox(roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom);
                         return true;
@@ -402,6 +465,14 @@ public sealed partial class SimulationWorld
                         case RoomObjectType.TeamGate:
                         case RoomObjectType.BulletWall:
                         case RoomObjectType.HealingCabinet:
+                            hitbox = new RectangleHitbox(roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom);
+                            return true;
+
+                        case RoomObjectType.Barrier when BarrierCollision.BlocksProjectile(roomObject.Barrier, projectileTeam):
+                            hitbox = new RectangleHitbox(roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom);
+                            return true;
+
+                        case RoomObjectType.DirectionalWall when roomObject.DirectionalWall.AffectsProjectiles:
                             hitbox = new RectangleHitbox(roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom);
                             return true;
 

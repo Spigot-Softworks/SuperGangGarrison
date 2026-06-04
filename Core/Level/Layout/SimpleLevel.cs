@@ -30,7 +30,10 @@ public sealed class SimpleLevel
         IReadOnlyList<AreaTransitionMarker>? areaTransitionMarkers = null,
         IReadOnlyList<string>? unsupportedSourceEntities = null,
         CustomMapVisualMetadata? customMapVisuals = null,
-        IReadOnlyList<MovingPlatformMarker>? movingPlatforms = null)
+        IReadOnlyList<MovingPlatformMarker>? movingPlatforms = null,
+        CustomMapControlPointSettings? controlPointSettings = null,
+        MapLogicGraph? logicGraph = null,
+        MapLogicActivatorSet? logicActivators = null)
     {
         Name = name;
         Mode = mode;
@@ -51,6 +54,11 @@ public sealed class SimpleLevel
         UnsupportedSourceEntities = unsupportedSourceEntities ?? Array.Empty<string>();
         CustomMapVisuals = customMapVisuals ?? CustomMapVisualMetadata.Empty;
         MovingPlatforms = movingPlatforms ?? Array.Empty<MovingPlatformMarker>();
+        ControlPointSettings = controlPointSettings ?? CustomMapControlPointSettings.Default;
+        LogicGraph = logicGraph ?? MapLogicGraph.Empty;
+        LogicActivators = logicActivators ?? MapLogicActivatorSet.Empty;
+        RoomObjectLogicActiveMask = new bool[roomObjects.Count];
+        Array.Fill(RoomObjectLogicActiveMask, true);
         _roomObjectsByType = RoomObjects
             .GroupBy(roomObject => roomObject.Type)
             .ToDictionary(group => group.Key, group => group.ToArray());
@@ -94,6 +102,24 @@ public sealed class SimpleLevel
     public CustomMapVisualMetadata CustomMapVisuals { get; }
 
     public IReadOnlyList<MovingPlatformMarker> MovingPlatforms { get; }
+
+    public CustomMapControlPointSettings ControlPointSettings { get; }
+
+    public MapLogicGraph LogicGraph { get; }
+
+    public MapLogicActivatorSet LogicActivators { get; }
+
+    public bool[] RoomObjectLogicActiveMask { get; private set; }
+
+    public bool IsRoomObjectActive(int roomObjectIndex)
+    {
+        if (roomObjectIndex < 0 || roomObjectIndex >= RoomObjectLogicActiveMask.Length)
+        {
+            return true;
+        }
+
+        return RoomObjectLogicActiveMask[roomObjectIndex];
+    }
 
     public bool ControlPointSetupGatesActive
     {
@@ -168,8 +194,14 @@ public sealed class SimpleLevel
         }
 
         var blockingGates = new List<RoomObjectMarker>();
-        foreach (var roomObject in RoomObjects)
+        for (var index = 0; index < RoomObjects.Count; index += 1)
         {
+            var roomObject = RoomObjects[index];
+            if (!IsRoomObjectActive(index))
+            {
+                continue;
+            }
+
             switch (roomObject.Type)
             {
                 case RoomObjectType.ControlPointSetupGate:

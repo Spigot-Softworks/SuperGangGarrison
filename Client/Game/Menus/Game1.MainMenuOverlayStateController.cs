@@ -26,6 +26,8 @@ public partial class Game1
         {
             _game._hostSetupOpen = false;
             _game._hostSetupEditField = HostSetupEditField.None;
+            _game.CloseAllHostSetupMapPreviews();
+            _game._hostSetupState.NavigateToMainScreen();
             if (clearStatus)
             {
                 _game._menuStatusMessage = string.Empty;
@@ -66,7 +68,14 @@ public partial class Game1
             _game._friendsMenuAddingFriend = false;
             _game._editingFriendCode = false;
             _game.InitializeFriendCodeCursor();
-            _game._menuStatusMessage = needsNickname ? "Choose a nickname for friends." : string.Empty;
+            if (needsNickname)
+            {
+                _game.SetPersistedMenuStatusMessage("Choose a nickname for friends.");
+            }
+            else
+            {
+                _game._menuStatusMessage = string.Empty;
+            }
             _game.RefreshFriendPresence();
         }
 

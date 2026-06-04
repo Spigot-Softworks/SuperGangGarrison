@@ -51,6 +51,7 @@ public partial class Game1
             _gameRenderTarget.Dispose();
             _gameRenderTarget = null;
         }
+
     }
 
     private void EnsureGameRenderTarget()

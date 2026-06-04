@@ -122,20 +122,6 @@ public partial class Game1
         _menuBottomBarRunners.Draw(bottomBarBounds);
     }
 
-    private void DrawMenuStatusText()
-    {
-        if (string.IsNullOrWhiteSpace(_menuStatusMessage))
-        {
-            return;
-        }
-
-        var position = new Vector2(ViewportWidth * 0.5f, ViewportHeight - 104f);
-        var scale = ViewportHeight < 540 ? 0.92f : 1f;
-        var text = _menuStatusMessage;
-        DrawBitmapFontTextCentered(text, position + Vector2.One * 2f, Color.Black * 0.6f, scale);
-        DrawBitmapFontTextCentered(text, position, new Color(235, 225, 180), scale);
-    }
-
     private void OpenManualConnectMenu()
     {
         _mainMenuOverlayStateController.OpenManualConnectMenu();
