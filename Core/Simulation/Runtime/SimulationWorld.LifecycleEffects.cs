@@ -281,6 +281,7 @@ public sealed partial class SimulationWorld
         {
             var gib = _playerGibs[gibIndex];
             gib.Advance(Level, Bounds);
+            TryApplyPlayerGibSplat(gib);
             TrySpawnBloodDropFromGib(gib);
             if (!gib.IsExpired)
             {
@@ -289,6 +290,36 @@ public sealed partial class SimulationWorld
 
             _entities.Remove(gib.Id);
             _playerGibs.RemoveAt(gibIndex);
+        }
+    }
+
+    private void TryApplyPlayerGibSplat(PlayerGibEntity gib)
+    {
+        if (!gib.CanSplat || gib.IsExpired)
+        {
+            return;
+        }
+
+        foreach (var player in EnumerateSimulatedPlayers())
+        {
+            if (!player.IsAlive || !gib.IntersectsPlayer(player))
+            {
+                continue;
+            }
+
+            var impulseX = player.HorizontalSpeed * (float)Config.FixedDeltaSeconds;
+            var impulseY = player.VerticalSpeed * (float)Config.FixedDeltaSeconds;
+            if (MathF.Abs(impulseX) < 0.25f && MathF.Abs(impulseY) < 0.25f)
+            {
+                impulseX = MathF.Sign(player.FacingDirectionX == 0f ? 1f : player.FacingDirectionX) * 2.2f;
+            }
+
+            impulseX = Math.Clamp(impulseX * 0.8f, -5.5f, 5.5f);
+            impulseY = Math.Clamp(impulseY * 0.45f, -3.5f, 2.5f);
+            gib.AddImpulse(impulseX, impulseY, impulseX * 8f);
+            gib.RestartSplatCooldown();
+            RegisterWorldSoundEvent("Splat", gib.X, gib.Y);
+            return;
         }
     }
 
@@ -490,7 +521,15 @@ public sealed partial class SimulationWorld
         for (var deadBodyIndex = _deadBodies.Count - 1; deadBodyIndex >= 0; deadBodyIndex -= 1)
         {
             var deadBody = _deadBodies[deadBodyIndex];
-            deadBody.Advance(Level, Bounds);
+            var advanceResult = deadBody.Advance(Level, Bounds);
+            if (!ClientPredictionMode
+                && advanceResult.HitGround
+                && advanceResult.ImpactSpeed >= 3.5f
+                && deadBody.TryRestartImpactSoundCooldown())
+            {
+                RegisterWorldSoundEvent("ImpactSnd", deadBody.X, deadBody.Y);
+            }
+
             if (!deadBody.IsExpired)
             {
                 continue;

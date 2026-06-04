@@ -21,6 +21,8 @@ internal static class HudLayoutDefaults
     private const float EngineerSentryWidth = 86f;
     private const float EngineerSentryHeight = 64f;
     private const float EngineerSentrySourceY = DefaultAbilityWidgetTopY - AbilityWidgetGap - EngineerSentryHeight;
+    private const float LastToDieRageBarWidth = 170f;
+    private const float LastToDieRageBarHeight = 18f;
 
     public static IReadOnlyDictionary<string, HudElementLayout> Create()
     {
@@ -89,6 +91,22 @@ internal static class HudLayoutDefaults
                 new Vector2(108f, 46f),
                 new Vector2(-54f, -24f),
                 Layer: 9),
+
+            [HudElementId.LastToDieRage] = new(
+                HudElementId.LastToDieRage,
+                HudAnchor.BottomRight,
+                new Vector2(-LastToDieRageBarWidth - 30f, -136f),
+                new Vector2(LastToDieRageBarWidth + 6f, 58f),
+                new Vector2(-LastToDieRageBarWidth - 30f, -136f),
+                Layer: 9),
+
+            [HudElementId.LastToDieBuffIcon] = new(
+                HudElementId.LastToDieBuffIcon,
+                HudAnchor.BottomLeft,
+                new Vector2(96f, -83f),
+                new Vector2(35f, 35f),
+                new Vector2(96f, -83f),
+                Layer: 11),
 
             [HudElementId.ClassMedicUber] = new(
                 HudElementId.ClassMedicUber,

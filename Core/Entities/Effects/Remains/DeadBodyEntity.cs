@@ -6,6 +6,7 @@ public sealed class DeadBodyEntity : SimulationEntity
     public const float GravityPerTick = 0.6f;
     public const float MaxFallSpeed = 10f;
     public const float StopHorizontalSpeed = 0.2f;
+    public const int ImpactSoundCooldownTicks = 18;
 
     public DeadBodyEntity(
         int id,
@@ -59,6 +60,8 @@ public sealed class DeadBodyEntity : SimulationEntity
 
     public int TicksRemaining { get; private set; }
 
+    public int ImpactSoundCooldownTicksRemaining { get; private set; }
+
     public bool IsExpired => TicksRemaining <= 0;
 
     public void ApplyNetworkState(
@@ -75,8 +78,13 @@ public sealed class DeadBodyEntity : SimulationEntity
         TicksRemaining = ticksRemaining;
     }
 
-    public void Advance(SimpleLevel level, WorldBounds bounds)
+    public DeadBodyAdvanceResult Advance(SimpleLevel level, WorldBounds bounds)
     {
+        if (ImpactSoundCooldownTicksRemaining > 0)
+        {
+            ImpactSoundCooldownTicksRemaining -= 1;
+        }
+
         HorizontalSpeed /= 1.1f;
         if (MathF.Abs(HorizontalSpeed) < StopHorizontalSpeed)
         {
@@ -84,14 +92,26 @@ public sealed class DeadBodyEntity : SimulationEntity
         }
 
         MoveHorizontally(level, bounds);
-        MoveVertically(level, bounds);
+        var verticalResult = MoveVertically(level, bounds);
         TicksRemaining -= 1;
+        return verticalResult;
     }
 
     public void AddImpulse(float velocityX, float velocityY)
     {
         HorizontalSpeed += velocityX;
         VerticalSpeed += velocityY;
+    }
+
+    public bool TryRestartImpactSoundCooldown()
+    {
+        if (ImpactSoundCooldownTicksRemaining > 0)
+        {
+            return false;
+        }
+
+        ImpactSoundCooldownTicksRemaining = ImpactSoundCooldownTicks;
+        return true;
     }
 
     private void MoveHorizontally(SimpleLevel level, WorldBounds bounds)
@@ -119,11 +139,13 @@ public sealed class DeadBodyEntity : SimulationEntity
         X = bounds.ClampX(X, Width);
     }
 
-    private void MoveVertically(SimpleLevel level, WorldBounds bounds)
+    private DeadBodyAdvanceResult MoveVertically(SimpleLevel level, WorldBounds bounds)
     {
         var wasFalling = VerticalSpeed >= 0f;
         VerticalSpeed = MathF.Min(MaxFallSpeed, VerticalSpeed + GravityPerTick);
+        var impactSpeed = MathF.Max(0f, VerticalSpeed);
         Y += VerticalSpeed;
+        var hitGround = false;
 
         foreach (var solid in level.Solids)
         {
@@ -135,6 +157,7 @@ public sealed class DeadBodyEntity : SimulationEntity
             if (wasFalling)
             {
                 Y = solid.Top - (Height / 2f);
+                hitGround = true;
             }
             else
             {
@@ -148,9 +171,16 @@ public sealed class DeadBodyEntity : SimulationEntity
         var clampedY = bounds.ClampY(Y, Height);
         if (clampedY != Y)
         {
+            if (wasFalling && clampedY < Y)
+            {
+                hitGround = true;
+            }
+
             Y = clampedY;
             VerticalSpeed = 0f;
         }
+
+        return new DeadBodyAdvanceResult(hitGround, impactSpeed);
     }
 
     private bool IntersectsSolid(LevelSolid solid)
@@ -165,3 +195,5 @@ public sealed class DeadBodyEntity : SimulationEntity
             && bottom > solid.Top;
     }
 }
+
+public readonly record struct DeadBodyAdvanceResult(bool HitGround, float ImpactSpeed);

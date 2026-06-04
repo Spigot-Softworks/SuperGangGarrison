@@ -53,6 +53,10 @@ public sealed class BotBrainController
 
     private const int FailedEdgeBlockTicks = 9000; // 5 minutes at 30 tps.
     private const float DirectSeekPlayerDistance = 900f;
+    private const float MedicSupportDirectSeekDistance = 900f;
+    private const float MedicSupportHoldMinDistance = 78f;
+    private const float MedicSupportHoldMaxDistance = 230f;
+    private const float MedicSupportHealRange = 300f;
     private const float IntelCarrierDirectSeekDistance = 1200f;
     private const float EscortCarrierDirectSeekDistance = 900f;
     private const float DynamicEscortCarrierDirectSeekDistance = 2400f;
@@ -74,6 +78,7 @@ public sealed class BotBrainController
     private const float CapturePointClearEnemyDistance = 260f;
     private const float CapturePointClearEnemyVerticalRange = 120f;
     private const float CapturePointClearSelfInterestDistance = 420f;
+    private const float CapturePointObstacleProbeDistance = 36f;
     private const float ArenaCaptureDirectDriveHorizontalRange = 420f;
     private const float ArenaCaptureDirectDriveVerticalMin = -320f;
     private const float ArenaCaptureDirectDriveVerticalMax = 80f;
@@ -559,6 +564,7 @@ public sealed class BotBrainController
             && (TryResolveSpyRetreat(world, self, team, combatTarget, steeringOutput, out var directSteering, out var directTrace)
                 || TryResolveSpyBackstabDrive(world, self, combatTarget, steeringOutput, out directSteering, out directTrace)
                 || TryResolveSniperCombatDrive(world, self, combatTarget, steeringOutput, out directSteering, out directTrace)
+                || TryResolveMedicSupportDrive(world, self, team, healTarget, healTargetSelection.Kind, steeringOutput, out directSteering, out directTrace)
                 || (!proofResolved && !tapeResolved && TryResolveDirectSeek(world, self, team, combatTarget, routeRecoveryRequested, steeringOutput, out directSteering, out directTrace))))
         {
             steeringOutput = directSteering;
@@ -581,7 +587,8 @@ public sealed class BotBrainController
         LastSteeringOutput = steeringOutput;
 
         // 5. Resolve aim.
-        var (aimX, aimY) = _aimResolver.Resolve(self, combatTarget, healTarget, _navGraph, _currentPath, steeringOutput);
+        var aimHealTarget = ResolveMedicAimHealTarget(world, self, healTarget);
+        var (aimX, aimY) = _aimResolver.Resolve(self, combatTarget, aimHealTarget, _navGraph, _currentPath, steeringOutput);
 
         // 6. Synthesize input.
         var combat = CombatDecisionResolver.Resolve(world, self, combatTarget, healTarget, _combatMemory);
@@ -693,6 +700,7 @@ public sealed class BotBrainController
             && (TryResolveSpyRetreat(world, self, team, combatTarget, steeringOutput, out var directSteering, out var directTrace)
                 || TryResolveSpyBackstabDrive(world, self, combatTarget, steeringOutput, out directSteering, out directTrace)
                 || TryResolveSniperCombatDrive(world, self, combatTarget, steeringOutput, out directSteering, out directTrace)
+                || TryResolveMedicSupportDrive(world, self, team, healTarget, healTargetSelection.Kind, steeringOutput, out directSteering, out directTrace)
                 || TryResolveNoGraphObjectiveSeek(world, self, team, combatTarget, steeringOutput, out directSteering, out directTrace)))
         {
             steeringOutput = directSteering;
@@ -709,7 +717,8 @@ public sealed class BotBrainController
         ApplyCaptureStrafeHop(world, self, team, ref steeringOutput);
         LastSteeringOutput = steeringOutput;
 
-        var (aimX, aimY) = _aimResolver.Resolve(self, combatTarget, healTarget, graph: null, path: null, steeringOutput);
+        var aimHealTarget = ResolveMedicAimHealTarget(world, self, healTarget);
+        var (aimX, aimY) = _aimResolver.Resolve(self, combatTarget, aimHealTarget, graph: null, path: null, steeringOutput);
         var combat = CombatDecisionResolver.Resolve(world, self, combatTarget, healTarget, _combatMemory);
         var input = inputOverride.HasValue
             ? ApplyCombatToInputOverride(self, inputOverride.Value, combat)
@@ -1200,7 +1209,7 @@ public sealed class BotBrainController
                     new DirectDriveTarget(DirectDriveTargetKind.Enemy, ownedKothTarget.X, ownedKothTarget.Y, $"ownedKothEnemy player:{ownedKothTarget.Id}"),
                     steeringOutput,
                     out directSteering,
-                    out directTrace))
+            out directTrace))
             {
                 return true;
             }
@@ -1447,6 +1456,156 @@ public sealed class BotBrainController
             _thinkTicks,
             out directSteering,
             out directTrace);
+
+    private bool TryResolveMedicSupportDrive(
+        SimulationWorld world,
+        PlayerEntity self,
+        PlayerTeam team,
+        PlayerEntity? healTarget,
+        MedicHealTargetSelectionKind selectionKind,
+        SteeringOutput steeringOutput,
+        out SteeringOutput directSteering,
+        out string directTrace)
+    {
+        directSteering = steeringOutput;
+        directTrace = string.Empty;
+        if (self.ClassId != PlayerClass.Medic
+            || self.IsCarryingIntel
+            || healTarget is null
+            || !healTarget.IsAlive
+            || healTarget.Team != team
+            || healTarget.Id == self.Id)
+        {
+            return false;
+        }
+
+        var dx = healTarget.X - self.X;
+        var dy = healTarget.Y - self.Y;
+        var distance = MathF.Sqrt((dx * dx) + (dy * dy));
+        if (distance > MedicSupportDirectSeekDistance)
+        {
+            return false;
+        }
+
+        var hasHealLink = distance <= MedicSupportHealRange
+            && CombatDecisionResolver.HasLineOfSight(world, self.X, self.Y, healTarget.X, healTarget.Y, self.Team, self.IsCarryingIntel);
+        var label = $"medicSupport:{selectionKind} player:{healTarget.Id}";
+        if (distance < MedicSupportHoldMinDistance)
+        {
+            directSteering.MoveDirection = ResolveMedicSupportAwayDirection(self, dx);
+            directSteering.Jump = false;
+            directSteering.DropDown = false;
+            directTrace = $"{label} space dx:{dx:0.0} dy:{dy:0.0} dist:{distance:0.0} move:{directSteering.MoveDirection:0}";
+            return true;
+        }
+
+        if (hasHealLink && distance <= MedicSupportHoldMaxDistance)
+        {
+            directSteering.MoveDirection = 0;
+            directSteering.Jump = false;
+            directSteering.DropDown = false;
+            directTrace = $"{label} hold dx:{dx:0.0} dy:{dy:0.0} dist:{distance:0.0}";
+            return true;
+        }
+
+        if (TryRouteToDirectSeekTarget(
+                world,
+                self,
+                team,
+                healTarget.X,
+                healTarget.Y,
+                label,
+                steeringOutput,
+                out directSteering,
+                out directTrace,
+                requireVerticalSeparation: false,
+                activePathReuseDistance: MovingCarrierRouteReuseDistance))
+        {
+            return true;
+        }
+
+        if (PrimitiveDirectDrive.TryResolveSupport(
+                world,
+                self,
+                new DirectDriveTarget(DirectDriveTargetKind.Escort, healTarget.X, healTarget.Y, label),
+                steeringOutput,
+                MedicSupportDirectSeekDistance,
+                out directSteering,
+                out directTrace))
+        {
+            return true;
+        }
+
+        if (!hasHealLink)
+        {
+            return false;
+        }
+
+        directSteering.MoveDirection = 0;
+        directSteering.Jump = false;
+        directSteering.DropDown = false;
+        directTrace = $"{label} holdFallback dx:{dx:0.0} dy:{dy:0.0} dist:{distance:0.0}";
+        return true;
+    }
+
+    private static PlayerEntity? ResolveMedicAimHealTarget(
+        SimulationWorld world,
+        PlayerEntity self,
+        PlayerEntity? desiredHealTarget)
+    {
+        if (self.ClassId != PlayerClass.Medic
+            || !self.MedicHealTargetId.HasValue)
+        {
+            return desiredHealTarget;
+        }
+
+        var currentHealTarget = FindBotBrainPlayerById(world, self.MedicHealTargetId.Value);
+        if (currentHealTarget is null
+            || !currentHealTarget.IsAlive
+            || currentHealTarget.Team != self.Team)
+        {
+            return desiredHealTarget;
+        }
+
+        if (desiredHealTarget is null)
+        {
+            return currentHealTarget.ClassId == PlayerClass.Medic
+                ? null
+                : currentHealTarget;
+        }
+
+        if (desiredHealTarget.Id == currentHealTarget.Id)
+        {
+            return desiredHealTarget;
+        }
+
+        return currentHealTarget.ClassId == PlayerClass.Medic && desiredHealTarget.ClassId != PlayerClass.Medic
+            ? desiredHealTarget
+            : currentHealTarget;
+    }
+
+    private static int ResolveMedicSupportAwayDirection(PlayerEntity self, float targetDeltaX)
+    {
+        if (MathF.Abs(targetDeltaX) > 1f)
+        {
+            return targetDeltaX > 0f ? -1 : 1;
+        }
+
+        return self.Id % 2 == 0 ? 1 : -1;
+    }
+
+    private static PlayerEntity? FindBotBrainPlayerById(SimulationWorld world, int playerId)
+    {
+        foreach (var player in CombatDecisionResolver.EnumeratePlayers(world))
+        {
+            if (player.Id == playerId)
+            {
+                return player;
+            }
+        }
+
+        return null;
+    }
 
     private static bool TryResolveSpyRetreat(
         SimulationWorld world,
@@ -3713,6 +3872,7 @@ public sealed class BotBrainController
 
         if (TryFindNearestUnownedControlPoint(world, self, team, CapturePointDirectSeekDistance, out var point))
         {
+            var inCaptureZone = world.IsPlayerInControlPointCaptureZone(self, point.Index);
             if (TryResolveControlPointPlatformLadderDrive(world, self, point, steeringOutput, out directSteering, out directTrace))
             {
                 return true;
@@ -3728,7 +3888,8 @@ public sealed class BotBrainController
                 return true;
             }
 
-            if (TryResolveControlPointHold(world, self, team, point, steeringOutput, out directSteering, out directTrace))
+            if (inCaptureZone
+                && TryResolveControlPointHold(world, self, team, point, steeringOutput, out directSteering, out directTrace))
             {
                 return true;
             }
@@ -3760,11 +3921,42 @@ public sealed class BotBrainController
                     out directSteering,
                     out directTrace))
             {
+                ApplyCapturePointObstacleJumpIfNeeded(world, self, team, point, ref directSteering, ref directTrace);
+                return true;
+            }
+
+            if (!inCaptureZone
+                && TryResolveControlPointHold(world, self, team, point, steeringOutput, out directSteering, out directTrace))
+            {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private static void ApplyCapturePointObstacleJumpIfNeeded(
+        SimulationWorld world,
+        PlayerEntity self,
+        PlayerTeam team,
+        ControlPointState point,
+        ref SteeringOutput steering,
+        ref string trace)
+    {
+        if (world.IsPlayerInControlPointCaptureZone(self, point.Index)
+            || !self.IsGrounded
+            || steering.Jump
+            || steering.DropDown
+            || steering.MoveDirection == 0f
+            || !IsJumpableCapturePointObstacleAhead(self, world.Level, team, steering.MoveDirection))
+        {
+            return;
+        }
+
+        steering.Jump = true;
+        trace = string.IsNullOrWhiteSpace(trace)
+            ? $"capturePointObstacleJump point:{point.Index}"
+            : $"{trace} capturePointObstacleJump point:{point.Index}";
     }
 
     private bool TryResolveControlPointEnemyClearSeek(
@@ -4531,15 +4723,66 @@ public sealed class BotBrainController
                 : dx > 0f ? 1 : -1;
         }
 
+        var obstacleJump = !inCaptureZone
+            && self.IsGrounded
+            && holdSteering.MoveDirection != 0f
+            && IsJumpableCapturePointObstacleAhead(self, world.Level, team, holdSteering.MoveDirection);
         holdSteering.Jump = inCaptureZone
             ? false
-            : self.IsGrounded && dy < -24f;
+            : self.IsGrounded && (dy < -24f || obstacleJump);
         holdSteering.DropDown = false;
         var spacingSuffix = string.IsNullOrWhiteSpace(spacingTrace)
             ? string.Empty
             : $" spacing:{spacingTrace}";
-        trace = $"capturePointHold point:{point.Index} dx:{dx:0.0} dy:{dy:0.0} inZone:{(inCaptureZone ? 1 : 0)} move:{holdSteering.MoveDirection:0} jump:{(holdSteering.Jump ? 1 : 0)}{spacingSuffix}";
+        trace = $"capturePointHold point:{point.Index} dx:{dx:0.0} dy:{dy:0.0} inZone:{(inCaptureZone ? 1 : 0)} move:{holdSteering.MoveDirection:0} jump:{(holdSteering.Jump ? 1 : 0)} obstacle:{(obstacleJump ? 1 : 0)}{spacingSuffix}";
         return true;
+    }
+
+    private static bool IsJumpableCapturePointObstacleAhead(PlayerEntity player, SimpleLevel level, PlayerTeam team, float direction)
+    {
+        if (direction == 0f)
+        {
+            return false;
+        }
+
+        var blockedOffset = FindCapturePointObstacleOffsetAhead(player, level, team, MathF.Sign(direction));
+        if (!blockedOffset.HasValue)
+        {
+            return false;
+        }
+
+        return CanClearCapturePointObstacleAtLift(player, level, team, direction, blockedOffset.Value, 16f)
+            || CanClearCapturePointObstacleAtLift(player, level, team, direction, blockedOffset.Value, 32f)
+            || CanClearCapturePointObstacleAtLift(player, level, team, direction, blockedOffset.Value, 48f)
+            || CanClearCapturePointObstacleAtLift(player, level, team, direction, blockedOffset.Value, 64f);
+    }
+
+    private static float? FindCapturePointObstacleOffsetAhead(PlayerEntity player, SimpleLevel level, PlayerTeam team, float direction)
+    {
+        for (var offset = 4f; offset <= CapturePointObstacleProbeDistance; offset += 4f)
+        {
+            if (!player.CanOccupy(level, team, player.X + (direction * offset), player.Y))
+            {
+                return offset;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool CanClearCapturePointObstacleAtLift(
+        PlayerEntity player,
+        SimpleLevel level,
+        PlayerTeam team,
+        float direction,
+        float blockedOffset,
+        float lift)
+    {
+        var liftedY = player.Y - lift;
+        var clearProbeOffset = MathF.Max(CapturePointObstacleProbeDistance, blockedOffset + 8f);
+        return player.CanOccupy(level, team, player.X, liftedY)
+            && player.CanOccupy(level, team, player.X + (direction * blockedOffset), liftedY)
+            && player.CanOccupy(level, team, player.X + (direction * clearProbeOffset), liftedY);
     }
 
     private void ApplyCaptureStrafeHop(
@@ -5041,6 +5284,11 @@ public sealed class BotBrainController
             }
 
             if (!CombatDecisionResolver.IsPlayerVisibleToBot(self, candidate))
+            {
+                continue;
+            }
+
+            if (!CombatDecisionResolver.HasCombatLineOfSight(world, self.X, self.Y, candidate.X, candidate.Y))
             {
                 continue;
             }

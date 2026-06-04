@@ -320,6 +320,12 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        if (_practiceCombatDummyActive)
+        {
+            SpawnPracticeCombatDummyResolved(playRespawnSound: true);
+            return;
+        }
+
         EnemyPlayer.SetClassDefinition(_enemyDummyClassDefinition);
         SpawnPlayerResolved(EnemyPlayer, _enemyDummyTeam, ReserveSpawn(EnemyPlayer, _enemyDummyTeam), playRespawnSound: true);
     }

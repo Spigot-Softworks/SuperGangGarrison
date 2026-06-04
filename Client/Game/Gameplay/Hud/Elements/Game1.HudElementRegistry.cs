@@ -10,8 +10,10 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
     private const int HudElementLayerLocalHealth = 10;
+    private const int HudElementLayerLastToDieBuffIcon = 11;
     private const int HudElementLayerLocalWeaponStack = 20;
     private const int HudElementLayerLocalAbilityStack = 21;
+    private const int HudElementLayerLastToDieRage = 9;
     private const int HudElementLayerClassMedic = 30;
     private const int HudElementLayerClassMedicAssist = 31;
     private const int HudElementLayerClassEngineerMetal = 50;
@@ -23,6 +25,8 @@ public partial class Game1
         public const string LocalWeaponStack = "local.weapon.stack.renderer";
         public const string LocalAbilityStack = "local.ability.stack.renderer";
         public const string LocalAbilityWidget = "local.ability.widget.renderer";
+        public const string LastToDieRage = "last-to-die.rage.renderer";
+        public const string LastToDieBuffIcon = "last-to-die.buff-icon.renderer";
         public const string ClassMedicUber = "class.medic.uber.renderer";
         public const string ClassMedicHealingTarget = "class.medic.healing-target.renderer";
         public const string ClassMedicHealer = "class.medic.healer.renderer";
@@ -39,6 +43,8 @@ public partial class Game1
     {
         var registry = new HudElementRegistry();
         registry.RegisterDefinition(new HudElementDefinition(HudElementId.LocalHealth, HudElementRendererId.LocalHealth, HudElementLayerLocalHealth));
+        registry.RegisterDefinition(new HudElementDefinition(HudElementId.LastToDieRage, HudElementRendererId.LastToDieRage, HudElementLayerLastToDieRage));
+        registry.RegisterDefinition(new HudElementDefinition(HudElementId.LastToDieBuffIcon, HudElementRendererId.LastToDieBuffIcon, HudElementLayerLastToDieBuffIcon));
         registry.RegisterDefinition(new HudElementDefinition(HudElementId.LocalWeaponStack, HudElementRendererId.LocalWeaponStack, HudElementLayerLocalWeaponStack));
         registry.RegisterDefinition(new HudElementDefinition(HudElementId.LocalAbilityStack, HudElementRendererId.LocalAbilityStack, HudElementLayerLocalAbilityStack));
         registry.RegisterDefinition(new HudElementDefinition(HudElementId.ClassMedicUber, HudElementRendererId.ClassMedicUber, HudElementLayerClassMedic));
@@ -50,6 +56,7 @@ public partial class Game1
         registry.RegisterProvider(new LocalStatusHudProvider());
         registry.RegisterProvider(new WeaponHudProvider());
         registry.RegisterProvider(new AbilityHudProvider());
+        registry.RegisterProvider(new LastToDieHudProvider());
         registry.RegisterProvider(new MedicAssistHudProvider());
         registry.RegisterProvider(new ClassAbilityHudProvider());
 
@@ -57,6 +64,8 @@ public partial class Game1
         registry.RegisterRenderer(HudElementRendererId.LocalWeaponStack, new DelegateHudElementRenderer(static (context, _) => context.Game._gameplayLocalStatusHudController.DrawAmmoHud()));
         registry.RegisterRenderer(HudElementRendererId.LocalAbilityStack, new DelegateHudElementRenderer(static (context, _) => context.Game._gameplayLocalStatusHudController.DrawAbilityHud()));
         registry.RegisterRenderer(HudElementRendererId.LocalAbilityWidget, new DelegateHudElementRenderer(static (context, element) => context.Game._gameplayLocalStatusHudController.DrawAbilityHudElement(element.Id)));
+        registry.RegisterRenderer(HudElementRendererId.LastToDieRage, new DelegateHudElementRenderer(static (context, _) => context.Game.DrawLastToDieRageHud()));
+        registry.RegisterRenderer(HudElementRendererId.LastToDieBuffIcon, new DelegateHudElementRenderer(static (context, _) => context.Game.DrawLastToDieBuffIcon()));
         registry.RegisterRenderer(HudElementRendererId.ClassMedicUber, new DelegateHudElementRenderer(static (context, _) => context.Game._gameplayMedicHudController.DrawMedicHud()));
         registry.RegisterRenderer(HudElementRendererId.ClassMedicHealingTarget, new DelegateHudElementRenderer(static (context, _) => context.Game._gameplayMedicHudController.DrawMedicHealingTargetHud()));
         registry.RegisterRenderer(HudElementRendererId.ClassMedicHealer, new DelegateHudElementRenderer(static (context, _) => context.Game._gameplayMedicHudController.DrawMedicHealerHud()));
@@ -124,6 +133,28 @@ public partial class Game1
         public void Collect(HudElementContext context, List<HudElementInstance> elements)
         {
             context.Game._gameplayMedicHudController.CollectMedicAssistHudElements(context, elements);
+        }
+    }
+
+    private sealed class LastToDieHudProvider : IHudElementProvider
+    {
+        public void Collect(HudElementContext context, List<HudElementInstance> elements)
+        {
+            var game = context.Game;
+            if (!game._world.LocalPlayer.IsAlive)
+            {
+                return;
+            }
+
+            if (game.ShouldDrawLastToDieCombatFeedbackHud())
+            {
+                context.AddIfRegistered(elements, HudElementId.LastToDieRage);
+            }
+
+            if (game.ShouldDrawLastToDieBuffIcon())
+            {
+                context.AddIfRegistered(elements, HudElementId.LastToDieBuffIcon);
+            }
         }
     }
 

@@ -42,6 +42,8 @@ public partial class Game1
 
             _game.DrawGameplayHudLayers(mouse, cameraPosition);
             _game.DrawGameplayModalOverlays(mouse, cameraPosition);
+            _game.DrawVotePresentationOverlay();
+            _game.DrawLoadingOverlay();
             if (!_game._gameplayHudHidden)
             {
                 _game.DrawVersionOverlay();

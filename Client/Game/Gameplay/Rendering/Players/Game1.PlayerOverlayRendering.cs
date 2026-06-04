@@ -3,6 +3,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
+using System.Globalization;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
@@ -302,6 +303,33 @@ public partial class Game1
             Vector2.One,
             SpriteEffects.None,
             0f);
+    }
+
+    private void DrawPracticeCombatDummyDps(PlayerEntity player, Vector2 cameraPosition)
+    {
+        if (!_world.IsPracticeCombatDummy(player) || !player.IsAlive)
+        {
+            return;
+        }
+
+        var visibilityAlpha = GetPlayerVisibilityAlpha(player);
+        if (visibilityAlpha <= 0f)
+        {
+            return;
+        }
+
+        var roundedDps = Math.Max(0, (int)Math.Round(_world.PracticeCombatDummyDps, MidpointRounding.AwayFromZero));
+        var text = $"{roundedDps.ToString(CultureInfo.InvariantCulture)} DPS";
+        var intensity = _world.PracticeCombatDummyDamageIntensity;
+        var scale = 1f + (0.55f * intensity);
+        var textColor = Color.Lerp(Color.White, new Color(255, 48, 34), intensity) * visibilityAlpha;
+        var shadowColor = Color.Black * (0.75f * visibilityAlpha);
+        var renderPosition = GetRenderPosition(player);
+        var playerBounds = GetPlayerScreenBounds(player, renderPosition, cameraPosition);
+        var textY = MathF.Max(4f, playerBounds.Top - 30f - (8f * intensity));
+        var textPosition = new Vector2(playerBounds.Center.X, textY);
+        DrawBitmapFontTextCentered(text, textPosition + new Vector2(2f, 2f), shadowColor, scale);
+        DrawBitmapFontTextCentered(text, textPosition, textColor, scale);
     }
 
     private void DrawHealthBar(PlayerEntity player, Vector2 cameraPosition, Color fillColor, Color backColor, Color borderColor)

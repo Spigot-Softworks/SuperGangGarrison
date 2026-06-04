@@ -14,6 +14,8 @@ internal static class HudElementId
     public const string MatchObjectiveStatus = "match.objective.status";
     public const string MatchKothRedTimer = "match.koth.red.timer";
     public const string MatchKothBlueTimer = "match.koth.blue.timer";
+    public const string LastToDieRage = "last-to-die.rage";
+    public const string LastToDieBuffIcon = "last-to-die.buff-icon";
     public const string ClassMedicUber = "class.medic.uber";
     public const string ClassMedicHealingTarget = "class.medic.healing-target";
     public const string ClassMedicHealer = "class.medic.healer";

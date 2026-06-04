@@ -24,6 +24,7 @@
   <resource name="MedichaingunSnd" type="RESOURCE"/>
   <resource name="IntelDropSnd" type="RESOURCE"/>
   <resource name="Splat" type="RESOURCE"/>
+  <resource name="ImpactSnd" type="RESOURCE"/>
   <resource name="Gibbing" type="RESOURCE"/>
   <resource name="CompressionBlastSnd" type="RESOURCE"/>
   <resource name="BladeSnd" type="RESOURCE"/>
@@ -47,4 +48,9 @@
   <resource name="SentryFloorSnd" type="RESOURCE"/>
   <resource name="SentryBuildSnd" type="RESOURCE"/>
   <resource name="PickupSnd" type="RESOURCE"/>
+  <resource name="VoteEngageSnd" type="RESOURCE"/>
+  <resource name="VoteYesSnd" type="RESOURCE"/>
+  <resource name="VoteNoSnd" type="RESOURCE"/>
+  <resource name="VoteSuccessSnd" type="RESOURCE"/>
+  <resource name="VoteFailSnd" type="RESOURCE"/>
 </resources>

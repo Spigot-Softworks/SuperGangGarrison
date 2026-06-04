@@ -68,6 +68,26 @@ public static class PrimitiveDirectDrive
             out trace);
     }
 
+    public static bool TryResolveSupport(
+        SimulationWorld world,
+        PlayerEntity self,
+        DirectDriveTarget target,
+        SteeringOutput pathSteering,
+        float maxDistance,
+        out SteeringOutput directSteering,
+        out string trace)
+    {
+        return TryResolveTarget(
+            world,
+            self,
+            target,
+            pathSteering,
+            maxDistance,
+            useCombatRange: true,
+            out directSteering,
+            out trace);
+    }
+
     private static bool TryResolveTarget(
         SimulationWorld world,
         PlayerEntity self,
@@ -253,33 +273,11 @@ public static class PrimitiveDirectDrive
             return false;
         }
 
-        var probeLeft = horizontalDirection > 0
-            ? player.Right + WallProbeDistance
-            : player.Left - WallProbeDistance - WallProbeThickness;
-        var probeRight = probeLeft + WallProbeThickness;
-        var probeTop = player.Top;
-        var probeBottom = player.Bottom - WallProbeBottomInset;
-
-        foreach (var solid in world.Level.Solids)
+        var direction = MathF.Sign(horizontalDirection);
+        var maxProbeDistance = WallProbeDistance + WallProbeThickness;
+        for (var offset = 2f; offset <= maxProbeDistance; offset += 4f)
         {
-            if (RectanglesOverlap(probeLeft, probeTop, probeRight, probeBottom, solid.Left, solid.Top, solid.Right, solid.Bottom))
-            {
-                return true;
-            }
-        }
-
-        foreach (var gate in world.Level.GetBlockingTeamGates(player.Team, player.IsCarryingIntel))
-        {
-            if (RectanglesOverlap(probeLeft, probeTop, probeRight, probeBottom, gate.Left, gate.Top, gate.Right, gate.Bottom))
-            {
-                return true;
-            }
-        }
-
-        foreach (var wall in world.Level.RoomObjects)
-        {
-            if ((wall.Type == RoomObjectType.PlayerWall || wall.Type == RoomObjectType.BulletWall)
-                && RectanglesOverlap(probeLeft, probeTop, probeRight, probeBottom, wall.Left, wall.Top, wall.Right, wall.Bottom))
+            if (!player.CanOccupy(world.Level, player.Team, player.X + (direction * offset), player.Y))
             {
                 return true;
             }

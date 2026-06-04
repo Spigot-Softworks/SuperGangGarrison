@@ -243,6 +243,35 @@ public partial class Game1
         public void StopIngameMusic() => StopSoundInstance(_game._ingameMusicInstance);
         public void StopLastToDieIngameMusic() => StopSoundInstance(_game._lastToDieIngameMusicInstance);
 
+        public void TryLoadOptionalLoopedMusic(string relativePath, out SoundEffect? music, out SoundEffectInstance? musicInstance, float volume = 0f)
+        {
+            if (!_game._audioAvailable)
+            {
+                music = null;
+                musicInstance = null;
+                return;
+            }
+
+            TryLoadLoopedMusic(relativePath, out music, out musicInstance, volume, disableAudioOnFailure: false);
+        }
+
+        public void TryLoadOptionalMusicSound(string relativePath, out SoundEffect? music, out SoundEffectInstance? musicInstance, bool isLooped, float volume = 0f)
+        {
+            if (!_game._audioAvailable)
+            {
+                music = null;
+                musicInstance = null;
+                return;
+            }
+
+            TryLoadLoopedMusic(relativePath, out music, out musicInstance, volume, disableAudioOnFailure: false, isLooped: isLooped);
+        }
+
+        public bool CanStartMusicPlayback()
+        {
+            return CanStartAudioPlayback();
+        }
+
         public void PlayLastToDieGameOverSound()
         {
             if (!_game._audioAvailable)
@@ -342,7 +371,7 @@ public partial class Game1
             return null;
         }
 
-        private void TryLoadLoopedMusic(string relativePath, out SoundEffect? music, out SoundEffectInstance? musicInstance, float volume = 1f, bool disableAudioOnFailure = true)
+        private void TryLoadLoopedMusic(string relativePath, out SoundEffect? music, out SoundEffectInstance? musicInstance, float volume = 1f, bool disableAudioOnFailure = true, bool isLooped = true)
         {
             music = null;
             musicInstance = null;
@@ -357,7 +386,7 @@ public partial class Game1
             {
                 music = LoadMusicSoundEffect(musicPath);
                 musicInstance = music.CreateInstance();
-                musicInstance.IsLooped = true;
+                musicInstance.IsLooped = isLooped;
                 musicInstance.Volume = volume;
             }
             catch (Exception ex)

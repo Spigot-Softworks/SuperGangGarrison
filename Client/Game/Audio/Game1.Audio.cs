@@ -102,6 +102,7 @@ public partial class Game1
     private bool _audioMuted;
     private int _menuMusicVolumePercent = 70;
     private int _ingameMusicVolumePercent = 70;
+    private int _combatMusicVolumePercent = OpenGarrisonPreferencesDocument.DefaultCombatMusicVolumePercent;
     private int _soundEffectsVolumePercent = 70;
     private MusicMode _musicMode = MusicMode.MenuAndInGame;
     private bool _menuMusicLoadAttempted;
@@ -235,6 +236,7 @@ public partial class Game1
     private void StopIngameMusic()
     {
         _gameplayAudioMusicController.StopIngameMusic();
+        ResetDynamicMusicPlayback();
     }
 
     private void StopLastToDieIngameMusic()
@@ -552,6 +554,7 @@ public partial class Game1
         StopIngameMusic();
         StopLastToDieIngameMusic();
         StopLastToDieGameOverSound();
+        DisposeDynamicMusic();
         _menuMusicInstance?.Dispose();
         _menuMusicInstance = null;
         _menuMusic?.Dispose();
@@ -629,9 +632,11 @@ public partial class Game1
         SetSoundEffectInstanceVolume(_menuMusicInstance, GetNonLinearVolumeScale(_menuMusicVolumePercent) * 0.8f);
         SetSoundEffectInstanceVolume(_lastToDieMenuMusicInstance, GetNonLinearVolumeScale(_menuMusicVolumePercent) * 0.82f);
         SetSoundEffectInstanceVolume(_faucetMusicInstance, GetNonLinearVolumeScale(_menuMusicVolumePercent) * 0.8f);
-        SetSoundEffectInstanceVolume(_ingameMusicInstance, GetNonLinearVolumeScale(_ingameMusicVolumePercent) * 0.8f);
-        SetSoundEffectInstanceVolume(_lastToDieIngameMusicInstance, GetNonLinearVolumeScale(_ingameMusicVolumePercent) * 0.82f);
-        SetSoundEffectInstanceVolume(_lastToDieGameOverSoundInstance, GetNonLinearVolumeScale(_ingameMusicVolumePercent) * 0.85f);
+        var ingameMusicVolume = GetNonLinearVolumeScale(_ingameMusicVolumePercent);
+        SetSoundEffectInstanceVolume(_ingameMusicInstance, ingameMusicVolume * 0.8f * _dynamicNormalMusicFade);
+        SetSoundEffectInstanceVolume(_lastToDieIngameMusicInstance, ingameMusicVolume * 0.82f);
+        SetSoundEffectInstanceVolume(_lastToDieGameOverSoundInstance, ingameMusicVolume * 0.85f);
+        UpdateDynamicMusicInstanceVolumes(ingameMusicVolume);
     }
 
     private static float GetNonLinearVolumeScale(int percent)

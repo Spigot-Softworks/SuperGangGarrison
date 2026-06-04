@@ -179,11 +179,12 @@ public partial class Game1
         {
             if (_game._startupSplashOpen)
             {
-                _game.BeginLogicalFrame(new Color(24, 32, 48));
-                _game.DrawStartupSplash();
-                _game.DrawVersionOverlay();
-                _game.EndLogicalFrame();
-                return true;
+            _game.BeginLogicalFrame(new Color(24, 32, 48));
+            _game.DrawStartupSplash();
+            _game.DrawLoadingOverlay();
+            _game.DrawVersionOverlay();
+            _game.EndLogicalFrame();
+            return true;
             }
 
             if (!_game._mainMenuOpen)
@@ -193,6 +194,7 @@ public partial class Game1
 
             _game.BeginLogicalFrame(new Color(24, 32, 48));
             _game._menuController.Draw();
+            _game.DrawLoadingOverlay();
             if (!_game._mainMenuChromeHidden && _game.ShouldDrawSoftwareMenuCursor())
             {
                 _game.DrawSoftwareMenuCursor(_game.GetScaledMouseState(_game.GetConstrainedMouseState(Game1.GetCurrentMouseState())));

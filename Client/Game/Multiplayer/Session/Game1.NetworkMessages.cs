@@ -55,7 +55,10 @@ public partial class Game1
                     HandleControlAckMessage(ack);
                     break;
                 case ServerPluginMessage serverPluginMessage:
-                    NotifyClientPluginsServerMessage(serverPluginMessage);
+                    if (!TryHandleBuiltInVotePresentationMessage(serverPluginMessage))
+                    {
+                        NotifyClientPluginsServerMessage(serverPluginMessage);
+                    }
                     break;
                 case PlayerSocialProfileUpdateMessage socialProfileUpdate:
                     HandlePlayerSocialProfileUpdateMessage(socialProfileUpdate);

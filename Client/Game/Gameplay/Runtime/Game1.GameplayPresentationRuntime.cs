@@ -45,6 +45,7 @@ public partial class Game1
 
         RemoveStalePlayerRenderState();
         AdvanceGameplayClientTicks(clientTicks);
+        UpdateVotePresentation(clientTicks);
         UpdatePostGameMvpWinScreenState(keyboard, clientTicks);
         PlayPendingVisualEvents();
         PlayPendingSoundEvents();
@@ -57,6 +58,7 @@ public partial class Game1
         PlayKillFeedAnnouncementSounds();
         var musicStartTimestamp = IsClientPerformanceDiagnosticsEnabled() ? Stopwatch.GetTimestamp() : 0L;
         EnsureIngameMusicPlaying();
+        UpdateDynamicMusic(gameTime, clientTicks);
         if (musicStartTimestamp > 0)
         {
             RecordClientPerformanceMetric(ClientPerformanceMetric.Music, GetDiagnosticsElapsedMilliseconds(musicStartTimestamp));

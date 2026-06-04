@@ -121,7 +121,7 @@ public static class TargetSelector
             for (var index = 0; index < candidateCount; index += 1)
             {
                 var target = candidates[index].Target;
-                if (CombatDecisionResolver.HasLineOfSight(world, self.X, self.Y, target.X, target.Y, self.Team, self.IsCarryingIntel))
+                if (CombatDecisionResolver.HasCombatLineOfSight(world, self.X, self.Y, target.X, target.Y))
                 {
                     return target;
                 }

@@ -79,11 +79,12 @@ public partial class Game1
             CollectGameplayHudElements();
             DrawGameplayHudElements(0, 10);
             WriteGameplayRenderTrace("hud after localhealth");
-            DrawLastToDieBuffIcon(mouse);
+            _lastGameplayHudMouse = mouse;
+            DrawGameplayHudElements(11, 11);
             WriteGameplayRenderTrace("hud after ltdbufficon");
             DrawExperimentalHealingHudIndicators();
             WriteGameplayRenderTrace("hud after experimentalhealing");
-            DrawGameplayHudElements(11, 29);
+            DrawGameplayHudElements(12, 29);
             WriteGameplayRenderTrace("hud after ammo");
             var aimScreenPosition = GetEffectiveAimScreenPosition(mouse, cameraPosition);
             DrawSniperHud(aimScreenPosition);

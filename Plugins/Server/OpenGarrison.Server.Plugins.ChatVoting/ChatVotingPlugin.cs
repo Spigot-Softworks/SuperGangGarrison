@@ -4,7 +4,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using OpenGarrison.Core;
+using OpenGarrison.Protocol;
 using OpenGarrison.Server.Plugins;
 
 namespace OpenGarrison.Server.Plugins.ChatVoting;
@@ -17,6 +19,8 @@ public sealed class ChatVotingPlugin :
     IOpenGarrisonServerMapHooks
 {
     private const string ConfigFileName = "chat-voting.json";
+    private const string VotePresentationTargetPluginId = "open.garrison.client";
+    private const string VotePresentationMessageType = "vote-event";
     private readonly Func<DateTimeOffset> _utcNowProvider;
     private IOpenGarrisonServerPluginContext? _context;
     private ChatVotingPluginConfig _config = new();
@@ -208,6 +212,7 @@ public sealed class ChatVotingPlugin :
         var label = FormatMapLabel(level.Name, level.MapAreaIndex, level.MapAreaCount);
         var requiredYesVotes = GetRequiredYesVotes(eligibleCount);
         var actionLabel = kind == VoteKind.ChangeMapNow ? "votemap" : "votenextround";
+        BroadcastVotePresentationEvent(context, "started", _activeVote, initiator.Slot, initiator.Name);
         ResolveVoteIfPossible(context);
         if (_activeVote is null)
         {
@@ -252,6 +257,7 @@ public sealed class ChatVotingPlugin :
 
         oppositeVotes.Remove(player.Slot);
         targetVotes.Add(player.Slot);
+        BroadcastVotePresentationEvent(context, isYesVote ? "yes" : "no", _activeVote, player.Slot, player.Name);
         context.AdminOperations.BroadcastSystemMessage(
             $"{player.Name} voted {(isYesVote ? "yes" : "no")} " +
             $"({BuildVoteCountsLabel(context.ServerState, _activeVote)})");
@@ -288,6 +294,7 @@ public sealed class ChatVotingPlugin :
         context.AdminOperations.BroadcastSystemMessage(
             $"{_activeVote.InitiatorName} canceled the vote for " +
             $"{FormatMapLabel(_activeVote.LevelName, _activeVote.AreaIndex, _activeVote.AreaCount)}.");
+        BroadcastVotePresentationEvent(context, "canceled", _activeVote, e.Slot, _activeVote.InitiatorName);
         ClearActiveVote(startCooldown: true);
         return true;
     }
@@ -340,16 +347,18 @@ public sealed class ChatVotingPlugin :
             return;
         }
 
-        var voteKind = _activeVote.Kind;
-        var levelName = _activeVote.LevelName;
-        var areaIndex = _activeVote.AreaIndex;
-        var label = FormatMapLabel(levelName, areaIndex, _activeVote.AreaCount);
+        var activeVote = _activeVote;
+        var voteKind = activeVote.Kind;
+        var levelName = activeVote.LevelName;
+        var areaIndex = activeVote.AreaIndex;
+        var label = FormatMapLabel(levelName, areaIndex, activeVote.AreaCount);
         var success = voteKind == VoteKind.ChangeMapNow
             ? context.AdminOperations.TryChangeMap(levelName, areaIndex, preservePlayerStats: false)
             : context.AdminOperations.TrySetNextRoundMap(levelName, areaIndex);
 
         if (success)
         {
+            BroadcastVotePresentationEvent(context, "passed", activeVote);
             context.AdminOperations.BroadcastSystemMessage(
                 voteKind == VoteKind.ChangeMapNow
                     ? $"Vote passed for {label}. Changing map now."
@@ -357,6 +366,7 @@ public sealed class ChatVotingPlugin :
         }
         else
         {
+            BroadcastVotePresentationEvent(context, "failed", activeVote);
             context.AdminOperations.BroadcastSystemMessage($"Vote passed for {label}, but the action could not be applied.");
         }
 
@@ -373,7 +383,45 @@ public sealed class ChatVotingPlugin :
         context.AdminOperations.BroadcastSystemMessage(
             $"{reason} for {FormatMapLabel(_activeVote.LevelName, _activeVote.AreaIndex, _activeVote.AreaCount)} " +
             $"({BuildVoteCountsLabel(context.ServerState, _activeVote)}).");
+        BroadcastVotePresentationEvent(
+            context,
+            reason.Contains("expired", StringComparison.OrdinalIgnoreCase) ? "expired" : "failed",
+            _activeVote);
         ClearActiveVote(startCooldown: true);
+    }
+
+    private void BroadcastVotePresentationEvent(
+        OpenGarrisonServerChatMessageContext context,
+        string eventName,
+        ActiveVote vote,
+        byte? actorSlot = null,
+        string actorName = "")
+    {
+        if (_context is null)
+        {
+            return;
+        }
+
+        var eligibleCount = GetEligibleSlots(context.ServerState).Count;
+        var payload = new VotePresentationPayload(
+            eventName,
+            vote.Kind == VoteKind.ChangeMapNow ? "votemap" : "votenextround",
+            FormatMapLabel(vote.LevelName, vote.AreaIndex, vote.AreaCount),
+            vote.InitiatorName,
+            actorSlot,
+            actorName,
+            vote.YesVotes.Count,
+            vote.NoVotes.Count,
+            GetRequiredYesVotes(eligibleCount),
+            eligibleCount,
+            Math.Max(0, (int)Math.Ceiling((vote.ExpiresAtUtc - _utcNowProvider()).TotalSeconds)));
+
+        _context.BroadcastMessageToClients(
+            VotePresentationTargetPluginId,
+            VotePresentationMessageType,
+            JsonSerializer.Serialize(payload),
+            PluginMessagePayloadFormat.Json,
+            schemaVersion: 1);
     }
 
     private void ClearActiveVote(bool startCooldown = false)
@@ -545,6 +593,19 @@ public sealed class ChatVotingPlugin :
         ChangeMapNow = 1,
         ChangeMapNextRound = 2,
     }
+
+    private sealed record VotePresentationPayload(
+        string EventName,
+        string Kind,
+        string MapLabel,
+        string InitiatorName,
+        byte? ActorSlot,
+        string ActorName,
+        int YesVotes,
+        int NoVotes,
+        int RequiredYesVotes,
+        int EligibleVotes,
+        int SecondsRemaining);
 
     private sealed class ActiveVote
     {

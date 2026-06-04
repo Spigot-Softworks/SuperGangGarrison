@@ -92,24 +92,35 @@ public sealed partial class SimulationWorld
             var burner = afterburn.BurnedByPlayerId.HasValue
                 ? FindPlayerById(afterburn.BurnedByPlayerId.Value)
                 : null;
-            RegisterDamageEvent(
-                burner,
-                DamageTargetKind.Player,
-                player.Id,
-                player.X,
-                player.Y,
-                healthBeforeTick - player.Health,
-                afterburn.IsFatal);
-            ApplyExperimentalDamageRewards(burner, player, healthBeforeTick - player.Health, allowOsmosisHealOwnedSentries: false);
+            var afterburnDamage = healthBeforeTick - player.Health;
+            if (!TryAbsorbPracticeCombatDummyTickDamage(player, afterburnDamage, burner))
+            {
+                RegisterDamageEvent(
+                    burner,
+                    DamageTargetKind.Player,
+                    player.Id,
+                    player.X,
+                    player.Y,
+                    afterburnDamage,
+                    afterburn.IsFatal);
+                ApplyExperimentalDamageRewards(burner, player, afterburnDamage, allowOsmosisHealOwnedSentries: false);
+            }
         }
 
         if (afterburn.IsFatal)
         {
-            var burner = afterburn.BurnedByPlayerId.HasValue
-                ? FindPlayerById(afterburn.BurnedByPlayerId.Value)
-                : null;
-            KillPlayer(player, killer: burner, weaponSpriteName: "FlameKL");
-            return;
+            if (IsPracticeCombatDummy(player))
+            {
+                player.ForceSetHealth(player.MaxHealth);
+            }
+            else
+            {
+                var burner = afterburn.BurnedByPlayerId.HasValue
+                    ? FindPlayerById(afterburn.BurnedByPlayerId.Value)
+                    : null;
+                KillPlayer(player, killer: burner, weaponSpriteName: "FlameKL");
+                return;
+            }
         }
 
         if (isHumiliated && player.ClassId == PlayerClass.Spy && !player.IsSpyBackstabAnimating)

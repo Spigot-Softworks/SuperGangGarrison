@@ -21,6 +21,8 @@ internal static class CustomMapSyncService
         public static CustomMapSyncResult Fail(string error) => new(false, error);
     }
 
+    internal readonly record struct CustomMapSyncProgress(string Message, double? Progress);
+
     public static bool EnsureMapAvailable(
         string levelName,
         bool isCustomMap,
@@ -42,7 +44,8 @@ internal static class CustomMapSyncService
         bool isCustomMap,
         string mapDownloadUrl,
         string mapContentHash,
-        Uri? serverDownloadBaseUri)
+        Uri? serverDownloadBaseUri,
+        IProgress<CustomMapSyncProgress>? progress = null)
     {
         var httpClient = OperatingSystem.IsBrowser()
             ? ClientRuntimeBootstrap.GetBrowserHttpClient() ?? HttpClient
@@ -53,7 +56,8 @@ internal static class CustomMapSyncService
             mapDownloadUrl,
             mapContentHash,
             serverDownloadBaseUri,
-            httpClient);
+            httpClient,
+            progress);
     }
 
     internal static async Task<CustomMapSyncResult> EnsureMapAvailableAsync(
@@ -62,12 +66,16 @@ internal static class CustomMapSyncService
         string mapDownloadUrl,
         string mapContentHash,
         Uri? serverDownloadBaseUri,
-        HttpClient httpClient)
+        HttpClient httpClient,
+        IProgress<CustomMapSyncProgress>? progress = null)
     {
         if (!isCustomMap)
         {
+            ReportProgress(progress, "Loading map...", 1d);
             return CustomMapSyncResult.Ok;
         }
+
+        ReportProgress(progress, "Checking custom map...", null);
 
         if (!CustomMapLocatorStore.TryNormalizeLevelName(levelName, out var normalizedLevelName))
         {
@@ -86,6 +94,7 @@ internal static class CustomMapSyncService
                 CacheLocator(normalizedLevelName, downloadUrl, expectedHash);
             }
 
+            ReportProgress(progress, "Loading map...", 1d);
             return CustomMapSyncResult.Ok;
         }
 
@@ -97,6 +106,7 @@ internal static class CustomMapSyncService
                 CacheLocator(normalizedLevelName, downloadUrl, expectedHash);
             }
 
+            ReportProgress(progress, "Loading map...", 1d);
             return CustomMapSyncResult.Ok;
         }
 
@@ -111,14 +121,16 @@ internal static class CustomMapSyncService
         }
 
         var isPackageDownload = ShouldDownloadPackage(downloadUrl, expectedHash);
+        ReportProgress(progress, "Downloading custom map...", null);
         var result = isPackageDownload
-            ? await TryDownloadPackageAsync(httpClient, normalizedLevelName, downloadUrl, expectedHash).ConfigureAwait(false)
-            : await TryDownloadLegacyMapAsync(httpClient, downloadUrl, mapPath, expectedHash).ConfigureAwait(false);
+            ? await TryDownloadPackageAsync(httpClient, normalizedLevelName, downloadUrl, expectedHash, progress).ConfigureAwait(false)
+            : await TryDownloadLegacyMapAsync(httpClient, downloadUrl, mapPath, expectedHash, progress).ConfigureAwait(false);
         if (!result.Success)
         {
             return result;
         }
 
+        ReportProgress(progress, "Loading map...", 1d);
         CacheLocator(normalizedLevelName, downloadUrl, expectedHash);
         return CustomMapSyncResult.Ok;
     }
@@ -509,7 +521,8 @@ internal static class CustomMapSyncService
         HttpClient httpClient,
         string mapDownloadUrl,
         string mapPath,
-        CustomMapHashValue expectedHash)
+        CustomMapHashValue expectedHash,
+        IProgress<CustomMapSyncProgress>? progress)
     {
         if (!TryCreateSupportedDownloadUri(mapDownloadUrl, "map download URL", out var mapUri, out var error))
         {
@@ -533,9 +546,19 @@ internal static class CustomMapSyncService
                 return CustomMapSyncResult.Fail($"Map download returned unsupported content type: {mediaType}.");
             }
 
-            var payload = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
-            File.WriteAllBytes(tempPath, payload);
+            using (var networkStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+            using (var fileStream = File.Create(tempPath))
+            {
+                await CopyToFileWithProgressAsync(
+                        networkStream,
+                        fileStream,
+                        response.Content.Headers.ContentLength,
+                        "Downloading custom map...",
+                        progress)
+                    .ConfigureAwait(false);
+            }
 
+            ReportProgress(progress, "Verifying custom map...", null);
             if (expectedHash.HasValue
                 && !CustomMapHashService.FileMatchesHash(tempPath, expectedHash))
             {
@@ -678,7 +701,8 @@ internal static class CustomMapSyncService
         HttpClient httpClient,
         string levelName,
         string manifestDownloadUrl,
-        CustomMapHashValue expectedHash)
+        CustomMapHashValue expectedHash,
+        IProgress<CustomMapSyncProgress>? progress)
     {
         if (!TryCreateSupportedDownloadUri(manifestDownloadUrl, "map package manifest URL", out var manifestUri, out var packageError))
         {
@@ -698,7 +722,8 @@ internal static class CustomMapSyncService
                     manifestUri,
                     tempManifestPath,
                     IsSupportedManifestContentType,
-                    "Map package manifest")
+                    "Map package manifest",
+                    progress)
                 .ConfigureAwait(false);
             if (!manifestResult.Success)
             {
@@ -729,7 +754,8 @@ internal static class CustomMapSyncService
                         imageUri,
                         imageOutputPath,
                         IsSupportedPngContentType,
-                        "Map package image")
+                        "Map package image",
+                        progress)
                     .ConfigureAwait(false);
                 if (!imageResult.Success)
                 {
@@ -737,6 +763,7 @@ internal static class CustomMapSyncService
                 }
             }
 
+            ReportProgress(progress, "Verifying custom map package...", null);
             if (expectedHash.HasValue
                 && !CustomMapHashService.PackageMatchesHash(tempManifestPath, expectedHash))
             {
@@ -832,7 +859,8 @@ internal static class CustomMapSyncService
         Uri uri,
         string outputPath,
         Func<string?, bool> contentTypeValidator,
-        string label)
+        string label,
+        IProgress<CustomMapSyncProgress>? progress)
     {
         using var response = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
@@ -847,9 +875,54 @@ internal static class CustomMapSyncService
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
-        var payload = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
-        File.WriteAllBytes(outputPath, payload);
+        using (var networkStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+        using (var fileStream = File.Create(outputPath))
+        {
+            await CopyToFileWithProgressAsync(
+                    networkStream,
+                    fileStream,
+                    response.Content.Headers.ContentLength,
+                    $"Downloading {label.ToLowerInvariant()}...",
+                    progress)
+                .ConfigureAwait(false);
+        }
+
         return CustomMapSyncResult.Ok;
+    }
+
+    private static async Task CopyToFileWithProgressAsync(
+        Stream source,
+        Stream destination,
+        long? totalBytes,
+        string message,
+        IProgress<CustomMapSyncProgress>? progress)
+    {
+        var buffer = new byte[81920];
+        long copiedBytes = 0;
+        ReportProgress(progress, message, totalBytes.HasValue && totalBytes.Value > 0 ? 0d : null);
+
+        while (true)
+        {
+            var bytesRead = await source.ReadAsync(buffer.AsMemory(0, buffer.Length)).ConfigureAwait(false);
+            if (bytesRead <= 0)
+            {
+                break;
+            }
+
+            await destination.WriteAsync(buffer.AsMemory(0, bytesRead)).ConfigureAwait(false);
+            copiedBytes += bytesRead;
+            if (totalBytes.HasValue && totalBytes.Value > 0)
+            {
+                ReportProgress(progress, message, Math.Clamp(copiedBytes / (double)totalBytes.Value, 0d, 1d));
+            }
+        }
+
+        ReportProgress(progress, message, totalBytes.HasValue && totalBytes.Value > 0 ? 1d : null);
+    }
+
+    private static void ReportProgress(IProgress<CustomMapSyncProgress>? progress, string message, double? value)
+    {
+        progress?.Report(new CustomMapSyncProgress(message, value.HasValue ? Math.Clamp(value.Value, 0d, 1d) : null));
     }
 
     private static bool IsSupportedManifestContentType(string? mediaType)

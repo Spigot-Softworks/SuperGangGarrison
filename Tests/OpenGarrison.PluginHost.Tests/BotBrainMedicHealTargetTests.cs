@@ -62,6 +62,26 @@ public sealed class BotBrainMedicHealTargetTests
     }
 
     [Fact]
+    public void MedicHealTargetSkipsMedicAsOrdinaryPocketOrCriticalTarget()
+    {
+        var world = CreateMedicTargetWorld(
+            out var medic,
+            out var scout,
+            out var soldier,
+            out var heavy);
+        scout.ForceSetHealth(scout.MaxHealth);
+        soldier.ForceSetHealth(soldier.MaxHealth);
+        heavy.ForceSetHealth(heavy.MaxHealth);
+        var otherMedic = AddNetworkPlayer(world, 5, PlayerClass.Medic, medic.X + 20f, medic.Y);
+        otherMedic.ForceSetHealth(1);
+
+        var selection = CombatDecisionResolver.FindBestMedicHealTargetSelection(world, medic, PlayerTeam.Red);
+
+        Assert.Same(heavy, selection.Target);
+        Assert.Equal(MedicHealTargetSelectionKind.Pocket, selection.Kind);
+    }
+
+    [Fact]
     public void MedicHealTargetPrioritizesHumanMedicCallOverPocketTarget()
     {
         var world = CreateMedicTargetWorld(
@@ -81,6 +101,30 @@ public sealed class BotBrainMedicHealTargetTests
             new Dictionary<byte, PlayerTeam> { [SimulationWorld.LocalPlayerSlot] = PlayerTeam.Red });
 
         Assert.Same(scout, selection.Target);
+        Assert.Equal(MedicHealTargetSelectionKind.HumanMedicCall, selection.Kind);
+    }
+
+    [Fact]
+    public void MedicHealTargetAllowsNonControlledMedicPlayerWhoCallsForMedic()
+    {
+        var world = CreateMedicTargetWorld(
+            out var medic,
+            out var scout,
+            out var soldier,
+            out var heavy);
+        scout.ForceSetHealth(scout.MaxHealth);
+        soldier.ForceSetHealth(soldier.MaxHealth);
+        heavy.ForceSetHealth(heavy.MaxHealth);
+        var humanMedic = AddNetworkPlayer(world, 5, PlayerClass.Medic, medic.X + 40f, medic.Y);
+        humanMedic.TriggerChatBubble(ChatBubbleFrameCatalog.Medic);
+
+        var selection = CombatDecisionResolver.FindBestMedicHealTargetSelection(
+            world,
+            medic,
+            PlayerTeam.Red,
+            new Dictionary<byte, PlayerTeam> { [SimulationWorld.LocalPlayerSlot] = PlayerTeam.Red });
+
+        Assert.Same(humanMedic, selection.Target);
         Assert.Equal(MedicHealTargetSelectionKind.HumanMedicCall, selection.Kind);
     }
 
@@ -109,6 +153,61 @@ public sealed class BotBrainMedicHealTargetTests
 
         Assert.Same(heavy, selection.Target);
         Assert.Equal(MedicHealTargetSelectionKind.Pocket, selection.Kind);
+    }
+
+    [Fact]
+    public void MedicDecisionReleasesExistingMedicBeamWhenBetterNonMedicTargetExists()
+    {
+        var world = CreateMedicTargetWorld(
+            out var medic,
+            out _,
+            out _,
+            out var heavy);
+        var otherMedic = AddNetworkPlayer(world, 5, PlayerClass.Medic, medic.X + 20f, medic.Y);
+        medic.SetMedicHealingTarget(otherMedic);
+
+        var decision = CombatDecisionResolver.Resolve(
+            world,
+            medic,
+            combatTarget: null,
+            healTarget: heavy,
+            new CombatDecisionMemory());
+
+        Assert.False(decision.FirePrimary);
+    }
+
+    [Fact]
+    public void MedicSupportDriveBacksAwayFromHealTargetWhenTooClose()
+    {
+        var world = CreateMedicTargetWorld(
+            out var medic,
+            out _,
+            out _,
+            out var heavy);
+        heavy.TeleportTo(medic.X + 20f, medic.Y);
+        var controller = new BotBrainController();
+        var method = typeof(BotBrainController).GetMethod(
+            "TryResolveMedicSupportDrive",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+
+        var arguments = new object?[]
+        {
+            world,
+            medic,
+            PlayerTeam.Red,
+            heavy,
+            MedicHealTargetSelectionKind.Pocket,
+            new SteeringOutput(),
+            null,
+            null,
+        };
+
+        var resolved = (bool)method!.Invoke(controller, arguments)!;
+        var steering = Assert.IsType<SteeringOutput>(arguments[6]);
+
+        Assert.True(resolved);
+        Assert.True(steering.MoveDirection < 0f);
     }
 
     private static SimulationWorld CreateMedicTargetWorld(
