@@ -477,7 +477,12 @@ public partial class Game1
                 }
             }
 
-            return false;
+            return SimpleLevelBarrierCollision.BlocksPointForPlayer(
+                _game._world.Level,
+                player.Team,
+                player.IsCarryingIntel,
+                x,
+                y);
         }
 
         private static string? GetTeamSpriteName(PlayerClass classId, PlayerTeam team, string suffix)

@@ -73,7 +73,7 @@ public sealed partial class SimulationWorld
             world.Level.ControlPointSetupGatesActive = world._controlPointSetupMode && world._controlPointSetupTicksRemaining > 0;
         }
 
-        public static void InitializeForLevel(SimulationWorld world)
+        public static void InitializeForLevel(SimulationWorld world, bool evaluateLogicGraph = true)
         {
             world._controlPoints.Clear();
             world._controlPointZones.Clear();
@@ -94,6 +94,10 @@ public sealed partial class SimulationWorld
             }
 
             BuildZones(world);
+            if (evaluateLogicGraph)
+            {
+                world.EvaluateMapLogicGraph();
+            }
         }
 
         private static List<RoomObjectMarker> OrderMarkers(IReadOnlyList<RoomObjectMarker> markers)
@@ -103,7 +107,7 @@ public sealed partial class SimulationWorld
 
             foreach (var marker in markers)
             {
-                if (TryParseIndex(marker, out var index))
+                if (ControlPointMarkerIndex.TryGetIndex(marker, out var index))
                 {
                     hasExplicitIndex = true;
                     withIndex.Add((index, marker));
@@ -128,29 +132,6 @@ public sealed partial class SimulationWorld
                 .ToList();
         }
 
-        private static bool TryParseIndex(RoomObjectMarker marker, out int index)
-        {
-            index = 0;
-            if (string.IsNullOrWhiteSpace(marker.SourceName))
-            {
-                return false;
-            }
-
-            const string prefix = "ControlPoint";
-            if (!marker.SourceName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            var suffix = marker.SourceName[prefix.Length..];
-            if (string.IsNullOrWhiteSpace(suffix))
-            {
-                return false;
-            }
-
-            return int.TryParse(suffix, out index) && index > 0;
-        }
-
         private static void BuildZones(SimulationWorld world)
         {
             var zones = world.Level.GetRoomObjects(RoomObjectType.CaptureZone);
@@ -164,7 +145,6 @@ public sealed partial class SimulationWorld
                 var zone = zones[zoneIndex];
                 var closestIndex = -1;
                 var closestDistance = float.MaxValue;
-
                 for (var pointIndex = 0; pointIndex < world._controlPoints.Count; pointIndex += 1)
                 {
                     var point = world._controlPoints[pointIndex];
@@ -201,75 +181,32 @@ public sealed partial class SimulationWorld
                 return;
             }
 
-            var baseTime = world._controlPointSetupMode ? 6 * 30f : 7 * 30f;
-
             for (var index = 0; index < world._controlPoints.Count; index += 1)
             {
                 var point = world._controlPoints[index];
-                point.CapTimeTicks = Math.Max(1, (int)MathF.Round(GetCapTime(total, point.Index, baseTime, world._controlPointSetupMode)));
+                var (storedMultiplier, isCustom) = point.Marker.CapTimeMultiplierSettings;
+                point.CapTimeTicks = ControlPointCapTimeMultiplierMetadata.ResolveCapTimeTicks(
+                    total,
+                    point.Index,
+                    world._controlPointSetupMode,
+                    storedMultiplier,
+                    isCustom);
             }
-        }
-
-        private static float GetCapTime(int totalPoints, int pointIndex, float baseTime, bool setupMode)
-        {
-            if (totalPoints <= 1)
-            {
-                return baseTime * (setupMode ? 15f : 9f);
-            }
-
-            if (setupMode)
-            {
-                return totalPoints switch
-                {
-                    2 => pointIndex == 2 ? baseTime * 2.5f : baseTime * 10f,
-                    3 => pointIndex == 3 ? baseTime * 2.5f : pointIndex == 2 ? baseTime * 5f : baseTime * 7.5f,
-                    4 => pointIndex == 4 ? baseTime * 1.5f : pointIndex == 3 ? baseTime * 3f : pointIndex == 2 ? baseTime * 4.5f : baseTime * 6f,
-                    _ => pointIndex == 5 ? baseTime : pointIndex == 4 ? baseTime * 2f : pointIndex == 3 ? baseTime * 3f : pointIndex == 2 ? baseTime * 4f : baseTime * 5f,
-                };
-            }
-
-            return totalPoints switch
-            {
-                2 => baseTime * 4.5f,
-                3 => pointIndex == 2 ? baseTime * 4.5f : baseTime * 2.25f,
-                4 => pointIndex == 4 ? baseTime * 1.5f : pointIndex == 3 ? baseTime * 3f : pointIndex == 2 ? baseTime * 3f : baseTime * 1.5f,
-                _ => pointIndex == 5 ? baseTime : pointIndex == 4 ? baseTime * 2f : pointIndex == 3 ? baseTime * 3f : pointIndex == 2 ? baseTime * 2f : baseTime,
-            };
         }
 
         private static void AssignOwnership(SimulationWorld world)
         {
-            for (var index = 0; index < world._controlPoints.Count; index += 1)
-            {
-                world._controlPoints[index].Team = null;
-            }
-
-            if (world._controlPoints.Count <= 1)
-            {
-                return;
-            }
-
-            if (world._controlPointSetupMode)
-            {
-                for (var index = 0; index < world._controlPoints.Count; index += 1)
-                {
-                    world._controlPoints[index].Team = PlayerTeam.Blue;
-                }
-
-                return;
-            }
-
-            var middlePoint = world._controlPoints.Count / 2f;
-            var middleCeiling = (int)MathF.Ceiling(middlePoint);
-            for (var index = 0; index < world._controlPoints.Count; index += 1)
+            var totalPoints = world._controlPoints.Count;
+            for (var index = 0; index < totalPoints; index += 1)
             {
                 var point = world._controlPoints[index];
-                point.Team = point.Index <= middlePoint ? PlayerTeam.Red : PlayerTeam.Blue;
-
-                if (world._controlPoints.Count > 2 && point.Index == middleCeiling)
-                {
-                    point.Team = null;
-                }
+                var context = new ControlPointOwnershipContext(
+                    point.Index,
+                    totalPoints,
+                    world._controlPointSetupMode,
+                    world.MatchRules.Mode,
+                    world.Level.ControlPointSettings.OverrideInitialOwnership);
+                point.Team = ControlPointOwnershipResolver.ResolveInitialTeam(point.Marker, in context);
             }
         }
 
@@ -283,7 +220,9 @@ public sealed partial class SimulationWorld
                 point.Cappers = 0;
                 point.RedCappers = 0;
                 point.BlueCappers = 0;
-                point.IsLocked = false;
+                point.IsLocked = world.Level.ControlPointSettings.OverrideInitialOwnership
+                    ? ControlPointLockDependencyMetadata.GetInitialLocked(point.Marker.LockRules)
+                    : false;
                 point.HasHealingAura = false;
             }
         }

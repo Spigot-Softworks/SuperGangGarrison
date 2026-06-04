@@ -15,9 +15,9 @@ public sealed partial class SimulationWorld
         ControlPointSetupSystem.UpdateSetupGates(this);
     }
 
-    private void InitializeControlPointsForLevel()
+    private void InitializeControlPointsForLevel(bool evaluateLogicGraph = true)
     {
-        ControlPointSetupSystem.InitializeForLevel(this);
+        ControlPointSetupSystem.InitializeForLevel(this, evaluateLogicGraph);
     }
 
     private void UpdateControlPointState()
@@ -70,7 +70,8 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        InitializeControlPointsForLevel();
+        var previousSetupTicksRemaining = _controlPointSetupTicksRemaining;
+        InitializeControlPointsForLevel(evaluateLogicGraph: false);
         if (_controlPoints.Count == 0)
         {
             return;
@@ -105,5 +106,10 @@ public sealed partial class SimulationWorld
             target.Cappers = pointState.Cappers;
             target.IsLocked = pointState.IsLocked;
         }
+
+        var enteredSetupPhase = ControlPointSetupDurationTicks > 0
+            && _controlPointSetupTicksRemaining >= ControlPointSetupDurationTicks
+            && previousSetupTicksRemaining < _controlPointSetupTicksRemaining;
+        SyncMapLogicRuntimeFromAuthoritativeControlPoints(enteredSetupPhase);
     }
 }

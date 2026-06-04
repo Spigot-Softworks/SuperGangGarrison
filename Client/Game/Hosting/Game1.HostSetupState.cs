@@ -13,6 +13,12 @@ public partial class Game1
         set => _hostSetupState.HoverIndex = value;
     }
 
+    private int _hostSetupPlaylistHoverIndex
+    {
+        get => _hostSetupState.PlaylistHoverIndex;
+        set => _hostSetupState.PlaylistHoverIndex = value;
+    }
+
     private int _hostMapIndex
     {
         get => _hostSetupState.MapIndex;
@@ -47,6 +53,24 @@ public partial class Game1
     {
         get => _hostSetupState.Tab;
         set => _hostSetupState.Tab = value;
+    }
+
+    private HostSetupScreen _hostSetupScreen
+    {
+        get => _hostSetupState.Screen;
+        set => _hostSetupState.Screen = value;
+    }
+
+    private int _hostOptionsHoverIndex
+    {
+        get => _hostSetupState.OptionsHoverIndex;
+        set => _hostSetupState.OptionsHoverIndex = value;
+    }
+
+    private int _hostOptionsScrollOffset
+    {
+        get => _hostSetupState.OptionsScrollOffset;
+        set => _hostSetupState.OptionsScrollOffset = value;
     }
 
     private string _hostServerNameBuffer
@@ -85,22 +109,40 @@ public partial class Game1
         set => _hostSetupState.MapRotationFileBuffer = value;
     }
 
+    private bool _hostUsePlaylistFile
+    {
+        get => _hostSetupState.UsePlaylistFile;
+        set => _hostSetupState.UsePlaylistFile = value;
+    }
+
     private string _hostTimeLimitBuffer
     {
         get => _hostSetupState.TimeLimitBuffer;
-        set => _hostSetupState.TimeLimitBuffer = value;
+        set
+        {
+            _hostSetupState.TimeLimitBuffer = value;
+            _hostSetupState.NotifyLinkedBasicHostSettingsChanged();
+        }
     }
 
     private string _hostCapLimitBuffer
     {
         get => _hostSetupState.CapLimitBuffer;
-        set => _hostSetupState.CapLimitBuffer = value;
+        set
+        {
+            _hostSetupState.CapLimitBuffer = value;
+            _hostSetupState.NotifyLinkedBasicHostSettingsChanged();
+        }
     }
 
     private string _hostRespawnSecondsBuffer
     {
         get => _hostSetupState.RespawnSecondsBuffer;
-        set => _hostSetupState.RespawnSecondsBuffer = value;
+        set
+        {
+            _hostSetupState.RespawnSecondsBuffer = value;
+            _hostSetupState.NotifyLinkedBasicHostSettingsChanged();
+        }
     }
 
     private int _hostServerNameCursorIndex
@@ -220,12 +262,20 @@ public partial class Game1
     private bool _hostAutoBalanceEnabled
     {
         get => _hostSetupState.AutoBalanceEnabled;
-        set => _hostSetupState.AutoBalanceEnabled = value;
+        set
+        {
+            _hostSetupState.AutoBalanceEnabled = value;
+            _hostSetupState.NotifyLinkedBasicHostSettingsChanged();
+        }
     }
 
     private bool _hostSecondaryAbilitiesEnabled
     {
         get => _hostSetupState.SecondaryAbilitiesEnabled;
-        set => _hostSetupState.SecondaryAbilitiesEnabled = value;
+        set
+        {
+            _hostSetupState.SecondaryAbilitiesEnabled = value;
+            _hostSetupState.NotifyLinkedBasicHostSettingsChanged();
+        }
     }
 }

@@ -237,7 +237,7 @@ public sealed partial class SimulationWorld
             }
         }
 
-        return false;
+        return SimpleLevelBarrierCollision.BlocksPointForPlayer(world.Level, player.Team, player.IsCarryingIntel, x, y);
     }
 
     private static string? GetPlayerSpriteName(PlayerClass classId, PlayerTeam team)

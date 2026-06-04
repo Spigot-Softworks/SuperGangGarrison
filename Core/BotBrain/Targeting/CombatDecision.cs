@@ -1231,6 +1231,58 @@ public static class CombatDecisionResolver
             }
         }
 
+        foreach (var barrier in world.Level.GetRoomObjects(RoomObjectType.Barrier))
+        {
+            var hitDistance = GetRayIntersectionDistanceWithRectangle(
+                originX,
+                originY,
+                directionX,
+                directionY,
+                barrier.Left,
+                barrier.Top,
+                barrier.Right,
+                barrier.Bottom,
+                distance);
+            if (!hitDistance.HasValue)
+            {
+                continue;
+            }
+
+            var hitX = originX + (directionX * hitDistance.Value);
+            var hitY = originY + (directionY * hitDistance.Value);
+            if (BarrierCollision.BlocksHitscan(barrier.Barrier, team, carryingIntel, barrier, originX, originY, hitX, hitY))
+            {
+                frameCache.Store(cacheKey, false);
+                return false;
+            }
+        }
+
+        foreach (var wall in world.Level.GetRoomObjects(RoomObjectType.DirectionalWall))
+        {
+            var hitDistance = GetRayIntersectionDistanceWithRectangle(
+                originX,
+                originY,
+                directionX,
+                directionY,
+                wall.Left,
+                wall.Top,
+                wall.Right,
+                wall.Bottom,
+                distance);
+            if (!hitDistance.HasValue)
+            {
+                continue;
+            }
+
+            var hitX = originX + (directionX * hitDistance.Value);
+            var hitY = originY + (directionY * hitDistance.Value);
+            if (DirectionalWallCollision.BlocksHitscan(wall.DirectionalWall, team, carryingIntel, wall, originX, originY, hitX, hitY))
+            {
+                frameCache.Store(cacheKey, false);
+                return false;
+            }
+        }
+
         frameCache.Store(cacheKey, true);
         return true;
 

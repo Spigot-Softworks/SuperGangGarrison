@@ -51,6 +51,7 @@ sealed partial class GameServer
     private readonly string? _requestedMap;
     private readonly string? _mapRotationFile;
     private readonly string _eventLogPath;
+    private readonly OpenGarrisonHostSettings _hostGameplayDefaults;
     private readonly IReadOnlyList<string> _stockMapRotation;
     private bool _mapRotationShuffleEnabled;
     private readonly int _maxPlayableClients;
@@ -166,7 +167,8 @@ sealed partial class GameServer
         ulong transientEventReplayTicks,
         bool persistentGameplayOwnershipEnabled,
         PersistentGameplayOwnershipIdentityMode persistentGameplayOwnershipIdentityMode,
-        string persistentGameplayOwnershipFile)
+        string persistentGameplayOwnershipFile,
+        OpenGarrisonHostSettings hostGameplayDefaults)
     {
         _config = config;
         _port = port;
@@ -185,6 +187,7 @@ sealed partial class GameServer
         _requestedMap = requestedMap;
         _mapRotationFile = mapRotationFile;
         _eventLogPath = eventLogPath;
+        _hostGameplayDefaults = hostGameplayDefaults ?? new OpenGarrisonHostSettings();
         _stockMapRotation = stockMapRotation;
         _mapRotationShuffleEnabled = mapRotationShuffleEnabled;
         _maxPlayableClients = maxPlayableClients;

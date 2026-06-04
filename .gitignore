@@ -31,6 +31,7 @@ ReferenceAssets/GG2Randomizer/
 Client.Browser/wwwroot/Content/
 Client.Browser/wwwroot/Plugins/
 artifacts/
+/.build-temp/
 Tests/BrowserSmoke/artifacts/
 Tests/BrowserSmoke/node_modules/
 /Client.Browser/wwwroot/Plugins/_browser-client-plugins.zip

@@ -834,7 +834,7 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     internal bool CanOccupy(SimpleLevel level, PlayerTeam team, float x, float y)
     {
-        GetCollisionBounds(out var previousLeft, out _, out var previousRight, out _);
+        GetCollisionBounds(out var previousLeft, out var previousTop, out var previousRight, out var previousBottom);
         GetCollisionBoundsAt(x, y, out var left, out var top, out var right, out var bottom);
 
         if (level.IntersectsSolid(left, top, right, bottom))
@@ -850,8 +850,14 @@ public sealed partial class PlayerEntity : SimulationEntity
             }
         }
 
-        foreach (var wall in level.GetRoomObjects(RoomObjectType.PlayerWall))
+        for (var wallIndex = 0; wallIndex < level.RoomObjects.Count; wallIndex += 1)
         {
+            var wall = level.RoomObjects[wallIndex];
+            if (wall.Type != RoomObjectType.PlayerWall || !level.IsRoomObjectActive(wallIndex))
+            {
+                continue;
+            }
+
             if (left < wall.Right && right > wall.Left && top < wall.Bottom && bottom > wall.Top)
             {
                 if (wall.IsDirectionalDoor()
@@ -862,6 +868,22 @@ public sealed partial class PlayerEntity : SimulationEntity
 
                 return false;
             }
+        }
+
+        if (SimpleLevelBarrierCollision.BlocksPlayerAt(
+                level,
+                team,
+                IsCarryingIntel,
+                previousLeft,
+                previousRight,
+                previousTop,
+                previousBottom,
+                left,
+                top,
+                right,
+                bottom))
+        {
+            return false;
         }
 
         return true;

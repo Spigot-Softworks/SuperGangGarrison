@@ -1,28 +1,60 @@
 {
-	"version": "2.0.0",
-	"tasks": [
-		{
-			"label": "Build Solution",
-			"type": "shell",
-			"command": "\"C:\\Program Files\\dotnet\\dotnet.exe\" build \"f:\\OpenGarrisonCode\\OpenGarrison-Fork\\OpenGarrison.sln\" -c Debug",
-			"isBackground": false,
-			"problemMatcher": [
-				"$msCompile"
-			],
-			"group": "build"
-		},
-		{
-			"label": "Build and Run Client",
-			"type": "shell",
-			"command": "powershell.exe -ExecutionPolicy Bypass -File \"f:\\OpenGarrisonCode\\OpenGarrison-Fork\\.vscode\\build-run-client.ps1\"",
-			"isBackground": false,
-			"problemMatcher": [
-				"$msCompile"
-			],
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			}
-		}
-	]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build Client",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/Client/OpenGarrison.Client.csproj",
+        "-c",
+        "Debug"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Build and Run Client",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/Client/OpenGarrison.Client.csproj",
+        "-c",
+        "Debug"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": "build"
+    },
+    {
+      "label": "Build Server",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/Server/OpenGarrison.Server.csproj",
+        "-c",
+        "Debug"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": "build"
+    },
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/OpenGarrison.sln",
+        "-c",
+        "Debug",
+        "-m:1"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": "build"
+    }
+  ]
 }
