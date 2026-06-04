@@ -14,18 +14,20 @@ public sealed partial class SimulationWorld
             };
         }
 
-        private bool IsBlockingProjectileRoomObject(RoomObjectMarker roomObject)
+        private bool IsBlockingProjectileRoomObject(RoomObjectMarker roomObject, PlayerTeam shotTeam)
         {
             return roomObject.Type switch
             {
                 RoomObjectType.TeamGate => true,
                 RoomObjectType.ControlPointSetupGate => Level.ControlPointSetupGatesActive,
                 RoomObjectType.BulletWall => true,
+                RoomObjectType.Barrier => BarrierCollision.BlocksProjectile(roomObject.Barrier, shotTeam),
+                RoomObjectType.DirectionalWall => roomObject.DirectionalWall.AffectsProjectiles,
                 _ => false,
             };
         }
 
-        private bool IsBlockingHitscanRoomObject(RoomObjectMarker roomObject)
+        private bool IsBlockingHitscanRoomObject(RoomObjectMarker roomObject, PlayerTeam shooterTeam, bool carryingIntel)
         {
             return roomObject.Type switch
             {
@@ -33,8 +35,35 @@ public sealed partial class SimulationWorld
                 RoomObjectType.ControlPointSetupGate => Level.ControlPointSetupGatesActive,
                 RoomObjectType.BulletWall => true,
                 RoomObjectType.IntelGate => true,
+                RoomObjectType.Barrier => false,
                 _ => false,
             };
+        }
+
+        private bool IsBlockingProjectileRoomObjectForAnyTeam(RoomObjectMarker roomObject)
+        {
+            if (roomObject.Type == RoomObjectType.Barrier)
+            {
+                return BarrierCollision.BlocksProjectile(roomObject.Barrier, PlayerTeam.Red)
+                    || BarrierCollision.BlocksProjectile(roomObject.Barrier, PlayerTeam.Blue);
+            }
+
+            if (roomObject.Type == RoomObjectType.DirectionalWall)
+            {
+                return roomObject.DirectionalWall.AffectsProjectiles;
+            }
+
+            return IsBlockingProjectileRoomObject(roomObject, PlayerTeam.Red);
+        }
+
+        private bool IsBlockingHitscanRoomObjectForAnyTeam(RoomObjectMarker roomObject)
+        {
+            if (roomObject.Type == RoomObjectType.Barrier)
+            {
+                return false;
+            }
+
+            return IsBlockingHitscanRoomObject(roomObject, PlayerTeam.Red, carryingIntel: false);
         }
 
         private bool IsBlockingGateForTeam(RoomObjectMarker roomObject, PlayerTeam team)
@@ -100,6 +129,76 @@ public sealed partial class SimulationWorld
                 }
             }
 
+            foreach (var barrier in Level.GetRoomObjects(RoomObjectType.Barrier))
+            {
+                var hitDistance = GetRayIntersectionDistanceWithRectangle(
+                    attacker.X,
+                    attacker.Y,
+                    directionX,
+                    directionY,
+                    barrier.Left,
+                    barrier.Top,
+                    barrier.Right,
+                    barrier.Bottom,
+                    distance);
+                if (!hitDistance.HasValue)
+                {
+                    continue;
+                }
+
+                var hitX = attacker.X + (directionX * hitDistance.Value);
+                var hitY = attacker.Y + (directionY * hitDistance.Value);
+                if (!BarrierCollision.BlocksHitscan(
+                        barrier.Barrier,
+                        attacker.Team,
+                        attacker.IsCarryingIntel,
+                        barrier,
+                        attacker.X,
+                        attacker.Y,
+                        hitX,
+                        hitY))
+                {
+                    continue;
+                }
+
+                return false;
+            }
+
+            foreach (var wall in Level.GetRoomObjects(RoomObjectType.DirectionalWall))
+            {
+                var hitDistance = GetRayIntersectionDistanceWithRectangle(
+                    attacker.X,
+                    attacker.Y,
+                    directionX,
+                    directionY,
+                    wall.Left,
+                    wall.Top,
+                    wall.Right,
+                    wall.Bottom,
+                    distance);
+                if (!hitDistance.HasValue)
+                {
+                    continue;
+                }
+
+                var hitX = attacker.X + (directionX * hitDistance.Value);
+                var hitY = attacker.Y + (directionY * hitDistance.Value);
+                if (!DirectionalWallCollision.BlocksHitscan(
+                        wall.DirectionalWall,
+                        attacker.Team,
+                        attacker.IsCarryingIntel,
+                        wall,
+                        attacker.X,
+                        attacker.Y,
+                        hitX,
+                        hitY))
+                {
+                    continue;
+                }
+
+                return false;
+            }
+
             return true;
         }
 
@@ -131,9 +230,61 @@ public sealed partial class SimulationWorld
                 }
             }
 
+            foreach (var barrier in Level.GetRoomObjects(RoomObjectType.Barrier))
+            {
+                var hitDistance = GetRayIntersectionDistanceWithRectangle(
+                    sentry.X,
+                    sentry.Y,
+                    directionX,
+                    directionY,
+                    barrier.Left,
+                    barrier.Top,
+                    barrier.Right,
+                    barrier.Bottom,
+                    distance);
+                if (!hitDistance.HasValue)
+                {
+                    continue;
+                }
+
+                var hitX = sentry.X + (directionX * hitDistance.Value);
+                var hitY = sentry.Y + (directionY * hitDistance.Value);
+                if (BarrierCollision.BlocksHitscan(barrier.Barrier, PlayerTeam.Red, false, barrier, sentry.X, sentry.Y, hitX, hitY)
+                    || BarrierCollision.BlocksHitscan(barrier.Barrier, PlayerTeam.Blue, false, barrier, sentry.X, sentry.Y, hitX, hitY))
+                {
+                    return false;
+                }
+            }
+
+            foreach (var wall in Level.GetRoomObjects(RoomObjectType.DirectionalWall))
+            {
+                var hitDistance = GetRayIntersectionDistanceWithRectangle(
+                    sentry.X,
+                    sentry.Y,
+                    directionX,
+                    directionY,
+                    wall.Left,
+                    wall.Top,
+                    wall.Right,
+                    wall.Bottom,
+                    distance);
+                if (!hitDistance.HasValue)
+                {
+                    continue;
+                }
+
+                var hitX = sentry.X + (directionX * hitDistance.Value);
+                var hitY = sentry.Y + (directionY * hitDistance.Value);
+                if (DirectionalWallCollision.BlocksHitscan(wall.DirectionalWall, PlayerTeam.Red, false, wall, sentry.X, sentry.Y, hitX, hitY)
+                    || DirectionalWallCollision.BlocksHitscan(wall.DirectionalWall, PlayerTeam.Blue, false, wall, sentry.X, sentry.Y, hitX, hitY))
+                {
+                    return false;
+                }
+            }
+
             foreach (var gate in Level.RoomObjects)
             {
-                if (!IsBlockingHitscanRoomObject(gate))
+                if (!IsBlockingHitscanRoomObjectForAnyTeam(gate))
                 {
                     continue;
                 }
@@ -239,7 +390,7 @@ public sealed partial class SimulationWorld
             return true;
         }
 
-        public bool IsProjectileSpawnBlocked(float originX, float originY, float targetX, float targetY)
+        public bool IsProjectileSpawnBlocked(float originX, float originY, float targetX, float targetY, PlayerTeam shotTeam)
         {
             var distance = DistanceBetween(originX, originY, targetX, targetY);
             if (distance <= 0.0001f)
@@ -267,10 +418,36 @@ public sealed partial class SimulationWorld
                 }
             }
 
-            foreach (var roomObject in Level.RoomObjects)
+            for (var roomObjectIndex = 0; roomObjectIndex < Level.RoomObjects.Count; roomObjectIndex += 1)
             {
-                if (!IsBlockingProjectileRoomObject(roomObject))
+                if (!Level.IsRoomObjectActive(roomObjectIndex))
                 {
+                    continue;
+                }
+
+                var roomObject = Level.RoomObjects[roomObjectIndex];
+                if (!IsBlockingProjectileRoomObject(roomObject, shotTeam))
+                {
+                    continue;
+                }
+
+                if (roomObject.Type == RoomObjectType.Barrier)
+                {
+                    if (BarrierProjectileRaycast.TryRaycastMarker(
+                            roomObject.Barrier,
+                            shotTeam,
+                            roomObject,
+                            originX,
+                            originY,
+                            directionX,
+                            directionY,
+                            distance,
+                            out _))
+                    {
+                        _world.SetProjectileSpawnBlockedDebug(roomObject.Left, roomObject.Top, roomObject.Width, roomObject.Height, $"RoomObject:{roomObject.Type}");
+                        return true;
+                    }
+
                     continue;
                 }
 

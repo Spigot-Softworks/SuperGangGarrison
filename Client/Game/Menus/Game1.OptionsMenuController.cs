@@ -219,6 +219,23 @@ public partial class Game1
                 return;
             }
 
+            var trackBounds = new Rectangle(panel.Right - 20, listBounds.Y, 8, listBounds.Height);
+            var optionsScrollOffset = _game._optionsScrollOffset;
+            if (_game.TryHandleScrollbarDrag(
+                    mouse,
+                    _game._previousMouse,
+                    ScrollbarOwners.OptionsMenu,
+                    trackBounds,
+                    ref optionsScrollOffset,
+                    actions.Count,
+                    visibleRowCount))
+            {
+                _game._optionsScrollOffset = optionsScrollOffset;
+                return;
+            }
+
+            _game._optionsScrollOffset = optionsScrollOffset;
+
             const float optionsRowValueHorizontalPadding = 14f;
             const float optionsRowValueTextScale = 1f;
             var wheelDelta = mouse.ScrollWheelValue - _game._previousMouse.ScrollWheelValue;
@@ -619,7 +636,6 @@ public partial class Game1
                 allActions.Add(new OptionsMenuAction("Plugin Options", string.Empty, OpenPluginOptionsMenuFromOptions, OptionsMenuTab.Other));
             }
 
-            allActions.Add(new OptionsMenuAction("Map Builder", string.Empty, _game.OpenGarrisonBuilderFromOptions, OptionsMenuTab.Other));
             if (currentTab == OptionsMenuTab.Replays)
             {
                 allActions.AddRange(BuildReplayMenuActions());

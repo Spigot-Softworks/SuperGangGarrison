@@ -243,6 +243,19 @@ public static class PrimitiveDirectDrive
             }
         }
 
+        foreach (var barrier in world.Level.GetRoomObjects(RoomObjectType.Barrier))
+        {
+            if (!RectanglesOverlap(probeLeft, probeTop, probeRight, probeBottom, barrier.Left, barrier.Top, barrier.Right, barrier.Bottom))
+            {
+                continue;
+            }
+
+            if (BarrierCollision.BlocksPlayerWithoutDirection(barrier.Barrier, player.Team, player.IsCarryingIntel))
+            {
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -283,6 +296,23 @@ public static class PrimitiveDirectDrive
             {
                 return true;
             }
+        }
+
+        player.GetCollisionBounds(out var previousLeft, out var previousTop, out var previousRight, out var previousBottom);
+        if (SimpleLevelBarrierCollision.BlocksPlayerAt(
+                world.Level,
+                player.Team,
+                player.IsCarryingIntel,
+                previousLeft,
+                previousRight,
+                previousTop,
+                previousBottom,
+                probeLeft,
+                probeTop,
+                probeRight,
+                probeBottom))
+        {
+            return true;
         }
 
         return false;

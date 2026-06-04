@@ -72,6 +72,23 @@ public sealed partial class PlayerEntity
             }
         }
 
+        GetCollisionBounds(out var left, out var top, out var right, out var bottom);
+        if (SimpleLevelBarrierCollision.BlocksPlayerAt(
+                level,
+                team,
+                IsCarryingIntel,
+                left,
+                right,
+                top,
+                bottom,
+                left,
+                top,
+                right,
+                bottom))
+        {
+            return true;
+        }
+
         return false;
     }
 

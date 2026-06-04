@@ -6,6 +6,7 @@ public enum CustomMapBuilderResourceKind
     ParallaxLayer = 1,
     Foreground = 2,
     EntitySprite = 3,
+    CustomSprite = 4,
 }
 
 public readonly record struct CustomMapBuilderResource(

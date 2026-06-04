@@ -29,28 +29,38 @@ public static class CustomMapBuilderPngImporter
             return null;
         }
 
-        var scale = CustomMapBuilderDocument.DefaultScale;
-        if (metadata.TryGetValue("scale", out var scaleText)
-            && float.TryParse(scaleText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsedScale)
-            && parsedScale > 0f)
-        {
-            scale = parsedScale;
-        }
+        var walkmaskScale = CustomMapBuilderDocument.ResolveWalkmaskScale(metadata);
+        var visualScale = CustomMapBuilderDocument.ResolveVisualScale(metadata, walkmaskScale);
 
         var resources = CustomMapBuilderResourceCodec.DecodeResourcesFromMetadata(metadata);
         return new CustomMapBuilderDocument(
             Name: Path.GetFileNameWithoutExtension(pngPath),
             BackgroundImagePath: pngPath,
             WalkmaskImagePath: string.Empty,
-            Scale: scale,
+            Scale: walkmaskScale,
+            VisualScale: visualScale,
             Metadata: new ReadOnlyDictionary<string, string>(metadata),
             Entities: entities,
             Resources: resources,
-            ParallaxLayers: DecodeParallaxLayers(metadata, resources),
+            ParallaxLayers: CustomMapBuilderParallaxLayers.DecodeFromMetadata(metadata, resources),
             EmbeddedWalkmaskSection: walkmaskSection.Trim());
     }
 
     private static bool TryDecodeEntities(
+        string entitiesSection,
+        out Dictionary<string, string> metadata,
+        out IReadOnlyList<CustomMapBuilderEntity> entities)
+    {
+        var trimmed = entitiesSection.Trim();
+        if (trimmed.Length > 0 && (trimmed[0] == '{' || trimmed[0] == '['))
+        {
+            return TryDecodeGgonEntities(trimmed, out metadata, out entities);
+        }
+
+        return TryDecodeLegacyLineEntities(trimmed, out metadata, out entities);
+    }
+
+    private static bool TryDecodeGgonEntities(
         string entitiesSection,
         out Dictionary<string, string> metadata,
         out IReadOnlyList<CustomMapBuilderEntity> entities)
@@ -100,37 +110,37 @@ public static class CustomMapBuilderPngImporter
         metadata.TryAdd("background", CustomMapBuilderDocument.DefaultBackgroundColor);
         metadata.TryAdd("void", CustomMapBuilderDocument.DefaultVoidColor);
         entities = decodedEntities;
-        return true;
+        return decodedEntities.Count > 0;
     }
 
-    private static List<CustomMapBuilderParallaxLayer> DecodeParallaxLayers(
-        Dictionary<string, string> metadata,
-        IReadOnlyDictionary<string, CustomMapBuilderResource> resources)
+    private static bool TryDecodeLegacyLineEntities(
+        string entitiesSection,
+        out Dictionary<string, string> metadata,
+        out IReadOnlyList<CustomMapBuilderEntity> entities)
     {
-        var layers = new List<CustomMapBuilderParallaxLayer>();
-        for (var index = CustomMapBuilderParallaxLayer.MinIndex; index <= CustomMapBuilderParallaxLayer.MaxIndex; index += 1)
+        metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var decodedEntities = new List<CustomMapBuilderEntity>();
+        var lines = entitiesSection
+            .Replace("\r", string.Empty, StringComparison.Ordinal)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        for (var index = 0; index + 2 < lines.Length; index += 3)
         {
-            var layerKey = $"bg_layer{index}";
-            var resourceName = metadata.TryGetValue(layerKey, out var resource) ? resource : string.Empty;
-            if (resources.ContainsKey(layerKey))
+            var type = lines[index].Trim();
+            if (!float.TryParse(lines[index + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var x)
+                || !float.TryParse(lines[index + 2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var y))
             {
-                resourceName = layerKey;
+                continue;
             }
 
-            var defaultFactor = GetLegacyDefaultParallaxFactor(index);
-            var hasXFactor = TryParseFloat(metadata, $"layer{index}xfactor", out var parsedXFactor);
-            var hasYFactor = TryParseFloat(metadata, $"layer{index}yfactor", out var parsedYFactor);
-            var xFactor = hasXFactor ? parsedXFactor : defaultFactor;
-            var yFactor = hasYFactor ? parsedYFactor : defaultFactor;
-            if (!string.IsNullOrWhiteSpace(resourceName)
-                || hasXFactor
-                || hasYFactor)
-            {
-                layers.Add(new CustomMapBuilderParallaxLayer(index, resourceName, xFactor, yFactor).NormalizeForEditing());
-            }
+            decodedEntities.Add(CustomMapBuilderEntity.Create(type, x, y).NormalizeForEditing());
         }
 
-        return layers;
+        metadata.TryAdd("type", "meta");
+        metadata.TryAdd("background", CustomMapBuilderDocument.DefaultBackgroundColor);
+        metadata.TryAdd("void", CustomMapBuilderDocument.DefaultVoidColor);
+        entities = decodedEntities;
+        return decodedEntities.Count > 0;
     }
 
     private static float GetLegacyDefaultParallaxFactor(int index)

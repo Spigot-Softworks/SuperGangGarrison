@@ -20,4 +20,10 @@ public enum RoomObjectType
     MoveBoxDown = 16,
     MoveBoxLeft = 17,
     MoveBoxRight = 18,
+    Barrier = 19,
+    DirectionalWall = 20,
+    TeleportZone = 21,
+    TeleportExit = 22,
+    PlayerTriggerZone = 23,
+    CustomMapSprite = 24,
 }

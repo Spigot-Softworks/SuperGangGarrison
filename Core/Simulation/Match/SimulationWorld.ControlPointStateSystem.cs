@@ -13,6 +13,9 @@ public sealed partial class SimulationWorld
                 return;
             }
 
+            world.RefreshMapLogicRuntimeIfControlPointInputsChanged();
+            world.TickMapLogicTimers();
+
             var redCappersByPoint = new HashSet<int>[world._controlPoints.Count];
             var blueCappersByPoint = new HashSet<int>[world._controlPoints.Count];
             var redCapStrengthByPoint = new int[world._controlPoints.Count];
@@ -106,7 +109,20 @@ public sealed partial class SimulationWorld
                     capStrength += strengthIndex <= 2 ? 1f : 0.5f;
                 }
 
-                point.IsLocked = IsLocked(world, point);
+                if (world.Level.ControlPointSettings.OverrideInitialOwnership)
+                {
+                    var isLocked = point.IsLocked;
+                    ControlPointLockDependencyMetadata.ApplyMapLockTriggers(
+                        point.Marker.LockRules,
+                        world._controlPoints,
+                        world.Level.LogicGraph,
+                        ref isLocked);
+                    point.IsLocked = isLocked;
+                }
+                else
+                {
+                    point.IsLocked = IsLocked(world, point);
+                }
 
                 if (!point.IsLocked)
                 {
@@ -311,6 +327,7 @@ public sealed partial class SimulationWorld
 
             world.RegisterWorldSoundEvent("CPCapturedSnd", point.Marker.CenterX, point.Marker.CenterY);
             world.RegisterWorldSoundEvent("IntelPutSnd", point.Marker.CenterX, point.Marker.CenterY);
+            world.EvaluateMapLogicGraph();
         }
     }
 }

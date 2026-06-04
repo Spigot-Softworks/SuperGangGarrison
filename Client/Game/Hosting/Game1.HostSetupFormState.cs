@@ -26,7 +26,7 @@ public partial class Game1
         string? RequestedMap,
         string? MapRotationFile);
 
-    private sealed class HostSetupFormState
+    private sealed partial class HostSetupFormState
     {
         public int HoverIndex { get; set; } = -1;
         public int MapIndex { get; set; }
@@ -34,6 +34,9 @@ public partial class Game1
         public int ContentScrollOffset { get; set; }
         public HostSetupEditField EditField { get; set; }
         public HostSetupTab Tab { get; set; }
+        public HostSetupScreen Screen { get; set; } = HostSetupScreen.Main;
+        public int OptionsHoverIndex { get; set; } = -1;
+        public int OptionsScrollOffset { get; set; }
         public string ServerNameBuffer { get; set; } = "My Server";
         public int ServerNameCursorIndex { get; set; }
         public int ServerNameSelectionStart { get; set; }
@@ -50,6 +53,7 @@ public partial class Game1
         public int RconPasswordCursorIndex { get; set; }
         public int RconPasswordSelectionStart { get; set; }
         public string MapRotationFileBuffer { get; set; } = string.Empty;
+        public bool UsePlaylistFile { get; set; }
         public int MapRotationFileCursorIndex { get; set; }
         public int MapRotationFileSelectionStart { get; set; }
         public string TimeLimitBuffer { get; set; } = "15";
@@ -101,12 +105,14 @@ public partial class Game1
             PasswordBuffer = hostDefaults.Password ?? string.Empty;
             RconPasswordBuffer = hostDefaults.RconPassword ?? string.Empty;
             MapRotationFileBuffer = hostDefaults.MapRotationFile ?? string.Empty;
+            UsePlaylistFile = hostDefaults.UsePlaylistFile;
             TimeLimitBuffer = Math.Clamp(hostDefaults.TimeLimitMinutes, 1, 255).ToString(CultureInfo.InvariantCulture);
             CapLimitBuffer = Math.Clamp(hostDefaults.CapLimit, 1, 255).ToString(CultureInfo.InvariantCulture);
             RespawnSecondsBuffer = Math.Clamp(hostDefaults.RespawnSeconds, 0, 255).ToString(CultureInfo.InvariantCulture);
             LobbyAnnounceEnabled = hostDefaults.LobbyAnnounceEnabled;
             AutoBalanceEnabled = hostDefaults.AutoBalanceEnabled;
             SecondaryAbilitiesEnabled = hostDefaults.SecondaryAbilitiesEnabled;
+            LoadAdvancedCvarsFrom(hostDefaults);
             MapEntries = BuildMapEntries(hostDefaults);
             if (MapEntries.Count == 0)
             {
@@ -132,6 +138,9 @@ public partial class Game1
             MapScrollOffset = 0;
             ContentScrollOffset = 0;
             Tab = HostSetupTab.Settings;
+            Screen = HostSetupScreen.Main;
+            OptionsHoverIndex = -1;
+            OptionsScrollOffset = 0;
             EditField = HostSetupEditField.ServerName;
 
             if (string.IsNullOrWhiteSpace(ServerNameBuffer))
@@ -189,13 +198,17 @@ public partial class Game1
             settings.HostDefaults.Slots = ParseClampedInt(SlotsBuffer, 10, 1, SimulationWorld.MaxPlayableNetworkPlayers);
             settings.HostDefaults.Password = PasswordBuffer.Trim();
             settings.HostDefaults.RconPassword = RconPasswordBuffer.Trim();
-            settings.HostDefaults.MapRotationFile = MapRotationFileBuffer.Trim();
+            settings.HostDefaults.UsePlaylistFile = UsePlaylistFile;
+            settings.HostDefaults.MapRotationFile = UsePlaylistFile
+                ? MapRotationFileBuffer.Trim()
+                : string.Empty;
             settings.HostDefaults.TimeLimitMinutes = ParseClampedInt(TimeLimitBuffer, 15, 1, 255);
             settings.HostDefaults.CapLimit = ParseClampedInt(CapLimitBuffer, 5, 1, 255);
             settings.HostDefaults.RespawnSeconds = ParseClampedInt(RespawnSecondsBuffer, 5, 0, 255);
             settings.HostDefaults.LobbyAnnounceEnabled = LobbyAnnounceEnabled;
             settings.HostDefaults.AutoBalanceEnabled = AutoBalanceEnabled;
             settings.HostDefaults.SecondaryAbilitiesEnabled = SecondaryAbilitiesEnabled;
+            ApplyAdvancedCvarsTo(settings.HostDefaults);
             if (MapEntries.Count > 0)
             {
                 settings.HostDefaults.StockMapRotation = MapEntries
@@ -210,17 +223,24 @@ public partial class Game1
             error = string.Empty;
 
             var trimmedRotationFile = MapRotationFileBuffer.Trim();
-            string? requestedMap = null;
+            var playlistLevelNames = OpenGarrisonStockMapCatalog.GetOrderedIncludedMapLevelNames(MapEntries);
             if (MapEntries.Count == 0)
             {
                 error = "No stock maps are available.";
                 return false;
             }
 
-            if (string.IsNullOrWhiteSpace(trimmedRotationFile)
-                && !MapEntries.Any(entry => entry.Order > 0))
+            if (UsePlaylistFile)
             {
-                error = "Include at least one stock map or set a custom rotation file.";
+                if (string.IsNullOrWhiteSpace(trimmedRotationFile))
+                {
+                    error = "Enter a playlist file path or disable Use playlist file.";
+                    return false;
+                }
+            }
+            else if (playlistLevelNames.Count == 0)
+            {
+                error = "Add at least one map to the playlist on the Maps screen.";
                 return false;
             }
 
@@ -269,16 +289,22 @@ public partial class Game1
                 return false;
             }
 
-            var selectedMap = GetSelectedMapEntry();
-            if (selectedMap is not null && selectedMap.Order > 0)
+            string? requestedMap;
+            string? mapRotationFileForLaunch;
+            if (UsePlaylistFile)
             {
-                requestedMap = selectedMap.LevelName;
+                requestedMap = null;
+                mapRotationFileForLaunch = trimmedRotationFile;
             }
-
-            if (string.IsNullOrWhiteSpace(requestedMap))
+            else
             {
-                var includedMaps = OpenGarrisonStockMapCatalog.GetOrderedIncludedMapLevelNames(MapEntries);
-                requestedMap = includedMaps.Count > 0 ? includedMaps[0] : null;
+                requestedMap = playlistLevelNames[0];
+                mapRotationFileForLaunch = HostSetupLaunchPlaylist.TryWrite(playlistLevelNames);
+                if (mapRotationFileForLaunch is null)
+                {
+                    error = "Failed to write launch playlist.";
+                    return false;
+                }
             }
 
             request = new HostSetupLaunchRequest(
@@ -294,7 +320,7 @@ public partial class Game1
                 AutoBalanceEnabled,
                 SecondaryAbilitiesEnabled,
                 requestedMap,
-                string.IsNullOrWhiteSpace(trimmedRotationFile) ? null : trimmedRotationFile);
+                string.IsNullOrWhiteSpace(mapRotationFileForLaunch) ? null : mapRotationFileForLaunch);
             return true;
         }
 
@@ -333,7 +359,7 @@ public partial class Game1
                     }
                     break;
                 case HostSetupEditField.MapRotationFile:
-                    if (MapRotationFileBuffer.Length > 0)
+                    if (UsePlaylistFile && MapRotationFileBuffer.Length > 0)
                     {
                         MapRotationFileBuffer = MapRotationFileBuffer[..^1];
                     }
@@ -342,19 +368,25 @@ public partial class Game1
                     if (TimeLimitBuffer.Length > 0)
                     {
                         TimeLimitBuffer = TimeLimitBuffer[..^1];
+                        NotifyLinkedBasicHostSettingsChanged();
                     }
                     break;
                 case HostSetupEditField.CapLimit:
                     if (CapLimitBuffer.Length > 0)
                     {
                         CapLimitBuffer = CapLimitBuffer[..^1];
+                        NotifyLinkedBasicHostSettingsChanged();
                     }
                     break;
                 case HostSetupEditField.RespawnSeconds:
                     if (RespawnSecondsBuffer.Length > 0)
                     {
                         RespawnSecondsBuffer = RespawnSecondsBuffer[..^1];
+                        NotifyLinkedBasicHostSettingsChanged();
                     }
+                    break;
+                case HostSetupEditField.AdvancedCvar:
+                    BackspaceActiveAdvancedCvar();
                     break;
             }
         }
@@ -401,7 +433,7 @@ public partial class Game1
                 return;
             }
 
-            if (EditField == HostSetupEditField.MapRotationFile)
+            if (EditField == HostSetupEditField.MapRotationFile && UsePlaylistFile)
             {
                 if (MapRotationFileBuffer.Length < 180)
                 {
@@ -426,31 +458,96 @@ public partial class Game1
                     break;
                 case HostSetupEditField.TimeLimit when TimeLimitBuffer.Length < 3:
                     TimeLimitBuffer += character;
+                    NotifyLinkedBasicHostSettingsChanged();
                     break;
                 case HostSetupEditField.CapLimit when CapLimitBuffer.Length < 3:
                     CapLimitBuffer += character;
+                    NotifyLinkedBasicHostSettingsChanged();
                     break;
                 case HostSetupEditField.RespawnSeconds when RespawnSecondsBuffer.Length < 3:
                     RespawnSecondsBuffer += character;
+                    NotifyLinkedBasicHostSettingsChanged();
+                    break;
+                case HostSetupEditField.AdvancedCvar:
+                    TryAppendAdvancedCvarCharacter(character);
                     break;
             }
         }
 
         public void CycleField()
         {
-            EditField = EditField switch
+            EditField = Screen switch
             {
-                HostSetupEditField.ServerName => HostSetupEditField.Port,
-                HostSetupEditField.Port => HostSetupEditField.Slots,
-                HostSetupEditField.Slots => HostSetupEditField.Password,
-                HostSetupEditField.Password => HostSetupEditField.RconPassword,
-                HostSetupEditField.RconPassword => HostSetupEditField.MapRotationFile,
-                HostSetupEditField.MapRotationFile => HostSetupEditField.TimeLimit,
-                HostSetupEditField.TimeLimit => HostSetupEditField.CapLimit,
-                HostSetupEditField.CapLimit => HostSetupEditField.RespawnSeconds,
-                HostSetupEditField.RespawnSeconds => HostSetupEditField.ServerName,
-                _ => HostSetupEditField.ServerName,
+                HostSetupScreen.Options => EditField switch
+                {
+                    HostSetupEditField.TimeLimit => HostSetupEditField.CapLimit,
+                    HostSetupEditField.CapLimit => HostSetupEditField.RespawnSeconds,
+                    HostSetupEditField.RespawnSeconds => HostSetupEditField.TimeLimit,
+                    _ => HostSetupEditField.TimeLimit,
+                },
+                _ => EditField switch
+                {
+                    HostSetupEditField.ServerName => HostSetupEditField.Port,
+                    HostSetupEditField.Port => HostSetupEditField.Slots,
+                    HostSetupEditField.Slots => HostSetupEditField.Password,
+                    HostSetupEditField.Password => HostSetupEditField.RconPassword,
+                    HostSetupEditField.RconPassword => HostSetupEditField.MapRotationFile,
+                    HostSetupEditField.MapRotationFile => HostSetupEditField.ServerName,
+                    _ => HostSetupEditField.ServerName,
+                },
             };
+        }
+
+        public void ResetHostingOptionsToDefaults()
+        {
+            LoadAdvancedCvarsFrom(new OpenGarrisonHostSettings());
+            TimeLimitBuffer = "15";
+            CapLimitBuffer = "5";
+            RespawnSecondsBuffer = "5";
+            AutoBalanceEnabled = true;
+            SecondaryAbilitiesEnabled = true;
+            ClearAdvancedCvarEditFocus();
+            TimeLimitCursorIndex = TimeLimitBuffer.Length;
+            TimeLimitSelectionStart = TimeLimitCursorIndex;
+            CapLimitCursorIndex = CapLimitBuffer.Length;
+            CapLimitSelectionStart = CapLimitCursorIndex;
+            RespawnSecondsCursorIndex = RespawnSecondsBuffer.Length;
+            RespawnSecondsSelectionStart = RespawnSecondsCursorIndex;
+        }
+
+        public void NavigateToMainScreen()
+        {
+            Screen = HostSetupScreen.Main;
+            HoverIndex = -1;
+            OptionsHoverIndex = -1;
+            ContentScrollOffset = 0;
+            EditField = HostSetupEditField.ServerName;
+        }
+
+        public void NavigateToOptionsScreen()
+        {
+            Screen = HostSetupScreen.Options;
+            HoverIndex = -1;
+            OptionsHoverIndex = -1;
+            OptionsScrollOffset = 0;
+            OptionsTabIndex = 0;
+            ContentScrollOffset = 0;
+            ClearAdvancedCvarEditFocus();
+        }
+
+        public void NavigateToMapsScreen()
+        {
+            Screen = HostSetupScreen.Maps;
+            OptionsHoverIndex = -1;
+            ContentScrollOffset = 0;
+            EditField = HostSetupEditField.None;
+            PrepareMapsScreen();
+        }
+
+        public void ConfirmMapsScreen()
+        {
+            SortMapEntries();
+            NavigateToMainScreen();
         }
 
         public void ToggleSelectedMap()

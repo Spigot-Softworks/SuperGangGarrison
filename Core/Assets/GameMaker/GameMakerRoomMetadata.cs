@@ -19,4 +19,10 @@ public sealed record GameMakerRoomMetadata(
     public CustomMapVisualMetadata CustomMapVisuals { get; init; } = CustomMapVisualMetadata.Empty;
 
     public IReadOnlyList<MovingPlatformMarker> MovingPlatforms { get; init; } = Array.Empty<MovingPlatformMarker>();
+
+    public CustomMapControlPointSettings ControlPointSettings { get; init; } = CustomMapControlPointSettings.Default;
+
+    public MapLogicGraph LogicGraph { get; init; } = MapLogicGraph.Empty;
+
+    public MapLogicActivatorSet LogicActivators { get; init; } = MapLogicActivatorSet.Empty;
 }
