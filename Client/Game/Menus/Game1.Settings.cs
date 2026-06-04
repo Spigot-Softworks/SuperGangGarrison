@@ -67,6 +67,8 @@ public partial class Game1
         _audioMuted = _clientSettings.AudioMuted;
         _menuMusicVolumePercent = Math.Clamp(_clientSettings.MenuMusicVolumePercent, 0, 100);
         _ingameMusicVolumePercent = Math.Clamp(_clientSettings.IngameMusicVolumePercent, 0, 100);
+        _dynamicMusicEnabled = _clientSettings.DynamicMusicEnabled;
+        _combatMusicVolumePercent = Math.Clamp(_clientSettings.CombatMusicVolumePercent, 0, OpenGarrisonPreferencesDocument.MaxCombatMusicVolumePercent);
         _soundEffectsVolumePercent = Math.Clamp(_clientSettings.SoundEffectsVolumePercent, 0, 100);
         ApplyAudioVolumeState();
 
@@ -120,6 +122,8 @@ public partial class Game1
         _clientSettings.AudioMuted = _audioMuted;
         _clientSettings.MenuMusicVolumePercent = _menuMusicVolumePercent;
         _clientSettings.IngameMusicVolumePercent = _ingameMusicVolumePercent;
+        _clientSettings.DynamicMusicEnabled = _dynamicMusicEnabled;
+        _clientSettings.CombatMusicVolumePercent = Math.Clamp(_combatMusicVolumePercent, 0, OpenGarrisonPreferencesDocument.MaxCombatMusicVolumePercent);
         _clientSettings.SoundEffectsVolumePercent = _soundEffectsVolumePercent;
         _clientSettings.FrameRateLimit = _frameRateLimit;
         _clientSettings.RecentConnection.Host = SanitizeHost(_connectHostBuffer);

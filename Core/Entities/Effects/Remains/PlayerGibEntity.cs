@@ -6,6 +6,7 @@ public sealed class PlayerGibEntity : SimulationEntity
     public const float GravityPerTick = 0.7f;
     public const float MaxFallSpeed = 11f;
     public const int FadeTicks = 10;
+    public const int SplatCooldownTicks = 18;
     public const float Scale = 2f;
     public const float DefaultBloodChance = 1.8f;
 
@@ -64,7 +65,11 @@ public sealed class PlayerGibEntity : SimulationEntity
 
     public bool ExperimentalCryoTinted { get; }
 
+    public int SplatCooldownTicksRemaining { get; private set; }
+
     public bool IsExpired => TicksRemaining <= 0;
+
+    public bool CanSplat => SplatCooldownTicksRemaining <= 0;
 
     public float Alpha => TicksRemaining >= FadeTicks
         ? 1f
@@ -75,6 +80,11 @@ public sealed class PlayerGibEntity : SimulationEntity
         if (TicksRemaining > 0)
         {
             TicksRemaining -= 1;
+        }
+
+        if (SplatCooldownTicksRemaining > 0)
+        {
+            SplatCooldownTicksRemaining -= 1;
         }
 
         if (TicksRemaining <= 0)
@@ -106,6 +116,27 @@ public sealed class PlayerGibEntity : SimulationEntity
         VelocityX += velocityX;
         VelocityY += velocityY;
         RotationSpeedDegrees += rotationSpeedDegrees;
+    }
+
+    public void RestartSplatCooldown()
+    {
+        SplatCooldownTicksRemaining = SplatCooldownTicks;
+    }
+
+    public bool IntersectsPlayer(PlayerEntity player)
+    {
+        var left = X - (BoundingSize / 2f);
+        var right = X + (BoundingSize / 2f);
+        var top = Y - (BoundingSize / 2f);
+        var bottom = Y + (BoundingSize / 2f);
+        var playerLeft = player.X - (player.Width / 2f);
+        var playerRight = player.X + (player.Width / 2f);
+        var playerTop = player.Y - (player.Height / 2f);
+        var playerBottom = player.Y + (player.Height / 2f);
+        return left < playerRight
+            && right > playerLeft
+            && top < playerBottom
+            && bottom > playerTop;
     }
 
     public void ApplyNetworkState(

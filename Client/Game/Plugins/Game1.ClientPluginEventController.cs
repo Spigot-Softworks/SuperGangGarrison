@@ -100,6 +100,7 @@ public partial class Game1
                 TryTrackLastToDieDamageDealt(damageEvent.AttackerPlayerId, damageEvent.Amount);
                 _game.ObserveLastToDieDamageEvent(damageEvent);
                 _game.ObserveHeavyDashDodgeDamageEvent(damageEvent);
+                _game.ObserveDynamicMusicDamageEvent(damageEvent);
                 TryTriggerLocalPortraitDamageFeedback(damageEvent);
                 TryTriggerLocalDamageVignette(damageEvent);
 
@@ -114,6 +115,7 @@ public partial class Game1
                 var damageEvent = _game._pendingNetworkDamageEvents[index];
                 TryTrackLastToDieDamageDealt(damageEvent.AttackerPlayerId, damageEvent.Amount);
                 _game.ObserveHeavyDashDodgeDamageEvent(damageEvent);
+                _game.ObserveDynamicMusicDamageEvent(damageEvent);
                 TryTriggerLocalPortraitDamageFeedback(damageEvent);
                 TryTriggerLocalDamageVignette(damageEvent);
             }

@@ -117,6 +117,57 @@ public sealed class BotBrainNoGraphFallbackTests
         Assert.Contains("noGraphObjective", controller.LastDirectDriveTrace, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void BotJumpsOverObstacleNearControlPointWhenNavigationGraphIsMissing()
+    {
+        var world = new SimulationWorld(new SimulationConfig
+        {
+            EnableEnemyTrainingDummy = false,
+            EnableFriendlySupportDummy = false,
+        });
+        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.ForceRespawnLocalPlayer();
+        world.LocalPlayer.TeleportTo(100f, 120f);
+        world.LocalPlayer.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        SetNoGraphControlPointObstacleLevel(world, world.LocalPlayer);
+        world.LocalPlayer.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        var controller = new BotBrainController();
+
+        var input = controller.Think(world.LocalPlayer, world, PlayerTeam.Red);
+
+        Assert.False(controller.HasNavigationGraph);
+        Assert.True(input.Right, controller.LastDirectDriveTrace);
+        Assert.True(input.Up, controller.LastDirectDriveTrace);
+        Assert.Contains("noGraph", controller.LastDirectDriveTrace, StringComparison.Ordinal);
+        Assert.Contains("capturePoint", controller.LastDirectDriveTrace, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BotJumpsOverObstacleWhenControlPointTargetIsInsideDirectSeekDeadZone()
+    {
+        var world = new SimulationWorld(new SimulationConfig
+        {
+            EnableEnemyTrainingDummy = false,
+            EnableFriendlySupportDummy = false,
+        });
+        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.ForceRespawnLocalPlayer();
+        world.LocalPlayer.TeleportTo(100f, 120f);
+        world.LocalPlayer.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        SetNoGraphControlPointDeadZoneObstacleLevel(world, world.LocalPlayer);
+        world.LocalPlayer.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        var controller = new BotBrainController();
+
+        var input = controller.Think(world.LocalPlayer, world, PlayerTeam.Red);
+
+        Assert.False(controller.HasNavigationGraph);
+        Assert.True(input.Right, controller.LastDirectDriveTrace);
+        Assert.True(input.Up, controller.LastDirectDriveTrace);
+        Assert.Contains("noGraph", controller.LastDirectDriveTrace, StringComparison.Ordinal);
+        Assert.Contains("capturePoint", controller.LastDirectDriveTrace, StringComparison.Ordinal);
+        Assert.Contains("capturePointObstacleJump", controller.LastDirectDriveTrace, StringComparison.Ordinal);
+    }
+
     private static bool IsActiveMovement(PlayerInputSnapshot input) =>
         input.Left || input.Right || input.Up || input.Down;
 
@@ -146,6 +197,97 @@ public sealed class BotBrainNoGraphFallbackTests
                     roomObjects: [],
                     floorY: 2048f,
                     solids: [],
+                    importedFromSource: false),
+            ]);
+    }
+
+    private static void SetNoGraphControlPointObstacleLevel(SimulationWorld world, PlayerEntity player)
+    {
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        var obstacleLeft = player.Right + 2f;
+        var obstacleTop = player.Bottom - 24f;
+        _ = method!.Invoke(
+            world,
+            [
+                new SimpleLevel(
+                    name: "botbrain_no_graph_control_point_obstacle_test",
+                    mode: GameModeKind.ControlPoint,
+                    bounds: new WorldBounds(512f, 512f),
+                    mapScale: 1f,
+                    backgroundAssetName: null,
+                    mapAreaIndex: 1,
+                    mapAreaCount: 1,
+                    localSpawn: new SpawnPoint(player.X, player.Y),
+                    redSpawns: [new SpawnPoint(player.X, player.Y)],
+                    blueSpawns: [new SpawnPoint(player.X + 240f, player.Y)],
+                    intelBases: [],
+                    roomObjects:
+                    [
+                        new RoomObjectMarker(
+                            RoomObjectType.ControlPoint,
+                            player.X + 40f,
+                            player.Y,
+                            20f,
+                            20f,
+                            "",
+                            SourceName: "ControlPoint1"),
+                    ],
+                    floorY: 512f,
+                    solids:
+                    [
+                        new LevelSolid(obstacleLeft, obstacleTop, 12f, 24f),
+                    ],
+                    importedFromSource: false),
+            ]);
+    }
+
+    private static void SetNoGraphControlPointDeadZoneObstacleLevel(SimulationWorld world, PlayerEntity player)
+    {
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        var captureZoneLeft = player.X + 16f;
+        var obstacleLeft = player.Right + 8f;
+        var obstacleTop = player.Bottom - 24f;
+        _ = method!.Invoke(
+            world,
+            [
+                new SimpleLevel(
+                    name: "botbrain_no_graph_control_point_dead_zone_obstacle_test",
+                    mode: GameModeKind.ControlPoint,
+                    bounds: new WorldBounds(512f, 512f),
+                    mapScale: 1f,
+                    backgroundAssetName: null,
+                    mapAreaIndex: 1,
+                    mapAreaCount: 1,
+                    localSpawn: new SpawnPoint(player.X, player.Y),
+                    redSpawns: [new SpawnPoint(player.X, player.Y)],
+                    blueSpawns: [new SpawnPoint(player.X + 240f, player.Y)],
+                    intelBases: [],
+                    roomObjects:
+                    [
+                        new RoomObjectMarker(
+                            RoomObjectType.ControlPoint,
+                            player.X + 8f,
+                            player.Y,
+                            4f,
+                            20f,
+                            "",
+                            SourceName: "ControlPoint1"),
+                        new RoomObjectMarker(
+                            RoomObjectType.CaptureZone,
+                            captureZoneLeft,
+                            player.Y,
+                            2f,
+                            20f,
+                            "",
+                            SourceName: "CaptureZone"),
+                    ],
+                    floorY: 512f,
+                    solids:
+                    [
+                        new LevelSolid(obstacleLeft, obstacleTop, 12f, 24f),
+                    ],
                     importedFromSource: false),
             ]);
     }

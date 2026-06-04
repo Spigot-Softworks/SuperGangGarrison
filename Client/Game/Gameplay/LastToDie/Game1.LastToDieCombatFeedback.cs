@@ -197,18 +197,22 @@ public partial class Game1
 
     private void DrawLastToDieCombatFeedbackHud()
     {
-        if (!IsLastToDieSessionActive
-            || _lastToDieRun is null
-            || _lastToDiePerkMenuOpen
-            || IsLastToDieFailurePresentationActive()
-            || _world.LocalPlayerAwaitingJoin)
+        if (!ShouldDrawLastToDieCombatFeedbackHud())
         {
             return;
         }
 
-        DrawLastToDieRageHud();
         DrawLastToDieComboOverlay();
         DrawLastToDieRageOverlay();
+    }
+
+    private bool ShouldDrawLastToDieCombatFeedbackHud()
+    {
+        return IsLastToDieSessionActive
+            && _lastToDieRun is not null
+            && !_lastToDiePerkMenuOpen
+            && !IsLastToDieFailurePresentationActive()
+            && !_world.LocalPlayerAwaitingJoin;
     }
 
     private void DrawLastToDieComboOverlay()
@@ -262,9 +266,15 @@ public partial class Game1
     private void DrawLastToDieRageHud()
     {
         var localPlayer = _world.LocalPlayer;
+        if (!TryResolveHudElement(HudElementId.LastToDieRage, out var resolved))
+        {
+            return;
+        }
+
+        var origin = resolved.Origin;
         var barRectangle = new Rectangle(
-            ViewportWidth - LastToDieRageBarWidth - 30,
-            ViewportHeight - 136,
+            (int)MathF.Round(origin.X),
+            (int)MathF.Round(origin.Y),
             LastToDieRageBarWidth,
             LastToDieRageBarHeight);
         var shadowRectangle = new Rectangle(barRectangle.X + 4, barRectangle.Y + 4, barRectangle.Width, barRectangle.Height);
@@ -307,9 +317,13 @@ public partial class Game1
         var rageLabelPosition = new Vector2(barRectangle.Center.X, barRectangle.Y - 18f);
         DrawBitmapFontTextCentered("RAGE", rageLabelPosition + new Vector2(2f, 2f), Color.Black * 0.75f, 1f);
         DrawBitmapFontTextCentered("RAGE", rageLabelPosition, new Color(240, 240, 240), 1f);
+        var renderedBounds = Rectangle.Union(
+            frameRectangle,
+            new Rectangle(barRectangle.X - 8, barRectangle.Y - 28, barRectangle.Width + 16, barRectangle.Height + 48));
 
         if (!localPlayer.IsRaging && !localPlayer.IsRageReady)
         {
+            UpdateHudElementBounds(HudElementId.LastToDieRage, renderedBounds);
             return;
         }
 
@@ -320,6 +334,7 @@ public partial class Game1
         const float stateScale = 0.96f;
         DrawBitmapFontTextCentered(stateText, new Vector2(barRectangle.Center.X, barRectangle.Bottom + 8f), Color.Black * 0.7f, stateScale);
         DrawBitmapFontTextCentered(stateText, new Vector2(barRectangle.Center.X, barRectangle.Bottom + 6f), stateColor, stateScale);
+        UpdateHudElementBounds(HudElementId.LastToDieRage, renderedBounds);
     }
 
     private void DrawLastToDieRageOverlay()

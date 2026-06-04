@@ -43,6 +43,10 @@ public sealed class ClientSettings
 
     public int IngameMusicVolumePercent { get; set; } = 70;
 
+    public bool DynamicMusicEnabled { get; set; } = true;
+
+    public int CombatMusicVolumePercent { get; set; } = OpenGarrisonPreferencesDocument.DefaultCombatMusicVolumePercent;
+
     public int SoundEffectsVolumePercent { get; set; } = 70;
 
     public bool KillCamEnabled { get; set; } = true;
@@ -238,6 +242,8 @@ public sealed class ClientSettings
             AudioMuted = document.AudioMuted,
             MenuMusicVolumePercent = Math.Clamp(document.MenuMusicVolumePercent, 0, 100),
             IngameMusicVolumePercent = Math.Clamp(document.IngameMusicVolumePercent, 0, 100),
+            DynamicMusicEnabled = document.DynamicMusicEnabled,
+            CombatMusicVolumePercent = Math.Clamp(document.CombatMusicVolumePercent, 0, OpenGarrisonPreferencesDocument.MaxCombatMusicVolumePercent),
             SoundEffectsVolumePercent = Math.Clamp(document.SoundEffectsVolumePercent, 0, 100),
             ShowPersistentSelfNameEnabled = document.ShowPersistentSelfNameEnabled,
             PositionSmoothingEnabled = document.PositionSmoothingEnabled,
@@ -311,6 +317,8 @@ public sealed class ClientSettings
         preferences.AudioMuted = AudioMuted;
         preferences.MenuMusicVolumePercent = MenuMusicVolumePercent;
         preferences.IngameMusicVolumePercent = IngameMusicVolumePercent;
+        preferences.DynamicMusicEnabled = DynamicMusicEnabled;
+        preferences.CombatMusicVolumePercent = Math.Clamp(CombatMusicVolumePercent, 0, OpenGarrisonPreferencesDocument.MaxCombatMusicVolumePercent);
         preferences.SoundEffectsVolumePercent = SoundEffectsVolumePercent;
         preferences.ShowPersistentSelfNameEnabled = ShowPersistentSelfNameEnabled;
         preferences.PositionSmoothingEnabled = PositionSmoothingEnabled;

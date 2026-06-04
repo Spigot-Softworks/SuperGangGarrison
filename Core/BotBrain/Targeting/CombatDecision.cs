@@ -7,7 +7,7 @@ public sealed class CombatDecisionMemory
 {
     public int BeenHealingTicks { get; set; }
 
-    public int BeenHealingSwitchTicks { get; set; } = 20;
+    public int BeenHealingSwitchTicks { get; set; } = 8;
 
     public int ReloadCounterTicks { get; set; }
 
@@ -83,7 +83,9 @@ public static class CombatDecisionResolver
     private const float MineDetonationRadius = 50f;
     private const float MineDetonationRadiusSquared = MineDetonationRadius * MineDetonationRadius;
     private const float MedicHealTargetMaxDistance = 300f;
+    private const float MedicHumanCallTargetMaxDistance = 900f;
     private const float MedicHealTargetMaxDistanceSquared = MedicHealTargetMaxDistance * MedicHealTargetMaxDistance;
+    private const float MedicHumanCallTargetMaxDistanceSquared = MedicHumanCallTargetMaxDistance * MedicHumanCallTargetMaxDistance;
     private const float SpyLowHealthFraction = 0.25f;
     private const float SpyBackstabMaxPlanDistance = 260f;
     private const float SpyBackstabAllyIsolationDistance = 340f;
@@ -143,20 +145,25 @@ public static class CombatDecisionResolver
                 continue;
             }
 
+            var isHumanMedicCall = IsNonControlledMedicCall(world, candidate, controlledTeamsBySlot);
+            var maxDistanceSquared = isHumanMedicCall
+                ? MedicHumanCallTargetMaxDistanceSquared
+                : MedicHealTargetMaxDistanceSquared;
             var distanceSquared = DistanceSquared(self.X, self.Y, candidate.X, candidate.Y);
-            if (distanceSquared > MedicHealTargetMaxDistanceSquared)
+            if (distanceSquared > maxDistanceSquared)
             {
                 continue;
             }
 
-            if (!HasLineOfSight(world, self.X, self.Y, candidate.X, candidate.Y, self.Team, self.IsCarryingIntel))
+            if (!isHumanMedicCall
+                && !HasLineOfSight(world, self.X, self.Y, candidate.X, candidate.Y, self.Team, self.IsCarryingIntel))
             {
                 continue;
             }
 
             var distance = MathF.Sqrt(distanceSquared);
             var healthFraction = GetHealthFraction(candidate);
-            if (IsNonControlledMedicCall(world, candidate, controlledTeamsBySlot))
+            if (isHumanMedicCall)
             {
                 var humanCallScore = (distance / 1000f) + healthFraction;
                 if (humanCallScore < bestHumanMedicCallScore)
@@ -164,6 +171,11 @@ public static class CombatDecisionResolver
                     bestHumanMedicCallScore = humanCallScore;
                     bestHumanMedicCallTarget = candidate;
                 }
+            }
+
+            if (candidate.ClassId == PlayerClass.Medic)
+            {
+                continue;
             }
 
             if (healthFraction < 0.5f)
@@ -276,18 +288,35 @@ public static class CombatDecisionResolver
     {
         if (self.ClassId == PlayerClass.Medic)
         {
-            memory.BeenHealingTicks += 1;
-            var canKeepHealing = true;
+            var existingHealTarget = self.MedicHealTargetId.HasValue
+                ? FindPlayerById(world, self.MedicHealTargetId.Value)
+                : null;
+            if (healTarget is null)
+            {
+                memory.BeenHealingTicks = 0;
+                return combatTarget is null
+                    && existingHealTarget is not null
+                    && existingHealTarget.IsAlive
+                    && existingHealTarget.Team == self.Team
+                    && existingHealTarget.ClassId != PlayerClass.Medic;
+            }
+
             if (healTarget is not null
                 && self.MedicHealTargetId.HasValue
                 && self.MedicHealTargetId.Value != healTarget.Id
-                && memory.BeenHealingTicks > memory.BeenHealingSwitchTicks)
+                && existingHealTarget is not null
+                && existingHealTarget.IsAlive)
             {
-                memory.BeenHealingTicks = 0;
-                canKeepHealing = false;
+                if (ShouldReleaseMedicBeamForTargetSwitch(existingHealTarget, healTarget, memory))
+                {
+                    return false;
+                }
+
+                return true;
             }
 
-            return healTarget is not null || combatTarget is null && canKeepHealing;
+            memory.BeenHealingTicks = 0;
+            return true;
         }
 
         memory.BeenHealingTicks = 0;
@@ -1080,6 +1109,40 @@ public static class CombatDecisionResolver
         return false;
     }
 
+    private static bool ShouldReleaseMedicBeamForTargetSwitch(
+        PlayerEntity existingHealTarget,
+        PlayerEntity desiredHealTarget,
+        CombatDecisionMemory memory)
+    {
+        if (existingHealTarget.ClassId == PlayerClass.Medic && desiredHealTarget.ClassId != PlayerClass.Medic)
+        {
+            memory.BeenHealingTicks = 0;
+            return true;
+        }
+
+        memory.BeenHealingTicks += 1;
+        if (memory.BeenHealingTicks <= memory.BeenHealingSwitchTicks)
+        {
+            return false;
+        }
+
+        memory.BeenHealingTicks = 0;
+        return true;
+    }
+
+    private static PlayerEntity? FindPlayerById(SimulationWorld world, int playerId)
+    {
+        foreach (var player in EnumeratePlayers(world))
+        {
+            if (player.Id == playerId)
+            {
+                return player;
+            }
+        }
+
+        return null;
+    }
+
     public static IEnumerable<PlayerEntity> EnumeratePlayers(SimulationWorld world)
     {
         yield return world.LocalPlayer;
@@ -1178,6 +1241,78 @@ public static class CombatDecisionResolver
         }
     }
 
+    public static bool HasCombatLineOfSight(
+        SimulationWorld world,
+        float originX,
+        float originY,
+        float targetX,
+        float targetY)
+    {
+        var distance = DistanceBetween(originX, originY, targetX, targetY);
+        if (distance <= 0.0001f)
+        {
+            return true;
+        }
+
+        var frameCache = LineOfSightFrameCaches.GetValue(world, static _ => new LineOfSightFrameCache());
+        var cacheKey = new CombatLineOfSightCacheKey(
+            originX,
+            originY,
+            targetX,
+            targetY,
+            world.Level.ControlPointSetupGatesActive);
+        if (frameCache.TryGetCombat(world.Frame, world.Level, cacheKey, out var cachedResult))
+        {
+            return cachedResult;
+        }
+
+        var directionX = (targetX - originX) / distance;
+        var directionY = (targetY - originY) / distance;
+        var lineLeft = MathF.Min(originX, targetX);
+        var lineTop = MathF.Min(originY, targetY);
+        var lineRight = MathF.Max(originX, targetX);
+        var lineBottom = MathF.Max(originY, targetY);
+        var levelCache = LineOfSightLevelCaches.GetValue(world.Level, static level => new LineOfSightLevelCache(level));
+
+        var solidCandidates = frameCache.GetSolidCandidates(levelCache, lineLeft, lineTop, lineRight, lineBottom);
+        foreach (var solid in solidCandidates)
+        {
+            if (RectangleBlocksLine(solid.Left, solid.Top, solid.Right, solid.Bottom))
+            {
+                frameCache.StoreCombat(cacheKey, false);
+                return false;
+            }
+        }
+
+        foreach (var gate in levelCache.GetCombatGateBlockers(world.Level.ControlPointSetupGatesActive))
+        {
+            if (RectangleBlocksLine(gate.Left, gate.Top, gate.Right, gate.Bottom))
+            {
+                frameCache.StoreCombat(cacheKey, false);
+                return false;
+            }
+        }
+
+        var staticBlockerCandidates = frameCache.GetStaticRoomObjectBlockerCandidates(levelCache, lineLeft, lineTop, lineRight, lineBottom);
+        foreach (var wall in staticBlockerCandidates)
+        {
+            if (RectangleBlocksLine(wall.Left, wall.Top, wall.Right, wall.Bottom))
+            {
+                frameCache.StoreCombat(cacheKey, false);
+                return false;
+            }
+        }
+
+        frameCache.StoreCombat(cacheKey, true);
+        return true;
+
+        bool RectangleBlocksLine(float left, float top, float right, float bottom)
+        {
+            return RectanglesOverlap(lineLeft, lineTop, lineRight, lineBottom, left, top, right, bottom)
+                && GetRayIntersectionDistanceWithRectangle(originX, originY, directionX, directionY, left, top, right, bottom, distance).HasValue;
+        }
+    }
+
     private readonly record struct LineOfSightCacheKey(
         float OriginX,
         float OriginY,
@@ -1188,9 +1323,17 @@ public static class CombatDecisionResolver
         bool ControlPointSetupGatesActive,
         TeamGateLockMask ForcedBlockingTeamGates);
 
+    private readonly record struct CombatLineOfSightCacheKey(
+        float OriginX,
+        float OriginY,
+        float TargetX,
+        float TargetY,
+        bool ControlPointSetupGatesActive);
+
     private sealed class LineOfSightFrameCache
     {
         private readonly Dictionary<LineOfSightCacheKey, bool> _results = new();
+        private readonly Dictionary<CombatLineOfSightCacheKey, bool> _combatResults = new();
         private readonly HashSet<int> _solidCandidateIndices = [];
         private readonly List<LevelSolid> _solidCandidates = [];
         private readonly HashSet<int> _staticRoomObjectBlockerCandidateIndices = [];
@@ -1204,9 +1347,20 @@ public static class CombatDecisionResolver
             return _results.TryGetValue(key, out result);
         }
 
+        public bool TryGetCombat(long frame, SimpleLevel level, CombatLineOfSightCacheKey key, out bool result)
+        {
+            Prepare(frame, level);
+            return _combatResults.TryGetValue(key, out result);
+        }
+
         public void Store(LineOfSightCacheKey key, bool result)
         {
             _results[key] = result;
+        }
+
+        public void StoreCombat(CombatLineOfSightCacheKey key, bool result)
+        {
+            _combatResults[key] = result;
         }
 
         public List<LevelSolid> GetSolidCandidates(
@@ -1251,6 +1405,7 @@ public static class CombatDecisionResolver
             _frame = frame;
             _level = level;
             _results.Clear();
+            _combatResults.Clear();
         }
     }
 
@@ -1260,6 +1415,7 @@ public static class CombatDecisionResolver
         private readonly LineOfSightSpatialIndex<RoomObjectMarker> _staticRoomObjectBlockerIndex;
         private readonly RoomObjectMarker[] _gateCandidates;
         private readonly Dictionary<LineOfSightGateCacheKey, IReadOnlyList<RoomObjectMarker>> _blockingGatesByKey = [];
+        private readonly Dictionary<bool, IReadOnlyList<RoomObjectMarker>> _combatGateBlockersBySetupState = [];
 
         public LineOfSightLevelCache(SimpleLevel level)
         {
@@ -1352,6 +1508,38 @@ public static class CombatDecisionResolver
                 ? Array.Empty<RoomObjectMarker>()
                 : blockingGates.ToArray();
             _blockingGatesByKey[key] = result;
+            return result;
+        }
+
+        public IReadOnlyList<RoomObjectMarker> GetCombatGateBlockers(bool controlPointSetupGatesActive)
+        {
+            if (_combatGateBlockersBySetupState.TryGetValue(controlPointSetupGatesActive, out var cachedGates))
+            {
+                return cachedGates;
+            }
+
+            var blockingGates = new List<RoomObjectMarker>();
+            foreach (var roomObject in _gateCandidates)
+            {
+                switch (roomObject.Type)
+                {
+                    case RoomObjectType.TeamGate:
+                    case RoomObjectType.IntelGate:
+                        blockingGates.Add(roomObject);
+                        break;
+                    case RoomObjectType.ControlPointSetupGate:
+                        if (controlPointSetupGatesActive)
+                        {
+                            blockingGates.Add(roomObject);
+                        }
+                        break;
+                }
+            }
+
+            var result = blockingGates.Count == 0
+                ? Array.Empty<RoomObjectMarker>()
+                : blockingGates.ToArray();
+            _combatGateBlockersBySetupState[controlPointSetupGatesActive] = result;
             return result;
         }
 

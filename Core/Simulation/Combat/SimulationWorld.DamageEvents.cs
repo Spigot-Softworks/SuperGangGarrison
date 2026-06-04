@@ -113,8 +113,17 @@ public sealed partial class SimulationWorld
                 damage,
                 wouldBeFatal,
                 target.X,
-                target.Y)
-            || (wouldBeFatal && ShouldCancelDeath(target, gibbed: false, attacker, weaponSpriteName: null)))
+                target.Y))
+        {
+            return false;
+        }
+
+        if (TryAbsorbPracticeCombatDummyDamage(target, damage, attacker, damageFlags))
+        {
+            return false;
+        }
+
+        if (wouldBeFatal && ShouldCancelDeath(target, gibbed: false, attacker, weaponSpriteName: null))
         {
             return false;
         }
@@ -206,8 +215,17 @@ public sealed partial class SimulationWorld
                 roundedDamage,
                 wouldBeFatal,
                 target.X,
-                target.Y)
-            || (wouldBeFatal && ShouldCancelDeath(target, gibbed: false, attacker, weaponSpriteName: null)))
+                target.Y))
+        {
+            return false;
+        }
+
+        if (TryAbsorbPracticeCombatDummyContinuousDamage(target, damage, attacker, damageFlags))
+        {
+            return false;
+        }
+
+        if (wouldBeFatal && ShouldCancelDeath(target, gibbed: false, attacker, weaponSpriteName: null))
         {
             return false;
         }

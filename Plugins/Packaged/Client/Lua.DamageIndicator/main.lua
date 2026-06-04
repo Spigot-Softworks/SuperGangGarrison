@@ -134,12 +134,20 @@ local function alpha_color(color, alpha)
     }
 end
 
-local function get_hud_anchor(y_offset)
+local function get_canvas_viewport_height(canvas)
+    return canvas.viewport_height or plugin.host.get_viewport_height() or 600.0
+end
+
+local function get_hud_anchor(canvas, y_offset)
+    local viewport_height = get_canvas_viewport_height(canvas)
+    local padding_from_bottom = config.moveCounterForHud and 53.0 or 33.0
+    local y_position = viewport_height - padding_from_bottom + y_offset
+
     if config.moveCounterForHud then
-        return plugin.host.vec2(64.0, 547.0 + y_offset), 2.0, true
+        return plugin.host.vec2(64.0, y_position), 2.0, true
     end
 
-    return plugin.host.vec2(89.0, 567.0 + y_offset), 3.0, false
+    return plugin.host.vec2(89.0, y_position), 3.0, false
 end
 
 local function draw_text(canvas, text, position, color, scale, centered)
@@ -183,17 +191,19 @@ local function draw_heal_text(canvas, text, position, scale, alpha, centered, bo
     draw_text(canvas, text, draw_position, alpha_color(WAREYA_GREEN, alpha), scale, centered)
 end
 
-local function resolve_world_indicator_position(index)
+local function resolve_world_indicator_position(canvas, index)
     local target_kind = world_target_kind[index]
     local target_entity_id = world_target_entity_id[index]
+    local position = nil
     if target_kind == "Player" and plugin.host.is_player_visible(target_entity_id) and not plugin.host.is_player_cloaked(target_entity_id) then
-        local position = plugin.host.try_get_player_world_position(target_entity_id)
-        if position ~= nil then
-            return position
-        end
+        position = plugin.host.try_get_player_world_position(target_entity_id)
     end
 
-    return plugin.host.vec2(world_x[index], world_y[index])
+    if position == nil then
+        position = plugin.host.vec2(world_x[index], world_y[index])
+    end
+
+    return canvas.world_to_screen(position.x or 0.0, position.y or 0.0)
 end
 
 local function play_ding(target_world_position)
@@ -422,7 +432,7 @@ end
 
 function plugin.on_gameplay_hud_draw(canvas)
     for index = 1, world_count do
-        local position = resolve_world_indicator_position(index)
+        local position = resolve_world_indicator_position(canvas, index)
         local scale = 1.0 + math.floor(world_amount[index] / 100.0)
         draw_damage_text(
             canvas,
@@ -437,7 +447,7 @@ function plugin.on_gameplay_hud_draw(canvas)
     end
 
     for index = 1, hud_count do
-        local position, scale, bottom_aligned = get_hud_anchor(hud_y_offset[index])
+        local position, scale, bottom_aligned = get_hud_anchor(canvas, hud_y_offset[index])
         draw_damage_text(
             canvas,
             "-" .. tostring(hud_amount[index]),
@@ -451,7 +461,7 @@ function plugin.on_gameplay_hud_draw(canvas)
     end
 
     for index = 1, heal_count do
-        local position, scale, bottom_aligned = get_hud_anchor(heal_y_offset[index] - 36.0)
+        local position, scale, bottom_aligned = get_hud_anchor(canvas, heal_y_offset[index] - 36.0)
         draw_heal_text(
             canvas,
             "+" .. tostring(heal_amount[index]),
@@ -464,7 +474,7 @@ function plugin.on_gameplay_hud_draw(canvas)
     end
 
     if rolling_damage > 0 then
-        local position, scale, bottom_aligned = get_hud_anchor(0.0)
+        local position, scale, bottom_aligned = get_hud_anchor(canvas, 0.0)
         draw_damage_text(canvas, "-" .. tostring(rolling_damage), position, scale, 1.0, rolling_damage_airshot, false, bottom_aligned)
     end
 end

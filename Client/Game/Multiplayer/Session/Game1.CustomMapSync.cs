@@ -18,11 +18,20 @@ public partial class Game1
     private Task<CustomMapSyncService.CustomMapSyncResult>? _pendingNetworkMapSyncTask;
     private string _pendingNetworkMapSyncKey = string.Empty;
     private WelcomeMessage? _pendingWelcomeAfterNetworkMapSync;
+    private readonly object _pendingNetworkMapSyncProgressGate = new();
+    private string _pendingNetworkMapSyncProgressMessage = "Downloading custom map...";
+    private double? _pendingNetworkMapSyncProgressValue;
 
     private void UpdatePendingNetworkMapSync()
     {
         var task = _pendingNetworkMapSyncTask;
-        if (task is null || !task.IsCompleted)
+        if (task is null)
+        {
+            return;
+        }
+
+        ApplyPendingNetworkMapSyncProgress();
+        if (!task.IsCompleted)
         {
             return;
         }
@@ -47,6 +56,12 @@ public partial class Game1
         _pendingNetworkMapSyncTask = null;
         _pendingNetworkMapSyncKey = string.Empty;
         _pendingWelcomeAfterNetworkMapSync = null;
+        HideLoadingOverlay();
+        lock (_pendingNetworkMapSyncProgressGate)
+        {
+            _pendingNetworkMapSyncProgressMessage = string.Empty;
+            _pendingNetworkMapSyncProgressValue = null;
+        }
     }
 
     private void QueueWelcomeAfterNetworkMapSync(WelcomeMessage welcome)
@@ -62,19 +77,6 @@ public partial class Game1
         out string error)
     {
         error = string.Empty;
-        if (!OperatingSystem.IsBrowser())
-        {
-            return CustomMapSyncService.EnsureMapAvailable(
-                    levelName,
-                    isCustomMap,
-                    mapDownloadUrl,
-                    mapContentHash,
-                    _networkClient.MapDownloadBaseUri,
-                    out error)
-                ? NetworkMapSyncStatus.Available
-                : NetworkMapSyncStatus.Failed;
-        }
-
         if (!isCustomMap)
         {
             return NetworkMapSyncStatus.Available;
@@ -88,7 +90,7 @@ public partial class Game1
             {
                 if (!task.IsCompleted)
                 {
-                    SetNetworkStatus("Downloading custom map...");
+                    ApplyPendingNetworkMapSyncProgress();
                     return NetworkMapSyncStatus.Pending;
                 }
 
@@ -98,7 +100,7 @@ public partial class Game1
             {
                 if (!task.IsCompleted)
                 {
-                    SetNetworkStatus("Downloading custom map...");
+                    ApplyPendingNetworkMapSyncProgress();
                     return NetworkMapSyncStatus.Pending;
                 }
 
@@ -114,12 +116,15 @@ public partial class Game1
             }
         }
 
+        StorePendingNetworkMapSyncProgress(new CustomMapSyncService.CustomMapSyncProgress("Downloading custom map...", null));
+        var progress = new Progress<CustomMapSyncService.CustomMapSyncProgress>(StorePendingNetworkMapSyncProgress);
         task = CustomMapSyncService.EnsureMapAvailableAsync(
             levelName,
             isCustomMap,
             mapDownloadUrl,
             mapContentHash,
-            _networkClient.MapDownloadBaseUri);
+            _networkClient.MapDownloadBaseUri,
+            progress);
         if (task.IsCompleted)
         {
             var completed = GetCompletedNetworkMapSyncResult(task);
@@ -134,8 +139,35 @@ public partial class Game1
 
         _pendingNetworkMapSyncTask = task;
         _pendingNetworkMapSyncKey = syncKey;
-        SetNetworkStatus("Downloading custom map...");
+        ApplyPendingNetworkMapSyncProgress();
         return NetworkMapSyncStatus.Pending;
+    }
+
+    private void StorePendingNetworkMapSyncProgress(CustomMapSyncService.CustomMapSyncProgress progress)
+    {
+        lock (_pendingNetworkMapSyncProgressGate)
+        {
+            _pendingNetworkMapSyncProgressMessage = string.IsNullOrWhiteSpace(progress.Message)
+                ? "Downloading custom map..."
+                : progress.Message;
+            _pendingNetworkMapSyncProgressValue = progress.Progress;
+        }
+    }
+
+    private void ApplyPendingNetworkMapSyncProgress()
+    {
+        string message;
+        double? progress;
+        lock (_pendingNetworkMapSyncProgressGate)
+        {
+            message = string.IsNullOrWhiteSpace(_pendingNetworkMapSyncProgressMessage)
+                ? "Downloading custom map..."
+                : _pendingNetworkMapSyncProgressMessage;
+            progress = _pendingNetworkMapSyncProgressValue;
+        }
+
+        SetNetworkStatus(message);
+        ShowLoadingOverlay(message, progress);
     }
 
     private static string CreateNetworkMapSyncKey(string levelName, string mapDownloadUrl, string mapContentHash)

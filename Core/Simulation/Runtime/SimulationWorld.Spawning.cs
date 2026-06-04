@@ -111,8 +111,15 @@ public sealed partial class SimulationWorld
 
         if (EnemyPlayerEnabled)
         {
-            EnemyPlayer.SetClassDefinition(_enemyDummyClassDefinition);
-            SpawnPlayerResolved(EnemyPlayer, _enemyDummyTeam, ReserveSpawn(EnemyPlayer, _enemyDummyTeam), playRespawnSound: true);
+            if (_practiceCombatDummyActive)
+            {
+                SpawnPracticeCombatDummyResolved(playRespawnSound: true);
+            }
+            else
+            {
+                EnemyPlayer.SetClassDefinition(_enemyDummyClassDefinition);
+                SpawnPlayerResolved(EnemyPlayer, _enemyDummyTeam, ReserveSpawn(EnemyPlayer, _enemyDummyTeam), playRespawnSound: true);
+            }
             _enemyDummyRespawnTicks = 0;
         }
         else

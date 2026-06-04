@@ -55,6 +55,7 @@ public partial class Game1
             if (!_game._gameplayHudHidden)
             {
                 _game.DrawDominationIndicator(player, cameraPosition, visibilityAlpha);
+                _game.DrawPracticeCombatDummyDps(player, cameraPosition);
                 _game.DrawChatBubble(player, cameraPosition);
                 _game.DrawWriteBubble(player, cameraPosition);
                 _game.DrawOverheadChatMessage(player, cameraPosition);

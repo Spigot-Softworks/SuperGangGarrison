@@ -356,6 +356,11 @@ public sealed partial class SimulationWorld
 
     public bool IsPlayerHumiliated(PlayerEntity player)
     {
+        if (IsPracticeCombatDummy(player))
+        {
+            return true;
+        }
+
         if (IsExperimentalRageHumiliationActiveForPlayer(player))
         {
             return true;
@@ -520,11 +525,13 @@ public sealed partial class SimulationWorld
         }
 
         var definition = CharacterClassCatalog.GetDefinition(binding.ClassId);
-        if (definition.Id == _enemyDummyClassDefinition.Id)
+        var wasPracticeCombatDummy = _practiceCombatDummyActive;
+        if (definition.Id == _enemyDummyClassDefinition.Id && !wasPracticeCombatDummy)
         {
             return false;
         }
 
+        DisablePracticeCombatDummyMode(resetStats: true);
         _enemyDummyClassDefinition = definition;
         EnemyPlayer.SetClassDefinition(definition);
         if (EnemyPlayerEnabled)

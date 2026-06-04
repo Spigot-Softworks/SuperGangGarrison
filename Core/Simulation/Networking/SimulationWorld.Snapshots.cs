@@ -1046,7 +1046,7 @@ public sealed partial class SimulationWorld
 
     internal void AdvanceRemoteSnapshotPlayerTauntStates()
     {
-        if (LocalPlayer.IsAlive && LocalPlayer.IsTaunting)
+        if (ClientPredictionMode && LocalPlayer.IsAlive && LocalPlayer.IsTaunting)
         {
             LocalPlayer.AdvanceTauntFrameLocally(Config.FixedDeltaSeconds);
         }

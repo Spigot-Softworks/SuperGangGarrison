@@ -36,6 +36,7 @@ public partial class Game1
 
         private const string MenuMusicVolumeLabel = "Menu Music Volume";
         private const string InGameMusicVolumeLabel = "In-Game Music Volume";
+        private const string CombatMusicVolumeLabel = "Combat Music Volume";
         private const string SoundEffectsVolumeLabel = "SFX Volume";
         private const string ControllerAimAssistStrengthLabel = "Aim Assist Strength";
         private const string ControllerAimDeadzoneLabel = "Stick Deadzone";
@@ -383,6 +384,9 @@ public partial class Game1
                 case InGameMusicVolumeLabel:
                     _game.AdjustIngameMusicVolume(step * 5);
                     return true;
+                case CombatMusicVolumeLabel:
+                    _game.AdjustCombatMusicVolume(step * 5);
+                    return true;
                 case SoundEffectsVolumeLabel:
                     _game.AdjustSoundEffectsVolume(step * 5);
                     return true;
@@ -413,6 +417,7 @@ public partial class Game1
         {
             return label is MenuMusicVolumeLabel
                 or InGameMusicVolumeLabel
+                or CombatMusicVolumeLabel
                 or SoundEffectsVolumeLabel
                 or ControllerAimAssistStrengthLabel
                 or ControllerAimDeadzoneLabel
@@ -578,6 +583,8 @@ public partial class Game1
                 new("Music", GetMusicModeLabel(_game._musicMode), _game.CycleMusicModeSetting, OptionsMenuTab.Audio),
                 new(MenuMusicVolumeLabel, $"{_game._menuMusicVolumePercent}%", () => _game.AdjustMenuMusicVolume(5), OptionsMenuTab.Audio),
                 new(InGameMusicVolumeLabel, $"{_game._ingameMusicVolumePercent}%", () => _game.AdjustIngameMusicVolume(5), OptionsMenuTab.Audio),
+                new("Dynamic Music", _game._dynamicMusicEnabled ? "Enabled" : "Disabled", _game.ToggleDynamicMusicSetting, OptionsMenuTab.Audio),
+                new(CombatMusicVolumeLabel, $"{_game._combatMusicVolumePercent}%", () => _game.AdjustCombatMusicVolume(5), OptionsMenuTab.Audio),
                 new(SoundEffectsVolumeLabel, $"{_game._soundEffectsVolumePercent}%", () => _game.AdjustSoundEffectsVolume(5), OptionsMenuTab.Audio),
                 new("Mute All Audio (F12)", _game._audioMuted ? "Muted" : "Unmuted", _game.ToggleAudioMuteSetting, OptionsMenuTab.Audio),
                 new("Weapon rotation", _game._useLocalWeaponRotation ? "Local (snappier)" : "Remote (accurate)", _game.ToggleWeaponRotationSourceSetting, OptionsMenuTab.Gameplay),

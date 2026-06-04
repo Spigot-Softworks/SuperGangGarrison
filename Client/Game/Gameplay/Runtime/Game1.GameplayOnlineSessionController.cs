@@ -122,6 +122,7 @@ public partial class Game1
                 _game.CloseLobbyBrowser(clearStatus: false);
                 var transportLabel = transport == NetworkEndpointTransport.WebSocket ? "WebSocket" : "UDP";
                 var actionLabel = intent == OnlineConnectionIntent.Watch ? "Watching" : "Connecting to";
+                _game.ShowLoadingOverlay($"{actionLabel} {host}:{port}...", progress: null);
                 _game.SetNetworkStatus($"{actionLabel} {host}:{port} over {transportLabel}...");
                 if (addConsoleFeedback)
                 {
@@ -173,6 +174,7 @@ public partial class Game1
                 _game.ResetGameplayRuntimeState();
                 _game._world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings());
                 _game.CloseLobbyBrowser(clearStatus: false);
+                _game.ShowLoadingOverlay($"Loading replay {Path.GetFileName(replayPath)}...", progress: null);
                 _game.SetNetworkStatus($"Loading replay {Path.GetFileName(replayPath)}...");
                 if (addConsoleFeedback)
                 {
@@ -219,6 +221,7 @@ public partial class Game1
                 _game.ResetGameplayRuntimeState();
                 _game._world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings());
                 _game.CloseLobbyBrowser(clearStatus: false);
+                _game.ShowLoadingOverlay($"Loading demo {Path.GetFileName(demoPath)}...", progress: null);
                 _game.SetNetworkStatus($"Loading demo {Path.GetFileName(demoPath)}...");
                 if (addConsoleFeedback)
                 {
@@ -283,6 +286,7 @@ public partial class Game1
             _game._networkClient.ClearPendingTeamSelection();
             _game._networkClient.ClearPendingClassSelection();
             _game.ResetGameplayRuntimeState();
+            _game.ShowLoadingOverlay($"Loading map {welcome.LevelName}...", progress: null);
             if (!_game._world.TryLoadLevel(welcome.LevelName, mapAreaIndex: 1, preservePlayerStats: false, mapScale: welcome.MapScale))
             {
                 var loadError = $"Failed to load map: {welcome.LevelName}";
@@ -297,6 +301,7 @@ public partial class Game1
                 openJoinMenus: _game._onlineConnectionIntent != OnlineConnectionIntent.Watch && !_game._networkClient.IsSpectator,
                 statusMessage: _game._networkClient.IsSpectator ? "Connected as spectator." : string.Empty);
             _game.StopMenuMusic();
+            _game.HideLoadingOverlay();
             _game.AddNetworkConsoleLine(
                 _game._networkClient.IsSpectator
                     ? $"connected to {welcome.ServerName} ({welcome.LevelName}) as spectator tickrate={welcome.TickRate}"

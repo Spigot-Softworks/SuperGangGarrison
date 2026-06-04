@@ -408,6 +408,7 @@ public partial class Game1
     private int _lastToDieTimerReductionPopupSeconds;
     private LoadedSpriteFrame? _lastToDieBuffIconFrame;
     private string? _lastToDieBuffIconFramePath;
+    private MouseState _lastGameplayHudMouse;
 
     private const string LastToDieHelmetLoadoutItemId = "ltd.accessory.helmet";
     private const string LastToDieDogtagsLoadoutItemId = "ltd.accessory.dogtags";
@@ -529,14 +530,21 @@ public partial class Game1
         ];
     }
 
-    private void DrawLastToDieBuffIcon(MouseState mouse)
+    private bool ShouldDrawLastToDieBuffIcon()
     {
-        if (!IsLastToDieSessionActive || _lastToDieRun is null || _world.LocalPlayerAwaitingJoin)
+        return IsLastToDieSessionActive && _lastToDieRun is not null && !_world.LocalPlayerAwaitingJoin;
+    }
+
+    private void DrawLastToDieBuffIcon()
+    {
+        if (!ShouldDrawLastToDieBuffIcon()
+            || _lastToDieRun is not { } run
+            || !TryResolveHudElement(HudElementId.LastToDieBuffIcon, out var resolved))
         {
             return;
         }
 
-        var iconBounds = new Rectangle(96, ViewportHeight - 83, 35, 35);
+        var iconBounds = resolved.Layout.ResolveBounds(resolved.Origin);
         var frame = GetLastToDieBuffIconFrame();
         if (frame is not null)
         {
@@ -548,12 +556,13 @@ public partial class Game1
             _spriteBatch.Draw(_pixel, new Rectangle(iconBounds.X + 6, iconBounds.Y + 6, iconBounds.Width - 12, iconBounds.Height - 12), new Color(224, 66, 66));
         }
 
-        if (!iconBounds.Contains(mouse.Position))
+        UpdateHudElementBounds(HudElementId.LastToDieBuffIcon, iconBounds);
+        if (!iconBounds.Contains(_lastGameplayHudMouse.Position))
         {
             return;
         }
 
-        var lines = BuildLastToDieBuffTooltipLines(_lastToDieRun);
+        var lines = BuildLastToDieBuffTooltipLines(run);
         if (lines.Count == 0)
         {
             lines.Add("No stat bonuses");

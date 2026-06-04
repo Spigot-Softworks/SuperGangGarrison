@@ -18,6 +18,7 @@ public partial class Game1
 {
     private const string ApplicationVersionFileName = "version.txt";
     private const string DevelopmentVersionLabel = "dev";
+    private const string AlphaVersionSuffix = " (Alpha)";
 
     private static string? _cachedApplicationVersionLabel;
 
@@ -186,7 +187,7 @@ public partial class Game1
 
     private static string GetApplicationVersionLabel()
     {
-        return _cachedApplicationVersionLabel ??= LoadApplicationVersionLabel();
+        return _cachedApplicationVersionLabel ??= FormatApplicationVersionDisplayLabel(LoadApplicationVersionLabel());
     }
 
     private static string LoadApplicationVersionLabel()
@@ -331,6 +332,14 @@ public partial class Game1
         return !string.IsNullOrWhiteSpace(version);
     }
 
+    private static string FormatApplicationVersionDisplayLabel(string version)
+    {
+        var trimmed = version.Trim();
+        return trimmed.EndsWith(AlphaVersionSuffix, StringComparison.OrdinalIgnoreCase)
+            ? trimmed
+            : trimmed + AlphaVersionSuffix;
+    }
+
     private static bool IsDefaultSdkVersionLabel(string version)
     {
         var comparable = version.Trim();
@@ -396,6 +405,19 @@ public partial class Game1
         StopMenuMusic();
         StopFaucetMusic();
         StopIngameMusic();
+        ResetDynamicMusicPlayback();
+        PersistClientSettings();
+    }
+
+    private void ToggleDynamicMusicSetting()
+    {
+        _dynamicMusicEnabled = !_dynamicMusicEnabled;
+        if (!_dynamicMusicEnabled)
+        {
+            ResetDynamicMusicPlayback();
+        }
+
+        ApplyAudioVolumeState();
         PersistClientSettings();
     }
 
@@ -922,6 +944,16 @@ public partial class Game1
     private void AdjustIngameMusicVolume(int deltaPercent)
     {
         _ingameMusicVolumePercent = Math.Clamp(_ingameMusicVolumePercent + deltaPercent, 0, 100);
+        ApplyAudioVolumeState();
+        PersistClientSettings();
+    }
+
+    private void AdjustCombatMusicVolume(int deltaPercent)
+    {
+        _combatMusicVolumePercent = Math.Clamp(
+            _combatMusicVolumePercent + deltaPercent,
+            0,
+            OpenGarrisonPreferencesDocument.MaxCombatMusicVolumePercent);
         ApplyAudioVolumeState();
         PersistClientSettings();
     }

@@ -246,6 +246,10 @@ public sealed class BrowserBootstrapAssetCatalog(
         binaryPaths.Add("Content/Sounds/Music/ingame_l2d.ogg");
         binaryPaths.Add("Content/Sounds/Music/ltdgameover.fixed.ogg");
         binaryPaths.Add("Content/Sounds/Music/menu-l2d.fixed.ogg");
+        binaryPaths.Add("Content/Sounds/Music/action_redo_drum.ogg");
+        binaryPaths.Add("Content/Sounds/Music/action_redo_body.ogg");
+        binaryPaths.Add("Content/Sounds/Music/action_redo_bass.ogg");
+        binaryPaths.Add("Content/Sounds/Music/transition_riser.ogg");
         binaryPaths.Add("Content/Sounds/message.ogg");
 
         // Browser practice/Last To Die rely on shipped point-graph assets, and the browser runtime

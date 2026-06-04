@@ -13,6 +13,8 @@ public sealed class OpenGarrisonPreferencesDocument
     public const int DefaultLobbyPort = 443;
     public const bool DefaultOverheadChatEnabled = true;
     public const int DefaultDamageVignetteIntensityPercent = 100;
+    public const int DefaultCombatMusicVolumePercent = 200;
+    public const int MaxCombatMusicVolumePercent = 300;
     public const float DefaultControllerAimAssistStrength = 0.6f;
     public const float DefaultControllerAimDeadzone = 0.22f;
     public const float DefaultControllerScopedPrecisionSpeed = 180f;
@@ -101,6 +103,10 @@ public sealed class OpenGarrisonPreferencesDocument
     public int MenuMusicVolumePercent { get; set; } = 70;
 
     public int IngameMusicVolumePercent { get; set; } = 70;
+
+    public bool DynamicMusicEnabled { get; set; } = true;
+
+    public int CombatMusicVolumePercent { get; set; } = DefaultCombatMusicVolumePercent;
 
     public int SoundEffectsVolumePercent { get; set; } = 70;
 
@@ -226,6 +232,8 @@ public sealed class OpenGarrisonPreferencesDocument
             AudioMuted = ini.GetBool(SettingsSection, "Audio Muted", false),
             MenuMusicVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Menu Music Volume", 100), 0, 100),
             IngameMusicVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Ingame Music Volume", 100), 0, 100),
+            DynamicMusicEnabled = ini.GetBool(SettingsSection, "Dynamic Music", true),
+            CombatMusicVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Combat Music Volume", DefaultCombatMusicVolumePercent), 0, MaxCombatMusicVolumePercent),
             SoundEffectsVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Sound Effects Volume", 100), 0, 100),
             ShowPersistentSelfNameEnabled = ini.GetBool(SettingsSection, "Show Self Name", false),
             PositionSmoothingEnabled = ini.GetBool(SettingsSection, "Position Smoothing", true),
@@ -311,6 +319,8 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(SettingsSection, "Audio Muted", AudioMuted);
         ini.SetInt(SettingsSection, "Menu Music Volume", MenuMusicVolumePercent);
         ini.SetInt(SettingsSection, "Ingame Music Volume", IngameMusicVolumePercent);
+        ini.SetBool(SettingsSection, "Dynamic Music", DynamicMusicEnabled);
+        ini.SetInt(SettingsSection, "Combat Music Volume", Math.Clamp(CombatMusicVolumePercent, 0, MaxCombatMusicVolumePercent));
         ini.SetInt(SettingsSection, "Sound Effects Volume", SoundEffectsVolumePercent);
         ini.SetBool(SettingsSection, "Show Self Name", ShowPersistentSelfNameEnabled);
         ini.SetBool(SettingsSection, "Position Smoothing", PositionSmoothingEnabled);
