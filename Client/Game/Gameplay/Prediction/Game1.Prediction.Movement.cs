@@ -428,6 +428,23 @@ public partial class Game1
             }
         }
 
+        player.GetCollisionBounds(out var previousLeft, out var previousTop, out var previousRight, out var previousBottom);
+        if (SimpleLevelBarrierCollision.BlocksPlayerAt(
+                _world.Level,
+                player.Team,
+                player.IsCarryingIntel,
+                previousLeft,
+                previousRight,
+                previousTop,
+                previousBottom,
+                left,
+                top,
+                right,
+                bottom))
+        {
+            return false;
+        }
+
         return true;
     }
 

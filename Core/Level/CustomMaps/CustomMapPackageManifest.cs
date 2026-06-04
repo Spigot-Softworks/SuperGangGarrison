@@ -13,6 +13,8 @@ public sealed class CustomMapPackageManifest
 
     public float Scale { get; set; } = CustomMapBuilderDocument.DefaultScale;
 
+    public float VisualScale { get; set; }
+
     public string BackgroundImage { get; set; } = string.Empty;
 
     public string WalkmaskImage { get; set; } = string.Empty;

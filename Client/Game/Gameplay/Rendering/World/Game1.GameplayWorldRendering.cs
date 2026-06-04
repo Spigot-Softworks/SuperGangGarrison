@@ -30,7 +30,13 @@ public partial class Game1
         var browserWorldDrawStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
         DrawCustomMapBackdrop(worldRectangle);
         DrawCustomMapParallaxBackgrounds(cameraPosition);
+        for (var parallaxLayer = 0; parallaxLayer <= 6; parallaxLayer += 1)
+        {
+            DrawCustomMapGameplaySprites(cameraPosition, (CustomMapSpriteLayerKind)(parallaxLayer + 1));
+        }
+
         var hasLevelBackground = DrawLevelBackground(worldRectangle);
+        DrawCustomMapGameplaySprites(cameraPosition, CustomMapSpriteLayerKind.Bg);
         DrawFallbackLevelSolids(cameraPosition, hasLevelBackground);
         DrawGameplayEffectsAndProjectiles(cameraPosition);
         DrawGameplayStructures(cameraPosition);
@@ -66,6 +72,7 @@ public partial class Game1
         DrawBackstabVisuals(cameraPosition);
         DrawSpySuperjumpVisuals(cameraPosition);
         DrawSniperAimIndicators(cameraPosition);
+        DrawCustomMapGameplaySprites(cameraPosition, CustomMapSpriteLayerKind.Fg);
         DrawCustomMapForegroundAndVoid(cameraPosition, worldRectangle);
         DrawRocketCollisionDebug(cameraPosition);
         DrawProjectileSpawnBlockedDebug(cameraPosition);

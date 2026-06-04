@@ -1,0 +1,2189 @@
+{
+  "version": 1,
+  "levelName": "Dirtbowl",
+  "mapAreaIndex": 2,
+  "team": 2,
+  "classId": 2,
+  "surfaces": [
+    {
+      "id": 0,
+      "kind": 1,
+      "left": 3152,
+      "right": 3248,
+      "top": 318,
+      "sourceIndex": 4,
+      "width": 96,
+      "centerX": 3200
+    },
+    {
+      "id": 1,
+      "kind": 1,
+      "left": 2786,
+      "right": 2954,
+      "top": 420,
+      "sourceIndex": 29,
+      "width": 168,
+      "centerX": 2870
+    },
+    {
+      "id": 2,
+      "kind": 1,
+      "left": 3666,
+      "right": 3818,
+      "top": 444,
+      "sourceIndex": 43,
+      "width": 152,
+      "centerX": 3742
+    },
+    {
+      "id": 3,
+      "kind": 1,
+      "left": 3684,
+      "right": 3708,
+      "top": 600,
+      "sourceIndex": 132,
+      "width": 24,
+      "centerX": 3696
+    },
+    {
+      "id": 4,
+      "kind": 1,
+      "left": 4478,
+      "right": 4782,
+      "top": 624,
+      "sourceIndex": 143,
+      "width": 304,
+      "centerX": 4630
+    },
+    {
+      "id": 5,
+      "kind": 1,
+      "left": 2240,
+      "right": 2304,
+      "top": 630,
+      "sourceIndex": 149,
+      "width": 64,
+      "centerX": 2272
+    },
+    {
+      "id": 6,
+      "kind": 1,
+      "left": 2420,
+      "right": 2452,
+      "top": 630,
+      "sourceIndex": 150,
+      "width": 32,
+      "centerX": 2436
+    },
+    {
+      "id": 7,
+      "kind": 1,
+      "left": 2516,
+      "right": 2820,
+      "top": 630,
+      "sourceIndex": 150,
+      "width": 304,
+      "centerX": 2668
+    },
+    {
+      "id": 8,
+      "kind": 1,
+      "left": 1544,
+      "right": 1600,
+      "top": 678,
+      "sourceIndex": 184,
+      "width": 56,
+      "centerX": 1572
+    },
+    {
+      "id": 9,
+      "kind": 1,
+      "left": 1868,
+      "right": 1988,
+      "top": 678,
+      "sourceIndex": 185,
+      "width": 120,
+      "centerX": 1928
+    },
+    {
+      "id": 10,
+      "kind": 1,
+      "left": 2060,
+      "right": 2156,
+      "top": 678,
+      "sourceIndex": 176,
+      "width": 96,
+      "centerX": 2108
+    },
+    {
+      "id": 11,
+      "kind": 1,
+      "left": 722,
+      "right": 794,
+      "top": 708,
+      "sourceIndex": 199,
+      "width": 72,
+      "centerX": 758
+    },
+    {
+      "id": 12,
+      "kind": 1,
+      "left": 3668,
+      "right": 3940,
+      "top": 774,
+      "sourceIndex": 235,
+      "width": 272,
+      "centerX": 3804
+    },
+    {
+      "id": 13,
+      "kind": 1,
+      "left": 4004,
+      "right": 4028,
+      "top": 774,
+      "sourceIndex": 235,
+      "width": 24,
+      "centerX": 4016
+    },
+    {
+      "id": 14,
+      "kind": 1,
+      "left": 674,
+      "right": 850,
+      "top": 798,
+      "sourceIndex": 246,
+      "width": 176,
+      "centerX": 762
+    },
+    {
+      "id": 15,
+      "kind": 1,
+      "left": 922,
+      "right": 1322,
+      "top": 798,
+      "sourceIndex": 246,
+      "width": 400,
+      "centerX": 1122
+    },
+    {
+      "id": 16,
+      "kind": 1,
+      "left": 1628,
+      "right": 1996,
+      "top": 798,
+      "sourceIndex": 247,
+      "width": 368,
+      "centerX": 1812
+    },
+    {
+      "id": 17,
+      "kind": 1,
+      "left": 2052,
+      "right": 2788,
+      "top": 798,
+      "sourceIndex": 247,
+      "width": 736,
+      "centerX": 2420
+    },
+    {
+      "id": 18,
+      "kind": 1,
+      "left": 2844,
+      "right": 3100,
+      "top": 798,
+      "sourceIndex": 247,
+      "width": 256,
+      "centerX": 2972
+    },
+    {
+      "id": 19,
+      "kind": 1,
+      "left": 3156,
+      "right": 3188,
+      "top": 798,
+      "sourceIndex": 247,
+      "width": 32,
+      "centerX": 3172
+    },
+    {
+      "id": 20,
+      "kind": 1,
+      "left": 3252,
+      "right": 3612,
+      "top": 798,
+      "sourceIndex": 247,
+      "width": 360,
+      "centerX": 3432
+    },
+    {
+      "id": 21,
+      "kind": 1,
+      "left": 4084,
+      "right": 4324,
+      "top": 798,
+      "sourceIndex": 247,
+      "width": 240,
+      "centerX": 4204
+    },
+    {
+      "id": 22,
+      "kind": 1,
+      "left": 4380,
+      "right": 4476,
+      "top": 798,
+      "sourceIndex": 247,
+      "width": 96,
+      "centerX": 4428
+    },
+    {
+      "id": 23,
+      "kind": 1,
+      "left": 4542,
+      "right": 4702,
+      "top": 834,
+      "sourceIndex": 269,
+      "width": 160,
+      "centerX": 4622
+    },
+    {
+      "id": 24,
+      "kind": 1,
+      "left": 94,
+      "right": 1030,
+      "top": 966,
+      "sourceIndex": 309,
+      "width": 936,
+      "centerX": 562
+    },
+    {
+      "id": 25,
+      "kind": 1,
+      "left": 2426,
+      "right": 2642,
+      "top": 1932,
+      "sourceIndex": 311,
+      "width": 216,
+      "centerX": 2534
+    },
+    {
+      "id": 26,
+      "kind": 1,
+      "left": 1124,
+      "right": 1196,
+      "top": 2004,
+      "sourceIndex": 322,
+      "width": 72,
+      "centerX": 1160
+    },
+    {
+      "id": 27,
+      "kind": 1,
+      "left": 3296,
+      "right": 3600,
+      "top": 2016,
+      "sourceIndex": 336,
+      "width": 304,
+      "centerX": 3448
+    },
+    {
+      "id": 28,
+      "kind": 1,
+      "left": 2600,
+      "right": 2864,
+      "top": 2046,
+      "sourceIndex": 347,
+      "width": 264,
+      "centerX": 2732
+    },
+    {
+      "id": 29,
+      "kind": 1,
+      "left": 1250,
+      "right": 1290,
+      "top": 2088,
+      "sourceIndex": 360,
+      "width": 40,
+      "centerX": 1270
+    },
+    {
+      "id": 30,
+      "kind": 1,
+      "left": 1436,
+      "right": 1700,
+      "top": 2088,
+      "sourceIndex": 361,
+      "width": 264,
+      "centerX": 1568
+    },
+    {
+      "id": 31,
+      "kind": 1,
+      "left": 2462,
+      "right": 2510,
+      "top": 2100,
+      "sourceIndex": 368,
+      "width": 48,
+      "centerX": 2486
+    },
+    {
+      "id": 32,
+      "kind": 1,
+      "left": 1274,
+      "right": 1330,
+      "top": 2178,
+      "sourceIndex": 398,
+      "width": 56,
+      "centerX": 1302
+    },
+    {
+      "id": 33,
+      "kind": 1,
+      "left": 1394,
+      "right": 1442,
+      "top": 2178,
+      "sourceIndex": 398,
+      "width": 48,
+      "centerX": 1418
+    },
+    {
+      "id": 34,
+      "kind": 1,
+      "left": 3296,
+      "right": 3328,
+      "top": 2178,
+      "sourceIndex": 412,
+      "width": 32,
+      "centerX": 3312
+    },
+    {
+      "id": 35,
+      "kind": 1,
+      "left": 3566,
+      "right": 3598,
+      "top": 2178,
+      "sourceIndex": 413,
+      "width": 32,
+      "centerX": 3582
+    },
+    {
+      "id": 36,
+      "kind": 1,
+      "left": 2462,
+      "right": 2510,
+      "top": 2196,
+      "sourceIndex": 415,
+      "width": 48,
+      "centerX": 2486
+    },
+    {
+      "id": 37,
+      "kind": 1,
+      "left": 3968,
+      "right": 4192,
+      "top": 2202,
+      "sourceIndex": 422,
+      "width": 224,
+      "centerX": 4080
+    },
+    {
+      "id": 38,
+      "kind": 1,
+      "left": 4320,
+      "right": 4544,
+      "top": 2202,
+      "sourceIndex": 422,
+      "width": 224,
+      "centerX": 4432
+    },
+    {
+      "id": 39,
+      "kind": 1,
+      "left": 1850,
+      "right": 2074,
+      "top": 2214,
+      "sourceIndex": 428,
+      "width": 224,
+      "centerX": 1962
+    },
+    {
+      "id": 40,
+      "kind": 1,
+      "left": 1634,
+      "right": 1802,
+      "top": 2238,
+      "sourceIndex": 463,
+      "width": 168,
+      "centerX": 1718
+    },
+    {
+      "id": 41,
+      "kind": 1,
+      "left": 2106,
+      "right": 2130,
+      "top": 2238,
+      "sourceIndex": 463,
+      "width": 24,
+      "centerX": 2118
+    },
+    {
+      "id": 42,
+      "kind": 1,
+      "left": 2154,
+      "right": 2186,
+      "top": 2262,
+      "sourceIndex": 470,
+      "width": 32,
+      "centerX": 2170
+    },
+    {
+      "id": 43,
+      "kind": 1,
+      "left": 2208,
+      "right": 2240,
+      "top": 2286,
+      "sourceIndex": 491,
+      "width": 32,
+      "centerX": 2224
+    },
+    {
+      "id": 44,
+      "kind": 1,
+      "left": 430,
+      "right": 502,
+      "top": 2298,
+      "sourceIndex": 484,
+      "width": 72,
+      "centerX": 466
+    },
+    {
+      "id": 45,
+      "kind": 1,
+      "left": 2558,
+      "right": 2974,
+      "top": 2298,
+      "sourceIndex": 486,
+      "width": 416,
+      "centerX": 2766
+    },
+    {
+      "id": 46,
+      "kind": 1,
+      "left": 3038,
+      "right": 3158,
+      "top": 2298,
+      "sourceIndex": 486,
+      "width": 120,
+      "centerX": 3098
+    },
+    {
+      "id": 47,
+      "kind": 1,
+      "left": 3222,
+      "right": 3678,
+      "top": 2298,
+      "sourceIndex": 486,
+      "width": 456,
+      "centerX": 3450
+    },
+    {
+      "id": 48,
+      "kind": 1,
+      "left": 3742,
+      "right": 4022,
+      "top": 2298,
+      "sourceIndex": 486,
+      "width": 280,
+      "centerX": 3882
+    },
+    {
+      "id": 49,
+      "kind": 1,
+      "left": 2312,
+      "right": 2536,
+      "top": 2304,
+      "sourceIndex": 492,
+      "width": 224,
+      "centerX": 2424
+    },
+    {
+      "id": 50,
+      "kind": 1,
+      "left": 2264,
+      "right": 2288,
+      "top": 2310,
+      "sourceIndex": 498,
+      "width": 24,
+      "centerX": 2276
+    },
+    {
+      "id": 51,
+      "kind": 1,
+      "left": 1334,
+      "right": 1550,
+      "top": 2328,
+      "sourceIndex": 513,
+      "width": 216,
+      "centerX": 1442
+    },
+    {
+      "id": 52,
+      "kind": 1,
+      "left": 150,
+      "right": 310,
+      "top": 2334,
+      "sourceIndex": 517,
+      "width": 160,
+      "centerX": 230
+    },
+    {
+      "id": 53,
+      "kind": 1,
+      "left": 1098,
+      "right": 1306,
+      "top": 2334,
+      "sourceIndex": 518,
+      "width": 208,
+      "centerX": 1202
+    },
+    {
+      "id": 54,
+      "kind": 1,
+      "left": 752,
+      "right": 1032,
+      "top": 2340,
+      "sourceIndex": 521,
+      "width": 280,
+      "centerX": 892
+    },
+    {
+      "id": 55,
+      "kind": 1,
+      "left": 4162,
+      "right": 4250,
+      "top": 2376,
+      "sourceIndex": 539,
+      "width": 88,
+      "centerX": 4206
+    },
+    {
+      "id": 56,
+      "kind": 1,
+      "left": 4544,
+      "right": 4632,
+      "top": 2376,
+      "sourceIndex": 540,
+      "width": 88,
+      "centerX": 4588
+    },
+    {
+      "id": 57,
+      "kind": 1,
+      "left": 622,
+      "right": 654,
+      "top": 2394,
+      "sourceIndex": 547,
+      "width": 32,
+      "centerX": 638
+    },
+    {
+      "id": 58,
+      "kind": 1,
+      "left": 4318,
+      "right": 4478,
+      "top": 2412,
+      "sourceIndex": 553,
+      "width": 160,
+      "centerX": 4398
+    },
+    {
+      "id": 59,
+      "kind": 1,
+      "left": 4022,
+      "right": 4446,
+      "top": 3096,
+      "sourceIndex": 561,
+      "width": 424,
+      "centerX": 4234
+    },
+    {
+      "id": 60,
+      "kind": 1,
+      "left": 3876,
+      "right": 4012,
+      "top": 3240,
+      "sourceIndex": 610,
+      "width": 136,
+      "centerX": 3944
+    },
+    {
+      "id": 61,
+      "kind": 1,
+      "left": 4604,
+      "right": 4772,
+      "top": 3240,
+      "sourceIndex": 609,
+      "width": 168,
+      "centerX": 4688
+    },
+    {
+      "id": 62,
+      "kind": 1,
+      "left": 4456,
+      "right": 4720,
+      "top": 3306,
+      "sourceIndex": 615,
+      "width": 264,
+      "centerX": 4588
+    },
+    {
+      "id": 63,
+      "kind": 1,
+      "left": 1034,
+      "right": 1066,
+      "top": 3486,
+      "sourceIndex": 617,
+      "width": 32,
+      "centerX": 1050
+    },
+    {
+      "id": 64,
+      "kind": 1,
+      "left": 1238,
+      "right": 1270,
+      "top": 3486,
+      "sourceIndex": 618,
+      "width": 32,
+      "centerX": 1254
+    },
+    {
+      "id": 65,
+      "kind": 1,
+      "left": 1502,
+      "right": 1902,
+      "top": 3510,
+      "sourceIndex": 619,
+      "width": 400,
+      "centerX": 1702
+    },
+    {
+      "id": 66,
+      "kind": 1,
+      "left": 2762,
+      "right": 3122,
+      "top": 3558,
+      "sourceIndex": 628,
+      "width": 360,
+      "centerX": 2942
+    },
+    {
+      "id": 67,
+      "kind": 1,
+      "left": 1622,
+      "right": 1678,
+      "top": 3654,
+      "sourceIndex": 656,
+      "width": 56,
+      "centerX": 1650
+    },
+    {
+      "id": 68,
+      "kind": 1,
+      "left": 1734,
+      "right": 1766,
+      "top": 3654,
+      "sourceIndex": 656,
+      "width": 32,
+      "centerX": 1750
+    },
+    {
+      "id": 69,
+      "kind": 1,
+      "left": 776,
+      "right": 848,
+      "top": 3678,
+      "sourceIndex": 662,
+      "width": 72,
+      "centerX": 812
+    },
+    {
+      "id": 70,
+      "kind": 1,
+      "left": 2588,
+      "right": 3116,
+      "top": 3678,
+      "sourceIndex": 664,
+      "width": 528,
+      "centerX": 2852
+    },
+    {
+      "id": 71,
+      "kind": 1,
+      "left": 3332,
+      "right": 3452,
+      "top": 3678,
+      "sourceIndex": 672,
+      "width": 120,
+      "centerX": 3392
+    },
+    {
+      "id": 72,
+      "kind": 1,
+      "left": 102,
+      "right": 326,
+      "top": 3702,
+      "sourceIndex": 677,
+      "width": 224,
+      "centerX": 214
+    },
+    {
+      "id": 73,
+      "kind": 1,
+      "left": 1790,
+      "right": 1934,
+      "top": 3714,
+      "sourceIndex": 688,
+      "width": 144,
+      "centerX": 1862
+    },
+    {
+      "id": 74,
+      "kind": 1,
+      "left": 3152,
+      "right": 3184,
+      "top": 3756,
+      "sourceIndex": 744,
+      "width": 32,
+      "centerX": 3168
+    },
+    {
+      "id": 75,
+      "kind": 1,
+      "left": 2108,
+      "right": 2300,
+      "top": 3762,
+      "sourceIndex": 720,
+      "width": 192,
+      "centerX": 2204
+    },
+    {
+      "id": 76,
+      "kind": 1,
+      "left": 4100,
+      "right": 4364,
+      "top": 3786,
+      "sourceIndex": 737,
+      "width": 264,
+      "centerX": 4232
+    },
+    {
+      "id": 77,
+      "kind": 1,
+      "left": 554,
+      "right": 666,
+      "top": 3798,
+      "sourceIndex": 750,
+      "width": 112,
+      "centerX": 610
+    },
+    {
+      "id": 78,
+      "kind": 1,
+      "left": 866,
+      "right": 890,
+      "top": 3798,
+      "sourceIndex": 751,
+      "width": 24,
+      "centerX": 878
+    },
+    {
+      "id": 79,
+      "kind": 1,
+      "left": 994,
+      "right": 1394,
+      "top": 3798,
+      "sourceIndex": 751,
+      "width": 400,
+      "centerX": 1194
+    },
+    {
+      "id": 80,
+      "kind": 1,
+      "left": 1690,
+      "right": 1818,
+      "top": 3798,
+      "sourceIndex": 751,
+      "width": 128,
+      "centerX": 1754
+    },
+    {
+      "id": 81,
+      "kind": 1,
+      "left": 2014,
+      "right": 2038,
+      "top": 3798,
+      "sourceIndex": 780,
+      "width": 24,
+      "centerX": 2026
+    },
+    {
+      "id": 82,
+      "kind": 1,
+      "left": 2366,
+      "right": 2670,
+      "top": 3798,
+      "sourceIndex": 780,
+      "width": 304,
+      "centerX": 2518
+    },
+    {
+      "id": 83,
+      "kind": 1,
+      "left": 2750,
+      "right": 3126,
+      "top": 3798,
+      "sourceIndex": 752,
+      "width": 376,
+      "centerX": 2938
+    },
+    {
+      "id": 84,
+      "kind": 1,
+      "left": 3270,
+      "right": 3662,
+      "top": 3798,
+      "sourceIndex": 752,
+      "width": 392,
+      "centerX": 3466
+    },
+    {
+      "id": 85,
+      "kind": 1,
+      "left": 3726,
+      "right": 3814,
+      "top": 3798,
+      "sourceIndex": 752,
+      "width": 88,
+      "centerX": 3770
+    },
+    {
+      "id": 86,
+      "kind": 1,
+      "left": 3870,
+      "right": 3894,
+      "top": 3798,
+      "sourceIndex": 752,
+      "width": 24,
+      "centerX": 3882
+    },
+    {
+      "id": 87,
+      "kind": 1,
+      "left": 4028,
+      "right": 4068,
+      "top": 3798,
+      "sourceIndex": 762,
+      "width": 40,
+      "centerX": 4048
+    },
+    {
+      "id": 88,
+      "kind": 1,
+      "left": 4396,
+      "right": 4428,
+      "top": 3798,
+      "sourceIndex": 762,
+      "width": 32,
+      "centerX": 4412
+    },
+    {
+      "id": 89,
+      "kind": 1,
+      "left": 4562,
+      "right": 4586,
+      "top": 3798,
+      "sourceIndex": 753,
+      "width": 24,
+      "centerX": 4574
+    },
+    {
+      "id": 90,
+      "kind": 1,
+      "left": 4650,
+      "right": 4770,
+      "top": 3798,
+      "sourceIndex": 753,
+      "width": 120,
+      "centerX": 4710
+    },
+    {
+      "id": 91,
+      "kind": 1,
+      "left": 332,
+      "right": 420,
+      "top": 3876,
+      "sourceIndex": 812,
+      "width": 88,
+      "centerX": 376
+    },
+    {
+      "id": 92,
+      "kind": 1,
+      "left": 102,
+      "right": 262,
+      "top": 3912,
+      "sourceIndex": 842,
+      "width": 160,
+      "centerX": 182
+    },
+    {
+      "id": 93,
+      "kind": 1,
+      "left": 862,
+      "right": 1814,
+      "top": 3918,
+      "sourceIndex": 859,
+      "width": 952,
+      "centerX": 1338
+    },
+    {
+      "id": 94,
+      "kind": 1,
+      "left": 2694,
+      "right": 3054,
+      "top": 4074,
+      "sourceIndex": 894,
+      "width": 360,
+      "centerX": 2874
+    },
+    {
+      "id": 95,
+      "kind": 1,
+      "left": 3118,
+      "right": 3334,
+      "top": 4074,
+      "sourceIndex": 894,
+      "width": 216,
+      "centerX": 3226
+    },
+    {
+      "id": 96,
+      "kind": 1,
+      "left": 3478,
+      "right": 3694,
+      "top": 4074,
+      "sourceIndex": 894,
+      "width": 216,
+      "centerX": 3586
+    },
+    {
+      "id": 97,
+      "kind": 1,
+      "left": 3758,
+      "right": 3782,
+      "top": 4074,
+      "sourceIndex": 894,
+      "width": 24,
+      "centerX": 3770
+    },
+    {
+      "id": 98,
+      "kind": 1,
+      "left": 3846,
+      "right": 4134,
+      "top": 4074,
+      "sourceIndex": 894,
+      "width": 288,
+      "centerX": 3990
+    }
+  ],
+  "edges": [
+    {
+      "id": 0,
+      "routeKind": 1,
+      "fromSurfaceId": 58,
+      "toSurfaceId": 55,
+      "entryX": 4421.5073,
+      "entryBottom": 2412,
+      "exitX": 4249.984,
+      "exitBottom": 2376,
+      "costTicks": 32,
+      "leftTicks": 33,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 33,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "routeKind": 1,
+      "fromSurfaceId": 55,
+      "toSurfaceId": 48,
+      "entryX": 4249.984,
+      "entryBottom": 2376,
+      "exitX": 4023.414,
+      "exitBottom": 2298,
+      "costTicks": 40,
+      "leftTicks": 41,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 41,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "routeKind": 1,
+      "fromSurfaceId": 48,
+      "toSurfaceId": 47,
+      "entryX": 4023.414,
+      "entryBottom": 2298,
+      "exitX": 3621.0796,
+      "exitBottom": 2298,
+      "costTicks": 71,
+      "leftTicks": 72,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 44,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 27,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "routeKind": 1,
+      "fromSurfaceId": 47,
+      "toSurfaceId": 46,
+      "entryX": 3621.0796,
+      "entryBottom": 2298,
+      "exitX": 3082.7427,
+      "exitBottom": 2298,
+      "costTicks": 95,
+      "leftTicks": 96,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 67,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 28,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "routeKind": 1,
+      "fromSurfaceId": 46,
+      "toSurfaceId": 45,
+      "entryX": 3082.7427,
+      "entryBottom": 2298,
+      "exitX": 2924.0781,
+      "exitBottom": 2298,
+      "costTicks": 28,
+      "leftTicks": 29,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 27,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "routeKind": 1,
+      "fromSurfaceId": 45,
+      "toSurfaceId": 49,
+      "entryX": 2924.0781,
+      "entryBottom": 2298,
+      "exitX": 2533.0725,
+      "exitBottom": 2304,
+      "costTicks": 69,
+      "leftTicks": 70,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 70,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "routeKind": 1,
+      "fromSurfaceId": 49,
+      "toSurfaceId": 39,
+      "entryX": 2533.0725,
+      "entryBottom": 2304,
+      "exitX": 2013.2783,
+      "exitBottom": 2214,
+      "costTicks": 94,
+      "leftTicks": 89,
+      "rightTicks": 0,
+      "jumpTicks": 3,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 24,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 25,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 19,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 18,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "routeKind": 1,
+      "fromSurfaceId": 58,
+      "toSurfaceId": 55,
+      "entryX": 4433.5073,
+      "entryBottom": 2412,
+      "exitX": 4250.675,
+      "exitBottom": 2376,
+      "costTicks": 34,
+      "leftTicks": 35,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 35,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "routeKind": 1,
+      "fromSurfaceId": 55,
+      "toSurfaceId": 48,
+      "entryX": 4250.675,
+      "entryBottom": 2376,
+      "exitX": 4018.414,
+      "exitBottom": 2298,
+      "costTicks": 41,
+      "leftTicks": 42,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 42,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "routeKind": 1,
+      "fromSurfaceId": 48,
+      "toSurfaceId": 47,
+      "entryX": 4018.414,
+      "entryBottom": 2298,
+      "exitX": 3627.4128,
+      "exitBottom": 2298,
+      "costTicks": 69,
+      "leftTicks": 70,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 42,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 27,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "routeKind": 1,
+      "fromSurfaceId": 47,
+      "toSurfaceId": 46,
+      "entryX": 3627.4128,
+      "entryBottom": 2298,
+      "exitX": 3094.743,
+      "exitBottom": 2298,
+      "costTicks": 94,
+      "leftTicks": 95,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 67,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 27,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "routeKind": 1,
+      "fromSurfaceId": 46,
+      "toSurfaceId": 45,
+      "entryX": 3094.743,
+      "entryBottom": 2298,
+      "exitX": 2936.0784,
+      "exitBottom": 2298,
+      "costTicks": 28,
+      "leftTicks": 29,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 27,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "routeKind": 1,
+      "fromSurfaceId": 45,
+      "toSurfaceId": 49,
+      "entryX": 2936.0784,
+      "entryBottom": 2298,
+      "exitX": 2533.7437,
+      "exitBottom": 2304,
+      "costTicks": 71,
+      "leftTicks": 72,
+      "rightTicks": 0,
+      "jumpTicks": 2,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 9,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 55,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "routeKind": 1,
+      "fromSurfaceId": 49,
+      "toSurfaceId": 39,
+      "entryX": 2533.7437,
+      "entryBottom": 2304,
+      "exitX": 2016.3286,
+      "exitBottom": 2214,
+      "costTicks": 93,
+      "leftTicks": 89,
+      "rightTicks": 0,
+      "jumpTicks": 3,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 23,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 25,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 19,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 19,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 5,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "routeKind": 1,
+      "fromSurfaceId": 58,
+      "toSurfaceId": 55,
+      "entryX": 4445.5073,
+      "entryBottom": 2412,
+      "exitX": 4251.36,
+      "exitBottom": 2376,
+      "costTicks": 36,
+      "leftTicks": 37,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 37,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "routeKind": 1,
+      "fromSurfaceId": 55,
+      "toSurfaceId": 48,
+      "entryX": 4251.36,
+      "entryBottom": 2376,
+      "exitX": 4019.0806,
+      "exitBottom": 2298,
+      "costTicks": 41,
+      "leftTicks": 42,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 42,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "routeKind": 1,
+      "fromSurfaceId": 48,
+      "toSurfaceId": 47,
+      "entryX": 4019.0806,
+      "entryBottom": 2298,
+      "exitX": 3633.746,
+      "exitBottom": 2298,
+      "costTicks": 68,
+      "leftTicks": 69,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 41,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 27,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "routeKind": 1,
+      "fromSurfaceId": 47,
+      "toSurfaceId": 46,
+      "entryX": 3633.746,
+      "entryBottom": 2298,
+      "exitX": 3101.0762,
+      "exitBottom": 2298,
+      "costTicks": 94,
+      "leftTicks": 95,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 67,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 27,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "routeKind": 1,
+      "fromSurfaceId": 46,
+      "toSurfaceId": 45,
+      "entryX": 3101.0762,
+      "entryBottom": 2298,
+      "exitX": 2914.0737,
+      "exitBottom": 2298,
+      "costTicks": 33,
+      "leftTicks": 34,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 32,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "routeKind": 1,
+      "fromSurfaceId": 45,
+      "toSurfaceId": 49,
+      "entryX": 2914.0737,
+      "entryBottom": 2298,
+      "exitX": 2534.4016,
+      "exitBottom": 2304,
+      "costTicks": 67,
+      "leftTicks": 68,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 68,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "routeKind": 1,
+      "fromSurfaceId": 49,
+      "toSurfaceId": 39,
+      "entryX": 2534.4016,
+      "entryBottom": 2304,
+      "exitX": 2014.6074,
+      "exitBottom": 2214,
+      "costTicks": 94,
+      "leftTicks": 89,
+      "rightTicks": 0,
+      "jumpTicks": 3,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 24,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 25,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 19,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 18,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    }
+  ],
+  "laneSegments": [],
+  "routes": [
+    {
+      "kind": 1,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "sampleCount": 943,
+      "surfaceSequence": [
+        58,
+        55,
+        48,
+        47,
+        46,
+        45,
+        49,
+        39
+      ],
+      "edgeIds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "laneSegmentIds": [],
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 124,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 93,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 28,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 119,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 25,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 19,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 18,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 510,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "terminalStartX": 2013.2783,
+      "terminalStartBottom": 2214,
+      "terminalEndX": 1999.2982,
+      "terminalEndBottom": 2214,
+      "terminalActions": [
+        {
+          "ticks": 504,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "startX": 4446,
+      "startBottom": 2388
+    },
+    {
+      "kind": 1,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "sampleCount": 945,
+      "surfaceSequence": [
+        58,
+        55,
+        48,
+        47,
+        46,
+        45,
+        49,
+        39
+      ],
+      "edgeIds": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "laneSegmentIds": [],
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 124,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 93,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 27,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 35,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 77,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 25,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 19,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 19,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 510,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "terminalStartX": 2016.3286,
+      "terminalStartBottom": 2214,
+      "terminalEndX": 1999.9694,
+      "terminalEndBottom": 2214,
+      "terminalActions": [
+        {
+          "ticks": 505,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "startX": 4458,
+      "startBottom": 2388
+    },
+    {
+      "kind": 1,
+      "source": "MotionProofPrimitive:Dirtbowl:a2:Blue:Engineer:local_goal",
+      "sampleCount": 947,
+      "surfaceSequence": [
+        58,
+        55,
+        48,
+        47,
+        46,
+        45,
+        49,
+        39
+      ],
+      "edgeIds": [
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ],
+      "laneSegmentIds": [],
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 126,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 93,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 27,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 122,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 25,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 19,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 18,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 510,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "terminalStartX": 2014.6074,
+      "terminalStartBottom": 2214,
+      "terminalEndX": 2000.6273,
+      "terminalEndBottom": 2214,
+      "terminalActions": [
+        {
+          "ticks": 504,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "startX": 4470,
+      "startBottom": 2388
+    }
+  ]
+}

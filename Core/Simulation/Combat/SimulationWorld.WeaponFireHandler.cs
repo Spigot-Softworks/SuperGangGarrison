@@ -411,6 +411,11 @@ public sealed partial class SimulationWorld
                 }
             }
 
+            if (SimpleLevelBarrierCollision.BlocksPointForPlayer(_world.Level, player.Team, player.IsCarryingIntel, x, y))
+            {
+                return true;
+            }
+
             return false;
         }
 

@@ -53,6 +53,15 @@ public partial class Game1
 
             if (_game._mainMenuPage == MainMenuPage.Root)
             {
+                if (GarrisonBuilderFeature.CanOpenFromMainMenu)
+                {
+                    var builderBounds = _game.GetBottomCenterPlaqueButtonBounds(layout);
+                    if (builderBounds != Rectangle.Empty)
+                    {
+                        buttons.Add(new MenuPageButton("Builder", builderBounds, _game.OpenGarrisonBuilderFromMainMenu, IsBottomBarCenterButton: true));
+                    }
+                }
+
                 var friendsBounds = _game.GetBottomRightPlaqueButtonBounds(layout);
                 if (friendsBounds != Rectangle.Empty)
                 {
@@ -74,6 +83,7 @@ public partial class Game1
             var hoveredStackedIndex = -1;
             var soloHovered = false;
             var bottomHovered = false;
+            var bottomCenterHovered = false;
             var bottomRightHovered = false;
 
             for (var index = 0; index < buttons.Count; index += 1)
@@ -86,6 +96,10 @@ public partial class Game1
                 if (buttons[index].IsBottomBarButton)
                 {
                     bottomHovered = true;
+                }
+                else if (buttons[index].IsBottomBarCenterButton)
+                {
+                    bottomCenterHovered = true;
                 }
                 else if (buttons[index].IsBottomBarRightButton)
                 {
@@ -104,6 +118,11 @@ public partial class Game1
             _game.DrawPlaqueMenuLayout(layout, stackedActions, soloAction, bottomBarAction is not null, bottomBarLabel, hoveredStackedIndex, soloHovered, bottomHovered, 1.15f);
             if (_game._mainMenuPage == MainMenuPage.Root)
             {
+                if (GarrisonBuilderFeature.CanOpenFromMainMenu)
+                {
+                    _game.DrawBottomCenterPlaqueButton(layout, "Builder", bottomCenterHovered, 1.15f);
+                }
+
                 _game.DrawBottomRightPlaqueButton(layout, "Friends", bottomRightHovered, 1.15f);
             }
         }

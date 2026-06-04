@@ -81,6 +81,7 @@ public sealed class CustomMapPngExporterTests
             BackgroundImagePath: backgroundPath,
             WalkmaskImagePath: walkmaskPath,
             Scale: 6f,
+            VisualScale: 0f,
             Metadata: new Dictionary<string, string>
             {
                 ["background"] = "ffffff",
@@ -156,6 +157,7 @@ public sealed class CustomMapPngExporterTests
             BackgroundImagePath: backgroundPath,
             WalkmaskImagePath: walkmaskPath,
             Scale: 6f,
+            VisualScale: 0f,
             Metadata: new Dictionary<string, string>
             {
                 ["background"] = "ffffff",
@@ -214,6 +216,7 @@ public sealed class CustomMapPngExporterTests
             BackgroundImagePath: backgroundPath,
             WalkmaskImagePath: walkmaskPath,
             Scale: 6f,
+            VisualScale: 0f,
             Metadata: new Dictionary<string, string>(),
             Entities:
             [
@@ -279,6 +282,7 @@ public sealed class CustomMapPngExporterTests
                 BackgroundImagePath: backgroundPath,
                 WalkmaskImagePath: walkmaskPath,
                 Scale: 6f,
+                VisualScale: 0f,
                 Metadata: new Dictionary<string, string>
                 {
                     ["background"] = "ffffff",
@@ -637,6 +641,7 @@ public sealed class CustomMapPngExporterTests
             BackgroundImagePath: backgroundPath,
             WalkmaskImagePath: walkmaskPath,
             Scale: 3f,
+            VisualScale: 0f,
             Metadata: new Dictionary<string, string>(),
             Entities:
             [
@@ -680,6 +685,7 @@ public sealed class CustomMapPngExporterTests
         BackgroundImagePath: backgroundPath,
         WalkmaskImagePath: walkmaskPath,
         Scale: 6f,
+        VisualScale: 0f,
         Metadata: new Dictionary<string, string>(),
         Entities:
         [

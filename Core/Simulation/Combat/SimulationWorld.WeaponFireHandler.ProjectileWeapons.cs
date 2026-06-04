@@ -200,7 +200,7 @@ public sealed partial class SimulationWorld
                 (int)MathF.Round(Config.TicksPerSecond * ExperimentalGameplaySettings.DefaultEngineerCaveatInjectorRocketLockDelaySeconds));
             var spawnX = weaponOrigin.BaseX + MathF.Cos(baseAngle) * 20f;
             var spawnY = weaponOrigin.BaseY + MathF.Sin(baseAngle) * 20f;
-            var explodeImmediately = _world.IsProjectileSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, spawnX, spawnY);
+            var explodeImmediately = _world.IsProjectileSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, spawnX, spawnY, attacker.Team);
             for (var rocketIndex = 0; rocketIndex < ExperimentalGameplaySettings.DefaultEngineerExperimentalOverkillAugmentRocketCount; rocketIndex += 1)
             {
                 var spreadOffset = ExperimentalGameplaySettings.DefaultEngineerExperimentalOverkillAugmentRocketCount == 1
@@ -277,7 +277,7 @@ public sealed partial class SimulationWorld
             var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
             var spawnX = weaponOrigin.BaseX + MathF.Cos(directionRadians) * 20f;
             var spawnY = weaponOrigin.BaseY + MathF.Sin(directionRadians) * 20f;
-            var explodeImmediately = _world.IsProjectileSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, spawnX, spawnY);
+            var explodeImmediately = _world.IsProjectileSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, spawnX, spawnY, attacker.Team);
             var experimentalSoldierPerkOwner = _world.IsExperimentalPracticePowerOwner(attacker)
                 && attacker.ClassId == PlayerClass.Soldier;
             var rocketCombat = _world.ApplyExperimentalSoldierRocketCombat(attacker, weaponDefinition.RocketCombat);

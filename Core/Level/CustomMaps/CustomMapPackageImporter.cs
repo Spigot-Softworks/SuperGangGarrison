@@ -235,6 +235,8 @@ public static class CustomMapPackageImporter
         {
             ["type"] = "meta",
             ["scale"] = NormalizeScale(manifest.Scale).ToString(CultureInfo.InvariantCulture),
+            ["walkmaskScale"] = NormalizeScale(manifest.Scale).ToString(CultureInfo.InvariantCulture),
+            ["visualScale"] = NormalizeScale(manifest.VisualScale > 0f ? manifest.VisualScale : manifest.Scale).ToString(CultureInfo.InvariantCulture),
         };
         metadata.TryAdd("background", CustomMapBuilderDocument.DefaultBackgroundColor);
         metadata.TryAdd("void", CustomMapBuilderDocument.DefaultVoidColor);
@@ -280,15 +282,17 @@ public static class CustomMapPackageImporter
                 manifestEntity.YScale).NormalizeForEditing());
         }
 
-        var layers = new List<CustomMapBuilderParallaxLayer>();
+        var manifestLayers = new List<CustomMapBuilderParallaxLayer>();
         foreach (var layer in manifest.ParallaxLayers ?? [])
         {
-            layers.Add(new CustomMapBuilderParallaxLayer(
+            manifestLayers.Add(new CustomMapBuilderParallaxLayer(
                 layer.Index,
                 layer.ResourceName,
                 layer.XFactor,
                 layer.YFactor).NormalizeForEditing());
         }
+
+        var layers = CustomMapBuilderParallaxLayers.Merge(manifestLayers, metadata, resources);
 
         var mapName = string.IsNullOrWhiteSpace(manifest.Name)
             ? Path.GetFileNameWithoutExtension(manifestPath)
@@ -298,6 +302,7 @@ public static class CustomMapPackageImporter
             BackgroundImagePath: backgroundPath,
             WalkmaskImagePath: walkmaskPath,
             Scale: NormalizeScale(manifest.Scale),
+            VisualScale: NormalizeScale(manifest.VisualScale > 0f ? manifest.VisualScale : manifest.Scale),
             Metadata: new ReadOnlyDictionary<string, string>(metadata),
             Entities: entities,
             Resources: new ReadOnlyDictionary<string, CustomMapBuilderResource>(resources),
@@ -349,6 +354,7 @@ public static class CustomMapPackageImporter
             "parallaxlayer" or "parallax_layer" or "parallax" => CustomMapBuilderResourceKind.ParallaxLayer,
             "foreground" or "fg" => CustomMapBuilderResourceKind.Foreground,
             "entitysprite" or "entity_sprite" => CustomMapBuilderResourceKind.EntitySprite,
+            "customsprite" or "custom_sprite" => CustomMapBuilderResourceKind.CustomSprite,
             _ => CustomMapBuilderResourceKind.GenericImage,
         };
     }

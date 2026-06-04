@@ -196,6 +196,23 @@ public partial class Game1
                 return lastToDieActions;
             }
 
+            if (_game._garrisonBuilderQuickTestActive)
+            {
+                return
+                [
+                    new("Options", () =>
+                    {
+                        _game.OpenOptionsMenu(fromGameplay: true);
+                        CloseInGameMenu();
+                    }),
+                    new("Return to editor", () =>
+                    {
+                        CloseInGameMenu();
+                        _game.ReturnToGarrisonBuilderFromQuickTest();
+                    }),
+                ];
+            }
+
             if (_game.IsPracticeSessionActive)
             {
                 var practiceActions = new List<MenuPageAction>

@@ -160,6 +160,13 @@ public sealed partial class SimulationWorld
         RedIntel = CreateIntelState(PlayerTeam.Red);
         BlueIntel = CreateIntelState(PlayerTeam.Blue);
         ResetModeStateForNewRound();
+        if (_logicActivatorStartApplied.Length > 0)
+        {
+            Array.Clear(_logicActivatorStartApplied, 0, _logicActivatorStartApplied.Length);
+        }
+
+        _mapLogicControlPointInputSignature = 0;
+
         TrySetNetworkPlayerRespawnTicks(LocalPlayerSlot, 0);
         _enemyDummyRespawnTicks = 0;
         LocalDeathCam = null;
@@ -215,6 +222,7 @@ public sealed partial class SimulationWorld
 
     private void ResetModeStateForNewRound()
     {
+        ResetTeleportTracking();
         _arenaPointTeam = null;
         _arenaCappingTeam = null;
         _arenaCappingTicks = 0f;

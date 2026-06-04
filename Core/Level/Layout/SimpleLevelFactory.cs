@@ -137,7 +137,10 @@ public static class SimpleLevelFactory
             importedFromSource: true,
             areaTransitionMarkers: importedRoom.AreaTransitionMarkers,
             unsupportedSourceEntities: importedRoom.UnsupportedEntities,
-            customMapVisuals: importedRoom.CustomMapVisuals);
+            customMapVisuals: importedRoom.CustomMapVisuals,
+            controlPointSettings: importedRoom.ControlPointSettings,
+            logicGraph: importedRoom.LogicGraph,
+            logicActivators: importedRoom.LogicActivators);
         return SimpleLevelScaling.ApplyUniformScale(level, mapScale);
     }
 

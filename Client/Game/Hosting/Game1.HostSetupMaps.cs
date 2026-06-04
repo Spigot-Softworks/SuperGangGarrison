@@ -276,10 +276,11 @@ public partial class Game1
 
     private void DrawHostSetupDropdownArrow(Rectangle bounds, float textY, float textScale)
     {
-        const string arrow = "v";
+        const string arrow = "^";
         var arrowWidth = MeasureBitmapFontWidth(arrow, textScale);
-        var arrowX = bounds.Right - 18f - arrowWidth;
-        DrawBitmapFontText(arrow, new Vector2(arrowX, textY), new Color(210, 210, 210), textScale);
+        var arrowHeight = MeasureBitmapFontHeight(textScale);
+        var center = new Vector2(bounds.Right - 18f - (arrowWidth * 0.5f), textY + (arrowHeight * 0.5f));
+        DrawBitmapFontTextCentered(arrow, center, new Color(210, 210, 210), textScale, MathF.PI);
     }
 
     private void DrawHostSetupMapListContent(

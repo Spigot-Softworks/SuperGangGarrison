@@ -4,11 +4,13 @@ public sealed partial class SimulationWorld
 {
     private sealed class RuntimePhaseController
     {
+        private readonly SimulationWorld _world;
         private readonly RuntimeEntityPhaseController _entityPhaseController;
         private readonly RuntimeMatchPhaseController _matchPhaseController;
 
         public RuntimePhaseController(SimulationWorld world)
         {
+            _world = world;
             _entityPhaseController = new RuntimeEntityPhaseController(world);
             _matchPhaseController = new RuntimeMatchPhaseController(world);
         }
@@ -17,6 +19,7 @@ public sealed partial class SimulationWorld
         {
             // Client prediction: projectiles only
             // Server remains authoritative for all players (including local player)
+            _world.AdvanceAuthoritativeMapLogicRuntime();
             _entityPhaseController.AdvanceProjectileAndTransientEntityPhase();
             _entityPhaseController.AdvanceRemoteSnapshotPlayerTauntStates();
         }

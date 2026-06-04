@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using OpenGarrison.Core;
 using Xunit;
 
@@ -19,6 +20,26 @@ public sealed class CustomMapBuilderDocumentTests
         Assert.Empty(document.Entities);
         Assert.Empty(document.Resources);
         Assert.Empty(document.ParallaxLayers);
+    }
+
+    [Fact]
+    public void NormalizeForEditingStripsLegacyMapMetadataKeys()
+    {
+        var document = CustomMapBuilderDocument.CreateEmpty("legacy") with
+        {
+            Metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = "meta",
+                ["background"] = CustomMapBuilderDocument.DefaultBackgroundColor,
+                ["void"] = CustomMapBuilderDocument.DefaultVoidColor,
+                ["scale"] = "6",
+                ["mplatform"] = "1",
+            },
+        };
+
+        var normalized = document.NormalizeForEditing();
+
+        Assert.False(normalized.Metadata.ContainsKey("mplatform"));
     }
 
     [Fact]
@@ -56,6 +77,7 @@ public sealed class CustomMapBuilderDocumentTests
             BackgroundImagePath: "bg.png",
             WalkmaskImagePath: "wm.png",
             Scale: -1f,
+            VisualScale: 0f,
             Metadata: new Dictionary<string, string>
             {
                 ["background"] = "112233",

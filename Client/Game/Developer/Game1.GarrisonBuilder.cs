@@ -32,15 +32,37 @@ public partial class Game1
     private enum GarrisonBuilderPropertyTarget
     {
         None,
-        Metadata,
+        MapProperties,
         PlacementEntity,
+        SelectedMapEntity,
     }
+
+    private const string GarrisonBuilderMapPropertyNameKey = "$name";
+    private const string GarrisonBuilderMapPropertyVisualScaleKey = "$visualScale";
+    private const string GarrisonBuilderMapPropertyWalkmaskScaleKey = "$walkmaskScale";
+
+    private static readonly string[] GarrisonBuilderMapPropertyRowOrder =
+    [
+        GarrisonBuilderMapPropertyNameKey,
+        GarrisonBuilderMapPropertyVisualScaleKey,
+        GarrisonBuilderMapPropertyWalkmaskScaleKey,
+        ControlPointMapSettingsMetadata.OverrideInitialCpsPropertyKey,
+        "background",
+        "void",
+    ];
 
     private enum GarrisonBuilderPropertyEditMode
     {
         List,
         NewKey,
         EditValue,
+    }
+
+    private enum GarrisonBuilderLayerParallaxEditField
+    {
+        None,
+        XFactor,
+        YFactor,
     }
 
     private enum LegacyBuilderPanelDragTarget
@@ -59,7 +81,7 @@ public partial class Game1
     private const int LegacyBuilderEntityButtonSize = 28;
     private const int LegacyBuilderButtonWidth = 115;
     private const int LegacyBuilderHeaderWidth = 122;
-    private const int LegacyBuilderButtonHeight = 17;
+    private const int LegacyBuilderButtonHeight = 22;
     private const int LegacyBuilderButtonSpriteWidth = 17;
     private const int LegacyBuilderLayerWidth = 160;
     private const int LegacyBuilderLayerHeight = 80;
@@ -70,22 +92,27 @@ public partial class Game1
     private const float BuilderTextScaleMultiplier = 1.22f;
     private static readonly JsonSerializerOptions BuilderMetadataJsonOptions = new() { WriteIndented = true };
     private bool _builderEditorEnabled;
+    private bool _builderPendingCameraCenter = true;
+    private readonly Dictionary<string, LoadedGameMakerSprite> _builderCatalogSpriteCache = new(StringComparer.OrdinalIgnoreCase);
     private bool _builderShowBackground = true;
     private bool _builderShowWalkmask = true;
     private bool _builderShowGrid;
     private bool _builderDirty;
     private CustomMapBuilderDocument _builderDocument = CustomMapBuilderDocument.CreateEmpty("new_map");
     private readonly List<CustomMapBuilderEntity> _builderEntities = new();
+    private readonly HashSet<int> _builderHiddenEntityIndices = new();
     private string _builderStatus = "builder disabled";
     private string _builderSavePath = string.Empty;
     private Vector2 _builderCamera;
-    private string _builderSelectedEntityType = "redspawn";
+    private string _builderSelectedEntityType = string.Empty;
     private Texture2D? _builderBackgroundTexture;
     private Texture2D? _builderWalkmaskTexture;
+    private Texture2D? _builderEmbeddedWalkmaskTexture;
     private Texture2D? _builderDefaultBackgroundTexture;
     private Texture2D? _builderDefaultWalkmaskTexture;
     private string _builderLoadedBackgroundPath = string.Empty;
     private string _builderLoadedWalkmaskPath = string.Empty;
+    private string _builderLoadedEmbeddedWalkmaskSection = string.Empty;
     private LoadedGameMakerSprite? _builderEntityButtonSprite;
     private LoadedGameMakerSprite? _builderButtonSprite;
     private LoadedGameMakerSprite? _builderMenuLayoutSprite;
@@ -106,6 +133,7 @@ public partial class Game1
     private int _builderActionScrollIndex;
     private int _builderLayerIndex = 7;
     private int _builderTooltipIndex = -1;
+    private int _builderMapHoverEntityIndex = -1;
     private CustomMapBuilderGameMode _builderSelectedGameMode = CustomMapBuilderGameMode.Free;
     private bool _builderSymmetry;
     private bool _builderScaleMode = true;
@@ -115,10 +143,28 @@ public partial class Game1
     private bool _builderEraseDragging;
     private Vector2 _builderPlacementStartWorld;
     private Vector2 _builderPlacementCurrentWorld;
+    private Vector2 _builderPlacementPreviewWorld;
+    private int _builderPlacementSnapXEntityIndex = -1;
+    private int _builderPlacementSnapYEntityIndex = -1;
+    private bool _builderShiftHeld;
+    private bool _builderCtrlHeld;
+    private bool _builderAltHeld;
+    private float _builderEntityDragStartX;
+    private float _builderEntityDragStartY;
     private Vector2 _builderEraseStartWorld;
     private Vector2 _builderEraseCurrentWorld;
     private bool _builderShowForeground = true;
     private bool _builderEditingLayerOffsets;
+    private bool _builderLayerParallaxDialogOpen;
+    private int _builderLayerParallaxDialogLayerIndex = -1;
+    private GarrisonBuilderLayerParallaxEditField _builderLayerParallaxEditField;
+    private string _builderLayerParallaxXBuffer = "1";
+    private string _builderLayerParallaxYBuffer = "1";
+    private int _builderLayerParallaxCursorIndex;
+    private int _builderLayerParallaxSelectionStart;
+    private bool _builderEntityCoordinatesAreWalkmaskPixels;
+    private bool _builderLayerMarkModeEnabled;
+    private bool _garrisonBuilderQuickTestActive;
     private bool _builderLayerOffsetDragging;
     private Point _builderLayerOffsetHoldMouse;
     private int _builderResourceScrollIndex;
@@ -139,6 +185,13 @@ public partial class Game1
     private int _builderPropertyCursorIndex;
     private int _builderPropertySelectionStart;
     private int _builderPropertyScrollIndex;
+    private bool _builderObjectiveMapPickActive;
+    private string _builderObjectiveMapPickTargetPropertyKey = string.Empty;
+    private const int GarrisonBuilderHistoryCapacity = 30;
+    private readonly List<GarrisonBuilderHistorySnapshot> _builderUndoStack = new();
+    private readonly List<GarrisonBuilderHistorySnapshot> _builderRedoStack = new();
+    private readonly List<int> _builderEntityOverlapPickScratch = new();
+    private bool _builderHistoryCaptureSuspended;
     private readonly IReadOnlyList<CustomMapBuilderEntityDefinition> _builderEntityDefinitions = CustomMapBuilderEntityCatalog.Definitions;
     private Point _builderActionPanelOffset = Point.Zero;
     private Point _builderEntityPanelOffset = Point.Zero;
@@ -164,7 +217,7 @@ public partial class Game1
         new("Symmetry mode", true),
         new("Scale mode", true),
         new("Fast scrolling", true),
-        new("Edit metadata", false),
+        new("Map properties", false),
         new("Add resource", false),
         new("Get resources", false),
         new("Load entities", false),
@@ -174,26 +227,34 @@ public partial class Game1
 
     private void UpdateGarrisonBuilderEditor(KeyboardState keyboard, MouseState mouse, float deltaSeconds)
     {
-        if (IsKeyPressed(keyboard, Keys.F4))
-        {
-            if (_builderEditorEnabled)
-            {
-                DisableGarrisonBuilderEditor("builder disabled");
-            }
-            else
-            {
-                EnableGarrisonBuilderEditor();
-            }
-        }
-
         if (!_builderEditorEnabled)
         {
             return;
         }
 
         LoadGarrisonBuilderEditorAssets();
+        _builderShiftHeld = keyboard.IsKeyDown(Keys.LeftShift) || keyboard.IsKeyDown(Keys.RightShift);
+        _builderCtrlHeld = keyboard.IsKeyDown(Keys.LeftControl) || keyboard.IsKeyDown(Keys.RightControl);
+        _builderAltHeld = keyboard.IsKeyDown(Keys.LeftAlt) || keyboard.IsKeyDown(Keys.RightAlt);
+        TryApplyPendingGarrisonBuilderCameraCenter();
         UpdateLegacyGarrisonBuilderAnimation(deltaSeconds);
+        if (_builderUseModernUi)
+        {
+            SyncGarrisonBuilderActiveTool();
+            UpdateModernGarrisonBuilderCamera(keyboard, mouse, deltaSeconds);
+            UpdateModernGarrisonBuilderZoom(mouse, keyboard);
+            if (TryHandleGarrisonBuilderHistoryShortcuts(keyboard))
+            {
+                return;
+            }
+        }
+
         if (UpdateGarrisonBuilderPropertyEditor(keyboard, mouse))
+        {
+            return;
+        }
+
+        if (UpdateGarrisonBuilderLayerParallaxDialog(keyboard, mouse))
         {
             return;
         }
@@ -203,13 +264,19 @@ public partial class Game1
             return;
         }
 
-        if (UpdateGarrisonBuilderLayerOffsetEditing(mouse))
+        if (!_builderUseModernUi && UpdateGarrisonBuilderLayerOffsetEditing(mouse))
         {
             return;
         }
 
-        if (UpdateLegacyGarrisonBuilderPanelDrag(mouse))
+        if (!_builderUseModernUi && UpdateLegacyGarrisonBuilderPanelDrag(mouse))
         {
+            return;
+        }
+
+        if (_builderUseModernUi)
+        {
+            UpdateModernGarrisonBuilderEditor(keyboard, mouse, deltaSeconds);
             return;
         }
 
@@ -272,10 +339,13 @@ public partial class Game1
         UpdateLegacyGarrisonBuilderScroll(mouse);
         _builderTooltipIndex = GetLegacyGarrisonBuilderEntityHoverIndex(mouse.Position);
         UpdateGarrisonBuilderPlacementPreview(mouse);
+        UpdateGarrisonBuilderMapEntityHover(mouse);
 
         if (IsKeyPressed(keyboard, Keys.Delete) && _builderEntities.Count > 0)
         {
-            _builderEntities.RemoveAt(_builderEntities.Count - 1);
+            var removedIndex = _builderEntities.Count - 1;
+            NotifyGarrisonBuilderEntityRemoved(removedIndex);
+            _builderEntities.RemoveAt(removedIndex);
             UpdateGarrisonBuilderDocumentEntities();
             _builderDirty = true;
             _builderStatus = "removed latest entity";
@@ -285,6 +355,47 @@ public partial class Game1
         {
             if (TryHandleLegacyGarrisonBuilderUiClick(mouse.Position, leftClick: true))
             {
+                return;
+            }
+
+            if (_builderObjectiveMapPickActive)
+            {
+                var world = mouse.Position.ToVector2() + _builderCamera;
+                if (TryPickGarrisonBuilderObjectiveAtWorld(world))
+                {
+                    return;
+                }
+
+                CancelGarrisonBuilderObjectiveMapPick();
+                _builderStatus = "objective pick cancelled";
+                return;
+            }
+
+            if (_builderLogicMapPickActive)
+            {
+                var world = mouse.Position.ToVector2() + _builderCamera;
+                if (TryPickGarrisonBuilderLogicSourceAtWorld(world, out var logicSource))
+                {
+                    ApplyGarrisonBuilderLogicMapPick(logicSource);
+                    return;
+                }
+
+                CancelGarrisonBuilderLogicMapPick();
+                _builderStatus = "logic pick cancelled";
+                return;
+            }
+
+            if (_builderEntityMapPickActive)
+            {
+                var world = mouse.Position.ToVector2() + _builderCamera;
+                if (TryPickGarrisonBuilderEntityMapPickAtWorld(world, out var targetEntity))
+                {
+                    ApplyGarrisonBuilderEntityMapPick(targetEntity);
+                    return;
+                }
+
+                CancelGarrisonBuilderEntityMapPick();
+                _builderStatus = "entity pick cancelled";
                 return;
             }
 
@@ -320,9 +431,16 @@ public partial class Game1
         }
 
         LoadGarrisonBuilderEditorAssets();
-        var mapArea = new Rectangle(0, 0, ViewportWidth, ViewportHeight);
+        if (_builderUseModernUi)
+        {
+            DrawModernGarrisonBuilderEditorOverlay(mouse);
+            return;
+        }
+
+        var mapArea = new Rectangle(0, 0, BuilderViewportWidth, BuilderViewportHeight);
         _spriteBatch.Draw(_pixel, mapArea, _builderShowBackground ? new Color(190, 190, 190, 255) : new Color(20, 20, 20, 255));
         DrawGarrisonBuilderMap(mapArea);
+        DrawGarrisonBuilderEntityLinks();
         DrawLegacyGarrisonBuilderActionMenu(mouse);
         DrawLegacyGarrisonBuilderLayerMenu(mouse);
         if (_builderDocument.Resources.Count > 0)
@@ -335,37 +453,100 @@ public partial class Game1
         DrawLegacyGarrisonBuilderPathPrompt();
         DrawGarrisonBuilderPropertyEditor(mouse);
         DrawGarrisonBuilderLayerOffsetOverlay(mouse);
+        DrawGarrisonBuilderLayerParallaxDialog(mouse);
+    }
+
+    private float GetGarrisonBuilderEditorZoom()
+    {
+        return _builderUseModernUi ? _builderZoom : 1f;
+    }
+
+    private float GetGarrisonBuilderVisualDrawScale()
+    {
+        return _builderDocument.VisualScale * GetGarrisonBuilderEditorZoom();
+    }
+
+    private float GetGarrisonBuilderWalkmaskDrawScale()
+    {
+        return _builderDocument.Scale * GetGarrisonBuilderEditorZoom();
+    }
+
+    private Vector2 GetGarrisonBuilderBackgroundMapOffset()
+    {
+        return _builderUseModernUi
+            ? BuilderWorldToScreen(Vector2.Zero)
+            : -_builderCamera;
+    }
+
+    private Vector2 GetGarrisonBuilderWalkmaskWorldOffset()
+    {
+        var backgroundTexture = _builderBackgroundTexture ?? _builderDefaultBackgroundTexture;
+        var walkmaskTexture = ResolveGarrisonBuilderWalkmaskTexture();
+        if (backgroundTexture is null || walkmaskTexture is null)
+        {
+            return Vector2.Zero;
+        }
+
+        var offsetX = (backgroundTexture.Width * _builderDocument.VisualScale - walkmaskTexture.Width * _builderDocument.Scale) * 0.5f;
+        var offsetY = (backgroundTexture.Height * _builderDocument.VisualScale - walkmaskTexture.Height * _builderDocument.Scale) * 0.5f;
+        return new Vector2(offsetX, offsetY);
+    }
+
+    private Vector2 GetGarrisonBuilderWalkmaskMapOffset(Vector2 backgroundOffset)
+    {
+        if (_builderUseModernUi)
+        {
+            return BuilderWorldToScreen(GetGarrisonBuilderWalkmaskWorldOffset());
+        }
+
+        var worldOffset = GetGarrisonBuilderWalkmaskWorldOffset();
+        return backgroundOffset + (worldOffset * GetGarrisonBuilderEditorZoom());
     }
 
     private void DrawGarrisonBuilderMap(Rectangle mapArea)
     {
-        var mapOffset = -_builderCamera;
+        var visualDrawScale = GetGarrisonBuilderVisualDrawScale();
+        var walkmaskDrawScale = GetGarrisonBuilderWalkmaskDrawScale();
+        var backgroundOffset = GetGarrisonBuilderBackgroundMapOffset();
+        var walkmaskOffset = GetGarrisonBuilderWalkmaskMapOffset(backgroundOffset);
+        DrawGarrisonBuilderParallaxLayers(backgroundOffset, visualDrawScale);
+        for (var parallaxLayer = 0; parallaxLayer <= 6; parallaxLayer += 1)
+        {
+            DrawGarrisonBuilderCustomSpritesForLayer((CustomMapSpriteLayerKind)(parallaxLayer + 1));
+        }
+
         var backgroundTexture = _builderBackgroundTexture ?? _builderDefaultBackgroundTexture;
         if (_builderShowBackground && backgroundTexture is not null)
         {
             _spriteBatch.Draw(
                 backgroundTexture,
-                mapOffset,
+                backgroundOffset,
                 null,
                 Color.White,
                 0f,
                 Vector2.Zero,
-                new Vector2(_builderDocument.Scale),
+                new Vector2(visualDrawScale),
                 SpriteEffects.None,
                 0f);
+            if (ShouldDrawGarrisonBuilderLayerMark(7))
+            {
+                DrawGarrisonBuilderLayerMarkOverlay(backgroundTexture, backgroundOffset, visualDrawScale);
+            }
         }
 
-        var walkmaskTexture = _builderWalkmaskTexture ?? _builderDefaultWalkmaskTexture;
+        DrawGarrisonBuilderCustomSpritesForLayer(CustomMapSpriteLayerKind.Bg);
+
+        var walkmaskTexture = ResolveGarrisonBuilderWalkmaskTexture();
         if (_builderShowWalkmask && walkmaskTexture is not null)
         {
             _spriteBatch.Draw(
                 walkmaskTexture,
-                mapOffset,
+                walkmaskOffset,
                 null,
                 Color.White * 0.45f,
                 0f,
                 Vector2.Zero,
-                new Vector2(_builderDocument.Scale),
+                new Vector2(walkmaskDrawScale),
                 SpriteEffects.None,
                 0f);
         }
@@ -378,37 +559,292 @@ public partial class Game1
         DrawGarrisonBuilderPlacementPreview();
         DrawGarrisonBuilderErasePreview();
 
-        foreach (var entity in _builderEntities)
+        for (var entityIndex = 0; entityIndex < _builderEntities.Count; entityIndex += 1)
         {
-            var screen = new Vector2(entity.X, entity.Y) - _builderCamera;
-            if (CustomMapBuilderEntityCatalog.TryGetDefinition(entity.Type, out var definition)
-                && TryDrawGarrisonBuilderEntitySprite(definition, entity, Color.White * 0.9f))
+            var entity = _builderEntities[entityIndex];
+            if (IsGarrisonBuilderEntityHidden(entityIndex)
+                || CustomMapCustomSpriteMetadata.IsCustomSpriteEntityType(entity.Type))
             {
-                DrawGarrisonBuilderText(entity.Type, screen + new Vector2(7f, -8f), Color.White, 0.95f);
                 continue;
             }
 
-            var bounds = new Rectangle((int)MathF.Round(screen.X) - 5, (int)MathF.Round(screen.Y) - 5, 10, 10);
+            var screen = _builderUseModernUi
+                ? BuilderWorldToScreen(new Vector2(entity.X, entity.Y))
+                : new Vector2(entity.X, entity.Y) - _builderCamera;
+            if (CustomMapBuilderEntityCatalog.TryGetDefinition(entity.Type, out var definition)
+                && TryDrawGarrisonBuilderEntitySprite(definition, entity, Color.White * 0.9f))
+            {
+                if (ControlPointOwnershipResolver.IsControlPointEntity(entity.Type))
+                {
+                    DrawGarrisonBuilderControlPointIndexOverlay(entity);
+                }
+
+                if (entityIndex == _builderMapHoverEntityIndex)
+                {
+                    DrawGarrisonBuilderEntityMapLabel(entity);
+                }
+
+                continue;
+            }
+
+            var markerSize = Math.Max(8, (int)MathF.Round(10f * (_builderUseModernUi ? _builderZoom : 1f)));
+            var half = markerSize / 2;
+            var bounds = new Rectangle((int)MathF.Round(screen.X) - half, (int)MathF.Round(screen.Y) - half, markerSize, markerSize);
             _spriteBatch.Draw(_pixel, bounds, GetGarrisonBuilderEntityColor(entity.Type));
-            DrawGarrisonBuilderText(entity.Type, screen + new Vector2(7f, -8f), Color.White, 0.95f);
+            if (entityIndex == _builderMapHoverEntityIndex)
+            {
+                DrawGarrisonBuilderEntityMapLabel(entity, screen + new Vector2(half + 2f, -16f));
+            }
+        }
+
+        DrawGarrisonBuilderPlacementAlignmentGuides();
+        DrawGarrisonBuilderCustomSpritesForLayer(CustomMapSpriteLayerKind.Fg);
+        DrawGarrisonBuilderForeground(backgroundOffset, visualDrawScale);
+    }
+
+    private void DrawGarrisonBuilderParallaxLayers(Vector2 mapOffset, float mapScale)
+    {
+        foreach (var layer in _builderDocument.ParallaxLayers.OrderBy(static entry => entry.Index))
+        {
+            if (!layer.Visible || string.IsNullOrWhiteSpace(layer.ResourceName))
+            {
+                continue;
+            }
+
+            var texture = GetGarrisonBuilderResourceTexture(layer.ResourceName);
+            if (texture is null)
+            {
+                continue;
+            }
+
+            var drawPosition = GetGarrisonBuilderLayerAlignedMapPosition(mapOffset, mapScale, texture);
+            _spriteBatch.Draw(
+                texture,
+                drawPosition,
+                null,
+                Color.White,
+                0f,
+                Vector2.Zero,
+                new Vector2(mapScale),
+                SpriteEffects.None,
+                0f);
+            if (ShouldDrawGarrisonBuilderLayerMark(layer.Index))
+            {
+                DrawGarrisonBuilderLayerMarkOverlay(texture, drawPosition, mapScale);
+            }
+        }
+    }
+
+    private bool ShouldDrawGarrisonBuilderLayerMark(int layerIndex)
+    {
+        return _builderLayerMarkModeEnabled && _builderLayerIndex == layerIndex;
+    }
+
+    private void DrawGarrisonBuilderLayerMarkOverlay(Texture2D texture, Vector2 position, float mapScale)
+    {
+        DrawGarrisonBuilderLayerMarkOverlay(texture, position, new Vector2(mapScale));
+    }
+
+    private void DrawGarrisonBuilderLayerMarkOverlay(Texture2D texture, Vector2 position, Vector2 scale)
+    {
+        _spriteBatch.Draw(
+            texture,
+            position,
+            null,
+            new Color(255, 64, 64) * 0.4f,
+            0f,
+            Vector2.Zero,
+            scale,
+            SpriteEffects.None,
+            0f);
+    }
+
+    private void ToggleGarrisonBuilderLayerMarkMode()
+    {
+        _builderLayerMarkModeEnabled = !_builderLayerMarkModeEnabled;
+        _builderStatus = _builderLayerMarkModeEnabled
+            ? $"marking {GetLegacyGarrisonBuilderLayerName()}"
+            : "mark off";
+    }
+
+    private bool IsGarrisonBuilderLayerHidden(int layerIndex)
+    {
+        return layerIndex switch
+        {
+            7 => !_builderShowBackground,
+            8 => !_builderShowForeground,
+            >= 0 and <= 6 => !GetGarrisonBuilderLayer(layerIndex).Visible,
+            _ => false,
+        };
+    }
+
+    private bool IsGarrisonBuilderSelectedLayerHidden()
+    {
+        return IsGarrisonBuilderLayerHidden(_builderLayerIndex);
+    }
+
+    private void ToggleGarrisonBuilderLayerHide(int layerIndex)
+    {
+        RecordGarrisonBuilderHistory();
+        if (layerIndex == 7)
+        {
+            _builderShowBackground = !_builderShowBackground;
+            _builderStatus = _builderShowBackground ? "background shown" : "background hidden";
+            return;
+        }
+
+        if (layerIndex == 8)
+        {
+            _builderShowForeground = !_builderShowForeground;
+            _builderStatus = _builderShowForeground ? "foreground shown" : "foreground hidden";
+            return;
+        }
+
+        if (layerIndex is < 0 or > 6)
+        {
+            _builderStatus = "select a layer";
+            return;
+        }
+
+        var layer = GetGarrisonBuilderLayer(layerIndex);
+        var nowVisible = !layer.Visible;
+        SetGarrisonBuilderLayerVisible(layerIndex, nowVisible);
+        _builderStatus = nowVisible
+            ? $"layer {layerIndex + 1} shown"
+            : $"layer {layerIndex + 1} hidden";
+    }
+
+    private void ToggleGarrisonBuilderSelectedLayerHide()
+    {
+        ToggleGarrisonBuilderLayerHide(_builderLayerIndex);
+    }
+
+    private void SetGarrisonBuilderLayerVisible(int index, bool visible)
+    {
+        var layer = GetGarrisonBuilderLayer(index);
+        var layers = _builderDocument.ParallaxLayers
+            .Where(existing => existing.Index != index)
+            .Append((layer with { Visible = visible }).NormalizeForEditing())
+            .OrderBy(existing => existing.Index)
+            .ToArray();
+        _builderDocument = _builderDocument with { ParallaxLayers = layers };
+        _builderDirty = true;
+    }
+
+    private Vector2 GetGarrisonBuilderLayerAlignedMapPosition(Vector2 mapOffset, float mapScale, Texture2D layerTexture)
+    {
+        var backgroundTexture = _builderBackgroundTexture ?? _builderDefaultBackgroundTexture;
+        if (backgroundTexture is null)
+        {
+            return mapOffset;
+        }
+
+        if (_builderUseModernUi)
+        {
+            var worldOffset = new Vector2(
+                (backgroundTexture.Width - layerTexture.Width) * _builderDocument.VisualScale * 0.5f,
+                (backgroundTexture.Height - layerTexture.Height) * _builderDocument.VisualScale * 0.5f);
+            return BuilderWorldToScreen(worldOffset);
+        }
+
+        var offsetX = (backgroundTexture.Width - layerTexture.Width) * mapScale * 0.5f;
+        var offsetY = (backgroundTexture.Height - layerTexture.Height) * mapScale * 0.5f;
+        return mapOffset + new Vector2(offsetX, offsetY);
+    }
+
+    private void BeginLoadForGarrisonBuilderLayer(int layerIndex)
+    {
+        if (layerIndex == 7)
+        {
+            BeginEditingGarrisonBuilderPath(GarrisonBuilderPathField.Background);
+            return;
+        }
+
+        if (layerIndex == 8)
+        {
+            BeginAddingGarrisonBuilderResource(CustomMapBuilderResourceKind.Foreground, "bg_foreground");
+            return;
+        }
+
+        if (layerIndex is >= 0 and <= 6)
+        {
+            BeginAddingGarrisonBuilderResource(CustomMapBuilderResourceKind.ParallaxLayer, $"bg_layer{layerIndex}");
+            return;
+        }
+
+        _builderStatus = "select a layer to load";
+    }
+
+    private void BeginLoadForCurrentGarrisonBuilderLayer()
+    {
+        BeginLoadForGarrisonBuilderLayer(_builderLayerIndex);
+    }
+
+    private void DrawGarrisonBuilderForeground(Vector2 mapOffset, float mapScale)
+    {
+        var foreground = GetGarrisonBuilderForegroundResource();
+        if (foreground is null)
+        {
+            return;
+        }
+
+        var texture = GetGarrisonBuilderResourceTexture(foreground.Value.Name);
+        if (texture is null)
+        {
+            return;
+        }
+
+        if (!_builderShowForeground)
+        {
+            return;
+        }
+
+        _spriteBatch.Draw(
+            texture,
+            mapOffset,
+            null,
+            Color.White,
+            0f,
+            Vector2.Zero,
+            new Vector2(mapScale),
+            SpriteEffects.None,
+            0f);
+        if (ShouldDrawGarrisonBuilderLayerMark(8))
+        {
+            DrawGarrisonBuilderLayerMarkOverlay(texture, mapOffset, mapScale);
         }
     }
 
     private void DrawGarrisonBuilderGrid(Rectangle mapArea)
     {
         const int gridSize = 12;
-        var startX = (int)MathF.Floor(_builderCamera.X / gridSize) * gridSize;
-        var endX = (int)MathF.Ceiling((_builderCamera.X + mapArea.Width) / gridSize) * gridSize;
-        var startY = (int)MathF.Floor(_builderCamera.Y / gridSize) * gridSize;
-        var endY = (int)MathF.Ceiling((_builderCamera.Y + mapArea.Height) / gridSize) * gridSize;
-        for (var x = startX; x <= endX; x += gridSize)
+        var visibleWidth = _builderUseModernUi ? mapArea.Width / _builderZoom : mapArea.Width;
+        var visibleHeight = _builderUseModernUi ? mapArea.Height / _builderZoom : mapArea.Height;
+        var gridWorldSize = gridSize / (_builderUseModernUi ? GetGarrisonBuilderEntityCoordinateScale() : 1f);
+        var startX = (int)MathF.Floor(_builderCamera.X / gridSize) * gridWorldSize;
+        var endX = (int)MathF.Ceiling((_builderCamera.X + visibleWidth) / gridSize) * gridWorldSize;
+        var startY = (int)MathF.Floor(_builderCamera.Y / gridSize) * gridWorldSize;
+        var endY = (int)MathF.Ceiling((_builderCamera.Y + visibleHeight) / gridSize) * gridWorldSize;
+        for (var x = startX; x <= endX; x += gridWorldSize)
         {
-            for (var y = startY; y <= endY; y += gridSize)
+            for (var y = startY; y <= endY; y += gridWorldSize)
             {
-                var screen = new Vector2(x - _builderCamera.X, y - _builderCamera.Y);
+                var screen = _builderUseModernUi
+                    ? BuilderWorldToScreen(new Vector2(x, y))
+                    : new Vector2(x - _builderCamera.X, y - _builderCamera.Y);
                 if (_builderGridSprite is not null && _builderGridSprite.Frames.Count > 0)
                 {
-                    DrawLoadedSpriteFrame(_builderGridSprite.Frames[0], screen, null, Color.White, 0f, Vector2.Zero, Vector2.One, SpriteEffects.None, 0f);
+                    var gridScale = _builderUseModernUi ? _builderZoom : 1f;
+                    DrawLoadedSpriteFrame(
+                        _builderGridSprite.Frames[0],
+                        screen,
+                        null,
+                        Color.White,
+                        0f,
+                        Vector2.Zero,
+                        new Vector2(gridScale),
+                        SpriteEffects.None,
+                        0f);
                 }
                 else
                 {
@@ -571,11 +1007,6 @@ public partial class Game1
                 _ => "R",
             };
             var label = $"{prefix} {resource.Name}";
-            if (label.Length > 20)
-            {
-                label = string.Concat(label.AsSpan(0, 17), "...");
-            }
-
             DrawGarrisonBuilderText(label, rowBounds.X + 4, rowBounds.Y + 2, Color.Black, 0.95f);
         }
     }
@@ -589,17 +1020,19 @@ public partial class Game1
 
         var items = GetGarrisonBuilderModeMenuItems();
         var bounds = GetGarrisonBuilderGameModeMenuBounds();
-        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, ViewportWidth, ViewportHeight), new Color(0, 0, 0, 145));
+        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, BuilderViewportWidth, BuilderViewportHeight), new Color(0, 0, 0, 145));
         DrawMenuPanelBackdrop(bounds, 1f);
-        DrawBitmapFontText("Garrison Builder", new Vector2(bounds.X + 18f, bounds.Y + 16f), Color.White, 1.15f);
+        var uniformScale = GetGarrisonBuilderBitmapFontScale();
+        DrawBitmapFontText("Garrison Builder", new Vector2(bounds.X + 18f, bounds.Y + 16f), Color.White, uniformScale);
 
+        var modeItemScale = uniformScale;
         for (var index = 0; index < items.Length; index += 1)
         {
             var rowBounds = GetGarrisonBuilderModeMenuItemBounds(bounds, index);
             var item = items[index];
             var selected = item.Mode is { } mode && mode == _builderSelectedGameMode;
             var hovered = rowBounds.Contains(mouse.Position);
-            DrawMenuButtonScaled(rowBounds, item.Label, selected || hovered, 0.74f);
+            DrawMenuButtonScaled(rowBounds, item.Label, selected || hovered, modeItemScale);
         }
     }
 
@@ -610,8 +1043,8 @@ public partial class Game1
             return;
         }
 
-        var width = Math.Min(620, Math.Max(320, ViewportWidth - 80));
-        var bounds = new Rectangle((ViewportWidth - width) / 2, 24, width, 66);
+        var width = Math.Min(BuilderUi(620), Math.Max(BuilderUi(320), BuilderViewportWidth - BuilderUi(80)));
+        var bounds = new Rectangle((BuilderViewportWidth - width) / 2, BuilderUi(24), width, BuilderUi(66));
         DrawLegacyBuilderPanelBody(bounds);
         DrawGarrisonBuilderText(GetLegacyGarrisonBuilderPathPromptTitle(), bounds.X + 8, bounds.Y + 8, Color.Black, 0.9f);
         var fieldBounds = new Rectangle(bounds.X + 8, bounds.Y + 32, bounds.Width - 16, 22);
@@ -628,59 +1061,128 @@ public partial class Game1
             return;
         }
 
+        if ((_builderObjectiveMapPickActive || _builderLogicMapPickActive || _builderEntityMapPickActive) && _builderUseModernUi)
+        {
+            return;
+        }
+
         var bounds = GetGarrisonBuilderPropertyEditorBounds();
-        DrawLegacyBuilderPanelBody(bounds);
-        DrawGarrisonBuilderText(_builderPropertyEditorTitle, bounds.X + 8, bounds.Y + 8, Color.Black, 0.92f);
+        var popupScale = GetGarrisonBuilderBitmapFontScale();
+        if (_builderUseModernUi)
+        {
+            DrawGarrisonBuilderBrownPanel(bounds);
+            DrawBitmapFontText(_builderPropertyEditorTitle, new Vector2(bounds.X + 12f, bounds.Y + 8f), Color.White, popupScale);
+        }
+        else
+        {
+            DrawLegacyBuilderPanelBody(bounds);
+            DrawGarrisonBuilderText(_builderPropertyEditorTitle, bounds.X + 8, bounds.Y + 8, Color.Black, 0.92f);
+        }
 
         if (_builderPropertyEditMode == GarrisonBuilderPropertyEditMode.NewKey)
         {
-            DrawGarrisonBuilderText("New property", bounds.X + 8, bounds.Y + 34, Color.Black, 0.82f);
-            DrawGarrisonBuilderPropertyInputBox(new Rectangle(bounds.X + 8, bounds.Y + 56, bounds.Width - 16, 24), _builderPropertyEditBuffer);
-            DrawGarrisonBuilderText("Enter: value  Esc: cancel", bounds.X + 8, bounds.Bottom - 22, Color.Black, 0.72f);
+            DrawGarrisonBuilderPropertyEditorTextMode(
+                bounds,
+                mouse,
+                "New property",
+                _builderPropertyEditBuffer,
+                _builderUseModernUi ? "Enter: value  Esc: cancel" : "Enter: value  Esc: cancel");
             return;
         }
 
         if (_builderPropertyEditMode == GarrisonBuilderPropertyEditMode.EditValue)
         {
-            DrawGarrisonBuilderText(_builderPropertyEditKey, bounds.X + 8, bounds.Y + 34, Color.Black, 0.82f);
-            DrawGarrisonBuilderPropertyInputBox(new Rectangle(bounds.X + 8, bounds.Y + 56, bounds.Width - 16, 24), _builderPropertyEditBuffer);
-            DrawGarrisonBuilderText("Enter: save  Empty: delete  Esc: cancel", bounds.X + 8, bounds.Bottom - 22, Color.Black, 0.72f);
+            DrawGarrisonBuilderPropertyEditorTextMode(
+                bounds,
+                mouse,
+                _builderPropertyEditKey,
+                _builderPropertyEditBuffer,
+                _builderUseModernUi ? "Enter: save  Empty: delete  Esc: cancel" : "Enter: save  Empty: delete  Esc: cancel");
             return;
         }
 
         var rows = GetGarrisonBuilderPropertyRows();
         var visibleRows = GetGarrisonBuilderPropertyVisibleRows(bounds);
         _builderPropertyScrollIndex = Math.Clamp(_builderPropertyScrollIndex, 0, Math.Max(0, rows.Count - visibleRows));
-        var y = bounds.Y + 34;
+        var rowHeight = GetGarrisonBuilderPropertyRowHeight();
+        var y = GetGarrisonBuilderPropertyListTop(bounds);
         for (var visibleIndex = 0; visibleIndex < visibleRows; visibleIndex += 1)
         {
             var index = _builderPropertyScrollIndex + visibleIndex;
-            var rowBounds = new Rectangle(bounds.X + 8, y, bounds.Width - 16, 20);
+            var rowBounds = GetGarrisonBuilderPropertyRowBounds(bounds, y);
             if (index >= rows.Count)
             {
-                _spriteBatch.Draw(_pixel, rowBounds, new Color(178, 178, 178));
-                y += 22;
+                if (!_builderUseModernUi)
+                {
+                    _spriteBatch.Draw(_pixel, rowBounds, new Color(178, 178, 178));
+                }
+
+                y += rowHeight;
                 continue;
             }
 
-            var hovered = rowBounds.Contains(mouse.Position);
-            _spriteBatch.Draw(_pixel, rowBounds, hovered ? new Color(210, 210, 210) : new Color(184, 184, 184));
             var key = rows[index];
-            var value = _builderPropertyEditorValues[key];
-            var displayValue = value.Length > 36 ? string.Concat(value.AsSpan(0, 33), "...") : value;
-            DrawGarrisonBuilderText($"{key}: {displayValue}", rowBounds.Location.ToVector2() + new Vector2(4f, 2f), Color.Black, 0.95f);
-            y += 22;
+            if (!_builderPropertyEditorValues.TryGetValue(key, out var value))
+            {
+                value = string.Empty;
+            }
+
+            DrawGarrisonBuilderPropertyRow(rowBounds, key, value, mouse, popupScale);
+            y += rowHeight;
         }
 
         if (rows.Count > visibleRows)
         {
-            DrawGarrisonBuilderText($"{_builderPropertyScrollIndex + 1}-{Math.Min(rows.Count, _builderPropertyScrollIndex + visibleRows)} / {rows.Count}", bounds.Right - 84, bounds.Y + 8, Color.Black, 0.66f);
+            var scrollLabel = $"{_builderPropertyScrollIndex + 1}-{Math.Min(rows.Count, _builderPropertyScrollIndex + visibleRows)} / {rows.Count}";
+            if (_builderUseModernUi)
+            {
+                DrawBitmapFontText(scrollLabel, new Vector2(bounds.Right - BuilderUi(92), bounds.Y + BuilderUi(8)), new Color(200, 190, 168), popupScale);
+            }
+            else
+            {
+                DrawGarrisonBuilderText(scrollLabel, bounds.Right - 84, bounds.Y + 8, Color.Black, 0.66f);
+            }
         }
 
         var addBounds = GetGarrisonBuilderPropertyAddBounds(bounds);
-        _spriteBatch.Draw(_pixel, addBounds, addBounds.Contains(mouse.Position) ? new Color(220, 220, 220) : new Color(190, 190, 190));
-        DrawGarrisonBuilderText("Add new property", addBounds.Location.ToVector2() + new Vector2(4f, 2f), Color.Black, 0.95f);
-        DrawGarrisonBuilderText("Click bool to toggle, other values to edit. Esc closes.", bounds.X + 8, bounds.Bottom - 22, Color.Black, 0.66f);
+        if (_builderUseModernUi)
+        {
+            DrawBuilderMenuButton(addBounds, "Add new property", addBounds.Contains(mouse.Position));
+            DrawBitmapFontText(
+                GetGarrisonBuilderPropertyEditorFooterHint(),
+                new Vector2(bounds.X + BuilderUi(12), bounds.Bottom - BuilderUi(20)),
+                new Color(200, 190, 168),
+                popupScale);
+        }
+        else
+        {
+            _spriteBatch.Draw(_pixel, addBounds, addBounds.Contains(mouse.Position) ? new Color(220, 220, 220) : new Color(190, 190, 190));
+            DrawGarrisonBuilderText("Add new property", addBounds.Location.ToVector2() + new Vector2(4f, 2f), Color.Black, 0.95f);
+            DrawGarrisonBuilderText("Click bool to toggle, other values to edit. Esc closes.", bounds.X + 8, bounds.Bottom - 22, Color.Black, 0.66f);
+        }
+    }
+
+    private void DrawGarrisonBuilderPropertyEditorTextMode(
+        Rectangle bounds,
+        MouseState mouse,
+        string fieldLabel,
+        string buffer,
+        string footerHint)
+    {
+        if (_builderUseModernUi)
+        {
+            var scale = GetGarrisonBuilderBitmapFontScale();
+            DrawBitmapFontText(fieldLabel, new Vector2(bounds.X + 12f, bounds.Y + 34f), Color.White, scale);
+            var fieldHeight = GetGarrisonBuilderMenuRowHeight();
+            var fieldBounds = new Rectangle(bounds.X + 8, bounds.Y + 56, bounds.Width - 16, fieldHeight);
+            DrawBuilderMenuButton(fieldBounds, GetTextWithCursor(buffer, _builderPropertyCursorIndex), fieldBounds.Contains(mouse.Position));
+            DrawBitmapFontText(footerHint, new Vector2(bounds.X + 12f, bounds.Bottom - 20f), new Color(200, 190, 168), scale);
+            return;
+        }
+
+        DrawGarrisonBuilderText(fieldLabel, bounds.X + 8, bounds.Y + 34, Color.Black, 0.82f);
+        DrawGarrisonBuilderPropertyInputBox(new Rectangle(bounds.X + 8, bounds.Y + 56, bounds.Width - 16, 24), buffer);
+        DrawGarrisonBuilderText(footerHint, bounds.X + 8, bounds.Bottom - 22, Color.Black, 0.72f);
     }
 
     private void DrawGarrisonBuilderPropertyInputBox(Rectangle bounds, string text)
@@ -695,7 +1197,7 @@ public partial class Game1
     {
         var validation = CustomMapBuilderValidator.Validate(_builderDocument with { Entities = _builderEntities.ToArray() }, _builderSelectedGameMode);
         var text = $"{GetGarrisonBuilderModeLabel(validation.Mode)} | {(_builderDirty ? "dirty" : "saved")} | {_builderStatus}";
-        var width = Math.Min(ViewportWidth - 8, (int)MathF.Ceiling(MeasureGarrisonBuilderText(text, 1f).X) + 12);
+        var width = Math.Min(BuilderViewportWidth - BuilderUi(8), (int)MathF.Ceiling(MeasureGarrisonBuilderText(text, 1f).X) + BuilderUi(12));
         var bounds = new Rectangle(4, 4, width, 18);
         _spriteBatch.Draw(_pixel, bounds, new Color(159, 159, 159));
         _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Y, bounds.Width, 1), new Color(63, 63, 63));
@@ -710,7 +1212,7 @@ public partial class Game1
         }
 
         var width = (int)MathF.Ceiling(MeasureGarrisonBuilderText(text, 1f).X) + 8;
-        var x = mousePosition.X + width + 14 > ViewportWidth ? mousePosition.X - width - 12 : mousePosition.X + 12;
+        var x = mousePosition.X + width + BuilderUi(14) > BuilderViewportWidth ? mousePosition.X - width - BuilderUi(12) : mousePosition.X + BuilderUi(12);
         var y = mousePosition.Y - 8;
         var bounds = new Rectangle(x - 2, y - 2, width, 18);
         _spriteBatch.Draw(_pixel, bounds, new Color(159, 159, 159));
@@ -807,7 +1309,7 @@ public partial class Game1
         DrawGarrisonBuilderButton(buttons[1], _builderShowWalkmask ? "WM On" : "WM Off", _builderShowWalkmask, true, mouse);
         DrawGarrisonBuilderButton(buttons[2], _builderShowGrid ? "Grid On" : "Grid Off", _builderShowGrid, true, mouse);
         DrawGarrisonBuilderButton(buttons[3], "Save F7", false, CanSaveGarrisonBuilderDocument(), mouse);
-        y += BuilderButtonHeight + 14;
+        y += buttons[0].Height + 14;
 
         DrawGarrisonBuilderText("File", x, y, new Color(180, 214, 230), 0.9f);
         y += 22;
@@ -854,7 +1356,9 @@ public partial class Game1
         y += 28;
         DrawGarrisonBuilderText("Layers", x, y, new Color(180, 214, 230), 0.9f);
         y += 22;
-        DrawGarrisonBuilderText($"Scale: {_builderDocument.Scale:0.##}", x, y, Color.White, 0.8f);
+        DrawGarrisonBuilderText($"Visual scale: {_builderDocument.VisualScale:0.##}", x, y, Color.White, 0.8f);
+        y += 18;
+        DrawGarrisonBuilderText($"Walkmask scale: {_builderDocument.Scale:0.##}", x, y, Color.White, 0.8f);
         y += 18;
         DrawGarrisonBuilderText($"Parallax layers: {_builderDocument.ParallaxLayers.Count}", x, y, Color.White, 0.8f);
         y += 28;
@@ -874,25 +1378,284 @@ public partial class Game1
         DrawGarrisonBuilderWrapped(_builderStatus, x, panel.Bottom - 48, panel.Width - 22, new Color(255, 226, 140));
     }
 
-    private void DrawGarrisonBuilderEntityIcon(CustomMapBuilderEntityDefinition definition, Rectangle bounds)
+    private int GetGarrisonBuilderEntityIconFrameIndex(CustomMapBuilderEntityDefinition definition, bool selected)
     {
-        if (_builderEntityButtonSprite is not null
-            && definition.IconFrame >= 0
-            && definition.IconFrame < _builderEntityButtonSprite.Frames.Count)
+        if (definition.IconFrame < 0)
         {
-            DrawLoadedSpriteFrame(_builderEntityButtonSprite.Frames[definition.IconFrame], bounds, Color.White);
+            return -1;
+        }
+
+        if (!selected)
+        {
+            return definition.IconFrame;
+        }
+
+        var selectedFrame = definition.IconFrame + 1;
+        if (_builderEntityButtonSprite is not null
+            && selectedFrame >= 0
+            && selectedFrame < _builderEntityButtonSprite.Frames.Count)
+        {
+            return selectedFrame;
+        }
+
+        return definition.IconFrame;
+    }
+
+    private void DrawGarrisonBuilderEntityIcon(CustomMapBuilderEntityDefinition definition, Rectangle bounds, bool selected = false)
+    {
+        var frameIndex = GetGarrisonBuilderEntityIconFrameIndex(definition, selected);
+        if (_builderEntityButtonSprite is not null
+            && frameIndex >= 0
+            && frameIndex < _builderEntityButtonSprite.Frames.Count)
+        {
+            var frame = _builderEntityButtonSprite.Frames[frameIndex];
+            var source = frame.SourceRectangle ?? new Rectangle(0, 0, frame.Texture.Width, frame.Texture.Height);
+            var scale = MathF.Min(bounds.Width / (float)source.Width, bounds.Height / (float)source.Height);
+            var drawWidth = MathF.Max(1f, source.Width * scale);
+            var drawHeight = MathF.Max(1f, source.Height * scale);
+            var drawBounds = new Rectangle(
+                bounds.X + (int)MathF.Round((bounds.Width - drawWidth) * 0.5f),
+                bounds.Y + (int)MathF.Round((bounds.Height - drawHeight) * 0.5f),
+                (int)MathF.Round(drawWidth),
+                (int)MathF.Round(drawHeight));
+            DrawLoadedSpriteFrame(frame, drawBounds, Color.White);
             return;
         }
 
-        DrawGarrisonBuilderText(definition.Type[..Math.Min(2, definition.Type.Length)].ToUpperInvariant(), bounds.X + 6, bounds.Y + 7, Color.White, 0.7f);
+        DrawGarrisonBuilderText(
+            definition.Type[..Math.Min(2, definition.Type.Length)].ToUpperInvariant(),
+            bounds.X + BuilderUi(4),
+            bounds.Y + BuilderUi(4),
+            Color.White,
+            0.65f);
+    }
+
+    private bool TryGetGarrisonBuilderEntityWorldBounds(
+        CustomMapBuilderEntity entity,
+        out float left,
+        out float top,
+        out float width,
+        out float height)
+    {
+        left = top = width = height = 0f;
+        if (TryGetGarrisonBuilderLogicNodeWorldBounds(entity, out left, out top, out width, out height))
+        {
+            return true;
+        }
+
+        if (TryGetGarrisonBuilderCustomSpriteWorldBounds(entity, out left, out top, out width, out height))
+        {
+            return true;
+        }
+
+        if (!CustomMapBuilderEntityCatalog.TryGetDefinition(entity.Type, out var definition))
+        {
+            const float fallbackSize = 32f;
+            var half = fallbackSize * 0.5f;
+            left = entity.X - half;
+            top = entity.Y - half;
+            width = height = fallbackSize;
+            return true;
+        }
+
+        if (TryGetGarrisonBuilderAnchorSizedEntityMetrics(
+                entity.Type,
+                entity.Properties,
+                entity.XScale,
+                entity.YScale,
+                out var sizedMetrics))
+        {
+            left = entity.X;
+            top = entity.Y;
+            width = sizedMetrics.Width;
+            height = sizedMetrics.Height;
+            return true;
+        }
+
+        var metrics = GetGarrisonBuilderEntityMetrics(definition, entity.Properties, 1f, 1f);
+        GetGarrisonBuilderEntityMinimumWorldSize(entity.Type, metrics.Width, metrics.Height, out var minWidth, out var minHeight);
+        width = MathF.Max(minWidth, metrics.Width * entity.XScale);
+        height = MathF.Max(minHeight, metrics.Height * entity.YScale);
+        if (TryGetGarrisonBuilderEntityFrame(definition, entity, out _, out var origin))
+        {
+            left = entity.X - (origin.X * entity.XScale);
+            top = entity.Y - (origin.Y * entity.YScale);
+        }
+        else
+        {
+            left = entity.X - (metrics.CenterX * entity.XScale);
+            top = entity.Y - (metrics.CenterY * entity.YScale);
+        }
+
+        return true;
+    }
+
+    private bool TryGetGarrisonBuilderEntityPickBounds(CustomMapBuilderEntity entity, out RectangleF bounds)
+    {
+        if (!TryGetGarrisonBuilderEntityWorldBounds(entity, out var left, out var top, out var width, out var height))
+        {
+            bounds = default;
+            return false;
+        }
+
+        bounds = new RectangleF(left, top, width, height);
+        return true;
+    }
+
+    private void UpdateGarrisonBuilderMapEntityHover(MouseState mouse)
+    {
+        _builderMapHoverEntityIndex = -1;
+        Vector2 world;
+        if (_builderUseModernUi)
+        {
+            if (!GetModernGarrisonBuilderMapViewport().Contains(mouse.Position))
+            {
+                return;
+            }
+
+            world = BuilderScreenToWorld(mouse.Position);
+        }
+        else
+        {
+            world = mouse.Position.ToVector2() + _builderCamera;
+        }
+
+        CollectGarrisonBuilderEntitiesAtWorld(world, _builderEntityOverlapPickScratch);
+        if (_builderEntityOverlapPickScratch.Count > 0)
+        {
+            _builderMapHoverEntityIndex = _builderEntityOverlapPickScratch[0];
+        }
+    }
+
+    private void CollectGarrisonBuilderEntitiesAtWorld(Vector2 world, List<int> results)
+    {
+        results.Clear();
+        for (var index = 0; index < _builderEntities.Count; index += 1)
+        {
+            var entity = _builderEntities[index];
+            if (IsGarrisonBuilderEntityHidden(index))
+            {
+                continue;
+            }
+
+            if (TryGetGarrisonBuilderEntityPickBounds(entity, out var bounds)
+                && bounds.Contains(world.X, world.Y))
+            {
+                results.Add(index);
+            }
+        }
+
+        if (results.Count > 0)
+        {
+            results.Sort((leftIndex, rightIndex) =>
+            {
+                var leftArea = TryGetGarrisonBuilderEntityPickBounds(_builderEntities[leftIndex], out var leftBounds)
+                    ? leftBounds.Width * leftBounds.Height
+                    : float.MaxValue;
+                var rightArea = TryGetGarrisonBuilderEntityPickBounds(_builderEntities[rightIndex], out var rightBounds)
+                    ? rightBounds.Width * rightBounds.Height
+                    : float.MaxValue;
+                return leftArea.CompareTo(rightArea);
+            });
+            return;
+        }
+
+        var pickRadius = MathF.Max(12f, 24f / (_builderUseModernUi ? _builderZoom : 1f));
+        var pickRadiusSquared = pickRadius * pickRadius;
+        var bestDistance = pickRadiusSquared;
+        var nearestIndex = -1;
+        for (var index = 0; index < _builderEntities.Count; index += 1)
+        {
+            var entity = _builderEntities[index];
+            if (IsGarrisonBuilderEntityHidden(index))
+            {
+                continue;
+            }
+
+            var distance = Vector2.DistanceSquared(new Vector2(entity.X, entity.Y), world);
+            if (distance <= bestDistance)
+            {
+                bestDistance = distance;
+                nearestIndex = index;
+            }
+        }
+
+        if (nearestIndex >= 0)
+        {
+            results.Add(nearestIndex);
+        }
+    }
+
+    private bool TryPickGarrisonBuilderEntityAtWorld(Vector2 world, out int entityIndex)
+    {
+        entityIndex = -1;
+        if (_builderSelectedEntityIndex >= 0
+            && _builderSelectedEntityIndex < _builderEntities.Count
+            && !IsGarrisonBuilderEntityHidden(_builderSelectedEntityIndex)
+            && TryGetGarrisonBuilderEntityPickBounds(_builderEntities[_builderSelectedEntityIndex], out var focusedBounds)
+            && focusedBounds.Contains(world.X, world.Y))
+        {
+            entityIndex = _builderSelectedEntityIndex;
+            return true;
+        }
+
+        CollectGarrisonBuilderEntitiesAtWorld(world, _builderEntityOverlapPickScratch);
+        if (_builderEntityOverlapPickScratch.Count == 0)
+        {
+            return false;
+        }
+
+        entityIndex = _builderEntityOverlapPickScratch[0];
+        return true;
+    }
+
+    private enum GarrisonBuilderEntityPickResult
+    {
+        None,
+        Picked,
+        OverlapPickerOpened,
+    }
+
+    private GarrisonBuilderEntityPickResult TryBeginGarrisonBuilderEntityPick(
+        Vector2 world,
+        Point screenPosition,
+        out int entityIndex)
+    {
+        entityIndex = -1;
+        CollectGarrisonBuilderEntitiesAtWorld(world, _builderEntityOverlapPickScratch);
+        if (_builderEntityOverlapPickScratch.Count == 0)
+        {
+            return GarrisonBuilderEntityPickResult.None;
+        }
+
+        if (_builderEntityOverlapPickScratch.Count > 1
+            && (_builderSelectedEntityIndex < 0
+                || !_builderEntityOverlapPickScratch.Contains(_builderSelectedEntityIndex)))
+        {
+            OpenGarrisonBuilderEntityOverlapPicker(screenPosition, _builderEntityOverlapPickScratch);
+            return GarrisonBuilderEntityPickResult.OverlapPickerOpened;
+        }
+
+        if (_builderSelectedEntityIndex >= 0
+            && _builderEntityOverlapPickScratch.Contains(_builderSelectedEntityIndex))
+        {
+            entityIndex = _builderSelectedEntityIndex;
+        }
+        else
+        {
+            entityIndex = _builderEntityOverlapPickScratch[0];
+        }
+
+        return GarrisonBuilderEntityPickResult.Picked;
     }
 
     private void DrawGarrisonBuilderPathRow(GarrisonBuilderPathField field, string label, int x, int y, int width, MouseState mouse)
     {
         const int labelWidth = 44;
         const int actionWidth = 58;
-        var fieldBounds = new Rectangle(x + labelWidth, y, Math.Max(1, width - labelWidth - actionWidth - BuilderButtonGap), 24);
-        var actionBounds = new Rectangle(fieldBounds.Right + BuilderButtonGap, y, actionWidth, 24);
+        var rowHeight = GetGarrisonBuilderMenuRowHeight();
+        var fieldBounds = new Rectangle(x + labelWidth, y, Math.Max(1, width - labelWidth - actionWidth - BuilderButtonGap), rowHeight);
+        var actionBounds = new Rectangle(fieldBounds.Right + BuilderButtonGap, y, actionWidth, rowHeight);
         DrawGarrisonBuilderText(label, x, y + 5, new Color(216, 216, 216), 0.72f);
         var active = _builderActivePathField == field;
         _spriteBatch.Draw(_pixel, fieldBounds, active ? new Color(54, 68, 78, 235) : new Color(28, 31, 36, 230));
@@ -1059,7 +1822,7 @@ public partial class Game1
         switch (_builderPanelDragTarget)
         {
             case LegacyBuilderPanelDragTarget.Action:
-                _builderActionPanelOffset.X = Math.Clamp(_builderActionPanelOffset.X + delta.X, 0, Math.Max(0, ViewportWidth - LegacyBuilderHeaderWidth));
+                _builderActionPanelOffset.X = Math.Clamp(_builderActionPanelOffset.X + delta.X, 0, Math.Max(0, BuilderViewportWidth - LegacyBuilderHeaderWidth));
                 if (!_builderPanelDragHeaderToggleCandidate)
                 {
                     _builderActionVisibleRows = Math.Clamp(_builderActionVisibleRows - (int)MathF.Round(delta.Y / (float)LegacyBuilderButtonHeight), 1, _builderActionDefinitions.Length);
@@ -1295,8 +2058,8 @@ public partial class Game1
                 _builderFastScrolling = !_builderFastScrolling;
                 _builderStatus = _builderFastScrolling ? "fast scrolling enabled" : "fast scrolling disabled";
                 break;
-            case "Edit metadata":
-                BeginEditingGarrisonBuilderMetadata();
+            case "Map properties":
+                BeginEditingGarrisonBuilderMapProperties();
                 break;
             case "Add resource":
                 BeginAddingGarrisonBuilderResource(CustomMapBuilderResourceKind.GenericImage, suggestedName: string.Empty);
@@ -1312,6 +2075,7 @@ public partial class Game1
                 break;
             case "Clear entities":
                 _builderEntities.Clear();
+                ClearGarrisonBuilderHiddenEntities();
                 UpdateGarrisonBuilderDocumentEntities();
                 _builderDirty = true;
                 _builderStatus = "entities cleared";
@@ -1579,10 +2343,10 @@ public partial class Game1
         }
     }
 
-    private void DrawGarrisonBuilderResourcePreview(Texture2D texture, Rectangle bounds)
+    private void DrawGarrisonBuilderResourcePreview(Texture2D texture, Rectangle bounds, Color? tint = null)
     {
         var scale = Math.Min(bounds.Width / (float)texture.Width, bounds.Height / (float)texture.Height);
-        _spriteBatch.Draw(texture, bounds.Location.ToVector2(), null, Color.White, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+        _spriteBatch.Draw(texture, bounds.Location.ToVector2(), null, tint ?? Color.White, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
     }
 
     private void RemoveGarrisonBuilderResourceTexture(string resourceName)
@@ -1603,24 +2367,365 @@ public partial class Game1
         _builderResourceTextureCache.Clear();
     }
 
-    private void ToggleGarrisonBuilderLayerOffsetEditing()
+    private void OpenGarrisonBuilderLayerParallaxDialog(int layerIndex)
     {
-        if (_builderLayerIndex is < 0 or > 6)
+        if (layerIndex is < 0 or > 6)
         {
-            _builderStatus = "select a parallax layer for offsets";
+            _builderStatus = "select a parallax layer (L1-L7)";
             return;
         }
 
-        _builderEditingLayerOffsets = !_builderEditingLayerOffsets;
+        _builderLayerIndex = layerIndex;
+        _builderEditingLayerOffsets = false;
         _builderLayerOffsetDragging = false;
-        if (_builderEditingLayerOffsets)
+        var layer = GetGarrisonBuilderLayer(layerIndex);
+        _builderLayerParallaxDialogOpen = true;
+        _builderLayerParallaxDialogLayerIndex = layerIndex;
+        _builderLayerParallaxEditField = GarrisonBuilderLayerParallaxEditField.None;
+        _builderLayerParallaxXBuffer = layer.XFactor.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        _builderLayerParallaxYBuffer = layer.YFactor.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        _builderLayerParallaxCursorIndex = 0;
+        _builderLayerParallaxSelectionStart = 0;
+        _builderStatus = $"parallax strength for layer {layerIndex + 1}";
+    }
+
+    private void OpenGarrisonBuilderLayerParallaxDialog()
+    {
+        OpenGarrisonBuilderLayerParallaxDialog(_builderLayerIndex);
+    }
+
+    private void CloseGarrisonBuilderLayerParallaxDialog(bool applyChanges)
+    {
+        if (applyChanges && _builderLayerParallaxDialogLayerIndex is >= 0 and <= 6)
         {
-            _builderLayerOffsetHoldMouse = Mouse.GetState().Position;
+            if (!float.TryParse(_builderLayerParallaxXBuffer.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var xFactor)
+                || !float.TryParse(_builderLayerParallaxYBuffer.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var yFactor))
+            {
+                _builderStatus = "enter numeric X and Y parallax strength values";
+                return;
+            }
+
+            RecordGarrisonBuilderHistory();
+            SetGarrisonBuilderLayerFactors(_builderLayerParallaxDialogLayerIndex, xFactor, yFactor);
         }
 
-        _builderStatus = _builderEditingLayerOffsets
-            ? $"editing layer {_builderLayerIndex + 1} offsets"
-            : "layer offsets saved";
+        _builderLayerParallaxDialogOpen = false;
+        _builderLayerParallaxDialogLayerIndex = -1;
+        _builderLayerParallaxEditField = GarrisonBuilderLayerParallaxEditField.None;
+    }
+
+    private Rectangle GetGarrisonBuilderLayerParallaxDialogBounds()
+    {
+        var width = Math.Min(BuilderUi(420), Math.Max(BuilderUi(300), BuilderViewportWidth - BuilderUi(80)));
+        var height = BuilderUi(188);
+        return new Rectangle((BuilderViewportWidth - width) / 2, (BuilderViewportHeight - height) / 2, width, height);
+    }
+
+    private void DrawGarrisonBuilderLayerParallaxDialog(MouseState mouse)
+    {
+        if (!_builderLayerParallaxDialogOpen)
+        {
+            return;
+        }
+
+        var bounds = GetGarrisonBuilderLayerParallaxDialogBounds();
+        DrawMenuPanelBackdrop(bounds, 0.98f);
+        var scale = GetGarrisonBuilderBitmapFontScale();
+        var layerNumber = _builderLayerParallaxDialogLayerIndex + 1;
+        DrawBitmapFontText($"Layer {layerNumber} parallax strength", new Vector2(bounds.X + 14f, bounds.Y + 10f), Color.White, scale);
+        DrawBitmapFontText(
+            "1.0 = normal. Higher = stronger scroll parallax in-game.",
+            new Vector2(bounds.X + 14f, bounds.Y + 30f),
+            new Color(200, 190, 168),
+            GetGarrisonBuilderBitmapFontScale());
+
+        var fieldHeight = GetGarrisonBuilderMenuRowHeight();
+        var xFieldBounds = new Rectangle(bounds.X + 12, bounds.Y + 54, bounds.Width - 24, fieldHeight);
+        var yFieldBounds = new Rectangle(bounds.X + 12, bounds.Y + 88, bounds.Width - 24, fieldHeight);
+        DrawBuilderMenuButton(
+            xFieldBounds,
+            $"X strength: {GetGarrisonBuilderLayerParallaxFieldDisplay(_builderLayerParallaxXBuffer, GarrisonBuilderLayerParallaxEditField.XFactor)}",
+            _builderLayerParallaxEditField == GarrisonBuilderLayerParallaxEditField.XFactor || xFieldBounds.Contains(mouse.Position));
+        DrawBuilderMenuButton(
+            yFieldBounds,
+            $"Y strength: {GetGarrisonBuilderLayerParallaxFieldDisplay(_builderLayerParallaxYBuffer, GarrisonBuilderLayerParallaxEditField.YFactor)}",
+            _builderLayerParallaxEditField == GarrisonBuilderLayerParallaxEditField.YFactor || yFieldBounds.Contains(mouse.Position));
+
+        var actionHeight = GetGarrisonBuilderMenuRowHeight();
+        var saveBounds = new Rectangle(bounds.X + 12, bounds.Bottom - 38, 96, actionHeight);
+        var cancelBounds = new Rectangle(saveBounds.Right + 8, saveBounds.Y, 96, actionHeight);
+        DrawBuilderMenuButton(saveBounds, "Save", saveBounds.Contains(mouse.Position));
+        DrawBuilderMenuButton(cancelBounds, "Cancel", cancelBounds.Contains(mouse.Position));
+    }
+
+    private string GetGarrisonBuilderLayerParallaxFieldDisplay(string buffer, GarrisonBuilderLayerParallaxEditField field)
+    {
+        if (_builderLayerParallaxEditField != field)
+        {
+            return buffer.Length > 0 ? buffer : "1";
+        }
+
+        return GetTextWithCursor(buffer, _builderLayerParallaxCursorIndex);
+    }
+
+    private bool UpdateGarrisonBuilderLayerParallaxDialog(KeyboardState keyboard, MouseState mouse)
+    {
+        if (!_builderLayerParallaxDialogOpen)
+        {
+            return false;
+        }
+
+        if (IsKeyPressed(keyboard, Keys.Escape))
+        {
+            if (_builderLayerParallaxEditField != GarrisonBuilderLayerParallaxEditField.None)
+            {
+                _builderLayerParallaxEditField = GarrisonBuilderLayerParallaxEditField.None;
+                return true;
+            }
+
+            CloseGarrisonBuilderLayerParallaxDialog(applyChanges: false);
+            return true;
+        }
+
+        if (_builderLayerParallaxEditField != GarrisonBuilderLayerParallaxEditField.None)
+        {
+            if (IsKeyPressed(keyboard, Keys.Enter))
+            {
+                _builderLayerParallaxEditField = GarrisonBuilderLayerParallaxEditField.None;
+                return true;
+            }
+
+            if (IsKeyPressed(keyboard, Keys.Back))
+            {
+                var buffer = _builderLayerParallaxEditField == GarrisonBuilderLayerParallaxEditField.XFactor
+                    ? _builderLayerParallaxXBuffer
+                    : _builderLayerParallaxYBuffer;
+                var result = DeleteTextSelectionOrBackspace(buffer, _builderLayerParallaxCursorIndex, _builderLayerParallaxSelectionStart);
+                ApplyGarrisonBuilderLayerParallaxEditBuffers(result, _builderLayerParallaxEditField);
+                return true;
+            }
+
+            return true;
+        }
+
+        if (mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton == ButtonState.Released)
+        {
+            HandleGarrisonBuilderLayerParallaxDialogClick(mouse.Position);
+            return true;
+        }
+
+        return true;
+    }
+
+    private void ApplyGarrisonBuilderLayerParallaxEditBuffers((string Text, int CursorIndex, int SelectionStart) result, GarrisonBuilderLayerParallaxEditField field)
+    {
+        if (field == GarrisonBuilderLayerParallaxEditField.XFactor)
+        {
+            _builderLayerParallaxXBuffer = result.Text;
+        }
+        else
+        {
+            _builderLayerParallaxYBuffer = result.Text;
+        }
+
+        _builderLayerParallaxCursorIndex = result.CursorIndex;
+        _builderLayerParallaxSelectionStart = result.SelectionStart;
+    }
+
+    private void HandleGarrisonBuilderLayerParallaxDialogClick(Point position)
+    {
+        var bounds = GetGarrisonBuilderLayerParallaxDialogBounds();
+        if (!bounds.Contains(position))
+        {
+            CloseGarrisonBuilderLayerParallaxDialog(applyChanges: false);
+            return;
+        }
+
+        var saveBounds = new Rectangle(bounds.X + 12, bounds.Bottom - 38, 96, 26);
+        var cancelBounds = new Rectangle(saveBounds.Right + 8, saveBounds.Y, 96, 26);
+        if (saveBounds.Contains(position))
+        {
+            CloseGarrisonBuilderLayerParallaxDialog(applyChanges: true);
+            return;
+        }
+
+        if (cancelBounds.Contains(position))
+        {
+            CloseGarrisonBuilderLayerParallaxDialog(applyChanges: false);
+            return;
+        }
+
+        var xFieldBounds = new Rectangle(bounds.X + 12, bounds.Y + 54, bounds.Width - 24, 26);
+        var yFieldBounds = new Rectangle(bounds.X + 12, bounds.Y + 88, bounds.Width - 24, 26);
+        if (xFieldBounds.Contains(position))
+        {
+            BeginGarrisonBuilderLayerParallaxFieldEdit(GarrisonBuilderLayerParallaxEditField.XFactor);
+            return;
+        }
+
+        if (yFieldBounds.Contains(position))
+        {
+            BeginGarrisonBuilderLayerParallaxFieldEdit(GarrisonBuilderLayerParallaxEditField.YFactor);
+        }
+    }
+
+    private void BeginGarrisonBuilderLayerParallaxFieldEdit(GarrisonBuilderLayerParallaxEditField field)
+    {
+        _builderLayerParallaxEditField = field;
+        if (field == GarrisonBuilderLayerParallaxEditField.XFactor)
+        {
+            _builderLayerParallaxCursorIndex = _builderLayerParallaxXBuffer.Length;
+            _builderLayerParallaxSelectionStart = _builderLayerParallaxCursorIndex;
+            return;
+        }
+
+        _builderLayerParallaxCursorIndex = _builderLayerParallaxYBuffer.Length;
+        _builderLayerParallaxSelectionStart = _builderLayerParallaxCursorIndex;
+    }
+
+    private bool HandleGarrisonBuilderLayerParallaxTextInput(char character)
+    {
+        if (!_builderLayerParallaxDialogOpen || _builderLayerParallaxEditField == GarrisonBuilderLayerParallaxEditField.None)
+        {
+            return false;
+        }
+
+        var buffer = _builderLayerParallaxEditField == GarrisonBuilderLayerParallaxEditField.XFactor
+            ? _builderLayerParallaxXBuffer
+            : _builderLayerParallaxYBuffer;
+        var result = InsertTextCharacterAtCursor(buffer, character, _builderLayerParallaxCursorIndex, _builderLayerParallaxSelectionStart, 16);
+        ApplyGarrisonBuilderLayerParallaxEditBuffers(result, _builderLayerParallaxEditField);
+        return true;
+    }
+
+    private void BeginEditingGarrisonBuilderMapProperties()
+    {
+        var normalized = _builderDocument.NormalizeForEditing();
+        _builderPropertyTarget = GarrisonBuilderPropertyTarget.MapProperties;
+        _builderPropertyEditMode = GarrisonBuilderPropertyEditMode.List;
+        _builderPropertyEditorTitle = "Map properties";
+        _builderPropertyScrollIndex = 0;
+        _builderPropertyEditorValues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [GarrisonBuilderMapPropertyNameKey] = normalized.Name,
+            [GarrisonBuilderMapPropertyVisualScaleKey] = normalized.VisualScale.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            [GarrisonBuilderMapPropertyWalkmaskScaleKey] = normalized.Scale.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            [ControlPointMapSettingsMetadata.OverrideInitialCpsPropertyKey] = ControlPointMapSettingsMetadata.ToPropertyValue(
+                ControlPointMapSettingsMetadata.ParseOverrideInitialCps(normalized.Metadata)),
+            ["background"] = normalized.Metadata.TryGetValue("background", out var background)
+                ? background
+                : CustomMapBuilderDocument.DefaultBackgroundColor,
+            ["void"] = normalized.Metadata.TryGetValue("void", out var voidColor)
+                ? voidColor
+                : CustomMapBuilderDocument.DefaultVoidColor,
+        };
+
+        foreach (var pair in normalized.Metadata)
+        {
+            if (IsGarrisonBuilderMapPropertiesManagedMetadataKey(pair.Key)
+                || !ControlPointMapSettingsMetadata.IsEditableMapMetadataKey(pair.Key))
+            {
+                continue;
+            }
+
+            _builderPropertyEditorValues[pair.Key] = pair.Value;
+        }
+
+        _builderStatus = "editing map properties";
+    }
+
+    private static bool IsGarrisonBuilderMapPropertiesManagedMetadataKey(string key)
+    {
+        return key.Equals("background", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("void", StringComparison.OrdinalIgnoreCase)
+            || key.Equals(CustomMapEntityRuntimeRegistry.EntitySchemaMetadataKey, StringComparison.OrdinalIgnoreCase)
+            || IsSkippedGarrisonBuilderProperty(key);
+    }
+
+    private static bool IsGarrisonBuilderMapPropertyEditorKey(string key)
+    {
+        return key.StartsWith("$", StringComparison.Ordinal)
+            || key.Equals(GarrisonBuilderMapPropertyNameKey, StringComparison.Ordinal)
+            || key.Equals(GarrisonBuilderMapPropertyVisualScaleKey, StringComparison.Ordinal)
+            || key.Equals(GarrisonBuilderMapPropertyWalkmaskScaleKey, StringComparison.Ordinal);
+    }
+
+    private bool TryApplyGarrisonBuilderMapPropertiesFromEditorValues()
+    {
+        if (!_builderPropertyEditorValues.TryGetValue(GarrisonBuilderMapPropertyNameKey, out var nameBuffer))
+        {
+            _builderStatus = "map name is required";
+            return false;
+        }
+
+        var name = nameBuffer.Trim();
+        if (name.Length == 0)
+        {
+            _builderStatus = "map name is required";
+            return false;
+        }
+
+        if (!_builderPropertyEditorValues.TryGetValue(GarrisonBuilderMapPropertyVisualScaleKey, out var visualScaleBuffer)
+            || !float.TryParse(visualScaleBuffer.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var visualScale)
+            || visualScale <= 0f)
+        {
+            _builderStatus = "enter a positive visual scale";
+            return false;
+        }
+
+        if (!_builderPropertyEditorValues.TryGetValue(GarrisonBuilderMapPropertyWalkmaskScaleKey, out var walkmaskScaleBuffer)
+            || !float.TryParse(walkmaskScaleBuffer.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var walkmaskScale)
+            || walkmaskScale <= 0f)
+        {
+            _builderStatus = "enter a positive walkmask scale";
+            return false;
+        }
+
+        var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var pair in _builderPropertyEditorValues)
+        {
+            if (IsGarrisonBuilderMapPropertyEditorKey(pair.Key)
+                || IsGarrisonBuilderMapPropertiesManagedMetadataKey(pair.Key))
+            {
+                continue;
+            }
+
+            metadata[pair.Key] = pair.Value;
+        }
+
+        if (_builderDocument.Metadata.TryGetValue(CustomMapEntityRuntimeRegistry.EntitySchemaMetadataKey, out var entitySchema))
+        {
+            metadata[CustomMapEntityRuntimeRegistry.EntitySchemaMetadataKey] = entitySchema;
+        }
+
+        _builderPropertyEditorValues.TryGetValue("background", out var backgroundBuffer);
+        _builderPropertyEditorValues.TryGetValue("void", out var voidBuffer);
+        metadata["background"] = NormalizeGarrisonBuilderHexColor(backgroundBuffer ?? string.Empty, CustomMapBuilderDocument.DefaultBackgroundColor);
+        metadata["void"] = NormalizeGarrisonBuilderHexColor(voidBuffer ?? string.Empty, CustomMapBuilderDocument.DefaultVoidColor);
+        RecordGarrisonBuilderHistory();
+        _builderDocument = _builderDocument with
+        {
+            Name = name,
+            Scale = walkmaskScale,
+            VisualScale = visualScale,
+            Metadata = metadata,
+        };
+        _builderDocument = _builderDocument.NormalizeForEditing();
+        _builderDirty = true;
+        _builderStatus = $"map properties updated (visual {visualScale:0.##}, walkmask {walkmaskScale:0.##})";
+        RequestGarrisonBuilderCameraCenter();
+        return true;
+    }
+
+    private static string NormalizeGarrisonBuilderHexColor(string value, string fallback)
+    {
+        var trimmed = value.Trim().TrimStart('#');
+        return trimmed.Length == 6 ? trimmed : fallback;
+    }
+
+    private void ToggleGarrisonBuilderLayerOffsetEditing()
+    {
+        OpenGarrisonBuilderLayerParallaxDialog();
     }
 
     private bool UpdateGarrisonBuilderLayerOffsetEditing(MouseState mouse)
@@ -1630,7 +2735,8 @@ public partial class Game1
             return false;
         }
 
-        if (GetLegacyGarrisonBuilderLayerBounds().Contains(mouse.Position)
+        if (!_builderUseModernUi
+            && GetLegacyGarrisonBuilderLayerBounds().Contains(mouse.Position)
             && mouse.LeftButton == ButtonState.Pressed
             && _previousMouse.LeftButton == ButtonState.Released)
         {
@@ -1687,13 +2793,13 @@ public partial class Game1
         }
 
         var layer = GetGarrisonBuilderLayer(_builderLayerIndex);
-        var x = (ViewportWidth / 2) + (int)MathF.Round((layer.XFactor - 1f) * 100f);
-        var y = (ViewportHeight / 2) + (int)MathF.Round((layer.YFactor - 1f) * 100f);
+        var x = (BuilderViewportWidth / 2) + (int)MathF.Round((layer.XFactor - 1f) * BuilderUi(100f));
+        var y = (BuilderViewportHeight / 2) + (int)MathF.Round((layer.YFactor - 1f) * BuilderUi(100f));
         var color = _builderLayerOffsetDragging ? new Color(255, 232, 80) : new Color(120, 220, 255);
-        _spriteBatch.Draw(_pixel, new Rectangle(0, y, ViewportWidth, 1), color);
-        _spriteBatch.Draw(_pixel, new Rectangle(x, 0, 1, ViewportHeight), color);
-        _spriteBatch.Draw(_pixel, new Rectangle((ViewportWidth / 2) - 5, ViewportHeight / 2, 10, 1), Color.White);
-        _spriteBatch.Draw(_pixel, new Rectangle(ViewportWidth / 2, (ViewportHeight / 2) - 5, 1, 10), Color.White);
+        _spriteBatch.Draw(_pixel, new Rectangle(0, y, BuilderViewportWidth, 1), color);
+        _spriteBatch.Draw(_pixel, new Rectangle(x, 0, 1, BuilderViewportHeight), color);
+        _spriteBatch.Draw(_pixel, new Rectangle((BuilderViewportWidth / 2) - BuilderUi(5), BuilderViewportHeight / 2, BuilderUi(10), 1), Color.White);
+        _spriteBatch.Draw(_pixel, new Rectangle(BuilderViewportWidth / 2, (BuilderViewportHeight / 2) - BuilderUi(5), 1, BuilderUi(10)), Color.White);
 
         var tooltip = $"X:{layer.XFactor:0.00} Y:{layer.YFactor:0.00}";
         var tooltipPosition = mouse.Position.ToVector2() + new Vector2(12f, 12f);
@@ -1773,8 +2879,8 @@ public partial class Game1
             : MathF.Sqrt(1f - MathF.Pow(1f - _builderActionExpandProgress, 2f));
         var height = (int)MathF.Round(rows * LegacyBuilderButtonHeight * eased);
         return new Rectangle(
-            Math.Clamp(_builderActionPanelOffset.X, 0, Math.Max(0, ViewportWidth - LegacyBuilderHeaderWidth)),
-            Math.Clamp(ViewportHeight - height + _builderActionPanelOffset.Y, LegacyBuilderButtonHeight, Math.Max(LegacyBuilderButtonHeight, ViewportHeight - height)),
+            Math.Clamp(_builderActionPanelOffset.X, 0, Math.Max(0, BuilderViewportWidth - LegacyBuilderHeaderWidth)),
+            Math.Clamp(BuilderViewportHeight - height + _builderActionPanelOffset.Y, LegacyBuilderButtonHeight, Math.Max(LegacyBuilderButtonHeight, BuilderViewportHeight - height)),
             LegacyBuilderHeaderWidth,
             height);
     }
@@ -1795,8 +2901,8 @@ public partial class Game1
         var width = LegacyBuilderEntityColumns * LegacyBuilderEntityButtonSize;
         var height = LegacyBuilderButtonHeight + (rows * LegacyBuilderEntityButtonSize);
         return new Rectangle(
-            Math.Clamp(ViewportWidth - width - 1 + _builderEntityPanelOffset.X, 1, Math.Max(1, ViewportWidth - width - 1)),
-            Math.Clamp(_builderEntityPanelOffset.Y, 0, Math.Max(0, ViewportHeight - (2 * LegacyBuilderEntityButtonSize) - 1)),
+            Math.Clamp(BuilderViewportWidth - width - 1 + _builderEntityPanelOffset.X, 1, Math.Max(1, BuilderViewportWidth - width - 1)),
+            Math.Clamp(_builderEntityPanelOffset.Y, 0, Math.Max(0, BuilderViewportHeight - (2 * LegacyBuilderEntityButtonSize) - 1)),
             width,
             height);
     }
@@ -1804,8 +2910,8 @@ public partial class Game1
     private Rectangle GetLegacyGarrisonBuilderLayerBounds()
     {
         return new Rectangle(
-            Math.Clamp(ViewportWidth - LegacyBuilderLayerWidth - 1 + _builderLayerPanelOffset.X, 1, Math.Max(1, ViewportWidth - LegacyBuilderLayerWidth - 1)),
-            Math.Clamp(ViewportHeight - LegacyBuilderLayerHeight - LegacyBuilderButtonHeight - 1 + _builderLayerPanelOffset.Y, 0, Math.Max(0, ViewportHeight - LegacyBuilderLayerHeight - LegacyBuilderButtonHeight - 1)),
+            Math.Clamp(BuilderViewportWidth - LegacyBuilderLayerWidth - 1 + _builderLayerPanelOffset.X, 1, Math.Max(1, BuilderViewportWidth - LegacyBuilderLayerWidth - 1)),
+            Math.Clamp(BuilderViewportHeight - LegacyBuilderLayerHeight - LegacyBuilderButtonHeight - 1 + _builderLayerPanelOffset.Y, 0, Math.Max(0, BuilderViewportHeight - LegacyBuilderLayerHeight - LegacyBuilderButtonHeight - 1)),
             LegacyBuilderLayerWidth,
             LegacyBuilderLayerHeight + LegacyBuilderButtonHeight);
     }
@@ -1824,18 +2930,18 @@ public partial class Game1
     private Rectangle GetGarrisonBuilderGameModeMenuBounds()
     {
         var items = GetGarrisonBuilderModeMenuItems();
-        var width = Math.Min(420, Math.Max(300, ViewportWidth - 80));
-        var height = 64 + (items.Length * 34);
+        var width = Math.Min(BuilderUi(420), Math.Max(BuilderUi(300), BuilderViewportWidth - BuilderUi(80)));
+        var height = BuilderUi(64) + (items.Length * BuilderUi(34));
         return new Rectangle(
-            Math.Clamp((ViewportWidth - width) / 2, 20, Math.Max(20, ViewportWidth - width - 20)),
-            Math.Clamp((ViewportHeight - height) / 2, 20, Math.Max(20, ViewportHeight - height - 20)),
+            Math.Clamp((BuilderViewportWidth - width) / 2, BuilderUi(20), Math.Max(BuilderUi(20), BuilderViewportWidth - width - BuilderUi(20))),
+            Math.Clamp((BuilderViewportHeight - height) / 2, BuilderUi(20), Math.Max(BuilderUi(20), BuilderViewportHeight - height - BuilderUi(20))),
             width,
             height);
     }
 
     private static Rectangle GetGarrisonBuilderModeMenuItemBounds(Rectangle menuBounds, int index)
     {
-        return new Rectangle(menuBounds.X + 18, menuBounds.Y + 50 + (index * 34), menuBounds.Width - 36, 28);
+        return new Rectangle(menuBounds.X + BuilderUi(18), menuBounds.Y + BuilderUi(50) + (index * BuilderUi(34)), menuBounds.Width - BuilderUi(36), BuilderUi(28));
     }
 
     private List<CustomMapBuilderResource> GetGarrisonBuilderResourceRows()
@@ -1885,6 +2991,7 @@ public partial class Game1
 
     private void BeginGarrisonBuilderPlacement(Vector2 worldPosition)
     {
+        RecordGarrisonBuilderHistory();
         _builderPlacementDragging = true;
         _builderPlacementScaleLock = true;
         _builderPlacementStartWorld = SnapGarrisonBuilderPoint(worldPosition);
@@ -1893,9 +3000,31 @@ public partial class Game1
 
     private void UpdateGarrisonBuilderPlacementPreview(MouseState mouse)
     {
+        var placementWorld = _builderUseModernUi
+            ? BuilderScreenToWorld(mouse.Position)
+            : mouse.Position.ToVector2() + _builderCamera;
+        var showPlacementHoverPreview = _builderUseModernUi
+            && _builderActiveTool == GarrisonBuilderTool.Place
+            && !string.IsNullOrWhiteSpace(_builderSelectedEntityType)
+            && !_builderPlacementDragging
+            && GetModernGarrisonBuilderMapViewport().Contains(mouse.Position);
+
+        if (showPlacementHoverPreview)
+        {
+            var previewWorld = SnapGarrisonBuilderPoint(placementWorld);
+            ApplyGarrisonBuilderPlacementAlignmentSnap(ref previewWorld);
+            _builderPlacementPreviewWorld = previewWorld;
+        }
+        else if (!_builderPlacementDragging)
+        {
+            ClearGarrisonBuilderPlacementAlignmentSnap();
+        }
+
         if (_builderPlacementDragging)
         {
-            _builderPlacementCurrentWorld = SnapGarrisonBuilderPoint(mouse.Position.ToVector2() + _builderCamera);
+            var currentWorld = SnapGarrisonBuilderPoint(placementWorld);
+            ApplyGarrisonBuilderPlacementAlignmentSnap(ref currentWorld);
+            _builderPlacementCurrentWorld = currentWorld;
             if (_builderPlacementScaleLock
                 && (MathF.Abs(_builderPlacementCurrentWorld.X - _builderPlacementStartWorld.X) > 3f
                     || MathF.Abs(_builderPlacementCurrentWorld.Y - _builderPlacementStartWorld.Y) > 3f))
@@ -1906,7 +3035,10 @@ public partial class Game1
 
         if (_builderEraseDragging)
         {
-            _builderEraseCurrentWorld = SnapGarrisonBuilderPoint(mouse.Position.ToVector2() + _builderCamera);
+            _builderEraseCurrentWorld = SnapGarrisonBuilderPoint(
+                _builderUseModernUi
+                    ? BuilderScreenToWorld(mouse.Position)
+                    : mouse.Position.ToVector2() + _builderCamera);
         }
     }
 
@@ -1918,7 +3050,9 @@ public partial class Game1
             return;
         }
 
-        _builderPlacementCurrentWorld = SnapGarrisonBuilderPoint(worldPosition);
+        var currentWorld = SnapGarrisonBuilderPoint(worldPosition);
+        ApplyGarrisonBuilderPlacementAlignmentSnap(ref currentWorld);
+        _builderPlacementCurrentWorld = currentWorld;
         var placements = BuildGarrisonBuilderPlacementEntities();
         if (placements.Count == 0)
         {
@@ -1938,51 +3072,140 @@ public partial class Game1
     private List<CustomMapBuilderEntity> BuildGarrisonBuilderPlacementEntities()
     {
         var entities = new List<CustomMapBuilderEntity>();
+        var placementStartWorld = _builderPlacementDragging
+            ? _builderPlacementStartWorld
+            : _builderPlacementPreviewWorld;
+        var placementCurrentWorld = _builderPlacementDragging
+            ? _builderPlacementCurrentWorld
+            : _builderPlacementPreviewWorld;
         if (!CustomMapBuilderEntityCatalog.TryGetDefinition(_builderSelectedEntityType, out var definition))
         {
-            entities.Add(CustomMapBuilderEntity.Create(_builderSelectedEntityType, _builderPlacementStartWorld.X, _builderPlacementStartWorld.Y).NormalizeForEditing());
+            var entity = CustomMapBuilderEntity.Create(_builderSelectedEntityType, placementStartWorld.X, placementStartWorld.Y).NormalizeForEditing();
+            entities.Add(entity);
+            if (_builderSymmetry)
+            {
+                entities.Add(CustomMapBuilderEntity.Create(_builderSelectedEntityType, MirrorGarrisonBuilderWorldX(entity.X), entity.Y).NormalizeForEditing());
+            }
+
             return entities;
         }
 
         var metrics = GetGarrisonBuilderEntityMetrics(definition);
         if (_builderScaleMode && IsGarrisonBuilderDefinitionScalable(definition) && !_builderPlacementScaleLock)
         {
-            var right = MathF.Max(_builderPlacementStartWorld.X + 6f, _builderPlacementCurrentWorld.X + metrics.CenterX);
-            var bottom = MathF.Max(_builderPlacementStartWorld.Y + 6f, _builderPlacementCurrentWorld.Y + metrics.CenterY);
-            var xScale = MathF.Max(0.01f, (right - _builderPlacementStartWorld.X) / metrics.Width);
-            var yScale = MathF.Max(0.01f, (bottom - _builderPlacementStartWorld.Y) / metrics.Height);
-            AddGarrisonBuilderPlacementEntity(entities, definition, _builderPlacementStartWorld.X - metrics.CenterX + (metrics.OffsetX * xScale), _builderPlacementStartWorld.Y - metrics.CenterY + (metrics.OffsetY * yScale), xScale, yScale, mirrored: false);
-
-            if (_builderSymmetry && TryGetGarrisonBuilderMirroredDefinition(definition, out var mirroredDefinition))
-            {
-                AddGarrisonBuilderPlacementEntity(
-                    entities,
-                    mirroredDefinition,
-                    GetGarrisonBuilderMapWidth() - _builderPlacementStartWorld.X + metrics.CenterX + (metrics.OffsetX * xScale) - (right - _builderPlacementStartWorld.X),
-                    _builderPlacementStartWorld.Y - metrics.CenterY + (metrics.OffsetY * yScale),
-                    xScale,
-                    yScale,
-                    mirrored: true);
-            }
-
+            var right = MathF.Max(placementStartWorld.X + 6f, placementCurrentWorld.X + metrics.CenterX);
+            var bottom = MathF.Max(placementStartWorld.Y + 6f, placementCurrentWorld.Y + metrics.CenterY);
+            var xScale = MathF.Max(0.01f, (right - placementStartWorld.X) / metrics.Width);
+            var yScale = MathF.Max(0.01f, (bottom - placementStartWorld.Y) / metrics.Height);
+            var entityX = placementStartWorld.X - metrics.CenterX + (metrics.OffsetX * xScale);
+            var entityY = placementStartWorld.Y - metrics.CenterY + (metrics.OffsetY * yScale);
+            AddGarrisonBuilderPlacementWithSymmetry(entities, definition, metrics, entityX, entityY, xScale, yScale);
             return entities;
         }
 
-        var endX = _builderPlacementStartWorld.X + MathF.Max(metrics.Width, MathF.Ceiling((_builderPlacementCurrentWorld.X - _builderPlacementStartWorld.X) / metrics.Width) * metrics.Width);
-        var endY = _builderPlacementStartWorld.Y + MathF.Max(metrics.Height, MathF.Ceiling((_builderPlacementCurrentWorld.Y - _builderPlacementStartWorld.Y) / metrics.Height) * metrics.Height);
-        for (var x = _builderPlacementStartWorld.X - metrics.CenterX; x + metrics.CenterX < endX; x += metrics.Width)
+        var endX = placementStartWorld.X + MathF.Max(metrics.Width, MathF.Ceiling((placementCurrentWorld.X - placementStartWorld.X) / metrics.Width) * metrics.Width);
+        var endY = placementStartWorld.Y + MathF.Max(metrics.Height, MathF.Ceiling((placementCurrentWorld.Y - placementStartWorld.Y) / metrics.Height) * metrics.Height);
+        for (var x = placementStartWorld.X - metrics.CenterX; x + metrics.CenterX < endX; x += metrics.Width)
         {
-            for (var y = _builderPlacementStartWorld.Y - metrics.CenterY; y + metrics.CenterY < endY; y += metrics.Height)
+            for (var y = placementStartWorld.Y - metrics.CenterY; y + metrics.CenterY < endY; y += metrics.Height)
             {
-                AddGarrisonBuilderPlacementEntity(entities, definition, x + metrics.OffsetX, y + metrics.OffsetY, 1f, 1f, mirrored: false);
-                if (_builderSymmetry && TryGetGarrisonBuilderMirroredDefinition(definition, out var mirroredDefinition))
-                {
-                    AddGarrisonBuilderPlacementEntity(entities, mirroredDefinition, GetGarrisonBuilderMapWidth() - x + metrics.MirroredOffsetX, y + metrics.OffsetY, 1f, 1f, mirrored: true);
-                }
+                AddGarrisonBuilderPlacementWithSymmetry(entities, definition, metrics, x + metrics.OffsetX, y + metrics.OffsetY, 1f, 1f);
             }
         }
 
         return entities;
+    }
+
+    private void AddGarrisonBuilderPlacementWithSymmetry(
+        List<CustomMapBuilderEntity> entities,
+        CustomMapBuilderEntityDefinition definition,
+        GarrisonBuilderEntityMetrics metrics,
+        float x,
+        float y,
+        float xScale,
+        float yScale)
+    {
+        AddGarrisonBuilderPlacementEntity(entities, definition, x, y, xScale, yScale, mirrored: false);
+        if (!_builderSymmetry || !TryGetGarrisonBuilderMirroredDefinition(definition, out var mirroredDefinition))
+        {
+            return;
+        }
+
+        AddGarrisonBuilderPlacementEntity(
+            entities,
+            mirroredDefinition,
+            MirrorGarrisonBuilderPlacementX(x, metrics),
+            y,
+            xScale,
+            yScale,
+            mirrored: true);
+    }
+
+    private float MirrorGarrisonBuilderPlacementX(float entityX, in GarrisonBuilderEntityMetrics metrics)
+    {
+        var gridX = entityX - metrics.OffsetX;
+        var centerX = GetGarrisonBuilderMapSymmetryCenterX();
+        return (2f * centerX) - gridX + metrics.MirroredOffsetX;
+    }
+
+    private float MirrorGarrisonBuilderWorldX(float worldX)
+    {
+        var centerX = GetGarrisonBuilderMapSymmetryCenterX();
+        return (2f * centerX) - worldX;
+    }
+
+    private float GetGarrisonBuilderVisualWorldWidth()
+    {
+        var backgroundTexture = _builderBackgroundTexture ?? _builderDefaultBackgroundTexture;
+        if (backgroundTexture is not null)
+        {
+            return backgroundTexture.Width * _builderDocument.VisualScale;
+        }
+
+        var walkmaskTexture = ResolveGarrisonBuilderWalkmaskTexture();
+        if (walkmaskTexture is not null)
+        {
+            return walkmaskTexture.Width * _builderDocument.Scale;
+        }
+
+        return Math.Max(1f, _builderEntities.Count == 0 ? ViewportWidth : _builderEntities.Max(static entity => entity.X) + 200f);
+    }
+
+    private float GetGarrisonBuilderVisualWorldHeight()
+    {
+        var backgroundTexture = _builderBackgroundTexture ?? _builderDefaultBackgroundTexture;
+        if (backgroundTexture is not null)
+        {
+            return backgroundTexture.Height * _builderDocument.VisualScale;
+        }
+
+        var walkmaskTexture = ResolveGarrisonBuilderWalkmaskTexture();
+        if (walkmaskTexture is not null)
+        {
+            return walkmaskTexture.Height * _builderDocument.Scale;
+        }
+
+        return Math.Max(1f, _builderEntities.Count == 0 ? ViewportHeight : _builderEntities.Max(static entity => entity.Y) + 200f);
+    }
+
+    private float GetGarrisonBuilderMapSymmetryCenterX()
+    {
+        return GetGarrisonBuilderVisualWorldWidth() * 0.5f;
+    }
+
+    private float GetGarrisonBuilderMapSymmetryCenterY()
+    {
+        return GetGarrisonBuilderVisualWorldHeight() * 0.5f;
+    }
+
+    private float GetGarrisonBuilderMapSymmetryWidth()
+    {
+        return GetGarrisonBuilderVisualWorldWidth();
+    }
+
+    private float GetGarrisonBuilderMapSymmetryHeight()
+    {
+        return GetGarrisonBuilderVisualWorldHeight();
     }
 
     private void AddGarrisonBuilderPlacementEntity(
@@ -2007,6 +3230,16 @@ public partial class Game1
             }
         }
 
+        if (mirrored)
+        {
+            ApplyGarrisonBuilderMirroredPlacementProperties(definition.Type, properties);
+        }
+
+        if (CustomMapCustomSpriteMetadata.IsCustomSpriteEntityType(definition.Type))
+        {
+            CustomMapCustomSpriteMetadata.EnsurePlacementDefaults(properties, _builderDocument.Scale);
+        }
+
         var normalized = CustomMapBuilderEntity.Create(definition.Type, x, y, properties, xScale, yScale).NormalizeForEditing();
         entities.Add(normalized);
     }
@@ -2028,15 +3261,24 @@ public partial class Game1
 
         _builderEraseCurrentWorld = SnapGarrisonBuilderPoint(worldPosition);
         var eraseRect = CreateWorldRectangle(_builderEraseStartWorld, _builderEraseCurrentWorld);
+        if (eraseRect.Width <= 0f || eraseRect.Height <= 0f)
+        {
+            _builderEraseDragging = false;
+            _builderStatus = "no entities in erase area";
+            return;
+        }
+
+        RecordGarrisonBuilderHistory();
         var removed = RemoveGarrisonBuilderEntitiesInRectangle(eraseRect);
         if (_builderSymmetry)
         {
-            var width = GetGarrisonBuilderMapWidth();
+            var width = GetGarrisonBuilderMapSymmetryWidth();
             var mirroredRect = new RectangleF(width - eraseRect.Right, eraseRect.Y, eraseRect.Width, eraseRect.Height);
             removed += RemoveGarrisonBuilderEntitiesInRectangle(mirroredRect);
         }
 
         _builderEraseDragging = false;
+        SanitizeGarrisonBuilderSelectionAfterEntityChanges();
         if (removed > 0)
         {
             UpdateGarrisonBuilderDocumentEntities();
@@ -2045,6 +3287,7 @@ public partial class Game1
         }
         else
         {
+            TryUndoGarrisonBuilder();
             _builderStatus = "no entities in erase area";
         }
     }
@@ -2055,19 +3298,179 @@ public partial class Game1
         for (var index = _builderEntities.Count - 1; index >= 0; index -= 1)
         {
             var entity = _builderEntities[index];
-            if (rectangle.Contains(entity.X, entity.Y))
+            if (IsGarrisonBuilderEntityHidden(index)
+                || !DoesGarrisonBuilderEntityIntersectRectangle(entity, rectangle))
             {
-                _builderEntities.RemoveAt(index);
-                removed += 1;
+                continue;
             }
+
+            NotifyGarrisonBuilderEntityRemoved(index);
+            _builderEntities.RemoveAt(index);
+            removed += 1;
         }
 
         return removed;
     }
 
+    private bool DoesGarrisonBuilderEntityIntersectRectangle(CustomMapBuilderEntity entity, RectangleF rectangle)
+    {
+        if (rectangle.Contains(entity.X, entity.Y))
+        {
+            return true;
+        }
+
+        if (!TryGetGarrisonBuilderEntityWorldBounds(entity, out var left, out var top, out var width, out var height))
+        {
+            return false;
+        }
+
+        var entityRect = new RectangleF(left, top, width, height);
+        return rectangle.X < entityRect.Right
+            && rectangle.Right > entityRect.X
+            && rectangle.Y < entityRect.Bottom
+            && rectangle.Bottom > entityRect.Y;
+    }
+
+    private void AdjustGarrisonBuilderSelectedEntityIndexAfterRemoval(int removedIndex)
+    {
+        if (_builderSelectedEntityIndex < 0)
+        {
+            return;
+        }
+
+        if (_builderSelectedEntityIndex == removedIndex)
+        {
+            _builderSelectedEntityIndex = -1;
+            return;
+        }
+
+        if (_builderSelectedEntityIndex > removedIndex)
+        {
+            _builderSelectedEntityIndex -= 1;
+        }
+    }
+
+    private void NotifyGarrisonBuilderEntityRemoved(int removedIndex)
+    {
+        AdjustGarrisonBuilderSelectedEntityIndexAfterRemoval(removedIndex);
+        AdjustGarrisonBuilderHiddenEntityIndicesAfterRemoval(removedIndex);
+        AdjustGarrisonBuilderEntityOverlapPickerIndicesAfterRemoval(removedIndex);
+    }
+
+    private bool IsValidGarrisonBuilderMapEntityIndex(int entityIndex)
+    {
+        return entityIndex >= 0
+            && entityIndex < _builderEntities.Count
+            && !IsGarrisonBuilderEntityHidden(entityIndex);
+    }
+
+    private bool IsGarrisonBuilderEntityHidden(int entityIndex)
+    {
+        return entityIndex >= 0 && _builderHiddenEntityIndices.Contains(entityIndex);
+    }
+
+    private bool HasGarrisonBuilderHiddenEntities() => _builderHiddenEntityIndices.Count > 0;
+
+    private void ClearGarrisonBuilderHiddenEntities()
+    {
+        _builderHiddenEntityIndices.Clear();
+    }
+
+    private void AdjustGarrisonBuilderHiddenEntityIndicesAfterRemoval(int removedIndex)
+    {
+        if (_builderHiddenEntityIndices.Count == 0)
+        {
+            return;
+        }
+
+        var adjusted = new HashSet<int>();
+        foreach (var index in _builderHiddenEntityIndices)
+        {
+            if (index < removedIndex)
+            {
+                adjusted.Add(index);
+            }
+            else if (index > removedIndex)
+            {
+                adjusted.Add(index - 1);
+            }
+        }
+
+        _builderHiddenEntityIndices.Clear();
+        foreach (var index in adjusted)
+        {
+            _builderHiddenEntityIndices.Add(index);
+        }
+    }
+
+    private void HideGarrisonBuilderSelectedEntity()
+    {
+        if (_builderSelectedEntityIndex < 0 || _builderSelectedEntityIndex >= _builderEntities.Count)
+        {
+            _builderStatus = "select an entity to hide";
+            return;
+        }
+
+        if (IsGarrisonBuilderEntityHidden(_builderSelectedEntityIndex))
+        {
+            _builderStatus = "entity already hidden";
+            return;
+        }
+
+        _builderHiddenEntityIndices.Add(_builderSelectedEntityIndex);
+        _builderSelectedEntityIndex = -1;
+        _builderEntityDragging = false;
+        _builderActiveResizeHandle = GarrisonBuilderResizeHandle.None;
+        CloseGarrisonBuilderPropertyEditor(applyChanges: false);
+        CloseGarrisonBuilderEntityContextMenu();
+        CloseGarrisonBuilderEntityOverlapPicker();
+        _builderMapHoverEntityIndex = -1;
+        _builderStatus = "entity hidden (H)";
+    }
+
+    private void UnhideAllGarrisonBuilderEntities()
+    {
+        if (_builderHiddenEntityIndices.Count == 0)
+        {
+            _builderStatus = "no hidden entities";
+            return;
+        }
+
+        _builderHiddenEntityIndices.Clear();
+        _builderStatus = "all entities unhidden";
+    }
+
+    private void SanitizeGarrisonBuilderSelectionAfterEntityChanges()
+    {
+        if (_builderSelectedEntityIndex < 0 || _builderSelectedEntityIndex >= _builderEntities.Count)
+        {
+            _builderSelectedEntityIndex = -1;
+            _builderEntityDragging = false;
+            _builderActiveResizeHandle = GarrisonBuilderResizeHandle.None;
+            CloseGarrisonBuilderPropertyEditor(applyChanges: false);
+            CloseGarrisonBuilderEntityContextMenu();
+        }
+    }
+
+    private bool ShouldDrawGarrisonBuilderPlacementPreview()
+    {
+        if (string.IsNullOrWhiteSpace(_builderSelectedEntityType))
+        {
+            return false;
+        }
+
+        if (_builderPlacementDragging)
+        {
+            return true;
+        }
+
+        return _builderUseModernUi
+            && _builderActiveTool == GarrisonBuilderTool.Place;
+    }
+
     private void DrawGarrisonBuilderPlacementPreview()
     {
-        if (!_builderPlacementDragging || string.IsNullOrWhiteSpace(_builderSelectedEntityType))
+        if (!ShouldDrawGarrisonBuilderPlacementPreview())
         {
             return;
         }
@@ -2077,24 +3480,34 @@ public partial class Game1
             return;
         }
 
-        var color = new Color(60, 220, 90, 150);
+        const float placementPreviewAlpha = 0.5f;
+        var previewTint = Color.White * placementPreviewAlpha;
+        var primaryOutlineColor = new Color(60, 220, 90) * placementPreviewAlpha;
+        var mirroredOutlineColor = new Color(235, 80, 80) * placementPreviewAlpha;
         foreach (var entity in BuildGarrisonBuilderPlacementEntities())
         {
             var previewDefinition = CustomMapBuilderEntityCatalog.TryGetDefinition(entity.Type, out var entityDefinition)
                 ? entityDefinition
                 : definition;
-            if (TryDrawGarrisonBuilderEntitySprite(previewDefinition, entity, entity.Type.Equals(_builderSelectedEntityType, StringComparison.OrdinalIgnoreCase) ? Color.White * 0.7f : Color.White * 0.45f))
+            if (TryDrawGarrisonBuilderEntitySprite(previewDefinition, entity, previewTint))
             {
                 continue;
             }
 
             var metrics = GetGarrisonBuilderEntityMetrics(previewDefinition);
+            var screen = _builderUseModernUi
+                ? BuilderWorldToScreen(new Vector2(entity.X, entity.Y))
+                : new Vector2(entity.X - _builderCamera.X, entity.Y - _builderCamera.Y);
             var rect = new Rectangle(
-                (int)MathF.Round(entity.X - _builderCamera.X),
-                (int)MathF.Round(entity.Y - _builderCamera.Y),
-                Math.Max(6, (int)MathF.Round(metrics.Width * entity.XScale)),
-                Math.Max(6, (int)MathF.Round(metrics.Height * entity.YScale)));
-            DrawGarrisonBuilderRectangleOutline(rect, entity.Type.Equals(_builderSelectedEntityType, StringComparison.OrdinalIgnoreCase) ? color : new Color(235, 80, 80, 140));
+                (int)MathF.Round(screen.X),
+                (int)MathF.Round(screen.Y),
+                Math.Max(6, (int)MathF.Round(metrics.Width * entity.XScale * (_builderUseModernUi ? GetGarrisonBuilderMapVisualScale() : 1f))),
+                Math.Max(6, (int)MathF.Round(metrics.Height * entity.YScale * (_builderUseModernUi ? GetGarrisonBuilderMapVisualScale() : 1f))));
+            DrawGarrisonBuilderRectangleOutline(
+                rect,
+                entity.Type.Equals(_builderSelectedEntityType, StringComparison.OrdinalIgnoreCase)
+                    ? primaryOutlineColor
+                    : mirroredOutlineColor);
         }
     }
 
@@ -2110,7 +3523,7 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, ToScreenRectangle(rect), new Color(60, 220, 90, 45));
         if (_builderSymmetry)
         {
-            var mirrored = new RectangleF(GetGarrisonBuilderMapWidth() - rect.Right, rect.Y, rect.Width, rect.Height);
+            var mirrored = new RectangleF(GetGarrisonBuilderMapSymmetryWidth() - rect.Right, rect.Y, rect.Width, rect.Height);
             DrawGarrisonBuilderRectangleOutline(ToScreenRectangle(mirrored), new Color(235, 80, 80, 160));
             _spriteBatch.Draw(_pixel, ToScreenRectangle(mirrored), new Color(235, 80, 80, 35));
         }
@@ -2126,11 +3539,26 @@ public partial class Game1
 
     private Rectangle ToScreenRectangle(RectangleF rectangle)
     {
-        return new Rectangle(
+        Rectangle screen;
+        if (_builderUseModernUi)
+        {
+            var topLeft = BuilderWorldToScreen(new Vector2(rectangle.X, rectangle.Y));
+            var bottomRight = BuilderWorldToScreen(new Vector2(rectangle.Right, rectangle.Bottom));
+            var left = (int)MathF.Round(MathF.Min(topLeft.X, bottomRight.X));
+            var top = (int)MathF.Round(MathF.Min(topLeft.Y, bottomRight.Y));
+            var right = (int)MathF.Round(MathF.Max(topLeft.X, bottomRight.X));
+            var bottom = (int)MathF.Round(MathF.Max(topLeft.Y, bottomRight.Y));
+            screen = new Rectangle(left, top, Math.Max(1, right - left), Math.Max(1, bottom - top));
+            var viewport = GetModernGarrisonBuilderMapViewport();
+            return Rectangle.Intersect(screen, viewport);
+        }
+
+        screen = new Rectangle(
             (int)MathF.Round(rectangle.X - _builderCamera.X),
             (int)MathF.Round(rectangle.Y - _builderCamera.Y),
             Math.Max(1, (int)MathF.Round(rectangle.Width)),
             Math.Max(1, (int)MathF.Round(rectangle.Height)));
+        return screen;
     }
 
     private static RectangleF CreateWorldRectangle(Vector2 a, Vector2 b)
@@ -2147,86 +3575,309 @@ public partial class Game1
         return new Vector2(MathF.Round(worldPosition.X / 6f) * 6f, MathF.Round(worldPosition.Y / 6f) * 6f);
     }
 
+    private const float GarrisonBuilderPlacementAlignmentSnapThreshold = 6f;
+
+    private void ClearGarrisonBuilderPlacementAlignmentSnap()
+    {
+        _builderPlacementSnapXEntityIndex = -1;
+        _builderPlacementSnapYEntityIndex = -1;
+    }
+
+    private void ApplyGarrisonBuilderPlacementAlignmentSnap(ref Vector2 world)
+    {
+        ClearGarrisonBuilderPlacementAlignmentSnap();
+        if (!_builderUseModernUi || !_builderCtrlHeld)
+        {
+            return;
+        }
+
+        var bestXDistance = GarrisonBuilderPlacementAlignmentSnapThreshold;
+        var bestYDistance = GarrisonBuilderPlacementAlignmentSnapThreshold;
+        for (var index = 0; index < _builderEntities.Count; index += 1)
+        {
+            var entity = _builderEntities[index];
+            if (IsGarrisonBuilderEntityHidden(index))
+            {
+                continue;
+            }
+
+            var xDistance = MathF.Abs(entity.X - world.X);
+            if (xDistance < bestXDistance)
+            {
+                bestXDistance = xDistance;
+                world.X = entity.X;
+                _builderPlacementSnapXEntityIndex = index;
+            }
+
+            var yDistance = MathF.Abs(entity.Y - world.Y);
+            if (yDistance < bestYDistance)
+            {
+                bestYDistance = yDistance;
+                world.Y = entity.Y;
+                _builderPlacementSnapYEntityIndex = index;
+            }
+        }
+    }
+
+    private void DrawGarrisonBuilderPlacementAlignmentGuides()
+    {
+        if (!_builderUseModernUi
+            || !_builderCtrlHeld
+            || !ShouldDrawGarrisonBuilderPlacementPreview()
+            || (_builderPlacementSnapXEntityIndex < 0 && _builderPlacementSnapYEntityIndex < 0))
+        {
+            return;
+        }
+
+        var placementWorld = _builderPlacementDragging
+            ? _builderPlacementCurrentWorld
+            : _builderPlacementPreviewWorld;
+        var placementScreen = BuilderWorldToScreen(placementWorld);
+        var guideColor = new Color(255, 220, 80, 210);
+
+        if (_builderPlacementSnapXEntityIndex >= 0 && _builderPlacementSnapXEntityIndex < _builderEntities.Count)
+        {
+            var reference = _builderEntities[_builderPlacementSnapXEntityIndex];
+            var referenceScreen = BuilderWorldToScreen(new Vector2(reference.X, reference.Y));
+            var guideStart = new Vector2(referenceScreen.X, placementScreen.Y);
+            DrawGarrisonBuilderDashedLine(guideStart, referenceScreen, guideColor);
+        }
+
+        if (_builderPlacementSnapYEntityIndex >= 0 && _builderPlacementSnapYEntityIndex < _builderEntities.Count)
+        {
+            var reference = _builderEntities[_builderPlacementSnapYEntityIndex];
+            var referenceScreen = BuilderWorldToScreen(new Vector2(reference.X, reference.Y));
+            var guideStart = new Vector2(placementScreen.X, referenceScreen.Y);
+            DrawGarrisonBuilderDashedLine(guideStart, referenceScreen, guideColor);
+        }
+    }
+
     private float GetGarrisonBuilderMapWidth()
     {
-        if (_builderBackgroundTexture is not null)
-        {
-            return _builderBackgroundTexture.Width * _builderDocument.Scale;
-        }
-
-        if (_builderWalkmaskTexture is not null)
-        {
-            return _builderWalkmaskTexture.Width * _builderDocument.Scale;
-        }
-
-        return Math.Max(ViewportWidth, _builderEntities.Count == 0 ? ViewportWidth : _builderEntities.Max(static entity => entity.X) + 200f);
+        var worldWidth = GetGarrisonBuilderVisualWorldWidth();
+        return _builderUseModernUi ? worldWidth : worldWidth * GetGarrisonBuilderEditorZoom();
     }
 
     private float GetGarrisonBuilderMapHeight()
     {
-        if (_builderBackgroundTexture is not null)
+        var worldHeight = GetGarrisonBuilderVisualWorldHeight();
+        return _builderUseModernUi ? worldHeight : worldHeight * GetGarrisonBuilderEditorZoom();
+    }
+
+    private void UpdateGarrisonBuilderEntityCoordinateMode()
+    {
+        _builderEntityCoordinatesAreWalkmaskPixels = false;
+        var walkmaskTexture = ResolveGarrisonBuilderWalkmaskTexture();
+        if (walkmaskTexture is null || _builderEntities.Count == 0)
         {
-            return _builderBackgroundTexture.Height * _builderDocument.Scale;
+            return;
         }
 
-        if (_builderWalkmaskTexture is not null)
+        var maxX = _builderEntities.Max(static entity => entity.X);
+        var maxY = _builderEntities.Max(static entity => entity.Y);
+        var pixelWidth = walkmaskTexture.Width + 1f;
+        var pixelHeight = walkmaskTexture.Height + 1f;
+        if (maxX <= pixelWidth && maxY <= pixelHeight)
         {
-            return _builderWalkmaskTexture.Height * _builderDocument.Scale;
+            _builderEntityCoordinatesAreWalkmaskPixels = true;
         }
-
-        return Math.Max(ViewportHeight, _builderEntities.Count == 0 ? ViewportHeight : _builderEntities.Max(static entity => entity.Y) + 200f);
     }
 
     private void ClampGarrisonBuilderCamera()
     {
-        var maxX = Math.Max(0f, GetGarrisonBuilderMapWidth() - ViewportWidth);
-        var maxY = Math.Max(0f, GetGarrisonBuilderMapHeight() - ViewportHeight);
-        _builderCamera.X = Math.Clamp(_builderCamera.X, 0f, maxX);
-        _builderCamera.Y = Math.Clamp(_builderCamera.Y, 0f, maxY);
+        if (_builderUseModernUi)
+        {
+            return;
+        }
+
+        var viewportWidth = BuilderViewportWidth;
+        var viewportHeight = BuilderViewportHeight;
+        var visibleWidth = viewportWidth;
+        var visibleHeight = viewportHeight;
+        var mapWidth = GetGarrisonBuilderMapWidth();
+        var mapHeight = GetGarrisonBuilderMapHeight();
+        var minX = Math.Min(0f, mapWidth - visibleWidth);
+        var maxX = Math.Max(0f, mapWidth - visibleWidth);
+        var minY = Math.Min(0f, mapHeight - visibleHeight);
+        var maxY = Math.Max(0f, mapHeight - visibleHeight);
+        _builderCamera.X = Math.Clamp(_builderCamera.X, minX, maxX);
+        _builderCamera.Y = Math.Clamp(_builderCamera.Y, minY, maxY);
+    }
+
+    private void CenterGarrisonBuilderCameraOnMap()
+    {
+        var viewportWidth = _builderUseModernUi ? GetModernGarrisonBuilderMapViewport().Width : BuilderViewportWidth;
+        var viewportHeight = _builderUseModernUi ? GetModernGarrisonBuilderMapViewport().Height : BuilderViewportHeight;
+        var zoom = _builderUseModernUi ? _builderZoom : 1f;
+        var visibleWidth = viewportWidth / zoom;
+        var visibleHeight = viewportHeight / zoom;
+        _builderCamera.X = (GetGarrisonBuilderMapWidth() - visibleWidth) * 0.5f;
+        _builderCamera.Y = (GetGarrisonBuilderMapHeight() - visibleHeight) * 0.5f;
+        ClampGarrisonBuilderCamera();
+    }
+
+    private void RequestGarrisonBuilderCameraCenter()
+    {
+        _builderPendingCameraCenter = true;
+    }
+
+    private void TryApplyPendingGarrisonBuilderCameraCenter()
+    {
+        if (!_builderPendingCameraCenter || !_builderUseModernUi)
+        {
+            return;
+        }
+
+        if (_builderBackgroundTexture is null && _builderWalkmaskTexture is null)
+        {
+            return;
+        }
+
+        CenterGarrisonBuilderCameraOnMap();
+        _builderPendingCameraCenter = false;
+    }
+
+    private LoadedGameMakerSprite? GetGarrisonBuilderCatalogSprite(string spriteName)
+    {
+        if (_builderCatalogSpriteCache.TryGetValue(spriteName, out var cached))
+        {
+            return cached;
+        }
+
+        var sprite = GetResolvedSprite(spriteName);
+        if (sprite is null && _runtimeAssets is not null)
+        {
+            sprite = _runtimeAssets.GetSprite(spriteName);
+        }
+
+        if (sprite is not null)
+        {
+            _builderCatalogSpriteCache[spriteName] = sprite;
+        }
+
+        return sprite;
     }
 
     private bool TryDrawGarrisonBuilderEntitySprite(CustomMapBuilderEntityDefinition definition, CustomMapBuilderEntity entity, Color tint)
     {
+        if (TryDrawGarrisonBuilderCustomSpriteEntity(definition, entity))
+        {
+            return true;
+        }
+
+        if (TryDrawGarrisonBuilderLogicEntity(definition, entity))
+        {
+            return true;
+        }
+
+        if (definition.Type.Equals("directionalWall", StringComparison.OrdinalIgnoreCase))
+        {
+            DrawGarrisonBuilderDirectionalWallPattern(entity, tint);
+            return true;
+        }
+
+        if (definition.Type.Equals("barrier", StringComparison.OrdinalIgnoreCase))
+        {
+            DrawGarrisonBuilderBarrierPattern(entity, tint);
+            return true;
+        }
+
+        if (definition.Type.Equals(TeleportMetadata.TeleportEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            DrawGarrisonBuilderTeleportZonePattern(entity, tint);
+            return true;
+        }
+
         if (!TryGetGarrisonBuilderEntityFrame(definition, entity, out var frame, out var origin))
         {
             return false;
         }
 
+        var screen = _builderUseModernUi
+            ? BuilderWorldToScreen(new Vector2(entity.X, entity.Y))
+            : new Vector2(entity.X - _builderCamera.X, entity.Y - _builderCamera.Y);
+        var visualScale = _builderUseModernUi ? GetGarrisonBuilderMapVisualScale() : 1f;
+        var spriteScale = new Vector2(entity.XScale * visualScale, entity.YScale * visualScale);
         DrawLoadedSpriteFrame(
             frame,
-            new Vector2(entity.X - _builderCamera.X, entity.Y - _builderCamera.Y),
+            screen,
             null,
-            tint,
+            GetGarrisonBuilderEntityDrawTint(definition, entity, tint),
             0f,
             origin,
-            new Vector2(entity.XScale, entity.YScale),
+            spriteScale,
             SpriteEffects.None,
             0f);
         return true;
     }
 
+    private static Color GetGarrisonBuilderEntityDrawTint(
+        CustomMapBuilderEntityDefinition definition,
+        CustomMapBuilderEntity entity,
+        Color baseTint)
+    {
+        if (definition.Type.Equals("barrier", StringComparison.OrdinalIgnoreCase))
+        {
+            return ResolveGarrisonBuilderBarrierTint(BarrierConfiguration.FromProperties(entity.Properties).Targets, baseTint);
+        }
+
+        if (definition.Type.Equals("directionalWall", StringComparison.OrdinalIgnoreCase))
+        {
+            return Color.Lerp(new Color(72, 110, 82, 220), baseTint, 0.35f);
+        }
+
+        if (definition.Type.Equals("spawn", StringComparison.OrdinalIgnoreCase)
+            && GetEntityProperty(entity.Properties, "team", "red").Equals("neutral", StringComparison.OrdinalIgnoreCase))
+        {
+            return ResolveGarrisonBuilderNeutralTint(baseTint);
+        }
+
+        if (definition.Type.Equals(TeleportMetadata.TeleportExitEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            return ResolveGarrisonBuilderTeleportTint(baseTint);
+        }
+
+        return baseTint;
+    }
+
     private GarrisonBuilderEntityMetrics GetGarrisonBuilderEntityMetrics(CustomMapBuilderEntityDefinition definition)
     {
-        if (TryGetGarrisonBuilderEntityFrame(definition, out var frame, out var origin))
+        return GetGarrisonBuilderEntityMetrics(definition, _builderPlacementPropertyOverrides, 1f, 1f);
+    }
+
+    private GarrisonBuilderEntityMetrics GetGarrisonBuilderEntityMetrics(
+        CustomMapBuilderEntityDefinition definition,
+        IReadOnlyDictionary<string, string> properties,
+        float xScale,
+        float yScale)
+    {
+        if (TryGetGarrisonBuilderAnchorSizedEntityMetrics(definition.Type, properties, xScale, yScale, out var sizedMetrics))
+        {
+            return sizedMetrics;
+        }
+
+        if (TryGetGarrisonBuilderEntityFrame(definition, properties, out var frame, out var origin))
         {
             var width = Math.Max(1f, frame.Width);
             var height = Math.Max(1f, frame.Height);
+            var usesTopLeftAnchor = UsesTopLeftBuilderAnchor(definition.Type);
             return new GarrisonBuilderEntityMetrics(
                 width,
                 height,
-                MathF.Round(width / 12f) * 6f,
-                MathF.Round(height / 12f) * 6f,
+                usesTopLeftAnchor ? 0f : MathF.Round(width / 12f) * 6f,
+                usesTopLeftAnchor ? 0f : MathF.Round(height / 12f) * 6f,
                 origin.X,
                 origin.Y,
                 origin.X - width);
         }
 
         var (fallbackWidth, fallbackHeight) = GetGarrisonBuilderEntityBaseSize(definition.Type);
+        var fallbackTopLeft = UsesTopLeftBuilderAnchor(definition.Type);
         return new GarrisonBuilderEntityMetrics(
             fallbackWidth,
             fallbackHeight,
-            MathF.Round(fallbackWidth / 12f) * 6f,
-            MathF.Round(fallbackHeight / 12f) * 6f,
+            fallbackTopLeft ? 0f : MathF.Round(fallbackWidth / 12f) * 6f,
+            fallbackTopLeft ? 0f : MathF.Round(fallbackHeight / 12f) * 6f,
             0f,
             0f,
             -fallbackWidth);
@@ -2239,24 +3890,93 @@ public partial class Game1
             return true;
         }
 
-        return TryGetGarrisonBuilderEntityFrame(definition, out frame, out origin);
+        if (ControlPointOwnershipResolver.IsControlPointEntity(definition.Type)
+            && TryResolveGarrisonBuilderControlPointFrame(entity, out frame, out origin))
+        {
+            return true;
+        }
+
+        return TryGetGarrisonBuilderEntityFrame(definition, entity.Properties, out frame, out origin);
+    }
+
+    private bool TryResolveGarrisonBuilderControlPointFrame(CustomMapBuilderEntity entity, out LoadedSpriteFrame frame, out Vector2 origin)
+    {
+        frame = default!;
+        origin = Vector2.Zero;
+        var spriteName = ControlPointOwnershipResolver.ResolveBuilderControlPointSpriteName(
+            entity,
+            _builderSelectedGameMode,
+            _builderEntities,
+            HasGarrisonBuilderControlPointSetupGates(),
+            IsGarrisonBuilderControlPointOverrideEnabled());
+        var sprite = GetGarrisonBuilderCatalogSprite(spriteName);
+        if (sprite is null || sprite.Frames.Count == 0)
+        {
+            return false;
+        }
+
+        var frameIndex = Math.Clamp(
+            ControlPointOwnershipResolver.ResolveBuilderControlPointSpriteFrame(entity, spriteName),
+            0,
+            sprite.Frames.Count - 1);
+        frame = sprite.Frames[frameIndex];
+        origin = sprite.Origin.ToVector2();
+        return true;
+    }
+
+    private bool HasGarrisonBuilderControlPointSetupGates()
+    {
+        for (var index = 0; index < _builderEntities.Count; index += 1)
+        {
+            if (_builderEntities[index].Type.Equals("SetupGate", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private bool TryGetGarrisonBuilderEntityFrame(CustomMapBuilderEntityDefinition definition, out LoadedSpriteFrame frame, out Vector2 origin)
     {
-        if (TryGetGarrisonBuilderEntityResourceFrame(definition, _builderPlacementPropertyOverrides, out frame, out origin))
+        return TryGetGarrisonBuilderEntityFrame(definition, _builderPlacementPropertyOverrides, out frame, out origin);
+    }
+
+    private bool TryGetGarrisonBuilderEntityFrame(
+        CustomMapBuilderEntityDefinition definition,
+        IReadOnlyDictionary<string, string> properties,
+        out LoadedSpriteFrame frame,
+        out Vector2 origin)
+    {
+        if (TryGetGarrisonBuilderEntityResourceFrame(definition, properties, out frame, out origin))
         {
             return true;
         }
 
         if (!string.IsNullOrWhiteSpace(definition.EntitySpriteName))
         {
-            var sprite = GetResolvedSprite(definition.EntitySpriteName);
+            var spriteName = definition.EntitySpriteName;
+
+            var frameIndex = Math.Clamp(definition.EntityImage, 0, 5);
+            if (definition.Type.Equals(TeleportMetadata.TeleportExitEntityType, StringComparison.OrdinalIgnoreCase))
+            {
+                frameIndex = 0;
+            }
+            else if (spriteName.Equals("spawnS", StringComparison.OrdinalIgnoreCase))
+            {
+                frameIndex = ResolveGarrisonBuilderSpawnSpriteFrame(properties);
+            }
+
+            var sprite = GetGarrisonBuilderCatalogSprite(spriteName);
             if (sprite is not null && sprite.Frames.Count > 0)
             {
-                var frameIndex = Math.Clamp(definition.EntityImage, 0, sprite.Frames.Count - 1);
                 frame = sprite.Frames[frameIndex];
                 origin = sprite.Origin.ToVector2();
+                if (UsesTopLeftBuilderAnchor(definition.Type))
+                {
+                    origin = Vector2.Zero;
+                }
+
                 return true;
             }
         }
@@ -2264,6 +3984,99 @@ public partial class Game1
         frame = default!;
         origin = Vector2.Zero;
         return false;
+    }
+
+    private static bool UsesTopLeftBuilderAnchor(string type)
+    {
+        return type.Equals("GeneratorRed", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("GeneratorBlue", StringComparison.OrdinalIgnoreCase)
+            || type.Equals(TeleportMetadata.TeleportExitEntityType, StringComparison.OrdinalIgnoreCase)
+            || IsGarrisonBuilderAnchorSizedEntityType(type);
+    }
+
+    private static bool IsGarrisonBuilderAnchorSizedEntityType(string type)
+    {
+        return type.Equals(TeleportMetadata.TeleportEntityType, StringComparison.OrdinalIgnoreCase)
+            || type.Equals(PlayerTriggerMetadata.PlayerTriggerEntityType, StringComparison.OrdinalIgnoreCase)
+            || type.Equals("barrier", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("directionalWall", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("redteamgate", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("blueteamgate", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("redintelgate", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("blueintelgate", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("intelgatevertical", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("playerwall", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("bulletwall", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("leftdoor", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("rightdoor", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("redteamgate2", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("blueteamgate2", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("redintelgate2", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("blueintelgate2", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("intelgatehorizontal", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("playerwall_horizontal", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("bulletwall_horizontal", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("dropdownplatform", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("setupgate", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryGetGarrisonBuilderAnchorSizedEntityMetrics(
+        string type,
+        IReadOnlyDictionary<string, string> properties,
+        float xScale,
+        float yScale,
+        out GarrisonBuilderEntityMetrics metrics)
+    {
+        if (type.Equals(TeleportMetadata.TeleportEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            var (zoneWidth, zoneHeight) = TeleportMetadata.ResolveZoneDimensions(xScale, yScale);
+            metrics = new GarrisonBuilderEntityMetrics(zoneWidth, zoneHeight, 0f, 0f, 0f, 0f, -zoneWidth);
+            return true;
+        }
+
+        if (type.Equals(PlayerTriggerMetadata.PlayerTriggerEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            var (zoneWidth, zoneHeight) = PlayerTriggerMetadata.ResolveZoneDimensions(xScale, yScale);
+            metrics = new GarrisonBuilderEntityMetrics(
+                zoneWidth,
+                zoneHeight,
+                zoneWidth * 0.5f,
+                zoneHeight * 0.5f,
+                0f,
+                0f,
+                -zoneWidth * 0.5f);
+            return true;
+        }
+
+        if (!IsGarrisonBuilderAnchorSizedEntityType(type))
+        {
+            metrics = default;
+            return false;
+        }
+
+        var floor = type.Equals("barrier", StringComparison.OrdinalIgnoreCase)
+            && BarrierConfiguration.IsFloorOrientation(properties);
+        var (width, height) = type.Equals("directionalWall", StringComparison.OrdinalIgnoreCase)
+            ? BarrierConfiguration.ResolveDimensions(xScale, yScale)
+            : BarrierConfiguration.ResolveDimensions(xScale, yScale, floor);
+        metrics = new GarrisonBuilderEntityMetrics(width, height, 0f, 0f, 0f, 0f, -width);
+        return true;
+    }
+
+    private static int ResolveGarrisonBuilderSpawnSpriteFrame(IReadOnlyDictionary<string, string> properties)
+    {
+        var team = GetEntityProperty(properties, "team", "red");
+        var forward = GetEntityBool(properties, "forward", false);
+        if (!forward)
+        {
+            return team.Equals("blue", StringComparison.OrdinalIgnoreCase) ? 5 : 0;
+        }
+
+        var priority = ForwardSpawnMetadata.ParsePriority(properties);
+        var frameOffset = ForwardSpawnPriorityMetadata.ResolveBuilderSpriteFrameOffset(priority);
+        return team.Equals("blue", StringComparison.OrdinalIgnoreCase)
+            ? 5 + frameOffset
+            : frameOffset;
     }
 
     private bool TryGetGarrisonBuilderEntityResourceFrame(CustomMapBuilderEntityDefinition definition, IReadOnlyDictionary<string, string> properties, out LoadedSpriteFrame frame, out Vector2 origin)
@@ -2287,11 +4100,220 @@ public partial class Game1
         return true;
     }
 
+    private static void GetGarrisonBuilderResizeMinimumExtents(string type, float baseWidth, float baseHeight, out float minWidth, out float minHeight)
+    {
+        GetGarrisonBuilderEntityMinimumWorldSize(type, baseWidth, baseHeight, out minWidth, out minHeight);
+        if (type.Equals("barrier", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("directionalWall", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        minWidth = baseWidth * 0.25f;
+        minHeight = baseHeight * 0.25f;
+    }
+
+    private static void GetGarrisonBuilderEntityMinimumWorldSize(string type, float baseWidth, float baseHeight, out float minWidth, out float minHeight)
+    {
+        if (type.Equals("barrier", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("directionalWall", StringComparison.OrdinalIgnoreCase))
+        {
+            minWidth = BarrierConfiguration.MinExtent;
+            minHeight = BarrierConfiguration.MinExtent;
+            return;
+        }
+
+        if (type.Equals(TeleportMetadata.TeleportEntityType, StringComparison.OrdinalIgnoreCase)
+            || type.Equals(PlayerTriggerMetadata.PlayerTriggerEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            minWidth = PlayerTriggerMetadata.MinZoneExtent;
+            minHeight = PlayerTriggerMetadata.MinZoneExtent;
+            return;
+        }
+
+        minWidth = baseWidth * 0.25f;
+        minHeight = baseHeight * 0.25f;
+    }
+
+    private void DrawGarrisonBuilderTeleportZonePattern(CustomMapBuilderEntity entity, Color tint)
+    {
+        if (!TryGetGarrisonBuilderEntityWorldBounds(entity, out var left, out var top, out var width, out var height))
+        {
+            return;
+        }
+
+        var topLeft = BuilderWorldToScreen(new Vector2(left, top));
+        var bottomRight = BuilderWorldToScreen(new Vector2(left + width, top + height));
+        var screenBounds = new Rectangle(
+            (int)MathF.Floor(MathF.Min(topLeft.X, bottomRight.X)),
+            (int)MathF.Floor(MathF.Min(topLeft.Y, bottomRight.Y)),
+            Math.Max(1, (int)MathF.Ceiling(MathF.Abs(bottomRight.X - topLeft.X))),
+            Math.Max(1, (int)MathF.Ceiling(MathF.Abs(bottomRight.Y - topLeft.Y))));
+        var fillColor = Color.Lerp(new Color(48, 150, 145, 190), tint, 0.35f);
+        var borderColor = Color.Lerp(new Color(24, 96, 92, 255), tint, 0.15f);
+        _spriteBatch.Draw(_pixel, screenBounds, fillColor);
+        DrawGarrisonBuilderRectangleOutline(screenBounds, borderColor);
+    }
+
+    private void DrawGarrisonBuilderBarrierPattern(CustomMapBuilderEntity entity, Color tint)
+    {
+        if (!TryGetGarrisonBuilderEntityWorldBounds(entity, out var left, out var top, out var width, out var height))
+        {
+            return;
+        }
+
+        var topLeft = BuilderWorldToScreen(new Vector2(left, top));
+        var bottomRight = BuilderWorldToScreen(new Vector2(left + width, top + height));
+        var screenBounds = new Rectangle(
+            (int)MathF.Floor(MathF.Min(topLeft.X, bottomRight.X)),
+            (int)MathF.Floor(MathF.Min(topLeft.Y, bottomRight.Y)),
+            Math.Max(1, (int)MathF.Ceiling(MathF.Abs(bottomRight.X - topLeft.X))),
+            Math.Max(1, (int)MathF.Ceiling(MathF.Abs(bottomRight.Y - topLeft.Y))));
+        var fillColor = Color.Lerp(new Color(72, 110, 82, 200), tint, 0.35f);
+        var borderColor = Color.Lerp(new Color(40, 64, 48, 255), tint, 0.15f);
+        _spriteBatch.Draw(_pixel, screenBounds, fillColor);
+        DrawGarrisonBuilderRectangleOutline(screenBounds, borderColor);
+    }
+
+    private void DrawGarrisonBuilderDirectionalWallPattern(CustomMapBuilderEntity entity, Color tint)
+    {
+        if (!TryGetGarrisonBuilderEntityWorldBounds(entity, out var left, out var top, out var width, out var height))
+        {
+            return;
+        }
+
+        var configuration = DirectionalWallConfiguration.FromProperties(entity.Properties);
+        var topLeft = BuilderWorldToScreen(new Vector2(left, top));
+        var bottomRight = BuilderWorldToScreen(new Vector2(left + width, top + height));
+        var screenLeft = MathF.Min(topLeft.X, bottomRight.X);
+        var screenTop = MathF.Min(topLeft.Y, bottomRight.Y);
+        var screenRight = MathF.Max(topLeft.X, bottomRight.X);
+        var screenBottom = MathF.Max(topLeft.Y, bottomRight.Y);
+        var screenBounds = new Rectangle(
+            (int)MathF.Floor(screenLeft),
+            (int)MathF.Floor(screenTop),
+            Math.Max(1, (int)MathF.Ceiling(screenRight - screenLeft)),
+            Math.Max(1, (int)MathF.Ceiling(screenBottom - screenTop)));
+
+        var fillColor = Color.Lerp(new Color(58, 92, 68, 190), tint, 0.25f);
+        var arrowColor = Color.Lerp(new Color(130, 210, 145, 230), tint, 0.2f);
+        var borderColor = Color.Lerp(new Color(40, 64, 48, 255), tint, 0.15f);
+        _spriteBatch.Draw(_pixel, screenBounds, fillColor);
+        DrawGarrisonBuilderRectangleOutline(screenBounds, borderColor);
+
+        const float tileSize = 10f;
+        var visualScale = _builderUseModernUi ? GetGarrisonBuilderMapVisualScale() : 1f;
+        var worldTile = tileSize * visualScale;
+        for (var cellY = top; cellY < top + height - 0.01f; cellY += tileSize)
+        {
+            for (var cellX = left; cellX < left + width - 0.01f; cellX += tileSize)
+            {
+                DrawGarrisonBuilderDirectionalWallArrowCell(
+                    configuration.PassDirection,
+                    cellX,
+                    cellY,
+                    MathF.Min(tileSize, left + width - cellX),
+                    MathF.Min(tileSize, top + height - cellY),
+                    arrowColor,
+                    visualScale);
+            }
+        }
+    }
+
+    private void DrawGarrisonBuilderDirectionalWallArrowCell(
+        DirectionalWallPassDirection passDirection,
+        float worldX,
+        float worldY,
+        float cellWidth,
+        float cellHeight,
+        Color arrowColor,
+        float visualScale)
+    {
+        var inset = MathF.Max(1f, MathF.Min(cellWidth, cellHeight) * 0.15f);
+        var left = worldX + inset;
+        var top = worldY + inset;
+        var right = worldX + cellWidth - inset;
+        var bottom = worldY + cellHeight - inset;
+        var centerX = (left + right) * 0.5f;
+        var centerY = (top + bottom) * 0.5f;
+
+        switch (passDirection)
+        {
+            case DirectionalWallPassDirection.Right:
+                DrawGarrisonBuilderFilledTriangle(
+                    BuilderWorldToScreen(new Vector2(right, centerY)),
+                    BuilderWorldToScreen(new Vector2(left, top)),
+                    BuilderWorldToScreen(new Vector2(left, bottom)),
+                    arrowColor);
+                break;
+            case DirectionalWallPassDirection.Left:
+                DrawGarrisonBuilderFilledTriangle(
+                    BuilderWorldToScreen(new Vector2(left, centerY)),
+                    BuilderWorldToScreen(new Vector2(right, top)),
+                    BuilderWorldToScreen(new Vector2(right, bottom)),
+                    arrowColor);
+                break;
+            case DirectionalWallPassDirection.Up:
+                DrawGarrisonBuilderFilledTriangle(
+                    BuilderWorldToScreen(new Vector2(centerX, top)),
+                    BuilderWorldToScreen(new Vector2(left, bottom)),
+                    BuilderWorldToScreen(new Vector2(right, bottom)),
+                    arrowColor);
+                break;
+            default:
+                DrawGarrisonBuilderFilledTriangle(
+                    BuilderWorldToScreen(new Vector2(centerX, bottom)),
+                    BuilderWorldToScreen(new Vector2(left, top)),
+                    BuilderWorldToScreen(new Vector2(right, top)),
+                    arrowColor);
+                break;
+        }
+    }
+
+    private void DrawGarrisonBuilderFilledTriangle(Vector2 tipScreen, Vector2 baseAScreen, Vector2 baseBScreen, Color color)
+    {
+        var minY = MathF.Min(tipScreen.Y, MathF.Min(baseAScreen.Y, baseBScreen.Y));
+        var maxY = MathF.Max(tipScreen.Y, MathF.Max(baseAScreen.Y, baseBScreen.Y));
+        for (var y = (int)MathF.Floor(minY); y <= (int)MathF.Ceiling(maxY); y += 1)
+        {
+            var scanY = y + 0.5f;
+            var intersections = new List<float>(3);
+            AddGarrisonBuilderTriangleEdgeIntersection(tipScreen, baseAScreen, scanY, intersections);
+            AddGarrisonBuilderTriangleEdgeIntersection(baseAScreen, baseBScreen, scanY, intersections);
+            AddGarrisonBuilderTriangleEdgeIntersection(baseBScreen, tipScreen, scanY, intersections);
+            if (intersections.Count < 2)
+            {
+                continue;
+            }
+
+            intersections.Sort();
+            var spanLeft = (int)MathF.Floor(intersections[0]);
+            var spanRight = (int)MathF.Ceiling(intersections[^1]);
+            _spriteBatch.Draw(_pixel, new Rectangle(spanLeft, y, Math.Max(1, spanRight - spanLeft), 1), color);
+        }
+    }
+
+    private static void AddGarrisonBuilderTriangleEdgeIntersection(Vector2 start, Vector2 end, float y, List<float> intersections)
+    {
+        if (MathF.Abs(start.Y - end.Y) <= 0.01f)
+        {
+            return;
+        }
+
+        if ((y < MathF.Min(start.Y, end.Y)) || (y > MathF.Max(start.Y, end.Y)))
+        {
+            return;
+        }
+
+        var t = (y - start.Y) / (end.Y - start.Y);
+        intersections.Add(start.X + ((end.X - start.X) * t));
+    }
+
     private static (float Width, float Height) GetGarrisonBuilderEntityBaseSize(string type)
     {
         return type.ToLowerInvariant() switch
         {
-            "redteamgate" or "blueteamgate" or "redintelgate" or "blueintelgate" or "intelgatevertical" or "playerwall" or "bulletwall" or "leftdoor" or "rightdoor" => (6f, 60f),
+            "barrier" or "directionalWall" or "redteamgate" or "blueteamgate" or "redintelgate" or "blueintelgate" or "intelgatevertical" or "playerwall" or "bulletwall" or "leftdoor" or "rightdoor" => (6f, 60f),
             "redteamgate2" or "blueteamgate2" or "redintelgate2" or "blueintelgate2" or "intelgatehorizontal" or "playerwall_horizontal" or "bulletwall_horizontal" or "dropdownplatform" or "setupgate" => (60f, 6f),
             "medcabinet" => (32f, 48f),
             _ => (42f, 42f),
@@ -2301,6 +4323,63 @@ public partial class Game1
     private static bool IsGarrisonBuilderDefinitionScalable(CustomMapBuilderEntityDefinition definition)
     {
         return definition.DefaultProperties.ContainsKey("xscale") && definition.DefaultProperties.ContainsKey("yscale");
+    }
+
+    private static void ApplyGarrisonBuilderMirroredPlacementProperties(string type, Dictionary<string, string> properties)
+    {
+        if (type.Equals("spawn", StringComparison.OrdinalIgnoreCase)
+            && properties.TryGetValue("team", out var team)
+            && !team.Equals("neutral", StringComparison.OrdinalIgnoreCase))
+        {
+            properties["team"] = team.Equals("red", StringComparison.OrdinalIgnoreCase) ? "blue" : "red";
+            return;
+        }
+
+        if (type.Equals("barrier", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("directionalWall", StringComparison.OrdinalIgnoreCase))
+        {
+            MirrorGarrisonBuilderBarrierTargetProperties(properties);
+        }
+
+    }
+
+    private static void MirrorGarrisonBuilderBarrierTargetProperties(Dictionary<string, string> properties)
+    {
+        MirrorGarrisonBuilderBarrierPropertyPair(properties, BarrierTargetFilterMetadata.RedPlayersPropertyKey, BarrierTargetFilterMetadata.BluePlayersPropertyKey);
+        MirrorGarrisonBuilderBarrierPropertyPair(properties, BarrierTargetFilterMetadata.RedShotsPropertyKey, BarrierTargetFilterMetadata.BlueShotsPropertyKey);
+        MirrorGarrisonBuilderBarrierPropertyPair(properties, BarrierTargetFilterMetadata.RedIntelPropertyKey, BarrierTargetFilterMetadata.BlueIntelPropertyKey);
+    }
+
+    private static void MirrorGarrisonBuilderBarrierPropertyPair(Dictionary<string, string> properties, string leftKey, string rightKey)
+    {
+        if (!properties.TryGetValue(leftKey, out var leftValue))
+        {
+            return;
+        }
+
+        properties.TryGetValue(rightKey, out var rightValue);
+        properties[leftKey] = rightValue ?? leftValue;
+        properties[rightKey] = leftValue;
+    }
+
+    private static Color ResolveGarrisonBuilderBarrierTint(in BarrierTargetFilters targets, Color baseTint)
+    {
+        return BarrierConfiguration.ResolveDisplayTeam(targets) switch
+        {
+            PlayerTeam.Red => new Color((byte)255, (byte)0, (byte)0, baseTint.A),
+            PlayerTeam.Blue => new Color((byte)0, (byte)0, (byte)255, baseTint.A),
+            _ => ResolveGarrisonBuilderNeutralTint(baseTint),
+        };
+    }
+
+    private static Color ResolveGarrisonBuilderNeutralTint(Color baseTint)
+    {
+        return new Color((byte)0, (byte)200, (byte)0, baseTint.A);
+    }
+
+    private static Color ResolveGarrisonBuilderTeleportTint(Color baseTint)
+    {
+        return new Color((byte)32, (byte)190, (byte)180, baseTint.A);
     }
 
     private static bool TryGetGarrisonBuilderMirroredDefinition(CustomMapBuilderEntityDefinition definition, out CustomMapBuilderEntityDefinition mirroredDefinition)
@@ -2313,6 +4392,10 @@ public partial class Game1
     {
         return type switch
         {
+            "spawn" => "spawn",
+            "barrier" => "barrier",
+            "directionalWall" => "directionalWall",
+            "controlPoint" => "controlPoint",
             "redspawn" => "bluespawn",
             "bluespawn" => "redspawn",
             "redspawn1" => "bluespawn1",
@@ -2358,7 +4441,8 @@ public partial class Game1
             }
         }
 
-        return CustomMapBuilderEntity.Create(definition.Type, x, y, properties).NormalizeForEditing();
+        return ApplyGarrisonBuilderLogicDefaults(
+            CustomMapBuilderEntity.Create(definition.Type, x, y, properties).NormalizeForEditing());
     }
 
     private bool TryHandleGarrisonBuilderPathClick(Point position, Rectangle panel)
@@ -2450,6 +4534,11 @@ public partial class Game1
             return true;
         }
 
+        if (HandleGarrisonBuilderLayerParallaxTextInput(character))
+        {
+            return true;
+        }
+
         if (!_builderEditorEnabled || _builderActivePathField == GarrisonBuilderPathField.None)
         {
             return false;
@@ -2465,8 +4554,14 @@ public partial class Game1
 
     private void BeginEditingGarrisonBuilderPath(GarrisonBuilderPathField field)
     {
-        if (TryApplyGarrisonBuilderNativePathDialog(field))
+        if (OperatingSystem.IsWindows())
         {
+            if (!TryApplyGarrisonBuilderNativePathDialog(field)
+                && field is GarrisonBuilderPathField.ResourcePath or GarrisonBuilderPathField.ResourceName)
+            {
+                ClearGarrisonBuilderPendingResourceImport();
+            }
+
             return;
         }
 
@@ -2485,6 +4580,13 @@ public partial class Game1
             GarrisonBuilderPathField.ResourceOutputDirectory => "enter a directory for decompiled resources",
             _ => _builderStatus,
         };
+    }
+
+    private void ClearGarrisonBuilderPendingResourceImport()
+    {
+        _builderPendingResourceName = string.Empty;
+        _builderPendingResourceKind = CustomMapBuilderResourceKind.GenericImage;
+        _builderResourcePathBuffer = string.Empty;
     }
 
     private void ApplyGarrisonBuilderPathField(GarrisonBuilderPathField field)
@@ -2711,8 +4813,39 @@ public partial class Game1
             return false;
         }
 
+        if (_builderObjectiveMapPickActive)
+        {
+            if (IsKeyPressed(keyboard, Keys.Escape))
+            {
+                CancelGarrisonBuilderObjectiveMapPick();
+            }
+
+            return false;
+        }
+
+        if (_builderLogicMapPickActive)
+        {
+            if (IsKeyPressed(keyboard, Keys.Escape))
+            {
+                CancelGarrisonBuilderLogicMapPick();
+            }
+
+            return false;
+        }
+
+        if (_builderEntityMapPickActive)
+        {
+            if (IsKeyPressed(keyboard, Keys.Escape))
+            {
+                CancelGarrisonBuilderEntityMapPick();
+            }
+
+            return false;
+        }
+
         if (IsKeyPressed(keyboard, Keys.Escape))
         {
+
             if (_builderPropertyEditMode == GarrisonBuilderPropertyEditMode.List)
             {
                 CloseGarrisonBuilderPropertyEditor(applyChanges: true);
@@ -2796,24 +4929,23 @@ public partial class Game1
             return false;
         }
 
-        var result = InsertTextCharacterAtCursor(_builderPropertyEditBuffer, character, _builderPropertyCursorIndex, _builderPropertySelectionStart, 180);
+        if (IsGarrisonBuilderNodePriorityTextEditActive() && !char.IsDigit(character))
+        {
+            return false;
+        }
+
+        if (IsGarrisonBuilderCapTimeMultiplierTextEditActive()
+            && !IsGarrisonBuilderCapTimeMultiplierTextCharacterAllowed(character))
+        {
+            return false;
+        }
+
+        var maxLength = IsGarrisonBuilderNodePriorityTextEditActive() ? 3 : 180;
+        var result = InsertTextCharacterAtCursor(_builderPropertyEditBuffer, character, _builderPropertyCursorIndex, _builderPropertySelectionStart, maxLength);
         _builderPropertyEditBuffer = result.Text;
         _builderPropertyCursorIndex = result.CursorIndex;
         _builderPropertySelectionStart = result.SelectionStart;
         return true;
-    }
-
-    private void BeginEditingGarrisonBuilderMetadata()
-    {
-        _builderPropertyTarget = GarrisonBuilderPropertyTarget.Metadata;
-        _builderPropertyEditMode = GarrisonBuilderPropertyEditMode.List;
-        _builderPropertyEditorTitle = "Edit metadata";
-        _builderPropertyScrollIndex = 0;
-        _builderPropertyEditorValues = new Dictionary<string, string>(_builderDocument.Metadata, StringComparer.OrdinalIgnoreCase);
-        _builderPropertyEditorValues.TryAdd("background", CustomMapBuilderDocument.DefaultBackgroundColor);
-        _builderPropertyEditorValues.TryAdd("void", CustomMapBuilderDocument.DefaultVoidColor);
-        _builderPropertyEditorValues["scale"] = _builderDocument.Scale.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        _builderStatus = "editing metadata";
     }
 
     private void BeginEditingGarrisonBuilderPlacementProperties(CustomMapBuilderEntityDefinition definition)
@@ -2833,6 +4965,17 @@ public partial class Game1
             {
                 _builderPropertyEditorValues[pair.Key] = pair.Value;
             }
+        }
+
+        SyncGarrisonBuilderSpawnPropertyEditorFields();
+        SyncGarrisonBuilderControlPointPropertyEditorFields();
+
+        if (definition.Type.Equals("spawn", StringComparison.OrdinalIgnoreCase)
+            && (_builderSelectedGameMode & (CustomMapBuilderGameMode.KingOfTheHill | CustomMapBuilderGameMode.DualKingOfTheHill)) != 0
+            && IsGarrisonBuilderEditedSpawnForwardEnabled()
+            && !_builderPlacementPropertyOverrides.ContainsKey("linkObjective"))
+        {
+            TryApplyDefaultGarrisonBuilderPlacementObjectiveLink();
         }
 
         _builderStatus = $"editing {_builderSelectedEntityType} properties";
@@ -2868,7 +5011,7 @@ public partial class Game1
         var rows = GetGarrisonBuilderPropertyRows();
         var visibleRows = GetGarrisonBuilderPropertyVisibleRows(bounds);
         _builderPropertyScrollIndex = Math.Clamp(_builderPropertyScrollIndex, 0, Math.Max(0, rows.Count - visibleRows));
-        var visibleRowIndex = (position.Y - (bounds.Y + 34)) / 22;
+        var visibleRowIndex = (position.Y - GetGarrisonBuilderPropertyListTop(bounds)) / GetGarrisonBuilderPropertyRowHeight();
         if (visibleRowIndex < 0 || visibleRowIndex >= visibleRows)
         {
             return true;
@@ -2881,23 +5024,268 @@ public partial class Game1
         }
 
         var key = rows[rowIndex];
-        var value = _builderPropertyEditorValues[key];
-        if (value.Equals("true", StringComparison.OrdinalIgnoreCase))
+        if (IsGarrisonBuilderControlPointSectionProperty(key))
         {
-            _builderPropertyEditorValues[key] = "false";
+            return true;
+        }
+
+        if (!_builderPropertyEditorValues.TryGetValue(key, out var value))
+        {
+            value = string.Empty;
+        }
+
+        var rowHeight = GetGarrisonBuilderPropertyRowHeight();
+        var rowY = GetGarrisonBuilderPropertyListTop(bounds) + visibleRowIndex * rowHeight;
+        var rowBounds = GetGarrisonBuilderPropertyRowBounds(bounds, rowY);
+        if (TryClearGarrisonBuilderPropertyConnectionClick(key, value, rowBounds, position))
+        {
+            return true;
+        }
+
+        if (key.Equals("team", StringComparison.OrdinalIgnoreCase)
+            && TryGetGarrisonBuilderEditedEntityType(out var teleportTeamEntity)
+            && teleportTeamEntity.Equals(TeleportMetadata.TeleportEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            _builderPropertyEditorValues[key] = TeleportMetadata.CycleTeamPropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
             MarkGarrisonBuilderPropertyEditorChanged();
         }
-        else if (value.Equals("false", StringComparison.OrdinalIgnoreCase))
+        else if (key.Equals("team", StringComparison.OrdinalIgnoreCase)
+            && TryGetGarrisonBuilderEditedEntityType(out var playerTriggerTeamEntity)
+            && playerTriggerTeamEntity.Equals(MapLogicMetadata.PlayerTriggerEntityType, StringComparison.OrdinalIgnoreCase))
         {
-            _builderPropertyEditorValues[key] = "true";
+            _builderPropertyEditorValues[key] = PlayerTriggerMetadata.CycleTeamPropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
             MarkGarrisonBuilderPropertyEditorChanged();
         }
-        else
+        else if (key.Equals("team", StringComparison.OrdinalIgnoreCase))
+        {
+            _builderPropertyEditorValues[key] = CycleGarrisonBuilderTeamPropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (BarrierTargetFilterMetadata.IsTargetPropertyKey(key)
+            && IsEditingGarrisonBuilderBarrierEntity())
+        {
+            _builderPropertyEditorValues[key] = BarrierTargetFilterMetadata.CyclePropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(DirectionalWallConfiguration.PassDirectionPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderDirectionalWallEntity())
+        {
+            _builderPropertyEditorValues[key] = DirectionalWallConfiguration.CyclePassDirectionValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if ((key.Equals(DirectionalWallConfiguration.PlayersPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(DirectionalWallConfiguration.ProjectilesPropertyKey, StringComparison.OrdinalIgnoreCase))
+            && IsEditingGarrisonBuilderDirectionalWallEntity())
+        {
+            _builderPropertyEditorValues[key] = DirectionalWallConfiguration.CycleAffectPropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(ControlPointIndexMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderControlPointEntity())
+        {
+            _builderPropertyEditorValues[key] = ControlPointIndexMetadata.CyclePropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(ControlPointInitialOwnershipMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderControlPointEntity()
+            && IsGarrisonBuilderControlPointOverrideEnabled())
+        {
+            _builderPropertyEditorValues[key] = ControlPointInitialOwnershipMetadata.CycleOverridePropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if ((key.Equals(ControlPointLockDependencyMetadata.LockedWhenTeamPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(ControlPointLockDependencyMetadata.UnlockedWhenTeamPropertyKey, StringComparison.OrdinalIgnoreCase))
+            && IsEditingGarrisonBuilderControlPointEntity()
+            && IsGarrisonBuilderControlPointOverrideEnabled())
+        {
+            _builderPropertyEditorValues[key] = ControlPointLockDependencyMetadata.CycleTeamPropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(ControlPointInitialLockStateMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderControlPointEntity()
+            && IsGarrisonBuilderControlPointOverrideEnabled())
+        {
+            _builderPropertyEditorValues[key] = ControlPointInitialLockStateMetadata.CyclePropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if ((key.Equals(ControlPointLockDependencyMetadata.LockedWhenCpPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(ControlPointLockDependencyMetadata.UnlockedWhenCpPropertyKey, StringComparison.OrdinalIgnoreCase))
+            && IsEditingGarrisonBuilderControlPointEntity()
+            && IsGarrisonBuilderControlPointOverrideEnabled())
+        {
+            BeginGarrisonBuilderObjectiveMapPick(key);
+        }
+        else if (key.Equals(ForwardSpawnPriorityMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderSpawnEntity()
+            && IsGarrisonBuilderEditedSpawnForwardEnabled())
+        {
+            _builderPropertyEditorValues[key] = ForwardSpawnPriorityMetadata.CyclePropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(ForwardSpawnMetadata.UseWhenPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderSpawnEntity()
+            && IsGarrisonBuilderEditedSpawnForwardEnabled()
+            && !IsGarrisonBuilderSpawnUsingLogicSignal())
+        {
+            _builderPropertyEditorValues[key] = ForwardSpawnMetadata.CycleUseWhenPropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(MapLogicMetadata.GateTypePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && TryGetGarrisonBuilderEditedEntityType(out var gateTypeEntity)
+            && gateTypeEntity.Equals(MapLogicMetadata.GateEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            _builderPropertyEditorValues[key] = MapLogicMetadata.CycleGateTypePropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(MapLogicMetadata.RequiredOwnerPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && TryGetGarrisonBuilderEditedEntityType(out var cpTriggerEntity)
+            && cpTriggerEntity.Equals(MapLogicMetadata.CpTriggerEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            _builderPropertyEditorValues[key] = MapLogicMetadata.CycleRequiredOwnerPropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(MapLogicMetadata.ActivatorBehaviorPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && TryGetGarrisonBuilderEditedEntityType(out var activatorEntity)
+            && activatorEntity.Equals(MapLogicMetadata.ActivatorEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            _builderPropertyEditorValues[key] = MapLogicMetadata.CycleActivatorBehaviorPropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (IsGarrisonBuilderActivatorEntityMapPickProperty(key)
+            && TryGetGarrisonBuilderEditedEntityType(out var activatorPickEntity)
+            && activatorPickEntity.Equals(MapLogicMetadata.ActivatorEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            BeginGarrisonBuilderEntityMapPick(key);
+        }
+        else if (IsGarrisonBuilderTeleportExitMapPickProperty(key)
+            && TryGetGarrisonBuilderEditedEntityType(out var teleportPickEntity)
+            && teleportPickEntity.Equals(TeleportMetadata.TeleportEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            BeginGarrisonBuilderEntityMapPick(key);
+        }
+        else if (IsGarrisonBuilderLogicMapPickProperty(key))
+        {
+            BeginGarrisonBuilderLogicMapPick(key);
+        }
+        else if (key.Equals("linkObjective", StringComparison.OrdinalIgnoreCase)
+            && TryGetGarrisonBuilderEditedEntityType(out var cpTriggerLinkEntity)
+            && cpTriggerLinkEntity.Equals(MapLogicMetadata.CpTriggerEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            BeginGarrisonBuilderObjectiveMapPick("linkObjective");
+        }
+        else if (key.Equals("linkObjective", StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderSpawnEntity()
+            && IsGarrisonBuilderEditedSpawnForwardEnabled()
+            && !IsGarrisonBuilderSpawnUsingLogicSignal())
+        {
+            BeginGarrisonBuilderObjectiveMapPick("linkObjective");
+        }
+        else if (value.Equals("true", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("false", StringComparison.OrdinalIgnoreCase))
+        {
+            var newValue = value.Equals("true", StringComparison.OrdinalIgnoreCase) ? "false" : "true";
+            _builderPropertyEditorValues[key] = newValue;
+            if (key.Equals(ControlPointMapSettingsMetadata.OverrideInitialCpsPropertyKey, StringComparison.OrdinalIgnoreCase)
+                && _builderPropertyTarget == GarrisonBuilderPropertyTarget.MapProperties)
+            {
+                SyncGarrisonBuilderControlPointPropertyEditorFields();
+            }
+
+            if (key.Equals("forward", StringComparison.OrdinalIgnoreCase) && IsEditingGarrisonBuilderSpawnEntity())
+            {
+                SyncGarrisonBuilderSpawnPropertyEditorFields();
+                if (IsGarrisonBuilderEditedSpawnForwardEnabled() && !IsGarrisonBuilderSpawnUsingLogicSignal())
+                {
+                    if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.PlacementEntity
+                        && (_builderSelectedGameMode & (CustomMapBuilderGameMode.KingOfTheHill | CustomMapBuilderGameMode.DualKingOfTheHill)) != 0
+                        && !TryGetGarrisonBuilderSpawnObjectiveLink(out _))
+                    {
+                        TryApplyDefaultGarrisonBuilderPlacementObjectiveLink();
+                    }
+                    else if (!TryGetGarrisonBuilderSpawnObjectiveLink(out _))
+                    {
+                        BeginGarrisonBuilderObjectiveMapPick("linkObjective");
+                    }
+                }
+
+                ClampGarrisonBuilderPropertyEditorScrollIndex();
+            }
+
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (IsGarrisonBuilderObjectiveMapPickProperty(key)
+            && ((IsEditingGarrisonBuilderSpawnEntity()
+                    && IsGarrisonBuilderEditedSpawnForwardEnabled()
+                    && !IsGarrisonBuilderSpawnUsingLogicSignal())
+                || (TryGetGarrisonBuilderEditedEntityType(out var objectivePickEntity)
+                    && objectivePickEntity.Equals(MapLogicMetadata.CpTriggerEntityType, StringComparison.OrdinalIgnoreCase))
+                || (IsEditingGarrisonBuilderControlPointEntity() && IsGarrisonBuilderControlPointOverrideEnabled())))
+        {
+            BeginGarrisonBuilderObjectiveMapPick(key);
+        }
+        else if (TryBeginGarrisonBuilderCapTimeMultiplierTextEdit(key, value, rowBounds, position))
+        {
+        }
+        else if (TryHandleGarrisonBuilderCustomSpritePropertyClick(key, value))
+        {
+        }
+        else if (!TryHandleGarrisonBuilderCustomSpriteZOrderClick(key, value, rowBounds, position)
+            && !IsGarrisonBuilderCustomSpriteZOrderPropertyRow(key)
+            && !TryHandleGarrisonBuilderNodePriorityClick(key, value, rowBounds, position)
+            && !IsGarrisonBuilderNodePriorityPropertyRow(key))
         {
             BeginGarrisonBuilderPropertyTextEdit(key, value, GarrisonBuilderPropertyEditMode.EditValue);
         }
 
         return true;
+    }
+
+    private static string CycleGarrisonBuilderTeamPropertyValue(string current)
+    {
+        if (current.Equals("red", StringComparison.OrdinalIgnoreCase))
+        {
+            return "blue";
+        }
+
+        if (current.Equals("blue", StringComparison.OrdinalIgnoreCase))
+        {
+            return "neutral";
+        }
+
+        return "red";
+    }
+
+    private static string FormatGarrisonBuilderBarrierTargetFilterLabel(string key, string value)
+    {
+        var action = BarrierTargetFilterMetadata.Parse(value) == BarrierTargetFilter.Block ? "Block" : "Allow";
+        var label = key switch
+        {
+            _ when key.Equals(BarrierTargetFilterMetadata.RedPlayersPropertyKey, StringComparison.OrdinalIgnoreCase) => "Red players",
+            _ when key.Equals(BarrierTargetFilterMetadata.BluePlayersPropertyKey, StringComparison.OrdinalIgnoreCase) => "Blue players",
+            _ when key.Equals(BarrierTargetFilterMetadata.RedShotsPropertyKey, StringComparison.OrdinalIgnoreCase) => "Red shots",
+            _ when key.Equals(BarrierTargetFilterMetadata.BlueShotsPropertyKey, StringComparison.OrdinalIgnoreCase) => "Blue shots",
+            _ when key.Equals(BarrierTargetFilterMetadata.RedIntelPropertyKey, StringComparison.OrdinalIgnoreCase) => "Red intel",
+            _ when key.Equals(BarrierTargetFilterMetadata.BlueIntelPropertyKey, StringComparison.OrdinalIgnoreCase) => "Blue intel",
+            _ => FormatGarrisonBuilderPropertyKeyLabel(key),
+        };
+
+        return $"{label}: {action}";
     }
 
     private void BeginGarrisonBuilderPropertyTextEdit(string key, string value, GarrisonBuilderPropertyEditMode mode)
@@ -2917,7 +5305,10 @@ public partial class Game1
             if (key.Length == 0
                 || key.Equals("type", StringComparison.OrdinalIgnoreCase)
                 || key.Equals("xscale", StringComparison.OrdinalIgnoreCase)
-                || key.Equals("yscale", StringComparison.OrdinalIgnoreCase))
+                || key.Equals("yscale", StringComparison.OrdinalIgnoreCase)
+                || IsGarrisonBuilderMapPropertyEditorKey(key)
+                || (_builderPropertyTarget == GarrisonBuilderPropertyTarget.MapProperties
+                    && IsGarrisonBuilderMapPropertiesManagedMetadataKey(key)))
             {
                 _builderPropertyEditMode = GarrisonBuilderPropertyEditMode.List;
                 return;
@@ -2930,9 +5321,44 @@ public partial class Game1
         if (_builderPropertyEditMode == GarrisonBuilderPropertyEditMode.EditValue)
         {
             var value = _builderPropertyEditBuffer.Trim();
-            if (value.Length == 0)
+            if (IsGarrisonBuilderNodePriorityPropertyRow(_builderPropertyEditKey))
             {
-                _builderPropertyEditorValues.Remove(_builderPropertyEditKey);
+                _builderPropertyEditorValues[_builderPropertyEditKey] =
+                    MapLogicMetadata.ToNodePriorityPropertyValue(
+                        value.Length == 0 ? 0 : MapLogicMetadata.ParseNodePriority(value));
+            }
+            else if (IsGarrisonBuilderCustomSpriteZOrderPropertyRow(_builderPropertyEditKey))
+            {
+                _builderPropertyEditorValues[_builderPropertyEditKey] =
+                    CustomMapCustomSpriteMetadata.ToZOrderPropertyValue(
+                        value.Length == 0 ? 0 : CustomMapCustomSpriteMetadata.ParseZOrder(value));
+            }
+            else if (_builderPropertyEditKey.Equals(CustomMapCustomSpriteMetadata.ScalePropertyKey, StringComparison.OrdinalIgnoreCase)
+                && TryGetGarrisonBuilderEditedEntityType(out var scaleEntityType)
+                && CustomMapCustomSpriteMetadata.IsCustomSpriteEntityType(scaleEntityType))
+            {
+                _builderPropertyEditorValues[_builderPropertyEditKey] =
+                    CustomMapCustomSpriteMetadata.ToScalePropertyValue(
+                        value.Length == 0 ? 1f : CustomMapCustomSpriteMetadata.ParseScale(value));
+            }
+            else if (IsGarrisonBuilderCapTimeMultiplierPropertyRow(_builderPropertyEditKey))
+            {
+                var multiplier = value.Length == 0 ? 1f : ControlPointCapTimeMultiplierMetadata.ParseMultiplier(value);
+                ControlPointCapTimeMultiplierMetadata.MarkCustom(_builderPropertyEditorValues, multiplier);
+            }
+            else if (_builderPropertyEditKey.Equals(MapLogicMetadata.CountdownSecondsPropertyKey, StringComparison.OrdinalIgnoreCase))
+            {
+                _builderPropertyEditorValues[_builderPropertyEditKey] =
+                    MapLogicMetadata.ToCountdownSecondsPropertyValue(
+                        value.Length == 0 ? 1f : MapLogicMetadata.ParseCountdownSeconds(value));
+            }
+            else if (value.Length == 0)
+            {
+                if (_builderPropertyTarget != GarrisonBuilderPropertyTarget.MapProperties
+                    || !IsGarrisonBuilderMapPropertyEditorKey(_builderPropertyEditKey))
+                {
+                    _builderPropertyEditorValues.Remove(_builderPropertyEditKey);
+                }
             }
             else
             {
@@ -2948,9 +5374,23 @@ public partial class Game1
     {
         if (applyChanges)
         {
-            ApplyGarrisonBuilderPropertyEditorChanges();
+            if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.MapProperties)
+            {
+                if (!TryApplyGarrisonBuilderMapPropertiesFromEditorValues())
+                {
+                    return;
+                }
+            }
+            else
+            {
+                RecordGarrisonBuilderHistory();
+                ApplyGarrisonBuilderPropertyEditorChanges();
+            }
         }
 
+        CancelGarrisonBuilderObjectiveMapPick();
+        CancelGarrisonBuilderLogicMapPick();
+        CancelGarrisonBuilderEntityMapPick();
         _builderPropertyTarget = GarrisonBuilderPropertyTarget.None;
         _builderPropertyEditMode = GarrisonBuilderPropertyEditMode.List;
         _builderPropertyEditKey = string.Empty;
@@ -2961,24 +5401,8 @@ public partial class Game1
 
     private void ApplyGarrisonBuilderPropertyEditorChanges()
     {
-        if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.Metadata)
+        if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.MapProperties)
         {
-            var metadata = new Dictionary<string, string>(_builderPropertyEditorValues, StringComparer.OrdinalIgnoreCase);
-            var scale = _builderDocument.Scale;
-            if (metadata.TryGetValue("scale", out var scaleText)
-                && float.TryParse(scaleText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsedScale)
-                && parsedScale > 0f)
-            {
-                scale = parsedScale;
-            }
-
-            _builderDocument = _builderDocument with
-            {
-                Metadata = metadata,
-                Scale = scale,
-            };
-            _builderDirty = true;
-            _builderStatus = "metadata updated";
             return;
         }
 
@@ -2993,13 +5417,57 @@ public partial class Game1
                 }
             }
 
+            if (TryGetGarrisonBuilderEditedEntityType(out var placementEntityType))
+            {
+                PruneGarrisonBuilderControlPointPropertiesForSave(
+                    placementEntityType,
+                    _builderPlacementPropertyOverrides);
+                PruneGarrisonBuilderLogicPropertiesForSave(
+                    placementEntityType,
+                    _builderPlacementPropertyOverrides);
+            }
+
             _builderStatus = "placement properties updated";
+            return;
+        }
+
+        if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.SelectedMapEntity
+            && _builderSelectedEntityIndex >= 0
+            && _builderSelectedEntityIndex < _builderEntities.Count)
+        {
+            var entity = _builderEntities[_builderSelectedEntityIndex];
+            var properties = new Dictionary<string, string>(_builderPropertyEditorValues, StringComparer.OrdinalIgnoreCase);
+            PruneGarrisonBuilderControlPointPropertiesForSave(entity.Type, properties);
+            PruneGarrisonBuilderLogicPropertiesForSave(entity.Type, properties);
+            properties["type"] = entity.Type;
+            properties["x"] = entity.X.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            properties["y"] = entity.Y.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            if (Math.Abs(entity.XScale - 1f) > float.Epsilon)
+            {
+                properties["xscale"] = entity.XScale.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+
+            if (Math.Abs(entity.YScale - 1f) > float.Epsilon)
+            {
+                properties["yscale"] = entity.YScale.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+
+            _builderEntities[_builderSelectedEntityIndex] = CustomMapBuilderEntity.Create(
+                entity.Type,
+                entity.X,
+                entity.Y,
+                properties,
+                entity.XScale,
+                entity.YScale).NormalizeForEditing();
+            UpdateGarrisonBuilderDocumentEntities();
+            _builderDirty = true;
+            _builderStatus = "entity properties updated";
         }
     }
 
     private void MarkGarrisonBuilderPropertyEditorChanged()
     {
-        if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.Metadata)
+        if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.MapProperties)
         {
             _builderDirty = true;
         }
@@ -3007,35 +5475,1678 @@ public partial class Game1
 
     private List<string> GetGarrisonBuilderPropertyRows()
     {
-        return _builderPropertyEditorValues.Keys
-            .Where(key => !IsSkippedGarrisonBuilderProperty(key))
+        if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.MapProperties)
+        {
+            var rows = new List<string>();
+            foreach (var key in GarrisonBuilderMapPropertyRowOrder)
+            {
+                if (_builderPropertyEditorValues.ContainsKey(key))
+                {
+                    rows.Add(key);
+                }
+            }
+
+            rows.AddRange(_builderPropertyEditorValues.Keys
+                .Where(key => !GarrisonBuilderMapPropertyRowOrder.Contains(key, StringComparer.OrdinalIgnoreCase)
+                    && ControlPointMapSettingsMetadata.IsEditableMapMetadataKey(key))
+                .OrderBy(key => key, StringComparer.OrdinalIgnoreCase));
+            return rows;
+        }
+
+        var propertyRows = _builderPropertyEditorValues.Keys
+            .Where(key => !ShouldSkipGarrisonBuilderPropertyRow(key))
             .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
             .ToList();
+        if (IsEditingGarrisonBuilderBarrierEntity())
+        {
+            return OrderGarrisonBuilderBarrierPropertyRows(propertyRows);
+        }
+
+        if (IsEditingGarrisonBuilderDirectionalWallEntity())
+        {
+            return OrderGarrisonBuilderDirectionalWallPropertyRows(propertyRows);
+        }
+
+        if (IsEditingGarrisonBuilderTeleportEntity())
+        {
+            return OrderGarrisonBuilderTeleportPropertyRows(propertyRows);
+        }
+
+        if (IsEditingGarrisonBuilderSpawnEntity())
+        {
+            return OrderGarrisonBuilderSpawnPropertyRowsWithLogic(propertyRows, IsGarrisonBuilderSpawnUsingLogicSignal());
+        }
+
+        if (TryGetGarrisonBuilderEditedEntityType(out var editedEntityType)
+            && MapLogicMetadata.IsLogicEntityType(editedEntityType))
+        {
+            return OrderGarrisonBuilderLogicPropertyRows(editedEntityType, propertyRows);
+        }
+
+        if (TryGetGarrisonBuilderEditedEntityType(out var customSpriteEntityType)
+            && CustomMapCustomSpriteMetadata.IsCustomSpriteEntityType(customSpriteEntityType))
+        {
+            return OrderGarrisonBuilderCustomSpritePropertyRows(propertyRows);
+        }
+
+        if (IsEditingGarrisonBuilderControlPointEntity())
+        {
+            return BuildGarrisonBuilderControlPointPropertyRowsWithLogic(propertyRows);
+        }
+
+        return propertyRows;
     }
 
-    private static int GetGarrisonBuilderPropertyVisibleRows(Rectangle editorBounds)
+    private static readonly string[] GarrisonBuilderSpawnPropertyRowOrder =
+    [
+        "team",
+        "forward",
+        ForwardSpawnPriorityMetadata.PropertyKey,
+        "linkObjective",
+        ForwardSpawnMetadata.UseWhenPropertyKey,
+    ];
+
+    private List<string> BuildGarrisonBuilderControlPointPropertyRows(List<string> rows)
     {
-        var availableHeight = GetGarrisonBuilderPropertyAddBounds(editorBounds).Y - (editorBounds.Y + 34) - 6;
-        return Math.Max(1, availableHeight / 22);
+        var ordered = new List<string>
+        {
+            ControlPointIndexMetadata.PropertyKey,
+            ControlPointCapTimeMultiplierMetadata.PropertyKey,
+        };
+        if (!IsGarrisonBuilderControlPointOverrideEnabled())
+        {
+            return ordered;
+        }
+
+        if (rows.Any(static key => key.Equals(ControlPointInitialOwnershipMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase)))
+        {
+            ordered.Add(ControlPointInitialOwnershipMetadata.PropertyKey);
+        }
+
+        ordered.Add(ControlPointLockDependencyMetadata.LockedWhenSectionKey);
+        ordered.Add(ControlPointLockDependencyMetadata.LockedWhenCpPropertyKey);
+        ordered.Add(ControlPointLockDependencyMetadata.LockedWhenTeamPropertyKey);
+        ordered.Add(ControlPointLockDependencyMetadata.UnlockedWhenSectionKey);
+        ordered.Add(ControlPointLockDependencyMetadata.UnlockedWhenCpPropertyKey);
+        ordered.Add(ControlPointLockDependencyMetadata.UnlockedWhenTeamPropertyKey);
+        ordered.Add(ControlPointInitialLockStateMetadata.PropertyKey);
+        return ordered;
+    }
+
+    private bool IsGarrisonBuilderControlPointOverrideEnabled()
+    {
+        return ControlPointMapSettingsMetadata.ParseOverrideInitialCps(_builderDocument.Metadata);
+    }
+
+    private void PruneGarrisonBuilderControlPointPropertiesForSave(
+        string entityType,
+        IDictionary<string, string> properties)
+    {
+        if (!ControlPointOwnershipResolver.IsControlPointEntity(entityType))
+        {
+            return;
+        }
+
+        if (IsGarrisonBuilderControlPointOverrideEnabled())
+        {
+            return;
+        }
+
+        properties.Remove(ControlPointInitialOwnershipMetadata.PropertyKey);
+        properties.Remove(ControlPointLockDependencyMetadata.LockedWhenCpPropertyKey);
+        properties.Remove(ControlPointLockDependencyMetadata.LockedWhenTeamPropertyKey);
+        properties.Remove(ControlPointLockDependencyMetadata.UnlockedWhenCpPropertyKey);
+        properties.Remove(ControlPointLockDependencyMetadata.UnlockedWhenTeamPropertyKey);
+        properties.Remove(MapLogicMetadata.LockedWhenLogicPropertyKey);
+        properties.Remove(MapLogicMetadata.UnlockedWhenLogicPropertyKey);
+        properties.Remove(ControlPointInitialLockStateMetadata.PropertyKey);
+        properties.Remove("startLocked");
+    }
+
+    private static void PruneGarrisonBuilderLogicPropertiesForSave(
+        string entityType,
+        IDictionary<string, string> properties)
+    {
+        if (!MapLogicMetadata.IsLogicEntityType(entityType))
+        {
+            return;
+        }
+
+        MapLogicMetadata.EnsureNodePriorityProperty(properties);
+    }
+
+    private static List<string> OrderGarrisonBuilderSpawnPropertyRows(List<string> rows)
+    {
+        var ordered = new List<string>(rows.Count);
+        foreach (var key in GarrisonBuilderSpawnPropertyRowOrder)
+        {
+            var match = rows.FirstOrDefault(existing => existing.Equals(key, StringComparison.OrdinalIgnoreCase));
+            if (match is not null)
+            {
+                ordered.Add(match);
+            }
+        }
+
+        foreach (var key in rows)
+        {
+            if (!ordered.Any(existing => existing.Equals(key, StringComparison.OrdinalIgnoreCase)))
+            {
+                ordered.Add(key);
+            }
+        }
+
+        return ordered;
+    }
+
+    private static readonly string[] GarrisonBuilderBarrierPropertyRowOrder = BarrierTargetFilterMetadata.TargetPropertyKeys;
+
+    private static readonly string[] GarrisonBuilderDirectionalWallPropertyRowOrder =
+    [
+        DirectionalWallConfiguration.PassDirectionPropertyKey,
+        DirectionalWallConfiguration.PlayersPropertyKey,
+        DirectionalWallConfiguration.ProjectilesPropertyKey,
+    ];
+
+    private List<string> OrderGarrisonBuilderBarrierPropertyRows(List<string> rows)
+    {
+        return OrderGarrisonBuilderPropertyRows(rows, GarrisonBuilderBarrierPropertyRowOrder, []);
+    }
+
+    private List<string> OrderGarrisonBuilderDirectionalWallPropertyRows(List<string> rows)
+    {
+        return OrderGarrisonBuilderPropertyRows(rows, GarrisonBuilderDirectionalWallPropertyRowOrder, []);
+    }
+
+    private static List<string> OrderGarrisonBuilderPropertyRows(
+        List<string> rows,
+        IReadOnlyList<string> baseOrder,
+        IReadOnlyList<string> trailingOrder)
+    {
+        var ordered = new List<string>(rows.Count);
+        foreach (var key in baseOrder)
+        {
+            var match = rows.FirstOrDefault(existing => existing.Equals(key, StringComparison.OrdinalIgnoreCase));
+            if (match is not null)
+            {
+                ordered.Add(match);
+            }
+        }
+
+        foreach (var key in trailingOrder)
+        {
+            var match = rows.FirstOrDefault(existing => existing.Equals(key, StringComparison.OrdinalIgnoreCase));
+            if (match is not null)
+            {
+                ordered.Add(match);
+            }
+        }
+
+        foreach (var key in rows)
+        {
+            if (!ordered.Any(existing => existing.Equals(key, StringComparison.OrdinalIgnoreCase)))
+            {
+                ordered.Add(key);
+            }
+        }
+
+        return ordered;
+    }
+
+    private bool ShouldSkipGarrisonBuilderPropertyRow(string key)
+    {
+        if (IsSkippedGarrisonBuilderProperty(key))
+        {
+            return true;
+        }
+
+        if (TryGetGarrisonBuilderEditedEntityType(out var editedEntityType)
+            && MapLogicMetadata.IsLogicEntityType(editedEntityType)
+            && key.Equals(MapLogicMetadata.LogicKeyPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (TryGetGarrisonBuilderEditedEntityType(out var timerEntityType)
+            && timerEntityType.Equals(MapLogicMetadata.TimerEntityType, StringComparison.OrdinalIgnoreCase)
+            && key.Equals(MapLogicMetadata.LogicInputPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && MapLogicMetadata.ParseTriggerOnStart(_builderPropertyEditorValues))
+        {
+            return true;
+        }
+
+        if ((IsEditingGarrisonBuilderBarrierEntity() || IsEditingGarrisonBuilderDirectionalWallEntity())
+            && key is "team" or "orientation" or "blockPlayers" or "blockBullets" or "blockIntel" or "blockLeft" or "blockRight" or "allowTeam" or "mode" or "shape")
+        {
+            return true;
+        }
+
+        if (IsEditingGarrisonBuilderDirectionalWallEntity()
+            && (BarrierTargetFilterMetadata.IsTargetPropertyKey(key)
+                || key is "axis" or "fromLeft" or "fromRight" or "fromTop" or "fromBottom"))
+        {
+            return true;
+        }
+
+        if (IsEditingGarrisonBuilderControlPointEntity())
+        {
+            if (!IsGarrisonBuilderControlPointOverrideEnabled()
+                && (key.Equals(ControlPointInitialOwnershipMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase)
+                    || key.Equals(ControlPointLockDependencyMetadata.LockedWhenCpPropertyKey, StringComparison.OrdinalIgnoreCase)
+                    || key.Equals(ControlPointLockDependencyMetadata.LockedWhenTeamPropertyKey, StringComparison.OrdinalIgnoreCase)
+                    || key.Equals(ControlPointLockDependencyMetadata.UnlockedWhenCpPropertyKey, StringComparison.OrdinalIgnoreCase)
+                    || key.Equals(ControlPointLockDependencyMetadata.UnlockedWhenTeamPropertyKey, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+
+            if (IsGarrisonBuilderControlPointSectionProperty(key))
+            {
+                return !IsGarrisonBuilderControlPointOverrideEnabled();
+            }
+        }
+
+        if (!IsEditingGarrisonBuilderSpawnEntity())
+        {
+            return false;
+        }
+
+        if (key.Equals("objectiveIndex", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!IsGarrisonBuilderEditedSpawnForwardEnabled())
+        {
+            return key.Equals(ForwardSpawnPriorityMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals("linkObjective", StringComparison.OrdinalIgnoreCase)
+                || key.Equals(ForwardSpawnMetadata.UseWhenPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(MapLogicMetadata.LogicSignalPropertyKey, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (IsGarrisonBuilderSpawnUsingLogicSignal())
+        {
+            return key.Equals("linkObjective", StringComparison.OrdinalIgnoreCase)
+                || key.Equals(ForwardSpawnMetadata.UseWhenPropertyKey, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (IsEditingGarrisonBuilderControlPointEntity() && IsGarrisonBuilderControlPointOverrideEnabled())
+        {
+            if (key.Equals(ControlPointLockDependencyMetadata.LockedWhenCpPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(ControlPointLockDependencyMetadata.LockedWhenTeamPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(ControlPointLockDependencyMetadata.UnlockedWhenCpPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(ControlPointLockDependencyMetadata.UnlockedWhenTeamPropertyKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        if (IsEditingGarrisonBuilderControlPointEntity()
+            && (!IsGarrisonBuilderControlPointOverrideEnabled()
+                || key.Equals(MapLogicMetadata.LockedWhenLogicPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(MapLogicMetadata.UnlockedWhenLogicPropertyKey, StringComparison.OrdinalIgnoreCase)))
+        {
+            if (key.Equals(MapLogicMetadata.LockedWhenLogicPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(MapLogicMetadata.UnlockedWhenLogicPropertyKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return !IsGarrisonBuilderControlPointOverrideEnabled();
+            }
+        }
+
+        return false;
+    }
+
+    private bool IsGarrisonBuilderEditedSpawnForwardEnabled()
+    {
+        return _builderPropertyEditorValues.TryGetValue("forward", out var forward)
+            && IsGarrisonBuilderBooleanPropertyChecked(forward);
+    }
+
+    private void SyncGarrisonBuilderSpawnPropertyEditorFields()
+    {
+        if (!IsEditingGarrisonBuilderSpawnEntity())
+        {
+            return;
+        }
+
+        if (IsGarrisonBuilderEditedSpawnForwardEnabled())
+        {
+            if (!_builderPropertyEditorValues.ContainsKey("linkObjective"))
+            {
+                if (CustomMapBuilderEntityCatalog.TryGetDefinition("spawn", out var definition)
+                    && definition.DefaultProperties.TryGetValue("linkObjective", out var defaultLink)
+                    && !string.IsNullOrWhiteSpace(defaultLink))
+                {
+                    _builderPropertyEditorValues["linkObjective"] = defaultLink;
+                }
+                else
+                {
+                    _builderPropertyEditorValues["linkObjective"] = string.Empty;
+                }
+            }
+
+            if (!_builderPropertyEditorValues.ContainsKey(ForwardSpawnPriorityMetadata.PropertyKey))
+            {
+                if (TryGetGarrisonBuilderEditedEntity(out var spawnEntity))
+                {
+                    var priority = ForwardSpawnMetadata.ParsePriority(spawnEntity.Properties);
+                    if (priority == ForwardSpawnPriorityMetadata.MinPriority
+                        && TryGetLegacyForwardSpawnObjectiveIndex(spawnEntity.Type, out var legacyPriority))
+                    {
+                        priority = legacyPriority;
+                    }
+
+                    _builderPropertyEditorValues[ForwardSpawnPriorityMetadata.PropertyKey] =
+                        ForwardSpawnPriorityMetadata.ToPropertyValue(priority);
+                }
+                else
+                {
+                    _builderPropertyEditorValues[ForwardSpawnPriorityMetadata.PropertyKey] =
+                        ForwardSpawnPriorityMetadata.DefaultPropertyValue;
+                }
+            }
+
+            if (!_builderPropertyEditorValues.ContainsKey(MapLogicMetadata.LogicSignalPropertyKey))
+            {
+                _builderPropertyEditorValues[MapLogicMetadata.LogicSignalPropertyKey] = string.Empty;
+            }
+
+            if (!_builderPropertyEditorValues.ContainsKey(ForwardSpawnMetadata.UseWhenPropertyKey))
+            {
+                if (CustomMapBuilderEntityCatalog.TryGetDefinition("spawn", out var definition)
+                    && definition.DefaultProperties.TryGetValue(ForwardSpawnMetadata.UseWhenPropertyKey, out var defaultUseWhen)
+                    && !string.IsNullOrWhiteSpace(defaultUseWhen))
+                {
+                    _builderPropertyEditorValues[ForwardSpawnMetadata.UseWhenPropertyKey] = defaultUseWhen;
+                }
+                else
+                {
+                    _builderPropertyEditorValues[ForwardSpawnMetadata.UseWhenPropertyKey] = ForwardSpawnMetadata.DefaultUseWhenValue;
+                }
+            }
+
+            return;
+        }
+
+        _builderPropertyEditorValues.Remove("linkObjective");
+        _builderPropertyEditorValues.Remove("objectiveIndex");
+        _builderPropertyEditorValues.Remove(ForwardSpawnPriorityMetadata.PropertyKey);
+        _builderPropertyEditorValues.Remove(ForwardSpawnMetadata.UseWhenPropertyKey);
+        CancelGarrisonBuilderObjectiveMapPick();
+    }
+
+    private void ClampGarrisonBuilderPropertyEditorScrollIndex()
+    {
+        if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.None)
+        {
+            return;
+        }
+
+        var bounds = GetGarrisonBuilderPropertyEditorBounds();
+        var rows = GetGarrisonBuilderPropertyRows();
+        var visibleRows = GetGarrisonBuilderPropertyVisibleRows(bounds);
+        _builderPropertyScrollIndex = Math.Clamp(_builderPropertyScrollIndex, 0, Math.Max(0, rows.Count - visibleRows));
+    }
+
+    private bool IsEditingGarrisonBuilderSpawnEntity()
+    {
+        return TryGetGarrisonBuilderEditedEntityType(out var entityType)
+            && entityType.Equals("spawn", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool IsEditingGarrisonBuilderBarrierEntity()
+    {
+        return TryGetGarrisonBuilderEditedEntityType(out var entityType)
+            && entityType.Equals("barrier", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool IsEditingGarrisonBuilderTeleportEntity()
+    {
+        return TryGetGarrisonBuilderEditedEntityType(out var entityType)
+            && entityType.Equals(TeleportMetadata.TeleportEntityType, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool IsEditingGarrisonBuilderDirectionalWallEntity()
+    {
+        return TryGetGarrisonBuilderEditedEntityType(out var entityType)
+            && entityType.Equals("directionalWall", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool IsEditingGarrisonBuilderControlPointEntity()
+    {
+        return TryGetGarrisonBuilderEditedEntityType(out var entityType)
+            && ControlPointOwnershipResolver.IsControlPointEntity(entityType);
+    }
+
+    private bool TryGetGarrisonBuilderEditedEntityType(out string entityType)
+    {
+        if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.PlacementEntity)
+        {
+            entityType = _builderSelectedEntityType;
+            return entityType.Length > 0;
+        }
+
+        if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.SelectedMapEntity
+            && _builderSelectedEntityIndex >= 0
+            && _builderSelectedEntityIndex < _builderEntities.Count)
+        {
+            entityType = _builderEntities[_builderSelectedEntityIndex].Type;
+            return true;
+        }
+
+        entityType = string.Empty;
+        return false;
+    }
+
+    private static bool IsGarrisonBuilderObjectiveMapPickProperty(string key)
+    {
+        return key.Equals("linkObjective", StringComparison.OrdinalIgnoreCase)
+            || key.Equals(ControlPointLockDependencyMetadata.LockedWhenCpPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(ControlPointLockDependencyMetadata.UnlockedWhenCpPropertyKey, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsGarrisonBuilderControlPointSectionProperty(string key)
+    {
+        return key.Equals(ControlPointLockDependencyMetadata.LockedWhenSectionKey, StringComparison.Ordinal)
+            || key.Equals(ControlPointLockDependencyMetadata.UnlockedWhenSectionKey, StringComparison.Ordinal);
+    }
+
+    private static bool IsGarrisonBuilderSpawnUseWhenProperty(string key)
+    {
+        return key.Equals(ForwardSpawnMetadata.UseWhenPropertyKey, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static float GetGarrisonBuilderPropertyRowRelativeTextScale()
+    {
+        return 1f;
+    }
+
+    private float GetGarrisonBuilderPropertyRowTextScale()
+    {
+        return GetGarrisonBuilderRelativeBitmapFontScale(GetGarrisonBuilderPropertyRowRelativeTextScale());
+    }
+
+    private void DrawGarrisonBuilderPropertyRow(Rectangle rowBounds, string key, string value, MouseState mouse, float textScale)
+    {
+        if (IsGarrisonBuilderControlPointSectionProperty(key))
+        {
+            var sectionLabel = FormatGarrisonBuilderPropertyRowLabel(key, value);
+            var sectionY = rowBounds.Y + MathF.Max(2f, ((rowBounds.Height - MeasureBitmapFontHeight(textScale)) * 0.5f) - 1f);
+            DrawBitmapFontText(sectionLabel, new Vector2(rowBounds.X + 6f, sectionY), new Color(220, 200, 160), textScale);
+            return;
+        }
+
+        var label = FormatGarrisonBuilderPropertyRowLabel(key, value);
+        var isBarrierTargetFilter = BarrierTargetFilterMetadata.IsTargetPropertyKey(key)
+            && IsEditingGarrisonBuilderBarrierEntity();
+        var isDirectionalWallCyclicProperty = IsEditingGarrisonBuilderDirectionalWallEntity()
+            && (key.Equals(DirectionalWallConfiguration.PassDirectionPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(DirectionalWallConfiguration.PlayersPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(DirectionalWallConfiguration.ProjectilesPropertyKey, StringComparison.OrdinalIgnoreCase));
+        var isNodePriority = IsGarrisonBuilderNodePriorityPropertyRow(key);
+        var isCustomSpriteZOrder = IsGarrisonBuilderCustomSpriteZOrderPropertyRow(key);
+        var isCapTimeMultiplier = IsGarrisonBuilderCapTimeMultiplierPropertyRow(key);
+        var isBoolean = IsGarrisonBuilderBooleanProperty(key, value) || isBarrierTargetFilter || isDirectionalWallCyclicProperty;
+        var checkboxBounds = isBoolean ? GetGarrisonBuilderPropertyCheckboxBounds(rowBounds) : Rectangle.Empty;
+        var hasClearableConnection = GarrisonBuilderPropertyHasClearableConnection(key, value);
+        var clearBounds = hasClearableConnection ? GetGarrisonBuilderPropertyClearButtonBounds(rowBounds) : Rectangle.Empty;
+        var capTimeSliderBounds = isCapTimeMultiplier
+            ? GetGarrisonBuilderCapTimeMultiplierSliderBounds(rowBounds, value, textScale, hasClearableConnection)
+            : Rectangle.Empty;
+        var hovered = rowBounds.Contains(mouse.Position);
+        if (_builderUseModernUi)
+        {
+            if (hovered)
+            {
+                _spriteBatch.Draw(_pixel, rowBounds, new Color(77, 69, 63));
+            }
+
+            if (isNodePriority)
+            {
+                DrawGarrisonBuilderNodePriorityPropertyRow(rowBounds, value, mouse, textScale, hovered);
+                return;
+            }
+
+            if (isCustomSpriteZOrder)
+            {
+                DrawGarrisonBuilderCustomSpriteZOrderPropertyRow(rowBounds, value, mouse, textScale, hovered);
+                return;
+            }
+
+            if (isCapTimeMultiplier)
+            {
+                DrawGarrisonBuilderCapTimeMultiplierPropertyRow(
+                    rowBounds,
+                    value,
+                    mouse,
+                    textScale,
+                    hovered,
+                    capTimeSliderBounds,
+                    clearBounds,
+                    hasClearableConnection);
+                return;
+            }
+
+            var labelMaxWidth = isBoolean
+                ? checkboxBounds.X - rowBounds.X - 10f
+                : hasClearableConnection
+                    ? clearBounds.X - rowBounds.X - 10f
+                    : rowBounds.Width - 12f;
+            var displayLabel = TruncateGarrisonBuilderPropertyLabel(label, labelMaxWidth, textScale);
+            var textY = rowBounds.Y + MathF.Max(2f, ((rowBounds.Height - MeasureBitmapFontHeight(textScale)) * 0.5f) - 1f);
+            DrawBitmapFontText(displayLabel, new Vector2(rowBounds.X + 6f, textY), Color.White, textScale);
+            if (isBoolean)
+            {
+                DrawGarrisonBuilderPropertyCheckbox(
+                    checkboxBounds,
+                    IsGarrisonBuilderPropertyRowChecked(key, value, isBarrierTargetFilter, isDirectionalWallCyclicProperty),
+                    hovered || checkboxBounds.Contains(mouse.Position));
+            }
+
+            if (hasClearableConnection)
+            {
+                DrawGarrisonBuilderPropertyClearButton(
+                    clearBounds,
+                    hovered || clearBounds.Contains(mouse.Position));
+            }
+
+            return;
+        }
+
+        _spriteBatch.Draw(_pixel, rowBounds, hovered ? new Color(210, 210, 210) : new Color(184, 184, 184));
+        if (isNodePriority)
+        {
+            DrawGarrisonBuilderNodePriorityPropertyRow(rowBounds, value, mouse, textScale, hovered);
+            return;
+        }
+
+        if (isCustomSpriteZOrder)
+        {
+            DrawGarrisonBuilderCustomSpriteZOrderPropertyRow(rowBounds, value, mouse, textScale, hovered);
+            return;
+        }
+
+        if (isCapTimeMultiplier)
+        {
+            DrawGarrisonBuilderCapTimeMultiplierPropertyRow(
+                rowBounds,
+                value,
+                mouse,
+                textScale,
+                hovered,
+                capTimeSliderBounds,
+                clearBounds,
+                hasClearableConnection);
+            return;
+        }
+
+        var legacyLabelMaxWidth = isBoolean
+            ? checkboxBounds.X - rowBounds.X - 8f
+            : hasClearableConnection
+                ? clearBounds.X - rowBounds.X - 8f
+                : rowBounds.Width - 8f;
+        var legacyLabel = TruncateGarrisonBuilderPropertyLabel(label, legacyLabelMaxWidth, textScale, useLegacyMeasure: true);
+        DrawGarrisonBuilderText(legacyLabel, rowBounds.Location.ToVector2() + new Vector2(4f, 3f), Color.Black, textScale);
+        if (isBoolean)
+        {
+            DrawGarrisonBuilderPropertyCheckbox(
+                checkboxBounds,
+                IsGarrisonBuilderPropertyRowChecked(key, value, isBarrierTargetFilter, isDirectionalWallCyclicProperty),
+                hovered || checkboxBounds.Contains(mouse.Position),
+                legacy: true);
+        }
+
+        if (hasClearableConnection)
+        {
+            DrawGarrisonBuilderPropertyClearButton(
+                clearBounds,
+                hovered || clearBounds.Contains(mouse.Position),
+                legacy: true);
+        }
+    }
+
+    private static bool IsGarrisonBuilderPropertyRowChecked(string key, string value, bool isBarrierTargetFilter, bool isDirectionalWallCyclicProperty)
+    {
+        if (isBarrierTargetFilter)
+        {
+            return BarrierTargetFilterMetadata.Parse(value) == BarrierTargetFilter.Block;
+        }
+
+        if (key.Equals(DirectionalWallConfiguration.PassDirectionPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (isDirectionalWallCyclicProperty)
+        {
+            return value.Equals(DirectionalWallConfiguration.AffectValue, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return IsGarrisonBuilderBooleanPropertyChecked(value);
+    }
+
+    private string TruncateGarrisonBuilderPropertyLabel(string label, float maxWidth, float scale, bool useLegacyMeasure = false)
+    {
+        if (maxWidth <= 0f)
+        {
+            return label;
+        }
+
+        var measuredWidth = useLegacyMeasure
+            ? MeasureGarrisonBuilderText(label, scale).X
+            : MeasureBitmapFontWidth(label, scale);
+        if (measuredWidth <= maxWidth)
+        {
+            return label;
+        }
+
+        const string ellipsis = "...";
+        for (var length = label.Length - 1; length > 0; length -= 1)
+        {
+            var candidate = string.Concat(label.AsSpan(0, length), ellipsis);
+            measuredWidth = useLegacyMeasure
+                ? MeasureGarrisonBuilderText(candidate, scale).X
+                : MeasureBitmapFontWidth(candidate, scale);
+            if (measuredWidth <= maxWidth)
+            {
+                return candidate;
+            }
+        }
+
+        return ellipsis;
+    }
+
+    private static Rectangle GetGarrisonBuilderPropertyCheckboxBounds(Rectangle rowBounds)
+    {
+        const int checkboxSize = 14;
+        const int checkboxMargin = 8;
+        return new Rectangle(
+            rowBounds.Right - checkboxMargin - checkboxSize,
+            rowBounds.Y + Math.Max(2, (rowBounds.Height - checkboxSize) / 2),
+            checkboxSize,
+            checkboxSize);
+    }
+
+    private static Rectangle GetGarrisonBuilderPropertyClearButtonBounds(Rectangle rowBounds)
+    {
+        const int buttonSize = 14;
+        const int buttonMargin = 8;
+        return new Rectangle(
+            rowBounds.Right - buttonMargin - buttonSize,
+            rowBounds.Y + Math.Max(2, (rowBounds.Height - buttonSize) / 2),
+            buttonSize,
+            buttonSize);
+    }
+
+    private static bool IsGarrisonBuilderClearableConnectionProperty(string key)
+    {
+        return IsGarrisonBuilderObjectiveMapPickProperty(key)
+            || IsGarrisonBuilderLogicMapPickProperty(key)
+            || IsGarrisonBuilderEntityMapPickProperty(key)
+            || key.Equals(ControlPointCapTimeMultiplierMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool GarrisonBuilderPropertyHasClearableConnection(string key, string value)
+    {
+        if (key.Equals(ControlPointCapTimeMultiplierMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return ControlPointCapTimeMultiplierMetadata.IsCustom(_builderPropertyEditorValues);
+        }
+
+        return IsGarrisonBuilderClearableConnectionProperty(key)
+            && !string.IsNullOrWhiteSpace(value);
+    }
+
+    private bool TryClearGarrisonBuilderPropertyConnectionClick(
+        string key,
+        string value,
+        Rectangle rowBounds,
+        Point position)
+    {
+        if (!GarrisonBuilderPropertyHasClearableConnection(key, value))
+        {
+            return false;
+        }
+
+        if (!GetGarrisonBuilderPropertyClearButtonBounds(rowBounds).Contains(position))
+        {
+            return false;
+        }
+
+        ClearGarrisonBuilderPropertyConnection(key);
+        return true;
+    }
+
+    private void ClearGarrisonBuilderPropertyConnection(string key)
+    {
+        if (key.Equals(ControlPointCapTimeMultiplierMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase)
+            && TryGetGarrisonBuilderEditedEntity(out var controlPointEntity))
+        {
+            ControlPointCapTimeMultiplierMetadata.ClearCustom(_builderPropertyEditorValues);
+            SyncGarrisonBuilderControlPointCapTimeMultiplierField(controlPointEntity);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+            return;
+        }
+
+        _builderPropertyEditorValues[key] = string.Empty;
+        if (_builderObjectiveMapPickActive
+            && key.Equals(_builderObjectiveMapPickTargetPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            CancelGarrisonBuilderObjectiveMapPick();
+        }
+
+        if (_builderLogicMapPickActive
+            && key.Equals(_builderLogicMapPickTargetPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            CancelGarrisonBuilderLogicMapPick();
+        }
+
+        if (_builderEntityMapPickActive
+            && key.Equals(_builderEntityMapPickTargetPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            CancelGarrisonBuilderEntityMapPick();
+        }
+
+        ApplyGarrisonBuilderPropertyEditorLivePreview();
+        MarkGarrisonBuilderPropertyEditorChanged();
+        _builderStatus = "connection cleared";
+    }
+
+    private void DrawGarrisonBuilderPropertyClearButton(Rectangle bounds, bool highlighted, bool legacy = false)
+    {
+        var border = legacy
+            ? highlighted ? new Color(120, 40, 40) : new Color(80, 20, 20)
+            : highlighted ? new Color(220, 120, 110) : new Color(120, 90, 86);
+        var fill = legacy
+            ? highlighted ? new Color(255, 220, 220) : new Color(245, 235, 235)
+            : highlighted ? new Color(92, 52, 50) : new Color(52, 47, 42);
+        var cross = legacy ? new Color(140, 20, 20) : new Color(240, 150, 140);
+
+        _spriteBatch.Draw(_pixel, bounds, fill);
+        DrawGarrisonBuilderRectangleOutline(bounds, border);
+        var inset = 4;
+        var left = bounds.X + inset;
+        var top = bounds.Y + inset;
+        var right = bounds.Right - inset;
+        var bottom = bounds.Bottom - inset;
+        DrawGarrisonBuilderLine(new Vector2(left, top), new Vector2(right, bottom), cross);
+        DrawGarrisonBuilderLine(new Vector2(right, top), new Vector2(left, bottom), cross);
+    }
+
+    private void DrawGarrisonBuilderPropertyCheckbox(Rectangle bounds, bool isChecked, bool highlighted, bool legacy = false)
+    {
+        var border = legacy
+            ? highlighted ? new Color(40, 40, 40) : new Color(20, 20, 20)
+            : highlighted ? new Color(213, 205, 188) : new Color(120, 110, 98);
+        var fill = legacy
+            ? new Color(250, 250, 250)
+            : new Color(52, 47, 42);
+        var checkColor = legacy ? new Color(30, 120, 40) : new Color(120, 220, 130);
+
+        _spriteBatch.Draw(_pixel, bounds, fill);
+        DrawGarrisonBuilderRectangleOutline(bounds, border);
+        if (isChecked)
+        {
+            var inset = 3;
+            var checkLeft = bounds.X + inset;
+            var checkTop = bounds.Y + inset;
+            var checkRight = bounds.Right - inset;
+            var checkBottom = bounds.Bottom - inset;
+            DrawGarrisonBuilderLine(new Vector2(checkLeft, checkTop + ((checkBottom - checkTop) * 0.55f)), new Vector2(checkLeft + ((checkRight - checkLeft) * 0.35f), checkBottom), checkColor);
+            DrawGarrisonBuilderLine(new Vector2(checkLeft + ((checkRight - checkLeft) * 0.35f), checkBottom), new Vector2(checkRight, checkTop + ((checkBottom - checkTop) * 0.2f)), checkColor);
+        }
+    }
+
+    private static bool IsGarrisonBuilderBooleanProperty(string key, string value)
+    {
+        if (key.Equals(DirectionalWallConfiguration.PassDirectionPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(DirectionalWallConfiguration.PlayersPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(DirectionalWallConfiguration.ProjectilesPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || BarrierTargetFilterMetadata.IsTargetPropertyKey(key)
+            || key.Equals(ControlPointInitialOwnershipMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(ControlPointIndexMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(ForwardSpawnPriorityMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(MapLogicMetadata.NodePriorityPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(MapLogicMetadata.SignalPriorityPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(MapLogicMetadata.CountdownSecondsPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(ControlPointCapTimeMultiplierMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase)
+            || IsGarrisonBuilderObjectiveMapPickProperty(key)
+            || IsGarrisonBuilderSpawnUseWhenProperty(key))
+        {
+            return false;
+        }
+
+        return value.Equals("true", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("false", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsGarrisonBuilderBooleanPropertyChecked(string value)
+    {
+        return value.Equals("true", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("1", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string FormatGarrisonBuilderPropertyRowLabel(string key, string value)
+    {
+        if (TryGetGarrisonBuilderEditedEntityType(out var customSpriteType)
+            && CustomMapCustomSpriteMetadata.IsCustomSpriteEntityType(customSpriteType)
+            && IsGarrisonBuilderCustomSpritePropertyKey(key))
+        {
+            return GetGarrisonBuilderCustomSpritePropertyDisplayLabel(key, value);
+        }
+
+        if (IsGarrisonBuilderLogicMapPickProperty(key)
+            || IsGarrisonBuilderEntityMapPickProperty(key)
+            || key.Equals(MapLogicMetadata.GateTypePropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(MapLogicMetadata.RequiredOwnerPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(MapLogicMetadata.ActivatorBehaviorPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(MapLogicMetadata.ActivateOnStartPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(MapLogicMetadata.CountdownSecondsPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(MapLogicMetadata.TriggerOnStartPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || (key.Equals("linkObjective", StringComparison.OrdinalIgnoreCase)
+                && TryGetGarrisonBuilderEditedEntityType(out var linkEntity)
+                && linkEntity.Equals(MapLogicMetadata.CpTriggerEntityType, StringComparison.OrdinalIgnoreCase)))
+        {
+            return FormatGarrisonBuilderLogicPropertyRowLabel(key, value);
+        }
+
+        if (key.Equals("linkObjective", StringComparison.OrdinalIgnoreCase))
+        {
+            var summary = DescribeGarrisonBuilderObjectiveLink(value);
+            return $"Objective: {summary} (click to pick on map)";
+        }
+
+        if (key.Equals(ForwardSpawnPriorityMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderSpawnEntity())
+        {
+            return $"{ForwardSpawnPriorityMetadata.GetDisplayLabel(value)} (click to cycle)";
+        }
+
+        if (IsGarrisonBuilderSpawnUseWhenProperty(key))
+        {
+            return $"Use when: {ForwardSpawnMetadata.GetUseConditionDisplayLabel(value)}";
+        }
+
+        if (BarrierTargetFilterMetadata.IsTargetPropertyKey(key)
+            && IsEditingGarrisonBuilderBarrierEntity())
+        {
+            return FormatGarrisonBuilderBarrierTargetFilterLabel(key, value);
+        }
+
+        if (key.Equals(DirectionalWallConfiguration.PassDirectionPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderDirectionalWallEntity())
+        {
+            return $"Pass direction: {DirectionalWallConfiguration.GetPassDirectionDisplayLabel(value)}";
+        }
+
+        if (key.Equals(DirectionalWallConfiguration.PlayersPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderDirectionalWallEntity())
+        {
+            return $"Players: {DirectionalWallConfiguration.GetAffectDisplayLabel(value)}";
+        }
+
+        if (key.Equals(DirectionalWallConfiguration.ProjectilesPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderDirectionalWallEntity())
+        {
+            return $"Projectiles: {DirectionalWallConfiguration.GetAffectDisplayLabel(value)}";
+        }
+
+        if (IsGarrisonBuilderBooleanProperty(key, value))
+        {
+            return FormatGarrisonBuilderPropertyKeyLabel(key);
+        }
+
+        if (key.Equals("team", StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderTeleportEntity())
+        {
+            return $"Team: {TeleportMetadata.GetTeamDisplayLabel(value)} (click to cycle)";
+        }
+
+        if (key.Equals("team", StringComparison.OrdinalIgnoreCase)
+            && TryGetGarrisonBuilderEditedEntityType(out var playerTriggerLabelEntity)
+            && playerTriggerLabelEntity.Equals(MapLogicMetadata.PlayerTriggerEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            return FormatGarrisonBuilderLogicPropertyRowLabel(key, value);
+        }
+
+        if (key.Equals("team", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Team: {FormatGarrisonBuilderTeamPropertyLabel(value)}";
+        }
+
+        if (key.Equals(TeleportMetadata.TeleportExitPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderTeleportEntity())
+        {
+            return FormatGarrisonBuilderLogicPropertyRowLabel(key, value);
+        }
+
+        if (key.Equals(ControlPointIndexMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderControlPointEntity())
+        {
+            return $"Control point: {ControlPointIndexMetadata.GetDisplayLabel(value)} (click to cycle)";
+        }
+
+        if (key.Equals(ControlPointInitialOwnershipMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderControlPointEntity())
+        {
+            return $"Initial ownership: {ControlPointInitialOwnershipMetadata.GetDisplayLabel(value)} (click to cycle)";
+        }
+
+        if (key.Equals(ControlPointMapSettingsMetadata.OverrideInitialCpsPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Override CP logic";
+        }
+
+        if (key.Equals(ControlPointInitialLockStateMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderControlPointEntity())
+        {
+            return $"Initial state: {ControlPointInitialLockStateMetadata.GetDisplayLabel(value)} (click to cycle)";
+        }
+
+        if (key.Equals(ControlPointLockDependencyMetadata.LockedWhenSectionKey, StringComparison.Ordinal))
+        {
+            return "Lock when";
+        }
+
+        if (key.Equals(ControlPointLockDependencyMetadata.UnlockedWhenSectionKey, StringComparison.Ordinal))
+        {
+            return "Unlock when";
+        }
+
+        if (key.Equals(ControlPointLockDependencyMetadata.LockedWhenCpPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(ControlPointLockDependencyMetadata.UnlockedWhenCpPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            var label = key.Equals(ControlPointLockDependencyMetadata.LockedWhenCpPropertyKey, StringComparison.OrdinalIgnoreCase)
+                ? "Control point"
+                : "Control point";
+            return $"{label}: {DescribeGarrisonBuilderObjectiveLink(value)}";
+        }
+
+        if (key.Equals(ControlPointLockDependencyMetadata.LockedWhenTeamPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(ControlPointLockDependencyMetadata.UnlockedWhenTeamPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Team: {ControlPointLockDependencyMetadata.GetTeamDisplayLabel(value)} (click to toggle)";
+        }
+
+        var displayValue = value.Length > 36 ? string.Concat(value.AsSpan(0, 33), "...") : value;
+        return $"{FormatGarrisonBuilderPropertyKeyLabel(key)}: {displayValue}";
+    }
+
+    private static string FormatGarrisonBuilderPropertyKeyLabel(string key)
+    {
+        if (key.Equals(GarrisonBuilderMapPropertyNameKey, StringComparison.Ordinal))
+        {
+            return "Map name";
+        }
+
+        if (key.Equals(GarrisonBuilderMapPropertyVisualScaleKey, StringComparison.Ordinal))
+        {
+            return "Visual scale";
+        }
+
+        if (key.Equals(GarrisonBuilderMapPropertyWalkmaskScaleKey, StringComparison.Ordinal))
+        {
+            return "Walkmask scale";
+        }
+
+        if (key.Length == 0)
+        {
+            return key;
+        }
+
+        return char.ToUpperInvariant(key[0]) + key[1..];
+    }
+
+    private static string FormatGarrisonBuilderTeamPropertyLabel(string team)
+    {
+        if (team.Equals("red", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Red";
+        }
+
+        if (team.Equals("blue", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Blue";
+        }
+
+        if (team.Equals("neutral", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Neutral";
+        }
+
+        return team;
+    }
+
+    private string DescribeGarrisonBuilderObjectiveLink(string linkObjective)
+    {
+        if (string.IsNullOrWhiteSpace(linkObjective))
+        {
+            return "none";
+        }
+
+        foreach (var entity in _builderEntities)
+        {
+            if (entity.Type.Equals(linkObjective, StringComparison.OrdinalIgnoreCase))
+            {
+                return GetGarrisonBuilderObjectiveDisplayName(entity);
+            }
+
+            if (entity.Type.Equals("controlPoint", StringComparison.OrdinalIgnoreCase)
+                && linkObjective.StartsWith("controlPoint", StringComparison.OrdinalIgnoreCase)
+                && GetEntityInt(entity, "index", 0) == ParseGarrisonBuilderTrailingIndex(linkObjective, "controlPoint"))
+            {
+                return GetGarrisonBuilderObjectiveDisplayName(entity);
+            }
+        }
+
+        return linkObjective;
+    }
+
+    private static string GetGarrisonBuilderObjectiveDisplayName(CustomMapBuilderEntity entity)
+    {
+        if (CustomMapBuilderEntityCatalog.TryGetDefinition(entity.Type, out var definition))
+        {
+            var index = GetEntityInt(entity, "index", 0);
+            return index > 0 ? $"{definition.Label} #{index}" : definition.Label;
+        }
+
+        return entity.Type;
+    }
+
+    private string GetGarrisonBuilderPropertyEditorFooterHint()
+    {
+        if (_builderObjectiveMapPickActive)
+        {
+            return "Click a control point or KOTH objective on the map. Esc cancels.";
+        }
+
+        if (_builderLogicMapPickActive)
+        {
+            return "Click a logic node output on the map. Esc cancels.";
+        }
+
+        if (_builderEntityMapPickActive)
+        {
+            return "Click an entity on the map. Esc cancels.";
+        }
+
+        if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.MapProperties)
+        {
+            return "Visual scale: layers/background. Walkmask scale: collision. Esc saves.";
+        }
+
+        if (IsEditingGarrisonBuilderSpawnEntity())
+        {
+            return IsGarrisonBuilderEditedSpawnForwardEnabled()
+                ? "Use checkboxes, click Team/Use when to cycle, click Objective to pick on map. Esc closes."
+                : "Use checkboxes, click Team to cycle. Esc closes.";
+        }
+
+        return "Use checkboxes, click Team to cycle, other values to edit. Esc closes.";
+    }
+
+    private void TryApplyDefaultGarrisonBuilderPlacementObjectiveLink()
+    {
+        var bestIndex = -1;
+        var bestDistanceSquared = float.MaxValue;
+        for (var index = 0; index < _builderEntities.Count; index += 1)
+        {
+            var entity = _builderEntities[index];
+            if (IsGarrisonBuilderEntityHidden(index)
+                || !IsGarrisonBuilderLinkableObjectiveEntity(entity))
+            {
+                continue;
+            }
+
+            if (bestIndex < 0)
+            {
+                bestIndex = index;
+                continue;
+            }
+
+            var reference = _builderPlacementPreviewWorld;
+            if (_builderPlacementDragging)
+            {
+                reference = _builderPlacementStartWorld;
+            }
+
+            var distanceSquared = Vector2.DistanceSquared(reference, new Vector2(entity.X, entity.Y));
+            if (distanceSquared < bestDistanceSquared)
+            {
+                bestDistanceSquared = distanceSquared;
+                bestIndex = index;
+            }
+        }
+
+        if (bestIndex < 0)
+        {
+            return;
+        }
+
+        var objective = _builderEntities[bestIndex];
+        _builderPropertyEditorValues["linkObjective"] = ResolveGarrisonBuilderObjectiveLinkValue(objective);
+        var objectiveIndex = ResolveGarrisonBuilderObjectiveIndexFromEntity(objective);
+        if (objectiveIndex > 0)
+        {
+            _builderPropertyEditorValues["objectiveIndex"] = objectiveIndex.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+    }
+
+    private void BeginGarrisonBuilderObjectiveMapPick(string targetPropertyKey)
+    {
+        _builderObjectiveMapPickActive = true;
+        _builderObjectiveMapPickTargetPropertyKey = targetPropertyKey;
+        _builderStatus = "pick a control point on the map";
+    }
+
+    private void CancelGarrisonBuilderObjectiveMapPick()
+    {
+        _builderObjectiveMapPickActive = false;
+        _builderObjectiveMapPickTargetPropertyKey = string.Empty;
+    }
+
+    private Rectangle GetGarrisonBuilderObjectiveMapPickPromptBounds()
+    {
+        var strip = GetModernGarrisonBuilderLayerStripBounds();
+        var buttonWidth = BuilderUi(240);
+        var buttonHeight = (int)GetGarrisonBuilderMinimumButtonHeight() + BuilderUi(10);
+        var x = (BuilderViewportWidth - buttonWidth) / 2;
+        var y = strip.Y - buttonHeight - BuilderUi(10);
+        return new Rectangle(x, y, buttonWidth, buttonHeight);
+    }
+
+    private void DrawGarrisonBuilderObjectiveMapPickPrompt(MouseState mouse)
+    {
+        if (!_builderObjectiveMapPickActive || !_builderUseModernUi)
+        {
+            return;
+        }
+
+        var bounds = GetGarrisonBuilderObjectiveMapPickPromptBounds();
+        var highlighted = bounds.Contains(mouse.Position);
+        DrawGarrisonBuilderBrownPanel(bounds);
+        DrawBuilderMenuButton(bounds, "Pick a control point", highlighted);
+    }
+
+    private bool TryGetGarrisonBuilderSpawnObjectiveLink(out string linkObjective)
+    {
+        linkObjective = string.Empty;
+        if (!_builderPropertyEditorValues.TryGetValue("linkObjective", out var value)
+            || string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        linkObjective = value.Trim();
+        return true;
+    }
+
+    private bool TryPickGarrisonBuilderObjectiveAtWorld(Vector2 world)
+    {
+        var bestIndex = -1;
+        var bestArea = float.MaxValue;
+        for (var index = 0; index < _builderEntities.Count; index += 1)
+        {
+            var entity = _builderEntities[index];
+            if (IsGarrisonBuilderEntityHidden(index)
+                || !IsGarrisonBuilderLinkableObjectiveEntity(entity))
+            {
+                continue;
+            }
+
+            if (!TryGetGarrisonBuilderEntityPickBounds(entity, out var bounds)
+                || !bounds.Contains(world.X, world.Y))
+            {
+                continue;
+            }
+
+            var area = bounds.Width * bounds.Height;
+            if (area < bestArea)
+            {
+                bestArea = area;
+                bestIndex = index;
+            }
+        }
+
+        if (bestIndex < 0)
+        {
+            var pickRadius = MathF.Max(12f, 24f / (_builderUseModernUi ? _builderZoom : 1f));
+            var pickRadiusSquared = pickRadius * pickRadius;
+            var bestDistanceSquared = pickRadiusSquared;
+            for (var index = 0; index < _builderEntities.Count; index += 1)
+            {
+                var entity = _builderEntities[index];
+                if (IsGarrisonBuilderEntityHidden(index)
+                    || !IsGarrisonBuilderLinkableObjectiveEntity(entity))
+                {
+                    continue;
+                }
+
+                var distanceSquared = Vector2.DistanceSquared(GetGarrisonBuilderEntityLinkAnchor(entity), world);
+                if (distanceSquared < bestDistanceSquared)
+                {
+                    bestDistanceSquared = distanceSquared;
+                    bestIndex = index;
+                }
+            }
+        }
+
+        if (bestIndex < 0)
+        {
+            return false;
+        }
+
+        ApplyGarrisonBuilderObjectiveMapPick(bestIndex);
+        return true;
+    }
+
+    private void ApplyGarrisonBuilderObjectiveMapPick(int objectiveEntityIndex)
+    {
+        var objective = _builderEntities[objectiveEntityIndex];
+        var targetKey = string.IsNullOrWhiteSpace(_builderObjectiveMapPickTargetPropertyKey)
+            ? "linkObjective"
+            : _builderObjectiveMapPickTargetPropertyKey;
+        _builderPropertyEditorValues[targetKey] = ResolveGarrisonBuilderObjectiveLinkValue(objective);
+        var objectiveIndex = ResolveGarrisonBuilderObjectiveIndexFromEntity(objective);
+        if (targetKey.Equals("linkObjective", StringComparison.OrdinalIgnoreCase))
+        {
+            if (objectiveIndex > 0)
+            {
+                _builderPropertyEditorValues["objectiveIndex"] = objectiveIndex.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+            else
+            {
+                _builderPropertyEditorValues.Remove("objectiveIndex");
+            }
+
+            if (IsEditingGarrisonBuilderSpawnEntity())
+            {
+                _builderPropertyEditorValues["forward"] = "true";
+            }
+        }
+
+        CancelGarrisonBuilderObjectiveMapPick();
+        ApplyGarrisonBuilderPropertyEditorLivePreview();
+        MarkGarrisonBuilderPropertyEditorChanged();
+        _builderStatus = $"linked objective: {GetGarrisonBuilderObjectiveDisplayName(objective)}";
+    }
+
+    private Vector2 GetGarrisonBuilderEntityLinkAnchor(CustomMapBuilderEntity entity)
+    {
+        if (TryGetGarrisonBuilderEntityWorldBounds(entity, out var left, out var top, out var width, out var height))
+        {
+            return new Vector2(left + (width * 0.5f), top + (height * 0.5f));
+        }
+
+        return new Vector2(entity.X, entity.Y);
+    }
+
+    private bool TryFindNearestGarrisonBuilderControlPoint(CustomMapBuilderEntity source, out CustomMapBuilderEntity controlPoint)
+    {
+        controlPoint = default!;
+        var sourceAnchor = GetGarrisonBuilderEntityLinkAnchor(source);
+        var bestDistanceSquared = float.MaxValue;
+        var found = false;
+        for (var index = 0; index < _builderEntities.Count; index += 1)
+        {
+            var entity = _builderEntities[index];
+            if (!IsGarrisonBuilderControlPointEntity(entity) || IsGarrisonBuilderEntityHidden(index))
+            {
+                continue;
+            }
+
+            var targetAnchor = GetGarrisonBuilderEntityLinkAnchor(entity);
+            var distanceSquared = Vector2.DistanceSquared(sourceAnchor, targetAnchor);
+            if (distanceSquared < bestDistanceSquared)
+            {
+                bestDistanceSquared = distanceSquared;
+                controlPoint = entity;
+                found = true;
+            }
+        }
+
+        return found;
+    }
+
+    private bool TryFindGarrisonBuilderSpawnObjective(CustomMapBuilderEntity spawn, out CustomMapBuilderEntity objective)
+    {
+        objective = default!;
+        if (TryGetLegacyForwardSpawnObjectiveIndex(spawn.Type, out var legacySpawnSlot))
+        {
+            var team = spawn.Type.StartsWith("bluespawn", StringComparison.OrdinalIgnoreCase)
+                ? PlayerTeam.Blue
+                : PlayerTeam.Red;
+            return TryFindGarrisonBuilderForwardSpawnObjective(team, legacySpawnSlot, out objective);
+        }
+
+        if (!spawn.Type.Equals("spawn", StringComparison.OrdinalIgnoreCase)
+            || !GetEntityBool(spawn, "forward", false))
+        {
+            return false;
+        }
+
+        var spawnTeam = GetEntityProperty(spawn, "team", "red");
+        if (spawnTeam.Equals("blue", StringComparison.OrdinalIgnoreCase))
+        {
+            var spawnSlot = ForwardSpawnMetadata.ParsePriority(spawn.Properties);
+            if (spawnSlot <= 0)
+            {
+                spawnSlot = ForwardSpawnMetadata.ParseLinkedControlPointIndex(spawn.Properties);
+            }
+
+            if (spawnSlot > 0 && TryFindGarrisonBuilderForwardSpawnObjective(PlayerTeam.Blue, spawnSlot, out objective))
+            {
+                return true;
+            }
+        }
+
+        if (TryFindGarrisonBuilderObjectiveByLink(spawn, out objective))
+        {
+            return true;
+        }
+
+        return spawnTeam.Equals("red", StringComparison.OrdinalIgnoreCase)
+            && TryFindNearestGarrisonBuilderControlPoint(spawn, out objective);
+    }
+
+    private bool TryFindGarrisonBuilderForwardSpawnObjective(
+        PlayerTeam team,
+        int spawnSlotIndex,
+        out CustomMapBuilderEntity objective)
+    {
+        var linkedIndex = ForwardSpawnMetadata.ResolveForwardSpawnControlPointIndex(
+            team,
+            spawnSlotIndex,
+            CountGarrisonBuilderMapControlPoints());
+        return TryFindGarrisonBuilderObjectiveByLink($"controlPoint{linkedIndex}", linkedIndex, out objective);
+    }
+
+    private int CountGarrisonBuilderMapControlPoints()
+    {
+        return ForwardSpawnMetadata.CountMapControlPointsFromEditorEntities(_builderEntities);
+    }
+
+    private bool TryFindGarrisonBuilderObjectiveByLink(CustomMapBuilderEntity spawn, out CustomMapBuilderEntity objective)
+    {
+        var link = GetEntityProperty(spawn, "linkObjective", string.Empty);
+        var index = GetEntityInt(spawn, "objectiveIndex", 0);
+        return TryFindGarrisonBuilderObjectiveByLink(link, index, out objective);
+    }
+
+    private bool TryFindGarrisonBuilderObjectiveByLink(string link, int objectiveIndex, out CustomMapBuilderEntity objective)
+    {
+        objective = default!;
+        if (link.Length == 0 && objectiveIndex > 0)
+        {
+            link = $"controlPoint{objectiveIndex}";
+        }
+
+        if (link.Length == 0)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < _builderEntities.Count; index += 1)
+        {
+            if (IsGarrisonBuilderEntityHidden(index))
+            {
+                continue;
+            }
+
+            var entity = _builderEntities[index];
+            if (entity.Type.Equals(link, StringComparison.OrdinalIgnoreCase))
+            {
+                objective = entity;
+                return true;
+            }
+
+            if (entity.Type.Equals("controlPoint", StringComparison.OrdinalIgnoreCase)
+                && link.StartsWith("controlPoint", StringComparison.OrdinalIgnoreCase)
+                && GetEntityInt(entity, "index", 0) == ParseGarrisonBuilderTrailingIndex(link, "controlPoint"))
+            {
+                objective = entity;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryGetLegacyForwardSpawnObjectiveIndex(string type, out int objectiveIndex)
+    {
+        objectiveIndex = 0;
+        if (type.StartsWith("redspawn", StringComparison.OrdinalIgnoreCase) && type.Length > "redspawn".Length)
+        {
+            return int.TryParse(type["redspawn".Length..], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out objectiveIndex)
+                && objectiveIndex > 0;
+        }
+
+        if (type.StartsWith("bluespawn", StringComparison.OrdinalIgnoreCase) && type.Length > "bluespawn".Length)
+        {
+            return int.TryParse(type["bluespawn".Length..], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out objectiveIndex)
+                && objectiveIndex > 0;
+        }
+
+        return false;
+    }
+
+    private static bool IsGarrisonBuilderForwardSpawnEntity(CustomMapBuilderEntity entity)
+    {
+        if (entity.Type.Equals("spawn", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetEntityBool(entity, "forward", false);
+        }
+
+        return TryGetLegacyForwardSpawnObjectiveIndex(entity.Type, out _);
+    }
+
+    private static bool IsGarrisonBuilderLegacyForwardSpawnEntity(CustomMapBuilderEntity entity)
+    {
+        return TryGetLegacyForwardSpawnObjectiveIndex(entity.Type, out _);
+    }
+
+    private static bool IsGarrisonBuilderControlPointEntity(CustomMapBuilderEntity entity)
+    {
+        return IsGarrisonBuilderLinkableObjectiveEntity(entity);
+    }
+
+    private static bool IsGarrisonBuilderLinkableObjectiveEntity(CustomMapBuilderEntity entity)
+    {
+        var type = entity.Type;
+        if (type.StartsWith("controlPoint", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return type.Equals("KothControlPoint", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("KothRedControlPoint", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("KothBlueControlPoint", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("ArenaControlPoint", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ResolveGarrisonBuilderObjectiveLinkValue(CustomMapBuilderEntity entity)
+    {
+        if (entity.Type.StartsWith("controlPoint", StringComparison.OrdinalIgnoreCase)
+            && entity.Type.Length > "controlPoint".Length)
+        {
+            return entity.Type;
+        }
+
+        var index = ResolveGarrisonBuilderObjectiveIndexFromEntity(entity);
+        if (index > 0)
+        {
+            return $"controlPoint{index}";
+        }
+
+        return entity.Type;
+    }
+
+    private static int ResolveGarrisonBuilderObjectiveIndexFromEntity(CustomMapBuilderEntity entity)
+    {
+        if (entity.Type.StartsWith("controlPoint", StringComparison.OrdinalIgnoreCase)
+            && entity.Type.Length > "controlPoint".Length)
+        {
+            return ParseGarrisonBuilderTrailingIndex(entity.Type, "controlPoint");
+        }
+
+        if (entity.Type.Equals("controlPoint", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetEntityInt(entity, "index", 0);
+        }
+
+        if (entity.Type.Equals("KothControlPoint", StringComparison.OrdinalIgnoreCase)
+            || entity.Type.Equals("KothRedControlPoint", StringComparison.OrdinalIgnoreCase)
+            || entity.Type.Equals("KothBlueControlPoint", StringComparison.OrdinalIgnoreCase))
+        {
+            return 1;
+        }
+
+        return 0;
+    }
+
+    private static int ParseGarrisonBuilderTrailingIndex(string value, string prefix)
+    {
+        if (!value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) || value.Length <= prefix.Length)
+        {
+            return 0;
+        }
+
+        var suffix = value[prefix.Length..];
+        return int.TryParse(suffix, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var index)
+            ? index
+            : 0;
+    }
+
+    private void ApplyGarrisonBuilderPropertyEditorLivePreview()
+    {
+        if (_builderPropertyTarget != GarrisonBuilderPropertyTarget.SelectedMapEntity
+            || _builderSelectedEntityIndex < 0
+            || _builderSelectedEntityIndex >= _builderEntities.Count)
+        {
+            return;
+        }
+
+        var entity = _builderEntities[_builderSelectedEntityIndex];
+        var properties = new Dictionary<string, string>(_builderPropertyEditorValues, StringComparer.OrdinalIgnoreCase);
+        _builderEntities[_builderSelectedEntityIndex] = CustomMapBuilderEntity.Create(
+            entity.Type,
+            entity.X,
+            entity.Y,
+            properties,
+            entity.XScale,
+            entity.YScale).NormalizeForEditing();
+        UpdateGarrisonBuilderDocumentEntities();
+        _builderDirty = true;
+    }
+
+    private void DrawGarrisonBuilderObjectiveMapPickHighlights()
+    {
+        if (!_builderObjectiveMapPickActive)
+        {
+            return;
+        }
+
+        foreach (var entity in _builderEntities)
+        {
+            if (!IsGarrisonBuilderLinkableObjectiveEntity(entity))
+            {
+                continue;
+            }
+
+            if (!TryGetGarrisonBuilderEntityWorldBounds(entity, out var left, out var top, out var width, out var height))
+            {
+                continue;
+            }
+
+            var highlight = new RectangleF(left - 4f, top - 4f, width + 8f, height + 8f);
+            DrawGarrisonBuilderRectangleOutline(ToScreenRectangle(highlight), new Color(255, 220, 80, 220));
+            _spriteBatch.Draw(_pixel, ToScreenRectangle(highlight), new Color(255, 220, 80, 28));
+        }
+    }
+
+    private int GetGarrisonBuilderPropertyRowHeight()
+    {
+        return GetGarrisonBuilderMenuRowHeight(GetGarrisonBuilderPropertyRowRelativeTextScale());
+    }
+
+    private int GetGarrisonBuilderPropertyListTop(Rectangle editorBounds)
+    {
+        return editorBounds.Y + 34;
+    }
+
+    private Rectangle GetGarrisonBuilderPropertyListBounds(Rectangle editorBounds)
+    {
+        var top = GetGarrisonBuilderPropertyListTop(editorBounds);
+        var bottom = GetGarrisonBuilderPropertyAddBounds(editorBounds).Y - 6;
+        return new Rectangle(editorBounds.X + 8, top, editorBounds.Width - 16, Math.Max(1, bottom - top));
+    }
+
+    private Rectangle GetGarrisonBuilderPropertyRowBounds(Rectangle editorBounds, int rowY)
+    {
+        var listBounds = GetGarrisonBuilderPropertyListBounds(editorBounds);
+        const int rowInset = 4;
+        return new Rectangle(
+            listBounds.X + rowInset,
+            rowY + 2,
+            listBounds.Width - (rowInset * 2),
+            GetGarrisonBuilderPropertyRowHeight() - 4);
+    }
+
+    private int GetGarrisonBuilderPropertyVisibleRows(Rectangle editorBounds)
+    {
+        var rowHeight = GetGarrisonBuilderPropertyRowHeight();
+        var availableHeight = GetGarrisonBuilderPropertyAddBounds(editorBounds).Y - GetGarrisonBuilderPropertyListTop(editorBounds) - 6;
+        var rowCount = GetGarrisonBuilderPropertyRows().Count;
+        var fitted = Math.Max(1, availableHeight / rowHeight);
+        return Math.Max(1, Math.Min(Math.Max(1, rowCount), fitted));
     }
 
     private static bool IsSkippedGarrisonBuilderProperty(string key)
     {
         return key.Equals("type", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("x", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("y", StringComparison.OrdinalIgnoreCase)
             || key.Equals("xscale", StringComparison.OrdinalIgnoreCase)
-            || key.Equals("yscale", StringComparison.OrdinalIgnoreCase);
+            || key.Equals("yscale", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("scale", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("visualScale", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("walkmaskScale", StringComparison.OrdinalIgnoreCase)
+            || IsGarrisonBuilderControlPointSectionProperty(key);
     }
 
     private Rectangle GetGarrisonBuilderPropertyEditorBounds()
     {
-        var width = Math.Min(420, Math.Max(320, ViewportWidth - 80));
-        var height = 340;
-        return new Rectangle((ViewportWidth - width) / 2, (ViewportHeight - height) / 2, width, height);
+        var width = Math.Min(BuilderUi(420), Math.Max(BuilderUi(280), BuilderViewportWidth - BuilderUi(80)));
+        var height = GetGarrisonBuilderPropertyEditorHeight(width);
+        return new Rectangle((BuilderViewportWidth - width) / 2, (BuilderViewportHeight - height) / 2, width, height);
     }
 
-    private static Rectangle GetGarrisonBuilderPropertyAddBounds(Rectangle editorBounds)
+    private int GetGarrisonBuilderPropertyEditorHeight(int width)
     {
-        return new Rectangle(editorBounds.X + 8, editorBounds.Bottom - 48, editorBounds.Width - 16, 20);
+        const int titleArea = 32;
+        const int footerArea = 52;
+        const int editModeHeight = 118;
+        if (_builderPropertyEditMode != GarrisonBuilderPropertyEditMode.List)
+        {
+            return editModeHeight;
+        }
+
+        if (!_builderUseModernUi)
+        {
+            return 340;
+        }
+
+        var rowHeight = GetGarrisonBuilderPropertyRowHeight();
+        var rowCount = Math.Max(1, GetGarrisonBuilderPropertyRows().Count);
+        const int listChrome = 88;
+        var idealHeight = listChrome + (rowCount * rowHeight);
+        return Math.Min(BuilderViewportHeight - 24, idealHeight);
+    }
+
+    private Rectangle GetGarrisonBuilderPropertyAddBounds(Rectangle editorBounds)
+    {
+        var buttonHeight = GetGarrisonBuilderMenuRowHeight();
+        return new Rectangle(editorBounds.X + 8, editorBounds.Bottom - 48, editorBounds.Width - 16, buttonHeight);
     }
 
     private void RemoveNearestGarrisonBuilderEntity(Vector2 worldPosition)
@@ -3060,6 +7171,7 @@ public partial class Game1
         }
 
         var removed = _builderEntities[bestIndex].Type;
+        NotifyGarrisonBuilderEntityRemoved(bestIndex);
         _builderEntities.RemoveAt(bestIndex);
         UpdateGarrisonBuilderDocumentEntities();
         _builderDirty = true;
@@ -3068,6 +7180,8 @@ public partial class Game1
 
     private void UpdateGarrisonBuilderDocumentEntities()
     {
+        EnsureGarrisonBuilderLogicEntityKeys();
+        SyncGarrisonBuilderCustomSpriteResources();
         _builderDocument = _builderDocument with
         {
             Entities = _builderEntities.ToArray(),
@@ -3079,6 +7193,7 @@ public partial class Game1
         _builderEditorEnabled = true;
         SyncGarrisonBuilderPathBuffers();
         _builderStatus = "builder enabled";
+        RequestGarrisonBuilderCameraCenter();
         LoadGarrisonBuilderEditorAssets();
         InvalidateDiscordRichPresenceRefresh();
     }
@@ -3086,8 +7201,148 @@ public partial class Game1
     private void DisableGarrisonBuilderEditor(string reason)
     {
         _builderEditorEnabled = false;
+        _builderLayerParallaxDialogOpen = false;
+        _builderEditingLayerOffsets = false;
         _builderStatus = reason;
         InvalidateDiscordRichPresenceRefresh();
+    }
+
+    private const string GarrisonBuilderQuickTestFolderPrefix = "_garrison_quicktest_";
+
+    private bool CanQuickTestGarrisonBuilderDocument()
+    {
+        return !string.IsNullOrWhiteSpace(_builderDocument.BackgroundImagePath)
+            && (!string.IsNullOrWhiteSpace(_builderDocument.WalkmaskImagePath)
+                || !string.IsNullOrWhiteSpace(_builderDocument.EmbeddedWalkmaskSection));
+    }
+
+    private static string SanitizeGarrisonBuilderQuickTestName(string name)
+    {
+        var trimmed = name.Trim();
+        if (trimmed.Length == 0)
+        {
+            return "map";
+        }
+
+        var chars = trimmed
+            .Select(character => char.IsAsciiLetterOrDigit(character) ? character : '_')
+            .ToArray();
+        return new string(chars).Trim('_');
+    }
+
+    private bool TryExportGarrisonBuilderQuickTestPackage(out string levelName, out string error)
+    {
+        error = string.Empty;
+        levelName = string.Empty;
+        if (!CanQuickTestGarrisonBuilderDocument())
+        {
+            error = "quick test needs a background and walkmask";
+            return false;
+        }
+
+        try
+        {
+            UpdateGarrisonBuilderDocumentEntities();
+            ApplyGarrisonBuilderEntitySchemaMetadata();
+            var safeName = SanitizeGarrisonBuilderQuickTestName(_builderDocument.Name);
+            if (safeName.Length == 0)
+            {
+                safeName = "map";
+            }
+
+            var packageDirectory = Path.Combine(RuntimePaths.MapsDirectory, GarrisonBuilderQuickTestFolderPrefix + safeName);
+            if (Directory.Exists(packageDirectory))
+            {
+                Directory.Delete(packageDirectory, recursive: true);
+            }
+
+            Directory.CreateDirectory(RuntimePaths.MapsDirectory);
+            var exportDocument = _builderDocument with
+            {
+                Entities = CustomMapBuilderEntityNormalization.ResolveForExport(_builderDocument.Entities),
+            };
+            CustomMapPackageExporter.Export(exportDocument, packageDirectory);
+            var manifestPath = CustomMapPackageExporter.ResolveManifestOutputPath(_builderDocument, packageDirectory);
+            levelName = Path.GetFileNameWithoutExtension(manifestPath);
+            SimpleLevelFactory.ClearCachedCatalog();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
+
+    private void QuickTestGarrisonBuilderMap()
+    {
+        if (!_bootstrapController.CanEnterGameplaySession(out var bootstrapReason))
+        {
+            _builderStatus = bootstrapReason ?? "assets still loading";
+            AddConsoleLine(_builderStatus);
+            return;
+        }
+
+        if (!TryExportGarrisonBuilderQuickTestPackage(out var levelName, out var error))
+        {
+            _builderStatus = error;
+            AddConsoleLine($"builder quick test failed: {error}");
+            return;
+        }
+
+        DisableGarrisonBuilderEditor("quick test");
+        _garrisonBuilderQuickTestActive = true;
+        if (!_gameplaySessionController.TryBeginOfflineBotSession(
+                levelName,
+                GameplaySessionKind.Practice,
+                _practiceTickRate,
+                GetPracticeExperimentalGameplaySettings(),
+                timeLimitMinutes: _practiceTimeLimitMinutes,
+                capLimit: _practiceCapLimit,
+                respawnSeconds: _practiceRespawnSeconds,
+                enableInstantRedTeamIntelCaptureWin: false,
+                openJoinMenus: false,
+                consoleSessionName: "builder quick test"))
+        {
+            _garrisonBuilderQuickTestActive = false;
+            _builderStatus = $"quick test failed to load {levelName}";
+            AddConsoleLine(_builderStatus);
+            EnableGarrisonBuilderEditor();
+            _builderStatus = "returned to builder";
+            return;
+        }
+
+        PrepareGarrisonBuilderQuickTestPlayer();
+        _builderStatus = "quick test: soldier on map";
+        AddConsoleLine(_builderStatus);
+    }
+
+    private void ReturnToGarrisonBuilderFromQuickTest()
+    {
+        if (!_garrisonBuilderQuickTestActive)
+        {
+            return;
+        }
+
+        _garrisonBuilderQuickTestActive = false;
+        CloseInGameMenu();
+        _gameplaySessionController.ResetActiveSessionState();
+        _gameplaySessionKind = GameplaySessionKind.None;
+        _mainMenuOpen = true;
+        _teamSelectOpen = false;
+        CloseGameplayOverlayState();
+        EnableGarrisonBuilderEditor();
+        _builderStatus = "returned to builder";
+        AddConsoleLine(_builderStatus);
+    }
+
+    private void PrepareGarrisonBuilderQuickTestPlayer()
+    {
+        _world.DespawnEnemyDummy();
+        _world.DespawnFriendlyDummy();
+        _world.SetLocalPlayerTeam(PlayerTeam.Red);
+        _world.PrepareLocalPlayerJoin();
+        _world.CompleteLocalPlayerJoin(PlayerClass.Soldier);
     }
 
     private void LoadGarrisonBuilderEditorAssets()
@@ -3112,6 +7367,79 @@ public partial class Game1
             _builderWalkmaskTexture = TryLoadGarrisonBuilderTexture(_builderDocument.WalkmaskImagePath);
             _builderLoadedWalkmaskPath = _builderDocument.WalkmaskImagePath;
         }
+
+        RefreshGarrisonBuilderEmbeddedWalkmaskTexture(skipWhenFileWalkmaskLoaded: _builderWalkmaskTexture is not null);
+    }
+
+    private bool HasGarrisonBuilderWalkmaskData()
+    {
+        return !string.IsNullOrWhiteSpace(_builderDocument.WalkmaskImagePath)
+            || !string.IsNullOrWhiteSpace(_builderDocument.EmbeddedWalkmaskSection);
+    }
+
+    private Texture2D? ResolveGarrisonBuilderWalkmaskTexture()
+    {
+        if (_builderWalkmaskTexture is not null)
+        {
+            return _builderWalkmaskTexture;
+        }
+
+        if (_builderEmbeddedWalkmaskTexture is not null)
+        {
+            return _builderEmbeddedWalkmaskTexture;
+        }
+
+        return HasGarrisonBuilderWalkmaskData()
+            ? null
+            : _builderDefaultWalkmaskTexture;
+    }
+
+    private void RefreshGarrisonBuilderEmbeddedWalkmaskTexture(bool skipWhenFileWalkmaskLoaded)
+    {
+        if (skipWhenFileWalkmaskLoaded)
+        {
+            DisposeGarrisonBuilderEmbeddedWalkmaskTexture();
+            return;
+        }
+
+        var section = _builderDocument.EmbeddedWalkmaskSection.Trim();
+        if (section.Length == 0)
+        {
+            DisposeGarrisonBuilderEmbeddedWalkmaskTexture();
+            return;
+        }
+
+        if (string.Equals(_builderLoadedEmbeddedWalkmaskSection, section, StringComparison.Ordinal)
+            && _builderEmbeddedWalkmaskTexture is not null)
+        {
+            return;
+        }
+
+        DisposeGarrisonBuilderEmbeddedWalkmaskTexture();
+        if (!EmbeddedWalkmaskDecoder.TryDecodeSolidCells(section, out var width, out var height, out var cells))
+        {
+            return;
+        }
+
+        var pixels = new Microsoft.Xna.Framework.Color[width * height];
+        for (var index = 0; index < cells.Length; index += 1)
+        {
+            pixels[index] = cells[index]
+                ? Microsoft.Xna.Framework.Color.White
+                : Microsoft.Xna.Framework.Color.Transparent;
+        }
+
+        var texture = new Texture2D(GraphicsDevice, width, height);
+        texture.SetData(pixels);
+        _builderEmbeddedWalkmaskTexture = texture;
+        _builderLoadedEmbeddedWalkmaskSection = section;
+    }
+
+    private void DisposeGarrisonBuilderEmbeddedWalkmaskTexture()
+    {
+        _builderEmbeddedWalkmaskTexture?.Dispose();
+        _builderEmbeddedWalkmaskTexture = null;
+        _builderLoadedEmbeddedWalkmaskSection = string.Empty;
     }
 
     private LoadedGameMakerSprite? LoadGarrisonBuilderEntityButtonSprite()
@@ -3192,6 +7520,12 @@ public partial class Game1
         switch (parts[1].ToLowerInvariant())
         {
             case "on":
+                if (!GarrisonBuilderFeature.CanOpenFromConsole)
+                {
+                    AddConsoleLine("builder: disabled (console access is off)");
+                    return true;
+                }
+
                 EnableGarrisonBuilderEditor();
                 AddConsoleLine("builder enabled");
                 return true;
@@ -3202,10 +7536,12 @@ public partial class Game1
             case "new":
                 _builderDocument = CustomMapBuilderDocument.CreateEmpty(argument.Length == 0 ? "new_map" : argument);
                 _builderEntities.Clear();
+                ClearGarrisonBuilderHiddenEntities();
                 _builderOpenMapBuffer = string.Empty;
                 _builderSavePath = string.Empty;
                 SyncGarrisonBuilderPathBuffers();
                 _builderDirty = false;
+                RequestGarrisonBuilderCameraCenter();
                 _builderStatus = "new builder document";
                 AddConsoleLine("builder document reset");
                 return true;
@@ -3269,11 +7605,20 @@ public partial class Game1
         ClearGarrisonBuilderResourceTextureCache();
         _builderSelectedResourceName = string.Empty;
         _builderEntities.Clear();
+        ClearGarrisonBuilderHiddenEntities();
         _builderEntities.AddRange(_builderDocument.Entities);
+        EnsureGarrisonBuilderLogicEntityKeys();
+        _builderSelectedEntityIndex = -1;
         _builderSavePath = path;
         SyncGarrisonBuilderPathBuffers();
         _builderOpenMapBuffer = path;
         _builderDirty = false;
+        _builderLoadedBackgroundPath = string.Empty;
+        _builderLoadedWalkmaskPath = string.Empty;
+        _builderLoadedEmbeddedWalkmaskSection = string.Empty;
+        LoadGarrisonBuilderEditorAssets();
+        UpdateGarrisonBuilderEntityCoordinateMode();
+        ClearGarrisonBuilderHistory();
         _builderStatus = editableDocument is not null
             ? isPackage
                 ? $"opened package map with {_builderEntities.Count} entities"
@@ -3281,6 +7626,7 @@ public partial class Game1
             : runtimeImport is null
                 ? "opened PNG as background"
                 : "opened compiled map as background";
+        RequestGarrisonBuilderCameraCenter();
         AddConsoleLine($"builder opened: {path}");
         AddConsoleLine(_builderStatus);
     }
@@ -3296,8 +7642,12 @@ public partial class Game1
 
         _builderDocument = _builderDocument with { BackgroundImagePath = path };
         _builderBackgroundPathBuffer = path;
+        _builderLoadedBackgroundPath = string.Empty;
         _builderDirty = true;
+        LoadGarrisonBuilderEditorAssets();
+        UpdateGarrisonBuilderEntityCoordinateMode();
         _builderStatus = "background loaded";
+        RequestGarrisonBuilderCameraCenter();
         AddConsoleLine($"builder bg: {path}");
     }
 
@@ -3316,8 +7666,13 @@ public partial class Game1
             EmbeddedWalkmaskSection = string.Empty,
         };
         _builderWalkmaskPathBuffer = path;
+        _builderLoadedWalkmaskPath = string.Empty;
+        _builderLoadedEmbeddedWalkmaskSection = string.Empty;
         _builderDirty = true;
+        LoadGarrisonBuilderEditorAssets();
+        UpdateGarrisonBuilderEntityCoordinateMode();
         _builderStatus = "walkmask loaded";
+        RequestGarrisonBuilderCameraCenter();
         AddConsoleLine($"builder wm: {path}");
     }
 
@@ -3333,6 +7688,7 @@ public partial class Game1
         try
         {
             UpdateGarrisonBuilderDocumentEntities();
+            ApplyGarrisonBuilderEntitySchemaMetadata();
             var validation = CustomMapBuilderValidator.Validate(_builderDocument, _builderSelectedGameMode);
             if (!validation.IsValid)
             {
@@ -3363,6 +7719,13 @@ public partial class Game1
         }
     }
 
+    private void ApplyGarrisonBuilderEntitySchemaMetadata()
+    {
+        var metadata = new Dictionary<string, string>(_builderDocument.Metadata, StringComparer.OrdinalIgnoreCase);
+        metadata[CustomMapEntityRuntimeRegistry.EntitySchemaMetadataKey] = CustomMapEntityRuntimeRegistry.ModernEntitySchemaValue;
+        _builderDocument = _builderDocument with { Metadata = metadata };
+    }
+
     private bool CanSaveGarrisonBuilderDocument()
     {
         return !string.IsNullOrWhiteSpace(_builderDocument.BackgroundImagePath)
@@ -3371,15 +7734,16 @@ public partial class Game1
             && !string.IsNullOrWhiteSpace(_builderSavePath);
     }
 
-    private void OpenGarrisonBuilderFromOptions()
+    private void OpenGarrisonBuilderFromMainMenu()
     {
-        _optionsMenuOpen = false;
-        _pluginOptionsMenuOpen = false;
-        _controlsMenuOpen = false;
-        _editingPlayerName = false;
+        if (!GarrisonBuilderFeature.CanOpenFromMainMenu)
+        {
+            return;
+        }
+
         EnableGarrisonBuilderEditor();
         _builderGameModeMenuOpen = true;
-        _builderStatus = "map builder opened from settings";
+        _builderStatus = "map builder";
     }
 
     private void SyncGarrisonBuilderPathBuffers()
@@ -3393,6 +7757,7 @@ public partial class Game1
     {
         _builderBackgroundTexture?.Dispose();
         _builderWalkmaskTexture?.Dispose();
+        DisposeGarrisonBuilderEmbeddedWalkmaskTexture();
         _builderDefaultBackgroundTexture?.Dispose();
         _builderDefaultWalkmaskTexture?.Dispose();
         _builderDefaultBackgroundTexture = null;
@@ -3412,6 +7777,7 @@ public partial class Game1
         ClearGarrisonBuilderResourceTextureCache();
         _builderBackgroundTexture = null;
         _builderWalkmaskTexture = null;
+        DisposeGarrisonBuilderEmbeddedWalkmaskTexture();
         _builderDefaultBackgroundTexture = null;
         _builderDefaultWalkmaskTexture = null;
         _builderEntityButtonSprite = null;
@@ -3443,16 +7809,17 @@ public partial class Game1
 
     private Rectangle GetGarrisonBuilderPanelBounds()
     {
-        return new Rectangle(Math.Max(0, ViewportWidth - BuilderPanelWidth), 0, BuilderPanelWidth, ViewportHeight);
+        return new Rectangle(Math.Max(0, BuilderViewportWidth - BuilderPanelWidth), 0, BuilderPanelWidth, BuilderViewportHeight);
     }
 
-    private static Rectangle[] CreateGarrisonBuilderButtonRow(int x, int y, int width, int count)
+    private Rectangle[] CreateGarrisonBuilderButtonRow(int x, int y, int width, int count)
     {
         var buttons = new Rectangle[count];
+        var buttonHeight = GetGarrisonBuilderMenuRowHeight();
         var buttonWidth = (width - (BuilderButtonGap * (count - 1))) / count;
         for (var index = 0; index < count; index += 1)
         {
-            buttons[index] = new Rectangle(x + (index * (buttonWidth + BuilderButtonGap)), y, buttonWidth, BuilderButtonHeight);
+            buttons[index] = new Rectangle(x + (index * (buttonWidth + BuilderButtonGap)), y, buttonWidth, buttonHeight);
         }
 
         return buttons;
@@ -3461,16 +7828,32 @@ public partial class Game1
     private void DrawGarrisonBuilderButton(Rectangle bounds, string label, bool active, bool enabled, MouseState mouse)
     {
         var hovered = bounds.Contains(mouse.Position);
-        var color = !enabled
+        var fillColor = !enabled
             ? new Color(54, 56, 60, 190)
             : active
                 ? new Color(92, 184, 212, 230)
                 : hovered
                     ? new Color(58, 70, 80, 230)
                     : new Color(38, 42, 48, 230);
-        var textColor = enabled ? Color.White : new Color(140, 144, 148);
-        _spriteBatch.Draw(_pixel, bounds, color);
-        DrawGarrisonBuilderText(label, bounds.Location.ToVector2() + new Vector2(6f, 5f), textColor, 0.95f);
+        _spriteBatch.Draw(_pixel, bounds, fillColor);
+        if (!string.IsNullOrWhiteSpace(label))
+        {
+            var fittedScale = GetGarrisonBuilderBitmapFontScaleToFit(
+                label,
+                Math.Max(8f, bounds.Width - 12f),
+                Math.Max(8f, bounds.Height - 8f),
+                1f);
+            var measuredWidth = MeasureBitmapFontWidth(label, fittedScale);
+            var measuredHeight = MeasureBitmapFontHeight(fittedScale);
+            var textColor = enabled ? Color.White : new Color(140, 144, 148);
+            DrawBitmapFontText(
+                label,
+                new Vector2(
+                    bounds.X + ((bounds.Width - measuredWidth) * 0.5f),
+                    bounds.Y + MathF.Max(4f, (bounds.Height - measuredHeight) * 0.5f)),
+                textColor,
+                fittedScale);
+        }
     }
 
     private void DrawGarrisonBuilderText(string text, int x, int y, Color color, float scale)
@@ -3478,16 +7861,376 @@ public partial class Game1
         DrawGarrisonBuilderText(text, new Vector2(x, y), color, scale);
     }
 
-    private void DrawGarrisonBuilderText(string text, Vector2 position, Color color, float scale)
+    private void DrawGarrisonBuilderText(string text, Vector2 position, Color color, float relativeScale)
     {
         var snapped = new Vector2(MathF.Round(position.X), MathF.Round(position.Y));
-        var adjustedScale = Math.Clamp(scale, 0.5f, 4f);
+        var adjustedScale = Math.Clamp(GetGarrisonBuilderRelativeBitmapFontScale(relativeScale), 0.5f, 16f);
         DrawBitmapFontText(text, snapped, color, adjustedScale);
     }
 
-    private Vector2 MeasureGarrisonBuilderText(string text, float scale)
+    private void DrawGarrisonBuilderControlPointIndexOverlay(CustomMapBuilderEntity entity)
     {
-        var adjustedScale = Math.Clamp(scale, 0.5f, 4f);
+        if (!TryGetGarrisonBuilderEntityWorldBounds(entity, out var left, out var top, out var width, out var height))
+        {
+            return;
+        }
+
+        var index = ControlPointOwnershipResolver.ResolveControlPointIndex(entity);
+        var label = index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var visualScale = _builderUseModernUi ? GetGarrisonBuilderMapVisualScale() : 1f;
+        const float labelBaseRelativeScale = 0.72f;
+        var labelScale = labelBaseRelativeScale * visualScale;
+        var labelSize = MeasureGarrisonBuilderText(label, labelScale);
+        var bottomRight = _builderUseModernUi
+            ? BuilderWorldToScreen(new Vector2(left + width, top + height))
+            : new Vector2(left + width, top + height) - _builderCamera;
+        var marginX = 3f * visualScale;
+        var marginY = 2f * visualScale;
+        var labelPosition = new Vector2(
+            bottomRight.X - labelSize.X - marginX,
+            bottomRight.Y - labelSize.Y - marginY);
+        DrawGarrisonBuilderText(label, labelPosition, Color.Black, labelScale);
+    }
+
+    private void SyncGarrisonBuilderControlPointPropertyEditorFields()
+    {
+        if (!IsEditingGarrisonBuilderControlPointEntity())
+        {
+            return;
+        }
+
+        if (!TryGetGarrisonBuilderEditedEntity(out var entity))
+        {
+            return;
+        }
+
+        _builderPropertyEditorValues[ControlPointIndexMetadata.PropertyKey] =
+            ControlPointIndexMetadata.ToPropertyValue(ControlPointOwnershipResolver.ResolveControlPointIndex(entity));
+
+        SyncGarrisonBuilderControlPointCapTimeMultiplierField(entity);
+
+        if (!IsGarrisonBuilderControlPointOverrideEnabled())
+        {
+            _builderPropertyEditorValues.Remove(ControlPointInitialOwnershipMetadata.PropertyKey);
+            _builderPropertyEditorValues.Remove(ControlPointLockDependencyMetadata.LockedWhenCpPropertyKey);
+            _builderPropertyEditorValues.Remove(ControlPointLockDependencyMetadata.LockedWhenTeamPropertyKey);
+            _builderPropertyEditorValues.Remove(ControlPointLockDependencyMetadata.UnlockedWhenCpPropertyKey);
+            _builderPropertyEditorValues.Remove(ControlPointLockDependencyMetadata.UnlockedWhenTeamPropertyKey);
+            _builderPropertyEditorValues.Remove(ControlPointInitialLockStateMetadata.PropertyKey);
+            return;
+        }
+
+        if (!_builderPropertyEditorValues.ContainsKey(ControlPointInitialOwnershipMetadata.PropertyKey))
+        {
+            var ownership = ControlPointOwnershipResolver.ParseEntityInitialOwnership(entity);
+            if (ownership == ControlPointInitialOwnership.ModeDefault)
+            {
+                ownership = ControlPointInitialOwnership.Neutral;
+            }
+
+            _builderPropertyEditorValues[ControlPointInitialOwnershipMetadata.PropertyKey] =
+                ControlPointInitialOwnershipMetadata.ToPropertyValue(ownership);
+        }
+
+        EnsureGarrisonBuilderControlPointLockProperty(
+            ControlPointLockDependencyMetadata.LockedWhenCpPropertyKey,
+            entity.Properties);
+        EnsureGarrisonBuilderControlPointLockProperty(
+            ControlPointLockDependencyMetadata.LockedWhenTeamPropertyKey,
+            entity.Properties,
+            ControlPointLockDependencyMetadata.ToTeamPropertyValue(PlayerTeam.Red));
+        EnsureGarrisonBuilderControlPointLockProperty(
+            ControlPointLockDependencyMetadata.UnlockedWhenCpPropertyKey,
+            entity.Properties);
+        EnsureGarrisonBuilderControlPointLockProperty(
+            ControlPointLockDependencyMetadata.UnlockedWhenTeamPropertyKey,
+            entity.Properties,
+            ControlPointLockDependencyMetadata.ToTeamPropertyValue(PlayerTeam.Blue));
+        if (!_builderPropertyEditorValues.ContainsKey(ControlPointInitialLockStateMetadata.PropertyKey))
+        {
+            _builderPropertyEditorValues[ControlPointInitialLockStateMetadata.PropertyKey] =
+                ControlPointInitialLockStateMetadata.ToPropertyValue(
+                    ControlPointInitialLockStateMetadata.ParseLocked(entity.Properties));
+        }
+    }
+
+    private void EnsureGarrisonBuilderControlPointLockProperty(
+        string key,
+        IReadOnlyDictionary<string, string> sourceProperties,
+        string defaultValue = "")
+    {
+        if (_builderPropertyEditorValues.ContainsKey(key))
+        {
+            return;
+        }
+
+        _builderPropertyEditorValues[key] = sourceProperties.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value
+            : defaultValue;
+    }
+
+    private void SyncGarrisonBuilderControlPointCapTimeMultiplierField(CustomMapBuilderEntity entity)
+    {
+        if (ControlPointCapTimeMultiplierMetadata.IsCustom(entity.Properties))
+        {
+            if (!_builderPropertyEditorValues.ContainsKey(ControlPointCapTimeMultiplierMetadata.PropertyKey))
+            {
+                var (multiplier, _) = ControlPointCapTimeMultiplierMetadata.Parse(entity.Properties);
+                _builderPropertyEditorValues[ControlPointCapTimeMultiplierMetadata.PropertyKey] =
+                    ControlPointCapTimeMultiplierMetadata.ToPropertyValue(multiplier);
+            }
+
+            return;
+        }
+
+        var totalControlPoints = CountGarrisonBuilderControlPointsForCapTimeRules();
+        var controlPointIndex = ControlPointOwnershipResolver.ResolveControlPointIndex(entity);
+        var autoMultiplier = ControlPointCapTimeMultiplierMetadata.ResolveAutoMultiplier(
+            totalControlPoints,
+            controlPointIndex,
+            HasGarrisonBuilderControlPointSetupGates());
+        _builderPropertyEditorValues[ControlPointCapTimeMultiplierMetadata.PropertyKey] =
+            ControlPointCapTimeMultiplierMetadata.ToPropertyValue(autoMultiplier);
+        _builderPropertyEditorValues.Remove(ControlPointCapTimeMultiplierMetadata.CustomPropertyKey);
+    }
+
+    private int CountGarrisonBuilderControlPointsForCapTimeRules()
+    {
+        var count = 0;
+        for (var index = 0; index < _builderEntities.Count; index += 1)
+        {
+            if (ControlPointOwnershipResolver.IsControlPointEntity(_builderEntities[index].Type))
+            {
+                count += 1;
+            }
+        }
+
+        return Math.Max(1, count);
+    }
+
+    private bool IsGarrisonBuilderCapTimeMultiplierPropertyRow(string key)
+    {
+        return key.Equals(ControlPointCapTimeMultiplierMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderControlPointEntity();
+    }
+
+    private bool IsGarrisonBuilderCapTimeMultiplierTextEditActive()
+    {
+        return _builderPropertyEditMode == GarrisonBuilderPropertyEditMode.EditValue
+            && IsGarrisonBuilderCapTimeMultiplierPropertyRow(_builderPropertyEditKey);
+    }
+
+    private static bool IsGarrisonBuilderCapTimeMultiplierTextCharacterAllowed(char character)
+    {
+        return char.IsDigit(character) || character == '.';
+    }
+
+    private Rectangle GetGarrisonBuilderCapTimeMultiplierSliderBounds(
+        Rectangle rowBounds,
+        string value,
+        float textScale,
+        bool hasClearButton)
+    {
+        var sliderDisplay = FormatGarrisonBuilderCapTimeMultiplierSliderDisplay(value);
+        var sliderWidth = MeasureBitmapFontWidth(sliderDisplay, textScale);
+        const float rightPadding = 8f;
+        var rightEdge = hasClearButton
+            ? GetGarrisonBuilderPropertyClearButtonBounds(rowBounds).X - 6f
+            : rowBounds.Right - rightPadding;
+        var sliderX = rightEdge - sliderWidth;
+        var textHeight = MeasureBitmapFontHeight(textScale);
+        var textY = rowBounds.Y + MathF.Max(2f, ((rowBounds.Height - textHeight) * 0.5f) - 1f);
+        return new Rectangle(
+            (int)MathF.Floor(sliderX),
+            (int)MathF.Floor(textY),
+            (int)MathF.Ceiling(sliderWidth),
+            (int)MathF.Ceiling(textHeight));
+    }
+
+    private static string FormatGarrisonBuilderCapTimeMultiplierSliderDisplay(string value)
+    {
+        var multiplier = ControlPointCapTimeMultiplierMetadata.ParseMultiplier(value);
+        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"< {ControlPointCapTimeMultiplierMetadata.ToPropertyValue(multiplier)} >");
+    }
+
+    private void DrawGarrisonBuilderCapTimeMultiplierPropertyRow(
+        Rectangle rowBounds,
+        string value,
+        MouseState mouse,
+        float textScale,
+        bool hovered,
+        Rectangle sliderBounds,
+        Rectangle clearBounds,
+        bool hasClearButton)
+    {
+        var label = ControlPointCapTimeMultiplierMetadata.IsCustom(_builderPropertyEditorValues)
+            ? "Cap time multiplier (custom)"
+            : "Cap time multiplier (auto)";
+        var textY = rowBounds.Y + MathF.Max(2f, ((rowBounds.Height - MeasureBitmapFontHeight(textScale)) * 0.5f) - 1f);
+        var labelMaxWidth = MathF.Max(40f, sliderBounds.X - rowBounds.X - 10f);
+        var displayLabel = TruncateGarrisonBuilderPropertyLabel(label, labelMaxWidth, textScale);
+        var labelColor = _builderUseModernUi ? Color.White : Color.Black;
+        if (_builderUseModernUi)
+        {
+            DrawBitmapFontText(displayLabel, new Vector2(rowBounds.X + 6f, textY), labelColor, textScale);
+        }
+        else
+        {
+            DrawGarrisonBuilderText(displayLabel, rowBounds.Location.ToVector2() + new Vector2(4f, 3f), labelColor, textScale);
+        }
+
+        var sliderDisplay = FormatGarrisonBuilderCapTimeMultiplierSliderDisplay(value);
+        var sliderHovered = hovered || sliderBounds.Contains(mouse.Position);
+        var sliderColor = sliderHovered
+            ? (_builderUseModernUi ? new Color(220, 220, 220) : Color.Black)
+            : (_builderUseModernUi ? new Color(186, 186, 186) : new Color(64, 64, 64));
+        if (_builderUseModernUi)
+        {
+            DrawBitmapFontText(sliderDisplay, new Vector2(sliderBounds.X, textY), sliderColor, textScale);
+        }
+        else
+        {
+            DrawGarrisonBuilderText(sliderDisplay, new Vector2(sliderBounds.X, rowBounds.Y + 3f), sliderColor, textScale);
+        }
+
+        if (hasClearButton)
+        {
+            DrawGarrisonBuilderPropertyClearButton(
+                clearBounds,
+                hovered || clearBounds.Contains(mouse.Position));
+        }
+    }
+
+    private bool TryHandleGarrisonBuilderCapTimeMultiplierClick(
+        string key,
+        string value,
+        Rectangle rowBounds,
+        Point position,
+        Rectangle sliderBounds)
+    {
+        if (!sliderBounds.Contains(position))
+        {
+            return false;
+        }
+
+        GetGarrisonBuilderCapTimeMultiplierDigitBounds(rowBounds, value, GetGarrisonBuilderPropertyRowTextScale(), out var digitBounds);
+        if (digitBounds.Contains(position))
+        {
+            BeginGarrisonBuilderCapTimeMultiplierTextEdit(key, value);
+            return true;
+        }
+
+        var delta = position.X < sliderBounds.X + (sliderBounds.Width / 2) ? -0.25f : 0.25f;
+        var nextValue = ControlPointCapTimeMultiplierMetadata.ParseMultiplier(value) + delta;
+        ControlPointCapTimeMultiplierMetadata.MarkCustom(_builderPropertyEditorValues, MathF.Max(0.25f, nextValue));
+        ApplyGarrisonBuilderPropertyEditorLivePreview();
+        MarkGarrisonBuilderPropertyEditorChanged();
+        return true;
+    }
+
+    private bool TryBeginGarrisonBuilderCapTimeMultiplierTextEdit(string key, string value, Rectangle rowBounds, Point position)
+    {
+        if (!IsGarrisonBuilderCapTimeMultiplierPropertyRow(key))
+        {
+            return false;
+        }
+
+        var textScale = GetGarrisonBuilderPropertyRowTextScale();
+        var hasClear = GarrisonBuilderPropertyHasClearableConnection(key, value);
+        var sliderBounds = GetGarrisonBuilderCapTimeMultiplierSliderBounds(rowBounds, value, textScale, hasClear);
+        if (TryHandleGarrisonBuilderCapTimeMultiplierClick(key, value, rowBounds, position, sliderBounds))
+        {
+            return true;
+        }
+
+        return sliderBounds.Contains(position);
+    }
+
+    private void BeginGarrisonBuilderCapTimeMultiplierTextEdit(string key, string value)
+    {
+        BeginGarrisonBuilderPropertyTextEdit(
+            key,
+            ControlPointCapTimeMultiplierMetadata.ToPropertyValue(
+                ControlPointCapTimeMultiplierMetadata.ParseMultiplier(value)),
+            GarrisonBuilderPropertyEditMode.EditValue);
+    }
+
+    private void GetGarrisonBuilderCapTimeMultiplierDigitBounds(
+        Rectangle rowBounds,
+        string value,
+        float textScale,
+        out Rectangle digitBounds)
+    {
+        var sliderDisplay = FormatGarrisonBuilderCapTimeMultiplierSliderDisplay(value);
+        var sliderWidth = MeasureBitmapFontWidth(sliderDisplay, textScale);
+        const float rightPadding = 8f;
+        var sliderX = rowBounds.Right - rightPadding - sliderWidth;
+        var textHeight = MeasureBitmapFontHeight(textScale);
+        var textY = rowBounds.Y + MathF.Max(2f, ((rowBounds.Height - textHeight) * 0.5f) - 1f);
+        var digitText = ControlPointCapTimeMultiplierMetadata.ToPropertyValue(
+            ControlPointCapTimeMultiplierMetadata.ParseMultiplier(value));
+        var digitWidth = MeasureBitmapFontWidth(digitText, textScale);
+        var digitX = sliderX + ((sliderWidth - digitWidth) * 0.5f);
+        digitBounds = new Rectangle(
+            (int)MathF.Floor(digitX),
+            (int)MathF.Floor(textY),
+            (int)MathF.Ceiling(digitWidth),
+            (int)MathF.Ceiling(textHeight));
+    }
+
+    private bool TryGetGarrisonBuilderEditedEntity(out CustomMapBuilderEntity entity)
+    {
+        entity = default;
+        if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.SelectedMapEntity
+            && _builderSelectedEntityIndex >= 0
+            && _builderSelectedEntityIndex < _builderEntities.Count)
+        {
+            entity = _builderEntities[_builderSelectedEntityIndex];
+            return true;
+        }
+
+        if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.PlacementEntity
+            && !string.IsNullOrWhiteSpace(_builderSelectedEntityType)
+            && CustomMapBuilderEntityCatalog.TryGetDefinition(_builderSelectedEntityType, out _))
+        {
+            var properties = new Dictionary<string, string>(_builderPropertyEditorValues, StringComparer.OrdinalIgnoreCase);
+            entity = CustomMapBuilderEntity.Create(_builderSelectedEntityType, 0f, 0f, properties);
+            return true;
+        }
+
+        return false;
+    }
+
+    private void DrawGarrisonBuilderEntityMapLabel(CustomMapBuilderEntity entity, Vector2? markerLabelAnchor = null)
+    {
+        const float labelRelativeScale = 1f;
+        if (markerLabelAnchor.HasValue)
+        {
+            DrawGarrisonBuilderText(entity.Type, markerLabelAnchor.Value, Color.White, labelRelativeScale);
+            return;
+        }
+
+        if (_builderUseModernUi
+            && TryGetGarrisonBuilderEntityWorldBounds(entity, out var left, out var top, out var width, out var height))
+        {
+            var labelSize = MeasureGarrisonBuilderText(entity.Type, labelRelativeScale);
+            var bottomCenter = BuilderWorldToScreen(new Vector2(left + (width * 0.5f), top + height));
+            var labelPosition = new Vector2(
+                bottomCenter.X - (labelSize.X * 0.5f),
+                bottomCenter.Y + 4f);
+            DrawGarrisonBuilderText(entity.Type, labelPosition, Color.White, labelRelativeScale);
+            return;
+        }
+
+        var screen = _builderUseModernUi
+            ? BuilderWorldToScreen(new Vector2(entity.X, entity.Y))
+            : new Vector2(entity.X, entity.Y) - _builderCamera;
+        DrawGarrisonBuilderText(entity.Type, screen + new Vector2(7f, -8f), Color.White, labelRelativeScale);
+    }
+
+    private Vector2 MeasureGarrisonBuilderText(string text, float relativeScale)
+    {
+        var adjustedScale = Math.Clamp(GetGarrisonBuilderRelativeBitmapFontScale(relativeScale), 0.5f, 16f);
         return new Vector2(
             MeasureBitmapFontWidth(text, adjustedScale),
             MeasureBitmapFontHeight(adjustedScale));
@@ -3551,22 +8294,29 @@ public partial class Game1
 
     private IReadOnlyList<CustomMapBuilderEntityDefinition> GetActiveGarrisonBuilderEntityDefinitions()
     {
-        if (_builderSelectedGameMode == CustomMapBuilderGameMode.Free)
+        IEnumerable<CustomMapBuilderEntityDefinition> definitions = _builderEntityDefinitions;
+        if (_builderUseModernUi)
         {
-            return _builderEntityDefinitions;
+            definitions = definitions.Where(definition =>
+                !CustomMapBuilderEntityNormalization.LegacyPaletteHiddenTypes.Contains(definition.Type)
+                && !MapLogicMetadata.IsLogicEntityType(definition.Type));
         }
 
-        return _builderEntityDefinitions
-            .Where(definition => definition.Modes == CustomMapBuilderGameMode.Free || (definition.Modes & _builderSelectedGameMode) != 0)
-            .ToArray();
+        if (_builderSelectedGameMode != CustomMapBuilderGameMode.Free)
+        {
+            definitions = definitions.Where(definition =>
+                definition.Modes == CustomMapBuilderGameMode.Free
+                || (definition.Modes & _builderSelectedGameMode) != 0);
+        }
+
+        return definitions.ToArray();
     }
 
     private bool TryHandleGarrisonBuilderGameModeMenuClick(Point position, bool leftClick)
     {
         if (!leftClick)
         {
-            _builderGameModeMenuOpen = false;
-            return true;
+            return _builderGameModeMenuOpen;
         }
 
         var bounds = GetGarrisonBuilderGameModeMenuBounds();
@@ -3604,7 +8354,39 @@ public partial class Game1
         _builderSelectedGameMode = mode;
         _builderSelectedEntityType = string.Empty;
         _builderTooltipIndex = -1;
+        RefreshGarrisonBuilderControlPointCapTimeMultipliersOnMap();
+        if (IsEditingGarrisonBuilderControlPointEntity())
+        {
+            SyncGarrisonBuilderControlPointPropertyEditorFields();
+        }
+
         _builderStatus = $"gamemode: {GetGarrisonBuilderModeLabel(_builderSelectedGameMode)}";
+    }
+
+    private void RefreshGarrisonBuilderControlPointCapTimeMultipliersOnMap()
+    {
+        var totalControlPoints = CountGarrisonBuilderControlPointsForCapTimeRules();
+        var setupMode = HasGarrisonBuilderControlPointSetupGates();
+        for (var index = 0; index < _builderEntities.Count; index += 1)
+        {
+            var entity = _builderEntities[index];
+            if (!ControlPointOwnershipResolver.IsControlPointEntity(entity.Type)
+                || ControlPointCapTimeMultiplierMetadata.IsCustom(entity.Properties))
+            {
+                continue;
+            }
+
+            var properties = new Dictionary<string, string>(entity.Properties, StringComparer.OrdinalIgnoreCase);
+            var controlPointIndex = ControlPointOwnershipResolver.ResolveControlPointIndex(entity);
+            properties[ControlPointCapTimeMultiplierMetadata.PropertyKey] =
+                ControlPointCapTimeMultiplierMetadata.ToPropertyValue(
+                    ControlPointCapTimeMultiplierMetadata.ResolveAutoMultiplier(
+                        totalControlPoints,
+                        controlPointIndex,
+                        setupMode));
+            properties.Remove(ControlPointCapTimeMultiplierMetadata.CustomPropertyKey);
+            _builderEntities[index] = entity with { Properties = properties };
+        }
     }
 
     private static CustomMapBuilderGameMode[] GetGarrisonBuilderModeMenuModes()
@@ -3626,14 +8408,14 @@ public partial class Game1
     {
         return
         [
-            new("Free mode", CustomMapBuilderGameMode.Free),
-            new("Capture the flag (ctf)", CustomMapBuilderGameMode.CaptureTheFlag),
-            new("Control points (cp)", CustomMapBuilderGameMode.ControlPoint),
-            new("A/D control points (adcp)", CustomMapBuilderGameMode.AttackDefenseControlPoint),
-            new("King of the hill (koth)", CustomMapBuilderGameMode.KingOfTheHill),
-            new("Dual king of the hill (dkoth)", CustomMapBuilderGameMode.DualKingOfTheHill),
-            new("Arena (arena)", CustomMapBuilderGameMode.Arena),
-            new("Generator (gen)", CustomMapBuilderGameMode.Generator),
+            new("Free", CustomMapBuilderGameMode.Free),
+            new("CTF", CustomMapBuilderGameMode.CaptureTheFlag),
+            new("Control Point", CustomMapBuilderGameMode.ControlPoint),
+            new("A/D CP", CustomMapBuilderGameMode.AttackDefenseControlPoint),
+            new("KOTH", CustomMapBuilderGameMode.KingOfTheHill),
+            new("Dual KOTH", CustomMapBuilderGameMode.DualKingOfTheHill),
+            new("Arena", CustomMapBuilderGameMode.Arena),
+            new("Generator", CustomMapBuilderGameMode.Generator),
             new("Main menu", null, GarrisonBuilderMenuAction.MainMenu),
             new("Back", null, GarrisonBuilderMenuAction.Back),
         ];
@@ -3657,6 +8439,140 @@ public partial class Game1
     private bool ShouldBlockGameplayForGarrisonBuilder()
     {
         return _builderEditorEnabled;
+    }
+
+    private readonly record struct GarrisonBuilderHistorySnapshot(
+        CustomMapBuilderDocument Document,
+        CustomMapBuilderEntity[] Entities);
+
+    private void ClearGarrisonBuilderHistory()
+    {
+        _builderUndoStack.Clear();
+        _builderRedoStack.Clear();
+    }
+
+    private void RecordGarrisonBuilderHistory()
+    {
+        if (_builderHistoryCaptureSuspended || !_builderEditorEnabled)
+        {
+            return;
+        }
+
+        _builderUndoStack.Add(CreateGarrisonBuilderHistorySnapshot());
+        while (_builderUndoStack.Count > GarrisonBuilderHistoryCapacity)
+        {
+            _builderUndoStack.RemoveAt(0);
+        }
+
+        _builderRedoStack.Clear();
+    }
+
+    private GarrisonBuilderHistorySnapshot CreateGarrisonBuilderHistorySnapshot()
+    {
+        return new GarrisonBuilderHistorySnapshot(
+            _builderDocument,
+            _builderEntities.Select(static entity => entity).ToArray());
+    }
+
+    private void RestoreGarrisonBuilderHistorySnapshot(GarrisonBuilderHistorySnapshot snapshot)
+    {
+        _builderHistoryCaptureSuspended = true;
+        try
+        {
+            _builderDocument = snapshot.Document;
+            _builderEntities.Clear();
+            _builderEntities.AddRange(snapshot.Entities);
+            _builderSelectedEntityIndex = -1;
+            _builderEntityDragging = false;
+            _builderActiveResizeHandle = GarrisonBuilderResizeHandle.None;
+            ClearGarrisonBuilderHiddenEntities();
+            CloseGarrisonBuilderPropertyEditor(applyChanges: false);
+            CloseGarrisonBuilderEntityContextMenu();
+            _builderLayerParallaxDialogOpen = false;
+            _builderLayerParallaxDialogLayerIndex = -1;
+            ClearGarrisonBuilderResourceTextureCache();
+            _builderLoadedBackgroundPath = string.Empty;
+            _builderLoadedWalkmaskPath = string.Empty;
+            _builderLoadedEmbeddedWalkmaskSection = string.Empty;
+            LoadGarrisonBuilderEditorAssets();
+            _builderDirty = true;
+            _builderStatus = "builder history restored";
+        }
+        finally
+        {
+            _builderHistoryCaptureSuspended = false;
+        }
+    }
+
+    private bool TryUndoGarrisonBuilder()
+    {
+        if (_builderUndoStack.Count == 0)
+        {
+            _builderStatus = "nothing to undo";
+            return false;
+        }
+
+        _builderRedoStack.Add(CreateGarrisonBuilderHistorySnapshot());
+        while (_builderRedoStack.Count > GarrisonBuilderHistoryCapacity)
+        {
+            _builderRedoStack.RemoveAt(0);
+        }
+
+        var snapshot = _builderUndoStack[^1];
+        _builderUndoStack.RemoveAt(_builderUndoStack.Count - 1);
+        RestoreGarrisonBuilderHistorySnapshot(snapshot);
+        _builderStatus = "undo";
+        return true;
+    }
+
+    private bool TryRedoGarrisonBuilder()
+    {
+        if (_builderRedoStack.Count == 0)
+        {
+            _builderStatus = "nothing to redo";
+            return false;
+        }
+
+        _builderUndoStack.Add(CreateGarrisonBuilderHistorySnapshot());
+        while (_builderUndoStack.Count > GarrisonBuilderHistoryCapacity)
+        {
+            _builderUndoStack.RemoveAt(0);
+        }
+
+        var snapshot = _builderRedoStack[^1];
+        _builderRedoStack.RemoveAt(_builderRedoStack.Count - 1);
+        RestoreGarrisonBuilderHistorySnapshot(snapshot);
+        _builderStatus = "redo";
+        return true;
+    }
+
+    private bool TryHandleGarrisonBuilderHistoryShortcuts(KeyboardState keyboard)
+    {
+        var controlHeld = keyboard.IsKeyDown(Keys.LeftControl) || keyboard.IsKeyDown(Keys.RightControl);
+        if (!controlHeld)
+        {
+            return false;
+        }
+
+        if (IsKeyPressed(keyboard, Keys.Z))
+        {
+            return TryUndoGarrisonBuilder();
+        }
+
+        if (IsKeyPressed(keyboard, Keys.Y))
+        {
+            return TryRedoGarrisonBuilder();
+        }
+
+        if (IsKeyPressed(keyboard, Keys.C)
+            && _builderSelectedEntityIndex >= 0
+            && _builderSelectedEntityIndex < _builderEntities.Count)
+        {
+            CloneGarrisonBuilderSelectedEntity();
+            return true;
+        }
+
+        return false;
     }
 
     private readonly record struct LegacyBuilderActionDefinition(string Label, bool Toggle);

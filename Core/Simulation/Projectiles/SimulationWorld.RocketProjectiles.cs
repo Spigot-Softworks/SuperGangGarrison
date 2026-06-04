@@ -446,9 +446,41 @@ public sealed partial class SimulationWorld
                 }
             }
 
-            foreach (var roomObject in world.Level.RoomObjects)
+            for (var roomObjectIndex = 0; roomObjectIndex < world.Level.RoomObjects.Count; roomObjectIndex += 1)
             {
-                if (!IsRocketBlockingRoomObject(world, roomObject)
+                if (!world.Level.IsRoomObjectActive(roomObjectIndex))
+                {
+                    continue;
+                }
+
+                var roomObject = world.Level.RoomObjects[roomObjectIndex];
+                if (roomObject.Type == RoomObjectType.Barrier)
+                {
+                    if (BarrierCollision.BlocksProjectile(roomObject.Barrier, rocket.Team)
+                        && BarrierProjectileRaycast.TryRaycastMarker(
+                            roomObject.Barrier,
+                            rocket.Team,
+                            roomObject,
+                            rocket.PreviousX,
+                            rocket.PreviousY,
+                            directionX,
+                            directionY,
+                            movementDistance,
+                            out var barrierDistance))
+                    {
+                        return new RocketHitResult(
+                            barrierDistance,
+                            rocket.PreviousX + (directionX * barrierDistance),
+                            rocket.PreviousY + (directionY * barrierDistance),
+                            null,
+                            null,
+                            null);
+                    }
+
+                    continue;
+                }
+
+                if (!IsRocketBlockingRoomObject(world, rocket, roomObject)
                     || !RectanglesOverlap(rocketBounds.Left, rocketBounds.Top, rocketBounds.Right, rocketBounds.Bottom, roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom))
                 {
                     continue;
@@ -678,7 +710,12 @@ public sealed partial class SimulationWorld
                 }
             }
 
-            return false;
+            if (SimpleLevelBarrierCollision.BlocksPointForPlayer(world.Level, player.Team, player.IsCarryingIntel, x, y))
+            {
+                return true;
+            }
+
+            return SimpleLevelBarrierCollision.BlocksPointForProjectile(world.Level, player.Team, x, y);
         }
 
         private static string? GetPlayerSpriteName(PlayerClass classId, PlayerTeam team)
@@ -785,13 +822,15 @@ public sealed partial class SimulationWorld
             return clearDistance;
         }
 
-        private static bool IsRocketBlockingRoomObject(SimulationWorld world, RoomObjectMarker roomObject)
+        private static bool IsRocketBlockingRoomObject(SimulationWorld world, RocketProjectileEntity rocket, RoomObjectMarker roomObject)
         {
             return roomObject.Type switch
             {
                 RoomObjectType.TeamGate => true,
                 RoomObjectType.ControlPointSetupGate => world.Level.ControlPointSetupGatesActive,
                 RoomObjectType.BulletWall => true,
+                RoomObjectType.Barrier => BarrierCollision.BlocksProjectile(roomObject.Barrier, rocket.Team),
+                RoomObjectType.DirectionalWall => roomObject.DirectionalWall.AffectsProjectiles,
                 _ => false,
             };
         }

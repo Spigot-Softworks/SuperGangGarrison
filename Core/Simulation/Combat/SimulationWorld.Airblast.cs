@@ -98,7 +98,7 @@ public sealed partial class SimulationWorld
 
         var spawnX = sourceX + MathF.Cos(aimRadians) * 25f;
         var spawnY = sourceY + MathF.Sin(aimRadians) * 25f;
-        if (IsProjectileSpawnBlocked(sourceX, sourceY, spawnX, spawnY) || !player.TryFirePyroFlare())
+        if (IsProjectileSpawnBlocked(sourceX, sourceY, spawnX, spawnY, player.Team) || !player.TryFirePyroFlare())
         {
             return;
         }

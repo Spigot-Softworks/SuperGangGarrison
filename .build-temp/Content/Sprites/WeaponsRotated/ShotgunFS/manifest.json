@@ -1,0 +1,2433 @@
+{
+  "spriteName": "ShotgunFS",
+  "frameCount": 24,
+  "angleCount": 24,
+  "angleStartDegrees": -90,
+  "angleStepDegrees": 7.5,
+  "frames": [
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    },
+    {
+      "canvasSize": 40,
+      "angles": [
+        {
+          "originX": 18.5,
+          "originY": 25
+        },
+        {
+          "originX": 17.860203,
+          "originY": 24.761435
+        },
+        {
+          "originX": 17.257017,
+          "originY": 24.441402
+        },
+        {
+          "originX": 16.700764,
+          "originY": 24.045372
+        },
+        {
+          "originX": 16.200962,
+          "originY": 23.580128
+        },
+        {
+          "originX": 15.766164,
+          "originY": 23.053625
+        },
+        {
+          "originX": 15.403806,
+          "originY": 22.474874
+        },
+        {
+          "originX": 15.120091,
+          "originY": 21.853779
+        },
+        {
+          "originX": 14.919873,
+          "originY": 21.200962
+        },
+        {
+          "originX": 14.806577,
+          "originY": 20.5276
+        },
+        {
+          "originX": 14.782143,
+          "originY": 19.845207
+        },
+        {
+          "originX": 14.846987,
+          "originY": 19.165464
+        },
+        {
+          "originX": 15,
+          "originY": 18.5
+        },
+        {
+          "originX": 15.238565,
+          "originY": 17.8602
+        },
+        {
+          "originX": 15.558599,
+          "originY": 17.257015
+        },
+        {
+          "originX": 15.954627,
+          "originY": 16.700764
+        },
+        {
+          "originX": 16.419872,
+          "originY": 16.200962
+        },
+        {
+          "originX": 16.946377,
+          "originY": 15.766162
+        },
+        {
+          "originX": 17.525126,
+          "originY": 15.403806
+        },
+        {
+          "originX": 18.146225,
+          "originY": 15.120091
+        },
+        {
+          "originX": 18.799038,
+          "originY": 14.919872
+        },
+        {
+          "originX": 19.4724,
+          "originY": 14.806577
+        },
+        {
+          "originX": 20.154795,
+          "originY": 14.782142
+        },
+        {
+          "originX": 20.834538,
+          "originY": 14.846987
+        }
+      ]
+    }
+  ]
+}
