@@ -70,6 +70,37 @@ public partial class Game1
         return MeasureSpriteFontHeight(BitmapFontDefinition, scale);
     }
 
+    private float? _bitmapFontMaxInkHeight;
+
+    private float GetBitmapFontMaxInkHeight()
+    {
+        if (_bitmapFontMaxInkHeight is float cached)
+        {
+            return cached;
+        }
+
+        var maxInkHeight = 1f;
+        if (TryGetSpriteFont(BitmapFontDefinition, out var fontSprite))
+        {
+            for (var index = 0; index < fontSprite.Frames.Count; index += 1)
+            {
+                var opaque = GetSpriteFontOpaqueBounds(fontSprite.Frames[index]);
+                maxInkHeight = MathF.Max(maxInkHeight, opaque.Height);
+            }
+        }
+
+        _bitmapFontMaxInkHeight = maxInkHeight;
+        return maxInkHeight;
+    }
+
+    private const float BuilderUiBitmapFontInkHeightPx = 8f;
+
+    private float GetUniformBitmapFontScale()
+    {
+        var inkHeight = GetBitmapFontMaxInkHeight();
+        return inkHeight > 0f ? BuilderUiBitmapFontInkHeightPx / inkHeight : 1f;
+    }
+
     private void DrawSpriteFontText(
         SpriteFontDefinition definition,
         string text,

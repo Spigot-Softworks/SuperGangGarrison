@@ -28,6 +28,6 @@ public partial class Game1
     private void BeginControlsRebind(ControlsMenuBinding binding)
     {
         _pendingControlsBinding = binding;
-        _menuStatusMessage = $"Press a key to bind {GetControlsBindingLabel(binding)}.";
+        SetPersistedMenuStatusMessage($"Press a key to bind {GetControlsBindingLabel(binding)}.");
     }
 }

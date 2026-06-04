@@ -148,16 +148,20 @@ public sealed partial class SimulationWorld
             return Level.LocalSpawn;
         }
 
+        var spawnPool = BuildTeamSpawnSelectionPool(spawns, team);
         var spawnRooms = Level.GetRoomObjects(RoomObjectType.SpawnRoom);
         var requireSpawnRoom = spawnRooms.Count > 0;
-        var startIndex = team == PlayerTeam.Blue ? _nextBlueSpawnIndex : _nextRedSpawnIndex;
-        var selectedIndex = -1;
+        var useForwardObjectivePriority = IsForwardSpawnSelectionPool(spawnPool);
+        var startIndex = useForwardObjectivePriority
+            ? 0
+            : team == PlayerTeam.Blue ? _nextBlueSpawnIndex : _nextRedSpawnIndex;
+        var selectedPoolIndex = -1;
         SpawnPoint selectedSpawn = default;
 
-        for (var offset = 0; offset < spawns.Count; offset += 1)
+        for (var offset = 0; offset < spawnPool.Count; offset += 1)
         {
-            var index = (startIndex + offset) % spawns.Count;
-            var spawn = spawns[index];
+            var poolIndex = (startIndex + offset) % spawnPool.Count;
+            var spawn = spawnPool[poolIndex];
             if (requireSpawnRoom && !IsSpawnPointInsideSpawnRoom(spawn, spawnRooms))
             {
                 continue;
@@ -168,27 +172,118 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            selectedIndex = index;
+            selectedPoolIndex = poolIndex;
             selectedSpawn = spawn;
             break;
         }
 
-        if (selectedIndex < 0)
+        if (selectedPoolIndex < 0)
         {
-            selectedIndex = startIndex % spawns.Count;
-            selectedSpawn = spawns[selectedIndex];
+            selectedPoolIndex = startIndex % spawnPool.Count;
+            selectedSpawn = spawnPool[selectedPoolIndex];
         }
 
-        if (team == PlayerTeam.Blue)
+        if (!useForwardObjectivePriority)
         {
-            _nextBlueSpawnIndex = selectedIndex + 1;
-        }
-        else
-        {
-            _nextRedSpawnIndex = selectedIndex + 1;
+            if (team == PlayerTeam.Blue)
+            {
+                _nextBlueSpawnIndex = selectedPoolIndex + 1;
+            }
+            else
+            {
+                _nextRedSpawnIndex = selectedPoolIndex + 1;
+            }
         }
 
         return selectedSpawn;
+    }
+
+    private IReadOnlyList<SpawnPoint> BuildTeamSpawnSelectionPool(IReadOnlyList<SpawnPoint> spawns, PlayerTeam team)
+    {
+        var standardSpawns = new List<SpawnPoint>();
+        var activeForwardSpawns = new List<SpawnPoint>();
+        for (var index = 0; index < spawns.Count; index += 1)
+        {
+            var spawn = spawns[index];
+            if (spawn.IsStandardSpawn)
+            {
+                standardSpawns.Add(spawn);
+                continue;
+            }
+
+            if (IsForwardSpawnActive(spawn, team))
+            {
+                activeForwardSpawns.Add(spawn);
+            }
+        }
+
+        if (activeForwardSpawns.Count > 0)
+        {
+            activeForwardSpawns.Sort(static (left, right) =>
+                right.Priority.CompareTo(left.Priority));
+            return activeForwardSpawns;
+        }
+
+        if (standardSpawns.Count > 0)
+        {
+            return standardSpawns;
+        }
+
+        return spawns;
+    }
+
+    private bool IsForwardSpawnActive(SpawnPoint spawn, PlayerTeam team)
+    {
+        if (!spawn.IsForwardSpawn)
+        {
+            return false;
+        }
+
+        if (spawn.UsesLogicSignal)
+        {
+            var graph = Level.LogicGraph;
+            return graph.HasNodes && graph.GetOutput(spawn.LogicSignalNodeIndex);
+        }
+
+        var controlPoint = TryGetLinkedControlPointState(spawn.LinkedControlPointIndex);
+        if (controlPoint is null)
+        {
+            return false;
+        }
+
+        return ForwardSpawnMetadata.EvaluateUseCondition(spawn.UseCondition, team, controlPoint.Team);
+    }
+
+    private ControlPointState? TryGetLinkedControlPointState(int linkedControlPointIndex)
+    {
+        if (_controlPoints.Count == 0)
+        {
+            return null;
+        }
+
+        if (linkedControlPointIndex > 0)
+        {
+            for (var index = 0; index < _controlPoints.Count; index += 1)
+            {
+                var point = _controlPoints[index];
+                if (point.Index == linkedControlPointIndex)
+                {
+                    return point;
+                }
+            }
+
+            for (var index = 0; index < _controlPoints.Count; index += 1)
+            {
+                var point = _controlPoints[index];
+                if (ControlPointMarkerIndex.TryGetIndex(point.Marker, out var markerIndex)
+                    && markerIndex == linkedControlPointIndex)
+                {
+                    return point;
+                }
+            }
+        }
+
+        return _controlPoints.Count == 1 ? _controlPoints[0] : null;
     }
 
     private SpawnPoint ReserveSpawn(PlayerEntity player, PlayerTeam team, byte slot)
@@ -291,5 +386,46 @@ public sealed partial class SimulationWorld
         spawnX = 0f;
         spawnY = 0f;
         return false;
+    }
+
+    internal IReadOnlyList<SpawnPoint> CombatTestGetTeamSpawnSelectionPool(PlayerTeam team)
+    {
+        var spawns = team == PlayerTeam.Blue ? Level.BlueSpawns : Level.RedSpawns;
+        return BuildTeamSpawnSelectionPool(spawns, team);
+    }
+
+    internal SpawnPoint CombatTestReserveTeamSpawn(PlayerEntity player, PlayerTeam team)
+    {
+        return ReserveSpawn(player, team);
+    }
+
+    private static bool IsForwardSpawnSelectionPool(IReadOnlyList<SpawnPoint> spawnPool)
+    {
+        if (spawnPool.Count == 0)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < spawnPool.Count; index += 1)
+        {
+            if (!spawnPool[index].IsForwardSpawn)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    internal void CombatTestSetControlPointOwner(int controlPointIndex, PlayerTeam? team)
+    {
+        for (var index = 0; index < _controlPoints.Count; index += 1)
+        {
+            if (_controlPoints[index].Index == controlPointIndex)
+            {
+                _controlPoints[index].Team = team;
+                return;
+            }
+        }
     }
 }

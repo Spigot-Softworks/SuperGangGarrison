@@ -231,8 +231,8 @@ public sealed partial class SimulationWorld
     internal bool CombatTestIsFlameSpawnBlocked(float originX, float originY, float spawnX, float spawnY, PlayerTeam team)
         => Combat.IsFlameSpawnBlocked(originX, originY, spawnX, spawnY, team);
 
-    internal bool CombatTestIsProjectileSpawnBlocked(float originX, float originY, float targetX, float targetY)
-        => Combat.IsProjectileSpawnBlocked(originX, originY, targetX, targetY);
+    internal bool CombatTestIsProjectileSpawnBlocked(float originX, float originY, float targetX, float targetY, PlayerTeam shotTeam)
+        => Combat.IsProjectileSpawnBlocked(originX, originY, targetX, targetY, shotTeam);
 
     internal float? CombatTestGetLineIntersectionDistanceToPlayer(
         float originX,
@@ -369,8 +369,8 @@ public sealed partial class SimulationWorld
     private bool IsFlameSpawnBlocked(float originX, float originY, float spawnX, float spawnY, PlayerTeam team)
         => Combat.IsFlameSpawnBlocked(originX, originY, spawnX, spawnY, team);
 
-    private bool IsProjectileSpawnBlocked(float originX, float originY, float targetX, float targetY)
-        => Combat.IsProjectileSpawnBlocked(originX, originY, targetX, targetY);
+    private bool IsProjectileSpawnBlocked(float originX, float originY, float targetX, float targetY, PlayerTeam shotTeam)
+        => Combat.IsProjectileSpawnBlocked(originX, originY, targetX, targetY, shotTeam);
 
     private float? GetLineIntersectionDistanceToPlayer(
         float originX,

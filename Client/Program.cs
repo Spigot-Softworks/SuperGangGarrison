@@ -28,7 +28,7 @@ try
 catch (Exception ex)
 {
     WriteCrashLog("fatal-client-crash", ex);
-    throw;
+    
 }
 
 static void WriteCrashLog(string kind, Exception exception)
