@@ -92,7 +92,7 @@ public partial class Game1
 
     private readonly Dictionary<GarrisonBuilderEntityPaletteCategory, bool> _builderEntityPaletteCategoryExpanded = new()
     {
-        [GarrisonBuilderEntityPaletteCategory.Gameplay] = true,
+        [GarrisonBuilderEntityPaletteCategory.Gameplay] = false,
         [GarrisonBuilderEntityPaletteCategory.Logic] = false,
     };
 

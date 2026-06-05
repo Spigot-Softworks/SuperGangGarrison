@@ -37,6 +37,7 @@ public sealed partial class SimulationWorld
 
         RefreshMapLogicRuntimeIfControlPointInputsChanged();
         EvaluateMapLogicPlayerTriggersIfNeeded();
+        EvaluateMapLogicIntelTriggersIfNeeded();
         EvaluateMapLogicDamageTriggersIfNeeded();
         TickMapLogicTimers();
     }
@@ -55,6 +56,7 @@ public sealed partial class SimulationWorld
     public void TickMapLogicTimers()
     {
         EvaluateMapLogicPlayerTriggersIfNeeded();
+        EvaluateMapLogicIntelTriggersIfNeeded();
         ApplyDamageableZoneHealWhenSignals();
         EvaluateMapLogicDamageTriggersIfNeeded();
 
@@ -100,12 +102,28 @@ public sealed partial class SimulationWorld
         ApplyMapLogicActivators();
     }
 
+    private void EvaluateMapLogicIntelTriggersIfNeeded()
+    {
+        if (!Level.LogicGraph.HasIntelTriggers)
+        {
+            return;
+        }
+
+        Level.LogicGraph.EvaluateIntelTriggers(CreateIntelTriggerEvaluationContext());
+        ApplyMapLogicActivators();
+    }
+
     private PlayerTriggerEvaluationContext CreatePlayerTriggerEvaluationContext()
     {
         return new PlayerTriggerEvaluationContext(
             EnumerateSimulatedPlayers(),
             Level.RoomObjects,
             Level.IsRoomObjectActive);
+    }
+
+    private IntelTriggerEvaluationContext CreateIntelTriggerEvaluationContext()
+    {
+        return new IntelTriggerEvaluationContext(RedIntel, BlueIntel);
     }
 
 
@@ -129,6 +147,7 @@ public sealed partial class SimulationWorld
 
         if (!force
             && !graph.HasPlayerTriggers
+            && !graph.HasIntelTriggers
             && !graph.HasDamageTriggers
             && signature == _mapLogicControlPointInputSignature)
         {
@@ -150,6 +169,7 @@ public sealed partial class SimulationWorld
             {
                 graph.ResetCpTriggerStates(_controlPoints);
                 graph.ResetPlayerTriggerStates(CreatePlayerTriggerEvaluationContext());
+                graph.ResetIntelTriggerStates(CreateIntelTriggerEvaluationContext());
                 graph.ResetTimerStates();
                 graph.ResetOscillatorStates();
                 graph.ResetDamageTriggerStates(CreateDamageTriggerEvaluationContext());
@@ -158,6 +178,7 @@ public sealed partial class SimulationWorld
             }
 
             graph.EvaluateCombinatorial(_controlPoints, CreatePlayerTriggerEvaluationContext());
+            graph.EvaluateIntelTriggers(CreateIntelTriggerEvaluationContext());
             ApplyDamageableZoneHealWhenSignals();
             graph.EvaluateDamageTriggers(CreateDamageTriggerEvaluationContext());
             ApplyControlPointLogicLockTriggers();

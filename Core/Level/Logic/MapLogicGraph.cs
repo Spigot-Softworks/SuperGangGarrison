@@ -12,6 +12,7 @@ public enum MapLogicNodeKind
     Timer,
     Oscillator,
     PlayerTrigger,
+    IntelTrigger,
     DamageTrigger,
     RisingEdge,
     Latch,
@@ -35,6 +36,15 @@ public readonly struct PlayerTriggerEvaluationContext(
     public IReadOnlyList<RoomObjectMarker> RoomObjects { get; } = roomObjects;
 
     public Func<int, bool> IsRoomObjectActive { get; } = isRoomObjectActive;
+}
+
+public readonly struct IntelTriggerEvaluationContext(
+    TeamIntelligenceState redIntel,
+    TeamIntelligenceState blueIntel)
+{
+    public TeamIntelligenceState RedIntel { get; } = redIntel;
+
+    public TeamIntelligenceState BlueIntel { get; } = blueIntel;
 }
 
 public sealed class MapLogicNode
@@ -64,6 +74,7 @@ public sealed class MapLogicNode
         int playerTriggerRoomObjectIndex = -1,
         int[]? playerTriggerZoneRoomObjectIndices = null,
         PlayerTriggerTeamFilter playerTriggerTeamFilter = PlayerTriggerTeamFilter.Any,
+        bool playerTriggerIntelCarriersOnly = false,
         int damageableRoomObjectIndex = -1,
         int triggerBelowPercent = DamageTriggerMetadata.DefaultTriggerBelowPercent,
         bool triggerBelowThreshold = false,
@@ -73,7 +84,13 @@ public sealed class MapLogicNode
         MapLogicSignalMode signalMode = MapLogicSignalMode.Latch,
         MapLogicCpCaptureDetectMode cpCaptureDetectMode = MapLogicCpCaptureDetectMode.AnyCapture,
         MapLogicPlayerDetectMode playerDetectMode = MapLogicPlayerDetectMode.PlayerEnter,
-        float signalPeriodSeconds = MapLogicSignalMetadata.DefaultPeriodSeconds)
+        float signalPeriodSeconds = MapLogicSignalMetadata.DefaultPeriodSeconds,
+        IntelTriggerIntelFilter intelTriggerIntelFilter = IntelTriggerIntelFilter.Any,
+        IntelTriggerLatchState intelTriggerLatchState = IntelTriggerLatchState.AtBase,
+        bool intelTriggerOnPickup = false,
+        bool intelTriggerOnDrop = false,
+        bool intelTriggerOnCapture = false,
+        bool intelTriggerOnReset = false)
     {
         NodeIndex = nodeIndex;
         LogicKey = logicKey;
@@ -99,6 +116,7 @@ public sealed class MapLogicNode
         PlayerTriggerRoomObjectIndex = playerTriggerRoomObjectIndex;
         PlayerTriggerZoneRoomObjectIndices = playerTriggerZoneRoomObjectIndices ?? [];
         PlayerTriggerTeamFilter = playerTriggerTeamFilter;
+        PlayerTriggerIntelCarriersOnly = playerTriggerIntelCarriersOnly;
         DamageableRoomObjectIndex = damageableRoomObjectIndex;
         TriggerBelowPercent = triggerBelowPercent;
         TriggerBelowThreshold = triggerBelowThreshold;
@@ -109,6 +127,12 @@ public sealed class MapLogicNode
         CpCaptureDetectMode = cpCaptureDetectMode;
         PlayerDetectMode = playerDetectMode;
         SignalPeriodSeconds = signalPeriodSeconds;
+        IntelTriggerIntelFilter = intelTriggerIntelFilter;
+        IntelTriggerLatchState = intelTriggerLatchState;
+        IntelTriggerOnPickup = intelTriggerOnPickup;
+        IntelTriggerOnDrop = intelTriggerOnDrop;
+        IntelTriggerOnCapture = intelTriggerOnCapture;
+        IntelTriggerOnReset = intelTriggerOnReset;
     }
 
     public int NodeIndex { get; }
@@ -159,6 +183,8 @@ public sealed class MapLogicNode
 
     public PlayerTriggerTeamFilter PlayerTriggerTeamFilter { get; }
 
+    public bool PlayerTriggerIntelCarriersOnly { get; }
+
     public int DamageableRoomObjectIndex { get; }
 
     public int TriggerBelowPercent { get; }
@@ -178,6 +204,25 @@ public sealed class MapLogicNode
     public MapLogicPlayerDetectMode PlayerDetectMode { get; }
 
     public float SignalPeriodSeconds { get; }
+
+    public IntelTriggerIntelFilter IntelTriggerIntelFilter { get; }
+
+    public IntelTriggerLatchState IntelTriggerLatchState { get; }
+
+    public bool IntelTriggerOnPickup { get; }
+
+    public bool IntelTriggerOnDrop { get; }
+
+    public bool IntelTriggerOnCapture { get; }
+
+    public bool IntelTriggerOnReset { get; }
+}
+
+internal sealed class MapLogicIntelTriggerNodeState
+{
+    public IntelTriggerPhase PreviousRedPhase;
+
+    public IntelTriggerPhase PreviousBluePhase;
 }
 
 internal sealed class MapLogicCpTriggerNodeState
@@ -253,6 +298,7 @@ public sealed class MapLogicGraph
     private readonly MapLogicLatchNodeState[]? _latchStates;
     private readonly MapLogicCpTriggerNodeState[]? _cpTriggerStates;
     private readonly MapLogicPlayerTriggerNodeState[]? _playerTriggerStates;
+    private readonly MapLogicIntelTriggerNodeState[]? _intelTriggerStates;
 
     public MapLogicGraph(IReadOnlyList<MapLogicNode> nodes, int[] evaluationOrder)
     {
@@ -267,6 +313,7 @@ public sealed class MapLogicGraph
         HasRisingEdges = _nodes.Any(node => node.Kind == MapLogicNodeKind.RisingEdge);
         HasLatches = _nodes.Any(node => node.Kind == MapLogicNodeKind.Latch);
         HasCpTriggers = _nodes.Any(node => node.Kind == MapLogicNodeKind.CpTrigger);
+        HasIntelTriggers = _nodes.Any(node => node.Kind == MapLogicNodeKind.IntelTrigger);
         _timerStates = HasTimers ? new MapLogicTimerNodeState[_nodes.Length] : null;
         if (_timerStates is not null)
         {
@@ -329,6 +376,15 @@ public sealed class MapLogicGraph
                 _playerTriggerStates[index] = new MapLogicPlayerTriggerNodeState();
             }
         }
+
+        _intelTriggerStates = HasIntelTriggers ? new MapLogicIntelTriggerNodeState[_nodes.Length] : null;
+        if (_intelTriggerStates is not null)
+        {
+            for (var index = 0; index < _intelTriggerStates.Length; index += 1)
+            {
+                _intelTriggerStates[index] = new MapLogicIntelTriggerNodeState();
+            }
+        }
     }
 
     public IReadOnlyList<MapLogicNode> Nodes => _nodes;
@@ -352,6 +408,8 @@ public sealed class MapLogicGraph
     public bool HasLatches { get; }
 
     public bool HasCpTriggers { get; }
+
+    public bool HasIntelTriggers { get; }
 
     public bool TryGetNodeIndex(string logicKey, out int nodeIndex)
     {
@@ -399,7 +457,7 @@ public sealed class MapLogicGraph
         {
             var nodeIndex = _evaluationOrder[orderIndex];
             var node = _nodes[nodeIndex];
-            if (node.Kind is MapLogicNodeKind.Timer or MapLogicNodeKind.Oscillator or MapLogicNodeKind.DamageTrigger)
+            if (node.Kind is MapLogicNodeKind.Timer or MapLogicNodeKind.Oscillator or MapLogicNodeKind.DamageTrigger or MapLogicNodeKind.IntelTrigger)
             {
                 continue;
             }
@@ -607,7 +665,8 @@ public sealed class MapLogicGraph
             if (PlayerTriggerMetadata.AnyMatchingPlayerInside(
                     marker,
                     node.PlayerTriggerTeamFilter,
-                    activeContext.Players))
+                    activeContext.Players,
+                    node.PlayerTriggerIntelCarriersOnly))
             {
                 return true;
             }
@@ -658,6 +717,108 @@ public sealed class MapLogicGraph
 
             _playerTriggerStates[index].WasOccupied = IsPlayerTriggerOccupied(node, context);
         }
+    }
+
+    public void ResetIntelTriggerStates(IntelTriggerEvaluationContext context)
+    {
+        if (_intelTriggerStates is null)
+        {
+            return;
+        }
+
+        for (var index = 0; index < _nodes.Length; index += 1)
+        {
+            var node = _nodes[index];
+            if (node.Kind != MapLogicNodeKind.IntelTrigger)
+            {
+                continue;
+            }
+
+            var state = _intelTriggerStates[index];
+            state.PreviousRedPhase = IntelTriggerMetadata.GetPhase(context.RedIntel);
+            state.PreviousBluePhase = IntelTriggerMetadata.GetPhase(context.BlueIntel);
+        }
+    }
+
+    public void EvaluateIntelTriggers(IntelTriggerEvaluationContext context)
+    {
+        if (_intelTriggerStates is null)
+        {
+            return;
+        }
+
+        for (var orderIndex = 0; orderIndex < _evaluationOrder.Length; orderIndex += 1)
+        {
+            var nodeIndex = _evaluationOrder[orderIndex];
+            var node = _nodes[nodeIndex];
+            if (node.Kind != MapLogicNodeKind.IntelTrigger)
+            {
+                continue;
+            }
+
+            _outputs[nodeIndex] = node.SignalMode == MapLogicSignalMode.Latch
+                ? EvaluateIntelLatch(node, context)
+                : EvaluateIntelImpulse(nodeIndex, node, context);
+        }
+
+        EvaluateCombinatorialPropagators();
+    }
+
+    private static bool EvaluateIntelLatch(MapLogicNode node, IntelTriggerEvaluationContext context)
+    {
+        bool Matches(TeamIntelligenceState intel)
+        {
+            return IntelTriggerMetadata.MatchesLatchState(intel, node.IntelTriggerLatchState);
+        }
+
+        return node.IntelTriggerIntelFilter switch
+        {
+            IntelTriggerIntelFilter.Red => Matches(context.RedIntel),
+            IntelTriggerIntelFilter.Blue => Matches(context.BlueIntel),
+            _ => Matches(context.RedIntel) || Matches(context.BlueIntel),
+        };
+    }
+
+    private bool EvaluateIntelImpulse(int nodeIndex, MapLogicNode node, IntelTriggerEvaluationContext context)
+    {
+        var state = _intelTriggerStates![nodeIndex];
+        var impulse = false;
+
+        if (node.IntelTriggerIntelFilter is IntelTriggerIntelFilter.Any or IntelTriggerIntelFilter.Red)
+        {
+            var current = IntelTriggerMetadata.GetPhase(context.RedIntel);
+            if (IntelTriggerMetadata.DetectImpulseEdge(
+                    state.PreviousRedPhase,
+                    current,
+                    node.IntelTriggerOnPickup,
+                    node.IntelTriggerOnDrop,
+                    node.IntelTriggerOnCapture,
+                    node.IntelTriggerOnReset))
+            {
+                impulse = true;
+            }
+
+            state.PreviousRedPhase = current;
+        }
+
+        if (node.IntelTriggerIntelFilter is IntelTriggerIntelFilter.Any or IntelTriggerIntelFilter.Blue)
+        {
+            var current = IntelTriggerMetadata.GetPhase(context.BlueIntel);
+            if (IntelTriggerMetadata.DetectImpulseEdge(
+                    state.PreviousBluePhase,
+                    current,
+                    node.IntelTriggerOnPickup,
+                    node.IntelTriggerOnDrop,
+                    node.IntelTriggerOnCapture,
+                    node.IntelTriggerOnReset))
+            {
+                impulse = true;
+            }
+
+            state.PreviousBluePhase = current;
+        }
+
+        return impulse;
     }
 
     public void ResetDamageTriggerStates(DamageTriggerEvaluationContext? context = null)
@@ -1194,6 +1355,7 @@ public static class MapLogicGraphBuilder
                 definition.PlayerTriggerRoomObjectIndex,
                 definition.PlayerTriggerZoneRoomObjectIndices,
                 definition.PlayerTriggerTeamFilter,
+                definition.PlayerTriggerIntelCarriersOnly,
                 definition.DamageableRoomObjectIndex,
                 definition.TriggerBelowPercent,
                 definition.TriggerBelowThreshold,
@@ -1203,7 +1365,13 @@ public static class MapLogicGraphBuilder
                 definition.SignalMode,
                 definition.CpCaptureDetectMode,
                 definition.PlayerDetectMode,
-                definition.SignalPeriodSeconds));
+                definition.SignalPeriodSeconds,
+                definition.IntelTriggerIntelFilter,
+                definition.IntelTriggerLatchState,
+                definition.IntelTriggerOnPickup,
+                definition.IntelTriggerOnDrop,
+                definition.IntelTriggerOnCapture,
+                definition.IntelTriggerOnReset));
         }
 
         var resolvedNodes = new MapLogicNode[nodes.Count];
@@ -1236,6 +1404,7 @@ public static class MapLogicGraphBuilder
                 baseNode.PlayerTriggerRoomObjectIndex,
                 baseNode.PlayerTriggerZoneRoomObjectIndices,
                 baseNode.PlayerTriggerTeamFilter,
+                baseNode.PlayerTriggerIntelCarriersOnly,
                 baseNode.DamageableRoomObjectIndex,
                 baseNode.TriggerBelowPercent,
                 baseNode.TriggerBelowThreshold,
@@ -1245,7 +1414,13 @@ public static class MapLogicGraphBuilder
                 baseNode.SignalMode,
                 baseNode.CpCaptureDetectMode,
                 baseNode.PlayerDetectMode,
-                baseNode.SignalPeriodSeconds);
+                baseNode.SignalPeriodSeconds,
+                baseNode.IntelTriggerIntelFilter,
+                baseNode.IntelTriggerLatchState,
+                baseNode.IntelTriggerOnPickup,
+                baseNode.IntelTriggerOnDrop,
+                baseNode.IntelTriggerOnCapture,
+                baseNode.IntelTriggerOnReset);
         }
 
         var evaluationOrder = BuildEvaluationOrder(resolvedNodes);
@@ -1380,6 +1555,8 @@ public sealed class MapLogicNodeDefinition
 
     public PlayerTriggerTeamFilter PlayerTriggerTeamFilter { get; init; } = PlayerTriggerTeamFilter.Any;
 
+    public bool PlayerTriggerIntelCarriersOnly { get; init; }
+
     public int DamageableRoomObjectIndex { get; init; } = -1;
 
     public int TriggerBelowPercent { get; init; } = DamageTriggerMetadata.DefaultTriggerBelowPercent;
@@ -1399,4 +1576,16 @@ public sealed class MapLogicNodeDefinition
     public MapLogicPlayerDetectMode PlayerDetectMode { get; init; } = MapLogicPlayerDetectMode.PlayerEnter;
 
     public float SignalPeriodSeconds { get; init; } = MapLogicSignalMetadata.DefaultPeriodSeconds;
+
+    public IntelTriggerIntelFilter IntelTriggerIntelFilter { get; init; } = IntelTriggerIntelFilter.Any;
+
+    public IntelTriggerLatchState IntelTriggerLatchState { get; init; } = IntelTriggerLatchState.AtBase;
+
+    public bool IntelTriggerOnPickup { get; init; }
+
+    public bool IntelTriggerOnDrop { get; init; }
+
+    public bool IntelTriggerOnCapture { get; init; }
+
+    public bool IntelTriggerOnReset { get; init; }
 }

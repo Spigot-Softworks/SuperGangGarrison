@@ -10,12 +10,15 @@ public enum PlayerTriggerTeamFilter
     Blue,
 }
 
-public readonly record struct PlayerTriggerZoneConfiguration(PlayerTriggerTeamFilter TeamFilter);
+public readonly record struct PlayerTriggerZoneConfiguration(
+    PlayerTriggerTeamFilter TeamFilter,
+    bool IntelCarriersOnly = false);
 
 public static class PlayerTriggerMetadata
 {
     public const string PlayerTriggerEntityType = "logicPlayerTrigger";
     public const string TeamPropertyKey = "team";
+    public const string IntelCarriersOnlyPropertyKey = "intelCarriersOnly";
     public const string TeamAnyPropertyValue = "any";
     public const float DefaultZoneWidth = 42f;
     public const float DefaultZoneHeight = 42f;
@@ -103,13 +106,18 @@ public static class PlayerTriggerMetadata
             ? filter
             : PlayerTriggerTeamFilter.Any;
 
-        return new PlayerTriggerZoneConfiguration(team);
+        var intelCarriersOnly = properties is not null
+            && properties.TryGetValue(IntelCarriersOnlyPropertyKey, out var intelCarriersOnlyValue)
+            && DamageTriggerMetadata.ParseBoolProperty(intelCarriersOnlyValue);
+
+        return new PlayerTriggerZoneConfiguration(team, intelCarriersOnly);
     }
 
     public static bool AnyMatchingPlayerInside(
         in RoomObjectMarker zone,
         PlayerTriggerTeamFilter filter,
-        IEnumerable<PlayerEntity> players)
+        IEnumerable<PlayerEntity> players,
+        bool intelCarriersOnly = false)
     {
         foreach (var player in players)
         {
@@ -119,6 +127,11 @@ public static class PlayerTriggerMetadata
             }
 
             if (!AllowsTeam(filter, player.Team))
+            {
+                continue;
+            }
+
+            if (intelCarriersOnly && !player.IsCarryingIntel)
             {
                 continue;
             }

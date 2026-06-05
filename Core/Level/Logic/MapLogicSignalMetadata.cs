@@ -48,7 +48,8 @@ public static class MapLogicSignalMetadata
                 || entityType.Equals(MapLogicMetadata.PlayerTriggerEntityType, StringComparison.OrdinalIgnoreCase)
                 || entityType.Equals(MapLogicMetadata.TimerEntityType, StringComparison.OrdinalIgnoreCase)
                 || entityType.Equals(MapLogicMetadata.OscillatorEntityType, StringComparison.OrdinalIgnoreCase)
-                || DamageTriggerMetadata.IsDamageTriggerEntityType(entityType));
+                || DamageTriggerMetadata.IsDamageTriggerEntityType(entityType)
+                || IntelTriggerMetadata.IsIntelTriggerEntityType(entityType));
     }
 
     public static MapLogicSignalMode ParseSignalMode(IReadOnlyDictionary<string, string>? properties)
@@ -246,7 +247,17 @@ public static class MapLogicSignalMetadata
                     DamageTriggerMetadata.TriggerBelowThresholdPropertyKey);
             }
 
+            if (IntelTriggerMetadata.IsIntelTriggerEntityType(entityType))
+            {
+                IntelTriggerMetadata.ApplyImpulseDefaults(properties);
+            }
+
             return;
+        }
+
+        if (IntelTriggerMetadata.IsIntelTriggerEntityType(entityType))
+        {
+            IntelTriggerMetadata.ApplyLatchDefaults(properties);
         }
 
         if (DamageTriggerMetadata.IsDamageTriggerEntityType(entityType)
