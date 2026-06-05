@@ -1,0 +1,18 @@
+{
+    "id":  "BladeFS",
+    "framePaths":  [
+                       "Content/Sprites/Weapons/Firing/BladeFS.images/image 0.png",
+                       "Content/Sprites/Weapons/Firing/BladeFS.images/image 1.png"
+                   ],
+    "originX":  5,
+    "originY":  5,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

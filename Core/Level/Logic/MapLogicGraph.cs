@@ -10,7 +10,19 @@ public enum MapLogicNodeKind
     Gate,
     Not,
     Timer,
+    Oscillator,
     PlayerTrigger,
+    DamageTrigger,
+    RisingEdge,
+    Latch,
+}
+
+public readonly struct DamageTriggerEvaluationContext(Func<int, float> getHealthRatio)
+{
+    public float GetHealthRatio(int roomObjectIndex)
+    {
+        return roomObjectIndex >= 0 ? getHealthRatio(roomObjectIndex) : 1f;
+    }
 }
 
 public readonly struct PlayerTriggerEvaluationContext(
@@ -40,8 +52,28 @@ public sealed class MapLogicNode
         int nodePriority = 0,
         float countdownSeconds = 1f,
         bool triggerOnStart = false,
+        bool delayedTrue = true,
+        bool delayedFalse = true,
+        float trueTimeSeconds = 1f,
+        float falseTimeSeconds = 1f,
+        bool initialValue = true,
+        bool autostart = false,
+        int startWhenNodeIndex = -1,
+        int endWhenNodeIndex = -1,
+        int resetNodeIndex = -1,
         int playerTriggerRoomObjectIndex = -1,
-        PlayerTriggerTeamFilter playerTriggerTeamFilter = PlayerTriggerTeamFilter.Any)
+        int[]? playerTriggerZoneRoomObjectIndices = null,
+        PlayerTriggerTeamFilter playerTriggerTeamFilter = PlayerTriggerTeamFilter.Any,
+        int damageableRoomObjectIndex = -1,
+        int triggerBelowPercent = DamageTriggerMetadata.DefaultTriggerBelowPercent,
+        bool triggerBelowThreshold = false,
+        bool triggerOnAnyDamage = false,
+        bool triggerOnHeal = false,
+        bool triggerWhenDestroyed = false,
+        MapLogicSignalMode signalMode = MapLogicSignalMode.Latch,
+        MapLogicCpCaptureDetectMode cpCaptureDetectMode = MapLogicCpCaptureDetectMode.AnyCapture,
+        MapLogicPlayerDetectMode playerDetectMode = MapLogicPlayerDetectMode.PlayerEnter,
+        float signalPeriodSeconds = MapLogicSignalMetadata.DefaultPeriodSeconds)
     {
         NodeIndex = nodeIndex;
         LogicKey = logicKey;
@@ -55,8 +87,28 @@ public sealed class MapLogicNode
         NodePriority = nodePriority;
         CountdownSeconds = countdownSeconds;
         TriggerOnStart = triggerOnStart;
+        DelayedTrue = delayedTrue;
+        DelayedFalse = delayedFalse;
+        TrueTimeSeconds = trueTimeSeconds;
+        FalseTimeSeconds = falseTimeSeconds;
+        InitialValue = initialValue;
+        Autostart = autostart;
+        StartWhenNodeIndex = startWhenNodeIndex;
+        EndWhenNodeIndex = endWhenNodeIndex;
+        ResetNodeIndex = resetNodeIndex;
         PlayerTriggerRoomObjectIndex = playerTriggerRoomObjectIndex;
+        PlayerTriggerZoneRoomObjectIndices = playerTriggerZoneRoomObjectIndices ?? [];
         PlayerTriggerTeamFilter = playerTriggerTeamFilter;
+        DamageableRoomObjectIndex = damageableRoomObjectIndex;
+        TriggerBelowPercent = triggerBelowPercent;
+        TriggerBelowThreshold = triggerBelowThreshold;
+        TriggerOnAnyDamage = triggerOnAnyDamage;
+        TriggerOnHeal = triggerOnHeal;
+        TriggerWhenDestroyed = triggerWhenDestroyed;
+        SignalMode = signalMode;
+        CpCaptureDetectMode = cpCaptureDetectMode;
+        PlayerDetectMode = playerDetectMode;
+        SignalPeriodSeconds = signalPeriodSeconds;
     }
 
     public int NodeIndex { get; }
@@ -83,20 +135,110 @@ public sealed class MapLogicNode
 
     public bool TriggerOnStart { get; }
 
+    public bool DelayedTrue { get; }
+
+    public bool DelayedFalse { get; }
+
+    public float TrueTimeSeconds { get; }
+
+    public float FalseTimeSeconds { get; }
+
+    public bool InitialValue { get; }
+
+    public bool Autostart { get; }
+
+    public int StartWhenNodeIndex { get; }
+
+    public int EndWhenNodeIndex { get; }
+
+    public int ResetNodeIndex { get; }
+
     public int PlayerTriggerRoomObjectIndex { get; }
 
+    public int[] PlayerTriggerZoneRoomObjectIndices { get; }
+
     public PlayerTriggerTeamFilter PlayerTriggerTeamFilter { get; }
+
+    public int DamageableRoomObjectIndex { get; }
+
+    public int TriggerBelowPercent { get; }
+
+    public bool TriggerBelowThreshold { get; }
+
+    public bool TriggerOnAnyDamage { get; }
+
+    public bool TriggerOnHeal { get; }
+
+    public bool TriggerWhenDestroyed { get; }
+
+    public MapLogicSignalMode SignalMode { get; }
+
+    public MapLogicCpCaptureDetectMode CpCaptureDetectMode { get; }
+
+    public MapLogicPlayerDetectMode PlayerDetectMode { get; }
+
+    public float SignalPeriodSeconds { get; }
+}
+
+internal sealed class MapLogicCpTriggerNodeState
+{
+    public PlayerTeam? PreviousOwner;
+}
+
+internal sealed class MapLogicPlayerTriggerNodeState
+{
+    public bool WasOccupied;
+}
+
+internal sealed class MapLogicDamageTriggerNodeState
+{
+    public float PreviousHealthRatio = 1f;
+
+    public float AnyDamagePulseRemainingSeconds;
+}
+
+internal sealed class MapLogicRisingEdgeNodeState
+{
+    public bool PreviousInput;
+}
+
+internal sealed class MapLogicLatchNodeState
+{
+    public bool Latched;
+
+    public bool PreviousReset;
 }
 
 internal sealed class MapLogicTimerNodeState
 {
+    public bool Output;
+
+    public bool PendingOutput;
+
     public float RemainingSeconds;
+
+    public bool IsDelayActive;
+
+    public bool PreviousInput;
+
+    public bool ClearImpulseOnNextAdvance;
+}
+
+internal sealed class MapLogicOscillatorNodeState
+{
+    public bool Output;
 
     public bool IsRunning;
 
-    public bool HasFired;
+    public bool PhaseIsTrue;
 
-    public bool PreviousTriggerInput;
+    public float PhaseRemainingSeconds;
+
+    public bool PreviousStartWhen;
+
+    public bool AwaitingStartWhenBaseline;
+
+    public bool ClearImpulseOnNextAdvance;
 }
 
 public sealed class MapLogicGraph
@@ -105,6 +247,12 @@ public sealed class MapLogicGraph
     private readonly bool[] _outputs;
     private readonly int[] _evaluationOrder;
     private readonly MapLogicTimerNodeState[]? _timerStates;
+    private readonly MapLogicOscillatorNodeState[]? _oscillatorStates;
+    private readonly MapLogicDamageTriggerNodeState[]? _damageTriggerStates;
+    private readonly MapLogicRisingEdgeNodeState[]? _risingEdgeStates;
+    private readonly MapLogicLatchNodeState[]? _latchStates;
+    private readonly MapLogicCpTriggerNodeState[]? _cpTriggerStates;
+    private readonly MapLogicPlayerTriggerNodeState[]? _playerTriggerStates;
 
     public MapLogicGraph(IReadOnlyList<MapLogicNode> nodes, int[] evaluationOrder)
     {
@@ -113,13 +261,72 @@ public sealed class MapLogicGraph
         _evaluationOrder = evaluationOrder;
         NodeIndexByKey = BuildKeyIndex(_nodes);
         HasTimers = _nodes.Any(node => node.Kind == MapLogicNodeKind.Timer);
+        HasOscillators = _nodes.Any(node => node.Kind == MapLogicNodeKind.Oscillator);
         HasPlayerTriggers = _nodes.Any(node => node.Kind == MapLogicNodeKind.PlayerTrigger);
+        HasDamageTriggers = _nodes.Any(node => node.Kind == MapLogicNodeKind.DamageTrigger);
+        HasRisingEdges = _nodes.Any(node => node.Kind == MapLogicNodeKind.RisingEdge);
+        HasLatches = _nodes.Any(node => node.Kind == MapLogicNodeKind.Latch);
+        HasCpTriggers = _nodes.Any(node => node.Kind == MapLogicNodeKind.CpTrigger);
         _timerStates = HasTimers ? new MapLogicTimerNodeState[_nodes.Length] : null;
         if (_timerStates is not null)
         {
             for (var index = 0; index < _timerStates.Length; index += 1)
             {
                 _timerStates[index] = new MapLogicTimerNodeState();
+            }
+        }
+
+        _oscillatorStates = HasOscillators ? new MapLogicOscillatorNodeState[_nodes.Length] : null;
+        if (_oscillatorStates is not null)
+        {
+            for (var index = 0; index < _oscillatorStates.Length; index += 1)
+            {
+                _oscillatorStates[index] = new MapLogicOscillatorNodeState();
+            }
+        }
+
+        _damageTriggerStates = HasDamageTriggers ? new MapLogicDamageTriggerNodeState[_nodes.Length] : null;
+        if (_damageTriggerStates is not null)
+        {
+            for (var index = 0; index < _damageTriggerStates.Length; index += 1)
+            {
+                _damageTriggerStates[index] = new MapLogicDamageTriggerNodeState();
+            }
+        }
+
+        _risingEdgeStates = HasRisingEdges ? new MapLogicRisingEdgeNodeState[_nodes.Length] : null;
+        if (_risingEdgeStates is not null)
+        {
+            for (var index = 0; index < _risingEdgeStates.Length; index += 1)
+            {
+                _risingEdgeStates[index] = new MapLogicRisingEdgeNodeState();
+            }
+        }
+
+        _latchStates = HasLatches ? new MapLogicLatchNodeState[_nodes.Length] : null;
+        if (_latchStates is not null)
+        {
+            for (var index = 0; index < _latchStates.Length; index += 1)
+            {
+                _latchStates[index] = new MapLogicLatchNodeState();
+            }
+        }
+
+        _cpTriggerStates = HasCpTriggers ? new MapLogicCpTriggerNodeState[_nodes.Length] : null;
+        if (_cpTriggerStates is not null)
+        {
+            for (var index = 0; index < _cpTriggerStates.Length; index += 1)
+            {
+                _cpTriggerStates[index] = new MapLogicCpTriggerNodeState();
+            }
+        }
+
+        _playerTriggerStates = HasPlayerTriggers ? new MapLogicPlayerTriggerNodeState[_nodes.Length] : null;
+        if (_playerTriggerStates is not null)
+        {
+            for (var index = 0; index < _playerTriggerStates.Length; index += 1)
+            {
+                _playerTriggerStates[index] = new MapLogicPlayerTriggerNodeState();
             }
         }
     }
@@ -134,7 +341,17 @@ public sealed class MapLogicGraph
 
     public bool HasTimers { get; }
 
+    public bool HasOscillators { get; }
+
     public bool HasPlayerTriggers { get; }
+
+    public bool HasDamageTriggers { get; }
+
+    public bool HasRisingEdges { get; }
+
+    public bool HasLatches { get; }
+
+    public bool HasCpTriggers { get; }
 
     public bool TryGetNodeIndex(string logicKey, out int nodeIndex)
     {
@@ -165,6 +382,7 @@ public sealed class MapLogicGraph
     {
         EvaluateCombinatorial(controlPoints);
         AdvanceTimers(0f);
+        AdvanceOscillators(0f);
     }
 
     public void EvaluateCombinatorial(
@@ -181,48 +399,412 @@ public sealed class MapLogicGraph
         {
             var nodeIndex = _evaluationOrder[orderIndex];
             var node = _nodes[nodeIndex];
-            if (node.Kind == MapLogicNodeKind.Timer)
+            if (node.Kind is MapLogicNodeKind.Timer or MapLogicNodeKind.Oscillator or MapLogicNodeKind.DamageTrigger)
             {
                 continue;
             }
 
             _outputs[nodeIndex] = node.Kind switch
             {
-                MapLogicNodeKind.CpTrigger => MapLogicMetadata.EvaluateCpTrigger(
-                    node.LinkedControlPointIndex,
-                    node.OwnerRequirement,
-                    controlPoints),
-                MapLogicNodeKind.PlayerTrigger => EvaluatePlayerTrigger(node, playerTriggers),
+                MapLogicNodeKind.CpTrigger => EvaluateCpTrigger(nodeIndex, node, controlPoints),
+                MapLogicNodeKind.PlayerTrigger => EvaluatePlayerTrigger(nodeIndex, node, playerTriggers),
                 MapLogicNodeKind.Gate => MapLogicMetadata.EvaluateGate(
                     node.GateType,
                     ReadInput(node.InputNodeIndex1),
                     ReadInput(node.InputNodeIndex2)),
                 MapLogicNodeKind.Not => !ReadInput(node.InputNodeIndex),
+                MapLogicNodeKind.RisingEdge => EvaluateRisingEdge(nodeIndex, node),
+                MapLogicNodeKind.Latch => EvaluateLatch(nodeIndex, node),
                 _ => false,
             };
         }
     }
 
-    private static bool EvaluatePlayerTrigger(MapLogicNode node, PlayerTriggerEvaluationContext? context)
+    private bool EvaluateRisingEdge(int nodeIndex, MapLogicNode node)
     {
-        if (context is not PlayerTriggerEvaluationContext activeContext
-            || node.PlayerTriggerRoomObjectIndex < 0)
+        if (_risingEdgeStates is null)
         {
             return false;
         }
 
-        var roomObjectIndex = node.PlayerTriggerRoomObjectIndex;
-        if (roomObjectIndex >= activeContext.RoomObjects.Count
-            || !activeContext.IsRoomObjectActive(roomObjectIndex))
+        var input = ReadInput(node.InputNodeIndex);
+        var state = _risingEdgeStates[nodeIndex];
+        var output = input && !state.PreviousInput;
+        state.PreviousInput = input;
+        return output;
+    }
+
+    private bool EvaluateLatch(int nodeIndex, MapLogicNode node)
+    {
+        if (_latchStates is null)
         {
             return false;
         }
 
-        var marker = activeContext.RoomObjects[roomObjectIndex];
-        return PlayerTriggerMetadata.AnyMatchingPlayerInside(
-            marker,
-            node.PlayerTriggerTeamFilter,
-            activeContext.Players);
+        var input = ReadInput(node.InputNodeIndex);
+        var reset = ReadInput(node.ResetNodeIndex);
+        var state = _latchStates[nodeIndex];
+        if (input)
+        {
+            state.Latched = true;
+        }
+
+        if (reset && !state.PreviousReset)
+        {
+            state.Latched = false;
+        }
+
+        state.PreviousReset = reset;
+        return state.Latched;
+    }
+
+    public void ResetRisingEdgeStates()
+    {
+        if (_risingEdgeStates is null)
+        {
+            return;
+        }
+
+        for (var index = 0; index < _risingEdgeStates.Length; index += 1)
+        {
+            _risingEdgeStates[index].PreviousInput = false;
+        }
+    }
+
+    public void ResetLatchStates()
+    {
+        if (_latchStates is null)
+        {
+            return;
+        }
+
+        for (var index = 0; index < _latchStates.Length; index += 1)
+        {
+            _latchStates[index].Latched = false;
+            _latchStates[index].PreviousReset = false;
+        }
+    }
+
+    private bool EvaluateCpTrigger(
+        int nodeIndex,
+        MapLogicNode node,
+        IReadOnlyList<ControlPointState> controlPoints)
+    {
+        if (!MapLogicMetadata.TryGetControlPointOwner(controlPoints, node.LinkedControlPointIndex, out var currentOwner))
+        {
+            if (node.SignalMode == MapLogicSignalMode.Impulse && _cpTriggerStates is not null)
+            {
+                _cpTriggerStates[nodeIndex].PreviousOwner = null;
+            }
+
+            return false;
+        }
+
+        if (node.SignalMode == MapLogicSignalMode.Latch)
+        {
+            if (_cpTriggerStates is not null)
+            {
+                _cpTriggerStates[nodeIndex].PreviousOwner = currentOwner;
+            }
+
+            return MapLogicMetadata.EvaluateCpTrigger(
+                node.LinkedControlPointIndex,
+                node.OwnerRequirement,
+                controlPoints);
+        }
+
+        if (_cpTriggerStates is null)
+        {
+            return false;
+        }
+
+        var state = _cpTriggerStates[nodeIndex];
+        var captured = DetectCpCapture(state.PreviousOwner, currentOwner, node.CpCaptureDetectMode);
+        state.PreviousOwner = currentOwner;
+        return captured;
+    }
+
+    private static bool DetectCpCapture(
+        PlayerTeam? previousOwner,
+        PlayerTeam? currentOwner,
+        MapLogicCpCaptureDetectMode detectMode)
+    {
+        if (!currentOwner.HasValue)
+        {
+            return false;
+        }
+
+        return detectMode switch
+        {
+            MapLogicCpCaptureDetectMode.RedCapture => currentOwner == PlayerTeam.Red && previousOwner != PlayerTeam.Red,
+            MapLogicCpCaptureDetectMode.BlueCapture => currentOwner == PlayerTeam.Blue && previousOwner != PlayerTeam.Blue,
+            _ => previousOwner != currentOwner,
+        };
+    }
+
+    private bool EvaluatePlayerTrigger(
+        int nodeIndex,
+        MapLogicNode node,
+        PlayerTriggerEvaluationContext? context)
+    {
+        var occupied = IsPlayerTriggerOccupied(node, context);
+        if (node.SignalMode == MapLogicSignalMode.Latch)
+        {
+            if (_playerTriggerStates is not null)
+            {
+                _playerTriggerStates[nodeIndex].WasOccupied = occupied;
+            }
+
+            return occupied;
+        }
+
+        if (_playerTriggerStates is null)
+        {
+            return false;
+        }
+
+        var state = _playerTriggerStates[nodeIndex];
+        var impulse = node.PlayerDetectMode switch
+        {
+            MapLogicPlayerDetectMode.PlayerExit => state.WasOccupied && !occupied,
+            _ => !state.WasOccupied && occupied,
+        };
+        state.WasOccupied = occupied;
+        return impulse;
+    }
+
+    private static bool IsPlayerTriggerOccupied(
+        MapLogicNode node,
+        PlayerTriggerEvaluationContext? context)
+    {
+        if (context is not PlayerTriggerEvaluationContext activeContext)
+        {
+            return false;
+        }
+
+        var zoneIndices = node.PlayerTriggerZoneRoomObjectIndices;
+        if (zoneIndices.Length == 0)
+        {
+            if (node.PlayerTriggerRoomObjectIndex < 0)
+            {
+                return false;
+            }
+
+            zoneIndices = [node.PlayerTriggerRoomObjectIndex];
+        }
+
+        for (var zoneIndex = 0; zoneIndex < zoneIndices.Length; zoneIndex += 1)
+        {
+            var roomObjectIndex = zoneIndices[zoneIndex];
+            if (roomObjectIndex < 0
+                || roomObjectIndex >= activeContext.RoomObjects.Count
+                || !activeContext.IsRoomObjectActive(roomObjectIndex))
+            {
+                continue;
+            }
+
+            var marker = activeContext.RoomObjects[roomObjectIndex];
+            if (PlayerTriggerMetadata.AnyMatchingPlayerInside(
+                    marker,
+                    node.PlayerTriggerTeamFilter,
+                    activeContext.Players))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public void ResetCpTriggerStates(IReadOnlyList<ControlPointState> controlPoints)
+    {
+        if (_cpTriggerStates is null)
+        {
+            return;
+        }
+
+        for (var index = 0; index < _nodes.Length; index += 1)
+        {
+            var node = _nodes[index];
+            if (node.Kind != MapLogicNodeKind.CpTrigger)
+            {
+                continue;
+            }
+
+            var state = _cpTriggerStates[index];
+            state.PreviousOwner = MapLogicMetadata.TryGetControlPointOwner(
+                controlPoints,
+                node.LinkedControlPointIndex,
+                out var owner)
+                ? owner
+                : null;
+        }
+    }
+
+    public void ResetPlayerTriggerStates(PlayerTriggerEvaluationContext? context = null)
+    {
+        if (_playerTriggerStates is null)
+        {
+            return;
+        }
+
+        for (var index = 0; index < _nodes.Length; index += 1)
+        {
+            var node = _nodes[index];
+            if (node.Kind != MapLogicNodeKind.PlayerTrigger)
+            {
+                continue;
+            }
+
+            _playerTriggerStates[index].WasOccupied = IsPlayerTriggerOccupied(node, context);
+        }
+    }
+
+    public void ResetDamageTriggerStates(DamageTriggerEvaluationContext? context = null)
+    {
+        if (_damageTriggerStates is null)
+        {
+            return;
+        }
+
+        for (var index = 0; index < _nodes.Length; index += 1)
+        {
+            var node = _nodes[index];
+            if (node.Kind != MapLogicNodeKind.DamageTrigger)
+            {
+                continue;
+            }
+
+            var state = _damageTriggerStates[index];
+            state.PreviousHealthRatio = context?.GetHealthRatio(node.DamageableRoomObjectIndex) ?? 1f;
+            state.AnyDamagePulseRemainingSeconds = 0f;
+        }
+    }
+
+    public void EvaluateDamageTriggers(DamageTriggerEvaluationContext context)
+    {
+        if (_damageTriggerStates is null)
+        {
+            return;
+        }
+
+        for (var orderIndex = 0; orderIndex < _evaluationOrder.Length; orderIndex += 1)
+        {
+            var nodeIndex = _evaluationOrder[orderIndex];
+            var node = _nodes[nodeIndex];
+            if (node.Kind != MapLogicNodeKind.DamageTrigger)
+            {
+                continue;
+            }
+
+            var state = _damageTriggerStates[nodeIndex];
+            var currentRatio = context.GetHealthRatio(node.DamageableRoomObjectIndex);
+            var previousRatio = state.PreviousHealthRatio;
+            var impulse = node.SignalMode == MapLogicSignalMode.Impulse;
+            if (node.TriggerOnHeal)
+            {
+                _outputs[nodeIndex] = impulse
+                    && previousRatio < 0.9999f
+                    && currentRatio >= 0.9999f;
+            }
+            else if (node.TriggerWhenDestroyed)
+            {
+                _outputs[nodeIndex] = impulse
+                    ? previousRatio > 0.0001f && currentRatio <= 0.0001f
+                    : currentRatio <= 0.0001f;
+            }
+            else if (node.TriggerBelowThreshold)
+            {
+                var threshold = node.TriggerBelowPercent / 100f;
+                _outputs[nodeIndex] = impulse
+                    ? previousRatio > threshold && currentRatio <= threshold
+                    : currentRatio <= threshold;
+            }
+            else if (node.TriggerOnAnyDamage)
+            {
+                if (impulse)
+                {
+                    _outputs[nodeIndex] = currentRatio < previousRatio - 0.0001f;
+                }
+                else if (currentRatio < previousRatio - 0.0001f)
+                {
+                    state.AnyDamagePulseRemainingSeconds = Math.Max(0f, node.TrueTimeSeconds);
+                    _outputs[nodeIndex] = true;
+                }
+                else
+                {
+                    _outputs[nodeIndex] = state.AnyDamagePulseRemainingSeconds > 0f;
+                }
+            }
+            else
+            {
+                _outputs[nodeIndex] = false;
+            }
+
+            state.PreviousHealthRatio = currentRatio;
+        }
+
+        EvaluateCombinatorialPropagators();
+    }
+
+    public void EvaluateCombinatorialPropagators()
+    {
+        if (_nodes.Length == 0)
+        {
+            return;
+        }
+
+        for (var orderIndex = 0; orderIndex < _evaluationOrder.Length; orderIndex += 1)
+        {
+            var nodeIndex = _evaluationOrder[orderIndex];
+            var node = _nodes[nodeIndex];
+            _outputs[nodeIndex] = node.Kind switch
+            {
+                MapLogicNodeKind.Gate => MapLogicMetadata.EvaluateGate(
+                    node.GateType,
+                    ReadInput(node.InputNodeIndex1),
+                    ReadInput(node.InputNodeIndex2)),
+                MapLogicNodeKind.Not => !ReadInput(node.InputNodeIndex),
+                MapLogicNodeKind.RisingEdge => EvaluateRisingEdge(nodeIndex, node),
+                MapLogicNodeKind.Latch => EvaluateLatch(nodeIndex, node),
+                _ => _outputs[nodeIndex],
+            };
+        }
+    }
+
+    public void AdvanceDamageTriggers(float deltaSeconds)
+    {
+        if (_damageTriggerStates is null || deltaSeconds <= 0f)
+        {
+            return;
+        }
+
+        for (var orderIndex = 0; orderIndex < _evaluationOrder.Length; orderIndex += 1)
+        {
+            var nodeIndex = _evaluationOrder[orderIndex];
+            var node = _nodes[nodeIndex];
+            if (node.Kind != MapLogicNodeKind.DamageTrigger
+                || !node.TriggerOnAnyDamage
+                || node.SignalMode == MapLogicSignalMode.Impulse)
+            {
+                continue;
+            }
+
+            var state = _damageTriggerStates[nodeIndex];
+            if (state.AnyDamagePulseRemainingSeconds <= 0f)
+            {
+                continue;
+            }
+
+            state.AnyDamagePulseRemainingSeconds = Math.Max(
+                0f,
+                state.AnyDamagePulseRemainingSeconds - deltaSeconds);
+            if (state.AnyDamagePulseRemainingSeconds <= 0f)
+            {
+                _outputs[nodeIndex] = false;
+                EvaluateCombinatorialPropagators();
+            }
+        }
     }
 
     public void ResetTimerStates()
@@ -241,14 +823,15 @@ public sealed class MapLogicGraph
             }
 
             var state = _timerStates[index];
+            state.Output = false;
+            state.PendingOutput = false;
             state.RemainingSeconds = 0f;
-            state.IsRunning = false;
-            state.HasFired = false;
-            state.PreviousTriggerInput = false;
+            state.IsDelayActive = false;
+            state.PreviousInput = false;
+            state.ClearImpulseOnNextAdvance = false;
             if (node.TriggerOnStart)
             {
-                state.RemainingSeconds = node.CountdownSeconds;
-                state.IsRunning = true;
+                ScheduleTimerTransition(state, targetOutput: true, node.CountdownSeconds, node.DelayedTrue);
             }
         }
     }
@@ -270,32 +853,283 @@ public sealed class MapLogicGraph
             }
 
             var state = _timerStates[nodeIndex];
-            if (!node.TriggerOnStart)
+            if (node.SignalMode == MapLogicSignalMode.Impulse && state.ClearImpulseOnNextAdvance)
             {
-                var triggerInput = ReadInput(node.InputNodeIndex);
-                if (triggerInput && !state.PreviousTriggerInput)
-                {
-                    state.RemainingSeconds = node.CountdownSeconds;
-                    state.IsRunning = true;
-                    state.HasFired = false;
-                }
-
-                state.PreviousTriggerInput = triggerInput;
+                state.Output = false;
+                state.ClearImpulseOnNextAdvance = false;
             }
 
-            if (state.IsRunning && !state.HasFired && deltaSeconds > 0f)
+            var input = ReadInput(node.InputNodeIndex);
+            if (input != state.PreviousInput)
             {
-                state.RemainingSeconds -= deltaSeconds;
+                if (node.SignalMode == MapLogicSignalMode.Impulse)
+                {
+                    if (input)
+                    {
+                        ScheduleTimerTransition(state, true, node.CountdownSeconds, node.DelayedTrue);
+                    }
+                }
+                else
+                {
+                    var useDelay = input ? node.DelayedTrue : node.DelayedFalse;
+                    ScheduleTimerTransition(state, input, node.CountdownSeconds, useDelay);
+                }
+
+                state.PreviousInput = input;
+            }
+
+            if (state.IsDelayActive)
+            {
+                if (deltaSeconds > 0f)
+                {
+                    state.RemainingSeconds -= deltaSeconds;
+                }
+
                 if (state.RemainingSeconds <= 0f)
                 {
                     state.RemainingSeconds = 0f;
-                    state.IsRunning = false;
-                    state.HasFired = true;
+                    state.IsDelayActive = false;
+                    if (node.SignalMode == MapLogicSignalMode.Impulse && state.PendingOutput)
+                    {
+                        state.Output = true;
+                    }
+                    else
+                    {
+                        state.Output = state.PendingOutput;
+                    }
                 }
             }
 
-            _outputs[nodeIndex] = state.HasFired;
+            if (node.SignalMode == MapLogicSignalMode.Impulse && state.Output)
+            {
+                state.ClearImpulseOnNextAdvance = true;
+            }
+
+            _outputs[nodeIndex] = state.Output;
         }
+    }
+
+    public void ResetOscillatorStates()
+    {
+        if (_oscillatorStates is null)
+        {
+            return;
+        }
+
+        for (var index = 0; index < _nodes.Length; index += 1)
+        {
+            var node = _nodes[index];
+            if (node.Kind != MapLogicNodeKind.Oscillator)
+            {
+                continue;
+            }
+
+            var state = _oscillatorStates[index];
+            state.Output = false;
+            state.IsRunning = false;
+            state.PhaseIsTrue = false;
+            state.PhaseRemainingSeconds = 0f;
+            state.PreviousStartWhen = false;
+            state.AwaitingStartWhenBaseline = !node.Autostart;
+            state.ClearImpulseOnNextAdvance = false;
+            if (node.Autostart)
+            {
+                if (node.SignalMode == MapLogicSignalMode.Impulse)
+                {
+                    StartImpulseOscillator(node, state);
+                }
+                else
+                {
+                    StartOscillator(node, state);
+                }
+            }
+        }
+    }
+
+    public void AdvanceOscillators(float deltaSeconds)
+    {
+        if (_oscillatorStates is null)
+        {
+            return;
+        }
+
+        for (var orderIndex = 0; orderIndex < _evaluationOrder.Length; orderIndex += 1)
+        {
+            var nodeIndex = _evaluationOrder[orderIndex];
+            var node = _nodes[nodeIndex];
+            if (node.Kind != MapLogicNodeKind.Oscillator)
+            {
+                continue;
+            }
+
+            var state = _oscillatorStates[nodeIndex];
+            var startWhen = ReadInput(node.StartWhenNodeIndex);
+            var endWhen = ReadInput(node.EndWhenNodeIndex);
+
+            if (node.SignalMode == MapLogicSignalMode.Impulse)
+            {
+                AdvanceImpulseOscillator(node, state, deltaSeconds, startWhen, endWhen);
+                _outputs[nodeIndex] = state.Output;
+                continue;
+            }
+
+            if (state.IsRunning && endWhen)
+            {
+                StopOscillator(state);
+            }
+            else if (!state.IsRunning && !node.Autostart)
+            {
+                if (state.AwaitingStartWhenBaseline)
+                {
+                    state.PreviousStartWhen = startWhen;
+                    state.AwaitingStartWhenBaseline = false;
+                }
+                else if (startWhen && !state.PreviousStartWhen)
+                {
+                    StartOscillator(node, state);
+                }
+            }
+
+            state.PreviousStartWhen = startWhen;
+
+            if (state.IsRunning && deltaSeconds > 0f)
+            {
+                state.PhaseRemainingSeconds -= deltaSeconds;
+                var phaseAdvances = 0;
+                while (state.IsRunning
+                    && state.PhaseRemainingSeconds <= 0f
+                    && phaseAdvances < 32)
+                {
+                    phaseAdvances += 1;
+                    var overshoot = state.PhaseRemainingSeconds;
+                    AdvanceOscillatorPhase(node, state, overshoot);
+                }
+            }
+
+            if (!state.IsRunning)
+            {
+                state.Output = false;
+            }
+
+            _outputs[nodeIndex] = state.Output;
+        }
+    }
+
+    private static void StartOscillator(MapLogicNode node, MapLogicOscillatorNodeState state)
+    {
+        state.IsRunning = true;
+        state.AwaitingStartWhenBaseline = false;
+        state.PhaseIsTrue = node.InitialValue;
+        state.Output = state.PhaseIsTrue;
+        state.PhaseRemainingSeconds = GetOscillatorPhaseDuration(node, state.PhaseIsTrue);
+    }
+
+    private static void StartImpulseOscillator(MapLogicNode node, MapLogicOscillatorNodeState state)
+    {
+        state.IsRunning = true;
+        state.AwaitingStartWhenBaseline = false;
+        state.PhaseIsTrue = false;
+        state.Output = true;
+        state.PhaseRemainingSeconds = Math.Max(0f, node.SignalPeriodSeconds);
+    }
+
+    private static void AdvanceImpulseOscillator(
+        MapLogicNode node,
+        MapLogicOscillatorNodeState state,
+        float deltaSeconds,
+        bool startWhen,
+        bool endWhen)
+    {
+        if (state.ClearImpulseOnNextAdvance)
+        {
+            state.Output = false;
+            state.ClearImpulseOnNextAdvance = false;
+        }
+
+        if (state.IsRunning && endWhen)
+        {
+            StopOscillator(state);
+            state.ClearImpulseOnNextAdvance = false;
+            return;
+        }
+
+        if (!state.IsRunning && !node.Autostart)
+        {
+            if (state.AwaitingStartWhenBaseline)
+            {
+                state.PreviousStartWhen = startWhen;
+                state.AwaitingStartWhenBaseline = false;
+            }
+            else if (startWhen && !state.PreviousStartWhen)
+            {
+                StartImpulseOscillator(node, state);
+            }
+        }
+
+        state.PreviousStartWhen = startWhen;
+
+        if (state.IsRunning && deltaSeconds > 0f)
+        {
+            state.PhaseRemainingSeconds -= deltaSeconds;
+            if (state.PhaseRemainingSeconds <= 0f)
+            {
+                state.Output = true;
+                state.PhaseRemainingSeconds = Math.Max(0f, node.SignalPeriodSeconds);
+            }
+        }
+
+        if (!state.IsRunning)
+        {
+            state.Output = false;
+        }
+        else if (state.Output)
+        {
+            state.ClearImpulseOnNextAdvance = true;
+        }
+    }
+
+    private static void StopOscillator(MapLogicOscillatorNodeState state)
+    {
+        state.IsRunning = false;
+        state.Output = false;
+        state.PhaseIsTrue = false;
+        state.PhaseRemainingSeconds = 0f;
+        state.AwaitingStartWhenBaseline = true;
+    }
+
+    private static void AdvanceOscillatorPhase(
+        MapLogicNode node,
+        MapLogicOscillatorNodeState state,
+        float overshootSeconds)
+    {
+        state.PhaseIsTrue = !state.PhaseIsTrue;
+        state.Output = state.PhaseIsTrue;
+        var duration = GetOscillatorPhaseDuration(node, state.PhaseIsTrue);
+        state.PhaseRemainingSeconds = duration <= 0f ? 0f : duration + overshootSeconds;
+    }
+
+    private static float GetOscillatorPhaseDuration(MapLogicNode node, bool phaseIsTrue)
+    {
+        return phaseIsTrue ? node.TrueTimeSeconds : node.FalseTimeSeconds;
+    }
+
+    private static void ScheduleTimerTransition(
+        MapLogicTimerNodeState state,
+        bool targetOutput,
+        float delaySeconds,
+        bool useDelay)
+    {
+        state.PendingOutput = targetOutput;
+        if (!useDelay || delaySeconds <= 0f)
+        {
+            state.Output = targetOutput;
+            state.RemainingSeconds = 0f;
+            state.IsDelayActive = false;
+            return;
+        }
+
+        state.RemainingSeconds = delaySeconds;
+        state.IsDelayActive = true;
     }
 
     private bool ReadInput(int inputNodeIndex)
@@ -348,8 +1182,28 @@ public static class MapLogicGraphBuilder
                 definition.NodePriority,
                 definition.CountdownSeconds,
                 definition.TriggerOnStart,
+                definition.DelayedTrue,
+                definition.DelayedFalse,
+                definition.TrueTimeSeconds,
+                definition.FalseTimeSeconds,
+                definition.InitialValue,
+                definition.Autostart,
+                -1,
+                -1,
+                -1,
                 definition.PlayerTriggerRoomObjectIndex,
-                definition.PlayerTriggerTeamFilter));
+                definition.PlayerTriggerZoneRoomObjectIndices,
+                definition.PlayerTriggerTeamFilter,
+                definition.DamageableRoomObjectIndex,
+                definition.TriggerBelowPercent,
+                definition.TriggerBelowThreshold,
+                definition.TriggerOnAnyDamage,
+                definition.TriggerOnHeal,
+                definition.TriggerWhenDestroyed,
+                definition.SignalMode,
+                definition.CpCaptureDetectMode,
+                definition.PlayerDetectMode,
+                definition.SignalPeriodSeconds));
         }
 
         var resolvedNodes = new MapLogicNode[nodes.Count];
@@ -370,8 +1224,28 @@ public static class MapLogicGraphBuilder
                 baseNode.NodePriority,
                 baseNode.CountdownSeconds,
                 baseNode.TriggerOnStart,
+                baseNode.DelayedTrue,
+                baseNode.DelayedFalse,
+                baseNode.TrueTimeSeconds,
+                baseNode.FalseTimeSeconds,
+                baseNode.InitialValue,
+                baseNode.Autostart,
+                ResolveInput(definition.StartWhenRef, keyToIndex),
+                ResolveInput(definition.EndWhenRef, keyToIndex),
+                ResolveInput(definition.ResetRef, keyToIndex),
                 baseNode.PlayerTriggerRoomObjectIndex,
-                baseNode.PlayerTriggerTeamFilter);
+                baseNode.PlayerTriggerZoneRoomObjectIndices,
+                baseNode.PlayerTriggerTeamFilter,
+                baseNode.DamageableRoomObjectIndex,
+                baseNode.TriggerBelowPercent,
+                baseNode.TriggerBelowThreshold,
+                baseNode.TriggerOnAnyDamage,
+                baseNode.TriggerOnHeal,
+                baseNode.TriggerWhenDestroyed,
+                baseNode.SignalMode,
+                baseNode.CpCaptureDetectMode,
+                baseNode.PlayerDetectMode,
+                baseNode.SignalPeriodSeconds);
         }
 
         var evaluationOrder = BuildEvaluationOrder(resolvedNodes);
@@ -437,6 +1311,21 @@ public static class MapLogicGraphBuilder
             Visit(node.InputNodeIndex, nodes, visited, visiting, order);
         }
 
+        if (node.StartWhenNodeIndex >= 0)
+        {
+            Visit(node.StartWhenNodeIndex, nodes, visited, visiting, order);
+        }
+
+        if (node.EndWhenNodeIndex >= 0)
+        {
+            Visit(node.EndWhenNodeIndex, nodes, visited, visiting, order);
+        }
+
+        if (node.ResetNodeIndex >= 0)
+        {
+            Visit(node.ResetNodeIndex, nodes, visited, visiting, order);
+        }
+
         visiting[nodeIndex] = false;
         visited[nodeIndex] = true;
         order.Add(nodeIndex);
@@ -467,7 +1356,47 @@ public sealed class MapLogicNodeDefinition
 
     public bool TriggerOnStart { get; init; }
 
+    public bool DelayedTrue { get; init; } = true;
+
+    public bool DelayedFalse { get; init; } = true;
+
+    public float TrueTimeSeconds { get; init; } = 1f;
+
+    public float FalseTimeSeconds { get; init; } = 1f;
+
+    public bool InitialValue { get; init; } = true;
+
+    public bool Autostart { get; init; }
+
+    public string? StartWhenRef { get; init; }
+
+    public string? EndWhenRef { get; init; }
+
+    public string? ResetRef { get; init; }
+
     public int PlayerTriggerRoomObjectIndex { get; init; } = -1;
 
+    public int[] PlayerTriggerZoneRoomObjectIndices { get; init; } = [];
+
     public PlayerTriggerTeamFilter PlayerTriggerTeamFilter { get; init; } = PlayerTriggerTeamFilter.Any;
+
+    public int DamageableRoomObjectIndex { get; init; } = -1;
+
+    public int TriggerBelowPercent { get; init; } = DamageTriggerMetadata.DefaultTriggerBelowPercent;
+
+    public bool TriggerBelowThreshold { get; init; }
+
+    public bool TriggerOnAnyDamage { get; init; }
+
+    public bool TriggerOnHeal { get; init; }
+
+    public bool TriggerWhenDestroyed { get; init; }
+
+    public MapLogicSignalMode SignalMode { get; init; } = MapLogicSignalMode.Latch;
+
+    public MapLogicCpCaptureDetectMode CpCaptureDetectMode { get; init; } = MapLogicCpCaptureDetectMode.AnyCapture;
+
+    public MapLogicPlayerDetectMode PlayerDetectMode { get; init; } = MapLogicPlayerDetectMode.PlayerEnter;
+
+    public float SignalPeriodSeconds { get; init; } = MapLogicSignalMetadata.DefaultPeriodSeconds;
 }

@@ -1,0 +1,29 @@
+{
+    "id":  "SniperBlueTauntS",
+    "framePaths":  [
+                       "Content/Sprites/Characters/Sniper/SniperBlueTauntS.images/image 0.png",
+                       "Content/Sprites/Characters/Sniper/SniperBlueTauntS.images/image 1.png",
+                       "Content/Sprites/Characters/Sniper/SniperBlueTauntS.images/image 2.png",
+                       "Content/Sprites/Characters/Sniper/SniperBlueTauntS.images/image 3.png",
+                       "Content/Sprites/Characters/Sniper/SniperBlueTauntS.images/image 4.png",
+                       "Content/Sprites/Characters/Sniper/SniperBlueTauntS.images/image 5.png",
+                       "Content/Sprites/Characters/Sniper/SniperBlueTauntS.images/image 6.png",
+                       "Content/Sprites/Characters/Sniper/SniperBlueTauntS.images/image 7.png",
+                       "Content/Sprites/Characters/Sniper/SniperBlueTauntS.images/image 8.png",
+                       "Content/Sprites/Characters/Sniper/SniperBlueTauntS.images/image 9.png",
+                       "Content/Sprites/Characters/Sniper/SniperBlueTauntS.images/image 10.png",
+                       "Content/Sprites/Characters/Sniper/SniperBlueTauntS.images/image 11.png",
+                       "Content/Sprites/Characters/Sniper/SniperBlueTauntS.images/image 12.png"
+                   ],
+    "originX":  26,
+    "originY":  40,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  20,
+                 "top":  34,
+                 "right":  32,
+                 "bottom":  63
+             }
+}

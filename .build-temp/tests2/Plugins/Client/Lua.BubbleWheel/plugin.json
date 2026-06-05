@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "bubblewheel",
+  "displayName": "Bubble Wheel",
+  "version": "1.0.0",
+  "type": "Client",
+  "runtime": "Lua",
+  "entryPoint": "main.lua",
+  "description": "Official Lua implementation of the Bubble Wheel plugin built on bubble-menu input and atlas-driven UI rendering seams.",
+  "compatibility": {
+    "hostApiVersion": "1.0"
+  },
+  "tags": [
+    "client",
+    "lua",
+    "ui",
+    "bubble-menu"
+  ]
+}

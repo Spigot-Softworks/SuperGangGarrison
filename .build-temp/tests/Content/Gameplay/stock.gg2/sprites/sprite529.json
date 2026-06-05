@@ -1,0 +1,17 @@
+{
+    "id":  "sprite529",
+    "framePaths":  [
+                       "Content/Sprites/HUDs/Kill Icons/sprite529.images/image 0.png"
+                   ],
+    "originX":  8,
+    "originY":  8,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

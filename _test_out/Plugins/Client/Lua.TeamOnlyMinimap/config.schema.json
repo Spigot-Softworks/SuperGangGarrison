@@ -1,0 +1,28 @@
+{
+  "type": "object",
+  "properties": {
+    "enabled": { "type": "boolean", "default": true },
+    "showHealth": { "type": "boolean", "default": true },
+    "showObjective": { "type": "boolean", "default": true },
+    "showSentry": { "type": "boolean", "default": true },
+    "positionX": { "type": "integer", "minimum": 0, "maximum": 4000, "default": 0 },
+    "positionY": { "type": "integer", "minimum": 0, "maximum": 4000, "default": 0 },
+    "width": { "type": "integer", "minimum": 20, "maximum": 1000, "default": 200 },
+    "height": { "type": "integer", "minimum": 20, "maximum": 1000, "default": 200 },
+    "healingPositionX": { "type": "integer", "minimum": 0, "maximum": 4000, "default": 0 },
+    "healingPositionY": { "type": "integer", "minimum": 0, "maximum": 4000, "default": 0 },
+    "healingWidth": { "type": "integer", "minimum": 20, "maximum": 1000, "default": 200 },
+    "healingHeight": { "type": "integer", "minimum": 20, "maximum": 1000, "default": 200 },
+    "showMethod": { "type": "string", "enum": ["Dots", "BigDots", "ClassBubbles"], "default": "ClassBubbles" },
+    "fitMode": { "type": "string", "enum": ["Auto", "Width", "Height", "Reverse"], "default": "Auto" },
+    "playersShown": { "type": "string", "enum": ["None", "Myself", "Allies"], "default": "Allies" },
+    "bubbleSizePercent": { "type": "integer", "minimum": 10, "maximum": 200, "default": 40 },
+    "selfColor": { "type": "string", "enum": ["Red", "Yellow", "Green", "Blue", "White"], "default": "Green" },
+    "selfBubbleSizePercent": { "type": "integer", "minimum": 10, "maximum": 200, "default": 40 },
+    "alphaPercent": { "type": "integer", "minimum": 0, "maximum": 100, "default": 100 },
+    "objectiveBubbleSizePercent": { "type": "integer", "minimum": 10, "maximum": 200, "default": 80 },
+    "zoomKey": { "type": "string", "default": "R" },
+    "zoomRangeTenths": { "type": "integer", "minimum": 2, "maximum": 50, "default": 20 },
+    "moveNearHealingHud": { "type": "boolean", "default": false }
+  }
+}

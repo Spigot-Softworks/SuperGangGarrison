@@ -26,4 +26,6 @@ public enum RoomObjectType
     TeleportExit = 22,
     PlayerTriggerZone = 23,
     CustomMapSprite = 24,
+    AreaExtension = 25,
+    DamageableZone = 26,
 }

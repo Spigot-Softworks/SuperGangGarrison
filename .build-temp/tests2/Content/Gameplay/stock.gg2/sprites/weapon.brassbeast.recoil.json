@@ -1,0 +1,10 @@
+{
+  "id": "stock.gg2.weapon.brassbeast.recoil",
+  "framePaths": [
+    "assets/brassbeast/BrassBeastFS.png"
+  ],
+  "frameWidth": 50,
+  "frameHeight": 20,
+  "originX": 14,
+  "originY": 3
+}

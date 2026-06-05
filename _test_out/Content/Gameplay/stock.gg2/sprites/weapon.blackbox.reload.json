@@ -1,0 +1,10 @@
+{
+  "id": "stock.gg2.weapon.blackbox.reload",
+  "framePaths": [
+    "assets/blackbox/BlackboxFRS.png"
+  ],
+  "frameWidth": 60,
+  "frameHeight": 36,
+  "originX": 16,
+  "originY": 14
+}

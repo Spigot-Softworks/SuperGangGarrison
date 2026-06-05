@@ -1,0 +1,10 @@
+{
+  "id": "stock.gg2.weapon.diamondback.reload",
+  "framePaths": [
+    "assets/diamondback/DiamondbackFRS.png"
+  ],
+  "frameWidth": 58,
+  "frameHeight": 32,
+  "originX": 15,
+  "originY": 18
+}

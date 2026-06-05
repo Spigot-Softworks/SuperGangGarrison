@@ -1,0 +1,52 @@
+{
+  "id": "weapon.grenadelauncher",
+  "displayName": "Grenade Launcher",
+  "slot": "Utility",
+  "behaviorId": "builtin.weapon.grenade_launcher",
+  "ammo": {
+    "maxAmmo": 1,
+    "ammoPerUse": 1,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 26,
+    "reloadSourceTicks": 30,
+    "spreadDegrees": 0.0,
+    "minProjectileSpeed": 19.0,
+    "additionalProjectileSpeed": 0.0,
+    "autoReloads": true,
+    "ammoRegenPerTick": 0,
+    "refillsAllAtOnce": false
+  },
+  "combat": {
+    "fireSoundName": "MinegunSnd"
+  },
+  "presentation": {
+    "worldSpriteName": "GrenadeLauncherS",
+    "recoilSpriteName": "GrenadeLauncherFS",
+    "reloadSpriteName": "GrenadeLauncherFRS",
+    "hudSpriteName": "GrenadeLauncherAmmoS",
+    "weaponOffsetX": -14.0,
+    "weaponOffsetY": -6.0,
+    "recoilDurationSourceTicks": 17,
+    "reloadDurationSourceTicks": 30,
+    "loopReloadAnimation": false,
+    "blueTeamHudFrameOffset": 1,
+    "hud": {
+      "displayKind": "ammoPanel",
+      "stackGroup": "weapon",
+      "order": 40,
+      "stateProvider": "utilityAmmo",
+      "hideWhenUnavailable": true
+    }
+  },
+  "description": {
+    "summary": "Secondary grenade launcher for Detonator.",
+    "positiveAttributes": [
+      "fires with Secondary Weapon",
+      "grenades explode on contact with enemies",
+      "grenades explode after 2 seconds"
+    ],
+    "negativeAttributes": [
+      "only 1 grenade loaded"
+    ]
+  }
+}

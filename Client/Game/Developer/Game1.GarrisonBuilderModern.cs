@@ -347,15 +347,9 @@ public partial class Game1
 
         if (IsKeyPressed(keyboard, Keys.Delete))
         {
-            if (_builderSelectedEntityIndex >= 0 && _builderSelectedEntityIndex < _builderEntities.Count)
+            if (GetGarrisonBuilderSelectedEntityCount() > 0 || _builderSelectedEntityIndex >= 0)
             {
-                RecordGarrisonBuilderHistory();
-                var removedIndex = _builderSelectedEntityIndex;
-                NotifyGarrisonBuilderEntityRemoved(removedIndex);
-                _builderEntities.RemoveAt(removedIndex);
-                UpdateGarrisonBuilderDocumentEntities();
-                _builderDirty = true;
-                _builderStatus = "removed selected entity";
+                RemoveGarrisonBuilderSelectedEntities();
             }
             else if (_builderEntities.Count > 0)
             {
@@ -497,7 +491,20 @@ public partial class Game1
 
         if (_builderEntityDragging && mouse.LeftButton == ButtonState.Pressed)
         {
-            ApplyGarrisonBuilderEntityDrag(world);
+            ApplyGarrisonBuilderMultiEntityDrag(world);
+            return;
+        }
+
+        if (_builderAreaSelectDragging && mouse.LeftButton == ButtonState.Released
+            && _previousMouse.LeftButton == ButtonState.Pressed)
+        {
+            CommitGarrisonBuilderAreaSelect(mouse.Position);
+            return;
+        }
+
+        if (_builderAreaSelectDragging && mouse.LeftButton == ButtonState.Pressed)
+        {
+            UpdateGarrisonBuilderAreaSelect(mouse.Position);
             return;
         }
 
@@ -575,6 +582,7 @@ public partial class Game1
             }
 
             if (_builderActiveTool == GarrisonBuilderTool.Select
+                && GetGarrisonBuilderSelectedEntityCount() <= 1
                 && _builderSelectedEntityIndex >= 0
                 && TryBeginGarrisonBuilderResize(mouse.Position, world))
             {
@@ -589,20 +597,22 @@ public partial class Game1
 
             if (pickResult == GarrisonBuilderEntityPickResult.Picked)
             {
-                if (_builderActiveTool == GarrisonBuilderTool.Select
-                    && pickedEntityIndex == _builderSelectedEntityIndex
-                    && TryBeginGarrisonBuilderEntityDrag(world))
+                if (_builderActiveTool == GarrisonBuilderTool.Select)
                 {
-                    return;
+                    if (IsGarrisonBuilderMapEntitySelected(pickedEntityIndex)
+                        && TryBeginGarrisonBuilderEntityDrag(world, pickedEntityIndex))
+                    {
+                        return;
+                    }
                 }
 
                 SelectGarrisonBuilderMapEntity(pickedEntityIndex);
                 return;
             }
 
-            if (_builderActiveTool == GarrisonBuilderTool.Select)
+            if (_builderActiveTool == GarrisonBuilderTool.Select && onMap)
             {
-                TrySelectGarrisonBuilderEntity(world, mouse.Position);
+                BeginGarrisonBuilderAreaSelect(mouse.Position);
             }
         }
         else if (mouse.LeftButton == ButtonState.Released && _previousMouse.LeftButton == ButtonState.Pressed)
@@ -634,7 +644,16 @@ public partial class Game1
 
             if (contextPickResult == GarrisonBuilderEntityPickResult.Picked)
             {
-                SelectGarrisonBuilderMapEntity(contextEntityIndex);
+                if (GetGarrisonBuilderSelectedEntityCount() <= 1
+                    || !IsGarrisonBuilderMapEntitySelected(contextEntityIndex))
+                {
+                    SelectGarrisonBuilderMapEntity(contextEntityIndex);
+                }
+                else
+                {
+                    _builderSelectedEntityIndex = contextEntityIndex;
+                }
+
                 OpenGarrisonBuilderEntityContextMenu(mouse.Position);
                 return;
             }
@@ -1059,8 +1078,8 @@ public partial class Game1
             [
                 ("New map", CreateNewGarrisonBuilderDocument),
                 ("Open map...", () => BeginEditingGarrisonBuilderPath(GarrisonBuilderPathField.OpenMap)),
-                ("Save", SaveGarrisonBuilderDocument),
-                ("Save as...", () => BeginEditingGarrisonBuilderPath(GarrisonBuilderPathField.Save)),
+                ("Save (Ctrl+S)", SaveGarrisonBuilderDocument),
+                ("Save as... (Ctrl+Shift+S)", () => BeginEditingGarrisonBuilderPath(GarrisonBuilderPathField.Save)),
                 ("Load background...", () => BeginEditingGarrisonBuilderPath(GarrisonBuilderPathField.Background)),
                 ("Load walkmask...", () => BeginEditingGarrisonBuilderPath(GarrisonBuilderPathField.Walkmask)),
                 ("Load layer image...", BeginLoadForCurrentGarrisonBuilderLayer),
@@ -1105,7 +1124,7 @@ public partial class Game1
         ClearGarrisonBuilderHiddenEntities();
         _builderOpenMapBuffer = string.Empty;
         _builderSavePath = string.Empty;
-        _builderSelectedEntityIndex = -1;
+        ClearGarrisonBuilderMapEntitySelection();
         SyncGarrisonBuilderPathBuffers();
         _builderDirty = false;
         RequestGarrisonBuilderCameraCenter();
@@ -1117,7 +1136,7 @@ public partial class Game1
         _builderEntities.Clear();
         ClearGarrisonBuilderHiddenEntities();
         UpdateGarrisonBuilderDocumentEntities();
-        _builderSelectedEntityIndex = -1;
+        ClearGarrisonBuilderMapEntitySelection();
         _builderDirty = true;
         _builderStatus = "entities cleared";
     }
@@ -1304,17 +1323,18 @@ public partial class Game1
     private void SelectGarrisonBuilderMapEntity(int entityIndex)
     {
         _builderEntityDragging = false;
+        _builderAreaSelectDragging = false;
         CloseGarrisonBuilderEntityContextMenu();
         CloseGarrisonBuilderEntityOverlapPicker();
         if (!IsValidGarrisonBuilderMapEntityIndex(entityIndex))
         {
-            _builderSelectedEntityIndex = -1;
+            ClearGarrisonBuilderMapEntitySelection();
             _builderSelectedEntityType = string.Empty;
             _builderStatus = "selection cleared";
             return;
         }
 
-        _builderSelectedEntityIndex = entityIndex;
+        SelectSingleGarrisonBuilderMapEntity(entityIndex);
         _builderSelectedEntityType = string.Empty;
         _builderActiveTool = GarrisonBuilderTool.Select;
         var entity = _builderEntities[entityIndex];
@@ -1700,83 +1720,25 @@ public partial class Game1
 
     private void CloneGarrisonBuilderSelectedEntity()
     {
-        if (_builderSelectedEntityIndex < 0 || _builderSelectedEntityIndex >= _builderEntities.Count)
-        {
-            return;
-        }
-
-        RecordGarrisonBuilderHistory();
-        if (!TryDuplicateGarrisonBuilderEntity(_builderSelectedEntityIndex, placeAtSourcePosition: false, out var duplicateIndex))
-        {
-            return;
-        }
-
-        _builderSelectedEntityIndex = duplicateIndex;
-        UpdateGarrisonBuilderDocumentEntities();
-        _builderDirty = true;
-        _builderStatus = $"cloned {_builderEntities[duplicateIndex].Type}";
+        CloneGarrisonBuilderSelectedEntities();
     }
 
     private bool TryDuplicateGarrisonBuilderEntity(int sourceIndex, bool placeAtSourcePosition, out int duplicateIndex)
     {
         duplicateIndex = -1;
-        if (sourceIndex < 0 || sourceIndex >= _builderEntities.Count)
+        if (!TryDuplicateGarrisonBuilderEntities([sourceIndex], placeAtSourcePosition, out var duplicates)
+            || duplicates.Count == 0)
         {
             return false;
         }
 
-        var source = _builderEntities[sourceIndex];
-        var clone = placeAtSourcePosition
-            ? source
-            : source with
-            {
-                X = source.X + 24f,
-                Y = source.Y + 24f,
-            };
-        _builderEntities.Add(clone.NormalizeForEditing());
-        duplicateIndex = _builderEntities.Count - 1;
-        _builderSelectedEntityType = string.Empty;
-        _builderActiveTool = GarrisonBuilderTool.Select;
+        duplicateIndex = duplicates[0];
         return true;
     }
 
     private void RemoveGarrisonBuilderSelectedEntity()
     {
-        if (_builderSelectedEntityIndex < 0 || _builderSelectedEntityIndex >= _builderEntities.Count)
-        {
-            return;
-        }
-
-        RecordGarrisonBuilderHistory();
-        var removed = _builderEntities[_builderSelectedEntityIndex].Type;
-        var removedIndex = _builderSelectedEntityIndex;
-        NotifyGarrisonBuilderEntityRemoved(removedIndex);
-        _builderEntities.RemoveAt(removedIndex);
-        CloseGarrisonBuilderPropertyEditor(applyChanges: false);
-        UpdateGarrisonBuilderDocumentEntities();
-        _builderDirty = true;
-        _builderStatus = $"removed {removed}";
-    }
-
-    private void TrySelectGarrisonBuilderEntity(Vector2 world, Point screenPosition)
-    {
-        if (TryPickGarrisonBuilderEntityAtWorld(world, out var bestIndex))
-        {
-            SelectGarrisonBuilderMapEntity(bestIndex);
-            return;
-        }
-
-        _builderEntityDragging = false;
-        _builderSelectedEntityIndex = -1;
-        _builderStatus = "selection cleared";
-        CloseGarrisonBuilderEntityContextMenu();
-        CloseGarrisonBuilderEntityOverlapPicker();
-        if (GetGarrisonBuilderPropertyEditorBounds().Contains(screenPosition))
-        {
-            return;
-        }
-
-        CloseGarrisonBuilderPropertyEditor(applyChanges: true);
+        RemoveGarrisonBuilderSelectedEntities();
     }
 
     private readonly record struct ModernGarrisonBuilderPaletteLayout(
@@ -2198,8 +2160,16 @@ public partial class Game1
             else
             {
                 var metrics = GetGarrisonBuilderEntityMetrics(definition);
-                _builderResizeOriginX = metrics.OffsetX;
-                _builderResizeOriginY = metrics.OffsetY;
+                if (UsesGarrisonBuilderCenterPlacementAnchor(entity.Type))
+                {
+                    _builderResizeOriginX = metrics.CenterX;
+                    _builderResizeOriginY = metrics.CenterY;
+                }
+                else
+                {
+                    _builderResizeOriginX = metrics.OffsetX;
+                    _builderResizeOriginY = metrics.OffsetY;
+                }
             }
 
             RecordGarrisonBuilderHistory();
@@ -2217,73 +2187,6 @@ public partial class Game1
         return false;
     }
 
-    private bool TryBeginGarrisonBuilderEntityDrag(Vector2 world)
-    {
-        if (_builderSelectedEntityIndex < 0 || _builderSelectedEntityIndex >= _builderEntities.Count)
-        {
-            return false;
-        }
-
-        var entity = _builderEntities[_builderSelectedEntityIndex];
-        if (!TryGetGarrisonBuilderEntityWorldBounds(entity, out var left, out var top, out var width, out var height)
-            || !new RectangleF(left, top, width, height).Contains(world.X, world.Y))
-        {
-            return false;
-        }
-
-        CloseGarrisonBuilderEntityContextMenu();
-        RecordGarrisonBuilderHistory();
-        var dragEntityIndex = _builderSelectedEntityIndex;
-        if (_builderAltHeld
-            && TryDuplicateGarrisonBuilderEntity(dragEntityIndex, placeAtSourcePosition: true, out var duplicateIndex))
-        {
-            dragEntityIndex = duplicateIndex;
-            _builderSelectedEntityIndex = duplicateIndex;
-        }
-
-        entity = _builderEntities[dragEntityIndex];
-        _builderEntityDragging = true;
-        _builderEntityDragPointerOffsetWorld = new Vector2(entity.X, entity.Y) - world;
-        _builderEntityDragStartX = entity.X;
-        _builderEntityDragStartY = entity.Y;
-        return true;
-    }
-
-    private void ApplyGarrisonBuilderEntityDrag(Vector2 world)
-    {
-        if (!_builderEntityDragging
-            || _builderSelectedEntityIndex < 0
-            || _builderSelectedEntityIndex >= _builderEntities.Count)
-        {
-            return;
-        }
-
-        var targetX = world.X + _builderEntityDragPointerOffsetWorld.X;
-        var targetY = world.Y + _builderEntityDragPointerOffsetWorld.Y;
-        if (_builderShiftHeld)
-        {
-            var deltaX = MathF.Abs(targetX - _builderEntityDragStartX);
-            var deltaY = MathF.Abs(targetY - _builderEntityDragStartY);
-            if (deltaX >= deltaY)
-            {
-                targetY = _builderEntityDragStartY;
-            }
-            else
-            {
-                targetX = _builderEntityDragStartX;
-            }
-        }
-
-        var snapped = SnapGarrisonBuilderPoint(new Vector2(targetX, targetY));
-        var entity = _builderEntities[_builderSelectedEntityIndex];
-        var updated = entity with
-        {
-            X = snapped.X,
-            Y = snapped.Y,
-        };
-        _builderEntities[_builderSelectedEntityIndex] = updated.NormalizeForEditing();
-    }
-
     private void ApplyGarrisonBuilderResizeDrag(Vector2 world)
     {
         if (_builderSelectedEntityIndex < 0 || _builderSelectedEntityIndex >= _builderEntities.Count)
@@ -2291,6 +2194,7 @@ public partial class Game1
             return;
         }
 
+        world = SnapGarrisonBuilderPoint(world);
         var entity = _builderEntities[_builderSelectedEntityIndex];
         if (IsGarrisonBuilderCustomSpriteResizable(entity))
         {
@@ -2401,10 +2305,23 @@ public partial class Game1
 
         var newXScale = MathF.Max(0.05f, newWidth / metrics.Width);
         var newYScale = MathF.Max(0.05f, newHeight / metrics.Height);
+        float newX;
+        float newY;
+        if (UsesGarrisonBuilderCenterPlacementAnchor(entity.Type))
+        {
+            newX = newLeft + (newWidth * 0.5f);
+            newY = newTop + (newHeight * 0.5f);
+        }
+        else
+        {
+            newX = newLeft + (_builderResizeOriginX * newXScale);
+            newY = newTop + (_builderResizeOriginY * newYScale);
+        }
+
         var updated = entity with
         {
-            X = newLeft + (_builderResizeOriginX * newXScale),
-            Y = newTop + (_builderResizeOriginY * newYScale),
+            X = newX,
+            Y = newY,
             XScale = newXScale,
             YScale = newYScale,
         };
@@ -2668,6 +2585,13 @@ public partial class Game1
             }
         }
 
+        if (CustomMapCustomSpriteMetadata.IsCustomSpriteEntityType(entity.Type))
+        {
+            CustomMapCustomSpriteMetadata.EnsurePlacementDefaults(
+                _builderPropertyEditorValues,
+                _builderDocument.VisualScale);
+        }
+
         SyncGarrisonBuilderSpawnPropertyEditorFields();
         SyncGarrisonBuilderControlPointPropertyEditorFields();
     }
@@ -2685,6 +2609,7 @@ public partial class Game1
         DrawModernGarrisonBuilderSelectionAndLinks();
         DrawGarrisonBuilderObjectiveMapPickHighlights();
         DrawGarrisonBuilderLogicMapPickHighlights();
+        DrawGarrisonBuilderExtendableAreaMapPickHighlights();
         DrawModernGarrisonBuilderMenuBarTabs(mouse);
         DrawModernGarrisonBuilderSidebar(mouse);
         DrawModernGarrisonBuilderToolbar(mouse);
@@ -2701,6 +2626,7 @@ public partial class Game1
         DrawGarrisonBuilderEntityMapPickPrompt(mouse);
         DrawGarrisonBuilderPropertyEditor(mouse);
         DrawGarrisonBuilderLayerParallaxDialog(mouse);
+        DrawGarrisonBuilderTransientStatus();
     }
 
     private void DrawGarrisonBuilderEntityOverlapPicker(MouseState mouse)
@@ -3227,15 +3153,15 @@ public partial class Game1
     private void DrawModernGarrisonBuilderSelectionAndLinks()
     {
         DrawGarrisonBuilderEntityLinks();
+        DrawGarrisonBuilderMapEntitySelectionHighlights();
+        DrawGarrisonBuilderAreaSelectionRectangle();
 
-        if (_builderSelectedEntityIndex >= 0
+        if (GetGarrisonBuilderSelectedEntityCount() == 1
+            && _builderSelectedEntityIndex >= 0
             && _builderSelectedEntityIndex < _builderEntities.Count
             && !IsGarrisonBuilderEntityHidden(_builderSelectedEntityIndex))
         {
-            var selected = _builderEntities[_builderSelectedEntityIndex];
-            var screen = BuilderWorldToScreen(new Vector2(selected.X, selected.Y));
-            _spriteBatch.Draw(_pixel, new Rectangle((int)screen.X - 8, (int)screen.Y - 8, 16, 16), Color.White * 0.25f);
-            DrawSelectionResizeHandles(selected);
+            DrawSelectionResizeHandles(_builderEntities[_builderSelectedEntityIndex]);
         }
     }
 

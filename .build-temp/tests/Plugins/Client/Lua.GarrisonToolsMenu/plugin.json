@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "open-garrison.client.lua-garrison-tools-menu",
+  "displayName": "GarrisonTools Admin Menu",
+  "version": "0.1.0",
+  "type": "Client",
+  "runtime": "Lua",
+  "entryPoint": "main.lua",
+  "description": "Bundled client-side branched admin menu overlay for the GarrisonTools server plugin.",
+  "compatibility": {
+    "hostApiVersion": "1.0"
+  },
+  "tags": [
+    "client",
+    "lua",
+    "admin",
+    "ui",
+    "menu"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+    "id":  "ControlPointBlueS",
+    "framePaths":  [
+                       "Content/Sprites/MapElements/ControlPointBlueS.images/image 0.png",
+                       "Content/Sprites/MapElements/ControlPointBlueS.images/image 1.png"
+                   ],
+    "originX":  13,
+    "originY":  13,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

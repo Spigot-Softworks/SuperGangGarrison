@@ -25,10 +25,13 @@ public enum MapLogicCpTriggerOwnerRequirement
 
 public static class MapLogicMetadata
 {
+    public const string MapEntityIdPropertyKey = "mapEntityId";
+
     public const string LogicKeyPropertyKey = "logicKey";
     public const string LogicInputPropertyKey = "logicInput";
     public const string LogicInput1PropertyKey = "logicInput1";
     public const string LogicInput2PropertyKey = "logicInput2";
+    public const string LogicResetPropertyKey = "logicReset";
     public const string LogicSignalPropertyKey = "logicSignal";
     public const string LockedWhenLogicPropertyKey = "lockedWhenLogic";
     public const string UnlockedWhenLogicPropertyKey = "unlockedWhenLogic";
@@ -40,6 +43,10 @@ public static class MapLogicMetadata
     public const string ActivateOnStartPropertyKey = "activateOnStart";
     public const string CountdownSecondsPropertyKey = "countdownSeconds";
     public const string TriggerOnStartPropertyKey = "triggerOnStart";
+    public const string DelayedTruePropertyKey = "delayedTrue";
+    public const string DelayedFalsePropertyKey = "delayedFalse";
+    public const string DelayedTrueDefaultPropertyValue = "true";
+    public const string DelayedFalseDefaultPropertyValue = "true";
     public const string CountdownSecondsDefaultPropertyValue = "1";
     public const string NodePriorityPropertyKey = "nodePriority";
     public const string NodePriorityDefaultPropertyValue = "0";
@@ -51,9 +58,24 @@ public static class MapLogicMetadata
     public const string CpTriggerEntityType = "logicCpTrigger";
     public const string GateEntityType = "logicGate";
     public const string NotEntityType = "logicNot";
+    public const string RisingEdgeEntityType = "logicRisingEdge";
+    public const string LatchEntityType = "logicLatch";
     public const string ActivatorEntityType = "logicActivator";
     public const string TimerEntityType = "logicTimer";
+    public const string OscillatorEntityType = "logicOscillator";
+    public const string TrueTimePropertyKey = "trueTime";
+    public const string FalseTimePropertyKey = "falseTime";
+    public const string InitialValuePropertyKey = "initialValue";
+    public const string AutostartPropertyKey = "autostart";
+    public const string StartWhenPropertyKey = "startWhen";
+    public const string EndWhenPropertyKey = "endWhen";
+    public const string TrueTimeDefaultPropertyValue = "1";
+    public const string FalseTimeDefaultPropertyValue = "1";
+    public const string InitialValueDefaultPropertyValue = "true";
+    public const string AutostartDefaultPropertyValue = "false";
     public const string PlayerTriggerEntityType = PlayerTriggerMetadata.PlayerTriggerEntityType;
+
+    public const string AreaEntityType = AreaExtensionMetadata.AreaEntityType;
 
     public static bool IsLogicEntityType(string? type)
     {
@@ -65,9 +87,15 @@ public static class MapLogicMetadata
         return type.Equals(CpTriggerEntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals(GateEntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals(NotEntityType, StringComparison.OrdinalIgnoreCase)
+            || type.Equals(RisingEdgeEntityType, StringComparison.OrdinalIgnoreCase)
+            || type.Equals(LatchEntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals(TimerEntityType, StringComparison.OrdinalIgnoreCase)
+            || type.Equals(OscillatorEntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals(PlayerTriggerEntityType, StringComparison.OrdinalIgnoreCase)
-            || type.Equals(ActivatorEntityType, StringComparison.OrdinalIgnoreCase);
+            || type.Equals(ActivatorEntityType, StringComparison.OrdinalIgnoreCase)
+            || type.Equals(AreaEntityType, StringComparison.OrdinalIgnoreCase)
+            || DamageableMetadata.IsDamageableEntityType(type)
+            || DamageTriggerMetadata.IsDamageTriggerEntityType(type);
     }
 
     public static bool IsLogicOutputEntityType(string? type)
@@ -80,8 +108,94 @@ public static class MapLogicMetadata
         return type.Equals(CpTriggerEntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals(GateEntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals(NotEntityType, StringComparison.OrdinalIgnoreCase)
+            || type.Equals(RisingEdgeEntityType, StringComparison.OrdinalIgnoreCase)
+            || type.Equals(LatchEntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals(TimerEntityType, StringComparison.OrdinalIgnoreCase)
-            || type.Equals(PlayerTriggerEntityType, StringComparison.OrdinalIgnoreCase);
+            || type.Equals(OscillatorEntityType, StringComparison.OrdinalIgnoreCase)
+            || type.Equals(PlayerTriggerEntityType, StringComparison.OrdinalIgnoreCase)
+            || DamageTriggerMetadata.IsDamageTriggerEntityType(type);
+    }
+
+    public static float ParseOscillatorIntervalSeconds(string? value)
+    {
+        return ParseCountdownSeconds(value);
+    }
+
+    public static float ParseTrueTimeSeconds(IReadOnlyDictionary<string, string>? properties)
+    {
+        if (properties is null)
+        {
+            return 1f;
+        }
+
+        return properties.TryGetValue(TrueTimePropertyKey, out var raw)
+            ? ParseOscillatorIntervalSeconds(raw)
+            : 1f;
+    }
+
+    public static float ParseFalseTimeSeconds(IReadOnlyDictionary<string, string>? properties)
+    {
+        if (properties is null)
+        {
+            return 1f;
+        }
+
+        return properties.TryGetValue(FalseTimePropertyKey, out var raw)
+            ? ParseOscillatorIntervalSeconds(raw)
+            : 1f;
+    }
+
+    public static bool ParseInitialValue(IReadOnlyDictionary<string, string>? properties)
+    {
+        if (properties is null)
+        {
+            return true;
+        }
+
+        if (!properties.TryGetValue(InitialValuePropertyKey, out var value))
+        {
+            return true;
+        }
+
+        return !value.Trim().Equals("false", StringComparison.OrdinalIgnoreCase)
+            && !value.Trim().Equals("0", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool ParseAutostart(IReadOnlyDictionary<string, string>? properties)
+    {
+        if (properties is null)
+        {
+            return false;
+        }
+
+        return properties.TryGetValue(AutostartPropertyKey, out var value)
+            && (value.Trim().Equals("true", StringComparison.OrdinalIgnoreCase)
+                || value.Trim().Equals("1", StringComparison.OrdinalIgnoreCase));
+    }
+
+    public static string ToInitialValuePropertyValue(bool initialValue)
+    {
+        return initialValue ? "true" : "false";
+    }
+
+    public static string CycleInitialValuePropertyValue(string current)
+    {
+        return ParseInitialValue(new Dictionary<string, string>
+        {
+            [InitialValuePropertyKey] = current,
+        })
+            ? "false"
+            : "true";
+    }
+
+    public static string GetInitialValueDisplayLabel(string? value)
+    {
+        return ParseInitialValue(new Dictionary<string, string>
+        {
+            [InitialValuePropertyKey] = value ?? string.Empty,
+        })
+            ? "TRUE"
+            : "FALSE";
     }
 
     public static float ParseCountdownSeconds(string? value)
@@ -126,6 +240,42 @@ public static class MapLogicMetadata
                 || value.Trim().Equals("1", StringComparison.OrdinalIgnoreCase));
     }
 
+    public static bool ParseDelayedTrue(IReadOnlyDictionary<string, string>? properties)
+    {
+        return ParseDelayedSignalFlag(properties, DelayedTruePropertyKey, defaultValue: true);
+    }
+
+    public static bool ParseDelayedFalse(IReadOnlyDictionary<string, string>? properties)
+    {
+        return ParseDelayedSignalFlag(properties, DelayedFalsePropertyKey, defaultValue: true);
+    }
+
+    private static bool ParseDelayedSignalFlag(
+        IReadOnlyDictionary<string, string>? properties,
+        string propertyKey,
+        bool defaultValue)
+    {
+        if (properties is null || !properties.TryGetValue(propertyKey, out var value))
+        {
+            return defaultValue;
+        }
+
+        var trimmed = value.Trim();
+        if (trimmed.Equals("false", StringComparison.OrdinalIgnoreCase)
+            || trimmed.Equals("0", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (trimmed.Equals("true", StringComparison.OrdinalIgnoreCase)
+            || trimmed.Equals("1", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return defaultValue;
+    }
+
     public static bool TryParseActivatorBehavior(string? value, out MapLogicActivatorBehavior behavior)
     {
         if (string.IsNullOrWhiteSpace(value)
@@ -141,13 +291,24 @@ public static class MapLogicMetadata
             return true;
         }
 
+        if (value.Trim().Equals("toggle", StringComparison.OrdinalIgnoreCase))
+        {
+            behavior = MapLogicActivatorBehavior.Toggle;
+            return true;
+        }
+
         behavior = default;
         return false;
     }
 
     public static string ToActivatorBehaviorPropertyValue(MapLogicActivatorBehavior behavior)
     {
-        return behavior == MapLogicActivatorBehavior.Enable ? "enable" : "disable";
+        return behavior switch
+        {
+            MapLogicActivatorBehavior.Enable => "enable",
+            MapLogicActivatorBehavior.Toggle => "toggle",
+            _ => "disable",
+        };
     }
 
     public static string CycleActivatorBehaviorPropertyValue(string current)
@@ -157,17 +318,28 @@ public static class MapLogicMetadata
             behavior = MapLogicActivatorBehavior.Disable;
         }
 
-        return ToActivatorBehaviorPropertyValue(
-            behavior == MapLogicActivatorBehavior.Disable
-                ? MapLogicActivatorBehavior.Enable
-                : MapLogicActivatorBehavior.Disable);
+        var next = behavior switch
+        {
+            MapLogicActivatorBehavior.Disable => MapLogicActivatorBehavior.Enable,
+            MapLogicActivatorBehavior.Enable => MapLogicActivatorBehavior.Toggle,
+            _ => MapLogicActivatorBehavior.Disable,
+        };
+        return ToActivatorBehaviorPropertyValue(next);
     }
 
     public static string GetActivatorBehaviorDisplayLabel(string? value)
     {
-        return TryParseActivatorBehavior(value, out var behavior)
-            ? behavior == MapLogicActivatorBehavior.Enable ? "Enable" : "Disable"
-            : "Disable";
+        if (!TryParseActivatorBehavior(value, out var behavior))
+        {
+            return "Disable";
+        }
+
+        return behavior switch
+        {
+            MapLogicActivatorBehavior.Enable => "Enable",
+            MapLogicActivatorBehavior.Toggle => "Toggle",
+            _ => "Disable",
+        };
     }
 
     public static int ClampNodePriority(int priority)
@@ -251,6 +423,22 @@ public static class MapLogicMetadata
     public static string CreateLogicKey()
     {
         return Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)[..8];
+    }
+
+    public static string CreateMapEntityId()
+    {
+        return CreateLogicKey();
+    }
+
+    public static string EnsureMapEntityId(IReadOnlyDictionary<string, string> properties)
+    {
+        if (properties.TryGetValue(MapEntityIdPropertyKey, out var existing)
+            && !string.IsNullOrWhiteSpace(existing))
+        {
+            return existing.Trim();
+        }
+
+        return CreateMapEntityId();
     }
 
     public static string EnsureLogicKey(IReadOnlyDictionary<string, string> properties)
@@ -433,7 +621,7 @@ public static class MapLogicMetadata
             return false;
         }
 
-        if (!TryGetOwner(controlPoints, linkedControlPointIndex, out var owner))
+        if (!TryGetControlPointOwner(controlPoints, linkedControlPointIndex, out var owner))
         {
             return false;
         }
@@ -458,8 +646,17 @@ public static class MapLogicMetadata
         };
     }
 
-    private static bool TryGetOwner(IReadOnlyList<ControlPointState> controlPoints, int controlPointIndex, out PlayerTeam? owner)
+    public static bool TryGetControlPointOwner(
+        IReadOnlyList<ControlPointState> controlPoints,
+        int controlPointIndex,
+        out PlayerTeam? owner)
     {
+        if (controlPointIndex < ControlPointIndexMetadata.MinIndex)
+        {
+            owner = null;
+            return false;
+        }
+
         for (var index = 0; index < controlPoints.Count; index += 1)
         {
             var point = controlPoints[index];

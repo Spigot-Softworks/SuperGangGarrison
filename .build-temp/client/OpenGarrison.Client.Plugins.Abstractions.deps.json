@@ -1,0 +1,199 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "OpenGarrison.Client.Plugins.Abstractions/1.0.0": {
+        "dependencies": {
+          "MonoGame.Framework.DesktopGL": "3.8.4.1",
+          "OpenGarrison.PluginHost.Abstractions": "1.0.0",
+          "OpenGarrison.Protocol": "1.0.0"
+        },
+        "runtime": {
+          "OpenGarrison.Client.Plugins.Abstractions.dll": {}
+        }
+      },
+      "K4os.Compression.LZ4/1.3.8": {
+        "runtime": {
+          "lib/net6.0/K4os.Compression.LZ4.dll": {
+            "assemblyVersion": "1.3.8.0",
+            "fileVersion": "1.3.8.0"
+          }
+        }
+      },
+      "MonoGame.Framework.DesktopGL/3.8.4.1": {
+        "dependencies": {
+          "MonoGame.Library.OpenAL": "1.24.3.2",
+          "MonoGame.Library.SDL": "2.32.2.1",
+          "NVorbis": "0.10.4"
+        },
+        "runtime": {
+          "lib/net8.0/MonoGame.Framework.dll": {
+            "assemblyVersion": "3.8.4.1",
+            "fileVersion": "3.8.4.1"
+          }
+        }
+      },
+      "MonoGame.Library.OpenAL/1.24.3.2": {
+        "runtimeTargets": {
+          "runtimes/android-arm/native/libopenal.so": {
+            "rid": "android-arm",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/android-arm64/native/libopenal.so": {
+            "rid": "android-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/android-x64/native/libopenal.so": {
+            "rid": "android-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/android-x86/native/libopenal.so": {
+            "rid": "android-x86",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/ios-arm64/native/libopenal.a": {
+            "rid": "ios-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/iossimulator-arm64/native/libopenal.a": {
+            "rid": "iossimulator-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/iossimulator-x64/native/libopenal.a": {
+            "rid": "iossimulator-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/linux-arm64/native/libopenal.so": {
+            "rid": "linux-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/linux-x64/native/libopenal.so": {
+            "rid": "linux-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/osx/native/libopenal.dylib": {
+            "rid": "osx",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/win-x64/native/openal.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "1.24.3.0"
+          }
+        }
+      },
+      "MonoGame.Library.SDL/2.32.2.1": {
+        "runtimeTargets": {
+          "runtimes/linux-x64/native/libSDL2-2.0.so.0": {
+            "rid": "linux-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/osx/native/libSDL2-2.0.0.dylib": {
+            "rid": "osx",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/win-x64/native/SDL2.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "2.32.2.0"
+          }
+        }
+      },
+      "NVorbis/0.10.4": {
+        "runtime": {
+          "lib/netstandard2.0/NVorbis.dll": {
+            "assemblyVersion": "0.10.4.0",
+            "fileVersion": "0.10.4.0"
+          }
+        }
+      },
+      "OpenGarrison.PluginHost.Abstractions/1.0.0": {
+        "runtime": {
+          "OpenGarrison.PluginHost.Abstractions.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "OpenGarrison.Protocol/1.0.0": {
+        "dependencies": {
+          "K4os.Compression.LZ4": "1.3.8"
+        },
+        "runtime": {
+          "OpenGarrison.Protocol.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "OpenGarrison.Client.Plugins.Abstractions/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "K4os.Compression.LZ4/1.3.8": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-LhwlPa7c1zs1OV2XadMtAWdImjLIsqFJPoRcIWAadSRn0Ri1DepK65UbWLPmt4riLqx2d40xjXRk0ogpqNtK7g==",
+      "path": "k4os.compression.lz4/1.3.8",
+      "hashPath": "k4os.compression.lz4.1.3.8.nupkg.sha512"
+    },
+    "MonoGame.Framework.DesktopGL/3.8.4.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-YybxIIT5+Ky78E/XdkS0glyluMr2EeDZwx2LqXULAOCqiKt1+aDrjPZaqLL5qpNgBcMEHUeZJ4YjWe4TAZlWLw==",
+      "path": "monogame.framework.desktopgl/3.8.4.1",
+      "hashPath": "monogame.framework.desktopgl.3.8.4.1.nupkg.sha512"
+    },
+    "MonoGame.Library.OpenAL/1.24.3.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-nGRsXQXs+NSUC3C5w90hFQfyKdZPpBnHnyg2w+Dw/2pUH7s+CoRWTJNYbzzdJf3+aeUvfvG4rTbFvMKDDj5olA==",
+      "path": "monogame.library.openal/1.24.3.2",
+      "hashPath": "monogame.library.openal.1.24.3.2.nupkg.sha512"
+    },
+    "MonoGame.Library.SDL/2.32.2.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-T4E2ppGlSTC2L9US1rxtdg3qTbarRzNId31xZoumUW9cf9Nq8nRQPMu9GzvZGrhfSySf0+UWPEj1rlicps+P/w==",
+      "path": "monogame.library.sdl/2.32.2.1",
+      "hashPath": "monogame.library.sdl.2.32.2.1.nupkg.sha512"
+    },
+    "NVorbis/0.10.4": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-WYnil3DhQHzjCY0dM9I2B3r1vWip90AOuQd25KE4NrjPQBg0tBJFluRLm5YPnO5ZLDmwrfosY8jCQGQRmWI/Pg==",
+      "path": "nvorbis/0.10.4",
+      "hashPath": "nvorbis.0.10.4.nupkg.sha512"
+    },
+    "OpenGarrison.PluginHost.Abstractions/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "OpenGarrison.Protocol/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

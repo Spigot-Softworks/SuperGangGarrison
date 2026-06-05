@@ -55,8 +55,8 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        var zone = Level.RoomObjects[zoneIndex];
-        if (!zone.TeleportZone.HasExit)
+        if (!AreaExtensionMetadata.TryGetEffectiveTeleportZone(Level.RoomObjects, zoneIndex, out var zone)
+            || !zone.TeleportZone.HasExit)
         {
             return;
         }
@@ -74,22 +74,27 @@ public sealed partial class SimulationWorld
             }
 
             var marker = Level.RoomObjects[index];
-            if (marker.Type != RoomObjectType.TeleportZone)
+            if (marker.Type is not (RoomObjectType.TeleportZone or RoomObjectType.AreaExtension))
             {
                 continue;
             }
 
-            if (!TeleportMetadata.AllowsTeam(marker.TeleportZone.TeamFilter, player.Team))
+            if (!AreaExtensionMetadata.TryGetEffectiveTeleportZone(Level.RoomObjects, index, out var teleportZone))
             {
                 continue;
             }
 
-            if (!marker.TeleportZone.HasExit)
+            if (!TeleportMetadata.AllowsTeam(teleportZone.TeleportZone.TeamFilter, player.Team))
             {
                 continue;
             }
 
-            if (IsPointInsideMarker(player.X, player.Y, marker))
+            if (!teleportZone.TeleportZone.HasExit)
+            {
+                continue;
+            }
+
+            if (AreaExtensionMetadata.IsPointInsideMarker(player.X, player.Y, marker))
             {
                 return index;
             }

@@ -1,0 +1,25 @@
+{
+    "id":  "sprite64",
+    "framePaths":  [
+                       "Content/Sprites/Obstacles/sprite64.images/image 0.png",
+                       "Content/Sprites/Obstacles/sprite64.images/image 1.png",
+                       "Content/Sprites/Obstacles/sprite64.images/image 2.png",
+                       "Content/Sprites/Obstacles/sprite64.images/image 3.png",
+                       "Content/Sprites/Obstacles/sprite64.images/image 4.png",
+                       "Content/Sprites/Obstacles/sprite64.images/image 5.png",
+                       "Content/Sprites/Obstacles/sprite64.images/image 6.png",
+                       "Content/Sprites/Obstacles/sprite64.images/image 7.png",
+                       "Content/Sprites/Obstacles/sprite64.images/image 8.png"
+                   ],
+    "originX":  0,
+    "originY":  0,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "FULL",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

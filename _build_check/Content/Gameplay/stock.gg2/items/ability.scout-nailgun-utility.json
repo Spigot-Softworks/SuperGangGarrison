@@ -1,0 +1,14 @@
+{
+  "id": "ability.scout-nailgun-utility",
+  "displayName": "Scout Nailgun Toggle",
+  "slot": "Utility",
+  "behaviorId": "builtin.utility.scout_nailgun",
+  "ability": {
+    "category": "utility",
+    "activation": "pressed",
+    "executorId": "builtin.ability.scout_nailgun_toggle",
+    "tags": [ "weapon_toggle" ]
+  },
+  "ammo": {},
+  "presentation": {}
+}

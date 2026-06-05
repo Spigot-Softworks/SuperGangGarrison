@@ -1,0 +1,10 @@
+{
+  "id": "stock.gg2.weapon.diamondback.world",
+  "framePaths": [
+    "assets/diamondback/DiamondbackS.png"
+  ],
+  "frameWidth": 40,
+  "frameHeight": 11,
+  "originX": -1,
+  "originY": 6
+}

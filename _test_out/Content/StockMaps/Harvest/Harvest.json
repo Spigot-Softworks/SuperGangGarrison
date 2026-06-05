@@ -1,0 +1,298 @@
+{
+  "formatVersion": 1,
+  "name": "Harvest",
+  "scale": 3,
+  "backgroundImage": "background.png",
+  "walkmaskImage": "walkmask.png",
+  "metadata": {
+    "background": "ffffff",
+    "void": "000000"
+  },
+  "entities": [
+    {
+      "type": "redspawn",
+      "x": 714,
+      "y": 732,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 756,
+      "y": 732,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 852,
+      "y": 732,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 894,
+      "y": 732,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "KothControlPoint",
+      "x": 2433,
+      "y": 726,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "playerwall",
+      "x": 648,
+      "y": 6,
+      "xScale": 2,
+      "yScale": 12.3,
+      "properties": {}
+    },
+    {
+      "type": "playerwall",
+      "x": 4206,
+      "y": 6,
+      "xScale": 2,
+      "yScale": 12,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 756,
+      "y": 678,
+      "xScale": 11,
+      "yScale": 0.2,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 954,
+      "y": 726,
+      "xScale": 2,
+      "yScale": 1.2,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 870,
+      "y": 738,
+      "xScale": 0.94,
+      "yScale": 1.25,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 666,
+      "y": 690,
+      "xScale": 6.29,
+      "yScale": 2.57,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 930,
+      "y": 714,
+      "xScale": 0.57,
+      "yScale": 2,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 822,
+      "y": 678,
+      "xScale": 2.14,
+      "yScale": 0.29,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 834,
+      "y": 666,
+      "xScale": 1.57,
+      "yScale": 0.29,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 4044,
+      "y": 678,
+      "xScale": 11,
+      "yScale": 0.2,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3900,
+      "y": 726,
+      "xScale": 2,
+      "yScale": 1.2,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3966,
+      "y": 738,
+      "xScale": 0.94,
+      "yScale": 1.25,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3936,
+      "y": 690,
+      "xScale": 6.29,
+      "yScale": 2.57,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3954,
+      "y": 678,
+      "xScale": 2.14,
+      "yScale": 0.29,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3966,
+      "y": 666,
+      "xScale": 1.57,
+      "yScale": 0.29,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3912,
+      "y": 714,
+      "xScale": 0.57,
+      "yScale": 2,
+      "properties": {}
+    },
+    {
+      "type": "bulletwall",
+      "x": 2856,
+      "y": 678,
+      "xScale": 2,
+      "yScale": 1.9,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2352,
+      "y": 744,
+      "xScale": 3.86,
+      "yScale": 2,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2394,
+      "y": 726,
+      "xScale": 1.86,
+      "yScale": 0.43,
+      "properties": {}
+    },
+    {
+      "type": "bulletwall",
+      "x": 2004,
+      "y": 678,
+      "xScale": 2,
+      "yScale": 1.9,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 4116,
+      "y": 732,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 4086,
+      "y": 732,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 4014,
+      "y": 732,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 3978,
+      "y": 732,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    }
+  ],
+  "resources": [
+    {
+      "name": "bg_foreground",
+      "kind": "foreground",
+      "path": "bg_foreground.png"
+    },
+    {
+      "name": "bg_layer0",
+      "kind": "parallaxLayer",
+      "path": "bg_layer0.png"
+    },
+    {
+      "name": "bg_layer4",
+      "kind": "parallaxLayer",
+      "path": "bg_layer4.png"
+    },
+    {
+      "name": "bg_layer5",
+      "kind": "parallaxLayer",
+      "path": "bg_layer5.png"
+    },
+    {
+      "name": "bg_layer6",
+      "kind": "parallaxLayer",
+      "path": "bg_layer6.png"
+    }
+  ],
+  "parallaxLayers": [
+    {
+      "index": 0,
+      "resourceName": "bg_layer0",
+      "xFactor": 1,
+      "yFactor": 1
+    },
+    {
+      "index": 4,
+      "resourceName": "bg_layer4",
+      "xFactor": 1,
+      "yFactor": 1
+    },
+    {
+      "index": 5,
+      "resourceName": "bg_layer5",
+      "xFactor": 1,
+      "yFactor": 1
+    },
+    {
+      "index": 6,
+      "resourceName": "bg_layer6",
+      "xFactor": 1,
+      "yFactor": 1
+    }
+  ]
+}

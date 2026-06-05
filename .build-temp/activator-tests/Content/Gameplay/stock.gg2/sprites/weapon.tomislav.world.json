@@ -1,0 +1,10 @@
+{
+  "id": "stock.gg2.weapon.tomislav.world",
+  "framePaths": [
+    "assets/tomislav/TomislavS.png"
+  ],
+  "frameWidth": 50,
+  "frameHeight": 20,
+  "originX": 14,
+  "originY": 3
+}

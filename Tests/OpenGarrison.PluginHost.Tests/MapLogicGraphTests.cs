@@ -161,4 +161,292 @@ public sealed class MapLogicGraphTests
         graph.AdvanceTimers(0.5f);
         Assert.True(graph.GetOutput(graph.NodeIndexByKey["timer"]));
     }
+
+    [Fact]
+    public void TimerDelaysOutputFalseWhenInputClears()
+    {
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "src",
+                Kind = MapLogicNodeKind.CpTrigger,
+                LinkedControlPointIndex = 1,
+                OwnerRequirement = MapLogicCpTriggerOwnerRequirement.Red,
+            },
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "timer",
+                Kind = MapLogicNodeKind.Timer,
+                CountdownSeconds = 1f,
+                InputRef = "node:src",
+            },
+        ]);
+
+        var marker = new RoomObjectMarker(RoomObjectType.ControlPoint, 0f, 0f, 32f, 32f, "ControlPointRedS", PlayerTeam.Red, "controlPoint1");
+        var points = new[] { new ControlPointState(1, marker) { Team = PlayerTeam.Red } };
+
+        graph.ResetTimerStates();
+        graph.EvaluateCombinatorial(points);
+        graph.AdvanceTimers(1f);
+        Assert.True(graph.GetOutput(graph.NodeIndexByKey["timer"]));
+
+        points[0].Team = PlayerTeam.Blue;
+        graph.EvaluateCombinatorial(points);
+        graph.AdvanceTimers(0.5f);
+        Assert.True(graph.GetOutput(graph.NodeIndexByKey["timer"]));
+
+        graph.AdvanceTimers(0.5f);
+        Assert.False(graph.GetOutput(graph.NodeIndexByKey["timer"]));
+    }
+
+    [Fact]
+    public void TimerRestartsDelayWhenInputChangesBeforePreviousDelayCompletes()
+    {
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "src",
+                Kind = MapLogicNodeKind.CpTrigger,
+                LinkedControlPointIndex = 1,
+                OwnerRequirement = MapLogicCpTriggerOwnerRequirement.Red,
+            },
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "timer",
+                Kind = MapLogicNodeKind.Timer,
+                CountdownSeconds = 1f,
+                InputRef = "node:src",
+            },
+        ]);
+
+        var marker = new RoomObjectMarker(RoomObjectType.ControlPoint, 0f, 0f, 32f, 32f, "ControlPointRedS", PlayerTeam.Red, "controlPoint1");
+        var points = new[] { new ControlPointState(1, marker) { Team = PlayerTeam.Blue } };
+
+        graph.ResetTimerStates();
+        graph.EvaluateCombinatorial(points);
+        graph.AdvanceTimers(0.3f);
+
+        points[0].Team = PlayerTeam.Red;
+        graph.EvaluateCombinatorial(points);
+        graph.AdvanceTimers(0.2f);
+        Assert.False(graph.GetOutput(graph.NodeIndexByKey["timer"]));
+
+        points[0].Team = PlayerTeam.Blue;
+        graph.EvaluateCombinatorial(points);
+        graph.AdvanceTimers(0.3f);
+        Assert.False(graph.GetOutput(graph.NodeIndexByKey["timer"]));
+
+        points[0].Team = PlayerTeam.Red;
+        graph.EvaluateCombinatorial(points);
+        graph.AdvanceTimers(0.5f);
+        Assert.False(graph.GetOutput(graph.NodeIndexByKey["timer"]));
+
+        graph.AdvanceTimers(0.4f);
+        Assert.False(graph.GetOutput(graph.NodeIndexByKey["timer"]));
+
+        graph.AdvanceTimers(0.1f);
+        Assert.True(graph.GetOutput(graph.NodeIndexByKey["timer"]));
+    }
+
+    [Fact]
+    public void TimerPassesThroughTrueImmediatelyWhenDelayedTrueDisabled()
+    {
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "src",
+                Kind = MapLogicNodeKind.CpTrigger,
+                LinkedControlPointIndex = 1,
+                OwnerRequirement = MapLogicCpTriggerOwnerRequirement.Red,
+            },
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "timer",
+                Kind = MapLogicNodeKind.Timer,
+                CountdownSeconds = 1f,
+                DelayedTrue = false,
+                InputRef = "node:src",
+            },
+        ]);
+
+        var marker = new RoomObjectMarker(RoomObjectType.ControlPoint, 0f, 0f, 32f, 32f, "ControlPointRedS", PlayerTeam.Red, "controlPoint1");
+        var points = new[] { new ControlPointState(1, marker) { Team = PlayerTeam.Blue } };
+
+        graph.ResetTimerStates();
+        graph.EvaluateCombinatorial(points);
+        graph.AdvanceTimers(0f);
+        Assert.False(graph.GetOutput(graph.NodeIndexByKey["timer"]));
+
+        points[0].Team = PlayerTeam.Red;
+        graph.EvaluateCombinatorial(points);
+        graph.AdvanceTimers(0f);
+        Assert.True(graph.GetOutput(graph.NodeIndexByKey["timer"]));
+    }
+
+    [Fact]
+    public void TimerDelaysFalseButPassesThroughTrueWhenDelayedTrueDisabled()
+    {
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "src",
+                Kind = MapLogicNodeKind.CpTrigger,
+                LinkedControlPointIndex = 1,
+                OwnerRequirement = MapLogicCpTriggerOwnerRequirement.Red,
+            },
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "timer",
+                Kind = MapLogicNodeKind.Timer,
+                CountdownSeconds = 1f,
+                DelayedTrue = false,
+                InputRef = "node:src",
+            },
+        ]);
+
+        var marker = new RoomObjectMarker(RoomObjectType.ControlPoint, 0f, 0f, 32f, 32f, "ControlPointRedS", PlayerTeam.Red, "controlPoint1");
+        var points = new[] { new ControlPointState(1, marker) { Team = PlayerTeam.Red } };
+
+        graph.ResetTimerStates();
+        graph.EvaluateCombinatorial(points);
+        graph.AdvanceTimers(0f);
+        Assert.True(graph.GetOutput(graph.NodeIndexByKey["timer"]));
+
+        points[0].Team = PlayerTeam.Blue;
+        graph.EvaluateCombinatorial(points);
+        graph.AdvanceTimers(0.5f);
+        Assert.True(graph.GetOutput(graph.NodeIndexByKey["timer"]));
+
+        graph.AdvanceTimers(0.5f);
+        Assert.False(graph.GetOutput(graph.NodeIndexByKey["timer"]));
+    }
+
+    [Fact]
+    public void TimerPassesThroughFalseImmediatelyWhenDelayedFalseDisabled()
+    {
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "src",
+                Kind = MapLogicNodeKind.CpTrigger,
+                LinkedControlPointIndex = 1,
+                OwnerRequirement = MapLogicCpTriggerOwnerRequirement.Red,
+            },
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "timer",
+                Kind = MapLogicNodeKind.Timer,
+                CountdownSeconds = 1f,
+                DelayedFalse = false,
+                InputRef = "node:src",
+            },
+        ]);
+
+        var marker = new RoomObjectMarker(RoomObjectType.ControlPoint, 0f, 0f, 32f, 32f, "ControlPointRedS", PlayerTeam.Red, "controlPoint1");
+        var points = new[] { new ControlPointState(1, marker) { Team = PlayerTeam.Red } };
+
+        graph.ResetTimerStates();
+        graph.EvaluateCombinatorial(points);
+        graph.AdvanceTimers(1f);
+        Assert.True(graph.GetOutput(graph.NodeIndexByKey["timer"]));
+
+        points[0].Team = PlayerTeam.Blue;
+        graph.EvaluateCombinatorial(points);
+        graph.AdvanceTimers(0f);
+        Assert.False(graph.GetOutput(graph.NodeIndexByKey["timer"]));
+    }
+
+    [Fact]
+    public void RisingEdgeOutputsTrueOnlyOnInputTransitionToTrue()
+    {
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "source",
+                Kind = MapLogicNodeKind.CpTrigger,
+                LinkedControlPointIndex = 1,
+                OwnerRequirement = MapLogicCpTriggerOwnerRequirement.Red,
+            },
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "edge",
+                Kind = MapLogicNodeKind.RisingEdge,
+                InputRef = "node:source",
+            },
+        ]);
+
+        var marker = new RoomObjectMarker(RoomObjectType.ControlPoint, 0f, 0f, 32f, 32f, "ControlPointRedS", PlayerTeam.Red, "controlPoint1");
+        var points = new[] { new ControlPointState(1, marker) { Team = PlayerTeam.Blue } };
+        var edgeIndex = graph.NodeIndexByKey["edge"];
+
+        graph.ResetRisingEdgeStates();
+        graph.EvaluateCombinatorial(points);
+        Assert.False(graph.GetOutput(edgeIndex));
+
+        points[0].Team = PlayerTeam.Red;
+        graph.EvaluateCombinatorial(points);
+        Assert.True(graph.GetOutput(edgeIndex));
+
+        graph.EvaluateCombinatorial(points);
+        Assert.False(graph.GetOutput(edgeIndex));
+    }
+
+    [Fact]
+    public void LatchHoldsTrueAfterShortInputUntilResetRisingEdge()
+    {
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "set",
+                Kind = MapLogicNodeKind.CpTrigger,
+                LinkedControlPointIndex = 1,
+                OwnerRequirement = MapLogicCpTriggerOwnerRequirement.Red,
+            },
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "reset",
+                Kind = MapLogicNodeKind.CpTrigger,
+                LinkedControlPointIndex = 2,
+                OwnerRequirement = MapLogicCpTriggerOwnerRequirement.Red,
+            },
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "latch",
+                Kind = MapLogicNodeKind.Latch,
+                InputRef = "node:set",
+                ResetRef = "node:reset",
+            },
+        ]);
+
+        var marker = new RoomObjectMarker(RoomObjectType.ControlPoint, 0f, 0f, 32f, 32f, "ControlPointRedS", PlayerTeam.Red, "controlPoint1");
+        var points = new[]
+        {
+            new ControlPointState(1, marker with { SourceName = "controlPoint1" }) { Team = PlayerTeam.Blue },
+            new ControlPointState(2, marker with { SourceName = "controlPoint2" }) { Team = PlayerTeam.Blue },
+        };
+        var latchIndex = graph.NodeIndexByKey["latch"];
+
+        graph.ResetLatchStates();
+        graph.EvaluateCombinatorial(points);
+        Assert.False(graph.GetOutput(latchIndex));
+
+        points[0].Team = PlayerTeam.Red;
+        graph.EvaluateCombinatorial(points);
+        Assert.True(graph.GetOutput(latchIndex));
+
+        points[0].Team = PlayerTeam.Blue;
+        graph.EvaluateCombinatorial(points);
+        Assert.True(graph.GetOutput(latchIndex));
+
+        points[1].Team = PlayerTeam.Red;
+        graph.EvaluateCombinatorial(points);
+        Assert.False(graph.GetOutput(latchIndex));
+    }
 }

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<resources>
+  <resource name="SetupGateS" type="RESOURCE"/>
+  <resource name="sprite64" type="RESOURCE"/>
+  <resource name="sprite3" type="RESOURCE"/>
+  <resource name="sprite44" type="RESOURCE"/>
+  <resource name="sprite45" type="RESOURCE"/>
+</resources>

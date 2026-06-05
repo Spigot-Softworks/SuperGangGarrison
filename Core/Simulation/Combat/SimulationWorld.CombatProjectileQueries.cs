@@ -101,9 +101,15 @@ public sealed partial class SimulationWorld
                 }
             }
 
-            foreach (var roomObject in Level.RoomObjects)
+            for (var roomObjectIndex = 0; roomObjectIndex < Level.RoomObjects.Count; roomObjectIndex += 1)
             {
-                if (!TryGetProjectileRoomObjectHitbox(roomObject, grenade.Team, ProjectileRoomObjectBlockerProfile.Standard, out var hitbox)) { continue; }
+                var roomObject = Level.RoomObjects[roomObjectIndex];
+                if (roomObject.Type == RoomObjectType.DamageableZone)
+                {
+                    continue;
+                }
+
+                if (!TryGetProjectileRoomObjectHitbox(roomObjectIndex, roomObject, grenade.Team, ProjectileRoomObjectBlockerProfile.Standard, out var hitbox)) { continue; }
                 if (!RayBoundsMayIntersectRectangle(rayBounds, hitbox.Left, hitbox.Top, hitbox.Right, hitbox.Bottom)) { continue; }
                 var result = GetRayIntersectionWithNormalWithRectangle(grenade.PreviousX, grenade.PreviousY, directionX, directionY, hitbox.Left, hitbox.Top, hitbox.Right, hitbox.Bottom, maxDistance);
                 if (result.HasValue && (!nearestHit.HasValue || result.Value.Distance < nearestHit.Value.Distance))
@@ -113,6 +119,73 @@ public sealed partial class SimulationWorld
             }
 
             return nearestHit;
+        }
+
+        public bool TryGetGrenadeDamageableZoneContact(
+            GrenadeProjectileEntity grenade,
+            float directionX,
+            float directionY,
+            float maxDistance,
+            out float hitX,
+            out float hitY,
+            out int roomObjectIndex)
+        {
+            hitX = 0f;
+            hitY = 0f;
+            roomObjectIndex = -1;
+            if (maxDistance <= 0.0001f)
+            {
+                return false;
+            }
+
+            var rayBounds = GetRayBounds(grenade.PreviousX, grenade.PreviousY, directionX, directionY, maxDistance);
+            float? nearestDistance = null;
+            for (var index = 0; index < Level.RoomObjects.Count; index += 1)
+            {
+                if (!Level.IsRoomObjectActive(index))
+                {
+                    continue;
+                }
+
+                var roomObject = Level.RoomObjects[index];
+                if (roomObject.Type != RoomObjectType.DamageableZone
+                    || !_world.BlocksProjectileDamageableZone(index))
+                {
+                    continue;
+                }
+
+                if (!RayBoundsMayIntersectRectangle(
+                        rayBounds,
+                        roomObject.Left,
+                        roomObject.Top,
+                        roomObject.Right,
+                        roomObject.Bottom))
+                {
+                    continue;
+                }
+
+                var distance = GetRayIntersectionDistanceWithRectangle(
+                    grenade.PreviousX,
+                    grenade.PreviousY,
+                    directionX,
+                    directionY,
+                    roomObject.Left,
+                    roomObject.Top,
+                    roomObject.Right,
+                    roomObject.Bottom,
+                    maxDistance);
+                if (!distance.HasValue || (nearestDistance.HasValue && distance.Value >= nearestDistance.Value))
+                {
+                    continue;
+                }
+
+                nearestDistance = distance.Value;
+                roomObjectIndex = index;
+                hitX = grenade.PreviousX + (directionX * distance.Value);
+                hitY = grenade.PreviousY + (directionY * distance.Value);
+            }
+
+            return roomObjectIndex >= 0;
         }
 
         public FlameHitResult? GetNearestFlameHit(FlameProjectileEntity flame, float directionX, float directionY, float maxDistance)
@@ -199,7 +272,7 @@ public sealed partial class SimulationWorld
                 }
 
                 var roomObject = Level.RoomObjects[roomObjectIndex];
-                if (!TryGetProjectileRoomObjectHitbox(roomObject, projectileTeam, blockerProfile, out var hitbox)) { continue; }
+                if (!TryGetProjectileRoomObjectHitbox(roomObjectIndex, roomObject, projectileTeam, blockerProfile, out var hitbox)) { continue; }
                 if (!RayBoundsMayIntersectRectangle(rayBounds, hitbox.Left, hitbox.Top, hitbox.Right, hitbox.Bottom))
                 {
                     continue;
@@ -246,6 +319,13 @@ public sealed partial class SimulationWorld
                     {
                         continue;
                     }
+                }
+
+                if (roomObject.Type == RoomObjectType.DamageableZone)
+                {
+                    _world.TryApplyDamageableZoneDamage(
+                        roomObjectIndex,
+                        ResolveEnvironmentProjectileDamage(projectile));
                 }
 
                 updateHit(ref nearestHit, projectile, directionX, directionY, distance.Value, destroyOnHit);
@@ -430,7 +510,22 @@ public sealed partial class SimulationWorld
             }
         }
 
+        private static float ResolveEnvironmentProjectileDamage<TProjectile>(TProjectile projectile)
+        {
+            return projectile switch
+            {
+                BladeProjectileEntity blade => blade.HitDamage * blade.CriticalDamageMultiplier,
+                FlameProjectileEntity flame => flame.DirectHitDamageValue * flame.CriticalDamageMultiplier,
+                FlareProjectileEntity flare => FlareProjectileEntity.DamagePerHit * flare.CriticalDamageMultiplier,
+                RocketProjectileEntity rocket => rocket.DirectHitDamageValue,
+                MineProjectileEntity mine => mine.ExplosionDamage * mine.CriticalDamageMultiplier,
+                GrenadeProjectileEntity grenade => GrenadeProjectileEntity.DirectHitDamage,
+                _ => 1f,
+            };
+        }
+
         private bool TryGetProjectileRoomObjectHitbox(
+            int roomObjectIndex,
             RoomObjectMarker roomObject,
             PlayerTeam projectileTeam,
             ProjectileRoomObjectBlockerProfile blockerProfile,
@@ -439,6 +534,13 @@ public sealed partial class SimulationWorld
             switch (blockerProfile)
             {
                 case ProjectileRoomObjectBlockerProfile.Standard:
+                    if (roomObject.Type == RoomObjectType.DamageableZone
+                        && _world.BlocksProjectileDamageableZone(roomObjectIndex))
+                    {
+                        hitbox = new RectangleHitbox(roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom);
+                        return true;
+                    }
+
                     if (roomObject.Type == RoomObjectType.Barrier && BarrierCollision.BlocksProjectile(roomObject.Barrier, projectileTeam))
                     {
                         hitbox = new RectangleHitbox(roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom);

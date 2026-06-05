@@ -1,0 +1,24 @@
+{
+    "id":  "PyroRedRunS",
+    "framePaths":  [
+                       "Content/Sprites/Characters/Pyro/PyroRedRunS.images/image 0.png",
+                       "Content/Sprites/Characters/Pyro/PyroRedRunS.images/image 1.png",
+                       "Content/Sprites/Characters/Pyro/PyroRedRunS.images/image 2.png",
+                       "Content/Sprites/Characters/Pyro/PyroRedRunS.images/image 3.png",
+                       "Content/Sprites/Characters/Pyro/PyroRedRunS.images/image 4.png",
+                       "Content/Sprites/Characters/Pyro/PyroRedRunS.images/image 5.png",
+                       "Content/Sprites/Characters/Pyro/PyroRedRunS.images/image 6.png",
+                       "Content/Sprites/Characters/Pyro/PyroRedRunS.images/image 7.png"
+                   ],
+    "originX":  31,
+    "originY":  40,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  24,
+                 "top":  34,
+                 "right":  38,
+                 "bottom":  63
+             }
+}

@@ -141,7 +141,7 @@ public static class PlayerTriggerMetadata
     }
 
     public static int TryResolveRoomObjectIndex(
-        IList<RoomObjectMarker> roomObjects,
+        IReadOnlyList<RoomObjectMarker> roomObjects,
         string logicKey,
         float entityX,
         float entityY)

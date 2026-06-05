@@ -1,0 +1,17 @@
+{
+    "id":  "BubbleMenuZS",
+    "framePaths":  [
+                       "Content/Sprites/HUDs/Menus/BubbleMenuZS.images/image 0.png"
+                   ],
+    "originX":  31,
+    "originY":  138,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

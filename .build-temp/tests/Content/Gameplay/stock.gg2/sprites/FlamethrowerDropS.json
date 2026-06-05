@@ -1,0 +1,40 @@
+{
+    "id":  "FlamethrowerDropS",
+    "framePaths":  [
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 0.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 1.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 2.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 3.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 4.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 5.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 6.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 7.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 8.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 9.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 10.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 11.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 12.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 13.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 14.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 15.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 16.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 17.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 18.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 19.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 20.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 21.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 22.png",
+                       "Content/Sprites/Weapons/Other/FlamethrowerDropS.images/image 23.png"
+                   ],
+    "originX":  15,
+    "originY":  14,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

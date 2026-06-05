@@ -1,0 +1,22 @@
+{
+    "id":  "QuerlyRedHS",
+    "framePaths":  [
+                       "Content/Sprites/Characters/Querly/QuerlyRedHS.images/image 0.png",
+                       "Content/Sprites/Characters/Querly/QuerlyRedHS.images/image 1.png",
+                       "Content/Sprites/Characters/Querly/QuerlyRedHS.images/image 2.png",
+                       "Content/Sprites/Characters/Querly/QuerlyRedHS.images/image 3.png",
+                       "Content/Sprites/Characters/Querly/QuerlyRedHS.images/image 4.png",
+                       "Content/Sprites/Characters/Querly/QuerlyRedHS.images/image 5.png"
+                   ],
+    "originX":  16,
+    "originY":  20,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  9,
+                 "top":  7,
+                 "right":  23,
+                 "bottom":  31
+             }
+}

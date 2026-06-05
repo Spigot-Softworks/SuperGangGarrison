@@ -1,0 +1,4553 @@
+{
+  "version": 1,
+  "levelName": "Eiger",
+  "mapAreaIndex": 1,
+  "team": 2,
+  "classId": 2,
+  "surfaces": [
+    {
+      "id": 0,
+      "kind": 1,
+      "left": 938,
+      "right": 1154,
+      "top": 462,
+      "sourceIndex": 309,
+      "width": 216,
+      "centerX": 1046
+    },
+    {
+      "id": 1,
+      "kind": 1,
+      "left": 3698,
+      "right": 3914,
+      "top": 462,
+      "sourceIndex": 312,
+      "width": 216,
+      "centerX": 3806
+    },
+    {
+      "id": 2,
+      "kind": 1,
+      "left": 800,
+      "right": 848,
+      "top": 594,
+      "sourceIndex": 441,
+      "width": 48,
+      "centerX": 824
+    },
+    {
+      "id": 3,
+      "kind": 1,
+      "left": 1250,
+      "right": 1290,
+      "top": 594,
+      "sourceIndex": 442,
+      "width": 40,
+      "centerX": 1270
+    },
+    {
+      "id": 4,
+      "kind": 1,
+      "left": 3566,
+      "right": 3606,
+      "top": 594,
+      "sourceIndex": 445,
+      "width": 40,
+      "centerX": 3586
+    },
+    {
+      "id": 5,
+      "kind": 1,
+      "left": 4010,
+      "right": 4058,
+      "top": 594,
+      "sourceIndex": 446,
+      "width": 48,
+      "centerX": 4034
+    },
+    {
+      "id": 6,
+      "kind": 1,
+      "left": 662,
+      "right": 686,
+      "top": 624,
+      "sourceIndex": 481,
+      "width": 24,
+      "centerX": 674
+    },
+    {
+      "id": 7,
+      "kind": 1,
+      "left": 930,
+      "right": 1162,
+      "top": 624,
+      "sourceIndex": 482,
+      "width": 232,
+      "centerX": 1046
+    },
+    {
+      "id": 8,
+      "kind": 1,
+      "left": 1338,
+      "right": 1458,
+      "top": 624,
+      "sourceIndex": 482,
+      "width": 120,
+      "centerX": 1398
+    },
+    {
+      "id": 9,
+      "kind": 1,
+      "left": 3398,
+      "right": 3518,
+      "top": 624,
+      "sourceIndex": 485,
+      "width": 120,
+      "centerX": 3458
+    },
+    {
+      "id": 10,
+      "kind": 1,
+      "left": 3654,
+      "right": 3958,
+      "top": 624,
+      "sourceIndex": 485,
+      "width": 304,
+      "centerX": 3806
+    },
+    {
+      "id": 11,
+      "kind": 1,
+      "left": 4166,
+      "right": 4190,
+      "top": 624,
+      "sourceIndex": 486,
+      "width": 24,
+      "centerX": 4178
+    },
+    {
+      "id": 12,
+      "kind": 1,
+      "left": 572,
+      "right": 612,
+      "top": 654,
+      "sourceIndex": 521,
+      "width": 40,
+      "centerX": 592
+    },
+    {
+      "id": 13,
+      "kind": 1,
+      "left": 4248,
+      "right": 4280,
+      "top": 654,
+      "sourceIndex": 526,
+      "width": 32,
+      "centerX": 4264
+    },
+    {
+      "id": 14,
+      "kind": 1,
+      "left": 1988,
+      "right": 2052,
+      "top": 666,
+      "sourceIndex": 540,
+      "width": 64,
+      "centerX": 2020
+    },
+    {
+      "id": 15,
+      "kind": 1,
+      "left": 2804,
+      "right": 2868,
+      "top": 666,
+      "sourceIndex": 541,
+      "width": 64,
+      "centerX": 2836
+    },
+    {
+      "id": 16,
+      "kind": 1,
+      "left": 716,
+      "right": 780,
+      "top": 714,
+      "sourceIndex": 598,
+      "width": 64,
+      "centerX": 748
+    },
+    {
+      "id": 17,
+      "kind": 1,
+      "left": 4076,
+      "right": 4140,
+      "top": 714,
+      "sourceIndex": 601,
+      "width": 64,
+      "centerX": 4108
+    },
+    {
+      "id": 18,
+      "kind": 1,
+      "left": 302,
+      "right": 374,
+      "top": 720,
+      "sourceIndex": 605,
+      "width": 72,
+      "centerX": 338
+    },
+    {
+      "id": 19,
+      "kind": 1,
+      "left": 464,
+      "right": 488,
+      "top": 720,
+      "sourceIndex": 606,
+      "width": 24,
+      "centerX": 476
+    },
+    {
+      "id": 20,
+      "kind": 1,
+      "left": 4368,
+      "right": 4392,
+      "top": 720,
+      "sourceIndex": 610,
+      "width": 24,
+      "centerX": 4380
+    },
+    {
+      "id": 21,
+      "kind": 1,
+      "left": 4484,
+      "right": 4556,
+      "top": 720,
+      "sourceIndex": 611,
+      "width": 72,
+      "centerX": 4520
+    },
+    {
+      "id": 22,
+      "kind": 1,
+      "left": 1220,
+      "right": 1332,
+      "top": 750,
+      "sourceIndex": 650,
+      "width": 112,
+      "centerX": 1276
+    },
+    {
+      "id": 23,
+      "kind": 1,
+      "left": 1478,
+      "right": 1582,
+      "top": 750,
+      "sourceIndex": 651,
+      "width": 104,
+      "centerX": 1530
+    },
+    {
+      "id": 24,
+      "kind": 1,
+      "left": 3272,
+      "right": 3376,
+      "top": 750,
+      "sourceIndex": 655,
+      "width": 104,
+      "centerX": 3324
+    },
+    {
+      "id": 25,
+      "kind": 1,
+      "left": 3524,
+      "right": 3636,
+      "top": 750,
+      "sourceIndex": 656,
+      "width": 112,
+      "centerX": 3580
+    },
+    {
+      "id": 26,
+      "kind": 1,
+      "left": 2372,
+      "right": 2404,
+      "top": 756,
+      "sourceIndex": 666,
+      "width": 32,
+      "centerX": 2388
+    },
+    {
+      "id": 27,
+      "kind": 1,
+      "left": 2460,
+      "right": 2484,
+      "top": 756,
+      "sourceIndex": 666,
+      "width": 24,
+      "centerX": 2472
+    },
+    {
+      "id": 28,
+      "kind": 1,
+      "left": 1010,
+      "right": 1042,
+      "top": 786,
+      "sourceIndex": 716,
+      "width": 32,
+      "centerX": 1026
+    },
+    {
+      "id": 29,
+      "kind": 1,
+      "left": 3816,
+      "right": 3848,
+      "top": 786,
+      "sourceIndex": 722,
+      "width": 32,
+      "centerX": 3832
+    },
+    {
+      "id": 30,
+      "kind": 1,
+      "left": 608,
+      "right": 648,
+      "top": 840,
+      "sourceIndex": 787,
+      "width": 40,
+      "centerX": 628
+    },
+    {
+      "id": 31,
+      "kind": 1,
+      "left": 2186,
+      "right": 2234,
+      "top": 840,
+      "sourceIndex": 790,
+      "width": 48,
+      "centerX": 2210
+    },
+    {
+      "id": 32,
+      "kind": 1,
+      "left": 2624,
+      "right": 2672,
+      "top": 840,
+      "sourceIndex": 791,
+      "width": 48,
+      "centerX": 2648
+    },
+    {
+      "id": 33,
+      "kind": 1,
+      "left": 4208,
+      "right": 4248,
+      "top": 840,
+      "sourceIndex": 794,
+      "width": 40,
+      "centerX": 4228
+    },
+    {
+      "id": 34,
+      "kind": 1,
+      "left": 548,
+      "right": 572,
+      "top": 858,
+      "sourceIndex": 817,
+      "width": 24,
+      "centerX": 560
+    },
+    {
+      "id": 35,
+      "kind": 1,
+      "left": 684,
+      "right": 708,
+      "top": 858,
+      "sourceIndex": 817,
+      "width": 24,
+      "centerX": 696
+    },
+    {
+      "id": 36,
+      "kind": 1,
+      "left": 4148,
+      "right": 4172,
+      "top": 858,
+      "sourceIndex": 826,
+      "width": 24,
+      "centerX": 4160
+    },
+    {
+      "id": 37,
+      "kind": 1,
+      "left": 4284,
+      "right": 4308,
+      "top": 858,
+      "sourceIndex": 826,
+      "width": 24,
+      "centerX": 4296
+    },
+    {
+      "id": 38,
+      "kind": 1,
+      "left": 1682,
+      "right": 1802,
+      "top": 888,
+      "sourceIndex": 879,
+      "width": 120,
+      "centerX": 1742
+    },
+    {
+      "id": 39,
+      "kind": 1,
+      "left": 1922,
+      "right": 2034,
+      "top": 888,
+      "sourceIndex": 880,
+      "width": 112,
+      "centerX": 1978
+    },
+    {
+      "id": 40,
+      "kind": 1,
+      "left": 2822,
+      "right": 2934,
+      "top": 888,
+      "sourceIndex": 883,
+      "width": 112,
+      "centerX": 2878
+    },
+    {
+      "id": 41,
+      "kind": 1,
+      "left": 3050,
+      "right": 3170,
+      "top": 888,
+      "sourceIndex": 884,
+      "width": 120,
+      "centerX": 3110
+    },
+    {
+      "id": 42,
+      "kind": 1,
+      "left": 302,
+      "right": 446,
+      "top": 894,
+      "sourceIndex": 890,
+      "width": 144,
+      "centerX": 374
+    },
+    {
+      "id": 43,
+      "kind": 1,
+      "left": 1218,
+      "right": 1274,
+      "top": 894,
+      "sourceIndex": 892,
+      "width": 56,
+      "centerX": 1246
+    },
+    {
+      "id": 44,
+      "kind": 1,
+      "left": 3584,
+      "right": 3640,
+      "top": 894,
+      "sourceIndex": 901,
+      "width": 56,
+      "centerX": 3612
+    },
+    {
+      "id": 45,
+      "kind": 1,
+      "left": 4412,
+      "right": 4556,
+      "top": 894,
+      "sourceIndex": 903,
+      "width": 144,
+      "centerX": 4484
+    },
+    {
+      "id": 46,
+      "kind": 1,
+      "left": 1394,
+      "right": 1490,
+      "top": 906,
+      "sourceIndex": 920,
+      "width": 96,
+      "centerX": 1442
+    },
+    {
+      "id": 47,
+      "kind": 1,
+      "left": 1554,
+      "right": 1642,
+      "top": 906,
+      "sourceIndex": 920,
+      "width": 88,
+      "centerX": 1598
+    },
+    {
+      "id": 48,
+      "kind": 1,
+      "left": 2340,
+      "right": 2524,
+      "top": 906,
+      "sourceIndex": 922,
+      "width": 184,
+      "centerX": 2432
+    },
+    {
+      "id": 49,
+      "kind": 1,
+      "left": 3216,
+      "right": 3304,
+      "top": 906,
+      "sourceIndex": 924,
+      "width": 88,
+      "centerX": 3260
+    },
+    {
+      "id": 50,
+      "kind": 1,
+      "left": 3368,
+      "right": 3464,
+      "top": 906,
+      "sourceIndex": 924,
+      "width": 96,
+      "centerX": 3416
+    },
+    {
+      "id": 51,
+      "kind": 1,
+      "left": 1924,
+      "right": 2068,
+      "top": 984,
+      "sourceIndex": 1019,
+      "width": 144,
+      "centerX": 1996
+    },
+    {
+      "id": 52,
+      "kind": 1,
+      "left": 2796,
+      "right": 2932,
+      "top": 984,
+      "sourceIndex": 1019,
+      "width": 136,
+      "centerX": 2864
+    },
+    {
+      "id": 53,
+      "kind": 1,
+      "left": 574,
+      "right": 766,
+      "top": 1002,
+      "sourceIndex": 1028,
+      "width": 192,
+      "centerX": 670
+    },
+    {
+      "id": 54,
+      "kind": 1,
+      "left": 4088,
+      "right": 4288,
+      "top": 1002,
+      "sourceIndex": 1030,
+      "width": 200,
+      "centerX": 4188
+    },
+    {
+      "id": 55,
+      "kind": 1,
+      "left": 814,
+      "right": 918,
+      "top": 1026,
+      "sourceIndex": 1040,
+      "width": 104,
+      "centerX": 866
+    },
+    {
+      "id": 56,
+      "kind": 1,
+      "left": 3938,
+      "right": 4042,
+      "top": 1026,
+      "sourceIndex": 1042,
+      "width": 104,
+      "centerX": 3990
+    },
+    {
+      "id": 57,
+      "kind": 1,
+      "left": 974,
+      "right": 1222,
+      "top": 1062,
+      "sourceIndex": 1058,
+      "width": 248,
+      "centerX": 1098
+    },
+    {
+      "id": 58,
+      "kind": 1,
+      "left": 3638,
+      "right": 3886,
+      "top": 1062,
+      "sourceIndex": 1058,
+      "width": 248,
+      "centerX": 3762
+    }
+  ],
+  "edges": [
+    {
+      "id": 0,
+      "routeKind": 1,
+      "fromSurfaceId": 10,
+      "toSurfaceId": 4,
+      "entryX": 3854,
+      "entryBottom": 622,
+      "exitX": 3607.0527,
+      "exitBottom": 594,
+      "costTicks": 50,
+      "leftTicks": 50,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 50,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "routeKind": 1,
+      "fromSurfaceId": 4,
+      "toSurfaceId": 9,
+      "entryX": 3607.0527,
+      "entryBottom": 594,
+      "exitX": 3516.4097,
+      "exitBottom": 624,
+      "costTicks": 16,
+      "leftTicks": 17,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 17,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "routeKind": 1,
+      "fromSurfaceId": 9,
+      "toSurfaceId": 41,
+      "entryX": 3516.4097,
+      "entryBottom": 624,
+      "exitX": 3097.0793,
+      "exitBottom": 888,
+      "costTicks": 74,
+      "leftTicks": 75,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 75,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "routeKind": 1,
+      "fromSurfaceId": 41,
+      "toSurfaceId": 40,
+      "entryX": 3097.0793,
+      "entryBottom": 888,
+      "exitX": 2915.7488,
+      "exitBottom": 888,
+      "costTicks": 32,
+      "leftTicks": 33,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 5,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 27,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "routeKind": 1,
+      "fromSurfaceId": 40,
+      "toSurfaceId": 32,
+      "entryX": 2915.7488,
+      "entryBottom": 888,
+      "exitX": 2672.0813,
+      "exitBottom": 840,
+      "costTicks": 43,
+      "leftTicks": 44,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 21,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 22,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "routeKind": 1,
+      "fromSurfaceId": 32,
+      "toSurfaceId": 48,
+      "entryX": 2672.0813,
+      "entryBottom": 840,
+      "exitX": 2524.7458,
+      "exitBottom": 906,
+      "costTicks": 26,
+      "leftTicks": 27,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 27,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "routeKind": 1,
+      "fromSurfaceId": 48,
+      "toSurfaceId": 31,
+      "entryX": 2524.7458,
+      "entryBottom": 906,
+      "exitX": 2235.7417,
+      "exitBottom": 840,
+      "costTicks": 51,
+      "leftTicks": 52,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 52,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "routeKind": 1,
+      "fromSurfaceId": 31,
+      "toSurfaceId": 51,
+      "entryX": 2235.7417,
+      "entryBottom": 840,
+      "exitX": 2041.5266,
+      "exitBottom": 984,
+      "costTicks": 41,
+      "leftTicks": 42,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 42,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "routeKind": 1,
+      "fromSurfaceId": 51,
+      "toSurfaceId": 38,
+      "entryX": 2041.5266,
+      "entryBottom": 984,
+      "exitX": 1799.736,
+      "exitBottom": 888,
+      "costTicks": 45,
+      "leftTicks": 46,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 46,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "routeKind": 1,
+      "fromSurfaceId": 38,
+      "toSurfaceId": 23,
+      "entryX": 1799.736,
+      "entryBottom": 888,
+      "exitX": 1578.7568,
+      "exitBottom": 750,
+      "costTicks": 39,
+      "leftTicks": 40,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 7,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 32,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "routeKind": 1,
+      "fromSurfaceId": 23,
+      "toSurfaceId": 22,
+      "entryX": 1578.7568,
+      "entryBottom": 750,
+      "exitX": 1329.4241,
+      "exitBottom": 750,
+      "costTicks": 44,
+      "leftTicks": 45,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 16,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 28,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "routeKind": 1,
+      "fromSurfaceId": 22,
+      "toSurfaceId": 53,
+      "entryX": 1329.4241,
+      "entryBottom": 750,
+      "exitX": 707.5089,
+      "exitBottom": 1002,
+      "costTicks": 119,
+      "leftTicks": 114,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 20,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 83,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 10,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "routeKind": 1,
+      "fromSurfaceId": 53,
+      "toSurfaceId": 34,
+      "entryX": 707.5089,
+      "entryBottom": 1002,
+      "exitX": 546.0451,
+      "exitBottom": 858,
+      "costTicks": 84,
+      "leftTicks": 49,
+      "rightTicks": 30,
+      "jumpTicks": 2,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 39,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 9,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 10,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 19,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "routeKind": 1,
+      "fromSurfaceId": 34,
+      "toSurfaceId": 30,
+      "entryX": 546.0451,
+      "entryBottom": 858,
+      "exitX": 611.19904,
+      "exitBottom": 840,
+      "costTicks": 12,
+      "leftTicks": 0,
+      "rightTicks": 13,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 13,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "routeKind": 1,
+      "fromSurfaceId": 10,
+      "toSurfaceId": 4,
+      "entryX": 3842,
+      "entryBottom": 622,
+      "exitX": 3606.3772,
+      "exitBottom": 594,
+      "costTicks": 48,
+      "leftTicks": 48,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 48,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "routeKind": 1,
+      "fromSurfaceId": 4,
+      "toSurfaceId": 9,
+      "entryX": 3606.3772,
+      "entryBottom": 594,
+      "exitX": 3515.7422,
+      "exitBottom": 624,
+      "costTicks": 16,
+      "leftTicks": 17,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 17,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "routeKind": 1,
+      "fromSurfaceId": 9,
+      "toSurfaceId": 41,
+      "entryX": 3515.7422,
+      "entryBottom": 624,
+      "exitX": 3085.0752,
+      "exitBottom": 888,
+      "costTicks": 76,
+      "leftTicks": 77,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 77,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "routeKind": 1,
+      "fromSurfaceId": 41,
+      "toSurfaceId": 40,
+      "entryX": 3085.0752,
+      "entryBottom": 888,
+      "exitX": 2903.7446,
+      "exitBottom": 888,
+      "costTicks": 32,
+      "leftTicks": 33,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 5,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 27,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "routeKind": 1,
+      "fromSurfaceId": 40,
+      "toSurfaceId": 32,
+      "entryX": 2903.7446,
+      "entryBottom": 888,
+      "exitX": 2669.0625,
+      "exitBottom": 840,
+      "costTicks": 63,
+      "leftTicks": 64,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 37,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 26,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "routeKind": 1,
+      "fromSurfaceId": 32,
+      "toSurfaceId": 48,
+      "entryX": 2669.0625,
+      "entryBottom": 840,
+      "exitX": 2523.7002,
+      "exitBottom": 906,
+      "costTicks": 26,
+      "leftTicks": 27,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 27,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "routeKind": 1,
+      "fromSurfaceId": 48,
+      "toSurfaceId": 51,
+      "entryX": 2523.7002,
+      "entryBottom": 906,
+      "exitX": 2047.755,
+      "exitBottom": 984,
+      "costTicks": 84,
+      "leftTicks": 85,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 44,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 40,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "routeKind": 1,
+      "fromSurfaceId": 51,
+      "toSurfaceId": 38,
+      "entryX": 2047.755,
+      "entryBottom": 984,
+      "exitX": 1798.4235,
+      "exitBottom": 888,
+      "costTicks": 44,
+      "leftTicks": 45,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 45,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "routeKind": 1,
+      "fromSurfaceId": 38,
+      "toSurfaceId": 23,
+      "entryX": 1798.4235,
+      "entryBottom": 888,
+      "exitX": 1580.2372,
+      "exitBottom": 750,
+      "costTicks": 46,
+      "leftTicks": 47,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 12,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 34,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "routeKind": 1,
+      "fromSurfaceId": 23,
+      "toSurfaceId": 22,
+      "entryX": 1580.2372,
+      "entryBottom": 750,
+      "exitX": 1331.7498,
+      "exitBottom": 750,
+      "costTicks": 44,
+      "leftTicks": 45,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 14,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 30,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "routeKind": 1,
+      "fromSurfaceId": 22,
+      "toSurfaceId": 53,
+      "entryX": 1331.7498,
+      "entryBottom": 750,
+      "exitX": 707.5286,
+      "exitBottom": 1002,
+      "costTicks": 119,
+      "leftTicks": 114,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 18,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 83,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 12,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "routeKind": 1,
+      "fromSurfaceId": 53,
+      "toSurfaceId": 34,
+      "entryX": 707.5286,
+      "entryBottom": 1002,
+      "exitX": 551.61053,
+      "exitBottom": 858,
+      "costTicks": 79,
+      "leftTicks": 35,
+      "rightTicks": 17,
+      "jumpTicks": 3,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 13,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 9,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 5,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 16,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 16,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "routeKind": 1,
+      "fromSurfaceId": 34,
+      "toSurfaceId": 30,
+      "entryX": 551.61053,
+      "entryBottom": 858,
+      "exitX": 611.2892,
+      "exitBottom": 840,
+      "costTicks": 11,
+      "leftTicks": 0,
+      "rightTicks": 12,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 12,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "routeKind": 1,
+      "fromSurfaceId": 10,
+      "toSurfaceId": 4,
+      "entryX": 3866,
+      "entryBottom": 622,
+      "exitX": 3607.726,
+      "exitBottom": 594,
+      "costTicks": 52,
+      "leftTicks": 52,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 52,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "routeKind": 1,
+      "fromSurfaceId": 4,
+      "toSurfaceId": 9,
+      "entryX": 3607.726,
+      "entryBottom": 594,
+      "exitX": 3517.0771,
+      "exitBottom": 624,
+      "costTicks": 16,
+      "leftTicks": 17,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 17,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "routeKind": 1,
+      "fromSurfaceId": 9,
+      "toSurfaceId": 41,
+      "entryX": 3517.0771,
+      "entryBottom": 624,
+      "exitX": 3097.7458,
+      "exitBottom": 888,
+      "costTicks": 74,
+      "leftTicks": 75,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 75,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "routeKind": 1,
+      "fromSurfaceId": 41,
+      "toSurfaceId": 40,
+      "entryX": 3097.7458,
+      "entryBottom": 888,
+      "exitX": 2927.7488,
+      "exitBottom": 888,
+      "costTicks": 30,
+      "leftTicks": 31,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 3,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 27,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "routeKind": 1,
+      "fromSurfaceId": 40,
+      "toSurfaceId": 32,
+      "entryX": 2927.7488,
+      "entryBottom": 888,
+      "exitX": 2672.7483,
+      "exitBottom": 840,
+      "costTicks": 45,
+      "leftTicks": 46,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 21,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 24,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "routeKind": 1,
+      "fromSurfaceId": 32,
+      "toSurfaceId": 48,
+      "entryX": 2672.7483,
+      "entryBottom": 840,
+      "exitX": 2519.746,
+      "exitBottom": 906,
+      "costTicks": 27,
+      "leftTicks": 28,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 28,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "routeKind": 1,
+      "fromSurfaceId": 48,
+      "toSurfaceId": 51,
+      "entryX": 2519.746,
+      "entryBottom": 906,
+      "exitX": 2032.4167,
+      "exitBottom": 984,
+      "costTicks": 86,
+      "leftTicks": 87,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 45,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 41,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 34,
+      "routeKind": 1,
+      "fromSurfaceId": 51,
+      "toSurfaceId": 38,
+      "entryX": 2032.4167,
+      "entryBottom": 984,
+      "exitX": 1800.0851,
+      "exitBottom": 888,
+      "costTicks": 41,
+      "leftTicks": 42,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 42,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 35,
+      "routeKind": 1,
+      "fromSurfaceId": 38,
+      "toSurfaceId": 23,
+      "entryX": 1800.0851,
+      "entryBottom": 888,
+      "exitX": 1580.2557,
+      "exitBottom": 750,
+      "costTicks": 48,
+      "leftTicks": 49,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 14,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 34,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 36,
+      "routeKind": 1,
+      "fromSurfaceId": 23,
+      "toSurfaceId": 22,
+      "entryX": 1580.2557,
+      "entryBottom": 750,
+      "exitX": 1331.7683,
+      "exitBottom": 750,
+      "costTicks": 44,
+      "leftTicks": 45,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 14,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 30,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 37,
+      "routeKind": 1,
+      "fromSurfaceId": 22,
+      "toSurfaceId": 53,
+      "entryX": 1331.7683,
+      "entryBottom": 750,
+      "exitX": 707.51917,
+      "exitBottom": 1002,
+      "costTicks": 119,
+      "leftTicks": 120,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 18,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 101,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 38,
+      "routeKind": 1,
+      "fromSurfaceId": 53,
+      "toSurfaceId": 34,
+      "entryX": 707.51917,
+      "entryBottom": 1002,
+      "exitX": 550.2245,
+      "exitBottom": 858,
+      "costTicks": 67,
+      "leftTicks": 43,
+      "rightTicks": 25,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 43,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 24,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 39,
+      "routeKind": 1,
+      "fromSurfaceId": 34,
+      "toSurfaceId": 30,
+      "entryX": 550.2245,
+      "entryBottom": 858,
+      "exitX": 610.99896,
+      "exitBottom": 840,
+      "costTicks": 11,
+      "leftTicks": 0,
+      "rightTicks": 12,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPickupPlanner",
+      "actions": [
+        {
+          "ticks": 12,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 40,
+      "routeKind": 2,
+      "fromSurfaceId": 30,
+      "toSurfaceId": 35,
+      "entryX": 611.19904,
+      "entryBottom": 840,
+      "exitX": 684.3888,
+      "exitBottom": 858,
+      "costTicks": 14,
+      "leftTicks": 0,
+      "rightTicks": 14,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 14,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 41,
+      "routeKind": 2,
+      "fromSurfaceId": 35,
+      "toSurfaceId": 28,
+      "entryX": 684.3888,
+      "entryBottom": 858,
+      "exitX": 1009.87305,
+      "exitBottom": 786,
+      "costTicks": 65,
+      "leftTicks": 0,
+      "rightTicks": 66,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 66,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 42,
+      "routeKind": 2,
+      "fromSurfaceId": 28,
+      "toSurfaceId": 43,
+      "entryX": 1009.87305,
+      "entryBottom": 786,
+      "exitX": 1220.945,
+      "exitBottom": 894,
+      "costTicks": 65,
+      "leftTicks": 0,
+      "rightTicks": 66,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 18,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 43,
+      "routeKind": 2,
+      "fromSurfaceId": 43,
+      "toSurfaceId": 46,
+      "entryX": 1220.945,
+      "entryBottom": 894,
+      "exitX": 1395.8711,
+      "exitBottom": 906,
+      "costTicks": 35,
+      "leftTicks": 0,
+      "rightTicks": 36,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 36,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 44,
+      "routeKind": 2,
+      "fromSurfaceId": 46,
+      "toSurfaceId": 47,
+      "entryX": 1395.8711,
+      "entryBottom": 906,
+      "exitX": 1621.1202,
+      "exitBottom": 906,
+      "costTicks": 52,
+      "leftTicks": 0,
+      "rightTicks": 53,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 14,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 38,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 45,
+      "routeKind": 2,
+      "fromSurfaceId": 47,
+      "toSurfaceId": 38,
+      "entryX": 1621.1202,
+      "entryBottom": 906,
+      "exitX": 1680.8617,
+      "exitBottom": 888,
+      "costTicks": 12,
+      "leftTicks": 0,
+      "rightTicks": 13,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 13,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 46,
+      "routeKind": 2,
+      "fromSurfaceId": 38,
+      "toSurfaceId": 51,
+      "entryX": 1680.8617,
+      "entryBottom": 888,
+      "exitX": 1925.8065,
+      "exitBottom": 984,
+      "costTicks": 49,
+      "leftTicks": 0,
+      "rightTicks": 50,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 50,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 47,
+      "routeKind": 2,
+      "fromSurfaceId": 51,
+      "toSurfaceId": 31,
+      "entryX": 1925.8065,
+      "entryBottom": 984,
+      "exitX": 2185.4067,
+      "exitBottom": 840,
+      "costTicks": 72,
+      "leftTicks": 0,
+      "rightTicks": 73,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 45,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 27,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 48,
+      "routeKind": 2,
+      "fromSurfaceId": 31,
+      "toSurfaceId": 48,
+      "entryX": 2185.4067,
+      "entryBottom": 840,
+      "exitX": 2338.8833,
+      "exitBottom": 906,
+      "costTicks": 31,
+      "leftTicks": 0,
+      "rightTicks": 32,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 32,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 49,
+      "routeKind": 2,
+      "fromSurfaceId": 48,
+      "toSurfaceId": 32,
+      "entryX": 2338.8833,
+      "entryBottom": 906,
+      "exitX": 2623.8667,
+      "exitBottom": 840,
+      "costTicks": 57,
+      "leftTicks": 0,
+      "rightTicks": 58,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 58,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 50,
+      "routeKind": 2,
+      "fromSurfaceId": 32,
+      "toSurfaceId": 52,
+      "entryX": 2623.8667,
+      "entryBottom": 840,
+      "exitX": 2815.5125,
+      "exitBottom": 984,
+      "costTicks": 43,
+      "leftTicks": 0,
+      "rightTicks": 44,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 44,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 51,
+      "routeKind": 2,
+      "fromSurfaceId": 52,
+      "toSurfaceId": 41,
+      "entryX": 2815.5125,
+      "entryBottom": 984,
+      "exitX": 3048.7742,
+      "exitBottom": 888,
+      "costTicks": 49,
+      "leftTicks": 0,
+      "rightTicks": 50,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 50,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 52,
+      "routeKind": 2,
+      "fromSurfaceId": 41,
+      "toSurfaceId": 50,
+      "entryX": 3048.7742,
+      "entryBottom": 888,
+      "exitX": 3433.763,
+      "exitBottom": 906,
+      "costTicks": 77,
+      "leftTicks": 0,
+      "rightTicks": 78,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 33,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 44,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 53,
+      "routeKind": 2,
+      "fromSurfaceId": 50,
+      "toSurfaceId": 44,
+      "entryX": 3433.763,
+      "entryBottom": 906,
+      "exitX": 3583.7617,
+      "exitBottom": 894,
+      "costTicks": 30,
+      "leftTicks": 0,
+      "rightTicks": 31,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 4,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 26,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 54,
+      "routeKind": 2,
+      "fromSurfaceId": 44,
+      "toSurfaceId": 54,
+      "entryX": 3583.7617,
+      "entryBottom": 894,
+      "exitX": 4164.8765,
+      "exitBottom": 1002,
+      "costTicks": 140,
+      "leftTicks": 0,
+      "rightTicks": 141,
+      "jumpTicks": 3,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 22,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 23,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 46,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 55,
+      "routeKind": 2,
+      "fromSurfaceId": 54,
+      "toSurfaceId": 37,
+      "entryX": 4164.8765,
+      "entryBottom": 1002,
+      "exitX": 4306.948,
+      "exitBottom": 858,
+      "costTicks": 64,
+      "leftTicks": 21,
+      "rightTicks": 38,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 38,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 20,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 56,
+      "routeKind": 2,
+      "fromSurfaceId": 37,
+      "toSurfaceId": 33,
+      "entryX": 4306.948,
+      "entryBottom": 858,
+      "exitX": 4248.75,
+      "exitBottom": 840,
+      "costTicks": 12,
+      "leftTicks": 13,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 13,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 57,
+      "routeKind": 2,
+      "fromSurfaceId": 30,
+      "toSurfaceId": 35,
+      "entryX": 611.2892,
+      "entryBottom": 840,
+      "exitX": 684.41785,
+      "exitBottom": 858,
+      "costTicks": 14,
+      "leftTicks": 0,
+      "rightTicks": 14,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 14,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 58,
+      "routeKind": 2,
+      "fromSurfaceId": 35,
+      "toSurfaceId": 28,
+      "entryX": 684.41785,
+      "entryBottom": 858,
+      "exitX": 1009.89343,
+      "exitBottom": 786,
+      "costTicks": 65,
+      "leftTicks": 0,
+      "rightTicks": 66,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 66,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 59,
+      "routeKind": 2,
+      "fromSurfaceId": 28,
+      "toSurfaceId": 43,
+      "entryX": 1009.89343,
+      "entryBottom": 786,
+      "exitX": 1220.9454,
+      "exitBottom": 894,
+      "costTicks": 65,
+      "leftTicks": 0,
+      "rightTicks": 66,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 18,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 60,
+      "routeKind": 2,
+      "fromSurfaceId": 43,
+      "toSurfaceId": 46,
+      "entryX": 1220.9454,
+      "entryBottom": 894,
+      "exitX": 1395.8716,
+      "exitBottom": 906,
+      "costTicks": 35,
+      "leftTicks": 0,
+      "rightTicks": 36,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 36,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 61,
+      "routeKind": 2,
+      "fromSurfaceId": 46,
+      "toSurfaceId": 47,
+      "entryX": 1395.8716,
+      "entryBottom": 906,
+      "exitX": 1621.1207,
+      "exitBottom": 906,
+      "costTicks": 52,
+      "leftTicks": 0,
+      "rightTicks": 53,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 14,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 38,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 62,
+      "routeKind": 2,
+      "fromSurfaceId": 47,
+      "toSurfaceId": 38,
+      "entryX": 1621.1207,
+      "entryBottom": 906,
+      "exitX": 1680.8622,
+      "exitBottom": 888,
+      "costTicks": 12,
+      "leftTicks": 0,
+      "rightTicks": 13,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 13,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 63,
+      "routeKind": 2,
+      "fromSurfaceId": 38,
+      "toSurfaceId": 51,
+      "entryX": 1680.8622,
+      "entryBottom": 888,
+      "exitX": 1925.807,
+      "exitBottom": 984,
+      "costTicks": 49,
+      "leftTicks": 0,
+      "rightTicks": 50,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 50,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 64,
+      "routeKind": 2,
+      "fromSurfaceId": 51,
+      "toSurfaceId": 31,
+      "entryX": 1925.807,
+      "entryBottom": 984,
+      "exitX": 2185.4072,
+      "exitBottom": 840,
+      "costTicks": 72,
+      "leftTicks": 0,
+      "rightTicks": 73,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 45,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 27,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 65,
+      "routeKind": 2,
+      "fromSurfaceId": 31,
+      "toSurfaceId": 48,
+      "entryX": 2185.4072,
+      "entryBottom": 840,
+      "exitX": 2338.8838,
+      "exitBottom": 906,
+      "costTicks": 31,
+      "leftTicks": 0,
+      "rightTicks": 32,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 32,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 66,
+      "routeKind": 2,
+      "fromSurfaceId": 48,
+      "toSurfaceId": 32,
+      "entryX": 2338.8838,
+      "entryBottom": 906,
+      "exitX": 2623.8672,
+      "exitBottom": 840,
+      "costTicks": 57,
+      "leftTicks": 0,
+      "rightTicks": 58,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 58,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 67,
+      "routeKind": 2,
+      "fromSurfaceId": 32,
+      "toSurfaceId": 52,
+      "entryX": 2623.8672,
+      "entryBottom": 840,
+      "exitX": 2815.513,
+      "exitBottom": 984,
+      "costTicks": 43,
+      "leftTicks": 0,
+      "rightTicks": 44,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 44,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 68,
+      "routeKind": 2,
+      "fromSurfaceId": 52,
+      "toSurfaceId": 41,
+      "entryX": 2815.513,
+      "entryBottom": 984,
+      "exitX": 3048.7747,
+      "exitBottom": 888,
+      "costTicks": 49,
+      "leftTicks": 0,
+      "rightTicks": 50,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 50,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 69,
+      "routeKind": 2,
+      "fromSurfaceId": 41,
+      "toSurfaceId": 50,
+      "entryX": 3048.7747,
+      "entryBottom": 888,
+      "exitX": 3433.7634,
+      "exitBottom": 906,
+      "costTicks": 77,
+      "leftTicks": 0,
+      "rightTicks": 78,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 33,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 44,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 70,
+      "routeKind": 2,
+      "fromSurfaceId": 50,
+      "toSurfaceId": 44,
+      "entryX": 3433.7634,
+      "entryBottom": 906,
+      "exitX": 3583.7622,
+      "exitBottom": 894,
+      "costTicks": 30,
+      "leftTicks": 0,
+      "rightTicks": 31,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 4,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 26,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 71,
+      "routeKind": 2,
+      "fromSurfaceId": 44,
+      "toSurfaceId": 54,
+      "entryX": 3583.7622,
+      "entryBottom": 894,
+      "exitX": 4164.877,
+      "exitBottom": 1002,
+      "costTicks": 140,
+      "leftTicks": 0,
+      "rightTicks": 141,
+      "jumpTicks": 3,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 22,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 23,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 46,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 72,
+      "routeKind": 2,
+      "fromSurfaceId": 54,
+      "toSurfaceId": 37,
+      "entryX": 4164.877,
+      "entryBottom": 1002,
+      "exitX": 4306.9487,
+      "exitBottom": 858,
+      "costTicks": 64,
+      "leftTicks": 21,
+      "rightTicks": 38,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 38,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 20,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 73,
+      "routeKind": 2,
+      "fromSurfaceId": 37,
+      "toSurfaceId": 33,
+      "entryX": 4306.9487,
+      "entryBottom": 858,
+      "exitX": 4248.7505,
+      "exitBottom": 840,
+      "costTicks": 12,
+      "leftTicks": 13,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 13,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 74,
+      "routeKind": 2,
+      "fromSurfaceId": 30,
+      "toSurfaceId": 35,
+      "entryX": 610.99896,
+      "entryBottom": 840,
+      "exitX": 684.37115,
+      "exitBottom": 858,
+      "costTicks": 14,
+      "leftTicks": 0,
+      "rightTicks": 14,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 14,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 75,
+      "routeKind": 2,
+      "fromSurfaceId": 35,
+      "toSurfaceId": 28,
+      "entryX": 684.37115,
+      "entryBottom": 858,
+      "exitX": 1009.8837,
+      "exitBottom": 786,
+      "costTicks": 65,
+      "leftTicks": 0,
+      "rightTicks": 66,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 66,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 76,
+      "routeKind": 2,
+      "fromSurfaceId": 28,
+      "toSurfaceId": 43,
+      "entryX": 1009.8837,
+      "entryBottom": 786,
+      "exitX": 1220.9463,
+      "exitBottom": 894,
+      "costTicks": 65,
+      "leftTicks": 0,
+      "rightTicks": 66,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 18,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 77,
+      "routeKind": 2,
+      "fromSurfaceId": 43,
+      "toSurfaceId": 46,
+      "entryX": 1220.9463,
+      "entryBottom": 894,
+      "exitX": 1395.8724,
+      "exitBottom": 906,
+      "costTicks": 35,
+      "leftTicks": 0,
+      "rightTicks": 36,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 36,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 78,
+      "routeKind": 2,
+      "fromSurfaceId": 46,
+      "toSurfaceId": 47,
+      "entryX": 1395.8724,
+      "entryBottom": 906,
+      "exitX": 1621.1216,
+      "exitBottom": 906,
+      "costTicks": 52,
+      "leftTicks": 0,
+      "rightTicks": 53,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 14,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 38,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 79,
+      "routeKind": 2,
+      "fromSurfaceId": 47,
+      "toSurfaceId": 38,
+      "entryX": 1621.1216,
+      "entryBottom": 906,
+      "exitX": 1680.863,
+      "exitBottom": 888,
+      "costTicks": 12,
+      "leftTicks": 0,
+      "rightTicks": 13,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 13,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 80,
+      "routeKind": 2,
+      "fromSurfaceId": 38,
+      "toSurfaceId": 51,
+      "entryX": 1680.863,
+      "entryBottom": 888,
+      "exitX": 1925.8079,
+      "exitBottom": 984,
+      "costTicks": 49,
+      "leftTicks": 0,
+      "rightTicks": 50,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 50,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 81,
+      "routeKind": 2,
+      "fromSurfaceId": 51,
+      "toSurfaceId": 31,
+      "entryX": 1925.8079,
+      "entryBottom": 984,
+      "exitX": 2185.4082,
+      "exitBottom": 840,
+      "costTicks": 72,
+      "leftTicks": 0,
+      "rightTicks": 73,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 45,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 27,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 82,
+      "routeKind": 2,
+      "fromSurfaceId": 31,
+      "toSurfaceId": 48,
+      "entryX": 2185.4082,
+      "entryBottom": 840,
+      "exitX": 2338.8848,
+      "exitBottom": 906,
+      "costTicks": 31,
+      "leftTicks": 0,
+      "rightTicks": 32,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 32,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 83,
+      "routeKind": 2,
+      "fromSurfaceId": 48,
+      "toSurfaceId": 32,
+      "entryX": 2338.8848,
+      "entryBottom": 906,
+      "exitX": 2623.8682,
+      "exitBottom": 840,
+      "costTicks": 57,
+      "leftTicks": 0,
+      "rightTicks": 58,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 58,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 84,
+      "routeKind": 2,
+      "fromSurfaceId": 32,
+      "toSurfaceId": 52,
+      "entryX": 2623.8682,
+      "entryBottom": 840,
+      "exitX": 2815.514,
+      "exitBottom": 984,
+      "costTicks": 43,
+      "leftTicks": 0,
+      "rightTicks": 44,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 44,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 85,
+      "routeKind": 2,
+      "fromSurfaceId": 52,
+      "toSurfaceId": 41,
+      "entryX": 2815.514,
+      "entryBottom": 984,
+      "exitX": 3048.7717,
+      "exitBottom": 888,
+      "costTicks": 49,
+      "leftTicks": 0,
+      "rightTicks": 50,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 50,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 86,
+      "routeKind": 2,
+      "fromSurfaceId": 41,
+      "toSurfaceId": 50,
+      "entryX": 3048.7717,
+      "entryBottom": 888,
+      "exitX": 3433.7605,
+      "exitBottom": 906,
+      "costTicks": 77,
+      "leftTicks": 0,
+      "rightTicks": 78,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 33,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 44,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 87,
+      "routeKind": 2,
+      "fromSurfaceId": 50,
+      "toSurfaceId": 44,
+      "entryX": 3433.7605,
+      "entryBottom": 906,
+      "exitX": 3583.7593,
+      "exitBottom": 894,
+      "costTicks": 30,
+      "leftTicks": 0,
+      "rightTicks": 31,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 4,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 26,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 88,
+      "routeKind": 2,
+      "fromSurfaceId": 44,
+      "toSurfaceId": 54,
+      "entryX": 3583.7593,
+      "entryBottom": 894,
+      "exitX": 4164.874,
+      "exitBottom": 1002,
+      "costTicks": 140,
+      "leftTicks": 0,
+      "rightTicks": 141,
+      "jumpTicks": 3,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 22,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 23,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 46,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 89,
+      "routeKind": 2,
+      "fromSurfaceId": 54,
+      "toSurfaceId": 37,
+      "entryX": 4164.874,
+      "entryBottom": 1002,
+      "exitX": 4306.946,
+      "exitBottom": 858,
+      "costTicks": 64,
+      "leftTicks": 21,
+      "rightTicks": 38,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 38,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 20,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 90,
+      "routeKind": 2,
+      "fromSurfaceId": 37,
+      "toSurfaceId": 33,
+      "entryX": 4306.946,
+      "entryBottom": 858,
+      "exitX": 4248.7476,
+      "exitBottom": 840,
+      "costTicks": 12,
+      "leftTicks": 13,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofReturnPlanner",
+      "actions": [
+        {
+          "ticks": 13,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    }
+  ],
+  "laneSegments": [],
+  "routes": [
+    {
+      "kind": 1,
+      "source": "MotionProofPickupPlanner",
+      "sampleCount": 677,
+      "surfaceSequence": [
+        10,
+        4,
+        9,
+        41,
+        40,
+        32,
+        48,
+        31,
+        51,
+        38,
+        23,
+        22,
+        53,
+        34,
+        30
+      ],
+      "edgeIds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "laneSegmentIds": [],
+      "actions": [
+        {
+          "ticks": 144,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 191,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 83,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 48,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 9,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 10,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 32,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "terminalStartX": 611.19904,
+      "terminalStartBottom": 840,
+      "terminalEndX": 611.19904,
+      "terminalEndBottom": 840,
+      "terminalActions": [
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "startX": 3854,
+      "startBottom": 622
+    },
+    {
+      "kind": 1,
+      "source": "MotionProofPickupPlanner",
+      "sampleCount": 689,
+      "surfaceSequence": [
+        10,
+        4,
+        9,
+        41,
+        40,
+        32,
+        48,
+        51,
+        38,
+        23,
+        22,
+        53,
+        34,
+        30
+      ],
+      "edgeIds": [
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26
+      ],
+      "laneSegmentIds": [],
+      "actions": [
+        {
+          "ticks": 144,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 63,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 95,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 95,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 83,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 24,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 9,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 5,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 16,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 28,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "terminalStartX": 611.2892,
+      "terminalStartBottom": 840,
+      "terminalEndX": 611.2892,
+      "terminalEndBottom": 840,
+      "terminalActions": [
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "startX": 3842,
+      "startBottom": 622
+    },
+    {
+      "kind": 1,
+      "source": "MotionProofPickupPlanner",
+      "sampleCount": 661,
+      "surfaceSequence": [
+        10,
+        4,
+        9,
+        41,
+        40,
+        32,
+        48,
+        51,
+        38,
+        23,
+        22,
+        53,
+        34,
+        30
+      ],
+      "edgeIds": [
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39
+      ],
+      "laneSegmentIds": [],
+      "actions": [
+        {
+          "ticks": 144,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 95,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 95,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 143,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 35,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "terminalStartX": 610.99896,
+      "terminalStartBottom": 840,
+      "terminalEndX": 610.99896,
+      "terminalEndBottom": 840,
+      "terminalActions": [],
+      "startX": 3866,
+      "startBottom": 622
+    },
+    {
+      "kind": 2,
+      "source": "MotionProofReturnPlanner",
+      "sampleCount": 868,
+      "surfaceSequence": [
+        30,
+        35,
+        28,
+        43,
+        46,
+        47,
+        38,
+        51,
+        31,
+        48,
+        32,
+        52,
+        41,
+        50,
+        44,
+        54,
+        37,
+        33
+      ],
+      "edgeIds": [
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56
+      ],
+      "laneSegmentIds": [],
+      "actions": [
+        {
+          "ticks": 96,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 95,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 143,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 239,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 23,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 83,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 33,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "terminalStartX": 4248.75,
+      "terminalStartBottom": 840,
+      "terminalEndX": 4248.75,
+      "terminalEndBottom": 840,
+      "terminalActions": [
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "startX": 611.19904,
+      "startBottom": 840
+    },
+    {
+      "kind": 2,
+      "source": "MotionProofReturnPlanner",
+      "sampleCount": 868,
+      "surfaceSequence": [
+        30,
+        35,
+        28,
+        43,
+        46,
+        47,
+        38,
+        51,
+        31,
+        48,
+        32,
+        52,
+        41,
+        50,
+        44,
+        54,
+        37,
+        33
+      ],
+      "edgeIds": [
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73
+      ],
+      "laneSegmentIds": [],
+      "actions": [
+        {
+          "ticks": 96,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 95,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 143,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 239,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 23,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 83,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 33,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "terminalStartX": 4248.7505,
+      "terminalStartBottom": 840,
+      "terminalEndX": 4248.7505,
+      "terminalEndBottom": 840,
+      "terminalActions": [
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "startX": 611.2892,
+      "startBottom": 840
+    },
+    {
+      "kind": 2,
+      "source": "MotionProofReturnPlanner",
+      "sampleCount": 868,
+      "surfaceSequence": [
+        30,
+        35,
+        28,
+        43,
+        46,
+        47,
+        38,
+        51,
+        31,
+        48,
+        32,
+        52,
+        41,
+        50,
+        44,
+        54,
+        37,
+        33
+      ],
+      "edgeIds": [
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90
+      ],
+      "laneSegmentIds": [],
+      "actions": [
+        {
+          "ticks": 96,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 95,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 143,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 239,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 23,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 83,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 33,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "terminalStartX": 4248.7476,
+      "terminalStartBottom": 840,
+      "terminalEndX": 4248.7476,
+      "terminalEndBottom": 840,
+      "terminalActions": [
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "startX": 610.99896,
+      "startBottom": 840
+    }
+  ]
+}

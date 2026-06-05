@@ -1,0 +1,17 @@
+{
+    "id":  "MinigunOverlayS",
+    "framePaths":  [
+                       "Content/Sprites/Weapons/Other/MinigunOverlayS.images/image 0.png"
+                   ],
+    "originX":  22,
+    "originY":  11,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

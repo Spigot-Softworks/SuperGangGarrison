@@ -24,6 +24,8 @@ public static class CustomMapEntityRuntimeRegistry
         Register(new TeleportExitMapEntityRuntimeImporter());
         Register(new TeleportZoneMapEntityRuntimeImporter());
         Register(new PlayerTriggerMapEntityRuntimeImporter());
+        Register(new DamageableMapEntityRuntimeImporter());
+        Register(new AreaMapEntityRuntimeImporter());
         Register(new CustomMapCustomSpriteMapEntityRuntimeImporter());
         Register(new LogicMapEntityRuntimeImporter());
     }
@@ -104,7 +106,7 @@ public sealed class CustomMapEntityImportContext
 {
     public IList<SpawnPoint> RedSpawns { get; init; } = [];
     public IList<SpawnPoint> BlueSpawns { get; init; } = [];
-    public IList<RoomObjectMarker> RoomObjects { get; init; } = [];
+    public List<RoomObjectMarker> RoomObjects { get; init; } = [];
 
     /// <summary>
     /// When true, entity X/Y are sprite-origin coordinates and room-object markers are shifted to top-left.

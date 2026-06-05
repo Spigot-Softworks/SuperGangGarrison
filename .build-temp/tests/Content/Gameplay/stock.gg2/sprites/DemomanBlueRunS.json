@@ -1,0 +1,24 @@
+{
+    "id":  "DemomanBlueRunS",
+    "framePaths":  [
+                       "Content/Sprites/Characters/Demoman/DemomanBlueRunS.images/image 0.png",
+                       "Content/Sprites/Characters/Demoman/DemomanBlueRunS.images/image 1.png",
+                       "Content/Sprites/Characters/Demoman/DemomanBlueRunS.images/image 2.png",
+                       "Content/Sprites/Characters/Demoman/DemomanBlueRunS.images/image 3.png",
+                       "Content/Sprites/Characters/Demoman/DemomanBlueRunS.images/image 4.png",
+                       "Content/Sprites/Characters/Demoman/DemomanBlueRunS.images/image 5.png",
+                       "Content/Sprites/Characters/Demoman/DemomanBlueRunS.images/image 6.png",
+                       "Content/Sprites/Characters/Demoman/DemomanBlueRunS.images/image 7.png"
+                   ],
+    "originX":  33,
+    "originY":  40,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  26,
+                 "top":  30,
+                 "right":  40,
+                 "bottom":  63
+             }
+}

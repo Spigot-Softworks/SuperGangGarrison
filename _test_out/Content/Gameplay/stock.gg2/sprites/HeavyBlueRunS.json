@@ -1,0 +1,24 @@
+{
+    "id":  "HeavyBlueRunS",
+    "framePaths":  [
+                       "Content/Sprites/Characters/Heavy/HeavyBlueRunS.images/image 0.png",
+                       "Content/Sprites/Characters/Heavy/HeavyBlueRunS.images/image 1.png",
+                       "Content/Sprites/Characters/Heavy/HeavyBlueRunS.images/image 2.png",
+                       "Content/Sprites/Characters/Heavy/HeavyBlueRunS.images/image 3.png",
+                       "Content/Sprites/Characters/Heavy/HeavyBlueRunS.images/image 4.png",
+                       "Content/Sprites/Characters/Heavy/HeavyBlueRunS.images/image 5.png",
+                       "Content/Sprites/Characters/Heavy/HeavyBlueRunS.images/image 6.png",
+                       "Content/Sprites/Characters/Heavy/HeavyBlueRunS.images/image 7.png"
+                   ],
+    "originX":  19,
+    "originY":  40,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  10,
+                 "top":  28,
+                 "right":  28,
+                 "bottom":  63
+             }
+}

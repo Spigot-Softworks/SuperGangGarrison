@@ -7,6 +7,14 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class CustomMapCustomSpriteTests
 {
     [Fact]
+    public void EnsurePlacementDefaultsUsesMapVisualScale()
+    {
+        var properties = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        CustomMapCustomSpriteMetadata.EnsurePlacementDefaults(properties, 1.25f);
+        Assert.Equal("1.25", properties[CustomMapCustomSpriteMetadata.ScalePropertyKey]);
+    }
+
+    [Fact]
     public void ImporterCreatesCenterAnchoredSpriteRoomObject()
     {
         var roomObjects = new List<RoomObjectMarker>();

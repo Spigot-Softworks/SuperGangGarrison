@@ -1,0 +1,17 @@
+{
+    "id":  "SpyBlueStandS",
+    "framePaths":  [
+                       "Content/Sprites/Characters/Spy/SpyBlueStandS.images/image 0.png"
+                   ],
+    "originX":  28,
+    "originY":  40,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  22,
+                 "top":  30,
+                 "right":  34,
+                 "bottom":  63
+             }
+}

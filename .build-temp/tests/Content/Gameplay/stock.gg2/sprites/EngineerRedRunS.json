@@ -1,0 +1,24 @@
+{
+    "id":  "EngineerRedRunS",
+    "framePaths":  [
+                       "Content/Sprites/Characters/Engineer/EngineerRedRunS.images/image 0.png",
+                       "Content/Sprites/Characters/Engineer/EngineerRedRunS.images/image 1.png",
+                       "Content/Sprites/Characters/Engineer/EngineerRedRunS.images/image 2.png",
+                       "Content/Sprites/Characters/Engineer/EngineerRedRunS.images/image 3.png",
+                       "Content/Sprites/Characters/Engineer/EngineerRedRunS.images/image 4.png",
+                       "Content/Sprites/Characters/Engineer/EngineerRedRunS.images/image 5.png",
+                       "Content/Sprites/Characters/Engineer/EngineerRedRunS.images/image 6.png",
+                       "Content/Sprites/Characters/Engineer/EngineerRedRunS.images/image 7.png"
+                   ],
+    "originX":  32,
+    "originY":  40,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  26,
+                 "top":  30,
+                 "right":  38,
+                 "bottom":  63
+             }
+}

@@ -251,8 +251,16 @@ public sealed partial class SimulationWorld
                 {
                     collisionObjectName = $"Generator:{hitResult.HitGenerator.Team}";
                 }
+                else if (hitResult.HitDamageableZoneRoomObjectIndex >= 0)
+                {
+                    collisionObjectName = $"DamageableZone:{hitResult.HitDamageableZoneRoomObjectIndex}";
+                }
 
-                if (hitResult.HitPlayer is null && hitResult.HitSentry is null && hitResult.HitGenerator is null && hitResult.HitJumpPad is null)
+                if (hitResult.HitPlayer is null
+                    && hitResult.HitSentry is null
+                    && hitResult.HitGenerator is null
+                    && hitResult.HitJumpPad is null
+                    && hitResult.HitDamageableZoneRoomObjectIndex < 0)
                 {
                     // The legacy GameMaker rocket uses a collision mask, so it explodes a few pixels
                     // before the projectile origin would mathematically touch the wall.
@@ -269,13 +277,19 @@ public sealed partial class SimulationWorld
                     && hitResult.HitPlayer is null
                     && hitResult.HitSentry is null
                     && hitResult.HitGenerator is null
-                    && hitResult.HitJumpPad is null)
+                    && hitResult.HitJumpPad is null
+                    && hitResult.HitDamageableZoneRoomObjectIndex < 0)
                 {
                     world.RemoveRocketAt(rocketIndex);
                 }
                 else
                 {
-                    world.ExplodeRocket(rocket, hitResult.HitPlayer, hitResult.HitSentry, hitResult.HitGenerator);
+                    world.ExplodeRocket(
+                        rocket,
+                        hitResult.HitPlayer,
+                        hitResult.HitSentry,
+                        hitResult.HitGenerator,
+                        hitResult.HitDamageableZoneRoomObjectIndex);
                 }
             }
             else
@@ -475,6 +489,41 @@ public sealed partial class SimulationWorld
                             null,
                             null,
                             null);
+                    }
+
+                    continue;
+                }
+
+                if (roomObject.Type == RoomObjectType.DamageableZone)
+                {
+                    if (!world.BlocksProjectileDamageableZone(roomObjectIndex)
+                        || !RectanglesOverlap(
+                            rocketBounds.Left,
+                            rocketBounds.Top,
+                            rocketBounds.Right,
+                            rocketBounds.Bottom,
+                            roomObject.Left,
+                            roomObject.Top,
+                            roomObject.Right,
+                            roomObject.Bottom))
+                    {
+                        continue;
+                    }
+
+                    if (IntersectsRocketMaskRectangle(
+                            rocketX,
+                            rocketY,
+                            directionX,
+                            directionY,
+                            roomObject.Left,
+                            roomObject.Top,
+                            roomObject.Right,
+                            roomObject.Bottom))
+                    {
+                        return new RocketHitResult(movementDistance, rocketX, rocketY, null, null, null)
+                        {
+                            HitDamageableZoneRoomObjectIndex = roomObjectIndex,
+                        };
                     }
 
                     continue;

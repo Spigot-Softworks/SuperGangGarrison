@@ -1,0 +1,22 @@
+{
+    "id":  "HealthPackPulseS",
+    "framePaths":  [
+                       "Content/Sprites/InGameElements/HealthPackPulseS.images/image 0.png",
+                       "Content/Sprites/InGameElements/HealthPackPulseS.images/image 1.png",
+                       "Content/Sprites/InGameElements/HealthPackPulseS.images/image 2.png",
+                       "Content/Sprites/InGameElements/HealthPackPulseS.images/image 3.png",
+                       "Content/Sprites/InGameElements/HealthPackPulseS.images/image 4.png",
+                       "Content/Sprites/InGameElements/HealthPackPulseS.images/image 5.png"
+                   ],
+    "originX":  15,
+    "originY":  15,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

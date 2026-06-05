@@ -223,6 +223,53 @@ public partial class Game1
         return true;
     }
 
+    private void DrawDamageableZoneHealthBars(Vector2 cameraPosition)
+    {
+        const int barWidth = 20;
+        const int barHeight = 5;
+        for (var index = 0; index < _world.Level.RoomObjects.Count; index += 1)
+        {
+            if (!_world.Level.IsRoomObjectActive(index))
+            {
+                continue;
+            }
+
+            var marker = _world.Level.RoomObjects[index];
+            if (marker.Type != RoomObjectType.DamageableZone || !marker.DamageableZone.ShowHealthBar)
+            {
+                continue;
+            }
+
+            var maxHealth = marker.DamageableZone.MaxHealth;
+            if (maxHealth <= 0f)
+            {
+                continue;
+            }
+
+            var currentHealth = _world.GetDamageableZoneHealth(index);
+            if (currentHealth <= 0f)
+            {
+                continue;
+            }
+
+            var centerX = marker.CenterX - cameraPosition.X;
+            var centerY = marker.CenterY - cameraPosition.Y;
+            var backRectangle = new Rectangle(
+                (int)(centerX - (barWidth * 0.5f)),
+                (int)(centerY - (marker.Height * 0.5f) - barHeight - 2f),
+                barWidth,
+                barHeight);
+            _spriteBatch.Draw(_pixel, backRectangle, Color.Black);
+
+            var fillWidth = Math.Clamp((int)MathF.Round(barWidth * (currentHealth / maxHealth)), 0, barWidth);
+            if (fillWidth > 0)
+            {
+                var fillRectangle = new Rectangle(backRectangle.X, backRectangle.Y, fillWidth, backRectangle.Height);
+                _spriteBatch.Draw(_pixel, fillRectangle, Color.Lerp(Color.Red, Color.LimeGreen, currentHealth / maxHealth));
+            }
+        }
+    }
+
     private void DrawSentryHealthBar(SentryEntity sentry, Vector2 cameraPosition)
     {
         var renderPosition = GetRenderPosition(sentry.Id, sentry.X, sentry.Y);

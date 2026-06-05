@@ -1,0 +1,30 @@
+{
+  "id": "weapon.flamethrower",
+  "displayName": "Flamethrower",
+  "slot": "Primary",
+  "behaviorId": "builtin.weapon.flamethrower",
+  "ammo": {
+    "maxAmmo": 200,
+    "ammoPerUse": 2,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 1,
+    "reloadSourceTicks": 0,
+    "spreadDegrees": 5.0,
+    "minProjectileSpeed": 5.0,
+    "additionalProjectileSpeed": 5.0,
+    "autoReloads": false,
+    "ammoRegenPerTick": 1,
+    "refillsAllAtOnce": false
+  },
+  "presentation": {
+    "worldSpriteName": "FlamethrowerS",
+    "recoilSpriteName": "FlamethrowerFS",
+    "hudSpriteName": "GasAmmoS",
+    "weaponOffsetX": -11.0,
+    "weaponOffsetY": 4.0,
+    "recoilDurationSourceTicks": 3,
+    "reloadDurationSourceTicks": 0,
+    "loopRecoilWhileActive": true,
+    "blueTeamHudFrameOffset": 1
+  }
+}

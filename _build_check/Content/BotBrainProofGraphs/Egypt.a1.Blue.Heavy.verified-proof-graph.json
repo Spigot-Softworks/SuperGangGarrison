@@ -1,0 +1,2808 @@
+{
+  "version": 1,
+  "levelName": "Egypt",
+  "mapAreaIndex": 1,
+  "team": 2,
+  "classId": 6,
+  "surfaces": [
+    {
+      "id": 0,
+      "kind": 1,
+      "left": 17,
+      "right": 193,
+      "top": 882,
+      "sourceIndex": 3,
+      "width": 176,
+      "centerX": 105
+    },
+    {
+      "id": 1,
+      "kind": 1,
+      "left": 8081,
+      "right": 8257,
+      "top": 882,
+      "sourceIndex": 6,
+      "width": 176,
+      "centerX": 8169
+    },
+    {
+      "id": 2,
+      "kind": 1,
+      "left": 363,
+      "right": 467,
+      "top": 924,
+      "sourceIndex": 55,
+      "width": 104,
+      "centerX": 415
+    },
+    {
+      "id": 3,
+      "kind": 1,
+      "left": 7811,
+      "right": 7915,
+      "top": 924,
+      "sourceIndex": 56,
+      "width": 104,
+      "centerX": 7863
+    },
+    {
+      "id": 4,
+      "kind": 1,
+      "left": 317,
+      "right": 749,
+      "top": 1134,
+      "sourceIndex": 251,
+      "width": 432,
+      "centerX": 533
+    },
+    {
+      "id": 5,
+      "kind": 1,
+      "left": 7529,
+      "right": 7961,
+      "top": 1134,
+      "sourceIndex": 252,
+      "width": 432,
+      "centerX": 7745
+    },
+    {
+      "id": 6,
+      "kind": 1,
+      "left": 3125,
+      "right": 3309,
+      "top": 1194,
+      "sourceIndex": 363,
+      "width": 184,
+      "centerX": 3217
+    },
+    {
+      "id": 7,
+      "kind": 1,
+      "left": 4967,
+      "right": 5151,
+      "top": 1194,
+      "sourceIndex": 364,
+      "width": 184,
+      "centerX": 5059
+    },
+    {
+      "id": 8,
+      "kind": 1,
+      "left": 3845,
+      "right": 4429,
+      "top": 1218,
+      "sourceIndex": 382,
+      "width": 584,
+      "centerX": 4137
+    },
+    {
+      "id": 9,
+      "kind": 1,
+      "left": 2549,
+      "right": 2573,
+      "top": 1224,
+      "sourceIndex": 371,
+      "width": 24,
+      "centerX": 2561
+    },
+    {
+      "id": 10,
+      "kind": 1,
+      "left": 5699,
+      "right": 5731,
+      "top": 1224,
+      "sourceIndex": 372,
+      "width": 32,
+      "centerX": 5715
+    },
+    {
+      "id": 11,
+      "kind": 1,
+      "left": 2615,
+      "right": 2639,
+      "top": 1284,
+      "sourceIndex": 413,
+      "width": 24,
+      "centerX": 2627
+    },
+    {
+      "id": 12,
+      "kind": 1,
+      "left": 5639,
+      "right": 5663,
+      "top": 1284,
+      "sourceIndex": 414,
+      "width": 24,
+      "centerX": 5651
+    },
+    {
+      "id": 13,
+      "kind": 1,
+      "left": 3443,
+      "right": 3707,
+      "top": 1308,
+      "sourceIndex": 423,
+      "width": 264,
+      "centerX": 3575
+    },
+    {
+      "id": 14,
+      "kind": 1,
+      "left": 4565,
+      "right": 4829,
+      "top": 1308,
+      "sourceIndex": 424,
+      "width": 264,
+      "centerX": 4697
+    },
+    {
+      "id": 15,
+      "kind": 1,
+      "left": 3203,
+      "right": 3235,
+      "top": 1338,
+      "sourceIndex": 434,
+      "width": 32,
+      "centerX": 3219
+    },
+    {
+      "id": 16,
+      "kind": 1,
+      "left": 5039,
+      "right": 5071,
+      "top": 1338,
+      "sourceIndex": 435,
+      "width": 32,
+      "centerX": 5055
+    },
+    {
+      "id": 17,
+      "kind": 1,
+      "left": 2549,
+      "right": 2693,
+      "top": 1344,
+      "sourceIndex": 443,
+      "width": 144,
+      "centerX": 2621
+    },
+    {
+      "id": 18,
+      "kind": 1,
+      "left": 5585,
+      "right": 5729,
+      "top": 1344,
+      "sourceIndex": 446,
+      "width": 144,
+      "centerX": 5657
+    },
+    {
+      "id": 19,
+      "kind": 1,
+      "left": 3119,
+      "right": 3167,
+      "top": 1350,
+      "sourceIndex": 444,
+      "width": 48,
+      "centerX": 3143
+    },
+    {
+      "id": 20,
+      "kind": 1,
+      "left": 3279,
+      "right": 3303,
+      "top": 1350,
+      "sourceIndex": 444,
+      "width": 24,
+      "centerX": 3291
+    },
+    {
+      "id": 21,
+      "kind": 1,
+      "left": 4973,
+      "right": 5005,
+      "top": 1350,
+      "sourceIndex": 445,
+      "width": 32,
+      "centerX": 4989
+    },
+    {
+      "id": 22,
+      "kind": 1,
+      "left": 5109,
+      "right": 5157,
+      "top": 1350,
+      "sourceIndex": 445,
+      "width": 48,
+      "centerX": 5133
+    },
+    {
+      "id": 23,
+      "kind": 1,
+      "left": 3359,
+      "right": 3407,
+      "top": 1368,
+      "sourceIndex": 467,
+      "width": 48,
+      "centerX": 3383
+    },
+    {
+      "id": 24,
+      "kind": 1,
+      "left": 4871,
+      "right": 4919,
+      "top": 1368,
+      "sourceIndex": 470,
+      "width": 48,
+      "centerX": 4895
+    },
+    {
+      "id": 25,
+      "kind": 1,
+      "left": 3845,
+      "right": 3893,
+      "top": 1374,
+      "sourceIndex": 468,
+      "width": 48,
+      "centerX": 3869
+    },
+    {
+      "id": 26,
+      "kind": 1,
+      "left": 4379,
+      "right": 4427,
+      "top": 1374,
+      "sourceIndex": 469,
+      "width": 48,
+      "centerX": 4403
+    },
+    {
+      "id": 27,
+      "kind": 1,
+      "left": 365,
+      "right": 733,
+      "top": 1386,
+      "sourceIndex": 480,
+      "width": 368,
+      "centerX": 549
+    },
+    {
+      "id": 28,
+      "kind": 1,
+      "left": 773,
+      "right": 941,
+      "top": 1386,
+      "sourceIndex": 480,
+      "width": 168,
+      "centerX": 857
+    },
+    {
+      "id": 29,
+      "kind": 1,
+      "left": 7331,
+      "right": 7955,
+      "top": 1386,
+      "sourceIndex": 487,
+      "width": 624,
+      "centerX": 7643
+    },
+    {
+      "id": 30,
+      "kind": 1,
+      "left": 985,
+      "right": 1073,
+      "top": 1398,
+      "sourceIndex": 496,
+      "width": 88,
+      "centerX": 1029
+    },
+    {
+      "id": 31,
+      "kind": 1,
+      "left": 1307,
+      "right": 1435,
+      "top": 1398,
+      "sourceIndex": 505,
+      "width": 128,
+      "centerX": 1371
+    },
+    {
+      "id": 32,
+      "kind": 1,
+      "left": 6839,
+      "right": 6967,
+      "top": 1398,
+      "sourceIndex": 510,
+      "width": 128,
+      "centerX": 6903
+    },
+    {
+      "id": 33,
+      "kind": 1,
+      "left": 7205,
+      "right": 7293,
+      "top": 1398,
+      "sourceIndex": 519,
+      "width": 88,
+      "centerX": 7249
+    },
+    {
+      "id": 34,
+      "kind": 1,
+      "left": 3343,
+      "right": 3455,
+      "top": 1422,
+      "sourceIndex": 548,
+      "width": 112,
+      "centerX": 3399
+    },
+    {
+      "id": 35,
+      "kind": 1,
+      "left": 3511,
+      "right": 3775,
+      "top": 1422,
+      "sourceIndex": 548,
+      "width": 264,
+      "centerX": 3643
+    },
+    {
+      "id": 36,
+      "kind": 1,
+      "left": 4507,
+      "right": 4771,
+      "top": 1422,
+      "sourceIndex": 549,
+      "width": 264,
+      "centerX": 4639
+    },
+    {
+      "id": 37,
+      "kind": 1,
+      "left": 4827,
+      "right": 4939,
+      "top": 1422,
+      "sourceIndex": 549,
+      "width": 112,
+      "centerX": 4883
+    },
+    {
+      "id": 38,
+      "kind": 1,
+      "left": 1769,
+      "right": 2081,
+      "top": 1440,
+      "sourceIndex": 567,
+      "width": 312,
+      "centerX": 1925
+    },
+    {
+      "id": 39,
+      "kind": 1,
+      "left": 2201,
+      "right": 2761,
+      "top": 1440,
+      "sourceIndex": 568,
+      "width": 560,
+      "centerX": 2481
+    },
+    {
+      "id": 40,
+      "kind": 1,
+      "left": 2825,
+      "right": 3001,
+      "top": 1440,
+      "sourceIndex": 568,
+      "width": 176,
+      "centerX": 2913
+    },
+    {
+      "id": 41,
+      "kind": 1,
+      "left": 5273,
+      "right": 5449,
+      "top": 1440,
+      "sourceIndex": 569,
+      "width": 176,
+      "centerX": 5361
+    },
+    {
+      "id": 42,
+      "kind": 1,
+      "left": 5521,
+      "right": 6073,
+      "top": 1440,
+      "sourceIndex": 569,
+      "width": 552,
+      "centerX": 5797
+    },
+    {
+      "id": 43,
+      "kind": 1,
+      "left": 6197,
+      "right": 6509,
+      "top": 1440,
+      "sourceIndex": 570,
+      "width": 312,
+      "centerX": 6353
+    },
+    {
+      "id": 44,
+      "kind": 1,
+      "left": 4115,
+      "right": 4163,
+      "top": 1446,
+      "sourceIndex": 575,
+      "width": 48,
+      "centerX": 4139
+    },
+    {
+      "id": 45,
+      "kind": 1,
+      "left": 4007,
+      "right": 4079,
+      "top": 1458,
+      "sourceIndex": 585,
+      "width": 72,
+      "centerX": 4043
+    },
+    {
+      "id": 46,
+      "kind": 1,
+      "left": 4199,
+      "right": 4271,
+      "top": 1458,
+      "sourceIndex": 585,
+      "width": 72,
+      "centerX": 4235
+    },
+    {
+      "id": 47,
+      "kind": 1,
+      "left": 2027,
+      "right": 2091,
+      "top": 1524,
+      "sourceIndex": 635,
+      "width": 64,
+      "centerX": 2059
+    },
+    {
+      "id": 48,
+      "kind": 1,
+      "left": 6187,
+      "right": 6251,
+      "top": 1524,
+      "sourceIndex": 635,
+      "width": 64,
+      "centerX": 6219
+    },
+    {
+      "id": 49,
+      "kind": 1,
+      "left": 1661,
+      "right": 1917,
+      "top": 1608,
+      "sourceIndex": 704,
+      "width": 256,
+      "centerX": 1789
+    },
+    {
+      "id": 50,
+      "kind": 1,
+      "left": 6357,
+      "right": 6613,
+      "top": 1608,
+      "sourceIndex": 704,
+      "width": 256,
+      "centerX": 6485
+    },
+    {
+      "id": 51,
+      "kind": 1,
+      "left": 241,
+      "right": 329,
+      "top": 1638,
+      "sourceIndex": 720,
+      "width": 88,
+      "centerX": 285
+    },
+    {
+      "id": 52,
+      "kind": 1,
+      "left": 7949,
+      "right": 8037,
+      "top": 1638,
+      "sourceIndex": 724,
+      "width": 88,
+      "centerX": 7993
+    },
+    {
+      "id": 53,
+      "kind": 1,
+      "left": 1175,
+      "right": 1207,
+      "top": 1710,
+      "sourceIndex": 759,
+      "width": 32,
+      "centerX": 1191
+    },
+    {
+      "id": 54,
+      "kind": 1,
+      "left": 7073,
+      "right": 7105,
+      "top": 1710,
+      "sourceIndex": 761,
+      "width": 32,
+      "centerX": 7089
+    },
+    {
+      "id": 55,
+      "kind": 1,
+      "left": 441,
+      "right": 849,
+      "top": 1722,
+      "sourceIndex": 770,
+      "width": 408,
+      "centerX": 645
+    },
+    {
+      "id": 56,
+      "kind": 1,
+      "left": 921,
+      "right": 1137,
+      "top": 1722,
+      "sourceIndex": 770,
+      "width": 216,
+      "centerX": 1029
+    },
+    {
+      "id": 57,
+      "kind": 1,
+      "left": 1249,
+      "right": 1521,
+      "top": 1722,
+      "sourceIndex": 770,
+      "width": 272,
+      "centerX": 1385
+    },
+    {
+      "id": 58,
+      "kind": 1,
+      "left": 6753,
+      "right": 7033,
+      "top": 1722,
+      "sourceIndex": 770,
+      "width": 280,
+      "centerX": 6893
+    },
+    {
+      "id": 59,
+      "kind": 1,
+      "left": 7145,
+      "right": 7361,
+      "top": 1722,
+      "sourceIndex": 770,
+      "width": 216,
+      "centerX": 7253
+    },
+    {
+      "id": 60,
+      "kind": 1,
+      "left": 7425,
+      "right": 7841,
+      "top": 1722,
+      "sourceIndex": 770,
+      "width": 416,
+      "centerX": 7633
+    }
+  ],
+  "edges": [
+    {
+      "id": 0,
+      "routeKind": 1,
+      "fromSurfaceId": 29,
+      "toSurfaceId": 33,
+      "entryX": 7852.407,
+      "entryBottom": 1386,
+      "exitX": 7293.6724,
+      "exitBottom": 1398,
+      "costTicks": 125,
+      "leftTicks": 126,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 120,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 120,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 5,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "routeKind": 1,
+      "fromSurfaceId": 33,
+      "toSurfaceId": 32,
+      "entryX": 7293.6724,
+      "entryBottom": 1398,
+      "exitX": 6967.2817,
+      "exitBottom": 1398,
+      "costTicks": 72,
+      "leftTicks": 73,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 73,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "routeKind": 1,
+      "fromSurfaceId": 32,
+      "toSurfaceId": 43,
+      "entryX": 6967.2817,
+      "entryBottom": 1398,
+      "exitX": 6509.4077,
+      "exitBottom": 1440,
+      "costTicks": 101,
+      "leftTicks": 102,
+      "rightTicks": 0,
+      "jumpTicks": 2,
+      "dropTicks": 14,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 24,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 30,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 32,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 14,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": true
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "routeKind": 1,
+      "fromSurfaceId": 43,
+      "toSurfaceId": 42,
+      "entryX": 6509.4077,
+      "entryBottom": 1440,
+      "exitX": 6074.219,
+      "exitBottom": 1440,
+      "costTicks": 96,
+      "leftTicks": 97,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 85,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 85,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 12,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "routeKind": 1,
+      "fromSurfaceId": 42,
+      "toSurfaceId": 41,
+      "entryX": 6074.219,
+      "entryBottom": 1440,
+      "exitX": 5398.7686,
+      "exitBottom": 1440,
+      "costTicks": 149,
+      "leftTicks": 150,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 109,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 40,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "routeKind": 1,
+      "fromSurfaceId": 41,
+      "toSurfaceId": 22,
+      "entryX": 5398.7686,
+      "entryBottom": 1440,
+      "exitX": 5158.509,
+      "exitBottom": 1350,
+      "costTicks": 53,
+      "leftTicks": 54,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 54,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "routeKind": 1,
+      "fromSurfaceId": 22,
+      "toSurfaceId": 16,
+      "entryX": 5158.509,
+      "entryBottom": 1350,
+      "exitX": 5072.378,
+      "exitBottom": 1338,
+      "costTicks": 19,
+      "leftTicks": 20,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 20,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "routeKind": 1,
+      "fromSurfaceId": 16,
+      "toSurfaceId": 24,
+      "entryX": 5072.378,
+      "entryBottom": 1338,
+      "exitX": 4886.507,
+      "exitBottom": 1368,
+      "costTicks": 41,
+      "leftTicks": 42,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 11,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 30,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "routeKind": 1,
+      "fromSurfaceId": 24,
+      "toSurfaceId": 36,
+      "entryX": 4886.507,
+      "entryBottom": 1368,
+      "exitX": 4723.308,
+      "exitBottom": 1422,
+      "costTicks": 36,
+      "leftTicks": 37,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 37,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "routeKind": 1,
+      "fromSurfaceId": 36,
+      "toSurfaceId": 26,
+      "entryX": 4723.308,
+      "entryBottom": 1422,
+      "exitX": 4428.65,
+      "exitBottom": 1374,
+      "costTicks": 65,
+      "leftTicks": 66,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 66,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "routeKind": 1,
+      "fromSurfaceId": 26,
+      "toSurfaceId": 46,
+      "entryX": 4428.65,
+      "entryBottom": 1374,
+      "exitX": 4269.988,
+      "exitBottom": 1458,
+      "costTicks": 35,
+      "leftTicks": 36,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 36,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "routeKind": 1,
+      "fromSurfaceId": 29,
+      "toSurfaceId": 33,
+      "entryX": 7864.407,
+      "entryBottom": 1386,
+      "exitX": 7292.0728,
+      "exitBottom": 1398,
+      "costTicks": 128,
+      "leftTicks": 129,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 129,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "routeKind": 1,
+      "fromSurfaceId": 33,
+      "toSurfaceId": 32,
+      "entryX": 7292.0728,
+      "entryBottom": 1398,
+      "exitX": 6965.682,
+      "exitBottom": 1398,
+      "costTicks": 72,
+      "leftTicks": 73,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 73,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "routeKind": 1,
+      "fromSurfaceId": 32,
+      "toSurfaceId": 43,
+      "entryX": 6965.682,
+      "entryBottom": 1398,
+      "exitX": 6507.8286,
+      "exitBottom": 1440,
+      "costTicks": 101,
+      "leftTicks": 102,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 102,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "routeKind": 1,
+      "fromSurfaceId": 43,
+      "toSurfaceId": 42,
+      "entryX": 6507.8286,
+      "entryBottom": 1440,
+      "exitX": 6072.64,
+      "exitBottom": 1440,
+      "costTicks": 96,
+      "leftTicks": 97,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 97,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "routeKind": 1,
+      "fromSurfaceId": 42,
+      "toSurfaceId": 41,
+      "entryX": 6072.64,
+      "entryBottom": 1440,
+      "exitX": 5397.1895,
+      "exitBottom": 1440,
+      "costTicks": 149,
+      "leftTicks": 150,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 113,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 36,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "routeKind": 1,
+      "fromSurfaceId": 41,
+      "toSurfaceId": 22,
+      "entryX": 5397.1895,
+      "entryBottom": 1440,
+      "exitX": 5156.924,
+      "exitBottom": 1350,
+      "costTicks": 53,
+      "leftTicks": 54,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 27,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 26,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "routeKind": 1,
+      "fromSurfaceId": 22,
+      "toSurfaceId": 16,
+      "entryX": 5156.924,
+      "entryBottom": 1350,
+      "exitX": 5070.793,
+      "exitBottom": 1338,
+      "costTicks": 19,
+      "leftTicks": 20,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 20,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "routeKind": 1,
+      "fromSurfaceId": 16,
+      "toSurfaceId": 21,
+      "entryX": 5070.793,
+      "entryBottom": 1338,
+      "exitX": 5002.795,
+      "exitBottom": 1350,
+      "costTicks": 15,
+      "leftTicks": 16,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 16,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "routeKind": 1,
+      "fromSurfaceId": 21,
+      "toSurfaceId": 24,
+      "entryX": 5002.795,
+      "entryBottom": 1350,
+      "exitX": 4907.5967,
+      "exitBottom": 1368,
+      "costTicks": 21,
+      "leftTicks": 22,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 22,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "routeKind": 1,
+      "fromSurfaceId": 24,
+      "toSurfaceId": 36,
+      "entryX": 4907.5967,
+      "entryBottom": 1368,
+      "exitX": 4726.265,
+      "exitBottom": 1422,
+      "costTicks": 40,
+      "leftTicks": 41,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 41,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "routeKind": 1,
+      "fromSurfaceId": 36,
+      "toSurfaceId": 26,
+      "entryX": 4726.265,
+      "entryBottom": 1422,
+      "exitX": 4427.0737,
+      "exitBottom": 1374,
+      "costTicks": 66,
+      "leftTicks": 67,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 67,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "routeKind": 1,
+      "fromSurfaceId": 26,
+      "toSurfaceId": 46,
+      "entryX": 4427.0737,
+      "entryBottom": 1374,
+      "exitX": 4272.945,
+      "exitBottom": 1458,
+      "costTicks": 34,
+      "leftTicks": 35,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 35,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "routeKind": 1,
+      "fromSurfaceId": 29,
+      "toSurfaceId": 33,
+      "entryX": 7876.407,
+      "entryBottom": 1386,
+      "exitX": 7290.473,
+      "exitBottom": 1398,
+      "costTicks": 131,
+      "leftTicks": 132,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 120,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 6,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 120,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 6,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "routeKind": 1,
+      "fromSurfaceId": 33,
+      "toSurfaceId": 32,
+      "entryX": 7290.473,
+      "entryBottom": 1398,
+      "exitX": 6968.6157,
+      "exitBottom": 1398,
+      "costTicks": 71,
+      "leftTicks": 72,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 72,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "routeKind": 1,
+      "fromSurfaceId": 32,
+      "toSurfaceId": 43,
+      "entryX": 6968.6157,
+      "entryBottom": 1398,
+      "exitX": 6510.762,
+      "exitBottom": 1440,
+      "costTicks": 101,
+      "leftTicks": 102,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 102,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "routeKind": 1,
+      "fromSurfaceId": 43,
+      "toSurfaceId": 42,
+      "entryX": 6510.762,
+      "entryBottom": 1440,
+      "exitX": 6071.0405,
+      "exitBottom": 1440,
+      "costTicks": 97,
+      "leftTicks": 98,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 98,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "routeKind": 1,
+      "fromSurfaceId": 42,
+      "toSurfaceId": 41,
+      "entryX": 6071.0405,
+      "entryBottom": 1440,
+      "exitX": 5400.123,
+      "exitBottom": 1440,
+      "costTicks": 148,
+      "leftTicks": 149,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 112,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 36,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "routeKind": 1,
+      "fromSurfaceId": 41,
+      "toSurfaceId": 22,
+      "entryX": 5400.123,
+      "entryBottom": 1440,
+      "exitX": 5155.33,
+      "exitBottom": 1350,
+      "costTicks": 54,
+      "leftTicks": 55,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 55,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "routeKind": 1,
+      "fromSurfaceId": 22,
+      "toSurfaceId": 16,
+      "entryX": 5155.33,
+      "entryBottom": 1350,
+      "exitX": 5069.199,
+      "exitBottom": 1338,
+      "costTicks": 19,
+      "leftTicks": 20,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 20,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "routeKind": 1,
+      "fromSurfaceId": 16,
+      "toSurfaceId": 24,
+      "entryX": 5069.199,
+      "entryBottom": 1338,
+      "exitX": 4905.994,
+      "exitBottom": 1368,
+      "costTicks": 36,
+      "leftTicks": 37,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 6,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 30,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "routeKind": 1,
+      "fromSurfaceId": 24,
+      "toSurfaceId": 36,
+      "entryX": 4905.994,
+      "entryBottom": 1368,
+      "exitX": 4724.6626,
+      "exitBottom": 1422,
+      "costTicks": 40,
+      "leftTicks": 41,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 41,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "routeKind": 1,
+      "fromSurfaceId": 36,
+      "toSurfaceId": 26,
+      "entryX": 4724.6626,
+      "entryBottom": 1422,
+      "exitX": 4425.471,
+      "exitBottom": 1374,
+      "costTicks": 66,
+      "leftTicks": 67,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 67,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "routeKind": 1,
+      "fromSurfaceId": 26,
+      "toSurfaceId": 46,
+      "entryX": 4425.471,
+      "entryBottom": 1374,
+      "exitX": 4271.3423,
+      "exitBottom": 1458,
+      "costTicks": 34,
+      "leftTicks": 35,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 35,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 34,
+      "routeKind": 1,
+      "fromSurfaceId": 44,
+      "toSurfaceId": 45,
+      "entryX": 4128,
+      "entryBottom": 1446,
+      "exitX": 4077.572,
+      "exitBottom": 1458,
+      "costTicks": 17,
+      "leftTicks": 17,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 17,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 35,
+      "routeKind": 1,
+      "fromSurfaceId": 45,
+      "toSurfaceId": 25,
+      "entryX": 4077.572,
+      "entryBottom": 1458,
+      "exitX": 3894.19,
+      "exitBottom": 1374,
+      "costTicks": 41,
+      "leftTicks": 42,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 6,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 35,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 36,
+      "routeKind": 1,
+      "fromSurfaceId": 25,
+      "toSurfaceId": 35,
+      "entryX": 3894.19,
+      "entryBottom": 1374,
+      "exitX": 3771.7974,
+      "exitBottom": 1422,
+      "costTicks": 27,
+      "leftTicks": 28,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 28,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 37,
+      "routeKind": 1,
+      "fromSurfaceId": 35,
+      "toSurfaceId": 20,
+      "entryX": 3771.7974,
+      "entryBottom": 1422,
+      "exitX": 3291.26,
+      "exitBottom": 1350,
+      "costTicks": 106,
+      "leftTicks": 107,
+      "rightTicks": 0,
+      "jumpTicks": 3,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 45,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 23,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 11,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 25,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 38,
+      "routeKind": 1,
+      "fromSurfaceId": 20,
+      "toSurfaceId": 15,
+      "entryX": 3291.26,
+      "entryBottom": 1350,
+      "exitX": 3236.8586,
+      "exitBottom": 1338,
+      "costTicks": 12,
+      "leftTicks": 13,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 13,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 39,
+      "routeKind": 1,
+      "fromSurfaceId": 44,
+      "toSurfaceId": 45,
+      "entryX": 4140,
+      "entryBottom": 1446,
+      "exitX": 4076.8494,
+      "exitBottom": 1458,
+      "costTicks": 20,
+      "leftTicks": 20,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 20,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 40,
+      "routeKind": 1,
+      "fromSurfaceId": 45,
+      "toSurfaceId": 25,
+      "entryX": 4076.8494,
+      "entryBottom": 1458,
+      "exitX": 3892.5918,
+      "exitBottom": 1374,
+      "costTicks": 41,
+      "leftTicks": 42,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 42,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 41,
+      "routeKind": 1,
+      "fromSurfaceId": 25,
+      "toSurfaceId": 35,
+      "entryX": 3892.5918,
+      "entryBottom": 1374,
+      "exitX": 3774.7305,
+      "exitBottom": 1422,
+      "costTicks": 26,
+      "leftTicks": 27,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 27,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 42,
+      "routeKind": 1,
+      "fromSurfaceId": 35,
+      "toSurfaceId": 23,
+      "entryX": 3774.7305,
+      "entryBottom": 1422,
+      "exitX": 3407.526,
+      "exitBottom": 1368,
+      "costTicks": 81,
+      "leftTicks": 82,
+      "rightTicks": 0,
+      "jumpTicks": 2,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 46,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 23,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 11,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 43,
+      "routeKind": 1,
+      "fromSurfaceId": 23,
+      "toSurfaceId": 20,
+      "entryX": 3407.526,
+      "entryBottom": 1368,
+      "exitX": 3289.6592,
+      "exitBottom": 1350,
+      "costTicks": 26,
+      "leftTicks": 27,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 25,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 44,
+      "routeKind": 1,
+      "fromSurfaceId": 20,
+      "toSurfaceId": 15,
+      "entryX": 3289.6592,
+      "entryBottom": 1350,
+      "exitX": 3235.2664,
+      "exitBottom": 1338,
+      "costTicks": 12,
+      "leftTicks": 13,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 13,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 45,
+      "routeKind": 1,
+      "fromSurfaceId": 44,
+      "toSurfaceId": 45,
+      "entryX": 4152,
+      "entryBottom": 1446,
+      "exitX": 4080.188,
+      "exitBottom": 1458,
+      "costTicks": 22,
+      "leftTicks": 22,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 6,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 16,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": true
+        }
+      ]
+    },
+    {
+      "id": 46,
+      "routeKind": 1,
+      "fromSurfaceId": 45,
+      "toSurfaceId": 25,
+      "entryX": 4080.188,
+      "entryBottom": 1458,
+      "exitX": 3890.9932,
+      "exitBottom": 1374,
+      "costTicks": 42,
+      "leftTicks": 43,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 2,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 2,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 41,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 47,
+      "routeKind": 1,
+      "fromSurfaceId": 25,
+      "toSurfaceId": 35,
+      "entryX": 3890.9932,
+      "entryBottom": 1374,
+      "exitX": 3773.1306,
+      "exitBottom": 1422,
+      "costTicks": 26,
+      "leftTicks": 27,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 27,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 48,
+      "routeKind": 1,
+      "fromSurfaceId": 35,
+      "toSurfaceId": 23,
+      "entryX": 3773.1306,
+      "entryBottom": 1422,
+      "exitX": 3405.925,
+      "exitBottom": 1368,
+      "costTicks": 81,
+      "leftTicks": 82,
+      "rightTicks": 0,
+      "jumpTicks": 2,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 46,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 23,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 11,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 49,
+      "routeKind": 1,
+      "fromSurfaceId": 23,
+      "toSurfaceId": 20,
+      "entryX": 3405.925,
+      "entryBottom": 1368,
+      "exitX": 3288.0583,
+      "exitBottom": 1350,
+      "costTicks": 26,
+      "leftTicks": 27,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 25,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 50,
+      "routeKind": 1,
+      "fromSurfaceId": 20,
+      "toSurfaceId": 15,
+      "entryX": 3288.0583,
+      "entryBottom": 1350,
+      "exitX": 3233.657,
+      "exitBottom": 1338,
+      "costTicks": 12,
+      "leftTicks": 13,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "actions": [
+        {
+          "ticks": 13,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    }
+  ],
+  "laneSegments": [],
+  "routes": [
+    {
+      "kind": 1,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "sampleCount": 1809,
+      "surfaceSequence": [
+        29,
+        33,
+        32,
+        43,
+        42,
+        41,
+        22,
+        16,
+        24,
+        36,
+        26,
+        46
+      ],
+      "edgeIds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "laneSegmentIds": [],
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 8,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 120,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 100,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 30,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 32,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 98,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 120,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 122,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 183,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 990,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "terminalStartX": 4269.988,
+      "terminalStartBottom": 1458,
+      "terminalEndX": 4165.19,
+      "terminalEndBottom": 1446,
+      "terminalActions": [
+        {
+          "ticks": 17,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 990,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "startX": 7872,
+      "startBottom": 1362
+    },
+    {
+      "kind": 1,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "sampleCount": 1811,
+      "surfaceSequence": [
+        29,
+        33,
+        32,
+        43,
+        42,
+        41,
+        22,
+        16,
+        21,
+        24,
+        36,
+        26,
+        46
+      ],
+      "edgeIds": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ],
+      "laneSegmentIds": [],
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 518,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 62,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 238,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 990,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "terminalStartX": 4272.945,
+      "terminalStartBottom": 1458,
+      "terminalEndX": 4168.147,
+      "terminalEndBottom": 1446,
+      "terminalActions": [
+        {
+          "ticks": 17,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 990,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "startX": 7884,
+      "startBottom": 1362
+    },
+    {
+      "kind": 1,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "sampleCount": 1814,
+      "surfaceSequence": [
+        29,
+        33,
+        32,
+        43,
+        42,
+        41,
+        22,
+        16,
+        24,
+        36,
+        26,
+        46
+      ],
+      "edgeIds": [
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "laneSegmentIds": [],
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 14,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 120,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 386,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 114,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 187,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 990,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "terminalStartX": 4271.3423,
+      "terminalStartBottom": 1458,
+      "terminalEndX": 4166.5444,
+      "terminalEndBottom": 1446,
+      "terminalActions": [
+        {
+          "ticks": 17,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 990,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "startX": 7896,
+      "startBottom": 1362
+    },
+    {
+      "kind": 1,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "sampleCount": 1110,
+      "surfaceSequence": [
+        44,
+        45,
+        25,
+        35,
+        20,
+        15
+      ],
+      "edgeIds": [
+        34,
+        35,
+        36,
+        37,
+        38
+      ],
+      "laneSegmentIds": [],
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 22,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 106,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 23,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 11,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 43,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 900,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "terminalStartX": 3236.8586,
+      "terminalStartBottom": 1338,
+      "terminalEndX": 3181.9255,
+      "terminalEndBottom": 1338,
+      "terminalActions": [
+        {
+          "ticks": 6,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 900,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "startX": 4128,
+      "startBottom": 1446
+    },
+    {
+      "kind": 1,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "sampleCount": 1112,
+      "surfaceSequence": [
+        44,
+        45,
+        25,
+        35,
+        23,
+        20,
+        15
+      ],
+      "edgeIds": [
+        39,
+        40,
+        41,
+        42,
+        43,
+        44
+      ],
+      "laneSegmentIds": [],
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 132,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 23,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 11,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 42,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 900,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "terminalStartX": 3235.2664,
+      "terminalStartBottom": 1338,
+      "terminalEndX": 3184.8667,
+      "terminalEndBottom": 1338,
+      "terminalActions": [
+        {
+          "ticks": 5,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 900,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "startX": 4140,
+      "startBottom": 1446
+    },
+    {
+      "kind": 1,
+      "source": "MotionProofPrimitive:Egypt:a1:Blue:Heavy:local_goal",
+      "sampleCount": 1115,
+      "surfaceSequence": [
+        44,
+        45,
+        25,
+        35,
+        23,
+        20,
+        15
+      ],
+      "edgeIds": [
+        45,
+        46,
+        47,
+        48,
+        49,
+        50
+      ],
+      "laneSegmentIds": [],
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 16,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 7,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 112,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 23,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 11,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 42,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 900,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "terminalStartX": 3233.657,
+      "terminalStartBottom": 1338,
+      "terminalEndX": 3183.2573,
+      "terminalEndBottom": 1338,
+      "terminalActions": [
+        {
+          "ticks": 5,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 900,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "startX": 4152,
+      "startBottom": 1446
+    }
+  ]
+}

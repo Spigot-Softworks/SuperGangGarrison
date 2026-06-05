@@ -1,0 +1,814 @@
+{
+  "Version": 1,
+  "Atlases": [
+    {
+      "Id": "bootstrap-hud-ui-0",
+      "ImagePath": "Content/Browser/Atlases/bootstrap-hud-ui-0.png",
+      "Width": 1960,
+      "Height": 1844,
+      "Group": "hud-ui"
+    },
+    {
+      "Id": "bootstrap-hud-ui-1",
+      "ImagePath": "Content/Browser/Atlases/bootstrap-hud-ui-1.png",
+      "Width": 1630,
+      "Height": 1159,
+      "Group": "hud-ui"
+    },
+    {
+      "Id": "bootstrap-menu-ui-0",
+      "ImagePath": "Content/Browser/Atlases/bootstrap-menu-ui-0.png",
+      "Width": 2004,
+      "Height": 1890,
+      "Group": "menu-ui"
+    },
+    {
+      "Id": "bootstrap-menu-ui-1",
+      "ImagePath": "Content/Browser/Atlases/bootstrap-menu-ui-1.png",
+      "Width": 1588,
+      "Height": 1100,
+      "Group": "menu-ui"
+    }
+  ],
+  "Sprites": {
+    "Content/Sprites/Menu/Fonts/MenuBuildFontAtlas.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 1504,
+      "FrameHeight": 22,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 2,
+          "Y": 2,
+          "Width": 1504,
+          "Height": 22,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "59ABA9997639BE88B75BC431D11ED414E6CD11BB2BEA1ABEB1ED133BB10D427C"
+    },
+    "Content/Sprites/Menu/Fonts/MenuFontAtlas.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 210,
+      "FrameHeight": 220,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 1510,
+          "Y": 2,
+          "Width": 210,
+          "Height": 220,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "BCBC09ED31AB51433D604A21E8BAEA596D42CD9CD6401D7C73DFA5763D10E0EC"
+    },
+    "Content/Sprites/Menu/LastToDie/last2die.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 912,
+      "FrameHeight": 715,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 2,
+          "Y": 226,
+          "Width": 912,
+          "Height": 715,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "15C0372A0691A3D04572B7DA120F0556D51C49BC009853E6B4E246175DCA52BF"
+    },
+    "Content/Sprites/Menu/LastToDie/ltd_buff.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 40,
+      "FrameHeight": 40,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 918,
+          "Y": 226,
+          "Width": 40,
+          "Height": 40,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "FBF57ED0DD0B7E4C5E9F974A05D1CD2A7436DE46F4B07976B75B81439301CC13"
+    },
+    "Content/Sprites/Menu/Plaques/LTD_MenuPlaque.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 376,
+      "FrameHeight": 359,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 962,
+          "Y": 226,
+          "Width": 376,
+          "Height": 359,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "08ED724EDDBEAD997622A2FC53123FBABCD9913D21D48D8243018029FDC9FD0E"
+    },
+    "Content/Sprites/Menu/Plaques/LTD_MenuTextBoxSolo.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 356,
+      "FrameHeight": 58,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 1342,
+          "Y": 226,
+          "Width": 356,
+          "Height": 58,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "0FF6A6F36E5D924EDCE0737C2F85ED98BA0B5DB9A600A7EE4DA2AAC6909CFA7A"
+    },
+    "Content/Sprites/Menu/Plaques/MenuPlaque.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 376,
+      "FrameHeight": 359,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 2,
+          "Y": 945,
+          "Width": 376,
+          "Height": 359,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "7760EC42D5FBE26D60D582B07D2C4FBD1BDF30C3C27CF392CFAF128E8D553132"
+    },
+    "Content/Sprites/Menu/Plaques/MenuPlaqueTall.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 376,
+      "FrameHeight": 587,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 382,
+          "Y": 945,
+          "Width": 376,
+          "Height": 587,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "36BADABB314095C8B6E60E1DA054CFC97B90FF6B3452FE1061D222D54A249F45"
+    },
+    "Content/Sprites/Menu/Plaques/MenuTextBoxBottom.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 356,
+      "FrameHeight": 58,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 762,
+          "Y": 945,
+          "Width": 356,
+          "Height": 58,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "8A450D65B4D2C003201D76D9B3AF60B06FBF42EBA34C13198DCD3A84577FB9C5"
+    },
+    "Content/Sprites/Menu/Plaques/MenuTextBoxMiddle.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 356,
+      "FrameHeight": 59,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 1122,
+          "Y": 945,
+          "Width": 356,
+          "Height": 59,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "6D9B1C97D6F20C4A255BE6C62FFEF33870A0235F919FB638318AFEF32E9FD41A"
+    },
+    "Content/Sprites/Menu/Plaques/MenuTextBoxSolo.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 356,
+      "FrameHeight": 58,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 1482,
+          "Y": 945,
+          "Width": 356,
+          "Height": 58,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "5BB6F98B714BA829E41FF91264630CE696EDCBC3FAE6F7733E1811A98DCCD323"
+    },
+    "Content/Sprites/Menu/Plaques/MenuTextBoxTop.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 356,
+      "FrameHeight": 59,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 2,
+          "Y": 1536,
+          "Width": 356,
+          "Height": 59,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "13BF4B3C3095E631F39268CEA59F59F020CEC2F67E27720E2D58456B2FF3B5FE"
+    },
+    "Content/Sprites/Menu/RandomizerLoadout/BackS.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 128,
+      "FrameHeight": 32,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 362,
+          "Y": 1536,
+          "Width": 128,
+          "Height": 32,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "3C0960D9B7F5299D3ABC86ED9A491074D68CE577227D81E0878C6436662FED31"
+    },
+    "Content/Sprites/Menu/RandomizerLoadout/DescriptionBoardS.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 276,
+      "FrameHeight": 172,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 494,
+          "Y": 1536,
+          "Width": 276,
+          "Height": 172,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "26F9BA88518B5C6BA24755B5FD636ACB0196366D3A96DDD112BCC32ED7324598"
+    },
+    "Content/Sprites/Menu/RandomizerLoadout/LoadoutBackgroundBar.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 10,
+      "FrameHeight": 240,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 774,
+          "Y": 1536,
+          "Width": 10,
+          "Height": 240,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "3D1BB6B8AF301F6C68244A11E8D74DFF46E8BD0C35F1DC2B13E53D6122829035"
+    },
+    "Content/Sprites/Menu/RandomizerLoadout/LoadoutSelectionStrip.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 381,
+      "FrameHeight": 50,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 788,
+          "Y": 1536,
+          "Width": 381,
+          "Height": 50,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "937173870E5B66E630357925499B5C85F34125FE573F6892709312C8C3C223D1"
+    },
+    "Content/Sprites/Menu/RandomizerLoadout/LoadoutStrip.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 520,
+      "FrameHeight": 52,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 1173,
+          "Y": 1536,
+          "Width": 520,
+          "Height": 52,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "1D1C354B26A6478DEF1F9B001E7194DCEC7B4505EC31E0D7C19B96C6912E55AE"
+    },
+    "Content/Sprites/Menu/RandomizerLoadout/PageS.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 60,
+      "FrameHeight": 32,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 1697,
+          "Y": 1536,
+          "Width": 60,
+          "Height": 32,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "F2D45CEDC7EB4DBACB3DB481B6A54E81BC10AD2E8361211A812A8160851B63AE"
+    },
+    "Content/Sprites/Menu/RandomizerLoadout/ScrollerS.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 240,
+      "FrameHeight": 144,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 1761,
+          "Y": 1536,
+          "Width": 240,
+          "Height": 144,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "AB9C038915CE296C2EAC4285819EA8CD9498DE16041AA04C45320450FE76AEF8"
+    },
+    "Content/Sprites/Menu/RandomizerLoadout/SelectionS.chunk0.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 2000,
+      "FrameHeight": 24,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 2,
+          "Y": 1780,
+          "Width": 2000,
+          "Height": 24,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "9CFBC552196BE12BEF5D16ECF67C60656B9F52B49306474E6D1A62C7D9BC7161"
+    },
+    "Content/Sprites/Menu/RandomizerLoadout/SelectionS.chunk1.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 2000,
+      "FrameHeight": 24,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 2,
+          "Y": 1808,
+          "Width": 2000,
+          "Height": 24,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "EB96315503E211EFE2C4ACF1C188775CCA28DDB99FC1DE83125A49C0FFC0967B"
+    },
+    "Content/Sprites/Menu/RandomizerLoadout/SelectionS.chunk2.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 2000,
+      "FrameHeight": 24,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 2,
+          "Y": 1836,
+          "Width": 2000,
+          "Height": 24,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "915ADC4255219DC163F05E970ED2A4625C2057FA52D425EBACA2ADDA230C803B"
+    },
+    "Content/Sprites/Menu/RandomizerLoadout/SelectionS.chunk3.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 1200,
+      "FrameHeight": 24,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 2,
+          "Y": 1864,
+          "Width": 1200,
+          "Height": 24,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "35878657109A120115CC4AB05341D42DDD753B33F74970C01A693C79B7F362EA"
+    },
+    "Content/Sprites/Menu/RandomizerLoadout/SelectionS2.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 80,
+      "FrameHeight": 24,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-0",
+          "X": 1206,
+          "Y": 1864,
+          "Width": 80,
+          "Height": 24,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "1FBA50774584F0F1D93662F287F2D6AF82FC2F4AEBD190E3A76A2CFB946810C9"
+    },
+    "Content/Sprites/Menu/Title/background-4x3.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 800,
+      "FrameHeight": 600,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-1",
+          "X": 2,
+          "Y": 2,
+          "Width": 800,
+          "Height": 600,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "7C51229888388930FE6D12F60EA248A6A43D605207246F1DE7960B752F452900"
+    },
+    "Content/Sprites/Menu/Title/background-5x4.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 780,
+      "FrameHeight": 624,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-1",
+          "X": 806,
+          "Y": 2,
+          "Width": 780,
+          "Height": 624,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "B45D39C30D34F359A6C8DA432189CE75849287A7790DD5FB63758DC9C660E557"
+    },
+    "Content/Sprites/Menu/Title/background.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 864,
+      "FrameHeight": 468,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-menu-ui-1",
+          "X": 2,
+          "Y": 630,
+          "Width": 864,
+          "Height": 468,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "F24EFE9D8ECB36B1DAD1EC9F72C7003B9149AD3FBE0041B081487738CF5C1FB9"
+    },
+    "Content/StockMaps/arena_lumberyard.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 624,
+      "FrameHeight": 200,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-hud-ui-0",
+          "X": 2,
+          "Y": 2,
+          "Width": 624,
+          "Height": 200,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "233A5A612C0DFE87A583792F393502FCFAF8653E4E50E773292352083C883FAB"
+    },
+    "Content/StockMaps/arena_montane.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 712,
+      "FrameHeight": 229,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-hud-ui-0",
+          "X": 630,
+          "Y": 2,
+          "Width": 712,
+          "Height": 229,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "185BDF58AE042BC73A0D9E7BBD6F56223A898E38090D35A5395D0DC16A94544A"
+    },
+    "Content/StockMaps/cp_dirtbowl.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 800,
+      "FrameHeight": 700,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-hud-ui-0",
+          "X": 2,
+          "Y": 235,
+          "Width": 800,
+          "Height": 700,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "888A0B71B81436B50B92F0DBDBC21B28C3C7D8B0910AFC58C3FFDF6B7F3582AB"
+    },
+    "Content/StockMaps/cp_egypt.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 1380,
+      "FrameHeight": 300,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-hud-ui-0",
+          "X": 2,
+          "Y": 939,
+          "Width": 1380,
+          "Height": 300,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "DAA63A554228FAE2333793AE4D58438BD649FE13FA25DBD1169BC664F68AB4C8"
+    },
+    "Content/StockMaps/ctf_2dfort.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 572,
+      "FrameHeight": 247,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-hud-ui-0",
+          "X": 1386,
+          "Y": 939,
+          "Width": 572,
+          "Height": 247,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "72C027A93ED6CCCC78BB8AB2973F55E235F45465DDED07EF8F1E7F600A275142"
+    },
+    "Content/StockMaps/ctf_conflict.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 743,
+      "FrameHeight": 269,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-hud-ui-0",
+          "X": 2,
+          "Y": 1243,
+          "Width": 743,
+          "Height": 269,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "0C3A78F3DF86225EC316BD025FCA678D70D5D8687DE5B9495353512F54317D37"
+    },
+    "Content/StockMaps/ctf_eiger.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 810,
+      "FrameHeight": 200,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-hud-ui-0",
+          "X": 749,
+          "Y": 1243,
+          "Width": 810,
+          "Height": 200,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "F744F4AE55E385B9B17A9D1684C7BA89CA74D59755B93319AB76406F93BB6BE4"
+    },
+    "Content/StockMaps/ctf_truefort.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 891,
+      "FrameHeight": 180,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-hud-ui-0",
+          "X": 2,
+          "Y": 1516,
+          "Width": 891,
+          "Height": 180,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "42057154CEC18B5388C4485B0A0C903F0A1833FBF808562D305938BA6F1A31CC"
+    },
+    "Content/StockMaps/ctf_waterway.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 1034,
+      "FrameHeight": 326,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-hud-ui-0",
+          "X": 897,
+          "Y": 1516,
+          "Width": 1034,
+          "Height": 326,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "C1D7C5E26796F24B0F2B74F769D7CE7FF81080760B7F74FAAF3CED26C43EBA12"
+    },
+    "Content/StockMaps/koth_corinth.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 600,
+      "FrameHeight": 250,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-hud-ui-1",
+          "X": 2,
+          "Y": 2,
+          "Width": 600,
+          "Height": 250,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "2BC8F4E5EF706584CCE6ACB998FA348AF872401AC3146E85CCF00E384B48FC8A"
+    },
+    "Content/StockMaps/koth_gallery.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 640,
+      "FrameHeight": 256,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-hud-ui-1",
+          "X": 606,
+          "Y": 2,
+          "Width": 640,
+          "Height": 256,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "68188A378D3259AA0D5B144466AB974E3D4356FD0980965BB922BA94CC4B75CA"
+    },
+    "Content/StockMaps/koth_harvest.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 1626,
+      "FrameHeight": 434,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-hud-ui-1",
+          "X": 2,
+          "Y": 262,
+          "Width": 1626,
+          "Height": 434,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "65D75331C194085855BCE62975A60CFE17A57FC41AA987C03C8D3AA7AD7835D6"
+    },
+    "Content/StockMaps/koth_valley.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 804,
+      "FrameHeight": 170,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-hud-ui-1",
+          "X": 2,
+          "Y": 700,
+          "Width": 804,
+          "Height": 170,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "6619A040C0D858269060EA7733B73F5581A49BE54012589FAA6B87CF18214732"
+    },
+    "Content/StockMaps/tdm_mantic.png": {
+      "OriginX": 0,
+      "OriginY": 0,
+      "FrameWidth": 668,
+      "FrameHeight": 457,
+      "Frames": [
+        {
+          "AtlasId": "bootstrap-hud-ui-1",
+          "X": 810,
+          "Y": 700,
+          "Width": 668,
+          "Height": 457,
+          "SourceImageIndex": 0,
+          "SourceFrameIndex": 0
+        }
+      ],
+      "Mask": null,
+      "SourceHash": "9F51789BC8C7A7ACE1821F53759CA76D27F442C213C39BAD4B6B56663E0797CA"
+    }
+  }
+}

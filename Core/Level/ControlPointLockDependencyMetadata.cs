@@ -82,16 +82,19 @@ public static class ControlPointLockDependencyMetadata
             return;
         }
 
-        if (rules.LockedWhenLogicNodeIndex >= 0
-            && logicGraph.GetOutput(rules.LockedWhenLogicNodeIndex))
-        {
-            isLocked = true;
-        }
+        var lockedWhenLogicSignal = rules.LockedWhenLogicNodeIndex >= 0
+            && logicGraph.GetOutput(rules.LockedWhenLogicNodeIndex);
+        var unlockedWhenLogicSignal = rules.UnlockedWhenLogicNodeIndex >= 0
+            && logicGraph.GetOutput(rules.UnlockedWhenLogicNodeIndex);
 
-        if (rules.UnlockedWhenLogicNodeIndex >= 0
-            && logicGraph.GetOutput(rules.UnlockedWhenLogicNodeIndex))
+        if (unlockedWhenLogicSignal)
         {
             isLocked = false;
+        }
+
+        if (lockedWhenLogicSignal)
+        {
+            isLocked = true;
         }
     }
 
