@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<resources>
-  <resource name="PlayerHealthBlu" type="RESOURCE"/>
-  <resource name="PlayerHealthRed" type="RESOURCE"/>
-  <resource name="PlayerHealthCross" type="RESOURCE"/>
-  <resource name="PlayerHealthCrossInternalMedicine" type="RESOURCE"/>
-</resources>
