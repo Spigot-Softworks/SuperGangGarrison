@@ -67,6 +67,26 @@ public static class SimpleLevelBarrierCollision
             }
         }
 
+        for (var index = 0; index < level.RoomObjects.Count; index += 1)
+        {
+            var zone = level.RoomObjects[index];
+            if (zone.Type != RoomObjectType.DamageableZone || !level.IsRoomObjectActive(index))
+            {
+                continue;
+            }
+
+            var currentHealth = level.GetDamageableZoneCurrentHealth(index, zone);
+            if (!DamageableMetadata.BlocksPlayers(zone.DamageableZone, currentHealth))
+            {
+                continue;
+            }
+
+            if (BarrierCollision.Intersects(zone, nextLeft, nextTop, nextRight, nextBottom))
+            {
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -98,20 +118,34 @@ public static class SimpleLevelBarrierCollision
     {
         for (var index = 0; index < level.RoomObjects.Count; index += 1)
         {
-            var barrier = level.RoomObjects[index];
-            if (barrier.Type != RoomObjectType.Barrier || !level.IsRoomObjectActive(index))
+            var roomObject = level.RoomObjects[index];
+            if (!level.IsRoomObjectActive(index))
             {
                 continue;
             }
 
-            if (x < barrier.Left || x >= barrier.Right || y < barrier.Top || y >= barrier.Bottom)
+            if (x < roomObject.Left || x >= roomObject.Right || y < roomObject.Top || y >= roomObject.Bottom)
             {
                 continue;
             }
 
-            if (BarrierCollision.BlocksProjectile(barrier.Barrier, shotTeam))
+            if (roomObject.Type == RoomObjectType.Barrier)
             {
-                return true;
+                if (BarrierCollision.BlocksProjectile(roomObject.Barrier, shotTeam))
+                {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if (roomObject.Type == RoomObjectType.DamageableZone)
+            {
+                var currentHealth = level.GetDamageableZoneCurrentHealth(index, roomObject);
+                if (DamageableMetadata.BlocksProjectiles(roomObject.DamageableZone, currentHealth))
+                {
+                    return true;
+                }
             }
         }
 

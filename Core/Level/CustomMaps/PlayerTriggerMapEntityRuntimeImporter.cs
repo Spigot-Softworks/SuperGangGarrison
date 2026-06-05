@@ -18,6 +18,7 @@ internal sealed class PlayerTriggerMapEntityRuntimeImporter : ICustomMapEntityRu
         var logicKey = MapLogicMetadata.EnsureLogicKey(properties);
         var (width, height) = PlayerTriggerMetadata.ResolveZoneDimensions(args.XScale, args.YScale);
         var (left, top) = CustomMapEntityPlacementAnchor.ToTopLeft(
+            EntityType,
             args.X,
             args.Y,
             width,

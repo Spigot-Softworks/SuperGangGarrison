@@ -111,6 +111,25 @@ public sealed class SimpleLevel
 
     public bool[] RoomObjectLogicActiveMask { get; private set; }
 
+    public float[]? DamageableZoneCurrentHealth { get; internal set; }
+
+    public float GetDamageableZoneCurrentHealth(int roomObjectIndex, in RoomObjectMarker marker)
+    {
+        if (marker.Type != RoomObjectType.DamageableZone)
+        {
+            return 0f;
+        }
+
+        if (DamageableZoneCurrentHealth is not null
+            && roomObjectIndex >= 0
+            && roomObjectIndex < DamageableZoneCurrentHealth.Length)
+        {
+            return DamageableZoneCurrentHealth[roomObjectIndex];
+        }
+
+        return marker.DamageableZone.MaxHealth;
+    }
+
     public bool IsRoomObjectActive(int roomObjectIndex)
     {
         if (roomObjectIndex < 0 || roomObjectIndex >= RoomObjectLogicActiveMask.Length)
@@ -118,7 +137,24 @@ public sealed class SimpleLevel
             return true;
         }
 
-        return RoomObjectLogicActiveMask[roomObjectIndex];
+        if (!RoomObjectLogicActiveMask[roomObjectIndex])
+        {
+            return false;
+        }
+
+        if (roomObjectIndex >= RoomObjects.Count)
+        {
+            return true;
+        }
+
+        var marker = RoomObjects[roomObjectIndex];
+        if (marker.Type != RoomObjectType.AreaExtension)
+        {
+            return true;
+        }
+
+        var parentIndex = marker.AreaExtension.ParentRoomObjectIndex;
+        return parentIndex < 0 || IsRoomObjectActive(parentIndex);
     }
 
     public bool ControlPointSetupGatesActive

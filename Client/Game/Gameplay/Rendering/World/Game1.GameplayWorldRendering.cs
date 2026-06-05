@@ -41,6 +41,7 @@ public partial class Game1
         DrawMovingPlatforms(cameraPosition);
         DrawGameplayEffectsAndProjectiles(cameraPosition);
         DrawGameplayStructures(cameraPosition);
+        DrawDamageableZoneHealthBars(cameraPosition);
         DrawGameplayMapMarkers(cameraPosition, hasLevelBackground, centerLine, centerColumn, worldTopBorder, worldBottomBorder, worldLeftBorder, worldRightBorder, spawnRectangle);
         DrawGameplayRemains(cameraPosition, skippedDeadBodySourcePlayerId);
         var medicBeamPlayerIds = GetActiveMedicBeamPlayerIds();

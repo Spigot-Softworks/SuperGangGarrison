@@ -267,6 +267,22 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
+            if (movementDistance > 0.0001f
+                && TryGetGrenadeDamageableZoneContact(
+                    grenade,
+                    directionX,
+                    directionY,
+                    movementDistance,
+                    out var damageableHitX,
+                    out var damageableHitY,
+                    out var damageableZoneIndex))
+            {
+                grenade.MoveTo(damageableHitX, damageableHitY);
+                ExplodeGrenade(grenade, directHitDamageableZoneIndex: damageableZoneIndex);
+                RemoveGrenadeAt(grenadeIndex);
+                continue;
+            }
+
             // Swept environment collision — bounce off walls
             if (movementDistance > 0.0001f)
             {
@@ -359,7 +375,8 @@ public sealed partial class SimulationWorld
     private void ExplodeGrenade(
         GrenadeProjectileEntity grenade,
         PlayerEntity? directHitPlayer = null,
-        SimulationEntity? directHitBuilding = null)
+        SimulationEntity? directHitBuilding = null,
+        int directHitDamageableZoneIndex = -1)
     {
         if (ClientPredictionMode)
         {
@@ -498,6 +515,21 @@ public sealed partial class SimulationWorld
         {
             ApplyGrenadeDirectImpactDamage(grenade, owner, directHitBuilding);
         }
+
+        if (directHitDamageableZoneIndex >= 0)
+        {
+            TryApplyDamageableZoneDamage(
+                directHitDamageableZoneIndex,
+                GrenadeProjectileEntity.DirectHitDamage * grenade.CriticalDamageMultiplier);
+        }
+
+        ApplyExplosiveDamageToDamageableZones(
+            grenade.X,
+            grenade.Y,
+            GrenadeProjectileEntity.BlastRadius,
+            grenade.ExplosionDamage * grenade.CriticalDamageMultiplier,
+            GrenadeProjectileEntity.SplashThresholdFactor,
+            directHitDamageableZoneIndex);
     }
 
     private void ApplyGrenadeDirectImpactDamage(GrenadeProjectileEntity grenade, PlayerEntity? owner, PlayerEntity target)

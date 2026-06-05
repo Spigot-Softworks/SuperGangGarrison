@@ -18,7 +18,9 @@ public readonly record struct RoomObjectMarker(
     DirectionalWallConfiguration DirectionalWall = default,
     TeleportZoneConfiguration TeleportZone = default,
     PlayerTriggerZoneConfiguration PlayerTriggerZone = default,
-    CustomMapSpriteConfiguration CustomMapSprite = default)
+    CustomMapSpriteConfiguration CustomMapSprite = default,
+    AreaExtensionConfiguration AreaExtension = default,
+    DamageableZoneConfiguration DamageableZone = default)
 {
     public float Left => X;
 
