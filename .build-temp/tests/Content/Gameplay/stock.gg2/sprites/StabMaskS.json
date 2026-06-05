@@ -1,0 +1,17 @@
+{
+    "id":  "StabMaskS",
+    "framePaths":  [
+                       "Content/Sprites/Projectiles/StabMaskS.images/image 0.png"
+                   ],
+    "originX":  26,
+    "originY":  37,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

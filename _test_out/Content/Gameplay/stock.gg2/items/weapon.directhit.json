@@ -1,0 +1,40 @@
+{
+  "id": "weapon.directhit",
+  "displayName": "Direct Hit",
+  "slot": "Primary",
+  "behaviorId": "builtin.weapon.rocket_launcher",
+  "ammo": {
+    "maxAmmo": 4,
+    "ammoPerUse": 1,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 39,
+    "reloadSourceTicks": 22,
+    "spreadDegrees": 0.0,
+    "minProjectileSpeed": 23.4,
+    "additionalProjectileSpeed": 0.0,
+    "autoReloads": true,
+    "ammoRegenPerTick": 0,
+    "refillsAllAtOnce": false
+  },
+  "combat": {
+    "fireSoundName": "DirecthitSnd"
+  },
+  "presentation": {
+    "worldSpriteName": "stock.gg2.weapon.directhit.world",
+    "recoilSpriteName": "stock.gg2.weapon.directhit.recoil",
+    "reloadSpriteName": "RocketlauncherFRS",
+    "reloadCarrierSpriteName": "RocketlauncherFRS",
+    "reloadOverlaySpriteName": "stock.gg2.weapon.directhit.world",
+    "reloadOverlayOffsetX": 0.0,
+    "reloadOverlayOffsetY": 0.0,
+    "reloadOverlayRotationDegrees": 0.0,
+    "hudSpriteName": "Rocketclip",
+    "weaponOffsetX": -15.0,
+    "weaponOffsetY": -10.0,
+    "recoilDurationSourceTicks": 10,
+    "reloadDurationSourceTicks": 22,
+    "blueTeamHudFrameOffset": 1,
+    "useAmmoCountForHudFrame": true,
+    "blueTeamAmmoHudFrameOffset": 5
+  }
+}

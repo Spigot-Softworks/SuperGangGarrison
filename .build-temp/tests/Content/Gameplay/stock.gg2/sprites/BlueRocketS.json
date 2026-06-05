@@ -1,0 +1,17 @@
+{
+    "id":  "BlueRocketS",
+    "framePaths":  [
+                       "Content/Sprites/Projectiles/BlueRocketS.images/image 0.png"
+                   ],
+    "originX":  7,
+    "originY":  4,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  6,
+                 "top":  3,
+                 "right":  13,
+                 "bottom":  4
+             }
+}

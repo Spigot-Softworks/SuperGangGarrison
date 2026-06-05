@@ -5,6 +5,8 @@ public sealed partial class SimulationWorld
     private readonly record struct ShotHitResult(float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)
     {
         public JumpPadEntity? HitJumpPad { get; init; }
+
+        public int HitDamageableZoneRoomObjectIndex { get; init; } = -1;
     }
     private readonly record struct FlameHitResult(float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)
     {
@@ -13,6 +15,8 @@ public sealed partial class SimulationWorld
     private readonly record struct RocketHitResult(float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)
     {
         public JumpPadEntity? HitJumpPad { get; init; }
+
+        public int HitDamageableZoneRoomObjectIndex { get; init; } = -1;
     }
     private readonly record struct MineHitResult(float Distance, float HitX, float HitY, bool DestroyOnHit);
     private readonly record struct GrenadeEnvironmentHit(float Distance, float HitX, float HitY, float NormalX, float NormalY);
@@ -413,6 +417,16 @@ public sealed partial class SimulationWorld
 
     private GrenadeEnvironmentHit? GetNearestGrenadeEnvironmentHit(GrenadeProjectileEntity grenade, float directionX, float directionY, float maxDistance)
         => Combat.GetNearestGrenadeEnvironmentHit(grenade, directionX, directionY, maxDistance);
+
+    private bool TryGetGrenadeDamageableZoneContact(
+        GrenadeProjectileEntity grenade,
+        float directionX,
+        float directionY,
+        float maxDistance,
+        out float hitX,
+        out float hitY,
+        out int roomObjectIndex)
+        => Combat.TryGetGrenadeDamageableZoneContact(grenade, directionX, directionY, maxDistance, out hitX, out hitY, out roomObjectIndex);
 
     private PlayerEntity? GetNearestGrenadePlayerHit(GrenadeProjectileEntity grenade, float directionX, float directionY, float maxDistance)
         => Combat.GetNearestGrenadePlayerHit(grenade, directionX, directionY, maxDistance);

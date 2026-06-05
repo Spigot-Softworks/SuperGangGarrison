@@ -7,12 +7,14 @@ public static class MapLogicGraphImporter
 {
     public static MapLogicGraph BuildFromEntities(
         IReadOnlyList<MapImportedEntity> entities,
-        IList<RoomObjectMarker>? roomObjects = null)
+        IReadOnlyList<RoomObjectMarker>? roomObjects = null)
     {
         var definitions = new List<MapLogicNodeDefinition>();
         foreach (var entity in entities)
         {
-            if (!MapLogicMetadata.IsLogicEntityType(entity.Type))
+            if (!MapLogicMetadata.IsLogicEntityType(entity.Type)
+                || AreaExtensionMetadata.IsAreaEntityType(entity.Type)
+                || DamageableMetadata.IsDamageableEntityType(entity.Type))
             {
                 continue;
             }
@@ -31,6 +33,8 @@ public static class MapLogicGraphImporter
                     LinkedControlPointIndex = MapLogicMetadata.ParseLinkedControlPointIndex(properties),
                     OwnerRequirement = ownerRequirement,
                     NodePriority = MapLogicMetadata.ParseNodePriority(properties),
+                    SignalMode = MapLogicSignalMetadata.ParseSignalMode(properties),
+                    CpCaptureDetectMode = MapLogicSignalMetadata.ParseCpCaptureDetectMode(properties),
                 });
                 continue;
             }
@@ -64,6 +68,31 @@ public static class MapLogicGraphImporter
                 continue;
             }
 
+            if (entity.Type.Equals(MapLogicMetadata.RisingEdgeEntityType, StringComparison.OrdinalIgnoreCase))
+            {
+                definitions.Add(new MapLogicNodeDefinition
+                {
+                    LogicKey = logicKey,
+                    Kind = MapLogicNodeKind.RisingEdge,
+                    InputRef = ReadProperty(properties, MapLogicMetadata.LogicInputPropertyKey),
+                    NodePriority = MapLogicMetadata.ParseNodePriority(properties),
+                });
+                continue;
+            }
+
+            if (entity.Type.Equals(MapLogicMetadata.LatchEntityType, StringComparison.OrdinalIgnoreCase))
+            {
+                definitions.Add(new MapLogicNodeDefinition
+                {
+                    LogicKey = logicKey,
+                    Kind = MapLogicNodeKind.Latch,
+                    InputRef = ReadProperty(properties, MapLogicMetadata.LogicInputPropertyKey),
+                    ResetRef = ReadProperty(properties, MapLogicMetadata.LogicResetPropertyKey),
+                    NodePriority = MapLogicMetadata.ParseNodePriority(properties),
+                });
+                continue;
+            }
+
             if (entity.Type.Equals(MapLogicMetadata.TimerEntityType, StringComparison.OrdinalIgnoreCase))
             {
                 definitions.Add(new MapLogicNodeDefinition
@@ -73,7 +102,29 @@ public static class MapLogicGraphImporter
                     InputRef = ReadProperty(properties, MapLogicMetadata.LogicInputPropertyKey),
                     CountdownSeconds = MapLogicMetadata.ParseCountdownSeconds(properties),
                     TriggerOnStart = MapLogicMetadata.ParseTriggerOnStart(properties),
+                    DelayedTrue = MapLogicMetadata.ParseDelayedTrue(properties),
+                    DelayedFalse = MapLogicMetadata.ParseDelayedFalse(properties),
                     NodePriority = MapLogicMetadata.ParseNodePriority(properties),
+                    SignalMode = MapLogicSignalMetadata.ParseSignalMode(properties),
+                });
+                continue;
+            }
+
+            if (entity.Type.Equals(MapLogicMetadata.OscillatorEntityType, StringComparison.OrdinalIgnoreCase))
+            {
+                definitions.Add(new MapLogicNodeDefinition
+                {
+                    LogicKey = logicKey,
+                    Kind = MapLogicNodeKind.Oscillator,
+                    TrueTimeSeconds = MapLogicMetadata.ParseTrueTimeSeconds(properties),
+                    FalseTimeSeconds = MapLogicMetadata.ParseFalseTimeSeconds(properties),
+                    InitialValue = MapLogicMetadata.ParseInitialValue(properties),
+                    Autostart = MapLogicMetadata.ParseAutostart(properties),
+                    StartWhenRef = ReadProperty(properties, MapLogicMetadata.StartWhenPropertyKey),
+                    EndWhenRef = ReadProperty(properties, MapLogicMetadata.EndWhenPropertyKey),
+                    NodePriority = MapLogicMetadata.ParseNodePriority(properties),
+                    SignalMode = MapLogicSignalMetadata.ParseSignalMode(properties),
+                    SignalPeriodSeconds = MapLogicSignalMetadata.ParsePeriodSeconds(properties),
                 });
                 continue;
             }
@@ -90,13 +141,49 @@ public static class MapLogicGraphImporter
                         logicKey,
                         entity.X,
                         entity.Y);
+                var zoneIndices = roomObjects is null
+                    ? []
+                    : AreaExtensionMetadata.CollectPlayerTriggerZoneIndices(
+                        roomObjects,
+                        logicKey,
+                        roomObjectIndex);
                 definitions.Add(new MapLogicNodeDefinition
                 {
                     LogicKey = logicKey,
                     Kind = MapLogicNodeKind.PlayerTrigger,
                     PlayerTriggerRoomObjectIndex = roomObjectIndex,
+                    PlayerTriggerZoneRoomObjectIndices = zoneIndices,
                     PlayerTriggerTeamFilter = teamFilter,
                     NodePriority = MapLogicMetadata.ParseNodePriority(properties),
+                    SignalMode = MapLogicSignalMetadata.ParseSignalMode(properties),
+                    PlayerDetectMode = MapLogicSignalMetadata.ParsePlayerDetectMode(properties),
+                });
+                continue;
+            }
+
+            if (DamageTriggerMetadata.IsDamageTriggerEntityType(entity.Type))
+            {
+                var damageableRoomObjectIndex = roomObjects is null
+                    ? -1
+                    : DamageableMetadata.TryResolveRoomObjectIndex(
+                        roomObjects,
+                        ReadProperty(properties, DamageTriggerMetadata.DamageableEntityPropertyKey),
+                        out var resolvedIndex)
+                        ? resolvedIndex
+                        : -1;
+                definitions.Add(new MapLogicNodeDefinition
+                {
+                    LogicKey = logicKey,
+                    Kind = MapLogicNodeKind.DamageTrigger,
+                    DamageableRoomObjectIndex = damageableRoomObjectIndex,
+                    TriggerBelowPercent = DamageTriggerMetadata.ParseTriggerBelowPercent(properties),
+                    TriggerBelowThreshold = DamageTriggerMetadata.ParseTriggerBelowThreshold(properties),
+                    TriggerOnAnyDamage = DamageTriggerMetadata.ParseTriggerOnAnyDamage(properties),
+                    TriggerOnHeal = DamageTriggerMetadata.ParseTriggerOnHeal(properties),
+                    TriggerWhenDestroyed = DamageTriggerMetadata.ParseTriggerWhenDestroyed(properties),
+                    TrueTimeSeconds = DamageTriggerMetadata.ParseAnyDamageTrueTimeSeconds(properties),
+                    NodePriority = MapLogicMetadata.ParseNodePriority(properties),
+                    SignalMode = MapLogicSignalMetadata.ParseSignalMode(properties),
                 });
             }
         }

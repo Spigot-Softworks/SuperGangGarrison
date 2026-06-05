@@ -1,0 +1,20 @@
+{
+    "id":  "SentryTurretS",
+    "framePaths":  [
+                       "Content/Sprites/InGameElements/SentryTurretS.images/image 0.png",
+                       "Content/Sprites/InGameElements/SentryTurretS.images/image 1.png",
+                       "Content/Sprites/InGameElements/SentryTurretS.images/image 2.png",
+                       "Content/Sprites/InGameElements/SentryTurretS.images/image 3.png"
+                   ],
+    "originX":  15,
+    "originY":  12,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  3,
+                 "top":  4,
+                 "right":  33,
+                 "bottom":  15
+             }
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "open-garrison.server.lua-garrison-tools",
+  "displayName": "GarrisonTools",
+  "version": "0.1.0",
+  "type": "Server",
+  "runtime": "Lua",
+  "entryPoint": "main.lua",
+  "description": "Bundled server management plugin built on the engine-owned admin, cvar, and scheduler seams.",
+  "compatibility": {
+    "hostApiVersion": "1.0"
+  },
+  "tags": [
+    "server",
+    "lua",
+    "admin",
+    "management"
+  ]
+}

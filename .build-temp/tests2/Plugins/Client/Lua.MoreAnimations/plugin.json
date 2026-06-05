@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "moreanimations",
+  "displayName": "More Animations",
+  "version": "1.0.0",
+  "type": "Client",
+  "runtime": "Lua",
+  "entryPoint": "main.lua",
+  "description": "Official Lua implementation of the More Animations plugin built on dead-body rendering and legacy animation asset seams.",
+  "compatibility": {
+    "hostApiVersion": "1.0"
+  },
+  "tags": [
+    "client",
+    "lua",
+    "animation",
+    "rendering"
+  ]
+}

@@ -1,0 +1,195 @@
+{
+  "Version": 1,
+  "Programs": [
+    {
+      "Label": "truefort_blue_demoman_late_return_stage_997_seam",
+      "StartWindows": [
+        {
+          "StartXMin": 997,
+          "StartXMax": 1013,
+          "StartBottom": 846,
+          "StartBottomTolerance": 0,
+          "FacingDirectionX": -1,
+          "HorizontalSpeedCenter": 0,
+          "HorizontalSpeedTolerance": 0,
+          "VerticalSpeedCenter": 0,
+          "VerticalSpeedTolerance": 0,
+          "RequireGrounded": true
+        },
+        {
+          "StartXMin": 997,
+          "StartXMax": 1013,
+          "StartBottom": 846,
+          "StartBottomTolerance": 0,
+          "FacingDirectionX": 1,
+          "HorizontalSpeedCenter": 0,
+          "HorizontalSpeedTolerance": 0,
+          "VerticalSpeedCenter": 0,
+          "VerticalSpeedTolerance": 0,
+          "RequireGrounded": true
+        }
+      ],
+      "CompletionWindows": [
+        {
+          "XMin": 677.127,
+          "XMax": 694.13025,
+          "Bottom": 912,
+          "BottomTolerance": 0,
+          "RequireGrounded": true
+        }
+      ]
+    },
+    {
+      "Label": "truefort_blue_demoman_late_return_stage_654_seam",
+      "StartWindows": [
+        {
+          "StartXMin": 677,
+          "StartXMax": 693,
+          "StartBottom": 912,
+          "StartBottomTolerance": 0,
+          "FacingDirectionX": -1,
+          "HorizontalSpeedCenter": 3,
+          "HorizontalSpeedTolerance": 3,
+          "VerticalSpeedCenter": 0,
+          "VerticalSpeedTolerance": 0,
+          "RequireGrounded": true
+        },
+        {
+          "StartXMin": 677,
+          "StartXMax": 693,
+          "StartBottom": 912,
+          "StartBottomTolerance": 0,
+          "FacingDirectionX": 1,
+          "HorizontalSpeedCenter": 3,
+          "HorizontalSpeedTolerance": 3,
+          "VerticalSpeedCenter": 0,
+          "VerticalSpeedTolerance": 0,
+          "RequireGrounded": true
+        }
+      ],
+      "CompletionWindows": [
+        {
+          "XMin": 445.00113,
+          "XMax": 445.0828,
+          "Bottom": 912,
+          "BottomTolerance": 0,
+          "RequireGrounded": true
+        }
+      ]
+    },
+    {
+      "Label": "truefort_blue_demoman_late_return_stage_445_seam",
+      "StartWindows": [
+        {
+          "StartXMin": 445,
+          "StartXMax": 461,
+          "StartBottom": 912,
+          "StartBottomTolerance": 0,
+          "FacingDirectionX": -1,
+          "HorizontalSpeedCenter": 3,
+          "HorizontalSpeedTolerance": 3,
+          "VerticalSpeedCenter": 0,
+          "VerticalSpeedTolerance": 0,
+          "RequireGrounded": true
+        },
+        {
+          "StartXMin": 445,
+          "StartXMax": 461,
+          "StartBottom": 912,
+          "StartBottomTolerance": 0,
+          "FacingDirectionX": 1,
+          "HorizontalSpeedCenter": 3,
+          "HorizontalSpeedTolerance": 3,
+          "VerticalSpeedCenter": 0,
+          "VerticalSpeedTolerance": 0,
+          "RequireGrounded": true
+        }
+      ],
+      "CompletionWindows": [
+        {
+          "XMin": 361.0001,
+          "XMax": 361.07315,
+          "Bottom": 882,
+          "BottomTolerance": 0,
+          "RequireGrounded": true
+        }
+      ]
+    },
+    {
+      "Label": "truefort_blue_demoman_late_return_stage_361_seam",
+      "StartWindows": [
+        {
+          "StartXMin": 361,
+          "StartXMax": 377,
+          "StartBottom": 882,
+          "StartBottomTolerance": 0,
+          "FacingDirectionX": -1,
+          "HorizontalSpeedCenter": -160,
+          "HorizontalSpeedTolerance": 10,
+          "VerticalSpeedCenter": 0,
+          "VerticalSpeedTolerance": 0,
+          "RequireGrounded": true
+        },
+        {
+          "StartXMin": 361,
+          "StartXMax": 377,
+          "StartBottom": 882,
+          "StartBottomTolerance": 0,
+          "FacingDirectionX": 1,
+          "HorizontalSpeedCenter": -160,
+          "HorizontalSpeedTolerance": 10,
+          "VerticalSpeedCenter": 0,
+          "VerticalSpeedTolerance": 0,
+          "RequireGrounded": true
+        }
+      ],
+      "CompletionWindows": [
+        {
+          "XMin": 103.00018,
+          "XMax": 103.03899,
+          "Bottom": 696,
+          "BottomTolerance": 0,
+          "RequireGrounded": true
+        }
+      ]
+    },
+    {
+      "Label": "truefort_blue_demoman_late_return_stage_103_seam",
+      "StartWindows": [
+        {
+          "StartXMin": 114.2,
+          "StartXMax": 146.2,
+          "StartBottom": 696,
+          "StartBottomTolerance": 0,
+          "FacingDirectionX": -1,
+          "HorizontalSpeedCenter": -82,
+          "HorizontalSpeedTolerance": 88,
+          "VerticalSpeedCenter": 0,
+          "VerticalSpeedTolerance": 0,
+          "RequireGrounded": true
+        },
+        {
+          "StartXMin": 114.2,
+          "StartXMax": 146.2,
+          "StartBottom": 696,
+          "StartBottomTolerance": 0,
+          "FacingDirectionX": 1,
+          "HorizontalSpeedCenter": -82,
+          "HorizontalSpeedTolerance": 88,
+          "VerticalSpeedCenter": 0,
+          "VerticalSpeedTolerance": 0,
+          "RequireGrounded": true
+        }
+      ],
+      "CompletionWindows": [
+        {
+          "XMin": 746.7861,
+          "XMax": 815.3567,
+          "Bottom": 912,
+          "BottomTolerance": 0,
+          "RequireGrounded": true
+        }
+      ]
+    }
+  ]
+}

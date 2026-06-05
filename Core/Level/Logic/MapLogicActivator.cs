@@ -6,6 +6,7 @@ public enum MapLogicActivatorBehavior
 {
     Disable,
     Enable,
+    Toggle,
 }
 
 public sealed class MapLogicActivator

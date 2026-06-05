@@ -327,7 +327,7 @@ public sealed partial class SimulationWorld
 
             world.RegisterWorldSoundEvent("CPCapturedSnd", point.Marker.CenterX, point.Marker.CenterY);
             world.RegisterWorldSoundEvent("IntelPutSnd", point.Marker.CenterX, point.Marker.CenterY);
-            world.EvaluateMapLogicGraph();
+            world.EvaluateMapLogicGraph(resetStatefulNodes: false);
         }
     }
 }

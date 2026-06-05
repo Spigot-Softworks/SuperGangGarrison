@@ -1,0 +1,18 @@
+{
+    "id":  "ScattergunS",
+    "framePaths":  [
+                       "Content/Sprites/Weapons/ScattergunS.images/image 0.png",
+                       "Content/Sprites/Weapons/ScattergunS.images/image 1.png"
+                   ],
+    "originX":  8,
+    "originY":  -2,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

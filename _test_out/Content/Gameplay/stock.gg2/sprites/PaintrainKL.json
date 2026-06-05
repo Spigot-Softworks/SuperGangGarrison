@@ -1,0 +1,20 @@
+{
+    "id":  "PaintrainKL",
+    "framePaths":  [
+                       "Content/Sprites/HUDs/Kill Icons/PaintrainKL.images/image 0.png",
+                       "Content/Sprites/HUDs/Kill Icons/PaintrainKL.images/image 1.png",
+                       "Content/Sprites/HUDs/Kill Icons/PaintrainKL.images/image 2.png",
+                       "Content/Sprites/HUDs/Kill Icons/PaintrainKL.images/image 3.png"
+                   ],
+    "originX":  12,
+    "originY":  8,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

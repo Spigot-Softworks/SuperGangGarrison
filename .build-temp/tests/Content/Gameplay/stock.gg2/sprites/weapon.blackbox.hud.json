@@ -1,0 +1,8 @@
+{
+  "id": "stock.gg2.weapon.blackbox.hud",
+  "framePaths": [
+    "assets/blackbox/BlackBoxClipS.png"
+  ],
+  "frameWidth": 25,
+  "frameHeight": 18
+}

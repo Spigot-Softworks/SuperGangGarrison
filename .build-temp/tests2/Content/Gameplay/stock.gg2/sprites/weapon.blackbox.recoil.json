@@ -1,0 +1,10 @@
+{
+  "id": "stock.gg2.weapon.blackbox.recoil",
+  "framePaths": [
+    "assets/blackbox/BlackboxFS.png"
+  ],
+  "frameWidth": 44,
+  "frameHeight": 14,
+  "originX": 10,
+  "originY": 6
+}

@@ -1,0 +1,18 @@
+{
+    "id":  "ShotgunS",
+    "framePaths":  [
+                       "Content/Sprites/Weapons/ShotgunS.images/image 0.png",
+                       "Content/Sprites/Weapons/ShotgunS.images/image 1.png"
+                   ],
+    "originX":  8,
+    "originY":  -1,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

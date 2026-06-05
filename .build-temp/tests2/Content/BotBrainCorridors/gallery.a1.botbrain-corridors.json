@@ -1,0 +1,2933 @@
+{
+  "FormatVersion": 1,
+  "LevelName": "Gallery",
+  "MapAreaIndex": 1,
+  "Corridors": [
+    {
+      "Name": "Gallery.a1.Blue.Heavy.20260510-083610",
+      "Team": "Blue",
+      "PlayerClass": "Heavy",
+      "Waypoints": [
+        {
+          "X": 3350,
+          "Y": 756,
+          "IsGrounded": true,
+          "Reason": "Start"
+        },
+        {
+          "X": 3326.9392,
+          "Y": 756,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 3224.7837,
+          "Y": 756,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 3211.2585,
+          "Y": 756,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 3194.6106,
+          "Y": 763.5003,
+          "IsGrounded": false,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 3182.8396,
+          "Y": 834,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 3158.5762,
+          "Y": 834,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 3132.201,
+          "Y": 876,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 3104.7087,
+          "Y": 876,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 3043.3423,
+          "Y": 924,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 3025.3494,
+          "Y": 924,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2971.098,
+          "Y": 959.9443,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2862.3289,
+          "Y": 960,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 2853.2625,
+          "Y": 960,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2803.3965,
+          "Y": 990,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2762.5974,
+          "Y": 990,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2758.064,
+          "Y": 996,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2649.2612,
+          "Y": 1002,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 2617.5278,
+          "Y": 993.99963,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2544.9937,
+          "Y": 948,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2481.5254,
+          "Y": 954,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2418.0583,
+          "Y": 1002,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2395.3997,
+          "Y": 984,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2386.3328,
+          "Y": 978,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2377.2659,
+          "Y": 966,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2368.199,
+          "Y": 960,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2359.132,
+          "Y": 948,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2350.0652,
+          "Y": 942,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2336.4648,
+          "Y": 924,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2331.9314,
+          "Y": 924,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2318.331,
+          "Y": 906,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2313.7976,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2300.1973,
+          "Y": 888,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2295.6638,
+          "Y": 888,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2282.0635,
+          "Y": 870,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2277.53,
+          "Y": 870,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2168.7273,
+          "Y": 876,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2164.1938,
+          "Y": 882,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2132.4597,
+          "Y": 894,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2127.9263,
+          "Y": 900,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2109.7925,
+          "Y": 906,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2105.259,
+          "Y": 912,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2096.1921,
+          "Y": 912,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2091.6587,
+          "Y": 918,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2073.525,
+          "Y": 924,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2068.9915,
+          "Y": 930,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2059.9246,
+          "Y": 930,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2035.9296,
+          "Y": 971.8875,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2035.238,
+          "Y": 971.8875,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2034.6396,
+          "Y": 972,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2035.5367,
+          "Y": 972,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2037.5282,
+          "Y": 978,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2042.492,
+          "Y": 978,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2045.3783,
+          "Y": 984,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2048.4863,
+          "Y": 984,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2051.7864,
+          "Y": 990,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2066.4382,
+          "Y": 1002,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2070.3733,
+          "Y": 1008,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2078.474,
+          "Y": 1014,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2082.6196,
+          "Y": 1020,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2139.4414,
+          "Y": 1026,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2168.8271,
+          "Y": 1080,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2166.4382,
+          "Y": 1080,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 2210.1873,
+          "Y": 1080,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2270.939,
+          "Y": 1128,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2284.3938,
+          "Y": 1128,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2347.6282,
+          "Y": 1182,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2456.394,
+          "Y": 1182,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 2565.1914,
+          "Y": 1182,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 2587.858,
+          "Y": 1173.9996,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2692.1252,
+          "Y": 1152,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2800.928,
+          "Y": 1152,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 2891.5962,
+          "Y": 1143.9996,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2977.73,
+          "Y": 1104,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2991.3303,
+          "Y": 1086,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2995.8638,
+          "Y": 1086,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 3032.1313,
+          "Y": 1086,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 3036.6648,
+          "Y": 1092,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 3050.2651,
+          "Y": 1104,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 3054.7986,
+          "Y": 1110,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 3154.5337,
+          "Y": 1101.9996,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 3231.6016,
+          "Y": 1086,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 3267.8691,
+          "Y": 1074,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 3276.936,
+          "Y": 1068,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 3290.5364,
+          "Y": 1050,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 3295.0698,
+          "Y": 1050,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 3313.781,
+          "Y": 1050,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 3315.1848,
+          "Y": 1042.0001,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 3264.7546,
+          "Y": 996,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 3260.5493,
+          "Y": 988.0005,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 3204.582,
+          "Y": 954,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 3191.8594,
+          "Y": 954,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 3138.7896,
+          "Y": 996,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 3030.2644,
+          "Y": 996,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 3007.6023,
+          "Y": 996,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 3003.0696,
+          "Y": 996,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2989.471,
+          "Y": 978,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2985.0046,
+          "Y": 978,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2971.4053,
+          "Y": 960,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2966.872,
+          "Y": 960,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2871.6753,
+          "Y": 951.9997,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2794.6077,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2764.2917,
+          "Y": 898.0001,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2825.9285,
+          "Y": 834,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2828.366,
+          "Y": 828,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2827.8289,
+          "Y": 834,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2823.269,
+          "Y": 825.99994,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2730.591,
+          "Y": 813.99994,
+          "IsGrounded": false,
+          "Reason": "Stride"
+        },
+        {
+          "X": 2721.0027,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2721.6133,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 2744.6733,
+          "Y": 897.99963,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2811.0269,
+          "Y": 845.18823,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2821.999,
+          "Y": 840,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 2823.7385,
+          "Y": 834,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2824.6333,
+          "Y": 834,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2823.3123,
+          "Y": 834,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2821.8225,
+          "Y": 840,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2817.6685,
+          "Y": 832,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2723.0566,
+          "Y": 820.00024,
+          "IsGrounded": false,
+          "Reason": "Stride"
+        },
+        {
+          "X": 2721.0002,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2721.6108,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 2763.8074,
+          "Y": 897.99963,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2833.3423,
+          "Y": 828,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2870.9382,
+          "Y": 822,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 2829.2954,
+          "Y": 828,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2825.172,
+          "Y": 834,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2816.7673,
+          "Y": 840,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2709.8787,
+          "Y": 803.9679,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2705.3535,
+          "Y": 798.568,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2691.7722,
+          "Y": 792,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2678.1843,
+          "Y": 774,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2673.654,
+          "Y": 774,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2660.0608,
+          "Y": 756,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2655.529,
+          "Y": 756,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2641.9329,
+          "Y": 738,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2637.4004,
+          "Y": 738,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2528.607,
+          "Y": 738,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 2419.8066,
+          "Y": 738,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 2360.8718,
+          "Y": 738,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2277.2888,
+          "Y": 870,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2170.407,
+          "Y": 876,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 2156.8286,
+          "Y": 882,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2152.3005,
+          "Y": 888,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2120.589,
+          "Y": 900,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2116.0574,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2097.9287,
+          "Y": 912,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2093.3962,
+          "Y": 918,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2084.3308,
+          "Y": 918,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2079.798,
+          "Y": 924,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2061.6663,
+          "Y": 930,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2016.3345,
+          "Y": 954,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2011.8011,
+          "Y": 948,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2007.2678,
+          "Y": 948,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1993.6678,
+          "Y": 930,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1989.1345,
+          "Y": 930,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1975.5345,
+          "Y": 912,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1971.0012,
+          "Y": 912,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1912.6296,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1911.5352,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1911.5352,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1911.5352,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1911.5352,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1911.5352,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1911.5352,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1911.5352,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1911.5352,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1911.5352,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1911.5352,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1911.5352,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1911.5352,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stop"
+        }
+      ]
+    },
+    {
+      "Name": "Gallery.a1.Red.Scout.20260510-083639",
+      "Team": "Red",
+      "PlayerClass": "Scout",
+      "Waypoints": [
+        {
+          "X": 540.7421,
+          "Y": 756,
+          "IsGrounded": true,
+          "Reason": "Start"
+        },
+        {
+          "X": 563.8189,
+          "Y": 756,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 628.9916,
+          "Y": 768,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 679.6123,
+          "Y": 778.79974,
+          "IsGrounded": false,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 700.02,
+          "Y": 876,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 732.8099,
+          "Y": 876,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 788.5449,
+          "Y": 924,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 813.2581,
+          "Y": 924,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 889.3022,
+          "Y": 960,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 982.1371,
+          "Y": 960,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1069.0002,
+          "Y": 990,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1243.4348,
+          "Y": 994,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1283.0991,
+          "Y": 962.9997,
+          "IsGrounded": false,
+          "Reason": "Distance"
+        },
+        {
+          "X": 1342.2029,
+          "Y": 954,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1355.8121,
+          "Y": 954,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1445.4694,
+          "Y": 983.91174,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1476.6816,
+          "Y": 954,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1484.5254,
+          "Y": 948,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1500.2474,
+          "Y": 930,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1508.1227,
+          "Y": 924,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1523.8956,
+          "Y": 906,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1531.7914,
+          "Y": 900,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1547.5973,
+          "Y": 882,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1555.5062,
+          "Y": 876,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1666.4368,
+          "Y": 876,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1674.3673,
+          "Y": 882,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1690.2295,
+          "Y": 888,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1698.161,
+          "Y": 894,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1714.0248,
+          "Y": 900,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1721.9569,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1777.4855,
+          "Y": 930,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1840.9501,
+          "Y": 942,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1848.8833,
+          "Y": 930,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1856.8165,
+          "Y": 924,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1872.683,
+          "Y": 906,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1880.6162,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1925.067,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1923.9987,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1931.9481,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1910.5565,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1919.9233,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1912.3542,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1896.1569,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1872.8627,
+          "Y": 906,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1852.8546,
+          "Y": 930,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1787.3069,
+          "Y": 990,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1778.7704,
+          "Y": 1002,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1775.3435,
+          "Y": 1002,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1772.3782,
+          "Y": 1008,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1769.8121,
+          "Y": 1008,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1767.5917,
+          "Y": 1014,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1764.0076,
+          "Y": 1014,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1766.1005,
+          "Y": 1014,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1770.8624,
+          "Y": 1008,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1772.7739,
+          "Y": 1008,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1775.8595,
+          "Y": 1002,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1777.0981,
+          "Y": 1002,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1781.1954,
+          "Y": 996,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1782.1654,
+          "Y": 996,
+          "IsGrounded": false,
+          "Reason": "Stop"
+        }
+      ]
+    },
+    {
+      "Name": "Gallery.a1.Blue.Heavy.20260510-083728",
+      "Team": "Blue",
+      "PlayerClass": "Heavy",
+      "Waypoints": [
+        {
+          "X": 3332,
+          "Y": 756,
+          "IsGrounded": true,
+          "Reason": "Start"
+        },
+        {
+          "X": 3326.6633,
+          "Y": 756,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 3275.8872,
+          "Y": 756,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 3264.059,
+          "Y": 756,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 3262.1887,
+          "Y": 756,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 3239.1287,
+          "Y": 747.99963,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 3136.973,
+          "Y": 735.99866,
+          "IsGrounded": false,
+          "Reason": "Stride"
+        },
+        {
+          "X": 3123.447,
+          "Y": 756,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 3075.164,
+          "Y": 756,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 3134.6433,
+          "Y": 756,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 3138.315,
+          "Y": 762,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 3146.6206,
+          "Y": 768,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 3160.3525,
+          "Y": 834,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 3159.9453,
+          "Y": 834,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 3142.0178,
+          "Y": 876,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 3142.6812,
+          "Y": 876,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 3104.2957,
+          "Y": 876,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 3044.1401,
+          "Y": 924,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 3026.2278,
+          "Y": 924,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2972.0598,
+          "Y": 959.99286,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2863.308,
+          "Y": 960,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 2849.7085,
+          "Y": 960,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2804.3757,
+          "Y": 990,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2817.6692,
+          "Y": 990,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 2830.0186,
+          "Y": 990,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2851.9275,
+          "Y": 1000.80005,
+          "IsGrounded": false,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 2829.0044,
+          "Y": 1136.7003,
+          "IsGrounded": false,
+          "Reason": "Distance"
+        },
+        {
+          "X": 2827.2542,
+          "Y": 1152,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2739.5894,
+          "Y": 1152,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 2631.445,
+          "Y": 1152,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 2622.3838,
+          "Y": 1152,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2577.063,
+          "Y": 1182,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2468.2676,
+          "Y": 1182,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 2359.4666,
+          "Y": 1182,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 2341.3335,
+          "Y": 1173.9996,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2269.4104,
+          "Y": 1128,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2248.0247,
+          "Y": 1120.0001,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2202.8528,
+          "Y": 1080,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2198.1057,
+          "Y": 1071.9999,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2127.2212,
+          "Y": 1026,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2078.1853,
+          "Y": 1014,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2073.6807,
+          "Y": 1014,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2060.1453,
+          "Y": 996,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2055.628,
+          "Y": 996,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2042.0641,
+          "Y": 978,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2037.5398,
+          "Y": 978,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2023.9602,
+          "Y": 960,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2019.4319,
+          "Y": 960,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2005.8434,
+          "Y": 942,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2001.3129,
+          "Y": 942,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1987.7192,
+          "Y": 924,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1983.1875,
+          "Y": 924,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1969.5911,
+          "Y": 906,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1965.0586,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1939.4921,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1931.9629,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1916.922,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1933.3053,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1928.4873,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1910.4021,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1920.4774,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1940.432,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1927.1462,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1945.2479,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1929.9098,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1956.6312,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1950.1733,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1934.0752,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1938.1196,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1932.6453,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1928.3687,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1930.8073,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1928.2123,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1929.9601,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1926.5985,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1927.7499,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1925.3864,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1925.1987,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1923.685,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1925.5715,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1923.5197,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1925.453,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1924.5663,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1928.056,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1928.0831,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1932.0192,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1924.0895,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1924.3109,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stop"
+        }
+      ]
+    },
+    {
+      "Name": "Gallery.a1.Blue.Scout.20260510-083822",
+      "Team": "Blue",
+      "PlayerClass": "Scout",
+      "Waypoints": [
+        {
+          "X": 3314,
+          "Y": 756,
+          "IsGrounded": true,
+          "Reason": "Start"
+        },
+        {
+          "X": 3206.5466,
+          "Y": 768,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 3201.3135,
+          "Y": 811.2,
+          "IsGrounded": false,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 3196.029,
+          "Y": 834,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 3162.194,
+          "Y": 834,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 3038.65,
+          "Y": 910.7999,
+          "IsGrounded": false,
+          "Reason": "Distance"
+        },
+        {
+          "X": 3007.3835,
+          "Y": 950.7014,
+          "IsGrounded": false,
+          "Reason": "Distance"
+        },
+        {
+          "X": 2983.7922,
+          "Y": 978,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2968.1208,
+          "Y": 960,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2960.2263,
+          "Y": 960,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2865.2314,
+          "Y": 952,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2825.5872,
+          "Y": 921.0007,
+          "IsGrounded": false,
+          "Reason": "Distance"
+        },
+        {
+          "X": 2720.3928,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2741.095,
+          "Y": 898.0002,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2857.9558,
+          "Y": 822,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2834.9373,
+          "Y": 814.0003,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2673.2378,
+          "Y": 774,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2657.5107,
+          "Y": 756,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2649.6335,
+          "Y": 750,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2459.5825,
+          "Y": 738,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 2388.191,
+          "Y": 729.9998,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2348.5264,
+          "Y": 698.9988,
+          "IsGrounded": false,
+          "Reason": "Distance"
+        },
+        {
+          "X": 2239.6248,
+          "Y": 720,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2218.6663,
+          "Y": 711.9995,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2046.4777,
+          "Y": 699.99945,
+          "IsGrounded": false,
+          "Reason": "Stride"
+        },
+        {
+          "X": 2030.7577,
+          "Y": 708,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1999.2166,
+          "Y": 699.99994,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1959.6755,
+          "Y": 669.0006,
+          "IsGrounded": false,
+          "Reason": "Distance"
+        },
+        {
+          "X": 1785.2565,
+          "Y": 708,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1745.5927,
+          "Y": 699.9998,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1631.3567,
+          "Y": 687.99927,
+          "IsGrounded": false,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1624.297,
+          "Y": 720,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1615.2705,
+          "Y": 712.00006,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1451.2173,
+          "Y": 700.0003,
+          "IsGrounded": false,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1411.9857,
+          "Y": 738,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1221.983,
+          "Y": 738,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1182.3229,
+          "Y": 756,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1174.3904,
+          "Y": 768,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1158.525,
+          "Y": 780,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1150.5923,
+          "Y": 792,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1134.7264,
+          "Y": 804,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1126.7935,
+          "Y": 816,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1118.8605,
+          "Y": 816,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1083.3674,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1101.1945,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1043.2896,
+          "Y": 906,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1056.4099,
+          "Y": 990,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1199.4615,
+          "Y": 993.9996,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1238.517,
+          "Y": 962.9989,
+          "IsGrounded": false,
+          "Reason": "Distance"
+        },
+        {
+          "X": 1349.0837,
+          "Y": 954,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1357.0068,
+          "Y": 954,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1441.1661,
+          "Y": 990,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1463.244,
+          "Y": 966,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1478.3145,
+          "Y": 954,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1493.5848,
+          "Y": 936,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1501.2788,
+          "Y": 930,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1524.5374,
+          "Y": 906,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1532.3364,
+          "Y": 900,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1547.9865,
+          "Y": 882,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1555.8328,
+          "Y": 876,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1666.4142,
+          "Y": 876,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1674.3375,
+          "Y": 882,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1690.1881,
+          "Y": 888,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1698.115,
+          "Y": 894,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1777.4165,
+          "Y": 930,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1840.8766,
+          "Y": 942,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1848.8094,
+          "Y": 930,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1856.7424,
+          "Y": 924,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1872.6085,
+          "Y": 906,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1880.5416,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1959.8734,
+          "Y": 897.9997,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1999.5396,
+          "Y": 866.99945,
+          "IsGrounded": false,
+          "Reason": "Distance"
+        },
+        {
+          "X": 2158.2056,
+          "Y": 888,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2285.1392,
+          "Y": 876,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2293.0725,
+          "Y": 888,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2308.9392,
+          "Y": 900,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2316.8726,
+          "Y": 912,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2332.7393,
+          "Y": 924,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2340.6726,
+          "Y": 936,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2356.5393,
+          "Y": 948,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2364.4727,
+          "Y": 960,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2380.3394,
+          "Y": 972,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2388.2727,
+          "Y": 984,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2404.1394,
+          "Y": 996,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2412.0728,
+          "Y": 1002,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2435.8723,
+          "Y": 993.9996,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2475.5376,
+          "Y": 962.9981,
+          "IsGrounded": false,
+          "Reason": "Distance"
+        },
+        {
+          "X": 2658.0037,
+          "Y": 1002,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2824.604,
+          "Y": 990,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2854.9316,
+          "Y": 997.49976,
+          "IsGrounded": false,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 2845.3315,
+          "Y": 1126.6992,
+          "IsGrounded": false,
+          "Reason": "Distance"
+        },
+        {
+          "X": 2834.9688,
+          "Y": 1152,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2668.534,
+          "Y": 1152,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 2621.3801,
+          "Y": 1152,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2542.2932,
+          "Y": 1182,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2367.8325,
+          "Y": 1173.9999,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2328.168,
+          "Y": 1142.9991,
+          "IsGrounded": false,
+          "Reason": "Distance"
+        },
+        {
+          "X": 2240.9023,
+          "Y": 1128,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2209.1694,
+          "Y": 1119.9996,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2112.419,
+          "Y": 1102.0009,
+          "IsGrounded": false,
+          "Reason": "Stride"
+        },
+        {
+          "X": 2082.3425,
+          "Y": 1128,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2051.5386,
+          "Y": 1140,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2043.765,
+          "Y": 1146,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 2028.1561,
+          "Y": 1152,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 2020.3263,
+          "Y": 1158,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1988.8853,
+          "Y": 1158,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1901.9154,
+          "Y": 1194,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1886.0679,
+          "Y": 1186,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1846.431,
+          "Y": 1154.9993,
+          "IsGrounded": false,
+          "Reason": "Distance"
+        },
+        {
+          "X": 1759.1865,
+          "Y": 1128,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1703.657,
+          "Y": 1119.9998,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1596.4052,
+          "Y": 1101.9991,
+          "IsGrounded": false,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1566.3281,
+          "Y": 1128,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1558.6797,
+          "Y": 1128,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1449.2015,
+          "Y": 1182,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1282.8314,
+          "Y": 1174.0005,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1243.1714,
+          "Y": 1142.9996,
+          "IsGrounded": false,
+          "Reason": "Distance"
+        },
+        {
+          "X": 1108.31,
+          "Y": 1152,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 933.77716,
+          "Y": 1144,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 894.1102,
+          "Y": 1113.0005,
+          "IsGrounded": false,
+          "Reason": "Distance"
+        },
+        {
+          "X": 854.4435,
+          "Y": 1098,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 798.91003,
+          "Y": 1098,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 790.9767,
+          "Y": 1110,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 687.8432,
+          "Y": 1102,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 648.1763,
+          "Y": 1071.0005,
+          "IsGrounded": false,
+          "Reason": "Distance"
+        },
+        {
+          "X": 568.84314,
+          "Y": 1073.2428,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 545.0431,
+          "Y": 1050,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 537.10974,
+          "Y": 1050,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 510.01004,
+          "Y": 1042,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 468.17783,
+          "Y": 1002.00006,
+          "IsGrounded": false,
+          "Reason": "Stride"
+        },
+        {
+          "X": 603.397,
+          "Y": 954,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 642.2499,
+          "Y": 954,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 768.4918,
+          "Y": 996,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 839.83655,
+          "Y": 990,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 847.7671,
+          "Y": 984,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 863.6293,
+          "Y": 966,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 871.5608,
+          "Y": 960,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 966.75104,
+          "Y": 951.9998,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1006.4162,
+          "Y": 920.9993,
+          "IsGrounded": false,
+          "Reason": "Distance"
+        },
+        {
+          "X": 1090.6205,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1097.939,
+          "Y": 898.0001,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1004.3688,
+          "Y": 826.0001,
+          "IsGrounded": false,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1000.8256,
+          "Y": 821.029,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 998.6648,
+          "Y": 814,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1142.7662,
+          "Y": 795.99896,
+          "IsGrounded": false,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1150.4996,
+          "Y": 792,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1158.2599,
+          "Y": 780,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1166.0435,
+          "Y": 774,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1181.6683,
+          "Y": 756,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1189.5046,
+          "Y": 750,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1379.3007,
+          "Y": 738,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1418.9573,
+          "Y": 730.00006,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1458.6187,
+          "Y": 698.9996,
+          "IsGrounded": false,
+          "Reason": "Distance"
+        },
+        {
+          "X": 1617.2814,
+          "Y": 720,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1633.1477,
+          "Y": 711.9997,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1672.814,
+          "Y": 680.9994,
+          "IsGrounded": false,
+          "Reason": "Distance"
+        },
+        {
+          "X": 1833.56,
+          "Y": 708,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1870.7488,
+          "Y": 708,
+          "IsGrounded": false,
+          "Reason": "Airborne"
+        },
+        {
+          "X": 1897.0354,
+          "Y": 712.8,
+          "IsGrounded": false,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1905.0035,
+          "Y": 834.6999,
+          "IsGrounded": false,
+          "Reason": "Distance"
+        },
+        {
+          "X": 1905.0035,
+          "Y": 884.6999,
+          "IsGrounded": false,
+          "Reason": "Distance"
+        },
+        {
+          "X": 1908.0645,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Land"
+        },
+        {
+          "X": 1937.1576,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1938.9352,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "DirectionChange"
+        },
+        {
+          "X": 1911.5691,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stride"
+        },
+        {
+          "X": 1911.5691,
+          "Y": 906,
+          "IsGrounded": true,
+          "Reason": "Stop"
+        }
+      ]
+    }
+  ]
+}

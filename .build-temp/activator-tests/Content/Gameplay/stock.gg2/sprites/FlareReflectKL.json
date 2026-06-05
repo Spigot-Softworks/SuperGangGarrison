@@ -1,0 +1,18 @@
+{
+    "id":  "FlareReflectKL",
+    "framePaths":  [
+                       "Content/Sprites/HUDs/Kill Icons/FlareReflectKL.images/image 0.png",
+                       "Content/Sprites/HUDs/Kill Icons/FlareReflectKL.images/image 1.png"
+                   ],
+    "originX":  15,
+    "originY":  6,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

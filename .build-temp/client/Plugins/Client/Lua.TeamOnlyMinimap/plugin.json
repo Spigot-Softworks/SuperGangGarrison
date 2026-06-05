@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "teamonlyminimap",
+  "displayName": "Team Only Minimap",
+  "version": "1.0.0",
+  "type": "Client",
+  "runtime": "Lua",
+  "entryPoint": "main.lua",
+  "description": "Official Lua implementation of the Team Only Minimap plugin built on HUD, sprite, hotkey, and client-state seams.",
+  "compatibility": {
+    "hostApiVersion": "1.0"
+  },
+  "configSchemaPath": "config.schema.json",
+  "tags": [
+    "client",
+    "lua",
+    "hud",
+    "minimap"
+  ]
+}

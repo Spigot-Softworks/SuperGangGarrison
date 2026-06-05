@@ -1,0 +1,55 @@
+{
+  "id": "weapon.soldier-shotgun",
+  "displayName": "12 Gauge",
+  "slot": "Secondary",
+  "behaviorId": "builtin.weapon.pellet_gun",
+  "ammo": {
+    "maxAmmo": 2,
+    "ammoPerUse": 1,
+    "projectilesPerUse": 4,
+    "useDelaySourceTicks": 20,
+    "reloadSourceTicks": 15,
+    "spreadDegrees": 5.0,
+    "minProjectileSpeed": 11.0,
+    "additionalProjectileSpeed": 4.0,
+    "autoReloads": true,
+    "ammoRegenPerTick": 0,
+    "refillsAllAtOnce": false
+  },
+  "combat": {
+    "fireSoundName": "ShotgunSnd"
+  },
+  "ability": {
+    "category": "secondary",
+    "activation": "pressed",
+    "executorId": "builtin.ability.experimental_ltd.soldier_secondary",
+    "tags": [ "experimental_ltd", "soldier", "stinger", "turret", "thundergunner" ],
+    "parameters": {
+      "requiresExperimentalFlag": true
+    }
+  },
+  "presentation": {
+    "worldSpriteName": "stock.gg2.weapon.soldier-shotgun.world",
+    "recoilSpriteName": "stock.gg2.weapon.soldier-shotgun.recoil",
+    "reloadSpriteName": "stock.gg2.weapon.soldier-shotgun.reload",
+    "hudSpriteName": "ShotgunAmmoS",
+    "weaponOffsetX": -12.0,
+    "weaponOffsetY": -8.0,
+    "recoilDurationSourceTicks": 20,
+    "reloadDurationSourceTicks": 15,
+    "blueTeamHudFrameOffset": 1,
+    "hud": {
+      "displayKind": "ammoPanel",
+      "stackGroup": "weapon",
+      "order": 60,
+      "stateProvider": "secondaryAmmo",
+      "hideWhenUnavailable": true
+    }
+  },
+  "description": {
+    "summary": "Secondary shotgun for Soldier.",
+    "positiveAttributes": [
+      "fires with Secondary Weapon"
+    ]
+  }
+}

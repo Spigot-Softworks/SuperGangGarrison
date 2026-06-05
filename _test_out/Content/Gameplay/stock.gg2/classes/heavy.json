@@ -1,0 +1,61 @@
+{
+  "id": "heavy",
+  "displayName": "Heavy",
+  "runtime": {
+    "playerClass": "Heavy",
+    "supportsExperimentalAcquiredWeapon": true,
+    "primaryWeaponKillFeedSprite": "MinigunKL"
+  },
+  "movement": {
+    "maxHealth": 200,
+    "collisionLeft": -9.0,
+    "collisionTop": -12.0,
+    "collisionRight": 10.0,
+    "collisionBottom": 24.0,
+    "runPower": 0.8,
+    "jumpStrength": 8.3,
+    "maxAirJumps": 0,
+    "tauntLengthFrames": 11
+  },
+  "presentation": {
+    "spritePrefix": "Heavy",
+    "standSuffix": "StandS",
+    "walkSuffix": "WalkS",
+    "runSuffix": "RunS",
+    "jumpSuffix": "JumpS",
+    "leanLeftSuffix": "LeanLS",
+    "leanRightSuffix": "LeanRS",
+    "tauntSuffix": "TauntS",
+    "humiliationSuffix": "HS",
+    "deadSuffix": "DeadS",
+    "intelSuffix": "IntelS",
+    "heavyEatSuffix": "OmnomnomnomS"
+  },
+  "loadouts": {
+    "heavy.stock": {
+      "id": "heavy.stock",
+      "displayName": "Stock",
+      "primaryItemId": "weapon.minigun",
+      "secondaryItemId": "ability.heavy-sandvich",
+      "utilityItemId": "ability.heavy-utility",
+      "abilityItemIds": [ "ability.experimental-ltd-passive" ]
+    },
+    "heavy.tomislav": {
+      "id": "heavy.tomislav",
+      "displayName": "Tomislav",
+      "primaryItemId": "weapon.tomislav",
+      "secondaryItemId": "ability.heavy-sandvich",
+      "utilityItemId": "ability.heavy-utility",
+      "abilityItemIds": [ "ability.experimental-ltd-passive" ]
+    },
+    "heavy.brass-beast": {
+      "id": "heavy.brass-beast",
+      "displayName": "Brass Beast",
+      "primaryItemId": "weapon.brassbeast",
+      "secondaryItemId": "ability.heavy-sandvich",
+      "utilityItemId": "ability.heavy-utility",
+      "abilityItemIds": [ "ability.experimental-ltd-passive" ]
+    }
+  },
+  "defaultLoadoutId": "heavy.stock"
+}

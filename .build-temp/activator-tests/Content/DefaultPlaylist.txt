@@ -1,0 +1,15 @@
+# OpenGarrison default map rotation playlist
+# One map per line (stock ini keys). Lines starting with # are ignored.
+# Import from Host Setup -> Maps -> Import to restore the default rotation.
+koth_harvest
+koth_gallery
+cp_dirtbowl
+cp_egypt
+koth_valley
+ctf_eiger
+ctf_waterway
+ctf_conflict
+arena_lumberyard
+arena_montane
+ctf_truefort
+koth_corinth

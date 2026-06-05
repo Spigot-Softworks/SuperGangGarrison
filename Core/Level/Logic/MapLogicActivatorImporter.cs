@@ -28,7 +28,8 @@ public static class MapLogicActivatorImporter
             if (!MapLogicEntityReference.TryResolveRoomObjectIndex(
                     roomObjects,
                     ReadProperty(properties, MapLogicMetadata.ActivatorEntityPropertyKey),
-                    out var targetRoomObjectIndex))
+                    out var targetRoomObjectIndex,
+                    entities))
             {
                 continue;
             }

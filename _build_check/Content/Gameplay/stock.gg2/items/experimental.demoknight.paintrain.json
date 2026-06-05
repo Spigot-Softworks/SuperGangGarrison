@@ -1,0 +1,40 @@
+{
+  "id": "weapon.experimental-demoknight-paintrain",
+  "displayName": "Pain Train",
+  "slot": "Primary",
+  "behaviorId": "builtin.weapon.blade",
+  "ammo": {
+    "maxAmmo": 100,
+    "ammoPerUse": 0,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 5,
+    "reloadSourceTicks": 0,
+    "spreadDegrees": 4.0,
+    "minProjectileSpeed": 10.0,
+    "additionalProjectileSpeed": 2.0,
+    "autoReloads": false,
+    "ammoRegenPerTick": 1,
+    "refillsAllAtOnce": false
+  },
+  "presentation": {
+    "worldSpriteName": "PaintrainS",
+    "recoilSpriteName": "PaintrainFS",
+    "reloadSpriteName": "PaintrainS",
+    "hudSpriteName": "BladeAmmoS",
+    "weaponOffsetX": -9.0,
+    "weaponOffsetY": -40.0,
+    "recoilDurationSourceTicks": 5,
+    "reloadDurationSourceTicks": 0,
+    "scopedRecoilDurationSourceTicks": 0,
+    "loopRecoilWhileActive": false,
+    "blueTeamHudFrameOffset": 1,
+    "useAmmoCountForHudFrame": false,
+    "blueTeamAmmoHudFrameOffset": 0
+  },
+  "ownership": {
+    "trackOwnership": true,
+    "defaultGranted": false,
+    "grantOnAcquire": true,
+    "grantKey": "weapon.experimental-demoknight-paintrain"
+  }
+}

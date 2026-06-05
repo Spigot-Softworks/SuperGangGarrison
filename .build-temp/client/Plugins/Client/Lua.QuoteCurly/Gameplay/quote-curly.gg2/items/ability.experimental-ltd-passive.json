@@ -1,0 +1,17 @@
+{
+  "id": "plugin.quote-curly.ability.experimental-ltd-passive",
+  "displayName": "Experimental LTD Passive",
+  "slot": "Utility",
+  "behaviorId": "builtin.ability.experimental_ltd.passive",
+  "ability": {
+    "category": "passive",
+    "activation": "passive_tick",
+    "executorId": "builtin.ability.experimental_ltd.passive",
+    "tags": [ "experimental_ltd", "passive" ]
+  },
+  "ammo": {},
+  "presentation": {},
+  "ownership": {
+    "defaultGranted": true
+  }
+}

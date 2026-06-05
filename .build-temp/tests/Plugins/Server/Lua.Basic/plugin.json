@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "sample.server.lua-round-feed",
+  "displayName": "Lua Round Feed",
+  "version": "0.1.0",
+  "type": "Server",
+  "runtime": "Lua",
+  "entryPoint": "main.lua",
+  "description": "Target manifest shape for a future Lua server plugin.",
+  "compatibility": {
+    "hostApiVersion": "1.0"
+  },
+  "tags": [
+    "server",
+    "lua",
+    "events"
+  ]
+}

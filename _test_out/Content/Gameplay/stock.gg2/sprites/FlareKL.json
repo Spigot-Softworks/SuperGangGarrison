@@ -1,0 +1,18 @@
+{
+    "id":  "FlareKL",
+    "framePaths":  [
+                       "Content/Sprites/HUDs/Kill Icons/FlareKL.images/image 0.png",
+                       "Content/Sprites/HUDs/Kill Icons/FlareKL.images/image 1.png"
+                   ],
+    "originX":  21,
+    "originY":  8,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

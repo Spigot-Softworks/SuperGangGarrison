@@ -1,0 +1,36 @@
+{
+  "id": "plugin.quote-curly.ranger",
+  "displayName": "Curly Ranger",
+  "runtime": {
+    "basePlayerClass": "Scout",
+    "botGraphPlayerClass": "Scout",
+    "supportsExperimentalAcquiredWeapon": false,
+    "primaryWeaponKillFeedSprite": "ScatterKL"
+  },
+  "movement": {
+    "maxHealth": 110,
+    "collisionLeft": -7.0,
+    "collisionTop": -12.0,
+    "collisionRight": 8.0,
+    "collisionBottom": 12.0,
+    "runPower": 1.35,
+    "jumpStrength": 8.3,
+    "maxAirJumps": 1,
+    "tauntLengthFrames": 16
+  },
+  "presentation": {
+    "spritePrefix": "Querly",
+    "baseSuffix": "S",
+    "tauntSuffix": "TauntS",
+    "humiliationSuffix": "HS",
+    "deadSuffix": "DeadS"
+  },
+  "loadouts": {
+    "plugin.quote-curly.ranger.stock": {
+      "id": "plugin.quote-curly.ranger.stock",
+      "displayName": "Stock",
+      "primaryItemId": "plugin.quote-curly.weapon.ranger-carbine"
+    }
+  },
+  "defaultLoadoutId": "plugin.quote-curly.ranger.stock"
+}

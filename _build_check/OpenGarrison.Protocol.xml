@@ -1,0 +1,120 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>OpenGarrison.Protocol</name>
+    </assembly>
+    <members>
+        <member name="T:OpenGarrison.Protocol.SnapshotSentryUpdateState">
+            <summary>
+            Lightweight sentry update for delta compression. Contains only frequently-changing fields.
+            </summary>
+        </member>
+        <member name="M:OpenGarrison.Protocol.SnapshotSentryUpdateState.#ctor(System.Int32,System.Single,System.Single,System.Int32,System.Single,System.Single,System.Int32,System.Boolean,System.Single,System.Single)">
+            <summary>
+            Lightweight sentry update for delta compression. Contains only frequently-changing fields.
+            </summary>
+        </member>
+        <member name="M:OpenGarrison.Protocol.ProtocolCodec.Serialize(OpenGarrison.Protocol.IProtocolMessage)">
+            <summary>
+            Serialize a protocol message with optional compression.
+            Uses default compression settings (compression enabled for snapshots).
+            </summary>
+        </member>
+        <member name="M:OpenGarrison.Protocol.ProtocolCodec.Serialize(OpenGarrison.Protocol.IProtocolMessage,OpenGarrison.Protocol.ProtocolCompressionSettings)">
+            <summary>
+            Serialize a protocol message with custom compression settings.
+            </summary>
+        </member>
+        <member name="M:OpenGarrison.Protocol.ProtocolCodec.TryDeserialize(System.Byte[],OpenGarrison.Protocol.IProtocolMessage@)">
+            <summary>
+            Deserialize a protocol message, automatically decompressing if needed.
+            </summary>
+        </member>
+        <member name="M:OpenGarrison.Protocol.ProtocolCodec.TryDeserialize(System.ReadOnlySpan{System.Byte},OpenGarrison.Protocol.IProtocolMessage@)">
+            <summary>
+            Deserialize a protocol message from a span, automatically decompressing if needed.
+            </summary>
+        </member>
+        <member name="T:OpenGarrison.Protocol.ProtocolCodecCompression">
+            <summary>
+            Handles compression/decompression of protocol messages using LZ4.
+            </summary>
+        </member>
+        <member name="M:OpenGarrison.Protocol.ProtocolCodecCompression.TryCompress(System.Byte[],OpenGarrison.Protocol.ProtocolCompressionSettings)">
+            <summary>
+            Compress data using LZ4.
+            Returns null if compression failed or didn't save space.
+            </summary>
+        </member>
+        <member name="M:OpenGarrison.Protocol.ProtocolCodecCompression.Decompress(System.Byte[])">
+            <summary>
+            Decompress LZ4-compressed data.
+            </summary>
+        </member>
+        <member name="M:OpenGarrison.Protocol.ProtocolCodecCompression.PrependEncoding(System.Byte[],OpenGarrison.Protocol.MessageEncoding)">
+            <summary>
+            Prepend encoding byte to payload.
+            Format: [encoding:1 byte][payload:N bytes]
+            </summary>
+        </member>
+        <member name="M:OpenGarrison.Protocol.ProtocolCodecCompression.ReadEncoding(System.Byte[])">
+            <summary>
+            Read encoding byte and extract payload.
+            Returns the encoding type and the payload without the encoding byte.
+            </summary>
+        </member>
+        <member name="T:OpenGarrison.Protocol.ProtocolCompressionSettings">
+            <summary>
+            Configuration for protocol message compression.
+            </summary>
+        </member>
+        <member name="F:OpenGarrison.Protocol.ProtocolCompressionSettings.Default">
+            <summary>
+            Shared instance with compression enabled (default).
+            </summary>
+        </member>
+        <member name="F:OpenGarrison.Protocol.ProtocolCompressionSettings.Disabled">
+            <summary>
+            Shared instance with compression disabled.
+            Useful for debugging or compatibility fallback.
+            </summary>
+        </member>
+        <member name="P:OpenGarrison.Protocol.ProtocolCompressionSettings.EnableCompression">
+            <summary>
+            Whether to enable LZ4 compression for messages.
+            Default: true
+            </summary>
+        </member>
+        <member name="P:OpenGarrison.Protocol.ProtocolCompressionSettings.MinimumBytesForCompression">
+            <summary>
+            Minimum message size (in bytes) before compression is attempted.
+            Messages smaller than this are sent uncompressed.
+            Default: 200 bytes
+            </summary>
+        </member>
+        <member name="P:OpenGarrison.Protocol.ProtocolCompressionSettings.CompressOnlySnapshots">
+            <summary>
+            If true, only compress snapshot messages (most bandwidth-heavy).
+            If false, compress all message types.
+            Default: true (snapshots only)
+            </summary>
+        </member>
+        <member name="P:OpenGarrison.Protocol.ProtocolCompressionSettings.UseCompressionOnlyIfSmaller">
+            <summary>
+            If true, only use compressed payload if it's actually smaller than uncompressed.
+            Default: true
+            </summary>
+        </member>
+        <member name="T:OpenGarrison.Protocol.MessageEncoding">
+            <summary>
+            Indicates the encoding format of a protocol message payload.
+            </summary>
+        </member>
+        <member name="F:OpenGarrison.Protocol.MessageEncoding.None">
+            <summary>No compression - raw serialized data</summary>
+        </member>
+        <member name="F:OpenGarrison.Protocol.MessageEncoding.LZ4">
+            <summary>LZ4 compressed data</summary>
+        </member>
+    </members>
+</doc>

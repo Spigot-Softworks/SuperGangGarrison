@@ -1,0 +1,17 @@
+{
+    "id":  "ShotS",
+    "framePaths":  [
+                       "Content/Sprites/Projectiles/ShotS.images/image 0.png"
+                   ],
+    "originX":  19,
+    "originY":  4,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  2,
+                 "top":  2,
+                 "right":  19,
+                 "bottom":  3
+             }
+}

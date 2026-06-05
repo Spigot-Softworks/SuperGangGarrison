@@ -1,0 +1,23 @@
+{
+  "type": "object",
+  "properties": {
+    "positionX": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4000,
+      "default": 170
+    },
+    "positionY": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4000,
+      "default": 560
+    },
+    "sizeTenths": {
+      "type": "integer",
+      "minimum": 10,
+      "maximum": 100,
+      "default": 10
+    }
+  }
+}

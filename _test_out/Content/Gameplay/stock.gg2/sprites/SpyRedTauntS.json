@@ -1,0 +1,27 @@
+{
+    "id":  "SpyRedTauntS",
+    "framePaths":  [
+                       "Content/Sprites/Characters/Spy/SpyRedTauntS.images/image 0.png",
+                       "Content/Sprites/Characters/Spy/SpyRedTauntS.images/image 1.png",
+                       "Content/Sprites/Characters/Spy/SpyRedTauntS.images/image 2.png",
+                       "Content/Sprites/Characters/Spy/SpyRedTauntS.images/image 3.png",
+                       "Content/Sprites/Characters/Spy/SpyRedTauntS.images/image 4.png",
+                       "Content/Sprites/Characters/Spy/SpyRedTauntS.images/image 5.png",
+                       "Content/Sprites/Characters/Spy/SpyRedTauntS.images/image 6.png",
+                       "Content/Sprites/Characters/Spy/SpyRedTauntS.images/image 7.png",
+                       "Content/Sprites/Characters/Spy/SpyRedTauntS.images/image 8.png",
+                       "Content/Sprites/Characters/Spy/SpyRedTauntS.images/image 9.png",
+                       "Content/Sprites/Characters/Spy/SpyRedTauntS.images/image 10.png"
+                   ],
+    "originX":  28,
+    "originY":  40,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  22,
+                 "top":  30,
+                 "right":  34,
+                 "bottom":  63
+             }
+}

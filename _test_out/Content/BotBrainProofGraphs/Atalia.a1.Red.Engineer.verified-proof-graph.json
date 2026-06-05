@@ -1,0 +1,1781 @@
+{
+  "version": 1,
+  "levelName": "Atalia",
+  "mapAreaIndex": 1,
+  "team": 1,
+  "classId": 2,
+  "surfaces": [
+    {
+      "id": 0,
+      "kind": 1,
+      "left": 1574,
+      "right": 1638,
+      "top": 612,
+      "sourceIndex": 325,
+      "width": 64,
+      "centerX": 1606
+    },
+    {
+      "id": 1,
+      "kind": 1,
+      "left": 3278,
+      "right": 3342,
+      "top": 612,
+      "sourceIndex": 329,
+      "width": 64,
+      "centerX": 3310
+    },
+    {
+      "id": 2,
+      "kind": 1,
+      "left": 1662,
+      "right": 1694,
+      "top": 660,
+      "sourceIndex": 367,
+      "width": 32,
+      "centerX": 1678
+    },
+    {
+      "id": 3,
+      "kind": 1,
+      "left": 1158,
+      "right": 1206,
+      "top": 672,
+      "sourceIndex": 376,
+      "width": 48,
+      "centerX": 1182
+    },
+    {
+      "id": 4,
+      "kind": 1,
+      "left": 1304,
+      "right": 1496,
+      "top": 672,
+      "sourceIndex": 377,
+      "width": 192,
+      "centerX": 1400
+    },
+    {
+      "id": 5,
+      "kind": 1,
+      "left": 3426,
+      "right": 3610,
+      "top": 672,
+      "sourceIndex": 379,
+      "width": 184,
+      "centerX": 3518
+    },
+    {
+      "id": 6,
+      "kind": 1,
+      "left": 3710,
+      "right": 3758,
+      "top": 672,
+      "sourceIndex": 380,
+      "width": 48,
+      "centerX": 3734
+    },
+    {
+      "id": 7,
+      "kind": 1,
+      "left": 1178,
+      "right": 1234,
+      "top": 750,
+      "sourceIndex": 442,
+      "width": 56,
+      "centerX": 1206
+    },
+    {
+      "id": 8,
+      "kind": 1,
+      "left": 3682,
+      "right": 3730,
+      "top": 750,
+      "sourceIndex": 444,
+      "width": 48,
+      "centerX": 3706
+    },
+    {
+      "id": 9,
+      "kind": 1,
+      "left": 2126,
+      "right": 2190,
+      "top": 870,
+      "sourceIndex": 544,
+      "width": 64,
+      "centerX": 2158
+    },
+    {
+      "id": 10,
+      "kind": 1,
+      "left": 2726,
+      "right": 2790,
+      "top": 870,
+      "sourceIndex": 545,
+      "width": 64,
+      "centerX": 2758
+    },
+    {
+      "id": 11,
+      "kind": 1,
+      "left": 1454,
+      "right": 1694,
+      "top": 906,
+      "sourceIndex": 578,
+      "width": 240,
+      "centerX": 1574
+    },
+    {
+      "id": 12,
+      "kind": 1,
+      "left": 3218,
+      "right": 3458,
+      "top": 906,
+      "sourceIndex": 579,
+      "width": 240,
+      "centerX": 3338
+    },
+    {
+      "id": 13,
+      "kind": 1,
+      "left": 2408,
+      "right": 2504,
+      "top": 942,
+      "sourceIndex": 615,
+      "width": 96,
+      "centerX": 2456
+    },
+    {
+      "id": 14,
+      "kind": 1,
+      "left": 1388,
+      "right": 1428,
+      "top": 948,
+      "sourceIndex": 621,
+      "width": 40,
+      "centerX": 1408
+    },
+    {
+      "id": 15,
+      "kind": 1,
+      "left": 3490,
+      "right": 3530,
+      "top": 948,
+      "sourceIndex": 623,
+      "width": 40,
+      "centerX": 3510
+    },
+    {
+      "id": 16,
+      "kind": 1,
+      "left": 2186,
+      "right": 2290,
+      "top": 972,
+      "sourceIndex": 648,
+      "width": 104,
+      "centerX": 2238
+    },
+    {
+      "id": 17,
+      "kind": 1,
+      "left": 2624,
+      "right": 2728,
+      "top": 972,
+      "sourceIndex": 649,
+      "width": 104,
+      "centerX": 2676
+    },
+    {
+      "id": 18,
+      "kind": 1,
+      "left": 1916,
+      "right": 2012,
+      "top": 1116,
+      "sourceIndex": 831,
+      "width": 96,
+      "centerX": 1964
+    },
+    {
+      "id": 19,
+      "kind": 1,
+      "left": 2900,
+      "right": 2996,
+      "top": 1116,
+      "sourceIndex": 832,
+      "width": 96,
+      "centerX": 2948
+    },
+    {
+      "id": 20,
+      "kind": 1,
+      "left": 2360,
+      "right": 2552,
+      "top": 1146,
+      "sourceIndex": 874,
+      "width": 192,
+      "centerX": 2456
+    },
+    {
+      "id": 21,
+      "kind": 1,
+      "left": 1298,
+      "right": 1370,
+      "top": 1182,
+      "sourceIndex": 926,
+      "width": 72,
+      "centerX": 1334
+    },
+    {
+      "id": 22,
+      "kind": 1,
+      "left": 3542,
+      "right": 3614,
+      "top": 1182,
+      "sourceIndex": 932,
+      "width": 72,
+      "centerX": 3578
+    },
+    {
+      "id": 23,
+      "kind": 1,
+      "left": 1234,
+      "right": 1362,
+      "top": 1248,
+      "sourceIndex": 1020,
+      "width": 128,
+      "centerX": 1298
+    },
+    {
+      "id": 24,
+      "kind": 1,
+      "left": 3554,
+      "right": 3682,
+      "top": 1248,
+      "sourceIndex": 1022,
+      "width": 128,
+      "centerX": 3618
+    },
+    {
+      "id": 25,
+      "kind": 1,
+      "left": 1658,
+      "right": 1698,
+      "top": 1272,
+      "sourceIndex": 1041,
+      "width": 40,
+      "centerX": 1678
+    },
+    {
+      "id": 26,
+      "kind": 1,
+      "left": 3218,
+      "right": 3258,
+      "top": 1272,
+      "sourceIndex": 1043,
+      "width": 40,
+      "centerX": 3238
+    },
+    {
+      "id": 27,
+      "kind": 1,
+      "left": 2174,
+      "right": 2382,
+      "top": 1290,
+      "sourceIndex": 1063,
+      "width": 208,
+      "centerX": 2278
+    },
+    {
+      "id": 28,
+      "kind": 1,
+      "left": 2534,
+      "right": 2742,
+      "top": 1290,
+      "sourceIndex": 1063,
+      "width": 208,
+      "centerX": 2638
+    },
+    {
+      "id": 29,
+      "kind": 1,
+      "left": 806,
+      "right": 1078,
+      "top": 1422,
+      "sourceIndex": 1250,
+      "width": 272,
+      "centerX": 942
+    },
+    {
+      "id": 30,
+      "kind": 1,
+      "left": 3852,
+      "right": 4108,
+      "top": 1422,
+      "sourceIndex": 1256,
+      "width": 256,
+      "centerX": 3980
+    },
+    {
+      "id": 31,
+      "kind": 1,
+      "left": 1126,
+      "right": 1726,
+      "top": 1506,
+      "sourceIndex": 1310,
+      "width": 600,
+      "centerX": 1426
+    },
+    {
+      "id": 32,
+      "kind": 1,
+      "left": 3190,
+      "right": 3790,
+      "top": 1506,
+      "sourceIndex": 1310,
+      "width": 600,
+      "centerX": 3490
+    }
+  ],
+  "edges": [
+    {
+      "id": 0,
+      "routeKind": 1,
+      "fromSurfaceId": 3,
+      "toSurfaceId": 4,
+      "entryX": 1186.8262,
+      "entryBottom": 672,
+      "exitX": 1359.6709,
+      "exitBottom": 672,
+      "costTicks": 32,
+      "leftTicks": 0,
+      "rightTicks": 33,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 5,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 27,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "routeKind": 1,
+      "fromSurfaceId": 4,
+      "toSurfaceId": 0,
+      "entryX": 1359.6709,
+      "entryBottom": 672,
+      "exitX": 1574.9203,
+      "exitBottom": 612,
+      "costTicks": 38,
+      "leftTicks": 0,
+      "rightTicks": 39,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 9,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 29,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "routeKind": 1,
+      "fromSurfaceId": 0,
+      "toSurfaceId": 2,
+      "entryX": 1574.9203,
+      "entryBottom": 612,
+      "exitX": 1691.7557,
+      "exitBottom": 660,
+      "costTicks": 25,
+      "leftTicks": 0,
+      "rightTicks": 26,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 8,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 17,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "routeKind": 1,
+      "fromSurfaceId": 2,
+      "toSurfaceId": 20,
+      "entryX": 1691.7557,
+      "entryBottom": 660,
+      "exitX": 2413.9111,
+      "exitBottom": 1146,
+      "costTicks": 133,
+      "leftTicks": 0,
+      "rightTicks": 134,
+      "jumpTicks": 2,
+      "dropTicks": 80,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 64,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 28,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 16,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 23,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "routeKind": 1,
+      "fromSurfaceId": 20,
+      "toSurfaceId": 19,
+      "entryX": 2413.9111,
+      "entryBottom": 1146,
+      "exitX": 2901.247,
+      "exitBottom": 1116,
+      "costTicks": 86,
+      "leftTicks": 0,
+      "rightTicks": 87,
+      "jumpTicks": 2,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 35,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 18,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 32,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "routeKind": 1,
+      "fromSurfaceId": 19,
+      "toSurfaceId": 26,
+      "entryX": 2901.247,
+      "entryBottom": 1116,
+      "exitX": 3218.572,
+      "exitBottom": 1272,
+      "costTicks": 56,
+      "leftTicks": 0,
+      "rightTicks": 57,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 10,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 46,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "routeKind": 1,
+      "fromSurfaceId": 26,
+      "toSurfaceId": 24,
+      "entryX": 3218.572,
+      "entryBottom": 1272,
+      "exitX": 3552.9094,
+      "exitBottom": 1248,
+      "costTicks": 59,
+      "leftTicks": 0,
+      "rightTicks": 60,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 60,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "routeKind": 1,
+      "fromSurfaceId": 24,
+      "toSurfaceId": 22,
+      "entryX": 3552.9094,
+      "entryBottom": 1248,
+      "exitX": 3615.4858,
+      "exitBottom": 1182,
+      "costTicks": 37,
+      "leftTicks": 19,
+      "rightTicks": 19,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 19,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 18,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "routeKind": 1,
+      "fromSurfaceId": 3,
+      "toSurfaceId": 4,
+      "entryX": 1186.8262,
+      "entryBottom": 672,
+      "exitX": 1359.6709,
+      "exitBottom": 672,
+      "costTicks": 32,
+      "leftTicks": 0,
+      "rightTicks": 33,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 5,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 27,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "routeKind": 1,
+      "fromSurfaceId": 4,
+      "toSurfaceId": 0,
+      "entryX": 1359.6709,
+      "entryBottom": 672,
+      "exitX": 1574.9203,
+      "exitBottom": 612,
+      "costTicks": 38,
+      "leftTicks": 0,
+      "rightTicks": 39,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 9,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 29,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "routeKind": 1,
+      "fromSurfaceId": 0,
+      "toSurfaceId": 2,
+      "entryX": 1574.9203,
+      "entryBottom": 612,
+      "exitX": 1691.7557,
+      "exitBottom": 660,
+      "costTicks": 25,
+      "leftTicks": 0,
+      "rightTicks": 26,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 8,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 17,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "routeKind": 1,
+      "fromSurfaceId": 2,
+      "toSurfaceId": 20,
+      "entryX": 1691.7557,
+      "entryBottom": 660,
+      "exitX": 2413.9111,
+      "exitBottom": 1146,
+      "costTicks": 133,
+      "leftTicks": 0,
+      "rightTicks": 134,
+      "jumpTicks": 2,
+      "dropTicks": 80,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 64,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 28,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 16,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 23,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "routeKind": 1,
+      "fromSurfaceId": 20,
+      "toSurfaceId": 19,
+      "entryX": 2413.9111,
+      "entryBottom": 1146,
+      "exitX": 2901.247,
+      "exitBottom": 1116,
+      "costTicks": 86,
+      "leftTicks": 0,
+      "rightTicks": 87,
+      "jumpTicks": 2,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 35,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 18,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 32,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "routeKind": 1,
+      "fromSurfaceId": 19,
+      "toSurfaceId": 26,
+      "entryX": 2901.247,
+      "entryBottom": 1116,
+      "exitX": 3218.572,
+      "exitBottom": 1272,
+      "costTicks": 56,
+      "leftTicks": 0,
+      "rightTicks": 57,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 10,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 46,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "routeKind": 1,
+      "fromSurfaceId": 26,
+      "toSurfaceId": 24,
+      "entryX": 3218.572,
+      "entryBottom": 1272,
+      "exitX": 3552.9094,
+      "exitBottom": 1248,
+      "costTicks": 59,
+      "leftTicks": 0,
+      "rightTicks": 60,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 60,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "routeKind": 1,
+      "fromSurfaceId": 24,
+      "toSurfaceId": 22,
+      "entryX": 3552.9094,
+      "entryBottom": 1248,
+      "exitX": 3615.4858,
+      "exitBottom": 1182,
+      "costTicks": 37,
+      "leftTicks": 19,
+      "rightTicks": 19,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 19,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 18,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "routeKind": 1,
+      "fromSurfaceId": 3,
+      "toSurfaceId": 4,
+      "entryX": 1198.8262,
+      "entryBottom": 672,
+      "exitX": 1371.6709,
+      "exitBottom": 672,
+      "costTicks": 32,
+      "leftTicks": 0,
+      "rightTicks": 33,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 5,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 27,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "routeKind": 1,
+      "fromSurfaceId": 4,
+      "toSurfaceId": 0,
+      "entryX": 1371.6709,
+      "entryBottom": 672,
+      "exitX": 1575.5874,
+      "exitBottom": 612,
+      "costTicks": 36,
+      "leftTicks": 0,
+      "rightTicks": 37,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 37,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "routeKind": 1,
+      "fromSurfaceId": 0,
+      "toSurfaceId": 2,
+      "entryX": 1575.5874,
+      "entryBottom": 612,
+      "exitX": 1691.7538,
+      "exitBottom": 660,
+      "costTicks": 24,
+      "leftTicks": 0,
+      "rightTicks": 25,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 7,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 17,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "routeKind": 1,
+      "fromSurfaceId": 2,
+      "toSurfaceId": 20,
+      "entryX": 1691.7538,
+      "entryBottom": 660,
+      "exitX": 2413.9092,
+      "exitBottom": 1146,
+      "costTicks": 133,
+      "leftTicks": 0,
+      "rightTicks": 134,
+      "jumpTicks": 2,
+      "dropTicks": 80,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 64,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 28,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 16,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 23,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "routeKind": 1,
+      "fromSurfaceId": 20,
+      "toSurfaceId": 19,
+      "entryX": 2413.9092,
+      "entryBottom": 1146,
+      "exitX": 2901.245,
+      "exitBottom": 1116,
+      "costTicks": 86,
+      "leftTicks": 0,
+      "rightTicks": 87,
+      "jumpTicks": 2,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 35,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 18,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 32,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "routeKind": 1,
+      "fromSurfaceId": 19,
+      "toSurfaceId": 26,
+      "entryX": 2901.245,
+      "entryBottom": 1116,
+      "exitX": 3218.57,
+      "exitBottom": 1272,
+      "costTicks": 56,
+      "leftTicks": 0,
+      "rightTicks": 57,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 10,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 46,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "routeKind": 1,
+      "fromSurfaceId": 26,
+      "toSurfaceId": 24,
+      "entryX": 3218.57,
+      "entryBottom": 1272,
+      "exitX": 3552.9075,
+      "exitBottom": 1248,
+      "costTicks": 59,
+      "leftTicks": 0,
+      "rightTicks": 60,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 60,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "routeKind": 1,
+      "fromSurfaceId": 24,
+      "toSurfaceId": 22,
+      "entryX": 3552.9075,
+      "entryBottom": 1248,
+      "exitX": 3615.484,
+      "exitBottom": 1182,
+      "costTicks": 37,
+      "leftTicks": 19,
+      "rightTicks": 19,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "actions": [
+        {
+          "ticks": 19,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 18,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    }
+  ],
+  "laneSegments": [],
+  "routes": [
+    {
+      "kind": 1,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "sampleCount": 480,
+      "surfaceSequence": [
+        3,
+        4,
+        0,
+        2,
+        20,
+        19,
+        26,
+        24,
+        22
+      ],
+      "edgeIds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "laneSegmentIds": [],
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 14,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 35,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 36,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 17,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 64,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 28,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 16,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 57,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 18,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 41,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 123,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 21,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "terminalStartX": 3615.4858,
+      "terminalStartBottom": 1182,
+      "terminalEndX": 3600.128,
+      "terminalEndBottom": 1182,
+      "terminalActions": [
+        {
+          "ticks": 3,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "startX": 1146,
+      "startBottom": 642
+    },
+    {
+      "kind": 1,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "sampleCount": 480,
+      "surfaceSequence": [
+        3,
+        4,
+        0,
+        2,
+        20,
+        19,
+        26,
+        24,
+        22
+      ],
+      "edgeIds": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "laneSegmentIds": [],
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 14,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 35,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 36,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 17,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 64,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 28,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 16,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 57,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 18,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 41,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 123,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 21,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "terminalStartX": 3615.4858,
+      "terminalStartBottom": 1182,
+      "terminalEndX": 3600.128,
+      "terminalEndBottom": 1182,
+      "terminalActions": [
+        {
+          "ticks": 3,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "startX": 1158,
+      "startBottom": 642
+    },
+    {
+      "kind": 1,
+      "source": "MotionProofPrimitive:Atalia:a1:Red:Engineer:local_goal",
+      "sampleCount": 477,
+      "surfaceSequence": [
+        3,
+        4,
+        0,
+        2,
+        20,
+        19,
+        26,
+        24,
+        22
+      ],
+      "edgeIds": [
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      "laneSegmentIds": [],
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 14,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 69,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 17,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 64,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 28,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 16,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 57,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 18,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 41,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 123,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 21,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "terminalStartX": 3615.484,
+      "terminalStartBottom": 1182,
+      "terminalEndX": 3600.126,
+      "terminalEndBottom": 1182,
+      "terminalActions": [
+        {
+          "ticks": 3,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "startX": 1170,
+      "startBottom": 642
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+    "id":  "DemomanBlueS",
+    "framePaths":  [
+                       "Content/Sprites/Characters/Demoman/DemomanBlueS.images/image 0.png",
+                       "Content/Sprites/Characters/Demoman/DemomanBlueS.images/image 1.png",
+                       "Content/Sprites/Characters/Demoman/DemomanBlueS.images/image 2.png",
+                       "Content/Sprites/Characters/Demoman/DemomanBlueS.images/image 3.png"
+                   ],
+    "originX":  33,
+    "originY":  40,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  26,
+                 "top":  30,
+                 "right":  40,
+                 "bottom":  63
+             }
+}

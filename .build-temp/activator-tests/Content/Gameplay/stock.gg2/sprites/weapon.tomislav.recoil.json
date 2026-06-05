@@ -1,0 +1,10 @@
+{
+  "id": "stock.gg2.weapon.tomislav.recoil",
+  "framePaths": [
+    "assets/tomislav/TomislavFS.png"
+  ],
+  "frameWidth": 50,
+  "frameHeight": 20,
+  "originX": 14,
+  "originY": 3
+}

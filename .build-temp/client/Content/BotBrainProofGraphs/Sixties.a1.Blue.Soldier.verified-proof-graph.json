@@ -1,0 +1,953 @@
+{
+  "version": 1,
+  "levelName": "Sixties",
+  "mapAreaIndex": 1,
+  "team": 2,
+  "classId": 4,
+  "surfaces": [
+    {
+      "id": 0,
+      "kind": 1,
+      "left": 1376,
+      "right": 1496,
+      "top": 390,
+      "sourceIndex": 131,
+      "width": 120,
+      "centerX": 1436
+    },
+    {
+      "id": 1,
+      "kind": 1,
+      "left": 1082,
+      "right": 1130,
+      "top": 852,
+      "sourceIndex": 362,
+      "width": 48,
+      "centerX": 1106
+    },
+    {
+      "id": 2,
+      "kind": 1,
+      "left": 1748,
+      "right": 1796,
+      "top": 852,
+      "sourceIndex": 364,
+      "width": 48,
+      "centerX": 1772
+    },
+    {
+      "id": 3,
+      "kind": 1,
+      "left": 1322,
+      "right": 1354,
+      "top": 870,
+      "sourceIndex": 378,
+      "width": 32,
+      "centerX": 1338
+    },
+    {
+      "id": 4,
+      "kind": 1,
+      "left": 1522,
+      "right": 1554,
+      "top": 870,
+      "sourceIndex": 378,
+      "width": 32,
+      "centerX": 1538
+    },
+    {
+      "id": 5,
+      "kind": 1,
+      "left": 830,
+      "right": 1022,
+      "top": 894,
+      "sourceIndex": 398,
+      "width": 192,
+      "centerX": 926
+    },
+    {
+      "id": 6,
+      "kind": 1,
+      "left": 1854,
+      "right": 2046,
+      "top": 894,
+      "sourceIndex": 401,
+      "width": 192,
+      "centerX": 1950
+    },
+    {
+      "id": 7,
+      "kind": 1,
+      "left": 386,
+      "right": 482,
+      "top": 918,
+      "sourceIndex": 422,
+      "width": 96,
+      "centerX": 434
+    },
+    {
+      "id": 8,
+      "kind": 1,
+      "left": 2396,
+      "right": 2492,
+      "top": 918,
+      "sourceIndex": 425,
+      "width": 96,
+      "centerX": 2444
+    },
+    {
+      "id": 9,
+      "kind": 1,
+      "left": 1364,
+      "right": 1508,
+      "top": 948,
+      "sourceIndex": 460,
+      "width": 144,
+      "centerX": 1436
+    },
+    {
+      "id": 10,
+      "kind": 1,
+      "left": 516,
+      "right": 700,
+      "top": 978,
+      "sourceIndex": 511,
+      "width": 184,
+      "centerX": 608
+    },
+    {
+      "id": 11,
+      "kind": 1,
+      "left": 2174,
+      "right": 2358,
+      "top": 978,
+      "sourceIndex": 515,
+      "width": 184,
+      "centerX": 2266
+    },
+    {
+      "id": 12,
+      "kind": 1,
+      "left": 246,
+      "right": 326,
+      "top": 1002,
+      "sourceIndex": 535,
+      "width": 80,
+      "centerX": 286
+    },
+    {
+      "id": 13,
+      "kind": 1,
+      "left": 2546,
+      "right": 2626,
+      "top": 1002,
+      "sourceIndex": 540,
+      "width": 80,
+      "centerX": 2586
+    },
+    {
+      "id": 14,
+      "kind": 1,
+      "left": 1424,
+      "right": 1448,
+      "top": 1062,
+      "sourceIndex": 609,
+      "width": 24,
+      "centerX": 1436
+    },
+    {
+      "id": 15,
+      "kind": 1,
+      "left": 398,
+      "right": 486,
+      "top": 1092,
+      "sourceIndex": 632,
+      "width": 88,
+      "centerX": 442
+    },
+    {
+      "id": 16,
+      "kind": 1,
+      "left": 674,
+      "right": 770,
+      "top": 1092,
+      "sourceIndex": 633,
+      "width": 96,
+      "centerX": 722
+    },
+    {
+      "id": 17,
+      "kind": 1,
+      "left": 2102,
+      "right": 2198,
+      "top": 1092,
+      "sourceIndex": 637,
+      "width": 96,
+      "centerX": 2150
+    },
+    {
+      "id": 18,
+      "kind": 1,
+      "left": 2390,
+      "right": 2478,
+      "top": 1092,
+      "sourceIndex": 638,
+      "width": 88,
+      "centerX": 2434
+    },
+    {
+      "id": 19,
+      "kind": 1,
+      "left": 860,
+      "right": 956,
+      "top": 1110,
+      "sourceIndex": 655,
+      "width": 96,
+      "centerX": 908
+    },
+    {
+      "id": 20,
+      "kind": 1,
+      "left": 1922,
+      "right": 2018,
+      "top": 1110,
+      "sourceIndex": 659,
+      "width": 96,
+      "centerX": 1970
+    },
+    {
+      "id": 21,
+      "kind": 1,
+      "left": 1226,
+      "right": 1370,
+      "top": 1122,
+      "sourceIndex": 675,
+      "width": 144,
+      "centerX": 1298
+    },
+    {
+      "id": 22,
+      "kind": 1,
+      "left": 1506,
+      "right": 1650,
+      "top": 1122,
+      "sourceIndex": 675,
+      "width": 144,
+      "centerX": 1578
+    },
+    {
+      "id": 23,
+      "kind": 1,
+      "left": 494,
+      "right": 566,
+      "top": 1164,
+      "sourceIndex": 725,
+      "width": 72,
+      "centerX": 530
+    },
+    {
+      "id": 24,
+      "kind": 1,
+      "left": 2312,
+      "right": 2408,
+      "top": 1164,
+      "sourceIndex": 731,
+      "width": 96,
+      "centerX": 2360
+    },
+    {
+      "id": 25,
+      "kind": 1,
+      "left": 716,
+      "right": 764,
+      "top": 1260,
+      "sourceIndex": 866,
+      "width": 48,
+      "centerX": 740
+    },
+    {
+      "id": 26,
+      "kind": 1,
+      "left": 2114,
+      "right": 2162,
+      "top": 1260,
+      "sourceIndex": 870,
+      "width": 48,
+      "centerX": 2138
+    },
+    {
+      "id": 27,
+      "kind": 1,
+      "left": 246,
+      "right": 286,
+      "top": 1326,
+      "sourceIndex": 955,
+      "width": 40,
+      "centerX": 266
+    },
+    {
+      "id": 28,
+      "kind": 1,
+      "left": 2588,
+      "right": 2636,
+      "top": 1326,
+      "sourceIndex": 957,
+      "width": 48,
+      "centerX": 2612
+    },
+    {
+      "id": 29,
+      "kind": 1,
+      "left": 350,
+      "right": 406,
+      "top": 1368,
+      "sourceIndex": 998,
+      "width": 56,
+      "centerX": 378
+    },
+    {
+      "id": 30,
+      "kind": 1,
+      "left": 438,
+      "right": 558,
+      "top": 1368,
+      "sourceIndex": 998,
+      "width": 120,
+      "centerX": 498
+    },
+    {
+      "id": 31,
+      "kind": 1,
+      "left": 630,
+      "right": 846,
+      "top": 1368,
+      "sourceIndex": 998,
+      "width": 216,
+      "centerX": 738
+    },
+    {
+      "id": 32,
+      "kind": 1,
+      "left": 918,
+      "right": 1102,
+      "top": 1368,
+      "sourceIndex": 998,
+      "width": 184,
+      "centerX": 1010
+    },
+    {
+      "id": 33,
+      "kind": 1,
+      "left": 1782,
+      "right": 1966,
+      "top": 1368,
+      "sourceIndex": 998,
+      "width": 184,
+      "centerX": 1874
+    },
+    {
+      "id": 34,
+      "kind": 1,
+      "left": 2030,
+      "right": 2246,
+      "top": 1368,
+      "sourceIndex": 998,
+      "width": 216,
+      "centerX": 2138
+    },
+    {
+      "id": 35,
+      "kind": 1,
+      "left": 2318,
+      "right": 2526,
+      "top": 1368,
+      "sourceIndex": 998,
+      "width": 208,
+      "centerX": 2422
+    }
+  ],
+  "edges": [
+    {
+      "id": 0,
+      "routeKind": 1,
+      "fromSurfaceId": 28,
+      "toSurfaceId": 35,
+      "entryX": 2593.9558,
+      "entryBottom": 1326,
+      "exitX": 2525.3528,
+      "exitBottom": 1368,
+      "costTicks": 15,
+      "leftTicks": 16,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofObjectivePlanner",
+      "actions": [
+        {
+          "ticks": 16,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "routeKind": 1,
+      "fromSurfaceId": 35,
+      "toSurfaceId": 34,
+      "entryX": 2525.3528,
+      "entryBottom": 1368,
+      "exitX": 2199.972,
+      "exitBottom": 1368,
+      "costTicks": 64,
+      "leftTicks": 65,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofObjectivePlanner",
+      "actions": [
+        {
+          "ticks": 25,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 39,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "routeKind": 1,
+      "fromSurfaceId": 34,
+      "toSurfaceId": 33,
+      "entryX": 2199.972,
+      "entryBottom": 1368,
+      "exitX": 1921.4128,
+      "exitBottom": 1368,
+      "costTicks": 73,
+      "leftTicks": 74,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofObjectivePlanner",
+      "actions": [
+        {
+          "ticks": 45,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 28,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "routeKind": 1,
+      "fromSurfaceId": 33,
+      "toSurfaceId": 22,
+      "entryX": 1921.4128,
+      "entryBottom": 1368,
+      "exitX": 1649.3745,
+      "exitBottom": 1122,
+      "costTicks": 114,
+      "leftTicks": 89,
+      "rightTicks": 16,
+      "jumpTicks": 2,
+      "dropTicks": 0,
+      "source": "MotionProofObjectivePlanner",
+      "actions": [
+        {
+          "ticks": 56,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 9,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 10,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 32,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "routeKind": 1,
+      "fromSurfaceId": 22,
+      "toSurfaceId": 14,
+      "entryX": 1649.3745,
+      "entryBottom": 1122,
+      "exitX": 1449.269,
+      "exitBottom": 1062,
+      "costTicks": 52,
+      "leftTicks": 53,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofObjectivePlanner",
+      "actions": [
+        {
+          "ticks": 32,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 20,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "routeKind": 1,
+      "fromSurfaceId": 14,
+      "toSurfaceId": 21,
+      "entryX": 1449.269,
+      "entryBottom": 1062,
+      "exitX": 1344.0048,
+      "exitBottom": 1122,
+      "costTicks": 25,
+      "leftTicks": 26,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofObjectivePlanner",
+      "actions": [
+        {
+          "ticks": 26,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "routeKind": 1,
+      "fromSurfaceId": 21,
+      "toSurfaceId": 19,
+      "entryX": 1344.0048,
+      "entryBottom": 1122,
+      "exitX": 913.2596,
+      "exitBottom": 1110,
+      "costTicks": 161,
+      "leftTicks": 140,
+      "rightTicks": 22,
+      "jumpTicks": 3,
+      "dropTicks": 0,
+      "source": "MotionProofObjectivePlanner",
+      "actions": [
+        {
+          "ticks": 57,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 21,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 34,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "routeKind": 1,
+      "fromSurfaceId": 19,
+      "toSurfaceId": 16,
+      "entryX": 913.2596,
+      "entryBottom": 1110,
+      "exitX": 770.77576,
+      "exitBottom": 1092,
+      "costTicks": 28,
+      "leftTicks": 29,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofObjectivePlanner",
+      "actions": [
+        {
+          "ticks": 14,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 14,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "routeKind": 1,
+      "fromSurfaceId": 16,
+      "toSurfaceId": 19,
+      "entryX": 770.77576,
+      "entryBottom": 1092,
+      "exitX": 858.3225,
+      "exitBottom": 1110,
+      "costTicks": 72,
+      "leftTicks": 22,
+      "rightTicks": 51,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofObjectivePlanner",
+      "actions": [
+        {
+          "ticks": 22,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 50,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    }
+  ],
+  "laneSegments": [],
+  "routes": [
+    {
+      "kind": 1,
+      "source": "MotionProofObjectivePlanner",
+      "sampleCount": 677,
+      "surfaceSequence": [
+        28,
+        35,
+        34,
+        33,
+        22,
+        14,
+        21,
+        19,
+        16,
+        19
+      ],
+      "edgeIds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "laneSegmentIds": [],
+      "actions": [
+        {
+          "ticks": 48,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 83,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 83,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 6,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 9,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 10,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 63,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 101,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 21,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 47,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 35,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": 1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 53,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 35,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 23,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "terminalStartX": 858.3225,
+      "terminalStartBottom": 1110,
+      "terminalEndX": 695.7739,
+      "terminalEndBottom": 945.5996,
+      "terminalActions": [
+        {
+          "ticks": 3,
+          "moveDirection": 1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 35,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 23,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "startX": 2628,
+      "startBottom": 1302
+    }
+  ]
+}

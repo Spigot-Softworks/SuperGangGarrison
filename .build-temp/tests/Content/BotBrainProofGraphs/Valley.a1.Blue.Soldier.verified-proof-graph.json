@@ -1,0 +1,1671 @@
+{
+  "version": 1,
+  "levelName": "Valley",
+  "mapAreaIndex": 1,
+  "team": 2,
+  "classId": 4,
+  "surfaces": [
+    {
+      "id": 0,
+      "kind": 1,
+      "left": 896,
+      "right": 1136,
+      "top": 258,
+      "sourceIndex": 173,
+      "width": 240,
+      "centerX": 1016
+    },
+    {
+      "id": 1,
+      "kind": 1,
+      "left": 3530,
+      "right": 3770,
+      "top": 258,
+      "sourceIndex": 176,
+      "width": 240,
+      "centerX": 3650
+    },
+    {
+      "id": 2,
+      "kind": 1,
+      "left": 926,
+      "right": 966,
+      "top": 360,
+      "sourceIndex": 275,
+      "width": 40,
+      "centerX": 946
+    },
+    {
+      "id": 3,
+      "kind": 1,
+      "left": 3698,
+      "right": 3738,
+      "top": 360,
+      "sourceIndex": 276,
+      "width": 40,
+      "centerX": 3718
+    },
+    {
+      "id": 4,
+      "kind": 1,
+      "left": 1436,
+      "right": 1516,
+      "top": 384,
+      "sourceIndex": 292,
+      "width": 80,
+      "centerX": 1476
+    },
+    {
+      "id": 5,
+      "kind": 1,
+      "left": 3146,
+      "right": 3226,
+      "top": 384,
+      "sourceIndex": 293,
+      "width": 80,
+      "centerX": 3186
+    },
+    {
+      "id": 6,
+      "kind": 1,
+      "left": 1076,
+      "right": 1412,
+      "top": 432,
+      "sourceIndex": 350,
+      "width": 336,
+      "centerX": 1244
+    },
+    {
+      "id": 7,
+      "kind": 1,
+      "left": 3256,
+      "right": 3584,
+      "top": 432,
+      "sourceIndex": 353,
+      "width": 328,
+      "centerX": 3420
+    },
+    {
+      "id": 8,
+      "kind": 1,
+      "left": 314,
+      "right": 522,
+      "top": 438,
+      "sourceIndex": 357,
+      "width": 208,
+      "centerX": 418
+    },
+    {
+      "id": 9,
+      "kind": 1,
+      "left": 4144,
+      "right": 4352,
+      "top": 438,
+      "sourceIndex": 364,
+      "width": 208,
+      "centerX": 4248
+    },
+    {
+      "id": 10,
+      "kind": 1,
+      "left": 1634,
+      "right": 1818,
+      "top": 450,
+      "sourceIndex": 380,
+      "width": 184,
+      "centerX": 1726
+    },
+    {
+      "id": 11,
+      "kind": 1,
+      "left": 1898,
+      "right": 2026,
+      "top": 450,
+      "sourceIndex": 381,
+      "width": 128,
+      "centerX": 1962
+    },
+    {
+      "id": 12,
+      "kind": 1,
+      "left": 2636,
+      "right": 2764,
+      "top": 450,
+      "sourceIndex": 382,
+      "width": 128,
+      "centerX": 2700
+    },
+    {
+      "id": 13,
+      "kind": 1,
+      "left": 2846,
+      "right": 3030,
+      "top": 450,
+      "sourceIndex": 383,
+      "width": 184,
+      "centerX": 2938
+    },
+    {
+      "id": 14,
+      "kind": 1,
+      "left": 926,
+      "right": 966,
+      "top": 510,
+      "sourceIndex": 584,
+      "width": 40,
+      "centerX": 946
+    },
+    {
+      "id": 15,
+      "kind": 1,
+      "left": 3698,
+      "right": 3738,
+      "top": 510,
+      "sourceIndex": 591,
+      "width": 40,
+      "centerX": 3718
+    },
+    {
+      "id": 16,
+      "kind": 1,
+      "left": 1468,
+      "right": 1524,
+      "top": 528,
+      "sourceIndex": 619,
+      "width": 56,
+      "centerX": 1496
+    },
+    {
+      "id": 17,
+      "kind": 1,
+      "left": 3140,
+      "right": 3196,
+      "top": 528,
+      "sourceIndex": 620,
+      "width": 56,
+      "centerX": 3168
+    },
+    {
+      "id": 18,
+      "kind": 1,
+      "left": 2006,
+      "right": 2030,
+      "top": 540,
+      "sourceIndex": 636,
+      "width": 24,
+      "centerX": 2018
+    },
+    {
+      "id": 19,
+      "kind": 1,
+      "left": 2630,
+      "right": 2654,
+      "top": 540,
+      "sourceIndex": 637,
+      "width": 24,
+      "centerX": 2642
+    },
+    {
+      "id": 20,
+      "kind": 1,
+      "left": 1076,
+      "right": 1108,
+      "top": 588,
+      "sourceIndex": 726,
+      "width": 32,
+      "centerX": 1092
+    },
+    {
+      "id": 21,
+      "kind": 1,
+      "left": 3560,
+      "right": 3584,
+      "top": 588,
+      "sourceIndex": 733,
+      "width": 24,
+      "centerX": 3572
+    },
+    {
+      "id": 22,
+      "kind": 1,
+      "left": 1634,
+      "right": 1802,
+      "top": 600,
+      "sourceIndex": 752,
+      "width": 168,
+      "centerX": 1718
+    },
+    {
+      "id": 23,
+      "kind": 1,
+      "left": 1858,
+      "right": 1930,
+      "top": 600,
+      "sourceIndex": 752,
+      "width": 72,
+      "centerX": 1894
+    },
+    {
+      "id": 24,
+      "kind": 1,
+      "left": 2738,
+      "right": 2810,
+      "top": 600,
+      "sourceIndex": 753,
+      "width": 72,
+      "centerX": 2774
+    },
+    {
+      "id": 25,
+      "kind": 1,
+      "left": 2866,
+      "right": 3026,
+      "top": 600,
+      "sourceIndex": 753,
+      "width": 160,
+      "centerX": 2946
+    },
+    {
+      "id": 26,
+      "kind": 1,
+      "left": 182,
+      "right": 294,
+      "top": 630,
+      "sourceIndex": 793,
+      "width": 112,
+      "centerX": 238
+    },
+    {
+      "id": 27,
+      "kind": 1,
+      "left": 350,
+      "right": 510,
+      "top": 630,
+      "sourceIndex": 793,
+      "width": 160,
+      "centerX": 430
+    },
+    {
+      "id": 28,
+      "kind": 1,
+      "left": 550,
+      "right": 710,
+      "top": 630,
+      "sourceIndex": 793,
+      "width": 160,
+      "centerX": 630
+    },
+    {
+      "id": 29,
+      "kind": 1,
+      "left": 2258,
+      "right": 2402,
+      "top": 630,
+      "sourceIndex": 795,
+      "width": 144,
+      "centerX": 2330
+    },
+    {
+      "id": 30,
+      "kind": 1,
+      "left": 2498,
+      "right": 2522,
+      "top": 630,
+      "sourceIndex": 796,
+      "width": 24,
+      "centerX": 2510
+    },
+    {
+      "id": 31,
+      "kind": 1,
+      "left": 3950,
+      "right": 4318,
+      "top": 630,
+      "sourceIndex": 797,
+      "width": 368,
+      "centerX": 4134
+    },
+    {
+      "id": 32,
+      "kind": 1,
+      "left": 4374,
+      "right": 4478,
+      "top": 630,
+      "sourceIndex": 797,
+      "width": 104,
+      "centerX": 4426
+    },
+    {
+      "id": 33,
+      "kind": 1,
+      "left": 30,
+      "right": 94,
+      "top": 654,
+      "sourceIndex": 824,
+      "width": 64,
+      "centerX": 62
+    },
+    {
+      "id": 34,
+      "kind": 1,
+      "left": 4570,
+      "right": 4786,
+      "top": 654,
+      "sourceIndex": 830,
+      "width": 216,
+      "centerX": 4678
+    },
+    {
+      "id": 35,
+      "kind": 1,
+      "left": 782,
+      "right": 966,
+      "top": 666,
+      "sourceIndex": 838,
+      "width": 184,
+      "centerX": 874
+    },
+    {
+      "id": 36,
+      "kind": 1,
+      "left": 3698,
+      "right": 3882,
+      "top": 666,
+      "sourceIndex": 844,
+      "width": 184,
+      "centerX": 3790
+    },
+    {
+      "id": 37,
+      "kind": 1,
+      "left": 1424,
+      "right": 1528,
+      "top": 678,
+      "sourceIndex": 854,
+      "width": 104,
+      "centerX": 1476
+    },
+    {
+      "id": 38,
+      "kind": 1,
+      "left": 3134,
+      "right": 3238,
+      "top": 678,
+      "sourceIndex": 858,
+      "width": 104,
+      "centerX": 3186
+    },
+    {
+      "id": 39,
+      "kind": 1,
+      "left": 1014,
+      "right": 1222,
+      "top": 690,
+      "sourceIndex": 870,
+      "width": 208,
+      "centerX": 1118
+    },
+    {
+      "id": 40,
+      "kind": 1,
+      "left": 1294,
+      "right": 1390,
+      "top": 690,
+      "sourceIndex": 870,
+      "width": 96,
+      "centerX": 1342
+    },
+    {
+      "id": 41,
+      "kind": 1,
+      "left": 3274,
+      "right": 3370,
+      "top": 690,
+      "sourceIndex": 874,
+      "width": 96,
+      "centerX": 3322
+    },
+    {
+      "id": 42,
+      "kind": 1,
+      "left": 3442,
+      "right": 3658,
+      "top": 690,
+      "sourceIndex": 874,
+      "width": 216,
+      "centerX": 3550
+    },
+    {
+      "id": 43,
+      "kind": 1,
+      "left": 1662,
+      "right": 1790,
+      "top": 786,
+      "sourceIndex": 946,
+      "width": 128,
+      "centerX": 1726
+    },
+    {
+      "id": 44,
+      "kind": 1,
+      "left": 2876,
+      "right": 3004,
+      "top": 786,
+      "sourceIndex": 947,
+      "width": 128,
+      "centerX": 2940
+    },
+    {
+      "id": 45,
+      "kind": 1,
+      "left": 2108,
+      "right": 2220,
+      "top": 828,
+      "sourceIndex": 973,
+      "width": 112,
+      "centerX": 2164
+    },
+    {
+      "id": 46,
+      "kind": 1,
+      "left": 2276,
+      "right": 2388,
+      "top": 828,
+      "sourceIndex": 973,
+      "width": 112,
+      "centerX": 2332
+    },
+    {
+      "id": 47,
+      "kind": 1,
+      "left": 2444,
+      "right": 2556,
+      "top": 828,
+      "sourceIndex": 973,
+      "width": 112,
+      "centerX": 2500
+    },
+    {
+      "id": 48,
+      "kind": 1,
+      "left": 1814,
+      "right": 1838,
+      "top": 834,
+      "sourceIndex": 975,
+      "width": 24,
+      "centerX": 1826
+    },
+    {
+      "id": 49,
+      "kind": 1,
+      "left": 2828,
+      "right": 2852,
+      "top": 834,
+      "sourceIndex": 977,
+      "width": 24,
+      "centerX": 2840
+    },
+    {
+      "id": 50,
+      "kind": 1,
+      "left": 1862,
+      "right": 2086,
+      "top": 882,
+      "sourceIndex": 999,
+      "width": 224,
+      "centerX": 1974
+    },
+    {
+      "id": 51,
+      "kind": 1,
+      "left": 2582,
+      "right": 2806,
+      "top": 882,
+      "sourceIndex": 999,
+      "width": 224,
+      "centerX": 2694
+    }
+  ],
+  "edges": [
+    {
+      "id": 0,
+      "routeKind": 1,
+      "fromSurfaceId": 31,
+      "toSurfaceId": 36,
+      "entryX": 4193.997,
+      "entryBottom": 630,
+      "exitX": 3879.3723,
+      "exitBottom": 666,
+      "costTicks": 63,
+      "leftTicks": 64,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "actions": [
+        {
+          "ticks": 64,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "routeKind": 1,
+      "fromSurfaceId": 36,
+      "toSurfaceId": 21,
+      "entryX": 3879.3723,
+      "entryBottom": 666,
+      "exitX": 3583.5696,
+      "exitBottom": 588,
+      "costTicks": 58,
+      "leftTicks": 59,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "actions": [
+        {
+          "ticks": 38,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 20,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "routeKind": 1,
+      "fromSurfaceId": 21,
+      "toSurfaceId": 41,
+      "entryX": 3583.5696,
+      "entryBottom": 588,
+      "exitX": 3308.1677,
+      "exitBottom": 690,
+      "costTicks": 54,
+      "leftTicks": 55,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "actions": [
+        {
+          "ticks": 5,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 49,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "routeKind": 1,
+      "fromSurfaceId": 41,
+      "toSurfaceId": 38,
+      "entryX": 3308.1677,
+      "entryBottom": 690,
+      "exitX": 3236.7664,
+      "exitBottom": 678,
+      "costTicks": 14,
+      "leftTicks": 15,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "actions": [
+        {
+          "ticks": 15,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "routeKind": 1,
+      "fromSurfaceId": 38,
+      "toSurfaceId": 25,
+      "entryX": 3236.7664,
+      "entryBottom": 678,
+      "exitX": 3027.6655,
+      "exitBottom": 600,
+      "costTicks": 41,
+      "leftTicks": 42,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 7,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "actions": [
+        {
+          "ticks": 10,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 20,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 7,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 4,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "routeKind": 1,
+      "fromSurfaceId": 25,
+      "toSurfaceId": 24,
+      "entryX": 3027.6655,
+      "entryBottom": 600,
+      "exitX": 2752.2622,
+      "exitBottom": 600,
+      "costTicks": 54,
+      "leftTicks": 55,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "actions": [
+        {
+          "ticks": 11,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 43,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "routeKind": 1,
+      "fromSurfaceId": 24,
+      "toSurfaceId": 19,
+      "entryX": 2752.2622,
+      "entryBottom": 600,
+      "exitX": 2655.3604,
+      "exitBottom": 540,
+      "costTicks": 19,
+      "leftTicks": 20,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "actions": [
+        {
+          "ticks": 20,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "routeKind": 1,
+      "fromSurfaceId": 19,
+      "toSurfaceId": 29,
+      "entryX": 2655.3604,
+      "entryBottom": 540,
+      "exitX": 2379.9565,
+      "exitBottom": 630,
+      "costTicks": 54,
+      "leftTicks": 55,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "actions": [
+        {
+          "ticks": 26,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 28,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "routeKind": 1,
+      "fromSurfaceId": 31,
+      "toSurfaceId": 36,
+      "entryX": 4205.997,
+      "entryBottom": 630,
+      "exitX": 3881.1724,
+      "exitBottom": 666,
+      "costTicks": 65,
+      "leftTicks": 66,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "actions": [
+        {
+          "ticks": 66,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "routeKind": 1,
+      "fromSurfaceId": 36,
+      "toSurfaceId": 41,
+      "entryX": 3881.1724,
+      "entryBottom": 666,
+      "exitX": 3309.9668,
+      "exitBottom": 690,
+      "costTicks": 112,
+      "leftTicks": 113,
+      "rightTicks": 0,
+      "jumpTicks": 3,
+      "dropTicks": 25,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "actions": [
+        {
+          "ticks": 30,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 19,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 19,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 17,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 25,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": true
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "routeKind": 1,
+      "fromSurfaceId": 41,
+      "toSurfaceId": 38,
+      "entryX": 3309.9668,
+      "entryBottom": 690,
+      "exitX": 3238.5654,
+      "exitBottom": 678,
+      "costTicks": 14,
+      "leftTicks": 15,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 1,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 14,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "routeKind": 1,
+      "fromSurfaceId": 38,
+      "toSurfaceId": 25,
+      "entryX": 3238.5654,
+      "entryBottom": 678,
+      "exitX": 3024.362,
+      "exitBottom": 600,
+      "costTicks": 42,
+      "leftTicks": 43,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "actions": [
+        {
+          "ticks": 21,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 21,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "routeKind": 1,
+      "fromSurfaceId": 25,
+      "toSurfaceId": 24,
+      "entryX": 3024.362,
+      "entryBottom": 600,
+      "exitX": 2754.0586,
+      "exitBottom": 600,
+      "costTicks": 53,
+      "leftTicks": 54,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "actions": [
+        {
+          "ticks": 10,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 43,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "routeKind": 1,
+      "fromSurfaceId": 24,
+      "toSurfaceId": 19,
+      "entryX": 2754.0586,
+      "entryBottom": 600,
+      "exitX": 2652.0566,
+      "exitBottom": 540,
+      "costTicks": 20,
+      "leftTicks": 21,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "actions": [
+        {
+          "ticks": 21,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "routeKind": 1,
+      "fromSurfaceId": 19,
+      "toSurfaceId": 29,
+      "entryX": 2652.0566,
+      "entryBottom": 540,
+      "exitX": 2381.753,
+      "exitBottom": 630,
+      "costTicks": 53,
+      "leftTicks": 54,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "actions": [
+        {
+          "ticks": 25,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 28,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "routeKind": 1,
+      "fromSurfaceId": 31,
+      "toSurfaceId": 36,
+      "entryX": 4217.997,
+      "entryBottom": 630,
+      "exitX": 3882.9724,
+      "exitBottom": 666,
+      "costTicks": 67,
+      "leftTicks": 68,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "actions": [
+        {
+          "ticks": 68,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "routeKind": 1,
+      "fromSurfaceId": 36,
+      "toSurfaceId": 41,
+      "entryX": 3882.9724,
+      "entryBottom": 666,
+      "exitX": 3306.6675,
+      "exitBottom": 690,
+      "costTicks": 113,
+      "leftTicks": 114,
+      "rightTicks": 0,
+      "jumpTicks": 2,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "actions": [
+        {
+          "ticks": 31,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 19,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 62,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "routeKind": 1,
+      "fromSurfaceId": 41,
+      "toSurfaceId": 38,
+      "entryX": 3306.6675,
+      "entryBottom": 690,
+      "exitX": 3235.266,
+      "exitBottom": 678,
+      "costTicks": 14,
+      "leftTicks": 15,
+      "rightTicks": 0,
+      "jumpTicks": 0,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "actions": [
+        {
+          "ticks": 15,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "routeKind": 1,
+      "fromSurfaceId": 38,
+      "toSurfaceId": 25,
+      "entryX": 3235.266,
+      "entryBottom": 678,
+      "exitX": 3026.1653,
+      "exitBottom": 600,
+      "costTicks": 41,
+      "leftTicks": 42,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "actions": [
+        {
+          "ticks": 10,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 31,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "routeKind": 1,
+      "fromSurfaceId": 25,
+      "toSurfaceId": 19,
+      "entryX": 3026.1653,
+      "entryBottom": 600,
+      "exitX": 2653.8604,
+      "exitBottom": 540,
+      "costTicks": 73,
+      "leftTicks": 74,
+      "rightTicks": 0,
+      "jumpTicks": 2,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "actions": [
+        {
+          "ticks": 12,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 22,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 38,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "routeKind": 1,
+      "fromSurfaceId": 19,
+      "toSurfaceId": 29,
+      "entryX": 2653.8604,
+      "entryBottom": 540,
+      "exitX": 2383.5564,
+      "exitBottom": 630,
+      "costTicks": 53,
+      "leftTicks": 54,
+      "rightTicks": 0,
+      "jumpTicks": 1,
+      "dropTicks": 0,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "actions": [
+        {
+          "ticks": 25,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 28,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ]
+    }
+  ],
+  "laneSegments": [],
+  "routes": [
+    {
+      "kind": 1,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "sampleCount": 369,
+      "surfaceSequence": [
+        31,
+        36,
+        21,
+        41,
+        38,
+        25,
+        24,
+        19,
+        29
+      ],
+      "edgeIds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "laneSegmentIds": [],
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 110,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 24,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 72,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 20,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 7,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 14,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 87,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 28,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "terminalStartX": 2379.9565,
+      "terminalStartBottom": 630,
+      "terminalEndX": 2379.9565,
+      "terminalEndBottom": 630,
+      "terminalActions": [
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "startX": 4224,
+      "startBottom": 594
+    },
+    {
+      "kind": 1,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "sampleCount": 371,
+      "surfaceSequence": [
+        31,
+        36,
+        41,
+        38,
+        25,
+        24,
+        19,
+        29
+      ],
+      "edgeIds": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "laneSegmentIds": [],
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 8,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 96,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 19,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 19,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 17,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 25,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": true
+        },
+        {
+          "ticks": 34,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 30,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 87,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 28,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "terminalStartX": 2381.753,
+      "terminalStartBottom": 630,
+      "terminalEndX": 2381.753,
+      "terminalEndBottom": 630,
+      "terminalActions": [
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "startX": 4236,
+      "startBottom": 594
+    },
+    {
+      "kind": 1,
+      "source": "MotionProofPrimitive:Valley:a1:Blue:Soldier:local_goal",
+      "sampleCount": 373,
+      "surfaceSequence": [
+        31,
+        36,
+        41,
+        38,
+        25,
+        19,
+        29
+      ],
+      "edgeIds": [
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ],
+      "laneSegmentIds": [],
+      "actions": [
+        {
+          "ticks": 1,
+          "moveDirection": 0,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 108,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 19,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 85,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 42,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 22,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 62,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        },
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": true,
+          "dropDown": false
+        },
+        {
+          "ticks": 28,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "terminalStartX": 2383.5564,
+      "terminalStartBottom": 630,
+      "terminalEndX": 2383.5564,
+      "terminalEndBottom": 630,
+      "terminalActions": [
+        {
+          "ticks": 1,
+          "moveDirection": -1,
+          "jump": false,
+          "dropDown": false
+        }
+      ],
+      "startX": 4248,
+      "startBottom": 594
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "open-garrison.client.lua-garrison-tools-effects",
+  "displayName": "GarrisonTools Effects",
+  "version": "0.1.0",
+  "type": "Client",
+  "runtime": "Lua",
+  "entryPoint": "main.lua",
+  "description": "Bundled client-side special effect companion for the GarrisonTools admin plugin.",
+  "compatibility": {
+    "hostApiVersion": "1.0"
+  },
+  "tags": [
+    "client",
+    "lua",
+    "admin",
+    "effects"
+  ]
+}

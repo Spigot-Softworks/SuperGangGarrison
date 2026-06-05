@@ -125,6 +125,30 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
+                if (roomObject.Type == RoomObjectType.DamageableZone)
+                {
+                    if (!_world.BlocksProjectileDamageableZone(roomObjectIndex))
+                    {
+                        continue;
+                    }
+
+                    if (!nearestHit.HasValue || nearestHit.Value.Distance > distance.Value)
+                    {
+                        nearestHit = new ShotHitResult(
+                            distance.Value,
+                            previousX + (directionX * distance.Value),
+                            previousY + (directionY * distance.Value),
+                            null,
+                            null,
+                            null)
+                        {
+                            HitDamageableZoneRoomObjectIndex = roomObjectIndex,
+                        };
+                    }
+
+                    continue;
+                }
+
                 if (roomObject.Type == RoomObjectType.DirectionalWall)
                 {
                     var hitX = previousX + (directionX * distance.Value);
