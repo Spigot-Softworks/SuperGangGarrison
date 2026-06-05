@@ -949,6 +949,19 @@ public partial class Game1
                 MapLogicSignalMetadata.SignalPropertyKey,
                 MapLogicSignalMetadata.DetectPropertyKey,
                 PlayerTriggerMetadata.TeamPropertyKey,
+                PlayerTriggerMetadata.IntelCarriersOnlyPropertyKey,
+                MapLogicMetadata.NodePriorityPropertyKey,
+            ]
+            : entityType.Equals(MapLogicMetadata.IntelTriggerEntityType, StringComparison.OrdinalIgnoreCase)
+            ?
+            [
+                MapLogicSignalMetadata.SignalPropertyKey,
+                IntelTriggerMetadata.IntelPropertyKey,
+                IntelTriggerMetadata.TriggerWhenPropertyKey,
+                IntelTriggerMetadata.OnPickupPropertyKey,
+                IntelTriggerMetadata.OnDropPropertyKey,
+                IntelTriggerMetadata.OnCapturePropertyKey,
+                IntelTriggerMetadata.OnResetPropertyKey,
                 MapLogicMetadata.NodePriorityPropertyKey,
             ]
             : entityType.Equals(DamageableMetadata.DamageableEntityType, StringComparison.OrdinalIgnoreCase)
@@ -1140,6 +1153,29 @@ public partial class Game1
             return $"Team: {PlayerTriggerMetadata.GetTeamDisplayLabel(value)}";
         }
 
+        if (key.Equals(PlayerTriggerMetadata.IntelCarriersOnlyPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return DamageableMetadata.GetBooleanDisplayLabel(value);
+        }
+
+        if (key.Equals(IntelTriggerMetadata.IntelPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Intel: {IntelTriggerMetadata.GetIntelDisplayLabel(value)}";
+        }
+
+        if (key.Equals(IntelTriggerMetadata.TriggerWhenPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Trigger when: {IntelTriggerMetadata.GetLatchStateDisplayLabel(value)}";
+        }
+
+        if (key.Equals(IntelTriggerMetadata.OnPickupPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(IntelTriggerMetadata.OnDropPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(IntelTriggerMetadata.OnCapturePropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(IntelTriggerMetadata.OnResetPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return DamageableMetadata.GetBooleanDisplayLabel(value);
+        }
+
         if (key.Equals(MapLogicMetadata.ActivatorEntityPropertyKey, StringComparison.OrdinalIgnoreCase))
         {
             return GetGarrisonBuilderActivatorEntityDisplayValue(value);
@@ -1256,6 +1292,12 @@ public partial class Game1
         if (definition.Type.Equals(MapLogicMetadata.CpTriggerEntityType, StringComparison.OrdinalIgnoreCase))
         {
             DrawGarrisonBuilderLogicNode(entity, "CP", GetGarrisonBuilderLogicScreenOutlineThicknessPx());
+            return true;
+        }
+
+        if (definition.Type.Equals(MapLogicMetadata.IntelTriggerEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            DrawGarrisonBuilderLogicNode(entity, "INTL", GetGarrisonBuilderLogicScreenOutlineThicknessPx());
             return true;
         }
 
@@ -2341,6 +2383,24 @@ public partial class Game1
 
             if (impulse
                 && key.Equals(MapLogicMetadata.TrueTimePropertyKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        if (entityType.Equals(MapLogicMetadata.IntelTriggerEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            if (impulse
+                && key.Equals(IntelTriggerMetadata.TriggerWhenPropertyKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (!impulse
+                && (key.Equals(IntelTriggerMetadata.OnPickupPropertyKey, StringComparison.OrdinalIgnoreCase)
+                    || key.Equals(IntelTriggerMetadata.OnDropPropertyKey, StringComparison.OrdinalIgnoreCase)
+                    || key.Equals(IntelTriggerMetadata.OnCapturePropertyKey, StringComparison.OrdinalIgnoreCase)
+                    || key.Equals(IntelTriggerMetadata.OnResetPropertyKey, StringComparison.OrdinalIgnoreCase)))
             {
                 return true;
             }

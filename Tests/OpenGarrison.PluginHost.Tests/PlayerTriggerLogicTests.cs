@@ -127,6 +127,103 @@ public sealed class PlayerTriggerLogicTests
     }
 
     [Fact]
+    public void PlayerTriggerIgnoresNonIntelCarriersWhenIntelCarriersOnlyIsEnabled()
+    {
+        var zone = CreatePlayerTriggerZone(0f, 0f, 42f, 42f, PlayerTriggerTeamFilter.Any, "trigger");
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "trigger",
+                Kind = MapLogicNodeKind.PlayerTrigger,
+                PlayerTriggerRoomObjectIndex = 0,
+                PlayerTriggerTeamFilter = PlayerTriggerTeamFilter.Any,
+                PlayerTriggerIntelCarriersOnly = true,
+            },
+        ]);
+
+        var player = CreatePlayer(PlayerTeam.Red, 10f, 10f);
+        var context = new PlayerTriggerEvaluationContext([player], [zone], _ => true);
+        graph.EvaluateCombinatorial([], context);
+
+        Assert.False(graph.GetOutput(graph.NodeIndexByKey["trigger"]));
+    }
+
+    [Fact]
+    public void PlayerTriggerDetectsIntelCarriersWhenIntelCarriersOnlyIsEnabled()
+    {
+        var zone = CreatePlayerTriggerZone(0f, 0f, 42f, 42f, PlayerTriggerTeamFilter.Any, "trigger");
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "trigger",
+                Kind = MapLogicNodeKind.PlayerTrigger,
+                PlayerTriggerRoomObjectIndex = 0,
+                PlayerTriggerTeamFilter = PlayerTriggerTeamFilter.Any,
+                PlayerTriggerIntelCarriersOnly = true,
+            },
+        ]);
+
+        var player = CreatePlayer(PlayerTeam.Red, 10f, 10f);
+        player.PickUpIntel();
+        var context = new PlayerTriggerEvaluationContext([player], [zone], _ => true);
+        graph.EvaluateCombinatorial([], context);
+
+        Assert.True(graph.GetOutput(graph.NodeIndexByKey["trigger"]));
+    }
+
+    [Fact]
+    public void PlayerTriggerIntelCarriersOnlyWorksAlongsideTeamFilter()
+    {
+        var zone = CreatePlayerTriggerZone(0f, 0f, 42f, 42f, PlayerTriggerTeamFilter.Red, "trigger");
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "trigger",
+                Kind = MapLogicNodeKind.PlayerTrigger,
+                PlayerTriggerRoomObjectIndex = 0,
+                PlayerTriggerTeamFilter = PlayerTriggerTeamFilter.Red,
+                PlayerTriggerIntelCarriersOnly = true,
+            },
+        ]);
+
+        var redCarrier = CreatePlayer(PlayerTeam.Red, 10f, 10f);
+        redCarrier.PickUpIntel();
+        var blueCarrier = CreatePlayer(PlayerTeam.Blue, 12f, 12f);
+        blueCarrier.PickUpIntel();
+        var context = new PlayerTriggerEvaluationContext([redCarrier, blueCarrier], [zone], _ => true);
+        graph.EvaluateCombinatorial([], context);
+
+        Assert.True(graph.GetOutput(graph.NodeIndexByKey["trigger"]));
+    }
+
+    [Fact]
+    public void ImporterReadsIntelCarriersOnlyProperty()
+    {
+        var roomObjects = new List<RoomObjectMarker>();
+        var entities = new[]
+        {
+            new MapImportedEntity(
+                PlayerTriggerMetadata.PlayerTriggerEntityType,
+                100f,
+                120f,
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [PlayerTriggerMetadata.TeamPropertyKey] = "any",
+                    [PlayerTriggerMetadata.IntelCarriersOnlyPropertyKey] = "true",
+                    ["logicKey"] = "intelZone",
+                }),
+        };
+
+        var graph = MapLogicGraphImporter.BuildFromEntities(entities, roomObjects);
+        var node = graph.Nodes[0];
+
+        Assert.True(node.PlayerTriggerIntelCarriersOnly);
+    }
+
+    [Fact]
     public void SimulationEvaluatesPlayerTriggerEachTick()
     {
         var zone = CreatePlayerTriggerZone(0f, 0f, 42f, 42f, PlayerTriggerTeamFilter.Any, "trigger");

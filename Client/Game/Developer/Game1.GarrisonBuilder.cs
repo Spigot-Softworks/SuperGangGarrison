@@ -5204,6 +5204,22 @@ public partial class Game1
             ApplyGarrisonBuilderPropertyEditorLivePreview();
             MarkGarrisonBuilderPropertyEditorChanged();
         }
+        else if (key.Equals(IntelTriggerMetadata.IntelPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && TryGetGarrisonBuilderEditedEntityType(out var intelTriggerEntity)
+            && intelTriggerEntity.Equals(MapLogicMetadata.IntelTriggerEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            _builderPropertyEditorValues[key] = IntelTriggerMetadata.CycleIntelPropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(IntelTriggerMetadata.TriggerWhenPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && TryGetGarrisonBuilderEditedEntityType(out var intelLatchEntity)
+            && intelLatchEntity.Equals(MapLogicMetadata.IntelTriggerEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            _builderPropertyEditorValues[key] = IntelTriggerMetadata.CycleLatchStatePropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
         else if (key.Equals("team", StringComparison.OrdinalIgnoreCase))
         {
             _builderPropertyEditorValues[key] = CycleGarrisonBuilderTeamPropertyValue(value);
@@ -6801,6 +6817,41 @@ public partial class Game1
         if (key.Equals(GarrisonBuilderMapPropertyWalkmaskScaleKey, StringComparison.Ordinal))
         {
             return "Walkmask scale";
+        }
+
+        if (key.Equals(PlayerTriggerMetadata.IntelCarriersOnlyPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Intel carriers only";
+        }
+
+        if (key.Equals(IntelTriggerMetadata.IntelPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Intel";
+        }
+
+        if (key.Equals(IntelTriggerMetadata.TriggerWhenPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Trigger when";
+        }
+
+        if (key.Equals(IntelTriggerMetadata.OnPickupPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return "On pickup";
+        }
+
+        if (key.Equals(IntelTriggerMetadata.OnDropPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return "On drop";
+        }
+
+        if (key.Equals(IntelTriggerMetadata.OnCapturePropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return "On capture";
+        }
+
+        if (key.Equals(IntelTriggerMetadata.OnResetPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return "On reset";
         }
 
         if (key.Length == 0)

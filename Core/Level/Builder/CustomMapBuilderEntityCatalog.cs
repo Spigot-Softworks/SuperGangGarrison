@@ -118,10 +118,19 @@ public static class CustomMapBuilderEntityCatalog
         Define(
             PlayerTriggerMetadata.PlayerTriggerEntityType,
             AllModes,
-            "xscale=1;yscale=1;signal=latch;team=any;nodePriority=0;logicKey=",
+            "xscale=1;yscale=1;signal=latch;team=any;intelCarriersOnly=false;nodePriority=0;logicKey=",
             50,
             "Player trigger",
             "Outputs true while matching players are inside the zone.",
+            string.Empty,
+            0),
+        Define(
+            IntelTriggerMetadata.IntelTriggerEntityType,
+            CustomMapBuilderGameMode.CaptureTheFlag,
+            "signal=latch;intel=any;triggerWhen=atBase;onPickup=true;onDrop=false;onCapture=false;onReset=false;nodePriority=0;logicKey=",
+            12,
+            "Intel trigger",
+            "Outputs based on CTF intelligence state (at base, carried, dropped, pickup, capture, or reset).",
             string.Empty,
             0),
         Define(

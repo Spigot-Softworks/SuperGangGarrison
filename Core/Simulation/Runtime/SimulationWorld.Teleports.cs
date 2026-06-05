@@ -94,7 +94,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            if (AreaExtensionMetadata.IsPointInsideMarker(player.X, player.Y, marker))
+            if (player.IntersectsMarker(marker.CenterX, marker.CenterY, marker.Width, marker.Height))
             {
                 return index;
             }

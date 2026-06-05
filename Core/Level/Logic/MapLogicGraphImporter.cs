@@ -147,6 +147,9 @@ public static class MapLogicGraphImporter
                         roomObjects,
                         logicKey,
                         roomObjectIndex);
+                var intelCarriersOnly = properties is not null
+                    && properties.TryGetValue(PlayerTriggerMetadata.IntelCarriersOnlyPropertyKey, out var intelCarriersOnlyValue)
+                    && DamageTriggerMetadata.ParseBoolProperty(intelCarriersOnlyValue);
                 definitions.Add(new MapLogicNodeDefinition
                 {
                     LogicKey = logicKey,
@@ -154,9 +157,28 @@ public static class MapLogicGraphImporter
                     PlayerTriggerRoomObjectIndex = roomObjectIndex,
                     PlayerTriggerZoneRoomObjectIndices = zoneIndices,
                     PlayerTriggerTeamFilter = teamFilter,
+                    PlayerTriggerIntelCarriersOnly = intelCarriersOnly,
                     NodePriority = MapLogicMetadata.ParseNodePriority(properties),
                     SignalMode = MapLogicSignalMetadata.ParseSignalMode(properties),
                     PlayerDetectMode = MapLogicSignalMetadata.ParsePlayerDetectMode(properties),
+                });
+                continue;
+            }
+
+            if (IntelTriggerMetadata.IsIntelTriggerEntityType(entity.Type))
+            {
+                definitions.Add(new MapLogicNodeDefinition
+                {
+                    LogicKey = logicKey,
+                    Kind = MapLogicNodeKind.IntelTrigger,
+                    NodePriority = MapLogicMetadata.ParseNodePriority(properties),
+                    SignalMode = MapLogicSignalMetadata.ParseSignalMode(properties),
+                    IntelTriggerIntelFilter = IntelTriggerMetadata.ParseIntelFilter(properties),
+                    IntelTriggerLatchState = IntelTriggerMetadata.ParseLatchState(properties),
+                    IntelTriggerOnPickup = IntelTriggerMetadata.ParseOnPickup(properties),
+                    IntelTriggerOnDrop = IntelTriggerMetadata.ParseOnDrop(properties),
+                    IntelTriggerOnCapture = IntelTriggerMetadata.ParseOnCapture(properties),
+                    IntelTriggerOnReset = IntelTriggerMetadata.ParseOnReset(properties),
                 });
                 continue;
             }
