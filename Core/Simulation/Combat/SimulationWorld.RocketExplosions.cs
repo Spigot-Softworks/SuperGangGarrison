@@ -2,9 +2,20 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private void ExplodeRocket(RocketProjectileEntity rocket, PlayerEntity? directHitPlayer, SentryEntity? directHitSentry, GeneratorState? directHitGenerator)
+    private void ExplodeRocket(
+        RocketProjectileEntity rocket,
+        PlayerEntity? directHitPlayer,
+        SentryEntity? directHitSentry,
+        GeneratorState? directHitGenerator,
+        int directHitDamageableZoneRoomObjectIndex = -1)
     {
-        RocketExplosionSystem.Explode(this, rocket, directHitPlayer, directHitSentry, directHitGenerator);
+        RocketExplosionSystem.Explode(
+            this,
+            rocket,
+            directHitPlayer,
+            directHitSentry,
+            directHitGenerator,
+            directHitDamageableZoneRoomObjectIndex);
     }
 
     private static class RocketExplosionSystem
@@ -14,7 +25,8 @@ public sealed partial class SimulationWorld
             RocketProjectileEntity rocket,
             PlayerEntity? directHitPlayer,
             SentryEntity? directHitSentry,
-            GeneratorState? directHitGenerator)
+            GeneratorState? directHitGenerator,
+            int directHitDamageableZoneRoomObjectIndex = -1)
         {
             if (!rocket.TryMarkExplosionConsumed())
             {
@@ -29,7 +41,14 @@ public sealed partial class SimulationWorld
                 return;
             }
 
-            var hitEnemyPlayer = ApplyDirectHitDamage(world, rocket, owner, directHitPlayer, directHitSentry, directHitGenerator);
+            var hitEnemyPlayer = ApplyDirectHitDamage(
+                world,
+                rocket,
+                owner,
+                directHitPlayer,
+                directHitSentry,
+                directHitGenerator,
+                directHitDamageableZoneRoomObjectIndex);
 
             world.RegisterWorldSoundEvent("ExplosionSnd", rocket.X, rocket.Y);
             world.RegisterVisualEffect("Explosion", rocket.X, rocket.Y);
@@ -40,6 +59,7 @@ public sealed partial class SimulationWorld
             hitEnemyPlayer |= ApplySplashDamageToPlayers(world, rocket, owner, blastRadius);
             ApplySplashDamageToSentries(world, rocket, owner, blastRadius);
             ApplySplashDamageToGenerators(world, rocket, owner, blastRadius);
+            ApplySplashDamageToDamageableZones(world, rocket, blastRadius, directHitDamageableZoneRoomObjectIndex);
             TriggerMinesInBlast(world, rocket, blastRadius);
             DestroyBubblesInBlast(world, rocket, blastRadius);
             world.TryApplyExperimentalSoldierRocketHitReloadReward(owner, rocket, hitEnemyPlayer);
@@ -63,7 +83,8 @@ public sealed partial class SimulationWorld
             PlayerEntity? owner,
             PlayerEntity? directHitPlayer,
             SentryEntity? directHitSentry,
-            GeneratorState? directHitGenerator)
+            GeneratorState? directHitGenerator,
+            int directHitDamageableZoneRoomObjectIndex)
         {
             var hitEnemyPlayer = false;
             if (directHitPlayer is not null && !ReferenceEquals(directHitPlayer, owner))
@@ -118,7 +139,29 @@ public sealed partial class SimulationWorld
                     owner);
             }
 
+            if (directHitDamageableZoneRoomObjectIndex >= 0)
+            {
+                world.TryApplyDamageableZoneDamage(
+                    directHitDamageableZoneRoomObjectIndex,
+                    rocket.DirectHitDamageValue * rocket.ExperimentalStingerDamageMultiplier * rocket.CriticalDamageMultiplier);
+            }
+
             return hitEnemyPlayer;
+        }
+
+        private static void ApplySplashDamageToDamageableZones(
+            SimulationWorld world,
+            RocketProjectileEntity rocket,
+            float blastRadius,
+            int excludeRoomObjectIndex)
+        {
+            world.ApplyExplosiveDamageToDamageableZones(
+                rocket.X,
+                rocket.Y,
+                blastRadius,
+                rocket.ExplosionDamageValue * rocket.ExperimentalStingerDamageMultiplier * rocket.CriticalDamageMultiplier,
+                rocket.SplashThresholdFactorValue,
+                excludeRoomObjectIndex);
         }
 
         private static bool ApplySplashDamageToPlayers(SimulationWorld world, RocketProjectileEntity rocket, PlayerEntity? owner, float blastRadius)

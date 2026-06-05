@@ -23,8 +23,19 @@ public sealed partial class SimulationWorld
                 RoomObjectType.BulletWall => true,
                 RoomObjectType.Barrier => BarrierCollision.BlocksProjectile(roomObject.Barrier, shotTeam),
                 RoomObjectType.DirectionalWall => roomObject.DirectionalWall.AffectsProjectiles,
+                RoomObjectType.DamageableZone => false,
                 _ => false,
             };
+        }
+
+        private bool IsBlockingProjectileRoomObject(int roomObjectIndex, RoomObjectMarker roomObject, PlayerTeam shotTeam)
+        {
+            if (roomObject.Type == RoomObjectType.DamageableZone)
+            {
+                return _world.BlocksProjectileDamageableZone(roomObjectIndex);
+            }
+
+            return IsBlockingProjectileRoomObject(roomObject, shotTeam);
         }
 
         private bool IsBlockingHitscanRoomObject(RoomObjectMarker roomObject, PlayerTeam shooterTeam, bool carryingIntel)
@@ -426,7 +437,7 @@ public sealed partial class SimulationWorld
                 }
 
                 var roomObject = Level.RoomObjects[roomObjectIndex];
-                if (!IsBlockingProjectileRoomObject(roomObject, shotTeam))
+                if (!IsBlockingProjectileRoomObject(roomObjectIndex, roomObject, shotTeam))
                 {
                     continue;
                 }

@@ -5,12 +5,13 @@ namespace OpenGarrison.Core;
 public sealed partial class SimulationWorld
 {
     private bool[] _logicActivatorStartApplied = [];
+    private MapLogicActivatorRuntimeState _logicActivatorRuntimeState = new();
 
     private ulong _mapLogicControlPointInputSignature;
 
-    public void EvaluateMapLogicGraph()
+    public void EvaluateMapLogicGraph(bool resetStatefulNodes = true)
     {
-        RefreshMapLogicRuntime(force: true);
+        RefreshMapLogicRuntime(force: true, resetStatefulNodes);
     }
 
     public void RefreshMapLogicRuntimeIfControlPointInputsChanged()
@@ -36,6 +37,7 @@ public sealed partial class SimulationWorld
 
         RefreshMapLogicRuntimeIfControlPointInputsChanged();
         EvaluateMapLogicPlayerTriggersIfNeeded();
+        EvaluateMapLogicDamageTriggersIfNeeded();
         TickMapLogicTimers();
     }
 
@@ -53,14 +55,33 @@ public sealed partial class SimulationWorld
     public void TickMapLogicTimers()
     {
         EvaluateMapLogicPlayerTriggersIfNeeded();
+        ApplyDamageableZoneHealWhenSignals();
+        EvaluateMapLogicDamageTriggersIfNeeded();
 
-        if (!Level.LogicGraph.HasTimers)
+        var deltaSeconds = (float)Config.FixedDeltaSeconds;
+        if (Level.LogicGraph.HasDamageTriggers)
+        {
+            Level.LogicGraph.AdvanceDamageTriggers(deltaSeconds);
+            if (Level.LogicActivators.HasActivators)
+            {
+                ApplyMapLogicActivators();
+            }
+        }
+
+        if (!Level.LogicGraph.HasTimers && !Level.LogicGraph.HasOscillators)
         {
             return;
         }
 
-        var deltaSeconds = (float)Config.FixedDeltaSeconds;
-        Level.LogicGraph.AdvanceTimers(deltaSeconds);
+        if (Level.LogicGraph.HasTimers)
+        {
+            Level.LogicGraph.AdvanceTimers(deltaSeconds);
+        }
+
+        if (Level.LogicGraph.HasOscillators)
+        {
+            Level.LogicGraph.AdvanceOscillators(deltaSeconds);
+        }
 
         if (Level.LogicActivators.HasActivators)
         {
@@ -89,7 +110,7 @@ public sealed partial class SimulationWorld
 
 
 
-    private void RefreshMapLogicRuntime(bool force)
+    private void RefreshMapLogicRuntime(bool force, bool resetStatefulNodes = true)
 
     {
 
@@ -106,35 +127,69 @@ public sealed partial class SimulationWorld
         var graph = Level.LogicGraph;
         var signature = ComputeMapLogicControlPointInputSignature();
 
-        if (!force && !graph.HasPlayerTriggers && signature == _mapLogicControlPointInputSignature)
+        if (!force
+            && !graph.HasPlayerTriggers
+            && !graph.HasDamageTriggers
+            && signature == _mapLogicControlPointInputSignature)
         {
             return;
         }
 
         _mapLogicControlPointInputSignature = signature;
 
-        if (force)
+        if (force && resetStatefulNodes)
         {
             ResetMapLogicActivatorRuntime();
             ResetRoomObjectLogicActiveMask();
+            ResetDamageableZoneHealth();
         }
 
         if (graph.HasNodes)
         {
-            if (force)
+            if (force && resetStatefulNodes)
             {
+                graph.ResetCpTriggerStates(_controlPoints);
+                graph.ResetPlayerTriggerStates(CreatePlayerTriggerEvaluationContext());
                 graph.ResetTimerStates();
+                graph.ResetOscillatorStates();
+                graph.ResetDamageTriggerStates(CreateDamageTriggerEvaluationContext());
+                graph.ResetRisingEdgeStates();
+                graph.ResetLatchStates();
             }
 
             graph.EvaluateCombinatorial(_controlPoints, CreatePlayerTriggerEvaluationContext());
+            ApplyDamageableZoneHealWhenSignals();
+            graph.EvaluateDamageTriggers(CreateDamageTriggerEvaluationContext());
+            ApplyControlPointLogicLockTriggers();
 
             if (force)
             {
                 graph.AdvanceTimers(0f);
+                graph.AdvanceOscillators(0f);
             }
         }
 
         ApplyMapLogicActivators();
+    }
+
+    private void ApplyControlPointLogicLockTriggers()
+    {
+        if (!Level.ControlPointSettings.OverrideInitialOwnership || _controlPoints.Count == 0)
+        {
+            return;
+        }
+
+        for (var index = 0; index < _controlPoints.Count; index += 1)
+        {
+            var point = _controlPoints[index];
+            var isLocked = point.IsLocked;
+            ControlPointLockDependencyMetadata.ApplyMapLockTriggers(
+                point.Marker.LockRules,
+                _controlPoints,
+                Level.LogicGraph,
+                ref isLocked);
+            point.IsLocked = isLocked;
+        }
     }
 
     private void ResetMapLogicActivatorRuntime()
@@ -143,6 +198,8 @@ public sealed partial class SimulationWorld
         {
             Array.Clear(_logicActivatorStartApplied, 0, _logicActivatorStartApplied.Length);
         }
+
+        _logicActivatorRuntimeState.Reset();
     }
 
     private void ResetRoomObjectLogicActiveMask()
@@ -227,16 +284,14 @@ public sealed partial class SimulationWorld
 
 
 
+        _logicActivatorRuntimeState.EnsureActivatorCount(Level.LogicActivators.Activators.Count);
         MapLogicActivatorRuntime.Apply(
-
             Level.LogicGraph,
-
             Level.LogicActivators,
-
             Level.RoomObjectLogicActiveMask,
-
-            _logicActivatorStartApplied);
-
+            _logicActivatorStartApplied,
+            _logicActivatorRuntimeState,
+            Level.RoomObjects);
     }
 
 }

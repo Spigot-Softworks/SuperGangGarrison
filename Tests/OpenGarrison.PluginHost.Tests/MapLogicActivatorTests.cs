@@ -30,6 +30,7 @@ public sealed class MapLogicActivatorTests
         ]);
         var mask = new bool[roomObjects.Count];
         var startApplied = new bool[activators.Activators.Count];
+        var runtimeState = MapLogicActivatorRuntimeState.CreateForActivatorCount(activators.Activators.Count);
         var points = new[]
         {
             new ControlPointState(1, new RoomObjectMarker(RoomObjectType.ControlPoint, 0f, 0f, 32f, 32f, "ControlPointRedS", PlayerTeam.Red, "controlPoint1"))
@@ -38,11 +39,11 @@ public sealed class MapLogicActivatorTests
             },
         };
         graph.Evaluate(points);
-        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
         Assert.True(mask[0]);
         points[0].Team = PlayerTeam.Red;
         graph.Evaluate(points);
-        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
         Assert.False(mask[0]);
     }
     [Fact]
@@ -83,6 +84,73 @@ public sealed class MapLogicActivatorTests
         Assert.Equal(0, activators.Activators[0].TargetRoomObjectIndex);
     }
     [Fact]
+    public void DisableActivatorFiresAfterImpulseCaptureTimerDelay()
+    {
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "capture",
+                Kind = MapLogicNodeKind.CpTrigger,
+                LinkedControlPointIndex = 1,
+                SignalMode = MapLogicSignalMode.Impulse,
+                CpCaptureDetectMode = MapLogicCpCaptureDetectMode.AnyCapture,
+            },
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "timer",
+                Kind = MapLogicNodeKind.Timer,
+                InputRef = "node:capture",
+                CountdownSeconds = 0.1f,
+                DelayedTrue = true,
+                SignalMode = MapLogicSignalMode.Impulse,
+            },
+        ]);
+        var barrier = BarrierConfiguration.CreateMarker(
+            0f,
+            0f,
+            1f,
+            1f,
+            BarrierConfiguration.FromProperties(new Dictionary<string, string>()));
+        var roomObjects = new List<RoomObjectMarker> { barrier };
+        var activators = new MapLogicActivatorSet(
+        [
+            new MapLogicActivator(graph.NodeIndexByKey["timer"], 0, MapLogicActivatorBehavior.Disable, false),
+        ]);
+        var mask = new bool[roomObjects.Count];
+        var startApplied = new bool[activators.Activators.Count];
+        var runtimeState = MapLogicActivatorRuntimeState.CreateForActivatorCount(activators.Activators.Count);
+        var points = new[]
+        {
+            new ControlPointState(1, new RoomObjectMarker(RoomObjectType.ControlPoint, 0f, 0f, 32f, 32f, "ControlPointRedS", PlayerTeam.Red, "controlPoint1"))
+            {
+                Team = PlayerTeam.Blue,
+            },
+        };
+
+        graph.ResetCpTriggerStates(points);
+        graph.ResetTimerStates();
+        graph.EvaluateCombinatorial(points);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.True(mask[0]);
+
+        points[0].Team = PlayerTeam.Red;
+        graph.EvaluateCombinatorial(points);
+        graph.AdvanceTimers(0f);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.True(mask[0]);
+
+        graph.EvaluateCombinatorial(points);
+        graph.AdvanceTimers(0.05f);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.True(mask[0]);
+
+        graph.AdvanceTimers(0.05f);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.False(mask[0]);
+    }
+
+    [Fact]
     public void EnableActivatorReopensBarrierAfterCpCapture()
     {
         var graph = MapLogicGraphBuilder.Build(
@@ -116,6 +184,7 @@ public sealed class MapLogicActivatorTests
         ]);
         var mask = new bool[roomObjects.Count];
         var startApplied = new bool[activators.Activators.Count];
+        var runtimeState = MapLogicActivatorRuntimeState.CreateForActivatorCount(activators.Activators.Count);
         var points = new[]
         {
             new ControlPointState(1, new RoomObjectMarker(RoomObjectType.ControlPoint, 0f, 0f, 32f, 32f, "ControlPointRedS", PlayerTeam.Red, "controlPoint1"))
@@ -125,11 +194,11 @@ public sealed class MapLogicActivatorTests
         };
         points[0].Team = PlayerTeam.Blue;
         graph.Evaluate(points);
-        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
         Assert.False(mask[0]);
         points[0].Team = PlayerTeam.Red;
         graph.Evaluate(points);
-        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
         Assert.True(mask[0]);
     }
     [Fact]
@@ -152,6 +221,7 @@ public sealed class MapLogicActivatorTests
         ]);
         var mask = new bool[1];
         var startApplied = new bool[activators.Activators.Count];
+        var runtimeState = MapLogicActivatorRuntimeState.CreateForActivatorCount(activators.Activators.Count);
         var points = new[]
         {
             new ControlPointState(1, new RoomObjectMarker(RoomObjectType.ControlPoint, 0f, 0f, 32f, 32f, "ControlPointRedS", PlayerTeam.Red, "controlPoint1"))
@@ -160,7 +230,7 @@ public sealed class MapLogicActivatorTests
             },
         };
         graph.Evaluate(points);
-        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
         Assert.True(mask[0]);
     }
     [Fact]
@@ -183,6 +253,7 @@ public sealed class MapLogicActivatorTests
         ]);
         var mask = new bool[1];
         var startApplied = new bool[activators.Activators.Count];
+        var runtimeState = MapLogicActivatorRuntimeState.CreateForActivatorCount(activators.Activators.Count);
         var points = new[]
         {
             new ControlPointState(1, new RoomObjectMarker(RoomObjectType.ControlPoint, 0f, 0f, 32f, 32f, "ControlPointRedS", PlayerTeam.Red, "controlPoint1"))
@@ -191,7 +262,7 @@ public sealed class MapLogicActivatorTests
             },
         };
         graph.Evaluate(points);
-        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
         Assert.True(mask[0]);
     }
     [Fact]
@@ -214,6 +285,7 @@ public sealed class MapLogicActivatorTests
         ]);
         var mask = new bool[1];
         var startApplied = new bool[activators.Activators.Count];
+        var runtimeState = MapLogicActivatorRuntimeState.CreateForActivatorCount(activators.Activators.Count);
         var points = new[]
         {
             new ControlPointState(1, new RoomObjectMarker(RoomObjectType.ControlPoint, 0f, 0f, 32f, 32f, "ControlPointRedS", PlayerTeam.Red, "controlPoint1"))
@@ -222,7 +294,66 @@ public sealed class MapLogicActivatorTests
             },
         };
         graph.Evaluate(points);
-        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.False(mask[0]);
+    }
+    [Fact]
+    public void LatestRisingEdgeWinsOverHigherNodePriorityOnSameTarget()
+    {
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "disableTrigger",
+                Kind = MapLogicNodeKind.CpTrigger,
+                LinkedControlPointIndex = 1,
+                OwnerRequirement = MapLogicCpTriggerOwnerRequirement.Blue,
+            },
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "enableTrigger",
+                Kind = MapLogicNodeKind.CpTrigger,
+                LinkedControlPointIndex = 1,
+                OwnerRequirement = MapLogicCpTriggerOwnerRequirement.Red,
+            },
+        ]);
+        var activators = new MapLogicActivatorSet(
+        [
+            new MapLogicActivator(
+                graph.NodeIndexByKey["disableTrigger"],
+                0,
+                MapLogicActivatorBehavior.Disable,
+                false,
+                nodePriority: 100),
+            new MapLogicActivator(
+                graph.NodeIndexByKey["enableTrigger"],
+                0,
+                MapLogicActivatorBehavior.Enable,
+                false,
+                nodePriority: 0),
+        ]);
+        var mask = new bool[1];
+        var startApplied = new bool[activators.Activators.Count];
+        var runtimeState = MapLogicActivatorRuntimeState.CreateForActivatorCount(activators.Activators.Count);
+        var points = new[]
+        {
+            new ControlPointState(1, new RoomObjectMarker(RoomObjectType.ControlPoint, 0f, 0f, 32f, 32f, "ControlPointRedS", PlayerTeam.Red, "controlPoint1"))
+            {
+                Team = PlayerTeam.Blue,
+            },
+        };
+        graph.Evaluate(points);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.False(mask[0]);
+
+        points[0].Team = PlayerTeam.Red;
+        graph.Evaluate(points);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.True(mask[0]);
+
+        points[0].Team = PlayerTeam.Blue;
+        graph.Evaluate(points);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
         Assert.False(mask[0]);
     }
     [Fact]
@@ -253,6 +384,7 @@ public sealed class MapLogicActivatorTests
         ]);
         var mask = new bool[1];
         var startApplied = new bool[activators.Activators.Count];
+        var runtimeState = MapLogicActivatorRuntimeState.CreateForActivatorCount(activators.Activators.Count);
         var points = new[]
         {
             new ControlPointState(1, new RoomObjectMarker(RoomObjectType.ControlPoint, 0f, 0f, 32f, 32f, "ControlPointRedS", PlayerTeam.Red, "controlPoint1"))
@@ -261,9 +393,20 @@ public sealed class MapLogicActivatorTests
             },
         };
         graph.Evaluate(points);
-        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
         Assert.False(mask[0]);
     }
+    [Fact]
+    public void ActivatorBehaviorParserAndCycleIncludesToggle()
+    {
+        Assert.True(MapLogicMetadata.TryParseActivatorBehavior("toggle", out var behavior));
+        Assert.Equal(MapLogicActivatorBehavior.Toggle, behavior);
+        Assert.Equal("enable", MapLogicMetadata.CycleActivatorBehaviorPropertyValue("disable"));
+        Assert.Equal("toggle", MapLogicMetadata.CycleActivatorBehaviorPropertyValue("enable"));
+        Assert.Equal("disable", MapLogicMetadata.CycleActivatorBehaviorPropertyValue("toggle"));
+        Assert.Equal("Toggle", MapLogicMetadata.GetActivatorBehaviorDisplayLabel("toggle"));
+    }
+
     [Fact]
     public void ParseNodePriorityClampsToConfiguredRange()
     {
@@ -283,6 +426,177 @@ public sealed class MapLogicActivatorTests
         Assert.Equal(7, MapLogicMetadata.ParseNodePriority(properties));
     }
     [Fact]
+    public void ToggleAlternatesDisableAndEnableOnInputRisingEdges()
+    {
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "trigger",
+                Kind = MapLogicNodeKind.CpTrigger,
+                LinkedControlPointIndex = 1,
+                OwnerRequirement = MapLogicCpTriggerOwnerRequirement.Red,
+            },
+        ]);
+        var activators = new MapLogicActivatorSet(
+        [
+            new MapLogicActivator(graph.NodeIndexByKey["trigger"], 0, MapLogicActivatorBehavior.Toggle, false),
+        ]);
+        var mask = new bool[1];
+        var startApplied = new bool[activators.Activators.Count];
+        var runtimeState = MapLogicActivatorRuntimeState.CreateForActivatorCount(activators.Activators.Count);
+        var points = new[]
+        {
+            new ControlPointState(1, new RoomObjectMarker(RoomObjectType.ControlPoint, 0f, 0f, 32f, 32f, "ControlPointRedS", PlayerTeam.Red, "controlPoint1"))
+            {
+                Team = PlayerTeam.Blue,
+            },
+        };
+
+        graph.Evaluate(points);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.True(mask[0]);
+
+        points[0].Team = PlayerTeam.Red;
+        graph.Evaluate(points);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.False(mask[0]);
+
+        points[0].Team = PlayerTeam.Blue;
+        graph.Evaluate(points);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.False(mask[0]);
+
+        points[0].Team = PlayerTeam.Red;
+        graph.Evaluate(points);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.True(mask[0]);
+
+        points[0].Team = PlayerTeam.Blue;
+        graph.Evaluate(points);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.True(mask[0]);
+
+        points[0].Team = PlayerTeam.Red;
+        graph.Evaluate(points);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.False(mask[0]);
+    }
+
+    [Fact]
+    public void ToggleWithActivateOnStartDisablesThenEnablesOnFirstInputRisingEdge()
+    {
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "trigger",
+                Kind = MapLogicNodeKind.CpTrigger,
+                LinkedControlPointIndex = 1,
+                OwnerRequirement = MapLogicCpTriggerOwnerRequirement.Red,
+            },
+        ]);
+        var activators = new MapLogicActivatorSet(
+        [
+            new MapLogicActivator(graph.NodeIndexByKey["trigger"], 0, MapLogicActivatorBehavior.Toggle, activateOnStart: true),
+        ]);
+        var mask = new bool[1];
+        var startApplied = new bool[activators.Activators.Count];
+        var runtimeState = MapLogicActivatorRuntimeState.CreateForActivatorCount(activators.Activators.Count);
+        var points = new[]
+        {
+            new ControlPointState(1, new RoomObjectMarker(RoomObjectType.ControlPoint, 0f, 0f, 32f, 32f, "ControlPointRedS", PlayerTeam.Red, "controlPoint1"))
+            {
+                Team = PlayerTeam.Blue,
+            },
+        };
+
+        graph.Evaluate(points);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.False(mask[0]);
+
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.False(mask[0]);
+
+        points[0].Team = PlayerTeam.Red;
+        graph.Evaluate(points);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.True(mask[0]);
+
+        points[0].Team = PlayerTeam.Blue;
+        graph.Evaluate(points);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.True(mask[0]);
+
+        points[0].Team = PlayerTeam.Red;
+        graph.Evaluate(points);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.False(mask[0]);
+    }
+
+    [Fact]
+    public void ActivateOnStartDisableStaysActiveUntilLinkedLogicFires()
+    {
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "timer",
+                Kind = MapLogicNodeKind.Timer,
+                CountdownSeconds = 2f,
+                TriggerOnStart = true,
+            },
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "osc",
+                Kind = MapLogicNodeKind.Oscillator,
+                TrueTimeSeconds = 1f,
+                FalseTimeSeconds = 1f,
+                InitialValue = true,
+                StartWhenRef = "node:timer",
+            },
+        ]);
+
+        var sprite = new RoomObjectMarker(
+            RoomObjectType.CustomMapSprite,
+            10f,
+            10f,
+            32f,
+            32f,
+            string.Empty,
+            SourceName: "customSprite",
+            CustomMapSprite: new CustomMapSpriteConfiguration("icon", CustomMapSpriteLayerKind.Bg, 0, 1f));
+        var activators = new MapLogicActivatorSet(
+        [
+            new MapLogicActivator(
+                graph.NodeIndexByKey["osc"],
+                0,
+                MapLogicActivatorBehavior.Disable,
+                activateOnStart: true),
+        ]);
+        var mask = new bool[1];
+        Array.Fill(mask, true);
+        var startApplied = new bool[activators.Activators.Count];
+        var runtimeState = MapLogicActivatorRuntimeState.CreateForActivatorCount(activators.Activators.Count);
+
+        graph.ResetTimerStates();
+        graph.ResetOscillatorStates();
+        graph.EvaluateCombinatorial(Array.Empty<ControlPointState>());
+        graph.AdvanceTimers(0f);
+        graph.AdvanceOscillators(0f);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.False(mask[0]);
+
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.False(mask[0]);
+
+        graph.AdvanceTimers(1.5f);
+        graph.AdvanceOscillators(0f);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.False(mask[0]);
+    }
+
+    [Fact]
     public void ActivateOnStartRunsOncePerRound()
     {
         var graph = MapLogicGraph.Empty;
@@ -298,9 +612,55 @@ public sealed class MapLogicActivatorTests
         ]);
         var mask = new bool[1];
         var startApplied = new bool[1];
-        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied);
+        var runtimeState = MapLogicActivatorRuntimeState.CreateForActivatorCount(activators.Activators.Count);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
         Assert.False(mask[0]);
-        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied);
-        Assert.True(mask[0]);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.False(mask[0]);
+    }
+
+    [Fact]
+    public void DisableActivatorLatchesTargetInactiveAfterSignalClears()
+    {
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "trigger",
+                Kind = MapLogicNodeKind.CpTrigger,
+                LinkedControlPointIndex = 1,
+                OwnerRequirement = MapLogicCpTriggerOwnerRequirement.Red,
+            },
+        ]);
+        var barrier = BarrierConfiguration.CreateMarker(
+            0f,
+            0f,
+            1f,
+            1f,
+            BarrierConfiguration.FromProperties(new Dictionary<string, string>()));
+        var activators = new MapLogicActivatorSet(
+        [
+            new MapLogicActivator(graph.NodeIndexByKey["trigger"], 0, MapLogicActivatorBehavior.Disable, false),
+        ]);
+        var mask = new bool[1];
+        var startApplied = new bool[activators.Activators.Count];
+        var runtimeState = MapLogicActivatorRuntimeState.CreateForActivatorCount(activators.Activators.Count);
+        var points = new[]
+        {
+            new ControlPointState(1, new RoomObjectMarker(RoomObjectType.ControlPoint, 0f, 0f, 32f, 32f, "ControlPointRedS", PlayerTeam.Red, "controlPoint1"))
+            {
+                Team = PlayerTeam.Blue,
+            },
+        };
+
+        points[0].Team = PlayerTeam.Red;
+        graph.Evaluate(points);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.False(mask[0]);
+
+        points[0].Team = PlayerTeam.Blue;
+        graph.Evaluate(points);
+        MapLogicActivatorRuntime.Apply(graph, activators, mask, startApplied, runtimeState);
+        Assert.False(mask[0]);
     }
 }

@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.IO.Compression;
 using System.Text;
 
@@ -283,9 +284,12 @@ public static class CustomMapPngImporter
         var areaTransitionMarkers = new List<AreaTransitionMarker>();
         var unsupportedEntities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        for (var index = 0; index < entities.Count; index += 1)
+        var importOrder = entities
+            .OrderBy(entity => AreaExtensionMetadata.IsAreaEntityType(entity.Type) ? 1 : 0)
+            .ToArray();
+        for (var index = 0; index < importOrder.Length; index += 1)
         {
-            var entity = entities[index];
+            var entity = importOrder[index];
             var entityType = entity.Type.Trim();
             var normalizedEntityType = NormalizeEntityTypeName(entityType);
             var x = entity.X;
@@ -359,6 +363,7 @@ public static class CustomMapPngImporter
         MapLogicRuntimePatch.ApplySpawnLogicSignals(redSpawns, mapEntities, logicGraph);
         MapLogicRuntimePatch.ApplyControlPointLogicLocks(roomObjects, mapEntities, logicGraph);
         MapTeleportRuntimePatch.ApplyExitLinks(roomObjects, mapEntities);
+        MapDamageableRuntimePatch.ApplyHealWhenLinks(roomObjects, mapEntities, logicGraph);
         visuals = AttachCustomSpriteResources(visuals, roomObjects, decodedResources);
 
         return new GameMakerRoomMetadata(
