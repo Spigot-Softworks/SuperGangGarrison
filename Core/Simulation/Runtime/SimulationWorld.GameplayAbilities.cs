@@ -727,7 +727,7 @@ public sealed partial class SimulationWorld
 
     internal GameplayPrimaryWeaponResult ExecuteScoutNailgunPrimaryWeapon(GameplayPrimaryWeaponContext context)
     {
-        WeaponHandler.FireScoutNailgun(context.Player, context.AimWorldX, context.AimWorldY);
+        WeaponHandler.FireScoutNailgun(context.Player, context.Weapon, context.AimWorldX, context.AimWorldY);
         return GameplayPrimaryWeaponResult.HandledResult;
     }
 

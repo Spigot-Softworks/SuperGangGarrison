@@ -7,6 +7,7 @@ namespace OpenGarrison.Core.BotBrain;
 public sealed class LocalMotionController
 {
     private const int CommitTicks = 8;
+    private const int BlockedEscapeTicks = 14;
     private const int JumpHoldTicks = 3;
     private const int DropHoldTicks = 8;
     private const int ProgressWindowTicks = 30;
@@ -19,6 +20,7 @@ public sealed class LocalMotionController
     private const float ProbeMaxTargetDistance = 960f;
     private const float ProbeAcceptDistance = 48f;
     private const float ProbeMinimumProgress = 18f;
+    private const float JumpableObstacleProbeDistance = 36f;
     private const int ProbeEntityId = -900_100;
 
     private readonly Dictionary<LocalMotionFailureKey, int> _suppressedTargets = [];
@@ -76,6 +78,21 @@ public sealed class LocalMotionController
                 return true;
             }
 
+            if (TryResolveBlockedEscape(
+                    world,
+                    self,
+                    target,
+                    baseSteering,
+                    key,
+                    thinkTick,
+                    includeJumpingPrimitive: true,
+                    out localSteering,
+                    out trace))
+            {
+                LastTrace = trace;
+                return true;
+            }
+
             trace = $"localMotion=suppressed label:{target.Label} ticks:{suppressedTicks}";
             LastTrace = trace;
             ClearActivePlan();
@@ -95,8 +112,15 @@ public sealed class LocalMotionController
                 baseSteering,
                 out var primitiveSteering,
                 out var primitiveTrace);
+        var primitiveNeedsObstaclePlan = IsBlockedPrimitiveMove(world, self, primitiveResolved, primitiveSteering, includeJumpingPrimitive: true);
+        if (primitiveNeedsObstaclePlan
+            && primitiveSteering.Jump
+            && IsJumpableLowObstacleAhead(world, self, primitiveSteering.MoveDirection))
+        {
+            primitiveNeedsObstaclePlan = false;
+        }
 
-        if (ShouldRunProbe(self, target, primitiveResolved, primitiveSteering)
+        if (ShouldRunProbe(self, target, primitiveResolved, primitiveSteering, primitiveNeedsObstaclePlan)
             && TryResolveProbePlan(world, self, target, baseSteering, thinkTick, "probe", out var probePlan, out var probeTrace))
         {
             if (!TryCommitPlan(self, target, key, probePlan, thinkTick, out var commitFailureTrace))
@@ -109,6 +133,23 @@ public sealed class LocalMotionController
 
             localSteering = ApplyPlan(baseSteering, probePlan, thinkTick);
             trace = probeTrace;
+            LastTrace = trace;
+            return true;
+        }
+
+        if (primitiveNeedsObstaclePlan)
+        {
+            var escapePlan = LocalMotionPlan.FromBlockedPrimitive(primitiveSteering, thinkTick);
+            if (!TryCommitPlan(self, target, key, escapePlan, thinkTick, out var blockedCommitFailureTrace))
+            {
+                trace = blockedCommitFailureTrace;
+                LastTrace = trace;
+                localSteering = baseSteering;
+                return false;
+            }
+
+            localSteering = ApplyPlan(baseSteering, escapePlan, thinkTick);
+            trace = $"localMotion=blockedEscape {primitiveTrace} escape:{localSteering.MoveDirection:0} commit:{_activeUntilTick - thinkTick}";
             LastTrace = trace;
             return true;
         }
@@ -131,6 +172,101 @@ public sealed class LocalMotionController
         localSteering = ApplyPlan(baseSteering, plan, thinkTick);
         trace = $"localMotion=start {primitiveTrace} commit:{_activeUntilTick - thinkTick}";
         LastTrace = trace;
+        return true;
+    }
+
+    private static bool IsBlockedPrimitiveMove(
+        SimulationWorld world,
+        PlayerEntity self,
+        bool primitiveResolved,
+        SteeringOutput primitiveSteering,
+        bool includeJumpingPrimitive) =>
+        primitiveResolved
+        && MathF.Abs(primitiveSteering.MoveDirection) > 0.01f
+        && !primitiveSteering.DropDown
+        && (includeJumpingPrimitive || !primitiveSteering.Jump)
+        && PrimitiveDirectDrive.WouldMoveIntoObstacle(world, self, MathF.Sign(primitiveSteering.MoveDirection));
+
+    private static bool IsJumpableLowObstacleAhead(SimulationWorld world, PlayerEntity player, float direction)
+    {
+        if (direction == 0f)
+        {
+            return false;
+        }
+
+        var blockedOffset = FindJumpableObstacleOffsetAhead(player, world.Level, MathF.Sign(direction));
+        if (!blockedOffset.HasValue)
+        {
+            return false;
+        }
+
+        return CanClearObstacleAtLift(player, world.Level, direction, blockedOffset.Value, 16f)
+            || CanClearObstacleAtLift(player, world.Level, direction, blockedOffset.Value, 32f)
+            || CanClearObstacleAtLift(player, world.Level, direction, blockedOffset.Value, 48f)
+            || CanClearObstacleAtLift(player, world.Level, direction, blockedOffset.Value, 64f);
+    }
+
+    private static float? FindJumpableObstacleOffsetAhead(PlayerEntity player, SimpleLevel level, float direction)
+    {
+        for (var offset = 4f; offset <= JumpableObstacleProbeDistance; offset += 4f)
+        {
+            if (!player.CanOccupy(level, player.Team, player.X + (direction * offset), player.Y))
+            {
+                return offset;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool CanClearObstacleAtLift(
+        PlayerEntity player,
+        SimpleLevel level,
+        float direction,
+        float blockedOffset,
+        float lift)
+    {
+        var liftedY = player.Y - lift;
+        var clearProbeOffset = MathF.Max(JumpableObstacleProbeDistance, blockedOffset + 8f);
+        return player.CanOccupy(level, player.Team, player.X, liftedY)
+            && player.CanOccupy(level, player.Team, player.X + (direction * blockedOffset), liftedY)
+            && player.CanOccupy(level, player.Team, player.X + (direction * clearProbeOffset), liftedY);
+    }
+
+    private bool TryResolveBlockedEscape(
+        SimulationWorld world,
+        PlayerEntity self,
+        DirectDriveTarget target,
+        SteeringOutput baseSteering,
+        LocalMotionFailureKey key,
+        int thinkTick,
+        bool includeJumpingPrimitive,
+        out SteeringOutput localSteering,
+        out string trace)
+    {
+        localSteering = baseSteering;
+        trace = string.Empty;
+        var primitiveResolved = PrimitiveDirectDrive.TryResolveRecovery(
+            world,
+            self,
+            target,
+            baseSteering,
+            out var primitiveSteering,
+            out var primitiveTrace);
+        if (!IsBlockedPrimitiveMove(world, self, primitiveResolved, primitiveSteering, includeJumpingPrimitive))
+        {
+            return false;
+        }
+
+        var escapePlan = LocalMotionPlan.FromBlockedPrimitive(primitiveSteering, thinkTick);
+        if (!TryCommitPlan(self, target, key, escapePlan, thinkTick, out var blockedCommitFailureTrace))
+        {
+            trace = blockedCommitFailureTrace;
+            return false;
+        }
+
+        localSteering = ApplyPlan(baseSteering, escapePlan, thinkTick);
+        trace = $"localMotion=blockedEscape {primitiveTrace} escape:{localSteering.MoveDirection:0} commit:{_activeUntilTick - thinkTick}";
         return true;
     }
 
@@ -256,7 +392,8 @@ public sealed class LocalMotionController
         PlayerEntity self,
         DirectDriveTarget target,
         bool primitiveResolved,
-        SteeringOutput primitiveSteering)
+        SteeringOutput primitiveSteering,
+        bool primitiveBlocked)
     {
         if (Distance(self.X, self.Y, target.X, target.Y) > ProbeMaxTargetDistance)
         {
@@ -264,6 +401,11 @@ public sealed class LocalMotionController
         }
 
         if (!primitiveResolved)
+        {
+            return true;
+        }
+
+        if (primitiveBlocked)
         {
             return true;
         }
@@ -534,6 +676,24 @@ public sealed class LocalMotionController
                 candidate.JumpStartTick,
                 candidate.JumpEndTick,
                 candidate.DropTicks);
+
+        public static LocalMotionPlan FromBlockedPrimitive(SteeringOutput steering, int thinkTick)
+        {
+            float escapeDirection = -MathF.Sign(steering.MoveDirection);
+            if (escapeDirection == 0f)
+            {
+                escapeDirection = 1;
+            }
+
+            return new(
+                HasPlan: true,
+                escapeDirection,
+                thinkTick,
+                LocalMotionController.BlockedEscapeTicks,
+                int.MaxValue,
+                int.MaxValue,
+                0);
+        }
     }
 
     private readonly record struct LocalMotionProbeCandidate(

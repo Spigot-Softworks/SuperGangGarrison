@@ -16,6 +16,7 @@ public partial class Game1
     private void ApplyLoadedSettings()
     {
         ApplyIngameResolution(_clientSettings.IngameResolution);
+        ApplyWindowSize(_clientSettings.WindowSize);
         if (OperatingSystem.IsBrowser())
         {
             _graphics.IsFullScreen = false;
@@ -26,7 +27,7 @@ public partial class Game1
         {
             _graphics.IsFullScreen = _clientSettings.Fullscreen;
             _graphics.SynchronizeWithVerticalRetrace = _clientSettings.VSync;
-            ApplyPreferredBackBufferSize(_graphics.IsFullScreen, _ingameResolution);
+            ApplyPreferredBackBufferSize(_graphics.IsFullScreen, _ingameResolution, _windowSize);
             _graphics.ApplyChanges();
         }
 
@@ -92,6 +93,7 @@ public partial class Game1
             _clientSettings.VSync = _graphics.SynchronizeWithVerticalRetrace;
         }
         _clientSettings.IngameResolution = _ingameResolution;
+        _clientSettings.WindowSize = _windowSize;
         _clientSettings.MusicMode = _musicMode;
         _clientSettings.KillCamEnabled = _killCamEnabled;
         _clientSettings.ParticleMode = Math.Clamp(_particleMode, 0, 2);

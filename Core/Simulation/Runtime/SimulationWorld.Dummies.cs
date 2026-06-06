@@ -2,27 +2,43 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private const float PracticeCombatDummyDpsMinimumElapsedSeconds = 1f;
+    private const double PracticeCombatDummyDpsMinimumElapsedSeconds = 1d;
+    private const double PracticeCombatDummyBurstTimeoutSeconds = 4d;
     private const float PracticeCombatDummyFullIntensityDamage = 1200f;
 
-    private bool _practiceCombatDummyActive;
+    private enum PracticeCombatDummyMode
+    {
+        None,
+        Combat,
+        Dps,
+    }
+
+    private PracticeCombatDummyMode _practiceCombatDummyMode;
     private int _practiceCombatDummyTotalDamage;
     private long _practiceCombatDummyFirstDamageFrame = -1;
+    private long _practiceCombatDummyLastDamageFrame = -1;
     private float _practiceCombatDummyContinuousDamageAccumulator;
 
-    public bool PracticeCombatDummyActive => _practiceCombatDummyActive && EnemyPlayerEnabled;
+    public bool PracticeCombatDummyActive => _practiceCombatDummyMode == PracticeCombatDummyMode.Combat && EnemyPlayerEnabled;
 
-    public int PracticeCombatDummyTotalDamage => PracticeCombatDummyActive
+    public bool PracticeDpsDummyActive => _practiceCombatDummyMode == PracticeCombatDummyMode.Dps && EnemyPlayerEnabled;
+
+    public int PracticeCombatDummyTotalDamage => PracticeDpsDummyActive
+        && PracticeCombatDummyDpsVisible
         ? _practiceCombatDummyTotalDamage
         : 0;
+
+    public bool PracticeCombatDummyDpsVisible => PracticeDpsDummyActive
+        && _practiceCombatDummyTotalDamage > 0
+        && _practiceCombatDummyFirstDamageFrame >= 0
+        && _practiceCombatDummyLastDamageFrame >= 0
+        && !IsPracticeCombatDummyBurstExpired();
 
     public double PracticeCombatDummyDps
     {
         get
         {
-            if (!PracticeCombatDummyActive
-                || _practiceCombatDummyTotalDamage <= 0
-                || _practiceCombatDummyFirstDamageFrame < 0)
+            if (!PracticeCombatDummyDpsVisible)
             {
                 return 0d;
             }
@@ -33,13 +49,25 @@ public sealed partial class SimulationWorld
         }
     }
 
-    public float PracticeCombatDummyDamageIntensity => PracticeCombatDummyActive
+    public float PracticeCombatDummyDamageIntensity => PracticeCombatDummyDpsVisible
         ? Math.Clamp(_practiceCombatDummyTotalDamage / PracticeCombatDummyFullIntensityDamage, 0f, 1f)
         : 0f;
 
     public bool IsPracticeCombatDummy(PlayerEntity player)
     {
         return PracticeCombatDummyActive && ReferenceEquals(player, EnemyPlayer);
+    }
+
+    public bool IsPracticeDpsDummy(PlayerEntity player)
+    {
+        return PracticeDpsDummyActive && ReferenceEquals(player, EnemyPlayer);
+    }
+
+    private bool IsPracticeDummy(PlayerEntity player)
+    {
+        return _practiceCombatDummyMode != PracticeCombatDummyMode.None
+            && EnemyPlayerEnabled
+            && ReferenceEquals(player, EnemyPlayer);
     }
 
     public void SpawnEnemyDummy()
@@ -74,13 +102,23 @@ public sealed partial class SimulationWorld
 
     public void SpawnPracticeCombatDummy()
     {
+        SpawnPracticeCombatDummy(PracticeCombatDummyMode.Combat);
+    }
+
+    public void SpawnPracticeDpsDummy()
+    {
+        SpawnPracticeCombatDummy(PracticeCombatDummyMode.Dps);
+    }
+
+    private void SpawnPracticeCombatDummy(PracticeCombatDummyMode mode)
+    {
         if (!Config.EnableLocalDummies || !Config.EnableEnemyTrainingDummy)
         {
             return;
         }
 
         EnemyPlayerEnabled = true;
-        _practiceCombatDummyActive = true;
+        _practiceCombatDummyMode = mode;
         ResetPracticeCombatDummyStats();
         _enemyDummyRespawnTicks = 0;
         ClearEnemyInputOverride();
@@ -89,6 +127,11 @@ public sealed partial class SimulationWorld
     }
 
     public void DespawnPracticeCombatDummy()
+    {
+        DespawnEnemyDummy();
+    }
+
+    public void DespawnPracticeDpsDummy()
     {
         DespawnEnemyDummy();
     }
@@ -148,7 +191,7 @@ public sealed partial class SimulationWorld
         _enemyDummyTeam = team;
         if (EnemyPlayerEnabled)
         {
-            if (_practiceCombatDummyActive)
+            if (_practiceCombatDummyMode != PracticeCombatDummyMode.None)
             {
                 SpawnPracticeCombatDummyResolved(playRespawnSound: false);
             }
@@ -167,7 +210,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        var input = _practiceCombatDummyActive
+        var input = _practiceCombatDummyMode != PracticeCombatDummyMode.None
             ? BuildPracticeCombatDummyInput()
             : ResolveEnemyDummyInput();
         var previousInput = _previousEnemyInput;
@@ -432,7 +475,7 @@ public sealed partial class SimulationWorld
 
     private void DisablePracticeCombatDummyMode(bool resetStats)
     {
-        _practiceCombatDummyActive = false;
+        _practiceCombatDummyMode = PracticeCombatDummyMode.None;
         if (resetStats)
         {
             ResetPracticeCombatDummyStats();
@@ -443,7 +486,27 @@ public sealed partial class SimulationWorld
     {
         _practiceCombatDummyTotalDamage = 0;
         _practiceCombatDummyFirstDamageFrame = -1;
+        _practiceCombatDummyLastDamageFrame = -1;
         _practiceCombatDummyContinuousDamageAccumulator = 0f;
+    }
+
+    private bool IsPracticeCombatDummyBurstExpired()
+    {
+        if (_practiceCombatDummyLastDamageFrame < 0)
+        {
+            return false;
+        }
+
+        var timeoutFrames = Math.Max(1L, (long)Math.Ceiling(PracticeCombatDummyBurstTimeoutSeconds / Config.FixedDeltaSeconds));
+        return Frame - _practiceCombatDummyLastDamageFrame > timeoutFrames;
+    }
+
+    private void ResetPracticeCombatDummyBurstIfExpired()
+    {
+        if (IsPracticeCombatDummyBurstExpired())
+        {
+            ResetPracticeCombatDummyStats();
+        }
     }
 
     private bool TryAbsorbPracticeCombatDummyDamage(
@@ -452,11 +515,12 @@ public sealed partial class SimulationWorld
         PlayerEntity? attacker,
         DamageEventFlags damageFlags)
     {
-        if (!IsPracticeCombatDummy(target))
+        if (!IsPracticeDpsDummy(target))
         {
             return false;
         }
 
+        ResetPracticeCombatDummyBurstIfExpired();
         RegisterPracticeCombatDummyDamage(target, damage, attacker, damageFlags);
         return true;
     }
@@ -467,11 +531,12 @@ public sealed partial class SimulationWorld
         PlayerEntity? attacker,
         DamageEventFlags damageFlags)
     {
-        if (!IsPracticeCombatDummy(target))
+        if (!IsPracticeDpsDummy(target))
         {
             return false;
         }
 
+        ResetPracticeCombatDummyBurstIfExpired();
         _practiceCombatDummyContinuousDamageAccumulator += damage;
         var wholeDamage = (int)_practiceCombatDummyContinuousDamageAccumulator;
         if (wholeDamage > 0)
@@ -488,11 +553,12 @@ public sealed partial class SimulationWorld
         int damage,
         PlayerEntity? attacker)
     {
-        if (!IsPracticeCombatDummy(target))
+        if (!IsPracticeDpsDummy(target))
         {
             return false;
         }
 
+        ResetPracticeCombatDummyBurstIfExpired();
         RegisterPracticeCombatDummyDamage(target, damage, attacker, DamageEventFlags.None);
         return true;
     }
@@ -514,6 +580,7 @@ public sealed partial class SimulationWorld
             _practiceCombatDummyFirstDamageFrame = Frame;
         }
 
+        _practiceCombatDummyLastDamageFrame = Frame;
         _practiceCombatDummyTotalDamage = (int)Math.Min(int.MaxValue, _practiceCombatDummyTotalDamage + (long)damage);
         target.ForceSetHealth(target.MaxHealth);
         RegisterDamageEvent(

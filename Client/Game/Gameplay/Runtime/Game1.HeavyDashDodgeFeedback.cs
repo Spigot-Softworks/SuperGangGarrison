@@ -97,6 +97,11 @@ public partial class Game1
 
         var alpha = MathHelper.Clamp(popup.TicksRemaining / 12f, 0f, 1f);
         var position = new Vector2(player.X - cameraPosition.X, player.Top - cameraPosition.Y - 30f - popup.Rise);
+        if (DrawGameplayMissPopupImage(position, alpha))
+        {
+            return;
+        }
+
         DrawBitmapFontTextCentered("Dodged!", position + new Vector2(2f, 2f), Color.Black * alpha, 1f);
         DrawBitmapFontTextCentered("Dodged!", position, new Color(255, 230, 64) * alpha, 1f);
     }

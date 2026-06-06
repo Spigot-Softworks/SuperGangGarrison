@@ -33,6 +33,8 @@ public sealed class GameplayModPackLoaderTests
                 Fullscreen = true,
                 VSync = true,
                 BotMode = OfflineBotControllerMode.BotBrain,
+                IngameResolution = IngameResolutionKind.Aspect16x9,
+                WindowSize = WindowSizeKind.Scale150,
                 OverheadChatEnabled = true,
                 HudShowOnlyActiveWeapon = true,
                 DisableLegacyGameplaySpriteFallback = true,
@@ -54,6 +56,8 @@ public sealed class GameplayModPackLoaderTests
             Assert.True(loaded.Fullscreen);
             Assert.True(loaded.VSync);
             Assert.Equal(OfflineBotControllerMode.BotBrain, loaded.BotMode);
+            Assert.Equal(IngameResolutionKind.Aspect16x9, loaded.IngameResolution);
+            Assert.Equal(WindowSizeKind.Scale150, loaded.WindowSize);
             Assert.True(loaded.OverheadChatEnabled);
             Assert.True(loaded.HudShowOnlyActiveWeapon);
             Assert.True(loaded.DisableLegacyGameplaySpriteFallback);
@@ -85,8 +89,16 @@ public sealed class GameplayModPackLoaderTests
 
             Assert.True(loaded.OverheadChatEnabled);
             Assert.True(document.OverheadChatEnabled);
+            Assert.Equal(IngameResolutionKind.Aspect16x9, loaded.IngameResolution);
+            Assert.Equal(IngameResolutionKind.Aspect16x9, document.IngameResolution);
+            Assert.Equal(WindowSizeKind.Scale100, loaded.WindowSize);
+            Assert.Equal(WindowSizeKind.Scale100, document.WindowSize);
             Assert.Equal(100, loaded.DamageVignetteIntensityPercent);
             Assert.Equal(100, document.DamageVignetteIntensityPercent);
+            Assert.Equal(120, loaded.CombatMusicVolumePercent);
+            Assert.Equal(120, document.CombatMusicVolumePercent);
+            Assert.True(loaded.PostGameMvpArtEnabled);
+            Assert.True(document.PostGameMvpArtEnabled);
         }
         finally
         {
@@ -114,7 +126,71 @@ public sealed class GameplayModPackLoaderTests
             var loaded = ClientSettings.Load(settingsPath);
 
             Assert.True(loaded.OverheadChatEnabled);
-            Assert.Equal(65, loaded.DamageVignetteIntensityPercent);
+            Assert.Equal(OpenGarrisonPreferencesDocument.DefaultDamageVignetteIntensityPercent, loaded.DamageVignetteIntensityPercent);
+            Assert.True(loaded.PostGameMvpArtEnabled);
+        }
+        finally
+        {
+            if (Directory.Exists(rootDirectory))
+            {
+                Directory.Delete(rootDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void ClientSettingsUpgradesLegacyDefaultResolutionTo16x9()
+    {
+        var rootDirectory = Path.Combine(Path.GetTempPath(), "og2-client-settings-tests", Path.GetRandomFileName());
+        Directory.CreateDirectory(rootDirectory);
+        var settingsPath = Path.Combine(rootDirectory, ClientSettings.DefaultFileName);
+
+        try
+        {
+            File.WriteAllText(
+                settingsPath,
+                "[Settings]" + Environment.NewLine +
+                "Resolution=1" + Environment.NewLine);
+
+            var loaded = ClientSettings.Load(settingsPath);
+            var document = OpenGarrisonPreferencesDocument.Load(settingsPath);
+
+            Assert.Equal(IngameResolutionKind.Aspect16x9, loaded.IngameResolution);
+            Assert.Equal(IngameResolutionKind.Aspect16x9, document.IngameResolution);
+            Assert.Equal(WindowSizeKind.Scale100, loaded.WindowSize);
+            Assert.Equal(WindowSizeKind.Scale100, document.WindowSize);
+        }
+        finally
+        {
+            if (Directory.Exists(rootDirectory))
+            {
+                Directory.Delete(rootDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void ClientSettingsPreservesCurrentFormatExplicit4x3Resolution()
+    {
+        var rootDirectory = Path.Combine(Path.GetTempPath(), "og2-client-settings-tests", Path.GetRandomFileName());
+        Directory.CreateDirectory(rootDirectory);
+        var settingsPath = Path.Combine(rootDirectory, ClientSettings.DefaultFileName);
+
+        try
+        {
+            File.WriteAllText(
+                settingsPath,
+                "[Settings]" + Environment.NewLine +
+                "Resolution=1" + Environment.NewLine +
+                "Window Size=0" + Environment.NewLine);
+
+            var loaded = ClientSettings.Load(settingsPath);
+            var document = OpenGarrisonPreferencesDocument.Load(settingsPath);
+
+            Assert.Equal(IngameResolutionKind.Aspect4x3, loaded.IngameResolution);
+            Assert.Equal(IngameResolutionKind.Aspect4x3, document.IngameResolution);
+            Assert.Equal(WindowSizeKind.Scale100, loaded.WindowSize);
+            Assert.Equal(WindowSizeKind.Scale100, document.WindowSize);
         }
         finally
         {

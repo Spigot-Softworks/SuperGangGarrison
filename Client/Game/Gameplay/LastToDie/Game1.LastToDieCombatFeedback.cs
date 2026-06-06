@@ -379,6 +379,11 @@ public partial class Game1
 
         var alpha = Math.Clamp(_lastToDieMissPopupTicksRemaining / (float)LastToDieMissPopupTicks, 0f, 1f);
         var position = new Vector2(player.X - cameraPosition.X, player.Top - cameraPosition.Y - 28f - _lastToDieMissPopupRise);
+        if (DrawGameplayMissPopupImage(position, alpha))
+        {
+            return;
+        }
+
         DrawBitmapFontTextCentered("Miss!", position + new Vector2(2f, 2f), Color.Black * alpha, 1.08f);
         DrawBitmapFontTextCentered("Miss!", position, new Color(255, 230, 64) * alpha, 1.08f);
     }

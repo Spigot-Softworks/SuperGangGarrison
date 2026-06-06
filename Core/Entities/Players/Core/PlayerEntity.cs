@@ -486,6 +486,8 @@ public sealed partial class PlayerEntity : SimulationEntity
     // Tracks which movement buttons were held when superjump charging started (client-side only)
     public byte SpySuperjumpChargeStartMovementButtons { get; private set; }
 
+    private bool SpySuperjumpChargeStartBlockedUntilAbilityRelease { get; set; }
+
     public const int SpySuperjumpMaxChargeTicks = 30; // 0.5s at 60 ticks/sec
 
     public const float SpySuperjumpMinVelocity = 200f; // units per second

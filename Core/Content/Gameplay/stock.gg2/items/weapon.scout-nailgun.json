@@ -10,8 +10,8 @@
     "useDelaySourceTicks": 9,
     "reloadSourceTicks": 28,
     "spreadDegrees": 4.0,
-    "minProjectileSpeed": 22.0,
-    "additionalProjectileSpeed": 3.0,
+    "minProjectileSpeed": 20.0,
+    "additionalProjectileSpeed": 6.0,
     "autoReloads": true,
     "ammoRegenPerTick": 0,
     "refillsAllAtOnce": true

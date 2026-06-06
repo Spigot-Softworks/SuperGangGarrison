@@ -320,7 +320,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (_practiceCombatDummyActive)
+        if (_practiceCombatDummyMode != PracticeCombatDummyMode.None)
         {
             SpawnPracticeCombatDummyResolved(playRespawnSound: true);
             return;

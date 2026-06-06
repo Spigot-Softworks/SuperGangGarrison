@@ -279,7 +279,7 @@ public static class PrimitiveDirectDrive
         return false;
     }
 
-    private static bool WouldMoveIntoObstacle(SimulationWorld world, PlayerEntity player, int horizontalDirection)
+    internal static bool WouldMoveIntoObstacle(SimulationWorld world, PlayerEntity player, int horizontalDirection)
     {
         if (horizontalDirection == 0)
         {

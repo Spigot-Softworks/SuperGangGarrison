@@ -307,7 +307,7 @@ public partial class Game1
 
     private void DrawPracticeCombatDummyDps(PlayerEntity player, Vector2 cameraPosition)
     {
-        if (!_world.IsPracticeCombatDummy(player) || !player.IsAlive)
+        if (!_world.IsPracticeDpsDummy(player) || !player.IsAlive || !_world.PracticeCombatDummyDpsVisible)
         {
             return;
         }
