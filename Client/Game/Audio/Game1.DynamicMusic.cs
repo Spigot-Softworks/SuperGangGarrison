@@ -12,7 +12,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int DynamicMusicCombatLingerTicks = SimulationConfig.DefaultTicksPerSecond * 8;
+    private const int DynamicMusicCombatLingerTicks = SimulationConfig.DefaultTicksPerSecond * 10;
     private const int DynamicMusicCombatParticipantLingerTicks = SimulationConfig.DefaultTicksPerSecond * 5;
     private const float DynamicMusicFadeInPerSecond = 1.45f;
     private const float DynamicMusicFadeOutPerSecond = 0.95f;
@@ -65,8 +65,10 @@ public partial class Game1
     private readonly Dictionary<int, int> _dynamicCombatParticipantTicks = new();
     private int _dynamicMusicCombatTicksRemaining;
     private DynamicCombatMusicStage _dynamicCombatMusicStage;
+    private DynamicCombatMusicStage _dynamicCombatRiserHoldStage;
     private DynamicCombatMusicLeadStem _dynamicCombatLeadStem;
     private bool _dynamicCombatRiserPending;
+    private bool _dynamicCombatDrumsLocked;
     private float _dynamicCombatRiserDelaySecondsRemaining;
     private DynamicMusicEventState _dynamicMusicTargetState = DynamicMusicEventState.Normal;
     private float _dynamicNormalMusicFade = 1f;
@@ -100,8 +102,7 @@ public partial class Game1
             _dynamicCombatLeadStem = Random.Shared.Next(2) == 0
                 ? DynamicCombatMusicLeadStem.Drum
                 : DynamicCombatMusicLeadStem.Body;
-            _dynamicCombatRiserPending = true;
-            _dynamicCombatRiserDelaySecondsRemaining = 0f;
+            _dynamicCombatDrumsLocked = false;
         }
 
         _dynamicMusicCombatTicksRemaining = DynamicMusicCombatLingerTicks;
@@ -319,8 +320,10 @@ public partial class Game1
     {
         _dynamicCombatParticipantTicks.Clear();
         _dynamicCombatMusicStage = DynamicCombatMusicStage.None;
+        _dynamicCombatRiserHoldStage = DynamicCombatMusicStage.None;
         _dynamicCombatLeadStem = DynamicCombatMusicLeadStem.None;
         _dynamicCombatRiserPending = false;
+        _dynamicCombatDrumsLocked = false;
         _dynamicCombatRiserDelaySecondsRemaining = 0f;
         StopDynamicMusicInstance(_dynamicCombatRiserInstance);
     }
@@ -342,10 +345,13 @@ public partial class Game1
             ? ResolveDynamicCombatMusicStage()
             : DynamicCombatMusicStage.None;
         var targetState = ResolveAvailableDynamicMusicState(requestedState, requestedCombatStage);
-        _dynamicMusicTargetState = targetState;
-        _dynamicCombatMusicStage = targetState == DynamicMusicEventState.Combat
+        var previousCombatStage = _dynamicCombatMusicStage;
+        var targetCombatStage = targetState == DynamicMusicEventState.Combat
             ? requestedCombatStage
             : DynamicCombatMusicStage.None;
+        _dynamicMusicTargetState = targetState;
+        UpdateDynamicCombatRiserForStage(previousCombatStage, targetCombatStage);
+        _dynamicCombatMusicStage = targetCombatStage;
 
         if (_gameplayAudioMusicController.CanStartMusicPlayback())
         {
@@ -396,6 +402,34 @@ public partial class Game1
             DynamicMusicEventState.Uber when _dynamicUberMusicInstance is null => DynamicMusicEventState.Normal,
             _ => state,
         };
+    }
+
+    private void UpdateDynamicCombatRiserForStage(DynamicCombatMusicStage previousStage, DynamicCombatMusicStage targetStage)
+    {
+        if (targetStage != DynamicCombatMusicStage.Hard)
+        {
+            if (_dynamicCombatRiserPending || _dynamicCombatRiserDelaySecondsRemaining > 0f)
+            {
+                StopDynamicMusicInstance(_dynamicCombatRiserInstance);
+            }
+
+            _dynamicCombatRiserPending = false;
+            _dynamicCombatRiserDelaySecondsRemaining = 0f;
+            _dynamicCombatRiserHoldStage = DynamicCombatMusicStage.None;
+            return;
+        }
+
+        if (previousStage == DynamicCombatMusicStage.Hard
+            || previousStage == DynamicCombatMusicStage.None
+            || _dynamicCombatRiserPending
+            || _dynamicCombatRiserDelaySecondsRemaining > 0f)
+        {
+            return;
+        }
+
+        _dynamicCombatRiserPending = true;
+        _dynamicCombatRiserDelaySecondsRemaining = 0f;
+        _dynamicCombatRiserHoldStage = previousStage;
     }
 
     private bool HasDynamicCombatMusicInstances()
@@ -504,6 +538,10 @@ public partial class Game1
                 TryRestartDynamicMusicInstance(_dynamicCombatRiserInstance, "starting combat music riser");
                 _dynamicCombatRiserDelaySecondsRemaining = DynamicMusicCombatRiserDelaySeconds;
             }
+            else
+            {
+                _dynamicCombatRiserHoldStage = DynamicCombatMusicStage.None;
+            }
         }
 
         if (_dynamicCombatRiserDelaySecondsRemaining > 0f)
@@ -579,12 +617,29 @@ public partial class Game1
         if (targetState == DynamicMusicEventState.Combat && _dynamicCombatRiserDelaySecondsRemaining > 0f)
         {
             _dynamicCombatRiserDelaySecondsRemaining = Math.Max(0f, _dynamicCombatRiserDelaySecondsRemaining - elapsedSeconds);
+            if (_dynamicCombatRiserDelaySecondsRemaining <= 0f)
+            {
+                _dynamicCombatRiserHoldStage = DynamicCombatMusicStage.None;
+            }
         }
 
         _dynamicCombatMusicFade = MoveDynamicMusicFadeToward(_dynamicCombatMusicFade, targetState == DynamicMusicEventState.Combat ? 1f : 0f, targetState == DynamicMusicEventState.Combat ? fadeInStep : fadeOutStep);
-        var combatStemTargets = targetState == DynamicMusicEventState.Combat && _dynamicCombatRiserDelaySecondsRemaining <= 0f
-            ? GetDynamicCombatStemTargetVolumes(_dynamicCombatMusicStage)
+        var combatStemStage = _dynamicCombatRiserDelaySecondsRemaining > 0f
+            ? _dynamicCombatRiserHoldStage
+            : _dynamicCombatMusicStage;
+        var combatStemTargets = targetState == DynamicMusicEventState.Combat
+            ? GetDynamicCombatStemTargetVolumes(combatStemStage)
             : default;
+        if (targetState == DynamicMusicEventState.Combat && combatStemTargets.Drum > 0f)
+        {
+            _dynamicCombatDrumsLocked = true;
+        }
+
+        if (targetState == DynamicMusicEventState.Combat && _dynamicCombatDrumsLocked)
+        {
+            combatStemTargets.Drum = 1f;
+        }
+
         _dynamicCombatDrumFade = MoveDynamicMusicFadeToward(_dynamicCombatDrumFade, combatStemTargets.Drum, combatStemTargets.Drum > _dynamicCombatDrumFade ? fadeInStep : fadeOutStep);
         _dynamicCombatBodyFade = MoveDynamicMusicFadeToward(_dynamicCombatBodyFade, combatStemTargets.Body, combatStemTargets.Body > _dynamicCombatBodyFade ? fadeInStep : fadeOutStep);
         _dynamicCombatBassFade = MoveDynamicMusicFadeToward(_dynamicCombatBassFade, combatStemTargets.Bass, combatStemTargets.Bass > _dynamicCombatBassFade ? fadeInStep : fadeOutStep);
@@ -670,8 +725,10 @@ public partial class Game1
         _dynamicMusicCombatTicksRemaining = 0;
         _dynamicCombatParticipantTicks.Clear();
         _dynamicCombatMusicStage = DynamicCombatMusicStage.None;
+        _dynamicCombatRiserHoldStage = DynamicCombatMusicStage.None;
         _dynamicCombatLeadStem = DynamicCombatMusicLeadStem.None;
         _dynamicCombatRiserPending = false;
+        _dynamicCombatDrumsLocked = false;
         _dynamicCombatRiserDelaySecondsRemaining = 0f;
         _dynamicNormalMusicFade = 1f;
         _dynamicCombatMusicFade = 0f;
@@ -752,8 +809,10 @@ public partial class Game1
         _dynamicMusicLoadAttempted = false;
         _dynamicCombatParticipantTicks.Clear();
         _dynamicCombatMusicStage = DynamicCombatMusicStage.None;
+        _dynamicCombatRiserHoldStage = DynamicCombatMusicStage.None;
         _dynamicCombatLeadStem = DynamicCombatMusicLeadStem.None;
         _dynamicCombatRiserPending = false;
+        _dynamicCombatDrumsLocked = false;
         _dynamicCombatRiserDelaySecondsRemaining = 0f;
         _dynamicNormalMusicFade = 1f;
         _dynamicCombatMusicFade = 0f;

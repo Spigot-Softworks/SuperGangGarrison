@@ -650,7 +650,7 @@ public sealed partial class PlayerEntity
     public bool TryStartSpySuperjumpCharge(float aimDirectionDegrees, bool leftHeld, bool rightHeld, bool upHeld, bool downHeld)
     {
         // Can't start charging while already superjumping or already charging or on cooldown or backstabbing or carrying intel
-        if (!IsAlive || ClassId != PlayerClass.Spy || IsTaunting || IsSpyBackstabAnimating || IsCarryingIntel || SpySuperjumpChargeTicks > 0 || IsSpySuperjumping || SpySuperjumpCooldownTicksRemaining > 0)
+        if (!IsAlive || ClassId != PlayerClass.Spy || IsTaunting || IsSpyBackstabAnimating || IsCarryingIntel || SpySuperjumpChargeTicks > 0 || IsSpySuperjumping || SpySuperjumpCooldownTicksRemaining > 0 || SpySuperjumpChargeStartBlockedUntilAbilityRelease)
         {
             return false;
         }
@@ -671,11 +671,23 @@ public sealed partial class PlayerEntity
         return true;
     }
 
-    public void CancelSpySuperjumpCharge()
+    public void CancelSpySuperjumpCharge(bool blockRestartUntilAbilityRelease = false)
     {
         SpySuperjumpChargeTicks = 0;
         SpySuperjumpChargeDirectionDegrees = 0f;
         SpySuperjumpChargeStartMovementButtons = 0;
+        if (blockRestartUntilAbilityRelease)
+        {
+            SpySuperjumpChargeStartBlockedUntilAbilityRelease = true;
+        }
+    }
+
+    public void ObserveSpySuperjumpAbilityInput(bool useAbilityHeld)
+    {
+        if (!useAbilityHeld)
+        {
+            SpySuperjumpChargeStartBlockedUntilAbilityRelease = false;
+        }
     }
 
     public void IncrementSpySuperjumpCharge(float aimDirectionDegrees, int maxChargeTicks = SpySuperjumpMaxChargeTicks)
@@ -748,6 +760,7 @@ public sealed partial class PlayerEntity
             IsSpySuperjumping = false;
             SpySuperjumpHorizontalVelocity = 0f;
             SpySuperjumpCooldownTicksRemaining = 0;
+            SpySuperjumpChargeStartBlockedUntilAbilityRelease = false;
             return;
         }
 

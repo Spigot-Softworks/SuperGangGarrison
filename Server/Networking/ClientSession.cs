@@ -12,7 +12,9 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
     private const int MinimumSnapshotHistoryLimit = 12;
     private const int SnapshotHistorySlackFrames = 12;
     private const int MaximumSnapshotHistoryLimit = 48;
+    private const int MaximumPendingInputStates = 512;
     private const int AcknowledgedSoundEventHistoryLimit = 4096;
+    private readonly List<SequencedPlayerInputSnapshot> _pendingInputs = new();
     private readonly Dictionary<ulong, SnapshotBaselineState> _snapshotStatesByFrame = new();
     private readonly Queue<ulong> _snapshotFrameOrder = new();
     private readonly Dictionary<ulong, ulong[]> _snapshotSoundEventIdsByFrame = new();
@@ -43,6 +45,7 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
     public bool HasAcceptedInput { get; private set; }
     public uint LastReceivedInputSequence { get; private set; }
     public uint LastProcessedInputSequence { get; private set; }
+    public int PendingInputCount => _pendingInputs.Count;
     public uint LastTeamCommandSequence { get; set; }
     public uint LastClassCommandSequence { get; set; }
     public uint LastSpectateCommandSequence { get; set; }
@@ -60,29 +63,79 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
 
     public bool TrySetLatestInput(uint sequence, PlayerInputSnapshot input)
     {
-        if (HasAcceptedInput && !IsSequenceNewer(sequence, LastReceivedInputSequence))
+        if (HasAcceptedInput
+            && (!IsSequenceNewer(sequence, LastProcessedInputSequence) || HasPendingInput(sequence)))
         {
             return false;
         }
 
+        InsertPendingInput(sequence, input);
         HasAcceptedInput = true;
-        LastReceivedInputSequence = sequence;
-        LatestReceivedInput = input;
+        if (LastReceivedInputSequence == 0 || IsSequenceNewer(sequence, LastReceivedInputSequence))
+        {
+            LastReceivedInputSequence = sequence;
+            LatestReceivedInput = input;
+        }
+
+        TrimPendingInputQueue();
         return true;
     }
 
     public bool TryGetInputForNextTick(out PlayerInputSnapshot input)
     {
+        if (_pendingInputs.Count > 0)
+        {
+            var pendingInput = _pendingInputs[0];
+            _pendingInputs.RemoveAt(0);
+            LatestAppliedInput = pendingInput.Input;
+            LastProcessedInputSequence = pendingInput.Sequence;
+            input = LatestAppliedInput;
+            return true;
+        }
+
         if (HasAcceptedInput)
         {
-            LatestAppliedInput = LatestReceivedInput;
-            LastProcessedInputSequence = LastReceivedInputSequence;
             input = LatestAppliedInput;
             return true;
         }
 
         input = default;
         return false;
+    }
+
+    private bool HasPendingInput(uint sequence)
+    {
+        for (var index = 0; index < _pendingInputs.Count; index += 1)
+        {
+            if (_pendingInputs[index].Sequence == sequence)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void InsertPendingInput(uint sequence, PlayerInputSnapshot input)
+    {
+        var insertIndex = _pendingInputs.Count;
+        while (insertIndex > 0 && IsSequenceNewer(_pendingInputs[insertIndex - 1].Sequence, sequence))
+        {
+            insertIndex -= 1;
+        }
+
+        _pendingInputs.Insert(insertIndex, new SequencedPlayerInputSnapshot(sequence, input));
+    }
+
+    private void TrimPendingInputQueue()
+    {
+        while (_pendingInputs.Count > MaximumPendingInputStates)
+        {
+            var droppedInput = _pendingInputs[0];
+            _pendingInputs.RemoveAt(0);
+            LatestAppliedInput = droppedInput.Input;
+            LastProcessedInputSequence = droppedInput.Sequence;
+        }
     }
 
     public void RememberSnapshotState(SnapshotMessage snapshot)
@@ -244,4 +297,6 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
         var targetHistoryCount = pendingFrames + SnapshotHistorySlackFrames;
         return Math.Clamp(targetHistoryCount, MinimumSnapshotHistoryLimit, MaximumSnapshotHistoryLimit);
     }
+
+    private readonly record struct SequencedPlayerInputSnapshot(uint Sequence, PlayerInputSnapshot Input);
 }

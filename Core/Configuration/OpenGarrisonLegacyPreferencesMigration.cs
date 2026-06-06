@@ -82,6 +82,12 @@ public static class OpenGarrisonLegacyPreferencesMigration
             preferences.IngameResolution = ingameResolution;
         }
 
+        if (TryGetProperty(root, "WindowSize", out var windowSizeElement)
+            && TryReadEnum(windowSizeElement, out WindowSizeKind windowSize))
+        {
+            preferences.WindowSize = windowSize;
+        }
+
         if (TryGetProperty(root, "MusicMode", out var musicModeElement)
             && TryReadEnum(musicModeElement, out MusicMode musicMode))
         {

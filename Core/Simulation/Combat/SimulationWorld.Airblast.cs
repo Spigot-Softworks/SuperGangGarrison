@@ -204,11 +204,11 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            if (target.Team == player.Team)
+            var targetIsTeammate = target.Team == player.Team;
+            if (targetIsTeammate)
             {
                 SpawnAirblastExtinguishFlames(player, target, aimRadians);
                 target.ExtinguishAfterburn();
-                continue;
             }
 
             var scale = GetAirblastScale(sourceX, sourceY, target.X, target.Y);
@@ -217,7 +217,11 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            target.RegisterDamageDealer(player.Id, GetSimulationTicksFromSourceTicks(AssistTrackingSourceTicks));
+            if (!targetIsTeammate)
+            {
+                target.RegisterDamageDealer(player.Id, GetSimulationTicksFromSourceTicks(AssistTrackingSourceTicks));
+            }
+
             target.AddImpulse(
                 MathF.Cos(aimRadians) * PyroAirblastPlayerImpulse * scale,
                 MathF.Sin(aimRadians) * PyroAirblastPlayerImpulse * scale + PyroAirblastPlayerLift);

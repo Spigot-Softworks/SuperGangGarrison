@@ -85,6 +85,8 @@ public sealed partial class SimulationWorld
             && (secondaryAbilityPressed || secondaryWeaponTriggeredPyroSelfAirblast)
             && player.CanFirePyroAirblast();
 
+        player.ObserveSpySuperjumpAbilityInput(input.UseAbility);
+
         var healthBeforeTick = player.Health;
         var afterburn = player.AdvanceTickState(input, Config.FixedDeltaSeconds);
         if (healthBeforeTick > player.Health)
@@ -109,7 +111,7 @@ public sealed partial class SimulationWorld
 
         if (afterburn.IsFatal)
         {
-            if (IsPracticeCombatDummy(player))
+            if (IsPracticeDpsDummy(player))
             {
                 player.ForceSetHealth(player.MaxHealth);
             }
@@ -153,6 +155,13 @@ public sealed partial class SimulationWorld
         }
 
         ApplyRoomForces(player);
+        var cancelledSpySuperjumpChargeWithJump = TryCancelSpySuperjumpChargeFromJumpInput(player, jumpPressed, input.UseAbility);
+        if (cancelledSpySuperjumpChargeWithJump)
+        {
+            jumpPressed = false;
+            input = input with { Up = false };
+        }
+
         var startedGrounded = player.PrepareMovement(input, Level, team, Config.FixedDeltaSeconds, out var canMove, isHumiliated);
         var jumped = player.TryJumpIfPossible(canMove, jumpPressed);
         var emitWallspinDust = player.IsAlive && player.IsPerformingSourceSpinjump(Level);
@@ -195,7 +204,8 @@ public sealed partial class SimulationWorld
             swappedWeaponThisTick = TryHandleNetworkWeaponSwap(player);
         }
 
-        if (abilityPressed || (allowHeldUtilityAbility && input.UseAbility) || (allowHeldUtilityAbility && abilityReleased))
+        if (!cancelledSpySuperjumpChargeWithJump
+            && (abilityPressed || (allowHeldUtilityAbility && input.UseAbility) || (allowHeldUtilityAbility && abilityReleased)))
         {
             var utilityPhase = allowHeldUtilityAbility
                 ? (abilityReleased ? GameplayAbilityInputPhase.Released : GameplayAbilityInputPhase.Held)
@@ -257,6 +267,20 @@ public sealed partial class SimulationWorld
         {
             KillPlayer(player);
         }
+    }
+
+    private static bool TryCancelSpySuperjumpChargeFromJumpInput(PlayerEntity player, bool jumpPressed, bool useAbilityHeld)
+    {
+        if (!jumpPressed
+            || !useAbilityHeld
+            || player.ClassId != PlayerClass.Spy
+            || player.SpySuperjumpChargeTicks <= 0)
+        {
+            return false;
+        }
+
+        player.CancelSpySuperjumpCharge(blockRestartUntilAbilityRelease: true);
+        return true;
     }
 
     private static PlayerInputSnapshot ResetMovementInput(PlayerInputSnapshot input)

@@ -19,14 +19,17 @@ public sealed class HudLayoutTests
     }
 
     [Fact]
-    public void AbilityStackDefaultMatchesLegacySourceCoordinates()
+    public void AbilityStackDefaultAnchorsAboveWeaponStack()
     {
         var profile = new HudLayoutProfile();
         Assert.True(profile.TryResolve(HudElementId.LocalAbilityStack, 1280, 720, out var resolved));
+        Assert.True(profile.TryResolve(HudElementId.LocalWeaponStack, 1280, 720, out var weapon));
 
         var expected = HudLayoutResolver.ResolveLegacySourcePoint(730f, 515f, 1280, 720);
         Assert.Equal(expected.X, resolved.Origin.X, precision: 3);
         Assert.Equal(expected.Y, resolved.Origin.Y, precision: 3);
+        Assert.Equal(2f, resolved.Origin.X - weapon.Origin.X, precision: 3);
+        Assert.True(resolved.Origin.Y < weapon.Origin.Y);
     }
 
     [Fact]
@@ -40,6 +43,70 @@ public sealed class HudLayoutTests
         Assert.Equal(expected.X, sentry.Origin.X, precision: 3);
         Assert.Equal(expected.Y, sentry.Origin.Y, precision: 3);
         Assert.False(sentry.Bounds.Intersects(health.Bounds));
+    }
+
+    [Theory]
+    [InlineData(800, 600)]
+    [InlineData(1280, 720)]
+    [InlineData(1920, 1080)]
+    public void EngineerDefaultHudElementsDoNotOverlap(int viewportWidth, int viewportHeight)
+    {
+        var profile = new HudLayoutProfile();
+
+        AssertDefaultElementsDoNotOverlap(
+            profile,
+            viewportWidth,
+            viewportHeight,
+            HudElementId.LocalWeaponStack,
+            HudElementId.ClassEngineerMetal,
+            HudElementId.ClassEngineerSentry,
+            HudElementId.LastToDieRage);
+        AssertDefaultElementsDoNotOverlap(
+            profile,
+            viewportWidth,
+            viewportHeight,
+            HudElementId.LocalAbilityStack,
+            HudElementId.ClassEngineerMetal,
+            HudElementId.ClassEngineerSentry,
+            HudElementId.LastToDieRage);
+    }
+
+    [Theory]
+    [InlineData(800, 600)]
+    [InlineData(1280, 720)]
+    [InlineData(1920, 1080)]
+    public void MedicLastToDieDefaultHudElementsDoNotOverlap(int viewportWidth, int viewportHeight)
+    {
+        var profile = new HudLayoutProfile();
+
+        AssertDefaultElementsDoNotOverlap(
+            profile,
+            viewportWidth,
+            viewportHeight,
+            HudElementId.LocalWeaponStack,
+            HudElementId.ClassMedicUber,
+            HudElementId.LastToDieRage);
+        AssertDefaultElementsDoNotOverlap(
+            profile,
+            viewportWidth,
+            viewportHeight,
+            HudElementId.LocalAbilityStack,
+            HudElementId.ClassMedicUber,
+            HudElementId.LastToDieRage);
+    }
+
+    [Fact]
+    public void ExplicitHudOverridesCanStillOverlapOtherElements()
+    {
+        var profile = new HudLayoutProfile();
+        Assert.True(profile.TryResolve(HudElementId.LocalWeaponStack, 1280, 720, out var weapon));
+        Assert.True(profile.TryResolve(HudElementId.ClassEngineerMetal, 1280, 720, out var defaultMetal));
+        Assert.False(defaultMetal.Bounds.Intersects(weapon.Bounds));
+
+        profile.SetElementOrigin(HudElementId.ClassEngineerMetal, weapon.Origin, 1280, 720);
+
+        Assert.True(profile.TryResolve(HudElementId.ClassEngineerMetal, 1280, 720, out var metal));
+        Assert.True(metal.Bounds.Intersects(weapon.Bounds));
     }
 
     [Fact]
@@ -276,5 +343,28 @@ public sealed class HudLayoutTests
         }
 
         Assert.Equal(["test.a", "test.b"], drawn);
+    }
+
+    private static void AssertDefaultElementsDoNotOverlap(
+        HudLayoutProfile profile,
+        int viewportWidth,
+        int viewportHeight,
+        params string[] elementIds)
+    {
+        var elements = new HudResolvedElement[elementIds.Length];
+        for (var index = 0; index < elementIds.Length; index += 1)
+        {
+            Assert.True(profile.TryResolve(elementIds[index], viewportWidth, viewportHeight, out elements[index]));
+        }
+
+        for (var left = 0; left < elements.Length; left += 1)
+        {
+            for (var right = left + 1; right < elements.Length; right += 1)
+            {
+                Assert.False(
+                    elements[left].Bounds.Intersects(elements[right].Bounds),
+                    $"{elements[left].Layout.Id} overlaps {elements[right].Layout.Id}: {elements[left].Bounds} vs {elements[right].Bounds}");
+            }
+        }
     }
 }

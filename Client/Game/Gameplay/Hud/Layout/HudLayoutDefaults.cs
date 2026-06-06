@@ -21,8 +21,11 @@ internal static class HudLayoutDefaults
     private const float EngineerSentryWidth = 86f;
     private const float EngineerSentryHeight = 64f;
     private const float EngineerSentrySourceY = DefaultAbilityWidgetTopY - AbilityWidgetGap - EngineerSentryHeight;
+    private const float ClassStatusSourceX = 580f;
     private const float LastToDieRageBarWidth = 170f;
     private const float LastToDieRageBarHeight = 18f;
+    private const float LastToDieRageSourceX = 500f;
+    private const float LastToDieRageSourceY = 420f;
 
     public static IReadOnlyDictionary<string, HudElementLayout> Create()
     {
@@ -40,8 +43,8 @@ internal static class HudLayoutDefaults
                 HudElementId.LocalWeaponStack,
                 HudAnchor.BottomRight,
                 new Vector2(MainAmmoSourceX - SourceHudWidth, MainAmmoSourceY - SourceHudHeight),
-                new Vector2(220f, 116f),
-                new Vector2(-150f, -72f),
+                new Vector2(128f, 52f),
+                new Vector2(-64f, -24f),
                 Layer: 20),
 
             [HudElementId.LocalAbilityStack] = new(
@@ -95,9 +98,9 @@ internal static class HudLayoutDefaults
             [HudElementId.LastToDieRage] = new(
                 HudElementId.LastToDieRage,
                 HudAnchor.BottomRight,
-                new Vector2(-LastToDieRageBarWidth - 30f, -136f),
-                new Vector2(LastToDieRageBarWidth + 6f, 58f),
-                new Vector2(-LastToDieRageBarWidth - 30f, -136f),
+                new Vector2(LastToDieRageSourceX - SourceHudWidth, LastToDieRageSourceY - SourceHudHeight),
+                new Vector2(LastToDieRageBarWidth + 16f, LastToDieRageBarHeight + 48f),
+                new Vector2(-8f, -28f),
                 Layer: 9),
 
             [HudElementId.LastToDieBuffIcon] = new(
@@ -111,7 +114,7 @@ internal static class HudLayoutDefaults
             [HudElementId.ClassMedicUber] = new(
                 HudElementId.ClassMedicUber,
                 HudAnchor.BottomRight,
-                new Vector2(-80f, -85f),
+                new Vector2(ClassStatusSourceX - SourceHudWidth, -85f),
                 new Vector2(134f, 56f),
                 new Vector2(-58f, -20f),
                 Layer: 30),
@@ -119,7 +122,7 @@ internal static class HudLayoutDefaults
             [HudElementId.ClassEngineerMetal] = new(
                 HudElementId.ClassEngineerMetal,
                 HudAnchor.BottomRight,
-                new Vector2(-70f, -85f),
+                new Vector2(ClassStatusSourceX - SourceHudWidth, -85f),
                 new Vector2(88f, 48f),
                 new Vector2(-54f, -18f),
                 Layer: 50),

@@ -356,7 +356,7 @@ public sealed partial class SimulationWorld
 
     public bool IsPlayerHumiliated(PlayerEntity player)
     {
-        if (IsPracticeCombatDummy(player))
+        if (IsPracticeDummy(player))
         {
             return true;
         }
@@ -525,7 +525,7 @@ public sealed partial class SimulationWorld
         }
 
         var definition = CharacterClassCatalog.GetDefinition(binding.ClassId);
-        var wasPracticeCombatDummy = _practiceCombatDummyActive;
+        var wasPracticeCombatDummy = _practiceCombatDummyMode != PracticeCombatDummyMode.None;
         if (definition.Id == _enemyDummyClassDefinition.Id && !wasPracticeCombatDummy)
         {
             return false;

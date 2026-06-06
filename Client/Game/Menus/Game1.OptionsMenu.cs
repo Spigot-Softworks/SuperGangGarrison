@@ -393,7 +393,7 @@ public partial class Game1
             return;
         }
 
-        var defaultDimensions = GetPreferredBackBufferDimensions(fullscreen: false, _ingameResolution);
+        var defaultDimensions = GetWindowDimensions(fullscreen: false, _ingameResolution, _windowSize);
         _graphics.PreferredBackBufferWidth = defaultDimensions.X;
         _graphics.PreferredBackBufferHeight = defaultDimensions.Y;
         _graphics.ApplyChanges();
@@ -694,6 +694,17 @@ public partial class Game1
     private void CycleIngameResolutionSetting()
     {
         _clientSettings.IngameResolution = GetNextIngameResolution(_clientSettings.IngameResolution);
+        ApplyGraphicsSettings();
+    }
+
+    private void CycleWindowSizeSetting()
+    {
+        if (OperatingSystem.IsBrowser())
+        {
+            return;
+        }
+
+        _clientSettings.WindowSize = GetNextWindowSize(_clientSettings.WindowSize);
         ApplyGraphicsSettings();
     }
 

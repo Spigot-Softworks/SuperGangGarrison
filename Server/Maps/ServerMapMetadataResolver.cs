@@ -16,7 +16,8 @@ internal sealed class ServerMapMetadataResolver(
     public (bool IsCustomMap, string MapDownloadUrl, string MapContentHash) GetCurrentMapMetadata()
     {
         var levelName = world.Level.Name;
-        if (string.Equals(_cachedMapMetadataLevelName, levelName, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(_cachedMapMetadataLevelName, levelName, StringComparison.OrdinalIgnoreCase)
+            && ShouldUseCachedMetadata())
         {
             return (_cachedIsCustomMap, _cachedMapDownloadUrl, _cachedMapContentHash);
         }
@@ -39,6 +40,13 @@ internal sealed class ServerMapMetadataResolver(
         }
 
         return (_cachedIsCustomMap, _cachedMapDownloadUrl, _cachedMapContentHash);
+    }
+
+    private bool ShouldUseCachedMetadata()
+    {
+        // The local HTTP map endpoint can become available after runtime metadata is first constructed.
+        // Do not pin an empty custom-map URL, or clients may fall back to stale local .locator files.
+        return !_cachedIsCustomMap || !string.IsNullOrWhiteSpace(_cachedMapDownloadUrl);
     }
 
     private static string NormalizeAdvertisedDownloadUrl(string downloadUrl)

@@ -111,7 +111,7 @@ public sealed partial class SimulationWorld
 
         if (EnemyPlayerEnabled)
         {
-            if (_practiceCombatDummyActive)
+            if (_practiceCombatDummyMode != PracticeCombatDummyMode.None)
             {
                 SpawnPracticeCombatDummyResolved(playRespawnSound: true);
             }

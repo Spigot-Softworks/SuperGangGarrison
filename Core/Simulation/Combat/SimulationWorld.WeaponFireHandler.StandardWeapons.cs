@@ -36,14 +36,15 @@ public sealed partial class SimulationWorld
             FireMedicNeedle(attacker, GetSourceWeaponOrigin(attacker), aimWorldX, aimWorldY);
         }
 
-        public void FireScoutNailgun(PlayerEntity attacker, float aimWorldX, float aimWorldY)
+        public void FireScoutNailgun(PlayerEntity attacker, PrimaryWeaponDefinition weapon, float aimWorldX, float aimWorldY)
         {
             RegisterSoundEvent(attacker, "MedichaingunSnd");
-            FireScoutNailgun(attacker, GetSourceWeaponOrigin(attacker), aimWorldX, aimWorldY);
+            FireScoutNailgun(attacker, weapon, GetSourceWeaponOrigin(attacker), aimWorldX, aimWorldY);
         }
 
         private void FireScoutNailgun(
             PlayerEntity attacker,
+            PrimaryWeaponDefinition weapon,
             SourceWeaponOrigin weaponOrigin,
             float aimWorldX,
             float aimWorldY)
@@ -84,9 +85,11 @@ public sealed partial class SimulationWorld
                 directionRadians += GetDeterministicContinuousSpreadRadians(attacker.Id, 4f);
             }
 
+            var minSpeed = MathF.Max(0f, weapon.MinShotSpeed);
+            var additionalRandomSpeed = MathF.Max(0f, weapon.AdditionalRandomShotSpeed);
             var speed = _world.RandomSpreadEnabled
-                ? 10f + (_random.NextSingle() * 3f)
-                : 10f;
+                ? minSpeed + (_random.NextSingle() * additionalRandomSpeed)
+                : minSpeed;
 
             var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
                 attacker,

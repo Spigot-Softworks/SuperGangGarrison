@@ -299,6 +299,7 @@ public partial class Game1
 
         var input = _latestPredictedLocalInput;
         var previousInput = _previousPredictedLocalInput;
+        localPlayer.ObserveSpySuperjumpAbilityInput(input.UseAbility);
 
         // Calculate aim direction
         var degrees = MathF.Atan2(input.AimWorldY - localPlayer.Y, input.AimWorldX - localPlayer.X) * (180f / MathF.PI);
@@ -310,10 +311,20 @@ public partial class Game1
 
         // Detect ability button edge (transition from off to on)
         var abilityPressed = input.UseAbility && !previousInput.UseAbility;
+        var jumpPressed = input.Up && !previousInput.Up;
 
         // Don't allow spy superjump if special abilities are disabled.
         if (!_world.ExperimentalGameplaySettings.EnableSecondaryAbilities)
         {
+            return;
+        }
+
+        if (jumpPressed && input.UseAbility && localPlayer.SpySuperjumpChargeTicks > 0)
+        {
+            localPlayer.CancelSpySuperjumpCharge(blockRestartUntilAbilityRelease: true);
+            _predictedLocalActionState.SpySuperjumpChargeTicks = 0;
+            _predictedLocalActionState.IsSpySuperjumping = false;
+            _predictedLocalActionState.SpySuperjumpHorizontalVelocity = 0f;
             return;
         }
 

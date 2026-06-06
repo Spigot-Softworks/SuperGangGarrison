@@ -31,8 +31,16 @@ internal static class BrowserAssetBuildPipeline
         BuildClientPluginBundle(context, generatedFiles);
 
         var bootstrapAtlasManifest = BuildBootstrapAtlasManifest(context, warnings, generatedFiles);
-        var stockGameplayAtlasManifest = BuildStockGameplayAtlasManifest(context, stockPackDefinition, warnings, generatedFiles);
-        var gameMakerAtlasManifest = BuildGameMakerAtlasManifest(context, legacyManifest, warnings, generatedFiles);
+        var stockGameplaySprites = BuildStockGameplayAtlasSpriteInputs(context, stockPackDefinition, warnings);
+        var gameMakerSprites = BuildGameMakerAtlasSpriteInputs(context, legacyManifest, warnings);
+        var sharedRuntimeAtlasManifests = BuildSharedRuntimeAtlasManifests(
+            context,
+            stockPackDefinition.Id,
+            stockGameplaySprites,
+            gameMakerSprites,
+            generatedFiles);
+        var stockGameplayAtlasManifest = sharedRuntimeAtlasManifests.StockGameplay;
+        var gameMakerAtlasManifest = sharedRuntimeAtlasManifests.GameMaker;
 
         WriteJson(Path.Combine(context.BrowserManifestsRoot, "bootstrap-manifest.json"), bootstrapAtlasManifest, generatedFiles);
         WriteJson(Path.Combine(context.BrowserManifestsRoot, "stock-pack-atlas-manifest.json"), stockGameplayAtlasManifest, generatedFiles);
@@ -40,7 +48,7 @@ internal static class BrowserAssetBuildPipeline
 
         var report = new BrowserAssetBuildReport(
             GeneratedAtlasCount: 3,
-            GeneratedAtlasPageCount: bootstrapAtlasManifest.Atlases.Count + stockGameplayAtlasManifest.Manifest.Atlases.Count + gameMakerAtlasManifest.Manifest.Atlases.Count,
+            GeneratedAtlasPageCount: bootstrapAtlasManifest.Atlases.Count + sharedRuntimeAtlasManifests.PhysicalPageCount,
             GeneratedSpriteCount: bootstrapAtlasManifest.Sprites.Count + stockGameplayAtlasManifest.Manifest.Sprites.Count + gameMakerAtlasManifest.Manifest.Sprites.Count,
             GeneratedFiles: generatedFiles,
             Warnings: warnings);
@@ -148,39 +156,155 @@ internal static class BrowserAssetBuildPipeline
         return BuildAtlasManifest(context, "bootstrap", assets, generatedFiles);
     }
 
-    private static BrowserGameplayAtlasManifest BuildStockGameplayAtlasManifest(
+    private static AtlasSpriteInput[] BuildStockGameplayAtlasSpriteInputs(
         BrowserAssetBuildContext context,
         GameplayModPackDefinition stockPackDefinition,
-        List<string> warnings,
-        List<string> generatedFiles)
+        List<string> warnings)
     {
-        var sprites = stockPackDefinition.Assets.Sprites.Values
+        return stockPackDefinition.Assets.Sprites.Values
             .OrderBy(static sprite => sprite.Id, StringComparer.Ordinal)
             .Select(sprite => CreateGameplaySpriteInput(context, sprite, warnings))
             .Where(static sprite => sprite is not null)
             .Cast<AtlasSpriteInput>()
             .ToArray();
-
-        return new BrowserGameplayAtlasManifest(
-            stockPackDefinition.Id,
-            BuildAtlasManifest(context, "stock-pack", sprites, generatedFiles));
     }
 
-    private static BrowserGameMakerAtlasManifest BuildGameMakerAtlasManifest(
+    private static AtlasSpriteInput[] BuildGameMakerAtlasSpriteInputs(
         BrowserAssetBuildContext context,
         GameMakerAssetManifest manifest,
-        List<string> warnings,
-        List<string> generatedFiles)
+        List<string> warnings)
     {
-        var sprites = manifest.Sprites.Values
+        return manifest.Sprites.Values
             .OrderBy(static sprite => sprite.Name, StringComparer.Ordinal)
             .Select(sprite => CreateGameMakerSpriteInput(context, sprite, warnings))
             .Where(static sprite => sprite is not null)
             .Cast<AtlasSpriteInput>()
             .ToArray();
+    }
 
-        return new BrowserGameMakerAtlasManifest(
-            BuildAtlasManifest(context, "gamemaker", sprites, generatedFiles));
+    private static SharedRuntimeAtlasManifests BuildSharedRuntimeAtlasManifests(
+        BrowserAssetBuildContext context,
+        string stockPackId,
+        IReadOnlyList<AtlasSpriteInput> stockGameplaySprites,
+        IReadOnlyList<AtlasSpriteInput> gameMakerSprites,
+        List<string> generatedFiles)
+    {
+        const string sharedAtlasPrefix = "shared";
+        var pagesByGroup = new Dictionary<string, List<AtlasPageBuilder>>(StringComparer.OrdinalIgnoreCase);
+        var placementsByKey = new Dictionary<AtlasFramePlacementKey, SharedAtlasFramePlacement>();
+        var stockEntries = BuildSharedAtlasSpriteEntries(
+            context,
+            sharedAtlasPrefix,
+            stockGameplaySprites,
+            pagesByGroup,
+            placementsByKey);
+        var gameMakerEntries = BuildSharedAtlasSpriteEntries(
+            context,
+            sharedAtlasPrefix,
+            gameMakerSprites,
+            pagesByGroup,
+            placementsByKey);
+        var atlasPages = WriteAtlasPages(context, sharedAtlasPrefix, pagesByGroup, generatedFiles);
+
+        return new SharedRuntimeAtlasManifests(
+            new BrowserGameplayAtlasManifest(
+                stockPackId,
+                new BrowserAtlasManifest(
+                    1,
+                    FilterAtlasPages(atlasPages, stockEntries.UsedAtlasIds),
+                    stockEntries.Sprites)),
+            new BrowserGameMakerAtlasManifest(
+                new BrowserAtlasManifest(
+                    1,
+                    FilterAtlasPages(atlasPages, gameMakerEntries.UsedAtlasIds),
+                    gameMakerEntries.Sprites)),
+            atlasPages.Count);
+    }
+
+    private static SharedAtlasSpriteEntries BuildSharedAtlasSpriteEntries(
+        BrowserAssetBuildContext context,
+        string atlasPrefix,
+        IReadOnlyList<AtlasSpriteInput> sprites,
+        Dictionary<string, List<AtlasPageBuilder>> pagesByGroup,
+        Dictionary<AtlasFramePlacementKey, SharedAtlasFramePlacement> placementsByKey)
+    {
+        var spriteEntries = new Dictionary<string, BrowserAtlasSpriteManifest>(StringComparer.OrdinalIgnoreCase);
+        var usedAtlasIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var sprite in sprites)
+        {
+            var frameEntries = new List<BrowserAtlasFrameManifest>(sprite.Frames.Count);
+            foreach (var frame in sprite.Frames)
+            {
+                var placement = GetOrPlaceSharedFrame(atlasPrefix, frame, pagesByGroup, placementsByKey);
+                usedAtlasIds.Add(placement.AtlasId);
+                frameEntries.Add(new BrowserAtlasFrameManifest(
+                    placement.AtlasId,
+                    placement.X,
+                    placement.Y,
+                    placement.Width,
+                    placement.Height,
+                    frame.SourceImageIndex,
+                    frame.SourceFrameIndex));
+            }
+
+            spriteEntries[sprite.SpriteId] = new BrowserAtlasSpriteManifest(
+                sprite.OriginX,
+                sprite.OriginY,
+                sprite.FrameWidth,
+                sprite.FrameHeight,
+                frameEntries,
+                sprite.Mask,
+                sprite.SourceHash);
+        }
+
+        return new SharedAtlasSpriteEntries(spriteEntries, usedAtlasIds);
+    }
+
+    private static SharedAtlasFramePlacement GetOrPlaceSharedFrame(
+        string atlasPrefix,
+        AtlasFrameSource frame,
+        Dictionary<string, List<AtlasPageBuilder>> pagesByGroup,
+        Dictionary<AtlasFramePlacementKey, SharedAtlasFramePlacement> placementsByKey)
+    {
+        var key = AtlasFramePlacementKey.From(frame);
+        if (placementsByKey.TryGetValue(key, out var existingPlacement))
+        {
+            return existingPlacement;
+        }
+
+        if (!pagesByGroup.TryGetValue(frame.GroupId, out var pages))
+        {
+            pages = [];
+            pagesByGroup[frame.GroupId] = pages;
+        }
+
+        var page = GetOrCreatePage(pages, frame.GroupId);
+        if (!page.TryPlace(frame, out var placedFrame))
+        {
+            page = CreatePage(pages, frame.GroupId);
+            if (!page.TryPlace(frame, out placedFrame))
+            {
+                throw new InvalidOperationException($"Could not pack frame for sprite \"{frame.SpriteId}\" into atlas group \"{frame.GroupId}\".");
+            }
+        }
+
+        var placement = new SharedAtlasFramePlacement(
+            BuildAtlasId(atlasPrefix, page.Group.Id, page.PageIndex),
+            placedFrame.X,
+            placedFrame.Y,
+            placedFrame.Width,
+            placedFrame.Height);
+        placementsByKey[key] = placement;
+        return placement;
+    }
+
+    private static IReadOnlyList<BrowserAtlasPageManifest> FilterAtlasPages(
+        IReadOnlyList<BrowserAtlasPageManifest> atlasPages,
+        IReadOnlySet<string> usedAtlasIds)
+    {
+        return atlasPages
+            .Where(page => usedAtlasIds.Contains(page.Id))
+            .ToArray();
     }
 
     private static BrowserAtlasManifest BuildAtlasManifest(
@@ -190,7 +314,6 @@ internal static class BrowserAssetBuildPipeline
         List<string> generatedFiles)
     {
         var pagesByGroup = new Dictionary<string, List<AtlasPageBuilder>>(StringComparer.OrdinalIgnoreCase);
-        var atlasPages = new List<BrowserAtlasPageManifest>();
         var spriteEntries = new Dictionary<string, BrowserAtlasSpriteManifest>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var sprite in sprites)
@@ -234,6 +357,18 @@ internal static class BrowserAssetBuildPipeline
                 sprite.SourceHash);
         }
 
+        var atlasPages = WriteAtlasPages(context, atlasPrefix, pagesByGroup, generatedFiles);
+
+        return new BrowserAtlasManifest(1, atlasPages, spriteEntries);
+    }
+
+    private static IReadOnlyList<BrowserAtlasPageManifest> WriteAtlasPages(
+        BrowserAssetBuildContext context,
+        string atlasPrefix,
+        Dictionary<string, List<AtlasPageBuilder>> pagesByGroup,
+        List<string> generatedFiles)
+    {
+        var atlasPages = new List<BrowserAtlasPageManifest>();
         foreach (var (groupId, pages) in pagesByGroup.OrderBy(static pair => pair.Key, StringComparer.OrdinalIgnoreCase))
         {
             foreach (var page in pages.OrderBy(static page => page.PageIndex))
@@ -246,7 +381,7 @@ internal static class BrowserAssetBuildPipeline
             }
         }
 
-        return new BrowserAtlasManifest(1, atlasPages, spriteEntries);
+        return atlasPages;
     }
 
     private static AtlasPageBuilder GetOrCreatePage(List<AtlasPageBuilder> pages, string groupId)
@@ -731,4 +866,36 @@ internal static class BrowserAssetBuildPipeline
         BrowserAtlasMaskManifest? Mask,
         IReadOnlyList<AtlasFrameSource> Frames,
         string SourceHash);
+
+    private sealed record SharedRuntimeAtlasManifests(
+        BrowserGameplayAtlasManifest StockGameplay,
+        BrowserGameMakerAtlasManifest GameMaker,
+        int PhysicalPageCount);
+
+    private sealed record SharedAtlasSpriteEntries(
+        IReadOnlyDictionary<string, BrowserAtlasSpriteManifest> Sprites,
+        IReadOnlySet<string> UsedAtlasIds);
+
+    private sealed record SharedAtlasFramePlacement(
+        string AtlasId,
+        int X,
+        int Y,
+        int Width,
+        int Height);
+
+    private readonly record struct AtlasFramePlacementKey(
+        string GroupId,
+        int Width,
+        int Height,
+        string PixelHash)
+    {
+        public static AtlasFramePlacementKey From(AtlasFrameSource frame)
+        {
+            return new AtlasFramePlacementKey(
+                frame.GroupId,
+                frame.Width,
+                frame.Height,
+                Convert.ToHexString(SHA256.HashData(frame.PixelBytes)));
+        }
+    }
 }

@@ -955,6 +955,51 @@ public sealed class CustomMapPngExporterTests
     }
 
     [Fact]
+    public void ServerMapMetadataResolverRefreshesEmptyHostedCustomMapUrl()
+    {
+        using var workspace = TempWorkspace.Create();
+        var previousMapsDirectory = Environment.GetEnvironmentVariable("OPENGARRISON_MAPS_DIR");
+        Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", workspace.PathFor("ServerMaps"));
+        try
+        {
+            Directory.CreateDirectory(RuntimePaths.MapsDirectory);
+            var packageDirectory = Path.Combine(RuntimePaths.MapsDirectory, "metadata_refresh_pkg");
+            Directory.CreateDirectory(packageDirectory);
+            var backgroundPath = workspace.PathFor("metadata-refresh-background.png");
+            var walkmaskPath = workspace.PathFor("metadata-refresh-walkmask.png");
+            WriteSolidPng(backgroundPath, 20, 10, new Rgba32(40, 90, 120, 255));
+            WriteSolidPng(walkmaskPath, 20, 10, new Rgba32(255, 255, 255, 255));
+            CustomMapPackageExporter.Export(CreateSpawnOnlyDocument(backgroundPath, walkmaskPath, 6f, 18f) with
+            {
+                Name = "metadata_refresh_pkg",
+            }, Path.Combine(packageDirectory, "metadata_refresh_pkg.json"));
+            SimpleLevelFactory.ClearCachedCatalog();
+
+            var endpointAvailable = false;
+            var world = new SimulationWorld();
+            Assert.True(world.TryLoadLevel("metadata_refresh_pkg", mapAreaIndex: 1, preservePlayerStats: false));
+            var resolver = new ServerMapMetadataResolver(
+                world,
+                descriptor => endpointAvailable ? ServerMapDownloadEndpoint.BuildRelativeDownloadUrl(descriptor) : string.Empty);
+
+            var initialMetadata = resolver.GetCurrentMapMetadata();
+            endpointAvailable = true;
+            var refreshedMetadata = resolver.GetCurrentMapMetadata();
+
+            Assert.True(initialMetadata.IsCustomMap);
+            Assert.Empty(initialMetadata.MapDownloadUrl);
+            Assert.True(refreshedMetadata.IsCustomMap);
+            Assert.Equal("/opengarrison/maps/metadata_refresh_pkg/metadata_refresh_pkg.json", refreshedMetadata.MapDownloadUrl);
+            Assert.Equal(initialMetadata.MapContentHash, refreshedMetadata.MapContentHash);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", previousMapsDirectory);
+            SimpleLevelFactory.ClearCachedCatalog();
+        }
+    }
+
+    [Fact]
     public void ServerMapMetadataResolverDoesNotAdvertiseUnsupportedSourceUrl()
     {
         using var workspace = TempWorkspace.Create();

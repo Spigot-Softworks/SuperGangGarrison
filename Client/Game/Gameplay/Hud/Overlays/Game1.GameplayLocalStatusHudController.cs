@@ -80,7 +80,10 @@ public partial class Game1
         private const float SourceAbilityHudX = 730f;
         private const float SourceAbilityHudY = 515f;
         private const string DefaultAbilityHudSpriteName = "StickyCounterS";
-        private const float DefaultAbilityHudSourceX = 735f;
+        private const float DefaultAbilityHudSourceX = SourceAbilityHudX + 5f;
+        private const float AbilityCooldownBarSourceX = SourceAbilityHudX - 15f;
+        private const float StickyCounterCountSourceX = DefaultAbilityHudSourceX - 18f;
+        private const float StickyCounterMaxSourceX = DefaultAbilityHudSourceX - 5f;
         private const float DefaultAbilityHudSpriteScale = 3f;
         private const float DefaultAbilityHudSpriteWidth = 22f;
         private const float DefaultAbilityHudSpriteHeight = 15f;
@@ -573,7 +576,7 @@ public partial class Game1
                     GetDemomanStickyAbilityHudSourceY(hasGrenadeLauncher),
                     Order: hasGrenadeLauncher ? WeaponHudOrderPostPrimaryAbility : WeaponHudOrderAbility,
                     AbilityMetrics: new AbilityHudWidgetMetrics(
-                        735f,
+                        DefaultAbilityHudSourceX,
                         "StickyCounterS",
                         3f,
                         new Vector2(-33f, -21f),
@@ -983,8 +986,8 @@ public partial class Game1
                 return;
             }
 
-            var minSourceX = 696f;
-            var maxSourceX = 800f;
+            var minSourceX = SourceAbilityHudX - 40f;
+            var maxSourceX = SourceAbilityHudX + 88f;
             var minSourceY = 492f;
             var maxSourceY = 558f;
             var flowTopSourceY = SourceAbilityHudY;
@@ -1307,14 +1310,14 @@ public partial class Game1
                 : isActive
                 ? new Color(226, 188, 92)
                 : AmmoHudBarColor;
-            var barRectangle = GetSourceHudRectangle(715f, sourceY + 13f, 35f, 5f);
+            var barRectangle = GetSourceHudRectangle(AbilityCooldownBarSourceX, sourceY + 13f, 35f, 5f);
             _game.DrawScreenHealthBar(barRectangle, meterFraction, 1f, false, meterColor, Color.Black);
         }
 
         private void DrawDummyAbilityHud(float sourceY)
         {
             DrawDefaultAbilityCooldownHudPlaque(sourceY, disabled: false);
-            _game.DrawScreenHealthBar(GetSourceHudRectangle(715f, sourceY + 13f, 35f, 5f), 1f, 1f, false, AmmoHudBarColor, Color.Black);
+            _game.DrawScreenHealthBar(GetSourceHudRectangle(AbilityCooldownBarSourceX, sourceY + 13f, 35f, 5f), 1f, 1f, false, AmmoHudBarColor, Color.Black);
         }
 
         private void DrawDefaultAbilityCooldownHudPlaque(float sourceY, bool disabled)
@@ -1530,13 +1533,13 @@ public partial class Game1
 
         private bool DrawStickyCounterHud(int stickyCount, int maxStickies, int frameIndex, float sourceY)
         {
-            if (!_game.TryDrawScreenSprite("StickyCounterS", frameIndex, GetSourceHudPoint(735f, sourceY), Color.White, GetSourceHudSpriteScale(new Vector2(3f, 3f))))
+            if (!_game.TryDrawScreenSprite("StickyCounterS", frameIndex, GetSourceHudPoint(DefaultAbilityHudSourceX, sourceY), Color.White, GetSourceHudSpriteScale(new Vector2(3f, 3f))))
             {
                 return false;
             }
 
-            _game.DrawHudTextLeftAligned(stickyCount.ToString(CultureInfo.InvariantCulture), GetSourceHudPoint(717f, sourceY + 2f), AmmoHudBarColor, GetSourceHudTextScale(1.5f));
-            _game.DrawHudTextLeftAligned($"/{maxStickies.ToString(CultureInfo.InvariantCulture)}", GetSourceHudPoint(730f, sourceY + 2f), AmmoHudBarColor, GetSourceHudTextScale(1.5f));
+            _game.DrawHudTextLeftAligned(stickyCount.ToString(CultureInfo.InvariantCulture), GetSourceHudPoint(StickyCounterCountSourceX, sourceY + 2f), AmmoHudBarColor, GetSourceHudTextScale(1.5f));
+            _game.DrawHudTextLeftAligned($"/{maxStickies.ToString(CultureInfo.InvariantCulture)}", GetSourceHudPoint(StickyCounterMaxSourceX, sourceY + 2f), AmmoHudBarColor, GetSourceHudTextScale(1.5f));
             return true;
         }
 

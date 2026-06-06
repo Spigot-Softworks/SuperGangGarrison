@@ -230,6 +230,7 @@ public sealed class BrowserBootstrapAssetCatalog(
             "Content/Sprites/Menu/Fonts/MenuFontAtlas.png",
             "Content/Sprites/Menu/LastToDie/last2die.png",
             "Content/Sprites/Menu/LastToDie/ltd_buff.png",
+            "Content/Sprites/HUDs/Feedback/miss.png",
             "Content/Sprites/InGameElements/CustomBubble/big_bubble.png",
             "Content/Sprites/Menu/Title/background.png",
             "Content/Sprites/Menu/Title/background-4x3.png",

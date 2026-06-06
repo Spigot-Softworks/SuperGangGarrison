@@ -1232,7 +1232,7 @@ public sealed class BotBrainController
                 return true;
             }
 
-            return PrimitiveDirectDrive.TryResolve(world, self, combatTarget, steeringOutput, out directSteering, out directTrace);
+            return TryResolvePrimitiveCombatDrive(world, self, combatTarget, steeringOutput, out directSteering, out directTrace);
         }
 
         if (TryFindNearestEnemyPlayer(world, self, team, DirectSeekPlayerDistance, out var recoveryTarget))
@@ -1377,7 +1377,8 @@ public sealed class BotBrainController
             return true;
         }
 
-        if (PrimitiveDirectDrive.TryResolveRecovery(
+        if (!IsLocalMotionSuppressionTrace(directTrace)
+            && PrimitiveDirectDrive.TryResolveRecovery(
                 world,
                 self,
                 objectiveTarget,
@@ -1391,6 +1392,10 @@ public sealed class BotBrainController
 
         return false;
     }
+
+    private static bool IsLocalMotionSuppressionTrace(string trace) =>
+        trace.StartsWith("localMotion=suppressed", StringComparison.Ordinal)
+        || trace.StartsWith("localMotion=failed", StringComparison.Ordinal);
 
     private bool TryResolvePreferredEnemyPlayerSeek(
         SimulationWorld world,
@@ -1456,6 +1461,54 @@ public sealed class BotBrainController
             _thinkTicks,
             out directSteering,
             out directTrace);
+
+    private bool TryResolvePrimitiveCombatDrive(
+        SimulationWorld world,
+        PlayerEntity self,
+        BotBrainCombatTarget? combatTarget,
+        SteeringOutput steeringOutput,
+        out SteeringOutput directSteering,
+        out string directTrace)
+    {
+        directSteering = steeringOutput;
+        directTrace = string.Empty;
+        if (combatTarget is not { Kind: BotBrainCombatTargetKind.Player, Player: { } target }
+            || !PrimitiveDirectDrive.TryResolve(world, self, combatTarget, steeringOutput, out var primitiveSteering, out var primitiveTrace))
+        {
+            return false;
+        }
+
+        if (MathF.Abs(primitiveSteering.MoveDirection) <= 0.01f
+            || !PrimitiveDirectDrive.WouldMoveIntoObstacle(world, self, MathF.Sign(primitiveSteering.MoveDirection)))
+        {
+            directSteering = primitiveSteering;
+            directTrace = primitiveTrace;
+            return true;
+        }
+
+        var localTarget = new DirectDriveTarget(
+            DirectDriveTargetKind.Enemy,
+            target.X,
+            target.Y,
+            $"combatObstacleEnemy player:{target.Id}");
+        if (TryResolveLocalMotionRecovery(world, self, localTarget, steeringOutput, out var localSteering, out var localTrace))
+        {
+            directSteering = localSteering;
+            directTrace = $"combatObstacle {localTrace} primitive:{primitiveTrace}";
+            return true;
+        }
+
+        if (IsLocalMotionSuppressionTrace(localTrace))
+        {
+            directSteering = steeringOutput;
+            directTrace = $"combatObstacle hold {localTrace} primitive:{primitiveTrace}";
+            return true;
+        }
+
+        directSteering = primitiveSteering;
+        directTrace = primitiveTrace;
+        return true;
+    }
 
     private bool TryResolveMedicSupportDrive(
         SimulationWorld world,
@@ -1774,6 +1827,23 @@ public sealed class BotBrainController
             && IsPlatformLadderJumpReady(world, self, directSteering.MoveDirection, targetDx, _platformLadderStage);
         directSteering.DropDown = false;
         directTrace = $"arenaCaptureLadder stage:{_platformLadderStage}/{finalStage} target:({target.X:0.0},{target.Y:0.0}) dx:{targetDx:0.0} dy:{targetDy:0.0} move:{directSteering.MoveDirection:0} jump:{(directSteering.Jump ? 1 : 0)}";
+        if (TryResolveBlockedLocalMotion(
+                world,
+                self,
+                new DirectDriveTarget(
+                    DirectDriveTargetKind.Objective,
+                    target.X,
+                    target.Y,
+                    $"arenaCaptureLadder stage:{_platformLadderStage}"),
+                directSteering.MoveDirection,
+                steeringOutput,
+                out var recoverySteering,
+                out var recoveryTrace))
+        {
+            directSteering = recoverySteering;
+            directTrace = $"{directTrace} blockedRecovery:{recoveryTrace}";
+        }
+
         return true;
     }
 
@@ -3984,6 +4054,23 @@ public sealed class BotBrainController
             directSteering.Jump = steeringOutput.Jump || dy < -24f;
             directSteering.DropDown = false;
             directTrace = $"controlPointClearEnemy point:{point.Index} player:{target.Id} direct combat:spacing dx:{dx:0.0} dy:{dy:0.0} move:{directSteering.MoveDirection:0}";
+            if (TryResolveBlockedLocalMotion(
+                    world,
+                    self,
+                    new DirectDriveTarget(
+                        DirectDriveTargetKind.Enemy,
+                        target.X,
+                        target.Y,
+                        $"controlPointClearEnemy point:{point.Index} player:{target.Id}"),
+                    directSteering.MoveDirection,
+                    steeringOutput,
+                    out var recoverySteering,
+                    out var recoveryTrace))
+            {
+                directSteering = recoverySteering;
+                directTrace = $"{directTrace} blockedRecovery:{recoveryTrace}";
+            }
+
             return true;
         }
 
@@ -4010,6 +4097,38 @@ public sealed class BotBrainController
                 out directSteering,
                 out directTrace))
         {
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool TryResolveBlockedLocalMotion(
+        SimulationWorld world,
+        PlayerEntity self,
+        DirectDriveTarget target,
+        float moveDirection,
+        SteeringOutput steeringOutput,
+        out SteeringOutput recoverySteering,
+        out string recoveryTrace)
+    {
+        recoverySteering = steeringOutput;
+        recoveryTrace = string.Empty;
+        if (MathF.Abs(moveDirection) <= 0.01f
+            || !PrimitiveDirectDrive.WouldMoveIntoObstacle(world, self, MathF.Sign(moveDirection)))
+        {
+            return false;
+        }
+
+        if (TryResolveLocalMotionRecovery(world, self, target, steeringOutput, out recoverySteering, out recoveryTrace))
+        {
+            return true;
+        }
+
+        if (IsLocalMotionSuppressionTrace(recoveryTrace))
+        {
+            recoverySteering = steeringOutput;
+            recoveryTrace = $"hold {recoveryTrace}";
             return true;
         }
 

@@ -24,6 +24,7 @@ public partial class Game1
     private void ApplyGraphicsSettings()
     {
         ApplyIngameResolution(_clientSettings.IngameResolution);
+        ApplyWindowSize(_clientSettings.WindowSize);
 
         if (OperatingSystem.IsBrowser())
         {
@@ -37,7 +38,7 @@ public partial class Game1
 
         _graphics.IsFullScreen = _clientSettings.Fullscreen;
         _graphics.SynchronizeWithVerticalRetrace = _clientSettings.VSync;
-        ApplyPreferredBackBufferSize(_graphics.IsFullScreen, _ingameResolution);
+        ApplyPreferredBackBufferSize(_graphics.IsFullScreen, _ingameResolution, _windowSize);
         _graphics.ApplyChanges();
         PersistClientSettings();
     }
@@ -52,6 +53,11 @@ public partial class Game1
             _gameRenderTarget = null;
         }
 
+    }
+
+    private void ApplyWindowSize(WindowSizeKind windowSize)
+    {
+        _windowSize = OpenGarrisonPreferencesDocument.NormalizeWindowSize(windowSize);
     }
 
     private void EnsureGameRenderTarget()
@@ -131,7 +137,7 @@ public partial class Game1
         var actualHeight = GraphicsDevice.Viewport.Height;
         if (actualWidth <= 0 || actualHeight <= 0)
         {
-            var fallback = GetPreferredBackBufferDimensions(fullscreen: false, _ingameResolution);
+            var fallback = GetPreferredBackBufferDimensions(fullscreen: false, _ingameResolution, _windowSize);
             return new Rectangle(0, 0, fallback.X, fallback.Y);
         }
 
@@ -173,7 +179,7 @@ public partial class Game1
 
         if (inputWidth <= 0 || inputHeight <= 0)
         {
-            var fallback = GetPreferredBackBufferDimensions(fullscreen: false, _ingameResolution);
+            var fallback = GetPreferredBackBufferDimensions(fullscreen: false, _ingameResolution, _windowSize);
             return new Rectangle(0, 0, fallback.X, fallback.Y);
         }
 
@@ -247,16 +253,16 @@ public partial class Game1
             rawMouse.XButton2);
     }
 
-    private void ApplyPreferredBackBufferSize(bool fullscreen, IngameResolutionKind ingameResolution)
+    private void ApplyPreferredBackBufferSize(bool fullscreen, IngameResolutionKind ingameResolution, WindowSizeKind windowSize)
     {
-        var preferredDimensions = GetWindowDimensions(fullscreen, ingameResolution);
+        var preferredDimensions = GetWindowDimensions(fullscreen, ingameResolution, windowSize);
         _graphics.PreferredBackBufferWidth = preferredDimensions.X;
         _graphics.PreferredBackBufferHeight = preferredDimensions.Y;
     }
 
-    private Point GetWindowDimensions(bool fullscreen, IngameResolutionKind ingameResolution)
+    private Point GetWindowDimensions(bool fullscreen, IngameResolutionKind ingameResolution, WindowSizeKind windowSize)
     {
-        var gameplayDimensions = GetPreferredBackBufferDimensions(fullscreen, ingameResolution);
+        var gameplayDimensions = GetPreferredBackBufferDimensions(fullscreen, ingameResolution, windowSize);
         if (fullscreen || !_navEditorEnabled)
         {
             return gameplayDimensions;
@@ -269,7 +275,7 @@ public partial class Game1
 
     private void RefreshNavEditorWindowGutter()
     {
-        var preferredDimensions = GetWindowDimensions(_graphics.IsFullScreen, _ingameResolution);
+        var preferredDimensions = GetWindowDimensions(_graphics.IsFullScreen, _ingameResolution, _windowSize);
         if (_graphics.PreferredBackBufferWidth == preferredDimensions.X
             && _graphics.PreferredBackBufferHeight == preferredDimensions.Y)
         {
@@ -291,7 +297,7 @@ public partial class Game1
         return NavEditorPanelExpandedHeight + (NavEditorPanelMargin * 2);
     }
 
-    private static Point GetPreferredBackBufferDimensions(bool fullscreen, IngameResolutionKind ingameResolution)
+    private static Point GetPreferredBackBufferDimensions(bool fullscreen, IngameResolutionKind ingameResolution, WindowSizeKind windowSize)
     {
         if (fullscreen && !OperatingSystem.IsBrowser())
         {
@@ -299,7 +305,11 @@ public partial class Game1
             return new Point(displayMode.Width, displayMode.Height);
         }
 
-        return GetViewportDimensions(ingameResolution);
+        var viewportDimensions = GetViewportDimensions(ingameResolution);
+        var scale = GetWindowSizeScale(windowSize);
+        return new Point(
+            Math.Max(1, (int)MathF.Round(viewportDimensions.X * scale)),
+            Math.Max(1, (int)MathF.Round(viewportDimensions.Y * scale)));
     }
 
     private static IngameResolutionKind NormalizeIngameResolution(IngameResolutionKind ingameResolution)
@@ -311,7 +321,17 @@ public partial class Game1
             IngameResolutionKind.Aspect16x9 => IngameResolutionKind.Aspect16x9,
             IngameResolutionKind.Aspect16x10 => IngameResolutionKind.Aspect16x9,
             IngameResolutionKind.Aspect2x1 => IngameResolutionKind.Aspect16x9,
-            _ => IngameResolutionKind.Aspect4x3,
+            _ => OpenGarrisonPreferencesDocument.DefaultIngameResolution,
+        };
+    }
+
+    private static float GetWindowSizeScale(WindowSizeKind windowSize)
+    {
+        return OpenGarrisonPreferencesDocument.NormalizeWindowSize(windowSize) switch
+        {
+            WindowSizeKind.Scale150 => 1.5f,
+            WindowSizeKind.Scale200 => 2f,
+            _ => 1f,
         };
     }
 
@@ -332,6 +352,26 @@ public partial class Game1
             IngameResolutionKind.Aspect5x4 => "5:4",
             IngameResolutionKind.Aspect16x9 => "16:9",
             _ => "4:3",
+        };
+    }
+
+    private static string GetWindowSizeLabel(WindowSizeKind windowSize)
+    {
+        return OpenGarrisonPreferencesDocument.NormalizeWindowSize(windowSize) switch
+        {
+            WindowSizeKind.Scale150 => "150%",
+            WindowSizeKind.Scale200 => "200%",
+            _ => "100%",
+        };
+    }
+
+    private static WindowSizeKind GetNextWindowSize(WindowSizeKind windowSize)
+    {
+        return OpenGarrisonPreferencesDocument.NormalizeWindowSize(windowSize) switch
+        {
+            WindowSizeKind.Scale100 => WindowSizeKind.Scale150,
+            WindowSizeKind.Scale150 => WindowSizeKind.Scale200,
+            _ => WindowSizeKind.Scale100,
         };
     }
 

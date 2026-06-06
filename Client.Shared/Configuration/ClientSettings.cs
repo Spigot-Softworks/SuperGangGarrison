@@ -27,7 +27,9 @@ public sealed class ClientSettings
 
     public int FrameRateLimit { get; set; }
 
-    public IngameResolutionKind IngameResolution { get; set; } = IngameResolutionKind.Aspect4x3;
+    public IngameResolutionKind IngameResolution { get; set; } = OpenGarrisonPreferencesDocument.DefaultIngameResolution;
+
+    public WindowSizeKind WindowSize { get; set; } = OpenGarrisonPreferencesDocument.DefaultWindowSize;
 
     public MusicMode MusicMode { get; set; } = MusicMode.MenuAndInGame;
 
@@ -75,7 +77,7 @@ public sealed class ClientSettings
 
     public bool PortraitRumbleEnabled { get; set; } = true;
 
-    public bool PostGameMvpArtEnabled { get; set; }
+    public bool PostGameMvpArtEnabled { get; set; } = OpenGarrisonPreferencesDocument.DefaultPostGameMvpArtEnabled;
 
     public bool DamageVignetteEnabled { get; set; } = true;
 
@@ -220,6 +222,7 @@ public sealed class ClientSettings
             MusicMode = document.MusicMode,
             BotMode = document.BotMode,
             IngameResolution = document.IngameResolution,
+            WindowSize = OpenGarrisonPreferencesDocument.NormalizeWindowSize(document.WindowSize),
             ParticleMode = document.ParticleMode,
             FlameRenderMode = document.FlameRenderMode,
             MenuBackgroundMode = document.MenuBackgroundMode,
@@ -293,6 +296,7 @@ public sealed class ClientSettings
         preferences.Fullscreen = Fullscreen;
         preferences.VSync = VSync;
         preferences.IngameResolution = IngameResolution;
+        preferences.WindowSize = OpenGarrisonPreferencesDocument.NormalizeWindowSize(WindowSize);
         preferences.MusicMode = MusicMode;
         preferences.BotMode = BotMode;
         preferences.KillCamEnabled = KillCamEnabled;

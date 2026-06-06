@@ -273,7 +273,8 @@ public partial class Game1 : Game
     private bool _hasGameplayCameraTopLeft;
     private Vector2 _gameplayCameraTopLeft;
     private string _lastGameplayWindowTitle = string.Empty;
-    private IngameResolutionKind _ingameResolution = IngameResolutionKind.Aspect4x3;
+    private IngameResolutionKind _ingameResolution = OpenGarrisonPreferencesDocument.DefaultIngameResolution;
+    private WindowSizeKind _windowSize = OpenGarrisonPreferencesDocument.DefaultWindowSize;
     private int _particleMode;
     private int _flameRenderMode;
     private MenuBackgroundMode _menuBackgroundMode = MenuBackgroundMode.DefaultMaps;
@@ -398,7 +399,8 @@ public partial class Game1 : Game
         InitializeLocalDistributionAtlasManifestsIfPresent();
         IsMouseVisible = false;
         ApplyIngameResolution(_clientSettings.IngameResolution);
-        ApplyPreferredBackBufferSize(!OperatingSystem.IsBrowser() && _clientSettings.Fullscreen, _ingameResolution);
+        ApplyWindowSize(_clientSettings.WindowSize);
+        ApplyPreferredBackBufferSize(!OperatingSystem.IsBrowser() && _clientSettings.Fullscreen, _ingameResolution, _windowSize);
 
         ReinitializeSimulationForTickRate(SimulationConfig.DefaultTicksPerSecond);
         _assetManifest = OperatingSystem.IsBrowser()

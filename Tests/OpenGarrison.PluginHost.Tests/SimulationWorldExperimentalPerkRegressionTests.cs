@@ -152,6 +152,27 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
+    public void StockPyroAirblastPushesTeammates()
+    {
+        var world = CreateJoinedPyroWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        var teammate = CreateNetworkSoldier(world, 2);
+        teammate.TeleportTo(world.LocalPlayer.X + 64f, world.LocalPlayer.Y);
+        teammate.SetSpawnRoomState(false);
+        teammate.ApplyVelocityImpulse(0f, 0f);
+
+        PressFireSecondary(world);
+
+        Assert.True(
+            teammate.HorizontalSpeed > 0f,
+            $"expected teammate to be pushed forward; speed={teammate.HorizontalSpeed:0.###}");
+        Assert.True(
+            teammate.VerticalSpeed < 0f,
+            $"expected teammate to receive airblast lift; speed={teammate.VerticalSpeed:0.###}");
+    }
+
+    [Fact]
     public void StockDemomanRightClickDetonatesInsteadOfSwappingWhenMouseSecondaryIsSwapBound()
     {
         var world = CreateJoinedDemomanWorld(new ExperimentalGameplaySettings());
@@ -971,6 +992,49 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(totalDistance > 10f);
         Assert.False(world.LocalPlayer.IsExperimentalGhostDashing);
         Assert.True(world.LocalPlayer.ExperimentalGhostDashCooldownTicksRemaining > 0);
+    }
+
+    [Fact]
+    public void SpyJumpInputCancelsSuperjumpChargeWithoutCooldown()
+    {
+        var world = CreateJoinedSpyWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        var startY = world.LocalPlayer.Y;
+
+        PressUseAbilitySpace(world);
+        Assert.True(world.LocalPlayer.SpySuperjumpChargeTicks > 0);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: true,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 96f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false,
+            UseAbility: true,
+            SwapWeapon: false));
+        world.AdvanceOneTick();
+
+        Assert.Equal(0, world.LocalPlayer.SpySuperjumpChargeTicks);
+        Assert.False(world.LocalPlayer.IsSpySuperjumping);
+        Assert.Equal(0, world.LocalPlayer.SpySuperjumpCooldownTicksRemaining);
+        Assert.True(world.LocalPlayer.IsGrounded);
+        Assert.Equal(startY, world.LocalPlayer.Y);
+
+        world.AdvanceOneTick();
+        Assert.Equal(0, world.LocalPlayer.SpySuperjumpChargeTicks);
+        Assert.Equal(0, world.LocalPlayer.SpySuperjumpCooldownTicksRemaining);
+
+        ReleaseAllInput(world);
+        PressUseAbilitySpace(world);
+        Assert.True(world.LocalPlayer.SpySuperjumpChargeTicks > 0);
     }
 
     [Fact]

@@ -11,9 +11,12 @@ public sealed class OpenGarrisonPreferencesDocument
     public const string DefaultApiBaseUrl = "https://api.unkind-dev.com";
     public const string DefaultLobbyHost = DefaultApiBaseUrl + "/api/servers";
     public const int DefaultLobbyPort = 443;
+    public const IngameResolutionKind DefaultIngameResolution = IngameResolutionKind.Aspect16x9;
+    public const WindowSizeKind DefaultWindowSize = WindowSizeKind.Scale100;
     public const bool DefaultOverheadChatEnabled = true;
     public const int DefaultDamageVignetteIntensityPercent = 100;
-    public const int DefaultCombatMusicVolumePercent = 200;
+    public const int DefaultCombatMusicVolumePercent = 120;
+    public const bool DefaultPostGameMvpArtEnabled = true;
     public const int MaxCombatMusicVolumePercent = 300;
     public const float DefaultControllerAimAssistStrength = 0.6f;
     public const float DefaultControllerAimDeadzone = 0.22f;
@@ -48,7 +51,9 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public int FrameRateLimit { get; set; }
 
-    public IngameResolutionKind IngameResolution { get; set; } = IngameResolutionKind.Aspect4x3;
+    public IngameResolutionKind IngameResolution { get; set; } = DefaultIngameResolution;
+
+    public WindowSizeKind WindowSize { get; set; } = DefaultWindowSize;
 
     public MusicMode MusicMode { get; set; } = MusicMode.MenuAndInGame;
 
@@ -86,7 +91,7 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool PortraitRumbleEnabled { get; set; } = true;
 
-    public bool PostGameMvpArtEnabled { get; set; }
+    public bool PostGameMvpArtEnabled { get; set; } = DefaultPostGameMvpArtEnabled;
 
     public bool DamageVignetteEnabled { get; set; } = true;
 
@@ -207,7 +212,8 @@ public sealed class OpenGarrisonPreferencesDocument
             Fullscreen = ini.GetBool(SettingsSection, "Fullscreen", false),
             VSync = ini.GetBool(SettingsSection, "Monitor Sync", false),
             FrameRateLimit = ini.GetInt(SettingsSection, "Frame Rate Limit", 0),
-            IngameResolution = NormalizeIngameResolution((IngameResolutionKind)ini.GetInt(SettingsSection, "Resolution", (int)IngameResolutionKind.Aspect4x3)),
+            IngameResolution = ReadIngameResolution(ini),
+            WindowSize = NormalizeWindowSize((WindowSizeKind)ini.GetInt(SettingsSection, "Window Size", (int)DefaultWindowSize)),
             MusicMode = LoadMusicMode(ini),
             BotMode = ParseBotMode(ini.GetString(SettingsSection, "Bot Mode", OfflineBotControllerMode.BotBrain.ToString())),
             KillCamEnabled = ini.GetBool(SettingsSection, "Kill Cam", true),
@@ -223,7 +229,7 @@ public sealed class OpenGarrisonPreferencesDocument
             HudShowOnlyActiveWeapon = ini.GetBool(SettingsSection, "HUD Show Only Active Weapon", false),
             OverheadChatEnabled = ini.GetBool(SettingsSection, "Overhead Chat", DefaultOverheadChatEnabled),
             PortraitRumbleEnabled = ini.GetBool(SettingsSection, "Portrait Rumble", true),
-            PostGameMvpArtEnabled = ini.GetBool(SettingsSection, "MVP Art", false),
+            PostGameMvpArtEnabled = ini.GetBool(SettingsSection, "MVP Art", DefaultPostGameMvpArtEnabled),
             DamageVignetteEnabled = ini.GetBool(SettingsSection, "Damage Vignette", true),
             DamageVignetteIntensityPercent = NormalizeDamageVignetteIntensityPercent(ini.GetInt(SettingsSection, "Damage Vignette Intensity", DefaultDamageVignetteIntensityPercent)),
             LowHealthColorMode = ParseLowHealthColorMode(ini.GetString(SettingsSection, "Low Health Color", LowHealthColorMode.Red.ToString())),
@@ -292,6 +298,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(SettingsSection, "UseLobby", HostSettings.LobbyAnnounceEnabled);
         ini.SetInt(SettingsSection, "HostingPort", HostSettings.Port);
         ini.SetInt(SettingsSection, "Resolution", (int)NormalizeIngameResolution(IngameResolution));
+        ini.SetInt(SettingsSection, "Window Size", (int)NormalizeWindowSize(WindowSize));
         ini.SetInt(SettingsSection, "Music", (int)NormalizeMusicMode(MusicMode));
         ini.SetString(SettingsSection, "Bot Mode", NormalizeBotMode(BotMode).ToString());
         ini.SetInt(SettingsSection, "PlayerLimit", HostSettings.Slots);
@@ -534,6 +541,32 @@ public sealed class OpenGarrisonPreferencesDocument
             : fallback;
     }
 
+    public static WindowSizeKind NormalizeWindowSize(WindowSizeKind windowSize)
+    {
+        return windowSize switch
+        {
+            WindowSizeKind.Scale100 => WindowSizeKind.Scale100,
+            WindowSizeKind.Scale150 => WindowSizeKind.Scale150,
+            WindowSizeKind.Scale200 => WindowSizeKind.Scale200,
+            _ => DefaultWindowSize,
+        };
+    }
+
+    private static IngameResolutionKind ReadIngameResolution(IniConfigurationFile ini)
+    {
+        var resolution = (IngameResolutionKind)ini.GetInt(SettingsSection, "Resolution", (int)DefaultIngameResolution);
+        return ShouldUpgradeLegacyDefaultResolution(ini, resolution)
+            ? DefaultIngameResolution
+            : NormalizeIngameResolution(resolution);
+    }
+
+    private static bool ShouldUpgradeLegacyDefaultResolution(IniConfigurationFile ini, IngameResolutionKind resolution)
+    {
+        // Older generated preferences wrote 4:3 as the default before Window Size existed.
+        return resolution == IngameResolutionKind.Aspect4x3
+            && !ini.ContainsKey(SettingsSection, "Window Size");
+    }
+
     private static IngameResolutionKind NormalizeIngameResolution(IngameResolutionKind ingameResolution)
     {
         return ingameResolution switch
@@ -543,7 +576,7 @@ public sealed class OpenGarrisonPreferencesDocument
             IngameResolutionKind.Aspect16x9 => IngameResolutionKind.Aspect16x9,
             IngameResolutionKind.Aspect16x10 => IngameResolutionKind.Aspect16x9,
             IngameResolutionKind.Aspect2x1 => IngameResolutionKind.Aspect16x9,
-            _ => IngameResolutionKind.Aspect4x3,
+            _ => DefaultIngameResolution,
         };
     }
 
