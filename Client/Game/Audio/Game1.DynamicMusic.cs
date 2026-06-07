@@ -13,13 +13,12 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
     private const int DynamicMusicCombatLingerTicks = SimulationConfig.DefaultTicksPerSecond * 10;
-    private const int DynamicMusicCombatParticipantLingerTicks = SimulationConfig.DefaultTicksPerSecond * 5;
     private const float DynamicMusicFadeInPerSecond = 1.45f;
     private const float DynamicMusicFadeOutPerSecond = 0.95f;
     private const float DynamicMusicCombatRiserDelaySeconds = 0.83f;
     private const float DynamicMusicCombatLowHealthThreshold = 0.35f;
-    private const float DynamicMusicCombatPresenceDistance = 560f;
-    private const float DynamicMusicCombatPresenceDistanceSquared = DynamicMusicCombatPresenceDistance * DynamicMusicCombatPresenceDistance;
+    private const float DynamicMusicCombatLeadVolumeScale = 1.15f;
+    private const float DynamicMusicCombatBackingWithLeadScale = 0.82f;
     private const int DynamicMusicDirtbowlGateLeadSeconds = 7;
     private const float DynamicMusicDirtbowlGateFadeOutSeconds = 3f;
     private const float DynamicMusicIntelVolumeScale = 0.70f;
@@ -121,7 +120,6 @@ public partial class Game1
         }
 
         _dynamicMusicCombatTicksRemaining = DynamicMusicCombatLingerTicks;
-        TrackDynamicCombatParticipant(GetResolvedLocalPlayerId());
         TrackDynamicCombatParticipant(attackerPlayerId);
         TrackDynamicCombatParticipant(targetEntityId);
     }
@@ -213,63 +211,6 @@ public partial class Game1
         }
     }
 
-    private void RefreshDynamicCombatMusicPresence()
-    {
-        if (_dynamicMusicCombatTicksRemaining <= 0
-            || IsLocalSpectatorPresentationActive()
-            || _world.LocalPlayerAwaitingJoin
-            || !_world.LocalPlayer.IsAlive)
-        {
-            return;
-        }
-
-        var localPlayer = _world.LocalPlayer;
-        var localPlayerId = GetResolvedLocalPlayerId();
-        TrackDynamicCombatParticipant(localPlayerId);
-
-        foreach (var player in EnumerateRenderablePlayers())
-        {
-            if (!player.IsAlive || ReferenceEquals(player, localPlayer))
-            {
-                continue;
-            }
-
-            if (player.Team != localPlayer.Team && IsDynamicCombatPlayerNearLocalPlayer(player))
-            {
-                TrackDynamicCombatParticipant(player.Id);
-            }
-
-            TrackDynamicCombatMedicContribution(player);
-        }
-    }
-
-    private bool IsDynamicCombatPlayerNearLocalPlayer(PlayerEntity player)
-    {
-        var localPlayer = _world.LocalPlayer;
-        var deltaX = player.X - localPlayer.X;
-        var deltaY = player.Y - localPlayer.Y;
-        return (deltaX * deltaX) + (deltaY * deltaY) <= DynamicMusicCombatPresenceDistanceSquared;
-    }
-
-    private void TrackDynamicCombatMedicContribution(PlayerEntity player)
-    {
-        if (!player.IsMedicHealing || !player.MedicHealTargetId.HasValue)
-        {
-            return;
-        }
-
-        var healingTargetId = player.MedicHealTargetId.Value;
-        var localPlayerId = GetResolvedLocalPlayerId();
-        if (player.Id == localPlayerId
-            || healingTargetId == localPlayerId
-            || _dynamicCombatParticipantTicks.ContainsKey(player.Id)
-            || _dynamicCombatParticipantTicks.ContainsKey(healingTargetId))
-        {
-            TrackDynamicCombatParticipant(player.Id);
-            TrackDynamicCombatParticipant(healingTargetId);
-        }
-    }
-
     private void TrackDynamicCombatParticipant(int playerId)
     {
         if (playerId <= 0)
@@ -277,7 +218,7 @@ public partial class Game1
             return;
         }
 
-        _dynamicCombatParticipantTicks[playerId] = DynamicMusicCombatParticipantLingerTicks;
+        _dynamicCombatParticipantTicks[playerId] = DynamicMusicCombatLingerTicks;
     }
 
     private DynamicCombatMusicStage ResolveDynamicCombatMusicStage()
@@ -346,7 +287,6 @@ public partial class Game1
     private void UpdateDynamicMusic(GameTime gameTime, int clientTicks)
     {
         AdvanceDynamicCombatMusicTimers(clientTicks);
-        RefreshDynamicCombatMusicPresence();
 
         if (!CanUseDynamicMusic())
         {
@@ -1087,10 +1027,11 @@ public partial class Game1
     private void UpdateDynamicMusicInstanceVolumes(float ingameMusicVolume)
     {
         var combatMusicVolume = GetCombatMusicVolumeScale(ingameMusicVolume);
-        SetSoundEffectInstanceVolume(_dynamicCombatDrumMusicInstance, combatMusicVolume * _dynamicCombatDrumFade);
-        SetSoundEffectInstanceVolume(_dynamicCombatBodyMusicInstance, combatMusicVolume * _dynamicCombatBodyFade);
-        SetSoundEffectInstanceVolume(_dynamicCombatBassMusicInstance, combatMusicVolume * _dynamicCombatBassFade);
-        SetSoundEffectInstanceVolume(_dynamicCombatLeadMusicInstance, combatMusicVolume * _dynamicCombatLeadFade);
+        var backingScale = MathHelper.Lerp(1f, DynamicMusicCombatBackingWithLeadScale, _dynamicCombatLeadFade);
+        SetSoundEffectInstanceVolume(_dynamicCombatDrumMusicInstance, combatMusicVolume * backingScale * _dynamicCombatDrumFade);
+        SetSoundEffectInstanceVolume(_dynamicCombatBodyMusicInstance, combatMusicVolume * backingScale * _dynamicCombatBodyFade);
+        SetSoundEffectInstanceVolume(_dynamicCombatBassMusicInstance, combatMusicVolume * backingScale * _dynamicCombatBassFade);
+        SetSoundEffectInstanceVolume(_dynamicCombatLeadMusicInstance, combatMusicVolume * DynamicMusicCombatLeadVolumeScale * _dynamicCombatLeadFade);
         SetSoundEffectInstanceVolume(_dynamicCombatRiserInstance, combatMusicVolume);
         SetSoundEffectInstanceVolume(_dynamicDirtbowlGateMusicInstance, ingameMusicVolume * 0.8f * _dynamicDirtbowlGateMusicFade);
         SetSoundEffectInstanceVolume(_dynamicIntelMusicInstance, ingameMusicVolume * DynamicMusicIntelVolumeScale * _dynamicIntelMusicFade);
