@@ -39,7 +39,8 @@ public sealed partial class SimulationWorld
             poofX,
             poofY,
             affectEnemies: false,
-            affectTeammates: true);
+            affectTeammates: true,
+            carryTeammatesWithPlayerVelocity: true);
         PushLooseBodies(sourceX, sourceY, aimRadians, poofX, poofY);
     }
 
@@ -210,7 +211,8 @@ public sealed partial class SimulationWorld
         float poofX,
         float poofY,
         bool affectEnemies = true,
-        bool affectTeammates = true)
+        bool affectTeammates = true,
+        bool carryTeammatesWithPlayerVelocity = false)
     {
         foreach (var target in EnumerateSimulatedPlayers())
         {
@@ -242,6 +244,15 @@ public sealed partial class SimulationWorld
             if (!targetIsTeammate)
             {
                 target.RegisterDamageDealer(player.Id, GetSimulationTicksFromSourceTicks(AssistTrackingSourceTicks));
+            }
+
+            if (targetIsTeammate && carryTeammatesWithPlayerVelocity)
+            {
+                target.AddImpulse(
+                    player.HorizontalSpeed - target.HorizontalSpeed,
+                    player.VerticalSpeed - target.VerticalSpeed);
+                target.SetMovementState(LegacyMovementState.FriendlyJuggle);
+                continue;
             }
 
             target.AddImpulse(

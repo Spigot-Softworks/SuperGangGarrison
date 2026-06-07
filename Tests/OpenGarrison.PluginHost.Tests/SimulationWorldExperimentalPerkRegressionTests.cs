@@ -173,7 +173,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
-    public void PyroUtilityAirburstPushesTeammates()
+    public void PyroUtilityAirburstCarriesTeammatesWithPyroVelocity()
     {
         var world = CreateJoinedPyroWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
@@ -183,14 +183,20 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         teammate.SetSpawnRoomState(false);
         teammate.ApplyVelocityImpulse(0f, 0f);
 
-        PressUseAbilitySpace(world);
+        PressUseAbilitySpace(world, world.LocalPlayer.X + 96f, world.LocalPlayer.Y + 32f);
 
         Assert.True(
-            teammate.HorizontalSpeed > 0f,
-            $"expected teammate to be pushed forward; speed={teammate.HorizontalSpeed:0.###}");
+            world.LocalPlayer.HorizontalSpeed < 0f,
+            $"expected pyro to airburst backward; speed={world.LocalPlayer.HorizontalSpeed:0.###}");
         Assert.True(
-            teammate.VerticalSpeed < 0f,
-            $"expected teammate to receive airburst lift; speed={teammate.VerticalSpeed:0.###}");
+            world.LocalPlayer.VerticalSpeed < 0f,
+            $"expected pyro to airburst upward; speed={world.LocalPlayer.VerticalSpeed:0.###}");
+        Assert.True(
+            MathF.Abs(teammate.HorizontalSpeed - world.LocalPlayer.HorizontalSpeed) < 0.001f,
+            $"expected teammate to inherit pyro hspeed; pyro={world.LocalPlayer.HorizontalSpeed:0.###} teammate={teammate.HorizontalSpeed:0.###}");
+        Assert.True(
+            MathF.Abs(teammate.VerticalSpeed - world.LocalPlayer.VerticalSpeed) < 2.5f,
+            $"expected teammate to inherit pyro vspeed; pyro={world.LocalPlayer.VerticalSpeed:0.###} teammate={teammate.VerticalSpeed:0.###}");
     }
 
     [Fact]
@@ -2351,6 +2357,9 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     private static void PressUseAbilitySpace(SimulationWorld world)
+        => PressUseAbilitySpace(world, world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
+
+    private static void PressUseAbilitySpace(SimulationWorld world, float aimWorldX, float aimWorldY)
     {
         world.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
@@ -2362,8 +2371,8 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
             Taunt: false,
             FirePrimary: false,
             FireSecondary: false,
-            AimWorldX: world.LocalPlayer.X + 96f,
-            AimWorldY: world.LocalPlayer.Y,
+            AimWorldX: aimWorldX,
+            AimWorldY: aimWorldY,
             DebugKill: false,
             UseAbility: true,
             SwapWeapon: false));
