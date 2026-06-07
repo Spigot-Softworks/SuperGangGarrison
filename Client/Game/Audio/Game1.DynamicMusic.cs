@@ -46,6 +46,7 @@ public partial class Game1
         None,
         Drum,
         Body,
+        Lead,
     }
 
     private bool _dynamicMusicEnabled = true;
@@ -55,7 +56,9 @@ public partial class Game1
     private SoundEffect? _dynamicCombatBodyMusic;
     private SoundEffectInstance? _dynamicCombatBodyMusicInstance;
     private SoundEffect? _dynamicCombatBassMusic;
-    private SoundEffectInstance? _dynamicCombatBassMusicInstance;
+    private SoundEffectInstance? _dynamicCombatBassMusicInstance; 
+	private SoundEffect? _dynamicCombatLeadMusic;
+    private SoundEffectInstance? _dynamicCombatLeadMusicInstance;
     private SoundEffect? _dynamicCombatRiser;
     private SoundEffectInstance? _dynamicCombatRiserInstance;
     private SoundEffect? _dynamicIntelMusic;
@@ -76,6 +79,7 @@ public partial class Game1
     private float _dynamicCombatDrumFade;
     private float _dynamicCombatBodyFade;
     private float _dynamicCombatBassFade;
+    private float _dynamicCombatLeadFade;
     private float _dynamicIntelMusicFade;
     private float _dynamicUberMusicFade;
 
@@ -381,6 +385,9 @@ public partial class Game1
         }
 
         if (_world.RedIntel.IsCarried || _world.BlueIntel.IsCarried)
+        if ((_world.RedIntel.IsCarried || _world.BlueIntel.IsCarried || _world.RedIntel.IsDropped || _world.BlueIntel.IsDropped) 
+			&& 
+			(_world.RedCaps == 0 && _world.BlueCaps == 0))
         {
             return DynamicMusicEventState.Intel;
         }
@@ -480,6 +487,10 @@ public partial class Game1
             Path.Combine("Music", "action_redo_bass.ogg"),
             out _dynamicCombatBassMusic,
             out _dynamicCombatBassMusicInstance);
+			_gameplayAudioMusicController.TryLoadOptionalLoopedMusic(
+            Path.Combine("Music", "action_redo_lead.ogg"),
+            out _dynamicCombatLeadMusic,
+            out _dynamicCombatLeadMusicInstance);
         _gameplayAudioMusicController.TryLoadOptionalMusicSound(
             Path.Combine("Music", "transition_riser.ogg"),
             out _dynamicCombatRiser,
@@ -556,7 +567,8 @@ public partial class Game1
     {
         return _dynamicCombatDrumFade > 0f
             || _dynamicCombatBodyFade > 0f
-            || _dynamicCombatBassFade > 0f;
+            || _dynamicCombatBassFade > 0f
+            || _dynamicCombatLeadFade > 0f;
     }
 
     private void TryStartDynamicCombatLoopInstances(string operation)
@@ -564,6 +576,7 @@ public partial class Game1
         TryStartDynamicMusicInstance(_dynamicCombatDrumMusicInstance, operation);
         TryStartDynamicMusicInstance(_dynamicCombatBodyMusicInstance, operation);
         TryStartDynamicMusicInstance(_dynamicCombatBassMusicInstance, operation);
+        TryStartDynamicMusicInstance(_dynamicCombatLeadMusicInstance, operation);
     }
 
     private void TryStartDynamicMusicInstance(SoundEffectInstance? instance, string operation)
@@ -643,22 +656,24 @@ public partial class Game1
         _dynamicCombatDrumFade = MoveDynamicMusicFadeToward(_dynamicCombatDrumFade, combatStemTargets.Drum, combatStemTargets.Drum > _dynamicCombatDrumFade ? fadeInStep : fadeOutStep);
         _dynamicCombatBodyFade = MoveDynamicMusicFadeToward(_dynamicCombatBodyFade, combatStemTargets.Body, combatStemTargets.Body > _dynamicCombatBodyFade ? fadeInStep : fadeOutStep);
         _dynamicCombatBassFade = MoveDynamicMusicFadeToward(_dynamicCombatBassFade, combatStemTargets.Bass, combatStemTargets.Bass > _dynamicCombatBassFade ? fadeInStep : fadeOutStep);
+        _dynamicCombatLeadFade = MoveDynamicMusicFadeToward(_dynamicCombatLeadFade, combatStemTargets.Lead, combatStemTargets.Lead > _dynamicCombatLeadFade ? fadeInStep : fadeOutStep);
         _dynamicIntelMusicFade = MoveDynamicMusicFadeToward(_dynamicIntelMusicFade, targetState == DynamicMusicEventState.Intel ? 1f : 0f, targetState == DynamicMusicEventState.Intel ? fadeInStep : fadeOutStep);
         _dynamicUberMusicFade = MoveDynamicMusicFadeToward(_dynamicUberMusicFade, targetState == DynamicMusicEventState.Uber ? 1f : 0f, targetState == DynamicMusicEventState.Uber ? fadeInStep : fadeOutStep);
         var strongestEventFade = Math.Max(_dynamicCombatMusicFade, Math.Max(_dynamicIntelMusicFade, _dynamicUberMusicFade));
         _dynamicNormalMusicFade = 1f - strongestEventFade;
     }
 
-    private (float Drum, float Body, float Bass) GetDynamicCombatStemTargetVolumes(DynamicCombatMusicStage stage)
+    private (float Drum, float Body, float Bass, float Lead) GetDynamicCombatStemTargetVolumes(DynamicCombatMusicStage stage)
     {
         var leadStem = EnsureDynamicCombatLeadStem();
         return stage switch
         {
-            DynamicCombatMusicStage.Light when leadStem == DynamicCombatMusicLeadStem.Drum => (1f, 0f, 0f),
-            DynamicCombatMusicStage.Light when leadStem == DynamicCombatMusicLeadStem.Body => (0f, 1f, 0f),
-            DynamicCombatMusicStage.Medium when leadStem == DynamicCombatMusicLeadStem.Drum => (1f, 0f, 1f),
-            DynamicCombatMusicStage.Medium when leadStem == DynamicCombatMusicLeadStem.Body => (0f, 1f, 1f),
-            DynamicCombatMusicStage.Hard => (1f, 1f, 1f),
+            DynamicCombatMusicStage.Light when leadStem == DynamicCombatMusicLeadStem.Drum => (1f, 0f, 0f, 0f),
+            DynamicCombatMusicStage.Light when leadStem == DynamicCombatMusicLeadStem.Body => (0f, 1f, 0f, 0f),
+            DynamicCombatMusicStage.Medium when leadStem == DynamicCombatMusicLeadStem.Drum => (1f, 0f, 1f, 0f),
+            DynamicCombatMusicStage.Medium when leadStem == DynamicCombatMusicLeadStem.Body => (0f, 1f, 1f, 0f),
+            //DynamicCombatMusicStage.Hard => (1f, 1f, 1f),
+            DynamicCombatMusicStage.Hard => (1f, 1f, 1f, 0f),
             _ => default,
         };
     }
@@ -700,6 +715,7 @@ public partial class Game1
                 StopDynamicMusicInstance(_dynamicCombatDrumMusicInstance);
                 StopDynamicMusicInstance(_dynamicCombatBodyMusicInstance);
                 StopDynamicMusicInstance(_dynamicCombatBassMusicInstance);
+                StopDynamicMusicInstance(_dynamicCombatLeadMusicInstance);
             }
         }
 
@@ -735,6 +751,7 @@ public partial class Game1
         _dynamicCombatDrumFade = 0f;
         _dynamicCombatBodyFade = 0f;
         _dynamicCombatBassFade = 0f;
+        _dynamicCombatLeadFade = 0f;
         _dynamicIntelMusicFade = 0f;
         _dynamicUberMusicFade = 0f;
         StopDynamicMusic();
@@ -756,6 +773,7 @@ public partial class Game1
             || IsDynamicMusicInstancePlaying(_dynamicCombatDrumMusicInstance)
             || IsDynamicMusicInstancePlaying(_dynamicCombatBodyMusicInstance)
             || IsDynamicMusicInstancePlaying(_dynamicCombatBassMusicInstance)
+            || IsDynamicMusicInstancePlaying(_dynamicCombatLeadMusicInstance)
             || IsDynamicMusicInstancePlaying(_dynamicCombatRiserInstance)
             || IsDynamicMusicInstancePlaying(_dynamicIntelMusicInstance)
             || IsDynamicMusicInstancePlaying(_dynamicUberMusicInstance);
@@ -778,6 +796,7 @@ public partial class Game1
         StopDynamicMusicInstance(_dynamicCombatDrumMusicInstance);
         StopDynamicMusicInstance(_dynamicCombatBodyMusicInstance);
         StopDynamicMusicInstance(_dynamicCombatBassMusicInstance);
+        StopDynamicMusicInstance(_dynamicCombatLeadMusicInstance);
         StopDynamicMusicInstance(_dynamicCombatRiserInstance);
         StopDynamicMusicInstance(_dynamicIntelMusicInstance);
         StopDynamicMusicInstance(_dynamicUberMusicInstance);
@@ -803,6 +822,7 @@ public partial class Game1
         DisposeDynamicMusicTrack(ref _dynamicCombatDrumMusic, ref _dynamicCombatDrumMusicInstance);
         DisposeDynamicMusicTrack(ref _dynamicCombatBodyMusic, ref _dynamicCombatBodyMusicInstance);
         DisposeDynamicMusicTrack(ref _dynamicCombatBassMusic, ref _dynamicCombatBassMusicInstance);
+        DisposeDynamicMusicTrack(ref _dynamicCombatLeadMusic, ref _dynamicCombatLeadMusicInstance);
         DisposeDynamicMusicTrack(ref _dynamicCombatRiser, ref _dynamicCombatRiserInstance);
         DisposeDynamicMusicTrack(ref _dynamicIntelMusic, ref _dynamicIntelMusicInstance);
         DisposeDynamicMusicTrack(ref _dynamicUberMusic, ref _dynamicUberMusicInstance);
@@ -819,6 +839,7 @@ public partial class Game1
         _dynamicCombatDrumFade = 0f;
         _dynamicCombatBodyFade = 0f;
         _dynamicCombatBassFade = 0f;
+        _dynamicCombatLeadFade = 0f;
         _dynamicIntelMusicFade = 0f;
         _dynamicUberMusicFade = 0f;
     }
@@ -837,6 +858,7 @@ public partial class Game1
         SetSoundEffectInstanceVolume(_dynamicCombatDrumMusicInstance, combatMusicVolume * _dynamicCombatDrumFade);
         SetSoundEffectInstanceVolume(_dynamicCombatBodyMusicInstance, combatMusicVolume * _dynamicCombatBodyFade);
         SetSoundEffectInstanceVolume(_dynamicCombatBassMusicInstance, combatMusicVolume * _dynamicCombatBassFade);
+        SetSoundEffectInstanceVolume(_dynamicCombatLeadMusicInstance, combatMusicVolume * _dynamicCombatLeadFade);
         SetSoundEffectInstanceVolume(_dynamicCombatRiserInstance, combatMusicVolume);
         SetSoundEffectInstanceVolume(_dynamicIntelMusicInstance, ingameMusicVolume * DynamicMusicIntelVolumeScale * _dynamicIntelMusicFade);
         SetSoundEffectInstanceVolume(_dynamicUberMusicInstance, ingameMusicVolume * DynamicMusicUberVolumeScale * _dynamicUberMusicFade);
