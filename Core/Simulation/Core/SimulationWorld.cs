@@ -25,6 +25,7 @@ public sealed partial class SimulationWorld
     private const int KillFeedLifetimeTicks = 150;
     private const int KillFeedLocalInvolvedLifetimeTicks = 300;
     private const int DefaultGibLevel = 3;
+    private const int LocalProjectileTerminationSuppressionTicks = 12;
     private readonly Dictionary<int, SimulationEntity> _entities = new();
     private readonly List<CombatTrace> _combatTraces = new();
     private readonly List<SniperAimIndicator> _sniperAimIndicators = new();
@@ -92,6 +93,7 @@ public sealed partial class SimulationWorld
     private readonly HashSet<int> _lastToDieDroneSentryIds = new();
     private readonly HashSet<int> _clientPredictedProjectileIds = new();
     private readonly HashSet<int> _terminatedProjectileIds = new();
+    private readonly Dictionary<int, long> _terminatedProjectileExpiryFrames = new();
     private readonly ClientSnapshotStringCache _snapshotStringCache = new();
     private readonly Random _random = new(1337);
     private int _configuredTimeLimitMinutes = DefaultTimeLimitMinutes;

@@ -132,7 +132,9 @@ public sealed partial class SimulationWorld
     {
         if (_clientPredictedProjectileIds.Remove(projectileId))
         {
-            _terminatedProjectileIds.Add(projectileId);
+            SuppressProjectileRespawn(
+                projectileId,
+                ClientPredictionMode ? LocalProjectileTerminationSuppressionTicks : 0);
         }
     }
 

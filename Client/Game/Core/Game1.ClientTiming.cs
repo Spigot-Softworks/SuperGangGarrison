@@ -77,7 +77,11 @@ public partial class Game1
             return;
         }
 
-        if (!networkInput.Up && !networkInput.FireSecondary && !networkInput.UseAbility && !networkInput.SwapWeapon)
+        if (!networkInput.Up
+            && !networkInput.FirePrimary
+            && !networkInput.FireSecondary
+            && !networkInput.UseAbility
+            && !networkInput.SwapWeapon)
         {
             return;
         }
@@ -136,6 +140,11 @@ public partial class Game1
         if (_pendingPredictedSecondaryAbilityPress && !input.FireSecondary)
         {
             input = input with { FireSecondary = true };
+        }
+
+        if (_pendingPredictedPrimaryPress && !input.FirePrimary)
+        {
+            input = input with { FirePrimary = true };
         }
 
         if (_pendingPredictedSwapWeaponPress && !input.SwapWeapon)

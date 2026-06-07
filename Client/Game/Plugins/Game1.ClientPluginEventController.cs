@@ -98,7 +98,7 @@ public partial class Game1
             {
                 var damageEvent = localDamageEvents[index];
                 TryTrackLastToDieDamageDealt(damageEvent.AttackerPlayerId, damageEvent.Amount);
-                _game.ObserveLastToDieDamageEvent(damageEvent);
+                _game.ObserveEvasionMissDamageEvent(damageEvent);
                 _game.ObserveHeavyDashDodgeDamageEvent(damageEvent);
                 _game.ObserveDynamicMusicDamageEvent(damageEvent);
                 TryTriggerLocalPortraitDamageFeedback(damageEvent);
@@ -114,6 +114,7 @@ public partial class Game1
             {
                 var damageEvent = _game._pendingNetworkDamageEvents[index];
                 TryTrackLastToDieDamageDealt(damageEvent.AttackerPlayerId, damageEvent.Amount);
+                _game.ObserveEvasionMissDamageEvent(damageEvent);
                 _game.ObserveHeavyDashDodgeDamageEvent(damageEvent);
                 _game.ObserveDynamicMusicDamageEvent(damageEvent);
                 TryTriggerLocalPortraitDamageFeedback(damageEvent);

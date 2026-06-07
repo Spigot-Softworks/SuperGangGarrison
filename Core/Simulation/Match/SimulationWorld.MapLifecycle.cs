@@ -275,6 +275,7 @@ public sealed partial class SimulationWorld
         _pendingNewRocketIds.Clear();
         _clientPredictedProjectileIds.Clear();
         _terminatedProjectileIds.Clear();
+        _terminatedProjectileExpiryFrames.Clear();
         _processedImmediateNetworkRocketSpawnEventIds.Clear();
         _processedNetworkGibSpawnEventIds.Clear();
         _presentedNetworkGibDeathCountsByPlayerId.Clear();

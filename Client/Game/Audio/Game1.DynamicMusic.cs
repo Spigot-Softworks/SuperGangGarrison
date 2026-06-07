@@ -20,6 +20,8 @@ public partial class Game1
     private const float DynamicMusicCombatLowHealthThreshold = 0.35f;
     private const float DynamicMusicCombatPresenceDistance = 560f;
     private const float DynamicMusicCombatPresenceDistanceSquared = DynamicMusicCombatPresenceDistance * DynamicMusicCombatPresenceDistance;
+    private const int DynamicMusicDirtbowlGateLeadSeconds = 7;
+    private const float DynamicMusicDirtbowlGateFadeOutSeconds = 3f;
     private const float DynamicMusicIntelVolumeScale = 0.70f;
     private const float DynamicMusicUberVolumeScale = 0.70f;
     private const float DynamicMusicNearbyUberDistance = 420f;
@@ -31,6 +33,7 @@ public partial class Game1
         Combat,
         Intel,
         Uber,
+        DirtbowlGate,
     }
 
     private enum DynamicCombatMusicStage
@@ -45,7 +48,7 @@ public partial class Game1
     {
         None,
         Drum,
-        Body,
+        BodyBass,
     }
 
     private bool _dynamicMusicEnabled = true;
@@ -56,8 +59,12 @@ public partial class Game1
     private SoundEffectInstance? _dynamicCombatBodyMusicInstance;
     private SoundEffect? _dynamicCombatBassMusic;
     private SoundEffectInstance? _dynamicCombatBassMusicInstance;
+    private SoundEffect? _dynamicCombatLeadMusic;
+    private SoundEffectInstance? _dynamicCombatLeadMusicInstance;
     private SoundEffect? _dynamicCombatRiser;
     private SoundEffectInstance? _dynamicCombatRiserInstance;
+    private SoundEffect? _dynamicDirtbowlGateMusic;
+    private SoundEffectInstance? _dynamicDirtbowlGateMusicInstance;
     private SoundEffect? _dynamicIntelMusic;
     private SoundEffectInstance? _dynamicIntelMusicInstance;
     private SoundEffect? _dynamicUberMusic;
@@ -76,8 +83,16 @@ public partial class Game1
     private float _dynamicCombatDrumFade;
     private float _dynamicCombatBodyFade;
     private float _dynamicCombatBassFade;
+    private float _dynamicCombatLeadFade;
+    private float _dynamicDirtbowlGateMusicFade;
     private float _dynamicIntelMusicFade;
     private float _dynamicUberMusicFade;
+    private string? _dirtbowlGateMusicMapKey;
+    private bool _dirtbowlGateMusicPlayedForSetup;
+    private bool _dirtbowlGateMusicStarted;
+    private bool _dirtbowlGateMusicPlaybackStarted;
+    private float _dirtbowlGateMusicElapsedSeconds;
+    private int _dirtbowlGateMusicPreviousSetupTicksRemaining;
 
     private void ObserveDynamicMusicDamageEvent(WorldDamageEvent damageEvent)
     {
@@ -101,7 +116,7 @@ public partial class Game1
         {
             _dynamicCombatLeadStem = Random.Shared.Next(2) == 0
                 ? DynamicCombatMusicLeadStem.Drum
-                : DynamicCombatMusicLeadStem.Body;
+                : DynamicCombatMusicLeadStem.BodyBass;
             _dynamicCombatDrumsLocked = false;
         }
 
@@ -340,6 +355,7 @@ public partial class Game1
         }
 
         EnsureDynamicMusicLoaded();
+        UpdateDirtbowlGateMusicCueState();
         var requestedState = GetDynamicMusicTargetState();
         var requestedCombatStage = requestedState == DynamicMusicEventState.Combat
             ? ResolveDynamicCombatMusicStage()
@@ -375,6 +391,11 @@ public partial class Game1
 
     private DynamicMusicEventState GetDynamicMusicTargetState()
     {
+        if (IsDirtbowlGateMusicEventActive())
+        {
+            return DynamicMusicEventState.DirtbowlGate;
+        }
+
         if (IsNearbyUberMusicEventActive())
         {
             return DynamicMusicEventState.Uber;
@@ -400,6 +421,7 @@ public partial class Game1
             DynamicMusicEventState.Combat when combatStage == DynamicCombatMusicStage.None || !HasDynamicCombatMusicInstances() => DynamicMusicEventState.Normal,
             DynamicMusicEventState.Intel when _dynamicIntelMusicInstance is null => DynamicMusicEventState.Normal,
             DynamicMusicEventState.Uber when _dynamicUberMusicInstance is null => DynamicMusicEventState.Normal,
+            DynamicMusicEventState.DirtbowlGate when _dynamicDirtbowlGateMusicInstance is null => DynamicMusicEventState.Normal,
             _ => state,
         };
     }
@@ -436,7 +458,8 @@ public partial class Game1
     {
         return _dynamicCombatDrumMusicInstance is not null
             && _dynamicCombatBodyMusicInstance is not null
-            && _dynamicCombatBassMusicInstance is not null;
+            && _dynamicCombatBassMusicInstance is not null
+            && _dynamicCombatLeadMusicInstance is not null;
     }
 
     private bool IsNearbyUberMusicEventActive()
@@ -480,10 +503,19 @@ public partial class Game1
             Path.Combine("Music", "action_redo_bass.ogg"),
             out _dynamicCombatBassMusic,
             out _dynamicCombatBassMusicInstance);
+        _gameplayAudioMusicController.TryLoadOptionalLoopedMusic(
+            Path.Combine("Music", "action_redo_lead.ogg"),
+            out _dynamicCombatLeadMusic,
+            out _dynamicCombatLeadMusicInstance);
         _gameplayAudioMusicController.TryLoadOptionalMusicSound(
             Path.Combine("Music", "transition_riser.ogg"),
             out _dynamicCombatRiser,
             out _dynamicCombatRiserInstance,
+            isLooped: false);
+        _gameplayAudioMusicController.TryLoadOptionalMusicSound(
+            Path.Combine("Music", "menumusic1.ogg"),
+            out _dynamicDirtbowlGateMusic,
+            out _dynamicDirtbowlGateMusicInstance,
             isLooped: false);
         _gameplayAudioMusicController.TryLoadOptionalLoopedMusic(
             Path.Combine("Music", "menumusic4.wav"),
@@ -500,6 +532,10 @@ public partial class Game1
         if (targetState == DynamicMusicEventState.Combat)
         {
             EnsureDynamicCombatMusicPlaybackStarted();
+        }
+        else if (targetState == DynamicMusicEventState.DirtbowlGate)
+        {
+            EnsureDirtbowlGateMusicPlaybackStarted();
         }
         else if (HasDynamicCombatStemFade())
         {
@@ -556,7 +592,8 @@ public partial class Game1
     {
         return _dynamicCombatDrumFade > 0f
             || _dynamicCombatBodyFade > 0f
-            || _dynamicCombatBassFade > 0f;
+            || _dynamicCombatBassFade > 0f
+            || _dynamicCombatLeadFade > 0f;
     }
 
     private void TryStartDynamicCombatLoopInstances(string operation)
@@ -564,6 +601,28 @@ public partial class Game1
         TryStartDynamicMusicInstance(_dynamicCombatDrumMusicInstance, operation);
         TryStartDynamicMusicInstance(_dynamicCombatBodyMusicInstance, operation);
         TryStartDynamicMusicInstance(_dynamicCombatBassMusicInstance, operation);
+        TryStartDynamicMusicInstance(_dynamicCombatLeadMusicInstance, operation);
+    }
+
+    private void EnsureDirtbowlGateMusicPlaybackStarted()
+    {
+        if (!_dirtbowlGateMusicStarted
+            || _dirtbowlGateMusicPlaybackStarted
+            || _dynamicDirtbowlGateMusicInstance is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _dynamicDirtbowlGateMusicInstance.Stop();
+            _dynamicDirtbowlGateMusicInstance.Play();
+            _dirtbowlGateMusicPlaybackStarted = true;
+        }
+        catch (Exception ex)
+        {
+            DisableAudio("starting Dirtbowl gate music event", ex);
+        }
     }
 
     private void TryStartDynamicMusicInstance(SoundEffectInstance? instance, string operation)
@@ -623,6 +682,7 @@ public partial class Game1
             }
         }
 
+        AdvanceDirtbowlGateMusicElapsed(elapsedSeconds);
         _dynamicCombatMusicFade = MoveDynamicMusicFadeToward(_dynamicCombatMusicFade, targetState == DynamicMusicEventState.Combat ? 1f : 0f, targetState == DynamicMusicEventState.Combat ? fadeInStep : fadeOutStep);
         var combatStemStage = _dynamicCombatRiserDelaySecondsRemaining > 0f
             ? _dynamicCombatRiserHoldStage
@@ -643,22 +703,27 @@ public partial class Game1
         _dynamicCombatDrumFade = MoveDynamicMusicFadeToward(_dynamicCombatDrumFade, combatStemTargets.Drum, combatStemTargets.Drum > _dynamicCombatDrumFade ? fadeInStep : fadeOutStep);
         _dynamicCombatBodyFade = MoveDynamicMusicFadeToward(_dynamicCombatBodyFade, combatStemTargets.Body, combatStemTargets.Body > _dynamicCombatBodyFade ? fadeInStep : fadeOutStep);
         _dynamicCombatBassFade = MoveDynamicMusicFadeToward(_dynamicCombatBassFade, combatStemTargets.Bass, combatStemTargets.Bass > _dynamicCombatBassFade ? fadeInStep : fadeOutStep);
+        _dynamicCombatLeadFade = MoveDynamicMusicFadeToward(_dynamicCombatLeadFade, combatStemTargets.Lead, combatStemTargets.Lead > _dynamicCombatLeadFade ? fadeInStep : fadeOutStep);
+        var dirtbowlGateTargetFade = targetState == DynamicMusicEventState.DirtbowlGate ? GetDirtbowlGateMusicTargetFade() : 0f;
+        _dynamicDirtbowlGateMusicFade = MoveDynamicMusicFadeToward(
+            _dynamicDirtbowlGateMusicFade,
+            dirtbowlGateTargetFade,
+            dirtbowlGateTargetFade > _dynamicDirtbowlGateMusicFade ? fadeInStep : fadeOutStep);
         _dynamicIntelMusicFade = MoveDynamicMusicFadeToward(_dynamicIntelMusicFade, targetState == DynamicMusicEventState.Intel ? 1f : 0f, targetState == DynamicMusicEventState.Intel ? fadeInStep : fadeOutStep);
         _dynamicUberMusicFade = MoveDynamicMusicFadeToward(_dynamicUberMusicFade, targetState == DynamicMusicEventState.Uber ? 1f : 0f, targetState == DynamicMusicEventState.Uber ? fadeInStep : fadeOutStep);
-        var strongestEventFade = Math.Max(_dynamicCombatMusicFade, Math.Max(_dynamicIntelMusicFade, _dynamicUberMusicFade));
+        var strongestEventFade = Math.Max(_dynamicDirtbowlGateMusicFade, Math.Max(_dynamicCombatMusicFade, Math.Max(_dynamicIntelMusicFade, _dynamicUberMusicFade)));
         _dynamicNormalMusicFade = 1f - strongestEventFade;
     }
 
-    private (float Drum, float Body, float Bass) GetDynamicCombatStemTargetVolumes(DynamicCombatMusicStage stage)
+    private (float Drum, float Body, float Bass, float Lead) GetDynamicCombatStemTargetVolumes(DynamicCombatMusicStage stage)
     {
         var leadStem = EnsureDynamicCombatLeadStem();
         return stage switch
         {
-            DynamicCombatMusicStage.Light when leadStem == DynamicCombatMusicLeadStem.Drum => (1f, 0f, 0f),
-            DynamicCombatMusicStage.Light when leadStem == DynamicCombatMusicLeadStem.Body => (0f, 1f, 0f),
-            DynamicCombatMusicStage.Medium when leadStem == DynamicCombatMusicLeadStem.Drum => (1f, 0f, 1f),
-            DynamicCombatMusicStage.Medium when leadStem == DynamicCombatMusicLeadStem.Body => (0f, 1f, 1f),
-            DynamicCombatMusicStage.Hard => (1f, 1f, 1f),
+            DynamicCombatMusicStage.Light when leadStem == DynamicCombatMusicLeadStem.Drum => (1f, 0f, 0f, 0f),
+            DynamicCombatMusicStage.Light when leadStem == DynamicCombatMusicLeadStem.BodyBass => (0f, 1f, 1f, 0f),
+            DynamicCombatMusicStage.Medium => (1f, 1f, 1f, 0f),
+            DynamicCombatMusicStage.Hard => (1f, 1f, 1f, 1f),
             _ => default,
         };
     }
@@ -669,10 +734,163 @@ public partial class Game1
         {
             _dynamicCombatLeadStem = Random.Shared.Next(2) == 0
                 ? DynamicCombatMusicLeadStem.Drum
-                : DynamicCombatMusicLeadStem.Body;
+                : DynamicCombatMusicLeadStem.BodyBass;
         }
 
         return _dynamicCombatLeadStem;
+    }
+
+    private void UpdateDirtbowlGateMusicCueState()
+    {
+        var mapKey = GetDirtbowlGateMusicMapKey();
+        if (mapKey is null)
+        {
+            _dirtbowlGateMusicMapKey = null;
+            _dirtbowlGateMusicPlayedForSetup = false;
+            _dirtbowlGateMusicStarted = false;
+            _dirtbowlGateMusicPlaybackStarted = false;
+            _dirtbowlGateMusicElapsedSeconds = 0f;
+            _dynamicDirtbowlGateMusicFade = 0f;
+            _dirtbowlGateMusicPreviousSetupTicksRemaining = 0;
+            StopDynamicMusicInstance(_dynamicDirtbowlGateMusicInstance);
+            return;
+        }
+
+        if (!string.Equals(_dirtbowlGateMusicMapKey, mapKey, StringComparison.OrdinalIgnoreCase))
+        {
+            _dirtbowlGateMusicMapKey = mapKey;
+            _dirtbowlGateMusicPlayedForSetup = false;
+            _dirtbowlGateMusicStarted = false;
+            _dirtbowlGateMusicPlaybackStarted = false;
+            _dirtbowlGateMusicElapsedSeconds = 0f;
+            _dynamicDirtbowlGateMusicFade = 0f;
+            _dirtbowlGateMusicPreviousSetupTicksRemaining = 0;
+            StopDynamicMusicInstance(_dynamicDirtbowlGateMusicInstance);
+        }
+
+        var setupTicksRemaining = _world.ControlPointSetupTicksRemaining;
+        var enteredNewSetupPhase = setupTicksRemaining > 0
+            && (_dirtbowlGateMusicPreviousSetupTicksRemaining <= 0
+                || setupTicksRemaining > _dirtbowlGateMusicPreviousSetupTicksRemaining + _world.Config.TicksPerSecond);
+        if (enteredNewSetupPhase)
+        {
+            _dirtbowlGateMusicPlayedForSetup = false;
+            _dirtbowlGateMusicStarted = false;
+            _dirtbowlGateMusicPlaybackStarted = false;
+            _dirtbowlGateMusicElapsedSeconds = 0f;
+            _dynamicDirtbowlGateMusicFade = 0f;
+            StopDynamicMusicInstance(_dynamicDirtbowlGateMusicInstance);
+        }
+
+        var leadTicks = Math.Max(1, _world.Config.TicksPerSecond * DynamicMusicDirtbowlGateLeadSeconds);
+        if (!_dirtbowlGateMusicPlayedForSetup
+            && setupTicksRemaining > 0
+            && setupTicksRemaining <= leadTicks)
+        {
+            StartDirtbowlGateMusicEvent();
+        }
+
+        _dirtbowlGateMusicPreviousSetupTicksRemaining = setupTicksRemaining;
+    }
+
+    private string? GetDirtbowlGateMusicMapKey()
+    {
+        var levelName = _world.Level.Name;
+        if (string.IsNullOrWhiteSpace(levelName)
+            || levelName.IndexOf("dirtbowl", StringComparison.OrdinalIgnoreCase) < 0)
+        {
+            return null;
+        }
+
+        return $"{levelName}:{_world.Level.MapAreaIndex}";
+    }
+
+    private void StartDirtbowlGateMusicEvent()
+    {
+        _dirtbowlGateMusicPlayedForSetup = true;
+        if (_dynamicDirtbowlGateMusicInstance is null)
+        {
+            return;
+        }
+
+        _dirtbowlGateMusicStarted = true;
+        _dirtbowlGateMusicPlaybackStarted = false;
+        _dirtbowlGateMusicElapsedSeconds = 0f;
+        _dynamicDirtbowlGateMusicFade = 0f;
+        StopDynamicMusicInstance(_dynamicDirtbowlGateMusicInstance);
+    }
+
+    private bool IsDirtbowlGateMusicEventActive()
+    {
+        if (!_dirtbowlGateMusicStarted)
+        {
+            return false;
+        }
+
+        var durationSeconds = GetDirtbowlGateMusicDurationSeconds();
+        if (durationSeconds <= 0f)
+        {
+            return IsDynamicMusicInstancePlaying(_dynamicDirtbowlGateMusicInstance)
+                || _dynamicDirtbowlGateMusicFade > 0f;
+        }
+
+        return _dirtbowlGateMusicElapsedSeconds < durationSeconds
+            || _dynamicDirtbowlGateMusicFade > 0f
+            || IsDynamicMusicInstancePlaying(_dynamicDirtbowlGateMusicInstance);
+    }
+
+    private float GetDirtbowlGateMusicTargetFade()
+    {
+        if (!_dirtbowlGateMusicStarted)
+        {
+            return 0f;
+        }
+
+        var durationSeconds = GetDirtbowlGateMusicDurationSeconds();
+        if (durationSeconds <= 0f)
+        {
+            return 1f;
+        }
+
+        var remainingSeconds = Math.Max(0f, durationSeconds - _dirtbowlGateMusicElapsedSeconds);
+        if (remainingSeconds <= 0f)
+        {
+            return 0f;
+        }
+
+        if (remainingSeconds <= DynamicMusicDirtbowlGateFadeOutSeconds)
+        {
+            return remainingSeconds / DynamicMusicDirtbowlGateFadeOutSeconds;
+        }
+
+        return 1f;
+    }
+
+    private float GetDirtbowlGateMusicDurationSeconds()
+    {
+        return _dynamicDirtbowlGateMusic is null
+            ? 0f
+            : (float)Math.Max(0.0, _dynamicDirtbowlGateMusic.Duration.TotalSeconds);
+    }
+
+    private void AdvanceDirtbowlGateMusicElapsed(float elapsedSeconds)
+    {
+        if (!_dirtbowlGateMusicStarted || !_dirtbowlGateMusicPlaybackStarted)
+        {
+            return;
+        }
+
+        var durationSeconds = GetDirtbowlGateMusicDurationSeconds();
+        if (durationSeconds <= 0f)
+        {
+            return;
+        }
+
+        _dirtbowlGateMusicElapsedSeconds = Math.Min(durationSeconds, _dirtbowlGateMusicElapsedSeconds + elapsedSeconds);
+        if (_dirtbowlGateMusicElapsedSeconds >= durationSeconds)
+        {
+            StopDynamicMusicInstance(_dynamicDirtbowlGateMusicInstance);
+        }
     }
 
     private static float MoveDynamicMusicFadeToward(float current, float target, float maxDelta)
@@ -700,7 +918,16 @@ public partial class Game1
                 StopDynamicMusicInstance(_dynamicCombatDrumMusicInstance);
                 StopDynamicMusicInstance(_dynamicCombatBodyMusicInstance);
                 StopDynamicMusicInstance(_dynamicCombatBassMusicInstance);
+                StopDynamicMusicInstance(_dynamicCombatLeadMusicInstance);
             }
+        }
+
+        if (targetState != DynamicMusicEventState.DirtbowlGate && _dynamicDirtbowlGateMusicFade <= 0f)
+        {
+            StopDynamicMusicInstance(_dynamicDirtbowlGateMusicInstance);
+            _dirtbowlGateMusicStarted = false;
+            _dirtbowlGateMusicPlaybackStarted = false;
+            _dirtbowlGateMusicElapsedSeconds = 0f;
         }
 
         if (targetState != DynamicMusicEventState.Intel && _dynamicIntelMusicFade <= 0f)
@@ -735,8 +962,16 @@ public partial class Game1
         _dynamicCombatDrumFade = 0f;
         _dynamicCombatBodyFade = 0f;
         _dynamicCombatBassFade = 0f;
+        _dynamicCombatLeadFade = 0f;
+        _dynamicDirtbowlGateMusicFade = 0f;
         _dynamicIntelMusicFade = 0f;
         _dynamicUberMusicFade = 0f;
+        _dirtbowlGateMusicMapKey = null;
+        _dirtbowlGateMusicPlayedForSetup = false;
+        _dirtbowlGateMusicStarted = false;
+        _dirtbowlGateMusicPlaybackStarted = false;
+        _dirtbowlGateMusicElapsedSeconds = 0f;
+        _dirtbowlGateMusicPreviousSetupTicksRemaining = 0;
         StopDynamicMusic();
         ApplyAudioVolumeState();
     }
@@ -751,12 +986,16 @@ public partial class Game1
             || _dynamicNormalMusicFade < 1f
             || _dynamicCombatMusicFade > 0f
             || HasDynamicCombatStemFade()
+            || _dynamicDirtbowlGateMusicFade > 0f
+            || _dirtbowlGateMusicStarted
             || _dynamicIntelMusicFade > 0f
             || _dynamicUberMusicFade > 0f
             || IsDynamicMusicInstancePlaying(_dynamicCombatDrumMusicInstance)
             || IsDynamicMusicInstancePlaying(_dynamicCombatBodyMusicInstance)
             || IsDynamicMusicInstancePlaying(_dynamicCombatBassMusicInstance)
+            || IsDynamicMusicInstancePlaying(_dynamicCombatLeadMusicInstance)
             || IsDynamicMusicInstancePlaying(_dynamicCombatRiserInstance)
+            || IsDynamicMusicInstancePlaying(_dynamicDirtbowlGateMusicInstance)
             || IsDynamicMusicInstancePlaying(_dynamicIntelMusicInstance)
             || IsDynamicMusicInstancePlaying(_dynamicUberMusicInstance);
     }
@@ -778,7 +1017,9 @@ public partial class Game1
         StopDynamicMusicInstance(_dynamicCombatDrumMusicInstance);
         StopDynamicMusicInstance(_dynamicCombatBodyMusicInstance);
         StopDynamicMusicInstance(_dynamicCombatBassMusicInstance);
+        StopDynamicMusicInstance(_dynamicCombatLeadMusicInstance);
         StopDynamicMusicInstance(_dynamicCombatRiserInstance);
+        StopDynamicMusicInstance(_dynamicDirtbowlGateMusicInstance);
         StopDynamicMusicInstance(_dynamicIntelMusicInstance);
         StopDynamicMusicInstance(_dynamicUberMusicInstance);
     }
@@ -803,7 +1044,9 @@ public partial class Game1
         DisposeDynamicMusicTrack(ref _dynamicCombatDrumMusic, ref _dynamicCombatDrumMusicInstance);
         DisposeDynamicMusicTrack(ref _dynamicCombatBodyMusic, ref _dynamicCombatBodyMusicInstance);
         DisposeDynamicMusicTrack(ref _dynamicCombatBassMusic, ref _dynamicCombatBassMusicInstance);
+        DisposeDynamicMusicTrack(ref _dynamicCombatLeadMusic, ref _dynamicCombatLeadMusicInstance);
         DisposeDynamicMusicTrack(ref _dynamicCombatRiser, ref _dynamicCombatRiserInstance);
+        DisposeDynamicMusicTrack(ref _dynamicDirtbowlGateMusic, ref _dynamicDirtbowlGateMusicInstance);
         DisposeDynamicMusicTrack(ref _dynamicIntelMusic, ref _dynamicIntelMusicInstance);
         DisposeDynamicMusicTrack(ref _dynamicUberMusic, ref _dynamicUberMusicInstance);
         _dynamicMusicLoadAttempted = false;
@@ -819,8 +1062,16 @@ public partial class Game1
         _dynamicCombatDrumFade = 0f;
         _dynamicCombatBodyFade = 0f;
         _dynamicCombatBassFade = 0f;
+        _dynamicCombatLeadFade = 0f;
+        _dynamicDirtbowlGateMusicFade = 0f;
         _dynamicIntelMusicFade = 0f;
         _dynamicUberMusicFade = 0f;
+        _dirtbowlGateMusicMapKey = null;
+        _dirtbowlGateMusicPlayedForSetup = false;
+        _dirtbowlGateMusicStarted = false;
+        _dirtbowlGateMusicPlaybackStarted = false;
+        _dirtbowlGateMusicElapsedSeconds = 0f;
+        _dirtbowlGateMusicPreviousSetupTicksRemaining = 0;
     }
 
     private static void DisposeDynamicMusicTrack(ref SoundEffect? music, ref SoundEffectInstance? instance)
@@ -837,7 +1088,9 @@ public partial class Game1
         SetSoundEffectInstanceVolume(_dynamicCombatDrumMusicInstance, combatMusicVolume * _dynamicCombatDrumFade);
         SetSoundEffectInstanceVolume(_dynamicCombatBodyMusicInstance, combatMusicVolume * _dynamicCombatBodyFade);
         SetSoundEffectInstanceVolume(_dynamicCombatBassMusicInstance, combatMusicVolume * _dynamicCombatBassFade);
+        SetSoundEffectInstanceVolume(_dynamicCombatLeadMusicInstance, combatMusicVolume * _dynamicCombatLeadFade);
         SetSoundEffectInstanceVolume(_dynamicCombatRiserInstance, combatMusicVolume);
+        SetSoundEffectInstanceVolume(_dynamicDirtbowlGateMusicInstance, ingameMusicVolume * 0.8f * _dynamicDirtbowlGateMusicFade);
         SetSoundEffectInstanceVolume(_dynamicIntelMusicInstance, ingameMusicVolume * DynamicMusicIntelVolumeScale * _dynamicIntelMusicFade);
         SetSoundEffectInstanceVolume(_dynamicUberMusicInstance, ingameMusicVolume * DynamicMusicUberVolumeScale * _dynamicUberMusicFade);
     }

@@ -31,6 +31,15 @@ public sealed partial class SimulationWorld
         RegisterSoundEvent(player, "CompressionBlastSnd");
         RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
         ApplyAirblastToSelf(player, sourceX, sourceY, aimRadians);
+        ApplyAirblastToPlayers(
+            player,
+            sourceX,
+            sourceY,
+            aimRadians,
+            poofX,
+            poofY,
+            affectEnemies: false,
+            affectTeammates: true);
         PushLooseBodies(sourceX, sourceY, aimRadians, poofX, poofY);
     }
 
@@ -193,7 +202,15 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private void ApplyAirblastToPlayers(PlayerEntity player, float sourceX, float sourceY, float aimRadians, float poofX, float poofY)
+    private void ApplyAirblastToPlayers(
+        PlayerEntity player,
+        float sourceX,
+        float sourceY,
+        float aimRadians,
+        float poofX,
+        float poofY,
+        bool affectEnemies = true,
+        bool affectTeammates = true)
     {
         foreach (var target in EnumerateSimulatedPlayers())
         {
@@ -205,6 +222,11 @@ public sealed partial class SimulationWorld
             }
 
             var targetIsTeammate = target.Team == player.Team;
+            if (targetIsTeammate ? !affectTeammates : !affectEnemies)
+            {
+                continue;
+            }
+
             if (targetIsTeammate)
             {
                 SpawnAirblastExtinguishFlames(player, target, aimRadians);

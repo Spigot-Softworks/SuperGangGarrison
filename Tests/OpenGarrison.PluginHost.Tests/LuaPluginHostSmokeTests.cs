@@ -2837,6 +2837,49 @@ public sealed class LuaPluginHostSmokeTests
     }
 
     [Fact]
+    public void PackagedServerLuaChatVotingYesVotePassesMapVote()
+    {
+        using var tempDirectory = new TempDirectory();
+        var logs = new List<string>();
+        var loadedPlugin = LoadPackagedServerLuaPlugin("Lua.ChatVoting", "chat.voting", tempDirectory, logs);
+        loadedPlugin.Context.StateImpl.Players.Add(CreateServerPlayer(slot: 1, userId: 101, name: "Starter"));
+        loadedPlugin.Context.StateImpl.Players.Add(CreateServerPlayer(slot: 2, userId: 202, name: "Voter"));
+
+        var starterContext = CreateCommandContext(
+            loadedPlugin.Context,
+            new OpenGarrisonServerAdminIdentity(
+                "Starter",
+                OpenGarrisonServerAdminAuthority.None,
+                OpenGarrisonServerAdminPermissions.None,
+                SourceSlot: 1));
+        var voterContext = CreateCommandContext(
+            loadedPlugin.Context,
+            new OpenGarrisonServerAdminIdentity(
+                "Voter",
+                OpenGarrisonServerAdminAuthority.None,
+                OpenGarrisonServerAdminPermissions.None,
+                SourceSlot: 2));
+
+        Assert.True(loadedPlugin.Context.CommandRegistry.TryExecute("!votemap ctf_truefort", starterContext, CancellationToken.None, out var startLines));
+        Assert.True(loadedPlugin.Context.CommandRegistry.TryExecute("!yes", voterContext, CancellationToken.None, out var yesLines));
+
+        Assert.True(startLines.Count == 0, string.Join(Environment.NewLine, startLines.Concat(logs)));
+        Assert.True(yesLines.Count == 0, string.Join(Environment.NewLine, yesLines.Concat(logs)));
+        Assert.Empty(loadedPlugin.Context.AdminImpl.MapChangeRequests);
+        Assert.Contains(
+            loadedPlugin.Context.AdminImpl.BroadcastSystemMessages,
+            message => message.Contains("Vote passed for Truefort", StringComparison.Ordinal));
+
+        var updateHooks = Assert.IsAssignableFrom<IOpenGarrisonServerUpdateHooks>(loadedPlugin.Plugin);
+        updateHooks.OnServerHeartbeat(TimeSpan.FromSeconds(1));
+
+        var mapChange = Assert.Single(loadedPlugin.Context.AdminImpl.MapChangeRequests);
+        Assert.Equal("Truefort", mapChange.LevelName);
+        Assert.Equal(1, mapChange.AreaIndex);
+        Assert.False(mapChange.PreservePlayerStats);
+    }
+
+    [Fact]
     public void PackagedServerLuaGarrisonToolsHandlesHelpStatusAndCvars()
     {
         using var tempDirectory = new TempDirectory();

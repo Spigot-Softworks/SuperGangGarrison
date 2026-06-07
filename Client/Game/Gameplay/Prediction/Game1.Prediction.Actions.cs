@@ -416,8 +416,7 @@ public partial class Game1
 
     private bool TryPredictedToggleSecondaryWeapon(PlayerEntity player)
     {
-        if (player.ClassId == PlayerClass.Medic
-            || !player.HasExperimentalOffhandWeapon)
+        if (!player.HasExperimentalOffhandWeapon)
         {
             return false;
         }

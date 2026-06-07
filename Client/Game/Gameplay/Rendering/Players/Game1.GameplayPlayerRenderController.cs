@@ -59,6 +59,7 @@ public partial class Game1
                 _game.DrawChatBubble(player, cameraPosition);
                 _game.DrawWriteBubble(player, cameraPosition);
                 _game.DrawOverheadChatMessage(player, cameraPosition);
+                _game.DrawEvasionMissPopup(player, cameraPosition);
                 _game.DrawHeavyDashDodgePopup(player, cameraPosition);
                 _game.TryDrawAdditionalHealthBar(player, cameraPosition, visibilityAlpha);
             }

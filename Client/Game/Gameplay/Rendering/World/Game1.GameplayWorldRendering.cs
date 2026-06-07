@@ -503,7 +503,7 @@ public partial class Game1
         DrawChatBubble(_world.LocalPlayer, cameraPosition);
         DrawWriteBubble(_world.LocalPlayer, cameraPosition);
         DrawOverheadChatMessage(_world.LocalPlayer, cameraPosition);
-        DrawLastToDieMissPopup(_world.LocalPlayer, cameraPosition);
+        DrawEvasionMissPopup(_world.LocalPlayer, cameraPosition);
         DrawHeavyDashDodgePopup(_world.LocalPlayer, cameraPosition);
         TryDrawAdditionalHealthBar(_world.LocalPlayer, cameraPosition, visibilityAlpha);
     }

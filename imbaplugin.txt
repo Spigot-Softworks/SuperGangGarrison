@@ -1,0 +1,68 @@
+Please do a thorough investigation of the repo outside the Modern folder and get up-to-speed with the project so you can help me blueprint a lua server plugin for my server. Essentially it will be a balance plugin that has a lot of game balance changes and new features. The biggest feature being, when you spawn, a chat vote plugin type message/modal appears and asks you to select a special ability (instead of every class having only one, they would be able to choose from two different options).
+
+Alternate alternate abilities:
+
+Scout - Dash (identitical to Heavy's dash)
+Soldier - Chargeburst. Holding m2 charges up, highlighting the rocket in the ammo ui hud in red as it charges, essentially it can allow a burst of up to 3 rockets to be fired quickly in sequence by charging it until 3 rockets are red, if the 4th rocket in the clip is charged, the rocket detonates, spawning an explosion slightly underneath the Rocketman, and then auto-firing the burst of 3 rockets after the detonation (at the same cadence as the usual burst)
+Pyro - Dragon's Breath (Shotgun with 2 shells a la soldier, ignites targets
+Engineer - Scout nailgun
+Demoman - Sword/Charge
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Balance changes:
+
+Heavy:
+Dash grants 20% ammo and 1s of crits
+Take 20% reduced damage while eating sandwich
+
+
+Pyro:
+Airburst special ability can reflect ally projectiles
+Flames have increased travel distance in the air, increased by velocity
+Opponents effected by afterburn take 10% increased damage to new flames
+
+
+Engineer: 
+
+Sentries regenerate 2hp/s in combat, 5hp/s after no damage taken or received for 10 seconds
+Jump pads grant 20% movespeed to allies who walk through them
+
+
+Scout:
+
+Nailgun causes 2hp/s bleed for 2s
+Dash grants 2s of 20% evasion
+
+Demoman:
+
+
+
+
+ 
+
+
+
+
+

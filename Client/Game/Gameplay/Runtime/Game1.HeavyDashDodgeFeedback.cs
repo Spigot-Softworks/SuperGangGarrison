@@ -9,7 +9,11 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int HeavyDashDodgePopupTicks = 34;
+    private const int HeavyDashDodgePopupTicks = 72;
+    private const float HeavyDashDodgePopupFadeTicks = 24f;
+    private const float HeavyDashDodgePopupRisePerTick = 0.32f;
+    private const float HeavyDashDodgePopupImageScale = 1.6f;
+    private const float HeavyDashDodgePopupTextScale = 1.35f;
     private readonly Dictionary<int, HeavyDashDodgePopupState> _heavyDashDodgePopupsByPlayerId = new();
 
     private void ObserveHeavyDashDodgeDamageEvent(WorldDamageEvent damageEvent)
@@ -68,7 +72,7 @@ public partial class Game1
         {
             var popup = pair.Value;
             popup.TicksRemaining -= 1;
-            popup.Rise += 0.55f;
+            popup.Rise += HeavyDashDodgePopupRisePerTick;
             if (popup.TicksRemaining <= 0)
             {
                 expiredPlayerIds ??= new List<int>();
@@ -95,15 +99,15 @@ public partial class Game1
             return;
         }
 
-        var alpha = MathHelper.Clamp(popup.TicksRemaining / 12f, 0f, 1f);
-        var position = new Vector2(player.X - cameraPosition.X, player.Top - cameraPosition.Y - 30f - popup.Rise);
-        if (DrawGameplayMissPopupImage(position, alpha))
+        var alpha = MathHelper.Clamp(popup.TicksRemaining / HeavyDashDodgePopupFadeTicks, 0f, 1f);
+        var position = new Vector2(player.X - cameraPosition.X, player.Top - cameraPosition.Y - 34f - popup.Rise);
+        if (DrawGameplayMissPopupImage(position, alpha, HeavyDashDodgePopupImageScale))
         {
             return;
         }
 
-        DrawBitmapFontTextCentered("Dodged!", position + new Vector2(2f, 2f), Color.Black * alpha, 1f);
-        DrawBitmapFontTextCentered("Dodged!", position, new Color(255, 230, 64) * alpha, 1f);
+        DrawBitmapFontTextCentered("Dodged!", position + new Vector2(2f, 2f), Color.Black * alpha, HeavyDashDodgePopupTextScale);
+        DrawBitmapFontTextCentered("Dodged!", position, new Color(255, 230, 64) * alpha, HeavyDashDodgePopupTextScale);
     }
 
     private sealed class HeavyDashDodgePopupState

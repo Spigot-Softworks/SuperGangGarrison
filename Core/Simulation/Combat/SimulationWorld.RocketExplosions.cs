@@ -56,7 +56,7 @@ public sealed partial class SimulationWorld
             world.ApplyPlayerGibExplosionImpulse(rocket.X, rocket.Y, blastRadius, 15f);
             world.RegisterExplosionTraces(rocket.X, rocket.Y);
 
-            hitEnemyPlayer |= ApplySplashDamageToPlayers(world, rocket, owner, blastRadius);
+            hitEnemyPlayer |= ApplySplashDamageToPlayers(world, rocket, owner, blastRadius, directHitPlayer);
             ApplySplashDamageToSentries(world, rocket, owner, blastRadius);
             ApplySplashDamageToGenerators(world, rocket, owner, blastRadius);
             ApplySplashDamageToDamageableZones(world, rocket, blastRadius, directHitDamageableZoneRoomObjectIndex);
@@ -164,7 +164,12 @@ public sealed partial class SimulationWorld
                 excludeRoomObjectIndex);
         }
 
-        private static bool ApplySplashDamageToPlayers(SimulationWorld world, RocketProjectileEntity rocket, PlayerEntity? owner, float blastRadius)
+        private static bool ApplySplashDamageToPlayers(
+            SimulationWorld world,
+            RocketProjectileEntity rocket,
+            PlayerEntity? owner,
+            float blastRadius,
+            PlayerEntity? directHitPlayer)
         {
             var hitEnemyPlayer = false;
             foreach (var player in world.EnumerateSimulatedPlayers())
@@ -174,7 +179,9 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                var distance = GetExplosionDistanceToPlayer(world, player, rocket.X, rocket.Y);
+                var distance = ReferenceEquals(player, directHitPlayer)
+                    ? 0f
+                    : GetExplosionDistanceToPlayer(world, player, rocket.X, rocket.Y);
                 if (distance >= blastRadius)
                 {
                     continue;

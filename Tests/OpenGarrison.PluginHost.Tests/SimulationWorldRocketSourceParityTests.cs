@@ -16,11 +16,14 @@ public sealed class SimulationWorldRocketSourceParityTests
 
         var enemy = AddEnemy(world, id: 2, x: 20f, y: 0f);
         enemy.GetCollisionBounds(out _, out var enemyTop, out _, out _);
+        var healthBefore = enemy.Health;
 
         _ = SpawnRocket(world, owner, x: 0f, y: enemyTop + 1f, speed: 12f, directionRadians: 0f);
         AdvanceRockets(world);
 
-        Assert.True(enemy.Health < enemy.MaxHealth, $"expected rocket direct hit damage, got health {enemy.Health}");
+        Assert.Equal(
+            RocketProjectileEntity.DirectHitDamage + (int)RocketProjectileEntity.ExplosionDamage,
+            healthBefore - enemy.Health);
         Assert.Equal(0, GetRocketCount(world));
     }
 
