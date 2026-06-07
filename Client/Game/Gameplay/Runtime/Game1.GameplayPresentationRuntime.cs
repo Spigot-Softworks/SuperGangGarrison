@@ -65,6 +65,7 @@ public partial class Game1
         }
         UpdateLastToDieSession(clientTicks);
         UpdateLastToDieCombatFeedbackPresentation();
+        UpdateEvasionMissPopups();
         UpdateHeavyDashDodgePopup();
         UpdateTeamSelect(keyboard, mouse);
         UpdateClassSelect(mouse);

@@ -296,8 +296,7 @@ public sealed partial class SimulationWorld
 
     private static bool TryHandleSecondaryWeaponToggle(PlayerEntity player)
     {
-        if (player.ClassId == PlayerClass.Medic
-            || !player.HasExperimentalOffhandWeapon)
+        if (!player.HasExperimentalOffhandWeapon)
         {
             return false;
         }

@@ -129,7 +129,7 @@ internal sealed class ServerOutboundMessaging(
                 }
             }
 
-            SendMessage(session.Peer, relay);
+            TrySendMessage(session.Peer, relay, "chat relay");
         }
 
         log(teamOnly
@@ -152,7 +152,10 @@ internal sealed class ServerOutboundMessaging(
             return;
         }
 
-        SendMessage(client.Peer, new ServerPluginMessage(sourcePluginId, targetPluginId, messageType, payload, payloadFormat, schemaVersion));
+        TrySendMessage(
+            client.Peer,
+            new ServerPluginMessage(sourcePluginId, targetPluginId, messageType, payload, payloadFormat, schemaVersion),
+            "plugin message");
     }
 
     public void BroadcastPlayerSocialProfiles()
@@ -205,7 +208,7 @@ internal sealed class ServerOutboundMessaging(
         {
             if (client.IsAuthorized)
             {
-                SendMessage(client.Peer, message);
+                TrySendMessage(client.Peer, message, "custom bubble clear");
             }
         }
 
@@ -216,7 +219,10 @@ internal sealed class ServerOutboundMessaging(
     {
         foreach (var (slot, state) in _customBubblesBySlot)
         {
-            SendMessage(remotePeer, new CustomBubbleStateMessage(slot, state.Slot, state.Revision, state.Rgba64Pixels));
+            TrySendMessage(
+                remotePeer,
+                new CustomBubbleStateMessage(slot, state.Slot, state.Revision, state.Rgba64Pixels),
+                "custom bubble state");
         }
     }
 
@@ -290,7 +296,7 @@ internal sealed class ServerOutboundMessaging(
     {
         foreach (var client in clientsBySlot.Values)
         {
-            SendMessage(client.Peer, message);
+            TrySendMessage(client.Peer, message, "player social profile update");
         }
 
         recordBroadcastMessage?.Invoke(message);
@@ -303,7 +309,7 @@ internal sealed class ServerOutboundMessaging(
         {
             if (client.IsAuthorized)
             {
-                SendMessage(client.Peer, message);
+                TrySendMessage(client.Peer, message, "custom bubble state");
             }
         }
 
@@ -326,7 +332,7 @@ internal sealed class ServerOutboundMessaging(
                 continue;
             }
 
-            SendMessage(client.Peer, message);
+            TrySendMessage(client.Peer, message, "plugin message broadcast");
         }
 
         recordBroadcastMessage?.Invoke(message);
@@ -362,6 +368,20 @@ internal sealed class ServerOutboundMessaging(
     private void SendPayload(ServerTransportPeer remotePeer, byte[] payload)
     {
         transport.Send(remotePeer, payload);
+    }
+
+    private bool TrySendMessage(ServerTransportPeer remotePeer, IProtocolMessage message, string description)
+    {
+        try
+        {
+            SendMessage(remotePeer, message);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            log($"[server] failed to send {description} to {remotePeer}: {ex.Message}");
+            return false;
+        }
     }
 
     private sealed record ServerCustomBubbleState(byte Slot, uint Revision, byte[] Rgba64Pixels);

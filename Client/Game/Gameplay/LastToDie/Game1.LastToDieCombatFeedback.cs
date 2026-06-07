@@ -13,7 +13,6 @@ public partial class Game1
     private const int LastToDieComboMilestonePopupTicks = 120;
     private const int LastToDieRageAnnouncementTicks = 28;
     private const int LastToDieRageShakeTicks = 18;
-    private const int LastToDieMissPopupTicks = 34;
     private const float LastToDieComboScaleBonusDecayPerTick = 0.035f;
     private const float LastToDieComboMilestoneScaleBonusDecayPerTick = 0.05f;
     private const float LastToDieComboBaseScale = 4.4f;
@@ -63,8 +62,6 @@ public partial class Game1
     private int _lastToDieRageAnnouncementTicksRemaining;
     private int _lastToDieRageShakeTicksRemaining;
     private Vector2 _lastToDieRageCurrentShakeOffset;
-    private int _lastToDieMissPopupTicksRemaining;
-    private float _lastToDieMissPopupRise;
 
     private void ResetLastToDieCombatFeedbackPresentation()
     {
@@ -79,8 +76,6 @@ public partial class Game1
         _lastToDieRageAnnouncementTicksRemaining = 0;
         _lastToDieRageShakeTicksRemaining = 0;
         _lastToDieRageCurrentShakeOffset = Vector2.Zero;
-        _lastToDieMissPopupTicksRemaining = 0;
-        _lastToDieMissPopupRise = 0f;
     }
 
     private void ObserveLastToDieCombatFeedbackState()
@@ -150,12 +145,6 @@ public partial class Game1
         else
         {
             _lastToDieRageCurrentShakeOffset = Vector2.Zero;
-        }
-
-        if (_lastToDieMissPopupTicksRemaining > 0)
-        {
-            _lastToDieMissPopupTicksRemaining -= 1;
-            _lastToDieMissPopupRise += 0.55f;
         }
 
         if (_world.LocalPlayerAwaitingJoin)
@@ -353,39 +342,6 @@ public partial class Game1
 
         DrawBitmapFontTextCentered("RAGE!", drawPosition + shadowOffset, Color.White * alpha, scale);
         DrawBitmapFontTextCentered("RAGE!", drawPosition, new Color(214, 24, 24) * alpha, scale);
-    }
-
-    private void ObserveLastToDieDamageEvent(WorldDamageEvent damageEvent)
-    {
-        if (!IsLastToDieSessionActive
-            || _world.LocalPlayerAwaitingJoin
-            || !damageEvent.Flags.HasFlag(DamageEventFlags.Evaded)
-            || damageEvent.TargetKind != DamageTargetKind.Player
-            || damageEvent.TargetEntityId != _world.LocalPlayer.Id)
-        {
-            return;
-        }
-
-        _lastToDieMissPopupTicksRemaining = LastToDieMissPopupTicks;
-        _lastToDieMissPopupRise = 0f;
-    }
-
-    private void DrawLastToDieMissPopup(PlayerEntity player, Vector2 cameraPosition)
-    {
-        if (_lastToDieMissPopupTicksRemaining <= 0 || !ReferenceEquals(player, _world.LocalPlayer))
-        {
-            return;
-        }
-
-        var alpha = Math.Clamp(_lastToDieMissPopupTicksRemaining / (float)LastToDieMissPopupTicks, 0f, 1f);
-        var position = new Vector2(player.X - cameraPosition.X, player.Top - cameraPosition.Y - 28f - _lastToDieMissPopupRise);
-        if (DrawGameplayMissPopupImage(position, alpha))
-        {
-            return;
-        }
-
-        DrawBitmapFontTextCentered("Miss!", position + new Vector2(2f, 2f), Color.Black * alpha, 1.08f);
-        DrawBitmapFontTextCentered("Miss!", position, new Color(255, 230, 64) * alpha, 1.08f);
     }
 
     private Vector2 GetLastToDieCameraShakeOffset()

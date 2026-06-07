@@ -116,6 +116,11 @@ public partial class Game1
             return _interpolatedEntityPositions.GetValueOrDefault(entityId, new Vector2(x, y));
         }
 
+        if (IsLocallyAdvancedProjectileEntity(entityId))
+        {
+            return new Vector2(x, y);
+        }
+
         if (_entityInterpolationTracks.TryGetValue(entityId, out var track))
         {
             return EvaluateInterpolationTrack(track);
@@ -129,6 +134,25 @@ public partial class Game1
         }
 
         return new Vector2(x, y);
+    }
+
+    private bool IsLocallyAdvancedProjectileEntity(int entityId)
+    {
+        if (!_world.Entities.TryGetValue(entityId, out var entity))
+        {
+            return false;
+        }
+
+        return entity is ShotProjectileEntity
+            or BubbleProjectileEntity
+            or BladeProjectileEntity
+            or NeedleProjectileEntity
+            or RevolverProjectileEntity
+            or FlameProjectileEntity
+            or FlareProjectileEntity
+            or RocketProjectileEntity
+            or MineProjectileEntity
+            or GrenadeProjectileEntity;
     }
 
     private Vector2 GetRenderPosition(PlayerEntity player, bool allowInterpolation = true)

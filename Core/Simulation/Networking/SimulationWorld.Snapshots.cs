@@ -524,10 +524,11 @@ public sealed partial class SimulationWorld
     }
 
     /// <summary>
-    /// Returns the input list with any entries whose ID is already in
-    /// <see cref="_terminatedProjectileIds"/> removed. Baseline-preserved states for
-    /// locally-terminated projectiles must not ghost-respawn them while the server's
-    /// EntityRemoval contribution is still in transit.
+    /// Returns the input list with any entries whose ID is currently suppressed removed.
+    /// Baseline-preserved states for locally-terminated projectiles must not ghost-respawn
+    /// them while the server's EntityRemoval contribution is still in transit. Local
+    /// suppression expires quickly so authoritative server state can restore a projectile
+    /// when the client predicted the hit/removal incorrectly.
     /// Allocates a new list only when at least one entry is filtered; otherwise returns
     /// the original reference (zero allocation on the common path).
     /// </summary>
@@ -543,7 +544,7 @@ public sealed partial class SimulationWorld
         List<TState>? filtered = null;
         for (var i = 0; i < states.Count; i++)
         {
-            if (_terminatedProjectileIds.Contains(idSelector(states[i])))
+            if (IsProjectileRespawnSuppressed(idSelector(states[i])))
             {
                 if (filtered is null)
                 {
@@ -662,7 +663,7 @@ public sealed partial class SimulationWorld
             // exploded and ApplySnapshotRockets cleaned it up). Without this guard the rocket
             // would be recreated from its birth position every snapshot frame until the event
             // expires, producing a ghost rocket that repeatedly flickers near the fire point.
-            if (_terminatedProjectileIds.Contains(e.Id))
+            if (IsProjectileRespawnSuppressed(e.Id))
             {
                 continue;
             }
@@ -1317,9 +1318,39 @@ public sealed partial class SimulationWorld
             _entities.Remove(staleId);
             if (_clientPredictedProjectileIds.Remove(staleId))
             {
-                _terminatedProjectileIds.Add(staleId);
+                SuppressProjectileRespawn(staleId);
             }
         }
+    }
+
+    private bool IsProjectileRespawnSuppressed(int projectileId)
+    {
+        if (!_terminatedProjectileIds.Contains(projectileId))
+        {
+            return false;
+        }
+
+        if (_terminatedProjectileExpiryFrames.TryGetValue(projectileId, out var expiryFrame)
+            && Frame > expiryFrame)
+        {
+            _terminatedProjectileIds.Remove(projectileId);
+            _terminatedProjectileExpiryFrames.Remove(projectileId);
+            return false;
+        }
+
+        return true;
+    }
+
+    private void SuppressProjectileRespawn(int projectileId, int suppressionTicks = 0)
+    {
+        _terminatedProjectileIds.Add(projectileId);
+        if (suppressionTicks > 0)
+        {
+            _terminatedProjectileExpiryFrames[projectileId] = Frame + suppressionTicks;
+            return;
+        }
+
+        _terminatedProjectileExpiryFrames.Remove(projectileId);
     }
 
     private void ReserveEntityId(int entityId)

@@ -12,9 +12,9 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
     private const int MinimumSnapshotHistoryLimit = 12;
     private const int SnapshotHistorySlackFrames = 12;
     private const int MaximumSnapshotHistoryLimit = 48;
-    private const int MaximumPendingInputStates = 512;
+    private const int MaximumPendingInputEdges = 32;
     private const int AcknowledgedSoundEventHistoryLimit = 4096;
-    private readonly List<SequencedPlayerInputSnapshot> _pendingInputs = new();
+    private readonly List<SequencedPlayerInputEdge> _pendingInputEdges = new();
     private readonly Dictionary<ulong, SnapshotBaselineState> _snapshotStatesByFrame = new();
     private readonly Queue<ulong> _snapshotFrameOrder = new();
     private readonly Dictionary<ulong, ulong[]> _snapshotSoundEventIdsByFrame = new();
@@ -45,7 +45,7 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
     public bool HasAcceptedInput { get; private set; }
     public uint LastReceivedInputSequence { get; private set; }
     public uint LastProcessedInputSequence { get; private set; }
-    public int PendingInputCount => _pendingInputs.Count;
+    public int PendingInputCount => _pendingInputEdges.Count;
     public uint LastTeamCommandSequence { get; set; }
     public uint LastClassCommandSequence { get; set; }
     public uint LastSpectateCommandSequence { get; set; }
@@ -64,12 +64,20 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
     public bool TrySetLatestInput(uint sequence, PlayerInputSnapshot input)
     {
         if (HasAcceptedInput
-            && (!IsSequenceNewer(sequence, LastProcessedInputSequence) || HasPendingInput(sequence)))
+            && (!IsSequenceNewer(sequence, LastProcessedInputSequence)
+                || sequence == LastReceivedInputSequence
+                || HasPendingInputEdge(sequence)))
         {
             return false;
         }
 
-        InsertPendingInput(sequence, input);
+        var edgeBaseline = ResolveInputEdgeBaseline(sequence);
+        var edge = CaptureInputEdge(edgeBaseline, input);
+        if (edge.HasAny)
+        {
+            InsertPendingInputEdge(sequence, edge);
+        }
+
         HasAcceptedInput = true;
         if (LastReceivedInputSequence == 0 || IsSequenceNewer(sequence, LastReceivedInputSequence))
         {
@@ -77,24 +85,25 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
             LatestReceivedInput = input;
         }
 
-        TrimPendingInputQueue();
+        TrimPendingInputEdgeQueue();
         return true;
     }
 
     public bool TryGetInputForNextTick(out PlayerInputSnapshot input)
     {
-        if (_pendingInputs.Count > 0)
+        if (_pendingInputEdges.Count > 0)
         {
-            var pendingInput = _pendingInputs[0];
-            _pendingInputs.RemoveAt(0);
-            LatestAppliedInput = pendingInput.Input;
-            LastProcessedInputSequence = pendingInput.Sequence;
+            var edge = ConsumePendingInputEdges(out var sequence);
+            LatestAppliedInput = ApplyInputEdge(LatestReceivedInput, edge);
+            LastProcessedInputSequence = sequence;
             input = LatestAppliedInput;
             return true;
         }
 
         if (HasAcceptedInput)
         {
+            LatestAppliedInput = LatestReceivedInput;
+            LastProcessedInputSequence = LastReceivedInputSequence;
             input = LatestAppliedInput;
             return true;
         }
@@ -103,11 +112,23 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
         return false;
     }
 
-    private bool HasPendingInput(uint sequence)
+    private PlayerInputSnapshot ResolveInputEdgeBaseline(uint sequence)
     {
-        for (var index = 0; index < _pendingInputs.Count; index += 1)
+        if (!HasAcceptedInput)
         {
-            if (_pendingInputs[index].Sequence == sequence)
+            return LatestAppliedInput;
+        }
+
+        return LastReceivedInputSequence == 0 || IsSequenceNewer(sequence, LastReceivedInputSequence)
+            ? LatestReceivedInput
+            : LatestAppliedInput;
+    }
+
+    private bool HasPendingInputEdge(uint sequence)
+    {
+        for (var index = 0; index < _pendingInputEdges.Count; index += 1)
+        {
+            if (_pendingInputEdges[index].Sequence == sequence)
             {
                 return true;
             }
@@ -116,26 +137,77 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
         return false;
     }
 
-    private void InsertPendingInput(uint sequence, PlayerInputSnapshot input)
+    private void InsertPendingInputEdge(uint sequence, InputEdge edge)
     {
-        var insertIndex = _pendingInputs.Count;
-        while (insertIndex > 0 && IsSequenceNewer(_pendingInputs[insertIndex - 1].Sequence, sequence))
+        var insertIndex = _pendingInputEdges.Count;
+        while (insertIndex > 0 && IsSequenceNewer(_pendingInputEdges[insertIndex - 1].Sequence, sequence))
         {
             insertIndex -= 1;
         }
 
-        _pendingInputs.Insert(insertIndex, new SequencedPlayerInputSnapshot(sequence, input));
+        _pendingInputEdges.Insert(insertIndex, new SequencedPlayerInputEdge(sequence, edge));
     }
 
-    private void TrimPendingInputQueue()
+    private void TrimPendingInputEdgeQueue()
     {
-        while (_pendingInputs.Count > MaximumPendingInputStates)
+        while (_pendingInputEdges.Count > MaximumPendingInputEdges)
         {
-            var droppedInput = _pendingInputs[0];
-            _pendingInputs.RemoveAt(0);
-            LatestAppliedInput = droppedInput.Input;
-            LastProcessedInputSequence = droppedInput.Sequence;
+            _pendingInputEdges.RemoveAt(0);
         }
+    }
+
+    private InputEdge ConsumePendingInputEdges(out uint sequence)
+    {
+        var combined = default(InputEdge);
+        sequence = _pendingInputEdges[0].Sequence;
+        for (var index = 0; index < _pendingInputEdges.Count; index += 1)
+        {
+            var pending = _pendingInputEdges[index];
+            combined = combined.Combine(pending.Edge);
+            if (IsSequenceNewer(pending.Sequence, sequence))
+            {
+                sequence = pending.Sequence;
+            }
+        }
+
+        _pendingInputEdges.Clear();
+        return combined;
+    }
+
+    private static InputEdge CaptureInputEdge(PlayerInputSnapshot previous, PlayerInputSnapshot current)
+    {
+        return new InputEdge(
+            Up: current.Up && !previous.Up,
+            BuildSentry: current.BuildSentry && !previous.BuildSentry,
+            DestroySentry: current.DestroySentry && !previous.DestroySentry,
+            Taunt: current.Taunt && !previous.Taunt,
+            FirePrimary: current.FirePrimary && !previous.FirePrimary,
+            FireSecondary: current.FireSecondary && !previous.FireSecondary,
+            DebugKill: current.DebugKill && !previous.DebugKill,
+            DropIntel: current.DropIntel && !previous.DropIntel,
+            UseAbility: current.UseAbility && !previous.UseAbility,
+            InteractWeapon: current.InteractWeapon && !previous.InteractWeapon,
+            SwapWeapon: current.SwapWeapon && !previous.SwapWeapon,
+            ReadyUp: current.ReadyUp && !previous.ReadyUp);
+    }
+
+    private static PlayerInputSnapshot ApplyInputEdge(PlayerInputSnapshot input, InputEdge edge)
+    {
+        return input with
+        {
+            Up = input.Up || edge.Up,
+            BuildSentry = input.BuildSentry || edge.BuildSentry,
+            DestroySentry = input.DestroySentry || edge.DestroySentry,
+            Taunt = input.Taunt || edge.Taunt,
+            FirePrimary = input.FirePrimary || edge.FirePrimary,
+            FireSecondary = input.FireSecondary || edge.FireSecondary,
+            DebugKill = input.DebugKill || edge.DebugKill,
+            DropIntel = input.DropIntel || edge.DropIntel,
+            UseAbility = input.UseAbility || edge.UseAbility,
+            InteractWeapon = input.InteractWeapon || edge.InteractWeapon,
+            SwapWeapon = input.SwapWeapon || edge.SwapWeapon,
+            ReadyUp = input.ReadyUp || edge.ReadyUp,
+        };
     }
 
     public void RememberSnapshotState(SnapshotMessage snapshot)
@@ -298,5 +370,51 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
         return Math.Clamp(targetHistoryCount, MinimumSnapshotHistoryLimit, MaximumSnapshotHistoryLimit);
     }
 
-    private readonly record struct SequencedPlayerInputSnapshot(uint Sequence, PlayerInputSnapshot Input);
+    private readonly record struct SequencedPlayerInputEdge(uint Sequence, InputEdge Edge);
+
+    private readonly record struct InputEdge(
+        bool Up,
+        bool BuildSentry,
+        bool DestroySentry,
+        bool Taunt,
+        bool FirePrimary,
+        bool FireSecondary,
+        bool DebugKill,
+        bool DropIntel,
+        bool UseAbility,
+        bool InteractWeapon,
+        bool SwapWeapon,
+        bool ReadyUp)
+    {
+        public bool HasAny =>
+            Up
+            || BuildSentry
+            || DestroySentry
+            || Taunt
+            || FirePrimary
+            || FireSecondary
+            || DebugKill
+            || DropIntel
+            || UseAbility
+            || InteractWeapon
+            || SwapWeapon
+            || ReadyUp;
+
+        public InputEdge Combine(InputEdge other)
+        {
+            return new InputEdge(
+                Up || other.Up,
+                BuildSentry || other.BuildSentry,
+                DestroySentry || other.DestroySentry,
+                Taunt || other.Taunt,
+                FirePrimary || other.FirePrimary,
+                FireSecondary || other.FireSecondary,
+                DebugKill || other.DebugKill,
+                DropIntel || other.DropIntel,
+                UseAbility || other.UseAbility,
+                InteractWeapon || other.InteractWeapon,
+                SwapWeapon || other.SwapWeapon,
+                ReadyUp || other.ReadyUp);
+        }
+    }
 }

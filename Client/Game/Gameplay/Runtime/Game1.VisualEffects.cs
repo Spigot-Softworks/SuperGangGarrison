@@ -103,6 +103,7 @@ public partial class Game1
         _damageVignetteIntensity = 0f;
         _damageVignetteFlashIntensity = 0f;
         _gameplayMaterialEffectsController.ResetTransientEffects();
+        ResetEvasionMissPopups();
         _rocketSmokeVisuals.Clear();
         _mineTrailVisuals.Clear();
         _wallspinDustVisuals.Clear();

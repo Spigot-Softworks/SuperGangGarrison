@@ -129,7 +129,12 @@ local function get_eligible_players()
 end
 
 local function get_eligible_count()
-    return #get_eligible_players()
+    local count = 0
+    for _, _ in pairs(get_eligible_players()) do
+        count = count + 1
+    end
+
+    return count
 end
 
 local function get_required_yes_votes(eligible_count)
@@ -180,7 +185,12 @@ local function pass_vote()
     local label = format_map_label(active_vote.level_name, active_vote.area_index, active_vote.area_count)
     local success
     if active_vote.kind == "change_map_now" then
-        success = plugin.host.try_change_map(active_vote.level_name, active_vote.area_index, false)
+        success = plugin.host.enqueue_action({
+            type = "try_change_map",
+            levelName = active_vote.level_name,
+            mapAreaIndex = active_vote.area_index,
+            preservePlayerStats = false
+        })
         plugin.host.broadcast_system_message(
             success
                 and ("Vote passed for " .. label .. ". Changing map now.")
@@ -198,7 +208,9 @@ end
 
 local function recount_votes()
     local eligible_slots = {}
-    for _, player in ipairs(get_eligible_players()) do
+    local eligible_count = 0
+    for _, player in pairs(get_eligible_players()) do
+        eligible_count = eligible_count + 1
         eligible_slots[player.slot] = true
     end
 
@@ -222,6 +234,8 @@ local function recount_votes()
 
     active_vote.yes_count = yes_count
     active_vote.no_count = no_count
+    active_vote.eligible_count = eligible_count
+    return eligible_count
 end
 
 local function resolve_vote_if_possible()
@@ -229,8 +243,7 @@ local function resolve_vote_if_possible()
         return
     end
 
-    recount_votes()
-    local eligible_count = get_eligible_count()
+    local eligible_count = recount_votes()
     if eligible_count < config.minimumEligiblePlayers then
         fail_vote("Vote canceled: not enough eligible players remain")
         return
