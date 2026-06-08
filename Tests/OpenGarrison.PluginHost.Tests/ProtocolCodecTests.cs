@@ -300,6 +300,8 @@ public sealed class ProtocolCodecTests
         {
             BaselineFrame = 100,
             IsDelta = true,
+            EntityCollectionCompletenessFlags =
+                SnapshotEntityCollectionCompletenessFlags.AllProjectiles & ~SnapshotEntityCollectionCompletenessFlags.Rockets,
             PlayerMovementStates =
             [
                 new SnapshotPlayerMovementState(
@@ -337,7 +339,8 @@ public sealed class ProtocolCodecTests
                     20,
                     ExplodeImmediately: true,
                     IsCritical: true,
-                    EventId: 1024),
+                    EventId: 1024,
+                    PassedFriendlyPlayerIds: [5, 7]),
             ],
             SentryGibs = [new SnapshotSentryGibState(3, 1, 10f, 12f, 25)],
             RemovedSentryGibIds = [3],
@@ -363,7 +366,7 @@ public sealed class ProtocolCodecTests
         Assert.Equal(9, playerMovement.MedicHealTargetId);
         Assert.True(playerMovement.IsMedicHealing);
         Assert.True(playerMovement.IsTaunting);
-        Assert.Equal(5f, playerMovement.BurnIntensity);
+        Assert.Equal(4f, playerMovement.BurnIntensity);
         Assert.Equal(95, playerStatus.Health);
         Assert.Equal(49, chatBubbleState.ChatBubbleFrameIndex);
         Assert.InRange(chatBubbleState.ChatBubbleAlpha, 0.74f, 0.76f);
@@ -371,11 +374,14 @@ public sealed class ProtocolCodecTests
         Assert.Equal(9, player.MedicHealTargetId);
         Assert.True(player.IsMedicHealing);
         Assert.Equal("plugin.example.ranger", player.GameplayClassId);
+        Assert.False((roundTrippedSnapshot.EntityCollectionCompletenessFlags & SnapshotEntityCollectionCompletenessFlags.Rockets) != 0);
+        Assert.True((roundTrippedSnapshot.EntityCollectionCompletenessFlags & SnapshotEntityCollectionCompletenessFlags.Shots) != 0);
         var rocketSpawn = Assert.Single(roundTrippedSnapshot.RocketSpawnEvents);
         Assert.Equal(901, rocketSpawn.Id);
         Assert.True(rocketSpawn.ExplodeImmediately);
         Assert.True(rocketSpawn.IsCritical);
         Assert.Equal(1024UL, rocketSpawn.EventId);
+        Assert.Equal(new[] { 5, 7 }, rocketSpawn.PassedFriendlyPlayerIds);
     }
 
     [Fact]

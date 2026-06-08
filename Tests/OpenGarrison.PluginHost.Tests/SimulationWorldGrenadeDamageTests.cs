@@ -39,7 +39,7 @@ public sealed class SimulationWorldGrenadeDamageTests
     }
 
     [Fact]
-    public void ClientPredictionGrenadeExplosionDoesNotEmitPresentationOrDamage()
+    public void ClientPredictionGrenadeExplosionEmitsLocalPresentationWithoutDamage()
     {
         var world = CreateCombatWorld();
         world.ClientPredictionMode = true;
@@ -52,9 +52,36 @@ public sealed class SimulationWorldGrenadeDamageTests
         ExplodeGrenade(world, grenade);
 
         Assert.Equal(healthBefore, enemy.Health);
+        Assert.Single(world.PendingSoundEvents, soundEvent => soundEvent.SoundName == "ExplosionSnd");
+        Assert.Single(world.PendingVisualEvents, visualEvent => visualEvent.EffectName == "Explosion");
+        Assert.Empty(world.PendingDamageEvents);
+    }
+
+    [Fact]
+    public void ClientPredictionSkipsRemoteOwnedGrenadeAdvance()
+    {
+        var world = CreateCombatWorld();
+        world.ClientPredictionMode = true;
+        var remoteOwner = AddEnemy(world, id: 2, x: 128f, y: 0f);
+
+        var grenade = SpawnGrenade(world, remoteOwner, x: 0f, y: 0f, velocityX: 40f, velocityY: 0f);
+        var xBefore = grenade.X;
+        var yBefore = grenade.Y;
+        var velocityXBefore = grenade.VelocityX;
+        var velocityYBefore = grenade.VelocityY;
+        var fuseBefore = grenade.FuseTicksLeft;
+
+        AdvanceGrenades(world);
+
+        Assert.Equal(1, GetGrenadeCount(world));
+        Assert.Equal(xBefore, grenade.X);
+        Assert.Equal(yBefore, grenade.Y);
+        Assert.Equal(velocityXBefore, grenade.VelocityX);
+        Assert.Equal(velocityYBefore, grenade.VelocityY);
+        Assert.Equal(fuseBefore, grenade.FuseTicksLeft);
+        Assert.Empty(world.PendingDamageEvents);
         Assert.Empty(world.PendingSoundEvents);
         Assert.Empty(world.PendingVisualEvents);
-        Assert.Empty(world.PendingDamageEvents);
     }
 
     private static SimulationWorld CreateCombatWorld()

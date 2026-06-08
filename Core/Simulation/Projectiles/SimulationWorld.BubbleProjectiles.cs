@@ -33,6 +33,11 @@ public sealed partial class SimulationWorld
             for (var bubbleIndex = world._bubbles.Count - 1; bubbleIndex >= 0; bubbleIndex -= 1)
             {
                 var bubble = world._bubbles[bubbleIndex];
+                if (!world.ShouldAdvanceProjectileForClientPrediction(bubble.OwnerId))
+                {
+                    continue;
+                }
+
                 var owner = world.FindPlayerById(bubble.OwnerId);
                 if (owner is null || !owner.IsAlive)
                 {

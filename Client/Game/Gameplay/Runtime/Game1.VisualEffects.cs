@@ -72,9 +72,13 @@ public partial class Game1
     private readonly List<FlameSmokeVisual> _flameSmokeSecondaryVisuals = new();
     private readonly List<LooseSheetVisual> _looseSheetVisuals = new();
     private readonly List<SnapshotVisualEvent> _pendingNetworkVisualEvents = new();
+    private readonly List<RecentPredictedExplosionVisual> _recentPredictedExplosionVisuals = new();
     private readonly HashSet<ulong> _processedNetworkVisualEventIds = new();
     private readonly Queue<ulong> _processedNetworkVisualEventOrder = new();
     private readonly List<PresentedExplosionVisual> _presentedExplosionVisualsThisFrame = new();
+    private const int RecentPredictedExplosionVisualEchoLifetimeTicks = 24;
+    private const int RecentPredictedExplosionVisualEchoLimit = 32;
+    private const float RecentPredictedExplosionVisualEchoDistanceSquared = 64f * 64f;
     private int _nextClientBackstabVisualId = -1;
     private int _spySuperjumpTrajectoryAnimationTicks;
 
@@ -86,6 +90,22 @@ public partial class Game1
     private readonly HashSet<int> _prevSuperjumpingPlayerIds = new();
 
     private readonly record struct PresentedExplosionVisual(float X, float Y);
+
+    private sealed class RecentPredictedExplosionVisual
+    {
+        public RecentPredictedExplosionVisual(float x, float y, int ticksRemaining)
+        {
+            X = x;
+            Y = y;
+            TicksRemaining = ticksRemaining;
+        }
+
+        public float X { get; }
+
+        public float Y { get; }
+
+        public int TicksRemaining { get; set; }
+    }
 
     private void ResetTransientPresentationEffects()
     {
@@ -104,6 +124,7 @@ public partial class Game1
         _damageVignetteFlashIntensity = 0f;
         _gameplayMaterialEffectsController.ResetTransientEffects();
         ResetEvasionMissPopups();
+        ResetHeavyDashDodgePopups();
         _rocketSmokeVisuals.Clear();
         _mineTrailVisuals.Clear();
         _wallspinDustVisuals.Clear();
@@ -111,6 +132,7 @@ public partial class Game1
         _flameSmokeVisuals.Clear();
         _flameSmokeSecondaryVisuals.Clear();
         _pendingNetworkVisualEvents.Clear();
+        _recentPredictedExplosionVisuals.Clear();
         _pendingNetworkDamageEvents.Clear();
         _frozenSpyVisuals.Clear();
         _lastVisibleEnemySpyFrameStates.Clear();
@@ -140,6 +162,59 @@ public partial class Game1
             var visual = _presentedExplosionVisualsThisFrame[index];
             if (MathF.Abs(visual.X - x) <= epsilon
                 && MathF.Abs(visual.Y - y) <= epsilon)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void AdvanceRecentPredictedExplosionVisuals()
+    {
+        for (var index = _recentPredictedExplosionVisuals.Count - 1; index >= 0; index -= 1)
+        {
+            _recentPredictedExplosionVisuals[index].TicksRemaining -= 1;
+            if (_recentPredictedExplosionVisuals[index].TicksRemaining <= 0)
+            {
+                _recentPredictedExplosionVisuals.RemoveAt(index);
+            }
+        }
+    }
+
+    private void RememberPredictedExplosionVisual(WorldVisualEvent visualEvent)
+    {
+        if (!_networkClient.IsConnected
+            || _networkClient.IsReplayConnection
+            || !string.Equals(visualEvent.EffectName, "Explosion", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        while (_recentPredictedExplosionVisuals.Count >= RecentPredictedExplosionVisualEchoLimit)
+        {
+            _recentPredictedExplosionVisuals.RemoveAt(0);
+        }
+
+        _recentPredictedExplosionVisuals.Add(new RecentPredictedExplosionVisual(
+            visualEvent.X,
+            visualEvent.Y,
+            RecentPredictedExplosionVisualEchoLifetimeTicks));
+    }
+
+    private bool ShouldSuppressPredictedExplosionVisualEcho(SnapshotVisualEvent visualEvent)
+    {
+        if (!string.Equals(visualEvent.EffectName, "Explosion", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        for (var index = 0; index < _recentPredictedExplosionVisuals.Count; index += 1)
+        {
+            var recent = _recentPredictedExplosionVisuals[index];
+            var deltaX = visualEvent.X - recent.X;
+            var deltaY = visualEvent.Y - recent.Y;
+            if ((deltaX * deltaX) + (deltaY * deltaY) <= RecentPredictedExplosionVisualEchoDistanceSquared)
             {
                 return true;
             }

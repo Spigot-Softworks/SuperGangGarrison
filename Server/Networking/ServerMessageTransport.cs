@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -138,46 +139,220 @@ internal readonly struct ServerTransportPeer : IEquatable<ServerTransportPeer>
 
 internal readonly record struct ServerMessagePacket(ServerTransportPeer RemotePeer, byte[] Payload);
 
+internal readonly record struct ServerTransportDiagnostics(
+    long UdpSendPackets,
+    long UdpSendBytes,
+    long UdpSnapshotPackets,
+    long UdpSnapshotBytes,
+    long UdpSendErrors,
+    double UdpSendTotalMilliseconds,
+    double UdpSendMaxMilliseconds,
+    long WebSocketSnapshotQueued,
+    long WebSocketSnapshotSent,
+    long WebSocketSnapshotOverwritten,
+    int WebSocketSnapshotLatestSlotPending,
+    double WebSocketSnapshotEnqueueToSendTotalMilliseconds,
+    double WebSocketSnapshotEnqueueToSendMaxMilliseconds,
+    long WebSocketReliableSent,
+    long WebSocketReliableDropped,
+    int WebSocketQueuedReliableBytes);
+
+internal sealed class ServerTransportDiagnosticsAccumulator
+{
+    private long _udpSendPackets;
+    private long _udpSendBytes;
+    private long _udpSnapshotPackets;
+    private long _udpSnapshotBytes;
+    private long _udpSendErrors;
+    private long _udpSendTotalTicks;
+    private long _udpSendMaxTicks;
+    private long _webSocketSnapshotQueued;
+    private long _webSocketSnapshotSent;
+    private long _webSocketSnapshotOverwritten;
+    private long _webSocketSnapshotEnqueueToSendTotalTicks;
+    private long _webSocketSnapshotEnqueueToSendMaxTicks;
+    private long _webSocketReliableSent;
+    private long _webSocketReliableDropped;
+
+    public void RecordUdpSend(int payloadBytes, bool snapshot, long elapsedTicks, bool failed)
+    {
+        Interlocked.Increment(ref _udpSendPackets);
+        Interlocked.Add(ref _udpSendBytes, Math.Max(0, payloadBytes));
+        Interlocked.Add(ref _udpSendTotalTicks, Math.Max(0L, elapsedTicks));
+        UpdateMax(ref _udpSendMaxTicks, Math.Max(0L, elapsedTicks));
+        if (snapshot)
+        {
+            Interlocked.Increment(ref _udpSnapshotPackets);
+            Interlocked.Add(ref _udpSnapshotBytes, Math.Max(0, payloadBytes));
+        }
+
+        if (failed)
+        {
+            Interlocked.Increment(ref _udpSendErrors);
+        }
+    }
+
+    public void RecordWebSocketSnapshotQueued(bool overwrotePendingSnapshot)
+    {
+        Interlocked.Increment(ref _webSocketSnapshotQueued);
+        if (overwrotePendingSnapshot)
+        {
+            Interlocked.Increment(ref _webSocketSnapshotOverwritten);
+        }
+    }
+
+    public void RecordWebSocketSnapshotSent(long enqueueToSendTicks)
+    {
+        var elapsedTicks = Math.Max(0L, enqueueToSendTicks);
+        Interlocked.Increment(ref _webSocketSnapshotSent);
+        Interlocked.Add(ref _webSocketSnapshotEnqueueToSendTotalTicks, elapsedTicks);
+        UpdateMax(ref _webSocketSnapshotEnqueueToSendMaxTicks, elapsedTicks);
+    }
+
+    public void RecordWebSocketReliableSent()
+    {
+        Interlocked.Increment(ref _webSocketReliableSent);
+    }
+
+    public void RecordWebSocketReliableDropped()
+    {
+        Interlocked.Increment(ref _webSocketReliableDropped);
+    }
+
+    public ServerTransportDiagnostics Snapshot(int webSocketSnapshotLatestSlotPending, int webSocketQueuedReliableBytes)
+    {
+        return new ServerTransportDiagnostics(
+            UdpSendPackets: Interlocked.Read(ref _udpSendPackets),
+            UdpSendBytes: Interlocked.Read(ref _udpSendBytes),
+            UdpSnapshotPackets: Interlocked.Read(ref _udpSnapshotPackets),
+            UdpSnapshotBytes: Interlocked.Read(ref _udpSnapshotBytes),
+            UdpSendErrors: Interlocked.Read(ref _udpSendErrors),
+            UdpSendTotalMilliseconds: TicksToMilliseconds(Interlocked.Read(ref _udpSendTotalTicks)),
+            UdpSendMaxMilliseconds: TicksToMilliseconds(Interlocked.Read(ref _udpSendMaxTicks)),
+            WebSocketSnapshotQueued: Interlocked.Read(ref _webSocketSnapshotQueued),
+            WebSocketSnapshotSent: Interlocked.Read(ref _webSocketSnapshotSent),
+            WebSocketSnapshotOverwritten: Interlocked.Read(ref _webSocketSnapshotOverwritten),
+            WebSocketSnapshotLatestSlotPending: Math.Max(0, webSocketSnapshotLatestSlotPending),
+            WebSocketSnapshotEnqueueToSendTotalMilliseconds: TicksToMilliseconds(Interlocked.Read(ref _webSocketSnapshotEnqueueToSendTotalTicks)),
+            WebSocketSnapshotEnqueueToSendMaxMilliseconds: TicksToMilliseconds(Interlocked.Read(ref _webSocketSnapshotEnqueueToSendMaxTicks)),
+            WebSocketReliableSent: Interlocked.Read(ref _webSocketReliableSent),
+            WebSocketReliableDropped: Interlocked.Read(ref _webSocketReliableDropped),
+            WebSocketQueuedReliableBytes: Math.Max(0, webSocketQueuedReliableBytes));
+    }
+
+    private static void UpdateMax(ref long target, long value)
+    {
+        var current = Volatile.Read(ref target);
+        while (value > current)
+        {
+            var previous = Interlocked.CompareExchange(ref target, value, current);
+            if (previous == current)
+            {
+                return;
+            }
+
+            current = previous;
+        }
+    }
+
+    private static double TicksToMilliseconds(long ticks)
+    {
+        return ticks <= 0
+            ? 0d
+            : ticks * 1000d / Stopwatch.Frequency;
+    }
+}
+
 internal interface IServerMessageTransport
 {
     bool HasPendingMessages { get; }
 
     ServerMessagePacket Receive();
-    void Send(ServerTransportPeer remotePeer, byte[] payload);
+    void Send(ServerTransportPeer remotePeer, byte[] payload, MessageType? messageType = null);
 }
 
-internal sealed class UdpServerMessageTransport(UdpClient udp) : IServerMessageTransport
+internal sealed class UdpServerMessageTransport : IServerMessageTransport
 {
-    public bool HasPendingMessages => udp.Available > 0;
+    private readonly UdpClient _udp;
+    private readonly ServerTransportDiagnosticsAccumulator _diagnostics;
+
+    public UdpServerMessageTransport(UdpClient udp, ServerTransportDiagnosticsAccumulator diagnostics)
+    {
+        _udp = udp;
+        _diagnostics = diagnostics;
+    }
+
+    public bool HasPendingMessages => _udp.Available > 0;
 
     public ServerMessagePacket Receive()
     {
         IPEndPoint remoteEndPoint = new(IPAddress.Any, 0);
-        var payload = udp.Receive(ref remoteEndPoint);
+        var payload = _udp.Receive(ref remoteEndPoint);
         return new ServerMessagePacket(ServerTransportPeer.FromUdpEndPoint(remoteEndPoint), payload);
     }
 
-    public void Send(ServerTransportPeer remotePeer, byte[] payload)
+    public void Send(ServerTransportPeer remotePeer, byte[] payload, MessageType? messageType = null)
     {
         var remoteEndPoint = remotePeer.UdpEndPoint
             ?? throw new InvalidOperationException($"Peer {remotePeer} cannot be addressed by UDP.");
-        udp.Send(payload, payload.Length, remoteEndPoint);
+        var startTimestamp = Stopwatch.GetTimestamp();
+        var failed = false;
+        try
+        {
+            _udp.Send(payload, payload.Length, remoteEndPoint);
+        }
+        catch
+        {
+            failed = true;
+            throw;
+        }
+        finally
+        {
+            _diagnostics.RecordUdpSend(
+                payload.Length,
+                messageType == MessageType.Snapshot,
+                Stopwatch.GetTimestamp() - startTimestamp,
+                failed);
+        }
     }
 }
 
-internal sealed class CompositeServerMessageTransport(UdpClient udp) : IServerMessageTransport
+internal sealed class CompositeServerMessageTransport : IServerMessageTransport
 {
     private const int MaxInboundWebSocketPayloadBytes = 64 * 1024;
     private const int MaxReliableQueueDepth = 64;
     private const int MaxReliableQueueBytes = 256 * 1024;
+    private const int MaxReliableMessagesBeforeSnapshotCheck = 8;
 
     private static long _nextWebSocketSessionId;
 
-    private readonly UdpServerMessageTransport _udpTransport = new(udp);
+    private readonly ServerTransportDiagnosticsAccumulator _diagnostics = new();
+    private readonly UdpServerMessageTransport _udpTransport;
     private readonly ConcurrentQueue<ServerMessagePacket> _inboundMessages = new();
     private readonly ConcurrentDictionary<ulong, WebSocketPeerConnection> _webSocketConnections = new();
 
+    public CompositeServerMessageTransport(UdpClient udp)
+    {
+        _udpTransport = new UdpServerMessageTransport(udp, _diagnostics);
+    }
+
     public bool HasPendingMessages => !_inboundMessages.IsEmpty || _udpTransport.HasPendingMessages;
+
+    public ServerTransportDiagnostics Diagnostics
+    {
+        get
+        {
+            var latestSnapshotPending = 0;
+            var queuedReliableBytes = 0;
+            foreach (var connection in _webSocketConnections.Values)
+            {
+                latestSnapshotPending += connection.HasPendingSnapshot ? 1 : 0;
+                queuedReliableBytes += connection.QueuedReliableBytes;
+            }
+
+            return _diagnostics.Snapshot(latestSnapshotPending, queuedReliableBytes);
+        }
+    }
 
     public ServerMessagePacket Receive()
     {
@@ -186,17 +361,17 @@ internal sealed class CompositeServerMessageTransport(UdpClient udp) : IServerMe
             : _udpTransport.Receive();
     }
 
-    public void Send(ServerTransportPeer remotePeer, byte[] payload)
+    public void Send(ServerTransportPeer remotePeer, byte[] payload, MessageType? messageType = null)
     {
         if (remotePeer.Kind == ServerTransportKind.Udp)
         {
-            _udpTransport.Send(remotePeer, payload);
+            _udpTransport.Send(remotePeer, payload, messageType);
             return;
         }
 
         if (_webSocketConnections.TryGetValue(remotePeer.Id, out var connection))
         {
-            connection.QueueOutboundPayload(payload);
+            connection.QueueOutboundPayload(payload, messageType);
         }
     }
 
@@ -204,7 +379,7 @@ internal sealed class CompositeServerMessageTransport(UdpClient udp) : IServerMe
     {
         var sessionId = Interlocked.Increment(ref _nextWebSocketSessionId);
         var peer = ServerTransportPeer.FromWebSocketSession(sessionId, remoteAddress, remotePort);
-        var connection = new WebSocketPeerConnection(peer, webSocket, _inboundMessages, log);
+        var connection = new WebSocketPeerConnection(peer, webSocket, _inboundMessages, _diagnostics, log);
         if (!_webSocketConnections.TryAdd(peer.Id, connection))
         {
             throw new InvalidOperationException($"A WebSocket peer with id {peer.Id} is already connected.");
@@ -232,37 +407,65 @@ internal sealed class CompositeServerMessageTransport(UdpClient udp) : IServerMe
             SingleReader = true,
             SingleWriter = false,
         });
+        private readonly Channel<bool> _outboundSignals = Channel.CreateBounded<bool>(new BoundedChannelOptions(1)
+        {
+            FullMode = BoundedChannelFullMode.DropWrite,
+            SingleReader = true,
+            SingleWriter = false,
+        });
         private readonly Action<string> _log;
+        private readonly ServerTransportDiagnosticsAccumulator _diagnostics;
         private readonly object _outboundGate = new();
-        private byte[]? _latestSnapshotPayload;
+        private QueuedSnapshotPayload? _latestSnapshotPayload;
         private int _queuedReliableBytes;
         private int _disposed;
+
+        private readonly record struct QueuedSnapshotPayload(byte[] Payload, long EnqueuedTimestamp);
 
         public WebSocketPeerConnection(
             ServerTransportPeer peer,
             WebSocket webSocket,
             ConcurrentQueue<ServerMessagePacket> inboundMessages,
+            ServerTransportDiagnosticsAccumulator diagnostics,
             Action<string> log)
         {
             _peer = peer;
             _webSocket = webSocket;
             _inboundMessages = inboundMessages;
+            _diagnostics = diagnostics;
             _log = log;
         }
 
-        public void QueueOutboundPayload(byte[] payload)
+        public bool HasPendingSnapshot
+        {
+            get
+            {
+                lock (_outboundGate)
+                {
+                    return _latestSnapshotPayload.HasValue;
+                }
+            }
+        }
+
+        public int QueuedReliableBytes => Math.Max(0, Volatile.Read(ref _queuedReliableBytes));
+
+        public void QueueOutboundPayload(byte[] payload, MessageType? messageType)
         {
             if (payload.Length == 0 || Volatile.Read(ref _disposed) != 0)
             {
                 return;
             }
 
-            if (payload[0] == (byte)MessageType.Snapshot)
+            if (messageType == MessageType.Snapshot)
             {
+                var overwrotePendingSnapshot = false;
                 lock (_outboundGate)
                 {
-                    _latestSnapshotPayload = payload;
+                    overwrotePendingSnapshot = _latestSnapshotPayload.HasValue;
+                    _latestSnapshotPayload = new QueuedSnapshotPayload(payload, Stopwatch.GetTimestamp());
                 }
+                _diagnostics.RecordWebSocketSnapshotQueued(overwrotePendingSnapshot);
+                SignalOutboundWriter();
                 return;
             }
 
@@ -270,6 +473,7 @@ internal sealed class CompositeServerMessageTransport(UdpClient udp) : IServerMe
             if (queuedBytes > MaxReliableQueueBytes)
             {
                 Interlocked.Add(ref _queuedReliableBytes, -payload.Length);
+                _diagnostics.RecordWebSocketReliableDropped();
                 _log($"[server] dropping reliable WebSocket payload for {_peer}; outbound queue is over budget.");
                 return;
             }
@@ -277,7 +481,11 @@ internal sealed class CompositeServerMessageTransport(UdpClient udp) : IServerMe
             if (!_reliableOutboundPayloads.Writer.TryWrite(payload))
             {
                 Interlocked.Add(ref _queuedReliableBytes, -payload.Length);
+                _diagnostics.RecordWebSocketReliableDropped();
+                return;
             }
+
+            SignalOutboundWriter();
         }
 
         public async Task RunAsync(CancellationToken cancellationToken)
@@ -321,6 +529,7 @@ internal sealed class CompositeServerMessageTransport(UdpClient udp) : IServerMe
             }
 
             _reliableOutboundPayloads.Writer.TryComplete();
+            _outboundSignals.Writer.TryComplete();
             _webSocket.Dispose();
         }
 
@@ -365,28 +574,63 @@ internal sealed class CompositeServerMessageTransport(UdpClient udp) : IServerMe
         {
             while (!cancellationToken.IsCancellationRequested && _webSocket.State == WebSocketState.Open)
             {
-                while (_reliableOutboundPayloads.Reader.TryRead(out var reliablePayload))
+                if (TryTakeLatestSnapshotPayload() is { } pendingSnapshotPayload)
                 {
-                    Interlocked.Add(ref _queuedReliableBytes, -reliablePayload.Length);
-                    await SendBinaryMessageAsync(reliablePayload, cancellationToken).ConfigureAwait(false);
-                }
-
-                byte[]? snapshotPayload;
-                lock (_outboundGate)
-                {
-                    snapshotPayload = _latestSnapshotPayload;
-                    _latestSnapshotPayload = null;
-                }
-
-                if (snapshotPayload is not null)
-                {
-                    await SendBinaryMessageAsync(snapshotPayload, cancellationToken).ConfigureAwait(false);
+                    await SendBinaryMessageAsync(pendingSnapshotPayload.Payload, cancellationToken).ConfigureAwait(false);
+                    _diagnostics.RecordWebSocketSnapshotSent(Stopwatch.GetTimestamp() - pendingSnapshotPayload.EnqueuedTimestamp);
                     continue;
                 }
 
-                var waitToReadTask = _reliableOutboundPayloads.Reader.WaitToReadAsync(cancellationToken).AsTask();
-                var delayTask = Task.Delay(8, cancellationToken);
-                await Task.WhenAny(waitToReadTask, delayTask).ConfigureAwait(false);
+                var reliableMessagesSent = 0;
+                while (reliableMessagesSent < MaxReliableMessagesBeforeSnapshotCheck
+                    && _reliableOutboundPayloads.Reader.TryRead(out var reliablePayload))
+                {
+                    Interlocked.Add(ref _queuedReliableBytes, -reliablePayload.Length);
+                    await SendBinaryMessageAsync(reliablePayload, cancellationToken).ConfigureAwait(false);
+                    _diagnostics.RecordWebSocketReliableSent();
+                    reliableMessagesSent += 1;
+
+                    if (TryTakeLatestSnapshotPayload() is { } snapshotPayloadAfterReliable)
+                    {
+                        await SendBinaryMessageAsync(snapshotPayloadAfterReliable.Payload, cancellationToken).ConfigureAwait(false);
+                        _diagnostics.RecordWebSocketSnapshotSent(Stopwatch.GetTimestamp() - snapshotPayloadAfterReliable.EnqueuedTimestamp);
+                        break;
+                    }
+                }
+
+                if (reliableMessagesSent > 0)
+                {
+                    continue;
+                }
+
+                await WaitForOutboundSignalAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private void SignalOutboundWriter()
+        {
+            _outboundSignals.Writer.TryWrite(true);
+        }
+
+        private async ValueTask WaitForOutboundSignalAsync(CancellationToken cancellationToken)
+        {
+            if (!await _outboundSignals.Reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return;
+            }
+
+            while (_outboundSignals.Reader.TryRead(out _))
+            {
+            }
+        }
+
+        private QueuedSnapshotPayload? TryTakeLatestSnapshotPayload()
+        {
+            lock (_outboundGate)
+            {
+                var snapshotPayload = _latestSnapshotPayload;
+                _latestSnapshotPayload = null;
+                return snapshotPayload;
             }
         }
 

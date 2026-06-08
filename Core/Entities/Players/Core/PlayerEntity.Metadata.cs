@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace OpenGarrison.Core;
 
@@ -12,6 +13,37 @@ public sealed partial class PlayerEntity
     public void SetDisplayName(string? displayName)
     {
         DisplayName = SanitizeDisplayName(displayName);
+    }
+
+    public static string NormalizeDisplayName(string? displayName)
+    {
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            return DefaultDisplayName;
+        }
+
+        var trimmed = displayName.Trim();
+        var builder = new StringBuilder(Math.Min(trimmed.Length, MaxDisplayNameLength));
+        foreach (var character in trimmed)
+        {
+            if (character == '#'
+                || char.IsControl(character)
+                || char.IsSurrogate(character)
+                || character < ' '
+                || character > '~')
+            {
+                continue;
+            }
+
+            builder.Append(character);
+            if (builder.Length >= MaxDisplayNameLength)
+            {
+                break;
+            }
+        }
+
+        var sanitized = builder.ToString().Trim();
+        return sanitized.Length == 0 ? DefaultDisplayName : sanitized;
     }
 
     public IReadOnlyList<GameplayReplicatedStateEntry> GetReplicatedStateEntries()
@@ -227,21 +259,5 @@ public sealed partial class PlayerEntity
         return string.Concat(ownerId, "::", key);
     }
 
-    private static string SanitizeDisplayName(string? displayName)
-    {
-        if (string.IsNullOrEmpty(displayName))
-        {
-            return DefaultDisplayName;
-        }
-
-        var sanitized = displayName.Replace("#", string.Empty);
-        if (sanitized.Length == 0)
-        {
-            return DefaultDisplayName;
-        }
-
-        return sanitized.Length > MaxDisplayNameLength
-            ? sanitized[..MaxDisplayNameLength]
-            : sanitized;
-    }
+    private static string SanitizeDisplayName(string? displayName) => NormalizeDisplayName(displayName);
 }

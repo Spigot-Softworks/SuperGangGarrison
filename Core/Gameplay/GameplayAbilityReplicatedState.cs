@@ -58,6 +58,16 @@ public static class GameplayAbilityReplicatedState
 
     public static bool TryGetInt(PlayerEntity player, string key, out int value)
     {
+        if (key == HeavyDashCooldownTicksKey
+            && player.ClassId == PlayerClass.Heavy
+            && player.TryGetReplicatedStateInt(
+                GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                HeavyDashCooldownTicksKey,
+                out value))
+        {
+            return true;
+        }
+
         value = key switch
         {
             PyroAirblastCooldownTicksKey when player.ClassId == PlayerClass.Pyro => player.PyroAirblastCooldownTicks,

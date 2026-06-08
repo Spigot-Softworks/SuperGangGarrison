@@ -127,8 +127,6 @@ public sealed partial class SimulationWorld
                 FriendlyDummy.SetClassDefinition(_friendlyDummyClassDefinition);
                 SpawnPlayerResolved(FriendlyDummy, GetNetworkPlayerConfiguredTeam(LocalPlayerSlot), friendlySpawn.X, friendlySpawn.Y);
             }
-
-            return true;
         }
 
         if (!IsNetworkPlayerEnabled(slot) || !TryGetNetworkPlayer(slot, out var player))
@@ -145,6 +143,22 @@ public sealed partial class SimulationWorld
 
         player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
         SpawnPlayerResolved(player, team, ReserveSpawn(player, team, slot), playRespawnSound: true);
+        return true;
+    }
+
+    public bool TryRequestNetworkPlayerTeamSelection(byte slot, PlayerTeam team)
+    {
+        if (!TrySetNetworkPlayerConfiguredTeam(slot, team))
+        {
+            return false;
+        }
+
+        if (!IsPlayableNetworkPlayerSlot(slot) || IsNetworkPlayerAwaitingJoin(slot))
+        {
+            return true;
+        }
+
+        _pendingNetworkPlayerTeamSelections.Add(slot);
         return true;
     }
 
@@ -168,7 +182,9 @@ public sealed partial class SimulationWorld
 
         var definition = CharacterClassCatalog.GetDefinition(gameplayClassId);
         if (!TryGetNetworkPlayer(slot, out var player)
-            || string.Equals(definition.GameplayClassId, GetNetworkPlayerClassDefinition(slot).GameplayClassId, StringComparison.Ordinal))
+            || (string.Equals(definition.GameplayClassId, GetNetworkPlayerClassDefinition(slot).GameplayClassId, StringComparison.Ordinal)
+                && player.Team == GetNetworkPlayerConfiguredTeam(slot)
+                && !HasPendingNetworkPlayerTeamSelection(slot)))
         {
             return false;
         }
@@ -424,6 +440,9 @@ public sealed partial class SimulationWorld
             return false;
         }
 
+        var pendingTeamSelection = HasPendingNetworkPlayerTeamSelection(slot);
+        ConsumePendingNetworkPlayerTeamSelection(slot);
+
         if (player.IsAlive)
         {
             var classChangeCreatesRemains = !player.IsInSpawnRoom;
@@ -436,10 +455,24 @@ public sealed partial class SimulationWorld
                 spawnRemains: classChangeCreatesRemains,
                 forceCorpseRemains: classChangeCreatesRemains,
                 recordKillFeed: !player.IsInSpawnRoom);
+            if (pendingTeamSelection && MatchRules.Mode != GameModeKind.Arena)
+            {
+                TrySetNetworkPlayerRespawnTicks(slot, _configuredRespawnTicks);
+            }
         }
 
         player.SetClassDefinition(definition);
         SyncExperimentalGameplayLoadout(slot, player);
         return true;
+    }
+
+    private bool HasPendingNetworkPlayerTeamSelection(byte slot)
+    {
+        return _pendingNetworkPlayerTeamSelections.Contains(slot);
+    }
+
+    private void ConsumePendingNetworkPlayerTeamSelection(byte slot)
+    {
+        _pendingNetworkPlayerTeamSelections.Remove(slot);
     }
 }

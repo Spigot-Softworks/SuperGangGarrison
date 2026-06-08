@@ -147,6 +147,9 @@ public sealed partial class SimulationWorld
                             Y = advancedRocket.Y,
                             PreviousX = advancedRocket.PreviousX,
                             PreviousY = advancedRocket.PreviousY,
+                            PassedFriendlyPlayerIds = advancedRocket.PassedFriendlyPlayerIds.Count == 0
+                                ? []
+                                : [.. advancedRocket.PassedFriendlyPlayerIds],
                         };
                         break;
                     }
@@ -162,6 +165,11 @@ public sealed partial class SimulationWorld
             }
 
             var rocket = world._rockets[rocketIndex];
+            if (!world.ShouldAdvanceProjectileForClientPrediction(rocket.OwnerId))
+            {
+                return;
+            }
+
             if (world.FindPlayerById(rocket.RangeAnchorOwnerId) is { } rangeAnchorPlayer)
             {
                 rocket.RefreshRangeOrigin(rangeAnchorPlayer.X, rangeAnchorPlayer.Y);

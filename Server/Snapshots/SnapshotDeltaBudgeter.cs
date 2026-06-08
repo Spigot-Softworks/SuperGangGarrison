@@ -31,6 +31,7 @@ internal static class SnapshotDeltaBudgeter
         EntityStateUpdate,
         EntityFirstAppearance,
         TransientSoundEvent,
+        TransientDamageEvent,
         ProjectileSpawn,
     }
 
@@ -76,19 +77,19 @@ internal static class SnapshotDeltaBudgeter
         var appliedContributions = new bool[orderedContributions.Length];
         var remainingBudget = targetPayloadBytes - payloadSize;
 
-        ApplyRequiredRosterContribution(
+        ApplyRequiredContributions(
             builder,
             orderedContributions,
             appliedContributions,
             SnapshotDeltaBudgeter.ContributionKind.PlayerFirstAppearance,
             ref remainingBudget);
-        ApplyRequiredRosterContribution(
+        ApplyRequiredContributions(
             builder,
             orderedContributions,
             appliedContributions,
             SnapshotDeltaBudgeter.ContributionKind.PlayerRosterUpdate,
             ref remainingBudget);
-        ApplyRequiredRosterContribution(
+        ApplyRequiredContributions(
             builder,
             orderedContributions,
             appliedContributions,
@@ -129,6 +130,12 @@ internal static class SnapshotDeltaBudgeter
             orderedContributions,
             appliedContributions,
             SnapshotDeltaBudgeter.ContributionKind.TransientSoundEvent,
+            ref remainingBudget);
+        ApplyRequiredContributions(
+            builder,
+            orderedContributions,
+            appliedContributions,
+            SnapshotDeltaBudgeter.ContributionKind.TransientDamageEvent,
             ref remainingBudget);
         // Projectile spawns (first appearance of any bullet/rocket/etc.) are treated as
         // required so that new projectiles are never silently dropped under budget pressure.
@@ -236,11 +243,10 @@ internal static class SnapshotDeltaBudgeter
     {
         var changed = false;
         changed |= ClearIfAny(builder.KillFeed);
-        // CombatTraces (tracers) and SniperAimIndicators are NOT pre-cleared here.
-        // They are dropped one-at-a-time (farthest-first) in BudgetDropSteps after
-        // gibs and small projectiles, so the packet is filled to the maximum before
-        // any tracer is removed. Entries that don't fit will reappear in the next
-        // snapshot because CombatTraces persist for CombatTraceLifetimeTicks ticks.
+        // Network-visible combat traces are sniper tracers. They are dropped
+        // one-at-a-time (farthest-first) in BudgetDropSteps after gibs and small
+        // projectiles, so the packet is filled to the maximum before any tracer
+        // is removed. Entries that don't fit can reappear while they persist.
         // Keep transient events here; let the contribution and reduction passes decide.
         // Keep DamageEvents - needed for client-side blood and hit feedback
         return changed;
@@ -348,7 +354,7 @@ internal static class SnapshotDeltaBudgeter
             + EstimateShotCollectionBytes(snapshot.RevolverShots)
             + EstimateShotCollectionBytes(snapshot.Flares)
             + EstimateUShortCountCollection(snapshot.Rockets, EstimateRocketBytes)
-            + EstimateUShortCountCollection(snapshot.RocketSpawnEvents, static _ => 76)
+            + EstimateUShortCountCollection(snapshot.RocketSpawnEvents, EstimateRocketSpawnEventBytes)
             + EstimateUShortCountCollection(snapshot.Flames, static _ => 50)
             + EstimateUShortCountCollection(snapshot.Mines, static _ => 32)
             + EstimateUShortCountCollection(snapshot.Grenades, static _ => 48);
@@ -541,6 +547,11 @@ internal static class SnapshotDeltaBudgeter
         return EstimateStringBytes(gibEvent.SpriteName) + 48;
     }
 
+    private static int EstimateRocketSpawnEventBytes(SnapshotRocketSpawnEvent rocketEvent)
+    {
+        return 82 + 2 + ((rocketEvent.PassedFriendlyPlayerIds?.Count ?? 0) * 4);
+    }
+
     private static int EstimateDeathCamBytes(SnapshotDeathCamState? deathCam)
     {
         if (deathCam is null)
@@ -682,6 +693,7 @@ internal static class SnapshotDeltaBudgeter
     {
         return snapshot with
         {
+            EntityCollectionCompletenessFlags = SnapshotEntityCollectionCompletenessFlags.None,
             LevelName = string.Empty,
             MapDownloadUrl = string.Empty,
             MapContentHash = string.Empty,
@@ -747,17 +759,16 @@ internal static class SnapshotDeltaBudgeter
         // rather than clearing all bullets in one step. Spawn events for these projectiles are now
         // required contributions (applied before the optional loop), so only redundant position
         // updates reach this reduction path.
-        static builder => ClearIfAny(builder.Flares),
-        static builder => ClearIfAny(builder.Blades),
-        static builder => ClearIfAny(builder.Bubbles),
-        static builder => ClearIfAny(builder.Needles),
-        static builder => ClearIfAny(builder.RevolverShots),
-        static builder => ClearIfAny(builder.Shots),
-        // Drop SniperAimIndicators and CombatTraces one entry at a time (farthest-first, since the
-        // contribution planner adds nearest entries first). This ensures the packet is filled to the
-        // maximum before any tracer is dropped, and entries at the edge of the viewport go first.
-        // CombatTraces persist for CombatTraceLifetimeTicks ticks in the world simulation, so any
-        // entry that is dropped here will reappear automatically in the next snapshot(s).
+        static builder => ClearProjectileCollectionIfAny(builder, builder.Flares, SnapshotEntityCollectionCompletenessFlags.Flares),
+        static builder => ClearProjectileCollectionIfAny(builder, builder.Blades, SnapshotEntityCollectionCompletenessFlags.Blades),
+        static builder => ClearProjectileCollectionIfAny(builder, builder.Bubbles, SnapshotEntityCollectionCompletenessFlags.Bubbles),
+        static builder => ClearProjectileCollectionIfAny(builder, builder.Needles, SnapshotEntityCollectionCompletenessFlags.Needles),
+        static builder => ClearProjectileCollectionIfAny(builder, builder.RevolverShots, SnapshotEntityCollectionCompletenessFlags.RevolverShots),
+        static builder => ClearProjectileCollectionIfAny(builder, builder.Shots, SnapshotEntityCollectionCompletenessFlags.Shots),
+        // Drop SniperAimIndicators and network-visible sniper CombatTraces one entry at a time
+        // (farthest-first, since the contribution planner adds nearest entries first). This ensures
+        // the packet is filled to the maximum before any tracer is dropped, and entries at the edge
+        // of the viewport go first.
         static builder => RemoveLastIfAboveMinimum(builder.SniperAimIndicators, minimumCount: 0),
         static builder => RemoveLastIfAboveMinimum(builder.CombatTraces, minimumCount: 0),
         static builder =>
@@ -768,10 +779,10 @@ internal static class SnapshotDeltaBudgeter
             // a later snapshot due to budget pressure.
             var changed = false;
             changed |= ClearIfAny(builder.VisualEvents);
-            changed |= ClearIfAny(builder.Mines);
-            changed |= ClearIfAny(builder.Grenades);
-            changed |= ClearIfAny(builder.Flames);
-            changed |= ClearIfAny(builder.Rockets);
+            changed |= ClearProjectileCollectionIfAny(builder, builder.Mines, SnapshotEntityCollectionCompletenessFlags.Mines);
+            changed |= ClearProjectileCollectionIfAny(builder, builder.Grenades, SnapshotEntityCollectionCompletenessFlags.Grenades);
+            changed |= ClearProjectileCollectionIfAny(builder, builder.Flames, SnapshotEntityCollectionCompletenessFlags.Flames);
+            changed |= ClearProjectileCollectionIfAny(builder, builder.Rockets, SnapshotEntityCollectionCompletenessFlags.Rockets);
             changed |= ClearIfAny(builder.Sentries);
             changed |= ClearIfAny(builder.JumpPads);
             return changed;
@@ -790,21 +801,21 @@ internal static class SnapshotDeltaBudgeter
         static builder =>
         {
             var changed = false;
-            changed |= ClearIfAny(builder.RemovedFlareIds);
-            changed |= ClearIfAny(builder.RemovedBladeIds);
-            changed |= ClearIfAny(builder.RemovedBubbleIds);
-            changed |= ClearIfAny(builder.RemovedNeedleIds);
-            changed |= ClearIfAny(builder.RemovedRevolverShotIds);
-            changed |= ClearIfAny(builder.RemovedShotIds);
+            changed |= ClearProjectileRemovalIfAny(builder, builder.RemovedFlareIds, SnapshotEntityCollectionCompletenessFlags.Flares);
+            changed |= ClearProjectileRemovalIfAny(builder, builder.RemovedBladeIds, SnapshotEntityCollectionCompletenessFlags.Blades);
+            changed |= ClearProjectileRemovalIfAny(builder, builder.RemovedBubbleIds, SnapshotEntityCollectionCompletenessFlags.Bubbles);
+            changed |= ClearProjectileRemovalIfAny(builder, builder.RemovedNeedleIds, SnapshotEntityCollectionCompletenessFlags.Needles);
+            changed |= ClearProjectileRemovalIfAny(builder, builder.RemovedRevolverShotIds, SnapshotEntityCollectionCompletenessFlags.RevolverShots);
+            changed |= ClearProjectileRemovalIfAny(builder, builder.RemovedShotIds, SnapshotEntityCollectionCompletenessFlags.Shots);
             return changed;
         },
         static builder =>
         {
             var changed = false;
-            changed |= ClearIfAny(builder.RemovedMineIds);
-            changed |= ClearIfAny(builder.RemovedGrenadeIds);
-            changed |= ClearIfAny(builder.RemovedFlameIds);
-            changed |= ClearIfAny(builder.RemovedRocketIds);
+            changed |= ClearProjectileRemovalIfAny(builder, builder.RemovedMineIds, SnapshotEntityCollectionCompletenessFlags.Mines);
+            changed |= ClearProjectileRemovalIfAny(builder, builder.RemovedGrenadeIds, SnapshotEntityCollectionCompletenessFlags.Grenades);
+            changed |= ClearProjectileRemovalIfAny(builder, builder.RemovedFlameIds, SnapshotEntityCollectionCompletenessFlags.Flames);
+            changed |= ClearProjectileRemovalIfAny(builder, builder.RemovedRocketIds, SnapshotEntityCollectionCompletenessFlags.Rockets);
             changed |= ClearIfAny(builder.RemovedSentryIds);
             return changed;
         },
@@ -821,6 +832,34 @@ internal static class SnapshotDeltaBudgeter
         }
 
         list.Clear();
+        return true;
+    }
+
+    private static bool ClearProjectileCollectionIfAny<T>(
+        Builder builder,
+        TrackingList<T> list,
+        SnapshotEntityCollectionCompletenessFlags flag)
+    {
+        if (!ClearIfAny(list))
+        {
+            return false;
+        }
+
+        builder.MarkEntityCollectionIncomplete(flag);
+        return true;
+    }
+
+    private static bool ClearProjectileRemovalIfAny(
+        Builder builder,
+        TrackingList<int> list,
+        SnapshotEntityCollectionCompletenessFlags flag)
+    {
+        if (!ClearIfAny(list))
+        {
+            return false;
+        }
+
+        builder.MarkEntityCollectionIncomplete(flag);
         return true;
     }
 
@@ -843,6 +882,7 @@ internal static class SnapshotDeltaBudgeter
         {
             _template = template;
             BaselineFrame = baselineFrame;
+            EntityCollectionCompletenessFlags = template.EntityCollectionCompletenessFlags;
             CombatTraces = seedFromTemplateCollections ? new TrackingList<SnapshotCombatTraceState>(template.CombatTraces) : [];
             SniperAimIndicators = seedFromTemplateCollections ? new TrackingList<SnapshotSniperAimIndicatorState>(template.SniperAimIndicators) : [];
             KillFeed = seedFromTemplateCollections ? new TrackingList<SnapshotKillFeedEntry>(template.KillFeed) : [];
@@ -896,6 +936,7 @@ internal static class SnapshotDeltaBudgeter
         {
             _template = other._template;
             BaselineFrame = other.BaselineFrame;
+            EntityCollectionCompletenessFlags = other.EntityCollectionCompletenessFlags;
             CombatTraces = new TrackingList<SnapshotCombatTraceState>(other.CombatTraces);
             SniperAimIndicators = new TrackingList<SnapshotSniperAimIndicatorState>(other.SniperAimIndicators);
             KillFeed = new TrackingList<SnapshotKillFeedEntry>(other.KillFeed);
@@ -946,6 +987,7 @@ internal static class SnapshotDeltaBudgeter
         }
 
         public ulong BaselineFrame { get; }
+        public SnapshotEntityCollectionCompletenessFlags EntityCollectionCompletenessFlags { get; private set; }
         public TrackingList<SnapshotCombatTraceState> CombatTraces { get; }
         public TrackingList<SnapshotSniperAimIndicatorState> SniperAimIndicators { get; }
         public TrackingList<SnapshotKillFeedEntry> KillFeed { get; }
@@ -999,12 +1041,18 @@ internal static class SnapshotDeltaBudgeter
             return new Builder(this);
         }
 
+        public void MarkEntityCollectionIncomplete(SnapshotEntityCollectionCompletenessFlags flag)
+        {
+            EntityCollectionCompletenessFlags &= ~flag;
+        }
+
         public SnapshotMessage Build()
         {
             return _template with
             {
                 BaselineFrame = BaselineFrame,
                 IsDelta = true,
+                EntityCollectionCompletenessFlags = EntityCollectionCompletenessFlags,
                 Players = Players.ToArrayCached(),
                 PlayerMovementStates = PlayerMovementStates.ToArrayCached(),
                 PlayerStatusStates = PlayerStatusStates.ToArrayCached(),

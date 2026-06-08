@@ -222,6 +222,10 @@
                     return false;
                 }
 
+                if (entry.socket.bufferedAmount > 1048576) {
+                    return false;
+                }
+
                 try {
                     entry.socket.send(payload);
                 } catch (error) {

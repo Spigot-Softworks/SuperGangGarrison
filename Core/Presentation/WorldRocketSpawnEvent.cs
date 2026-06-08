@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace OpenGarrison.Core;
 
 public readonly record struct WorldRocketSpawnEvent(
@@ -20,4 +22,5 @@ public readonly record struct WorldRocketSpawnEvent(
     bool IsFading,
     float FadeSourceTicksRemaining,
     bool ExplodeImmediately,
-    bool IsCritical);
+    bool IsCritical,
+    IReadOnlyList<int>? PassedFriendlyPlayerIds = null);

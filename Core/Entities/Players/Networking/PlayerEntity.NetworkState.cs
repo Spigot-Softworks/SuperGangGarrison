@@ -1,3 +1,4 @@
+using System;
 using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.Core;
@@ -92,7 +93,16 @@ public sealed partial class PlayerEntity
     {
         var previousHealth = Health;
         Team = team;
-        ClassDefinition = classDefinition;
+        if (!string.Equals(ClassDefinition.GameplayClassId, classDefinition.GameplayClassId, StringComparison.Ordinal)
+            || ClassDefinition.Id != classDefinition.Id)
+        {
+            SetClassDefinition(classDefinition);
+        }
+        else
+        {
+            ClassDefinition = classDefinition;
+        }
+
         SetPlayerScale(playerScale);
         X = x;
         Y = y;
@@ -287,11 +297,30 @@ public sealed partial class PlayerEntity
         ReconcileReplicatedWeaponSelection();
         ReplaceOwnedGameplayItemIds(ownedGameplayItemIds ?? []);
         ReplaceReplicatedStateEntries(replicatedStateEntries ?? []);
+        HydrateNetworkReplicatedAbilityRuntimeState();
         // Apply offhand weapon animation state so recoil/reload animations are visible to other players.
         // These values arrive via the movement delta (OffhandCooldownTicks / OffhandReloadTicks) so they
         // are delivered every tick rather than only with the budget-limited full-state update.
         ExperimentalOffhandCooldownTicks = Math.Max(0, offhandCooldownTicks);
         ExperimentalOffhandReloadTicksUntilNextShell = Math.Max(0, offhandReloadTicks);
+    }
+
+    private void HydrateNetworkReplicatedAbilityRuntimeState()
+    {
+        if (ClassId == PlayerClass.Heavy
+            && TryGetReplicatedStateInt(
+                GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                GameplayAbilityReplicatedState.HeavyDashCooldownTicksKey,
+                out var heavyDashCooldownTicks))
+        {
+            ExperimentalGhostDashCooldownTicksRemaining = Math.Max(0, heavyDashCooldownTicks);
+            return;
+        }
+
+        if (ClassId != PlayerClass.Heavy)
+        {
+            ExperimentalGhostDashCooldownTicksRemaining = 0;
+        }
     }
 
     private void ApplyReplicatedGameplayLoadoutState(

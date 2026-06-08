@@ -451,62 +451,62 @@ public partial class Game1
         for (var shotIndex = 0; shotIndex < snapshot.Shots.Count; shotIndex += 1)
         {
             var shot = snapshot.Shots[shotIndex];
-            CaptureProjectileInterpolationTarget(shot.Id, shot.X, shot.Y, new Vector2(shot.VelocityX, shot.VelocityY), 18f, snapshotServerTimeSeconds);
+            CaptureProjectileInterpolationTarget(shot.Id, shot.OwnerId, shot.X, shot.Y, new Vector2(shot.VelocityX, shot.VelocityY), 18f, snapshotServerTimeSeconds);
         }
 
         for (var bubbleIndex = 0; bubbleIndex < snapshot.Bubbles.Count; bubbleIndex += 1)
         {
             var bubble = snapshot.Bubbles[bubbleIndex];
-            CaptureProjectileInterpolationTarget(bubble.Id, bubble.X, bubble.Y, new Vector2(bubble.VelocityX, bubble.VelocityY), 18f, snapshotServerTimeSeconds);
+            CaptureProjectileInterpolationTarget(bubble.Id, bubble.OwnerId, bubble.X, bubble.Y, new Vector2(bubble.VelocityX, bubble.VelocityY), 18f, snapshotServerTimeSeconds);
         }
 
         for (var bladeIndex = 0; bladeIndex < snapshot.Blades.Count; bladeIndex += 1)
         {
             var blade = snapshot.Blades[bladeIndex];
-            CaptureProjectileInterpolationTarget(blade.Id, blade.X, blade.Y, new Vector2(blade.VelocityX, blade.VelocityY), 18f, snapshotServerTimeSeconds);
+            CaptureProjectileInterpolationTarget(blade.Id, blade.OwnerId, blade.X, blade.Y, new Vector2(blade.VelocityX, blade.VelocityY), 18f, snapshotServerTimeSeconds);
         }
 
         for (var shotIndex = 0; shotIndex < snapshot.RevolverShots.Count; shotIndex += 1)
         {
             var shot = snapshot.RevolverShots[shotIndex];
-            CaptureProjectileInterpolationTarget(shot.Id, shot.X, shot.Y, new Vector2(shot.VelocityX, shot.VelocityY), 20f, snapshotServerTimeSeconds);
+            CaptureProjectileInterpolationTarget(shot.Id, shot.OwnerId, shot.X, shot.Y, new Vector2(shot.VelocityX, shot.VelocityY), 20f, snapshotServerTimeSeconds);
         }
 
         for (var needleIndex = 0; needleIndex < snapshot.Needles.Count; needleIndex += 1)
         {
             var needle = snapshot.Needles[needleIndex];
-            CaptureProjectileInterpolationTarget(needle.Id, needle.X, needle.Y, new Vector2(needle.VelocityX, needle.VelocityY), 30f, snapshotServerTimeSeconds);
+            CaptureProjectileInterpolationTarget(needle.Id, needle.OwnerId, needle.X, needle.Y, new Vector2(needle.VelocityX, needle.VelocityY), 30f, snapshotServerTimeSeconds);
         }
 
         for (var flameIndex = 0; flameIndex < snapshot.Flames.Count; flameIndex += 1)
         {
             var flame = snapshot.Flames[flameIndex];
-            CaptureProjectileInterpolationTarget(flame.Id, flame.X, flame.Y, new Vector2(flame.VelocityX, flame.VelocityY), 36f, snapshotServerTimeSeconds);
+            CaptureProjectileInterpolationTarget(flame.Id, flame.OwnerId, flame.X, flame.Y, new Vector2(flame.VelocityX, flame.VelocityY), 36f, snapshotServerTimeSeconds);
         }
 
         for (var flareIndex = 0; flareIndex < snapshot.Flares.Count; flareIndex += 1)
         {
             var flare = snapshot.Flares[flareIndex];
-            CaptureProjectileInterpolationTarget(flare.Id, flare.X, flare.Y, new Vector2(flare.VelocityX, flare.VelocityY), 15f, snapshotServerTimeSeconds);
+            CaptureProjectileInterpolationTarget(flare.Id, flare.OwnerId, flare.X, flare.Y, new Vector2(flare.VelocityX, flare.VelocityY), 15f, snapshotServerTimeSeconds);
         }
 
         for (var rocketIndex = 0; rocketIndex < snapshot.Rockets.Count; rocketIndex += 1)
         {
             var rocket = snapshot.Rockets[rocketIndex];
             var rocketVelocity = new Vector2(MathF.Cos(rocket.DirectionRadians) * rocket.Speed, MathF.Sin(rocket.DirectionRadians) * rocket.Speed);
-            CaptureProjectileInterpolationTarget(rocket.Id, rocket.X, rocket.Y, rocketVelocity, 24f, snapshotServerTimeSeconds);
+            CaptureProjectileInterpolationTarget(rocket.Id, rocket.OwnerId, rocket.X, rocket.Y, rocketVelocity, 24f, snapshotServerTimeSeconds);
         }
 
         for (var mineIndex = 0; mineIndex < snapshot.Mines.Count; mineIndex += 1)
         {
             var mine = snapshot.Mines[mineIndex];
-            CaptureProjectileInterpolationTarget(mine.Id, mine.X, mine.Y, new Vector2(mine.VelocityX, mine.VelocityY), 18f, snapshotServerTimeSeconds);
+            CaptureProjectileInterpolationTarget(mine.Id, mine.OwnerId, mine.X, mine.Y, new Vector2(mine.VelocityX, mine.VelocityY), 18f, snapshotServerTimeSeconds);
         }
 
         for (var grenadeIndex = 0; grenadeIndex < snapshot.Grenades.Count; grenadeIndex += 1)
         {
             var grenade = snapshot.Grenades[grenadeIndex];
-            CaptureProjectileInterpolationTarget(grenade.Id, grenade.X, grenade.Y, new Vector2(grenade.VelocityX, grenade.VelocityY), 24f, snapshotServerTimeSeconds);
+            CaptureProjectileInterpolationTarget(grenade.Id, grenade.OwnerId, grenade.X, grenade.Y, new Vector2(grenade.VelocityX, grenade.VelocityY), 24f, snapshotServerTimeSeconds);
         }
 
         CaptureIntelInterpolationTarget((PlayerTeam)snapshot.RedIntel.Team, snapshot.RedIntel.X, snapshot.RedIntel.Y, snapshotServerTimeSeconds);
@@ -535,9 +535,14 @@ public partial class Game1
                 var arrivalIntervalSecondsTotal = (float)Math.Max(
                     0d,
                     snapshotReceivedTimeSeconds - _lastSnapshotReceivedTimeSeconds);
-                var arrivalIntervalSeconds = arrivalIntervalSecondsTotal / effectiveBurstCount;
-                var jitterSampleSeconds = MathF.Abs(arrivalIntervalSeconds - observedIntervalSeconds);
-                _smoothedSnapshotJitterSeconds += (jitterSampleSeconds - _smoothedSnapshotJitterSeconds) * 0.1f;
+                var jitterSampleSeconds = NetworkInterpolationPolicy.CalculateSnapshotJitterSampleSeconds(
+                    arrivalIntervalSecondsTotal,
+                    observedIntervalSecondsTotal,
+                    effectiveBurstCount);
+                var jitterAdjustmentAlpha = jitterSampleSeconds >= _smoothedSnapshotJitterSeconds
+                    ? 0.35f
+                    : 0.08f;
+                _smoothedSnapshotJitterSeconds += (jitterSampleSeconds - _smoothedSnapshotJitterSeconds) * jitterAdjustmentAlpha;
             }
         }
         else
@@ -551,36 +556,20 @@ public partial class Game1
         _latestSnapshotServerTimeSeconds = snapshotServerTimeSeconds;
         _latestSnapshotReceivedClockSeconds = snapshotReceivedTimeSeconds;
         var targetIntervalSeconds = MathF.Max(baseIntervalSeconds, _smoothedSnapshotIntervalSeconds);
-        if (_networkClient.IsReplayConnection)
-        {
-            _networkSnapshotInterpolationDurationSeconds = Math.Clamp(
+        _networkSnapshotInterpolationDurationSeconds =
+            NetworkInterpolationPolicy.CalculateSnapshotInterpolationDurationSeconds(
+                _networkClient.IsReplayConnection,
                 targetIntervalSeconds,
-                baseIntervalSeconds * 0.75f,
-                baseIntervalSeconds * 1.5f);
-        }
-        else
-        {
-            _networkSnapshotInterpolationDurationSeconds = Math.Clamp(
-                targetIntervalSeconds * 0.9f,
-                baseIntervalSeconds * 0.5f,
-                0.12f);
-        }
+                baseIntervalSeconds);
 
         var minimumLocalBackTimeSeconds = GetMinimumLocalPlayerInterpolationBackTimeSeconds();
         var maximumLocalBackTimeSeconds = GetMaximumLocalPlayerInterpolationBackTimeSeconds();
-        var desiredLocalBackTimeSeconds = _networkClient.IsReplayConnection
-            ? Math.Clamp(
-                MathF.Max(
-                    minimumLocalBackTimeSeconds,
-                    (_smoothedSnapshotIntervalSeconds * 1.1f) + (_smoothedSnapshotJitterSeconds * 1.5f)),
-                minimumLocalBackTimeSeconds,
-                maximumLocalBackTimeSeconds)
-            : Math.Clamp(
-                MathF.Max(
-                    minimumLocalBackTimeSeconds,
-                    (_smoothedSnapshotIntervalSeconds * 1.05f) + (_smoothedSnapshotJitterSeconds * 1.75f)),
-                minimumLocalBackTimeSeconds,
-                maximumLocalBackTimeSeconds);
+        var desiredLocalBackTimeSeconds = NetworkInterpolationPolicy.CalculateLocalBackTimeSeconds(
+            _networkClient.IsReplayConnection,
+            _smoothedSnapshotIntervalSeconds,
+            _smoothedSnapshotJitterSeconds,
+            minimumLocalBackTimeSeconds,
+            maximumLocalBackTimeSeconds);
         var localBackTimeAdjustmentAlpha = desiredLocalBackTimeSeconds >= _localPlayerInterpolationBackTimeSeconds
             ? 0.45f
             : 0.35f;
@@ -593,19 +582,12 @@ public partial class Game1
 
         var minimumRemoteBackTimeSeconds = GetMinimumRemotePlayerInterpolationBackTimeSeconds();
         var maximumRemoteBackTimeSeconds = GetMaximumRemotePlayerInterpolationBackTimeSeconds();
-        var desiredRemoteBackTimeSeconds = _networkClient.IsReplayConnection
-            ? Math.Clamp(
-                MathF.Max(
-                    minimumRemoteBackTimeSeconds,
-                    (_smoothedSnapshotIntervalSeconds * 1.1f) + (_smoothedSnapshotJitterSeconds * 1.5f)),
-                minimumRemoteBackTimeSeconds,
-                maximumRemoteBackTimeSeconds)
-            : Math.Clamp(
-                MathF.Max(
-                    minimumRemoteBackTimeSeconds,
-                    (_smoothedSnapshotIntervalSeconds * 1.35f) + (_smoothedSnapshotJitterSeconds * 2.75f)),
-                minimumRemoteBackTimeSeconds,
-                maximumRemoteBackTimeSeconds);
+        var desiredRemoteBackTimeSeconds = NetworkInterpolationPolicy.CalculateRemoteBackTimeSeconds(
+            _networkClient.IsReplayConnection,
+            _smoothedSnapshotIntervalSeconds,
+            _smoothedSnapshotJitterSeconds,
+            minimumRemoteBackTimeSeconds,
+            maximumRemoteBackTimeSeconds);
         var remoteBackTimeAdjustmentAlpha = desiredRemoteBackTimeSeconds >= _remotePlayerInterpolationBackTimeSeconds
             ? 0.35f
             : 0.25f;
@@ -840,10 +822,14 @@ public partial class Game1
         return history[^1].AimWorldPosition;
     }
 
-    private static Vector2 EvaluateRemotePlayerExtrapolation(PlayerSnapshotSample sample, double renderTimeSeconds)
+    private Vector2 EvaluateRemotePlayerExtrapolation(PlayerSnapshotSample sample, double renderTimeSeconds)
     {
+        var requestedExtrapolationSeconds = renderTimeSeconds - sample.TimeSeconds;
+        RecordRemotePlayerInterpolationUnderrun(
+            requestedExtrapolationSeconds,
+            requestedExtrapolationSeconds > RemotePlayerExtrapolationDurationSeconds);
         var extrapolationSeconds = float.Clamp(
-            (float)(renderTimeSeconds - sample.TimeSeconds),
+            (float)requestedExtrapolationSeconds,
             0f,
             RemotePlayerExtrapolationDurationSeconds);
         if (extrapolationSeconds <= 0f || sample.Velocity == Vector2.Zero)
@@ -910,11 +896,11 @@ public partial class Game1
             _localPlayerRenderTimeSeconds,
             targetRenderTimeSeconds,
             deltaSeconds,
-            snapThresholdSeconds: 0.10d,
-            catchUpRate: 20d,
-            slowDownRate: 14d,
-            maxLagBehindTargetSeconds: 0.03d,
-            maxLeadAheadOfTargetSeconds: 0.02d);
+            snapThresholdSeconds: 0.16d,
+            catchUpRate: 14d,
+            slowDownRate: 10d,
+            maxLagBehindTargetSeconds: 0.06d,
+            maxLeadAheadOfTargetSeconds: 0.035d);
         return _localPlayerRenderTimeSeconds;
     }
 
@@ -954,10 +940,14 @@ public partial class Game1
         return _latestSnapshotServerTimeSeconds + localElapsedSinceSnapshotSeconds;
     }
 
-    private void CaptureProjectileInterpolationTarget(int entityId, float x, float y, Vector2 velocity, float maxExtrapolationDistance, double snapshotTimeSeconds)
+    private void CaptureProjectileInterpolationTarget(int entityId, int ownerId, float x, float y, Vector2 velocity, float maxExtrapolationDistance, double snapshotTimeSeconds)
     {
-        // Projectiles use spawn-only updates with client-side prediction
-        // Skip interpolation tracking when extrapolation ceiling is 0
+        if (!ShouldCaptureSnapshotProjectileInterpolation(ownerId))
+        {
+            ClearSnapshotProjectileInterpolationTarget(entityId);
+            return;
+        }
+
         if (ProjectileInterpolationExtrapolationCeilingSeconds <= 0f)
         {
             return;
@@ -989,6 +979,21 @@ public partial class Game1
             projectileMaxExtrapolationDistance,
             snapshotTimeSeconds,
             ignoreUnchangedSample: true);
+    }
+
+    private bool ShouldCaptureSnapshotProjectileInterpolation(int ownerId)
+    {
+        return NetworkInterpolationPolicy.ShouldUseSnapshotHistoryForProjectile(
+            _networkClient.IsReplayConnection,
+            ownerId,
+            _localPlayerSnapshotEntityId ?? _world.LocalPlayer.Id);
+    }
+
+    private void ClearSnapshotProjectileInterpolationTarget(int entityId)
+    {
+        _entityInterpolationTracks.Remove(entityId);
+        _entitySnapshotHistories.Remove(entityId);
+        _interpolatedEntityPositions.Remove(entityId);
     }
 
     private void CaptureEntityInterpolationTarget(
@@ -1167,8 +1172,13 @@ public partial class Game1
 
     private Vector2 EvaluateEntitySampleExtrapolation(EntitySnapshotSample sample, double renderTimeSeconds, int entityId)
     {
+        var requestedExtrapolationSeconds = renderTimeSeconds - sample.TimeSeconds;
+        RecordEntityInterpolationUnderrun(
+            entityId,
+            requestedExtrapolationSeconds,
+            requestedExtrapolationSeconds > sample.ExtrapolationDurationSeconds);
         var extrapolationSeconds = float.Clamp(
-            (float)(renderTimeSeconds - sample.TimeSeconds),
+            (float)requestedExtrapolationSeconds,
             0f,
             sample.ExtrapolationDurationSeconds);
         if (extrapolationSeconds <= 0f || sample.Velocity == Vector2.Zero)
@@ -1364,7 +1374,15 @@ public partial class Game1
 
     private double GetEntityRenderTimeSeconds()
     {
-        return GetSnapshotRenderTimeSeconds(MathF.Min(_networkSnapshotInterpolationDurationSeconds, 0.045f));
+        var entityBackTimeSeconds = NetworkInterpolationPolicy.CalculateEntityBackTimeSeconds(
+            _networkSnapshotInterpolationDurationSeconds,
+            _smoothedSnapshotIntervalSeconds,
+            _smoothedSnapshotJitterSeconds,
+            _config.TicksPerSecond,
+            ExpectedProjectileUpdateIntervalTicks,
+            RemotePlayerMinimumInterpolationBackTimeSeconds,
+            ProjectileInterpolationExtrapolationCeilingSeconds);
+        return GetSnapshotRenderTimeSeconds(entityBackTimeSeconds);
     }
 
     private Vector2 EvaluateInterpolationTrack(InterpolationTrack track)

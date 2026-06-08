@@ -203,6 +203,7 @@ public sealed partial class SimulationWorld
 
                 var distance = GetRayIntersectionDistanceWithPlayer(previousX, previousY, directionX, directionY, _world, player, maxDistance);
                 if (!distance.HasValue) { continue; }
+                if (!_world.CanTeamDamagePlayer(projectileTeam, ownerId, player)) { continue; }
 
                 updateHit(
                     ref nearestHit,
@@ -210,7 +211,7 @@ public sealed partial class SimulationWorld
                     directionX,
                     directionY,
                     distance.Value,
-                    _world.CanTeamDamagePlayer(projectileTeam, ownerId, player) ? player : null,
+                    player,
                     null,
                     null);
             }

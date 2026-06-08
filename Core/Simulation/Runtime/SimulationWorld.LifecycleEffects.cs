@@ -45,7 +45,7 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private void SpawnPlayerGibsForNetworkDeath(PlayerEntity player)
+    private void SpawnPlayerGibsForNetworkDeath(PlayerEntity player, float? spawnX = null, float? spawnY = null)
     {
         if (!LocalGoreEffectsEnabled)
         {
@@ -54,8 +54,8 @@ public sealed partial class SimulationWorld
 
         var inheritedVelocityX = player.HorizontalSpeed * (float)Config.FixedDeltaSeconds;
         var inheritedVelocityY = player.VerticalSpeed * (float)Config.FixedDeltaSeconds;
-        SpawnPlayerGibSet(player, "GibS", DefaultGibLevel, randomFrameCount: 7, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 210, horizontalFriction: 0.4f, rotationFriction: 0.6f, bloodChance: 1.8f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, emitNetworkEvents: false);
-        SpawnPlayerGibSet(player, player.Team == PlayerTeam.Blue ? "BlueClumpS" : "RedClumpS", DefaultGibLevel - 1, randomFrameCount: 4, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 250, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 2f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, emitNetworkEvents: false);
+        SpawnPlayerGibSet(player, "GibS", DefaultGibLevel, randomFrameCount: 7, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 210, horizontalFriction: 0.4f, rotationFriction: 0.6f, bloodChance: 1.8f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, emitNetworkEvents: false, spawnX: spawnX, spawnY: spawnY);
+        SpawnPlayerGibSet(player, player.Team == PlayerTeam.Blue ? "BlueClumpS" : "RedClumpS", DefaultGibLevel - 1, randomFrameCount: 4, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 250, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 2f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, emitNetworkEvents: false, spawnX: spawnX, spawnY: spawnY);
 
         foreach (var gibPart in GetPlayerGibParts(player))
         {
@@ -73,20 +73,24 @@ public sealed partial class SimulationWorld
                 bloodChance: gibPart.BloodChance,
                 inheritedVelocityX: gibPart.InheritPlayerVelocity ? inheritedVelocityX : 0f,
                 inheritedVelocityY: gibPart.InheritPlayerVelocity ? inheritedVelocityY : 0f,
-                emitNetworkEvents: false);
+                emitNetworkEvents: false,
+                spawnX: spawnX,
+                spawnY: spawnY);
         }
     }
 
-    public void SpawnClientPlayerGibsFromNetworkDeath(PlayerEntity player)
+    public void SpawnClientPlayerGibsFromNetworkDeath(PlayerEntity player, float? spawnX = null, float? spawnY = null)
     {
         if (!LocalGoreEffectsEnabled)
         {
             return;
         }
 
-        SpawnPlayerGibsForNetworkDeath(player);
-        RegisterVisualEffect("GibBlood", player.X, player.Y, count: DefaultGibLevel);
-        SpawnBloodDrops(player.X, player.Y, DefaultGibLevel * 14, 10f, 13f, spreadRadius: 11f, experimentalCryoTinted: player.IsExperimentalCryoFrozen);
+        var resolvedSpawnX = spawnX ?? player.X;
+        var resolvedSpawnY = spawnY ?? player.Y;
+        SpawnPlayerGibsForNetworkDeath(player, resolvedSpawnX, resolvedSpawnY);
+        RegisterVisualEffect("GibBlood", resolvedSpawnX, resolvedSpawnY, count: DefaultGibLevel);
+        SpawnBloodDrops(resolvedSpawnX, resolvedSpawnY, DefaultGibLevel * 14, 10f, 13f, spreadRadius: 11f, experimentalCryoTinted: player.IsExperimentalCryoFrozen);
     }
 
     private void SpawnPlayerGibSet(
@@ -105,13 +109,17 @@ public sealed partial class SimulationWorld
         float inheritedVelocityX = 0f,
         float inheritedVelocityY = 0f,
         bool experimentalCryoTinted = false,
-        bool emitNetworkEvents = true)
+        bool emitNetworkEvents = true,
+        float? spawnX = null,
+        float? spawnY = null)
     {
         if (!LocalGoreEffectsEnabled)
         {
             return;
         }
 
+        var resolvedSpawnX = spawnX ?? player.X;
+        var resolvedSpawnY = spawnY ?? player.Y;
         for (var index = 0; index < count; index += 1)
         {
             var resolvedFrameIndex = frameIndex ?? _random.Next(randomFrameCount);
@@ -124,8 +132,8 @@ public sealed partial class SimulationWorld
                 AllocateEntityId(),
                 spriteName,
                 resolvedFrameIndex,
-                player.X,
-                player.Y,
+                resolvedSpawnX,
+                resolvedSpawnY,
                 velocityX,
                 velocityY,
                 rotationSpeed,
@@ -143,8 +151,8 @@ public sealed partial class SimulationWorld
                 _pendingGibSpawnEvents.Add(new WorldGibSpawnEvent(
                     spriteName,
                     resolvedFrameIndex,
-                    player.X,
-                    player.Y,
+                    resolvedSpawnX,
+                    resolvedSpawnY,
                     velocityX,
                     velocityY,
                     rotationSpeed,

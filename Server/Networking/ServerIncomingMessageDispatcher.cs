@@ -163,7 +163,8 @@ internal sealed class ServerIncomingMessageDispatcher(
     private void HandleHello(HelloMessage hello, ServerTransportPeer remotePeer)
     {
         var remoteDescription = remotePeer.ToString();
-        pluginHostGetter()?.NotifyHelloReceived(new HelloReceivedEvent(hello.Name, remoteDescription, hello.Version));
+        var clientName = PlayerEntity.NormalizeDisplayName(hello.Name);
+        pluginHostGetter()?.NotifyHelloReceived(new HelloReceivedEvent(clientName, remoteDescription, hello.Version));
         if (hello.Version != ProtocolVersion.Current)
         {
             log($"[server] rejected client {remoteDescription} due to protocol mismatch client={hello.Version} server={ProtocolVersion.Current}");
@@ -181,13 +182,13 @@ internal sealed class ServerIncomingMessageDispatcher(
                 return;
             }
 
-            existingClient.Name = hello.Name;
+            existingClient.Name = clientName;
             existingClient.BadgeMask = hello.BadgeMask;
             existingClient.IsWatchOnly = existingClient.IsWatchOnly || hello.Intent == ConnectionIntent.Watch;
             existingClient.LastSeen = elapsedGetter();
             sessionManager.ApplyClientProfile(
                 existingClient.Slot,
-                hello.Name,
+                clientName,
                 hello.BadgeMask,
                 hello.FriendCode,
                 hello.PlayerCardJson);
@@ -213,7 +214,7 @@ internal sealed class ServerIncomingMessageDispatcher(
                 sendCustomBubbleStates?.Invoke(remotePeer);
             }
 
-            log($"[server] client refreshed {remoteDescription} slot={existingClient.Slot} name=\"{hello.Name}\" version={hello.Version}");
+            log($"[server] client refreshed {remoteDescription} slot={existingClient.Slot} name=\"{clientName}\" version={hello.Version}");
             return;
         }
 
@@ -256,7 +257,7 @@ internal sealed class ServerIncomingMessageDispatcher(
         }
 
         var now = elapsedGetter();
-        var client = new ClientSession(assignedSlot, allocateUserId(), remotePeer, hello.Name, now)
+        var client = new ClientSession(assignedSlot, allocateUserId(), remotePeer, clientName, now)
         {
             IsAuthorized = !passwordRequired,
             BadgeMask = hello.BadgeMask,
@@ -269,7 +270,7 @@ internal sealed class ServerIncomingMessageDispatcher(
         {
             world.TryPrepareNetworkPlayerJoin(assignedSlot);
         }
-        sessionManager.ApplyClientProfile(assignedSlot, hello.Name, hello.BadgeMask, hello.FriendCode, hello.PlayerCardJson);
+        sessionManager.ApplyClientProfile(assignedSlot, clientName, hello.BadgeMask, hello.FriendCode, hello.PlayerCardJson);
 
         var mapMetadata = getCurrentMapMetadata();
         sendMessage(remotePeer, new WelcomeMessage(
@@ -298,12 +299,12 @@ internal sealed class ServerIncomingMessageDispatcher(
             resetConnectionAttemptLimits(remoteAddress);
         }
 
-        log($"[server] client connected {remoteDescription} slot={assignedSlot} name=\"{hello.Name}\" version={hello.Version}");
+        log($"[server] client connected {remoteDescription} slot={assignedSlot} name=\"{clientName}\" version={hello.Version}");
         logServerEvent(
             "client_connected",
             [
                 ("slot", assignedSlot),
-                ("player_name", hello.Name),
+                ("player_name", clientName),
                 ("endpoint", remoteDescription),
                 ("is_authorized", client.IsAuthorized),
                 ("is_spectator", IsSpectatorSlot(assignedSlot)),
@@ -311,7 +312,7 @@ internal sealed class ServerIncomingMessageDispatcher(
             ]);
         pluginHostGetter()?.NotifyClientConnected(new ClientConnectedEvent(
             assignedSlot,
-            hello.Name,
+            clientName,
             remoteDescription,
             client.IsAuthorized,
             IsSpectatorSlot(assignedSlot)));

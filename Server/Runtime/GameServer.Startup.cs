@@ -322,6 +322,13 @@ partial class GameServer
     {
         var maxSimulationTicksPerAdvance = Math.Max(1, (int)Math.Ceiling(_config.TicksPerSecond / 10d));
         var simulationBacklogDropCount = 0;
+        var serverCadenceSampleCount = 0;
+        var serverLoopElapsedTotalMilliseconds = 0d;
+        var serverLoopElapsedMaxMilliseconds = 0d;
+        var simTicksAdvancedTotal = 0;
+        var simTicksAdvancedMax = 0;
+        var simAdvanceCallsWithTicks = 0;
+        var simulationBacklogDropSampleCount = 0;
         try
         {
             while (!cancellationToken.IsCancellationRequested)
@@ -335,6 +342,10 @@ partial class GameServer
                 var now = _clock.Elapsed;
                 var elapsedSeconds = (now - _previous).TotalSeconds;
                 _previous = now;
+                var elapsedMilliseconds = Math.Clamp(elapsedSeconds * 1000d, 0d, 10000d);
+                serverCadenceSampleCount += 1;
+                serverLoopElapsedTotalMilliseconds += elapsedMilliseconds;
+                serverLoopElapsedMaxMilliseconds = Math.Max(serverLoopElapsedMaxMilliseconds, elapsedMilliseconds);
                 _scheduler.RunDueTasks();
                 _pluginHost?.NotifyServerHeartbeat(now);
 
@@ -371,9 +382,17 @@ partial class GameServer
                     },
                     _snapshotBroadcaster.BroadcastSnapshot,
                     maxSimulationTicksPerAdvance);
+                simTicksAdvancedTotal += ticks;
+                simTicksAdvancedMax = Math.Max(simTicksAdvancedMax, ticks);
+                if (ticks > 0)
+                {
+                    simAdvanceCallsWithTicks += 1;
+                }
+
                 if (_simulator.DroppedSimulationBacklogOnLastAdvance)
                 {
                     simulationBacklogDropCount += 1;
+                    simulationBacklogDropSampleCount += 1;
                 }
                 _lobbyRegistrar?.Tick(now, BuildLobbyServerName(_serverName, _world, _clientsBySlot, _passwordRequired, _maxPlayableClients));
                 _httpRegistryHeartbeat?.Tick(now);
@@ -394,10 +413,30 @@ partial class GameServer
                     var snapshotMetrics = _snapshotBroadcaster.Metrics;
                     if (snapshotMetrics.HasMeasurements)
                     {
+                        var averageServerLoopElapsedMilliseconds = serverCadenceSampleCount == 0
+                            ? 0d
+                            : serverLoopElapsedTotalMilliseconds / serverCadenceSampleCount;
+                        var averageSimTicksPerAdvance = simAdvanceCallsWithTicks == 0
+                            ? 0d
+                            : (double)simTicksAdvancedTotal / simAdvanceCallsWithTicks;
+                        var transportMetrics = _messageTransport is OpenGarrison.Server.CompositeServerMessageTransport compositeTransport
+                            ? compositeTransport.Diagnostics
+                            : default;
                         eventLog.Write(
                             "server_snapshot_metrics",
                             ("frame", snapshotMetrics.Frame),
                             ("client_count", snapshotMetrics.ClientCount),
+                            ("server_loop_sample_count", serverCadenceSampleCount),
+                            ("server_loop_elapsed_average_ms", averageServerLoopElapsedMilliseconds),
+                            ("server_loop_elapsed_max_ms", serverLoopElapsedMaxMilliseconds),
+                            ("sim_ticks_advanced_total", simTicksAdvancedTotal),
+                            ("sim_ticks_advanced_max", simTicksAdvancedMax),
+                            ("sim_ticks_per_advance_average", averageSimTicksPerAdvance),
+                            ("sim_backlog_dropped_sample_count", simulationBacklogDropSampleCount),
+                            ("snapshot_frame_delta", snapshotMetrics.SnapshotFrameDelta),
+                            ("snapshot_interval_ms", snapshotMetrics.BroadcastIntervalMilliseconds),
+                            ("snapshot_target_interval_ms", snapshotMetrics.BroadcastTargetIntervalMilliseconds),
+                            ("snapshot_interval_overrun_ms", snapshotMetrics.BroadcastIntervalOverrunMilliseconds),
                             ("average_target_payload_bytes", snapshotMetrics.AverageTargetPayloadBytes),
                             ("average_full_payload_bytes", snapshotMetrics.AverageFullPayloadBytes),
                             ("average_sent_uncompressed_bytes", snapshotMetrics.AverageSentUncompressedBytes),
@@ -423,11 +462,34 @@ partial class GameServer
                             ("per_client_ms", snapshotMetrics.PerClientMilliseconds),
                             ("total_ms", snapshotMetrics.TotalMilliseconds),
                             ("simulation_backlog_drop_count", simulationBacklogDropCount),
+                            ("udp_send_packets", transportMetrics.UdpSendPackets),
+                            ("udp_send_bytes", transportMetrics.UdpSendBytes),
+                            ("udp_snapshot_packets", transportMetrics.UdpSnapshotPackets),
+                            ("udp_snapshot_bytes", transportMetrics.UdpSnapshotBytes),
+                            ("udp_send_errors", transportMetrics.UdpSendErrors),
+                            ("udp_send_total_ms", transportMetrics.UdpSendTotalMilliseconds),
+                            ("udp_send_max_ms", transportMetrics.UdpSendMaxMilliseconds),
+                            ("ws_snapshot_queued", transportMetrics.WebSocketSnapshotQueued),
+                            ("ws_snapshot_sent", transportMetrics.WebSocketSnapshotSent),
+                            ("ws_snapshot_overwritten", transportMetrics.WebSocketSnapshotOverwritten),
+                            ("ws_snapshot_latest_slot_pending", transportMetrics.WebSocketSnapshotLatestSlotPending),
+                            ("ws_snapshot_enqueue_to_send_total_ms", transportMetrics.WebSocketSnapshotEnqueueToSendTotalMilliseconds),
+                            ("ws_snapshot_enqueue_to_send_max_ms", transportMetrics.WebSocketSnapshotEnqueueToSendMaxMilliseconds),
+                            ("ws_reliable_sent", transportMetrics.WebSocketReliableSent),
+                            ("ws_reliable_dropped", transportMetrics.WebSocketReliableDropped),
+                            ("ws_reliable_queue_bytes", transportMetrics.WebSocketQueuedReliableBytes),
                             ("shared_capture_allocated_bytes", snapshotMetrics.SharedCaptureAllocatedBytes),
                             ("per_client_allocated_bytes", snapshotMetrics.PerClientAllocatedBytes),
                             ("total_allocated_bytes", snapshotMetrics.TotalAllocatedBytes),
                             ("average_snapshot_history_count", snapshotMetrics.AverageSnapshotHistoryCount),
                             ("max_snapshot_history_count", snapshotMetrics.MaxSnapshotHistoryCount));
+                        serverCadenceSampleCount = 0;
+                        serverLoopElapsedTotalMilliseconds = 0d;
+                        serverLoopElapsedMaxMilliseconds = 0d;
+                        simTicksAdvancedTotal = 0;
+                        simTicksAdvancedMax = 0;
+                        simAdvanceCallsWithTicks = 0;
+                        simulationBacklogDropSampleCount = 0;
                     }
 
                     var botMetrics = _botManager.Metrics;

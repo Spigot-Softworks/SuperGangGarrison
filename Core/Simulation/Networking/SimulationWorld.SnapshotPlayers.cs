@@ -29,6 +29,7 @@ public sealed partial class SimulationWorld
     {
         if (localPlayerState is not null && !localPlayerState.IsSpectator)
         {
+            _authoritativeLocalPlayerId = localPlayerState.PlayerId;
             var wasAlive = LocalPlayer.IsAlive;
             var previousGibDeaths = LocalPlayer.GibDeaths;
 
@@ -51,6 +52,7 @@ public sealed partial class SimulationWorld
 
         TrySetNetworkPlayerAwaitingJoin(LocalPlayerSlot, true);
         TrySetNetworkPlayerRespawnTicks(LocalPlayerSlot, 0);
+        _authoritativeLocalPlayerId = null;
         LocalDeathCam = null;
         LocalPlayer.ClearMedicHealingTarget();
         LocalPlayer.Kill();

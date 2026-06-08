@@ -88,8 +88,9 @@ public sealed class ServerOutboundMessagingTests
 
         public ServerMessagePacket Receive() => throw new InvalidOperationException("No test packets.");
 
-        public void Send(ServerTransportPeer remotePeer, byte[] payload)
+        public void Send(ServerTransportPeer remotePeer, byte[] payload, MessageType? messageType = null)
         {
+            _ = messageType;
             SendAttempts += 1;
             throw new SocketException((int)SocketError.WouldBlock);
         }

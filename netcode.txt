@@ -1,0 +1,17 @@
+Make online snapshot interpolation always active; treat the setting as extra visual smoothing only.
+Decide on local movement mode: proper prediction/reconciliation, or deeper server-authoritative local interpolation.
+Fix projectile lifetime semantics: absence should not delete unless the collection is complete or explicit Removed*Ids says so; stale suppression must be finite.
+Reconcile existing rockets with authoritative state, including pass-through IDs.
+Raise projectile/entity interpolation delay beyond the hard 45 ms cap.
+Make spy cloak/uncloak and gameplay class changes non-droppable or roster-critical.
+Split diagnostics into transportPingMs, inputAckMs, snapshotAgeMs, queuedSnapshots, and jitterMs.
+Replace WebSocket Task.Delay(8) with a wake signal and add fair snapshot servicing before reliable queue drain.
+
+
+Always enable online interpolation, independent of the current “position smoothing” preference.
+Render local player from snapshot history too, not raw authoritative apply position.
+Use a deeper adaptive local buffer, probably closer to 2-3 snapshot intervals plus jitter, not the current 28-75 ms local window.
+Camera follows the interpolated local render position, with small symmetric X/Y damping and explicit snap rules for respawn, teleport, death, map change.
+Projectiles should be rendered from authoritative histories/reconciled state, not deleted just because a budgeted snapshot omits them.
+Ping UI should be split, because with this model “input latency” and “network RTT” are intentionally different numbers.
+

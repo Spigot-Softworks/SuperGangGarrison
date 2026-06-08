@@ -7,6 +7,11 @@ public sealed partial class SimulationWorld
         for (var shotIndex = _shots.Count - 1; shotIndex >= 0; shotIndex -= 1)
         {
             var shot = _shots[shotIndex];
+            if (!ShouldAdvanceProjectileForClientPrediction(shot.OwnerId))
+            {
+                continue;
+            }
+
             shot.AdvanceOneTick(_configuredGravityScale);
             var movementX = shot.X - shot.PreviousX;
             var movementY = shot.Y - shot.PreviousY;
@@ -144,6 +149,11 @@ public sealed partial class SimulationWorld
         for (var bladeIndex = _blades.Count - 1; bladeIndex >= 0; bladeIndex -= 1)
         {
             var blade = _blades[bladeIndex];
+            if (!ShouldAdvanceProjectileForClientPrediction(blade.OwnerId))
+            {
+                continue;
+            }
+
             blade.AdvanceOneTick();
             var movementX = blade.X - blade.PreviousX;
             var movementY = blade.Y - blade.PreviousY;
@@ -216,6 +226,11 @@ public sealed partial class SimulationWorld
         for (var needleIndex = _needles.Count - 1; needleIndex >= 0; needleIndex -= 1)
         {
             var needle = _needles[needleIndex];
+            if (!ShouldAdvanceProjectileForClientPrediction(needle.OwnerId))
+            {
+                continue;
+            }
+
             needle.AdvanceOneTick(_configuredGravityScale);
             var movementX = needle.X - needle.PreviousX;
             var movementY = needle.Y - needle.PreviousY;
@@ -289,6 +304,11 @@ public sealed partial class SimulationWorld
         for (var shotIndex = _revolverShots.Count - 1; shotIndex >= 0; shotIndex -= 1)
         {
             var shot = _revolverShots[shotIndex];
+            if (!ShouldAdvanceProjectileForClientPrediction(shot.OwnerId))
+            {
+                continue;
+            }
+
             shot.AdvanceOneTick(_configuredGravityScale);
             var movementX = shot.X - shot.PreviousX;
             var movementY = shot.Y - shot.PreviousY;

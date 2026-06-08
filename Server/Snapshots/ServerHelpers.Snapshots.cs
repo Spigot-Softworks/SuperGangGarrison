@@ -11,6 +11,7 @@ internal static partial class ServerHelpers
     private const string SoldierShotgunAmmoKey = "soldier_shotgun_ammo";
     private const string SoldierShotgunMaxAmmoKey = "soldier_shotgun_max_ammo";
     private const string DemomanGrenadeLauncherAmmoKey = "demoman_gl_ammo";
+    private const string DemomanGrenadeLauncherMaxAmmoKey = "demoman_gl_max_ammo";
     private const string ScoutNailgunAmmoKey = "scout_nailgun_ammo";
     private const string ScoutNailgunMaxAmmoKey = "scout_nailgun_max_ammo";
 
@@ -100,6 +101,13 @@ internal static partial class ServerHelpers
                 DemomanGrenadeLauncherAmmoKey,
                 SnapshotReplicatedStateValueKind.Whole,
                 player.ExperimentalOffhandCurrentShells,
+                0f,
+                false));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                DemomanGrenadeLauncherMaxAmmoKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandMaxShells,
                 0f,
                 false));
         }
@@ -496,7 +504,8 @@ internal static partial class ServerHelpers
             soundEvent.X,
             soundEvent.Y,
             soundEvent.EventId == 0 ? fallbackEventId : soundEvent.EventId,
-            soundEvent.SourceFrame);
+            soundEvent.SourceFrame,
+            soundEvent.SourcePlayerId);
     }
 
     internal static SnapshotVisualEvent ToSnapshotVisualEvent(WorldVisualEvent visualEvent, ulong fallbackEventId)

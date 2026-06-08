@@ -61,7 +61,8 @@ static async Task RunApplyUpdateModeAsync(string[] args)
         return;
     }
 
-    var sourceDirectory = args[1];
+    var requestedSourceDirectory = args[1];
+    var sourceDirectory = ResolveExtractedPackageRoot(requestedSourceDirectory);
     var destinationDirectory = args[2];
     var version = args[3];
     _ = int.TryParse(args[4], out var parentProcessId);
@@ -73,6 +74,11 @@ static async Task RunApplyUpdateModeAsync(string[] args)
         updateUi.Show();
         updateUi.Report(UpdateUiState.Indeterminate("Installing update..."));
         WaitForProcessExit(parentProcessId, TimeSpan.FromSeconds(30));
+
+        if (!string.Equals(sourceDirectory, requestedSourceDirectory, StringComparison.OrdinalIgnoreCase))
+        {
+            LogUpdaterEvent(destinationDirectory, $"using nested apply source \"{sourceDirectory}\" from \"{requestedSourceDirectory}\"");
+        }
 
         LogUpdaterEvent(destinationDirectory, $"applying update source=\"{sourceDirectory}\" destination=\"{destinationDirectory}\" version=\"{version}\"");
         CopyUpdatePayload(
@@ -145,12 +151,18 @@ static async Task<UpdateApplyResult> TryApplyUpdateAsync(
     var manifest = await httpClient.GetFromJsonAsync<UpdateManifest>(manifestUrl).ConfigureAwait(false);
     if (manifest is null || string.IsNullOrWhiteSpace(manifest.Url) || string.IsNullOrWhiteSpace(manifest.Version))
     {
+        LogUpdaterEvent(appDirectory, "update manifest missing required version or url");
         return UpdateApplyResult.NoUpdate;
     }
 
-    var currentVersion = ReadCurrentVersion(appDirectory);
+    var detectedCurrentVersion = ReadCurrentVersion(appDirectory);
+    var currentVersion = NormalizeCurrentVersionForManifest(detectedCurrentVersion, manifest.Version);
+    LogUpdaterEvent(
+        appDirectory,
+        $"update manifest version=\"{manifest.Version}\" current=\"{currentVersion}\" detectedCurrent=\"{detectedCurrentVersion}\" channel=\"{manifest.Channel}\" package=\"{manifest.Url}\"");
     if (!IsNewerVersion(manifest.Version, currentVersion))
     {
+        LogUpdaterEvent(appDirectory, $"no update available manifest=\"{manifest.Version}\" current=\"{currentVersion}\"");
         return UpdateApplyResult.NoUpdate;
     }
 
@@ -167,12 +179,15 @@ static async Task<UpdateApplyResult> TryApplyUpdateAsync(
     }
 
     Directory.CreateDirectory(tempRoot);
+    LogUpdaterEvent(appDirectory, $"downloading update package \"{packageUri}\"");
     await DownloadPackageAsync(httpClient, packageUri, packagePath, manifest.Size, updateUi).ConfigureAwait(false);
 
     updateUi.Report(UpdateUiState.Indeterminate("Verifying update..."));
+    var actualSha256 = await ComputeSha256Async(packagePath).ConfigureAwait(false);
     if (!string.IsNullOrWhiteSpace(manifest.Sha256)
-        && !string.Equals(await ComputeSha256Async(packagePath).ConfigureAwait(false), manifest.Sha256, StringComparison.OrdinalIgnoreCase))
+        && !string.Equals(actualSha256, manifest.Sha256, StringComparison.OrdinalIgnoreCase))
     {
+        LogUpdaterEvent(appDirectory, $"update verification failed expectedSha256=\"{manifest.Sha256}\" actualSha256=\"{actualSha256}\"");
         updateUi.Report(UpdateUiState.KnownProgress("Update verification failed.", 0d));
         await Task.Delay(900).ConfigureAwait(false);
         return UpdateApplyResult.NoUpdate;
@@ -180,8 +195,13 @@ static async Task<UpdateApplyResult> TryApplyUpdateAsync(
 
     updateUi.Report(UpdateUiState.Indeterminate("Preparing update..."));
     ExtractPackageArchive(packagePath, packageUri, extractPath);
+    var packageRoot = ResolveExtractedPackageRoot(extractPath);
+    if (!string.Equals(packageRoot, extractPath, StringComparison.OrdinalIgnoreCase))
+    {
+        LogUpdaterEvent(appDirectory, $"using nested update package root \"{packageRoot}\"");
+    }
 
-    if (TryLaunchUpdateHelper(extractPath, appDirectory, manifest.Version, gameArgs))
+    if (TryLaunchUpdateHelper(packageRoot, appDirectory, manifest.Version, gameArgs))
     {
         updateUi.Report(UpdateUiState.KnownProgress("Installing update...", 1d));
         await Task.Delay(250).ConfigureAwait(false);
@@ -300,6 +320,44 @@ static void ExtractPackageArchive(string packagePath, Uri packageUri, string ext
     throw new InvalidOperationException($"Unsupported update package archive: {packageName}");
 }
 
+static string ResolveExtractedPackageRoot(string extractPath)
+{
+    if (ContainsUpdatePayloadRoot(extractPath))
+    {
+        return extractPath;
+    }
+
+    string[] childDirectories;
+    try
+    {
+        childDirectories = Directory.GetDirectories(extractPath);
+    }
+    catch
+    {
+        return extractPath;
+    }
+
+    return childDirectories.Length == 1 && ContainsUpdatePayloadRoot(childDirectories[0])
+        ? childDirectories[0]
+        : extractPath;
+}
+
+static bool ContainsUpdatePayloadRoot(string directory)
+{
+    if (!Directory.Exists(directory))
+    {
+        return false;
+    }
+
+    if (File.Exists(Path.Combine(directory, VersionFileName)))
+    {
+        return true;
+    }
+
+    return GetUpdaterHelperExecutableNames().Any(name => File.Exists(Path.Combine(directory, name)))
+        || GetGameExecutableNames().Any(name => File.Exists(Path.Combine(directory, name)));
+}
+
 static bool TryLaunchUpdateHelper(string extractPath, string appDirectory, string version, string[] gameArgs)
 {
     var helperPath = GetUpdaterHelperExecutableNames()
@@ -308,7 +366,8 @@ static bool TryLaunchUpdateHelper(string extractPath, string appDirectory, strin
 
     if (helperPath is null)
     {
-        LogUpdaterEvent(appDirectory, $"update helper missing in extracted package \"{extractPath}\"");
+        var expectedHelpers = string.Join(", ", GetUpdaterHelperExecutableNames());
+        LogUpdaterEvent(appDirectory, $"update helper missing in extracted package \"{extractPath}\" expected=[{expectedHelpers}]");
         return false;
     }
 
@@ -456,6 +515,31 @@ static string ReadCurrentVersion(string appDirectory)
     }
 
     return "0.0.0";
+}
+
+static string NormalizeCurrentVersionForManifest(string currentVersion, string manifestVersion)
+{
+    if (!IsDefaultSdkVersionLabel(currentVersion)
+        || !TryParseComparableVersion(manifestVersion, out var parsedManifestVersion)
+        || parsedManifestVersion.Major != 0)
+    {
+        return currentVersion;
+    }
+
+    return "0.0.0";
+}
+
+static bool IsDefaultSdkVersionLabel(string version)
+{
+    var comparable = version.Trim();
+    if (comparable.StartsWith('v') || comparable.StartsWith('V'))
+    {
+        comparable = comparable[1..];
+    }
+
+    comparable = comparable.Split(['-', '+'], 2)[0];
+    return string.Equals(comparable, "1.0.0", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(comparable, "1.0.0.0", StringComparison.OrdinalIgnoreCase);
 }
 
 static bool IsNewerVersion(string candidate, string current)

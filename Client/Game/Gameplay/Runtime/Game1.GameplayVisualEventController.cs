@@ -18,13 +18,20 @@ public partial class Game1
         public void PlayPendingVisualEvents()
         {
             _game._presentedExplosionVisualsThisFrame.Clear();
+            _game.AdvanceRecentPredictedExplosionVisuals();
             foreach (var visualEvent in _game._world.DrainPendingVisualEvents())
             {
                 PlayVisualEvent(visualEvent.EffectName, visualEvent.X, visualEvent.Y, visualEvent.DirectionDegrees, visualEvent.Count);
+                _game.RememberPredictedExplosionVisual(visualEvent);
             }
 
             foreach (var visualEvent in _game._pendingNetworkVisualEvents)
             {
+                if (_game.ShouldSuppressPredictedExplosionVisualEcho(visualEvent))
+                {
+                    continue;
+                }
+
                 PlayVisualEvent(visualEvent.EffectName, visualEvent.X, visualEvent.Y, visualEvent.DirectionDegrees, visualEvent.Count);
             }
 

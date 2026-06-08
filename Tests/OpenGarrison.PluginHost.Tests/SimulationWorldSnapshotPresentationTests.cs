@@ -56,6 +56,36 @@ public sealed class SimulationWorldSnapshotPresentationTests
     }
 
     [Fact]
+    public void TryPresentNetworkGibDeathUsesProvidedSpawnCoordinates()
+    {
+        var world = new SimulationWorld();
+        var initialSnapshot = CreateSnapshot(
+            world,
+            frame: 107,
+            localPlayer: CreatePlayerState(1, 101, "Local", PlayerTeam.Red, PlayerClass.Scout, isAlive: true, gibDeaths: 0),
+            remotePlayer: CreatePlayerState(2, 202, "Remote", PlayerTeam.Blue, PlayerClass.Soldier, isAlive: true, gibDeaths: 0));
+        var deathSnapshot = CreateSnapshot(
+            world,
+            frame: 108,
+            localPlayer: CreatePlayerState(1, 101, "Local", PlayerTeam.Red, PlayerClass.Scout, isAlive: true, gibDeaths: 0),
+            remotePlayer: CreatePlayerState(2, 202, "Remote", PlayerTeam.Blue, PlayerClass.Soldier, isAlive: false, gibDeaths: 1));
+
+        Assert.True(world.ApplySnapshot(initialSnapshot, localPlayerSlot: 1));
+        Assert.True(world.TryPresentNetworkGibDeath(202, gibDeaths: 1, spawnX: 512f, spawnY: 384f));
+        var immediateGibCount = world.PlayerGibs.Count;
+
+        Assert.NotEqual(0, immediateGibCount);
+        Assert.All(world.PlayerGibs, gib =>
+        {
+            Assert.Equal(512f, gib.X);
+            Assert.Equal(384f, gib.Y);
+        });
+
+        Assert.True(world.ApplySnapshot(deathSnapshot, localPlayerSlot: 1));
+        Assert.Equal(immediateGibCount, world.PlayerGibs.Count);
+    }
+
+    [Fact]
     public void ApplySnapshotDoesNotSpawnRemotePlayerGibsWhenAlreadyDeadStateAdvances()
     {
         var world = new SimulationWorld();

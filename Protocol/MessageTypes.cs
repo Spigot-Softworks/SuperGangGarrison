@@ -466,8 +466,8 @@ public sealed record SnapshotPlayerStatusState(
     float Metal,
     bool IsCarryingIntel,
     float IntelRechargeTicks,
-    // Secondary/utility weapon ammo (e.g. soldier shotgun, grenade launcher, scout nailgun).
-    // Mirrors the primary ammo path so these values are never dropped under budget pressure.
+    // Compact runtime replicated states that must not wait for a full-player update
+    // (secondary ammo, ability cooldowns, and short-lived presentation toggles).
     IReadOnlyList<SnapshotReplicatedStateEntry>? SecondaryAmmoStates = null);
 
 public sealed record SnapshotPlayerChatBubbleState(
@@ -608,7 +608,8 @@ public sealed record SnapshotRocketSpawnEvent(
     float FadeSourceTicksRemaining = 0f,
     bool ExplodeImmediately = false,
     bool IsCritical = false,
-    ulong EventId = 0);
+    ulong EventId = 0,
+    IReadOnlyList<int>? PassedFriendlyPlayerIds = null);
 
 public sealed record SnapshotFlameState(
     int Id,
@@ -763,7 +764,8 @@ public sealed record SnapshotSoundEvent(
     float X,
     float Y,
     ulong EventId = 0,
-    ulong SourceFrame = 0);
+    ulong SourceFrame = 0,
+    int SourcePlayerId = -1);
 
 public sealed record SnapshotVisualEvent(
     string EffectName,
@@ -814,6 +816,32 @@ public sealed record SnapshotKillFeedEntry(
     int VictimPlayerId = -1,
     KillFeedSpecialType SpecialType = KillFeedSpecialType.None,
     ulong EventId = 0);
+
+[Flags]
+public enum SnapshotEntityCollectionCompletenessFlags : ushort
+{
+    None = 0,
+    Shots = 1 << 0,
+    Bubbles = 1 << 1,
+    Blades = 1 << 2,
+    Needles = 1 << 3,
+    RevolverShots = 1 << 4,
+    Rockets = 1 << 5,
+    Flames = 1 << 6,
+    Flares = 1 << 7,
+    Mines = 1 << 8,
+    Grenades = 1 << 9,
+    AllProjectiles = Shots
+        | Bubbles
+        | Blades
+        | Needles
+        | RevolverShots
+        | Rockets
+        | Flames
+        | Flares
+        | Mines
+        | Grenades,
+}
 
 public sealed record SnapshotMessage(
     ulong Frame,
@@ -904,6 +932,8 @@ public sealed record SnapshotMessage(
     public IReadOnlyList<SnapshotPlayerGibState> PlayerGibs { get; init; } = Array.Empty<SnapshotPlayerGibState>();
     public IReadOnlyList<SnapshotGibSpawnEvent> GibSpawnEvents { get; init; } = Array.Empty<SnapshotGibSpawnEvent>();
     public IReadOnlyList<SnapshotRocketSpawnEvent> RocketSpawnEvents { get; init; } = Array.Empty<SnapshotRocketSpawnEvent>();
+    public SnapshotEntityCollectionCompletenessFlags EntityCollectionCompletenessFlags { get; init; } =
+        SnapshotEntityCollectionCompletenessFlags.AllProjectiles;
 
     public MessageType Type => MessageType.Snapshot;
 }

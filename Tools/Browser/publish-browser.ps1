@@ -28,9 +28,15 @@ $publishArgs = @(
     $projectPath,
     "-c", $Configuration,
     "-o", $outputPath,
+    "-maxcpucount:1",
     "-p:UseSharedCompilation=false",
     "-nodeReuse:false",
-    "-p:OpenGarrisonBrowserAot=true"
+    "-p:OpenGarrisonBrowserAot=true",
+    "-p:DisableParallelAot=true",
+    "-p:DisableParallelEmccCompile=true",
+    "-p:WasmNativeDebugSymbols=false",
+    "-p:WasmBitcodeCompileOptimizationFlag=-O1",
+    "-p:EmccVerbose=false"
 )
 
 Write-Host "Publishing browser client from $projectPath"

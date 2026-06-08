@@ -32,6 +32,7 @@ public static class SnapshotDelta
         {
             BaselineFrame = 0,
             IsDelta = false,
+            EntityCollectionCompletenessFlags = snapshot.EntityCollectionCompletenessFlags,
             Players = MergePlayers(
                 baseline?.Players,
                 snapshot.Players,
@@ -62,16 +63,16 @@ public static class SnapshotDelta
             PlayerChatBubbleStates = Array.Empty<SnapshotPlayerChatBubbleState>(),
             RemovedPlayerIds = Array.Empty<int>(),
             RemovedSentryIds = Array.Empty<int>(),
-            RemovedShotIds = Array.Empty<int>(),
-            RemovedBubbleIds = Array.Empty<int>(),
-            RemovedBladeIds = Array.Empty<int>(),
-            RemovedNeedleIds = Array.Empty<int>(),
-            RemovedRevolverShotIds = Array.Empty<int>(),
-            RemovedRocketIds = Array.Empty<int>(),
-            RemovedFlameIds = Array.Empty<int>(),
-            RemovedFlareIds = Array.Empty<int>(),
-            RemovedMineIds = Array.Empty<int>(),
-            RemovedGrenadeIds = Array.Empty<int>(),
+            RemovedShotIds = snapshot.RemovedShotIds,
+            RemovedBubbleIds = snapshot.RemovedBubbleIds,
+            RemovedBladeIds = snapshot.RemovedBladeIds,
+            RemovedNeedleIds = snapshot.RemovedNeedleIds,
+            RemovedRevolverShotIds = snapshot.RemovedRevolverShotIds,
+            RemovedRocketIds = snapshot.RemovedRocketIds,
+            RemovedFlameIds = snapshot.RemovedFlameIds,
+            RemovedFlareIds = snapshot.RemovedFlareIds,
+            RemovedMineIds = snapshot.RemovedMineIds,
+            RemovedGrenadeIds = snapshot.RemovedGrenadeIds,
             RemovedPlayerGibIds = Array.Empty<int>(),
             RemovedDeadBodyIds = Array.Empty<int>(),
             RemovedSentryGibIds = Array.Empty<int>(),
@@ -204,7 +205,7 @@ public static class SnapshotDelta
                 Metal = status.Metal,
                 IsCarryingIntel = status.IsCarryingIntel,
                 IntelRechargeTicks = status.IntelRechargeTicks,
-                ReplicatedStates = MergeSecondaryWeaponStateUpdates(
+                ReplicatedStates = MergeRuntimeReplicatedStateUpdates(
                     player.ReplicatedStates,
                     status.SecondaryAmmoStates ?? Array.Empty<SnapshotReplicatedStateEntry>()),
             };
@@ -288,10 +289,10 @@ public static class SnapshotDelta
         return merged;
     }
 
-    // Merges secondary weapon ReplicatedState entries from a status update into the player's existing
-    // ReplicatedStates. Runtime reload/cooldown states used to be full-player fields; clear them here
-    // so an old baseline cannot mask the movement-delta weapon state.
-    private static SnapshotReplicatedStateEntry[] MergeSecondaryWeaponStateUpdates(
+    // Merges compact runtime ReplicatedState entries from a status update into the player's existing
+    // ReplicatedStates. Runtime weapon and ability states are cleared first so old baselines cannot
+    // mask the lightweight update path.
+    private static SnapshotReplicatedStateEntry[] MergeRuntimeReplicatedStateUpdates(
         IReadOnlyList<SnapshotReplicatedStateEntry>? baseline,
         IReadOnlyList<SnapshotReplicatedStateEntry> updates)
     {
@@ -300,7 +301,7 @@ public static class SnapshotDelta
         for (var i = 0; i < baselineCount; i++)
         {
             var entry = baseline![i];
-            if (IsSecondaryWeaponRuntimeReplicatedState(entry))
+            if (IsRuntimeReplicatedState(entry))
             {
                 continue;
             }
@@ -327,6 +328,12 @@ public static class SnapshotDelta
         return merged.ToArray();
     }
 
+    private static bool IsRuntimeReplicatedState(SnapshotReplicatedStateEntry entry)
+    {
+        return IsSecondaryWeaponRuntimeReplicatedState(entry)
+            || IsCoreAbilityRuntimeReplicatedState(entry);
+    }
+
     private static bool IsSecondaryWeaponRuntimeReplicatedState(SnapshotReplicatedStateEntry entry)
     {
         if (!string.Equals(entry.OwnerId, "core.player", StringComparison.Ordinal))
@@ -337,6 +344,19 @@ public static class SnapshotDelta
         return entry.Key.IndexOf("_ammo", StringComparison.Ordinal) >= 0
             || entry.Key.EndsWith("_reload_ticks", StringComparison.Ordinal)
             || entry.Key.EndsWith("_cooldown_ticks", StringComparison.Ordinal);
+    }
+
+    private static bool IsCoreAbilityRuntimeReplicatedState(SnapshotReplicatedStateEntry entry)
+    {
+        if (!string.Equals(entry.OwnerId, "core.ability", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return entry.Key is "heavy_dash_cooldown_ticks"
+            or "heavy_dash_active"
+            or "heavy_dash_visible"
+            or "heavy_dash_trail_alpha";
     }
 
     private static IReadOnlyList<SnapshotSentryState> MergeSentries(

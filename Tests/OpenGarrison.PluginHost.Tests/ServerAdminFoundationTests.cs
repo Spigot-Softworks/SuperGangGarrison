@@ -1553,13 +1553,13 @@ public sealed class ServerAdminFoundationTests
     }
 
     [Fact]
-    public void SnapshotBroadcasterSpreadsServerBotRosterAcrossBudgetedDeltas()
+    public void SnapshotBroadcasterKeepsServerBotRosterDeltasWithinRemoteBudget()
     {
         var world = new SimulationWorld();
         var client = new ClientSession(
             SimulationWorld.FirstSpectatorSlot,
             userId: 101,
-            new IPEndPoint(IPAddress.Loopback, 8190),
+            new IPEndPoint(IPAddress.Parse("203.0.113.10"), 8190),
             "Tester",
             TimeSpan.Zero);
         var clients = new Dictionary<byte, ClientSession>
@@ -1589,11 +1589,11 @@ public sealed class ServerAdminFoundationTests
         broadcaster.BroadcastSnapshot();
 
         var sent = Assert.Single(sentSnapshots);
-        Assert.True(sent.Payload.Length <= SnapshotDeltaBudgeter.LoopbackTargetSnapshotPayloadBytes);
+        Assert.True(sent.Payload.Length <= SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
         Assert.True(sent.Message.IsDelta);
-        Assert.InRange(sent.Message.Players.Count, 1, 18);
+        Assert.InRange(sent.Message.Players.Count, 1, 19);
         var merged = SnapshotDelta.ToFullSnapshot(sent.Message, baseline);
-        Assert.InRange(merged.Players.Count, 2, 19);
+        Assert.InRange(merged.Players.Count, 2, 20);
         client.AcknowledgeSnapshot(sent.Message.Frame);
         sentSnapshots.Clear();
 
@@ -1603,7 +1603,7 @@ public sealed class ServerAdminFoundationTests
             world.AdvanceOneTick();
             broadcaster.BroadcastSnapshot();
             var next = Assert.Single(sentSnapshots);
-            Assert.True(next.Payload.Length <= SnapshotDeltaBudgeter.LoopbackTargetSnapshotPayloadBytes);
+            Assert.True(next.Payload.Length <= SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
             client.AcknowledgeSnapshot(next.Message.Frame);
             Assert.True(client.TryGetSnapshotState(client.LastAcknowledgedSnapshotFrame, out latestBaseline));
             sentSnapshots.Clear();
@@ -2304,8 +2304,9 @@ public sealed class ServerAdminFoundationTests
             throw new SocketException(wsaConnReset);
         }
 
-        public void Send(ServerTransportPeer remotePeer, byte[] payload)
+        public void Send(ServerTransportPeer remotePeer, byte[] payload, MessageType? messageType = null)
         {
+            _ = messageType;
         }
     }
 
@@ -2325,8 +2326,9 @@ public sealed class ServerAdminFoundationTests
                 _payload);
         }
 
-        public void Send(ServerTransportPeer remotePeer, byte[] payload)
+        public void Send(ServerTransportPeer remotePeer, byte[] payload, MessageType? messageType = null)
         {
+            _ = messageType;
         }
     }
 

@@ -9,6 +9,11 @@ public sealed partial class SimulationWorld
         for (var flameIndex = _flames.Count - 1; flameIndex >= 0; flameIndex -= 1)
         {
             var flame = _flames[flameIndex];
+            if (!ShouldAdvanceProjectileForClientPrediction(flame.OwnerId))
+            {
+                continue;
+            }
+
             flame.AdvanceOneTick(deltaSeconds, _configuredGravityScale);
             var movementX = flame.X - flame.PreviousX;
             var movementY = flame.Y - flame.PreviousY;
@@ -98,6 +103,11 @@ public sealed partial class SimulationWorld
         for (var flareIndex = _flares.Count - 1; flareIndex >= 0; flareIndex -= 1)
         {
             var flare = _flares[flareIndex];
+            if (!ShouldAdvanceProjectileForClientPrediction(flare.OwnerId))
+            {
+                continue;
+            }
+
             flare.AdvanceOneTick();
             var movementX = flare.X - flare.PreviousX;
             var movementY = flare.Y - flare.PreviousY;
@@ -182,6 +192,11 @@ public sealed partial class SimulationWorld
         for (var mineIndex = _mines.Count - 1; mineIndex >= 0; mineIndex -= 1)
         {
             var mine = _mines[mineIndex];
+            if (!ShouldAdvanceProjectileForClientPrediction(mine.OwnerId))
+            {
+                continue;
+            }
+
             mine.AdvanceOneTick(_configuredGravityScale);
             if (mine.IsStickied)
             {
@@ -232,6 +247,11 @@ public sealed partial class SimulationWorld
         for (var grenadeIndex = _grenades.Count - 1; grenadeIndex >= 0; grenadeIndex -= 1)
         {
             var grenade = _grenades[grenadeIndex];
+            if (!ShouldAdvanceProjectileForClientPrediction(grenade.OwnerId))
+            {
+                continue;
+            }
+
             grenade.AdvanceOneTick(_configuredGravityScale);
 
             // Check if fuse has expired
@@ -380,6 +400,8 @@ public sealed partial class SimulationWorld
     {
         if (ClientPredictionMode)
         {
+            RegisterWorldSoundEvent("ExplosionSnd", grenade.X, grenade.Y);
+            RegisterVisualEffect("Explosion", grenade.X, grenade.Y);
             return;
         }
 

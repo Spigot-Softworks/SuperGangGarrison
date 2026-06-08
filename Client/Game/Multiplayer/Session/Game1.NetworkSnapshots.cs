@@ -126,7 +126,8 @@ public partial class Game1
                 soundEvent.X,
                 soundEvent.Y,
                 soundEvent.EventId,
-                soundEvent.SourceFrame));
+                soundEvent.SourceFrame,
+                soundEvent.SourcePlayerId));
         }
     }
 
@@ -144,6 +145,7 @@ public partial class Game1
             EnqueueAuthoritativeSnapshot(resolvedBatchSnapshot);
         }
 
+        RecordSnapshotAckAhead(latestResolvedSnapshot.Frame, _lastAppliedSnapshotFrame, _queuedAuthoritativeSnapshots.Count);
         _networkClient.AcknowledgeSnapshot(latestResolvedSnapshot.Frame);
     }
 
@@ -156,9 +158,14 @@ public partial class Game1
 
         _queuedAuthoritativeSnapshots.Enqueue(snapshot);
         _lastBufferedSnapshotFrame = snapshot.Frame;
+        var frameBacklog = _lastAppliedSnapshotFrame > 0 && snapshot.Frame > _lastAppliedSnapshotFrame
+            ? snapshot.Frame - _lastAppliedSnapshotFrame
+            : 0UL;
+        RecordQueuedAuthoritativeSnapshot(_queuedAuthoritativeSnapshots.Count, frameBacklog);
         while (_queuedAuthoritativeSnapshots.Count > MaxQueuedAuthoritativeSnapshots)
         {
             _queuedAuthoritativeSnapshots.Dequeue();
+            RecordDroppedQueuedAuthoritativeSnapshot();
         }
     }
 
@@ -190,6 +197,7 @@ public partial class Game1
 
         CaptureSmoothingTrackForLocalPlayer(snapshot);
         DetectFrozenSpyVisualsForMissingEnemySpies(snapshot);
+        var previousAppliedSnapshotFrame = _lastAppliedSnapshotFrame;
         _lastAppliedSnapshotFrame = snapshot.Frame;
         if (_queuedAuthoritativeSnapshots.Count == 0)
         {
@@ -199,7 +207,7 @@ public partial class Game1
         if (_networkDiagnosticsEnabled)
         {
             RecordApplySnapshotDuration(GetDiagnosticsElapsedMilliseconds(applySnapshotStartTimestamp));
-            RecordAppliedSnapshot();
+            RecordAppliedSnapshot(snapshot.Frame, previousAppliedSnapshotFrame, _queuedAuthoritativeSnapshots.Count);
         }
 
         if (!_classSelectOpen)

@@ -36,6 +36,9 @@ sealed class SnapshotBroadcaster
     private readonly Func<bool>? _shouldRecordCanonicalSnapshot;
     private readonly SnapshotStringCache _stringCache = new();
     private readonly Dictionary<byte, ClientStringCacheTracker> _clientCacheTrackers = new();
+    private bool _hasBroadcastTiming;
+    private long _lastBroadcastTimestamp;
+    private ulong _lastBroadcastFrame;
 
     public SnapshotBroadcaster(
         SimulationWorld world,
@@ -71,6 +74,9 @@ sealed class SnapshotBroadcaster
         _transientEventBuffer.Reset(_clientsBySlot.Values);
         LastCapturedTransientEvents = new([], [], [], [], []);
         Metrics = default;
+        _hasBroadcastTiming = false;
+        _lastBroadcastTimestamp = 0L;
+        _lastBroadcastFrame = 0UL;
     }
 
     public void RemoveClientState(byte slot)
@@ -105,6 +111,22 @@ sealed class SnapshotBroadcaster
         }
 
         var totalStartTimestamp = Stopwatch.GetTimestamp();
+        var currentFrame = (ulong)_world.Frame;
+        var broadcastIntervalMilliseconds = _hasBroadcastTiming
+            ? TicksToMilliseconds(totalStartTimestamp - _lastBroadcastTimestamp)
+            : 0d;
+        var snapshotFrameDelta = _hasBroadcastTiming && currentFrame >= _lastBroadcastFrame
+            ? currentFrame - _lastBroadcastFrame
+            : 0UL;
+        var broadcastTargetIntervalMilliseconds = _config.TicksPerSecond > 0
+            ? 1000d / _config.TicksPerSecond
+            : 1000d / SimulationConfig.DefaultTicksPerSecond;
+        var broadcastIntervalOverrunMilliseconds = _hasBroadcastTiming
+            ? Math.Max(0d, broadcastIntervalMilliseconds - broadcastTargetIntervalMilliseconds)
+            : 0d;
+        _hasBroadcastTiming = true;
+        _lastBroadcastTimestamp = totalStartTimestamp;
+        _lastBroadcastFrame = currentFrame;
         var totalStartAllocatedBytes = GC.GetAllocatedBytesForCurrentThread();
         var transientEvents = _transientEventBuffer.CaptureCurrentEvents(_world);
         LastCapturedTransientEvents = transientEvents;
@@ -203,11 +225,15 @@ sealed class SnapshotBroadcaster
         var clientCount = sharedSnapshot.OrderedClients.Length;
         Metrics = new SnapshotBroadcastMetrics(
             HasMeasurements: true,
-            Frame: (ulong)_world.Frame,
+            Frame: currentFrame,
             ClientCount: clientCount,
             SharedCaptureMilliseconds: TicksToMilliseconds(sharedCaptureTicks),
             PerClientMilliseconds: TicksToMilliseconds(perClientTicks),
             TotalMilliseconds: TicksToMilliseconds(totalTicks),
+            BroadcastIntervalMilliseconds: broadcastIntervalMilliseconds,
+            BroadcastTargetIntervalMilliseconds: broadcastTargetIntervalMilliseconds,
+            BroadcastIntervalOverrunMilliseconds: broadcastIntervalOverrunMilliseconds,
+            SnapshotFrameDelta: snapshotFrameDelta,
             SharedCaptureAllocatedBytes: sharedCaptureAllocatedBytes,
             PerClientAllocatedBytes: perClientAllocatedBytes,
             TotalAllocatedBytes: totalAllocatedBytes,
@@ -351,7 +377,7 @@ sealed class SnapshotBroadcaster
             ToSnapshotIntelState(_world.RedIntel),
             ToSnapshotIntelState(_world.BlueIntel),
             Players: Array.Empty<SnapshotPlayerState>(),
-            ConvertToArray(_world.CombatTraces, static trace => ToSnapshotCombatTraceState(trace)),
+            ConvertNetworkCombatTracesToArray(_world.CombatTraces),
             ConvertToArray(_world.SniperAimIndicators, static indicator => ToSnapshotSniperAimIndicatorState(indicator)),
             ConvertToArray(_world.Sentries, static sentry => ToSnapshotSentryState(sentry)),
             ConvertToArray(_world.Shots, static shot => ToSnapshotBulletState(shot)),
@@ -468,13 +494,32 @@ sealed class SnapshotBroadcaster
             RemovedPlayerIds = removedPlayerIds.Count == 0 ? Array.Empty<int>() : removedPlayerIds.ToArray(),
             LocalDeathCam = ToSnapshotDeathCamState(_world.GetNetworkPlayerDeathCam(client.Slot)),
             StringCacheUpdates = stringCacheUpdates,
-            SoundEvents = FilterUnacknowledgedSoundEvents(sharedSnapshot.Template.SoundEvents, client),
+            VisualEvents = FilterAcknowledgedTransientEvents(
+                sharedSnapshot.Template.VisualEvents,
+                client,
+                static visualEvent => visualEvent.EventId),
+            DamageEvents = FilterAcknowledgedTransientEvents(
+                sharedSnapshot.Template.DamageEvents,
+                client,
+                static damageEvent => damageEvent.EventId),
+            SoundEvents = FilterSoundEventsForClient(sharedSnapshot.Template.SoundEvents, client, viewer),
+            GibSpawnEvents = FilterAcknowledgedTransientEvents(
+                sharedSnapshot.Template.GibSpawnEvents,
+                client,
+                static gibEvent => gibEvent.EventId),
+            RocketSpawnEvents = FilterRedundantRocketSpawnEvents(
+                FilterAcknowledgedTransientEvents(
+                    sharedSnapshot.Template.RocketSpawnEvents,
+                    client,
+                    static rocketEvent => rocketEvent.EventId),
+                sharedSnapshot.Template.Rockets),
         };
     }
 
-    private static IReadOnlyList<SnapshotSoundEvent> FilterUnacknowledgedSoundEvents(
+    internal static IReadOnlyList<SnapshotSoundEvent> FilterSoundEventsForClient(
         IReadOnlyList<SnapshotSoundEvent> soundEvents,
-        ClientSession client)
+        ClientSession client,
+        PlayerEntity? viewer)
     {
         if (soundEvents.Count == 0)
         {
@@ -485,7 +530,8 @@ sealed class SnapshotBroadcaster
         for (var index = 0; index < soundEvents.Count; index += 1)
         {
             var soundEvent = soundEvents[index];
-            if (client.HasAcknowledgedSoundEvent(soundEvent.EventId))
+            if (client.HasAcknowledgedSoundEvent(soundEvent.EventId)
+                || IsLocalManagedRapidFireSound(soundEvent, viewer))
             {
                 filtered ??= CopySoundEvents(soundEvents, index);
                 continue;
@@ -501,6 +547,97 @@ sealed class SnapshotBroadcaster
                 : filtered.ToArray();
     }
 
+    private static IReadOnlyList<TEvent> FilterAcknowledgedTransientEvents<TEvent>(
+        IReadOnlyList<TEvent> events,
+        ClientSession client,
+        Func<TEvent, ulong> eventIdSelector)
+    {
+        if (events.Count == 0)
+        {
+            return Array.Empty<TEvent>();
+        }
+
+        List<TEvent>? filtered = null;
+        for (var index = 0; index < events.Count; index += 1)
+        {
+            var transientEvent = events[index];
+            if (client.HasAcknowledgedTransientEvent(eventIdSelector(transientEvent)))
+            {
+                filtered ??= CopyEvents(events, index);
+                continue;
+            }
+
+            filtered?.Add(transientEvent);
+        }
+
+        return filtered is null
+            ? events
+            : filtered.Count == 0
+                ? Array.Empty<TEvent>()
+                : filtered.ToArray();
+    }
+
+    internal static IReadOnlyList<SnapshotRocketSpawnEvent> FilterRedundantRocketSpawnEvents(
+        IReadOnlyList<SnapshotRocketSpawnEvent> rocketSpawnEvents,
+        IReadOnlyList<SnapshotRocketState> rocketStates)
+    {
+        if (rocketSpawnEvents.Count == 0)
+        {
+            return Array.Empty<SnapshotRocketSpawnEvent>();
+        }
+
+        if (rocketStates.Count == 0)
+        {
+            return rocketSpawnEvents;
+        }
+
+        HashSet<int>? rocketStateIds = null;
+        List<SnapshotRocketSpawnEvent>? filtered = null;
+        for (var index = 0; index < rocketSpawnEvents.Count; index += 1)
+        {
+            var rocketSpawnEvent = rocketSpawnEvents[index];
+            if (!rocketSpawnEvent.ExplodeImmediately)
+            {
+                rocketStateIds ??= BuildRocketStateIdSet(rocketStates);
+                if (rocketStateIds.Contains(rocketSpawnEvent.Id))
+                {
+                    filtered ??= CopyEvents(rocketSpawnEvents, index);
+                    continue;
+                }
+            }
+
+            filtered?.Add(rocketSpawnEvent);
+        }
+
+        return filtered is null
+            ? rocketSpawnEvents
+            : filtered.Count == 0
+                ? Array.Empty<SnapshotRocketSpawnEvent>()
+                : filtered.ToArray();
+    }
+
+    private static HashSet<int> BuildRocketStateIdSet(IReadOnlyList<SnapshotRocketState> rocketStates)
+    {
+        var ids = new HashSet<int>();
+        for (var index = 0; index < rocketStates.Count; index += 1)
+        {
+            ids.Add(rocketStates[index].Id);
+        }
+
+        return ids;
+    }
+
+    private static List<TEvent> CopyEvents<TEvent>(IReadOnlyList<TEvent> events, int count)
+    {
+        var copied = new List<TEvent>(events.Count);
+        for (var index = 0; index < count; index += 1)
+        {
+            copied.Add(events[index]);
+        }
+
+        return copied;
+    }
+
     private static List<SnapshotSoundEvent> CopySoundEvents(IReadOnlyList<SnapshotSoundEvent> soundEvents, int count)
     {
         var copied = new List<SnapshotSoundEvent>(soundEvents.Count);
@@ -510,6 +647,20 @@ sealed class SnapshotBroadcaster
         }
 
         return copied;
+    }
+
+    private static bool IsLocalManagedRapidFireSound(SnapshotSoundEvent soundEvent, PlayerEntity? viewer)
+    {
+        return viewer is not null
+            && soundEvent.SourcePlayerId == viewer.Id
+            && IsManagedRapidFireSound(soundEvent.SoundName);
+    }
+
+    private static bool IsManagedRapidFireSound(string soundName)
+    {
+        return string.Equals(soundName, "ChaingunSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "FlamethrowerSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "MedigunSnd", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool ShouldHideSpyFromViewer(PlayerEntity player, PlayerEntity? viewer)
@@ -726,6 +877,22 @@ sealed class SnapshotBroadcaster
         }
 
         return list.Count == 0 ? Array.Empty<TTarget>() : [.. list];
+    }
+
+    internal static SnapshotCombatTraceState[] ConvertNetworkCombatTracesToArray(IEnumerable<CombatTrace> combatTraces)
+    {
+        var traces = new List<SnapshotCombatTraceState>();
+        foreach (var trace in combatTraces)
+        {
+            if (!trace.IsSniperTracer)
+            {
+                continue;
+            }
+
+            traces.Add(ToSnapshotCombatTraceState(trace));
+        }
+
+        return traces.Count == 0 ? Array.Empty<SnapshotCombatTraceState>() : [.. traces];
     }
 
     private static double TicksToMilliseconds(long ticks)

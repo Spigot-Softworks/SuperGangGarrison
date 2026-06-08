@@ -100,6 +100,540 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
+    public void BuildContributionsSkipsRocketSpawnEventsAlreadyCoveredByRocketState()
+    {
+        var rocket = new SnapshotRocketState(
+            Id: 42,
+            Team: 1,
+            OwnerId: 7,
+            X: 128f,
+            Y: 64f,
+            PreviousX: 120f,
+            PreviousY: 60f,
+            DirectionRadians: 0.5f,
+            Speed: 240f,
+            TicksRemaining: 40);
+        var redundantSpawnEvent = new SnapshotRocketSpawnEvent(
+            rocket.Id,
+            rocket.Team,
+            rocket.OwnerId,
+            rocket.X,
+            rocket.Y,
+            rocket.PreviousX,
+            rocket.PreviousY,
+            rocket.DirectionRadians,
+            rocket.Speed,
+            rocket.TicksRemaining,
+            EventId: 401);
+        var immediateExplosionEvent = redundantSpawnEvent with
+        {
+            ExplodeImmediately = true,
+            EventId = 402,
+        };
+        var replayedSpawnEvent = redundantSpawnEvent with
+        {
+            Id = 99,
+            EventId = 403,
+        };
+        var baseline = CreateSnapshot(120);
+        var current = CreateSnapshot(121) with
+        {
+            Rockets = [rocket],
+            RocketSpawnEvents = [redundantSpawnEvent, immediateExplosionEvent, replayedSpawnEvent],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var contributions = SnapshotContributionPlanner.BuildContributions(
+            client,
+            current,
+            baseline,
+            new SimulationWorld());
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 64 * 1024);
+
+        Assert.Single(result.Message.Rockets);
+        Assert.DoesNotContain(result.Message.RocketSpawnEvents, rocketEvent => rocketEvent.EventId == redundantSpawnEvent.EventId);
+        Assert.Contains(result.Message.RocketSpawnEvents, rocketEvent => rocketEvent.EventId == immediateExplosionEvent.EventId);
+        Assert.Contains(result.Message.RocketSpawnEvents, rocketEvent => rocketEvent.EventId == replayedSpawnEvent.EventId);
+    }
+
+    [Fact]
+    public void FilterRedundantRocketSpawnEventsKeepsImmediateExplosions()
+    {
+        var rocket = new SnapshotRocketState(
+            Id: 42,
+            Team: 1,
+            OwnerId: 7,
+            X: 128f,
+            Y: 64f,
+            PreviousX: 120f,
+            PreviousY: 60f,
+            DirectionRadians: 0.5f,
+            Speed: 240f,
+            TicksRemaining: 40);
+        var redundantSpawnEvent = new SnapshotRocketSpawnEvent(
+            rocket.Id,
+            rocket.Team,
+            rocket.OwnerId,
+            rocket.X,
+            rocket.Y,
+            rocket.PreviousX,
+            rocket.PreviousY,
+            rocket.DirectionRadians,
+            rocket.Speed,
+            rocket.TicksRemaining,
+            EventId: 411);
+        var immediateExplosionEvent = redundantSpawnEvent with
+        {
+            ExplodeImmediately = true,
+            EventId = 412,
+        };
+        var filtered = SnapshotBroadcaster.FilterRedundantRocketSpawnEvents(
+            [redundantSpawnEvent, immediateExplosionEvent],
+            [rocket]);
+
+        Assert.DoesNotContain(filtered, rocketEvent => rocketEvent.EventId == redundantSpawnEvent.EventId);
+        Assert.Contains(filtered, rocketEvent => rocketEvent.EventId == immediateExplosionEvent.EventId);
+    }
+
+    [Fact]
+    public void BuildContributionsTreatsKnownShotMotionAsBudgetBackfill()
+    {
+        var knownShot = new SnapshotShotState(
+            Id: 501,
+            Team: 1,
+            OwnerId: 77,
+            X: 128f,
+            Y: 96f,
+            VelocityX: 12f,
+            VelocityY: 0f,
+            TicksRemaining: 40);
+        var removedShot = knownShot with { Id = 502 };
+        var movedKnownShot = knownShot with
+        {
+            X = knownShot.X + knownShot.VelocityX,
+            TicksRemaining = knownShot.TicksRemaining - 1,
+        };
+        var newShot = knownShot with { Id = 503, X = 256f };
+        var baseline = CreateSnapshot(112) with
+        {
+            Players = [CreatePlayerState(1, knownShot.OwnerId, "Owner")],
+            Shots = [knownShot, removedShot],
+        };
+        var current = CreateSnapshot(113) with
+        {
+            Players = [CreatePlayerState(1, knownShot.OwnerId, "Owner")],
+            Shots = [movedKnownShot, newShot],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var contributions = SnapshotContributionPlanner.BuildContributions(
+            client,
+            current,
+            baseline,
+            new SimulationWorld());
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 64 * 1024);
+
+        Assert.Contains(result.Message.Shots, shot => shot.Id == movedKnownShot.Id);
+        Assert.Contains(result.Message.Shots, shot => shot.Id == newShot.Id);
+        Assert.Equal([removedShot.Id], result.Message.RemovedShotIds);
+    }
+
+    [Fact]
+    public void BuildContributionsSendsRemoteProjectileMotionAsStateUpdate()
+    {
+        var localShot = new SnapshotShotState(
+            Id: 501,
+            Team: 1,
+            OwnerId: 77,
+            X: 128f,
+            Y: 96f,
+            VelocityX: 12f,
+            VelocityY: 0f,
+            TicksRemaining: 40);
+        var remoteShot = localShot with { Id = 502, OwnerId = 88, X = 160f };
+        var baseline = CreateSnapshot(112) with
+        {
+            Players = [CreatePlayerState(1, localShot.OwnerId, "Owner")],
+            Shots = [localShot, remoteShot],
+        };
+        var current = CreateSnapshot(113) with
+        {
+            Players = [CreatePlayerState(1, localShot.OwnerId, "Owner")],
+            Shots =
+            [
+                localShot with { X = localShot.X + localShot.VelocityX, TicksRemaining = localShot.TicksRemaining - 1 },
+                remoteShot with { X = remoteShot.X + remoteShot.VelocityX, TicksRemaining = remoteShot.TicksRemaining - 1 },
+            ],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+
+        var contributions = SnapshotContributionPlanner.BuildContributions(
+            client,
+            current,
+            baseline,
+            new SimulationWorld());
+
+        Assert.Contains(contributions, contribution => contribution.Kind == SnapshotDeltaBudgeter.ContributionKind.Optional);
+        Assert.Contains(contributions, contribution => contribution.Kind == SnapshotDeltaBudgeter.ContributionKind.EntityStateUpdate);
+    }
+
+    [Fact]
+    public void BuildContributionsTreatsKnownFlameMotionAsBudgetBackfill()
+    {
+        var knownFlame = new SnapshotFlameState(
+            Id: 521,
+            Team: 1,
+            OwnerId: 77,
+            X: 128f,
+            Y: 96f,
+            PreviousX: 120f,
+            PreviousY: 94f,
+            VelocityX: 8f,
+            VelocityY: 1f,
+            TicksRemaining: 15,
+            AttachedPlayerId: -1,
+            AttachedOffsetX: 0f,
+            AttachedOffsetY: 0f);
+        var removedFlame = knownFlame with { Id = 522 };
+        var movedKnownFlame = knownFlame with
+        {
+            X = knownFlame.X + knownFlame.VelocityX,
+            Y = knownFlame.Y + knownFlame.VelocityY,
+            PreviousX = knownFlame.X,
+            PreviousY = knownFlame.Y,
+            TicksRemaining = knownFlame.TicksRemaining - 1,
+        };
+        var newFlame = knownFlame with { Id = 523, X = 256f };
+        var baseline = CreateSnapshot(116) with
+        {
+            Players = [CreatePlayerState(1, knownFlame.OwnerId, "Owner")],
+            Flames = [knownFlame, removedFlame],
+        };
+        var current = CreateSnapshot(117) with
+        {
+            Players = [CreatePlayerState(1, knownFlame.OwnerId, "Owner")],
+            Flames = [movedKnownFlame, newFlame],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var contributions = SnapshotContributionPlanner.BuildContributions(
+            client,
+            current,
+            baseline,
+            new SimulationWorld());
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 64 * 1024);
+
+        Assert.Contains(result.Message.Flames, flame => flame.Id == movedKnownFlame.Id);
+        Assert.Contains(result.Message.Flames, flame => flame.Id == newFlame.Id);
+        Assert.Equal([removedFlame.Id], result.Message.RemovedFlameIds);
+    }
+
+    [Fact]
+    public void ApplySnapshotDoesNotRewindLocallySimulatedShotFromStaleBaselineState()
+    {
+        var world = new SimulationWorld
+        {
+            ClientPredictionMode = true,
+        };
+        var initialShot = new SnapshotShotState(
+            Id: 601,
+            Team: 1,
+            OwnerId: 77,
+            X: 128f,
+            Y: 96f,
+            VelocityX: 12f,
+            VelocityY: 0f,
+            TicksRemaining: 40);
+        var initial = CreateSnapshot(114) with
+        {
+            LevelName = world.Level.Name,
+            MapAreaIndex = (byte)world.Level.MapAreaIndex,
+            MapAreaCount = (byte)world.Level.MapAreaCount,
+            Players = [CreatePlayerState(1, 701, "Viewer")],
+            Shots = [initialShot],
+        };
+        var staleResolvedSnapshot = CreateSnapshot(115) with
+        {
+            LevelName = world.Level.Name,
+            MapAreaIndex = (byte)world.Level.MapAreaIndex,
+            MapAreaCount = (byte)world.Level.MapAreaCount,
+            Players = [CreatePlayerState(1, 701, "Viewer")],
+            Shots = [initialShot],
+        };
+
+        Assert.True(world.ApplySnapshot(initial));
+        var localShot = Assert.Single(world.Shots);
+        localShot.ApplyNetworkState(
+            initialShot.X + initialShot.VelocityX,
+            initialShot.Y,
+            initialShot.VelocityX,
+            initialShot.VelocityY,
+            initialShot.TicksRemaining - 1);
+
+        Assert.True(world.ApplySnapshot(staleResolvedSnapshot));
+
+        var retainedShot = Assert.Single(world.Shots);
+        Assert.Equal(initialShot.X + initialShot.VelocityX, retainedShot.X);
+        Assert.Equal(initialShot.TicksRemaining - 1, retainedShot.TicksRemaining);
+    }
+
+    [Fact]
+    public void ApplySnapshotDoesNotRewindLocallySimulatedFlameFromStaleBaselineState()
+    {
+        var world = new SimulationWorld
+        {
+            ClientPredictionMode = true,
+        };
+        var initialFlame = new SnapshotFlameState(
+            Id: 621,
+            Team: 1,
+            OwnerId: 77,
+            X: 128f,
+            Y: 96f,
+            PreviousX: 120f,
+            PreviousY: 94f,
+            VelocityX: 8f,
+            VelocityY: 1f,
+            TicksRemaining: 15,
+            AttachedPlayerId: -1,
+            AttachedOffsetX: 0f,
+            AttachedOffsetY: 0f);
+        var initial = CreateSnapshot(118) with
+        {
+            LevelName = world.Level.Name,
+            MapAreaIndex = (byte)world.Level.MapAreaIndex,
+            MapAreaCount = (byte)world.Level.MapAreaCount,
+            Players = [CreatePlayerState(1, 701, "Viewer")],
+            Flames = [initialFlame],
+        };
+        var staleResolvedSnapshot = CreateSnapshot(119) with
+        {
+            LevelName = world.Level.Name,
+            MapAreaIndex = (byte)world.Level.MapAreaIndex,
+            MapAreaCount = (byte)world.Level.MapAreaCount,
+            Players = [CreatePlayerState(1, 701, "Viewer")],
+            Flames = [initialFlame],
+        };
+
+        Assert.True(world.ApplySnapshot(initial));
+        var localFlame = Assert.Single(world.Flames);
+        localFlame.ApplyNetworkState(
+            initialFlame.X + initialFlame.VelocityX,
+            initialFlame.Y + initialFlame.VelocityY,
+            initialFlame.X,
+            initialFlame.Y,
+            initialFlame.VelocityX,
+            initialFlame.VelocityY,
+            initialFlame.TicksRemaining - 1,
+            attachedPlayerId: null,
+            initialFlame.AttachedOffsetX,
+            initialFlame.AttachedOffsetY);
+
+        Assert.True(world.ApplySnapshot(staleResolvedSnapshot));
+
+        var retainedFlame = Assert.Single(world.Flames);
+        Assert.Equal(initialFlame.X + initialFlame.VelocityX, retainedFlame.X);
+        Assert.Equal(initialFlame.Y + initialFlame.VelocityY, retainedFlame.Y);
+        Assert.Equal(initialFlame.TicksRemaining - 1, retainedFlame.TicksRemaining);
+    }
+
+    [Fact]
+    public void ApplySnapshotDoesNotRewindLocallySimulatedRocketFromStaleBaselineState()
+    {
+        var world = new SimulationWorld
+        {
+            ClientPredictionMode = true,
+        };
+        var initialRocket = new SnapshotRocketState(
+            Id: 631,
+            Team: 1,
+            OwnerId: 77,
+            X: 128f,
+            Y: 96f,
+            PreviousX: 120f,
+            PreviousY: 96f,
+            DirectionRadians: 0f,
+            Speed: 8f,
+            TicksRemaining: 40);
+        var initial = CreateSnapshot(120) with
+        {
+            LevelName = world.Level.Name,
+            MapAreaIndex = (byte)world.Level.MapAreaIndex,
+            MapAreaCount = (byte)world.Level.MapAreaCount,
+            Players = [CreatePlayerState(1, 701, "Viewer")],
+            Rockets = [initialRocket],
+        };
+        var staleResolvedSnapshot = CreateSnapshot(121) with
+        {
+            LevelName = world.Level.Name,
+            MapAreaIndex = (byte)world.Level.MapAreaIndex,
+            MapAreaCount = (byte)world.Level.MapAreaCount,
+            Players = [CreatePlayerState(1, 701, "Viewer")],
+            Rockets = [initialRocket],
+        };
+
+        Assert.True(world.ApplySnapshot(initial));
+        var localRocket = Assert.Single(world.Rockets);
+        localRocket.ApplyNetworkState(
+            initialRocket.X + initialRocket.Speed,
+            initialRocket.Y,
+            initialRocket.X,
+            initialRocket.Y,
+            initialRocket.DirectionRadians,
+            initialRocket.Speed,
+            initialRocket.TicksRemaining - 1,
+            initialRocket.ReducedKnockbackSourceTicksRemaining,
+            initialRocket.ZeroKnockbackSourceTicksRemaining,
+            initialRocket.RangeAnchorOwnerId,
+            initialRocket.LastKnownRangeOriginX,
+            initialRocket.LastKnownRangeOriginY,
+            initialRocket.DistanceToTravel,
+            initialRocket.IsFading,
+            initialRocket.FadeSourceTicksRemaining,
+            initialRocket.PassedFriendlyPlayerIds);
+
+        Assert.True(world.ApplySnapshot(staleResolvedSnapshot));
+
+        var retainedRocket = Assert.Single(world.Rockets);
+        Assert.Equal(initialRocket.X + initialRocket.Speed, retainedRocket.X);
+        Assert.Equal(initialRocket.TicksRemaining - 1, retainedRocket.TicksRemaining);
+    }
+
+    [Fact]
+    public void FilterSoundEventsForClientDropsLocalManagedRapidFireSoundsOnly()
+    {
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var viewer = new PlayerEntity(701, CharacterClassCatalog.Heavy, "Viewer");
+        var events = new[]
+        {
+            new SnapshotSoundEvent("ChaingunSnd", 128f, 96f, EventId: 1, SourceFrame: 200, SourcePlayerId: viewer.Id),
+            new SnapshotSoundEvent("ShotgunSnd", 128f, 96f, EventId: 2, SourceFrame: 200, SourcePlayerId: viewer.Id),
+            new SnapshotSoundEvent("ChaingunSnd", 128f, 96f, EventId: 3, SourceFrame: 200, SourcePlayerId: 702),
+        };
+
+        var filtered = SnapshotBroadcaster.FilterSoundEventsForClient(events, client, viewer);
+
+        Assert.DoesNotContain(filtered, soundEvent => soundEvent.EventId == 1);
+        Assert.Contains(filtered, soundEvent => soundEvent.EventId == 2);
+        Assert.Contains(filtered, soundEvent => soundEvent.EventId == 3);
+    }
+
+    [Fact]
+    public void BuildBudgetedSnapshotMarksDroppedProjectileCollectionsIncomplete()
+    {
+        var baseline = CreateSnapshot(120);
+        var current = CreateSnapshot(121);
+        var shotStates = Enumerable.Range(0, 220)
+            .Select(index => new SnapshotShotState(
+                Id: 1000 + index,
+                Team: 1,
+                OwnerId: 700 + index,
+                X: 128f + index,
+                Y: 64f,
+                VelocityX: 12f,
+                VelocityY: 0f,
+                TicksRemaining: 20))
+            .ToArray();
+        var contributions = shotStates
+            .Select(shot => new SnapshotDeltaBudgeter.Contribution(
+                Priority: 500,
+                DistanceSquared: shot.Id,
+                EstimatedBytes: 1,
+                Apply: builder => builder.Shots.Add(shot)))
+            .ToArray();
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(
+            current,
+            baseline,
+            contributions,
+            targetPayloadBytes: 900);
+
+        Assert.True(result.Payload.Length <= 900);
+        Assert.Empty(result.Message.Shots);
+        Assert.False((result.Message.EntityCollectionCompletenessFlags & SnapshotEntityCollectionCompletenessFlags.Shots) != 0);
+        Assert.True((result.Message.EntityCollectionCompletenessFlags & SnapshotEntityCollectionCompletenessFlags.Rockets) != 0);
+    }
+
+    [Fact]
+    public void BuildContributionsTreatsGameplayClassAndCloakChangesAsRosterCritical()
+    {
+        var localPlayer = CreatePlayerState(1, 1301, "Viewer");
+        var baselineCustomClassPlayer = CreatePlayerState(2, 1302, "Custom Class") with
+        {
+            GameplayClassId = "class.scout",
+        };
+        var currentCustomClassPlayer = baselineCustomClassPlayer with
+        {
+            GameplayClassId = "class.soldier",
+        };
+        var baselineSpy = CreatePlayerState(3, 1303, "Remote Spy") with
+        {
+            ClassId = (byte)PlayerClass.Spy,
+            IsSpyCloaked = false,
+            SpyCloakAlpha = 1f,
+        };
+        var currentSpy = baselineSpy with
+        {
+            IsSpyCloaked = true,
+            SpyCloakAlpha = 0.25f,
+        };
+        var baseline = CreateSnapshot(1300) with
+        {
+            Players = [localPlayer, baselineCustomClassPlayer, baselineSpy],
+        };
+        var current = CreateSnapshot(1301) with
+        {
+            Players = [localPlayer, currentCustomClassPlayer, currentSpy],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Viewer",
+            TimeSpan.Zero);
+        var contributions = SnapshotContributionPlanner.BuildContributions(
+            client,
+            current,
+            baseline,
+            new SimulationWorld());
+        var builder = new SnapshotDeltaBudgeter.Builder(current, baseline.Frame, seedFromTemplateCollections: false);
+
+        foreach (var contribution in contributions.Where(static entry => entry.Kind == SnapshotDeltaBudgeter.ContributionKind.PlayerRosterUpdate))
+        {
+            contribution.Apply(builder);
+        }
+
+        var rosterPlayers = builder.Build().Players;
+        Assert.Contains(rosterPlayers, player => player.Slot == 2 && player.GameplayClassId == "class.soldier");
+        Assert.Contains(rosterPlayers, player => player.Slot == 3 && player.IsSpyCloaked);
+    }
+
+    [Fact]
     public void BuildBudgetedSnapshotWithReliableStreamBudgetPreservesPlayers()
     {
         var players = Enumerable.Range(0, 12)
@@ -391,6 +925,41 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
+    public void BuildContributionsTreatsDamageEventsAsRequiredTransientFeedback()
+    {
+        var baseline = CreateSnapshot(608);
+        var current = CreateSnapshot(609) with
+        {
+            DamageEvents =
+            [
+                new SnapshotDamageEvent(
+                    Amount: 18,
+                    TargetKind: 1,
+                    TargetEntityId: 77,
+                    AttackerPlayerId: 88,
+                    AssistedByPlayerId: -1,
+                    X: 128f,
+                    Y: 96f,
+                    WasFatal: false,
+                    EventId: 66,
+                    SourceFrame: 609),
+            ],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, new SimulationWorld());
+
+        Assert.Contains(
+            contributions,
+            static contribution => contribution.Kind == SnapshotDeltaBudgeter.ContributionKind.TransientDamageEvent);
+    }
+
+    [Fact]
     public void BuildContributionsTreatsSoundEventsAsReliableOldestFirstTransientEvents()
     {
         var baseline = CreateSnapshot(610);
@@ -450,6 +1019,44 @@ public sealed class SnapshotDeltaBudgeterTests
         Assert.Equal("HeadS", gibEvent.SpriteName);
         Assert.NotEqual<ulong>(0, gibEvent.EventId);
         Assert.Empty(world.DrainPendingGibSpawnEvents());
+    }
+
+    [Fact]
+    public void TransientEventBufferSkipsManagedRapidFireLoopSounds()
+    {
+        var world = new SimulationWorld();
+        var heavy = AddNetworkPlayer(world, 2, PlayerClass.Heavy);
+        var pyro = AddNetworkPlayer(world, 3, PlayerClass.Pyro);
+        var medic = AddNetworkPlayer(world, 4, PlayerClass.Medic);
+        var healTarget = AddNetworkPlayer(world, 5, PlayerClass.Scout);
+        var acquiredSoldier = AddNetworkPlayer(world, 6, PlayerClass.Soldier);
+        Assert.True(heavy.TryFirePrimaryWeapon(ignoreAmmoCost: true));
+        pyro.CommitPyroPrimaryWeaponShot(ignoreAmmoCost: true);
+        medic.SetMedicHealingTarget(healTarget);
+        Assert.True(world.TryGrantNetworkPlayerGameplayItem(6, "weapon.minigun"));
+        Assert.True(world.TrySetNetworkPlayerGameplayAcquiredItem(6, "weapon.minigun"));
+        Assert.True(world.TrySetNetworkPlayerGameplayEquippedSlot(6, GameplayEquipmentSlot.Secondary));
+        Assert.True(acquiredSoldier.TryFireAcquiredWeapon());
+        var pendingSoundEvents = GetPendingSoundEvents(world);
+        pendingSoundEvents.Add(new WorldSoundEvent("ChaingunSnd", 128f, 96f, SourcePlayerId: heavy.Id));
+        pendingSoundEvents.Add(new WorldSoundEvent("FlamethrowerSnd", 128f, 96f, SourcePlayerId: pyro.Id));
+        pendingSoundEvents.Add(new WorldSoundEvent("MedigunSnd", 128f, 96f, SourcePlayerId: medic.Id));
+        pendingSoundEvents.Add(new WorldSoundEvent("ShotgunSnd", 128f, 96f, SourcePlayerId: healTarget.Id));
+        pendingSoundEvents.Add(new WorldSoundEvent("ChaingunSnd", 128f, 96f));
+        pendingSoundEvents.Add(new WorldSoundEvent("ChaingunSnd", 128f, 96f, SourcePlayerId: acquiredSoldier.Id));
+        var buffer = new SnapshotTransientEventBuffer(transientEventReplayTicks: 3);
+
+        var events = buffer.CaptureCurrentEvents(world);
+
+        Assert.Equal(3, events.SoundEvents.Length);
+        Assert.DoesNotContain(events.SoundEvents, soundEvent => soundEvent.SourcePlayerId == heavy.Id);
+        Assert.DoesNotContain(events.SoundEvents, soundEvent => soundEvent.SourcePlayerId == pyro.Id);
+        Assert.DoesNotContain(events.SoundEvents, soundEvent => soundEvent.SourcePlayerId == medic.Id);
+        Assert.Contains(events.SoundEvents, soundEvent => soundEvent.SoundName == "ShotgunSnd");
+        Assert.Contains(events.SoundEvents, soundEvent => soundEvent.SoundName == "ChaingunSnd" && soundEvent.SourcePlayerId < 0);
+        Assert.Contains(events.SoundEvents, soundEvent => soundEvent.SoundName == "ChaingunSnd" && soundEvent.SourcePlayerId == acquiredSoldier.Id);
+        Assert.All(events.SoundEvents, soundEvent => Assert.NotEqual<ulong>(0, soundEvent.EventId));
+        Assert.Empty(world.DrainPendingSoundEvents());
     }
 
     [Fact]
@@ -732,6 +1339,87 @@ public sealed class SnapshotDeltaBudgeterTests
         Assert.Equal(48, mergedLocalPlayer.Health);
         Assert.Equal(2, mergedLocalPlayer.Ammo);
         Assert.Equal(75f, mergedLocalPlayer.Metal);
+    }
+
+    [Fact]
+    public void BuildBudgetedSnapshotPreservesHeavyDashRuntimeStateWhenFullDetailIsCrowdedOut()
+    {
+        var baselineHeavy = CreatePlayerState(1, 951, "Local Heavy") with
+        {
+            ClassId = (byte)PlayerClass.Heavy,
+            ReplicatedStates =
+            [
+                CreateCoreAbilityState(
+                    GameplayAbilityReplicatedState.HeavyDashCooldownTicksKey,
+                    SnapshotReplicatedStateValueKind.Whole),
+                CreateCoreAbilityState(
+                    GameplayAbilityReplicatedState.HeavyDashActiveKey,
+                    SnapshotReplicatedStateValueKind.Toggle),
+                CreateCoreAbilityState(
+                    GameplayAbilityReplicatedState.HeavyDashVisibleKey,
+                    SnapshotReplicatedStateValueKind.Toggle),
+                CreateCoreAbilityState(
+                    GameplayAbilityReplicatedState.HeavyDashTrailAlphaKey,
+                    SnapshotReplicatedStateValueKind.Scalar),
+            ],
+        };
+        var remoteBot = CreatePlayerState(2, 952, "Remote Bot");
+        var currentHeavy = baselineHeavy with
+        {
+            ReplicatedStates =
+            [
+                CreateCoreAbilityState(
+                    GameplayAbilityReplicatedState.HeavyDashCooldownTicksKey,
+                    SnapshotReplicatedStateValueKind.Whole,
+                    intValue: 360),
+                CreateCoreAbilityState(
+                    GameplayAbilityReplicatedState.HeavyDashActiveKey,
+                    SnapshotReplicatedStateValueKind.Toggle,
+                    boolValue: true),
+                CreateCoreAbilityState(
+                    GameplayAbilityReplicatedState.HeavyDashVisibleKey,
+                    SnapshotReplicatedStateValueKind.Toggle,
+                    boolValue: true),
+                CreateCoreAbilityState(
+                    GameplayAbilityReplicatedState.HeavyDashTrailAlphaKey,
+                    SnapshotReplicatedStateValueKind.Scalar,
+                    floatValue: 0.4f),
+            ],
+        };
+        var baseline = CreateSnapshot(952) with
+        {
+            Players = [baselineHeavy, remoteBot],
+        };
+        var current = CreateSnapshot(953) with
+        {
+            Players = [currentHeavy, remoteBot],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 260);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+
+        Assert.True(result.Payload.Length <= 260);
+        Assert.Empty(result.Message.Players);
+        var statusState = Assert.Single(result.Message.PlayerStatusStates);
+        Assert.Equal(1, statusState.Slot);
+        Assert.Contains(statusState.SecondaryAmmoStates ?? [], IsHeavyDashCooldownState);
+        Assert.Contains(statusState.SecondaryAmmoStates ?? [], IsHeavyDashActiveState);
+        Assert.Contains(statusState.SecondaryAmmoStates ?? [], IsHeavyDashVisibleState);
+        Assert.Contains(statusState.SecondaryAmmoStates ?? [], IsHeavyDashTrailAlphaState);
+
+        var mergedHeavy = Assert.Single(merged.Players, player => player.Slot == 1);
+        Assert.Contains(mergedHeavy.ReplicatedStates ?? [], IsHeavyDashCooldownState);
+        Assert.Contains(mergedHeavy.ReplicatedStates ?? [], IsHeavyDashActiveState);
+        Assert.Contains(mergedHeavy.ReplicatedStates ?? [], IsHeavyDashVisibleState);
+        Assert.Contains(mergedHeavy.ReplicatedStates ?? [], IsHeavyDashTrailAlphaState);
     }
 
     [Fact]
@@ -1122,7 +1810,7 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
-    public void BuildBudgetedSnapshotPreservesRemoteExtendedStatusViaCompactStateWithoutFullPlayerPayload()
+    public void BuildBudgetedSnapshotPreservesRemoteSpyCloakTransitionAsRosterCriticalState()
     {
         var localPlayer = CreatePlayerState(1, 1101, "Viewer");
         var baselineRemoteSpy = CreatePlayerState(2, 1102, "Remote Spy") with
@@ -1161,12 +1849,11 @@ public sealed class SnapshotDeltaBudgeterTests
         var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
 
         Assert.True(result.Payload.Length <= 320);
-        Assert.Empty(result.Message.Players);
-        var extendedState = Assert.Single(result.Message.PlayerExtendedStatusStates, status => status.Slot == 2);
-        Assert.True(extendedState.IsSpyCloaked);
-        Assert.InRange(extendedState.SpyCloakAlpha, 0.34f, 0.36f);
-        Assert.Equal(24, extendedState.SpyBackstabVisualTicksRemaining);
-        Assert.True(extendedState.IsUbered);
+        var rosterPlayer = Assert.Single(result.Message.Players, player => player.Slot == 2);
+        Assert.True(rosterPlayer.IsSpyCloaked);
+        Assert.InRange(rosterPlayer.SpyCloakAlpha, 0.34f, 0.36f);
+        Assert.Equal(24, rosterPlayer.SpyBackstabVisualTicksRemaining);
+        Assert.True(rosterPlayer.IsUbered);
         var mergedRemoteSpy = Assert.Single(merged.Players, player => player.Slot == 2);
         Assert.True(mergedRemoteSpy.IsSpyCloaked);
         Assert.InRange(mergedRemoteSpy.SpyCloakAlpha, 0.34f, 0.36f);
@@ -1564,6 +2251,54 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
+    public void SnapshotDeltaPreservesProjectileRemovalsAfterMerge()
+    {
+        var shot = new SnapshotShotState(
+            Id: 701,
+            Team: 1,
+            OwnerId: 501,
+            X: 128f,
+            Y: 64f,
+            VelocityX: 16f,
+            VelocityY: 0f,
+            TicksRemaining: 18);
+        var rocket = new SnapshotRocketState(
+            Id: 702,
+            Team: 1,
+            OwnerId: 501,
+            X: 160f,
+            Y: 64f,
+            PreviousX: 152f,
+            PreviousY: 64f,
+            DirectionRadians: 0f,
+            Speed: 240f,
+            TicksRemaining: 40);
+        var completeness =
+            SnapshotEntityCollectionCompletenessFlags.Shots | SnapshotEntityCollectionCompletenessFlags.Rockets;
+        var baseline = CreateSnapshot(410) with
+        {
+            Shots = [shot],
+            Rockets = [rocket],
+        };
+        var delta = CreateSnapshot(411) with
+        {
+            IsDelta = true,
+            BaselineFrame = baseline.Frame,
+            RemovedShotIds = [shot.Id],
+            RemovedRocketIds = [rocket.Id],
+            EntityCollectionCompletenessFlags = completeness,
+        };
+
+        var merged = SnapshotDelta.ToFullSnapshot(delta, baseline);
+
+        Assert.Empty(merged.Shots);
+        Assert.Empty(merged.Rockets);
+        Assert.Equal(new[] { shot.Id }, merged.RemovedShotIds);
+        Assert.Equal(new[] { rocket.Id }, merged.RemovedRocketIds);
+        Assert.Equal(completeness, merged.EntityCollectionCompletenessFlags);
+    }
+
+    [Fact]
     public void SnapshotDeltaMergesPlayerMovementDeltasIntoBaselinePlayers()
     {
         var baselinePlayers = new[]
@@ -1657,6 +2392,22 @@ public sealed class SnapshotDeltaBudgeterTests
         return Assert.IsType<List<WorldGibSpawnEvent>>(field!.GetValue(world));
     }
 
+    private static List<WorldSoundEvent> GetPendingSoundEvents(SimulationWorld world)
+    {
+        var field = typeof(SimulationWorld).GetField("_pendingSoundEvents", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(field);
+        return Assert.IsType<List<WorldSoundEvent>>(field!.GetValue(world));
+    }
+
+    private static PlayerEntity AddNetworkPlayer(SimulationWorld world, byte slot, PlayerClass playerClass, PlayerTeam team = PlayerTeam.Red)
+    {
+        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        return player;
+    }
+
     private static SnapshotPlayerState CreatePlayerState(byte slot, int playerId, string name)
     {
         return new SnapshotPlayerState(
@@ -1727,5 +2478,53 @@ public sealed class SnapshotDeltaBudgeterTests
             player.MovementState,
             player.IsTaunting,
             player.BurnIntensity);
+    }
+
+    private static SnapshotReplicatedStateEntry CreateCoreAbilityState(
+        string key,
+        SnapshotReplicatedStateValueKind kind,
+        int intValue = 0,
+        float floatValue = 0f,
+        bool boolValue = false)
+    {
+        return new SnapshotReplicatedStateEntry(
+            GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+            key,
+            kind,
+            intValue,
+            floatValue,
+            boolValue);
+    }
+
+    private static bool IsHeavyDashCooldownState(SnapshotReplicatedStateEntry state)
+    {
+        return state.OwnerId == GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId
+            && state.Key == GameplayAbilityReplicatedState.HeavyDashCooldownTicksKey
+            && state.Kind == SnapshotReplicatedStateValueKind.Whole
+            && state.IntValue == 360;
+    }
+
+    private static bool IsHeavyDashActiveState(SnapshotReplicatedStateEntry state)
+    {
+        return state.OwnerId == GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId
+            && state.Key == GameplayAbilityReplicatedState.HeavyDashActiveKey
+            && state.Kind == SnapshotReplicatedStateValueKind.Toggle
+            && state.BoolValue;
+    }
+
+    private static bool IsHeavyDashVisibleState(SnapshotReplicatedStateEntry state)
+    {
+        return state.OwnerId == GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId
+            && state.Key == GameplayAbilityReplicatedState.HeavyDashVisibleKey
+            && state.Kind == SnapshotReplicatedStateValueKind.Toggle
+            && state.BoolValue;
+    }
+
+    private static bool IsHeavyDashTrailAlphaState(SnapshotReplicatedStateEntry state)
+    {
+        return state.OwnerId == GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId
+            && state.Key == GameplayAbilityReplicatedState.HeavyDashTrailAlphaKey
+            && state.Kind == SnapshotReplicatedStateValueKind.Scalar
+            && MathF.Abs(state.FloatValue - 0.4f) <= 0.0001f;
     }
 }
