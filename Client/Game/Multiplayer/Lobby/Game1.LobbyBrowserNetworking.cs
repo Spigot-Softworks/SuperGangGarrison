@@ -290,6 +290,7 @@ public partial class Game1
             (byte)GameModeKind.KingOfTheHill => "KOTH",
             (byte)GameModeKind.DoubleKingOfTheHill => "DKOTH",
             (byte)GameModeKind.TeamDeathmatch => "TDM",
+            (byte)GameModeKind.Scr => "SCR",
             _ => "CTF",
         };
     }

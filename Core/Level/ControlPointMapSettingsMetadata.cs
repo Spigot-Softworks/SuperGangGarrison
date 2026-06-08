@@ -14,7 +14,9 @@ public static class ControlPointMapSettingsMetadata
     {
         return key.Equals("background", StringComparison.OrdinalIgnoreCase)
             || key.Equals("void", StringComparison.OrdinalIgnoreCase)
-            || key.Equals(OverrideInitialCpsPropertyKey, StringComparison.OrdinalIgnoreCase);
+            || key.Equals(OverrideInitialCpsPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || MapGameModeMetadata.IsEditableMapMetadataKey(key)
+            || ScrMapSettingsMetadata.IsEditableMapMetadataKey(key);
     }
 
     public static void StripLegacyMetadataKeys(IDictionary<string, string> metadata)

@@ -34,6 +34,7 @@ public partial class Game1
             DrawControlPointHud();
             return;
         }
+
         if (_world.MatchRules.Mode is GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill)
         {
             DrawKothHud();
@@ -44,10 +45,20 @@ public partial class Game1
             DrawGeneratorHud();
             return;
         }
-        if (_world.MatchRules.Mode == GameModeKind.TeamDeathmatch)
+        if (_world.MatchRules.Mode is GameModeKind.TeamDeathmatch or GameModeKind.Scr)
         {
             DrawTeamDeathmatchHud();
+            if (_world.Level.ShowControlPoints)
+            {
+                DrawAuxiliaryControlPointHudIfNeeded();
+            }
+
             return;
+        }
+
+        if (_world.Level.ShowControlPoints)
+        {
+            DrawAuxiliaryControlPointHudIfNeeded();
         }
 
         var viewportHeight = ViewportHeight;

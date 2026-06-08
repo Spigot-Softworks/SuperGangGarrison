@@ -325,7 +325,8 @@ public sealed partial class SimulationWorld
                 {
                     _world.TryApplyDamageableZoneDamage(
                         roomObjectIndex,
-                        ResolveEnvironmentProjectileDamage(projectile));
+                        ResolveEnvironmentProjectileDamage(projectile),
+                        projectileTeam);
                 }
 
                 updateHit(ref nearestHit, projectile, directionX, directionY, distance.Value, destroyOnHit);

@@ -98,7 +98,7 @@ public sealed partial class SimulationWorld
                     hitResult.HitJumpPad.TakeDamage((int)MathF.Round(shot.DamageValue * shot.CriticalDamageMultiplier));
                     RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
                 }
-                else if (TryHandleProjectileDamageableZoneHit(hitResult, shot.DamageValue * shot.CriticalDamageMultiplier))
+                else if (TryHandleProjectileDamageableZoneHit(hitResult, shot.DamageValue * shot.CriticalDamageMultiplier, shot.Team))
                 {
                     RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
                 }
@@ -186,7 +186,7 @@ public sealed partial class SimulationWorld
                     {
                         hitResult.HitJumpPad.TakeDamage((int)MathF.Round(blade.HitDamage * blade.CriticalDamageMultiplier));
                     }
-                    else if (TryHandleProjectileDamageableZoneHit(hitResult, blade.HitDamage * blade.CriticalDamageMultiplier))
+                    else if (TryHandleProjectileDamageableZoneHit(hitResult, blade.HitDamage * blade.CriticalDamageMultiplier, blade.Team))
                     {
                         RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
                     }
@@ -261,7 +261,7 @@ public sealed partial class SimulationWorld
                 {
                     hitResult.HitJumpPad.TakeDamage((int)MathF.Round(needle.Damage * needle.CriticalDamageMultiplier));
                 }
-                else if (TryHandleProjectileDamageableZoneHit(hitResult, needle.Damage * needle.CriticalDamageMultiplier))
+                else if (TryHandleProjectileDamageableZoneHit(hitResult, needle.Damage * needle.CriticalDamageMultiplier, needle.Team))
                 {
                     RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
                 }
@@ -337,7 +337,7 @@ public sealed partial class SimulationWorld
                     hitResult.HitJumpPad.TakeDamage((int)MathF.Round(shot.DamageValue * shot.CriticalDamageMultiplier));
                     RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
                 }
-                else if (TryHandleProjectileDamageableZoneHit(hitResult, shot.DamageValue * shot.CriticalDamageMultiplier))
+                else if (TryHandleProjectileDamageableZoneHit(hitResult, shot.DamageValue * shot.CriticalDamageMultiplier, shot.Team))
                 {
                     RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
                 }

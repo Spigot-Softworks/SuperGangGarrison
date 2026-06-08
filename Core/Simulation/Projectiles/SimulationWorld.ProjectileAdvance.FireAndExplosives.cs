@@ -520,7 +520,8 @@ public sealed partial class SimulationWorld
         {
             TryApplyDamageableZoneDamage(
                 directHitDamageableZoneIndex,
-                GrenadeProjectileEntity.DirectHitDamage * grenade.CriticalDamageMultiplier);
+                GrenadeProjectileEntity.DirectHitDamage * grenade.CriticalDamageMultiplier,
+                grenade.Team);
         }
 
         ApplyExplosiveDamageToDamageableZones(
@@ -529,7 +530,8 @@ public sealed partial class SimulationWorld
             GrenadeProjectileEntity.BlastRadius,
             grenade.ExplosionDamage * grenade.CriticalDamageMultiplier,
             GrenadeProjectileEntity.SplashThresholdFactor,
-            directHitDamageableZoneIndex);
+            directHitDamageableZoneIndex,
+            grenade.Team);
     }
 
     private void ApplyGrenadeDirectImpactDamage(GrenadeProjectileEntity grenade, PlayerEntity? owner, PlayerEntity target)

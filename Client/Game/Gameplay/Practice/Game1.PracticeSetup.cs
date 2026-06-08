@@ -535,6 +535,7 @@ public partial class Game1
             GameModeKind.KingOfTheHill => "KOTH",
             GameModeKind.DoubleKingOfTheHill => "DKOTH",
             GameModeKind.TeamDeathmatch => "TDM",
+            GameModeKind.Scr => "SCR",
             _ => "CTF",
         };
         return entry.IsCustomMap

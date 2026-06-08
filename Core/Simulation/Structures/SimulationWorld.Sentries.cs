@@ -6,7 +6,15 @@ public sealed partial class SimulationWorld
     private const float SentryBuildProximityRadius = 50f;
     private const float SentryDestroyBlastRadius = 65f;
     private const float SentryDestroyKnockbackPerTick = 4f;
-    private readonly record struct SentryTarget(PlayerEntity? Player, GeneratorState? Generator, SentryEntity? Sentry, JumpPadEntity? JumpPad, float X, float Y, int? PlayerId);
+    private readonly record struct SentryTarget(
+        PlayerEntity? Player,
+        GeneratorState? Generator,
+        SentryEntity? Sentry,
+        JumpPadEntity? JumpPad,
+        int? DamageableZoneRoomObjectIndex,
+        float X,
+        float Y,
+        int? PlayerId);
 
     public bool TryBuildLocalSentry()
     {
@@ -284,7 +292,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var candidate = new SentryTarget(player, null, null, null, player.X, player.Y, player.Id);
+            var candidate = new SentryTarget(player, null, null, null, null, player.X, player.Y, player.Id);
             if (owner is not null
                 && IsExperimentalEngineerPriorityTarget(owner, player)
                 && distance < preferredDistance)
@@ -329,7 +337,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            nearestTarget = new SentryTarget(null, generator, null, null, generator.Marker.CenterX, generator.Marker.CenterY, null);
+            nearestTarget = new SentryTarget(null, generator, null, null, null, generator.Marker.CenterX, generator.Marker.CenterY, null);
             nearestDistance = distance;
         }
 
@@ -361,7 +369,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            nearestTarget = new SentryTarget(null, null, targetSentry, null, targetSentry.X, targetSentry.Y, null);
+            nearestTarget = new SentryTarget(null, null, targetSentry, null, null, targetSentry.X, targetSentry.Y, null);
             nearestDistance = distance;
         }
 
@@ -393,7 +401,48 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            nearestTarget = new SentryTarget(null, null, null, targetPad, targetPad.X, targetPad.Y, null);
+            nearestTarget = new SentryTarget(null, null, null, targetPad, null, targetPad.X, targetPad.Y, null);
+            nearestDistance = distance;
+        }
+
+        for (var index = 0; index < Level.RoomObjects.Count; index += 1)
+        {
+            if (!Level.IsRoomObjectActive(index))
+            {
+                continue;
+            }
+
+            var marker = Level.RoomObjects[index];
+            if (marker.Type != RoomObjectType.DamageableZone
+                || !DamageableMetadata.IsSentryTarget(marker.DamageableZone, GetDamageableZoneHealth(index)))
+            {
+                continue;
+            }
+
+            var targetX = marker.CenterX;
+            var targetY = marker.CenterY;
+            var distance = DistanceBetween(sentry.X, sentry.Y, targetX, targetY);
+            var range = owner is not null ? GetExperimentalSentryTargetRange(owner) : SentryEntity.TargetRange;
+            if (distance > range || distance >= nearestDistance)
+            {
+                continue;
+            }
+
+            var targetAngle = PointDirectionDegrees(sentry.X, sentry.Y, targetX, targetY);
+            var withinAllowedArc = targetAngle <= 45f
+                || targetAngle >= 315f
+                || (targetAngle >= 135f && targetAngle <= 225f);
+            if (!withinAllowedArc)
+            {
+                continue;
+            }
+
+            if (!HasObstacleLineOfSight(sentry.X, sentry.Y, targetX, targetY))
+            {
+                continue;
+            }
+
+            nearestTarget = new SentryTarget(null, null, null, null, index, targetX, targetY, null);
             nearestDistance = distance;
         }
 

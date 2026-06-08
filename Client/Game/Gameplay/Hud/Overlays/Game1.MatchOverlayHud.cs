@@ -1,6 +1,7 @@
 #nullable enable
 
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Globalization;
 using OpenGarrison.Core;
@@ -21,7 +22,24 @@ public partial class Game1
     private const float HudSetupLabelScale = 1f;
     private const float HudSetupLabelShadowAlpha = 0.55f;
 
-    private void DrawControlPointHud()
+    private const float AuxiliaryControlPointHudPaddingPx = 10f;
+
+    private void DrawAuxiliaryControlPointHudIfNeeded()
+    {
+        if (_world.ControlPoints.Count == 0)
+        {
+            return;
+        }
+
+        if (!_world.Level.ShowControlPoints)
+        {
+            return;
+        }
+
+        DrawControlPointHud(stackAboveMainScorePanel: true);
+    }
+
+    private void DrawControlPointHud(bool stackAboveMainScorePanel = false)
     {
         var viewportWidth = ViewportWidth;
         var centerX = viewportWidth / 2f;
@@ -39,6 +57,11 @@ public partial class Game1
         }
 
         var origin = resolved.Origin;
+        if (stackAboveMainScorePanel && TryResolveHudElement(HudElementId.MatchCtfPanel, out var scorePanel))
+        {
+            var stackedY = scorePanel.Origin.Y - scorePanel.Layout.Size.Y - AuxiliaryControlPointHudPaddingPx;
+            origin = new Vector2(origin.X, stackedY + resolved.Layout.Offset.Y);
+        }
         var scale = resolved.Layout.Scale;
         var objectiveHudY = origin.Y;
         var objectiveHudCounterY = origin.Y + (3f * scale);
@@ -215,6 +238,59 @@ public partial class Game1
             ? new Color(100, 160, 235)
             : new Color(220, 110, 90);
         _spriteBatch.Draw(_pixel, fallbackRectangle, fallbackColor);
+    }
+
+    private LoadedGameMakerSprite? ResolveTeamDeathmatchScorePanelSprite()
+    {
+        return GetResolvedSprite("TeamDeathmatchHUDS") ?? _runtimeAssets?.GetSprite("TeamDeathmatchHUDS");
+    }
+
+    private bool TryDrawTeamDeathmatchScorePanelSprite(Vector2 panelOrigin, float panelScale, out Rectangle panelBounds)
+    {
+        panelBounds = Rectangle.Empty;
+        var sprite = ResolveTeamDeathmatchScorePanelSprite();
+        if (sprite is null || sprite.Frames.Count == 0)
+        {
+            return false;
+        }
+
+        var hudScale = new Vector2(3f * panelScale, 3f * panelScale);
+        var frame = sprite.Frames[0];
+        if (frame.Width <= 0 || frame.Height <= 0)
+        {
+            return false;
+        }
+        var origin = sprite.Origin.ToVector2();
+        var drawPosition = new Vector2(
+            panelOrigin.X - ((frame.Width * 0.5f - origin.X) * hudScale.X),
+            panelOrigin.Y - ((frame.Height - origin.Y) * hudScale.Y));
+        DrawLoadedSpriteFrame(
+            frame,
+            drawPosition,
+            sourceRectangle: null,
+            Color.White,
+            rotation: 0f,
+            origin,
+            hudScale,
+            SpriteEffects.None,
+            layerDepth: 0f);
+
+        var left = drawPosition.X - (origin.X * hudScale.X);
+        var top = drawPosition.Y - (origin.Y * hudScale.Y);
+        panelBounds = new Rectangle(
+            (int)MathF.Floor(left),
+            (int)MathF.Floor(top),
+            Math.Max(1, (int)MathF.Ceiling(frame.Width * hudScale.X)),
+            Math.Max(1, (int)MathF.Ceiling(frame.Height * hudScale.Y)));
+        return panelBounds.Top < ViewportHeight - 2;
+    }
+
+    private static Vector2 GetTeamDeathmatchScorePanelScorePosition(Rectangle panelBounds, bool redTeam)
+    {
+        var horizontalRatio = redTeam ? 0.31f : 0.69f;
+        return new Vector2(
+            panelBounds.Left + (panelBounds.Width * horizontalRatio),
+            panelBounds.Top + (panelBounds.Height * 0.38f));
     }
 
     private void DrawScorePanelCapLimit(Vector2 panelOrigin, float panelScale)

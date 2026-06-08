@@ -17,9 +17,24 @@ public sealed partial class SimulationWorld
         float? playerSlowMovementMultiplier = null,
         int playerSlowRefreshTicks = 0)
     {
+        var shotTeam = owner.Team;
+        if (sourceSentryId is int sentryId)
+        {
+            for (var sentryIndex = 0; sentryIndex < _sentries.Count; sentryIndex += 1)
+            {
+                if (_sentries[sentryIndex].Id != sentryId)
+                {
+                    continue;
+                }
+
+                shotTeam = _sentries[sentryIndex].Team;
+                break;
+            }
+        }
+
         var shot = new ShotProjectileEntity(
             AllocateEntityId(),
-            owner.Team,
+            shotTeam,
             owner.Id,
             x,
             y,
