@@ -5,6 +5,7 @@ namespace OpenGarrison.Core;
 public sealed partial class SimulationWorld
 {
     private float[] _damageableZoneHealth = [];
+    private PlayerTeam?[] _damageableZoneLastDamagingTeam = [];
 
     public float GetDamageableZoneHealth(int roomObjectIndex)
     {
@@ -55,7 +56,7 @@ public sealed partial class SimulationWorld
         return DamageableMetadata.BlocksProjectiles(marker.DamageableZone, GetDamageableZoneHealth(roomObjectIndex));
     }
 
-    public bool TryApplyDamageableZoneDamage(int roomObjectIndex, float damage)
+    public bool TryApplyDamageableZoneDamage(int roomObjectIndex, float damage, PlayerTeam? damagingTeam = null)
     {
         if (damage <= 0f
             || roomObjectIndex < 0
@@ -80,6 +81,11 @@ public sealed partial class SimulationWorld
 
         _damageableZoneHealth[roomObjectIndex] = MathF.Max(0f, previousHealth - damage);
         Level.DamageableZoneCurrentHealth = _damageableZoneHealth;
+        if (damagingTeam.HasValue)
+        {
+            _damageableZoneLastDamagingTeam[roomObjectIndex] = damagingTeam;
+        }
+
         EvaluateMapLogicDamageTriggersIfNeeded();
         return true;
     }
@@ -97,6 +103,7 @@ public sealed partial class SimulationWorld
     private void ResetDamageableZoneHealth()
     {
         _damageableZoneHealth = new float[Level.RoomObjects.Count];
+        _damageableZoneLastDamagingTeam = new PlayerTeam?[Level.RoomObjects.Count];
         for (var index = 0; index < Level.RoomObjects.Count; index += 1)
         {
             var marker = Level.RoomObjects[index];
@@ -151,12 +158,29 @@ public sealed partial class SimulationWorld
 
         _damageableZoneHealth[roomObjectIndex] = maxHealth;
         Level.DamageableZoneCurrentHealth = _damageableZoneHealth;
+        if (roomObjectIndex < _damageableZoneLastDamagingTeam.Length)
+        {
+            _damageableZoneLastDamagingTeam[roomObjectIndex] = null;
+        }
+
         EvaluateMapLogicDamageTriggersIfNeeded();
+    }
+
+    private PlayerTeam? GetDamageableZoneLastDamagingTeam(int roomObjectIndex)
+    {
+        if (roomObjectIndex < 0 || roomObjectIndex >= _damageableZoneLastDamagingTeam.Length)
+        {
+            return null;
+        }
+
+        return _damageableZoneLastDamagingTeam[roomObjectIndex];
     }
 
     private DamageTriggerEvaluationContext CreateDamageTriggerEvaluationContext()
     {
-        return new DamageTriggerEvaluationContext(GetDamageableZoneHealthRatio);
+        return new DamageTriggerEvaluationContext(
+            GetDamageableZoneHealthRatio,
+            GetDamageableZoneLastDamagingTeam);
     }
 
     private void EvaluateMapLogicDamageTriggersIfNeeded()
@@ -167,18 +191,19 @@ public sealed partial class SimulationWorld
         }
 
         Level.LogicGraph.EvaluateDamageTriggers(CreateDamageTriggerEvaluationContext());
+        EvaluateMapLogicScoreTriggersIfNeeded();
         ApplyControlPointLogicLockTriggers();
         ApplyMapLogicActivators();
     }
 
-    private bool TryHandleProjectileDamageableZoneHit(in ShotHitResult hitResult, float damage)
+    private bool TryHandleProjectileDamageableZoneHit(in ShotHitResult hitResult, float damage, PlayerTeam damagingTeam)
     {
         if (hitResult.HitDamageableZoneRoomObjectIndex < 0)
         {
             return false;
         }
 
-        TryApplyDamageableZoneDamage(hitResult.HitDamageableZoneRoomObjectIndex, damage);
+        TryApplyDamageableZoneDamage(hitResult.HitDamageableZoneRoomObjectIndex, damage, damagingTeam);
         return true;
     }
 
@@ -188,7 +213,8 @@ public sealed partial class SimulationWorld
         float blastRadius,
         float damage,
         float splashThresholdFactor = 0f,
-        int excludeRoomObjectIndex = -1)
+        int excludeRoomObjectIndex = -1,
+        PlayerTeam? damagingTeam = null)
     {
         if (damage <= 0f || blastRadius <= 0f)
         {
@@ -226,7 +252,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            TryApplyDamageableZoneDamage(index, damage * factor);
+            TryApplyDamageableZoneDamage(index, damage * factor, damagingTeam);
         }
     }
 

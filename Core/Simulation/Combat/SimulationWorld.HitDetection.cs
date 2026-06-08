@@ -300,14 +300,14 @@ public sealed partial class SimulationWorld
             : null;
     }
 
-    internal (float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry)? CombatTestGetNearestStabHit(
+    internal (float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, int HitDamageableZoneRoomObjectIndex)? CombatTestGetNearestStabHit(
         StabMaskEntity mask,
         float directionX,
         float directionY)
     {
         var hit = Combat.GetNearestStabHit(mask, directionX, directionY);
         return hit.HasValue
-            ? (hit.Value.Distance, hit.Value.HitX, hit.Value.HitY, hit.Value.HitPlayer, hit.Value.HitSentry)
+            ? (hit.Value.Distance, hit.Value.HitX, hit.Value.HitY, hit.Value.HitPlayer, hit.Value.HitSentry, hit.Value.HitDamageableZoneRoomObjectIndex)
             : null;
     }
 

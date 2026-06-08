@@ -55,6 +55,10 @@ public sealed partial class SimulationWorld
                 {
                     DestroySentry(hitResult.HitSentry, owner);
                 }
+                else if (hitResult.HitDamageableZoneRoomObjectIndex >= 0)
+                {
+                    TryApplyDamageableZoneDamage(hitResult.HitDamageableZoneRoomObjectIndex, StabMaskEntity.DamagePerHit, mask.Team);
+                }
 
                 mask.Destroy();
             }

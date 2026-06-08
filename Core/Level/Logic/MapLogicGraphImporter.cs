@@ -14,7 +14,8 @@ public static class MapLogicGraphImporter
         {
             if (!MapLogicMetadata.IsLogicEntityType(entity.Type)
                 || AreaExtensionMetadata.IsAreaEntityType(entity.Type)
-                || DamageableMetadata.IsDamageableEntityType(entity.Type))
+                || DamageableMetadata.IsDamageableEntityType(entity.Type)
+                || MapLogicScoreTriggerMetadata.IsScoreTriggerEntityType(entity.Type))
             {
                 continue;
             }
@@ -203,7 +204,9 @@ public static class MapLogicGraphImporter
                     TriggerOnAnyDamage = DamageTriggerMetadata.ParseTriggerOnAnyDamage(properties),
                     TriggerOnHeal = DamageTriggerMetadata.ParseTriggerOnHeal(properties),
                     TriggerWhenDestroyed = DamageTriggerMetadata.ParseTriggerWhenDestroyed(properties),
+                    DamageTriggerTeamFilter = DamageTriggerMetadata.ParseAffectedByTeam(properties),
                     TrueTimeSeconds = DamageTriggerMetadata.ParseAnyDamageTrueTimeSeconds(properties),
+                    AnyDamageCooldownSeconds = DamageTriggerMetadata.ParseAnyDamageCooldownSeconds(properties),
                     NodePriority = MapLogicMetadata.ParseNodePriority(properties),
                     SignalMode = MapLogicSignalMetadata.ParseSignalMode(properties),
                 });

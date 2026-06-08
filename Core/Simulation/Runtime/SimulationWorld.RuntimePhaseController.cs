@@ -73,6 +73,11 @@ public sealed partial class SimulationWorld
             _matchPhaseController.AdvanceLegacyCaptureTheFlagState();
         }
 
+        public void AdvanceLegacyScrState()
+        {
+            _matchPhaseController.AdvanceLegacyScrState();
+        }
+
         public void AdvanceLegacyArenaState()
         {
             _matchPhaseController.AdvanceLegacyArenaState();
