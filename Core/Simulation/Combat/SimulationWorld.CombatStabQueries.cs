@@ -13,9 +13,60 @@ public sealed partial class SimulationWorld
 
             UpdateNearestStabHitFromSolids(ref nearestHit, originX, originY, directionX, directionY, thicknessRadius);
             UpdateNearestStabHitFromGates(ref nearestHit, originX, originY, directionX, directionY, thicknessRadius);
+            UpdateNearestStabHitFromDamageableZones(ref nearestHit, originX, originY, directionX, directionY, thicknessRadius);
             UpdateNearestStabHitFromSentries(ref nearestHit, originX, originY, mask, directionX, directionY, thicknessRadius);
             UpdateNearestStabHitFromPlayers(ref nearestHit, originX, originY, mask, directionX, directionY, thicknessRadius);
             return nearestHit;
+        }
+
+        private void UpdateNearestStabHitFromDamageableZones(
+            ref ShotHitResult? nearestHit,
+            float originX,
+            float originY,
+            float directionX,
+            float directionY,
+            float thicknessRadius)
+        {
+            for (var roomObjectIndex = 0; roomObjectIndex < Level.RoomObjects.Count; roomObjectIndex += 1)
+            {
+                if (!_world.Level.IsRoomObjectActive(roomObjectIndex))
+                {
+                    continue;
+                }
+
+                var roomObject = Level.RoomObjects[roomObjectIndex];
+                if (roomObject.Type != RoomObjectType.DamageableZone
+                    || !DamageableMetadata.IsStabbableTarget(
+                        roomObject.DamageableZone,
+                        _world.GetDamageableZoneHealth(roomObjectIndex)))
+                {
+                    continue;
+                }
+
+                var distance = GetThickRayIntersectionDistanceWithRectangle(
+                    originX,
+                    originY,
+                    directionX,
+                    directionY,
+                    roomObject.Left,
+                    roomObject.Top,
+                    roomObject.Right,
+                    roomObject.Bottom,
+                    StabMaskEntity.ReachLength,
+                    thicknessRadius);
+                if (distance.HasValue)
+                {
+                    UpdateNearestStabHit(
+                        ref nearestHit,
+                        originX,
+                        originY,
+                        directionX,
+                        directionY,
+                        distance.Value,
+                        null,
+                        hitDamageableZoneRoomObjectIndex: roomObjectIndex);
+                }
+            }
         }
 
         private void UpdateNearestStabHitFromSolids(
@@ -92,10 +143,20 @@ public sealed partial class SimulationWorld
             float directionY,
             float distance,
             PlayerEntity? player,
-            SentryEntity? sentry = null)
+            SentryEntity? sentry = null,
+            int hitDamageableZoneRoomObjectIndex = -1)
         {
             if (nearestHit.HasValue && nearestHit.Value.Distance <= distance) { return; }
-            nearestHit = new ShotHitResult(distance, originX + directionX * distance, originY + directionY * distance, player, sentry, null);
+            nearestHit = new ShotHitResult(
+                distance,
+                originX + directionX * distance,
+                originY + directionY * distance,
+                player,
+                sentry,
+                null)
+            {
+                HitDamageableZoneRoomObjectIndex = hitDamageableZoneRoomObjectIndex,
+            };
         }
     }
 }

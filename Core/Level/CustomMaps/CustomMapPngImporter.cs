@@ -360,6 +360,7 @@ public static class CustomMapPngImporter
         var mapEntities = ToMapImportedEntities(entities);
         var logicGraph = MapLogicGraphImporter.BuildFromEntities(mapEntities, roomObjects);
         var logicActivators = MapLogicActivatorImporter.BuildFromEntities(mapEntities, roomObjects, logicGraph);
+        var logicScoreTriggers = MapLogicScoreTriggerImporter.BuildFromEntities(mapEntities, logicGraph);
         MapLogicRuntimePatch.ApplySpawnLogicSignals(redSpawns, mapEntities, logicGraph);
         MapLogicRuntimePatch.ApplyControlPointLogicLocks(roomObjects, mapEntities, logicGraph);
         MapTeleportRuntimePatch.ApplyExitLinks(roomObjects, mapEntities);
@@ -384,8 +385,12 @@ public static class CustomMapPngImporter
             MovingPlatforms = movingPlatforms.ToArray(),
             ControlPointSettings = new CustomMapControlPointSettings(
                 ControlPointMapSettingsMetadata.ParseOverrideInitialCps(metadata)),
+            ScrSettings = ScrMapSettingsMetadata.ParseScrSettings(metadata),
+            ShowControlPoints = ScrMapSettingsMetadata.ParseShowControlPoints(metadata),
             LogicGraph = logicGraph,
             LogicActivators = logicActivators,
+            LogicScoreTriggers = logicScoreTriggers,
+            ExplicitGameMode = MapGameModeMetadata.TryReadGameMode(metadata),
         };
     }
 

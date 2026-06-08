@@ -25,4 +25,12 @@ public sealed record GameMakerRoomMetadata(
     public MapLogicGraph LogicGraph { get; init; } = MapLogicGraph.Empty;
 
     public MapLogicActivatorSet LogicActivators { get; init; } = MapLogicActivatorSet.Empty;
+
+    public CustomMapScrSettings ScrSettings { get; init; } = CustomMapScrSettings.Default;
+
+    public bool ShowControlPoints { get; init; }
+
+    public MapLogicScoreTriggerSet LogicScoreTriggers { get; init; } = MapLogicScoreTriggerSet.Empty;
+
+    public GameModeKind? ExplicitGameMode { get; init; }
 }

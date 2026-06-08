@@ -35,6 +35,7 @@ public partial class Game1
             GameModeKind.KingOfTheHill => "KOTH",
             GameModeKind.DoubleKingOfTheHill => "DKOTH",
             GameModeKind.TeamDeathmatch => "TDM",
+            GameModeKind.Scr => "SCR",
             _ => "CTF",
         };
     }
@@ -51,6 +52,7 @@ public partial class Game1
             GameModeKind.DoubleKingOfTheHill,
             GameModeKind.TeamDeathmatch,
             GameModeKind.Generator,
+            GameModeKind.Scr,
         ];
     }
 

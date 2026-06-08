@@ -33,8 +33,11 @@ internal static class SimpleLevelScaling
             Scale(level.CustomMapVisuals, clampedScale),
             level.MovingPlatforms.Select(marker => Scale(marker, clampedScale)).ToArray(),
             level.ControlPointSettings,
+            level.ScrSettings,
+            level.ShowControlPoints,
             level.LogicGraph,
-            level.LogicActivators)
+            level.LogicActivators,
+            level.LogicScoreTriggers)
         {
             ControlPointSetupGatesActive = level.ControlPointSetupGatesActive,
             ForcedBlockingTeamGates = level.ForcedBlockingTeamGates,

@@ -76,6 +76,14 @@ public static class CustomMapBuilderValidator
 
     public static CustomMapBuilderGameMode InferGameMode(IReadOnlyList<CustomMapBuilderEntity> entities)
     {
+        for (var index = 0; index < entities.Count; index += 1)
+        {
+            if (MapLogicScoreTriggerMetadata.IsScoreTriggerEntityType(entities[index].Type))
+            {
+                return CustomMapBuilderGameMode.Scr;
+            }
+        }
+
         if (Count(entities, "GeneratorRed") > 0 || Count(entities, "GeneratorBlue") > 0)
         {
             return CustomMapBuilderGameMode.Generator;
@@ -163,6 +171,8 @@ public static class CustomMapBuilderValidator
             case CustomMapBuilderGameMode.Generator:
                 RequireExactly(entities, issues, "GeneratorRed", 1, "gen_red", "Generator mode needs exactly one GeneratorRed.");
                 RequireExactly(entities, issues, "GeneratorBlue", 1, "gen_blue", "Generator mode needs exactly one GeneratorBlue.");
+                break;
+            case CustomMapBuilderGameMode.Scr:
                 break;
         }
     }
