@@ -288,7 +288,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        _pendingSoundEvents.Add(new WorldSoundEvent(soundName, attacker.X, attacker.Y, SourceFrame: (ulong)Frame));
+        _pendingSoundEvents.Add(new WorldSoundEvent(soundName, attacker.X, attacker.Y, SourceFrame: (ulong)Frame, SourcePlayerId: attacker.Id));
     }
 
     private void RegisterWorldSoundEvent(string soundName, float x, float y)

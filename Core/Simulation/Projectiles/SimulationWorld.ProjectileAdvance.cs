@@ -138,6 +138,23 @@ public sealed partial class SimulationWorld
         }
     }
 
+    private bool ShouldAdvanceProjectileForClientPrediction(int ownerId)
+    {
+        return !ClientPredictionMode || IsAuthoritativeLocalPlayerId(ownerId);
+    }
+
+    private bool ShouldTrackSnapshotProjectileForClientPrediction(int ownerId)
+    {
+        return ClientPredictionMode && IsAuthoritativeLocalPlayerId(ownerId);
+    }
+
+    private bool IsAuthoritativeLocalPlayerId(int playerId)
+    {
+        return _authoritativeLocalPlayerId.HasValue
+            ? playerId == _authoritativeLocalPlayerId.Value
+            : playerId == LocalPlayer.Id;
+    }
+
     private int CountOwnedMines(int ownerId)
     {
         var count = 0;

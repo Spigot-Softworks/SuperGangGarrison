@@ -73,9 +73,18 @@ public sealed class SnapshotDeltaBudgeterRocketRemovalTests
     }
 
     [Fact]
-    public void BuildBudgetedSnapshotIncludesCombatTraces()
+    public void BuildBudgetedSnapshotIncludesOnlyNetworkVisibleCombatTraces()
     {
         var baseline = CreateSnapshot(910);
+        var ordinaryTrace = new SnapshotCombatTraceState(
+            StartX: 64f,
+            StartY: 96f,
+            EndX: 96f,
+            EndY: 96f,
+            TicksRemaining: 3,
+            HitCharacter: false,
+            Team: 1,
+            IsSniperTracer: false);
         var sniperTrace = new SnapshotCombatTraceState(
             StartX: 128f,
             StartY: 96f,
@@ -87,7 +96,7 @@ public sealed class SnapshotDeltaBudgeterRocketRemovalTests
             IsSniperTracer: true);
         var current = CreateSnapshot(911) with
         {
-            CombatTraces = [sniperTrace],
+            CombatTraces = [ordinaryTrace, sniperTrace],
         };
         var client = new ClientSession(
             1,
@@ -109,6 +118,36 @@ public sealed class SnapshotDeltaBudgeterRocketRemovalTests
 
         var trace = Assert.Single(result.Message.CombatTraces);
         Assert.True(trace.IsSniperTracer);
+        Assert.Equal(sniperTrace.EndX, trace.EndX);
+    }
+
+    [Fact]
+    public void SnapshotBroadcasterCapturesOnlyNetworkVisibleCombatTraces()
+    {
+        var ordinaryTrace = new CombatTrace(
+            StartX: 64f,
+            StartY: 96f,
+            EndX: 96f,
+            EndY: 96f,
+            TicksRemaining: 3,
+            HitCharacter: false,
+            Team: PlayerTeam.Red,
+            IsSniperTracer: false);
+        var sniperTrace = new CombatTrace(
+            StartX: 128f,
+            StartY: 96f,
+            EndX: 512f,
+            EndY: 96f,
+            TicksRemaining: 3,
+            HitCharacter: true,
+            Team: PlayerTeam.Blue,
+            IsSniperTracer: true);
+
+        var captured = SnapshotBroadcaster.ConvertNetworkCombatTracesToArray([ordinaryTrace, sniperTrace]);
+
+        var trace = Assert.Single(captured);
+        Assert.True(trace.IsSniperTracer);
+        Assert.Equal((byte)PlayerTeam.Blue, trace.Team);
         Assert.Equal(sniperTrace.EndX, trace.EndX);
     }
 

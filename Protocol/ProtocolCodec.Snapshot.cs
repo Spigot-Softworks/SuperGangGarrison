@@ -19,6 +19,7 @@ public static partial class ProtocolCodec
         writer.Write(snapshot.Frame);
         writer.Write(snapshot.BaselineFrame);
         writer.Write(snapshot.IsDelta);
+        writer.Write((ushort)snapshot.EntityCollectionCompletenessFlags);
         writer.Write(snapshot.TickRate);
         WriteString(writer, snapshot.LevelName, MaxLevelNameBytes, nameof(snapshot.LevelName));
         writer.Write(snapshot.MapAreaIndex);
@@ -107,6 +108,7 @@ public static partial class ProtocolCodec
         var frame = reader.ReadUInt64();
         var baselineFrame = reader.ReadUInt64();
         var isDelta = reader.ReadBoolean();
+        var entityCollectionCompletenessFlags = (SnapshotEntityCollectionCompletenessFlags)reader.ReadUInt16();
         var tickRate = reader.ReadInt32();
         var levelName = ReadString(reader, MaxLevelNameBytes);
         var mapAreaIndex = reader.ReadByte();
@@ -248,6 +250,7 @@ public static partial class ProtocolCodec
             CompetitiveReadyUpTicksRemaining = competitiveReadyUpTicksRemaining,
             BaselineFrame = baselineFrame,
             IsDelta = isDelta,
+            EntityCollectionCompletenessFlags = entityCollectionCompletenessFlags,
             PlayerMovementStates = playerMovementStates,
             PlayerStatusStates = playerStatusStates,
             PlayerExtendedStatusStates = playerExtendedStatusStates,

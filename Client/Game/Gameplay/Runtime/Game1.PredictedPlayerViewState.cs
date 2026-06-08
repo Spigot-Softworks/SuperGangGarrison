@@ -44,6 +44,11 @@ public partial class Game1
 
     private bool GetPlayerIsExperimentalGhostDashing(PlayerEntity player)
     {
+        if (player.ClassId != PlayerClass.Heavy)
+        {
+            return false;
+        }
+
         if (IsUsingPredictedLocalState(player))
         {
             return _predictedLocalActionState.IsExperimentalGhostDashing;

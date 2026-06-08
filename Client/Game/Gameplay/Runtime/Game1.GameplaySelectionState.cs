@@ -125,7 +125,7 @@ public partial class Game1
 
     private void ApplyOfflineTeamSelection(PlayerTeam selectedTeam)
     {
-        _world.SetLocalPlayerTeam(selectedTeam);
+        _world.TryRequestNetworkPlayerTeamSelection(SimulationWorld.LocalPlayerSlot, selectedTeam);
         ApplyPracticeTeamSelection(selectedTeam);
         OpenGameplayClassSelection();
     }

@@ -25,12 +25,15 @@ internal sealed class ServerOutboundMessaging(
     public void SendMessage(ServerTransportPeer remotePeer, IProtocolMessage message)
     {
         var payload = ProtocolCodec.Serialize(message, ServerProtocolCompression.Settings);
-        SendPayload(remotePeer, payload);
+        SendPayload(
+            remotePeer,
+            payload,
+            message is SnapshotMessage ? MessageType.Snapshot : null);
     }
 
     public void SendSnapshotPayload(ServerTransportPeer remotePeer, SnapshotMessage _, byte[] payload)
     {
-        SendPayload(remotePeer, payload);
+        SendPayload(remotePeer, payload, MessageType.Snapshot);
     }
 
     public void SendServerStatus(ServerTransportPeer remotePeer)
@@ -365,9 +368,9 @@ internal sealed class ServerOutboundMessaging(
             : null;
     }
 
-    private void SendPayload(ServerTransportPeer remotePeer, byte[] payload)
+    private void SendPayload(ServerTransportPeer remotePeer, byte[] payload, MessageType? messageType = null)
     {
-        transport.Send(remotePeer, payload);
+        transport.Send(remotePeer, payload, messageType);
     }
 
     private bool TrySendMessage(ServerTransportPeer remotePeer, IProtocolMessage message, string description)

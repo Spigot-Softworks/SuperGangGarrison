@@ -41,7 +41,7 @@ internal sealed class SnapshotTransientEventBuffer(ulong transientEventReplayTic
     {
         var currentFrame = (ulong)world.Frame;
         AppendRetainedVisualEvents(world.DrainPendingVisualEvents(), currentFrame);
-        AppendRetainedSoundEvents(world.DrainPendingSoundEvents(), currentFrame);
+        AppendRetainedSoundEvents(world, world.DrainPendingSoundEvents(), currentFrame);
         AppendRetainedDamageEvents(world.DrainPendingDamageEvents(), currentFrame);
         AppendRetainedGibSpawnEvents(world.DrainPendingGibSpawnEvents(), currentFrame);
         AppendRetainedRocketSpawnEvents(world.DrainPendingRocketSpawnEvents(), currentFrame);
@@ -58,10 +58,15 @@ internal sealed class SnapshotTransientEventBuffer(ulong transientEventReplayTic
             _recentRocketSpawnEvents.Select(static rocketEvent => rocketEvent.Event).ToArray());
     }
 
-    private void AppendRetainedSoundEvents(IReadOnlyList<WorldSoundEvent> soundEvents, ulong currentFrame)
+    private void AppendRetainedSoundEvents(SimulationWorld world, IReadOnlyList<WorldSoundEvent> soundEvents, ulong currentFrame)
     {
         for (var index = 0; index < soundEvents.Count; index += 1)
         {
+            if (IsSnapshotBackedManagedRapidFireLoopSound(world, soundEvents[index]))
+            {
+                continue;
+            }
+
             _recentSoundEvents.Add(new RetainedSnapshotSoundEvent(
                 ToSnapshotSoundEvent(soundEvents[index], _nextTransientEventId++),
                 currentFrame + transientEventReplayTicks));
@@ -119,6 +124,78 @@ internal sealed class SnapshotTransientEventBuffer(ulong transientEventReplayTic
             || string.Equals(visualEvent.EffectName, "GibBlood", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool IsSnapshotBackedManagedRapidFireLoopSound(SimulationWorld world, WorldSoundEvent soundEvent)
+    {
+        if (soundEvent.SourcePlayerId < 0
+            || !TryGetManagedRapidFireSoundKind(soundEvent.SoundName, out var weaponKind)
+            || FindReplicatedNetworkPlayerById(world, soundEvent.SourcePlayerId) is not { } player
+            || !player.IsAlive
+            || player.IsTaunting)
+        {
+            return false;
+        }
+
+        return weaponKind switch
+        {
+            PrimaryWeaponKind.Minigun => !player.IsAcquiredWeaponPresented
+                && player.PrimaryWeapon.Kind == PrimaryWeaponKind.Minigun
+                && !player.IsHeavyEating
+                && player.PrimaryCooldownTicks > 0,
+            PrimaryWeaponKind.FlameThrower => !player.IsAcquiredWeaponPresented
+                && player.PrimaryWeapon.Kind == PrimaryWeaponKind.FlameThrower
+                && player.PyroFlameLoopTicksRemaining > 0,
+            PrimaryWeaponKind.Medigun => IsMedigunPresentationUser(player)
+                && player.IsMedicHealing
+                && player.MedicHealTargetId.HasValue,
+            _ => false,
+        };
+    }
+
+    private static PlayerEntity? FindReplicatedNetworkPlayerById(SimulationWorld world, int playerId)
+    {
+        foreach (var (_, player) in world.EnumerateReplicatedNetworkPlayers())
+        {
+            if (player.Id == playerId)
+            {
+                return player;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool TryGetManagedRapidFireSoundKind(string soundName, out PrimaryWeaponKind weaponKind)
+    {
+        if (string.Equals(soundName, "ChaingunSnd", StringComparison.OrdinalIgnoreCase))
+        {
+            weaponKind = PrimaryWeaponKind.Minigun;
+            return true;
+        }
+
+        if (string.Equals(soundName, "FlamethrowerSnd", StringComparison.OrdinalIgnoreCase))
+        {
+            weaponKind = PrimaryWeaponKind.FlameThrower;
+            return true;
+        }
+
+        if (string.Equals(soundName, "MedigunSnd", StringComparison.OrdinalIgnoreCase))
+        {
+            weaponKind = PrimaryWeaponKind.Medigun;
+            return true;
+        }
+
+        weaponKind = default;
+        return false;
+    }
+
+    private static bool IsMedigunPresentationUser(PlayerEntity player)
+    {
+        return player.IsExperimentalEngineerEssenceExtractorPresented
+            || player.IsExperimentalEngineerFreezeRayPresented
+            || (player.ClassId == PlayerClass.Medic && player.PrimaryWeapon.Kind == PrimaryWeaponKind.Medigun)
+            || (player.IsAcquiredWeaponPresented && player.AcquiredWeaponClassId == PlayerClass.Medic);
+    }
+
     private static SnapshotGibSpawnEvent ToSnapshotGibSpawnEvent(WorldGibSpawnEvent gibSpawnEvent, ulong eventId)
     {
         return new SnapshotGibSpawnEvent(
@@ -159,6 +236,7 @@ internal sealed class SnapshotTransientEventBuffer(ulong transientEventReplayTic
             rocketSpawnEvent.FadeSourceTicksRemaining,
             rocketSpawnEvent.ExplodeImmediately,
             rocketSpawnEvent.IsCritical,
-            eventId);
+            eventId,
+            rocketSpawnEvent.PassedFriendlyPlayerIds);
     }
 }

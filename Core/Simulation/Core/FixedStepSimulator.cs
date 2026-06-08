@@ -9,6 +9,17 @@ public sealed class FixedStepSimulator
 
     public SimulationWorld World => _world;
 
+    public float InterpolationAlpha
+    {
+        get
+        {
+            var frameDelta = _world.Config.FixedDeltaSeconds;
+            return frameDelta <= 0d
+                ? 0f
+                : Math.Clamp((float)(_accumulatorSeconds / frameDelta), 0f, 1f);
+        }
+    }
+
     public FixedStepSimulator(SimulationWorld world)
     {
         _world = world;

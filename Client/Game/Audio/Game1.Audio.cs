@@ -547,7 +547,7 @@ public partial class Game1
         }
 
         _audioAvailable = false;
-        _gameplayRapidFireAudioController.StopAndDisposeLocalRapidFireWeaponAudio();
+        _gameplayRapidFireAudioController.StopAndDisposeRapidFireWeaponAudio();
         StopMenuMusic();
         StopLastToDieMenuMusic();
         StopFaucetMusic();
@@ -670,9 +670,9 @@ public partial class Game1
         return _gameplayRapidFireAudioController.IsLocalRapidFireWeaponSoundActive(weaponKind);
     }
 
-    private bool ShouldSuppressManagedLocalRapidFireSound(WorldSoundEvent soundEvent)
+    private bool ShouldSuppressManagedRapidFireSound(WorldSoundEvent soundEvent)
     {
-        return _gameplayRapidFireAudioController.ShouldSuppressManagedLocalRapidFireSound(soundEvent);
+        return _gameplayRapidFireAudioController.ShouldSuppressManagedRapidFireSound(soundEvent);
     }
 
     private Vector2 GetWorldSoundListenerPosition()
@@ -692,6 +692,6 @@ public partial class Game1
 
     private void StopLocalRapidFireWeaponAudio()
     {
-        _gameplayRapidFireAudioController.StopLocalRapidFireWeaponAudio();
+        _gameplayRapidFireAudioController.StopRapidFireWeaponAudio();
     }
 }

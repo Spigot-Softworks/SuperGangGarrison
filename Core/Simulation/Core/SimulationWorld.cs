@@ -26,6 +26,7 @@ public sealed partial class SimulationWorld
     private const int KillFeedLocalInvolvedLifetimeTicks = 300;
     private const int DefaultGibLevel = 3;
     private const int LocalProjectileTerminationSuppressionTicks = 12;
+    private const int NetworkProjectileRemovalSuppressionTicks = 180;
     private readonly Dictionary<int, SimulationEntity> _entities = new();
     private readonly List<CombatTrace> _combatTraces = new();
     private readonly List<SniperAimIndicator> _sniperAimIndicators = new();
@@ -85,6 +86,7 @@ public sealed partial class SimulationWorld
     private readonly Dictionary<byte, bool> _additionalNetworkPlayerAwaitingJoin = new();
     private readonly Dictionary<byte, int> _additionalNetworkPlayerRespawnTicks = new();
     private readonly Dictionary<byte, PlayerTeam> _additionalNetworkPlayerTeams = new();
+    private readonly HashSet<byte> _pendingNetworkPlayerTeamSelections = new();
     private readonly Dictionary<byte, SpawnPoint> _networkPlayerSpawnOverrides = new();
     private readonly Dictionary<byte, float> _networkPlayerMovementSpeedScaleOverrides = new();
     private readonly Dictionary<byte, float> _networkPlayerGravityScaleOverrides = new();
@@ -92,6 +94,7 @@ public sealed partial class SimulationWorld
     private readonly Dictionary<byte, LocalDeathCamState> _networkPlayerDeathCams = new();
     private readonly HashSet<int> _lastToDieDroneSentryIds = new();
     private readonly HashSet<int> _clientPredictedProjectileIds = new();
+    private int? _authoritativeLocalPlayerId;
     private readonly HashSet<int> _terminatedProjectileIds = new();
     private readonly Dictionary<int, long> _terminatedProjectileExpiryFrames = new();
     private readonly ClientSnapshotStringCache _snapshotStringCache = new();
@@ -512,7 +515,8 @@ public sealed partial class SimulationWorld
         {
             // Allow same-class selection to commit a pending team swap.
             // Use TryApplyNetworkPlayerClassChange so spawn-room and respawn-timer rules are respected.
-            return LocalPlayer.Team != GetNetworkPlayerConfiguredTeam(LocalPlayerSlot)
+            return (LocalPlayer.Team != GetNetworkPlayerConfiguredTeam(LocalPlayerSlot)
+                    || HasPendingNetworkPlayerTeamSelection(LocalPlayerSlot))
                 && TryApplyNetworkPlayerClassChange(LocalPlayerSlot, definition);
         }
 

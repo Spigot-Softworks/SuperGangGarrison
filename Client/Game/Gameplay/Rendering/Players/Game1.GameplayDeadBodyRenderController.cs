@@ -324,7 +324,7 @@ public partial class Game1
 
                 if (!snapshotPlayer.IsAlive
                     && snapshotPlayer.GibDeaths > targetPlayer.GibDeaths
-                    && _game._world.TryPresentNetworkGibDeath(damageEvent.TargetEntityId, snapshotPlayer.GibDeaths))
+                    && _game._world.TryPresentNetworkGibDeath(damageEvent.TargetEntityId, snapshotPlayer.GibDeaths, damageEvent.X, damageEvent.Y))
                 {
                     _game.PlayPredictedGibSound(damageEvent.X, damageEvent.Y);
                     return true;

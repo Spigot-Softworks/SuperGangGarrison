@@ -353,19 +353,20 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public bool IsExperimentalGhostDashing
         => ExperimentalGhostDashTicksRemaining > 0
-            || HasReplicatedCoreAbilityToggle(GameplayAbilityReplicatedState.HeavyDashActiveKey);
+            || HasReplicatedHeavyDashToggle(GameplayAbilityReplicatedState.HeavyDashActiveKey);
 
     public bool IsExperimentalGhostDashVisible
         => ExperimentalGhostDashVisibilityTicksRemaining > 0
             || ExperimentalGhostDashSlideVisualSpeedPerSecond > 0f
-            || HasReplicatedCoreAbilityToggle(GameplayAbilityReplicatedState.HeavyDashVisibleKey)
-            || HasReplicatedCoreAbilityToggle(GameplayAbilityReplicatedState.HeavyDashActiveKey);
+            || HasReplicatedHeavyDashToggle(GameplayAbilityReplicatedState.HeavyDashVisibleKey)
+            || HasReplicatedHeavyDashToggle(GameplayAbilityReplicatedState.HeavyDashActiveKey);
 
     public float ExperimentalGhostDashTrailAlpha
     {
         get
         {
-            if (TryGetReplicatedStateFloat(
+            if (ClassId == PlayerClass.Heavy
+                && TryGetReplicatedStateFloat(
                     GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
                     GameplayAbilityReplicatedState.HeavyDashTrailAlphaKey,
                     out var replicatedTrailAlpha))
@@ -378,11 +379,16 @@ public sealed partial class PlayerEntity : SimulationEntity
                 return float.Clamp(ExperimentalGhostDashTrailAlphaValue, 0f, 1f);
             }
 
-            return HasReplicatedCoreAbilityToggle(GameplayAbilityReplicatedState.HeavyDashVisibleKey)
-                || HasReplicatedCoreAbilityToggle(GameplayAbilityReplicatedState.HeavyDashActiveKey)
+            return HasReplicatedHeavyDashToggle(GameplayAbilityReplicatedState.HeavyDashVisibleKey)
+                || HasReplicatedHeavyDashToggle(GameplayAbilityReplicatedState.HeavyDashActiveKey)
                 ? 1f
                 : 0f;
         }
+    }
+
+    private bool HasReplicatedHeavyDashToggle(string key)
+    {
+        return ClassId == PlayerClass.Heavy && HasReplicatedCoreAbilityToggle(key);
     }
 
     private bool ExperimentalSoldierAmmoRegeneratesWhileSwappedOutEnabled { get; set; }

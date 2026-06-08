@@ -64,6 +64,7 @@ public partial class Game1
         private const string SoldierShotgunAmmoKey = "soldier_shotgun_ammo";
         private const string SoldierShotgunMaxAmmoKey = "soldier_shotgun_max_ammo";
         private const string DemomanGrenadeLauncherAmmoKey = "demoman_gl_ammo";
+        private const string DemomanGrenadeLauncherMaxAmmoKey = "demoman_gl_max_ammo";
         private const string ScoutNailgunAmmoKey = "scout_nailgun_ammo";
         private const string ScoutNailgunMaxAmmoKey = "scout_nailgun_max_ammo";
 
@@ -1564,9 +1565,8 @@ public partial class Game1
                 ? replicatedAmmo
                 : _game._world.LocalPlayer.ExperimentalOffhandCurrentShells;
             var reloadTicksRemaining = _game._world.LocalPlayer.ExperimentalOffhandReloadTicksUntilNextShell;
-            var weaponDefinition = _game._world.LocalPlayer.ExperimentalOffhandWeapon;
-            var maxAmmo = Math.Max(1, weaponDefinition?.MaxAmmo ?? utilityItem.Ammo.MaxAmmo);
-            var totalReloadTicks = Math.Max(1, weaponDefinition?.AmmoReloadTicks ?? (int)utilityItem.Ammo.ReloadSourceTicks);
+            var maxAmmo = GetLocalGrenadeLauncherMaxAmmo(utilityItem);
+            var totalReloadTicks = GetLocalGrenadeLauncherReloadTicks(utilityItem);
 
             var ammoCountScale = GetAmmoCountBuildScaleForValue(currentAmmo);
             var reloadBarBottomSourceY = sourceY + 12f;
@@ -1627,7 +1627,7 @@ public partial class Game1
                 : reloadTicksRemaining <= 0
                     ? 1f
                     : Math.Clamp(1f - (reloadTicksRemaining / (float)reloadTicksPerShell), 0f, 1f);
-            var ammoColor = currentShells <= Math.Max(1, maxShells / 4) ? LowAmmoHudColor : AmmoHudTextColor;
+            var ammoColor = currentShells < maxShells && currentShells <= Math.Max(1, maxShells / 4) ? LowAmmoHudColor : AmmoHudTextColor;
             var ammoCountScale = GetAmmoCountBuildScaleForValue(currentShells);
 
             var shotgunReloadBarBottomSourceY = shotgunPanelSourceY + 12f;
@@ -1815,7 +1815,7 @@ public partial class Game1
                 var ammoCountScale = GetAmmoCountBuildScaleForValue(currentShells);
                 var reloadBarBottomSourceY = sourceY + 12f;
                 var ammoTextSourceY = reloadBarBottomSourceY - _game.MeasureMenuBitmapFontHeight(ammoCountScale);
-                var ammoColor = currentShells <= Math.Max(1, maxShells / 4) ? LowAmmoHudColor : AmmoHudTextColor;
+                var ammoColor = currentShells < maxShells && currentShells <= Math.Max(1, maxShells / 4) ? LowAmmoHudColor : AmmoHudTextColor;
                 _game.DrawMenuBitmapFontText(currentShells.ToString(CultureInfo.InvariantCulture), GetSourceHudPoint(755f, ammoTextSourceY), ammoColor, GetSourceHudTextScale(ammoCountScale));
             }
 
@@ -2175,6 +2175,11 @@ public partial class Game1
         private int GetLocalDisplayedOffhandMaxShells()
         {
             var player = _game._world.LocalPlayer;
+            if (string.Equals(player.EquippedBehaviorId, BuiltInGameplayBehaviorIds.GrenadeLauncher, StringComparison.Ordinal))
+            {
+                return GetLocalGrenadeLauncherMaxAmmo();
+            }
+
             if (player.ClassId == PlayerClass.Scout
                 && player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, ScoutNailgunMaxAmmoKey, out var replicatedNailgunMaxAmmo))
             {
@@ -2184,6 +2189,48 @@ public partial class Game1
             return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunMaxAmmoKey, out var replicatedShotgunMaxAmmo)
                 ? Math.Max(1, replicatedShotgunMaxAmmo)
                 : Math.Max(1, player.ExperimentalOffhandMaxShells);
+        }
+
+        private int GetLocalGrenadeLauncherMaxAmmo(GameplayItemDefinition? fallbackItem = null)
+        {
+            var player = _game._world.LocalPlayer;
+            if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, DemomanGrenadeLauncherMaxAmmoKey, out var replicatedMaxAmmo))
+            {
+                return Math.Max(1, replicatedMaxAmmo);
+            }
+
+            var item = fallbackItem ?? TryGetLocalGrenadeLauncherItem();
+            if (item is not null)
+            {
+                return Math.Max(1, item.Ammo.MaxAmmo);
+            }
+
+            return Math.Max(1, player.ExperimentalOffhandWeapon?.MaxAmmo ?? player.ExperimentalOffhandMaxShells);
+        }
+
+        private int GetLocalGrenadeLauncherReloadTicks(GameplayItemDefinition? fallbackItem = null)
+        {
+            var item = fallbackItem ?? TryGetLocalGrenadeLauncherItem();
+            if (item is not null)
+            {
+                return Math.Max(1, (int)item.Ammo.ReloadSourceTicks);
+            }
+
+            return Math.Max(1, _game._world.LocalPlayer.ExperimentalOffhandWeapon?.AmmoReloadTicks ?? 1);
+        }
+
+        private GameplayItemDefinition? TryGetLocalGrenadeLauncherItem()
+        {
+            var utilityItemId = _game._world.LocalPlayer.GameplayLoadoutState.UtilityItemId;
+            if (string.IsNullOrWhiteSpace(utilityItemId))
+            {
+                return null;
+            }
+
+            var item = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(utilityItemId);
+            return string.Equals(item.BehaviorId, BuiltInGameplayBehaviorIds.GrenadeLauncher, StringComparison.Ordinal)
+                ? item
+                : null;
         }
 
         private int GetLocalDisplayedOffhandReloadTicks()

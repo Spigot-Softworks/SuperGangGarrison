@@ -23,7 +23,7 @@ public sealed class SimulationWorldCombatBlockingTests
     }
 
     [Fact]
-    public void DirectFireShotStopsOnFriendlyBeforeEnemy()
+    public void DirectFireShotPassesThroughFriendlyBeforeEnemy()
     {
         var world = CreateCombatWorld(PlayerClass.Scout);
         var owner = world.LocalPlayer;
@@ -35,8 +35,7 @@ public sealed class SimulationWorldCombatBlockingTests
         var hit = GetNearestShotHit(world, shot, directionX: 1f, directionY: 0f, maxDistance: 200f);
 
         Assert.NotNull(hit);
-        Assert.Null(hit.Value.HitPlayer);
-        Assert.True(hit.Value.Distance < enemy.X);
+        Assert.Same(enemy, hit.Value.HitPlayer);
     }
 
     [Fact]

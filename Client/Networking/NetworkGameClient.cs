@@ -19,6 +19,7 @@ internal sealed class NetworkGameClient : IDisposable
         int BytesRead,
         int ReleasedMessages,
         int SnapshotMessages,
+        int SnapshotMaxPayloadBytes,
         int MaxPayloadBytes,
         int PendingInboundMessages,
         double DeserializeMilliseconds,
@@ -99,6 +100,8 @@ internal sealed class NetworkGameClient : IDisposable
     public Uri? MapDownloadBaseUri { get; private set; }
     public int SimulatedLatencyMilliseconds { get; private set; }
     public int EstimatedPingMilliseconds { get; private set; } = -1;
+    public int ProtocolPingMilliseconds { get; private set; } = -1;
+    public int InputAckLatencyMilliseconds { get; private set; } = -1;
     public ReceiveDiagnostics LastReceiveDiagnostics { get; private set; }
     public SendDiagnostics TotalSendDiagnostics { get; private set; }
 
@@ -240,6 +243,8 @@ internal sealed class NetworkGameClient : IDisposable
         _hasProtocolPingSample = false;
         _smoothedPingMilliseconds = -1;
         EstimatedPingMilliseconds = -1;
+        ProtocolPingMilliseconds = -1;
+        InputAckLatencyMilliseconds = -1;
         LastReceiveDiagnostics = default;
         TotalSendDiagnostics = default;
     }
@@ -623,6 +628,7 @@ internal sealed class NetworkGameClient : IDisposable
             if (tracked.Sequence == sequence)
             {
                 var inputAckMilliseconds = (int)Math.Clamp(nowMilliseconds - sentAtMilliseconds, 0L, int.MaxValue);
+                InputAckLatencyMilliseconds = inputAckMilliseconds;
                 if (!_hasProtocolPingSample)
                 {
                     EstimatedPingMilliseconds = inputAckMilliseconds;
@@ -689,6 +695,7 @@ internal sealed class NetworkGameClient : IDisposable
         var packetsRead = 0;
         var bytesRead = 0;
         var snapshotMessages = 0;
+        var snapshotMaxPayloadBytes = 0;
         var maxPayloadBytes = 0;
         var deserializeMilliseconds = 0d;
         var maxDeserializeMilliseconds = 0d;
@@ -728,6 +735,7 @@ internal sealed class NetworkGameClient : IDisposable
                 if (collectDiagnostics && message is SnapshotMessage)
                 {
                     snapshotMessages += 1;
+                    snapshotMaxPayloadBytes = Math.Max(snapshotMaxPayloadBytes, payload.Length);
                 }
 
                 if (SimulatedLatencyMilliseconds > 0)
@@ -768,6 +776,7 @@ internal sealed class NetworkGameClient : IDisposable
                 bytesRead,
                 messages.Count,
                 snapshotMessages,
+                snapshotMaxPayloadBytes,
                 maxPayloadBytes,
                 _pendingInboundMessages.Count,
                 deserializeMilliseconds,
@@ -1077,7 +1086,8 @@ internal sealed class NetworkGameClient : IDisposable
             {
                 var pingMilliseconds = (int)Math.Clamp(nowMilliseconds - sentAtMilliseconds, 0L, int.MaxValue);
                 _hasProtocolPingSample = true;
-                EstimatedPingMilliseconds = SmoothPingSample(pingMilliseconds);
+                ProtocolPingMilliseconds = SmoothPingSample(pingMilliseconds);
+                EstimatedPingMilliseconds = ProtocolPingMilliseconds;
             }
         }
     }

@@ -63,22 +63,67 @@ public sealed class ClientSessionSnapshotHistoryTests
     }
 
     [Fact]
-    public void AcknowledgeSnapshotMarksSnapshotSoundEventsDelivered()
+    public void AcknowledgeSnapshotMarksSnapshotTransientEventsDelivered()
     {
         var client = new ClientSession(1, 101, new IPEndPoint(IPAddress.Loopback, 8190), "Tester", TimeSpan.Zero);
         var snapshot = CreateSnapshot(20) with
         {
+            VisualEvents =
+            [
+                new SnapshotVisualEvent("Explosion", 32f, 48f, DirectionDegrees: 0f, Count: 1, EventId: 4002),
+            ],
+            DamageEvents =
+            [
+                new SnapshotDamageEvent(
+                    Amount: 25,
+                    AttackerPlayerId: 10,
+                    AssistedByPlayerId: -1,
+                    TargetKind: 1,
+                    TargetEntityId: 11,
+                    X: 32f,
+                    Y: 48f,
+                    WasFatal: false,
+                    EventId: 4003),
+            ],
             SoundEvents =
             [
                 new SnapshotSoundEvent("ExplosionSnd", 32f, 48f, EventId: 4001, SourceFrame: 20),
+            ],
+            GibSpawnEvents =
+            [
+                new SnapshotGibSpawnEvent(
+                    "Gib",
+                    FrameIndex: 0,
+                    X: 32f,
+                    Y: 48f,
+                    VelocityX: 1f,
+                    VelocityY: -1f,
+                    RotationSpeedDegrees: 0f,
+                    HorizontalFriction: 0.1f,
+                    RotationFriction: 0.1f,
+                    LifetimeTicks: 30,
+                    BloodChance: 0.5f,
+                    EventId: 4004),
+            ],
+            RocketSpawnEvents =
+            [
+                new SnapshotRocketSpawnEvent(77, 1, 10, 32f, 48f, 32f, 48f, DirectionRadians: 0f, Speed: 200f, TicksRemaining: 40, EventId: 4005),
             ],
         };
 
         client.RememberResolvedSnapshotState(snapshot);
 
         Assert.False(client.HasAcknowledgedSoundEvent(4001));
+        Assert.False(client.HasAcknowledgedTransientEvent(4002));
+        Assert.False(client.HasAcknowledgedTransientEvent(4003));
+        Assert.False(client.HasAcknowledgedTransientEvent(4004));
+        Assert.False(client.HasAcknowledgedTransientEvent(4005));
         client.AcknowledgeSnapshot(20);
         Assert.True(client.HasAcknowledgedSoundEvent(4001));
+        Assert.True(client.HasAcknowledgedTransientEvent(4002));
+        Assert.True(client.HasAcknowledgedTransientEvent(4003));
+        Assert.True(client.HasAcknowledgedTransientEvent(4004));
+        Assert.True(client.HasAcknowledgedTransientEvent(4005));
     }
 
     private static SnapshotMessage CreateSnapshot(ulong frame)

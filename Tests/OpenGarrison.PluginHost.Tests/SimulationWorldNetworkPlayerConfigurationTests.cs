@@ -115,18 +115,21 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     }
 
     [Fact]
-    public void TrySetLocalClassWithSameClassKillsAndRespawnsWhenConfiguredTeamChanged()
+    public void RequestedLocalTeamSelectionWithSameClassKillsAndRespawnsAfterDelay()
     {
         var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
         var originalTeam = world.LocalPlayer.Team;
         var oppositeTeam = originalTeam == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
 
-        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, oppositeTeam));
+        Assert.True(world.TryRequestNetworkPlayerTeamSelection(SimulationWorld.LocalPlayerSlot, oppositeTeam));
+        Assert.True(world.LocalPlayer.IsAlive);
+        Assert.Equal(originalTeam, world.LocalPlayer.Team);
 
         var changed = world.TrySetLocalClass(PlayerClass.Soldier);
 
         Assert.True(changed);
         Assert.False(world.LocalPlayer.IsAlive);
+        Assert.True(world.GetNetworkPlayerRespawnTicks(SimulationWorld.LocalPlayerSlot) > 1);
 
         for (var tick = 0; tick < world.Config.TicksPerSecond * 6; tick += 1)
         {
@@ -135,6 +138,59 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
 
         Assert.True(world.LocalPlayer.IsAlive);
         Assert.Equal(oppositeTeam, world.LocalPlayer.Team);
+    }
+
+    [Fact]
+    public void RequestedRemoteTeamSelectionWaitsForClassConfirmationBeforeDelayedRespawn()
+    {
+        var world = new SimulationWorld();
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.TryGetNetworkPlayer(2, out var player));
+        var originalTeam = player.Team;
+        var oppositeTeam = originalTeam == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
+
+        Assert.True(world.TryRequestNetworkPlayerTeamSelection(2, oppositeTeam));
+
+        Assert.True(player.IsAlive);
+        Assert.Equal(originalTeam, player.Team);
+        Assert.Equal(oppositeTeam, world.GetNetworkPlayerConfiguredTeam(2));
+
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+
+        Assert.False(player.IsAlive);
+        Assert.True(world.GetNetworkPlayerRespawnTicks(2) > 1);
+
+        AdvanceUntilRespawn(world, 2);
+
+        Assert.True(player.IsAlive);
+        Assert.Equal(oppositeTeam, player.Team);
+    }
+
+    [Fact]
+    public void RequestedSameTeamSelectionRespawnsAfterClassConfirmation()
+    {
+        var world = new SimulationWorld();
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.TryGetNetworkPlayer(2, out var player));
+        var originalTeam = player.Team;
+
+        Assert.True(world.TryRequestNetworkPlayerTeamSelection(2, originalTeam));
+        Assert.True(player.IsAlive);
+
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+
+        Assert.False(player.IsAlive);
+        Assert.True(world.GetNetworkPlayerRespawnTicks(2) > 1);
+
+        AdvanceUntilRespawn(world, 2);
+
+        Assert.True(player.IsAlive);
+        Assert.Equal(originalTeam, player.Team);
+        Assert.Equal(PlayerClass.Soldier, player.ClassId);
     }
 
     [Fact]
@@ -274,5 +330,13 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         _ = world.DrainPendingSoundEvents();
         Assert.Equal(playerClass, world.LocalPlayer.ClassId);
         return world;
+    }
+
+    private static void AdvanceUntilRespawn(SimulationWorld world, byte slot)
+    {
+        for (var tick = 0; tick < world.Config.TicksPerSecond * 6 && world.GetNetworkPlayerRespawnTicks(slot) > 0; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
     }
 }

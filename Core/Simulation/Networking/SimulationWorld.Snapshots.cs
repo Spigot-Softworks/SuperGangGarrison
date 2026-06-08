@@ -202,6 +202,8 @@ public sealed partial class SimulationWorld
         ApplySnapshotJumpPads(snapshot.JumpPads);
         ApplySnapshotShots(
             snapshot.Shots,
+            snapshot.RemovedShotIds,
+            IsSnapshotEntityCollectionComplete(snapshot, SnapshotEntityCollectionCompletenessFlags.Shots),
             _shots,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
             state =>
@@ -218,18 +220,24 @@ public sealed partial class SimulationWorld
                     entity.SetCritical();
             },
             entity => TryRegisterServerTerminatedProjectilePlayerHitEffect(
-                entity.X, entity.Y, entity.PreviousX, entity.PreviousY, entity.Team, entity.OwnerId));
+                entity.X, entity.Y, entity.PreviousX, entity.PreviousY, entity.Team, entity.OwnerId),
+            static (entity, state) => ShouldApplyLocallySimulatedProjectileState(entity.TicksRemaining, state.TicksRemaining));
         ApplySnapshotShots(
             snapshot.Bubbles,
+            snapshot.RemovedBubbleIds,
+            IsSnapshotEntityCollectionComplete(snapshot, SnapshotEntityCollectionCompletenessFlags.Bubbles),
             _bubbles,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
             state =>
         {
                 return new BubbleProjectileEntity(state.Id, (PlayerTeam)state.Team, state.OwnerId, state.X, state.Y, state.VelocityX, state.VelocityY);
             },
-            static (entity, state) => entity.ApplyNetworkState(state.X, state.Y, state.VelocityX, state.VelocityY, state.TicksRemaining));
+            static (entity, state) => entity.ApplyNetworkState(state.X, state.Y, state.VelocityX, state.VelocityY, state.TicksRemaining),
+            shouldApplyExistingState: static (entity, state) => ShouldApplyLocallySimulatedProjectileState(entity.TicksRemaining, state.TicksRemaining));
         ApplySnapshotShots(
             snapshot.Blades,
+            snapshot.RemovedBladeIds,
+            IsSnapshotEntityCollectionComplete(snapshot, SnapshotEntityCollectionCompletenessFlags.Blades),
             _blades,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
             state =>
@@ -246,9 +254,12 @@ public sealed partial class SimulationWorld
                     entity.SetCritical();
             },
             entity => TryRegisterServerTerminatedProjectilePlayerHitEffect(
-                entity.X, entity.Y, entity.PreviousX, entity.PreviousY, entity.Team, entity.OwnerId, bloodCount: 6));
+                entity.X, entity.Y, entity.PreviousX, entity.PreviousY, entity.Team, entity.OwnerId, bloodCount: 6),
+            static (entity, state) => ShouldApplyLocallySimulatedProjectileState(entity.TicksRemaining, state.TicksRemaining));
         ApplySnapshotShots(
             snapshot.Needles,
+            snapshot.RemovedNeedleIds,
+            IsSnapshotEntityCollectionComplete(snapshot, SnapshotEntityCollectionCompletenessFlags.Needles),
             _needles,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
             state =>
@@ -265,9 +276,12 @@ public sealed partial class SimulationWorld
                     entity.SetCritical();
             },
             entity => TryRegisterServerTerminatedProjectilePlayerHitEffect(
-                entity.X, entity.Y, entity.PreviousX, entity.PreviousY, entity.Team, entity.OwnerId));
+                entity.X, entity.Y, entity.PreviousX, entity.PreviousY, entity.Team, entity.OwnerId),
+            static (entity, state) => ShouldApplyLocallySimulatedProjectileState(entity.TicksRemaining, state.TicksRemaining));
         ApplySnapshotShots(
             snapshot.RevolverShots,
+            snapshot.RemovedRevolverShotIds,
+            IsSnapshotEntityCollectionComplete(snapshot, SnapshotEntityCollectionCompletenessFlags.RevolverShots),
             _revolverShots,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
             state =>
@@ -284,12 +298,21 @@ public sealed partial class SimulationWorld
                     entity.SetCritical();
             },
             entity => TryRegisterServerTerminatedProjectilePlayerHitEffect(
-                entity.X, entity.Y, entity.PreviousX, entity.PreviousY, entity.Team, entity.OwnerId));
-        ApplySnapshotRockets(snapshot.Rockets);
+                entity.X, entity.Y, entity.PreviousX, entity.PreviousY, entity.Team, entity.OwnerId),
+            static (entity, state) => ShouldApplyLocallySimulatedProjectileState(entity.TicksRemaining, state.TicksRemaining));
+        ApplySnapshotRockets(
+            snapshot.Rockets,
+            snapshot.RemovedRocketIds,
+            IsSnapshotEntityCollectionComplete(snapshot, SnapshotEntityCollectionCompletenessFlags.Rockets));
         ApplySnapshotRocketSpawnEvents(snapshot.RocketSpawnEvents);
-        ApplySnapshotFlames(snapshot.Flames);
+        ApplySnapshotFlames(
+            snapshot.Flames,
+            snapshot.RemovedFlameIds,
+            IsSnapshotEntityCollectionComplete(snapshot, SnapshotEntityCollectionCompletenessFlags.Flames));
         ApplySnapshotShots(
             snapshot.Flares,
+            snapshot.RemovedFlareIds,
+            IsSnapshotEntityCollectionComplete(snapshot, SnapshotEntityCollectionCompletenessFlags.Flares),
             _flares,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
             state =>
@@ -304,9 +327,16 @@ public sealed partial class SimulationWorld
                 entity.ApplyNetworkState(state.X, state.Y, state.VelocityX, state.VelocityY, state.TicksRemaining);
                 if (state.IsCritical && !entity.IsCritical)
                     entity.SetCritical();
-            });
-        ApplySnapshotMines(snapshot.Mines);
-        ApplySnapshotGrenades(snapshot.Grenades);
+            },
+            shouldApplyExistingState: static (entity, state) => ShouldApplyLocallySimulatedProjectileState(entity.TicksRemaining, state.TicksRemaining));
+        ApplySnapshotMines(
+            snapshot.Mines,
+            snapshot.RemovedMineIds,
+            IsSnapshotEntityCollectionComplete(snapshot, SnapshotEntityCollectionCompletenessFlags.Mines));
+        ApplySnapshotGrenades(
+            snapshot.Grenades,
+            snapshot.RemovedGrenadeIds,
+            IsSnapshotEntityCollectionComplete(snapshot, SnapshotEntityCollectionCompletenessFlags.Grenades));
         ApplySnapshotGibSpawnEvents(snapshot.GibSpawnEvents);
         // Blood drops are now generated locally on the client - not synced from server
         ApplySnapshotDeadBodies(snapshot.DeadBodies);
@@ -396,11 +426,14 @@ public sealed partial class SimulationWorld
 
     private void ApplySnapshotShots<T>(
         IReadOnlyList<SnapshotShotState> shots,
+        IReadOnlyList<int> removedShotIds,
+        bool collectionIsComplete,
         List<T> target,
         Func<T, SnapshotShotState, bool> canReuse,
         Func<SnapshotShotState, T> factory,
         Action<T, SnapshotShotState> applyState,
-        Action<T>? onServerTerminated = null)
+        Action<T>? onServerTerminated = null,
+        Func<T, SnapshotShotState, bool>? shouldApplyExistingState = null)
         where T : SimulationEntity
     {
         var filteredShots = FilterTerminatedProjectiles(shots, static state => state.Id);
@@ -438,6 +471,8 @@ public sealed partial class SimulationWorld
 
         SyncSnapshotEntities(
             filteredShots,
+            removedShotIds,
+            collectionIsComplete,
             target,
             static state => state.Id,
             canReuse,
@@ -445,17 +480,139 @@ public sealed partial class SimulationWorld
             applyState,
             (entity, state, isNewEntity) =>
             {
-                if (isNewEntity && LocalPlayer is not null)
+                if (isNewEntity && ShouldTrackSnapshotProjectileForClientPrediction(state.OwnerId))
                 {
-                    // Track new projectiles for client-side prediction
                     _clientPredictedProjectileIds.Add(state.Id);
                 }
-                // Only apply spawn state - client simulates projectile movement
-                if (isNewEntity)
+
+                if (!isNewEntity
+                    && shouldApplyExistingState is not null
+                    && !shouldApplyExistingState(entity, state))
                 {
-                    applyState(entity, state);
+                    return;
                 }
+
+                applyState(entity, state);
             });
+    }
+
+    private static bool ShouldApplyLocallySimulatedProjectileState(int localTicksRemaining, int snapshotTicksRemaining)
+    {
+        return snapshotTicksRemaining <= localTicksRemaining;
+    }
+
+    private static void ApplyRocketSnapshotState(RocketProjectileEntity entity, SnapshotRocketState state)
+    {
+        entity.ApplyNetworkState(
+            state.X,
+            state.Y,
+            state.PreviousX,
+            state.PreviousY,
+            state.DirectionRadians,
+            state.Speed,
+            state.TicksRemaining,
+            state.ReducedKnockbackSourceTicksRemaining,
+            state.ZeroKnockbackSourceTicksRemaining,
+            state.RangeAnchorOwnerId,
+            state.LastKnownRangeOriginX,
+            state.LastKnownRangeOriginY,
+            state.DistanceToTravel,
+            state.IsFading,
+            state.FadeSourceTicksRemaining,
+            state.PassedFriendlyPlayerIds);
+        if (state.IsCritical && !entity.IsCritical)
+        {
+            entity.SetCritical();
+        }
+    }
+
+    private static void ApplyFlameSnapshotState(FlameProjectileEntity entity, SnapshotFlameState state)
+    {
+        entity.ApplyNetworkState(
+            state.X,
+            state.Y,
+            state.PreviousX,
+            state.PreviousY,
+            state.VelocityX,
+            state.VelocityY,
+            state.TicksRemaining,
+            state.AttachedPlayerId < 0 ? null : state.AttachedPlayerId,
+            state.AttachedOffsetX,
+            state.AttachedOffsetY);
+        if (state.IsCritical && !entity.IsCritical)
+        {
+            entity.SetCritical();
+        }
+    }
+
+    private static void ApplyMineSnapshotState(MineProjectileEntity entity, SnapshotMineState state)
+    {
+        entity.ApplyNetworkState(
+            state.X,
+            state.Y,
+            state.VelocityX,
+            state.VelocityY,
+            state.IsStickied,
+            state.IsDestroyed,
+            state.ExplosionDamage);
+        if (state.IsCritical && !entity.IsCritical)
+        {
+            entity.SetCritical();
+        }
+    }
+
+    private static void ApplyGrenadeSnapshotState(GrenadeProjectileEntity entity, SnapshotGrenadeState state)
+    {
+        entity.ApplyNetworkState(
+            state.X,
+            state.Y,
+            state.PreviousX,
+            state.PreviousY,
+            state.VelocityX,
+            state.VelocityY,
+            isDestroyed: false,
+            GrenadeProjectileEntity.BaseExplosionDamage,
+            state.FuseTicksLeft);
+        if (state.IsCritical && !entity.IsCritical)
+        {
+            entity.SetCritical();
+        }
+    }
+
+    private static bool ShouldApplyExistingRocketState(RocketProjectileEntity entity, SnapshotRocketState state)
+    {
+        if (ShouldApplyLocallySimulatedProjectileState(entity.TicksRemaining, state.TicksRemaining))
+        {
+            return true;
+        }
+
+        return (state.IsCritical && !entity.IsCritical)
+            || (!entity.IsFading && state.IsFading);
+    }
+
+    private static bool ShouldApplyExistingFlameState(FlameProjectileEntity entity, SnapshotFlameState state)
+    {
+        var attachedPlayerId = state.AttachedPlayerId < 0 ? (int?)null : state.AttachedPlayerId;
+        if (ShouldApplyLocallySimulatedProjectileState(entity.TicksRemaining, state.TicksRemaining))
+        {
+            return true;
+        }
+
+        return (state.IsCritical && !entity.IsCritical)
+            || (attachedPlayerId.HasValue && entity.AttachedPlayerId != attachedPlayerId);
+    }
+
+    private static bool ShouldApplyExistingMineState(MineProjectileEntity entity, SnapshotMineState state)
+    {
+        return (!entity.IsStickied && state.IsStickied)
+            || (!entity.IsDestroyed && state.IsDestroyed)
+            || state.IsCritical && !entity.IsCritical;
+    }
+
+    private static bool ShouldApplyExistingGrenadeState(GrenadeProjectileEntity entity, SnapshotGrenadeState state)
+    {
+        return ShouldApplyLocallySimulatedProjectileState(entity.FuseTicksLeft, state.FuseTicksLeft)
+            || state.IsCritical && !entity.IsCritical;
     }
 
     /// <summary>
@@ -562,10 +719,15 @@ public sealed partial class SimulationWorld
         return filtered ?? states;
     }
 
-    private void ApplySnapshotRockets(IReadOnlyList<SnapshotRocketState> rockets)
+    private void ApplySnapshotRockets(
+        IReadOnlyList<SnapshotRocketState> rockets,
+        IReadOnlyList<int> removedRocketIds,
+        bool collectionIsComplete)
     {
         SyncSnapshotEntities(
             FilterTerminatedProjectiles(rockets, static state => state.Id),
+            removedRocketIds,
+            collectionIsComplete,
             _rockets,
             static state => state.Id,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
@@ -592,51 +754,20 @@ public sealed partial class SimulationWorld
                     rocket.SetCritical();
                 return rocket;
             },
-            static (entity, state) => entity.ApplyNetworkState(
-                state.X,
-                state.Y,
-                state.PreviousX,
-                state.PreviousY,
-                state.DirectionRadians,
-                state.Speed,
-                state.TicksRemaining,
-                state.ReducedKnockbackSourceTicksRemaining,
-                state.ZeroKnockbackSourceTicksRemaining,
-                state.RangeAnchorOwnerId,
-                state.LastKnownRangeOriginX,
-                state.LastKnownRangeOriginY,
-                state.DistanceToTravel,
-                state.IsFading,
-                state.FadeSourceTicksRemaining,
-                state.PassedFriendlyPlayerIds),
+            static (entity, state) => ApplyRocketSnapshotState(entity, state),
             (entity, state, isNewEntity) =>
             {
-                if (isNewEntity && LocalPlayer is not null)
+                if (isNewEntity && ShouldTrackSnapshotProjectileForClientPrediction(state.OwnerId))
                 {
-                    // Track new projectiles for client-side prediction
                     _clientPredictedProjectileIds.Add(state.Id);
                 }
-                // Only apply spawn state - client simulates projectile movement
-                if (isNewEntity)
+
+                if (!isNewEntity && !ShouldApplyExistingRocketState(entity, state))
                 {
-                    entity.ApplyNetworkState(
-                        state.X,
-                        state.Y,
-                        state.PreviousX,
-                        state.PreviousY,
-                        state.DirectionRadians,
-                        state.Speed,
-                        state.TicksRemaining,
-                        state.ReducedKnockbackSourceTicksRemaining,
-                        state.ZeroKnockbackSourceTicksRemaining,
-                        state.RangeAnchorOwnerId,
-                        state.LastKnownRangeOriginX,
-                        state.LastKnownRangeOriginY,
-                        state.DistanceToTravel,
-                        state.IsFading,
-                        state.FadeSourceTicksRemaining,
-                        state.PassedFriendlyPlayerIds);
+                    return;
                 }
+
+                ApplyRocketSnapshotState(entity, state);
             });
     }
 
@@ -706,7 +837,7 @@ public sealed partial class SimulationWorld
                 e.DistanceToTravel,
                 e.IsFading,
                 e.FadeSourceTicksRemaining,
-                Array.Empty<int>());
+                e.PassedFriendlyPlayerIds ?? Array.Empty<int>());
             if (e.ExplodeImmediately)
             {
                 rocket.DelayExplosionUntilNextTick(RocketProjectileEntity.DelayedExplosionReasonSpawnBlocked);
@@ -714,14 +845,22 @@ public sealed partial class SimulationWorld
 
             _rockets.Add(rocket);
             _entities.Add(rocket.Id, rocket);
-            _clientPredictedProjectileIds.Add(rocket.Id);
+            if (ShouldTrackSnapshotProjectileForClientPrediction(e.OwnerId))
+            {
+                _clientPredictedProjectileIds.Add(rocket.Id);
+            }
         }
     }
 
-    private void ApplySnapshotFlames(IReadOnlyList<SnapshotFlameState> flames)
+    private void ApplySnapshotFlames(
+        IReadOnlyList<SnapshotFlameState> flames,
+        IReadOnlyList<int> removedFlameIds,
+        bool collectionIsComplete)
     {
         SyncSnapshotEntities(
             FilterTerminatedProjectiles(flames, static state => state.Id),
+            removedFlameIds,
+            collectionIsComplete,
             _flames,
             static state => state.Id,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
@@ -739,44 +878,20 @@ public sealed partial class SimulationWorld
                     flame.SetCritical();
                 return flame;
             },
-            static (entity, state) =>
-            {
-                entity.ApplyNetworkState(
-                    state.X,
-                    state.Y,
-                    state.PreviousX,
-                    state.PreviousY,
-                    state.VelocityX,
-                    state.VelocityY,
-                    state.TicksRemaining,
-                    state.AttachedPlayerId < 0 ? null : state.AttachedPlayerId,
-                    state.AttachedOffsetX,
-                    state.AttachedOffsetY);
-                if (state.IsCritical && !entity.IsCritical)
-                    entity.SetCritical();
-            },
+            static (entity, state) => ApplyFlameSnapshotState(entity, state),
             (entity, state, isNewEntity) =>
             {
-                if (isNewEntity && LocalPlayer is not null)
+                if (isNewEntity && ShouldTrackSnapshotProjectileForClientPrediction(state.OwnerId))
                 {
-                    // Track new projectiles for client-side prediction
                     _clientPredictedProjectileIds.Add(state.Id);
                 }
-                // Only apply spawn state - client simulates projectile movement
-                if (isNewEntity)
+
+                if (!isNewEntity && !ShouldApplyExistingFlameState(entity, state))
                 {
-                    entity.ApplyNetworkState(
-                        state.X,
-                        state.Y,
-                        state.PreviousX,
-                        state.PreviousY,
-                        state.VelocityX,
-                        state.VelocityY,
-                        state.TicksRemaining,
-                        state.AttachedPlayerId < 0 ? null : state.AttachedPlayerId,
-                        state.AttachedOffsetX,
-                        state.AttachedOffsetY);
+                    return;
                 }
+
+                ApplyFlameSnapshotState(entity, state);
             });
     }
 
@@ -818,10 +933,15 @@ public sealed partial class SimulationWorld
             });
     }
 
-    private void ApplySnapshotMines(IReadOnlyList<SnapshotMineState> mines)
+    private void ApplySnapshotMines(
+        IReadOnlyList<SnapshotMineState> mines,
+        IReadOnlyList<int> removedMineIds,
+        bool collectionIsComplete)
     {
         SyncSnapshotEntities(
             FilterTerminatedProjectiles(mines, static state => state.Id),
+            removedMineIds,
+            collectionIsComplete,
             _mines,
             static state => state.Id,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
@@ -839,40 +959,32 @@ public sealed partial class SimulationWorld
                     mine.SetCritical();
                 return mine;
             },
-            static (entity, state) => entity.ApplyNetworkState(
-                state.X,
-                state.Y,
-                state.VelocityX,
-                state.VelocityY,
-                state.IsStickied,
-                state.IsDestroyed,
-                state.ExplosionDamage),
+            static (entity, state) => ApplyMineSnapshotState(entity, state),
             (entity, state, isNewEntity) =>
             {
-                if (isNewEntity && LocalPlayer is not null)
+                if (isNewEntity && ShouldTrackSnapshotProjectileForClientPrediction(state.OwnerId))
                 {
-                    // Track new projectiles for client-side prediction
                     _clientPredictedProjectileIds.Add(state.Id);
                 }
-                // Only apply spawn state - client simulates projectile movement
-                if (isNewEntity)
+
+                if (!isNewEntity && !ShouldApplyExistingMineState(entity, state))
                 {
-                    entity.ApplyNetworkState(
-                        state.X,
-                        state.Y,
-                        state.VelocityX,
-                        state.VelocityY,
-                        state.IsStickied,
-                        state.IsDestroyed,
-                        state.ExplosionDamage);
+                    return;
                 }
+
+                ApplyMineSnapshotState(entity, state);
             });
     }
 
-    private void ApplySnapshotGrenades(IReadOnlyList<SnapshotGrenadeState> grenades)
+    private void ApplySnapshotGrenades(
+        IReadOnlyList<SnapshotGrenadeState> grenades,
+        IReadOnlyList<int> removedGrenadeIds,
+        bool collectionIsComplete)
     {
         SyncSnapshotEntities(
             FilterTerminatedProjectiles(grenades, static state => state.Id),
+            removedGrenadeIds,
+            collectionIsComplete,
             _grenades,
             static state => state.Id,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
@@ -890,37 +1002,20 @@ public sealed partial class SimulationWorld
                     grenade.SetCritical();
                 return grenade;
             },
-            static (entity, state) => entity.ApplyNetworkState(
-                state.X,
-                state.Y,
-                state.PreviousX,
-                state.PreviousY,
-                state.VelocityX,
-                state.VelocityY,
-                isDestroyed: false,
-                GrenadeProjectileEntity.BaseExplosionDamage,
-                state.FuseTicksLeft),
+            static (entity, state) => ApplyGrenadeSnapshotState(entity, state),
             (entity, state, isNewEntity) =>
             {
-                if (isNewEntity && LocalPlayer is not null)
+                if (isNewEntity && ShouldTrackSnapshotProjectileForClientPrediction(state.OwnerId))
                 {
-                    // Track new projectiles for client-side prediction
                     _clientPredictedProjectileIds.Add(state.Id);
                 }
-                // Only apply spawn state - client simulates grenade physics locally
-                if (isNewEntity)
+
+                if (!isNewEntity && !ShouldApplyExistingGrenadeState(entity, state))
                 {
-                    entity.ApplyNetworkState(
-                        state.X,
-                        state.Y,
-                        state.PreviousX,
-                        state.PreviousY,
-                        state.VelocityX,
-                        state.VelocityY,
-                        isDestroyed: false,
-                        GrenadeProjectileEntity.BaseExplosionDamage,
-                        state.FuseTicksLeft);
+                    return;
                 }
+
+                ApplyGrenadeSnapshotState(entity, state);
             });
     }
 
@@ -1200,7 +1295,7 @@ public sealed partial class SimulationWorld
         return true;
     }
 
-    public bool TryPresentNetworkGibDeath(int playerId, int gibDeaths)
+    public bool TryPresentNetworkGibDeath(int playerId, int gibDeaths, float? spawnX = null, float? spawnY = null)
     {
         var player = FindNetworkPresentationPlayerById(playerId);
         if (player is null)
@@ -1213,8 +1308,15 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        SpawnClientPlayerGibsFromNetworkDeath(player);
+        SpawnClientPlayerGibsFromNetworkDeath(player, spawnX, spawnY);
         return true;
+    }
+
+    private static bool IsSnapshotEntityCollectionComplete(
+        SnapshotMessage snapshot,
+        SnapshotEntityCollectionCompletenessFlags flag)
+    {
+        return (snapshot.EntityCollectionCompletenessFlags & flag) != 0;
     }
 
     private PlayerEntity? FindNetworkPresentationPlayerById(int playerId)
@@ -1244,11 +1346,44 @@ public sealed partial class SimulationWorld
         Action<TEntity, TState> applyState)
         where TEntity : SimulationEntity
     {
-        SyncSnapshotEntities(snapshotStates, target, idSelector, canReuse, factory, applyState, (entity, state, isNew) => applyState(entity, state));
+        SyncSnapshotEntities(
+            snapshotStates,
+            Array.Empty<int>(),
+            collectionIsComplete: true,
+            target,
+            idSelector,
+            canReuse,
+            factory,
+            applyState,
+            (entity, state, isNew) => applyState(entity, state));
     }
 
     private void SyncSnapshotEntities<TState, TEntity>(
         IReadOnlyList<TState> snapshotStates,
+        List<TEntity> target,
+        Func<TState, int> idSelector,
+        Func<TEntity, TState, bool> canReuse,
+        Func<TState, TEntity> factory,
+        Action<TEntity, TState> applyState,
+        Action<TEntity, TState, bool> applyStateForNewEntity)
+        where TEntity : SimulationEntity
+    {
+        SyncSnapshotEntities(
+            snapshotStates,
+            Array.Empty<int>(),
+            collectionIsComplete: true,
+            target,
+            idSelector,
+            canReuse,
+            factory,
+            applyState,
+            applyStateForNewEntity);
+    }
+
+    private void SyncSnapshotEntities<TState, TEntity>(
+        IReadOnlyList<TState> snapshotStates,
+        IReadOnlyList<int> removedEntityIds,
+        bool collectionIsComplete,
         List<TEntity> target,
         Func<TState, int> idSelector,
         Func<TEntity, TState, bool> canReuse,
@@ -1264,16 +1399,30 @@ public sealed partial class SimulationWorld
         }
 
         _snapshotStaleEntityIds.Clear();
+        List<TEntity>? retainedEntities = null;
         for (var index = 0; index < target.Count; index += 1)
         {
             var entityId = target[index].Id;
-            if (!_snapshotSeenEntityIds.Contains(entityId))
+            var explicitlyRemoved = ContainsEntityId(removedEntityIds, entityId);
+            if (explicitlyRemoved || (collectionIsComplete && !_snapshotSeenEntityIds.Contains(entityId)))
             {
                 _snapshotStaleEntityIds.Add(entityId);
+                continue;
+            }
+
+            if (!_snapshotSeenEntityIds.Contains(entityId))
+            {
+                retainedEntities ??= new List<TEntity>();
+                retainedEntities.Add(target[index]);
             }
         }
 
         target.Clear();
+        if (retainedEntities is not null)
+        {
+            target.AddRange(retainedEntities);
+        }
+
         for (var index = 0; index < snapshotStates.Count; index += 1)
         {
             var state = snapshotStates[index];
@@ -1318,9 +1467,22 @@ public sealed partial class SimulationWorld
             _entities.Remove(staleId);
             if (_clientPredictedProjectileIds.Remove(staleId))
             {
-                SuppressProjectileRespawn(staleId);
+                SuppressProjectileRespawn(staleId, NetworkProjectileRemovalSuppressionTicks);
             }
         }
+    }
+
+    private static bool ContainsEntityId(IReadOnlyList<int> ids, int entityId)
+    {
+        for (var index = 0; index < ids.Count; index += 1)
+        {
+            if (ids[index] == entityId)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private bool IsProjectileRespawnSuppressed(int projectileId)

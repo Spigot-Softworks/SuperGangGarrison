@@ -40,6 +40,7 @@ public partial class Game1
     private int _networkDiagnosticReceiveMaxBatchPackets;
     private int _networkDiagnosticReceiveMaxBatchMessages;
     private int _networkDiagnosticReceiveMaxPayloadBytes;
+    private int _networkDiagnosticReceiveMaxSnapshotPayloadBytes;
     private int _networkDiagnosticReceiveMaxPendingInboundMessages;
     private double _networkDiagnosticReceiveDeserializeTotalMilliseconds;
     private double _networkDiagnosticReceiveDeserializeMaxMilliseconds;
@@ -48,6 +49,12 @@ public partial class Game1
     private int _networkDiagnosticProcessedDeltaSnapshots;
     private int _networkDiagnosticProcessedFullSnapshots;
     private int _networkDiagnosticAppliedSnapshots;
+    private int _networkDiagnosticQueuedSnapshots;
+    private int _networkDiagnosticQueueDroppedSnapshots;
+    private int _networkDiagnosticMaxAuthoritativeQueueDepth;
+    private ulong _networkDiagnosticMaxSnapshotFrameBacklog;
+    private ulong _networkDiagnosticMaxAppliedSnapshotFrameGap;
+    private ulong _networkDiagnosticMaxSnapshotAckAheadFrames;
     private int _networkDiagnosticStaleSnapshots;
     private int _networkDiagnosticMissingBaselineSnapshots;
     private int _networkDiagnosticRejectedSnapshots;
@@ -61,6 +68,18 @@ public partial class Game1
     private double _networkDiagnosticReconcileMaxMilliseconds;
     private double _networkDiagnosticInterpolationTotalMilliseconds;
     private double _networkDiagnosticInterpolationMaxMilliseconds;
+    private int _networkDiagnosticRemotePlayerInterpolationUnderruns;
+    private int _networkDiagnosticRemotePlayerInterpolationCapHits;
+    private double _networkDiagnosticRemotePlayerInterpolationUnderrunTotalMilliseconds;
+    private double _networkDiagnosticRemotePlayerInterpolationUnderrunMaxMilliseconds;
+    private int _networkDiagnosticEntityInterpolationUnderruns;
+    private int _networkDiagnosticEntityInterpolationCapHits;
+    private double _networkDiagnosticEntityInterpolationUnderrunTotalMilliseconds;
+    private double _networkDiagnosticEntityInterpolationUnderrunMaxMilliseconds;
+    private int _networkDiagnosticProjectileInterpolationUnderruns;
+    private int _networkDiagnosticProjectileInterpolationCapHits;
+    private double _networkDiagnosticProjectileInterpolationUnderrunTotalMilliseconds;
+    private double _networkDiagnosticProjectileInterpolationUnderrunMaxMilliseconds;
     private double _networkDiagnosticPredictionErrorTotalPixels;
     private double _networkDiagnosticPredictionErrorMaxPixels;
     private int _networkDiagnosticPredictionErrorSamples;
@@ -134,6 +153,7 @@ public partial class Game1
         _networkDiagnosticReceiveMaxBatchPackets = Math.Max(_networkDiagnosticReceiveMaxBatchPackets, diagnostics.PacketsRead);
         _networkDiagnosticReceiveMaxBatchMessages = Math.Max(_networkDiagnosticReceiveMaxBatchMessages, diagnostics.ReleasedMessages);
         _networkDiagnosticReceiveMaxPayloadBytes = Math.Max(_networkDiagnosticReceiveMaxPayloadBytes, diagnostics.MaxPayloadBytes);
+        _networkDiagnosticReceiveMaxSnapshotPayloadBytes = Math.Max(_networkDiagnosticReceiveMaxSnapshotPayloadBytes, diagnostics.SnapshotMaxPayloadBytes);
         _networkDiagnosticReceiveMaxPendingInboundMessages = Math.Max(_networkDiagnosticReceiveMaxPendingInboundMessages, diagnostics.PendingInboundMessages);
         _networkDiagnosticReceiveDeserializeTotalMilliseconds += diagnostics.DeserializeMilliseconds;
         _networkDiagnosticReceiveDeserializeMaxMilliseconds = Math.Max(
@@ -150,9 +170,9 @@ public partial class Game1
         _networkDiagnosticPreviousSendTotals = totalSendDiagnostics;
 
         // Track latest snapshot size from payload
-        if (diagnostics.SnapshotMessages > 0 && diagnostics.MaxPayloadBytes > 0)
+        if (diagnostics.SnapshotMessages > 0 && diagnostics.SnapshotMaxPayloadBytes > 0)
         {
-            _networkDiagnosticLatestSnapshotBytes = diagnostics.MaxPayloadBytes;
+            _networkDiagnosticLatestSnapshotBytes = diagnostics.SnapshotMaxPayloadBytes;
         }
     }
 
@@ -203,11 +223,52 @@ public partial class Game1
         }
     }
 
-    private void RecordAppliedSnapshot()
+    private void RecordQueuedAuthoritativeSnapshot(int queueDepth, ulong frameBacklog)
+    {
+        if (!_networkDiagnosticsEnabled)
+        {
+            return;
+        }
+
+        _networkDiagnosticQueuedSnapshots += 1;
+        _networkDiagnosticMaxAuthoritativeQueueDepth = Math.Max(_networkDiagnosticMaxAuthoritativeQueueDepth, queueDepth);
+        _networkDiagnosticMaxSnapshotFrameBacklog = Math.Max(_networkDiagnosticMaxSnapshotFrameBacklog, frameBacklog);
+    }
+
+    private void RecordDroppedQueuedAuthoritativeSnapshot()
+    {
+        if (_networkDiagnosticsEnabled)
+        {
+            _networkDiagnosticQueueDroppedSnapshots += 1;
+        }
+    }
+
+    private void RecordSnapshotAckAhead(ulong acknowledgedFrame, ulong lastAppliedFrame, int queueDepth)
+    {
+        if (!_networkDiagnosticsEnabled)
+        {
+            return;
+        }
+
+        var ackAheadFrames = acknowledgedFrame > lastAppliedFrame
+            ? acknowledgedFrame - lastAppliedFrame
+            : 0UL;
+        _networkDiagnosticMaxSnapshotAckAheadFrames = Math.Max(_networkDiagnosticMaxSnapshotAckAheadFrames, ackAheadFrames);
+        _networkDiagnosticMaxAuthoritativeQueueDepth = Math.Max(_networkDiagnosticMaxAuthoritativeQueueDepth, queueDepth);
+    }
+
+    private void RecordAppliedSnapshot(ulong appliedFrame, ulong previousAppliedFrame, int remainingQueueDepth)
     {
         if (_networkDiagnosticsEnabled)
         {
             _networkDiagnosticAppliedSnapshots += 1;
+            _networkDiagnosticMaxAuthoritativeQueueDepth = Math.Max(_networkDiagnosticMaxAuthoritativeQueueDepth, remainingQueueDepth);
+            if (previousAppliedFrame > 0 && appliedFrame > previousAppliedFrame)
+            {
+                _networkDiagnosticMaxAppliedSnapshotFrameGap = Math.Max(
+                    _networkDiagnosticMaxAppliedSnapshotFrameGap,
+                    appliedFrame - previousAppliedFrame);
+            }
         }
     }
 
@@ -285,6 +346,60 @@ public partial class Game1
 
         _networkDiagnosticInterpolationTotalMilliseconds += elapsedMilliseconds;
         _networkDiagnosticInterpolationMaxMilliseconds = Math.Max(_networkDiagnosticInterpolationMaxMilliseconds, elapsedMilliseconds);
+    }
+
+    private void RecordRemotePlayerInterpolationUnderrun(double requestedSeconds, bool capped)
+    {
+        if (!_networkDiagnosticsEnabled || requestedSeconds <= 0d)
+        {
+            return;
+        }
+
+        var requestedMilliseconds = requestedSeconds * 1000d;
+        _networkDiagnosticRemotePlayerInterpolationUnderruns += 1;
+        _networkDiagnosticRemotePlayerInterpolationUnderrunTotalMilliseconds += requestedMilliseconds;
+        _networkDiagnosticRemotePlayerInterpolationUnderrunMaxMilliseconds = Math.Max(
+            _networkDiagnosticRemotePlayerInterpolationUnderrunMaxMilliseconds,
+            requestedMilliseconds);
+        if (capped)
+        {
+            _networkDiagnosticRemotePlayerInterpolationCapHits += 1;
+        }
+    }
+
+    private void RecordEntityInterpolationUnderrun(int entityId, double requestedSeconds, bool capped)
+    {
+        if (!_networkDiagnosticsEnabled || entityId < 0 || requestedSeconds <= 0d)
+        {
+            return;
+        }
+
+        var requestedMilliseconds = requestedSeconds * 1000d;
+        var isProjectile = IsLocallyAdvancedProjectileEntity(entityId);
+        if (isProjectile)
+        {
+            _networkDiagnosticProjectileInterpolationUnderruns += 1;
+            _networkDiagnosticProjectileInterpolationUnderrunTotalMilliseconds += requestedMilliseconds;
+            _networkDiagnosticProjectileInterpolationUnderrunMaxMilliseconds = Math.Max(
+                _networkDiagnosticProjectileInterpolationUnderrunMaxMilliseconds,
+                requestedMilliseconds);
+            if (capped)
+            {
+                _networkDiagnosticProjectileInterpolationCapHits += 1;
+            }
+        }
+        else
+        {
+            _networkDiagnosticEntityInterpolationUnderruns += 1;
+            _networkDiagnosticEntityInterpolationUnderrunTotalMilliseconds += requestedMilliseconds;
+            _networkDiagnosticEntityInterpolationUnderrunMaxMilliseconds = Math.Max(
+                _networkDiagnosticEntityInterpolationUnderrunMaxMilliseconds,
+                requestedMilliseconds);
+            if (capped)
+            {
+                _networkDiagnosticEntityInterpolationCapHits += 1;
+            }
+        }
     }
 
     private void EnableNetworkDiagnostics()
@@ -497,6 +612,15 @@ public partial class Game1
         var averageInterpolationMilliseconds = _networkDiagnosticSummaryFrames == 0
             ? 0d
             : _networkDiagnosticInterpolationTotalMilliseconds / _networkDiagnosticSummaryFrames;
+        var averageRemotePlayerInterpolationUnderrunMilliseconds = _networkDiagnosticRemotePlayerInterpolationUnderruns == 0
+            ? 0d
+            : _networkDiagnosticRemotePlayerInterpolationUnderrunTotalMilliseconds / _networkDiagnosticRemotePlayerInterpolationUnderruns;
+        var averageEntityInterpolationUnderrunMilliseconds = _networkDiagnosticEntityInterpolationUnderruns == 0
+            ? 0d
+            : _networkDiagnosticEntityInterpolationUnderrunTotalMilliseconds / _networkDiagnosticEntityInterpolationUnderruns;
+        var averageProjectileInterpolationUnderrunMilliseconds = _networkDiagnosticProjectileInterpolationUnderruns == 0
+            ? 0d
+            : _networkDiagnosticProjectileInterpolationUnderrunTotalMilliseconds / _networkDiagnosticProjectileInterpolationUnderruns;
         var averagePredictionErrorPixels = _networkDiagnosticPredictionErrorSamples == 0
             ? 0d
             : _networkDiagnosticPredictionErrorTotalPixels / _networkDiagnosticPredictionErrorSamples;
@@ -509,7 +633,7 @@ public partial class Game1
 
         _networkDiagnosticOverlayLines.Clear();
         _networkDiagnosticOverlayLines.Add(
-            $"NET DIAG conn={(_networkClient.IsConnected ? "yes" : "no")} slot={_networkClient.LocalPlayerSlot} sim={_networkClient.SimulatedLatencyMilliseconds}ms pendingIn={_networkClient.LastReceiveDiagnostics.PendingInboundMessages}");
+            $"NET DIAG conn={(_networkClient.IsConnected ? "yes" : "no")} slot={_networkClient.LocalPlayerSlot} sim={_networkClient.SimulatedLatencyMilliseconds}ms ping={_networkClient.EstimatedPingMilliseconds}ms transport={_networkClient.ProtocolPingMilliseconds}ms inputAck={_networkClient.InputAckLatencyMilliseconds}ms pendingIn={_networkClient.LastReceiveDiagnostics.PendingInboundMessages}");
         _networkDiagnosticOverlayLines.Add(
             string.Create(CultureInfo.InvariantCulture, $"upd {fps:F1}fps dt {averageUpdateMilliseconds:F1}/{_networkDiagnosticUpdateElapsedMaxMilliseconds:F1}ms hitch33 {_networkDiagnosticUpdateHitches33} hitch50 {_networkDiagnosticUpdateHitches50}"));
         _networkDiagnosticOverlayLines.Add(
@@ -517,11 +641,15 @@ public partial class Game1
         _networkDiagnosticOverlayLines.Add(
             string.Create(CultureInfo.InvariantCulture, $"send pkts {_networkDiagnosticSentPackets / intervalSeconds:F1}/s bytes {_networkDiagnosticSentBytes / 1024d / intervalSeconds:F1}KB/s hello {_networkDiagnosticSentHelloMessages} input {_networkDiagnosticSentInputMessages} ctrl {_networkDiagnosticSentControlMessages} ack {_networkDiagnosticSentSnapshotAckMessages}"));
         _networkDiagnosticOverlayLines.Add(
-            string.Create(CultureInfo.InvariantCulture, $"recv payload {_networkDiagnosticReceiveMaxPayloadBytes}B decode {averageReceiveDeserializeMilliseconds:F3}/{_networkDiagnosticReceiveDeserializeMaxMilliseconds:F3}ms"));
+            string.Create(CultureInfo.InvariantCulture, $"recv payload {_networkDiagnosticReceiveMaxPayloadBytes}B snap {_networkDiagnosticReceiveMaxSnapshotPayloadBytes}B decode {averageReceiveDeserializeMilliseconds:F3}/{_networkDiagnosticReceiveDeserializeMaxMilliseconds:F3}ms"));
         _networkDiagnosticOverlayLines.Add(
             string.Create(CultureInfo.InvariantCulture, $"snap proc {_networkDiagnosticProcessedSnapshots} appl {_networkDiagnosticAppliedSnapshots} frameBurst {_networkDiagnosticMaxSnapshotsPerFrame} stale {_networkDiagnosticStaleSnapshots} missBase {_networkDiagnosticMissingBaselineSnapshots} rej {_networkDiagnosticRejectedSnapshots} delta/full {_networkDiagnosticProcessedDeltaSnapshots}/{_networkDiagnosticProcessedFullSnapshots}"));
         _networkDiagnosticOverlayLines.Add(
+            string.Create(CultureInfo.InvariantCulture, $"snap queue enq {_networkDiagnosticQueuedSnapshots} drop {_networkDiagnosticQueueDroppedSnapshots} maxDepth {_networkDiagnosticMaxAuthoritativeQueueDepth} backlog {_networkDiagnosticMaxSnapshotFrameBacklog} applyGap {_networkDiagnosticMaxAppliedSnapshotFrameGap} ackAhead {_networkDiagnosticMaxSnapshotAckAheadFrames}"));
+        _networkDiagnosticOverlayLines.Add(
             string.Create(CultureInfo.InvariantCulture, $"cost net {averageProcessNetworkMessagesMilliseconds:F3}/{_networkDiagnosticProcessMessagesMaxMilliseconds:F3}ms apply {averageApplySnapshotMilliseconds:F3}/{_networkDiagnosticApplySnapshotMaxMilliseconds:F3}ms interp {averageInterpolationMilliseconds:F3}/{_networkDiagnosticInterpolationMaxMilliseconds:F3}ms recon {averageReconcileMilliseconds:F3}/{_networkDiagnosticReconcileMaxMilliseconds:F3}ms"));
+        _networkDiagnosticOverlayLines.Add(
+            string.Create(CultureInfo.InvariantCulture, $"interp underrun remote {_networkDiagnosticRemotePlayerInterpolationUnderruns} {averageRemotePlayerInterpolationUnderrunMilliseconds:F1}/{_networkDiagnosticRemotePlayerInterpolationUnderrunMaxMilliseconds:F1}ms ent {_networkDiagnosticEntityInterpolationUnderruns} {averageEntityInterpolationUnderrunMilliseconds:F1}/{_networkDiagnosticEntityInterpolationUnderrunMaxMilliseconds:F1}ms proj {_networkDiagnosticProjectileInterpolationUnderruns} {averageProjectileInterpolationUnderrunMilliseconds:F1}/{_networkDiagnosticProjectileInterpolationUnderrunMaxMilliseconds:F1}ms cap {_networkDiagnosticRemotePlayerInterpolationCapHits}/{_networkDiagnosticEntityInterpolationCapHits}/{_networkDiagnosticProjectileInterpolationCapHits}"));
         _networkDiagnosticOverlayLines.Add(
             string.Create(CultureInfo.InvariantCulture, $"pred err {averagePredictionErrorPixels:F2}px max {_networkDiagnosticPredictionErrorMaxPixels:F2}px last {_networkDiagnosticLatestPredictionErrorPixels:F2}px"));
         _networkDiagnosticOverlayLines.Add(
@@ -535,7 +663,7 @@ public partial class Game1
 
         _networkDiagnosticLastConsoleSummary = string.Create(
             CultureInfo.InvariantCulture,
-            $"netdiag ping={_networkClient.EstimatedPingMilliseconds}ms queued={_queuedAuthoritativeSnapshots.Count} pendingIn={_networkClient.LastReceiveDiagnostics.PendingInboundMessages} fps={fps:F1} hitch33={_networkDiagnosticUpdateHitches33} recv={_networkDiagnosticReceivePackets / intervalSeconds:F1}/s recvKB={receiveKilobytesPerSecond:F1}/s send={_networkDiagnosticSentPackets / intervalSeconds:F1}/s snaps={_networkDiagnosticAppliedSnapshots / intervalSeconds:F1}/s payload={_networkDiagnosticReceiveMaxPayloadBytes}B burst={_networkDiagnosticMaxSnapshotsPerFrame} stale={_networkDiagnosticStaleSnapshots} missBase={_networkDiagnosticMissingBaselineSnapshots} rej={_networkDiagnosticRejectedSnapshots} delta/full={_networkDiagnosticProcessedDeltaSnapshots}/{_networkDiagnosticProcessedFullSnapshots} decode={averageReceiveDeserializeMilliseconds:F3}/{_networkDiagnosticReceiveDeserializeMaxMilliseconds:F3}ms proc={averageProcessNetworkMessagesMilliseconds:F3}/{_networkDiagnosticProcessMessagesMaxMilliseconds:F3}ms apply={averageApplySnapshotMilliseconds:F3}/{_networkDiagnosticApplySnapshotMaxMilliseconds:F3}ms interp={averageInterpolationMilliseconds:F3}/{_networkDiagnosticInterpolationMaxMilliseconds:F3}ms recon={averageReconcileMilliseconds:F3}/{_networkDiagnosticReconcileMaxMilliseconds:F3}ms pred={averagePredictionErrorPixels:F2}/{_networkDiagnosticPredictionErrorMaxPixels:F2}px view={averageRenderCorrectionPixels:F2}/{_networkDiagnosticRenderCorrectionMaxPixels:F2}px snaps={_networkDiagnosticRenderCorrectionHardSnaps} timeline={_smoothedSnapshotIntervalSeconds * 1000f:F1}/{_smoothedSnapshotJitterSeconds * 1000f:F1}/{_localPlayerInterpolationBackTimeSeconds * 1000f:F1}/{_remotePlayerInterpolationBackTimeSeconds * 1000f:F1}/{timelineErrorMilliseconds:F1}ms gc={gen0Collections}/{gen1Collections}/{gen2Collections} mem={currentMemoryMegabytes:F1}MB");
+            $"netdiag ping={_networkClient.EstimatedPingMilliseconds}ms transportPing={_networkClient.ProtocolPingMilliseconds}ms inputAck={_networkClient.InputAckLatencyMilliseconds}ms queued={_queuedAuthoritativeSnapshots.Count} pendingIn={_networkClient.LastReceiveDiagnostics.PendingInboundMessages} fps={fps:F1} hitch33={_networkDiagnosticUpdateHitches33} recv={_networkDiagnosticReceivePackets / intervalSeconds:F1}/s recvKB={receiveKilobytesPerSecond:F1}/s send={_networkDiagnosticSentPackets / intervalSeconds:F1}/s snaps={_networkDiagnosticAppliedSnapshots / intervalSeconds:F1}/s payload={_networkDiagnosticReceiveMaxSnapshotPayloadBytes}B payloadAny={_networkDiagnosticReceiveMaxPayloadBytes}B burst={_networkDiagnosticMaxSnapshotsPerFrame} queueEnq={_networkDiagnosticQueuedSnapshots} queueDrop={_networkDiagnosticQueueDroppedSnapshots} queueMax={_networkDiagnosticMaxAuthoritativeQueueDepth} frameBacklogMax={_networkDiagnosticMaxSnapshotFrameBacklog} applyGapMax={_networkDiagnosticMaxAppliedSnapshotFrameGap} ackAheadMax={_networkDiagnosticMaxSnapshotAckAheadFrames} stale={_networkDiagnosticStaleSnapshots} missBase={_networkDiagnosticMissingBaselineSnapshots} rej={_networkDiagnosticRejectedSnapshots} delta/full={_networkDiagnosticProcessedDeltaSnapshots}/{_networkDiagnosticProcessedFullSnapshots} decode={averageReceiveDeserializeMilliseconds:F3}/{_networkDiagnosticReceiveDeserializeMaxMilliseconds:F3}ms proc={averageProcessNetworkMessagesMilliseconds:F3}/{_networkDiagnosticProcessMessagesMaxMilliseconds:F3}ms apply={averageApplySnapshotMilliseconds:F3}/{_networkDiagnosticApplySnapshotMaxMilliseconds:F3}ms interp={averageInterpolationMilliseconds:F3}/{_networkDiagnosticInterpolationMaxMilliseconds:F3}ms rUnd={_networkDiagnosticRemotePlayerInterpolationUnderruns}:{averageRemotePlayerInterpolationUnderrunMilliseconds:F1}/{_networkDiagnosticRemotePlayerInterpolationUnderrunMaxMilliseconds:F1}ms eUnd={_networkDiagnosticEntityInterpolationUnderruns}:{averageEntityInterpolationUnderrunMilliseconds:F1}/{_networkDiagnosticEntityInterpolationUnderrunMaxMilliseconds:F1}ms pUnd={_networkDiagnosticProjectileInterpolationUnderruns}:{averageProjectileInterpolationUnderrunMilliseconds:F1}/{_networkDiagnosticProjectileInterpolationUnderrunMaxMilliseconds:F1}ms undCap={_networkDiagnosticRemotePlayerInterpolationCapHits}/{_networkDiagnosticEntityInterpolationCapHits}/{_networkDiagnosticProjectileInterpolationCapHits} recon={averageReconcileMilliseconds:F3}/{_networkDiagnosticReconcileMaxMilliseconds:F3}ms pred={averagePredictionErrorPixels:F2}/{_networkDiagnosticPredictionErrorMaxPixels:F2}px view={averageRenderCorrectionPixels:F2}/{_networkDiagnosticRenderCorrectionMaxPixels:F2}px hardSnaps={_networkDiagnosticRenderCorrectionHardSnaps} timeline={_smoothedSnapshotIntervalSeconds * 1000f:F1}/{_smoothedSnapshotJitterSeconds * 1000f:F1}/{_localPlayerInterpolationBackTimeSeconds * 1000f:F1}/{_remotePlayerInterpolationBackTimeSeconds * 1000f:F1}/{timelineErrorMilliseconds:F1}ms gc={gen0Collections}/{gen1Collections}/{gen2Collections} mem={currentMemoryMegabytes:F1}MB");
         var summaryLine = $"[{DateTime.Now:HH:mm:ss}] {_networkDiagnosticLastConsoleSummary}";
         _networkDiagnosticSummaryHistory.Add(summaryLine);
         while (_networkDiagnosticSummaryHistory.Count > NetworkDiagnosticHistoryLimit)
@@ -570,6 +698,7 @@ public partial class Game1
         _networkDiagnosticReceiveMaxBatchPackets = 0;
         _networkDiagnosticReceiveMaxBatchMessages = 0;
         _networkDiagnosticReceiveMaxPayloadBytes = 0;
+        _networkDiagnosticReceiveMaxSnapshotPayloadBytes = 0;
         _networkDiagnosticReceiveMaxPendingInboundMessages = 0;
         _networkDiagnosticReceiveDeserializeTotalMilliseconds = 0d;
         _networkDiagnosticReceiveDeserializeMaxMilliseconds = 0d;
@@ -578,6 +707,12 @@ public partial class Game1
         _networkDiagnosticProcessedDeltaSnapshots = 0;
         _networkDiagnosticProcessedFullSnapshots = 0;
         _networkDiagnosticAppliedSnapshots = 0;
+        _networkDiagnosticQueuedSnapshots = 0;
+        _networkDiagnosticQueueDroppedSnapshots = 0;
+        _networkDiagnosticMaxAuthoritativeQueueDepth = 0;
+        _networkDiagnosticMaxSnapshotFrameBacklog = 0;
+        _networkDiagnosticMaxAppliedSnapshotFrameGap = 0;
+        _networkDiagnosticMaxSnapshotAckAheadFrames = 0;
         _networkDiagnosticStaleSnapshots = 0;
         _networkDiagnosticMissingBaselineSnapshots = 0;
         _networkDiagnosticRejectedSnapshots = 0;
@@ -591,6 +726,18 @@ public partial class Game1
         _networkDiagnosticReconcileMaxMilliseconds = 0d;
         _networkDiagnosticInterpolationTotalMilliseconds = 0d;
         _networkDiagnosticInterpolationMaxMilliseconds = 0d;
+        _networkDiagnosticRemotePlayerInterpolationUnderruns = 0;
+        _networkDiagnosticRemotePlayerInterpolationCapHits = 0;
+        _networkDiagnosticRemotePlayerInterpolationUnderrunTotalMilliseconds = 0d;
+        _networkDiagnosticRemotePlayerInterpolationUnderrunMaxMilliseconds = 0d;
+        _networkDiagnosticEntityInterpolationUnderruns = 0;
+        _networkDiagnosticEntityInterpolationCapHits = 0;
+        _networkDiagnosticEntityInterpolationUnderrunTotalMilliseconds = 0d;
+        _networkDiagnosticEntityInterpolationUnderrunMaxMilliseconds = 0d;
+        _networkDiagnosticProjectileInterpolationUnderruns = 0;
+        _networkDiagnosticProjectileInterpolationCapHits = 0;
+        _networkDiagnosticProjectileInterpolationUnderrunTotalMilliseconds = 0d;
+        _networkDiagnosticProjectileInterpolationUnderrunMaxMilliseconds = 0d;
         _networkDiagnosticPredictionErrorTotalPixels = 0d;
         _networkDiagnosticPredictionErrorMaxPixels = 0d;
         _networkDiagnosticPredictionErrorSamples = 0;

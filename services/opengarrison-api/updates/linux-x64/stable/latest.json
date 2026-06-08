@@ -1,9 +1,9 @@
 {
-  "version": "0.5.6.3",
+  "version": "0.5.6.4",
   "channel": "stable",
   "url": "OpenGarrison-Linux-x64.tar.gz",
-  "sha256": "e275364354d4c50b122363613c5affe5268843d93c1de6ee0f63fac8d309cea9",
-  "size": 95080110,
+  "sha256": "4f2add42be78348527e5afbc92ba03eea9edcd331799af2098a4c85b14ab54c7",
+  "size": 95079010,
   "minLauncherVersion": "0.1.0",
   "notesUrl": ""
 }

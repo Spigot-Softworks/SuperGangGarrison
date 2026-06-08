@@ -27,6 +27,22 @@ public sealed class PlayerEntityMetadataTests
     }
 
     [Fact]
+    public void SetDisplayNameRemovesUnsupportedUnicodeAndControlCharacters()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Initial");
+
+        player.SetDisplayName(" Bad\U0001F600N\u00E9me\u0001 ");
+
+        Assert.Equal("BadNme", player.DisplayName);
+    }
+
+    [Fact]
+    public void NormalizeDisplayNameFallsBackWhenOnlyUnsupportedCharactersRemain()
+    {
+        Assert.Equal("Player", PlayerEntity.NormalizeDisplayName("\U0001F600\u0001###"));
+    }
+
+    [Fact]
     public void ReplicatedStateSupportsTypedRoundTripAndKindChecks()
     {
         var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Test");

@@ -14,6 +14,11 @@
   <PropertyGroup Condition="'$(OpenGarrisonBrowserAot)' == 'true'">
     <RunAOTCompilation>true</RunAOTCompilation>
     <WasmStripILAfterAOT>true</WasmStripILAfterAOT>
+    <DisableParallelAot Condition="'$(DisableParallelAot)' == ''">true</DisableParallelAot>
+    <DisableParallelEmccCompile Condition="'$(DisableParallelEmccCompile)' == ''">true</DisableParallelEmccCompile>
+    <WasmNativeDebugSymbols Condition="'$(WasmNativeDebugSymbols)' == ''">false</WasmNativeDebugSymbols>
+    <WasmBitcodeCompileOptimizationFlag Condition="'$(WasmBitcodeCompileOptimizationFlag)' == ''">-O1</WasmBitcodeCompileOptimizationFlag>
+    <EmccVerbose Condition="'$(EmccVerbose)' == ''">false</EmccVerbose>
   </PropertyGroup>
 
   <Target Name="RejectNonAotBrowserPublish"
@@ -53,6 +58,14 @@
           BeforeTargets="ResolveProjectStaticWebAssets"
           Condition="'$(DesignTimeBuild)' != 'true'">
     <ItemGroup>
+      <BrowserGeneratedContentItems Include="@(Content)" Condition="$([System.String]::Copy('%(Content.Identity)').StartsWith('wwwroot\Content\'))" />
+      <BrowserGeneratedContentItems Include="@(Content)" Condition="$([System.String]::Copy('%(Content.Identity)').StartsWith('wwwroot/Content/'))" />
+      <BrowserGeneratedContentItems Include="@(Content)" Condition="$([System.String]::Copy('%(Content.Identity)').Contains('\wwwroot\Content\'))" />
+      <BrowserGeneratedContentItems Include="@(Content)" Condition="$([System.String]::Copy('%(Content.Identity)').Contains('/wwwroot/Content/'))" />
+      <BrowserGeneratedContentItems Include="@(Content)" Condition="$([System.String]::Copy('%(Content.Identity)').StartsWith('wwwroot\Plugins\'))" />
+      <BrowserGeneratedContentItems Include="@(Content)" Condition="$([System.String]::Copy('%(Content.Identity)').StartsWith('wwwroot/Plugins/'))" />
+      <BrowserGeneratedContentItems Include="@(Content)" Condition="$([System.String]::Copy('%(Content.Identity)').Contains('\wwwroot\Plugins\'))" />
+      <BrowserGeneratedContentItems Include="@(Content)" Condition="$([System.String]::Copy('%(Content.Identity)').Contains('/wwwroot/Plugins/'))" />
       <BrowserMirroredContent Include="..\Core\Content\**\*"
                               Exclude="..\Core\Content\bin\**\*;..\Core\Content\obj\**\*;..\Core\Content\**\*.mgcb;..\Core\Content\**\*.cs" />
       <BrowserCompiledClientContent Include="..\Client\Content\bin\DesktopGL\Content\**\*" />
@@ -75,13 +88,18 @@
           SkipUnchangedFiles="true" />
     <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\..\Tools\BrowserAssetBuilder\OpenGarrison.Tools.BrowserAssetBuilder.csproj&quot; -- &quot;$(MSBuildProjectDirectory)\wwwroot\Content&quot; &quot;$(MSBuildProjectDirectory)\..\Plugins\Packaged\Client&quot;" />
     <ItemGroup>
-      <Content Remove="wwwroot\Content\**\*;wwwroot\Plugins\**\*" />
+      <Content Remove="@(BrowserGeneratedContentItems)" />
       <Content Include="wwwroot\Content\**\*;wwwroot\Plugins\**\*"
                Exclude="wwwroot\Content\**\*.cs"
                CopyToOutputDirectory="PreserveNewest"
                CopyToPublishDirectory="PreserveNewest" />
     </ItemGroup>
   </Target>
+
+  <Target Name="EnsureBrowserStaticWebAssetsBuildManifestForPublish"
+          BeforeTargets="_CleanupReferencedProjectItemGroups"
+          DependsOnTargets="ResolveStaticWebAssetsConfiguration;GenerateStaticWebAssetsManifest"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(NoBuild)' != 'true'" />
 
   <Target Name="CleanBrowserMirroredContent" AfterTargets="Clean">
     <RemoveDir Directories="$(MSBuildProjectDirectory)\wwwroot\Content" />

@@ -45,7 +45,7 @@ public partial class Game1
     private void TryTriggerHeavyDashDodgePopup(DamageTargetKind targetKind, int targetEntityId)
     {
         if (targetKind != DamageTargetKind.Player
-            || FindPlayerById(targetEntityId) is not { ClassId: PlayerClass.Heavy } targetPlayer)
+            || FindPlayerById(targetEntityId) is not { } targetPlayer)
         {
             return;
         }
@@ -93,8 +93,7 @@ public partial class Game1
 
     private void DrawHeavyDashDodgePopup(PlayerEntity player, Vector2 cameraPosition)
     {
-        if (!_heavyDashDodgePopupsByPlayerId.TryGetValue(player.Id, out var popup)
-            || player.ClassId != PlayerClass.Heavy)
+        if (!_heavyDashDodgePopupsByPlayerId.TryGetValue(player.Id, out var popup))
         {
             return;
         }
@@ -108,6 +107,11 @@ public partial class Game1
 
         DrawBitmapFontTextCentered("Dodged!", position + new Vector2(2f, 2f), Color.Black * alpha, HeavyDashDodgePopupTextScale);
         DrawBitmapFontTextCentered("Dodged!", position, new Color(255, 230, 64) * alpha, HeavyDashDodgePopupTextScale);
+    }
+
+    private void ResetHeavyDashDodgePopups()
+    {
+        _heavyDashDodgePopupsByPlayerId.Clear();
     }
 
     private sealed class HeavyDashDodgePopupState

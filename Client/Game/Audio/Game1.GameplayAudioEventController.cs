@@ -166,7 +166,7 @@ public partial class Game1
                 return;
             }
 
-            if (_game.ShouldSuppressManagedLocalRapidFireSound(soundEvent))
+            if (_game.ShouldSuppressManagedRapidFireSound(soundEvent))
             {
                 return;
             }

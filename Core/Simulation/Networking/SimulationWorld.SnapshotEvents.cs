@@ -56,7 +56,8 @@ public sealed partial class SimulationWorld
                 soundEvent.X,
                 soundEvent.Y,
                 soundEvent.EventId,
-                soundEvent.SourceFrame));
+                soundEvent.SourceFrame,
+                soundEvent.SourcePlayerId));
         }
     }
 }

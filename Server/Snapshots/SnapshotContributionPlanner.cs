@@ -29,7 +29,8 @@ internal static class SnapshotContributionPlanner
     //   (1 slot + 2 flag bytes + 1 spy-cloak byte + 14 uint16 fields × 2 bytes each)
     private const int SnapshotPlayerExtendedStatusBytes = 32;
     private const int SnapshotPlayerChatBubbleBytes = 10;
-    private const int ProjectileSnapshotUpdateIntervalTicks = 1;
+    private const int ProjectileSnapshotUpdateIntervalTicks = 3;
+    private const int ProjectileMotionBackfillPriorityPenalty = 320;
     private const int CosmeticEntityUpdateIntervalTicks = 8;
     private const int LowFrequencyPlayerDetailRefreshIntervalTicks = 30;
 
@@ -41,6 +42,7 @@ internal static class SnapshotContributionPlanner
     {
         var focus = GetClientFocusPoint(client, world);
         var frame = world.Frame;
+        var clientAuthoritativePlayerId = GetClientAuthoritativePlayerId(client, fullSnapshot);
         var contributions = new List<SnapshotDeltaBudgeter.Contribution>();
 
         AddPlayerDelta(
@@ -84,13 +86,19 @@ internal static class SnapshotContributionPlanner
             static state => state.Y,
             static (builder, state) => builder.Rockets.Add(state),
             static (builder, id) => builder.RemovedRocketIds.Add(id),
+            static state => state.OwnerId,
+            clientAuthoritativePlayerId,
+            (state, baselineState, currentFrame, id) => ShouldSkipScheduledProjectileUpdate(state, baselineState, currentFrame, id, IsRocketMotionOnlyChange),
+            frame,
+            backfillSkippedMotionOnlyUpdate: true,
+            updatedStateKind: SnapshotDeltaBudgeter.ContributionKind.EntityStateUpdate,
             addedStateKind: SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
         AddEntityDelta(
             contributions,
             fullSnapshot.Grenades,
             baseline?.Grenades,
             priority: 1115,
-            estimateUpdatedBytes: static state => 34,
+            estimateUpdatedBytes: static state => 38,
             estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
@@ -98,6 +106,12 @@ internal static class SnapshotContributionPlanner
             static state => state.Y,
             static (builder, state) => builder.Grenades.Add(state),
             static (builder, id) => builder.RemovedGrenadeIds.Add(id),
+            static state => state.OwnerId,
+            clientAuthoritativePlayerId,
+            (state, baselineState, currentFrame, id) => ShouldSkipScheduledProjectileUpdate(state, baselineState, currentFrame, id, IsGrenadeMotionOnlyChange),
+            frame,
+            updatedStateKind: SnapshotDeltaBudgeter.ContributionKind.EntityStateUpdate,
+            backfillSkippedMotionOnlyUpdate: true,
             addedStateKind: SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
         AddEntityDelta(
             contributions,
@@ -112,15 +126,19 @@ internal static class SnapshotContributionPlanner
             static state => state.Y,
             static (builder, state) => builder.Flames.Add(state),
             static (builder, id) => builder.RemovedFlameIds.Add(id),
-            (state, baselineState, currentFrame, id) => ShouldSkipScheduledProjectileUpdate(state, baselineState, currentFrame, id, IsFlameMotionOnlyChange),
+            static state => state.OwnerId,
+            clientAuthoritativePlayerId,
+            static (state, baselineState, currentFrame, id) => ShouldSkipLocallySimulatedFlameUpdate(state, baselineState, currentFrame, id),
             frame,
-            SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
+            backfillSkippedMotionOnlyUpdate: true,
+            updatedStateKind: SnapshotDeltaBudgeter.ContributionKind.EntityStateUpdate,
+            addedStateKind: SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
         AddEntityDelta(
             contributions,
             fullSnapshot.Flares,
             baseline?.Flares,
             priority: 1105,
-            estimateUpdatedBytes: static state => 29,
+            estimateUpdatedBytes: static state => 30,
             estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
@@ -128,9 +146,13 @@ internal static class SnapshotContributionPlanner
             static state => state.Y,
             static (builder, state) => builder.Flares.Add(state),
             static (builder, id) => builder.RemovedFlareIds.Add(id),
+            static state => state.OwnerId,
+            clientAuthoritativePlayerId,
             (state, baselineState, currentFrame, id) => ShouldSkipScheduledProjectileUpdate(state, baselineState, currentFrame, id, IsShotMotionOnlyChange),
             frame,
-            SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
+            updatedStateKind: SnapshotDeltaBudgeter.ContributionKind.EntityStateUpdate,
+            backfillSkippedMotionOnlyUpdate: true,
+            addedStateKind: SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
         AddEntityDelta(
             contributions,
             fullSnapshot.Mines,
@@ -144,15 +166,19 @@ internal static class SnapshotContributionPlanner
             static state => state.Y,
             static (builder, state) => builder.Mines.Add(state),
             static (builder, id) => builder.RemovedMineIds.Add(id),
+            static state => state.OwnerId,
+            clientAuthoritativePlayerId,
             (state, baselineState, currentFrame, id) => ShouldSkipScheduledProjectileUpdate(state, baselineState, currentFrame, id, IsMineMotionOnlyChange),
             frame,
-            SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
+            updatedStateKind: SnapshotDeltaBudgeter.ContributionKind.EntityStateUpdate,
+            backfillSkippedMotionOnlyUpdate: true,
+            addedStateKind: SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
         AddEntityDelta(
             contributions,
             fullSnapshot.Shots,
             baseline?.Shots,
             priority: 1080,
-            estimateUpdatedBytes: static state => 29,
+            estimateUpdatedBytes: static state => 30,
             estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
@@ -160,15 +186,19 @@ internal static class SnapshotContributionPlanner
             static state => state.Y,
             static (builder, state) => builder.Shots.Add(state),
             static (builder, id) => builder.RemovedShotIds.Add(id),
-            (state, baselineState, currentFrame, id) => ShouldSkipScheduledProjectileUpdate(state, baselineState, currentFrame, id, IsShotMotionOnlyChange),
+            static state => state.OwnerId,
+            clientAuthoritativePlayerId,
+            static (state, baselineState, currentFrame, id) => ShouldSkipLocallySimulatedShotUpdate(state, baselineState, currentFrame, id),
             frame,
-            SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
+            backfillSkippedMotionOnlyUpdate: true,
+            updatedStateKind: SnapshotDeltaBudgeter.ContributionKind.EntityStateUpdate,
+            addedStateKind: SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
         AddEntityDelta(
             contributions,
             fullSnapshot.Needles,
             baseline?.Needles,
             priority: 1070,
-            estimateUpdatedBytes: static state => 29,
+            estimateUpdatedBytes: static state => 30,
             estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
@@ -176,15 +206,19 @@ internal static class SnapshotContributionPlanner
             static state => state.Y,
             static (builder, state) => builder.Needles.Add(state),
             static (builder, id) => builder.RemovedNeedleIds.Add(id),
-            (state, baselineState, currentFrame, id) => ShouldSkipScheduledProjectileUpdate(state, baselineState, currentFrame, id, IsShotMotionOnlyChange),
+            static state => state.OwnerId,
+            clientAuthoritativePlayerId,
+            static (state, baselineState, currentFrame, id) => ShouldSkipLocallySimulatedShotUpdate(state, baselineState, currentFrame, id),
             frame,
-            SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
+            backfillSkippedMotionOnlyUpdate: true,
+            updatedStateKind: SnapshotDeltaBudgeter.ContributionKind.EntityStateUpdate,
+            addedStateKind: SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
         AddEntityDelta(
             contributions,
             fullSnapshot.RevolverShots,
             baseline?.RevolverShots,
             priority: 1060,
-            estimateUpdatedBytes: static state => 29,
+            estimateUpdatedBytes: static state => 30,
             estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
@@ -192,15 +226,19 @@ internal static class SnapshotContributionPlanner
             static state => state.Y,
             static (builder, state) => builder.RevolverShots.Add(state),
             static (builder, id) => builder.RemovedRevolverShotIds.Add(id),
-            (state, baselineState, currentFrame, id) => ShouldSkipScheduledProjectileUpdate(state, baselineState, currentFrame, id, IsShotMotionOnlyChange),
+            static state => state.OwnerId,
+            clientAuthoritativePlayerId,
+            static (state, baselineState, currentFrame, id) => ShouldSkipLocallySimulatedShotUpdate(state, baselineState, currentFrame, id),
             frame,
-            SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
+            backfillSkippedMotionOnlyUpdate: true,
+            updatedStateKind: SnapshotDeltaBudgeter.ContributionKind.EntityStateUpdate,
+            addedStateKind: SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
         AddEntityDelta(
             contributions,
             fullSnapshot.Bubbles,
             baseline?.Bubbles,
             priority: 1050,
-            estimateUpdatedBytes: static state => 29,
+            estimateUpdatedBytes: static state => 30,
             estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
@@ -208,15 +246,19 @@ internal static class SnapshotContributionPlanner
             static state => state.Y,
             static (builder, state) => builder.Bubbles.Add(state),
             static (builder, id) => builder.RemovedBubbleIds.Add(id),
+            static state => state.OwnerId,
+            clientAuthoritativePlayerId,
             (state, baselineState, currentFrame, id) => ShouldSkipScheduledProjectileUpdate(state, baselineState, currentFrame, id, IsShotMotionOnlyChange),
             frame,
-            SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
+            updatedStateKind: SnapshotDeltaBudgeter.ContributionKind.EntityStateUpdate,
+            backfillSkippedMotionOnlyUpdate: true,
+            addedStateKind: SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
         AddEntityDelta(
             contributions,
             fullSnapshot.Blades,
             baseline?.Blades,
             priority: 1040,
-            estimateUpdatedBytes: static state => 29,
+            estimateUpdatedBytes: static state => 30,
             estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
@@ -224,9 +266,13 @@ internal static class SnapshotContributionPlanner
             static state => state.Y,
             static (builder, state) => builder.Blades.Add(state),
             static (builder, id) => builder.RemovedBladeIds.Add(id),
+            static state => state.OwnerId,
+            clientAuthoritativePlayerId,
             (state, baselineState, currentFrame, id) => ShouldSkipScheduledProjectileUpdate(state, baselineState, currentFrame, id, IsShotMotionOnlyChange),
             frame,
-            SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
+            updatedStateKind: SnapshotDeltaBudgeter.ContributionKind.EntityStateUpdate,
+            backfillSkippedMotionOnlyUpdate: true,
+            addedStateKind: SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
         AddEntityDelta(
             contributions,
             fullSnapshot.DeadBodies,
@@ -255,8 +301,8 @@ internal static class SnapshotContributionPlanner
             static state => state.Y,
             static (builder, state) => builder.SentryGibs.Add(state),
             static (builder, id) => builder.RemovedSentryGibIds.Add(id),
-            (state, baselineState, currentFrame, id) => ((currentFrame + id) % CosmeticEntityUpdateIntervalTicks) != 0,
-            frame);
+            shouldSkipMotionOnlyUpdate: (state, baselineState, currentFrame, id) => ((currentFrame + id) % CosmeticEntityUpdateIntervalTicks) != 0,
+            currentWorldFrame: frame);
         AddEntityDelta(
             contributions,
             fullSnapshot.JumpPadGibs,
@@ -270,19 +316,17 @@ internal static class SnapshotContributionPlanner
             static state => state.Y,
             static (builder, state) => builder.JumpPadGibs.Add(state),
             static (builder, id) => builder.RemovedJumpPadGibIds.Add(id),
-            (state, baselineState, currentFrame, id) => ((currentFrame + id) % CosmeticEntityUpdateIntervalTicks) != 0,
-            frame);
+            shouldSkipMotionOnlyUpdate: (state, baselineState, currentFrame, id) => ((currentFrame + id) % CosmeticEntityUpdateIntervalTicks) != 0,
+            currentWorldFrame: frame);
         // Transient gameplay events are replayed for reliability. Let snapshot
         // budgeting decide what fits instead of pre-dropping events by focus.
-        AddPointEventContributions(
+        AddRocketSpawnEventContributions(
             contributions,
             fullSnapshot.RocketSpawnEvents,
+            fullSnapshot.Rockets,
             priority: 1290,
-            estimateBytes: static state => 82,
+            estimateBytes: static state => 84 + ((state.PassedFriendlyPlayerIds?.Count ?? 0) * 4),
             focus,
-            static state => state.X,
-            static state => state.Y,
-            static (builder, state) => builder.RocketSpawnEvents.Add(state),
             kind: SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
         AddPointEventContributions(
             contributions,
@@ -295,15 +339,12 @@ internal static class SnapshotContributionPlanner
             static (builder, state) => builder.SoundEvents.Add(state),
             oldestFirst: true,
             kind: SnapshotDeltaBudgeter.ContributionKind.TransientSoundEvent);
-        AddPointEventContributions(
+        AddCombatTraceContributions(
             contributions,
             fullSnapshot.CombatTraces,
             priority: 845,
             estimateBytes: static _ => 24,
-            focus,
-            static state => (state.StartX + state.EndX) * 0.5f,
-            static state => (state.StartY + state.EndY) * 0.5f,
-            static (builder, state) => builder.CombatTraces.Add(state));
+            focus);
         AddPointEventContributions(
             contributions,
             fullSnapshot.SniperAimIndicators,
@@ -334,12 +375,13 @@ internal static class SnapshotContributionPlanner
         AddPointEventContributions(
             contributions,
             fullSnapshot.DamageEvents,
-            priority: 830,
+            priority: 1130,
             estimateBytes: static state => 42,
             focus,
             static state => state.X,
             static state => state.Y,
-            static (builder, state) => builder.DamageEvents.Add(state));
+            static (builder, state) => builder.DamageEvents.Add(state),
+            kind: SnapshotDeltaBudgeter.ContributionKind.TransientDamageEvent);
         AddOrderedContributions(
             contributions,
             fullSnapshot.KillFeed,
@@ -375,6 +417,20 @@ internal static class SnapshotContributionPlanner
         }
 
         return (world.Bounds.Width / 2f, world.Bounds.Height / 2f);
+    }
+
+    private static int? GetClientAuthoritativePlayerId(ClientSession client, SnapshotMessage fullSnapshot)
+    {
+        for (var index = 0; index < fullSnapshot.Players.Count; index += 1)
+        {
+            var player = fullSnapshot.Players[index];
+            if (player.Slot == client.Slot && !player.IsSpectator)
+            {
+                return player.PlayerId;
+            }
+        }
+
+        return null;
     }
 
     private static void AddPlayerDelta(
@@ -562,7 +618,7 @@ internal static class SnapshotContributionPlanner
             player.Metal,
             player.IsCarryingIntel,
             player.IntelRechargeTicks,
-            ExtractSecondaryAmmoStates(player.ReplicatedStates));
+            ExtractRuntimeReplicatedStates(player.ReplicatedStates));
     }
 
     private static SnapshotPlayerChatBubbleState ToPlayerChatBubbleState(SnapshotPlayerState player)
@@ -787,82 +843,137 @@ internal static class SnapshotContributionPlanner
             || player.Metal != baselinePlayer.Metal
             || player.IsCarryingIntel != baselinePlayer.IsCarryingIntel
             || player.IntelRechargeTicks != baselinePlayer.IntelRechargeTicks
-            || HasSecondaryAmmoChanged(player.ReplicatedStates, baselinePlayer.ReplicatedStates);
+            || HasRuntimeReplicatedStatesChanged(player.ReplicatedStates, baselinePlayer.ReplicatedStates);
     }
 
-    // Returns true if any secondary/utility ammo count (keys containing "_ammo" under core.player)
-    // differs between current and baseline ReplicatedStates.
-    private static bool HasSecondaryAmmoChanged(
+    private static bool HasRuntimeReplicatedStatesChanged(
         IReadOnlyList<SnapshotReplicatedStateEntry>? current,
         IReadOnlyList<SnapshotReplicatedStateEntry>? baseline)
     {
         var currentCount = current?.Count ?? 0;
         var baselineCount = baseline?.Count ?? 0;
-        // Check every ammo entry in current against baseline
         for (var i = 0; i < currentCount; i++)
         {
             var entry = current![i];
-            if (!string.Equals(entry.OwnerId, CoreReplicatedOwnerId, StringComparison.Ordinal)
-                || entry.Key.IndexOf("_ammo", StringComparison.Ordinal) < 0)
+            if (!IsRuntimeReplicatedState(entry))
             {
                 continue;
             }
+
             var found = false;
             for (var j = 0; j < baselineCount; j++)
             {
                 var b = baseline![j];
-                if (string.Equals(entry.Key, b.Key, StringComparison.Ordinal))
+                if (ReplicatedStateKeysEqual(entry, b))
                 {
                     found = true;
-                    if (entry.IntValue != b.IntValue) return true;
+                    if (!ReplicatedStateValuesEqual(entry, b))
+                    {
+                        return true;
+                    }
+
                     break;
                 }
             }
-            if (!found) return true;
+
+            if (!found)
+            {
+                return true;
+            }
         }
-        // Check whether any ammo entry was removed (present in baseline but not current)
+
         for (var j = 0; j < baselineCount; j++)
         {
             var b = baseline![j];
-            if (!string.Equals(b.OwnerId, CoreReplicatedOwnerId, StringComparison.Ordinal)
-                || b.Key.IndexOf("_ammo", StringComparison.Ordinal) < 0)
+            if (!IsRuntimeReplicatedState(b))
             {
                 continue;
             }
+
             var found = false;
             for (var i = 0; i < currentCount; i++)
             {
-                if (string.Equals(b.Key, current![i].Key, StringComparison.Ordinal))
+                if (ReplicatedStateKeysEqual(b, current![i]))
                 {
                     found = true;
                     break;
                 }
             }
-            if (!found) return true;
+
+            if (!found)
+            {
+                return true;
+            }
         }
+
         return false;
     }
 
-    // Extracts the secondary/utility ammo ReplicatedState entries (keys containing "_ammo"
-    // under core.player) that should be included in the high-priority status update.
-    private static SnapshotReplicatedStateEntry[] ExtractSecondaryAmmoStates(
+    private static SnapshotReplicatedStateEntry[] ExtractRuntimeReplicatedStates(
         IReadOnlyList<SnapshotReplicatedStateEntry>? entries)
     {
         if (entries is null || entries.Count == 0)
         {
             return Array.Empty<SnapshotReplicatedStateEntry>();
         }
-        var ammoEntries = new List<SnapshotReplicatedStateEntry>(entries.Count);
+
+        var runtimeEntries = new List<SnapshotReplicatedStateEntry>(entries.Count);
         for (var i = 0; i < entries.Count; i++)
         {
             var entry = entries[i];
-            if (string.Equals(entry.OwnerId, CoreReplicatedOwnerId, StringComparison.Ordinal)
-                && entry.Key.IndexOf("_ammo", StringComparison.Ordinal) >= 0)
+            if (IsRuntimeReplicatedState(entry))
             {
-                ammoEntries.Add(entry);
+                runtimeEntries.Add(entry);
             }
         }
-        return ammoEntries.Count > 0 ? ammoEntries.ToArray() : Array.Empty<SnapshotReplicatedStateEntry>();
+
+        return runtimeEntries.Count > 0 ? runtimeEntries.ToArray() : Array.Empty<SnapshotReplicatedStateEntry>();
+    }
+
+    private static bool IsRuntimeReplicatedState(SnapshotReplicatedStateEntry entry)
+    {
+        return IsSecondaryWeaponRuntimeReplicatedState(entry)
+            || IsCoreAbilityRuntimeReplicatedState(entry);
+    }
+
+    private static bool IsSecondaryWeaponRuntimeReplicatedState(SnapshotReplicatedStateEntry entry)
+    {
+        return string.Equals(entry.OwnerId, CoreReplicatedOwnerId, StringComparison.Ordinal)
+            && entry.Key.IndexOf("_ammo", StringComparison.Ordinal) >= 0;
+    }
+
+    private static bool IsCoreAbilityRuntimeReplicatedState(SnapshotReplicatedStateEntry entry)
+    {
+        if (!string.Equals(entry.OwnerId, GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return entry.Key is GameplayAbilityReplicatedState.HeavyDashCooldownTicksKey
+            or GameplayAbilityReplicatedState.HeavyDashActiveKey
+            or GameplayAbilityReplicatedState.HeavyDashVisibleKey
+            or GameplayAbilityReplicatedState.HeavyDashTrailAlphaKey;
+    }
+
+    private static bool ReplicatedStateKeysEqual(SnapshotReplicatedStateEntry left, SnapshotReplicatedStateEntry right)
+    {
+        return string.Equals(left.OwnerId, right.OwnerId, StringComparison.Ordinal)
+            && string.Equals(left.Key, right.Key, StringComparison.Ordinal);
+    }
+
+    private static bool ReplicatedStateValuesEqual(SnapshotReplicatedStateEntry left, SnapshotReplicatedStateEntry right)
+    {
+        if (left.Kind != right.Kind)
+        {
+            return false;
+        }
+
+        return left.Kind switch
+        {
+            SnapshotReplicatedStateValueKind.Whole => left.IntValue == right.IntValue,
+            SnapshotReplicatedStateValueKind.Scalar => MathF.Abs(left.FloatValue - right.FloatValue) <= 0.0001f,
+            _ => left.BoolValue == right.BoolValue,
+        };
     }
 
     private static bool HasPlayerChatBubbleChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
@@ -879,6 +990,8 @@ internal static class SnapshotContributionPlanner
             || !string.Equals(player.Name, baselinePlayer.Name, StringComparison.Ordinal)
             || player.Team != baselinePlayer.Team
             || player.ClassId != baselinePlayer.ClassId
+            || !string.Equals(player.GameplayClassId, baselinePlayer.GameplayClassId, StringComparison.Ordinal)
+            || player.IsSpyCloaked != baselinePlayer.IsSpyCloaked
             || player.IsAlive != baselinePlayer.IsAlive
             || player.IsAwaitingJoin != baselinePlayer.IsAwaitingJoin
             || player.IsSpectator != baselinePlayer.IsSpectator
@@ -899,8 +1012,11 @@ internal static class SnapshotContributionPlanner
         Func<T, float> ySelector,
         Action<SnapshotDeltaBudgeter.Builder, T> addState,
         Action<SnapshotDeltaBudgeter.Builder, int> addRemovedId,
+        Func<T, int>? ownerIdSelector = null,
+        int? clientAuthoritativePlayerId = null,
         Func<T, T, long, int, bool>? shouldSkipMotionOnlyUpdate = null,
         long currentWorldFrame = 0,
+        bool backfillSkippedMotionOnlyUpdate = false,
         SnapshotDeltaBudgeter.ContributionKind updatedStateKind = SnapshotDeltaBudgeter.ContributionKind.Optional,
         SnapshotDeltaBudgeter.ContributionKind addedStateKind = SnapshotDeltaBudgeter.ContributionKind.Optional) where T : notnull
     {
@@ -938,6 +1054,33 @@ internal static class SnapshotContributionPlanner
                 && baselineState is not null
                 && shouldSkipMotionOnlyUpdate(state, baselineState, currentWorldFrame, idSelector(state)))
             {
+                if (ownerIdSelector is not null)
+                {
+                    var isLocallyAdvancedByClient = clientAuthoritativePlayerId.HasValue
+                        && ownerIdSelector(state) == clientAuthoritativePlayerId.Value;
+                    if (!isLocallyAdvancedByClient)
+                    {
+                        contributions.Add(new SnapshotDeltaBudgeter.Contribution(
+                            priority,
+                            DistanceSquared(focus.X, focus.Y, xSelector(state), ySelector(state)),
+                            estimateUpdatedBytes(state),
+                            builder => addState(builder, state),
+                            updatedStateKind));
+                        continue;
+                    }
+                }
+
+                if (!backfillSkippedMotionOnlyUpdate)
+                {
+                    continue;
+                }
+
+                contributions.Add(new SnapshotDeltaBudgeter.Contribution(
+                    Math.Max(1, priority - ProjectileMotionBackfillPriorityPenalty),
+                    DistanceSquared(focus.X, focus.Y, xSelector(state), ySelector(state)),
+                    estimateUpdatedBytes(state),
+                    builder => addState(builder, state),
+                    SnapshotDeltaBudgeter.ContributionKind.Optional));
                 continue;
             }
 
@@ -963,6 +1106,28 @@ internal static class SnapshotContributionPlanner
         }
 
         return ((currentWorldFrame + entityId) % ProjectileSnapshotUpdateIntervalTicks) != 0;
+    }
+
+    private static bool ShouldSkipLocallySimulatedShotUpdate(
+        SnapshotShotState state,
+        SnapshotShotState baselineState,
+        long currentWorldFrame,
+        int entityId)
+    {
+        _ = currentWorldFrame;
+        _ = entityId;
+        return IsShotMotionOnlyChange(state, baselineState);
+    }
+
+    private static bool ShouldSkipLocallySimulatedFlameUpdate(
+        SnapshotFlameState state,
+        SnapshotFlameState baselineState,
+        long currentWorldFrame,
+        int entityId)
+    {
+        _ = currentWorldFrame;
+        _ = entityId;
+        return IsFlameMotionOnlyChange(state, baselineState);
     }
 
     private static bool IsShotMotionOnlyChange(SnapshotShotState state, SnapshotShotState baselineState)
@@ -1013,6 +1178,22 @@ internal static class SnapshotContributionPlanner
                 VelocityX = baselineState.VelocityX,
                 VelocityY = baselineState.VelocityY,
                 TicksRemaining = baselineState.TicksRemaining,
+            },
+            baselineState);
+    }
+
+    private static bool IsGrenadeMotionOnlyChange(SnapshotGrenadeState state, SnapshotGrenadeState baselineState)
+    {
+        return EqualityComparer<SnapshotGrenadeState>.Default.Equals(
+            state with
+            {
+                X = baselineState.X,
+                Y = baselineState.Y,
+                PreviousX = baselineState.PreviousX,
+                PreviousY = baselineState.PreviousY,
+                VelocityX = baselineState.VelocityX,
+                VelocityY = baselineState.VelocityY,
+                FuseTicksLeft = baselineState.FuseTicksLeft,
             },
             baselineState);
     }
@@ -1082,6 +1263,81 @@ internal static class SnapshotContributionPlanner
                 builder => addState(builder, state),
                 kind));
         }
+    }
+
+    private static void AddRocketSpawnEventContributions(
+        List<SnapshotDeltaBudgeter.Contribution> contributions,
+        IReadOnlyList<SnapshotRocketSpawnEvent> states,
+        IReadOnlyList<SnapshotRocketState> rocketStates,
+        int priority,
+        Func<SnapshotRocketSpawnEvent, int> estimateBytes,
+        (float X, float Y) focus,
+        SnapshotDeltaBudgeter.ContributionKind kind)
+    {
+        HashSet<int>? rocketStateIds = null;
+        var maxDistanceSquared = float.MaxValue;
+        for (var index = states.Count - 1; index >= 0; index -= 1)
+        {
+            var state = states[index];
+            if (!state.ExplodeImmediately && rocketStates.Count > 0)
+            {
+                rocketStateIds ??= BuildRocketStateIdSet(rocketStates);
+                if (rocketStateIds.Contains(state.Id))
+                {
+                    continue;
+                }
+            }
+
+            var distanceSquared = DistanceSquared(focus.X, focus.Y, state.X, state.Y);
+            if (distanceSquared > maxDistanceSquared)
+            {
+                continue;
+            }
+
+            contributions.Add(new SnapshotDeltaBudgeter.Contribution(
+                priority - ((states.Count - 1) - index),
+                distanceSquared,
+                estimateBytes(state),
+                builder => builder.RocketSpawnEvents.Add(state),
+                kind));
+        }
+    }
+
+    private static void AddCombatTraceContributions(
+        List<SnapshotDeltaBudgeter.Contribution> contributions,
+        IReadOnlyList<SnapshotCombatTraceState> states,
+        int priority,
+        Func<SnapshotCombatTraceState, int> estimateBytes,
+        (float X, float Y) focus)
+    {
+        for (var index = states.Count - 1; index >= 0; index -= 1)
+        {
+            var state = states[index];
+            if (!state.IsSniperTracer)
+            {
+                continue;
+            }
+
+            var midpointX = (state.StartX + state.EndX) * 0.5f;
+            var midpointY = (state.StartY + state.EndY) * 0.5f;
+            var distanceSquared = DistanceSquared(focus.X, focus.Y, midpointX, midpointY);
+            contributions.Add(new SnapshotDeltaBudgeter.Contribution(
+                priority - ((states.Count - 1) - index),
+                distanceSquared,
+                estimateBytes(state),
+                builder => builder.CombatTraces.Add(state)));
+        }
+    }
+
+    private static HashSet<int> BuildRocketStateIdSet(IReadOnlyList<SnapshotRocketState> rocketStates)
+    {
+        var ids = new HashSet<int>();
+        for (var index = 0; index < rocketStates.Count; index += 1)
+        {
+            ids.Add(rocketStates[index].Id);
+        }
+
+        return ids;
     }
 
     private static void AddOrderedContributions<T>(
@@ -1190,7 +1446,7 @@ internal static class SnapshotContributionPlanner
     private static int EstimateRocketBytes(SnapshotRocketState state)
     {
         var passedFriendlyPlayerCount = state.PassedFriendlyPlayerIds?.Count ?? 0;
-        return 68 + (passedFriendlyPlayerCount * 4);
+        return 69 + (passedFriendlyPlayerCount * 4);
     }
 
     private static EntityDelta<T> DiffEntities<T>(

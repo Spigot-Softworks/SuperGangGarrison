@@ -38,6 +38,8 @@ public sealed partial class SimulationWorld
             RemoveAt(world, rocket.Id);
             if (world.ClientPredictionMode)
             {
+                world.RegisterWorldSoundEvent("ExplosionSnd", rocket.X, rocket.Y);
+                world.RegisterVisualEffect("Explosion", rocket.X, rocket.Y);
                 return;
             }
 

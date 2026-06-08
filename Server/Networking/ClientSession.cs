@@ -13,13 +13,14 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
     private const int SnapshotHistorySlackFrames = 12;
     private const int MaximumSnapshotHistoryLimit = 48;
     private const int MaximumPendingInputEdges = 32;
-    private const int AcknowledgedSoundEventHistoryLimit = 4096;
+    private const int AcknowledgedTransientEventHistoryLimit = 4096;
     private readonly List<SequencedPlayerInputEdge> _pendingInputEdges = new();
     private readonly Dictionary<ulong, SnapshotBaselineState> _snapshotStatesByFrame = new();
     private readonly Queue<ulong> _snapshotFrameOrder = new();
-    private readonly Dictionary<ulong, ulong[]> _snapshotSoundEventIdsByFrame = new();
-    private readonly HashSet<ulong> _acknowledgedSoundEventIds = new();
-    private readonly Queue<ulong> _acknowledgedSoundEventOrder = new();
+    private readonly Dictionary<ulong, ulong[]> _snapshotTransientEventIdsByFrame = new();
+    private readonly HashSet<ulong> _acknowledgedTransientEventIds = new();
+    private readonly Queue<ulong> _acknowledgedTransientEventOrder = new();
+    private string _name = PlayerEntity.NormalizeDisplayName(name);
 
     public ClientSession(byte slot, int userId, IPEndPoint endPoint, string name, TimeSpan lastSeen)
         : this(slot, userId, ServerTransportPeer.FromUdpEndPoint(endPoint), name, lastSeen)
@@ -34,7 +35,11 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
     public IPAddress? RemoteAddress => Peer.RemoteAddress;
     public string RemoteDescription => Peer.Description;
     public bool IsLoopbackConnection => Peer.IsLoopback;
-    public string Name { get; set; } = name;
+    public string Name
+    {
+        get => _name;
+        set => _name = PlayerEntity.NormalizeDisplayName(value);
+    }
     public ulong BadgeMask { get; set; }
     public string FriendCode { get; set; } = string.Empty;
     public string PlayerCardJson { get; set; } = string.Empty;
@@ -246,7 +251,7 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
             return;
         }
 
-        AcknowledgeSnapshotSoundEvents(frame);
+        AcknowledgeSnapshotTransientEvents(frame);
         LastAcknowledgedSnapshotFrame = frame;
         PruneOlderSnapshotHistory(frame);
     }
@@ -258,7 +263,12 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
 
     public bool HasAcknowledgedSoundEvent(ulong eventId)
     {
-        return eventId != 0 && _acknowledgedSoundEventIds.Contains(eventId);
+        return HasAcknowledgedTransientEvent(eventId);
+    }
+
+    public bool HasAcknowledgedTransientEvent(ulong eventId)
+    {
+        return eventId != 0 && _acknowledgedTransientEventIds.Contains(eventId);
     }
 
     public void ResetSnapshotHistory()
@@ -266,9 +276,9 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
         LastAcknowledgedSnapshotFrame = 0;
         _snapshotStatesByFrame.Clear();
         _snapshotFrameOrder.Clear();
-        _snapshotSoundEventIdsByFrame.Clear();
-        _acknowledgedSoundEventIds.Clear();
-        _acknowledgedSoundEventOrder.Clear();
+        _snapshotTransientEventIdsByFrame.Clear();
+        _acknowledgedTransientEventIds.Clear();
+        _acknowledgedTransientEventOrder.Clear();
     }
 
     private void TrimSnapshotHistory()
@@ -278,7 +288,7 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
         {
             var oldestFrame = _snapshotFrameOrder.Dequeue();
             _snapshotStatesByFrame.Remove(oldestFrame);
-            _snapshotSoundEventIdsByFrame.Remove(oldestFrame);
+            _snapshotTransientEventIdsByFrame.Remove(oldestFrame);
             if (oldestFrame == LastAcknowledgedSnapshotFrame)
             {
                 LastAcknowledgedSnapshotFrame = 0;
@@ -292,61 +302,108 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
         {
             var removedFrame = _snapshotFrameOrder.Dequeue();
             _snapshotStatesByFrame.Remove(removedFrame);
-            _snapshotSoundEventIdsByFrame.Remove(removedFrame);
+            _snapshotTransientEventIdsByFrame.Remove(removedFrame);
         }
     }
 
     private void RememberSnapshotSoundEvents(SnapshotMessage snapshot)
     {
-        if (snapshot.SoundEvents.Count == 0)
+        RememberSnapshotTransientEvents(snapshot);
+    }
+
+    private void RememberSnapshotTransientEvents(SnapshotMessage snapshot)
+    {
+        var transientEventCount =
+            snapshot.SoundEvents.Count
+            + snapshot.VisualEvents.Count
+            + snapshot.DamageEvents.Count
+            + snapshot.GibSpawnEvents.Count
+            + snapshot.RocketSpawnEvents.Count;
+        if (transientEventCount == 0)
         {
-            _snapshotSoundEventIdsByFrame.Remove(snapshot.Frame);
+            _snapshotTransientEventIdsByFrame.Remove(snapshot.Frame);
             return;
         }
 
-        var soundEventIds = new List<ulong>(snapshot.SoundEvents.Count);
+        var eventIds = new List<ulong>(transientEventCount);
         for (var index = 0; index < snapshot.SoundEvents.Count; index += 1)
         {
             var eventId = snapshot.SoundEvents[index].EventId;
             if (eventId != 0)
             {
-                soundEventIds.Add(eventId);
+                eventIds.Add(eventId);
             }
         }
 
-        if (soundEventIds.Count == 0)
+        for (var index = 0; index < snapshot.VisualEvents.Count; index += 1)
         {
-            _snapshotSoundEventIdsByFrame.Remove(snapshot.Frame);
+            var eventId = snapshot.VisualEvents[index].EventId;
+            if (eventId != 0)
+            {
+                eventIds.Add(eventId);
+            }
+        }
+
+        for (var index = 0; index < snapshot.DamageEvents.Count; index += 1)
+        {
+            var eventId = snapshot.DamageEvents[index].EventId;
+            if (eventId != 0)
+            {
+                eventIds.Add(eventId);
+            }
+        }
+
+        for (var index = 0; index < snapshot.GibSpawnEvents.Count; index += 1)
+        {
+            var eventId = snapshot.GibSpawnEvents[index].EventId;
+            if (eventId != 0)
+            {
+                eventIds.Add(eventId);
+            }
+        }
+
+        for (var index = 0; index < snapshot.RocketSpawnEvents.Count; index += 1)
+        {
+            var eventId = snapshot.RocketSpawnEvents[index].EventId;
+            if (eventId != 0)
+            {
+                eventIds.Add(eventId);
+            }
+        }
+
+        if (eventIds.Count == 0)
+        {
+            _snapshotTransientEventIdsByFrame.Remove(snapshot.Frame);
             return;
         }
 
-        _snapshotSoundEventIdsByFrame[snapshot.Frame] = soundEventIds.ToArray();
+        _snapshotTransientEventIdsByFrame[snapshot.Frame] = eventIds.ToArray();
     }
 
-    private void AcknowledgeSnapshotSoundEvents(ulong frame)
+    private void AcknowledgeSnapshotTransientEvents(ulong frame)
     {
-        if (!_snapshotSoundEventIdsByFrame.TryGetValue(frame, out var soundEventIds))
+        if (!_snapshotTransientEventIdsByFrame.TryGetValue(frame, out var eventIds))
         {
             return;
         }
 
-        for (var index = 0; index < soundEventIds.Length; index += 1)
+        for (var index = 0; index < eventIds.Length; index += 1)
         {
-            AddAcknowledgedSoundEvent(soundEventIds[index]);
+            AddAcknowledgedTransientEvent(eventIds[index]);
         }
     }
 
-    private void AddAcknowledgedSoundEvent(ulong eventId)
+    private void AddAcknowledgedTransientEvent(ulong eventId)
     {
-        if (eventId == 0 || !_acknowledgedSoundEventIds.Add(eventId))
+        if (eventId == 0 || !_acknowledgedTransientEventIds.Add(eventId))
         {
             return;
         }
 
-        _acknowledgedSoundEventOrder.Enqueue(eventId);
-        while (_acknowledgedSoundEventOrder.Count > AcknowledgedSoundEventHistoryLimit)
+        _acknowledgedTransientEventOrder.Enqueue(eventId);
+        while (_acknowledgedTransientEventOrder.Count > AcknowledgedTransientEventHistoryLimit)
         {
-            _acknowledgedSoundEventIds.Remove(_acknowledgedSoundEventOrder.Dequeue());
+            _acknowledgedTransientEventIds.Remove(_acknowledgedTransientEventOrder.Dequeue());
         }
     }
 

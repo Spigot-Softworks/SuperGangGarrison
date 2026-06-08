@@ -154,6 +154,7 @@ public static partial class ProtocolCodec
             writer.Write(e.ExplodeImmediately);
             writer.Write(e.IsCritical);
             writer.Write(e.EventId);
+            WriteEntityIdList(writer, e.PassedFriendlyPlayerIds ?? []);
         }
     }
 
@@ -184,7 +185,8 @@ public static partial class ProtocolCodec
                 reader.ReadSingle(),
                 reader.ReadBoolean(),
                 reader.ReadBoolean(),
-                reader.ReadUInt64()));
+                reader.ReadUInt64(),
+                ReadEntityIdList(reader)));
         }
 
         return events;

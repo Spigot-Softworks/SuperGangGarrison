@@ -90,9 +90,10 @@ sealed class ServerSessionManager
 
     public void ApplyClientProfile(byte slot, string name, ulong badgeMask, string? friendCode = null, string? playerCardJson = null)
     {
+        var sanitizedName = PlayerEntity.NormalizeDisplayName(name);
         if (_clientsBySlot.TryGetValue(slot, out var client))
         {
-            client.Name = name;
+            client.Name = sanitizedName;
             client.BadgeMask = badgeMask;
             if (friendCode is not null)
             {
@@ -105,9 +106,9 @@ sealed class ServerSessionManager
             }
         }
 
-        _world.TrySetNetworkPlayerName(slot, name);
+        _world.TrySetNetworkPlayerName(slot, sanitizedName);
         _world.TrySetNetworkPlayerBadgeMask(slot, badgeMask);
-        _gameplayOwnershipService?.ApplyClientProfile(slot, name, badgeMask);
+        _gameplayOwnershipService?.ApplyClientProfile(slot, sanitizedName, badgeMask);
         if (client is not null)
         {
             _clientProfileChanged(client);
@@ -170,7 +171,7 @@ sealed class ServerSessionManager
 
         var accepted = command.Kind switch
         {
-            ControlCommandKind.SelectTeam => ApplyRequestedTeam(client, command.Value),
+            ControlCommandKind.SelectTeam => ApplyRequestedTeam(client, command.Value, deferUntilClassSelection: true),
             ControlCommandKind.SelectClass => ApplyRequestedClass(client.Slot, command.Value, command.TextValue),
             ControlCommandKind.Spectate => ApplyRequestedSpectate(client),
             ControlCommandKind.SelectGameplayLoadout => ApplyRequestedGameplayLoadout(client.Slot, command.TextValue, command.Value),
@@ -272,7 +273,7 @@ sealed class ServerSessionManager
     public bool TrySetClientTeam(byte slot, PlayerTeam team)
     {
         return _clientsBySlot.TryGetValue(slot, out var client)
-            && ApplyRequestedTeam(client, (byte)team);
+            && ApplyRequestedTeam(client, (byte)team, deferUntilClassSelection: false);
     }
 
     public bool TrySetClientClass(byte slot, PlayerClass playerClass)
@@ -348,7 +349,7 @@ sealed class ServerSessionManager
             : _clientTimeoutSeconds;
     }
 
-    private bool ApplyRequestedTeamForSlot(byte slot, byte requestedTeam)
+    private bool ApplyRequestedTeamForSlot(byte slot, byte requestedTeam, bool deferUntilClassSelection)
     {
         if (requestedTeam > (byte)PlayerTeam.Blue)
         {
@@ -356,7 +357,10 @@ sealed class ServerSessionManager
         }
 
         var team = (PlayerTeam)requestedTeam;
-        if (!_world.TrySetNetworkPlayerTeam(slot, team))
+        var accepted = deferUntilClassSelection
+            ? _world.TryRequestNetworkPlayerTeamSelection(slot, team)
+            : _world.TrySetNetworkPlayerTeam(slot, team);
+        if (!accepted)
         {
             return false;
         }
@@ -450,7 +454,7 @@ sealed class ServerSessionManager
         return true;
     }
 
-    private bool ApplyRequestedTeam(ClientSession client, byte requestedTeam)
+    private bool ApplyRequestedTeam(ClientSession client, byte requestedTeam, bool deferUntilClassSelection)
     {
         if (requestedTeam > (byte)PlayerTeam.Blue)
         {
@@ -469,8 +473,7 @@ sealed class ServerSessionManager
             }
         }
 
-        var team = (PlayerTeam)requestedTeam;
-        return ApplyRequestedTeamForSlot(client.Slot, requestedTeam);
+        return ApplyRequestedTeamForSlot(client.Slot, requestedTeam, deferUntilClassSelection);
     }
 
     private bool ApplyRequestedSpectate(ClientSession client)

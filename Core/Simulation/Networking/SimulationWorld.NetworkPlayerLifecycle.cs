@@ -79,6 +79,7 @@ public sealed partial class SimulationWorld
         SetNetworkPlayerDeathCam(slot, null);
         TrySetNetworkPlayerClassDefinition(slot, CharacterClassCatalog.Scout);
         TrySetNetworkPlayerConfiguredTeam(slot, GetDefaultNetworkPlayerTeam(slot));
+        ConsumePendingNetworkPlayerTeamSelection(slot);
         _networkPlayerSpawnOverrides.Remove(slot);
         _networkPlayerMovementSpeedScaleOverrides.Remove(slot);
         _networkPlayerGravityScaleOverrides.Remove(slot);
@@ -155,6 +156,7 @@ public sealed partial class SimulationWorld
         TrySetNetworkPlayerAwaitingJoin(slot, false);
         TrySetNetworkPlayerRespawnTicks(slot, 0);
         SetNetworkPlayerDeathCam(slot, null);
+        ConsumePendingNetworkPlayerTeamSelection(slot);
 
         var team = GetNetworkPlayerConfiguredTeam(slot);
         player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
@@ -183,6 +185,7 @@ public sealed partial class SimulationWorld
         TrySetNetworkPlayerAwaitingJoin(slot, true);
         TrySetNetworkPlayerRespawnTicks(slot, 0);
         SetNetworkPlayerDeathCam(slot, null);
+        ConsumePendingNetworkPlayerTeamSelection(slot);
 
         ClearDominationsForPlayer(player);
         player.ClearMedicHealingTarget();
@@ -217,6 +220,7 @@ public sealed partial class SimulationWorld
 
         player.SetClassDefinition(definition);
         SyncExperimentalGameplayLoadout(slot, player);
+        ConsumePendingNetworkPlayerTeamSelection(slot);
         return TryForceRespawnNetworkPlayer(slot, playRespawnSound: false);
     }
 }

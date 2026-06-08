@@ -463,6 +463,65 @@ public sealed class PlayerEntityNetworkStateTests
     }
 
     [Fact]
+    public void ApplyNetworkStateHydratesReplicatedHeavyDashCooldownForHud()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Heavy, "Test");
+
+        ApplyHeavyNetworkSnapshot(
+            player,
+            [
+                new GameplayReplicatedStateEntry(
+                    GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                    GameplayAbilityReplicatedState.HeavyDashCooldownTicksKey,
+                    GameplayReplicatedStateValueKind.Whole,
+                    IntValue: 42),
+            ]);
+
+        Assert.Equal(42, player.ExperimentalGhostDashCooldownTicksRemaining);
+        Assert.True(GameplayAbilityReplicatedState.TryGetInt(
+            player,
+            GameplayAbilityReplicatedState.HeavyDashCooldownTicksKey,
+            out var cooldownTicks));
+        Assert.Equal(42, cooldownTicks);
+    }
+
+    [Fact]
+    public void ApplyNetworkStateIgnoresStaleReplicatedHeavyDashStateAfterClassChange()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Heavy, "Test");
+        var staleHeavyDashState = new[]
+        {
+            new GameplayReplicatedStateEntry(
+                GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                GameplayAbilityReplicatedState.HeavyDashActiveKey,
+                GameplayReplicatedStateValueKind.Toggle,
+                BoolValue: true),
+            new GameplayReplicatedStateEntry(
+                GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                GameplayAbilityReplicatedState.HeavyDashVisibleKey,
+                GameplayReplicatedStateValueKind.Toggle,
+                BoolValue: true),
+            new GameplayReplicatedStateEntry(
+                GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                GameplayAbilityReplicatedState.HeavyDashTrailAlphaKey,
+                GameplayReplicatedStateValueKind.Scalar,
+                FloatValue: 0.5f),
+        };
+
+        ApplyHeavyNetworkSnapshot(player, staleHeavyDashState);
+        ApplySoldierNetworkSnapshot(
+            player,
+            GameplayEquipmentSlot.Primary,
+            includeFullLoadoutState: true,
+            replicatedStateEntries: staleHeavyDashState);
+
+        Assert.Equal(PlayerClass.Soldier, player.ClassId);
+        Assert.False(player.IsExperimentalGhostDashing);
+        Assert.False(player.IsExperimentalGhostDashVisible);
+        Assert.Equal(0f, player.ExperimentalGhostDashTrailAlpha);
+    }
+
+    [Fact]
     public void ExperimentalMetalConfigurationUpdatesCapacityAndPassiveRegeneration()
     {
         var player = new PlayerEntity(1, CharacterClassCatalog.Engineer, "Test");
@@ -572,7 +631,8 @@ public sealed class PlayerEntityNetworkStateTests
     private static void ApplySoldierNetworkSnapshot(
         PlayerEntity player,
         GameplayEquipmentSlot equippedSlot,
-        bool includeFullLoadoutState)
+        bool includeFullLoadoutState,
+        GameplayReplicatedStateEntry[]? replicatedStateEntries = null)
     {
         var equippedItemId = equippedSlot == GameplayEquipmentSlot.Secondary
             ? "weapon.soldier-shotgun"
@@ -632,7 +692,8 @@ public sealed class PlayerEntityNetworkStateTests
             gameplayUtilityItemId: includeFullLoadoutState ? "ability.soldier-utility" : "",
             gameplayEquippedSlot: (byte)equippedSlot,
             gameplayEquippedItemId: includeFullLoadoutState ? equippedItemId : "",
-            gameplayAcquiredItemId: "");
+            gameplayAcquiredItemId: "",
+            replicatedStateEntries: replicatedStateEntries);
     }
 
     private static void ApplyHeavyNetworkSnapshot(

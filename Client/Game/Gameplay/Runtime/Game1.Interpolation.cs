@@ -15,18 +15,19 @@ public partial class Game1
     private const int MaxQueuedAuthoritativeSnapshots = 4;
     private const float RemotePlayerTeleportSnapDistance = 128f;
     private const float RemotePlayerExtrapolationDurationSeconds = 0.07f;
-    private const float LocalPlayerMinimumInterpolationBackTimeSeconds = 0.028f;
-    private const float LocalPlayerMaximumInterpolationBackTimeSeconds = 0.075f;
-    private const float RemotePlayerMinimumInterpolationBackTimeSeconds = 0.042f;
-    private const float RemotePlayerMaximumInterpolationBackTimeSeconds = 0.105f;
+    private const float LocalPlayerMinimumInterpolationBackTimeSeconds = 0.050f;
+    private const float LocalPlayerMaximumInterpolationBackTimeSeconds = 0.180f;
+    private const float RemotePlayerMinimumInterpolationBackTimeSeconds = 0.050f;
+    private const float RemotePlayerMaximumInterpolationBackTimeSeconds = 0.280f;
     private const float ReplayMinimumInterpolationBackTimeSeconds = 0.02f;
     private const float ReplayMaximumInterpolationBackTimeSeconds = 0.06f;
     private const float OfflineInterpolationTeleportSnapDistance = 128f;
     private const float SnapshotHistoryRetentionSeconds = 0.5f;
+    private const float MaximumLocalProjectileInterpolationDistance = 256f;
     // Projectiles are updated every few ticks - enable extrapolation to smooth between updates
     // This prevents jittering when the camera/player moves around projectiles
-    private static readonly float ProjectileInterpolationExtrapolationCeilingSeconds = 0.15f;
-    private const int ExpectedProjectileUpdateIntervalTicks = 3;
+    private static readonly float ProjectileInterpolationExtrapolationCeilingSeconds = 0.30f;
+    private const int ExpectedProjectileUpdateIntervalTicks = 2;
 
     private int GetPlayerStateKey(PlayerEntity player)
     {
@@ -73,7 +74,10 @@ public partial class Game1
 
     private bool IsPositionSmoothingActive()
     {
-        return _positionSmoothingEnabled || _networkClient.IsReplayConnection;
+        return NetworkInterpolationPolicy.IsSnapshotInterpolationActive(
+            _networkClient.IsConnected,
+            _positionSmoothingEnabled,
+            _networkClient.IsReplayConnection);
     }
 
     private float GetMinimumRemotePlayerInterpolationBackTimeSeconds()
@@ -116,19 +120,23 @@ public partial class Game1
             return _interpolatedEntityPositions.GetValueOrDefault(entityId, new Vector2(x, y));
         }
 
-        if (IsLocallyAdvancedProjectileEntity(entityId))
-        {
-            return new Vector2(x, y);
-        }
-
         if (_entityInterpolationTracks.TryGetValue(entityId, out var track))
         {
             return EvaluateInterpolationTrack(track);
         }
 
-        if (IsPositionSmoothingActive()
-            || _entitySnapshotHistories.ContainsKey(entityId)
+        if (_entitySnapshotHistories.ContainsKey(entityId)
             || _remotePlayerSnapshotHistories.ContainsKey(entityId))
+        {
+            return _interpolatedEntityPositions.GetValueOrDefault(entityId, new Vector2(x, y));
+        }
+
+        if (!_networkClient.IsReplayConnection && IsLocallyAdvancedProjectileEntity(entityId))
+        {
+            return GetLocallyAdvancedProjectileRenderPosition(entityId, x, y);
+        }
+
+        if (IsPositionSmoothingActive())
         {
             return _interpolatedEntityPositions.GetValueOrDefault(entityId, new Vector2(x, y));
         }
@@ -153,6 +161,56 @@ public partial class Game1
             or RocketProjectileEntity
             or MineProjectileEntity
             or GrenadeProjectileEntity;
+    }
+
+    private Vector2 GetLocallyAdvancedProjectileRenderPosition(int entityId, float x, float y)
+    {
+        if (!_world.Entities.TryGetValue(entityId, out var entity))
+        {
+            return new Vector2(x, y);
+        }
+
+        return entity switch
+        {
+            ShotProjectileEntity shot => InterpolateLocalProjectilePosition(shot.PreviousX, shot.PreviousY, shot.X, shot.Y),
+            BubbleProjectileEntity bubble => InterpolateLocalProjectilePosition(bubble.PreviousX, bubble.PreviousY, bubble.X, bubble.Y),
+            BladeProjectileEntity blade => InterpolateLocalProjectilePosition(blade.PreviousX, blade.PreviousY, blade.X, blade.Y),
+            NeedleProjectileEntity needle => InterpolateLocalProjectilePosition(needle.PreviousX, needle.PreviousY, needle.X, needle.Y),
+            RevolverProjectileEntity shot => InterpolateLocalProjectilePosition(shot.PreviousX, shot.PreviousY, shot.X, shot.Y),
+            FlameProjectileEntity flame => InterpolateLocalProjectilePosition(flame.PreviousX, flame.PreviousY, flame.X, flame.Y),
+            FlareProjectileEntity flare => InterpolateLocalProjectilePosition(flare.PreviousX, flare.PreviousY, flare.X, flare.Y),
+            RocketProjectileEntity rocket => InterpolateLocalProjectilePosition(rocket.PreviousX, rocket.PreviousY, rocket.X, rocket.Y),
+            MineProjectileEntity mine => InterpolateLocalProjectilePosition(mine.PreviousX, mine.PreviousY, mine.X, mine.Y),
+            GrenadeProjectileEntity grenade => InterpolateLocalProjectilePosition(grenade.PreviousX, grenade.PreviousY, grenade.X, grenade.Y),
+            _ => new Vector2(x, y),
+        };
+    }
+
+    private Vector2 InterpolateLocalProjectilePosition(float previousX, float previousY, float x, float y)
+    {
+        var current = new Vector2(x, y);
+        if (!HasUsableLocalProjectilePreviousPosition(previousX, previousY, x, y))
+        {
+            return current;
+        }
+
+        return Vector2.Lerp(new Vector2(previousX, previousY), current, _simulator.InterpolationAlpha);
+    }
+
+    private static bool HasUsableLocalProjectilePreviousPosition(float previousX, float previousY, float x, float y)
+    {
+        if (!float.IsFinite(previousX)
+            || !float.IsFinite(previousY)
+            || !float.IsFinite(x)
+            || !float.IsFinite(y))
+        {
+            return false;
+        }
+
+        var deltaX = x - previousX;
+        var deltaY = y - previousY;
+        return (deltaX * deltaX) + (deltaY * deltaY)
+            <= MaximumLocalProjectileInterpolationDistance * MaximumLocalProjectileInterpolationDistance;
     }
 
     private Vector2 GetRenderPosition(PlayerEntity player, bool allowInterpolation = true)
