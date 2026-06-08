@@ -41,6 +41,7 @@ public sealed partial class SimulationWorld
         {
             _world.AdvanceExperimentalRageState();
             _objectiveFlowController.AdvanceObjectives();
+            _world.UpdateAuxiliaryControlPointStateIfNeeded();
             _objectiveFlowController.AdvanceResolution();
         }
 
@@ -67,6 +68,11 @@ public sealed partial class SimulationWorld
         public void AdvanceLegacyCaptureTheFlagState()
         {
             _objectiveFlowController.AdvanceLegacyCaptureTheFlagState();
+        }
+
+        public void AdvanceLegacyScrState()
+        {
+            _objectiveFlowController.AdvanceLegacyScrState();
         }
 
         public void AdvanceLegacyArenaState()

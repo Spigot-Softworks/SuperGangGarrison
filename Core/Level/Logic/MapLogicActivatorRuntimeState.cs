@@ -172,14 +172,15 @@ public sealed class MapLogicActivatorRuntimeState
         _currentTickRisingEdgeOrder = -1L;
     }
 
-    internal void RecordSignalTransition(int activatorIndex, bool currentSignal)
+    internal bool RecordSignalTransition(int activatorIndex, bool currentSignal)
     {
         if (activatorIndex < 0 || activatorIndex >= _previousSignals.Length)
         {
-            return;
+            return false;
         }
 
-        if (currentSignal && !_previousSignals[activatorIndex])
+        var hadRisingEdge = currentSignal && !_previousSignals[activatorIndex];
+        if (hadRisingEdge)
         {
             if (_currentTickRisingEdgeOrder < 0L)
             {
@@ -191,6 +192,15 @@ public sealed class MapLogicActivatorRuntimeState
         }
 
         _previousSignals[activatorIndex] = currentSignal;
+        return hadRisingEdge;
+    }
+
+    internal bool HadRisingEdgeThisTick(int activatorIndex)
+    {
+        return activatorIndex >= 0
+            && activatorIndex < _lastRisingEdgeOrders.Length
+            && _currentTickRisingEdgeOrder >= 0L
+            && _lastRisingEdgeOrders[activatorIndex] == _currentTickRisingEdgeOrder;
     }
 
     internal bool TryGetLastRisingEdgeOrder(int activatorIndex, out long risingEdgeOrder)

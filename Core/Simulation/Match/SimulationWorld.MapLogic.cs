@@ -38,6 +38,7 @@ public sealed partial class SimulationWorld
         RefreshMapLogicRuntimeIfControlPointInputsChanged();
         EvaluateMapLogicPlayerTriggersIfNeeded();
         EvaluateMapLogicIntelTriggersIfNeeded();
+        ApplyDamageableZoneHealWhenSignals();
         EvaluateMapLogicDamageTriggersIfNeeded();
         TickMapLogicTimers();
     }
@@ -59,6 +60,7 @@ public sealed partial class SimulationWorld
         EvaluateMapLogicIntelTriggersIfNeeded();
         ApplyDamageableZoneHealWhenSignals();
         EvaluateMapLogicDamageTriggersIfNeeded();
+        EvaluateMapLogicScoreTriggersIfNeeded();
 
         var deltaSeconds = (float)Config.FixedDeltaSeconds;
         if (Level.LogicGraph.HasDamageTriggers)
@@ -111,6 +113,21 @@ public sealed partial class SimulationWorld
 
         Level.LogicGraph.EvaluateIntelTriggers(CreateIntelTriggerEvaluationContext());
         ApplyMapLogicActivators();
+    }
+
+    private void EvaluateMapLogicScoreTriggersIfNeeded()
+    {
+        if (!Level.LogicScoreTriggers.HasTriggers)
+        {
+            return;
+        }
+
+        _logicScoreTriggerRuntimeState.EnsureActivatorCount(Level.LogicScoreTriggers.Triggers.Count);
+        MapLogicScoreTriggerRuntime.Apply(
+            this,
+            Level.LogicGraph,
+            Level.LogicScoreTriggers,
+            _logicScoreTriggerRuntimeState);
     }
 
     private PlayerTriggerEvaluationContext CreatePlayerTriggerEvaluationContext()
@@ -181,6 +198,7 @@ public sealed partial class SimulationWorld
             graph.EvaluateIntelTriggers(CreateIntelTriggerEvaluationContext());
             ApplyDamageableZoneHealWhenSignals();
             graph.EvaluateDamageTriggers(CreateDamageTriggerEvaluationContext());
+            EvaluateMapLogicScoreTriggersIfNeeded();
             ApplyControlPointLogicLockTriggers();
 
             if (force)
@@ -221,6 +239,7 @@ public sealed partial class SimulationWorld
         }
 
         _logicActivatorRuntimeState.Reset();
+        _logicScoreTriggerRuntimeState.Reset();
     }
 
     private void ResetRoomObjectLogicActiveMask()

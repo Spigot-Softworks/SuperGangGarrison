@@ -22,6 +22,9 @@ public sealed partial class SimulationWorld
                 break;
             case GameModeKind.TeamDeathmatch:
                 break;
+            case GameModeKind.Scr:
+                UpdateScrState();
+                break;
             default:
                 UpdateCaptureTheFlagState();
                 break;

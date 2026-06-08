@@ -781,13 +781,9 @@ public sealed partial class SimulationWorld
         {
             ApplyExperimentalSentryPlayerHit(sentry, owner, target.Player, SentryEntity.HitDamage);
         }
-        else if (target.Generator is not null)
+        else
         {
-            TryDamageGenerator(target.Generator.Team, SentryEntity.HitDamage, owner);
-        }
-        else if (target.JumpPad is not null)
-        {
-            target.JumpPad.TakeDamage(SentryEntity.HitDamage);
+            ApplyExperimentalSentryStructuralTargetDamage(sentry, target, owner, SentryEntity.HitDamage);
         }
 
         if (ExperimentalGameplaySettings.EnableEngineerCaveatInjector
@@ -815,13 +811,9 @@ public sealed partial class SimulationWorld
         {
             ApplyExperimentalSentryPlayerHit(sentry, owner, target.Player, SentryEntity.HitDamage);
         }
-        else if (target.Generator is not null)
+        else
         {
-            TryDamageGenerator(target.Generator.Team, SentryEntity.HitDamage, owner);
-        }
-        else if (target.JumpPad is not null)
-        {
-            target.JumpPad.TakeDamage(SentryEntity.HitDamage);
+            ApplyExperimentalSentryStructuralTargetDamage(sentry, target, owner, SentryEntity.HitDamage);
         }
 
         int pelletDamage = Math.Max(
@@ -883,6 +875,16 @@ public sealed partial class SimulationWorld
 
         var directionX = deltaX / distance;
         var directionY = deltaY / distance;
+        if (target.DamageableZoneRoomObjectIndex is int damageableZoneIndex)
+        {
+            RegisterCombatTrace(sentry.X, sentry.Y, directionX, directionY, distance, hitCharacter: false, sentry.Team, isSniperTracer: true);
+            TryApplyDamageableZoneDamage(
+                damageableZoneIndex,
+                global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerPrecisionInstantiatorDamage,
+                sentry.Team);
+            return;
+        }
+
         var hit = ResolveRifleHit(owner, sentry.X, sentry.Y, directionX, directionY, GetExperimentalSentryTargetRange(owner));
         RegisterCombatTrace(sentry.X, sentry.Y, directionX, directionY, hit.Distance, hit.HitPlayer is not null, sentry.Team, isSniperTracer: true);
         if (hit.HitPlayer is not null)
@@ -904,6 +906,37 @@ public sealed partial class SimulationWorld
         else if (hit.HitJumpPad is not null)
         {
             hit.HitJumpPad.TakeDamage(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerPrecisionInstantiatorDamage);
+        }
+    }
+
+    private void ApplyExperimentalSentryStructuralTargetDamage(SentryEntity sentry, SentryTarget target, PlayerEntity owner, float damage)
+    {
+        var appliedDamage = Math.Max(1, (int)MathF.Round(damage));
+        if (target.Generator is not null)
+        {
+            TryDamageGenerator(target.Generator.Team, appliedDamage, owner);
+            return;
+        }
+
+        if (target.Sentry is not null)
+        {
+            if (ApplySentryDamage(target.Sentry, appliedDamage, owner))
+            {
+                DestroySentry(target.Sentry, owner);
+            }
+
+            return;
+        }
+
+        if (target.JumpPad is not null)
+        {
+            target.JumpPad.TakeDamage(appliedDamage);
+            return;
+        }
+
+        if (target.DamageableZoneRoomObjectIndex is int damageableZoneIndex)
+        {
+            TryApplyDamageableZoneDamage(damageableZoneIndex, appliedDamage, sentry.Team);
         }
     }
 

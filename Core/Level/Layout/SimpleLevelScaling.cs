@@ -32,8 +32,11 @@ internal static class SimpleLevelScaling
             level.UnsupportedSourceEntities.ToArray(),
             Scale(level.CustomMapVisuals, clampedScale),
             level.ControlPointSettings,
+            level.ScrSettings,
+            level.ShowControlPoints,
             level.LogicGraph,
-            level.LogicActivators)
+            level.LogicActivators,
+            level.LogicScoreTriggers)
         {
             ControlPointSetupGatesActive = level.ControlPointSetupGatesActive,
             ForcedBlockingTeamGates = level.ForcedBlockingTeamGates,

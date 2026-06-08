@@ -18,11 +18,18 @@ public enum MapLogicNodeKind
     Latch,
 }
 
-public readonly struct DamageTriggerEvaluationContext(Func<int, float> getHealthRatio)
+public readonly struct DamageTriggerEvaluationContext(
+    Func<int, float> getHealthRatio,
+    Func<int, PlayerTeam?>? getLastDamagingTeam = null)
 {
     public float GetHealthRatio(int roomObjectIndex)
     {
         return roomObjectIndex >= 0 ? getHealthRatio(roomObjectIndex) : 1f;
+    }
+
+    public PlayerTeam? GetLastDamagingTeam(int roomObjectIndex)
+    {
+        return roomObjectIndex >= 0 ? getLastDamagingTeam?.Invoke(roomObjectIndex) : null;
     }
 }
 
@@ -81,6 +88,7 @@ public sealed class MapLogicNode
         bool triggerOnAnyDamage = false,
         bool triggerOnHeal = false,
         bool triggerWhenDestroyed = false,
+        PlayerTriggerTeamFilter damageTriggerTeamFilter = PlayerTriggerTeamFilter.Any,
         MapLogicSignalMode signalMode = MapLogicSignalMode.Latch,
         MapLogicCpCaptureDetectMode cpCaptureDetectMode = MapLogicCpCaptureDetectMode.AnyCapture,
         MapLogicPlayerDetectMode playerDetectMode = MapLogicPlayerDetectMode.PlayerEnter,
@@ -90,7 +98,8 @@ public sealed class MapLogicNode
         bool intelTriggerOnPickup = false,
         bool intelTriggerOnDrop = false,
         bool intelTriggerOnCapture = false,
-        bool intelTriggerOnReset = false)
+        bool intelTriggerOnReset = false,
+        float anyDamageCooldownSeconds = 0f)
     {
         NodeIndex = nodeIndex;
         LogicKey = logicKey;
@@ -123,6 +132,7 @@ public sealed class MapLogicNode
         TriggerOnAnyDamage = triggerOnAnyDamage;
         TriggerOnHeal = triggerOnHeal;
         TriggerWhenDestroyed = triggerWhenDestroyed;
+        DamageTriggerTeamFilter = damageTriggerTeamFilter;
         SignalMode = signalMode;
         CpCaptureDetectMode = cpCaptureDetectMode;
         PlayerDetectMode = playerDetectMode;
@@ -133,6 +143,7 @@ public sealed class MapLogicNode
         IntelTriggerOnDrop = intelTriggerOnDrop;
         IntelTriggerOnCapture = intelTriggerOnCapture;
         IntelTriggerOnReset = intelTriggerOnReset;
+        AnyDamageCooldownSeconds = anyDamageCooldownSeconds;
     }
 
     public int NodeIndex { get; }
@@ -197,6 +208,8 @@ public sealed class MapLogicNode
 
     public bool TriggerWhenDestroyed { get; }
 
+    public PlayerTriggerTeamFilter DamageTriggerTeamFilter { get; }
+
     public MapLogicSignalMode SignalMode { get; }
 
     public MapLogicCpCaptureDetectMode CpCaptureDetectMode { get; }
@@ -216,6 +229,8 @@ public sealed class MapLogicNode
     public bool IntelTriggerOnCapture { get; }
 
     public bool IntelTriggerOnReset { get; }
+
+    public float AnyDamageCooldownSeconds { get; }
 }
 
 internal sealed class MapLogicIntelTriggerNodeState
@@ -240,6 +255,8 @@ internal sealed class MapLogicDamageTriggerNodeState
     public float PreviousHealthRatio = 1f;
 
     public float AnyDamagePulseRemainingSeconds;
+
+    public float AnyDamageCooldownRemainingSeconds;
 }
 
 internal sealed class MapLogicRisingEdgeNodeState
@@ -839,6 +856,7 @@ public sealed class MapLogicGraph
             var state = _damageTriggerStates[index];
             state.PreviousHealthRatio = context?.GetHealthRatio(node.DamageableRoomObjectIndex) ?? 1f;
             state.AnyDamagePulseRemainingSeconds = 0f;
+            state.AnyDamageCooldownRemainingSeconds = 0f;
         }
     }
 
@@ -870,26 +888,47 @@ public sealed class MapLogicGraph
             }
             else if (node.TriggerWhenDestroyed)
             {
-                _outputs[nodeIndex] = impulse
-                    ? previousRatio > 0.0001f && currentRatio <= 0.0001f
-                    : currentRatio <= 0.0001f;
+                _outputs[nodeIndex] = ApplyDamageTriggerTeamFilter(
+                    node,
+                    context,
+                    impulse
+                        ? previousRatio > 0.0001f && currentRatio <= 0.0001f
+                        : currentRatio <= 0.0001f);
             }
             else if (node.TriggerBelowThreshold)
             {
                 var threshold = node.TriggerBelowPercent / 100f;
-                _outputs[nodeIndex] = impulse
-                    ? previousRatio > threshold && currentRatio <= threshold
-                    : currentRatio <= threshold;
+                _outputs[nodeIndex] = ApplyDamageTriggerTeamFilter(
+                    node,
+                    context,
+                    impulse
+                        ? previousRatio > threshold && currentRatio <= threshold
+                        : currentRatio <= threshold);
             }
             else if (node.TriggerOnAnyDamage)
             {
+                var hasNewDamage = currentRatio < previousRatio - 0.0001f;
+                var teamFilteredDamage = ApplyDamageTriggerTeamFilter(node, context, hasNewDamage);
+                var canTriggerFromDamage = teamFilteredDamage
+                    && (node.AnyDamageCooldownSeconds <= 0f
+                        || state.AnyDamageCooldownRemainingSeconds <= 0f);
+
                 if (impulse)
                 {
-                    _outputs[nodeIndex] = currentRatio < previousRatio - 0.0001f;
+                    _outputs[nodeIndex] = canTriggerFromDamage;
+                    if (canTriggerFromDamage && node.AnyDamageCooldownSeconds > 0f)
+                    {
+                        state.AnyDamageCooldownRemainingSeconds = node.AnyDamageCooldownSeconds;
+                    }
                 }
-                else if (currentRatio < previousRatio - 0.0001f)
+                else if (canTriggerFromDamage)
                 {
                     state.AnyDamagePulseRemainingSeconds = Math.Max(0f, node.TrueTimeSeconds);
+                    if (node.AnyDamageCooldownSeconds > 0f)
+                    {
+                        state.AnyDamageCooldownRemainingSeconds = node.AnyDamageCooldownSeconds;
+                    }
+
                     _outputs[nodeIndex] = true;
                 }
                 else
@@ -906,6 +945,21 @@ public sealed class MapLogicGraph
         }
 
         EvaluateCombinatorialPropagators();
+    }
+
+    private static bool ApplyDamageTriggerTeamFilter(
+        MapLogicNode node,
+        DamageTriggerEvaluationContext context,
+        bool wouldTrigger)
+    {
+        if (!wouldTrigger || node.DamageTriggerTeamFilter == PlayerTriggerTeamFilter.Any)
+        {
+            return wouldTrigger;
+        }
+
+        var damagingTeam = context.GetLastDamagingTeam(node.DamageableRoomObjectIndex);
+        return damagingTeam.HasValue
+            && PlayerTriggerMetadata.AllowsTeam(node.DamageTriggerTeamFilter, damagingTeam.Value);
     }
 
     public void EvaluateCombinatorialPropagators()
@@ -945,13 +999,24 @@ public sealed class MapLogicGraph
             var nodeIndex = _evaluationOrder[orderIndex];
             var node = _nodes[nodeIndex];
             if (node.Kind != MapLogicNodeKind.DamageTrigger
-                || !node.TriggerOnAnyDamage
-                || node.SignalMode == MapLogicSignalMode.Impulse)
+                || !node.TriggerOnAnyDamage)
             {
                 continue;
             }
 
             var state = _damageTriggerStates[nodeIndex];
+            if (state.AnyDamageCooldownRemainingSeconds > 0f)
+            {
+                state.AnyDamageCooldownRemainingSeconds = Math.Max(
+                    0f,
+                    state.AnyDamageCooldownRemainingSeconds - deltaSeconds);
+            }
+
+            if (node.SignalMode == MapLogicSignalMode.Impulse)
+            {
+                continue;
+            }
+
             if (state.AnyDamagePulseRemainingSeconds <= 0f)
             {
                 continue;
@@ -1362,6 +1427,7 @@ public static class MapLogicGraphBuilder
                 definition.TriggerOnAnyDamage,
                 definition.TriggerOnHeal,
                 definition.TriggerWhenDestroyed,
+                definition.DamageTriggerTeamFilter,
                 definition.SignalMode,
                 definition.CpCaptureDetectMode,
                 definition.PlayerDetectMode,
@@ -1371,7 +1437,8 @@ public static class MapLogicGraphBuilder
                 definition.IntelTriggerOnPickup,
                 definition.IntelTriggerOnDrop,
                 definition.IntelTriggerOnCapture,
-                definition.IntelTriggerOnReset));
+                definition.IntelTriggerOnReset,
+                definition.AnyDamageCooldownSeconds));
         }
 
         var resolvedNodes = new MapLogicNode[nodes.Count];
@@ -1411,6 +1478,7 @@ public static class MapLogicGraphBuilder
                 baseNode.TriggerOnAnyDamage,
                 baseNode.TriggerOnHeal,
                 baseNode.TriggerWhenDestroyed,
+                baseNode.DamageTriggerTeamFilter,
                 baseNode.SignalMode,
                 baseNode.CpCaptureDetectMode,
                 baseNode.PlayerDetectMode,
@@ -1420,7 +1488,8 @@ public static class MapLogicGraphBuilder
                 baseNode.IntelTriggerOnPickup,
                 baseNode.IntelTriggerOnDrop,
                 baseNode.IntelTriggerOnCapture,
-                baseNode.IntelTriggerOnReset);
+                baseNode.IntelTriggerOnReset,
+                baseNode.AnyDamageCooldownSeconds);
         }
 
         var evaluationOrder = BuildEvaluationOrder(resolvedNodes);
@@ -1565,9 +1634,13 @@ public sealed class MapLogicNodeDefinition
 
     public bool TriggerOnAnyDamage { get; init; }
 
+    public float AnyDamageCooldownSeconds { get; init; }
+
     public bool TriggerOnHeal { get; init; }
 
     public bool TriggerWhenDestroyed { get; init; }
+
+    public PlayerTriggerTeamFilter DamageTriggerTeamFilter { get; init; } = PlayerTriggerTeamFilter.Any;
 
     public MapLogicSignalMode SignalMode { get; init; } = MapLogicSignalMode.Latch;
 

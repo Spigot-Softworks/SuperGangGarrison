@@ -15,6 +15,7 @@ public enum CustomMapBuilderGameMode
     DualKingOfTheHill = 1 << 4,
     Arena = 1 << 5,
     Generator = 1 << 6,
+    Scr = 1 << 7,
 }
 
 public sealed record CustomMapBuilderEntityDefinition(
@@ -41,7 +42,7 @@ public static class CustomMapBuilderEntityCatalog
         Define("spawn", AllModes, "team=red;forward=false;priority=1;linkObjective=controlPoint1;useWhen=owned", 30, "Spawn", "Team spawn (red, blue, or neutral). Neutral spawns both teams. Forward spawn links to a control point and uses priority when multiple forwards are active.", "spawnS", 0),
         Define("barrier", AllModes, "xscale=1;yscale=1;redPlayers=block;bluePlayers=block;redShots=allow;blueShots=allow;redIntel=block;blueIntel=block", 50, "Barrier", "Resizable solid area. Blocks players and intel carriers by default. Set each target to Block or Allow.", "sprite45", 3),
         Define("directionalWall", AllModes, "passDirection=right;players=ignore;projectiles=ignore;xscale=1;yscale=1", 51, "Directional wall", "One-way wall. Set pass direction and whether players or projectiles are affected.", "sprite45", 3),
-        Define("controlPoint", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint, "index=1;capTimeMultiplier=1;initialOwner=modeDefault", 12, "Control point", "Neutral control point with configurable index (1-5).", "ControlPointNeutralS", 0),
+        Define("controlPoint", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | ScrModes, "index=1;capTimeMultiplier=1;initialOwner=modeDefault", 12, "Control point", "Neutral control point with configurable index (1-5).", "ControlPointNeutralS", 0),
         Define("spawnroom", AllModes, "xscale=1;yscale=1", 74, "Spawn room", "Players can instantly respawn in this area.", "sprite64", 1),
         Define("redspawn", AllModes, "", 30, "Red spawn", "Default spawn locator for the red team.", "spawnS", 0),
         Define("redspawn1", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | CustomMapBuilderGameMode.KingOfTheHill | CustomMapBuilderGameMode.DualKingOfTheHill, "", 34, "Red spawn 1", "Red forward spawn #1.", "spawnS", 1),
@@ -53,8 +54,8 @@ public static class CustomMapBuilderEntityCatalog
         Define("bluespawn2", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | CustomMapBuilderGameMode.DualKingOfTheHill, "", 40, "Blue spawn 2", "Blue forward spawn #2.", "spawnS", 7),
         Define("bluespawn3", CustomMapBuilderGameMode.AttackDefenseControlPoint, "", 44, "Blue spawn 3", "Blue forward spawn #3.", "spawnS", 8),
         Define("bluespawn4", CustomMapBuilderGameMode.AttackDefenseControlPoint, "", 48, "Blue spawn 4", "Blue forward spawn #4.", "spawnS", 9),
-        Define("redintel", CustomMapBuilderGameMode.CaptureTheFlag, "", 0, "Red intel", "The red intelligence spawn point.", "IntelligenceRedS", 0),
-        Define("blueintel", CustomMapBuilderGameMode.CaptureTheFlag, "", 2, "Blue intel", "The blue intelligence spawn point.", "IntelligenceBlueS", 0),
+        Define("redintel", CustomMapBuilderGameMode.CaptureTheFlag | ScrModes, "", 0, "Red intel", "The red intelligence spawn point.", "IntelligenceRedS", 0),
+        Define("blueintel", CustomMapBuilderGameMode.CaptureTheFlag | ScrModes, "", 2, "Blue intel", "The blue intelligence spawn point.", "IntelligenceBlueS", 0),
         Define("redteamgate", TeamObjectiveModes, "xscale=1;yscale=1", 84, "Red gate", "A wall that blocks blue players and bullets.", "sprite45", 1),
         Define("blueteamgate", TeamObjectiveModes, "xscale=1;yscale=1", 86, "Blue gate", "A wall that blocks red players and bullets.", "sprite45", 2),
         Define("redteamgate2", CustomMapBuilderGameMode.Free, "xscale=1;yscale=1", 90, "Red floor gate", "A floor that blocks blue players and bullets.", "sprite44", 1),
@@ -93,13 +94,13 @@ public static class CustomMapBuilderEntityCatalog
         Define("bulletwall_horizontal", CustomMapBuilderGameMode.Free, "xscale=1;yscale=1", 56, "Bullet floor", "A floor that blocks bullets but not players.", "sprite44", 4),
         Define("leftdoor", AllModes, "xscale=1;yscale=1", 102, "Left door", "Blocks players trying to go left.", "sprite45", 5),
         Define("rightdoor", AllModes, "xscale=1;yscale=1", 104, "Right door", "Blocks players trying to go right.", "sprite45", 6),
-        Define("controlPoint1", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint, "", 12, "CP 1", "Control point #1.", "ControlPointNeutralS", 0),
-        Define("controlPoint2", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint, "", 14, "CP 2", "Control point #2.", "ControlPointNeutralS", 2),
-        Define("controlPoint3", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint, "", 16, "CP 3", "Control point #3.", "ControlPointNeutralS", 3),
-        Define("controlPoint4", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint, "", 18, "CP 4", "Control point #4.", "ControlPointNeutralS", 4),
-        Define("controlPoint5", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint, "", 20, "CP 5", "Control point #5.", "ControlPointNeutralS", 5),
+        Define("controlPoint1", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | ScrModes, "", 12, "CP 1", "Control point #1.", "ControlPointNeutralS", 0),
+        Define("controlPoint2", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | ScrModes, "", 14, "CP 2", "Control point #2.", "ControlPointNeutralS", 2),
+        Define("controlPoint3", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | ScrModes, "", 16, "CP 3", "Control point #3.", "ControlPointNeutralS", 3),
+        Define("controlPoint4", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | ScrModes, "", 18, "CP 4", "Control point #4.", "ControlPointNeutralS", 4),
+        Define("controlPoint5", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | ScrModes, "", 20, "CP 5", "Control point #5.", "ControlPointNeutralS", 5),
         Define("NextAreaO", TeamObjectiveModes, "", 106, "Next area", "Marks the next arena in multi stage maps.", "NextAreaS", 4),
-        Define("CapturePoint", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | CustomMapBuilderGameMode.KingOfTheHill | CustomMapBuilderGameMode.DualKingOfTheHill | CustomMapBuilderGameMode.Arena, "xscale=1;yscale=1", 26, "Capture zone", "Resizable capture zone. Players capping here use the nearest control point.", "CaptureZoneS", 0),
+        Define("CapturePoint", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | CustomMapBuilderGameMode.KingOfTheHill | CustomMapBuilderGameMode.DualKingOfTheHill | CustomMapBuilderGameMode.Arena | ScrModes, "xscale=1;yscale=1", 26, "Capture zone", "Resizable capture zone. Players capping here use the nearest control point.", "CaptureZoneS", 0),
         Define("SetupGate", CustomMapBuilderGameMode.CaptureTheFlag | CustomMapBuilderGameMode.AttackDefenseControlPoint, "xscale=1;yscale=1", 28, "Setup gate", "Prevents players from passing during setup time.", "SetupGateS", 0),
         Define("ArenaControlPoint", CustomMapBuilderGameMode.Arena, "initialOwner=modeDefault", 22, "Arena CP", "Arena control point.", "ControlPointNeutralS", 0),
         Define("GeneratorRed", CustomMapBuilderGameMode.Generator, "", 76, "Red gen", "Location of the red generator.", "GeneratorRedS", 0),
@@ -126,11 +127,20 @@ public static class CustomMapBuilderEntityCatalog
             0),
         Define(
             IntelTriggerMetadata.IntelTriggerEntityType,
-            CustomMapBuilderGameMode.CaptureTheFlag,
+            CustomMapBuilderGameMode.CaptureTheFlag | ScrModes,
             "signal=latch;intel=any;triggerWhen=atBase;onPickup=true;onDrop=false;onCapture=false;onReset=false;nodePriority=0;logicKey=",
             12,
             "Intel trigger",
             "Outputs based on CTF intelligence state (at base, carried, dropped, pickup, capture, or reset).",
+            string.Empty,
+            0),
+        Define(
+            MapLogicScoreTriggerMetadata.ScoreTriggerEntityType,
+            ScrOrFreeModes,
+            "logicInput=;scoreTeam=red;change=add;value=1;nodePriority=0;logicKey=",
+            12,
+            "Score",
+            "Adjusts team score on a rising edge from the linked logic signal.",
             string.Empty,
             0),
         Define(
@@ -145,7 +155,7 @@ public static class CustomMapBuilderEntityCatalog
         Define(
             DamageableMetadata.DamageableEntityType,
             AllModes,
-            "xscale=1;yscale=1;health=100;healWhen=;showHealthBar=false;blockPlayers=false;disableWhenDestroyed=true",
+            "xscale=1;yscale=1;health=100;healWhen=;showHealthBar=false;blockPlayers=false;disableWhenDestroyed=true;sentryTarget=true;stabbable=false",
             50,
             "Damageable",
             "Resizable zone that blocks projectiles and takes damage from them.",
@@ -154,7 +164,7 @@ public static class CustomMapBuilderEntityCatalog
         Define(
             DamageTriggerMetadata.DamageTriggerEntityType,
             AllModes,
-            "damageableEntity=;signal=latch;triggerBelowThreshold=false;triggerBelowPercent=50%;triggerOnAnyDamage=false;trueTime=0.25;triggerOnHeal=false;triggerWhenDestroyed=false;nodePriority=0;logicKey=",
+            "damageableEntity=;signal=latch;triggerBelowThreshold=false;triggerBelowPercent=50%;triggerOnAnyDamage=false;anyDamageCooldown=0.25;trueTime=0.25;triggerOnHeal=false;triggerWhenDestroyed=false;affectedByTeam=any;nodePriority=0;logicKey=",
             12,
             "Damage trigger",
             "Outputs true when a linked damageable crosses a health threshold or is fully healed.",
@@ -236,10 +246,16 @@ public static class CustomMapBuilderEntityCatalog
         return false;
     }
 
+    private const CustomMapBuilderGameMode ScrModes = CustomMapBuilderGameMode.Scr;
+
+    private const CustomMapBuilderGameMode ScrOrFreeModes =
+        CustomMapBuilderGameMode.Scr | CustomMapBuilderGameMode.Free;
+
     private const CustomMapBuilderGameMode AllModes =
         CustomMapBuilderGameMode.CaptureTheFlag
         | CustomMapBuilderGameMode.ControlPoint
         | CustomMapBuilderGameMode.AttackDefenseControlPoint
+        | CustomMapBuilderGameMode.Scr
         | CustomMapBuilderGameMode.KingOfTheHill
         | CustomMapBuilderGameMode.DualKingOfTheHill
         | CustomMapBuilderGameMode.Arena

@@ -31,8 +31,11 @@ public sealed class SimpleLevel
         IReadOnlyList<string>? unsupportedSourceEntities = null,
         CustomMapVisualMetadata? customMapVisuals = null,
         CustomMapControlPointSettings? controlPointSettings = null,
+        CustomMapScrSettings? scrSettings = null,
+        bool showControlPoints = false,
         MapLogicGraph? logicGraph = null,
-        MapLogicActivatorSet? logicActivators = null)
+        MapLogicActivatorSet? logicActivators = null,
+        MapLogicScoreTriggerSet? logicScoreTriggers = null)
     {
         Name = name;
         Mode = mode;
@@ -53,8 +56,11 @@ public sealed class SimpleLevel
         UnsupportedSourceEntities = unsupportedSourceEntities ?? Array.Empty<string>();
         CustomMapVisuals = customMapVisuals ?? CustomMapVisualMetadata.Empty;
         ControlPointSettings = controlPointSettings ?? CustomMapControlPointSettings.Default;
+        ScrSettings = scrSettings ?? CustomMapScrSettings.Default;
+        ShowControlPoints = showControlPoints;
         LogicGraph = logicGraph ?? MapLogicGraph.Empty;
         LogicActivators = logicActivators ?? MapLogicActivatorSet.Empty;
+        LogicScoreTriggers = logicScoreTriggers ?? MapLogicScoreTriggerSet.Empty;
         RoomObjectLogicActiveMask = new bool[roomObjects.Count];
         Array.Fill(RoomObjectLogicActiveMask, true);
         _roomObjectsByType = RoomObjects
@@ -101,9 +107,20 @@ public sealed class SimpleLevel
 
     public CustomMapControlPointSettings ControlPointSettings { get; }
 
+    public CustomMapScrSettings ScrSettings { get; }
+
+    public bool ShowControlPoints { get; }
+
     public MapLogicGraph LogicGraph { get; }
 
     public MapLogicActivatorSet LogicActivators { get; }
+
+    public MapLogicScoreTriggerSet LogicScoreTriggers { get; }
+
+    public bool ShouldSimulateControlPoints =>
+        ShowControlPoints
+        || Mode is GameModeKind.ControlPoint or GameModeKind.Scr
+        || Mode is GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill;
 
     public bool[] RoomObjectLogicActiveMask { get; private set; }
 

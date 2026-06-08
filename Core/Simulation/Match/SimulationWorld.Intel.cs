@@ -116,7 +116,8 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (!TryAwardTeamScore(player.Team, 1, "intel_capture", player.Id))
+        if (MatchRules.Mode != GameModeKind.Scr
+            && !TryAwardTeamScore(player.Team, 1, "intel_capture", player.Id))
         {
             return;
         }
@@ -127,12 +128,11 @@ public sealed partial class SimulationWorld
         RegisterWorldSoundEvent("IntelPutSnd", player.X, player.Y);
         RecordIntelCapturedObjectiveLog(player);
 
-        if (player.Team == PlayerTeam.Red)
+        if (MatchRules.Mode != GameModeKind.Scr
+            && player.Team == PlayerTeam.Red
+            && ShouldEndMatchOnRedTeamIntelCapture())
         {
-            if (ShouldEndMatchOnRedTeamIntelCapture())
-            {
-                TryEndRound(PlayerTeam.Red, "special_red_intel_capture");
-            }
+            TryEndRound(PlayerTeam.Red, "special_red_intel_capture");
         }
     }
 

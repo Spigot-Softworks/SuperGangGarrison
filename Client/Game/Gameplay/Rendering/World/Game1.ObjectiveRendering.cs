@@ -88,6 +88,19 @@ public partial class Game1
         TryDrawSprite(spriteName, 1, pointMarker.Value.X, pointMarker.Value.Y, cameraPosition, Color.White * pulseAlpha);
     }
 
+    private bool ShouldDrawControlPointSpritesOnMap()
+    {
+        if (_world.ControlPoints.Count == 0)
+        {
+            return false;
+        }
+
+        return _world.MatchRules.Mode is GameModeKind.ControlPoint
+            or GameModeKind.KingOfTheHill
+            or GameModeKind.DoubleKingOfTheHill
+            || _world.Level.ShowControlPoints;
+    }
+
     private void DrawControlPoints(Vector2 cameraPosition)
     {
         if (_world.ControlPoints.Count == 0)

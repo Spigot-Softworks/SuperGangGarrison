@@ -2,18 +2,36 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private sealed class RuntimeCaptureTheFlagUpdateController
+    private sealed class RuntimeScrObjectiveController
     {
         private readonly SimulationWorld _world;
+        private readonly RuntimeCaptureTheFlagUpdateController _captureTheFlagUpdateController;
 
-        public RuntimeCaptureTheFlagUpdateController(SimulationWorld world)
+        public RuntimeScrObjectiveController(SimulationWorld world)
         {
             _world = world;
+            _captureTheFlagUpdateController = new RuntimeCaptureTheFlagUpdateController(world);
         }
 
         public void AdvanceObjectives()
         {
             if (_world.MatchState.IsEnded)
+            {
+                return;
+            }
+
+            if (_world.Level.ShouldSimulateControlPoints && _world._controlPoints.Count > 0)
+            {
+                _world.UpdateControlPointState();
+            }
+
+            AdvanceIntelObjectives();
+            _world.EvaluateMapLogicIntelTriggersIfNeeded();
+        }
+
+        private void AdvanceIntelObjectives()
+        {
+            if (_world.Level.IntelBases.Count == 0)
             {
                 return;
             }
@@ -44,7 +62,6 @@ public sealed partial class SimulationWorld
                 _world.TryPickUpEnemyIntel(player);
                 _world.TryScoreCarriedIntel(player);
             }
-
         }
     }
 }
