@@ -176,10 +176,24 @@ public partial class Game1
             var texture = GetGarrisonBuilderResourceTexture(resourceName.Trim());
             if (texture is not null)
             {
-                _spriteBatch.Draw(
-                    texture,
-                    drawRect,
-                    Color.White);
+                if (configuration.Tile)
+                {
+                    var tileScreenWidth = MathF.Max(1f, texture.Width * configuration.Scale * screenScale);
+                    var tileScreenHeight = MathF.Max(1f, texture.Height * configuration.Scale * screenScale);
+                    MapSpriteTileRendering.DrawTiledSprite(
+                        _spriteBatch,
+                        texture,
+                        drawRect,
+                        tileScreenWidth,
+                        tileScreenHeight,
+                        configuration.TileAnchor,
+                        Color.White);
+                }
+                else
+                {
+                    _spriteBatch.Draw(texture, drawRect, Color.White);
+                }
+
                 return;
             }
         }
@@ -220,7 +234,8 @@ public partial class Game1
         (width, height) = CustomMapCustomSpriteMetadata.ResolveWorldDimensions(
             pixelWidth,
             pixelHeight,
-            configuration.Scale);
+            configuration.Scale,
+            configuration);
         return width > 0f && height > 0f;
     }
 
@@ -256,7 +271,8 @@ public partial class Game1
             centerY,
             pixelWidth,
             pixelHeight,
-            configuration.Scale);
+            configuration.Scale,
+            configuration);
         return true;
     }
 
@@ -294,10 +310,12 @@ public partial class Game1
         return key.Equals(CustomMapCustomSpriteMetadata.ImagePropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(CustomMapCustomSpriteMetadata.LayerPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(CustomMapCustomSpriteMetadata.ZOrderPropertyKey, StringComparison.OrdinalIgnoreCase)
-            || key.Equals(CustomMapCustomSpriteMetadata.ScalePropertyKey, StringComparison.OrdinalIgnoreCase);
+            || key.Equals(CustomMapCustomSpriteMetadata.ScalePropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(MapSpriteTileMetadata.TilePropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(MapSpriteTileMetadata.TileAnchorPropertyKey, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static List<string> OrderGarrisonBuilderCustomSpritePropertyRows(List<string> rows)
+    private List<string> OrderGarrisonBuilderCustomSpritePropertyRows(List<string> rows)
     {
         string[] order =
         [
@@ -305,10 +323,17 @@ public partial class Game1
             CustomMapCustomSpriteMetadata.LayerPropertyKey,
             CustomMapCustomSpriteMetadata.ZOrderPropertyKey,
             CustomMapCustomSpriteMetadata.ScalePropertyKey,
+            MapSpriteTileMetadata.TilePropertyKey,
+            MapSpriteTileMetadata.TileAnchorPropertyKey,
         ];
         var ordered = new List<string>(rows.Count);
         foreach (var key in order)
         {
+            if (!MapSpriteTileMetadata.ShouldShowTileDependentProperty(_builderPropertyEditorValues, key))
+            {
+                continue;
+            }
+
             var match = rows.FirstOrDefault(existing => existing.Equals(key, StringComparison.OrdinalIgnoreCase));
             if (match is not null)
             {
@@ -318,6 +343,11 @@ public partial class Game1
 
         foreach (var key in rows)
         {
+            if (!MapSpriteTileMetadata.ShouldShowTileDependentProperty(_builderPropertyEditorValues, key))
+            {
+                continue;
+            }
+
             if (!ordered.Any(existing => existing.Equals(key, StringComparison.OrdinalIgnoreCase)))
             {
                 ordered.Add(key);
@@ -349,7 +379,28 @@ public partial class Game1
             return true;
         }
 
+        if (TryCycleGarrisonBuilderMapSpriteTileAnchorProperty(key, value))
+        {
+            return true;
+        }
+
         return false;
+    }
+
+    private bool TryGetGarrisonBuilderCustomSpritePixelSizeFromEditor(out int pixelWidth, out int pixelHeight)
+    {
+        pixelWidth = 42;
+        pixelHeight = 42;
+        if (!_builderPropertyEditorValues.TryGetValue(CustomMapCustomSpriteMetadata.ImagePropertyKey, out var resourceName)
+            || string.IsNullOrWhiteSpace(resourceName)
+            || !_builderDocument.Resources.TryGetValue(resourceName.Trim(), out var resource)
+            || !CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var bytes)
+            || !CustomMapCustomSpriteMetadata.TryParsePngDimensions(bytes, out pixelWidth, out pixelHeight))
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private void TryChooseGarrisonBuilderCustomSpriteImage()
@@ -397,6 +448,16 @@ public partial class Game1
         if (key.Equals(CustomMapCustomSpriteMetadata.ScalePropertyKey, StringComparison.OrdinalIgnoreCase))
         {
             return $"Scale: {CustomMapCustomSpriteMetadata.ParseScale(value):0.###}";
+        }
+
+        if (key.Equals(MapSpriteTileMetadata.TilePropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Tile";
+        }
+
+        if (key.Equals(MapSpriteTileMetadata.TileAnchorPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Tile anchor: {MapSpriteTileMetadata.GetTileAnchorDisplayLabel(value)}";
         }
 
         return value;
@@ -514,6 +575,13 @@ public partial class Game1
 
         world = SnapGarrisonBuilderPoint(world);
         var entity = _builderEntities[_builderSelectedEntityIndex];
+        var configuration = CustomMapCustomSpriteMetadata.ParseConfiguration(entity.Properties);
+        if (configuration.Tile)
+        {
+            ApplyGarrisonBuilderMapSpriteTileResizeDrag(entity, _builderSelectedEntityIndex, world);
+            return;
+        }
+
         if (!TryGetGarrisonBuilderCustomSpriteWorldBounds(entity, out var left, out var top, out var width, out var height)
             || !TryGetGarrisonBuilderCustomSpritePixelSize(entity, out var pixelWidth, out var pixelHeight))
         {

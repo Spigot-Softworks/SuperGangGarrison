@@ -286,6 +286,12 @@ public partial class Game1
                 return;
             }
 
+            if (_builderMapNameCollisionDialogOpen)
+            {
+                CloseGarrisonBuilderMapNameCollisionDialog(saveAs: false);
+                return;
+            }
+
             if (_builderLogicRecolorDialogOpen)
             {
                 CloseGarrisonBuilderLogicRecolorDialog();
@@ -699,6 +705,11 @@ public partial class Game1
                 HandleGarrisonBuilderLayerParallaxDialogClick(position);
             }
 
+            return true;
+        }
+
+        if (_builderMapNameCollisionDialogOpen)
+        {
             return true;
         }
 
@@ -2132,6 +2143,36 @@ public partial class Game1
         }
 
         var entity = _builderEntities[_builderSelectedEntityIndex];
+        if (IsGarrisonBuilderForegroundSpriteResizable(entity))
+        {
+            if (!TryGetGarrisonBuilderForegroundSpriteWorldBounds(entity, out var spriteLeft, out var spriteTop, out var spriteWidth, out var spriteHeight))
+            {
+                return false;
+            }
+
+            var spriteHandles = GetGarrisonBuilderResizeHandlePoints(spriteLeft, spriteTop, spriteWidth, spriteHeight);
+            foreach (var pair in spriteHandles)
+            {
+                var screen = BuilderWorldToScreen(pair.Value);
+                var handleBounds = new Rectangle((int)screen.X - 5, (int)screen.Y - 5, 10, 10);
+                if (!handleBounds.Contains(screenPosition))
+                {
+                    continue;
+                }
+
+                RecordGarrisonBuilderHistory();
+                _builderActiveResizeHandle = pair.Key;
+                _builderResizeAnchorWorld = world;
+                _builderResizeStartLeft = spriteLeft;
+                _builderResizeStartTop = spriteTop;
+                _builderResizeStartWidth = spriteWidth;
+                _builderResizeStartHeight = spriteHeight;
+                return true;
+            }
+
+            return false;
+        }
+
         if (IsGarrisonBuilderCustomSpriteResizable(entity))
         {
             if (!TryGetGarrisonBuilderCustomSpriteWorldBounds(entity, out var spriteLeft, out var spriteTop, out var spriteWidth, out var spriteHeight))
@@ -2156,6 +2197,36 @@ public partial class Game1
                 _builderResizeStartTop = spriteTop;
                 _builderResizeStartWidth = spriteWidth;
                 _builderResizeStartHeight = spriteHeight;
+                return true;
+            }
+
+            return false;
+        }
+
+        if (IsGarrisonBuilderSpritesheetResizable(entity))
+        {
+            if (!TryGetGarrisonBuilderSpritesheetWorldBounds(entity, out var sheetLeft, out var sheetTop, out var sheetWidth, out var sheetHeight))
+            {
+                return false;
+            }
+
+            var sheetHandles = GetGarrisonBuilderResizeHandlePoints(sheetLeft, sheetTop, sheetWidth, sheetHeight);
+            foreach (var pair in sheetHandles)
+            {
+                var screen = BuilderWorldToScreen(pair.Value);
+                var handleBounds = new Rectangle((int)screen.X - 5, (int)screen.Y - 5, 10, 10);
+                if (!handleBounds.Contains(screenPosition))
+                {
+                    continue;
+                }
+
+                RecordGarrisonBuilderHistory();
+                _builderActiveResizeHandle = pair.Key;
+                _builderResizeAnchorWorld = world;
+                _builderResizeStartLeft = sheetLeft;
+                _builderResizeStartTop = sheetTop;
+                _builderResizeStartWidth = sheetWidth;
+                _builderResizeStartHeight = sheetHeight;
                 return true;
             }
 
@@ -2227,9 +2298,21 @@ public partial class Game1
 
         world = SnapGarrisonBuilderPoint(world);
         var entity = _builderEntities[_builderSelectedEntityIndex];
+        if (IsGarrisonBuilderForegroundSpriteResizable(entity))
+        {
+            ApplyGarrisonBuilderForegroundSpriteResizeDrag(world);
+            return;
+        }
+
         if (IsGarrisonBuilderCustomSpriteResizable(entity))
         {
             ApplyGarrisonBuilderCustomSpriteResizeDrag(world);
+            return;
+        }
+
+        if (IsGarrisonBuilderSpritesheetResizable(entity))
+        {
+            ApplyGarrisonBuilderSpritesheetResizeDrag(world);
             return;
         }
 
@@ -2623,6 +2706,13 @@ public partial class Game1
                 _builderDocument.VisualScale);
         }
 
+        if (SpritesheetMetadata.IsSpritesheetEntityType(entity.Type))
+        {
+            SpritesheetMetadata.EnsurePlacementDefaults(
+                _builderPropertyEditorValues,
+                _builderDocument.VisualScale);
+        }
+
         SyncGarrisonBuilderSpawnPropertyEditorFields();
         SyncGarrisonBuilderControlPointPropertyEditorFields();
     }
@@ -2658,6 +2748,7 @@ public partial class Game1
         DrawGarrisonBuilderPropertyEditor(mouse);
         DrawGarrisonBuilderLogicRecolorDialog(mouse);
         DrawGarrisonBuilderLayerParallaxDialog(mouse);
+        DrawGarrisonBuilderMapNameCollisionDialog(mouse);
         DrawGarrisonBuilderTransientStatus();
     }
 
@@ -3263,7 +3354,9 @@ public partial class Game1
         }
 
         if (!IsGarrisonBuilderDefinitionScalable(definition)
-            && !IsGarrisonBuilderCustomSpriteResizable(entity))
+            && !IsGarrisonBuilderCustomSpriteResizable(entity)
+            && !IsGarrisonBuilderForegroundSpriteResizable(entity)
+            && !IsGarrisonBuilderSpritesheetResizable(entity))
         {
             return;
         }

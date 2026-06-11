@@ -35,7 +35,8 @@ public sealed class SimpleLevel
         bool showControlPoints = false,
         MapLogicGraph? logicGraph = null,
         MapLogicActivatorSet? logicActivators = null,
-        MapLogicScoreTriggerSet? logicScoreTriggers = null)
+        MapLogicScoreTriggerSet? logicScoreTriggers = null,
+        SpritesheetPlaybackSet? spritesheetPlaybackSet = null)
     {
         Name = name;
         Mode = mode;
@@ -61,6 +62,9 @@ public sealed class SimpleLevel
         LogicGraph = logicGraph ?? MapLogicGraph.Empty;
         LogicActivators = logicActivators ?? MapLogicActivatorSet.Empty;
         LogicScoreTriggers = logicScoreTriggers ?? MapLogicScoreTriggerSet.Empty;
+        SpritesheetPlaybackSet = spritesheetPlaybackSet ?? SpritesheetPlaybackSet.Empty;
+        SpritesheetPlaybackState = new SpritesheetPlaybackState(roomObjects.Count);
+        SpritesheetPlaybackState.ResetFromConfiguration(SpritesheetPlaybackSet);
         RoomObjectLogicActiveMask = new bool[roomObjects.Count];
         Array.Fill(RoomObjectLogicActiveMask, true);
         _roomObjectsByType = RoomObjects
@@ -116,6 +120,10 @@ public sealed class SimpleLevel
     public MapLogicActivatorSet LogicActivators { get; }
 
     public MapLogicScoreTriggerSet LogicScoreTriggers { get; }
+
+    public SpritesheetPlaybackSet SpritesheetPlaybackSet { get; }
+
+    public SpritesheetPlaybackState SpritesheetPlaybackState { get; }
 
     public bool ShouldSimulateControlPoints =>
         ShowControlPoints
