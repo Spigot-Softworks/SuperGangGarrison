@@ -143,7 +143,8 @@ public static class SimpleLevelFactory
             showControlPoints: importedRoom.ShowControlPoints,
             logicGraph: importedRoom.LogicGraph,
             logicActivators: importedRoom.LogicActivators,
-            logicScoreTriggers: importedRoom.LogicScoreTriggers);
+            logicScoreTriggers: importedRoom.LogicScoreTriggers,
+            spritesheetPlaybackSet: importedRoom.SpritesheetPlaybackSet);
         return SimpleLevelScaling.ApplyUniformScale(level, mapScale);
     }
 

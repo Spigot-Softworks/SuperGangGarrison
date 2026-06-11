@@ -24,7 +24,11 @@ public readonly record struct CustomMapSpriteConfiguration(
     string ImageResourceName,
     CustomMapSpriteLayerKind Layer,
     int ZOrder,
-    float Scale)
+    float Scale,
+    bool Tile,
+    MapSpriteTileAnchor TileAnchor,
+    float TileAreaWidth,
+    float TileAreaHeight)
 {
     public bool HasImage => !string.IsNullOrWhiteSpace(ImageResourceName);
 }
@@ -49,7 +53,7 @@ public static class CustomMapCustomSpriteMetadata
 
     public static bool IsLogicPaletteEntityType(string? type)
     {
-        return MapLogicMetadata.IsLogicEntityType(type) || IsCustomSpriteEntityType(type);
+        return ForegroundSpriteMetadata.IsLogicPaletteEntityType(type);
     }
 
     public static void EnsurePlacementDefaults(
@@ -70,24 +74,42 @@ public static class CustomMapCustomSpriteMetadata
         {
             properties[ZOrderPropertyKey] = "0";
         }
+
+        MapSpriteTileMetadata.EnsurePlacementDefaults(properties);
     }
 
     public static CustomMapSpriteConfiguration ParseConfiguration(IReadOnlyDictionary<string, string>? properties)
     {
         if (properties is null)
         {
-            return new CustomMapSpriteConfiguration(string.Empty, CustomMapSpriteLayerKind.Bg, 0, 1f);
+            return new CustomMapSpriteConfiguration(
+                string.Empty,
+                CustomMapSpriteLayerKind.Bg,
+                0,
+                1f,
+                false,
+                MapSpriteTileAnchor.TopLeft,
+                0f,
+                0f);
         }
 
         properties.TryGetValue(ImagePropertyKey, out var image);
         properties.TryGetValue(LayerPropertyKey, out var layer);
         properties.TryGetValue(ZOrderPropertyKey, out var zOrder);
         properties.TryGetValue(ScalePropertyKey, out var scale);
+        properties.TryGetValue(MapSpriteTileMetadata.TilePropertyKey, out var tile);
+        properties.TryGetValue(MapSpriteTileMetadata.TileAnchorPropertyKey, out var tileAnchor);
+        properties.TryGetValue(MapSpriteTileMetadata.TileAreaWidthPropertyKey, out var tileAreaWidth);
+        properties.TryGetValue(MapSpriteTileMetadata.TileAreaHeightPropertyKey, out var tileAreaHeight);
         return new CustomMapSpriteConfiguration(
             image?.Trim() ?? string.Empty,
             ParseLayer(layer),
             ParseZOrder(zOrder),
-            ParseScale(scale));
+            ParseScale(scale),
+            MapSpriteTileMetadata.ParseTile(tile),
+            MapSpriteTileMetadata.ParseTileAnchor(tileAnchor),
+            MapSpriteTileMetadata.ParseTileAreaDimension(tileAreaWidth),
+            MapSpriteTileMetadata.ParseTileAreaDimension(tileAreaHeight));
     }
 
     public static bool TryParsePngDimensions(byte[] bytes, out int width, out int height)
@@ -115,10 +137,47 @@ public static class CustomMapCustomSpriteMetadata
     public static (float Width, float Height) ResolveWorldDimensions(
         int pixelWidth,
         int pixelHeight,
+        float scale,
+        CustomMapSpriteConfiguration configuration)
+    {
+        return MapSpriteTileMetadata.ResolveWorldDimensions(
+            pixelWidth,
+            pixelHeight,
+            scale,
+            configuration.Tile,
+            configuration.TileAreaWidth,
+            configuration.TileAreaHeight);
+    }
+
+    public static (float Width, float Height) ResolveWorldDimensions(
+        int pixelWidth,
+        int pixelHeight,
         float scale)
     {
-        var safeScale = scale <= 0f ? 1f : scale;
-        return (MathF.Max(1f, pixelWidth * safeScale), MathF.Max(1f, pixelHeight * safeScale));
+        return ResolveWorldDimensions(
+            pixelWidth,
+            pixelHeight,
+            scale,
+            new CustomMapSpriteConfiguration(string.Empty, CustomMapSpriteLayerKind.Bg, 0, scale, false, MapSpriteTileAnchor.TopLeft, 0f, 0f));
+    }
+
+    public static (float Left, float Top, float Width, float Height) ResolveWorldBounds(
+        float centerX,
+        float centerY,
+        int pixelWidth,
+        int pixelHeight,
+        float scale,
+        CustomMapSpriteConfiguration configuration)
+    {
+        return MapSpriteTileMetadata.ResolveWorldBounds(
+            centerX,
+            centerY,
+            pixelWidth,
+            pixelHeight,
+            scale,
+            configuration.Tile,
+            configuration.TileAreaWidth,
+            configuration.TileAreaHeight);
     }
 
     public static (float Left, float Top, float Width, float Height) ResolveWorldBounds(
@@ -128,8 +187,13 @@ public static class CustomMapCustomSpriteMetadata
         int pixelHeight,
         float scale)
     {
-        var (width, height) = ResolveWorldDimensions(pixelWidth, pixelHeight, scale);
-        return (centerX - (width * 0.5f), centerY - (height * 0.5f), width, height);
+        return ResolveWorldBounds(
+            centerX,
+            centerY,
+            pixelWidth,
+            pixelHeight,
+            scale,
+            new CustomMapSpriteConfiguration(string.Empty, CustomMapSpriteLayerKind.Bg, 0, scale, false, MapSpriteTileAnchor.TopLeft, 0f, 0f));
     }
 
     public static CustomMapSpriteLayerKind ParseLayer(string? value)

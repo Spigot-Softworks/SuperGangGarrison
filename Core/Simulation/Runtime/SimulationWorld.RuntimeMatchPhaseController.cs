@@ -42,6 +42,8 @@ public sealed partial class SimulationWorld
             _world.AdvanceExperimentalRageState();
             _objectiveFlowController.AdvanceObjectives();
             _world.UpdateAuxiliaryControlPointStateIfNeeded();
+            _world.TickForegroundSpriteJungle();
+            _world.TickSpritesheetPlayback();
             _objectiveFlowController.AdvanceResolution();
         }
 
