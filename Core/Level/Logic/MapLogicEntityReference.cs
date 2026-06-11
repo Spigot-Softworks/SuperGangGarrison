@@ -187,6 +187,18 @@ public static class MapLogicEntityReference
             return true;
         }
 
+        if (ForegroundSpriteMetadata.IsForegroundSpriteEntityType(entityType)
+            && marker.Type == RoomObjectType.ForegroundSprite)
+        {
+            return true;
+        }
+
+        if (SpritesheetMetadata.IsSpritesheetEntityType(entityType)
+            && marker.Type == RoomObjectType.Spritesheet)
+        {
+            return true;
+        }
+
         if (AreaExtensionMetadata.IsAreaEntityType(entityType)
             && marker.Type == RoomObjectType.AreaExtension)
         {
@@ -268,8 +280,16 @@ public static class MapLogicEntityReference
                 continue;
             }
 
-            var compareX = marker.Type == RoomObjectType.CustomMapSprite ? marker.CenterX : marker.X;
-            var compareY = marker.Type == RoomObjectType.CustomMapSprite ? marker.CenterY : marker.Y;
+            var compareX = marker.Type is RoomObjectType.CustomMapSprite
+                or RoomObjectType.ForegroundSprite
+                or RoomObjectType.Spritesheet
+                ? marker.CenterX
+                : marker.X;
+            var compareY = marker.Type is RoomObjectType.CustomMapSprite
+                or RoomObjectType.ForegroundSprite
+                or RoomObjectType.Spritesheet
+                ? marker.CenterY
+                : marker.Y;
             var deltaX = compareX - x;
             var deltaY = compareY - y;
             var distanceSquared = (deltaX * deltaX) + (deltaY * deltaY);

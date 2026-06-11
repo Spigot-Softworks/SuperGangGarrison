@@ -922,7 +922,15 @@ public sealed class DamageableLogicTests
             20f,
             string.Empty,
             SourceName: CustomMapCustomSpriteMetadata.CustomSpriteEntityType,
-            CustomMapSprite: new CustomMapSpriteConfiguration("icon", CustomMapSpriteLayerKind.Bg, 0, 1f));
+            CustomMapSprite: new CustomMapSpriteConfiguration(
+                "icon",
+                CustomMapSpriteLayerKind.Bg,
+                0,
+                1f,
+                false,
+                MapSpriteTileAnchor.TopLeft,
+                0f,
+                0f));
         var graph = MapLogicGraphBuilder.Build(
         [
             new MapLogicNodeDefinition

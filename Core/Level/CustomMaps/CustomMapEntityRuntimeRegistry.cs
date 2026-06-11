@@ -27,6 +27,8 @@ public static class CustomMapEntityRuntimeRegistry
         Register(new DamageableMapEntityRuntimeImporter());
         Register(new AreaMapEntityRuntimeImporter());
         Register(new CustomMapCustomSpriteMapEntityRuntimeImporter());
+        Register(new ForegroundSpriteMapEntityRuntimeImporter());
+        Register(new SpritesheetMapEntityRuntimeImporter());
         Register(new LogicMapEntityRuntimeImporter());
     }
 

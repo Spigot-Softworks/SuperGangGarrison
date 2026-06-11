@@ -138,7 +138,11 @@ public partial class Game1
     private RuntimeCustomMapVisuals? GetRuntimeCustomMapVisuals()
     {
         var source = _world.Level.CustomMapVisuals;
-        if (ReferenceEquals(source, CustomMapVisualMetadata.Empty))
+        if (source.SpriteResources.Count == 0
+            && source.ParallaxLayers.Count == 0
+            && source.Foreground is null
+            && string.IsNullOrWhiteSpace(source.BackgroundColor)
+            && string.IsNullOrWhiteSpace(source.VoidColor))
         {
             ClearRuntimeCustomMapVisuals();
             return null;

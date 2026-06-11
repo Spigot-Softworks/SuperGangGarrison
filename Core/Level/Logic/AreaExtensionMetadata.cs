@@ -8,6 +8,7 @@ public enum AreaExtensionKind
     None,
     PlayerTrigger,
     Teleport,
+    ForegroundSprite,
 }
 
 public readonly record struct AreaExtensionConfiguration(
@@ -32,6 +33,7 @@ public static class AreaExtensionMetadata
     {
         return type.Equals(PlayerTriggerMetadata.PlayerTriggerEntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals(TeleportMetadata.TeleportEntityType, StringComparison.OrdinalIgnoreCase)
+            || ForegroundSpriteMetadata.IsForegroundSpriteEntityType(type)
             || IsAreaEntityType(type);
     }
 
@@ -73,6 +75,18 @@ public static class AreaExtensionMetadata
             return TryFindRoomObjectAtPosition(
                 roomObjects,
                 RoomObjectType.TeleportZone,
+                entityType,
+                x,
+                y,
+                out parentRoomObjectIndex);
+        }
+
+        if (ForegroundSpriteMetadata.IsForegroundSpriteEntityType(entityType))
+        {
+            kind = AreaExtensionKind.ForegroundSprite;
+            return TryFindRoomObjectAtPosition(
+                roomObjects,
+                RoomObjectType.ForegroundSprite,
                 entityType,
                 x,
                 y,
@@ -194,7 +208,79 @@ public static class AreaExtensionMetadata
             return false;
         }
 
-        return roomObjects[roomObjectIndex].Type is RoomObjectType.PlayerTriggerZone or RoomObjectType.TeleportZone;
+        return roomObjects[roomObjectIndex].Type
+            is RoomObjectType.PlayerTriggerZone
+            or RoomObjectType.TeleportZone
+            or RoomObjectType.ForegroundSprite;
+    }
+
+    public static bool BelongsToForegroundSpriteRoot(
+        IReadOnlyList<RoomObjectMarker> roomObjects,
+        int roomObjectIndex,
+        int primaryForegroundIndex)
+    {
+        var visited = new HashSet<int>();
+        while (roomObjectIndex >= 0 && roomObjectIndex < roomObjects.Count)
+        {
+            if (!visited.Add(roomObjectIndex))
+            {
+                return false;
+            }
+
+            if (roomObjectIndex == primaryForegroundIndex)
+            {
+                return true;
+            }
+
+            var marker = roomObjects[roomObjectIndex];
+            if (marker.Type == RoomObjectType.ForegroundSprite)
+            {
+                return false;
+            }
+
+            if (marker.Type != RoomObjectType.AreaExtension
+                || marker.AreaExtension.Kind != AreaExtensionKind.ForegroundSprite)
+            {
+                return false;
+            }
+
+            roomObjectIndex = marker.AreaExtension.ParentRoomObjectIndex;
+        }
+
+        return false;
+    }
+
+    public static int[] CollectForegroundSpriteExtensionIndices(
+        IReadOnlyList<RoomObjectMarker> roomObjects,
+        int primaryForegroundIndex)
+    {
+        var indices = new List<int>(4);
+        for (var index = 0; index < roomObjects.Count; index += 1)
+        {
+            if (index == primaryForegroundIndex)
+            {
+                continue;
+            }
+
+            var marker = roomObjects[index];
+            if (marker.Type != RoomObjectType.AreaExtension
+                || marker.AreaExtension.Kind != AreaExtensionKind.ForegroundSprite)
+            {
+                continue;
+            }
+
+            if (!BelongsToForegroundSpriteRoot(
+                    roomObjects,
+                    marker.AreaExtension.ParentRoomObjectIndex,
+                    primaryForegroundIndex))
+            {
+                continue;
+            }
+
+            indices.Add(index);
+        }
+
+        return indices.ToArray();
     }
 
     public static bool TryGetEffectiveTeleportZone(

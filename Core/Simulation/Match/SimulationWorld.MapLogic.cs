@@ -30,17 +30,17 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (!Level.LogicGraph.HasNodes && !Level.LogicActivators.HasActivators)
+        if (Level.LogicGraph.HasNodes || Level.LogicActivators.HasActivators)
         {
-            return;
+            RefreshMapLogicRuntimeIfControlPointInputsChanged();
+            EvaluateMapLogicPlayerTriggersIfNeeded();
+            EvaluateMapLogicIntelTriggersIfNeeded();
+            ApplyDamageableZoneHealWhenSignals();
+            EvaluateMapLogicDamageTriggersIfNeeded();
+            TickMapLogicTimers();
         }
 
-        RefreshMapLogicRuntimeIfControlPointInputsChanged();
-        EvaluateMapLogicPlayerTriggersIfNeeded();
-        EvaluateMapLogicIntelTriggersIfNeeded();
-        ApplyDamageableZoneHealWhenSignals();
-        EvaluateMapLogicDamageTriggersIfNeeded();
-        TickMapLogicTimers();
+        TickSpritesheetPlayback();
     }
 
     public void SyncMapLogicRuntimeFromAuthoritativeControlPoints(bool newRound)
@@ -240,6 +240,7 @@ public sealed partial class SimulationWorld
 
         _logicActivatorRuntimeState.Reset();
         _logicScoreTriggerRuntimeState.Reset();
+        ResetSpritesheetPlaybackRuntime();
     }
 
     private void ResetRoomObjectLogicActiveMask()

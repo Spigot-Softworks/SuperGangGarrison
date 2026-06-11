@@ -79,6 +79,7 @@ public sealed partial class SimulationWorld
         _configuredMapScale = Level.MapScale;
         MatchRules = CreateDefaultMatchRules(Level.Mode);
         ApplyScrLevelMatchSettings();
+        RebuildForegroundJungleSpriteCache();
         ResetModeStateForNewMap();
         RestartCurrentRound(preservePlayerStats);
         return true;

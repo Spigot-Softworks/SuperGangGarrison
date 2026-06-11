@@ -48,6 +48,21 @@ public partial class Game1
         out float height)
     {
         left = top = width = height = 0f;
+        if (SpritesheetMetadata.IsSpritesheetEntityType(entity.Type))
+        {
+            return TryGetGarrisonBuilderSpritesheetWorldBounds(entity, out left, out top, out width, out height);
+        }
+
+        if (TryGetGarrisonBuilderCustomSpriteWorldBounds(entity, out left, out top, out width, out height))
+        {
+            return true;
+        }
+
+        if (TryGetGarrisonBuilderForegroundSpriteWorldBounds(entity, out left, out top, out width, out height))
+        {
+            return true;
+        }
+
         if (!MapLogicMetadata.IsLogicEntityType(entity.Type)
             && !AreaExtensionMetadata.IsAreaEntityType(entity.Type))
         {
@@ -661,12 +676,13 @@ public partial class Game1
     private static bool UsesGarrisonBuilderLogicConnectionMarker(CustomMapBuilderEntity entity)
     {
         return MapLogicMetadata.IsLogicEntityType(entity.Type)
-            || AreaExtensionMetadata.IsAreaEntityType(entity.Type);
+            || AreaExtensionMetadata.IsAreaEntityType(entity.Type)
+            || SpritesheetMetadata.IsSpritesheetEntityType(entity.Type);
     }
 
     private float GetGarrisonBuilderLogicConnectionAnchorSpacingWorld()
     {
-        return 8f;
+        return 3.5f * MathF.Max(0.45f, GetGarrisonBuilderLinkVisualScale());
     }
 
     private static Vector2 GetClosestPointOnRectanglePerimeter(
@@ -696,7 +712,13 @@ public partial class Game1
         int entityIndex,
         bool isOutput,
         Vector2 idealWorld,
-        Vector2 centerWorld)
+        Vector2 centerWorld,
+        float left,
+        float top,
+        float width,
+        float height,
+        int connectionSlot = -1,
+        int connectionSlotCount = 1)
     {
         var key = ((long)entityIndex << 1) | (isOutput ? 1L : 0L);
         if (!_builderLogicConnectionAnchorScratch.TryGetValue(key, out var placed))
@@ -717,9 +739,35 @@ public partial class Game1
         }
 
         var tangent = new Vector2(-edgeDirection.Y, edgeDirection.X);
-        for (var attempt = 0; attempt < 8; attempt += 1)
+        var baseIdeal = idealWorld;
+        if (connectionSlot >= 0 && connectionSlotCount > 1)
         {
-            var candidate = idealWorld + (tangent * (spacing * attempt));
+            var slotOffset = (connectionSlot - ((connectionSlotCount - 1) * 0.5f)) * spacing;
+            baseIdeal = idealWorld + (tangent * slotOffset);
+            baseIdeal = GetClosestPointOnRectanglePerimeter(left, top, width, height, baseIdeal);
+        }
+
+        for (var attempt = 0; attempt < 12; attempt += 1)
+        {
+            float magnitude;
+            float sign;
+            if (attempt == 0)
+            {
+                magnitude = 0f;
+                sign = 1f;
+            }
+            else
+            {
+                magnitude = spacing * ((attempt + 1) / 2);
+                sign = attempt % 2 == 0 ? 1f : -1f;
+            }
+
+            var candidate = baseIdeal + (tangent * (magnitude * sign));
+            if (width > 0.001f && height > 0.001f)
+            {
+                candidate = GetClosestPointOnRectanglePerimeter(left, top, width, height, candidate);
+            }
+
             var collides = false;
             for (var index = 0; index < placed.Count; index += 1)
             {
@@ -739,15 +787,18 @@ public partial class Game1
             }
         }
 
-        placed.Add(idealWorld);
-        return idealWorld;
+        var fallback = GetClosestPointOnRectanglePerimeter(left, top, width, height, baseIdeal);
+        placed.Add(fallback);
+        return fallback;
     }
 
     private Vector2 ResolveGarrisonBuilderLogicConnectionAnchor(
         CustomMapBuilderEntity entity,
         int entityIndex,
         Vector2 towardWorld,
-        bool isOutput)
+        bool isOutput,
+        int connectionSlot = -1,
+        int connectionSlotCount = 1)
     {
         if (!TryGetGarrisonBuilderLogicNodeWorldBounds(
                 entity,
@@ -761,7 +812,17 @@ public partial class Game1
 
         var center = new Vector2(entity.X, entity.Y);
         var ideal = GetClosestPointOnRectanglePerimeter(left, top, width, height, towardWorld);
-        return ReserveGarrisonBuilderLogicConnectionAnchor(entityIndex, isOutput, ideal, center);
+        return ReserveGarrisonBuilderLogicConnectionAnchor(
+            entityIndex,
+            isOutput,
+            ideal,
+            center,
+            left,
+            top,
+            width,
+            height,
+            connectionSlot,
+            connectionSlotCount);
     }
 
     private void DrawGarrisonBuilderLogicConnectionMarker(
@@ -811,13 +872,29 @@ public partial class Game1
         int sourceIndex,
         CustomMapBuilderEntity target,
         int targetIndex,
-        bool highlighted)
+        bool highlighted,
+        int sourceConnectionSlot = -1,
+        int sourceConnectionSlotCount = 1,
+        int targetConnectionSlot = -1,
+        int targetConnectionSlotCount = 1)
     {
         var color = highlighted ? GarrisonBuilderLogicLinkHighlightColor : GarrisonBuilderLogicLinkColor;
         var towardTarget = new Vector2(target.X, target.Y);
         var towardSource = new Vector2(source.X, source.Y);
-        var sourceAnchor = ResolveGarrisonBuilderLogicConnectionAnchor(source, sourceIndex, towardTarget, isOutput: true);
-        var targetAnchor = ResolveGarrisonBuilderLogicConnectionAnchor(target, targetIndex, towardSource, isOutput: false);
+        var sourceAnchor = ResolveGarrisonBuilderLogicConnectionAnchor(
+            source,
+            sourceIndex,
+            towardTarget,
+            isOutput: true,
+            sourceConnectionSlot,
+            sourceConnectionSlotCount);
+        var targetAnchor = ResolveGarrisonBuilderLogicConnectionAnchor(
+            target,
+            targetIndex,
+            towardSource,
+            isOutput: false,
+            targetConnectionSlot,
+            targetConnectionSlotCount);
         var start = BuilderWorldToScreen(sourceAnchor);
         var end = BuilderWorldToScreen(targetAnchor);
         var linkScale = GetGarrisonBuilderLinkVisualScale();
@@ -933,7 +1010,8 @@ public partial class Game1
             || key.Equals(MapLogicMetadata.LogicSignalPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(MapLogicMetadata.LockedWhenLogicPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(MapLogicMetadata.UnlockedWhenLogicPropertyKey, StringComparison.OrdinalIgnoreCase)
-            || key.Equals(DamageableMetadata.HealWhenPropertyKey, StringComparison.OrdinalIgnoreCase);
+            || key.Equals(DamageableMetadata.HealWhenPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || SpritesheetMetadata.IsLogicInputPropertyKey(key);
     }
 
     private string GetGarrisonBuilderPropertyEditorValue(string key)
@@ -1828,8 +1906,8 @@ public partial class Game1
 
             if (entity.Type.Equals(MapLogicMetadata.GateEntityType, StringComparison.OrdinalIgnoreCase))
             {
-                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicInput1PropertyKey, 0);
-                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicInput2PropertyKey, 1);
+                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicInput1PropertyKey, 0, 2);
+                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicInput2PropertyKey, 1, 2);
                 continue;
             }
 
@@ -1847,8 +1925,8 @@ public partial class Game1
 
             if (entity.Type.Equals(MapLogicMetadata.LatchEntityType, StringComparison.OrdinalIgnoreCase))
             {
-                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicInputPropertyKey, 0);
-                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicResetPropertyKey, 1);
+                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicInputPropertyKey, 0, 2);
+                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicResetPropertyKey, 1, 2);
                 continue;
             }
 
@@ -1873,8 +1951,14 @@ public partial class Game1
 
             if (entity.Type.Equals(MapLogicMetadata.OscillatorEntityType, StringComparison.OrdinalIgnoreCase))
             {
-                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.StartWhenPropertyKey, 0);
-                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.EndWhenPropertyKey, 1);
+                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.StartWhenPropertyKey, 0, 2);
+                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.EndWhenPropertyKey, 1, 2);
+                continue;
+            }
+
+            if (SpritesheetMetadata.IsSpritesheetEntityType(entity.Type))
+            {
+                DrawGarrisonBuilderSpritesheetInputLinks(entity);
                 continue;
             }
 
@@ -1925,10 +2009,14 @@ public partial class Game1
             {
                 DrawGarrisonBuilderLogicConsumerLink(
                     entity,
-                    GetEntityProperty(entity.Properties, MapLogicMetadata.LockedWhenLogicPropertyKey, string.Empty));
+                    GetEntityProperty(entity.Properties, MapLogicMetadata.LockedWhenLogicPropertyKey, string.Empty),
+                    0,
+                    2);
                 DrawGarrisonBuilderLogicConsumerLink(
                     entity,
-                    GetEntityProperty(entity.Properties, MapLogicMetadata.UnlockedWhenLogicPropertyKey, string.Empty));
+                    GetEntityProperty(entity.Properties, MapLogicMetadata.UnlockedWhenLogicPropertyKey, string.Empty),
+                    1,
+                    2);
             }
         }
     }
@@ -1956,7 +2044,11 @@ public partial class Game1
         DrawGarrisonBuilderLogicLink(_builderEntities[targetIndex], trigger);
     }
 
-    private void DrawGarrisonBuilderLogicNodeInputLink(CustomMapBuilderEntity target, string propertyKey, int inputSlot)
+    private void DrawGarrisonBuilderLogicNodeInputLink(
+        CustomMapBuilderEntity target,
+        string propertyKey,
+        int inputSlot,
+        int inputSlotCount = 1)
     {
         var logicRef = GetEntityProperty(target.Properties, propertyKey, string.Empty);
         if (!TryFindGarrisonBuilderLogicSource(logicRef, out var source, out var sourceIndex))
@@ -1970,7 +2062,42 @@ public partial class Game1
             sourceIndex,
             target,
             targetIndex >= 0 ? targetIndex : 0,
-            IsGarrisonBuilderLogicLinkHighlighted(source, target));
+            IsGarrisonBuilderLogicLinkHighlighted(source, target),
+            targetConnectionSlot: inputSlot,
+            targetConnectionSlotCount: inputSlotCount);
+    }
+
+    private void DrawGarrisonBuilderSpritesheetInputLinks(CustomMapBuilderEntity entity)
+    {
+        var inputs = new List<string>();
+        if (SpritesheetMetadata.ShouldShowProperty(entity.Properties, SpritesheetMetadata.StartInputPropertyKey))
+        {
+            var startRef = GetEntityProperty(entity.Properties, SpritesheetMetadata.StartInputPropertyKey, string.Empty);
+            if (!string.IsNullOrWhiteSpace(startRef))
+            {
+                inputs.Add(startRef);
+            }
+        }
+
+        var stopRef = GetEntityProperty(entity.Properties, SpritesheetMetadata.StopInputPropertyKey, string.Empty);
+        if (!string.IsNullOrWhiteSpace(stopRef))
+        {
+            inputs.Add(stopRef);
+        }
+
+        if (SpritesheetMetadata.ShouldShowProperty(entity.Properties, SpritesheetMetadata.NextFrameInputPropertyKey))
+        {
+            var nextFrameRef = GetEntityProperty(entity.Properties, SpritesheetMetadata.NextFrameInputPropertyKey, string.Empty);
+            if (!string.IsNullOrWhiteSpace(nextFrameRef))
+            {
+                inputs.Add(nextFrameRef);
+            }
+        }
+
+        for (var index = 0; index < inputs.Count; index += 1)
+        {
+            DrawGarrisonBuilderLogicConsumerLink(entity, inputs[index], index, inputs.Count);
+        }
     }
 
     private void DrawGarrisonBuilderActivatorEntityLink(CustomMapBuilderEntity activator)
@@ -2019,7 +2146,11 @@ public partial class Game1
         return entity.Type;
     }
 
-    private void DrawGarrisonBuilderLogicConsumerLink(CustomMapBuilderEntity consumer, string logicRef)
+    private void DrawGarrisonBuilderLogicConsumerLink(
+        CustomMapBuilderEntity consumer,
+        string logicRef,
+        int inputSlot = -1,
+        int inputSlotCount = 1)
     {
         if (string.IsNullOrWhiteSpace(logicRef)
             || !TryFindGarrisonBuilderLogicSource(logicRef, out var source, out var sourceIndex))
@@ -2033,7 +2164,9 @@ public partial class Game1
             sourceIndex,
             consumer,
             consumerIndex >= 0 ? consumerIndex : 0,
-            IsGarrisonBuilderLogicLinkHighlighted(source, consumer));
+            IsGarrisonBuilderLogicLinkHighlighted(source, consumer),
+            targetConnectionSlot: inputSlot,
+            targetConnectionSlotCount: inputSlotCount);
     }
 
     private string FormatGarrisonBuilderLogicPropertyRowLabel(string key, string value)
