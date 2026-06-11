@@ -37,7 +37,8 @@ internal static class SimpleLevelScaling
             level.ShowControlPoints,
             level.LogicGraph,
             level.LogicActivators,
-            level.LogicScoreTriggers)
+            level.LogicScoreTriggers,
+            level.SpritesheetPlaybackSet)
         {
             ControlPointSetupGatesActive = level.ControlPointSetupGatesActive,
             ForcedBlockingTeamGates = level.ForcedBlockingTeamGates,
@@ -70,7 +71,14 @@ internal static class SimpleLevelScaling
         marker.CapTimeMultiplier,
         marker.IsCapTimeMultiplierCustom,
         marker.Barrier,
-        marker.DirectionalWall);
+        marker.DirectionalWall,
+        marker.TeleportZone,
+        marker.PlayerTriggerZone,
+        marker.CustomMapSprite,
+        marker.AreaExtension,
+        marker.DamageableZone,
+        marker.ForegroundSprite,
+        marker.Spritesheet);
 
     private static LevelSolid Scale(LevelSolid solid, float scale) => new(solid.X * scale, solid.Y * scale, solid.Width * scale, solid.Height * scale);
 

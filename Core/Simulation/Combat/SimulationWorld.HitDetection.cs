@@ -31,6 +31,7 @@ public sealed partial class SimulationWorld
         Level = level;
         MatchRules = CreateDefaultMatchRules(level.Mode);
         MatchState = CreateInitialMatchState(MatchRules);
+        RebuildForegroundJungleSpriteCache();
         ResetModeStateForNewRound();
         ResetMovingPlatformsForLevel();
     }

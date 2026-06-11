@@ -17,7 +17,11 @@ public static class CustomMapPackageImporter
         }
 
         var levelData = CustomMapPngExporter.BuildLevelData(document);
-        return CustomMapPngImporter.ImportLevelData(document.Name, document.BackgroundImagePath, levelData);
+        return CustomMapPngImporter.ImportLevelData(
+            document.Name,
+            document.BackgroundImagePath,
+            levelData,
+            document.Resources);
     }
 
     public static CustomMapBuilderDocument? ImportDocument(string manifestPath)

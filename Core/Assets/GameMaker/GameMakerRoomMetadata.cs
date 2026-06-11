@@ -32,5 +32,7 @@ public sealed record GameMakerRoomMetadata(
 
     public MapLogicScoreTriggerSet LogicScoreTriggers { get; init; } = MapLogicScoreTriggerSet.Empty;
 
+    public SpritesheetPlaybackSet SpritesheetPlaybackSet { get; init; } = SpritesheetPlaybackSet.Empty;
+
     public GameModeKind? ExplicitGameMode { get; init; }
 }

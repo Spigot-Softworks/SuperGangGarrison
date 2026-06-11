@@ -20,7 +20,9 @@ public readonly record struct RoomObjectMarker(
     PlayerTriggerZoneConfiguration PlayerTriggerZone = default,
     CustomMapSpriteConfiguration CustomMapSprite = default,
     AreaExtensionConfiguration AreaExtension = default,
-    DamageableZoneConfiguration DamageableZone = default)
+    DamageableZoneConfiguration DamageableZone = default,
+    ForegroundSpriteConfiguration ForegroundSprite = default,
+    SpritesheetConfiguration Spritesheet = default)
 {
     public float Left => X;
 

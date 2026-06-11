@@ -10,19 +10,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private readonly Dictionary<string, Texture2D> _customMapSpriteTextureCache = new(StringComparer.OrdinalIgnoreCase);
-
-    private void ClearCustomMapSpriteTextureCache()
-    {
-        foreach (var texture in _customMapSpriteTextureCache.Values)
-        {
-            texture.Dispose();
-        }
-
-        _customMapSpriteTextureCache.Clear();
-    }
-
-    private void DrawCustomMapGameplaySprites(Vector2 cameraPosition, CustomMapSpriteLayerKind layer)
+    private void DrawSpritesheets(Vector2 cameraPosition, CustomMapSpriteLayerKind layer)
     {
         var visuals = GetRuntimeCustomMapVisuals();
         var spriteResources = visuals?.SpriteResources;
@@ -37,8 +25,8 @@ public partial class Game1
         for (var index = 0; index < _world.Level.RoomObjects.Count; index += 1)
         {
             var marker = _world.Level.RoomObjects[index];
-            if (marker.Type != RoomObjectType.CustomMapSprite
-                || marker.CustomMapSprite.Layer != layer
+            if (marker.Type != RoomObjectType.Spritesheet
+                || marker.Spritesheet.Layer != layer
                 || !_world.Level.IsRoomObjectActive(index))
             {
                 continue;
@@ -47,12 +35,12 @@ public partial class Game1
             sprites.Add((index, marker));
         }
 
-        foreach (var (_, marker) in sprites
-                     .OrderBy(static entry => entry.Marker.CustomMapSprite.ZOrder)
+        foreach (var (roomObjectIndex, marker) in sprites
+                     .OrderBy(static entry => entry.Marker.Spritesheet.ZOrder)
                      .ThenBy(static entry => entry.Marker.CenterX)
                      .ThenBy(static entry => entry.Marker.CenterY))
         {
-            var resourceName = marker.CustomMapSprite.ImageResourceName;
+            var resourceName = marker.Spritesheet.ImageResourceName;
             if (string.IsNullOrWhiteSpace(resourceName)
                 || !spriteResources.TryGetValue(resourceName, out var resource)
                 || !TryGetCustomMapSpriteTexture(resource, out var texture))
@@ -60,6 +48,12 @@ public partial class Game1
                 continue;
             }
 
+            var frameIndex = _world.GetSpritesheetFrame(roomObjectIndex);
+            var source = SpritesheetMetadata.ResolveFrameSourceRectangle(
+                texture.Width,
+                texture.Height,
+                frameIndex,
+                marker.Spritesheet);
             var (relX, relY) = CustomMapSpriteParallax.WorldToScreen(
                 marker.CenterX,
                 marker.CenterY,
@@ -76,40 +70,11 @@ public partial class Game1
                 (int)MathF.Floor(relY - (drawHeight * 0.5f)),
                 Math.Max(1, (int)MathF.Ceiling(drawWidth)),
                 Math.Max(1, (int)MathF.Ceiling(drawHeight)));
-            if (marker.CustomMapSprite.Tile)
-            {
-                var tileWidth = MathF.Max(1f, texture.Width * marker.CustomMapSprite.Scale);
-                var tileHeight = MathF.Max(1f, texture.Height * marker.CustomMapSprite.Scale);
-                MapSpriteTileRendering.DrawTiledSprite(
-                    _spriteBatch,
-                    texture,
-                    destination,
-                    tileWidth,
-                    tileHeight,
-                    marker.CustomMapSprite.TileAnchor,
-                    Color.White);
-            }
-            else
-            {
-                _spriteBatch.Draw(texture, destination, Color.White);
-            }
+            _spriteBatch.Draw(
+                texture,
+                destination,
+                new Rectangle(source.X, source.Y, source.Width, source.Height),
+                Color.White);
         }
-    }
-
-    private bool TryGetCustomMapSpriteTexture(CustomMapVisualResource resource, out Texture2D texture)
-    {
-        if (_customMapSpriteTextureCache.TryGetValue(resource.Name, out var cached))
-        {
-            texture = cached;
-            return true;
-        }
-
-        if (!TryLoadCustomMapVisualTexture(resource, out texture))
-        {
-            return false;
-        }
-
-        _customMapSpriteTextureCache[resource.Name] = texture;
-        return true;
     }
 }

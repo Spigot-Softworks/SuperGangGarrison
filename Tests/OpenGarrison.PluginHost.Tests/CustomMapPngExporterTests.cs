@@ -1437,6 +1437,67 @@ public sealed class CustomMapPngExporterTests
         }
     }
 
+    [Fact]
+    public void PackageImporter_AttachesGameplaySpriteResources()
+    {
+        using var workspace = TempWorkspace.Create();
+        var packageDirectory = workspace.PathFor("sprite_map");
+        Directory.CreateDirectory(packageDirectory);
+        var backgroundPath = workspace.PathFor("background.png");
+        var walkmaskPath = workspace.PathFor("walkmask.png");
+        var spritePath = workspace.PathFor("prop.png");
+        WriteSolidPng(backgroundPath, 8, 4, new Rgba32(32, 64, 96, 255));
+        WriteWalkmaskPng(walkmaskPath);
+        WriteSolidPng(spritePath, 16, 16, new Rgba32(200, 100, 50, 255));
+
+        var spriteResource = CustomMapBuilderResourceCodec.FromFile(
+            "prop",
+            spritePath,
+            CustomMapBuilderResourceKind.CustomSprite);
+        var document = CreateSpawnOnlyDocument(backgroundPath, walkmaskPath, 12f, 36f) with
+        {
+            Name = "sprite_map",
+            Entities =
+            [
+                CustomMapBuilderEntity.Create("redspawn", 12f, 6f),
+                CustomMapBuilderEntity.Create("bluespawn", 36f, 6f),
+                CustomMapBuilderEntity.Create(
+                    CustomMapCustomSpriteMetadata.CustomSpriteEntityType,
+                    40f,
+                    20f,
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [CustomMapCustomSpriteMetadata.ImagePropertyKey] = "prop",
+                        [CustomMapCustomSpriteMetadata.ScalePropertyKey] = "2",
+                    }),
+                CustomMapBuilderEntity.Create(
+                    ForegroundSpriteMetadata.ForegroundSpriteEntityType,
+                    60f,
+                    20f,
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [ForegroundSpriteMetadata.ImagePropertyKey] = "prop",
+                        [ForegroundSpriteMetadata.ScalePropertyKey] = "1",
+                    }),
+            ],
+            Resources = new Dictionary<string, CustomMapBuilderResource>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["prop"] = spriteResource,
+            },
+        };
+
+        var manifestPath = Path.Combine(packageDirectory, "sprite_map.json");
+        CustomMapPackageExporter.Export(document, manifestPath);
+
+        var imported = CustomMapPackageImporter.Import(manifestPath);
+
+        Assert.NotNull(imported);
+        var room = imported!.Room;
+        Assert.True(room.CustomMapVisuals.SpriteResources.ContainsKey("prop"));
+        Assert.Contains(room.RoomObjects, marker => marker.Type == RoomObjectType.CustomMapSprite);
+        Assert.Contains(room.RoomObjects, marker => marker.Type == RoomObjectType.ForegroundSprite);
+    }
+
     private sealed class TempWorkspace : IDisposable
     {
         private readonly string _root;
