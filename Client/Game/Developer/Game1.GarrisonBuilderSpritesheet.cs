@@ -86,7 +86,8 @@ public partial class Game1
                 viewportWidth,
                 viewportHeight,
                 mapScale,
-                parallaxLayers);
+                parallaxLayers,
+                Color.White);
         }
     }
 
@@ -129,7 +130,8 @@ public partial class Game1
         int viewportWidth,
         int viewportHeight,
         float mapScale,
-        IReadOnlyList<CustomMapBuilderParallaxLayer> parallaxLayers)
+        IReadOnlyList<CustomMapBuilderParallaxLayer> parallaxLayers,
+        Color tint)
     {
         if (!TryGetGarrisonBuilderSpritesheetDrawBounds(entity, out var centerX, out var centerY, out var width, out var height))
         {
@@ -175,15 +177,18 @@ public partial class Game1
                     texture,
                     drawRect,
                     new Rectangle(source.X, source.Y, source.Width, source.Height),
-                    Color.White);
+                    tint);
                 return;
             }
         }
 
-        _spriteBatch.Draw(_pixel, drawRect, GarrisonBuilderSpritesheetPlaceholderColor);
+        _spriteBatch.Draw(_pixel, drawRect, Color.Lerp(GarrisonBuilderSpritesheetPlaceholderColor, tint, tint.A / 255f));
     }
 
-    private bool TryDrawGarrisonBuilderSpritesheetEntity(CustomMapBuilderEntityDefinition definition, CustomMapBuilderEntity entity)
+    private bool TryDrawGarrisonBuilderSpritesheetEntity(
+        CustomMapBuilderEntityDefinition definition,
+        CustomMapBuilderEntity entity,
+        Color tint)
     {
         if (!SpritesheetMetadata.IsSpritesheetEntityType(definition.Type))
         {
@@ -196,7 +201,8 @@ public partial class Game1
             _builderUseModernUi ? GetModernGarrisonBuilderMapViewport().Width : GraphicsDevice.Viewport.Width,
             _builderUseModernUi ? GetModernGarrisonBuilderMapViewport().Height : GraphicsDevice.Viewport.Height,
             GetGarrisonBuilderMapVisualScale(),
-            _builderDocument.ParallaxLayers);
+            _builderDocument.ParallaxLayers,
+            tint);
         return true;
     }
 

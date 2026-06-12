@@ -88,7 +88,8 @@ public partial class Game1
                 viewportWidth,
                 viewportHeight,
                 mapScale,
-                parallaxLayers);
+                parallaxLayers,
+                Color.White);
         }
     }
 
@@ -131,7 +132,8 @@ public partial class Game1
         int viewportWidth,
         int viewportHeight,
         float mapScale,
-        IReadOnlyList<CustomMapBuilderParallaxLayer> parallaxLayers)
+        IReadOnlyList<CustomMapBuilderParallaxLayer> parallaxLayers,
+        Color tint)
     {
         if (!TryGetGarrisonBuilderCustomSpriteDrawBounds(entity, out var centerX, out var centerY, out var width, out var height))
         {
@@ -187,18 +189,18 @@ public partial class Game1
                         tileScreenWidth,
                         tileScreenHeight,
                         configuration.TileAnchor,
-                        Color.White);
+                        tint);
                 }
                 else
                 {
-                    _spriteBatch.Draw(texture, drawRect, Color.White);
+                    _spriteBatch.Draw(texture, drawRect, tint);
                 }
 
                 return;
             }
         }
 
-        _spriteBatch.Draw(_pixel, drawRect, GarrisonBuilderCustomSpritePlaceholderColor);
+        _spriteBatch.Draw(_pixel, drawRect, Color.Lerp(GarrisonBuilderCustomSpritePlaceholderColor, tint, tint.A / 255f));
         DrawGarrisonBuilderRectangleOutline(drawRect, Color.Black * 0.65f);
     }
 
@@ -276,7 +278,10 @@ public partial class Game1
         return true;
     }
 
-    private bool TryDrawGarrisonBuilderCustomSpriteEntity(CustomMapBuilderEntityDefinition definition, CustomMapBuilderEntity entity)
+    private bool TryDrawGarrisonBuilderCustomSpriteEntity(
+        CustomMapBuilderEntityDefinition definition,
+        CustomMapBuilderEntity entity,
+        Color tint)
     {
         if (!CustomMapCustomSpriteMetadata.IsCustomSpriteEntityType(definition.Type))
         {
@@ -290,7 +295,8 @@ public partial class Game1
             _builderUseModernUi ? GetModernGarrisonBuilderMapViewport().Width : GraphicsDevice.Viewport.Width,
             _builderUseModernUi ? GetModernGarrisonBuilderMapViewport().Height : GraphicsDevice.Viewport.Height,
             GetGarrisonBuilderMapVisualScale(),
-            _builderDocument.ParallaxLayers);
+            _builderDocument.ParallaxLayers,
+            tint);
         return true;
     }
 
