@@ -25,13 +25,13 @@ public partial class Game1
     private void DrawCustomMapGameplaySprites(Vector2 cameraPosition, CustomMapSpriteLayerKind layer)
     {
         var visuals = GetRuntimeCustomMapVisuals();
-        if (visuals is null || visuals.SpriteResources.Count == 0)
+        var spriteResources = visuals?.SpriteResources;
+        if (visuals is null || spriteResources is null || spriteResources.Count == 0)
         {
             return;
         }
 
         var viewport = GraphicsDevice.Viewport;
-        var imageScale = visuals.ImageScale;
         var parallaxLayers = _world.Level.CustomMapVisuals.ParallaxLayers;
         var sprites = new List<(int Index, RoomObjectMarker Marker)>();
         for (var index = 0; index < _world.Level.RoomObjects.Count; index += 1)
@@ -54,7 +54,7 @@ public partial class Game1
         {
             var resourceName = marker.CustomMapSprite.ImageResourceName;
             if (string.IsNullOrWhiteSpace(resourceName)
-                || !visuals.SpriteResources.TryGetValue(resourceName, out var resource)
+                || !spriteResources.TryGetValue(resourceName, out var resource)
                 || !TryGetCustomMapSpriteTexture(resource, out var texture))
             {
                 continue;
@@ -76,7 +76,23 @@ public partial class Game1
                 (int)MathF.Floor(relY - (drawHeight * 0.5f)),
                 Math.Max(1, (int)MathF.Ceiling(drawWidth)),
                 Math.Max(1, (int)MathF.Ceiling(drawHeight)));
-            _spriteBatch.Draw(texture, destination, Color.White);
+            if (marker.CustomMapSprite.Tile)
+            {
+                var tileWidth = MathF.Max(1f, texture.Width * marker.CustomMapSprite.Scale);
+                var tileHeight = MathF.Max(1f, texture.Height * marker.CustomMapSprite.Scale);
+                MapSpriteTileRendering.DrawTiledSprite(
+                    _spriteBatch,
+                    texture,
+                    destination,
+                    tileWidth,
+                    tileHeight,
+                    marker.CustomMapSprite.TileAnchor,
+                    Color.White);
+            }
+            else
+            {
+                _spriteBatch.Draw(texture, destination, Color.White);
+            }
         }
     }
 

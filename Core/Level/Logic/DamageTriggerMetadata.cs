@@ -14,12 +14,15 @@ public static class DamageTriggerMetadata
     public const string TriggerOnAnyDamagePropertyKey = "triggerOnAnyDamage";
     public const string TriggerOnHealPropertyKey = "triggerOnHeal";
     public const string TriggerWhenDestroyedPropertyKey = "triggerWhenDestroyed";
+    public const string AffectedByTeamPropertyKey = "affectedByTeam";
+    public const string AnyDamageCooldownPropertyKey = "anyDamageCooldown";
 
     public const int MinTriggerBelowPercent = 0;
     public const int MaxTriggerBelowPercent = 100;
     public const int DefaultTriggerBelowPercent = 50;
 
     public const float DefaultAnyDamageTrueTimeSeconds = 0.25f;
+    public const float DefaultAnyDamageCooldownSeconds = 0.25f;
 
     public static readonly string[] ExclusiveModePropertyKeys =
     [
@@ -129,6 +132,35 @@ public static class DamageTriggerMetadata
         return MapLogicMetadata.ToCountdownSecondsPropertyValue(Math.Max(0f, seconds));
     }
 
+    public static float ParseAnyDamageCooldownSeconds(IReadOnlyDictionary<string, string>? properties)
+    {
+        if (properties is null
+            || !properties.TryGetValue(AnyDamageCooldownPropertyKey, out var raw))
+        {
+            return 0f;
+        }
+
+        return ParseAnyDamageCooldownSecondsValue(raw);
+    }
+
+    public static float ParseAnyDamageCooldownSecondsValue(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return DefaultAnyDamageCooldownSeconds;
+        }
+
+        return float.TryParse(raw.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+            && parsed >= 0f
+            ? parsed
+            : DefaultAnyDamageCooldownSeconds;
+    }
+
+    public static string ToAnyDamageCooldownPropertyValue(float seconds)
+    {
+        return MapLogicMetadata.ToCountdownSecondsPropertyValue(Math.Max(0f, seconds));
+    }
+
     public static bool TryGetActiveExclusiveModeKey(
         IReadOnlyDictionary<string, string>? properties,
         out string activeKey)
@@ -190,11 +222,19 @@ public static class DamageTriggerMetadata
                 : "false";
         }
 
-        if (selectedKey.Equals(TriggerOnAnyDamagePropertyKey, StringComparison.OrdinalIgnoreCase)
-            && !properties.ContainsKey(MapLogicMetadata.TrueTimePropertyKey))
+        if (selectedKey.Equals(TriggerOnAnyDamagePropertyKey, StringComparison.OrdinalIgnoreCase))
         {
-            properties[MapLogicMetadata.TrueTimePropertyKey] =
-                ToAnyDamageTrueTimePropertyValue(DefaultAnyDamageTrueTimeSeconds);
+            if (!properties.ContainsKey(MapLogicMetadata.TrueTimePropertyKey))
+            {
+                properties[MapLogicMetadata.TrueTimePropertyKey] =
+                    ToAnyDamageTrueTimePropertyValue(DefaultAnyDamageTrueTimeSeconds);
+            }
+
+            if (!properties.ContainsKey(AnyDamageCooldownPropertyKey))
+            {
+                properties[AnyDamageCooldownPropertyKey] =
+                    ToAnyDamageCooldownPropertyValue(DefaultAnyDamageCooldownSeconds);
+            }
         }
     }
 
@@ -243,5 +283,27 @@ public static class DamageTriggerMetadata
         return !string.IsNullOrWhiteSpace(value)
             && (value.Trim().Equals("true", StringComparison.OrdinalIgnoreCase)
                 || value.Trim().Equals("1", StringComparison.OrdinalIgnoreCase));
+    }
+
+    public static PlayerTriggerTeamFilter ParseAffectedByTeam(IReadOnlyDictionary<string, string>? properties)
+    {
+        if (properties is not null
+            && properties.TryGetValue(AffectedByTeamPropertyKey, out var value)
+            && PlayerTriggerMetadata.TryParseTeamFilter(value, out var filter))
+        {
+            return filter;
+        }
+
+        return PlayerTriggerTeamFilter.Any;
+    }
+
+    public static string CycleAffectedByTeamPropertyValue(string? current)
+    {
+        return PlayerTriggerMetadata.CycleTeamPropertyValue(current);
+    }
+
+    public static string GetAffectedByTeamDisplayLabel(string? value)
+    {
+        return PlayerTriggerMetadata.GetTeamDisplayLabel(value);
     }
 }

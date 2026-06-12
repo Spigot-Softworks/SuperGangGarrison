@@ -141,8 +141,12 @@ public static class SimpleLevelFactory
             customMapVisuals: importedRoom.CustomMapVisuals,
             movingPlatforms: movingPlatforms,
             controlPointSettings: importedRoom.ControlPointSettings,
+            scrSettings: importedRoom.ScrSettings,
+            showControlPoints: importedRoom.ShowControlPoints,
             logicGraph: importedRoom.LogicGraph,
-            logicActivators: importedRoom.LogicActivators);
+            logicActivators: importedRoom.LogicActivators,
+            logicScoreTriggers: importedRoom.LogicScoreTriggers,
+            spritesheetPlaybackSet: importedRoom.SpritesheetPlaybackSet);
         return SimpleLevelScaling.ApplyUniformScale(level, mapScale);
     }
 
@@ -248,6 +252,21 @@ public static class SimpleLevelFactory
 
     private static GameModeKind DetectMode(GameMakerRoomMetadata metadata)
     {
+        if (metadata.ExplicitGameMode is GameModeKind explicitMode)
+        {
+            return explicitMode;
+        }
+
+        if (metadata.LogicScoreTriggers.HasTriggers)
+        {
+            return GameModeKind.Scr;
+        }
+
+        if (metadata.Name.StartsWith("scr_", StringComparison.OrdinalIgnoreCase))
+        {
+            return GameModeKind.Scr;
+        }
+
         if (metadata.RoomObjects.Any(marker => marker.Type == RoomObjectType.Generator))
         {
             return GameModeKind.Generator;

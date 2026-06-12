@@ -11,6 +11,8 @@ public sealed partial class SimulationWorld
         private readonly RuntimeCaptureTheFlagUpdateController _captureTheFlagUpdateController;
         private readonly RuntimeCaptureTheFlagResolutionController _captureTheFlagResolutionController;
         private readonly RuntimeScoreLimitResolutionController _scoreLimitResolutionController;
+        private readonly RuntimeScrObjectiveController _scrObjectiveController;
+        private readonly RuntimeScrResolutionController _scrResolutionController;
 
         public RuntimeObjectiveFlowController(SimulationWorld world)
         {
@@ -21,6 +23,8 @@ public sealed partial class SimulationWorld
             _captureTheFlagUpdateController = new RuntimeCaptureTheFlagUpdateController(world);
             _captureTheFlagResolutionController = new RuntimeCaptureTheFlagResolutionController(world);
             _scoreLimitResolutionController = new RuntimeScoreLimitResolutionController(world);
+            _scrObjectiveController = new RuntimeScrObjectiveController(world);
+            _scrResolutionController = new RuntimeScrResolutionController(world);
         }
 
         public void AdvanceObjectives()
@@ -47,6 +51,9 @@ public sealed partial class SimulationWorld
                     SimulationWorld.UpdateGeneratorState();
                     break;
                 case GameModeKind.TeamDeathmatch:
+                    break;
+                case GameModeKind.Scr:
+                    _scrObjectiveController.AdvanceObjectives();
                     break;
                 default:
                     _captureTheFlagUpdateController.AdvanceObjectives();
@@ -78,6 +85,9 @@ public sealed partial class SimulationWorld
                 case GameModeKind.TeamDeathmatch:
                     _scoreLimitResolutionController.AdvanceResolution();
                     break;
+                case GameModeKind.Scr:
+                    _scrResolutionController.AdvanceResolution();
+                    break;
                 default:
                     _captureTheFlagResolutionController.AdvanceResolution();
                     break;
@@ -102,6 +112,11 @@ public sealed partial class SimulationWorld
         public void AdvanceLegacyCaptureTheFlagState()
         {
             _captureTheFlagUpdateController.AdvanceObjectives();
+        }
+
+        public void AdvanceLegacyScrState()
+        {
+            _scrObjectiveController.AdvanceObjectives();
         }
 
         public void AdvanceLegacyArenaState()

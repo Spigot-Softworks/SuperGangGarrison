@@ -75,6 +75,10 @@ public static class MapLogicMetadata
     public const string AutostartDefaultPropertyValue = "false";
     public const string PlayerTriggerEntityType = PlayerTriggerMetadata.PlayerTriggerEntityType;
 
+    public const string IntelTriggerEntityType = IntelTriggerMetadata.IntelTriggerEntityType;
+
+    public const string ScoreTriggerEntityType = MapLogicScoreTriggerMetadata.ScoreTriggerEntityType;
+
     public const string AreaEntityType = AreaExtensionMetadata.AreaEntityType;
 
     public static bool IsLogicEntityType(string? type)
@@ -92,6 +96,8 @@ public static class MapLogicMetadata
             || type.Equals(TimerEntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals(OscillatorEntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals(PlayerTriggerEntityType, StringComparison.OrdinalIgnoreCase)
+            || type.Equals(IntelTriggerEntityType, StringComparison.OrdinalIgnoreCase)
+            || type.Equals(ScoreTriggerEntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals(ActivatorEntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals(AreaEntityType, StringComparison.OrdinalIgnoreCase)
             || DamageableMetadata.IsDamageableEntityType(type)
@@ -113,6 +119,7 @@ public static class MapLogicMetadata
             || type.Equals(TimerEntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals(OscillatorEntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals(PlayerTriggerEntityType, StringComparison.OrdinalIgnoreCase)
+            || type.Equals(IntelTriggerEntityType, StringComparison.OrdinalIgnoreCase)
             || DamageTriggerMetadata.IsDamageTriggerEntityType(type);
     }
 

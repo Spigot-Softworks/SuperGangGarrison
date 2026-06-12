@@ -28,4 +28,6 @@ public enum RoomObjectType
     CustomMapSprite = 24,
     AreaExtension = 25,
     DamageableZone = 26,
+    ForegroundSprite = 27,
+    Spritesheet = 28,
 }

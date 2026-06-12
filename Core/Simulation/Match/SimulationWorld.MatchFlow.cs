@@ -7,6 +7,26 @@ public sealed partial class SimulationWorld
         _runtimeController.AdvanceLegacyCaptureTheFlagState();
     }
 
+    private void UpdateScrState()
+    {
+        _runtimeController.AdvanceLegacyScrState();
+    }
+
+    private void UpdateAuxiliaryControlPointStateIfNeeded()
+    {
+        if (!Level.ShowControlPoints
+            || _controlPoints.Count == 0
+            || MatchRules.Mode is GameModeKind.ControlPoint
+                or GameModeKind.Scr
+                or GameModeKind.KingOfTheHill
+                or GameModeKind.DoubleKingOfTheHill)
+        {
+            return;
+        }
+
+        UpdateControlPointState();
+    }
+
     private void UpdateArenaState()
     {
         _runtimeController.AdvanceLegacyArenaState();

@@ -9,5 +9,6 @@ public enum GameModeKind
     KingOfTheHill = 5,
     DoubleKingOfTheHill = 6,
     TeamDeathmatch = 7,
-    Vip = 8,
+    Scr = 8,
+    Vip = 9,
 }

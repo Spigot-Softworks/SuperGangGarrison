@@ -1435,8 +1435,8 @@ public sealed class GameplayModPackLoaderTests
         Assert.All(umbrellaOpenAnim.SourceSet.SourceImages, frame => Assert.True(frame.Bytes.Length > 0));
         Assert.Equal(6, umbrellaShieldBlock.SourceSet.SourceImages.Count);
         Assert.All(umbrellaShieldBlock.SourceSet.SourceImages, frame => Assert.True(frame.Bytes.Length > 0));
-        Assert.Equal(35, umbrellaShieldBlock.Definition.OriginX);
-        Assert.Equal(18, umbrellaShieldBlock.Definition.OriginY);
+        Assert.Equal(35, umbrellaShieldBlock.Definition.Definition.OriginX);
+        Assert.Equal(18, umbrellaShieldBlock.Definition.Definition.OriginY);
         Assert.Equal(2, umbrellaAmmoHud.SourceSet.SourceImages.Count);
         Assert.All(umbrellaAmmoHud.SourceSet.SourceImages, frame => Assert.True(frame.Bytes.Length > 0));
         Assert.Equal(2, umbrellaAbilityHud.SourceSet.SourceImages.Count);

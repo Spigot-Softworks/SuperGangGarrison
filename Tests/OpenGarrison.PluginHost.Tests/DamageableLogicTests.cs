@@ -198,6 +198,98 @@ public sealed class DamageableLogicTests
         Assert.False(graph.GetOutput(nodeIndex));
     }
 
+    [Fact]
+    public void DamageTriggerOnAnyDamageCooldownSuppressesImmediateRetrigger()
+    {
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "dmgTrigger",
+                Kind = MapLogicNodeKind.DamageTrigger,
+                DamageableRoomObjectIndex = 0,
+                TriggerOnAnyDamage = true,
+                SignalMode = MapLogicSignalMode.Impulse,
+                AnyDamageCooldownSeconds = 0.25f,
+            },
+        ]);
+
+        var nodeIndex = graph.NodeIndexByKey["dmgTrigger"];
+        graph.ResetDamageTriggerStates(new DamageTriggerEvaluationContext(_ => 1f));
+        graph.EvaluateDamageTriggers(new DamageTriggerEvaluationContext(_ => 0.9f));
+        Assert.True(graph.GetOutput(nodeIndex));
+
+        graph.EvaluateCombinatorial([]);
+        graph.EvaluateDamageTriggers(new DamageTriggerEvaluationContext(_ => 0.8f));
+        Assert.False(graph.GetOutput(nodeIndex));
+    }
+
+    [Fact]
+    public void DamageTriggerOnAnyDamageCooldownZeroAllowsImmediateRetrigger()
+    {
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "dmgTrigger",
+                Kind = MapLogicNodeKind.DamageTrigger,
+                DamageableRoomObjectIndex = 0,
+                TriggerOnAnyDamage = true,
+                SignalMode = MapLogicSignalMode.Impulse,
+                AnyDamageCooldownSeconds = 0f,
+            },
+        ]);
+
+        var nodeIndex = graph.NodeIndexByKey["dmgTrigger"];
+        graph.ResetDamageTriggerStates(new DamageTriggerEvaluationContext(_ => 1f));
+        graph.EvaluateDamageTriggers(new DamageTriggerEvaluationContext(_ => 0.9f));
+        Assert.True(graph.GetOutput(nodeIndex));
+
+        graph.EvaluateCombinatorial([]);
+        graph.EvaluateDamageTriggers(new DamageTriggerEvaluationContext(_ => 0.8f));
+        Assert.True(graph.GetOutput(nodeIndex));
+    }
+
+    [Fact]
+    public void DamageTriggerOnAnyDamageCooldownExpiresAfterAdvance()
+    {
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "dmgTrigger",
+                Kind = MapLogicNodeKind.DamageTrigger,
+                DamageableRoomObjectIndex = 0,
+                TriggerOnAnyDamage = true,
+                SignalMode = MapLogicSignalMode.Impulse,
+                AnyDamageCooldownSeconds = 0.25f,
+            },
+        ]);
+
+        var nodeIndex = graph.NodeIndexByKey["dmgTrigger"];
+        graph.ResetDamageTriggerStates(new DamageTriggerEvaluationContext(_ => 1f));
+        graph.EvaluateDamageTriggers(new DamageTriggerEvaluationContext(_ => 0.9f));
+        Assert.True(graph.GetOutput(nodeIndex));
+
+        graph.AdvanceDamageTriggers(0.3f);
+        graph.EvaluateCombinatorial([]);
+        graph.EvaluateDamageTriggers(new DamageTriggerEvaluationContext(_ => 0.8f));
+        Assert.True(graph.GetOutput(nodeIndex));
+    }
+
+    [Fact]
+    public void ParseAnyDamageCooldownDefaultsToZeroWhenPropertyMissing()
+    {
+        Assert.Equal(0f, DamageTriggerMetadata.ParseAnyDamageCooldownSeconds(null));
+        Assert.Equal(0f, DamageTriggerMetadata.ParseAnyDamageCooldownSeconds(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)));
+        Assert.Equal(0.25f, DamageTriggerMetadata.ParseAnyDamageCooldownSeconds(
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [DamageTriggerMetadata.AnyDamageCooldownPropertyKey] = "0.25",
+            }));
+        Assert.Equal(0f, DamageTriggerMetadata.ParseAnyDamageCooldownSecondsValue("0"));
+    }
+
 
 
     [Fact]
@@ -511,6 +603,185 @@ public sealed class DamageableLogicTests
         Assert.True(world.GetDamageableZoneHealth(0) > 0f);
     }
 
+    [Fact]
+    public void DamageTriggerThresholdOnlyFiresForMatchingTeam()
+    {
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "dmgTrigger",
+                Kind = MapLogicNodeKind.DamageTrigger,
+                DamageableRoomObjectIndex = 0,
+                TriggerBelowThreshold = true,
+                TriggerBelowPercent = 50,
+                SignalMode = MapLogicSignalMode.Impulse,
+                DamageTriggerTeamFilter = PlayerTriggerTeamFilter.Red,
+            },
+        ]);
+
+        var nodeIndex = graph.NodeIndexByKey["dmgTrigger"];
+        graph.ResetDamageTriggerStates(new DamageTriggerEvaluationContext(_ => 1f));
+        graph.EvaluateDamageTriggers(new DamageTriggerEvaluationContext(_ => 0.4f, _ => PlayerTeam.Blue));
+        Assert.False(graph.GetOutput(nodeIndex));
+
+        graph.ResetDamageTriggerStates(new DamageTriggerEvaluationContext(_ => 1f));
+        graph.EvaluateDamageTriggers(new DamageTriggerEvaluationContext(_ => 0.4f, _ => PlayerTeam.Red));
+        Assert.True(graph.GetOutput(nodeIndex));
+    }
+
+    [Fact]
+    public void DamageTriggerOnAnyDamageOnlyFiresForMatchingTeam()
+    {
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "dmgTrigger",
+                Kind = MapLogicNodeKind.DamageTrigger,
+                DamageableRoomObjectIndex = 0,
+                TriggerOnAnyDamage = true,
+                SignalMode = MapLogicSignalMode.Impulse,
+                DamageTriggerTeamFilter = PlayerTriggerTeamFilter.Blue,
+            },
+        ]);
+
+        var nodeIndex = graph.NodeIndexByKey["dmgTrigger"];
+        graph.ResetDamageTriggerStates(new DamageTriggerEvaluationContext(_ => 1f));
+        graph.EvaluateDamageTriggers(new DamageTriggerEvaluationContext(_ => 0.8f, _ => PlayerTeam.Red));
+        Assert.False(graph.GetOutput(nodeIndex));
+
+        graph.ResetDamageTriggerStates(new DamageTriggerEvaluationContext(_ => 1f));
+        graph.EvaluateDamageTriggers(new DamageTriggerEvaluationContext(_ => 0.8f, _ => PlayerTeam.Blue));
+        Assert.True(graph.GetOutput(nodeIndex));
+    }
+
+    [Fact]
+    public void DamageTriggerWhenDestroyedOnlyFiresForMatchingTeam()
+    {
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "dmgTrigger",
+                Kind = MapLogicNodeKind.DamageTrigger,
+                DamageableRoomObjectIndex = 0,
+                TriggerWhenDestroyed = true,
+                SignalMode = MapLogicSignalMode.Impulse,
+                DamageTriggerTeamFilter = PlayerTriggerTeamFilter.Red,
+            },
+        ]);
+
+        var nodeIndex = graph.NodeIndexByKey["dmgTrigger"];
+        graph.ResetDamageTriggerStates(new DamageTriggerEvaluationContext(_ => 1f));
+        graph.EvaluateDamageTriggers(new DamageTriggerEvaluationContext(_ => 0f, _ => PlayerTeam.Blue));
+        Assert.False(graph.GetOutput(nodeIndex));
+
+        graph.ResetDamageTriggerStates(new DamageTriggerEvaluationContext(_ => 1f));
+        graph.EvaluateDamageTriggers(new DamageTriggerEvaluationContext(_ => 0f, _ => PlayerTeam.Red));
+        Assert.True(graph.GetOutput(nodeIndex));
+    }
+
+    [Fact]
+    public void TryApplyDamageableZoneDamageRecordsDamagingTeamForTriggerEvaluation()
+    {
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "dmgTrigger",
+                Kind = MapLogicNodeKind.DamageTrigger,
+                DamageableRoomObjectIndex = 0,
+                TriggerOnAnyDamage = true,
+                SignalMode = MapLogicSignalMode.Impulse,
+                DamageTriggerTeamFilter = PlayerTriggerTeamFilter.Red,
+            },
+        ]);
+        var world = CreateWorld([CreateDamageableZone(0, 100f)], graph);
+        var nodeIndex = graph.NodeIndexByKey["dmgTrigger"];
+
+        Assert.True(world.TryApplyDamageableZoneDamage(0, 10f, PlayerTeam.Blue));
+        Assert.False(world.Level.LogicGraph.GetOutput(nodeIndex));
+
+        Assert.True(world.TryApplyDamageableZoneDamage(0, 10f, PlayerTeam.Red));
+        Assert.True(world.Level.LogicGraph.GetOutput(nodeIndex));
+    }
+
+    [Fact]
+    public void SentryStructuralDamageUsesSentryTeamForDamageTriggers()
+    {
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "dmgTrigger",
+                Kind = MapLogicNodeKind.DamageTrigger,
+                DamageableRoomObjectIndex = 0,
+                TriggerOnAnyDamage = true,
+                SignalMode = MapLogicSignalMode.Impulse,
+                DamageTriggerTeamFilter = PlayerTriggerTeamFilter.Blue,
+            },
+        ]);
+        var world = CreateWorld([CreateDamageableZone(0, 100f)], graph);
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin(PlayerClass.Engineer);
+
+        var blueSentry = new SentryEntity(
+            id: 9001,
+            ownerPlayerId: world.LocalPlayer.Id,
+            team: PlayerTeam.Blue,
+            x: 10f,
+            y: 10f,
+            startDirectionX: 1f);
+        blueSentry.ForceBuilt();
+        var addSentry = typeof(SimulationWorld).GetMethod(
+            "CombatTestAddSentry",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(addSentry);
+        addSentry.Invoke(world, [blueSentry]);
+
+        InvokeApplyExperimentalSentryStructuralTargetDamage(
+            world,
+            blueSentry,
+            damageableZoneRoomObjectIndex: 0,
+            targetX: 50f,
+            targetY: 50f,
+            owner: world.LocalPlayer,
+            damage: SentryEntity.HitDamage);
+
+        var nodeIndex = graph.NodeIndexByKey["dmgTrigger"];
+        Assert.True(world.Level.LogicGraph.GetOutput(nodeIndex));
+    }
+
+    private static void InvokeApplyExperimentalSentryStructuralTargetDamage(
+        SimulationWorld world,
+        SentryEntity sentry,
+        int damageableZoneRoomObjectIndex,
+        float targetX,
+        float targetY,
+        PlayerEntity owner,
+        float damage)
+    {
+        var sentryTargetType = typeof(SimulationWorld).GetNestedType("SentryTarget", BindingFlags.NonPublic);
+        Assert.NotNull(sentryTargetType);
+        var target = Activator.CreateInstance(
+            sentryTargetType,
+            null,
+            null,
+            null,
+            null,
+            damageableZoneRoomObjectIndex,
+            targetX,
+            targetY,
+            null);
+        var method = typeof(SimulationWorld).GetMethod(
+            "ApplyExperimentalSentryStructuralTargetDamage",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        method.Invoke(world, [sentry, target, owner, damage]);
+    }
+
     private static MapLogicGraph BuildThresholdTrigger()
 
     {
@@ -551,7 +822,9 @@ public sealed class DamageableLogicTests
 
         bool blockPlayers = false,
 
-        bool disableWhenDestroyed = true)
+        bool disableWhenDestroyed = true,
+
+        bool stabbable = false)
 
     {
 
@@ -581,11 +854,61 @@ public sealed class DamageableLogicTests
 
                 blockPlayers,
 
-                disableWhenDestroyed));
+                disableWhenDestroyed,
+
+                SentryTarget: true,
+
+                Stabbable: stabbable));
 
     }
 
 
+
+    [Fact]
+    public void ParseSentryTargetDefaultsToEnabled()
+    {
+        Assert.True(DamageableMetadata.ParseSentryTarget(null));
+        Assert.True(DamageableMetadata.ParseSentryTarget(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)));
+        Assert.False(DamageableMetadata.ParseSentryTarget(
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [DamageableMetadata.SentryTargetPropertyKey] = "false",
+            }));
+    }
+
+    [Fact]
+    public void IsSentryTargetRequiresEnabledFlagAndRemainingHealth()
+    {
+        var enabled = new DamageableZoneConfiguration(100f, -1, false, false, true, SentryTarget: true, Stabbable: false);
+        var disabled = enabled with { SentryTarget = false };
+
+        Assert.True(DamageableMetadata.IsSentryTarget(enabled, 100f));
+        Assert.False(DamageableMetadata.IsSentryTarget(enabled, 0f));
+        Assert.False(DamageableMetadata.IsSentryTarget(disabled, 100f));
+    }
+
+    [Fact]
+    public void ParseStabbableDefaultsToDisabled()
+    {
+        Assert.False(DamageableMetadata.ParseStabbable(null));
+        Assert.False(DamageableMetadata.ParseStabbable(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)));
+        Assert.True(DamageableMetadata.ParseStabbable(
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [DamageableMetadata.StabbablePropertyKey] = "true",
+            }));
+    }
+
+    [Fact]
+    public void IsStabbableTargetRequiresEnabledFlagAndRemainingHealth()
+    {
+        var enabled = new DamageableZoneConfiguration(100f, -1, false, false, true, SentryTarget: true, Stabbable: true);
+        var disabled = enabled with { Stabbable = false };
+
+        Assert.True(DamageableMetadata.IsStabbableTarget(enabled, 100f));
+        Assert.False(DamageableMetadata.IsStabbableTarget(enabled, 0f));
+        Assert.False(DamageableMetadata.IsStabbableTarget(disabled, 100f));
+    }
 
     [Fact]
     public void DamageTriggerOnAnyDamageDisablesLinkedSpriteThroughActivator()
@@ -599,7 +922,15 @@ public sealed class DamageableLogicTests
             20f,
             string.Empty,
             SourceName: CustomMapCustomSpriteMetadata.CustomSpriteEntityType,
-            CustomMapSprite: new CustomMapSpriteConfiguration("icon", CustomMapSpriteLayerKind.Bg, 0, 1f));
+            CustomMapSprite: new CustomMapSpriteConfiguration(
+                "icon",
+                CustomMapSpriteLayerKind.Bg,
+                0,
+                1f,
+                false,
+                MapSpriteTileAnchor.TopLeft,
+                0f,
+                0f));
         var graph = MapLogicGraphBuilder.Build(
         [
             new MapLogicNodeDefinition
