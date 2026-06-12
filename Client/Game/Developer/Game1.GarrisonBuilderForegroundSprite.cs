@@ -70,7 +70,7 @@ public partial class Game1
         var camera = _builderUseModernUi ? _builderCamera : Vector2.Zero;
         foreach (var (_, entity) in EnumerateGarrisonBuilderForegroundSpritesForLayer(layer))
         {
-            DrawGarrisonBuilderForegroundSpriteEntity(entity, camera);
+            DrawGarrisonBuilderForegroundSpriteEntity(entity, camera, Color.White);
         }
     }
 
@@ -107,7 +107,7 @@ public partial class Game1
             .Select(static entry => (entry.Index, entry.Entity));
     }
 
-    private void DrawGarrisonBuilderForegroundSpriteEntity(CustomMapBuilderEntity entity, Vector2 camera)
+    private void DrawGarrisonBuilderForegroundSpriteEntity(CustomMapBuilderEntity entity, Vector2 camera, Color overlayTint)
     {
         if (!TryGetGarrisonBuilderForegroundSpriteDrawBounds(entity, out var centerX, out var centerY, out var width, out var height))
         {
@@ -140,6 +140,8 @@ public partial class Game1
             tint = Color.White * configuration.OutsideOpacity;
         }
 
+        tint *= overlayTint;
+
         if (configuration.HasImage
             && entity.Properties.TryGetValue(ForegroundSpriteMetadata.ImagePropertyKey, out var resourceName)
             && !string.IsNullOrWhiteSpace(resourceName))
@@ -169,7 +171,7 @@ public partial class Game1
             }
         }
 
-        _spriteBatch.Draw(_pixel, drawRect, GarrisonBuilderForegroundSpritePlaceholderColor);
+        _spriteBatch.Draw(_pixel, drawRect, Color.Lerp(GarrisonBuilderForegroundSpritePlaceholderColor, overlayTint, overlayTint.A / 255f));
         DrawGarrisonBuilderRectangleOutline(drawRect, Color.Black * 0.65f);
     }
 
@@ -260,7 +262,10 @@ public partial class Game1
         return true;
     }
 
-    private bool TryDrawGarrisonBuilderForegroundSpriteEntity(CustomMapBuilderEntityDefinition definition, CustomMapBuilderEntity entity)
+    private bool TryDrawGarrisonBuilderForegroundSpriteEntity(
+        CustomMapBuilderEntityDefinition definition,
+        CustomMapBuilderEntity entity,
+        Color overlayTint)
     {
         if (!ForegroundSpriteMetadata.IsForegroundSpriteEntityType(definition.Type))
         {
@@ -269,7 +274,8 @@ public partial class Game1
 
         DrawGarrisonBuilderForegroundSpriteEntity(
             entity,
-            _builderUseModernUi ? _builderCamera : Vector2.Zero);
+            _builderUseModernUi ? _builderCamera : Vector2.Zero,
+            overlayTint);
         return true;
     }
 

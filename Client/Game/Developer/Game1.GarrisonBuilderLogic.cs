@@ -189,6 +189,13 @@ public partial class Game1
                     continue;
                 }
 
+                if (TryRefreshGarrisonBuilderMultiEntityRefValue(propertyKey, value, movedUpdates, out var refreshedValue))
+                {
+                    properties[propertyKey] = refreshedValue;
+                    changed = true;
+                    continue;
+                }
+
                 for (var updateIndex = 0; updateIndex < movedUpdates.Count; updateIndex += 1)
                 {
                     var update = movedUpdates[updateIndex];
@@ -236,6 +243,13 @@ public partial class Game1
             {
                 if (!properties.TryGetValue(propertyKey, out var value) || string.IsNullOrWhiteSpace(value))
                 {
+                    continue;
+                }
+
+                if (TryUpgradeGarrisonBuilderMultiEntityRefValue(propertyKey, value, out var upgradedValue))
+                {
+                    properties[propertyKey] = upgradedValue;
+                    changed = true;
                     continue;
                 }
 
@@ -314,6 +328,227 @@ public partial class Game1
     {
         return MapLogicMetadata.IsLogicOutputEntityType(entity.Type)
             && !string.IsNullOrWhiteSpace(GetEntityProperty(entity.Properties, MapLogicMetadata.LogicKeyPropertyKey, string.Empty));
+    }
+
+    private static bool IsGarrisonBuilderActivatableLogicTargetEntityType(string type)
+    {
+        return DamageableMetadata.IsDamageableEntityType(type)
+            || type.Equals(PlayerTriggerMetadata.PlayerTriggerEntityType, StringComparison.OrdinalIgnoreCase)
+            || AreaExtensionMetadata.IsAreaEntityType(type);
+    }
+
+    private bool CanPickGarrisonBuilderActivatorMapPickTarget(int entityIndex)
+    {
+        if (entityIndex < 0
+            || entityIndex >= _builderEntities.Count
+            || IsGarrisonBuilderEntityHidden(entityIndex))
+        {
+            return false;
+        }
+
+        var editingEntityIndex = _builderPropertyTarget == GarrisonBuilderPropertyTarget.SelectedMapEntity
+            ? _builderSelectedEntityIndex
+            : -1;
+        if (entityIndex == editingEntityIndex)
+        {
+            return false;
+        }
+
+        var type = _builderEntities[entityIndex].Type;
+        if (IsGarrisonBuilderActivatableLogicTargetEntityType(type))
+        {
+            return true;
+        }
+
+        return !MapLogicMetadata.IsLogicEntityType(type);
+    }
+
+    private bool IsGarrisonBuilderMapPickActive()
+    {
+        return _builderObjectiveMapPickActive
+            || _builderLogicMapPickActive
+            || _builderEntityMapPickActive
+            || _builderMultiEntityMapPickActive;
+    }
+
+    private bool CanPickGarrisonBuilderMapPickTarget(int entityIndex)
+    {
+        if (entityIndex < 0
+            || entityIndex >= _builderEntities.Count
+            || IsGarrisonBuilderEntityHidden(entityIndex))
+        {
+            return false;
+        }
+
+        if (_builderObjectiveMapPickActive)
+        {
+            return IsGarrisonBuilderLinkableObjectiveEntity(_builderEntities[entityIndex]);
+        }
+
+        if (_builderLogicMapPickActive)
+        {
+            return IsGarrisonBuilderLogicOutputEntity(_builderEntities[entityIndex]);
+        }
+
+        if (_builderMultiEntityMapPickActive)
+        {
+            return CanPickGarrisonBuilderMultiEntityRefTarget(
+                _builderMultiEntityMapPickPropertyKey,
+                entityIndex);
+        }
+
+        if (_builderEntityMapPickActive)
+        {
+            var entity = _builderEntities[entityIndex];
+            var propertyKey = _builderEntityMapPickTargetPropertyKey;
+            if (propertyKey.Equals(TeleportMetadata.TeleportExitPropertyKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return entity.Type.Equals(TeleportMetadata.TeleportExitEntityType, StringComparison.OrdinalIgnoreCase);
+            }
+
+            if (propertyKey.Equals(AreaExtensionMetadata.ExtendsPropertyKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return AreaExtensionMetadata.IsExtendableAreaEntityType(entity.Type);
+            }
+
+            if (propertyKey.Equals(DamageTriggerMetadata.DamageableEntityPropertyKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return entity.Type.Equals(DamageableMetadata.DamageableEntityType, StringComparison.OrdinalIgnoreCase);
+            }
+
+            return CanPickGarrisonBuilderActivatorMapPickTarget(entityIndex);
+        }
+
+        return false;
+    }
+
+    private static Color GetGarrisonBuilderMapPickDimColor()
+    {
+        const float dimOpacity = 0.78f;
+        return new Color(36, 36, 36, (int)MathF.Round(255f * dimOpacity));
+    }
+
+    private void DrawGarrisonBuilderMapPickDimming()
+    {
+        if (!IsGarrisonBuilderMapPickActive())
+        {
+            return;
+        }
+
+        var dimColor = GetGarrisonBuilderMapPickDimColor();
+        for (var index = 0; index < _builderEntities.Count; index += 1)
+        {
+            if (CanPickGarrisonBuilderMapPickTarget(index))
+            {
+                continue;
+            }
+
+            DrawGarrisonBuilderMapPickDimOverlay(_builderEntities[index], dimColor);
+        }
+    }
+
+    private void DrawGarrisonBuilderMapPickDimOverlay(CustomMapBuilderEntity entity, Color dimColor)
+    {
+        if (MapLogicMetadata.IsLogicEntityType(entity.Type))
+        {
+            DrawGarrisonBuilderLogicMapPickDimOverlay(entity, dimColor);
+            return;
+        }
+
+        if (CustomMapBuilderEntityCatalog.TryGetDefinition(entity.Type, out var definition)
+            && TryDrawGarrisonBuilderEntitySprite(definition, entity, dimColor))
+        {
+            return;
+        }
+
+        DrawGarrisonBuilderMapPickDimRectangleOverlay(entity, dimColor);
+    }
+
+    private void DrawGarrisonBuilderLogicMapPickDimOverlay(CustomMapBuilderEntity entity, Color dimColor)
+    {
+        if (entity.Type.Equals(MapLogicMetadata.TimerEntityType, StringComparison.OrdinalIgnoreCase)
+            || entity.Type.Equals(MapLogicMetadata.ActivatorEntityType, StringComparison.OrdinalIgnoreCase)
+            || entity.Type.Equals(MapLogicMetadata.ScoreTriggerEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            DrawGarrisonBuilderLogicMapPickDimEllipseOverlay(entity, dimColor);
+            return;
+        }
+
+        if (entity.Type.Equals(MapLogicMetadata.OscillatorEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!TryGetGarrisonBuilderLogicNodeWorldBounds(entity, out var left, out var top, out var width, out var height))
+            {
+                return;
+            }
+
+            var screenBounds = ToScreenRectangle(new RectangleF(left, top, width, height));
+            var cornerRadius = MathF.Min(screenBounds.Width, screenBounds.Height) * 0.28f;
+            DrawGarrisonBuilderLogicRoundedRectangle(
+                screenBounds,
+                dimColor,
+                dimColor,
+                outlineThickness: 0,
+                cornerRadius,
+                drawOutline: false);
+            return;
+        }
+
+        DrawGarrisonBuilderMapPickDimRectangleOverlay(entity, dimColor);
+    }
+
+    private void DrawGarrisonBuilderLogicMapPickDimEllipseOverlay(CustomMapBuilderEntity entity, Color dimColor)
+    {
+        if (!TryGetGarrisonBuilderLogicNodeWorldBounds(entity, out var left, out var top, out var width, out var height))
+        {
+            return;
+        }
+
+        var center = BuilderWorldToScreen(new Vector2(entity.X, entity.Y));
+        var topLeft = BuilderWorldToScreen(new Vector2(left, top));
+        var bottomRight = BuilderWorldToScreen(new Vector2(left + width, top + height));
+        var radiusX = MathF.Abs(bottomRight.X - topLeft.X) * 0.5f;
+        var radiusY = MathF.Abs(bottomRight.Y - topLeft.Y) * 0.5f;
+        if (radiusX < 0.5f || radiusY < 0.5f)
+        {
+            return;
+        }
+
+        DrawGarrisonBuilderFilledEllipse(center, radiusX, radiusY, dimColor);
+    }
+
+    private void DrawGarrisonBuilderMapPickDimRectangleOverlay(CustomMapBuilderEntity entity, Color dimColor)
+    {
+        if (!TryGetGarrisonBuilderEntityWorldBounds(entity, out var left, out var top, out var width, out var height))
+        {
+            return;
+        }
+
+        var screenRect = ToScreenRectangle(new RectangleF(left, top, width, height));
+        if (screenRect.Width <= 0 || screenRect.Height <= 0)
+        {
+            return;
+        }
+
+        _spriteBatch.Draw(_pixel, screenRect, dimColor);
+    }
+
+    private void DrawGarrisonBuilderFilledEllipse(Vector2 center, float radiusX, float radiusY, Color fillColor)
+    {
+        const int segments = 20;
+        var fillPoints = new Vector2[segments];
+        for (var segment = 0; segment < segments; segment += 1)
+        {
+            var angle = (segment / (float)segments) * MathF.PI * 2f;
+            fillPoints[segment] = new Vector2(
+                center.X + (MathF.Cos(angle) * radiusX),
+                center.Y + (MathF.Sin(angle) * radiusY));
+        }
+
+        for (var segment = 0; segment < segments; segment += 1)
+        {
+            var next = (segment + 1) % segments;
+            DrawGarrisonBuilderFilledTriangle(center, fillPoints[segment], fillPoints[next], fillColor);
+        }
     }
 
     private bool TryFindGarrisonBuilderLogicSource(
@@ -531,26 +766,15 @@ public partial class Game1
             return false;
         }
 
-        var editingActivatorIndex = _builderPropertyTarget == GarrisonBuilderPropertyTarget.SelectedMapEntity
-            ? _builderSelectedEntityIndex
-            : -1;
-
         for (var pickIndex = 0; pickIndex < _builderEntityOverlapPickScratch.Count; pickIndex += 1)
         {
             var entityIndex = _builderEntityOverlapPickScratch[pickIndex];
-            if (IsGarrisonBuilderEntityHidden(entityIndex))
+            if (!CanPickGarrisonBuilderActivatorMapPickTarget(entityIndex))
             {
                 continue;
             }
 
-            var entity = _builderEntities[entityIndex];
-            if (entityIndex == editingActivatorIndex
-                || MapLogicMetadata.IsLogicEntityType(entity.Type))
-            {
-                continue;
-            }
-
-            picked = entity;
+            picked = _builderEntities[entityIndex];
             return true;
         }
 
@@ -1351,7 +1575,18 @@ public partial class Game1
 
     private string GetGarrisonBuilderActivatorEntityDisplayValue(string value)
     {
-        return GetGarrisonBuilderEntityReferenceDisplayValue(value);
+        var refs = MapLogicEntityReferenceList.Parse(value);
+        if (refs.Count == 0)
+        {
+            return "none";
+        }
+
+        if (refs.Count == 1)
+        {
+            return GetGarrisonBuilderEntityReferenceDisplayValue(refs[0]);
+        }
+
+        return $"{refs.Count} targets";
     }
 
     private string GetGarrisonBuilderAreaExtendsDisplayValue(string value)
@@ -1645,7 +1880,8 @@ public partial class Game1
         Color fillColor,
         Color outlineColor,
         int outlineThickness,
-        float cornerRadius)
+        float cornerRadius,
+        bool drawOutline = true)
     {
         cornerRadius = MathF.Min(cornerRadius, MathF.Min(bounds.Width, bounds.Height) * 0.5f);
         var core = new Rectangle(
@@ -1689,7 +1925,10 @@ public partial class Game1
             }
         }
 
-        DrawGarrisonBuilderRoundedRectangleOutline(bounds, outlineColor, outlineThickness, cornerRadius);
+        if (drawOutline && outlineThickness > 0)
+        {
+            DrawGarrisonBuilderRoundedRectangleOutline(bounds, outlineColor, outlineThickness, cornerRadius);
+        }
     }
 
     private void DrawGarrisonBuilderRoundedRectangleOutline(
@@ -1796,11 +2035,7 @@ public partial class Game1
                 center.Y + (MathF.Sin(angle) * radiusY));
         }
 
-        for (var segment = 0; segment < segments; segment += 1)
-        {
-            var next = (segment + 1) % segments;
-            DrawGarrisonBuilderFilledTriangle(center, fillPoints[segment], fillPoints[next], fillColor);
-        }
+        DrawGarrisonBuilderFilledEllipse(center, radiusX, radiusY, fillColor);
 
         for (var segment = 0; segment < segments; segment += 1)
         {
@@ -2102,20 +2337,31 @@ public partial class Game1
 
     private void DrawGarrisonBuilderActivatorEntityLink(CustomMapBuilderEntity activator)
     {
-        var entityRef = GetEntityProperty(activator.Properties, MapLogicMetadata.ActivatorEntityPropertyKey, string.Empty);
-        if (!MapLogicEntityReference.TryFindBuilderEntityIndex(_builderEntities, entityRef, out var targetIndex))
+        var entityRefs = MapLogicEntityReferenceList.Parse(
+            GetEntityProperty(activator.Properties, MapLogicMetadata.ActivatorEntityPropertyKey, string.Empty));
+        if (entityRefs.Count == 0)
         {
             return;
         }
 
-        var target = _builderEntities[targetIndex];
         var activatorIndex = _builderEntities.IndexOf(activator);
-        DrawGarrisonBuilderLogicLink(
-            activator,
-            activatorIndex >= 0 ? activatorIndex : 0,
-            target,
-            targetIndex,
-            IsGarrisonBuilderLogicLinkHighlighted(activator, target));
+        for (var refIndex = 0; refIndex < entityRefs.Count; refIndex += 1)
+        {
+            if (!MapLogicEntityReference.TryFindBuilderEntityIndex(_builderEntities, entityRefs[refIndex], out var targetIndex))
+            {
+                continue;
+            }
+
+            var target = _builderEntities[targetIndex];
+            DrawGarrisonBuilderLogicLink(
+                activator,
+                activatorIndex >= 0 ? activatorIndex : 0,
+                target,
+                targetIndex,
+                IsGarrisonBuilderLogicLinkHighlighted(activator, target),
+                sourceConnectionSlot: refIndex,
+                sourceConnectionSlotCount: entityRefs.Count);
+        }
     }
 
     private void DrawGarrisonBuilderTeleportExitLink(CustomMapBuilderEntity teleport)

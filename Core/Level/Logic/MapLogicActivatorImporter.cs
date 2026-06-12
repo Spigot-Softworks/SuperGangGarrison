@@ -25,11 +25,9 @@ public static class MapLogicActivatorImporter
             }
 
             var properties = entity.Properties;
-            if (!MapLogicEntityReference.TryResolveRoomObjectIndex(
-                    roomObjects,
-                    ReadProperty(properties, MapLogicMetadata.ActivatorEntityPropertyKey),
-                    out var targetRoomObjectIndex,
-                    entities))
+            var targetRefs = MapLogicEntityReferenceList.Parse(
+                ReadProperty(properties, MapLogicMetadata.ActivatorEntityPropertyKey));
+            if (targetRefs.Count == 0)
             {
                 continue;
             }
@@ -44,12 +42,26 @@ public static class MapLogicActivatorImporter
                 behavior = MapLogicActivatorBehavior.Disable;
             }
 
-            activators.Add(new MapLogicActivator(
-                inputNodeIndex,
-                targetRoomObjectIndex,
-                behavior,
-                ReadBool(properties, MapLogicMetadata.ActivateOnStartPropertyKey),
-                MapLogicMetadata.ParseNodePriority(properties)));
+            var activateOnStart = ReadBool(properties, MapLogicMetadata.ActivateOnStartPropertyKey);
+            var nodePriority = MapLogicMetadata.ParseNodePriority(properties);
+            for (var targetIndex = 0; targetIndex < targetRefs.Count; targetIndex += 1)
+            {
+                if (!MapLogicEntityReference.TryResolveRoomObjectIndex(
+                        roomObjects,
+                        targetRefs[targetIndex],
+                        out var targetRoomObjectIndex,
+                        entities))
+                {
+                    continue;
+                }
+
+                activators.Add(new MapLogicActivator(
+                    inputNodeIndex,
+                    targetRoomObjectIndex,
+                    behavior,
+                    activateOnStart,
+                    nodePriority));
+            }
         }
 
         return activators.Count == 0
