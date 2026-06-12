@@ -386,6 +386,12 @@ public partial class Game1
         UpdateGarrisonBuilderPlacementPreview(mouse);
         UpdateGarrisonBuilderMapEntityHover(mouse);
 
+        if (!_builderUseModernUi && _builderMultiEntityMapPickActive)
+        {
+            UpdateGarrisonBuilderMultiEntityMapPickInteraction(mouse);
+            return;
+        }
+
         if (IsKeyPressed(keyboard, Keys.Delete) && _builderEntities.Count > 0)
         {
             var removedIndex = _builderEntities.Count - 1;
@@ -485,7 +491,11 @@ public partial class Game1
         var mapArea = new Rectangle(0, 0, BuilderViewportWidth, BuilderViewportHeight);
         _spriteBatch.Draw(_pixel, mapArea, _builderShowBackground ? new Color(190, 190, 190, 255) : new Color(20, 20, 20, 255));
         DrawGarrisonBuilderMap(mapArea);
+        DrawGarrisonBuilderMapPickDimming();
         DrawGarrisonBuilderEntityLinks();
+        DrawGarrisonBuilderMultiEntityMapPickSelectionHighlights();
+        DrawGarrisonBuilderMultiEntityMapPickAreaSelectionRectangle();
+        DrawGarrisonBuilderMultiEntityMapPickPrompt(mouse);
         DrawLegacyGarrisonBuilderActionMenu(mouse);
         DrawLegacyGarrisonBuilderLayerMenu(mouse);
         if (_builderDocument.Resources.Count > 0)
@@ -1116,7 +1126,11 @@ public partial class Game1
             return;
         }
 
-        if ((_builderObjectiveMapPickActive || _builderLogicMapPickActive || _builderEntityMapPickActive) && _builderUseModernUi)
+        if ((_builderObjectiveMapPickActive
+                || _builderLogicMapPickActive
+                || _builderEntityMapPickActive
+                || _builderMultiEntityMapPickActive)
+            && _builderUseModernUi)
         {
             return;
         }
@@ -1182,7 +1196,15 @@ public partial class Game1
                 value = string.Empty;
             }
 
-            DrawGarrisonBuilderPropertyRow(rowBounds, key, value, mouse, popupScale);
+            if (IsGarrisonBuilderMultiEntityRefProperty(key) && ShouldUseGarrisonBuilderEntityRefListDropdown(value))
+            {
+                DrawGarrisonBuilderEntityRefListPropertyRow(rowBounds, key, value, mouse, popupScale, rowBounds.Contains(mouse.Position));
+            }
+            else
+            {
+                DrawGarrisonBuilderPropertyRow(rowBounds, key, value, mouse, popupScale);
+            }
+
             y += rowHeight;
         }
 
@@ -1215,6 +1237,8 @@ public partial class Game1
             DrawGarrisonBuilderText("Add new property", addBounds.Location.ToVector2() + new Vector2(4f, 2f), Color.Black, 0.95f);
             DrawGarrisonBuilderText("Click bool to toggle, other values to edit. Esc closes.", bounds.X + 8, bounds.Bottom - 22, Color.Black, 0.66f);
         }
+
+        DrawGarrisonBuilderEntityRefListDropdown(mouse);
     }
 
     private void DrawGarrisonBuilderPropertyEditorTextMode(
@@ -3959,17 +3983,17 @@ public partial class Game1
 
     private bool TryDrawGarrisonBuilderEntitySprite(CustomMapBuilderEntityDefinition definition, CustomMapBuilderEntity entity, Color tint)
     {
-        if (TryDrawGarrisonBuilderCustomSpriteEntity(definition, entity))
+        if (TryDrawGarrisonBuilderCustomSpriteEntity(definition, entity, tint))
         {
             return true;
         }
 
-        if (TryDrawGarrisonBuilderForegroundSpriteEntity(definition, entity))
+        if (TryDrawGarrisonBuilderForegroundSpriteEntity(definition, entity, tint))
         {
             return true;
         }
 
-        if (TryDrawGarrisonBuilderSpritesheetEntity(definition, entity))
+        if (TryDrawGarrisonBuilderSpritesheetEntity(definition, entity, tint))
         {
             return true;
         }
@@ -5090,6 +5114,26 @@ public partial class Game1
             return false;
         }
 
+        if (_builderMultiEntityMapPickActive)
+        {
+            if (IsKeyPressed(keyboard, Keys.Escape))
+            {
+                CancelGarrisonBuilderMultiEntityMapPick();
+            }
+            else if (IsKeyPressed(keyboard, Keys.Enter))
+            {
+                CommitGarrisonBuilderMultiEntityMapPick();
+            }
+
+            return false;
+        }
+
+        if (_builderEntityRefListDropdownOpen && IsKeyPressed(keyboard, Keys.Escape))
+        {
+            CloseGarrisonBuilderEntityRefListDropdown();
+            return true;
+        }
+
         if (IsKeyPressed(keyboard, Keys.Escape))
         {
 
@@ -5109,25 +5153,41 @@ public partial class Game1
 
         if (_builderPropertyEditMode == GarrisonBuilderPropertyEditMode.List)
         {
-            var wheelDelta = mouse.ScrollWheelValue - _previousMouse.ScrollWheelValue;
-            if (wheelDelta != 0 && GetGarrisonBuilderPropertyEditorBounds().Contains(mouse.Position))
+            if (_builderEntityRefListDropdownOpen)
             {
-                var rows = GetGarrisonBuilderPropertyRows();
-                var visibleRows = GetGarrisonBuilderPropertyVisibleRows(GetGarrisonBuilderPropertyEditorBounds());
-                _builderPropertyScrollIndex = Math.Clamp(
-                    _builderPropertyScrollIndex + (wheelDelta > 0 ? -1 : 1),
-                    0,
-                    Math.Max(0, rows.Count - visibleRows));
-                return true;
+                UpdateGarrisonBuilderEntityRefListDropdownScrollbar(mouse);
             }
 
-            if (mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton == ButtonState.Released)
+            var wheelDelta = mouse.ScrollWheelValue - _previousMouse.ScrollWheelValue;
+            if (wheelDelta != 0)
             {
-                HandleGarrisonBuilderPropertyEditorClick(mouse.Position, leftClick: true);
+                if (TryScrollGarrisonBuilderEntityRefListDropdown(wheelDelta, mouse.Position))
+                {
+                    return true;
+                }
+
+                if (GetGarrisonBuilderPropertyEditorBounds().Contains(mouse.Position))
+                {
+                    var rows = GetGarrisonBuilderPropertyRows();
+                    var visibleRows = GetGarrisonBuilderPropertyVisibleRows(GetGarrisonBuilderPropertyEditorBounds());
+                    _builderPropertyScrollIndex = Math.Clamp(
+                        _builderPropertyScrollIndex + (wheelDelta > 0 ? -1 : 1),
+                        0,
+                        Math.Max(0, rows.Count - visibleRows));
+                    return true;
+                }
             }
-            else if (mouse.RightButton == ButtonState.Pressed && _previousMouse.RightButton == ButtonState.Released)
+
+            if (!IsGarrisonBuilderEntityRefListDropdownScrollInteractionActive())
             {
-                HandleGarrisonBuilderPropertyEditorClick(mouse.Position, leftClick: false);
+                if (mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton == ButtonState.Released)
+                {
+                    HandleGarrisonBuilderPropertyEditorClick(mouse.Position, leftClick: true);
+                }
+                else if (mouse.RightButton == ButtonState.Pressed && _previousMouse.RightButton == ButtonState.Released)
+                {
+                    HandleGarrisonBuilderPropertyEditorClick(mouse.Position, leftClick: false);
+                }
             }
 
             return true;
@@ -5244,15 +5304,44 @@ public partial class Game1
 
     private bool HandleGarrisonBuilderPropertyEditorClick(Point position, bool leftClick)
     {
+        if (_builderMultiEntityMapPickActive)
+        {
+            return true;
+        }
+
+        if (_builderEntityRefListDropdownOpen && leftClick)
+        {
+            TryHandleGarrisonBuilderEntityRefListDropdownClick(position);
+            return true;
+        }
+
         if (!leftClick)
         {
+            if (_builderEntityRefListDropdownOpen)
+            {
+                CloseGarrisonBuilderEntityRefListDropdown();
+                return true;
+            }
+
             CloseGarrisonBuilderPropertyEditor(applyChanges: true);
+            return true;
+        }
+
+        if (IsGarrisonBuilderEntityRefListDropdownClick(position))
+        {
+            TryHandleGarrisonBuilderEntityRefListDropdownClick(position);
             return true;
         }
 
         var bounds = GetGarrisonBuilderPropertyEditorBounds();
         if (!bounds.Contains(position))
         {
+            if (_builderEntityRefListDropdownOpen)
+            {
+                TryHandleGarrisonBuilderEntityRefListDropdownClick(position);
+                return true;
+            }
+
             CloseGarrisonBuilderPropertyEditor(applyChanges: true);
             return true;
         }
@@ -5519,11 +5608,9 @@ public partial class Game1
             ApplyGarrisonBuilderPropertyEditorLivePreview();
             MarkGarrisonBuilderPropertyEditorChanged();
         }
-        else if (IsGarrisonBuilderActivatorEntityMapPickProperty(key)
-            && TryGetGarrisonBuilderEditedEntityType(out var activatorPickEntity)
-            && activatorPickEntity.Equals(MapLogicMetadata.ActivatorEntityType, StringComparison.OrdinalIgnoreCase))
+        else if (IsGarrisonBuilderMultiEntityRefProperty(key)
+            && TryHandleGarrisonBuilderEntityRefListPropertyClick(rowBounds, key, value, position))
         {
-            BeginGarrisonBuilderEntityMapPick(key);
         }
         else if (IsGarrisonBuilderTeleportExitMapPickProperty(key)
             && TryGetGarrisonBuilderEditedEntityType(out var teleportPickEntity)
@@ -5958,6 +6045,8 @@ public partial class Game1
         CancelGarrisonBuilderObjectiveMapPick();
         CancelGarrisonBuilderLogicMapPick();
         CancelGarrisonBuilderEntityMapPick();
+        CancelGarrisonBuilderMultiEntityMapPick();
+        CloseGarrisonBuilderEntityRefListDropdown();
         CloseGarrisonBuilderLogicRecolorDialog();
         _builderPropertyTarget = GarrisonBuilderPropertyTarget.None;
         _builderPropertyEditMode = GarrisonBuilderPropertyEditMode.List;
@@ -7008,6 +7097,18 @@ public partial class Game1
             CancelGarrisonBuilderEntityMapPick();
         }
 
+        if (_builderMultiEntityMapPickActive
+            && key.Equals(_builderMultiEntityMapPickPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            CancelGarrisonBuilderMultiEntityMapPick();
+        }
+
+        if (_builderEntityRefListDropdownOpen
+            && key.Equals(_builderEntityRefListDropdownPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            CloseGarrisonBuilderEntityRefListDropdown();
+        }
+
         ApplyGarrisonBuilderPropertyEditorLivePreview();
         MarkGarrisonBuilderPropertyEditorChanged();
         _builderStatus = "connection cleared";
@@ -7474,6 +7575,11 @@ public partial class Game1
         if (_builderEntityMapPickActive)
         {
             return "Click an entity on the map. Esc cancels.";
+        }
+
+        if (_builderMultiEntityMapPickActive)
+        {
+            return "Click or area-select entities. Enter confirms. Esc cancels.";
         }
 
         if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.MapProperties)

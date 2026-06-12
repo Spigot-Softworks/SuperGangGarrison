@@ -260,6 +260,12 @@ public partial class Game1
             SaveGarrisonBuilderDocument();
         }
 
+        if (_builderMultiEntityMapPickActive && IsKeyPressed(keyboard, Keys.Enter))
+        {
+            CommitGarrisonBuilderMultiEntityMapPick();
+            return;
+        }
+
         if (IsKeyPressed(keyboard, Keys.Escape))
         {
             if (_builderEntityOverlapPickerOpen)
@@ -313,6 +319,18 @@ public partial class Game1
             if (_builderEntityMapPickActive)
             {
                 CancelGarrisonBuilderEntityMapPick();
+                return;
+            }
+
+            if (_builderMultiEntityMapPickActive)
+            {
+                CancelGarrisonBuilderMultiEntityMapPick();
+                return;
+            }
+
+            if (_builderEntityRefListDropdownOpen)
+            {
+                CloseGarrisonBuilderEntityRefListDropdown();
                 return;
             }
 
@@ -452,6 +470,17 @@ public partial class Game1
             return;
         }
 
+        if (_builderPropertyTarget != GarrisonBuilderPropertyTarget.None
+            && GetGarrisonBuilderPropertyEditorBounds().Contains(mouse.Position))
+        {
+            return;
+        }
+
+        if (ShouldSuppressGarrisonBuilderMapZoomForEntityRefListDropdown(mouse.Position))
+        {
+            return;
+        }
+
         var mapViewport = GetModernGarrisonBuilderMapViewport();
         if (!mapViewport.Contains(mouse.Position))
         {
@@ -475,6 +504,12 @@ public partial class Game1
 
     private void UpdateModernGarrisonBuilderMapInteraction(MouseState mouse)
     {
+        if (_builderMultiEntityMapPickActive)
+        {
+            UpdateGarrisonBuilderMultiEntityMapPickInteraction(mouse);
+            return;
+        }
+
         var leftClick = IsLeftMouseClickPressed(mouse, _previousMouse);
         var rightClick = mouse.RightButton == ButtonState.Pressed && _previousMouse.RightButton == ButtonState.Released;
         var mapViewport = GetModernGarrisonBuilderMapViewport();
@@ -769,10 +804,26 @@ public partial class Game1
             return false;
         }
 
+        if (_builderMultiEntityMapPickActive)
+        {
+            return true;
+        }
+
+        if (_builderEntityRefListDropdownOpen && leftClick)
+        {
+            if (!IsGarrisonBuilderEntityRefListDropdownScrollInteractionActive())
+            {
+                TryHandleGarrisonBuilderEntityRefListDropdownClick(position);
+            }
+
+            return true;
+        }
+
         if (_builderPropertyTarget != GarrisonBuilderPropertyTarget.None
             && !_builderObjectiveMapPickActive
             && !_builderLogicMapPickActive
             && !_builderEntityMapPickActive
+            && !_builderMultiEntityMapPickActive
             && GetGarrisonBuilderPropertyEditorBounds().Contains(position))
         {
             if (leftClick)
@@ -2725,6 +2776,7 @@ public partial class Game1
         var mapViewport = GetModernGarrisonBuilderMapViewport();
         _spriteBatch.Draw(_pixel, mapViewport, new Color(32, 30, 28));
         DrawGarrisonBuilderMap(mapViewport);
+        DrawGarrisonBuilderMapPickDimming();
 
         DrawModernGarrisonBuilderEntityDecorations();
         DrawModernGarrisonBuilderSelectionAndLinks();
@@ -2745,6 +2797,7 @@ public partial class Game1
         DrawGarrisonBuilderObjectiveMapPickPrompt(mouse);
         DrawGarrisonBuilderLogicMapPickPrompt(mouse);
         DrawGarrisonBuilderEntityMapPickPrompt(mouse);
+        DrawGarrisonBuilderMultiEntityMapPickPrompt(mouse);
         DrawGarrisonBuilderPropertyEditor(mouse);
         DrawGarrisonBuilderLogicRecolorDialog(mouse);
         DrawGarrisonBuilderLayerParallaxDialog(mouse);
@@ -3277,7 +3330,9 @@ public partial class Game1
     {
         DrawGarrisonBuilderEntityLinks();
         DrawGarrisonBuilderMapEntitySelectionHighlights();
+        DrawGarrisonBuilderMultiEntityMapPickSelectionHighlights();
         DrawGarrisonBuilderAreaSelectionRectangle();
+        DrawGarrisonBuilderMultiEntityMapPickAreaSelectionRectangle();
 
         if (GetGarrisonBuilderSelectedEntityCount() == 1
             && _builderSelectedEntityIndex >= 0

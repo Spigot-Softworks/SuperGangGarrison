@@ -20,6 +20,7 @@ public partial class Game1
         public static readonly object ChatHud = new();
         public static readonly object GarrisonBuilderActions = new();
         public static readonly object GarrisonBuilderEntityPalette = new();
+        public static readonly object GarrisonBuilderEntityRefListDropdown = new();
     }
 
     internal readonly ScrollbarDragController ScrollbarDrag = new();
