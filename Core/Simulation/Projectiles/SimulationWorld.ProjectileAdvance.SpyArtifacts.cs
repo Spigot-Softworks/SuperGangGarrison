@@ -35,9 +35,8 @@ public sealed partial class SimulationWorld
             }
 
             mask.AdvanceOneTick(owner.X, owner.Y);
-            var directionRadians = DegreesToRadians(mask.DirectionDegrees);
-            var directionX = MathF.Cos(directionRadians);
-            var directionY = MathF.Sin(directionRadians);
+            var directionX = mask.FacingLeft ? -1f : 1f;
+            const float directionY = 0f;
             var hit = GetNearestStabHit(mask, directionX, directionY);
             if (hit.HasValue)
             {
@@ -62,7 +61,7 @@ public sealed partial class SimulationWorld
             if (mask.IsExpired)
             {
                 RegisterImpactEffect(
-                    mask.X + MathF.Sign(directionX) * 15f,
+                    mask.X + directionX * 15f,
                     mask.Y - 12f,
                     mask.DirectionDegrees);
                 RemoveStabMaskAt(maskIndex);

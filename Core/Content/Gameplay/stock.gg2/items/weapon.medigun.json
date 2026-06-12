@@ -17,7 +17,7 @@
     "category": "secondary",
     "activation": "held",
     "executorId": "builtin.ability.medic_needlegun",
-    "tags": [ "projectile", "cooldown" ]
+    "tags": [ "core_m2", "projectile", "cooldown" ]
   },
   "presentation": {
     "worldSpriteName": "MedigunS",

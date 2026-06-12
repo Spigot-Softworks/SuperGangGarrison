@@ -1185,111 +1185,114 @@ public static class CombatDecisionResolver
             carryingIntel,
             world.Level.ControlPointSetupGatesActive,
             world.Level.ForcedBlockingTeamGates);
-        if (frameCache.TryGet(world.Frame, world.Level, cacheKey, out var cachedResult))
+        lock (frameCache.SyncRoot)
         {
-            return cachedResult;
-        }
-
-        var directionX = (targetX - originX) / distance;
-        var directionY = (targetY - originY) / distance;
-        var lineLeft = MathF.Min(originX, targetX);
-        var lineTop = MathF.Min(originY, targetY);
-        var lineRight = MathF.Max(originX, targetX);
-        var lineBottom = MathF.Max(originY, targetY);
-        var levelCache = LineOfSightLevelCaches.GetValue(world.Level, static level => new LineOfSightLevelCache(level));
-
-        var solidCandidates = frameCache.GetSolidCandidates(levelCache, lineLeft, lineTop, lineRight, lineBottom);
-        foreach (var solid in solidCandidates)
-        {
-            if (RectangleBlocksLine(solid.Left, solid.Top, solid.Right, solid.Bottom))
+            if (frameCache.TryGet(world.Frame, world.Level, cacheKey, out var cachedResult))
             {
-                frameCache.Store(cacheKey, false);
-                return false;
-            }
-        }
-
-        foreach (var gate in levelCache.GetBlockingTeamGates(
-            team,
-            carryingIntel,
-            world.Level.ControlPointSetupGatesActive,
-            world.Level.ForcedBlockingTeamGates))
-        {
-            if (RectangleBlocksLine(gate.Left, gate.Top, gate.Right, gate.Bottom))
-            {
-                frameCache.Store(cacheKey, false);
-                return false;
-            }
-        }
-
-        var staticBlockerCandidates = frameCache.GetStaticRoomObjectBlockerCandidates(levelCache, lineLeft, lineTop, lineRight, lineBottom);
-        foreach (var wall in staticBlockerCandidates)
-        {
-            if (RectangleBlocksLine(wall.Left, wall.Top, wall.Right, wall.Bottom))
-            {
-                frameCache.Store(cacheKey, false);
-                return false;
-            }
-        }
-
-        foreach (var barrier in world.Level.GetRoomObjects(RoomObjectType.Barrier))
-        {
-            var hitDistance = GetRayIntersectionDistanceWithRectangle(
-                originX,
-                originY,
-                directionX,
-                directionY,
-                barrier.Left,
-                barrier.Top,
-                barrier.Right,
-                barrier.Bottom,
-                distance);
-            if (!hitDistance.HasValue)
-            {
-                continue;
+                return cachedResult;
             }
 
-            var hitX = originX + (directionX * hitDistance.Value);
-            var hitY = originY + (directionY * hitDistance.Value);
-            if (BarrierCollision.BlocksHitscan(barrier.Barrier, team, carryingIntel, barrier, originX, originY, hitX, hitY))
-            {
-                frameCache.Store(cacheKey, false);
-                return false;
-            }
-        }
+            var directionX = (targetX - originX) / distance;
+            var directionY = (targetY - originY) / distance;
+            var lineLeft = MathF.Min(originX, targetX);
+            var lineTop = MathF.Min(originY, targetY);
+            var lineRight = MathF.Max(originX, targetX);
+            var lineBottom = MathF.Max(originY, targetY);
+            var levelCache = LineOfSightLevelCaches.GetValue(world.Level, static level => new LineOfSightLevelCache(level));
 
-        foreach (var wall in world.Level.GetRoomObjects(RoomObjectType.DirectionalWall))
-        {
-            var hitDistance = GetRayIntersectionDistanceWithRectangle(
-                originX,
-                originY,
-                directionX,
-                directionY,
-                wall.Left,
-                wall.Top,
-                wall.Right,
-                wall.Bottom,
-                distance);
-            if (!hitDistance.HasValue)
+            var solidCandidates = frameCache.GetSolidCandidates(levelCache, lineLeft, lineTop, lineRight, lineBottom);
+            foreach (var solid in solidCandidates)
             {
-                continue;
+                if (RectangleBlocksLine(solid.Left, solid.Top, solid.Right, solid.Bottom))
+                {
+                    frameCache.Store(cacheKey, false);
+                    return false;
+                }
             }
 
-            var hitX = originX + (directionX * hitDistance.Value);
-            var hitY = originY + (directionY * hitDistance.Value);
-            if (DirectionalWallCollision.BlocksHitscan(wall.DirectionalWall, team, carryingIntel, wall, originX, originY, hitX, hitY))
+            foreach (var gate in levelCache.GetBlockingTeamGates(
+                team,
+                carryingIntel,
+                world.Level.ControlPointSetupGatesActive,
+                world.Level.ForcedBlockingTeamGates))
             {
-                frameCache.Store(cacheKey, false);
-                return false;
+                if (RectangleBlocksLine(gate.Left, gate.Top, gate.Right, gate.Bottom))
+                {
+                    frameCache.Store(cacheKey, false);
+                    return false;
+                }
             }
-        }
 
-        frameCache.Store(cacheKey, true);
-        return true;
+            var staticBlockerCandidates = frameCache.GetStaticRoomObjectBlockerCandidates(levelCache, lineLeft, lineTop, lineRight, lineBottom);
+            foreach (var wall in staticBlockerCandidates)
+            {
+                if (RectangleBlocksLine(wall.Left, wall.Top, wall.Right, wall.Bottom))
+                {
+                    frameCache.Store(cacheKey, false);
+                    return false;
+                }
+            }
 
-        bool RectangleBlocksLine(float left, float top, float right, float bottom)
-        {
-            return RectanglesOverlap(lineLeft, lineTop, lineRight, lineBottom, left, top, right, bottom)
-                && GetRayIntersectionDistanceWithRectangle(originX, originY, directionX, directionY, left, top, right, bottom, distance).HasValue;
+            foreach (var barrier in world.Level.GetRoomObjects(RoomObjectType.Barrier))
+            {
+                var hitDistance = GetRayIntersectionDistanceWithRectangle(
+                    originX,
+                    originY,
+                    directionX,
+                    directionY,
+                    barrier.Left,
+                    barrier.Top,
+                    barrier.Right,
+                    barrier.Bottom,
+                    distance);
+                if (!hitDistance.HasValue)
+                {
+                    continue;
+                }
+
+                var hitX = originX + (directionX * hitDistance.Value);
+                var hitY = originY + (directionY * hitDistance.Value);
+                if (BarrierCollision.BlocksHitscan(barrier.Barrier, team, carryingIntel, barrier, originX, originY, hitX, hitY))
+                {
+                    frameCache.Store(cacheKey, false);
+                    return false;
+                }
+            }
+
+            foreach (var wall in world.Level.GetRoomObjects(RoomObjectType.DirectionalWall))
+            {
+                var hitDistance = GetRayIntersectionDistanceWithRectangle(
+                    originX,
+                    originY,
+                    directionX,
+                    directionY,
+                    wall.Left,
+                    wall.Top,
+                    wall.Right,
+                    wall.Bottom,
+                    distance);
+                if (!hitDistance.HasValue)
+                {
+                    continue;
+                }
+
+                var hitX = originX + (directionX * hitDistance.Value);
+                var hitY = originY + (directionY * hitDistance.Value);
+                if (DirectionalWallCollision.BlocksHitscan(wall.DirectionalWall, team, carryingIntel, wall, originX, originY, hitX, hitY))
+                {
+                    frameCache.Store(cacheKey, false);
+                    return false;
+                }
+            }
+
+            frameCache.Store(cacheKey, true);
+            return true;
+
+            bool RectangleBlocksLine(float left, float top, float right, float bottom)
+            {
+                return RectanglesOverlap(lineLeft, lineTop, lineRight, lineBottom, left, top, right, bottom)
+                    && GetRayIntersectionDistanceWithRectangle(originX, originY, directionX, directionY, left, top, right, bottom, distance).HasValue;
+            }
         }
     }
 
@@ -1313,55 +1316,58 @@ public static class CombatDecisionResolver
             targetX,
             targetY,
             world.Level.ControlPointSetupGatesActive);
-        if (frameCache.TryGetCombat(world.Frame, world.Level, cacheKey, out var cachedResult))
+        lock (frameCache.SyncRoot)
         {
-            return cachedResult;
-        }
-
-        var directionX = (targetX - originX) / distance;
-        var directionY = (targetY - originY) / distance;
-        var lineLeft = MathF.Min(originX, targetX);
-        var lineTop = MathF.Min(originY, targetY);
-        var lineRight = MathF.Max(originX, targetX);
-        var lineBottom = MathF.Max(originY, targetY);
-        var levelCache = LineOfSightLevelCaches.GetValue(world.Level, static level => new LineOfSightLevelCache(level));
-
-        var solidCandidates = frameCache.GetSolidCandidates(levelCache, lineLeft, lineTop, lineRight, lineBottom);
-        foreach (var solid in solidCandidates)
-        {
-            if (RectangleBlocksLine(solid.Left, solid.Top, solid.Right, solid.Bottom))
+            if (frameCache.TryGetCombat(world.Frame, world.Level, cacheKey, out var cachedResult))
             {
-                frameCache.StoreCombat(cacheKey, false);
-                return false;
+                return cachedResult;
             }
-        }
 
-        foreach (var gate in levelCache.GetCombatGateBlockers(world.Level.ControlPointSetupGatesActive))
-        {
-            if (RectangleBlocksLine(gate.Left, gate.Top, gate.Right, gate.Bottom))
+            var directionX = (targetX - originX) / distance;
+            var directionY = (targetY - originY) / distance;
+            var lineLeft = MathF.Min(originX, targetX);
+            var lineTop = MathF.Min(originY, targetY);
+            var lineRight = MathF.Max(originX, targetX);
+            var lineBottom = MathF.Max(originY, targetY);
+            var levelCache = LineOfSightLevelCaches.GetValue(world.Level, static level => new LineOfSightLevelCache(level));
+
+            var solidCandidates = frameCache.GetSolidCandidates(levelCache, lineLeft, lineTop, lineRight, lineBottom);
+            foreach (var solid in solidCandidates)
             {
-                frameCache.StoreCombat(cacheKey, false);
-                return false;
+                if (RectangleBlocksLine(solid.Left, solid.Top, solid.Right, solid.Bottom))
+                {
+                    frameCache.StoreCombat(cacheKey, false);
+                    return false;
+                }
             }
-        }
 
-        var staticBlockerCandidates = frameCache.GetStaticRoomObjectBlockerCandidates(levelCache, lineLeft, lineTop, lineRight, lineBottom);
-        foreach (var wall in staticBlockerCandidates)
-        {
-            if (RectangleBlocksLine(wall.Left, wall.Top, wall.Right, wall.Bottom))
+            foreach (var gate in levelCache.GetCombatGateBlockers(world.Level.ControlPointSetupGatesActive))
             {
-                frameCache.StoreCombat(cacheKey, false);
-                return false;
+                if (RectangleBlocksLine(gate.Left, gate.Top, gate.Right, gate.Bottom))
+                {
+                    frameCache.StoreCombat(cacheKey, false);
+                    return false;
+                }
             }
-        }
 
-        frameCache.StoreCombat(cacheKey, true);
-        return true;
+            var staticBlockerCandidates = frameCache.GetStaticRoomObjectBlockerCandidates(levelCache, lineLeft, lineTop, lineRight, lineBottom);
+            foreach (var wall in staticBlockerCandidates)
+            {
+                if (RectangleBlocksLine(wall.Left, wall.Top, wall.Right, wall.Bottom))
+                {
+                    frameCache.StoreCombat(cacheKey, false);
+                    return false;
+                }
+            }
 
-        bool RectangleBlocksLine(float left, float top, float right, float bottom)
-        {
-            return RectanglesOverlap(lineLeft, lineTop, lineRight, lineBottom, left, top, right, bottom)
-                && GetRayIntersectionDistanceWithRectangle(originX, originY, directionX, directionY, left, top, right, bottom, distance).HasValue;
+            frameCache.StoreCombat(cacheKey, true);
+            return true;
+
+            bool RectangleBlocksLine(float left, float top, float right, float bottom)
+            {
+                return RectanglesOverlap(lineLeft, lineTop, lineRight, lineBottom, left, top, right, bottom)
+                    && GetRayIntersectionDistanceWithRectangle(originX, originY, directionX, directionY, left, top, right, bottom, distance).HasValue;
+            }
         }
     }
 
@@ -1392,6 +1398,8 @@ public static class CombatDecisionResolver
         private readonly List<RoomObjectMarker> _staticRoomObjectBlockerCandidates = [];
         private long _frame = long.MinValue;
         private SimpleLevel? _level;
+
+        public object SyncRoot { get; } = new();
 
         public bool TryGet(long frame, SimpleLevel level, LineOfSightCacheKey key, out bool result)
         {
@@ -1463,6 +1471,7 @@ public static class CombatDecisionResolver
 
     private sealed class LineOfSightLevelCache
     {
+        private readonly object _gateCacheSync = new();
         private readonly LineOfSightSpatialIndex<LevelSolid> _solidIndex;
         private readonly LineOfSightSpatialIndex<RoomObjectMarker> _staticRoomObjectBlockerIndex;
         private readonly RoomObjectMarker[] _gateCandidates;
@@ -1519,80 +1528,86 @@ public static class CombatDecisionResolver
             TeamGateLockMask forcedBlockingTeamGates)
         {
             var key = new LineOfSightGateCacheKey(team, carryingIntel, controlPointSetupGatesActive, forcedBlockingTeamGates);
-            if (_blockingGatesByKey.TryGetValue(key, out var cachedGates))
+            lock (_gateCacheSync)
             {
-                return cachedGates;
-            }
-
-            var blockingGates = new List<RoomObjectMarker>();
-            foreach (var roomObject in _gateCandidates)
-            {
-                switch (roomObject.Type)
+                if (_blockingGatesByKey.TryGetValue(key, out var cachedGates))
                 {
-                    case RoomObjectType.ControlPointSetupGate:
-                        if (controlPointSetupGatesActive)
-                        {
-                            blockingGates.Add(roomObject);
-                        }
-                        break;
-                    case RoomObjectType.TeamGate:
-                        if (roomObject.Team.HasValue && IsForcedBlockingTeamGate(roomObject.Team.Value, forcedBlockingTeamGates))
-                        {
-                            blockingGates.Add(roomObject);
-                            break;
-                        }
-
-                        if (carryingIntel || (roomObject.Team.HasValue && roomObject.Team.Value != team))
-                        {
-                            blockingGates.Add(roomObject);
-                        }
-                        break;
-                    case RoomObjectType.IntelGate:
-                        if (IsIntelGateBlocking(roomObject, team, carryingIntel))
-                        {
-                            blockingGates.Add(roomObject);
-                        }
-                        break;
+                    return cachedGates;
                 }
-            }
 
-            var result = blockingGates.Count == 0
-                ? Array.Empty<RoomObjectMarker>()
-                : blockingGates.ToArray();
-            _blockingGatesByKey[key] = result;
-            return result;
+                var blockingGates = new List<RoomObjectMarker>();
+                foreach (var roomObject in _gateCandidates)
+                {
+                    switch (roomObject.Type)
+                    {
+                        case RoomObjectType.ControlPointSetupGate:
+                            if (controlPointSetupGatesActive)
+                            {
+                                blockingGates.Add(roomObject);
+                            }
+                            break;
+                        case RoomObjectType.TeamGate:
+                            if (roomObject.Team.HasValue && IsForcedBlockingTeamGate(roomObject.Team.Value, forcedBlockingTeamGates))
+                            {
+                                blockingGates.Add(roomObject);
+                                break;
+                            }
+
+                            if (carryingIntel || (roomObject.Team.HasValue && roomObject.Team.Value != team))
+                            {
+                                blockingGates.Add(roomObject);
+                            }
+                            break;
+                        case RoomObjectType.IntelGate:
+                            if (IsIntelGateBlocking(roomObject, team, carryingIntel))
+                            {
+                                blockingGates.Add(roomObject);
+                            }
+                            break;
+                    }
+                }
+
+                var result = blockingGates.Count == 0
+                    ? Array.Empty<RoomObjectMarker>()
+                    : blockingGates.ToArray();
+                _blockingGatesByKey[key] = result;
+                return result;
+            }
         }
 
         public IReadOnlyList<RoomObjectMarker> GetCombatGateBlockers(bool controlPointSetupGatesActive)
         {
-            if (_combatGateBlockersBySetupState.TryGetValue(controlPointSetupGatesActive, out var cachedGates))
+            lock (_gateCacheSync)
             {
-                return cachedGates;
-            }
-
-            var blockingGates = new List<RoomObjectMarker>();
-            foreach (var roomObject in _gateCandidates)
-            {
-                switch (roomObject.Type)
+                if (_combatGateBlockersBySetupState.TryGetValue(controlPointSetupGatesActive, out var cachedGates))
                 {
-                    case RoomObjectType.TeamGate:
-                    case RoomObjectType.IntelGate:
-                        blockingGates.Add(roomObject);
-                        break;
-                    case RoomObjectType.ControlPointSetupGate:
-                        if (controlPointSetupGatesActive)
-                        {
-                            blockingGates.Add(roomObject);
-                        }
-                        break;
+                    return cachedGates;
                 }
-            }
 
-            var result = blockingGates.Count == 0
-                ? Array.Empty<RoomObjectMarker>()
-                : blockingGates.ToArray();
-            _combatGateBlockersBySetupState[controlPointSetupGatesActive] = result;
-            return result;
+                var blockingGates = new List<RoomObjectMarker>();
+                foreach (var roomObject in _gateCandidates)
+                {
+                    switch (roomObject.Type)
+                    {
+                        case RoomObjectType.TeamGate:
+                        case RoomObjectType.IntelGate:
+                            blockingGates.Add(roomObject);
+                            break;
+                        case RoomObjectType.ControlPointSetupGate:
+                            if (controlPointSetupGatesActive)
+                            {
+                                blockingGates.Add(roomObject);
+                            }
+                            break;
+                    }
+                }
+
+                var result = blockingGates.Count == 0
+                    ? Array.Empty<RoomObjectMarker>()
+                    : blockingGates.ToArray();
+                _combatGateBlockersBySetupState[controlPointSetupGatesActive] = result;
+                return result;
+            }
         }
 
         private static bool IsForcedBlockingTeamGate(PlayerTeam team, TeamGateLockMask forcedBlockingTeamGates)

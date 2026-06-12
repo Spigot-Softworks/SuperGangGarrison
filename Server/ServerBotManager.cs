@@ -13,6 +13,11 @@ namespace OpenGarrison.Server;
 /// </summary>
 internal sealed class ServerBotManager
 {
+    private const string ForcedBotClassEnvironmentVariable = "OG_SERVER_BOT_CLASS";
+    private const int BotThinkIntervalTicks = 2;
+    private const int MaxBotThinkSlotsPerTick = 3;
+    private const int HeldCombatInputReuseTicks = 6;
+
     internal enum ServerBotSource
     {
         Manual,
@@ -32,6 +37,18 @@ internal sealed class ServerBotManager
         PlayerClass.Sniper,
         PlayerClass.Quote,
     ];
+    private static readonly PlayerClass[] VipFillClassCycle =
+    [
+        PlayerClass.Scout,
+        PlayerClass.Pyro,
+        PlayerClass.Soldier,
+        PlayerClass.Heavy,
+        PlayerClass.Demoman,
+        PlayerClass.Medic,
+        PlayerClass.Engineer,
+        PlayerClass.Spy,
+        PlayerClass.Sniper,
+    ];
 
     private readonly SimulationWorld _world;
     private readonly SimulationConfig _config;
@@ -44,10 +61,18 @@ internal sealed class ServerBotManager
     private readonly Dictionary<byte, ControlledBotSlot> _controlledSlotsBuffer = new();
     private readonly Dictionary<byte, ControlledBotSlot> _controllerConfigurationSlotsBuffer = new();
     private readonly Dictionary<byte, PlayerInputSnapshot> _inputCache = new();
+    private readonly Dictionary<byte, int> _inputCacheAgeTicks = new();
+    private readonly Dictionary<byte, bool> _lastObservedBotAliveBySlot = new();
+    private readonly Dictionary<byte, bool> _lastObservedBotCarryingIntelBySlot = new();
+    private readonly Dictionary<byte, long> _lastBotThinkFrameBySlot = new();
     private readonly HashSet<byte> _staleSlotsBuffer = new();
+    private readonly List<byte> _botThinkCandidateSlotsBuffer = new();
+    private readonly List<byte> _botThinkSlotsBuffer = new();
     private int _perfSamples;
     private int _lastActiveInputCount;
     private int _lastZeroInputCount;
+    private int _lastRefreshedInputCount;
+    private int _lastReusedInputCount;
     private double _perfBuildInputLastMs;
     private double _perfBuildInputTotalMs;
     private double _perfBuildInputMaxMs;
@@ -84,6 +109,8 @@ internal sealed class ServerBotManager
                 ControlledBotCount: _controlledSlotsBuffer.Count,
                 ActiveInputCount: _lastActiveInputCount,
                 ZeroInputCount: _lastZeroInputCount,
+                RefreshedInputCount: _lastRefreshedInputCount,
+                ReusedInputCount: _lastReusedInputCount,
                 BotBrainActiveControllerCount: botBrainSnapshot.ActiveControllerCount,
                 BotBrainNavigationLoadedCount: botBrainSnapshot.NavigationLoadedCount,
                 BotBrainNavigationMissingCount: botBrainSnapshot.NavigationMissingCount,
@@ -146,6 +173,10 @@ internal sealed class ServerBotManager
         _botDisplayNamePool.Reserve(resolvedDisplayName);
         _botSlots[slot] = new ServerBotSlotState(slot, team, classId, resolvedDisplayName, source);
         _inputCache.Remove(slot);
+        _inputCacheAgeTicks.Remove(slot);
+        _lastObservedBotAliveBySlot.Remove(slot);
+        _lastObservedBotCarryingIntelBySlot.Remove(slot);
+        _lastBotThinkFrameBySlot.Remove(slot);
         return true;
     }
 
@@ -162,6 +193,10 @@ internal sealed class ServerBotManager
         _world.TryReleaseNetworkPlayerSlot(slot);
         _botDisplayNamePool.ReleaseSlot(slot);
         _inputCache.Remove(slot);
+        _inputCacheAgeTicks.Remove(slot);
+        _lastObservedBotAliveBySlot.Remove(slot);
+        _lastObservedBotCarryingIntelBySlot.Remove(slot);
+        _lastBotThinkFrameBySlot.Remove(slot);
         ConfigureBotControllerSpawnOverrides();
         return true;
     }
@@ -534,7 +569,8 @@ internal sealed class ServerBotManager
             return;
         }
 
-        // Build fresh authoritative inputs every simulation tick.
+        SelectBotThinkSlots();
+
         var inputs = GetBotInputs();
         RecordInputActivity(inputs);
         
@@ -604,16 +640,83 @@ internal sealed class ServerBotManager
 
     private Dictionary<byte, PlayerInputSnapshot> GetBotInputs()
     {
-        var refreshedInputs = _botController.BuildInputs(
-            _world,
-            _controlledSlotsBuffer);
+        IReadOnlyDictionary<byte, PlayerInputSnapshot> refreshedInputs;
+        if (_botThinkSlotsBuffer.Count == 0)
+        {
+            refreshedInputs = new Dictionary<byte, PlayerInputSnapshot>();
+        }
+        else
+        {
+            refreshedInputs = _botController.BuildInputsForSlots(
+                _world,
+                _controlledSlotsBuffer,
+                _botThinkSlotsBuffer);
+        }
 
         SyncInputCache(refreshedInputs);
         return _inputCache;
     }
 
+    private void SelectBotThinkSlots()
+    {
+        _botThinkSlotsBuffer.Clear();
+        _botThinkCandidateSlotsBuffer.Clear();
+        var frame = Math.Max(0L, _world.Frame);
+        foreach (var entry in _controlledSlotsBuffer)
+        {
+            var slot = entry.Key;
+            var cacheMissing = !_inputCache.ContainsKey(slot);
+            var lastThinkFrame = _lastBotThinkFrameBySlot.GetValueOrDefault(slot, long.MinValue / 2);
+            var shouldThink = cacheMissing || frame - lastThinkFrame >= BotThinkIntervalTicks;
+            if (_world.TryGetNetworkPlayer(slot, out var player))
+            {
+                if (_lastObservedBotAliveBySlot.TryGetValue(slot, out var wasAlive)
+                    && wasAlive != player.IsAlive)
+                {
+                    shouldThink = true;
+                }
+
+                if (_lastObservedBotCarryingIntelBySlot.TryGetValue(slot, out var wasCarryingIntel)
+                    && wasCarryingIntel != player.IsCarryingIntel)
+                {
+                    shouldThink = true;
+                }
+
+                _lastObservedBotAliveBySlot[slot] = player.IsAlive;
+                _lastObservedBotCarryingIntelBySlot[slot] = player.IsCarryingIntel;
+            }
+
+            if (shouldThink)
+            {
+                _botThinkCandidateSlotsBuffer.Add(slot);
+            }
+        }
+
+        _botThinkCandidateSlotsBuffer.Sort(CompareBotThinkCandidates);
+        var selectedCount = Math.Min(MaxBotThinkSlotsPerTick, _botThinkCandidateSlotsBuffer.Count);
+        for (var index = 0; index < selectedCount; index += 1)
+        {
+            var slot = _botThinkCandidateSlotsBuffer[index];
+            _botThinkSlotsBuffer.Add(slot);
+            _lastBotThinkFrameBySlot[slot] = frame;
+        }
+    }
+
+    private int CompareBotThinkCandidates(byte left, byte right)
+    {
+        var leftFrame = _lastBotThinkFrameBySlot.GetValueOrDefault(left, long.MinValue / 2);
+        var rightFrame = _lastBotThinkFrameBySlot.GetValueOrDefault(right, long.MinValue / 2);
+        var frameComparison = leftFrame.CompareTo(rightFrame);
+        return frameComparison != 0
+            ? frameComparison
+            : left.CompareTo(right);
+    }
+
     private void SyncInputCache(IReadOnlyDictionary<byte, PlayerInputSnapshot> refreshedInputs)
     {
+        _lastRefreshedInputCount = 0;
+        _lastReusedInputCount = 0;
+
         // Remove stale slots
         _staleSlotsBuffer.Clear();
         foreach (var slot in _inputCache.Keys)
@@ -626,16 +729,64 @@ internal sealed class ServerBotManager
         foreach (var slot in _staleSlotsBuffer)
         {
             _inputCache.Remove(slot);
+            _inputCacheAgeTicks.Remove(slot);
+            _lastObservedBotAliveBySlot.Remove(slot);
+            _lastObservedBotCarryingIntelBySlot.Remove(slot);
+            _lastBotThinkFrameBySlot.Remove(slot);
         }
 
-        // Update with new inputs
         foreach (var slot in _controlledSlotsBuffer.Keys)
         {
-            _inputCache[slot] = refreshedInputs.GetValueOrDefault(slot);
+            if (refreshedInputs.TryGetValue(slot, out var refreshedInput))
+            {
+                _inputCache[slot] = refreshedInput;
+                _inputCacheAgeTicks[slot] = 0;
+                _lastRefreshedInputCount += 1;
+                continue;
+            }
+
+            if (_inputCache.TryGetValue(slot, out var cachedInput))
+            {
+                var ageTicks = _inputCacheAgeTicks.GetValueOrDefault(slot) + 1;
+                _inputCacheAgeTicks[slot] = ageTicks;
+                _inputCache[slot] = SanitizeReusedInput(cachedInput, ageTicks);
+                _lastReusedInputCount += 1;
+                continue;
+            }
+
+            _inputCache[slot] = default;
+            _inputCacheAgeTicks[slot] = 0;
         }
     }
 
-    private void RecordInputActivity(IReadOnlyDictionary<byte, PlayerInputSnapshot> inputs)
+    private static PlayerInputSnapshot SanitizeReusedInput(PlayerInputSnapshot input, int ageTicks)
+    {
+        input = input with
+        {
+            BuildSentry = false,
+            DestroySentry = false,
+            Taunt = false,
+            DebugKill = false,
+            DropIntel = false,
+            InteractWeapon = false,
+            SwapWeapon = false,
+            ReadyUp = false,
+        };
+
+        if (ageTicks > HeldCombatInputReuseTicks)
+        {
+            input = input with
+            {
+                FirePrimary = false,
+                FireSecondary = false,
+                UseAbility = false,
+            };
+        }
+
+        return input;
+    }
+
+    private void RecordInputActivity(Dictionary<byte, PlayerInputSnapshot> inputs)
     {
         var active = 0;
         var zero = 0;
@@ -725,15 +876,42 @@ internal sealed class ServerBotManager
             && SimulationWorld.IsPlayableNetworkPlayerSlot(slot);
     }
 
-    private static PlayerClass ResolveFillClass(PlayerTeam team, int teamClassIndex, PlayerClass? requestedClass)
+    private PlayerClass ResolveFillClass(PlayerTeam team, int teamClassIndex, PlayerClass? requestedClass)
     {
         if (requestedClass.HasValue)
         {
             return requestedClass.Value;
         }
 
+        if (TryGetForcedBotClass(out var forcedClass))
+        {
+            return forcedClass;
+        }
+
+        var cycle = _world.IsVipModeActive ? VipFillClassCycle : DefaultFillClassCycle;
         var classOffset = team == PlayerTeam.Red ? 3 : 0;
-        return DefaultFillClassCycle[(teamClassIndex + classOffset) % DefaultFillClassCycle.Length];
+        return cycle[(teamClassIndex + classOffset) % cycle.Length];
+    }
+
+    private static bool TryGetForcedBotClass(out PlayerClass playerClass)
+    {
+        var value = Environment.GetEnvironmentVariable(ForcedBotClassEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            playerClass = default;
+            return false;
+        }
+
+        var normalized = value.Trim();
+        if (string.Equals(normalized, "civilian", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "financier", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "civ", StringComparison.OrdinalIgnoreCase))
+        {
+            playerClass = PlayerClass.Quote;
+            return true;
+        }
+
+        return Enum.TryParse(normalized, ignoreCase: true, out playerClass);
     }
 
     private string ResolveBotDisplayName(byte slot, PlayerTeam team, string displayName)

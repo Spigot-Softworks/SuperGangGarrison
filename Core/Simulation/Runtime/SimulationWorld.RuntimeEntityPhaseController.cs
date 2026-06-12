@@ -71,6 +71,7 @@ public sealed partial class SimulationWorld
         {
             _world.AdvanceMovingPlatforms();
             _world.AdvanceHealthPacks();
+            _world.AdvanceCivvieMoneyPickups();
             _world.AdvanceDroppedWeapons();
             _world.AdvanceAfterburnAlertBubbles();
             _world.AdvanceSentries();

@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using System;
 using System.Reflection;
 using OpenGarrison.Client;
@@ -85,6 +86,82 @@ public sealed class OfflinePracticeSelectionTests
             rotation);
     }
 
+    [Theory]
+    [InlineData("vip_dirtbowl", "Dirtbowl (VIP)")]
+    [InlineData("vip_dustbowl", "Dirtbowl (VIP)")]
+    [InlineData("vip_egypt", "Egypt (VIP)")]
+    public void StockMapCatalogResolvesVipRotationTokens(string token, string displayName)
+    {
+        Assert.True(OpenGarrisonStockMapCatalog.TryGetDefinition(token, out var definition));
+        Assert.Equal(GameModeKind.Vip, definition.Mode);
+        Assert.StartsWith("vip_", definition.IniKey, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(displayName, definition.DisplayName);
+    }
+
+    [Fact]
+    public void ServerMapRotationPersistencePreservesVipAndDuplicateEntries()
+    {
+        var entries = OpenGarrisonStockMapCatalog.CreateDefaultEntries();
+        foreach (var entry in entries)
+        {
+            entry.Order = 0;
+        }
+
+        var dirtbowl = Assert.Single(entries.Where(entry => string.Equals(entry.IniKey, "cp_dirtbowl", StringComparison.OrdinalIgnoreCase)));
+        var vipDirtbowl = Assert.Single(entries.Where(entry => string.Equals(entry.IniKey, "vip_dirtbowl", StringComparison.OrdinalIgnoreCase)));
+        dirtbowl.Order = 1;
+        vipDirtbowl.Order = 2;
+        var duplicateDirtbowl = dirtbowl.Clone();
+        duplicateDirtbowl.IsPlaylistClone = true;
+        duplicateDirtbowl.Order = 3;
+        entries.Add(duplicateDirtbowl);
+
+        var ini = new IniConfigurationFile();
+        OpenGarrisonStockMapCatalog.SaveTo(ini, entries);
+        var loaded = OpenGarrisonStockMapCatalog.LoadFrom(ini, legacySelectedMap: string.Empty);
+
+        Assert.Equal(
+            ["Dirtbowl", "vip_dirtbowl", "Dirtbowl"],
+            OpenGarrisonStockMapCatalog.GetOrderedIncludedMapLevelNames(loaded));
+        Assert.Equal(1, loaded.Count(entry => entry.IsPlaylistClone && string.Equals(entry.IniKey, "cp_dirtbowl", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
+    public void HostSetupPlaylistExportWritesDuplicateAndVipTokens()
+    {
+        var entries = OpenGarrisonStockMapCatalog.CreateDefaultEntries();
+        foreach (var entry in entries)
+        {
+            entry.Order = 0;
+        }
+
+        var dirtbowl = Assert.Single(entries.Where(entry => string.Equals(entry.IniKey, "cp_dirtbowl", StringComparison.OrdinalIgnoreCase)));
+        var vipDirtbowl = Assert.Single(entries.Where(entry => string.Equals(entry.IniKey, "vip_dirtbowl", StringComparison.OrdinalIgnoreCase)));
+        dirtbowl.Order = 1;
+        vipDirtbowl.Order = 2;
+        var duplicateDirtbowl = dirtbowl.Clone();
+        duplicateDirtbowl.IsPlaylistClone = true;
+        duplicateDirtbowl.Order = 3;
+
+        var path = Path.Combine(Path.GetTempPath(), $"opengarrison-playlist-{Guid.NewGuid():N}.txt");
+        try
+        {
+            HostSetupPlaylistFileIO.WritePlaylist(path, [dirtbowl, vipDirtbowl, duplicateDirtbowl]);
+
+            var playlistLines = File.ReadAllLines(path)
+                .Where(line => !line.StartsWith('#') && !string.IsNullOrWhiteSpace(line))
+                .ToArray();
+            Assert.Equal(["cp_dirtbowl", "vip_dirtbowl", "cp_dirtbowl"], playlistLines);
+        }
+        finally
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+    }
+
     [Fact]
     public void DefaultPracticeMapSelectionUsesHarvest()
     {
@@ -106,6 +183,36 @@ public sealed class OfflinePracticeSelectionTests
         var selectedEntry = selectedEntryMethod.Invoke(state, null);
         Assert.NotNull(selectedEntry);
         Assert.Equal("Harvest", GetPracticeMapLevelName(selectedEntry));
+    }
+
+    [Fact]
+    public void PracticeMapBrowserFiltersBySearchModeAndMapType()
+    {
+        var setupStateType = typeof(Game1).GetNestedType("PracticeSetupState", BindingFlags.NonPublic);
+        var entryType = typeof(Game1).GetNestedType("PracticeMapEntry", BindingFlags.NonPublic);
+        var state = Activator.CreateInstance(setupStateType!, nonPublic: true)!;
+        var mapEntriesProperty = setupStateType!.GetProperty("MapEntries", BindingFlags.Instance | BindingFlags.Public);
+        var listType = typeof(List<>).MakeGenericType(entryType!);
+        var entries = (IList)Activator.CreateInstance(listType)!;
+        entries.Add(CreatePracticeMapEntry("Harvest", GameModeKind.KingOfTheHill));
+        entries.Add(CreatePracticeMapEntry("Conflict", GameModeKind.CaptureTheFlag));
+        entries.Add(CreatePracticeMapEntry("downloaded_koth", GameModeKind.KingOfTheHill, isCustomMap: true));
+
+        Assert.NotNull(mapEntriesProperty);
+        mapEntriesProperty.SetValue(state, entries);
+
+        SetPracticeMapBrowserProperty(setupStateType, state, "MapBrowserNameFilterBuffer", "har");
+        Assert.Equal(["Harvest"], GetPracticeMapBrowserLevelNames(setupStateType, state));
+
+        SetPracticeMapBrowserProperty(setupStateType, state, "MapBrowserNameFilterBuffer", string.Empty);
+        SetPracticeMapBrowserProperty(setupStateType, state, "MapBrowserModeFilter", GameModeKind.KingOfTheHill);
+        SetPracticeMapBrowserProperty(setupStateType, state, "MapBrowserIncludeCustomMaps", false);
+        SetPracticeMapBrowserProperty(setupStateType, state, "MapBrowserIncludeBaseMaps", true);
+        Assert.Equal(["Harvest"], GetPracticeMapBrowserLevelNames(setupStateType, state));
+
+        SetPracticeMapBrowserProperty(setupStateType, state, "MapBrowserIncludeCustomMaps", true);
+        SetPracticeMapBrowserProperty(setupStateType, state, "MapBrowserIncludeBaseMaps", false);
+        Assert.Equal(["downloaded_koth"], GetPracticeMapBrowserLevelNames(setupStateType, state));
     }
 
     [Fact]
@@ -184,6 +291,25 @@ public sealed class OfflinePracticeSelectionTests
 
         Assert.NotNull(property);
         return (string)property.GetValue(entry)!;
+    }
+
+    private static string[] GetPracticeMapBrowserLevelNames(Type setupStateType, object state)
+    {
+        var method = setupStateType.GetMethod("GetMapBrowserEntriesForDisplay", BindingFlags.Instance | BindingFlags.Public);
+
+        Assert.NotNull(method);
+        return ((IEnumerable)method.Invoke(state, null)!)
+            .Cast<object>()
+            .Select(GetPracticeMapLevelName)
+            .ToArray();
+    }
+
+    private static void SetPracticeMapBrowserProperty(Type setupStateType, object state, string propertyName, object? value)
+    {
+        var property = setupStateType.GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
+
+        Assert.NotNull(property);
+        property.SetValue(state, value);
     }
 
     private static object GetLastToDieSurvivorKind(string name)

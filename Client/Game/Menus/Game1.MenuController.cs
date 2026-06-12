@@ -41,14 +41,6 @@ public partial class Game1
                 return;
             }
 
-            if (_game.IsKeyPressed(keyboard, Keys.F11))
-            {
-                _game._mainMenuChromeHidden = !_game._mainMenuChromeHidden;
-                _game._mainMenuHoverIndex = -1;
-                _game._mainMenuBottomBarHover = false;
-                return;
-            }
-
             if (_game._mainMenuChromeHidden)
             {
                 _game._mainMenuHoverIndex = -1;

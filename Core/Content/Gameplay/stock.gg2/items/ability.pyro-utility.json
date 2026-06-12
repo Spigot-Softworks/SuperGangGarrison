@@ -7,7 +7,12 @@
     "category": "utility",
     "activation": "pressed",
     "executorId": "builtin.ability.pyro_airblast",
-    "tags": [ "airblast", "movement", "cooldown", "suppresses_primary" ]
+    "tags": [ "airblast", "movement", "cooldown" ],
+    "parameters": {
+      "cost": 28,
+      "cooldownTicks": 40,
+      "noFlameTicks": 0
+    }
   },
   "ammo": {},
   "presentation": {}

@@ -264,7 +264,11 @@ public partial class Game1
                 && _game._world.LocalPlayer.MedicHealTargetId.HasValue
                     ? _game.FindPlayerById(_game._world.LocalPlayer.MedicHealTargetId.Value)
                     : null;
-            return healingTarget is not null && healingTarget.IsAlive ? healingTarget : null;
+            return healingTarget is not null
+                && healingTarget.IsAlive
+                && healingTarget.Team == _game._world.LocalPlayer.Team
+                    ? healingTarget
+                    : null;
         }
 
         private void SetMedicAssistRuntimeDefault(string id, float viewportYRatio, int layer)
@@ -323,7 +327,8 @@ public partial class Game1
                     || !candidate.IsAlive
                     || !candidate.IsMedicHealing
                     || !candidate.MedicHealTargetId.HasValue
-                    || candidate.MedicHealTargetId.Value != playerId)
+                    || candidate.MedicHealTargetId.Value != playerId
+                    || candidate.Team != _game._world.LocalPlayer.Team)
                 {
                     continue;
                 }

@@ -13,6 +13,9 @@ public static class GameplayAbilityReplicatedState
     public const string SpySuperjumpCooldownTicksKey = "spy_superjump_cooldown_ticks";
     public const string SpySuperjumpActiveKey = "spy_superjump_active";
     public const string SpySuperjumpDisabledKey = "spy_superjump_disabled";
+    public const string CivvieUmbrellaCooldownTicksKey = "civvie_umbrella_cooldown_ticks";
+    public const string CivvieUmbrellaActiveKey = "civvie_umbrella_active";
+    public const string CivvieUmbrellaDisabledKey = "civvie_umbrella_disabled";
     public const string HeavyDashCooldownTicksKey = "heavy_dash_cooldown_ticks";
     public const string HeavyDashActiveKey = "heavy_dash_active";
     public const string HeavyDashVisibleKey = "heavy_dash_visible";
@@ -52,6 +55,12 @@ public static class GameplayAbilityReplicatedState
                 Toggle(SpySuperjumpActiveKey, player.SpySuperjumpChargeTicks > 0 || player.IsSpySuperjumping),
                 Toggle(SpySuperjumpDisabledKey, player.IsCarryingIntel),
             ],
+            PlayerClass.Quote =>
+            [
+                Whole(CivvieUmbrellaCooldownTicksKey, player.CivvieUmbrellaCooldownTicks),
+                Toggle(CivvieUmbrellaActiveKey, player.IsCivvieUmbrellaActive),
+                Toggle(CivvieUmbrellaDisabledKey, player.IsCivvieUmbrellaDisabled),
+            ],
             _ => Array.Empty<GameplayReplicatedStateEntry>(),
         };
     }
@@ -68,6 +77,16 @@ public static class GameplayAbilityReplicatedState
             return true;
         }
 
+        if (key == CivvieUmbrellaCooldownTicksKey
+            && player.ClassId == PlayerClass.Quote
+            && player.TryGetReplicatedStateInt(
+                GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                CivvieUmbrellaCooldownTicksKey,
+                out value))
+        {
+            return true;
+        }
+
         value = key switch
         {
             PyroAirblastCooldownTicksKey when player.ClassId == PlayerClass.Pyro => player.PyroAirblastCooldownTicks,
@@ -77,6 +96,7 @@ public static class GameplayAbilityReplicatedState
             HeavyDashCooldownTicksKey when player.ClassId == PlayerClass.Heavy => player.ExperimentalGhostDashCooldownTicksRemaining,
             SniperChargeTicksKey when player.ClassId == PlayerClass.Sniper => player.SniperChargeTicks,
             SpySuperjumpCooldownTicksKey when player.ClassId == PlayerClass.Spy => player.SpySuperjumpCooldownTicksRemaining,
+            CivvieUmbrellaCooldownTicksKey when player.ClassId == PlayerClass.Quote => player.CivvieUmbrellaCooldownTicks,
             _ => default,
         };
 
@@ -87,6 +107,7 @@ public static class GameplayAbilityReplicatedState
             HeavyEatTicksRemainingKey or HeavyEatCooldownTicksKey or HeavyDashCooldownTicksKey => player.ClassId == PlayerClass.Heavy,
             SniperChargeTicksKey => player.ClassId == PlayerClass.Sniper,
             SpySuperjumpCooldownTicksKey => player.ClassId == PlayerClass.Spy,
+            CivvieUmbrellaCooldownTicksKey => player.ClassId == PlayerClass.Quote,
             _ => false,
         };
     }
@@ -112,6 +133,16 @@ public static class GameplayAbilityReplicatedState
 
     public static bool TryGetBool(PlayerEntity player, string key, out bool value)
     {
+        if (player.ClassId == PlayerClass.Quote
+            && key is CivvieUmbrellaActiveKey or CivvieUmbrellaDisabledKey
+            && player.TryGetReplicatedStateBool(
+                GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                key,
+                out value))
+        {
+            return true;
+        }
+
         value = key switch
         {
             MedicUberReadyKey when player.ClassId == PlayerClass.Medic => player.IsMedicUberReady,
@@ -119,6 +150,8 @@ public static class GameplayAbilityReplicatedState
             HeavyDashVisibleKey when player.ClassId == PlayerClass.Heavy => player.IsExperimentalGhostDashVisible,
             SpySuperjumpActiveKey when player.ClassId == PlayerClass.Spy => player.SpySuperjumpChargeTicks > 0 || player.IsSpySuperjumping,
             SpySuperjumpDisabledKey when player.ClassId == PlayerClass.Spy => player.IsCarryingIntel,
+            CivvieUmbrellaActiveKey when player.ClassId == PlayerClass.Quote => player.IsCivvieUmbrellaActive,
+            CivvieUmbrellaDisabledKey when player.ClassId == PlayerClass.Quote => player.IsCivvieUmbrellaDisabled,
             _ => default,
         };
 
@@ -127,6 +160,7 @@ public static class GameplayAbilityReplicatedState
             MedicUberReadyKey => player.ClassId == PlayerClass.Medic,
             HeavyDashActiveKey or HeavyDashVisibleKey => player.ClassId == PlayerClass.Heavy,
             SpySuperjumpActiveKey or SpySuperjumpDisabledKey => player.ClassId == PlayerClass.Spy,
+            CivvieUmbrellaActiveKey or CivvieUmbrellaDisabledKey => player.ClassId == PlayerClass.Quote,
             _ => false,
         };
     }

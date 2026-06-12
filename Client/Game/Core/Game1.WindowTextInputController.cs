@@ -37,22 +37,27 @@ public partial class Game1
                 return;
             }
 
+            if (_game._practiceSetupOpen && _game.TryHandlePracticeMapBrowserTextInput(character))
+            {
+                return;
+            }
+
             if (_game._mainMenuOpen && _game._manualConnectOpen && _game._menuTextInputController.TryHandleManualConnect(character))
             {
                 return;
             }
 
-            if (_game._mainMenuOpen && _game._friendsMenuOpen && _game._editingFriendNickname && _game._menuTextInputController.TryHandleFriendNicknameEdit(character))
+            if (_game._friendsMenuOpen && _game._editingFriendNickname && _game._menuTextInputController.TryHandleFriendNicknameEdit(character))
             {
                 return;
             }
 
-            if (_game._mainMenuOpen && _game._friendsMenuOpen && _game._editingFriendCode && _game._menuTextInputController.TryHandleFriendCodeEdit(character))
+            if (_game._friendsMenuOpen && _game._editingFriendCode && _game._menuTextInputController.TryHandleFriendCodeEdit(character))
             {
                 return;
             }
 
-            if (_game._mainMenuOpen && _game._friendsMenuOpen && _game._editingFriendMessage && _game._menuTextInputController.TryHandleFriendMessageEdit(character))
+            if (_game._friendsMenuOpen && _game._editingFriendMessage && _game._menuTextInputController.TryHandleFriendMessageEdit(character))
             {
                 return;
             }

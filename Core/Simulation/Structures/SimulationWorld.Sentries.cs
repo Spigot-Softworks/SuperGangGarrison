@@ -6,6 +6,14 @@ public sealed partial class SimulationWorld
     private const float SentryBuildProximityRadius = 50f;
     private const float SentryDestroyBlastRadius = 65f;
     private const float SentryDestroyKnockbackPerTick = 4f;
+    private const int SentryOwnerDestroySetupGuardSeconds = 2;
+    private enum OwnedSentryDestroyResult
+    {
+        NoOwnedSentry,
+        Destroyed,
+        BlockedBySetupGuard,
+    }
+
     private readonly record struct SentryTarget(PlayerEntity? Player, GeneratorState? Generator, SentryEntity? Sentry, JumpPadEntity? JumpPad, float X, float Y, int? PlayerId);
 
     public bool TryBuildLocalSentry()
@@ -21,6 +29,11 @@ public sealed partial class SimulationWorld
             if (sentry.OwnerPlayerId != LocalPlayer.Id)
             {
                 continue;
+            }
+
+            if (IsOwnerManualSentryDestroyBlockedBySetupGuard(sentry))
+            {
+                return false;
             }
 
             DestroySentry(sentry, attacker: null);
@@ -253,7 +266,7 @@ public sealed partial class SimulationWorld
             // Cloaked spies should only be targetable while revealed.
             if (player.ClassId == PlayerClass.Spy
                 && player.IsSpyCloaked
-                && !player.IsSpyVisibleToEnemies)
+                && (!player.IsSpyVisibleToEnemies || player.SpyCloakAlpha <= 0.0001f))
             {
                 continue;
             }
@@ -532,24 +545,55 @@ public sealed partial class SimulationWorld
 
     private bool TryDestroySentry(PlayerEntity player)
     {
+        return TryDestroySentryForOwnerCommand(player) == OwnedSentryDestroyResult.Destroyed;
+    }
+
+    private OwnedSentryDestroyResult TryDestroySentryForOwnerCommand(PlayerEntity player)
+    {
         if (!player.IsAlive)
         {
-            return false;
+            return OwnedSentryDestroyResult.NoOwnedSentry;
         }
 
-        var hadSentry = false;
+        var destroyedSentry = false;
+        var blockedBySetupGuard = false;
         for (var index = _sentries.Count - 1; index >= 0; index -= 1)
         {
-            if (_sentries[index].OwnerPlayerId != player.Id)
+            var sentry = _sentries[index];
+            if (sentry.OwnerPlayerId != player.Id)
             {
                 continue;
             }
 
-            hadSentry = true;
-            DestroySentry(_sentries[index], attacker: null);
+            if (IsOwnerManualSentryDestroyBlockedBySetupGuard(sentry))
+            {
+                blockedBySetupGuard = true;
+                continue;
+            }
+
+            DestroySentry(sentry, attacker: null);
+            destroyedSentry = true;
         }
 
-        return hadSentry;
+        if (destroyedSentry)
+        {
+            return OwnedSentryDestroyResult.Destroyed;
+        }
+
+        return blockedBySetupGuard
+            ? OwnedSentryDestroyResult.BlockedBySetupGuard
+            : OwnedSentryDestroyResult.NoOwnedSentry;
+    }
+
+    private bool IsOwnerManualSentryDestroyBlockedBySetupGuard(SentryEntity sentry)
+    {
+        return !sentry.IsBuilt
+            && sentry.LifetimeTicks < GetSentryOwnerDestroySetupGuardTicks();
+    }
+
+    private int GetSentryOwnerDestroySetupGuardTicks()
+    {
+        return Math.Max(1, Config.TicksPerSecond * SentryOwnerDestroySetupGuardSeconds);
     }
 }
 

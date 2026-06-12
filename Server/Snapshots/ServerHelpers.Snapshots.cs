@@ -20,7 +20,8 @@ internal static partial class ServerHelpers
         byte slot,
         PlayerEntity player,
         PlayerEntity? viewer,
-        SnapshotStringCache stringCache)
+        SnapshotStringCache stringCache,
+        int pingMilliseconds = -1)
     {
         var isPlayableSlot = SimulationWorld.IsPlayableNetworkPlayerSlot(slot);
         var isAwaitingJoin = isPlayableSlot && world.IsNetworkPlayerAwaitingJoin(slot);
@@ -230,7 +231,8 @@ internal static partial class ServerHelpers
             GibDeaths: (short)Math.Clamp(player.GibDeaths, 0, short.MaxValue),
             IsReady: world.IsNetworkPlayerReady(slot),
             GameplayClassId: player.GameplayClassId,
-            GameplayClassCacheId: stringCache.GetOrAddCacheId(player.GameplayClassId));
+            GameplayClassCacheId: stringCache.GetOrAddCacheId(player.GameplayClassId),
+            PingMilliseconds: pingMilliseconds);
     }
 
     internal static SnapshotIntelState ToSnapshotIntelState(TeamIntelligenceState intel)

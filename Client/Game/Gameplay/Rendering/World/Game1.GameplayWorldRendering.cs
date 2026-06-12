@@ -485,7 +485,12 @@ public partial class Game1
         var renderPosition = GetRenderPosition(_world.LocalPlayer);
         DrawExperimentalDemoknightChargeBlur(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);
         DrawCapturedPointHealingGhosting(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
-        TryDrawWeaponSpriteBackdrop(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);
+        var hideWeaponSprite = GameplayPlayerRenderController.ShouldHideCivilianIdleWeaponSprite(_world.LocalPlayer, bodySelection);
+        if (!hideWeaponSprite)
+        {
+            TryDrawWeaponSpriteBackdrop(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);
+        }
+
         if (!TryDrawPlayerSprite(_world.LocalPlayer, cameraPosition, playerSpriteTint, bodySelection))
         {
             _spriteBatch.Draw(_pixel, playerRectangle, playerFallbackColor * visibilityAlpha);
@@ -493,11 +498,15 @@ public partial class Game1
 
         DrawExperimentalStickyGibBloodOverlay(_world.LocalPlayer, cameraPosition, visibilityAlpha);
 
-        if (!GetPlayerIsHeavyEating(_world.LocalPlayer) && !_world.LocalPlayer.IsTaunting && !_world.IsPlayerHumiliated(_world.LocalPlayer))
+        if (!hideWeaponSprite
+            && !GetPlayerIsHeavyEating(_world.LocalPlayer)
+            && !_world.LocalPlayer.IsTaunting
+            && !_world.IsPlayerHumiliated(_world.LocalPlayer))
         {
             TryDrawWeaponSprite(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);
         }
 
+        _gameplayWeaponRenderController.DrawCivvieUmbrellaShieldBlockVisuals(_world.LocalPlayer, cameraPosition, visibilityAlpha, bodySelection);
         DrawExperimentalCryoOverlays(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
         DrawAfterburnOverlay(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha);
         DrawChatBubble(_world.LocalPlayer, cameraPosition);

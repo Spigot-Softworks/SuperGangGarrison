@@ -9,7 +9,7 @@ public partial class Game1
 {
     private bool ShouldUseSoftwareMenuCursor()
     {
-        return _clientSettings.Fullscreen;
+        return IsScreenFillingDisplayMode(_displayMode);
     }
 
     private bool ShouldDrawSoftwareMenuCursor()

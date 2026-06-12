@@ -8,6 +8,9 @@ Small Linux-hosted API for:
 - static updater files served by the reverse proxy under `/updates/`
 
 The service uses SQLite and expects a reverse proxy such as Caddy or nginx in front of it.
+Server discovery rows include `protocolVersion`, `buildVersion`, `releaseChannel`, and
+`compatibilityKey` so stable and beta builds can share the registry without appearing to
+incompatible clients.
 
 ## Environment
 

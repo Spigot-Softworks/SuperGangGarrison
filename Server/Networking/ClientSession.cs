@@ -21,6 +21,7 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
     private readonly HashSet<ulong> _acknowledgedTransientEventIds = new();
     private readonly Queue<ulong> _acknowledgedTransientEventOrder = new();
     private string _name = PlayerEntity.NormalizeDisplayName(name);
+    private int _pingMilliseconds = -1;
 
     public ClientSession(byte slot, int userId, IPEndPoint endPoint, string name, TimeSpan lastSeen)
         : this(slot, userId, ServerTransportPeer.FromUdpEndPoint(endPoint), name, lastSeen)
@@ -64,6 +65,11 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
     public string PendingAdminChatCommand { get; set; } = string.Empty;
     public TimeSpan PendingAdminChatCommandQueuedAt { get; set; } = TimeSpan.MinValue;
     public bool IsGagged { get; set; }
+    public int PingMilliseconds
+    {
+        get => _pingMilliseconds;
+        set => _pingMilliseconds = value >= 0 ? Math.Clamp(value, 0, 9999) : -1;
+    }
     public int SnapshotHistoryCount => _snapshotFrameOrder.Count;
 
     public bool TrySetLatestInput(uint sequence, PlayerInputSnapshot input)

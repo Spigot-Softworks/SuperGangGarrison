@@ -1,8 +1,10 @@
 #nullable enable
 
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
+using System.Globalization;
 using OpenGarrison.Client.Plugins;
 using OpenGarrison.Core;
 
@@ -23,7 +25,8 @@ public partial class Game1
             _bubbleMenuXPageIndex,
             _world.LocalPlayer.AimDirectionDegrees,
                 GetBubbleWheelSelectedSlot(GetScaledMouseState(GetConstrainedMouseState(GetCurrentMouseState()))));
-        if (TryDrawClientPluginBubbleMenu(GetCurrentClientPluginCameraTopLeft(), renderState))
+        if (_bubbleMenuKind != BubbleMenuKind.Custom
+            && TryDrawClientPluginBubbleMenu(GetCurrentClientPluginCameraTopLeft(), renderState))
         {
             return;
         }
@@ -38,6 +41,12 @@ public partial class Game1
             _ => null,
         };
 
+        if (_bubbleMenuKind == BubbleMenuKind.Custom)
+        {
+            DrawCustomBubbleMenuHud(viewportHeight);
+            return;
+        }
+
         if (spriteName is null)
         {
             return;
@@ -45,6 +54,83 @@ public partial class Game1
 
         var frameIndex = _bubbleMenuKind == BubbleMenuKind.X && _bubbleMenuXPageIndex == 2 ? 1 : 0;
         TryDrawScreenSprite(spriteName, frameIndex, new Vector2(_bubbleMenuX, viewportHeight / 2f), Color.White * _bubbleMenuAlpha, Vector2.One);
+    }
+
+    private void DrawCustomBubbleMenuHud(int viewportHeight)
+    {
+        var selectedSlot = GetBubbleWheelSelectedSlot(GetScaledMouseState(GetConstrainedMouseState(GetCurrentMouseState())));
+        var center = new Vector2(_bubbleMenuX + 76f, viewportHeight / 2f);
+        for (var slotIndex = 0; slotIndex < CustomBubbleDocument.SlotCount; slotIndex += 1)
+        {
+            DrawCustomBubbleMenuSlot(
+                slotIndex,
+                center + GetCustomBubbleMenuSlotOffset(slotIndex),
+                selectedSlot == slotIndex + 1);
+        }
+    }
+
+    private static Vector2 GetCustomBubbleMenuSlotOffset(int slotIndex)
+    {
+        return slotIndex switch
+        {
+            0 => new Vector2(0f, -58f),
+            1 => new Vector2(54f, 0f),
+            2 => new Vector2(0f, 58f),
+            _ => Vector2.Zero,
+        };
+    }
+
+    private void DrawCustomBubbleMenuSlot(int slotIndex, Vector2 anchor, bool selected)
+    {
+        const float scale = 0.62f;
+        var alpha = Math.Clamp(_bubbleMenuAlpha, 0f, 1f);
+        var shellOrigin = new Vector2(CustomBubbleShellOriginX, CustomBubbleShellOriginY);
+        var shellTopLeft = anchor - (shellOrigin * scale);
+        var shellBounds = new Rectangle(
+            (int)MathF.Round(shellTopLeft.X),
+            (int)MathF.Round(shellTopLeft.Y),
+            Math.Max(1, (int)MathF.Round(CustomBubbleShellPixelWidth * scale)),
+            Math.Max(1, (int)MathF.Round(CustomBubbleShellPixelHeight * scale)));
+        var outlineBounds = new Rectangle(
+            shellBounds.X - 4,
+            shellBounds.Y - 4,
+            shellBounds.Width + 8,
+            shellBounds.Height + 8);
+        var hasSlot = _customBubbleDocument.HasSlot(slotIndex);
+        var outlineColor = selected && hasSlot
+            ? new Color(255, 235, 145) * alpha
+            : new Color(30, 30, 30) * (0.65f * alpha);
+
+        DrawRoundedRectangleOutline(
+            outlineBounds,
+            new Color(0, 0, 0) * (0.35f * alpha),
+            outlineColor,
+            outlineThickness: selected && hasSlot ? 3 : 2,
+            radius: 6);
+
+        var shellFrame = GetCustomBubbleShellFrame();
+        if (hasSlot
+            && shellFrame is not null
+            && TryGetLocalCustomBubbleTexture(slotIndex, out var artTexture))
+        {
+            DrawLoadedSpriteFrame(
+                shellFrame,
+                anchor,
+                null,
+                Color.White * alpha,
+                0f,
+                shellOrigin,
+                new Vector2(scale),
+                SpriteEffects.None,
+                0f);
+            _spriteBatch.Draw(artTexture, shellBounds, Color.White * alpha);
+        }
+        else
+        {
+            DrawInsetHudPanel(shellBounds, new Color(24, 24, 24) * (0.8f * alpha), new Color(58, 58, 58) * (0.6f * alpha));
+        }
+
+        DrawHudTextCentered((slotIndex + 1).ToString(CultureInfo.InvariantCulture), new Vector2(outlineBounds.X + 9f, outlineBounds.Y + 9f), Color.White * alpha, 1f);
     }
 
     private void UpdateBubbleMenuState(KeyboardState keyboard, MouseState mouse)
@@ -62,10 +148,11 @@ public partial class Game1
         var leftMouseDown = mouse.LeftButton == ButtonState.Pressed;
         var leftMouseReleased = mouse.LeftButton == ButtonState.Released && _previousMouse.LeftButton == ButtonState.Pressed;
         var callMedicPressed = IsBindingPressed(keyboard, mouse, _inputBindings.CallMedic)
-            || (IsControllerGameplayInputActive() && IsControllerButtonPressed(Buttons.Y));
+            || (IsControllerGameplayInputActive() && IsControllerButtonPressed(ControllerCallMedicButton));
         var openZPressed = IsBindingPressed(keyboard, mouse, _inputBindings.OpenBubbleMenuZ);
         var openXPressed = IsBindingPressed(keyboard, mouse, _inputBindings.OpenBubbleMenuX);
         var openCPressed = IsBindingPressed(keyboard, mouse, _inputBindings.OpenBubbleMenuC);
+        var pressAndClickBehavior = IsBubbleWheelPressAndClick();
 
         if (callMedicPressed)
         {
@@ -78,51 +165,73 @@ public partial class Game1
         if (_bubbleMenuKind != BubbleMenuKind.None && !_bubbleMenuClosing)
         {
             var pressedDigit = GetPressedDigit(keyboard);
-            var pluginOverrideActive = HasClientPluginBubbleMenuOverride();
+            var pluginOverrideActive = _bubbleMenuKind != BubbleMenuKind.Custom && HasClientPluginBubbleMenuOverride();
 
-                if (pluginOverrideActive)
+            if (pluginOverrideActive)
+            {
+                var pluginResult = TryHandleClientPluginBubbleMenuInput(new ClientBubbleMenuInputState(
+                    ToClientBubbleMenuKind(_bubbleMenuKind),
+                    _bubbleMenuXPageIndex,
+                    _world.LocalPlayer.AimDirectionDegrees,
+                    GetBubbleMenuPointerDistanceFromCenter(mouse),
+                    leftMousePressed,
+                    leftMouseDown,
+                    leftMouseReleased,
+                    pressedDigit,
+                    keyboard.IsKeyDown(Keys.Q) && !_previousKeyboard.IsKeyDown(Keys.Q)));
+                if (pluginResult is not null)
                 {
-                    var pluginResult = TryHandleClientPluginBubbleMenuInput(new ClientBubbleMenuInputState(
-                        ToClientBubbleMenuKind(_bubbleMenuKind),
-                        _bubbleMenuXPageIndex,
-                        _world.LocalPlayer.AimDirectionDegrees,
-                        GetBubbleMenuPointerDistanceFromCenter(mouse),
-                        leftMousePressed,
-                        leftMouseDown,
-                        leftMouseReleased,
-                        pressedDigit,
-                        keyboard.IsKeyDown(Keys.Q) && !_previousKeyboard.IsKeyDown(Keys.Q)));
-                    if (pluginResult is not null)
-                    {
-                        if (leftMousePressed)
-                        {
-                            SuppressPrimaryFireUntilMouseRelease();
-                        }
-
-                        ApplyBubbleMenuPluginResult(pluginResult);
-                    }
-
-                    if (pluginOverrideActive && leftMouseReleased && _bubbleMenuPendingFrame.HasValue)
-                    {
-                        CommitBubbleMenuSelectionAndClose();
-                    }
-                    else if (pluginResult is null && TryGetBubbleMenuSelection(keyboard, pressedDigit, out var bubbleFrame))
-                    {
-                        _bubbleMenuPendingFrame = bubbleFrame;
-                        _bubbleMenuSessionHadInteraction = true;
-                        CommitBubbleMenuSelectionAndClose();
-                    }
+                    ApplyBubbleMenuPluginResult(pluginResult);
                 }
-                else if (TryGetBubbleMenuSelection(keyboard, pressedDigit, out var bubbleFrame))
+
+                if (!_bubbleMenuClosing
+                    && pressedDigit.HasValue
+                    && _bubbleMenuPendingFrame.HasValue)
                 {
-                    _bubbleMenuPendingFrame = bubbleFrame;
-                    _bubbleMenuSessionHadInteraction = true;
+                    CommitBubbleMenuSelectionAndClose();
+                }
+                else if (!_bubbleMenuClosing
+                    && pressAndClickBehavior
+                    && leftMousePressed
+                    && _bubbleMenuPendingFrame.HasValue)
+                {
+                    SuppressPrimaryFireUntilMouseRelease();
+                    CommitBubbleMenuSelectionAndClose();
+                }
+                else if (!_bubbleMenuClosing
+                    && !pressAndClickBehavior
+                    && !IsCurrentBubbleMenuKeyHeld(keyboard, mouse))
+                {
                     CommitBubbleMenuSelectionAndClose();
                 }
             }
-
-            AdvanceBubbleMenuAnimation();
+            else if (TryGetBubbleMenuSelection(keyboard, pressedDigit, out var bubbleFrame))
+            {
+                _bubbleMenuPendingFrame = bubbleFrame;
+                _bubbleMenuSessionHadInteraction = true;
+                CommitBubbleMenuSelectionAndClose();
+            }
+            else if (!_bubbleMenuClosing && pressAndClickBehavior)
+            {
+                UpdatePressAndClickBubbleMenuSelection(mouse, leftMousePressed);
+            }
+            else if (!_bubbleMenuClosing)
+            {
+                UpdateBubbleMenuHoverSelection(mouse);
+                if (!IsCurrentBubbleMenuKeyHeld(keyboard, mouse))
+                {
+                    CommitBubbleMenuSelectionAndClose();
+                }
+            }
         }
+
+        AdvanceBubbleMenuAnimation();
+    }
+
+    private bool IsBubbleWheelPressAndClick()
+    {
+        return GetBubbleWheelBehaviorSetting() == BubbleWheelBehavior.PressAndClick;
+    }
 
     private void HandleBubbleMenuOpenKeyPresses(bool openZPressed, bool openXPressed, bool openCPressed)
     {
@@ -168,6 +277,7 @@ public partial class Game1
             BubbleMenuKind.Z => IsBindingDown(keyboard, mouse, _inputBindings.OpenBubbleMenuZ),
             BubbleMenuKind.X => IsBindingDown(keyboard, mouse, _inputBindings.OpenBubbleMenuX),
             BubbleMenuKind.C => IsBindingDown(keyboard, mouse, _inputBindings.OpenBubbleMenuC),
+            BubbleMenuKind.Custom => IsBindingDown(keyboard, mouse, _inputBindings.CustomBubble),
             _ => true,
         };
     }
@@ -177,6 +287,7 @@ public partial class Game1
         if (result.ClearBubbleSelection)
         {
             _bubbleMenuPendingFrame = null;
+            _bubbleMenuSessionHadInteraction = true;
         }
 
         if (result.NewXPageIndex.HasValue)
@@ -299,6 +410,137 @@ public partial class Game1
         _bubbleMenuPendingFrame = null;
     }
 
+    private void UpdatePressAndClickBubbleMenuSelection(MouseState mouse, bool leftMousePressed)
+    {
+        if (leftMousePressed
+            && _bubbleMenuKind == BubbleMenuKind.X
+            && _bubbleMenuXPageIndex == 0)
+        {
+            var selectedSlot = GetBubbleWheelSelectedSlot(mouse);
+            if (selectedSlot is 1 or 2)
+            {
+                _bubbleMenuXPageIndex = selectedSlot;
+                _bubbleMenuSessionHadInteraction = true;
+                _bubbleMenuPendingFrame = null;
+                SuppressPrimaryFireUntilMouseRelease();
+                return;
+            }
+        }
+
+        UpdateBubbleMenuHoverSelection(mouse);
+        if (leftMousePressed && _bubbleMenuPendingFrame.HasValue)
+        {
+            SuppressPrimaryFireUntilMouseRelease();
+            CommitBubbleMenuSelectionAndClose();
+        }
+    }
+
+    private void UpdateBubbleMenuHoverSelection(MouseState mouse)
+    {
+        if (TryGetBubbleMenuHoverFrame(mouse, out var bubbleFrame, out var clearBubbleSelection))
+        {
+            _bubbleMenuPendingFrame = bubbleFrame;
+            _bubbleMenuSessionHadInteraction = true;
+            return;
+        }
+
+        if (clearBubbleSelection)
+        {
+            _bubbleMenuPendingFrame = null;
+            _bubbleMenuSessionHadInteraction = true;
+        }
+    }
+
+    private bool TryGetBubbleMenuHoverFrame(MouseState mouse, out int bubbleFrame, out bool clearBubbleSelection)
+    {
+        bubbleFrame = -1;
+        clearBubbleSelection = false;
+        var selectedSlot = GetBubbleWheelSelectedSlot(mouse);
+
+        switch (_bubbleMenuKind)
+        {
+            case BubbleMenuKind.Z:
+                if (selectedSlot <= 0)
+                {
+                    clearBubbleSelection = true;
+                    return false;
+                }
+
+                bubbleFrame = 19 + selectedSlot;
+                return true;
+
+            case BubbleMenuKind.C:
+                if (selectedSlot <= 0)
+                {
+                    clearBubbleSelection = true;
+                    return false;
+                }
+
+                bubbleFrame = 35 + selectedSlot;
+                return true;
+
+            case BubbleMenuKind.X:
+                return TryGetBubbleMenuXHoverFrame(selectedSlot, out bubbleFrame, out clearBubbleSelection);
+
+            case BubbleMenuKind.Custom:
+                return TryGetCustomBubbleMenuFrame(selectedSlot, out bubbleFrame, out clearBubbleSelection);
+
+            default:
+                return false;
+        }
+    }
+
+    private bool TryGetCustomBubbleMenuFrame(int selectedSlot, out int bubbleFrame, out bool clearBubbleSelection)
+    {
+        bubbleFrame = -1;
+        clearBubbleSelection = false;
+        if (selectedSlot <= 0)
+        {
+            clearBubbleSelection = true;
+            return false;
+        }
+
+        var slotIndex = selectedSlot - 1;
+        if (slotIndex < 0
+            || slotIndex >= CustomBubbleDocument.SlotCount
+            || !_customBubbleDocument.HasSlot(slotIndex))
+        {
+            clearBubbleSelection = true;
+            return false;
+        }
+
+        bubbleFrame = ChatBubbleFrameCatalog.GetCustomBubbleFrame(slotIndex);
+        return true;
+    }
+
+    private bool TryGetBubbleMenuXHoverFrame(int selectedSlot, out int bubbleFrame, out bool clearBubbleSelection)
+    {
+        bubbleFrame = -1;
+        clearBubbleSelection = false;
+        if (_bubbleMenuXPageIndex == 0)
+        {
+            if (selectedSlot is <= 0 or 1 or 2)
+            {
+                clearBubbleSelection = true;
+                return false;
+            }
+
+            if (selectedSlot is >= 3 and <= 9)
+            {
+                bubbleFrame = 26 + selectedSlot;
+                return true;
+            }
+
+            return false;
+        }
+
+        var offset = _bubbleMenuXPageIndex == 2 ? 10 : 0;
+        bubbleFrame = selectedSlot == 0
+            ? 9 + offset
+            : (selectedSlot - 1) + offset;
+        return true;
+    }
+
     private bool TryGetBubbleMenuSelection(KeyboardState keyboard, int? pressedDigit, out int bubbleFrame)
     {
         bubbleFrame = -1;
@@ -338,9 +580,38 @@ public partial class Game1
             case BubbleMenuKind.X:
                 return TryGetBubbleMenuXSelection(keyboard, pressedDigit, out bubbleFrame);
 
+            case BubbleMenuKind.Custom:
+                return TryGetCustomBubbleMenuSelection(pressedDigit, out bubbleFrame);
+
             default:
                 return false;
         }
+    }
+
+    private bool TryGetCustomBubbleMenuSelection(int? pressedDigit, out int bubbleFrame)
+    {
+        bubbleFrame = -1;
+        if (pressedDigit == 0)
+        {
+            BeginClosingBubbleMenu();
+            return false;
+        }
+
+        if (!pressedDigit.HasValue
+            || pressedDigit.Value < 1
+            || pressedDigit.Value > CustomBubbleDocument.SlotCount)
+        {
+            return false;
+        }
+
+        var slotIndex = pressedDigit.Value - 1;
+        if (!_customBubbleDocument.HasSlot(slotIndex))
+        {
+            return false;
+        }
+
+        bubbleFrame = ChatBubbleFrameCatalog.GetCustomBubbleFrame(slotIndex);
+        return true;
     }
 
     private bool TryGetBubbleMenuXSelection(KeyboardState keyboard, int? pressedDigit, out int bubbleFrame)
@@ -354,21 +625,21 @@ public partial class Game1
                 return false;
             }
 
-        if (pressedDigit == 1)
-        {
-            _bubbleMenuXPageIndex = 1;
-            _bubbleMenuSessionHadInteraction = true;
-            _bubbleMenuPendingFrame = null;
-            return false;
-        }
+            if (pressedDigit == 1)
+            {
+                _bubbleMenuXPageIndex = 1;
+                _bubbleMenuSessionHadInteraction = true;
+                _bubbleMenuPendingFrame = null;
+                return false;
+            }
 
-        if (pressedDigit == 2)
-        {
-            _bubbleMenuXPageIndex = 2;
-            _bubbleMenuSessionHadInteraction = true;
-            _bubbleMenuPendingFrame = null;
-            return false;
-        }
+            if (pressedDigit == 2)
+            {
+                _bubbleMenuXPageIndex = 2;
+                _bubbleMenuSessionHadInteraction = true;
+                _bubbleMenuPendingFrame = null;
+                return false;
+            }
 
             if (pressedDigit is >= 3 and <= 9)
             {
@@ -449,6 +720,7 @@ public partial class Game1
             BubbleMenuKind.Z => _recentBubbleFrameZ,
             BubbleMenuKind.X => _recentBubbleFrameX,
             BubbleMenuKind.C => _recentBubbleFrameC,
+            BubbleMenuKind.Custom => _recentBubbleFrameCustom,
             _ => -1,
         };
     }
@@ -465,6 +737,9 @@ public partial class Game1
                 break;
             case BubbleMenuKind.C:
                 _recentBubbleFrameC = bubbleFrame;
+                break;
+            case BubbleMenuKind.Custom:
+                _recentBubbleFrameCustom = bubbleFrame;
                 break;
         }
     }

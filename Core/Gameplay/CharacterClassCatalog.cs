@@ -52,7 +52,9 @@ public static class CharacterClassCatalog
 
     public static CharacterClassDefinition Spy => RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Spy);
 
-    public static CharacterClassDefinition Quote => RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Quote);
+    public static CharacterClassDefinition Civilian => RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Quote);
+
+    public static CharacterClassDefinition Quote => Civilian;
 
     public static CharacterClassDefinition GetDefinition(PlayerClass playerClass)
     {
@@ -66,7 +68,7 @@ public static class CharacterClassCatalog
             PlayerClass.Sniper => Sniper,
             PlayerClass.Medic => Medic,
             PlayerClass.Spy => Spy,
-            PlayerClass.Quote => Quote,
+            PlayerClass.Quote => Civilian,
             _ => Scout,
         };
     }

@@ -4,6 +4,7 @@ using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
 
+[Collection(ContentRootTestGroup.Name)]
 public sealed class SimulationWorldControlPointSetupTests
 {
     private static readonly MethodInfo CombatTestSetLevelMethod = GetRequiredSimulationWorldMethod("CombatTestSetLevel");
@@ -35,6 +36,23 @@ public sealed class SimulationWorldControlPointSetupTests
 
         Assert.Equal(world.Config.TicksPerSecond, world.ControlPointSetupTicksRemaining);
         Assert.Equal(world.MatchRules.TimeLimitTicks - 1, world.MatchState.TimeRemainingTicks);
+    }
+
+    [Fact]
+    public void StockDirtbowlSetupGatesKeepLowerDoorBlocks()
+    {
+        var areaOne = SimpleLevelFactory.CreateImportedLevel("Dirtbowl", mapAreaIndex: 1);
+        var areaTwo = SimpleLevelFactory.CreateImportedLevel("Dirtbowl", mapAreaIndex: 2);
+
+        Assert.NotNull(areaOne);
+        Assert.NotNull(areaTwo);
+
+        var areaOneGates = areaOne!.GetRoomObjects(RoomObjectType.ControlPointSetupGate);
+        var areaTwoGates = areaTwo!.GetRoomObjects(RoomObjectType.ControlPointSetupGate);
+
+        Assert.Contains(areaOneGates, gate => IsGate(gate, x: 648f, y: 906f, width: 32f, height: 62f));
+        Assert.Contains(areaTwoGates, gate => IsGate(gate, x: 726f, y: 2262f, width: 32f, height: 80f));
+        Assert.DoesNotContain(areaOneGates, gate => Nearly(gate.X, 648f) && gate.Y < 800f && gate.Bottom > 900f);
     }
 
     private static void SetAttackDefenseControlPointLevel(SimulationWorld world)
@@ -91,5 +109,18 @@ public sealed class SimulationWorldControlPointSetupTests
     {
         return typeof(SimulationWorld).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new InvalidOperationException($"Could not find SimulationWorld.{name}.");
+    }
+
+    private static bool IsGate(RoomObjectMarker gate, float x, float y, float width, float height)
+    {
+        return Nearly(gate.X, x)
+            && Nearly(gate.Y, y)
+            && Nearly(gate.Width, width)
+            && Nearly(gate.Height, height);
+    }
+
+    private static bool Nearly(float actual, float expected)
+    {
+        return MathF.Abs(actual - expected) <= 0.01f;
     }
 }

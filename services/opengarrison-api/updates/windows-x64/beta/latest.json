@@ -1,0 +1,9 @@
+﻿{
+    "version":  "0.5.7.3-beta.1",
+    "channel":  "beta",
+    "url":  "OpenGarrison-Windows-x64.zip",
+    "sha256":  "ef4e67bc22a8adbcdbae85bf39f47798bee79c9de050640aa6bbe9057a505201",
+    "size":  48494577,
+    "minLauncherVersion":  "0.1.0",
+    "notesUrl":  ""
+}

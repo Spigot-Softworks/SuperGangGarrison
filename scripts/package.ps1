@@ -2,6 +2,8 @@
 param(
     [string[]]$Platforms = @("win-x64", "linux-x64"),
     [string]$Version = "",
+    [ValidateSet("stable", "beta")]
+    [string]$Channel = "stable",
     [switch]$RunTests,
     [switch]$SkipTests,
     [switch]$IncludeLegacyClrPlugins
@@ -137,6 +139,21 @@ function Get-ArchiveName {
     }
 }
 
+function Get-UpdatePlatformSegment {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RuntimeIdentifier
+    )
+
+    switch ($RuntimeIdentifier) {
+        "win-x64" { return "windows-x64" }
+        "linux-x64" { return "linux-x64" }
+        "osx-x64" { return "macos-x64" }
+        "osx-arm64" { return "macos-arm64" }
+        default { return $RuntimeIdentifier }
+    }
+}
+
 function Test-IsSelfContainedRuntime {
     param(
         [Parameter(Mandatory = $true)]
@@ -185,10 +202,114 @@ function New-PackageArchive {
         return
     }
 
+    if ([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)) {
+        $portableUnixArchiveCreated = New-PortableUnixTarArchive -SourceDirectory $SourceDirectory -ArchivePath $ArchivePath
+        if ($portableUnixArchiveCreated) {
+            return
+        }
+    }
+
     & tar -C $SourceDirectory -czf $ArchivePath .
     if ($LASTEXITCODE -ne 0) {
         throw "tar failed while creating '$ArchivePath' for runtime '$RuntimeIdentifier'."
     }
+}
+
+function Write-UpdateManifest {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RuntimeIdentifier,
+        [Parameter(Mandatory = $true)]
+        [string]$ArchivePath,
+        [Parameter(Mandatory = $true)]
+        [string]$PackageVersion,
+        [Parameter(Mandatory = $true)]
+        [string]$ReleaseChannel
+    )
+
+    $platformSegment = Get-UpdatePlatformSegment -RuntimeIdentifier $RuntimeIdentifier
+    $manifestDirectory = Join-Path $repoRoot "services/opengarrison-api/updates/$platformSegment/$ReleaseChannel"
+    New-Item -ItemType Directory -Path $manifestDirectory -Force | Out-Null
+
+    $manifestPath = Join-Path $manifestDirectory "latest.json"
+    $archiveItem = Get-Item $ArchivePath
+    $manifest = [ordered]@{
+        version = $PackageVersion
+        channel = $ReleaseChannel
+        url = $archiveItem.Name
+        sha256 = (Get-FileHash -Path $ArchivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+        size = $archiveItem.Length
+        minLauncherVersion = "0.1.0"
+        notesUrl = ""
+    }
+
+    $manifest | ConvertTo-Json | Set-Content -Path $manifestPath -Encoding UTF8
+    return $manifestPath
+}
+
+function New-PortableUnixTarArchive {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SourceDirectory,
+        [Parameter(Mandatory = $true)]
+        [string]$ArchivePath
+    )
+
+    $python = Get-Command python -ErrorAction SilentlyContinue
+    if ($python -eq $null) {
+        return $false
+    }
+
+    $pythonScript = @'
+import sys
+import tarfile
+from pathlib import Path
+
+source = Path(sys.argv[1])
+archive = Path(sys.argv[2])
+executable_names = {
+    'OG2',
+    'OG2.Game',
+    'OG2.Launcher',
+    'OG2.Server',
+    'OG2.ServerLauncher',
+    'OG2.Updater',
+}
+
+def normalize(info, path):
+    name = path.name
+    info.uid = 0
+    info.gid = 0
+    info.uname = ''
+    info.gname = ''
+    if info.isdir():
+        info.mode = 0o755
+    elif name in executable_names or name.endswith('.sh'):
+        info.mode = 0o755
+    else:
+        info.mode = 0o644
+    return info
+
+temporary_archive = archive.with_suffix(archive.suffix + '.tmp')
+if temporary_archive.exists():
+    temporary_archive.unlink()
+
+with tarfile.open(temporary_archive, 'w:gz', compresslevel=6) as tar:
+    for path in sorted(source.rglob('*'), key=lambda item: item.relative_to(source).as_posix().lower()):
+        arcname = './' + path.relative_to(source).as_posix()
+        tar.add(path, arcname=arcname, recursive=False, filter=lambda info, current=path: normalize(info, current))
+
+if archive.exists():
+    archive.unlink()
+temporary_archive.replace(archive)
+'@
+
+    & $python.Source -c $pythonScript $SourceDirectory $ArchivePath
+    if ($LASTEXITCODE -ne 0) {
+        throw "python tar packaging failed while creating '$ArchivePath'."
+    }
+
+    return $true
 }
 
 function Get-AvailableOutputDirectory {
@@ -763,8 +884,10 @@ New-Item -ItemType Directory -Path $distRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $stagingRoot -Force | Out-Null
 
 $packageVersion = Get-PackageVersion -RequestedVersion $Version
+$releaseChannel = $Channel.Trim().ToLowerInvariant()
 $assemblyFileVersion = Get-AssemblyFileVersion -PackageVersion $packageVersion
 Write-Host "[package] version: $packageVersion"
+Write-Host "[package] channel: $releaseChannel"
 
 $toolManifestPaths = @(
     (Join-Path $repoRoot ".config/dotnet-tools.json"),
@@ -828,6 +951,7 @@ foreach ($runtimeIdentifier in $Platforms) {
     Copy-Item (Join-Path $repoRoot "sampleMapRotation.txt") (Join-Path $stagingDirectory "config/sampleMapRotation.txt") -Force
     Copy-Item (Join-Path $repoRoot "packaging/README.txt") (Join-Path $stagingDirectory "README.txt") -Force
     Set-Content -Path (Join-Path $stagingDirectory "version.txt") -Value $packageVersion -NoNewline -Encoding ASCII
+    Set-Content -Path (Join-Path $stagingDirectory "release-channel.txt") -Value $releaseChannel -NoNewline -Encoding ASCII
 
     Set-ClientEntrypointLayout -OutputDirectory $stagingDirectory -RuntimeIdentifier $runtimeIdentifier
 
@@ -854,11 +978,17 @@ foreach ($runtimeIdentifier in $Platforms) {
     }
 
     New-PackageArchive -RuntimeIdentifier $runtimeIdentifier -SourceDirectory $stagingDirectory -ArchivePath $archivePath
+    $manifestPath = Write-UpdateManifest `
+        -RuntimeIdentifier $runtimeIdentifier `
+        -ArchivePath $archivePath `
+        -PackageVersion $packageVersion `
+        -ReleaseChannel $releaseChannel
 
     $builtOutputs += [pscustomobject]@{
         Runtime = $runtimeIdentifier
         Directory = $finalDirectory
         Archive = $archivePath
+        Manifest = $manifestPath
     }
 }
 
@@ -868,6 +998,7 @@ foreach ($output in $builtOutputs) {
     Write-Host "  $($output.Runtime)"
     Write-Host "    folder:  $($output.Directory)"
     Write-Host "    archive: $($output.Archive)"
+    Write-Host "    manifest: $($output.Manifest)"
 }
 
 if (Test-Path $stagingRoot) {

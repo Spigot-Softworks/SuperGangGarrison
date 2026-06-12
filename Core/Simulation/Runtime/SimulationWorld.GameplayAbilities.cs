@@ -311,9 +311,23 @@ public sealed partial class SimulationWorld
     private static bool TryResolveSecondaryGameplayAbilityItem(PlayerEntity player, out GameplayItemDefinition item)
     {
         var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+        if (player.ClassId == PlayerClass.Demoman
+            && runtimeRegistry.TryGetLoadout(player.GameplayClassId, player.SelectedGameplayLoadoutId, out var demomanLoadout)
+            && runtimeRegistry.TryGetGameplayAbilityDefinition(demomanLoadout.SecondaryItemId, out item, out _))
+        {
+            return true;
+        }
+
         if (player.ClassId != PlayerClass.Engineer
             && (player.IsAcquiredWeaponEquipped || player.IsExperimentalOffhandSelected)
             && runtimeRegistry.TryGetGameplayAbilityDefinition(player.GameplayLoadoutState.EquippedItemId, out item, out _))
+        {
+            return true;
+        }
+
+        if (player.GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Primary
+            && runtimeRegistry.TryGetGameplayAbilityDefinition(player.GameplayLoadoutState.PrimaryItemId, out item, out var primaryAbility)
+            && AbilityCategoryMatches(primaryAbility, GameplayAbilityConstants.SecondaryCategory))
         {
             return true;
         }
@@ -564,6 +578,35 @@ public sealed partial class SimulationWorld
         return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
     }
 
+    internal GameplayAbilityResult ExecuteMedicKritzBeamAbility(GameplayAbilityContext context)
+    {
+        var maxRange = GameplayAbilityParameterReader.GetFloat(
+            context.Ability,
+            "range",
+            MedicKritzBeamDefaultRange,
+            minValue: 1f);
+        var damagePerSecond = GameplayAbilityParameterReader.GetFloat(
+            context.Ability,
+            "damagePerSecond",
+            MedicKritzBeamDefaultDamagePerSecond,
+            minValue: 0f);
+        var chargePerDamageTick = GameplayAbilityParameterReader.GetFloat(
+            context.Ability,
+            "chargePerDamageTick",
+            MedicKritzBeamDefaultChargePerDamageTick,
+            minValue: 0f);
+
+        return new GameplayAbilityResult(
+            UpdateMedicKritzBeam(
+                context.Player,
+                context.Input.AimWorldX,
+                context.Input.AimWorldY,
+                maxRange,
+                damagePerSecond,
+                chargePerDamageTick),
+            ConsumedInput: true);
+    }
+
     internal GameplayAbilityResult ExecuteMedicUberAbility(GameplayAbilityContext context)
     {
         if (!context.Player.IsMedicUberReady || !context.Player.TryStartMedicUber())
@@ -700,9 +743,89 @@ public sealed partial class SimulationWorld
         return GameplayAbilityResult.HandledAndConsumed;
     }
 
+    internal GameplayAbilityResult ExecuteCivvieUmbrellaAbility(GameplayAbilityContext context)
+    {
+        var maxChargeTicks = GameplayAbilityParameterReader.GetInt(
+            context.Ability,
+            "maxChargeTicks",
+            PlayerEntity.CivvieUmbrellaMaxChargeTicks,
+            minValue: 1);
+        var airblastCooldownTicks = GameplayAbilityParameterReader.GetInt(
+            context.Ability,
+            "airblastCooldownTicks",
+            PlayerEntity.CivvieUmbrellaAirblastCooldownTicks,
+            minValue: 1);
+        if (!context.Player.TryActivateCivvieUmbrella(maxChargeTicks))
+        {
+            return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
+        }
+
+        var openingThisTick = !context.PreviousInput.FireSecondary;
+        if (openingThisTick && context.Player.TryConsumeCivvieUmbrellaAirblast(airblastCooldownTicks))
+        {
+            TriggerCivvieUmbrellaAirblast(context.Player, context.Input.AimWorldX, context.Input.AimWorldY);
+        }
+
+        return GameplayAbilityResult.HandledAndConsumed;
+    }
+
+    internal GameplayAbilityResult ExecuteCivvieTauntAbility(GameplayAbilityContext context)
+    {
+        return new GameplayAbilityResult(TryStartTauntWithCivvieHeal(context.Player, context.Ability), ConsumedInput: true);
+    }
+
     internal GameplayAbilityResult ExecuteScoutTauntAbility(GameplayAbilityContext context)
     {
         return new GameplayAbilityResult(context.Player.TryStartTaunt(), ConsumedInput: true);
+    }
+
+    private bool TryStartTauntWithCivvieHeal(PlayerEntity player, GameplayAbilityDefinition? ability = null)
+    {
+        if (!player.TryStartTaunt())
+        {
+            return false;
+        }
+
+        TryApplyCivvieTauntHeal(player, ability);
+        return true;
+    }
+
+    private void TryApplyCivvieTauntHeal(PlayerEntity player, GameplayAbilityDefinition? ability)
+    {
+        if (player.ClassId != PlayerClass.Quote
+            || !player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.CivvieTaunt))
+        {
+            return;
+        }
+
+        var healAmount = ability is null
+            ? 30
+            : GameplayAbilityParameterReader.GetInt(ability, "healAmount", 30, minValue: 0);
+        var healRadius = ability is null
+            ? 120f
+            : GameplayAbilityParameterReader.GetFloat(ability, "healRadius", 120f, minValue: 0f);
+        if (healAmount <= 0 || healRadius <= 0f)
+        {
+            return;
+        }
+
+        var healRadiusSquared = healRadius * healRadius;
+        foreach (var target in EnumerateSimulatedPlayers())
+        {
+            if (!target.IsAlive || target.Team != player.Team)
+            {
+                continue;
+            }
+
+            var deltaX = target.X - player.X;
+            var deltaY = target.Y - player.Y;
+            if ((deltaX * deltaX) + (deltaY * deltaY) > healRadiusSquared)
+            {
+                continue;
+            }
+
+            ApplyHealingWithFeedback(target, healAmount, "HealSnd", player.X, player.Y);
+        }
     }
 
     internal GameplayAbilityResult ExecuteSoldierSecondaryToggleAbility(GameplayAbilityContext context)

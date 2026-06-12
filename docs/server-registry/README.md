@@ -10,10 +10,20 @@ The old `og2servers.php` script remains in this folder as a lightweight standalo
 
 Clients do not need a token. Dedicated servers do not need a token for normal heartbeat.
 
+Clients hide registry rows whose `protocolVersion`, `releaseChannel`, and `compatibilityKey`
+do not match the running package. This lets stable and beta servers share one public registry
+without advertising incompatible builds to each other.
+
 ## Client GET
 
 ```bash
 curl https://api.unkind-dev.com/api/servers
+```
+
+The default response is the stable channel. Beta clients request beta explicitly:
+
+```bash
+curl "https://api.unkind-dev.com/api/servers?releaseChannel=beta&protocolVersion=59"
 ```
 
 Response shape:
@@ -34,6 +44,9 @@ Response shape:
       "maxPlayers": 16,
       "spectators": 0,
       "protocolVersion": 38,
+      "buildVersion": "0.5.7.2",
+      "releaseChannel": "stable",
+      "compatibilityKey": "stable:0.5.7.2:38",
       "lastSeenIso": "2026-04-14T12:00:00+00:00"
     }
   ],
@@ -75,7 +88,7 @@ Registry accepts public writes with guardrails:
 ```bash
 curl -X POST https://api.unkind-dev.com/api/servers \
   -H "Content-Type: application/json" \
-  -d "{\"name\":\"Test Server\",\"host\":\"server.example.com\",\"udpPort\":8190,\"webSocketPort\":8191,\"webSocketUrl\":\"wss://server.example.com/opengarrison/ws\",\"map\":\"ctf_orange\",\"mode\":\"CTF\",\"players\":2,\"maxPlayers\":16,\"spectators\":0,\"protocolVersion\":38}"
+  -d "{\"name\":\"Test Server\",\"host\":\"server.example.com\",\"udpPort\":8190,\"webSocketPort\":8191,\"webSocketUrl\":\"wss://server.example.com/opengarrison/ws\",\"map\":\"ctf_orange\",\"mode\":\"CTF\",\"players\":2,\"maxPlayers\":16,\"spectators\":0,\"protocolVersion\":38,\"buildVersion\":\"0.5.7.2\",\"releaseChannel\":\"stable\",\"compatibilityKey\":\"stable:0.5.7.2:38\"}"
 ```
 
 Admin remove needs `OPENGARRISON_REGISTRY_TOKEN` configured on the service:

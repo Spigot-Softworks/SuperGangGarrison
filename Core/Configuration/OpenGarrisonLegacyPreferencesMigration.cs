@@ -71,6 +71,12 @@ public static class OpenGarrisonLegacyPreferencesMigration
             preferences.Fullscreen = fullscreen;
         }
 
+        if (TryGetProperty(root, "DisplayMode", out var displayModeElement)
+            && TryReadEnum(displayModeElement, out DisplayModeKind displayMode))
+        {
+            preferences.DisplayMode = displayMode;
+        }
+
         if (TryReadBool(root, "VSync", out var vSync))
         {
             preferences.VSync = vSync;
@@ -312,6 +318,20 @@ public static class OpenGarrisonLegacyPreferencesMigration
         if (TryReadBool(hostDefaults, "AutoBalanceEnabled", out var autoBalanceEnabled))
         {
             hostSettings.AutoBalanceEnabled = autoBalanceEnabled;
+        }
+
+        if (TryReadBool(hostDefaults, "SwitchTeamsAfterRoundEnd", out var switchTeamsAfterRoundEnd))
+        {
+            hostSettings.SwitchTeamsAfterRoundEnd = switchTeamsAfterRoundEnd;
+        }
+
+        if (TryReadInt(hostDefaults, "TeamShuffleAfterWins", out var teamShuffleAfterWins))
+        {
+            hostSettings.TeamShuffleAfterWins = OpenGarrisonHostSettings.NormalizeTeamShuffleAfterWins(teamShuffleAfterWins);
+        }
+        else if (TryReadInt(hostDefaults, "TeamScrambleAfterWins", out var teamScrambleAfterWins))
+        {
+            hostSettings.TeamShuffleAfterWins = OpenGarrisonHostSettings.NormalizeTeamShuffleAfterWins(teamScrambleAfterWins);
         }
 
         if (TryReadBool(hostDefaults, "DedicatedModeEnabled", out var dedicatedModeEnabled))

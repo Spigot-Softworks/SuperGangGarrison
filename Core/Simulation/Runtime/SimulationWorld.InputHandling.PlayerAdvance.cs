@@ -22,6 +22,8 @@ public sealed partial class SimulationWorld
             {
                 FirePrimary = false,
                 FireSecondary = false,
+                UseAbility = false,
+                SwapWeapon = false,
                 BuildSentry = false,
                 DestroySentry = false,
             };
@@ -31,6 +33,8 @@ public sealed partial class SimulationWorld
             {
                 player.TryToggleBinoculars();
             }
+
+            player.ForceEndSpyStealthForHumiliation();
         }
         
         // Disable shooting while using binoculars
@@ -72,17 +76,12 @@ public sealed partial class SimulationWorld
         var abilityPressed = input.UseAbility && !previousInput.UseAbility;
         var abilityReleased = !input.UseAbility && previousInput.UseAbility;
         var swapWeaponPressed = input.SwapWeapon && !previousInput.SwapWeapon;
-        var specialAbilitiesEnabled = ExperimentalGameplaySettings.EnableSecondaryAbilities;
-        var secondaryWeaponTriggeredPyroSelfAirblast = specialAbilitiesEnabled
-            && player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.PyroUtility)
-            && abilityPressed
-            && player.CanFirePyroAirblast();
         var interactWeaponPressed = input.InteractWeapon && !previousInput.InteractWeapon;
         var allowHeldSecondaryAbility = ShouldUseHeldSecondaryAbility(player)
             || player.HasAcquiredMedigunEquipped;
         var allowHeldUtilityAbility = ShouldUseHeldUtilityAbility(player);
         var suppressPyroPrimaryThisTick = player.HasPyroWeaponEquipped
-            && (secondaryAbilityPressed || secondaryWeaponTriggeredPyroSelfAirblast)
+            && secondaryAbilityPressed
             && player.CanFirePyroAirblast();
 
         player.ObserveSpySuperjumpAbilityInput(input.UseAbility);
@@ -125,9 +124,9 @@ public sealed partial class SimulationWorld
             }
         }
 
-        if (isHumiliated && player.ClassId == PlayerClass.Spy && !player.IsSpyBackstabAnimating)
+        if (isHumiliated)
         {
-            player.ForceDecloak();
+            player.ForceEndSpyStealthForHumiliation();
         }
 
         var wasSpyBackstabAnimating = player.IsSpyBackstabAnimating;
@@ -150,7 +149,7 @@ public sealed partial class SimulationWorld
                 preAdvanceY);
             if (!tauntAbilityResult.ConsumedInput)
             {
-                player.TryStartTaunt();
+                TryStartTauntWithCivvieHeal(player);
             }
         }
 
@@ -235,6 +234,7 @@ public sealed partial class SimulationWorld
         ResolveMovingPlatformLanding(player, previousBottom, input.Down);
         HandleJumpPadTriggerContactEffects(player);
         TryRegisterIntelTrailEffect(player);
+        TryRegisterCivvieMoneyTrail(player);
         UpdateSpawnRoomState(player);
         TryActivatePendingSpyBackstab(player);
 

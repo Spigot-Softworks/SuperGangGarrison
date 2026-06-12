@@ -5,6 +5,20 @@ namespace OpenGarrison.Core.BotBrain;
 
 public sealed class BotBrainPracticeBotController : IPracticeBotController
 {
+    private readonly record struct BotThinkWorkItem(
+        byte Slot,
+        ControlledBotSlot ControlledSlot,
+        PlayerEntity Player,
+        BotBrainController Controller);
+
+    private readonly record struct BotThinkResult(
+        bool HasInput,
+        byte Slot,
+        PlayerTeam Team,
+        PlayerEntity Player,
+        BotBrainController Controller,
+        PlayerInputSnapshot Input);
+
     private readonly Dictionary<byte, BotBrainController> _controllersBySlot = new();
     private readonly Dictionary<byte, ControlledBotSlot> _configuredSlots = new();
     private readonly Dictionary<byte, PlayerTeam> _controlledTeamsBySlot = new();
@@ -139,6 +153,40 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
             _controlledTeamsBySlot[slot] = controlledSlot.Team;
         }
 
+        var workItems = BuildBotThinkWorkItems(world, controlledSlots, slotsToThink);
+        if (workItems.Length == 0)
+        {
+            return inputs;
+        }
+
+        var thinkResults = BuildBotThinkResults(world, workItems, _controlledTeamsBySlot);
+        for (var index = 0; index < thinkResults.Length; index += 1)
+        {
+            var result = thinkResults[index];
+            if (!result.HasInput)
+            {
+                continue;
+            }
+
+            inputs[result.Slot] = _chatBubbles.Update(
+                world,
+                result.Slot,
+                result.Player,
+                result.Team,
+                result.Controller,
+                result.Input,
+                _controlledTeamsBySlot);
+        }
+
+        return inputs;
+    }
+
+    private BotThinkWorkItem[] BuildBotThinkWorkItems(
+        SimulationWorld world,
+        IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots,
+        IReadOnlyCollection<byte> slotsToThink)
+    {
+        var workItems = new List<BotThinkWorkItem>(slotsToThink.Count);
         foreach (var slot in slotsToThink)
         {
             if (!controlledSlots.TryGetValue(slot, out var controlledSlot))
@@ -165,18 +213,43 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
                 _configuredSlots[slot] = controlledSlot;
             }
 
-            var input = controller.Think(player, world, controlledSlot.Team, _controlledTeamsBySlot);
-            inputs[slot] = _chatBubbles.Update(
-                world,
-                slot,
-                player,
-                controlledSlot.Team,
-                controller,
-                input,
-                _controlledTeamsBySlot);
+            workItems.Add(new BotThinkWorkItem(slot, controlledSlot, player, controller));
         }
 
-        return inputs;
+        return workItems.Count == 0 ? Array.Empty<BotThinkWorkItem>() : [.. workItems];
+    }
+
+    private static BotThinkResult[] BuildBotThinkResults(
+        SimulationWorld world,
+        BotThinkWorkItem[] workItems,
+        IReadOnlyDictionary<byte, PlayerTeam> controlledTeamsBySlot)
+    {
+        var results = new BotThinkResult[workItems.Length];
+        for (var index = 0; index < workItems.Length; index += 1)
+        {
+            results[index] = ThinkForBot(world, workItems[index], controlledTeamsBySlot);
+        }
+
+        return results;
+    }
+
+    private static BotThinkResult ThinkForBot(
+        SimulationWorld world,
+        BotThinkWorkItem workItem,
+        IReadOnlyDictionary<byte, PlayerTeam> controlledTeamsBySlot)
+    {
+        var input = workItem.Controller.Think(
+            workItem.Player,
+            world,
+            workItem.ControlledSlot.Team,
+            controlledTeamsBySlot);
+        return new BotThinkResult(
+            true,
+            workItem.Slot,
+            workItem.ControlledSlot.Team,
+            workItem.Player,
+            workItem.Controller,
+            input);
     }
 }
 

@@ -7,6 +7,10 @@ public sealed partial class SimulationWorld
 
     private sealed partial class WeaponFireHandler
     {
+        private const float CivvieUmbrellaPivotXOffset = -6f;
+        private const float CivvieUmbrellaPivotYOffset = -7f;
+        private const float CivvieUmbrellaTipForwardOffset = 33f;
+
         private readonly SimulationWorld _world;
 
         public WeaponFireHandler(SimulationWorld world)
@@ -331,6 +335,40 @@ public sealed partial class SimulationWorld
                 weaponOrigin.BaseX + MathF.Cos(aimRadians) * 20f,
                 weaponOrigin.BaseY + MathF.Sin(aimRadians) * 20f,
                 aimRadians);
+        }
+
+        public (float SourceX, float SourceY, float TipX, float TipY, float AimRadians) GetCivvieUmbrellaRay(
+            PlayerEntity player,
+            float aimWorldX,
+            float aimWorldY)
+        {
+            var weaponOrigin = GetSourceWeaponOrigin(player, PlayerClass.Quote);
+            var aimDeltaXFromPlayer = aimWorldX - weaponOrigin.BaseX;
+            var facingScale = MathF.Abs(aimDeltaXFromPlayer) > 0.001f
+                ? (aimDeltaXFromPlayer < 0f ? -1f : 1f)
+                : (player.FacingDirectionX < 0f ? -1f : 1f);
+            var sourceX = weaponOrigin.BaseX + (CivvieUmbrellaPivotXOffset * facingScale);
+            var sourceY = weaponOrigin.BaseY + CivvieUmbrellaPivotYOffset;
+            var aimRadians = PointDirectionRadians(sourceX, sourceY, aimWorldX, aimWorldY, player.FacingDirectionX);
+            return (
+                sourceX,
+                sourceY,
+                sourceX + MathF.Cos(aimRadians) * CivvieUmbrellaTipForwardOffset,
+                sourceY + MathF.Sin(aimRadians) * CivvieUmbrellaTipForwardOffset,
+                aimRadians);
+        }
+
+        public (float X, float Y, float AimRadians) GetCivvieUmbrellaTip(PlayerEntity player, float aimWorldX, float aimWorldY)
+        {
+            var ray = GetCivvieUmbrellaRay(player, aimWorldX, aimWorldY);
+            return (ray.TipX, ray.TipY, ray.AimRadians);
+        }
+
+        private static bool IsCivvieUmbrellaPrimary(PrimaryWeaponDefinition weaponDefinition, PlayerClass weaponClassId)
+        {
+            return weaponClassId == PlayerClass.Quote
+                && CharacterClassCatalog.RuntimeRegistry.TryResolvePrimaryWeaponItemId(weaponDefinition, out var itemId)
+                && string.Equals(itemId, "weapon.umbrella", StringComparison.Ordinal);
         }
 
         private static float GetSourceWeaponYOffset(PlayerClass classId)

@@ -357,6 +357,11 @@ sealed class ServerSessionManager
         }
 
         var team = (PlayerTeam)requestedTeam;
+        if (!_world.CanNetworkPlayerChangeTeamInCurrentMode(slot))
+        {
+            return false;
+        }
+
         var accepted = deferUntilClassSelection
             ? _world.TryRequestNetworkPlayerTeamSelection(slot, team)
             : _world.TrySetNetworkPlayerTeam(slot, team);
@@ -385,6 +390,11 @@ sealed class ServerSessionManager
             }
 
             definition = CharacterClassCatalog.GetDefinition(gameplayClassId);
+            if (!_world.CanNetworkPlayerSelectClassInCurrentMode(slot, definition))
+            {
+                return false;
+            }
+
             if (!_world.TryApplyNetworkPlayerClassSelection(slot, gameplayClassId))
             {
                 return false;
@@ -399,6 +409,11 @@ sealed class ServerSessionManager
             }
 
             definition = CharacterClassCatalog.GetDefinition(playerClass);
+            if (!_world.CanNetworkPlayerSelectClassInCurrentMode(slot, definition))
+            {
+                return false;
+            }
+
             if (!_world.TryApplyNetworkPlayerClassSelection(slot, playerClass))
             {
                 return false;

@@ -63,6 +63,10 @@ public sealed partial class PlayerEntity
         float ContinuousHealingAccumulator,
         int QuoteBubbleCount,
         int QuoteBladesOut,
+        int CivvieUmbrellaChargeTicks,
+        bool IsCivvieUmbrellaActive,
+        bool IsCivvieUmbrellaBroken,
+        int CivvieUmbrellaAirblastCooldownTicksRemaining,
         int PyroAirblastCooldownTicks,
         bool IsSpyCloaked,
         float SpyCloakAlpha,
@@ -171,6 +175,10 @@ public sealed partial class PlayerEntity
             ContinuousHealingAccumulator,
             QuoteBubbleCount,
             QuoteBladesOut,
+            CivvieUmbrellaChargeTicks,
+            IsCivvieUmbrellaActive,
+            IsCivvieUmbrellaBroken,
+            CivvieUmbrellaAirblastCooldownTicksRemaining,
             PyroAirblastCooldownTicks,
             IsSpyCloaked,
             SpyCloakAlpha,
@@ -284,6 +292,10 @@ public sealed partial class PlayerEntity
         ContinuousHealingAccumulator = state.ContinuousHealingAccumulator;
         QuoteBubbleCount = state.QuoteBubbleCount;
         QuoteBladesOut = state.QuoteBladesOut;
+        CivvieUmbrellaChargeTicks = Math.Clamp(state.CivvieUmbrellaChargeTicks, 0, CivvieUmbrellaMaxChargeTicks);
+        IsCivvieUmbrellaActive = state.IsCivvieUmbrellaActive;
+        IsCivvieUmbrellaBroken = state.IsCivvieUmbrellaBroken;
+        CivvieUmbrellaAirblastCooldownTicksRemaining = Math.Max(0, state.CivvieUmbrellaAirblastCooldownTicksRemaining);
         PyroAirblastCooldownTicks = state.PyroAirblastCooldownTicks;
         PyroFlareCooldownTicks = state.PyroFlareCooldownTicks;
         IsSpyCloaked = state.IsSpyCloaked;

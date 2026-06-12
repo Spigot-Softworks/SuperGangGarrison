@@ -61,9 +61,9 @@ public partial class Game1
         AvailableMapIndex = -1;
     }
 
-    public IReadOnlyList<OpenGarrisonMapRotationEntry> GetAvailableMapsForDisplay()
+    public List<OpenGarrisonMapRotationEntry> GetAvailableMapsForDisplay()
     {
-        IEnumerable<OpenGarrisonMapRotationEntry> query = MapEntries;
+        IEnumerable<OpenGarrisonMapRotationEntry> query = MapEntries.Where(entry => !entry.IsPlaylistClone);
         if (AvailableMapModeFilter is { } modeFilter)
         {
             query = query.Where(entry => entry.Mode == modeFilter);
@@ -101,7 +101,7 @@ public partial class Game1
         return combined;
     }
 
-    public IReadOnlyList<OpenGarrisonMapRotationEntry> GetPlaylistMaps()
+    public List<OpenGarrisonMapRotationEntry> GetPlaylistMaps()
     {
         return MapEntries
             .Where(entry => entry.Order > 0)
@@ -113,7 +113,7 @@ public partial class Game1
     {
         return MapEntries.Any(entry =>
             entry.Order > 0
-            && string.Equals(entry.LevelName, levelName, StringComparison.OrdinalIgnoreCase));
+            && IsMapEntryMatch(entry, levelName));
     }
 
     public OpenGarrisonMapRotationEntry? GetSelectedAvailableMap()
@@ -155,20 +155,53 @@ public partial class Game1
     public void AddSelectedAvailableMapToPlaylist()
     {
         var selected = GetSelectedAvailableMap();
-        if (selected is null || IsMapInPlaylist(selected.LevelName))
+        if (selected is null)
         {
             return;
         }
 
-        var entry = MapEntries.FirstOrDefault(candidate =>
-            string.Equals(candidate.LevelName, selected.LevelName, StringComparison.OrdinalIgnoreCase));
+        var addedEntry = AppendMapToPlaylist(selected);
+        SelectPlaylistEntry(addedEntry);
+    }
+
+    public void AddMapToPlaylist(string levelName)
+    {
+        var entry = FindCatalogMapEntry(levelName);
         if (entry is null)
         {
             return;
         }
 
-        entry.Order = MapEntries.Where(map => map.Order > 0).Select(map => map.Order).DefaultIfEmpty(0).Max() + 1;
-        SyncPlaylistSelection(entry.LevelName);
+        var addedEntry = AppendMapToPlaylist(entry);
+        SelectPlaylistEntry(addedEntry);
+    }
+
+    public void ConvertPlaylistMapTo(OpenGarrisonMapRotationEntry playlistEntry, string levelName)
+    {
+        if (playlistEntry.Order <= 0)
+        {
+            return;
+        }
+
+        var replacementSource = FindCatalogMapEntry(levelName);
+        if (replacementSource is null)
+        {
+            return;
+        }
+
+        var desiredOrder = playlistEntry.Order;
+        if (playlistEntry.IsPlaylistClone)
+        {
+            MapEntries.Remove(playlistEntry);
+        }
+        else
+        {
+            playlistEntry.Order = 0;
+        }
+
+        var replacement = AppendMapToPlaylist(replacementSource, desiredOrder);
+        NormalizeIncludedMapOrders(MapEntries);
+        SelectPlaylistEntry(replacement);
     }
 
     public void RemoveSelectedPlaylistMap()
@@ -179,16 +212,25 @@ public partial class Game1
             return;
         }
 
-        var entry = MapEntries.FirstOrDefault(candidate =>
-            string.Equals(candidate.LevelName, selected.LevelName, StringComparison.OrdinalIgnoreCase));
-        if (entry is null)
+        var removedIndex = PlaylistMapIndex;
+        if (selected.IsPlaylistClone)
         {
+            MapEntries.Remove(selected);
+        }
+        else
+        {
+            selected.Order = 0;
+        }
+
+        NormalizeIncludedMapOrders(MapEntries);
+        var playlist = GetPlaylistMaps();
+        if (playlist.Count == 0)
+        {
+            PlaylistMapIndex = -1;
             return;
         }
 
-        entry.Order = 0;
-        NormalizeIncludedMapOrders(MapEntries);
-        SyncPlaylistSelection();
+        SelectPlaylistMap(Math.Clamp(removedIndex, 0, playlist.Count - 1));
     }
 
     public void MoveSelectedPlaylistMap(int direction)
@@ -207,9 +249,7 @@ public partial class Game1
 
         var selected = playlist[PlaylistMapIndex];
         var swapTarget = playlist[targetIndex];
-        var selectedEntry = MapEntries.First(entry => string.Equals(entry.LevelName, selected.LevelName, StringComparison.OrdinalIgnoreCase));
-        var swapEntry = MapEntries.First(entry => string.Equals(entry.LevelName, swapTarget.LevelName, StringComparison.OrdinalIgnoreCase));
-        (selectedEntry.Order, swapEntry.Order) = (swapEntry.Order, selectedEntry.Order);
+        (selected.Order, swapTarget.Order) = (swapTarget.Order, selected.Order);
         SelectPlaylistMap(targetIndex);
     }
 
@@ -241,21 +281,23 @@ public partial class Game1
                 return false;
             }
 
+            MapEntries.RemoveAll(entry => entry.IsPlaylistClone);
             foreach (var entry in MapEntries)
             {
                 entry.Order = 0;
             }
 
             var order = 1;
+            var catalog = MapEntries.Where(entry => !entry.IsPlaylistClone).ToList();
             foreach (var line in lines)
             {
-                if (!HostSetupPlaylistFileIO.TryResolvePlaylistLine(line, MapEntries, out var resolved))
+                if (!HostSetupPlaylistFileIO.TryResolvePlaylistLine(line, catalog, out var resolved))
                 {
                     error = $"Unknown map in playlist: {line}";
                     return false;
                 }
 
-                resolved.Order = order;
+                AppendMapToPlaylist(resolved, order);
                 order += 1;
             }
 
@@ -358,6 +400,62 @@ public partial class Game1
         }
     }
 
+    private OpenGarrisonMapRotationEntry AppendMapToPlaylist(OpenGarrisonMapRotationEntry entry, int? requestedOrder = null)
+    {
+        var playlistEntry = entry.Order > 0 ? entry.Clone() : entry;
+        if (!ReferenceEquals(playlistEntry, entry))
+        {
+            playlistEntry.IsPlaylistClone = true;
+            MapEntries.Add(playlistEntry);
+        }
+
+        playlistEntry.Order = requestedOrder ?? MapEntries
+            .Where(map => map.Order > 0)
+            .Select(map => map.Order)
+            .DefaultIfEmpty(0)
+            .Max() + 1;
+        return playlistEntry;
+    }
+
+    private OpenGarrisonMapRotationEntry? FindCatalogMapEntry(string levelName)
+    {
+        var catalog = MapEntries
+            .Where(entry => !entry.IsPlaylistClone)
+            .ToList();
+        return HostSetupPlaylistFileIO.TryResolvePlaylistLine(levelName, catalog, out var entry)
+            ? entry
+            : null;
+    }
+
+    private void SelectPlaylistEntry(OpenGarrisonMapRotationEntry entry)
+    {
+        var playlist = GetPlaylistMaps();
+        for (var index = 0; index < playlist.Count; index += 1)
+        {
+            if (ReferenceEquals(playlist[index], entry))
+            {
+                SelectPlaylistMap(index);
+                return;
+            }
+        }
+
+        SyncPlaylistSelection(entry.LevelName);
+    }
+
+    private static bool IsMapEntryMatch(OpenGarrisonMapRotationEntry entry, string levelName)
+    {
+        if (string.Equals(entry.LevelName, levelName, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(entry.IniKey, levelName, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(entry.DisplayName, levelName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return OpenGarrisonStockMapCatalog.TryGetDefinition(levelName, out var definition)
+            && (string.Equals(entry.IniKey, definition.IniKey, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(entry.LevelName, definition.LevelName, StringComparison.OrdinalIgnoreCase));
+    }
+
     private static void EnsureListIndexVisible(
         int selectedIndex,
         int visibleRowCount,
@@ -393,13 +491,21 @@ public sealed class HostSetupMapContextMenuState
 {
     public required string LevelName { get; init; }
 
+    public OpenGarrisonMapRotationEntry? Entry { get; init; }
+
     public required bool IsPlaylistList { get; init; }
 
     public bool IsFavourite { get; init; }
 
+    public string? VipVariantLevelName { get; init; }
+
+    public string? VipVariantLabel { get; init; }
+
     public required Rectangle MenuBounds { get; init; }
 
     public Rectangle FavouriteBounds { get; init; }
+
+    public Rectangle VipVariantBounds { get; init; }
 
     public Rectangle PreviewBounds { get; init; }
 }

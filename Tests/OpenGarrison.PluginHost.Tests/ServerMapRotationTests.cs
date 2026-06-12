@@ -68,6 +68,107 @@ public sealed class ServerMapRotationTests
     }
 
     [Fact]
+    public void MapRotationRoundCountRestartsCurrentMapUntilThreshold()
+    {
+        var world = new SimulationWorld();
+        var manager = new MapRotationManager(
+            world,
+            requestedMap: "Truefort",
+            mapRotationFile: null,
+            stockMapRotation: ["Truefort", "Conflict", "ClassicWell"],
+            static _ => { });
+        manager.ConfigureAdvancePolicy(MapRotationAdvanceMode.RoundCount, roundCount: 2, timeMinutes: 15);
+
+        ForceMapChangeReady(world);
+
+        Assert.True(manager.TryApplyPendingMapChange(out var firstTransition));
+        Assert.Equal("Truefort", firstTransition.NextLevelName);
+        Assert.Equal("Truefort", world.Level.Name);
+        Assert.Equal(1, manager.CompletedRoundsOnCurrentMap);
+
+        ForceMapChangeReady(world);
+
+        Assert.True(manager.TryApplyPendingMapChange(out var secondTransition));
+        Assert.Equal("Conflict", secondTransition.NextLevelName);
+        Assert.Equal("Conflict", world.Level.Name);
+        Assert.Equal(0, manager.CompletedRoundsOnCurrentMap);
+    }
+
+    [Fact]
+    public void MapRotationTimeElapsedRestartsCurrentMapUntilThreshold()
+    {
+        var world = new SimulationWorld();
+        var manager = new MapRotationManager(
+            world,
+            requestedMap: "Truefort",
+            mapRotationFile: null,
+            stockMapRotation: ["Truefort", "Conflict", "ClassicWell"],
+            static _ => { });
+        manager.ConfigureAdvancePolicy(MapRotationAdvanceMode.TimeElapsed, roundCount: 1, timeMinutes: 2);
+
+        ForceMapChangeReady(world);
+
+        Assert.True(manager.TryApplyPendingMapChange(out var firstTransition));
+        Assert.Equal("Truefort", firstTransition.NextLevelName);
+        Assert.Equal("Truefort", world.Level.Name);
+
+        SetWorldFrame(world, world.Config.TicksPerSecond * 60 * 2);
+        ForceMapChangeReady(world);
+
+        Assert.True(manager.TryApplyPendingMapChange(out var secondTransition));
+        Assert.Equal("Conflict", secondTransition.NextLevelName);
+        Assert.Equal("Conflict", world.Level.Name);
+    }
+
+    [Fact]
+    public void VipStagedMapRedWinAdvancesToNextArea()
+    {
+        var world = new SimulationWorld();
+        var manager = new MapRotationManager(
+            world,
+            requestedMap: "vip_dirtbowl",
+            mapRotationFile: null,
+            stockMapRotation: ["vip_dirtbowl", "Truefort"],
+            static _ => { });
+
+        ForceMapChangeReady(world, PlayerTeam.Red);
+
+        Assert.True(manager.TryApplyPendingMapChange(out var transition));
+        Assert.Equal("vip_dirtbowl", transition.CurrentLevelName);
+        Assert.Equal(GameModeKind.Vip, transition.CurrentGameMode);
+        Assert.Equal("vip_dirtbowl", transition.NextLevelName);
+        Assert.Equal(2, transition.NextAreaIndex);
+        Assert.True(transition.PreservePlayerStats);
+        Assert.Equal("vip_dirtbowl", world.Level.Name);
+        Assert.Equal(2, world.Level.MapAreaIndex);
+        Assert.Equal(GameModeKind.Vip, world.MatchRules.Mode);
+    }
+
+    [Fact]
+    public void VipStagedMapBlueWinRestartsCurrentAreaForTeamSwitch()
+    {
+        var world = new SimulationWorld();
+        var manager = new MapRotationManager(
+            world,
+            requestedMap: "vip_dirtbowl",
+            mapRotationFile: null,
+            stockMapRotation: ["vip_dirtbowl", "Truefort"],
+            static _ => { });
+
+        ForceMapChangeReady(world, PlayerTeam.Blue);
+
+        Assert.True(manager.TryApplyPendingMapChange(out var transition));
+        Assert.Equal("vip_dirtbowl", transition.CurrentLevelName);
+        Assert.Equal(GameModeKind.Vip, transition.CurrentGameMode);
+        Assert.Equal("vip_dirtbowl", transition.NextLevelName);
+        Assert.Equal(1, transition.NextAreaIndex);
+        Assert.False(transition.PreservePlayerStats);
+        Assert.Equal("vip_dirtbowl", world.Level.Name);
+        Assert.Equal(1, world.Level.MapAreaIndex);
+        Assert.Equal(GameModeKind.Vip, world.MatchRules.Mode);
+    }
+
+    [Fact]
     public void MapRotationFileAcceptsCustomMapPathsAndExtensions()
     {
         var root = Path.Combine(Path.GetTempPath(), $"opengarrison-rotation-{Guid.NewGuid():N}");
@@ -114,5 +215,14 @@ public sealed class ServerMapRotationTests
         var mapChangeReadyField = typeof(SimulationWorld).GetField("_mapChangeReady", BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new InvalidOperationException("_mapChangeReady field was not found.");
         mapChangeReadyField.SetValue(world, true);
+    }
+
+    private static void SetWorldFrame(SimulationWorld world, long frame)
+    {
+        var frameProperty = typeof(SimulationWorld).GetProperty(nameof(SimulationWorld.Frame))
+            ?? throw new InvalidOperationException("Frame property was not found.");
+        var frameSetter = frameProperty.GetSetMethod(nonPublic: true)
+            ?? throw new InvalidOperationException("Frame setter was not found.");
+        frameSetter.Invoke(world, [frame]);
     }
 }

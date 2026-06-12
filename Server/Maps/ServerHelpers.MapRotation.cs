@@ -31,6 +31,7 @@ internal static partial class ServerHelpers
         var prefix = world.MatchRules.Mode switch
         {
             GameModeKind.ControlPoint => "cp",
+            GameModeKind.Vip => "vip",
             GameModeKind.Arena => "arena",
             GameModeKind.Generator => "gen",
             GameModeKind.KingOfTheHill => "koth",
@@ -196,6 +197,7 @@ internal static partial class ServerHelpers
         var prefix = trimmed[..underscoreIndex];
         return prefix.Equals("ctf", StringComparison.OrdinalIgnoreCase)
             || prefix.Equals("cp", StringComparison.OrdinalIgnoreCase)
+            || prefix.Equals("vip", StringComparison.OrdinalIgnoreCase)
             || prefix.Equals("arena", StringComparison.OrdinalIgnoreCase)
             || prefix.Equals("gen", StringComparison.OrdinalIgnoreCase)
             || prefix.Equals("koth", StringComparison.OrdinalIgnoreCase)
@@ -227,6 +229,12 @@ internal static partial class ServerHelpers
             nextArea = currentArea + 1;
             preserveStats = true;
             log($"[server] advancing to {nextMap} area {nextArea}/{totalAreas} (winner red)");
+        }
+        else if (winner == PlayerTeam.Blue && currentArea < totalAreas)
+        {
+            nextMap = world.Level.Name;
+            nextArea = currentArea;
+            log($"[server] restarting {nextMap} area {nextArea}/{totalAreas} for defender win");
         }
         else if (mapRotation.Count > 0)
         {

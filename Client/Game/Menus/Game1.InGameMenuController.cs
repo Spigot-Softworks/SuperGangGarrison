@@ -201,6 +201,7 @@ public partial class Game1
                         _game.OpenOptionsMenu(fromGameplay: true);
                         CloseInGameMenu();
                     }),
+                    new("Social", OpenSocialMenu),
                     new("Leave Last To Die", () => _game.ReturnToLastToDieMenu("Last To Die ended.")),
                     new("Quit Game", _game.OpenQuitPrompt),
                 };
@@ -225,6 +226,7 @@ public partial class Game1
                         _game.OpenOptionsMenu(fromGameplay: true);
                         CloseInGameMenu();
                     }),
+                    new("Social", OpenSocialMenu),
                     new("Return to editor", () =>
                     {
                         CloseInGameMenu();
@@ -243,6 +245,7 @@ public partial class Game1
                         _game.OpenOptionsMenu(fromGameplay: true);
                         CloseInGameMenu();
                     }),
+                    new("Social", OpenSocialMenu),
                     new("Practice Setup", _game.OpenPracticeSetupMenu),
                     new("Leave Practice", () => _game.ReturnToMainMenu(_game.GetGameplayExitStatusMessage())),
                     new("Quit Game", _game.OpenQuitPrompt),
@@ -272,6 +275,7 @@ public partial class Game1
                     _game.OpenOptionsMenu(fromGameplay: true);
                     CloseInGameMenu();
                 }),
+                new("Social", OpenSocialMenu),
                 new("Disconnect", () => _game.ReturnToMainMenu(_game.GetGameplayExitStatusMessage())),
                 new("Quit Game", _game.OpenQuitPrompt),
             };
@@ -316,6 +320,11 @@ public partial class Game1
                 CloseInGameMenu();
                 _game.OpenGameplayClassSelection();
             }));
+        }
+
+        private void OpenSocialMenu()
+        {
+            _game.OpenFriendsMenu();
         }
     }
 }

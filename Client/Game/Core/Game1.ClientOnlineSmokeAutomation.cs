@@ -81,9 +81,9 @@ public partial class Game1
 
         if (_classSelectOpen)
         {
-            ApplyDirectClassSelection(PlayerClass.Scout);
+            ApplyDirectClassSelection(GetClientPerformanceClass());
             CloseGameplaySelectionMenus();
-            AppendClientOnlineSmokeLine("event=class_select class=Scout");
+            AppendClientOnlineSmokeLine($"event=class_select class={GetClientPerformanceClass()}");
             return;
         }
 

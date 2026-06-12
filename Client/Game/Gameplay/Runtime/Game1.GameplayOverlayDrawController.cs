@@ -21,6 +21,19 @@ public partial class Game1
 
         public void DrawFrame(GameTime gameTime)
         {
+            if (_game.IsNetworkWorldWarmupBlockingGameplay())
+            {
+                _game.BeginLogicalFrame(new Color(24, 32, 48));
+                _game.DrawLoadingOverlay();
+                if (!_game._gameplayHudHidden)
+                {
+                    _game.DrawVersionOverlay();
+                }
+
+                _game.EndLogicalFrame();
+                return;
+            }
+
             var viewportWidth = _game.ViewportWidth;
             var viewportHeight = _game.ViewportHeight;
             var gameplayViewportHeight = _game.GetGameplayCameraViewportHeight(viewportHeight);

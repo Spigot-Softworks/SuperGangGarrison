@@ -348,16 +348,32 @@ public sealed partial class SimulationWorld
             float aimWorldY,
             string killFeedWeaponSpriteNameOverride)
         {
+            var isCivvieUmbrella = IsCivvieUmbrellaPrimary(weaponDefinition, weaponClassId);
             var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
+            var barrelForwardOffset = 18f;
+            var shotOriginX = weaponOrigin.BaseX;
             var shotOriginY = weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + 1f;
-            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
-            var aimDeltaY = aimWorldY - shotOriginY;
-            if (aimDeltaX == 0f && aimDeltaY == 0f)
+            var directionRadians = 0f;
+            if (isCivvieUmbrella)
             {
-                aimDeltaX = attacker.FacingDirectionX;
+                var umbrellaRay = GetCivvieUmbrellaRay(attacker, aimWorldX, aimWorldY);
+                barrelForwardOffset = CivvieUmbrellaTipForwardOffset;
+                shotOriginX = umbrellaRay.SourceX;
+                shotOriginY = umbrellaRay.SourceY;
+                directionRadians = umbrellaRay.AimRadians;
+            }
+            else
+            {
+                var aimDeltaX = aimWorldX - shotOriginX;
+                var aimDeltaY = aimWorldY - shotOriginY;
+                if (aimDeltaX == 0f && aimDeltaY == 0f)
+                {
+                    aimDeltaX = attacker.FacingDirectionX;
+                }
+
+                directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
             }
 
-            var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
             var spreadRadians = GetWeaponSpreadRadians(attacker.Id, weaponDefinition.SpreadDegrees);
             var bulletAngle = directionRadians + spreadRadians;
             var projectileCount = GetExperimentalProjectilesPerShot(attacker, 1);
@@ -371,10 +387,13 @@ public sealed partial class SimulationWorld
                     attacker,
                     MathF.Cos(finalAngle) * weaponDefinition.MinShotSpeed,
                     MathF.Sin(finalAngle) * weaponDefinition.MinShotSpeed);
+                var nominalSpawnX = shotOriginX + MathF.Cos(finalAngle) * barrelForwardOffset;
+                var nominalSpawnY = shotOriginY + MathF.Sin(finalAngle) * barrelForwardOffset;
+                var spawnBlocked = _world.IsProjectileSpawnBlocked(shotOriginX, shotOriginY, nominalSpawnX, nominalSpawnY, attacker.Team);
                 SpawnRevolverShot(
                     attacker,
-                    weaponOrigin.BaseX,
-                    shotOriginY,
+                    spawnBlocked ? shotOriginX : nominalSpawnX,
+                    spawnBlocked ? shotOriginY : nominalSpawnY,
                     finalVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
                     finalVelocityY,
                     weaponDefinition.DirectHitDamage ?? RevolverProjectileEntity.DamagePerHit,

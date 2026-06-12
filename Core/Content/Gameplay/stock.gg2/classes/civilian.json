@@ -1,0 +1,37 @@
+{
+  "id": "civilian",
+  "displayName": "Civilian/Financier",
+  "runtime": {
+    "playerClass": "Quote",
+    "supportsExperimentalAcquiredWeapon": false,
+    "primaryWeaponKillFeedSprite": "CivvieUmbrellaKL"
+  },
+  "movement": {
+    "maxHealth": 140,
+    "collisionLeft": -7.0,
+    "collisionTop": -12.0,
+    "collisionRight": 8.0,
+    "collisionBottom": 12.0,
+    "runPower": 1.07,
+    "jumpStrength": 8.3,
+    "maxAirJumps": 0,
+    "tauntLengthFrames": 16
+  },
+  "presentation": {
+    "spritePrefix": "Civvie",
+    "baseSuffix": "S",
+    "runSuffix": "RunS",
+    "jumpSuffix": "RunS",
+    "tauntSuffix": "TauntS"
+  },
+  "loadouts": {
+    "civilian.stock": {
+      "id": "civilian.stock",
+      "displayName": "Stock",
+      "primaryItemId": "weapon.umbrella",
+      "secondaryItemId": "ability.umbrella",
+      "utilityItemId": "ability.civilian-taunt"
+    }
+  },
+  "defaultLoadoutId": "civilian.stock"
+}

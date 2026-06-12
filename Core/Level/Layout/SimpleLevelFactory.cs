@@ -376,6 +376,11 @@ public static class SimpleLevelFactory
     private static bool TryFindCatalogEntry(IReadOnlyList<LevelCatalogEntry> catalog, string levelName, out LevelCatalogEntry entry)
     {
         var trimmedLevelName = levelName.Trim();
+        if (TryFindVipCatalogEntry(catalog, trimmedLevelName, out entry))
+        {
+            return true;
+        }
+
         foreach (var candidate in catalog)
         {
             if (NameComparer.Equals(candidate.Name, trimmedLevelName))
@@ -396,6 +401,40 @@ public static class SimpleLevelFactory
         }
 
         entry = default;
+        return false;
+    }
+
+    private static bool TryFindVipCatalogEntry(IReadOnlyList<LevelCatalogEntry> catalog, string levelName, out LevelCatalogEntry entry)
+    {
+        entry = default;
+        if (!levelName.StartsWith("vip_", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var requestedBaseName = NormalizeLevelName(levelName);
+        foreach (var candidate in catalog)
+        {
+            if (candidate.Mode != GameModeKind.ControlPoint)
+            {
+                continue;
+            }
+
+            var candidateBaseName = NormalizeLevelName(candidate.Name);
+            if (!NameComparer.Equals(candidateBaseName, requestedBaseName)
+                && !(NameComparer.Equals(requestedBaseName, "dustbowl") && NameComparer.Equals(candidateBaseName, "dirtbowl")))
+            {
+                continue;
+            }
+
+            entry = candidate with
+            {
+                Name = levelName,
+                Mode = GameModeKind.Vip,
+            };
+            return true;
+        }
+
         return false;
     }
 
@@ -537,6 +576,7 @@ public static class SimpleLevelFactory
         if (trimmed.StartsWith("ctf_", StringComparison.OrdinalIgnoreCase)
             || trimmed.StartsWith("arena_", StringComparison.OrdinalIgnoreCase)
             || trimmed.StartsWith("cp_", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("vip_", StringComparison.OrdinalIgnoreCase)
             || trimmed.StartsWith("gen_", StringComparison.OrdinalIgnoreCase)
             || trimmed.StartsWith("koth_", StringComparison.OrdinalIgnoreCase)
             || trimmed.StartsWith("dkoth_", StringComparison.OrdinalIgnoreCase)

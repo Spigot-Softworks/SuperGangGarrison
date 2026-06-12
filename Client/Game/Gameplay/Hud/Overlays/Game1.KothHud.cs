@@ -22,6 +22,10 @@ public partial class Game1
         {
             DrawHudTextCentered($"Unlock {FormatHudTimerText(_world.KothUnlockTicksRemaining)}", new Vector2(centerX, 30f), Color.White, 1f);
         }
+        else
+        {
+            DrawMatchTimerHud(centerX);
+        }
     }
 
     private void DrawKothPointStatus()

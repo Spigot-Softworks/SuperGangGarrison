@@ -9,13 +9,15 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
     private const string LoadingOverlayTitle = "Smoke - Loading";
-    private const int LoadingOverlayWidth = 270;
-    private const int LoadingOverlayHeight = 78;
+    private const int LoadingOverlayWidth = 340;
+    private const int LoadingOverlayHeight = 84;
     private const int LoadingOverlayMargin = 12;
     private const int LoadingOverlayProgressSegments = 20;
+    private const float LoadingOverlayTextScale = 1f;
 
     private bool _loadingOverlayVisible;
     private string _loadingOverlayMessage = string.Empty;
+    private string _joiningServerLoadingLabel = string.Empty;
     private double? _loadingOverlayProgress;
 
     private void ShowLoadingOverlay(string message, double? progress = null)
@@ -46,11 +48,49 @@ public partial class Game1
         var bounds = new Rectangle(x, y, width, height);
 
         DrawRoundedRectangleOutline(bounds, new Color(54, 51, 50) * 0.96f, new Color(119, 119, 119), outlineThickness: 1, radius: 4);
-        DrawBitmapFontText(LoadingOverlayTitle, new Vector2(bounds.X + 10f, bounds.Y + 8f), Color.White, 0.86f);
+        DrawBitmapFontText(LoadingOverlayTitle, new Vector2(bounds.X + 10f, bounds.Y + 8f), Color.White, LoadingOverlayTextScale);
 
-        var message = TrimBitmapMenuText(_loadingOverlayMessage, bounds.Width - 20f, 0.78f);
-        DrawBitmapFontText(message, new Vector2(bounds.X + 10f, bounds.Y + 29f), Color.White, 0.78f);
+        var message = TrimBitmapMenuText(_loadingOverlayMessage, bounds.Width - 20f, LoadingOverlayTextScale);
+        DrawBitmapFontText(message, new Vector2(bounds.X + 10f, bounds.Y + 32f), Color.White, LoadingOverlayTextScale);
         DrawLoadingOverlayProgress(bounds);
+    }
+
+    private void ShowJoiningServerLoadingOverlay(string? serverLabel = null)
+    {
+        ShowLoadingOverlay(CreateJoiningServerLoadingMessage(serverLabel), progress: null);
+    }
+
+    private void SetJoiningServerLoadingLabel(string? serverLabel)
+    {
+        _joiningServerLoadingLabel = NormalizeLoadingOverlayServerLabel(serverLabel);
+    }
+
+    private string CreateJoiningServerLoadingMessage(string? serverLabel = null)
+    {
+        var resolvedServerLabel = NormalizeLoadingOverlayServerLabel(serverLabel);
+        if (string.IsNullOrWhiteSpace(resolvedServerLabel))
+        {
+            resolvedServerLabel = _joiningServerLoadingLabel;
+        }
+
+        if (string.IsNullOrWhiteSpace(resolvedServerLabel))
+        {
+            resolvedServerLabel = NormalizeLoadingOverlayServerLabel(_networkClient.ServerDescription);
+        }
+
+        if (string.IsNullOrWhiteSpace(resolvedServerLabel))
+        {
+            resolvedServerLabel = "server";
+        }
+
+        return $"Joining {resolvedServerLabel}...";
+    }
+
+    private static string NormalizeLoadingOverlayServerLabel(string? serverLabel)
+    {
+        return string.IsNullOrWhiteSpace(serverLabel)
+            ? string.Empty
+            : serverLabel.Trim();
     }
 
     private void DrawLoadingOverlayProgress(Rectangle bounds)

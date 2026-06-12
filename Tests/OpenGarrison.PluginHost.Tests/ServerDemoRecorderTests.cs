@@ -71,7 +71,7 @@ public sealed class ServerDemoRecorderTests
 
         currentLevelName = "Truefort";
         currentFrame = 10;
-        recorder.HandleMapTransition(new MapChangeTransition("ClassicWell", 1, 1, "Truefort", 1, false, null));
+        recorder.HandleMapTransition(new MapChangeTransition("ClassicWell", 1, 1, "Truefort", 1, false, null, GameModeKind.CaptureTheFlag));
 
         currentFrame = 11;
         recorder.RecordSnapshot(BuildSnapshot(currentLevelName, currentFrame));

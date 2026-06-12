@@ -6,7 +6,11 @@
       "udpPort": 0,
       "webSocketPort": 0,
       "webSocketUrl": "wss://45-61-52-208.sslip.io/opengarrison/ws",
-      "private": false
+      "private": false,
+      "protocolVersion": 58,
+      "buildVersion": "0.5.7.2",
+      "releaseChannel": "stable",
+      "compatibilityKey": "stable:0.5.7.2:58"
     },
     {
       "name": "Local WebSocket",
@@ -14,7 +18,11 @@
       "udpPort": 0,
       "webSocketPort": 8191,
       "webSocketUrl": "",
-      "private": false
+      "private": false,
+      "protocolVersion": 58,
+      "buildVersion": "0.5.7.2",
+      "releaseChannel": "stable",
+      "compatibilityKey": "stable:0.5.7.2:58"
     }
   ]
 }

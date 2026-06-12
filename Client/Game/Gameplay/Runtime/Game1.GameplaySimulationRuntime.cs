@@ -11,6 +11,8 @@ public partial class Game1
 {
     private const int BrowserOfflineSimulationMaxCatchUpTicks = 2;
     private const double BrowserOfflineSimulationMaxElapsedSeconds = 0.08d;
+    private const int PracticeBotOfflineSimulationMaxCatchUpTicks = 4;
+    private const double PracticeBotOfflineSimulationMaxElapsedSeconds = 0.12d;
 
     private void AdvanceGameplaySimulation(GameTime gameTime, PlayerInputSnapshot networkInput)
     {
@@ -48,10 +50,22 @@ public partial class Game1
             }
             else
             {
-                simulationTickCount = _simulator.Step(
-                    elapsedSeconds,
-                    OnPracticeSimulationBeforeTick,
-                    OnPracticeSimulationAfterTick);
+                if (IsOfflineBotSessionActive && _practiceBotSlots.Count > 0)
+                {
+                    elapsedSeconds = Math.Min(elapsedSeconds, PracticeBotOfflineSimulationMaxElapsedSeconds);
+                    simulationTickCount = _simulator.Step(
+                        elapsedSeconds,
+                        OnPracticeSimulationBeforeTick,
+                        OnPracticeSimulationAfterTick,
+                        PracticeBotOfflineSimulationMaxCatchUpTicks);
+                }
+                else
+                {
+                    simulationTickCount = _simulator.Step(
+                        elapsedSeconds,
+                        OnPracticeSimulationBeforeTick,
+                        OnPracticeSimulationAfterTick);
+                }
             }
 
             if (simulationTickCount > 0)

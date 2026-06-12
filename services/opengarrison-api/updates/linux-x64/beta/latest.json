@@ -1,0 +1,9 @@
+﻿{
+    "version":  "0.5.7.3-beta.1",
+    "channel":  "beta",
+    "url":  "OpenGarrison-Linux-x64.tar.gz",
+    "sha256":  "90adcd379d16dc52df12ce525088aea025813d16f6dd965a4bb0aaf273b22259",
+    "size":  95335918,
+    "minLauncherVersion":  "0.1.0",
+    "notesUrl":  ""
+}

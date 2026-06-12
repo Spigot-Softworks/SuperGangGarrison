@@ -8,15 +8,21 @@ internal static class ServerSimulationBatch
         double elapsedSeconds,
         Action beforeTickAdvanced,
         Action onTickAdvanced,
-        Action onSnapshotBatchReady,
+        Action onSnapshotTickReady,
         int? maxTicksPerAdvance = null)
     {
-        var ticks = simulator.Step(elapsedSeconds, beforeTickAdvanced, onTickAdvanced, maxTicksPerAdvance);
-        if (ticks > 0)
+        var ticks = simulator.Step(
+            elapsedSeconds,
+            beforeTickAdvanced,
+            () =>
+            {
+                onTickAdvanced();
+                onSnapshotTickReady();
+            },
+            maxTicksPerAdvance);
+        if (ticks == 0)
         {
-            // If the server catches up multiple simulation ticks in one loop,
-            // sending only the newest snapshot avoids burst-delivering stale frames.
-            onSnapshotBatchReady();
+            return 0;
         }
 
         return ticks;

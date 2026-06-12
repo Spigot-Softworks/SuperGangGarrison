@@ -1,5 +1,6 @@
 using System;
 using OpenGarrison.Core;
+using OpenGarrison.Protocol;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
@@ -15,6 +16,7 @@ public sealed class ServerDiscoveryLaunchOptionsTests
         Assert.False(options.UseLegacyLobbyServer);
         Assert.Equal(OpenGarrisonPreferencesDocument.DefaultLobbyHost, options.LobbyHost);
         Assert.Equal(new Uri(OpenGarrisonPreferencesDocument.DefaultLobbyHost), options.RegistryUrl);
+        Assert.Equal(OpenGarrison.Server.SnapshotBudgetMode.GameplayCriticalUntrimmed, options.SnapshotBudgetMode);
     }
 
     [Fact]
@@ -100,6 +102,85 @@ public sealed class ServerDiscoveryLaunchOptionsTests
         Assert.True(fromSettings.MapRotationShuffleEnabled);
         Assert.False(disabled.MapRotationShuffleEnabled);
         Assert.True(enabled.MapRotationShuffleEnabled);
+    }
+
+    [Fact]
+    public void RoundEndTeamRuleLaunchAliasesOverrideSettings()
+    {
+        var fromSettings = ServerLaunchOptions.Load([], _ => new ServerSettings
+        {
+            SwitchTeamsAfterRoundEnd = true,
+            TeamShuffleAfterWins = 3,
+        });
+        var switchDisabled = ServerLaunchOptions.Load(["--no-switch-teams-after-round-end"], _ => new ServerSettings
+        {
+            SwitchTeamsAfterRoundEnd = true,
+        });
+        var switchEnabled = ServerLaunchOptions.Load(["--switch-teams-after-round-end"], _ => new ServerSettings
+        {
+            SwitchTeamsAfterRoundEnd = false,
+        });
+        var shuffleOverride = ServerLaunchOptions.Load(["--team-scramble-after-wins", "7"], _ => new ServerSettings
+        {
+            TeamShuffleAfterWins = 2,
+        });
+
+        Assert.True(fromSettings.SwitchTeamsAfterRoundEnd);
+        Assert.Equal(3, fromSettings.TeamShuffleAfterWins);
+        Assert.False(switchDisabled.SwitchTeamsAfterRoundEnd);
+        Assert.True(switchEnabled.SwitchTeamsAfterRoundEnd);
+        Assert.Equal(7, shuffleOverride.TeamShuffleAfterWins);
+    }
+
+    [Fact]
+    public void SnapshotBudgetLaunchAliasesAreDiagnosticsOnlyOverrides()
+    {
+        var defaultOptions = ServerLaunchOptions.Load([], _ => new ServerSettings());
+        var balanced = ServerLaunchOptions.Load(["--snapshot-balanced"], _ => new ServerSettings());
+        var untrimmed = ServerLaunchOptions.Load(["--snapshot-no-trim"], _ => new ServerSettings
+        {
+            SnapshotBudgetMode = OpenGarrison.Server.SnapshotBudgetMode.Balanced,
+        });
+
+        Assert.Equal(OpenGarrison.Server.SnapshotBudgetMode.GameplayCriticalUntrimmed, defaultOptions.SnapshotBudgetMode);
+        Assert.Equal(OpenGarrison.Server.SnapshotBudgetMode.Balanced, balanced.SnapshotBudgetMode);
+        Assert.Equal(OpenGarrison.Server.SnapshotBudgetMode.GameplayCriticalUntrimmed, untrimmed.SnapshotBudgetMode);
+    }
+
+    [Fact]
+    public void RegistryCompatibilityLaunchAliasesOverridePackageDefaults()
+    {
+        var options = ServerLaunchOptions.Load(
+            [
+                "--build-version",
+                "0.5.8.0-beta.1",
+                "--release-channel",
+                "beta",
+            ],
+            _ => new ServerSettings());
+
+        Assert.Equal("0.5.8.0-beta.1", options.BuildVersion);
+        Assert.Equal("beta", options.ReleaseChannel);
+        Assert.Equal($"beta:0.5.8.0-beta.1:{ProtocolVersion.Current}", options.CompatibilityKey);
+    }
+
+    [Fact]
+    public void RegistryCompatibilityKeyLaunchAliasCanOverrideDerivedKey()
+    {
+        var options = ServerLaunchOptions.Load(
+            [
+                "--build-version",
+                "0.5.8.0-beta.1",
+                "--release-channel",
+                "beta",
+                "--compatibility-key",
+                "beta-netcode-experiment",
+            ],
+            _ => new ServerSettings());
+
+        Assert.Equal("0.5.8.0-beta.1", options.BuildVersion);
+        Assert.Equal("beta", options.ReleaseChannel);
+        Assert.Equal("beta-netcode-experiment", options.CompatibilityKey);
     }
 
     [Fact]

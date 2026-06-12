@@ -5,6 +5,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Core;
 using System;
+using System.Runtime.InteropServices;
 
 namespace OpenGarrison.Client;
 
@@ -18,29 +19,86 @@ public partial class Game1
 
     private bool ShouldUseNavEditorWindowGutter()
     {
-        return _navEditorEnabled && !_graphics.IsFullScreen;
+        return _navEditorEnabled && !IsScreenFillingDisplayMode(_displayMode);
     }
 
     private void ApplyGraphicsSettings()
     {
+        ApplyGraphicsSettings(persist: true);
+    }
+
+    private void ApplyGraphicsSettings(bool persist)
+    {
+        var previousDisplayMode = _displayMode;
+        RememberWindowedPosition(previousDisplayMode);
+
+        ApplyDisplayMode(_clientSettings.DisplayMode);
         ApplyIngameResolution(_clientSettings.IngameResolution);
         ApplyWindowSize(_clientSettings.WindowSize);
+        ApplyDisplayScaleMode(_clientSettings.DisplayScaleMode);
 
         if (OperatingSystem.IsBrowser())
         {
             // Browser rendering stays on the host canvas size; only the logical viewport changes.
+            ApplyDisplayMode(DisplayModeKind.Windowed);
             _graphics.IsFullScreen = false;
+            SetWindowBorderless(borderless: false);
             _graphics.SynchronizeWithVerticalRetrace = false;
-            _clientSettings.Fullscreen = false;
-            PersistClientSettings();
+            _clientSettings.DisplayMode = DisplayModeKind.Windowed;
+            if (persist)
+            {
+                PersistClientSettings();
+            }
             return;
         }
 
-        _graphics.IsFullScreen = _clientSettings.Fullscreen;
+        var displayMode = OpenGarrisonPreferencesDocument.NormalizeDisplayMode(_displayMode);
+        var isFullscreen = displayMode == DisplayModeKind.Fullscreen;
+        var isBorderless = IsBorderlessDisplayMode(displayMode);
+        if (!isFullscreen)
+        {
+            _graphics.IsFullScreen = false;
+        }
+
+        if (displayMode == DisplayModeKind.Windowed)
+        {
+            Window.AllowUserResizing = true;
+            RestoreNativeWindowedState(updateSize: false);
+        }
+
+        SetWindowBorderless(isBorderless);
+        _graphics.IsFullScreen = isFullscreen;
         _graphics.SynchronizeWithVerticalRetrace = _clientSettings.VSync;
-        ApplyPreferredBackBufferSize(_graphics.IsFullScreen, _ingameResolution, _windowSize);
+        ApplyPreferredBackBufferSize(displayMode, _ingameResolution, _windowSize);
         _graphics.ApplyChanges();
-        PersistClientSettings();
+        SetWindowBorderless(isBorderless);
+        if (displayMode == DisplayModeKind.Windowed)
+        {
+            Window.AllowUserResizing = true;
+            RestoreNativeWindowedState(updateSize: true);
+            PositionWindowedWindowAfterModeChange(previousDisplayMode);
+        }
+        else if (displayMode == DisplayModeKind.Borderless)
+        {
+            PositionBorderlessWindow();
+        }
+        else if (displayMode == DisplayModeKind.BorderlessWindow)
+        {
+            PositionBorderlessWindowCentered();
+        }
+
+        Window.AllowUserResizing = IsUserResizableDisplayMode(displayMode);
+        if (persist)
+        {
+            PersistClientSettings();
+        }
+    }
+
+    private void ApplyDisplayMode(DisplayModeKind displayMode)
+    {
+        _displayMode = OperatingSystem.IsBrowser()
+            ? DisplayModeKind.Windowed
+            : OpenGarrisonPreferencesDocument.NormalizeDisplayMode(displayMode);
     }
 
     private void ApplyIngameResolution(IngameResolutionKind ingameResolution)
@@ -58,6 +116,11 @@ public partial class Game1
     private void ApplyWindowSize(WindowSizeKind windowSize)
     {
         _windowSize = OpenGarrisonPreferencesDocument.NormalizeWindowSize(windowSize);
+    }
+
+    private void ApplyDisplayScaleMode(DisplayScaleModeKind displayScaleMode)
+    {
+        _displayScaleMode = OpenGarrisonPreferencesDocument.NormalizeDisplayScaleMode(displayScaleMode);
     }
 
     private void EnsureGameRenderTarget()
@@ -121,10 +184,11 @@ public partial class Game1
         GraphicsDevice.SetRenderTarget(null);
         WriteGameplayRenderTrace("frame endlogical clear-backbuffer");
         GraphicsDevice.Clear(Color.Black);
+        var presentationDestination = GetPresentationDestinationRectangle();
         WriteGameplayRenderTrace("frame endlogical spritebatchbegin-2");
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
         WriteGameplayRenderTrace("frame endlogical draw-rendertarget");
-        _spriteBatch.Draw(_gameRenderTarget, GetPresentationDestinationRectangle(), Color.White);
+        _spriteBatch.Draw(_gameRenderTarget, presentationDestination, Color.White);
         WriteGameplayRenderTrace("frame endlogical spritebatchend-2");
         _spriteBatch.End();
         _logicalFrameRendersDirectlyToBackBuffer = false;
@@ -137,7 +201,7 @@ public partial class Game1
         var actualHeight = GraphicsDevice.Viewport.Height;
         if (actualWidth <= 0 || actualHeight <= 0)
         {
-            var fallback = GetPreferredBackBufferDimensions(fullscreen: false, _ingameResolution, _windowSize);
+            var fallback = GetPreferredBackBufferDimensions(DisplayModeKind.Windowed, _ingameResolution, _windowSize);
             return new Rectangle(0, 0, fallback.X, fallback.Y);
         }
 
@@ -179,7 +243,7 @@ public partial class Game1
 
         if (inputWidth <= 0 || inputHeight <= 0)
         {
-            var fallback = GetPreferredBackBufferDimensions(fullscreen: false, _ingameResolution, _windowSize);
+            var fallback = GetPreferredBackBufferDimensions(DisplayModeKind.Windowed, _ingameResolution, _windowSize);
             return new Rectangle(0, 0, fallback.X, fallback.Y);
         }
 
@@ -192,6 +256,15 @@ public partial class Game1
             ? Math.Max(1, surfaceWidth - GetNavEditorWindowGutterWidth())
             : surfaceWidth;
         var scale = MathF.Min(availableWidth / (float)ViewportWidth, surfaceHeight / (float)ViewportHeight);
+        if (ShouldUsePixelPerfectDisplayScale())
+        {
+            var integerScale = MathF.Floor(scale);
+            if (integerScale >= 1f)
+            {
+                scale = integerScale;
+            }
+        }
+
         var destinationWidth = Math.Max(1, (int)MathF.Floor(ViewportWidth * scale));
         var destinationHeight = Math.Max(1, (int)MathF.Floor(ViewportHeight * scale));
         return new Rectangle(
@@ -199,6 +272,11 @@ public partial class Game1
             (surfaceHeight - destinationHeight) / 2,
             destinationWidth,
             destinationHeight);
+    }
+
+    private bool ShouldUsePixelPerfectDisplayScale()
+    {
+        return OpenGarrisonPreferencesDocument.NormalizeDisplayScaleMode(_displayScaleMode) == DisplayScaleModeKind.PixelPerfect;
     }
 
     private MouseState GetScaledMouseState(MouseState rawMouse)
@@ -224,7 +302,7 @@ public partial class Game1
 
     private MouseState GetConstrainedMouseState(MouseState rawMouse)
     {
-        if (!_graphics.IsFullScreen || !IsActive)
+        if (!IsScreenFillingDisplayMode(_displayMode) || !IsActive)
         {
             return rawMouse;
         }
@@ -253,17 +331,17 @@ public partial class Game1
             rawMouse.XButton2);
     }
 
-    private void ApplyPreferredBackBufferSize(bool fullscreen, IngameResolutionKind ingameResolution, WindowSizeKind windowSize)
+    private void ApplyPreferredBackBufferSize(DisplayModeKind displayMode, IngameResolutionKind ingameResolution, WindowSizeKind windowSize)
     {
-        var preferredDimensions = GetWindowDimensions(fullscreen, ingameResolution, windowSize);
+        var preferredDimensions = GetWindowDimensions(displayMode, ingameResolution, windowSize);
         _graphics.PreferredBackBufferWidth = preferredDimensions.X;
         _graphics.PreferredBackBufferHeight = preferredDimensions.Y;
     }
 
-    private Point GetWindowDimensions(bool fullscreen, IngameResolutionKind ingameResolution, WindowSizeKind windowSize)
+    private Point GetWindowDimensions(DisplayModeKind displayMode, IngameResolutionKind ingameResolution, WindowSizeKind windowSize)
     {
-        var gameplayDimensions = GetPreferredBackBufferDimensions(fullscreen, ingameResolution, windowSize);
-        if (fullscreen || !_navEditorEnabled)
+        var gameplayDimensions = GetPreferredBackBufferDimensions(displayMode, ingameResolution, windowSize);
+        if (IsScreenFillingDisplayMode(displayMode) || !_navEditorEnabled)
         {
             return gameplayDimensions;
         }
@@ -275,7 +353,7 @@ public partial class Game1
 
     private void RefreshNavEditorWindowGutter()
     {
-        var preferredDimensions = GetWindowDimensions(_graphics.IsFullScreen, _ingameResolution, _windowSize);
+        var preferredDimensions = GetWindowDimensions(_displayMode, _ingameResolution, _windowSize);
         if (_graphics.PreferredBackBufferWidth == preferredDimensions.X
             && _graphics.PreferredBackBufferHeight == preferredDimensions.Y)
         {
@@ -297,12 +375,12 @@ public partial class Game1
         return NavEditorPanelExpandedHeight + (NavEditorPanelMargin * 2);
     }
 
-    private static Point GetPreferredBackBufferDimensions(bool fullscreen, IngameResolutionKind ingameResolution, WindowSizeKind windowSize)
+    private static Point GetPreferredBackBufferDimensions(DisplayModeKind displayMode, IngameResolutionKind ingameResolution, WindowSizeKind windowSize)
     {
-        if (fullscreen && !OperatingSystem.IsBrowser())
+        if (IsScreenFillingDisplayMode(displayMode) && !OperatingSystem.IsBrowser())
         {
-            var displayMode = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
-            return new Point(displayMode.Width, displayMode.Height);
+            var adapterDisplayMode = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
+            return new Point(adapterDisplayMode.Width, adapterDisplayMode.Height);
         }
 
         var viewportDimensions = GetViewportDimensions(ingameResolution);
@@ -340,7 +418,7 @@ public partial class Game1
         return NormalizeIngameResolution(ingameResolution) switch
         {
             IngameResolutionKind.Aspect5x4 => new Point(780, 624),
-            IngameResolutionKind.Aspect16x9 => new Point(864, 486),
+            IngameResolutionKind.Aspect16x9 => new Point(960, 540),
             _ => new Point(800, 600),
         };
     }
@@ -364,6 +442,290 @@ public partial class Game1
             _ => "100%",
         };
     }
+
+    private static string GetDisplayScaleModeLabel(DisplayScaleModeKind displayScaleMode)
+    {
+        return OpenGarrisonPreferencesDocument.NormalizeDisplayScaleMode(displayScaleMode) switch
+        {
+            DisplayScaleModeKind.PixelPerfect => "Pixel-Perfect",
+            _ => "Fill",
+        };
+    }
+
+    private static string GetDisplayModeLabel(DisplayModeKind displayMode)
+    {
+        return OpenGarrisonPreferencesDocument.NormalizeDisplayMode(displayMode) switch
+        {
+            DisplayModeKind.BorderlessWindow => "Borderless Windowed",
+            DisplayModeKind.Borderless => "Borderless Fullscreen",
+            DisplayModeKind.Fullscreen => "Fullscreen",
+            _ => "Windowed",
+        };
+    }
+
+    private static DisplayModeKind GetNextDisplayMode(DisplayModeKind displayMode)
+    {
+        return OpenGarrisonPreferencesDocument.NormalizeDisplayMode(displayMode) switch
+        {
+            DisplayModeKind.Windowed => DisplayModeKind.BorderlessWindow,
+            DisplayModeKind.BorderlessWindow => DisplayModeKind.Borderless,
+            DisplayModeKind.Borderless => DisplayModeKind.Fullscreen,
+            _ => DisplayModeKind.Windowed,
+        };
+    }
+
+    private static DisplayScaleModeKind GetNextDisplayScaleMode(DisplayScaleModeKind displayScaleMode)
+    {
+        return OpenGarrisonPreferencesDocument.NormalizeDisplayScaleMode(displayScaleMode) switch
+        {
+            DisplayScaleModeKind.Fill => DisplayScaleModeKind.PixelPerfect,
+            _ => DisplayScaleModeKind.Fill,
+        };
+    }
+
+    private static bool IsScreenFillingDisplayMode(DisplayModeKind displayMode)
+    {
+        return OpenGarrisonPreferencesDocument.NormalizeDisplayMode(displayMode) is DisplayModeKind.Borderless or DisplayModeKind.Fullscreen;
+    }
+
+    private static bool IsBorderlessDisplayMode(DisplayModeKind displayMode)
+    {
+        return OpenGarrisonPreferencesDocument.NormalizeDisplayMode(displayMode) is DisplayModeKind.Borderless or DisplayModeKind.BorderlessWindow;
+    }
+
+    private static bool IsUserResizableDisplayMode(DisplayModeKind displayMode)
+    {
+        return OpenGarrisonPreferencesDocument.NormalizeDisplayMode(displayMode) == DisplayModeKind.Windowed;
+    }
+
+    private void SetWindowBorderless(bool borderless)
+    {
+        try
+        {
+            Window.IsBorderless = borderless;
+        }
+        catch (NotImplementedException)
+        {
+        }
+        catch (NotSupportedException)
+        {
+        }
+    }
+
+    private void RememberWindowedPosition(DisplayModeKind displayMode)
+    {
+        if (OpenGarrisonPreferencesDocument.NormalizeDisplayMode(displayMode) != DisplayModeKind.Windowed)
+        {
+            return;
+        }
+
+        if (TryGetWindowPosition(out var position))
+        {
+            _lastWindowedPosition = position;
+        }
+    }
+
+    private void PositionWindowedWindowAfterModeChange(DisplayModeKind previousDisplayMode)
+    {
+        if (OpenGarrisonPreferencesDocument.NormalizeDisplayMode(previousDisplayMode) == DisplayModeKind.Windowed)
+        {
+            return;
+        }
+
+        var preferredDimensions = GetWindowDimensions(DisplayModeKind.Windowed, _ingameResolution, _windowSize);
+        var targetPosition = _lastWindowedPosition ?? GetCenteredWindowPosition(preferredDimensions);
+        TrySetWindowPosition(targetPosition);
+        SetNativeWindowPosition(targetPosition);
+    }
+
+    private static Point GetCenteredWindowPosition(Point dimensions)
+    {
+        var displayMode = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
+        return new Point(
+            Math.Max(0, (displayMode.Width - dimensions.X) / 2),
+            Math.Max(0, (displayMode.Height - dimensions.Y) / 2));
+    }
+
+#if BROWSER_KNI
+    private bool TryGetWindowPosition(out Point position)
+    {
+        position = default;
+        return false;
+    }
+
+    private void TrySetWindowPosition(Point position)
+    {
+    }
+
+    private void RestoreNativeWindowedState(bool updateSize)
+    {
+    }
+
+    private void SetNativeWindowPosition(Point position)
+    {
+    }
+
+    private void PositionBorderlessWindow()
+    {
+    }
+
+    private void PositionBorderlessWindowCentered()
+    {
+    }
+#else
+    private bool TryGetWindowPosition(out Point position)
+    {
+        try
+        {
+            position = Window.Position;
+            return true;
+        }
+        catch (NotImplementedException)
+        {
+        }
+        catch (NotSupportedException)
+        {
+        }
+
+        position = default;
+        return false;
+    }
+
+    private void TrySetWindowPosition(Point position)
+    {
+        try
+        {
+            Window.Position = position;
+        }
+        catch (NotImplementedException)
+        {
+        }
+        catch (NotSupportedException)
+        {
+        }
+    }
+
+    private void RestoreNativeWindowedState(bool updateSize)
+    {
+        if (OperatingSystem.IsBrowser())
+        {
+            return;
+        }
+
+        try
+        {
+            var handle = Window.Handle;
+            if (handle == IntPtr.Zero)
+            {
+                return;
+            }
+
+            _ = SDL_SetWindowFullscreen(handle, 0);
+            SDL_SetWindowBordered(handle, 1);
+            SDL_SetWindowResizable(handle, 1);
+            if (updateSize)
+            {
+                SDL_SetWindowSize(
+                    handle,
+                    Math.Max(1, _graphics.PreferredBackBufferWidth),
+                    Math.Max(1, _graphics.PreferredBackBufferHeight));
+            }
+        }
+        catch (DllNotFoundException)
+        {
+        }
+        catch (EntryPointNotFoundException)
+        {
+        }
+        catch (BadImageFormatException)
+        {
+        }
+        catch (NotImplementedException)
+        {
+        }
+        catch (NotSupportedException)
+        {
+        }
+    }
+
+    private void SetNativeWindowPosition(Point position)
+    {
+        if (OperatingSystem.IsBrowser())
+        {
+            return;
+        }
+
+        try
+        {
+            var handle = Window.Handle;
+            if (handle != IntPtr.Zero)
+            {
+                SDL_SetWindowPosition(handle, position.X, position.Y);
+            }
+        }
+        catch (DllNotFoundException)
+        {
+        }
+        catch (EntryPointNotFoundException)
+        {
+        }
+        catch (BadImageFormatException)
+        {
+        }
+        catch (NotImplementedException)
+        {
+        }
+        catch (NotSupportedException)
+        {
+        }
+    }
+
+    private void PositionBorderlessWindow()
+    {
+        try
+        {
+            Window.Position = Point.Zero;
+        }
+        catch (NotImplementedException)
+        {
+        }
+        catch (NotSupportedException)
+        {
+        }
+    }
+
+    private void PositionBorderlessWindowCentered()
+    {
+        try
+        {
+            var displayMode = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
+            var x = Math.Max(0, (displayMode.Width - _graphics.PreferredBackBufferWidth) / 2);
+            var y = Math.Max(0, (displayMode.Height - _graphics.PreferredBackBufferHeight) / 2);
+            Window.Position = new Point(x, y);
+        }
+        catch (NotImplementedException)
+        {
+        }
+        catch (NotSupportedException)
+        {
+        }
+    }
+
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int SDL_SetWindowFullscreen(IntPtr window, uint flags);
+
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    private static extern void SDL_SetWindowBordered(IntPtr window, int bordered);
+
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    private static extern void SDL_SetWindowResizable(IntPtr window, int resizable);
+
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    private static extern void SDL_SetWindowSize(IntPtr window, int width, int height);
+
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    private static extern void SDL_SetWindowPosition(IntPtr window, int x, int y);
+#endif
 
     private static WindowSizeKind GetNextWindowSize(WindowSizeKind windowSize)
     {

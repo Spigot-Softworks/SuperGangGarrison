@@ -7,7 +7,7 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class ClientBubbleMenuInputSuppressionTests
 {
     [Fact]
-    public void BubbleMenuSuppressionOnlySuppressesInteractAndSwap()
+    public void BubbleMenuSuppressionBlocksFiringAndWeaponActions()
     {
         var input = new PlayerInputSnapshot(
             Left: true,
@@ -29,9 +29,9 @@ public sealed class ClientBubbleMenuInputSuppressionTests
 
         var result = Game1.ApplyBubbleMenuGameplaySuppression(input);
 
-        Assert.True(result.FirePrimary);
-        Assert.True(result.FireSecondary);
-        Assert.True(result.UseAbility);
+        Assert.False(result.FirePrimary);
+        Assert.False(result.FireSecondary);
+        Assert.False(result.UseAbility);
         Assert.False(result.InteractWeapon);
         Assert.False(result.SwapWeapon);
     }

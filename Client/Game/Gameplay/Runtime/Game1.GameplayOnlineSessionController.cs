@@ -122,7 +122,8 @@ public partial class Game1
                 _game.CloseLobbyBrowser(clearStatus: false);
                 var transportLabel = transport == NetworkEndpointTransport.WebSocket ? "WebSocket" : "UDP";
                 var actionLabel = intent == OnlineConnectionIntent.Watch ? "Watching" : "Connecting to";
-                _game.ShowLoadingOverlay($"{actionLabel} {host}:{port}...", progress: null);
+                _game.SetJoiningServerLoadingLabel(endpoint.AddressLabel);
+                _game.ShowJoiningServerLoadingOverlay();
                 _game.SetNetworkStatus($"{actionLabel} {host}:{port} over {transportLabel}...");
                 if (addConsoleFeedback)
                 {
@@ -286,7 +287,7 @@ public partial class Game1
             _game._networkClient.ClearPendingTeamSelection();
             _game._networkClient.ClearPendingClassSelection();
             _game.ResetGameplayRuntimeState();
-            _game.ShowLoadingOverlay($"Loading map {welcome.LevelName}...", progress: null);
+            _game.ShowJoiningServerLoadingOverlay();
             if (!_game._world.TryLoadLevel(welcome.LevelName, mapAreaIndex: 1, preservePlayerStats: false, mapScale: welcome.MapScale))
             {
                 var loadError = $"Failed to load map: {welcome.LevelName}";
@@ -296,12 +297,12 @@ public partial class Game1
 
             _game._world.PrepareLocalPlayerJoin();
             _game.ResetGameplayTransitionEffects();
+            _game.BeginNetworkWorldWarmup(welcome.LevelName);
             _sessionController.EnterGameplaySession(
                 GameplaySessionKind.Online,
                 openJoinMenus: _game._onlineConnectionIntent != OnlineConnectionIntent.Watch && !_game._networkClient.IsSpectator,
                 statusMessage: _game._networkClient.IsSpectator ? "Connected as spectator." : string.Empty);
             _game.StopMenuMusic();
-            _game.HideLoadingOverlay();
             _game.AddNetworkConsoleLine(
                 _game._networkClient.IsSpectator
                     ? $"connected to {welcome.ServerName} ({welcome.LevelName}) as spectator tickrate={welcome.TickRate}"

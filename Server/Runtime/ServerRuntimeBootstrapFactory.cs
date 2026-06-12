@@ -44,6 +44,7 @@ internal static class ServerRuntimeBootstrapFactory
         int? respawnSecondsOverride,
         string? serverPassword,
         bool passwordRequired,
+        SnapshotBudgetMode snapshotBudgetMode,
         double clientTimeoutSeconds,
         double passwordTimeoutSeconds,
         double passwordRetrySeconds,
@@ -196,6 +197,7 @@ internal static class ServerRuntimeBootstrapFactory
             transientEventReplayTicks,
             mapMetadataResolver,
             outboundMessaging.SendSnapshotPayload,
+            snapshotBudgetMode,
             recordCanonicalSnapshot: snapshot => demoRecorder?.RecordSnapshot(snapshot),
             shouldRecordCanonicalSnapshot: () => demoRecorder?.IsActive == true);
 

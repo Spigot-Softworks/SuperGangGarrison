@@ -16,8 +16,13 @@
   "ability": {
     "category": "secondary",
     "activation": "held",
-    "executorId": "builtin.ability.medic_needlegun",
-    "tags": [ "core_m2", "projectile", "cooldown" ]
+    "executorId": "builtin.ability.medic_kritz_beam",
+    "tags": [ "core_m2", "beam", "damage", "charge" ],
+    "parameters": {
+      "range": 150,
+      "damagePerSecond": 1,
+      "chargePerDamageTick": 30
+    }
   },
   "presentation": {
     "worldSpriteName": "MedigunCritS",

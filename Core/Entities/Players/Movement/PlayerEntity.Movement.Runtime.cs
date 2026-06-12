@@ -125,6 +125,7 @@ public sealed partial class PlayerEntity
             AdvanceEngineerResources();
             AdvanceExperimentalPowerState();
             AdvanceWeaponState();
+            AdvanceCivvieUmbrellaState();
             AdvanceHeavyState();
             AdvanceTauntState();
             AdvanceSniperState();
@@ -326,13 +327,21 @@ public sealed partial class PlayerEntity
                 gravityPerTick = 0f;
             }
 
-            VerticalSpeed = LegacyMovementModel.AdvanceVerticalSpeedHalfStep(VerticalSpeed, gravityPerTick, dt);
+            VerticalSpeed = LegacyMovementModel.AdvanceVerticalSpeedHalfStep(
+                VerticalSpeed,
+                GetCivvieUmbrellaAdjustedGravityPerTick(gravityPerTick),
+                dt);
+            ClampCivvieUmbrellaFallSpeed();
         }
 
         MoveWithCollisions(level, team, HorizontalSpeed * dt, VerticalSpeed * dt, allowDropdownFallThrough);
         if (gravityPerTick > 0f && CanOccupy(level, team, X, Y + 1f))
         {
-            VerticalSpeed = LegacyMovementModel.AdvanceVerticalSpeedHalfStep(VerticalSpeed, gravityPerTick, dt);
+            VerticalSpeed = LegacyMovementModel.AdvanceVerticalSpeedHalfStep(
+                VerticalSpeed,
+                GetCivvieUmbrellaAdjustedGravityPerTick(gravityPerTick),
+                dt);
+            ClampCivvieUmbrellaFallSpeed();
         }
 
         ResolveDropdownPlatformContact(level, allowDropdownFallThrough, previousBottom);
@@ -348,6 +357,26 @@ public sealed partial class PlayerEntity
 
         ClampTo(level.Bounds);
         AdvanceSourceFacingDirectionForNextStep();
+    }
+
+    private float GetCivvieUmbrellaAdjustedGravityPerTick(float gravityPerTick)
+    {
+        return gravityPerTick > 0f && IsCivvieUmbrellaActive && VerticalSpeed >= 0f
+            ? gravityPerTick * CivvieUmbrellaFallSpeedScale
+            : gravityPerTick;
+    }
+
+    private void ClampCivvieUmbrellaFallSpeed()
+    {
+        if (!IsCivvieUmbrellaActive || VerticalSpeed <= 0f)
+        {
+            return;
+        }
+
+        var maxFallSpeed = LegacyMovementModel.MaxFallSpeedPerTick
+            * LegacyMovementModel.SourceTicksPerSecond
+            * CivvieUmbrellaFallSpeedScale;
+        VerticalSpeed = MathF.Min(VerticalSpeed, maxFallSpeed);
     }
 
     private void MoveWithCollisions(SimpleLevel level, PlayerTeam team, float moveX, float moveY, bool allowDropdownFallThrough)

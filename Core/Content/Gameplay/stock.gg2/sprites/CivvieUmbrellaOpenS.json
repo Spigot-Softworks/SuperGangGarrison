@@ -1,0 +1,18 @@
+{
+  "id": "CivvieUmbrellaOpenS",
+  "framePaths": [
+    "assets/civvie/CivvieUmbrellaOpenS.images/image 0.png",
+    "assets/civvie/CivvieUmbrellaOpenS.images/image 1.png"
+  ],
+  "originX": 10,
+  "originY": 18,
+  "mask": {
+    "separate": false,
+    "shape": "RECTANGLE",
+    "boundsMode": "AUTO",
+    "left": null,
+    "top": null,
+    "right": null,
+    "bottom": null
+  }
+}

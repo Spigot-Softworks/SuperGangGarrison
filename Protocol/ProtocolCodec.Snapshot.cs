@@ -452,6 +452,7 @@ public static partial class ProtocolCodec
             writer.Write(player.GameplayClassCacheId);
             if (player.GameplayClassCacheId == 0)
                 WriteString(writer, player.GameplayClassId, MaxGameplayIdBytes, nameof(player.GameplayClassId));
+            writer.Write(player.PingMilliseconds);
         }
     }
 
@@ -563,6 +564,7 @@ public static partial class ProtocolCodec
             var isReady = reader.ReadBoolean();
             var gameplayClassCacheId = reader.ReadUInt16();
             var gameplayClassId = gameplayClassCacheId == 0 ? ReadString(reader, MaxGameplayIdBytes) : string.Empty;
+            var pingMilliseconds = reader.ReadInt32();
 
             players.Add(new SnapshotPlayerState(
                 slot, playerId, name, team, classId, isAlive, isAwaitingJoin, isSpectator,
@@ -591,7 +593,7 @@ public static partial class ProtocolCodec
                 gameplayEquippedItemCacheId, gameplayAcquiredItemCacheId,
                 ownedGameplayItemIds, replicatedStates, playerScale, aimWorldX, aimWorldY,
                 offhandCooldownTicks, offhandReloadTicks, gibDeaths, isReady,
-                gameplayClassId, gameplayClassCacheId));
+                gameplayClassId, gameplayClassCacheId, pingMilliseconds));
         }
 
         return players;

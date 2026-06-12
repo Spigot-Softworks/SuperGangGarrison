@@ -307,6 +307,12 @@ public partial class Game1
         set => _uiShellState.RecentBubbleFrameC = value;
     }
 
+    private int _recentBubbleFrameCustom
+    {
+        get => _uiShellState.RecentBubbleFrameCustom;
+        set => _uiShellState.RecentBubbleFrameCustom = value;
+    }
+
     private bool _buildMenuOpen
     {
         get => _uiShellState.BuildMenuOpen;
@@ -943,6 +949,7 @@ public partial class Game1
         public int RecentBubbleFrameZ = 20;
         public int RecentBubbleFrameX = 29;
         public int RecentBubbleFrameC = 36;
+        public int RecentBubbleFrameCustom = -1;
         public bool BuildMenuOpen;
         public bool BuildMenuClosing;
         public float BuildMenuAlpha = 0.01f;

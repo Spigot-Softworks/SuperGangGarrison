@@ -145,6 +145,27 @@ public sealed class SimulationWorldRocketSourceParityTests
         Assert.True(maskBounds.Left < collisionLeft, "expected animated run mask to extend farther than the fixed collision box");
     }
 
+    [Fact]
+    public void PlayerHitQueriesUseGameplayPackPresentationMask()
+    {
+        var world = CreateCombatWorld();
+        var civilian = AddEnemy(world, id: 2, x: 100f, y: 120f, playerClass: PlayerClass.Quote);
+
+        var spriteName = GetPlayerPresentationBodySpriteName(world, civilian);
+        var manifest = GameMakerAssetManifestImporter.ImportProjectAssets();
+        var maskBounds = GetPlayerPresentationHitBounds(world, civilian);
+        civilian.GetCollisionBounds(out var collisionLeft, out var collisionTop, out _, out _);
+
+        Assert.Equal("CivvieBlueS", spriteName);
+        Assert.False(manifest.Sprites.ContainsKey("CivvieBlueS"));
+        Assert.InRange(maskBounds.Left, 87.9f, 88.1f);
+        Assert.InRange(maskBounds.Top, 95.9f, 96.1f);
+        Assert.InRange(maskBounds.Right, 110.9f, 111.1f);
+        Assert.InRange(maskBounds.Bottom, 133.9f, 134.1f);
+        Assert.True(maskBounds.Left < collisionLeft, "expected Civilian gameplay sprite mask to extend beyond the fixed collision box");
+        Assert.True(maskBounds.Top < collisionTop, "expected Civilian gameplay sprite mask to extend above the fixed collision box");
+    }
+
     private static SimulationWorld CreateCombatWorld(IReadOnlyList<LevelSolid>? solids = null)
     {
         var world = new SimulationWorld();

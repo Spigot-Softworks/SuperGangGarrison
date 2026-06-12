@@ -1,0 +1,22 @@
+{
+  "id": "CivvieUmbrellaShieldBlockS",
+  "framePaths": [
+    "assets/civvie/CivvieUmbrellaShieldBlockS.images/image 0.png",
+    "assets/civvie/CivvieUmbrellaShieldBlockS.images/image 1.png",
+    "assets/civvie/CivvieUmbrellaShieldBlockS.images/image 2.png",
+    "assets/civvie/CivvieUmbrellaShieldBlockS.images/image 3.png",
+    "assets/civvie/CivvieUmbrellaShieldBlockS.images/image 4.png",
+    "assets/civvie/CivvieUmbrellaShieldBlockS.images/image 5.png"
+  ],
+  "originX": 35,
+  "originY": 18,
+  "mask": {
+    "separate": false,
+    "shape": "RECTANGLE",
+    "boundsMode": "AUTO",
+    "left": null,
+    "top": null,
+    "right": null,
+    "bottom": null
+  }
+}

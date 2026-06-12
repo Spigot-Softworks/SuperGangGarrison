@@ -15,21 +15,7 @@ public partial class Game1
 
     private void ApplyLoadedSettings()
     {
-        ApplyIngameResolution(_clientSettings.IngameResolution);
-        ApplyWindowSize(_clientSettings.WindowSize);
-        if (OperatingSystem.IsBrowser())
-        {
-            _graphics.IsFullScreen = false;
-            _graphics.SynchronizeWithVerticalRetrace = false;
-            _clientSettings.Fullscreen = false;
-        }
-        else
-        {
-            _graphics.IsFullScreen = _clientSettings.Fullscreen;
-            _graphics.SynchronizeWithVerticalRetrace = _clientSettings.VSync;
-            ApplyPreferredBackBufferSize(_graphics.IsFullScreen, _ingameResolution, _windowSize);
-            _graphics.ApplyChanges();
-        }
+        ApplyGraphicsSettings(persist: false);
 
         _musicMode = _clientSettings.MusicMode;
         ApplyConfiguredPracticeBotController(respawnActiveBots: false);
@@ -46,6 +32,7 @@ public partial class Game1
         _showHealthBarEnabled = _clientSettings.ShowHealthBarEnabled;
         _hudShowOnlyActiveWeapon = _clientSettings.HudShowOnlyActiveWeapon;
         _overheadChatEnabled = _clientSettings.OverheadChatEnabled;
+        ApplyLoadedBubbleWheelPluginSettings();
         _portraitRumbleEnabled = _clientSettings.PortraitRumbleEnabled;
         _postGameMvpArtEnabled = _clientSettings.PostGameMvpArtEnabled;
         _damageVignetteEnabled = _clientSettings.DamageVignetteEnabled;
@@ -87,13 +74,14 @@ public partial class Game1
     private void PersistClientSettings()
     {
         _clientSettings.PlayerName = _world.LocalPlayer.DisplayName;
-        _clientSettings.Fullscreen = _graphics.IsFullScreen;
+        _clientSettings.DisplayMode = _displayMode;
         if (!OperatingSystem.IsBrowser())
         {
             _clientSettings.VSync = _graphics.SynchronizeWithVerticalRetrace;
         }
         _clientSettings.IngameResolution = _ingameResolution;
         _clientSettings.WindowSize = _windowSize;
+        _clientSettings.DisplayScaleMode = _displayScaleMode;
         _clientSettings.MusicMode = _musicMode;
         _clientSettings.KillCamEnabled = _killCamEnabled;
         _clientSettings.ParticleMode = Math.Clamp(_particleMode, 0, 2);

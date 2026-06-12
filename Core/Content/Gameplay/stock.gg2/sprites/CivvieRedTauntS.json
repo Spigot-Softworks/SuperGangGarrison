@@ -1,0 +1,32 @@
+{
+  "id": "CivvieRedTauntS",
+  "framePaths": [
+    "assets/civvie/CivvieRedTauntS.images/image 0.png",
+    "assets/civvie/CivvieRedTauntS.images/image 1.png",
+    "assets/civvie/CivvieRedTauntS.images/image 2.png",
+    "assets/civvie/CivvieRedTauntS.images/image 3.png",
+    "assets/civvie/CivvieRedTauntS.images/image 4.png",
+    "assets/civvie/CivvieRedTauntS.images/image 5.png",
+    "assets/civvie/CivvieRedTauntS.images/image 6.png",
+    "assets/civvie/CivvieRedTauntS.images/image 7.png",
+    "assets/civvie/CivvieRedTauntS.images/image 8.png",
+    "assets/civvie/CivvieRedTauntS.images/image 9.png",
+    "assets/civvie/CivvieRedTauntS.images/image 10.png",
+    "assets/civvie/CivvieRedTauntS.images/image 11.png",
+    "assets/civvie/CivvieRedTauntS.images/image 12.png",
+    "assets/civvie/CivvieRedTauntS.images/image 13.png",
+    "assets/civvie/CivvieRedTauntS.images/image 14.png",
+    "assets/civvie/CivvieRedTauntS.images/image 15.png"
+  ],
+  "originX": 32,
+  "originY": 52,
+  "mask": {
+    "separate": false,
+    "shape": "RECTANGLE",
+    "boundsMode": "MANUAL",
+    "left": 20,
+    "top": 26,
+    "right": 42,
+    "bottom": 63
+  }
+}

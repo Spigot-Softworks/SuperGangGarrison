@@ -874,13 +874,16 @@ public partial class Game1
             rightMargin = 16;
         }
 
-        var bottomReserved = _menuBackgroundMode != MenuBackgroundMode.Static ? 92 : 16;
+        var bottomReserved = _mainMenuOpen && _menuBackgroundMode != MenuBackgroundMode.Static ? 92 : 24;
         var availableHeight = Math.Max(300, ViewportHeight - bottomReserved - 24);
         var panelHeight = Math.Min(availableHeight, ViewportHeight < 540 ? 430 : 500);
         var usableBottom = ViewportHeight - bottomReserved;
+        var panelY = _mainMenuOpen
+            ? Math.Max(12, ((usableBottom - panelHeight) / 2) + 6)
+            : Math.Max(12, usableBottom - panelHeight);
         var panel = new Rectangle(
             ViewportWidth - panelWidth - rightMargin,
-            Math.Max(12, ((usableBottom - panelHeight) / 2) + 6),
+            panelY,
             panelWidth,
             panelHeight);
 

@@ -22,6 +22,9 @@ public partial class Game1
         Recoil,
         ScopedRecoil,
         Reload,
+        CivvieUmbrellaOpening,
+        CivvieUmbrellaHold,
+        CivvieUmbrellaClosing,
     }
 
     private sealed class PlayerRenderState
@@ -51,6 +54,8 @@ public partial class Game1
         public int PreviousCooldownTicks { get; set; }
 
         public int PreviousReloadTicks { get; set; }
+
+        public bool PreviousCivvieUmbrellaActive { get; set; }
 
         // Identifies the weapon slot currently being animated (null = primary, "offhand:soldier" = soldier shotgun, "acquired" = acquired weapon).
         // When this changes, animation state is reset to avoid stale comparisons from the previous weapon.
@@ -202,6 +207,14 @@ public partial class Game1
             renderState.WeaponAnimationTimeRemainingSeconds = MathF.Max(0f, renderState.WeaponAnimationTimeRemainingSeconds - elapsedSeconds);
         }
 
+        if (UpdateCivvieUmbrellaWeaponAnimationState(player, renderState))
+        {
+            renderState.PreviousAmmoCount = GetRenderWeaponAmmoCount(player);
+            renderState.PreviousCooldownTicks = GetRenderWeaponCooldownTicks(player);
+            renderState.PreviousReloadTicks = GetRenderWeaponReloadTicks(player);
+            return;
+        }
+
         var weaponRenderDefinition = GetWeaponRenderDefinition(player);
         var weaponStats = GetRenderWeaponStats(player);
         var maxAmmoCount = GetRenderWeaponMaxShells(player);
@@ -303,6 +316,57 @@ public partial class Game1
         renderState.PreviousAmmoCount = currentAmmoCount;
         renderState.PreviousCooldownTicks = currentCooldownTicks;
         renderState.PreviousReloadTicks = currentReloadTicks;
+    }
+
+    private static bool UpdateCivvieUmbrellaWeaponAnimationState(PlayerEntity player, PlayerRenderState renderState)
+    {
+        if (player.ClassId != PlayerClass.Quote
+            || !player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.CivvieUmbrella))
+        {
+            renderState.PreviousCivvieUmbrellaActive = false;
+            return false;
+        }
+
+        const float openingDurationSeconds = 6f / LegacyMovementModel.SourceTicksPerSecond;
+        const float closingDurationSeconds = 4f / LegacyMovementModel.SourceTicksPerSecond;
+        var active = player.IsCivvieUmbrellaActive;
+
+        if (active)
+        {
+            if (!renderState.PreviousCivvieUmbrellaActive
+                || renderState.WeaponAnimationMode == WeaponAnimationMode.CivvieUmbrellaClosing)
+            {
+                StartWeaponAnimation(renderState, WeaponAnimationMode.CivvieUmbrellaOpening, openingDurationSeconds);
+            }
+            else if (renderState.WeaponAnimationMode == WeaponAnimationMode.CivvieUmbrellaOpening
+                && renderState.WeaponAnimationTimeRemainingSeconds <= 0f)
+            {
+                StartWeaponAnimation(renderState, WeaponAnimationMode.CivvieUmbrellaHold, 0f);
+            }
+            else if (renderState.WeaponAnimationMode is not WeaponAnimationMode.CivvieUmbrellaOpening
+                     and not WeaponAnimationMode.CivvieUmbrellaHold)
+            {
+                StartWeaponAnimation(renderState, WeaponAnimationMode.CivvieUmbrellaHold, 0f);
+            }
+        }
+        else if (renderState.PreviousCivvieUmbrellaActive)
+        {
+            StartWeaponAnimation(renderState, WeaponAnimationMode.CivvieUmbrellaClosing, closingDurationSeconds);
+        }
+        else if (renderState.WeaponAnimationMode == WeaponAnimationMode.CivvieUmbrellaClosing)
+        {
+            if (renderState.WeaponAnimationTimeRemainingSeconds <= 0f)
+            {
+                StopWeaponAnimation(renderState);
+            }
+        }
+        else if (renderState.WeaponAnimationMode is WeaponAnimationMode.CivvieUmbrellaOpening or WeaponAnimationMode.CivvieUmbrellaHold)
+        {
+            StopWeaponAnimation(renderState);
+        }
+
+        renderState.PreviousCivvieUmbrellaActive = active;
+        return active || renderState.WeaponAnimationMode == WeaponAnimationMode.CivvieUmbrellaClosing;
     }
 
     private static void UpdateSniperWeaponAnimationState(
@@ -830,8 +894,7 @@ public partial class Game1
 
     private float GetPlayerBodyAnimationLength(PlayerEntity player, float? horizontalSourceStepSpeed = null)
     {
-        if (player.ClassId == PlayerClass.Quote
-            || (player.ClassId == PlayerClass.Sniper && player.IsSniperScoped)
+        if ((player.ClassId == PlayerClass.Sniper && player.IsSniperScoped)
             || _world.IsPlayerHumiliated(player))
         {
             return 2f;

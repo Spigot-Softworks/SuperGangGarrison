@@ -100,6 +100,15 @@ public partial class Game1
             : "Show All Weapons";
     }
 
+    private static string GetBubbleWheelBehaviorLabel(BubbleWheelBehavior behavior)
+    {
+        return OpenGarrisonPreferencesDocument.NormalizeBubbleWheelBehavior(behavior) switch
+        {
+            BubbleWheelBehavior.PressAndClick => "Press and Click",
+            _ => "Hold and Hover",
+        };
+    }
+
     private static string GetDamageVignetteIntensityLabel(int percent)
     {
         return $"{ClientSettings.NormalizeDamageVignetteIntensityPercent(percent)}%";
@@ -370,30 +379,92 @@ public partial class Game1
         InitializePlayerNameEditCursor();
     }
 
-    private void ToggleFullscreenSetting()
+    private void ApplyLoadedBubbleWheelPluginSettings()
+    {
+        _bubbleWheelBehavior = OpenGarrisonPreferencesDocument.NormalizeBubbleWheelBehavior(_clientSettings.BubbleWheelBehavior);
+        if (OperatingSystem.IsBrowser())
+        {
+            return;
+        }
+
+        var path = GetBubbleWheelPluginConfigPath();
+        var config = BubbleWheelPluginConfig.LoadOrCreate(path, _bubbleWheelBehavior);
+        _bubbleWheelBehavior = config.Behavior;
+        _bubbleWheelPluginConfigLastWriteUtc = GetFileLastWriteUtcOrDefault(path);
+    }
+
+    private BubbleWheelBehavior GetBubbleWheelBehaviorSetting()
+    {
+        if (OperatingSystem.IsBrowser())
+        {
+            return OpenGarrisonPreferencesDocument.NormalizeBubbleWheelBehavior(_bubbleWheelBehavior);
+        }
+
+        var path = GetBubbleWheelPluginConfigPath();
+        var lastWriteUtc = GetFileLastWriteUtcOrDefault(path);
+        if (lastWriteUtc != default && lastWriteUtc != _bubbleWheelPluginConfigLastWriteUtc)
+        {
+            _bubbleWheelBehavior = BubbleWheelPluginConfig.LoadOrCreate(path, _bubbleWheelBehavior).Behavior;
+            _bubbleWheelPluginConfigLastWriteUtc = GetFileLastWriteUtcOrDefault(path);
+        }
+
+        return OpenGarrisonPreferencesDocument.NormalizeBubbleWheelBehavior(_bubbleWheelBehavior);
+    }
+
+    private static string GetBubbleWheelPluginConfigPath()
+    {
+        return Path.Combine(RuntimePaths.ConfigDirectory, "plugins", "client", "bubblewheel", BubbleWheelPluginConfig.DefaultFileName);
+    }
+
+    private static DateTime GetFileLastWriteUtcOrDefault(string path)
+    {
+        try
+        {
+            return File.Exists(path) ? File.GetLastWriteTimeUtc(path) : default;
+        }
+        catch (IOException)
+        {
+            return default;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return default;
+        }
+    }
+
+    private void CycleDisplayModeSetting()
     {
         if (OperatingSystem.IsBrowser())
         {
             return;
         }
 
-        _clientSettings.Fullscreen = !_clientSettings.Fullscreen;
+        _clientSettings.DisplayMode = GetNextDisplayMode(_clientSettings.DisplayMode);
         ApplyGraphicsSettings();
-
-        if (!OperatingSystem.IsBrowser())
-        {
-            Window.AllowUserResizing = !_graphics.IsFullScreen;
-        }
     }
 
-    private void ResetWindowSize()
+    private void ToggleFullscreenHotkey()
     {
-        if (_graphics.IsFullScreen || OperatingSystem.IsBrowser())
+        if (OperatingSystem.IsBrowser())
         {
             return;
         }
 
-        var defaultDimensions = GetWindowDimensions(fullscreen: false, _ingameResolution, _windowSize);
+        var currentMode = OpenGarrisonPreferencesDocument.NormalizeDisplayMode(_displayMode);
+        _clientSettings.DisplayMode = currentMode == DisplayModeKind.Fullscreen
+            ? DisplayModeKind.Windowed
+            : DisplayModeKind.Fullscreen;
+        ApplyGraphicsSettings();
+    }
+
+    private void ResetWindowSize()
+    {
+        if (IsScreenFillingDisplayMode(_displayMode) || OperatingSystem.IsBrowser())
+        {
+            return;
+        }
+
+        var defaultDimensions = GetWindowDimensions(DisplayModeKind.Windowed, _ingameResolution, _windowSize);
         _graphics.PreferredBackBufferWidth = defaultDimensions.X;
         _graphics.PreferredBackBufferHeight = defaultDimensions.Y;
         _graphics.ApplyChanges();
@@ -708,6 +779,12 @@ public partial class Game1
         ApplyGraphicsSettings();
     }
 
+    private void CycleDisplayScaleModeSetting()
+    {
+        _clientSettings.DisplayScaleMode = GetNextDisplayScaleMode(_clientSettings.DisplayScaleMode);
+        ApplyGraphicsSettings();
+    }
+
     private void CycleFrameRateLimitSetting()
     {
         var current = NormalizeFrameRateLimit(_frameRateLimit);
@@ -873,6 +950,22 @@ public partial class Game1
         {
             _localOverheadChatMessage = null;
             _overheadChatMessagesBySlot.Clear();
+        }
+
+        PersistClientSettings();
+    }
+
+    private void CycleBubbleWheelBehaviorSetting()
+    {
+        _clientSettings.BubbleWheelBehavior = OpenGarrisonPreferencesDocument.NormalizeBubbleWheelBehavior(_clientSettings.BubbleWheelBehavior) switch
+        {
+            BubbleWheelBehavior.HoldAndHover => BubbleWheelBehavior.PressAndClick,
+            _ => BubbleWheelBehavior.HoldAndHover,
+        };
+
+        if (_bubbleMenuKind != BubbleMenuKind.None)
+        {
+            BeginClosingBubbleMenu();
         }
 
         PersistClientSettings();

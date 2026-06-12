@@ -281,6 +281,13 @@ public sealed partial class SimulationWorld
                 rocket.MoveTo(hitX, hitY);
                 world.SetLastRocketCollisionDebug(hitX, hitY, collisionObjectName, "CollisionHit");
                 world.RegisterCombatTrace(rocket.PreviousX, rocket.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
+                if (hitResult.HitPlayer is not null
+                    && world.TryAbsorbCivvieUmbrellaProjectileContact(hitResult.HitPlayer, rocket.OwnerId, hitX, hitY))
+                {
+                    world.RemoveRocketAt(rocketIndex);
+                    return;
+                }
+
                 if (rocket.IsFading
                     && hitResult.HitPlayer is null
                     && hitResult.HitSentry is null

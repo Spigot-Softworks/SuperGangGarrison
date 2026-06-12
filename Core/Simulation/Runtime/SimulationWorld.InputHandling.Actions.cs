@@ -163,7 +163,7 @@ public sealed partial class SimulationWorld
             {
                 UpdateMedicHealing(player, input.AimWorldX, input.AimWorldY);
             }
-            else
+            else if (!input.FireSecondary || !player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit))
             {
                 player.ClearMedicHealingTarget();
             }
@@ -288,7 +288,8 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (!TryDestroySentry(player))
+        var destroyResult = TryDestroySentryForOwnerCommand(player);
+        if (destroyResult == OwnedSentryDestroyResult.NoOwnedSentry)
         {
             TryBuildSentry(player);
         }

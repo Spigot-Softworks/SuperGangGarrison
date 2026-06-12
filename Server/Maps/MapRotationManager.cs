@@ -11,7 +11,8 @@ readonly record struct MapChangeTransition(
     string NextLevelName,
     int NextAreaIndex,
     bool PreservePlayerStats,
-    PlayerTeam? WinnerTeam);
+    PlayerTeam? WinnerTeam,
+    GameModeKind CurrentGameMode);
 
 sealed class MapRotationManager
 {
@@ -20,6 +21,8 @@ sealed class MapRotationManager
     private readonly List<string> _mapRotation;
     private readonly Random _shuffleRandom;
     private int _mapRotationIndex;
+    private int _completedRoundsOnCurrentMap;
+    private long _currentMapStartFrame;
     private QueuedNextRoundMap? _queuedNextRoundMap;
 
     public MapRotationManager(
@@ -35,6 +38,9 @@ sealed class MapRotationManager
         _log = log;
         _shuffleRandom = shuffleRandom ?? new Random();
         MapRotationShuffleEnabled = mapRotationShuffleEnabled;
+        AdvanceMode = MapRotationAdvanceMode.RoundEnd;
+        RotationRoundCount = 1;
+        RotationTimeMinutes = 15;
 
         var rotation = LoadMapRotation(mapRotationFile, stockMapRotation);
         if (rotation.Count == 0)
@@ -60,6 +66,7 @@ sealed class MapRotationManager
         var currentLevelName = _world.Level.Name;
         var currentArea = _world.Level.MapAreaIndex;
         var totalAreas = _world.Level.MapAreaCount;
+        _completedRoundsOnCurrentMap += 1;
         var preserveStats = false;
         string nextMap;
         var nextArea = 1;
@@ -78,19 +85,44 @@ sealed class MapRotationManager
             preserveStats = true;
             _log($"[server] advancing to {nextMap} area {nextArea}/{totalAreas} (winner red)");
         }
-        else if (_mapRotation.Count > 0)
+        else if (winner == PlayerTeam.Blue && currentArea < totalAreas)
         {
-            _mapRotationIndex = MapRotationShuffleEnabled
-                ? SelectShuffledRotationIndex(currentLevelName)
-                : (_mapRotationIndex + 1) % _mapRotation.Count;
-            nextMap = _mapRotation[_mapRotationIndex];
-            var rotationMode = MapRotationShuffleEnabled ? "random map" : "next map";
-            _log($"[server] advancing to {rotationMode} {nextMap} (winner {(winner.HasValue ? winner.Value.ToString() : "tie")})");
+            nextMap = currentLevelName;
+            nextArea = currentArea;
+            _log($"[server] restarting {nextMap} area {nextArea}/{totalAreas} for defender win");
+        }
+        else if (ShouldAdvanceRotation())
+        {
+            if (_mapRotation.Count > 0)
+            {
+                _mapRotationIndex = MapRotationShuffleEnabled
+                    ? SelectShuffledRotationIndex(currentLevelName)
+                    : (_mapRotationIndex + 1) % _mapRotation.Count;
+                nextMap = _mapRotation[_mapRotationIndex];
+                var rotationMode = MapRotationShuffleEnabled ? "random map" : "next map";
+                _log($"[server] advancing to {rotationMode} {nextMap} (winner {(winner.HasValue ? winner.Value.ToString() : "tie")})");
+            }
+            else
+            {
+                nextMap = currentLevelName;
+                _log("[server] map rotation empty; restarting current map.");
+            }
         }
         else
         {
             nextMap = currentLevelName;
-            _log("[server] map rotation empty; restarting current map.");
+            _log(BuildRotationHoldLogMessage(currentLevelName));
+            transition = new MapChangeTransition(
+                currentLevelName,
+                currentArea,
+                totalAreas,
+                currentLevelName,
+                currentArea,
+                PreservePlayerStats: false,
+                winner,
+                _world.MatchRules.Mode);
+            _world.RestartCurrentRoundForMapRotation(preservePlayerStats: false);
+            return true;
         }
 
         transition = new MapChangeTransition(
@@ -100,7 +132,8 @@ sealed class MapRotationManager
             nextMap,
             nextArea,
             preserveStats,
-            winner);
+            winner,
+            _world.MatchRules.Mode);
 
         if (!_world.ApplyPendingMapChange(nextMap, nextArea, preserveStats))
         {
@@ -112,6 +145,7 @@ sealed class MapRotationManager
         if (!preserveStats)
         {
             _world.ResetPlayersToAwaitingJoinForFreshMap();
+            ResetPolicyCountersForCurrentMap();
         }
 
         AlignCurrentMap(_world.Level.Name);
@@ -124,6 +158,42 @@ sealed class MapRotationManager
     public int CurrentRotationIndex => _mapRotationIndex;
 
     public bool MapRotationShuffleEnabled { get; set; }
+
+    public MapRotationAdvanceMode AdvanceMode { get; private set; }
+
+    public int RotationRoundCount { get; private set; }
+
+    public int RotationTimeMinutes { get; private set; }
+
+    public int CompletedRoundsOnCurrentMap => _completedRoundsOnCurrentMap;
+
+    public void ConfigureAdvancePolicy(MapRotationAdvanceMode advanceMode, int roundCount, int timeMinutes)
+    {
+        AdvanceMode = NormalizeAdvanceMode(advanceMode);
+        RotationRoundCount = NormalizeRotationRoundCount(roundCount);
+        RotationTimeMinutes = NormalizeRotationTimeMinutes(timeMinutes);
+    }
+
+    public static MapRotationAdvanceMode NormalizeAdvanceMode(MapRotationAdvanceMode mode)
+    {
+        return mode switch
+        {
+            MapRotationAdvanceMode.RoundEnd => MapRotationAdvanceMode.RoundEnd,
+            MapRotationAdvanceMode.RoundCount => MapRotationAdvanceMode.RoundCount,
+            MapRotationAdvanceMode.TimeElapsed => MapRotationAdvanceMode.TimeElapsed,
+            _ => MapRotationAdvanceMode.RoundEnd,
+        };
+    }
+
+    public static int NormalizeRotationRoundCount(int roundCount)
+    {
+        return Math.Clamp(roundCount, 1, 255);
+    }
+
+    public static int NormalizeRotationTimeMinutes(int timeMinutes)
+    {
+        return Math.Clamp(timeMinutes, 1, 255);
+    }
 
     public bool TrySetNextRoundMap(string levelName, int mapAreaIndex = 1)
     {
@@ -170,12 +240,14 @@ sealed class MapRotationManager
                 _mapRotation,
                 loadedRequestedMap ? requestedMap : _world.Level.Name,
                 _world.Level.Name);
+            ResetPolicyCountersForCurrentMap();
             return;
         }
 
         if (_mapRotation.Count == 0)
         {
             _mapRotationIndex = 0;
+            ResetPolicyCountersForCurrentMap();
             return;
         }
 
@@ -186,6 +258,40 @@ sealed class MapRotationManager
         }
 
         _mapRotationIndex = Math.Max(0, FindMapRotationIndex(_mapRotation, _world.Level.Name));
+        ResetPolicyCountersForCurrentMap();
+    }
+
+    private bool ShouldAdvanceRotation()
+    {
+        return AdvanceMode switch
+        {
+            MapRotationAdvanceMode.RoundCount => _completedRoundsOnCurrentMap >= RotationRoundCount,
+            MapRotationAdvanceMode.TimeElapsed => GetCurrentMapElapsedTicks() >= RotationTimeMinutes * _world.Config.TicksPerSecond * 60,
+            _ => true,
+        };
+    }
+
+    private long GetCurrentMapElapsedTicks()
+    {
+        return Math.Max(0, _world.Frame - _currentMapStartFrame);
+    }
+
+    private string BuildRotationHoldLogMessage(string currentLevelName)
+    {
+        return AdvanceMode switch
+        {
+            MapRotationAdvanceMode.RoundCount =>
+                $"[server] restarting {currentLevelName}; map rotation waits for round {Math.Min(_completedRoundsOnCurrentMap, RotationRoundCount)}/{RotationRoundCount}.",
+            MapRotationAdvanceMode.TimeElapsed =>
+                $"[server] restarting {currentLevelName}; map rotation waits for {RotationTimeMinutes} minute(s) elapsed.",
+            _ => $"[server] restarting {currentLevelName}.",
+        };
+    }
+
+    private void ResetPolicyCountersForCurrentMap()
+    {
+        _completedRoundsOnCurrentMap = 0;
+        _currentMapStartFrame = _world.Frame;
     }
 
     private int SelectShuffledRotationIndex(string currentLevelName)

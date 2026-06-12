@@ -77,6 +77,11 @@ public partial class Game1
                 return GameplayOverlayKind.CustomBubbleEditor;
             }
 
+            if (_game._friendsMenuOpen && !_game._inGameMenuOpen)
+            {
+                return GameplayOverlayKind.SocialMenu;
+            }
+
             if (_game._hudEditorOpen)
             {
                 return GameplayOverlayKind.HudEditor;
@@ -102,6 +107,12 @@ public partial class Game1
 
         public void Update(KeyboardState keyboard, MouseState mouse)
         {
+            if (_game._friendsMenuOpen && _game._inGameMenuOpen)
+            {
+                _game.UpdateFriendsMenu(keyboard, mouse);
+                return;
+            }
+
             switch (GetActiveOverlay())
             {
                 case GameplayOverlayKind.LastToDieFailure:
@@ -139,6 +150,9 @@ public partial class Game1
                     return;
                 case GameplayOverlayKind.CustomBubbleEditor:
                     _game.UpdateCustomBubbleEditor(keyboard, mouse);
+                    return;
+                case GameplayOverlayKind.SocialMenu:
+                    _game.UpdateFriendsMenu(keyboard, mouse);
                     return;
                 case GameplayOverlayKind.HudEditor:
                     _game.UpdateHudEditor(keyboard, mouse);

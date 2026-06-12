@@ -23,6 +23,7 @@ internal static class SnapshotDeltaBudgeter
         LocalPlayerStatusUpdate,
         PlayerMovementUpdate,
         PlayerExtendedStatusUpdate,
+        LocalPlayerExtendedStatusUpdate,
         PlayerChatBubbleUpdate,
         PlayerFirstAppearance,
         PlayerRosterUpdate,
@@ -33,6 +34,7 @@ internal static class SnapshotDeltaBudgeter
         TransientSoundEvent,
         TransientDamageEvent,
         ProjectileSpawn,
+        ProjectileMotionUpdate,
     }
 
     internal sealed record Contribution(
@@ -119,11 +121,23 @@ internal static class SnapshotDeltaBudgeter
             appliedContributions,
             SnapshotDeltaBudgeter.ContributionKind.LocalPlayerUpdate,
             ref remainingBudget);
+        ApplyRequiredContributions(
+            builder,
+            orderedContributions,
+            appliedContributions,
+            SnapshotDeltaBudgeter.ContributionKind.PlayerMovementUpdate,
+            ref remainingBudget);
         ApplyRequiredRosterContribution(
             builder,
             orderedContributions,
             appliedContributions,
             SnapshotDeltaBudgeter.ContributionKind.LocalPlayerStatusUpdate,
+            ref remainingBudget);
+        ApplyRequiredContributions(
+            builder,
+            orderedContributions,
+            appliedContributions,
+            SnapshotDeltaBudgeter.ContributionKind.LocalPlayerExtendedStatusUpdate,
             ref remainingBudget);
         ApplyRequiredContributions(
             builder,
@@ -139,13 +153,19 @@ internal static class SnapshotDeltaBudgeter
             ref remainingBudget);
         // Projectile spawns (first appearance of any bullet/rocket/etc.) are treated as
         // required so that new projectiles are never silently dropped under budget pressure.
-        // Subsequent position-only updates for known projectiles are still Optional and
-        // compete with other data, since clients predict projectile motion locally.
+        // Skipped motion-only backfill is budget-admitted immediately afterward so spare
+        // packet room goes to smoothing projectile flight before ordinary optional data.
         ApplyRequiredContributions(
             builder,
             orderedContributions,
             appliedContributions,
             SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn,
+            ref remainingBudget);
+        ApplyBudgetedContributions(
+            builder,
+            orderedContributions,
+            appliedContributions,
+            SnapshotDeltaBudgeter.ContributionKind.ProjectileMotionUpdate,
             ref remainingBudget);
 
         for (var index = 0; index < orderedContributions.Length; index += 1)
@@ -169,6 +189,7 @@ internal static class SnapshotDeltaBudgeter
         snapshot = builder.Build();
         payloadSize = Measure(snapshot);
         payload = Serialize(snapshot, payloadSize, ref serializePassCount);
+        var candidateComposition = BuildCompositionMetrics(snapshot, targetPayloadBytes, payloadSize, payload.Length);
 
         if (payload.Length > targetPayloadBytes)
         {
@@ -193,7 +214,43 @@ internal static class SnapshotDeltaBudgeter
         }
 
         var composition = BuildCompositionMetrics(snapshot, targetPayloadBytes, payloadSize, payload!.Length);
-        return new SnapshotBudgetBuildResult(snapshot, payload, serializePassCount, composition);
+        return new SnapshotBudgetBuildResult(snapshot, payload, serializePassCount, composition, candidateComposition, ReductionApplied: true);
+    }
+
+    internal static SnapshotBudgetBuildResult BuildUntrimmedSnapshotWithEmergencyReduction(
+        SnapshotMessage fullSnapshot,
+        ISnapshotBaselineState? baseline,
+        IReadOnlyList<Contribution> contributions,
+        int targetPayloadBytes = TargetSnapshotPayloadBytes)
+    {
+        var builder = new Builder(fullSnapshot, baseline?.Frame ?? 0, seedFromTemplateCollections: false);
+        for (var index = 0; index < contributions.Count; index += 1)
+        {
+            contributions[index].Apply(builder);
+        }
+
+        var snapshot = builder.Build();
+        var serializePassCount = 0;
+        var payloadSize = Measure(snapshot);
+        var payload = Serialize(snapshot, payloadSize, ref serializePassCount);
+        var candidateComposition = BuildCompositionMetrics(snapshot, targetPayloadBytes, payloadSize, payload.Length);
+        var reductionApplied = false;
+
+        if (payload.Length > targetPayloadBytes)
+        {
+            reductionApplied = true;
+            var reducedSnapshot = ReduceGameplayCriticalSnapshot(
+                builder,
+                targetPayloadBytes,
+                new SerializedSnapshot(snapshot, payload, payloadSize),
+                ref serializePassCount);
+            snapshot = reducedSnapshot.Message;
+            payload = reducedSnapshot.Payload;
+            payloadSize = reducedSnapshot.UncompressedBytes;
+        }
+
+        var composition = BuildCompositionMetrics(snapshot, targetPayloadBytes, payloadSize, payload.Length);
+        return new SnapshotBudgetBuildResult(snapshot, payload, serializePassCount, composition, candidateComposition, reductionApplied);
     }
 
     private static void ApplyRequiredRosterContribution(
@@ -233,6 +290,32 @@ internal static class SnapshotDeltaBudgeter
             }
 
             var contribution = orderedContributions[index];
+            contribution.Apply(builder);
+            appliedContributions[index] = true;
+            remainingBudget -= contribution.EstimatedBytes;
+        }
+    }
+
+    private static void ApplyBudgetedContributions(
+        Builder builder,
+        Contribution[] orderedContributions,
+        bool[] appliedContributions,
+        ContributionKind kind,
+        ref int remainingBudget)
+    {
+        for (var index = 0; index < orderedContributions.Length; index += 1)
+        {
+            if (appliedContributions[index] || orderedContributions[index].Kind != kind)
+            {
+                continue;
+            }
+
+            var contribution = orderedContributions[index];
+            if (contribution.EstimatedBytes > remainingBudget)
+            {
+                continue;
+            }
+
             contribution.Apply(builder);
             appliedContributions[index] = true;
             remainingBudget -= contribution.EstimatedBytes;
@@ -279,6 +362,48 @@ internal static class SnapshotDeltaBudgeter
         return null;
     }
 
+    private static SerializedSnapshot ReduceGameplayCriticalSnapshot(
+        Builder builder,
+        int targetPayloadBytes,
+        SerializedSnapshot latest,
+        ref int serializePassCount)
+    {
+        if (latest.Payload.Length <= targetPayloadBytes)
+        {
+            return latest;
+        }
+
+        var madeProgress = true;
+        while (madeProgress)
+        {
+            madeProgress = false;
+            foreach (var dropStep in GameplayCriticalDropSteps)
+            {
+                if (!dropStep(builder))
+                {
+                    continue;
+                }
+
+                madeProgress = true;
+                latest = SerializeBuilderSnapshot(builder, ref serializePassCount);
+                if (latest.Payload.Length <= targetPayloadBytes)
+                {
+                    return latest;
+                }
+            }
+        }
+
+        return latest;
+    }
+
+    private static SerializedSnapshot SerializeBuilderSnapshot(Builder builder, ref int serializePassCount)
+    {
+        var snapshot = builder.Build();
+        var payloadSize = Measure(snapshot);
+        var payload = Serialize(snapshot, payloadSize, ref serializePassCount);
+        return new SerializedSnapshot(snapshot, payload, payloadSize);
+    }
+
     private static SerializedSnapshot? TryReduceSnapshotForBudget(SnapshotMessage snapshot, int targetPayloadBytes, ref int serializePassCount)
     {
         snapshot = snapshot with
@@ -313,7 +438,6 @@ internal static class SnapshotDeltaBudgeter
         snapshot = snapshot with
         {
             Players = Array.Empty<SnapshotPlayerState>(),
-            PlayerMovementStates = Array.Empty<SnapshotPlayerMovementState>(),
             PlayerExtendedStatusStates = Array.Empty<SnapshotPlayerExtendedStatusState>(),
         };
 
@@ -476,7 +600,7 @@ internal static class SnapshotDeltaBudgeter
 
     private static int EstimatePlayerBytes(SnapshotPlayerState player)
     {
-        var bytes = 207
+        var bytes = 211
             + EstimateStringBytes(player.Name)
             + EstimateCachedStringBytes(player.GameplayModPackCacheId, player.GameplayModPackId)
             + EstimateCachedStringBytes(player.GameplayLoadoutCacheId, player.GameplayLoadoutId)
@@ -686,6 +810,7 @@ internal static class SnapshotDeltaBudgeter
             // Medic beam trimming
             IsMedicHealing = false,
             MedicHealTargetId = -1,
+            PingMilliseconds = -1,
         };
     }
 
@@ -698,7 +823,6 @@ internal static class SnapshotDeltaBudgeter
             MapDownloadUrl = string.Empty,
             MapContentHash = string.Empty,
             Players = Array.Empty<SnapshotPlayerState>(),
-            PlayerMovementStates = Array.Empty<SnapshotPlayerMovementState>(),
             PlayerExtendedStatusStates = Array.Empty<SnapshotPlayerExtendedStatusState>(),
             CombatTraces = Array.Empty<SnapshotCombatTraceState>(),
             SniperAimIndicators = Array.Empty<SnapshotSniperAimIndicatorState>(),
@@ -755,22 +879,24 @@ internal static class SnapshotDeltaBudgeter
             changed |= ClearIfAny(builder.JumpPadGibs);
             return changed;
         },
-        // Drop small projectile motion-only updates one collection at a time (least important first)
-        // rather than clearing all bullets in one step. Spawn events for these projectiles are now
-        // required contributions (applied before the optional loop), so only redundant position
-        // updates reach this reduction path.
-        static builder => ClearProjectileCollectionIfAny(builder, builder.Flares, SnapshotEntityCollectionCompletenessFlags.Flares),
-        static builder => ClearProjectileCollectionIfAny(builder, builder.Blades, SnapshotEntityCollectionCompletenessFlags.Blades),
-        static builder => ClearProjectileCollectionIfAny(builder, builder.Bubbles, SnapshotEntityCollectionCompletenessFlags.Bubbles),
-        static builder => ClearProjectileCollectionIfAny(builder, builder.Needles, SnapshotEntityCollectionCompletenessFlags.Needles),
-        static builder => ClearProjectileCollectionIfAny(builder, builder.RevolverShots, SnapshotEntityCollectionCompletenessFlags.RevolverShots),
-        static builder => ClearProjectileCollectionIfAny(builder, builder.Shots, SnapshotEntityCollectionCompletenessFlags.Shots),
+        static builder => RemoveLastIfAboveMinimum(builder.PlayerChatBubbleStates, minimumCount: 0),
+        static builder => RemoveLastIfAboveMinimum(builder.PlayerExtendedStatusStates, minimumCount: 1),
         // Drop SniperAimIndicators and network-visible sniper CombatTraces one entry at a time
         // (farthest-first, since the contribution planner adds nearest entries first). This ensures
         // the packet is filled to the maximum before any tracer is dropped, and entries at the edge
         // of the viewport go first.
         static builder => RemoveLastIfAboveMinimum(builder.SniperAimIndicators, minimumCount: 0),
         static builder => RemoveLastIfAboveMinimum(builder.CombatTraces, minimumCount: 0),
+        static builder => RemoveLastIfAboveMinimum(builder.SoundEvents, minimumCount: 1),
+        static builder => RemoveLastIfAboveMinimum(builder.RocketSpawnEvents, minimumCount: 0),
+        // Projectile motion is visual-critical: keep it until cheaper cosmetics, traces, and
+        // repeated transient events have already been exhausted.
+        static builder => ClearProjectileCollectionIfAny(builder, builder.Flares, SnapshotEntityCollectionCompletenessFlags.Flares),
+        static builder => ClearProjectileCollectionIfAny(builder, builder.Blades, SnapshotEntityCollectionCompletenessFlags.Blades),
+        static builder => ClearProjectileCollectionIfAny(builder, builder.Bubbles, SnapshotEntityCollectionCompletenessFlags.Bubbles),
+        static builder => ClearProjectileCollectionIfAny(builder, builder.Needles, SnapshotEntityCollectionCompletenessFlags.Needles),
+        static builder => ClearProjectileCollectionIfAny(builder, builder.RevolverShots, SnapshotEntityCollectionCompletenessFlags.RevolverShots),
+        static builder => ClearProjectileCollectionIfAny(builder, builder.Shots, SnapshotEntityCollectionCompletenessFlags.Shots),
         static builder =>
         {
             // VisualEvents (explosions, impacts, etc.) are dropped together with the
@@ -787,8 +913,6 @@ internal static class SnapshotDeltaBudgeter
             changed |= ClearIfAny(builder.JumpPads);
             return changed;
         },
-        static builder => RemoveLastIfAboveMinimum(builder.RocketSpawnEvents, minimumCount: 0),
-        static builder => RemoveLastIfAboveMinimum(builder.SoundEvents, minimumCount: 1),
         static builder =>
         {
             var changed = false;
@@ -819,9 +943,24 @@ internal static class SnapshotDeltaBudgeter
             changed |= ClearIfAny(builder.RemovedSentryIds);
             return changed;
         },
-        static builder => RemoveLastIfAboveMinimum(builder.PlayerChatBubbleStates, minimumCount: 0),
-        static builder => RemoveLastIfAboveMinimum(builder.PlayerExtendedStatusStates, minimumCount: 0),
-        static builder => RemoveLastIfAboveMinimum(builder.PlayerMovementStates, minimumCount: 1),
+    ];
+
+    private static readonly Func<Builder, bool>[] GameplayCriticalDropSteps =
+    [
+        static builder => ClearIfAny(builder.KillFeed),
+        static builder =>
+        {
+            var changed = false;
+            changed |= ClearIfAny(builder.GibSpawnEvents);
+            changed |= ClearIfAny(builder.PlayerGibs);
+            changed |= ClearIfAny(builder.SentryGibs);
+            changed |= ClearIfAny(builder.JumpPadGibs);
+            changed |= ClearIfAny(builder.DeadBodies);
+            return changed;
+        },
+        static builder => RemoveLastIfAboveMinimum(builder.SniperAimIndicators, minimumCount: 0),
+        static builder => RemoveLastIfAboveMinimum(builder.CombatTraces, minimumCount: 0),
+        static builder => ReducePlayersForGameplayCriticalBudget(builder),
     ];
 
     private static bool ClearIfAny<T>(TrackingList<T> list)
@@ -872,6 +1011,55 @@ internal static class SnapshotDeltaBudgeter
 
         list.RemoveLast();
         return true;
+    }
+
+    private static bool ReducePlayersForGameplayCriticalBudget(Builder builder)
+    {
+        if (builder.Players.Count == 0)
+        {
+            return false;
+        }
+
+        var reducedPlayers = new SnapshotPlayerState[builder.Players.Count];
+        var changed = false;
+        for (var index = 0; index < builder.Players.Count; index += 1)
+        {
+            var player = builder.Players[index];
+            var reducedPlayer = ReducePlayerStateForGameplayCriticalBudget(player);
+            reducedPlayers[index] = reducedPlayer;
+            changed |= !EqualityComparer<SnapshotPlayerState>.Default.Equals(player, reducedPlayer);
+        }
+
+        if (!changed)
+        {
+            return false;
+        }
+
+        builder.Players.ReplaceWith(reducedPlayers);
+        return true;
+    }
+
+    private static SnapshotPlayerState ReducePlayerStateForGameplayCriticalBudget(SnapshotPlayerState player)
+    {
+        return player with
+        {
+            BadgeMask = 0,
+            OwnedGameplayItemIds = Array.Empty<string>(),
+            IsChatBubbleVisible = false,
+            ChatBubbleFrameIndex = 0,
+            ChatBubbleAlpha = 0f,
+            IsTypingChatMessage = false,
+            Kills = 0,
+            Deaths = 0,
+            Caps = 0,
+            Points = 0f,
+            HealPoints = 0,
+            ActiveDominationCount = 0,
+            IsDominatingLocalViewer = false,
+            IsDominatedByLocalViewer = false,
+            Assists = 0,
+            GibDeaths = 0,
+        };
     }
 
     internal sealed class Builder
@@ -1137,6 +1325,13 @@ internal static class SnapshotDeltaBudgeter
             }
 
             _items.Clear();
+            _cachedArray = null;
+        }
+
+        public void ReplaceWith(IEnumerable<T> items)
+        {
+            _items.Clear();
+            _items.AddRange(items);
             _cachedArray = null;
         }
 

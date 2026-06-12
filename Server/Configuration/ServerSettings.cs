@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using OpenGarrison.Core;
+using OpenGarrison.Server;
 
 sealed class ServerSettings
 {
@@ -25,6 +26,12 @@ sealed class ServerSettings
 
     public bool MapRotationShuffleEnabled { get; set; }
 
+    public MapRotationAdvanceMode MapRotationAdvanceMode { get; set; } = MapRotationAdvanceMode.RoundEnd;
+
+    public int MapRotationRounds { get; set; } = 1;
+
+    public int MapRotationMinutes { get; set; } = 15;
+
     public int MaxPlayableClients { get; set; } = 10;
 
     public int MaxTotalClients { get; set; } = 10;
@@ -32,6 +39,10 @@ sealed class ServerSettings
     public int MaxSpectatorClients { get; set; } = 10;
 
     public bool AutoBalanceEnabled { get; set; } = true;
+
+    public bool SwitchTeamsAfterRoundEnd { get; set; }
+
+    public int TeamShuffleAfterWins { get; set; }
 
     public bool SecondaryAbilitiesEnabled { get; set; } = true;
 
@@ -58,6 +69,8 @@ sealed class ServerSettings
     public int BotAutofillPerTeam { get; set; }
 
     public bool SnapshotCompressionEnabled { get; set; } = true;
+
+    public SnapshotBudgetMode SnapshotBudgetMode { get; set; } = SnapshotBudgetMode.GameplayCriticalUntrimmed;
 
     public bool PersistentGameplayOwnershipEnabled { get; set; }
 
@@ -128,10 +141,15 @@ sealed class ServerSettings
             RequestedMap = string.Empty,
             MapRotationFile = hostDefaults.MapRotationFile,
             MapRotationShuffleEnabled = hostDefaults.MapRotationShuffleEnabled,
+            MapRotationAdvanceMode = OpenGarrisonHostSettings.NormalizeMapRotationAdvanceMode(hostDefaults.MapRotationAdvanceMode),
+            MapRotationRounds = OpenGarrisonHostSettings.NormalizeMapRotationRounds(hostDefaults.MapRotationRounds),
+            MapRotationMinutes = OpenGarrisonHostSettings.NormalizeMapRotationMinutes(hostDefaults.MapRotationMinutes),
             MaxPlayableClients = maxPlayableClients,
             MaxTotalClients = maxTotalClients,
             MaxSpectatorClients = maxSpectatorClients,
             AutoBalanceEnabled = hostDefaults.AutoBalanceEnabled,
+            SwitchTeamsAfterRoundEnd = hostDefaults.SwitchTeamsAfterRoundEnd,
+            TeamShuffleAfterWins = OpenGarrisonHostSettings.NormalizeTeamShuffleAfterWins(hostDefaults.TeamShuffleAfterWins),
             SecondaryAbilitiesEnabled = hostDefaults.SecondaryAbilitiesEnabled,
             RandomSpreadEnabled = hostDefaults.RandomSpreadEnabled,
             CompetitiveReadyUpEnabled = hostDefaults.CompetitiveReadyUpEnabled,
@@ -149,6 +167,7 @@ sealed class ServerSettings
             PersistentGameplayOwnershipIdentityMode = preferences.PersistentGameplayOwnershipIdentityMode,
             PersistentGameplayOwnershipFile = preferences.PersistentGameplayOwnershipFile,
             SnapshotCompressionEnabled = preferences.SnapshotCompressionEnabled,
+            SnapshotBudgetMode = SnapshotBudgetMode.GameplayCriticalUntrimmed,
         };
     }
 
@@ -161,7 +180,12 @@ sealed class ServerSettings
         hostDefaults.LobbyAnnounceEnabled = UseLobbyServer;
         hostDefaults.MapRotationFile = MapRotationFile;
         hostDefaults.MapRotationShuffleEnabled = MapRotationShuffleEnabled;
+        hostDefaults.MapRotationAdvanceMode = OpenGarrisonHostSettings.NormalizeMapRotationAdvanceMode(MapRotationAdvanceMode);
+        hostDefaults.MapRotationRounds = OpenGarrisonHostSettings.NormalizeMapRotationRounds(MapRotationRounds);
+        hostDefaults.MapRotationMinutes = OpenGarrisonHostSettings.NormalizeMapRotationMinutes(MapRotationMinutes);
         hostDefaults.AutoBalanceEnabled = AutoBalanceEnabled;
+        hostDefaults.SwitchTeamsAfterRoundEnd = SwitchTeamsAfterRoundEnd;
+        hostDefaults.TeamShuffleAfterWins = OpenGarrisonHostSettings.NormalizeTeamShuffleAfterWins(TeamShuffleAfterWins);
         hostDefaults.SecondaryAbilitiesEnabled = SecondaryAbilitiesEnabled;
         hostDefaults.RandomSpreadEnabled = RandomSpreadEnabled;
         hostDefaults.CompetitiveReadyUpEnabled = CompetitiveReadyUpEnabled;

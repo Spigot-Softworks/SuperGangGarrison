@@ -79,13 +79,14 @@ public partial class Game1
     private void DrawMedicBeamForPlayer(PlayerEntity medic, Vector2 cameraPosition)
     {
         if (!medic.IsMedicHealing
-            || !medic.MedicHealTargetId.HasValue)
+            || !medic.MedicHealTargetId.HasValue
+            || !HasFreshPlayerRenderHistory(medic))
         {
             return;
         }
 
         var healTarget = FindPlayerById(medic.MedicHealTargetId.Value);
-        if (healTarget is null || !healTarget.IsAlive)
+        if (healTarget is null || !healTarget.IsAlive || !HasFreshPlayerRenderHistory(healTarget))
         {
             return;
         }
@@ -149,7 +150,7 @@ public partial class Game1
             }
 
             var target = FindPlayerById(targetPlayerId.Value);
-            if (target is null || !target.IsAlive)
+            if (target is null || !target.IsAlive || !HasFreshPlayerRenderHistory(target))
             {
                 return;
             }

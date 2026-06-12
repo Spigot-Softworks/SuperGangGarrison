@@ -226,7 +226,8 @@ public sealed record InputStateMessage(
     int ChatBubbleFrameIndex,
     bool IsUsingBinoculars = false,
     float BinocularsFocusX = 0f,
-    float BinocularsFocusY = 0f) : IProtocolMessage
+    float BinocularsFocusY = 0f,
+    int PingMilliseconds = -1) : IProtocolMessage
 {
     public MessageType Type => MessageType.InputState;
 }
@@ -432,7 +433,8 @@ public sealed record SnapshotPlayerState(
     short GibDeaths = 0,
     bool IsReady = false,
     string GameplayClassId = "",
-    ushort GameplayClassCacheId = 0);
+    ushort GameplayClassCacheId = 0,
+    int PingMilliseconds = -1);
 
 public sealed record SnapshotPlayerMovementState(
     byte Slot,

@@ -28,7 +28,10 @@ public sealed partial class SimulationWorld
 
             foreach (var player in world.EnumerateSimulatedPlayers())
             {
-                if (!player.IsAlive || player.IsSpyCloaked || IsIgnoringPlayerForCapture(world, player))
+                if (!player.IsAlive
+                    || player.IsSpyCloaked
+                    || IsIgnoringPlayerForCapture(world, player)
+                    || !world.CanPlayerCaptureInVipMode(player))
                 {
                     continue;
                 }

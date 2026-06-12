@@ -33,6 +33,11 @@ public partial class Game1
 
         var cloakAlpha = Math.Clamp(GetPlayerSpyCloakAlpha(player), 0f, 1f);
 
+        if (ReferenceEquals(player, _world.LocalPlayer) && GetPlayerIsSpySuperjumpActive(player))
+        {
+            cloakAlpha = Math.Max(cloakAlpha, SpySuperjumpCloakRevealStartAlpha);
+        }
+
         // Apply superjump visual reveal on top (purely cosmetic, no gameplay implication)
         if (_spySuperjumpCloakRevealTicks.TryGetValue(player.Id, out var revealTicksRemaining) && revealTicksRemaining > 0)
         {

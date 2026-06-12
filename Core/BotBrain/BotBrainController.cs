@@ -3969,6 +3969,12 @@ public sealed class BotBrainController
                 return false;
             }
 
+            if (_navGraph is null
+                && TryResolveNoGraphControlPointObstacleNudge(world, self, team, point, steeringOutput, out directSteering, out directTrace))
+            {
+                return true;
+            }
+
             if (TryRouteToDirectSeekTarget(
                     world,
                     self,
@@ -4003,6 +4009,55 @@ public sealed class BotBrainController
         }
 
         return false;
+    }
+
+    private static bool TryResolveNoGraphControlPointObstacleNudge(
+        SimulationWorld world,
+        PlayerEntity self,
+        PlayerTeam team,
+        ControlPointState point,
+        SteeringOutput steeringOutput,
+        out SteeringOutput directSteering,
+        out string directTrace)
+    {
+        directSteering = steeringOutput;
+        directTrace = string.Empty;
+        if (world.IsPlayerInControlPointCaptureZone(self, point.Index)
+            || !self.IsGrounded
+            || steeringOutput.Jump
+            || steeringOutput.DropDown)
+        {
+            return false;
+        }
+
+        var pointDx = point.HealingAuraCenterX - self.X;
+        var laneTargetX = ResolveCapturePointLaneTargetX(world, self, team, point);
+        var laneDx = laneTargetX - self.X;
+        if (MathF.Abs(pointDx) > CapturePointHoldCenterDeadZone
+            && MathF.Abs(laneDx) > CapturePointHoldHorizontalRange)
+        {
+            return false;
+        }
+
+        var direction = MathF.Abs(laneDx) > CapturePointLaneTargetDeadZone
+            ? MathF.Sign(laneDx)
+            : MathF.Sign(pointDx);
+        if (direction == 0)
+        {
+            direction = point.HealingAuraCenterX >= self.X ? 1 : -1;
+        }
+
+        if (!IsJumpableCapturePointObstacleAhead(self, world.Level, team, direction))
+        {
+            return false;
+        }
+
+        directSteering.MoveDirection = direction;
+        directSteering.Jump = true;
+        directSteering.DropDown = false;
+        directSteering.RequestRepath = false;
+        directTrace = $"capturePointObstacleJump point:{point.Index} noGraphNudge move:{direction:0}";
+        return true;
     }
 
     private static void ApplyCapturePointObstacleJumpIfNeeded(

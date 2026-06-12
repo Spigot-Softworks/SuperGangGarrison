@@ -126,6 +126,9 @@ def initialize_db() -> None:
                 max_players INTEGER NOT NULL DEFAULT 0,
                 spectators INTEGER NOT NULL DEFAULT 0,
                 protocol_version INTEGER NOT NULL DEFAULT 0,
+                build_version TEXT NOT NULL DEFAULT '',
+                release_channel TEXT NOT NULL DEFAULT '',
+                compatibility_key TEXT NOT NULL DEFAULT '',
                 request_ip TEXT NOT NULL DEFAULT '',
                 last_seen INTEGER NOT NULL
             );
@@ -154,6 +157,9 @@ def initialize_db() -> None:
         )
         ensure_column(db, "clients", "player_card_json", "TEXT NOT NULL DEFAULT ''")
         ensure_column(db, "presence", "player_card_json", "TEXT NOT NULL DEFAULT ''")
+        ensure_column(db, "servers", "build_version", "TEXT NOT NULL DEFAULT ''")
+        ensure_column(db, "servers", "release_channel", "TEXT NOT NULL DEFAULT ''")
+        ensure_column(db, "servers", "compatibility_key", "TEXT NOT NULL DEFAULT ''")
 
 
 def ensure_column(db: sqlite3.Connection, table: str, column: str, definition: str) -> None:
@@ -274,6 +280,9 @@ class ServerRegistryRequest(BaseModel):
     maxPlayers: int = 0
     spectators: int = 0
     protocolVersion: int = 0
+    buildVersion: str = ""
+    releaseChannel: str = ""
+    compatibilityKey: str = ""
 
 
 class ClientRegisterRequest(BaseModel):
@@ -375,16 +384,37 @@ def healthz() -> dict[str, str]:
 
 @app.get("/api/servers")
 @app.get("/API/og2servers.php")
-def get_servers() -> dict[str, Any]:
+def get_servers(
+    protocolVersion: int | None = None,
+    buildVersion: str = "",
+    releaseChannel: str = "",
+    channel: str = "",
+    compatibilityKey: str = "",
+) -> dict[str, Any]:
+    requested_channel = clean_text(releaseChannel or channel, 32).lower() or "stable"
+    requested_build_version = clean_text(buildVersion, 64)
+    requested_compatibility_key = clean_text(compatibilityKey, 128)
     with connect_db() as db:
         prune_expired(db)
+        where_clauses = ["last_seen >= ?", "release_channel = ?"]
+        parameters: list[Any] = [now_seconds() - SERVER_TTL_SECONDS, requested_channel]
+        if protocolVersion is not None:
+            where_clauses.append("protocol_version = ?")
+            parameters.append(clamp_int(protocolVersion, 0, 999999))
+        if requested_compatibility_key:
+            where_clauses.append("compatibility_key = ?")
+            parameters.append(requested_compatibility_key)
+        elif requested_build_version:
+            where_clauses.append("(build_version = ? OR build_version = '')")
+            parameters.append(requested_build_version)
+
         rows = db.execute(
-            """
+            f"""
             SELECT * FROM servers
-            WHERE last_seen >= ?
+            WHERE {" AND ".join(where_clauses)}
             ORDER BY players DESC, last_seen DESC, name COLLATE NOCASE
             """,
-            (now_seconds() - SERVER_TTL_SECONDS,),
+            parameters,
         ).fetchall()
 
     return {
@@ -403,6 +433,9 @@ def get_servers() -> dict[str, Any]:
                 "maxPlayers": row["max_players"],
                 "spectators": row["spectators"],
                 "protocolVersion": row["protocol_version"],
+                "buildVersion": row["build_version"],
+                "releaseChannel": row["release_channel"],
+                "compatibilityKey": row["compatibility_key"],
                 "lastSeenIso": iso_from_seconds(row["last_seen"]),
             }
             for row in rows
@@ -440,15 +473,19 @@ def post_server_registry(payload: ServerRegistryRequest, request: Request) -> di
         udp_port = clamp_int(payload.udpPort, 0, 65535)
         websocket_port = clamp_int(payload.webSocketPort, 0, 65535)
         websocket_url = clean_text(payload.webSocketUrl, 512)
+        build_version = clean_text(payload.buildVersion, 64)
+        release_channel = clean_text(payload.releaseChannel, 32).lower() or "stable"
+        compatibility_key = clean_text(payload.compatibilityKey, 128)
         server_id = clean_text(payload.serverId, 512) or f"og2:{host.lower()}:{udp_port}:{websocket_port}:{websocket_url}"
         current = now_seconds()
         db.execute(
             """
             INSERT INTO servers (
                 server_id, name, host, udp_port, websocket_port, websocket_url, private,
-                map, mode, players, max_players, spectators, protocol_version, request_ip, last_seen
+                map, mode, players, max_players, spectators, protocol_version,
+                build_version, release_channel, compatibility_key, request_ip, last_seen
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(server_id) DO UPDATE SET
                 name = excluded.name,
                 host = excluded.host,
@@ -462,6 +499,9 @@ def post_server_registry(payload: ServerRegistryRequest, request: Request) -> di
                 max_players = excluded.max_players,
                 spectators = excluded.spectators,
                 protocol_version = excluded.protocol_version,
+                build_version = excluded.build_version,
+                release_channel = excluded.release_channel,
+                compatibility_key = excluded.compatibility_key,
                 request_ip = excluded.request_ip,
                 last_seen = excluded.last_seen
             """,
@@ -479,6 +519,9 @@ def post_server_registry(payload: ServerRegistryRequest, request: Request) -> di
                 clamp_int(payload.maxPlayers, 0, 255),
                 clamp_int(payload.spectators, 0, 255),
                 clamp_int(payload.protocolVersion, 0, 999999),
+                build_version,
+                release_channel,
+                compatibility_key,
                 ip,
                 current,
             ),

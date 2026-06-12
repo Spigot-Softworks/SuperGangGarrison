@@ -50,6 +50,8 @@ public sealed partial class SimulationWorld
     private readonly List<PlayerGibEntity> _playerGibs = new();
     private readonly List<BloodDropEntity> _bloodDrops = new();
     private readonly List<HealthPackEntity> _healthPacks = new();
+    private readonly List<CivvieMoneyPickup> _civvieMoneyPickups = new();
+    private readonly List<PlayerEntity> _civvieMoneyPickupPlayerBuffer = new();
     private readonly List<DroppedWeaponEntity> _droppedWeapons = new();
     private readonly List<DeadBodyEntity> _deadBodies = new();
     private readonly List<SentryGibEntity> _sentryGibs = new();
@@ -85,6 +87,7 @@ public sealed partial class SimulationWorld
     private readonly Dictionary<byte, PlayerInputSnapshot> _additionalNetworkPlayerPreviousInputs = new();
     private readonly Dictionary<byte, bool> _additionalNetworkPlayerAwaitingJoin = new();
     private readonly Dictionary<byte, int> _additionalNetworkPlayerRespawnTicks = new();
+    private readonly Dictionary<byte, int> _networkPlayerPingMillisecondsBySlot = new();
     private readonly Dictionary<byte, PlayerTeam> _additionalNetworkPlayerTeams = new();
     private readonly HashSet<byte> _pendingNetworkPlayerTeamSelections = new();
     private readonly Dictionary<byte, SpawnPoint> _networkPlayerSpawnOverrides = new();
@@ -147,6 +150,12 @@ public sealed partial class SimulationWorld
     private readonly List<ControlPointZone> _controlPointZones = new();
     private bool _controlPointSetupMode;
     private int _controlPointSetupTicksRemaining;
+    private readonly Dictionary<PlayerTeam, byte> _vipSlotsByTeam = new();
+    private readonly Dictionary<PlayerTeam, byte> _preferredVipSlotsByTeam = new();
+    private bool _practiceVipRulesEnabled;
+    private int _vipWarmupTicksRemaining;
+    private int _vipAssignmentVersion;
+    private int _vipRoundStartVersion;
 
     public long Frame { get; private set; }
 

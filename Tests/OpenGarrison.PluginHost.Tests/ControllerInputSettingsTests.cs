@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using Microsoft.Xna.Framework.Input;
+using OpenGarrison.Client;
 using OpenGarrison.ClientShared;
 using OpenGarrison.Core;
 using Xunit;
@@ -8,6 +10,15 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class ControllerInputSettingsTests
 {
+    [Fact]
+    public void DefaultControllerMedicCallUsesUnusedFaceButton()
+    {
+        Assert.Equal(Buttons.B, Game1.ControllerCallMedicButton);
+        Assert.NotEqual(ControllerButtonBinding.B, OpenGarrisonPreferencesDocument.DefaultControllerJumpButton);
+        Assert.NotEqual(ControllerButtonBinding.B, OpenGarrisonPreferencesDocument.DefaultControllerInteractButton);
+        Assert.NotEqual(ControllerButtonBinding.B, OpenGarrisonPreferencesDocument.DefaultControllerSwapWeaponButton);
+    }
+
     [Fact]
     public void ClientSettingsSaveAndLoadRoundTripsControllerSettings()
     {
@@ -33,6 +44,7 @@ public sealed class ControllerInputSettingsTests
                 ControllerAimDistanceTier1 = 112f,
                 ControllerAimDistanceTier2 = 176f,
                 ControllerAimDistanceTier3 = 272f,
+                BubbleWheelBehavior = BubbleWheelBehavior.PressAndClick,
                 ControllerJumpButton = ControllerButtonBinding.B,
                 ControllerPrimaryFireButton = ControllerButtonBinding.RightShoulder,
                 ControllerSecondaryFireButton = ControllerButtonBinding.LeftShoulder,
@@ -60,6 +72,7 @@ public sealed class ControllerInputSettingsTests
             Assert.Equal(112f, loaded.ControllerAimDistanceTier1);
             Assert.Equal(176f, loaded.ControllerAimDistanceTier2);
             Assert.Equal(272f, loaded.ControllerAimDistanceTier3);
+            Assert.Equal(BubbleWheelBehavior.PressAndClick, loaded.BubbleWheelBehavior);
             Assert.Equal(ControllerButtonBinding.B, loaded.ControllerJumpButton);
             Assert.Equal(ControllerButtonBinding.RightShoulder, loaded.ControllerPrimaryFireButton);
             Assert.Equal(ControllerButtonBinding.LeftShoulder, loaded.ControllerSecondaryFireButton);
@@ -94,6 +107,7 @@ public sealed class ControllerInputSettingsTests
             ControllerAimDistanceTier1 = float.NaN,
             ControllerAimDistanceTier2 = -10f,
             ControllerAimDistanceTier3 = 5000f,
+            BubbleWheelBehavior = (BubbleWheelBehavior)99,
             ControllerJumpButton = (ControllerButtonBinding)999,
         };
 
@@ -105,6 +119,7 @@ public sealed class ControllerInputSettingsTests
         Assert.Equal(OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier1, OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(document.ControllerAimDistanceTier1, OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier1));
         Assert.Equal(16f, OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(document.ControllerAimDistanceTier2, OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier2));
         Assert.Equal(960f, OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(document.ControllerAimDistanceTier3, OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier3));
+        Assert.Equal(BubbleWheelBehavior.PressAndClick, OpenGarrisonPreferencesDocument.NormalizeBubbleWheelBehavior(document.BubbleWheelBehavior));
         Assert.Equal(ControllerButtonBinding.None, OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(document.ControllerJumpButton));
     }
 }

@@ -100,6 +100,11 @@ public sealed partial class SimulationWorld
         return true;
     }
 
+    public void RestartCurrentRoundForMapRotation(bool preservePlayerStats)
+    {
+        RestartCurrentRound(preservePlayerStats);
+    }
+
     private bool AdvancePendingMapChange()
     {
         if (_pendingMapChangeTicks < 0)
@@ -178,6 +183,7 @@ public sealed partial class SimulationWorld
         _pendingDamageEvents.Clear();
         _pendingRocketSpawnEvents.Clear();
         _pendingHealingEvents.Clear();
+        _civvieMoneyPickups.Clear();
         _nextRedSpawnIndex = 0;
         _nextBlueSpawnIndex = 0;
         ClearDynamicEntities();
@@ -196,7 +202,7 @@ public sealed partial class SimulationWorld
         RedCaps = 0;
         BlueCaps = 0;
 
-        if (MatchRules.Mode != GameModeKind.ControlPoint && !IsKothMode(MatchRules.Mode))
+        if (!IsControlPointMode(MatchRules.Mode) && !IsKothMode(MatchRules.Mode))
         {
             _controlPoints.Clear();
             _controlPointZones.Clear();
@@ -230,9 +236,18 @@ public sealed partial class SimulationWorld
         _arenaCappers = 0;
         _arenaUnlockTicksRemaining = MatchRules.Mode == GameModeKind.Arena ? ArenaPointUnlockTicksDefault : 0;
 
-        if (MatchRules.Mode == GameModeKind.ControlPoint || IsKothMode(MatchRules.Mode))
+        if (IsControlPointMode(MatchRules.Mode) || IsKothMode(MatchRules.Mode))
         {
             ResetControlPointStateForNewRound();
+        }
+
+        if (IsVipModeActive)
+        {
+            ResetVipStateForNewRound();
+        }
+        else
+        {
+            ClearVipState();
         }
 
         if (!IsKothMode(MatchRules.Mode))

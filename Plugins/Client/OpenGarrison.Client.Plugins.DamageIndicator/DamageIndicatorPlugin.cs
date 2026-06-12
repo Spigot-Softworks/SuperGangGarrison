@@ -106,8 +106,7 @@ public sealed class DamageIndicatorPlugin :
 
     public void OnLocalDamage(LocalDamageEvent e)
     {
-        if (e.ReceivedByLocalPlayer
-            && e.TargetKind == DamageTargetKind.Player
+        if (e.TargetKind == DamageTargetKind.Player
             && e.AttackerPlayerId == e.TargetEntityId)
         {
             return;

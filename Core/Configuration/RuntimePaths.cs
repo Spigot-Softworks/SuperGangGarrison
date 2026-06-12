@@ -7,6 +7,27 @@ namespace OpenGarrison.Core;
 
 public static class RuntimePaths
 {
+    private static readonly StringComparison RuntimePathComparison = OperatingSystem.IsWindows()
+        ? StringComparison.OrdinalIgnoreCase
+        : StringComparison.Ordinal;
+
+    private static readonly StringComparer RuntimePathComparer = OperatingSystem.IsWindows()
+        ? StringComparer.OrdinalIgnoreCase
+        : StringComparer.Ordinal;
+
+    private static readonly object MigrationLock = new();
+    private static readonly HashSet<string> MigratedConfigDirectories = new(RuntimePathComparer);
+    private static readonly HashSet<string> MigratedUserDataRoots = new(RuntimePathComparer);
+
+    private static readonly string[] KnownUserDataMigrationRelativePaths =
+    [
+        "client-identity.json",
+        "friends.json",
+        "hostMapFavourites.txt",
+        Path.Combine("CustomBubbles", "custom-bubbles.json"),
+        Path.Combine("config", "OpenGarrison.hud.json")
+    ];
+
     public static string ApplicationRoot => OperatingSystem.IsBrowser()
         ? "."
         : AppContext.BaseDirectory;
@@ -20,21 +41,20 @@ public static class RuntimePaths
                 return ".";
             }
 
-            var configuredRoot = Environment.GetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT");
-            if (!string.IsNullOrWhiteSpace(configuredRoot)
-                && TryCreateDirectory(configuredRoot, out var configuredPath))
+            if (TryGetConfiguredUserDataRoot(out var configuredPath))
             {
                 return configuredPath;
             }
 
-            var documentsPath = Path.Combine(GetDefaultUserDocumentsDirectory(), "OpenGarrison");
-            if (TryCreateDirectory(documentsPath, out var userDataPath))
+            var localAppDataPath = Path.Combine(GetDefaultLocalApplicationDataDirectory(), "OpenGarrison");
+            if (TryCreateDirectory(localAppDataPath, out var userDataPath))
             {
+                MigrateKnownUserDataFilesIfNeeded(userDataPath);
                 return userDataPath;
             }
 
-            var localAppDataPath = Path.Combine(GetDefaultLocalApplicationDataDirectory(), "OpenGarrison");
-            if (TryCreateDirectory(localAppDataPath, out userDataPath))
+            var documentsPath = Path.Combine(GetDefaultUserDocumentsDirectory(), "OpenGarrison");
+            if (TryCreateDirectory(documentsPath, out userDataPath))
             {
                 return userDataPath;
             }
@@ -51,10 +71,11 @@ public static class RuntimePaths
     {
         get
         {
-            var path = Path.Combine(ApplicationRoot, "config");
+            var path = Path.Combine(UserDataRoot, "config");
             if (!OperatingSystem.IsBrowser())
             {
                 Directory.CreateDirectory(path);
+                MigrateLegacyConfigFilesIfNeeded(path);
             }
 
             return path;
@@ -164,15 +185,12 @@ public static class RuntimePaths
 
     private static bool IsPathUnderRoot(string rootDirectory, string candidatePath)
     {
-        var comparison = OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
-        if (string.Equals(rootDirectory, candidatePath, comparison))
+        if (string.Equals(rootDirectory, candidatePath, RuntimePathComparison))
         {
             return true;
         }
 
-        return candidatePath.StartsWith(EnsureTrailingSeparator(rootDirectory), comparison);
+        return candidatePath.StartsWith(EnsureTrailingSeparator(rootDirectory), RuntimePathComparison);
     }
 
     private static string EnsureTrailingSeparator(string path)
@@ -184,6 +202,153 @@ public static class RuntimePaths
         }
 
         return path + Path.DirectorySeparatorChar;
+    }
+
+    private static bool TryGetConfiguredUserDataRoot(out string configuredPath)
+    {
+        configuredPath = string.Empty;
+        var configuredRoot = Environment.GetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT");
+        return !string.IsNullOrWhiteSpace(configuredRoot)
+            && TryCreateDirectory(configuredRoot, out configuredPath);
+    }
+
+    private static bool HasConfiguredUserDataRoot()
+    {
+        return !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT"));
+    }
+
+    private static void MigrateKnownUserDataFilesIfNeeded(string destinationRoot)
+    {
+        if (OperatingSystem.IsBrowser() || HasConfiguredUserDataRoot())
+        {
+            return;
+        }
+
+        var normalizedDestination = Path.GetFullPath(destinationRoot);
+        lock (MigrationLock)
+        {
+            if (!MigratedUserDataRoots.Add(normalizedDestination))
+            {
+                return;
+            }
+
+            TryCopyKnownUserDataFiles(Path.Combine(GetDefaultUserDocumentsDirectory(), "OpenGarrison"), normalizedDestination);
+            TryCopyKnownUserDataFiles(Path.Combine(ApplicationRoot, "UserData"), normalizedDestination);
+        }
+    }
+
+    private static void TryCopyKnownUserDataFiles(string sourceRoot, string destinationRoot)
+    {
+        if (!Directory.Exists(sourceRoot) || SamePath(sourceRoot, destinationRoot))
+        {
+            return;
+        }
+
+        foreach (var relativePath in KnownUserDataMigrationRelativePaths)
+        {
+            TryCopyFileIfMissing(
+                Path.Combine(sourceRoot, relativePath),
+                Path.Combine(destinationRoot, relativePath));
+        }
+    }
+
+    private static void MigrateLegacyConfigFilesIfNeeded(string destinationConfigDirectory)
+    {
+        if (OperatingSystem.IsBrowser() || HasConfiguredUserDataRoot())
+        {
+            return;
+        }
+
+        var normalizedDestination = Path.GetFullPath(destinationConfigDirectory);
+        lock (MigrationLock)
+        {
+            if (!MigratedConfigDirectories.Add(normalizedDestination))
+            {
+                return;
+            }
+
+            TryCopyDirectoryContentsIfMissing(Path.Combine(ApplicationRoot, "config"), normalizedDestination);
+        }
+    }
+
+    private static void TryCopyDirectoryContentsIfMissing(string sourceDirectory, string destinationDirectory)
+    {
+        if (!Directory.Exists(sourceDirectory) || SamePath(sourceDirectory, destinationDirectory))
+        {
+            return;
+        }
+
+        try
+        {
+            foreach (var sourcePath in Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.AllDirectories))
+            {
+                var relativePath = Path.GetRelativePath(sourceDirectory, sourcePath);
+                if (Path.IsPathRooted(relativePath) || IsEscapingRelativePath(relativePath))
+                {
+                    continue;
+                }
+
+                TryCopyFileIfMissing(sourcePath, Path.Combine(destinationDirectory, relativePath));
+            }
+        }
+        catch (ArgumentException)
+        {
+        }
+        catch (IOException)
+        {
+        }
+        catch (NotSupportedException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
+
+    private static void TryCopyFileIfMissing(string sourcePath, string destinationPath)
+    {
+        if (!File.Exists(sourcePath) || SamePath(sourcePath, destinationPath) || File.Exists(destinationPath))
+        {
+            return;
+        }
+
+        try
+        {
+            var destinationDirectory = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrWhiteSpace(destinationDirectory))
+            {
+                Directory.CreateDirectory(destinationDirectory);
+            }
+
+            File.Copy(sourcePath, destinationPath);
+        }
+        catch (ArgumentException)
+        {
+        }
+        catch (IOException)
+        {
+        }
+        catch (NotSupportedException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
+
+    private static bool SamePath(string firstPath, string secondPath)
+    {
+        return string.Equals(
+            Path.GetFullPath(firstPath),
+            Path.GetFullPath(secondPath),
+            RuntimePathComparison);
+    }
+
+    private static bool IsEscapingRelativePath(string relativePath)
+    {
+        return relativePath == ".."
+            || relativePath.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+            || relativePath.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal);
     }
 
     private static string GetDefaultUserDocumentsDirectory()
@@ -244,7 +409,7 @@ public static class RuntimePaths
         if (directories.Any(existing => string.Equals(
                 Path.GetFullPath(existing),
                 fullPath,
-                OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)))
+                RuntimePathComparison)))
         {
             return;
         }

@@ -12,6 +12,10 @@ public sealed partial class SimulationWorld
     private const float AcquiredMedigunHealsplosionMinimumDamageFactor = 0.12f;
     private const float MedicUberChargeGainPerTickHealthyTarget = 1.75f;
     private const float MedicUberChargeGainPerTickDamagedTarget = 2.5f;
+    private const float MedicHealBeamRange = 300f;
+    private const float MedicKritzBeamDefaultRange = MedicHealBeamRange * 0.5f;
+    private const float MedicKritzBeamDefaultDamagePerSecond = 1f;
+    private const float MedicKritzBeamDefaultChargePerDamageTick = PlayerEntity.MedicUberMaxCharge * 0.015f;
 
     public string GetMedicSummary()
     {
@@ -111,6 +115,40 @@ public sealed partial class SimulationWorld
             chainedTargets.Length > 1 && chainedTargets[1].IsAlive ? chainedTargets[1] : null);
     }
 
+    private bool UpdateMedicKritzBeam(
+        PlayerEntity medic,
+        float aimWorldX,
+        float aimWorldY,
+        float maxRange = MedicKritzBeamDefaultRange,
+        float damagePerSecond = MedicKritzBeamDefaultDamagePerSecond,
+        float chargePerDamageTick = MedicKritzBeamDefaultChargePerDamageTick)
+    {
+        if (medic.ClassId != PlayerClass.Medic || !medic.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit))
+        {
+            return false;
+        }
+
+        maxRange = Math.Clamp(maxRange, 1f, MedicHealBeamRange);
+        var existingTarget = medic.MedicHealTargetId.HasValue
+            ? FindPlayerById(medic.MedicHealTargetId.Value)
+            : null;
+        if (existingTarget is not null && CanMedicKritzBeamTarget(medic, existingTarget, MedicHealBeamRange))
+        {
+            ApplyMedicKritzBeam(medic, existingTarget, damagePerSecond, chargePerDamageTick);
+            return true;
+        }
+
+        medic.ClearMedicHealingTarget();
+        var newTarget = AcquireMedicKritzBeamTarget(medic, aimWorldX, aimWorldY, maxRange);
+        if (newTarget is null)
+        {
+            return false;
+        }
+
+        ApplyMedicKritzBeam(medic, newTarget, damagePerSecond, chargePerDamageTick);
+        return true;
+    }
+
     private bool CanMedicHealTarget(PlayerEntity medic, PlayerEntity target)
     {
         if (!target.IsAlive || target.Team != medic.Team || target.Id == medic.Id)
@@ -118,7 +156,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        if (DistanceBetween(medic.X, medic.Y, target.X, target.Y) > 300f)
+        if (DistanceBetween(medic.X, medic.Y, target.X, target.Y) > MedicHealBeamRange)
         {
             return false;
         }
@@ -133,12 +171,27 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        if (DistanceBetween(engineer.X, engineer.Y, target.X, target.Y) > 300f)
+        if (DistanceBetween(engineer.X, engineer.Y, target.X, target.Y) > MedicHealBeamRange)
         {
             return false;
         }
 
         return HasMedicHealingLineOfSight(engineer, target);
+    }
+
+    private bool CanMedicKritzBeamTarget(PlayerEntity medic, PlayerEntity target, float maxRange)
+    {
+        if (!target.IsAlive || target.Team == medic.Team || target.Id == medic.Id)
+        {
+            return false;
+        }
+
+        if (DistanceBetween(medic.X, medic.Y, target.X, target.Y) > maxRange)
+        {
+            return false;
+        }
+
+        return HasMedicHealingLineOfSight(medic, target);
     }
 
     private bool CanExperimentalEngineerFreezeRayTarget(PlayerEntity engineer, PlayerEntity target)
@@ -228,6 +281,27 @@ public sealed partial class SimulationWorld
             global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerFreezeRayOutgoingDamageMultiplier);
     }
 
+    private void ApplyMedicKritzBeam(PlayerEntity medic, PlayerEntity target, float damagePerSecond, float chargePerDamageTick)
+    {
+        var healthBefore = target.Health;
+        var damagePerTick = damagePerSecond <= 0f
+            ? 0f
+            : GetContinuousPerTickRate(damagePerSecond);
+        if (ApplyPlayerContinuousDamage(target, damagePerTick, medic, PlayerEntity.SpyDamageRevealAlpha))
+        {
+            KillPlayer(target, killer: medic, weaponSpriteName: "NeedleKL");
+        }
+
+        if (healthBefore > target.Health)
+        {
+            medic.AddMedicUberCharge(Math.Max(0f, chargePerDamageTick));
+            RegisterBloodEffect(target.X, target.Y, PointDirectionDegrees(medic.X, medic.Y, target.X, target.Y) - 180f, 4);
+        }
+
+        medic.SetMedicHealingTarget(target);
+        medic.ClearExperimentalAdditionalMedicBeamTargets();
+    }
+
     private void AdvanceMedicUberEffects()
     {
         foreach (var player in EnumerateSimulatedPlayers())
@@ -284,17 +358,22 @@ public sealed partial class SimulationWorld
 
     private PlayerEntity? AcquireMedicHealingTarget(PlayerEntity medic, float aimWorldX, float aimWorldY)
     {
-        return AcquireMedicBeamTarget(medic, aimWorldX, aimWorldY, requireSameTeam: true);
+        return AcquireMedicBeamTarget(medic, aimWorldX, aimWorldY, requireSameTeam: true, maxDistance: MedicHealBeamRange);
     }
 
     private PlayerEntity? AcquireExperimentalEngineerEssenceExtractorTarget(PlayerEntity engineer, float aimWorldX, float aimWorldY)
     {
-        return AcquireMedicBeamTarget(engineer, aimWorldX, aimWorldY, requireSameTeam: false);
+        return AcquireMedicBeamTarget(engineer, aimWorldX, aimWorldY, requireSameTeam: false, maxDistance: MedicHealBeamRange);
     }
 
     private PlayerEntity? AcquireExperimentalEngineerFreezeRayPrimaryTarget(PlayerEntity engineer, float aimWorldX, float aimWorldY)
     {
-        return AcquireMedicBeamTarget(engineer, aimWorldX, aimWorldY, requireSameTeam: false);
+        return AcquireMedicBeamTarget(engineer, aimWorldX, aimWorldY, requireSameTeam: false, maxDistance: MedicHealBeamRange);
+    }
+
+    private PlayerEntity? AcquireMedicKritzBeamTarget(PlayerEntity medic, float aimWorldX, float aimWorldY, float maxRange)
+    {
+        return AcquireMedicBeamTarget(medic, aimWorldX, aimWorldY, requireSameTeam: false, maxDistance: maxRange);
     }
 
     private PlayerEntity[] AcquireExperimentalEngineerFreezeRayAdditionalTargets(PlayerEntity engineer, PlayerEntity primaryTarget)
@@ -329,9 +408,13 @@ public sealed partial class SimulationWorld
         return [.. candidateTargets];
     }
 
-    private PlayerEntity? AcquireMedicBeamTarget(PlayerEntity medic, float aimWorldX, float aimWorldY, bool requireSameTeam)
+    private PlayerEntity? AcquireMedicBeamTarget(
+        PlayerEntity medic,
+        float aimWorldX,
+        float aimWorldY,
+        bool requireSameTeam,
+        float maxDistance)
     {
-        const float maxDistance = 300f;
         const float maxMouseSelectDistance = 150f;
         const float aimSelectionThicknessRadius = 8f;
         var aimOriginX = medic.X;

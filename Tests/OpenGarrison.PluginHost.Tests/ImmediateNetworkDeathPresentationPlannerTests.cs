@@ -10,7 +10,7 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class ImmediateNetworkDeathPresentationPlannerTests
 {
     [Fact]
-    public void TryCreateSkipsTemporaryDeadBodyWithoutAuthoritativeCorpse()
+    public void TryCreateSynthesizesTemporaryDeadBodyWithoutAuthoritativeCorpse()
     {
         var plannerMethod = GetPlannerMethod();
         var targetPlayer = CreateDeadPlayer(playerId: 7, PlayerTeam.Blue, PlayerClass.Soldier, x: 100f, y: 200f, facingDirectionX: 1f);
@@ -29,7 +29,15 @@ public sealed class ImmediateNetworkDeathPresentationPlannerTests
 
         var result = plannerMethod.Invoke(null, [snapshot, damageEvent, targetPlayer, 90]);
 
-        Assert.Null(result);
+        Assert.NotNull(result);
+        Assert.Equal(7, GetPresentationValue<int>(result!, "SourcePlayerId"));
+        Assert.Equal(PlayerClass.Soldier, GetPresentationValue<PlayerClass>(result!, "ClassId"));
+        Assert.Equal(PlayerTeam.Blue, GetPresentationValue<PlayerTeam>(result!, "Team"));
+        Assert.Equal(DeadBodyAnimationKind.Default, GetPresentationValue<DeadBodyAnimationKind>(result!, "AnimationKind"));
+        Assert.Equal(100f, GetPresentationValue<float>(result!, "X"));
+        Assert.Equal(200f, GetPresentationValue<float>(result!, "Y"));
+        Assert.False(GetPresentationValue<bool>(result!, "FacingLeft"));
+        Assert.Equal(90, GetPresentationValue<int>(result!, "TicksRemaining"));
     }
 
     [Fact]
@@ -80,7 +88,7 @@ public sealed class ImmediateNetworkDeathPresentationPlannerTests
     }
 
     [Fact]
-    public void TryCreateSkipsOldCorpseFromPreviousDeath()
+    public void TryCreateIgnoresOldCorpseFromPreviousDeath()
     {
         var plannerMethod = GetPlannerMethod();
         var targetPlayer = CreateDeadPlayer(playerId: 7, PlayerTeam.Red, PlayerClass.Medic, x: 144f, y: 88f, facingDirectionX: -1f);
@@ -92,8 +100,8 @@ public sealed class ImmediateNetworkDeathPresentationPlannerTests
                 Team: (byte)PlayerTeam.Red,
                 ClassId: (byte)PlayerClass.Medic,
                 AnimationKind: (byte)DeadBodyAnimationKind.Default,
-                X: 144f,
-                Y: 88f,
+                X: 170f,
+                Y: 120f,
                 Width: targetPlayer.Width,
                 Height: targetPlayer.Height,
                 HorizontalSpeed: 0f,
@@ -114,6 +122,36 @@ public sealed class ImmediateNetworkDeathPresentationPlannerTests
             SourceFrame: 32);
 
         var result = plannerMethod.Invoke(null, [snapshot, damageEvent, targetPlayer, 90]);
+
+        Assert.NotNull(result);
+        Assert.Equal(7, GetPresentationValue<int>(result!, "SourcePlayerId"));
+        Assert.Equal(PlayerClass.Medic, GetPresentationValue<PlayerClass>(result!, "ClassId"));
+        Assert.Equal(PlayerTeam.Red, GetPresentationValue<PlayerTeam>(result!, "Team"));
+        Assert.Equal(DeadBodyAnimationKind.Default, GetPresentationValue<DeadBodyAnimationKind>(result!, "AnimationKind"));
+        Assert.Equal(144f, GetPresentationValue<float>(result!, "X"));
+        Assert.Equal(88f, GetPresentationValue<float>(result!, "Y"));
+        Assert.True(GetPresentationValue<bool>(result!, "FacingLeft"));
+        Assert.Equal(90, GetPresentationValue<int>(result!, "TicksRemaining"));
+    }
+
+    [Fact]
+    public void TryCreateSkipsTemporaryDeadBodyWithoutTargetPlayer()
+    {
+        var plannerMethod = GetPlannerMethod();
+        var snapshot = CreateSnapshot(Array.Empty<SnapshotDeadBodyState>());
+        var damageEvent = new SnapshotDamageEvent(
+            Amount: 90,
+            AttackerPlayerId: 4,
+            AssistedByPlayerId: -1,
+            TargetKind: (byte)DamageTargetKind.Player,
+            TargetEntityId: 7,
+            X: 100f,
+            Y: 200f,
+            WasFatal: true,
+            EventId: 11,
+            SourceFrame: 22);
+
+        var result = plannerMethod.Invoke(null, [snapshot, damageEvent, null, 90]);
 
         Assert.Null(result);
     }
@@ -137,6 +175,7 @@ public sealed class ImmediateNetworkDeathPresentationPlannerTests
     private static PlayerEntity CreateDeadPlayer(int playerId, PlayerTeam team, PlayerClass classId, float x, float y, float facingDirectionX)
     {
         var player = new PlayerEntity(playerId, CharacterClassCatalog.GetDefinition(classId), "Target");
+        var aimDirectionDegrees = facingDirectionX < 0f ? 180f : 0f;
         player.ApplyNetworkState(
             team: team,
             classDefinition: CharacterClassCatalog.GetDefinition(classId),
@@ -176,7 +215,7 @@ public sealed class ImmediateNetworkDeathPresentationPlannerTests
             binocularsFocusX: x + facingDirectionX,
             binocularsFocusY: y,
             facingDirectionX: facingDirectionX,
-            aimDirectionDegrees: 0f,
+            aimDirectionDegrees: aimDirectionDegrees,
             aimWorldX: x + facingDirectionX,
             aimWorldY: y,
             isTaunting: false,

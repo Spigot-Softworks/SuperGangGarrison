@@ -76,11 +76,24 @@ public sealed class LuaPluginHostSmokeTests
             LeftMousePressed: false,
             LeftMouseDown: false,
             LeftMouseReleased: false,
-            PressedDigit: 3,
+            PressedDigit: 2,
             QPressed: false));
         Assert.NotNull(pageSwitchResult);
         Assert.Equal(2, pageSwitchResult!.NewXPageIndex);
         Assert.True(pageSwitchResult.ClearBubbleSelection);
+
+        var xDigitResult = bubbleMenuHooks.TryHandleBubbleMenuInput(new ClientBubbleMenuInputState(
+            ClientBubbleMenuKind.X,
+            XPageIndex: 0,
+            AimDirectionDegrees: 0f,
+            DistanceFromCenter: 60f,
+            LeftMousePressed: false,
+            LeftMouseDown: false,
+            LeftMouseReleased: false,
+            PressedDigit: 3,
+            QPressed: false));
+        Assert.NotNull(xDigitResult);
+        Assert.Equal(29, xDigitResult!.BubbleFrame);
 
         var zMenuResult = bubbleMenuHooks.TryHandleBubbleMenuInput(new ClientBubbleMenuInputState(
             ClientBubbleMenuKind.Z,

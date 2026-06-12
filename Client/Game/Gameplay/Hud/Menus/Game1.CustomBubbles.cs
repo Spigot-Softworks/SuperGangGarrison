@@ -177,13 +177,18 @@ public partial class Game1
 
     private void UpdateCustomBubbleHotkey(KeyboardState keyboard, MouseState mouse)
     {
-        if (!CanTriggerCustomBubble(keyboard, mouse)
-            || !_customBubbleDocument.HasSlot(_selectedCustomBubbleSlot))
+        if (!CanTriggerCustomBubble(keyboard, mouse))
         {
             return;
         }
 
-        ApplyLocalChatBubble(ChatBubbleFrameCatalog.GetCustomBubbleFrame(_selectedCustomBubbleSlot));
+        if (_bubbleMenuKind == BubbleMenuKind.Custom && !_bubbleMenuClosing)
+        {
+            BeginClosingBubbleMenu();
+            return;
+        }
+
+        OpenBubbleMenu(BubbleMenuKind.Custom);
     }
 
     private void UploadSelectedCustomBubbleState()

@@ -14,12 +14,16 @@ public partial class Game1
 {
     private readonly HashSet<int> _lastVisibleEnemySpyIds = new();
 
+    private readonly record struct ResolvedSnapshotEntry(
+        SnapshotMessage RawSnapshot,
+        SnapshotMessage ResolvedSnapshot);
+
     private bool TryHandleSnapshotMessage(
         SnapshotMessage snapshot,
         ref ulong latestBufferedSnapshotFrame,
         ref SnapshotMessage? latestResolvedSnapshot,
         ref Dictionary<ulong, SnapshotBaselineState>? resolvedBatchSnapshotsByFrame,
-        ref List<SnapshotMessage>? resolvedBatchSnapshots)
+        ref List<ResolvedSnapshotEntry>? resolvedBatchSnapshots)
     {
         if ((!string.Equals(snapshot.LevelName, _world.Level.Name, StringComparison.OrdinalIgnoreCase)
                 || snapshot.MapAreaIndex != _world.Level.MapAreaIndex)
@@ -84,8 +88,8 @@ public partial class Game1
         resolvedBatchSnapshotsByFrame ??= new Dictionary<ulong, SnapshotBaselineState>();
         resolvedBatchSnapshotsByFrame[resolvedSnapshot.Frame] = SnapshotBaselineState.FromSnapshot(resolvedSnapshot);
 
-        resolvedBatchSnapshots ??= new List<SnapshotMessage>();
-        resolvedBatchSnapshots.Add(resolvedSnapshot);
+        resolvedBatchSnapshots ??= new List<ResolvedSnapshotEntry>();
+        resolvedBatchSnapshots.Add(new ResolvedSnapshotEntry(snapshot, resolvedSnapshot));
         latestResolvedSnapshot = resolvedSnapshot;
         latestBufferedSnapshotFrame = resolvedSnapshot.Frame;
         return true;
@@ -131,7 +135,7 @@ public partial class Game1
         }
     }
 
-    private void FinalizeResolvedSnapshotBatch(SnapshotMessage latestResolvedSnapshot, List<SnapshotMessage> resolvedBatchSnapshots)
+    private void FinalizeResolvedSnapshotBatch(SnapshotMessage latestResolvedSnapshot, List<ResolvedSnapshotEntry> resolvedBatchSnapshots)
     {
         UpdateSnapshotTiming(
             latestResolvedSnapshot.Frame,
@@ -139,17 +143,23 @@ public partial class Game1
             resolvedBatchSnapshots.Count);
         for (var snapshotIndex = 0; snapshotIndex < resolvedBatchSnapshots.Count; snapshotIndex += 1)
         {
-            var resolvedBatchSnapshot = resolvedBatchSnapshots[snapshotIndex];
-            RememberSnapshotState(resolvedBatchSnapshot);
-            CaptureRemoteInterpolationTargets(resolvedBatchSnapshot);
-            EnqueueAuthoritativeSnapshot(resolvedBatchSnapshot);
+            var entry = resolvedBatchSnapshots[snapshotIndex];
+            var isServerFullSnapshot = IsFullEquivalentNetworkSnapshot(entry.RawSnapshot);
+            RememberSnapshotState(entry.ResolvedSnapshot);
+            CaptureRemoteInterpolationTargets(entry.RawSnapshot, entry.ResolvedSnapshot);
+            EnqueueAuthoritativeSnapshot(entry.ResolvedSnapshot, isServerFullSnapshot);
         }
 
         RecordSnapshotAckAhead(latestResolvedSnapshot.Frame, _lastAppliedSnapshotFrame, _queuedAuthoritativeSnapshots.Count);
         _networkClient.AcknowledgeSnapshot(latestResolvedSnapshot.Frame);
     }
 
-    private void EnqueueAuthoritativeSnapshot(SnapshotMessage snapshot)
+    private static bool IsFullEquivalentNetworkSnapshot(SnapshotMessage snapshot)
+    {
+        return !snapshot.IsDelta || snapshot.BaselineFrame == 0;
+    }
+
+    private void EnqueueAuthoritativeSnapshot(SnapshotMessage snapshot, bool isServerFullSnapshot)
     {
         if (snapshot.Frame <= _lastBufferedSnapshotFrame)
         {
@@ -157,6 +167,15 @@ public partial class Game1
         }
 
         _queuedAuthoritativeSnapshots.Enqueue(snapshot);
+        if (isServerFullSnapshot)
+        {
+            _authoritativeFullSnapshotFrames.Add(snapshot.Frame);
+        }
+        else
+        {
+            _authoritativeFullSnapshotFrames.Remove(snapshot.Frame);
+        }
+
         _lastBufferedSnapshotFrame = snapshot.Frame;
         var frameBacklog = _lastAppliedSnapshotFrame > 0 && snapshot.Frame > _lastAppliedSnapshotFrame
             ? snapshot.Frame - _lastAppliedSnapshotFrame
@@ -164,7 +183,8 @@ public partial class Game1
         RecordQueuedAuthoritativeSnapshot(_queuedAuthoritativeSnapshots.Count, frameBacklog);
         while (_queuedAuthoritativeSnapshots.Count > MaxQueuedAuthoritativeSnapshots)
         {
-            _queuedAuthoritativeSnapshots.Dequeue();
+            var droppedSnapshot = _queuedAuthoritativeSnapshots.Dequeue();
+            _authoritativeFullSnapshotFrames.Remove(droppedSnapshot.Frame);
             RecordDroppedQueuedAuthoritativeSnapshot();
         }
     }
@@ -177,9 +197,11 @@ public partial class Game1
         }
 
         var snapshot = _queuedAuthoritativeSnapshots.Dequeue();
+        var isServerFullSnapshot = _authoritativeFullSnapshotFrames.Remove(snapshot.Frame);
         var applySnapshotStartTimestamp = _networkDiagnosticsEnabled ? Stopwatch.GetTimestamp() : 0L;
         var previousLevelName = _world.Level.Name;
         var previousMapAreaIndex = _world.Level.MapAreaIndex;
+        var previousLocalPlayerId = _lastAppliedSnapshotLocalPlayerId;
         var wasAwaitingJoin = _world.LocalPlayerAwaitingJoin;
         if (!_world.ApplySnapshot(snapshot, _networkClient.LocalPlayerSlot))
         {
@@ -191,6 +213,20 @@ public partial class Game1
 
             AddNetworkConsoleLine($"snapshot rejected for slot {_networkClient.LocalPlayerSlot}");
             return;
+        }
+
+        var mapChanged = !string.Equals(previousLevelName, _world.Level.Name, StringComparison.OrdinalIgnoreCase)
+            || previousMapAreaIndex != _world.Level.MapAreaIndex;
+        var currentLocalPlayerId = GetResolvedLocalPlayerId();
+        var localPlayerIdentityChanged = previousLocalPlayerId.HasValue
+            && previousLocalPlayerId.Value != currentLocalPlayerId;
+        if (isServerFullSnapshot || mapChanged || localPlayerIdentityChanged)
+        {
+            ResetAndSeedSnapshotPresentationHistories(snapshot);
+        }
+        else
+        {
+            RefreshRetainedInterpolationHistories(snapshot);
         }
 
         UpdateClientSniperAimIndicators();
@@ -209,6 +245,9 @@ public partial class Game1
             RecordApplySnapshotDuration(GetDiagnosticsElapsedMilliseconds(applySnapshotStartTimestamp));
             RecordAppliedSnapshot(snapshot.Frame, previousAppliedSnapshotFrame, _queuedAuthoritativeSnapshots.Count);
         }
+
+        _lastAppliedSnapshotLocalPlayerId = currentLocalPlayerId;
+        ObserveAppliedNetworkWorldSnapshot(snapshot, isServerFullSnapshot);
 
         if (!_classSelectOpen)
         {

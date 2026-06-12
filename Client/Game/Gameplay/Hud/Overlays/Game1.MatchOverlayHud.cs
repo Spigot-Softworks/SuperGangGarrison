@@ -412,7 +412,8 @@ public partial class Game1
         var messageHighlightWidth = string.IsNullOrEmpty(messageHighlight) ? 0f : MeasureBitmapFontWidth(messageHighlight, textScale);
         var messageSuffixWidth = string.IsNullOrEmpty(messageSuffix) ? 0f : MeasureBitmapFontWidth(messageSuffix, textScale);
         var victimWidth = MeasureBitmapFontWidth(victimName, textScale);
-        var weaponSprite = GetResolvedSprite(entry.WeaponSpriteName);
+        var weaponSpriteName = ResolveKillFeedWeaponSpriteName(entry.WeaponSpriteName);
+        var weaponSprite = GetResolvedSprite(weaponSpriteName);
         var weaponWidth = weaponSprite?.Frames.Count > 0 ? weaponSprite.Frames[0].Width * scale : 0f;
         var hasWeaponIcon = weaponSprite is not null && weaponSprite.Frames.Count > 0;
         var contentWidth = killerWidth
@@ -451,7 +452,7 @@ public partial class Game1
             var frameIndex = resolvedWeaponSprite.Frames.Count > 1 && isLocalInvolved ? 1 : 0;
             currentX += iconSpacing * 0.5f;
             var iconCenterX = currentX + (weaponWidth / 2f);
-            DrawCenteredHudSprite(entry.WeaponSpriteName, frameIndex, new Vector2(iconCenterX, y + (7f * scale)), Color.White, new Vector2(scale, scale));
+            DrawCenteredHudSprite(weaponSpriteName, frameIndex, new Vector2(iconCenterX, y + (7f * scale)), Color.White, new Vector2(scale, scale));
             currentX += weaponWidth + (iconSpacing * 0.5f);
         }
 
@@ -486,6 +487,25 @@ public partial class Game1
         return !string.IsNullOrEmpty(entry.MessageText)
             && string.IsNullOrEmpty(entry.KillerName)
             && string.Equals(entry.WeaponSpriteName, "DeadKL", StringComparison.Ordinal);
+    }
+
+    private static string ResolveKillFeedWeaponSpriteName(string spriteName)
+    {
+        if (string.IsNullOrWhiteSpace(spriteName))
+        {
+            return string.Empty;
+        }
+
+        var normalized = spriteName.Trim();
+        return normalized switch
+        {
+            "ShotgunS" or "ShotgunFS" or "ShotgunFRS" or "ShotgunAmmoS" => "ShotgunKL",
+            "SoldierShotgunS" or "SoldierShotgunFS" or "SoldierShotgunFRS" => "ShotgunKL",
+            "stock.gg2.weapon.soldier-shotgun.world" => "ShotgunKL",
+            "stock.gg2.weapon.soldier-shotgun.recoil" => "ShotgunKL",
+            "stock.gg2.weapon.soldier-shotgun.reload" => "ShotgunKL",
+            _ => normalized,
+        };
     }
 
     private static bool ShouldSuppressDuplicateKillFeedEntry(KillFeedEntry previousEntry, KillFeedEntry entry)
@@ -557,6 +577,8 @@ public partial class Game1
             DrawHudTextCentered(_world.LocalDeathCam.KillerName, new Vector2(viewportWidth / 2f, 60f), killerColor, 2f);
         }
 
+        DrawRespawnCountdownText(new Vector2(10f, 90f - (MeasureBitmapFontHeight(1f) / 2f)));
+
         if (_world.LocalDeathCam.MaxHealth > 0)
         {
             DrawScreenHealthBar(
@@ -609,7 +631,7 @@ public partial class Game1
 
     private void DrawRespawnHud()
     {
-        if (_world.LocalDeathCam is not null
+        if ((_killCamEnabled && _world.LocalDeathCam is not null)
             || _world.LocalPlayerAwaitingJoin
             || _world.LocalPlayer.IsAlive)
         {
@@ -618,12 +640,21 @@ public partial class Game1
 
         const float respawnTextX = 10f;
         const float respawnTextY = 10f;
-        var respawnTextPosition = new Vector2(respawnTextX, respawnTextY - (MeasureBitmapFontHeight(1f) / 2f));
+        DrawRespawnCountdownText(new Vector2(respawnTextX, respawnTextY - (MeasureBitmapFontHeight(1f) / 2f)));
+    }
+
+    private void DrawRespawnCountdownText(Vector2 position)
+    {
+        if (_world.LocalPlayerAwaitingJoin || _world.LocalPlayer.IsAlive)
+        {
+            return;
+        }
+
         if (_world.MatchRules.Mode == GameModeKind.Arena && !_world.MatchState.IsEnded)
         {
             DrawHudTextLeftAligned(
                 "No Respawning in Arena",
-                respawnTextPosition,
+                position,
                 Color.White,
                 1f);
             return;
@@ -632,7 +663,7 @@ public partial class Game1
         var respawnSeconds = Math.Max(0f, MathF.Ceiling(_world.LocalPlayerRespawnTicks / (float)_config.TicksPerSecond));
         DrawHudTextLeftAligned(
             $"Respawn in {respawnSeconds:0} second(s).",
-            respawnTextPosition,
+            position,
             Color.White,
             1f);
     }

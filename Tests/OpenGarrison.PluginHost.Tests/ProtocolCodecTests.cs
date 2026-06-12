@@ -87,6 +87,27 @@ public sealed class ProtocolCodecTests
     }
 
     [Fact]
+    public void InputStateMessageRoundTripsPingMilliseconds()
+    {
+        var message = new InputStateMessage(
+            Sequence: 55,
+            Buttons: InputButtons.Left | InputButtons.FirePrimary,
+            AimRelX: 16f,
+            AimRelY: -8f,
+            ChatBubbleFrameIndex: 2,
+            IsUsingBinoculars: true,
+            BinocularsFocusX: 120f,
+            BinocularsFocusY: 96f,
+            PingMilliseconds: 84);
+
+        var payload = ProtocolCodec.Serialize(message, ProtocolCompressionSettings.Disabled);
+
+        Assert.True(ProtocolCodec.TryDeserialize(payload, out var roundTripped));
+        var input = Assert.IsType<InputStateMessage>(roundTripped);
+        Assert.Equal(84, input.PingMilliseconds);
+    }
+
+    [Fact]
     public void ChatRelayMessageRoundTripsSenderSlot()
     {
         var message = new ChatRelayMessage(
@@ -267,7 +288,8 @@ public sealed class ProtocolCodecTests
                     ],
                     PlayerScale: 1f,
                     MedicHealTargetId: 9,
-                    IsMedicHealing: true),
+                    IsMedicHealing: true,
+                    PingMilliseconds: 73),
             ],
             CombatTraces: [new SnapshotCombatTraceState(0f, 0f, 8f, 8f, 2, true, 1, false)],
             SniperAimIndicators: [],
@@ -373,6 +395,7 @@ public sealed class ProtocolCodecTests
         var player = Assert.Single(roundTrippedSnapshot.Players);
         Assert.Equal(9, player.MedicHealTargetId);
         Assert.True(player.IsMedicHealing);
+        Assert.Equal(73, player.PingMilliseconds);
         Assert.Equal("plugin.example.ranger", player.GameplayClassId);
         Assert.False((roundTrippedSnapshot.EntityCollectionCompletenessFlags & SnapshotEntityCollectionCompletenessFlags.Rockets) != 0);
         Assert.True((roundTrippedSnapshot.EntityCollectionCompletenessFlags & SnapshotEntityCollectionCompletenessFlags.Shots) != 0);

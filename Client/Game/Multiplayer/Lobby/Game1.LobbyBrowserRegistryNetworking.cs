@@ -10,6 +10,7 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using OpenGarrison.ClientShared;
 using OpenGarrison.Core;
+using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
 
@@ -48,6 +49,11 @@ public partial class Game1
                 continue;
             }
 
+            if (!IsCompatibleLobbyRegistryEntry(entry))
+            {
+                continue;
+            }
+
             var name = string.IsNullOrWhiteSpace(entry.Name) ? entry.Host : entry.Name.Trim();
             var lobbyEntry = AddLobbyBrowserEntry(
                 FormatLobbyDisplayName(name, entry.IsPrivate),
@@ -69,6 +75,40 @@ public partial class Game1
         {
             _menuStatusMessage = string.Empty;
         }
+    }
+
+    private static bool IsCompatibleLobbyRegistryEntry(LobbyRegistryServerEntry entry)
+    {
+        if (entry.ProtocolVersion != ProtocolVersion.Current)
+        {
+            return false;
+        }
+
+        var entryChannel = ApplicationBuildInfo.NormalizeReleaseChannel(entry.ReleaseChannel);
+        var currentChannel = ApplicationBuildInfo.ReleaseChannel;
+        if (!string.Equals(entryChannel, currentChannel, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var currentBuildVersion = ApplicationBuildInfo.BuildVersion;
+        var currentCompatibilityKey = ApplicationBuildInfo.CreateCompatibilityKey(
+            ProtocolVersion.Current,
+            currentBuildVersion,
+            currentChannel);
+        var entryCompatibilityKey = ApplicationBuildInfo.NormalizeCompatibilityKey(entry.CompatibilityKey);
+        if (!string.IsNullOrWhiteSpace(entryCompatibilityKey))
+        {
+            return string.Equals(entryCompatibilityKey, currentCompatibilityKey, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (string.IsNullOrWhiteSpace(entry.BuildVersion))
+        {
+            return string.Equals(currentChannel, ApplicationBuildInfo.DefaultReleaseChannel, StringComparison.OrdinalIgnoreCase);
+        }
+
+        var entryBuildVersion = ApplicationBuildInfo.NormalizeBuildVersion(entry.BuildVersion);
+        return string.Equals(entryBuildVersion, currentBuildVersion, StringComparison.OrdinalIgnoreCase);
     }
 
     private static void ApplyLobbyRegistryMetadata(LobbyBrowserEntry lobbyEntry, LobbyRegistryServerEntry registryEntry)
@@ -156,9 +196,38 @@ public partial class Game1
             return [];
         }
 
-        var requestUri = ResolveLobbyRegistryRequestUri(endpoint);
+        var requestUri = AddLobbyRegistryCompatibilityQuery(ResolveLobbyRegistryRequestUri(endpoint));
         var response = await httpClient.GetFromJsonAsync<LobbyRegistryResponse>(requestUri).ConfigureAwait(false);
         return response?.Servers ?? [];
+    }
+
+    private static Uri AddLobbyRegistryCompatibilityQuery(Uri uri)
+    {
+        var releaseChannel = ApplicationBuildInfo.ReleaseChannel;
+        var buildVersion = ApplicationBuildInfo.BuildVersion;
+        var compatibilityKey = ApplicationBuildInfo.CreateCompatibilityKey(
+            ProtocolVersion.Current,
+            buildVersion,
+            releaseChannel);
+        var compatibilityQuery =
+            $"protocolVersion={ProtocolVersion.Current}"
+            + $"&releaseChannel={Uri.EscapeDataString(releaseChannel)}"
+            + $"&buildVersion={Uri.EscapeDataString(buildVersion)}"
+            + $"&compatibilityKey={Uri.EscapeDataString(compatibilityKey)}";
+
+        if (!uri.IsAbsoluteUri)
+        {
+            var text = uri.ToString();
+            var separator = text.Contains('?', StringComparison.Ordinal) ? '&' : '?';
+            return new Uri(text + separator + compatibilityQuery, UriKind.Relative);
+        }
+
+        var builder = new UriBuilder(uri);
+        var existingQuery = builder.Query;
+        builder.Query = string.IsNullOrWhiteSpace(existingQuery)
+            ? compatibilityQuery
+            : existingQuery.TrimStart('?') + "&" + compatibilityQuery;
+        return builder.Uri;
     }
 
     private static Uri ResolveLobbyRegistryRequestUri(string endpoint)
@@ -253,6 +322,15 @@ public partial class Game1
         [JsonPropertyName("protocolVersion")]
         public int ProtocolVersion { get; set; }
 
+        [JsonPropertyName("buildVersion")]
+        public string BuildVersion { get; set; } = string.Empty;
+
+        [JsonPropertyName("releaseChannel")]
+        public string ReleaseChannel { get; set; } = string.Empty;
+
+        [JsonPropertyName("compatibilityKey")]
+        public string CompatibilityKey { get; set; } = string.Empty;
+
         [JsonIgnore]
         public bool HasStatusMetadata =>
             !string.IsNullOrWhiteSpace(Map)
@@ -260,6 +338,9 @@ public partial class Game1
             || Players > 0
             || MaxPlayers > 0
             || Spectators > 0
-            || ProtocolVersion > 0;
+            || ProtocolVersion > 0
+            || !string.IsNullOrWhiteSpace(BuildVersion)
+            || !string.IsNullOrWhiteSpace(ReleaseChannel)
+            || !string.IsNullOrWhiteSpace(CompatibilityKey);
     }
 }

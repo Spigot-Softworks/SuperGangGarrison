@@ -244,6 +244,7 @@ public partial class Game1
             AdvanceMineTrailVisuals();
             AdvanceFlameSmokeVisuals();
             AdvanceLooseSheetVisuals();
+            AdvanceCivvieUmbrellaShieldBlockVisuals();
             AdvanceFrozenSpyVisuals();
             AdvanceHeavyDashTrailVisuals();
             AdvanceImmediateNetworkDeadBodies();

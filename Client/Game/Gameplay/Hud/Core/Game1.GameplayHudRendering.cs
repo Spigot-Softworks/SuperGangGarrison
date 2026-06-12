@@ -70,6 +70,8 @@ public partial class Game1
         WriteGameplayRenderTrace("hud after winbanner");
         DrawLastToDieHud();
         WriteGameplayRenderTrace("hud after lasttodie");
+        DrawVipPresentationOverlay();
+        WriteGameplayRenderTrace("hud after vippresentation");
         DrawJumpHud();
         WriteGameplayRenderTrace("hud after jump");
         DrawLastToDieCombatFeedbackHud();
@@ -262,6 +264,11 @@ public partial class Game1
             case GameplayOverlayKind.InGameMenu:
                 DrawInGameMenu();
                 WriteGameplayRenderTrace("modal after ingamemenu");
+                if (_friendsMenuOpen)
+                {
+                    DrawFriendsMenu();
+                    WriteGameplayRenderTrace("modal after ingamemenu-socialmenu");
+                }
                 break;
             case GameplayOverlayKind.DebugMenu:
                 DrawDebugMenu();
@@ -302,6 +309,10 @@ public partial class Game1
             case GameplayOverlayKind.CustomBubbleEditor:
                 DrawCustomBubbleEditor();
                 WriteGameplayRenderTrace("modal after custombubbleeditor");
+                break;
+            case GameplayOverlayKind.SocialMenu:
+                DrawFriendsMenu();
+                WriteGameplayRenderTrace("modal after socialmenu");
                 break;
             case GameplayOverlayKind.HudEditor:
                 DrawHudEditor();

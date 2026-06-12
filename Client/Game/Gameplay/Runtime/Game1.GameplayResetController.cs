@@ -29,6 +29,9 @@ public partial class Game1
             _game._smoothedSnapshotJitterSeconds = 0f;
             _game._localPlayerInterpolationBackTimeSeconds = _game.GetMinimumLocalPlayerInterpolationBackTimeSeconds();
             _game._remotePlayerInterpolationBackTimeSeconds = _game.GetMinimumRemotePlayerInterpolationBackTimeSeconds();
+            _game._projectileInterpolationBackTimeSeconds = ProjectileMinimumInterpolationBackTimeSeconds;
+            _game._networkInterpolationWarmupSnapshotsRemaining = 0;
+            _game._networkInterpolationWarmupUntilClockSeconds = -1d;
             _game._localPlayerRenderTimeSeconds = 0d;
             _game._remotePlayerRenderTimeSeconds = 0d;
             _game._lastLocalPlayerRenderTimeClockSeconds = -1d;
@@ -46,17 +49,16 @@ public partial class Game1
             _game.ResetSmoothCameraState();
             _game._pendingPredictedInputs.Clear();
             _game._localPlayerSnapshotEntityId = null;
-            _game._entityInterpolationTracks.Clear();
-            _game._intelInterpolationTracks.Clear();
-            _game._entitySnapshotHistories.Clear();
-            _game._intelSnapshotHistories.Clear();
-            _game._remotePlayerSnapshotHistories.Clear();
+            _game._lastAppliedSnapshotLocalPlayerId = null;
+            _game._networkWorldWarmupActive = false;
+            _game._networkWorldWarmupFullSnapshotApplied = false;
+            _game._networkWorldWarmupAppliedSnapshotsAfterFull = 0;
+            _game._networkWorldWarmupStartedClockSeconds = -1d;
+            _game.ResetSnapshotPresentationHistories();
             _game._localOverheadChatMessage = null;
             _game._overheadChatMessagesBySlot.Clear();
             _game.ClearRemoteCustomBubbleStates();
             _game.ResetSnapshotStateHistory();
-            _game._interpolatedEntityPositions.Clear();
-            _game._interpolatedIntelPositions.Clear();
         }
 
         public void ResetGameplayTransitionEffects()

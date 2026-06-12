@@ -254,12 +254,6 @@ public partial class Game1
             return;
         }
 
-        if (IsPredictedPyroSelfAirblastInput(player, predictedInput)
-            && player.CanFirePyroAirblast())
-        {
-            return;
-        }
-
         if (TryPredictedFireExperimentalOffhandPrimaryWeapon(player, predictedInput.Input.FirePrimary))
         {
             return;
@@ -272,7 +266,7 @@ public partial class Game1
             return;
         }
 
-        if (player.ClassId == PlayerClass.Quote)
+        if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Blade))
         {
             if (player.TryFireQuoteBubble())
             {
@@ -337,6 +331,11 @@ public partial class Game1
                 return false;
             }
 
+            if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit))
+            {
+                return true;
+            }
+
             if (TryPredictedFireMedicNeedle(player))
             {
                 return true;
@@ -399,13 +398,23 @@ public partial class Game1
             return true;
         }
 
-        if (player.ClassId == PlayerClass.Quote && player.TryFireQuoteBlade())
+        if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.CivvieUmbrella))
+        {
+            if (player.TryActivateCivvieUmbrella())
+            {
+                SyncPredictedLocalPlayerState(player);
+            }
+
+            return true;
+        }
+
+        if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.QuoteBladeThrow) && player.TryFireQuoteBlade())
         {
             SyncPredictedLocalPlayerState(player);
             return true;
         }
 
-        return player.ClassId == PlayerClass.Quote;
+        return player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.QuoteBladeThrow);
     }
 
     private static bool IsPredictedPyroSelfAirblastInput(PlayerEntity player, PredictedLocalInput predictedInput)
@@ -442,7 +451,10 @@ public partial class Game1
 
     private bool TryPredictedPyroSelfAirblast(PlayerEntity player, bool fireFlare)
     {
-        if (!player.TryFirePyroAirblast())
+        if (!player.TryFirePyroAirblast(
+                PlayerEntity.PyroAirburstCost,
+                PlayerEntity.PyroAirblastReloadTicks,
+                PlayerEntity.PyroAirburstNoFlameTicks))
         {
             return false;
         }
@@ -481,7 +493,8 @@ public partial class Game1
             return;
         }
 
-        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.ScoutUtility))
+        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.CivvieTaunt)
+            || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.ScoutUtility))
         {
             if (player.TryStartTaunt())
             {
@@ -501,6 +514,12 @@ public partial class Game1
         if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.HeavyUtility))
         {
             TryPredictedStartHeavyGhostDash(player);
+            return;
+        }
+
+        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SniperBinoculars))
+        {
+            TryPredictedToggleBinoculars(player);
             return;
         }
 
@@ -749,6 +768,17 @@ public partial class Game1
     private bool TryPredictedToggleSpyCloak(PlayerEntity player)
     {
         if (!player.TryToggleSpyCloak())
+        {
+            return false;
+        }
+
+        SyncPredictedLocalPlayerState(player);
+        return true;
+    }
+
+    private bool TryPredictedToggleBinoculars(PlayerEntity player)
+    {
+        if (!player.TryToggleBinoculars())
         {
             return false;
         }

@@ -231,7 +231,7 @@ public sealed class SimulationWorldStingerRocketTests
             "ExplodeRocket",
             BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(method);
-        _ = method!.Invoke(world, [rocket, null, null, null]);
+        _ = method!.Invoke(world, [rocket, null, null, null, -1]);
     }
 
     private static void AssertApproximately(float expected, float actual, float tolerance = 0.001f)

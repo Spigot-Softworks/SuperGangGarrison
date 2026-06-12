@@ -83,6 +83,39 @@ public sealed class PlayerEntityMovementRegressionTests
             $"expected Heavy to clear Conflict blue right-exit box choke, got x={player.X:0.###} bounds=({player.Left:0.###},{player.Top:0.###},{player.Right:0.###},{player.Bottom:0.###})");
     }
 
+    [Fact]
+    public void CivilianUmbrellaSlowsFallingWhileHeldOpen()
+    {
+        var level = CreateOpenLevel();
+        var normal = CreateAirborneCivilianWithFallSpeed(500f);
+        var shielded = CreateAirborneCivilianWithFallSpeed(500f);
+
+        Assert.True(shielded.TryActivateCivvieUmbrella());
+
+        normal.CompleteMovement(
+            level,
+            PlayerTeam.Red,
+            deltaSeconds: 1d / SimulationConfig.DefaultTicksPerSecond,
+            startedGrounded: false,
+            jumped: false,
+            allowDropdownFallThrough: false);
+        shielded.CompleteMovement(
+            level,
+            PlayerTeam.Red,
+            deltaSeconds: 1d / SimulationConfig.DefaultTicksPerSecond,
+            startedGrounded: false,
+            jumped: false,
+            allowDropdownFallThrough: false);
+
+        var expectedMaxFallSpeed = LegacyMovementModel.MaxFallSpeedPerTick
+            * LegacyMovementModel.SourceTicksPerSecond
+            * PlayerEntity.CivvieUmbrellaFallSpeedScale;
+        Assert.True(shielded.VerticalSpeed <= expectedMaxFallSpeed + 0.001f);
+        Assert.True(
+            normal.VerticalSpeed > shielded.VerticalSpeed + 50f,
+            $"expected umbrella to slow fall, normal={normal.VerticalSpeed:0.###} shielded={shielded.VerticalSpeed:0.###}");
+    }
+
     private static float SimulateJumpApex(PlayerEntity player, SimpleLevel level, PlayerInputSnapshot initialInput)
     {
         const double dt = 1d / SimulationConfig.DefaultTicksPerSecond;
@@ -127,6 +160,15 @@ public sealed class PlayerEntityMovementRegressionTests
         player.Spawn(PlayerTeam.Red, 128f, 0f);
         var groundedY = 500f - player.CollisionBottomOffset;
         player.TeleportTo(128f, groundedY);
+        return player;
+    }
+
+    private static PlayerEntity CreateAirborneCivilianWithFallSpeed(float verticalSpeed)
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Civilian, "Test");
+        player.Spawn(PlayerTeam.Red, 128f, 128f);
+        player.TeleportTo(128f, 128f);
+        player.AddImpulse(0f, verticalSpeed);
         return player;
     }
 

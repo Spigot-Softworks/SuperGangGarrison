@@ -90,6 +90,24 @@ public sealed partial class SimulationWorld
         };
     }
 
+    public int GetNetworkPlayerPingMilliseconds(byte slot)
+    {
+        return _networkPlayerPingMillisecondsBySlot.TryGetValue(slot, out var pingMilliseconds)
+            ? pingMilliseconds
+            : -1;
+    }
+
+    private void ApplySnapshotNetworkPlayerPingMilliseconds(byte slot, int pingMilliseconds)
+    {
+        if (pingMilliseconds >= 0)
+        {
+            _networkPlayerPingMillisecondsBySlot[slot] = Math.Clamp(pingMilliseconds, 0, 9999);
+            return;
+        }
+
+        _networkPlayerPingMillisecondsBySlot.Remove(slot);
+    }
+
     public bool IsNetworkPlayerAwaitingJoin(byte slot)
     {
         return slot switch

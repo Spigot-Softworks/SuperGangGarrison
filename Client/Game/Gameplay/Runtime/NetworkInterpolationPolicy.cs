@@ -106,6 +106,28 @@ internal static class NetworkInterpolationPolicy
             maximumBackTimeSeconds);
     }
 
+    public static float CalculateProjectileBackTimeSeconds(
+        float networkSnapshotInterpolationDurationSeconds,
+        float smoothedSnapshotIntervalSeconds,
+        float smoothedSnapshotJitterSeconds,
+        int configuredTickRate,
+        int expectedProjectileUpdateIntervalTicks,
+        float minimumBackTimeSeconds,
+        float maximumBackTimeSeconds)
+    {
+        var tickRate = Math.Max(1, configuredTickRate);
+        var expectedProjectileIntervalSeconds = MathF.Max(
+            smoothedSnapshotIntervalSeconds,
+            1f / tickRate) * expectedProjectileUpdateIntervalTicks;
+        var desiredBackTimeSeconds = MathF.Max(
+            networkSnapshotInterpolationDurationSeconds,
+            MathF.Max(
+                expectedProjectileIntervalSeconds * 2f,
+                expectedProjectileIntervalSeconds + (smoothedSnapshotJitterSeconds * 3f)));
+
+        return Math.Clamp(desiredBackTimeSeconds, minimumBackTimeSeconds, maximumBackTimeSeconds);
+    }
+
     public static bool ShouldUseSnapshotHistoryForProjectile(
         bool isReplayConnection,
         int projectileOwnerId,

@@ -21,7 +21,19 @@ public sealed class ClientSettings
 
     public string Rewards { get; set; } = string.Empty;
 
-    public bool Fullscreen { get; set; }
+    private DisplayModeKind _displayMode = OpenGarrisonPreferencesDocument.DefaultDisplayMode;
+
+    public bool Fullscreen
+    {
+        get => DisplayMode == DisplayModeKind.Fullscreen;
+        set => DisplayMode = value ? DisplayModeKind.Fullscreen : DisplayModeKind.Windowed;
+    }
+
+    public DisplayModeKind DisplayMode
+    {
+        get => _displayMode;
+        set => _displayMode = OpenGarrisonPreferencesDocument.NormalizeDisplayMode(value);
+    }
 
     public bool VSync { get; set; }
 
@@ -30,6 +42,8 @@ public sealed class ClientSettings
     public IngameResolutionKind IngameResolution { get; set; } = OpenGarrisonPreferencesDocument.DefaultIngameResolution;
 
     public WindowSizeKind WindowSize { get; set; } = OpenGarrisonPreferencesDocument.DefaultWindowSize;
+
+    public DisplayScaleModeKind DisplayScaleMode { get; set; } = OpenGarrisonPreferencesDocument.DefaultDisplayScaleMode;
 
     public MusicMode MusicMode { get; set; } = MusicMode.MenuAndInGame;
 
@@ -74,6 +88,8 @@ public sealed class ClientSettings
     public bool HudShowOnlyActiveWeapon { get; set; }
 
     public bool OverheadChatEnabled { get; set; } = OpenGarrisonPreferencesDocument.DefaultOverheadChatEnabled;
+
+    public BubbleWheelBehavior BubbleWheelBehavior { get; set; } = OpenGarrisonPreferencesDocument.DefaultBubbleWheelBehavior;
 
     public bool PortraitRumbleEnabled { get; set; } = true;
 
@@ -216,13 +232,14 @@ public sealed class ClientSettings
         {
             PlayerName = document.PlayerName,
             Rewards = document.Rewards,
-            Fullscreen = document.Fullscreen,
+            DisplayMode = document.DisplayMode,
             VSync = document.VSync,
             FrameRateLimit = document.FrameRateLimit,
             MusicMode = document.MusicMode,
             BotMode = document.BotMode,
             IngameResolution = document.IngameResolution,
             WindowSize = OpenGarrisonPreferencesDocument.NormalizeWindowSize(document.WindowSize),
+            DisplayScaleMode = OpenGarrisonPreferencesDocument.NormalizeDisplayScaleMode(document.DisplayScaleMode),
             ParticleMode = document.ParticleMode,
             FlameRenderMode = document.FlameRenderMode,
             MenuBackgroundMode = document.MenuBackgroundMode,
@@ -235,6 +252,7 @@ public sealed class ClientSettings
             ShowHealthBarEnabled = document.ShowHealthBarEnabled,
             HudShowOnlyActiveWeapon = document.HudShowOnlyActiveWeapon,
             OverheadChatEnabled = document.OverheadChatEnabled,
+            BubbleWheelBehavior = OpenGarrisonPreferencesDocument.NormalizeBubbleWheelBehavior(document.BubbleWheelBehavior),
             PortraitRumbleEnabled = document.PortraitRumbleEnabled,
             PostGameMvpArtEnabled = document.PostGameMvpArtEnabled,
             DamageVignetteEnabled = document.DamageVignetteEnabled,
@@ -293,10 +311,11 @@ public sealed class ClientSettings
     {
         preferences.PlayerName = PlayerName;
         preferences.Rewards = Rewards;
-        preferences.Fullscreen = Fullscreen;
+        preferences.DisplayMode = OpenGarrisonPreferencesDocument.NormalizeDisplayMode(DisplayMode);
         preferences.VSync = VSync;
         preferences.IngameResolution = IngameResolution;
         preferences.WindowSize = OpenGarrisonPreferencesDocument.NormalizeWindowSize(WindowSize);
+        preferences.DisplayScaleMode = OpenGarrisonPreferencesDocument.NormalizeDisplayScaleMode(DisplayScaleMode);
         preferences.MusicMode = MusicMode;
         preferences.BotMode = BotMode;
         preferences.KillCamEnabled = KillCamEnabled;
@@ -311,6 +330,7 @@ public sealed class ClientSettings
         preferences.ShowHealthBarEnabled = ShowHealthBarEnabled;
         preferences.HudShowOnlyActiveWeapon = HudShowOnlyActiveWeapon;
         preferences.OverheadChatEnabled = OverheadChatEnabled;
+        preferences.BubbleWheelBehavior = OpenGarrisonPreferencesDocument.NormalizeBubbleWheelBehavior(BubbleWheelBehavior);
         preferences.PortraitRumbleEnabled = PortraitRumbleEnabled;
         preferences.PostGameMvpArtEnabled = PostGameMvpArtEnabled;
         preferences.DamageVignetteEnabled = DamageVignetteEnabled;
