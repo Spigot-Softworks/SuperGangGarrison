@@ -276,7 +276,10 @@ public partial class Game1
 
     private bool ShouldUsePixelPerfectDisplayScale()
     {
-        return OpenGarrisonPreferencesDocument.NormalizeDisplayScaleMode(_displayScaleMode) == DisplayScaleModeKind.PixelPerfect;
+        // The pixel-perfect screen-scale option has been retired from the UI; Fill is the only
+        // supported behavior. Force Fill here so any preferences file that still has a stored
+        // pixel-perfect value renders correctly instead of leaving the player stuck on it.
+        return false;
     }
 
     private MouseState GetScaledMouseState(MouseState rawMouse)
