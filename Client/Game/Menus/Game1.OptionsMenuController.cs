@@ -588,7 +588,6 @@ public partial class Game1
                 new("Display Mode", OperatingSystem.IsBrowser() ? "Browser" : Game1.GetDisplayModeLabel(_game._displayMode), _game.CycleDisplayModeSetting, OptionsMenuTab.Graphics),
                 new("Aspect Ratio", Game1.GetIngameResolutionLabel(_game._ingameResolution), _game.CycleIngameResolutionSetting, OptionsMenuTab.Graphics),
                 new("Window Size", OperatingSystem.IsBrowser() ? "Browser" : Game1.GetWindowSizeLabel(_game._windowSize), _game.CycleWindowSizeSetting, OptionsMenuTab.Graphics),
-                new("Screen Scale", Game1.GetDisplayScaleModeLabel(_game._displayScaleMode), _game.CycleDisplayScaleModeSetting, OptionsMenuTab.Graphics),
                 new("Menu Background", GetMenuBackgroundModeLabel(_game._menuBackgroundMode), _game.CycleMenuBackgroundModeSetting, OptionsMenuTab.Graphics),
                 new("Particles", GetParticleModeLabel(_game._particleMode), _game.CycleParticleModeSetting, OptionsMenuTab.Graphics),
                 new("Flame Style", GetFlameRenderModeLabel(_game._flameRenderMode), _game.CycleFlameRenderModeSetting, OptionsMenuTab.Graphics),
