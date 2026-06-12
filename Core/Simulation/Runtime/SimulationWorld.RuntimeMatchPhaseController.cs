@@ -43,6 +43,9 @@ public sealed partial class SimulationWorld
             _world.EmitPendingMedicUberReadyPresentation();
             _world.AdvanceExperimentalRageState();
             _objectiveFlowController.AdvanceObjectives();
+            _world.UpdateAuxiliaryControlPointStateIfNeeded();
+            _world.TickForegroundSpriteJungle();
+            _world.TickSpritesheetPlayback();
             _objectiveFlowController.AdvanceResolution();
         }
 
@@ -69,6 +72,11 @@ public sealed partial class SimulationWorld
         public void AdvanceLegacyCaptureTheFlagState()
         {
             _objectiveFlowController.AdvanceLegacyCaptureTheFlagState();
+        }
+
+        public void AdvanceLegacyScrState()
+        {
+            _objectiveFlowController.AdvanceLegacyScrState();
         }
 
         public void AdvanceLegacyArenaState()

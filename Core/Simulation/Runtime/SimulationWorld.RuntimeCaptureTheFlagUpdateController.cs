@@ -44,6 +44,7 @@ public sealed partial class SimulationWorld
                 _world.TryPickUpEnemyIntel(player);
                 _world.TryScoreCarriedIntel(player);
             }
+
         }
     }
 }

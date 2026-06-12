@@ -31,7 +31,8 @@ internal sealed class CustomMapCustomSpriteMapEntityRuntimeImporter : ICustomMap
         var (width, height) = CustomMapCustomSpriteMetadata.ResolveWorldDimensions(
             pixelWidth,
             pixelHeight,
-            configuration.Scale);
+            configuration.Scale,
+            configuration);
         var (left, top) = CustomMapEntityPlacementAnchor.ToTopLeft(
             args.X,
             args.Y,

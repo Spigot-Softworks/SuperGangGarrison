@@ -7,7 +7,8 @@ public sealed record CustomMapVisualMetadata(
     IReadOnlyList<CustomMapParallaxLayer> ParallaxLayers,
     CustomMapVisualResource? Foreground,
     IReadOnlyDictionary<string, CustomMapVisualResource> Resources,
-    IReadOnlyDictionary<string, CustomMapVisualResource> SpriteResources)
+    IReadOnlyDictionary<string, CustomMapVisualResource> SpriteResources,
+    IReadOnlyDictionary<int, ForegroundSpriteHitMask> ForegroundSpriteJungleHitMasks)
 {
     public float ForegroundOffsetX { get; init; }
 
@@ -19,6 +20,9 @@ public sealed record CustomMapVisualMetadata(
     private static readonly IReadOnlyDictionary<string, CustomMapVisualResource> EmptySpriteResources =
         new Dictionary<string, CustomMapVisualResource>(StringComparer.OrdinalIgnoreCase);
 
+    private static readonly IReadOnlyDictionary<int, ForegroundSpriteHitMask> EmptyHitMasks =
+        new Dictionary<int, ForegroundSpriteHitMask>();
+
     public static CustomMapVisualMetadata Empty { get; } = new(
         ImageScale: 1f,
         BackgroundColor: null,
@@ -26,7 +30,8 @@ public sealed record CustomMapVisualMetadata(
         ParallaxLayers: Array.Empty<CustomMapParallaxLayer>(),
         Foreground: null,
         Resources: EmptyResources,
-        SpriteResources: EmptySpriteResources);
+        SpriteResources: EmptySpriteResources,
+        ForegroundSpriteJungleHitMasks: EmptyHitMasks);
 }
 
 public sealed record CustomMapParallaxLayer(

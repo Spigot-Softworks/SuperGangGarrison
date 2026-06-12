@@ -9,7 +9,9 @@ public readonly record struct DamageableZoneConfiguration(
     int HealWhenNodeIndex,
     bool ShowHealthBar,
     bool BlockPlayers,
-    bool DisableWhenDestroyed)
+    bool DisableWhenDestroyed,
+    bool SentryTarget,
+    bool Stabbable)
 {
     public bool IsConfigured => MaxHealth > 0f;
 }
@@ -23,6 +25,8 @@ public static class DamageableMetadata
     public const string ShowHealthBarPropertyKey = "showHealthBar";
     public const string BlockPlayersPropertyKey = "blockPlayers";
     public const string DisableWhenDestroyedPropertyKey = "disableWhenDestroyed";
+    public const string SentryTargetPropertyKey = "sentryTarget";
+    public const string StabbablePropertyKey = "stabbable";
 
     public const float DefaultZoneWidth = 42f;
     public const float DefaultZoneHeight = 42f;
@@ -84,6 +88,38 @@ public static class DamageableMetadata
             || value.Trim().Equals("1", StringComparison.OrdinalIgnoreCase);
     }
 
+    public static bool ParseSentryTarget(IReadOnlyDictionary<string, string>? properties)
+    {
+        if (properties is null
+            || !properties.TryGetValue(SentryTargetPropertyKey, out var value))
+        {
+            return true;
+        }
+
+        return ParseBoolProperty(value);
+    }
+
+    public static bool IsSentryTarget(in DamageableZoneConfiguration configuration, float currentHealth)
+    {
+        return configuration.SentryTarget
+            && configuration.IsConfigured
+            && currentHealth > 0f;
+    }
+
+    public static bool ParseStabbable(IReadOnlyDictionary<string, string>? properties)
+    {
+        return properties is not null
+            && properties.TryGetValue(StabbablePropertyKey, out var value)
+            && ParseBoolProperty(value);
+    }
+
+    public static bool IsStabbableTarget(in DamageableZoneConfiguration configuration, float currentHealth)
+    {
+        return configuration.Stabbable
+            && configuration.IsConfigured
+            && currentHealth > 0f;
+    }
+
     public static string ToHealthPropertyValue(float health)
     {
         return Math.Clamp(health, MinHealth, MaxHealth).ToString(CultureInfo.InvariantCulture);
@@ -108,7 +144,9 @@ public static class DamageableMetadata
             healWhenNodeIndex,
             ParseShowHealthBar(properties),
             ParseBlockPlayers(properties),
-            ParseDisableWhenDestroyed(properties));
+            ParseDisableWhenDestroyed(properties),
+            ParseSentryTarget(properties),
+            ParseStabbable(properties));
     }
 
     public static bool TryResolveRoomObjectIndex(

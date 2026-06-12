@@ -78,6 +78,8 @@ public sealed partial class SimulationWorld
         Level = nextLevel;
         _configuredMapScale = Level.MapScale;
         MatchRules = CreateDefaultMatchRules(Level.Mode);
+        ApplyScrLevelMatchSettings();
+        RebuildForegroundJungleSpriteCache();
         ResetModeStateForNewMap();
         RestartCurrentRound(preservePlayerStats);
         return true;
@@ -165,6 +167,7 @@ public sealed partial class SimulationWorld
         RedIntel = CreateIntelState(PlayerTeam.Red);
         BlueIntel = CreateIntelState(PlayerTeam.Blue);
         ResetModeStateForNewRound();
+        FinalizeScrRoundStart();
         if (_logicActivatorStartApplied.Length > 0)
         {
             Array.Clear(_logicActivatorStartApplied, 0, _logicActivatorStartApplied.Length);
@@ -202,7 +205,9 @@ public sealed partial class SimulationWorld
         RedCaps = 0;
         BlueCaps = 0;
 
-        if (!IsControlPointMode(MatchRules.Mode) && !IsKothMode(MatchRules.Mode))
+        if (!IsControlPointMode(MatchRules.Mode)
+            && !IsKothMode(MatchRules.Mode)
+            && !Level.ShouldSimulateControlPoints)
         {
             _controlPoints.Clear();
             _controlPointZones.Clear();
@@ -236,7 +241,9 @@ public sealed partial class SimulationWorld
         _arenaCappers = 0;
         _arenaUnlockTicksRemaining = MatchRules.Mode == GameModeKind.Arena ? ArenaPointUnlockTicksDefault : 0;
 
-        if (IsControlPointMode(MatchRules.Mode) || IsKothMode(MatchRules.Mode))
+        if (IsControlPointMode(MatchRules.Mode)
+            || IsKothMode(MatchRules.Mode)
+            || Level.ShouldSimulateControlPoints)
         {
             ResetControlPointStateForNewRound();
         }

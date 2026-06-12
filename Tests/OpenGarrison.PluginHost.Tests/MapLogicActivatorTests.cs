@@ -565,7 +565,15 @@ public sealed class MapLogicActivatorTests
             32f,
             string.Empty,
             SourceName: "customSprite",
-            CustomMapSprite: new CustomMapSpriteConfiguration("icon", CustomMapSpriteLayerKind.Bg, 0, 1f));
+            CustomMapSprite: new CustomMapSpriteConfiguration(
+                "icon",
+                CustomMapSpriteLayerKind.Bg,
+                0,
+                1f,
+                false,
+                MapSpriteTileAnchor.TopLeft,
+                0f,
+                0f));
         var activators = new MapLogicActivatorSet(
         [
             new MapLogicActivator(

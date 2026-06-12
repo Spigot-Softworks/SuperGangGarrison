@@ -33,10 +33,12 @@ public partial class Game1
         for (var parallaxLayer = 0; parallaxLayer <= 6; parallaxLayer += 1)
         {
             DrawCustomMapGameplaySprites(cameraPosition, (CustomMapSpriteLayerKind)(parallaxLayer + 1));
+            DrawSpritesheets(cameraPosition, (CustomMapSpriteLayerKind)(parallaxLayer + 1));
         }
 
         var hasLevelBackground = DrawLevelBackground(worldRectangle);
         DrawCustomMapGameplaySprites(cameraPosition, CustomMapSpriteLayerKind.Bg);
+        DrawSpritesheets(cameraPosition, CustomMapSpriteLayerKind.Bg);
         DrawFallbackLevelSolids(cameraPosition, hasLevelBackground);
         DrawMovingPlatforms(cameraPosition);
         DrawGameplayEffectsAndProjectiles(cameraPosition);
@@ -75,7 +77,10 @@ public partial class Game1
         DrawSpySuperjumpVisuals(cameraPosition);
         DrawSniperAimIndicators(cameraPosition);
         DrawCustomMapGameplaySprites(cameraPosition, CustomMapSpriteLayerKind.Fg);
+        DrawSpritesheets(cameraPosition, CustomMapSpriteLayerKind.Fg);
+        DrawForegroundSprites(cameraPosition, ForegroundSpriteLayerKind.Bg);
         DrawCustomMapForegroundAndVoid(cameraPosition, worldRectangle);
+        DrawForegroundSprites(cameraPosition, ForegroundSpriteLayerKind.Fg);
         DrawRocketCollisionDebug(cameraPosition);
         DrawProjectileSpawnBlockedDebug(cameraPosition);
         RecordBrowserWorldDrawDuration(browserWorldDrawStartTimestamp);
@@ -275,17 +280,14 @@ public partial class Game1
         {
             DrawArenaControlPoint(cameraPosition);
         }
-        else if (_world.MatchRules.Mode == GameModeKind.ControlPoint)
-        {
-            DrawControlPoints(cameraPosition);
-        }
-        else if (_world.MatchRules.Mode is GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill)
-        {
-            DrawControlPoints(cameraPosition);
-        }
         else if (_world.MatchRules.Mode == GameModeKind.Generator)
         {
             DrawGenerators(cameraPosition);
+        }
+
+        if (ShouldDrawControlPointSpritesOnMap())
+        {
+            DrawControlPoints(cameraPosition);
         }
 
         if (!hasLevelBackground)

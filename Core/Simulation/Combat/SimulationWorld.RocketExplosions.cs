@@ -145,7 +145,8 @@ public sealed partial class SimulationWorld
             {
                 world.TryApplyDamageableZoneDamage(
                     directHitDamageableZoneRoomObjectIndex,
-                    rocket.DirectHitDamageValue * rocket.ExperimentalStingerDamageMultiplier * rocket.CriticalDamageMultiplier);
+                    rocket.DirectHitDamageValue * rocket.ExperimentalStingerDamageMultiplier * rocket.CriticalDamageMultiplier,
+                    rocket.Team);
             }
 
             return hitEnemyPlayer;
@@ -163,7 +164,8 @@ public sealed partial class SimulationWorld
                 blastRadius,
                 rocket.ExplosionDamageValue * rocket.ExperimentalStingerDamageMultiplier * rocket.CriticalDamageMultiplier,
                 rocket.SplashThresholdFactorValue,
-                excludeRoomObjectIndex);
+                excludeRoomObjectIndex,
+                rocket.Team);
         }
 
         private static bool ApplySplashDamageToPlayers(

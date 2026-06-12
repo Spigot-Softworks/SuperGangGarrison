@@ -227,6 +227,7 @@ public static class ControlPointOwnershipResolver
             CustomMapBuilderGameMode.DualKingOfTheHill => GameModeKind.DoubleKingOfTheHill,
             CustomMapBuilderGameMode.Arena => GameModeKind.Arena,
             CustomMapBuilderGameMode.Generator => GameModeKind.Generator,
+            CustomMapBuilderGameMode.Scr => GameModeKind.Scr,
             _ => GameModeKind.ControlPoint,
         };
     }

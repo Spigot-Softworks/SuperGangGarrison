@@ -28,6 +28,26 @@ public sealed class TeleportRuntimeTests
     }
 
     [Fact]
+    public void TeleportTriggersOnHitboxOverlapWhenOriginIsOutsideZone()
+    {
+        var exit = CreateTeleportExit(180f, 180f);
+        var zone = CreateTeleportZone(0f, 0f, 42f, 42f, new TeleportZoneConfiguration(
+            TeleportTeamFilter.All,
+            exit.CenterX,
+            exit.CenterY,
+            HasExit: true));
+        var world = CreateWorld([zone, exit]);
+        PreparePlayer(world, PlayerTeam.Red, 20f, -5f);
+
+        Assert.False(AreaExtensionMetadata.IsPointInsideMarker(world.LocalPlayer.X, world.LocalPlayer.Y, zone));
+
+        InvokeApplyTeleportZones(world, world.LocalPlayer);
+
+        Assert.Equal(exit.CenterX, world.LocalPlayer.X, precision: 2);
+        Assert.Equal(exit.CenterY, world.LocalPlayer.Y, precision: 2);
+    }
+
+    [Fact]
     public void TeleportWithoutExitDoesNotMovePlayer()
     {
         var zone = CreateTeleportZone(0f, 0f, 42f, 42f, new TeleportZoneConfiguration(

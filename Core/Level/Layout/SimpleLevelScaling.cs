@@ -33,8 +33,12 @@ internal static class SimpleLevelScaling
             Scale(level.CustomMapVisuals, clampedScale),
             level.MovingPlatforms.Select(marker => Scale(marker, clampedScale)).ToArray(),
             level.ControlPointSettings,
+            level.ScrSettings,
+            level.ShowControlPoints,
             level.LogicGraph,
-            level.LogicActivators)
+            level.LogicActivators,
+            level.LogicScoreTriggers,
+            level.SpritesheetPlaybackSet)
         {
             ControlPointSetupGatesActive = level.ControlPointSetupGatesActive,
             ForcedBlockingTeamGates = level.ForcedBlockingTeamGates,
@@ -72,7 +76,9 @@ internal static class SimpleLevelScaling
         marker.PlayerTriggerZone,
         marker.CustomMapSprite,
         marker.AreaExtension,
-        marker.DamageableZone);
+        marker.DamageableZone,
+        marker.ForegroundSprite,
+        marker.Spritesheet);
 
     private static LevelSolid Scale(LevelSolid solid, float scale) => new(solid.X * scale, solid.Y * scale, solid.Width * scale, solid.Height * scale);
 

@@ -15,6 +15,8 @@ public partial class Game1
     private string _builderLogicMapPickTargetPropertyKey = string.Empty;
     private bool _builderEntityMapPickActive;
     private string _builderEntityMapPickTargetPropertyKey = string.Empty;
+    private bool _builderLogicRecolorDialogOpen;
+    private int _builderLogicRecolorEntityIndex = -1;
 
     private const float GarrisonBuilderLogicNodeWorldWidth = 26f;
     private const float GarrisonBuilderLogicNodeWorldHeight = 17f;
@@ -28,6 +30,16 @@ public partial class Game1
 
     private readonly Dictionary<long, List<Vector2>> _builderLogicConnectionAnchorScratch = new();
 
+    private Color GetGarrisonBuilderLogicFillColor(CustomMapBuilderEntity entity)
+    {
+        if (MapLogicNodeColorMetadata.TryResolveFillColor(entity.Properties, out var red, out var green, out var blue))
+        {
+            return new Color(red, green, blue);
+        }
+
+        return GarrisonBuilderLogicFillColor;
+    }
+
     private bool TryGetGarrisonBuilderLogicNodeWorldBounds(
         CustomMapBuilderEntity entity,
         out float left,
@@ -36,6 +48,21 @@ public partial class Game1
         out float height)
     {
         left = top = width = height = 0f;
+        if (SpritesheetMetadata.IsSpritesheetEntityType(entity.Type))
+        {
+            return TryGetGarrisonBuilderSpritesheetWorldBounds(entity, out left, out top, out width, out height);
+        }
+
+        if (TryGetGarrisonBuilderCustomSpriteWorldBounds(entity, out left, out top, out width, out height))
+        {
+            return true;
+        }
+
+        if (TryGetGarrisonBuilderForegroundSpriteWorldBounds(entity, out left, out top, out width, out height))
+        {
+            return true;
+        }
+
         if (!MapLogicMetadata.IsLogicEntityType(entity.Type)
             && !AreaExtensionMetadata.IsAreaEntityType(entity.Type))
         {
@@ -649,12 +676,13 @@ public partial class Game1
     private static bool UsesGarrisonBuilderLogicConnectionMarker(CustomMapBuilderEntity entity)
     {
         return MapLogicMetadata.IsLogicEntityType(entity.Type)
-            || AreaExtensionMetadata.IsAreaEntityType(entity.Type);
+            || AreaExtensionMetadata.IsAreaEntityType(entity.Type)
+            || SpritesheetMetadata.IsSpritesheetEntityType(entity.Type);
     }
 
     private float GetGarrisonBuilderLogicConnectionAnchorSpacingWorld()
     {
-        return 8f / (_builderUseModernUi ? MathF.Max(0.05f, _builderZoom) : 1f);
+        return 3.5f * MathF.Max(0.45f, GetGarrisonBuilderLinkVisualScale());
     }
 
     private static Vector2 GetClosestPointOnRectanglePerimeter(
@@ -684,7 +712,13 @@ public partial class Game1
         int entityIndex,
         bool isOutput,
         Vector2 idealWorld,
-        Vector2 centerWorld)
+        Vector2 centerWorld,
+        float left,
+        float top,
+        float width,
+        float height,
+        int connectionSlot = -1,
+        int connectionSlotCount = 1)
     {
         var key = ((long)entityIndex << 1) | (isOutput ? 1L : 0L);
         if (!_builderLogicConnectionAnchorScratch.TryGetValue(key, out var placed))
@@ -705,9 +739,35 @@ public partial class Game1
         }
 
         var tangent = new Vector2(-edgeDirection.Y, edgeDirection.X);
-        for (var attempt = 0; attempt < 8; attempt += 1)
+        var baseIdeal = idealWorld;
+        if (connectionSlot >= 0 && connectionSlotCount > 1)
         {
-            var candidate = idealWorld + (tangent * (spacing * attempt));
+            var slotOffset = (connectionSlot - ((connectionSlotCount - 1) * 0.5f)) * spacing;
+            baseIdeal = idealWorld + (tangent * slotOffset);
+            baseIdeal = GetClosestPointOnRectanglePerimeter(left, top, width, height, baseIdeal);
+        }
+
+        for (var attempt = 0; attempt < 12; attempt += 1)
+        {
+            float magnitude;
+            float sign;
+            if (attempt == 0)
+            {
+                magnitude = 0f;
+                sign = 1f;
+            }
+            else
+            {
+                magnitude = spacing * ((attempt + 1) / 2);
+                sign = attempt % 2 == 0 ? 1f : -1f;
+            }
+
+            var candidate = baseIdeal + (tangent * (magnitude * sign));
+            if (width > 0.001f && height > 0.001f)
+            {
+                candidate = GetClosestPointOnRectanglePerimeter(left, top, width, height, candidate);
+            }
+
             var collides = false;
             for (var index = 0; index < placed.Count; index += 1)
             {
@@ -727,15 +787,18 @@ public partial class Game1
             }
         }
 
-        placed.Add(idealWorld);
-        return idealWorld;
+        var fallback = GetClosestPointOnRectanglePerimeter(left, top, width, height, baseIdeal);
+        placed.Add(fallback);
+        return fallback;
     }
 
     private Vector2 ResolveGarrisonBuilderLogicConnectionAnchor(
         CustomMapBuilderEntity entity,
         int entityIndex,
         Vector2 towardWorld,
-        bool isOutput)
+        bool isOutput,
+        int connectionSlot = -1,
+        int connectionSlotCount = 1)
     {
         if (!TryGetGarrisonBuilderLogicNodeWorldBounds(
                 entity,
@@ -749,7 +812,17 @@ public partial class Game1
 
         var center = new Vector2(entity.X, entity.Y);
         var ideal = GetClosestPointOnRectanglePerimeter(left, top, width, height, towardWorld);
-        return ReserveGarrisonBuilderLogicConnectionAnchor(entityIndex, isOutput, ideal, center);
+        return ReserveGarrisonBuilderLogicConnectionAnchor(
+            entityIndex,
+            isOutput,
+            ideal,
+            center,
+            left,
+            top,
+            width,
+            height,
+            connectionSlot,
+            connectionSlotCount);
     }
 
     private void DrawGarrisonBuilderLogicConnectionMarker(
@@ -799,13 +872,29 @@ public partial class Game1
         int sourceIndex,
         CustomMapBuilderEntity target,
         int targetIndex,
-        bool highlighted)
+        bool highlighted,
+        int sourceConnectionSlot = -1,
+        int sourceConnectionSlotCount = 1,
+        int targetConnectionSlot = -1,
+        int targetConnectionSlotCount = 1)
     {
         var color = highlighted ? GarrisonBuilderLogicLinkHighlightColor : GarrisonBuilderLogicLinkColor;
         var towardTarget = new Vector2(target.X, target.Y);
         var towardSource = new Vector2(source.X, source.Y);
-        var sourceAnchor = ResolveGarrisonBuilderLogicConnectionAnchor(source, sourceIndex, towardTarget, isOutput: true);
-        var targetAnchor = ResolveGarrisonBuilderLogicConnectionAnchor(target, targetIndex, towardSource, isOutput: false);
+        var sourceAnchor = ResolveGarrisonBuilderLogicConnectionAnchor(
+            source,
+            sourceIndex,
+            towardTarget,
+            isOutput: true,
+            sourceConnectionSlot,
+            sourceConnectionSlotCount);
+        var targetAnchor = ResolveGarrisonBuilderLogicConnectionAnchor(
+            target,
+            targetIndex,
+            towardSource,
+            isOutput: false,
+            targetConnectionSlot,
+            targetConnectionSlotCount);
         var start = BuilderWorldToScreen(sourceAnchor);
         var end = BuilderWorldToScreen(targetAnchor);
         var linkScale = GetGarrisonBuilderLinkVisualScale();
@@ -921,7 +1010,8 @@ public partial class Game1
             || key.Equals(MapLogicMetadata.LogicSignalPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(MapLogicMetadata.LockedWhenLogicPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(MapLogicMetadata.UnlockedWhenLogicPropertyKey, StringComparison.OrdinalIgnoreCase)
-            || key.Equals(DamageableMetadata.HealWhenPropertyKey, StringComparison.OrdinalIgnoreCase);
+            || key.Equals(DamageableMetadata.HealWhenPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || SpritesheetMetadata.IsLogicInputPropertyKey(key);
     }
 
     private string GetGarrisonBuilderPropertyEditorValue(string key)
@@ -949,6 +1039,28 @@ public partial class Game1
                 MapLogicSignalMetadata.SignalPropertyKey,
                 MapLogicSignalMetadata.DetectPropertyKey,
                 PlayerTriggerMetadata.TeamPropertyKey,
+                PlayerTriggerMetadata.IntelCarriersOnlyPropertyKey,
+                MapLogicMetadata.NodePriorityPropertyKey,
+            ]
+            : entityType.Equals(MapLogicMetadata.ScoreTriggerEntityType, StringComparison.OrdinalIgnoreCase)
+            ?
+            [
+                MapLogicMetadata.LogicInputPropertyKey,
+                MapLogicScoreTriggerMetadata.ScoreTeamPropertyKey,
+                MapLogicScoreTriggerMetadata.ChangePropertyKey,
+                MapLogicScoreTriggerMetadata.ValuePropertyKey,
+                MapLogicMetadata.NodePriorityPropertyKey,
+            ]
+            : entityType.Equals(MapLogicMetadata.IntelTriggerEntityType, StringComparison.OrdinalIgnoreCase)
+            ?
+            [
+                MapLogicSignalMetadata.SignalPropertyKey,
+                IntelTriggerMetadata.IntelPropertyKey,
+                IntelTriggerMetadata.TriggerWhenPropertyKey,
+                IntelTriggerMetadata.OnPickupPropertyKey,
+                IntelTriggerMetadata.OnDropPropertyKey,
+                IntelTriggerMetadata.OnCapturePropertyKey,
+                IntelTriggerMetadata.OnResetPropertyKey,
                 MapLogicMetadata.NodePriorityPropertyKey,
             ]
             : entityType.Equals(DamageableMetadata.DamageableEntityType, StringComparison.OrdinalIgnoreCase)
@@ -959,6 +1071,8 @@ public partial class Game1
                 DamageableMetadata.ShowHealthBarPropertyKey,
                 DamageableMetadata.BlockPlayersPropertyKey,
                 DamageableMetadata.DisableWhenDestroyedPropertyKey,
+                DamageableMetadata.SentryTargetPropertyKey,
+                DamageableMetadata.StabbablePropertyKey,
             ]
             : entityType.Equals(DamageTriggerMetadata.DamageTriggerEntityType, StringComparison.OrdinalIgnoreCase)
             ?
@@ -968,9 +1082,11 @@ public partial class Game1
                 DamageTriggerMetadata.TriggerBelowThresholdPropertyKey,
                 DamageTriggerMetadata.TriggerBelowPercentPropertyKey,
                 DamageTriggerMetadata.TriggerOnAnyDamagePropertyKey,
+                DamageTriggerMetadata.AnyDamageCooldownPropertyKey,
                 MapLogicMetadata.TrueTimePropertyKey,
                 DamageTriggerMetadata.TriggerOnHealPropertyKey,
                 DamageTriggerMetadata.TriggerWhenDestroyedPropertyKey,
+                DamageTriggerMetadata.AffectedByTeamPropertyKey,
                 MapLogicMetadata.NodePriorityPropertyKey,
             ]
             : entityType.Equals(MapLogicMetadata.RisingEdgeEntityType, StringComparison.OrdinalIgnoreCase)
@@ -1140,6 +1256,29 @@ public partial class Game1
             return $"Team: {PlayerTriggerMetadata.GetTeamDisplayLabel(value)}";
         }
 
+        if (key.Equals(PlayerTriggerMetadata.IntelCarriersOnlyPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return DamageableMetadata.GetBooleanDisplayLabel(value);
+        }
+
+        if (key.Equals(IntelTriggerMetadata.IntelPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Intel: {IntelTriggerMetadata.GetIntelDisplayLabel(value)}";
+        }
+
+        if (key.Equals(IntelTriggerMetadata.TriggerWhenPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Trigger when: {IntelTriggerMetadata.GetLatchStateDisplayLabel(value)}";
+        }
+
+        if (key.Equals(IntelTriggerMetadata.OnPickupPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(IntelTriggerMetadata.OnDropPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(IntelTriggerMetadata.OnCapturePropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(IntelTriggerMetadata.OnResetPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return DamageableMetadata.GetBooleanDisplayLabel(value);
+        }
+
         if (key.Equals(MapLogicMetadata.ActivatorEntityPropertyKey, StringComparison.OrdinalIgnoreCase))
         {
             return GetGarrisonBuilderActivatorEntityDisplayValue(value);
@@ -1157,7 +1296,9 @@ public partial class Game1
 
         if (key.Equals(DamageableMetadata.ShowHealthBarPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(DamageableMetadata.BlockPlayersPropertyKey, StringComparison.OrdinalIgnoreCase)
-            || key.Equals(DamageableMetadata.DisableWhenDestroyedPropertyKey, StringComparison.OrdinalIgnoreCase))
+            || key.Equals(DamageableMetadata.DisableWhenDestroyedPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(DamageableMetadata.SentryTargetPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(DamageableMetadata.StabbablePropertyKey, StringComparison.OrdinalIgnoreCase))
         {
             return DamageableMetadata.GetBooleanDisplayLabel(value);
         }
@@ -1170,6 +1311,21 @@ public partial class Game1
         if (key.Equals(DamageTriggerMetadata.TriggerBelowPercentPropertyKey, StringComparison.OrdinalIgnoreCase))
         {
             return DamageTriggerMetadata.GetTriggerBelowDisplayLabel(value);
+        }
+
+        if (key.Equals(DamageTriggerMetadata.AnyDamageCooldownPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && TryGetGarrisonBuilderEditedEntityType(out var damageTriggerCooldownEntity)
+            && damageTriggerCooldownEntity.Equals(DamageTriggerMetadata.DamageTriggerEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            return DamageTriggerMetadata.ToAnyDamageCooldownPropertyValue(
+                DamageTriggerMetadata.ParseAnyDamageCooldownSeconds(_builderPropertyEditorValues));
+        }
+
+        if (key.Equals(DamageTriggerMetadata.AffectedByTeamPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && TryGetGarrisonBuilderEditedEntityType(out var damageTriggerTeamEntity)
+            && damageTriggerTeamEntity.Equals(DamageTriggerMetadata.DamageTriggerEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Affected by team: {DamageTriggerMetadata.GetAffectedByTeamDisplayLabel(value)}";
         }
 
         if (key.Equals(MapLogicMetadata.TrueTimePropertyKey, StringComparison.OrdinalIgnoreCase)
@@ -1256,6 +1412,18 @@ public partial class Game1
         if (definition.Type.Equals(MapLogicMetadata.CpTriggerEntityType, StringComparison.OrdinalIgnoreCase))
         {
             DrawGarrisonBuilderLogicNode(entity, "CP", GetGarrisonBuilderLogicScreenOutlineThicknessPx());
+            return true;
+        }
+
+        if (definition.Type.Equals(MapLogicMetadata.IntelTriggerEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            DrawGarrisonBuilderLogicNode(entity, "INTL", GetGarrisonBuilderLogicScreenOutlineThicknessPx());
+            return true;
+        }
+
+        if (definition.Type.Equals(MapLogicMetadata.ScoreTriggerEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            DrawGarrisonBuilderLogicCircleLabel(entity, "SCR");
             return true;
         }
 
@@ -1373,12 +1541,9 @@ public partial class Game1
             (int)MathF.Floor(MathF.Min(topLeft.Y, bottomRight.Y)),
             Math.Max(1, (int)MathF.Ceiling(MathF.Abs(bottomRight.X - topLeft.X))),
             Math.Max(1, (int)MathF.Ceiling(MathF.Abs(bottomRight.Y - topLeft.Y))));
+        var baseFillColor = GetGarrisonBuilderLogicFillColor(entity);
         var fillColor = Color.Lerp(
-            new Color(
-                (byte)GarrisonBuilderLogicFillColor.R,
-                (byte)GarrisonBuilderLogicFillColor.G,
-                (byte)GarrisonBuilderLogicFillColor.B,
-                (byte)170),
+            new Color(baseFillColor.R, baseFillColor.G, baseFillColor.B, (byte)170),
             Color.White,
             0.2f);
         var borderColor = GarrisonBuilderLogicOutlineColor;
@@ -1411,7 +1576,7 @@ public partial class Game1
         }
 
         var screenBounds = ToScreenRectangle(new RectangleF(left, top, width, height));
-        _spriteBatch.Draw(_pixel, screenBounds, GarrisonBuilderLogicFillColor);
+        _spriteBatch.Draw(_pixel, screenBounds, GetGarrisonBuilderLogicFillColor(entity));
         DrawGarrisonBuilderThickRectangleOutline(screenBounds, GarrisonBuilderLogicOutlineColor, outlineThickness);
 
         DrawGarrisonBuilderLogicNodeLabel(screenBounds, label);
@@ -1433,7 +1598,7 @@ public partial class Game1
         var cornerRadius = MathF.Min(screenBounds.Width, screenBounds.Height) * 0.28f;
         DrawGarrisonBuilderLogicRoundedRectangle(
             screenBounds,
-            GarrisonBuilderLogicFillColor,
+            GetGarrisonBuilderLogicFillColor(entity),
             GarrisonBuilderLogicOutlineColor,
             GetGarrisonBuilderLogicScreenOutlineThicknessPx(),
             cornerRadius);
@@ -1608,7 +1773,7 @@ public partial class Game1
             return;
         }
 
-        DrawGarrisonBuilderLogicEyeShape(center, radiusX, radiusY);
+        DrawGarrisonBuilderLogicEyeShape(center, radiusX, radiusY, GetGarrisonBuilderLogicFillColor(entity));
         DrawGarrisonBuilderLogicNodeLabel(
             new Rectangle(
                 (int)MathF.Floor(center.X - radiusX),
@@ -1618,7 +1783,7 @@ public partial class Game1
             label);
     }
 
-    private void DrawGarrisonBuilderLogicEyeShape(Vector2 center, float radiusX, float radiusY)
+    private void DrawGarrisonBuilderLogicEyeShape(Vector2 center, float radiusX, float radiusY, Color fillColor)
     {
         const int segments = 20;
         var outlineThickness = GetGarrisonBuilderLogicScreenOutlineThickness();
@@ -1634,7 +1799,7 @@ public partial class Game1
         for (var segment = 0; segment < segments; segment += 1)
         {
             var next = (segment + 1) % segments;
-            DrawGarrisonBuilderFilledTriangle(center, fillPoints[segment], fillPoints[next], GarrisonBuilderLogicFillColor);
+            DrawGarrisonBuilderFilledTriangle(center, fillPoints[segment], fillPoints[next], fillColor);
         }
 
         for (var segment = 0; segment < segments; segment += 1)
@@ -1741,8 +1906,8 @@ public partial class Game1
 
             if (entity.Type.Equals(MapLogicMetadata.GateEntityType, StringComparison.OrdinalIgnoreCase))
             {
-                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicInput1PropertyKey, 0);
-                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicInput2PropertyKey, 1);
+                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicInput1PropertyKey, 0, 2);
+                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicInput2PropertyKey, 1, 2);
                 continue;
             }
 
@@ -1760,8 +1925,8 @@ public partial class Game1
 
             if (entity.Type.Equals(MapLogicMetadata.LatchEntityType, StringComparison.OrdinalIgnoreCase))
             {
-                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicInputPropertyKey, 0);
-                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicResetPropertyKey, 1);
+                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicInputPropertyKey, 0, 2);
+                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicResetPropertyKey, 1, 2);
                 continue;
             }
 
@@ -1778,10 +1943,22 @@ public partial class Game1
                 continue;
             }
 
+            if (entity.Type.Equals(MapLogicMetadata.ScoreTriggerEntityType, StringComparison.OrdinalIgnoreCase))
+            {
+                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicInputPropertyKey, 0);
+                continue;
+            }
+
             if (entity.Type.Equals(MapLogicMetadata.OscillatorEntityType, StringComparison.OrdinalIgnoreCase))
             {
-                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.StartWhenPropertyKey, 0);
-                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.EndWhenPropertyKey, 1);
+                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.StartWhenPropertyKey, 0, 2);
+                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.EndWhenPropertyKey, 1, 2);
+                continue;
+            }
+
+            if (SpritesheetMetadata.IsSpritesheetEntityType(entity.Type))
+            {
+                DrawGarrisonBuilderSpritesheetInputLinks(entity);
                 continue;
             }
 
@@ -1832,10 +2009,14 @@ public partial class Game1
             {
                 DrawGarrisonBuilderLogicConsumerLink(
                     entity,
-                    GetEntityProperty(entity.Properties, MapLogicMetadata.LockedWhenLogicPropertyKey, string.Empty));
+                    GetEntityProperty(entity.Properties, MapLogicMetadata.LockedWhenLogicPropertyKey, string.Empty),
+                    0,
+                    2);
                 DrawGarrisonBuilderLogicConsumerLink(
                     entity,
-                    GetEntityProperty(entity.Properties, MapLogicMetadata.UnlockedWhenLogicPropertyKey, string.Empty));
+                    GetEntityProperty(entity.Properties, MapLogicMetadata.UnlockedWhenLogicPropertyKey, string.Empty),
+                    1,
+                    2);
             }
         }
     }
@@ -1863,7 +2044,11 @@ public partial class Game1
         DrawGarrisonBuilderLogicLink(_builderEntities[targetIndex], trigger);
     }
 
-    private void DrawGarrisonBuilderLogicNodeInputLink(CustomMapBuilderEntity target, string propertyKey, int inputSlot)
+    private void DrawGarrisonBuilderLogicNodeInputLink(
+        CustomMapBuilderEntity target,
+        string propertyKey,
+        int inputSlot,
+        int inputSlotCount = 1)
     {
         var logicRef = GetEntityProperty(target.Properties, propertyKey, string.Empty);
         if (!TryFindGarrisonBuilderLogicSource(logicRef, out var source, out var sourceIndex))
@@ -1877,7 +2062,42 @@ public partial class Game1
             sourceIndex,
             target,
             targetIndex >= 0 ? targetIndex : 0,
-            IsGarrisonBuilderLogicLinkHighlighted(source, target));
+            IsGarrisonBuilderLogicLinkHighlighted(source, target),
+            targetConnectionSlot: inputSlot,
+            targetConnectionSlotCount: inputSlotCount);
+    }
+
+    private void DrawGarrisonBuilderSpritesheetInputLinks(CustomMapBuilderEntity entity)
+    {
+        var inputs = new List<string>();
+        if (SpritesheetMetadata.ShouldShowProperty(entity.Properties, SpritesheetMetadata.StartInputPropertyKey))
+        {
+            var startRef = GetEntityProperty(entity.Properties, SpritesheetMetadata.StartInputPropertyKey, string.Empty);
+            if (!string.IsNullOrWhiteSpace(startRef))
+            {
+                inputs.Add(startRef);
+            }
+        }
+
+        var stopRef = GetEntityProperty(entity.Properties, SpritesheetMetadata.StopInputPropertyKey, string.Empty);
+        if (!string.IsNullOrWhiteSpace(stopRef))
+        {
+            inputs.Add(stopRef);
+        }
+
+        if (SpritesheetMetadata.ShouldShowProperty(entity.Properties, SpritesheetMetadata.NextFrameInputPropertyKey))
+        {
+            var nextFrameRef = GetEntityProperty(entity.Properties, SpritesheetMetadata.NextFrameInputPropertyKey, string.Empty);
+            if (!string.IsNullOrWhiteSpace(nextFrameRef))
+            {
+                inputs.Add(nextFrameRef);
+            }
+        }
+
+        for (var index = 0; index < inputs.Count; index += 1)
+        {
+            DrawGarrisonBuilderLogicConsumerLink(entity, inputs[index], index, inputs.Count);
+        }
     }
 
     private void DrawGarrisonBuilderActivatorEntityLink(CustomMapBuilderEntity activator)
@@ -1926,7 +2146,11 @@ public partial class Game1
         return entity.Type;
     }
 
-    private void DrawGarrisonBuilderLogicConsumerLink(CustomMapBuilderEntity consumer, string logicRef)
+    private void DrawGarrisonBuilderLogicConsumerLink(
+        CustomMapBuilderEntity consumer,
+        string logicRef,
+        int inputSlot = -1,
+        int inputSlotCount = 1)
     {
         if (string.IsNullOrWhiteSpace(logicRef)
             || !TryFindGarrisonBuilderLogicSource(logicRef, out var source, out var sourceIndex))
@@ -1940,7 +2164,9 @@ public partial class Game1
             sourceIndex,
             consumer,
             consumerIndex >= 0 ? consumerIndex : 0,
-            IsGarrisonBuilderLogicLinkHighlighted(source, consumer));
+            IsGarrisonBuilderLogicLinkHighlighted(source, consumer),
+            targetConnectionSlot: inputSlot,
+            targetConnectionSlotCount: inputSlotCount);
     }
 
     private string FormatGarrisonBuilderLogicPropertyRowLabel(string key, string value)
@@ -1994,6 +2220,20 @@ public partial class Game1
             && playerTriggerTeamEntity.Equals(MapLogicMetadata.PlayerTriggerEntityType, StringComparison.OrdinalIgnoreCase))
         {
             return $"Team: {PlayerTriggerMetadata.GetTeamDisplayLabel(value)}";
+        }
+
+        if (key.Equals(MapLogicScoreTriggerMetadata.ScoreTeamPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && TryGetGarrisonBuilderEditedEntityType(out var scoreTeamEntity)
+            && scoreTeamEntity.Equals(MapLogicMetadata.ScoreTriggerEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Score team: {MapLogicScoreTriggerMetadata.GetScoreTeamDisplayLabel(value)}";
+        }
+
+        if (key.Equals(MapLogicScoreTriggerMetadata.ChangePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && TryGetGarrisonBuilderEditedEntityType(out var scoreChangeEntity)
+            && scoreChangeEntity.Equals(MapLogicMetadata.ScoreTriggerEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Change: {MapLogicScoreTriggerMetadata.GetChangeDisplayLabel(value)}";
         }
 
         if (key.Equals(MapLogicMetadata.ActivatorBehaviorPropertyKey, StringComparison.OrdinalIgnoreCase))
@@ -2117,6 +2357,131 @@ public partial class Game1
     {
         return key.Equals(MapLogicMetadata.NodePriorityPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(MapLogicMetadata.SignalPriorityPropertyKey, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool IsGarrisonBuilderScoreTriggerValuePropertyRow(string key)
+    {
+        return key.Equals(MapLogicScoreTriggerMetadata.ValuePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && TryGetGarrisonBuilderEditedEntityType(out var entityType)
+            && entityType.Equals(MapLogicMetadata.ScoreTriggerEntityType, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void GetGarrisonBuilderScoreTriggerValueSliderLayout(
+        Rectangle rowBounds,
+        string value,
+        float textScale,
+        out string sliderDisplay,
+        out Rectangle sliderBounds,
+        out Rectangle digitBounds)
+    {
+        sliderDisplay = MapLogicScoreTriggerMetadata.FormatValueSliderDisplay(value);
+        var sliderWidth = MeasureBitmapFontWidth(sliderDisplay, textScale);
+        const float rightPadding = 8f;
+        var sliderX = rowBounds.Right - rightPadding - sliderWidth;
+        var textHeight = MeasureBitmapFontHeight(textScale);
+        var textY = rowBounds.Y + MathF.Max(2f, ((rowBounds.Height - textHeight) * 0.5f) - 1f);
+        sliderBounds = new Rectangle(
+            (int)MathF.Floor(sliderX),
+            (int)MathF.Floor(textY),
+            (int)MathF.Ceiling(sliderWidth),
+            (int)MathF.Ceiling(textHeight));
+
+        var digitText = MapLogicScoreTriggerMetadata.ToValuePropertyValue(
+            MapLogicScoreTriggerMetadata.StepValueProperty(value, 0));
+        var digitWidth = MeasureBitmapFontWidth(digitText, textScale);
+        var digitX = sliderBounds.X + ((sliderBounds.Width - digitWidth) * 0.5f);
+        digitBounds = new Rectangle(
+            (int)MathF.Floor(digitX),
+            sliderBounds.Y,
+            (int)MathF.Ceiling(digitWidth),
+            sliderBounds.Height);
+    }
+
+    private void DrawGarrisonBuilderScoreTriggerValuePropertyRow(
+        Rectangle rowBounds,
+        string value,
+        MouseState mouse,
+        float textScale,
+        bool hovered)
+    {
+        GetGarrisonBuilderScoreTriggerValueSliderLayout(
+            rowBounds,
+            value,
+            textScale,
+            out var sliderDisplay,
+            out var sliderBounds,
+            out _);
+
+        var textY = rowBounds.Y + MathF.Max(2f, ((rowBounds.Height - MeasureBitmapFontHeight(textScale)) * 0.5f) - 1f);
+        var label = "Score";
+        var labelMaxWidth = MathF.Max(40f, sliderBounds.X - rowBounds.X - 10f);
+        var displayLabel = TruncateGarrisonBuilderPropertyLabel(label, labelMaxWidth, textScale);
+        var labelColor = _builderUseModernUi ? Color.White : Color.Black;
+        var sliderHovered = hovered || sliderBounds.Contains(mouse.Position);
+        var sliderColor = sliderHovered
+            ? (_builderUseModernUi ? new Color(220, 220, 220) : Color.Black)
+            : (_builderUseModernUi ? new Color(186, 186, 186) : new Color(64, 64, 64));
+        if (_builderUseModernUi)
+        {
+            DrawBitmapFontText(displayLabel, new Vector2(rowBounds.X + 6f, textY), labelColor, textScale);
+            DrawBitmapFontText(sliderDisplay, new Vector2(sliderBounds.X, textY), sliderColor, textScale);
+        }
+        else
+        {
+            DrawGarrisonBuilderText(displayLabel, rowBounds.Location.ToVector2() + new Vector2(4f, 3f), labelColor, textScale);
+            DrawGarrisonBuilderText(sliderDisplay, new Vector2(sliderBounds.X, rowBounds.Y + 3f), sliderColor, textScale);
+        }
+    }
+
+    private bool TryHandleGarrisonBuilderScoreTriggerValueClick(
+        string key,
+        string value,
+        Rectangle rowBounds,
+        Point position)
+    {
+        if (!IsGarrisonBuilderScoreTriggerValuePropertyRow(key))
+        {
+            return false;
+        }
+
+        GetGarrisonBuilderScoreTriggerValueSliderLayout(
+            rowBounds,
+            value,
+            GetGarrisonBuilderPropertyRowTextScale(),
+            out _,
+            out var sliderBounds,
+            out var digitBounds);
+        if (!sliderBounds.Contains(position))
+        {
+            return false;
+        }
+
+        if (digitBounds.Contains(position))
+        {
+            BeginGarrisonBuilderScoreTriggerValueTextEdit(key, value);
+            return true;
+        }
+
+        var delta = position.X < sliderBounds.X + (sliderBounds.Width / 2) ? -1 : 1;
+        _builderPropertyEditorValues[key] = MapLogicScoreTriggerMetadata.ToValuePropertyValue(
+            MapLogicScoreTriggerMetadata.StepValueProperty(value, delta));
+        ApplyGarrisonBuilderPropertyEditorLivePreview();
+        MarkGarrisonBuilderPropertyEditorChanged();
+        return true;
+    }
+
+    private void BeginGarrisonBuilderScoreTriggerValueTextEdit(string key, string value)
+    {
+        BeginGarrisonBuilderPropertyTextEdit(
+            key,
+            MapLogicScoreTriggerMetadata.ToValuePropertyValue(MapLogicScoreTriggerMetadata.StepValueProperty(value, 0)),
+            GarrisonBuilderPropertyEditMode.EditValue);
+    }
+
+    private bool IsGarrisonBuilderScoreTriggerValueTextEditActive()
+    {
+        return _builderPropertyEditMode == GarrisonBuilderPropertyEditMode.EditValue
+            && IsGarrisonBuilderScoreTriggerValuePropertyRow(_builderPropertyEditKey);
     }
 
     private bool IsGarrisonBuilderNodePriorityPropertyRow(string key)
@@ -2332,6 +2697,12 @@ public partial class Game1
 
         if (entityType.Equals(DamageTriggerMetadata.DamageTriggerEntityType, StringComparison.OrdinalIgnoreCase))
         {
+            if (DamageTriggerMetadata.ParseTriggerOnHeal(_builderPropertyEditorValues)
+                && key.Equals(DamageTriggerMetadata.AffectedByTeamPropertyKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
             if (!impulse
                 && (key.Equals(DamageTriggerMetadata.TriggerOnHealPropertyKey, StringComparison.OrdinalIgnoreCase)
                     || key.Equals(DamageTriggerMetadata.TriggerOnAnyDamagePropertyKey, StringComparison.OrdinalIgnoreCase)))
@@ -2341,6 +2712,24 @@ public partial class Game1
 
             if (impulse
                 && key.Equals(MapLogicMetadata.TrueTimePropertyKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        if (entityType.Equals(MapLogicMetadata.IntelTriggerEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            if (impulse
+                && key.Equals(IntelTriggerMetadata.TriggerWhenPropertyKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (!impulse
+                && (key.Equals(IntelTriggerMetadata.OnPickupPropertyKey, StringComparison.OrdinalIgnoreCase)
+                    || key.Equals(IntelTriggerMetadata.OnDropPropertyKey, StringComparison.OrdinalIgnoreCase)
+                    || key.Equals(IntelTriggerMetadata.OnCapturePropertyKey, StringComparison.OrdinalIgnoreCase)
+                    || key.Equals(IntelTriggerMetadata.OnResetPropertyKey, StringComparison.OrdinalIgnoreCase)))
             {
                 return true;
             }
@@ -2474,6 +2863,175 @@ public partial class Game1
         ApplyGarrisonBuilderPropertyEditorLivePreview();
         MarkGarrisonBuilderPropertyEditorChanged();
         return true;
+    }
+
+    private void OpenGarrisonBuilderLogicRecolorDialog(int entityIndex)
+    {
+        if (entityIndex < 0 || entityIndex >= _builderEntities.Count)
+        {
+            return;
+        }
+
+        var entity = _builderEntities[entityIndex];
+        if (!MapLogicNodeColorMetadata.SupportsRecolor(entity.Type))
+        {
+            return;
+        }
+
+        CloseGarrisonBuilderPropertyEditor(applyChanges: false);
+        _builderLogicRecolorDialogOpen = true;
+        _builderLogicRecolorEntityIndex = entityIndex;
+        _builderStatus = "recolor logic node";
+    }
+
+    private void CloseGarrisonBuilderLogicRecolorDialog()
+    {
+        _builderLogicRecolorDialogOpen = false;
+        _builderLogicRecolorEntityIndex = -1;
+    }
+
+    private Rectangle GetGarrisonBuilderLogicRecolorDialogBounds()
+    {
+        const int columns = 4;
+        const int rows = 4;
+        var swatchSize = BuilderUi(34);
+        var swatchGap = BuilderUi(6);
+        var paletteWidth = (columns * swatchSize) + ((columns - 1) * swatchGap);
+        var paletteHeight = (rows * swatchSize) + ((rows - 1) * swatchGap);
+        var cancelButtonWidth = BuilderUi(96);
+        var cancelButtonHeight = GetGarrisonBuilderMenuRowHeight();
+        var width = Math.Max(paletteWidth + BuilderUi(32), cancelButtonWidth + BuilderUi(32));
+        var height = BuilderUi(34) + paletteHeight + BuilderUi(14) + cancelButtonHeight + BuilderUi(16);
+        return new Rectangle((BuilderViewportWidth - width) / 2, (BuilderViewportHeight - height) / 2, width, height);
+    }
+
+    private Rectangle GetGarrisonBuilderLogicRecolorSwatchBounds(Rectangle dialogBounds, int paletteIndex)
+    {
+        const int columns = 4;
+        var swatchSize = BuilderUi(34);
+        var swatchGap = BuilderUi(6);
+        var paletteWidth = (columns * swatchSize) + ((columns - 1) * swatchGap);
+        var paletteLeft = dialogBounds.X + ((dialogBounds.Width - paletteWidth) / 2);
+        var paletteTop = dialogBounds.Y + BuilderUi(34);
+        var column = paletteIndex % columns;
+        var row = paletteIndex / columns;
+        return new Rectangle(
+            paletteLeft + (column * (swatchSize + swatchGap)),
+            paletteTop + (row * (swatchSize + swatchGap)),
+            swatchSize,
+            swatchSize);
+    }
+
+    private Rectangle GetGarrisonBuilderLogicRecolorCancelButtonBounds(Rectangle dialogBounds)
+    {
+        const int rows = 4;
+        var swatchSize = BuilderUi(34);
+        var swatchGap = BuilderUi(6);
+        var paletteHeight = (rows * swatchSize) + ((rows - 1) * swatchGap);
+        var cancelButtonWidth = BuilderUi(96);
+        var cancelButtonHeight = GetGarrisonBuilderMenuRowHeight();
+        var paletteTop = dialogBounds.Y + BuilderUi(34);
+        return new Rectangle(
+            dialogBounds.X + ((dialogBounds.Width - cancelButtonWidth) / 2),
+            paletteTop + paletteHeight + BuilderUi(14),
+            cancelButtonWidth,
+            cancelButtonHeight);
+    }
+
+    private void DrawGarrisonBuilderLogicRecolorDialog(MouseState mouse)
+    {
+        if (!_builderLogicRecolorDialogOpen || !_builderUseModernUi)
+        {
+            return;
+        }
+
+        var bounds = GetGarrisonBuilderLogicRecolorDialogBounds();
+        DrawGarrisonBuilderBrownPanel(bounds);
+        DrawBitmapFontText(
+            "Recolor",
+            new Vector2(bounds.X + 12f, bounds.Y + 8f),
+            Color.White,
+            GetGarrisonBuilderBitmapFontScale());
+
+        for (var index = 0; index < MapLogicNodeColorMetadata.VgaPaletteHex.Length; index += 1)
+        {
+            var swatchBounds = GetGarrisonBuilderLogicRecolorSwatchBounds(bounds, index);
+            if (MapLogicNodeColorMetadata.TryParseColor(
+                    MapLogicNodeColorMetadata.VgaPaletteHex[index],
+                    out var red,
+                    out var green,
+                    out var blue))
+            {
+                _spriteBatch.Draw(_pixel, swatchBounds, new Color(red, green, blue));
+            }
+
+            var outlineColor = swatchBounds.Contains(mouse.Position) ? Color.White : Color.Black;
+            DrawGarrisonBuilderRectangleOutline(swatchBounds, outlineColor);
+        }
+
+        var cancelBounds = GetGarrisonBuilderLogicRecolorCancelButtonBounds(bounds);
+        DrawBuilderMenuButton(cancelBounds, "Cancel", cancelBounds.Contains(mouse.Position));
+    }
+
+    private bool TryHandleGarrisonBuilderLogicRecolorDialogClick(Point position, bool leftClick)
+    {
+        if (!_builderLogicRecolorDialogOpen || !leftClick)
+        {
+            return _builderLogicRecolorDialogOpen;
+        }
+
+        var bounds = GetGarrisonBuilderLogicRecolorDialogBounds();
+        if (!bounds.Contains(position))
+        {
+            CloseGarrisonBuilderLogicRecolorDialog();
+            return true;
+        }
+
+        for (var index = 0; index < MapLogicNodeColorMetadata.VgaPaletteHex.Length; index += 1)
+        {
+            var swatchBounds = GetGarrisonBuilderLogicRecolorSwatchBounds(bounds, index);
+            if (!swatchBounds.Contains(position))
+            {
+                continue;
+            }
+
+            if (MapLogicNodeColorMetadata.TryParseColor(
+                    MapLogicNodeColorMetadata.VgaPaletteHex[index],
+                    out var red,
+                    out var green,
+                    out var blue))
+            {
+                ApplyGarrisonBuilderLogicNodeColor(_builderLogicRecolorEntityIndex, red, green, blue);
+            }
+
+            CloseGarrisonBuilderLogicRecolorDialog();
+            return true;
+        }
+
+        var cancelBounds = GetGarrisonBuilderLogicRecolorCancelButtonBounds(bounds);
+        if (cancelBounds.Contains(position))
+        {
+            CloseGarrisonBuilderLogicRecolorDialog();
+            return true;
+        }
+
+        return true;
+    }
+
+    private void ApplyGarrisonBuilderLogicNodeColor(int entityIndex, byte red, byte green, byte blue)
+    {
+        if (entityIndex < 0 || entityIndex >= _builderEntities.Count)
+        {
+            return;
+        }
+
+        RecordGarrisonBuilderHistory();
+        var entity = _builderEntities[entityIndex];
+        var properties = new Dictionary<string, string>(entity.Properties, StringComparer.OrdinalIgnoreCase);
+        MapLogicNodeColorMetadata.SetColor(properties, red, green, blue);
+        _builderEntities[entityIndex] = entity with { Properties = properties };
+        _builderDirty = true;
+        _builderStatus = "logic node recolored";
     }
 
 }

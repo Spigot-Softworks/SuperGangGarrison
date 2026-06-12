@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -37,7 +38,11 @@ public static class CustomMapPngImporter
         return ImportLevelData(Path.GetFileNameWithoutExtension(pngPath), pngPath, levelData);
     }
 
-    public static Result? ImportLevelData(string mapName, string backgroundImagePath, string levelData)
+    public static Result? ImportLevelData(
+        string mapName,
+        string backgroundImagePath,
+        string levelData,
+        IReadOnlyDictionary<string, CustomMapBuilderResource>? packageResources = null)
     {
         if (string.IsNullOrWhiteSpace(mapName)
             || string.IsNullOrWhiteSpace(backgroundImagePath)
@@ -70,7 +75,9 @@ public static class CustomMapPngImporter
             return null;
         }
 
-        var decodedResources = CustomMapBuilderResourceCodec.DecodeResourcesFromMetadata(metadata);
+        var decodedResources = MergeDecodedResources(
+            CustomMapBuilderResourceCodec.DecodeResourcesFromMetadata(metadata),
+            packageResources);
         var visuals = DecodeVisualMetadata(metadata, visualScale);
         var useCenterOrigin = CustomMapEntityPlacementAnchor.UsesCenterOrigin(metadata);
         var room = BuildRoomMetadata(
@@ -360,6 +367,8 @@ public static class CustomMapPngImporter
         var mapEntities = ToMapImportedEntities(entities);
         var logicGraph = MapLogicGraphImporter.BuildFromEntities(mapEntities, roomObjects);
         var logicActivators = MapLogicActivatorImporter.BuildFromEntities(mapEntities, roomObjects, logicGraph);
+        var logicScoreTriggers = MapLogicScoreTriggerImporter.BuildFromEntities(mapEntities, logicGraph);
+        var spritesheetPlaybackSet = SpritesheetPlaybackImporter.BuildFromRoomObjects(roomObjects, logicGraph);
         MapLogicRuntimePatch.ApplySpawnLogicSignals(redSpawns, mapEntities, logicGraph);
         MapLogicRuntimePatch.ApplyControlPointLogicLocks(roomObjects, mapEntities, logicGraph);
         MapTeleportRuntimePatch.ApplyExitLinks(roomObjects, mapEntities);
@@ -384,8 +393,13 @@ public static class CustomMapPngImporter
             MovingPlatforms = movingPlatforms.ToArray(),
             ControlPointSettings = new CustomMapControlPointSettings(
                 ControlPointMapSettingsMetadata.ParseOverrideInitialCps(metadata)),
+            ScrSettings = ScrMapSettingsMetadata.ParseScrSettings(metadata),
+            ShowControlPoints = ScrMapSettingsMetadata.ParseShowControlPoints(metadata),
             LogicGraph = logicGraph,
             LogicActivators = logicActivators,
+            LogicScoreTriggers = logicScoreTriggers,
+            SpritesheetPlaybackSet = spritesheetPlaybackSet,
+            ExplicitGameMode = MapGameModeMetadata.TryReadGameMode(metadata),
         };
     }
 
@@ -424,7 +438,11 @@ public static class CustomMapPngImporter
             foreground = foregroundResource;
         }
 
-        if (parallaxLayers.Count == 0 && foreground is null && visualResources.Count == 0)
+        if (parallaxLayers.Count == 0
+            && foreground is null
+            && visualResources.Count == 0
+            && !metadata.TryGetValue("background", out _)
+            && !metadata.TryGetValue("void", out _))
         {
             return CustomMapVisualMetadata.Empty;
         }
@@ -436,7 +454,8 @@ public static class CustomMapPngImporter
             ParallaxLayers: parallaxLayers,
             Foreground: foreground,
             Resources: visualResources,
-            SpriteResources: EmptySpriteResources);
+            SpriteResources: EmptySpriteResources,
+            ForegroundSpriteJungleHitMasks: CustomMapVisualMetadata.Empty.ForegroundSpriteJungleHitMasks);
     }
 
     private static readonly IReadOnlyDictionary<string, CustomMapVisualResource> EmptySpriteResources =
@@ -448,32 +467,103 @@ public static class CustomMapPngImporter
         IReadOnlyDictionary<string, CustomMapBuilderResource> decodedResources)
     {
         var spriteResources = new Dictionary<string, CustomMapVisualResource>(StringComparer.OrdinalIgnoreCase);
+        var jungleHitMasks = new Dictionary<int, ForegroundSpriteHitMask>();
         for (var index = 0; index < roomObjects.Count; index += 1)
         {
             var marker = roomObjects[index];
-            if (marker.Type != RoomObjectType.CustomMapSprite)
+            if (marker.Type == RoomObjectType.CustomMapSprite)
+            {
+                TryAttachSpriteResource(marker.CustomMapSprite.ImageResourceName, spriteResources, decodedResources);
+                continue;
+            }
+
+            if (marker.Type == RoomObjectType.Spritesheet)
+            {
+                TryAttachSpriteResource(marker.Spritesheet.ImageResourceName, spriteResources, decodedResources);
+                continue;
+            }
+
+            if (marker.Type != RoomObjectType.ForegroundSprite)
             {
                 continue;
             }
 
-            var resourceName = marker.CustomMapSprite.ImageResourceName;
-            if (string.IsNullOrWhiteSpace(resourceName)
-                || spriteResources.ContainsKey(resourceName)
-                || !decodedResources.TryGetValue(resourceName, out var resource)
-                || !CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var bytes))
+            var resourceName = marker.ForegroundSprite.ImageResourceName;
+            if (!TryAttachSpriteResource(resourceName, spriteResources, decodedResources, out var bytes))
             {
                 continue;
             }
 
-            spriteResources[resourceName] = new CustomMapVisualResource(resourceName, bytes);
+            if (!marker.ForegroundSprite.Jungle
+                || marker.ForegroundSprite.Boundary != ForegroundSpriteBoundaryKind.Pixel
+                || !ForegroundSpriteMetadata.TryBuildHitMask(bytes, out var hitMask)
+                || hitMask is null)
+            {
+                continue;
+            }
+
+            jungleHitMasks[index] = hitMask;
         }
 
-        if (spriteResources.Count == 0)
+        if (spriteResources.Count == 0 && jungleHitMasks.Count == 0)
         {
             return visuals;
         }
 
-        return visuals with { SpriteResources = spriteResources };
+        return visuals with
+        {
+            SpriteResources = spriteResources.Count == 0 ? visuals.SpriteResources : spriteResources,
+            ForegroundSpriteJungleHitMasks = jungleHitMasks.Count == 0
+                ? visuals.ForegroundSpriteJungleHitMasks
+                : jungleHitMasks,
+        };
+    }
+
+    private static IReadOnlyDictionary<string, CustomMapBuilderResource> MergeDecodedResources(
+        IReadOnlyDictionary<string, CustomMapBuilderResource> decodedFromMetadata,
+        IReadOnlyDictionary<string, CustomMapBuilderResource>? packageResources)
+    {
+        if (packageResources is null || packageResources.Count == 0)
+        {
+            return decodedFromMetadata;
+        }
+
+        var merged = new Dictionary<string, CustomMapBuilderResource>(
+            decodedFromMetadata,
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var resource in packageResources.Values)
+        {
+            merged[resource.Name] = resource;
+        }
+
+        return new ReadOnlyDictionary<string, CustomMapBuilderResource>(merged);
+    }
+
+    private static bool TryAttachSpriteResource(
+        string resourceName,
+        IDictionary<string, CustomMapVisualResource> spriteResources,
+        IReadOnlyDictionary<string, CustomMapBuilderResource> decodedResources)
+    {
+        return TryAttachSpriteResource(resourceName, spriteResources, decodedResources, out _);
+    }
+
+    private static bool TryAttachSpriteResource(
+        string resourceName,
+        IDictionary<string, CustomMapVisualResource> spriteResources,
+        IReadOnlyDictionary<string, CustomMapBuilderResource> decodedResources,
+        out byte[] bytes)
+    {
+        bytes = Array.Empty<byte>();
+        if (string.IsNullOrWhiteSpace(resourceName)
+            || spriteResources.ContainsKey(resourceName)
+            || !decodedResources.TryGetValue(resourceName, out var resource)
+            || !CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out bytes))
+        {
+            return false;
+        }
+
+        spriteResources[resourceName] = new CustomMapVisualResource(resourceName, bytes);
+        return true;
     }
 
     private static float ResolveParallaxFactor(
