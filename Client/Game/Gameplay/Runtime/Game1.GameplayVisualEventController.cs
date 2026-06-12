@@ -60,6 +60,12 @@ public partial class Game1
             if (string.Equals(effectName, "LooseSheet", StringComparison.OrdinalIgnoreCase))
             {
                 _game.SpawnLooseSheetVisual(x, y, directionDegrees);
+                return;
+            }
+
+            if (string.Equals(effectName, "CivvieMoney", StringComparison.OrdinalIgnoreCase))
+            {
+                _game.SpawnCivvieMoneyVisual(x, y, directionDegrees);
             }
         }
     }

@@ -448,7 +448,8 @@ internal sealed class ServerAdminOperations(
             levelName,
             mapAreaIndex,
             preservePlayerStats,
-            world.MatchState.WinnerTeam);
+            world.MatchState.WinnerTeam,
+            world.MatchRules.Mode);
         if (!world.TryLoadLevel(levelName, mapAreaIndex, preservePlayerStats))
         {
             return false;

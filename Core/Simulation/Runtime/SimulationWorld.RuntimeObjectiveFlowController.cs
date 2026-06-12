@@ -36,6 +36,7 @@ public sealed partial class SimulationWorld
                     _arenaObjectiveController.AdvanceObjectives();
                     break;
                 case GameModeKind.ControlPoint:
+                case GameModeKind.Vip:
                     _controlPointObjectiveController.AdvanceObjectives();
                     break;
                 case GameModeKind.KingOfTheHill:
@@ -66,6 +67,7 @@ public sealed partial class SimulationWorld
                     _arenaObjectiveController.AdvanceResolution();
                     break;
                 case GameModeKind.ControlPoint:
+                case GameModeKind.Vip:
                     _controlPointObjectiveController.AdvanceResolution();
                     break;
                 case GameModeKind.KingOfTheHill:

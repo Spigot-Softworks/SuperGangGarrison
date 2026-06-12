@@ -35,6 +35,7 @@ public partial class Game1
             GameModeKind.KingOfTheHill => "KOTH",
             GameModeKind.DoubleKingOfTheHill => "DKOTH",
             GameModeKind.TeamDeathmatch => "TDM",
+            GameModeKind.Vip => "VIP",
             _ => "CTF",
         };
     }
@@ -51,6 +52,7 @@ public partial class Game1
             GameModeKind.DoubleKingOfTheHill,
             GameModeKind.TeamDeathmatch,
             GameModeKind.Generator,
+            GameModeKind.Vip,
         ];
     }
 
@@ -135,7 +137,7 @@ public partial class Game1
     private bool CanAddSelectedAvailableMapToPlaylist()
     {
         var selected = _hostSetupState.GetSelectedAvailableMap();
-        return selected is not null && !_hostSetupState.IsMapInPlaylist(selected.LevelName);
+        return selected is not null;
     }
 
     private string? GetHostSetupMapsSelectedLevelName()
@@ -286,7 +288,7 @@ public partial class Game1
     private void DrawHostSetupMapListContent(
         Rectangle listRowsBounds,
         int scrollbarWidth,
-        IReadOnlyList<OpenGarrisonMapRotationEntry> maps,
+        List<OpenGarrisonMapRotationEntry> maps,
         int scrollOffset,
         int selectedIndex,
         int hoverIndex,
@@ -435,6 +437,11 @@ public partial class Game1
         DrawRoundedRectangleOutline(menu.MenuBounds, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 1, radius: 6);
         var favouriteLabel = menu.IsFavourite ? "Unfavourite" : "Favourite";
         DrawHostSetupContextMenuRow(menu.FavouriteBounds, favouriteLabel, false);
+        if (!string.IsNullOrWhiteSpace(menu.VipVariantLabel))
+        {
+            DrawHostSetupContextMenuRow(menu.VipVariantBounds, menu.VipVariantLabel, false);
+        }
+
         DrawHostSetupContextMenuRow(menu.PreviewBounds, "Preview", false);
     }
 
@@ -555,6 +562,12 @@ public partial class Game1
 
     private void UpdateHostSetupMapPreviewOverlayInput(MouseState mouse, bool clickPressed)
     {
+        var previewState = _hostMapPreviewState;
+        if (previewState is null)
+        {
+            return;
+        }
+
         if (clickPressed)
         {
             if (_hostSetupMapPreviewCloseBounds.Contains(mouse.Position))
@@ -565,25 +578,25 @@ public partial class Game1
 
             if (_hostMapPreviewZoomInBounds.Contains(mouse.Position))
             {
-                _hostMapPreviewState.ZoomIn(_hostMapPreviewViewportBounds);
+                previewState.ZoomIn(_hostMapPreviewViewportBounds);
                 return;
             }
 
             if (_hostMapPreviewZoomOutBounds.Contains(mouse.Position))
             {
-                _hostMapPreviewState.ZoomOut(_hostMapPreviewViewportBounds);
+                previewState.ZoomOut(_hostMapPreviewViewportBounds);
                 return;
             }
 
             if (_hostMapPreviewResetBounds.Contains(mouse.Position))
             {
-                _hostMapPreviewState.ResetView(_hostMapPreviewViewportBounds);
+                previewState.ResetView(_hostMapPreviewViewportBounds);
                 _hostMapPreviewPanActive = false;
                 return;
             }
 
             if (_hostMapPreviewViewportBounds.Contains(mouse.Position)
-                && _hostMapPreviewState.CanPan(_hostMapPreviewViewportBounds))
+                && previewState.CanPan(_hostMapPreviewViewportBounds))
             {
                 _hostMapPreviewPanActive = true;
                 _hostMapPreviewPanAnchor = mouse.Position;
@@ -599,7 +612,7 @@ public partial class Game1
                 var delta = new Vector2(
                     mouse.Position.X - _hostMapPreviewPanAnchor.X,
                     mouse.Position.Y - _hostMapPreviewPanAnchor.Y);
-                _hostMapPreviewState.Pan(delta, _hostMapPreviewViewportBounds);
+                previewState.Pan(delta, _hostMapPreviewViewportBounds);
                 _hostMapPreviewPanAnchor = mouse.Position;
             }
             else
@@ -612,7 +625,11 @@ public partial class Game1
     private HostSetupMapPreviewState CreateHostSetupMapPreviewState(SimpleLevel level)
     {
         Texture2D? stockBackground = null;
-        if (!string.IsNullOrWhiteSpace(level.BackgroundAssetName) && _runtimeAssets is not null)
+        if (TryGetLevelBackgroundFileTexture(level.BackgroundAssetName, out var fileBackground))
+        {
+            stockBackground = fileBackground;
+        }
+        else if (!string.IsNullOrWhiteSpace(level.BackgroundAssetName) && _runtimeAssets is not null)
         {
             stockBackground = _runtimeAssets.GetBackground(level.BackgroundAssetName);
         }
@@ -620,26 +637,53 @@ public partial class Game1
         return HostSetupMapPreviewState.Create(this, level, _pixel, stockBackground);
     }
 
-    private HostSetupMapContextMenuState CreateHostSetupMapContextMenu(Point position, string levelName, bool isPlaylistList)
+    private HostSetupMapContextMenuState CreateHostSetupMapContextMenu(Point position, OpenGarrisonMapRotationEntry entry, bool isPlaylistList)
     {
         const int rowHeight = 30;
         const float textScale = 1f;
+        var levelName = entry.LevelName;
         var isFavourite = _hostSetupState.FavouriteLevelNames.Contains(levelName);
+        var hasVipVariant = TryGetHostSetupVipVariantLevelName(entry, out var vipVariantLevelName);
+        var vipVariantLabel = hasVipVariant
+            ? isPlaylistList ? "Make VIP" : "Add VIP"
+            : null;
+        var rowCount = hasVipVariant ? 3 : 2;
         var menuWidth = (int)MathF.Ceiling(MathF.Max(
             MathF.Max(
                 MeasureBitmapFontWidth("Unfavourite", textScale),
                 MeasureBitmapFontWidth("Favourite", textScale)),
-            MeasureBitmapFontWidth("Preview", textScale)) + 40f);
-        var menuBounds = new Rectangle(position.X, position.Y, menuWidth, (rowHeight * 2) - 2);
+            MathF.Max(
+                MeasureBitmapFontWidth("Preview", textScale),
+                string.IsNullOrWhiteSpace(vipVariantLabel) ? 0f : MeasureBitmapFontWidth(vipVariantLabel, textScale))) + 40f);
+        var menuBounds = new Rectangle(position.X, position.Y, menuWidth, (rowHeight * rowCount) - 2);
+        var previewRowIndex = hasVipVariant ? 2 : 1;
         return new HostSetupMapContextMenuState
         {
             LevelName = levelName,
+            Entry = entry,
             IsPlaylistList = isPlaylistList,
             IsFavourite = isFavourite,
+            VipVariantLevelName = vipVariantLevelName,
+            VipVariantLabel = vipVariantLabel,
             MenuBounds = menuBounds,
             FavouriteBounds = new Rectangle(menuBounds.X + 4, menuBounds.Y + 4, menuBounds.Width - 8, rowHeight - 4),
-            PreviewBounds = new Rectangle(menuBounds.X + 4, menuBounds.Y + rowHeight, menuBounds.Width - 8, rowHeight - 4),
+            VipVariantBounds = new Rectangle(menuBounds.X + 4, menuBounds.Y + rowHeight, menuBounds.Width - 8, rowHeight - 4),
+            PreviewBounds = new Rectangle(menuBounds.X + 4, menuBounds.Y + (previewRowIndex * rowHeight), menuBounds.Width - 8, rowHeight - 4),
         };
+    }
+
+    private static bool TryGetHostSetupVipVariantLevelName(OpenGarrisonMapRotationEntry entry, out string vipLevelName)
+    {
+        vipLevelName = string.Empty;
+        if (entry.Mode != GameModeKind.ControlPoint
+            || !OpenGarrisonStockMapCatalog.TryGetDefinition(entry.LevelName, out var definition)
+            || definition.Mode != GameModeKind.ControlPoint)
+        {
+            return false;
+        }
+
+        vipLevelName = OpenGarrisonStockMapCatalog.GetVipIniKey(definition);
+        return true;
     }
 
     private void UpdateHostSetupMapsMenu(MouseState mouse, bool clickPressed, bool rightClickPressed, HostSetupMapsMenuLayout layout)
@@ -702,6 +746,23 @@ public partial class Game1
                     _hostSetupState.ToggleFavourite(_hostSetupState.MapContextMenu.LevelName);
                     _hostSetupState.MapContextMenu = null;
                 }
+                else if (!string.IsNullOrWhiteSpace(_hostSetupState.MapContextMenu.VipVariantLevelName)
+                    && _hostSetupState.MapContextMenu.VipVariantBounds.Contains(mouse.Position))
+                {
+                    if (_hostSetupState.MapContextMenu.IsPlaylistList
+                        && _hostSetupState.MapContextMenu.Entry is not null)
+                    {
+                        _hostSetupState.ConvertPlaylistMapTo(
+                            _hostSetupState.MapContextMenu.Entry,
+                            _hostSetupState.MapContextMenu.VipVariantLevelName);
+                    }
+                    else
+                    {
+                        _hostSetupState.AddMapToPlaylist(_hostSetupState.MapContextMenu.VipVariantLevelName);
+                    }
+
+                    _hostSetupState.MapContextMenu = null;
+                }
                 else if (_hostSetupState.MapContextMenu.PreviewBounds.Contains(mouse.Position))
                 {
                     OpenHostSetupMapPreview(_hostSetupState.MapContextMenu.LevelName);
@@ -738,9 +799,9 @@ public partial class Game1
 
         if (rightClickPressed)
         {
-            if (TryGetHostSetupMapListHit(mouse.Position, layout, availableMaps, playlistMaps, out var levelName, out var isPlaylistList))
+            if (TryGetHostSetupMapListHit(mouse.Position, layout, availableMaps, playlistMaps, out var hitEntry, out var isPlaylistList))
             {
-                _hostSetupState.MapContextMenu = CreateHostSetupMapContextMenu(mouse.Position, levelName, isPlaylistList);
+                _hostSetupState.MapContextMenu = CreateHostSetupMapContextMenu(mouse.Position, hitEntry, isPlaylistList);
             }
 
             return;
@@ -863,8 +924,8 @@ public partial class Game1
     private void UpdateHostSetupMapsHover(
         MouseState mouse,
         HostSetupMapsMenuLayout layout,
-        IReadOnlyList<OpenGarrisonMapRotationEntry> availableMaps,
-        IReadOnlyList<OpenGarrisonMapRotationEntry> playlistMaps)
+        List<OpenGarrisonMapRotationEntry> availableMaps,
+        List<OpenGarrisonMapRotationEntry> playlistMaps)
     {
         _hostSetupHoverIndex = -1;
         _hostSetupPlaylistHoverIndex = -1;
@@ -891,12 +952,12 @@ public partial class Game1
     private bool TryGetHostSetupMapListHit(
         Point mousePosition,
         HostSetupMapsMenuLayout layout,
-        IReadOnlyList<OpenGarrisonMapRotationEntry> availableMaps,
-        IReadOnlyList<OpenGarrisonMapRotationEntry> playlistMaps,
-        out string levelName,
+        List<OpenGarrisonMapRotationEntry> availableMaps,
+        List<OpenGarrisonMapRotationEntry> playlistMaps,
+        out OpenGarrisonMapRotationEntry entry,
         out bool isPlaylistList)
     {
-        levelName = string.Empty;
+        entry = null!;
         isPlaylistList = false;
         if (GetHostSetupMapListInteractionBounds(layout.AvailableListRowsBounds, layout.ScrollbarWidth).Contains(mousePosition))
         {
@@ -904,7 +965,7 @@ public partial class Game1
             var mapIndex = _hostSetupState.AvailableMapScrollOffset + visibleIndex;
             if (visibleIndex >= 0 && mapIndex >= 0 && mapIndex < availableMaps.Count)
             {
-                levelName = availableMaps[mapIndex].LevelName;
+                entry = availableMaps[mapIndex];
                 _hostSetupHoverIndex = mapIndex;
                 return true;
             }
@@ -916,7 +977,7 @@ public partial class Game1
             var mapIndex = _hostSetupState.PlaylistMapScrollOffset + visibleIndex;
             if (visibleIndex >= 0 && mapIndex >= 0 && mapIndex < playlistMaps.Count)
             {
-                levelName = playlistMaps[mapIndex].LevelName;
+                entry = playlistMaps[mapIndex];
                 isPlaylistList = true;
                 _hostSetupPlaylistHoverIndex = mapIndex;
                 return true;

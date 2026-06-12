@@ -5,6 +5,8 @@ internal readonly record struct ServerBotRuntimeMetrics(
     int ControlledBotCount,
     int ActiveInputCount,
     int ZeroInputCount,
+    int RefreshedInputCount,
+    int ReusedInputCount,
     int BotBrainActiveControllerCount,
     int BotBrainNavigationLoadedCount,
     int BotBrainNavigationMissingCount,

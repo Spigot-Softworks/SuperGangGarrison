@@ -2,7 +2,8 @@
   "id": "plugin.quote-curly.quote",
   "displayName": "Quote/Curly",
   "runtime": {
-    "playerClass": "Quote",
+    "basePlayerClass": "Quote",
+    "botGraphPlayerClass": "Quote",
     "supportsExperimentalAcquiredWeapon": false,
     "primaryWeaponKillFeedSprite": "BladeKL"
   },

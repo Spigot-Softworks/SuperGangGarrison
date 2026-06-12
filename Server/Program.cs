@@ -33,6 +33,8 @@ var transientEventReplayTicks = (ulong)(config.TicksPerSecond * transientEventRe
 // Configure protocol compression based on server settings
 ServerProtocolCompression.Configure(launchOptions.Settings.SnapshotCompressionEnabled);
 Console.WriteLine($"[server] snapshot compression: {(launchOptions.Settings.SnapshotCompressionEnabled ? "enabled (LZ4)" : "disabled")}");
+Console.WriteLine($"[server] snapshot budget mode: {SnapshotBudgetModeParser.ToConfigString(launchOptions.SnapshotBudgetMode)}");
+Console.WriteLine($"[server] build: version={launchOptions.BuildVersion} channel={launchOptions.ReleaseChannel} compatibility={launchOptions.CompatibilityKey}");
 
 var server = new GameServer(
     config,
@@ -44,6 +46,9 @@ var server = new GameServer(
     launchOptions.RegistryUrl,
     launchOptions.RegistryToken,
     launchOptions.PublicHost,
+    launchOptions.BuildVersion,
+    launchOptions.ReleaseChannel,
+    launchOptions.CompatibilityKey,
     launchOptions.LobbyHost,
     launchOptions.LobbyPort,
     protocolUuidString,
@@ -54,12 +59,17 @@ var server = new GameServer(
     launchOptions.EventLogPath,
     launchOptions.StockMapRotation,
     launchOptions.MapRotationShuffleEnabled,
+    launchOptions.MapRotationAdvanceMode,
+    launchOptions.MapRotationRounds,
+    launchOptions.MapRotationMinutes,
     launchOptions.MaxPlayableClients,
     launchOptions.MaxTotalClients,
     launchOptions.MaxSpectatorClients,
     autoBalanceDelaySeconds,
     autoBalanceNewPlayerGraceSeconds,
     launchOptions.AutoBalanceEnabled,
+    launchOptions.SwitchTeamsAfterRoundEnd,
+    launchOptions.TeamShuffleAfterWins,
     launchOptions.SecondaryAbilitiesEnabled,
     launchOptions.RandomSpreadEnabled,
     launchOptions.CompetitiveReadyUpEnabled,
@@ -81,7 +91,8 @@ var server = new GameServer(
     launchOptions.Settings.PersistentGameplayOwnershipEnabled,
     launchOptions.Settings.PersistentGameplayOwnershipIdentityMode,
     launchOptions.Settings.PersistentGameplayOwnershipFile,
-    launchOptions.Settings.HostDefaults);
+    launchOptions.Settings.HostDefaults,
+    launchOptions.SnapshotBudgetMode);
 
 using var shutdownCts = new CancellationTokenSource();
 var sessionInfo = new HostedServerSessionInfo

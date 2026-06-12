@@ -651,7 +651,11 @@ public partial class Game1
 
             const float badgeScale = 1f;
             var badgeWidth = MeasureScoreboardBadgeWidth(player.BadgeMask, badgeScale);
-            var nameMaxWidth = Math.Max(24f, pointsRight - nameX - 12f);
+            var pingLabel = FormatScoreboardPingLabel(player);
+            var pingWidth = string.IsNullOrEmpty(pingLabel)
+                ? 0f
+                : MeasureBitmapFontWidth(pingLabel, 0.75f) + 6f;
+            var nameMaxWidth = Math.Max(24f, pointsRight - nameX - 12f - pingWidth);
             var scoreboardName = SanitizeScoreboardText(player.DisplayName);
             if (TryGetScoreboardPlayerNetworkSlot(player, out var readySlot)
                 && _world.IsNetworkPlayerReady(readySlot))
@@ -663,7 +667,12 @@ public partial class Game1
                 scoreboardName,
                 Math.Max(24f, nameMaxWidth - badgeWidth),
                 1f);
-            DrawScoreboardNameWithBadges(displayName, player.BadgeMask, new Vector2(nameX, rowY), teamColor, alpha, 1f, badgeScale);
+            var nameEndX = DrawScoreboardNameWithBadges(displayName, player.BadgeMask, new Vector2(nameX, rowY), teamColor, alpha, 1f, badgeScale);
+            if (!string.IsNullOrEmpty(pingLabel))
+            {
+                DrawBitmapFontText(pingLabel, new Vector2(nameEndX + 6f, rowY + 1f), new Color(205, 205, 205) * alpha, 0.75f);
+            }
+
             DrawBitmapFontTextRightAligned(MathF.Floor(player.Points).ToString(CultureInfo.InvariantCulture), new Vector2(pointsRight, rowY), teamColor * alpha, 1f);
             DrawScoreboardDominationBadges(player, team, rowY, alpha, dominationX, relationX);
 
@@ -692,7 +701,7 @@ public partial class Game1
     {
         if (player.ActiveDominationCount > 0)
         {
-            TryDrawScreenSprite("MedalS", 0, new Vector2(dominationX, rowY + 8f), Color.White * alpha, Vector2.One);
+            TryDrawScreenSprite("MedalS", 0, new Vector2(dominationX, rowY), Color.White * alpha, Vector2.One);
             DrawBitmapFontText(
                 player.ActiveDominationCount.ToString(CultureInfo.InvariantCulture),
                 new Vector2(dominationX + 16f, rowY),
@@ -702,15 +711,32 @@ public partial class Game1
 
         if (player.IsDominatedByLocalViewer)
         {
-            TryDrawScreenSprite("MedalS", 3, new Vector2(relationX, rowY + 8f), Color.White * alpha, Vector2.One);
+            TryDrawScreenSprite("MedalS", 3, new Vector2(relationX, rowY), Color.White * alpha, Vector2.One);
             return;
         }
 
         if (player.IsDominatingLocalViewer)
         {
             var frameIndex = team == PlayerTeam.Red ? 5 : 6;
-            TryDrawScreenSprite("MedalS", frameIndex, new Vector2(relationX, rowY + 8f), Color.White * alpha, Vector2.One);
+            TryDrawScreenSprite("MedalS", frameIndex, new Vector2(relationX, rowY), Color.White * alpha, Vector2.One);
         }
+    }
+
+    private string FormatScoreboardPingLabel(PlayerEntity player)
+    {
+        var pingMilliseconds = -1;
+        if (ReferenceEquals(player, _world.LocalPlayer) && _networkClient.EstimatedPingMilliseconds >= 0)
+        {
+            pingMilliseconds = _networkClient.EstimatedPingMilliseconds;
+        }
+        else if (TryGetScoreboardPlayerNetworkSlot(player, out var slot))
+        {
+            pingMilliseconds = _world.GetNetworkPlayerPingMilliseconds(slot);
+        }
+
+        return pingMilliseconds >= 0
+            ? $"{Math.Clamp(pingMilliseconds, 0, 9999).ToString(CultureInfo.InvariantCulture)}ms"
+            : string.Empty;
     }
 
     private List<ScoreboardSpectatorLine> BuildScoreboardSpectatorLines(float maxWidth, float scale)

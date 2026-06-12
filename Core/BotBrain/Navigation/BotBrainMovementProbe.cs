@@ -1459,7 +1459,7 @@ internal static class BotBrainClassMask
         if ((mask & For(PlayerClass.Quote)) != 0
             && CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(PlayerClass.Quote, out _))
         {
-            yield return CharacterClassCatalog.Quote;
+            yield return CharacterClassCatalog.Civilian;
         }
 
         if ((mask & For(PlayerClass.Spy)) != 0)

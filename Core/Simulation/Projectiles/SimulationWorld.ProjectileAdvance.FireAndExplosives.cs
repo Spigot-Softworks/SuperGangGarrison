@@ -39,7 +39,11 @@ public sealed partial class SimulationWorld
                 if (hitResult.HitPlayer is not null)
                 {
                     var hitPlayer = hitResult.HitPlayer;
-                    var playerDied = ApplyPlayerContinuousDamage(hitPlayer, flame.DirectHitDamageValue * flame.CriticalDamageMultiplier, owner);
+                    var playerDied = ApplyPlayerContinuousDamage(
+                        hitPlayer,
+                        flame.DirectHitDamageValue * flame.CriticalDamageMultiplier,
+                        owner,
+                        allowCivvieUmbrellaShield: false);
                     if (playerDied)
                     {
                         KillPlayer(hitPlayer, killer: owner, weaponSpriteName: "FlameKL");
@@ -143,21 +147,24 @@ public sealed partial class SimulationWorld
                 RegisterCombatTrace(flare.PreviousX, flare.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
                 if (hitResult.HitPlayer is not null)
                 {
-                    RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
-                    var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(FlareProjectileEntity.DamagePerHit * flare.CriticalDamageMultiplier), out var damageFlags);
-                    var playerDied = ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags);
-                    if (playerDied)
+                    if (!TryAbsorbCivvieUmbrellaProjectileContact(hitResult.HitPlayer, flare.OwnerId, hitResult.HitX, hitResult.HitY))
                     {
-                        KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "FlareKL");
-                    }
-                    else
-                    {
-                        hitResult.HitPlayer.IgniteAfterburn(
-                            flare.OwnerId,
-                            FlareProjectileEntity.BurnDurationIncreaseSourceTicks,
-                            FlareProjectileEntity.BurnIntensityIncrease,
-                            FlareProjectileEntity.AfterburnFalloff,
-                            burnFalloffAmount: 0f);
+                        RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
+                        var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(FlareProjectileEntity.DamagePerHit * flare.CriticalDamageMultiplier), out var damageFlags);
+                        var playerDied = ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags);
+                        if (playerDied)
+                        {
+                            KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "FlareKL");
+                        }
+                        else
+                        {
+                            hitResult.HitPlayer.IgniteAfterburn(
+                                flare.OwnerId,
+                                FlareProjectileEntity.BurnDurationIncreaseSourceTicks,
+                                FlareProjectileEntity.BurnIntensityIncrease,
+                                FlareProjectileEntity.AfterburnFalloff,
+                                burnFalloffAmount: 0f);
+                        }
                     }
                 }
                 else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)MathF.Round(FlareProjectileEntity.DamagePerHit * flare.CriticalDamageMultiplier), owner))
@@ -275,6 +282,12 @@ public sealed partial class SimulationWorld
                 : null;
             if (directHitPlayer is not null)
             {
+                if (TryAbsorbCivvieUmbrellaProjectileContact(directHitPlayer, grenade.OwnerId, grenade.X, grenade.Y))
+                {
+                    RemoveGrenadeAt(grenadeIndex);
+                    continue;
+                }
+
                 ExplodeGrenade(grenade, directHitPlayer: directHitPlayer);
                 RemoveGrenadeAt(grenadeIndex);
                 continue;

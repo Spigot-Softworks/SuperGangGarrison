@@ -50,6 +50,7 @@ internal static class HostSetupServerCvarCatalog
         "sv_map",
         "sv_rcon_password",
         "sv_maxplayers",
+        "sv_team_scramble_after_wins",
     ];
 
     private static readonly HostSetupServerCvarDefinition[] Definitions =
@@ -64,6 +65,8 @@ internal static class HostSetupServerCvarCatalog
         Def("sv_competitive_readyup", "Competitive Ready-up", HostSetupCvarEditorKind.Toggle, HostSetupServerCvarValueType.Boolean, hostSettingKey: nameof(OpenGarrisonHostSettings.CompetitiveReadyUpEnabled)),
         Def("sv_competitive_setup_seconds", "Competitive Setup (sec)", HostSetupCvarEditorKind.Stepped, HostSetupServerCvarValueType.Integer, 0, 120, step: 1, hostSettingKey: nameof(OpenGarrisonHostSettings.CompetitiveSetupSeconds)),
         Def("sv_roundendff", "Round-end FF", HostSetupCvarEditorKind.Toggle, HostSetupServerCvarValueType.Boolean, hostSettingKey: nameof(OpenGarrisonHostSettings.RoundEndFriendlyFireEnabled)),
+        Def("sv_switch_teams_after_round_end", "Switch Teams Round End", HostSetupCvarEditorKind.Toggle, HostSetupServerCvarValueType.Boolean, hostSettingKey: nameof(OpenGarrisonHostSettings.SwitchTeamsAfterRoundEnd)),
+        Def("sv_team_shuffle_after_wins", "Team Shuffle Wins", HostSetupCvarEditorKind.Stepped, HostSetupServerCvarValueType.Integer, 0, 255, step: 1, hostSettingKey: nameof(OpenGarrisonHostSettings.TeamShuffleAfterWins)),
         Def("sv_bot_autofill", "Bot Autofill", HostSetupCvarEditorKind.Toggle, HostSetupServerCvarValueType.Boolean, hostSettingKey: nameof(OpenGarrisonHostSettings.BotAutofillEnabled)),
         Def("sv_bot_autofill_min_players", "Bot Autofill Min Players", HostSetupCvarEditorKind.Stepped, HostSetupServerCvarValueType.Integer, 0, 24, step: 1, hostSettingKey: nameof(OpenGarrisonHostSettings.BotAutofillMinPlayers)),
         Def("sv_bot_autofill_per_team", "Bot Autofill Per Team", HostSetupCvarEditorKind.Stepped, HostSetupServerCvarValueType.Integer, 0, 12, step: 1, hostSettingKey: nameof(OpenGarrisonHostSettings.BotAutofillPerTeam)),

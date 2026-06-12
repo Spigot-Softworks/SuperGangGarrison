@@ -98,6 +98,7 @@ public partial class Game1
             {
                 var damageEvent = localDamageEvents[index];
                 TryTrackLastToDieDamageDealt(damageEvent.AttackerPlayerId, damageEvent.Amount);
+                _game.ObserveCivvieUmbrellaShieldBlockDamageEvent(damageEvent);
                 _game.ObserveEvasionMissDamageEvent(damageEvent);
                 _game.ObserveHeavyDashDodgeDamageEvent(damageEvent);
                 _game.ObserveDynamicMusicDamageEvent(damageEvent);
@@ -114,6 +115,7 @@ public partial class Game1
             {
                 var damageEvent = _game._pendingNetworkDamageEvents[index];
                 TryTrackLastToDieDamageDealt(damageEvent.AttackerPlayerId, damageEvent.Amount);
+                _game.ObserveCivvieUmbrellaShieldBlockDamageEvent(damageEvent);
                 _game.ObserveEvasionMissDamageEvent(damageEvent);
                 _game.ObserveHeavyDashDodgeDamageEvent(damageEvent);
                 _game.ObserveDynamicMusicDamageEvent(damageEvent);
@@ -258,9 +260,11 @@ public partial class Game1
         private void TryDispatchLocalDamageEvent(int localPlayerId, WorldDamageEvent damageEvent)
         {
             var dealtByLocalPlayer = damageEvent.AttackerPlayerId == localPlayerId;
-            var assistedByLocalPlayer = damageEvent.AssistedByPlayerId == localPlayerId;
             var receivedByLocalPlayer = damageEvent.TargetKind == CoreDamageTargetKind.Player && damageEvent.TargetEntityId == localPlayerId;
-            var isSelfDamage = dealtByLocalPlayer && receivedByLocalPlayer;
+            var isSelfDamage = damageEvent.TargetKind == CoreDamageTargetKind.Player
+                && damageEvent.AttackerPlayerId >= 0
+                && damageEvent.AttackerPlayerId == damageEvent.TargetEntityId;
+            var assistedByLocalPlayer = !isSelfDamage && damageEvent.AssistedByPlayerId == localPlayerId;
             if (!dealtByLocalPlayer && !assistedByLocalPlayer && !receivedByLocalPlayer)
             {
                 return;
@@ -297,9 +301,11 @@ public partial class Game1
         private void TryDispatchLocalDamageEvent(int localPlayerId, SnapshotDamageEvent damageEvent)
         {
             var dealtByLocalPlayer = damageEvent.AttackerPlayerId == localPlayerId;
-            var assistedByLocalPlayer = damageEvent.AssistedByPlayerId == localPlayerId;
             var receivedByLocalPlayer = damageEvent.TargetKind == (byte)ClientPluginDamageTargetKind.Player && damageEvent.TargetEntityId == localPlayerId;
-            var isSelfDamage = dealtByLocalPlayer && receivedByLocalPlayer;
+            var isSelfDamage = damageEvent.TargetKind == (byte)ClientPluginDamageTargetKind.Player
+                && damageEvent.AttackerPlayerId >= 0
+                && damageEvent.AttackerPlayerId == damageEvent.TargetEntityId;
+            var assistedByLocalPlayer = !isSelfDamage && damageEvent.AssistedByPlayerId == localPlayerId;
             if (!dealtByLocalPlayer && !assistedByLocalPlayer && !receivedByLocalPlayer)
             {
                 return;

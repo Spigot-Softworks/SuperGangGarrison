@@ -24,7 +24,7 @@ public partial class Game1
         var latestBufferedSnapshotFrame = Math.Max(_lastAppliedSnapshotFrame, _lastBufferedSnapshotFrame);
         SnapshotMessage? latestResolvedSnapshot = null;
         Dictionary<ulong, SnapshotBaselineState>? resolvedBatchSnapshotsByFrame = null;
-        List<SnapshotMessage>? resolvedBatchSnapshots = null;
+        List<ResolvedSnapshotEntry>? resolvedBatchSnapshots = null;
         foreach (var message in messages)
         {
             RecordNetworkMessageProcessed(message);
@@ -55,7 +55,8 @@ public partial class Game1
                     HandleControlAckMessage(ack);
                     break;
                 case ServerPluginMessage serverPluginMessage:
-                    if (!TryHandleBuiltInVotePresentationMessage(serverPluginMessage))
+                    if (!TryHandleBuiltInVotePresentationMessage(serverPluginMessage)
+                        && !TryHandleBuiltInVipPresentationMessage(serverPluginMessage))
                     {
                         NotifyClientPluginsServerMessage(serverPluginMessage);
                     }

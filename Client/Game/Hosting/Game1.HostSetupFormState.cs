@@ -560,7 +560,14 @@ public partial class Game1
 
             if (selected.Order > 0)
             {
-                selected.Order = 0;
+                if (selected.IsPlaylistClone)
+                {
+                    MapEntries.Remove(selected);
+                }
+                else
+                {
+                    selected.Order = 0;
+                }
             }
             else
             {
@@ -586,8 +593,7 @@ public partial class Game1
                 .Where(entry => entry.Order > 0)
                 .OrderBy(entry => entry.Order)
                 .ToList();
-            var currentIndex = includedEntries.FindIndex(entry =>
-                string.Equals(entry.LevelName, selected.LevelName, StringComparison.OrdinalIgnoreCase));
+            var currentIndex = includedEntries.FindIndex(entry => ReferenceEquals(entry, selected));
             var targetIndex = currentIndex + direction;
             if (currentIndex < 0 || targetIndex < 0 || targetIndex >= includedEntries.Count)
             {
@@ -602,6 +608,7 @@ public partial class Game1
         public void SortMapEntries(string? selectedLevelName = null)
         {
             var desiredSelection = selectedLevelName ?? GetSelectedMapEntry()?.LevelName;
+            MapEntries.RemoveAll(entry => entry.IsPlaylistClone && entry.Order <= 0);
             NormalizeIncludedMapOrders(MapEntries);
             MapEntries = OpenGarrisonStockMapCatalog.GetOrderedEntries(MapEntries)
                 .Select(entry => entry.Clone())
@@ -721,13 +728,10 @@ public partial class Game1
         private static List<OpenGarrisonMapRotationEntry> BuildMapEntries(OpenGarrisonHostSettings hostDefaults)
         {
             SimpleLevelFactory.ClearCachedCatalog();
-            var configuredEntries = hostDefaults.StockMapRotation
-                .GroupBy(entry => entry.LevelName, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
             var stockDefinitions = OpenGarrisonStockMapCatalog.Definitions
                 .ToDictionary(definition => definition.LevelName, definition => definition, StringComparer.OrdinalIgnoreCase);
             var sourceLevels = SimpleLevelFactory.GetAvailableSourceLevels();
-            var mergedEntries = new List<OpenGarrisonMapRotationEntry>(sourceLevels.Count);
+            var mergedEntries = new List<OpenGarrisonMapRotationEntry>(sourceLevels.Count + stockDefinitions.Count);
             var customDefaultOrder = OpenGarrisonStockMapCatalog.Definitions.Count + 1;
             foreach (var sourceLevel in sourceLevels)
             {
@@ -736,37 +740,17 @@ public partial class Game1
                 var displayName = hasStockDefinition ? definition.DisplayName : sourceLevel.Name;
                 var iniKey = hasStockDefinition ? definition.IniKey : sourceLevel.Name;
                 var entryDefaultOrder = hasStockDefinition ? definition.DefaultOrder : customDefaultOrder;
-                var configuredEntry = configuredEntries.TryGetValue(sourceLevel.Name, out var existingByLevelName)
-                    ? existingByLevelName
-                    : hostDefaults.StockMapRotation.FirstOrDefault(entry =>
-                        string.Equals(entry.IniKey, iniKey, StringComparison.OrdinalIgnoreCase));
 
-                if (configuredEntry is not null)
+                mergedEntries.Add(new OpenGarrisonMapRotationEntry
                 {
-                    mergedEntries.Add(new OpenGarrisonMapRotationEntry
-                    {
-                        IniKey = iniKey,
-                        LevelName = sourceLevel.Name,
-                        DisplayName = displayName,
-                        Mode = sourceLevel.Mode,
-                        IsCustomMap = isCustomMap,
-                        DefaultOrder = entryDefaultOrder,
-                        Order = configuredEntry.Order,
-                    });
-                }
-                else
-                {
-                    mergedEntries.Add(new OpenGarrisonMapRotationEntry
-                    {
-                        IniKey = iniKey,
-                        LevelName = sourceLevel.Name,
-                        DisplayName = displayName,
-                        Mode = sourceLevel.Mode,
-                        IsCustomMap = isCustomMap,
-                        DefaultOrder = entryDefaultOrder,
-                        Order = isCustomMap ? 0 : entryDefaultOrder,
-                    });
-                }
+                    IniKey = iniKey,
+                    LevelName = sourceLevel.Name,
+                    DisplayName = displayName,
+                    Mode = sourceLevel.Mode,
+                    IsCustomMap = isCustomMap,
+                    DefaultOrder = entryDefaultOrder,
+                    Order = 0,
+                });
 
                 if (!hasStockDefinition)
                 {
@@ -774,11 +758,110 @@ public partial class Game1
                 }
             }
 
+            AddVipMapEntries(mergedEntries);
+            ApplyConfiguredMapRotation(mergedEntries, hostDefaults.StockMapRotation);
             NormalizeIncludedMapOrders(mergedEntries);
 
             return OpenGarrisonStockMapCatalog.GetOrderedEntries(mergedEntries)
                 .Select(entry => entry.Clone())
                 .ToList();
+        }
+
+        private static void AddVipMapEntries(List<OpenGarrisonMapRotationEntry> mapEntries)
+        {
+            foreach (var definition in OpenGarrisonStockMapCatalog.Definitions.Where(definition => definition.Mode == GameModeKind.ControlPoint))
+            {
+                if (!mapEntries.Any(entry => string.Equals(entry.LevelName, definition.LevelName, StringComparison.OrdinalIgnoreCase))
+                    || !OpenGarrisonStockMapCatalog.TryGetDefinition(OpenGarrisonStockMapCatalog.GetVipIniKey(definition), out var vipDefinition)
+                    || mapEntries.Any(entry =>
+                        string.Equals(entry.IniKey, vipDefinition.IniKey, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(entry.LevelName, vipDefinition.LevelName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                mapEntries.Add(new OpenGarrisonMapRotationEntry
+                {
+                    IniKey = vipDefinition.IniKey,
+                    LevelName = vipDefinition.LevelName,
+                    DisplayName = vipDefinition.DisplayName,
+                    Mode = GameModeKind.Vip,
+                    IsCustomMap = false,
+                    DefaultOrder = 0,
+                    Order = 0,
+                });
+            }
+        }
+
+        private static void ApplyConfiguredMapRotation(
+            List<OpenGarrisonMapRotationEntry> mapEntries,
+            List<OpenGarrisonMapRotationEntry>? configuredRotation)
+        {
+            IReadOnlyList<OpenGarrisonMapRotationEntry> rotationSource =
+                configuredRotation is null ? Array.Empty<OpenGarrisonMapRotationEntry>() : configuredRotation;
+            var configuredEntries = OpenGarrisonStockMapCatalog
+                .GetOrderedEntries(rotationSource)
+                .Where(entry => entry.Order > 0)
+                .ToList();
+            if (configuredEntries.Count == 0 && (configuredRotation is null || configuredRotation.Count == 0))
+            {
+                configuredEntries = OpenGarrisonStockMapCatalog
+                    .GetOrderedEntries(OpenGarrisonStockMapCatalog.CreateDefaultEntries())
+                    .Where(entry => entry.Order > 0)
+                    .ToList();
+            }
+
+            var catalogEntries = mapEntries
+                .Where(entry => !entry.IsPlaylistClone)
+                .ToList();
+            var order = 1;
+            foreach (var configuredEntry in configuredEntries)
+            {
+                if (!TryResolveConfiguredMapEntry(configuredEntry, catalogEntries, out var resolvedEntry))
+                {
+                    continue;
+                }
+
+                var playlistEntry = resolvedEntry.Order > 0 ? resolvedEntry.Clone() : resolvedEntry;
+                if (!ReferenceEquals(playlistEntry, resolvedEntry))
+                {
+                    playlistEntry.IsPlaylistClone = true;
+                    mapEntries.Add(playlistEntry);
+                }
+
+                playlistEntry.Order = order;
+                order += 1;
+            }
+        }
+
+        private static bool TryResolveConfiguredMapEntry(
+            OpenGarrisonMapRotationEntry configuredEntry,
+            IReadOnlyList<OpenGarrisonMapRotationEntry> catalogEntries,
+            out OpenGarrisonMapRotationEntry resolvedEntry)
+        {
+            if (TryResolveConfiguredMapToken(configuredEntry.IniKey, catalogEntries, out resolvedEntry)
+                || TryResolveConfiguredMapToken(configuredEntry.LevelName, catalogEntries, out resolvedEntry)
+                || TryResolveConfiguredMapToken(configuredEntry.DisplayName, catalogEntries, out resolvedEntry))
+            {
+                return true;
+            }
+
+            resolvedEntry = null!;
+            return false;
+        }
+
+        private static bool TryResolveConfiguredMapToken(
+            string token,
+            IReadOnlyList<OpenGarrisonMapRotationEntry> catalogEntries,
+            out OpenGarrisonMapRotationEntry resolvedEntry)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                resolvedEntry = null!;
+                return false;
+            }
+
+            return HostSetupPlaylistFileIO.TryResolvePlaylistLine(token, catalogEntries, out resolvedEntry);
         }
     }
 }

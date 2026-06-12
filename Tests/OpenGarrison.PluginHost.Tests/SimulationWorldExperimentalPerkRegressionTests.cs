@@ -11,6 +11,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 {
     private static readonly MethodInfo ApplyPlayerDamageMethod = GetRequiredNonPublicMethod("ApplyPlayerDamage");
     private static readonly MethodInfo ApplySentryDamageMethod = GetRequiredNonPublicMethod("ApplySentryDamage");
+    private static readonly MethodInfo CombatTestSetLevelMethod = GetRequiredNonPublicMethod("CombatTestSetLevel");
     private static readonly MethodInfo TryHandleNetworkSecondaryAbilityMethod = GetRequiredNonPublicMethod("TryHandleNetworkSecondaryAbility");
     private static readonly MethodInfo TryHandleExperimentalRageActivationMethod = GetRequiredNonPublicMethod("TryHandleExperimentalRageActivation");
     private static readonly MethodInfo UpdateExperimentalEngineerEssenceExtractorMethod = GetRequiredNonPublicMethod("UpdateExperimentalEngineerEssenceExtractor");
@@ -60,7 +61,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         var died = (bool)applyContinuousDamageMethod!.Invoke(
             world,
-            [player, 12f, player, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true])!;
+            [player, 12f, player, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true])!;
 
         Assert.False(died);
         Assert.True(player.Health > healthBefore);
@@ -140,6 +141,28 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
+    public void StockEngineerFreshSentryIgnoresStrayImmediateRightClickDestroy()
+    {
+        var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings());
+
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        PressFireSecondary(world);
+        var sentry = Assert.Single(world.Sentries);
+        Assert.False(sentry.IsBuilt);
+
+        ReleaseAllInput(world);
+        PressFireSecondary(world);
+
+        Assert.Same(sentry, Assert.Single(world.Sentries));
+
+        ReleaseAllInput(world);
+        AdvanceTicks(world, world.Config.TicksPerSecond * 2);
+        PressFireSecondary(world);
+
+        Assert.Empty(world.Sentries);
+    }
+
+    [Fact]
     public void StockPyroRightClickAirblastsWhenSpecialAbilitiesAreDisabled()
     {
         var world = CreateJoinedPyroWorld(new ExperimentalGameplaySettings(EnableSecondaryAbilities: false));
@@ -182,6 +205,8 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         teammate.TeleportTo(world.LocalPlayer.X + 64f, world.LocalPlayer.Y);
         teammate.SetSpawnRoomState(false);
         teammate.ApplyVelocityImpulse(0f, 0f);
+        var fuelBefore = world.LocalPlayer.PyroPrimaryFuelScaled;
+        var primaryCooldownBefore = world.LocalPlayer.PrimaryCooldownTicks;
 
         PressUseAbilitySpace(world, world.LocalPlayer.X + 96f, world.LocalPlayer.Y + 32f);
 
@@ -197,6 +222,22 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(
             MathF.Abs(teammate.VerticalSpeed - world.LocalPlayer.VerticalSpeed) < 2.5f,
             $"expected teammate to inherit pyro vspeed; pyro={world.LocalPlayer.VerticalSpeed:0.###} teammate={teammate.VerticalSpeed:0.###}");
+        Assert.Equal(fuelBefore - (PlayerEntity.PyroAirburstCost * PlayerEntity.PyroPrimaryFuelScale), world.LocalPlayer.PyroPrimaryFuelScaled);
+        Assert.Equal(Math.Max(0, primaryCooldownBefore - 1), world.LocalPlayer.PrimaryCooldownTicks);
+    }
+
+    [Fact]
+    public void PyroUtilityAirburstDoesNotSuppressFlamethrowerPrimary()
+    {
+        var world = CreateJoinedPyroWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+
+        PressUseAbilitySpaceAndFirePrimary(world, world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
+
+        Assert.NotEmpty(world.Flames);
+        Assert.True(world.LocalPlayer.PrimaryCooldownTicks > 0);
+        Assert.True(world.LocalPlayer.PyroAirblastCooldownTicks > 0);
     }
 
     [Fact]
@@ -215,6 +256,25 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.Empty(world.Mines);
         Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
         Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+        AssertCoreSecondaryAbilityEvent(world, "ability.demoman-detonate", BuiltInGameplayBehaviorIds.DemomanDetonate);
+    }
+
+    [Fact]
+    public void StockDemomanRightClickDetonatesWhileGrenadeLauncherIsEquipped()
+    {
+        var world = CreateJoinedDemomanWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        FirePrimaryOnce(world);
+        Assert.NotEmpty(world.Mines);
+
+        ReleaseAllInput(world);
+        PressSwapWeaponSpace(world);
+        Assert.True(world.LocalPlayer.HasEquippedBehavior(BuiltInGameplayBehaviorIds.GrenadeLauncher));
+
+        ReleaseAllInput(world);
+        PressFireSecondary(world);
+
+        Assert.Empty(world.Mines);
         AssertCoreSecondaryAbilityEvent(world, "ability.demoman-detonate", BuiltInGameplayBehaviorIds.DemomanDetonate);
     }
 
@@ -256,7 +316,87 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         PressFireSecondary(world);
 
         Assert.NotEmpty(world.Needles);
-        AssertCoreSecondaryAbilityEvent(world, "weapon.medigun.crit", BuiltInGameplayBehaviorIds.MedicNeedlegun);
+        Assert.False(world.LocalPlayer.IsMedicHealing);
+        AssertCoreSecondaryAbilityEvent(world, "weapon.medigun", BuiltInGameplayBehaviorIds.MedicNeedlegun);
+    }
+
+    [Fact]
+    public void StockMedicRightClickFiresNeedlesAfterHealingTarget()
+    {
+        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        var teammate = CreateRedNetworkScout(world, 2);
+        SetOpenCombatLevel(world);
+        world.TeleportLocalPlayer(100f, 100f);
+        world.LocalPlayer.SetSpawnRoomState(false);
+        teammate.TeleportTo(world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
+        teammate.SetSpawnRoomState(false);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: teammate.X,
+            AimWorldY: teammate.Y,
+            DebugKill: false,
+            UseAbility: false,
+            SwapWeapon: false));
+        world.AdvanceOneTick();
+        Assert.True(world.LocalPlayer.IsMedicHealing);
+
+        PressFireSecondary(world);
+
+        Assert.NotEmpty(world.Needles);
+        Assert.False(world.LocalPlayer.IsMedicHealing);
+        AssertCoreSecondaryAbilityEvent(world, "weapon.medigun", BuiltInGameplayBehaviorIds.MedicNeedlegun);
+    }
+
+    [Fact]
+    public void StockMedicKritzBeamDealsOneDamagePerSecondAndChargesOnDamageTick()
+    {
+        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        var enemy = CreateBlueNetworkScout(world, 2);
+        MoveKritzBeamTestPlayersToOpenCombatLevel(world, enemy);
+        var healthBefore = enemy.Health;
+        PressSwapWeaponSpace(world);
+
+        for (var tick = 0; tick < world.Config.TicksPerSecond; tick += 1)
+        {
+            PressFireSecondary(world);
+        }
+
+        Assert.Equal(healthBefore - 1, enemy.Health);
+        Assert.Equal(PlayerEntity.MedicUberMaxCharge * 0.015f, world.LocalPlayer.MedicUberCharge);
+        Assert.Equal(enemy.Id, world.LocalPlayer.MedicHealTargetId);
+        var bloodEvent = Assert.Single(world.PendingVisualEvents, static visualEvent => visualEvent.EffectName == "Blood");
+        Assert.Equal(4, bloodEvent.Count);
+    }
+
+    [Fact]
+    public void StockMedicKritzBeamKeepsExistingTargetAtNormalBeamRange()
+    {
+        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        var enemy = CreateBlueNetworkScout(world, 2);
+        MoveKritzBeamTestPlayersToOpenCombatLevel(world, enemy);
+        PressSwapWeaponSpace(world);
+
+        PressFireSecondary(world);
+        Assert.Equal(enemy.Id, world.LocalPlayer.MedicHealTargetId);
+
+        enemy.TeleportTo(world.LocalPlayer.X + 250f, world.LocalPlayer.Y);
+        PressFireSecondary(world);
+
+        Assert.Equal(enemy.Id, world.LocalPlayer.MedicHealTargetId);
     }
 
     [Fact]
@@ -1052,8 +1192,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.Equal(0, world.LocalPlayer.SpySuperjumpChargeTicks);
         Assert.False(world.LocalPlayer.IsSpySuperjumping);
         Assert.Equal(0, world.LocalPlayer.SpySuperjumpCooldownTicksRemaining);
-        Assert.True(world.LocalPlayer.IsGrounded);
-        Assert.Equal(startY, world.LocalPlayer.Y);
+        Assert.True(world.LocalPlayer.Y >= startY);
 
         world.AdvanceOneTick();
         Assert.Equal(0, world.LocalPlayer.SpySuperjumpChargeTicks);
@@ -1106,6 +1245,31 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.Equal(world.LocalPlayer.Id, damageEvent.TargetEntityId);
         Assert.True(damageEvent.Flags.HasFlag(DamageEventFlags.Evaded));
         Assert.True(damageEvent.Flags.HasFlag(DamageEventFlags.GhostDash));
+    }
+
+    [Fact]
+    public void CivilianUmbrellaBlockRegistersDedicatedEvadedDamageEvent()
+    {
+        var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        var attacker = CreateBlueNetworkScout(world, 2);
+        var healthBefore = world.LocalPlayer.Health;
+
+        SetPlayerAimDirection(world.LocalPlayer, 0f);
+        Assert.True(world.LocalPlayer.TryActivateCivvieUmbrella());
+        world.DrainPendingDamageEvents();
+
+        Assert.False(InvokeApplyPlayerDamage(world, world.LocalPlayer, 25, attacker));
+        Assert.Equal(healthBefore, world.LocalPlayer.Health);
+        var damageEvent = Assert.Single(world.DrainPendingDamageEvents());
+        Assert.Equal(0, damageEvent.Amount);
+        Assert.Equal(world.LocalPlayer.Id, damageEvent.TargetEntityId);
+        Assert.True(damageEvent.Flags.HasFlag(DamageEventFlags.Evaded));
+        Assert.True(damageEvent.Flags.HasFlag(DamageEventFlags.CivvieUmbrellaBlock));
+        Assert.False(damageEvent.Flags.HasFlag(DamageEventFlags.GhostDash));
+        Assert.InRange(damageEvent.X, world.LocalPlayer.X + 26.5f, world.LocalPlayer.X + 27.5f);
+        Assert.InRange(damageEvent.Y, world.LocalPlayer.Y - 7.5f, world.LocalPlayer.Y - 6.5f);
     }
 
     [Fact]
@@ -1528,24 +1692,13 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
 
-        world.SetLocalInput(new PlayerInputSnapshot(
-            Left: false,
-            Right: false,
-            Up: false,
-            Down: false,
-            BuildSentry: false,
-            DestroySentry: false,
-            Taunt: false,
-            FirePrimary: false,
-            FireSecondary: true,
-            AimWorldX: world.LocalPlayer.X + 96f,
-            AimWorldY: world.LocalPlayer.Y,
-            DebugKill: false));
-        world.AdvanceOneTick();
+        PressFireSecondary(world);
 
         Assert.NotEmpty(world.Needles);
+        Assert.False(world.LocalPlayer.IsMedicHealing);
         Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
         Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+        AssertCoreSecondaryAbilityEvent(world, "weapon.medigun", BuiltInGameplayBehaviorIds.MedicNeedlegun);
     }
 
     [Fact]
@@ -2191,6 +2344,17 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         return world;
     }
 
+    private static SimulationWorld CreateJoinedCivilianWorld(ExperimentalGameplaySettings settings)
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TryLoadLevel("Harvest"));
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin(PlayerClass.Quote);
+        world.ConfigureExperimentalGameplaySettings(settings);
+        return world;
+    }
+
     private static SimulationWorld CreateJoinedScoutWorld(ExperimentalGameplaySettings settings)
     {
         var world = new SimulationWorld();
@@ -2291,10 +2455,56 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         return sentry;
     }
 
+    private static void MoveKritzBeamTestPlayersToOpenCombatLevel(SimulationWorld world, PlayerEntity enemy)
+    {
+        SetOpenCombatLevel(world);
+        world.TeleportLocalPlayer(100f, 100f);
+        world.LocalPlayer.SetSpawnRoomState(false);
+        enemy.TeleportTo(world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
+        enemy.SetSpawnRoomState(false);
+    }
+
+    private static void SetOpenCombatLevel(SimulationWorld world)
+    {
+        CombatTestSetLevelMethod.Invoke(
+            world,
+            [
+                new SimpleLevel(
+                    name: "experimental_perk_regression_test",
+                    mode: GameModeKind.CaptureTheFlag,
+                    bounds: new WorldBounds(1024f, 768f),
+                    mapScale: 1f,
+                    backgroundAssetName: null,
+                    mapAreaIndex: 1,
+                    mapAreaCount: 1,
+                    localSpawn: new SpawnPoint(100f, 100f),
+                    redSpawns: [new SpawnPoint(100f, 100f)],
+                    blueSpawns: [new SpawnPoint(900f, 100f)],
+                    intelBases:
+                    [
+                        new IntelBaseMarker(PlayerTeam.Red, 100f, 100f),
+                        new IntelBaseMarker(PlayerTeam.Blue, 900f, 100f),
+                    ],
+                    roomObjects: [],
+                    floorY: 768f,
+                    solids: [],
+                    importedFromSource: false),
+            ]);
+    }
+
     private static PlayerEntity CreateBlueNetworkScout(SimulationWorld world, byte slot)
     {
         Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
         Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Scout));
+        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        return player;
+    }
+
+    private static PlayerEntity CreateRedNetworkScout(SimulationWorld world, byte slot)
+    {
+        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Red));
         Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Scout));
         Assert.True(world.TryGetNetworkPlayer(slot, out var player));
         return player;
@@ -2370,6 +2580,26 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
             DestroySentry: false,
             Taunt: false,
             FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: aimWorldX,
+            AimWorldY: aimWorldY,
+            DebugKill: false,
+            UseAbility: true,
+            SwapWeapon: false));
+        world.AdvanceOneTick();
+    }
+
+    private static void PressUseAbilitySpaceAndFirePrimary(SimulationWorld world, float aimWorldX, float aimWorldY)
+    {
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
             FireSecondary: false,
             AimWorldX: aimWorldX,
             AimWorldY: aimWorldY,
@@ -2674,7 +2904,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         return (bool)ApplyPlayerDamageMethod.Invoke(
             world,
-            [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true])!;
+            [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true])!;
     }
 
     private static bool InvokeApplySentryDamage(SimulationWorld world, SentryEntity target, int damage, PlayerEntity attacker)

@@ -62,6 +62,24 @@ public sealed partial class PlayerEntity
         IsSpyVisibleToEnemies = false;
     }
 
+    public void ForceEndSpyStealthForHumiliation()
+    {
+        if (ClassId != PlayerClass.Spy)
+        {
+            return;
+        }
+
+        ForceDecloak();
+        SpyBackstabWindupTicksRemaining = 0;
+        SpyBackstabRecoveryTicksRemaining = 0;
+        SpyBackstabVisualTicksRemaining = 0;
+        SpyBackstabDirectionDegrees = 0f;
+        SpyBackstabHitboxPending = false;
+        SpySuperjumpChargeTicks = 0;
+        IsSpySuperjumping = false;
+        SpySuperjumpHorizontalVelocity = 0f;
+    }
+
     public void ForceSetHealth(int health)
     {
         Health = int.Clamp(health, 0, MaxHealth);
@@ -104,6 +122,7 @@ public sealed partial class PlayerEntity
         ContinuousHealingAccumulator = 0f;
         PyroAirblastCooldownTicks = 0;
         PyroFlareCooldownTicks = 0;
+        ResetCivvieUmbrellaState();
         IsPyroPrimaryRefilling = false;
         PyroFlameLoopTicksRemaining = 0;
         ClearRecentDamageDealers();
@@ -217,6 +236,7 @@ public sealed partial class PlayerEntity
         MedicNeedleCooldownTicks = 0;
         PyroAirblastCooldownTicks = 0;
         PyroFlareCooldownTicks = 0;
+        ResetCivvieUmbrellaState();
     }
 
     public void AdvanceEngineerResources()
@@ -304,6 +324,108 @@ public sealed partial class PlayerEntity
     {
         QuoteBladesOut = int.Max(0, QuoteBladesOut - 1);
     }
+
+    public void AdvanceCivvieUmbrellaState(
+        int maxChargeTicks = CivvieUmbrellaMaxChargeTicks,
+        int holdDrainPerTick = CivvieUmbrellaHoldDrainPerTick,
+        int rechargePerTick = CivvieUmbrellaRechargePerTick)
+    {
+        maxChargeTicks = Math.Max(1, maxChargeTicks);
+        holdDrainPerTick = Math.Max(0, holdDrainPerTick);
+        rechargePerTick = Math.Max(0, rechargePerTick);
+        CivvieUmbrellaChargeTicks = Math.Clamp(CivvieUmbrellaChargeTicks, 0, maxChargeTicks);
+
+        if (ClassId != PlayerClass.Quote || !HasSecondaryBehavior(BuiltInGameplayBehaviorIds.CivvieUmbrella))
+        {
+            ResetCivvieUmbrellaState(maxChargeTicks);
+            return;
+        }
+
+        if (CivvieUmbrellaAirblastCooldownTicksRemaining > 0)
+        {
+            CivvieUmbrellaAirblastCooldownTicksRemaining -= 1;
+        }
+
+        if (IsCivvieUmbrellaActive)
+        {
+            CivvieUmbrellaChargeTicks = Math.Max(0, CivvieUmbrellaChargeTicks - holdDrainPerTick);
+            if (CivvieUmbrellaChargeTicks <= 0)
+            {
+                BreakCivvieUmbrella();
+            }
+        }
+        else if (CivvieUmbrellaChargeTicks < maxChargeTicks)
+        {
+            CivvieUmbrellaChargeTicks = Math.Min(maxChargeTicks, CivvieUmbrellaChargeTicks + rechargePerTick);
+            if (IsCivvieUmbrellaBroken && CivvieUmbrellaChargeTicks >= maxChargeTicks)
+            {
+                IsCivvieUmbrellaBroken = false;
+            }
+        }
+
+        IsCivvieUmbrellaActive = false;
+    }
+
+    public bool TryActivateCivvieUmbrella(int maxChargeTicks = CivvieUmbrellaMaxChargeTicks)
+    {
+        maxChargeTicks = Math.Max(1, maxChargeTicks);
+        CivvieUmbrellaChargeTicks = Math.Clamp(CivvieUmbrellaChargeTicks, 0, maxChargeTicks);
+        if (!IsAlive
+            || ClassId != PlayerClass.Quote
+            || !HasSecondaryBehavior(BuiltInGameplayBehaviorIds.CivvieUmbrella)
+            || IsCivvieUmbrellaBroken
+            || CivvieUmbrellaChargeTicks <= 0)
+        {
+            IsCivvieUmbrellaActive = false;
+            return false;
+        }
+
+        IsCivvieUmbrellaActive = true;
+        return true;
+    }
+
+    public bool TryConsumeCivvieUmbrellaAirblast(int cooldownTicks)
+    {
+        if (!IsCivvieUmbrellaActive || CivvieUmbrellaAirblastCooldownTicksRemaining > 0)
+        {
+            return false;
+        }
+
+        CivvieUmbrellaAirblastCooldownTicksRemaining = Math.Max(1, cooldownTicks);
+        return true;
+    }
+
+    public bool TryAbsorbCivvieUmbrellaHit(int drainTicks = CivvieUmbrellaImpactDrain)
+    {
+        if (!IsCivvieUmbrellaActive || IsCivvieUmbrellaBroken || CivvieUmbrellaChargeTicks <= 0)
+        {
+            return false;
+        }
+
+        CivvieUmbrellaChargeTicks = Math.Max(0, CivvieUmbrellaChargeTicks - Math.Max(0, drainTicks));
+        if (CivvieUmbrellaChargeTicks <= 0)
+        {
+            BreakCivvieUmbrella();
+        }
+
+        return true;
+    }
+
+    public void ResetCivvieUmbrellaState(int maxChargeTicks = CivvieUmbrellaMaxChargeTicks)
+    {
+        CivvieUmbrellaChargeTicks = Math.Max(1, maxChargeTicks);
+        IsCivvieUmbrellaActive = false;
+        IsCivvieUmbrellaBroken = false;
+        CivvieUmbrellaAirblastCooldownTicksRemaining = 0;
+    }
+
+    private void BreakCivvieUmbrella()
+    {
+        CivvieUmbrellaChargeTicks = 0;
+        IsCivvieUmbrellaActive = false;
+        IsCivvieUmbrellaBroken = true;
+    }
+
     private void AdvanceIntelCarryState()
     {
         if (!IsCarryingIntel)

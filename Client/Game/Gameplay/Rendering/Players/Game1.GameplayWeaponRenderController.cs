@@ -36,13 +36,13 @@ public partial class Game1
             }
 
             var renderPosition = _game.GetRenderPosition(player);
-            var weaponDefinition = GetWeaponRenderDefinition(player);
+            var weaponAnimationMode = GetPlayerWeaponAnimationMode(player);
+            var weaponDefinition = GetWeaponRenderDefinition(player, IsCivvieUmbrellaAnimationMode(weaponAnimationMode));
             if (weaponDefinition.NormalSpriteName is null)
             {
                 return false;
             }
 
-            var weaponAnimationMode = GetPlayerWeaponAnimationMode(player);
             var spriteName = weaponAnimationMode switch
             {
                 WeaponAnimationMode.ScopedRecoil when weaponDefinition.ReloadSpriteName is not null => weaponDefinition.ReloadSpriteName,
@@ -115,13 +115,13 @@ public partial class Game1
                 return false;
             }
 
-            var weaponDefinition = GetWeaponRenderDefinition(player);
+            var weaponAnimationMode = GetPlayerWeaponAnimationMode(player);
+            var weaponDefinition = GetWeaponRenderDefinition(player, IsCivvieUmbrellaAnimationMode(weaponAnimationMode));
             if (weaponDefinition.NormalSpriteName is null)
             {
                 return false;
             }
 
-            var weaponAnimationMode = GetPlayerWeaponAnimationMode(player);
             var spriteName = weaponAnimationMode switch
             {
                 WeaponAnimationMode.ScopedRecoil when weaponDefinition.ReloadSpriteName is not null => weaponDefinition.ReloadSpriteName,
@@ -187,6 +187,74 @@ public partial class Game1
         {
             var renderPosition = _game.GetRenderPosition(player);
             return GetRoundedPlayerSpriteOrigin(renderPosition);
+        }
+
+        public void DrawCivvieUmbrellaShieldBlockVisuals(
+            PlayerEntity player,
+            Vector2 cameraPosition,
+            float visibilityAlpha,
+            PlayerBodySpriteSelection bodySelection)
+        {
+            if (visibilityAlpha <= 0f)
+            {
+                return;
+            }
+
+            var hasVisual = false;
+            for (var index = 0; index < _game._civvieUmbrellaShieldBlockVisuals.Count; index += 1)
+            {
+                if (_game._civvieUmbrellaShieldBlockVisuals[index].PlayerId == player.Id)
+                {
+                    hasVisual = true;
+                    break;
+                }
+            }
+
+            if (!hasVisual)
+            {
+                return;
+            }
+
+            const string shieldBlockSpriteName = "CivvieUmbrellaShieldBlockS";
+            var shieldSprite = _game.GetResolvedSprite(shieldBlockSpriteName);
+            if (shieldSprite is null || shieldSprite.Frames.Count == 0)
+            {
+                return;
+            }
+
+            var facingScale = GetRenderFacingScale(player);
+            var playerScale = player.PlayerScale;
+            var rotation = GetRenderWeaponRotation(player);
+            for (var index = 0; index < _game._civvieUmbrellaShieldBlockVisuals.Count; index += 1)
+            {
+                var visual = _game._civvieUmbrellaShieldBlockVisuals[index];
+                if (visual.PlayerId != player.Id)
+                {
+                    continue;
+                }
+
+                var frameIndex = System.Math.Clamp(
+                    visual.ElapsedTicks * shieldSprite.Frames.Count / CivvieUmbrellaShieldBlockVisual.LifetimeTicks,
+                    0,
+                    shieldSprite.Frames.Count - 1);
+                var alpha = System.Math.Clamp(visual.TicksRemaining / (float)CivvieUmbrellaShieldBlockVisual.FadeTicks, 0f, 1f)
+                    * visibilityAlpha
+                    * 1f;
+                var position = new Vector2(visual.X - cameraPosition.X, visual.Y - cameraPosition.Y);
+                ResolveBakedFrame(
+                    player,
+                    shieldBlockSpriteName,
+                    frameIndex,
+                    rotation,
+                    shieldSprite,
+                    facingScale,
+                    playerScale,
+                    out var drawFrame,
+                    out var drawOrigin,
+                    out var drawRotation,
+                    out var scale);
+                _game.DrawSpriteFrame(drawFrame, position, Color.White * alpha, drawRotation, drawOrigin, scale);
+            }
         }
 
         public static float GetWeaponRotation(PlayerEntity player)
@@ -408,6 +476,11 @@ public partial class Game1
                 return 0;
             }
 
+            if (IsCivvieUmbrellaAnimationMode(weaponAnimationMode))
+            {
+                return GetCivvieUmbrellaFrameIndex(player, weaponAnimationMode, frameCount);
+            }
+
             if (weaponAnimationMode == WeaponAnimationMode.Idle)
             {
                 var useBlueTeamMedigunFrames = ShouldUseBlueTeamMedigunFrames(player);
@@ -434,9 +507,9 @@ public partial class Game1
             return System.Math.Clamp(teamOffset + animationFrame, 0, frameCount - 1);
         }
 
-        private static WeaponRenderDefinition GetWeaponRenderDefinition(PlayerEntity player)
+        private static WeaponRenderDefinition GetWeaponRenderDefinition(PlayerEntity player, bool forceCivvieUmbrellaPresentation = false)
         {
-            var presentation = ResolveRenderPresentation(player);
+            var presentation = ResolveRenderPresentation(player, forceCivvieUmbrellaPresentation);
             return new WeaponRenderDefinition(
                 presentation.WorldSpriteName,
                 presentation.RecoilSpriteName,
@@ -461,8 +534,19 @@ public partial class Game1
                 presentation.LoopRecoilWhileActive);
         }
 
-        private static GameplayItemPresentationDefinition ResolveRenderPresentation(PlayerEntity player)
+        private static GameplayItemPresentationDefinition ResolveRenderPresentation(PlayerEntity player, bool forceCivvieUmbrellaPresentation = false)
         {
+            if ((player.IsCivvieUmbrellaActive || forceCivvieUmbrellaPresentation)
+                && !string.IsNullOrWhiteSpace(player.GameplayLoadoutState.SecondaryItemId))
+            {
+                var secondaryItem = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(player.GameplayLoadoutState.SecondaryItemId);
+                if (string.Equals(secondaryItem.BehaviorId, BuiltInGameplayBehaviorIds.CivvieUmbrella, System.StringComparison.Ordinal)
+                    && !string.IsNullOrWhiteSpace(secondaryItem.Presentation.WorldSpriteName))
+                {
+                    return secondaryItem.Presentation;
+                }
+            }
+
             if (player.IsExperimentalDemoknightEnabled)
             {
                 return StockGameplayModCatalog.GetExperimentalDemoknightEyelanderItem().Presentation;
@@ -498,6 +582,59 @@ public partial class Game1
             }
 
             return CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(GetRenderWeaponPresentationClassId(player)).Presentation;
+        }
+
+        private static bool IsCivvieUmbrellaAnimationMode(WeaponAnimationMode mode)
+        {
+            return mode is WeaponAnimationMode.CivvieUmbrellaOpening
+                or WeaponAnimationMode.CivvieUmbrellaHold
+                or WeaponAnimationMode.CivvieUmbrellaClosing;
+        }
+
+        private int GetCivvieUmbrellaFrameIndex(PlayerEntity player, WeaponAnimationMode mode, int frameCount)
+        {
+            if (frameCount <= 0)
+            {
+                return 0;
+            }
+
+            var perTeamFrames = System.Math.Max(1, frameCount / 2);
+            var teamOffset = ShouldUseBlueTeamMedigunFrames(player) ? perTeamFrames : 0;
+            var elapsedSeconds = 0f;
+            var durationSeconds = 0f;
+            if (_game._playerRenderStates.TryGetValue(_game.GetPlayerStateKey(player), out var renderState))
+            {
+                elapsedSeconds = renderState.WeaponAnimationElapsedSeconds;
+                durationSeconds = renderState.WeaponAnimationDurationSeconds;
+            }
+
+            var localFrame = mode switch
+            {
+                WeaponAnimationMode.CivvieUmbrellaOpening => GetCivvieUmbrellaTimedFrame(
+                    elapsedSeconds,
+                    durationSeconds,
+                    startFrame: 0,
+                    frameCount: System.Math.Min(3, perTeamFrames)),
+                WeaponAnimationMode.CivvieUmbrellaClosing => GetCivvieUmbrellaTimedFrame(
+                    elapsedSeconds,
+                    durationSeconds,
+                    startFrame: 4,
+                    frameCount: System.Math.Max(1, System.Math.Min(2, perTeamFrames - 4))),
+                _ => System.Math.Min(3, perTeamFrames - 1),
+            };
+
+            return System.Math.Clamp(teamOffset + System.Math.Clamp(localFrame, 0, perTeamFrames - 1), 0, frameCount - 1);
+        }
+
+        private static int GetCivvieUmbrellaTimedFrame(float elapsedSeconds, float durationSeconds, int startFrame, int frameCount)
+        {
+            if (frameCount <= 1 || durationSeconds <= 0f)
+            {
+                return startFrame + System.Math.Max(0, frameCount - 1);
+            }
+
+            var progress = System.Math.Clamp(elapsedSeconds / durationSeconds, 0f, 0.9999f);
+            return startFrame + System.Math.Clamp((int)System.MathF.Floor(progress * frameCount), 0, frameCount - 1);
         }
 
         private static float GetSourceTicksAsSeconds(float ticks)

@@ -218,6 +218,11 @@ public partial class Game1
 
     private bool TryDrawScreenSpritePart(string spriteName, int frameIndex, Rectangle sourceRectangle, Vector2 position, Color tint, Vector2 scale)
     {
+        return TryDrawScreenSpritePart(spriteName, frameIndex, sourceRectangle, position, tint, scale, SpriteEffects.None);
+    }
+
+    private bool TryDrawScreenSpritePart(string spriteName, int frameIndex, Rectangle sourceRectangle, Vector2 position, Color tint, Vector2 scale, SpriteEffects effects)
+    {
         var sprite = GetResolvedSprite(spriteName);
         if (sprite is null || sprite.Frames.Count == 0)
         {
@@ -242,7 +247,7 @@ public partial class Game1
             0f,
             sprite.Origin.ToVector2(),
             scale,
-            SpriteEffects.None,
+            effects,
             0f);
         return true;
     }

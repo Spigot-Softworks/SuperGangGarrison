@@ -19,6 +19,9 @@ public partial class Game1
     private const string ClientPerformanceMapEnvironmentVariable = "OG_CLIENT_PERF_MAP";
     private const string ClientPerformanceFriendlyBotsEnvironmentVariable = "OG_CLIENT_PERF_FRIENDLY_BOTS";
     private const string ClientPerformanceEnemyBotsEnvironmentVariable = "OG_CLIENT_PERF_ENEMY_BOTS";
+    private const string ClientPerformanceClassEnvironmentVariable = "OG_CLIENT_PERF_CLASS";
+    private const string ClientPerformanceBotClassEnvironmentVariable = "OG_CLIENT_PERF_BOT_CLASS";
+    private const string ClientPerformanceInputEnvironmentVariable = "OG_CLIENT_PERF_INPUT";
     private const string ClientPerformanceWarmupSecondsEnvironmentVariable = "OG_CLIENT_PERF_WARMUP_SECONDS";
     private const string ClientPerformanceMeasureSecondsEnvironmentVariable = "OG_CLIENT_PERF_MEASURE_SECONDS";
     private const string ClientPerformanceAutoExitEnvironmentVariable = "OG_CLIENT_PERF_AUTO_EXIT";
@@ -215,7 +218,7 @@ public partial class Game1
 
         if (_classSelectOpen)
         {
-            ApplyDirectClassSelection(PlayerClass.Scout);
+            ApplyDirectClassSelection(GetClientPerformanceClass());
             CloseGameplaySelectionMenus();
             return;
         }
@@ -315,8 +318,11 @@ public partial class Game1
         var enemyBots = GetClientPerformanceEnvironmentInt(ClientPerformanceEnemyBotsEnvironmentVariable, ClientPerformanceDefaultEnemyBots);
         var warmupSeconds = GetClientPerformanceEnvironmentInt(ClientPerformanceWarmupSecondsEnvironmentVariable, ClientPerformanceDefaultWarmupSeconds);
         var measureSeconds = GetClientPerformanceEnvironmentInt(ClientPerformanceMeasureSecondsEnvironmentVariable, ClientPerformanceDefaultMeasureSeconds);
+        var playerClass = GetClientPerformanceClass();
+        var botClass = TryGetClientPerformanceBotClass(out var parsedBotClass) ? parsedBotClass.ToString() : "mixed";
+        var forcedInput = Environment.GetEnvironmentVariable(ClientPerformanceInputEnvironmentVariable) ?? "none";
         LogClientPerformanceLine(
-            $"event=client_perf_started test={ClientPerformanceTestEnabled} mode={mode} map={map} friendlyBots={friendlyBots} enemyBots={enemyBots} warmupSeconds={warmupSeconds} measureSeconds={measureSeconds}");
+            $"event=client_perf_started test={ClientPerformanceTestEnabled} mode={mode} map={map} friendlyBots={friendlyBots} enemyBots={enemyBots} class={playerClass} botClass={botClass} input={SanitizeClientPerformanceToken(forcedInput)} warmupSeconds={warmupSeconds} measureSeconds={measureSeconds}");
         AddConsoleLine($"client perf log: {_clientPerformanceLogPath}");
     }
 
@@ -344,6 +350,9 @@ public partial class Game1
             $"music={snapshot.GetSummary(ClientPerformanceMetric.Music)} " +
             $"botBuild={snapshot.GetSummary(ClientPerformanceMetric.BotBuild)} " +
             $"botApply={snapshot.GetSummary(ClientPerformanceMetric.BotApply)} " +
+            $"looseSheets={_looseSheetVisuals.Count} " +
+            $"moneySheets={GetClientPerformanceMoneySheetCount()} " +
+            $"pendingVisuals={_pendingNetworkVisualEvents.Count} " +
             $"memMb={currentMemoryMegabytes:F1}");
         LogClientPerformanceLine(line);
 
@@ -773,6 +782,20 @@ public partial class Game1
         return value.Replace(' ', '_').Replace(';', ',');
     }
 
+    private int GetClientPerformanceMoneySheetCount()
+    {
+        var count = 0;
+        for (var index = 0; index < _looseSheetVisuals.Count; index += 1)
+        {
+            if (_looseSheetVisuals[index].IsCivvieMoney)
+            {
+                count += 1;
+            }
+        }
+
+        return count;
+    }
+
     private string FormatClientPerformanceBotSlotSummary()
     {
         if (_clientPerformanceBotBehaviorSlots.Count == 0)
@@ -877,6 +900,85 @@ public partial class Game1
             || string.Equals(value, "ltd", StringComparison.OrdinalIgnoreCase)
             ? ClientPerformanceMode.LastToDie
             : ClientPerformanceMode.Practice;
+    }
+
+    private static PlayerClass GetClientPerformanceClass()
+    {
+        return ParseClientPerformanceClass(
+            Environment.GetEnvironmentVariable(ClientPerformanceClassEnvironmentVariable),
+            PlayerClass.Scout);
+    }
+
+    private static bool TryGetClientPerformanceBotClass(out PlayerClass classId)
+    {
+        var value = Environment.GetEnvironmentVariable(ClientPerformanceBotClassEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            classId = default;
+            return false;
+        }
+
+        classId = ParseClientPerformanceClass(value, PlayerClass.Scout);
+        return true;
+    }
+
+    private static PlayerClass ParseClientPerformanceClass(string? value, PlayerClass fallback)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return fallback;
+        }
+
+        return value.Trim() switch
+        {
+            var className when string.Equals(className, "civilian", StringComparison.OrdinalIgnoreCase) => PlayerClass.Quote,
+            var className when string.Equals(className, "financier", StringComparison.OrdinalIgnoreCase) => PlayerClass.Quote,
+            var className when string.Equals(className, "civ", StringComparison.OrdinalIgnoreCase) => PlayerClass.Quote,
+            var className when Enum.TryParse<PlayerClass>(className, ignoreCase: true, out var parsedClass) => parsedClass,
+            _ => fallback,
+        };
+    }
+
+    private static PlayerInputSnapshot ApplyClientPerformanceForcedInput(PlayerInputSnapshot input)
+    {
+        if (!ClientPerformanceTestEnabled && !ClientOnlineSmokeEnabled)
+        {
+            return input;
+        }
+
+        var value = Environment.GetEnvironmentVariable(ClientPerformanceInputEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return input;
+        }
+
+        var normalized = value.Trim();
+        if (string.Equals(normalized, "secondary", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "umbrella", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "m2", StringComparison.OrdinalIgnoreCase))
+        {
+            return input with { FireSecondary = true };
+        }
+
+        if (string.Equals(normalized, "ability", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "utility", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "space", StringComparison.OrdinalIgnoreCase))
+        {
+            return input with { UseAbility = true };
+        }
+
+        if (string.Equals(normalized, "taunt", StringComparison.OrdinalIgnoreCase))
+        {
+            return input with { Taunt = true };
+        }
+
+        if (string.Equals(normalized, "primary", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "m1", StringComparison.OrdinalIgnoreCase))
+        {
+            return input with { FirePrimary = true };
+        }
+
+        return input;
     }
 
     private static int GetClientPerformanceLastToDieSurvivorIndex()

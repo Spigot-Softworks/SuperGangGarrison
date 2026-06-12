@@ -37,17 +37,24 @@ public partial class Game1
             var bodySelection = _game.GetPlayerBodySpriteSelection(player);
             _game.DrawExperimentalDemoknightChargeBlur(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
             _game.DrawCapturedPointHealingGhosting(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
-            _game.TryDrawWeaponSpriteBackdrop(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
+            var hideWeaponSprite = ShouldHideCivilianIdleWeaponSprite(player, bodySelection);
+            if (!hideWeaponSprite)
+            {
+                _game.TryDrawWeaponSpriteBackdrop(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
+            }
+
             if (!_game.TryDrawPlayerSprite(player, cameraPosition, spriteTint, bodySelection))
             {
                 _game._spriteBatch.Draw(_game._pixel, rectangle, fallbackColor);
             }
 
             _game.DrawExperimentalStickyGibBloodOverlay(player, cameraPosition, visibilityAlpha);
-            if (!_game.GetPlayerIsHeavyEating(player) && !player.IsTaunting && !_game._world.IsPlayerHumiliated(player))
+            if (!hideWeaponSprite && !_game.GetPlayerIsHeavyEating(player) && !player.IsTaunting && !_game._world.IsPlayerHumiliated(player))
             {
                 _game.TryDrawWeaponSprite(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
             }
+
+            _game._gameplayWeaponRenderController.DrawCivvieUmbrellaShieldBlockVisuals(player, cameraPosition, visibilityAlpha, bodySelection);
 
             _game.DrawExperimentalEssenceExtractorOverlay(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
             _game.DrawExperimentalCryoOverlays(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
@@ -81,6 +88,13 @@ public partial class Game1
         public static string GetHudPlayerLabel(PlayerEntity player)
         {
             return player.DisplayName;
+        }
+
+        public static bool ShouldHideCivilianIdleWeaponSprite(PlayerEntity player, PlayerBodySpriteSelection bodySelection)
+        {
+            return player.ClassId == PlayerClass.Quote
+                && !player.IsCivvieUmbrellaActive
+                && bodySelection.SpriteName is "CivvieRedS" or "CivvieBlueS";
         }
     }
 }

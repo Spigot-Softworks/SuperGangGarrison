@@ -22,6 +22,7 @@ public partial class Game1
 
     private void ReturnToMainMenuWithNetworkStatus(string statusMessage, string consoleMessage)
     {
+        CancelNetworkWorldWarmup();
         HideLoadingOverlay();
         ClearPendingNetworkMapSync();
         ReturnToMainMenu(statusMessage);
@@ -30,6 +31,7 @@ public partial class Game1
 
     private void ReturnToMainMenuWithNetworkStatus(string statusMessage)
     {
+        CancelNetworkWorldWarmup();
         HideLoadingOverlay();
         ClearPendingNetworkMapSync();
         ReturnToMainMenu(statusMessage);

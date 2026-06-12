@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace OpenGarrison.Core.BotBrain;
 
 /// <summary>
@@ -13,6 +15,7 @@ public sealed class LocalMotionController
     private const int ProgressWindowTicks = 30;
     private const int SuppressionTicks = 90;
     private const int MaxStagnantWindows = 2;
+    private const int MaxProbePlansPerWorldFrame = 1;
     private const float ProgressWindowMinMovement = 10f;
     private const float TargetBucketSize = 48f;
     private const float VerticalBucketSize = 32f;
@@ -23,6 +26,7 @@ public sealed class LocalMotionController
     private const float JumpableObstacleProbeDistance = 36f;
     private const int ProbeEntityId = -900_100;
 
+    private static readonly ConditionalWeakTable<SimulationWorld, LocalMotionProbeBudgetState> ProbeBudgets = new();
     private readonly Dictionary<LocalMotionFailureKey, int> _suppressedTargets = [];
 
     private LocalMotionPlan _activePlan;
@@ -62,7 +66,8 @@ public sealed class LocalMotionController
         var key = LocalMotionFailureKey.From(world.Level, self, target);
         if (_suppressedTargets.TryGetValue(key, out var suppressedTicks) && suppressedTicks > 0)
         {
-            if (TryResolveProbePlan(world, self, target, baseSteering, thinkTick, "suppressed", out var suppressedPlan, out var suppressedTrace))
+            if (TryConsumeProbeBudget(world, thinkTick)
+                && TryResolveProbePlan(world, self, target, baseSteering, thinkTick, "suppressed", out var suppressedPlan, out var suppressedTrace))
             {
                 if (!TryCommitPlan(self, target, key, suppressedPlan, thinkTick, out var commitFailureTrace))
                 {
@@ -120,7 +125,9 @@ public sealed class LocalMotionController
             primitiveNeedsObstaclePlan = false;
         }
 
-        if (ShouldRunProbe(self, target, primitiveResolved, primitiveSteering, primitiveNeedsObstaclePlan)
+        if (!primitiveNeedsObstaclePlan
+            && ShouldRunProbe(self, target, primitiveResolved, primitiveSteering, primitiveNeedsObstaclePlan)
+            && TryConsumeProbeBudget(world, thinkTick)
             && TryResolveProbePlan(world, self, target, baseSteering, thinkTick, "probe", out var probePlan, out var probeTrace))
         {
             if (!TryCommitPlan(self, target, key, probePlan, thinkTick, out var commitFailureTrace))
@@ -631,6 +638,30 @@ public sealed class LocalMotionController
         _lastTargetY = 0f;
     }
 
+    private static bool TryConsumeProbeBudget(SimulationWorld world, int thinkTick)
+    {
+        var frameKey = world.Frame > 0
+            ? world.Frame
+            : -Math.Max(1, thinkTick);
+        var state = ProbeBudgets.GetValue(world, static _ => new LocalMotionProbeBudgetState());
+        lock (state)
+        {
+            if (state.FrameKey != frameKey)
+            {
+                state.FrameKey = frameKey;
+                state.Count = 0;
+            }
+
+            if (state.Count >= MaxProbePlansPerWorldFrame)
+            {
+                return false;
+            }
+
+            state.Count += 1;
+            return true;
+        }
+    }
+
     private static float Distance(float ax, float ay, float bx, float by)
     {
         var dx = bx - ax;
@@ -713,6 +744,13 @@ public sealed class LocalMotionController
         bool Accepted)
     {
         public static LocalMotionProbeResult Empty => new(default, float.PositiveInfinity, float.PositiveInfinity, 0f, float.NegativeInfinity, false);
+    }
+
+    private sealed class LocalMotionProbeBudgetState
+    {
+        public long FrameKey { get; set; } = long.MinValue;
+
+        public int Count { get; set; }
     }
 
     private readonly record struct LocalMotionFailureKey(

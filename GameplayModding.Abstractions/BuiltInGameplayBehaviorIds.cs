@@ -21,10 +21,13 @@ public static class BuiltInGameplayBehaviorIds
     public const string SniperScope = "builtin.ability.sniper_scope";
     public const string SniperBinoculars = "builtin.ability.sniper_binoculars";
     public const string MedicNeedlegun = "builtin.ability.medic_needlegun";
+    public const string MedicKritzBeam = "builtin.ability.medic_kritz_beam";
     public const string MedicUber = "builtin.ability.medic_uber";
     public const string SpyCloak = "builtin.ability.spy_cloak";
     public const string SpySuperjump = "builtin.ability.spy_superjump";
     public const string QuoteBladeThrow = "builtin.ability.quote_blade_throw";
+    public const string CivvieUmbrella = "builtin.ability.civvie_umbrella";
+    public const string CivvieTaunt = "builtin.ability.civvie_taunt";
     public const string ScoutTaunt = "builtin.ability.scout_taunt";
     public const string ScoutNailgunToggle = "builtin.ability.scout_nailgun_toggle";
     public const string SoldierSecondaryToggle = "builtin.ability.soldier_secondary_toggle";

@@ -10,23 +10,55 @@ public sealed class ConfigurationUtilityTests
     [Fact]
     public void GetConfigPathReturnsPathUnderConfigDirectoryForRelativeSubpath()
     {
+        var previous = Environment.GetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT");
+        var root = Path.Combine(Path.GetTempPath(), "opengarrison-config-tests", Guid.NewGuid().ToString("N"));
         var relativePath = Path.Combine("test-config", Guid.NewGuid().ToString("N"), "settings.json");
 
-        var resolvedPath = RuntimePaths.GetConfigPath(relativePath);
+        try
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT", root);
 
-        Assert.Equal(
-            Path.GetFullPath(Path.Combine(RuntimePaths.ConfigDirectory, relativePath)),
-            Path.GetFullPath(resolvedPath));
-        Assert.StartsWith(
-            EnsureTrailingSeparator(Path.GetFullPath(RuntimePaths.ConfigDirectory)),
-            Path.GetFullPath(resolvedPath),
-            RuntimePathComparison);
+            var resolvedPath = RuntimePaths.GetConfigPath(relativePath);
+            var expectedConfigDirectory = Path.Combine(root, "config");
+
+            Assert.Equal(
+                Path.GetFullPath(Path.Combine(expectedConfigDirectory, relativePath)),
+                Path.GetFullPath(resolvedPath));
+            Assert.StartsWith(
+                EnsureTrailingSeparator(Path.GetFullPath(expectedConfigDirectory)),
+                Path.GetFullPath(resolvedPath),
+                RuntimePathComparison);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT", previous);
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
     }
 
     [Fact]
     public void GetConfigPathRejectsEscapingRelativePaths()
     {
-        Assert.Throws<InvalidOperationException>(() => RuntimePaths.GetConfigPath(Path.Combine("..", "escape.json")));
+        var previous = Environment.GetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT");
+        var root = Path.Combine(Path.GetTempPath(), "opengarrison-config-tests", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT", root);
+
+            Assert.Throws<InvalidOperationException>(() => RuntimePaths.GetConfigPath(Path.Combine("..", "escape.json")));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT", previous);
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
     }
 
     [Fact]

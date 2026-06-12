@@ -13,9 +13,13 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private const int PracticeBotThinkBatchSizeSmallRoster = 1;
+    private const int PracticeBotThinkBatchSizeMediumRoster = 2;
+    private const int PracticeBotThinkBatchSizeLargeRoster = 3;
     private const int BrowserPracticeBotThinkBatchSizeSmallRoster = 1;
     private const int BrowserPracticeBotThinkBatchSizeMediumRoster = 1;
     private const int BrowserPracticeBotThinkBatchSizeLargeRoster = 2;
+    private const int PracticeBotHeldCombatInputReuseTicks = 6;
     private static readonly PlayerClass[] PracticeBotClassCycle =
     [
         PlayerClass.Scout,
@@ -29,6 +33,18 @@ public partial class Game1
         PlayerClass.Sniper,
         PlayerClass.Quote,
     ];
+    private static readonly PlayerClass[] VipPracticeBotClassCycle =
+    [
+        PlayerClass.Scout,
+        PlayerClass.Pyro,
+        PlayerClass.Soldier,
+        PlayerClass.Heavy,
+        PlayerClass.Demoman,
+        PlayerClass.Medic,
+        PlayerClass.Engineer,
+        PlayerClass.Spy,
+        PlayerClass.Sniper,
+    ];
     private static readonly PlayerClass[] NavEditorScoreTrioClasses =
     [
         PlayerClass.Scout,
@@ -37,11 +53,12 @@ public partial class Game1
     ];
 
     private readonly Dictionary<byte, PracticeBotSlotState> _practiceBotSlots = new();
-    private readonly Dictionary<byte, PlayerInputSnapshot> _browserPracticeBotInputCache = new();
+    private readonly Dictionary<byte, PlayerInputSnapshot> _practiceBotInputCache = new();
+    private readonly Dictionary<byte, int> _practiceBotInputCacheAgeTicks = new();
     private readonly Dictionary<byte, ControlledBotSlot> _controlledPracticeBotSlotsBuffer = new();
-    private readonly List<byte> _browserPracticeBotThinkSlotsBuffer = new();
-    private readonly List<byte> _browserPracticeBotRosterSlotsBuffer = new();
-    private readonly List<byte> _browserPracticeBotStaleSlotsBuffer = new();
+    private readonly List<byte> _practiceBotThinkSlotsBuffer = new();
+    private readonly List<byte> _practiceBotRosterSlotsBuffer = new();
+    private readonly List<byte> _practiceBotStaleSlotsBuffer = new();
     private readonly List<ManualPracticeBotRequest> _manualPracticeBotRequests = new();
     private readonly PracticeBotDisplayNamePool _practiceBotDisplayNamePool = new();
     [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "Practice bots intentionally sit behind a controller seam so client and server bot plumbing can select different controller implementations.")]
@@ -55,12 +72,12 @@ public partial class Game1
         (PlayerClass.Medic, PlayerClass.Pyro),
         (PlayerClass.Medic, PlayerClass.Demoman),
     ];
-    private int _browserPracticeBotThinkTick;
-    private int _browserPracticeBotPerfSamples;
-    private double _browserPracticeBotPerfBuildInputTotalMilliseconds;
-    private double _browserPracticeBotPerfBuildInputMaxMilliseconds;
-    private double _browserPracticeBotPerfSetInputTotalMilliseconds;
-    private double _browserPracticeBotPerfSetInputMaxMilliseconds;
+    private int _practiceBotThinkTick;
+    private int _practiceBotPerfSamples;
+    private double _practiceBotPerfBuildInputTotalMilliseconds;
+    private double _practiceBotPerfBuildInputMaxMilliseconds;
+    private double _practiceBotPerfSetInputTotalMilliseconds;
+    private double _practiceBotPerfSetInputMaxMilliseconds;
     private bool _navEditorScoreTrioActive;
 
     private sealed class PracticeBotSlotState
@@ -364,9 +381,16 @@ public partial class Game1
         return pool;
     }
 
-    private static PlayerClass[] GetEligiblePracticeBotClassCycle()
+    private PlayerClass[] GetEligiblePracticeBotClassCycle()
     {
-        return PracticeBotClassCycle;
+        if (ClientPerformanceTestEnabled && TryGetClientPerformanceBotClass(out var forcedClass))
+        {
+            return [forcedClass];
+        }
+
+        return _world.IsVipModeActive || _practiceVipRulesEnabled
+            ? VipPracticeBotClassCycle
+            : PracticeBotClassCycle;
     }
 
     private List<PlayerClass> BuildLastToDieEnemyBotClassList(int count)
@@ -669,10 +693,12 @@ public partial class Game1
         var setInputsStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
         foreach (var entry in controlledSlots)
         {
-            _world.TrySetNetworkPlayerInput(entry.Key, inputsBySlot.GetValueOrDefault(entry.Key));
+            _world.TrySetNetworkPlayerInput(
+                entry.Key,
+                ApplyClientPerformanceForcedInput(inputsBySlot.GetValueOrDefault(entry.Key)));
         }
         var setInputsMilliseconds = GetDiagnosticsElapsedMilliseconds(setInputsStartTimestamp);
-        LogBrowserPracticeBotPerformance(controlledSlots.Count, buildInputsMilliseconds, setInputsMilliseconds);
+        LogPracticeBotPerformance(controlledSlots.Count, buildInputsMilliseconds, setInputsMilliseconds);
         RecordClientPerformanceBotBehavior(controlledSlots, _practiceBotController.LastDiagnostics);
 
         if (_botDiagnosticsEnabled)
@@ -686,25 +712,20 @@ public partial class Game1
     private IReadOnlyDictionary<byte, PlayerInputSnapshot> GetPracticeBotInputs(
         Dictionary<byte, ControlledBotSlot> controlledSlots)
     {
-        if (!OperatingSystem.IsBrowser())
-        {
-            return _practiceBotController.BuildInputs(_world, controlledSlots);
-        }
-
-        _browserPracticeBotThinkTick += 1;
-        SyncBrowserPracticeBotInputCacheRoster(controlledSlots);
-        var slotsToThink = SelectBrowserPracticeBotThinkSlots(controlledSlots);
+        _practiceBotThinkTick += 1;
+        SyncPracticeBotInputCacheRoster(controlledSlots);
+        var slotsToThink = SelectPracticeBotThinkSlots(controlledSlots);
         if (slotsToThink.Count == 0)
         {
-            return _browserPracticeBotInputCache;
+            return _practiceBotInputCache;
         }
 
         var refreshedInputs = _practiceBotController.BuildInputsForSlots(_world, controlledSlots, slotsToThink);
-        ApplyBrowserPracticeBotInputRefresh(refreshedInputs);
-        return _browserPracticeBotInputCache;
+        ApplyPracticeBotInputRefresh(controlledSlots, refreshedInputs);
+        return _practiceBotInputCache;
     }
 
-    private void LogBrowserPracticeBotPerformance(int controlledBotCount, double buildInputsMilliseconds, double setInputsMilliseconds)
+    private void LogPracticeBotPerformance(int controlledBotCount, double buildInputsMilliseconds, double setInputsMilliseconds)
     {
         RecordClientPerformanceMetric(ClientPerformanceMetric.BotBuild, buildInputsMilliseconds);
         RecordClientPerformanceMetric(ClientPerformanceMetric.BotApply, setInputsMilliseconds);
@@ -713,90 +734,148 @@ public partial class Game1
             return;
         }
 
-        _browserPracticeBotPerfSamples += 1;
-        _browserPracticeBotPerfBuildInputTotalMilliseconds += buildInputsMilliseconds;
-        _browserPracticeBotPerfBuildInputMaxMilliseconds = Math.Max(_browserPracticeBotPerfBuildInputMaxMilliseconds, buildInputsMilliseconds);
-        _browserPracticeBotPerfSetInputTotalMilliseconds += setInputsMilliseconds;
-        _browserPracticeBotPerfSetInputMaxMilliseconds = Math.Max(_browserPracticeBotPerfSetInputMaxMilliseconds, setInputsMilliseconds);
-        if ((_browserPracticeBotPerfSamples % 30) != 0)
+        _practiceBotPerfSamples += 1;
+        _practiceBotPerfBuildInputTotalMilliseconds += buildInputsMilliseconds;
+        _practiceBotPerfBuildInputMaxMilliseconds = Math.Max(_practiceBotPerfBuildInputMaxMilliseconds, buildInputsMilliseconds);
+        _practiceBotPerfSetInputTotalMilliseconds += setInputsMilliseconds;
+        _practiceBotPerfSetInputMaxMilliseconds = Math.Max(_practiceBotPerfSetInputMaxMilliseconds, setInputsMilliseconds);
+        if ((_practiceBotPerfSamples % 30) != 0)
         {
             return;
         }
 
-        var averageBuildInputsMilliseconds = _browserPracticeBotPerfBuildInputTotalMilliseconds / _browserPracticeBotPerfSamples;
-        var averageSetInputsMilliseconds = _browserPracticeBotPerfSetInputTotalMilliseconds / _browserPracticeBotPerfSamples;
+        var averageBuildInputsMilliseconds = _practiceBotPerfBuildInputTotalMilliseconds / _practiceBotPerfSamples;
+        var averageSetInputsMilliseconds = _practiceBotPerfSetInputTotalMilliseconds / _practiceBotPerfSamples;
         Console.WriteLine(
-            $"Browser practice bots slots={controlledBotCount} thinkBatch={GetBrowserPracticeBotThinkBatchSize(controlledBotCount)} " +
-            $"build(last/avg/max)={buildInputsMilliseconds:0.0}/{averageBuildInputsMilliseconds:0.0}/{_browserPracticeBotPerfBuildInputMaxMilliseconds:0.0}ms " +
-            $"apply(last/avg/max)={setInputsMilliseconds:0.0}/{averageSetInputsMilliseconds:0.0}/{_browserPracticeBotPerfSetInputMaxMilliseconds:0.0}ms");
+            $"Browser practice bots slots={controlledBotCount} thinkBatch={GetPracticeBotThinkBatchSize(controlledBotCount)} " +
+            $"build(last/avg/max)={buildInputsMilliseconds:0.0}/{averageBuildInputsMilliseconds:0.0}/{_practiceBotPerfBuildInputMaxMilliseconds:0.0}ms " +
+            $"apply(last/avg/max)={setInputsMilliseconds:0.0}/{averageSetInputsMilliseconds:0.0}/{_practiceBotPerfSetInputMaxMilliseconds:0.0}ms");
     }
 
-    private static int GetBrowserPracticeBotThinkBatchSize(int controlledBotCount)
+    private static int GetPracticeBotThinkBatchSize(int controlledBotCount)
     {
+        if (OperatingSystem.IsBrowser())
+        {
+            return controlledBotCount switch
+            {
+                >= 8 => BrowserPracticeBotThinkBatchSizeLargeRoster,
+                >= 4 => BrowserPracticeBotThinkBatchSizeMediumRoster,
+                _ => BrowserPracticeBotThinkBatchSizeSmallRoster,
+            };
+        }
+
         return controlledBotCount switch
         {
-            >= 8 => BrowserPracticeBotThinkBatchSizeLargeRoster,
-            >= 4 => BrowserPracticeBotThinkBatchSizeMediumRoster,
-            _ => BrowserPracticeBotThinkBatchSizeSmallRoster,
+            >= 8 => PracticeBotThinkBatchSizeLargeRoster,
+            >= 4 => PracticeBotThinkBatchSizeMediumRoster,
+            _ => PracticeBotThinkBatchSizeSmallRoster,
         };
     }
 
-    private List<byte> SelectBrowserPracticeBotThinkSlots(IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots)
+    private List<byte> SelectPracticeBotThinkSlots(IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots)
     {
-        _browserPracticeBotThinkSlotsBuffer.Clear();
+        _practiceBotThinkSlotsBuffer.Clear();
         if (controlledSlots.Count == 0)
         {
-            return _browserPracticeBotThinkSlotsBuffer;
+            return _practiceBotThinkSlotsBuffer;
         }
 
-        _browserPracticeBotRosterSlotsBuffer.Clear();
+        _practiceBotRosterSlotsBuffer.Clear();
         foreach (var slot in controlledSlots.Keys)
         {
-            _browserPracticeBotRosterSlotsBuffer.Add(slot);
+            _practiceBotRosterSlotsBuffer.Add(slot);
         }
 
-        _browserPracticeBotRosterSlotsBuffer.Sort();
+        _practiceBotRosterSlotsBuffer.Sort();
         var batchSize = Math.Min(
-            _browserPracticeBotRosterSlotsBuffer.Count,
-            GetBrowserPracticeBotThinkBatchSize(_browserPracticeBotRosterSlotsBuffer.Count));
-        var startIndex = (int)(((long)Math.Max(0, _browserPracticeBotThinkTick - 1) * batchSize) % _browserPracticeBotRosterSlotsBuffer.Count);
+            _practiceBotRosterSlotsBuffer.Count,
+            GetPracticeBotThinkBatchSize(_practiceBotRosterSlotsBuffer.Count));
+        var startIndex = (int)(((long)Math.Max(0, _practiceBotThinkTick - 1) * batchSize) % _practiceBotRosterSlotsBuffer.Count);
         for (var batchIndex = 0; batchIndex < batchSize; batchIndex += 1)
         {
-            var slotIndex = (startIndex + batchIndex) % _browserPracticeBotRosterSlotsBuffer.Count;
-            _browserPracticeBotThinkSlotsBuffer.Add(_browserPracticeBotRosterSlotsBuffer[slotIndex]);
+            var slotIndex = (startIndex + batchIndex) % _practiceBotRosterSlotsBuffer.Count;
+            _practiceBotThinkSlotsBuffer.Add(_practiceBotRosterSlotsBuffer[slotIndex]);
         }
 
-        return _browserPracticeBotThinkSlotsBuffer;
+        return _practiceBotThinkSlotsBuffer;
     }
 
-    private void SyncBrowserPracticeBotInputCacheRoster(IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots)
+    private void SyncPracticeBotInputCacheRoster(IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots)
     {
-        _browserPracticeBotStaleSlotsBuffer.Clear();
-        foreach (var entry in _browserPracticeBotInputCache)
+        _practiceBotStaleSlotsBuffer.Clear();
+        foreach (var entry in _practiceBotInputCache)
         {
             if (!controlledSlots.ContainsKey(entry.Key))
             {
-                _browserPracticeBotStaleSlotsBuffer.Add(entry.Key);
+                _practiceBotStaleSlotsBuffer.Add(entry.Key);
             }
         }
 
-        for (var index = 0; index < _browserPracticeBotStaleSlotsBuffer.Count; index += 1)
+        for (var index = 0; index < _practiceBotStaleSlotsBuffer.Count; index += 1)
         {
-            _browserPracticeBotInputCache.Remove(_browserPracticeBotStaleSlotsBuffer[index]);
+            var slot = _practiceBotStaleSlotsBuffer[index];
+            _practiceBotInputCache.Remove(slot);
+            _practiceBotInputCacheAgeTicks.Remove(slot);
         }
 
         foreach (var slot in controlledSlots.Keys)
         {
-            _browserPracticeBotInputCache.TryAdd(slot, default);
+            if (_practiceBotInputCache.TryAdd(slot, default))
+            {
+                _practiceBotInputCacheAgeTicks[slot] = 0;
+            }
         }
     }
 
-    private void ApplyBrowserPracticeBotInputRefresh(IReadOnlyDictionary<byte, PlayerInputSnapshot> refreshedInputs)
+    private void ApplyPracticeBotInputRefresh(
+        IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots,
+        IReadOnlyDictionary<byte, PlayerInputSnapshot> refreshedInputs)
     {
-        foreach (var (slot, input) in refreshedInputs)
+        foreach (var slot in controlledSlots.Keys)
         {
-            _browserPracticeBotInputCache[slot] = input;
+            if (refreshedInputs.TryGetValue(slot, out var refreshedInput))
+            {
+                _practiceBotInputCache[slot] = refreshedInput;
+                _practiceBotInputCacheAgeTicks[slot] = 0;
+                continue;
+            }
+
+            if (!_practiceBotInputCache.TryGetValue(slot, out var cachedInput))
+            {
+                continue;
+            }
+
+            var ageTicks = _practiceBotInputCacheAgeTicks.GetValueOrDefault(slot) + 1;
+            _practiceBotInputCacheAgeTicks[slot] = ageTicks;
+            _practiceBotInputCache[slot] = SanitizeReusedPracticeBotInput(cachedInput, ageTicks);
         }
+    }
+
+    private static PlayerInputSnapshot SanitizeReusedPracticeBotInput(PlayerInputSnapshot input, int ageTicks)
+    {
+        input = input with
+        {
+            BuildSentry = false,
+            DestroySentry = false,
+            Taunt = false,
+            DebugKill = false,
+            DropIntel = false,
+            InteractWeapon = false,
+            SwapWeapon = false,
+            ReadyUp = false,
+        };
+
+        if (ageTicks > PracticeBotHeldCombatInputReuseTicks)
+        {
+            input = input with
+            {
+                FirePrimary = false,
+                FireSecondary = false,
+                UseAbility = false,
+            };
+        }
+
+        return input;
     }
 
     private Dictionary<byte, ControlledBotSlot> BuildControlledPracticeBotSlots()
@@ -881,16 +960,17 @@ public partial class Game1
     private void ResetPracticeBotControllerState()
     {
         ClearPracticeBotSpawnOverrides(_practiceBotSlots.Keys);
-        _browserPracticeBotInputCache.Clear();
-        _browserPracticeBotThinkSlotsBuffer.Clear();
-        _browserPracticeBotRosterSlotsBuffer.Clear();
-        _browserPracticeBotStaleSlotsBuffer.Clear();
-        _browserPracticeBotThinkTick = 0;
-        _browserPracticeBotPerfSamples = 0;
-        _browserPracticeBotPerfBuildInputTotalMilliseconds = 0d;
-        _browserPracticeBotPerfBuildInputMaxMilliseconds = 0d;
-        _browserPracticeBotPerfSetInputTotalMilliseconds = 0d;
-        _browserPracticeBotPerfSetInputMaxMilliseconds = 0d;
+        _practiceBotInputCache.Clear();
+        _practiceBotInputCacheAgeTicks.Clear();
+        _practiceBotThinkSlotsBuffer.Clear();
+        _practiceBotRosterSlotsBuffer.Clear();
+        _practiceBotStaleSlotsBuffer.Clear();
+        _practiceBotThinkTick = 0;
+        _practiceBotPerfSamples = 0;
+        _practiceBotPerfBuildInputTotalMilliseconds = 0d;
+        _practiceBotPerfBuildInputMaxMilliseconds = 0d;
+        _practiceBotPerfSetInputTotalMilliseconds = 0d;
+        _practiceBotPerfSetInputMaxMilliseconds = 0d;
         _practiceBotController.Reset();
     }
 

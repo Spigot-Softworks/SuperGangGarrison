@@ -22,6 +22,7 @@ public partial class Game1
         var localPlayerRenderTimeSeconds = GetLocalPlayerRenderTimeSeconds();
         var remotePlayerRenderTimeSeconds = GetRemotePlayerRenderTimeSeconds();
         var entityRenderTimeSeconds = GetEntityRenderTimeSeconds();
+        var projectileRenderTimeSeconds = GetProjectileRenderTimeSeconds();
         var localPlayerStateKey = GetResolvedLocalPlayerId();
         if (_remotePlayerSnapshotHistories.TryGetValue(localPlayerStateKey, out var localHistory)
             && localHistory.Count > 0)
@@ -54,61 +55,61 @@ public partial class Game1
 
         foreach (var shot in _world.Shots)
         {
-            UpdateInterpolatedEntityPosition(shot.Id, shot.X, shot.Y, entityRenderTimeSeconds);
+            UpdateInterpolatedEntityPosition(shot.Id, shot.X, shot.Y, projectileRenderTimeSeconds);
             _activeInterpolatedEntityIds.Add(shot.Id);
         }
 
         foreach (var bubble in _world.Bubbles)
         {
-            UpdateInterpolatedEntityPosition(bubble.Id, bubble.X, bubble.Y, entityRenderTimeSeconds);
+            UpdateInterpolatedEntityPosition(bubble.Id, bubble.X, bubble.Y, projectileRenderTimeSeconds);
             _activeInterpolatedEntityIds.Add(bubble.Id);
         }
 
         foreach (var blade in _world.Blades)
         {
-            UpdateInterpolatedEntityPosition(blade.Id, blade.X, blade.Y, entityRenderTimeSeconds);
+            UpdateInterpolatedEntityPosition(blade.Id, blade.X, blade.Y, projectileRenderTimeSeconds);
             _activeInterpolatedEntityIds.Add(blade.Id);
         }
 
         foreach (var shot in _world.RevolverShots)
         {
-            UpdateInterpolatedEntityPosition(shot.Id, shot.X, shot.Y, entityRenderTimeSeconds);
+            UpdateInterpolatedEntityPosition(shot.Id, shot.X, shot.Y, projectileRenderTimeSeconds);
             _activeInterpolatedEntityIds.Add(shot.Id);
         }
 
         foreach (var needle in _world.Needles)
         {
-            UpdateInterpolatedEntityPosition(needle.Id, needle.X, needle.Y, entityRenderTimeSeconds);
+            UpdateInterpolatedEntityPosition(needle.Id, needle.X, needle.Y, projectileRenderTimeSeconds);
             _activeInterpolatedEntityIds.Add(needle.Id);
         }
 
         foreach (var flame in _world.Flames)
         {
-            UpdateInterpolatedEntityPosition(flame.Id, flame.X, flame.Y, entityRenderTimeSeconds);
+            UpdateInterpolatedEntityPosition(flame.Id, flame.X, flame.Y, projectileRenderTimeSeconds);
             _activeInterpolatedEntityIds.Add(flame.Id);
         }
 
         foreach (var flare in _world.Flares)
         {
-            UpdateInterpolatedEntityPosition(flare.Id, flare.X, flare.Y, entityRenderTimeSeconds);
+            UpdateInterpolatedEntityPosition(flare.Id, flare.X, flare.Y, projectileRenderTimeSeconds);
             _activeInterpolatedEntityIds.Add(flare.Id);
         }
 
         foreach (var rocket in _world.Rockets)
         {
-            UpdateInterpolatedEntityPosition(rocket.Id, rocket.X, rocket.Y, entityRenderTimeSeconds);
+            UpdateInterpolatedEntityPosition(rocket.Id, rocket.X, rocket.Y, projectileRenderTimeSeconds);
             _activeInterpolatedEntityIds.Add(rocket.Id);
         }
 
         foreach (var mine in _world.Mines)
         {
-            UpdateInterpolatedEntityPosition(mine.Id, mine.X, mine.Y, entityRenderTimeSeconds);
+            UpdateInterpolatedEntityPosition(mine.Id, mine.X, mine.Y, projectileRenderTimeSeconds);
             _activeInterpolatedEntityIds.Add(mine.Id);
         }
 
         foreach (var grenade in _world.Grenades)
         {
-            UpdateInterpolatedEntityPosition(grenade.Id, grenade.X, grenade.Y, entityRenderTimeSeconds);
+            UpdateInterpolatedEntityPosition(grenade.Id, grenade.X, grenade.Y, projectileRenderTimeSeconds);
             _activeInterpolatedEntityIds.Add(grenade.Id);
         }
 
@@ -138,8 +139,12 @@ public partial class Game1
             _interpolatedEntityPositions.Remove(entityId);
             _entityInterpolationTracks.Remove(entityId);
             _entitySnapshotHistories.Remove(entityId);
+            _entitySnapshotHistoryKinds.Remove(entityId);
             _remotePlayerSnapshotHistories.Remove(entityId);
         }
+
+        PruneInactiveEntitySnapshotHistories();
+        PruneInactiveRemotePlayerSnapshotHistories();
 
         UpdateInterpolatedIntelPosition(_world.RedIntel, entityRenderTimeSeconds);
         UpdateInterpolatedIntelPosition(_world.BlueIntel, entityRenderTimeSeconds);
@@ -228,12 +233,11 @@ public partial class Game1
 
     private void ResetNetworkInterpolationStateForOfflineFrame()
     {
-        _entitySnapshotHistories.Clear();
-        _intelSnapshotHistories.Clear();
-        _remotePlayerSnapshotHistories.Clear();
+        ResetSnapshotPresentationHistories();
         ResetSnapshotStateHistory();
         _lastAppliedSnapshotFrame = 0;
         _lastBufferedSnapshotFrame = 0;
+        _lastAppliedSnapshotLocalPlayerId = null;
         _hasReceivedSnapshot = false;
         _lastSnapshotReceivedTimeSeconds = -1d;
         _latestSnapshotServerTimeSeconds = -1d;
@@ -243,6 +247,9 @@ public partial class Game1
         _smoothedSnapshotJitterSeconds = 0f;
         _localPlayerInterpolationBackTimeSeconds = GetMinimumLocalPlayerInterpolationBackTimeSeconds();
         _remotePlayerInterpolationBackTimeSeconds = GetMinimumRemotePlayerInterpolationBackTimeSeconds();
+        _projectileInterpolationBackTimeSeconds = ProjectileMinimumInterpolationBackTimeSeconds;
+        _networkInterpolationWarmupSnapshotsRemaining = 0;
+        _networkInterpolationWarmupUntilClockSeconds = -1d;
         _localPlayerRenderTimeSeconds = 0d;
         _remotePlayerRenderTimeSeconds = 0d;
         _lastLocalPlayerRenderTimeClockSeconds = -1d;
@@ -253,6 +260,24 @@ public partial class Game1
         _hasPredictedLocalActionState = false;
         _predictedLocalPlayerShadow = null;
         _pendingPredictedInputs.Clear();
+    }
+
+    private void ResetSnapshotPresentationHistories()
+    {
+        _entityInterpolationTracks.Clear();
+        _intelInterpolationTracks.Clear();
+        _entitySnapshotHistories.Clear();
+        _entitySnapshotHistoryKinds.Clear();
+        _intelSnapshotHistories.Clear();
+        _remotePlayerSnapshotHistories.Clear();
+        _interpolatedEntityPositions.Clear();
+        _interpolatedIntelPositions.Clear();
+    }
+
+    private void ResetAndSeedSnapshotPresentationHistories(SnapshotMessage snapshot)
+    {
+        ResetSnapshotPresentationHistories();
+        CaptureRemoteInterpolationTargets(snapshot, snapshot);
     }
 
     private void UpdateOfflineInterpolatedPlayerPosition(PlayerEntity player)
@@ -386,6 +411,15 @@ public partial class Game1
     {
         if (_entitySnapshotHistories.TryGetValue(entityId, out var history) && history.Count > 0)
         {
+            if (ShouldPruneEntitySnapshotHistory(history))
+            {
+                _entitySnapshotHistories.Remove(entityId);
+                _entitySnapshotHistoryKinds.Remove(entityId);
+                _entityInterpolationTracks.Remove(entityId);
+                _interpolatedEntityPositions[entityId] = new Vector2(x, y);
+                return;
+            }
+
             _interpolatedEntityPositions[entityId] = EvaluateEntitySnapshotHistory(history, renderTimeSeconds, entityId);
             return;
         }
@@ -397,6 +431,67 @@ public partial class Game1
         }
 
         _interpolatedEntityPositions[entityId] = EvaluateInterpolationTrack(track);
+    }
+
+    private void PruneInactiveEntitySnapshotHistories()
+    {
+        _staleInterpolatedEntityIds.Clear();
+        foreach (var entry in _entitySnapshotHistories)
+        {
+            if (!_activeInterpolatedEntityIds.Contains(entry.Key) || ShouldPruneEntitySnapshotHistory(entry.Value))
+            {
+                _staleInterpolatedEntityIds.Add(entry.Key);
+            }
+        }
+
+        foreach (var entityId in _staleInterpolatedEntityIds)
+        {
+            _entitySnapshotHistories.Remove(entityId);
+            _entitySnapshotHistoryKinds.Remove(entityId);
+            _entityInterpolationTracks.Remove(entityId);
+            _interpolatedEntityPositions.Remove(entityId);
+        }
+    }
+
+    private void PruneInactiveRemotePlayerSnapshotHistories()
+    {
+        _staleInterpolatedEntityIds.Clear();
+        foreach (var entry in _remotePlayerSnapshotHistories)
+        {
+            if (!_activeInterpolatedEntityIds.Contains(entry.Key) || ShouldPruneRemotePlayerSnapshotHistory(entry.Value))
+            {
+                _staleInterpolatedEntityIds.Add(entry.Key);
+            }
+        }
+
+        foreach (var playerId in _staleInterpolatedEntityIds)
+        {
+            _remotePlayerSnapshotHistories.Remove(playerId);
+            _entityInterpolationTracks.Remove(playerId);
+            _interpolatedEntityPositions.Remove(playerId);
+        }
+    }
+
+    private bool ShouldPruneRemotePlayerSnapshotHistory(List<PlayerSnapshotSample> history)
+    {
+        if (history.Count == 0)
+        {
+            return true;
+        }
+
+        return _latestSnapshotServerTimeSeconds >= 0d
+            && _latestSnapshotServerTimeSeconds - history[^1].TimeSeconds > StaleRemotePlayerSnapshotHistoryPruneSeconds;
+    }
+
+    private bool ShouldPruneEntitySnapshotHistory(List<EntitySnapshotSample> history)
+    {
+        if (history.Count == 0)
+        {
+            return true;
+        }
+
+        return _latestSnapshotServerTimeSeconds >= 0d
+            && _latestSnapshotServerTimeSeconds - history[^1].TimeSeconds > StaleEntitySnapshotHistoryPruneSeconds;
     }
 
     private void UpdateInterpolatedIntelPosition(TeamIntelligenceState intelState, double renderTimeSeconds)
@@ -416,18 +511,182 @@ public partial class Game1
         _interpolatedIntelPositions[intelState.Team] = EvaluateInterpolationTrack(track);
     }
 
-    private void CaptureRemoteInterpolationTargets(SnapshotMessage snapshot)
+    private void CaptureRemoteInterpolationTargets(SnapshotMessage rawSnapshot, SnapshotMessage resolvedSnapshot)
     {
         if (!_networkClient.IsConnected)
         {
             return;
         }
 
-        var snapshotServerTimeSeconds = GetSnapshotTimelineTimeSeconds(snapshot.Frame, snapshot.TickRate);
-        var localPlayerSlot = _networkClient.LocalPlayerSlot;
-        for (var playerIndex = 0; playerIndex < snapshot.Players.Count; playerIndex += 1)
+        var snapshotServerTimeSeconds = GetSnapshotTimelineTimeSeconds(resolvedSnapshot.Frame, resolvedSnapshot.TickRate);
+        ClearRemovedInterpolationTargets(rawSnapshot);
+        CaptureFreshRemotePlayerInterpolationTargets(rawSnapshot, resolvedSnapshot, snapshotServerTimeSeconds);
+        RecordSnapshotInterpolationFreshness(rawSnapshot.PlayerMovementStates.Count, CountBaselineCarriedPlayerSamples(rawSnapshot, resolvedSnapshot));
+
+        var entitySnapshot = rawSnapshot.IsDelta ? rawSnapshot : resolvedSnapshot;
+        for (var deadBodyIndex = 0; deadBodyIndex < entitySnapshot.DeadBodies.Count; deadBodyIndex += 1)
         {
-            var player = snapshot.Players[playerIndex];
+            var deadBody = entitySnapshot.DeadBodies[deadBodyIndex];
+            var snapshotTickRate = Math.Max(1, resolvedSnapshot.TickRate > 0 ? resolvedSnapshot.TickRate : _config.TicksPerSecond);
+            var velocity = new Vector2(deadBody.HorizontalSpeed, deadBody.VerticalSpeed) * snapshotTickRate;
+            var extrapolationDurationSeconds = Math.Clamp(
+                _smoothedSnapshotIntervalSeconds + (_smoothedSnapshotJitterSeconds * 2f),
+                1f / snapshotTickRate,
+                0.12f);
+            CaptureEntityInterpolationTarget(
+                true,
+                deadBody.Id,
+                deadBody.X,
+                deadBody.Y,
+                velocity,
+                extrapolationDurationSeconds,
+                velocity.Length() * extrapolationDurationSeconds,
+                snapshotServerTimeSeconds,
+                kind: NetworkDiagnosticEntityInterpolationKind.DeadBody);
+        }
+
+        for (var sentryIndex = 0; sentryIndex < entitySnapshot.Sentries.Count; sentryIndex += 1)
+        {
+            var sentry = entitySnapshot.Sentries[sentryIndex];
+            CaptureEntityInterpolationTarget(
+                true,
+                sentry.Id,
+                sentry.X,
+                sentry.Y,
+                Vector2.Zero,
+                0f,
+                0f,
+                snapshotServerTimeSeconds,
+                kind: NetworkDiagnosticEntityInterpolationKind.Sentry);
+        }
+
+        for (var sentryIndex = 0; sentryIndex < rawSnapshot.SentryUpdateStates.Count; sentryIndex += 1)
+        {
+            var sentry = rawSnapshot.SentryUpdateStates[sentryIndex];
+            CaptureEntityInterpolationTarget(
+                true,
+                sentry.Id,
+                sentry.X,
+                sentry.Y,
+                Vector2.Zero,
+                0f,
+                0f,
+                snapshotServerTimeSeconds,
+                kind: NetworkDiagnosticEntityInterpolationKind.Sentry);
+        }
+
+        for (var shotIndex = 0; shotIndex < entitySnapshot.Shots.Count; shotIndex += 1)
+        {
+            var shot = entitySnapshot.Shots[shotIndex];
+            CaptureProjectileInterpolationTarget(shot.Id, shot.OwnerId, shot.X, shot.Y, new Vector2(shot.VelocityX, shot.VelocityY), 18f, snapshotServerTimeSeconds);
+        }
+
+        for (var bubbleIndex = 0; bubbleIndex < entitySnapshot.Bubbles.Count; bubbleIndex += 1)
+        {
+            var bubble = entitySnapshot.Bubbles[bubbleIndex];
+            CaptureProjectileInterpolationTarget(bubble.Id, bubble.OwnerId, bubble.X, bubble.Y, new Vector2(bubble.VelocityX, bubble.VelocityY), 18f, snapshotServerTimeSeconds);
+        }
+
+        for (var bladeIndex = 0; bladeIndex < entitySnapshot.Blades.Count; bladeIndex += 1)
+        {
+            var blade = entitySnapshot.Blades[bladeIndex];
+            CaptureProjectileInterpolationTarget(blade.Id, blade.OwnerId, blade.X, blade.Y, new Vector2(blade.VelocityX, blade.VelocityY), 18f, snapshotServerTimeSeconds);
+        }
+
+        for (var shotIndex = 0; shotIndex < entitySnapshot.RevolverShots.Count; shotIndex += 1)
+        {
+            var shot = entitySnapshot.RevolverShots[shotIndex];
+            CaptureProjectileInterpolationTarget(shot.Id, shot.OwnerId, shot.X, shot.Y, new Vector2(shot.VelocityX, shot.VelocityY), 20f, snapshotServerTimeSeconds);
+        }
+
+        for (var needleIndex = 0; needleIndex < entitySnapshot.Needles.Count; needleIndex += 1)
+        {
+            var needle = entitySnapshot.Needles[needleIndex];
+            CaptureProjectileInterpolationTarget(needle.Id, needle.OwnerId, needle.X, needle.Y, new Vector2(needle.VelocityX, needle.VelocityY), 30f, snapshotServerTimeSeconds);
+        }
+
+        for (var flameIndex = 0; flameIndex < entitySnapshot.Flames.Count; flameIndex += 1)
+        {
+            var flame = entitySnapshot.Flames[flameIndex];
+            CaptureProjectileInterpolationTarget(
+                flame.Id,
+                flame.OwnerId,
+                flame.X,
+                flame.Y,
+                new Vector2(flame.VelocityX, flame.VelocityY),
+                36f,
+                snapshotServerTimeSeconds,
+                new Vector2(flame.PreviousX, flame.PreviousY));
+        }
+
+        for (var flareIndex = 0; flareIndex < entitySnapshot.Flares.Count; flareIndex += 1)
+        {
+            var flare = entitySnapshot.Flares[flareIndex];
+            CaptureProjectileInterpolationTarget(flare.Id, flare.OwnerId, flare.X, flare.Y, new Vector2(flare.VelocityX, flare.VelocityY), 15f, snapshotServerTimeSeconds);
+        }
+
+        for (var rocketIndex = 0; rocketIndex < entitySnapshot.Rockets.Count; rocketIndex += 1)
+        {
+            var rocket = entitySnapshot.Rockets[rocketIndex];
+            var rocketVelocity = new Vector2(MathF.Cos(rocket.DirectionRadians) * rocket.Speed, MathF.Sin(rocket.DirectionRadians) * rocket.Speed);
+            CaptureProjectileInterpolationTarget(
+                rocket.Id,
+                rocket.OwnerId,
+                rocket.X,
+                rocket.Y,
+                rocketVelocity,
+                24f,
+                snapshotServerTimeSeconds,
+                new Vector2(rocket.PreviousX, rocket.PreviousY));
+        }
+
+        for (var rocketIndex = 0; rocketIndex < rawSnapshot.RocketSpawnEvents.Count; rocketIndex += 1)
+        {
+            var rocket = rawSnapshot.RocketSpawnEvents[rocketIndex];
+            var rocketVelocity = new Vector2(MathF.Cos(rocket.DirectionRadians) * rocket.Speed, MathF.Sin(rocket.DirectionRadians) * rocket.Speed);
+            CaptureProjectileInterpolationTarget(
+                rocket.Id,
+                rocket.OwnerId,
+                rocket.X,
+                rocket.Y,
+                rocketVelocity,
+                24f,
+                snapshotServerTimeSeconds,
+                new Vector2(rocket.PreviousX, rocket.PreviousY));
+        }
+
+        for (var mineIndex = 0; mineIndex < entitySnapshot.Mines.Count; mineIndex += 1)
+        {
+            var mine = entitySnapshot.Mines[mineIndex];
+            CaptureProjectileInterpolationTarget(mine.Id, mine.OwnerId, mine.X, mine.Y, new Vector2(mine.VelocityX, mine.VelocityY), 18f, snapshotServerTimeSeconds);
+        }
+
+        for (var grenadeIndex = 0; grenadeIndex < entitySnapshot.Grenades.Count; grenadeIndex += 1)
+        {
+            var grenade = entitySnapshot.Grenades[grenadeIndex];
+            CaptureProjectileInterpolationTarget(
+                grenade.Id,
+                grenade.OwnerId,
+                grenade.X,
+                grenade.Y,
+                new Vector2(grenade.VelocityX, grenade.VelocityY),
+                24f,
+                snapshotServerTimeSeconds,
+                new Vector2(grenade.PreviousX, grenade.PreviousY));
+        }
+
+        CaptureIntelInterpolationTarget((PlayerTeam)resolvedSnapshot.RedIntel.Team, resolvedSnapshot.RedIntel.X, resolvedSnapshot.RedIntel.Y, snapshotServerTimeSeconds);
+        CaptureIntelInterpolationTarget((PlayerTeam)resolvedSnapshot.BlueIntel.Team, resolvedSnapshot.BlueIntel.X, resolvedSnapshot.BlueIntel.Y, snapshotServerTimeSeconds);
+    }
+
+    private void CaptureFreshRemotePlayerInterpolationTargets(
+        SnapshotMessage rawSnapshot,
+        SnapshotMessage resolvedSnapshot,
+        double snapshotServerTimeSeconds)
+    {
+        for (var playerIndex = 0; playerIndex < rawSnapshot.Players.Count; playerIndex += 1)
+        {
+            var player = rawSnapshot.Players[playerIndex];
             if (player.Slot >= SimulationWorld.FirstSpectatorSlot || player.IsSpectator)
             {
                 continue;
@@ -436,81 +695,200 @@ public partial class Game1
             AppendRemotePlayerSnapshot(player, snapshotServerTimeSeconds);
         }
 
-        for (var deadBodyIndex = 0; deadBodyIndex < snapshot.DeadBodies.Count; deadBodyIndex += 1)
+        if (rawSnapshot.PlayerMovementStates.Count == 0)
         {
-            var deadBody = snapshot.DeadBodies[deadBodyIndex];
-            CaptureEntityInterpolationTarget(true, deadBody.Id, deadBody.X, deadBody.Y, Vector2.Zero, 0f, 0f, snapshotServerTimeSeconds);
+            return;
         }
 
-        for (var sentryIndex = 0; sentryIndex < snapshot.Sentries.Count; sentryIndex += 1)
+        for (var movementIndex = 0; movementIndex < rawSnapshot.PlayerMovementStates.Count; movementIndex += 1)
         {
-            var sentry = snapshot.Sentries[sentryIndex];
-            CaptureEntityInterpolationTarget(true, sentry.Id, sentry.X, sentry.Y, Vector2.Zero, 0f, 0f, snapshotServerTimeSeconds);
+            var movement = rawSnapshot.PlayerMovementStates[movementIndex];
+            if (!TryFindResolvedPlayerBySlot(resolvedSnapshot.Players, movement.Slot, out var resolvedPlayer)
+                || resolvedPlayer.Slot >= SimulationWorld.FirstSpectatorSlot
+                || resolvedPlayer.IsSpectator)
+            {
+                continue;
+            }
+
+            AppendRemotePlayerSnapshot(resolvedPlayer, movement, snapshotServerTimeSeconds);
+        }
+    }
+
+    private static bool TryFindResolvedPlayerBySlot(
+        IReadOnlyList<SnapshotPlayerState> players,
+        byte slot,
+        out SnapshotPlayerState player)
+    {
+        for (var playerIndex = 0; playerIndex < players.Count; playerIndex += 1)
+        {
+            var candidate = players[playerIndex];
+            if (candidate.Slot == slot)
+            {
+                player = candidate;
+                return true;
+            }
         }
 
-        for (var shotIndex = 0; shotIndex < snapshot.Shots.Count; shotIndex += 1)
+        player = null!;
+        return false;
+    }
+
+    private int CountBaselineCarriedPlayerSamples(SnapshotMessage rawSnapshot, SnapshotMessage resolvedSnapshot)
+    {
+        if (!rawSnapshot.IsDelta || resolvedSnapshot.Players.Count == 0)
         {
-            var shot = snapshot.Shots[shotIndex];
-            CaptureProjectileInterpolationTarget(shot.Id, shot.OwnerId, shot.X, shot.Y, new Vector2(shot.VelocityX, shot.VelocityY), 18f, snapshotServerTimeSeconds);
+            return 0;
         }
 
-        for (var bubbleIndex = 0; bubbleIndex < snapshot.Bubbles.Count; bubbleIndex += 1)
+        Span<bool> freshSlots = stackalloc bool[256];
+        for (var playerIndex = 0; playerIndex < rawSnapshot.Players.Count; playerIndex += 1)
         {
-            var bubble = snapshot.Bubbles[bubbleIndex];
-            CaptureProjectileInterpolationTarget(bubble.Id, bubble.OwnerId, bubble.X, bubble.Y, new Vector2(bubble.VelocityX, bubble.VelocityY), 18f, snapshotServerTimeSeconds);
+            freshSlots[rawSnapshot.Players[playerIndex].Slot] = true;
         }
 
-        for (var bladeIndex = 0; bladeIndex < snapshot.Blades.Count; bladeIndex += 1)
+        for (var movementIndex = 0; movementIndex < rawSnapshot.PlayerMovementStates.Count; movementIndex += 1)
         {
-            var blade = snapshot.Blades[bladeIndex];
-            CaptureProjectileInterpolationTarget(blade.Id, blade.OwnerId, blade.X, blade.Y, new Vector2(blade.VelocityX, blade.VelocityY), 18f, snapshotServerTimeSeconds);
+            freshSlots[rawSnapshot.PlayerMovementStates[movementIndex].Slot] = true;
         }
 
-        for (var shotIndex = 0; shotIndex < snapshot.RevolverShots.Count; shotIndex += 1)
+        var carriedCount = 0;
+        for (var playerIndex = 0; playerIndex < resolvedSnapshot.Players.Count; playerIndex += 1)
         {
-            var shot = snapshot.RevolverShots[shotIndex];
-            CaptureProjectileInterpolationTarget(shot.Id, shot.OwnerId, shot.X, shot.Y, new Vector2(shot.VelocityX, shot.VelocityY), 20f, snapshotServerTimeSeconds);
+            var player = resolvedSnapshot.Players[playerIndex];
+            if (player.Slot >= SimulationWorld.FirstSpectatorSlot
+                || player.IsSpectator
+                || freshSlots[player.Slot])
+            {
+                continue;
+            }
+
+            carriedCount += 1;
         }
 
-        for (var needleIndex = 0; needleIndex < snapshot.Needles.Count; needleIndex += 1)
+        return carriedCount;
+    }
+
+    private void ClearRemovedInterpolationTargets(SnapshotMessage snapshot)
+    {
+        ClearRemovedInterpolationTargets(snapshot.RemovedShotIds);
+        ClearRemovedInterpolationTargets(snapshot.RemovedBubbleIds);
+        ClearRemovedInterpolationTargets(snapshot.RemovedBladeIds);
+        ClearRemovedInterpolationTargets(snapshot.RemovedNeedleIds);
+        ClearRemovedInterpolationTargets(snapshot.RemovedRevolverShotIds);
+        ClearRemovedInterpolationTargets(snapshot.RemovedRocketIds);
+        ClearRemovedInterpolationTargets(snapshot.RemovedFlameIds);
+        ClearRemovedInterpolationTargets(snapshot.RemovedFlareIds);
+        ClearRemovedInterpolationTargets(snapshot.RemovedMineIds);
+        ClearRemovedInterpolationTargets(snapshot.RemovedGrenadeIds);
+        ClearRemovedInterpolationTargets(snapshot.RemovedSentryIds);
+        ClearRemovedInterpolationTargets(snapshot.RemovedDeadBodyIds);
+        ClearRemovedInterpolationTargets(snapshot.RemovedSentryGibIds);
+        ClearRemovedInterpolationTargets(snapshot.RemovedJumpPadIds);
+        ClearRemovedInterpolationTargets(snapshot.RemovedJumpPadGibIds);
+        ClearRemovedInterpolationTargets(snapshot.RemovedPlayerGibIds);
+    }
+
+    private void ClearRemovedInterpolationTargets(IReadOnlyList<int> removedIds)
+    {
+        for (var index = 0; index < removedIds.Count; index += 1)
         {
-            var needle = snapshot.Needles[needleIndex];
-            CaptureProjectileInterpolationTarget(needle.Id, needle.OwnerId, needle.X, needle.Y, new Vector2(needle.VelocityX, needle.VelocityY), 30f, snapshotServerTimeSeconds);
+            ClearSnapshotProjectileInterpolationTarget(removedIds[index]);
+        }
+    }
+
+    private void RefreshRetainedInterpolationHistories(SnapshotMessage snapshot)
+    {
+        if (!_networkClient.IsConnected)
+        {
+            return;
         }
 
-        for (var flameIndex = 0; flameIndex < snapshot.Flames.Count; flameIndex += 1)
+        var snapshotServerTimeSeconds = GetSnapshotTimelineTimeSeconds(snapshot.Frame, snapshot.TickRate);
+        foreach (var sentry in _world.Sentries)
         {
-            var flame = snapshot.Flames[flameIndex];
-            CaptureProjectileInterpolationTarget(flame.Id, flame.OwnerId, flame.X, flame.Y, new Vector2(flame.VelocityX, flame.VelocityY), 36f, snapshotServerTimeSeconds);
+            RefreshRetainedEntityInterpolationHistory(
+                sentry.Id,
+                new Vector2(sentry.X, sentry.Y),
+                Vector2.Zero,
+                0f,
+                0f,
+                snapshotServerTimeSeconds);
         }
 
-        for (var flareIndex = 0; flareIndex < snapshot.Flares.Count; flareIndex += 1)
+        foreach (var flame in _world.Flames)
         {
-            var flare = snapshot.Flares[flareIndex];
-            CaptureProjectileInterpolationTarget(flare.Id, flare.OwnerId, flare.X, flare.Y, new Vector2(flare.VelocityX, flare.VelocityY), 15f, snapshotServerTimeSeconds);
+            if (flame.IsAttached && ShouldCaptureSnapshotProjectileInterpolation(flame.OwnerId))
+            {
+                RefreshRetainedEntityInterpolationHistory(
+                    flame.Id,
+                    new Vector2(flame.X, flame.Y),
+                    Vector2.Zero,
+                    0f,
+                    0f,
+                    snapshotServerTimeSeconds);
+            }
         }
 
-        for (var rocketIndex = 0; rocketIndex < snapshot.Rockets.Count; rocketIndex += 1)
+        foreach (var mine in _world.Mines)
         {
-            var rocket = snapshot.Rockets[rocketIndex];
-            var rocketVelocity = new Vector2(MathF.Cos(rocket.DirectionRadians) * rocket.Speed, MathF.Sin(rocket.DirectionRadians) * rocket.Speed);
-            CaptureProjectileInterpolationTarget(rocket.Id, rocket.OwnerId, rocket.X, rocket.Y, rocketVelocity, 24f, snapshotServerTimeSeconds);
+            if (mine.IsStickied && ShouldCaptureSnapshotProjectileInterpolation(mine.OwnerId))
+            {
+                RefreshRetainedEntityInterpolationHistory(
+                    mine.Id,
+                    new Vector2(mine.X, mine.Y),
+                    Vector2.Zero,
+                    0f,
+                    0f,
+                    snapshotServerTimeSeconds);
+            }
         }
 
-        for (var mineIndex = 0; mineIndex < snapshot.Mines.Count; mineIndex += 1)
+        RefreshRetainedIntelInterpolationHistory(_world.RedIntel, snapshotServerTimeSeconds);
+        RefreshRetainedIntelInterpolationHistory(_world.BlueIntel, snapshotServerTimeSeconds);
+    }
+
+    private void RefreshRetainedEntityInterpolationHistory(
+        int entityId,
+        Vector2 position,
+        Vector2 velocity,
+        float extrapolationDurationSeconds,
+        float maxExtrapolationDistance,
+        double snapshotTimeSeconds)
+    {
+        if (!_entitySnapshotHistories.ContainsKey(entityId))
         {
-            var mine = snapshot.Mines[mineIndex];
-            CaptureProjectileInterpolationTarget(mine.Id, mine.OwnerId, mine.X, mine.Y, new Vector2(mine.VelocityX, mine.VelocityY), 18f, snapshotServerTimeSeconds);
+            return;
         }
 
-        for (var grenadeIndex = 0; grenadeIndex < snapshot.Grenades.Count; grenadeIndex += 1)
+        AppendEntitySnapshot(
+            _entitySnapshotHistories,
+            entityId,
+            position,
+            velocity,
+            snapshotTimeSeconds,
+            extrapolationDurationSeconds,
+            maxExtrapolationDistance,
+            ignoreUnchangedSample: true);
+        _entityInterpolationTracks.Remove(entityId);
+    }
+
+    private void RefreshRetainedIntelInterpolationHistory(TeamIntelligenceState intelState, double snapshotTimeSeconds)
+    {
+        if (!_intelSnapshotHistories.ContainsKey(intelState.Team))
         {
-            var grenade = snapshot.Grenades[grenadeIndex];
-            CaptureProjectileInterpolationTarget(grenade.Id, grenade.OwnerId, grenade.X, grenade.Y, new Vector2(grenade.VelocityX, grenade.VelocityY), 24f, snapshotServerTimeSeconds);
+            return;
         }
 
-        CaptureIntelInterpolationTarget((PlayerTeam)snapshot.RedIntel.Team, snapshot.RedIntel.X, snapshot.RedIntel.Y, snapshotServerTimeSeconds);
-        CaptureIntelInterpolationTarget((PlayerTeam)snapshot.BlueIntel.Team, snapshot.BlueIntel.X, snapshot.BlueIntel.Y, snapshotServerTimeSeconds);
+        AppendEntitySnapshot(
+            _intelSnapshotHistories,
+            intelState.Team,
+            new Vector2(intelState.X, intelState.Y),
+            Vector2.Zero,
+            snapshotTimeSeconds,
+            0f,
+            0f,
+            ignoreUnchangedSample: true);
+        _intelInterpolationTracks.Remove(intelState.Team);
     }
 
     private void UpdateSnapshotTiming(ulong snapshotFrame, int tickRate, int burstCount)
@@ -521,6 +899,7 @@ public partial class Game1
             : 1f / SimulationConfig.DefaultTicksPerSecond;
         var snapshotReceivedTimeSeconds = _networkInterpolationClockSeconds;
         var snapshotServerTimeSeconds = GetSnapshotTimelineTimeSeconds(snapshotFrame, tickRate);
+        var wasAwaitingFirstSnapshot = !_hasReceivedSnapshot;
         if (_hasReceivedSnapshot)
         {
             var observedIntervalSecondsTotal = (float)Math.Max(
@@ -550,6 +929,16 @@ public partial class Game1
             _smoothedSnapshotIntervalSeconds = baseIntervalSeconds;
             _smoothedSnapshotJitterSeconds = 0f;
             _hasReceivedSnapshot = true;
+        }
+
+        if (wasAwaitingFirstSnapshot)
+        {
+            _networkInterpolationWarmupSnapshotsRemaining = Math.Max(0, NetworkInterpolationWarmupSnapshotCount - 1);
+            _networkInterpolationWarmupUntilClockSeconds = snapshotReceivedTimeSeconds + NetworkInterpolationWarmupSeconds;
+        }
+        else if (_networkInterpolationWarmupSnapshotsRemaining > 0)
+        {
+            _networkInterpolationWarmupSnapshotsRemaining -= 1;
         }
 
         _lastSnapshotReceivedTimeSeconds = snapshotReceivedTimeSeconds;
@@ -597,6 +986,24 @@ public partial class Game1
             _remotePlayerInterpolationBackTimeSeconds,
             minimumRemoteBackTimeSeconds,
             maximumRemoteBackTimeSeconds);
+
+        var desiredProjectileBackTimeSeconds = NetworkInterpolationPolicy.CalculateProjectileBackTimeSeconds(
+            _networkSnapshotInterpolationDurationSeconds,
+            _smoothedSnapshotIntervalSeconds,
+            _smoothedSnapshotJitterSeconds,
+            _config.TicksPerSecond,
+            ExpectedProjectileUpdateIntervalTicks,
+            ProjectileMinimumInterpolationBackTimeSeconds,
+            ProjectileMaximumInterpolationBackTimeSeconds);
+        var projectileBackTimeAdjustmentAlpha = desiredProjectileBackTimeSeconds >= _projectileInterpolationBackTimeSeconds
+            ? 0.55f
+            : 0.25f;
+        _projectileInterpolationBackTimeSeconds +=
+            (desiredProjectileBackTimeSeconds - _projectileInterpolationBackTimeSeconds) * projectileBackTimeAdjustmentAlpha;
+        _projectileInterpolationBackTimeSeconds = Math.Clamp(
+            _projectileInterpolationBackTimeSeconds,
+            ProjectileMinimumInterpolationBackTimeSeconds,
+            ProjectileMaximumInterpolationBackTimeSeconds);
     }
 
     private void CaptureEntityInterpolationTarget(bool isActive, int entityId, float x, float y)
@@ -683,6 +1090,23 @@ public partial class Game1
                 (PlayerTeam)player.Team,
                 (PlayerClass)player.ClassId,
                 player.IsAlive));
+    }
+
+    private void AppendRemotePlayerSnapshot(
+        SnapshotPlayerState resolvedPlayer,
+        SnapshotPlayerMovementState movement,
+        double snapshotTimeSeconds)
+    {
+        AppendRemotePlayerSnapshot(
+            resolvedPlayer.PlayerId,
+            new PlayerSnapshotSample(
+                new Vector2(movement.X, movement.Y),
+                new Vector2(movement.HorizontalSpeed, movement.VerticalSpeed),
+                new Vector2(resolvedPlayer.AimWorldX, resolvedPlayer.AimWorldY),
+                snapshotTimeSeconds,
+                (PlayerTeam)resolvedPlayer.Team,
+                (PlayerClass)resolvedPlayer.ClassId,
+                resolvedPlayer.IsAlive));
     }
 
     private void AppendRemotePlayerSnapshot(int playerId, PlayerSnapshotSample sample)
@@ -940,7 +1364,15 @@ public partial class Game1
         return _latestSnapshotServerTimeSeconds + localElapsedSinceSnapshotSeconds;
     }
 
-    private void CaptureProjectileInterpolationTarget(int entityId, int ownerId, float x, float y, Vector2 velocity, float maxExtrapolationDistance, double snapshotTimeSeconds)
+    private void CaptureProjectileInterpolationTarget(
+        int entityId,
+        int ownerId,
+        float x,
+        float y,
+        Vector2 velocity,
+        float maxExtrapolationDistance,
+        double snapshotTimeSeconds,
+        Vector2? previousPosition = null)
     {
         if (!ShouldCaptureSnapshotProjectileInterpolation(ownerId))
         {
@@ -969,6 +1401,25 @@ public partial class Game1
         var projectileMaxExtrapolationDistance = MathF.Max(
             maxExtrapolationDistance,
             projectileVelocityPerSecond.Length() * extrapolationDurationSeconds);
+        if (previousPosition.HasValue
+            && !_entitySnapshotHistories.ContainsKey(entityId)
+            && previousPosition.Value != new Vector2(x, y))
+        {
+            var previousSnapshotTimeSeconds = snapshotTimeSeconds - Math.Max(
+                1d / Math.Max(1, _config.TicksPerSecond),
+                _smoothedSnapshotIntervalSeconds);
+            AppendEntitySnapshot(
+                _entitySnapshotHistories,
+                entityId,
+                previousPosition.Value,
+                projectileVelocityPerSecond,
+                previousSnapshotTimeSeconds,
+                extrapolationDurationSeconds,
+                projectileMaxExtrapolationDistance,
+                ignoreUnchangedSample: true);
+            _entitySnapshotHistoryKinds[entityId] = NetworkDiagnosticEntityInterpolationKind.Projectile;
+        }
+
         CaptureEntityInterpolationTarget(
             true,
             entityId,
@@ -978,7 +1429,8 @@ public partial class Game1
             extrapolationDurationSeconds,
             projectileMaxExtrapolationDistance,
             snapshotTimeSeconds,
-            ignoreUnchangedSample: true);
+            ignoreUnchangedSample: true,
+            kind: NetworkDiagnosticEntityInterpolationKind.Projectile);
     }
 
     private bool ShouldCaptureSnapshotProjectileInterpolation(int ownerId)
@@ -993,6 +1445,7 @@ public partial class Game1
     {
         _entityInterpolationTracks.Remove(entityId);
         _entitySnapshotHistories.Remove(entityId);
+        _entitySnapshotHistoryKinds.Remove(entityId);
         _interpolatedEntityPositions.Remove(entityId);
     }
 
@@ -1005,12 +1458,14 @@ public partial class Game1
         float extrapolationDurationSeconds,
         float maxExtrapolationDistance,
         double snapshotTimeSeconds,
-        bool ignoreUnchangedSample = false)
+        bool ignoreUnchangedSample = false,
+        NetworkDiagnosticEntityInterpolationKind kind = NetworkDiagnosticEntityInterpolationKind.Other)
     {
         if (!isActive)
         {
             _entityInterpolationTracks.Remove(entityId);
             _entitySnapshotHistories.Remove(entityId);
+            _entitySnapshotHistoryKinds.Remove(entityId);
             _interpolatedEntityPositions[entityId] = new Vector2(x, y);
             return;
         }
@@ -1024,6 +1479,7 @@ public partial class Game1
             extrapolationDurationSeconds,
             maxExtrapolationDistance,
             ignoreUnchangedSample);
+        _entitySnapshotHistoryKinds[entityId] = kind;
         _entityInterpolationTracks.Remove(entityId);
     }
 
@@ -1070,10 +1526,16 @@ public partial class Game1
                 && latest.Position == sample.Position
                 && latest.Velocity == sample.Velocity)
             {
-                return;
+                if (sample.TimeSeconds <= latest.TimeSeconds)
+                {
+                    history[^1] = sample;
+                }
+                else
+                {
+                    history.Add(sample);
+                }
             }
-
-            if (sample.TimeSeconds <= latest.TimeSeconds)
+            else if (sample.TimeSeconds <= latest.TimeSeconds)
             {
                 history[^1] = sample;
             }
@@ -1150,7 +1612,7 @@ public partial class Game1
     private Vector2 EvaluateEntityHistoryStartupSample(EntitySnapshotSample sample, double renderTimeSeconds, int entityId)
     {
         var evaluationTimeSeconds = renderTimeSeconds;
-        if (sample.Velocity != Vector2.Zero)
+        if (sample.Velocity != Vector2.Zero && !IsNetworkInterpolationWarmupActive())
         {
             evaluationTimeSeconds = Math.Max(renderTimeSeconds, GetEstimatedServerTimeSeconds());
         }
@@ -1383,6 +1845,18 @@ public partial class Game1
             RemotePlayerMinimumInterpolationBackTimeSeconds,
             ProjectileInterpolationExtrapolationCeilingSeconds);
         return GetSnapshotRenderTimeSeconds(entityBackTimeSeconds);
+    }
+
+    private double GetProjectileRenderTimeSeconds()
+    {
+        return GetSnapshotRenderTimeSeconds(_projectileInterpolationBackTimeSeconds);
+    }
+
+    private bool IsNetworkInterpolationWarmupActive()
+    {
+        return _networkInterpolationWarmupSnapshotsRemaining > 0
+            || (_networkInterpolationWarmupUntilClockSeconds >= 0d
+                && _networkInterpolationClockSeconds < _networkInterpolationWarmupUntilClockSeconds);
     }
 
     private Vector2 EvaluateInterpolationTrack(InterpolationTrack track)

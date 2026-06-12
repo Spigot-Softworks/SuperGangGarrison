@@ -387,6 +387,13 @@ function plugin.on_heal(e)
 end
 
 function plugin.on_local_damage(e)
+    local target_kind = e.targetKind or e.target_kind
+    local target_entity_id = e.targetEntityId or e.target_entity_id
+    local attacker_player_id = e.attackerPlayerId or e.attacker_player_id
+    if target_kind == "Player" and attacker_player_id ~= nil and attacker_player_id == target_entity_id then
+        return
+    end
+
     local dealt = e.dealtByLocalPlayer or e.dealt_by_local_player
     local assisted = e.assistedByLocalPlayer or e.assisted_by_local_player
     if not dealt and not assisted then
@@ -406,8 +413,6 @@ function plugin.on_local_damage(e)
         return
     end
 
-    local target_kind = e.targetKind or e.target_kind
-    local target_entity_id = e.targetEntityId or e.target_entity_id
     local target_world_x = e.targetWorldX or e.target_world_x or 0.0
     local target_world_y = e.targetWorldY or e.target_world_y or 0.0
     local airshot = e.airshot == true or e.flagsAirshot == true or e.flags_airshot == true

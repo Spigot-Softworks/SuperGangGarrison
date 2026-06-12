@@ -1,0 +1,39 @@
+{
+  "id": "ability.umbrella",
+  "displayName": "Umbrella Shield",
+  "slot": "Secondary",
+  "behaviorId": "builtin.ability.civvie_umbrella",
+  "ability": {
+    "category": "secondary",
+    "activation": "held",
+    "executorId": "builtin.ability.civvie_umbrella",
+    "tags": [ "airblast", "shield", "cooldown" ],
+    "parameters": {
+      "maxChargeTicks": 360,
+      "holdDrainPerTick": 1,
+      "rechargePerTick": 1,
+      "impactDrain": 30,
+      "brokenRechargeDelayTicks": 0,
+      "airblastCooldownTicks": 28
+    }
+  },
+  "ammo": {},
+  "presentation": {
+    "worldSpriteName": "CivvieUmbrellaOpenAnimS",
+    "hudSpriteName": "CivvieUmbrellaAbilityHudS",
+    "weaponOffsetX": -16.0,
+    "weaponOffsetY": -25.0,
+    "blueTeamHudFrameOffset": 1,
+    "hud": {
+      "displayKind": "meter",
+      "stackGroup": "ability",
+      "order": 20,
+      "stateProvider": "abilityCooldown",
+      "stateOwner": "core.ability",
+      "cooldownKey": "civvie_umbrella_cooldown_ticks",
+      "maxCooldown": 360,
+      "activeKey": "civvie_umbrella_active",
+      "disabledKey": "civvie_umbrella_disabled"
+    }
+  }
+}

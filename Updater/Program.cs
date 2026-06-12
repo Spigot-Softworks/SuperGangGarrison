@@ -9,6 +9,7 @@ using System.Security.Cryptography;
 
 const string UpdateManifestBaseUrl = "https://api.unkind-dev.com/updates";
 const string VersionFileName = "version.txt";
+const string ReleaseChannelFileName = "release-channel.txt";
 const string ApplyUpdateArgument = "--apply-update";
 
 if (args.Length > 0 && string.Equals(args[0], ApplyUpdateArgument, StringComparison.Ordinal))
@@ -19,18 +20,20 @@ if (args.Length > 0 && string.Equals(args[0], ApplyUpdateArgument, StringCompari
 
 var appDirectory = AppContext.BaseDirectory;
 var manifestUrl = Environment.GetEnvironmentVariable("OPENGARRISON_UPDATE_MANIFEST");
+var expectedManifestChannel = string.Empty;
 if (string.IsNullOrWhiteSpace(manifestUrl))
 {
-    manifestUrl = GetDefaultManifestUrl();
+    expectedManifestChannel = GetUpdateChannel(appDirectory);
+    manifestUrl = GetDefaultManifestUrl(expectedManifestChannel);
 }
 
-LogUpdaterEvent(appDirectory, $"starting updater appDirectory=\"{appDirectory}\" manifestUrl=\"{manifestUrl}\"");
+LogUpdaterEvent(appDirectory, $"starting updater appDirectory=\"{appDirectory}\" manifestUrl=\"{manifestUrl}\" channel=\"{(string.IsNullOrWhiteSpace(expectedManifestChannel) ? "override" : expectedManifestChannel)}\"");
 
 using var updateUi = UpdateUi.Create();
 var launchGame = true;
 try
 {
-    var result = await TryApplyUpdateAsync(appDirectory, manifestUrl, args, updateUi).ConfigureAwait(false);
+    var result = await TryApplyUpdateAsync(appDirectory, manifestUrl, expectedManifestChannel, args, updateUi).ConfigureAwait(false);
     launchGame = result != UpdateApplyResult.DelegatedToHelper;
 }
 catch (OperationCanceledException)
@@ -88,6 +91,12 @@ static async Task RunApplyUpdateModeAsync(string[] args)
         EnsurePackagedExecutablePermissions(destinationDirectory);
 
         File.WriteAllText(Path.Combine(destinationDirectory, VersionFileName), version.Trim());
+        var releaseChannel = ReadReleaseChannelFile(sourceDirectory);
+        if (!string.IsNullOrWhiteSpace(releaseChannel))
+        {
+            File.WriteAllText(Path.Combine(destinationDirectory, ReleaseChannelFileName), releaseChannel);
+        }
+
         updateUi.Report(UpdateUiState.KnownProgress("Launching updated version...", 1d));
         await Task.Delay(300).ConfigureAwait(false);
     }
@@ -140,6 +149,7 @@ static void WaitForProcessExit(int processId, TimeSpan timeout)
 static async Task<UpdateApplyResult> TryApplyUpdateAsync(
     string appDirectory,
     string manifestUrl,
+    string expectedManifestChannel,
     string[] gameArgs,
     IUpdateUi updateUi)
 {
@@ -155,11 +165,19 @@ static async Task<UpdateApplyResult> TryApplyUpdateAsync(
         return UpdateApplyResult.NoUpdate;
     }
 
+    if (!string.IsNullOrWhiteSpace(expectedManifestChannel)
+        && !string.IsNullOrWhiteSpace(manifest.Channel)
+        && !string.Equals(NormalizeUpdateChannel(manifest.Channel), expectedManifestChannel, StringComparison.OrdinalIgnoreCase))
+    {
+        LogUpdaterEvent(appDirectory, $"update manifest channel mismatch manifest=\"{manifest.Channel}\" expected=\"{expectedManifestChannel}\"");
+        return UpdateApplyResult.NoUpdate;
+    }
+
     var detectedCurrentVersion = ReadCurrentVersion(appDirectory);
     var currentVersion = NormalizeCurrentVersionForManifest(detectedCurrentVersion, manifest.Version);
     LogUpdaterEvent(
         appDirectory,
-        $"update manifest version=\"{manifest.Version}\" current=\"{currentVersion}\" detectedCurrent=\"{detectedCurrentVersion}\" channel=\"{manifest.Channel}\" package=\"{manifest.Url}\"");
+        $"update manifest version=\"{manifest.Version}\" current=\"{currentVersion}\" detectedCurrent=\"{detectedCurrentVersion.Version}\" versionSource=\"{(detectedCurrentVersion.FromVersionFile ? "version.txt" : "fileVersion")}\" channel=\"{manifest.Channel}\" package=\"{manifest.Url}\"");
     if (!IsNewerVersion(manifest.Version, currentVersion))
     {
         LogUpdaterEvent(appDirectory, $"no update available manifest=\"{manifest.Version}\" current=\"{currentVersion}\"");
@@ -214,9 +232,52 @@ static async Task<UpdateApplyResult> TryApplyUpdateAsync(
     return UpdateApplyResult.NoUpdate;
 }
 
-static string GetDefaultManifestUrl()
+static string GetDefaultManifestUrl(string channel)
 {
-    return $"{UpdateManifestBaseUrl}/{GetUpdatePlatformSegment()}/stable/latest.json";
+    return $"{UpdateManifestBaseUrl}/{GetUpdatePlatformSegment()}/{NormalizeUpdateChannel(channel)}/latest.json";
+}
+
+static string GetUpdateChannel(string appDirectory)
+{
+    var overrideChannel = Environment.GetEnvironmentVariable("OPENGARRISON_UPDATE_CHANNEL");
+    if (!string.IsNullOrWhiteSpace(overrideChannel))
+    {
+        return NormalizeUpdateChannel(overrideChannel);
+    }
+
+    overrideChannel = Environment.GetEnvironmentVariable("OPENGARRISON_RELEASE_CHANNEL");
+    if (!string.IsNullOrWhiteSpace(overrideChannel))
+    {
+        return NormalizeUpdateChannel(overrideChannel);
+    }
+
+    var fileChannel = ReadReleaseChannelFile(appDirectory);
+    return string.IsNullOrWhiteSpace(fileChannel)
+        ? "stable"
+        : NormalizeUpdateChannel(fileChannel);
+}
+
+static string ReadReleaseChannelFile(string directory)
+{
+    try
+    {
+        var path = Path.Combine(directory, ReleaseChannelFileName);
+        return File.Exists(path)
+            ? File.ReadAllText(path).Trim()
+            : string.Empty;
+    }
+    catch
+    {
+        return string.Empty;
+    }
+}
+
+static string NormalizeUpdateChannel(string channel)
+{
+    var normalized = channel.Trim().ToLowerInvariant();
+    return normalized is "stable" or "beta"
+        ? normalized
+        : "stable";
 }
 
 static string GetUpdatePlatformSegment()
@@ -496,12 +557,12 @@ static string FormatBytes(long bytes)
     return $"{bytes} B";
 }
 
-static string ReadCurrentVersion(string appDirectory)
+static CurrentVersionInfo ReadCurrentVersion(string appDirectory)
 {
     var versionPath = Path.Combine(appDirectory, VersionFileName);
     if (File.Exists(versionPath))
     {
-        return File.ReadAllText(versionPath).Trim();
+        return new CurrentVersionInfo(File.ReadAllText(versionPath).Trim(), FromVersionFile: true);
     }
 
     var gamePath = GetGameExecutablePath(appDirectory);
@@ -510,20 +571,21 @@ static string ReadCurrentVersion(string appDirectory)
         var version = FileVersionInfo.GetVersionInfo(gamePath).ProductVersion;
         if (!string.IsNullOrWhiteSpace(version))
         {
-            return version.Trim();
+            return new CurrentVersionInfo(version.Trim(), FromVersionFile: false);
         }
     }
 
-    return "0.0.0";
+    return new CurrentVersionInfo("0.0.0", FromVersionFile: false);
 }
 
-static string NormalizeCurrentVersionForManifest(string currentVersion, string manifestVersion)
+static string NormalizeCurrentVersionForManifest(CurrentVersionInfo currentVersion, string manifestVersion)
 {
-    if (!IsDefaultSdkVersionLabel(currentVersion)
+    if (currentVersion.FromVersionFile
+        || !IsDefaultSdkVersionLabel(currentVersion.Version)
         || !TryParseComparableVersion(manifestVersion, out var parsedManifestVersion)
         || parsedManifestVersion.Major != 0)
     {
-        return currentVersion;
+        return currentVersion.Version;
     }
 
     return "0.0.0";
@@ -791,6 +853,8 @@ internal sealed class UpdateManifest
 
     public string NotesUrl { get; set; } = string.Empty;
 }
+
+internal readonly record struct CurrentVersionInfo(string Version, bool FromVersionFile);
 
 internal interface IUpdateUi : IDisposable
 {

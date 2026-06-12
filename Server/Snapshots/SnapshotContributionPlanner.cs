@@ -6,6 +6,13 @@ using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Server;
 
+internal readonly record struct SnapshotContributionPlanningContext(
+    byte ViewerSlot,
+    float FocusX,
+    float FocusY,
+    long Frame,
+    int? ClientAuthoritativePlayerId);
+
 internal static class SnapshotContributionPlanner
 {
     private const int PlayerUpdatePriority = 1500;
@@ -18,10 +25,10 @@ internal static class SnapshotContributionPlanner
     // Byte budget estimates per player contribution type. These must stay at or above the
     // true serialized size so the budgeter does not over-admit contributions.
     // SnapshotPlayerFixedBytes accounts for the full WriteSnapshotPlayers entry:
-    //   ~247 fixed bytes (all strings cache-hit, empty owned-item / replicated-state lists)
+    //   ~251 fixed bytes (all strings cache-hit, empty owned-item / replicated-state lists)
     //   + ~18 bytes for a typical player name (16 chars + 2-byte length prefix)
-    //   = ~265 bytes. Keep a small margin above the true value.
-    private const int SnapshotPlayerFixedBytes = 265;
+    //   = ~269 bytes. Keep a small margin above the true value.
+    private const int SnapshotPlayerFixedBytes = 269;
     private const int SnapshotPlayerMovementBytes = 28;
     private const int SnapshotPlayerStatusBytes = 20;
     private const string CoreReplicatedOwnerId = "core.player";
@@ -29,8 +36,9 @@ internal static class SnapshotContributionPlanner
     //   (1 slot + 2 flag bytes + 1 spy-cloak byte + 14 uint16 fields × 2 bytes each)
     private const int SnapshotPlayerExtendedStatusBytes = 32;
     private const int SnapshotPlayerChatBubbleBytes = 10;
-    private const int ProjectileSnapshotUpdateIntervalTicks = 3;
-    private const int ProjectileMotionBackfillPriorityPenalty = 320;
+    private const int PlayerMovementHeartbeatIntervalTicks = 1;
+    private const int ProjectileSnapshotUpdateIntervalTicks = 1;
+    private const int ProjectileMotionBackfillPriorityPenalty = 120;
     private const int CosmeticEntityUpdateIntervalTicks = 8;
     private const int LowFrequencyPlayerDetailRefreshIntervalTicks = 30;
 
@@ -40,9 +48,31 @@ internal static class SnapshotContributionPlanner
         ISnapshotBaselineState? baseline,
         SimulationWorld world)
     {
+        return BuildContributions(CreatePlanningContext(client, fullSnapshot, world), fullSnapshot, baseline);
+    }
+
+    public static SnapshotContributionPlanningContext CreatePlanningContext(
+        ClientSession client,
+        SnapshotMessage fullSnapshot,
+        SimulationWorld world)
+    {
         var focus = GetClientFocusPoint(client, world);
-        var frame = world.Frame;
-        var clientAuthoritativePlayerId = GetClientAuthoritativePlayerId(client, fullSnapshot);
+        return new SnapshotContributionPlanningContext(
+            client.Slot,
+            focus.X,
+            focus.Y,
+            world.Frame,
+            GetClientAuthoritativePlayerId(client, fullSnapshot));
+    }
+
+    public static List<SnapshotDeltaBudgeter.Contribution> BuildContributions(
+        SnapshotContributionPlanningContext context,
+        SnapshotMessage fullSnapshot,
+        ISnapshotBaselineState? baseline)
+    {
+        var focus = (X: context.FocusX, Y: context.FocusY);
+        var frame = context.Frame;
+        var clientAuthoritativePlayerId = context.ClientAuthoritativePlayerId;
         var contributions = new List<SnapshotDeltaBudgeter.Contribution>();
 
         AddPlayerDelta(
@@ -50,7 +80,7 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.Players,
             baseline?.Players ?? Array.Empty<SnapshotPlayerState>(),
             PlayerUpdatePriority,
-            client.Slot,
+            context.ViewerSlot,
             focus,
             frame);
 
@@ -472,7 +502,12 @@ internal static class SnapshotContributionPlanner
         {
             var player = currentPlayers[index];
             var isAddedPlayer = !baselineBySlot.TryGetValue(player.Slot, out var baselinePlayer);
-            if (!isAddedPlayer && EqualityComparer<SnapshotPlayerState>.Default.Equals(player, baselinePlayer))
+            var shouldHeartbeatMovement = !isAddedPlayer
+                && baselinePlayer is not null
+                && ShouldSendPlayerMovementHeartbeat(player, frame);
+            if (!isAddedPlayer
+                && !shouldHeartbeatMovement
+                && EqualityComparer<SnapshotPlayerState>.Default.Equals(player, baselinePlayer))
             {
                 continue;
             }
@@ -504,7 +539,7 @@ internal static class SnapshotContributionPlanner
                 continue;
             }
 
-            if (HasPlayerMovementChanged(player, baselinePlayer!))
+            if (shouldHeartbeatMovement || HasPlayerMovementChanged(player, baselinePlayer!))
             {
                 var movementState = ToPlayerMovementState(player);
                 var movementKind = player.Slot == viewerSlot
@@ -545,7 +580,9 @@ internal static class SnapshotContributionPlanner
                     DistanceSquared(focus.X, focus.Y, player.X, player.Y),
                     SnapshotPlayerExtendedStatusBytes,
                     builder => builder.PlayerExtendedStatusStates.Add(extendedStatusState),
-                    SnapshotDeltaBudgeter.ContributionKind.PlayerExtendedStatusUpdate));
+                    player.Slot == viewerSlot
+                        ? SnapshotDeltaBudgeter.ContributionKind.LocalPlayerExtendedStatusUpdate
+                        : SnapshotDeltaBudgeter.ContributionKind.PlayerExtendedStatusUpdate));
             }
 
             if (HasPlayerChatBubbleChanged(player, baselinePlayer!))
@@ -732,6 +769,9 @@ internal static class SnapshotContributionPlanner
             IsHeavyEating = baselinePlayer.IsHeavyEating,
             HeavyEatTicksRemaining = baselinePlayer.HeavyEatTicksRemaining,
             IsSniperScoped = baselinePlayer.IsSniperScoped,
+            IsUsingBinoculars = baselinePlayer.IsUsingBinoculars,
+            BinocularsFocusX = baselinePlayer.BinocularsFocusX,
+            BinocularsFocusY = baselinePlayer.BinocularsFocusY,
             MedicNeedleCooldownTicks = baselinePlayer.MedicNeedleCooldownTicks,
             MedicNeedleRefillTicks = baselinePlayer.MedicNeedleRefillTicks,
             PyroAirblastCooldownTicks = baselinePlayer.PyroAirblastCooldownTicks,
@@ -747,6 +787,10 @@ internal static class SnapshotContributionPlanner
             ChatBubbleFrameIndex = baselinePlayer.ChatBubbleFrameIndex,
             ChatBubbleAlpha = baselinePlayer.ChatBubbleAlpha,
             IsTypingChatMessage = baselinePlayer.IsTypingChatMessage,
+            BurnDurationSourceTicks = baselinePlayer.BurnDurationSourceTicks,
+            BurnDecayDelaySourceTicksRemaining = baselinePlayer.BurnDecayDelaySourceTicksRemaining,
+            BurnIntensityDecayPerSourceTick = baselinePlayer.BurnIntensityDecayPerSourceTick,
+            BurnedByPlayerId = baselinePlayer.BurnedByPlayerId,
             Kills = baselinePlayer.Kills,
             Deaths = baselinePlayer.Deaths,
             Caps = baselinePlayer.Caps,
@@ -758,7 +802,29 @@ internal static class SnapshotContributionPlanner
             Assists = baselinePlayer.Assists,
             BadgeMask = baselinePlayer.BadgeMask,
             OwnedGameplayItemIds = baselinePlayer.OwnedGameplayItemIds,
+            GameplayModPackId = baselinePlayer.GameplayModPackId,
+            GameplayLoadoutId = baselinePlayer.GameplayLoadoutId,
+            GameplayPrimaryItemId = baselinePlayer.GameplayPrimaryItemId,
+            GameplaySecondaryItemId = baselinePlayer.GameplaySecondaryItemId,
+            GameplayUtilityItemId = baselinePlayer.GameplayUtilityItemId,
+            GameplayEquippedItemId = baselinePlayer.GameplayEquippedItemId,
+            GameplayAcquiredItemId = baselinePlayer.GameplayAcquiredItemId,
+            GameplayModPackCacheId = baselinePlayer.GameplayModPackCacheId,
+            GameplayLoadoutCacheId = baselinePlayer.GameplayLoadoutCacheId,
+            GameplayPrimaryItemCacheId = baselinePlayer.GameplayPrimaryItemCacheId,
+            GameplaySecondaryItemCacheId = baselinePlayer.GameplaySecondaryItemCacheId,
+            GameplayUtilityItemCacheId = baselinePlayer.GameplayUtilityItemCacheId,
+            GameplayEquippedItemCacheId = baselinePlayer.GameplayEquippedItemCacheId,
+            GameplayAcquiredItemCacheId = baselinePlayer.GameplayAcquiredItemCacheId,
+            ReplicatedStates = baselinePlayer.ReplicatedStates,
+            PlayerScale = baselinePlayer.PlayerScale,
+            AimWorldX = baselinePlayer.AimWorldX,
+            AimWorldY = baselinePlayer.AimWorldY,
             GibDeaths = baselinePlayer.GibDeaths,
+            IsReady = baselinePlayer.IsReady,
+            GameplayClassId = baselinePlayer.GameplayClassId,
+            GameplayClassCacheId = baselinePlayer.GameplayClassCacheId,
+            PingMilliseconds = baselinePlayer.PingMilliseconds,
         };
     }
 
@@ -775,7 +841,32 @@ internal static class SnapshotContributionPlanner
             || player.Assists != baselinePlayer.Assists
             || player.BadgeMask != baselinePlayer.BadgeMask
             || !GameplayIdListsEqual(player.OwnedGameplayItemIds, baselinePlayer.OwnedGameplayItemIds)
-            || player.GibDeaths != baselinePlayer.GibDeaths;
+            || player.GibDeaths != baselinePlayer.GibDeaths
+            || player.PingMilliseconds != baselinePlayer.PingMilliseconds
+            || player.RespawnTicks != baselinePlayer.RespawnTicks
+            || player.IsUsingBinoculars != baselinePlayer.IsUsingBinoculars
+            || player.BinocularsFocusX != baselinePlayer.BinocularsFocusX
+            || player.BinocularsFocusY != baselinePlayer.BinocularsFocusY
+            || player.BurnDurationSourceTicks != baselinePlayer.BurnDurationSourceTicks
+            || player.BurnDecayDelaySourceTicksRemaining != baselinePlayer.BurnDecayDelaySourceTicksRemaining
+            || player.BurnIntensityDecayPerSourceTick != baselinePlayer.BurnIntensityDecayPerSourceTick
+            || player.BurnedByPlayerId != baselinePlayer.BurnedByPlayerId
+            || !string.Equals(player.GameplayModPackId, baselinePlayer.GameplayModPackId, StringComparison.Ordinal)
+            || !string.Equals(player.GameplayLoadoutId, baselinePlayer.GameplayLoadoutId, StringComparison.Ordinal)
+            || !string.Equals(player.GameplayPrimaryItemId, baselinePlayer.GameplayPrimaryItemId, StringComparison.Ordinal)
+            || !string.Equals(player.GameplaySecondaryItemId, baselinePlayer.GameplaySecondaryItemId, StringComparison.Ordinal)
+            || !string.Equals(player.GameplayUtilityItemId, baselinePlayer.GameplayUtilityItemId, StringComparison.Ordinal)
+            || !string.Equals(player.GameplayEquippedItemId, baselinePlayer.GameplayEquippedItemId, StringComparison.Ordinal)
+            || !string.Equals(player.GameplayAcquiredItemId, baselinePlayer.GameplayAcquiredItemId, StringComparison.Ordinal)
+            || player.GameplayModPackCacheId != baselinePlayer.GameplayModPackCacheId
+            || player.GameplayLoadoutCacheId != baselinePlayer.GameplayLoadoutCacheId
+            || player.GameplayPrimaryItemCacheId != baselinePlayer.GameplayPrimaryItemCacheId
+            || player.GameplaySecondaryItemCacheId != baselinePlayer.GameplaySecondaryItemCacheId
+            || player.GameplayUtilityItemCacheId != baselinePlayer.GameplayUtilityItemCacheId
+            || player.GameplayEquippedItemCacheId != baselinePlayer.GameplayEquippedItemCacheId
+            || player.GameplayAcquiredItemCacheId != baselinePlayer.GameplayAcquiredItemCacheId
+            || !ReplicatedStateListsEqual(player.ReplicatedStates, baselinePlayer.ReplicatedStates)
+            || player.GameplayClassCacheId != baselinePlayer.GameplayClassCacheId;
     }
 
     private static bool HasPlayerExtendedStatusChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
@@ -826,6 +917,36 @@ internal static class SnapshotContributionPlanner
         for (var index = 0; index < leftCount; index += 1)
         {
             if (!string.Equals(left![index], right![index], StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool ReplicatedStateListsEqual(
+        IReadOnlyList<SnapshotReplicatedStateEntry>? left,
+        IReadOnlyList<SnapshotReplicatedStateEntry>? right)
+    {
+        if (ReferenceEquals(left, right))
+        {
+            return true;
+        }
+
+        var leftCount = left?.Count ?? 0;
+        var rightCount = right?.Count ?? 0;
+        if (leftCount != rightCount)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < leftCount; index += 1)
+        {
+            var leftEntry = left![index];
+            var rightEntry = right![index];
+            if (!ReplicatedStateKeysEqual(leftEntry, rightEntry)
+                || !ReplicatedStateValuesEqual(leftEntry, rightEntry))
             {
                 return false;
             }
@@ -939,7 +1060,11 @@ internal static class SnapshotContributionPlanner
     private static bool IsSecondaryWeaponRuntimeReplicatedState(SnapshotReplicatedStateEntry entry)
     {
         return string.Equals(entry.OwnerId, CoreReplicatedOwnerId, StringComparison.Ordinal)
-            && entry.Key.IndexOf("_ammo", StringComparison.Ordinal) >= 0;
+            && (entry.Key.IndexOf("_ammo", StringComparison.Ordinal) >= 0
+                || entry.Key.EndsWith("_cooldown_ticks", StringComparison.Ordinal)
+                || entry.Key.EndsWith("_reload_ticks", StringComparison.Ordinal)
+                || entry.Key.EndsWith("_equipped", StringComparison.Ordinal)
+                || entry.Key.EndsWith("_available", StringComparison.Ordinal));
     }
 
     private static bool IsCoreAbilityRuntimeReplicatedState(SnapshotReplicatedStateEntry entry)
@@ -1080,7 +1205,7 @@ internal static class SnapshotContributionPlanner
                     DistanceSquared(focus.X, focus.Y, xSelector(state), ySelector(state)),
                     estimateUpdatedBytes(state),
                     builder => addState(builder, state),
-                    SnapshotDeltaBudgeter.ContributionKind.Optional));
+                    SnapshotDeltaBudgeter.ContributionKind.ProjectileMotionUpdate));
                 continue;
             }
 
@@ -1263,6 +1388,27 @@ internal static class SnapshotContributionPlanner
                 builder => addState(builder, state),
                 kind));
         }
+    }
+
+    private static bool ShouldSendPlayerMovementHeartbeat(SnapshotPlayerState player, long frame)
+    {
+        if (player.IsSpectator || player.IsAwaitingJoin)
+        {
+            return false;
+        }
+
+        if (!player.IsAlive)
+        {
+            return ShouldSendOnCadence(frame, player.Slot, LowFrequencyPlayerDetailRefreshIntervalTicks);
+        }
+
+        return ShouldSendOnCadence(frame, player.Slot, PlayerMovementHeartbeatIntervalTicks);
+    }
+
+    private static bool ShouldSendOnCadence(long frame, byte slot, int intervalTicks)
+    {
+        return intervalTicks <= 1
+            || ((frame + slot) % intervalTicks) == 0;
     }
 
     private static void AddRocketSpawnEventContributions(

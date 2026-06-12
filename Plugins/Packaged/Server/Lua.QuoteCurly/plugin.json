@@ -6,14 +6,14 @@
   "type": "Server",
   "runtime": "Lua",
   "entryPoint": "main.lua",
-  "description": "Example plugin-owned class pack that binds Quote/Curly to the existing Quote runtime slot.",
+  "description": "Plugin-owned Quote/Curly class content preserved separately from the stock Civilian hidden class.",
   "compatibility": {
     "hostApiVersion": "1.0"
   },
   "gameplayPacks": [
     {
       "path": "Gameplay/quote-curly.gg2",
-      "allowRuntimeClassBindingOverride": true
+      "allowRuntimeClassBindingOverride": false
     }
   ],
   "tags": [

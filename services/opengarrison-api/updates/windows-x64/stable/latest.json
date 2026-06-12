@@ -1,9 +1,9 @@
-{
-  "version": "0.5.6.4",
-  "channel": "stable",
-  "url": "OpenGarrison-Windows-x64.zip",
-  "sha256": "2aa50a57426a36f53aeaa55b1836c63dd4e60d87aeaf8dacd36104e1783a132c",
-  "size": 48387042,
-  "minLauncherVersion": "0.1.0",
-  "notesUrl": ""
+﻿{
+    "version":  "0.5.7.3",
+    "channel":  "stable",
+    "url":  "OpenGarrison-Windows-x64.zip",
+    "sha256":  "d85539330439096c0b74b2a32a7c5b93e9a89e432e217ba1cb7323a4676abf91",
+    "size":  48566681,
+    "minLauncherVersion":  "0.1.0",
+    "notesUrl":  ""
 }

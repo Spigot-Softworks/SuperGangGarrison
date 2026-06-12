@@ -238,6 +238,7 @@ public partial class Game1
             new BrowserAutomationAction("Friendly Bots -", BrowserAutomationRect.FromRectangle(layout.FriendlyBotsLeftBounds)),
             new BrowserAutomationAction("Friendly Bots +", BrowserAutomationRect.FromRectangle(layout.FriendlyBotsRightBounds)),
             new BrowserAutomationAction("Special Abilities", BrowserAutomationRect.FromRectangle(layout.SpecialAbilitiesBounds)),
+            new BrowserAutomationAction("VIP Rules", BrowserAutomationRect.FromRectangle(layout.VipRulesBounds)),
             new BrowserAutomationAction("Start Practice", BrowserAutomationRect.FromRectangle(layout.StartBounds), canEnterGameplaySession),
             new BrowserAutomationAction("Experimental", BrowserAutomationRect.FromRectangle(layout.ClientPowersBounds)),
             new BrowserAutomationAction("Back", BrowserAutomationRect.FromRectangle(layout.BackBounds)),
@@ -378,6 +379,12 @@ public partial class Game1
                 return true;
             case "Friendly Bots +":
                 CyclePracticeFriendlyBots(1);
+                return true;
+            case "Special Abilities":
+                TogglePracticeSpecialAbilities();
+                return true;
+            case "VIP Rules":
+                TogglePracticeVipRules();
                 return true;
             case "Start Practice":
                 TryStartPracticeFromSetup();

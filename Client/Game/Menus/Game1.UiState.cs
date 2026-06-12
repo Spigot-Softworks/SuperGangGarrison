@@ -39,6 +39,7 @@ public partial class Game1
         PluginOptionsMenu,
         OptionsMenu,
         CustomBubbleEditor,
+        SocialMenu,
         HudEditor,
         InGameMenu,
         LoadoutMenu,

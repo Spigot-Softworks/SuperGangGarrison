@@ -77,6 +77,7 @@ public partial class Game1
                     break;
                 case GameModeKind.Arena:
                 case GameModeKind.ControlPoint:
+                case GameModeKind.Vip:
                 case GameModeKind.KingOfTheHill:
                 case GameModeKind.DoubleKingOfTheHill:
                     foreach (var point in _game._world.ControlPoints)

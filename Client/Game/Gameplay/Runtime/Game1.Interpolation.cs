@@ -19,15 +19,23 @@ public partial class Game1
     private const float LocalPlayerMaximumInterpolationBackTimeSeconds = 0.180f;
     private const float RemotePlayerMinimumInterpolationBackTimeSeconds = 0.050f;
     private const float RemotePlayerMaximumInterpolationBackTimeSeconds = 0.280f;
+    private const float ProjectileMinimumInterpolationBackTimeSeconds = 0.075f;
+    private const float ProjectileMaximumInterpolationBackTimeSeconds = 0.220f;
     private const float ReplayMinimumInterpolationBackTimeSeconds = 0.02f;
     private const float ReplayMaximumInterpolationBackTimeSeconds = 0.06f;
     private const float OfflineInterpolationTeleportSnapDistance = 128f;
     private const float SnapshotHistoryRetentionSeconds = 0.5f;
+    private const float StaleEntitySnapshotHistoryPruneSeconds = 1.0f;
+    private const float StaleRemotePlayerSnapshotHistoryPruneSeconds = 1.0f;
     private const float MaximumLocalProjectileInterpolationDistance = 256f;
+    private const int NetworkInterpolationWarmupSnapshotCount = 4;
+    private const float NetworkInterpolationWarmupSeconds = 0.35f;
+    private const int NetworkWorldWarmupMinimumAppliedSnapshotsAfterFull = 2;
+    private const float NetworkWorldWarmupFreshPlayerHistorySeconds = 0.25f;
     // Projectiles are updated every few ticks - enable extrapolation to smooth between updates
     // This prevents jittering when the camera/player moves around projectiles
     private static readonly float ProjectileInterpolationExtrapolationCeilingSeconds = 0.30f;
-    private const int ExpectedProjectileUpdateIntervalTicks = 2;
+    private const int ExpectedProjectileUpdateIntervalTicks = 1;
 
     private int GetPlayerStateKey(PlayerEntity player)
     {
@@ -44,6 +52,7 @@ public partial class Game1
     private readonly Dictionary<int, InterpolationTrack> _entityInterpolationTracks = new();
     private readonly Dictionary<PlayerTeam, InterpolationTrack> _intelInterpolationTracks = new();
     private readonly Dictionary<int, List<EntitySnapshotSample>> _entitySnapshotHistories = new();
+    private readonly Dictionary<int, NetworkDiagnosticEntityInterpolationKind> _entitySnapshotHistoryKinds = new();
     private readonly Dictionary<PlayerTeam, List<EntitySnapshotSample>> _intelSnapshotHistories = new();
     private readonly Dictionary<int, List<PlayerSnapshotSample>> _remotePlayerSnapshotHistories = new();
     private readonly HashSet<int> _activeInterpolatedEntityIds = new();
@@ -51,6 +60,7 @@ public partial class Game1
     private readonly Dictionary<ulong, SnapshotBaselineState> _snapshotStatesByFrame = new();
     private readonly Queue<ulong> _snapshotStateFrameOrder = new();
     private readonly Queue<SnapshotMessage> _queuedAuthoritativeSnapshots = new();
+    private readonly HashSet<ulong> _authoritativeFullSnapshotFrames = new();
     private readonly Stopwatch _networkInterpolationClock = Stopwatch.StartNew();
     private double _networkInterpolationClockSeconds;
     private float _networkSnapshotInterpolationDurationSeconds = 1f / SimulationConfig.DefaultTicksPerSecond;
@@ -58,6 +68,7 @@ public partial class Game1
     private float _smoothedSnapshotJitterSeconds;
     private float _localPlayerInterpolationBackTimeSeconds = LocalPlayerMinimumInterpolationBackTimeSeconds;
     private float _remotePlayerInterpolationBackTimeSeconds = RemotePlayerMinimumInterpolationBackTimeSeconds;
+    private float _projectileInterpolationBackTimeSeconds = ProjectileMinimumInterpolationBackTimeSeconds;
     private double _localPlayerRenderTimeSeconds;
     private double _remotePlayerRenderTimeSeconds;
     private double _lastLocalPlayerRenderTimeClockSeconds = -1d;
@@ -71,6 +82,13 @@ public partial class Game1
     private bool _hasRemotePlayerRenderTime;
     private ulong _lastAppliedSnapshotFrame;
     private ulong _lastBufferedSnapshotFrame;
+    private int? _lastAppliedSnapshotLocalPlayerId;
+    private int _networkInterpolationWarmupSnapshotsRemaining;
+    private double _networkInterpolationWarmupUntilClockSeconds = -1d;
+    private bool _networkWorldWarmupActive;
+    private bool _networkWorldWarmupFullSnapshotApplied;
+    private int _networkWorldWarmupAppliedSnapshotsAfterFull;
+    private double _networkWorldWarmupStartedClockSeconds = -1d;
 
     private bool IsPositionSmoothingActive()
     {
@@ -310,6 +328,7 @@ public partial class Game1
         _snapshotStatesByFrame.Clear();
         _snapshotStateFrameOrder.Clear();
         _queuedAuthoritativeSnapshots.Clear();
+        _authoritativeFullSnapshotFrames.Clear();
         _lastBufferedSnapshotFrame = 0;
     }
 

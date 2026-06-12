@@ -526,11 +526,20 @@ public static class GameplayModPackDirectoryLoader
             case BuiltInGameplayBehaviorIds.MedicNeedlegun:
                 ValidateNumberParameters(itemId, ability, filePath, "fireCooldownTicks", "fireCooldownSeconds", "refillTicks", "refillSeconds");
                 return;
+            case BuiltInGameplayBehaviorIds.MedicKritzBeam:
+                ValidateNumberParameters(itemId, ability, filePath, "range", "damagePerSecond", "chargePerDamageTick");
+                return;
             case BuiltInGameplayBehaviorIds.SpySuperjump:
                 ValidateNumberParameters(itemId, ability, filePath, "maxChargeTicks", "cooldownTicks", "cooldownSeconds", "minVelocity", "maxVelocity");
                 return;
             case BuiltInGameplayBehaviorIds.QuoteBladeThrow:
                 ValidateNumberParameters(itemId, ability, filePath, "energyCost", "activeProjectileLimit", "lifetimeTicks");
+                return;
+            case BuiltInGameplayBehaviorIds.CivvieUmbrella:
+                ValidateNumberParameters(itemId, ability, filePath, "maxChargeTicks", "holdDrainPerTick", "rechargePerTick", "impactDrain", "brokenRechargeDelayTicks", "airblastCooldownTicks");
+                return;
+            case BuiltInGameplayBehaviorIds.CivvieTaunt:
+                ValidateNumberParameters(itemId, ability, filePath, "healAmount", "healRadius");
                 return;
             case BuiltInGameplayBehaviorIds.HeavyGhostDash:
                 ValidateNumberParameters(itemId, ability, filePath, "durationTicks", "durationSeconds", "movementDurationTicks", "movementDurationSeconds", "cooldownTicks", "cooldownSeconds", "impulse", "nextAttackDamageMultiplier", "slideVelocityPerTick", "burstSpeedMultiplier");

@@ -71,6 +71,7 @@ public partial class Game1
     private readonly List<FlameSmokeVisual> _flameSmokeVisuals = new();
     private readonly List<FlameSmokeVisual> _flameSmokeSecondaryVisuals = new();
     private readonly List<LooseSheetVisual> _looseSheetVisuals = new();
+    private readonly List<CivvieUmbrellaShieldBlockVisual> _civvieUmbrellaShieldBlockVisuals = new();
     private readonly List<SnapshotVisualEvent> _pendingNetworkVisualEvents = new();
     private readonly List<RecentPredictedExplosionVisual> _recentPredictedExplosionVisuals = new();
     private readonly HashSet<ulong> _processedNetworkVisualEventIds = new();
@@ -131,6 +132,7 @@ public partial class Game1
         _blastJumpFlameVisuals.Clear();
         _flameSmokeVisuals.Clear();
         _flameSmokeSecondaryVisuals.Clear();
+        _civvieUmbrellaShieldBlockVisuals.Clear();
         _pendingNetworkVisualEvents.Clear();
         _recentPredictedExplosionVisuals.Clear();
         _pendingNetworkDamageEvents.Clear();
@@ -236,6 +238,20 @@ public partial class Game1
     private void AdvanceLooseSheetVisuals()
     {
         _gameplayMaterialEffectsController.AdvanceLooseSheetVisuals();
+    }
+
+    private void AdvanceCivvieUmbrellaShieldBlockVisuals()
+    {
+        for (var index = _civvieUmbrellaShieldBlockVisuals.Count - 1; index >= 0; index -= 1)
+        {
+            var visual = _civvieUmbrellaShieldBlockVisuals[index];
+            visual.TicksRemaining -= 1;
+            visual.ElapsedTicks += 1;
+            if (visual.TicksRemaining <= 0)
+            {
+                _civvieUmbrellaShieldBlockVisuals.RemoveAt(index);
+            }
+        }
     }
 
     private void AdvanceFrozenSpyVisuals()
@@ -658,6 +674,11 @@ public partial class Game1
         _gameplayMaterialEffectsController.SpawnLooseSheetVisual(x, y, initialHorizontalSpeed);
     }
 
+    private void SpawnCivvieMoneyVisual(float x, float y, float initialHorizontalSpeed)
+    {
+        _gameplayMaterialEffectsController.SpawnLooseSheetVisual(x, y, initialHorizontalSpeed, isCivvieMoney: true);
+    }
+
     private void RecordLastVisibleEnemySpyFrame(
         PlayerEntity player,
         string spriteName,
@@ -1008,7 +1029,18 @@ public partial class Game1
         public const int FadeTicks = 60;
         public const int BurnLifetimeTicks = 24;
 
-        public LooseSheetVisual(float x, float y, float velocityX, float velocityY, float rotationSpeedRadians, string spriteName, int lifetimeTicks = LifetimeTicks, int fadeTicks = FadeTicks)
+        public LooseSheetVisual(
+            float x,
+            float y,
+            float velocityX,
+            float velocityY,
+            float rotationSpeedRadians,
+            string spriteName,
+            int lifetimeTicks = LifetimeTicks,
+            int fadeTicks = FadeTicks,
+            bool isCivvieMoney = false,
+            Color? tint = null,
+            float drawScale = 2f)
         {
             X = x;
             Y = y;
@@ -1018,6 +1050,9 @@ public partial class Game1
             SpriteName = spriteName;
             TicksRemaining = Math.Max(1, lifetimeTicks);
             FadeTicksRemaining = Math.Max(1, fadeTicks);
+            IsCivvieMoney = isCivvieMoney;
+            Tint = tint ?? Color.White;
+            DrawScale = MathF.Max(0.1f, drawScale);
         }
 
         public float X { get; set; }
@@ -1034,6 +1069,12 @@ public partial class Game1
 
         public string SpriteName { get; set; }
 
+        public bool IsCivvieMoney { get; }
+
+        public Color Tint { get; }
+
+        public float DrawScale { get; }
+
         public bool IsBurning { get; set; }
 
         public int BurnTicksRemaining { get; set; }
@@ -1043,6 +1084,30 @@ public partial class Game1
         public int TicksRemaining { get; set; }
 
         public int FadeTicksRemaining { get; }
+    }
+
+    private sealed class CivvieUmbrellaShieldBlockVisual
+    {
+        public const int LifetimeTicks = 18;
+        public const int FadeTicks = 8;
+
+        public CivvieUmbrellaShieldBlockVisual(int playerId, float x, float y)
+        {
+            PlayerId = playerId;
+            X = x;
+            Y = y;
+            TicksRemaining = LifetimeTicks;
+        }
+
+        public int PlayerId { get; }
+
+        public float X { get; }
+
+        public float Y { get; }
+
+        public int TicksRemaining { get; set; }
+
+        public int ElapsedTicks { get; set; }
     }
 
     private sealed class StickyGibBloodCoating

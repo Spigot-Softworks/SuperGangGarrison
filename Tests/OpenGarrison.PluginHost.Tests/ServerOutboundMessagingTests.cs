@@ -48,15 +48,39 @@ public sealed class ServerOutboundMessagingTests
         Assert.Contains(logs, log => log.Contains("failed to send custom bubble state", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void VipVotePassesWithStrictMajorityWithoutFullTurnout()
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        Assert.True(world.TryLoadLevel("vip_egypt"));
+        JoinNetworkPlayer(world, 2);
+        JoinNetworkPlayer(world, 3);
+
+        var clients = CreateAuthorizedClients(3);
+        var transport = new ThrowingServerMessageTransport();
+        var logs = new List<string>();
+        var outbound = CreateOutboundMessaging(transport, clients, logs, world);
+
+        outbound.BroadcastChat(clients[1], "!votevip 2", teamOnly: false);
+
+        Assert.Contains(logs, log => log.Contains("VIP vote started", StringComparison.Ordinal));
+        Assert.DoesNotContain(logs, log => log.Contains("VIP vote passed", StringComparison.Ordinal));
+
+        outbound.BroadcastChat(clients[2], "!vote yes", teamOnly: false);
+
+        Assert.Contains(logs, log => log.Contains("VIP vote passed: Two will be the Blue VIP.", StringComparison.Ordinal));
+    }
+
     private static ServerOutboundMessaging CreateOutboundMessaging(
         ThrowingServerMessageTransport transport,
         Dictionary<byte, ClientSession> clients,
-        List<string> logs)
+        List<string> logs,
+        SimulationWorld? world = null)
     {
         return new ServerOutboundMessaging(
             transport,
             "Test Server",
-            new SimulationWorld(),
+            world ?? new SimulationWorld(),
             clients,
             maxPlayableClients: 24,
             adminChatRouterGetter: static () => null,
@@ -65,19 +89,35 @@ public sealed class ServerOutboundMessagingTests
             logs.Add);
     }
 
-    private static Dictionary<byte, ClientSession> CreateAuthorizedClients()
+    private static Dictionary<byte, ClientSession> CreateAuthorizedClients(int count = 2)
     {
-        return new Dictionary<byte, ClientSession>
+        var clients = new Dictionary<byte, ClientSession>();
+        for (byte slot = 1; slot <= count; slot += 1)
         {
-            [1] = new ClientSession(1, 101, new IPEndPoint(IPAddress.Loopback, 8190), "One", TimeSpan.Zero)
+            clients[slot] = new ClientSession(
+                slot,
+                slot * 101,
+                new IPEndPoint(IPAddress.Loopback, 8189 + slot),
+                slot switch
+                {
+                    1 => "One",
+                    2 => "Two",
+                    3 => "Three",
+                    _ => $"Player {slot}",
+                },
+                TimeSpan.Zero)
             {
                 IsAuthorized = true,
-            },
-            [2] = new ClientSession(2, 202, new IPEndPoint(IPAddress.Loopback, 8191), "Two", TimeSpan.Zero)
-            {
-                IsAuthorized = true,
-            },
-        };
+            };
+        }
+
+        return clients;
+    }
+
+    private static void JoinNetworkPlayer(SimulationWorld world, byte slot)
+    {
+        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Scout));
     }
 
     private sealed class ThrowingServerMessageTransport : IServerMessageTransport

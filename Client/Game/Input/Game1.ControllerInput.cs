@@ -27,6 +27,7 @@ public partial class Game1
     private const float ControllerLeftStickAimFlickBehindX = 0.5f;
     private const float ControllerOppositeFlickEngageStrength = 0.58f;
     private const float ControllerOppositeFlickHorizontalThreshold = 0.45f;
+    internal const Buttons ControllerCallMedicButton = Buttons.B;
 
     private static readonly PlayerIndex[] ControllerPlayerIndices =
     [

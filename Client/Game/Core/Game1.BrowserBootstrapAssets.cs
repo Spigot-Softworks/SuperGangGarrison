@@ -39,8 +39,7 @@ public partial class Game1
             return null;
         }
 
-        using var stream = File.OpenRead(path);
-        return new LoadedSpriteFrame(Texture2D.FromStream(GraphicsDevice, stream));
+        return TextureDecodeUtility.LoadSpriteFrame(GraphicsDevice, File.ReadAllBytes(path), applyLegacyChromaKey: false);
     }
 
     private void StartBrowserBootstrapAssetPreloadIfNeeded()

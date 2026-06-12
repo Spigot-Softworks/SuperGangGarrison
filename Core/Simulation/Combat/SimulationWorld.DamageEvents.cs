@@ -56,9 +56,15 @@ public sealed partial class SimulationWorld
         PlayerEntity? attacker,
         float spyRevealAlpha = 0f,
         DamageEventFlags damageFlags = DamageEventFlags.None,
-        bool allowOsmosisHealOwnedSentries = true)
+        bool allowOsmosisHealOwnedSentries = true,
+        bool allowCivvieUmbrellaShield = true)
     {
         if (damage <= 0 || !target.IsAlive)
+        {
+            return false;
+        }
+
+        if (allowCivvieUmbrellaShield && TryAbsorbCivvieUmbrellaDamage(target, attacker, damageFlags))
         {
             return false;
         }
@@ -157,9 +163,15 @@ public sealed partial class SimulationWorld
         PlayerEntity? attacker,
         float spyRevealAlpha = 0f,
         DamageEventFlags damageFlags = DamageEventFlags.None,
-        bool allowOsmosisHealOwnedSentries = true)
+        bool allowOsmosisHealOwnedSentries = true,
+        bool allowCivvieUmbrellaShield = true)
     {
         if (damage <= 0f || !target.IsAlive)
+        {
+            return false;
+        }
+
+        if (allowCivvieUmbrellaShield && TryAbsorbCivvieUmbrellaDamage(target, attacker, damageFlags))
         {
             return false;
         }
@@ -251,6 +263,72 @@ public sealed partial class SimulationWorld
         }
         TryRegisterCombatComboHit(attacker, target, appliedDamage);
         return died;
+    }
+
+    private bool TryAbsorbCivvieUmbrellaDamage(
+        PlayerEntity target,
+        PlayerEntity? attacker,
+        DamageEventFlags damageFlags)
+    {
+        if (attacker is null
+            || ReferenceEquals(attacker, target)
+            || attacker.Team == target.Team
+            || !target.TryAbsorbCivvieUmbrellaHit())
+        {
+            return false;
+        }
+
+        var (effectX, effectY) = GetCivvieUmbrellaBlockEffectPosition(target);
+        RegisterDamageEvent(
+            attacker,
+            DamageTargetKind.Player,
+            target.Id,
+            effectX,
+            effectY,
+            amount: 0,
+            wasFatal: false,
+            target,
+            damageFlags | DamageEventFlags.Evaded | DamageEventFlags.CivvieUmbrellaBlock);
+        return true;
+    }
+
+    private bool TryAbsorbCivvieUmbrellaProjectileContact(
+        PlayerEntity target,
+        int ownerId,
+        float hitX,
+        float hitY,
+        DamageEventFlags damageFlags = DamageEventFlags.None)
+    {
+        var attacker = FindPlayerById(ownerId);
+        if (attacker is null
+            || ReferenceEquals(attacker, target)
+            || attacker.Team == target.Team
+            || !target.TryAbsorbCivvieUmbrellaHit())
+        {
+            return false;
+        }
+
+        RegisterImpactEffect(hitX, hitY, 0f);
+        RegisterDamageEvent(
+            attacker,
+            DamageTargetKind.Player,
+            target.Id,
+            hitX,
+            hitY,
+            amount: 0,
+            wasFatal: false,
+            target,
+            damageFlags | DamageEventFlags.Evaded | DamageEventFlags.CivvieUmbrellaBlock);
+        return true;
+    }
+
+    private (float X, float Y) GetCivvieUmbrellaBlockEffectPosition(PlayerEntity target)
+    {
+        var aimRadians = DegreesToRadians(target.AimDirectionDegrees);
+        var aimWorldX = target.X + MathF.Cos(aimRadians) * 128f;
+        var aimWorldY = target.Y + MathF.Sin(aimRadians) * 128f;
+        var tip = WeaponHandler.GetCivvieUmbrellaTip(target, aimWorldX, aimWorldY);
+        return (tip.X, tip.Y);
     }
 
     private bool TryRegisterExperimentalGhostDashEvade(
@@ -383,6 +461,13 @@ public sealed partial class SimulationWorld
         bool wasFatal)
     {
         if (attacker is null)
+        {
+            return -1;
+        }
+
+        if (targetKind == DamageTargetKind.Player
+            && playerTarget is not null
+            && (ReferenceEquals(attacker, playerTarget) || attacker.Team == playerTarget.Team))
         {
             return -1;
         }

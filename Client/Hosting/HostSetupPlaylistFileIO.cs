@@ -52,18 +52,33 @@ internal static class HostSetupPlaylistFileIO
             return false;
         }
 
-        if (OpenGarrisonStockMapCatalog.TryGetDefinition(line, out _))
+        if (OpenGarrisonStockMapCatalog.TryGetDefinition(line, out var definition))
         {
-            entry = catalog.FirstOrDefault(candidate =>
+            var resolved = catalog.FirstOrDefault(candidate =>
                 string.Equals(candidate.IniKey, line, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(candidate.LevelName, line, StringComparison.OrdinalIgnoreCase));
-            return entry is not null;
+                || string.Equals(candidate.LevelName, line, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(candidate.DisplayName, line, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(candidate.IniKey, definition.IniKey, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(candidate.LevelName, definition.LevelName, StringComparison.OrdinalIgnoreCase));
+            if (resolved is null)
+            {
+                return false;
+            }
+
+            entry = resolved;
+            return true;
         }
 
-        entry = catalog.FirstOrDefault(candidate =>
+        var matched = catalog.FirstOrDefault(candidate =>
             string.Equals(candidate.LevelName, line, StringComparison.OrdinalIgnoreCase)
             || string.Equals(candidate.IniKey, line, StringComparison.OrdinalIgnoreCase)
             || string.Equals(candidate.DisplayName, line, StringComparison.OrdinalIgnoreCase));
-        return entry is not null;
+        if (matched is null)
+        {
+            return false;
+        }
+
+        entry = matched;
+        return true;
     }
 }

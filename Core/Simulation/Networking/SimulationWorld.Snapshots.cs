@@ -478,6 +478,7 @@ public sealed partial class SimulationWorld
             canReuse,
             factory,
             applyState,
+            true,
             (entity, state, isNewEntity) =>
             {
                 if (isNewEntity && ShouldTrackSnapshotProjectileForClientPrediction(state.OwnerId))
@@ -755,6 +756,7 @@ public sealed partial class SimulationWorld
                 return rocket;
             },
             static (entity, state) => ApplyRocketSnapshotState(entity, state),
+            true,
             (entity, state, isNewEntity) =>
             {
                 if (isNewEntity && ShouldTrackSnapshotProjectileForClientPrediction(state.OwnerId))
@@ -879,6 +881,7 @@ public sealed partial class SimulationWorld
                 return flame;
             },
             static (entity, state) => ApplyFlameSnapshotState(entity, state),
+            true,
             (entity, state, isNewEntity) =>
             {
                 if (isNewEntity && ShouldTrackSnapshotProjectileForClientPrediction(state.OwnerId))
@@ -960,6 +963,7 @@ public sealed partial class SimulationWorld
                 return mine;
             },
             static (entity, state) => ApplyMineSnapshotState(entity, state),
+            true,
             (entity, state, isNewEntity) =>
             {
                 if (isNewEntity && ShouldTrackSnapshotProjectileForClientPrediction(state.OwnerId))
@@ -1003,6 +1007,7 @@ public sealed partial class SimulationWorld
                 return grenade;
             },
             static (entity, state) => ApplyGrenadeSnapshotState(entity, state),
+            true,
             (entity, state, isNewEntity) =>
             {
                 if (isNewEntity && ShouldTrackSnapshotProjectileForClientPrediction(state.OwnerId))
@@ -1166,18 +1171,19 @@ public sealed partial class SimulationWorld
         _remoteSnapshotAwaitingJoinPlayerIds.Clear();
         foreach (var snapshotPlayer in snapshotPlayers)
         {
-            _snapshotSeenRemotePlayerSlots.Add(snapshotPlayer.Slot);
-            var hadRemotePlayer = _remoteSnapshotPlayersBySlot.TryGetValue(snapshotPlayer.Slot, out var existingPlayer);
+            var appliedSnapshotPlayer = NormalizeAwaitingJoinSnapshotPlayerState(snapshotPlayer);
+            _snapshotSeenRemotePlayerSlots.Add(appliedSnapshotPlayer.Slot);
+            var hadRemotePlayer = _remoteSnapshotPlayersBySlot.TryGetValue(appliedSnapshotPlayer.Slot, out var existingPlayer);
             PlayerEntity player;
             if (!hadRemotePlayer)
             {
-                ReserveEntityId(snapshotPlayer.PlayerId);
-                var gameplayClassId = _snapshotStringCache.Resolve(snapshotPlayer.GameplayClassCacheId, snapshotPlayer.GameplayClassId);
+                ReserveEntityId(appliedSnapshotPlayer.PlayerId);
+                var gameplayClassId = _snapshotStringCache.Resolve(appliedSnapshotPlayer.GameplayClassCacheId, appliedSnapshotPlayer.GameplayClassId);
                 player = new PlayerEntity(
-                    snapshotPlayer.PlayerId,
-                    ResolveSnapshotClassDefinition(snapshotPlayer, gameplayClassId),
-                    snapshotPlayer.Name);
-                _remoteSnapshotPlayersBySlot[snapshotPlayer.Slot] = player;
+                    appliedSnapshotPlayer.PlayerId,
+                    ResolveSnapshotClassDefinition(appliedSnapshotPlayer, gameplayClassId),
+                    appliedSnapshotPlayer.Name);
+                _remoteSnapshotPlayersBySlot[appliedSnapshotPlayer.Slot] = player;
             }
             else
             {
@@ -1186,21 +1192,22 @@ public sealed partial class SimulationWorld
 
             var wasAlive = player.IsAlive;
             var previousGibDeaths = player.GibDeaths;
-            SynchronizeNetworkGibDeathPresentationCount(player.Id, snapshotPlayer.GibDeaths);
-            ApplySnapshotPlayer(player, snapshotPlayer);
+            SynchronizeNetworkGibDeathPresentationCount(player.Id, appliedSnapshotPlayer.GibDeaths);
+            ApplySnapshotPlayer(player, appliedSnapshotPlayer);
+            ApplySnapshotNetworkPlayerPingMilliseconds(appliedSnapshotPlayer.Slot, appliedSnapshotPlayer.PingMilliseconds);
             if (hadRemotePlayer
                 && wasAlive
                 && !player.IsAlive
-                && snapshotPlayer.GibDeaths > previousGibDeaths
-                && TryMarkNetworkGibDeathPresented(player.Id, snapshotPlayer.GibDeaths))
+                && appliedSnapshotPlayer.GibDeaths > previousGibDeaths
+                && TryMarkNetworkGibDeathPresented(player.Id, appliedSnapshotPlayer.GibDeaths))
             {
                 SpawnClientPlayerGibsFromNetworkDeath(player);
             }
 
-            if (snapshotPlayer.IsAwaitingJoin)
+            if (appliedSnapshotPlayer.IsAwaitingJoin)
             {
-                _remoteSnapshotAwaitingJoinSlots.Add(snapshotPlayer.Slot);
-                _remoteSnapshotAwaitingJoinPlayerIds.Add(snapshotPlayer.PlayerId);
+                _remoteSnapshotAwaitingJoinSlots.Add(appliedSnapshotPlayer.Slot);
+                _remoteSnapshotAwaitingJoinPlayerIds.Add(appliedSnapshotPlayer.PlayerId);
             }
             _remoteSnapshotPlayers.Add(player);
         }
@@ -1232,6 +1239,7 @@ public sealed partial class SimulationWorld
             if (_remoteSnapshotPlayersBySlot.Remove(slot))
             {
                 ApplySnapshotNetworkPlayerReady(slot, ready: false);
+                ApplySnapshotNetworkPlayerPingMilliseconds(slot, -1);
                 _presentedNetworkGibDeathCountsByPlayerId.Remove(removedPlayer.Id);
             }
         }
@@ -1355,6 +1363,7 @@ public sealed partial class SimulationWorld
             canReuse,
             factory,
             applyState,
+            suppressProjectileRespawnOnRemoval: false,
             (entity, state, isNew) => applyState(entity, state));
     }
 
@@ -1370,6 +1379,28 @@ public sealed partial class SimulationWorld
     {
         SyncSnapshotEntities(
             snapshotStates,
+            target,
+            idSelector,
+            canReuse,
+            factory,
+            applyState,
+            suppressProjectileRespawnOnRemoval: false,
+            applyStateForNewEntity);
+    }
+
+    private void SyncSnapshotEntities<TState, TEntity>(
+        IReadOnlyList<TState> snapshotStates,
+        List<TEntity> target,
+        Func<TState, int> idSelector,
+        Func<TEntity, TState, bool> canReuse,
+        Func<TState, TEntity> factory,
+        Action<TEntity, TState> applyState,
+        bool suppressProjectileRespawnOnRemoval,
+        Action<TEntity, TState, bool> applyStateForNewEntity)
+        where TEntity : SimulationEntity
+    {
+        SyncSnapshotEntities(
+            snapshotStates,
             Array.Empty<int>(),
             collectionIsComplete: true,
             target,
@@ -1377,6 +1408,7 @@ public sealed partial class SimulationWorld
             canReuse,
             factory,
             applyState,
+            suppressProjectileRespawnOnRemoval,
             applyStateForNewEntity);
     }
 
@@ -1389,6 +1421,32 @@ public sealed partial class SimulationWorld
         Func<TEntity, TState, bool> canReuse,
         Func<TState, TEntity> factory,
         Action<TEntity, TState> applyState,
+        Action<TEntity, TState, bool> applyStateForNewEntity)
+        where TEntity : SimulationEntity
+    {
+        SyncSnapshotEntities(
+            snapshotStates,
+            removedEntityIds,
+            collectionIsComplete,
+            target,
+            idSelector,
+            canReuse,
+            factory,
+            applyState,
+            suppressProjectileRespawnOnRemoval: false,
+            applyStateForNewEntity);
+    }
+
+    private void SyncSnapshotEntities<TState, TEntity>(
+        IReadOnlyList<TState> snapshotStates,
+        IReadOnlyList<int> removedEntityIds,
+        bool collectionIsComplete,
+        List<TEntity> target,
+        Func<TState, int> idSelector,
+        Func<TEntity, TState, bool> canReuse,
+        Func<TState, TEntity> factory,
+        Action<TEntity, TState> applyState,
+        bool suppressProjectileRespawnOnRemoval,
         Action<TEntity, TState, bool> applyStateForNewEntity)
         where TEntity : SimulationEntity
     {
@@ -1465,7 +1523,12 @@ public sealed partial class SimulationWorld
         {
             var staleId = _snapshotStaleEntityIds[index];
             _entities.Remove(staleId);
-            if (_clientPredictedProjectileIds.Remove(staleId))
+            if (suppressProjectileRespawnOnRemoval)
+            {
+                SuppressProjectileRespawn(staleId, NetworkProjectileRemovalSuppressionTicks);
+                _clientPredictedProjectileIds.Remove(staleId);
+            }
+            else if (_clientPredictedProjectileIds.Remove(staleId))
             {
                 SuppressProjectileRespawn(staleId, NetworkProjectileRemovalSuppressionTicks);
             }

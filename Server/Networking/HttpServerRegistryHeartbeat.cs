@@ -87,6 +87,9 @@ sealed class HttpServerRegistryHeartbeat : IDisposable
                 WebSocketPort = snapshot.WebSocketPort,
                 WebSocketUrl = snapshot.WebSocketUrl ?? string.Empty,
                 IsPrivate = snapshot.IsPrivate,
+                BuildVersion = snapshot.BuildVersion,
+                ReleaseChannel = snapshot.ReleaseChannel,
+                CompatibilityKey = snapshot.CompatibilityKey,
                 Map = snapshot.Map,
                 Mode = snapshot.Mode,
                 Players = snapshot.Players,
@@ -186,6 +189,15 @@ sealed class HttpServerRegistryHeartbeat : IDisposable
         [JsonPropertyName("private")]
         public bool IsPrivate { get; set; }
 
+        [JsonPropertyName("buildVersion")]
+        public string BuildVersion { get; set; } = string.Empty;
+
+        [JsonPropertyName("releaseChannel")]
+        public string ReleaseChannel { get; set; } = string.Empty;
+
+        [JsonPropertyName("compatibilityKey")]
+        public string CompatibilityKey { get; set; } = string.Empty;
+
         [JsonPropertyName("map")]
         public string Map { get; set; } = string.Empty;
 
@@ -225,6 +237,9 @@ readonly record struct ServerRegistrySnapshot(
     int WebSocketPort,
     string? WebSocketUrl,
     bool IsPrivate,
+    string BuildVersion,
+    string ReleaseChannel,
+    string CompatibilityKey,
     string Map,
     string Mode,
     int Players,

@@ -305,6 +305,50 @@ public sealed class BotBrainNoGraphFallbackTests
         Assert.False(steering.Jump, trace);
     }
 
+    [Fact]
+    public void LocalMotionProbeBudgetSpreadsGraphlessRecoveryAcrossSameWorldFrame()
+    {
+        var world = new SimulationWorld(new SimulationConfig
+        {
+            EnableEnemyTrainingDummy = false,
+            EnableFriendlySupportDummy = false,
+        });
+        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.ForceRespawnLocalPlayer();
+        world.LocalPlayer.TeleportTo(100f, 120f);
+        world.LocalPlayer.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        SetNoGraphCaptureTheFlagLevel(world);
+        world.LocalPlayer.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+
+        var firstController = new LocalMotionController();
+        var secondController = new LocalMotionController();
+        var target = new DirectDriveTarget(
+            DirectDriveTargetKind.Objective,
+            world.LocalPlayer.X,
+            world.LocalPlayer.Y - 96f,
+            "verticalObjective");
+
+        Assert.True(firstController.TryResolveRecovery(
+            world,
+            world.LocalPlayer,
+            target,
+            new SteeringOutput(),
+            thinkTick: 1,
+            out _,
+            out var firstTrace));
+        Assert.True(secondController.TryResolveRecovery(
+            world,
+            world.LocalPlayer,
+            target,
+            new SteeringOutput(),
+            thinkTick: 1,
+            out _,
+            out var secondTrace));
+
+        Assert.Contains("localMotion=probeProbe", firstTrace, StringComparison.Ordinal);
+        Assert.DoesNotContain("localMotion=probeProbe", secondTrace, StringComparison.Ordinal);
+    }
+
     private static bool IsActiveMovement(PlayerInputSnapshot input) =>
         input.Left || input.Right || input.Up || input.Down;
 

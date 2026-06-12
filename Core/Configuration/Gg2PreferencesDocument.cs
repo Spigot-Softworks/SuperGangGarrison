@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 
@@ -11,9 +12,12 @@ public sealed class OpenGarrisonPreferencesDocument
     public const string DefaultApiBaseUrl = "https://api.unkind-dev.com";
     public const string DefaultLobbyHost = DefaultApiBaseUrl + "/api/servers";
     public const int DefaultLobbyPort = 443;
+    public const DisplayModeKind DefaultDisplayMode = DisplayModeKind.Windowed;
     public const IngameResolutionKind DefaultIngameResolution = IngameResolutionKind.Aspect16x9;
     public const WindowSizeKind DefaultWindowSize = WindowSizeKind.Scale100;
+    public const DisplayScaleModeKind DefaultDisplayScaleMode = DisplayScaleModeKind.Fill;
     public const bool DefaultOverheadChatEnabled = true;
+    public const BubbleWheelBehavior DefaultBubbleWheelBehavior = BubbleWheelBehavior.PressAndClick;
     public const int DefaultDamageVignetteIntensityPercent = 100;
     public const int DefaultCombatMusicVolumePercent = 120;
     public const bool DefaultPostGameMvpArtEnabled = true;
@@ -45,7 +49,19 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public string Rewards { get; set; } = string.Empty;
 
-    public bool Fullscreen { get; set; }
+    private DisplayModeKind _displayMode = DefaultDisplayMode;
+
+    public bool Fullscreen
+    {
+        get => DisplayMode == DisplayModeKind.Fullscreen;
+        set => DisplayMode = value ? DisplayModeKind.Fullscreen : DisplayModeKind.Windowed;
+    }
+
+    public DisplayModeKind DisplayMode
+    {
+        get => _displayMode;
+        set => _displayMode = NormalizeDisplayMode(value);
+    }
 
     public bool VSync { get; set; }
 
@@ -54,6 +70,8 @@ public sealed class OpenGarrisonPreferencesDocument
     public IngameResolutionKind IngameResolution { get; set; } = DefaultIngameResolution;
 
     public WindowSizeKind WindowSize { get; set; } = DefaultWindowSize;
+
+    public DisplayScaleModeKind DisplayScaleMode { get; set; } = DefaultDisplayScaleMode;
 
     public MusicMode MusicMode { get; set; } = MusicMode.MenuAndInGame;
 
@@ -88,6 +106,8 @@ public sealed class OpenGarrisonPreferencesDocument
     public bool HudShowOnlyActiveWeapon { get; set; }
 
     public bool OverheadChatEnabled { get; set; } = DefaultOverheadChatEnabled;
+
+    public BubbleWheelBehavior BubbleWheelBehavior { get; set; } = DefaultBubbleWheelBehavior;
 
     public bool PortraitRumbleEnabled { get; set; } = true;
 
@@ -199,6 +219,8 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool SnapshotCompressionEnabled { get; set; } = true;
 
+    public string SnapshotBudgetMode { get; set; } = "GameplayCriticalUntrimmed";
+
     public static OpenGarrisonPreferencesDocument Load(string? path = null)
     {
         var resolvedPath = path ?? RuntimePaths.GetConfigPath(DefaultFileName);
@@ -209,11 +231,12 @@ public sealed class OpenGarrisonPreferencesDocument
         {
             PlayerName = ini.GetString(SettingsSection, "PlayerName", "Player"),
             Rewards = ini.GetString(SettingsSection, "Rewards", string.Empty),
-            Fullscreen = ini.GetBool(SettingsSection, "Fullscreen", false),
+            DisplayMode = ReadDisplayMode(ini),
             VSync = ini.GetBool(SettingsSection, "Monitor Sync", false),
             FrameRateLimit = ini.GetInt(SettingsSection, "Frame Rate Limit", 0),
             IngameResolution = ReadIngameResolution(ini),
             WindowSize = NormalizeWindowSize((WindowSizeKind)ini.GetInt(SettingsSection, "Window Size", (int)DefaultWindowSize)),
+            DisplayScaleMode = NormalizeDisplayScaleMode((DisplayScaleModeKind)ini.GetInt(SettingsSection, "Display Scale", (int)DefaultDisplayScaleMode)),
             MusicMode = LoadMusicMode(ini),
             BotMode = ParseBotMode(ini.GetString(SettingsSection, "Bot Mode", OfflineBotControllerMode.BotBrain.ToString())),
             KillCamEnabled = ini.GetBool(SettingsSection, "Kill Cam", true),
@@ -228,6 +251,7 @@ public sealed class OpenGarrisonPreferencesDocument
             ShowHealthBarEnabled = ini.GetBool(SettingsSection, "Show Healthbar", false),
             HudShowOnlyActiveWeapon = ini.GetBool(SettingsSection, "HUD Show Only Active Weapon", false),
             OverheadChatEnabled = ini.GetBool(SettingsSection, "Overhead Chat", DefaultOverheadChatEnabled),
+            BubbleWheelBehavior = ParseBubbleWheelBehavior(ini.GetString(SettingsSection, "Bubble Wheel Behavior", DefaultBubbleWheelBehavior.ToString())),
             PortraitRumbleEnabled = ini.GetBool(SettingsSection, "Portrait Rumble", true),
             PostGameMvpArtEnabled = ini.GetBool(SettingsSection, "MVP Art", DefaultPostGameMvpArtEnabled),
             DamageVignetteEnabled = ini.GetBool(SettingsSection, "Damage Vignette", true),
@@ -284,6 +308,7 @@ public sealed class OpenGarrisonPreferencesDocument
                 ini.GetString(ServerAdvancedSection, "PersistentGameplayOwnershipIdentityMode", PersistentGameplayOwnershipIdentityMode.Disabled.ToString())),
             PersistentGameplayOwnershipFile = ini.GetString(ServerAdvancedSection, "PersistentGameplayOwnershipFile", "gameplay-ownership.json"),
             SnapshotCompressionEnabled = ini.GetBool(ServerAdvancedSection, "SnapshotCompressionEnabled", true),
+            SnapshotBudgetMode = ini.GetString(ServerAdvancedSection, "SnapshotBudgetMode", "GameplayCriticalUntrimmed"),
         };
     }
 
@@ -294,11 +319,14 @@ public sealed class OpenGarrisonPreferencesDocument
 
         ini.SetString(SettingsSection, "PlayerName", PlayerName);
         ini.SetString(SettingsSection, "Rewards", Rewards);
-        ini.SetBool(SettingsSection, "Fullscreen", Fullscreen);
+        var displayMode = NormalizeDisplayMode(DisplayMode);
+        ini.SetInt(SettingsSection, "Display Mode", (int)displayMode);
+        ini.SetBool(SettingsSection, "Fullscreen", displayMode == DisplayModeKind.Fullscreen);
         ini.SetBool(SettingsSection, "UseLobby", HostSettings.LobbyAnnounceEnabled);
         ini.SetInt(SettingsSection, "HostingPort", HostSettings.Port);
         ini.SetInt(SettingsSection, "Resolution", (int)NormalizeIngameResolution(IngameResolution));
         ini.SetInt(SettingsSection, "Window Size", (int)NormalizeWindowSize(WindowSize));
+        ini.SetInt(SettingsSection, "Display Scale", (int)NormalizeDisplayScaleMode(DisplayScaleMode));
         ini.SetInt(SettingsSection, "Music", (int)NormalizeMusicMode(MusicMode));
         ini.SetString(SettingsSection, "Bot Mode", NormalizeBotMode(BotMode).ToString());
         ini.SetInt(SettingsSection, "PlayerLimit", HostSettings.Slots);
@@ -316,6 +344,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(SettingsSection, "Show Healthbar", ShowHealthBarEnabled);
         ini.SetBool(SettingsSection, "HUD Show Only Active Weapon", HudShowOnlyActiveWeapon);
         ini.SetBool(SettingsSection, "Overhead Chat", OverheadChatEnabled);
+        ini.SetString(SettingsSection, "Bubble Wheel Behavior", NormalizeBubbleWheelBehavior(BubbleWheelBehavior).ToString());
         ini.SetBool(SettingsSection, "Portrait Rumble", PortraitRumbleEnabled);
         ini.SetBool(SettingsSection, "MVP Art", PostGameMvpArtEnabled);
         ini.SetBool(SettingsSection, "Damage Vignette", DamageVignetteEnabled);
@@ -361,6 +390,9 @@ public sealed class OpenGarrisonPreferencesDocument
 
         ini.SetString(ServerSection, "MapRotation", HostSettings.MapRotationFile);
         ini.SetBool(ServerSection, "MapRotationShuffle", HostSettings.MapRotationShuffleEnabled);
+        ini.SetString(ServerSection, "MapRotationAdvanceMode", OpenGarrisonHostSettings.NormalizeMapRotationAdvanceMode(HostSettings.MapRotationAdvanceMode).ToString());
+        ini.SetInt(ServerSection, "MapRotationRounds", OpenGarrisonHostSettings.NormalizeMapRotationRounds(HostSettings.MapRotationRounds));
+        ini.SetInt(ServerSection, "MapRotationMinutes", OpenGarrisonHostSettings.NormalizeMapRotationMinutes(HostSettings.MapRotationMinutes));
         ini.SetBool(ServerSection, "UsePlaylistFile", HostSettings.UsePlaylistFile);
         ini.SetBool(ServerSection, "Dedicated", HostSettings.DedicatedModeEnabled);
         ini.SetString(ServerSection, "ServerName", HostSettings.ServerName);
@@ -390,6 +422,8 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(ServerAdvancedSection, "RandomSpreadEnabled", HostSettings.RandomSpreadEnabled);
         ini.SetBool(ServerAdvancedSection, "SniperAimIndicatorEnabled", HostSettings.SniperAimIndicatorEnabled);
         ini.SetBool(ServerAdvancedSection, "RoundEndFriendlyFireEnabled", HostSettings.RoundEndFriendlyFireEnabled);
+        ini.SetBool(ServerAdvancedSection, "SwitchTeamsAfterRoundEnd", HostSettings.SwitchTeamsAfterRoundEnd);
+        ini.SetInt(ServerAdvancedSection, "TeamShuffleAfterWins", OpenGarrisonHostSettings.NormalizeTeamShuffleAfterWins(HostSettings.TeamShuffleAfterWins));
         ini.SetFloat(ServerAdvancedSection, "PlayerScale", HostSettings.PlayerScale);
         ini.SetFloat(ServerAdvancedSection, "MapScale", HostSettings.MapScale);
         ini.SetFloat(ServerAdvancedSection, "MovementSpeedScale", HostSettings.MovementSpeedScale);
@@ -478,6 +512,26 @@ public sealed class OpenGarrisonPreferencesDocument
         };
     }
 
+    private static BubbleWheelBehavior ParseBubbleWheelBehavior(string value)
+    {
+        var normalizedValue = value
+            .Replace(" ", string.Empty, StringComparison.Ordinal)
+            .Replace("-", string.Empty, StringComparison.Ordinal);
+        return Enum.TryParse<BubbleWheelBehavior>(normalizedValue, ignoreCase: true, out var behavior)
+            ? NormalizeBubbleWheelBehavior(behavior)
+            : DefaultBubbleWheelBehavior;
+    }
+
+    public static BubbleWheelBehavior NormalizeBubbleWheelBehavior(BubbleWheelBehavior behavior)
+    {
+        return behavior switch
+        {
+            BubbleWheelBehavior.HoldAndHover => BubbleWheelBehavior.HoldAndHover,
+            BubbleWheelBehavior.PressAndClick => BubbleWheelBehavior.PressAndClick,
+            _ => DefaultBubbleWheelBehavior,
+        };
+    }
+
     private static ControllerButtonBinding ReadControllerButtonBinding(
         IniConfigurationFile ini,
         string key,
@@ -550,6 +604,38 @@ public sealed class OpenGarrisonPreferencesDocument
             WindowSizeKind.Scale200 => WindowSizeKind.Scale200,
             _ => DefaultWindowSize,
         };
+    }
+
+    public static DisplayModeKind NormalizeDisplayMode(DisplayModeKind displayMode)
+    {
+        return displayMode switch
+        {
+            DisplayModeKind.Borderless => DisplayModeKind.Borderless,
+            DisplayModeKind.BorderlessWindow => DisplayModeKind.BorderlessWindow,
+            DisplayModeKind.Fullscreen => DisplayModeKind.Fullscreen,
+            _ => DefaultDisplayMode,
+        };
+    }
+
+    public static DisplayScaleModeKind NormalizeDisplayScaleMode(DisplayScaleModeKind displayScaleMode)
+    {
+        return displayScaleMode switch
+        {
+            DisplayScaleModeKind.PixelPerfect => DisplayScaleModeKind.PixelPerfect,
+            _ => DefaultDisplayScaleMode,
+        };
+    }
+
+    private static DisplayModeKind ReadDisplayMode(IniConfigurationFile ini)
+    {
+        if (ini.ContainsKey(SettingsSection, "Display Mode"))
+        {
+            return NormalizeDisplayMode((DisplayModeKind)ini.GetInt(SettingsSection, "Display Mode", (int)DefaultDisplayMode));
+        }
+
+        return ini.GetBool(SettingsSection, "Fullscreen", false)
+            ? DisplayModeKind.Fullscreen
+            : DefaultDisplayMode;
     }
 
     private static IngameResolutionKind ReadIngameResolution(IniConfigurationFile ini)
@@ -649,6 +735,10 @@ public sealed class OpenGarrisonHostSettings
 
     public bool RoundEndFriendlyFireEnabled { get; set; }
 
+    public bool SwitchTeamsAfterRoundEnd { get; set; }
+
+    public int TeamShuffleAfterWins { get; set; }
+
     public bool CompetitiveReadyUpEnabled { get; set; }
 
     public int CompetitiveSetupSeconds { get; set; } = 10;
@@ -674,6 +764,12 @@ public sealed class OpenGarrisonHostSettings
     public string MapRotationFile { get; set; } = string.Empty;
 
     public bool MapRotationShuffleEnabled { get; set; }
+
+    public MapRotationAdvanceMode MapRotationAdvanceMode { get; set; } = MapRotationAdvanceMode.RoundEnd;
+
+    public int MapRotationRounds { get; set; } = 1;
+
+    public int MapRotationMinutes { get; set; } = 15;
 
     public bool UsePlaylistFile { get; set; }
 
@@ -749,6 +845,8 @@ public sealed class OpenGarrisonHostSettings
             RandomSpreadEnabled = RandomSpreadEnabled,
             SniperAimIndicatorEnabled = SniperAimIndicatorEnabled,
             RoundEndFriendlyFireEnabled = RoundEndFriendlyFireEnabled,
+            SwitchTeamsAfterRoundEnd = SwitchTeamsAfterRoundEnd,
+            TeamShuffleAfterWins = NormalizeTeamShuffleAfterWins(TeamShuffleAfterWins),
             CompetitiveReadyUpEnabled = CompetitiveReadyUpEnabled,
             CompetitiveSetupSeconds = CompetitiveSetupSeconds,
             PlayerScale = PlayerScale,
@@ -762,6 +860,9 @@ public sealed class OpenGarrisonHostSettings
             DedicatedModeEnabled = DedicatedModeEnabled,
             MapRotationFile = MapRotationFile,
             MapRotationShuffleEnabled = MapRotationShuffleEnabled,
+            MapRotationAdvanceMode = NormalizeMapRotationAdvanceMode(MapRotationAdvanceMode),
+            MapRotationRounds = NormalizeMapRotationRounds(MapRotationRounds),
+            MapRotationMinutes = NormalizeMapRotationMinutes(MapRotationMinutes),
             UsePlaylistFile = UsePlaylistFile,
             StockMapRotation = StockMapRotation.Select(entry => entry.Clone()).ToList(),
         };
@@ -800,6 +901,11 @@ public sealed class OpenGarrisonHostSettings
                 : true,
             SniperAimIndicatorEnabled = ini.GetBool("Server.Advanced", "SniperAimIndicatorEnabled", true),
             RoundEndFriendlyFireEnabled = ini.GetBool("Server.Advanced", "RoundEndFriendlyFireEnabled", false),
+            SwitchTeamsAfterRoundEnd = ini.GetBool("Server.Advanced", "SwitchTeamsAfterRoundEnd", false),
+            TeamShuffleAfterWins = NormalizeTeamShuffleAfterWins(
+                ini.ContainsKey("Server.Advanced", "TeamShuffleAfterWins")
+                    ? ini.GetInt("Server.Advanced", "TeamShuffleAfterWins", 0)
+                    : ini.GetInt("Server.Advanced", "TeamScrambleAfterWins", 0)),
             CompetitiveReadyUpEnabled = ini.GetBool("Server.Advanced", "CompetitiveReadyUpEnabled", false),
             CompetitiveSetupSeconds = Math.Clamp(ini.GetInt("Server.Advanced", "CompetitiveSetupSeconds", 10), 0, 120),
             PlayerScale = PlayerEntity.ClampPlayerScale(ini.GetFloat("Server.Advanced", "PlayerScale", 1f)),
@@ -819,9 +925,48 @@ public sealed class OpenGarrisonHostSettings
             DedicatedModeEnabled = ini.GetBool("Server", "Dedicated", false),
             MapRotationFile = ini.GetString("Server", "MapRotation", string.Empty),
             MapRotationShuffleEnabled = ini.GetBool("Server", "MapRotationShuffle", false),
+            MapRotationAdvanceMode = ParseMapRotationAdvanceMode(ini.GetString("Server", "MapRotationAdvanceMode", MapRotationAdvanceMode.RoundEnd.ToString())),
+            MapRotationRounds = NormalizeMapRotationRounds(ini.GetInt("Server", "MapRotationRounds", 1)),
+            MapRotationMinutes = NormalizeMapRotationMinutes(ini.GetInt("Server", "MapRotationMinutes", 15)),
             UsePlaylistFile = ini.GetBool("Server", "UsePlaylistFile", false),
             StockMapRotation = OpenGarrisonStockMapCatalog.LoadFrom(ini, legacySelectedMap),
         };
+    }
+
+    public static MapRotationAdvanceMode NormalizeMapRotationAdvanceMode(MapRotationAdvanceMode mode)
+    {
+        return mode switch
+        {
+            MapRotationAdvanceMode.RoundEnd => MapRotationAdvanceMode.RoundEnd,
+            MapRotationAdvanceMode.RoundCount => MapRotationAdvanceMode.RoundCount,
+            MapRotationAdvanceMode.TimeElapsed => MapRotationAdvanceMode.TimeElapsed,
+            _ => MapRotationAdvanceMode.RoundEnd,
+        };
+    }
+
+    public static MapRotationAdvanceMode ParseMapRotationAdvanceMode(string value)
+    {
+        if (Enum.TryParse<MapRotationAdvanceMode>(value, ignoreCase: true, out var parsed))
+        {
+            return NormalizeMapRotationAdvanceMode(parsed);
+        }
+
+        return MapRotationAdvanceMode.RoundEnd;
+    }
+
+    public static int NormalizeMapRotationRounds(int rounds)
+    {
+        return Math.Clamp(rounds, 1, 255);
+    }
+
+    public static int NormalizeMapRotationMinutes(int minutes)
+    {
+        return Math.Clamp(minutes, 1, 255);
+    }
+
+    public static int NormalizeTeamShuffleAfterWins(int wins)
+    {
+        return Math.Clamp(wins, 0, 255);
     }
 }
 
@@ -837,6 +982,8 @@ public sealed class OpenGarrisonMapRotationEntry
 
     public bool IsCustomMap { get; init; }
 
+    public bool IsPlaylistClone { get; set; }
+
     public int DefaultOrder { get; init; }
 
     public int Order { get; set; }
@@ -850,6 +997,7 @@ public sealed class OpenGarrisonMapRotationEntry
             DisplayName = DisplayName,
             Mode = Mode,
             IsCustomMap = IsCustomMap,
+            IsPlaylistClone = IsPlaylistClone,
             DefaultOrder = DefaultOrder,
             Order = Order,
         };
@@ -868,6 +1016,7 @@ public static class OpenGarrisonStockMapCatalog
 {
     private const string MapsSection = "Maps";
     private const string CustomMapsSection = "CustomMaps";
+    private const string MapRotationPlaylistSection = "MapRotationPlaylist";
 
     public static IReadOnlyList<OpenGarrisonStockMapDefinition> Definitions { get; } =
     [
@@ -904,7 +1053,7 @@ public static class OpenGarrisonStockMapCatalog
 
     public static List<OpenGarrisonMapRotationEntry> CreateDefaultEntries()
     {
-        return Definitions
+        var entries = Definitions
             .Select(definition => new OpenGarrisonMapRotationEntry
             {
                 IniKey = definition.IniKey,
@@ -915,6 +1064,25 @@ public static class OpenGarrisonStockMapCatalog
                 Order = definition.DefaultOrder,
             })
             .ToList();
+        foreach (var definition in Definitions.Where(definition => definition.Mode == GameModeKind.ControlPoint))
+        {
+            if (!TryGetDefinition(GetVipIniKey(definition), out var vipDefinition))
+            {
+                continue;
+            }
+
+            entries.Add(new OpenGarrisonMapRotationEntry
+            {
+                IniKey = vipDefinition.IniKey,
+                LevelName = vipDefinition.LevelName,
+                DisplayName = vipDefinition.DisplayName,
+                Mode = GameModeKind.Vip,
+                DefaultOrder = 0,
+                Order = 0,
+            });
+        }
+
+        return entries;
     }
 
     public static List<OpenGarrisonMapRotationEntry> LoadFrom(IniConfigurationFile ini, string legacySelectedMap)
@@ -971,6 +1139,7 @@ public static class OpenGarrisonStockMapCatalog
             });
         }
 
+        ApplySavedPlaylist(ini, entries);
         return entries;
     }
 
@@ -992,6 +1161,17 @@ public static class OpenGarrisonStockMapCatalog
             }
 
             ini.SetInt(CustomMapsSection, entry.LevelName, Math.Max(0, entry.Order));
+        }
+
+        var playlistEntries = GetOrderedEntries(entryList)
+            .Where(entry => entry.Order > 0)
+            .ToArray();
+        ini.SetInt(MapRotationPlaylistSection, "Count", playlistEntries.Length);
+        for (var index = 0; index < playlistEntries.Length; index += 1)
+        {
+            var entry = playlistEntries[index];
+            var token = string.IsNullOrWhiteSpace(entry.IniKey) ? entry.LevelName : entry.IniKey;
+            ini.SetString(MapRotationPlaylistSection, (index + 1).ToString(CultureInfo.InvariantCulture), token);
         }
     }
 
@@ -1023,6 +1203,11 @@ public static class OpenGarrisonStockMapCatalog
     public static bool TryGetDefinition(string mapName, out OpenGarrisonStockMapDefinition definition)
     {
         var normalized = NormalizeMapName(mapName);
+        if (TryGetVipDefinition(normalized, out definition))
+        {
+            return true;
+        }
+
         foreach (var candidate in AllDefinitions)
         {
             if (string.Equals(candidate.IniKey, normalized, StringComparison.OrdinalIgnoreCase)
@@ -1036,6 +1221,148 @@ public static class OpenGarrisonStockMapCatalog
 
         definition = default;
         return false;
+    }
+
+    private static void ApplySavedPlaylist(IniConfigurationFile ini, List<OpenGarrisonMapRotationEntry> entries)
+    {
+        var count = ini.GetInt(MapRotationPlaylistSection, "Count", 0);
+        if (count <= 0)
+        {
+            return;
+        }
+
+        entries.RemoveAll(entry => entry.IsPlaylistClone);
+        foreach (var entry in entries)
+        {
+            entry.Order = 0;
+        }
+
+        var catalog = entries
+            .Where(entry => !entry.IsPlaylistClone)
+            .ToList();
+        for (var index = 1; index <= count; index += 1)
+        {
+            var token = ini.GetString(MapRotationPlaylistSection, index.ToString(CultureInfo.InvariantCulture));
+            if (!TryResolveMapRotationEntry(token, catalog, out var resolved))
+            {
+                continue;
+            }
+
+            var playlistEntry = resolved.Order > 0 ? resolved.Clone() : resolved;
+            if (!ReferenceEquals(playlistEntry, resolved))
+            {
+                playlistEntry.IsPlaylistClone = true;
+                entries.Add(playlistEntry);
+            }
+
+            playlistEntry.Order = index;
+        }
+    }
+
+    private static bool TryResolveMapRotationEntry(
+        string token,
+        IReadOnlyList<OpenGarrisonMapRotationEntry> catalog,
+        out OpenGarrisonMapRotationEntry entry)
+    {
+        entry = null!;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return false;
+        }
+
+        if (TryGetDefinition(token, out var definition))
+        {
+            entry = catalog.FirstOrDefault(candidate =>
+                string.Equals(candidate.IniKey, token, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(candidate.LevelName, token, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(candidate.DisplayName, token, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(candidate.IniKey, definition.IniKey, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(candidate.LevelName, definition.LevelName, StringComparison.OrdinalIgnoreCase));
+            return entry is not null;
+        }
+
+        entry = catalog.FirstOrDefault(candidate =>
+            string.Equals(candidate.LevelName, token, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(candidate.IniKey, token, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(candidate.DisplayName, token, StringComparison.OrdinalIgnoreCase));
+        return entry is not null;
+    }
+
+    public static string GetVipIniKey(OpenGarrisonStockMapDefinition definition)
+    {
+        var shortName = definition.Aliases.FirstOrDefault(alias =>
+            alias.IndexOf('_') < 0
+            && !string.Equals(alias, "dustbowl", StringComparison.OrdinalIgnoreCase));
+        if (string.IsNullOrWhiteSpace(shortName))
+        {
+            shortName = NormalizeMapName(definition.LevelName);
+        }
+
+        return $"vip_{shortName.ToLowerInvariant()}";
+    }
+
+    private static bool TryGetVipDefinition(string normalizedMapName, out OpenGarrisonStockMapDefinition definition)
+    {
+        definition = default;
+        if (!normalizedMapName.StartsWith("vip_", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var baseName = normalizedMapName["vip_".Length..];
+        foreach (var candidate in AllDefinitions)
+        {
+            if (candidate.Mode != GameModeKind.ControlPoint)
+            {
+                continue;
+            }
+
+            if (!IsVipBaseMapMatch(candidate, baseName))
+            {
+                continue;
+            }
+
+            var vipIniKey = GetVipIniKey(candidate);
+            definition = new OpenGarrisonStockMapDefinition(
+                vipIniKey,
+                vipIniKey,
+                $"{candidate.DisplayName} (VIP)",
+                GameModeKind.Vip,
+                0,
+                CreateVipAliases(candidate));
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsVipBaseMapMatch(OpenGarrisonStockMapDefinition definition, string baseName)
+    {
+        return string.Equals(definition.IniKey, baseName, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(definition.LevelName, baseName, StringComparison.OrdinalIgnoreCase)
+            || definition.Aliases.Any(alias => string.Equals(alias, baseName, StringComparison.OrdinalIgnoreCase))
+            || (string.Equals(baseName, "dustbowl", StringComparison.OrdinalIgnoreCase)
+                && definition.Aliases.Any(alias => string.Equals(alias, "dirtbowl", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private static string[] CreateVipAliases(OpenGarrisonStockMapDefinition definition)
+    {
+        var aliases = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            $"vip_{definition.IniKey}",
+            $"vip_{definition.LevelName}",
+        };
+        foreach (var alias in definition.Aliases)
+        {
+            aliases.Add($"vip_{alias}");
+        }
+
+        if (definition.Aliases.Any(alias => string.Equals(alias, "dirtbowl", StringComparison.OrdinalIgnoreCase)))
+        {
+            aliases.Add("vip_dustbowl");
+        }
+
+        return aliases.ToArray();
     }
 
     private static string NormalizeMapName(string? mapName)

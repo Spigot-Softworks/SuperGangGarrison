@@ -38,7 +38,7 @@ public partial class Game1
             _teamSelectPanelY = MathF.Min(120f, _teamSelectPanelY + ScaleLegacyUiDistance(15f));
         }
 
-        var panelLeft = (ViewportWidth / 2f) - 400f;
+        var panelLeft = GetTeamSelectPanelLeft(ViewportWidth);
         var mouseHoverIndex = GetTeamSelectHoverIndex(mouse.X, mouse.Y, panelLeft);
         if (ShouldUseMouseMenuHover(mouse) && mouseHoverIndex >= 0)
         {
@@ -91,10 +91,10 @@ public partial class Game1
     {
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
-        var panelLeft = (viewportWidth / 2f) - 400f;
+        var panelLeft = GetTeamSelectPanelLeft(viewportWidth);
         var alpha = Math.Clamp(_teamSelectAlpha, 0.01f, 0.99f);
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * MathF.Min(0.8f, alpha));
-        TryDrawScreenSprite("TeamSelectS", 0, new Vector2(viewportWidth / 2f, _teamSelectPanelY), Color.White * alpha, Vector2.One);
+        DrawTeamSelectBackground(panelLeft, viewportWidth, alpha);
 
         if (_teamSelectHoverIndex >= 0 && _teamSelectPanelY >= 120f)
         {
@@ -139,6 +139,24 @@ public partial class Game1
         var teamCountDrawY = (teamCountBottomY - MeasureBitmapFontHeight(teamCountScale)) + teamCountExtraDrop;
         DrawBitmapFontText(GetTeamCount(PlayerTeam.Red).ToString(CultureInfo.InvariantCulture), new Vector2(panelLeft + 284f + teamCountOffsetX, teamCountDrawY), Color.Black * alpha, teamCountScale);
         DrawBitmapFontText(GetTeamCount(PlayerTeam.Blue).ToString(CultureInfo.InvariantCulture), new Vector2(panelLeft + 396f + teamCountOffsetX, teamCountDrawY), Color.Black * alpha, teamCountScale);
+    }
+
+    private void DrawTeamSelectBackground(float panelLeft, int viewportWidth, float alpha)
+    {
+        var stretchWidth = MathF.Max(0f, viewportWidth - panelLeft - 800f);
+        if (stretchWidth > 0f)
+        {
+            TryDrawScreenSprite("TeamSelectBS", 0, new Vector2(panelLeft + 800f, _teamSelectPanelY), Color.White * alpha, new Vector2(stretchWidth, 1f));
+        }
+
+        TryDrawScreenSprite("TeamSelectS", 0, new Vector2(panelLeft + 400f, _teamSelectPanelY), Color.White * alpha, Vector2.One);
+    }
+
+    private static float GetTeamSelectPanelLeft(int viewportWidth)
+    {
+        return viewportWidth >= 800
+            ? 0f
+            : (viewportWidth / 2f) - 400f;
     }
 
     private static int GetTeamSelectHoverIndex(int mouseX, int mouseY, float panelLeft)

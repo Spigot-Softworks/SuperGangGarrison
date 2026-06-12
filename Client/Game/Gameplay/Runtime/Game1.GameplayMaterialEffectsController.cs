@@ -14,6 +14,11 @@ public partial class Game1
         private const int BrowserLooseSheetLifetimeTicks = 90;
         private const int BrowserLooseSheetFadeTicks = 24;
         private const float BrowserLooseSheetSpawnChance = 0.4f;
+        private const int MaxCivvieMoneySheetVisuals = 40;
+        private const int CivvieMoneySheetLifetimeTicks = 90;
+        private const int CivvieMoneySheetFadeTicks = 18;
+        private const float CivvieMoneySheetDrawScale = 1.2f;
+        private static readonly Color CivvieMoneySheetTint = new(0, 114, 3);
         private readonly Game1 _game;
 
         public GameplayMaterialEffectsController(Game1 game)
@@ -186,7 +191,17 @@ public partial class Game1
                 if (sprite is not null && sprite.Frames.Count > 0)
                 {
                     var frameIndex = sheet.IsBurning ? Math.Clamp(sheet.BurnAnimationTicks / 4, 0, sprite.Frames.Count - 1) : 0;
-                    _game.DrawLoadedSpriteFrame(sprite.Frames[frameIndex], new Vector2(sheet.X - cameraPosition.X, sheet.Y - cameraPosition.Y), null, Color.White * alpha, sheet.RotationRadians, sprite.Origin.ToVector2(), new Vector2(2f, 2f), SpriteEffects.None, 0f);
+                    var tint = sheet.IsBurning ? Color.White : sheet.Tint;
+                    _game.DrawLoadedSpriteFrame(
+                        sprite.Frames[frameIndex],
+                        new Vector2(sheet.X - cameraPosition.X, sheet.Y - cameraPosition.Y),
+                        null,
+                        tint * alpha,
+                        sheet.RotationRadians,
+                        sprite.Origin.ToVector2(),
+                        new Vector2(sheet.DrawScale, sheet.DrawScale),
+                        SpriteEffects.None,
+                        0f);
                     continue;
                 }
 
@@ -243,9 +258,14 @@ public partial class Game1
             _game._pendingWeaponShellVisuals.Add(new PendingWeaponShellVisual(_game.GetPlayerStateKey(player), classId, player.Team, Math.Max(0f, delaySeconds), count, spriteName));
         }
 
-        public void SpawnLooseSheetVisual(float x, float y, float initialHorizontalSpeed)
+        public void SpawnLooseSheetVisual(float x, float y, float initialHorizontalSpeed, string? spriteName = null, bool isCivvieMoney = false)
         {
             string[] sheetSprites = ["SheetFalling1", "SheetFalling2", "SheetFalling3"];
+            if (isCivvieMoney && _game._particleMode != 0)
+            {
+                return;
+            }
+
             if (OperatingSystem.IsBrowser())
             {
                 if (_game._visualRandom.NextSingle() > BrowserLooseSheetSpawnChance)
@@ -258,20 +278,69 @@ public partial class Game1
                     _game._looseSheetVisuals.RemoveAt(0);
                 }
             }
+            else if (isCivvieMoney)
+            {
+                PruneCivvieMoneySheetVisuals();
+            }
 
             var horizontalVelocity = (initialHorizontalSpeed / ClientUpdateTicksPerSecond) + ((_game._visualRandom.NextSingle() * 0.6f) - 0.3f);
             var verticalVelocity = -0.8f - (_game._visualRandom.NextSingle() * 0.45f);
-            var lifetimeTicks = OperatingSystem.IsBrowser() ? BrowserLooseSheetLifetimeTicks : LooseSheetVisual.LifetimeTicks;
-            var fadeTicks = OperatingSystem.IsBrowser() ? BrowserLooseSheetFadeTicks : LooseSheetVisual.FadeTicks;
+            var lifetimeTicks = OperatingSystem.IsBrowser()
+                ? BrowserLooseSheetLifetimeTicks
+                : isCivvieMoney
+                    ? CivvieMoneySheetLifetimeTicks
+                    : LooseSheetVisual.LifetimeTicks;
+            var fadeTicks = OperatingSystem.IsBrowser()
+                ? BrowserLooseSheetFadeTicks
+                : isCivvieMoney
+                    ? CivvieMoneySheetFadeTicks
+                    : LooseSheetVisual.FadeTicks;
             _game._looseSheetVisuals.Add(new LooseSheetVisual(
                 x,
                 y,
                 horizontalVelocity,
                 verticalVelocity,
                 ((_game._visualRandom.NextSingle() * 0.12f) - 0.06f) * MathF.PI,
-                sheetSprites[_game._visualRandom.Next(sheetSprites.Length)],
+                string.IsNullOrWhiteSpace(spriteName) || isCivvieMoney ? sheetSprites[_game._visualRandom.Next(sheetSprites.Length)] : spriteName,
                 lifetimeTicks,
-                fadeTicks));
+                fadeTicks,
+                isCivvieMoney,
+                isCivvieMoney ? CivvieMoneySheetTint : Color.White,
+                isCivvieMoney ? CivvieMoneySheetDrawScale : 2f));
+        }
+
+        private void PruneCivvieMoneySheetVisuals()
+        {
+            var civvieMoneyCount = 0;
+            for (var index = 0; index < _game._looseSheetVisuals.Count; index += 1)
+            {
+                if (_game._looseSheetVisuals[index].IsCivvieMoney)
+                {
+                    civvieMoneyCount += 1;
+                }
+            }
+
+            while (civvieMoneyCount >= MaxCivvieMoneySheetVisuals)
+            {
+                var removed = false;
+                for (var index = 0; index < _game._looseSheetVisuals.Count; index += 1)
+                {
+                    if (!_game._looseSheetVisuals[index].IsCivvieMoney)
+                    {
+                        continue;
+                    }
+
+                    _game._looseSheetVisuals.RemoveAt(index);
+                    civvieMoneyCount -= 1;
+                    removed = true;
+                    break;
+                }
+
+                if (!removed)
+                {
+                    break;
+                }
+            }
         }
 
         public bool IsShellBlocked(float x, float y)

@@ -122,6 +122,7 @@ internal sealed class ServerIncomingMessageDispatcher(
                     }
 
                     inputClient.TrySetLatestInput(input.Sequence, ToCoreInput(input, playerX, playerY));
+                    inputClient.PingMilliseconds = input.PingMilliseconds;
                     if (input.ChatBubbleFrameIndex >= 0)
                     {
                         world.TryTriggerNetworkPlayerChatBubble(inputClient.Slot, input.ChatBubbleFrameIndex);

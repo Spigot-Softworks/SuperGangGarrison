@@ -263,7 +263,8 @@ internal sealed class LuaServerPlugin(
     {
         ExecuteInPhase(ServerLuaCallbackPhase.Event, () =>
         {
-            if (TryInvokeCallback("on_gameplay_ability_input", out var result, ToDynValue(e))
+            if (TryPrepareCallbackInvocation("on_gameplay_ability_input", out var function, out var result)
+                && TryInvokePreparedCallback("on_gameplay_ability_input", function, [ToDynValue(e)], out result)
                 && result.Type == DataType.Boolean
                 && !result.Boolean)
             {
@@ -272,9 +273,23 @@ internal sealed class LuaServerPlugin(
         });
     }
 
-    public void OnGameplayAbilityUsed(OpenGarrisonServerGameplayAbilityUsedEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_gameplay_ability_used", ToDynValue(e)));
+    public void OnGameplayAbilityUsed(OpenGarrisonServerGameplayAbilityUsedEvent e)
+        => ExecuteInPhase(ServerLuaCallbackPhase.Event, () =>
+        {
+            if (TryPrepareCallbackInvocation("on_gameplay_ability_used", out var function, out var result))
+            {
+                _ = TryInvokePreparedCallback("on_gameplay_ability_used", function, [ToDynValue(e)], out result);
+            }
+        });
 
-    public void OnGameplayAbilityStateChanged(OpenGarrisonServerGameplayAbilityStateChangedEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_gameplay_ability_state_changed", ToDynValue(e)));
+    public void OnGameplayAbilityStateChanged(OpenGarrisonServerGameplayAbilityStateChangedEvent e)
+        => ExecuteInPhase(ServerLuaCallbackPhase.Event, () =>
+        {
+            if (TryPrepareCallbackInvocation("on_gameplay_ability_state_changed", out var function, out var result))
+            {
+                _ = TryInvokePreparedCallback("on_gameplay_ability_state_changed", function, [ToDynValue(e)], out result);
+            }
+        });
 
     private static OpenGarrisonServerDecisionResult ReadDecisionResult(DynValue result)
     {
@@ -461,17 +476,34 @@ internal sealed class LuaServerPlugin(
 
     private bool TryInvokeCallback(string callbackName, out DynValue result, bool rethrowOnFailure, params DynValue[] args)
     {
+        if (!TryPrepareCallbackInvocation(callbackName, out var function, out result))
+        {
+            return false;
+        }
+
+        return TryInvokePreparedCallback(callbackName, function, args, out result, rethrowOnFailure);
+    }
+
+    private bool TryPrepareCallbackInvocation(string callbackName, out DynValue function, out DynValue result)
+    {
+        function = DynValue.Nil;
         result = DynValue.Nil;
         if (_script is null || _pluginTable is null || _callbacksDisabled)
         {
             return false;
         }
 
-        if (!TryGetCachedCallbackFunction(callbackName, out var function))
-        {
-            return false;
-        }
+        return TryGetCachedCallbackFunction(callbackName, out function);
+    }
 
+    private bool TryInvokePreparedCallback(
+        string callbackName,
+        DynValue function,
+        DynValue[] args,
+        out DynValue result,
+        bool rethrowOnFailure = false)
+    {
+        result = DynValue.Nil;
         try
         {
             result = InvokeCallbackWithLimits(function, args);

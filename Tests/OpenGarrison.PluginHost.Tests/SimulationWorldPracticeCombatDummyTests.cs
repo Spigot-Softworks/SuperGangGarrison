@@ -13,6 +13,7 @@ public sealed class SimulationWorldPracticeCombatDummyTests
         typeof(PlayerEntity),
         typeof(float),
         typeof(DamageEventFlags),
+        typeof(bool),
         typeof(bool));
 
     private static readonly MethodInfo ApplyPlayerContinuousDamageMethod = GetRequiredNonPublicMethod(
@@ -22,6 +23,7 @@ public sealed class SimulationWorldPracticeCombatDummyTests
         typeof(PlayerEntity),
         typeof(float),
         typeof(DamageEventFlags),
+        typeof(bool),
         typeof(bool));
 
     [Fact]
@@ -206,7 +208,7 @@ public sealed class SimulationWorldPracticeCombatDummyTests
     {
         return (bool)ApplyPlayerDamageMethod.Invoke(
             world,
-            [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true])!;
+            [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true])!;
     }
 
     private static bool InvokeApplyPlayerContinuousDamage(
@@ -217,7 +219,7 @@ public sealed class SimulationWorldPracticeCombatDummyTests
     {
         return (bool)ApplyPlayerContinuousDamageMethod.Invoke(
             world,
-            [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true])!;
+            [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true])!;
     }
 
     private static MethodInfo GetRequiredNonPublicMethod(string name, params Type[] parameterTypes)

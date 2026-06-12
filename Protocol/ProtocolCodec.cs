@@ -254,7 +254,8 @@ public static partial class ProtocolCodec
                     reader.ReadInt32(),
                     reader.ReadBoolean(),
                     reader.ReadSingle(),
-                    reader.ReadSingle()),
+                    reader.ReadSingle(),
+                    stream.Position < stream.Length ? reader.ReadInt32() : -1),
                 MessageType.ControlCommand => new ControlCommandMessage(
                     reader.ReadUInt32(),
                     (ControlCommandKind)reader.ReadByte(),
@@ -466,6 +467,7 @@ public static partial class ProtocolCodec
                 writer.Write(input.IsUsingBinoculars);
                 writer.Write(input.BinocularsFocusX);
                 writer.Write(input.BinocularsFocusY);
+                writer.Write(input.PingMilliseconds);
                 break;
             case ControlCommandMessage command:
                 writer.Write(command.Sequence);

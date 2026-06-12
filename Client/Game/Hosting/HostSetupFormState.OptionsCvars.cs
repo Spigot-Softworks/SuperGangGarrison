@@ -31,6 +31,10 @@ public partial class Game1
 
         public bool RoundEndFriendlyFireEnabled { get; set; }
 
+        public bool SwitchTeamsAfterRoundEnd { get; set; }
+
+        public int TeamShuffleAfterWins { get; set; }
+
         public bool CompetitiveReadyUpEnabled { get; set; }
 
         public int CompetitiveSetupSeconds { get; set; } = 10;
@@ -280,6 +284,8 @@ public partial class Game1
             RandomSpreadEnabled = hostDefaults.RandomSpreadEnabled;
             SniperAimIndicatorEnabled = hostDefaults.SniperAimIndicatorEnabled;
             RoundEndFriendlyFireEnabled = hostDefaults.RoundEndFriendlyFireEnabled;
+            SwitchTeamsAfterRoundEnd = hostDefaults.SwitchTeamsAfterRoundEnd;
+            TeamShuffleAfterWins = OpenGarrisonHostSettings.NormalizeTeamShuffleAfterWins(hostDefaults.TeamShuffleAfterWins);
             CompetitiveReadyUpEnabled = hostDefaults.CompetitiveReadyUpEnabled;
             CompetitiveSetupSeconds = hostDefaults.CompetitiveSetupSeconds;
             BotAutofillEnabled = hostDefaults.BotAutofillEnabled;
@@ -317,6 +323,8 @@ public partial class Game1
             hostDefaults.RandomSpreadEnabled = RandomSpreadEnabled;
             hostDefaults.SniperAimIndicatorEnabled = SniperAimIndicatorEnabled;
             hostDefaults.RoundEndFriendlyFireEnabled = RoundEndFriendlyFireEnabled;
+            hostDefaults.SwitchTeamsAfterRoundEnd = SwitchTeamsAfterRoundEnd;
+            hostDefaults.TeamShuffleAfterWins = OpenGarrisonHostSettings.NormalizeTeamShuffleAfterWins(TeamShuffleAfterWins);
             hostDefaults.CompetitiveReadyUpEnabled = CompetitiveReadyUpEnabled;
             hostDefaults.CompetitiveSetupSeconds = Math.Clamp(CompetitiveSetupSeconds, 0, 120);
             hostDefaults.BotAutofillEnabled = BotAutofillEnabled;
@@ -345,6 +353,8 @@ public partial class Game1
                 nameof(OpenGarrisonHostSettings.RandomSpreadEnabled) => RandomSpreadEnabled ? "1" : "0",
                 nameof(OpenGarrisonHostSettings.SniperAimIndicatorEnabled) => SniperAimIndicatorEnabled ? "1" : "0",
                 nameof(OpenGarrisonHostSettings.RoundEndFriendlyFireEnabled) => RoundEndFriendlyFireEnabled ? "1" : "0",
+                nameof(OpenGarrisonHostSettings.SwitchTeamsAfterRoundEnd) => SwitchTeamsAfterRoundEnd ? "1" : "0",
+                nameof(OpenGarrisonHostSettings.TeamShuffleAfterWins) => TeamShuffleAfterWins.ToString(CultureInfo.InvariantCulture),
                 nameof(OpenGarrisonHostSettings.CompetitiveReadyUpEnabled) => CompetitiveReadyUpEnabled ? "1" : "0",
                 nameof(OpenGarrisonHostSettings.CompetitiveSetupSeconds) => CompetitiveSetupSeconds.ToString(CultureInfo.InvariantCulture),
                 nameof(OpenGarrisonHostSettings.BotAutofillEnabled) => BotAutofillEnabled ? "1" : "0",
@@ -390,6 +400,16 @@ public partial class Game1
                     break;
                 case nameof(OpenGarrisonHostSettings.RoundEndFriendlyFireEnabled):
                     RoundEndFriendlyFireEnabled = ParseBool(rawValue);
+                    break;
+                case nameof(OpenGarrisonHostSettings.SwitchTeamsAfterRoundEnd):
+                    SwitchTeamsAfterRoundEnd = ParseBool(rawValue);
+                    break;
+                case nameof(OpenGarrisonHostSettings.TeamShuffleAfterWins):
+                    if (int.TryParse(rawValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var teamShuffleAfterWins))
+                    {
+                        TeamShuffleAfterWins = OpenGarrisonHostSettings.NormalizeTeamShuffleAfterWins(teamShuffleAfterWins);
+                    }
+
                     break;
                 case nameof(OpenGarrisonHostSettings.CompetitiveReadyUpEnabled):
                     CompetitiveReadyUpEnabled = ParseBool(rawValue);

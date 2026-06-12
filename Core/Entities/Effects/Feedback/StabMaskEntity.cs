@@ -7,6 +7,10 @@ public sealed class StabMaskEntity : SimulationEntity
     public const float StartOffset = 6f;
     public const float ReachLength = 33f;
     public const float Thickness = 12f;
+    public const float RightFacingLeftOffset = -2f;
+    public const float RightFacingRightOffset = 32f;
+    public const float TopOffset = -24f;
+    public const float BottomOffset = 19f;
 
     public StabMaskEntity(
         int id,
@@ -37,6 +41,36 @@ public sealed class StabMaskEntity : SimulationEntity
     public int TicksRemaining { get; private set; }
 
     public bool IsExpired => TicksRemaining <= 0;
+
+    public bool FacingLeft => IsFacingLeft(DirectionDegrees);
+
+    public static bool IsFacingLeft(float directionDegrees)
+    {
+        var normalized = directionDegrees % 360f;
+        if (normalized < 0f)
+        {
+            normalized += 360f;
+        }
+
+        return normalized >= 90f && normalized <= 270f;
+    }
+
+    public void GetHitBounds(out float left, out float top, out float right, out float bottom)
+    {
+        if (FacingLeft)
+        {
+            left = X - RightFacingRightOffset;
+            right = X - RightFacingLeftOffset;
+        }
+        else
+        {
+            left = X + RightFacingLeftOffset;
+            right = X + RightFacingRightOffset;
+        }
+
+        top = Y + TopOffset;
+        bottom = Y + BottomOffset;
+    }
 
     public void AdvanceOneTick(float ownerX, float ownerY)
     {

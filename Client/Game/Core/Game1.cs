@@ -31,6 +31,7 @@ public partial class Game1 : Game
         Z,
         X,
         C,
+        Custom,
     }
 
     private enum NoticeKind
@@ -273,8 +274,11 @@ public partial class Game1 : Game
     private bool _hasGameplayCameraTopLeft;
     private Vector2 _gameplayCameraTopLeft;
     private string _lastGameplayWindowTitle = string.Empty;
+    private DisplayModeKind _displayMode = OpenGarrisonPreferencesDocument.DefaultDisplayMode;
     private IngameResolutionKind _ingameResolution = OpenGarrisonPreferencesDocument.DefaultIngameResolution;
     private WindowSizeKind _windowSize = OpenGarrisonPreferencesDocument.DefaultWindowSize;
+    private DisplayScaleModeKind _displayScaleMode = OpenGarrisonPreferencesDocument.DefaultDisplayScaleMode;
+    private Point? _lastWindowedPosition;
     private int _particleMode;
     private int _flameRenderMode;
     private MenuBackgroundMode _menuBackgroundMode = MenuBackgroundMode.DefaultMaps;
@@ -288,6 +292,8 @@ public partial class Game1 : Game
     private bool _showHealthBarEnabled;
     private bool _hudShowOnlyActiveWeapon;
     private bool _overheadChatEnabled = OpenGarrisonPreferencesDocument.DefaultOverheadChatEnabled;
+    private BubbleWheelBehavior _bubbleWheelBehavior = OpenGarrisonPreferencesDocument.DefaultBubbleWheelBehavior;
+    private DateTime _bubbleWheelPluginConfigLastWriteUtc;
     private bool _portraitRumbleEnabled = true;
     private bool _postGameMvpArtEnabled;
     private float _portraitRumbleRemainingSeconds;
@@ -398,9 +404,10 @@ public partial class Game1 : Game
         ClientRuntimeBootstrap.InitializeContentRoot(Content.RootDirectory);
         InitializeLocalDistributionAtlasManifestsIfPresent();
         IsMouseVisible = false;
+        ApplyDisplayMode(_clientSettings.DisplayMode);
         ApplyIngameResolution(_clientSettings.IngameResolution);
         ApplyWindowSize(_clientSettings.WindowSize);
-        ApplyPreferredBackBufferSize(!OperatingSystem.IsBrowser() && _clientSettings.Fullscreen, _ingameResolution, _windowSize);
+        ApplyPreferredBackBufferSize(_displayMode, _ingameResolution, _windowSize);
 
         ReinitializeSimulationForTickRate(SimulationConfig.DefaultTicksPerSecond);
         _assetManifest = OperatingSystem.IsBrowser()
@@ -432,7 +439,7 @@ public partial class Game1 : Game
 
         if (!OperatingSystem.IsBrowser())
         {
-            Window.AllowUserResizing = !_graphics.IsFullScreen;
+            Window.AllowUserResizing = IsUserResizableDisplayMode(_displayMode);
         }
 
         // Subscribe to game exit event to ensure proper server disconnection

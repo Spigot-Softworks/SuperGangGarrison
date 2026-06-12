@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 using OpenGarrison.Server;
@@ -8,8 +9,6 @@ using static ServerHelpers;
 
 sealed class SnapshotBroadcaster
 {
-    private const int InitialRemoteFullSnapshotPayloadBytes = 16 * 1024;
-
     private readonly record struct SentSnapshotMetrics(
         int FullPayloadBytes,
         int SentPayloadBytes,
@@ -17,12 +16,29 @@ sealed class SnapshotBroadcaster
         bool WasBudgeted,
         bool BaselineHit,
         bool BaselineMiss,
-        int SnapshotHistoryCount,
-        SnapshotCompositionMetrics Composition);
+        SnapshotCompositionMetrics Composition,
+        SnapshotCompositionMetrics CandidateComposition);
 
     private sealed record SharedSnapshotData(
         ClientSession[] OrderedClients,
         SnapshotMessage Template);
+
+    private readonly record struct ClientSnapshotWorkItem(
+        ClientSession Client,
+        SnapshotMessage FullSnapshot,
+        SnapshotBaselineState? Baseline,
+        int TargetPayloadBytes,
+        OpenGarrison.Server.SnapshotContributionPlanningContext PlanningContext,
+        OpenGarrison.Server.SnapshotBudgetMode BudgetMode);
+
+    private readonly record struct BuiltClientSnapshot(
+        ClientSession Client,
+        SnapshotMessage SentSnapshot,
+        SnapshotMessage ResolvedFullSnapshot,
+        byte[] Payload,
+        SentSnapshotMetrics Metrics,
+        long ElapsedTicks,
+        long AllocatedBytes);
 
     private readonly SimulationWorld _world;
     private readonly SimulationConfig _config;
@@ -32,6 +48,7 @@ sealed class SnapshotBroadcaster
     private readonly Action<ServerTransportPeer, SnapshotMessage, byte[]> _sendSnapshot;
     private readonly OpenGarrison.Server.ServerMapMetadataResolver _mapMetadataResolver;
     private readonly OpenGarrison.Server.SnapshotTransientEventBuffer _transientEventBuffer;
+    private readonly OpenGarrison.Server.SnapshotBudgetMode _snapshotBudgetMode;
     private readonly Action<SnapshotMessage>? _recordCanonicalSnapshot;
     private readonly Func<bool>? _shouldRecordCanonicalSnapshot;
     private readonly SnapshotStringCache _stringCache = new();
@@ -49,6 +66,7 @@ sealed class SnapshotBroadcaster
         ulong transientEventReplayTicks,
         OpenGarrison.Server.ServerMapMetadataResolver mapMetadataResolver,
         Action<ServerTransportPeer, SnapshotMessage, byte[]> sendSnapshot,
+        OpenGarrison.Server.SnapshotBudgetMode snapshotBudgetMode = OpenGarrison.Server.SnapshotBudgetMode.GameplayCriticalUntrimmed,
         Action<SnapshotMessage>? recordCanonicalSnapshot = null,
         Func<bool>? shouldRecordCanonicalSnapshot = null)
     {
@@ -59,6 +77,7 @@ sealed class SnapshotBroadcaster
         _botManager = botManager;
         _mapMetadataResolver = mapMetadataResolver;
         _transientEventBuffer = new OpenGarrison.Server.SnapshotTransientEventBuffer(transientEventReplayTicks);
+        _snapshotBudgetMode = snapshotBudgetMode;
         _sendSnapshot = sendSnapshot;
         _recordCanonicalSnapshot = recordCanonicalSnapshot;
         _shouldRecordCanonicalSnapshot = shouldRecordCanonicalSnapshot;
@@ -151,6 +170,8 @@ sealed class SnapshotBroadcaster
         long perClientAllocatedBytes = 0;
         var totalTargetPayloadBytes = 0;
         var totalFullPayloadBytes = 0;
+        var totalCandidateUncompressedBytes = 0;
+        var totalCandidatePayloadBytes = 0;
         var totalSentUncompressedBytes = 0;
         var totalSentPayloadBytes = 0;
         var maxSentPayloadBytes = 0;
@@ -161,6 +182,17 @@ sealed class SnapshotBroadcaster
         var baselineMissCount = 0;
         var totalSnapshotHistoryCount = 0;
         var maxSnapshotHistoryCount = 0;
+        var totalCandidateFullPlayerBytes = 0;
+        var totalCandidatePlayerMovementBytes = 0;
+        var totalCandidatePlayerStatusBytes = 0;
+        var totalCandidatePlayerExtendedStatusBytes = 0;
+        var totalCandidatePlayerChatBubbleBytes = 0;
+        var totalCandidateProjectileBytes = 0;
+        var totalCandidateSentryBytes = 0;
+        var totalCandidateEventBytes = 0;
+        var totalCandidateRemovalBytes = 0;
+        var totalCandidateWorldBytes = 0;
+        var totalCandidateEnvelopeBytes = 0;
         var totalFullPlayerBytes = 0;
         var totalPlayerMovementBytes = 0;
         var totalPlayerStatusBytes = 0;
@@ -172,15 +204,36 @@ sealed class SnapshotBroadcaster
         var totalRemovalBytes = 0;
         var totalWorldBytes = 0;
         var totalEnvelopeBytes = 0;
-        foreach (var client in sharedSnapshot.OrderedClients)
+        var workItems = new ClientSnapshotWorkItem[sharedSnapshot.OrderedClients.Length];
+        for (var index = 0; index < sharedSnapshot.OrderedClients.Length; index += 1)
         {
+            var client = sharedSnapshot.OrderedClients[index];
             var clientStartTimestamp = Stopwatch.GetTimestamp();
             var clientStartAllocatedBytes = GC.GetAllocatedBytesForCurrentThread();
-            var clientMetrics = SendSnapshot(client, sharedSnapshot);
+            workItems[index] = CreateClientSnapshotWorkItem(client, sharedSnapshot);
             perClientTicks += Stopwatch.GetTimestamp() - clientStartTimestamp;
             perClientAllocatedBytes += GC.GetAllocatedBytesForCurrentThread() - clientStartAllocatedBytes;
+        }
+
+        var builtSnapshots = BuildClientSnapshots(workItems);
+        for (var index = 0; index < builtSnapshots.Length; index += 1)
+        {
+            var builtSnapshot = builtSnapshots[index];
+            perClientTicks += builtSnapshot.ElapsedTicks;
+            perClientAllocatedBytes += builtSnapshot.AllocatedBytes;
+
+            var commitStartTimestamp = Stopwatch.GetTimestamp();
+            var commitStartAllocatedBytes = GC.GetAllocatedBytesForCurrentThread();
+            _sendSnapshot(builtSnapshot.Client.Peer, builtSnapshot.SentSnapshot, builtSnapshot.Payload);
+            builtSnapshot.Client.RememberResolvedSnapshotState(builtSnapshot.ResolvedFullSnapshot);
+            perClientTicks += Stopwatch.GetTimestamp() - commitStartTimestamp;
+            perClientAllocatedBytes += GC.GetAllocatedBytesForCurrentThread() - commitStartAllocatedBytes;
+
+            var clientMetrics = builtSnapshot.Metrics;
             totalTargetPayloadBytes += clientMetrics.Composition.TargetPayloadBytes;
             totalFullPayloadBytes += clientMetrics.FullPayloadBytes;
+            totalCandidateUncompressedBytes += clientMetrics.CandidateComposition.FinalUncompressedBytes;
+            totalCandidatePayloadBytes += clientMetrics.CandidateComposition.FinalPayloadBytes;
             totalSentUncompressedBytes += clientMetrics.Composition.FinalUncompressedBytes;
             totalSentPayloadBytes += clientMetrics.SentPayloadBytes;
             maxSentPayloadBytes = Math.Max(maxSentPayloadBytes, clientMetrics.SentPayloadBytes);
@@ -205,8 +258,20 @@ sealed class SnapshotBroadcaster
                 baselineMissCount += 1;
             }
 
-            totalSnapshotHistoryCount += clientMetrics.SnapshotHistoryCount;
-            maxSnapshotHistoryCount = Math.Max(maxSnapshotHistoryCount, clientMetrics.SnapshotHistoryCount);
+            var snapshotHistoryCount = builtSnapshot.Client.SnapshotHistoryCount;
+            totalSnapshotHistoryCount += snapshotHistoryCount;
+            maxSnapshotHistoryCount = Math.Max(maxSnapshotHistoryCount, snapshotHistoryCount);
+            totalCandidateFullPlayerBytes += clientMetrics.CandidateComposition.FullPlayerBytes;
+            totalCandidatePlayerMovementBytes += clientMetrics.CandidateComposition.PlayerMovementBytes;
+            totalCandidatePlayerStatusBytes += clientMetrics.CandidateComposition.PlayerStatusBytes;
+            totalCandidatePlayerExtendedStatusBytes += clientMetrics.CandidateComposition.PlayerExtendedStatusBytes;
+            totalCandidatePlayerChatBubbleBytes += clientMetrics.CandidateComposition.PlayerChatBubbleBytes;
+            totalCandidateProjectileBytes += clientMetrics.CandidateComposition.ProjectileBytes;
+            totalCandidateSentryBytes += clientMetrics.CandidateComposition.SentryBytes;
+            totalCandidateEventBytes += clientMetrics.CandidateComposition.EventBytes;
+            totalCandidateRemovalBytes += clientMetrics.CandidateComposition.RemovalBytes;
+            totalCandidateWorldBytes += clientMetrics.CandidateComposition.WorldBytes;
+            totalCandidateEnvelopeBytes += clientMetrics.CandidateComposition.EnvelopeAndOtherBytes;
             totalFullPlayerBytes += clientMetrics.Composition.FullPlayerBytes;
             totalPlayerMovementBytes += clientMetrics.Composition.PlayerMovementBytes;
             totalPlayerStatusBytes += clientMetrics.Composition.PlayerStatusBytes;
@@ -239,6 +304,8 @@ sealed class SnapshotBroadcaster
             TotalAllocatedBytes: totalAllocatedBytes,
             AverageTargetPayloadBytes: clientCount == 0 ? 0 : totalTargetPayloadBytes / clientCount,
             AverageFullPayloadBytes: clientCount == 0 ? 0 : totalFullPayloadBytes / clientCount,
+            AverageCandidateUncompressedBytes: clientCount == 0 ? 0 : totalCandidateUncompressedBytes / clientCount,
+            AverageCandidatePayloadBytes: clientCount == 0 ? 0 : totalCandidatePayloadBytes / clientCount,
             AverageSentUncompressedBytes: clientCount == 0 ? 0 : totalSentUncompressedBytes / clientCount,
             AverageSentPayloadBytes: clientCount == 0 ? 0 : totalSentPayloadBytes / clientCount,
             MaxSentPayloadBytes: maxSentPayloadBytes,
@@ -249,6 +316,17 @@ sealed class SnapshotBroadcaster
             BaselineMissCount: baselineMissCount,
             AverageSnapshotHistoryCount: clientCount == 0 ? 0d : (double)totalSnapshotHistoryCount / clientCount,
             MaxSnapshotHistoryCount: maxSnapshotHistoryCount,
+            AverageSnapshotCandidateFullPlayerBytes: clientCount == 0 ? 0 : totalCandidateFullPlayerBytes / clientCount,
+            AverageSnapshotCandidatePlayerMovementBytes: clientCount == 0 ? 0 : totalCandidatePlayerMovementBytes / clientCount,
+            AverageSnapshotCandidatePlayerStatusBytes: clientCount == 0 ? 0 : totalCandidatePlayerStatusBytes / clientCount,
+            AverageSnapshotCandidatePlayerExtendedStatusBytes: clientCount == 0 ? 0 : totalCandidatePlayerExtendedStatusBytes / clientCount,
+            AverageSnapshotCandidatePlayerChatBubbleBytes: clientCount == 0 ? 0 : totalCandidatePlayerChatBubbleBytes / clientCount,
+            AverageSnapshotCandidateProjectileBytes: clientCount == 0 ? 0 : totalCandidateProjectileBytes / clientCount,
+            AverageSnapshotCandidateSentryBytes: clientCount == 0 ? 0 : totalCandidateSentryBytes / clientCount,
+            AverageSnapshotCandidateEventBytes: clientCount == 0 ? 0 : totalCandidateEventBytes / clientCount,
+            AverageSnapshotCandidateRemovalBytes: clientCount == 0 ? 0 : totalCandidateRemovalBytes / clientCount,
+            AverageSnapshotCandidateWorldBytes: clientCount == 0 ? 0 : totalCandidateWorldBytes / clientCount,
+            AverageSnapshotCandidateEnvelopeBytes: clientCount == 0 ? 0 : totalCandidateEnvelopeBytes / clientCount,
             AverageSnapshotFullPlayerBytes: clientCount == 0 ? 0 : totalFullPlayerBytes / clientCount,
             AverageSnapshotPlayerMovementBytes: clientCount == 0 ? 0 : totalPlayerMovementBytes / clientCount,
             AverageSnapshotPlayerStatusBytes: clientCount == 0 ? 0 : totalPlayerStatusBytes / clientCount,
@@ -262,73 +340,127 @@ sealed class SnapshotBroadcaster
             AverageSnapshotEnvelopeBytes: clientCount == 0 ? 0 : totalEnvelopeBytes / clientCount);
     }
 
-    private SentSnapshotMetrics SendSnapshot(ClientSession client, SharedSnapshotData sharedSnapshot)
+    private ClientSnapshotWorkItem CreateClientSnapshotWorkItem(ClientSession client, SharedSnapshotData sharedSnapshot)
     {
         var fullSnapshot = CaptureFullSnapshot(client, sharedSnapshot);
-        var fullSnapshotPayloadBytes = ProtocolCodec.MeasureSerializedSize(fullSnapshot);
-        var targetPayloadBytes = GetTargetSnapshotPayloadBytes(client);
-        var baseline = TryGetBaselineSnapshot(client, fullSnapshot);
+        return new ClientSnapshotWorkItem(
+            client,
+            fullSnapshot,
+            TryGetBaselineSnapshot(client, fullSnapshot),
+            GetTargetSnapshotPayloadBytes(client),
+            OpenGarrison.Server.SnapshotContributionPlanner.CreatePlanningContext(client, fullSnapshot, _world),
+            _snapshotBudgetMode);
+    }
 
-        // A client with no baseline cannot safely reconstruct compact movement-only player
-        // updates for peers it has never seen. Send a complete first remote snapshot, even if
-        // it exceeds the steady-state UDP target, so join-time world state stays coherent.
-        if (baseline is null
-            && fullSnapshotPayloadBytes <= InitialRemoteFullSnapshotPayloadBytes)
+    private static BuiltClientSnapshot[] BuildClientSnapshots(ClientSnapshotWorkItem[] workItems)
+    {
+        if (workItems.Length == 0)
         {
-            var fullSnapshotPayload = ProtocolCodec.Serialize(fullSnapshot, ServerProtocolCompression.Settings);
-            _sendSnapshot(client.Peer, fullSnapshot, fullSnapshotPayload);
-            client.RememberResolvedSnapshotState(fullSnapshot);
-            var composition = SnapshotDeltaBudgeter.BuildCompositionMetrics(
-                fullSnapshot,
-                targetPayloadBytes,
+            return Array.Empty<BuiltClientSnapshot>();
+        }
+
+        var builtSnapshots = new BuiltClientSnapshot[workItems.Length];
+        var workerCount = Math.Min(
+            workItems.Length,
+            Math.Max(1, Environment.ProcessorCount));
+        if (workerCount <= 1)
+        {
+            for (var index = 0; index < workItems.Length; index += 1)
+            {
+                builtSnapshots[index] = BuildClientSnapshot(workItems[index]);
+            }
+
+            return builtSnapshots;
+        }
+
+        Parallel.For(
+            0,
+            workItems.Length,
+            new ParallelOptions { MaxDegreeOfParallelism = workerCount },
+            index => builtSnapshots[index] = BuildClientSnapshot(workItems[index]));
+        return builtSnapshots;
+    }
+
+    private static BuiltClientSnapshot BuildClientSnapshot(ClientSnapshotWorkItem workItem)
+    {
+        var startTimestamp = Stopwatch.GetTimestamp();
+        var startAllocatedBytes = GC.GetAllocatedBytesForCurrentThread();
+        var fullSnapshotPayloadBytes = ProtocolCodec.MeasureSerializedSize(workItem.FullSnapshot);
+
+        // A client with no baseline cannot safely render compact movement-only player updates for
+        // peers it has never seen. Always send a true full snapshot until the client ACKs one.
+        if (workItem.Baseline is null)
+        {
+            return BuildFullClientSnapshot(
+                workItem,
                 fullSnapshotPayloadBytes,
-                fullSnapshotPayload.Length);
-            return new SentSnapshotMetrics(
+                startTimestamp,
+                startAllocatedBytes);
+        }
+
+        var contributions = OpenGarrison.Server.SnapshotContributionPlanner.BuildContributions(
+            workItem.PlanningContext,
+            workItem.FullSnapshot,
+            workItem.Baseline);
+        var snapshot = workItem.BudgetMode == OpenGarrison.Server.SnapshotBudgetMode.GameplayCriticalUntrimmed
+            ? OpenGarrison.Server.SnapshotDeltaBudgeter.BuildUntrimmedSnapshotWithEmergencyReduction(
+                workItem.FullSnapshot,
+                workItem.Baseline,
+                contributions,
+                workItem.TargetPayloadBytes)
+            : OpenGarrison.Server.SnapshotDeltaBudgeter.BuildBudgetedSnapshotWithMetrics(
+                workItem.FullSnapshot,
+                workItem.Baseline,
+                contributions,
+                workItem.TargetPayloadBytes);
+        var resolvedFullSnapshot = SnapshotDelta.ToFullSnapshot(snapshot.Message, workItem.Baseline);
+        return new BuiltClientSnapshot(
+            workItem.Client,
+            snapshot.Message,
+            resolvedFullSnapshot,
+            snapshot.Payload,
+            new SentSnapshotMetrics(
                 FullPayloadBytes: fullSnapshotPayloadBytes,
-                SentPayloadBytes: fullSnapshotPayload.Length,
+                SentPayloadBytes: snapshot.Payload.Length,
+                SerializePassCount: snapshot.SerializePassCount,
+                WasBudgeted: workItem.BudgetMode == OpenGarrison.Server.SnapshotBudgetMode.Balanced
+                    || snapshot.ReductionApplied,
+                BaselineHit: workItem.Baseline is not null,
+                BaselineMiss: workItem.Baseline is null,
+                Composition: snapshot.Composition,
+                CandidateComposition: snapshot.CandidateComposition),
+            Stopwatch.GetTimestamp() - startTimestamp,
+            GC.GetAllocatedBytesForCurrentThread() - startAllocatedBytes);
+    }
+
+    private static BuiltClientSnapshot BuildFullClientSnapshot(
+        ClientSnapshotWorkItem workItem,
+        int fullSnapshotPayloadBytes,
+        long startTimestamp,
+        long startAllocatedBytes)
+    {
+        var payload = ProtocolCodec.Serialize(workItem.FullSnapshot, ServerProtocolCompression.Settings);
+        var composition = SnapshotDeltaBudgeter.BuildCompositionMetrics(
+            workItem.FullSnapshot,
+            workItem.TargetPayloadBytes,
+            fullSnapshotPayloadBytes,
+            payload.Length);
+        return new BuiltClientSnapshot(
+            workItem.Client,
+            workItem.FullSnapshot,
+            workItem.FullSnapshot,
+            payload,
+            new SentSnapshotMetrics(
+                FullPayloadBytes: fullSnapshotPayloadBytes,
+                SentPayloadBytes: payload.Length,
                 SerializePassCount: 1,
                 WasBudgeted: false,
                 BaselineHit: false,
                 BaselineMiss: false,
-                SnapshotHistoryCount: client.SnapshotHistoryCount,
-                Composition: composition);
-        }
-
-        // Prefer ACK-based deltas for steady-state gameplay once the client has a valid
-        // baseline. Reserve full snapshots for join/resync/fallback.
-        if (baseline is null && fullSnapshotPayloadBytes <= targetPayloadBytes)
-        {
-            var fullSnapshotPayload = ProtocolCodec.Serialize(fullSnapshot, ServerProtocolCompression.Settings);
-            _sendSnapshot(client.Peer, fullSnapshot, fullSnapshotPayload);
-            client.RememberResolvedSnapshotState(fullSnapshot);
-            var composition = SnapshotDeltaBudgeter.BuildCompositionMetrics(
-                fullSnapshot,
-                targetPayloadBytes,
-                fullSnapshotPayloadBytes,
-                fullSnapshotPayload.Length);
-            return new SentSnapshotMetrics(
-                FullPayloadBytes: fullSnapshotPayloadBytes,
-                SentPayloadBytes: fullSnapshotPayload.Length,
-                SerializePassCount: 1,
-                WasBudgeted: false,
-                BaselineHit: false,
-                BaselineMiss: false,
-                SnapshotHistoryCount: client.SnapshotHistoryCount,
-                Composition: composition);
-        }
-
-        var snapshot = BuildBudgetedSnapshot(client, fullSnapshot, baseline, targetPayloadBytes);
-        _sendSnapshot(client.Peer, snapshot.Message, snapshot.Payload);
-        client.RememberResolvedSnapshotState(SnapshotDelta.ToFullSnapshot(snapshot.Message, baseline));
-        return new SentSnapshotMetrics(
-            FullPayloadBytes: fullSnapshotPayloadBytes,
-            SentPayloadBytes: snapshot.Payload.Length,
-            SerializePassCount: snapshot.SerializePassCount,
-            WasBudgeted: true,
-            BaselineHit: baseline is not null,
-            BaselineMiss: baseline is null,
-            SnapshotHistoryCount: client.SnapshotHistoryCount,
-            Composition: snapshot.Composition);
+                Composition: composition,
+                CandidateComposition: composition),
+            Stopwatch.GetTimestamp() - startTimestamp,
+            GC.GetAllocatedBytesForCurrentThread() - startAllocatedBytes);
     }
 
     private SharedSnapshotData CaptureSharedSnapshotData(
@@ -462,7 +594,7 @@ sealed class SnapshotBroadcaster
                 continue;
             }
 
-            players.Add(ToSnapshotPlayerState(_world, entry.Slot, player, viewer, _stringCache));
+            players.Add(ToSnapshotPlayerState(_world, entry.Slot, player, viewer, _stringCache, entry.PingMilliseconds));
         }
 
         // Add server bot players
@@ -722,6 +854,7 @@ sealed class SnapshotBroadcaster
             IsAwaitingJoin: false,
             IsSpectator: true,
             RespawnTicks: 0,
+            PingMilliseconds: client.PingMilliseconds,
             X: 0f,
             Y: 0f,
             HorizontalSpeed: 0f,
@@ -950,7 +1083,7 @@ sealed class SnapshotBroadcaster
 
             if (_world.TryGetNetworkPlayer(entry.Slot, out var player))
             {
-                players.Add(ToSnapshotPlayerState(_world, entry.Slot, player, viewer: null, _stringCache));
+                players.Add(ToSnapshotPlayerState(_world, entry.Slot, player, viewer: null, _stringCache, entry.PingMilliseconds));
             }
         }
 
@@ -971,22 +1104,4 @@ sealed class SnapshotBroadcaster
         };
     }
 
-    private SnapshotBudgetBuildResult BuildBudgetedSnapshot(ClientSession client, SnapshotMessage fullSnapshot, SnapshotBaselineState? baseline)
-    {
-        return BuildBudgetedSnapshot(client, fullSnapshot, baseline, GetTargetSnapshotPayloadBytes(client));
-    }
-
-    private SnapshotBudgetBuildResult BuildBudgetedSnapshot(
-        ClientSession client,
-        SnapshotMessage fullSnapshot,
-        SnapshotBaselineState? baseline,
-        int targetPayloadBytes)
-    {
-        var contributions = OpenGarrison.Server.SnapshotContributionPlanner.BuildContributions(client, fullSnapshot, baseline, _world);
-        return OpenGarrison.Server.SnapshotDeltaBudgeter.BuildBudgetedSnapshotWithMetrics(
-            fullSnapshot,
-            baseline,
-            contributions,
-            targetPayloadBytes);
-    }
 }

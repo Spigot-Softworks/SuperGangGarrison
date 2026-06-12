@@ -10,6 +10,9 @@ const REGISTRY_MAX_HOST_BYTES = 255;
 const REGISTRY_MAX_WEBSOCKET_URL_BYTES = 512;
 const REGISTRY_MAX_MAP_BYTES = 80;
 const REGISTRY_MAX_MODE_BYTES = 40;
+const REGISTRY_MAX_BUILD_VERSION_BYTES = 64;
+const REGISTRY_MAX_RELEASE_CHANNEL_BYTES = 32;
+const REGISTRY_MAX_COMPATIBILITY_KEY_BYTES = 128;
 const REGISTRY_MAX_SERVERS_PER_IP = 8;
 const REGISTRY_MIN_HEARTBEAT_SECONDS = 10;
 
@@ -42,7 +45,39 @@ function handle_get_servers(): void
     $servers = remove_stale_servers($servers, time());
     save_servers($servers);
 
-    $publicServers = array_values(array_map('to_public_server', $servers));
+    $requestedChannel = strtolower(normalize_string($_GET['releaseChannel'] ?? ($_GET['channel'] ?? 'stable'), REGISTRY_MAX_RELEASE_CHANNEL_BYTES));
+    if ($requestedChannel === '') {
+        $requestedChannel = 'stable';
+    }
+
+    $requestedProtocol = isset($_GET['protocolVersion'])
+        ? normalize_non_negative_int($_GET['protocolVersion'])
+        : null;
+    $requestedBuildVersion = normalize_string($_GET['buildVersion'] ?? '', REGISTRY_MAX_BUILD_VERSION_BYTES);
+    $requestedCompatibilityKey = normalize_string($_GET['compatibilityKey'] ?? '', REGISTRY_MAX_COMPATIBILITY_KEY_BYTES);
+
+    $filteredServers = array_filter($servers, static function (array $server) use ($requestedChannel, $requestedProtocol, $requestedBuildVersion, $requestedCompatibilityKey): bool {
+        if (strtolower((string)($server['releaseChannel'] ?? 'stable')) !== $requestedChannel) {
+            return false;
+        }
+
+        if ($requestedProtocol !== null && (int)($server['protocolVersion'] ?? 0) !== $requestedProtocol) {
+            return false;
+        }
+
+        if ($requestedCompatibilityKey !== '' && (string)($server['compatibilityKey'] ?? '') !== $requestedCompatibilityKey) {
+            return false;
+        }
+
+        if ($requestedCompatibilityKey === '' && $requestedBuildVersion !== '') {
+            $serverBuildVersion = (string)($server['buildVersion'] ?? '');
+            return $serverBuildVersion === '' || $serverBuildVersion === $requestedBuildVersion;
+        }
+
+        return true;
+    });
+
+    $publicServers = array_values(array_map('to_public_server', $filteredServers));
     usort($publicServers, static function (array $left, array $right): int {
         return strcasecmp((string)($left['name'] ?? ''), (string)($right['name'] ?? ''));
     });
@@ -128,6 +163,9 @@ function handle_post_heartbeat(): void
         'maxPlayers' => normalize_non_negative_int($input['maxPlayers'] ?? 0),
         'spectators' => normalize_non_negative_int($input['spectators'] ?? 0),
         'protocolVersion' => normalize_non_negative_int($input['protocolVersion'] ?? 0),
+        'buildVersion' => normalize_string($input['buildVersion'] ?? '', REGISTRY_MAX_BUILD_VERSION_BYTES),
+        'releaseChannel' => normalize_string($input['releaseChannel'] ?? 'stable', REGISTRY_MAX_RELEASE_CHANNEL_BYTES),
+        'compatibilityKey' => normalize_string($input['compatibilityKey'] ?? '', REGISTRY_MAX_COMPATIBILITY_KEY_BYTES),
         'remoteAddress' => $remoteAddress,
         'lastSeen' => $now,
         'lastSeenIso' => gmdate(DATE_ATOM, $now),
@@ -289,6 +327,9 @@ function to_public_server(array $server): array
         'maxPlayers' => (int)($server['maxPlayers'] ?? 0),
         'spectators' => (int)($server['spectators'] ?? 0),
         'protocolVersion' => (int)($server['protocolVersion'] ?? 0),
+        'buildVersion' => (string)($server['buildVersion'] ?? ''),
+        'releaseChannel' => (string)($server['releaseChannel'] ?? ''),
+        'compatibilityKey' => (string)($server['compatibilityKey'] ?? ''),
         'lastSeenIso' => (string)($server['lastSeenIso'] ?? ''),
     ];
 }

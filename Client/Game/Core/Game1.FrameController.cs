@@ -26,6 +26,7 @@ public partial class Game1
                 BrowserInputBridge.BeginFrame();
             }
 
+            var wasWindowActive = _game._wasWindowActive;
             var windowActive = OperatingSystem.IsBrowser()
                 ? BrowserInputBridge.IsFocused
                 : _game.IsActive;
@@ -38,27 +39,16 @@ public partial class Game1
             }
             else
             {
-                rawMouse = new MouseState(
-                    rawMouse.X,
-                    rawMouse.Y,
-                    0,
-                    ButtonState.Released,
-                    ButtonState.Released,
-                    ButtonState.Released,
-                    ButtonState.Released,
-                    ButtonState.Released);
-                mouse = new MouseState(
-                    mouse.X,
-                    mouse.Y,
-                    0,
-                    ButtonState.Released,
-                    ButtonState.Released,
-                    ButtonState.Released,
-                    ButtonState.Released,
-                    ButtonState.Released);
+                rawMouse = CreateReleasedMouseState(rawMouse);
+                mouse = CreateReleasedMouseState(mouse);
                 _game._lastKnownMousePosition = new Point(mouse.X, mouse.Y);
             }
-            if (!_game._wasWindowActive && windowActive)
+
+            if (wasWindowActive && !windowActive)
+            {
+                _game.HandleWindowFocusLost(mouse);
+            }
+            else if (!wasWindowActive && windowActive)
             {
                 _game._previousKeyboard = keyboard;
                 _game._previousMouse = mouse;
@@ -79,6 +69,7 @@ public partial class Game1
 
             if (TryHandlePasswordPromptCancel(keyboard, mouse))
             {
+                _game.EnsureWindowInactiveInputReleased(windowActive, mouse);
                 return clientTicks;
             }
 
@@ -86,6 +77,12 @@ public partial class Game1
             if (muteAudioPressed)
             {
                 _game.ToggleAudioMute();
+            }
+
+            var toggleFullscreenPressed = keyboard.IsKeyDown(Keys.F11) && !_game._previousKeyboard.IsKeyDown(Keys.F11);
+            if (toggleFullscreenPressed)
+            {
+                _game.ToggleFullscreenHotkey();
             }
 
             var toggleConsolePressed = InputBindingInput.IsPressed(
@@ -110,10 +107,12 @@ public partial class Game1
 
             if (TryUpdateNonGameplayFrame(gameTime, keyboard, mouse, clientTicks))
             {
+                _game.EnsureWindowInactiveInputReleased(windowActive, mouse);
                 return clientTicks;
             }
 
             UpdateGameplayFrame(gameTime, keyboard, mouse, rawMouse, clientTicks);
+            _game.EnsureWindowInactiveInputReleased(windowActive, mouse);
             return clientTicks;
         }
 
@@ -123,6 +122,19 @@ public partial class Game1
             {
                 DrawGameplayFrame(gameTime);
             }
+        }
+
+        private static MouseState CreateReleasedMouseState(MouseState mouse)
+        {
+            return new MouseState(
+                mouse.X,
+                mouse.Y,
+                0,
+                ButtonState.Released,
+                ButtonState.Released,
+                ButtonState.Released,
+                ButtonState.Released,
+                ButtonState.Released);
         }
 
         private bool TryHandlePasswordPromptCancel(KeyboardState keyboard, MouseState mouse)
@@ -219,5 +231,43 @@ public partial class Game1
         {
             _game._gameplayController.DrawGameplayWorldForCamera(cameraPosition, viewportWidth, viewportHeight, skippedDeadBodySourcePlayerId);
         }
+    }
+
+    private void HandleWindowFocusLost(MouseState releasedMouse)
+    {
+        _previousKeyboard = default;
+        _previousMouse = releasedMouse;
+        _clientPluginPreviousKeyboard = default;
+        _clientPluginKeyboard = default;
+        _world.SetLocalInput(default);
+        _suppressPrimaryFireUntilMouseRelease = false;
+        _suppressSecondaryFireUntilMouseRelease = false;
+        _autoFireActive = false;
+        ScrollbarDrag.Clear();
+        ResetTextFieldClickTarget();
+        ResetBubbleMenuInteractionState();
+        ResetClientPluginBubbleMenuInputState();
+        _hostMapPreviewPanActive = false;
+        _playerCardDraggingPortrait = false;
+        _playerCardDraggingColorWheel = false;
+        _builderPlacementDragging = false;
+        _builderEraseDragging = false;
+        _builderLayerOffsetDragging = false;
+        _builderPanelDragTarget = LegacyBuilderPanelDragTarget.None;
+        _builderPanelDragHeaderToggleCandidate = false;
+        IsMouseVisible = true;
+    }
+
+    private void EnsureWindowInactiveInputReleased(bool windowActive, MouseState releasedMouse)
+    {
+        if (windowActive)
+        {
+            return;
+        }
+
+        _world.SetLocalInput(default);
+        _previousKeyboard = default;
+        _previousMouse = releasedMouse;
+        IsMouseVisible = true;
     }
 }

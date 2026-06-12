@@ -65,6 +65,8 @@ public sealed class SentryEntity : SimulationEntity
 
     public bool IsBuilt { get; private set; }
 
+    public int LifetimeTicks { get; private set; }
+
     public bool HasActiveTarget { get; private set; }
 
     public int? CurrentTargetPlayerId { get; private set; }
@@ -234,6 +236,8 @@ public sealed class SentryEntity : SimulationEntity
 
     private void AdvanceRuntimeTimers()
     {
+        LifetimeTicks += 1;
+
         if (ReloadTicksRemaining > 0)
         {
             ReloadTicksRemaining -= 1;

@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>OG2</AssemblyName>
     <AssemblyTitle>Super Gang Garrison</AssemblyTitle>
-    <RollForward>Major</RollForward>
+    <RollForward>LatestPatch</RollForward>
     <PublishReadyToRun>false</PublishReadyToRun>
     <TieredCompilation>false</TieredCompilation>
   </PropertyGroup>

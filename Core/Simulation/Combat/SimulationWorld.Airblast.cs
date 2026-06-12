@@ -64,6 +64,18 @@ public sealed partial class SimulationWorld
         PushLooseBodies(sourceX, sourceY, aimRadians, poofX, poofY);
     }
 
+    private void TriggerCivvieUmbrellaAirblast(PlayerEntity player, float aimWorldX, float aimWorldY)
+    {
+        var (sourceX, sourceY, aimRadians) = WeaponHandler.GetCivvieUmbrellaTip(player, aimWorldX, aimWorldY);
+        var aimDegrees = aimRadians * (180f / MathF.PI);
+        var poofX = sourceX;
+        var poofY = sourceY;
+
+        RegisterSoundEvent(player, "CompressionBlastSnd");
+        RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
+        ApplyAirblastToPlayers(player, sourceX, sourceY, aimRadians, poofX, poofY);
+    }
+
     private void TriggerExperimentalSoldierThundergunner(PlayerEntity player, float aimWorldX, float aimWorldY)
     {
         var emptyClip = player.CurrentShells <= 0;

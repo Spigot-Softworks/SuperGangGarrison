@@ -41,7 +41,8 @@ public partial class Game1
     {
         return targetKind == DamageTargetKind.Player
             && flags.HasFlag(DamageEventFlags.Evaded)
-            && !flags.HasFlag(DamageEventFlags.GhostDash);
+            && !flags.HasFlag(DamageEventFlags.GhostDash)
+            && !flags.HasFlag(DamageEventFlags.CivvieUmbrellaBlock);
     }
 
     private void TryTriggerEvasionMissPopup(int targetPlayerId)

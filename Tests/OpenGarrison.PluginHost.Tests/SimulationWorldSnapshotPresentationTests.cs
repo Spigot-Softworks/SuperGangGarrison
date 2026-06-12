@@ -108,6 +108,67 @@ public sealed class SimulationWorldSnapshotPresentationTests
     }
 
     [Fact]
+    public void ApplySnapshotForcesAwaitingJoinLocalPlayerNonRenderable()
+    {
+        var world = new SimulationWorld();
+        var awaitingLocalPlayer = CreatePlayerState(
+            1,
+            101,
+            "Local",
+            PlayerTeam.Red,
+            PlayerClass.Scout,
+            isAlive: true,
+            gibDeaths: 0) with
+            {
+                IsAwaitingJoin = true,
+                Health = 125,
+                RespawnTicks = 0,
+            };
+        var snapshot = CreateSnapshot(
+            world,
+            frame: 112,
+            localPlayer: awaitingLocalPlayer);
+
+        Assert.True(world.ApplySnapshot(snapshot, localPlayerSlot: 1));
+
+        Assert.True(world.LocalPlayerAwaitingJoin);
+        Assert.False(world.LocalPlayer.IsAlive);
+        Assert.Equal(0, world.LocalPlayer.Health);
+    }
+
+    [Fact]
+    public void ApplySnapshotForcesAwaitingJoinRemotePlayerNonRenderable()
+    {
+        var world = new SimulationWorld();
+        var localPlayer = CreatePlayerState(1, 101, "Local", PlayerTeam.Red, PlayerClass.Scout, isAlive: true, gibDeaths: 0);
+        var awaitingRemotePlayer = CreatePlayerState(
+            2,
+            202,
+            "Remote",
+            PlayerTeam.Blue,
+            PlayerClass.Soldier,
+            isAlive: true,
+            gibDeaths: 0) with
+            {
+                IsAwaitingJoin = true,
+                Health = 200,
+                RespawnTicks = 0,
+            };
+        var snapshot = CreateSnapshot(
+            world,
+            frame: 113,
+            localPlayer: localPlayer,
+            remotePlayer: awaitingRemotePlayer);
+
+        Assert.True(world.ApplySnapshot(snapshot, localPlayerSlot: 1));
+
+        var remote = Assert.Single(world.RemoteSnapshotPlayers);
+        Assert.True(world.IsRemoteSnapshotPlayerAwaitingJoin(remote));
+        Assert.False(remote.IsAlive);
+        Assert.Equal(0, remote.Health);
+    }
+
+    [Fact]
     public void ApplySnapshotDoesNotSpawnRemotePlayerGibsForNormalDeathAfterEarlierGibDeath()
     {
         var world = new SimulationWorld();

@@ -896,7 +896,8 @@ public partial class Game1
 
         private static bool IsDefaultAbilityHudSprite(string spriteName)
         {
-            return string.Equals(spriteName, DefaultAbilityHudSpriteName, StringComparison.Ordinal);
+            return string.Equals(spriteName, DefaultAbilityHudSpriteName, StringComparison.Ordinal)
+                || string.Equals(spriteName, "CivvieUmbrellaAbilityHudS", StringComparison.Ordinal);
         }
 
         private IEnumerable<GameplayItemDefinition> GetLocalConfiguredAbilityHudItems()

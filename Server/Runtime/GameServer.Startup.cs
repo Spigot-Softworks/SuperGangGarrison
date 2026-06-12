@@ -121,6 +121,7 @@ partial class GameServer
             _respawnSecondsOverride,
             _serverPassword,
             _passwordRequired,
+            _snapshotBudgetMode,
             _clientTimeoutSeconds,
             _passwordTimeoutSeconds,
             _passwordRetrySeconds,
@@ -146,6 +147,7 @@ partial class GameServer
         _botAutofillMinPlayers = Math.Clamp(host.BotAutofillMinPlayers, 0, SimulationWorld.MaxPlayableNetworkPlayers);
         _botAutofillPerTeam = Math.Clamp(host.BotAutofillPerTeam, 0, SimulationWorld.MaxPlayableNetworkPlayers / 2);
         _sniperAimIndicatorEnabled = host.SniperAimIndicatorEnabled;
+        _mapRotationManager.ConfigureAdvancePolicy(_mapRotationAdvanceMode, _mapRotationRounds, _mapRotationMinutes);
 
         _world.RandomSpreadEnabled = host.RandomSpreadEnabled;
         _world.SniperAimIndicatorEnabled = host.SniperAimIndicatorEnabled;
@@ -231,6 +233,7 @@ partial class GameServer
         Console.WriteLine($"Auto-balance: {(_autoBalanceEnabled ? "Enabled" : "Disabled")}");
         Console.WriteLine($"Random bullet spread: {(_randomSpreadEnabled ? "Enabled" : "Disabled")}");
         Console.WriteLine($"Special abilities: {(_secondaryAbilitiesEnabled ? "Enabled" : "Disabled")}");
+        Console.WriteLine($"Snapshot budget mode: {OpenGarrison.Server.SnapshotBudgetModeParser.ToConfigString(_snapshotBudgetMode)}");
         Console.WriteLine(_competitiveReadyUpEnabled
             ? $"Competitive ready-up: enabled (setup {_competitiveSetupSeconds} seconds)"
             : "Competitive ready-up: disabled");
@@ -368,6 +371,7 @@ partial class GameServer
                                 "[botbrain] map-nav " +
                                 $"level={_world.Level.Name} area={_world.Level.MapAreaIndex} " +
                                 $"preloaded={botNavigationPreloaded} preloadMs={botNavigationPreloadMs:0.###}");
+                            ApplyRoundEndTeamRules(transition);
                             var restoredBotCount = _botManager.ReactivateBotsAfterMapChange();
                             _eventReporter.ApplyMapTransition(transition);
                             _demoRecorder.HandleMapTransition(transition);
@@ -377,6 +381,7 @@ partial class GameServer
                                 Console.WriteLine($"[server] restored {restoredBotCount} server bots after map change.");
                             }
                         }
+                        PublishVipAnnouncements();
                         // Update bot reactions/emotes AFTER simulation advances
                         _botManager.AdvanceBotReactions();
                     },
@@ -439,6 +444,8 @@ partial class GameServer
                             ("snapshot_interval_overrun_ms", snapshotMetrics.BroadcastIntervalOverrunMilliseconds),
                             ("average_target_payload_bytes", snapshotMetrics.AverageTargetPayloadBytes),
                             ("average_full_payload_bytes", snapshotMetrics.AverageFullPayloadBytes),
+                            ("average_candidate_uncompressed_bytes", snapshotMetrics.AverageCandidateUncompressedBytes),
+                            ("average_candidate_payload_bytes", snapshotMetrics.AverageCandidatePayloadBytes),
                             ("average_sent_uncompressed_bytes", snapshotMetrics.AverageSentUncompressedBytes),
                             ("average_sent_payload_bytes", snapshotMetrics.AverageSentPayloadBytes),
                             ("max_sent_payload_bytes", snapshotMetrics.MaxSentPayloadBytes),
@@ -447,6 +454,17 @@ partial class GameServer
                             ("baseline_hit_count", snapshotMetrics.BaselineHitCount),
                             ("baseline_miss_count", snapshotMetrics.BaselineMissCount),
                             ("average_serialize_passes", snapshotMetrics.AverageSerializePasses),
+                            ("snapshot_candidate_full_player_bytes", snapshotMetrics.AverageSnapshotCandidateFullPlayerBytes),
+                            ("snapshot_candidate_player_movement_bytes", snapshotMetrics.AverageSnapshotCandidatePlayerMovementBytes),
+                            ("snapshot_candidate_player_status_bytes", snapshotMetrics.AverageSnapshotCandidatePlayerStatusBytes),
+                            ("snapshot_candidate_player_extended_status_bytes", snapshotMetrics.AverageSnapshotCandidatePlayerExtendedStatusBytes),
+                            ("snapshot_candidate_player_chat_bubble_bytes", snapshotMetrics.AverageSnapshotCandidatePlayerChatBubbleBytes),
+                            ("snapshot_candidate_projectile_bytes", snapshotMetrics.AverageSnapshotCandidateProjectileBytes),
+                            ("snapshot_candidate_sentry_bytes", snapshotMetrics.AverageSnapshotCandidateSentryBytes),
+                            ("snapshot_candidate_event_bytes", snapshotMetrics.AverageSnapshotCandidateEventBytes),
+                            ("snapshot_candidate_removal_bytes", snapshotMetrics.AverageSnapshotCandidateRemovalBytes),
+                            ("snapshot_candidate_world_bytes", snapshotMetrics.AverageSnapshotCandidateWorldBytes),
+                            ("snapshot_candidate_envelope_bytes", snapshotMetrics.AverageSnapshotCandidateEnvelopeBytes),
                             ("snapshot_full_player_bytes", snapshotMetrics.AverageSnapshotFullPlayerBytes),
                             ("snapshot_player_movement_bytes", snapshotMetrics.AverageSnapshotPlayerMovementBytes),
                             ("snapshot_player_status_bytes", snapshotMetrics.AverageSnapshotPlayerStatusBytes),
@@ -501,6 +519,8 @@ partial class GameServer
                             ("controlled_bot_count", botMetrics.ControlledBotCount),
                             ("active_input_count", botMetrics.ActiveInputCount),
                             ("zero_input_count", botMetrics.ZeroInputCount),
+                            ("refreshed_input_count", botMetrics.RefreshedInputCount),
+                            ("reused_input_count", botMetrics.ReusedInputCount),
                             ("botbrain_active_controller_count", botMetrics.BotBrainActiveControllerCount),
                             ("botbrain_navigation_loaded_count", botMetrics.BotBrainNavigationLoadedCount),
                             ("botbrain_navigation_missing_count", botMetrics.BotBrainNavigationMissingCount),
@@ -746,6 +766,9 @@ partial class GameServer
             _webSocketHost is null ? 0 : _webSocketPort,
             _publicWebSocketUrl,
             _passwordRequired,
+            _buildVersion,
+            _releaseChannel,
+            _compatibilityKey,
             _world.Level.Name,
             _world.MatchRules.Mode.ToString(),
             players,
@@ -869,6 +892,28 @@ partial class GameServer
             () => _autoBalanceEnabled,
             value => _autoBalanceEnabled = value);
         registry.RegisterBoolean(
+            "sv_switch_teams_after_round_end",
+            "Switch every connected player and server bot to the opposite team after non-preserved round transitions.",
+            _switchTeamsAfterRoundEnd,
+            () => _switchTeamsAfterRoundEnd,
+            value => _switchTeamsAfterRoundEnd = value);
+        registry.RegisterInteger(
+            "sv_team_shuffle_after_wins",
+            "Consecutive wins by the same team before teams are shuffled. Set to 0 to disable.",
+            _teamShuffleAfterWins,
+            () => _teamShuffleAfterWins,
+            SetTeamShuffleAfterWins,
+            minValue: 0,
+            maxValue: 255);
+        registry.RegisterInteger(
+            "sv_team_scramble_after_wins",
+            "Alias for sv_team_shuffle_after_wins.",
+            _teamShuffleAfterWins,
+            () => _teamShuffleAfterWins,
+            SetTeamShuffleAfterWins,
+            minValue: 0,
+            maxValue: 255);
+        registry.RegisterBoolean(
             "sv_randomspread",
             "Enable or disable random bullet spread.",
             _randomSpreadEnabled,
@@ -953,6 +998,46 @@ partial class GameServer
                 _mapRotationShuffleEnabled = value;
                 _mapRotationManager.MapRotationShuffleEnabled = value;
             });
+        registry.RegisterString(
+            "sv_map_rotation_mode",
+            "Map rotation trigger mode: RoundEnd, RoundCount, or TimeElapsed.",
+            _mapRotationAdvanceMode.ToString(),
+            () => _mapRotationManager.AdvanceMode.ToString(),
+            value =>
+            {
+                if (!Enum.TryParse<MapRotationAdvanceMode>(value, ignoreCase: true, out var parsed))
+                {
+                    return "Expected RoundEnd, RoundCount, or TimeElapsed.";
+                }
+
+                _mapRotationAdvanceMode = OpenGarrisonHostSettings.NormalizeMapRotationAdvanceMode(parsed);
+                _mapRotationManager.ConfigureAdvancePolicy(_mapRotationAdvanceMode, _mapRotationRounds, _mapRotationMinutes);
+                return null;
+            });
+        registry.RegisterInteger(
+            "sv_map_rotation_rounds",
+            "Rounds to play on the current map before rotating when sv_map_rotation_mode is RoundCount.",
+            _mapRotationRounds,
+            () => _mapRotationManager.RotationRoundCount,
+            value =>
+            {
+                _mapRotationRounds = OpenGarrisonHostSettings.NormalizeMapRotationRounds(value);
+                _mapRotationManager.ConfigureAdvancePolicy(_mapRotationAdvanceMode, _mapRotationRounds, _mapRotationMinutes);
+            },
+            minValue: 1,
+            maxValue: 255);
+        registry.RegisterInteger(
+            "sv_map_rotation_minutes",
+            "Elapsed minutes to keep the current map before rotating when sv_map_rotation_mode is TimeElapsed.",
+            _mapRotationMinutes,
+            () => _mapRotationManager.RotationTimeMinutes,
+            value =>
+            {
+                _mapRotationMinutes = OpenGarrisonHostSettings.NormalizeMapRotationMinutes(value);
+                _mapRotationManager.ConfigureAdvancePolicy(_mapRotationAdvanceMode, _mapRotationRounds, _mapRotationMinutes);
+            },
+            minValue: 1,
+            maxValue: 255);
         registry.RegisterInteger(
             "sv_maxplayers",
             "Configured playable slot count.",

@@ -4,7 +4,15 @@ local STRIP_FRAME_COUNT = 20
 local STRIP_FRAME_SIZE = 201
 local WHEEL_ORIGIN = { x = 100.0, y = 100.0 }
 local WHITE = { r = 255, g = 255, b = 255, a = 255 }
+local CONFIG_PATH = "bubblewheel.json"
+local BEHAVIOR_HOLD_AND_HOVER = "HoldAndHover"
+local BEHAVIOR_PRESS_AND_CLICK = "PressAndClick"
 
+local default_config = {
+    Behavior = BEHAVIOR_PRESS_AND_CLICK
+}
+
+local config = default_config
 local textures_loaded = false
 local last_bubble_menu_kind = "None"
 local last_bubble_menu_x_page_index = 0
@@ -24,6 +32,31 @@ local function clamp(value, minimum, maximum)
     end
 
     return value
+end
+
+local function normalize_behavior(value)
+    if value == BEHAVIOR_HOLD_AND_HOVER then
+        return BEHAVIOR_HOLD_AND_HOVER
+    end
+
+    return BEHAVIOR_PRESS_AND_CLICK
+end
+
+local function load_config()
+    local loaded = plugin.host.load_json_config(CONFIG_PATH, default_config)
+    local normalized = {
+        Behavior = normalize_behavior(loaded.Behavior)
+    }
+    plugin.host.save_json_config(CONFIG_PATH, normalized)
+    return normalized
+end
+
+local function save_config()
+    plugin.host.save_json_config(CONFIG_PATH, config)
+end
+
+local function get_behavior_label(value)
+    return normalize_behavior(value) == BEHAVIOR_HOLD_AND_HOVER and "Hold and Hover" or "Press and Click"
 end
 
 local function ensure_textures_loaded()
@@ -93,6 +126,64 @@ local function resolve_x_selection(input_state, selected_slot)
     return { bubbleFrame = bubble_frame }
 end
 
+local function resolve_digit_wheel_selection(digit, frame_base)
+    if digit == 0 then
+        return { closeMenu = true }
+    end
+
+    if digit >= 1 and digit <= 9 then
+        return { bubbleFrame = frame_base + digit }
+    end
+
+    return nil
+end
+
+local function resolve_x_digit_selection(input_state, digit)
+    if input_state.xPageIndex == 0 then
+        if digit == 0 then
+            return { closeMenu = true }
+        end
+
+        if digit == 1 or digit == 2 then
+            return {
+                newXPageIndex = digit,
+                clearBubbleSelection = true
+            }
+        end
+
+        if digit >= 3 and digit <= 9 then
+            return { bubbleFrame = 26 + digit }
+        end
+
+        return nil
+    end
+
+    local offset = input_state.xPageIndex == 2 and 10 or 0
+    if digit >= 0 and digit <= 9 then
+        local bubble_frame = digit == 0 and (9 + offset) or ((digit - 1) + offset)
+        return { bubbleFrame = bubble_frame }
+    end
+
+    return nil
+end
+
+local function resolve_digit_selection(input_state)
+    if input_state.pressedDigit == nil then
+        return nil
+    end
+
+    local digit = input_state.pressedDigit
+    if input_state.kind == "Z" then
+        return resolve_digit_wheel_selection(digit, 19)
+    elseif input_state.kind == "C" then
+        return resolve_digit_wheel_selection(digit, 35)
+    elseif input_state.kind == "X" then
+        return resolve_x_digit_selection(input_state, digit)
+    end
+
+    return nil
+end
+
 local function get_menu_texture_asset_id(render_state)
     if render_state.kind == "Z" then
         return "bubblewheel-z"
@@ -111,6 +202,7 @@ end
 
 function plugin.initialize(host)
     plugin.host = host
+    config = load_config()
     ensure_textures_loaded()
 end
 
@@ -123,26 +215,48 @@ function plugin.on_client_started()
     ensure_textures_loaded()
 end
 
+function plugin.get_options_sections()
+    return {
+        {
+            title = "Bubble Wheel",
+            items = {
+                {
+                    kind = "choice",
+                    label = "Wheel Behavior",
+                    get_value_label = "get_behavior_label",
+                    activate = "advance_behavior"
+                }
+            }
+        }
+    }
+end
+
+function plugin.get_behavior_label()
+    return get_behavior_label(config.Behavior)
+end
+
+function plugin.advance_behavior()
+    config.Behavior = normalize_behavior(config.Behavior) == BEHAVIOR_HOLD_AND_HOVER and BEHAVIOR_PRESS_AND_CLICK or BEHAVIOR_HOLD_AND_HOVER
+    save_config()
+end
+
 function plugin.try_handle_bubble_menu_input(input_state)
     if input_state.kind == "None" then
         reset_hover_selection_state()
         return nil
     end
 
-    if input_state.kind == "X"
-        and input_state.pressedDigit ~= nil
-        and input_state.pressedDigit >= 1
-        and input_state.pressedDigit <= 3 then
-        local requested_page_index = input_state.pressedDigit - 1
-        if requested_page_index ~= input_state.xPageIndex then
-            last_bubble_menu_kind = input_state.kind
-            last_bubble_menu_x_page_index = requested_page_index
+    local digit_result = resolve_digit_selection(input_state)
+    if digit_result ~= nil then
+        last_bubble_menu_kind = input_state.kind
+        if digit_result.newXPageIndex ~= nil then
+            last_bubble_menu_x_page_index = digit_result.newXPageIndex
             last_hovered_slot = -1
-            return {
-                newXPageIndex = requested_page_index,
-                clearBubbleSelection = true
-            }
+        else
+            last_bubble_menu_x_page_index = input_state.xPageIndex
         end
+
+        return digit_result
     end
 
     local selected_slot = selected_slot_or_default(input_state)

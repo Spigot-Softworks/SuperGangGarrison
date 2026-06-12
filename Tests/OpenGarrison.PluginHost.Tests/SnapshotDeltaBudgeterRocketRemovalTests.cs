@@ -73,6 +73,74 @@ public sealed class SnapshotDeltaBudgeterRocketRemovalTests
     }
 
     [Fact]
+    public void BuildUntrimmedSnapshotKeepsRocketRemovalAndExplosionSoundWhenOverTarget()
+    {
+        var rocket = CreateRocketState(42);
+        var baseline = CreateSnapshot(900) with
+        {
+            Rockets = [rocket],
+        };
+        var current = CreateSnapshot(901);
+        var soundEvent = new SnapshotSoundEvent(
+            "ExplosionSnd-91C5D7A842F9466F9A0C63F83E25452B",
+            128f,
+            96f,
+            EventId: 1,
+            SourceFrame: 901);
+        var removalOnlyDelta = current with
+        {
+            IsDelta = true,
+            BaselineFrame = baseline.Frame,
+            RemovedRocketIds = [rocket.Id],
+        };
+        var soundOnlyDelta = current with
+        {
+            IsDelta = true,
+            BaselineFrame = baseline.Frame,
+            SoundEvents = [soundEvent],
+        };
+        var bothDelta = current with
+        {
+            IsDelta = true,
+            BaselineFrame = baseline.Frame,
+            RemovedRocketIds = [rocket.Id],
+            SoundEvents = [soundEvent],
+        };
+        var targetPayloadBytes = Math.Max(MeasurePayloadLength(removalOnlyDelta), MeasurePayloadLength(soundOnlyDelta));
+        Assert.True(MeasurePayloadLength(bothDelta) > targetPayloadBytes);
+
+        var contributions = new List<SnapshotDeltaBudgeter.Contribution>
+        {
+            new(
+                Priority: 1200,
+                DistanceSquared: 0f,
+                EstimatedBytes: 1,
+                Apply: builder => builder.RemovedRocketIds.Add(rocket.Id),
+                Kind: SnapshotDeltaBudgeter.ContributionKind.EntityRemoval),
+            new(
+                Priority: 850,
+                DistanceSquared: 0f,
+                EstimatedBytes: 1,
+                Apply: builder => builder.SoundEvents.Add(soundEvent),
+                Kind: SnapshotDeltaBudgeter.ContributionKind.TransientSoundEvent),
+        };
+
+        var result = SnapshotDeltaBudgeter.BuildUntrimmedSnapshotWithEmergencyReduction(
+            current,
+            baseline,
+            contributions,
+            targetPayloadBytes);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+
+        Assert.True(result.ReductionApplied);
+        Assert.True(result.Payload.Length > targetPayloadBytes);
+        Assert.True(result.Composition.PayloadOverTarget);
+        Assert.Equal(rocket.Id, Assert.Single(result.Message.RemovedRocketIds));
+        Assert.Single(result.Message.SoundEvents);
+        Assert.Empty(merged.Rockets);
+    }
+
+    [Fact]
     public void BuildBudgetedSnapshotIncludesOnlyNetworkVisibleCombatTraces()
     {
         var baseline = CreateSnapshot(910);

@@ -22,6 +22,18 @@ public partial class Game1
         DrawMenuBitmapFontText(text, new Vector2(position.X - (width / 2f), position.Y - (height / 2f)), color, scale);
     }
 
+    private void DrawBuildHudTextCenteredWithShadow(string text, Vector2 position, Color color, float scale)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        var shadowOffset = Math.Max(1f, scale * 0.5f);
+        DrawBuildHudTextCentered(text, position + new Vector2(shadowOffset, shadowOffset), Color.Black * 0.55f, scale);
+        DrawBuildHudTextCentered(text, position, color, scale);
+    }
+
     private void DrawScorePanelHud()
     {
         if (_world.MatchRules.Mode == GameModeKind.Arena)
@@ -29,7 +41,7 @@ public partial class Game1
             DrawArenaHud();
             return;
         }
-        if (_world.MatchRules.Mode == GameModeKind.ControlPoint)
+        if (_world.MatchRules.Mode is GameModeKind.ControlPoint or GameModeKind.Vip)
         {
             DrawControlPointHud();
             return;
@@ -76,8 +88,8 @@ public partial class Game1
 
         if (_world.MatchRules.Mode == GameModeKind.CaptureTheFlag)
         {
-            DrawBuildHudTextCentered(_world.RedCaps.ToString(CultureInfo.InvariantCulture), PanelPoint(-135f, -30f), CtfBuildScoreTextColor, 2f * panelScale);
-            DrawBuildHudTextCentered(_world.BlueCaps.ToString(CultureInfo.InvariantCulture), PanelPoint(130f, -30f), CtfBuildScoreTextColor, 2f * panelScale);
+            DrawBuildHudTextCenteredWithShadow(_world.RedCaps.ToString(CultureInfo.InvariantCulture), PanelPoint(-135f, -30f), CtfBuildScoreTextColor, 2f * panelScale);
+            DrawBuildHudTextCenteredWithShadow(_world.BlueCaps.ToString(CultureInfo.InvariantCulture), PanelPoint(130f, -30f), CtfBuildScoreTextColor, 2f * panelScale);
         }
         else
         {

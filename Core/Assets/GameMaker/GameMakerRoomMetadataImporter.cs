@@ -153,9 +153,9 @@ public static class GameMakerRoomMetadataImporter
                     break;
                 }
 
-                // Source stock CP setup gates are authored as fragmented bars on the same doorway.
-                // Merge nearby aligned segments into one blocking plane so attackers cannot walk through the center gap.
-                if (candidate.Top - bottom > 180f)
+                // Source stock CP setup gates are authored as stacked 32x32 blocks on the same doorway.
+                // Merge only touching/overlapping blocks so separate upper/lower doors stay independent.
+                if (candidate.Top - bottom > 4f)
                 {
                     break;
                 }
@@ -298,7 +298,7 @@ public static class GameMakerRoomMetadataImporter
             "KothControlPoint" => new RoomObjectMarker(RoomObjectType.ControlPoint, x, y, 42f, 42f, "ControlPointNeutralS", SourceName: objectName),
             "KothRedControlPoint" => new RoomObjectMarker(RoomObjectType.ControlPoint, x, y, 42f, 42f, "ControlPointRedS", SourceName: objectName),
             "KothBlueControlPoint" => new RoomObjectMarker(RoomObjectType.ControlPoint, x, y, 42f, 42f, "ControlPointBlueS", SourceName: objectName),
-            "ControlPointSetupGate" => new RoomObjectMarker(RoomObjectType.ControlPointSetupGate, x, y, 60f, 6f, "sprite44", SourceName: objectName),
+            "ControlPointSetupGate" => new RoomObjectMarker(RoomObjectType.ControlPointSetupGate, x, y, 32f, 32f, "SetupGateS", SourceName: objectName),
             "GeneratorRed" => new RoomObjectMarker(RoomObjectType.Generator, x, y, 40f, 40f, "GeneratorS", PlayerTeam.Red, objectName),
             "GeneratorBlue" => new RoomObjectMarker(RoomObjectType.Generator, x, y, 40f, 40f, "GeneratorS", PlayerTeam.Blue, objectName),
             "LeftDoor" => new RoomObjectMarker(RoomObjectType.PlayerWall, x, y, 6f, 60f, "sprite45", SourceName: "leftdoor"),

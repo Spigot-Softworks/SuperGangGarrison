@@ -33,10 +33,15 @@ public partial class Game1
             cameraPosition.Y,
             _world.LocalPlayer.X,
             _world.LocalPlayer.Y,
-            _world.LocalPlayer.IsUsingBinoculars,
+            GetPlayerIsUsingBinoculars(_world.LocalPlayer),
             _binocularsFocusX,
             _binocularsFocusY);
         fullInput = ApplyControllerGameplayInput(fullInput, deltaSeconds);
+        if (IsNetworkWorldWarmupBlockingGameplay())
+        {
+            return (default, default);
+        }
+
         if (_bubbleMenuKind != BubbleMenuKind.None && !_bubbleMenuClosing)
         {
             fullInput = ApplyBubbleMenuGameplaySuppression(fullInput);
@@ -132,6 +137,8 @@ public partial class Game1
 
         gameplayInput = ApplyClientOnlineSmokeInputPattern(gameplayInput);
         networkInput = ApplyClientOnlineSmokeInputPattern(networkInput);
+        gameplayInput = ApplyClientPerformanceForcedInput(gameplayInput);
+        networkInput = ApplyClientPerformanceForcedInput(networkInput);
 
         networkInput = networkInput with { IsTypingChatMessage = _chatOpen };
 
@@ -159,6 +166,9 @@ public partial class Game1
     {
         return input with
         {
+            FirePrimary = false,
+            FireSecondary = false,
+            UseAbility = false,
             InteractWeapon = false,
             SwapWeapon = false,
         };

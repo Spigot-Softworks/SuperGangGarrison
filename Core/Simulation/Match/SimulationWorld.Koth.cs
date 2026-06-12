@@ -21,6 +21,11 @@ public sealed partial class SimulationWorld
         return mode is GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill;
     }
 
+    private static bool IsControlPointMode(GameModeKind mode)
+    {
+        return mode is GameModeKind.ControlPoint or GameModeKind.Vip;
+    }
+
     private void ResetKothStateForNewRound()
     {
         InitializeControlPointsForLevel();

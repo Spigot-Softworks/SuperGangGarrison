@@ -594,7 +594,8 @@ internal sealed class NetworkGameClient : IDisposable
             _pendingChatBubbleFrameIndex,
             input.IsUsingBinoculars,
             input.BinocularsFocusX,
-            input.BinocularsFocusY);
+            input.BinocularsFocusY,
+            EstimatedPingMilliseconds);
         if (NetworkInputDelayTicks > 0 && !IsLoopbackConnection())
         {
             _pendingDelayedInputs.Enqueue(new PendingDelayedInput(_networkInputTick + (ulong)NetworkInputDelayTicks, inputMessage, sequence));

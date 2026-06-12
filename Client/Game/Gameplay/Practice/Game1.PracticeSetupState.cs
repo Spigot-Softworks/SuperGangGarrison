@@ -27,6 +27,16 @@ public partial class Game1
         public int EnemyBotCount { get; set; }
         public int FriendlyBotCount { get; set; }
         public bool SpecialAbilitiesEnabled { get; set; } = true;
+        public bool VipRulesEnabled { get; set; }
+        public bool MapBrowserOpen { get; set; }
+        public int MapBrowserIndex { get; set; } = -1;
+        public int MapBrowserScrollOffset { get; set; }
+        public string MapBrowserNameFilterBuffer { get; set; } = string.Empty;
+        public int MapBrowserNameFilterCursorIndex { get; set; }
+        public int MapBrowserNameFilterSelectionStart { get; set; }
+        public GameModeKind? MapBrowserModeFilter { get; set; }
+        public bool MapBrowserIncludeCustomMaps { get; set; } = true;
+        public bool MapBrowserIncludeBaseMaps { get; set; } = true;
 
         public void Normalize()
         {
@@ -56,6 +66,131 @@ public partial class Game1
 
             var count = MapEntries.Count;
             MapIndex = ((MapIndex + direction) % count + count) % count;
+        }
+
+        public void OpenMapBrowser()
+        {
+            MapBrowserOpen = true;
+            MapBrowserScrollOffset = 0;
+            SyncMapBrowserSelectionToSelectedMap();
+        }
+
+        public void CloseMapBrowser()
+        {
+            MapBrowserOpen = false;
+            MapBrowserIndex = -1;
+            MapBrowserScrollOffset = 0;
+        }
+
+        public void ResetMapBrowserFilters()
+        {
+            MapBrowserNameFilterBuffer = string.Empty;
+            MapBrowserNameFilterCursorIndex = 0;
+            MapBrowserNameFilterSelectionStart = 0;
+            MapBrowserModeFilter = null;
+            MapBrowserIncludeCustomMaps = true;
+            MapBrowserIncludeBaseMaps = true;
+            NotifyMapBrowserFiltersChanged();
+        }
+
+        public void NotifyMapBrowserFiltersChanged()
+        {
+            MapBrowserScrollOffset = 0;
+            MapBrowserIndex = -1;
+        }
+
+        public List<PracticeMapEntry> GetMapBrowserEntriesForDisplay()
+        {
+            IEnumerable<PracticeMapEntry> query = MapEntries;
+            if (MapBrowserModeFilter is { } modeFilter)
+            {
+                query = query.Where(entry => entry.Mode == modeFilter);
+            }
+
+            if (!MapBrowserIncludeCustomMaps)
+            {
+                query = query.Where(entry => !entry.IsCustomMap);
+            }
+
+            if (!MapBrowserIncludeBaseMaps)
+            {
+                query = query.Where(entry => entry.IsCustomMap);
+            }
+
+            if (!string.IsNullOrWhiteSpace(MapBrowserNameFilterBuffer))
+            {
+                query = query.Where(entry =>
+                    entry.DisplayName.Contains(MapBrowserNameFilterBuffer, StringComparison.OrdinalIgnoreCase)
+                    || entry.LevelName.Contains(MapBrowserNameFilterBuffer, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return query
+                .OrderBy(entry => entry.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        public PracticeMapEntry? GetSelectedMapBrowserEntry()
+        {
+            var entries = GetMapBrowserEntriesForDisplay();
+            return MapBrowserIndex >= 0 && MapBrowserIndex < entries.Count
+                ? entries[MapBrowserIndex]
+                : null;
+        }
+
+        public void SelectMapBrowserIndex(int index)
+        {
+            var entries = GetMapBrowserEntriesForDisplay();
+            MapBrowserIndex = entries.Count == 0 ? -1 : Math.Clamp(index, -1, entries.Count - 1);
+        }
+
+        public bool ConfirmMapBrowserSelection()
+        {
+            var entry = GetSelectedMapBrowserEntry();
+            if (entry is null)
+            {
+                return false;
+            }
+
+            return SelectMapEntry(entry.LevelName);
+        }
+
+        public void ClampMapBrowserScroll(int entryCount, int visibleRowCount)
+        {
+            MapBrowserScrollOffset = Math.Clamp(
+                MapBrowserScrollOffset,
+                0,
+                Math.Max(0, entryCount - Math.Max(1, visibleRowCount)));
+            MapBrowserIndex = Math.Clamp(MapBrowserIndex, -1, Math.Max(0, entryCount - 1));
+        }
+
+        public void EnsureMapBrowserSelectionVisible(int visibleRowCount)
+        {
+            if (MapBrowserIndex < 0)
+            {
+                MapBrowserScrollOffset = 0;
+                return;
+            }
+
+            var entries = GetMapBrowserEntriesForDisplay();
+            if (entries.Count == 0)
+            {
+                MapBrowserScrollOffset = 0;
+                return;
+            }
+
+            var capacity = Math.Max(1, visibleRowCount);
+            var maxScrollOffset = Math.Max(0, entries.Count - capacity);
+            var clampedIndex = Math.Clamp(MapBrowserIndex, 0, entries.Count - 1);
+            if (clampedIndex < MapBrowserScrollOffset)
+            {
+                MapBrowserScrollOffset = clampedIndex;
+            }
+            else if (clampedIndex >= MapBrowserScrollOffset + capacity)
+            {
+                MapBrowserScrollOffset = clampedIndex - capacity + 1;
+            }
+
+            MapBrowserScrollOffset = Math.Clamp(MapBrowserScrollOffset, 0, maxScrollOffset);
         }
 
         public void CycleTickRate(int direction)
@@ -116,6 +251,21 @@ public partial class Game1
             return MapIndex >= 0 && MapIndex < MapEntries.Count
                 ? MapEntries[MapIndex]
                 : null;
+        }
+
+        private void SyncMapBrowserSelectionToSelectedMap()
+        {
+            var selectedEntry = GetSelectedMapEntry();
+            if (selectedEntry is null)
+            {
+                MapBrowserIndex = -1;
+                return;
+            }
+
+            var entries = GetMapBrowserEntriesForDisplay();
+            MapBrowserIndex = entries
+                .ToList()
+                .FindIndex(entry => string.Equals(entry.LevelName, selectedEntry.LevelName, StringComparison.OrdinalIgnoreCase));
         }
 
         public static List<PracticeMapEntry> BuildMapEntries()
@@ -237,6 +387,7 @@ public partial class Game1
         }
 
         _practiceSetupState.CycleMap(direction);
+        DisablePracticeVipRulesIfUnavailable();
         _menuStatusMessage = string.Empty;
     }
 
@@ -278,7 +429,13 @@ public partial class Game1
 
     private bool SelectPracticeMapEntry(string? levelName)
     {
-        return _practiceSetupState.SelectMapEntry(levelName);
+        var selected = _practiceSetupState.SelectMapEntry(levelName);
+        if (selected)
+        {
+            DisablePracticeVipRulesIfUnavailable();
+        }
+
+        return selected;
     }
 
     private int FindDefaultPracticeMapIndex()
@@ -302,9 +459,37 @@ public partial class Game1
         set => _practiceSetupState.SpecialAbilitiesEnabled = value;
     }
 
+    private bool _practiceVipRulesEnabled
+    {
+        get => _practiceSetupState.VipRulesEnabled;
+        set => _practiceSetupState.VipRulesEnabled = value;
+    }
+
     private void TogglePracticeSpecialAbilities()
     {
         _practiceSetupState.SpecialAbilitiesEnabled = !_practiceSetupState.SpecialAbilitiesEnabled;
         ApplyPracticeExperimentalGameplaySettings();
+    }
+
+    private void TogglePracticeVipRules()
+    {
+        var selectedMap = GetSelectedPracticeMapEntry();
+        if (selectedMap is not null && selectedMap.Mode != GameModeKind.ControlPoint)
+        {
+            _practiceSetupState.VipRulesEnabled = false;
+            _menuStatusMessage = "VIP rules are only available on CP maps.";
+            return;
+        }
+
+        _practiceSetupState.VipRulesEnabled = !_practiceSetupState.VipRulesEnabled;
+        _menuStatusMessage = string.Empty;
+    }
+
+    private void DisablePracticeVipRulesIfUnavailable()
+    {
+        if (GetSelectedPracticeMapEntry()?.Mode != GameModeKind.ControlPoint)
+        {
+            _practiceSetupState.VipRulesEnabled = false;
+        }
     }
 }

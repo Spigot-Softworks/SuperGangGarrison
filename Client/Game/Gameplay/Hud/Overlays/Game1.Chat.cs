@@ -25,6 +25,15 @@ public partial class Game1
     private const int OverheadChatMessageLifetimeTicks = 300;
     private const int OverheadChatMessageFadeTicks = 45;
 
+    private sealed class ChatRenderLine(ChatLine line, string text, string speakerPrefix)
+    {
+        public ChatLine Line { get; } = line;
+
+        public string Text { get; } = text;
+
+        public string SpeakerPrefix { get; } = speakerPrefix;
+    }
+
     private void OpenChat(bool teamOnly)
     {
         _chatOpen = true;
@@ -182,18 +191,20 @@ public partial class Game1
         var line = string.IsNullOrWhiteSpace(playerName)
             ? $"{channelPrefix}{text}"
             : $"{channelPrefix}{playerName}: {text}";
+        var chatLine = new ChatLine(playerName, text, team, teamOnly, playerSlot: playerSlot);
         if (_chatOpen && _chatScrollOffset > 0)
         {
-            _chatScrollOffset += 1;
+            _chatScrollOffset += CountChatRenderLinesForLine(chatLine, GetOpenChatPanelWidth());
         }
 
-        _chatLines.Add(new ChatLine(playerName, text, team, teamOnly, playerSlot: playerSlot));
+        _chatLines.Add(chatLine);
         while (_chatLines.Count > MaxChatHistoryLines)
         {
+            var removedRenderLineCount = CountChatRenderLinesForLine(_chatLines[0], GetOpenChatPanelWidth());
             _chatLines.RemoveAt(0);
             if (_chatScrollOffset > 0)
             {
-                _chatScrollOffset -= 1;
+                _chatScrollOffset = Math.Max(0, _chatScrollOffset - removedRenderLineCount);
             }
         }
 
@@ -204,18 +215,20 @@ public partial class Game1
     private void AppendDirectMessageChatLine(string playerName, string text, bool incoming)
     {
         var line = $"[{playerName}]: {text}";
+        var chatLine = new ChatLine(playerName, text, 0, teamOnly: false, directMessage: true);
         if (_chatOpen && _chatScrollOffset > 0)
         {
-            _chatScrollOffset += 1;
+            _chatScrollOffset += CountChatRenderLinesForLine(chatLine, GetOpenChatPanelWidth());
         }
 
-        _chatLines.Add(new ChatLine(playerName, text, 0, teamOnly: false, directMessage: true));
+        _chatLines.Add(chatLine);
         while (_chatLines.Count > MaxChatHistoryLines)
         {
+            var removedRenderLineCount = CountChatRenderLinesForLine(_chatLines[0], GetOpenChatPanelWidth());
             _chatLines.RemoveAt(0);
             if (_chatScrollOffset > 0)
             {
-                _chatScrollOffset -= 1;
+                _chatScrollOffset = Math.Max(0, _chatScrollOffset - removedRenderLineCount);
             }
         }
 
@@ -422,6 +435,7 @@ public partial class Game1
     {
         if (_chatOpen && TryGetOpenChatScrollbarTrackBounds(out var trackBounds))
         {
+            var renderLineCount = GetOpenChatRenderLineCount(GetOpenChatPanelWidth());
             var chatScrollOffset = _chatScrollOffset;
             if (TryHandleInvertedScrollbarDrag(
                     mouse,
@@ -429,7 +443,7 @@ public partial class Game1
                     ScrollbarOwners.ChatHud,
                     trackBounds,
                     ref chatScrollOffset,
-                    _chatLines.Count,
+                    renderLineCount,
                     OpenChatFixedLineCount,
                     minThumbHeight: 8))
             {
@@ -458,7 +472,7 @@ public partial class Game1
         }
         else if (IsKeyPressed(keyboard, Keys.Home))
         {
-            _chatScrollOffset = Math.Max(0, _chatLines.Count - 1);
+            _chatScrollOffset = Math.Max(0, GetOpenChatRenderLineCount(GetOpenChatPanelWidth()) - OpenChatFixedLineCount);
         }
         else if (IsKeyPressed(keyboard, Keys.End))
         {
@@ -481,27 +495,33 @@ public partial class Game1
 
     private void ClampChatScrollOffset()
     {
-        _chatScrollOffset = Math.Clamp(_chatScrollOffset, 0, Math.Max(0, _chatLines.Count - OpenChatFixedLineCount));
+        _chatScrollOffset = Math.Clamp(_chatScrollOffset, 0, Math.Max(0, GetOpenChatRenderLineCount(GetOpenChatPanelWidth()) - OpenChatFixedLineCount));
     }
 
     private bool TryGetOpenChatScrollbarTrackBounds(out Rectangle trackBounds)
     {
         trackBounds = default;
-        if (!_chatOpen || _chatLines.Count <= OpenChatFixedLineCount)
+        if (!_chatOpen)
         {
             return false;
         }
 
         var lineHeight = GetChatHudLineHeight();
         var promptPrefix = _chatTeamOnly ? "(TEAM) > " : "> ";
-        var maxInputWidth = Math.Max(24f, Math.Max(280, ViewportWidth / 3) - 18f - MeasureBitmapFontWidth(promptPrefix, 1f));
+        var maxInputWidth = Math.Max(24f, GetOpenChatPanelWidth() - 18f - MeasureBitmapFontWidth(promptPrefix, 1f));
         var promptLines = WrapBitmapFontText(GetTextWithCursor(_chatInput, _chatInputCursorIndex), maxInputWidth, maxInputWidth);
         var promptHeight = Math.Max(24, (int)MathF.Ceiling(promptLines.Count * lineHeight + 12f));
         var promptRectangle = new Rectangle(
             12,
             ViewportHeight - 94 - promptHeight,
-            Math.Max(280, ViewportWidth / 3),
+            GetOpenChatPanelWidth(),
             promptHeight);
+        var renderLineCount = GetOpenChatRenderLineCount(promptRectangle.Width);
+        if (renderLineCount <= OpenChatFixedLineCount)
+        {
+            return false;
+        }
+
         var fixedOpenContentHeight = OpenChatFixedLineCount * lineHeight;
         var panelHeight = (int)MathF.Ceiling(fixedOpenContentHeight + ChatHudPanelVerticalPadding * 2f);
         var panelY = promptRectangle.Y - 10 - panelHeight;
@@ -522,18 +542,18 @@ public partial class Game1
         var baseX = 18f;
         var lineHeight = GetChatHudLineHeight();
         var promptPrefix = _chatTeamOnly ? "(TEAM) > " : "> ";
-        var maxInputWidth = Math.Max(24f, Math.Max(280, ViewportWidth / 3) - 18f - MeasureBitmapFontWidth(promptPrefix, 1f));
+        var maxInputWidth = Math.Max(24f, GetOpenChatPanelWidth() - 18f - MeasureBitmapFontWidth(promptPrefix, 1f));
         var promptLines = WrapBitmapFontText(GetTextWithCursor(_chatInput, _chatInputCursorIndex), maxInputWidth, maxInputWidth);
         var promptHeight = Math.Max(24, (int)MathF.Ceiling(promptLines.Count * lineHeight + 12f));
         var promptRectangle = new Rectangle(
             12,
             ViewportHeight - 94 - promptHeight,
-            Math.Max(280, ViewportWidth / 3),
+            GetOpenChatPanelWidth(),
             promptHeight);
         var maxPanelWidth = promptRectangle.Width;
         var fixedOpenContentHeight = OpenChatFixedLineCount * lineHeight;
         var maxChatHeight = _chatOpen ? fixedOpenContentHeight : Math.Max(72f, promptRectangle.Y - 24f);
-        var visibleLines = GetVisibleChatLines(maxPanelWidth, maxChatHeight, _chatOpen);
+        var visibleLines = GetVisibleChatRenderLines(maxPanelWidth, maxChatHeight, _chatOpen);
 
         if (visibleLines.Count > 0 || _chatOpen)
         {
@@ -547,7 +567,7 @@ public partial class Game1
                 var totalChatContentHeight = 0f;
                 for (var index = 0; index < visibleLines.Count; index += 1)
                 {
-                    totalChatContentHeight += MeasureChatLineHeight(visibleLines[index], maxPanelWidth);
+                    totalChatContentHeight += lineHeight;
                 }
 
                 panelHeight = (int)MathF.Ceiling(totalChatContentHeight + ChatHudPanelVerticalPadding * 2f);
@@ -567,7 +587,7 @@ public partial class Game1
                 var maxLineAlpha = 0f;
                 for (var index = 0; index < visibleLines.Count; index += 1)
                 {
-                    maxLineAlpha = MathF.Max(maxLineAlpha, MathF.Min(1f, visibleLines[index].TicksRemaining / 120f));
+                    maxLineAlpha = MathF.Max(maxLineAlpha, MathF.Min(1f, visibleLines[index].Line.TicksRemaining / 120f));
                 }
 
                 fillAlpha = 0.40f * maxLineAlpha;
@@ -588,7 +608,7 @@ public partial class Game1
                 var totalContentHeight = 0f;
                 for (var index = 0; index < visibleLines.Count; index += 1)
                 {
-                    totalContentHeight += MeasureChatLineHeight(visibleLines[index], maxPanelWidth);
+                    totalContentHeight += lineHeight;
                 }
 
                 startTextY = chatPanelRect.Bottom - ChatHudPanelVerticalPadding - totalContentHeight;
@@ -602,21 +622,22 @@ public partial class Game1
             for (var index = 0; index < visibleLines.Count; index += 1)
             {
                 var line = visibleLines[index];
-                var alpha = _chatOpen ? 1f : MathF.Min(1f, line.TicksRemaining / 120f);
-                DrawChatLine(line, new Vector2(baseX, textY), alpha, maxPanelWidth);
-                textY += MeasureChatLineHeight(line, maxPanelWidth);
+                var alpha = _chatOpen ? 1f : MathF.Min(1f, line.Line.TicksRemaining / 120f);
+                DrawChatRenderLine(line, new Vector2(baseX, textY), alpha);
+                textY += lineHeight;
             }
 
-            if (_chatOpen && _chatLines.Count > OpenChatFixedLineCount)
+            var openChatRenderLineCount = _chatOpen ? GetOpenChatRenderLineCount(maxPanelWidth) : 0;
+            if (_chatOpen && openChatRenderLineCount > OpenChatFixedLineCount)
             {
                 const int scrollbarWidth = 4;
                 const int scrollbarMargin = 3;
                 var trackX = chatPanelRect.Right - scrollbarWidth - scrollbarMargin;
                 var trackY = chatPanelRect.Y + scrollbarMargin;
                 var trackHeight = chatPanelRect.Height - scrollbarMargin * 2;
-                var thumbHeightRatio = (float)OpenChatFixedLineCount / MathF.Max(1f, _chatLines.Count);
+                var thumbHeightRatio = (float)OpenChatFixedLineCount / MathF.Max(1f, openChatRenderLineCount);
                 var thumbHeight = (int)MathF.Max(8f, trackHeight * thumbHeightRatio);
-                var scrollFraction = _chatScrollOffset / MathF.Max(1f, _chatLines.Count - OpenChatFixedLineCount);
+                var scrollFraction = _chatScrollOffset / MathF.Max(1f, openChatRenderLineCount - OpenChatFixedLineCount);
                 var thumbY = trackY + (int)MathF.Round((trackHeight - thumbHeight) * (1f - scrollFraction));
                 thumbY = Math.Clamp(thumbY, trackY, trackY + trackHeight - thumbHeight);
 
@@ -634,6 +655,27 @@ public partial class Game1
 
         DrawRoundedRectangleOutline(promptRectangle, new Color(0, 0, 0) * 0.70f, new Color(49, 45, 26) * 0.70f, outlineThickness: 2, radius: 6);
         DrawChatPrompt(promptRectangle, promptPrefix, promptLines);
+    }
+
+    private void DrawChatRenderLine(ChatRenderLine line, Vector2 position, float alpha)
+    {
+        var directMessageColor = new Color(138, 218, 255);
+        var speakerWidth = 0f;
+        if (line.SpeakerPrefix.Length > 0)
+        {
+            speakerWidth = MeasureBitmapFontWidth(line.SpeakerPrefix, 1f);
+            DrawBitmapFontText(
+                line.SpeakerPrefix,
+                position,
+                (line.Line.DirectMessage ? directMessageColor : GetChatTeamColor(line.Line.Team)) * alpha,
+                1f);
+        }
+
+        DrawBitmapFontText(
+            line.Text,
+            new Vector2(position.X + speakerWidth, position.Y),
+            (line.Line.DirectMessage ? directMessageColor : new Color(235, 235, 235)) * alpha,
+            1f);
     }
 
     private void DrawChatLine(ChatLine line, Vector2 position, float alpha, float maxPanelWidth)
@@ -781,9 +823,123 @@ public partial class Game1
         return Math.Max(220f, ViewportWidth - baseX - ChatHudPanelMargin);
     }
 
+    private int GetOpenChatPanelWidth()
+    {
+        return Math.Max(280, ViewportWidth / 3);
+    }
+
     private float GetChatHudLineHeight()
     {
         return Math.Max(16f, MeasureBitmapFontHeight(1f) + 2f);
+    }
+
+    private int CountChatRenderLinesForLine(ChatLine line, float maxPanelWidth)
+    {
+        var result = new List<ChatRenderLine>(4);
+        AddChatRenderLinesForLine(line, maxPanelWidth, result);
+        return result.Count;
+    }
+
+    private int GetOpenChatRenderLineCount(float maxPanelWidth)
+    {
+        if (_chatLines.Count == 0)
+        {
+            return 0;
+        }
+
+        var count = 0;
+        for (var index = 0; index < _chatLines.Count; index += 1)
+        {
+            count += CountChatRenderLinesForLine(_chatLines[index], maxPanelWidth);
+        }
+
+        return count;
+    }
+
+    private List<ChatRenderLine> GetVisibleChatRenderLines(float maxPanelWidth, float maxChatHeight, bool includeHistory)
+    {
+        var sourceLines = BuildChatRenderLines(maxPanelWidth, includeHistory);
+        if (sourceLines.Count == 0)
+        {
+            return [];
+        }
+
+        var lineHeight = GetChatHudLineHeight();
+        var newestVisibleIndex = Math.Max(0, sourceLines.Count - 1 - (includeHistory ? _chatScrollOffset : 0));
+        var maxVisibleLineCount = Math.Max(1, (int)MathF.Floor(maxChatHeight / lineHeight));
+        var startIndex = Math.Max(0, newestVisibleIndex - maxVisibleLineCount + 1);
+        var resultCount = newestVisibleIndex - startIndex + 1;
+        if (resultCount <= 0)
+        {
+            return [];
+        }
+
+        return sourceLines.GetRange(startIndex, resultCount);
+    }
+
+    private List<ChatRenderLine> BuildChatRenderLines(float maxPanelWidth, bool includeHistory)
+    {
+        if (_chatLines.Count == 0)
+        {
+            return [];
+        }
+
+        var sourceMessages = new List<ChatLine>(_chatLines.Count);
+        if (includeHistory)
+        {
+            sourceMessages.AddRange(_chatLines);
+        }
+        else
+        {
+            for (var index = 0; index < _chatLines.Count; index += 1)
+            {
+                if (_chatLines[index].TicksRemaining > 0)
+                {
+                    sourceMessages.Add(_chatLines[index]);
+                }
+            }
+
+            if (sourceMessages.Count > ClosedChatVisibleLineLimit)
+            {
+                sourceMessages.RemoveRange(0, sourceMessages.Count - ClosedChatVisibleLineLimit);
+            }
+        }
+
+        var renderLines = new List<ChatRenderLine>(sourceMessages.Count);
+        for (var index = 0; index < sourceMessages.Count; index += 1)
+        {
+            AddChatRenderLinesForLine(sourceMessages[index], maxPanelWidth, renderLines);
+        }
+
+        return renderLines;
+    }
+
+    private void AddChatRenderLinesForLine(ChatLine line, float maxPanelWidth, List<ChatRenderLine> renderLines)
+    {
+        var speakerPrefix = GetChatLineSpeakerPrefix(line);
+        var speakerWidth = MeasureBitmapFontWidth(speakerPrefix, 1f);
+        var maxContentWidth = Math.Max(48f, maxPanelWidth - (ChatHudPanelHorizontalPadding * 2f));
+        var wrappedMessageLines = WrapBitmapFontText(
+            line.Text,
+            Math.Max(24f, maxContentWidth - speakerWidth),
+            maxContentWidth);
+        for (var lineIndex = 0; lineIndex < wrappedMessageLines.Count; lineIndex += 1)
+        {
+            renderLines.Add(new ChatRenderLine(
+                line,
+                wrappedMessageLines[lineIndex],
+                lineIndex == 0 ? speakerPrefix : string.Empty));
+        }
+    }
+
+    private static string GetChatLineSpeakerPrefix(ChatLine line)
+    {
+        var channelPrefix = line.TeamOnly ? "(TEAM) " : string.Empty;
+        return string.IsNullOrWhiteSpace(line.PlayerName)
+            ? channelPrefix
+            : line.DirectMessage
+                ? $"[{line.PlayerName}]: "
+                : $"{channelPrefix}{line.PlayerName}: ";
     }
 
     private List<ChatLine> GetVisibleChatLines(float maxPanelWidth, float maxChatHeight, bool includeHistory)

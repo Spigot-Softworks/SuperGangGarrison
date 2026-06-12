@@ -1,17 +1,27 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using OpenGarrison.Client.Plugins;
+using OpenGarrison.Core;
+using System.IO;
 
 namespace OpenGarrison.Client.Plugins.BubbleWheel;
 
 public sealed class BubbleWheelPlugin :
     IOpenGarrisonClientPlugin,
     IOpenGarrisonClientLifecycleHooks,
-    IOpenGarrisonClientBubbleMenuHooks
+    IOpenGarrisonClientBubbleMenuHooks,
+    IOpenGarrisonClientOptionsHooks
 {
     private const int StripFrameCount = 20;
+    private static readonly IReadOnlyList<ClientPluginChoiceOptionValue> BehaviorOptions =
+    [
+        new((int)BubbleWheelBehavior.HoldAndHover, "Hold and Hover"),
+        new((int)BubbleWheelBehavior.PressAndClick, "Press and Click"),
+    ];
     private static readonly Vector2 WheelOrigin = new(100f, 100f);
     private IOpenGarrisonClientPluginContext? _context;
+    private BubbleWheelPluginConfig _config = new();
+    private string _configPath = string.Empty;
     private ClientPluginTextureAtlas _bubbleWheelStripAtlas;
     private bool _hasBubbleWheelStripAtlas;
     private Texture2D? _menuWheelZ;
@@ -32,6 +42,8 @@ public sealed class BubbleWheelPlugin :
     public void Initialize(IOpenGarrisonClientPluginContext context)
     {
         _context = context;
+        _configPath = Path.Combine(context.ConfigDirectory, BubbleWheelPluginConfig.DefaultFileName);
+        _config = BubbleWheelPluginConfig.LoadOrCreate(_configPath);
     }
 
     public void Shutdown()
@@ -62,6 +74,22 @@ public sealed class BubbleWheelPlugin :
     {
     }
 
+    public IReadOnlyList<ClientPluginOptionsSection> GetOptionsSections()
+    {
+        return
+        [
+            new ClientPluginOptionsSection(
+                "Bubble Wheel",
+                [
+                    new ClientPluginChoiceOptionItem(
+                        "Wheel Behavior",
+                        () => (int)OpenGarrisonPreferencesDocument.NormalizeBubbleWheelBehavior(_config.Behavior),
+                        value => SetBehavior((BubbleWheelBehavior)value),
+                        BehaviorOptions),
+                ]),
+        ];
+    }
+
     public ClientBubbleMenuUpdateResult? TryHandleBubbleMenuInput(ClientBubbleMenuInputState inputState)
     {
         if (inputState.Kind == ClientBubbleMenuKind.None)
@@ -70,17 +98,21 @@ public sealed class BubbleWheelPlugin :
             return null;
         }
 
-        if (inputState.Kind == ClientBubbleMenuKind.X
-            && inputState.PressedDigit is >= 1 and <= 3)
+        var digitResult = ResolveDigitSelection(inputState);
+        if (digitResult is not null)
         {
-            var requestedPageIndex = inputState.PressedDigit.Value - 1;
-            if (requestedPageIndex != inputState.XPageIndex)
+            _lastBubbleMenuKind = inputState.Kind;
+            if (digitResult.NewXPageIndex.HasValue)
             {
-                _lastBubbleMenuKind = inputState.Kind;
-                _lastBubbleMenuXPageIndex = requestedPageIndex;
+                _lastBubbleMenuXPageIndex = digitResult.NewXPageIndex.Value;
                 _lastHoveredSlot = -1;
-                return new ClientBubbleMenuUpdateResult(NewXPageIndex: requestedPageIndex, ClearBubbleSelection: true);
             }
+            else
+            {
+                _lastBubbleMenuXPageIndex = inputState.XPageIndex;
+            }
+
+            return digitResult;
         }
 
         var selectedSlot = inputState.SelectedSlotOrDefault();
@@ -116,6 +148,60 @@ public sealed class BubbleWheelPlugin :
         }
 
         return result;
+    }
+
+    private static ClientBubbleMenuUpdateResult? ResolveDigitSelection(ClientBubbleMenuInputState inputState)
+    {
+        if (!inputState.PressedDigit.HasValue)
+        {
+            return null;
+        }
+
+        var digit = inputState.PressedDigit.Value;
+        return inputState.Kind switch
+        {
+            ClientBubbleMenuKind.Z => ResolveDigitWheelSelection(digit, 19),
+            ClientBubbleMenuKind.C => ResolveDigitWheelSelection(digit, 35),
+            ClientBubbleMenuKind.X => ResolveXDigitSelection(inputState, digit),
+            _ => null,
+        };
+    }
+
+    private static ClientBubbleMenuUpdateResult? ResolveDigitWheelSelection(int digit, int frameBase)
+    {
+        if (digit == 0)
+        {
+            return new ClientBubbleMenuUpdateResult(CloseMenu: true);
+        }
+
+        return digit is >= 1 and <= 9
+            ? new ClientBubbleMenuUpdateResult(BubbleFrame: frameBase + digit)
+            : null;
+    }
+
+    private static ClientBubbleMenuUpdateResult? ResolveXDigitSelection(ClientBubbleMenuInputState inputState, int digit)
+    {
+        if (inputState.XPageIndex == 0)
+        {
+            if (digit == 0)
+            {
+                return new ClientBubbleMenuUpdateResult(CloseMenu: true);
+            }
+
+            if (digit is 1 or 2)
+            {
+                return new ClientBubbleMenuUpdateResult(NewXPageIndex: digit, ClearBubbleSelection: true);
+            }
+
+            return digit is >= 3 and <= 9
+                ? new ClientBubbleMenuUpdateResult(BubbleFrame: 26 + digit)
+                : null;
+        }
+
+        var offset = inputState.XPageIndex == 2 ? 10 : 0;
+        return digit is >= 0 and <= 9
+            ? new ClientBubbleMenuUpdateResult(BubbleFrame: digit == 0 ? 9 + offset : (digit - 1) + offset)
+            : null;
     }
 
     public bool TryDrawBubbleMenu(IOpenGarrisonClientHudCanvas canvas, ClientBubbleMenuRenderState renderState)
@@ -300,6 +386,15 @@ public sealed class BubbleWheelPlugin :
         _lastBubbleMenuKind = ClientBubbleMenuKind.None;
         _lastBubbleMenuXPageIndex = 0;
         _lastHoveredSlot = -1;
+    }
+
+    private void SetBehavior(BubbleWheelBehavior behavior)
+    {
+        _config.Behavior = OpenGarrisonPreferencesDocument.NormalizeBubbleWheelBehavior(behavior);
+        if (!string.IsNullOrWhiteSpace(_configPath))
+        {
+            BubbleWheelPluginConfig.Save(_configPath, _config);
+        }
     }
 }
 

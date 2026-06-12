@@ -1,0 +1,18 @@
+{
+  "id": "ability.civilian-taunt",
+  "displayName": "Money Taunt",
+  "slot": "Utility",
+  "behaviorId": "builtin.ability.civvie_taunt",
+  "ability": {
+    "category": "utility",
+    "activation": "pressed",
+    "executorId": "builtin.ability.civvie_taunt",
+    "tags": [ "taunt", "healing" ],
+    "parameters": {
+      "healAmount": 30,
+      "healRadius": 120
+    }
+  },
+  "ammo": {},
+  "presentation": {}
+}

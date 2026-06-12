@@ -43,6 +43,9 @@ sealed partial class GameServer
     private readonly Uri? _registryUrl;
     private readonly string? _registryToken;
     private readonly string? _publicHost;
+    private readonly string _buildVersion;
+    private readonly string _releaseChannel;
+    private readonly string _compatibilityKey;
     private readonly string _lobbyHost;
     private readonly int _lobbyPort;
     private readonly string _protocolUuidString;
@@ -54,12 +57,23 @@ sealed partial class GameServer
     private readonly OpenGarrisonHostSettings _hostGameplayDefaults;
     private readonly IReadOnlyList<string> _stockMapRotation;
     private bool _mapRotationShuffleEnabled;
+    private MapRotationAdvanceMode _mapRotationAdvanceMode;
+    private int _mapRotationRounds;
+    private int _mapRotationMinutes;
     private readonly int _maxPlayableClients;
     private readonly int _maxTotalClients;
     private readonly int _maxSpectatorClients;
     private readonly int _autoBalanceDelaySeconds;
     private readonly int _autoBalanceNewPlayerGraceSeconds;
     private bool _autoBalanceEnabled;
+    private bool _switchTeamsAfterRoundEnd;
+    private int _teamShuffleAfterWins;
+    private PlayerTeam? _teamShuffleWinnerStreakTeam;
+    private int _teamShuffleWinnerStreakCount;
+    private readonly Random _teamShuffleRandom = new();
+    private int _lastAnnouncedVipAssignmentVersion = -1;
+    private int _lastAnnouncedVipDirectiveAssignmentVersion = -1;
+    private readonly Dictionary<PlayerTeam, byte> _lastAnnouncedVipSlotsByTeam = new();
     private bool _botAutofillEnabled;
     private int _botAutofillMinPlayers;
     private int _botAutofillPerTeam;
@@ -84,6 +98,7 @@ sealed partial class GameServer
     private readonly bool _persistentGameplayOwnershipEnabled;
     private readonly PersistentGameplayOwnershipIdentityMode _persistentGameplayOwnershipIdentityMode;
     private readonly string _persistentGameplayOwnershipFile;
+    private readonly OpenGarrison.Server.SnapshotBudgetMode _snapshotBudgetMode;
     private readonly bool _passwordRequired;
     private readonly byte[] _protocolUuidBytes;
     private readonly ConcurrentQueue<PendingConsoleCommand> _pendingConsoleCommands = new();
@@ -131,6 +146,9 @@ sealed partial class GameServer
         Uri? registryUrl,
         string? registryToken,
         string? publicHost,
+        string buildVersion,
+        string releaseChannel,
+        string compatibilityKey,
         string lobbyHost,
         int lobbyPort,
         string protocolUuidString,
@@ -141,12 +159,17 @@ sealed partial class GameServer
         string eventLogPath,
         IReadOnlyList<string> stockMapRotation,
         bool mapRotationShuffleEnabled,
+        MapRotationAdvanceMode mapRotationAdvanceMode,
+        int mapRotationRounds,
+        int mapRotationMinutes,
         int maxPlayableClients,
         int maxTotalClients,
         int maxSpectatorClients,
         int autoBalanceDelaySeconds,
         int autoBalanceNewPlayerGraceSeconds,
         bool autoBalanceEnabled,
+        bool switchTeamsAfterRoundEnd,
+        int teamShuffleAfterWins,
         bool secondaryAbilitiesEnabled,
         bool randomSpreadEnabled,
         bool competitiveReadyUpEnabled,
@@ -168,7 +191,8 @@ sealed partial class GameServer
         bool persistentGameplayOwnershipEnabled,
         PersistentGameplayOwnershipIdentityMode persistentGameplayOwnershipIdentityMode,
         string persistentGameplayOwnershipFile,
-        OpenGarrisonHostSettings hostGameplayDefaults)
+        OpenGarrisonHostSettings hostGameplayDefaults,
+        OpenGarrison.Server.SnapshotBudgetMode snapshotBudgetMode = OpenGarrison.Server.SnapshotBudgetMode.GameplayCriticalUntrimmed)
     {
         _config = config;
         _port = port;
@@ -179,6 +203,11 @@ sealed partial class GameServer
         _registryUrl = registryUrl;
         _registryToken = registryToken;
         _publicHost = publicHost;
+        _buildVersion = ApplicationBuildInfo.NormalizeBuildVersion(buildVersion);
+        _releaseChannel = ApplicationBuildInfo.NormalizeReleaseChannel(releaseChannel);
+        _compatibilityKey = string.IsNullOrWhiteSpace(compatibilityKey)
+            ? ApplicationBuildInfo.CreateCompatibilityKey(ProtocolVersion.Current, _buildVersion, _releaseChannel)
+            : compatibilityKey.Trim();
         _lobbyHost = lobbyHost;
         _lobbyPort = lobbyPort;
         _protocolUuidString = protocolUuidString;
@@ -190,12 +219,17 @@ sealed partial class GameServer
         _hostGameplayDefaults = hostGameplayDefaults ?? new OpenGarrisonHostSettings();
         _stockMapRotation = stockMapRotation;
         _mapRotationShuffleEnabled = mapRotationShuffleEnabled;
+        _mapRotationAdvanceMode = OpenGarrisonHostSettings.NormalizeMapRotationAdvanceMode(mapRotationAdvanceMode);
+        _mapRotationRounds = OpenGarrisonHostSettings.NormalizeMapRotationRounds(mapRotationRounds);
+        _mapRotationMinutes = OpenGarrisonHostSettings.NormalizeMapRotationMinutes(mapRotationMinutes);
         _maxPlayableClients = maxPlayableClients;
         _maxTotalClients = maxTotalClients;
         _maxSpectatorClients = maxSpectatorClients;
         _autoBalanceDelaySeconds = autoBalanceDelaySeconds;
         _autoBalanceNewPlayerGraceSeconds = autoBalanceNewPlayerGraceSeconds;
         _autoBalanceEnabled = autoBalanceEnabled;
+        _switchTeamsAfterRoundEnd = switchTeamsAfterRoundEnd;
+        _teamShuffleAfterWins = OpenGarrisonHostSettings.NormalizeTeamShuffleAfterWins(teamShuffleAfterWins);
         _secondaryAbilitiesEnabled = secondaryAbilitiesEnabled;
         _randomSpreadEnabled = randomSpreadEnabled;
         _competitiveReadyUpEnabled = competitiveReadyUpEnabled;
@@ -219,6 +253,7 @@ sealed partial class GameServer
             ? persistentGameplayOwnershipIdentityMode
             : PersistentGameplayOwnershipIdentityMode.Disabled;
         _persistentGameplayOwnershipFile = persistentGameplayOwnershipFile;
+        _snapshotBudgetMode = snapshotBudgetMode;
         _passwordRequired = !string.IsNullOrWhiteSpace(serverPassword);
         _protocolUuidBytes = ParseProtocolUuid(protocolUuidString);
     }

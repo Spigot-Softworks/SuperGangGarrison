@@ -8,6 +8,15 @@ public sealed class SimulationWorldMedicUberChargeTests
 {
     private static readonly MethodInfo CombatTestSetLevelMethod = GetRequiredSimulationWorldMethod("CombatTestSetLevel");
     private static readonly MethodInfo UpdateMedicHealingMethod = GetRequiredSimulationWorldMethod("UpdateMedicHealing");
+    private static readonly MethodInfo ApplyPlayerDamageMethod = GetRequiredSimulationWorldMethod(
+        "ApplyPlayerDamage",
+        typeof(PlayerEntity),
+        typeof(int),
+        typeof(PlayerEntity),
+        typeof(float),
+        typeof(DamageEventFlags),
+        typeof(bool),
+        typeof(bool));
 
     [Theory]
     [InlineData(false, 1.75f)]
@@ -59,6 +68,21 @@ public sealed class SimulationWorldMedicUberChargeTests
 
         Assert.False(medic.IsMedicUbering);
         Assert.Equal(0f, medic.MedicUberCharge);
+    }
+
+    [Fact]
+    public void DamageEventDoesNotCreditHealingMedicWhenHealTargetDamagesSelf()
+    {
+        var world = CreateMedicHealWorld(out var medic, out var target);
+        InvokeUpdateMedicHealing(world, medic, target);
+        Assert.Equal(target.Id, medic.MedicHealTargetId);
+
+        _ = InvokeApplyPlayerDamage(world, target, 10, target);
+
+        var damageEvent = Assert.Single(world.DrainPendingDamageEvents());
+        Assert.Equal(target.Id, damageEvent.AttackerPlayerId);
+        Assert.Equal(target.Id, damageEvent.TargetEntityId);
+        Assert.Equal(-1, damageEvent.AssistedByPlayerId);
     }
 
     [Fact]
@@ -137,9 +161,23 @@ public sealed class SimulationWorldMedicUberChargeTests
         UpdateMedicHealingMethod.Invoke(world, [medic, target.X, target.Y]);
     }
 
-    private static MethodInfo GetRequiredSimulationWorldMethod(string name)
+    private static bool InvokeApplyPlayerDamage(SimulationWorld world, PlayerEntity target, int damage, PlayerEntity attacker)
     {
-        return typeof(SimulationWorld).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic)
-            ?? throw new InvalidOperationException($"Could not find SimulationWorld.{name}.");
+        return (bool)ApplyPlayerDamageMethod.Invoke(
+            world,
+            [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true])!;
+    }
+
+    private static MethodInfo GetRequiredSimulationWorldMethod(string name, params Type[] parameterTypes)
+    {
+        var method = parameterTypes.Length == 0
+            ? typeof(SimulationWorld).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic)
+            : typeof(SimulationWorld).GetMethod(
+                name,
+                BindingFlags.Instance | BindingFlags.NonPublic,
+                binder: null,
+                parameterTypes,
+                modifiers: null);
+        return method ?? throw new InvalidOperationException($"Could not find SimulationWorld.{name}.");
     }
 }

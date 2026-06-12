@@ -10,6 +10,7 @@ public sealed partial class SimulationWorld
                 UpdateArenaState();
                 break;
             case GameModeKind.ControlPoint:
+            case GameModeKind.Vip:
                 UpdateControlPointState();
                 break;
             case GameModeKind.KingOfTheHill:

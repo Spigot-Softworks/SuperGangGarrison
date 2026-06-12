@@ -10,7 +10,7 @@ public partial class Game1
 {
     private void DrawBinocularOverlay()
     {
-        if (!_world.LocalPlayer.IsUsingBinoculars)
+        if (!GetPlayerIsUsingBinoculars(_world.LocalPlayer))
         {
             return;
         }

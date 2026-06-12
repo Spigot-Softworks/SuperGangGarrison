@@ -11,6 +11,14 @@ internal sealed class ServerRuntimeEventReporter(
 {
     private readonly Dictionary<int, bool> _lastObservedPlayerAliveById = new();
     private readonly Dictionary<(int PlayerId, string OwnerId, string StateKey), GameplayReplicatedStateEntry> _lastObservedAbilityStateByPlayerAndKey = new();
+    private long _lastAbilityStateSummaryFrame;
+    private int _abilityStateChangeSummaryCount;
+    private int _abilityStateLoggedSummaryCount;
+    private int _abilityStateSuppressedSummaryCount;
+    private long _lastAbilityUsedSummaryFrame;
+    private int _abilityUsedSummaryCount;
+    private int _abilityUsedLoggedSummaryCount;
+    private int _abilityUsedSuppressedSummaryCount;
     private int _lastObservedRedCaps;
     private int _lastObservedBlueCaps;
     private MatchPhase _lastObservedMatchPhase;
@@ -37,6 +45,14 @@ internal sealed class ServerRuntimeEventReporter(
         _lastObservedKillFeedCount = world.KillFeed.Count;
         _lastObservedPlayerAliveById.Clear();
         _lastObservedAbilityStateByPlayerAndKey.Clear();
+        _lastAbilityStateSummaryFrame = world.Frame;
+        _abilityStateChangeSummaryCount = 0;
+        _abilityStateLoggedSummaryCount = 0;
+        _abilityStateSuppressedSummaryCount = 0;
+        _lastAbilityUsedSummaryFrame = world.Frame;
+        _abilityUsedSummaryCount = 0;
+        _abilityUsedLoggedSummaryCount = 0;
+        _abilityUsedSuppressedSummaryCount = 0;
         _lastObservedPlayerCapsById.Clear();
         _lastObservedSentryBuiltById.Clear();
         _observedSpawnedPlayerIds.Clear();
@@ -231,6 +247,7 @@ internal sealed class ServerRuntimeEventReporter(
         WriteEvent(
             "map_changing",
             ("current_level_name", transition.CurrentLevelName),
+            ("current_game_mode", transition.CurrentGameMode),
             ("current_area_index", transition.CurrentAreaIndex),
             ("current_area_count", transition.CurrentAreaCount),
             ("next_level_name", transition.NextLevelName),
@@ -313,21 +330,37 @@ internal sealed class ServerRuntimeEventReporter(
                 continue;
             }
 
-            WriteEvent(
-                "gameplay_ability_used",
-                ("frame", abilityEvent.Frame),
-                ("player_id", abilityEvent.PlayerId),
-                ("class_id", abilityEvent.ClassId),
-                ("team", abilityEvent.Team),
-                ("item_id", abilityEvent.ItemId),
-                ("behavior_id", abilityEvent.BehaviorId),
-                ("ability_category", abilityEvent.AbilityCategory),
-                ("activation", abilityEvent.Activation),
-                ("executor_id", abilityEvent.ExecutorId),
-                ("phase", abilityEvent.Phase),
-                ("consumed_input", abilityEvent.ConsumedInput));
-            pluginHost?.NotifyGameplayAbilityUsed(abilityEvent);
+            _abilityUsedSummaryCount += 1;
+            var shouldPublishDetailedEvent = ShouldPublishDetailedGameplayAbilityUsedEvent(abilityEvent);
+            if (shouldPublishDetailedEvent)
+            {
+                _abilityUsedLoggedSummaryCount += 1;
+                WriteEvent(
+                    "gameplay_ability_used",
+                    ("frame", abilityEvent.Frame),
+                    ("player_id", abilityEvent.PlayerId),
+                    ("class_id", abilityEvent.ClassId),
+                    ("team", abilityEvent.Team),
+                    ("item_id", abilityEvent.ItemId),
+                    ("behavior_id", abilityEvent.BehaviorId),
+                    ("ability_category", abilityEvent.AbilityCategory),
+                    ("activation", abilityEvent.Activation),
+                    ("executor_id", abilityEvent.ExecutorId),
+                    ("phase", abilityEvent.Phase),
+                    ("consumed_input", abilityEvent.ConsumedInput));
+            }
+            else
+            {
+                _abilityUsedSuppressedSummaryCount += 1;
+            }
+
+            if (shouldPublishDetailedEvent)
+            {
+                pluginHost?.NotifyGameplayAbilityUsed(abilityEvent);
+            }
         }
+
+        PublishAbilityUsedSummaryIfDue();
     }
 
     private void PublishGameplayAbilityStateChangedEvents()
@@ -341,42 +374,57 @@ internal sealed class ServerRuntimeEventReporter(
                 var key = (player.Id, entry.OwnerId, entry.Key);
                 observedKeys.Add(key);
                 var hasPreviousValue = _lastObservedAbilityStateByPlayerAndKey.TryGetValue(key, out var previousEntry);
-                if (hasPreviousValue && AbilityStateEntryValuesEqual(previousEntry, entry))
+                if (hasPreviousValue && previousEntry is not null && AbilityStateEntryValuesEqual(previousEntry, entry))
                 {
                     continue;
                 }
 
-                WriteEvent(
-                    "gameplay_ability_state_changed",
-                    ("frame", world.Frame),
-                    ("player_id", player.Id),
-                    ("class_id", player.ClassId),
-                    ("team", player.Team),
-                    ("owner_id", entry.OwnerId),
-                    ("state_key", entry.Key),
-                    ("value_kind", entry.Kind),
-                    ("has_previous_value", hasPreviousValue),
-                    ("previous_int_value", previousEntry?.IntValue ?? 0),
-                    ("current_int_value", entry.IntValue),
-                    ("previous_float_value", previousEntry?.FloatValue ?? 0f),
-                    ("current_float_value", entry.FloatValue),
-                    ("previous_bool_value", previousEntry?.BoolValue ?? false),
-                    ("current_bool_value", entry.BoolValue));
-                pluginHost?.NotifyGameplayAbilityStateChanged(new OpenGarrisonServerGameplayAbilityStateChangedEvent(
-                    world.Frame,
-                    player.Id,
-                    player.ClassId,
-                    player.Team,
-                    entry.OwnerId,
-                    entry.Key,
-                    entry.Kind,
-                    hasPreviousValue,
-                    previousEntry?.IntValue ?? 0,
-                    entry.IntValue,
-                    previousEntry?.FloatValue ?? 0f,
-                    entry.FloatValue,
-                    previousEntry?.BoolValue ?? false,
-                    entry.BoolValue));
+                _abilityStateChangeSummaryCount += 1;
+                var shouldPublishDetailedStateChange = ShouldPublishDetailedAbilityStateChange(previousEntry, entry, hasPreviousValue);
+                if (shouldPublishDetailedStateChange)
+                {
+                    _abilityStateLoggedSummaryCount += 1;
+                    WriteEvent(
+                        "gameplay_ability_state_changed",
+                        ("frame", world.Frame),
+                        ("player_id", player.Id),
+                        ("class_id", player.ClassId),
+                        ("team", player.Team),
+                        ("owner_id", entry.OwnerId),
+                        ("state_key", entry.Key),
+                        ("value_kind", entry.Kind),
+                        ("has_previous_value", hasPreviousValue),
+                        ("previous_int_value", previousEntry?.IntValue ?? 0),
+                        ("current_int_value", entry.IntValue),
+                        ("previous_float_value", previousEntry?.FloatValue ?? 0f),
+                        ("current_float_value", entry.FloatValue),
+                        ("previous_bool_value", previousEntry?.BoolValue ?? false),
+                        ("current_bool_value", entry.BoolValue));
+                }
+                else
+                {
+                    _abilityStateSuppressedSummaryCount += 1;
+                }
+
+                if (shouldPublishDetailedStateChange)
+                {
+                    pluginHost?.NotifyGameplayAbilityStateChanged(new OpenGarrisonServerGameplayAbilityStateChangedEvent(
+                        world.Frame,
+                        player.Id,
+                        player.ClassId,
+                        player.Team,
+                        entry.OwnerId,
+                        entry.Key,
+                        entry.Kind,
+                        hasPreviousValue,
+                        previousEntry?.IntValue ?? 0,
+                        entry.IntValue,
+                        previousEntry?.FloatValue ?? 0f,
+                        entry.FloatValue,
+                        previousEntry?.BoolValue ?? false,
+                        entry.BoolValue));
+                }
+
                 _lastObservedAbilityStateByPlayerAndKey[key] = entry;
             }
         }
@@ -388,6 +436,8 @@ internal sealed class ServerRuntimeEventReporter(
         {
             _lastObservedAbilityStateByPlayerAndKey.Remove(staleKeys[index]);
         }
+
+        PublishAbilityStateSummaryIfDue();
     }
 
     private static bool AbilityStateEntryValuesEqual(GameplayReplicatedStateEntry left, GameplayReplicatedStateEntry right)
@@ -405,6 +455,144 @@ internal sealed class ServerRuntimeEventReporter(
             _ => false,
         };
     }
+
+    private void PublishAbilityUsedSummaryIfDue()
+    {
+        var intervalTicks = Math.Max(1, world.Config.TicksPerSecond * 5);
+        if (world.Frame - _lastAbilityUsedSummaryFrame < intervalTicks)
+        {
+            return;
+        }
+
+        if (_abilityUsedSummaryCount > 0
+            || _abilityUsedLoggedSummaryCount > 0
+            || _abilityUsedSuppressedSummaryCount > 0)
+        {
+            WriteEvent(
+                "gameplay_ability_used_summary",
+                ("frame", world.Frame),
+                ("sample_ticks", world.Frame - _lastAbilityUsedSummaryFrame),
+                ("observable_events", _abilityUsedSummaryCount),
+                ("logged_events", _abilityUsedLoggedSummaryCount),
+                ("suppressed_events", _abilityUsedSuppressedSummaryCount));
+        }
+
+        _lastAbilityUsedSummaryFrame = world.Frame;
+        _abilityUsedSummaryCount = 0;
+        _abilityUsedLoggedSummaryCount = 0;
+        _abilityUsedSuppressedSummaryCount = 0;
+    }
+
+    private void PublishAbilityStateSummaryIfDue()
+    {
+        var intervalTicks = Math.Max(1, world.Config.TicksPerSecond * 5);
+        if (world.Frame - _lastAbilityStateSummaryFrame < intervalTicks)
+        {
+            return;
+        }
+
+        if (_abilityStateChangeSummaryCount > 0
+            || _abilityStateLoggedSummaryCount > 0
+            || _abilityStateSuppressedSummaryCount > 0)
+        {
+            WriteEvent(
+                "gameplay_ability_state_summary",
+                ("frame", world.Frame),
+                ("sample_ticks", world.Frame - _lastAbilityStateSummaryFrame),
+                ("changed_states", _abilityStateChangeSummaryCount),
+                ("logged_states", _abilityStateLoggedSummaryCount),
+                ("suppressed_states", _abilityStateSuppressedSummaryCount));
+        }
+
+        _lastAbilityStateSummaryFrame = world.Frame;
+        _abilityStateChangeSummaryCount = 0;
+        _abilityStateLoggedSummaryCount = 0;
+        _abilityStateSuppressedSummaryCount = 0;
+    }
+
+    private static bool ShouldPublishDetailedGameplayAbilityUsedEvent(WorldGameplayAbilityEvent abilityEvent)
+    {
+        return abilityEvent.Phase != GameplayAbilityInputPhase.Held
+            && abilityEvent.Phase != GameplayAbilityInputPhase.PassiveTick
+            && !string.Equals(abilityEvent.Activation, GameplayAbilityConstants.HeldActivation, StringComparison.Ordinal)
+            && !string.Equals(abilityEvent.Activation, GameplayAbilityConstants.PassiveTickActivation, StringComparison.Ordinal);
+    }
+
+    private static bool ShouldPublishDetailedAbilityStateChange(
+        GameplayReplicatedStateEntry? previousEntry,
+        GameplayReplicatedStateEntry currentEntry,
+        bool hasPreviousValue)
+    {
+        if (!hasPreviousValue || previousEntry is null)
+        {
+            return true;
+        }
+
+        return currentEntry.Kind switch
+        {
+            GameplayReplicatedStateValueKind.Toggle => true,
+            GameplayReplicatedStateValueKind.Whole => IsWholeAbilityStateLogworthy(previousEntry, currentEntry),
+            GameplayReplicatedStateValueKind.Scalar => IsScalarAbilityStateLogworthy(previousEntry, currentEntry),
+            _ => false,
+        };
+    }
+
+    private static bool IsWholeAbilityStateLogworthy(
+        GameplayReplicatedStateEntry previousEntry,
+        GameplayReplicatedStateEntry currentEntry)
+    {
+        if (!IsNoisyAbilityStateKey(currentEntry.Key))
+        {
+            return true;
+        }
+
+        return IsZeroBoundaryChange(previousEntry.IntValue, currentEntry.IntValue);
+    }
+
+    private static bool IsScalarAbilityStateLogworthy(
+        GameplayReplicatedStateEntry previousEntry,
+        GameplayReplicatedStateEntry currentEntry)
+    {
+        if (!IsNoisyAbilityStateKey(currentEntry.Key))
+        {
+            return true;
+        }
+
+        if (IsSummaryOnlyScalarAbilityStateKey(currentEntry.Key))
+        {
+            return false;
+        }
+
+        return IsZeroBoundaryChange(previousEntry.FloatValue, currentEntry.FloatValue);
+    }
+
+    private static bool IsNoisyAbilityStateKey(string key)
+    {
+        return key.Contains("cooldown", StringComparison.OrdinalIgnoreCase)
+            || key.Contains("ticks", StringComparison.OrdinalIgnoreCase)
+            || key.Contains("charge", StringComparison.OrdinalIgnoreCase)
+            || key.Contains("alpha", StringComparison.OrdinalIgnoreCase)
+            || key.Contains("fuel", StringComparison.OrdinalIgnoreCase)
+            || key.Contains("loop", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSummaryOnlyScalarAbilityStateKey(string key)
+    {
+        return key.Contains("alpha", StringComparison.OrdinalIgnoreCase)
+            || key.Contains("charge", StringComparison.OrdinalIgnoreCase)
+            || key.Contains("focus", StringComparison.OrdinalIgnoreCase)
+            || key.Contains("fuel", StringComparison.OrdinalIgnoreCase)
+            || key.Contains("progress", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsZeroBoundaryChange(int previous, int current) =>
+        (previous <= 0) != (current <= 0);
+
+    private static bool IsZeroBoundaryChange(float previous, float current) =>
+        (previous <= 0.0001f) != (current <= 0.0001f);
+
+    private static bool IsOneBoundaryChange(float previous, float current) =>
+        (previous >= 0.9999f) != (current >= 0.9999f);
 
     private void PublishDamageEvents(SnapshotTransientEvents transientEvents)
     {

@@ -180,18 +180,21 @@ public sealed partial class PlayerEntity
         }
 
         PyroAirblastCooldownTicks = ApplyExperimentalWeaponCycleMultiplier(reloadTicks);
+        var noFlameCooldownTicks = noFlameTicks <= 0
+            ? 0
+            : ApplyExperimentalWeaponCycleMultiplier(noFlameTicks);
         if (IsUsingAcquiredPyroWeapon())
         {
             AcquiredWeaponCooldownTicks = int.Max(
                 AcquiredWeaponCooldownTicks,
-                ApplyExperimentalWeaponCycleMultiplier(noFlameTicks));
+                noFlameCooldownTicks);
             AcquiredWeaponReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(reloadTicks);
         }
         else
         {
             PrimaryCooldownTicks = int.Max(
                 PrimaryCooldownTicks,
-                ApplyExperimentalWeaponCycleMultiplier(noFlameTicks));
+                noFlameCooldownTicks);
             ReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(reloadTicks);
         }
 

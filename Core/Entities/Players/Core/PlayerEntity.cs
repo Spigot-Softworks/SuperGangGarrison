@@ -52,6 +52,12 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const int QuoteBladeEnergyCost = 15;
     public const int QuoteBladeLifetimeTicks = 15;
     public const int QuoteBladeMaxOut = 1;
+    public const int CivvieUmbrellaMaxChargeTicks = 360;
+    public const int CivvieUmbrellaHoldDrainPerTick = 1;
+    public const int CivvieUmbrellaRechargePerTick = 1;
+    public const int CivvieUmbrellaImpactDrain = 30;
+    public const int CivvieUmbrellaAirblastCooldownTicks = 28;
+    public const float CivvieUmbrellaFallSpeedScale = 0.5f;
     public const float ExperimentalDemoknightSwordBaseRange = 48f;
     public const int ExperimentalDemoknightSwordCooldownTicks = 18;
     public const int ExperimentalDemoknightChargeMaxTicks = 100;
@@ -62,8 +68,10 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const float ExperimentalDemoknightChargeFlightActivationAcceleration = 1.3f;
     public const float ExperimentalDemoknightChargeBounceAccelerationThreshold = 5f;
     public const int PyroAirblastCost = 40;
+    public const int PyroAirburstCost = 28;
     public const int PyroAirblastReloadTicks = 40;
     public const int PyroAirblastNoFlameTicks = 15;
+    public const int PyroAirburstNoFlameTicks = 0;
     public const int PyroFlareCost = 35;
     public const int PyroFlareReloadTicks = 55;
     public const int PyroFlareAmmoRequirement = PyroAirblastCost + PyroFlareCost;
@@ -334,6 +342,18 @@ public sealed partial class PlayerEntity : SimulationEntity
     public int QuoteBubbleCount { get; private set; }
 
     public int QuoteBladesOut { get; private set; }
+
+    public int CivvieUmbrellaChargeTicks { get; private set; } = CivvieUmbrellaMaxChargeTicks;
+
+    public int CivvieUmbrellaCooldownTicks => Math.Max(0, CivvieUmbrellaMaxChargeTicks - CivvieUmbrellaChargeTicks);
+
+    public bool IsCivvieUmbrellaActive { get; private set; }
+
+    public bool IsCivvieUmbrellaDisabled => IsCivvieUmbrellaBroken || CivvieUmbrellaChargeTicks <= 0;
+
+    public bool IsCivvieUmbrellaBroken { get; private set; }
+
+    public int CivvieUmbrellaAirblastCooldownTicksRemaining { get; private set; }
 
     public bool IsExperimentalDemoknightEnabled { get; private set; }
 
@@ -744,6 +764,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         ContinuousHealingAccumulator = 0f;
         QuoteBubbleCount = 0;
         QuoteBladesOut = 0;
+        ResetCivvieUmbrellaState();
         PyroAirblastCooldownTicks = 0;
         PyroFlareCooldownTicks = pyroFlareCooldownTicks;
         IsPyroPrimaryRefilling = false;

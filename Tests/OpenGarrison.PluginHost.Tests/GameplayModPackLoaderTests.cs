@@ -54,6 +54,7 @@ public sealed class GameplayModPackLoaderTests
             Assert.Equal("BrowserTester", loaded.PlayerName);
             Assert.Equal("rocketjumper,marketgardener", loaded.Rewards);
             Assert.True(loaded.Fullscreen);
+            Assert.Equal(DisplayModeKind.Fullscreen, loaded.DisplayMode);
             Assert.True(loaded.VSync);
             Assert.Equal(OfflineBotControllerMode.BotBrain, loaded.BotMode);
             Assert.Equal(IngameResolutionKind.Aspect16x9, loaded.IngameResolution);
@@ -65,6 +66,105 @@ public sealed class GameplayModPackLoaderTests
             Assert.Equal(9001, loaded.RecentConnection.Port);
             Assert.Equal("lobby.example.invalid", loaded.LobbyHost);
             Assert.Equal(5001, loaded.LobbyPort);
+        }
+        finally
+        {
+            if (Directory.Exists(rootDirectory))
+            {
+                Directory.Delete(rootDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void ClientSettingsRoundTripsBorderlessDisplayModeThroughIniDocument()
+    {
+        var rootDirectory = Path.Combine(Path.GetTempPath(), "og2-client-settings-tests", Path.GetRandomFileName());
+        Directory.CreateDirectory(rootDirectory);
+        var settingsPath = Path.Combine(rootDirectory, ClientSettings.DefaultFileName);
+
+        try
+        {
+            var settings = new ClientSettings
+            {
+                DisplayMode = DisplayModeKind.Borderless,
+                IngameResolution = IngameResolutionKind.Aspect16x9,
+                WindowSize = WindowSizeKind.Scale200,
+            };
+
+            settings.Save(settingsPath);
+
+            var loaded = ClientSettings.Load(settingsPath);
+            var document = OpenGarrisonPreferencesDocument.Load(settingsPath);
+
+            Assert.False(loaded.Fullscreen);
+            Assert.Equal(DisplayModeKind.Borderless, loaded.DisplayMode);
+            Assert.False(document.Fullscreen);
+            Assert.Equal(DisplayModeKind.Borderless, document.DisplayMode);
+            Assert.Equal(WindowSizeKind.Scale200, loaded.WindowSize);
+        }
+        finally
+        {
+            if (Directory.Exists(rootDirectory))
+            {
+                Directory.Delete(rootDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void ClientSettingsMapsLegacyFullscreenToFullscreenDisplayMode()
+    {
+        var rootDirectory = Path.Combine(Path.GetTempPath(), "og2-client-settings-tests", Path.GetRandomFileName());
+        Directory.CreateDirectory(rootDirectory);
+        var settingsPath = Path.Combine(rootDirectory, ClientSettings.DefaultFileName);
+
+        try
+        {
+            File.WriteAllText(
+                settingsPath,
+                "[Settings]" + Environment.NewLine +
+                "Fullscreen=1" + Environment.NewLine);
+
+            var loaded = ClientSettings.Load(settingsPath);
+            var document = OpenGarrisonPreferencesDocument.Load(settingsPath);
+
+            Assert.True(loaded.Fullscreen);
+            Assert.Equal(DisplayModeKind.Fullscreen, loaded.DisplayMode);
+            Assert.True(document.Fullscreen);
+            Assert.Equal(DisplayModeKind.Fullscreen, document.DisplayMode);
+        }
+        finally
+        {
+            if (Directory.Exists(rootDirectory))
+            {
+                Directory.Delete(rootDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void ClientSettingsDisplayModeOverridesLegacyFullscreenFlag()
+    {
+        var rootDirectory = Path.Combine(Path.GetTempPath(), "og2-client-settings-tests", Path.GetRandomFileName());
+        Directory.CreateDirectory(rootDirectory);
+        var settingsPath = Path.Combine(rootDirectory, ClientSettings.DefaultFileName);
+
+        try
+        {
+            File.WriteAllText(
+                settingsPath,
+                "[Settings]" + Environment.NewLine +
+                "Fullscreen=1" + Environment.NewLine +
+                "Display Mode=1" + Environment.NewLine);
+
+            var loaded = ClientSettings.Load(settingsPath);
+            var document = OpenGarrisonPreferencesDocument.Load(settingsPath);
+
+            Assert.False(loaded.Fullscreen);
+            Assert.Equal(DisplayModeKind.Borderless, loaded.DisplayMode);
+            Assert.False(document.Fullscreen);
+            Assert.Equal(DisplayModeKind.Borderless, document.DisplayMode);
         }
         finally
         {
@@ -210,9 +310,40 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal("Stock OpenGarrison Gameplay", pack.DisplayName);
         Assert.True(pack.Items.ContainsKey("weapon.scattergun"));
         Assert.True(pack.Items.ContainsKey("weapon.directhit"));
+        Assert.True(pack.Items.ContainsKey("weapon.umbrella"));
+        Assert.True(pack.Items.ContainsKey("ability.umbrella"));
+        Assert.True(pack.Items.ContainsKey("ability.civilian-taunt"));
         Assert.True(pack.Classes.ContainsKey("soldier"));
-        Assert.False(pack.Classes.ContainsKey("quote"));
+        Assert.True(pack.Classes.ContainsKey("civilian"));
         Assert.Equal("soldier.stock", pack.Classes["soldier"].DefaultLoadoutId);
+        var civilianClass = pack.Classes["civilian"];
+        Assert.Equal("Civilian/Financier", civilianClass.DisplayName);
+        Assert.Equal("civilian.stock", civilianClass.DefaultLoadoutId);
+        Assert.Equal("weapon.umbrella", civilianClass.Loadouts["civilian.stock"].PrimaryItemId);
+        Assert.Equal("ability.umbrella", civilianClass.Loadouts["civilian.stock"].SecondaryItemId);
+        Assert.Equal("ability.civilian-taunt", civilianClass.Loadouts["civilian.stock"].UtilityItemId);
+        Assert.Equal(nameof(PlayerClass.Quote), civilianClass.Runtime?.PlayerClass);
+        Assert.Equal("CivvieUmbrellaKL", civilianClass.Runtime?.PrimaryWeaponKillFeedSprite);
+        Assert.Equal("Civvie", civilianClass.Presentation?.SpritePrefix);
+        Assert.Equal("RunS", civilianClass.Presentation?.RunSuffix);
+        Assert.Equal("RunS", civilianClass.Presentation?.JumpSuffix);
+        Assert.Equal("CivvieUmbrellaAmmoS", pack.Items["weapon.umbrella"].Presentation.HudSpriteName);
+        Assert.Equal("CivvieUmbrellaAbilityHudS", pack.Items["ability.umbrella"].Presentation.HudSpriteName);
+        Assert.Equal(-16f, pack.Items["weapon.umbrella"].Presentation.WeaponOffsetX);
+        Assert.Equal(-25f, pack.Items["weapon.umbrella"].Presentation.WeaponOffsetY);
+        Assert.Equal(-16f, pack.Items["ability.umbrella"].Presentation.WeaponOffsetX);
+        Assert.Equal(-25f, pack.Items["ability.umbrella"].Presentation.WeaponOffsetY);
+        Assert.Equal("CivvieUmbrellaOpenAnimS", pack.Items["ability.umbrella"].Presentation.WorldSpriteName);
+        Assert.Equal(360, pack.Items["ability.umbrella"].Presentation.Hud?.MaxCooldown);
+        Assert.True(pack.Assets.Sprites.ContainsKey("CivvieRedS"));
+        Assert.True(pack.Assets.Sprites.ContainsKey("CivvieRedRunS"));
+        Assert.True(pack.Assets.Sprites.ContainsKey("CivvieRedTauntS"));
+        Assert.True(pack.Assets.Sprites.ContainsKey("CivvieMoneyS"));
+        Assert.True(pack.Assets.Sprites.ContainsKey("CivvieUmbrellaKL"));
+        Assert.True(pack.Assets.Sprites.ContainsKey("CivvieUmbrellaAmmoS"));
+        Assert.True(pack.Assets.Sprites.ContainsKey("CivvieUmbrellaAbilityHudS"));
+        Assert.True(pack.Assets.Sprites.ContainsKey("CivvieUmbrellaOpenAnimS"));
+        Assert.True(pack.Assets.Sprites.ContainsKey("CivvieUmbrellaShieldBlockS"));
         Assert.True(pack.Classes["soldier"].Loadouts.ContainsKey("soldier.direct-hit"));
         var soldierRuntime = pack.Classes["soldier"].Runtime;
         Assert.NotNull(soldierRuntime);
@@ -258,14 +389,15 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal(50, pack.Assets.Sprites["stock.gg2.weapon.directhit.hud"].FrameWidth);
         Assert.True(pack.Assets.Sprites.ContainsKey("MvpRedMedicS"));
         var redMedicMvpSprite = pack.Assets.Sprites["MvpRedMedicS"];
-        Assert.Equal(3, redMedicMvpSprite.FramePaths.Count);
+        Assert.Equal(4, redMedicMvpSprite.FramePaths.Count);
         Assert.Equal("assets/mvp/red/medic/nonwinner_0.png", redMedicMvpSprite.FramePaths[0]);
+        Assert.Equal("assets/mvp/red/medic/nonwinner_3.png", redMedicMvpSprite.FramePaths[3]);
         Assert.Equal(26, redMedicMvpSprite.OriginX);
         Assert.Equal(52, redMedicMvpSprite.OriginY);
         Assert.True(pack.Assets.Sprites.ContainsKey("MvpRedHeavyWinnerS"));
         var redHeavyWinnerMvpSprite = pack.Assets.Sprites["MvpRedHeavyWinnerS"];
-        Assert.Equal(2, redHeavyWinnerMvpSprite.FramePaths.Count);
-        Assert.Equal("assets/mvp/red/heavy/winner_1.png", redHeavyWinnerMvpSprite.FramePaths[1]);
+        Assert.Single(redHeavyWinnerMvpSprite.FramePaths);
+        Assert.Equal("assets/mvp/red/heavy/winner_0.png", redHeavyWinnerMvpSprite.FramePaths[0]);
         Assert.Equal(26, redHeavyWinnerMvpSprite.OriginX);
         Assert.Equal(52, redHeavyWinnerMvpSprite.OriginY);
     }
@@ -322,6 +454,15 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal(GameplayAbilityConstants.SecondaryCategory, medigunNeedles!.Category);
         Assert.Equal(GameplayAbilityConstants.HeldActivation, medigunNeedles.Activation);
         Assert.Equal(BuiltInGameplayBehaviorIds.MedicNeedlegun, medigunNeedles.ExecutorId);
+
+        var kritzBeam = pack.Items["weapon.medigun.crit"].Ability;
+        Assert.NotNull(kritzBeam);
+        Assert.Equal(GameplayAbilityConstants.SecondaryCategory, kritzBeam!.Category);
+        Assert.Equal(GameplayAbilityConstants.HeldActivation, kritzBeam.Activation);
+        Assert.Equal(BuiltInGameplayBehaviorIds.MedicKritzBeam, kritzBeam.ExecutorId);
+        Assert.Equal(150, kritzBeam.Parameters["range"].GetInt32());
+        Assert.Equal(1, kritzBeam.Parameters["damagePerSecond"].GetInt32());
+        Assert.Equal(30, kritzBeam.Parameters["chargePerDamageTick"].GetInt32());
 
         Assert.False(pack.Items.ContainsKey("ability.quote-blade-throw"));
         Assert.False(pack.Items.ContainsKey("ability.quote-utility"));
@@ -998,10 +1139,20 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal(PlayerEntity.QuoteBladeMaxOut, quoteBladeThrow.Parameters["activeProjectileLimit"].GetInt32());
         Assert.Equal(PlayerEntity.QuoteBladeLifetimeTicks, quoteBladeThrow.Parameters["lifetimeTicks"].GetInt32());
         Assert.True(pack.Classes.TryGetValue("plugin.quote-curly.quote", out var gameplayClass));
-        Assert.Equal("Quote", gameplayClass!.Runtime?.PlayerClass);
+        Assert.Equal("Quote/Curly", gameplayClass!.DisplayName);
+        Assert.Equal(string.Empty, gameplayClass.Runtime?.PlayerClass);
+        Assert.Equal("Quote", gameplayClass.Runtime?.BasePlayerClass);
+        Assert.Equal("Quote", gameplayClass.Runtime?.BotGraphPlayerClass);
+        Assert.Equal("BladeKL", gameplayClass.Runtime?.PrimaryWeaponKillFeedSprite);
         Assert.Equal(
             "plugin.quote-curly.weapon.blade",
             gameplayClass.Loadouts[gameplayClass.DefaultLoadoutId].PrimaryItemId);
+        Assert.Equal(
+            "plugin.quote-curly.ability.blade-throw",
+            gameplayClass.Loadouts[gameplayClass.DefaultLoadoutId].SecondaryItemId);
+        Assert.Equal(
+            "plugin.quote-curly.ability.utility",
+            gameplayClass.Loadouts[gameplayClass.DefaultLoadoutId].UtilityItemId);
         Assert.True(pack.Classes.TryGetValue("plugin.quote-curly.ranger", out var rangerClass));
         Assert.Equal(string.Empty, rangerClass!.Runtime?.PlayerClass);
         Assert.Equal("Scout", rangerClass.Runtime?.BasePlayerClass);
@@ -1012,10 +1163,13 @@ public sealed class GameplayModPackLoaderTests
     }
 
     [Fact]
-    public void PackagedQuoteCurlyGameplayPackRegistersQuoteRuntimeBinding()
+    public void PackagedQuoteCurlyGameplayPackDoesNotOverrideStockCivilianRuntimeBinding()
     {
         var registry = GameplayRuntimeRegistry.CreateStock();
-        Assert.False(registry.TryGetClassBinding(PlayerClass.Quote, out _));
+        Assert.True(registry.TryGetClassBinding(PlayerClass.Quote, out var stockQuoteBinding));
+        Assert.Equal("civilian", stockQuoteBinding.ClassId);
+        Assert.Equal("Civilian/Financier", registry.GetClassDefinition(PlayerClass.Quote).DisplayName);
+        Assert.Equal("weapon.umbrella", registry.GetDefaultLoadout(PlayerClass.Quote).PrimaryItemId);
 
         var packDirectory = ProjectSourceLocator.FindDirectory(Path.Combine(
             "Plugins",
@@ -1028,11 +1182,15 @@ public sealed class GameplayModPackLoaderTests
         Assert.False(string.IsNullOrWhiteSpace(packDirectory));
         var pack = GameplayModPackDirectoryLoader.LoadFromDirectory(packDirectory!);
 
-        Assert.True(registry.TryRegisterModPack(pack, allowRuntimeClassBindingOverride: true, out var error), error);
+        Assert.True(registry.TryRegisterModPack(pack, allowRuntimeClassBindingOverride: false, out var error), error);
         Assert.True(registry.TryGetClassBinding(PlayerClass.Quote, out var quoteBinding));
-        Assert.Equal("plugin.quote-curly.quote", quoteBinding.ClassId);
-        Assert.Equal("Quote/Curly", registry.GetClassDefinition(PlayerClass.Quote).DisplayName);
-        Assert.Equal("plugin.quote-curly.weapon.blade", registry.GetDefaultLoadout(PlayerClass.Quote).PrimaryItemId);
+        Assert.Equal("civilian", quoteBinding.ClassId);
+        Assert.Equal("Civilian/Financier", registry.GetClassDefinition(PlayerClass.Quote).DisplayName);
+        Assert.Equal("weapon.umbrella", registry.GetDefaultLoadout(PlayerClass.Quote).PrimaryItemId);
+        Assert.Equal("ability.umbrella", registry.GetDefaultLoadout(PlayerClass.Quote).SecondaryItemId);
+        Assert.Equal("ability.civilian-taunt", registry.GetDefaultLoadout(PlayerClass.Quote).UtilityItemId);
+        Assert.Equal("Quote/Curly", registry.GetClassDefinition("plugin.quote-curly.quote").DisplayName);
+        Assert.Equal("plugin.quote-curly.weapon.blade", registry.GetDefaultLoadout("plugin.quote-curly.quote").PrimaryItemId);
     }
 
     [Fact]
@@ -1238,6 +1396,54 @@ public sealed class GameplayModPackLoaderTests
     }
 
     [Fact]
+    public void StockGameplayPackLoadsCivilianSpriteSourceImagesFromFilesystem()
+    {
+        var stockPack = StockGameplayModCatalog.Definition;
+        var packDirectory = ProjectSourceLocator.FindDirectory(Path.Combine("Core", "Content", "Gameplay", "stock.gg2"));
+
+        Assert.False(string.IsNullOrWhiteSpace(packDirectory));
+        var assetSource = new FileSystemAssetBinarySource(packDirectory!);
+        var spriteAssetService = new GameplayPackSpriteAssetService(
+            "stock.gg2",
+            assetSource,
+            spriteDefinitions: stockPack.Assets.Sprites);
+
+        var civilianStand = spriteAssetService.LoadRegisteredSprite(stockPack.Assets.Sprites["CivvieRedS"]);
+        var civilianRun = spriteAssetService.LoadRegisteredSprite(stockPack.Assets.Sprites["CivvieRedRunS"]);
+        var civilianTaunt = spriteAssetService.LoadRegisteredSprite(stockPack.Assets.Sprites["CivvieRedTauntS"]);
+        var money = spriteAssetService.LoadRegisteredSprite(stockPack.Assets.Sprites["CivvieMoneyS"]);
+        var umbrellaOpen = spriteAssetService.LoadRegisteredSprite(stockPack.Assets.Sprites["CivvieUmbrellaOpenS"]);
+        var umbrellaOpenStrip = spriteAssetService.LoadRegisteredSprite(stockPack.Assets.Sprites["CivvieUmbrellaOpenStripS"]);
+        var umbrellaOpenAnim = spriteAssetService.LoadRegisteredSprite(stockPack.Assets.Sprites["CivvieUmbrellaOpenAnimS"]);
+        var umbrellaShieldBlock = spriteAssetService.LoadRegisteredSprite(stockPack.Assets.Sprites["CivvieUmbrellaShieldBlockS"]);
+        var umbrellaAmmoHud = spriteAssetService.LoadRegisteredSprite(stockPack.Assets.Sprites["CivvieUmbrellaAmmoS"]);
+        var umbrellaAbilityHud = spriteAssetService.LoadRegisteredSprite(stockPack.Assets.Sprites["CivvieUmbrellaAbilityHudS"]);
+
+        Assert.Equal("stock.gg2", civilianStand.Definition.PackId);
+        Assert.True(civilianStand.SourceSet.SourceImages.Count > 0);
+        Assert.All(civilianStand.SourceSet.SourceImages, frame => Assert.True(frame.Bytes.Length > 0));
+        Assert.NotEqual(civilianTaunt.SourceSet.SourceImages[0].Bytes, civilianStand.SourceSet.SourceImages[0].Bytes);
+        Assert.True(civilianRun.SourceSet.SourceImages.Count > 0);
+        Assert.All(civilianRun.SourceSet.SourceImages, frame => Assert.True(frame.Bytes.Length > 0));
+        Assert.NotEqual(civilianRun.SourceSet.SourceImages[0].Bytes, civilianStand.SourceSet.SourceImages[0].Bytes);
+        Assert.True(money.SourceSet.SourceImages.Count > 0);
+        Assert.All(money.SourceSet.SourceImages, frame => Assert.True(frame.Bytes.Length > 0));
+        Assert.Equal(2, umbrellaOpen.SourceSet.SourceImages.Count);
+        Assert.Equal(umbrellaOpenStrip.SourceSet.SourceImages[7].Bytes, umbrellaOpen.SourceSet.SourceImages[0].Bytes);
+        Assert.Equal(umbrellaOpenStrip.SourceSet.SourceImages[15].Bytes, umbrellaOpen.SourceSet.SourceImages[1].Bytes);
+        Assert.Equal(12, umbrellaOpenAnim.SourceSet.SourceImages.Count);
+        Assert.All(umbrellaOpenAnim.SourceSet.SourceImages, frame => Assert.True(frame.Bytes.Length > 0));
+        Assert.Equal(6, umbrellaShieldBlock.SourceSet.SourceImages.Count);
+        Assert.All(umbrellaShieldBlock.SourceSet.SourceImages, frame => Assert.True(frame.Bytes.Length > 0));
+        Assert.Equal(35, umbrellaShieldBlock.Definition.OriginX);
+        Assert.Equal(18, umbrellaShieldBlock.Definition.OriginY);
+        Assert.Equal(2, umbrellaAmmoHud.SourceSet.SourceImages.Count);
+        Assert.All(umbrellaAmmoHud.SourceSet.SourceImages, frame => Assert.True(frame.Bytes.Length > 0));
+        Assert.Equal(2, umbrellaAbilityHud.SourceSet.SourceImages.Count);
+        Assert.All(umbrellaAbilityHud.SourceSet.SourceImages, frame => Assert.True(frame.Bytes.Length > 0));
+    }
+
+    [Fact]
     public void GameplayPackSpriteAssetServiceLoadsRegisteredSprite()
     {
         var spriteDefinition = new GameplaySpriteAssetDefinition(
@@ -1301,7 +1507,11 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal("soldier", soldierBinding.ClassId);
         Assert.True(soldierBinding.SupportsExperimentalAcquiredWeapon);
         Assert.Equal("RocketKL", soldierBinding.PrimaryWeaponKillFeedSprite);
-        Assert.False(registry.TryGetClassBinding(PlayerClass.Quote, out _));
+        Assert.True(registry.TryGetClassBinding(PlayerClass.Quote, out var civilianBinding));
+        Assert.Equal("civilian", civilianBinding.ClassId);
+        Assert.Equal("CivvieUmbrellaKL", civilianBinding.PrimaryWeaponKillFeedSprite);
+        Assert.True(registry.TryResolveBoundPlayerClassForPrimaryItem("weapon.umbrella", out var civilianClass));
+        Assert.Equal(PlayerClass.Quote, civilianClass);
         Assert.True(registry.TryResolveBoundPlayerClassForPrimaryItem("weapon.rocketlauncher", out var soldierClass));
         Assert.Equal(PlayerClass.Soldier, soldierClass);
         Assert.False(registry.TryResolveBoundPlayerClassForPrimaryItem(ExperimentalDemoknightCatalog.EyelanderItemId, out _));

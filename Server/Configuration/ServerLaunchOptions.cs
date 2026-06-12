@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using OpenGarrison.Core;
+using OpenGarrison.Protocol;
+using OpenGarrison.Server;
 
 sealed class ServerLaunchOptions
 {
@@ -25,16 +27,24 @@ sealed class ServerLaunchOptions
     public Uri? RegistryUrl { get; private init; }
     public string? RegistryToken { get; private init; }
     public string? PublicHost { get; private init; }
+    public string BuildVersion { get; private init; } = ApplicationBuildInfo.DefaultBuildVersion;
+    public string ReleaseChannel { get; private init; } = ApplicationBuildInfo.DefaultReleaseChannel;
+    public string CompatibilityKey { get; private init; } = string.Empty;
     public string? RequestedMap { get; private init; }
     public string? MapRotationFile { get; private init; }
     public string EventLogPath { get; private init; } = string.Empty;
     public IReadOnlyList<string> StockMapRotation { get; private init; } = Array.Empty<string>();
     public bool MapRotationShuffleEnabled { get; private init; }
+    public MapRotationAdvanceMode MapRotationAdvanceMode { get; private init; } = MapRotationAdvanceMode.RoundEnd;
+    public int MapRotationRounds { get; private init; } = 1;
+    public int MapRotationMinutes { get; private init; } = 15;
     public int TickRate { get; private init; } = SimulationConfig.DefaultTicksPerSecond;
     public int MaxPlayableClients { get; private init; }
     public int MaxTotalClients { get; private init; }
     public int MaxSpectatorClients { get; private init; }
     public bool AutoBalanceEnabled { get; private init; }
+    public bool SwitchTeamsAfterRoundEnd { get; private init; }
+    public int TeamShuffleAfterWins { get; private init; }
     public bool SecondaryAbilitiesEnabled { get; private init; }
     public bool RandomSpreadEnabled { get; private init; }
     public bool CompetitiveReadyUpEnabled { get; private init; }
@@ -46,6 +56,7 @@ sealed class ServerLaunchOptions
     public string? WebSocketCertificatePath { get; private init; }
     public string? WebSocketCertificatePassword { get; private init; }
     public string? PublicWebSocketUrl { get; private init; }
+    public SnapshotBudgetMode SnapshotBudgetMode { get; private init; } = SnapshotBudgetMode.GameplayCriticalUntrimmed;
 
     public static ServerLaunchOptions Load(string[] args)
     {
@@ -89,16 +100,24 @@ sealed class ServerLaunchOptions
         string? registryUrlOverride = null;
         string? registryToken = Environment.GetEnvironmentVariable("OPENGARRISON_REGISTRY_TOKEN");
         string? publicHost = Environment.GetEnvironmentVariable("OPENGARRISON_PUBLIC_HOST");
+        string? buildVersionOverride = Environment.GetEnvironmentVariable("OPENGARRISON_BUILD_VERSION");
+        string? releaseChannelOverride = Environment.GetEnvironmentVariable("OPENGARRISON_RELEASE_CHANNEL");
+        string? compatibilityKeyOverride = Environment.GetEnvironmentVariable("OPENGARRISON_COMPATIBILITY_KEY");
         string? requestedMap = string.IsNullOrWhiteSpace(settings.RequestedMap) ? null : settings.RequestedMap;
         string? mapRotationFile = string.IsNullOrWhiteSpace(settings.MapRotationFile) ? null : settings.MapRotationFile;
         var eventLogPath = PersistentServerEventLog.GetDefaultPath(now);
         var stockMapRotation = OpenGarrisonStockMapCatalog.GetOrderedIncludedMapLevelNames(settings.HostDefaults.StockMapRotation);
         var mapRotationShuffleEnabled = settings.MapRotationShuffleEnabled;
+        var mapRotationAdvanceMode = OpenGarrisonHostSettings.NormalizeMapRotationAdvanceMode(settings.MapRotationAdvanceMode);
+        var mapRotationRounds = OpenGarrisonHostSettings.NormalizeMapRotationRounds(settings.MapRotationRounds);
+        var mapRotationMinutes = OpenGarrisonHostSettings.NormalizeMapRotationMinutes(settings.MapRotationMinutes);
         var tickRate = SimulationConfig.NormalizeTicksPerSecond(settings.TickRate);
         int? timeLimitMinutesOverride = settings.TimeLimitMinutes > 0 ? Math.Clamp(settings.TimeLimitMinutes, 1, 255) : null;
         int? capLimitOverride = settings.CapLimit > 0 ? Math.Clamp(settings.CapLimit, 1, 255) : null;
         int? respawnSecondsOverride = settings.RespawnSeconds >= 0 ? Math.Clamp(settings.RespawnSeconds, 0, 255) : null;
         var autoBalanceEnabled = settings.AutoBalanceEnabled;
+        var switchTeamsAfterRoundEnd = settings.SwitchTeamsAfterRoundEnd;
+        var teamShuffleAfterWins = OpenGarrisonHostSettings.NormalizeTeamShuffleAfterWins(settings.TeamShuffleAfterWins);
         var secondaryAbilitiesEnabled = settings.SecondaryAbilitiesEnabled;
         var randomSpreadEnabled = settings.RandomSpreadEnabled;
         var competitiveReadyUpEnabled = settings.CompetitiveReadyUpEnabled;
@@ -108,6 +127,9 @@ sealed class ServerLaunchOptions
         string? webSocketCertificatePath = null;
         string? webSocketCertificatePassword = null;
         string? publicWebSocketUrl = Environment.GetEnvironmentVariable("OPENGARRISON_PUBLIC_WEBSOCKET_URL");
+        var snapshotBudgetMode = SnapshotBudgetModeParser.Parse(
+            Environment.GetEnvironmentVariable("OPENGARRISON_SNAPSHOT_BUDGET_MODE"),
+            settings.SnapshotBudgetMode);
 
         for (var index = 0; index < args.Length; index += 1)
         {
@@ -204,12 +226,74 @@ sealed class ServerLaunchOptions
                 continue;
             }
 
+            if ((string.Equals(arg, "--map-rotation-mode", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(arg, "--map-rotation-advance-mode", StringComparison.OrdinalIgnoreCase))
+                && index + 1 < args.Length)
+            {
+                mapRotationAdvanceMode = OpenGarrisonHostSettings.ParseMapRotationAdvanceMode(args[index + 1]);
+                index += 1;
+                continue;
+            }
+
+            if ((string.Equals(arg, "--map-rotation-rounds", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(arg, "--map-rotation-round-count", StringComparison.OrdinalIgnoreCase))
+                && index + 1 < args.Length
+                && int.TryParse(args[index + 1], out var parsedMapRotationRounds))
+            {
+                mapRotationRounds = OpenGarrisonHostSettings.NormalizeMapRotationRounds(parsedMapRotationRounds);
+                index += 1;
+                continue;
+            }
+
+            if ((string.Equals(arg, "--map-rotation-minutes", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(arg, "--map-rotation-time", StringComparison.OrdinalIgnoreCase))
+                && index + 1 < args.Length
+                && int.TryParse(args[index + 1], out var parsedMapRotationMinutes))
+            {
+                mapRotationMinutes = OpenGarrisonHostSettings.NormalizeMapRotationMinutes(parsedMapRotationMinutes);
+                index += 1;
+                continue;
+            }
+
             if ((string.Equals(arg, "--event-log", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(arg, "--event-log-file", StringComparison.OrdinalIgnoreCase))
                 && index + 1 < args.Length)
             {
-                eventLogPath = Path.GetFullPath(args[index + 1]);
+                eventLogPath = PersistentServerEventLog.IsDisabledPath(args[index + 1])
+                    ? PersistentServerEventLog.DisabledPath
+                    : Path.GetFullPath(args[index + 1]);
                 index += 1;
+                continue;
+            }
+
+            if (string.Equals(arg, "--no-event-log", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--disable-event-log", StringComparison.OrdinalIgnoreCase))
+            {
+                eventLogPath = PersistentServerEventLog.DisabledPath;
+                continue;
+            }
+
+            if ((string.Equals(arg, "--snapshot-budget-mode", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(arg, "--snapshot-budget", StringComparison.OrdinalIgnoreCase))
+                && index + 1 < args.Length)
+            {
+                snapshotBudgetMode = SnapshotBudgetModeParser.Parse(args[index + 1], snapshotBudgetMode);
+                index += 1;
+                continue;
+            }
+
+            if (string.Equals(arg, "--snapshot-no-trim", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--no-snapshot-trim", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--no-snapshot-budget", StringComparison.OrdinalIgnoreCase))
+            {
+                snapshotBudgetMode = SnapshotBudgetMode.GameplayCriticalUntrimmed;
+                continue;
+            }
+
+            if (string.Equals(arg, "--snapshot-balanced", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--snapshot-budgeted", StringComparison.OrdinalIgnoreCase))
+            {
+                snapshotBudgetMode = SnapshotBudgetMode.Balanced;
                 continue;
             }
 
@@ -266,6 +350,30 @@ sealed class ServerLaunchOptions
                 || string.Equals(arg, "--no-autobalance", StringComparison.OrdinalIgnoreCase))
             {
                 autoBalanceEnabled = false;
+                continue;
+            }
+
+            if (string.Equals(arg, "--switch-teams-after-round-end", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--switch-teams-after-round", StringComparison.OrdinalIgnoreCase))
+            {
+                switchTeamsAfterRoundEnd = true;
+                continue;
+            }
+
+            if (string.Equals(arg, "--no-switch-teams-after-round-end", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--no-switch-teams-after-round", StringComparison.OrdinalIgnoreCase))
+            {
+                switchTeamsAfterRoundEnd = false;
+                continue;
+            }
+
+            if ((string.Equals(arg, "--team-shuffle-after-wins", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(arg, "--team-scramble-after-wins", StringComparison.OrdinalIgnoreCase))
+                && index + 1 < args.Length
+                && int.TryParse(args[index + 1], out var parsedTeamShuffleAfterWins))
+            {
+                teamShuffleAfterWins = OpenGarrisonHostSettings.NormalizeTeamShuffleAfterWins(parsedTeamShuffleAfterWins);
+                index += 1;
                 continue;
             }
 
@@ -378,6 +486,33 @@ sealed class ServerLaunchOptions
                 continue;
             }
 
+            if ((string.Equals(arg, "--build-version", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(arg, "--version", StringComparison.OrdinalIgnoreCase))
+                && index + 1 < args.Length)
+            {
+                buildVersionOverride = args[index + 1];
+                index += 1;
+                continue;
+            }
+
+            if ((string.Equals(arg, "--release-channel", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(arg, "--channel", StringComparison.OrdinalIgnoreCase))
+                && index + 1 < args.Length)
+            {
+                releaseChannelOverride = args[index + 1];
+                index += 1;
+                continue;
+            }
+
+            if ((string.Equals(arg, "--compatibility-key", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(arg, "--compat-key", StringComparison.OrdinalIgnoreCase))
+                && index + 1 < args.Length)
+            {
+                compatibilityKeyOverride = args[index + 1];
+                index += 1;
+                continue;
+            }
+
             if (string.Equals(arg, "--no-websocket", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(arg, "--disable-websocket", StringComparison.OrdinalIgnoreCase))
             {
@@ -446,6 +581,13 @@ sealed class ServerLaunchOptions
         var useLegacyLobbyServer = useLobbyServer
             && registryUrlOverride is null
             && !LooksLikeHttpRegistryEndpoint(lobbyHost);
+        var buildVersion = ApplicationBuildInfo.ResolveBuildVersion(buildVersionOverride);
+        var releaseChannel = ApplicationBuildInfo.ResolveReleaseChannel(releaseChannelOverride);
+        var compatibilityKey = ApplicationBuildInfo.ResolveCompatibilityKey(
+            ProtocolVersion.Current,
+            buildVersion,
+            releaseChannel,
+            compatibilityKeyOverride);
 
         return new ServerLaunchOptions
         {
@@ -462,16 +604,24 @@ sealed class ServerLaunchOptions
             RegistryUrl = registryUrl,
             RegistryToken = string.IsNullOrWhiteSpace(registryToken) ? null : registryToken.Trim(),
             PublicHost = string.IsNullOrWhiteSpace(publicHost) ? null : publicHost.Trim(),
+            BuildVersion = buildVersion,
+            ReleaseChannel = releaseChannel,
+            CompatibilityKey = compatibilityKey,
             RequestedMap = requestedMap,
             MapRotationFile = mapRotationFile,
             EventLogPath = eventLogPath,
             StockMapRotation = stockMapRotation,
             MapRotationShuffleEnabled = mapRotationShuffleEnabled,
+            MapRotationAdvanceMode = mapRotationAdvanceMode,
+            MapRotationRounds = mapRotationRounds,
+            MapRotationMinutes = mapRotationMinutes,
             TickRate = tickRate,
             MaxPlayableClients = maxPlayableClients,
             MaxTotalClients = maxTotalClients,
             MaxSpectatorClients = maxSpectatorClients,
             AutoBalanceEnabled = autoBalanceEnabled,
+            SwitchTeamsAfterRoundEnd = switchTeamsAfterRoundEnd,
+            TeamShuffleAfterWins = teamShuffleAfterWins,
             SecondaryAbilitiesEnabled = secondaryAbilitiesEnabled,
             RandomSpreadEnabled = randomSpreadEnabled,
             CompetitiveReadyUpEnabled = competitiveReadyUpEnabled,
@@ -483,6 +633,7 @@ sealed class ServerLaunchOptions
             WebSocketCertificatePath = webSocketCertificatePath,
             WebSocketCertificatePassword = webSocketCertificatePassword,
             PublicWebSocketUrl = NormalizePublicWebSocketUrl(publicWebSocketUrl),
+            SnapshotBudgetMode = snapshotBudgetMode,
         };
     }
 

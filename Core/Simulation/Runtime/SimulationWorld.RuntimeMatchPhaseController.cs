@@ -17,6 +17,7 @@ public sealed partial class SimulationWorld
         {
             _world.ApplyExperimentalRageEffects();
             _world.AdvanceMedicUberEffects();
+            _world.AdvanceVipState();
         }
 
         public void AdvancePresentationAndChatPhase()

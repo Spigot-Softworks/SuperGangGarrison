@@ -249,6 +249,167 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
+    public void BuildUntrimmedSnapshotKeepsProjectileMotionSkippedByEstimateWhenPayloadFits()
+    {
+        var knownShot = new SnapshotShotState(
+            Id: 510,
+            Team: 1,
+            OwnerId: 77,
+            X: 128f,
+            Y: 96f,
+            VelocityX: 12f,
+            VelocityY: 0f,
+            TicksRemaining: 40);
+        var movedKnownShot = knownShot with
+        {
+            X = knownShot.X + knownShot.VelocityX,
+            TicksRemaining = knownShot.TicksRemaining - 1,
+        };
+        var baseline = CreateSnapshot(114) with
+        {
+            Shots = [knownShot],
+        };
+        var current = CreateSnapshot(115) with
+        {
+            Shots = [movedKnownShot],
+        };
+        var contributions = new List<SnapshotDeltaBudgeter.Contribution>
+        {
+            new(
+                Priority: 1000,
+                DistanceSquared: 0f,
+                EstimatedBytes: SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes + 1,
+                Apply: builder => builder.Shots.Add(movedKnownShot),
+                Kind: SnapshotDeltaBudgeter.ContributionKind.ProjectileMotionUpdate),
+        };
+
+        var balanced = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(
+            current,
+            baseline,
+            contributions,
+            SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
+        var untrimmed = SnapshotDeltaBudgeter.BuildUntrimmedSnapshotWithEmergencyReduction(
+            current,
+            baseline,
+            contributions,
+            SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
+
+        Assert.DoesNotContain(balanced.Message.Shots, shot => shot.Id == movedKnownShot.Id);
+        Assert.Contains(untrimmed.Message.Shots, shot => shot.Id == movedKnownShot.Id);
+        Assert.False(untrimmed.ReductionApplied);
+        Assert.True(untrimmed.Payload.Length <= SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
+    }
+
+    [Fact]
+    public void BuildUntrimmedSnapshotReducesOptionalDataBeforeDroppingCriticalData()
+    {
+        var player = CreatePlayerState(1, 611, "Critical Player") with
+        {
+            X = 192f,
+            Y = 128f,
+            HorizontalSpeed = 8f,
+            AimDirectionDegrees = 25f,
+        };
+        var rocket = new SnapshotRocketState(
+            Id: 612,
+            Team: 1,
+            OwnerId: player.PlayerId,
+            X: 192f,
+            Y: 128f,
+            PreviousX: 184f,
+            PreviousY: 128f,
+            DirectionRadians: 0f,
+            Speed: 240f,
+            TicksRemaining: 40);
+        var baseline = CreateSnapshot(610) with
+        {
+            Players = [player with { X = 184f, HorizontalSpeed = 0f }],
+        };
+        var current = CreateSnapshot(611) with
+        {
+            Players = [player],
+            Rockets = [rocket],
+        };
+        var criticalOnlyDelta = current with
+        {
+            IsDelta = true,
+            BaselineFrame = baseline.Frame,
+            PlayerMovementStates = [CreateMovementState(player)],
+            PlayerChatBubbleStates = [new SnapshotPlayerChatBubbleState(player.Slot, true, 7, 0.9f)],
+            Rockets = [rocket],
+        };
+        var visualEvents = Enumerable.Range(0, 80)
+            .Select(static index => new SnapshotVisualEvent(
+                $"optional-visual-{index:D2}-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                128f + index,
+                96f,
+                index,
+                1,
+                EventId: (ulong)(1000 + index)))
+            .ToArray();
+        var targetPayloadBytes = MeasurePayloadLength(criticalOnlyDelta) + 128;
+        var contributions = new List<SnapshotDeltaBudgeter.Contribution>
+        {
+            new(
+                Priority: 2000,
+                DistanceSquared: 0f,
+                EstimatedBytes: 32,
+                Apply: builder => builder.PlayerMovementStates.Add(CreateMovementState(player)),
+                Kind: SnapshotDeltaBudgeter.ContributionKind.PlayerMovementUpdate),
+            new(
+                Priority: 1900,
+                DistanceSquared: 0f,
+                EstimatedBytes: 88,
+                Apply: builder => builder.Rockets.Add(rocket),
+                Kind: SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn),
+            new(
+                Priority: 1800,
+                DistanceSquared: 0f,
+                EstimatedBytes: 10,
+                Apply: builder => builder.PlayerChatBubbleStates.Add(new SnapshotPlayerChatBubbleState(player.Slot, true, 7, 0.9f)),
+                Kind: SnapshotDeltaBudgeter.ContributionKind.PlayerChatBubbleUpdate),
+            new(
+                Priority: 500,
+                DistanceSquared: 0f,
+                EstimatedBytes: 4096,
+                Apply: builder =>
+                {
+                    for (var index = 0; index < visualEvents.Length; index += 1)
+                    {
+                        builder.GibSpawnEvents.Add(new SnapshotGibSpawnEvent(
+                            visualEvents[index].EffectName,
+                            FrameIndex: 0,
+                            visualEvents[index].X,
+                            visualEvents[index].Y,
+                            VelocityX: 0f,
+                            VelocityY: 0f,
+                            RotationSpeedDegrees: 0f,
+                            HorizontalFriction: 0.9f,
+                            RotationFriction: 0.9f,
+                            LifetimeTicks: 30,
+                            BloodChance: 0f,
+                            EventId: visualEvents[index].EventId));
+                    }
+                }),
+        };
+
+        var result = SnapshotDeltaBudgeter.BuildUntrimmedSnapshotWithEmergencyReduction(
+            current,
+            baseline,
+            contributions,
+            targetPayloadBytes);
+
+        Assert.True(result.ReductionApplied);
+        Assert.True(result.CandidateComposition.FinalPayloadBytes > targetPayloadBytes);
+        Assert.True(result.Payload.Length <= targetPayloadBytes);
+        Assert.Single(result.Message.PlayerMovementStates);
+        Assert.Single(result.Message.PlayerChatBubbleStates);
+        Assert.Single(result.Message.Rockets);
+        Assert.Empty(result.Message.GibSpawnEvents);
+        Assert.True(result.CandidateComposition.EventBytes > result.Composition.EventBytes);
+    }
+
+    [Fact]
     public void BuildContributionsSendsRemoteProjectileMotionAsStateUpdate()
     {
         var localShot = new SnapshotShotState(
@@ -288,7 +449,7 @@ public sealed class SnapshotDeltaBudgeterTests
             baseline,
             new SimulationWorld());
 
-        Assert.Contains(contributions, contribution => contribution.Kind == SnapshotDeltaBudgeter.ContributionKind.Optional);
+        Assert.Contains(contributions, contribution => contribution.Kind == SnapshotDeltaBudgeter.ContributionKind.ProjectileMotionUpdate);
         Assert.Contains(contributions, contribution => contribution.Kind == SnapshotDeltaBudgeter.ContributionKind.EntityStateUpdate);
     }
 
@@ -1728,6 +1889,110 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
+    public void BuildContributionsDoesNotSendFullPlayerForAimAndBinocularDriftBetweenDetailWindows()
+    {
+        var localPlayer = CreatePlayerState(1, 1121, "Viewer");
+        var baselineRemotePlayer = CreatePlayerState(2, 1122, "Remote") with
+        {
+            AimWorldX = 128f,
+            AimWorldY = 96f,
+            IsUsingBinoculars = false,
+            BinocularsFocusX = 128f,
+            BinocularsFocusY = 96f,
+        };
+        var currentRemotePlayer = baselineRemotePlayer with
+        {
+            AimWorldX = 4096f,
+            AimWorldY = 2048f,
+            IsUsingBinoculars = true,
+            BinocularsFocusX = 3600f,
+            BinocularsFocusY = 1800f,
+        };
+        var baseline = CreateSnapshot(1120) with
+        {
+            Players = [localPlayer, baselineRemotePlayer],
+        };
+        var current = CreateSnapshot(1121) with
+        {
+            Players = [localPlayer, currentRemotePlayer],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Viewer",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+        typeof(SimulationWorld)
+            .GetProperty(nameof(SimulationWorld.Frame))!
+            .SetValue(world, 1121L);
+
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 320);
+
+        Assert.Empty(result.Message.Players);
+        Assert.Empty(result.Message.PlayerStatusStates);
+        Assert.Empty(result.Message.PlayerExtendedStatusStates);
+    }
+
+    [Fact]
+    public void BuildContributionsSendsRuntimeReplicatedStateThroughCompactStatusWithoutFullPlayer()
+    {
+        var localPlayer = CreatePlayerState(1, 1131, "Viewer");
+        var baselineRemotePlayer = CreatePlayerState(2, 1132, "Remote Soldier") with
+        {
+            ClassId = (byte)PlayerClass.Soldier,
+            ReplicatedStates =
+            [
+                new SnapshotReplicatedStateEntry(
+                    "core.player",
+                    "soldier_shotgun_cooldown_ticks",
+                    SnapshotReplicatedStateValueKind.Whole,
+                    IntValue: 6),
+            ],
+        };
+        var currentRemotePlayer = baselineRemotePlayer with
+        {
+            ReplicatedStates =
+            [
+                new SnapshotReplicatedStateEntry(
+                    "core.player",
+                    "soldier_shotgun_cooldown_ticks",
+                    SnapshotReplicatedStateValueKind.Whole,
+                    IntValue: 5),
+            ],
+        };
+        var baseline = CreateSnapshot(1130) with
+        {
+            Players = [localPlayer, baselineRemotePlayer],
+        };
+        var current = CreateSnapshot(1131) with
+        {
+            Players = [localPlayer, currentRemotePlayer],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Viewer",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+        typeof(SimulationWorld)
+            .GetProperty(nameof(SimulationWorld.Frame))!
+            .SetValue(world, 1131L);
+
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 512);
+
+        Assert.Empty(result.Message.Players);
+        var status = Assert.Single(result.Message.PlayerStatusStates, state => state.Slot == 2);
+        var replicatedState = Assert.Single(
+            status.SecondaryAmmoStates ?? Array.Empty<SnapshotReplicatedStateEntry>(),
+            state => state.Key == "soldier_shotgun_cooldown_ticks");
+        Assert.Equal(5, replicatedState.IntValue);
+    }
+
+    [Fact]
     public void BuildContributionsDefersLowFrequencyPlayerDetailBetweenRefreshWindows()
     {
         var localPlayer = CreatePlayerState(1, 1001, "Viewer");
@@ -2383,6 +2648,14 @@ public sealed class SnapshotDeltaBudgeterTests
         {
             SentryGibs = Array.Empty<SnapshotSentryGibState>(),
         };
+    }
+
+    private static int MeasurePayloadLength(SnapshotMessage snapshot)
+    {
+        return ProtocolCodec.Serialize(
+            snapshot,
+            ProtocolCodec.MeasureSerializedSize(snapshot),
+            ServerProtocolCompression.Settings).Length;
     }
 
     private static List<WorldGibSpawnEvent> GetPendingGibSpawnEvents(SimulationWorld world)

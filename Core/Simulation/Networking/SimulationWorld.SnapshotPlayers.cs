@@ -29,12 +29,13 @@ public sealed partial class SimulationWorld
     {
         if (localPlayerState is not null && !localPlayerState.IsSpectator)
         {
+            var appliedLocalPlayerState = NormalizeAwaitingJoinSnapshotPlayerState(localPlayerState);
             _authoritativeLocalPlayerId = localPlayerState.PlayerId;
             var wasAlive = LocalPlayer.IsAlive;
             var previousGibDeaths = LocalPlayer.GibDeaths;
 
             SynchronizeNetworkGibDeathPresentationCount(LocalPlayer.Id, localPlayerState.GibDeaths);
-            ApplySnapshotPlayer(LocalPlayer, localPlayerState);
+            ApplySnapshotPlayer(LocalPlayer, appliedLocalPlayerState);
             var diedThisSnapshot = wasAlive && !LocalPlayer.IsAlive;
             var wasGibbedDeath = localPlayerState.GibDeaths > previousGibDeaths;
             if (diedThisSnapshot
@@ -46,12 +47,14 @@ public sealed partial class SimulationWorld
 
             TrySetNetworkPlayerAwaitingJoin(LocalPlayerSlot, localPlayerState.IsAwaitingJoin);
             TrySetNetworkPlayerRespawnTicks(LocalPlayerSlot, localPlayerState.RespawnTicks);
+            ApplySnapshotNetworkPlayerPingMilliseconds(LocalPlayerSlot, localPlayerState.PingMilliseconds);
             TrySetNetworkPlayerConfiguredTeam(LocalPlayerSlot, LocalPlayer.Team);
             return;
         }
 
         TrySetNetworkPlayerAwaitingJoin(LocalPlayerSlot, true);
         TrySetNetworkPlayerRespawnTicks(LocalPlayerSlot, 0);
+        ApplySnapshotNetworkPlayerPingMilliseconds(LocalPlayerSlot, -1);
         _authoritativeLocalPlayerId = null;
         LocalDeathCam = null;
         LocalPlayer.ClearMedicHealingTarget();
@@ -83,5 +86,21 @@ public sealed partial class SimulationWorld
         {
             TrySetNetworkPlayerConfiguredTeam(LocalPlayerSlot, LocalPlayer.Team);
         }
+    }
+
+    private static SnapshotPlayerState NormalizeAwaitingJoinSnapshotPlayerState(SnapshotPlayerState snapshotPlayer)
+    {
+        return snapshotPlayer.IsAwaitingJoin && snapshotPlayer.IsAlive
+            ? snapshotPlayer with
+            {
+                IsAlive = false,
+                Health = 0,
+                HorizontalSpeed = 0f,
+                VerticalSpeed = 0f,
+                IsMedicHealing = false,
+                MedicHealTargetId = -1,
+                IsCarryingIntel = false,
+            }
+            : snapshotPlayer;
     }
 }
