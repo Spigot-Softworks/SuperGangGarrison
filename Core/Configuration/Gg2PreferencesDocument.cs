@@ -9,8 +9,25 @@ namespace OpenGarrison.Core;
 public sealed class OpenGarrisonPreferencesDocument
 {
     public const string DefaultFileName = "OpenGarrison.ini";
-    public const string DefaultApiBaseUrl = "https://api.unkind-dev.com";
+    public const string DefaultApiBaseUrl = "https://api.superganggarrison.com";
     public const string DefaultLobbyHost = DefaultApiBaseUrl + "/api/servers";
+
+    // The backend moved off this host. Saved configs that still point at it are transparently
+    // rewritten to the canonical Super Gang Garrison backend so the old domain can be retired.
+    public const string LegacyApiHost = "api.unkind-dev.com";
+    public const string CanonicalApiHost = "api.superganggarrison.com";
+
+    public static string MigrateLegacyApiHost(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return value ?? string.Empty;
+        }
+
+        return value.Contains(LegacyApiHost, StringComparison.OrdinalIgnoreCase)
+            ? value.Replace(LegacyApiHost, CanonicalApiHost, StringComparison.OrdinalIgnoreCase)
+            : value;
+    }
     public const int DefaultLobbyPort = 443;
     public const DisplayModeKind DefaultDisplayMode = DisplayModeKind.Windowed;
     public const IngameResolutionKind DefaultIngameResolution = IngameResolutionKind.Aspect16x9;
@@ -300,7 +317,7 @@ public sealed class OpenGarrisonPreferencesDocument
             RecentConnectionHost = ini.GetString(ConnectionSection, "Host", "127.0.0.1"),
             RecentConnectionPort = ini.GetInt(ConnectionSection, "Port", 8190),
             HostSettings = OpenGarrisonHostSettings.LoadFrom(ini, legacySelectedMap),
-            LobbyHost = ini.GetString(ServerAdvancedSection, "LobbyHost", DefaultLobbyHost),
+            LobbyHost = MigrateLegacyApiHost(ini.GetString(ServerAdvancedSection, "LobbyHost", DefaultLobbyHost)),
             LobbyPort = ini.GetInt(ServerAdvancedSection, "LobbyPort", DefaultLobbyPort),
             DiscordApplicationId = ini.GetString(ServerAdvancedSection, "DiscordApplicationId", string.Empty),
             MaxPlayableClients = ini.GetInt(ServerAdvancedSection, "MaxPlayableClients", SimulationWorld.MaxPlayableNetworkPlayers),
