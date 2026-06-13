@@ -375,6 +375,7 @@ public sealed partial class PlayerEntity
         ClampTo(level.Bounds);
         AdvanceSourceFacingDirectionForNextStep();
         TryApplyCivviePogoLandingBounce(wasAirborneBeforeMove);
+        TryFulfillCivviePogoGroundBounceAfterMovement();
     }
 
     private bool IsCivvieUmbrellaAimingUpForSlowFall()

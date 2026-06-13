@@ -40,17 +40,12 @@ public sealed partial class PlayerEntity
             return false;
         }
 
+        CivviePogoBaseBounceJumpScale = baseBounceJumpScale;
+        CivviePogoSuperJumpScale = superJumpScale;
+        CivviePogoCrunchDurationTicks = crunchDurationTicks;
         IsCivviePogoActive = true;
         CivviePogoCrunchTicksRemaining = 0;
-        if (IsGrounded)
-        {
-            ApplyCivviePogoBounce(
-                CivviePogoSuperJumpHeld,
-                baseBounceJumpScale,
-                superJumpScale,
-                crunchDurationTicks);
-        }
-
+        CivviePogoNeedsGroundBounce = true;
         return true;
     }
 
@@ -58,6 +53,7 @@ public sealed partial class PlayerEntity
     {
         IsCivviePogoActive = false;
         CivviePogoCrunchTicksRemaining = 0;
+        CivviePogoNeedsGroundBounce = false;
     }
 
     public void AdvanceCivviePogoState()
@@ -68,23 +64,29 @@ public sealed partial class PlayerEntity
         }
     }
 
-    public bool TryApplyCivviePogoLandingBounce(
-        bool wasAirborneBeforeMove,
-        float baseBounceJumpScale = CivviePogoBaseBounceJumpScaleDefault,
-        float superJumpScale = CivviePogoSuperJumpScaleDefault,
-        int crunchDurationTicks = CivviePogoCrunchDurationTicksDefault)
+    public bool TryApplyCivviePogoLandingBounce(bool wasAirborneBeforeMove)
     {
-        if (!IsCivviePogoActive || !IsGrounded || !wasAirborneBeforeMove)
+        if (!IsCivviePogoActive || !IsGrounded)
         {
             return false;
         }
 
-        ApplyCivviePogoBounce(
-            CivviePogoSuperJumpHeld,
-            baseBounceJumpScale,
-            superJumpScale,
-            crunchDurationTicks);
-        return CivviePogoSuperJumpSoundPending;
+        if (!wasAirborneBeforeMove && !CivviePogoNeedsGroundBounce)
+        {
+            return false;
+        }
+
+        return TryApplyCivviePogoBounceImpulse();
+    }
+
+    public void TryFulfillCivviePogoGroundBounceAfterMovement()
+    {
+        if (!IsCivviePogoActive || !CivviePogoNeedsGroundBounce || !IsGrounded)
+        {
+            return;
+        }
+
+        _ = TryApplyCivviePogoBounceImpulse();
     }
 
     public bool TryConsumeCivviePogoSuperJumpSoundRequest(out float soundX, out float soundY)
@@ -112,6 +114,22 @@ public sealed partial class PlayerEntity
             : 0;
     }
 
+    private bool TryApplyCivviePogoBounceImpulse()
+    {
+        ApplyCivviePogoBounce(
+            CivviePogoSuperJumpHeld,
+            CivviePogoBaseBounceJumpScale,
+            CivviePogoSuperJumpScale,
+            CivviePogoCrunchDurationTicks);
+        if (VerticalSpeed >= 0f)
+        {
+            return false;
+        }
+
+        CivviePogoNeedsGroundBounce = false;
+        return CivviePogoSuperJumpSoundPending;
+    }
+
     private void ApplyCivviePogoBounce(
         bool superJump,
         float baseBounceJumpScale,
@@ -132,4 +150,12 @@ public sealed partial class PlayerEntity
         CivviePogoCrunchTicksRemaining = Math.Max(1, crunchDurationTicks);
         CivviePogoSuperJumpSoundPending = superJump;
     }
+
+    private float CivviePogoBaseBounceJumpScale { get; set; } = CivviePogoBaseBounceJumpScaleDefault;
+
+    private float CivviePogoSuperJumpScale { get; set; } = CivviePogoSuperJumpScaleDefault;
+
+    private int CivviePogoCrunchDurationTicks { get; set; } = CivviePogoCrunchDurationTicksDefault;
+
+    private bool CivviePogoNeedsGroundBounce { get; set; }
 }

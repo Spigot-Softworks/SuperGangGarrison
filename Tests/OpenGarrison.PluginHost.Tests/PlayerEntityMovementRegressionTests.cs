@@ -294,12 +294,14 @@ public sealed class PlayerEntityMovementRegressionTests
         var player = CreateGroundedCivilian(level);
         player.SyncCivviePogoSuperJumpInput(false);
         Assert.True(player.TryToggleCivviePogo());
+        FulfillCivviePogoGroundBounce(player, level);
         var baseBounceSpeed = MathF.Abs(player.VerticalSpeed);
         player.DeactivateCivviePogo();
         LandGroundedCivilian(player, level);
 
         player.SyncCivviePogoSuperJumpInput(true);
         Assert.True(player.TryToggleCivviePogo());
+        FulfillCivviePogoGroundBounce(player, level);
         var superBounceSpeed = MathF.Abs(player.VerticalSpeed);
 
         Assert.True(baseBounceSpeed > 0f);
@@ -313,13 +315,46 @@ public sealed class PlayerEntityMovementRegressionTests
         var player = CreateGroundedCivilian(level);
         player.SyncCivviePogoSuperJumpInput(false);
         Assert.True(player.TryToggleCivviePogo());
+        FulfillCivviePogoGroundBounce(player, level);
         Assert.False(player.TryConsumeCivviePogoSuperJumpSoundRequest(out _, out _));
         player.DeactivateCivviePogo();
         LandGroundedCivilian(player, level);
 
         player.SyncCivviePogoSuperJumpInput(true);
         Assert.True(player.TryToggleCivviePogo());
+        FulfillCivviePogoGroundBounce(player, level);
         Assert.True(player.TryConsumeCivviePogoSuperJumpSoundRequest(out _, out _));
+    }
+
+    [Fact]
+    public void CivilianPogoBouncesWhenActivatedDuringSlowFallLandingTick()
+    {
+        var level = CreateFlatGroundLevel();
+        var player = CreateAirborneCivilianWithFallSpeed(0f);
+        var groundedY = level.FloorY - player.CollisionBottomOffset;
+        player.TeleportTo(128f, groundedY - 2f);
+        var slowFallSpeed = LegacyMovementModel.MaxFallSpeedPerTick
+            * LegacyMovementModel.SourceTicksPerSecond
+            * PlayerEntity.CivvieUmbrellaFallSpeedScale;
+        player.ApplyVelocityImpulse(0f, slowFallSpeed);
+
+        var deltaSeconds = 1d / SimulationConfig.DefaultTicksPerSecond;
+        var idleInput = MoveRightInput with { Right = false };
+        var startedGrounded = player.PrepareMovement(idleInput, level, PlayerTeam.Red, deltaSeconds, out _);
+        Assert.False(startedGrounded);
+        Assert.True(player.TryToggleCivviePogo());
+        player.CompleteMovement(
+            level,
+            PlayerTeam.Red,
+            deltaSeconds,
+            startedGrounded,
+            jumped: false,
+            allowDropdownFallThrough: false);
+
+        Assert.True(player.IsCivviePogoActive);
+        Assert.True(
+            MathF.Abs(player.VerticalSpeed) > 0f || !player.IsGrounded,
+            $"expected pogo to bounce on slow-fall landing, grounded={player.IsGrounded} vertical={player.VerticalSpeed:0.###}");
     }
 
     private static PlayerEntity CreateGroundedCivilian(SimpleLevel? level = null)
@@ -364,6 +399,20 @@ public sealed class PlayerEntityMovementRegressionTests
         }
 
         Assert.True(player.IsGrounded);
+    }
+
+    private static void FulfillCivviePogoGroundBounce(PlayerEntity player, SimpleLevel level)
+    {
+        var deltaSeconds = 1d / SimulationConfig.DefaultTicksPerSecond;
+        var idleInput = MoveRightInput with { Right = false };
+        var startedGrounded = player.PrepareMovement(idleInput, level, PlayerTeam.Red, deltaSeconds, out _);
+        player.CompleteMovement(
+            level,
+            PlayerTeam.Red,
+            deltaSeconds,
+            startedGrounded,
+            jumped: false,
+            allowDropdownFallThrough: false);
     }
 
     private static PlayerEntity CreateAirborneCivilianWithFallSpeed(float verticalSpeed)

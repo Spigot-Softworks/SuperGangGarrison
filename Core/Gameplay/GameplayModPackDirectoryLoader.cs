@@ -640,6 +640,7 @@ public static class GameplayModPackDirectoryLoader
             LeanRightSuffix = NormalizeOptionalPresentationSuffix(presentation.LeanRightSuffix),
             TauntSuffix = NormalizeOptionalPresentationSuffix(presentation.TauntSuffix),
             PogoSuffix = NormalizeOptionalPresentationSuffix(presentation.PogoSuffix),
+            PogoIntelSuffix = NormalizeOptionalPresentationSuffix(presentation.PogoIntelSuffix),
             HumiliationSuffix = NormalizeOptionalPresentationSuffix(presentation.HumiliationSuffix),
             DeadSuffix = NormalizeOptionalPresentationSuffix(presentation.DeadSuffix),
             IntelSuffix = NormalizeOptionalPresentationSuffix(presentation.IntelSuffix),
