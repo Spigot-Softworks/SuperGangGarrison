@@ -272,6 +272,8 @@ public partial class Game1
         _remotePlayerSnapshotHistories.Clear();
         _interpolatedEntityPositions.Clear();
         _interpolatedIntelPositions.Clear();
+        ResetCivvieMoneyTrailPresentation();
+        ResetCivvieUmbrellaShieldBlockObservation();
     }
 
     private void ResetAndSeedSnapshotPresentationHistories(SnapshotMessage snapshot)

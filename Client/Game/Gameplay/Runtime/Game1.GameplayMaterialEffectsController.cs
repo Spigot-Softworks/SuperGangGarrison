@@ -258,6 +258,43 @@ public partial class Game1
             _game._pendingWeaponShellVisuals.Add(new PendingWeaponShellVisual(_game.GetPlayerStateKey(player), classId, player.Team, Math.Max(0f, delaySeconds), count, spriteName));
         }
 
+        public void SpawnCivvieMoneyVisual(CivvieMoneyTrailSpawn spawn)
+        {
+            if (_game._particleMode != 0)
+            {
+                return;
+            }
+
+            PruneCivvieMoneySheetVisuals();
+
+            string[] sheetSprites = ["SheetFalling1", "SheetFalling2", "SheetFalling3"];
+            var spriteIndex = CivvieMoneyTrailRules.GetDeterministicSpriteIndex(
+                spawn.Frame,
+                spawn.OwnerPlayerId,
+                sheetSprites.Length);
+            var horizontalVelocity = (spawn.HorizontalSpeed / ClientUpdateTicksPerSecond)
+                + CivvieMoneyTrailRules.GetDeterministicSignedOffset(spawn.Frame, spawn.OwnerPlayerId, salt: 0x484F525A, magnitude: 0.3f);
+            var verticalVelocity = -0.8f
+                - (CivvieMoneyTrailRules.GetDeterministicUnitFloat(spawn.Frame, spawn.OwnerPlayerId, salt: 0x56454C59) * 0.45f);
+            var rotationSpeed = CivvieMoneyTrailRules.GetDeterministicSignedOffset(
+                spawn.Frame,
+                spawn.OwnerPlayerId,
+                salt: 0x524F5453,
+                magnitude: 0.06f) * MathF.PI;
+            _game._looseSheetVisuals.Add(new LooseSheetVisual(
+                spawn.X,
+                spawn.Y,
+                horizontalVelocity,
+                verticalVelocity,
+                rotationSpeed,
+                sheetSprites[spriteIndex],
+                CivvieMoneySheetLifetimeTicks,
+                CivvieMoneySheetFadeTicks,
+                isCivvieMoney: true,
+                CivvieMoneySheetTint,
+                CivvieMoneySheetDrawScale));
+        }
+
         public void SpawnLooseSheetVisual(float x, float y, float initialHorizontalSpeed, string? spriteName = null, bool isCivvieMoney = false)
         {
             string[] sheetSprites = ["SheetFalling1", "SheetFalling2", "SheetFalling3"];

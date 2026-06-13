@@ -1,0 +1,20 @@
+{
+  "id": "CivvieUmbrellaRecoilS",
+  "framePaths": [
+    "assets/civvie/CivvieUmbrellaRecoilS.images/image 0.png",
+    "assets/civvie/CivvieUmbrellaRecoilS.images/image 1.png",
+    "assets/civvie/CivvieUmbrellaRecoilS.images/image 2.png",
+    "assets/civvie/CivvieUmbrellaRecoilS.images/image 3.png"
+  ],
+  "originX": 10,
+  "originY": 18,
+  "mask": {
+    "separate": false,
+    "shape": "RECTANGLE",
+    "boundsMode": "AUTO",
+    "left": null,
+    "top": null,
+    "right": null,
+    "bottom": null
+  }
+}

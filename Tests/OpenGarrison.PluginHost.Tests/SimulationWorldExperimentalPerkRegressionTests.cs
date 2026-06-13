@@ -1257,6 +1257,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var healthBefore = world.LocalPlayer.Health;
 
         SetPlayerAimDirection(world.LocalPlayer, 0f);
+        attacker.TeleportTo(world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
         Assert.True(world.LocalPlayer.TryActivateCivvieUmbrella());
         world.DrainPendingDamageEvents();
 
@@ -1268,8 +1269,89 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(damageEvent.Flags.HasFlag(DamageEventFlags.Evaded));
         Assert.True(damageEvent.Flags.HasFlag(DamageEventFlags.CivvieUmbrellaBlock));
         Assert.False(damageEvent.Flags.HasFlag(DamageEventFlags.GhostDash));
-        Assert.InRange(damageEvent.X, world.LocalPlayer.X + 26.5f, world.LocalPlayer.X + 27.5f);
-        Assert.InRange(damageEvent.Y, world.LocalPlayer.Y - 7.5f, world.LocalPlayer.Y - 6.5f);
+        Assert.InRange(damageEvent.X, world.LocalPlayer.X + 25f, world.LocalPlayer.X + 36f);
+        Assert.InRange(damageEvent.Y, world.LocalPlayer.Y - 9f, world.LocalPlayer.Y - 5f);
+    }
+
+    [Fact]
+    public void CivilianUmbrellaShieldDoesNotBlockDamageFromBehind()
+    {
+        var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        var attacker = CreateBlueNetworkScout(world, 2);
+        var healthBefore = world.LocalPlayer.Health;
+        var chargeBefore = world.LocalPlayer.CivvieUmbrellaChargeTicks;
+
+        SetPlayerAimDirection(world.LocalPlayer, 0f);
+        attacker.TeleportTo(world.LocalPlayer.X - 96f, world.LocalPlayer.Y);
+        Assert.True(world.LocalPlayer.TryActivateCivvieUmbrella());
+        world.DrainPendingDamageEvents();
+
+        _ = InvokeApplyPlayerDamage(world, world.LocalPlayer, 25, attacker);
+        Assert.Equal(healthBefore - 25, world.LocalPlayer.Health);
+        Assert.Equal(chargeBefore, world.LocalPlayer.CivvieUmbrellaChargeTicks);
+        Assert.Empty(world.DrainPendingDamageEvents().Where(static damageEvent =>
+            damageEvent.Flags.HasFlag(DamageEventFlags.CivvieUmbrellaBlock)));
+    }
+
+    [Fact]
+    public void CivilianUmbrellaAirblastPushesEnemiesNotTeammates()
+    {
+        var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        var teammate = CreateNetworkSoldier(world, 2);
+        var enemy = CreateBlueNetworkScout(world, 3);
+        teammate.TeleportTo(world.LocalPlayer.X + 64f, world.LocalPlayer.Y);
+        enemy.TeleportTo(world.LocalPlayer.X + 64f, world.LocalPlayer.Y);
+        teammate.SetSpawnRoomState(false);
+        enemy.SetSpawnRoomState(false);
+        teammate.ApplyVelocityImpulse(0f, 0f);
+        enemy.ApplyVelocityImpulse(0f, 0f);
+
+        HoldFireSecondaryUntilCivvieUmbrellaAirblast(world);
+
+        Assert.True(
+            MathF.Abs(teammate.HorizontalSpeed) < 0.001f,
+            $"expected teammate to avoid horizontal airblast push; hspeed={teammate.HorizontalSpeed:0.###}");
+        Assert.True(
+            enemy.HorizontalSpeed > 0f,
+            $"expected enemy to be pushed forward; speed={enemy.HorizontalSpeed:0.###}");
+    }
+
+    [Fact]
+    public void CivilianTauntHealWaitsForFrameNineAndHealsFifteen()
+    {
+        var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        world.LocalPlayer.ForceSetHealth(100);
+        var healthBefore = world.LocalPlayer.Health;
+
+        PressTaunt(world);
+
+        Assert.True(world.LocalPlayer.IsTaunting);
+
+        AdvanceTicks(world, 29);
+        Assert.Equal(healthBefore, world.LocalPlayer.Health);
+
+        AdvanceTicks(world, 1);
+        Assert.Equal(healthBefore + 15, world.LocalPlayer.Health);
+    }
+
+    [Fact]
+    public void CivilianPogoTogglesOnUtilityPress()
+    {
+        var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+
+        PressUseAbilitySpace(world);
+        Assert.True(world.LocalPlayer.IsCivviePogoActive);
+
+        ReleaseAllInput(world);
+        PressUseAbilitySpace(world);
+        Assert.False(world.LocalPlayer.IsCivviePogoActive);
     }
 
     [Fact]
@@ -2569,6 +2651,26 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     private static void PressUseAbilitySpace(SimulationWorld world)
         => PressUseAbilitySpace(world, world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
 
+    private static void PressTaunt(SimulationWorld world)
+    {
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: true,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 96f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false,
+            UseAbility: false,
+            SwapWeapon: false));
+        world.AdvanceOneTick();
+    }
+
     private static void PressUseAbilitySpace(SimulationWorld world, float aimWorldX, float aimWorldY)
     {
         world.SetLocalInput(new PlayerInputSnapshot(
@@ -2647,6 +2749,33 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
             UseAbility: false,
             SwapWeapon: false));
         world.AdvanceOneTick();
+    }
+
+    private static void HoldFireSecondaryUntilCivvieUmbrellaAirblast(SimulationWorld world)
+    {
+        for (var tick = 0; tick < PlayerEntity.CivvieUmbrellaAirblastOpeningTick + 2; tick += 1)
+        {
+            world.SetLocalInput(new PlayerInputSnapshot(
+                Left: false,
+                Right: false,
+                Up: false,
+                Down: false,
+                BuildSentry: false,
+                DestroySentry: false,
+                Taunt: false,
+                FirePrimary: false,
+                FireSecondary: true,
+                AimWorldX: world.LocalPlayer.X + 96f,
+                AimWorldY: world.LocalPlayer.Y,
+                DebugKill: false,
+                UseAbility: false,
+                SwapWeapon: false));
+            world.AdvanceOneTick();
+        }
+
+        Assert.True(
+            world.LocalPlayer.IsCivvieUmbrellaActive,
+            "expected umbrella to stay active while holding secondary through opening airblast timing");
     }
 
     private static void FirePrimaryOnce(SimulationWorld world)
@@ -2904,7 +3033,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         return (bool)ApplyPlayerDamageMethod.Invoke(
             world,
-            [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true])!;
+            [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true, null, null])!;
     }
 
     private static bool InvokeApplySentryDamage(SimulationWorld world, SentryEntity target, int damage, PlayerEntity attacker)

@@ -73,7 +73,14 @@ public sealed partial class SimulationWorld
 
         RegisterSoundEvent(player, "CompressionBlastSnd");
         RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
-        ApplyAirblastToPlayers(player, sourceX, sourceY, aimRadians, poofX, poofY);
+        ApplyAirblastToPlayers(
+            player,
+            sourceX,
+            sourceY,
+            aimRadians,
+            poofX,
+            poofY,
+            affectTeammates: false);
     }
 
     private void TriggerExperimentalSoldierThundergunner(PlayerEntity player, float aimWorldX, float aimWorldY)

@@ -1,10 +1,14 @@
 using OpenGarrison.Core;
+using System.Reflection;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class PlayerEntityMovementRegressionTests
 {
+    private static readonly FieldInfo AimDirectionDegreesBackingField = typeof(PlayerEntity).GetField(
+        "<AimDirectionDegrees>k__BackingField",
+        BindingFlags.Instance | BindingFlags.NonPublic)!;
     [Fact]
     public void AirborneSubpixelMovementStillAdvancesInOpenSpace()
     {
@@ -84,28 +88,18 @@ public sealed class PlayerEntityMovementRegressionTests
     }
 
     [Fact]
-    public void CivilianUmbrellaSlowsFallingWhileHeldOpen()
+    public void CivilianUmbrellaSlowsFallingWhileAimingUpWithUmbrellaOpen()
     {
         var level = CreateOpenLevel();
         var normal = CreateAirborneCivilianWithFallSpeed(500f);
         var shielded = CreateAirborneCivilianWithFallSpeed(500f);
 
         Assert.True(shielded.TryActivateCivvieUmbrella());
+        SetAimDirectionDegrees(normal, 0f);
+        SetAimDirectionDegrees(shielded, 270f);
 
-        normal.CompleteMovement(
-            level,
-            PlayerTeam.Red,
-            deltaSeconds: 1d / SimulationConfig.DefaultTicksPerSecond,
-            startedGrounded: false,
-            jumped: false,
-            allowDropdownFallThrough: false);
-        shielded.CompleteMovement(
-            level,
-            PlayerTeam.Red,
-            deltaSeconds: 1d / SimulationConfig.DefaultTicksPerSecond,
-            startedGrounded: false,
-            jumped: false,
-            allowDropdownFallThrough: false);
+        AdvanceAirborneTick(normal, level);
+        AdvanceAirborneTick(shielded, level, keepUmbrellaActive: true);
 
         var expectedMaxFallSpeed = LegacyMovementModel.MaxFallSpeedPerTick
             * LegacyMovementModel.SourceTicksPerSecond
@@ -114,6 +108,70 @@ public sealed class PlayerEntityMovementRegressionTests
         Assert.True(
             normal.VerticalSpeed > shielded.VerticalSpeed + 50f,
             $"expected umbrella to slow fall, normal={normal.VerticalSpeed:0.###} shielded={shielded.VerticalSpeed:0.###}");
+    }
+
+    [Fact]
+    public void CivilianUmbrellaDoesNotSlowFallWhenAimingOutsideUpArc()
+    {
+        var level = CreateOpenLevel();
+        var shielded = CreateAirborneCivilianWithFallSpeed(500f);
+        var horizontal = CreateAirborneCivilianWithFallSpeed(500f);
+
+        Assert.True(shielded.TryActivateCivvieUmbrella());
+        SetAimDirectionDegrees(shielded, 0f);
+        SetAimDirectionDegrees(horizontal, 0f);
+
+        AdvanceAirborneTick(shielded, level, keepUmbrellaActive: true);
+        AdvanceAirborneTick(horizontal, level);
+
+        Assert.True(
+            MathF.Abs(shielded.VerticalSpeed - horizontal.VerticalSpeed) < 0.001f,
+            $"expected horizontal aim to ignore slow fall, shielded={shielded.VerticalSpeed:0.###} horizontal={horizontal.VerticalSpeed:0.###}");
+    }
+
+    [Fact]
+    public void CivilianUmbrellaSlowFallUsesSlipperyAirMovement()
+    {
+        var level = CreateOpenLevel();
+        var slowFall = CreateAirborneCivilianWithFallSpeed(0f);
+        var normalAir = CreateAirborneCivilianWithFallSpeed(0f);
+
+        Assert.True(slowFall.TryActivateCivvieUmbrella());
+        Assert.True(normalAir.TryActivateCivvieUmbrella());
+        SetAimDirectionDegrees(slowFall, 270f);
+        SetAimDirectionDegrees(normalAir, 0f);
+
+        const int accelerationTicks = 8;
+        for (var tick = 0; tick < accelerationTicks; tick += 1)
+        {
+            AdvanceAirborneTick(slowFall, level, moveRight: true, keepUmbrellaActive: true);
+            AdvanceAirborneTick(normalAir, level, moveRight: true, keepUmbrellaActive: true);
+        }
+
+        const int topSpeedTicks = 30;
+        for (var tick = 0; tick < topSpeedTicks; tick += 1)
+        {
+            AdvanceAirborneTick(slowFall, level, moveRight: true, keepUmbrellaActive: true);
+            AdvanceAirborneTick(normalAir, level, moveRight: true, keepUmbrellaActive: true);
+        }
+
+        var slowFallReleaseSpeed = slowFall.HorizontalSpeed;
+        var normalReleaseSpeed = normalAir.HorizontalSpeed;
+        for (var tick = 0; tick < 8; tick += 1)
+        {
+            AdvanceAirborneTick(slowFall, level, keepUmbrellaActive: true);
+            AdvanceAirborneTick(normalAir, level, keepUmbrellaActive: true);
+        }
+
+        Assert.True(
+            MathF.Abs(slowFall.HorizontalSpeed) > MathF.Abs(normalAir.HorizontalSpeed),
+            $"expected slower slow-fall deceleration, slowFall={slowFall.HorizontalSpeed:0.###} normalAir={normalAir.HorizontalSpeed:0.###}");
+        Assert.True(
+            MathF.Abs(slowFall.HorizontalSpeed) > MathF.Abs(slowFallReleaseSpeed) * 0.75f,
+            $"expected slow-fall momentum to persist after releasing input, speed={slowFall.HorizontalSpeed:0.###}");
+        Assert.True(
+            MathF.Abs(normalAir.HorizontalSpeed) < MathF.Abs(normalReleaseSpeed) * 0.6f,
+            $"expected normal air movement to bleed off faster, speed={normalAir.HorizontalSpeed:0.###}");
     }
 
     private static float SimulateJumpApex(PlayerEntity player, SimpleLevel level, PlayerInputSnapshot initialInput)
@@ -163,6 +221,151 @@ public sealed class PlayerEntityMovementRegressionTests
         return player;
     }
 
+    [Fact]
+    public void CivilianUmbrellaOpeningAirblastWaitsForThirdFrame()
+    {
+        var player = CreateAirborneCivilianWithFallSpeed(0f);
+        Assert.True(player.TryActivateCivvieUmbrella());
+        player.BeginCivvieUmbrellaOpening();
+
+        for (var tick = 0; tick < PlayerEntity.CivvieUmbrellaAirblastOpeningTick; tick += 1)
+        {
+            Assert.False(player.ShouldTriggerCivvieUmbrellaOpeningAirblast());
+            player.AdvanceCivvieUmbrellaOpeningTick();
+        }
+
+        Assert.True(player.ShouldTriggerCivvieUmbrellaOpeningAirblast());
+    }
+
+    [Fact]
+    public void CivilianUmbrellaOpeningAirblastRetriggersOnEachNewOpening()
+    {
+        var player = CreateAirborneCivilianWithFallSpeed(0f);
+        Assert.True(player.TryActivateCivvieUmbrella());
+
+        player.BeginCivvieUmbrellaOpening();
+        AdvanceCivvieUmbrellaOpeningToAirblastFrame(player);
+        Assert.True(player.ShouldTriggerCivvieUmbrellaOpeningAirblast());
+        player.MarkCivvieUmbrellaOpeningAirblastTriggered();
+
+        player.BeginCivvieUmbrellaOpening();
+        AdvanceCivvieUmbrellaOpeningToAirblastFrame(player);
+        Assert.True(player.ShouldTriggerCivvieUmbrellaOpeningAirblast());
+    }
+
+    private static void AdvanceCivvieUmbrellaOpeningToAirblastFrame(PlayerEntity player)
+    {
+        for (var tick = 0; tick < PlayerEntity.CivvieUmbrellaAirblastOpeningTick; tick += 1)
+        {
+            Assert.False(player.ShouldTriggerCivvieUmbrellaOpeningAirblast());
+            player.AdvanceCivvieUmbrellaOpeningTick();
+        }
+    }
+
+    [Fact]
+    public void CivilianUmbrellaPausesPrimaryReloadWhileOpen()
+    {
+        var reloading = CreateAirborneCivilianWithFallSpeed(0f);
+        var baseline = CreateAirborneCivilianWithFallSpeed(0f);
+        reloading.ForceSetAmmo(0);
+        baseline.ForceSetAmmo(0);
+
+        var reloadTicks = reloading.ReloadTicksUntilNextShell;
+        Assert.True(reloadTicks > 0);
+
+        Assert.True(reloading.TryActivateCivvieUmbrella());
+        const int advanceTicks = 8;
+        for (var tick = 0; tick < advanceTicks; tick += 1)
+        {
+            AdvanceReloadTick(reloading, keepUmbrellaActive: true);
+            AdvanceReloadTick(baseline);
+        }
+
+        Assert.Equal(reloadTicks, reloading.ReloadTicksUntilNextShell);
+        Assert.True(
+            baseline.ReloadTicksUntilNextShell < reloadTicks,
+            $"expected reload to advance without umbrella, baseline={baseline.ReloadTicksUntilNextShell} initial={reloadTicks}");
+    }
+
+    [Fact]
+    public void CivilianPogoToggleAppliesHalfJumpBounceOrSuperJumpWhenUpHeld()
+    {
+        var level = CreateFlatGroundLevel();
+        var player = CreateGroundedCivilian(level);
+        player.SyncCivviePogoSuperJumpInput(false);
+        Assert.True(player.TryToggleCivviePogo());
+        var baseBounceSpeed = MathF.Abs(player.VerticalSpeed);
+        player.DeactivateCivviePogo();
+        LandGroundedCivilian(player, level);
+
+        player.SyncCivviePogoSuperJumpInput(true);
+        Assert.True(player.TryToggleCivviePogo());
+        var superBounceSpeed = MathF.Abs(player.VerticalSpeed);
+
+        Assert.True(baseBounceSpeed > 0f);
+        Assert.True(superBounceSpeed > baseBounceSpeed * 2f);
+    }
+
+    [Fact]
+    public void CivilianPogoSuperJumpSoundPendingOnlyWhenUpHeldOnBounce()
+    {
+        var level = CreateFlatGroundLevel();
+        var player = CreateGroundedCivilian(level);
+        player.SyncCivviePogoSuperJumpInput(false);
+        Assert.True(player.TryToggleCivviePogo());
+        Assert.False(player.TryConsumeCivviePogoSuperJumpSoundRequest(out _, out _));
+        player.DeactivateCivviePogo();
+        LandGroundedCivilian(player, level);
+
+        player.SyncCivviePogoSuperJumpInput(true);
+        Assert.True(player.TryToggleCivviePogo());
+        Assert.True(player.TryConsumeCivviePogoSuperJumpSoundRequest(out _, out _));
+    }
+
+    private static PlayerEntity CreateGroundedCivilian(SimpleLevel? level = null)
+    {
+        level ??= CreateFlatGroundLevel();
+        var player = new PlayerEntity(1, CharacterClassCatalog.Civilian, "Test");
+        player.Spawn(PlayerTeam.Red, 128f, 0f);
+        var groundedY = level.FloorY - player.CollisionBottomOffset;
+        player.TeleportTo(128f, groundedY);
+        var deltaSeconds = 1d / SimulationConfig.DefaultTicksPerSecond;
+        player.PrepareMovement(
+            MoveRightInput with { Right = false },
+            level,
+            PlayerTeam.Red,
+            deltaSeconds,
+            out _);
+        player.CompleteMovement(
+            level,
+            PlayerTeam.Red,
+            deltaSeconds,
+            startedGrounded: false,
+            jumped: false,
+            allowDropdownFallThrough: false);
+        Assert.True(player.IsGrounded);
+        return player;
+    }
+
+    private static void LandGroundedCivilian(PlayerEntity player, SimpleLevel level)
+    {
+        var deltaSeconds = 1d / SimulationConfig.DefaultTicksPerSecond;
+        var idleInput = MoveRightInput with { Right = false };
+        for (var tick = 0; tick < 600 && !player.IsGrounded; tick += 1)
+        {
+            player.PrepareMovement(idleInput, level, PlayerTeam.Red, deltaSeconds, out _);
+            player.CompleteMovement(
+                level,
+                PlayerTeam.Red,
+                deltaSeconds,
+                startedGrounded: player.IsGrounded,
+                jumped: false,
+                allowDropdownFallThrough: false);
+        }
+
+        Assert.True(player.IsGrounded);
+    }
+
     private static PlayerEntity CreateAirborneCivilianWithFallSpeed(float verticalSpeed)
     {
         var player = new PlayerEntity(1, CharacterClassCatalog.Civilian, "Test");
@@ -170,6 +373,71 @@ public sealed class PlayerEntityMovementRegressionTests
         player.TeleportTo(128f, 128f);
         player.AddImpulse(0f, verticalSpeed);
         return player;
+    }
+
+    private static void SetAimDirectionDegrees(PlayerEntity player, float aimDirectionDegrees)
+    {
+        AimDirectionDegreesBackingField.SetValue(player, aimDirectionDegrees);
+    }
+
+    private static void AdvanceReloadTick(PlayerEntity player, bool keepUmbrellaActive = false)
+    {
+        var input = new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: keepUmbrellaActive,
+            AimWorldX: player.X,
+            AimWorldY: player.Y,
+            DebugKill: false);
+        var deltaSeconds = 1d / SimulationConfig.DefaultTicksPerSecond;
+        if (keepUmbrellaActive)
+        {
+            player.TryActivateCivvieUmbrella();
+        }
+
+        player.SyncCivvieUmbrellaSecondaryInput(input.FireSecondary);
+        player.AdvanceTickState(input, deltaSeconds);
+    }
+
+    private static void AdvanceAirborneTick(
+        PlayerEntity player,
+        SimpleLevel level,
+        bool moveRight = false,
+        bool keepUmbrellaActive = false)
+    {
+        var input = new PlayerInputSnapshot(
+            Left: false,
+            Right: moveRight,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: player.X,
+            AimWorldY: player.Y,
+            DebugKill: false);
+        var deltaSeconds = 1d / SimulationConfig.DefaultTicksPerSecond;
+        if (keepUmbrellaActive)
+        {
+            player.TryActivateCivvieUmbrella();
+        }
+
+        player.PrepareMovement(input, level, PlayerTeam.Red, deltaSeconds, out _);
+        player.CompleteMovement(
+            level,
+            PlayerTeam.Red,
+            deltaSeconds,
+            startedGrounded: false,
+            jumped: false,
+            allowDropdownFallThrough: false);
     }
 
     private static SimpleLevel CreateOpenLevel()

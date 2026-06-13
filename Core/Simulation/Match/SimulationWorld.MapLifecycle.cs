@@ -186,7 +186,7 @@ public sealed partial class SimulationWorld
         _pendingDamageEvents.Clear();
         _pendingRocketSpawnEvents.Clear();
         _pendingHealingEvents.Clear();
-        _civvieMoneyPickups.Clear();
+        _civvieMoneyTrailTracker.Clear();
         _nextRedSpawnIndex = 0;
         _nextBlueSpawnIndex = 0;
         ClearDynamicEntities();

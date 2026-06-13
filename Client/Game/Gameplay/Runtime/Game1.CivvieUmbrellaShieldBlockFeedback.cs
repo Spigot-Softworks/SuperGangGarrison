@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.Collections.Generic;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 
@@ -7,6 +8,18 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private readonly Dictionary<int, CivvieUmbrellaShieldBlockObservationState> _civvieUmbrellaShieldBlockObservationByPlayerId = new();
+
+    private readonly record struct CivvieUmbrellaShieldBlockObservationState(
+        int ChargeTicks,
+        bool IsUmbrellaActive,
+        bool IsUmbrellaBroken);
+
+    private void ResetCivvieUmbrellaShieldBlockObservation()
+    {
+        _civvieUmbrellaShieldBlockObservationByPlayerId.Clear();
+    }
+
     private void ObserveCivvieUmbrellaShieldBlockDamageEvent(WorldDamageEvent damageEvent)
     {
         if (!IsCivvieUmbrellaShieldBlockEvent(damageEvent.Flags, damageEvent.TargetKind))
@@ -14,7 +27,7 @@ public partial class Game1
             return;
         }
 
-        TryTriggerCivvieUmbrellaShieldBlockVisual(damageEvent.TargetEntityId, damageEvent.X, damageEvent.Y);
+        TryTriggerCivvieUmbrellaShieldBlockVisual(damageEvent.TargetEntityId);
     }
 
     private void ObserveCivvieUmbrellaShieldBlockDamageEvent(SnapshotDamageEvent damageEvent)
@@ -24,7 +37,7 @@ public partial class Game1
             return;
         }
 
-        TryTriggerCivvieUmbrellaShieldBlockVisual(damageEvent.TargetEntityId, damageEvent.X, damageEvent.Y);
+        TryTriggerCivvieUmbrellaShieldBlockVisual(damageEvent.TargetEntityId);
     }
 
     private static bool IsCivvieUmbrellaShieldBlockEvent(DamageEventFlags flags, DamageTargetKind targetKind)
@@ -33,10 +46,91 @@ public partial class Game1
             && flags.HasFlag(DamageEventFlags.CivvieUmbrellaBlock);
     }
 
-    private void TryTriggerCivvieUmbrellaShieldBlockVisual(int targetPlayerId, float x, float y)
+    private void ObserveCivvieUmbrellaShieldBlocksFromPlayerState()
     {
-        if (FindPlayerById(targetPlayerId) is not { } targetPlayer
-            || !targetPlayer.IsAlive)
+        if (!_networkClient.IsConnected)
+        {
+            return;
+        }
+
+        foreach (var (_, player) in _world.EnumerateReplicatedNetworkPlayers())
+        {
+            if (!player.IsAlive || player.ClassId != PlayerClass.Quote)
+            {
+                _civvieUmbrellaShieldBlockObservationByPlayerId.Remove(player.Id);
+                continue;
+            }
+
+            ObserveCivvieUmbrellaShieldBlocksForPlayer(player);
+        }
+
+        if (_civvieUmbrellaShieldBlockObservationByPlayerId.Count == 0)
+        {
+            return;
+        }
+
+        var stalePlayerIds = new List<int>();
+        foreach (var playerId in _civvieUmbrellaShieldBlockObservationByPlayerId.Keys)
+        {
+            if (FindPlayerById(playerId) is not { IsAlive: true } found
+                || found.ClassId != PlayerClass.Quote)
+            {
+                stalePlayerIds.Add(playerId);
+            }
+        }
+
+        for (var index = 0; index < stalePlayerIds.Count; index += 1)
+        {
+            _civvieUmbrellaShieldBlockObservationByPlayerId.Remove(stalePlayerIds[index]);
+        }
+    }
+
+    private void ObserveCivvieUmbrellaShieldBlocksForPlayer(PlayerEntity player)
+    {
+        var currentState = new CivvieUmbrellaShieldBlockObservationState(
+            player.CivvieUmbrellaChargeTicks,
+            player.IsCivvieUmbrellaActive,
+            player.IsCivvieUmbrellaBroken);
+
+        if (_civvieUmbrellaShieldBlockObservationByPlayerId.TryGetValue(player.Id, out var previousState))
+        {
+            var blockCount = CountCivvieUmbrellaShieldBlocks(previousState, currentState);
+            for (var blockIndex = 0; blockIndex < blockCount; blockIndex += 1)
+            {
+                TryTriggerCivvieUmbrellaShieldBlockVisual(player.Id);
+            }
+        }
+
+        _civvieUmbrellaShieldBlockObservationByPlayerId[player.Id] = currentState;
+    }
+
+    private static int CountCivvieUmbrellaShieldBlocks(
+        CivvieUmbrellaShieldBlockObservationState previousState,
+        CivvieUmbrellaShieldBlockObservationState currentState)
+    {
+        if (!previousState.IsUmbrellaActive && !currentState.IsUmbrellaActive)
+        {
+            return 0;
+        }
+
+        var chargeDelta = previousState.ChargeTicks - currentState.ChargeTicks;
+        if (chargeDelta <= 0)
+        {
+            return 0;
+        }
+
+        var blockCount = chargeDelta / PlayerEntity.CivvieUmbrellaImpactDrain;
+        if (chargeDelta % PlayerEntity.CivvieUmbrellaImpactDrain > 0)
+        {
+            blockCount += 1;
+        }
+
+        return blockCount;
+    }
+
+    private void TryTriggerCivvieUmbrellaShieldBlockVisual(int targetPlayerId)
+    {
+        if (FindPlayerById(targetPlayerId) is not { IsAlive: true })
         {
             return;
         }
@@ -57,6 +151,6 @@ public partial class Game1
             }
         }
 
-        _civvieUmbrellaShieldBlockVisuals.Add(new CivvieUmbrellaShieldBlockVisual(targetPlayerId, x, y));
+        _civvieUmbrellaShieldBlockVisuals.Add(new CivvieUmbrellaShieldBlockVisual(targetPlayerId));
     }
 }

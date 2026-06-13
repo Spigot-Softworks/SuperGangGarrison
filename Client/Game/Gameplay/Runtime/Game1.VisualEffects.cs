@@ -124,6 +124,8 @@ public partial class Game1
         _damageVignetteIntensity = 0f;
         _damageVignetteFlashIntensity = 0f;
         _gameplayMaterialEffectsController.ResetTransientEffects();
+        ResetCivvieMoneyTrailPresentation();
+        ResetCivvieUmbrellaShieldBlockObservation();
         ResetEvasionMissPopups();
         ResetHeavyDashDodgePopups();
         _rocketSmokeVisuals.Clear();
@@ -674,9 +676,15 @@ public partial class Game1
         _gameplayMaterialEffectsController.SpawnLooseSheetVisual(x, y, initialHorizontalSpeed);
     }
 
+    private void SpawnCivvieMoneyVisual(CivvieMoneyTrailSpawn spawn)
+    {
+        _gameplayMaterialEffectsController.SpawnCivvieMoneyVisual(spawn);
+    }
+
     private void SpawnCivvieMoneyVisual(float x, float y, float initialHorizontalSpeed)
     {
-        _gameplayMaterialEffectsController.SpawnLooseSheetVisual(x, y, initialHorizontalSpeed, isCivvieMoney: true);
+        _gameplayMaterialEffectsController.SpawnCivvieMoneyVisual(
+            new CivvieMoneyTrailSpawn(x, y, initialHorizontalSpeed, Frame: 0, OwnerPlayerId: 0));
     }
 
     private void RecordLastVisibleEnemySpyFrame(
@@ -1091,19 +1099,13 @@ public partial class Game1
         public const int LifetimeTicks = 18;
         public const int FadeTicks = 8;
 
-        public CivvieUmbrellaShieldBlockVisual(int playerId, float x, float y)
+        public CivvieUmbrellaShieldBlockVisual(int playerId)
         {
             PlayerId = playerId;
-            X = x;
-            Y = y;
             TicksRemaining = LifetimeTicks;
         }
 
         public int PlayerId { get; }
-
-        public float X { get; }
-
-        public float Y { get; }
 
         public int TicksRemaining { get; set; }
 
