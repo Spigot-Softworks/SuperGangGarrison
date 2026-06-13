@@ -4,10 +4,10 @@
   "slot": "Primary",
   "behaviorId": "builtin.weapon.revolver",
   "ammo": {
-    "maxAmmo": 6,
+    "maxAmmo": 4,
     "ammoPerUse": 1,
     "projectilesPerUse": 1,
-    "useDelaySourceTicks": 18,
+    "useDelaySourceTicks": 27,
     "reloadSourceTicks": 45,
     "spreadDegrees": 1.0,
     "minProjectileSpeed": 20.0,

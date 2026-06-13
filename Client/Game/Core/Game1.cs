@@ -64,6 +64,12 @@ public partial class Game1 : Game
         MapNameFilter,
     }
 
+    private enum PracticeEditField
+    {
+        None,
+        MapNameFilter,
+    }
+
     private enum HostSetupTab
     {
         Settings,
@@ -290,6 +296,7 @@ public partial class Game1 : Game
     private bool _showHealerEnabled = true;
     private bool _showHealingEnabled = true;
     private bool _showHealthBarEnabled;
+    private bool _showShieldBarEnabled = true;
     private bool _hudShowOnlyActiveWeapon;
     private bool _overheadChatEnabled = OpenGarrisonPreferencesDocument.DefaultOverheadChatEnabled;
     private BubbleWheelBehavior _bubbleWheelBehavior = OpenGarrisonPreferencesDocument.DefaultBubbleWheelBehavior;
@@ -837,17 +844,20 @@ public partial class Game1 : Game
 
     private sealed class PracticeMapEntry
     {
-        public PracticeMapEntry(string levelName, string displayName, GameModeKind mode, bool isCustomMap)
+        public PracticeMapEntry(string levelName, string displayName, GameModeKind mode, bool isCustomMap, string? iniKey = null)
         {
             LevelName = levelName;
             DisplayName = displayName;
             Mode = mode;
             IsCustomMap = isCustomMap;
+            IniKey = iniKey ?? levelName;
         }
 
         public string LevelName { get; }
 
         public string DisplayName { get; }
+
+        public string IniKey { get; }
 
         public GameModeKind Mode { get; }
 

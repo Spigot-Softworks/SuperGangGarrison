@@ -27,16 +27,18 @@ public partial class Game1
         public int EnemyBotCount { get; set; }
         public int FriendlyBotCount { get; set; }
         public bool SpecialAbilitiesEnabled { get; set; } = true;
-        public bool VipRulesEnabled { get; set; }
         public bool MapBrowserOpen { get; set; }
-        public int MapBrowserIndex { get; set; } = -1;
-        public int MapBrowserScrollOffset { get; set; }
-        public string MapBrowserNameFilterBuffer { get; set; } = string.Empty;
-        public int MapBrowserNameFilterCursorIndex { get; set; }
-        public int MapBrowserNameFilterSelectionStart { get; set; }
-        public GameModeKind? MapBrowserModeFilter { get; set; }
-        public bool MapBrowserIncludeCustomMaps { get; set; } = true;
-        public bool MapBrowserIncludeBaseMaps { get; set; } = true;
+        public int AvailableMapIndex { get; set; } = -1;
+        public int AvailableMapScrollOffset { get; set; }
+        public string AvailableMapNameFilterBuffer { get; set; } = string.Empty;
+        public int AvailableMapNameFilterCursorIndex { get; set; }
+        public int AvailableMapNameFilterSelectionStart { get; set; }
+        public GameModeKind? AvailableMapModeFilter { get; set; }
+        public bool ModeFilterDropdownOpen { get; set; }
+        public bool FiltersPopupOpen { get; set; }
+        public bool IncludeCustomMaps { get; set; } = true;
+        public bool IncludeBaseMaps { get; set; } = true;
+        public HashSet<string> FavouriteLevelNames { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
         public void Normalize()
         {
@@ -70,82 +72,102 @@ public partial class Game1
 
         public void OpenMapBrowser()
         {
+            FavouriteLevelNames = HostSetupMapFavouritesStore.Load();
             MapBrowserOpen = true;
-            MapBrowserScrollOffset = 0;
-            SyncMapBrowserSelectionToSelectedMap();
+            AvailableMapScrollOffset = 0;
+            ModeFilterDropdownOpen = false;
+            FiltersPopupOpen = false;
+            SyncAvailableMapSelectionToSelectedMap();
         }
 
         public void CloseMapBrowser()
         {
             MapBrowserOpen = false;
-            MapBrowserIndex = -1;
-            MapBrowserScrollOffset = 0;
+            AvailableMapIndex = -1;
+            AvailableMapScrollOffset = 0;
+            ModeFilterDropdownOpen = false;
+            FiltersPopupOpen = false;
         }
 
-        public void ResetMapBrowserFilters()
+        public void ResetAvailableMapFilters()
         {
-            MapBrowserNameFilterBuffer = string.Empty;
-            MapBrowserNameFilterCursorIndex = 0;
-            MapBrowserNameFilterSelectionStart = 0;
-            MapBrowserModeFilter = null;
-            MapBrowserIncludeCustomMaps = true;
-            MapBrowserIncludeBaseMaps = true;
-            NotifyMapBrowserFiltersChanged();
+            AvailableMapNameFilterBuffer = string.Empty;
+            AvailableMapNameFilterCursorIndex = 0;
+            AvailableMapNameFilterSelectionStart = 0;
+            AvailableMapModeFilter = null;
+            IncludeCustomMaps = true;
+            IncludeBaseMaps = true;
+            NotifyAvailableMapFiltersChanged();
         }
 
-        public void NotifyMapBrowserFiltersChanged()
+        public void NotifyAvailableMapFiltersChanged()
         {
-            MapBrowserScrollOffset = 0;
-            MapBrowserIndex = -1;
+            AvailableMapScrollOffset = 0;
+            AvailableMapIndex = -1;
         }
 
-        public List<PracticeMapEntry> GetMapBrowserEntriesForDisplay()
+        public List<OpenGarrisonMapRotationEntry> GetAvailableMapsForDisplay()
         {
             IEnumerable<PracticeMapEntry> query = MapEntries;
-            if (MapBrowserModeFilter is { } modeFilter)
+            if (AvailableMapModeFilter is { } modeFilter)
             {
                 query = query.Where(entry => entry.Mode == modeFilter);
             }
 
-            if (!MapBrowserIncludeCustomMaps)
+            if (!IncludeCustomMaps)
             {
                 query = query.Where(entry => !entry.IsCustomMap);
             }
 
-            if (!MapBrowserIncludeBaseMaps)
+            if (!IncludeBaseMaps)
             {
                 query = query.Where(entry => entry.IsCustomMap);
             }
 
-            if (!string.IsNullOrWhiteSpace(MapBrowserNameFilterBuffer))
+            if (!string.IsNullOrWhiteSpace(AvailableMapNameFilterBuffer))
             {
                 query = query.Where(entry =>
-                    entry.DisplayName.Contains(MapBrowserNameFilterBuffer, StringComparison.OrdinalIgnoreCase)
-                    || entry.LevelName.Contains(MapBrowserNameFilterBuffer, StringComparison.OrdinalIgnoreCase));
+                    entry.DisplayName.Contains(AvailableMapNameFilterBuffer, StringComparison.OrdinalIgnoreCase)
+                    || entry.LevelName.Contains(AvailableMapNameFilterBuffer, StringComparison.OrdinalIgnoreCase));
             }
 
-            return query
+            var filtered = query
                 .OrderBy(entry => entry.DisplayName, StringComparer.OrdinalIgnoreCase)
                 .ToList();
+            var favourites = filtered
+                .Where(entry => FavouriteLevelNames.Contains(entry.LevelName))
+                .ToList();
+            var regular = filtered
+                .Where(entry => !FavouriteLevelNames.Contains(entry.LevelName))
+                .ToList();
+            var combined = new List<PracticeMapEntry>(favourites.Count + regular.Count);
+            combined.AddRange(favourites);
+            combined.AddRange(regular);
+            return combined.Select(ToRotationEntry).ToList();
         }
 
-        public PracticeMapEntry? GetSelectedMapBrowserEntry()
+        public PracticeMapEntry? GetSelectedAvailableMapEntry()
         {
-            var entries = GetMapBrowserEntriesForDisplay();
-            return MapBrowserIndex >= 0 && MapBrowserIndex < entries.Count
-                ? entries[MapBrowserIndex]
-                : null;
+            var available = GetAvailableMapsForDisplay();
+            if (AvailableMapIndex < 0 || AvailableMapIndex >= available.Count)
+            {
+                return null;
+            }
+
+            var levelName = available[AvailableMapIndex].LevelName;
+            return MapEntries.FirstOrDefault(entry =>
+                string.Equals(entry.LevelName, levelName, StringComparison.OrdinalIgnoreCase));
         }
 
-        public void SelectMapBrowserIndex(int index)
+        public void SelectAvailableMap(int index)
         {
-            var entries = GetMapBrowserEntriesForDisplay();
-            MapBrowserIndex = entries.Count == 0 ? -1 : Math.Clamp(index, -1, entries.Count - 1);
+            var mapCount = GetAvailableMapsForDisplay().Count;
+            AvailableMapIndex = mapCount == 0 ? -1 : Math.Clamp(index, -1, mapCount - 1);
         }
 
         public bool ConfirmMapBrowserSelection()
         {
-            var entry = GetSelectedMapBrowserEntry();
+            var entry = GetSelectedAvailableMapEntry();
             if (entry is null)
             {
                 return false;
@@ -154,43 +176,58 @@ public partial class Game1
             return SelectMapEntry(entry.LevelName);
         }
 
-        public void ClampMapBrowserScroll(int entryCount, int visibleRowCount)
+        public void ClampAvailableMapScroll(int entryCount, int visibleRowCount)
         {
-            MapBrowserScrollOffset = Math.Clamp(
-                MapBrowserScrollOffset,
+            AvailableMapScrollOffset = Math.Clamp(
+                AvailableMapScrollOffset,
                 0,
                 Math.Max(0, entryCount - Math.Max(1, visibleRowCount)));
-            MapBrowserIndex = Math.Clamp(MapBrowserIndex, -1, Math.Max(0, entryCount - 1));
+            AvailableMapIndex = Math.Clamp(AvailableMapIndex, -1, Math.Max(0, entryCount - 1));
         }
 
-        public void EnsureMapBrowserSelectionVisible(int visibleRowCount)
+        public void EnsureAvailableMapSelectionVisible(int visibleRowCount)
         {
-            if (MapBrowserIndex < 0)
+            if (AvailableMapIndex < 0)
             {
-                MapBrowserScrollOffset = 0;
+                AvailableMapScrollOffset = 0;
                 return;
             }
 
-            var entries = GetMapBrowserEntriesForDisplay();
+            var entries = GetAvailableMapsForDisplay();
             if (entries.Count == 0)
             {
-                MapBrowserScrollOffset = 0;
+                AvailableMapScrollOffset = 0;
                 return;
             }
 
             var capacity = Math.Max(1, visibleRowCount);
             var maxScrollOffset = Math.Max(0, entries.Count - capacity);
-            var clampedIndex = Math.Clamp(MapBrowserIndex, 0, entries.Count - 1);
-            if (clampedIndex < MapBrowserScrollOffset)
+            var clampedIndex = Math.Clamp(AvailableMapIndex, 0, entries.Count - 1);
+            if (clampedIndex < AvailableMapScrollOffset)
             {
-                MapBrowserScrollOffset = clampedIndex;
+                AvailableMapScrollOffset = clampedIndex;
             }
-            else if (clampedIndex >= MapBrowserScrollOffset + capacity)
+            else if (clampedIndex >= AvailableMapScrollOffset + capacity)
             {
-                MapBrowserScrollOffset = clampedIndex - capacity + 1;
+                AvailableMapScrollOffset = clampedIndex - capacity + 1;
             }
 
-            MapBrowserScrollOffset = Math.Clamp(MapBrowserScrollOffset, 0, maxScrollOffset);
+            AvailableMapScrollOffset = Math.Clamp(AvailableMapScrollOffset, 0, maxScrollOffset);
+        }
+
+        public void ToggleFavourite(string levelName)
+        {
+            if (string.IsNullOrWhiteSpace(levelName))
+            {
+                return;
+            }
+
+            if (!FavouriteLevelNames.Remove(levelName))
+            {
+                FavouriteLevelNames.Add(levelName);
+            }
+
+            HostSetupMapFavouritesStore.Save(FavouriteLevelNames);
         }
 
         public void CycleTickRate(int direction)
@@ -253,19 +290,31 @@ public partial class Game1
                 : null;
         }
 
-        private void SyncMapBrowserSelectionToSelectedMap()
+        private void SyncAvailableMapSelectionToSelectedMap()
         {
             var selectedEntry = GetSelectedMapEntry();
             if (selectedEntry is null)
             {
-                MapBrowserIndex = -1;
+                AvailableMapIndex = -1;
                 return;
             }
 
-            var entries = GetMapBrowserEntriesForDisplay();
-            MapBrowserIndex = entries
+            var entries = GetAvailableMapsForDisplay();
+            AvailableMapIndex = entries
                 .ToList()
                 .FindIndex(entry => string.Equals(entry.LevelName, selectedEntry.LevelName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static OpenGarrisonMapRotationEntry ToRotationEntry(PracticeMapEntry entry)
+        {
+            return new OpenGarrisonMapRotationEntry
+            {
+                IniKey = entry.IniKey,
+                LevelName = entry.LevelName,
+                DisplayName = entry.DisplayName,
+                Mode = entry.Mode,
+                IsCustomMap = entry.IsCustomMap,
+            };
         }
 
         public static List<PracticeMapEntry> BuildMapEntries()
@@ -278,18 +327,58 @@ public partial class Game1
                 .Select(definition => definition.LevelName)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            return SimpleLevelFactory.GetAvailableSourceLevels()
+            var entries = SimpleLevelFactory.GetAvailableSourceLevels()
                 .Where(level => !hiddenStockLevelNames.Contains(level.Name))
                 .Select(level =>
                 {
                     var isCustomMap = level.IsCustomMap;
-                    var displayName = stockDefinitions.TryGetValue(level.Name, out var definition)
-                        ? definition.DisplayName
-                        : level.Name;
-                    return new PracticeMapEntry(level.Name, displayName, level.Mode, isCustomMap);
+                    var hasStockDefinition = stockDefinitions.TryGetValue(level.Name, out var definition);
+                    var displayName = hasStockDefinition ? definition.DisplayName : level.Name;
+                    var iniKey = hasStockDefinition ? definition.IniKey : level.Name;
+                    return new PracticeMapEntry(level.Name, displayName, level.Mode, isCustomMap, iniKey);
                 })
                 .OrderBy(entry => entry.DisplayName, StringComparer.OrdinalIgnoreCase)
                 .ToList();
+
+            AddPracticeVipMapEntries(entries);
+            return entries
+                .OrderBy(entry => entry.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        private static void AddPracticeVipMapEntries(List<PracticeMapEntry> mapEntries)
+        {
+            foreach (var baseEntry in mapEntries
+                         .Where(entry => OpenGarrisonStockMapCatalog.IsCpPrefixedIniKey(entry.IniKey) && entry.Mode != GameModeKind.Vip)
+                         .ToList())
+            {
+                var rotationBase = new OpenGarrisonMapRotationEntry
+                {
+                    IniKey = baseEntry.IniKey,
+                    LevelName = baseEntry.LevelName,
+                    DisplayName = baseEntry.DisplayName,
+                    Mode = baseEntry.Mode,
+                    IsCustomMap = baseEntry.IsCustomMap,
+                };
+                if (!OpenGarrisonStockMapCatalog.TryCreateVipMapRotationEntry(rotationBase, out var vipEntry))
+                {
+                    continue;
+                }
+
+                if (mapEntries.Any(entry =>
+                        string.Equals(entry.IniKey, vipEntry.IniKey, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(entry.LevelName, vipEntry.LevelName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                mapEntries.Add(new PracticeMapEntry(
+                    vipEntry.LevelName,
+                    vipEntry.DisplayName,
+                    GameModeKind.Vip,
+                    vipEntry.IsCustomMap,
+                    vipEntry.IniKey));
+            }
         }
 
         private static int NormalizeOption(int currentValue, int[] options, int fallback)
@@ -387,7 +476,6 @@ public partial class Game1
         }
 
         _practiceSetupState.CycleMap(direction);
-        DisablePracticeVipRulesIfUnavailable();
         _menuStatusMessage = string.Empty;
     }
 
@@ -429,13 +517,7 @@ public partial class Game1
 
     private bool SelectPracticeMapEntry(string? levelName)
     {
-        var selected = _practiceSetupState.SelectMapEntry(levelName);
-        if (selected)
-        {
-            DisablePracticeVipRulesIfUnavailable();
-        }
-
-        return selected;
+        return _practiceSetupState.SelectMapEntry(levelName);
     }
 
     private int FindDefaultPracticeMapIndex()
@@ -459,37 +541,14 @@ public partial class Game1
         set => _practiceSetupState.SpecialAbilitiesEnabled = value;
     }
 
-    private bool _practiceVipRulesEnabled
+    private void CyclePracticeSpecialAbilities(int direction)
     {
-        get => _practiceSetupState.VipRulesEnabled;
-        set => _practiceSetupState.VipRulesEnabled = value;
-    }
-
-    private void TogglePracticeSpecialAbilities()
-    {
-        _practiceSetupState.SpecialAbilitiesEnabled = !_practiceSetupState.SpecialAbilitiesEnabled;
-        ApplyPracticeExperimentalGameplaySettings();
-    }
-
-    private void TogglePracticeVipRules()
-    {
-        var selectedMap = GetSelectedPracticeMapEntry();
-        if (selectedMap is not null && selectedMap.Mode != GameModeKind.ControlPoint)
+        if (direction == 0)
         {
-            _practiceSetupState.VipRulesEnabled = false;
-            _menuStatusMessage = "VIP rules are only available on CP maps.";
             return;
         }
 
-        _practiceSetupState.VipRulesEnabled = !_practiceSetupState.VipRulesEnabled;
-        _menuStatusMessage = string.Empty;
-    }
-
-    private void DisablePracticeVipRulesIfUnavailable()
-    {
-        if (GetSelectedPracticeMapEntry()?.Mode != GameModeKind.ControlPoint)
-        {
-            _practiceSetupState.VipRulesEnabled = false;
-        }
+        _practiceSetupState.SpecialAbilitiesEnabled = direction > 0;
+        ApplyPracticeExperimentalGameplaySettings();
     }
 }

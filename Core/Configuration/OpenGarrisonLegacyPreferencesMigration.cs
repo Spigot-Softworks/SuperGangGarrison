@@ -144,6 +144,11 @@ public static class OpenGarrisonLegacyPreferencesMigration
             preferences.ShowHealthBarEnabled = showHealthBarEnabled;
         }
 
+        if (TryReadBool(root, "ShowShieldBarEnabled", out var showShieldBarEnabled))
+        {
+            preferences.ShowShieldBarEnabled = showShieldBarEnabled;
+        }
+
         if (TryReadBool(root, "ShowPersistentSelfNameEnabled", out var showPersistentSelfNameEnabled))
         {
             preferences.ShowPersistentSelfNameEnabled = showPersistentSelfNameEnabled;

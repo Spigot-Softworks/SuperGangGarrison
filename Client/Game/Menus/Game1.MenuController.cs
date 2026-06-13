@@ -309,10 +309,16 @@ public partial class Game1
             }
 
             const float padding = 20f;
-            const float logoScale = 1.3f;
+            const float logoScale = 3f;
+            const int logoSourceWidth = 169;
+            const int logoSourceHeight = 40;
 
             var frame = sprite.Frames[0];
-            var visibleLogoSource = new Rectangle(22, 17, 332, 82);
+            var visibleLogoSource = new Rectangle(
+                0,
+                0,
+                Math.Min(logoSourceWidth, frame.Width),
+                Math.Min(logoSourceHeight, frame.Height));
             var logoX = MathF.Max(padding, viewportWidth - (visibleLogoSource.Width * logoScale) - padding);
             var logoY = padding;
 

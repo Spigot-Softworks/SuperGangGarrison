@@ -39,27 +39,13 @@ public partial class Game1
         Rectangle FriendlyBotsLeftBounds,
         Rectangle FriendlyBotsValueBounds,
         Rectangle FriendlyBotsRightBounds,
-        Rectangle SpecialAbilitiesBounds,
-        Rectangle VipRulesBounds,
+        Rectangle SpecialAbilitiesLeftBounds,
+        Rectangle SpecialAbilitiesValueBounds,
+        Rectangle SpecialAbilitiesRightBounds,
         Rectangle StartBounds,
         Rectangle ClientPowersBounds,
         Rectangle BackBounds,
         bool CompactLayout);
-
-    private readonly record struct PracticeMapBrowserLayout(
-        Rectangle Panel,
-        Rectangle SearchBounds,
-        Rectangle ModeFilterBounds,
-        Rectangle BaseFilterBounds,
-        Rectangle CustomFilterBounds,
-        Rectangle ResetBounds,
-        Rectangle ListBounds,
-        Rectangle PreviewBounds,
-        Rectangle SelectBounds,
-        Rectangle CloseBounds,
-        int RowHeight,
-        int VisibleRowCapacity,
-        int ScrollbarWidth);
 
     private void OpenPracticeSetupMenu()
     {
@@ -89,17 +75,30 @@ public partial class Game1
         }
 
         NormalizePracticeSetupState();
-        OpenPracticeMapBrowser();
     }
 
     private void UpdatePracticeSetupMenu(KeyboardState keyboard, MouseState mouse)
     {
-        var layout = GetPracticeSetupLayout();
         if (_practiceSetupState.MapBrowserOpen)
         {
-            UpdatePracticeMapBrowserMenu(keyboard, mouse, GetPracticeMapBrowserLayout());
+            if (IsKeyPressed(keyboard, Keys.Escape) || IsControllerMenuBackPressed())
+            {
+                ClosePracticeMapBrowser();
+                return;
+            }
+
+            if (IsKeyPressed(keyboard, Keys.Enter))
+            {
+                ConfirmPracticeMapBrowserSelection();
+                return;
+            }
+
+            var mapLayout = PracticeMapsMenuLayoutCalculator.Create(ViewportWidth, ViewportHeight);
+            UpdatePracticeMapSelectionMenu(keyboard, mouse, mapLayout);
             return;
         }
+
+        var layout = GetPracticeSetupLayout();
 
         if (IsKeyPressed(keyboard, Keys.Escape) || IsControllerMenuBackPressed())
         {
@@ -201,29 +200,29 @@ public partial class Game1
             _practiceSetupControllerIndex = 6;
             CyclePracticeFriendlyBots(1);
         }
-        else if (layout.SpecialAbilitiesBounds.Contains(point))
+        else if (layout.SpecialAbilitiesLeftBounds.Contains(point))
         {
             _practiceSetupControllerIndex = 7;
-            TogglePracticeSpecialAbilities();
+            CyclePracticeSpecialAbilities(-1);
         }
-        else if (layout.VipRulesBounds.Contains(point))
+        else if (layout.SpecialAbilitiesRightBounds.Contains(point))
         {
-            _practiceSetupControllerIndex = 8;
-            TogglePracticeVipRules();
+            _practiceSetupControllerIndex = 7;
+            CyclePracticeSpecialAbilities(1);
         }
         else if (layout.StartBounds.Contains(point))
         {
-            _practiceSetupControllerIndex = 9;
+            _practiceSetupControllerIndex = 8;
             TryStartPracticeFromSetup();
         }
         else if (layout.ClientPowersBounds.Contains(point))
         {
-            _practiceSetupControllerIndex = 10;
+            _practiceSetupControllerIndex = 9;
             OpenClientPowersMenu(fromGameplay: false);
         }
         else if (layout.BackBounds.Contains(point))
         {
-            _practiceSetupControllerIndex = 11;
+            _practiceSetupControllerIndex = 10;
             ClosePracticeMapBrowser();
             _practiceSetupOpen = false;
         }
@@ -240,7 +239,7 @@ public partial class Game1
         {
             if (verticalStep != 0)
             {
-                _practiceSetupControllerIndex = MoveControllerMenuSelectionClamped(_practiceSetupControllerIndex, 12, verticalStep);
+                _practiceSetupControllerIndex = MoveControllerMenuSelectionClamped(_practiceSetupControllerIndex, 11, verticalStep);
                 return true;
             }
 
@@ -285,6 +284,9 @@ public partial class Game1
             case 6:
                 CyclePracticeFriendlyBots(direction);
                 break;
+            case 7:
+                CyclePracticeSpecialAbilities(direction);
+                break;
         }
     }
 
@@ -303,18 +305,15 @@ public partial class Game1
                 }
                 break;
             case 7:
-                TogglePracticeSpecialAbilities();
+                CyclePracticeSpecialAbilities(1);
                 break;
             case 8:
-                TogglePracticeVipRules();
-                break;
-            case 9:
                 TryStartPracticeFromSetup();
                 break;
-            case 10:
+            case 9:
                 OpenClientPowersMenu(fromGameplay: false);
                 break;
-            case 11:
+            case 10:
                 ClosePracticeMapBrowser();
                 _practiceSetupOpen = false;
                 break;
@@ -344,7 +343,7 @@ public partial class Game1
         const float valueScale = 1f;
         const float buttonScale = 1f;
         var rowLabelX = panel.X + (compactLayout ? 24f : 28f);
-        var rowTextOffset = compactLayout ? 8f : 10f;
+        var rowTextOffset = (layout.MapValueBounds.Height - MeasureBitmapFontHeight(labelScale)) * 0.5f;
         var mapEntry = GetSelectedPracticeMapEntry();
         var mouse = GetScaledMouseState(GetConstrainedMouseState(Game1.GetCurrentMouseState()));
         var controllerMenuActive = IsControllerMenuInputActive();
@@ -367,96 +366,124 @@ public partial class Game1
             return false;
         }
 
+        (bool Left, bool Value, bool Right) GetPracticeSelectorHighlights(int rowIndex, Rectangle left, Rectangle value, Rectangle right)
+        {
+            var controller = controllerMenuActive && _practiceSetupControllerIndex == rowIndex;
+            return (
+                controller || left.Contains(mouse.Position),
+                controller || value.Contains(mouse.Position),
+                controller || right.Contains(mouse.Position));
+        }
+
         DrawRoundedRectangleOutline(panel, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 2, radius: 8);
 
         DrawBitmapFontText("Map", new Vector2(rowLabelX, layout.MapValueBounds.Y + rowTextOffset), Color.White, labelScale);
+        var mapHighlights = GetPracticeSelectorHighlights(0, layout.MapLeftBounds, layout.MapValueBounds, layout.MapRightBounds);
         DrawPracticeSelectorRow(
             layout.MapLeftBounds,
             layout.MapValueBounds,
             layout.MapRightBounds,
             mapEntry is null ? "No local maps available" : GetPracticeMapDisplayLabel(mapEntry),
-            compactLayout,
             buttonScale,
             valueScale,
-            IsPracticeControlHighlighted(0, layout.MapLeftBounds, layout.MapValueBounds, layout.MapRightBounds));
+            mapHighlights.Left,
+            mapHighlights.Value,
+            mapHighlights.Right);
 
         DrawBitmapFontText("Tick Rate", new Vector2(rowLabelX, layout.TickValueBounds.Y + rowTextOffset), Color.White, labelScale);
+        var tickHighlights = GetPracticeSelectorHighlights(1, layout.TickLeftBounds, layout.TickValueBounds, layout.TickRightBounds);
         DrawPracticeSelectorRow(
             layout.TickLeftBounds,
             layout.TickValueBounds,
             layout.TickRightBounds,
             _practiceTickRate.ToString(CultureInfo.InvariantCulture),
-            compactLayout,
             buttonScale,
             valueScale,
-            IsPracticeControlHighlighted(1, layout.TickLeftBounds, layout.TickValueBounds, layout.TickRightBounds));
+            tickHighlights.Left,
+            tickHighlights.Value,
+            tickHighlights.Right);
 
         DrawBitmapFontText("Time Limit", new Vector2(rowLabelX, layout.TimeValueBounds.Y + rowTextOffset), Color.White, labelScale);
+        var timeHighlights = GetPracticeSelectorHighlights(2, layout.TimeLeftBounds, layout.TimeValueBounds, layout.TimeRightBounds);
         DrawPracticeSelectorRow(
             layout.TimeLeftBounds,
             layout.TimeValueBounds,
             layout.TimeRightBounds,
             $"{_practiceTimeLimitMinutes} min",
-            compactLayout,
             buttonScale,
             valueScale,
-            IsPracticeControlHighlighted(2, layout.TimeLeftBounds, layout.TimeValueBounds, layout.TimeRightBounds));
+            timeHighlights.Left,
+            timeHighlights.Value,
+            timeHighlights.Right);
 
         DrawBitmapFontText("Cap Limit", new Vector2(rowLabelX, layout.CapValueBounds.Y + rowTextOffset), Color.White, labelScale);
+        var capHighlights = GetPracticeSelectorHighlights(3, layout.CapLeftBounds, layout.CapValueBounds, layout.CapRightBounds);
         DrawPracticeSelectorRow(
             layout.CapLeftBounds,
             layout.CapValueBounds,
             layout.CapRightBounds,
             _practiceCapLimit.ToString(CultureInfo.InvariantCulture),
-            compactLayout,
             buttonScale,
             valueScale,
-            IsPracticeControlHighlighted(3, layout.CapLeftBounds, layout.CapValueBounds, layout.CapRightBounds));
+            capHighlights.Left,
+            capHighlights.Value,
+            capHighlights.Right);
 
         DrawBitmapFontText("Respawn", new Vector2(rowLabelX, layout.RespawnValueBounds.Y + rowTextOffset), Color.White, labelScale);
+        var respawnHighlights = GetPracticeSelectorHighlights(4, layout.RespawnLeftBounds, layout.RespawnValueBounds, layout.RespawnRightBounds);
         DrawPracticeSelectorRow(
             layout.RespawnLeftBounds,
             layout.RespawnValueBounds,
             layout.RespawnRightBounds,
             _practiceRespawnSeconds == 0 ? "Instant" : $"{_practiceRespawnSeconds}s",
-            compactLayout,
             buttonScale,
             valueScale,
-            IsPracticeControlHighlighted(4, layout.RespawnLeftBounds, layout.RespawnValueBounds, layout.RespawnRightBounds));
+            respawnHighlights.Left,
+            respawnHighlights.Value,
+            respawnHighlights.Right);
 
         DrawBitmapFontText("Enemy Bots", new Vector2(rowLabelX, layout.EnemyBotsValueBounds.Y + rowTextOffset), Color.White, labelScale);
+        var enemyBotHighlights = GetPracticeSelectorHighlights(5, layout.EnemyBotsLeftBounds, layout.EnemyBotsValueBounds, layout.EnemyBotsRightBounds);
         DrawPracticeSelectorRow(
             layout.EnemyBotsLeftBounds,
             layout.EnemyBotsValueBounds,
             layout.EnemyBotsRightBounds,
             GetPracticeBotCountLabel(_practiceEnemyBotCount),
-            compactLayout,
             buttonScale,
             valueScale,
-            IsPracticeControlHighlighted(5, layout.EnemyBotsLeftBounds, layout.EnemyBotsValueBounds, layout.EnemyBotsRightBounds));
+            enemyBotHighlights.Left,
+            enemyBotHighlights.Value,
+            enemyBotHighlights.Right);
 
         DrawBitmapFontText("Friendly Bots", new Vector2(rowLabelX, layout.FriendlyBotsValueBounds.Y + rowTextOffset), Color.White, labelScale);
+        var friendlyBotHighlights = GetPracticeSelectorHighlights(6, layout.FriendlyBotsLeftBounds, layout.FriendlyBotsValueBounds, layout.FriendlyBotsRightBounds);
         DrawPracticeSelectorRow(
             layout.FriendlyBotsLeftBounds,
             layout.FriendlyBotsValueBounds,
             layout.FriendlyBotsRightBounds,
             GetPracticeBotCountLabel(_practiceFriendlyBotCount),
-            compactLayout,
             buttonScale,
             valueScale,
-            IsPracticeControlHighlighted(6, layout.FriendlyBotsLeftBounds, layout.FriendlyBotsValueBounds, layout.FriendlyBotsRightBounds));
+            friendlyBotHighlights.Left,
+            friendlyBotHighlights.Value,
+            friendlyBotHighlights.Right);
 
-        DrawBitmapFontText("Special Abilities", new Vector2(rowLabelX, layout.SpecialAbilitiesBounds.Y + rowTextOffset), Color.White, labelScale);
-        var specialAbilitiesLabel = _practiceSpecialAbilitiesEnabled ? "On" : "Off";
-        DrawMenuInputBoxScaled(layout.SpecialAbilitiesBounds, specialAbilitiesLabel, IsPracticeControlHighlighted(7, layout.SpecialAbilitiesBounds), valueScale);
+        DrawBitmapFontText("Special Abilities", new Vector2(rowLabelX, layout.SpecialAbilitiesValueBounds.Y + rowTextOffset), Color.White, labelScale);
+        var specialAbilitiesHighlights = GetPracticeSelectorHighlights(7, layout.SpecialAbilitiesLeftBounds, layout.SpecialAbilitiesValueBounds, layout.SpecialAbilitiesRightBounds);
+        DrawPracticeSelectorRow(
+            layout.SpecialAbilitiesLeftBounds,
+            layout.SpecialAbilitiesValueBounds,
+            layout.SpecialAbilitiesRightBounds,
+            _practiceSpecialAbilitiesEnabled ? "On" : "Off",
+            buttonScale,
+            valueScale,
+            specialAbilitiesHighlights.Left,
+            specialAbilitiesHighlights.Value,
+            specialAbilitiesHighlights.Right);
 
-        DrawBitmapFontText("VIP Rules", new Vector2(rowLabelX, layout.VipRulesBounds.Y + rowTextOffset), Color.White, labelScale);
-        var vipRulesLabel = _practiceVipRulesEnabled ? "On" : "Off";
-        DrawMenuInputBoxScaled(layout.VipRulesBounds, vipRulesLabel, IsPracticeControlHighlighted(8, layout.VipRulesBounds), valueScale);
-
-        DrawMenuButtonScaled(layout.StartBounds, "Start Practice", IsPracticeControlHighlighted(9, layout.StartBounds), buttonScale);
-        DrawMenuButtonScaled(layout.ClientPowersBounds, "Experimental", IsPracticeControlHighlighted(10, layout.ClientPowersBounds), buttonScale);
-        DrawMenuButtonScaled(layout.BackBounds, "Back", IsPracticeControlHighlighted(11, layout.BackBounds), buttonScale);
+        DrawMenuButtonScaled(layout.StartBounds, "Start Practice", IsPracticeControlHighlighted(8, layout.StartBounds), buttonScale);
+        DrawMenuButtonScaled(layout.ClientPowersBounds, "Experimental", IsPracticeControlHighlighted(9, layout.ClientPowersBounds), buttonScale);
+        DrawMenuButtonScaled(layout.BackBounds, "Back", IsPracticeControlHighlighted(10, layout.BackBounds), buttonScale);
 
         if (!string.IsNullOrWhiteSpace(_menuStatusMessage))
         {
@@ -469,136 +496,26 @@ public partial class Game1
 
         if (_practiceSetupState.MapBrowserOpen)
         {
-            DrawPracticeMapBrowserOverlay(GetPracticeMapBrowserLayout());
+            DrawPracticeMapSelectionOverlay(PracticeMapsMenuLayoutCalculator.Create(ViewportWidth, ViewportHeight), 1f);
         }
     }
 
     private void OpenPracticeMapBrowser()
     {
         _practiceSetupState.OpenMapBrowser();
-        _practiceSetupState.EnsureMapBrowserSelectionVisible(GetPracticeMapBrowserLayout().VisibleRowCapacity);
+        var layout = PracticeMapsMenuLayoutCalculator.Create(ViewportWidth, ViewportHeight);
+        _practiceSetupState.EnsureAvailableMapSelectionVisible(layout.AvailableVisibleRowCapacity);
+        _practiceMapContextMenu = null;
+        _practiceEditField = PracticeEditField.None;
         _menuStatusMessage = string.Empty;
     }
 
     private void ClosePracticeMapBrowser()
     {
         _practiceSetupState.CloseMapBrowser();
+        _practiceMapContextMenu = null;
+        _practiceEditField = PracticeEditField.None;
         ClosePracticeMapBrowserPreview();
-    }
-
-    private void UpdatePracticeMapBrowserMenu(KeyboardState keyboard, MouseState mouse, PracticeMapBrowserLayout layout)
-    {
-        var entries = _practiceSetupState.GetMapBrowserEntriesForDisplay();
-        _practiceSetupState.ClampMapBrowserScroll(entries.Count, layout.VisibleRowCapacity);
-
-        if (IsKeyPressed(keyboard, Keys.Escape) || IsControllerMenuBackPressed())
-        {
-            ClosePracticeMapBrowser();
-            return;
-        }
-
-        if (IsKeyPressed(keyboard, Keys.Enter))
-        {
-            ConfirmPracticeMapBrowserSelection();
-            return;
-        }
-
-        var wheelDelta = mouse.ScrollWheelValue - _previousMouse.ScrollWheelValue;
-        if (wheelDelta != 0 && GetPracticeMapBrowserListInteractionBounds(layout).Contains(mouse.Position))
-        {
-            var stepCount = Math.Max(1, Math.Abs(wheelDelta) / 120);
-            _practiceSetupState.MapBrowserScrollOffset = Math.Clamp(
-                _practiceSetupState.MapBrowserScrollOffset + (wheelDelta > 0 ? -stepCount : stepCount),
-                0,
-                Math.Max(0, entries.Count - layout.VisibleRowCapacity));
-        }
-
-        var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
-        if (!clickPressed)
-        {
-            return;
-        }
-
-        if (layout.ModeFilterBounds.Contains(mouse.Position))
-        {
-            CyclePracticeMapBrowserModeFilter();
-            return;
-        }
-
-        if (layout.BaseFilterBounds.Contains(mouse.Position))
-        {
-            _practiceSetupState.MapBrowserIncludeBaseMaps = !_practiceSetupState.MapBrowserIncludeBaseMaps;
-            _practiceSetupState.NotifyMapBrowserFiltersChanged();
-            return;
-        }
-
-        if (layout.CustomFilterBounds.Contains(mouse.Position))
-        {
-            _practiceSetupState.MapBrowserIncludeCustomMaps = !_practiceSetupState.MapBrowserIncludeCustomMaps;
-            _practiceSetupState.NotifyMapBrowserFiltersChanged();
-            return;
-        }
-
-        if (layout.ResetBounds.Contains(mouse.Position))
-        {
-            _practiceSetupState.ResetMapBrowserFilters();
-            return;
-        }
-
-        if (layout.SelectBounds.Contains(mouse.Position))
-        {
-            ConfirmPracticeMapBrowserSelection();
-            return;
-        }
-
-        if (layout.CloseBounds.Contains(mouse.Position))
-        {
-            ClosePracticeMapBrowser();
-            return;
-        }
-
-        if (TryGetPracticeMapBrowserListHit(mouse.Position, layout, entries, out var hitIndex))
-        {
-            _practiceSetupState.SelectMapBrowserIndex(hitIndex);
-        }
-    }
-
-    private bool TryHandlePracticeMapBrowserTextInput(char character)
-    {
-        if (!_practiceSetupOpen || !_practiceSetupState.MapBrowserOpen)
-        {
-            return false;
-        }
-
-        if (character == '\b')
-        {
-            var result = DeleteTextSelectionOrBackspace(
-                _practiceSetupState.MapBrowserNameFilterBuffer,
-                _practiceSetupState.MapBrowserNameFilterCursorIndex,
-                _practiceSetupState.MapBrowserNameFilterSelectionStart);
-            _practiceSetupState.MapBrowserNameFilterBuffer = result.Text;
-            _practiceSetupState.MapBrowserNameFilterCursorIndex = result.CursorIndex;
-            _practiceSetupState.MapBrowserNameFilterSelectionStart = result.SelectionStart;
-            _practiceSetupState.NotifyMapBrowserFiltersChanged();
-            return true;
-        }
-
-        if (char.IsControl(character))
-        {
-            return false;
-        }
-
-        var insertResult = InsertTextCharacterAtCursor(
-            _practiceSetupState.MapBrowserNameFilterBuffer,
-            character,
-            _practiceSetupState.MapBrowserNameFilterCursorIndex,
-            _practiceSetupState.MapBrowserNameFilterSelectionStart,
-            48);
-        _practiceSetupState.MapBrowserNameFilterBuffer = insertResult.Text;
-        _practiceSetupState.MapBrowserNameFilterCursorIndex = insertResult.CursorIndex;
-        _practiceSetupState.MapBrowserNameFilterSelectionStart = insertResult.SelectionStart;
-        _practiceSetupState.NotifyMapBrowserFiltersChanged();
-        return true;
     }
 
     private void ConfirmPracticeMapBrowserSelection()
@@ -609,145 +526,46 @@ public partial class Game1
             return;
         }
 
-        DisablePracticeVipRulesIfUnavailable();
         ClosePracticeMapBrowser();
         _menuStatusMessage = string.Empty;
     }
 
-    private void CyclePracticeMapBrowserModeFilter()
+    private bool TryHandlePracticeMapBrowserTextInput(char character)
     {
-        var options = GetPracticeMapBrowserModeFilterOptions();
-        var currentIndex = -1;
-        for (var index = 0; index < options.Count; index += 1)
+        if (!_practiceSetupOpen || !_practiceSetupState.MapBrowserOpen || _practiceEditField != PracticeEditField.MapNameFilter)
         {
-            if (options[index] == _practiceSetupState.MapBrowserModeFilter)
-            {
-                currentIndex = index;
-                break;
-            }
+            return false;
         }
 
-        var nextIndex = (Math.Max(0, currentIndex) + 1) % options.Count;
-        _practiceSetupState.MapBrowserModeFilter = options[nextIndex];
-        _practiceSetupState.NotifyMapBrowserFiltersChanged();
-    }
-
-    private List<GameModeKind?> GetPracticeMapBrowserModeFilterOptions()
-    {
-        var availableModes = _practiceMapEntries
-            .Select(entry => entry.Mode)
-            .ToHashSet();
-        var options = GetHostSetupMapModeFilterOptions()
-            .Where(mode => mode is null || availableModes.Contains(mode.Value))
-            .ToList();
-        return options.Count == 0 ? [null] : options;
-    }
-
-    private void DrawPracticeMapBrowserOverlay(PracticeMapBrowserLayout layout)
-    {
-        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, ViewportWidth, ViewportHeight), Color.Black * 0.58f);
-        _spriteBatch.Draw(_pixel, layout.Panel, new Color(38, 34, 31, 245));
-        DrawRoundedRectangleOutline(layout.Panel, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 2, radius: 8);
-
-        const float labelScale = 0.9f;
-        var titleY = layout.Panel.Y + 16f;
-        DrawBitmapFontText("PRACTICE MAPS", new Vector2(layout.Panel.X + 20f, titleY), Color.White, 1f);
-        DrawBitmapFontText("Search", new Vector2(layout.SearchBounds.X, layout.SearchBounds.Y - 16f), new Color(210, 210, 210), labelScale);
-        DrawMenuInputBoxScaled(
-            layout.SearchBounds,
-            _practiceSetupState.MapBrowserNameFilterBuffer,
-            true,
-            1f,
-            _practiceSetupState.MapBrowserNameFilterCursorIndex,
-            _practiceSetupState.MapBrowserNameFilterSelectionStart);
-
-        var modeLabel = GetHostSetupMapModeFilterLabel(_practiceSetupState.MapBrowserModeFilter);
-        DrawMenuButtonScaled(layout.ModeFilterBounds, modeLabel, layout.ModeFilterBounds.Contains(GetScaledMouseState(GetConstrainedMouseState(Game1.GetCurrentMouseState())).Position), 1f);
-        DrawPracticeMapBrowserCheckbox(layout.BaseFilterBounds, "Base", _practiceSetupState.MapBrowserIncludeBaseMaps);
-        DrawPracticeMapBrowserCheckbox(layout.CustomFilterBounds, "Custom", _practiceSetupState.MapBrowserIncludeCustomMaps);
-        DrawMenuButtonScaled(layout.ResetBounds, "Reset", false, 0.95f);
-
-        var entries = _practiceSetupState.GetMapBrowserEntriesForDisplay();
-        _practiceSetupState.ClampMapBrowserScroll(entries.Count, layout.VisibleRowCapacity);
-        DrawPracticeMapBrowserList(layout, entries);
-        DrawPracticeMapBrowserPreview(layout.PreviewBounds);
-
-        DrawMenuButtonScaled(layout.SelectBounds, "Select", false, 1f);
-        DrawMenuButtonScaled(layout.CloseBounds, "Close", false, 1f);
-    }
-
-    private void DrawPracticeMapBrowserCheckbox(Rectangle rowBounds, string label, bool enabled)
-    {
-        var checkboxBounds = new Rectangle(rowBounds.X, rowBounds.Y + 6, 18, 18);
-        DrawHostSetupFilterCheckboxRow(checkboxBounds, rowBounds, label, enabled, 0.9f);
-    }
-
-    private void DrawPracticeMapBrowserList(PracticeMapBrowserLayout layout, IReadOnlyList<PracticeMapEntry> entries)
-    {
-        _spriteBatch.Draw(_pixel, layout.ListBounds, new Color(34, 30, 28, 220));
-        var mouse = GetScaledMouseState(GetConstrainedMouseState(Game1.GetCurrentMouseState()));
-        var hoverIndex = TryGetPracticeMapBrowserListHit(mouse.Position, layout, entries, out var hitIndex)
-            ? hitIndex
-            : -1;
-        var endIndex = Math.Min(entries.Count, _practiceSetupState.MapBrowserScrollOffset + layout.VisibleRowCapacity);
-        for (var index = _practiceSetupState.MapBrowserScrollOffset; index < endIndex; index += 1)
+        if (character == '\b')
         {
-            var entry = entries[index];
-            var visibleIndex = index - _practiceSetupState.MapBrowserScrollOffset;
-            var rowBounds = new Rectangle(
-                layout.ListBounds.X + 4,
-                layout.ListBounds.Y + (visibleIndex * layout.RowHeight),
-                layout.ListBounds.Width - 8,
-                layout.RowHeight - 2);
-            var rowColor = index == _practiceSetupState.MapBrowserIndex
-                ? new Color(95, 72, 68)
-                : index == hoverIndex
-                    ? new Color(75, 67, 62)
-                    : new Color(54, 47, 41);
-            _spriteBatch.Draw(_pixel, rowBounds, rowColor);
-
-            var displayName = entry.IsCustomMap ? $"{entry.DisplayName} (Custom)" : entry.DisplayName;
-            var modeLabel = GetHostSetupMapModeShortLabel(entry.Mode);
-            var modeWidth = MeasureBitmapFontWidth(modeLabel, 1f);
-            var maxNameWidth = Math.Max(48f, rowBounds.Width - modeWidth - 24f);
-            var trimmedName = TrimBitmapMenuText(displayName, maxNameWidth, 1f);
-            var textY = rowBounds.Y + ((rowBounds.Height - MeasureBitmapFontHeight(1f)) * 0.5f);
-            DrawBitmapFontText(trimmedName, new Vector2(rowBounds.X + 8f, textY), Color.White, 1f);
-            DrawBitmapFontText(modeLabel, new Vector2(rowBounds.Right - modeWidth - 8f, textY), new Color(210, 210, 210), 1f);
+            var result = DeleteTextSelectionOrBackspace(
+                _practiceSetupState.AvailableMapNameFilterBuffer,
+                _practiceSetupState.AvailableMapNameFilterCursorIndex,
+                _practiceSetupState.AvailableMapNameFilterSelectionStart);
+            _practiceSetupState.AvailableMapNameFilterBuffer = result.Text;
+            _practiceSetupState.AvailableMapNameFilterCursorIndex = result.CursorIndex;
+            _practiceSetupState.AvailableMapNameFilterSelectionStart = result.SelectionStart;
+            _practiceSetupState.NotifyAvailableMapFiltersChanged();
+            return true;
         }
 
-        if (entries.Count > layout.VisibleRowCapacity)
+        if (char.IsControl(character))
         {
-            DrawHostSetupListScrollbar(
-                layout.ListBounds,
-                layout.ScrollbarWidth,
-                _practiceSetupState.MapBrowserScrollOffset,
-                entries.Count,
-                layout.VisibleRowCapacity);
-        }
-    }
-
-    private void DrawPracticeMapBrowserPreview(Rectangle bounds)
-    {
-        var selectedEntry = _practiceSetupState.GetSelectedMapBrowserEntry() ?? GetSelectedPracticeMapEntry();
-        EnsurePracticeMapBrowserPreview(selectedEntry?.LevelName);
-        DrawRoundedRectangleOutline(bounds, new Color(46, 40, 35), new Color(180, 172, 158), outlineThickness: 1, radius: 6);
-        _spriteBatch.Draw(_pixel, bounds, new Color(22, 24, 28));
-
-        if (_practiceMapBrowserPreviewState is null)
-        {
-            const string placeholder = "Select a map";
-            var textWidth = MeasureBitmapFontWidth(placeholder, 0.9f);
-            var textY = bounds.Y + ((bounds.Height - MeasureBitmapFontHeight(0.9f)) * 0.5f);
-            DrawBitmapFontText(
-                placeholder,
-                new Vector2(bounds.X + ((bounds.Width - textWidth) * 0.5f), textY),
-                new Color(150, 150, 150),
-                0.9f);
-            return;
+            return false;
         }
 
-        _practiceMapBrowserPreviewState.Draw(_spriteBatch, bounds, interactiveView: false);
+        var insertResult = InsertTextCharacterAtCursor(
+            _practiceSetupState.AvailableMapNameFilterBuffer,
+            character,
+            _practiceSetupState.AvailableMapNameFilterCursorIndex,
+            _practiceSetupState.AvailableMapNameFilterSelectionStart,
+            48);
+        _practiceSetupState.AvailableMapNameFilterBuffer = insertResult.Text;
+        _practiceSetupState.AvailableMapNameFilterCursorIndex = insertResult.CursorIndex;
+        _practiceSetupState.AvailableMapNameFilterSelectionStart = insertResult.SelectionStart;
+        _practiceSetupState.NotifyAvailableMapFiltersChanged();
+        return true;
     }
 
     private void EnsurePracticeMapBrowserPreview(string? levelName)
@@ -781,94 +599,6 @@ public partial class Game1
         _practiceMapBrowserPreviewLevelName = null;
     }
 
-    private PracticeMapBrowserLayout GetPracticeMapBrowserLayout()
-    {
-        var panelWidth = Math.Min(ViewportWidth - 32, 900);
-        var panelHeight = Math.Min(ViewportHeight - 32, 620);
-        var panel = new Rectangle(
-            (ViewportWidth - panelWidth) / 2,
-            (ViewportHeight - panelHeight) / 2,
-            panelWidth,
-            panelHeight);
-
-        var compact = panel.Width < 760 || panel.Height < 560;
-        var padding = compact ? 16 : 20;
-        var controlHeight = compact ? 30 : 34;
-        var topY = panel.Y + (compact ? 48 : 54);
-        var buttonHeight = compact ? 32 : 36;
-        var buttonY = panel.Bottom - padding - buttonHeight;
-        var listTop = topY + controlHeight + (compact ? 16 : 20);
-        var contentBottom = buttonY - (compact ? 12 : 16);
-        var contentHeight = Math.Max(120, contentBottom - listTop);
-        var scrollbarWidth = 10;
-        var listWidth = Math.Clamp((int)(panel.Width * 0.46f), 260, 400);
-        var listBounds = new Rectangle(panel.X + padding, listTop, listWidth, contentHeight);
-        var previewBounds = new Rectangle(
-            listBounds.Right + scrollbarWidth + padding,
-            listTop,
-            panel.Right - padding - (listBounds.Right + scrollbarWidth + padding),
-            contentHeight);
-        var searchWidth = Math.Max(180, listWidth);
-        var searchBounds = new Rectangle(panel.X + padding, topY, searchWidth, controlHeight);
-        var modeBounds = new Rectangle(searchBounds.Right + 12, topY, compact ? 72 : 84, controlHeight);
-        var baseBounds = new Rectangle(modeBounds.Right + 10, topY, compact ? 78 : 88, controlHeight);
-        var customBounds = new Rectangle(baseBounds.Right + 8, topY, compact ? 98 : 110, controlHeight);
-        var resetBounds = new Rectangle(panel.Right - padding - (compact ? 72 : 84), topY, compact ? 72 : 84, controlHeight);
-        var closeWidth = compact ? 92 : 110;
-        var selectWidth = compact ? 100 : 120;
-        var closeBounds = new Rectangle(panel.Right - padding - closeWidth, buttonY, closeWidth, buttonHeight);
-        var selectBounds = new Rectangle(closeBounds.X - 12 - selectWidth, buttonY, selectWidth, buttonHeight);
-        var rowHeight = compact ? 28 : 30;
-        var visibleRows = Math.Max(1, listBounds.Height / rowHeight);
-
-        return new PracticeMapBrowserLayout(
-            panel,
-            searchBounds,
-            modeBounds,
-            baseBounds,
-            customBounds,
-            resetBounds,
-            listBounds,
-            previewBounds,
-            selectBounds,
-            closeBounds,
-            rowHeight,
-            visibleRows,
-            scrollbarWidth);
-    }
-
-    private static Rectangle GetPracticeMapBrowserListInteractionBounds(PracticeMapBrowserLayout layout)
-    {
-        return new Rectangle(
-            layout.ListBounds.X,
-            layout.ListBounds.Y,
-            layout.ListBounds.Width + layout.ScrollbarWidth + 8,
-            layout.ListBounds.Height);
-    }
-
-    private bool TryGetPracticeMapBrowserListHit(
-        Point mousePosition,
-        PracticeMapBrowserLayout layout,
-        IReadOnlyList<PracticeMapEntry> entries,
-        out int hitIndex)
-    {
-        hitIndex = -1;
-        if (!GetPracticeMapBrowserListInteractionBounds(layout).Contains(mousePosition))
-        {
-            return false;
-        }
-
-        var visibleIndex = (mousePosition.Y - layout.ListBounds.Y) / layout.RowHeight;
-        var entryIndex = _practiceSetupState.MapBrowserScrollOffset + visibleIndex;
-        if (visibleIndex < 0 || entryIndex < 0 || entryIndex >= entries.Count)
-        {
-            return false;
-        }
-
-        hitIndex = entryIndex;
-        return true;
-    }
-
     private PracticeSetupLayout GetPracticeSetupLayout()
     {
         var panelWidth = Math.Min(ViewportWidth - 32, 700);
@@ -882,18 +612,18 @@ public partial class Game1
         var compactLayout = panel.Height < 580 || panel.Width < 640;
         var shortLayout = panel.Height < 500;
         var padding = shortLayout ? 16 : compactLayout ? 20 : 28;
-        var rowHeight = shortLayout ? 30 : compactLayout ? 36 : 42;
-        var rowGap = shortLayout ? 4 : compactLayout ? 8 : 10;
-        var selectorButtonWidth = shortLayout ? 30 : compactLayout ? 34 : 40;
-        var contentTop = panel.Y + (shortLayout ? 46 : compactLayout ? 58 : 72);
+        var rowHeight = shortLayout ? 26 : compactLayout ? 28 : 32;
+        var rowGap = shortLayout ? 6 : compactLayout ? 8 : 10;
+        var selectorButtonWidth = shortLayout ? 28 : compactLayout ? 32 : 36;
+        var contentTop = panel.Y + (shortLayout ? 44 : compactLayout ? 54 : 64);
         var labelWidth = shortLayout ? 112 : compactLayout ? 126 : 150;
         var selectorLeft = panel.X + padding + labelWidth;
         var selectorWidth = panel.Width - (padding * 2) - labelWidth;
         var selectorValueWidth = selectorWidth - (selectorButtonWidth * 2) - 16;
-        var buttonHeight = shortLayout ? 32 : compactLayout ? 36 : 42;
+        var buttonHeight = shortLayout ? 30 : compactLayout ? 34 : 38;
         var actionGap = shortLayout ? 6 : compactLayout ? 8 : 12;
         var actionWidth = (panel.Width - (padding * 2) - (actionGap * 2)) / 3;
-        var actionsY = panel.Bottom - padding - buttonHeight - (shortLayout ? 0 : 4);
+        var actionsY = panel.Bottom - padding - buttonHeight;
 
         var mapLeftBounds = new Rectangle(selectorLeft, contentTop, selectorButtonWidth, rowHeight);
         var mapValueBounds = new Rectangle(mapLeftBounds.Right + 8, contentTop, selectorValueWidth, rowHeight);
@@ -923,11 +653,9 @@ public partial class Game1
         var friendlyBotsValueBounds = OffsetPracticeRow(enemyBotsValueBounds, rowHeight + rowGap);
         var friendlyBotsRightBounds = OffsetPracticeRow(enemyBotsRightBounds, rowHeight + rowGap);
 
-        var specialAbilitiesY = friendlyBotsLeftBounds.Y + rowHeight + rowGap;
-        var specialAbilitiesX = selectorLeft;
-        var specialAbilitiesWidth = selectorWidth;
-        var specialAbilitiesBounds = new Rectangle(specialAbilitiesX, specialAbilitiesY, specialAbilitiesWidth, rowHeight);
-        var vipRulesBounds = OffsetPracticeRow(specialAbilitiesBounds, rowHeight + rowGap);
+        var specialAbilitiesLeftBounds = OffsetPracticeRow(friendlyBotsLeftBounds, rowHeight + rowGap);
+        var specialAbilitiesValueBounds = OffsetPracticeRow(friendlyBotsValueBounds, rowHeight + rowGap);
+        var specialAbilitiesRightBounds = OffsetPracticeRow(friendlyBotsRightBounds, rowHeight + rowGap);
 
         var startBounds = new Rectangle(panel.X + padding, actionsY, actionWidth, buttonHeight);
         var clientPowersBounds = new Rectangle(startBounds.Right + actionGap, actionsY, actionWidth, buttonHeight);
@@ -956,8 +684,9 @@ public partial class Game1
             friendlyBotsLeftBounds,
             friendlyBotsValueBounds,
             friendlyBotsRightBounds,
-            specialAbilitiesBounds,
-            vipRulesBounds,
+            specialAbilitiesLeftBounds,
+            specialAbilitiesValueBounds,
+            specialAbilitiesRightBounds,
             startBounds,
             clientPowersBounds,
             backBounds,
@@ -969,14 +698,16 @@ public partial class Game1
         Rectangle valueBounds,
         Rectangle rightBounds,
         string valueText,
-        bool compactLayout,
         float buttonScale,
         float valueScale,
-        bool highlighted)
+        bool leftHighlighted,
+        bool valueHighlighted,
+        bool rightHighlighted,
+        bool enabled = true)
     {
-        DrawMenuButtonCentered(leftBounds, "<", highlighted, buttonScale);
-        DrawMenuInputBoxScaled(valueBounds, valueText, highlighted, valueScale);
-        DrawMenuButtonCentered(rightBounds, ">", highlighted, buttonScale);
+        DrawMenuButtonCentered(leftBounds, "<", leftHighlighted, buttonScale, enabled);
+        DrawMenuSelectorValueScaled(valueBounds, valueText, valueHighlighted, valueScale, enabled);
+        DrawMenuButtonCentered(rightBounds, ">", rightHighlighted, buttonScale, enabled);
     }
 
     private static Rectangle OffsetPracticeRow(Rectangle bounds, int offsetY)
@@ -995,6 +726,7 @@ public partial class Game1
             GameModeKind.DoubleKingOfTheHill => "DKOTH",
             GameModeKind.TeamDeathmatch => "TDM",
             GameModeKind.Scr => "SCR",
+            GameModeKind.Vip => "VIP",
             _ => "CTF",
         };
         return entry.IsCustomMap

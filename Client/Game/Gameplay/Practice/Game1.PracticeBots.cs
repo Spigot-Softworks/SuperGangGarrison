@@ -388,7 +388,7 @@ public partial class Game1
             return [forcedClass];
         }
 
-        return _world.IsVipModeActive || _practiceVipRulesEnabled
+        return _world.IsVipModeActive
             ? VipPracticeBotClassCycle
             : PracticeBotClassCycle;
     }

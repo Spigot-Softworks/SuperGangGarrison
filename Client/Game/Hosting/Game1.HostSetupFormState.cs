@@ -769,28 +769,7 @@ public partial class Game1
 
         private static void AddVipMapEntries(List<OpenGarrisonMapRotationEntry> mapEntries)
         {
-            foreach (var definition in OpenGarrisonStockMapCatalog.Definitions.Where(definition => definition.Mode == GameModeKind.ControlPoint))
-            {
-                if (!mapEntries.Any(entry => string.Equals(entry.LevelName, definition.LevelName, StringComparison.OrdinalIgnoreCase))
-                    || !OpenGarrisonStockMapCatalog.TryGetDefinition(OpenGarrisonStockMapCatalog.GetVipIniKey(definition), out var vipDefinition)
-                    || mapEntries.Any(entry =>
-                        string.Equals(entry.IniKey, vipDefinition.IniKey, StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(entry.LevelName, vipDefinition.LevelName, StringComparison.OrdinalIgnoreCase)))
-                {
-                    continue;
-                }
-
-                mapEntries.Add(new OpenGarrisonMapRotationEntry
-                {
-                    IniKey = vipDefinition.IniKey,
-                    LevelName = vipDefinition.LevelName,
-                    DisplayName = vipDefinition.DisplayName,
-                    Mode = GameModeKind.Vip,
-                    IsCustomMap = false,
-                    DefaultOrder = 0,
-                    Order = 0,
-                });
-            }
+            OpenGarrisonStockMapCatalog.AppendVipMapDuplicates(mapEntries);
         }
 
         private static void ApplyConfiguredMapRotation(

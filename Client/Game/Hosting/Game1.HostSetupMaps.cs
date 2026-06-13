@@ -195,6 +195,7 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, dropdownBounds, new Color(46, 40, 35, 255));
         DrawRoundedRectangleOutline(dropdownBounds, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 2, radius: 6);
 
+        var mousePosition = GetScaledMouseState(GetConstrainedMouseState(Game1.GetCurrentMouseState())).Position;
         for (var index = 0; index < options.Count; index += 1)
         {
             var optionBounds = new Rectangle(
@@ -203,7 +204,13 @@ public partial class Game1
                 dropdownBounds.Width - 8,
                 optionHeight - 2);
             var isSelected = _hostSetupState.AvailableMapModeFilter == options[index];
-            _spriteBatch.Draw(_pixel, optionBounds, isSelected ? new Color(75, 67, 62) : new Color(54, 47, 41));
+            var isHovered = optionBounds.Contains(mousePosition);
+            var fillColor = isSelected
+                ? new Color(75, 67, 62)
+                : isHovered
+                    ? new Color(96, 88, 82)
+                    : new Color(54, 47, 41);
+            _spriteBatch.Draw(_pixel, optionBounds, fillColor);
             var text = GetHostSetupMapModeFilterLabel(options[index]);
             var optionTextY = optionBounds.Y + ((optionBounds.Height - MeasureBitmapFontHeight(1f)) * 0.5f);
             DrawBitmapFontText(text, new Vector2(optionBounds.X + 8f, optionTextY), Color.White, 1f);
@@ -677,14 +684,12 @@ public partial class Game1
     private static bool TryGetHostSetupVipVariantLevelName(OpenGarrisonMapRotationEntry entry, out string vipLevelName)
     {
         vipLevelName = string.Empty;
-        if (entry.Mode != GameModeKind.ControlPoint
-            || !OpenGarrisonStockMapCatalog.TryGetDefinition(entry.LevelName, out var definition)
-            || definition.Mode != GameModeKind.ControlPoint)
+        if (!OpenGarrisonStockMapCatalog.IsCpPrefixedIniKey(entry.IniKey) || entry.Mode == GameModeKind.Vip)
         {
             return false;
         }
 
-        vipLevelName = OpenGarrisonStockMapCatalog.GetVipIniKey(definition);
+        vipLevelName = OpenGarrisonStockMapCatalog.GetVipIniKeyForRotationEntry(entry);
         return true;
     }
 
@@ -931,6 +936,24 @@ public partial class Game1
     {
         _hostSetupHoverIndex = -1;
         _hostSetupPlaylistHoverIndex = -1;
+
+        if (_hostSetupState.ModeFilterDropdownOpen)
+        {
+            var options = GetHostSetupMapModeFilterOptions();
+            if (layout.GetModeFilterDropdownBounds(options.Count).Contains(mouse.Position))
+            {
+                return;
+            }
+        }
+
+        if (_hostSetupState.FiltersPopupOpen)
+        {
+            if (layout.GetFiltersPopupLayout().PopupBounds.Contains(mouse.Position))
+            {
+                return;
+            }
+        }
+
         if (GetHostSetupMapListInteractionBounds(layout.AvailableListRowsBounds, layout.ScrollbarWidth).Contains(mouse.Position))
         {
             var visibleIndex = (mouse.Y - layout.AvailableListRowsBounds.Y) / layout.RowHeight;
