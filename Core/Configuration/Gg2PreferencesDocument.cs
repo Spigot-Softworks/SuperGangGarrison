@@ -9,7 +9,7 @@ namespace OpenGarrison.Core;
 public sealed class OpenGarrisonPreferencesDocument
 {
     public const string DefaultFileName = "OpenGarrison.ini";
-    public const string DefaultApiBaseUrl = "https://api.unkind-dev.com";
+    public const string DefaultApiBaseUrl = "https://api.superganggarrison.com";
     public const string DefaultLobbyHost = DefaultApiBaseUrl + "/api/servers";
     public const int DefaultLobbyPort = 443;
     public const DisplayModeKind DefaultDisplayMode = DisplayModeKind.Windowed;

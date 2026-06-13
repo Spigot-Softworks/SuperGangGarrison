@@ -16,7 +16,7 @@ incompatible clients.
 
 ```text
 OPENGARRISON_API_DB=/var/lib/opengarrison-api/opengarrison.db
-OPENGARRISON_API_CORS_ORIGINS=https://unkind-dev.com,https://www.unkind-dev.com
+OPENGARRISON_API_CORS_ORIGINS=https://superganggarrison.com,https://www.superganggarrison.com,https://play.superganggarrison.com,https://unkind-dev.com,https://www.unkind-dev.com
 OPENGARRISON_REGISTRY_TOKEN=optional-admin-token
 ```
 
