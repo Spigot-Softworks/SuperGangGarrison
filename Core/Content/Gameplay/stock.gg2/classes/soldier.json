@@ -7,7 +7,7 @@
     "primaryWeaponKillFeedSprite": "RocketKL"
   },
   "movement": {
-    "maxHealth": 175,
+    "maxHealth": 160,
     "collisionLeft": -6.0,
     "collisionTop": -8.0,
     "collisionRight": 7.0,
