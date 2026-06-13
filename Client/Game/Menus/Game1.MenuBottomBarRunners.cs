@@ -139,10 +139,9 @@ public partial class Game1
             var position = new Vector2(runner.X, yPosition);
 
             // Calculate equipment offset (weapon bounce) based on animation frame
-            // Weapon is lower on frames 0, 3, 4, 7 and higher on frames 1, 2, 5, 6
             var equipmentOffset = 0f;
             var frame = (int)System.MathF.Floor(runner.AnimationFrame) % 8;
-            if (frame == 0 || frame == 3 || frame == 4 || frame == 7)
+            if (GameplayPlayerSpriteRenderController.IsRunEquipmentLowerFrame(frame))
             {
                 equipmentOffset -= 2f;
             }

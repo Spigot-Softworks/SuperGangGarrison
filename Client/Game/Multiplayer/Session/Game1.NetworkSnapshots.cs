@@ -248,6 +248,7 @@ public partial class Game1
 
         _lastAppliedSnapshotLocalPlayerId = currentLocalPlayerId;
         ObserveAppliedNetworkWorldSnapshot(snapshot, isServerFullSnapshot);
+        ProcessOnlineCivvieMoneyTrailPresentation(snapshot);
 
         if (!_classSelectOpen)
         {

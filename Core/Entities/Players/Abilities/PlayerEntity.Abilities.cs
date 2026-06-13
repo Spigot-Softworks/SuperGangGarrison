@@ -9,6 +9,7 @@ public sealed partial class PlayerEntity
     {
         if (!IsAlive
             || IsTaunting
+            || IsCivviePogoActive
             || IsHeavyEating
             || IsSpyCloaked
             || IsSpyBackstabAnimating
@@ -23,6 +24,29 @@ public sealed partial class PlayerEntity
         TauntFrameIndex = 0f;
         TauntInputReleaseRequired = true;
         return true;
+    }
+
+    public void BeginPendingCivvieTauntHeal()
+    {
+        if (ClassId != PlayerClass.Quote)
+        {
+            CivvieTauntHealPending = false;
+            return;
+        }
+
+        CivvieTauntHealPending = true;
+    }
+
+    public bool ShouldTriggerCivvieTauntHeal(int healFrameIndex = CivvieTauntHealFrameIndex)
+    {
+        return CivvieTauntHealPending
+            && IsTaunting
+            && (int)MathF.Floor(TauntFrameIndex) >= Math.Max(0, healFrameIndex);
+    }
+
+    public void MarkCivvieTauntHealTriggered()
+    {
+        CivvieTauntHealPending = false;
     }
 
     public void ObserveTauntInput(bool isHeld)
@@ -145,6 +169,7 @@ public sealed partial class PlayerEntity
         }
 
         IsTaunting = false;
+        CivvieTauntHealPending = false;
         TauntRestartCooldownTicksRemaining = TauntRestartCooldownTicks;
     }
 

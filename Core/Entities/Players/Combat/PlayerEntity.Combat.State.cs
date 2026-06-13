@@ -110,6 +110,8 @@ public sealed partial class PlayerEntity
         TauntFrameIndex = 0f;
         TauntRestartCooldownTicksRemaining = 0;
         TauntInputReleaseRequired = false;
+        CivvieTauntHealPending = false;
+        CivviePogoSuperJumpSoundPending = false;
         IsSniperScoped = false;
         SniperChargeTicks = 0;
         UberTicksRemaining = 0;
@@ -123,6 +125,7 @@ public sealed partial class PlayerEntity
         PyroAirblastCooldownTicks = 0;
         PyroFlareCooldownTicks = 0;
         ResetCivvieUmbrellaState();
+        DeactivateCivviePogo();
         IsPyroPrimaryRefilling = false;
         PyroFlameLoopTicksRemaining = 0;
         ClearRecentDamageDealers();
@@ -341,11 +344,6 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        if (CivvieUmbrellaAirblastCooldownTicksRemaining > 0)
-        {
-            CivvieUmbrellaAirblastCooldownTicksRemaining -= 1;
-        }
-
         if (IsCivvieUmbrellaActive)
         {
             CivvieUmbrellaChargeTicks = Math.Max(0, CivvieUmbrellaChargeTicks - holdDrainPerTick);
@@ -362,8 +360,26 @@ public sealed partial class PlayerEntity
                 IsCivvieUmbrellaBroken = false;
             }
         }
+    }
 
-        IsCivvieUmbrellaActive = false;
+    public void SyncCivvieUmbrellaSecondaryInput(bool secondaryHeld)
+    {
+        if (ClassId != PlayerClass.Quote || !HasSecondaryBehavior(BuiltInGameplayBehaviorIds.CivvieUmbrella))
+        {
+            return;
+        }
+
+        if (!secondaryHeld)
+        {
+            IsCivvieUmbrellaActive = false;
+        }
+    }
+
+    public bool ShouldPausePrimaryReloadForCivvieUmbrella()
+    {
+        return ClassId == PlayerClass.Quote
+            && IsCivvieUmbrellaActive
+            && HasSecondaryBehavior(BuiltInGameplayBehaviorIds.CivvieUmbrella);
     }
 
     public bool TryActivateCivvieUmbrella(int maxChargeTicks = CivvieUmbrellaMaxChargeTicks)
@@ -373,6 +389,7 @@ public sealed partial class PlayerEntity
         if (!IsAlive
             || ClassId != PlayerClass.Quote
             || !HasSecondaryBehavior(BuiltInGameplayBehaviorIds.CivvieUmbrella)
+            || IsCivviePogoActive
             || IsCivvieUmbrellaBroken
             || CivvieUmbrellaChargeTicks <= 0)
         {
@@ -384,15 +401,35 @@ public sealed partial class PlayerEntity
         return true;
     }
 
-    public bool TryConsumeCivvieUmbrellaAirblast(int cooldownTicks)
+    public void BeginCivvieUmbrellaOpening()
     {
-        if (!IsCivvieUmbrellaActive || CivvieUmbrellaAirblastCooldownTicksRemaining > 0)
-        {
-            return false;
-        }
+        CivvieUmbrellaOpeningElapsedTicks = 0;
+        CivvieUmbrellaOpeningAirblastTriggered = false;
+    }
 
-        CivvieUmbrellaAirblastCooldownTicksRemaining = Math.Max(1, cooldownTicks);
-        return true;
+    public bool ShouldTriggerCivvieUmbrellaOpeningAirblast()
+    {
+        return !CivvieUmbrellaOpeningAirblastTriggered
+            && CivvieUmbrellaOpeningElapsedTicks >= CivvieUmbrellaAirblastOpeningTick;
+    }
+
+    public void MarkCivvieUmbrellaOpeningAirblastTriggered()
+    {
+        CivvieUmbrellaOpeningAirblastTriggered = true;
+    }
+
+    public void AdvanceCivvieUmbrellaOpeningTick()
+    {
+        if (CivvieUmbrellaOpeningElapsedTicks < CivvieUmbrellaOpeningDurationTicks)
+        {
+            CivvieUmbrellaOpeningElapsedTicks += 1;
+        }
+    }
+
+    private void ResetCivvieUmbrellaOpening()
+    {
+        CivvieUmbrellaOpeningElapsedTicks = 0;
+        CivvieUmbrellaOpeningAirblastTriggered = false;
     }
 
     public bool TryAbsorbCivvieUmbrellaHit(int drainTicks = CivvieUmbrellaImpactDrain)
@@ -416,7 +453,7 @@ public sealed partial class PlayerEntity
         CivvieUmbrellaChargeTicks = Math.Max(1, maxChargeTicks);
         IsCivvieUmbrellaActive = false;
         IsCivvieUmbrellaBroken = false;
-        CivvieUmbrellaAirblastCooldownTicksRemaining = 0;
+        ResetCivvieUmbrellaOpening();
     }
 
     private void BreakCivvieUmbrella()
@@ -424,6 +461,7 @@ public sealed partial class PlayerEntity
         CivvieUmbrellaChargeTicks = 0;
         IsCivvieUmbrellaActive = false;
         IsCivvieUmbrellaBroken = true;
+        ResetCivvieUmbrellaOpening();
     }
 
     private void AdvanceIntelCarryState()

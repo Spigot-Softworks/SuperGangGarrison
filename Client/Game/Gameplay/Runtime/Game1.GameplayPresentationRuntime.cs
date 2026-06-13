@@ -48,6 +48,8 @@ public partial class Game1
         UpdateVotePresentation(clientTicks);
         UpdateVipPresentation(clientTicks);
         UpdatePostGameMvpWinScreenState(keyboard, clientTicks);
+        PlayPendingCivvieMoneyTrailSpawns();
+        ObserveCivvieUmbrellaShieldBlocksFromPlayerState();
         PlayPendingVisualEvents();
         PlayPendingSoundEvents();
         DispatchPendingDamageEventsToPlugins();

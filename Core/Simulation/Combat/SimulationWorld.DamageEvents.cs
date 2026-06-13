@@ -57,14 +57,22 @@ public sealed partial class SimulationWorld
         float spyRevealAlpha = 0f,
         DamageEventFlags damageFlags = DamageEventFlags.None,
         bool allowOsmosisHealOwnedSentries = true,
-        bool allowCivvieUmbrellaShield = true)
+        bool allowCivvieUmbrellaShield = true,
+        float? civvieUmbrellaThreatSourceX = null,
+        float? civvieUmbrellaThreatSourceY = null)
     {
         if (damage <= 0 || !target.IsAlive)
         {
             return false;
         }
 
-        if (allowCivvieUmbrellaShield && TryAbsorbCivvieUmbrellaDamage(target, attacker, damageFlags))
+        if (allowCivvieUmbrellaShield
+            && TryAbsorbCivvieUmbrellaDamage(
+                target,
+                attacker,
+                damageFlags,
+                civvieUmbrellaThreatSourceX,
+                civvieUmbrellaThreatSourceY))
         {
             return false;
         }
@@ -164,14 +172,22 @@ public sealed partial class SimulationWorld
         float spyRevealAlpha = 0f,
         DamageEventFlags damageFlags = DamageEventFlags.None,
         bool allowOsmosisHealOwnedSentries = true,
-        bool allowCivvieUmbrellaShield = true)
+        bool allowCivvieUmbrellaShield = true,
+        float? civvieUmbrellaThreatSourceX = null,
+        float? civvieUmbrellaThreatSourceY = null)
     {
         if (damage <= 0f || !target.IsAlive)
         {
             return false;
         }
 
-        if (allowCivvieUmbrellaShield && TryAbsorbCivvieUmbrellaDamage(target, attacker, damageFlags))
+        if (allowCivvieUmbrellaShield
+            && TryAbsorbCivvieUmbrellaDamage(
+                target,
+                attacker,
+                damageFlags,
+                civvieUmbrellaThreatSourceX,
+                civvieUmbrellaThreatSourceY))
         {
             return false;
         }
@@ -268,11 +284,23 @@ public sealed partial class SimulationWorld
     private bool TryAbsorbCivvieUmbrellaDamage(
         PlayerEntity target,
         PlayerEntity? attacker,
-        DamageEventFlags damageFlags)
+        DamageEventFlags damageFlags,
+        float? threatSourceX = null,
+        float? threatSourceY = null)
     {
         if (attacker is null
             || ReferenceEquals(attacker, target)
             || attacker.Team == target.Team
+            || !target.IsCivvieUmbrellaActive
+            || target.IsCivvieUmbrellaBroken
+            || target.CivvieUmbrellaChargeTicks <= 0)
+        {
+            return false;
+        }
+
+        var resolvedThreatSourceX = threatSourceX ?? attacker.X;
+        var resolvedThreatSourceY = threatSourceY ?? attacker.Y;
+        if (!IsCivvieUmbrellaFrontThreat(target, resolvedThreatSourceX, resolvedThreatSourceY)
             || !target.TryAbsorbCivvieUmbrellaHit())
         {
             return false;
@@ -303,6 +331,14 @@ public sealed partial class SimulationWorld
         if (attacker is null
             || ReferenceEquals(attacker, target)
             || attacker.Team == target.Team
+            || !target.IsCivvieUmbrellaActive
+            || target.IsCivvieUmbrellaBroken
+            || target.CivvieUmbrellaChargeTicks <= 0)
+        {
+            return false;
+        }
+
+        if (!IsCivvieUmbrellaFrontThreat(target, hitX, hitY)
             || !target.TryAbsorbCivvieUmbrellaHit())
         {
             return false;
@@ -329,6 +365,24 @@ public sealed partial class SimulationWorld
         var aimWorldY = target.Y + MathF.Sin(aimRadians) * 128f;
         var tip = WeaponHandler.GetCivvieUmbrellaTip(target, aimWorldX, aimWorldY);
         return (tip.X, tip.Y);
+    }
+
+    private static bool IsCivvieUmbrellaFrontThreat(PlayerEntity target, float threatSourceX, float threatSourceY)
+    {
+        var deltaX = threatSourceX - target.X;
+        var deltaY = threatSourceY - target.Y;
+        if ((deltaX * deltaX) + (deltaY * deltaY) < 0.0001f)
+        {
+            return true;
+        }
+
+        var aimRadians = DegreesToRadians(target.AimDirectionDegrees);
+        var forwardX = MathF.Cos(aimRadians);
+        var forwardY = MathF.Sin(aimRadians);
+        var length = MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+        var threatDirX = deltaX / length;
+        var threatDirY = deltaY / length;
+        return ((threatDirX * forwardX) + (threatDirY * forwardY)) > 0f;
     }
 
     private bool TryRegisterExperimentalGhostDashEvade(

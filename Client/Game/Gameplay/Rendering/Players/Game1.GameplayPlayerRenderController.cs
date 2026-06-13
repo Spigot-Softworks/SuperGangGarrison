@@ -37,11 +37,7 @@ public partial class Game1
             var bodySelection = _game.GetPlayerBodySpriteSelection(player);
             _game.DrawExperimentalDemoknightChargeBlur(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
             _game.DrawCapturedPointHealingGhosting(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
-            var hideWeaponSprite = ShouldHideCivilianIdleWeaponSprite(player, bodySelection);
-            if (!hideWeaponSprite)
-            {
-                _game.TryDrawWeaponSpriteBackdrop(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
-            }
+            _game.TryDrawWeaponSpriteBackdrop(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
 
             if (!_game.TryDrawPlayerSprite(player, cameraPosition, spriteTint, bodySelection))
             {
@@ -49,7 +45,7 @@ public partial class Game1
             }
 
             _game.DrawExperimentalStickyGibBloodOverlay(player, cameraPosition, visibilityAlpha);
-            if (!hideWeaponSprite && !_game.GetPlayerIsHeavyEating(player) && !player.IsTaunting && !_game._world.IsPlayerHumiliated(player))
+            if (!_game.GetPlayerIsHeavyEating(player) && !player.IsTaunting && !player.IsCivviePogoActive && !_game._world.IsPlayerHumiliated(player))
             {
                 _game.TryDrawWeaponSprite(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
             }
@@ -88,13 +84,6 @@ public partial class Game1
         public static string GetHudPlayerLabel(PlayerEntity player)
         {
             return player.DisplayName;
-        }
-
-        public static bool ShouldHideCivilianIdleWeaponSprite(PlayerEntity player, PlayerBodySpriteSelection bodySelection)
-        {
-            return player.ClassId == PlayerClass.Quote
-                && !player.IsCivvieUmbrellaActive
-                && bodySelection.SpriteName is "CivvieRedS" or "CivvieBlueS";
         }
     }
 }

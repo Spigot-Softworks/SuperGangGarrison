@@ -25,6 +25,11 @@ public partial class Game1
 
         public bool TryDrawWeaponSpriteBackdrop(PlayerEntity player, Vector2 cameraPosition, Color tint, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
         {
+            if (player.IsCivviePogoActive)
+            {
+                return false;
+            }
+
             if (_game.ShouldHideLastToDieWeaponForPlayer(player))
             {
                 return false;
@@ -105,6 +110,11 @@ public partial class Game1
 
         public bool TryDrawWeaponSpriteAtPosition(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, Color tint, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
         {
+            if (player.IsCivviePogoActive)
+            {
+                return false;
+            }
+
             if (_game.ShouldHideLastToDieWeaponForPlayer(player))
             {
                 return false;
@@ -142,21 +152,25 @@ public partial class Game1
                 return false;
             }
 
-            var facingScale = GetRenderFacingScale(player);
-            var playerScale = player.PlayerScale;
-            var frameIndex = GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
-            var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
-            var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
-            var weaponAnchorOffsetX = weaponDefinition.XOffset + anchorOrigin.X;
-            var drawX = roundedOrigin.X + (weaponAnchorOffsetX * facingScale * playerScale);
-            var drawY = roundedOrigin.Y + ((weaponDefinition.YOffset + bodySelection.EquipmentOffset + anchorOrigin.Y) * playerScale);
-            var rotation = GetRenderWeaponRotation(player);
-            if (TryApplyLocalWeaponAim(player, roundedOrigin, weaponAnchorOffsetX, playerScale, ref facingScale, ref drawX, drawY, out var localAimRotation))
+            if (!TryGetWeaponDrawTransform(
+                    player,
+                    renderPosition,
+                    bodySelection,
+                    weaponAnimationMode,
+                    weaponDefinition,
+                    sprite,
+                    out var worldDrawX,
+                    out var worldDrawY,
+                    out var rotation,
+                    out var facingScale,
+                    out var playerScale))
             {
-                rotation = localAimRotation;
+                return false;
             }
 
-            var position = new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y);
+            var frameIndex = GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
+            var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
+            var position = new Vector2(worldDrawX - cameraPosition.X, worldDrawY - cameraPosition.Y);
             ResolveBakedFrame(player, spriteName, frameIndex, rotation,
                 sprite, facingScale, playerScale,
                 out var drawFrame, out var drawOrigin, out var drawRotation, out var scale);
@@ -195,7 +209,7 @@ public partial class Game1
             float visibilityAlpha,
             PlayerBodySpriteSelection bodySelection)
         {
-            if (visibilityAlpha <= 0f)
+            if (visibilityAlpha <= 0f || player.IsCivviePogoActive)
             {
                 return;
             }
@@ -222,9 +236,57 @@ public partial class Game1
                 return;
             }
 
-            var facingScale = GetRenderFacingScale(player);
-            var playerScale = player.PlayerScale;
-            var rotation = GetRenderWeaponRotation(player);
+            var renderPosition = _game.GetRenderPosition(player);
+            var weaponAnimationMode = player.IsCivvieUmbrellaActive
+                ? GetPlayerWeaponAnimationMode(player)
+                : WeaponAnimationMode.CivvieUmbrellaHold;
+            var weaponDefinition = GetWeaponRenderDefinition(player, forceCivvieUmbrellaPresentation: true);
+            var umbrellaSpriteName = weaponDefinition.NormalSpriteName;
+            if (umbrellaSpriteName is null)
+            {
+                return;
+            }
+
+            var umbrellaSprite = _game.GetResolvedSprite(umbrellaSpriteName);
+            if (umbrellaSprite is null || umbrellaSprite.Frames.Count == 0)
+            {
+                return;
+            }
+
+            if (!TryGetWeaponDrawTransform(
+                    player,
+                    renderPosition,
+                    bodySelection,
+                    weaponAnimationMode,
+                    weaponDefinition,
+                    umbrellaSprite,
+                    out var worldDrawX,
+                    out var worldDrawY,
+                    out var rotation,
+                    out var facingScale,
+                    out var playerScale))
+            {
+                return;
+            }
+
+            var umbrellaFrameIndex = GetWeaponSpriteFrameIndex(
+                player,
+                weaponAnimationMode,
+                weaponDefinition,
+                umbrellaSprite.Frames.Count);
+            ResolveBakedFrame(
+                player,
+                umbrellaSpriteName,
+                umbrellaFrameIndex,
+                rotation,
+                umbrellaSprite,
+                facingScale,
+                playerScale,
+                out var umbrellaOverlayFrame,
+                out var drawOrigin,
+                out var drawRotation,
+                out var scale);
+            var screenPosition = new Vector2(worldDrawX - cameraPosition.X, worldDrawY - cameraPosition.Y);
             for (var index = 0; index < _game._civvieUmbrellaShieldBlockVisuals.Count; index += 1)
             {
                 var visual = _game._civvieUmbrellaShieldBlockVisuals[index];
@@ -238,9 +300,7 @@ public partial class Game1
                     0,
                     shieldSprite.Frames.Count - 1);
                 var alpha = System.Math.Clamp(visual.TicksRemaining / (float)CivvieUmbrellaShieldBlockVisual.FadeTicks, 0f, 1f)
-                    * visibilityAlpha
-                    * 1f;
-                var position = new Vector2(visual.X - cameraPosition.X, visual.Y - cameraPosition.Y);
+                    * visibilityAlpha;
                 ResolveBakedFrame(
                     player,
                     shieldBlockSpriteName,
@@ -250,11 +310,78 @@ public partial class Game1
                     facingScale,
                     playerScale,
                     out var drawFrame,
-                    out var drawOrigin,
-                    out var drawRotation,
-                    out var scale);
-                _game.DrawSpriteFrame(drawFrame, position, Color.White * alpha, drawRotation, drawOrigin, scale);
+                    out _,
+                    out _,
+                    out _);
+                drawFrame = TrimShieldBlockFrameToUmbrellaOverlay(umbrellaOverlayFrame, drawFrame);
+                _game.DrawSpriteFrame(
+                    drawFrame,
+                    screenPosition,
+                    Color.White * alpha,
+                    drawRotation,
+                    drawOrigin,
+                    scale);
             }
+        }
+
+        private static LoadedSpriteFrame TrimShieldBlockFrameToUmbrellaOverlay(
+            LoadedSpriteFrame umbrellaFrame,
+            LoadedSpriteFrame shieldFrame)
+        {
+            var trimWidth = System.Math.Min(shieldFrame.Width, umbrellaFrame.Width);
+            var trimHeight = System.Math.Min(shieldFrame.Height, umbrellaFrame.Height);
+            var sourceRect = shieldFrame.SourceRectangle ?? new Rectangle(0, 0, shieldFrame.Width, shieldFrame.Height);
+            if (trimWidth == sourceRect.Width && trimHeight == sourceRect.Height)
+            {
+                return shieldFrame;
+            }
+
+            return new LoadedSpriteFrame(
+                shieldFrame.Texture,
+                SourceRectangle: new Rectangle(sourceRect.X, sourceRect.Y, trimWidth, trimHeight),
+                OwnsTexture: false,
+                OpaqueBounds: shieldFrame.OpaqueBounds,
+                PixelSource: shieldFrame.PixelSource);
+        }
+
+        private bool TryGetWeaponDrawTransform(
+            PlayerEntity player,
+            Vector2 renderPosition,
+            PlayerBodySpriteSelection bodySelection,
+            WeaponAnimationMode weaponAnimationMode,
+            WeaponRenderDefinition weaponDefinition,
+            LoadedGameMakerSprite sprite,
+            out float worldDrawX,
+            out float worldDrawY,
+            out float rotation,
+            out float facingScale,
+            out float playerScale)
+        {
+            worldDrawX = 0f;
+            worldDrawY = 0f;
+            rotation = 0f;
+            facingScale = 0f;
+            playerScale = 0f;
+
+            if (sprite.Frames.Count == 0)
+            {
+                return false;
+            }
+
+            facingScale = GetRenderFacingScale(player);
+            playerScale = player.PlayerScale;
+            var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
+            var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
+            var weaponAnchorOffsetX = weaponDefinition.XOffset + anchorOrigin.X;
+            worldDrawX = roundedOrigin.X + (weaponAnchorOffsetX * facingScale * playerScale);
+            worldDrawY = roundedOrigin.Y + ((weaponDefinition.YOffset + bodySelection.EquipmentOffset + anchorOrigin.Y) * playerScale);
+            rotation = GetRenderWeaponRotation(player);
+            if (TryApplyLocalWeaponAim(player, roundedOrigin, weaponAnchorOffsetX, playerScale, ref facingScale, ref worldDrawX, worldDrawY, out var localAimRotation))
+            {
+                rotation = localAimRotation;
+            }
+
+            return true;
         }
 
         public static float GetWeaponRotation(PlayerEntity player)
@@ -614,7 +741,7 @@ public partial class Game1
                     elapsedSeconds,
                     durationSeconds,
                     startFrame: 0,
-                    frameCount: System.Math.Min(3, perTeamFrames)),
+                    frameCount: System.Math.Min(PlayerEntity.CivvieUmbrellaOpeningFrameCount, perTeamFrames)),
                 WeaponAnimationMode.CivvieUmbrellaClosing => GetCivvieUmbrellaTimedFrame(
                     elapsedSeconds,
                     durationSeconds,

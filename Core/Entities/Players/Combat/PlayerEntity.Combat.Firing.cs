@@ -21,7 +21,8 @@ public sealed partial class PlayerEntity
             return true;
         }
 
-        if (!IsAlive || IsHeavyEating || IsTaunting || IsSpyCloaked || IsExperimentalCryoFrozen || PrimaryCooldownTicks > 0 || (!ignoreAmmoCost && CurrentShells < PrimaryWeapon.AmmoPerShot))
+        if (!IsAlive || IsHeavyEating || IsTaunting
+            || IsCivviePogoActive || IsSpyCloaked || IsExperimentalCryoFrozen || PrimaryCooldownTicks > 0 || (!ignoreAmmoCost && CurrentShells < PrimaryWeapon.AmmoPerShot))
         {
             return false;
         }
@@ -48,6 +49,7 @@ public sealed partial class PlayerEntity
             || !IsAlive
             || IsHeavyEating
             || IsTaunting
+            || IsCivviePogoActive
             || IsSpyCloaked
             || IsExperimentalCryoFrozen
             || AcquiredWeaponCooldownTicks > 0
@@ -97,6 +99,7 @@ public sealed partial class PlayerEntity
             || !IsAlive
             || IsHeavyEating
             || IsTaunting
+            || IsCivviePogoActive
             || IsSpyCloaked
             || IsExperimentalCryoFrozen
             || ExperimentalOffhandCooldownTicks > 0
@@ -127,7 +130,8 @@ public sealed partial class PlayerEntity
     public bool TryFireQuoteBubble(int activeProjectileLimit = QuoteBubbleLimit)
     {
         activeProjectileLimit = Math.Max(0, activeProjectileLimit);
-        if (!IsAlive || IsHeavyEating || IsTaunting || PrimaryCooldownTicks > 0 || QuoteBubbleCount >= activeProjectileLimit)
+        if (!IsAlive || IsHeavyEating || IsTaunting
+            || IsCivviePogoActive || PrimaryCooldownTicks > 0 || QuoteBubbleCount >= activeProjectileLimit)
         {
             return false;
         }
@@ -144,6 +148,7 @@ public sealed partial class PlayerEntity
         if (!IsAlive
             || IsHeavyEating
             || IsTaunting
+            || IsCivviePogoActive
             || PrimaryCooldownTicks > 0
             || QuoteBladesOut >= activeProjectileLimit
             || (!ignoreAmmoCost && CurrentShells < energyCost))
@@ -210,6 +215,7 @@ public sealed partial class PlayerEntity
             || ClassId != PlayerClass.Engineer
             || IsHeavyEating
             || IsTaunting
+            || IsCivviePogoActive
             || IsSpyCloaked
             || IsExperimentalCryoFrozen
             || PrimaryCooldownTicks > 0
@@ -238,6 +244,7 @@ public sealed partial class PlayerEntity
             || ClassId != PlayerClass.Soldier
             || IsHeavyEating
             || IsTaunting
+            || IsCivviePogoActive
             || IsSpyCloaked
             || PrimaryCooldownTicks > 0)
         {
@@ -254,6 +261,7 @@ public sealed partial class PlayerEntity
             || ClassId != PlayerClass.Soldier
             || IsHeavyEating
             || IsTaunting
+            || IsCivviePogoActive
             || IsSpyCloaked
             || PrimaryCooldownTicks > 0)
         {
@@ -270,6 +278,7 @@ public sealed partial class PlayerEntity
         return IsAlive
             && HasPyroWeaponEquipped
             && !IsTaunting
+            && !IsCivviePogoActive
             && PyroAirblastCooldownTicks <= 0
             && (HasInfiniteAmmoFromUber || GetPyroPrimaryFuelScaledValue() >= fuelCost * PyroPrimaryFuelScale);
     }
@@ -281,6 +290,7 @@ public sealed partial class PlayerEntity
             || !HasPyroWeaponEquipped
             || IsHeavyEating
             || IsTaunting
+            || IsCivviePogoActive
             || IsSpyCloaked
             || PyroPrimaryRequiresReleaseAfterEmpty)
         {
@@ -337,6 +347,7 @@ public sealed partial class PlayerEntity
         if (!IsAlive
             || !HasPyroWeaponEquipped
             || IsTaunting
+            || IsCivviePogoActive
             || PyroFlareCooldownTicks > 0
             || (!ignoreAmmoCost && GetPyroPrimaryFuelScaledValue() < PyroFlareCost * PyroPrimaryFuelScale))
         {

@@ -69,6 +69,7 @@ public sealed partial class GameplayRuntimeRegistry
         RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.QuoteBladeThrow, static context => context.World.ExecuteQuoteBladeThrowAbility(context));
         RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.CivvieUmbrella, static context => context.World.ExecuteCivvieUmbrellaAbility(context));
         RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.CivvieTaunt, static context => context.World.ExecuteCivvieTauntAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.CivviePogo, static context => context.World.ExecuteCivviePogoAbility(context));
         RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.ScoutTaunt, static context => context.World.ExecuteScoutTauntAbility(context));
         RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.ScoutNailgunToggle, static context => context.World.ExecuteScoutNailgunToggleAbility(context));
         RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SoldierSecondaryToggle, static context => context.World.ExecuteSoldierSecondaryToggleAbility(context));

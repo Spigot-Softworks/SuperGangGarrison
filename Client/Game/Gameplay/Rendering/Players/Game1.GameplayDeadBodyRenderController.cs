@@ -394,26 +394,14 @@ public partial class Game1
                     var frame = sprite.Frames[0];
                     var corpseOrigin = new Vector2(frame.Width * 0.5f, frame.Height - (height * 0.5f));
                     var drawPosition = new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y - cameraPosition.Y);
-                    var rotationRadians = 0f;
-                    if (ShouldRotateCivilianDeadBody(classId, spriteName))
-                    {
-                        rotationRadians = facingLeft ? -MathHelper.PiOver2 : MathHelper.PiOver2;
-                        drawPosition.Y += MathF.Max(2f, height * 0.35f);
-                    }
 
-                    _game.DrawSpriteFrameWithOptionalShadow(frame, drawPosition, Color.White, rotationRadians, corpseOrigin, new Vector2(facingLeft ? -1f : 1f, 1f));
+                    _game.DrawSpriteFrameWithOptionalShadow(frame, drawPosition, Color.White, 0f, corpseOrigin, new Vector2(facingLeft ? -1f : 1f, 1f));
                     return;
                 }
             }
 
             var rectangle = new Rectangle((int)(renderPosition.X - (width / 2f) - cameraPosition.X), (int)(renderPosition.Y - (height / 2f) - cameraPosition.Y), (int)width, (int)height);
             _game._spriteBatch.Draw(_game._pixel, rectangle, team == PlayerTeam.Blue ? new Color(24, 45, 80) : new Color(90, 30, 30));
-        }
-
-        private static bool ShouldRotateCivilianDeadBody(PlayerClass classId, string spriteName)
-        {
-            return classId == PlayerClass.Quote
-                && spriteName.StartsWith("Civvie", StringComparison.Ordinal);
         }
 
         private bool TryGetForcedLastToDieDeadBodyAnimationKindCore(int sourcePlayerId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind deadBodyAnimationKind, out ClientDeadBodyAnimationKind forcedAnimationKind)

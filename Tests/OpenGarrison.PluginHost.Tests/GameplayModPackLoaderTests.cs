@@ -313,6 +313,7 @@ public sealed class GameplayModPackLoaderTests
         Assert.True(pack.Items.ContainsKey("weapon.umbrella"));
         Assert.True(pack.Items.ContainsKey("ability.umbrella"));
         Assert.True(pack.Items.ContainsKey("ability.civilian-taunt"));
+        Assert.True(pack.Items.ContainsKey("ability.civilian-pogo"));
         Assert.True(pack.Classes.ContainsKey("soldier"));
         Assert.True(pack.Classes.ContainsKey("civilian"));
         Assert.Equal("soldier.stock", pack.Classes["soldier"].DefaultLoadoutId);
@@ -321,7 +322,7 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal("civilian.stock", civilianClass.DefaultLoadoutId);
         Assert.Equal("weapon.umbrella", civilianClass.Loadouts["civilian.stock"].PrimaryItemId);
         Assert.Equal("ability.umbrella", civilianClass.Loadouts["civilian.stock"].SecondaryItemId);
-        Assert.Equal("ability.civilian-taunt", civilianClass.Loadouts["civilian.stock"].UtilityItemId);
+        Assert.Equal("ability.civilian-pogo", civilianClass.Loadouts["civilian.stock"].UtilityItemId);
         Assert.Equal(nameof(PlayerClass.Quote), civilianClass.Runtime?.PlayerClass);
         Assert.Equal("CivvieUmbrellaKL", civilianClass.Runtime?.PrimaryWeaponKillFeedSprite);
         Assert.Equal("Civvie", civilianClass.Presentation?.SpritePrefix);
@@ -1188,7 +1189,7 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal("Civilian/Financier", registry.GetClassDefinition(PlayerClass.Quote).DisplayName);
         Assert.Equal("weapon.umbrella", registry.GetDefaultLoadout(PlayerClass.Quote).PrimaryItemId);
         Assert.Equal("ability.umbrella", registry.GetDefaultLoadout(PlayerClass.Quote).SecondaryItemId);
-        Assert.Equal("ability.civilian-taunt", registry.GetDefaultLoadout(PlayerClass.Quote).UtilityItemId);
+        Assert.Equal("ability.civilian-pogo", registry.GetDefaultLoadout(PlayerClass.Quote).UtilityItemId);
         Assert.Equal("Quote/Curly", registry.GetClassDefinition("plugin.quote-curly.quote").DisplayName);
         Assert.Equal("plugin.quote-curly.weapon.blade", registry.GetDefaultLoadout("plugin.quote-curly.quote").PrimaryItemId);
     }
@@ -1435,7 +1436,7 @@ public sealed class GameplayModPackLoaderTests
         Assert.All(umbrellaOpenAnim.SourceSet.SourceImages, frame => Assert.True(frame.Bytes.Length > 0));
         Assert.Equal(6, umbrellaShieldBlock.SourceSet.SourceImages.Count);
         Assert.All(umbrellaShieldBlock.SourceSet.SourceImages, frame => Assert.True(frame.Bytes.Length > 0));
-        Assert.Equal(35, umbrellaShieldBlock.Definition.Definition.OriginX);
+        Assert.Equal(10, umbrellaShieldBlock.Definition.Definition.OriginX);
         Assert.Equal(18, umbrellaShieldBlock.Definition.Definition.OriginY);
         Assert.Equal(2, umbrellaAmmoHud.SourceSet.SourceImages.Count);
         Assert.All(umbrellaAmmoHud.SourceSet.SourceImages, frame => Assert.True(frame.Bytes.Length > 0));

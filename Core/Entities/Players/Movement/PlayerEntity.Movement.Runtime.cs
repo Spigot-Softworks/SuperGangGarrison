@@ -126,6 +126,7 @@ public sealed partial class PlayerEntity
             AdvanceExperimentalPowerState();
             AdvanceWeaponState();
             AdvanceCivvieUmbrellaState();
+            AdvanceCivviePogoState();
             AdvanceHeavyState();
             AdvanceTauntState();
             AdvanceSniperState();
@@ -240,6 +241,21 @@ public sealed partial class PlayerEntity
             }
             HorizontalSpeed = SpySuperjumpHorizontalVelocity;
         }
+        else if (IsCivvieUmbrellaSlowFallAirMovementActive())
+        {
+            HorizontalSpeed = LegacyMovementModel.AdvanceHorizontalSpeed(
+                HorizontalSpeed,
+                RunPower * CivvieUmbrellaSlowFallRunPowerMultiplier,
+                GetMovementScale(input),
+                hasHorizontalInput,
+                horizontalDirection,
+                MovementState,
+                IsCarryingIntel,
+                dt,
+                isHumiliated,
+                CivvieUmbrellaSlowFallControlFactorScale,
+                CivvieUmbrellaSlowFallFrictionFactorScale);
+        }
         else
         {
             HorizontalSpeed = LegacyMovementModel.AdvanceHorizontalSpeed(
@@ -295,7 +311,7 @@ public sealed partial class PlayerEntity
             && ExperimentalDemoknightChargeFullControlEnabled
             && ExperimentalDemoknightChargeWantsLift
             && IsGrounded;
-        if (!IsAlive || !canMove || IsExperimentalCryoFrozen || (!jumpPressed && !allowHeldChargeJump))
+        if (!IsAlive || !canMove || IsExperimentalCryoFrozen || IsCivviePogoActive || (!jumpPressed && !allowHeldChargeJump))
         {
             return false;
         }
@@ -312,6 +328,7 @@ public sealed partial class PlayerEntity
         }
 
         GetCollisionBounds(out _, out _, out _, out var previousBottom);
+        var wasAirborneBeforeMove = !IsGrounded;
 
         var gravityPerTick = 0f;
         if (IsExperimentalGhostDashing && ExperimentalGhostDashDisablesGravity)
@@ -357,18 +374,40 @@ public sealed partial class PlayerEntity
 
         ClampTo(level.Bounds);
         AdvanceSourceFacingDirectionForNextStep();
+        TryApplyCivviePogoLandingBounce(wasAirborneBeforeMove);
+    }
+
+    private bool IsCivvieUmbrellaAimingUpForSlowFall()
+    {
+        if (ClassId != PlayerClass.Quote || !IsCivvieUmbrellaActive)
+        {
+            return false;
+        }
+
+        var aimRadians = AimDirectionDegrees * (MathF.PI / 180f);
+        return MathF.Sin(aimRadians) <= -MathF.Cos(CivvieUmbrellaSlowFallAimArcDegrees * (MathF.PI / 180f));
+    }
+
+    private bool IsCivvieUmbrellaSlowFalling()
+    {
+        return IsCivvieUmbrellaAimingUpForSlowFall() && VerticalSpeed >= 0f;
+    }
+
+    private bool IsCivvieUmbrellaSlowFallAirMovementActive()
+    {
+        return !IsGrounded && IsCivvieUmbrellaSlowFalling();
     }
 
     private float GetCivvieUmbrellaAdjustedGravityPerTick(float gravityPerTick)
     {
-        return gravityPerTick > 0f && IsCivvieUmbrellaActive && VerticalSpeed >= 0f
+        return gravityPerTick > 0f && IsCivvieUmbrellaSlowFalling()
             ? gravityPerTick * CivvieUmbrellaFallSpeedScale
             : gravityPerTick;
     }
 
     private void ClampCivvieUmbrellaFallSpeed()
     {
-        if (!IsCivvieUmbrellaActive || VerticalSpeed <= 0f)
+        if (!IsCivvieUmbrellaSlowFalling())
         {
             return;
         }

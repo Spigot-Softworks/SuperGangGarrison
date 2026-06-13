@@ -180,8 +180,7 @@ public partial class Game1
 
         private bool ShouldDrawStatusWeaponSprite(PlayerEntity player, PlayerBodySpriteSelection bodySelection)
         {
-            return !GameplayPlayerRenderController.ShouldHideCivilianIdleWeaponSprite(player, bodySelection)
-                && !_game.GetPlayerIsHeavyEating(player)
+            return !_game.GetPlayerIsHeavyEating(player)
                 && !player.IsTaunting
                 && !_game._world.IsPlayerHumiliated(player);
         }

@@ -9,8 +9,9 @@
     "executorId": "builtin.ability.civvie_taunt",
     "tags": [ "taunt", "healing" ],
     "parameters": {
-      "healAmount": 30,
-      "healRadius": 120
+      "healAmount": 15,
+      "healRadius": 120,
+      "healFrameIndex": 9
     }
   },
   "ammo": {},
