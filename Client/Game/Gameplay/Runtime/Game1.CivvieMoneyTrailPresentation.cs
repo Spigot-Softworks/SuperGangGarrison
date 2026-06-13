@@ -10,6 +10,7 @@ public partial class Game1
 {
     private readonly CivvieMoneyTrailTracker _civvieMoneyPresentationTracker = new();
     private readonly List<CivvieMoneyPickupParticipant> _civvieMoneyParticipantBuffer = new();
+    private readonly HashSet<int> _civvieMoneyTrailPlayerIds = new();
 
     private void ResetCivvieMoneyTrailPresentation()
     {
@@ -40,14 +41,27 @@ public partial class Game1
             ? snapshot.TickRate
             : SimulationConfig.DefaultTicksPerSecond;
 
-        foreach (var (_, player) in _world.EnumerateReplicatedNetworkPlayers())
+        // The replicated set covers remote players only; the locally-predicted player is not in it.
+        // Process the local player first (its predicted entity carries the authoritative taunt/movement
+        // state the trail rules need) and dedupe by id so it is never counted twice.
+        _civvieMoneyParticipantBuffer.Clear();
+        _civvieMoneyTrailPlayerIds.Clear();
+
+        var localPlayer = _world.LocalPlayer;
+        if (_civvieMoneyTrailPlayerIds.Add(localPlayer.Id))
         {
-            _civvieMoneyPresentationTracker.TryRegisterTrail(snapshot.Frame, ticksPerSecond, player);
+            _civvieMoneyPresentationTracker.TryRegisterTrail(snapshot.Frame, ticksPerSecond, localPlayer);
+            _civvieMoneyParticipantBuffer.Add(CivvieMoneyTrailTracker.CreateParticipant(localPlayer));
         }
 
-        _civvieMoneyParticipantBuffer.Clear();
         foreach (var (_, player) in _world.EnumerateReplicatedNetworkPlayers())
         {
+            if (!_civvieMoneyTrailPlayerIds.Add(player.Id))
+            {
+                continue;
+            }
+
+            _civvieMoneyPresentationTracker.TryRegisterTrail(snapshot.Frame, ticksPerSecond, player);
             _civvieMoneyParticipantBuffer.Add(CivvieMoneyTrailTracker.CreateParticipant(player));
         }
 
