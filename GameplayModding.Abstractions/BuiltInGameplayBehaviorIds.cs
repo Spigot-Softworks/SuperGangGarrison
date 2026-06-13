@@ -22,6 +22,7 @@ public static class BuiltInGameplayBehaviorIds
     public const string SniperBinoculars = "builtin.ability.sniper_binoculars";
     public const string MedicNeedlegun = "builtin.ability.medic_needlegun";
     public const string MedicKritzBeam = "builtin.ability.medic_kritz_beam";
+    public const string MedicKritzHealNeedles = "builtin.ability.medic_kritz_heal_needles";
     public const string MedicUber = "builtin.ability.medic_uber";
     public const string SpyCloak = "builtin.ability.spy_cloak";
     public const string SpySuperjump = "builtin.ability.spy_superjump";

@@ -195,7 +195,10 @@ public partial class Game1
         switch (player.ClassId)
         {
             case PlayerClass.Medic:
-                ratio = Math.Clamp(player.MedicUberCharge / Math.Max(1f, PlayerEntity.MedicUberMaxCharge), 0f, 1f);
+                player.GetMedicUberHudMeter(out var medicMeterValue, out var medicMeterMax);
+                ratio = medicMeterMax > 0f
+                    ? Math.Clamp(medicMeterValue / medicMeterMax, 0f, 1f)
+                    : 0f;
                 return true;
             case PlayerClass.Engineer:
                 if (TryFindSpectatorOwnedSentry(player, out var sentry))

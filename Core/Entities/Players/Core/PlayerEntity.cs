@@ -30,6 +30,8 @@ public sealed partial class PlayerEntity : SimulationEntity
     private const float MedicHealAmountPerTick = 1f;
     private const float MedicHalfHealAmountPerTick = 0.5f;
     public const float MedicUberMaxCharge = 2000f;
+    public const float MedicKritzUberReadyChargeFraction = 0.75f;
+    public const float MedicKritzUberReadyChargeThreshold = MedicUberMaxCharge * MedicKritzUberReadyChargeFraction;
     public const float MedicUberDurationSeconds = 8f;
     public const float MedicUberChargeDrainPerSourceTick = MedicUberMaxCharge / (MedicUberDurationSeconds * LegacyMovementModel.SourceTicksPerSecond);
     public const int MedicPassiveRegenIntervalSourceTicks = 30;
@@ -72,6 +74,8 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const float CivviePogoBaseBounceJumpScaleDefault = 0.5f;
     public const float CivviePogoSuperJumpScaleDefault = 1.125f;
     public const int CivviePogoCrunchDurationTicksDefault = 2;
+    public const int CivviePogoTrickDurationTicksDefault = 30;
+    public const int CivviePogoTrickFrameCountDefault = 2;
     public const int CivviePogoStuckSampleIntervalTicks = 6;
     public const float CivviePogoStuckMinVerticalMovement = 3f;
     public const int CivviePogoStuckRebounceCooldownTicksDefault = 6;
@@ -357,6 +361,14 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public float MedicUberCharge { get; private set; }
 
+    public float MedicUberCommittedCharge { get; private set; }
+
+    public int MedicUberingTicksRemaining { get; private set; }
+
+    public int MedicUberingTotalTicks { get; private set; }
+
+    public bool MedicUberUsesFixedDuration { get; private set; }
+
     public bool IsMedicUberReady { get; private set; }
 
     public bool IsMedicUbering { get; private set; }
@@ -384,6 +396,12 @@ public sealed partial class PlayerEntity : SimulationEntity
     public bool IsCivvieUmbrellaBroken { get; private set; }
 
     public bool IsCivviePogoActive { get; private set; }
+
+    public bool IsCivviePogoTrickActive => CivviePogoTrickTicksRemaining > 0;
+
+    public int CivviePogoTrickTicksRemaining { get; private set; }
+
+    public int CivviePogoTrickDurationAtStart => CivviePogoTrickDurationTicks;
 
     public int CivviePogoCrunchTicksRemaining { get; private set; }
 
@@ -797,6 +815,10 @@ public sealed partial class PlayerEntity : SimulationEntity
         }
 
         IsMedicUbering = false;
+        MedicUberCommittedCharge = 0f;
+        MedicUberingTicksRemaining = 0;
+        MedicUberingTotalTicks = 0;
+        MedicUberUsesFixedDuration = false;
         MedicNeedleCooldownTicks = 0;
         MedicNeedleRefillTicks = 0;
         ContinuousHealingAccumulator = 0f;
@@ -1035,6 +1057,7 @@ public sealed partial class PlayerEntity : SimulationEntity
     private void RefreshGameplayLoadoutState()
     {
         GameplayLoadoutState = CreateGameplayLoadoutState();
+        RefreshMedicUberReadyState();
     }
 
     private GameplayPlayerLoadoutState CreateGameplayLoadoutState()

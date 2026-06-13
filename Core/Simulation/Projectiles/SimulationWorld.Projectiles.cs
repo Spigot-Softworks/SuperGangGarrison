@@ -133,6 +133,34 @@ public sealed partial class SimulationWorld
         _entities.Add(needle.Id, needle);
     }
 
+    private void SpawnMedicHealNeedle(
+        PlayerEntity owner,
+        float x,
+        float y,
+        float velocityX,
+        float velocityY,
+        int healPerHit = MedicHealNeedleProjectileEntity.DefaultHealPerHit,
+        int enemyDamagePerHit = MedicHealNeedleProjectileEntity.DefaultEnemyDamagePerHit)
+    {
+        var needle = new MedicHealNeedleProjectileEntity(
+            AllocateEntityId(),
+            owner.Team,
+            owner.Id,
+            x,
+            y,
+            velocityX,
+            velocityY,
+            healPerHit,
+            enemyDamagePerHit);
+        if (owner.IsKritzCritBoosted)
+        {
+            needle.SetCritical();
+        }
+
+        _needles.Add(needle);
+        _entities.Add(needle.Id, needle);
+    }
+
     private void SpawnRevolverShot(PlayerEntity owner, float x, float y, float velocityX, float velocityY, float damagePerHit = RevolverProjectileEntity.DamagePerHit, string? killFeedWeaponSpriteNameOverride = null)
     {
         var shot = new RevolverProjectileEntity(

@@ -1,0 +1,20 @@
+Drop pogo trick frames here (same canvas size and alignment as Civvie*PogoS).
+
+Naming:
+  image 0.png
+  image 1.png
+  ...
+
+Red source art: Core/Content/Gameplay/stock.gg2/assets/civvie/CivvieRedPogoTrickS.images/
+Blue recolors:  Core/Content/Gameplay/stock.gg2/assets/civvie/CivvieBluePogoTrickS.images/
+
+Blue frames are generated from the red frames using the same team palette as Civvie*RunS / Civvie*PogoS.
+
+After adding or removing red frames, regenerate blue and update:
+  Core/Content/Gameplay/stock.gg2/sprites/CivvieBluePogoTrickS.json
+  Core/Content/Gameplay/stock.gg2/sprites/CivvieRedPogoTrickS.json
+  ability.civilian-taunt.json -> pogoTrickFrameCount
+
+Reference alignment (from CivvieBluePogoS):
+  originX 32, originY 52
+  mask rectangle left 20, top 26, right 42, bottom 63

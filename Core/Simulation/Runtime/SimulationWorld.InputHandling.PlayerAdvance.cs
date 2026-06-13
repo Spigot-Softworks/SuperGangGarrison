@@ -15,6 +15,7 @@ public sealed partial class SimulationWorld
         var preAdvanceY = player.Y;
         var isHumiliated = IsPlayerHumiliated(player);
         player.ObserveTauntInput(input.Taunt);
+        player.ObserveCivviePogoTrickInput(input.Taunt);
 
         if (isHumiliated)
         {

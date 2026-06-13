@@ -74,7 +74,7 @@ public sealed class GrenadeProjectileEntity : SimulationEntity
 
     public bool HasBounced { get; private set; }
 
-    public float CriticalDamageMultiplier => IsCritical ? ExperimentalGameplaySettings.DefaultCriticalDamageMultiplier : 1f;
+    public float CriticalDamageMultiplier => IsCritical ? ExperimentalGameplaySettings.KritzCriticalDamageMultiplier : 1f;
 
     public void SetCritical() { IsCritical = true; }
 

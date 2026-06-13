@@ -172,5 +172,50 @@ public sealed partial class SimulationWorld
                 launchedVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
                 launchedVelocityY);
         }
+
+        public void FireMedicKritzHealNeedle(
+            PlayerEntity attacker,
+            PrimaryWeaponDefinition weaponDefinition,
+            float aimWorldX,
+            float aimWorldY,
+            int healPerHit = MedicHealNeedleProjectileEntity.DefaultHealPerHit,
+            int enemyDamagePerHit = MedicHealNeedleProjectileEntity.DefaultEnemyDamagePerHit)
+        {
+            RegisterSoundEvent(attacker, "MedichaingunSnd");
+            var weaponOrigin = GetSourceWeaponOrigin(attacker, PlayerClass.Medic);
+            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
+            var aimDeltaY = aimWorldY - weaponOrigin.BaseY;
+            if (aimDeltaX == 0f && aimDeltaY == 0f)
+            {
+                aimDeltaX = attacker.FacingDirectionX;
+            }
+
+            var aimRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
+            var facingScale = MathF.Cos(aimRadians) < 0f ? -1f : 1f;
+            const float medicWeaponOffsetX = -7f;
+            const float medicWeaponOffsetY = 0f;
+            const float medicWeaponSpriteOriginX = 8f;
+            const float medicWeaponSpriteOriginY = 3f;
+            var shotOriginX = weaponOrigin.BaseX + ((medicWeaponOffsetX + medicWeaponSpriteOriginX) * facingScale);
+            var shotOriginY = weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + (medicWeaponOffsetY + weaponOrigin.EquipmentOffset + medicWeaponSpriteOriginY) - 2f;
+            var barrelForwardOffset = 18f;
+            var spreadRadians = GetWeaponSpreadRadians(attacker.Id, weaponDefinition.SpreadDegrees);
+            var directionRadians = MathF.Atan2(aimWorldY - shotOriginY, aimWorldX - shotOriginX) + spreadRadians;
+            var nominalSpawnX = shotOriginX + MathF.Cos(directionRadians) * barrelForwardOffset;
+            var nominalSpawnY = shotOriginY + MathF.Sin(directionRadians) * barrelForwardOffset;
+            var spawnBlocked = _world.IsProjectileSpawnBlocked(shotOriginX, shotOriginY, nominalSpawnX, nominalSpawnY, attacker.Team);
+            var (finalVelocityX, finalVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
+                attacker,
+                MathF.Cos(directionRadians) * weaponDefinition.MinShotSpeed,
+                MathF.Sin(directionRadians) * weaponDefinition.MinShotSpeed);
+            SpawnMedicHealNeedle(
+                attacker,
+                spawnBlocked ? shotOriginX : nominalSpawnX,
+                spawnBlocked ? shotOriginY : nominalSpawnY,
+                finalVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
+                finalVelocityY,
+                healPerHit,
+                enemyDamagePerHit);
+        }
     }
 }
