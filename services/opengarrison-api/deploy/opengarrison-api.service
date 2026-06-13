@@ -9,7 +9,7 @@ User=opengarrison
 Group=opengarrison
 WorkingDirectory=/opt/opengarrison-api
 Environment=OPENGARRISON_API_DB=/var/lib/opengarrison-api/opengarrison.db
-Environment=OPENGARRISON_API_CORS_ORIGINS=https://unkind-dev.com,https://www.unkind-dev.com
+Environment=OPENGARRISON_API_CORS_ORIGINS=https://superganggarrison.com,https://www.superganggarrison.com,https://play.superganggarrison.com,https://unkind-dev.com,https://www.unkind-dev.com
 ExecStart=/opt/opengarrison-api/.venv/bin/uvicorn app:app --host 127.0.0.1 --port 8008
 Restart=always
 RestartSec=3
