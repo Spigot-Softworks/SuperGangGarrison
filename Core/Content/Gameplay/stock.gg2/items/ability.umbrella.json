@@ -7,14 +7,13 @@
     "category": "secondary",
     "activation": "held",
     "executorId": "builtin.ability.civvie_umbrella",
-    "tags": [ "airblast", "shield", "cooldown" ],
+    "tags": [ "airblast", "shield" ],
     "parameters": {
       "maxChargeTicks": 360,
-      "holdDrainPerTick": 1,
+      "holdDrainPerTick": 0,
       "rechargePerTick": 1,
       "impactDrain": 30,
-      "brokenRechargeDelayTicks": 0,
-      "airblastCooldownTicks": 28
+      "brokenRechargeDelayTicks": 0
     }
   },
   "ammo": {},

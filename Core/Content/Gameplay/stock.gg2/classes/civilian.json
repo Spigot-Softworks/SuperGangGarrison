@@ -22,7 +22,11 @@
     "baseSuffix": "S",
     "runSuffix": "RunS",
     "jumpSuffix": "RunS",
-    "tauntSuffix": "TauntS"
+    "tauntSuffix": "TauntS",
+    "pogoSuffix": "PogoS",
+    "pogoIntelSuffix": "PogoIntelS",
+    "deadSuffix": "DeadS",
+    "intelSuffix": "IntelS"
   },
   "loadouts": {
     "civilian.stock": {
@@ -30,7 +34,7 @@
       "displayName": "Stock",
       "primaryItemId": "weapon.umbrella",
       "secondaryItemId": "ability.umbrella",
-      "utilityItemId": "ability.civilian-taunt"
+      "utilityItemId": "ability.civilian-pogo"
     }
   },
   "defaultLoadoutId": "civilian.stock"

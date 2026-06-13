@@ -59,6 +59,13 @@ public sealed partial class PlayerEntity
             return;
         }
 
+        if (ShouldPausePrimaryReloadForCivvieUmbrella())
+        {
+            AdvanceExperimentalOffhandWeaponState();
+            AdvanceAcquiredWeaponState();
+            return;
+        }
+
         if (ReloadTicksUntilNextShell > 0)
         {
             ReloadTicksUntilNextShell -= 1;

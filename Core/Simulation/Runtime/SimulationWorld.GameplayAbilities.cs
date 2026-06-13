@@ -750,21 +750,23 @@ public sealed partial class SimulationWorld
             "maxChargeTicks",
             PlayerEntity.CivvieUmbrellaMaxChargeTicks,
             minValue: 1);
-        var airblastCooldownTicks = GameplayAbilityParameterReader.GetInt(
-            context.Ability,
-            "airblastCooldownTicks",
-            PlayerEntity.CivvieUmbrellaAirblastCooldownTicks,
-            minValue: 1);
         if (!context.Player.TryActivateCivvieUmbrella(maxChargeTicks))
         {
             return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
         }
 
-        var openingThisTick = !context.PreviousInput.FireSecondary;
-        if (openingThisTick && context.Player.TryConsumeCivvieUmbrellaAirblast(airblastCooldownTicks))
+        if (!context.PreviousInput.FireSecondary)
+        {
+            context.Player.BeginCivvieUmbrellaOpening();
+        }
+
+        if (context.Player.ShouldTriggerCivvieUmbrellaOpeningAirblast())
         {
             TriggerCivvieUmbrellaAirblast(context.Player, context.Input.AimWorldX, context.Input.AimWorldY);
+            context.Player.MarkCivvieUmbrellaOpeningAirblastTriggered();
         }
+
+        context.Player.AdvanceCivvieUmbrellaOpeningTick();
 
         return GameplayAbilityResult.HandledAndConsumed;
     }
@@ -772,6 +774,33 @@ public sealed partial class SimulationWorld
     internal GameplayAbilityResult ExecuteCivvieTauntAbility(GameplayAbilityContext context)
     {
         return new GameplayAbilityResult(TryStartTauntWithCivvieHeal(context.Player, context.Ability), ConsumedInput: true);
+    }
+
+    internal GameplayAbilityResult ExecuteCivviePogoAbility(GameplayAbilityContext context)
+    {
+        if (context.Phase != GameplayAbilityInputPhase.Pressed)
+        {
+            return GameplayAbilityResult.Ignored;
+        }
+
+        var baseBounceJumpScale = GameplayAbilityParameterReader.GetFloat(
+            context.Ability,
+            "baseBounceJumpScale",
+            PlayerEntity.CivviePogoBaseBounceJumpScaleDefault,
+            minValue: 0f);
+        var superJumpScale = GameplayAbilityParameterReader.GetFloat(
+            context.Ability,
+            "superJumpScale",
+            PlayerEntity.CivviePogoSuperJumpScaleDefault,
+            minValue: 0f);
+        var crunchDurationTicks = GameplayAbilityParameterReader.GetInt(
+            context.Ability,
+            "crunchDurationTicks",
+            PlayerEntity.CivviePogoCrunchDurationTicksDefault,
+            minValue: 1);
+        return new GameplayAbilityResult(
+            context.Player.TryToggleCivviePogo(baseBounceJumpScale, superJumpScale, crunchDurationTicks),
+            ConsumedInput: true);
     }
 
     internal GameplayAbilityResult ExecuteScoutTauntAbility(GameplayAbilityContext context)
@@ -786,24 +815,68 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        TryApplyCivvieTauntHeal(player, ability);
+        player.BeginPendingCivvieTauntHeal();
         return true;
     }
 
-    private void TryApplyCivvieTauntHeal(PlayerEntity player, GameplayAbilityDefinition? ability)
+    private void TryApplyPendingCivvieTauntHeal(PlayerEntity player)
     {
-        if (player.ClassId != PlayerClass.Quote
-            || !player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.CivvieTaunt))
+        if (player.ClassId != PlayerClass.Quote)
         {
             return;
         }
 
+        GameplayAbilityDefinition? ability = null;
+        CharacterClassCatalog.RuntimeRegistry.TryGetGameplayAbilityDefinition(
+            PlayerEntity.CivvieTauntAbilityItemId,
+            out _,
+            out ability);
+
+        var healFrameIndex = ability is null
+            ? PlayerEntity.CivvieTauntHealFrameIndex
+            : GameplayAbilityParameterReader.GetInt(
+                ability,
+                "healFrameIndex",
+                PlayerEntity.CivvieTauntHealFrameIndex,
+                minValue: 0);
+        if (!player.ShouldTriggerCivvieTauntHeal(healFrameIndex))
+        {
+            return;
+        }
+
+        player.MarkCivvieTauntHealTriggered();
+        TryApplyCivvieTauntHeal(player, ability);
+    }
+
+    private void TryApplyCivvieTauntHeal(PlayerEntity player, GameplayAbilityDefinition? ability)
+    {
+        if (player.ClassId != PlayerClass.Quote)
+        {
+            return;
+        }
+
+        if (ability is null)
+        {
+            CharacterClassCatalog.RuntimeRegistry.TryGetGameplayAbilityDefinition(
+                PlayerEntity.CivvieTauntAbilityItemId,
+                out _,
+                out ability);
+        }
+
         var healAmount = ability is null
-            ? 30
-            : GameplayAbilityParameterReader.GetInt(ability, "healAmount", 30, minValue: 0);
+            ? PlayerEntity.CivvieTauntHealAmountDefault
+            : GameplayAbilityParameterReader.GetInt(
+                ability,
+                "healAmount",
+                PlayerEntity.CivvieTauntHealAmountDefault,
+                minValue: 0);
         var healRadius = ability is null
-            ? 120f
-            : GameplayAbilityParameterReader.GetFloat(ability, "healRadius", 120f, minValue: 0f);
+            ? PlayerEntity.CivvieTauntHealRadiusDefault
+            : GameplayAbilityParameterReader.GetFloat(
+                ability,
+                "healRadius",
+                PlayerEntity.CivvieTauntHealRadiusDefault,
+                minValue: 0f);
         if (healAmount <= 0 || healRadius <= 0f)
         {
             return;

@@ -77,7 +77,7 @@ internal sealed class SnapshotTransientEventBuffer(ulong transientEventReplayTic
     {
         for (var index = 0; index < visualEvents.Count; index += 1)
         {
-            if (IsClientSideDamageVisualEvent(visualEvents[index]))
+            if (IsClientSideVisualEvent(visualEvents[index]))
             {
                 continue;
             }
@@ -118,10 +118,11 @@ internal sealed class SnapshotTransientEventBuffer(ulong transientEventReplayTic
         }
     }
 
-    private static bool IsClientSideDamageVisualEvent(WorldVisualEvent visualEvent)
+    private static bool IsClientSideVisualEvent(WorldVisualEvent visualEvent)
     {
         return string.Equals(visualEvent.EffectName, "Blood", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(visualEvent.EffectName, "GibBlood", StringComparison.OrdinalIgnoreCase);
+            || string.Equals(visualEvent.EffectName, "GibBlood", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(visualEvent.EffectName, "CivvieMoney", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsSnapshotBackedManagedRapidFireLoopSound(SimulationWorld world, WorldSoundEvent soundEvent)

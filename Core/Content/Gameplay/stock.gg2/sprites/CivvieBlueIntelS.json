@@ -1,0 +1,17 @@
+{
+  "id": "CivvieBlueIntelS",
+  "framePaths": [
+    "assets/civvie/CivvieBlueIntelS.images/image 0.png"
+  ],
+  "originX": 32,
+  "originY": 50,
+  "mask": {
+    "separate": false,
+    "shape": "RECTANGLE",
+    "boundsMode": "MANUAL",
+    "left": 20,
+    "top": 26,
+    "right": 42,
+    "bottom": 63
+  }
+}

@@ -493,16 +493,17 @@ public partial class Game1
             return;
         }
 
-        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.CivvieTaunt)
-            || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.ScoutUtility))
+        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.CivviePogo))
         {
-            if (player.TryStartTaunt())
+            if (predictedInput.AbilityPressed && player.TryToggleCivviePogo())
             {
                 SyncPredictedLocalPlayerState(player);
             }
 
             return;
         }
+
+        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.ScoutUtility))
 
         if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUtility)
             || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))

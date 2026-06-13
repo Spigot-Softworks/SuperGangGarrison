@@ -28,6 +28,8 @@ public sealed record GameplayClassPresentationDefinition(
     string? LeanLeftSuffix = null,
     string? LeanRightSuffix = null,
     string? TauntSuffix = null,
+    string? PogoSuffix = null,
+    string? PogoIntelSuffix = null,
     string? HumiliationSuffix = null,
     string? DeadSuffix = null,
     string? IntelSuffix = null,

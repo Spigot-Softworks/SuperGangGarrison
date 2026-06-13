@@ -89,7 +89,9 @@ public static class LegacyMovementModel
         LegacyMovementState state,
         bool isCarryingIntel,
         float deltaSeconds,
-        bool isHumiliated = false)
+        bool isHumiliated = false,
+        float controlFactorScale = 1f,
+        float frictionFactorScale = 1f)
     {
         if (deltaSeconds <= 0f)
         {
@@ -109,10 +111,16 @@ public static class LegacyMovementModel
                     * runPower
                     * movementScale
                     * GetControlFactor(state, isCarryingIntel, isHumiliated)
+                    * controlFactorScale
                     * stepSourceTicks;
             }
 
             var frictionFactor = GetAppliedFrictionFactor(speedPerTick, baseMaxSpeedPerTick, hasHorizontalInput, state);
+            if (!controlling && frictionFactorScale != 1f)
+            {
+                frictionFactor *= frictionFactorScale;
+            }
+
             speedPerTick /= GetDeltaMultiplier(frictionFactor, stepSourceTicks);
             remainingSourceTicks -= stepSourceTicks;
         }

@@ -536,10 +536,13 @@ public static class GameplayModPackDirectoryLoader
                 ValidateNumberParameters(itemId, ability, filePath, "energyCost", "activeProjectileLimit", "lifetimeTicks");
                 return;
             case BuiltInGameplayBehaviorIds.CivvieUmbrella:
-                ValidateNumberParameters(itemId, ability, filePath, "maxChargeTicks", "holdDrainPerTick", "rechargePerTick", "impactDrain", "brokenRechargeDelayTicks", "airblastCooldownTicks");
+                ValidateNumberParameters(itemId, ability, filePath, "maxChargeTicks", "holdDrainPerTick", "rechargePerTick", "impactDrain", "brokenRechargeDelayTicks");
                 return;
             case BuiltInGameplayBehaviorIds.CivvieTaunt:
-                ValidateNumberParameters(itemId, ability, filePath, "healAmount", "healRadius");
+                ValidateNumberParameters(itemId, ability, filePath, "healAmount", "healRadius", "healFrameIndex");
+                return;
+            case BuiltInGameplayBehaviorIds.CivviePogo:
+                ValidateNumberParameters(itemId, ability, filePath, "baseBounceJumpScale", "superJumpScale", "crunchDurationTicks");
                 return;
             case BuiltInGameplayBehaviorIds.HeavyGhostDash:
                 ValidateNumberParameters(itemId, ability, filePath, "durationTicks", "durationSeconds", "movementDurationTicks", "movementDurationSeconds", "cooldownTicks", "cooldownSeconds", "impulse", "nextAttackDamageMultiplier", "slideVelocityPerTick", "burstSpeedMultiplier");
@@ -636,6 +639,8 @@ public static class GameplayModPackDirectoryLoader
             LeanLeftSuffix = NormalizeOptionalPresentationSuffix(presentation.LeanLeftSuffix),
             LeanRightSuffix = NormalizeOptionalPresentationSuffix(presentation.LeanRightSuffix),
             TauntSuffix = NormalizeOptionalPresentationSuffix(presentation.TauntSuffix),
+            PogoSuffix = NormalizeOptionalPresentationSuffix(presentation.PogoSuffix),
+            PogoIntelSuffix = NormalizeOptionalPresentationSuffix(presentation.PogoIntelSuffix),
             HumiliationSuffix = NormalizeOptionalPresentationSuffix(presentation.HumiliationSuffix),
             DeadSuffix = NormalizeOptionalPresentationSuffix(presentation.DeadSuffix),
             IntelSuffix = NormalizeOptionalPresentationSuffix(presentation.IntelSuffix),

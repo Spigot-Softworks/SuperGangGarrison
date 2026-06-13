@@ -1,0 +1,19 @@
+{
+  "id": "ability.civilian-pogo",
+  "displayName": "Pogo Stick",
+  "slot": "Utility",
+  "behaviorId": "builtin.ability.civvie_pogo",
+  "ability": {
+    "category": "utility",
+    "activation": "pressed",
+    "executorId": "builtin.ability.civvie_pogo",
+    "tags": [ "movement", "toggle" ],
+    "parameters": {
+      "baseBounceJumpScale": 0.5,
+      "superJumpScale": 1.125,
+      "crunchDurationTicks": 2
+    }
+  },
+  "ammo": {},
+  "presentation": {}
+}

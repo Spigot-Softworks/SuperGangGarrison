@@ -28,6 +28,7 @@ public static class BuiltInGameplayBehaviorIds
     public const string QuoteBladeThrow = "builtin.ability.quote_blade_throw";
     public const string CivvieUmbrella = "builtin.ability.civvie_umbrella";
     public const string CivvieTaunt = "builtin.ability.civvie_taunt";
+    public const string CivviePogo = "builtin.ability.civvie_pogo";
     public const string ScoutTaunt = "builtin.ability.scout_taunt";
     public const string ScoutNailgunToggle = "builtin.ability.scout_nailgun_toggle";
     public const string SoldierSecondaryToggle = "builtin.ability.soldier_secondary_toggle";

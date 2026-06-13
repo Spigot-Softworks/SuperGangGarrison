@@ -249,11 +249,12 @@ public partial class Game1
         if (shotStarted)
         {
             renderState.ReloadAnimationCompleted = false;
+            var suppressRecoilForOpenUmbrella = player.ClassId == PlayerClass.Quote && player.IsCivvieUmbrellaActive;
             if (useScopedRecoilSprite)
             {
                 StartWeaponAnimation(renderState, WeaponAnimationMode.ScopedRecoil, weaponRenderDefinition.ScopedRecoilDurationSeconds);
             }
-            else if (weaponRenderDefinition.RecoilSpriteName is not null)
+            else if (!suppressRecoilForOpenUmbrella && weaponRenderDefinition.RecoilSpriteName is not null)
             {
                 StartWeaponAnimation(renderState, WeaponAnimationMode.Recoil, weaponRenderDefinition.RecoilDurationSeconds, preserveElapsed: preserveRecoilLoop);
             }
@@ -327,7 +328,7 @@ public partial class Game1
             return false;
         }
 
-        const float openingDurationSeconds = 6f / LegacyMovementModel.SourceTicksPerSecond;
+        const float openingDurationSeconds = PlayerEntity.CivvieUmbrellaOpeningDurationTicks / LegacyMovementModel.SourceTicksPerSecond;
         const float closingDurationSeconds = 4f / LegacyMovementModel.SourceTicksPerSecond;
         var active = player.IsCivvieUmbrellaActive;
 
@@ -1024,6 +1025,13 @@ public partial class Game1
         int maxAmmoCount,
         int currentReloadTicks)
     {
+        if (player.ClassId == PlayerClass.Quote
+            && player.IsCivvieUmbrellaActive
+            && player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.CivvieUmbrella))
+        {
+            return false;
+        }
+
         if (weaponDefinition.ReloadSpriteName is null)
         {
             return false;

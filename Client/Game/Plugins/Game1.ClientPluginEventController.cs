@@ -98,7 +98,11 @@ public partial class Game1
             {
                 var damageEvent = localDamageEvents[index];
                 TryTrackLastToDieDamageDealt(damageEvent.AttackerPlayerId, damageEvent.Amount);
-                _game.ObserveCivvieUmbrellaShieldBlockDamageEvent(damageEvent);
+                if (!_game._networkClient.IsConnected)
+                {
+                    _game.ObserveCivvieUmbrellaShieldBlockDamageEvent(damageEvent);
+                }
+
                 _game.ObserveEvasionMissDamageEvent(damageEvent);
                 _game.ObserveHeavyDashDodgeDamageEvent(damageEvent);
                 _game.ObserveDynamicMusicDamageEvent(damageEvent);
@@ -115,7 +119,6 @@ public partial class Game1
             {
                 var damageEvent = _game._pendingNetworkDamageEvents[index];
                 TryTrackLastToDieDamageDealt(damageEvent.AttackerPlayerId, damageEvent.Amount);
-                _game.ObserveCivvieUmbrellaShieldBlockDamageEvent(damageEvent);
                 _game.ObserveEvasionMissDamageEvent(damageEvent);
                 _game.ObserveHeavyDashDodgeDamageEvent(damageEvent);
                 _game.ObserveDynamicMusicDamageEvent(damageEvent);

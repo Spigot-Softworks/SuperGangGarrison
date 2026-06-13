@@ -192,6 +192,9 @@ public partial class Game1
 
     private void ApplyPredictedInputStep(PlayerEntity player, PredictedLocalInput predictedInput)
     {
+        player.SyncCivvieUmbrellaSecondaryInput(predictedInput.Input.FireSecondary);
+        player.SyncCivviePogoSuperJumpInput(predictedInput.Input.Up);
+
         var afterburn = player.AdvanceTickState(predictedInput.Input, _config.FixedDeltaSeconds);
         if (afterburn.IsFatal)
         {

@@ -86,8 +86,12 @@ public sealed partial class SimulationWorld
 
         player.ObserveSpySuperjumpAbilityInput(input.UseAbility);
 
+        player.SyncCivvieUmbrellaSecondaryInput(input.FireSecondary);
+        player.SyncCivviePogoSuperJumpInput(input.Up);
+
         var healthBeforeTick = player.Health;
         var afterburn = player.AdvanceTickState(input, Config.FixedDeltaSeconds);
+        TryApplyPendingCivvieTauntHeal(player);
         if (healthBeforeTick > player.Health)
         {
             var burner = afterburn.BurnedByPlayerId.HasValue
@@ -231,6 +235,11 @@ public sealed partial class SimulationWorld
         AdvancePendingRocketsForOwner(player.Id);
         var previousBottom = preAdvanceY + player.CollisionBottomOffset;
         player.CompleteMovement(Level, team, Config.FixedDeltaSeconds, startedGrounded, jumped, input.Down);
+        if (player.TryConsumeCivviePogoSuperJumpSoundRequest(out var pogoJumpSoundX, out var pogoJumpSoundY))
+        {
+            RegisterWorldSoundEvent("JumpSnd", pogoJumpSoundX, pogoJumpSoundY);
+        }
+
         ResolveMovingPlatformLanding(player, previousBottom, input.Down);
         HandleJumpPadTriggerContactEffects(player);
         TryRegisterIntelTrailEffect(player);

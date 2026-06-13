@@ -49,7 +49,9 @@ public partial class Game1
     private static readonly string[] BrowserWarmupQuoteFullBodySuffixes =
     [
         "S",
+        "RunS",
         "DeadS",
+        "IntelS",
         "TauntS",
         "HS",
     ];

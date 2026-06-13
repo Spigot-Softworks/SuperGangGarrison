@@ -50,8 +50,7 @@ public sealed partial class SimulationWorld
     private readonly List<PlayerGibEntity> _playerGibs = new();
     private readonly List<BloodDropEntity> _bloodDrops = new();
     private readonly List<HealthPackEntity> _healthPacks = new();
-    private readonly List<CivvieMoneyPickup> _civvieMoneyPickups = new();
-    private readonly List<PlayerEntity> _civvieMoneyPickupPlayerBuffer = new();
+    private readonly CivvieMoneyTrailTracker _civvieMoneyTrailTracker = new();
     private readonly List<DroppedWeaponEntity> _droppedWeapons = new();
     private readonly List<DeadBodyEntity> _deadBodies = new();
     private readonly List<SentryGibEntity> _sentryGibs = new();
