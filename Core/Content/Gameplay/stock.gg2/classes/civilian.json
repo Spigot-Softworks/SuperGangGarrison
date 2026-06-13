@@ -1,6 +1,6 @@
 {
   "id": "civilian",
-  "displayName": "Civilian/Financier",
+  "displayName": "Civilian/Employer",
   "runtime": {
     "playerClass": "Quote",
     "supportsExperimentalAcquiredWeapon": false,
