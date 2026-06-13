@@ -307,6 +307,12 @@ public sealed partial class PlayerEntity
 
     private void HydrateNetworkReplicatedAbilityRuntimeState()
     {
+        HydrateNetworkReplicatedHeavyRuntimeState();
+        HydrateNetworkReplicatedCivvieRuntimeState();
+    }
+
+    private void HydrateNetworkReplicatedHeavyRuntimeState()
+    {
         if (ClassId == PlayerClass.Heavy
             && TryGetReplicatedStateInt(
                 GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
@@ -320,6 +326,67 @@ public sealed partial class PlayerEntity
         if (ClassId != PlayerClass.Heavy)
         {
             ExperimentalGhostDashCooldownTicksRemaining = 0;
+        }
+    }
+
+    private void HydrateNetworkReplicatedCivvieRuntimeState()
+    {
+        if (ClassId != PlayerClass.Quote)
+        {
+            CivvieUmbrellaChargeTicks = CivvieUmbrellaMaxChargeTicks;
+            IsCivvieUmbrellaActive = false;
+            IsCivvieUmbrellaBroken = false;
+            IsCivviePogoActive = false;
+            CivviePogoCrunchTicksRemaining = 0;
+            return;
+        }
+
+        const string CoreAbilityOwnerId = GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId;
+        if (TryGetReplicatedStateInt(
+                CoreAbilityOwnerId,
+                GameplayAbilityReplicatedState.CivvieUmbrellaCooldownTicksKey,
+                out var umbrellaCooldownTicks))
+        {
+            CivvieUmbrellaChargeTicks = Math.Clamp(
+                CivvieUmbrellaMaxChargeTicks - Math.Max(0, umbrellaCooldownTicks),
+                0,
+                CivvieUmbrellaMaxChargeTicks);
+        }
+
+        if (TryGetReplicatedStateBool(
+                CoreAbilityOwnerId,
+                GameplayAbilityReplicatedState.CivvieUmbrellaActiveKey,
+                out var umbrellaActive))
+        {
+            IsCivvieUmbrellaActive = umbrellaActive;
+        }
+
+        if (TryGetReplicatedStateBool(
+                CoreAbilityOwnerId,
+                GameplayAbilityReplicatedState.CivvieUmbrellaDisabledKey,
+                out var umbrellaDisabled))
+        {
+            IsCivvieUmbrellaBroken = umbrellaDisabled;
+            if (umbrellaDisabled)
+            {
+                IsCivvieUmbrellaActive = false;
+            }
+        }
+
+        if (TryGetReplicatedStateBool(
+                CoreAbilityOwnerId,
+                GameplayAbilityReplicatedState.CivviePogoActiveKey,
+                out var pogoActive))
+        {
+            IsCivviePogoActive = pogoActive;
+        }
+
+        if (TryGetReplicatedStateInt(
+                CoreAbilityOwnerId,
+                GameplayAbilityReplicatedState.CivviePogoCrunchTicksKey,
+                out var pogoCrunchTicks))
+        {
+            CivviePogoCrunchTicksRemaining = Math.Max(0, pogoCrunchTicks);
         }
     }
 

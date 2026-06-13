@@ -4,6 +4,7 @@ param(
     [string]$Version = "",
     [ValidateSet("stable", "beta")]
     [string]$Channel = "stable",
+    [string]$UpdateManifestVersion = "",
     [switch]$RunTests,
     [switch]$SkipTests,
     [switch]$IncludeLegacyClrPlugins
@@ -884,9 +885,25 @@ New-Item -ItemType Directory -Path $distRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $stagingRoot -Force | Out-Null
 
 $packageVersion = Get-PackageVersion -RequestedVersion $Version
+$manifestVersion = if ([string]::IsNullOrWhiteSpace($UpdateManifestVersion)) {
+    $packageVersion
+}
+else {
+    $normalizedManifestVersion = Normalize-PackageVersion -Value $UpdateManifestVersion
+    if ([string]::IsNullOrWhiteSpace($normalizedManifestVersion)) {
+        throw "Update manifest version '$UpdateManifestVersion' is not a valid package version."
+    }
+
+    $normalizedManifestVersion
+}
+
 $releaseChannel = $Channel.Trim().ToLowerInvariant()
 $assemblyFileVersion = Get-AssemblyFileVersion -PackageVersion $packageVersion
 Write-Host "[package] version: $packageVersion"
+if (-not [string]::Equals($manifestVersion, $packageVersion, [System.StringComparison]::OrdinalIgnoreCase)) {
+    Write-Host "[package] update manifest version: $manifestVersion"
+}
+
 Write-Host "[package] channel: $releaseChannel"
 
 $toolManifestPaths = @(
@@ -926,7 +943,7 @@ foreach ($runtimeIdentifier in $Platforms) {
             "/nr:false",
             "/m:1",
             "-p:OpenGarrisonPackageScriptOwnsContent=true",
-            "-p:Version=$packageVersion",
+            "-p:Version=$assemblyFileVersion",
             "-p:AssemblyVersion=$assemblyFileVersion",
             "-p:FileVersion=$assemblyFileVersion",
             "-p:InformationalVersion=$packageVersion",
@@ -981,7 +998,7 @@ foreach ($runtimeIdentifier in $Platforms) {
     $manifestPath = Write-UpdateManifest `
         -RuntimeIdentifier $runtimeIdentifier `
         -ArchivePath $archivePath `
-        -PackageVersion $packageVersion `
+        -PackageVersion $manifestVersion `
         -ReleaseChannel $releaseChannel
 
     $builtOutputs += [pscustomobject]@{

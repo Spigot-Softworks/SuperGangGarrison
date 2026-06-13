@@ -25,9 +25,25 @@ public partial class Game1
             return true;
         }
 
-        if (!processedIds.Add(eventId))
+        if (HasProcessedNetworkEvent(eventId, processedIds))
         {
             return false;
+        }
+
+        MarkProcessedNetworkEvent(eventId, processedIds, processedOrder);
+        return true;
+    }
+
+    private static bool HasProcessedNetworkEvent(ulong eventId, HashSet<ulong> processedIds)
+    {
+        return eventId != 0 && processedIds.Contains(eventId);
+    }
+
+    private static void MarkProcessedNetworkEvent(ulong eventId, HashSet<ulong> processedIds, Queue<ulong> processedOrder)
+    {
+        if (eventId == 0 || !processedIds.Add(eventId))
+        {
+            return;
         }
 
         processedOrder.Enqueue(eventId);
@@ -35,7 +51,5 @@ public partial class Game1
         {
             processedIds.Remove(processedOrder.Dequeue());
         }
-
-        return true;
     }
 }

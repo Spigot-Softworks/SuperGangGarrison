@@ -486,6 +486,82 @@ public sealed class PlayerEntityNetworkStateTests
     }
 
     [Fact]
+    public void ApplyNetworkStateHydratesReplicatedCivvieRuntimeStateForOnlineVisuals()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Civilian, "Test");
+
+        ApplyCivilianNetworkSnapshot(
+            player,
+            [
+                new GameplayReplicatedStateEntry(
+                    GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                    GameplayAbilityReplicatedState.CivvieUmbrellaCooldownTicksKey,
+                    GameplayReplicatedStateValueKind.Whole,
+                    IntValue: 45),
+                new GameplayReplicatedStateEntry(
+                    GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                    GameplayAbilityReplicatedState.CivvieUmbrellaActiveKey,
+                    GameplayReplicatedStateValueKind.Toggle,
+                    BoolValue: true),
+                new GameplayReplicatedStateEntry(
+                    GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                    GameplayAbilityReplicatedState.CivvieUmbrellaDisabledKey,
+                    GameplayReplicatedStateValueKind.Toggle,
+                    BoolValue: false),
+                new GameplayReplicatedStateEntry(
+                    GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                    GameplayAbilityReplicatedState.CivviePogoActiveKey,
+                    GameplayReplicatedStateValueKind.Toggle,
+                    BoolValue: false),
+                new GameplayReplicatedStateEntry(
+                    GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                    GameplayAbilityReplicatedState.CivviePogoCrunchTicksKey,
+                    GameplayReplicatedStateValueKind.Whole,
+                    IntValue: 0),
+            ]);
+
+        Assert.True(player.IsCivvieUmbrellaActive);
+        Assert.Equal(PlayerEntity.CivvieUmbrellaMaxChargeTicks - 45, player.CivvieUmbrellaChargeTicks);
+        Assert.False(player.IsCivvieUmbrellaDisabled);
+        Assert.False(player.IsCivviePogoActive);
+
+        ApplyCivilianNetworkSnapshot(
+            player,
+            [
+                new GameplayReplicatedStateEntry(
+                    GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                    GameplayAbilityReplicatedState.CivvieUmbrellaCooldownTicksKey,
+                    GameplayReplicatedStateValueKind.Whole,
+                    IntValue: PlayerEntity.CivvieUmbrellaMaxChargeTicks),
+                new GameplayReplicatedStateEntry(
+                    GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                    GameplayAbilityReplicatedState.CivvieUmbrellaActiveKey,
+                    GameplayReplicatedStateValueKind.Toggle,
+                    BoolValue: false),
+                new GameplayReplicatedStateEntry(
+                    GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                    GameplayAbilityReplicatedState.CivvieUmbrellaDisabledKey,
+                    GameplayReplicatedStateValueKind.Toggle,
+                    BoolValue: true),
+                new GameplayReplicatedStateEntry(
+                    GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                    GameplayAbilityReplicatedState.CivviePogoActiveKey,
+                    GameplayReplicatedStateValueKind.Toggle,
+                    BoolValue: true),
+                new GameplayReplicatedStateEntry(
+                    GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                    GameplayAbilityReplicatedState.CivviePogoCrunchTicksKey,
+                    GameplayReplicatedStateValueKind.Whole,
+                    IntValue: 2),
+            ]);
+
+        Assert.False(player.IsCivvieUmbrellaActive);
+        Assert.True(player.IsCivvieUmbrellaDisabled);
+        Assert.True(player.IsCivviePogoActive);
+        Assert.Equal(2, player.CivviePogoCrunchTicksRemaining);
+    }
+
+    [Fact]
     public void ApplyNetworkStateIgnoresStaleReplicatedHeavyDashStateAfterClassChange()
     {
         var player = new PlayerEntity(1, CharacterClassCatalog.Heavy, "Test");
@@ -754,6 +830,68 @@ public sealed class PlayerEntityNetworkStateTests
             gameplayUtilityItemId: "ability.heavy-utility",
             gameplayEquippedSlot: (byte)GameplayEquipmentSlot.Primary,
             gameplayEquippedItemId: "weapon.minigun",
+            gameplayAcquiredItemId: "",
+            replicatedStateEntries: replicatedStateEntries);
+    }
+
+    private static void ApplyCivilianNetworkSnapshot(
+        PlayerEntity player,
+        GameplayReplicatedStateEntry[] replicatedStateEntries)
+    {
+        player.ApplyNetworkState(
+            team: PlayerTeam.Red,
+            classDefinition: CharacterClassCatalog.Civilian,
+            isAlive: true,
+            x: 10f,
+            y: 20f,
+            horizontalSpeed: 0f,
+            verticalSpeed: 0f,
+            health: 140,
+            currentShells: 6,
+            kills: 0,
+            deaths: 0,
+            caps: 0,
+            points: 0f,
+            healPoints: 0,
+            activeDominationCount: 0,
+            isDominatingLocalViewer: false,
+            isDominatedByLocalViewer: false,
+            metal: 0f,
+            isGrounded: true,
+            remainingAirJumps: 0,
+            isCarryingIntel: false,
+            intelRechargeTicks: 0f,
+            isSpyCloaked: false,
+            spyCloakAlpha: 0f,
+            isSpySuperjumping: false,
+            spySuperjumpHorizontalVelocity: 0f,
+            spySuperjumpCooldownTicksRemaining: 0,
+            spyBackstabVisualTicksRemaining: 0,
+            isUbered: false,
+            isKritzCritBoosted: false,
+            isHeavyEating: false,
+            heavyEatTicksRemaining: 0,
+            isSniperScoped: false,
+            sniperChargeTicks: 0,
+            isUsingBinoculars: false,
+            binocularsFocusX: 0f,
+            binocularsFocusY: 0f,
+            facingDirectionX: 1f,
+            aimDirectionDegrees: 0f,
+            aimWorldX: 106f,
+            aimWorldY: 20f,
+            isTaunting: false,
+            tauntFrameIndex: 0f,
+            isChatBubbleVisible: false,
+            chatBubbleFrameIndex: 0,
+            chatBubbleAlpha: 0f,
+            gameplayModPackId: "stock.gg2",
+            gameplayLoadoutId: "civilian.stock",
+            gameplayPrimaryItemId: "weapon.umbrella",
+            gameplaySecondaryItemId: "ability.umbrella",
+            gameplayUtilityItemId: "ability.civilian-pogo",
+            gameplayEquippedSlot: (byte)GameplayEquipmentSlot.Primary,
+            gameplayEquippedItemId: "weapon.umbrella",
             gameplayAcquiredItemId: "",
             replicatedStateEntries: replicatedStateEntries);
     }

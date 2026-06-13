@@ -58,14 +58,15 @@ public partial class Game1
 
     private void DrawCustomBubbleMenuHud(int viewportHeight)
     {
-        var selectedSlot = GetBubbleWheelSelectedSlot(GetScaledMouseState(GetConstrainedMouseState(GetCurrentMouseState())));
         var center = new Vector2(_bubbleMenuX + 76f, viewportHeight / 2f);
         for (var slotIndex = 0; slotIndex < CustomBubbleDocument.SlotCount; slotIndex += 1)
         {
+            // Keyboard selection commits and closes immediately, so there is no persistent
+            // hovered slot to highlight.
             DrawCustomBubbleMenuSlot(
                 slotIndex,
                 center + GetCustomBubbleMenuSlotOffset(slotIndex),
-                selectedSlot == slotIndex + 1);
+                selected: false);
         }
     }
 
@@ -211,17 +212,14 @@ public partial class Game1
                 _bubbleMenuSessionHadInteraction = true;
                 CommitBubbleMenuSelectionAndClose();
             }
-            else if (!_bubbleMenuClosing && pressAndClickBehavior)
+            else if (!_bubbleMenuClosing && !IsCurrentBubbleMenuKeyHeld(keyboard, mouse))
             {
-                UpdatePressAndClickBubbleMenuSelection(mouse, leftMousePressed);
-            }
-            else if (!_bubbleMenuClosing)
-            {
-                UpdateBubbleMenuHoverSelection(mouse);
-                if (!IsCurrentBubbleMenuKeyHeld(keyboard, mouse))
-                {
-                    CommitBubbleMenuSelectionAndClose();
-                }
+                // The built-in Z/X/C and Custom bubble menus are keyboard-only: a digit
+                // selects, and releasing the menu key commits the most recent bubble (or
+                // closes). The mouse-driven hover/click model lives solely in the Bubble
+                // Wheel plugin's override path above, so these menus no longer inherit its
+                // Hold-and-Hover / Press-and-Click setting.
+                CommitBubbleMenuSelectionAndClose();
             }
         }
 
@@ -408,137 +406,6 @@ public partial class Game1
         _bubbleMenuXPageIndex = 0;
         _bubbleMenuSessionHadInteraction = false;
         _bubbleMenuPendingFrame = null;
-    }
-
-    private void UpdatePressAndClickBubbleMenuSelection(MouseState mouse, bool leftMousePressed)
-    {
-        if (leftMousePressed
-            && _bubbleMenuKind == BubbleMenuKind.X
-            && _bubbleMenuXPageIndex == 0)
-        {
-            var selectedSlot = GetBubbleWheelSelectedSlot(mouse);
-            if (selectedSlot is 1 or 2)
-            {
-                _bubbleMenuXPageIndex = selectedSlot;
-                _bubbleMenuSessionHadInteraction = true;
-                _bubbleMenuPendingFrame = null;
-                SuppressPrimaryFireUntilMouseRelease();
-                return;
-            }
-        }
-
-        UpdateBubbleMenuHoverSelection(mouse);
-        if (leftMousePressed && _bubbleMenuPendingFrame.HasValue)
-        {
-            SuppressPrimaryFireUntilMouseRelease();
-            CommitBubbleMenuSelectionAndClose();
-        }
-    }
-
-    private void UpdateBubbleMenuHoverSelection(MouseState mouse)
-    {
-        if (TryGetBubbleMenuHoverFrame(mouse, out var bubbleFrame, out var clearBubbleSelection))
-        {
-            _bubbleMenuPendingFrame = bubbleFrame;
-            _bubbleMenuSessionHadInteraction = true;
-            return;
-        }
-
-        if (clearBubbleSelection)
-        {
-            _bubbleMenuPendingFrame = null;
-            _bubbleMenuSessionHadInteraction = true;
-        }
-    }
-
-    private bool TryGetBubbleMenuHoverFrame(MouseState mouse, out int bubbleFrame, out bool clearBubbleSelection)
-    {
-        bubbleFrame = -1;
-        clearBubbleSelection = false;
-        var selectedSlot = GetBubbleWheelSelectedSlot(mouse);
-
-        switch (_bubbleMenuKind)
-        {
-            case BubbleMenuKind.Z:
-                if (selectedSlot <= 0)
-                {
-                    clearBubbleSelection = true;
-                    return false;
-                }
-
-                bubbleFrame = 19 + selectedSlot;
-                return true;
-
-            case BubbleMenuKind.C:
-                if (selectedSlot <= 0)
-                {
-                    clearBubbleSelection = true;
-                    return false;
-                }
-
-                bubbleFrame = 35 + selectedSlot;
-                return true;
-
-            case BubbleMenuKind.X:
-                return TryGetBubbleMenuXHoverFrame(selectedSlot, out bubbleFrame, out clearBubbleSelection);
-
-            case BubbleMenuKind.Custom:
-                return TryGetCustomBubbleMenuFrame(selectedSlot, out bubbleFrame, out clearBubbleSelection);
-
-            default:
-                return false;
-        }
-    }
-
-    private bool TryGetCustomBubbleMenuFrame(int selectedSlot, out int bubbleFrame, out bool clearBubbleSelection)
-    {
-        bubbleFrame = -1;
-        clearBubbleSelection = false;
-        if (selectedSlot <= 0)
-        {
-            clearBubbleSelection = true;
-            return false;
-        }
-
-        var slotIndex = selectedSlot - 1;
-        if (slotIndex < 0
-            || slotIndex >= CustomBubbleDocument.SlotCount
-            || !_customBubbleDocument.HasSlot(slotIndex))
-        {
-            clearBubbleSelection = true;
-            return false;
-        }
-
-        bubbleFrame = ChatBubbleFrameCatalog.GetCustomBubbleFrame(slotIndex);
-        return true;
-    }
-
-    private bool TryGetBubbleMenuXHoverFrame(int selectedSlot, out int bubbleFrame, out bool clearBubbleSelection)
-    {
-        bubbleFrame = -1;
-        clearBubbleSelection = false;
-        if (_bubbleMenuXPageIndex == 0)
-        {
-            if (selectedSlot is <= 0 or 1 or 2)
-            {
-                clearBubbleSelection = true;
-                return false;
-            }
-
-            if (selectedSlot is >= 3 and <= 9)
-            {
-                bubbleFrame = 26 + selectedSlot;
-                return true;
-            }
-
-            return false;
-        }
-
-        var offset = _bubbleMenuXPageIndex == 2 ? 10 : 0;
-        bubbleFrame = selectedSlot == 0
-            ? 9 + offset
-            : (selectedSlot - 1) + offset;
-        return true;
     }
 
     private bool TryGetBubbleMenuSelection(KeyboardState keyboard, int? pressedDigit, out int bubbleFrame)
