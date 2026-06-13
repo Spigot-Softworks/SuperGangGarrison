@@ -274,6 +274,7 @@ public partial class Game1
         _interpolatedIntelPositions.Clear();
         ResetCivvieMoneyTrailPresentation();
         ResetCivvieUmbrellaShieldBlockObservation();
+        ResetCivviePogoTrickPresentationObservation();
     }
 
     private void ResetAndSeedSnapshotPresentationHistories(SnapshotMessage snapshot)

@@ -15,7 +15,7 @@ public sealed partial class SimulationWorld
     private const float MedicHealBeamRange = 300f;
     private const float MedicKritzBeamDefaultRange = MedicHealBeamRange * 0.5f;
     private const float MedicKritzBeamDefaultDamagePerSecond = 1f;
-    private const float MedicKritzBeamDefaultChargePerDamageTick = PlayerEntity.MedicUberMaxCharge * 0.015f;
+    private const float MedicKritzBeamDefaultChargePerTick = MedicUberChargeGainPerTickHealthyTarget;
 
     public string GetMedicSummary()
     {
@@ -121,7 +121,7 @@ public sealed partial class SimulationWorld
         float aimWorldY,
         float maxRange = MedicKritzBeamDefaultRange,
         float damagePerSecond = MedicKritzBeamDefaultDamagePerSecond,
-        float chargePerDamageTick = MedicKritzBeamDefaultChargePerDamageTick)
+        float chargePerTick = MedicKritzBeamDefaultChargePerTick)
     {
         if (medic.ClassId != PlayerClass.Medic || !medic.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit))
         {
@@ -134,7 +134,7 @@ public sealed partial class SimulationWorld
             : null;
         if (existingTarget is not null && CanMedicKritzBeamTarget(medic, existingTarget, MedicHealBeamRange))
         {
-            ApplyMedicKritzBeam(medic, existingTarget, damagePerSecond, chargePerDamageTick);
+            ApplyMedicKritzBeam(medic, existingTarget, damagePerSecond, chargePerTick);
             return true;
         }
 
@@ -145,7 +145,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        ApplyMedicKritzBeam(medic, newTarget, damagePerSecond, chargePerDamageTick);
+        ApplyMedicKritzBeam(medic, newTarget, damagePerSecond, chargePerTick);
         return true;
     }
 
@@ -226,6 +226,34 @@ public sealed partial class SimulationWorld
         medic.SetMedicHealingTarget(target);
     }
 
+    private void ApplyMedicHealNeedleTeammateHit(PlayerEntity medic, PlayerEntity target, MedicHealNeedleProjectileEntity needle)
+    {
+        target.ReduceBurnDuration((float)Config.FixedDeltaSeconds * LegacyMovementModel.SourceTicksPerSecond);
+
+        var healthBefore = target.Health;
+        if (needle.HealPerHit > 0)
+        {
+            target.ApplyContinuousHealing(needle.HealPerHit);
+        }
+
+        var healedAmount = Math.Max(0, target.Health - healthBefore);
+        if (healedAmount > 0)
+        {
+            medic.AddHealPoints(healedAmount);
+            ApplyHealingWithFeedback(target, healedAmount, "HealSnd", medic.X, medic.Y);
+        }
+
+        if (!medic.IsMedicUbering)
+        {
+            var uberGain = healedAmount > 0f
+                ? healedAmount * MedicHealNeedleProjectileEntity.DamagedTargetUberChargePerHealedHealth
+                : target.Health < target.MaxHealth || ControlPointSetupActive
+                    ? MedicHealNeedleProjectileEntity.DamagedTargetUberChargePerHealedHealth
+                    : MedicHealNeedleProjectileEntity.HealthyTargetUberChargePerHit;
+            medic.AddMedicUberCharge(uberGain);
+        }
+    }
+
     private void ApplyExperimentalEngineerEssenceExtractor(PlayerEntity engineer, PlayerEntity target)
     {
         var healthBefore = target.Health;
@@ -281,7 +309,7 @@ public sealed partial class SimulationWorld
             global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerFreezeRayOutgoingDamageMultiplier);
     }
 
-    private void ApplyMedicKritzBeam(PlayerEntity medic, PlayerEntity target, float damagePerSecond, float chargePerDamageTick)
+    private void ApplyMedicKritzBeam(PlayerEntity medic, PlayerEntity target, float damagePerSecond, float chargePerTick)
     {
         var healthBefore = target.Health;
         var damagePerTick = damagePerSecond <= 0f
@@ -294,8 +322,12 @@ public sealed partial class SimulationWorld
 
         if (healthBefore > target.Health)
         {
-            medic.AddMedicUberCharge(Math.Max(0f, chargePerDamageTick));
             RegisterBloodEffect(target.X, target.Y, PointDirectionDegrees(medic.X, medic.Y, target.X, target.Y) - 180f, 4);
+        }
+
+        if (!medic.IsMedicUbering)
+        {
+            medic.AddMedicUberCharge(Math.Max(0f, chargePerTick));
         }
 
         medic.SetMedicHealingTarget(target);

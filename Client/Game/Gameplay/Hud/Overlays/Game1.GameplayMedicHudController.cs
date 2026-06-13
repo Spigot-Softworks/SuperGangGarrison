@@ -56,8 +56,8 @@ public partial class Game1
                 (int)MathF.Round(iconPosition.Y - (11f * 2f * hudScale)),
                 Math.Max(1, (int)MathF.Round(68f * 2f * hudScale)),
                 Math.Max(1, (int)MathF.Round(23f * 2f * hudScale)));
-            var uberCharge = _game.GetPlayerMedicUberCharge(_game._world.LocalPlayer);
-            _game.DrawScreenHealthBar(uberRectangle, uberCharge, PlayerEntity.MedicUberMaxCharge, false, Color.White, Color.Black);
+            _game._world.LocalPlayer.GetMedicUberHudMeter(out var meterValue, out var meterMax);
+            _game.DrawScreenHealthBar(uberRectangle, meterValue, meterMax, false, Color.White, Color.Black);
 
             // Darken the uber icon and text when carrying intel with regular medigun (kritz can still activate)
             var isKritz = _game._world.LocalPlayer.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit);
@@ -66,18 +66,20 @@ public partial class Game1
             var textColor = isUberDisabled ? new Color(108, 108, 92) : new Color(0xD9, 0xD9, 0xB7);
             _game.TryDrawScreenSprite("UberHudS", hudFrameIndex, iconPosition, iconColor, new Vector2(2f * hudScale, 2f * hudScale));
 
-            // Draw SUPER / BURST (or CRITS / CRAZE for kritz) stacked left-aligned after the '+' icon
+            // Draw SUPER / BURST (or CRIT / CRAZE for kritz) stacked left-aligned after the '+' icon
             var labelScale = 0.5f * hudScale;
             var labelLineHeight = _game.MeasureMenuBitmapFontHeight(labelScale);
             var labelOrigin = TransformPoint(new Vector2(viewportWidth - 123f, viewportHeight - 89f - labelLineHeight - 1f));
-            var labelTop = isKritz ? "CRITS" : "SUPER";
+            var labelTop = isKritz ? "CRIT" : "SUPER";
             var labelBottom = isKritz ? "CRAZE" : "BURST";
             _game.DrawMenuBitmapFontText(labelTop, new Vector2(labelOrigin.X, labelOrigin.Y), textColor, labelScale);
             _game.DrawMenuBitmapFontText(labelBottom, new Vector2(labelOrigin.X, labelOrigin.Y + labelLineHeight + 2f * hudScale - 1f * hudScale), textColor, labelScale);
 
             // Draw percentage right-aligned on the right side
             var percentScale = 1f * hudScale;
-            var percentValue = (int)MathF.Round(100f * Math.Clamp((float)uberCharge / PlayerEntity.MedicUberMaxCharge, 0f, 1f));
+            var percentValue = meterMax > 0f
+                ? (int)MathF.Round(100f * Math.Clamp(meterValue / meterMax, 0f, 1f))
+                : 0;
             var percentText = $"{percentValue}%";
             var percentWidth = _game.MeasureMenuBitmapFontWidth(percentText, percentScale);
             var percentHeight = _game.MeasureMenuBitmapFontHeight(percentScale);
@@ -146,9 +148,15 @@ public partial class Game1
             }
 
             var label = healer is null ? "Healer: Medic" : $"Healer: {GetHudPlayerLabel(healer)}";
-            var value = healer?.MedicUberCharge ?? MedicAssistDummyUberCharge;
             var healerTeam = healer?.Team ?? _game._world.LocalPlayer.Team;
-            DrawCenterStatusHud(HudElementId.ClassMedicHealer, label, value, PlayerEntity.MedicUberMaxCharge, 0.5f, healerTeam);
+            if (healer is not null)
+            {
+                healer.GetMedicUberHudMeter(out var meterValue, out var meterMax);
+                DrawCenterStatusHud(HudElementId.ClassMedicHealer, label, meterValue, meterMax, 0.5f, healerTeam);
+                return;
+            }
+
+            DrawCenterStatusHud(HudElementId.ClassMedicHealer, label, MedicAssistDummyUberCharge, PlayerEntity.MedicUberMaxCharge, 0.5f, healerTeam);
         }
 
         public void DrawHealerRadarHud(Vector2 cameraPosition, MouseState mouse)

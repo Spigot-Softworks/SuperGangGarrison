@@ -636,6 +636,11 @@ public partial class Game1
             return player.ExperimentalOffhandCurrentShells;
         }
 
+        if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
+        {
+            return player.ExperimentalOffhandCurrentShells;
+        }
+
         return _networkClient.IsConnected
             && ReferenceEquals(player, _world.LocalPlayer)
             && _hasPredictedLocalActionState
@@ -661,6 +666,11 @@ public partial class Game1
         }
 
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
+        {
+            return player.ExperimentalOffhandCooldownTicks;
+        }
+
+        if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
         {
             return player.ExperimentalOffhandCooldownTicks;
         }
@@ -702,6 +712,11 @@ public partial class Game1
         }
 
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
+        {
+            return player.ExperimentalOffhandReloadTicksUntilNextShell;
+        }
+
+        if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
         {
             return player.ExperimentalOffhandReloadTicksUntilNextShell;
         }
@@ -751,6 +766,11 @@ public partial class Game1
             return player.ExperimentalOffhandMaxShells;
         }
 
+        if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
+        {
+            return Math.Max(1, player.ExperimentalOffhandMaxShells);
+        }
+
         return player.MaxShells;
     }
 
@@ -782,6 +802,11 @@ public partial class Game1
         }
 
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
+        {
+            return player.ExperimentalOffhandWeapon ?? player.PrimaryWeapon;
+        }
+
+        if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
         {
             return player.ExperimentalOffhandWeapon ?? player.PrimaryWeapon;
         }
@@ -850,7 +875,19 @@ public partial class Game1
             return "offhand:demoman";
         }
 
+        if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
+        {
+            return "offhand:medic-kritz";
+        }
+
         return null;
+    }
+
+    private static bool ShouldPresentExperimentalMedicKritzHealNeedles(PlayerEntity player)
+    {
+        return player.ClassId == PlayerClass.Medic
+            && player.IsExperimentalOffhandEquipped
+            && player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit);
     }
 
     private static bool ShouldPresentExperimentalDemomanGrenadeLauncher(PlayerEntity player)

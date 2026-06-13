@@ -139,7 +139,15 @@ public partial class Game1
 
         if (_predictedLocalActionState.IsMedicUbering)
         {
-            _predictedLocalActionState.MedicUberCharge = float.Max(0f, _predictedLocalActionState.MedicUberCharge - PlayerEntity.MedicUberChargeDrainPerSourceTick);
+            if (player.MedicUberUsesFixedDuration && player.MedicUberCommittedCharge > 0f)
+            {
+                _predictedLocalActionState.MedicUberCharge = player.MedicUberCharge;
+            }
+            else
+            {
+                _predictedLocalActionState.MedicUberCharge = float.Max(0f, _predictedLocalActionState.MedicUberCharge - PlayerEntity.MedicUberChargeDrainPerSourceTick);
+            }
+
             if (_predictedLocalActionState.MedicUberCharge <= 0f)
             {
                 _predictedLocalActionState.MedicUberCharge = 0f;
@@ -333,6 +341,18 @@ public partial class Game1
 
             if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit))
             {
+                if (predictedInput.Input.FirePrimary
+                    && _predictedLocalActionState.IsMedicUberReady
+                    && player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
+                {
+                    TryPredictedStartMedicUber(player);
+                }
+                else if (!predictedInput.Input.FirePrimary
+                    && player.TryFireMedicKritzHealNeedle())
+                {
+                    SyncPredictedLocalPlayerState(player);
+                }
+
                 return true;
             }
 

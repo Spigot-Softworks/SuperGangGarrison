@@ -247,20 +247,29 @@ public sealed partial class SimulationWorld
 
             var directionX = movementX / movementDistance;
             var directionY = movementY / movementDistance;
-            var hit = GetNearestNeedleHit(needle, directionX, directionY, movementDistance);
+            var hit = needle is MedicHealNeedleProjectileEntity healNeedle
+                ? GetNearestMedicHealNeedleHit(healNeedle, directionX, directionY, movementDistance)
+                : GetNearestNeedleHit(needle, directionX, directionY, movementDistance);
             if (hit.HasValue)
             {
                 var hitResult = hit.Value;
                 var owner = FindPlayerById(needle.OwnerId);
                 needle.MoveTo(hitResult.HitX, hitResult.HitY);
                 RegisterCombatTrace(needle.PreviousX, needle.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
-                if (hitResult.HitPlayer is not null)
+                if (hitResult.HitPlayer is not null
+                    && needle is MedicHealNeedleProjectileEntity medicHealNeedle
+                    && owner is not null
+                    && hitResult.HitPlayer.Team == owner.Team)
+                {
+                    ApplyMedicHealNeedleTeammateHit(owner, hitResult.HitPlayer, medicHealNeedle);
+                }
+                else if (hitResult.HitPlayer is not null)
                 {
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
                     var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(needle.Damage * needle.CriticalDamageMultiplier), out var damageFlags);
                     if (ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
                     {
-                        var killFeedSprite = needle is NailProjectileEntity ? "NailgunKL" : "NeedleKL";
+                        var killFeedSprite = needle is NailProjectileEntity ? "NailgunKL" : needle is MedicHealNeedleProjectileEntity ? "NeedleKL" : "NeedleKL";
                         KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: killFeedSprite);
                     }
                 }

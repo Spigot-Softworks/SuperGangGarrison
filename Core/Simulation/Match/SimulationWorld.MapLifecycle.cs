@@ -77,6 +77,10 @@ public sealed partial class SimulationWorld
 
         Level = nextLevel;
         _configuredMapScale = Level.MapScale;
+        var mapContentHash = CustomMapDescriptorResolver.TryResolve(Level.Name, out var descriptor)
+            ? descriptor.ContentHash
+            : string.Empty;
+        ConfigureSessionPresentationSeed(Level.Name, mapContentHash);
         MatchRules = CreateDefaultMatchRules(Level.Mode);
         ApplyScrLevelMatchSettings();
         RebuildForegroundJungleSpriteCache();
@@ -105,6 +109,14 @@ public sealed partial class SimulationWorld
     public void RestartCurrentRoundForMapRotation(bool preservePlayerStats)
     {
         RestartCurrentRound(preservePlayerStats);
+    }
+
+    public void ConfigureSessionPresentationSeed(string levelName, string mapContentHash)
+    {
+        SessionPresentationSeed = SessionPresentationRules.DerivePresentationSeed(
+            levelName,
+            mapContentHash,
+            Config.TicksPerSecond);
     }
 
     private bool AdvancePendingMapChange()

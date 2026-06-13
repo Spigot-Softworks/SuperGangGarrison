@@ -8,6 +8,8 @@ public class NeedleProjectileEntity : SimulationEntity
 
     public virtual int Damage => DamagePerHit;
 
+    protected virtual float ProjectileGravityPerTick => GravityPerTick;
+
     public NeedleProjectileEntity(
         int id,
         PlayerTeam team,
@@ -48,7 +50,7 @@ public class NeedleProjectileEntity : SimulationEntity
 
     public bool IsCritical { get; private set; }
 
-    public float CriticalDamageMultiplier => IsCritical ? ExperimentalGameplaySettings.DefaultCriticalDamageMultiplier : 1f;
+    public float CriticalDamageMultiplier => IsCritical ? ExperimentalGameplaySettings.KritzCriticalDamageMultiplier : 1f;
 
     public void SetCritical() { IsCritical = true; }
 
@@ -58,7 +60,7 @@ public class NeedleProjectileEntity : SimulationEntity
         PreviousY = Y;
         X += VelocityX;
         Y += VelocityY;
-        VelocityY += GravityPerTick * gravityScale;
+        VelocityY += ProjectileGravityPerTick * gravityScale;
         TicksRemaining -= 1;
     }
 

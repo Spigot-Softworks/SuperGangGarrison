@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
@@ -53,7 +54,7 @@ public partial class Game1
             return;
         }
 
-        foreach (var (_, player) in _world.EnumerateReplicatedNetworkPlayers())
+        foreach (var player in EnumerateRenderablePlayers())
         {
             if (!player.IsAlive || player.ClassId != PlayerClass.Quote)
             {
@@ -87,10 +88,7 @@ public partial class Game1
 
     private void ObserveCivvieUmbrellaShieldBlocksForPlayer(PlayerEntity player)
     {
-        var currentState = new CivvieUmbrellaShieldBlockObservationState(
-            player.CivvieUmbrellaChargeTicks,
-            player.IsCivvieUmbrellaActive,
-            player.IsCivvieUmbrellaBroken);
+        var currentState = CreateCivvieUmbrellaShieldBlockObservationState(player);
 
         if (_civvieUmbrellaShieldBlockObservationByPlayerId.TryGetValue(player.Id, out var previousState))
         {
@@ -102,6 +100,51 @@ public partial class Game1
         }
 
         _civvieUmbrellaShieldBlockObservationByPlayerId[player.Id] = currentState;
+    }
+
+    private CivvieUmbrellaShieldBlockObservationState CreateCivvieUmbrellaShieldBlockObservationState(PlayerEntity player)
+    {
+        if (!_networkClient.IsConnected || ReferenceEquals(player, _world.LocalPlayer))
+        {
+            return new CivvieUmbrellaShieldBlockObservationState(
+                player.CivvieUmbrellaChargeTicks,
+                player.IsCivvieUmbrellaActive,
+                player.IsCivvieUmbrellaBroken);
+        }
+
+        var chargeTicks = player.CivvieUmbrellaChargeTicks;
+        if (GameplayAbilityReplicatedState.TryGetInt(
+                player,
+                GameplayAbilityReplicatedState.CivvieUmbrellaCooldownTicksKey,
+                out var cooldownTicks))
+        {
+            chargeTicks = Math.Clamp(
+                PlayerEntity.CivvieUmbrellaMaxChargeTicks - cooldownTicks,
+                0,
+                PlayerEntity.CivvieUmbrellaMaxChargeTicks);
+        }
+
+        var isUmbrellaActive = player.IsCivvieUmbrellaActive;
+        if (GameplayAbilityReplicatedState.TryGetBool(
+                player,
+                GameplayAbilityReplicatedState.CivvieUmbrellaActiveKey,
+                out var replicatedActive))
+        {
+            isUmbrellaActive = replicatedActive;
+        }
+
+        var isUmbrellaBroken = player.IsCivvieUmbrellaBroken;
+        if (GameplayAbilityReplicatedState.TryGetBool(
+                player,
+                GameplayAbilityReplicatedState.CivvieUmbrellaDisabledKey,
+                out var isDisabled)
+            && isDisabled
+            && chargeTicks <= 0)
+        {
+            isUmbrellaBroken = true;
+        }
+
+        return new CivvieUmbrellaShieldBlockObservationState(chargeTicks, isUmbrellaActive, isUmbrellaBroken);
     }
 
     private static int CountCivvieUmbrellaShieldBlocks(

@@ -402,6 +402,9 @@ public sealed partial class SimulationWorld
     private ShotHitResult? GetNearestNeedleHit(NeedleProjectileEntity needle, float directionX, float directionY, float maxDistance)
         => Combat.GetNearestNeedleHit(needle, directionX, directionY, maxDistance);
 
+    private ShotHitResult? GetNearestMedicHealNeedleHit(MedicHealNeedleProjectileEntity needle, float directionX, float directionY, float maxDistance)
+        => Combat.GetNearestMedicHealNeedleHit(needle, directionX, directionY, maxDistance);
+
     private ShotHitResult? GetNearestRevolverHit(RevolverProjectileEntity shot, float directionX, float directionY, float maxDistance)
         => Combat.GetNearestRevolverHit(shot, directionX, directionY, maxDistance);
 

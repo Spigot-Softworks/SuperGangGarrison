@@ -18,6 +18,7 @@ public static class GameplayAbilityReplicatedState
     public const string CivvieUmbrellaDisabledKey = "civvie_umbrella_disabled";
     public const string CivviePogoActiveKey = "civvie_pogo_active";
     public const string CivviePogoCrunchTicksKey = "civvie_pogo_crunch_ticks";
+    public const string CivviePogoTrickTicksKey = "civvie_pogo_trick_ticks";
     public const string HeavyDashCooldownTicksKey = "heavy_dash_cooldown_ticks";
     public const string HeavyDashActiveKey = "heavy_dash_active";
     public const string HeavyDashVisibleKey = "heavy_dash_visible";
@@ -64,6 +65,7 @@ public static class GameplayAbilityReplicatedState
                 Toggle(CivvieUmbrellaDisabledKey, player.IsCivvieUmbrellaDisabled),
                 Toggle(CivviePogoActiveKey, player.IsCivviePogoActive),
                 Whole(CivviePogoCrunchTicksKey, player.CivviePogoCrunchTicksRemaining),
+                Whole(CivviePogoTrickTicksKey, player.CivviePogoTrickTicksRemaining),
             ],
             _ => Array.Empty<GameplayReplicatedStateEntry>(),
         };
@@ -91,6 +93,16 @@ public static class GameplayAbilityReplicatedState
             return true;
         }
 
+        if (player.ClassId == PlayerClass.Quote
+            && key == CivviePogoTrickTicksKey
+            && player.TryGetReplicatedStateInt(
+                GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                CivviePogoTrickTicksKey,
+                out value))
+        {
+            return true;
+        }
+
         value = key switch
         {
             PyroAirblastCooldownTicksKey when player.ClassId == PlayerClass.Pyro => player.PyroAirblastCooldownTicks,
@@ -102,6 +114,7 @@ public static class GameplayAbilityReplicatedState
             SpySuperjumpCooldownTicksKey when player.ClassId == PlayerClass.Spy => player.SpySuperjumpCooldownTicksRemaining,
             CivvieUmbrellaCooldownTicksKey when player.ClassId == PlayerClass.Quote => player.CivvieUmbrellaCooldownTicks,
             CivviePogoCrunchTicksKey when player.ClassId == PlayerClass.Quote => player.CivviePogoCrunchTicksRemaining,
+            CivviePogoTrickTicksKey when player.ClassId == PlayerClass.Quote => player.CivviePogoTrickTicksRemaining,
             _ => default,
         };
 
@@ -112,7 +125,7 @@ public static class GameplayAbilityReplicatedState
             HeavyEatTicksRemainingKey or HeavyEatCooldownTicksKey or HeavyDashCooldownTicksKey => player.ClassId == PlayerClass.Heavy,
             SniperChargeTicksKey => player.ClassId == PlayerClass.Sniper,
             SpySuperjumpCooldownTicksKey => player.ClassId == PlayerClass.Spy,
-            CivvieUmbrellaCooldownTicksKey or CivviePogoCrunchTicksKey => player.ClassId == PlayerClass.Quote,
+            CivvieUmbrellaCooldownTicksKey or CivviePogoCrunchTicksKey or CivviePogoTrickTicksKey => player.ClassId == PlayerClass.Quote,
             _ => false,
         };
     }

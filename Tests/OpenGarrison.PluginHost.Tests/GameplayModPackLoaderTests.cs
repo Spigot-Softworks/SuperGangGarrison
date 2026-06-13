@@ -456,14 +456,19 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal(GameplayAbilityConstants.HeldActivation, medigunNeedles.Activation);
         Assert.Equal(BuiltInGameplayBehaviorIds.MedicNeedlegun, medigunNeedles.ExecutorId);
 
-        var kritzBeam = pack.Items["weapon.medigun.crit"].Ability;
+        var kritzHealNeedles = pack.Items["weapon.medigun.crit"].Ability;
+        Assert.NotNull(kritzHealNeedles);
+        Assert.Equal(GameplayAbilityConstants.SecondaryCategory, kritzHealNeedles!.Category);
+        Assert.Equal(GameplayAbilityConstants.HeldActivation, kritzHealNeedles.Activation);
+        Assert.Equal(BuiltInGameplayBehaviorIds.MedicKritzHealNeedles, kritzHealNeedles.ExecutorId);
+        Assert.Equal(30, kritzHealNeedles.Parameters["healPerHit"].GetInt32());
+        Assert.Equal(22, kritzHealNeedles.Parameters["enemyDamagePerHit"].GetInt32());
+
+        var kritzBeam = pack.Items["weapon.medigun.crit.beam"].Ability;
         Assert.NotNull(kritzBeam);
-        Assert.Equal(GameplayAbilityConstants.SecondaryCategory, kritzBeam!.Category);
-        Assert.Equal(GameplayAbilityConstants.HeldActivation, kritzBeam.Activation);
-        Assert.Equal(BuiltInGameplayBehaviorIds.MedicKritzBeam, kritzBeam.ExecutorId);
+        Assert.Equal(BuiltInGameplayBehaviorIds.MedicKritzBeam, kritzBeam!.ExecutorId);
         Assert.Equal(150, kritzBeam.Parameters["range"].GetInt32());
         Assert.Equal(1, kritzBeam.Parameters["damagePerSecond"].GetInt32());
-        Assert.Equal(30, kritzBeam.Parameters["chargePerDamageTick"].GetInt32());
 
         Assert.False(pack.Items.ContainsKey("ability.quote-blade-throw"));
         Assert.False(pack.Items.ContainsKey("ability.quote-utility"));

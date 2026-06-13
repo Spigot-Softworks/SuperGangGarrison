@@ -580,6 +580,17 @@ public sealed partial class SimulationWorld
 
     internal GameplayAbilityResult ExecuteMedicKritzBeamAbility(GameplayAbilityContext context)
     {
+        if (context.Input.FirePrimary)
+        {
+            if (context.Player.IsMedicUberReady
+                && context.Player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
+            {
+                return ExecuteMedicUberAbility(context);
+            }
+
+            return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
+        }
+
         var maxRange = GameplayAbilityParameterReader.GetFloat(
             context.Ability,
             "range",
@@ -590,10 +601,10 @@ public sealed partial class SimulationWorld
             "damagePerSecond",
             MedicKritzBeamDefaultDamagePerSecond,
             minValue: 0f);
-        var chargePerDamageTick = GameplayAbilityParameterReader.GetFloat(
+        var chargePerTick = GameplayAbilityParameterReader.GetFloat(
             context.Ability,
-            "chargePerDamageTick",
-            MedicKritzBeamDefaultChargePerDamageTick,
+            "chargePerTick",
+            MedicKritzBeamDefaultChargePerTick,
             minValue: 0f);
 
         return new GameplayAbilityResult(
@@ -603,8 +614,46 @@ public sealed partial class SimulationWorld
                 context.Input.AimWorldY,
                 maxRange,
                 damagePerSecond,
-                chargePerDamageTick),
+                chargePerTick),
             ConsumedInput: true);
+    }
+
+    internal GameplayAbilityResult ExecuteMedicKritzHealNeedlesAbility(GameplayAbilityContext context)
+    {
+        if (context.Input.FirePrimary)
+        {
+            if (context.Player.IsMedicUberReady
+                && context.Player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
+            {
+                return ExecuteMedicUberAbility(context);
+            }
+
+            return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
+        }
+
+        var healPerHit = GameplayAbilityParameterReader.GetInt(
+            context.Ability,
+            "healPerHit",
+            MedicHealNeedleProjectileEntity.DefaultHealPerHit,
+            minValue: 0);
+        var enemyDamagePerHit = GameplayAbilityParameterReader.GetInt(
+            context.Ability,
+            "enemyDamagePerHit",
+            MedicHealNeedleProjectileEntity.DefaultEnemyDamagePerHit,
+            minValue: 0);
+
+        if (!context.Player.TryFireMedicKritzHealNeedle())
+        {
+            return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
+        }
+
+        FireMedicKritzHealNeedle(
+            context.Player,
+            context.Input.AimWorldX,
+            context.Input.AimWorldY,
+            healPerHit,
+            enemyDamagePerHit);
+        return GameplayAbilityResult.HandledAndConsumed;
     }
 
     internal GameplayAbilityResult ExecuteMedicUberAbility(GameplayAbilityContext context)
@@ -773,6 +822,23 @@ public sealed partial class SimulationWorld
 
     internal GameplayAbilityResult ExecuteCivvieTauntAbility(GameplayAbilityContext context)
     {
+        if (context.Player.IsCivviePogoActive)
+        {
+            var trickFrameCount = GameplayAbilityParameterReader.GetInt(
+                context.Ability,
+                "pogoTrickFrameCount",
+                PlayerEntity.CivviePogoTrickFrameCountDefault,
+                minValue: 1);
+            var trickDurationTicks = GameplayAbilityParameterReader.GetInt(
+                context.Ability,
+                "pogoTrickDurationTicks",
+                PlayerEntity.CivviePogoTrickDurationTicksDefault,
+                minValue: 1);
+            return new GameplayAbilityResult(
+                context.Player.TryStartCivviePogoTrick(trickFrameCount, trickDurationTicks),
+                ConsumedInput: true);
+        }
+
         return new GameplayAbilityResult(TryStartTauntWithCivvieHeal(context.Player, context.Ability), ConsumedInput: true);
     }
 

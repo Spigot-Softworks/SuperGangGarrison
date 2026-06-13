@@ -578,4 +578,43 @@ public sealed class PlayerEntityMovementRegressionTests
             solids: [new LevelSolid(0f, 500f, 2048f, 524f)],
             importedFromSource: false);
     }
+
+    [Fact]
+    public void CivilianPogoTrickStartsOnTauntInputAndEndsOnLandingCrunch()
+    {
+        var level = CreateFlatGroundLevel();
+        var player = CreateAirborneCivilianWithFallSpeed(0f);
+        var groundedY = level.FloorY - player.CollisionBottomOffset;
+        player.TeleportTo(128f, groundedY);
+        Assert.True(player.TryToggleCivviePogo());
+        Assert.True(player.TryStartCivviePogoTrick(trickFrameCount: 4, durationTicks: 30));
+        Assert.True(player.IsCivviePogoTrickActive);
+        Assert.InRange(player.GetCivviePogoTrickFrameIndex(sessionSeed: 0, currentFrame: 100, frameCount: 2), 0, 1);
+
+        FulfillCivviePogoGroundBounce(player, level);
+        player.AdvanceCivviePogoState();
+
+        Assert.False(player.IsCivviePogoTrickActive);
+        Assert.True(player.CivviePogoCrunchTicksRemaining > 0);
+    }
+
+    [Fact]
+    public void CivilianPogoTrickRequiresReleaseBeforeRestart()
+    {
+        var player = CreateAirborneCivilianWithFallSpeed(-4f);
+        Assert.True(player.TryToggleCivviePogo());
+        Assert.True(player.TryStartCivviePogoTrick(trickFrameCount: 4, durationTicks: 2));
+        Assert.False(player.TryStartCivviePogoTrick(trickFrameCount: 4, durationTicks: 2));
+
+        for (var tick = 0; tick < 2; tick += 1)
+        {
+            player.AdvanceCivviePogoState();
+        }
+
+        Assert.False(player.IsCivviePogoTrickActive);
+        Assert.False(player.TryStartCivviePogoTrick(trickFrameCount: 4, durationTicks: 2));
+
+        player.ObserveCivviePogoTrickInput(isHeld: false);
+        Assert.True(player.TryStartCivviePogoTrick(trickFrameCount: 4, durationTicks: 2));
+    }
 }

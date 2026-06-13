@@ -11,7 +11,9 @@
     "parameters": {
       "healAmount": 15,
       "healRadius": 120,
-      "healFrameIndex": 9
+      "healFrameIndex": 9,
+      "pogoTrickDurationTicks": 30,
+      "pogoTrickFrameCount": 2
     }
   },
   "ammo": {},

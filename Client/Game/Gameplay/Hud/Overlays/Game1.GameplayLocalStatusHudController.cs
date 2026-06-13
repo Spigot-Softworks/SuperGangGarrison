@@ -525,7 +525,10 @@ public partial class Game1
                     Order: GetHudRowOrder(utilityHud, WeaponHudOrderUtility)));
             }
 
-            AddPrimaryWeaponHudRow(rows, displayedWeaponStats, !showOnlyActiveWeapon && hasGrenadeLauncher && !selectedUtilityItem);
+            if (ShouldDrawLocalMedicNeedleAmmoHud())
+            {
+                AddPrimaryWeaponHudRow(rows, displayedWeaponStats, !showOnlyActiveWeapon && hasGrenadeLauncher && !selectedUtilityItem);
+            }
 
             if (!showOnlyActiveWeapon && selectedOffhandItemId is not null)
             {
@@ -1666,6 +1669,12 @@ public partial class Game1
             }
 
             var localPlayer = _game._world.LocalPlayer;
+            if (localPlayer.ClassId == PlayerClass.Medic
+                && string.Equals(item.BehaviorId, BuiltInGameplayBehaviorIds.MedigunCrit, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
             if (localPlayer.HasExperimentalOffhandWeapon)
             {
                 var offhandItemId = CharacterClassCatalog.RuntimeRegistry.TryResolvePrimaryWeaponItemId(
@@ -1758,6 +1767,14 @@ public partial class Game1
 
             if (player.ClassId == PlayerClass.Medic)
             {
+                if (IsLocalMedicKritzHealNeedlesPresented())
+                {
+                    return GetMedicNeedleReloadProgress(
+                        player.ExperimentalOffhandCurrentShells,
+                        Math.Max(1, player.ExperimentalOffhandMaxShells),
+                        player.ExperimentalOffhandReloadTicksUntilNextShell);
+                }
+
                 return GetMedicNeedleReloadProgress(currentShells, maxShells, _game.GetPlayerMedicNeedleRefillTicks(player));
             }
 
@@ -2067,6 +2084,14 @@ public partial class Game1
             }
 
             var displayedShells = _game.GetPlayerCurrentShells(player);
+            if (ReferenceEquals(player, _game._world.LocalPlayer) && IsLocalMedicKritzHealNeedlesPresented())
+            {
+                return GetMedicNeedleReloadProgress(
+                    player.ExperimentalOffhandCurrentShells,
+                    Math.Max(1, player.ExperimentalOffhandMaxShells),
+                    player.ExperimentalOffhandReloadTicksUntilNextShell);
+            }
+
             if (displayedShells >= player.MaxShells)
             {
                 return 1f;
@@ -2088,36 +2113,102 @@ public partial class Game1
         }
 
         private bool IsLocalDisplayedMainWeaponAcquiredCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented;
-        private string GetLocalDisplayedMainWeaponPresentationItemIdCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented
-            ? _game._world.LocalPlayer.GameplayLoadoutState.AcquiredItemId ?? _game._world.LocalPlayer.GameplayLoadoutState.PrimaryItemId
-            : IsLocalDisplayedOffhandWeaponSelected()
-                ? GetLocalDisplayedOffhandPresentationItemId()
-                : _game._world.LocalPlayer.GameplayLoadoutState.PrimaryItemId;
-        private PrimaryWeaponDefinition GetLocalDisplayedMainWeaponStatsCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented
-            ? _game._world.LocalPlayer.AcquiredWeapon ?? _game._world.LocalPlayer.PrimaryWeapon
-            : IsLocalDisplayedOffhandWeaponSelected()
-                ? _game._world.LocalPlayer.ExperimentalOffhandWeapon ?? _game._world.LocalPlayer.PrimaryWeapon
-                : _game._world.LocalPlayer.PrimaryWeapon;
-        private int GetLocalDisplayedMainWeaponCurrentShellsCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented
-            ? _game._world.LocalPlayer.AcquiredWeaponCurrentShells
-            : IsLocalDisplayedOffhandWeaponSelected()
-                ? GetLocalDisplayedOffhandCurrentShells()
-                : _game.GetPlayerCurrentShells(_game._world.LocalPlayer);
-        private int GetLocalDisplayedMainWeaponMaxShellsCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented
-            ? _game._world.LocalPlayer.AcquiredWeaponMaxShells
-            : IsLocalDisplayedOffhandWeaponSelected()
-                ? GetLocalDisplayedOffhandMaxShells()
-                : _game._world.LocalPlayer.MaxShells;
-        private int GetLocalDisplayedMainWeaponCooldownTicksCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented
-            ? _game._world.LocalPlayer.AcquiredWeaponCooldownTicks
-            : IsLocalDisplayedOffhandWeaponSelected()
-                ? _game._world.LocalPlayer.ExperimentalOffhandCooldownTicks
-                : _game.GetPlayerPrimaryCooldownTicks(_game._world.LocalPlayer);
-        private int GetLocalDisplayedMainWeaponReloadTicksCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented
-            ? _game._world.LocalPlayer.AcquiredWeaponReloadTicksUntilNextShell
-            : IsLocalDisplayedOffhandWeaponSelected()
-                ? GetLocalDisplayedOffhandReloadTicks()
-                : _game.GetPlayerReloadTicksUntilNextShell(_game._world.LocalPlayer);
+        private string GetLocalDisplayedMainWeaponPresentationItemIdCore()
+        {
+            if (IsLocalMedicKritzHealNeedlesPresented())
+            {
+                return _game._world.LocalPlayer.GameplayLoadoutState.SecondaryItemId ?? "weapon.medigun.crit";
+            }
+
+            return _game._world.LocalPlayer.IsAcquiredWeaponPresented
+                ? _game._world.LocalPlayer.GameplayLoadoutState.AcquiredItemId ?? _game._world.LocalPlayer.GameplayLoadoutState.PrimaryItemId
+                : IsLocalDisplayedOffhandWeaponSelected()
+                    ? GetLocalDisplayedOffhandPresentationItemId()
+                    : _game._world.LocalPlayer.GameplayLoadoutState.PrimaryItemId;
+        }
+
+        private PrimaryWeaponDefinition GetLocalDisplayedMainWeaponStatsCore()
+        {
+            if (IsLocalMedicKritzHealNeedlesPresented())
+            {
+                return _game._world.LocalPlayer.ExperimentalOffhandWeapon ?? _game._world.LocalPlayer.PrimaryWeapon;
+            }
+
+            return _game._world.LocalPlayer.IsAcquiredWeaponPresented
+                ? _game._world.LocalPlayer.AcquiredWeapon ?? _game._world.LocalPlayer.PrimaryWeapon
+                : IsLocalDisplayedOffhandWeaponSelected()
+                    ? _game._world.LocalPlayer.ExperimentalOffhandWeapon ?? _game._world.LocalPlayer.PrimaryWeapon
+                    : _game._world.LocalPlayer.PrimaryWeapon;
+        }
+
+        private int GetLocalDisplayedMainWeaponCurrentShellsCore()
+        {
+            if (IsLocalMedicKritzHealNeedlesPresented())
+            {
+                return _game._world.LocalPlayer.ExperimentalOffhandCurrentShells;
+            }
+
+            return _game._world.LocalPlayer.IsAcquiredWeaponPresented
+                ? _game._world.LocalPlayer.AcquiredWeaponCurrentShells
+                : IsLocalDisplayedOffhandWeaponSelected()
+                    ? GetLocalDisplayedOffhandCurrentShells()
+                    : _game.GetPlayerCurrentShells(_game._world.LocalPlayer);
+        }
+
+        private int GetLocalDisplayedMainWeaponMaxShellsCore()
+        {
+            if (IsLocalMedicKritzHealNeedlesPresented())
+            {
+                return Math.Max(1, _game._world.LocalPlayer.ExperimentalOffhandMaxShells);
+            }
+
+            return _game._world.LocalPlayer.IsAcquiredWeaponPresented
+                ? _game._world.LocalPlayer.AcquiredWeaponMaxShells
+                : IsLocalDisplayedOffhandWeaponSelected()
+                    ? GetLocalDisplayedOffhandMaxShells()
+                    : _game._world.LocalPlayer.MaxShells;
+        }
+
+        private int GetLocalDisplayedMainWeaponCooldownTicksCore()
+        {
+            if (IsLocalMedicKritzHealNeedlesPresented())
+            {
+                return _game._world.LocalPlayer.ExperimentalOffhandCooldownTicks;
+            }
+
+            return _game._world.LocalPlayer.IsAcquiredWeaponPresented
+                ? _game._world.LocalPlayer.AcquiredWeaponCooldownTicks
+                : IsLocalDisplayedOffhandWeaponSelected()
+                    ? _game._world.LocalPlayer.ExperimentalOffhandCooldownTicks
+                    : _game.GetPlayerPrimaryCooldownTicks(_game._world.LocalPlayer);
+        }
+
+        private int GetLocalDisplayedMainWeaponReloadTicksCore()
+        {
+            if (IsLocalMedicKritzHealNeedlesPresented())
+            {
+                return _game._world.LocalPlayer.ExperimentalOffhandReloadTicksUntilNextShell;
+            }
+
+            return _game._world.LocalPlayer.IsAcquiredWeaponPresented
+                ? _game._world.LocalPlayer.AcquiredWeaponReloadTicksUntilNextShell
+                : IsLocalDisplayedOffhandWeaponSelected()
+                    ? GetLocalDisplayedOffhandReloadTicks()
+                    : _game.GetPlayerReloadTicksUntilNextShell(_game._world.LocalPlayer);
+        }
+
+        private bool IsLocalMedicKritzHealNeedlesPresented()
+        {
+            var player = _game._world.LocalPlayer;
+            return player.ClassId == PlayerClass.Medic
+                && player.IsExperimentalOffhandEquipped
+                && player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit);
+        }
+
+        private bool ShouldDrawLocalMedicNeedleAmmoHud()
+        {
+            return _game._world.LocalPlayer.ClassId == PlayerClass.Medic;
+        }
 
         private bool IsLocalDisplayedOffhandWeaponSelected()
         {

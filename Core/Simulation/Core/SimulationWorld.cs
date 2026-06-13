@@ -158,6 +158,8 @@ public sealed partial class SimulationWorld
 
     public long Frame { get; private set; }
 
+    public int SessionPresentationSeed { get; private set; }
+
     public double SimulationTimeSeconds => Frame * Config.FixedDeltaSeconds;
 
     public SimulationConfig Config { get; }

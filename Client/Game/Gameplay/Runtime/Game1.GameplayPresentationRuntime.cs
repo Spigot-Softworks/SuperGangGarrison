@@ -50,6 +50,7 @@ public partial class Game1
         UpdatePostGameMvpWinScreenState(keyboard, clientTicks);
         PlayPendingCivvieMoneyTrailSpawns();
         ObserveCivvieUmbrellaShieldBlocksFromPlayerState();
+        ObserveCivviePogoTrickPresentationFromPlayerState();
         PlayPendingVisualEvents();
         PlayPendingSoundEvents();
         DispatchPendingDamageEventsToPlugins();
