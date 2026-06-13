@@ -1,16 +1,28 @@
 {
   "servers": [
     {
-      "name": "Open Garrison Dedicated",
-      "host": "45-61-52-208.sslip.io",
-      "udpPort": 0,
-      "webSocketPort": 0,
-      "webSocketUrl": "wss://45-61-52-208.sslip.io/opengarrison/ws",
+      "name": "Super GG #1 - US West",
+      "host": "15.204.86.156",
+      "udpPort": 8190,
+      "webSocketPort": 8190,
+      "webSocketUrl": "wss://gs1.superganggarrison.com/opengarrison/ws",
       "private": false,
-      "protocolVersion": 58,
-      "buildVersion": "0.5.7.2",
+      "protocolVersion": 59,
+      "buildVersion": "0.5.7.3",
       "releaseChannel": "stable",
-      "compatibilityKey": "stable:0.5.7.2:58"
+      "compatibilityKey": "stable:0.5.7.3:59"
+    },
+    {
+      "name": "Super GG #2 - 24/7 VIP",
+      "host": "15.204.86.156",
+      "udpPort": 8191,
+      "webSocketPort": 8191,
+      "webSocketUrl": "wss://gs2.superganggarrison.com/opengarrison/ws",
+      "private": false,
+      "protocolVersion": 59,
+      "buildVersion": "0.5.7.3",
+      "releaseChannel": "stable",
+      "compatibilityKey": "stable:0.5.7.3:59"
     },
     {
       "name": "Local WebSocket",
@@ -19,10 +31,10 @@
       "webSocketPort": 8191,
       "webSocketUrl": "",
       "private": false,
-      "protocolVersion": 58,
-      "buildVersion": "0.5.7.2",
+      "protocolVersion": 59,
+      "buildVersion": "0.5.7.3",
       "releaseChannel": "stable",
-      "compatibilityKey": "stable:0.5.7.2:58"
+      "compatibilityKey": "stable:0.5.7.3:59"
     }
   ]
 }

@@ -664,7 +664,7 @@ sealed class ServerLaunchOptions
         var trimmed = value.Trim();
         return string.Equals(trimmed, LegacyLobbyHost, StringComparison.OrdinalIgnoreCase)
             ? DefaultLobbyHost
-            : trimmed;
+            : OpenGarrisonPreferencesDocument.MigrateLegacyApiHost(trimmed);
     }
 
     private static Uri? ResolveRegistryUrl(string? overrideUrl, string lobbyHost, int lobbyPort)

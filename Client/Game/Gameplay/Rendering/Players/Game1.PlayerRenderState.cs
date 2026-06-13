@@ -207,7 +207,7 @@ public partial class Game1
             renderState.WeaponAnimationTimeRemainingSeconds = MathF.Max(0f, renderState.WeaponAnimationTimeRemainingSeconds - elapsedSeconds);
         }
 
-        if (UpdateCivvieUmbrellaWeaponAnimationState(player, renderState))
+        if (UpdateCivvieUmbrellaWeaponAnimationState(player, renderState, GetPlayerIsCivvieUmbrellaActive(player)))
         {
             renderState.PreviousAmmoCount = GetRenderWeaponAmmoCount(player);
             renderState.PreviousCooldownTicks = GetRenderWeaponCooldownTicks(player);
@@ -249,7 +249,7 @@ public partial class Game1
         if (shotStarted)
         {
             renderState.ReloadAnimationCompleted = false;
-            var suppressRecoilForOpenUmbrella = player.ClassId == PlayerClass.Quote && player.IsCivvieUmbrellaActive;
+            var suppressRecoilForOpenUmbrella = player.ClassId == PlayerClass.Quote && GetPlayerIsCivvieUmbrellaActive(player);
             if (useScopedRecoilSprite)
             {
                 StartWeaponAnimation(renderState, WeaponAnimationMode.ScopedRecoil, weaponRenderDefinition.ScopedRecoilDurationSeconds);
@@ -319,7 +319,7 @@ public partial class Game1
         renderState.PreviousReloadTicks = currentReloadTicks;
     }
 
-    private static bool UpdateCivvieUmbrellaWeaponAnimationState(PlayerEntity player, PlayerRenderState renderState)
+    private static bool UpdateCivvieUmbrellaWeaponAnimationState(PlayerEntity player, PlayerRenderState renderState, bool isCivvieUmbrellaActive)
     {
         if (player.ClassId != PlayerClass.Quote
             || !player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.CivvieUmbrella))
@@ -330,7 +330,7 @@ public partial class Game1
 
         const float openingDurationSeconds = PlayerEntity.CivvieUmbrellaOpeningDurationTicks / LegacyMovementModel.SourceTicksPerSecond;
         const float closingDurationSeconds = 4f / LegacyMovementModel.SourceTicksPerSecond;
-        var active = player.IsCivvieUmbrellaActive;
+        var active = isCivvieUmbrellaActive;
 
         if (active)
         {
@@ -1017,7 +1017,7 @@ public partial class Game1
         renderState.WeaponAnimationElapsedSeconds = 0f;
     }
 
-    private static bool ShouldShowReloadAnimation(
+    private bool ShouldShowReloadAnimation(
         PlayerEntity player,
         PrimaryWeaponDefinition weaponStats,
         WeaponRenderDefinition weaponDefinition,
@@ -1026,7 +1026,7 @@ public partial class Game1
         int currentReloadTicks)
     {
         if (player.ClassId == PlayerClass.Quote
-            && player.IsCivvieUmbrellaActive
+            && GetPlayerIsCivvieUmbrellaActive(player)
             && player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.CivvieUmbrella))
         {
             return false;

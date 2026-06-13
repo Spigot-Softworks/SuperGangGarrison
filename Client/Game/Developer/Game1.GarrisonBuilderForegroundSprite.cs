@@ -140,7 +140,7 @@ public partial class Game1
             tint = Color.White * configuration.OutsideOpacity;
         }
 
-        tint *= overlayTint;
+        tint = new Color(tint.ToVector4() * overlayTint.ToVector4());
 
         if (configuration.HasImage
             && entity.Properties.TryGetValue(ForegroundSpriteMetadata.ImagePropertyKey, out var resourceName)
