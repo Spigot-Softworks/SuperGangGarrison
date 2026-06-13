@@ -61,9 +61,16 @@ public partial class Game1
             var bodyYOffset = isHeavyEating || player.IsTaunting || isPogo ? 0f : bodySelection.BodyYOffset * playerScale;
             var position = new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y + bodyYOffset - cameraPosition.Y);
 
-            if (drawIntelOverlay && !isHeavyEating && !player.IsTaunting && !isPogo && bodySelection.DrawIntelUnderlay)
+            if (drawIntelOverlay && !isHeavyEating && !player.IsTaunting && bodySelection.DrawIntelUnderlay)
             {
-                DrawIntelUnderlaySprite(player, cameraPosition, tint, scale, bodySelection, roundedOrigin);
+                if (isPogo)
+                {
+                    DrawPogoIntelUnderlaySprite(player, cameraPosition, tint, scale, roundedOrigin, frameIndex);
+                }
+                else
+                {
+                    DrawIntelUnderlaySprite(player, cameraPosition, tint, scale, bodySelection, roundedOrigin);
+                }
             }
 
             if (player.IsUbered)
@@ -90,7 +97,7 @@ public partial class Game1
                 _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, tint, 0f, sprite.Origin.ToVector2(), scale);
             }
 
-            if (drawIntelOverlay && !isHeavyEating && !player.IsTaunting && !isPogo && bodySelection.DrawIntelUnderlay)
+            if (drawIntelOverlay && !isHeavyEating && !player.IsTaunting && bodySelection.DrawIntelUnderlay)
             {
                 DrawCarriedIntelTimerSprite(player, cameraPosition, roundedOrigin);
             }
@@ -232,6 +239,8 @@ public partial class Game1
 
         public static string? GetTauntSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.TauntSuffix ?? presentation.BaseSuffix, "TauntS");
         public static string? GetPogoSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.PogoSuffix ?? presentation.BaseSuffix, "PogoS");
+
+        public static string? GetPogoIntelSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.PogoIntelSuffix ?? "PogoIntelS", "PogoIntelS");
         public static string? GetHeavyEatSpriteName(PlayerEntity player) => player.ClassId == PlayerClass.Heavy ? GetPresentationSpriteName(player, static presentation => presentation.HeavyEatSuffix ?? presentation.BaseSuffix, "OmnomnomnomS") : null;
         public static string? GetPlayerSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.BaseSuffix, "S");
         public static string? GetPlayerSpriteName(PlayerClass classId, PlayerTeam team) => GetPresentationSpriteName(classId, team, static presentation => presentation.BaseSuffix, "S");
@@ -319,6 +328,36 @@ public partial class Game1
             _game.DrawSpriteFrameWithOptionalShadow(
                 sprite.Frames[0],
                 new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y + (bodySelection.EquipmentOffset * player.PlayerScale) - cameraPosition.Y),
+                tint,
+                0f,
+                sprite.Origin.ToVector2(),
+                scale);
+        }
+
+        private void DrawPogoIntelUnderlaySprite(
+            PlayerEntity player,
+            Vector2 cameraPosition,
+            Color tint,
+            Vector2 scale,
+            Vector2 roundedOrigin,
+            int frameIndex)
+        {
+            var spriteName = GetPogoIntelSpriteName(player);
+            if (spriteName is null)
+            {
+                return;
+            }
+
+            var sprite = _game.GetResolvedSprite(spriteName);
+            if (sprite is null || sprite.Frames.Count == 0)
+            {
+                return;
+            }
+
+            var clampedFrameIndex = Math.Clamp(frameIndex, 0, sprite.Frames.Count - 1);
+            _game.DrawSpriteFrameWithOptionalShadow(
+                sprite.Frames[clampedFrameIndex],
+                new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y - cameraPosition.Y),
                 tint,
                 0f,
                 sprite.Origin.ToVector2(),
