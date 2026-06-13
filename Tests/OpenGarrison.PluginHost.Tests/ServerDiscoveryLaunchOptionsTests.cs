@@ -37,6 +37,23 @@ public sealed class ServerDiscoveryLaunchOptionsTests
     }
 
     [Fact]
+    public void LegacyApiHostLobbyHostMigratesToCanonicalBackend()
+    {
+        var options = ServerLaunchOptions.Load(
+            [],
+            _ => new ServerSettings
+            {
+                LobbyHost = "https://api.unkind-dev.com/api/servers",
+                LobbyPort = 443,
+            });
+
+        Assert.True(options.UseLobbyServer);
+        Assert.False(options.UseLegacyLobbyServer);
+        Assert.Equal(OpenGarrisonPreferencesDocument.DefaultLobbyHost, options.LobbyHost);
+        Assert.Equal(new Uri(OpenGarrisonPreferencesDocument.DefaultLobbyHost), options.RegistryUrl);
+    }
+
+    [Fact]
     public void NoLobbyDisablesHttpRegistryDiscovery()
     {
         var options = ServerLaunchOptions.Load(["--no-lobby"], _ => new ServerSettings());
