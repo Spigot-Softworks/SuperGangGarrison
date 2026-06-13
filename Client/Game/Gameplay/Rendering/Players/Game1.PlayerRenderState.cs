@@ -1017,7 +1017,7 @@ public partial class Game1
         renderState.WeaponAnimationElapsedSeconds = 0f;
     }
 
-    private static bool ShouldShowReloadAnimation(
+    private bool ShouldShowReloadAnimation(
         PlayerEntity player,
         PrimaryWeaponDefinition weaponStats,
         WeaponRenderDefinition weaponDefinition,
@@ -1026,7 +1026,7 @@ public partial class Game1
         int currentReloadTicks)
     {
         if (player.ClassId == PlayerClass.Quote
-            && player.IsCivvieUmbrellaActive
+            && GetPlayerIsCivvieUmbrellaActive(player)
             && player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.CivvieUmbrella))
         {
             return false;
