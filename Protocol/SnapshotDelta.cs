@@ -356,7 +356,12 @@ public static class SnapshotDelta
         return entry.Key is "heavy_dash_cooldown_ticks"
             or "heavy_dash_active"
             or "heavy_dash_visible"
-            or "heavy_dash_trail_alpha";
+            or "heavy_dash_trail_alpha"
+            or "civvie_umbrella_cooldown_ticks"
+            or "civvie_umbrella_active"
+            or "civvie_umbrella_disabled"
+            or "civvie_pogo_active"
+            or "civvie_pogo_crunch_ticks";
     }
 
     private static IReadOnlyList<SnapshotSentryState> MergeSentries(

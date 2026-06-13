@@ -90,7 +90,13 @@ static async Task RunApplyUpdateModeAsync(string[] args)
             progress => updateUi.Report(UpdateUiState.KnownProgress("Installing update...", progress)));
         EnsurePackagedExecutablePermissions(destinationDirectory);
 
-        File.WriteAllText(Path.Combine(destinationDirectory, VersionFileName), version.Trim());
+        var appliedVersion = ResolveAppliedPackageVersion(sourceDirectory, version);
+        if (!string.Equals(appliedVersion, version.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            LogUpdaterEvent(destinationDirectory, $"using package version \"{appliedVersion}\" instead of manifest bootstrap version \"{version}\"");
+        }
+
+        File.WriteAllText(Path.Combine(destinationDirectory, VersionFileName), appliedVersion);
         var releaseChannel = ReadReleaseChannelFile(sourceDirectory);
         if (!string.IsNullOrWhiteSpace(releaseChannel))
         {
@@ -580,8 +586,7 @@ static CurrentVersionInfo ReadCurrentVersion(string appDirectory)
 
 static string NormalizeCurrentVersionForManifest(CurrentVersionInfo currentVersion, string manifestVersion)
 {
-    if (currentVersion.FromVersionFile
-        || !IsDefaultSdkVersionLabel(currentVersion.Version)
+    if (!IsDefaultSdkVersionLabel(currentVersion.Version)
         || !TryParseComparableVersion(manifestVersion, out var parsedManifestVersion)
         || parsedManifestVersion.Major != 0)
     {
@@ -589,6 +594,28 @@ static string NormalizeCurrentVersionForManifest(CurrentVersionInfo currentVersi
     }
 
     return "0.0.0";
+}
+
+static string ResolveAppliedPackageVersion(string sourceDirectory, string manifestVersion)
+{
+    var packageVersionPath = Path.Combine(sourceDirectory, VersionFileName);
+    try
+    {
+        if (File.Exists(packageVersionPath))
+        {
+            var packageVersion = File.ReadAllText(packageVersionPath).Trim();
+            if (!string.IsNullOrWhiteSpace(packageVersion))
+            {
+                return packageVersion;
+            }
+        }
+    }
+    catch
+    {
+        // Fall back to the manifest version if the extracted package metadata cannot be read.
+    }
+
+    return manifestVersion.Trim();
 }
 
 static bool IsDefaultSdkVersionLabel(string version)

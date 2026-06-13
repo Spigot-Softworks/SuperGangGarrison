@@ -125,6 +125,11 @@ public partial class Game1
         for (var soundIndex = 0; soundIndex < resolvedSnapshot.SoundEvents.Count; soundIndex += 1)
         {
             var soundEvent = resolvedSnapshot.SoundEvents[soundIndex];
+            if (HasProcessedNetworkEvent(soundEvent.EventId, _processedNetworkSoundEventIds))
+            {
+                continue;
+            }
+
             _pendingNetworkSoundEvents.Add(new WorldSoundEvent(
                 soundEvent.SoundName,
                 soundEvent.X,

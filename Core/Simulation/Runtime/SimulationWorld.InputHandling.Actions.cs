@@ -423,12 +423,6 @@ public sealed partial class SimulationWorld
             return true;
         }
 
-        // Backward compatibility for clients that still send UseAbility for weapon swapping.
-        if (!input.SwapWeapon && TryHandleNetworkWeaponSwap(player))
-        {
-            return true;
-        }
-
         var dispatchResult = TryDispatchGameplayAbility(
             player,
             input,
@@ -442,8 +436,9 @@ public sealed partial class SimulationWorld
             return true;
         }
 
-        // Backward-compatible fallback for sessions where a secondary weapon is enabled
-        // but utility loadout behaviors are unavailable.
+        // Backward compatibility for clients that still send UseAbility for weapon swapping.
+        // Real utility abilities must get first refusal, otherwise classes like Civilian can
+        // toggle a stale secondary weapon instead of activating their utility.
         if (!input.SwapWeapon)
         {
             TryHandleLegacyNetworkSecondaryWeaponToggle(player, input);

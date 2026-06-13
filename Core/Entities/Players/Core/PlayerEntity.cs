@@ -698,6 +698,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         ClassDefinition = classDefinition;
         SelectedGameplayLoadoutId = CharacterClassCatalog.RuntimeRegistry.GetDefaultLoadout(GameplayClassId).Id;
         SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
+        SetExperimentalOffhandWeapon(null);
         Health = int.Clamp(Health, 0, MaxHealth);
         CurrentShells = int.Clamp(CurrentShells, 0, MaxShells);
         ResetPyroPrimaryStateFromCurrentAmmo();
