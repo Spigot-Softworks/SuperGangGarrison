@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
 
-const string UpdateManifestBaseUrl = "https://api.unkind-dev.com/updates";
+const string UpdateManifestBaseUrl = "https://api.superganggarrison.com/updates";
 const string VersionFileName = "version.txt";
 const string ReleaseChannelFileName = "release-channel.txt";
 const string ApplyUpdateArgument = "--apply-update";

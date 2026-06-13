@@ -256,6 +256,8 @@ public partial class Game1
             lobbyHost = OpenGarrisonPreferencesDocument.DefaultLobbyHost;
         }
 
+        lobbyHost = OpenGarrisonPreferencesDocument.MigrateLegacyApiHost(lobbyHost);
+
         if (Uri.TryCreate(lobbyHost, UriKind.Absolute, out var configuredUri))
         {
             return configuredUri.ToString();

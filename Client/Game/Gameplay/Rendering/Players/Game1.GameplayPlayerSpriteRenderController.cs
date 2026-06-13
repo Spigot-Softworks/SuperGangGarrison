@@ -26,7 +26,7 @@ public partial class Game1
         public bool TryDrawPlayerSpriteAtPosition(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, Color tint, PlayerBodySpriteSelection bodySelection, bool drawIntelOverlay)
         {
             var isHeavyEating = _game.GetPlayerIsHeavyEating(player);
-            var isPogo = player.IsCivviePogoActive;
+            var isPogo = _game.GetPlayerIsCivviePogoActive(player);
             var spriteName = isHeavyEating
                 ? GetHeavyEatSpriteName(player)
                 : isPogo

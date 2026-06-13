@@ -425,17 +425,15 @@ public sealed partial class SimulationWorld
 
         foreach (var entry in _vipSlotsByTeam)
         {
-            if (!TryGetNetworkPlayer(entry.Value, out var player) || IsNetworkPlayerAwaitingJoin(entry.Value))
+            if (!TryGetNetworkPlayer(entry.Value, out _) || IsNetworkPlayerAwaitingJoin(entry.Value))
             {
                 TryEndRound(GetOpposingTeam(entry.Key), "vip_missing");
                 return;
             }
 
-            if (!player.IsAlive)
-            {
-                TryEndRound(GetOpposingTeam(entry.Key), "vip_killed");
-                return;
-            }
+            // VIP death is not a loss condition. VIP mode plays as a normal attack/defense
+            // control-point match where only the VIP can capture; a dead VIP simply respawns
+            // (and stays VIP), and the round resolves on the usual capture/time conditions.
         }
     }
 }

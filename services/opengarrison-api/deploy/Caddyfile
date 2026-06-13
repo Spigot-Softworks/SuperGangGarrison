@@ -1,4 +1,4 @@
-api.unkind-dev.com {
+api.unkind-dev.com, api.superganggarrison.com {
     encode zstd gzip
 
     handle /updates/* {

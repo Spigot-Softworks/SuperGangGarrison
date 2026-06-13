@@ -241,4 +241,25 @@ public partial class Game1
             ? _predictedLocalActionState.MedicNeedleRefillTicks
             : player.MedicNeedleRefillTicks;
     }
+
+    private bool GetPlayerIsCivvieUmbrellaActive(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.IsCivvieUmbrellaActive
+            : player.IsCivvieUmbrellaActive;
+    }
+
+    private bool GetPlayerIsCivviePogoActive(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.IsCivviePogoActive
+            : player.IsCivviePogoActive;
+    }
+
+    private int GetPlayerCivviePogoCrunchTicksRemaining(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.CivviePogoCrunchTicksRemaining
+            : player.CivviePogoCrunchTicksRemaining;
+    }
 }
