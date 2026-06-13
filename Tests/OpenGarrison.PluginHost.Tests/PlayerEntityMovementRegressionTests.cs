@@ -357,6 +357,48 @@ public sealed class PlayerEntityMovementRegressionTests
             $"expected pogo to bounce on slow-fall landing, grounded={player.IsGrounded} vertical={player.VerticalSpeed:0.###}");
     }
 
+    [Fact]
+    public void CivilianPogoStuckGroundRecoveryRebouncesWhenGroundedWithoutVerticalMovement()
+    {
+        var level = CreateFlatGroundLevel();
+        var player = CreateGroundedCivilian(level);
+        player.SyncCivviePogoSuperJumpInput(false);
+        Assert.True(player.TryToggleCivviePogo());
+        ClearCivviePogoNeedsGroundBounce(player);
+
+        var deltaSeconds = 1d / SimulationConfig.DefaultTicksPerSecond;
+        var moveInput = MoveRightInput;
+        var recovered = false;
+        for (var tick = 0; tick < 48; tick += 1)
+        {
+            var startedGrounded = player.PrepareMovement(moveInput, level, PlayerTeam.Red, deltaSeconds, out _);
+            player.CompleteMovement(
+                level,
+                PlayerTeam.Red,
+                deltaSeconds,
+                startedGrounded,
+                jumped: false,
+                allowDropdownFallThrough: false);
+            if (!player.IsGrounded || player.VerticalSpeed < -0.01f)
+            {
+                recovered = true;
+                break;
+            }
+        }
+
+        Assert.True(player.IsCivviePogoActive);
+        Assert.True(recovered, "expected stuck-ground recovery to trigger another pogo bounce");
+    }
+
+    private static void ClearCivviePogoNeedsGroundBounce(PlayerEntity player)
+    {
+        var field = typeof(PlayerEntity).GetField(
+            "<CivviePogoNeedsGroundBounce>k__BackingField",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(field);
+        field!.SetValue(player, false);
+    }
+
     private static PlayerEntity CreateGroundedCivilian(SimpleLevel? level = null)
     {
         level ??= CreateFlatGroundLevel();

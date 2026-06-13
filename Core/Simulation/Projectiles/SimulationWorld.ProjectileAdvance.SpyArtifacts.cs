@@ -45,7 +45,12 @@ public sealed partial class SimulationWorld
                 if (hitResult.HitPlayer is not null)
                 {
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, mask.DirectionDegrees - 180f, 6);
-                    if (ApplyPlayerDamage(hitResult.HitPlayer, StabMaskEntity.DamagePerHit, owner, PlayerEntity.SpyDamageRevealAlpha))
+                    if (ApplyPlayerDamage(
+                            hitResult.HitPlayer,
+                            StabMaskEntity.DamagePerHit,
+                            owner,
+                            PlayerEntity.SpyDamageRevealAlpha,
+                            allowCivvieUmbrellaShield: false))
                     {
                         KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "KnifeKL", deadBodyAnimationKind: DeadBodyAnimationKind.Severe);
                     }
