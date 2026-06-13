@@ -1274,6 +1274,60 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
+    public void SpyBackstabBypassesCivilianUmbrellaShieldFromBehind()
+    {
+        var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        var spy = CreateBlueNetworkSpy(world, 2);
+        var civilian = world.LocalPlayer;
+        var chargeBefore = civilian.CivvieUmbrellaChargeTicks;
+
+        civilian.TeleportTo(0f, 0f);
+        spy.TeleportTo(-24f, 0f);
+        SetPlayerAimDirection(civilian, 0f);
+        Assert.True(civilian.TryActivateCivvieUmbrella());
+        Assert.True(spy.TryToggleSpyCloak());
+        world.DrainPendingDamageEvents();
+
+        InvokeSpawnStabMask(world, spy, 0f);
+        InvokeAdvanceStabMasks(world);
+
+        Assert.False(civilian.IsAlive);
+        Assert.Equal(chargeBefore, civilian.CivvieUmbrellaChargeTicks);
+        Assert.Empty(world.DrainPendingDamageEvents().Where(static damageEvent =>
+            damageEvent.Flags.HasFlag(DamageEventFlags.CivvieUmbrellaBlock)));
+    }
+
+    [Fact]
+    public void SpyBackstabBypassesCivilianUmbrellaShieldFromFront()
+    {
+        var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        var spy = CreateBlueNetworkSpy(world, 2);
+        var civilian = world.LocalPlayer;
+
+        civilian.TeleportTo(0f, 0f);
+        spy.TeleportTo(24f, 0f);
+        SetPlayerAimDirection(civilian, 0f);
+        Assert.True(civilian.TryActivateCivvieUmbrella());
+        Assert.True(spy.TryToggleSpyCloak());
+        world.DrainPendingDamageEvents();
+
+        Assert.False(InvokeApplyPlayerDamage(world, civilian, 25, spy));
+        Assert.Equal(civilian.MaxHealth, civilian.Health);
+        _ = world.DrainPendingDamageEvents();
+
+        InvokeSpawnStabMask(world, spy, 180f);
+        InvokeAdvanceStabMasks(world);
+
+        Assert.False(civilian.IsAlive);
+        Assert.Empty(world.DrainPendingDamageEvents().Where(static damageEvent =>
+            damageEvent.Flags.HasFlag(DamageEventFlags.CivvieUmbrellaBlock)));
+    }
+
+    [Fact]
     public void CivilianUmbrellaShieldDoesNotBlockDamageFromBehind()
     {
         var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
@@ -2583,6 +2637,15 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         return player;
     }
 
+    private static PlayerEntity CreateBlueNetworkSpy(SimulationWorld world, byte slot)
+    {
+        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Spy));
+        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        return player;
+    }
+
     private static PlayerEntity CreateRedNetworkScout(SimulationWorld world, byte slot)
     {
         Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
@@ -3034,6 +3097,18 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         return (bool)ApplyPlayerDamageMethod.Invoke(
             world,
             [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true, null, null])!;
+    }
+
+    private static void InvokeSpawnStabMask(SimulationWorld world, PlayerEntity owner, float directionDegrees)
+    {
+        var method = GetRequiredNonPublicMethod("SpawnStabMask");
+        method.Invoke(world, [owner, directionDegrees]);
+    }
+
+    private static void InvokeAdvanceStabMasks(SimulationWorld world)
+    {
+        var method = GetRequiredNonPublicMethod("AdvanceStabMasks");
+        method.Invoke(world, null);
     }
 
     private static bool InvokeApplySentryDamage(SimulationWorld world, SentryEntity target, int damage, PlayerEntity attacker)

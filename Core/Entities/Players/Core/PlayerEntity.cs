@@ -72,6 +72,9 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const float CivviePogoBaseBounceJumpScaleDefault = 0.5f;
     public const float CivviePogoSuperJumpScaleDefault = 1.125f;
     public const int CivviePogoCrunchDurationTicksDefault = 2;
+    public const int CivviePogoStuckSampleIntervalTicks = 6;
+    public const float CivviePogoStuckMinVerticalMovement = 3f;
+    public const int CivviePogoStuckRebounceCooldownTicksDefault = 6;
     public const string CivvieTauntAbilityItemId = "ability.civilian-taunt";
     public const float ExperimentalDemoknightSwordBaseRange = 48f;
     public const int ExperimentalDemoknightSwordCooldownTicks = 18;
@@ -304,6 +307,12 @@ public sealed partial class PlayerEntity : SimulationEntity
     private bool CivviePogoSuperJumpHeld { get; set; }
 
     private bool CivviePogoSuperJumpSoundPending { get; set; }
+
+    private float CivviePogoStuckReferenceY { get; set; }
+
+    private int CivviePogoStuckWatchTicks { get; set; }
+
+    private int CivviePogoStuckRebounceCooldownTicks { get; set; }
 
     public float HeavyHealingAccumulator { get; private set; }
 
