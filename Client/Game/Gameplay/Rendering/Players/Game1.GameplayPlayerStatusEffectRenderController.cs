@@ -41,7 +41,7 @@ public partial class Game1
             if (!_game._showShieldBarEnabled
                 || visibilityAlpha <= 0f
                 || !player.IsAlive
-                || !player.IsCivvieUmbrellaActive
+                || !_game.GetPlayerIsCivvieUmbrellaActive(player)
                 || (!ReferenceEquals(player, _game._world.LocalPlayer)
                     && player.Team != _game._world.LocalPlayer.Team))
             {

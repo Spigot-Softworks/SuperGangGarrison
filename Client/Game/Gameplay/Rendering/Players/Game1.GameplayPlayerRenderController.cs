@@ -45,7 +45,7 @@ public partial class Game1
             }
 
             _game.DrawExperimentalStickyGibBloodOverlay(player, cameraPosition, visibilityAlpha);
-            if (!_game.GetPlayerIsHeavyEating(player) && !player.IsTaunting && !player.IsCivviePogoActive && !_game._world.IsPlayerHumiliated(player))
+            if (!_game.GetPlayerIsHeavyEating(player) && !player.IsTaunting && !_game.GetPlayerIsCivviePogoActive(player) && !_game._world.IsPlayerHumiliated(player))
             {
                 _game.TryDrawWeaponSprite(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
             }

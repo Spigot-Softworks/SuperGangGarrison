@@ -26,17 +26,14 @@ public partial class Game1
         public bool TryDrawPlayerSpriteAtPosition(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, Color tint, PlayerBodySpriteSelection bodySelection, bool drawIntelOverlay)
         {
             var isHeavyEating = _game.GetPlayerIsHeavyEating(player);
-            var isPogo = player.IsCivviePogoActive;
-            var isPogoTrick = isPogo && player.IsCivviePogoTrickActive;
+            var isPogo = _game.GetPlayerIsCivviePogoActive(player);
             var spriteName = isHeavyEating
                 ? GetHeavyEatSpriteName(player)
-                : isPogoTrick
-                    ? GetPogoTrickSpriteName(player)
-                    : isPogo
-                        ? GetPogoSpriteName(player)
-                        : player.IsTaunting
-                            ? GetTauntSpriteName(player)
-                            : bodySelection.SpriteName;
+                : isPogo
+                    ? GetPogoSpriteName(player)
+                    : player.IsTaunting
+                        ? GetTauntSpriteName(player)
+                        : bodySelection.SpriteName;
             if (spriteName is null)
             {
                 return false;
@@ -53,15 +50,13 @@ public partial class Game1
             var scale = new Vector2(facingScale * playerScale, playerScale);
             var frameIndex = isHeavyEating
                 ? GetHeavyEatSpriteFrameIndex(_game.GetPlayerHeavyEatTicksRemaining(player), sprite.Frames.Count, player.Team)
-                : isPogoTrick
-                    ? _game.GetCivviePogoTrickPresentationFrameIndex(player, sprite.Frames.Count)
-                    : isPogo
-                        ? PlayerEntity.GetCivviePogoSpriteFrameIndex(player, sprite.Frames.Count)
-                        : player.IsTaunting
-                            ? GetTauntSpriteFrameIndex(player, sprite.Frames.Count)
-                            : bodySelection.IsHumiliated
-                                ? GetHumiliationSpriteFrameIndex(player, bodySelection.AnimationImage, sprite.Frames.Count)
-                                : GetPlayerBodySpriteFrameIndex(bodySelection.AnimationImage, sprite.Frames.Count);
+                : isPogo
+                    ? PlayerEntity.GetCivviePogoSpriteFrameIndex(player, sprite.Frames.Count)
+                    : player.IsTaunting
+                        ? GetTauntSpriteFrameIndex(player, sprite.Frames.Count)
+                        : bodySelection.IsHumiliated
+                            ? GetHumiliationSpriteFrameIndex(player, bodySelection.AnimationImage, sprite.Frames.Count)
+                            : GetPlayerBodySpriteFrameIndex(bodySelection.AnimationImage, sprite.Frames.Count);
             var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
             var bodyYOffset = isHeavyEating || player.IsTaunting || isPogo ? 0f : bodySelection.BodyYOffset * playerScale;
             var position = new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y + bodyYOffset - cameraPosition.Y);
@@ -70,8 +65,7 @@ public partial class Game1
             {
                 if (isPogo)
                 {
-                    var intelFrameIndex = isPogoTrick ? 0 : frameIndex;
-                    DrawPogoIntelUnderlaySprite(player, cameraPosition, tint, scale, roundedOrigin, intelFrameIndex);
+                    DrawPogoIntelUnderlaySprite(player, cameraPosition, tint, scale, roundedOrigin, frameIndex);
                 }
                 else
                 {
@@ -245,7 +239,6 @@ public partial class Game1
 
         public static string? GetTauntSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.TauntSuffix ?? presentation.BaseSuffix, "TauntS");
         public static string? GetPogoSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.PogoSuffix ?? presentation.BaseSuffix, "PogoS");
-        public static string? GetPogoTrickSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.PogoTrickSuffix ?? "PogoTrickS", "PogoTrickS");
 
         public static string? GetPogoIntelSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.PogoIntelSuffix ?? "PogoIntelS", "PogoIntelS");
         public static string? GetHeavyEatSpriteName(PlayerEntity player) => player.ClassId == PlayerClass.Heavy ? GetPresentationSpriteName(player, static presentation => presentation.HeavyEatSuffix ?? presentation.BaseSuffix, "OmnomnomnomS") : null;

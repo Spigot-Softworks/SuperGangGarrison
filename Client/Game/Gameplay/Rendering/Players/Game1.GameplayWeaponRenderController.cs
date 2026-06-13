@@ -32,7 +32,7 @@ public partial class Game1
 
         public bool TryDrawWeaponSpriteBackdrop(PlayerEntity player, Vector2 cameraPosition, Color tint, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
         {
-            if (player.IsCivviePogoActive)
+            if (_game.GetPlayerIsCivviePogoActive(player))
             {
                 return false;
             }
@@ -117,7 +117,7 @@ public partial class Game1
 
         public bool TryDrawWeaponSpriteAtPosition(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, Color tint, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
         {
-            if (player.IsCivviePogoActive)
+            if (_game.GetPlayerIsCivviePogoActive(player))
             {
                 return false;
             }
@@ -237,7 +237,7 @@ public partial class Game1
             float visibilityAlpha,
             PlayerBodySpriteSelection bodySelection)
         {
-            if (visibilityAlpha <= 0f || player.IsCivviePogoActive)
+            if (visibilityAlpha <= 0f || _game.GetPlayerIsCivviePogoActive(player))
             {
                 return;
             }
@@ -265,7 +265,7 @@ public partial class Game1
             }
 
             var renderPosition = _game.GetRenderPosition(player);
-            var weaponAnimationMode = player.IsCivvieUmbrellaActive
+            var weaponAnimationMode = _game.GetPlayerIsCivvieUmbrellaActive(player)
                 ? GetPlayerWeaponAnimationMode(player)
                 : WeaponAnimationMode.CivvieUmbrellaHold;
             var weaponDefinition = GetWeaponRenderDefinition(player, forceCivvieUmbrellaPresentation: true);

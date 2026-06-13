@@ -360,7 +360,7 @@ app = FastAPI(title="OpenGarrison API", version="0.1.0")
 
 cors_origins = [
     origin.strip()
-    for origin in os.environ.get("OPENGARRISON_API_CORS_ORIGINS", "https://unkind-dev.com,https://www.unkind-dev.com,http://localhost:5000,http://localhost:5173").split(",")
+    for origin in os.environ.get("OPENGARRISON_API_CORS_ORIGINS", "https://superganggarrison.com,https://www.superganggarrison.com,https://play.superganggarrison.com,https://unkind-dev.com,https://www.unkind-dev.com,http://localhost:5000,http://localhost:5173").split(",")
     if origin.strip()
 ]
 app.add_middleware(
