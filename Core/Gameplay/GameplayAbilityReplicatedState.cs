@@ -16,6 +16,8 @@ public static class GameplayAbilityReplicatedState
     public const string CivvieUmbrellaCooldownTicksKey = "civvie_umbrella_cooldown_ticks";
     public const string CivvieUmbrellaActiveKey = "civvie_umbrella_active";
     public const string CivvieUmbrellaDisabledKey = "civvie_umbrella_disabled";
+    public const string CivviePogoActiveKey = "civvie_pogo_active";
+    public const string CivviePogoCrunchTicksKey = "civvie_pogo_crunch_ticks";
     public const string HeavyDashCooldownTicksKey = "heavy_dash_cooldown_ticks";
     public const string HeavyDashActiveKey = "heavy_dash_active";
     public const string HeavyDashVisibleKey = "heavy_dash_visible";
@@ -60,6 +62,8 @@ public static class GameplayAbilityReplicatedState
                 Whole(CivvieUmbrellaCooldownTicksKey, player.CivvieUmbrellaCooldownTicks),
                 Toggle(CivvieUmbrellaActiveKey, player.IsCivvieUmbrellaActive),
                 Toggle(CivvieUmbrellaDisabledKey, player.IsCivvieUmbrellaDisabled),
+                Toggle(CivviePogoActiveKey, player.IsCivviePogoActive),
+                Whole(CivviePogoCrunchTicksKey, player.CivviePogoCrunchTicksRemaining),
             ],
             _ => Array.Empty<GameplayReplicatedStateEntry>(),
         };
@@ -97,6 +101,7 @@ public static class GameplayAbilityReplicatedState
             SniperChargeTicksKey when player.ClassId == PlayerClass.Sniper => player.SniperChargeTicks,
             SpySuperjumpCooldownTicksKey when player.ClassId == PlayerClass.Spy => player.SpySuperjumpCooldownTicksRemaining,
             CivvieUmbrellaCooldownTicksKey when player.ClassId == PlayerClass.Quote => player.CivvieUmbrellaCooldownTicks,
+            CivviePogoCrunchTicksKey when player.ClassId == PlayerClass.Quote => player.CivviePogoCrunchTicksRemaining,
             _ => default,
         };
 
@@ -107,7 +112,7 @@ public static class GameplayAbilityReplicatedState
             HeavyEatTicksRemainingKey or HeavyEatCooldownTicksKey or HeavyDashCooldownTicksKey => player.ClassId == PlayerClass.Heavy,
             SniperChargeTicksKey => player.ClassId == PlayerClass.Sniper,
             SpySuperjumpCooldownTicksKey => player.ClassId == PlayerClass.Spy,
-            CivvieUmbrellaCooldownTicksKey => player.ClassId == PlayerClass.Quote,
+            CivvieUmbrellaCooldownTicksKey or CivviePogoCrunchTicksKey => player.ClassId == PlayerClass.Quote,
             _ => false,
         };
     }
@@ -134,7 +139,7 @@ public static class GameplayAbilityReplicatedState
     public static bool TryGetBool(PlayerEntity player, string key, out bool value)
     {
         if (player.ClassId == PlayerClass.Quote
-            && key is CivvieUmbrellaActiveKey or CivvieUmbrellaDisabledKey
+            && key is CivvieUmbrellaActiveKey or CivvieUmbrellaDisabledKey or CivviePogoActiveKey
             && player.TryGetReplicatedStateBool(
                 GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
                 key,
@@ -152,6 +157,7 @@ public static class GameplayAbilityReplicatedState
             SpySuperjumpDisabledKey when player.ClassId == PlayerClass.Spy => player.IsCarryingIntel,
             CivvieUmbrellaActiveKey when player.ClassId == PlayerClass.Quote => player.IsCivvieUmbrellaActive,
             CivvieUmbrellaDisabledKey when player.ClassId == PlayerClass.Quote => player.IsCivvieUmbrellaDisabled,
+            CivviePogoActiveKey when player.ClassId == PlayerClass.Quote => player.IsCivviePogoActive,
             _ => default,
         };
 
@@ -160,7 +166,7 @@ public static class GameplayAbilityReplicatedState
             MedicUberReadyKey => player.ClassId == PlayerClass.Medic,
             HeavyDashActiveKey or HeavyDashVisibleKey => player.ClassId == PlayerClass.Heavy,
             SpySuperjumpActiveKey or SpySuperjumpDisabledKey => player.ClassId == PlayerClass.Spy,
-            CivvieUmbrellaActiveKey or CivvieUmbrellaDisabledKey => player.ClassId == PlayerClass.Quote,
+            CivvieUmbrellaActiveKey or CivvieUmbrellaDisabledKey or CivviePogoActiveKey => player.ClassId == PlayerClass.Quote,
             _ => false,
         };
     }

@@ -130,7 +130,13 @@ public sealed partial class SimulationWorld
                     damage *= MineProjectileEntity.SelfDamageScale;
                 }
 
-                if (ApplyPlayerContinuousDamage(player, damage, owner, PlayerEntity.SpyMineRevealAlpha))
+                if (ApplyPlayerContinuousDamage(
+                        player,
+                        damage,
+                        owner,
+                        PlayerEntity.SpyMineRevealAlpha,
+                        civvieUmbrellaThreatSourceX: mine.X,
+                        civvieUmbrellaThreatSourceY: mine.Y))
                 {
                     KillPlayer(
                         player,
@@ -476,7 +482,13 @@ public sealed partial class SimulationWorld
 
             var appliedDamage = blastDamage * distanceFactor;
             RegisterBloodEffect(player.X, player.Y, PointDirectionDegrees(centerX, centerY, player.X, player.Y) - 180f, 3);
-            if (ApplyPlayerContinuousDamage(player, appliedDamage, owner, PlayerEntity.SpyDamageRevealAlpha))
+            if (ApplyPlayerContinuousDamage(
+                    player,
+                    appliedDamage,
+                    owner,
+                    PlayerEntity.SpyDamageRevealAlpha,
+                    civvieUmbrellaThreatSourceX: centerX,
+                    civvieUmbrellaThreatSourceY: centerY))
             {
                 KillPlayer(
                     player,

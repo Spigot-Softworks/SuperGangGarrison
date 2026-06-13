@@ -26,7 +26,14 @@ public partial class Game1
         public bool TryDrawPlayerSpriteAtPosition(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, Color tint, PlayerBodySpriteSelection bodySelection, bool drawIntelOverlay)
         {
             var isHeavyEating = _game.GetPlayerIsHeavyEating(player);
-            var spriteName = isHeavyEating ? GetHeavyEatSpriteName(player) : player.IsTaunting ? GetTauntSpriteName(player) : bodySelection.SpriteName;
+            var isPogo = player.IsCivviePogoActive;
+            var spriteName = isHeavyEating
+                ? GetHeavyEatSpriteName(player)
+                : isPogo
+                    ? GetPogoSpriteName(player)
+                    : player.IsTaunting
+                        ? GetTauntSpriteName(player)
+                        : bodySelection.SpriteName;
             if (spriteName is null)
             {
                 return false;
@@ -43,18 +50,27 @@ public partial class Game1
             var scale = new Vector2(facingScale * playerScale, playerScale);
             var frameIndex = isHeavyEating
                 ? GetHeavyEatSpriteFrameIndex(_game.GetPlayerHeavyEatTicksRemaining(player), sprite.Frames.Count, player.Team)
-                : player.IsTaunting
-                    ? GetTauntSpriteFrameIndex(player, sprite.Frames.Count)
-                    : bodySelection.IsHumiliated
-                        ? GetHumiliationSpriteFrameIndex(player, bodySelection.AnimationImage, sprite.Frames.Count)
-                        : GetPlayerBodySpriteFrameIndex(bodySelection.AnimationImage, sprite.Frames.Count);
+                : isPogo
+                    ? PlayerEntity.GetCivviePogoSpriteFrameIndex(player, sprite.Frames.Count)
+                    : player.IsTaunting
+                        ? GetTauntSpriteFrameIndex(player, sprite.Frames.Count)
+                        : bodySelection.IsHumiliated
+                            ? GetHumiliationSpriteFrameIndex(player, bodySelection.AnimationImage, sprite.Frames.Count)
+                            : GetPlayerBodySpriteFrameIndex(bodySelection.AnimationImage, sprite.Frames.Count);
             var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
-            var bodyYOffset = isHeavyEating || player.IsTaunting ? 0f : bodySelection.BodyYOffset * playerScale;
+            var bodyYOffset = isHeavyEating || player.IsTaunting || isPogo ? 0f : bodySelection.BodyYOffset * playerScale;
             var position = new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y + bodyYOffset - cameraPosition.Y);
 
             if (drawIntelOverlay && !isHeavyEating && !player.IsTaunting && bodySelection.DrawIntelUnderlay)
             {
-                DrawIntelUnderlaySprite(player, cameraPosition, tint, scale, bodySelection, roundedOrigin);
+                if (isPogo)
+                {
+                    DrawPogoIntelUnderlaySprite(player, cameraPosition, tint, scale, roundedOrigin, frameIndex);
+                }
+                else
+                {
+                    DrawIntelUnderlaySprite(player, cameraPosition, tint, scale, bodySelection, roundedOrigin);
+                }
             }
 
             if (player.IsUbered)
@@ -185,7 +201,7 @@ public partial class Game1
             if (isRunSprite && !appearsAirborne)
             {
                 var frame = (int)System.MathF.Floor(animationImage) % 8;
-                if (frame == 0 || frame == 3 || frame == 4 || frame == 7)
+                if (IsRunEquipmentLowerFrame(frame))
                 {
                     equipmentOffset -= 2f;
                 }
@@ -222,10 +238,23 @@ public partial class Game1
         }
 
         public static string? GetTauntSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.TauntSuffix ?? presentation.BaseSuffix, "TauntS");
+        public static string? GetPogoSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.PogoSuffix ?? presentation.BaseSuffix, "PogoS");
+
+        public static string? GetPogoIntelSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.PogoIntelSuffix ?? "PogoIntelS", "PogoIntelS");
         public static string? GetHeavyEatSpriteName(PlayerEntity player) => player.ClassId == PlayerClass.Heavy ? GetPresentationSpriteName(player, static presentation => presentation.HeavyEatSuffix ?? presentation.BaseSuffix, "OmnomnomnomS") : null;
         public static string? GetPlayerSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.BaseSuffix, "S");
         public static string? GetPlayerSpriteName(PlayerClass classId, PlayerTeam team) => GetPresentationSpriteName(classId, team, static presentation => presentation.BaseSuffix, "S");
         public static string? GetRunSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.RunSuffix ?? presentation.BaseSuffix, "RunS");
+
+        /// <summary>
+        /// Run equipment is drawn 2px lower on the down-bob frames of the run cycle.
+        /// Run sprites were realigned so frame 0 matches the intended cycle start; down-bob is on {0,1,4,5}.
+        /// </summary>
+        public static bool IsRunEquipmentLowerFrame(int frameIndex)
+        {
+            var frame = ((frameIndex % 8) + 8) % 8;
+            return frame is 0 or 1 or 4 or 5;
+        }
         public static string? GetWalkSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.WalkSuffix ?? presentation.RunSuffix ?? presentation.BaseSuffix, "WalkS");
         public static string? GetHudStandingSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.StandSuffix ?? presentation.BaseSuffix, "StandS");
 
@@ -299,6 +328,36 @@ public partial class Game1
             _game.DrawSpriteFrameWithOptionalShadow(
                 sprite.Frames[0],
                 new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y + (bodySelection.EquipmentOffset * player.PlayerScale) - cameraPosition.Y),
+                tint,
+                0f,
+                sprite.Origin.ToVector2(),
+                scale);
+        }
+
+        private void DrawPogoIntelUnderlaySprite(
+            PlayerEntity player,
+            Vector2 cameraPosition,
+            Color tint,
+            Vector2 scale,
+            Vector2 roundedOrigin,
+            int frameIndex)
+        {
+            var spriteName = GetPogoIntelSpriteName(player);
+            if (spriteName is null)
+            {
+                return;
+            }
+
+            var sprite = _game.GetResolvedSprite(spriteName);
+            if (sprite is null || sprite.Frames.Count == 0)
+            {
+                return;
+            }
+
+            var clampedFrameIndex = Math.Clamp(frameIndex, 0, sprite.Frames.Count - 1);
+            _game.DrawSpriteFrameWithOptionalShadow(
+                sprite.Frames[clampedFrameIndex],
+                new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y - cameraPosition.Y),
                 tint,
                 0f,
                 sprite.Origin.ToVector2(),

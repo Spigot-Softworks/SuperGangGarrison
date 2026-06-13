@@ -53,11 +53,26 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const int QuoteBladeLifetimeTicks = 15;
     public const int QuoteBladeMaxOut = 1;
     public const int CivvieUmbrellaMaxChargeTicks = 360;
-    public const int CivvieUmbrellaHoldDrainPerTick = 1;
+    public const int CivvieUmbrellaHoldDrainPerTick = 0;
     public const int CivvieUmbrellaRechargePerTick = 1;
     public const int CivvieUmbrellaImpactDrain = 30;
-    public const int CivvieUmbrellaAirblastCooldownTicks = 28;
-    public const float CivvieUmbrellaFallSpeedScale = 0.5f;
+    public const int CivvieUmbrellaOpeningDurationTicks = 6;
+    public const int CivvieUmbrellaOpeningFrameCount = 3;
+    public const int CivvieUmbrellaAirblastOpeningFrameIndex = 2;
+    public const int CivvieUmbrellaAirblastOpeningTick =
+        (CivvieUmbrellaAirblastOpeningFrameIndex * CivvieUmbrellaOpeningDurationTicks) / CivvieUmbrellaOpeningFrameCount;
+    public const float CivvieUmbrellaFallSpeedScale = 0.25f;
+    public const float CivvieUmbrellaSlowFallAimArcDegrees = 60f;
+    internal const float CivvieUmbrellaSlowFallControlFactorScale = 0.48f;
+    internal const float CivvieUmbrellaSlowFallFrictionFactorScale = 0.86f;
+    internal const float CivvieUmbrellaSlowFallRunPowerMultiplier = 1.85f;
+    public const int CivvieTauntHealAmountDefault = 15;
+    public const float CivvieTauntHealRadiusDefault = 120f;
+    public const int CivvieTauntHealFrameIndex = 9;
+    public const float CivviePogoBaseBounceJumpScaleDefault = 0.5f;
+    public const float CivviePogoSuperJumpScaleDefault = 1.125f;
+    public const int CivviePogoCrunchDurationTicksDefault = 2;
+    public const string CivvieTauntAbilityItemId = "ability.civilian-taunt";
     public const float ExperimentalDemoknightSwordBaseRange = 48f;
     public const int ExperimentalDemoknightSwordCooldownTicks = 18;
     public const int ExperimentalDemoknightChargeMaxTicks = 100;
@@ -284,6 +299,12 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     private bool TauntInputReleaseRequired { get; set; }
 
+    private bool CivvieTauntHealPending { get; set; }
+
+    private bool CivviePogoSuperJumpHeld { get; set; }
+
+    private bool CivviePogoSuperJumpSoundPending { get; set; }
+
     public float HeavyHealingAccumulator { get; private set; }
 
     public bool IsSniperScoped { get; private set; }
@@ -353,7 +374,13 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public bool IsCivvieUmbrellaBroken { get; private set; }
 
-    public int CivvieUmbrellaAirblastCooldownTicksRemaining { get; private set; }
+    public bool IsCivviePogoActive { get; private set; }
+
+    public int CivviePogoCrunchTicksRemaining { get; private set; }
+
+    private int CivvieUmbrellaOpeningElapsedTicks { get; set; }
+
+    private bool CivvieUmbrellaOpeningAirblastTriggered { get; set; }
 
     public bool IsExperimentalDemoknightEnabled { get; private set; }
 
@@ -741,6 +768,8 @@ public sealed partial class PlayerEntity : SimulationEntity
         TauntFrameIndex = 0f;
         TauntRestartCooldownTicksRemaining = 0;
         TauntInputReleaseRequired = false;
+        CivvieTauntHealPending = false;
+        CivviePogoSuperJumpSoundPending = false;
         IsSniperScoped = false;
         SniperChargeTicks = 0;
         IsUsingBinoculars = false;
@@ -765,6 +794,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         QuoteBubbleCount = 0;
         QuoteBladesOut = 0;
         ResetCivvieUmbrellaState();
+        DeactivateCivviePogo();
         PyroAirblastCooldownTicks = 0;
         PyroFlareCooldownTicks = pyroFlareCooldownTicks;
         IsPyroPrimaryRefilling = false;
