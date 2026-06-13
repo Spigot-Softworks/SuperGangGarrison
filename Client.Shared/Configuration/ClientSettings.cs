@@ -85,6 +85,8 @@ public sealed class ClientSettings
 
     public bool ShowHealthBarEnabled { get; set; }
 
+    public bool ShowShieldBarEnabled { get; set; } = true;
+
     public bool HudShowOnlyActiveWeapon { get; set; }
 
     public bool OverheadChatEnabled { get; set; } = OpenGarrisonPreferencesDocument.DefaultOverheadChatEnabled;
@@ -250,6 +252,7 @@ public sealed class ClientSettings
             ShowHealerEnabled = document.ShowHealerEnabled,
             ShowHealingEnabled = document.ShowHealingEnabled,
             ShowHealthBarEnabled = document.ShowHealthBarEnabled,
+            ShowShieldBarEnabled = document.ShowShieldBarEnabled,
             HudShowOnlyActiveWeapon = document.HudShowOnlyActiveWeapon,
             OverheadChatEnabled = document.OverheadChatEnabled,
             BubbleWheelBehavior = OpenGarrisonPreferencesDocument.NormalizeBubbleWheelBehavior(document.BubbleWheelBehavior),
@@ -328,6 +331,7 @@ public sealed class ClientSettings
         preferences.ShowHealerEnabled = ShowHealerEnabled;
         preferences.ShowHealingEnabled = ShowHealingEnabled;
         preferences.ShowHealthBarEnabled = ShowHealthBarEnabled;
+        preferences.ShowShieldBarEnabled = ShowShieldBarEnabled;
         preferences.HudShowOnlyActiveWeapon = HudShowOnlyActiveWeapon;
         preferences.OverheadChatEnabled = OverheadChatEnabled;
         preferences.BubbleWheelBehavior = OpenGarrisonPreferencesDocument.NormalizeBubbleWheelBehavior(BubbleWheelBehavior);

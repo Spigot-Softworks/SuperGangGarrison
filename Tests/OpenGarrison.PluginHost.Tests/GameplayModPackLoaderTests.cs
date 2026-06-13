@@ -318,7 +318,7 @@ public sealed class GameplayModPackLoaderTests
         Assert.True(pack.Classes.ContainsKey("civilian"));
         Assert.Equal("soldier.stock", pack.Classes["soldier"].DefaultLoadoutId);
         var civilianClass = pack.Classes["civilian"];
-        Assert.Equal("Civilian/Financier", civilianClass.DisplayName);
+        Assert.Equal("Civilian/Employer", civilianClass.DisplayName);
         Assert.Equal("civilian.stock", civilianClass.DefaultLoadoutId);
         Assert.Equal("weapon.umbrella", civilianClass.Loadouts["civilian.stock"].PrimaryItemId);
         Assert.Equal("ability.umbrella", civilianClass.Loadouts["civilian.stock"].SecondaryItemId);
@@ -1169,7 +1169,7 @@ public sealed class GameplayModPackLoaderTests
         var registry = GameplayRuntimeRegistry.CreateStock();
         Assert.True(registry.TryGetClassBinding(PlayerClass.Quote, out var stockQuoteBinding));
         Assert.Equal("civilian", stockQuoteBinding.ClassId);
-        Assert.Equal("Civilian/Financier", registry.GetClassDefinition(PlayerClass.Quote).DisplayName);
+        Assert.Equal("Civilian/Employer", registry.GetClassDefinition(PlayerClass.Quote).DisplayName);
         Assert.Equal("weapon.umbrella", registry.GetDefaultLoadout(PlayerClass.Quote).PrimaryItemId);
 
         var packDirectory = ProjectSourceLocator.FindDirectory(Path.Combine(
@@ -1186,7 +1186,7 @@ public sealed class GameplayModPackLoaderTests
         Assert.True(registry.TryRegisterModPack(pack, allowRuntimeClassBindingOverride: false, out var error), error);
         Assert.True(registry.TryGetClassBinding(PlayerClass.Quote, out var quoteBinding));
         Assert.Equal("civilian", quoteBinding.ClassId);
-        Assert.Equal("Civilian/Financier", registry.GetClassDefinition(PlayerClass.Quote).DisplayName);
+        Assert.Equal("Civilian/Employer", registry.GetClassDefinition(PlayerClass.Quote).DisplayName);
         Assert.Equal("weapon.umbrella", registry.GetDefaultLoadout(PlayerClass.Quote).PrimaryItemId);
         Assert.Equal("ability.umbrella", registry.GetDefaultLoadout(PlayerClass.Quote).SecondaryItemId);
         Assert.Equal("ability.civilian-pogo", registry.GetDefaultLoadout(PlayerClass.Quote).UtilityItemId);

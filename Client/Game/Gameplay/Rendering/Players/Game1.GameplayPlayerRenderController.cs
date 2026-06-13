@@ -65,6 +65,7 @@ public partial class Game1
                 _game.DrawEvasionMissPopup(player, cameraPosition);
                 _game.DrawHeavyDashDodgePopup(player, cameraPosition);
                 _game.TryDrawAdditionalHealthBar(player, cameraPosition, visibilityAlpha);
+                _game.TryDrawCivvieUmbrellaShieldBar(player, cameraPosition, visibilityAlpha);
             }
         }
 

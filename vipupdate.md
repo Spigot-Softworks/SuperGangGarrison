@@ -1,8 +1,8 @@
-# Civilian / Financier VIP Update
+# Civilian / Employer VIP Update
 
 ## Locked Decisions
 
-- The Civilian, also called the Financier, replaces Quote/Curly as the secret character selected with `Q` on class select.
+- The Civilian, also called the Employer, replaces Quote/Curly as the secret character selected with `Q` on class select.
 - Keep the existing hidden `PlayerClass.Quote` runtime binding unless a later refactor makes a dedicated enum worthwhile.
 - The umbrella primary fire behaves like a revolver for the base version.
 - The umbrella secondary opens the umbrella, triggers a player-only airblast, and can be held open as a shield.
@@ -26,7 +26,7 @@
 ## Implementation Checklist
 
 - [x] Process and place Civilian run, taunt, umbrella, killfeed, and money assets.
-- [x] Add Civilian/Financier to the stock/default package while preserving the packaged Quote/Curly content.
+- [x] Add Civilian/Employer to the stock/default package while preserving the packaged Quote/Curly content.
 - [x] Fix hidden `Q` class rendering so Civilian run and taunt animations are used.
 - [x] Add umbrella primary weapon as revolver-like behavior.
 - [x] Add umbrella secondary ability, open animation state, shield meter, shield disable/recharge behavior, and player-only airblast.
@@ -59,7 +59,7 @@
 
 ## Implementation Status
 
-- Initial Civilian/Financier implementation is in place as stock gameplay class id `civilian`, using the existing hidden `PlayerClass.Quote` slot only for Q-select/protocol compatibility.
+- Initial Civilian/Employer implementation is in place as stock gameplay class id `civilian`, using the existing hidden `PlayerClass.Quote` slot only for Q-select/protocol compatibility.
 - Stock `stock.gg2` now owns the Civilian sprite definitions, source frames, umbrella item definitions, `ability.civilian-taunt`, and `civilian.stock` loadout.
 - Packaged client and server Quote/Curly packs remain Quote/Curly content and no longer override the stock hidden Q binding.
 - The umbrella primary is wired as a revolver-like weapon. The secondary opens the umbrella, triggers a player-only airblast, drains/recharges shield charge while held, and blocks non-flame weapon damage until broken.

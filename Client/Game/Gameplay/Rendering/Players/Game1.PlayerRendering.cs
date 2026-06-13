@@ -114,6 +114,11 @@ public partial class Game1
         _gameplayPlayerStatusEffectRenderController.TryDrawAdditionalHealthBar(player, cameraPosition, visibilityAlpha);
     }
 
+    private void TryDrawCivvieUmbrellaShieldBar(PlayerEntity player, Vector2 cameraPosition, float visibilityAlpha)
+    {
+        _gameplayPlayerStatusEffectRenderController.TryDrawCivvieUmbrellaShieldBar(player, cameraPosition, visibilityAlpha);
+    }
+
     private void DrawDeadBody(DeadBodyEntity deadBody, Vector2 cameraPosition)
     {
         _gameplayDeadBodyRenderController.DrawDeadBody(deadBody, cameraPosition);

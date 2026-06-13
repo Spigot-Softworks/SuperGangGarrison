@@ -201,18 +201,84 @@ public sealed class OfflinePracticeSelectionTests
         Assert.NotNull(mapEntriesProperty);
         mapEntriesProperty.SetValue(state, entries);
 
-        SetPracticeMapBrowserProperty(setupStateType, state, "MapBrowserNameFilterBuffer", "har");
-        Assert.Equal(["Harvest"], GetPracticeMapBrowserLevelNames(setupStateType, state));
+        SetPracticeMapBrowserProperty(setupStateType, state, "AvailableMapNameFilterBuffer", "har");
+        Assert.Equal(["Harvest"], GetPracticeAvailableMapLevelNames(setupStateType, state));
 
-        SetPracticeMapBrowserProperty(setupStateType, state, "MapBrowserNameFilterBuffer", string.Empty);
-        SetPracticeMapBrowserProperty(setupStateType, state, "MapBrowserModeFilter", GameModeKind.KingOfTheHill);
-        SetPracticeMapBrowserProperty(setupStateType, state, "MapBrowserIncludeCustomMaps", false);
-        SetPracticeMapBrowserProperty(setupStateType, state, "MapBrowserIncludeBaseMaps", true);
-        Assert.Equal(["Harvest"], GetPracticeMapBrowserLevelNames(setupStateType, state));
+        SetPracticeMapBrowserProperty(setupStateType, state, "AvailableMapNameFilterBuffer", string.Empty);
+        SetPracticeMapBrowserProperty(setupStateType, state, "AvailableMapModeFilter", GameModeKind.KingOfTheHill);
+        SetPracticeMapBrowserProperty(setupStateType, state, "IncludeCustomMaps", false);
+        SetPracticeMapBrowserProperty(setupStateType, state, "IncludeBaseMaps", true);
+        Assert.Equal(["Harvest"], GetPracticeAvailableMapLevelNames(setupStateType, state));
 
-        SetPracticeMapBrowserProperty(setupStateType, state, "MapBrowserIncludeCustomMaps", true);
-        SetPracticeMapBrowserProperty(setupStateType, state, "MapBrowserIncludeBaseMaps", false);
-        Assert.Equal(["downloaded_koth"], GetPracticeMapBrowserLevelNames(setupStateType, state));
+        SetPracticeMapBrowserProperty(setupStateType, state, "IncludeCustomMaps", true);
+        SetPracticeMapBrowserProperty(setupStateType, state, "IncludeBaseMaps", false);
+        Assert.Equal(["downloaded_koth"], GetPracticeAvailableMapLevelNames(setupStateType, state));
+    }
+
+    [Fact]
+    public void PracticeMapSelectionIncludesVipCatalogEntries()
+    {
+        var entries = BuildPracticeMapEntries();
+        var levelNames = entries
+            .Select(GetPracticeMapLevelName)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var modes = entries.ToDictionary(GetPracticeMapLevelName, GetPracticeMapMode, StringComparer.OrdinalIgnoreCase);
+
+        Assert.Contains("Dirtbowl", levelNames);
+        Assert.True(OpenGarrisonStockMapCatalog.TryGetDefinition("vip_dirtbowl", out var vipDefinition));
+        Assert.Contains(vipDefinition.LevelName, levelNames);
+        Assert.Equal(GameModeKind.Vip, modes[vipDefinition.LevelName]);
+    }
+
+    [Fact]
+    public void AppendVipMapDuplicatesAddsVipEntryForEveryCpPrefixedMap()
+    {
+        var entries = new List<OpenGarrisonMapRotationEntry>
+        {
+            new()
+            {
+                IniKey = "cp_dirtbowl",
+                LevelName = "Dirtbowl",
+                DisplayName = "Dirtbowl",
+                Mode = GameModeKind.ControlPoint,
+            },
+            new()
+            {
+                IniKey = "cp_egypt",
+                LevelName = "Egypt",
+                DisplayName = "Egypt",
+                Mode = GameModeKind.ControlPoint,
+            },
+            new()
+            {
+                IniKey = "cp_customtest",
+                LevelName = "cp_customtest",
+                DisplayName = "Custom CP",
+                Mode = GameModeKind.ControlPoint,
+                IsCustomMap = true,
+            },
+        };
+
+        OpenGarrisonStockMapCatalog.AppendVipMapDuplicates(entries);
+
+        Assert.Contains(entries, entry => string.Equals(entry.IniKey, "vip_dirtbowl", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(entries, entry => string.Equals(entry.IniKey, "vip_egypt", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(entries, entry => string.Equals(entry.IniKey, "vip_customtest", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void StockCpPrefixedDefinitionsAllReceiveVipDuplicatesInDefaultEntries()
+    {
+        var entries = OpenGarrisonStockMapCatalog.CreateDefaultEntries();
+        foreach (var definition in OpenGarrisonStockMapCatalog.Definitions.Where(definition =>
+                     OpenGarrisonStockMapCatalog.IsCpPrefixedIniKey(definition.IniKey)))
+        {
+            var vipIniKey = OpenGarrisonStockMapCatalog.GetVipIniKey(definition);
+            Assert.Contains(
+                entries,
+                entry => string.Equals(entry.IniKey, vipIniKey, StringComparison.OrdinalIgnoreCase)
+                    && entry.Mode == GameModeKind.Vip);
+        }
     }
 
     [Fact]
@@ -278,11 +344,11 @@ public sealed class OfflinePracticeSelectionTests
         var constructor = entryType?.GetConstructor(
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
             binder: null,
-            types: [typeof(string), typeof(string), typeof(GameModeKind), typeof(bool)],
+            types: [typeof(string), typeof(string), typeof(GameModeKind), typeof(bool), typeof(string)],
             modifiers: null);
 
         Assert.NotNull(constructor);
-        return constructor.Invoke([levelName, levelName, mode, isCustomMap]);
+        return constructor.Invoke([levelName, levelName, mode, isCustomMap, levelName]);
     }
 
     private static string GetPracticeMapLevelName(object entry)
@@ -293,15 +359,23 @@ public sealed class OfflinePracticeSelectionTests
         return (string)property.GetValue(entry)!;
     }
 
-    private static string[] GetPracticeMapBrowserLevelNames(Type setupStateType, object state)
+    private static string[] GetPracticeAvailableMapLevelNames(Type setupStateType, object state)
     {
-        var method = setupStateType.GetMethod("GetMapBrowserEntriesForDisplay", BindingFlags.Instance | BindingFlags.Public);
+        var method = setupStateType.GetMethod("GetAvailableMapsForDisplay", BindingFlags.Instance | BindingFlags.Public);
 
         Assert.NotNull(method);
         return ((IEnumerable)method.Invoke(state, null)!)
             .Cast<object>()
             .Select(GetPracticeMapLevelName)
             .ToArray();
+    }
+
+    private static GameModeKind GetPracticeMapMode(object entry)
+    {
+        var property = entry.GetType().GetProperty("Mode", BindingFlags.Instance | BindingFlags.Public);
+
+        Assert.NotNull(property);
+        return (GameModeKind)property.GetValue(entry)!;
     }
 
     private static void SetPracticeMapBrowserProperty(Type setupStateType, object state, string propertyName, object? value)

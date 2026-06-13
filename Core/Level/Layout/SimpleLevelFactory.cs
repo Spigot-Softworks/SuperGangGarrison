@@ -434,7 +434,7 @@ public static class SimpleLevelFactory
         var requestedBaseName = NormalizeLevelName(levelName);
         foreach (var candidate in catalog)
         {
-            if (candidate.Mode != GameModeKind.ControlPoint)
+            if (!IsVipBaseCatalogEntry(candidate))
             {
                 continue;
             }
@@ -455,6 +455,12 @@ public static class SimpleLevelFactory
         }
 
         return false;
+    }
+
+    private static bool IsVipBaseCatalogEntry(LevelCatalogEntry candidate)
+    {
+        return candidate.Mode == GameModeKind.ControlPoint
+            || candidate.Name.StartsWith("cp_", StringComparison.OrdinalIgnoreCase);
     }
 
     private static (string? RoomSourcePath, string? CollisionMaskSourcePath) FindStockMapSource(OpenGarrisonStockMapDefinition definition)

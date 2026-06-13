@@ -334,6 +334,42 @@ public partial class Game1
 
     private void DrawHealthBar(PlayerEntity player, Vector2 cameraPosition, Color fillColor, Color backColor, Color borderColor)
     {
+        if (player.MaxHealth <= 0)
+        {
+            return;
+        }
+
+        DrawPlayerMeterBar(
+            player,
+            cameraPosition,
+            player.Health / (float)player.MaxHealth,
+            fillColor,
+            backColor,
+            borderColor,
+            placeBelow: false);
+    }
+
+    private void DrawShieldBar(PlayerEntity player, Vector2 cameraPosition, float fillFraction, Color fillColor, Color backColor, Color borderColor)
+    {
+        DrawPlayerMeterBar(
+            player,
+            cameraPosition,
+            fillFraction,
+            fillColor,
+            backColor,
+            borderColor,
+            placeBelow: true);
+    }
+
+    private void DrawPlayerMeterBar(
+        PlayerEntity player,
+        Vector2 cameraPosition,
+        float fillFraction,
+        Color fillColor,
+        Color backColor,
+        Color borderColor,
+        bool placeBelow)
+    {
         if (GetPlayerVisibilityAlpha(player) <= 0f)
         {
             return;
@@ -343,9 +379,12 @@ public partial class Game1
         var bounds = GetPlayerScreenBounds(player, renderPosition, cameraPosition);
         var barWidth = Math.Max(18, bounds.Width + 4);
         const int barHeight = 4;
-        const int verticalOffset = 14;
+        const int aboveVerticalOffset = 14;
+        const int belowVerticalOffset = 8;
         var barX = bounds.Left + ((bounds.Width - barWidth) / 2);
-        var barY = bounds.Top - verticalOffset;
+        var barY = placeBelow
+            ? bounds.Bottom + belowVerticalOffset
+            : bounds.Top - aboveVerticalOffset;
         var borderRectangle = new Rectangle(
             barX - 1,
             barY - 1,
@@ -359,12 +398,7 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, borderRectangle, borderColor);
         _spriteBatch.Draw(_pixel, backRectangle, backColor);
 
-        if (player.MaxHealth <= 0)
-        {
-            return;
-        }
-
-        var fillWidth = (int)MathF.Round(barWidth * Math.Clamp(player.Health / (float)player.MaxHealth, 0f, 1f));
+        var fillWidth = (int)MathF.Round(barWidth * Math.Clamp(fillFraction, 0f, 1f));
         if (fillWidth <= 0)
         {
             return;
