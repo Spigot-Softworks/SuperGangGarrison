@@ -103,6 +103,8 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool ShowHealthBarEnabled { get; set; }
 
+    public bool ShowShieldBarEnabled { get; set; } = true;
+
     public bool HudShowOnlyActiveWeapon { get; set; }
 
     public bool OverheadChatEnabled { get; set; } = DefaultOverheadChatEnabled;
@@ -249,6 +251,7 @@ public sealed class OpenGarrisonPreferencesDocument
             ShowHealerEnabled = ini.GetBool(SettingsSection, "Show Healer", true),
             ShowHealingEnabled = ini.GetBool(SettingsSection, "Show Healing", true),
             ShowHealthBarEnabled = ini.GetBool(SettingsSection, "Show Healthbar", false),
+            ShowShieldBarEnabled = ini.GetBool(SettingsSection, "Show Shield Bar", true),
             HudShowOnlyActiveWeapon = ini.GetBool(SettingsSection, "HUD Show Only Active Weapon", false),
             OverheadChatEnabled = ini.GetBool(SettingsSection, "Overhead Chat", DefaultOverheadChatEnabled),
             BubbleWheelBehavior = ParseBubbleWheelBehavior(ini.GetString(SettingsSection, "Bubble Wheel Behavior", DefaultBubbleWheelBehavior.ToString())),
@@ -342,6 +345,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(SettingsSection, "Show Healer", ShowHealerEnabled);
         ini.SetBool(SettingsSection, "Show Healing", ShowHealingEnabled);
         ini.SetBool(SettingsSection, "Show Healthbar", ShowHealthBarEnabled);
+        ini.SetBool(SettingsSection, "Show Shield Bar", ShowShieldBarEnabled);
         ini.SetBool(SettingsSection, "HUD Show Only Active Weapon", HudShowOnlyActiveWeapon);
         ini.SetBool(SettingsSection, "Overhead Chat", OverheadChatEnabled);
         ini.SetString(SettingsSection, "Bubble Wheel Behavior", NormalizeBubbleWheelBehavior(BubbleWheelBehavior).ToString());
@@ -1051,6 +1055,88 @@ public static class OpenGarrisonStockMapCatalog
 
     private static IEnumerable<OpenGarrisonStockMapDefinition> AllDefinitions => SourceDefinitions;
 
+    public static bool IsCpPrefixedIniKey(string? iniKey)
+    {
+        return !string.IsNullOrWhiteSpace(iniKey)
+            && iniKey.StartsWith("cp_", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static string GetVipIniKeyForRotationEntry(OpenGarrisonMapRotationEntry entry)
+    {
+        if (TryGetDefinition(entry.IniKey, out var definition) && IsCpPrefixedIniKey(definition.IniKey))
+        {
+            return GetVipIniKey(definition);
+        }
+
+        if (TryGetDefinition(entry.LevelName, out definition) && IsCpPrefixedIniKey(definition.IniKey))
+        {
+            return GetVipIniKey(definition);
+        }
+
+        return GetVipIniKeyFromCpIniKey(entry.IniKey);
+    }
+
+    public static bool TryCreateVipMapRotationEntry(
+        OpenGarrisonMapRotationEntry baseEntry,
+        out OpenGarrisonMapRotationEntry vipEntry)
+    {
+        vipEntry = null!;
+        if (!IsCpPrefixedIniKey(baseEntry.IniKey) || baseEntry.Mode == GameModeKind.Vip)
+        {
+            return false;
+        }
+
+        var vipIniKey = GetVipIniKeyForRotationEntry(baseEntry);
+        if (TryGetDefinition(vipIniKey, out var vipDefinition))
+        {
+            vipEntry = new OpenGarrisonMapRotationEntry
+            {
+                IniKey = vipDefinition.IniKey,
+                LevelName = vipDefinition.LevelName,
+                DisplayName = vipDefinition.DisplayName,
+                Mode = GameModeKind.Vip,
+                IsCustomMap = baseEntry.IsCustomMap,
+                DefaultOrder = 0,
+                Order = 0,
+            };
+            return true;
+        }
+
+        vipEntry = new OpenGarrisonMapRotationEntry
+        {
+            IniKey = vipIniKey,
+            LevelName = vipIniKey,
+            DisplayName = $"{baseEntry.DisplayName} (VIP)",
+            Mode = GameModeKind.Vip,
+            IsCustomMap = baseEntry.IsCustomMap,
+            DefaultOrder = 0,
+            Order = 0,
+        };
+        return true;
+    }
+
+    public static void AppendVipMapDuplicates(List<OpenGarrisonMapRotationEntry> mapEntries)
+    {
+        foreach (var baseEntry in mapEntries
+                     .Where(entry => IsCpPrefixedIniKey(entry.IniKey) && entry.Mode != GameModeKind.Vip)
+                     .ToList())
+        {
+            if (!TryCreateVipMapRotationEntry(baseEntry, out var vipEntry))
+            {
+                continue;
+            }
+
+            if (mapEntries.Any(entry =>
+                    string.Equals(entry.IniKey, vipEntry.IniKey, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(entry.LevelName, vipEntry.LevelName, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            mapEntries.Add(vipEntry);
+        }
+    }
+
     public static List<OpenGarrisonMapRotationEntry> CreateDefaultEntries()
     {
         var entries = Definitions
@@ -1064,24 +1150,7 @@ public static class OpenGarrisonStockMapCatalog
                 Order = definition.DefaultOrder,
             })
             .ToList();
-        foreach (var definition in Definitions.Where(definition => definition.Mode == GameModeKind.ControlPoint))
-        {
-            if (!TryGetDefinition(GetVipIniKey(definition), out var vipDefinition))
-            {
-                continue;
-            }
-
-            entries.Add(new OpenGarrisonMapRotationEntry
-            {
-                IniKey = vipDefinition.IniKey,
-                LevelName = vipDefinition.LevelName,
-                DisplayName = vipDefinition.DisplayName,
-                Mode = GameModeKind.Vip,
-                DefaultOrder = 0,
-                Order = 0,
-            });
-        }
-
+        AppendVipMapDuplicates(entries);
         return entries;
     }
 
@@ -1290,6 +1359,11 @@ public static class OpenGarrisonStockMapCatalog
 
     public static string GetVipIniKey(OpenGarrisonStockMapDefinition definition)
     {
+        if (IsCpPrefixedIniKey(definition.IniKey))
+        {
+            return GetVipIniKeyFromCpIniKey(definition.IniKey);
+        }
+
         var shortName = definition.Aliases.FirstOrDefault(alias =>
             alias.IndexOf('_') < 0
             && !string.Equals(alias, "dustbowl", StringComparison.OrdinalIgnoreCase));
@@ -1299,6 +1373,11 @@ public static class OpenGarrisonStockMapCatalog
         }
 
         return $"vip_{shortName.ToLowerInvariant()}";
+    }
+
+    private static string GetVipIniKeyFromCpIniKey(string cpIniKey)
+    {
+        return $"vip_{cpIniKey["cp_".Length..].ToLowerInvariant()}";
     }
 
     private static bool TryGetVipDefinition(string normalizedMapName, out OpenGarrisonStockMapDefinition definition)
@@ -1312,7 +1391,7 @@ public static class OpenGarrisonStockMapCatalog
         var baseName = normalizedMapName["vip_".Length..];
         foreach (var candidate in AllDefinitions)
         {
-            if (candidate.Mode != GameModeKind.ControlPoint)
+            if (!IsCpPrefixedIniKey(candidate.IniKey))
             {
                 continue;
             }
@@ -1341,6 +1420,8 @@ public static class OpenGarrisonStockMapCatalog
         return string.Equals(definition.IniKey, baseName, StringComparison.OrdinalIgnoreCase)
             || string.Equals(definition.LevelName, baseName, StringComparison.OrdinalIgnoreCase)
             || definition.Aliases.Any(alias => string.Equals(alias, baseName, StringComparison.OrdinalIgnoreCase))
+            || (IsCpPrefixedIniKey(definition.IniKey)
+                && string.Equals(definition.IniKey["cp_".Length..], baseName, StringComparison.OrdinalIgnoreCase))
             || (string.Equals(baseName, "dustbowl", StringComparison.OrdinalIgnoreCase)
                 && definition.Aliases.Any(alias => string.Equals(alias, "dirtbowl", StringComparison.OrdinalIgnoreCase)));
     }

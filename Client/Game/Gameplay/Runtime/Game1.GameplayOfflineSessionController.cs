@@ -211,11 +211,6 @@ public partial class Game1
             }
             LogBrowserPracticeStartupStep("load-level");
 
-            _game._world.ConfigurePracticeVipRules(
-                sessionKind == GameplaySessionKind.Practice
-                && _game._practiceVipRulesEnabled
-                && _game._world.MatchRules.Mode == GameModeKind.ControlPoint);
-
             var forcedBlockingTeamGates = TeamGateLockMask.None;
             if (sessionKind == GameplaySessionKind.LastToDie && _game._lastToDieRun is not null)
             {

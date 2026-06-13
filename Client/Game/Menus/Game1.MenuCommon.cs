@@ -69,6 +69,23 @@ public partial class Game1
         DrawBitmapFontText(trimmedDisplay, new Vector2(textAreaX, textY), textColor, textScale);
     }
 
+    private void DrawMenuSelectorValueScaled(Rectangle bounds, string text, bool highlighted, float textScale, bool enabled = true)
+    {
+        var fillColor = !enabled
+            ? new Color(42, 38, 36)
+            : highlighted
+                ? new Color(77, 69, 63)
+                : new Color(54, 47, 41);
+        var outlineColor = enabled ? new Color(213, 205, 188) : new Color(120, 114, 108);
+        DrawRoundedRectangleOutline(bounds, fillColor, outlineColor, outlineThickness: 2, radius: 8);
+
+        var textAreaX = bounds.X + 8f;
+        var textY = bounds.Y + MathF.Max(4f, ((bounds.Height - MeasureBitmapFontHeight(textScale)) * 0.5f) - 1f);
+        var trimmedDisplay = TrimBitmapMenuText(text, bounds.Width - 16f, textScale);
+        var textColor = enabled ? Color.White : new Color(118, 114, 108);
+        DrawBitmapFontText(trimmedDisplay, new Vector2(textAreaX, textY), textColor, textScale);
+    }
+
     private void DrawMenuButton(Rectangle bounds, string label, bool highlighted)
     {
         DrawMenuButtonScaled(bounds, label, highlighted, 1f);

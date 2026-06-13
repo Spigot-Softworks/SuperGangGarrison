@@ -17,6 +17,8 @@ public partial class Game1
             _game = game;
         }
 
+        private static readonly Color CivvieUmbrellaShieldBarColor = new(226, 188, 92);
+
         public void TryDrawAdditionalHealthBar(PlayerEntity player, Vector2 cameraPosition, float visibilityAlpha)
         {
             var forceSpecialEnemyHealthBar = _game.ShouldForceLastToDieSpecialEnemyHealthBar(player);
@@ -32,6 +34,22 @@ public partial class Game1
             }
 
             _game.DrawHealthBar(player, cameraPosition, new Color(105, 215, 95), Color.Black, Color.Black);
+        }
+
+        public void TryDrawCivvieUmbrellaShieldBar(PlayerEntity player, Vector2 cameraPosition, float visibilityAlpha)
+        {
+            if (!_game._showShieldBarEnabled
+                || visibilityAlpha <= 0f
+                || !player.IsAlive
+                || !player.IsCivvieUmbrellaActive
+                || (!ReferenceEquals(player, _game._world.LocalPlayer)
+                    && player.Team != _game._world.LocalPlayer.Team))
+            {
+                return;
+            }
+
+            var fillFraction = player.CivvieUmbrellaChargeTicks / (float)PlayerEntity.CivvieUmbrellaMaxChargeTicks;
+            _game.DrawShieldBar(player, cameraPosition, fillFraction, CivvieUmbrellaShieldBarColor, Color.Black, Color.Black);
         }
 
         public void DrawExperimentalDemoknightChargeBlur(PlayerEntity player, Vector2 cameraPosition, Color spriteTint, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)

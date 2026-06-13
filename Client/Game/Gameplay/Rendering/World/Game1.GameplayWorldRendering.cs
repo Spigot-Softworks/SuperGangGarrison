@@ -513,6 +513,7 @@ public partial class Game1
         DrawEvasionMissPopup(_world.LocalPlayer, cameraPosition);
         DrawHeavyDashDodgePopup(_world.LocalPlayer, cameraPosition);
         TryDrawAdditionalHealthBar(_world.LocalPlayer, cameraPosition, visibilityAlpha);
+        TryDrawCivvieUmbrellaShieldBar(_world.LocalPlayer, cameraPosition, visibilityAlpha);
     }
 
 }

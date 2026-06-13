@@ -937,6 +937,12 @@ public partial class Game1
         PersistClientSettings();
     }
 
+    private void ToggleShowShieldBarSetting()
+    {
+        _showShieldBarEnabled = !_showShieldBarEnabled;
+        PersistClientSettings();
+    }
+
     private void ToggleHudWeaponDisplayModeSetting()
     {
         _hudShowOnlyActiveWeapon = !_hudShowOnlyActiveWeapon;
