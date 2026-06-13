@@ -904,7 +904,7 @@ internal sealed class ServerBotManager
 
         var normalized = value.Trim();
         if (string.Equals(normalized, "civilian", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(normalized, "financier", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "employer", StringComparison.OrdinalIgnoreCase)
             || string.Equals(normalized, "civ", StringComparison.OrdinalIgnoreCase))
         {
             playerClass = PlayerClass.Quote;

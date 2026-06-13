@@ -932,7 +932,7 @@ public partial class Game1
         return value.Trim() switch
         {
             var className when string.Equals(className, "civilian", StringComparison.OrdinalIgnoreCase) => PlayerClass.Quote,
-            var className when string.Equals(className, "financier", StringComparison.OrdinalIgnoreCase) => PlayerClass.Quote,
+            var className when string.Equals(className, "employer", StringComparison.OrdinalIgnoreCase) => PlayerClass.Quote,
             var className when string.Equals(className, "civ", StringComparison.OrdinalIgnoreCase) => PlayerClass.Quote,
             var className when Enum.TryParse<PlayerClass>(className, ignoreCase: true, out var parsedClass) => parsedClass,
             _ => fallback,
