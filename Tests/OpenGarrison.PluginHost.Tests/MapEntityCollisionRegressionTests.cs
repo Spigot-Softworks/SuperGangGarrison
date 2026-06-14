@@ -92,6 +92,127 @@ public sealed class MapEntityCollisionRegressionTests
     }
 
     [Fact]
+    public void UpDirectionalWallImportsAsFloorShape()
+    {
+        var context = new CustomMapEntityImportContext
+        {
+            RedSpawns = new List<SpawnPoint>(),
+            BlueSpawns = new List<SpawnPoint>(),
+            RoomObjects = new List<RoomObjectMarker>(),
+            UseCenterOrigin = false,
+        };
+
+        Assert.True(CustomMapEntityRuntimeRegistry.TryImport(
+            "directionalWall",
+            12f,
+            18f,
+            1f,
+            1f,
+            new Dictionary<string, string>
+            {
+                [DirectionalWallConfiguration.PassDirectionPropertyKey] = DirectionalWallConfiguration.PassDirectionUpValue,
+                [DirectionalWallConfiguration.PlayersPropertyKey] = DirectionalWallConfiguration.AffectValue,
+                [DirectionalWallConfiguration.ProjectilesPropertyKey] = DirectionalWallConfiguration.IgnoreValue,
+            },
+            context));
+
+        var wall = Assert.Single(context.RoomObjects);
+        Assert.Equal(RoomObjectType.DirectionalWall, wall.Type);
+        Assert.Equal(60f, wall.Width);
+        Assert.Equal(6f, wall.Height);
+    }
+
+    [Theory]
+    [InlineData(DirectionalWallConfiguration.PassDirectionRightValue, 3f, 0.5f, 18f, 30f)]
+    [InlineData(DirectionalWallConfiguration.PassDirectionUpValue, 2f, 1.5f, 120f, 9f)]
+    public void ScaledDirectionalWallImportsWithAuthoredDimensions(
+        string passDirection,
+        float xScale,
+        float yScale,
+        float expectedWidth,
+        float expectedHeight)
+    {
+        var context = new CustomMapEntityImportContext
+        {
+            RedSpawns = new List<SpawnPoint>(),
+            BlueSpawns = new List<SpawnPoint>(),
+            RoomObjects = new List<RoomObjectMarker>(),
+            UseCenterOrigin = false,
+        };
+
+        Assert.True(CustomMapEntityRuntimeRegistry.TryImport(
+            "directionalWall",
+            12f,
+            18f,
+            xScale,
+            yScale,
+            new Dictionary<string, string>
+            {
+                [DirectionalWallConfiguration.PassDirectionPropertyKey] = passDirection,
+                [DirectionalWallConfiguration.PlayersPropertyKey] = DirectionalWallConfiguration.AffectValue,
+                [DirectionalWallConfiguration.ProjectilesPropertyKey] = DirectionalWallConfiguration.IgnoreValue,
+            },
+            context));
+
+        var wall = Assert.Single(context.RoomObjects);
+        Assert.Equal(RoomObjectType.DirectionalWall, wall.Type);
+        Assert.Equal(expectedWidth, wall.Width);
+        Assert.Equal(expectedHeight, wall.Height);
+    }
+
+    [Fact]
+    public void ScaledTeleportAndLogicBoxesImportWithExpectedAnchors()
+    {
+        var topLeftContext = new CustomMapEntityImportContext
+        {
+            RedSpawns = new List<SpawnPoint>(),
+            BlueSpawns = new List<SpawnPoint>(),
+            RoomObjects = new List<RoomObjectMarker>(),
+            UseCenterOrigin = false,
+        };
+
+        Assert.True(CustomMapEntityRuntimeRegistry.TryImport(
+            TeleportMetadata.TeleportEntityType,
+            100f,
+            120f,
+            2f,
+            0.5f,
+            new Dictionary<string, string> { [TeleportMetadata.TeamPropertyKey] = TeleportMetadata.TeamAllPropertyValue },
+            topLeftContext));
+
+        var teleport = Assert.Single(topLeftContext.RoomObjects);
+        Assert.Equal(RoomObjectType.TeleportZone, teleport.Type);
+        Assert.Equal(100f, teleport.X);
+        Assert.Equal(120f, teleport.Y);
+        Assert.Equal(84f, teleport.Width);
+        Assert.Equal(21f, teleport.Height);
+
+        var centerContext = new CustomMapEntityImportContext
+        {
+            RedSpawns = new List<SpawnPoint>(),
+            BlueSpawns = new List<SpawnPoint>(),
+            RoomObjects = new List<RoomObjectMarker>(),
+            UseCenterOrigin = false,
+        };
+
+        Assert.True(CustomMapEntityRuntimeRegistry.TryImport(
+            PlayerTriggerMetadata.PlayerTriggerEntityType,
+            100f,
+            120f,
+            2f,
+            0.5f,
+            new Dictionary<string, string> { [PlayerTriggerMetadata.TeamPropertyKey] = PlayerTriggerMetadata.TeamAnyPropertyValue },
+            centerContext));
+
+        var trigger = Assert.Single(centerContext.RoomObjects);
+        Assert.Equal(RoomObjectType.PlayerTriggerZone, trigger.Type);
+        Assert.Equal(58f, trigger.X);
+        Assert.Equal(109.5f, trigger.Y);
+        Assert.Equal(84f, trigger.Width);
+        Assert.Equal(21f, trigger.Height);
+    }
+
+    [Fact]
     public void CatalogDefaultBarrierBlocksPlayersAndIntelCarriers()
     {
         Assert.True(CustomMapBuilderEntityCatalog.TryGetDefinition("barrier", out var definition));

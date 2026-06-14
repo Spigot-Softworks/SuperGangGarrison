@@ -351,6 +351,13 @@ public sealed partial class PlayerEntity
             ClampCivvieUmbrellaFallSpeed();
         }
 
+        if (IsCivviePogoActive && wasAirborneBeforeMove && VerticalSpeed > 0f)
+        {
+            // Remember how fast the civilian is dropping into this collision so the pogo
+            // landing bounce can reward falls from greater heights.
+            CivviePogoPendingImpactFallSpeed = VerticalSpeed;
+        }
+
         MoveWithCollisions(level, team, HorizontalSpeed * dt, VerticalSpeed * dt, allowDropdownFallThrough);
         if (gravityPerTick > 0f && CanOccupy(level, team, X, Y + 1f))
         {

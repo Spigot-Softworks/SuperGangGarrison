@@ -31,6 +31,35 @@ public sealed class PlayerEntityMovementRegressionTests
     }
 
     [Fact]
+    public void DirectionalFloorKeepsPlayerGroundedWhileWalkingAcross()
+    {
+        var configuration = new DirectionalWallConfiguration(
+            DirectionalWallPassDirection.Up,
+            DirectionalWallAffectSetting.Affect,
+            DirectionalWallAffectSetting.Ignore);
+        var wall = DirectionalWallConfiguration.CreateMarker(64f, 300f, 4f, 1f, configuration);
+        var level = CreateOpenLevel([wall]);
+        var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Test");
+        player.Spawn(PlayerTeam.Red, 128f, 128f);
+        player.TeleportTo(128f, wall.Top - player.CollisionBottomOffset);
+        var startX = player.X;
+
+        for (var tick = 0; tick < 20; tick += 1)
+        {
+            player.Advance(
+                MoveRightInput,
+                jumpPressed: false,
+                level,
+                PlayerTeam.Red,
+                1d / SimulationConfig.DefaultTicksPerSecond);
+            Assert.True(player.IsGrounded, $"expected player to stay grounded on tick {tick}, y={player.Y:0.###}");
+        }
+
+        Assert.True(player.X > startX + 4f, $"expected player to walk across directional floor, start={startX:0.###} x={player.X:0.###}");
+        Assert.Equal(wall.Top - player.CollisionBottomOffset, player.Y, precision: 2);
+    }
+
+    [Fact]
     public void RunningJumpRetainsStandingJumpApexOnFlatGround()
     {
         var standingPlayer = CreateGroundedScout();
@@ -531,7 +560,7 @@ public sealed class PlayerEntityMovementRegressionTests
             allowDropdownFallThrough: false);
     }
 
-    private static SimpleLevel CreateOpenLevel()
+    private static SimpleLevel CreateOpenLevel(IReadOnlyList<RoomObjectMarker>? roomObjects = null)
     {
         return new SimpleLevel(
             name: "movement_open",
@@ -549,7 +578,7 @@ public sealed class PlayerEntityMovementRegressionTests
                 new IntelBaseMarker(PlayerTeam.Red, 128f, 128f),
                 new IntelBaseMarker(PlayerTeam.Blue, 256f, 128f),
             ],
-            roomObjects: [],
+            roomObjects: roomObjects ?? [],
             floorY: 2048f,
             solids: [],
             importedFromSource: false);

@@ -3269,10 +3269,11 @@ public partial class Game1
         var metrics = GetGarrisonBuilderEntityMetrics(definition);
         if (_builderScaleMode && IsGarrisonBuilderDefinitionScalable(definition) && !_builderPlacementScaleLock)
         {
-            var right = MathF.Max(placementStartWorld.X + 6f, placementCurrentWorld.X + metrics.CenterX);
-            var bottom = MathF.Max(placementStartWorld.Y + 6f, placementCurrentWorld.Y + metrics.CenterY);
-            var xScale = MathF.Max(0.01f, (right - placementStartWorld.X) / metrics.Width);
-            var yScale = MathF.Max(0.01f, (bottom - placementStartWorld.Y) / metrics.Height);
+            GetGarrisonBuilderResizeMinimumExtents(definition.Type, metrics.Width, metrics.Height, out var minWidth, out var minHeight);
+            var right = MathF.Max(placementStartWorld.X + minWidth, placementCurrentWorld.X + metrics.CenterX);
+            var bottom = MathF.Max(placementStartWorld.Y + minHeight, placementCurrentWorld.Y + metrics.CenterY);
+            var xScale = MathF.Max(minWidth / metrics.Width, (right - placementStartWorld.X) / metrics.Width);
+            var yScale = MathF.Max(minHeight / metrics.Height, (bottom - placementStartWorld.Y) / metrics.Height);
             var entityX = placementStartWorld.X - metrics.CenterX + (metrics.OffsetX * xScale);
             var entityY = placementStartWorld.Y - metrics.CenterY + (metrics.OffsetY * yScale);
             AddGarrisonBuilderPlacementWithSymmetry(entities, definition, metrics, entityX, entityY, xScale, yScale);
@@ -3310,18 +3311,18 @@ public partial class Game1
         AddGarrisonBuilderPlacementEntity(
             entities,
             mirroredDefinition,
-            MirrorGarrisonBuilderPlacementX(x, metrics),
+            MirrorGarrisonBuilderPlacementX(x, metrics, xScale),
             y,
             xScale,
             yScale,
             mirrored: true);
     }
 
-    private float MirrorGarrisonBuilderPlacementX(float entityX, in GarrisonBuilderEntityMetrics metrics)
+    private float MirrorGarrisonBuilderPlacementX(float entityX, in GarrisonBuilderEntityMetrics metrics, float xScale)
     {
-        var gridX = entityX - metrics.OffsetX;
+        var gridX = entityX - (metrics.OffsetX * xScale);
         var centerX = GetGarrisonBuilderMapSymmetryCenterX();
-        return (2f * centerX) - gridX + metrics.MirroredOffsetX;
+        return (2f * centerX) - gridX + (metrics.MirroredOffsetX * xScale);
     }
 
     private float MirrorGarrisonBuilderWorldX(float worldX)
@@ -4282,11 +4283,11 @@ public partial class Game1
             metrics = new GarrisonBuilderEntityMetrics(
                 zoneWidth,
                 zoneHeight,
-                zoneWidth * 0.5f,
-                zoneHeight * 0.5f,
                 0f,
                 0f,
-                -zoneWidth * 0.5f);
+                PlayerTriggerMetadata.DefaultZoneWidth * 0.5f,
+                PlayerTriggerMetadata.DefaultZoneHeight * 0.5f,
+                -PlayerTriggerMetadata.DefaultZoneWidth * 0.5f);
             return true;
         }
 
@@ -4296,11 +4297,11 @@ public partial class Game1
             metrics = new GarrisonBuilderEntityMetrics(
                 zoneWidth,
                 zoneHeight,
-                zoneWidth * 0.5f,
-                zoneHeight * 0.5f,
                 0f,
                 0f,
-                -zoneWidth * 0.5f);
+                AreaExtensionMetadata.DefaultZoneWidth * 0.5f,
+                AreaExtensionMetadata.DefaultZoneHeight * 0.5f,
+                -AreaExtensionMetadata.DefaultZoneWidth * 0.5f);
             return true;
         }
 
@@ -4310,11 +4311,11 @@ public partial class Game1
             metrics = new GarrisonBuilderEntityMetrics(
                 zoneWidth,
                 zoneHeight,
-                zoneWidth * 0.5f,
-                zoneHeight * 0.5f,
                 0f,
                 0f,
-                -zoneWidth * 0.5f);
+                DamageableMetadata.DefaultZoneWidth * 0.5f,
+                DamageableMetadata.DefaultZoneHeight * 0.5f,
+                -DamageableMetadata.DefaultZoneWidth * 0.5f);
             return true;
         }
 
@@ -4325,10 +4326,10 @@ public partial class Game1
         }
 
         var floor = type.Equals("barrier", StringComparison.OrdinalIgnoreCase)
-            && BarrierConfiguration.IsFloorOrientation(properties);
-        var (width, height) = type.Equals("directionalWall", StringComparison.OrdinalIgnoreCase)
-            ? BarrierConfiguration.ResolveDimensions(xScale, yScale)
-            : BarrierConfiguration.ResolveDimensions(xScale, yScale, floor);
+            ? BarrierConfiguration.IsFloorOrientation(properties)
+            : type.Equals("directionalWall", StringComparison.OrdinalIgnoreCase)
+                && DirectionalWallConfiguration.FromProperties(properties).UsesFloorShape;
+        var (width, height) = BarrierConfiguration.ResolveDimensions(xScale, yScale, floor);
         metrics = new GarrisonBuilderEntityMetrics(width, height, 0f, 0f, 0f, 0f, -width);
         return true;
     }
@@ -4947,7 +4948,8 @@ public partial class Game1
             "$d=New-Object System.Windows.Forms.SaveFileDialog;",
             "$d.Title=", ToPowerShellSingleQuotedString(title), ";",
             "$d.Filter=", ToPowerShellSingleQuotedString(filter), ";",
-            "$d.DefaultExt='png';",
+            "$d.DefaultExt='json';",
+            "$d.FilterIndex=1;",
             "$d.AddExtension=$true;",
             SetInitialDialogDirectoryScript(initialPath),
             "if($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){[Console]::Write($d.FileName)}");
@@ -8280,7 +8282,7 @@ public partial class Game1
 
         if (CustomMapPackageExporter.IsPackageOutputPath(_builderSavePath))
         {
-            return CustomMapPackageExporter.ResolveManifestOutputPath(_builderDocument, _builderSavePath);
+            return CustomMapPackageExporter.ResolvePackageManifestPath(_builderDocument, _builderSavePath);
         }
 
         return _builderSavePath;
@@ -8422,19 +8424,26 @@ public partial class Game1
             ApplyGarrisonBuilderMapModeMetadata();
             ApplyGarrisonBuilderEntitySchemaMetadata();
             var quickTestLevelName = GarrisonBuilderQuickTestNaming.BuildQuickTestLevelName(_builderDocument.Name);
-            var packageDirectory = Path.Combine(RuntimePaths.MapsDirectory, quickTestLevelName);
-            if (Directory.Exists(packageDirectory))
-            {
-                Directory.Delete(packageDirectory, recursive: true);
-            }
-
             Directory.CreateDirectory(RuntimePaths.MapsDirectory);
+            var packageDirectory = Path.Combine(RuntimePaths.MapsDirectory, quickTestLevelName);
+            var stagingDirectory = Path.Combine(
+                RuntimePaths.MapsDirectory,
+                $"{quickTestLevelName}.tmp-{Guid.NewGuid():N}");
             var exportDocument = _builderDocument with
             {
                 Name = quickTestLevelName,
                 Entities = CustomMapBuilderEntityNormalization.ResolveForExport(_builderDocument.Entities),
             };
-            CustomMapPackageExporter.Export(exportDocument, packageDirectory);
+            try
+            {
+                CustomMapPackageExporter.Export(exportDocument, stagingDirectory);
+                ReplaceGarrisonBuilderQuickTestPackageDirectory(stagingDirectory, packageDirectory);
+            }
+            finally
+            {
+                TryDeleteGarrisonBuilderDirectory(stagingDirectory);
+            }
+
             var manifestPath = CustomMapPackageExporter.ResolveManifestOutputPath(exportDocument, packageDirectory);
             levelName = Path.GetFileNameWithoutExtension(manifestPath);
             SimpleLevelFactory.ClearCachedCatalog();
@@ -8444,6 +8453,62 @@ public partial class Game1
         {
             error = ex.Message;
             return false;
+        }
+    }
+
+    private static void ReplaceGarrisonBuilderQuickTestPackageDirectory(string stagingDirectory, string packageDirectory)
+    {
+        if (!Directory.Exists(stagingDirectory))
+        {
+            throw new DirectoryNotFoundException($"Quick test staging package was not created: {stagingDirectory}");
+        }
+
+        var backupDirectory = $"{packageDirectory}.bak-{Guid.NewGuid():N}";
+        var movedExistingToBackup = false;
+        if (Directory.Exists(packageDirectory))
+        {
+            Directory.Move(packageDirectory, backupDirectory);
+            movedExistingToBackup = true;
+        }
+
+        try
+        {
+            Directory.Move(stagingDirectory, packageDirectory);
+            if (movedExistingToBackup)
+            {
+                Directory.Delete(backupDirectory, recursive: true);
+            }
+        }
+        catch
+        {
+            if (!Directory.Exists(packageDirectory) && movedExistingToBackup && Directory.Exists(backupDirectory))
+            {
+                Directory.Move(backupDirectory, packageDirectory);
+            }
+
+            throw;
+        }
+        finally
+        {
+            if (movedExistingToBackup && Directory.Exists(backupDirectory))
+            {
+                TryDeleteGarrisonBuilderDirectory(backupDirectory);
+            }
+        }
+    }
+
+    private static void TryDeleteGarrisonBuilderDirectory(string directory)
+    {
+        try
+        {
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
+        catch
+        {
+            // Best-effort cleanup for stale quick-test staging or backup directories.
         }
     }
 
@@ -8509,11 +8574,7 @@ public partial class Game1
 
         _garrisonBuilderQuickTestActive = false;
         CloseInGameMenu();
-        _gameplaySessionController.ResetActiveSessionState();
-        _gameplaySessionKind = GameplaySessionKind.None;
-        _mainMenuOpen = true;
-        _teamSelectOpen = false;
-        CloseGameplayOverlayState();
+        _gameplaySessionController.ReturnToMainMenu();
         EnableGarrisonBuilderEditor();
         _builderStatus = "returned to builder";
         AddConsoleLine(_builderStatus);
@@ -8792,7 +8853,7 @@ public partial class Game1
         _builderEntities.AddRange(_builderDocument.Entities);
         EnsureGarrisonBuilderLogicEntityKeys();
         ClearGarrisonBuilderMapEntitySelection();
-        _builderSavePath = path;
+        _builderSavePath = editableDocument is not null ? path : string.Empty;
         SyncGarrisonBuilderPathBuffers();
         _builderOpenMapBuffer = path;
         _builderDirty = false;
@@ -8896,8 +8957,9 @@ public partial class Game1
 
             if (CustomMapPackageExporter.IsPackageOutputPath(_builderSavePath))
             {
-                CustomMapPackageExporter.Export(_builderDocument, _builderSavePath);
-                _builderSavePath = CustomMapPackageExporter.ResolveManifestOutputPath(_builderDocument, _builderSavePath);
+                var manifestPath = CustomMapPackageExporter.ResolvePackageManifestPath(_builderDocument, _builderSavePath);
+                CustomMapPackageExporter.Export(_builderDocument, manifestPath);
+                _builderSavePath = manifestPath;
             }
             else
             {

@@ -179,14 +179,15 @@ static async Task<UpdateApplyResult> TryApplyUpdateAsync(
         return UpdateApplyResult.NoUpdate;
     }
 
+    var updateVersion = ResolveManifestPackageVersion(manifest);
     var detectedCurrentVersion = ReadCurrentVersion(appDirectory);
-    var currentVersion = NormalizeCurrentVersionForManifest(detectedCurrentVersion, manifest.Version);
+    var currentVersion = NormalizeCurrentVersionForManifest(detectedCurrentVersion, updateVersion);
     LogUpdaterEvent(
         appDirectory,
-        $"update manifest version=\"{manifest.Version}\" current=\"{currentVersion}\" detectedCurrent=\"{detectedCurrentVersion.Version}\" versionSource=\"{(detectedCurrentVersion.FromVersionFile ? "version.txt" : "fileVersion")}\" channel=\"{manifest.Channel}\" package=\"{manifest.Url}\"");
-    if (!IsNewerVersion(manifest.Version, currentVersion))
+        $"update manifest version=\"{manifest.Version}\" packageVersion=\"{updateVersion}\" current=\"{currentVersion}\" detectedCurrent=\"{detectedCurrentVersion.Version}\" versionSource=\"{(detectedCurrentVersion.FromVersionFile ? "version.txt" : "fileVersion")}\" channel=\"{manifest.Channel}\" package=\"{manifest.Url}\"");
+    if (!IsNewerVersion(updateVersion, currentVersion))
     {
-        LogUpdaterEvent(appDirectory, $"no update available manifest=\"{manifest.Version}\" current=\"{currentVersion}\"");
+        LogUpdaterEvent(appDirectory, $"no update available packageVersion=\"{updateVersion}\" current=\"{currentVersion}\" manifest=\"{manifest.Version}\"");
         return UpdateApplyResult.NoUpdate;
     }
 
@@ -225,7 +226,7 @@ static async Task<UpdateApplyResult> TryApplyUpdateAsync(
         LogUpdaterEvent(appDirectory, $"using nested update package root \"{packageRoot}\"");
     }
 
-    if (TryLaunchUpdateHelper(packageRoot, appDirectory, manifest.Version, gameArgs))
+    if (TryLaunchUpdateHelper(packageRoot, appDirectory, updateVersion, gameArgs))
     {
         updateUi.Report(UpdateUiState.KnownProgress("Installing update...", 1d));
         await Task.Delay(250).ConfigureAwait(false);
@@ -588,12 +589,20 @@ static string NormalizeCurrentVersionForManifest(CurrentVersionInfo currentVersi
 {
     if (!IsDefaultSdkVersionLabel(currentVersion.Version)
         || !TryParseComparableVersion(manifestVersion, out var parsedManifestVersion)
-        || parsedManifestVersion.Major != 0)
+        || parsedManifestVersion.Length == 0
+        || parsedManifestVersion[0] != 0)
     {
         return currentVersion.Version;
     }
 
     return "0.0.0";
+}
+
+static string ResolveManifestPackageVersion(UpdateManifest manifest)
+{
+    return string.IsNullOrWhiteSpace(manifest.PackageVersion)
+        ? manifest.Version.Trim()
+        : manifest.PackageVersion.Trim();
 }
 
 static string ResolveAppliedPackageVersion(string sourceDirectory, string manifestVersion)
@@ -640,15 +649,31 @@ static bool IsNewerVersion(string candidate, string current)
 
     if (!TryParseComparableVersion(current, out var currentVersion))
     {
-        currentVersion = new Version(0, 0, 0);
+        currentVersion = [0];
     }
 
-    return candidateVersion > currentVersion;
+    var count = Math.Max(candidateVersion.Length, currentVersion.Length);
+    for (var index = 0; index < count; index += 1)
+    {
+        var candidatePart = index < candidateVersion.Length ? candidateVersion[index] : 0;
+        var currentPart = index < currentVersion.Length ? currentVersion[index] : 0;
+        if (candidatePart > currentPart)
+        {
+            return true;
+        }
+
+        if (candidatePart < currentPart)
+        {
+            return false;
+        }
+    }
+
+    return false;
 }
 
-static bool TryParseComparableVersion(string value, out Version version)
+static bool TryParseComparableVersion(string value, out int[] version)
 {
-    version = new Version(0, 0, 0);
+    version = [];
     if (string.IsNullOrWhiteSpace(value))
     {
         return false;
@@ -661,7 +686,25 @@ static bool TryParseComparableVersion(string value, out Version version)
         clean = clean[..suffixIndex];
     }
 
-    return Version.TryParse(clean, out version!);
+    var rawParts = clean.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    if (rawParts.Length == 0)
+    {
+        return false;
+    }
+
+    var parts = new int[rawParts.Length];
+    for (var index = 0; index < rawParts.Length; index += 1)
+    {
+        if (!int.TryParse(rawParts[index], out var part) || part < 0)
+        {
+            return false;
+        }
+
+        parts[index] = part;
+    }
+
+    version = parts;
+    return true;
 }
 
 static async Task<string> ComputeSha256Async(string path)
@@ -867,6 +910,8 @@ internal enum UpdateApplyResult
 internal sealed class UpdateManifest
 {
     public string Version { get; set; } = string.Empty;
+
+    public string PackageVersion { get; set; } = string.Empty;
 
     public string Channel { get; set; } = string.Empty;
 

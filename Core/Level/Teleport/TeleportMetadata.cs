@@ -110,20 +110,39 @@ public static class TeleportMetadata
         out float exitX,
         out float exitY)
     {
+        return TryResolveExitPosition(roomObjects, importedEntities: null, exitRef, out exitX, out exitY);
+    }
+
+    public static bool TryResolveExitPosition(
+        IList<RoomObjectMarker> roomObjects,
+        IReadOnlyList<MapImportedEntity>? importedEntities,
+        string? exitRef,
+        out float exitX,
+        out float exitY)
+    {
         exitX = 0f;
         exitY = 0f;
-        if (!MapLogicEntityReference.TryParseEntityRef(exitRef, out var entityType, out var x, out var y)
+        if (!MapLogicEntityReference.TryParseEntityRef(exitRef, out var entityType, out var x, out var y, out var mapEntityId)
             || !entityType.Equals(TeleportExitEntityType, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
-        if (MapLogicEntityReference.TryResolveRoomObjectIndex(ToReadOnlyRoomObjects(roomObjects), exitRef, out var index))
+        if (MapLogicEntityReference.TryResolveRoomObjectIndex(
+                ToReadOnlyRoomObjects(roomObjects),
+                exitRef,
+                out var index,
+                importedEntities))
         {
             var marker = roomObjects[index];
             exitX = marker.CenterX;
             exitY = marker.CenterY;
             return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(mapEntityId))
+        {
+            return false;
         }
 
         exitX = x;
@@ -135,6 +154,14 @@ public static class TeleportMetadata
         IReadOnlyDictionary<string, string>? properties,
         IList<RoomObjectMarker> roomObjects)
     {
+        return ParseZoneConfiguration(properties, roomObjects, importedEntities: null);
+    }
+
+    public static TeleportZoneConfiguration ParseZoneConfiguration(
+        IReadOnlyDictionary<string, string>? properties,
+        IList<RoomObjectMarker> roomObjects,
+        IReadOnlyList<MapImportedEntity>? importedEntities)
+    {
         var team = TryParseTeamFilter(
             properties is not null && properties.TryGetValue(TeamPropertyKey, out var teamValue) ? teamValue : null,
             out var filter)
@@ -145,7 +172,7 @@ public static class TeleportMetadata
         var exitY = 0f;
         var hasExit = properties is not null
             && properties.TryGetValue(TeleportExitPropertyKey, out var exitRef)
-            && TryResolveExitPosition(roomObjects, exitRef, out exitX, out exitY);
+            && TryResolveExitPosition(roomObjects, importedEntities, exitRef, out exitX, out exitY);
 
         return hasExit
             ? new TeleportZoneConfiguration(team, exitX, exitY, HasExit: true)
