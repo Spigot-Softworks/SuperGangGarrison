@@ -24,6 +24,7 @@
     "jumpSuffix": "RunS",
     "tauntSuffix": "TauntS",
     "pogoSuffix": "PogoS",
+    "pogoTrickSuffix": "PogoTrickS",
     "pogoIntelSuffix": "PogoIntelS",
     "deadSuffix": "DeadS",
     "intelSuffix": "IntelS"

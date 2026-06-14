@@ -4,11 +4,14 @@
   "slot": "Secondary",
   "behaviorId": "builtin.weapon.medigun.crit",
   "ammo": {
-    "maxAmmo": 40,
-    "ammoPerUse": 0,
+    "maxAmmo": 6,
+    "ammoPerUse": 1,
     "projectilesPerUse": 1,
-    "useDelaySourceTicks": 3,
-    "reloadSourceTicks": 0,
+    "useDelaySourceTicks": 18,
+    "reloadSourceTicks": 55,
+    "spreadDegrees": 1.0,
+    "minProjectileSpeed": 20.0,
+    "additionalProjectileSpeed": 0.0,
     "autoReloads": false,
     "ammoRegenPerTick": 0,
     "refillsAllAtOnce": false
@@ -16,19 +19,18 @@
   "ability": {
     "category": "secondary",
     "activation": "held",
-    "executorId": "builtin.ability.medic_kritz_beam",
-    "tags": [ "core_m2", "beam", "damage", "charge" ],
+    "executorId": "builtin.ability.medic_kritz_heal_needles",
+    "tags": [ "core_m2", "projectile", "heal", "charge" ],
     "parameters": {
-      "range": 150,
-      "damagePerSecond": 1,
-      "chargePerDamageTick": 30
+      "healPerHit": 30,
+      "enemyDamagePerHit": 22
     }
   },
   "presentation": {
     "worldSpriteName": "MedigunCritS",
     "recoilSpriteName": "MedigunCritFS",
     "reloadSpriteName": "MedigunCritFRS",
-    "hudSpriteName": "NeedleAmmoS",
+    "hudSpriteName": "NeedleHealAmmoS",
     "weaponOffsetX": -7.0,
     "weaponOffsetY": 0.0,
     "recoilDurationSourceTicks": 4,

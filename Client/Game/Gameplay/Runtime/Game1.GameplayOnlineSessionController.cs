@@ -295,6 +295,8 @@ public partial class Game1
                 return;
             }
 
+            _game._world.ConfigureSessionPresentationSeed(welcome.LevelName, welcome.MapContentHash);
+
             _game._world.PrepareLocalPlayerJoin();
             _game.ResetGameplayTransitionEffects();
             _game.BeginNetworkWorldWarmup(welcome.LevelName);

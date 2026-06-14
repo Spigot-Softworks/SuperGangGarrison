@@ -358,7 +358,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
-    public void StockMedicKritzBeamDealsOneDamagePerSecondAndChargesOnDamageTick()
+    public void StockMedicKritzHealNeedlesDealReducedDpsToEnemies()
     {
         var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
@@ -368,20 +368,229 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var healthBefore = enemy.Health;
         PressSwapWeaponSpace(world);
 
-        for (var tick = 0; tick < world.Config.TicksPerSecond; tick += 1)
+        var magazineCycleTicks = (18 * 5) + 45;
+        for (var tick = 0; tick < magazineCycleTicks; tick += 1)
         {
             PressFireSecondary(world);
         }
 
-        Assert.Equal(healthBefore - 1, enemy.Health);
-        Assert.Equal(PlayerEntity.MedicUberMaxCharge * 0.015f, world.LocalPlayer.MedicUberCharge);
-        Assert.Equal(enemy.Id, world.LocalPlayer.MedicHealTargetId);
-        var bloodEvent = Assert.Single(world.PendingVisualEvents, static visualEvent => visualEvent.EffectName == "Blood");
-        Assert.Equal(4, bloodEvent.Count);
+        AdvanceTicks(world, 40);
+
+        var damageDealt = healthBefore - enemy.Health;
+        var expectedDamagePerHit = MedicHealNeedleProjectileEntity.DefaultEnemyDamagePerHit;
+        Assert.InRange(damageDealt, expectedDamagePerHit * 2, expectedDamagePerHit * 6);
+        Assert.Equal(0, damageDealt % expectedDamagePerHit);
     }
 
     [Fact]
-    public void StockMedicKritzBeamKeepsExistingTargetAtNormalBeamRange()
+    public void StockMedicKritzHealNeedlesHealTeammatesAndChargeUber()
+    {
+        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        var teammate = CreateRedNetworkScout(world, 2);
+        SetOpenCombatLevel(world);
+        world.TeleportLocalPlayer(100f, 100f);
+        world.LocalPlayer.SetSpawnRoomState(false);
+        teammate.TeleportTo(world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
+        teammate.SetSpawnRoomState(false);
+        teammate.ApplyContinuousDamage(50f);
+        var healthBefore = teammate.Health;
+        PressSwapWeaponSpace(world);
+
+        PressFireSecondary(world);
+        AdvanceTicks(world, 20);
+
+        Assert.True(teammate.Health > healthBefore);
+        Assert.True(world.LocalPlayer.MedicUberCharge > 0f);
+    }
+
+    [Fact]
+    public void StockMedicKritzUberActivatesWhenHoldingPrimaryAndSecondary()
+    {
+        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        var teammate = CreateRedNetworkScout(world, 2);
+        SetOpenCombatLevel(world);
+        world.TeleportLocalPlayer(100f, 100f);
+        world.LocalPlayer.SetSpawnRoomState(false);
+        teammate.TeleportTo(world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
+        teammate.SetSpawnRoomState(false);
+        world.LocalPlayer.FillMedicUberCharge();
+        PressSwapWeaponSpace(world);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: true,
+            AimWorldX: teammate.X,
+            AimWorldY: teammate.Y,
+            DebugKill: false,
+            UseAbility: false,
+            SwapWeapon: false));
+        world.AdvanceOneTick();
+
+        Assert.True(world.LocalPlayer.IsMedicUbering);
+        Assert.True(world.LocalPlayer.IsMedicHealing);
+        Assert.Equal(teammate.Id, world.LocalPlayer.MedicHealTargetId);
+        var abilityEvent = Assert.Single(world.DrainPendingGameplayAbilityEvents());
+        Assert.True(abilityEvent.Handled);
+        Assert.Equal("weapon.medigun.crit", abilityEvent.ItemId);
+        Assert.Equal(BuiltInGameplayBehaviorIds.MedicKritzHealNeedles, abilityEvent.ExecutorId);
+    }
+
+    [Fact]
+    public void StockMedicKritzHoldingPrimaryAndSecondaryPrioritizesHealingOverDamageBeam()
+    {
+        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        var teammate = CreateRedNetworkScout(world, 2);
+        var enemy = CreateBlueNetworkScout(world, 3);
+        SetOpenCombatLevel(world);
+        world.TeleportLocalPlayer(100f, 100f);
+        world.LocalPlayer.SetSpawnRoomState(false);
+        teammate.TeleportTo(world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
+        teammate.SetSpawnRoomState(false);
+        enemy.TeleportTo(world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
+        enemy.SetSpawnRoomState(false);
+        var enemyHealthBefore = enemy.Health;
+        PressSwapWeaponSpace(world);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: true,
+            AimWorldX: teammate.X,
+            AimWorldY: teammate.Y,
+            DebugKill: false,
+            UseAbility: false,
+            SwapWeapon: false));
+        world.AdvanceOneTick();
+
+        Assert.True(world.LocalPlayer.IsMedicHealing);
+        Assert.Equal(teammate.Id, world.LocalPlayer.MedicHealTargetId);
+        Assert.Equal(enemyHealthBefore, enemy.Health);
+        Assert.DoesNotContain(world.PendingVisualEvents, static visualEvent => visualEvent.EffectName == "Blood");
+    }
+
+    [Fact]
+    public void StockMedicKritzPrimaryWhileSecondaryHeldPrioritizesHealing()
+    {
+        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        var teammate = CreateRedNetworkScout(world, 2);
+        var enemy = CreateBlueNetworkScout(world, 3);
+        MoveKritzBeamTestPlayersToOpenCombatLevel(world, enemy);
+        teammate.TeleportTo(world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
+        teammate.SetSpawnRoomState(false);
+        PressSwapWeaponSpace(world);
+
+        PressFireSecondary(world);
+        AdvanceTicks(world, 20);
+        Assert.NotEmpty(world.Needles);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: true,
+            AimWorldX: teammate.X,
+            AimWorldY: teammate.Y,
+            DebugKill: false,
+            UseAbility: false,
+            SwapWeapon: false));
+        world.AdvanceOneTick();
+
+        Assert.True(world.LocalPlayer.IsMedicHealing);
+        Assert.Equal(teammate.Id, world.LocalPlayer.MedicHealTargetId);
+    }
+
+    [Fact]
+    public void StockMedicKritzUberIsReadyAtSeventyFivePercentCharge()
+    {
+        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        PressSwapWeaponSpace(world);
+
+        AddMedicUberChargeUntil(world.LocalPlayer, PlayerEntity.MedicKritzUberReadyChargeThreshold);
+
+        Assert.True(world.LocalPlayer.IsMedicUberReady);
+        Assert.True(world.LocalPlayer.MedicUberCharge < PlayerEntity.MedicUberMaxCharge);
+    }
+
+    [Fact]
+    public void StockMedicKritzUberReadyStateUpdatesWhenSwappingToKritzkrieg()
+    {
+        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+
+        AddMedicUberChargeUntil(world.LocalPlayer, 1600f);
+
+        Assert.False(world.LocalPlayer.IsMedicUberReady);
+        PressSwapWeaponSpace(world);
+        Assert.True(world.LocalPlayer.IsMedicUberReady);
+    }
+
+    [Fact]
+    public void StockMedicKritzUberAtFullChargeLastsEightSecondsAndConsumesAllCharge()
+    {
+        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        var durationTicks = (int)(PlayerEntity.MedicUberDurationSeconds * world.Config.TicksPerSecond);
+        PressSwapWeaponSpace(world);
+        world.LocalPlayer.FillMedicUberCharge();
+
+        Assert.True(world.LocalPlayer.TryStartMedicUber());
+        Assert.True(world.LocalPlayer.MedicUberUsesFixedDuration);
+        Assert.Equal(PlayerEntity.MedicUberMaxCharge, world.LocalPlayer.MedicUberCommittedCharge);
+
+        AdvanceTicks(world, durationTicks - 1);
+
+        Assert.True(world.LocalPlayer.IsMedicUbering);
+        Assert.True(world.LocalPlayer.MedicUberCharge > 0f);
+
+        AdvanceTicks(world, 2);
+
+        Assert.False(world.LocalPlayer.IsMedicUbering);
+        Assert.Equal(0f, world.LocalPlayer.MedicUberCharge);
+    }
+
+    [Fact]
+    public void StockMedicKritzUberHudMeterScalesChargeToSeventyFivePercentThreshold()
+    {
+        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        PressSwapWeaponSpace(world);
+        AddMedicUberChargeUntil(world.LocalPlayer, 1000f);
+
+        world.LocalPlayer.GetMedicUberHudMeter(out var meterValue, out var meterMax);
+
+        Assert.InRange(meterValue, 1000f, 1002f);
+        Assert.Equal(PlayerEntity.MedicKritzUberReadyChargeThreshold, meterMax);
+    }
+
+    [Fact]
+    public void StockMedicKritzHealNeedlesDoNotRetainBeamTargets()
     {
         var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
@@ -391,12 +600,10 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         PressSwapWeaponSpace(world);
 
         PressFireSecondary(world);
-        Assert.Equal(enemy.Id, world.LocalPlayer.MedicHealTargetId);
+        AdvanceTicks(world, 5);
 
-        enemy.TeleportTo(world.LocalPlayer.X + 250f, world.LocalPlayer.Y);
-        PressFireSecondary(world);
-
-        Assert.Equal(enemy.Id, world.LocalPlayer.MedicHealTargetId);
+        Assert.Null(world.LocalPlayer.MedicHealTargetId);
+        Assert.False(world.LocalPlayer.IsMedicHealing);
     }
 
     [Fact]
@@ -1293,6 +1500,60 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.False(damageEvent.Flags.HasFlag(DamageEventFlags.GhostDash));
         Assert.InRange(damageEvent.X, world.LocalPlayer.X + 25f, world.LocalPlayer.X + 36f);
         Assert.InRange(damageEvent.Y, world.LocalPlayer.Y - 9f, world.LocalPlayer.Y - 5f);
+    }
+
+    [Fact]
+    public void SpyBackstabBypassesCivilianUmbrellaShieldFromBehind()
+    {
+        var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        var spy = CreateBlueNetworkSpy(world, 2);
+        var civilian = world.LocalPlayer;
+        var chargeBefore = civilian.CivvieUmbrellaChargeTicks;
+
+        civilian.TeleportTo(0f, 0f);
+        spy.TeleportTo(-24f, 0f);
+        SetPlayerAimDirection(civilian, 0f);
+        Assert.True(civilian.TryActivateCivvieUmbrella());
+        Assert.True(spy.TryToggleSpyCloak());
+        world.DrainPendingDamageEvents();
+
+        InvokeSpawnStabMask(world, spy, 0f);
+        InvokeAdvanceStabMasks(world);
+
+        Assert.False(civilian.IsAlive);
+        Assert.Equal(chargeBefore, civilian.CivvieUmbrellaChargeTicks);
+        Assert.Empty(world.DrainPendingDamageEvents().Where(static damageEvent =>
+            damageEvent.Flags.HasFlag(DamageEventFlags.CivvieUmbrellaBlock)));
+    }
+
+    [Fact]
+    public void SpyBackstabBypassesCivilianUmbrellaShieldFromFront()
+    {
+        var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        var spy = CreateBlueNetworkSpy(world, 2);
+        var civilian = world.LocalPlayer;
+
+        civilian.TeleportTo(0f, 0f);
+        spy.TeleportTo(24f, 0f);
+        SetPlayerAimDirection(civilian, 0f);
+        Assert.True(civilian.TryActivateCivvieUmbrella());
+        Assert.True(spy.TryToggleSpyCloak());
+        world.DrainPendingDamageEvents();
+
+        Assert.False(InvokeApplyPlayerDamage(world, civilian, 25, spy));
+        Assert.Equal(civilian.MaxHealth, civilian.Health);
+        _ = world.DrainPendingDamageEvents();
+
+        InvokeSpawnStabMask(world, spy, 180f);
+        InvokeAdvanceStabMasks(world);
+
+        Assert.False(civilian.IsAlive);
+        Assert.Empty(world.DrainPendingDamageEvents().Where(static damageEvent =>
+            damageEvent.Flags.HasFlag(DamageEventFlags.CivvieUmbrellaBlock)));
     }
 
     [Fact]
@@ -2634,6 +2895,15 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         return player;
     }
 
+    private static PlayerEntity CreateBlueNetworkSpy(SimulationWorld world, byte slot)
+    {
+        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Spy));
+        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        return player;
+    }
+
     private static PlayerEntity CreateRedNetworkScout(SimulationWorld world, byte slot)
     {
         Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
@@ -2677,6 +2947,14 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
             AimWorldY: world.LocalPlayer.Y,
             DebugKill: false));
         world.AdvanceOneTick();
+    }
+
+    private static void AddMedicUberChargeUntil(PlayerEntity medic, float targetCharge)
+    {
+        while (medic.MedicUberCharge + 0.001f < targetCharge)
+        {
+            medic.AddMedicUberCharge(1.75f);
+        }
     }
 
     private static void PressSwapWeaponSpace(SimulationWorld world)
@@ -3085,6 +3363,18 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         return (bool)ApplyPlayerDamageMethod.Invoke(
             world,
             [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true, null, null])!;
+    }
+
+    private static void InvokeSpawnStabMask(SimulationWorld world, PlayerEntity owner, float directionDegrees)
+    {
+        var method = GetRequiredNonPublicMethod("SpawnStabMask");
+        method.Invoke(world, [owner, directionDegrees]);
+    }
+
+    private static void InvokeAdvanceStabMasks(SimulationWorld world)
+    {
+        var method = GetRequiredNonPublicMethod("AdvanceStabMasks");
+        method.Invoke(world, null);
     }
 
     private static bool InvokeApplySentryDamage(SimulationWorld world, SentryEntity target, int damage, PlayerEntity attacker)

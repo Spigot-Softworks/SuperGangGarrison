@@ -115,27 +115,6 @@ public partial class Game1
         var isCritMedigun = medic.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit);
         var isFreezeRayBeam = medic.IsExperimentalEngineerFreezeRayPresented;
         var isEssenceExtractorBeam = medic.IsExperimentalEngineerEssenceExtractorPresented && !isFreezeRayBeam;
-        var beamColor = isFreezeRayBeam
-            ? new Color(44, 118, 255, 94)
-            : isEssenceExtractorBeam
-                ? new Color(150, 8, 8, 92)
-                : healTarget.Team == PlayerTeam.Blue
-                    ? new Color(0, 20, 180, 90)
-                    : new Color(120, 5, 5, 90);
-        var beamStartColor = isFreezeRayBeam
-            ? new Color(160, 225, 255, 240)
-            : isEssenceExtractorBeam
-                ? new Color(255, 72, 72, 245)
-                : healTarget.Team == PlayerTeam.Blue
-                    ? new Color(80, 160, 255, 240)
-                    : new Color(255, 95, 95, 245);
-        var helixStartColor = isFreezeRayBeam
-            ? new Color(208, 242, 255, 196)
-            : isEssenceExtractorBeam
-                ? new Color(255, 140, 140, 200)
-                : healTarget.Team == PlayerTeam.Blue
-                    ? new Color(140, 195, 255, 190)
-                    : new Color(255, 175, 175, 200);
         var beamStartX = beamOrigin.X;
         var beamStartY = beamOrigin.Y;
         DrawMedicBeamSegment(healTarget);
@@ -166,6 +145,16 @@ public partial class Game1
                 return;
             }
 
+            var isOffensiveKritzBeam = isCritMedigun && target.Team != medic.Team;
+            GetMedicBeamSegmentColors(
+                target.Team,
+                isFreezeRayBeam,
+                isEssenceExtractorBeam,
+                isOffensiveKritzBeam,
+                out var beamStartColor,
+                out var beamColor,
+                out var helixStartColor);
+
             DrawCurvedWorldLine(
                 beamStartX,
                 beamStartY,
@@ -179,9 +168,23 @@ public partial class Game1
                 tailThickness: 2f,
                 rampDistPixels: 8f,
                 aimDirection);
+            if (isOffensiveKritzBeam)
+            {
+                DrawMedicBeamCritChainEffect(
+                    beamStartX,
+                    beamStartY,
+                    targetRenderPosition.X,
+                    targetRenderPosition.Y,
+                    cameraPosition,
+                    aimDirection,
+                    helixStartColor,
+                    beamColor);
+                return;
+            }
+
             if (isCritMedigun)
             {
-                DrawMedicBeamCritHelix(
+                DrawMedicBeamCritJaggedHelix(
                     beamStartX,
                     beamStartY,
                     targetRenderPosition.X,
@@ -203,6 +206,52 @@ public partial class Game1
                 helixStartColor,
                 beamColor);
         }
+    }
+
+    private static void GetMedicBeamSegmentColors(
+        PlayerTeam targetTeam,
+        bool isFreezeRayBeam,
+        bool isEssenceExtractorBeam,
+        bool isOffensiveKritzBeam,
+        out Color beamStartColor,
+        out Color beamColor,
+        out Color helixStartColor)
+    {
+        if (isFreezeRayBeam)
+        {
+            beamColor = new Color(44, 118, 255, 94);
+            beamStartColor = new Color(160, 225, 255, 240);
+            helixStartColor = new Color(208, 242, 255, 196);
+            return;
+        }
+
+        if (isEssenceExtractorBeam)
+        {
+            beamColor = new Color(150, 8, 8, 92);
+            beamStartColor = new Color(255, 72, 72, 245);
+            helixStartColor = new Color(255, 140, 140, 200);
+            return;
+        }
+
+        if (isOffensiveKritzBeam)
+        {
+            beamColor = new Color(175, 165, 8, 90);
+            beamStartColor = new Color(231, 218, 10, 245);
+            helixStartColor = new Color(225, 255, 107, 200);
+            return;
+        }
+
+        if (targetTeam == PlayerTeam.Blue)
+        {
+            beamColor = new Color(0, 20, 180, 90);
+            beamStartColor = new Color(80, 160, 255, 240);
+            helixStartColor = new Color(140, 195, 255, 190);
+            return;
+        }
+
+        beamColor = new Color(120, 5, 5, 90);
+        beamStartColor = new Color(255, 95, 95, 245);
+        helixStartColor = new Color(255, 175, 175, 200);
     }
 
     private void DrawMedicBeamHelix(
@@ -339,7 +388,172 @@ public partial class Game1
         }
     }
 
-    private void DrawMedicBeamCritHelix(
+    private void DrawMedicBeamCritChainEffect(
+        float startX, float startY,
+        float endX, float endY,
+        Vector2 cameraPosition,
+        Vector2 aimDirection,
+        Color helixStartColor,
+        Color helixEndColor)
+    {
+        if (!AreFinite(startX, startY, endX, endY)
+            || !IsFiniteVector(cameraPosition)
+            || !IsFiniteVector(aimDirection)
+            || aimDirection.LengthSquared() <= 0.0001f)
+        {
+            return;
+        }
+
+        const int steps = 96;
+        const float pixelSize = 2f;
+        const float bubbleSpacing = 0.16f;
+        const float scrollScale = 0.22f / 3f;
+        const float maxAmplitude = 11f;
+        const float centerSpineAlpha = 0.3f;
+
+        var start = new Vector2(startX - cameraPosition.X, startY - cameraPosition.Y);
+        var end = new Vector2(endX - cameraPosition.X, endY - cameraPosition.Y);
+        var toTarget = end - start;
+        var distToTarget = toTarget.Length();
+        if (distToTarget <= 0.01f)
+        {
+            return;
+        }
+
+        var aimDir = aimDirection;
+        aimDir.Normalize();
+        var targetDir = toTarget / distToTarget;
+        var alignment = Vector2.Dot(aimDir, targetDir);
+
+        Vector2 controlPoint;
+        if (alignment > 0.98f)
+        {
+            controlPoint = (start + end) * 0.5f;
+        }
+        else
+        {
+            var controlDist = distToTarget * 0.5f;
+            controlPoint = start + aimDir * controlDist;
+            var perpToAim = new Vector2(-aimDir.Y, aimDir.X);
+            if (Vector2.Dot(perpToAim, targetDir) < 0)
+            {
+                perpToAim = -perpToAim;
+            }
+
+            var turnAngle = MathF.Acos(MathF.Max(-1f, MathF.Min(1f, alignment)));
+            var offsetAmount = distToTarget * 0.12f * (turnAngle / MathF.PI);
+            controlPoint += perpToAim * offsetAmount;
+        }
+
+        var scrollPhase = _medigunBeamHelixPhase;
+        var pixelatedCells = new System.Collections.Generic.Dictionary<(int, int), (float alpha, Color color)>();
+
+        void StampPixel(Vector2 position, float pathT, float alphaScale)
+        {
+            if (alphaScale <= 0f)
+            {
+                return;
+            }
+
+            var alpha = MathF.Max(0f, 1f - pathT) * alphaScale;
+            if (alpha <= 0.01f)
+            {
+                return;
+            }
+
+            var cellColor = Color.Lerp(helixStartColor, helixEndColor, pathT) * alpha;
+            var gx = (int)MathF.Floor(position.X / pixelSize);
+            var gy = (int)MathF.Floor(position.Y / pixelSize);
+            var key = (gx, gy);
+            if (!pixelatedCells.TryGetValue(key, out var existing) || alpha > existing.alpha)
+            {
+                pixelatedCells[key] = (alpha, cellColor);
+            }
+        }
+
+        void StampSegment(Vector2 from, Vector2 to, float fromT, float toT, float alphaScale)
+        {
+            var delta = to - from;
+            var segLen = delta.Length();
+            var substeps = Math.Max(1, (int)MathF.Ceiling(segLen / pixelSize));
+            for (var step = 0; step <= substeps; step += 1)
+            {
+                var frac = (float)step / substeps;
+                var position = from + (delta * frac);
+                var pathT = fromT + ((toT - fromT) * frac);
+                StampPixel(position, pathT, alphaScale);
+            }
+        }
+
+        Vector2? prevBubblePos = null;
+        float prevBubbleT = 0f;
+        float prevBubbleAlpha = 0f;
+        Vector2? prevSpinePos = null;
+        float prevSpineT = 0f;
+
+        for (var i = 0; i <= steps; i += 1)
+        {
+            var t = (float)i / steps;
+            var oneMinusT = 1f - t;
+
+            var bezierPos = (oneMinusT * oneMinusT * start)
+                + (2f * oneMinusT * t * controlPoint)
+                + (t * t * end);
+
+            var tangent = (2f * oneMinusT * (controlPoint - start)) + (2f * t * (end - controlPoint));
+            var tangentLen = tangent.Length();
+            if (tangentLen < 0.01f)
+            {
+                prevBubblePos = null;
+                continue;
+            }
+
+            tangent /= tangentLen;
+            var perp = new Vector2(-tangent.Y, tangent.X);
+
+            // Bubbles scroll from target (t=1) toward medic (t=0) as scrollPhase decreases.
+            var scroll = oneMinusT + (scrollPhase * scrollScale);
+            var bubbleCoord = scroll / bubbleSpacing;
+            var bubbleFrac = bubbleCoord - MathF.Floor(bubbleCoord);
+
+            // sin(2π·f)·sin(π·f): spine at cell edges, loop up then down through center mid-cell.
+            var bubbleWindow = MathF.Sin(bubbleFrac * MathF.PI);
+            var loopWave = MathF.Sin(bubbleFrac * MathF.PI * 2f);
+            var growth = MathF.Pow(oneMinusT, 0.75f);
+            var bubbleOffset = loopWave * bubbleWindow * growth * maxAmplitude;
+            var bubblePos = bezierPos + (perp * bubbleOffset);
+            var bubbleAlpha = 0.55f + (0.45f * bubbleWindow);
+
+            if (prevSpinePos.HasValue)
+            {
+                StampSegment(prevSpinePos.Value, bezierPos, prevSpineT, t, centerSpineAlpha);
+            }
+
+            prevSpinePos = bezierPos;
+            prevSpineT = t;
+
+            if (prevBubblePos.HasValue)
+            {
+                StampSegment(prevBubblePos.Value, bubblePos, prevBubbleT, t, prevBubbleAlpha);
+            }
+
+            prevBubblePos = bubblePos;
+            prevBubbleT = t;
+            prevBubbleAlpha = bubbleAlpha;
+        }
+
+        foreach (var ((gridX, gridY), (_, cellColor)) in pixelatedCells)
+        {
+            var pixelRect = new Rectangle(
+                gridX * (int)pixelSize,
+                gridY * (int)pixelSize,
+                (int)pixelSize,
+                (int)pixelSize);
+            _spriteBatch.Draw(_pixel, pixelRect, cellColor);
+        }
+    }
+
+    private void DrawMedicBeamCritJaggedHelix(
         float startX, float startY,
         float endX, float endY,
         Vector2 cameraPosition,
@@ -367,7 +581,10 @@ public partial class Game1
         var end = new Vector2(endX - cameraPosition.X, endY - cameraPosition.Y);
         var toTarget = end - start;
         var distToTarget = toTarget.Length();
-        if (distToTarget <= 0.01f) return;
+        if (distToTarget <= 0.01f)
+        {
+            return;
+        }
 
         var aimDir = aimDirection;
         aimDir.Normalize();
@@ -385,7 +602,10 @@ public partial class Game1
             controlPoint = start + aimDir * controlDist;
             var perpToAim = new Vector2(-aimDir.Y, aimDir.X);
             if (Vector2.Dot(perpToAim, targetDir) < 0)
+            {
                 perpToAim = -perpToAim;
+            }
+
             var turnAngle = MathF.Acos(MathF.Max(-1f, MathF.Min(1f, alignment)));
             var offsetAmount = distToTarget * 0.12f * (turnAngle / MathF.PI);
             controlPoint += perpToAim * offsetAmount;
@@ -394,7 +614,6 @@ public partial class Game1
         var phaseAtOrigin = _medigunBeamHelixPhase;
         var pixelatedCells = new System.Collections.Generic.Dictionary<(int, int), (float alpha, Color color)>();
 
-        // Use a simple hash-based noise function for consistent jaggedness
         float GetNoise(int seed)
         {
             var hash = seed * 2654435761;
@@ -404,7 +623,6 @@ public partial class Game1
             return ((hash & 0xFFFF) / 65536f) * 2f - 1f;
         }
 
-        // Two strands, 180° apart, with jagged noise
         for (int strand = 0; strand < 2; strand++)
         {
             var strandOffset = strand * MathF.PI;
@@ -423,30 +641,30 @@ public partial class Game1
 
                 var tangent = 2f * oneMinusT * (controlPoint - start) + 2f * t * (end - controlPoint);
                 var tangentLen = tangent.Length();
-                if (tangentLen < 0.01f) { prevPos = null; continue; }
+                if (tangentLen < 0.01f)
+                {
+                    prevPos = null;
+                    continue;
+                }
+
                 tangent /= tangentLen;
                 var perp = new Vector2(-tangent.Y, tangent.X);
 
                 var radius = maxRadius * oneMinusT;
                 var alpha = oneMinusT;
 
-                // Jagged wave with random noise
                 var angle = phaseAtOrigin + t * helixFrequency + strandOffset;
                 var angleAtOrigin = phaseAtOrigin + strandOffset;
                 var baseWave = (MathF.Sin(angle) - MathF.Sin(angleAtOrigin)) * mainWaveAmplitude;
 
-                // Add jaggedness with multiple noise samples
                 var noiseSeed = (int)(t * 100) + strand * 1000 + (int)(_medigunBeamHelixPhase * 10);
                 var noise1 = GetNoise(noiseSeed);
                 var noise2 = GetNoise(noiseSeed + 123);
                 var noise3 = GetNoise(noiseSeed + 456);
-
-                // Combine base wave with noisy variations
                 var jaggedOffset = baseWave + (noise1 * noiseAmplitude) + (noise2 * noiseAmplitude * 0.5f) + (noise3 * noiseAmplitude * 0.25f);
 
                 var pos = bezierPos + perp * (jaggedOffset * radius);
 
-                // Interpolate from previous sample to fill any skipped grid cells
                 if (prevPos.HasValue)
                 {
                     var delta = pos - prevPos.Value;
@@ -463,7 +681,9 @@ public partial class Game1
                         var gy = (int)MathF.Floor(interp.Y / pixelSize);
                         var key = (gx, gy);
                         if (!pixelatedCells.TryGetValue(key, out var existing) || interpAlpha > existing.alpha)
+                        {
                             pixelatedCells[key] = (interpAlpha, cellColor);
+                        }
                     }
                 }
                 else
@@ -473,7 +693,9 @@ public partial class Game1
                     var gy = (int)MathF.Floor(pos.Y / pixelSize);
                     var key = (gx, gy);
                     if (!pixelatedCells.TryGetValue(key, out var existing) || alpha > existing.alpha)
+                    {
                         pixelatedCells[key] = (alpha, cellColor);
+                    }
                 }
 
                 prevPos = pos;
@@ -799,9 +1021,11 @@ public partial class Game1
         // Flip needle sprite vertically when traveling left to match weapon mirroring
         var needleScale = needle.VelocityX < 0f ? new Vector2(1f, -1f) : Vector2.One;
 
-        // Use NailS sprite for Scout's nailgun projectiles, NeedleS for Medic needles
+        // Use NailS sprite for Scout's nailgun projectiles, NeedleHealS for Kritzkrieg heal needles, NeedleS for Medic needles
         var owner = FindPlayerById(needle.OwnerId);
-        var needleSpriteName = owner?.ClassId == PlayerClass.Scout ? "NailS" : "NeedleS";
+        var needleSpriteName = needle is MedicHealNeedleProjectileEntity
+            ? "NeedleHealS"
+            : owner?.ClassId == PlayerClass.Scout ? "NailS" : "NeedleS";
 
         // Draw outline first (behind sprite) if critical
         if (needle.IsCritical)

@@ -167,7 +167,7 @@ public sealed partial class PlayerEntity
             ? float.Clamp(medicUberCharge, 0f, MedicUberMaxCharge)
             : 0f;
         IsMedicUberReady = ClassId == PlayerClass.Medic
-            && (isMedicUberReady || MedicUberCharge >= MedicUberMaxCharge);
+            && (isMedicUberReady || MedicUberCharge >= MedicKritzUberReadyChargeThreshold);
         IsMedicUbering = isUbered;
         ActiveDominationCount = Math.Max(0, activeDominationCount);
         IsDominatingLocalViewer = isDominatingLocalViewer;
@@ -295,6 +295,7 @@ public sealed partial class PlayerEntity
             gameplayEquippedItemId,
             gameplayAcquiredItemId);
         ReconcileReplicatedWeaponSelection();
+        RefreshMedicUberReadyState();
         ReplaceOwnedGameplayItemIds(ownedGameplayItemIds ?? []);
         ReplaceReplicatedStateEntries(replicatedStateEntries ?? []);
         HydrateNetworkReplicatedAbilityRuntimeState();
@@ -320,12 +321,23 @@ public sealed partial class PlayerEntity
                 out var heavyDashCooldownTicks))
         {
             ExperimentalGhostDashCooldownTicksRemaining = Math.Max(0, heavyDashCooldownTicks);
+        }
+        else if (ClassId != PlayerClass.Heavy)
+        {
+            ExperimentalGhostDashCooldownTicksRemaining = 0;
+        }
+
+        if (ClassId != PlayerClass.Quote)
+        {
             return;
         }
 
-        if (ClassId != PlayerClass.Heavy)
+        if (TryGetReplicatedStateInt(
+                GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                GameplayAbilityReplicatedState.CivviePogoTrickTicksKey,
+                out var pogoTrickTicks))
         {
-            ExperimentalGhostDashCooldownTicksRemaining = 0;
+            CivviePogoTrickTicksRemaining = Math.Max(0, pogoTrickTicks);
         }
     }
 

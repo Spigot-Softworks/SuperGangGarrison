@@ -219,6 +219,18 @@ public sealed partial class SimulationWorld
             _world.SpawnNeedle(owner, x, y, velocityX, velocityY);
         }
 
+        private void SpawnMedicHealNeedle(
+            PlayerEntity owner,
+            float x,
+            float y,
+            float velocityX,
+            float velocityY,
+            int healPerHit = MedicHealNeedleProjectileEntity.DefaultHealPerHit,
+            int enemyDamagePerHit = MedicHealNeedleProjectileEntity.DefaultEnemyDamagePerHit)
+        {
+            _world.SpawnMedicHealNeedle(owner, x, y, velocityX, velocityY, healPerHit, enemyDamagePerHit);
+        }
+
         private void SpawnNail(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
         {
             _world.SpawnNail(owner, x, y, velocityX, velocityY);

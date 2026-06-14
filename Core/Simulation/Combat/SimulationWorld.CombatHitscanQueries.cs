@@ -38,6 +38,18 @@ public sealed partial class SimulationWorld
             return nearestHit;
         }
 
+        public ShotHitResult? GetNearestMedicHealNeedleHit(MedicHealNeedleProjectileEntity needle, float directionX, float directionY, float maxDistance)
+        {
+            ShotHitResult? nearestHit = null;
+            UpdateNearestProjectileHitFromSolids(ref nearestHit, needle, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
+            UpdateNearestProjectileHitFromGates(ref nearestHit, needle.Team, needle, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
+            UpdateNearestProjectileHitFromSentries(ref nearestHit, needle, needle.Team, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
+            UpdateNearestProjectileHitFromGenerators(ref nearestHit, needle, needle.Team, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
+            UpdateNearestProjectileHitFromJumpPads(ref nearestHit, needle.Team, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance);
+            UpdateNearestMedicHealNeedlePlayerHits(ref nearestHit, needle, needle.Team, needle.OwnerId, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance);
+            return nearestHit;
+        }
+
         public ShotHitResult? GetNearestRevolverHit(RevolverProjectileEntity shot, float directionX, float directionY, float maxDistance)
         {
             ShotHitResult? nearestHit = null;
@@ -214,6 +226,51 @@ public sealed partial class SimulationWorld
                     player,
                     null,
                     null);
+            }
+        }
+
+        private void UpdateNearestMedicHealNeedlePlayerHits(
+            ref ShotHitResult? nearestHit,
+            MedicHealNeedleProjectileEntity projectile,
+            PlayerTeam projectileTeam,
+            int ownerId,
+            float previousX,
+            float previousY,
+            float directionX,
+            float directionY,
+            float maxDistance)
+        {
+            var rayBounds = GetRayBounds(previousX, previousY, directionX, directionY, maxDistance);
+            foreach (var player in EnumerateSimulatedPlayers())
+            {
+                if (!player.IsAlive || player.Id == ownerId)
+                {
+                    continue;
+                }
+
+                GetPlayerPresentationHitBounds(_world, player, out var left, out var top, out var right, out var bottom);
+                if (!RayBoundsMayIntersectRectangle(rayBounds, left, top, right, bottom))
+                {
+                    continue;
+                }
+
+                var distance = GetRayIntersectionDistanceWithPlayer(previousX, previousY, directionX, directionY, _world, player, maxDistance);
+                if (!distance.HasValue)
+                {
+                    continue;
+                }
+
+                if (player.Team != projectileTeam && !_world.CanTeamDamagePlayer(projectileTeam, ownerId, player))
+                {
+                    continue;
+                }
+
+                if (player.Team == projectileTeam && player.Health >= player.MaxHealth)
+                {
+                    continue;
+                }
+
+                UpdateNearestNeedleHit(ref nearestHit, projectile, directionX, directionY, distance.Value, player);
             }
         }
 
