@@ -106,16 +106,15 @@ public static class MapLogicEntityReference
             return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(mapEntityId)
-            && importedEntities is not null
-            && TryResolveRoomObjectIndexByMapEntityId(
-                roomObjects,
-                importedEntities,
-                entityType,
-                mapEntityId,
-                out roomObjectIndex))
+        if (!string.IsNullOrWhiteSpace(mapEntityId))
         {
-            return true;
+            return importedEntities is not null
+                && TryResolveRoomObjectIndexByMapEntityId(
+                    roomObjects,
+                    importedEntities,
+                    entityType,
+                    mapEntityId,
+                    out roomObjectIndex);
         }
 
         return TryResolveRoomObjectIndexByPosition(roomObjects, entityType, x, y, out roomObjectIndex);

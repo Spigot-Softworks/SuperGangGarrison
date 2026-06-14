@@ -1433,6 +1433,28 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
+    public void HealingCabinetPreservesSelectedSecondaryWeapon()
+    {
+        var world = CreateJoinedSoldierWorld(new ExperimentalGameplaySettings(EnableSoldierShotgunSecondaryWeapon: true));
+        Assert.True(world.TrySetNetworkPlayerGameplayEquippedSlot(SimulationWorld.LocalPlayerSlot, GameplayEquipmentSlot.Secondary));
+        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.SelectedGameplayEquippedSlot);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+
+        world.LocalPlayer.ForceSetAmmo(0);
+        world.SetLocalInput(default);
+        var cabinet = world.Level.GetRoomObjects(RoomObjectType.HealingCabinet).First();
+        world.TeleportLocalPlayer(cabinet.CenterX, cabinet.CenterY);
+
+        world.AdvanceOneTick();
+
+        Assert.True(world.LocalPlayer.IsUsingHealingCabinet);
+        Assert.Equal(world.LocalPlayer.MaxShells, world.LocalPlayer.CurrentShells);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.SelectedGameplayEquippedSlot);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+        Assert.Equal(world.LocalPlayer.GameplayLoadoutState.SecondaryItemId, world.LocalPlayer.GameplayLoadoutState.EquippedItemId);
+    }
+
+    [Fact]
     public void HeavyGhostDashRegistersEvadedDamageEvent()
     {
         var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());

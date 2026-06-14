@@ -46,7 +46,7 @@ public readonly record struct DirectionalWallConfiguration(
         float yScale,
         in DirectionalWallConfiguration configuration)
     {
-        var (width, height) = BarrierConfiguration.ResolveDimensions(xScale, yScale);
+        var (width, height) = BarrierConfiguration.ResolveDimensions(xScale, yScale, configuration.UsesFloorShape);
         return new RoomObjectMarker(
             RoomObjectType.DirectionalWall,
             x,
@@ -65,6 +65,13 @@ public readonly record struct DirectionalWallConfiguration(
     public bool AffectsPlayers => Players == DirectionalWallAffectSetting.Affect;
 
     public bool AffectsProjectiles => Projectiles == DirectionalWallAffectSetting.Affect;
+
+    public bool UsesFloorShape => UsesFloorShapeForPassDirection(PassDirection);
+
+    public static bool UsesFloorShapeForPassDirection(DirectionalWallPassDirection passDirection)
+    {
+        return passDirection is DirectionalWallPassDirection.Up or DirectionalWallPassDirection.Down;
+    }
 
     public Dictionary<string, string> ToProperties()
     {

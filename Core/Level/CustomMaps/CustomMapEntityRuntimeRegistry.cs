@@ -264,7 +264,7 @@ internal sealed class DirectionalWallMapEntityRuntimeImporter : ICustomMapEntity
             return true;
         }
 
-        var (width, height) = BarrierConfiguration.ResolveDimensions(args.XScale, args.YScale);
+        var (width, height) = BarrierConfiguration.ResolveDimensions(args.XScale, args.YScale, configuration.UsesFloorShape);
         var (x, y) = CustomMapEntityPlacementAnchor.ToTopLeft(args.X, args.Y, width, height, context.UseCenterOrigin);
         context.RoomObjects.Add(DirectionalWallConfiguration.CreateMarker(
             x,

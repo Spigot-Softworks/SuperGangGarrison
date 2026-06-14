@@ -206,21 +206,12 @@ public sealed partial class PlayerEntity
             ExperimentalOffhandCurrentShells = ExperimentalOffhandWeapon.MaxAmmo;
             ExperimentalOffhandCooldownTicks = 0;
             ExperimentalOffhandReloadTicksUntilNextShell = 0;
-            IsExperimentalOffhandEquipped = false;
         }
         if (AcquiredWeapon is not null)
         {
             AcquiredWeaponCurrentShells = AcquiredWeapon.MaxAmmo;
             AcquiredWeaponCooldownTicks = 0;
             AcquiredWeaponReloadTicksUntilNextShell = 0;
-            IsAcquiredWeaponEquipped = false;
-        }
-        // Reset equipped slot to Primary if neither offhand nor acquired weapon is active.
-        // EquipExperimentalOffhandWeapon sets SelectedGameplayEquippedSlot = Secondary;
-        // StowExperimentalOffhandWeapon resets it, but HealAndResupply bypasses Stow.
-        if (!IsExperimentalOffhandEquipped && !IsAcquiredWeaponEquipped)
-        {
-            SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
         }
         ClearGameplayAbilityCooldownsForResupply();
         ResetPyroPrimaryStateFromCurrentAmmo();

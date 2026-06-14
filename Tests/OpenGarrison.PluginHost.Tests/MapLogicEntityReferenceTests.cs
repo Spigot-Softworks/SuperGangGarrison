@@ -32,6 +32,23 @@ public sealed class MapLogicEntityReferenceTests
     }
 
     [Fact]
+    public void TryResolveRoomObjectIndex_IdReferenceWithoutImportedEntitiesDoesNotUseOriginFallback()
+    {
+        var barrier = BarrierConfiguration.CreateMarker(
+            0f,
+            0f,
+            1f,
+            1f,
+            BarrierConfiguration.FromProperties(new Dictionary<string, string>()));
+        var roomObjects = new List<RoomObjectMarker> { barrier };
+
+        Assert.False(MapLogicEntityReference.TryResolveRoomObjectIndex(
+            roomObjects,
+            MapLogicEntityReference.FormatEntityRef("barrier", "missing-id"),
+            out _));
+    }
+
+    [Fact]
     public void ImporterResolvesActivatorTargetByMapEntityId()
     {
         var barrier = BarrierConfiguration.CreateMarker(

@@ -268,8 +268,11 @@ public sealed partial class PlayerEntity
         }
 
         var groundedOnFloor = TrySnapToGroundBelow(level, team);
-        var groundedOnPlatform = !groundedOnFloor && TrySnapToDropdownPlatformBelow(level, allowDropdownFallThrough);
-        if (!groundedOnFloor && !groundedOnPlatform)
+        var groundedOnDirectionalWall = !groundedOnFloor && TrySnapToDirectionalWallBelow(level, team);
+        var groundedOnPlatform = !groundedOnFloor
+            && !groundedOnDirectionalWall
+            && TrySnapToDropdownPlatformBelow(level, allowDropdownFallThrough);
+        if (!groundedOnFloor && !groundedOnDirectionalWall && !groundedOnPlatform)
         {
             return;
         }
@@ -277,7 +280,7 @@ public sealed partial class PlayerEntity
         IsGrounded = true;
         RemainingAirJumps = MaxAirJumps;
         VerticalSpeed = 0f;
-        if (groundedOnFloor)
+        if (groundedOnFloor || groundedOnDirectionalWall)
         {
             MovementState = LegacyMovementState.None;
         }
@@ -293,6 +296,70 @@ public sealed partial class PlayerEntity
         }
 
         var targetY = obstacleTop.Value - CollisionBottomOffset;
+        if (targetY < Y || !CanOccupy(level, team, X, targetY))
+        {
+            return false;
+        }
+
+        Y = targetY;
+        return true;
+    }
+
+    private bool TrySnapToDirectionalWallBelow(SimpleLevel level, PlayerTeam team)
+    {
+        GetCollisionBounds(out var previousLeft, out var previousTop, out var previousRight, out var previousBottom);
+        GetCollisionBoundsAt(X, Y + 1f, out var left, out var top, out var right, out var bottom);
+        left += StepSupportEpsilon;
+        right -= StepSupportEpsilon;
+        if (right <= left)
+        {
+            left = X + CollisionLeftOffset;
+            right = X + CollisionRightOffset;
+        }
+
+        RoomObjectMarker? bestWall = null;
+        for (var index = 0; index < level.RoomObjects.Count; index += 1)
+        {
+            var wall = level.RoomObjects[index];
+            if (wall.Type != RoomObjectType.DirectionalWall || !level.IsRoomObjectActive(index))
+            {
+                continue;
+            }
+
+            if (!wall.DirectionalWall.UsesFloorShape)
+            {
+                continue;
+            }
+
+            if (!DirectionalWallCollision.BlocksPlayerMovement(
+                    wall.DirectionalWall,
+                    team,
+                    IsCarryingIntel,
+                    wall,
+                    previousLeft,
+                    previousRight,
+                    previousTop,
+                    previousBottom,
+                    left,
+                    right,
+                    top,
+                    bottom))
+            {
+                continue;
+            }
+
+            if (bestWall is null || wall.Top < bestWall.Value.Top)
+            {
+                bestWall = wall;
+            }
+        }
+
+        if (!bestWall.HasValue)
+        {
+            return false;
+        }
+
+        var targetY = bestWall.Value.Top - CollisionBottomOffset;
         if (targetY < Y || !CanOccupy(level, team, X, targetY))
         {
             return false;
