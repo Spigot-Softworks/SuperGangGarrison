@@ -6,8 +6,7 @@
 - Keep the existing hidden `PlayerClass.Quote` runtime binding unless a later refactor makes a dedicated enum worthwhile.
 - The umbrella primary fire behaves like a revolver for the base version.
 - The umbrella secondary opens the umbrella, triggers a player-only airblast, and can be held open as a shield.
-- The umbrella shield blocks bullets, rockets, grenades, stickies, needles, and similar weapon projectiles or hitscan shots.
-- The umbrella shield does not block flames.
+- The umbrella shield blocks bullets, rockets, grenades, stickies, needles, flames, and similar weapon projectiles or hitscan shots.
 - The shield uses a slowly draining and recharging meter. If the player closes it before it breaks, it can be reused normally. If enemies break it, it cannot be used again until it fully recharges.
 - The Civilian's taunt is also his spacebar special ability.
 - The taunt heal affects the Civilian and allies for 30 HP.
@@ -30,7 +29,7 @@
 - [x] Fix hidden `Q` class rendering so Civilian run and taunt animations are used.
 - [x] Add umbrella primary weapon as revolver-like behavior.
 - [x] Add umbrella secondary ability, open animation state, shield meter, shield disable/recharge behavior, and player-only airblast.
-- [x] Add umbrella shield blocking for non-flame hitscan/projectile weapon damage.
+- [x] Add umbrella shield blocking for hitscan/projectile weapon damage, including flames.
 - [x] Add taunt healing for both normal taunt and spacebar special.
 - [x] Add authoritative money trail pickups.
 - [x] Add `vip_` map aliases and `GameModeKind.Vip`.
@@ -62,7 +61,7 @@
 - Initial Civilian/Employer implementation is in place as stock gameplay class id `civilian`, using the existing hidden `PlayerClass.Quote` slot only for Q-select/protocol compatibility.
 - Stock `stock.gg2` now owns the Civilian sprite definitions, source frames, umbrella item definitions, `ability.civilian-taunt`, and `civilian.stock` loadout.
 - Packaged client and server Quote/Curly packs remain Quote/Curly content and no longer override the stock hidden Q binding.
-- The umbrella primary is wired as a revolver-like weapon. The secondary opens the umbrella, triggers a player-only airblast, drains/recharges shield charge while held, and blocks non-flame weapon damage until broken.
+- The umbrella primary is wired as a revolver-like weapon. The secondary opens the umbrella, triggers a player-only airblast, drains/recharges shield charge while held, and blocks weapon damage including flames until broken.
 - Civilian taunt healing is shared by normal taunt and the spacebar utility ability. It heals the Civilian and nearby same-team allies for 30 HP.
 - Civilian money trail pickups are authoritative world pickups. Hurt same-team allies can consume them for 1 HP; the Civilian cannot consume his own trail.
 - VIP mode is activated by `vip_` map names. `vip_dirtbowl` and `vip_dustbowl` alias the CP Dirtbowl geometry; `vip_egypt` loads as VIP and uses dual-VIP warmup behavior.

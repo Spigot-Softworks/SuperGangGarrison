@@ -59,8 +59,8 @@ public partial class Game1
                 return;
             }
 
-            var fillEffects = chargeScaleX < 0f ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
-            _game.TryDrawScreenSpritePart("ChargeS", 1, new Rectangle(0, 0, chargeWidth, 20), chargePosition, Color.White * 0.8f, Vector2.One, fillEffects);
+            var fillPosition = chargePosition + new Vector2(chargeScaleX < 0f ? -SniperChargeHudFillMaxWidth : 0f, 0f);
+            _game.TryDrawScreenSpritePart("ChargeS", 1, new Rectangle(0, 0, chargeWidth, 20), fillPosition, Color.White * 0.8f, Vector2.One);
         }
 
         public void DrawSpectatorSniperHud(PlayerEntity player, Vector2 screenAimPosition)
@@ -88,8 +88,8 @@ public partial class Game1
                 return;
             }
 
-            var fillEffects = chargeScaleX < 0f ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
-            _game.TryDrawScreenSpritePart("ChargeS", 1, new Rectangle(0, 0, chargeWidth, 20), chargePosition, Color.White * 0.8f, Vector2.One, fillEffects);
+            var fillPosition = chargePosition + new Vector2(chargeScaleX < 0f ? -SniperChargeHudFillMaxWidth : 0f, 0f);
+            _game.TryDrawScreenSpritePart("ChargeS", 1, new Rectangle(0, 0, chargeWidth, 20), fillPosition, Color.White * 0.8f, Vector2.One);
         }
 
         public void DrawCrosshair(Vector2 screenPosition)

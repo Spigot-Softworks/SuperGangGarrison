@@ -95,11 +95,22 @@ public sealed partial class SimulationWorld
         TryApplyPendingCivvieTauntHeal(player);
         if (healthBeforeTick > player.Health)
         {
-            var burner = afterburn.BurnedByPlayerId.HasValue
-                ? FindPlayerById(afterburn.BurnedByPlayerId.Value)
+            var burnedByPlayerId = afterburn.BurnedByPlayerId ?? player.BurnedByPlayerId;
+            var burner = burnedByPlayerId.HasValue
+                ? FindPlayerById(burnedByPlayerId.Value)
                 : null;
             var afterburnDamage = healthBeforeTick - player.Health;
-            if (!TryAbsorbPracticeCombatDummyTickDamage(player, afterburnDamage, burner))
+            if (burner is not null
+                && TryAbsorbCivvieUmbrellaDamage(
+                    player,
+                    burner,
+                    DamageEventFlags.None,
+                    burner.X,
+                    burner.Y))
+            {
+                player.ForceSetHealth(healthBeforeTick);
+            }
+            else if (!TryAbsorbPracticeCombatDummyTickDamage(player, afterburnDamage, burner))
             {
                 RegisterDamageEvent(
                     burner,
@@ -113,7 +124,7 @@ public sealed partial class SimulationWorld
             }
         }
 
-        if (afterburn.IsFatal)
+        if (afterburn.IsFatal && !player.IsAlive)
         {
             if (IsPracticeDpsDummy(player))
             {
@@ -121,8 +132,9 @@ public sealed partial class SimulationWorld
             }
             else
             {
-                var burner = afterburn.BurnedByPlayerId.HasValue
-                    ? FindPlayerById(afterburn.BurnedByPlayerId.Value)
+                var burnedByPlayerId = afterburn.BurnedByPlayerId ?? player.BurnedByPlayerId;
+                var burner = burnedByPlayerId.HasValue
+                    ? FindPlayerById(burnedByPlayerId.Value)
                     : null;
                 KillPlayer(player, killer: burner, weaponSpriteName: "FlameKL");
                 return;

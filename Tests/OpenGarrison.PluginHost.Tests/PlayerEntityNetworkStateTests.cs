@@ -255,6 +255,83 @@ public sealed class PlayerEntityNetworkStateTests
     }
 
     [Fact]
+    public void ApplyNetworkStateMarksFullyCloakedSpyVisibleToEnemiesDuringBackstab()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Spy, "SpyTest");
+        player.Spawn(PlayerTeam.Red, 0f, 0f);
+        Assert.True(player.TryToggleSpyCloak());
+
+        player.ApplyNetworkState(
+            team: PlayerTeam.Red,
+            classDefinition: CharacterClassCatalog.Spy,
+            isAlive: true,
+            x: 0f,
+            y: 0f,
+            horizontalSpeed: 0f,
+            verticalSpeed: 0f,
+            health: player.MaxHealth,
+            currentShells: player.PrimaryWeapon.MaxAmmo,
+            kills: 0,
+            deaths: 0,
+            caps: 0,
+            points: 0f,
+            healPoints: 0,
+            activeDominationCount: 0,
+            isDominatingLocalViewer: false,
+            isDominatedByLocalViewer: false,
+            metal: player.MaxMetal,
+            isGrounded: true,
+            remainingAirJumps: player.MaxAirJumps,
+            isCarryingIntel: false,
+            intelRechargeTicks: 0f,
+            isSpyCloaked: true,
+            spyCloakAlpha: 0f,
+            isSpySuperjumping: false,
+            spySuperjumpHorizontalVelocity: 0f,
+            spySuperjumpCooldownTicksRemaining: 0,
+            spyBackstabVisualTicksRemaining: PlayerEntity.SpyBackstabVisualTicksDefault,
+            isUbered: false,
+            isKritzCritBoosted: false,
+            isHeavyEating: false,
+            heavyEatTicksRemaining: 0,
+            isSniperScoped: false,
+            sniperChargeTicks: 0,
+            isUsingBinoculars: false,
+            binocularsFocusX: 0f,
+            binocularsFocusY: 0f,
+            facingDirectionX: 1f,
+            aimDirectionDegrees: 0f,
+            aimWorldX: 0f,
+            aimWorldY: 0f,
+            isTaunting: false,
+            tauntFrameIndex: 0f,
+            isChatBubbleVisible: false,
+            chatBubbleFrameIndex: 0,
+            chatBubbleAlpha: 0f,
+            gameplayModPackId: "stock.gg2",
+            gameplayLoadoutId: "spy.stock",
+            gameplayPrimaryItemId: "weapon.revolver",
+            gameplaySecondaryItemId: "ability.spy-cloak",
+            gameplayUtilityItemId: "",
+            gameplayEquippedSlot: (byte)GameplayEquipmentSlot.Primary,
+            gameplayEquippedItemId: "weapon.revolver",
+            gameplayAcquiredItemId: "");
+
+        Assert.Equal(0f, player.SpyCloakAlpha);
+        Assert.Equal(PlayerEntity.SpyBackstabVisualTicksDefault, player.SpyBackstabVisualTicksRemaining);
+        Assert.True(player.IsSpyVisibleToEnemies);
+    }
+
+    [Fact]
+    public void ComputeSpyVisibleToEnemiesRequiresCloakAlphaUnlessBackstabIsAnimating()
+    {
+        Assert.False(PlayerEntity.ComputeSpyVisibleToEnemies(isSpyCloaked: true, spyCloakAlpha: 0f, spyBackstabVisualTicksRemaining: 0));
+        Assert.True(PlayerEntity.ComputeSpyVisibleToEnemies(isSpyCloaked: true, spyCloakAlpha: 0f, spyBackstabVisualTicksRemaining: 12));
+        Assert.True(PlayerEntity.ComputeSpyVisibleToEnemies(isSpyCloaked: true, spyCloakAlpha: 0.2f, spyBackstabVisualTicksRemaining: 0));
+        Assert.False(PlayerEntity.ComputeSpyVisibleToEnemies(isSpyCloaked: false, spyCloakAlpha: 1f, spyBackstabVisualTicksRemaining: 12));
+    }
+
+    [Fact]
     public void ApplyNetworkStateClearsDeadPlayerTransientStateAndClampsReplicatedValues()
     {
         var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Test");

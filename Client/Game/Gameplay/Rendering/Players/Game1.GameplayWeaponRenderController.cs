@@ -230,7 +230,8 @@ public partial class Game1
             Vector2 renderPosition,
             Vector2 cameraPosition,
             Color outlineTint,
-            PlayerBodySpriteSelection bodySelection)
+            PlayerBodySpriteSelection bodySelection,
+            IReadOnlyList<Vector2>? outlineOffsets = null)
         {
             if (outlineTint.A <= 0
                 || _game.GetPlayerIsCivviePogoActive(player)
@@ -290,7 +291,7 @@ public partial class Game1
             ResolveBakedFrame(player, spriteName, frameIndex, rotation,
                 sprite, facingScale, playerScale,
                 out var drawFrame, out var drawOrigin, out var drawRotation, out var scale);
-            _game.DrawSpriteFrameOutline(drawFrame, position, outlineTint, drawRotation, drawOrigin, scale);
+            _game.DrawSpriteFrameOutline(drawFrame, position, outlineTint, drawRotation, drawOrigin, scale, outlineOffsets: outlineOffsets);
             return true;
         }
 

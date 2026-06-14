@@ -232,6 +232,7 @@ public partial class Game1
             AdvanceClientSideSuperjumpCharging();
             AdvanceSpySuperjumpTrajectoryAnimation();
             AdvanceSpySuperjumpCloakReveal();
+            EnsureRemoteSpyBackstabVisuals();
             AdvanceChatHud();
             AdvanceWriteBubbleTick();
             UpdateNoticeState();
@@ -418,13 +419,20 @@ public partial class Game1
         {
             _spySuperjumpCloakRevealTicks.Clear();
             _prevSuperjumpingPlayerIds.Clear();
-            return;
         }
 
-        AdvanceSpySuperjumpCloakRevealForPlayer(_world.LocalPlayer);
-        for (var i = 0; i < _world.RemoteSnapshotPlayers.Count; i += 1)
+        AdvanceLocalSpySuperjumpCloakReveal(_world.LocalPlayer);
+        if (_networkClient.IsConnected)
         {
-            AdvanceSpySuperjumpCloakRevealForPlayer(_world.RemoteSnapshotPlayers[i]);
+            for (var i = 0; i < _world.RemoteSnapshotPlayers.Count; i += 1)
+            {
+                AdvanceRemoteSpySuperjumpCloakReveal(_world.RemoteSnapshotPlayers[i]);
+            }
+        }
+
+        if (!_networkClient.IsConnected)
+        {
+            return;
         }
 
         // Clean up entries for players that are no longer tracked
@@ -455,7 +463,55 @@ public partial class Game1
         }
     }
 
-    private void AdvanceSpySuperjumpCloakRevealForPlayer(PlayerEntity? player)
+    private void AdvanceLocalSpySuperjumpCloakReveal(PlayerEntity? player)
+    {
+        if (player is null || player.ClassId != PlayerClass.Spy)
+        {
+            _localSpySuperjumpCloakRevealAlpha = 0f;
+            _wasLocalSpySuperjumping = false;
+            return;
+        }
+
+        var isSuperjumping = GetPlayerIsSpySuperjumping(player);
+
+        if (isSuperjumping && !_wasLocalSpySuperjumping && GetPlayerIsSpyCloaked(player))
+        {
+            _localSpySuperjumpCloakRevealAlpha = SpySuperjumpLocalCloakRevealStartAlpha;
+        }
+
+        _wasLocalSpySuperjumping = isSuperjumping;
+
+        if (!GetPlayerIsSpyCloaked(player))
+        {
+            _localSpySuperjumpCloakRevealAlpha = 0f;
+            return;
+        }
+
+        if (_localSpySuperjumpCloakRevealAlpha <= 0f)
+        {
+            return;
+        }
+
+        var baseCloakAlpha = Math.Clamp(GetPlayerSpyCloakAlpha(player), 0f, 1f);
+        if (_localSpySuperjumpCloakRevealAlpha <= baseCloakAlpha)
+        {
+            _localSpySuperjumpCloakRevealAlpha = 0f;
+            return;
+        }
+
+        _localSpySuperjumpCloakRevealAlpha = Math.Max(
+            baseCloakAlpha,
+            _localSpySuperjumpCloakRevealAlpha - PlayerEntity.SpyCloakFadePerTick);
+    }
+
+    private bool GetPlayerIsSpySuperjumping(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.IsSpySuperjumping
+            : player.IsSpySuperjumping;
+    }
+
+    private void AdvanceRemoteSpySuperjumpCloakReveal(PlayerEntity? player)
     {
         if (player is null || player.ClassId != PlayerClass.Spy)
         {

@@ -35,7 +35,7 @@ internal static class HudLayoutDefaults
                 HudElementId.LocalHealth,
                 HudAnchor.BottomLeft,
                 new Vector2(5f, -75f),
-                new Vector2(176f, 78f),
+                new Vector2(96f, 72f),
                 Vector2.Zero,
                 Layer: 10),
 
@@ -43,8 +43,8 @@ internal static class HudLayoutDefaults
                 HudElementId.LocalWeaponStack,
                 HudAnchor.BottomRight,
                 new Vector2(MainAmmoSourceX - SourceHudWidth, MainAmmoSourceY - SourceHudHeight),
-                new Vector2(128f, 52f),
-                new Vector2(-64f, -24f),
+                new Vector2(82f, 48f),
+                new Vector2(-39f, -48f),
                 Layer: 20),
 
             [HudElementId.LocalAbilityStack] = new(

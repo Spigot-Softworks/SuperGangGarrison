@@ -38,28 +38,19 @@ public partial class Game1
             _game.DrawExperimentalDemoknightChargeBlur(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
             _game.DrawCapturedPointHealingGhosting(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
             _game.TryDrawWeaponSpriteBackdrop(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
-            if (!player.IsTaunting)
-            {
-                _game.DrawHealingCharacterBodyEffects(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
-            }
 
             if (!_game.TryDrawPlayerSprite(player, cameraPosition, spriteTint, bodySelection))
             {
                 _game._spriteBatch.Draw(_game._pixel, rectangle, fallbackColor);
             }
 
-            if (player.IsTaunting)
-            {
-                _game.DrawHealingCharacterBodyEffects(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
-            }
-
             _game.DrawExperimentalStickyGibBloodOverlay(player, cameraPosition, visibilityAlpha);
             if (!_game.GetPlayerIsHeavyEating(player) && !player.IsTaunting && !_game.GetPlayerIsCivviePogoActive(player) && !_game._world.IsPlayerHumiliated(player))
             {
-                _game.DrawHealingCharacterWeaponEffects(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
                 _game.TryDrawWeaponSprite(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
             }
 
+            _game.DrawHealingCrossParticles(player, renderPosition, cameraPosition, visibilityAlpha);
             _game._gameplayWeaponRenderController.DrawCivvieUmbrellaShieldBlockVisuals(player, cameraPosition, visibilityAlpha, bodySelection);
 
             _game.DrawExperimentalEssenceExtractorOverlay(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);

@@ -150,20 +150,14 @@ public sealed partial class PlayerEntity
     {
         ReplicatedStateEntries.Clear();
         GameplayAbilityCooldownReplicatedStateKeys.Clear();
+        MergeReplicatedStateEntries(entries);
+    }
+
+    internal void MergeReplicatedStateEntries(IEnumerable<GameplayReplicatedStateEntry> entries)
+    {
         foreach (var entry in entries)
         {
-            if (ReplicatedStateEntries.Count >= MaxReplicatedStateEntries)
-            {
-                break;
-            }
-
-            var normalizedEntry = NormalizeReplicatedStateEntry(entry);
-            if (normalizedEntry is null)
-            {
-                continue;
-            }
-
-            ReplicatedStateEntries[CreateReplicatedStateDictionaryKey(normalizedEntry.OwnerId, normalizedEntry.Key)] = normalizedEntry;
+            SetReplicatedState(entry);
         }
 
         RefreshServerGameplayTuningFromReplicatedStateEntries();

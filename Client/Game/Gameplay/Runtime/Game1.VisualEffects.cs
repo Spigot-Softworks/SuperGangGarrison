@@ -87,8 +87,12 @@ public partial class Game1
     // Key = player ID. Cancelled if the spy uncloaks while the timer is running.
     private const int SpySuperjumpCloakRevealTicks = 60; // 1 second at 60 ticks/sec
     private const float SpySuperjumpCloakRevealStartAlpha = 0.4f;
+    private const float SpySuperjumpLocalCloakRevealStartAlpha = 0.9f;
     private readonly Dictionary<int, int> _spySuperjumpCloakRevealTicks = new();
     private readonly HashSet<int> _prevSuperjumpingPlayerIds = new();
+    private float _localSpySuperjumpCloakRevealAlpha;
+    private readonly Dictionary<int, int> _lastObservedRemoteSpyBackstabVisualTicks = new();
+    private bool _wasLocalSpySuperjumping;
 
     private readonly record struct PresentedExplosionVisual(float X, float Y);
 

@@ -14,6 +14,7 @@ internal static partial class ServerHelpers
     private const string DemomanGrenadeLauncherMaxAmmoKey = "demoman_gl_max_ammo";
     private const string ScoutNailgunAmmoKey = "scout_nailgun_ammo";
     private const string ScoutNailgunMaxAmmoKey = "scout_nailgun_max_ammo";
+    private const string ScoutNailgunAvailableKey = "scout_nailgun_available";
 
     internal static SnapshotPlayerState ToSnapshotPlayerState(
         SimulationWorld world,
@@ -115,6 +116,13 @@ internal static partial class ServerHelpers
 
         if (player.ClassId == PlayerClass.Scout && player.HasExperimentalOffhandWeapon)
         {
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                ScoutNailgunAvailableKey,
+                SnapshotReplicatedStateValueKind.Toggle,
+                0,
+                0f,
+                true));
             replicatedStates.Add(new SnapshotReplicatedStateEntry(
                 CoreReplicatedOwnerId,
                 ScoutNailgunAmmoKey,

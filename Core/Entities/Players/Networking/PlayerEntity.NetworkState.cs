@@ -192,7 +192,10 @@ public sealed partial class PlayerEntity
             : 0;
         SpyBackstabDirectionDegrees = 0f;
         SpyBackstabHitboxPending = false;
-        IsSpyVisibleToEnemies = IsSpyCloaked && SpyCloakAlpha > 0f;
+        IsSpyVisibleToEnemies = ComputeSpyVisibleToEnemies(
+            IsSpyCloaked,
+            SpyCloakAlpha,
+            SpyBackstabVisualTicksRemaining);
         BurnIntensity = float.Clamp(burnIntensity, 0f, BurnMaxIntensity);
         BurnDurationSourceTicks = float.Max(0f, burnDurationSourceTicks);
         BurnDecayDelaySourceTicksRemaining = float.Max(0f, burnDecayDelaySourceTicksRemaining);
@@ -297,7 +300,12 @@ public sealed partial class PlayerEntity
         ReconcileReplicatedWeaponSelection();
         RefreshMedicUberReadyState();
         ReplaceOwnedGameplayItemIds(ownedGameplayItemIds ?? []);
-        ReplaceReplicatedStateEntries(replicatedStateEntries ?? []);
+        if (replicatedStateEntries is { Count: > 0 })
+        {
+            MergeReplicatedStateEntries(replicatedStateEntries);
+        }
+
+        HydrateNetworkReplicatedSecondaryWeaponFromSnapshot();
         HydrateNetworkReplicatedAbilityRuntimeState();
         // Apply offhand weapon animation state so recoil/reload animations are visible to other players.
         // These values arrive via the movement delta (OffhandCooldownTicks / OffhandReloadTicks) so they
@@ -310,6 +318,63 @@ public sealed partial class PlayerEntity
     {
         HydrateNetworkReplicatedHeavyRuntimeState();
         HydrateNetworkReplicatedCivvieRuntimeState();
+    }
+
+    private void HydrateNetworkReplicatedSecondaryWeaponFromSnapshot()
+    {
+        if (ClassId is not (PlayerClass.Soldier or PlayerClass.Scout))
+        {
+            return;
+        }
+
+        if (!IsReplicatedSecondaryWeaponAvailable())
+        {
+            if (HasExperimentalOffhandWeapon)
+            {
+                var secondaryItemId = GameplayLoadoutState.SecondaryItemId;
+                var offhandItemId = ResolveRegisteredWeaponItemId(ExperimentalOffhandWeapon);
+                if (!string.IsNullOrWhiteSpace(secondaryItemId)
+                    && !string.Equals(offhandItemId, secondaryItemId, StringComparison.Ordinal))
+                {
+                    SetExperimentalOffhandWeapon(null);
+                }
+            }
+
+            return;
+        }
+
+        var loadoutSecondaryItemId = GameplayLoadoutState.SecondaryItemId;
+        if (string.IsNullOrWhiteSpace(loadoutSecondaryItemId))
+        {
+            return;
+        }
+
+        var currentOffhandItemId = ResolveRegisteredWeaponItemId(ExperimentalOffhandWeapon);
+        if (string.Equals(currentOffhandItemId, loadoutSecondaryItemId, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var item = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(loadoutSecondaryItemId);
+        SetExperimentalOffhandWeapon(CharacterClassCatalog.RuntimeRegistry.CreatePrimaryWeaponDefinition(item));
+    }
+
+    private bool IsReplicatedSecondaryWeaponAvailable()
+    {
+        const string coreReplicatedOwnerId = "core.player";
+
+        return ClassId switch
+        {
+            PlayerClass.Soldier => (TryGetReplicatedStateBool(coreReplicatedOwnerId, "soldier_shotgun_available", out var shotgunAvailable)
+                    && shotgunAvailable)
+                || TryGetReplicatedStateInt(coreReplicatedOwnerId, "soldier_shotgun_ammo", out _)
+                || TryGetReplicatedStateInt(coreReplicatedOwnerId, "soldier_shotgun_max_ammo", out _),
+            PlayerClass.Scout => (TryGetReplicatedStateBool(coreReplicatedOwnerId, "scout_nailgun_available", out var nailgunAvailable)
+                    && nailgunAvailable)
+                || TryGetReplicatedStateInt(coreReplicatedOwnerId, "scout_nailgun_ammo", out _)
+                || TryGetReplicatedStateInt(coreReplicatedOwnerId, "scout_nailgun_max_ammo", out _),
+            _ => false,
+        };
     }
 
     private void HydrateNetworkReplicatedHeavyRuntimeState()
