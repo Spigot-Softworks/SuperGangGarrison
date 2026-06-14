@@ -1077,7 +1077,12 @@ internal static class SnapshotContributionPlanner
         return entry.Key is GameplayAbilityReplicatedState.HeavyDashCooldownTicksKey
             or GameplayAbilityReplicatedState.HeavyDashActiveKey
             or GameplayAbilityReplicatedState.HeavyDashVisibleKey
-            or GameplayAbilityReplicatedState.HeavyDashTrailAlphaKey;
+            or GameplayAbilityReplicatedState.HeavyDashTrailAlphaKey
+            or GameplayAbilityReplicatedState.CivvieUmbrellaCooldownTicksKey
+            or GameplayAbilityReplicatedState.CivvieUmbrellaActiveKey
+            or GameplayAbilityReplicatedState.CivvieUmbrellaDisabledKey
+            or GameplayAbilityReplicatedState.CivviePogoActiveKey
+            or GameplayAbilityReplicatedState.CivviePogoCrunchTicksKey;
     }
 
     private static bool ReplicatedStateKeysEqual(SnapshotReplicatedStateEntry left, SnapshotReplicatedStateEntry right)

@@ -502,11 +502,6 @@ public partial class Game1
             return;
         }
 
-        if (!predictedInput.Input.SwapWeapon && TryPredictedToggleSecondaryWeapon(player))
-        {
-            return;
-        }
-
         if (IsPredictedPyroSelfAirblastInput(player, predictedInput))
         {
             TryPredictedPyroSelfAirblast(player, predictedInput.Input.FirePrimary);
@@ -541,6 +536,11 @@ public partial class Game1
         if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SniperBinoculars))
         {
             TryPredictedToggleBinoculars(player);
+            return;
+        }
+
+        if (!predictedInput.Input.SwapWeapon && TryPredictedToggleSecondaryWeapon(player))
+        {
             return;
         }
 

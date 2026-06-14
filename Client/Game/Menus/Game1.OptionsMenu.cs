@@ -100,15 +100,6 @@ public partial class Game1
             : "Show All Weapons";
     }
 
-    private static string GetBubbleWheelBehaviorLabel(BubbleWheelBehavior behavior)
-    {
-        return OpenGarrisonPreferencesDocument.NormalizeBubbleWheelBehavior(behavior) switch
-        {
-            BubbleWheelBehavior.PressAndClick => "Press and Click",
-            _ => "Hold and Hover",
-        };
-    }
-
     private static string GetDamageVignetteIntensityLabel(int percent)
     {
         return $"{ClientSettings.NormalizeDamageVignetteIntensityPercent(percent)}%";
@@ -956,22 +947,6 @@ public partial class Game1
         {
             _localOverheadChatMessage = null;
             _overheadChatMessagesBySlot.Clear();
-        }
-
-        PersistClientSettings();
-    }
-
-    private void CycleBubbleWheelBehaviorSetting()
-    {
-        _clientSettings.BubbleWheelBehavior = OpenGarrisonPreferencesDocument.NormalizeBubbleWheelBehavior(_clientSettings.BubbleWheelBehavior) switch
-        {
-            BubbleWheelBehavior.HoldAndHover => BubbleWheelBehavior.PressAndClick,
-            _ => BubbleWheelBehavior.HoldAndHover,
-        };
-
-        if (_bubbleMenuKind != BubbleMenuKind.None)
-        {
-            BeginClosingBubbleMenu();
         }
 
         PersistClientSettings();
