@@ -829,11 +829,14 @@ public sealed partial class SimulationWorld
                 "pogoTrickFrameCount",
                 PlayerEntity.CivviePogoTrickFrameCountDefault,
                 minValue: 1);
-            var trickDurationTicks = GameplayAbilityParameterReader.GetInt(
+            var requestedDurationTicks = GameplayAbilityParameterReader.GetInt(
                 context.Ability,
                 "pogoTrickDurationTicks",
                 PlayerEntity.CivviePogoTrickDurationTicksDefault,
                 minValue: 1);
+            var trickDurationTicks = PlayerEntity.ResolveCivviePogoTrickDurationTicks(
+                requestedDurationTicks,
+                context.World.Config.TicksPerSecond);
             return new GameplayAbilityResult(
                 context.Player.TryStartCivviePogoTrick(trickFrameCount, trickDurationTicks),
                 ConsumedInput: true);

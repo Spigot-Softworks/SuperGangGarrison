@@ -42,7 +42,7 @@ public partial class Game1
             : SimulationConfig.DefaultTicksPerSecond;
 
         // The replicated set covers remote players only; the locally-predicted player is not in it.
-        // Process the local player first (its predicted entity carries the authoritative taunt/movement
+        // Process the local player first (its predicted entity carries the authoritative movement/pogo
         // state the trail rules need) and dedupe by id so it is never counted twice.
         _civvieMoneyParticipantBuffer.Clear();
         _civvieMoneyTrailPlayerIds.Clear();
@@ -72,6 +72,20 @@ public partial class Game1
         foreach (var spawn in _civvieMoneyPresentationTracker.DrainPendingSpawns())
         {
             SpawnCivvieMoneyVisual(spawn);
+        }
+    }
+
+    private void SpawnCivviePogoTrickMoneyBurst(PlayerEntity player, ulong frame)
+    {
+        for (var particleIndex = 0; particleIndex < CivvieMoneyTrailRules.PogoTrickBurstParticleCount; particleIndex += 1)
+        {
+            var spawn = CivvieMoneyTrailRules.CreatePogoTrickBurstSpawn(
+                frame,
+                player.Id,
+                particleIndex,
+                player.X,
+                player.Y);
+            SpawnCivvieMoneyBurstVisual(spawn);
         }
     }
 }

@@ -9,11 +9,13 @@ public partial class Game1
 {
     private readonly Dictionary<int, int> _civviePogoTrickDurationTicksByPlayerId = new();
     private readonly Dictionary<int, int> _civviePogoTrickPreviousTicksByPlayerId = new();
+    private readonly HashSet<int> _civviePogoTrickBurstSpawnedPlayerIds = new();
 
     private void ResetCivviePogoTrickPresentationObservation()
     {
         _civviePogoTrickDurationTicksByPlayerId.Clear();
         _civviePogoTrickPreviousTicksByPlayerId.Clear();
+        _civviePogoTrickBurstSpawnedPlayerIds.Clear();
     }
 
     private void ObserveCivviePogoTrickPresentationFromPlayerState()
@@ -24,18 +26,23 @@ public partial class Game1
             {
                 _civviePogoTrickDurationTicksByPlayerId.Remove(player.Id);
                 _civviePogoTrickPreviousTicksByPlayerId.Remove(player.Id);
+                _civviePogoTrickBurstSpawnedPlayerIds.Remove(player.Id);
                 continue;
             }
 
-            var previousTicks = _civviePogoTrickPreviousTicksByPlayerId.GetValueOrDefault(player.Id);
             var currentTicks = player.CivviePogoTrickTicksRemaining;
-            if (previousTicks <= 0 && currentTicks > 0)
+            if (currentTicks > 0)
             {
-                _civviePogoTrickDurationTicksByPlayerId[player.Id] = currentTicks;
+                if (_civviePogoTrickBurstSpawnedPlayerIds.Add(player.Id))
+                {
+                    _civviePogoTrickDurationTicksByPlayerId[player.Id] = currentTicks;
+                    SpawnCivviePogoTrickMoneyBurst(player, (ulong)Math.Max(0, _world.Frame));
+                }
             }
-            else if (currentTicks <= 0)
+            else
             {
                 _civviePogoTrickDurationTicksByPlayerId.Remove(player.Id);
+                _civviePogoTrickBurstSpawnedPlayerIds.Remove(player.Id);
             }
 
             _civviePogoTrickPreviousTicksByPlayerId[player.Id] = currentTicks;
@@ -61,6 +68,7 @@ public partial class Game1
             var playerId = stalePlayerIds[index];
             _civviePogoTrickDurationTicksByPlayerId.Remove(playerId);
             _civviePogoTrickPreviousTicksByPlayerId.Remove(playerId);
+            _civviePogoTrickBurstSpawnedPlayerIds.Remove(playerId);
         }
     }
 
