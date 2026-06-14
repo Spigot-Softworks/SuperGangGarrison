@@ -32,18 +32,26 @@ public partial class Game1
         }
 
         var cloakAlpha = Math.Clamp(GetPlayerSpyCloakAlpha(player), 0f, 1f);
+        var backstabRevealAlpha = GetSpyBackstabRevealAlpha(player, bodyVisibilityScale);
 
-        if (ReferenceEquals(player, _world.LocalPlayer) && GetPlayerIsSpySuperjumpActive(player))
+        if (ReferenceEquals(player, _world.LocalPlayer) && _localSpySuperjumpCloakRevealAlpha > 0f)
         {
-            cloakAlpha = Math.Max(cloakAlpha, SpySuperjumpCloakRevealStartAlpha);
+            cloakAlpha = Math.Max(cloakAlpha, _localSpySuperjumpCloakRevealAlpha);
         }
 
-        // Apply superjump visual reveal on top (purely cosmetic, no gameplay implication)
-        if (_spySuperjumpCloakRevealTicks.TryGetValue(player.Id, out var revealTicksRemaining) && revealTicksRemaining > 0)
+        // Apply superjump visual reveal on top for remote spies (purely cosmetic, no gameplay implication)
+        if (!ReferenceEquals(player, _world.LocalPlayer)
+            && _spySuperjumpCloakRevealTicks.TryGetValue(player.Id, out var revealTicksRemaining)
+            && revealTicksRemaining > 0)
         {
             var revealAlpha = SpySuperjumpCloakRevealStartAlpha
                 * (revealTicksRemaining / (float)SpySuperjumpCloakRevealTicks);
             cloakAlpha = Math.Max(cloakAlpha, revealAlpha);
+        }
+
+        if (backstabRevealAlpha > 0f)
+        {
+            cloakAlpha = Math.Max(cloakAlpha, backstabRevealAlpha);
         }
 
         if (IsLocalSpectatorPresentationActive())
@@ -51,11 +59,14 @@ public partial class Game1
             var allyAlpha = GetPlayerIsSpyBackstabReady(player)
                 ? Math.Max(cloakAlpha, PlayerEntity.SpyMinAllyCloakAlpha)
                 : cloakAlpha;
-            return allyAlpha * bodyVisibilityScale;
+            return ApplySpyCloakBodyVisibilityScale(allyAlpha, bodyVisibilityScale, backstabRevealAlpha);
         }
         if (ReferenceEquals(player, _world.LocalPlayer))
         {
-            return Math.Max(cloakAlpha, PlayerEntity.SpyMinAllyCloakAlpha) * bodyVisibilityScale;
+            return ApplySpyCloakBodyVisibilityScale(
+                Math.Max(cloakAlpha, PlayerEntity.SpyMinAllyCloakAlpha),
+                bodyVisibilityScale,
+                backstabRevealAlpha);
         }
 
         if (player.Team == _world.LocalPlayer.Team)
@@ -63,7 +74,7 @@ public partial class Game1
             var allyAlpha = GetPlayerIsSpyBackstabReady(player)
                 ? Math.Max(cloakAlpha, PlayerEntity.SpyMinAllyCloakAlpha)
                 : cloakAlpha;
-            return allyAlpha * bodyVisibilityScale;
+            return ApplySpyCloakBodyVisibilityScale(allyAlpha, bodyVisibilityScale, backstabRevealAlpha);
         }
 
         if (IsSpyHiddenFromLocalViewer(player) && !GetPlayerIsSpyVisibleToEnemies(player))
@@ -71,7 +82,64 @@ public partial class Game1
             return 0f;
         }
 
+        return ApplySpyCloakBodyVisibilityScale(cloakAlpha, bodyVisibilityScale, backstabRevealAlpha);
+    }
+
+    private static float ApplySpyCloakBodyVisibilityScale(
+        float cloakAlpha,
+        float bodyVisibilityScale,
+        float backstabRevealAlpha)
+    {
+        if (backstabRevealAlpha > 0f)
+        {
+            return Math.Max(cloakAlpha, backstabRevealAlpha);
+        }
+
         return cloakAlpha * bodyVisibilityScale;
+    }
+
+    private float GetSpyBackstabRevealAlpha(PlayerEntity player, float bodyVisibilityScale)
+    {
+        if (player.ClassId != PlayerClass.Spy)
+        {
+            return 0f;
+        }
+
+        if (!GetPlayerIsSpyBackstabAnimating(player) && !TryGetActiveBackstabVisual(player, out _))
+        {
+            return 0f;
+        }
+
+        return Math.Clamp(1f - bodyVisibilityScale, 0f, 0.99f);
+    }
+
+    private void EnsureRemoteSpyBackstabVisuals()
+    {
+        for (var index = 0; index < _world.RemoteSnapshotPlayers.Count; index += 1)
+        {
+            var player = _world.RemoteSnapshotPlayers[index];
+            if (player.ClassId != PlayerClass.Spy || player.Team == _world.LocalPlayer.Team)
+            {
+                continue;
+            }
+
+            var playerId = player.Id;
+            var visualTicksRemaining = GetPlayerSpyBackstabVisualTicksRemaining(player);
+            _lastObservedRemoteSpyBackstabVisualTicks.TryGetValue(playerId, out var previousVisualTicksRemaining);
+            if (visualTicksRemaining <= 0)
+            {
+                _lastObservedRemoteSpyBackstabVisualTicks.Remove(playerId);
+                continue;
+            }
+
+            if (previousVisualTicksRemaining <= 0
+                && !TryGetActiveBackstabVisual(player, out _))
+            {
+                SpawnBackstabVisual(playerId, player.Team, player.X, player.Y, player.AimDirectionDegrees);
+            }
+
+            _lastObservedRemoteSpyBackstabVisualTicks[playerId] = visualTicksRemaining;
+        }
     }
 
     private float GetSpyBackstabBodyVisibilityScale(PlayerEntity player)

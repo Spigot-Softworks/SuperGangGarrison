@@ -147,7 +147,8 @@ public partial class Game1
             Vector2 renderPosition,
             Vector2 cameraPosition,
             Color outlineTint,
-            PlayerBodySpriteSelection bodySelection)
+            PlayerBodySpriteSelection bodySelection,
+            IReadOnlyList<Vector2>? outlineOffsets = null)
         {
             if (outlineTint.A <= 0)
             {
@@ -194,7 +195,7 @@ public partial class Game1
             var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
             var bodyYOffset = isHeavyEating || player.IsTaunting || isPogo ? 0f : bodySelection.BodyYOffset * playerScale;
             var position = new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y + bodyYOffset - cameraPosition.Y);
-            _game.DrawSpriteFrameOutline(sprite.Frames[frameIndex], position, outlineTint, 0f, sprite.Origin.ToVector2(), scale);
+            _game.DrawSpriteFrameOutline(sprite.Frames[frameIndex], position, outlineTint, 0f, sprite.Origin.ToVector2(), scale, outlineOffsets: outlineOffsets);
             return true;
         }
 

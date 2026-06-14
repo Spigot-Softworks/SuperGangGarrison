@@ -448,6 +448,57 @@ public sealed partial class PlayerEntity
         return true;
     }
 
+    public static int GetCivvieUmbrellaSplashExplosionImpactMultiplier(float splashIntensity)
+    {
+        var normalized = float.Clamp(splashIntensity, 0f, 1f);
+        if (normalized < (1f / 3f))
+        {
+            return CivvieUmbrellaMinSplashExplosionImpactMultiplier;
+        }
+
+        if (normalized < (2f / 3f))
+        {
+            return CivvieUmbrellaMidSplashExplosionImpactMultiplier;
+        }
+
+        return CivvieUmbrellaSplashExplosionImpactMultiplier;
+    }
+
+    public static int GetCivvieUmbrellaSplashExplosionDrainTicks(float splashIntensity)
+        => CivvieUmbrellaImpactDrain * GetCivvieUmbrellaSplashExplosionImpactMultiplier(splashIntensity);
+
+    public static float NormalizeExplosionSplashIntensity(float distanceFactor, float splashThresholdFactor)
+    {
+        if (distanceFactor <= splashThresholdFactor)
+        {
+            return 0f;
+        }
+
+        if (splashThresholdFactor >= 1f)
+        {
+            return 1f;
+        }
+
+        return float.Clamp(
+            (distanceFactor - splashThresholdFactor) / (1f - splashThresholdFactor),
+            0f,
+            1f);
+    }
+
+    public static int GetCivvieUmbrellaSplashExplosionDrainTicks(float distanceFactor, float splashThresholdFactor)
+        => GetCivvieUmbrellaSplashExplosionDrainTicks(
+            NormalizeExplosionSplashIntensity(distanceFactor, splashThresholdFactor));
+
+    public static int GetCivvieUmbrellaSplashExplosionDrainTicksFromDamage(float appliedDamage, float maxSplashDamage)
+    {
+        if (maxSplashDamage <= 0f)
+        {
+            return CivvieUmbrellaImpactDrain * CivvieUmbrellaMinSplashExplosionImpactMultiplier;
+        }
+
+        return GetCivvieUmbrellaSplashExplosionDrainTicks(appliedDamage / maxSplashDamage);
+    }
+
     public void ResetCivvieUmbrellaState(int maxChargeTicks = CivvieUmbrellaMaxChargeTicks)
     {
         CivvieUmbrellaChargeTicks = Math.Max(1, maxChargeTicks);

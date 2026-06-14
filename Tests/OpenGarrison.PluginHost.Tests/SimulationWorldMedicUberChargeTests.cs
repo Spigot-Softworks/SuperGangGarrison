@@ -16,7 +16,10 @@ public sealed class SimulationWorldMedicUberChargeTests
         typeof(float),
         typeof(DamageEventFlags),
         typeof(bool),
-        typeof(bool));
+        typeof(bool),
+        typeof(float?),
+        typeof(float?),
+        typeof(int?));
 
     [Theory]
     [InlineData(false, 1.75f)]
@@ -165,7 +168,7 @@ public sealed class SimulationWorldMedicUberChargeTests
     {
         return (bool)ApplyPlayerDamageMethod.Invoke(
             world,
-            [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true])!;
+            [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true, null, null, null])!;
     }
 
     private static MethodInfo GetRequiredSimulationWorldMethod(string name, params Type[] parameterTypes)
