@@ -273,7 +273,7 @@ public partial class Game1
             switch (renderState.WeaponAnimationMode)
             {
                 case WeaponAnimationMode.Recoil when renderState.WeaponAnimationTimeRemainingSeconds <= 0f:
-                    if (ShouldShowReloadAnimation(player, weaponStats, weaponRenderDefinition, currentAmmoCount, maxAmmoCount, currentReloadTicks))
+                    if (ShouldShowReloadAnimation(player, weaponStats, weaponRenderDefinition, currentAmmoCount, maxAmmoCount, currentReloadTicks, currentCooldownTicks))
                     {
                         StartWeaponAnimation(renderState, WeaponAnimationMode.Reload, weaponRenderDefinition.ReloadDurationSeconds);
                     }
@@ -286,7 +286,7 @@ public partial class Game1
                     StopWeaponAnimation(renderState);
                     break;
                 case WeaponAnimationMode.Reload:
-                    if (!ShouldShowReloadAnimation(player, weaponStats, weaponRenderDefinition, currentAmmoCount, maxAmmoCount, currentReloadTicks))
+                    if (!ShouldShowReloadAnimation(player, weaponStats, weaponRenderDefinition, currentAmmoCount, maxAmmoCount, currentReloadTicks, currentCooldownTicks))
                     {
                         StopWeaponAnimation(renderState);
                     }
@@ -305,7 +305,7 @@ public partial class Game1
                     break;
                 case WeaponAnimationMode.Idle:
                     if (!renderState.ReloadAnimationCompleted
-                        && ShouldShowReloadAnimation(player, weaponStats, weaponRenderDefinition, currentAmmoCount, maxAmmoCount, currentReloadTicks))
+                        && ShouldShowReloadAnimation(player, weaponStats, weaponRenderDefinition, currentAmmoCount, maxAmmoCount, currentReloadTicks, currentCooldownTicks))
                     {
                         StartWeaponAnimation(renderState, WeaponAnimationMode.Reload, weaponRenderDefinition.ReloadDurationSeconds);
                     }
@@ -1060,7 +1060,8 @@ public partial class Game1
         WeaponRenderDefinition weaponDefinition,
         int currentAmmoCount,
         int maxAmmoCount,
-        int currentReloadTicks)
+        int currentReloadTicks,
+        int currentCooldownTicks)
     {
         if (player.ClassId == PlayerClass.Quote
             && GetPlayerIsCivvieUmbrellaActive(player)
@@ -1070,6 +1071,11 @@ public partial class Game1
         }
 
         if (weaponDefinition.ReloadSpriteName is null)
+        {
+            return false;
+        }
+
+        if (currentCooldownTicks > 0)
         {
             return false;
         }

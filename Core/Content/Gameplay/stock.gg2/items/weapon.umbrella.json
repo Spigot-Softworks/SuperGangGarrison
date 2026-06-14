@@ -22,11 +22,12 @@
   "presentation": {
     "worldSpriteName": "CivvieUmbrellaS",
     "recoilSpriteName": "CivvieUmbrellaRecoilS",
+    "reloadSpriteName": "CivvieUmbrellaReloadS",
     "hudSpriteName": "CivvieUmbrellaAmmoS",
     "weaponOffsetX": -16.0,
     "weaponOffsetY": -25.0,
     "recoilDurationSourceTicks": 6,
-    "reloadDurationSourceTicks": 0,
+    "reloadDurationSourceTicks": 30,
     "blueTeamHudFrameOffset": 1
   }
 }

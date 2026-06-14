@@ -41,6 +41,7 @@ public partial class Game1
             _game._pendingNetworkSoundEvents.Clear();
             _game._pendingNetworkVisualEvents.Clear();
             _game._pendingNetworkDamageEvents.Clear();
+            _game.ResetHealingCharacterEffects();
             _game.ResetBackstabVisuals();
             _game._hasPredictedLocalPlayerPosition = false;
             _game._hasSmoothedLocalPlayerRenderPosition = false;

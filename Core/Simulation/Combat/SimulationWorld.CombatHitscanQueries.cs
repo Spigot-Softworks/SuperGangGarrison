@@ -265,6 +265,11 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
+                if (player.Team == projectileTeam && player.Health >= player.MaxHealth)
+                {
+                    continue;
+                }
+
                 UpdateNearestNeedleHit(ref nearestHit, projectile, directionX, directionY, distance.Value, player);
             }
         }

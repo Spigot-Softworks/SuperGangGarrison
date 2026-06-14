@@ -18,6 +18,7 @@ public partial class Game1
 
         public void FinalizeFrame(GameTime gameTime, KeyboardState keyboard, MouseState mouse, int clientTicks)
         {
+            _game.ObservePendingWorldHealingEventsForHealingCharacterEffects();
             _game.DispatchClientSemanticGameplayEvents();
             _game.UpdateGameplayPresentation(gameTime, keyboard, mouse, clientTicks);
             _game.UpdateGameplayWindowState();

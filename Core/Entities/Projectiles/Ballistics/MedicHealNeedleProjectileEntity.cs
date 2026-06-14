@@ -4,8 +4,8 @@ public sealed class MedicHealNeedleProjectileEntity : NeedleProjectileEntity
 {
     public const int DefaultHealPerHit = 30;
     public const int DefaultEnemyDamagePerHit = 22;
-    public const float HealthyTargetUberChargePerHit = 1.75f;
-    public const float DamagedTargetUberChargePerHealedHealth = 2.5f;
+    public const float HealthyTargetUberChargePerHit = 1.75f * 2f / 3f;
+    public const float DamagedTargetUberChargePerHealedHealth = 2.5f * 2f / 3f;
 
     private readonly int _healPerHit;
     private readonly int _enemyDamagePerHit;

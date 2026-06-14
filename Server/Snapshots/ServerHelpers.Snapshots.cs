@@ -295,7 +295,17 @@ internal static partial class ServerHelpers
 
     internal static SnapshotShotState ToSnapshotNeedleState(NeedleProjectileEntity shot)
     {
-        return new SnapshotShotState(shot.Id, (byte)shot.Team, shot.OwnerId, shot.X, shot.Y, shot.VelocityX, shot.VelocityY, shot.TicksRemaining, shot.IsCritical);
+        return new SnapshotShotState(
+            shot.Id,
+            (byte)shot.Team,
+            shot.OwnerId,
+            shot.X,
+            shot.Y,
+            shot.VelocityX,
+            shot.VelocityY,
+            shot.TicksRemaining,
+            shot.IsCritical,
+            shot is MedicHealNeedleProjectileEntity);
     }
 
     internal static SnapshotShotState ToSnapshotBubbleState(BubbleProjectileEntity bubble)
