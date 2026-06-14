@@ -94,8 +94,18 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const float CivviePogoBaseBounceJumpScaleDefault = 0.5f;
     public const float CivviePogoSuperJumpScaleDefault = 1.125f;
     public const int CivviePogoCrunchDurationTicksDefault = 2;
-    public const int CivviePogoTrickDurationTicksDefault = 30;
+    public const float CivviePogoTrickMaxDurationSeconds = 0.6f;
+    public const int CivviePogoTrickDurationTicksDefault = 18;
     public const int CivviePogoTrickFrameCountDefault = 2;
+
+    public static int ResolveCivviePogoTrickDurationTicks(int requestedDurationTicks, int ticksPerSecond)
+    {
+        ticksPerSecond = Math.Max(1, ticksPerSecond);
+        var maxDurationTicks = Math.Max(
+            1,
+            (int)MathF.Ceiling(CivviePogoTrickMaxDurationSeconds * ticksPerSecond));
+        return Math.Min(Math.Max(1, requestedDurationTicks), maxDurationTicks);
+    }
     public const int CivviePogoStuckSampleIntervalTicks = 6;
     public const float CivviePogoStuckMinVerticalMovement = 3f;
     public const int CivviePogoStuckRebounceCooldownTicksDefault = 6;
@@ -420,6 +430,14 @@ public sealed partial class PlayerEntity : SimulationEntity
     public bool IsCivviePogoActive { get; private set; }
 
     public bool IsCivviePogoTrickActive => CivviePogoTrickTicksRemaining > 0;
+
+    public bool IsCivviePogoSuperJumpAirPhaseActive { get; private set; }
+
+    public bool CanPerformCivviePogoTrick =>
+        IsCivviePogoActive
+        && IsCivviePogoSuperJumpAirPhaseActive
+        && !IsGrounded
+        && !CivviePogoSuperJumpTrickUsed;
 
     public int CivviePogoTrickTicksRemaining { get; private set; }
 
