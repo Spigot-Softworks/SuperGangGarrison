@@ -264,7 +264,9 @@ public sealed partial class SimulationWorld
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
             state =>
         {
-                var needle = new NeedleProjectileEntity(state.Id, (PlayerTeam)state.Team, state.OwnerId, state.X, state.Y, state.VelocityX, state.VelocityY);
+                NeedleProjectileEntity needle = state.IsMedicHealNeedle
+                    ? new MedicHealNeedleProjectileEntity(state.Id, (PlayerTeam)state.Team, state.OwnerId, state.X, state.Y, state.VelocityX, state.VelocityY)
+                    : new NeedleProjectileEntity(state.Id, (PlayerTeam)state.Team, state.OwnerId, state.X, state.Y, state.VelocityX, state.VelocityY);
                 if (state.IsCritical)
                     needle.SetCritical();
                 return needle;

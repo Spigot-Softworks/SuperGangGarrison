@@ -225,6 +225,75 @@ public partial class Game1
             return true;
         }
 
+        public bool TryDrawPlayerHealingWeaponOutlineAtPosition(
+            PlayerEntity player,
+            Vector2 renderPosition,
+            Vector2 cameraPosition,
+            Color outlineTint,
+            PlayerBodySpriteSelection bodySelection)
+        {
+            if (outlineTint.A <= 0
+                || _game.GetPlayerIsCivviePogoActive(player)
+                || _game.ShouldHideLastToDieWeaponForPlayer(player)
+                || _game.GetPlayerIsHeavyEating(player)
+                || player.IsTaunting
+                || _game._world.IsPlayerHumiliated(player))
+            {
+                return false;
+            }
+
+            var weaponAnimationMode = GetPlayerWeaponAnimationMode(player);
+            var weaponDefinition = GetWeaponRenderDefinition(player, IsCivvieUmbrellaAnimationMode(weaponAnimationMode));
+            if (weaponDefinition.NormalSpriteName is null)
+            {
+                return false;
+            }
+
+            var spriteName = weaponAnimationMode switch
+            {
+                WeaponAnimationMode.ScopedRecoil when weaponDefinition.ReloadSpriteName is not null => weaponDefinition.ReloadSpriteName,
+                WeaponAnimationMode.Reload when weaponDefinition.ReloadOverlay.CarrierSpriteName is not null => weaponDefinition.ReloadOverlay.CarrierSpriteName,
+                WeaponAnimationMode.Reload when weaponDefinition.ReloadSpriteName is not null => weaponDefinition.ReloadSpriteName,
+                WeaponAnimationMode.Recoil when weaponDefinition.RecoilOverlay.CarrierSpriteName is not null => weaponDefinition.RecoilOverlay.CarrierSpriteName,
+                WeaponAnimationMode.Recoil when weaponDefinition.RecoilSpriteName is not null => weaponDefinition.RecoilSpriteName,
+                _ => weaponDefinition.NormalSpriteName,
+            };
+            if (spriteName is null)
+            {
+                return false;
+            }
+
+            var sprite = _game.GetResolvedSprite(spriteName);
+            if (sprite is null || sprite.Frames.Count == 0)
+            {
+                return false;
+            }
+
+            if (!TryGetWeaponDrawTransform(
+                    player,
+                    renderPosition,
+                    bodySelection,
+                    weaponAnimationMode,
+                    weaponDefinition,
+                    sprite,
+                    out var worldDrawX,
+                    out var worldDrawY,
+                    out var rotation,
+                    out var facingScale,
+                    out var playerScale))
+            {
+                return false;
+            }
+
+            var frameIndex = GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
+            var position = new Vector2(worldDrawX - cameraPosition.X, worldDrawY - cameraPosition.Y);
+            ResolveBakedFrame(player, spriteName, frameIndex, rotation,
+                sprite, facingScale, playerScale,
+                out var drawFrame, out var drawOrigin, out var drawRotation, out var scale);
+            _game.DrawSpriteFrameOutline(drawFrame, position, outlineTint, drawRotation, drawOrigin, scale);
+            return true;
+        }
+
         public Vector2 GetWeaponShellSpawnOrigin(PlayerEntity player)
         {
             var renderPosition = _game.GetRenderPosition(player);
@@ -710,6 +779,16 @@ public partial class Game1
             if (ShouldPresentExperimentalEngineerEssenceExtractor(player))
             {
                 return CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(PlayerClass.Medic).Presentation;
+            }
+
+            if (ShouldPresentExperimentalMedicKritzHealNeedles(player)
+                && !string.IsNullOrWhiteSpace(player.GameplayLoadoutState.SecondaryItemId))
+            {
+                var kritzItem = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(player.GameplayLoadoutState.SecondaryItemId);
+                if (string.Equals(kritzItem.BehaviorId, BuiltInGameplayBehaviorIds.MedigunCrit, StringComparison.Ordinal))
+                {
+                    return kritzItem.Presentation;
+                }
             }
 
             // Check if experimental offhand weapon is equipped (e.g., Soldier shotgun, Demoman grenade launcher)

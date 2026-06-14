@@ -29,11 +29,11 @@
   "presentation": {
     "worldSpriteName": "MedigunCritS",
     "recoilSpriteName": "MedigunCritFS",
-    "reloadSpriteName": "MedigunFRS",
+    "reloadSpriteName": "MedigunCritFRS",
     "hudSpriteName": "NeedleHealAmmoS",
     "weaponOffsetX": -7.0,
     "weaponOffsetY": 0.0,
-    "recoilDurationSourceTicks": 18,
+    "recoilDurationSourceTicks": 4,
     "reloadDurationSourceTicks": 55,
     "blueTeamHudFrameOffset": 1
   }

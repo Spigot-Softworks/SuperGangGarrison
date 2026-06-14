@@ -53,8 +53,10 @@ public partial class Game1
         ObserveCivviePogoTrickPresentationFromPlayerState();
         PlayPendingVisualEvents();
         PlayPendingSoundEvents();
+        ObservePlayerHealthChangesForHealingCharacterEffects();
         DispatchPendingDamageEventsToPlugins();
         QueuePendingExperimentalHealingHudIndicators();
+        AdvanceHealingCharacterEffects((float)gameTime.ElapsedGameTime.TotalSeconds);
         UpdateLocalRapidFireWeaponAudio();
         PlayDemoknightChargeReadySoundIfNeeded();
         PlayDeathCamSoundIfNeeded();
