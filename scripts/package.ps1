@@ -60,9 +60,16 @@ function Normalize-PackageVersion {
 
     $clean = $clean.TrimStart([char[]]@('v', 'V'))
     $baseVersion = ($clean -split "[-+]", 2)[0]
-    $parsedVersion = $null
-    if (-not [System.Version]::TryParse($baseVersion, [ref]$parsedVersion)) {
+    $versionParts = $baseVersion.Split(".")
+    if ($versionParts.Count -lt 2 -or $versionParts.Count -gt 5) {
         return ""
+    }
+
+    foreach ($part in $versionParts) {
+        $parsedPart = 0
+        if (-not [int]::TryParse($part, [ref]$parsedPart) -or $parsedPart -lt 0) {
+            return ""
+        }
     }
 
     return $clean
@@ -225,6 +232,8 @@ function Write-UpdateManifest {
         [Parameter(Mandatory = $true)]
         [string]$PackageVersion,
         [Parameter(Mandatory = $true)]
+        [string]$ManifestVersion,
+        [Parameter(Mandatory = $true)]
         [string]$ReleaseChannel
     )
 
@@ -235,7 +244,8 @@ function Write-UpdateManifest {
     $manifestPath = Join-Path $manifestDirectory "latest.json"
     $archiveItem = Get-Item $ArchivePath
     $manifest = [ordered]@{
-        version = $PackageVersion
+        version = $ManifestVersion
+        packageVersion = $PackageVersion
         channel = $ReleaseChannel
         url = $archiveItem.Name
         sha256 = (Get-FileHash -Path $ArchivePath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -998,7 +1008,8 @@ foreach ($runtimeIdentifier in $Platforms) {
     $manifestPath = Write-UpdateManifest `
         -RuntimeIdentifier $runtimeIdentifier `
         -ArchivePath $archivePath `
-        -PackageVersion $manifestVersion `
+        -PackageVersion $packageVersion `
+        -ManifestVersion $manifestVersion `
         -ReleaseChannel $releaseChannel
 
     $builtOutputs += [pscustomobject]@{
