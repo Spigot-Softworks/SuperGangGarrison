@@ -1814,6 +1814,42 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
+    public void CivilianPogoTrickStartsWhenTauntPressedDuringSuperJumpAirPhase()
+    {
+        var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+
+        PressUseAbilitySpace(world);
+        Assert.True(world.LocalPlayer.IsCivviePogoActive);
+        Assert.False(world.LocalPlayer.CanPerformCivviePogoTrick);
+
+        PressUp(world);
+        for (var tick = 0; tick < 120; tick += 1)
+        {
+            if (!world.LocalPlayer.IsGrounded && world.LocalPlayer.IsCivviePogoSuperJumpAirPhaseActive)
+            {
+                break;
+            }
+
+            world.AdvanceOneTick();
+        }
+
+        Assert.False(world.LocalPlayer.IsGrounded);
+        Assert.True(world.LocalPlayer.IsCivviePogoSuperJumpAirPhaseActive);
+
+        ReleaseAllInput(world);
+        PressTaunt(world);
+
+        Assert.True(world.LocalPlayer.IsCivviePogoTrickActive);
+        Assert.False(world.LocalPlayer.IsTaunting);
+        Assert.InRange(
+            world.LocalPlayer.CivviePogoTrickDurationAtStart,
+            1,
+            PlayerEntity.ResolveCivviePogoTrickDurationTicks(30, world.Config.TicksPerSecond));
+    }
+
+    [Fact]
     public void CivilianUtilityDoesNotToggleStaleSoldierShotgunAfterClassChange()
     {
         var world = CreateJoinedSoldierWorld(new ExperimentalGameplaySettings(EnableSoldierShotgunSecondaryWeapon: true));
@@ -3237,6 +3273,25 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
             UseAbility: false,
             SwapWeapon: false));
         world.AdvanceOneTick();
+    }
+
+    private static void PressUp(SimulationWorld world)
+    {
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: true,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 96f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false,
+            UseAbility: false,
+            SwapWeapon: false));
     }
 
     private static void PressUseAbilitySpace(SimulationWorld world, float aimWorldX, float aimWorldY)

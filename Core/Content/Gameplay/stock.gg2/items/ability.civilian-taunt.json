@@ -4,7 +4,7 @@
   "slot": "Utility",
   "behaviorId": "builtin.ability.civvie_taunt",
   "ability": {
-    "category": "utility",
+    "category": "taunt",
     "activation": "pressed",
     "executorId": "builtin.ability.civvie_taunt",
     "tags": [ "taunt", "healing" ],
@@ -12,8 +12,8 @@
       "healAmount": 15,
       "healRadius": 120,
       "healFrameIndex": 9,
-      "pogoTrickDurationTicks": 30,
-      "pogoTrickFrameCount": 2
+      "pogoTrickDurationTicks": 18,
+      "pogoTrickFrameCount": 3
     }
   },
   "ammo": {},

@@ -11,7 +11,7 @@ public sealed class SimulationWorldCivvieMoneyTests
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         var ally = AddRedAlly(world, slot: 2);
         ally.TeleportTo(100f, 100f);
-        ally.ForceSetHealth(ally.MaxHealth - 1);
+        ally.ForceSetHealth(ally.MaxHealth - 2);
 
         var pickupX = ally.Right + 16f;
         world.CombatTestAddCivvieMoneyPickup(
@@ -24,7 +24,7 @@ public sealed class SimulationWorldCivvieMoneyTests
 
         Assert.Equal(ally.MaxHealth, ally.Health);
         Assert.Equal(0, world.CombatTestCivvieMoneyPickupCount);
-        Assert.Contains(world.PendingHealingEvents, healing => healing.TargetPlayerId == ally.Id && healing.Amount == 1);
+        Assert.Contains(world.PendingHealingEvents, healing => healing.TargetPlayerId == ally.Id && healing.Amount == 2);
     }
 
     [Fact]
