@@ -190,6 +190,61 @@ public sealed class TeleportRuntimeTests
         Assert.Equal(42f, zone.Height);
     }
 
+    [Fact]
+    public void ModernTeleportStableIdReferenceResolvesExitInsteadOfOrigin()
+    {
+        var roomObjects = new List<RoomObjectMarker>();
+        var context = new CustomMapEntityImportContext
+        {
+            RedSpawns = [],
+            BlueSpawns = [],
+            RoomObjects = roomObjects,
+            UseCenterOrigin = false,
+        };
+        var exitProperties = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [MapLogicMetadata.MapEntityIdPropertyKey] = "exit01",
+        };
+        var zoneProperties = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [TeleportMetadata.TeleportExitPropertyKey] = MapLogicEntityReference.FormatEntityRef(
+                TeleportMetadata.TeleportExitEntityType,
+                "exit01"),
+        };
+
+        Assert.True(CustomMapEntityRuntimeRegistry.TryImport(
+            TeleportMetadata.TeleportEntityType,
+            20f,
+            30f,
+            1f,
+            1f,
+            zoneProperties,
+            context));
+        Assert.True(CustomMapEntityRuntimeRegistry.TryImport(
+            TeleportMetadata.TeleportExitEntityType,
+            100f,
+            120f,
+            1f,
+            1f,
+            exitProperties,
+            context));
+
+        MapTeleportRuntimePatch.ApplyExitLinks(
+            roomObjects,
+            [
+                new MapImportedEntity(TeleportMetadata.TeleportEntityType, 20f, 30f, zoneProperties),
+                new MapImportedEntity(TeleportMetadata.TeleportExitEntityType, 100f, 120f, exitProperties),
+            ]);
+
+        var zone = Assert.Single(roomObjects, marker => marker.Type == RoomObjectType.TeleportZone);
+        var exit = Assert.Single(roomObjects, marker => marker.Type == RoomObjectType.TeleportExit);
+        Assert.True(zone.TeleportZone.HasExit);
+        Assert.Equal(exit.CenterX, zone.TeleportZone.ExitX);
+        Assert.Equal(exit.CenterY, zone.TeleportZone.ExitY);
+        Assert.NotEqual(0f, zone.TeleportZone.ExitX);
+        Assert.NotEqual(0f, zone.TeleportZone.ExitY);
+    }
+
     private static RoomObjectMarker CreateTeleportZone(
         float left,
         float top,

@@ -30,7 +30,7 @@ public static class MapTeleportRuntimePatch
 
             roomObjects[index] = marker with
             {
-                TeleportZone = TeleportMetadata.ParseZoneConfiguration(properties, roomObjects),
+                TeleportZone = TeleportMetadata.ParseZoneConfiguration(properties, roomObjects, entities),
             };
         }
     }

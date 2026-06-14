@@ -92,6 +92,37 @@ public sealed class MapEntityCollisionRegressionTests
     }
 
     [Fact]
+    public void UpDirectionalWallImportsAsFloorShape()
+    {
+        var context = new CustomMapEntityImportContext
+        {
+            RedSpawns = new List<SpawnPoint>(),
+            BlueSpawns = new List<SpawnPoint>(),
+            RoomObjects = new List<RoomObjectMarker>(),
+            UseCenterOrigin = false,
+        };
+
+        Assert.True(CustomMapEntityRuntimeRegistry.TryImport(
+            "directionalWall",
+            12f,
+            18f,
+            1f,
+            1f,
+            new Dictionary<string, string>
+            {
+                [DirectionalWallConfiguration.PassDirectionPropertyKey] = DirectionalWallConfiguration.PassDirectionUpValue,
+                [DirectionalWallConfiguration.PlayersPropertyKey] = DirectionalWallConfiguration.AffectValue,
+                [DirectionalWallConfiguration.ProjectilesPropertyKey] = DirectionalWallConfiguration.IgnoreValue,
+            },
+            context));
+
+        var wall = Assert.Single(context.RoomObjects);
+        Assert.Equal(RoomObjectType.DirectionalWall, wall.Type);
+        Assert.Equal(60f, wall.Width);
+        Assert.Equal(6f, wall.Height);
+    }
+
+    [Fact]
     public void CatalogDefaultBarrierBlocksPlayersAndIntelCarriers()
     {
         Assert.True(CustomMapBuilderEntityCatalog.TryGetDefinition("barrier", out var definition));
