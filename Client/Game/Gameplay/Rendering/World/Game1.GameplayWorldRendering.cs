@@ -488,19 +488,10 @@ public partial class Game1
         DrawExperimentalDemoknightChargeBlur(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);
         DrawCapturedPointHealingGhosting(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
         TryDrawWeaponSpriteBackdrop(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);
-        if (!_world.LocalPlayer.IsTaunting)
-        {
-            DrawHealingCharacterBodyEffects(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
-        }
 
         if (!TryDrawPlayerSprite(_world.LocalPlayer, cameraPosition, playerSpriteTint, bodySelection))
         {
             _spriteBatch.Draw(_pixel, playerRectangle, playerFallbackColor * visibilityAlpha);
-        }
-
-        if (_world.LocalPlayer.IsTaunting)
-        {
-            DrawHealingCharacterBodyEffects(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
         }
 
         DrawExperimentalStickyGibBloodOverlay(_world.LocalPlayer, cameraPosition, visibilityAlpha);
@@ -510,10 +501,10 @@ public partial class Game1
             && !_world.LocalPlayer.IsCivviePogoActive
             && !_world.IsPlayerHumiliated(_world.LocalPlayer))
         {
-            DrawHealingCharacterWeaponEffects(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
             TryDrawWeaponSprite(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);
         }
 
+        DrawHealingCrossParticles(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha);
         _gameplayWeaponRenderController.DrawCivvieUmbrellaShieldBlockVisuals(_world.LocalPlayer, cameraPosition, visibilityAlpha, bodySelection);
         DrawExperimentalCryoOverlays(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
         DrawAfterburnOverlay(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha);

@@ -59,7 +59,8 @@ public sealed partial class SimulationWorld
         bool allowOsmosisHealOwnedSentries = true,
         bool allowCivvieUmbrellaShield = true,
         float? civvieUmbrellaThreatSourceX = null,
-        float? civvieUmbrellaThreatSourceY = null)
+        float? civvieUmbrellaThreatSourceY = null,
+        int? civvieUmbrellaDrainTicks = null)
     {
         if (damage <= 0 || !target.IsAlive)
         {
@@ -72,7 +73,8 @@ public sealed partial class SimulationWorld
                 attacker,
                 damageFlags,
                 civvieUmbrellaThreatSourceX,
-                civvieUmbrellaThreatSourceY))
+                civvieUmbrellaThreatSourceY,
+                civvieUmbrellaDrainTicks))
         {
             return false;
         }
@@ -174,7 +176,8 @@ public sealed partial class SimulationWorld
         bool allowOsmosisHealOwnedSentries = true,
         bool allowCivvieUmbrellaShield = true,
         float? civvieUmbrellaThreatSourceX = null,
-        float? civvieUmbrellaThreatSourceY = null)
+        float? civvieUmbrellaThreatSourceY = null,
+        int? civvieUmbrellaDrainTicks = null)
     {
         if (damage <= 0f || !target.IsAlive)
         {
@@ -187,7 +190,8 @@ public sealed partial class SimulationWorld
                 attacker,
                 damageFlags,
                 civvieUmbrellaThreatSourceX,
-                civvieUmbrellaThreatSourceY))
+                civvieUmbrellaThreatSourceY,
+                civvieUmbrellaDrainTicks))
         {
             return false;
         }
@@ -286,7 +290,8 @@ public sealed partial class SimulationWorld
         PlayerEntity? attacker,
         DamageEventFlags damageFlags,
         float? threatSourceX = null,
-        float? threatSourceY = null)
+        float? threatSourceY = null,
+        int? drainTicks = null)
     {
         if (attacker is null
             || ReferenceEquals(attacker, target)
@@ -300,8 +305,9 @@ public sealed partial class SimulationWorld
 
         var resolvedThreatSourceX = threatSourceX ?? attacker.X;
         var resolvedThreatSourceY = threatSourceY ?? attacker.Y;
+        var resolvedDrainTicks = drainTicks ?? PlayerEntity.CivvieUmbrellaImpactDrain;
         if (!IsCivvieUmbrellaFrontThreat(target, resolvedThreatSourceX, resolvedThreatSourceY)
-            || !target.TryAbsorbCivvieUmbrellaHit())
+            || !target.TryAbsorbCivvieUmbrellaHit(resolvedDrainTicks))
         {
             return false;
         }

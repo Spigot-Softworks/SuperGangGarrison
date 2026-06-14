@@ -97,7 +97,15 @@ public sealed partial class SimulationWorld
                     directHitPlayer,
                     Math.Max(1, (int)MathF.Round(rocket.DirectHitDamageValue * rocket.ExperimentalStingerDamageMultiplier * rocket.CriticalDamageMultiplier)),
                     out var damageFlags);
-                if (world.ApplyPlayerDamage(directHitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
+                if (world.ApplyPlayerDamage(
+                        directHitPlayer,
+                        hitDamage,
+                        owner,
+                        PlayerEntity.SpyDamageRevealAlpha,
+                        damageFlags,
+                        civvieUmbrellaThreatSourceX: rocket.X,
+                        civvieUmbrellaThreatSourceY: rocket.Y,
+                        civvieUmbrellaDrainTicks: PlayerEntity.CivvieUmbrellaDirectExplosionDrainTicks))
                 {
                     world.KillPlayer(
                         directHitPlayer,
@@ -218,16 +226,21 @@ public sealed partial class SimulationWorld
                 }
 
                 var critMultiplier = (player.Id == rocket.OwnerId && player.Team == rocket.Team) ? 1f : rocket.CriticalDamageMultiplier;
-                var appliedDamage = rocket.ExplosionDamageValue * rocket.ExperimentalStingerDamageMultiplier * critMultiplier * distanceFactor;
+                var maxSplashDamage = rocket.ExplosionDamageValue * rocket.ExperimentalStingerDamageMultiplier * critMultiplier;
+                var appliedDamage = maxSplashDamage * distanceFactor;
                 world.RegisterBloodEffect(player.X, player.Y, SimulationWorld.PointDirectionDegrees(rocket.X, rocket.Y, player.X, player.Y) - 180f, 3);
                 hitEnemyPlayer |= player.Team != rocket.Team;
+                var umbrellaDrainTicks = ReferenceEquals(player, directHitPlayer)
+                    ? PlayerEntity.CivvieUmbrellaRocketDirectHitSplashDrainTicks
+                    : PlayerEntity.GetCivvieUmbrellaSplashExplosionDrainTicksFromDamage(appliedDamage, maxSplashDamage);
                 if (world.ApplyPlayerContinuousDamage(
                         player,
                         appliedDamage,
                         owner,
                         PlayerEntity.SpyDamageRevealAlpha,
                         civvieUmbrellaThreatSourceX: rocket.X,
-                        civvieUmbrellaThreatSourceY: rocket.Y))
+                        civvieUmbrellaThreatSourceY: rocket.Y,
+                        civvieUmbrellaDrainTicks: umbrellaDrainTicks))
                 {
                     world.KillPlayer(
                         player,

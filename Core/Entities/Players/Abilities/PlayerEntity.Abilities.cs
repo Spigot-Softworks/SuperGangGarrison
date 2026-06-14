@@ -328,6 +328,9 @@ public sealed partial class PlayerEntity
     public bool IsMedicKritzUberEquipped =>
         ClassId == PlayerClass.Medic && HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit);
 
+    public bool IsMedicMedigunSwapLocked =>
+        ClassId == PlayerClass.Medic && IsMedicUbering;
+
     public float GetMedicUberReadyChargeThreshold() =>
         IsMedicKritzUberEquipped ? MedicKritzUberReadyChargeThreshold : MedicUberMaxCharge;
 
@@ -612,8 +615,10 @@ public sealed partial class PlayerEntity
             SpyBackstabRecoveryTicksRemaining -= 1;
         }
 
-        IsSpyVisibleToEnemies = IsSpyCloaked
-            && (SpyCloakAlpha > 0f || SpyBackstabVisualTicksRemaining > 0);
+        IsSpyVisibleToEnemies = ComputeSpyVisibleToEnemies(
+            IsSpyCloaked,
+            SpyCloakAlpha,
+            SpyBackstabVisualTicksRemaining);
     }
 
     private void AdvancePyroAirblastState()

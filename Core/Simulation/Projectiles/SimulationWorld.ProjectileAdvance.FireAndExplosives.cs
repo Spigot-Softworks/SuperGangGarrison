@@ -39,16 +39,19 @@ public sealed partial class SimulationWorld
                 if (hitResult.HitPlayer is not null)
                 {
                     var hitPlayer = hitResult.HitPlayer;
+                    var shieldChargeBefore = hitPlayer.CivvieUmbrellaChargeTicks;
                     var playerDied = ApplyPlayerContinuousDamage(
                         hitPlayer,
                         flame.DirectHitDamageValue * flame.CriticalDamageMultiplier,
                         owner,
-                        allowCivvieUmbrellaShield: false);
+                        civvieUmbrellaThreatSourceX: flame.PreviousX,
+                        civvieUmbrellaThreatSourceY: flame.PreviousY);
+                    var umbrellaBlockedFlame = hitPlayer.CivvieUmbrellaChargeTicks < shieldChargeBefore;
                     if (playerDied)
                     {
                         KillPlayer(hitPlayer, killer: owner, weaponSpriteName: "FlameKL");
                     }
-                    else
+                    else if (!umbrellaBlockedFlame)
                     {
                         hitPlayer.IgniteAfterburn(
                             flame.OwnerId,
@@ -282,12 +285,6 @@ public sealed partial class SimulationWorld
                 : null;
             if (directHitPlayer is not null)
             {
-                if (TryAbsorbCivvieUmbrellaProjectileContact(directHitPlayer, grenade.OwnerId, grenade.X, grenade.Y))
-                {
-                    RemoveGrenadeAt(grenadeIndex);
-                    continue;
-                }
-
                 ExplodeGrenade(grenade, directHitPlayer: directHitPlayer);
                 RemoveGrenadeAt(grenadeIndex);
                 continue;
@@ -471,13 +468,21 @@ public sealed partial class SimulationWorld
 
                 RegisterBloodEffect(player.X, player.Y, PointDirectionDegrees(grenade.X, grenade.Y, player.X, player.Y) - 180f, 3);
                 var critMultiplier = (player.Id == grenade.OwnerId && player.Team == grenade.Team) ? 1f : grenade.CriticalDamageMultiplier;
-                var damage = grenade.ExplosionDamage * critMultiplier * factor;
+                var maxSplashDamage = grenade.ExplosionDamage * critMultiplier;
                 if (player.Id == grenade.OwnerId && player.Team == grenade.Team)
                 {
-                    damage *= GrenadeProjectileEntity.SelfDamageScale;
+                    maxSplashDamage *= GrenadeProjectileEntity.SelfDamageScale;
                 }
 
-                if (ApplyPlayerContinuousDamage(player, damage, owner, PlayerEntity.SpyMineRevealAlpha))
+                var damage = maxSplashDamage * factor;
+                if (ApplyPlayerContinuousDamage(
+                        player,
+                        damage,
+                        owner,
+                        PlayerEntity.SpyMineRevealAlpha,
+                        civvieUmbrellaThreatSourceX: grenade.X,
+                        civvieUmbrellaThreatSourceY: grenade.Y,
+                        civvieUmbrellaDrainTicks: PlayerEntity.GetCivvieUmbrellaSplashExplosionDrainTicksFromDamage(damage, maxSplashDamage)))
                 {
                     KillPlayer(
                         player,
@@ -578,7 +583,14 @@ public sealed partial class SimulationWorld
 
         RegisterBloodEffect(target.X, target.Y, PointDirectionDegrees(grenade.X, grenade.Y, target.X, target.Y) - 180f, 3);
         var damage = Math.Max(1, (int)MathF.Round(GrenadeProjectileEntity.DirectHitDamage * grenade.CriticalDamageMultiplier));
-        if (ApplyPlayerDamage(target, damage, owner, PlayerEntity.SpyMineRevealAlpha))
+        if (ApplyPlayerDamage(
+                target,
+                damage,
+                owner,
+                PlayerEntity.SpyMineRevealAlpha,
+                civvieUmbrellaThreatSourceX: grenade.PreviousX,
+                civvieUmbrellaThreatSourceY: grenade.PreviousY,
+                civvieUmbrellaDrainTicks: PlayerEntity.CivvieUmbrellaDirectExplosionDrainTicks))
         {
             KillPlayer(
                 target,

@@ -666,6 +666,18 @@ public partial class Game1
         }
     }
 
+    private static readonly Vector2[] SpriteFrameOutlineOffsets =
+    {
+        new(0f, -2f),
+        new(0f, 2f),
+        new(-2f, 0f),
+        new(2f, 0f),
+        new(-2f, -2f),
+        new(-2f, 2f),
+        new(2f, -2f),
+        new(2f, 2f),
+    };
+
     private void DrawSpriteFrameOutline(
         LoadedSpriteFrame frame,
         Vector2 position,
@@ -673,22 +685,13 @@ public partial class Game1
         float rotation,
         Vector2 origin,
         Vector2 scale,
-        SpriteEffects effects = SpriteEffects.None)
+        SpriteEffects effects = SpriteEffects.None,
+        IReadOnlyList<Vector2>? outlineOffsets = null)
     {
         var mask = GetSpriteFrameAlphaMask(frame);
-        var outlineOffsets = new[]
-        {
-            new Vector2(0f, -2f),
-            new Vector2(0f, 2f),
-            new Vector2(-2f, 0f),
-            new Vector2(2f, 0f),
-            new Vector2(-2f, -2f),
-            new Vector2(-2f, 2f),
-            new Vector2(2f, -2f),
-            new Vector2(2f, 2f),
-        };
+        var offsets = outlineOffsets ?? SpriteFrameOutlineOffsets;
 
-        foreach (var offset in outlineOffsets)
+        foreach (var offset in offsets)
         {
             _spriteBatch.Draw(
                 mask,
