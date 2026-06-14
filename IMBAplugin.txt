@@ -1,0 +1,53 @@
+Alternate alternate abilities:
+
+Scout - Dash (identical to Heavy's dash. 2 charges)
+Soldier - Buff Banner
+Pyro - Napalm shot, similar to flare, explodes in a small area, deals 30 dmg, causes napalm debuff for 3 seconds
+Demoman - Eyelander+Charge
+Heavy - shotgun (3 shot clip)
+Spy - Deadringer
+Sniper - Huntsman
+Medic -  Split Beam - Heal two targets at once at the cost of 30% less healiing effectiveness and 50% slower uber build
+Employer - pyro airburst but usable in air
+
+Balance changes
+
+Pyro - Flames travel further and deal up to 30% more damage based on velocity while airborne (not effective when grounded)
+Airblast can reflect bullets
+Airburst can redirect allied projectiles
+
+Scout - Nailgun causes 3hp/s bleed for 4 seconds
+10% evasion chance while airborne
+3hp/s health regen while out of combat
+
+Heavy - Eating sandvich grants 30% extra damage resistance during the animation
+Bullets have substantial knockback
+Dash reloads 30% of ammo and grants crits for 1 seconds
+
+Soldier - 4 clip shotgun
+30% reduction in self damage
+
+Demoman - GL direct hits do 50 damage
+Sticky opacity reduces over 5 seconds to a minimum of 30% opacity
+
+Spy - Stab can hit multiple enemies
+4hp/s health regen while out of combat
++20% movement speed while cloaked
+
+Sniper - Scoping/charging has no movement penalty
+Fully charged shots deal +50% damage
+
+Medic - Passive health regen doubled when under half hp
++25% uber build rate when under 50% hp
+
+Employer - M2 airblast can push allies
+Revolver damage increased to 38
+Taunt heal increased to 30 when below 50% hp
+10% shield recharge upon damaging an enemy 
+
+
+
+
+
+
+
