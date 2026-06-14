@@ -15,7 +15,7 @@ public sealed partial class PlayerEntity
     {
         if (!IsAlive
             || ClassId != PlayerClass.Quote
-            || !IsCivviePogoActive
+            || !CanPerformCivviePogoTrick
             || CivviePogoTrickInputReleaseRequired
             || IsCivviePogoTrickActive)
         {
@@ -27,6 +27,7 @@ public sealed partial class PlayerEntity
         CivviePogoTrickDurationTicks = durationTicks;
         CivviePogoTrickTicksRemaining = durationTicks;
         CivviePogoTrickInputReleaseRequired = true;
+        CivviePogoSuperJumpTrickUsed = true;
         return true;
     }
 
@@ -82,6 +83,8 @@ public sealed partial class PlayerEntity
     public void DeactivateCivviePogo()
     {
         IsCivviePogoActive = false;
+        IsCivviePogoSuperJumpAirPhaseActive = false;
+        CivviePogoSuperJumpTrickUsed = false;
         CivviePogoCrunchTicksRemaining = 0;
         CivviePogoNeedsGroundBounce = false;
         ClearCivviePogoTrick();
@@ -255,6 +258,12 @@ public sealed partial class PlayerEntity
             : MathF.Max(0f, baseBounceJumpScale);
         VerticalSpeed = -jumpSpeed * scale;
         IsGrounded = false;
+        IsCivviePogoSuperJumpAirPhaseActive = superJump;
+        if (superJump)
+        {
+            CivviePogoSuperJumpTrickUsed = false;
+        }
+
         CivviePogoCrunchTicksRemaining = Math.Max(1, crunchDurationTicks);
         CivviePogoSuperJumpSoundPending = superJump;
     }
@@ -275,6 +284,8 @@ public sealed partial class PlayerEntity
     private bool CivviePogoNeedsGroundBounce { get; set; }
 
     private bool CivviePogoTrickInputReleaseRequired { get; set; }
+
+    private bool CivviePogoSuperJumpTrickUsed { get; set; }
 
     private int CivviePogoTrickDurationTicks { get; set; }
 }

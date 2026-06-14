@@ -295,6 +295,41 @@ public partial class Game1
                 CivvieMoneySheetDrawScale));
         }
 
+        public void SpawnCivvieMoneyBurstVisual(CivvieMoneyBurstSpawn spawn)
+        {
+            if (_game._particleMode != 0)
+            {
+                return;
+            }
+
+            PruneCivvieMoneySheetVisuals();
+
+            string[] sheetSprites = ["SheetFalling1", "SheetFalling2", "SheetFalling3"];
+            var spriteIndex = CivvieMoneyTrailRules.GetDeterministicSpriteIndex(
+                spawn.Frame,
+                spawn.OwnerPlayerId + spawn.ParticleIndex,
+                sheetSprites.Length);
+            var horizontalVelocity = spawn.VelocityX;
+            var verticalVelocity = spawn.VelocityY;
+            var rotationSpeed = CivvieMoneyTrailRules.GetDeterministicSignedOffset(
+                spawn.Frame,
+                spawn.OwnerPlayerId,
+                salt: 0x42555254 ^ spawn.ParticleIndex,
+                magnitude: 0.08f) * MathF.PI;
+            _game._looseSheetVisuals.Add(new LooseSheetVisual(
+                spawn.X,
+                spawn.Y,
+                horizontalVelocity,
+                verticalVelocity,
+                rotationSpeed,
+                sheetSprites[spriteIndex],
+                CivvieMoneySheetLifetimeTicks,
+                CivvieMoneySheetFadeTicks,
+                isCivvieMoney: true,
+                CivvieMoneySheetTint,
+                CivvieMoneySheetDrawScale));
+        }
+
         public void SpawnLooseSheetVisual(float x, float y, float initialHorizontalSpeed, string? spriteName = null, bool isCivvieMoney = false)
         {
             string[] sheetSprites = ["SheetFalling1", "SheetFalling2", "SheetFalling3"];

@@ -3,7 +3,7 @@ Drop pogo trick frames here (same canvas size and alignment as Civvie*PogoS).
 Naming:
   image 0.png
   image 1.png
-  ...
+  image 2.png
 
 Red source art: Core/Content/Gameplay/stock.gg2/assets/civvie/CivvieRedPogoTrickS.images/
 Blue recolors:  Core/Content/Gameplay/stock.gg2/assets/civvie/CivvieBluePogoTrickS.images/

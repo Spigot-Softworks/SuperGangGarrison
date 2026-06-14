@@ -1,5 +1,6 @@
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
+using System.Reflection;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
@@ -42,7 +43,7 @@ public sealed class CivvieMoneyTrailRulesTests
         Assert.True(world.TryGetNetworkPlayer(slot: 1, out var civilian));
 
         ulong frame = 0;
-        for (var candidate = 0UL; candidate < 512; candidate += 1)
+        for (var candidate = 0UL; candidate < 4096; candidate += 1)
         {
             if (CivvieMoneyTrailRules.ShouldEmitDeterministicSourceTickChance(
                     candidate,
@@ -98,5 +99,87 @@ public sealed class CivvieMoneyTrailRulesTests
 
         Assert.Equal(expectedX, firstSpawn.X, precision: 3);
         Assert.Equal(expectedY, firstSpawn.Y, precision: 3);
+    }
+
+    [Fact]
+    public void TauntDoesNotBlockMoneyTrailWhilePogoing()
+    {
+        var player = CreateStandingCivilian();
+        Assert.True(player.TryToggleCivviePogo());
+        SetPlayerTaunting(player, isTaunting: true);
+
+        var frame = FindDeterministicSpawnFrame(player.Id);
+        var tracker = new CivvieMoneyTrailTracker();
+        tracker.TryRegisterTrail(frame, ticksPerSecond: 30, player);
+
+        Assert.NotEmpty(tracker.DrainPendingSpawns());
+    }
+
+    [Fact]
+    public void PogoTrickBurstSpawnIsDeterministic()
+    {
+        var first = CivvieMoneyTrailRules.CreatePogoTrickBurstSpawn(
+            frame: 500,
+            playerId: 3,
+            particleIndex: 2,
+            centerX: 128f,
+            centerY: 96f);
+        var second = CivvieMoneyTrailRules.CreatePogoTrickBurstSpawn(
+            frame: 500,
+            playerId: 3,
+            particleIndex: 2,
+            centerX: 128f,
+            centerY: 96f);
+
+        Assert.Equal(first, second);
+        Assert.InRange(MathF.Sqrt((first.VelocityX * first.VelocityX) + (first.VelocityY * first.VelocityY)), 1.5f, 5f);
+    }
+
+    [Fact]
+    public void PogoRegistersMoneyTrailWithoutHorizontalSpeed()
+    {
+        var player = CreateStandingCivilian();
+        Assert.True(player.TryToggleCivviePogo());
+        Assert.Equal(0f, player.HorizontalSpeed);
+
+        var frame = FindDeterministicSpawnFrame(player.Id);
+        var tracker = new CivvieMoneyTrailTracker();
+        tracker.TryRegisterTrail(frame, ticksPerSecond: 30, player);
+
+        var spawn = Assert.Single(tracker.DrainPendingSpawns());
+        var expectedX = player.X + (player.FacingDirectionX * CivvieMoneyTrailRules.TrailHorizontalOffset);
+        Assert.Equal(expectedX, spawn.X, precision: 3);
+    }
+
+    private static PlayerEntity CreateStandingCivilian()
+    {
+        var player = new PlayerEntity(7, CharacterClassCatalog.Civilian, "Test");
+        player.Spawn(PlayerTeam.Red, 128f, 128f);
+        player.TeleportTo(128f, 128f);
+        return player;
+    }
+
+    private static void SetPlayerTaunting(PlayerEntity player, bool isTaunting)
+    {
+        typeof(PlayerEntity).GetProperty(
+            nameof(PlayerEntity.IsTaunting),
+            BindingFlags.Instance | BindingFlags.Public)!.SetValue(player, isTaunting);
+    }
+
+    private static ulong FindDeterministicSpawnFrame(int playerId)
+    {
+        for (var candidate = 0UL; candidate < 4096; candidate += 1)
+        {
+            if (CivvieMoneyTrailRules.ShouldEmitDeterministicSourceTickChance(
+                    candidate,
+                    playerId,
+                    ticksPerSecond: 30,
+                    CivvieMoneyTrailRules.TrailSpawnChance))
+            {
+                return candidate;
+            }
+        }
+
+        throw new InvalidOperationException("Expected a deterministic spawn frame within the search window.");
     }
 }

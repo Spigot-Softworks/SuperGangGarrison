@@ -56,6 +56,7 @@ public partial class Game1
             _game._networkWorldWarmupAppliedSnapshotsAfterFull = 0;
             _game._networkWorldWarmupStartedClockSeconds = -1d;
             _game.ResetSnapshotPresentationHistories();
+            _game.ResetCivviePogoTrickPresentationObservation();
             _game._localOverheadChatMessage = null;
             _game._overheadChatMessagesBySlot.Clear();
             _game.ClearRemoteCustomBubbleStates();

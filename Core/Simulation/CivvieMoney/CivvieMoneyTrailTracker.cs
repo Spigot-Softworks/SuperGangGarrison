@@ -11,6 +11,15 @@ public readonly record struct CivvieMoneyTrailSpawn(
     ulong Frame,
     int OwnerPlayerId);
 
+public readonly record struct CivvieMoneyBurstSpawn(
+    float X,
+    float Y,
+    float VelocityX,
+    float VelocityY,
+    ulong Frame,
+    int OwnerPlayerId,
+    int ParticleIndex);
+
 public readonly record struct CivvieMoneyPickupParticipant(
     int Id,
     PlayerTeam Team,
@@ -72,14 +81,7 @@ public sealed class CivvieMoneyTrailTracker
         int ticksPerSecond,
         PlayerEntity player)
     {
-        if (!player.IsAlive
-            || player.ClassId != PlayerClass.Quote
-            || !player.IsTaunting)
-        {
-            return;
-        }
-
-        if (MathF.Abs(player.HorizontalSpeed) < CivvieMoneyTrailRules.TrailMoveSpeedThreshold
+        if (!CivvieMoneyTrailRules.IsEligibleTrailSource(player)
             || !CivvieMoneyTrailRules.ShouldEmitDeterministicSourceTickChance(
                 frame,
                 player.Id,
@@ -141,7 +143,7 @@ public sealed class CivvieMoneyTrailTracker
                 return false;
             }
 
-            return tryApplyHealing!(player, 1f);
+            return tryApplyHealing!(player, CivvieMoneyTrailRules.PickupHealAmount);
         }
     }
 
@@ -167,7 +169,7 @@ public sealed class CivvieMoneyTrailTracker
                         return false;
                     }
 
-                    return tryConsume(player, 1f);
+                    return tryConsume(player, CivvieMoneyTrailRules.PickupHealAmount);
                 });
     }
 

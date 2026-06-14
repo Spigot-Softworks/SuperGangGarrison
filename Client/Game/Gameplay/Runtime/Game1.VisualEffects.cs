@@ -686,6 +686,11 @@ public partial class Game1
         _gameplayMaterialEffectsController.SpawnCivvieMoneyVisual(spawn);
     }
 
+    private void SpawnCivvieMoneyBurstVisual(CivvieMoneyBurstSpawn spawn)
+    {
+        _gameplayMaterialEffectsController.SpawnCivvieMoneyBurstVisual(spawn);
+    }
+
     private void SpawnCivvieMoneyVisual(float x, float y, float initialHorizontalSpeed)
     {
         _gameplayMaterialEffectsController.SpawnCivvieMoneyVisual(

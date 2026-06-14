@@ -35,7 +35,8 @@
       "displayName": "Stock",
       "primaryItemId": "weapon.umbrella",
       "secondaryItemId": "ability.umbrella",
-      "utilityItemId": "ability.civilian-pogo"
+      "utilityItemId": "ability.civilian-pogo",
+      "abilityItemIds": [ "ability.civilian-taunt" ]
     }
   },
   "defaultLoadoutId": "civilian.stock"
