@@ -99,12 +99,57 @@ public static class CustomMapPackageExporter
     public static string ResolveManifestOutputPath(CustomMapBuilderDocument document, string outputPath)
     {
         var trimmed = outputPath.Trim().Trim('"');
-        if (Directory.Exists(trimmed) || string.IsNullOrWhiteSpace(Path.GetExtension(trimmed)))
+
+        // A package manifest is always a ".json" file. Anything else - an existing
+        // directory, a staging folder whose name contains a dot, a map name with a
+        // dot, and so on - is treated as the package directory the manifest lives in.
+        if (Path.GetExtension(trimmed).Equals(".json", StringComparison.OrdinalIgnoreCase))
         {
-            return Path.Combine(trimmed, $"{document.NormalizeForEditing().Name}.json");
+            return trimmed;
         }
 
-        return trimmed;
+        return Path.Combine(trimmed, $"{document.NormalizeForEditing().Name}.json");
+    }
+
+    /// <summary>
+    /// Resolves the manifest path for a user-chosen save location, ensuring the package
+    /// is written into its own folder named after the map. This matches the runtime
+    /// convention of one package directory per map (see
+    /// <see cref="CustomMapPackageDirectoryPublisher"/>), so saving never dumps loose
+    /// files into a shared maps folder.
+    /// </summary>
+    public static string ResolvePackageManifestPath(CustomMapBuilderDocument document, string outputPath)
+    {
+        var trimmed = outputPath.Trim().Trim('"');
+        var documentName = document.NormalizeForEditing().Name;
+
+        string parentDirectory;
+        string manifestName;
+        if (Path.GetExtension(trimmed).Equals(".json", StringComparison.OrdinalIgnoreCase))
+        {
+            var manifestFullPath = Path.GetFullPath(trimmed);
+            parentDirectory = Path.GetDirectoryName(manifestFullPath) ?? trimmed;
+            manifestName = Path.GetFileNameWithoutExtension(manifestFullPath);
+        }
+        else
+        {
+            parentDirectory = Path.GetFullPath(trimmed);
+            manifestName = documentName;
+        }
+
+        if (string.IsNullOrWhiteSpace(manifestName))
+        {
+            manifestName = documentName;
+        }
+
+        // If the chosen folder is already this package's own folder, keep it instead of
+        // nesting another level deep (so repeated saves stay in the same directory).
+        if (string.Equals(Path.GetFileName(parentDirectory), manifestName, StringComparison.OrdinalIgnoreCase))
+        {
+            return Path.Combine(parentDirectory, $"{manifestName}.json");
+        }
+
+        return Path.Combine(parentDirectory, manifestName, $"{manifestName}.json");
     }
 
     private static Dictionary<string, string> BuildManifestMetadata(CustomMapBuilderDocument document)

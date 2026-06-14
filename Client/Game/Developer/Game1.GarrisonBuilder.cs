@@ -3269,10 +3269,11 @@ public partial class Game1
         var metrics = GetGarrisonBuilderEntityMetrics(definition);
         if (_builderScaleMode && IsGarrisonBuilderDefinitionScalable(definition) && !_builderPlacementScaleLock)
         {
-            var right = MathF.Max(placementStartWorld.X + 6f, placementCurrentWorld.X + metrics.CenterX);
-            var bottom = MathF.Max(placementStartWorld.Y + 6f, placementCurrentWorld.Y + metrics.CenterY);
-            var xScale = MathF.Max(0.01f, (right - placementStartWorld.X) / metrics.Width);
-            var yScale = MathF.Max(0.01f, (bottom - placementStartWorld.Y) / metrics.Height);
+            GetGarrisonBuilderResizeMinimumExtents(definition.Type, metrics.Width, metrics.Height, out var minWidth, out var minHeight);
+            var right = MathF.Max(placementStartWorld.X + minWidth, placementCurrentWorld.X + metrics.CenterX);
+            var bottom = MathF.Max(placementStartWorld.Y + minHeight, placementCurrentWorld.Y + metrics.CenterY);
+            var xScale = MathF.Max(minWidth / metrics.Width, (right - placementStartWorld.X) / metrics.Width);
+            var yScale = MathF.Max(minHeight / metrics.Height, (bottom - placementStartWorld.Y) / metrics.Height);
             var entityX = placementStartWorld.X - metrics.CenterX + (metrics.OffsetX * xScale);
             var entityY = placementStartWorld.Y - metrics.CenterY + (metrics.OffsetY * yScale);
             AddGarrisonBuilderPlacementWithSymmetry(entities, definition, metrics, entityX, entityY, xScale, yScale);
@@ -3310,18 +3311,18 @@ public partial class Game1
         AddGarrisonBuilderPlacementEntity(
             entities,
             mirroredDefinition,
-            MirrorGarrisonBuilderPlacementX(x, metrics),
+            MirrorGarrisonBuilderPlacementX(x, metrics, xScale),
             y,
             xScale,
             yScale,
             mirrored: true);
     }
 
-    private float MirrorGarrisonBuilderPlacementX(float entityX, in GarrisonBuilderEntityMetrics metrics)
+    private float MirrorGarrisonBuilderPlacementX(float entityX, in GarrisonBuilderEntityMetrics metrics, float xScale)
     {
-        var gridX = entityX - metrics.OffsetX;
+        var gridX = entityX - (metrics.OffsetX * xScale);
         var centerX = GetGarrisonBuilderMapSymmetryCenterX();
-        return (2f * centerX) - gridX + metrics.MirroredOffsetX;
+        return (2f * centerX) - gridX + (metrics.MirroredOffsetX * xScale);
     }
 
     private float MirrorGarrisonBuilderWorldX(float worldX)
@@ -4282,11 +4283,11 @@ public partial class Game1
             metrics = new GarrisonBuilderEntityMetrics(
                 zoneWidth,
                 zoneHeight,
-                zoneWidth * 0.5f,
-                zoneHeight * 0.5f,
                 0f,
                 0f,
-                -zoneWidth * 0.5f);
+                PlayerTriggerMetadata.DefaultZoneWidth * 0.5f,
+                PlayerTriggerMetadata.DefaultZoneHeight * 0.5f,
+                -PlayerTriggerMetadata.DefaultZoneWidth * 0.5f);
             return true;
         }
 
@@ -4296,11 +4297,11 @@ public partial class Game1
             metrics = new GarrisonBuilderEntityMetrics(
                 zoneWidth,
                 zoneHeight,
-                zoneWidth * 0.5f,
-                zoneHeight * 0.5f,
                 0f,
                 0f,
-                -zoneWidth * 0.5f);
+                AreaExtensionMetadata.DefaultZoneWidth * 0.5f,
+                AreaExtensionMetadata.DefaultZoneHeight * 0.5f,
+                -AreaExtensionMetadata.DefaultZoneWidth * 0.5f);
             return true;
         }
 
@@ -4310,11 +4311,11 @@ public partial class Game1
             metrics = new GarrisonBuilderEntityMetrics(
                 zoneWidth,
                 zoneHeight,
-                zoneWidth * 0.5f,
-                zoneHeight * 0.5f,
                 0f,
                 0f,
-                -zoneWidth * 0.5f);
+                DamageableMetadata.DefaultZoneWidth * 0.5f,
+                DamageableMetadata.DefaultZoneHeight * 0.5f,
+                -DamageableMetadata.DefaultZoneWidth * 0.5f);
             return true;
         }
 
@@ -8281,7 +8282,7 @@ public partial class Game1
 
         if (CustomMapPackageExporter.IsPackageOutputPath(_builderSavePath))
         {
-            return CustomMapPackageExporter.ResolveManifestOutputPath(_builderDocument, _builderSavePath);
+            return CustomMapPackageExporter.ResolvePackageManifestPath(_builderDocument, _builderSavePath);
         }
 
         return _builderSavePath;
@@ -8956,8 +8957,9 @@ public partial class Game1
 
             if (CustomMapPackageExporter.IsPackageOutputPath(_builderSavePath))
             {
-                CustomMapPackageExporter.Export(_builderDocument, _builderSavePath);
-                _builderSavePath = CustomMapPackageExporter.ResolveManifestOutputPath(_builderDocument, _builderSavePath);
+                var manifestPath = CustomMapPackageExporter.ResolvePackageManifestPath(_builderDocument, _builderSavePath);
+                CustomMapPackageExporter.Export(_builderDocument, manifestPath);
+                _builderSavePath = manifestPath;
             }
             else
             {
