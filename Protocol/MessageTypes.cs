@@ -552,7 +552,8 @@ public sealed record SnapshotShotState(
     float VelocityX,
     float VelocityY,
     int TicksRemaining,
-    bool IsCritical = false);
+    bool IsCritical = false,
+    bool IsMedicHealNeedle = false);
 
 public sealed record SnapshotGrenadeState(
     int Id,

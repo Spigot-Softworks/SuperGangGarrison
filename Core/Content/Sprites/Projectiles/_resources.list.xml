@@ -11,6 +11,7 @@
   <resource name="RedGrenadeS" type="RESOURCE"/>
   <resource name="BlueGrenadeS" type="RESOURCE"/>
   <resource name="NeedleS" type="RESOURCE"/>
+  <resource name="NeedleHealS" type="RESOURCE"/>
   <resource name="BladeProjectileS" type="RESOURCE"/>
   <resource name="MineTrailS" type="RESOURCE"/>
   <resource name="BladeMask" type="RESOURCE"/>

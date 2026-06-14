@@ -1,6 +1,8 @@
 #nullable enable
 
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using OpenGarrison.Core;
 using OpenGarrison.GameplayModding;
 
@@ -10,7 +12,12 @@ public partial class Game1
 {
     private sealed class GameplayWeaponRenderController
     {
+        private const string StockMedigunWorldSpriteName = "MedigunS";
+        private static readonly Color OffensiveKritzBeamYellowBright = new(225, 255, 107, 255);
+        private static readonly Color OffensiveKritzBeamYellowDeep = new(231, 218, 10, 255);
+
         private readonly Game1 _game;
+        private readonly Dictionary<int, LoadedSpriteFrame> _offensiveKritzMedigunAttackFrameCache = new();
 
         public GameplayWeaponRenderController(Game1 game)
         {
@@ -152,6 +159,17 @@ public partial class Game1
                 return false;
             }
 
+            var useOffensiveKritzAttackSprite = IsOffensiveKritzBeamPresentation(player);
+            if (useOffensiveKritzAttackSprite)
+            {
+                spriteName = StockMedigunWorldSpriteName;
+                sprite = _game.GetResolvedSprite(spriteName);
+                if (sprite is null || sprite.Frames.Count == 0)
+                {
+                    return false;
+                }
+            }
+
             if (!TryGetWeaponDrawTransform(
                     player,
                     renderPosition,
@@ -168,12 +186,22 @@ public partial class Game1
                 return false;
             }
 
-            var frameIndex = GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
+            var frameIndex = useOffensiveKritzAttackSprite
+                ? GetOffensiveKritzMedigunAttackFrameIndex(player, sprite.Frames.Count)
+                : GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
             var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
             var position = new Vector2(worldDrawX - cameraPosition.X, worldDrawY - cameraPosition.Y);
             ResolveBakedFrame(player, spriteName, frameIndex, rotation,
                 sprite, facingScale, playerScale,
                 out var drawFrame, out var drawOrigin, out var drawRotation, out var scale);
+            if (useOffensiveKritzAttackSprite)
+            {
+                drawFrame = GetOffensiveKritzMedigunAttackFrame(sprite, frameIndex);
+                drawOrigin = sprite.Origin.ToVector2();
+                drawRotation = rotation;
+                scale = new Vector2(facingScale * playerScale, playerScale);
+            }
+
             if (_game.IsKritzUberWeaponOnlyVisual(player) && _game._uberOutlineEnabled)
             {
                 var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
@@ -194,6 +222,75 @@ public partial class Game1
 
             DrawWeaponAnimationOverlay(player, weaponAnimationMode, weaponDefinition, roundedOrigin, cameraPosition, tint, bodySelection, facingScale);
 
+            return true;
+        }
+
+        public bool TryDrawPlayerHealingWeaponOutlineAtPosition(
+            PlayerEntity player,
+            Vector2 renderPosition,
+            Vector2 cameraPosition,
+            Color outlineTint,
+            PlayerBodySpriteSelection bodySelection)
+        {
+            if (outlineTint.A <= 0
+                || _game.GetPlayerIsCivviePogoActive(player)
+                || _game.ShouldHideLastToDieWeaponForPlayer(player)
+                || _game.GetPlayerIsHeavyEating(player)
+                || player.IsTaunting
+                || _game._world.IsPlayerHumiliated(player))
+            {
+                return false;
+            }
+
+            var weaponAnimationMode = GetPlayerWeaponAnimationMode(player);
+            var weaponDefinition = GetWeaponRenderDefinition(player, IsCivvieUmbrellaAnimationMode(weaponAnimationMode));
+            if (weaponDefinition.NormalSpriteName is null)
+            {
+                return false;
+            }
+
+            var spriteName = weaponAnimationMode switch
+            {
+                WeaponAnimationMode.ScopedRecoil when weaponDefinition.ReloadSpriteName is not null => weaponDefinition.ReloadSpriteName,
+                WeaponAnimationMode.Reload when weaponDefinition.ReloadOverlay.CarrierSpriteName is not null => weaponDefinition.ReloadOverlay.CarrierSpriteName,
+                WeaponAnimationMode.Reload when weaponDefinition.ReloadSpriteName is not null => weaponDefinition.ReloadSpriteName,
+                WeaponAnimationMode.Recoil when weaponDefinition.RecoilOverlay.CarrierSpriteName is not null => weaponDefinition.RecoilOverlay.CarrierSpriteName,
+                WeaponAnimationMode.Recoil when weaponDefinition.RecoilSpriteName is not null => weaponDefinition.RecoilSpriteName,
+                _ => weaponDefinition.NormalSpriteName,
+            };
+            if (spriteName is null)
+            {
+                return false;
+            }
+
+            var sprite = _game.GetResolvedSprite(spriteName);
+            if (sprite is null || sprite.Frames.Count == 0)
+            {
+                return false;
+            }
+
+            if (!TryGetWeaponDrawTransform(
+                    player,
+                    renderPosition,
+                    bodySelection,
+                    weaponAnimationMode,
+                    weaponDefinition,
+                    sprite,
+                    out var worldDrawX,
+                    out var worldDrawY,
+                    out var rotation,
+                    out var facingScale,
+                    out var playerScale))
+            {
+                return false;
+            }
+
+            var frameIndex = GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
+            var position = new Vector2(worldDrawX - cameraPosition.X, worldDrawY - cameraPosition.Y);
+            ResolveBakedFrame(player, spriteName, frameIndex, rotation,
+                sprite, facingScale, playerScale,
+                out var drawFrame, out var drawOrigin, out var drawRotation, out var scale);
+            _game.DrawSpriteFrameOutline(drawFrame, position, outlineTint, drawRotation, drawOrigin, scale);
             return true;
         }
 
@@ -684,6 +781,16 @@ public partial class Game1
                 return CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(PlayerClass.Medic).Presentation;
             }
 
+            if (ShouldPresentExperimentalMedicKritzHealNeedles(player)
+                && !string.IsNullOrWhiteSpace(player.GameplayLoadoutState.SecondaryItemId))
+            {
+                var kritzItem = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(player.GameplayLoadoutState.SecondaryItemId);
+                if (string.Equals(kritzItem.BehaviorId, BuiltInGameplayBehaviorIds.MedigunCrit, StringComparison.Ordinal))
+                {
+                    return kritzItem.Presentation;
+                }
+            }
+
             // Check if experimental offhand weapon is equipped (e.g., Soldier shotgun, Demoman grenade launcher)
             if (player.IsExperimentalOffhandEquipped && player.ExperimentalOffhandWeapon is not null)
             {
@@ -829,6 +936,106 @@ public partial class Game1
         private static bool ShouldUseBlueTeamMedigunFrames(PlayerEntity player)
         {
             return player.IsExperimentalEngineerFreezeRayPresented || player.Team == PlayerTeam.Blue;
+        }
+
+        private bool IsOffensiveKritzBeamPresentation(PlayerEntity player)
+        {
+            if (!player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit)
+                || !player.IsMedicHealing
+                || !player.MedicHealTargetId.HasValue)
+            {
+                return false;
+            }
+
+            var healTarget = _game.FindPlayerById(player.MedicHealTargetId.Value);
+            return healTarget is not null
+                && healTarget.IsAlive
+                && healTarget.Team != player.Team;
+        }
+
+        private static int GetOffensiveKritzMedigunAttackFrameIndex(PlayerEntity player, int frameCount)
+        {
+            if (frameCount < 4)
+            {
+                return System.Math.Clamp(ShouldUseBlueTeamMedigunFrames(player) ? 1 : 0, 0, frameCount - 1);
+            }
+
+            return ShouldUseBlueTeamMedigunFrames(player) ? 3 : 2;
+        }
+
+        private LoadedSpriteFrame GetOffensiveKritzMedigunAttackFrame(LoadedGameMakerSprite sprite, int attackFrameIndex)
+        {
+            if (_offensiveKritzMedigunAttackFrameCache.TryGetValue(attackFrameIndex, out var cachedFrame))
+            {
+                return cachedFrame;
+            }
+
+            var idleFrameIndex = attackFrameIndex - 2;
+            var attackFrame = sprite.Frames[attackFrameIndex];
+            var idleFrame = sprite.Frames[System.Math.Clamp(idleFrameIndex, 0, sprite.Frames.Count - 1)];
+            var width = attackFrame.Width;
+            var height = attackFrame.Height;
+            var pixelCount = width * height;
+            var attackPixels = new Color[pixelCount];
+            var idlePixels = new Color[pixelCount];
+            if (!TryReadSpriteFramePixels(attackFrame, attackPixels)
+                || !TryReadSpriteFramePixels(idleFrame, idlePixels))
+            {
+                return attackFrame;
+            }
+
+            for (var index = 0; index < pixelCount; index += 1)
+            {
+                var attackPixel = attackPixels[index];
+                if (attackPixel.A == 0 || attackPixel == idlePixels[index])
+                {
+                    continue;
+                }
+
+                attackPixels[index] = MapOffensiveKritzFlarePixel(attackPixel);
+            }
+
+            var texture = new Texture2D(_game.GraphicsDevice, width, height);
+            texture.SetData(attackPixels);
+            cachedFrame = new LoadedSpriteFrame(
+                texture,
+                OwnsTexture: true,
+                PixelSource: new LoadedSpriteFramePixelSource(attackPixels, width, height));
+            _offensiveKritzMedigunAttackFrameCache[attackFrameIndex] = cachedFrame;
+            return cachedFrame;
+        }
+
+        private static bool TryReadSpriteFramePixels(LoadedSpriteFrame frame, Color[] destination)
+        {
+            if (frame.TryCopyPixelData(destination))
+            {
+                return true;
+            }
+
+            var sourceRectangle = frame.SourceRectangle ?? new Rectangle(0, 0, frame.Width, frame.Height);
+            if (destination.Length < sourceRectangle.Width * sourceRectangle.Height)
+            {
+                return false;
+            }
+
+            frame.Texture.GetData(0, sourceRectangle, destination, 0, sourceRectangle.Width * sourceRectangle.Height);
+            return true;
+        }
+
+        private static Color MapOffensiveKritzFlarePixel(Color pixel)
+        {
+            return (pixel.R, pixel.G, pixel.B) switch
+            {
+                (255, 148, 148) => OffensiveKritzBeamYellowBright,
+                (255, 106, 106) => OffensiveKritzBeamYellowBright,
+                (154, 0, 0) => OffensiveKritzBeamYellowDeep,
+                (148, 190, 255) => OffensiveKritzBeamYellowBright,
+                (106, 165, 255) => OffensiveKritzBeamYellowBright,
+                (15, 21, 131) => OffensiveKritzBeamYellowDeep,
+                _ => pixel.R + pixel.G + pixel.B >= 500
+                    ? OffensiveKritzBeamYellowBright
+                    : OffensiveKritzBeamYellowDeep,
+            };
         }
     }
 }

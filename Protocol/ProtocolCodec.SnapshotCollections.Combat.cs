@@ -110,6 +110,7 @@ public static partial class ProtocolCodec
             writer.Write(shot.VelocityY);
             writer.Write(shot.TicksRemaining);
             writer.Write(shot.IsCritical);
+            writer.Write(shot.IsMedicHealNeedle);
         }
     }
 
@@ -128,6 +129,7 @@ public static partial class ProtocolCodec
                 reader.ReadSingle(),
                 reader.ReadSingle(),
                 reader.ReadInt32(),
+                reader.ReadBoolean(),
                 reader.ReadBoolean()));
         }
 

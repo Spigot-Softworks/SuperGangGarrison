@@ -110,6 +110,12 @@ public sealed partial class PlayerEntity
             ExperimentalOffhandCooldownTicks -= 1;
         }
 
+        if (HasSecondaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit))
+        {
+            AdvanceExperimentalMedicKritzHealNeedleRefill(weaponDefinition);
+            return;
+        }
+
         if (!weaponDefinition.AutoReloads)
         {
             ExperimentalOffhandReloadTicksUntilNextShell = 0;
@@ -144,6 +150,28 @@ public sealed partial class PlayerEntity
         if (ExperimentalOffhandCurrentShells < weaponDefinition.MaxAmmo)
         {
             ExperimentalOffhandReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(weaponDefinition.AmmoReloadTicks);
+        }
+    }
+
+    private void AdvanceExperimentalMedicKritzHealNeedleRefill(PrimaryWeaponDefinition weaponDefinition)
+    {
+        if (ExperimentalOffhandCurrentShells >= weaponDefinition.MaxAmmo)
+        {
+            ExperimentalOffhandReloadTicksUntilNextShell = 0;
+            return;
+        }
+
+        if (ExperimentalOffhandReloadTicksUntilNextShell <= 0)
+        {
+            ExperimentalOffhandReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(MedicNeedleRefillTicksDefault);
+            return;
+        }
+
+        ExperimentalOffhandReloadTicksUntilNextShell -= 1;
+        if (ExperimentalOffhandReloadTicksUntilNextShell <= 0)
+        {
+            ExperimentalOffhandCurrentShells = weaponDefinition.MaxAmmo;
+            ExperimentalOffhandReloadTicksUntilNextShell = 0;
         }
     }
 

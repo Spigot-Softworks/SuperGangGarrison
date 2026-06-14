@@ -325,6 +325,56 @@ public sealed partial class PlayerEntity
         ClearExperimentalAdditionalMedicBeamTargets();
     }
 
+    public bool IsMedicKritzUberEquipped =>
+        ClassId == PlayerClass.Medic && HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit);
+
+    public float GetMedicUberReadyChargeThreshold() =>
+        IsMedicKritzUberEquipped ? MedicKritzUberReadyChargeThreshold : MedicUberMaxCharge;
+
+    public void GetMedicUberHudMeter(out float value, out float max)
+    {
+        if (ClassId != PlayerClass.Medic)
+        {
+            value = 0f;
+            max = 1f;
+            return;
+        }
+
+        if (IsMedicUbering && MedicUberUsesFixedDuration && MedicUberCommittedCharge > 0f)
+        {
+            value = MedicUberCharge;
+            max = MedicUberCommittedCharge;
+            return;
+        }
+
+        if (IsMedicKritzUberEquipped)
+        {
+            value = Math.Min(MedicUberCharge, MedicUberMaxCharge);
+            max = MedicKritzUberReadyChargeThreshold;
+            return;
+        }
+
+        value = MedicUberCharge;
+        max = MedicUberMaxCharge;
+    }
+
+    public void RefreshMedicUberReadyState()
+    {
+        if (ClassId != PlayerClass.Medic || IsMedicUbering)
+        {
+            return;
+        }
+
+        var threshold = GetMedicUberReadyChargeThreshold();
+        var isReady = MedicUberCharge >= threshold;
+        if (isReady && !IsMedicUberReady)
+        {
+            MedicUberReadyPresentationPending = true;
+        }
+
+        IsMedicUberReady = isReady;
+    }
+
     public bool TryStartMedicUber()
     {
         if (!IsAlive || ClassId != PlayerClass.Medic || !IsMedicUberReady)
@@ -342,6 +392,21 @@ public sealed partial class PlayerEntity
         IsMedicUbering = true;
         IsMedicUberReady = false;
         MedicUberReadyPresentationPending = false;
+        if (isKritz)
+        {
+            MedicUberCommittedCharge = MedicUberCharge;
+            MedicUberingTotalTicks = (int)MathF.Round(MedicUberDurationSeconds * LegacyMovementModel.SourceTicksPerSecond);
+            MedicUberingTicksRemaining = MedicUberingTotalTicks;
+            MedicUberUsesFixedDuration = true;
+        }
+        else
+        {
+            MedicUberCommittedCharge = 0f;
+            MedicUberingTicksRemaining = 0;
+            MedicUberingTotalTicks = 0;
+            MedicUberUsesFixedDuration = false;
+        }
+
         return true;
     }
 
@@ -354,9 +419,8 @@ public sealed partial class PlayerEntity
 
         var wasReady = IsMedicUberReady;
         MedicUberCharge = float.Min(MedicUberMaxCharge, MedicUberCharge + amount);
-        if (MedicUberCharge >= MedicUberMaxCharge)
+        if (MedicUberCharge >= GetMedicUberReadyChargeThreshold())
         {
-            MedicUberCharge = MedicUberMaxCharge;
             IsMedicUberReady = true;
             MedicUberReadyPresentationPending |= !wasReady;
         }
@@ -597,11 +661,31 @@ public sealed partial class PlayerEntity
 
         if (IsMedicUbering)
         {
-            MedicUberCharge = float.Max(0f, MedicUberCharge - MedicUberChargeDrainPerSourceTick);
-            if (MedicUberCharge <= 0f)
+            if (MedicUberUsesFixedDuration)
             {
-                MedicUberCharge = 0f;
-                IsMedicUbering = false;
+                MedicUberingTicksRemaining = Math.Max(0, MedicUberingTicksRemaining - 1);
+                if (MedicUberingTicksRemaining <= 0)
+                {
+                    MedicUberCharge = 0f;
+                    IsMedicUbering = false;
+                    MedicUberCommittedCharge = 0f;
+                    MedicUberingTotalTicks = 0;
+                    MedicUberUsesFixedDuration = false;
+                }
+                else
+                {
+                    MedicUberCharge = MedicUberCommittedCharge
+                        * (MedicUberingTicksRemaining / (float)Math.Max(1, MedicUberingTotalTicks));
+                }
+            }
+            else
+            {
+                MedicUberCharge = float.Max(0f, MedicUberCharge - MedicUberChargeDrainPerSourceTick);
+                if (MedicUberCharge <= 0f)
+                {
+                    MedicUberCharge = 0f;
+                    IsMedicUbering = false;
+                }
             }
         }
 

@@ -1,0 +1,37 @@
+{
+  "id": "weapon.medigun.crit.beam",
+  "displayName": "Kritzkrieg (Beam)",
+  "slot": "Secondary",
+  "behaviorId": "builtin.weapon.medigun.crit",
+  "ammo": {
+    "maxAmmo": 40,
+    "ammoPerUse": 0,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 3,
+    "reloadSourceTicks": 0,
+    "autoReloads": false,
+    "ammoRegenPerTick": 0,
+    "refillsAllAtOnce": false
+  },
+  "ability": {
+    "category": "secondary",
+    "activation": "held",
+    "executorId": "builtin.ability.medic_kritz_beam",
+    "tags": [ "core_m2", "beam", "damage", "charge" ],
+    "parameters": {
+      "range": 150,
+      "damagePerSecond": 1
+    }
+  },
+  "presentation": {
+    "worldSpriteName": "MedigunCritS",
+    "recoilSpriteName": "MedigunCritFS",
+    "reloadSpriteName": "MedigunCritFRS",
+    "hudSpriteName": "NeedleAmmoS",
+    "weaponOffsetX": -7.0,
+    "weaponOffsetY": 0.0,
+    "recoilDurationSourceTicks": 4,
+    "reloadDurationSourceTicks": 55,
+    "blueTeamHudFrameOffset": 1
+  }
+}

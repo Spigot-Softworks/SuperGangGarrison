@@ -50,10 +50,13 @@ public partial class Game1
         UpdatePostGameMvpWinScreenState(keyboard, clientTicks);
         PlayPendingCivvieMoneyTrailSpawns();
         ObserveCivvieUmbrellaShieldBlocksFromPlayerState();
+        ObserveCivviePogoTrickPresentationFromPlayerState();
         PlayPendingVisualEvents();
         PlayPendingSoundEvents();
+        ObservePlayerHealthChangesForHealingCharacterEffects();
         DispatchPendingDamageEventsToPlugins();
         QueuePendingExperimentalHealingHudIndicators();
+        AdvanceHealingCharacterEffects((float)gameTime.ElapsedGameTime.TotalSeconds);
         UpdateLocalRapidFireWeaponAudio();
         PlayDemoknightChargeReadySoundIfNeeded();
         PlayDeathCamSoundIfNeeded();

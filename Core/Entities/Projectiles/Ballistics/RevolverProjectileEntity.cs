@@ -50,7 +50,7 @@ public sealed class RevolverProjectileEntity : SimulationEntity
 
     public bool IsCritical { get; private set; }
 
-    public float CriticalDamageMultiplier => IsCritical ? ExperimentalGameplaySettings.DefaultCriticalDamageMultiplier : 1f;
+    public float CriticalDamageMultiplier => IsCritical ? ExperimentalGameplaySettings.KritzCriticalDamageMultiplier : 1f;
 
     public void SetCritical() { IsCritical = true; }
 

@@ -15,6 +15,7 @@ public partial class Game1
         private const float RunnerSpeed = 60f; // pixels per second (slowed by 50%)
         private const float SpawnInterval = 1.2f; // seconds between spawns
         private const float AnimationSpeed = 12f; // frames per second
+        private const float StandardRunSpriteOriginY = 40f;
 
         private readonly Game1 _game;
         private readonly Random _random;
@@ -32,7 +33,8 @@ public partial class Game1
             PlayerClass.Heavy,
             PlayerClass.Sniper,
             PlayerClass.Medic,
-            PlayerClass.Spy
+            PlayerClass.Spy,
+            PlayerClass.Quote
         };
 
         public MenuBottomBarRunners(Game1 game)
@@ -111,7 +113,8 @@ public partial class Game1
                 ClassId = classId,
                 Team = team,
                 X = _game.ViewportWidth + 80f, // Start off-screen to the right
-                AnimationFrame = 0f
+                AnimationFrame = 0f,
+                HasUmbrellaShieldOpen = classId == PlayerClass.Quote && _random.Next(2) == 0,
             });
         }
 
@@ -133,9 +136,9 @@ public partial class Game1
             // Calculate frame index
             var frameIndex = ((int)runner.AnimationFrame) % sprite.Frames.Count;
             
-            // Position runners 24 pixels above the bar
+            // Position runners 24 pixels above the bar, compensating for per-class run origins.
             var scale = 1f;
-            var yPosition = bottomBarBounds.Y - 24f;
+            var yPosition = bottomBarBounds.Y - 24f + (sprite.Origin.Y - StandardRunSpriteOriginY);
             var position = new Vector2(runner.X, yPosition);
 
             // Calculate equipment offset (weapon bounce) based on animation frame
@@ -161,6 +164,12 @@ public partial class Game1
 
         private void DrawWeapon(RunnerInstance runner, Vector2 characterPosition, float scale, float equipmentOffset)
         {
+            if (runner.ClassId == PlayerClass.Quote && runner.HasUmbrellaShieldOpen)
+            {
+                DrawCivvieShieldUmbrella(runner, characterPosition, scale, equipmentOffset);
+                return;
+            }
+
             // Get the primary weapon for this class
             var weaponItem = CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(runner.ClassId);
             var weaponSpriteName = weaponItem.Presentation.WorldSpriteName;
@@ -198,6 +207,54 @@ public partial class Game1
                 new Vector2(-scale, scale)); // Flip horizontally for running left
         }
 
+        private void DrawCivvieShieldUmbrella(RunnerInstance runner, Vector2 characterPosition, float scale, float equipmentOffset)
+        {
+            var umbrellaItem = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem("ability.umbrella");
+            var weaponSpriteName = umbrellaItem.Presentation.WorldSpriteName;
+            if (string.IsNullOrWhiteSpace(weaponSpriteName))
+            {
+                return;
+            }
+
+            var weaponSprite = _game.GetResolvedSprite(weaponSpriteName);
+            if (weaponSprite is null || weaponSprite.Frames.Count == 0)
+            {
+                return;
+            }
+
+            var weaponOffsetX = umbrellaItem.Presentation.WeaponOffsetX;
+            var weaponOffsetY = umbrellaItem.Presentation.WeaponOffsetY;
+            var anchorOrigin = weaponSprite.Origin.ToVector2();
+            var facingScale = -1f; // Running left
+            var drawX = characterPosition.X + ((weaponOffsetX + anchorOrigin.X) * facingScale * scale);
+            var drawY = characterPosition.Y + ((weaponOffsetY + equipmentOffset + anchorOrigin.Y) * scale);
+            var frameIndex = GetCivvieUmbrellaHoldFrameIndex(runner.Team, weaponSprite.Frames.Count);
+
+            // Match gameplay left-facing aim-up umbrella rotation.
+            const float shieldUmbrellaRotation = MathF.PI / 2f;
+
+            _game.DrawSpriteFrame(
+                weaponSprite.Frames[frameIndex],
+                new Vector2(drawX, drawY),
+                Color.Black,
+                shieldUmbrellaRotation,
+                weaponSprite.Origin.ToVector2(),
+                new Vector2(-scale, scale));
+        }
+
+        private static int GetCivvieUmbrellaHoldFrameIndex(PlayerTeam team, int frameCount)
+        {
+            if (frameCount <= 0)
+            {
+                return 0;
+            }
+
+            var perTeamFrames = System.Math.Max(1, frameCount / 2);
+            var localFrame = System.Math.Min(3, perTeamFrames - 1);
+            var teamOffset = team == PlayerTeam.Blue ? perTeamFrames : 0;
+            return System.Math.Clamp(teamOffset + localFrame, 0, frameCount - 1);
+        }
+
         private static string? GetRunningSpriteName(PlayerClass classId, PlayerTeam team)
         {
             var prefix = GetPlayerSpritePrefix(classId);
@@ -229,6 +286,7 @@ public partial class Game1
                 PlayerClass.Sniper => "Sniper",
                 PlayerClass.Medic => "Medic",
                 PlayerClass.Spy => "Spy",
+                PlayerClass.Quote => "Civvie",
                 _ => null,
             };
         }
@@ -239,6 +297,7 @@ public partial class Game1
             public PlayerTeam Team { get; set; }
             public float X { get; set; }
             public float AnimationFrame { get; set; }
+            public bool HasUmbrellaShieldOpen { get; set; }
         }
     }
 }

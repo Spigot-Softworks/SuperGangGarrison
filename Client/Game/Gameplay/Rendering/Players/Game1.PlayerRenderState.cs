@@ -273,7 +273,7 @@ public partial class Game1
             switch (renderState.WeaponAnimationMode)
             {
                 case WeaponAnimationMode.Recoil when renderState.WeaponAnimationTimeRemainingSeconds <= 0f:
-                    if (ShouldShowReloadAnimation(player, weaponStats, weaponRenderDefinition, currentAmmoCount, maxAmmoCount, currentReloadTicks))
+                    if (ShouldShowReloadAnimation(player, weaponStats, weaponRenderDefinition, currentAmmoCount, maxAmmoCount, currentReloadTicks, currentCooldownTicks))
                     {
                         StartWeaponAnimation(renderState, WeaponAnimationMode.Reload, weaponRenderDefinition.ReloadDurationSeconds);
                     }
@@ -286,7 +286,7 @@ public partial class Game1
                     StopWeaponAnimation(renderState);
                     break;
                 case WeaponAnimationMode.Reload:
-                    if (!ShouldShowReloadAnimation(player, weaponStats, weaponRenderDefinition, currentAmmoCount, maxAmmoCount, currentReloadTicks))
+                    if (!ShouldShowReloadAnimation(player, weaponStats, weaponRenderDefinition, currentAmmoCount, maxAmmoCount, currentReloadTicks, currentCooldownTicks))
                     {
                         StopWeaponAnimation(renderState);
                     }
@@ -305,7 +305,7 @@ public partial class Game1
                     break;
                 case WeaponAnimationMode.Idle:
                     if (!renderState.ReloadAnimationCompleted
-                        && ShouldShowReloadAnimation(player, weaponStats, weaponRenderDefinition, currentAmmoCount, maxAmmoCount, currentReloadTicks))
+                        && ShouldShowReloadAnimation(player, weaponStats, weaponRenderDefinition, currentAmmoCount, maxAmmoCount, currentReloadTicks, currentCooldownTicks))
                     {
                         StartWeaponAnimation(renderState, WeaponAnimationMode.Reload, weaponRenderDefinition.ReloadDurationSeconds);
                     }
@@ -636,6 +636,11 @@ public partial class Game1
             return player.ExperimentalOffhandCurrentShells;
         }
 
+        if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
+        {
+            return player.ExperimentalOffhandCurrentShells;
+        }
+
         return _networkClient.IsConnected
             && ReferenceEquals(player, _world.LocalPlayer)
             && _hasPredictedLocalActionState
@@ -661,6 +666,11 @@ public partial class Game1
         }
 
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
+        {
+            return player.ExperimentalOffhandCooldownTicks;
+        }
+
+        if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
         {
             return player.ExperimentalOffhandCooldownTicks;
         }
@@ -702,6 +712,11 @@ public partial class Game1
         }
 
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
+        {
+            return player.ExperimentalOffhandReloadTicksUntilNextShell;
+        }
+
+        if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
         {
             return player.ExperimentalOffhandReloadTicksUntilNextShell;
         }
@@ -751,6 +766,11 @@ public partial class Game1
             return player.ExperimentalOffhandMaxShells;
         }
 
+        if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
+        {
+            return Math.Max(1, player.ExperimentalOffhandMaxShells);
+        }
+
         return player.MaxShells;
     }
 
@@ -782,6 +802,11 @@ public partial class Game1
         }
 
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
+        {
+            return player.ExperimentalOffhandWeapon ?? player.PrimaryWeapon;
+        }
+
+        if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
         {
             return player.ExperimentalOffhandWeapon ?? player.PrimaryWeapon;
         }
@@ -850,7 +875,19 @@ public partial class Game1
             return "offhand:demoman";
         }
 
+        if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
+        {
+            return "offhand:medic-kritz";
+        }
+
         return null;
+    }
+
+    private static bool ShouldPresentExperimentalMedicKritzHealNeedles(PlayerEntity player)
+    {
+        return player.ClassId == PlayerClass.Medic
+            && player.IsExperimentalOffhandEquipped
+            && player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit);
     }
 
     private static bool ShouldPresentExperimentalDemomanGrenadeLauncher(PlayerEntity player)
@@ -1023,7 +1060,8 @@ public partial class Game1
         WeaponRenderDefinition weaponDefinition,
         int currentAmmoCount,
         int maxAmmoCount,
-        int currentReloadTicks)
+        int currentReloadTicks,
+        int currentCooldownTicks)
     {
         if (player.ClassId == PlayerClass.Quote
             && GetPlayerIsCivvieUmbrellaActive(player)
@@ -1033,6 +1071,11 @@ public partial class Game1
         }
 
         if (weaponDefinition.ReloadSpriteName is null)
+        {
+            return false;
+        }
+
+        if (currentCooldownTicks > 0)
         {
             return false;
         }

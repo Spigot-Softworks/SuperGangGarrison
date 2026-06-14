@@ -126,6 +126,7 @@ public partial class Game1
         _gameplayMaterialEffectsController.ResetTransientEffects();
         ResetCivvieMoneyTrailPresentation();
         ResetCivvieUmbrellaShieldBlockObservation();
+        ResetCivviePogoTrickPresentationObservation();
         ResetEvasionMissPopups();
         ResetHeavyDashDodgePopups();
         _rocketSmokeVisuals.Clear();

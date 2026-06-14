@@ -527,7 +527,10 @@ public static class GameplayModPackDirectoryLoader
                 ValidateNumberParameters(itemId, ability, filePath, "fireCooldownTicks", "fireCooldownSeconds", "refillTicks", "refillSeconds");
                 return;
             case BuiltInGameplayBehaviorIds.MedicKritzBeam:
-                ValidateNumberParameters(itemId, ability, filePath, "range", "damagePerSecond", "chargePerDamageTick");
+                ValidateNumberParameters(itemId, ability, filePath, "range", "damagePerSecond", "chargePerTick");
+                return;
+            case BuiltInGameplayBehaviorIds.MedicKritzHealNeedles:
+                ValidateNumberParameters(itemId, ability, filePath, "healPerHit", "enemyDamagePerHit");
                 return;
             case BuiltInGameplayBehaviorIds.SpySuperjump:
                 ValidateNumberParameters(itemId, ability, filePath, "maxChargeTicks", "cooldownTicks", "cooldownSeconds", "minVelocity", "maxVelocity");
@@ -640,6 +643,7 @@ public static class GameplayModPackDirectoryLoader
             LeanRightSuffix = NormalizeOptionalPresentationSuffix(presentation.LeanRightSuffix),
             TauntSuffix = NormalizeOptionalPresentationSuffix(presentation.TauntSuffix),
             PogoSuffix = NormalizeOptionalPresentationSuffix(presentation.PogoSuffix),
+            PogoTrickSuffix = NormalizeOptionalPresentationSuffix(presentation.PogoTrickSuffix),
             PogoIntelSuffix = NormalizeOptionalPresentationSuffix(presentation.PogoIntelSuffix),
             HumiliationSuffix = NormalizeOptionalPresentationSuffix(presentation.HumiliationSuffix),
             DeadSuffix = NormalizeOptionalPresentationSuffix(presentation.DeadSuffix),

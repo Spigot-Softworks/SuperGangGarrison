@@ -127,6 +127,43 @@ public sealed partial class PlayerEntity
         return true;
     }
 
+    public bool TryFireMedicKritzHealNeedle(
+        int fireCooldownTicks = -1,
+        int refillTicks = MedicNeedleRefillTicksDefault)
+    {
+        var ignoreAmmoCost = HasInfiniteAmmoFromUber;
+        var weaponDefinition = ExperimentalOffhandWeapon;
+        if (weaponDefinition is null
+            || !IsAlive
+            || ClassId != PlayerClass.Medic
+            || !HasSecondaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit)
+            || !IsExperimentalOffhandEquipped
+            || IsHeavyEating
+            || IsTaunting
+            || IsCivviePogoActive
+            || IsSpyCloaked
+            || IsExperimentalCryoFrozen
+            || ExperimentalOffhandCooldownTicks > 0
+            || (!ignoreAmmoCost && ExperimentalOffhandCurrentShells <= 0))
+        {
+            return false;
+        }
+
+        if (fireCooldownTicks < 0)
+        {
+            fireCooldownTicks = Math.Max(1, weaponDefinition.ReloadDelayTicks);
+        }
+
+        if (!ignoreAmmoCost)
+        {
+            ExperimentalOffhandCurrentShells -= 1;
+        }
+
+        ExperimentalOffhandCooldownTicks = ApplyExperimentalWeaponCycleMultiplier(Math.Max(1, fireCooldownTicks));
+        ExperimentalOffhandReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(Math.Max(1, refillTicks));
+        return true;
+    }
+
     public bool TryFireQuoteBubble(int activeProjectileLimit = QuoteBubbleLimit)
     {
         activeProjectileLimit = Math.Max(0, activeProjectileLimit);
