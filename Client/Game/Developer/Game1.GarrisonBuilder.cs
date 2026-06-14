@@ -4325,10 +4325,10 @@ public partial class Game1
         }
 
         var floor = type.Equals("barrier", StringComparison.OrdinalIgnoreCase)
-            && BarrierConfiguration.IsFloorOrientation(properties);
-        var (width, height) = type.Equals("directionalWall", StringComparison.OrdinalIgnoreCase)
-            ? BarrierConfiguration.ResolveDimensions(xScale, yScale)
-            : BarrierConfiguration.ResolveDimensions(xScale, yScale, floor);
+            ? BarrierConfiguration.IsFloorOrientation(properties)
+            : type.Equals("directionalWall", StringComparison.OrdinalIgnoreCase)
+                && DirectionalWallConfiguration.FromProperties(properties).UsesFloorShape;
+        var (width, height) = BarrierConfiguration.ResolveDimensions(xScale, yScale, floor);
         metrics = new GarrisonBuilderEntityMetrics(width, height, 0f, 0f, 0f, 0f, -width);
         return true;
     }
@@ -4947,7 +4947,8 @@ public partial class Game1
             "$d=New-Object System.Windows.Forms.SaveFileDialog;",
             "$d.Title=", ToPowerShellSingleQuotedString(title), ";",
             "$d.Filter=", ToPowerShellSingleQuotedString(filter), ";",
-            "$d.DefaultExt='png';",
+            "$d.DefaultExt='json';",
+            "$d.FilterIndex=1;",
             "$d.AddExtension=$true;",
             SetInitialDialogDirectoryScript(initialPath),
             "if($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){[Console]::Write($d.FileName)}");
@@ -8422,19 +8423,26 @@ public partial class Game1
             ApplyGarrisonBuilderMapModeMetadata();
             ApplyGarrisonBuilderEntitySchemaMetadata();
             var quickTestLevelName = GarrisonBuilderQuickTestNaming.BuildQuickTestLevelName(_builderDocument.Name);
-            var packageDirectory = Path.Combine(RuntimePaths.MapsDirectory, quickTestLevelName);
-            if (Directory.Exists(packageDirectory))
-            {
-                Directory.Delete(packageDirectory, recursive: true);
-            }
-
             Directory.CreateDirectory(RuntimePaths.MapsDirectory);
+            var packageDirectory = Path.Combine(RuntimePaths.MapsDirectory, quickTestLevelName);
+            var stagingDirectory = Path.Combine(
+                RuntimePaths.MapsDirectory,
+                $"{quickTestLevelName}.tmp-{Guid.NewGuid():N}");
             var exportDocument = _builderDocument with
             {
                 Name = quickTestLevelName,
                 Entities = CustomMapBuilderEntityNormalization.ResolveForExport(_builderDocument.Entities),
             };
-            CustomMapPackageExporter.Export(exportDocument, packageDirectory);
+            try
+            {
+                CustomMapPackageExporter.Export(exportDocument, stagingDirectory);
+                ReplaceGarrisonBuilderQuickTestPackageDirectory(stagingDirectory, packageDirectory);
+            }
+            finally
+            {
+                TryDeleteGarrisonBuilderDirectory(stagingDirectory);
+            }
+
             var manifestPath = CustomMapPackageExporter.ResolveManifestOutputPath(exportDocument, packageDirectory);
             levelName = Path.GetFileNameWithoutExtension(manifestPath);
             SimpleLevelFactory.ClearCachedCatalog();
@@ -8444,6 +8452,62 @@ public partial class Game1
         {
             error = ex.Message;
             return false;
+        }
+    }
+
+    private static void ReplaceGarrisonBuilderQuickTestPackageDirectory(string stagingDirectory, string packageDirectory)
+    {
+        if (!Directory.Exists(stagingDirectory))
+        {
+            throw new DirectoryNotFoundException($"Quick test staging package was not created: {stagingDirectory}");
+        }
+
+        var backupDirectory = $"{packageDirectory}.bak-{Guid.NewGuid():N}";
+        var movedExistingToBackup = false;
+        if (Directory.Exists(packageDirectory))
+        {
+            Directory.Move(packageDirectory, backupDirectory);
+            movedExistingToBackup = true;
+        }
+
+        try
+        {
+            Directory.Move(stagingDirectory, packageDirectory);
+            if (movedExistingToBackup)
+            {
+                Directory.Delete(backupDirectory, recursive: true);
+            }
+        }
+        catch
+        {
+            if (!Directory.Exists(packageDirectory) && movedExistingToBackup && Directory.Exists(backupDirectory))
+            {
+                Directory.Move(backupDirectory, packageDirectory);
+            }
+
+            throw;
+        }
+        finally
+        {
+            if (movedExistingToBackup && Directory.Exists(backupDirectory))
+            {
+                TryDeleteGarrisonBuilderDirectory(backupDirectory);
+            }
+        }
+    }
+
+    private static void TryDeleteGarrisonBuilderDirectory(string directory)
+    {
+        try
+        {
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
+        catch
+        {
+            // Best-effort cleanup for stale quick-test staging or backup directories.
         }
     }
 
@@ -8509,11 +8573,7 @@ public partial class Game1
 
         _garrisonBuilderQuickTestActive = false;
         CloseInGameMenu();
-        _gameplaySessionController.ResetActiveSessionState();
-        _gameplaySessionKind = GameplaySessionKind.None;
-        _mainMenuOpen = true;
-        _teamSelectOpen = false;
-        CloseGameplayOverlayState();
+        _gameplaySessionController.ReturnToMainMenu();
         EnableGarrisonBuilderEditor();
         _builderStatus = "returned to builder";
         AddConsoleLine(_builderStatus);
@@ -8792,7 +8852,7 @@ public partial class Game1
         _builderEntities.AddRange(_builderDocument.Entities);
         EnsureGarrisonBuilderLogicEntityKeys();
         ClearGarrisonBuilderMapEntitySelection();
-        _builderSavePath = path;
+        _builderSavePath = editableDocument is not null ? path : string.Empty;
         SyncGarrisonBuilderPathBuffers();
         _builderOpenMapBuffer = path;
         _builderDirty = false;
