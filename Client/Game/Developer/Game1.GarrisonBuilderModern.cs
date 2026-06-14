@@ -2312,7 +2312,7 @@ public partial class Game1
             }
             else
             {
-                var metrics = GetGarrisonBuilderEntityMetrics(definition);
+                var metrics = GetGarrisonBuilderEntityMetrics(definition, entity.Properties, 1f, 1f);
                 if (UsesGarrisonBuilderCenterPlacementAnchor(entity.Type))
                 {
                     _builderResizeOriginX = metrics.CenterX;
@@ -2372,7 +2372,7 @@ public partial class Game1
             return;
         }
 
-        var metrics = GetGarrisonBuilderEntityMetrics(definition);
+        var metrics = GetGarrisonBuilderEntityMetrics(definition, entity.Properties, 1f, 1f);
         GetGarrisonBuilderResizeMinimumExtents(entity.Type, metrics.Width, metrics.Height, out var minWidth, out var minHeight);
         var startRight = _builderResizeStartLeft + _builderResizeStartWidth;
         var startBottom = _builderResizeStartTop + _builderResizeStartHeight;

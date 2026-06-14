@@ -250,13 +250,39 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        var scale = superJump
+        var baseScale = superJump
             ? MathF.Max(0f, superJumpScale)
             : MathF.Max(0f, baseBounceJumpScale);
+        var scale = baseScale + ComputeCivviePogoFallBounceScaleBonus(jumpSpeed, baseScale);
         VerticalSpeed = -jumpSpeed * scale;
         IsGrounded = false;
         CivviePogoCrunchTicksRemaining = Math.Max(1, crunchDurationTicks);
         CivviePogoSuperJumpSoundPending = superJump;
+        CivviePogoPendingImpactFallSpeed = 0f;
+    }
+
+    private float ComputeCivviePogoFallBounceScaleBonus(float jumpSpeed, float baseScale)
+    {
+        var impactFallSpeed = CivviePogoPendingImpactFallSpeed;
+        if (impactFallSpeed <= 0f || jumpSpeed <= 0f)
+        {
+            return 0f;
+        }
+
+        // Only the part of the impact faster than the civilian's own launch speed counts
+        // as "falling from higher up", so an ordinary in-place bounce earns no bonus.
+        var baselineLaunchSpeed = jumpSpeed * baseScale;
+        var excessFallSpeed = impactFallSpeed - baselineLaunchSpeed;
+        if (excessFallSpeed <= 0f)
+        {
+            return 0f;
+        }
+
+        // Diminishing returns: the bonus climbs quickly for moderate falls and saturates
+        // toward CivviePogoMaxFallBounceBonus no matter how far the civilian dropped.
+        var falloffSpeed = jumpSpeed * CivviePogoFallBounceFalloffRatio;
+        var diminishingFactor = 1f - MathF.Exp(-excessFallSpeed / falloffSpeed);
+        return CivviePogoMaxFallBounceBonus * diminishingFactor;
     }
 
     private void ResetCivviePogoStuckRecoveryState()
@@ -273,6 +299,8 @@ public sealed partial class PlayerEntity
     private int CivviePogoCrunchDurationTicks { get; set; } = CivviePogoCrunchDurationTicksDefault;
 
     private bool CivviePogoNeedsGroundBounce { get; set; }
+
+    private float CivviePogoPendingImpactFallSpeed { get; set; }
 
     private bool CivviePogoTrickInputReleaseRequired { get; set; }
 

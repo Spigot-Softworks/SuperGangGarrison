@@ -326,6 +326,11 @@ public sealed partial class PlayerEntity
                 continue;
             }
 
+            if (!wall.DirectionalWall.UsesFloorShape)
+            {
+                continue;
+            }
+
             if (!DirectionalWallCollision.BlocksPlayerMovement(
                     wall.DirectionalWall,
                     team,

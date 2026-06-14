@@ -79,6 +79,8 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const int CivviePogoStuckSampleIntervalTicks = 6;
     public const float CivviePogoStuckMinVerticalMovement = 3f;
     public const int CivviePogoStuckRebounceCooldownTicksDefault = 6;
+    public const float CivviePogoMaxFallBounceBonus = 1.3f;
+    public const float CivviePogoFallBounceFalloffRatio = 0.7f;
     public const string CivvieTauntAbilityItemId = "ability.civilian-taunt";
     public const float ExperimentalDemoknightSwordBaseRange = 48f;
     public const int ExperimentalDemoknightSwordCooldownTicks = 18;
