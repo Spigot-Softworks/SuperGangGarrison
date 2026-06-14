@@ -14,6 +14,7 @@ public partial class Game1
 {
     private const int BrowserPendingSoundEventLifetimeTicks = 30;
     private const int BrowserPendingSoundEventLimit = 96;
+    private const int PendingNetworkSoundEventRetryLimit = 96;
     private const int RecentGibSoundEchoLifetimeTicks = 18;
     private const int RecentGibSoundEchoLimit = 16;
     private const float RecentGibSoundEchoDistanceSquared = 64f * 64f;
@@ -120,6 +121,7 @@ public partial class Game1
     private readonly List<RecentGibSoundEvent> _recentGibSoundEvents = new();
     private readonly List<RecentProjectileSoundEvent> _recentProjectileSoundEvents = new();
     private readonly List<PlayedExplosionSoundThisFrame> _playedExplosionSoundsThisFrame = new();
+    private string _lastOneShotSoundFailureMessage = string.Empty;
 
     private readonly record struct PlayedExplosionSoundThisFrame(float X, float Y);
 
@@ -517,20 +519,27 @@ public partial class Game1
         _recentProjectileSoundEvents.Clear();
     }
 
-    private void TryPlaySound(SoundEffect? sound, float volume, float pitch, float pan)
+    private bool TryPlaySound(SoundEffect? sound, float volume, float pitch, float pan)
     {
         if (!_audioAvailable || sound is null)
         {
-            return;
+            return false;
         }
 
         try
         {
-            sound.Play(volume * GetSoundEffectsVolumeScale(), pitch, pan);
+            return sound.Play(volume * GetSoundEffectsVolumeScale(), pitch, pan);
         }
         catch (Exception ex)
         {
-            DisableAudio("playing sound", ex);
+            var message = $"{ex.GetType().Name}: {ex.Message}";
+            if (!string.Equals(_lastOneShotSoundFailureMessage, message, StringComparison.Ordinal))
+            {
+                _lastOneShotSoundFailureMessage = message;
+                AddConsoleLine($"sound skipped while playing one-shot ({message})");
+            }
+
+            return false;
         }
     }
 

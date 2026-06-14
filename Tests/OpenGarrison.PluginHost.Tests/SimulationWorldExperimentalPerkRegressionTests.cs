@@ -1616,6 +1616,35 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
+    public void CivilianUtilityDoesNotToggleStaleSoldierShotgunAfterClassChange()
+    {
+        var world = CreateJoinedSoldierWorld(new ExperimentalGameplaySettings(EnableSoldierShotgunSecondaryWeapon: true));
+        AdvanceTicks(world, 1);
+
+        Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        PressUseAbilitySpace(world);
+        Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
+
+        ReleaseAllInput(world);
+        world.LocalPlayer.SetSpawnRoomState(true);
+        Assert.True(world.TrySetLocalClass(PlayerClass.Quote));
+        AdvanceTicks(world, 1);
+
+        Assert.Equal(PlayerClass.Quote, world.LocalPlayer.ClassId);
+        Assert.True(world.LocalPlayer.IsAlive);
+        Assert.False(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandSelected);
+
+        PressUseAbilitySpace(world);
+
+        Assert.True(world.LocalPlayer.IsCivviePogoActive);
+        Assert.False(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandSelected);
+    }
+
+    [Fact]
     public void StockHeavyGhostDashTreatsStaleMomentumContentAsBurst()
     {
         var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());
