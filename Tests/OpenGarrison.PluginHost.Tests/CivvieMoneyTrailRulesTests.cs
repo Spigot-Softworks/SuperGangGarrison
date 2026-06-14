@@ -132,7 +132,10 @@ public sealed class CivvieMoneyTrailRulesTests
             centerY: 96f);
 
         Assert.Equal(first, second);
-        Assert.InRange(MathF.Sqrt((first.VelocityX * first.VelocityX) + (first.VelocityY * first.VelocityY)), 1.5f, 5f);
+        Assert.InRange(
+            MathF.Sqrt((first.VelocityX * first.VelocityX) + (first.VelocityY * first.VelocityY)),
+            CivvieMoneyTrailRules.PogoTrickBurstSpeedMin * 0.9f,
+            CivvieMoneyTrailRules.PogoTrickBurstSpeedMin + CivvieMoneyTrailRules.PogoTrickBurstSpeedSpan + 0.1f);
     }
 
     [Fact]
