@@ -43,6 +43,13 @@ public sealed partial class PlayerEntity
             return false;
         }
 
+        if (IsMedicMedigunSwapLocked
+            && (equippedSlot == GameplayEquipmentSlot.Primary || equippedSlot == GameplayEquipmentSlot.Secondary)
+            && equippedSlot != GameplayLoadoutState.EquippedSlot)
+        {
+            return false;
+        }
+
         SelectedGameplayEquippedSlot = equippedSlot;
         if (equippedSlot != GameplayEquipmentSlot.Secondary)
         {
@@ -103,7 +110,8 @@ public sealed partial class PlayerEntity
 
     public void EquipExperimentalOffhandWeapon()
     {
-        if (ExperimentalOffhandWeapon is null
+        if (IsMedicMedigunSwapLocked
+            || ExperimentalOffhandWeapon is null
             || !IsAlive
             || !CharacterClassCatalog.RuntimeRegistry.CanEquipSlot(GameplayClassId, SelectedGameplayLoadoutId, GameplayEquipmentSlot.Secondary, ResolveRegisteredWeaponItemId(ExperimentalOffhandWeapon), GameplayLoadoutState.AcquiredItemId))
         {
@@ -117,6 +125,11 @@ public sealed partial class PlayerEntity
 
     public void StowExperimentalOffhandWeapon()
     {
+        if (IsMedicMedigunSwapLocked)
+        {
+            return;
+        }
+
         IsExperimentalOffhandEquipped = false;
         if (!IsAcquiredWeaponEquipped)
         {

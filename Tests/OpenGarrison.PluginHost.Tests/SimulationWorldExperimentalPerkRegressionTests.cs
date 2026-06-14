@@ -61,7 +61,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         var died = (bool)applyContinuousDamageMethod!.Invoke(
             world,
-            [player, 12f, player, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true])!;
+            [player, 12f, player, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true, null, null, null])!;
 
         Assert.False(died);
         Assert.True(player.Health > healthBefore);
@@ -1579,6 +1579,182 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
+    public void CivilianUmbrellaShieldExplodesRocketsOnHitAndAbsorbsBlastDamage()
+    {
+        var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        SetOpenCombatLevel(world);
+        var civilian = world.LocalPlayer;
+        var soldier = CreateBlueNetworkSoldier(world, 2);
+
+        civilian.TeleportTo(20f, 0f);
+        civilian.SetSpawnRoomState(false);
+        soldier.TeleportTo(0f, 0f);
+        soldier.SetSpawnRoomState(false);
+        civilian.GetCollisionBounds(out _, out var civilianTop, out _, out _);
+        SetPlayerAimDirection(civilian, 180f);
+        Assert.True(civilian.TryActivateCivvieUmbrella());
+
+        var healthBefore = civilian.Health;
+        var chargeBefore = civilian.CivvieUmbrellaChargeTicks;
+        _ = world.DrainPendingDamageEvents();
+        _ = world.DrainPendingSoundEvents();
+        _ = world.DrainPendingVisualEvents();
+
+        _ = SpawnCombatTestRocket(world, soldier, soldier.X, civilianTop + 1f, speed: 12f, directionRadians: 0f);
+        AdvanceCombatRockets(world);
+
+        Assert.Equal(0, GetCombatRocketCount(world));
+        Assert.Equal(healthBefore, civilian.Health);
+        Assert.Equal(
+            chargeBefore - PlayerEntity.CivvieUmbrellaDirectExplosionDrainTicks - PlayerEntity.CivvieUmbrellaRocketDirectHitSplashDrainTicks,
+            civilian.CivvieUmbrellaChargeTicks);
+        Assert.Contains(world.PendingSoundEvents, static soundEvent => soundEvent.SoundName == "ExplosionSnd");
+        Assert.Contains(world.PendingVisualEvents, static visualEvent => visualEvent.EffectName == "Explosion");
+        Assert.Contains(
+            world.DrainPendingDamageEvents(),
+            static damageEvent => damageEvent.Flags.HasFlag(DamageEventFlags.CivvieUmbrellaBlock));
+    }
+
+    [Fact]
+    public void CivilianUmbrellaShieldExplodesGrenadesOnHitAndAbsorbsBlastDamage()
+    {
+        var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        SetOpenCombatLevel(world);
+        var civilian = world.LocalPlayer;
+        var demoman = CreateBlueNetworkDemoman(world, 2);
+
+        civilian.TeleportTo(20f, 0f);
+        civilian.SetSpawnRoomState(false);
+        demoman.TeleportTo(-500f, 0f);
+        demoman.SetSpawnRoomState(false);
+        SetPlayerAimDirection(civilian, 180f);
+        Assert.True(civilian.TryActivateCivvieUmbrella());
+
+        var healthBefore = civilian.Health;
+        var chargeBefore = civilian.CivvieUmbrellaChargeTicks;
+        _ = world.DrainPendingDamageEvents();
+        _ = world.DrainPendingSoundEvents();
+        _ = world.DrainPendingVisualEvents();
+
+        _ = SpawnCombatTestGrenade(world, demoman, x: 0f, y: 0f, velocityX: 40f, velocityY: 0f);
+        AdvanceCombatGrenades(world);
+
+        Assert.Equal(0, GetCombatGrenadeCount(world));
+        Assert.Equal(healthBefore, civilian.Health);
+        Assert.Equal(chargeBefore - PlayerEntity.CivvieUmbrellaDirectExplosionDrainTicks, civilian.CivvieUmbrellaChargeTicks);
+        Assert.Contains(world.PendingSoundEvents, static soundEvent => soundEvent.SoundName == "ExplosionSnd");
+        Assert.Contains(world.PendingVisualEvents, static visualEvent => visualEvent.EffectName == "Explosion");
+        Assert.Contains(
+            world.DrainPendingDamageEvents(),
+            static damageEvent => damageEvent.Flags.HasFlag(DamageEventFlags.CivvieUmbrellaBlock));
+    }
+
+    [Fact]
+    public void CivilianUmbrellaShieldAbsorbsMineExplosionDamageFromFront()
+    {
+        var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        var civilian = world.LocalPlayer;
+        var demoman = CreateBlueNetworkDemoman(world, 2);
+
+        civilian.TeleportTo(0f, 0f);
+        demoman.TeleportTo(96f, 0f);
+        demoman.SetSpawnRoomState(false);
+        SetPlayerAimDirection(civilian, 0f);
+        Assert.True(civilian.TryActivateCivvieUmbrella());
+
+        var healthBefore = civilian.Health;
+        var chargeBefore = civilian.CivvieUmbrellaChargeTicks;
+        _ = world.DrainPendingDamageEvents();
+        _ = world.DrainPendingSoundEvents();
+        _ = world.DrainPendingVisualEvents();
+
+        var mine = SpawnCombatTestMine(world, demoman, civilian.X + 24f, civilian.Y);
+        ExplodeCombatTestMine(world, mine);
+
+        Assert.Equal(healthBefore, civilian.Health);
+        Assert.Equal(chargeBefore - PlayerEntity.CivvieUmbrellaDirectExplosionDrainTicks, civilian.CivvieUmbrellaChargeTicks);
+        Assert.Contains(world.PendingSoundEvents, static soundEvent => soundEvent.SoundName == "ExplosionSnd");
+        Assert.Contains(world.PendingVisualEvents, static visualEvent => visualEvent.EffectName == "Explosion");
+        Assert.Contains(
+            world.DrainPendingDamageEvents(),
+            static damageEvent => damageEvent.Flags.HasFlag(DamageEventFlags.CivvieUmbrellaBlock));
+    }
+
+    [Fact]
+    public void CivilianUmbrellaShieldBlocksFlameProjectileAndAfterburn()
+    {
+        var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        SetOpenCombatLevel(world);
+        var civilian = world.LocalPlayer;
+        var pyro = CreateBlueNetworkPyro(world, 2);
+
+        civilian.TeleportTo(20f, 0f);
+        civilian.SetSpawnRoomState(false);
+        pyro.TeleportTo(0f, 0f);
+        pyro.SetSpawnRoomState(false);
+        SetPlayerAimDirection(civilian, 180f);
+        Assert.True(civilian.TryActivateCivvieUmbrella());
+
+        var healthBefore = civilian.Health;
+        var chargeBefore = civilian.CivvieUmbrellaChargeTicks;
+        _ = world.DrainPendingDamageEvents();
+
+        _ = SpawnCombatTestFlame(world, pyro, pyro.X, pyro.Y, velocityX: 10f, velocityY: 0f);
+        AdvanceCombatFlames(world);
+
+        Assert.False(civilian.IsBurning);
+        Assert.Equal(healthBefore, civilian.Health);
+        Assert.True(civilian.CivvieUmbrellaChargeTicks < chargeBefore);
+        Assert.Contains(
+            world.DrainPendingDamageEvents(),
+            static damageEvent => damageEvent.Flags.HasFlag(DamageEventFlags.CivvieUmbrellaBlock));
+
+        civilian.IgniteAfterburn(pyro.Id, 120f, PlayerEntity.BurnMaxIntensity, afterburnFalloff: false, burnFalloffAmount: 0f);
+        var chargeBeforeAfterburn = civilian.CivvieUmbrellaChargeTicks;
+        for (var tick = 0; tick < 5; tick += 1)
+        {
+            world.SetLocalInput(new PlayerInputSnapshot(
+                Left: false,
+                Right: false,
+                Up: false,
+                Down: false,
+                BuildSentry: false,
+                DestroySentry: false,
+                Taunt: false,
+                FirePrimary: false,
+                FireSecondary: true,
+                AimWorldX: civilian.X - 96f,
+                AimWorldY: civilian.Y,
+                DebugKill: false,
+                UseAbility: false,
+                SwapWeapon: false));
+            world.AdvanceOneTick();
+        }
+
+        Assert.True(civilian.IsBurning);
+        Assert.Equal(healthBefore, civilian.Health);
+        Assert.True(civilian.CivvieUmbrellaChargeTicks < chargeBeforeAfterburn);
+    }
+
+    [Fact]
+    public void CivvieUmbrellaSplashExplosionDrainScalesImpactMultiplierBySplashIntensity()
+    {
+        Assert.Equal(1, PlayerEntity.GetCivvieUmbrellaSplashExplosionImpactMultiplier(0f));
+        Assert.Equal(1, PlayerEntity.GetCivvieUmbrellaSplashExplosionImpactMultiplier(0.32f));
+        Assert.Equal(2, PlayerEntity.GetCivvieUmbrellaSplashExplosionImpactMultiplier(0.34f));
+        Assert.Equal(2, PlayerEntity.GetCivvieUmbrellaSplashExplosionImpactMultiplier(0.66f));
+        Assert.Equal(3, PlayerEntity.GetCivvieUmbrellaSplashExplosionImpactMultiplier(0.68f));
+        Assert.Equal(3, PlayerEntity.GetCivvieUmbrellaSplashExplosionImpactMultiplier(1f));
+        Assert.Equal(
+            PlayerEntity.CivvieUmbrellaImpactDrain * 2,
+            PlayerEntity.GetCivvieUmbrellaSplashExplosionDrainTicksFromDamage(50f, 100f));
+    }
+
+    [Fact]
     public void CivilianUmbrellaAirblastPushesEnemiesNotTeammates()
     {
         var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
@@ -2078,6 +2254,42 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
         Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
         Assert.True(world.LocalPlayer.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit));
+    }
+
+    [Fact]
+    public void StockMedicUberBlocksMedigunSwapWhileChargeIsActive()
+    {
+        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        world.LocalPlayer.FillMedicUberCharge();
+        Assert.True(world.LocalPlayer.TryStartMedicUber());
+        Assert.True(world.LocalPlayer.IsMedicUbering);
+        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+
+        PressSwapWeaponSpace(world);
+
+        Assert.True(world.LocalPlayer.IsMedicUbering);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+    }
+
+    [Fact]
+    public void StockMedicKritzUberBlocksMedigunSwapWhileChargeIsActive()
+    {
+        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        PressSwapWeaponSpace(world);
+        world.LocalPlayer.FillMedicUberCharge();
+        Assert.True(world.LocalPlayer.TryStartMedicUber());
+        Assert.True(world.LocalPlayer.IsMedicUbering);
+        Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+
+        PressSwapWeaponSpace(world);
+
+        Assert.True(world.LocalPlayer.IsMedicUbering);
+        Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
     }
 
     [Fact]
@@ -2904,6 +3116,33 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         return player;
     }
 
+    private static PlayerEntity CreateBlueNetworkSoldier(SimulationWorld world, byte slot)
+    {
+        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Soldier));
+        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        return player;
+    }
+
+    private static PlayerEntity CreateBlueNetworkDemoman(SimulationWorld world, byte slot)
+    {
+        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Demoman));
+        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        return player;
+    }
+
+    private static PlayerEntity CreateBlueNetworkPyro(SimulationWorld world, byte slot)
+    {
+        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Pyro));
+        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        return player;
+    }
+
     private static PlayerEntity CreateRedNetworkScout(SimulationWorld world, byte slot)
     {
         Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
@@ -3362,7 +3601,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         return (bool)ApplyPlayerDamageMethod.Invoke(
             world,
-            [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true, null, null])!;
+            [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true, null, null, null])!;
     }
 
     private static void InvokeSpawnStabMask(SimulationWorld world, PlayerEntity owner, float directionDegrees)
@@ -3515,6 +3754,106 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     private static void SetPlayerAimDirection(PlayerEntity player, float aimDirectionDegrees)
     {
         AimDirectionDegreesBackingField.SetValue(player, aimDirectionDegrees);
+    }
+
+    private static RocketProjectileEntity SpawnCombatTestRocket(
+        SimulationWorld world,
+        PlayerEntity owner,
+        float x,
+        float y,
+        float speed = 0f,
+        float directionRadians = 0f)
+    {
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSpawnRocket", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        var result = method!.Invoke(world, [owner, x, y, speed, directionRadians]);
+        return Assert.IsType<RocketProjectileEntity>(result);
+    }
+
+    private static void AdvanceCombatRockets(SimulationWorld world)
+    {
+        var method = typeof(SimulationWorld).GetMethod("AdvanceRockets", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        _ = method!.Invoke(world, []);
+    }
+
+    private static int GetCombatRocketCount(SimulationWorld world)
+    {
+        return world.Rockets.Count;
+    }
+
+    private static GrenadeProjectileEntity SpawnCombatTestGrenade(
+        SimulationWorld world,
+        PlayerEntity owner,
+        float x,
+        float y,
+        float velocityX = 0f,
+        float velocityY = 0f)
+    {
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSpawnGrenade", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        var result = method!.Invoke(world, [owner, x, y, velocityX, velocityY]);
+        return Assert.IsType<GrenadeProjectileEntity>(result);
+    }
+
+    private static void AdvanceCombatGrenades(SimulationWorld world)
+    {
+        var method = typeof(SimulationWorld).GetMethod("AdvanceGrenades", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        _ = method!.Invoke(world, []);
+    }
+
+    private static int GetCombatGrenadeCount(SimulationWorld world)
+    {
+        return world.Grenades.Count;
+    }
+
+    private static MineProjectileEntity SpawnCombatTestMine(
+        SimulationWorld world,
+        PlayerEntity owner,
+        float x,
+        float y,
+        float velocityX = 0f,
+        float velocityY = 0f,
+        bool stickied = false)
+    {
+        var method = typeof(SimulationWorld).GetMethod(
+            "CombatTestSpawnMine",
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            binder: null,
+            types: [typeof(PlayerEntity), typeof(float), typeof(float), typeof(float), typeof(float), typeof(bool)],
+            modifiers: null);
+        Assert.NotNull(method);
+        var result = method!.Invoke(world, [owner, x, y, velocityX, velocityY, stickied]);
+        return Assert.IsType<MineProjectileEntity>(result);
+    }
+
+    private static void ExplodeCombatTestMine(SimulationWorld world, MineProjectileEntity mine)
+    {
+        var method = typeof(SimulationWorld).GetMethod("CombatTestExplodeMine", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        _ = method!.Invoke(world, [mine]);
+    }
+
+    private static FlameProjectileEntity SpawnCombatTestFlame(
+        SimulationWorld world,
+        PlayerEntity owner,
+        float x,
+        float y,
+        float velocityX = 0f,
+        float velocityY = 0f)
+    {
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSpawnFlame", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        var result = method!.Invoke(world, [owner, x, y, velocityX, velocityY]);
+        return Assert.IsType<FlameProjectileEntity>(result);
+    }
+
+    private static void AdvanceCombatFlames(SimulationWorld world)
+    {
+        var method = typeof(SimulationWorld).GetMethod("AdvanceFlames", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        _ = method!.Invoke(world, []);
     }
 
     private static MethodInfo GetRequiredNonPublicMethod(string methodName)

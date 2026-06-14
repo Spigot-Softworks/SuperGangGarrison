@@ -48,6 +48,15 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const float SpyCloakToggleThreshold = 0.5f;
     public const float SpyMinAllyCloakAlpha = 0.5f;
     public const float SpyDamageRevealAlpha = 0.3f;
+
+    public static bool ComputeSpyVisibleToEnemies(
+        bool isSpyCloaked,
+        float spyCloakAlpha,
+        int spyBackstabVisualTicksRemaining)
+    {
+        return isSpyCloaked
+            && (spyCloakAlpha > 0f || spyBackstabVisualTicksRemaining > 0);
+    }
     public const float SpyMineRevealAlpha = 0.2f;
     public const float SpySniperRevealAlpha = 0.3f;
     public const int QuoteBubbleLimit = 25;
@@ -58,6 +67,17 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const int CivvieUmbrellaHoldDrainPerTick = 0;
     public const int CivvieUmbrellaRechargePerTick = 1;
     public const int CivvieUmbrellaImpactDrain = 30;
+    public const int CivvieUmbrellaDirectExplosionImpactMultiplier = 4;
+    public const int CivvieUmbrellaMinSplashExplosionImpactMultiplier = 1;
+    public const int CivvieUmbrellaMidSplashExplosionImpactMultiplier = 2;
+    public const int CivvieUmbrellaSplashExplosionImpactMultiplier = 3;
+    public const int CivvieUmbrellaRocketDirectHitSplashImpactMultiplier = 1;
+    public static int CivvieUmbrellaDirectExplosionDrainTicks
+        => CivvieUmbrellaImpactDrain * CivvieUmbrellaDirectExplosionImpactMultiplier;
+    public static int CivvieUmbrellaSplashExplosionDrainTicks
+        => CivvieUmbrellaImpactDrain * CivvieUmbrellaSplashExplosionImpactMultiplier;
+    public static int CivvieUmbrellaRocketDirectHitSplashDrainTicks
+        => CivvieUmbrellaImpactDrain * CivvieUmbrellaRocketDirectHitSplashImpactMultiplier;
     public const int CivvieUmbrellaOpeningDurationTicks = 6;
     public const int CivvieUmbrellaOpeningFrameCount = 3;
     public const int CivvieUmbrellaAirblastOpeningFrameIndex = 2;

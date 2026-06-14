@@ -136,7 +136,8 @@ public sealed partial class SimulationWorld
                         owner,
                         PlayerEntity.SpyMineRevealAlpha,
                         civvieUmbrellaThreatSourceX: mine.X,
-                        civvieUmbrellaThreatSourceY: mine.Y))
+                        civvieUmbrellaThreatSourceY: mine.Y,
+                        civvieUmbrellaDrainTicks: PlayerEntity.CivvieUmbrellaDirectExplosionDrainTicks))
                 {
                     KillPlayer(
                         player,
@@ -488,7 +489,8 @@ public sealed partial class SimulationWorld
                     owner,
                     PlayerEntity.SpyDamageRevealAlpha,
                     civvieUmbrellaThreatSourceX: centerX,
-                    civvieUmbrellaThreatSourceY: centerY))
+                    civvieUmbrellaThreatSourceY: centerY,
+                    civvieUmbrellaDrainTicks: PlayerEntity.GetCivvieUmbrellaSplashExplosionDrainTicksFromDamage(appliedDamage, blastDamage)))
             {
                 KillPlayer(
                     player,

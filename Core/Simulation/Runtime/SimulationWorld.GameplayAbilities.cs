@@ -676,7 +676,7 @@ public sealed partial class SimulationWorld
             return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
         }
 
-        if (player.IsMedicUbering)
+        if (player.IsMedicMedigunSwapLocked)
         {
             return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
         }
