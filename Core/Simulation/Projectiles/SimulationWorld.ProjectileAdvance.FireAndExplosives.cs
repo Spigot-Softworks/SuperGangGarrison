@@ -45,7 +45,8 @@ public sealed partial class SimulationWorld
                         flame.DirectHitDamageValue * flame.CriticalDamageMultiplier,
                         owner,
                         civvieUmbrellaThreatSourceX: flame.PreviousX,
-                        civvieUmbrellaThreatSourceY: flame.PreviousY);
+                        civvieUmbrellaThreatSourceY: flame.PreviousY,
+                        civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(flame.CriticalDamageMultiplier));
                     var umbrellaBlockedFlame = hitPlayer.CivvieUmbrellaChargeTicks < shieldChargeBefore;
                     if (playerDied)
                     {
@@ -150,7 +151,12 @@ public sealed partial class SimulationWorld
                 RegisterCombatTrace(flare.PreviousX, flare.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
                 if (hitResult.HitPlayer is not null)
                 {
-                    if (!TryAbsorbCivvieUmbrellaProjectileContact(hitResult.HitPlayer, flare.OwnerId, hitResult.HitX, hitResult.HitY))
+                    if (!TryAbsorbCivvieUmbrellaProjectileContact(
+                            hitResult.HitPlayer,
+                            flare.OwnerId,
+                            hitResult.HitX,
+                            hitResult.HitY,
+                            criticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(flare.CriticalDamageMultiplier)))
                     {
                         RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
                         var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(FlareProjectileEntity.DamagePerHit * flare.CriticalDamageMultiplier), out var damageFlags);
@@ -482,7 +488,8 @@ public sealed partial class SimulationWorld
                         PlayerEntity.SpyMineRevealAlpha,
                         civvieUmbrellaThreatSourceX: grenade.X,
                         civvieUmbrellaThreatSourceY: grenade.Y,
-                        civvieUmbrellaDrainTicks: PlayerEntity.GetCivvieUmbrellaSplashExplosionDrainTicksFromDamage(damage, maxSplashDamage)))
+                        civvieUmbrellaDrainTicks: PlayerEntity.GetCivvieUmbrellaSplashExplosionDrainTicksFromDamage(damage, maxSplashDamage),
+                        civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(critMultiplier)))
                 {
                     KillPlayer(
                         player,
@@ -590,7 +597,8 @@ public sealed partial class SimulationWorld
                 PlayerEntity.SpyMineRevealAlpha,
                 civvieUmbrellaThreatSourceX: grenade.PreviousX,
                 civvieUmbrellaThreatSourceY: grenade.PreviousY,
-                civvieUmbrellaDrainTicks: PlayerEntity.CivvieUmbrellaDirectExplosionDrainTicks))
+                civvieUmbrellaDrainTicks: PlayerEntity.CivvieUmbrellaDirectExplosionDrainTicks,
+                civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(grenade.CriticalDamageMultiplier)))
         {
             KillPlayer(
                 target,

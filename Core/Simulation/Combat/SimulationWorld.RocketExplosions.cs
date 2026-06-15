@@ -105,7 +105,8 @@ public sealed partial class SimulationWorld
                         damageFlags,
                         civvieUmbrellaThreatSourceX: rocket.X,
                         civvieUmbrellaThreatSourceY: rocket.Y,
-                        civvieUmbrellaDrainTicks: PlayerEntity.CivvieUmbrellaDirectExplosionDrainTicks))
+                        civvieUmbrellaDrainTicks: PlayerEntity.CivvieUmbrellaDirectExplosionDrainTicks,
+                        civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(rocket.CriticalDamageMultiplier)))
                 {
                     world.KillPlayer(
                         directHitPlayer,
@@ -240,7 +241,8 @@ public sealed partial class SimulationWorld
                         PlayerEntity.SpyDamageRevealAlpha,
                         civvieUmbrellaThreatSourceX: rocket.X,
                         civvieUmbrellaThreatSourceY: rocket.Y,
-                        civvieUmbrellaDrainTicks: umbrellaDrainTicks))
+                        civvieUmbrellaDrainTicks: umbrellaDrainTicks,
+                        civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(critMultiplier)))
                 {
                     world.KillPlayer(
                         player,

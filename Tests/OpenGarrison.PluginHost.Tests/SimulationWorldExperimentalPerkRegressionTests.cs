@@ -61,7 +61,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         var died = (bool)applyContinuousDamageMethod!.Invoke(
             world,
-            [player, 12f, player, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true, null, null, null])!;
+            [player, 12f, player, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true, null, null, null, false])!;
 
         Assert.False(died);
         Assert.True(player.Health > healthBefore);
@@ -1752,6 +1752,11 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.Equal(
             PlayerEntity.CivvieUmbrellaImpactDrain * 2,
             PlayerEntity.GetCivvieUmbrellaSplashExplosionDrainTicksFromDamage(50f, 100f));
+        Assert.Equal(
+            PlayerEntity.CivvieUmbrellaImpactDrain * 4,
+            PlayerEntity.ScaleCivvieUmbrellaDrainForCriticalBoost(
+                PlayerEntity.CivvieUmbrellaImpactDrain * 2,
+                isCriticalBoosted: true));
     }
 
     [Fact]
@@ -3656,7 +3661,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         return (bool)ApplyPlayerDamageMethod.Invoke(
             world,
-            [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true, null, null, null])!;
+            [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true, null, null, null, false])!;
     }
 
     private static void InvokeSpawnStabMask(SimulationWorld world, PlayerEntity owner, float directionDegrees)
