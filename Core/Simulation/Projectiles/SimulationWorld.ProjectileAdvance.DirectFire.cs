@@ -68,7 +68,13 @@ public sealed partial class SimulationWorld
                         }
 
                         var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(shot.DamageValue * shot.CriticalDamageMultiplier), out var damageFlags);
-                        if (ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
+                        if (ApplyPlayerDamage(
+                                hitResult.HitPlayer,
+                                hitDamage,
+                                owner,
+                                PlayerEntity.SpyDamageRevealAlpha,
+                                damageFlags,
+                                civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(shot.CriticalDamageMultiplier)))
                         {
                             KillPlayer(
                                 hitResult.HitPlayer,
@@ -179,7 +185,13 @@ public sealed partial class SimulationWorld
                                 blade.VelocityY * 0.4f * LegacyMovementModel.SourceTicksPerSecond);
                         }
                         var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(blade.HitDamage * blade.CriticalDamageMultiplier), out var damageFlags);
-                        if (ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
+                        if (ApplyPlayerDamage(
+                                hitResult.HitPlayer,
+                                hitDamage,
+                                owner,
+                                PlayerEntity.SpyDamageRevealAlpha,
+                                damageFlags,
+                                civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(blade.CriticalDamageMultiplier)))
                         {
                             KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "BladeKL");
                         }
@@ -267,7 +279,13 @@ public sealed partial class SimulationWorld
                 {
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
                     var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(needle.Damage * needle.CriticalDamageMultiplier), out var damageFlags);
-                    if (ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
+                    if (ApplyPlayerDamage(
+                            hitResult.HitPlayer,
+                            hitDamage,
+                            owner,
+                            PlayerEntity.SpyDamageRevealAlpha,
+                            damageFlags,
+                            civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(needle.CriticalDamageMultiplier)))
                     {
                         var killFeedSprite = needle is NailProjectileEntity ? "NailgunKL" : needle is MedicHealNeedleProjectileEntity ? "NeedleKL" : "NeedleKL";
                         KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: killFeedSprite);
@@ -345,7 +363,13 @@ public sealed partial class SimulationWorld
                 {
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
                     var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(shot.DamageValue * shot.CriticalDamageMultiplier), out var damageFlags);
-                    if (ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
+                    if (ApplyPlayerDamage(
+                            hitResult.HitPlayer,
+                            hitDamage,
+                            owner,
+                            PlayerEntity.SpyDamageRevealAlpha,
+                            damageFlags,
+                            civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(shot.CriticalDamageMultiplier)))
                     {
                         KillPlayer(
                             hitResult.HitPlayer,

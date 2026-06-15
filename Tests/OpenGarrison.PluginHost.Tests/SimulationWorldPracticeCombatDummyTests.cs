@@ -17,7 +17,8 @@ public sealed class SimulationWorldPracticeCombatDummyTests
         typeof(bool),
         typeof(float?),
         typeof(float?),
-        typeof(int?));
+        typeof(int?),
+        typeof(bool));
 
     private static readonly MethodInfo ApplyPlayerContinuousDamageMethod = GetRequiredNonPublicMethod(
         "ApplyPlayerContinuousDamage",
@@ -30,7 +31,8 @@ public sealed class SimulationWorldPracticeCombatDummyTests
         typeof(bool),
         typeof(float?),
         typeof(float?),
-        typeof(int?));
+        typeof(int?),
+        typeof(bool));
 
     [Fact]
     public void SpawnPracticeCombatDummyUsesHeavyHumiliationPose()
@@ -214,7 +216,7 @@ public sealed class SimulationWorldPracticeCombatDummyTests
     {
         return (bool)ApplyPlayerDamageMethod.Invoke(
             world,
-            [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true, null, null, null])!;
+            [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true, null, null, null, false])!;
     }
 
     private static bool InvokeApplyPlayerContinuousDamage(
@@ -225,7 +227,7 @@ public sealed class SimulationWorldPracticeCombatDummyTests
     {
         return (bool)ApplyPlayerContinuousDamageMethod.Invoke(
             world,
-            [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true, null, null, null])!;
+            [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true, null, null, null, false])!;
     }
 
     private static MethodInfo GetRequiredNonPublicMethod(string name, params Type[] parameterTypes)

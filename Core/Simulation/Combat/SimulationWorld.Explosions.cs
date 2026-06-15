@@ -137,7 +137,8 @@ public sealed partial class SimulationWorld
                         PlayerEntity.SpyMineRevealAlpha,
                         civvieUmbrellaThreatSourceX: mine.X,
                         civvieUmbrellaThreatSourceY: mine.Y,
-                        civvieUmbrellaDrainTicks: PlayerEntity.CivvieUmbrellaDirectExplosionDrainTicks))
+                        civvieUmbrellaDrainTicks: PlayerEntity.CivvieUmbrellaDirectExplosionDrainTicks,
+                        civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(critMultiplier)))
                 {
                     KillPlayer(
                         player,

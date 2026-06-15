@@ -16,10 +16,10 @@ public static class CivvieMoneyTrailRules
     public const float TrailVerticalBaseOffset = 11f;
     public const float TrailVerticalJitterSpan = 9f;
     public const float TrailHorizontalOffset = 8f;
-    public const int PogoTrickBurstParticleCount = 14;
+    public const int PogoTrickBurstParticleCount = 8;
     public const float PogoTrickBurstSpawnRadiusSpan = 4f;
-    public const float PogoTrickBurstSpeedMin = 1.6f;
-    public const float PogoTrickBurstSpeedSpan = 2.8f;
+    public const float PogoTrickBurstSpeedMin = 1.067f;
+    public const float PogoTrickBurstSpeedSpan = 1.867f;
     public const float PogoTrickBurstAngleJitter = 0.35f;
 
     public static bool IsEligibleTrailSource(PlayerEntity player)

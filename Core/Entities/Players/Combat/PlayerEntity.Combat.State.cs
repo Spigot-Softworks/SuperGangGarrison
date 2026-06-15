@@ -490,6 +490,14 @@ public sealed partial class PlayerEntity
         return GetCivvieUmbrellaSplashExplosionDrainTicks(appliedDamage / maxSplashDamage);
     }
 
+    public static bool IsCriticalDamageMultiplierBoosted(float criticalDamageMultiplier)
+        => criticalDamageMultiplier > 1.0001f;
+
+    public static int ScaleCivvieUmbrellaDrainForCriticalBoost(int drainTicks, bool isCriticalBoosted)
+        => isCriticalBoosted
+            ? drainTicks * CivvieUmbrellaCriticalBoostDrainMultiplier
+            : drainTicks;
+
     public void ResetCivvieUmbrellaState(int maxChargeTicks = CivvieUmbrellaMaxChargeTicks)
     {
         CivvieUmbrellaChargeTicks = Math.Max(1, maxChargeTicks);
