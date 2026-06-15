@@ -72,6 +72,7 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const int CivvieUmbrellaMidSplashExplosionImpactMultiplier = 2;
     public const int CivvieUmbrellaSplashExplosionImpactMultiplier = 3;
     public const int CivvieUmbrellaRocketDirectHitSplashImpactMultiplier = 1;
+    public const int CivvieUmbrellaCriticalBoostDrainMultiplier = 2;
     public static int CivvieUmbrellaDirectExplosionDrainTicks
         => CivvieUmbrellaImpactDrain * CivvieUmbrellaDirectExplosionImpactMultiplier;
     public static int CivvieUmbrellaSplashExplosionDrainTicks
