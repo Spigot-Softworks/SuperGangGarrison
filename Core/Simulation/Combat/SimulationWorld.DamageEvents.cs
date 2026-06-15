@@ -60,7 +60,8 @@ public sealed partial class SimulationWorld
         bool allowCivvieUmbrellaShield = true,
         float? civvieUmbrellaThreatSourceX = null,
         float? civvieUmbrellaThreatSourceY = null,
-        int? civvieUmbrellaDrainTicks = null)
+        int? civvieUmbrellaDrainTicks = null,
+        bool civvieUmbrellaCriticalBoost = false)
     {
         if (damage <= 0 || !target.IsAlive)
         {
@@ -74,7 +75,8 @@ public sealed partial class SimulationWorld
                 damageFlags,
                 civvieUmbrellaThreatSourceX,
                 civvieUmbrellaThreatSourceY,
-                civvieUmbrellaDrainTicks))
+                civvieUmbrellaDrainTicks,
+                civvieUmbrellaCriticalBoost))
         {
             return false;
         }
@@ -177,7 +179,8 @@ public sealed partial class SimulationWorld
         bool allowCivvieUmbrellaShield = true,
         float? civvieUmbrellaThreatSourceX = null,
         float? civvieUmbrellaThreatSourceY = null,
-        int? civvieUmbrellaDrainTicks = null)
+        int? civvieUmbrellaDrainTicks = null,
+        bool civvieUmbrellaCriticalBoost = false)
     {
         if (damage <= 0f || !target.IsAlive)
         {
@@ -191,7 +194,8 @@ public sealed partial class SimulationWorld
                 damageFlags,
                 civvieUmbrellaThreatSourceX,
                 civvieUmbrellaThreatSourceY,
-                civvieUmbrellaDrainTicks))
+                civvieUmbrellaDrainTicks,
+                civvieUmbrellaCriticalBoost))
         {
             return false;
         }
@@ -291,7 +295,8 @@ public sealed partial class SimulationWorld
         DamageEventFlags damageFlags,
         float? threatSourceX = null,
         float? threatSourceY = null,
-        int? drainTicks = null)
+        int? drainTicks = null,
+        bool criticalBoost = false)
     {
         if (attacker is null
             || ReferenceEquals(attacker, target)
@@ -306,6 +311,8 @@ public sealed partial class SimulationWorld
         var resolvedThreatSourceX = threatSourceX ?? attacker.X;
         var resolvedThreatSourceY = threatSourceY ?? attacker.Y;
         var resolvedDrainTicks = drainTicks ?? PlayerEntity.CivvieUmbrellaImpactDrain;
+        var isCriticalBoosted = criticalBoost || attacker.IsKritzCritBoosted;
+        resolvedDrainTicks = PlayerEntity.ScaleCivvieUmbrellaDrainForCriticalBoost(resolvedDrainTicks, isCriticalBoosted);
         if (!IsCivvieUmbrellaFrontThreat(target, resolvedThreatSourceX, resolvedThreatSourceY)
             || !target.TryAbsorbCivvieUmbrellaHit(resolvedDrainTicks))
         {
@@ -331,7 +338,8 @@ public sealed partial class SimulationWorld
         int ownerId,
         float hitX,
         float hitY,
-        DamageEventFlags damageFlags = DamageEventFlags.None)
+        DamageEventFlags damageFlags = DamageEventFlags.None,
+        bool criticalBoost = false)
     {
         var attacker = FindPlayerById(ownerId);
         if (attacker is null
@@ -344,8 +352,15 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        if (!IsCivvieUmbrellaFrontThreat(target, hitX, hitY)
-            || !target.TryAbsorbCivvieUmbrellaHit())
+        if (!IsCivvieUmbrellaFrontThreat(target, hitX, hitY))
+        {
+            return false;
+        }
+
+        var resolvedDrainTicks = PlayerEntity.ScaleCivvieUmbrellaDrainForCriticalBoost(
+            PlayerEntity.CivvieUmbrellaImpactDrain,
+            criticalBoost || attacker.IsKritzCritBoosted);
+        if (!target.TryAbsorbCivvieUmbrellaHit(resolvedDrainTicks))
         {
             return false;
         }
