@@ -1100,12 +1100,16 @@ public partial class Game1
         SnapshotPlayerMovementState movement,
         double snapshotTimeSeconds)
     {
+        var aimRadians = movement.AimDirectionDegrees * (MathF.PI / 180f);
+        const float aimProjectionDistance = 2048f;
         AppendRemotePlayerSnapshot(
             resolvedPlayer.PlayerId,
             new PlayerSnapshotSample(
                 new Vector2(movement.X, movement.Y),
                 new Vector2(movement.HorizontalSpeed, movement.VerticalSpeed),
-                new Vector2(resolvedPlayer.AimWorldX, resolvedPlayer.AimWorldY),
+                new Vector2(
+                    movement.X + (MathF.Cos(aimRadians) * aimProjectionDistance),
+                    movement.Y + (MathF.Sin(aimRadians) * aimProjectionDistance)),
                 snapshotTimeSeconds,
                 (PlayerTeam)resolvedPlayer.Team,
                 (PlayerClass)resolvedPlayer.ClassId,

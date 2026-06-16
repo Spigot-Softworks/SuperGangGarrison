@@ -19,12 +19,13 @@ public partial class Game1
             return;
         }
 
+        var bubbleMenuMouse = GetScaledMouseState(GetConstrainedMouseState(GetCurrentMouseState()));
         var renderState = new ClientBubbleMenuRenderState(
             ToClientBubbleMenuKind(_bubbleMenuKind),
             _bubbleMenuAlpha,
             _bubbleMenuXPageIndex,
-            _world.LocalPlayer.AimDirectionDegrees,
-                GetBubbleWheelSelectedSlot(GetScaledMouseState(GetConstrainedMouseState(GetCurrentMouseState()))));
+            GetBubbleWheelPointerDirectionDegrees(bubbleMenuMouse),
+            GetBubbleWheelSelectedSlot(bubbleMenuMouse));
         if (_bubbleMenuKind != BubbleMenuKind.Custom
             && TryDrawClientPluginBubbleMenu(GetCurrentClientPluginCameraTopLeft(), renderState))
         {
@@ -173,7 +174,7 @@ public partial class Game1
                 var pluginResult = TryHandleClientPluginBubbleMenuInput(new ClientBubbleMenuInputState(
                     ToClientBubbleMenuKind(_bubbleMenuKind),
                     _bubbleMenuXPageIndex,
-                    _world.LocalPlayer.AimDirectionDegrees,
+                    GetBubbleWheelPointerDirectionDegrees(mouse),
                     GetBubbleMenuPointerDistanceFromCenter(mouse),
                     leftMousePressed,
                     leftMouseDown,
@@ -316,7 +317,7 @@ public partial class Game1
         }
 
         _bubbleMenuKind = kind;
-        _bubbleMenuAlpha = 0.01f;
+        _bubbleMenuAlpha = HasClientPluginBubbleMenuOverride() ? 0.99f : 0.01f;
         _bubbleMenuX = -30f;
         _bubbleMenuClosing = false;
         _bubbleMenuXPageIndex = 0;
@@ -337,10 +338,33 @@ public partial class Game1
         ResetClientPluginBubbleMenuInputState();
     }
 
+    private void FinishBubbleWheelMenuImmediately()
+    {
+        _bubbleMenuKind = BubbleMenuKind.None;
+        _bubbleMenuAlpha = 0.01f;
+        _bubbleMenuX = -30f;
+        _bubbleMenuClosing = false;
+        _bubbleMenuXPageIndex = 0;
+        _bubbleMenuSessionHadInteraction = false;
+        _bubbleMenuPendingFrame = null;
+        ResetClientPluginBubbleMenuInputState();
+    }
+
+    private bool IsBubbleWheelPluginMenuActive()
+    {
+        return _bubbleMenuKind != BubbleMenuKind.Custom && HasClientPluginBubbleMenuOverride();
+    }
+
     private void BeginClosingBubbleMenu()
     {
         if (_bubbleMenuKind == BubbleMenuKind.None)
         {
+            return;
+        }
+
+        if (IsBubbleWheelPluginMenuActive())
+        {
+            FinishBubbleWheelMenuImmediately();
             return;
         }
 
@@ -375,6 +399,12 @@ public partial class Game1
 
         if (!_bubbleMenuClosing)
         {
+            if (IsBubbleWheelPluginMenuActive())
+            {
+                _bubbleMenuAlpha = 0.99f;
+                return;
+            }
+
             if (_bubbleMenuAlpha < 0.99f)
             {
                 _bubbleMenuAlpha = AdvanceOpeningAlpha(_bubbleMenuAlpha, 0.01f, 0.99f);
@@ -613,9 +643,31 @@ public partial class Game1
 
     private float GetBubbleMenuPointerDistanceFromCenter(MouseState mouse)
     {
-        var center = new Vector2(ViewportWidth / 2f, ViewportHeight / 2f);
+        var center = GetBubbleMenuScreenCenter();
         var pointer = new Vector2(mouse.X, mouse.Y);
         return Vector2.Distance(pointer, center);
+    }
+
+    private Vector2 GetBubbleMenuScreenCenter()
+    {
+        return new Vector2(ViewportWidth / 2f, ViewportHeight / 2f);
+    }
+
+    private float GetBubbleWheelPointerDirectionDegrees(MouseState mouse)
+    {
+        var delta = new Vector2(mouse.X, mouse.Y) - GetBubbleMenuScreenCenter();
+        var aimDirection = MathF.Atan2(delta.Y, delta.X) * (180f / MathF.PI) + 90f;
+        while (aimDirection >= 360f)
+        {
+            aimDirection -= 360f;
+        }
+
+        while (aimDirection < 0f)
+        {
+            aimDirection += 360f;
+        }
+
+        return aimDirection;
     }
 
     private int GetBubbleWheelSelectedSlot(MouseState mouse)
@@ -625,12 +677,7 @@ public partial class Game1
             return 0;
         }
 
-        var aimDirection = _world.LocalPlayer.AimDirectionDegrees + 90f;
-        while (aimDirection >= 360f)
-        {
-            aimDirection -= 360f;
-        }
-
+        var aimDirection = GetBubbleWheelPointerDirectionDegrees(mouse);
         return Math.Clamp((int)(aimDirection / 40f) + 1, 1, 9);
     }
 

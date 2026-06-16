@@ -126,7 +126,7 @@ internal static partial class ServerHelpers
         return slot >= SimulationWorld.FirstSpectatorSlot;
     }
 
-    internal static PlayerInputSnapshot ToCoreInput(InputStateMessage message, float playerX, float playerY)
+    internal static PlayerInputSnapshot ToCoreInput(InputStateMessage message)
     {
         var buttons = message.Buttons;
         return new PlayerInputSnapshot(
@@ -139,8 +139,8 @@ internal static partial class ServerHelpers
             Taunt: buttons.HasFlag(InputButtons.Taunt),
             FirePrimary: buttons.HasFlag(InputButtons.FirePrimary),
             FireSecondary: buttons.HasFlag(InputButtons.FireSecondary),
-            AimWorldX: playerX + message.AimRelX,
-            AimWorldY: playerY + message.AimRelY,
+            AimWorldX: message.AimRelX,
+            AimWorldY: message.AimRelY,
             DebugKill: buttons.HasFlag(InputButtons.DebugKill),
             DropIntel: buttons.HasFlag(InputButtons.DropIntel),
             UseAbility: buttons.HasFlag(InputButtons.UseAbility),
@@ -151,5 +151,14 @@ internal static partial class ServerHelpers
             SwapWeapon: buttons.HasFlag(InputButtons.SwapWeapon),
             ReadyUp: buttons.HasFlag(InputButtons.ReadyUp),
             IsTypingChatMessage: buttons.HasFlag(InputButtons.IsTypingChatMessage));
+    }
+
+    internal static PlayerInputSnapshot ConvertRelativeAimToWorld(PlayerInputSnapshot input, float playerX, float playerY)
+    {
+        return input with
+        {
+            AimWorldX = playerX + input.AimWorldX,
+            AimWorldY = playerY + input.AimWorldY,
+        };
     }
 }

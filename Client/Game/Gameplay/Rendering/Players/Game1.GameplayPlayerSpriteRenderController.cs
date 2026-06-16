@@ -270,12 +270,6 @@ public partial class Game1
                 }
             }
 
-            if (isRunSprite && !appearsAirborne && player.ClassId == PlayerClass.Scout)
-            {
-                bodyYOffset -= 1f;
-                equipmentOffset += 1f;
-            }
-
             if (isHeavySlowWalk)
             {
                 equipmentOffset = bodyYOffset;
