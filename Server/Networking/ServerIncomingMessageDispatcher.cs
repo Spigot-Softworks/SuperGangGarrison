@@ -113,15 +113,7 @@ internal sealed class ServerIncomingMessageDispatcher(
                 if (TryGetAuthorizedClient(remotePeer, out var inputClient))
                 {
                     inputClient.LastSeen = elapsedGetter();
-                    var playerX = 0f;
-                    var playerY = 0f;
-                    if (world.TryGetNetworkPlayer(inputClient.Slot, out var inputPlayer))
-                    {
-                        playerX = inputPlayer.X;
-                        playerY = inputPlayer.Y;
-                    }
-
-                    inputClient.TrySetLatestInput(input.Sequence, ToCoreInput(input, playerX, playerY));
+                    inputClient.TrySetLatestInput(input.Sequence, ToCoreInput(input));
                     inputClient.PingMilliseconds = input.PingMilliseconds;
                     if (input.ChatBubbleFrameIndex >= 0)
                     {
