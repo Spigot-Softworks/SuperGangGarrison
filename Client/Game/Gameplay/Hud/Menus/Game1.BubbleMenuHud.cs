@@ -316,7 +316,7 @@ public partial class Game1
         }
 
         _bubbleMenuKind = kind;
-        _bubbleMenuAlpha = 0.01f;
+        _bubbleMenuAlpha = HasClientPluginBubbleMenuOverride() ? 0.99f : 0.01f;
         _bubbleMenuX = -30f;
         _bubbleMenuClosing = false;
         _bubbleMenuXPageIndex = 0;
@@ -337,10 +337,33 @@ public partial class Game1
         ResetClientPluginBubbleMenuInputState();
     }
 
+    private void FinishBubbleWheelMenuImmediately()
+    {
+        _bubbleMenuKind = BubbleMenuKind.None;
+        _bubbleMenuAlpha = 0.01f;
+        _bubbleMenuX = -30f;
+        _bubbleMenuClosing = false;
+        _bubbleMenuXPageIndex = 0;
+        _bubbleMenuSessionHadInteraction = false;
+        _bubbleMenuPendingFrame = null;
+        ResetClientPluginBubbleMenuInputState();
+    }
+
+    private bool IsBubbleWheelPluginMenuActive()
+    {
+        return _bubbleMenuKind != BubbleMenuKind.Custom && HasClientPluginBubbleMenuOverride();
+    }
+
     private void BeginClosingBubbleMenu()
     {
         if (_bubbleMenuKind == BubbleMenuKind.None)
         {
+            return;
+        }
+
+        if (IsBubbleWheelPluginMenuActive())
+        {
+            FinishBubbleWheelMenuImmediately();
             return;
         }
 
@@ -375,6 +398,12 @@ public partial class Game1
 
         if (!_bubbleMenuClosing)
         {
+            if (IsBubbleWheelPluginMenuActive())
+            {
+                _bubbleMenuAlpha = 0.99f;
+                return;
+            }
+
             if (_bubbleMenuAlpha < 0.99f)
             {
                 _bubbleMenuAlpha = AdvanceOpeningAlpha(_bubbleMenuAlpha, 0.01f, 0.99f);
