@@ -133,9 +133,14 @@ sealed class ServerSessionManager
         }
     }
 
-    private static PlayerInputSnapshot ConvertAimPositionFromClient(byte slot, PlayerInputSnapshot input)
+    private PlayerInputSnapshot ConvertAimPositionFromClient(byte slot, PlayerInputSnapshot input)
     {
-        return input;
+        if (_world.TryGetNetworkPlayer(slot, out var player))
+        {
+            return ConvertRelativeAimToWorld(input, player.X, player.Y);
+        }
+
+        return ConvertRelativeAimToWorld(input, 0f, 0f);
     }
 
     public void HandleControlCommand(ClientSession client, ControlCommandMessage command)
