@@ -331,6 +331,8 @@ public partial class Game1
             _game.DisposeGarrisonBuilderEditorAssets();
             _game._gameRenderTarget?.Dispose();
             _game._gameRenderTarget = null;
+            _game._hudRenderTarget?.Dispose();
+            _game._hudRenderTarget = null;
             _game.DisposeDamageVignetteTextures();
             _game._deathCamCaptureTarget?.Dispose();
             _game._deathCamCaptureTarget = null;

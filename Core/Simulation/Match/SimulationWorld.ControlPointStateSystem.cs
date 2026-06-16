@@ -316,7 +316,7 @@ public sealed partial class SimulationWorld
                     }
 
                     player.AddCap();
-                    AwardObjectiveCapturePoints(player);
+                    world.AwardObjectiveCapturePoints(player);
                 }
             }
 

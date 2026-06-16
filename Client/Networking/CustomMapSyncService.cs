@@ -83,7 +83,7 @@ internal static class CustomMapSyncService
         }
 
         var expectedHash = CustomMapHashService.ParseHash(mapContentHash);
-        var downloadUrl = ResolveDownloadUrl(normalizedLevelName, mapDownloadUrl, serverDownloadBaseUri, out var downloadUrlError);
+        var downloadUrl = ResolveDownloadUrl(normalizedLevelName, mapDownloadUrl, mapContentHash, serverDownloadBaseUri, out var downloadUrlError);
         var mapPath = CustomMapLocatorStore.GetMapPath(normalizedLevelName);
         var hasExpectedHash = expectedHash.HasValue;
         if (File.Exists(mapPath)
@@ -193,7 +193,7 @@ internal static class CustomMapSyncService
         }
 
         var expectedHash = CustomMapHashService.ParseHash(mapContentHash);
-        var downloadUrl = ResolveDownloadUrl(normalizedLevelName, mapDownloadUrl, serverDownloadBaseUri, out var downloadUrlError);
+        var downloadUrl = ResolveDownloadUrl(normalizedLevelName, mapDownloadUrl, mapContentHash, serverDownloadBaseUri, out var downloadUrlError);
         var mapPath = CustomMapLocatorStore.GetMapPath(normalizedLevelName);
         var hasExpectedHash = expectedHash.HasValue;
         if (File.Exists(mapPath)
@@ -296,6 +296,7 @@ internal static class CustomMapSyncService
     private static string ResolveDownloadUrl(
         string levelName,
         string mapDownloadUrl,
+        string mapContentHash,
         Uri? serverDownloadBaseUri,
         out string error)
     {
@@ -308,9 +309,33 @@ internal static class CustomMapSyncService
         }
 
         var cachedUrl = CustomMapLocatorStore.TryReadMapUrl(levelName);
-        return string.IsNullOrWhiteSpace(cachedUrl)
-            ? string.Empty
-            : ResolveDownloadUrlValue(cachedUrl.Trim(), null, out error);
+        if (!string.IsNullOrWhiteSpace(cachedUrl))
+        {
+            return ResolveDownloadUrlValue(cachedUrl.Trim(), null, out error);
+        }
+
+        if (serverDownloadBaseUri is not null
+            && TryCreateStandardServerMapDownloadPath(levelName, mapContentHash, out var relativeDownloadPath))
+        {
+            return ResolveDownloadUrlValue(relativeDownloadPath, serverDownloadBaseUri, out error);
+        }
+
+        return string.Empty;
+    }
+
+    private static bool TryCreateStandardServerMapDownloadPath(string levelName, string mapContentHash, out string relativeDownloadPath)
+    {
+        relativeDownloadPath = string.Empty;
+        if (!CustomMapLocatorStore.TryNormalizeLevelName(levelName, out var normalizedLevelName))
+        {
+            return false;
+        }
+
+        var escapedLevelName = Uri.EscapeDataString(normalizedLevelName);
+        relativeDownloadPath = CustomMapHashService.ParseHash(mapContentHash).Algorithm == CustomMapHashAlgorithm.Sha256
+            ? $"/opengarrison/maps/{escapedLevelName}/{escapedLevelName}.json"
+            : $"/opengarrison/maps/{escapedLevelName}.png";
+        return true;
     }
 
     private static string ResolveDownloadUrlValue(string trimmedUrl, Uri? serverDownloadBaseUri, out string error)

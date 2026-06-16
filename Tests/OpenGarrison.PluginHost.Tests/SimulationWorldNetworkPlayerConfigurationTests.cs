@@ -285,6 +285,26 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     }
 
     [Fact]
+    public void ChangingLiveNetworkPlayerTeamSchedulesRespawnInsteadOfImmediateSpawn()
+    {
+        var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
+        var oppositeTeam = world.LocalPlayer.Team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
+
+        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, oppositeTeam));
+
+        Assert.False(world.LocalPlayer.IsAlive);
+        Assert.Equal(oppositeTeam, world.LocalPlayer.Team);
+        Assert.True(world.GetNetworkPlayerRespawnTicks(SimulationWorld.LocalPlayerSlot) > 1);
+        Assert.Empty(world.DeadBodies);
+        Assert.Empty(world.PlayerGibs);
+
+        AdvanceUntilRespawn(world, SimulationWorld.LocalPlayerSlot);
+
+        Assert.True(world.LocalPlayer.IsAlive);
+        Assert.Equal(oppositeTeam, world.LocalPlayer.Team);
+    }
+
+    [Fact]
     public void NetworkPlayerMaxHealthOverrideClampsAndClearsPlayerHealth()
     {
         var world = new SimulationWorld();

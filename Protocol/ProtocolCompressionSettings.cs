@@ -15,6 +15,13 @@ public sealed class ProtocolCompressionSettings
         CompressOnlySnapshots = true,
     };
 
+    public static readonly ProtocolCompressionSettings AllMessages = new()
+    {
+        EnableCompression = true,
+        MinimumBytesForCompression = 200,
+        CompressOnlySnapshots = false,
+    };
+
     /// <summary>
     /// Shared instance with compression disabled.
     /// Useful for debugging or compatibility fallback.

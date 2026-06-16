@@ -10,6 +10,8 @@ internal sealed class HudLayoutProfile
 {
     public const float MinElementScale = 0.5f;
     public const float MaxElementScale = 3f;
+    public const float MinHudOpacity = 0.2f;
+    public const float MaxHudOpacity = 1f;
 
     public Dictionary<string, HudElementLayoutOverride> Overrides { get; } = new(StringComparer.Ordinal);
 
@@ -24,6 +26,24 @@ internal sealed class HudLayoutProfile
     public int MinorGridSize { get; set; } = 16;
 
     public int MajorGridSize { get; set; } = 64;
+
+    private float _hudOpacity = MaxHudOpacity;
+
+    public float HudOpacity
+    {
+        get => _hudOpacity;
+        set => _hudOpacity = NormalizeHudOpacity(value);
+    }
+
+    public static float NormalizeHudOpacity(float opacity)
+    {
+        if (float.IsNaN(opacity) || float.IsInfinity(opacity))
+        {
+            return MaxHudOpacity;
+        }
+
+        return Math.Clamp(opacity, MinHudOpacity, MaxHudOpacity);
+    }
 
     public IReadOnlyDictionary<string, HudElementLayout> Defaults { get; } = HudLayoutDefaults.Create();
 

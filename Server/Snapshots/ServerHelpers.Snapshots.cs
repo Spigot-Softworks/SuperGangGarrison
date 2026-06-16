@@ -551,15 +551,19 @@ internal static partial class ServerHelpers
 
     internal static SnapshotKillFeedEntry ToSnapshotKillFeedEntry(KillFeedEntry entry)
     {
+        var messageText = TruncateSnapshotString(entry.MessageText, ProtocolCodec.MaxKillMessageBytes);
+        var messageHighlightStart = Math.Clamp(entry.MessageHighlightStart, 0, messageText.Length);
+        var messageHighlightLength = Math.Clamp(entry.MessageHighlightLength, 0, messageText.Length - messageHighlightStart);
+
         return new SnapshotKillFeedEntry(
-            entry.KillerName,
+            TruncateSnapshotString(entry.KillerName, ProtocolCodec.MaxPlayerNameBytes),
             (byte)entry.KillerTeam,
-            entry.WeaponSpriteName,
-            entry.VictimName,
+            TruncateSnapshotString(entry.WeaponSpriteName, ProtocolCodec.MaxAssetNameBytes),
+            TruncateSnapshotString(entry.VictimName, ProtocolCodec.MaxPlayerNameBytes),
             (byte)entry.VictimTeam,
-            entry.MessageText,
-            entry.MessageHighlightStart,
-            entry.MessageHighlightLength,
+            messageText,
+            messageHighlightStart,
+            messageHighlightLength,
             entry.KillerPlayerId,
             entry.VictimPlayerId,
             (OpenGarrison.Protocol.KillFeedSpecialType)entry.SpecialType,
@@ -576,12 +580,17 @@ internal static partial class ServerHelpers
         return new SnapshotDeathCamState(
             deathCam.FocusX,
             deathCam.FocusY,
-            deathCam.KillMessage,
-            deathCam.KillerName,
+            TruncateSnapshotString(deathCam.KillMessage, ProtocolCodec.MaxKillMessageBytes),
+            TruncateSnapshotString(deathCam.KillerName, ProtocolCodec.MaxPlayerNameBytes),
             deathCam.KillerTeam.HasValue ? (byte)deathCam.KillerTeam.Value : (byte)0,
             deathCam.Health,
             deathCam.MaxHealth,
             deathCam.RemainingTicks,
             deathCam.InitialTicks);
+    }
+
+    private static string TruncateSnapshotString(string? value, int maxBytes)
+    {
+        return ProtocolCodec.TruncateUtf8(value ?? string.Empty, maxBytes);
     }
 }

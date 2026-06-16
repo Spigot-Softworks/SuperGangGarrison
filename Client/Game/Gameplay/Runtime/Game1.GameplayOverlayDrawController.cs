@@ -46,6 +46,8 @@ public partial class Game1
                 _game.PrepareDeathCamCaptureIfNeeded(viewportWidth, viewportHeight);
             }
 
+            _game.PrepareGameplayHudOpacityComposite(mouse, cameraPosition);
+
             _game.BeginLogicalFrame(new Color(24, 32, 48));
             if (!_game.DrawLastToDieDeathFocusOverlay(viewportWidth, viewportHeight)
                 && !_game.DrawDeathCamCaptureOverlay(viewportWidth, viewportHeight))
@@ -53,7 +55,7 @@ public partial class Game1
                 DrawGameplayWorldForViewport(cameraPosition, viewportWidth, gameplayViewportHeight, viewportHeight);
             }
 
-            _game.DrawGameplayHudLayers(mouse, cameraPosition);
+            _game.DrawGameplayHudLayersOrComposite(mouse, cameraPosition);
             _game.DrawGameplayModalOverlays(mouse, cameraPosition);
             _game.DrawVotePresentationOverlay();
             _game.DrawLoadingOverlay();

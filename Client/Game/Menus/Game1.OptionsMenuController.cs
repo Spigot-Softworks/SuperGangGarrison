@@ -34,6 +34,7 @@ public partial class Game1
             "Other",
         };
 
+        private const string MasterVolumeLabel = "Global Volume";
         private const string MenuMusicVolumeLabel = "Menu Music Volume";
         private const string InGameMusicVolumeLabel = "In-Game Music Volume";
         private const string CombatMusicVolumeLabel = "Combat Music Volume";
@@ -395,6 +396,9 @@ public partial class Game1
 
             switch (label)
             {
+                case MasterVolumeLabel:
+                    _game.AdjustMasterVolume(step * 5);
+                    return true;
                 case MenuMusicVolumeLabel:
                     _game.AdjustMenuMusicVolume(step * 5);
                     return true;
@@ -432,7 +436,8 @@ public partial class Game1
 
         private static bool IsOptionsStepperRow(string label)
         {
-            return label is MenuMusicVolumeLabel
+            return label is MasterVolumeLabel
+                or MenuMusicVolumeLabel
                 or InGameMusicVolumeLabel
                 or CombatMusicVolumeLabel
                 or SoundEffectsVolumeLabel
@@ -598,6 +603,7 @@ public partial class Game1
                 new("Frame Limit", GetFrameRateLimitLabel(_game._frameRateLimit), _game.CycleFrameRateLimitSetting, OptionsMenuTab.Graphics),
                 new("V Sync", _game._graphics.SynchronizeWithVerticalRetrace ? "Enabled" : "Disabled", _game.ToggleVSyncSetting, OptionsMenuTab.Graphics),
                 new("Reset Window Size", string.Empty, _game.ResetWindowSize, OptionsMenuTab.Graphics),
+                new(MasterVolumeLabel, $"{_game._masterVolumePercent}%", () => _game.AdjustMasterVolume(5), OptionsMenuTab.Audio),
                 new("Music", GetMusicModeLabel(_game._musicMode), _game.CycleMusicModeSetting, OptionsMenuTab.Audio),
                 new(MenuMusicVolumeLabel, $"{_game._menuMusicVolumePercent}%", () => _game.AdjustMenuMusicVolume(5), OptionsMenuTab.Audio),
                 new(InGameMusicVolumeLabel, $"{_game._ingameMusicVolumePercent}%", () => _game.AdjustIngameMusicVolume(5), OptionsMenuTab.Audio),

@@ -137,6 +137,11 @@ public partial class Game1
             return input;
         }
 
+        if (_pendingPredictedJumpPress && !input.Up)
+        {
+            input = input with { Up = true };
+        }
+
         if (_pendingPredictedSecondaryAbilityPress && !input.FireSecondary)
         {
             input = input with { FireSecondary = true };
@@ -200,7 +205,9 @@ public partial class Game1
 
     private void AcknowledgeLatchedPredictedInputs(uint lastProcessedInputSequence)
     {
-        if (_latchedJumpPressSequence != 0 && lastProcessedInputSequence >= _latchedJumpPressSequence)
+        if (_latchedJumpPressSequence != 0
+            && (lastProcessedInputSequence == _latchedJumpPressSequence
+                || unchecked((int)(lastProcessedInputSequence - _latchedJumpPressSequence)) > 0))
         {
             _latchedJumpPressSequence = 0;
         }

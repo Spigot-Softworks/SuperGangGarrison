@@ -176,17 +176,42 @@ public partial class Game1
             }
         }
 
-        players.Sort((left, right) =>
-        {
-            var scoreCompare = right.Points.CompareTo(left.Points);
-            if (scoreCompare != 0)
-            {
-                return scoreCompare;
-            }
-
-            return string.Compare(left.DisplayName, right.DisplayName, StringComparison.OrdinalIgnoreCase);
-        });
+        players.Sort(CompareScoreboardPlayers);
         return players;
+    }
+
+    private int CompareScoreboardPlayers(PlayerEntity left, PlayerEntity right)
+    {
+        var scoreCompare = right.Points.CompareTo(left.Points);
+        if (scoreCompare != 0)
+        {
+            return scoreCompare;
+        }
+
+        return CompareScoreboardPlayerIdentity(left, right);
+    }
+
+    private int CompareScoreboardPlayerIdentity(PlayerEntity left, PlayerEntity right)
+    {
+        var nameCompare = string.Compare(left.DisplayName, right.DisplayName, StringComparison.OrdinalIgnoreCase);
+        if (nameCompare != 0)
+        {
+            return nameCompare;
+        }
+
+        var leftSlot = TryGetScoreboardPlayerNetworkSlot(left, out var resolvedLeftSlot)
+            ? resolvedLeftSlot
+            : byte.MaxValue;
+        var rightSlot = TryGetScoreboardPlayerNetworkSlot(right, out var resolvedRightSlot)
+            ? resolvedRightSlot
+            : byte.MaxValue;
+        var slotCompare = leftSlot.CompareTo(rightSlot);
+        if (slotCompare != 0)
+        {
+            return slotCompare;
+        }
+
+        return left.Id.CompareTo(right.Id);
     }
 
     private void UpdateScoreboardPlayerCardState(MouseState mouse)

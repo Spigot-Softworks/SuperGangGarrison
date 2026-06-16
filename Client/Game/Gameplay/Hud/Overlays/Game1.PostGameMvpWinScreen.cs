@@ -26,11 +26,23 @@ public partial class Game1
     private const float PostGameMvpSideAnchorStartRatio = 0.7f;
     private const float PostGameMvpArtScaleFactor = 0.63f;
 
-    private readonly record struct PostGameMvpEntry(PlayerEntity Player, int Score);
+    private readonly record struct PostGameMvpEntry(
+        int PlayerId,
+        byte Slot,
+        string DisplayName,
+        PlayerTeam Team,
+        PlayerClass ClassId,
+        int Kills,
+        int Deaths,
+        int HealPoints,
+        float Points,
+        int Score);
     private readonly record struct PostGameMvpLayout(Vector2 BoardCenter, Vector2 ArtScale);
     private readonly record struct PostGameMvpArtFrameKey(int PlayerId, int Rank, string SpriteName);
 
     private PlayerTeam? _postGameMvpPresentationWinnerTeam;
+    private PlayerTeam? _postGameMvpLockedWinnerTeam;
+    private List<PostGameMvpEntry>? _postGameMvpLockedEntries;
     private int _postGameMvpPresentationTicks;
     private bool _postGameMvpArtHidden;
     private readonly Dictionary<PostGameMvpArtFrameKey, int> _postGameMvpArtFrameSelections = new();
@@ -40,11 +52,7 @@ public partial class Game1
     {
         if (!ShouldDrawPostGameMvpWinScreen())
         {
-            _postGameMvpPresentationWinnerTeam = null;
-            _postGameMvpPresentationTicks = 0;
-            _postGameMvpArtHidden = false;
-            _postGameMvpArtFrameSelections.Clear();
-            _postGameMvpSideAnchorBounds.Clear();
+            ClearPostGameMvpWinScreenState();
             return;
         }
 
@@ -58,6 +66,8 @@ public partial class Game1
             _postGameMvpSideAnchorBounds.Clear();
         }
 
+        EnsurePostGameMvpEntriesLocked(winnerTeam);
+
         if (clientTicks > 0)
         {
             _postGameMvpPresentationTicks = Math.Min(3600, _postGameMvpPresentationTicks + clientTicks);
@@ -67,6 +77,17 @@ public partial class Game1
         {
             _postGameMvpArtHidden = !_postGameMvpArtHidden;
         }
+    }
+
+    private void ClearPostGameMvpWinScreenState()
+    {
+        _postGameMvpPresentationWinnerTeam = null;
+        _postGameMvpLockedWinnerTeam = null;
+        _postGameMvpLockedEntries = null;
+        _postGameMvpPresentationTicks = 0;
+        _postGameMvpArtHidden = false;
+        _postGameMvpArtFrameSelections.Clear();
+        _postGameMvpSideAnchorBounds.Clear();
     }
 
     private bool IsPostGameMvpArtTogglePressed(KeyboardState keyboard)
@@ -88,7 +109,7 @@ public partial class Game1
         }
 
         var winnerTeam = _world.MatchState.WinnerTeam!.Value;
-        var entries = BuildPostGameMvpEntries(winnerTeam);
+        var entries = EnsurePostGameMvpEntriesLocked(winnerTeam);
         var layout = GetPostGameMvpLayout();
         var drawArt = _postGameMvpArtEnabled && !_postGameMvpArtHidden;
 
@@ -104,6 +125,18 @@ public partial class Game1
         }
     }
 
+    private IReadOnlyList<PostGameMvpEntry> EnsurePostGameMvpEntriesLocked(PlayerTeam winnerTeam)
+    {
+        if (_postGameMvpLockedEntries is not null && _postGameMvpLockedWinnerTeam == winnerTeam)
+        {
+            return _postGameMvpLockedEntries;
+        }
+
+        _postGameMvpLockedWinnerTeam = winnerTeam;
+        _postGameMvpLockedEntries = BuildPostGameMvpEntries(winnerTeam);
+        return _postGameMvpLockedEntries;
+    }
+
     private List<PostGameMvpEntry> BuildPostGameMvpEntries(PlayerTeam team)
     {
         var players = GetScoreboardPlayers(team);
@@ -111,7 +144,20 @@ public partial class Game1
         for (var index = 0; index < players.Count; index += 1)
         {
             var player = players[index];
-            entries.Add(new PostGameMvpEntry(player, GetPostGameMvpScore(player)));
+            var slot = TryGetScoreboardPlayerNetworkSlot(player, out var resolvedSlot)
+                ? resolvedSlot
+                : byte.MaxValue;
+            entries.Add(new PostGameMvpEntry(
+                player.Id,
+                slot,
+                player.DisplayName,
+                player.Team,
+                player.ClassId,
+                player.Kills,
+                player.Deaths,
+                player.HealPoints,
+                player.Points,
+                GetPostGameMvpScore(player)));
         }
 
         entries.Sort(static (left, right) =>
@@ -122,25 +168,37 @@ public partial class Game1
                 return scoreCompare;
             }
 
-            var pointsCompare = right.Player.Points.CompareTo(left.Player.Points);
+            var pointsCompare = right.Points.CompareTo(left.Points);
             if (pointsCompare != 0)
             {
                 return pointsCompare;
             }
 
-            var killsCompare = right.Player.Kills.CompareTo(left.Player.Kills);
+            var killsCompare = right.Kills.CompareTo(left.Kills);
             if (killsCompare != 0)
             {
                 return killsCompare;
             }
 
-            var deathsCompare = left.Player.Deaths.CompareTo(right.Player.Deaths);
+            var deathsCompare = left.Deaths.CompareTo(right.Deaths);
             if (deathsCompare != 0)
             {
                 return deathsCompare;
             }
 
-            return string.Compare(left.Player.DisplayName, right.Player.DisplayName, StringComparison.OrdinalIgnoreCase);
+            var nameCompare = string.Compare(left.DisplayName, right.DisplayName, StringComparison.OrdinalIgnoreCase);
+            if (nameCompare != 0)
+            {
+                return nameCompare;
+            }
+
+            var slotCompare = left.Slot.CompareTo(right.Slot);
+            if (slotCompare != 0)
+            {
+                return slotCompare;
+            }
+
+            return left.PlayerId.CompareTo(right.PlayerId);
         });
 
         if (entries.Count > 3)
@@ -249,7 +307,7 @@ public partial class Game1
         origin = Vector2.Zero;
         effects = SpriteEffects.None;
 
-        var spriteName = GetPostGameMvpArtSpriteName(entry.Player.Team, entry.Player.ClassId, winner: rank == 1);
+        var spriteName = GetPostGameMvpArtSpriteName(entry.Team, entry.ClassId, winner: rank == 1);
         var sprite = GetResolvedSprite(spriteName);
         if (sprite is null || sprite.Frames.Count == 0)
         {
@@ -344,7 +402,7 @@ public partial class Game1
         }
 
         const float labelScale = 1f;
-        var label = TrimPostGameMvpText(SanitizeScoreboardText(entry.Player.DisplayName), 126f, labelScale);
+        var label = TrimPostGameMvpText(SanitizeScoreboardText(entry.DisplayName), 126f, labelScale);
         var labelWidth = MeasureBitmapFontWidth(label, labelScale);
         var labelY = position.Y - topExtent - PostGameMvpNameLabelTopGap;
         if (rank == 1)
@@ -515,7 +573,7 @@ public partial class Game1
             return 0;
         }
 
-        var key = new PostGameMvpArtFrameKey(entry.Player.Id, rank, spriteName);
+        var key = new PostGameMvpArtFrameKey(entry.PlayerId, rank, spriteName);
         if (_postGameMvpArtFrameSelections.TryGetValue(key, out var frameIndex))
         {
             return Math.Clamp(frameIndex, 0, sprite.Frames.Count - 1);
@@ -575,10 +633,10 @@ public partial class Game1
     {
         const float rowTextScale = 1f;
         var rowY = boardCenter.Y + rowOffsetY;
-        var name = TrimPostGameMvpText(SanitizeScoreboardText(entry.Player.DisplayName), 94f, rowTextScale);
+        var name = TrimPostGameMvpText(SanitizeScoreboardText(entry.DisplayName), 94f, rowTextScale);
         DrawPostGameMvpText(name, new Vector2(boardCenter.X - 130f, rowY), Color.White, rowTextScale);
-        DrawPostGameMvpTextRightAligned(entry.Player.Kills.ToString(CultureInfo.InvariantCulture), new Vector2(boardCenter.X - 2f, rowY), Color.White, rowTextScale);
-        DrawPostGameMvpTextRightAligned(entry.Player.HealPoints.ToString(CultureInfo.InvariantCulture), new Vector2(boardCenter.X + 82f, rowY), Color.White, rowTextScale);
+        DrawPostGameMvpTextRightAligned(entry.Kills.ToString(CultureInfo.InvariantCulture), new Vector2(boardCenter.X - 2f, rowY), Color.White, rowTextScale);
+        DrawPostGameMvpTextRightAligned(entry.HealPoints.ToString(CultureInfo.InvariantCulture), new Vector2(boardCenter.X + 82f, rowY), Color.White, rowTextScale);
         DrawPostGameMvpTextRightAligned(entry.Score.ToString(CultureInfo.InvariantCulture), new Vector2(boardCenter.X + 136f, rowY), Color.White, rowTextScale);
     }
 

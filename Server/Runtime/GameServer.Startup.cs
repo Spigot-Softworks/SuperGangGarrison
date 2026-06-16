@@ -13,6 +13,8 @@ using static ServerHelpers;
 
 partial class GameServer
 {
+    private const int UdpSocketBufferBytes = 4 * 1024 * 1024;
+
     public void Run(CancellationToken cancellationToken)
     {
         using var udp = new UdpClient(_port);
@@ -48,8 +50,24 @@ partial class GameServer
     {
         _udp = udp;
         _udp.Client.Blocking = false;
+        TryConfigureUdpSocketBuffers(_udp.Client);
         TryDisableUdpConnectionReset(_udp.Client);
         _messageTransport = new OpenGarrison.Server.CompositeServerMessageTransport(_udp);
+    }
+
+    private static void TryConfigureUdpSocketBuffers(Socket socket)
+    {
+        try
+        {
+            socket.SendBufferSize = Math.Max(socket.SendBufferSize, UdpSocketBufferBytes);
+            socket.ReceiveBufferSize = Math.Max(socket.ReceiveBufferSize, UdpSocketBufferBytes);
+        }
+        catch (SocketException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
     }
 
     private void InitializeWebSocketHost()

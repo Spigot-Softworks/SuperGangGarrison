@@ -92,7 +92,6 @@ public partial class Game1
             || _passwordPromptOpen
             || _world.LocalPlayerAwaitingJoin
             || !_world.LocalPlayer.IsAlive
-            || _world.MatchState.IsEnded
             || IsGameplayDeathCamActive();
     }
 

@@ -807,7 +807,7 @@ internal sealed class NetworkGameClient : IDisposable
             return;
         }
 
-        var payload = ProtocolCodec.Serialize(message);
+        var payload = ProtocolCodec.Serialize(message, GetSendCompressionSettings(message));
         RecordSendDiagnostics(message, payload.Length);
         if (SimulatedLatencyMilliseconds > 0)
         {
@@ -817,6 +817,13 @@ internal sealed class NetworkGameClient : IDisposable
         }
 
         transport.Send(payload);
+    }
+
+    private static ProtocolCompressionSettings GetSendCompressionSettings(IProtocolMessage message)
+    {
+        return message is CustomBubbleUploadMessage
+            ? ProtocolCompressionSettings.AllMessages
+            : ProtocolCompressionSettings.Default;
     }
 
     private void CaptureInboundDemoMessage(INetworkClientMessageTransport transport, IProtocolMessage message, byte[] payload)

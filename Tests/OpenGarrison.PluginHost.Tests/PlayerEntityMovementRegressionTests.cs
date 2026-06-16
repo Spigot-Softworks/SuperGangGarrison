@@ -147,11 +147,12 @@ public sealed class PlayerEntityMovementRegressionTests
         var horizontal = CreateAirborneCivilianWithFallSpeed(500f);
 
         Assert.True(shielded.TryActivateCivvieUmbrella());
+        Assert.True(horizontal.TryActivateCivvieUmbrella());
         SetAimDirectionDegrees(shielded, 0f);
         SetAimDirectionDegrees(horizontal, 0f);
 
         AdvanceAirborneTick(shielded, level, keepUmbrellaActive: true);
-        AdvanceAirborneTick(horizontal, level);
+        AdvanceAirborneTick(horizontal, level, keepUmbrellaActive: true);
 
         Assert.True(
             MathF.Abs(shielded.VerticalSpeed - horizontal.VerticalSpeed) < 0.001f,
@@ -201,6 +202,38 @@ public sealed class PlayerEntityMovementRegressionTests
         Assert.True(
             MathF.Abs(normalAir.HorizontalSpeed) < MathF.Abs(normalReleaseSpeed) * 0.6f,
             $"expected normal air movement to bleed off faster, speed={normalAir.HorizontalSpeed:0.###}");
+    }
+
+    [Fact]
+    public void CivilianUmbrellaSlowFallAirMovementHasHorizontalSpeedBonus()
+    {
+        var level = CreateOpenLevel();
+        var player = CreateAirborneCivilianWithFallSpeed(0f);
+
+        Assert.True(player.TryActivateCivvieUmbrella());
+        SetAimDirectionDegrees(player, 270f);
+
+        for (var tick = 0; tick < 180; tick += 1)
+        {
+            AdvanceAirborneTick(player, level, moveRight: true, keepUmbrellaActive: true);
+        }
+
+        var unboostedMaxSpeed = LegacyMovementModel.GetMaxRunSpeed(
+            player.RunPower
+            * PlayerEntity.CivvieUmbrellaSlowFallRunPowerMultiplier
+            * PlayerEntity.CivvieUmbrellaSlowFallControlFactorScale);
+        var boostedMaxSpeed = LegacyMovementModel.GetMaxRunSpeed(
+            player.RunPower
+            * PlayerEntity.CivvieUmbrellaSlowFallRunPowerMultiplier
+            * PlayerEntity.CivvieUmbrellaSlowFallHorizontalSpeedMultiplier
+            * PlayerEntity.CivvieUmbrellaSlowFallControlFactorScale);
+
+        Assert.True(
+            player.HorizontalSpeed > unboostedMaxSpeed * 1.09f,
+            $"expected umbrella slow-fall horizontal speed bonus, speed={player.HorizontalSpeed:0.###} unboostedMax={unboostedMaxSpeed:0.###}");
+        Assert.True(
+            player.HorizontalSpeed <= boostedMaxSpeed + 0.001f,
+            $"expected umbrella slow-fall speed to stay under boosted max, speed={player.HorizontalSpeed:0.###} boostedMax={boostedMaxSpeed:0.###}");
     }
 
     private static float SimulateJumpApex(PlayerEntity player, SimpleLevel level, PlayerInputSnapshot initialInput)
@@ -335,6 +368,52 @@ public sealed class PlayerEntityMovementRegressionTests
 
         Assert.True(baseBounceSpeed > 0f);
         Assert.True(superBounceSpeed > baseBounceSpeed * 2f);
+    }
+
+    [Fact]
+    public void CivilianUmbrellaRequiresPogoToBeStoppedBeforeOpening()
+    {
+        var level = CreateFlatGroundLevel();
+        var player = CreateGroundedCivilian(level);
+
+        EnterCivviePogoSuperJumpAirPhase(player, level);
+
+        Assert.False(player.TryActivateCivvieUmbrella());
+        Assert.True(player.IsCivviePogoActive);
+        Assert.True(player.IsCivviePogoSuperJumpAirPhaseActive);
+        Assert.False(player.IsCivvieUmbrellaActive);
+    }
+
+    [Fact]
+    public void CivilianUmbrellaAirLiftAppliesOncePerAirtimeAndResetsOnLanding()
+    {
+        var level = CreateFlatGroundLevel();
+        var player = CreateAirborneCivilianWithFallSpeed(180f);
+
+        var firstSpeedBefore = player.VerticalSpeed;
+        Assert.True(player.TryActivateCivvieUmbrella());
+
+        var expectedFirstSpeed = firstSpeedBefore - PlayerEntity.CivvieUmbrellaAirLiftSpeedPerTick
+            * LegacyMovementModel.SourceTicksPerSecond;
+        Assert.Equal(expectedFirstSpeed, player.VerticalSpeed, precision: 3);
+
+        player.SyncCivvieUmbrellaSecondaryInput(secondaryHeld: false);
+        var reopenSpeedBefore = player.VerticalSpeed;
+        Assert.True(player.TryActivateCivvieUmbrella());
+        Assert.Equal(reopenSpeedBefore, player.VerticalSpeed, precision: 3);
+
+        player.SyncCivvieUmbrellaSecondaryInput(secondaryHeld: false);
+        LandGroundedCivilian(player, level);
+        player.AddImpulse(0f, -60f);
+
+        var secondSpeedBefore = player.VerticalSpeed;
+        Assert.True(player.TryActivateCivvieUmbrella());
+        var expectedSecondSpeed = secondSpeedBefore - PlayerEntity.CivvieUmbrellaAirLiftSpeedPerTick
+            * LegacyMovementModel.SourceTicksPerSecond;
+        Assert.Equal(expectedSecondSpeed, player.VerticalSpeed, precision: 3);
+        Assert.True(
+            player.VerticalSpeed < secondSpeedBefore,
+            $"expected umbrella opening after landing reset to add lift, before={secondSpeedBefore:0.###} after={player.VerticalSpeed:0.###}");
     }
 
     [Fact]

@@ -245,7 +245,9 @@ public sealed partial class PlayerEntity
         {
             HorizontalSpeed = LegacyMovementModel.AdvanceHorizontalSpeed(
                 HorizontalSpeed,
-                RunPower * CivvieUmbrellaSlowFallRunPowerMultiplier,
+                RunPower
+                    * CivvieUmbrellaSlowFallRunPowerMultiplier
+                    * CivvieUmbrellaSlowFallHorizontalSpeedMultiplier,
                 GetMovementScale(input),
                 hasHorizontalInput,
                 horizontalDirection,
@@ -283,6 +285,7 @@ public sealed partial class PlayerEntity
         if (startedGrounded)
         {
             IsGrounded = true;
+            ResetCivvieUmbrellaAirLift();
             RemainingAirJumps = MaxAirJumps;
             if (VerticalSpeed > 0f)
             {
@@ -458,6 +461,7 @@ public sealed partial class PlayerEntity
                 if (remainingY > 0f)
                 {
                     IsGrounded = true;
+                    ResetCivvieUmbrellaAirLift();
                     RemainingAirJumps = MaxAirJumps;
                     MovementState = LegacyMovementState.None;
                 }
@@ -646,6 +650,7 @@ public sealed partial class PlayerEntity
         X = targetX;
         Y = targetY;
         IsGrounded = true;
+        ResetCivvieUmbrellaAirLift();
         RemainingAirJumps = MaxAirJumps;
         VerticalSpeed = 0f;
         if (resetMovementState)
@@ -666,6 +671,7 @@ public sealed partial class PlayerEntity
 
         Y = targetY;
         IsGrounded = true;
+        ResetCivvieUmbrellaAirLift();
         RemainingAirJumps = MaxAirJumps;
         VerticalSpeed = 0f;
         if (resetMovementState)

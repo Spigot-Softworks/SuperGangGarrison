@@ -51,6 +51,7 @@ sealed class SnapshotBroadcaster
     private readonly OpenGarrison.Server.SnapshotBudgetMode _snapshotBudgetMode;
     private readonly Action<SnapshotMessage>? _recordCanonicalSnapshot;
     private readonly Func<bool>? _shouldRecordCanonicalSnapshot;
+    private readonly Action<string> _log;
     private readonly SnapshotStringCache _stringCache = new();
     private readonly Dictionary<byte, ClientStringCacheTracker> _clientCacheTrackers = new();
     private bool _hasBroadcastTiming;
@@ -68,7 +69,8 @@ sealed class SnapshotBroadcaster
         Action<ServerTransportPeer, SnapshotMessage, byte[]> sendSnapshot,
         OpenGarrison.Server.SnapshotBudgetMode snapshotBudgetMode = OpenGarrison.Server.SnapshotBudgetMode.GameplayCriticalUntrimmed,
         Action<SnapshotMessage>? recordCanonicalSnapshot = null,
-        Func<bool>? shouldRecordCanonicalSnapshot = null)
+        Func<bool>? shouldRecordCanonicalSnapshot = null,
+        Action<string>? log = null)
     {
         _world = world;
         _config = config;
@@ -81,6 +83,7 @@ sealed class SnapshotBroadcaster
         _sendSnapshot = sendSnapshot;
         _recordCanonicalSnapshot = recordCanonicalSnapshot;
         _shouldRecordCanonicalSnapshot = shouldRecordCanonicalSnapshot;
+        _log = log ?? (_ => { });
     }
 
     public OpenGarrison.Server.SnapshotTransientEvents LastCapturedTransientEvents { get; private set; } =
@@ -224,8 +227,22 @@ sealed class SnapshotBroadcaster
 
             var commitStartTimestamp = Stopwatch.GetTimestamp();
             var commitStartAllocatedBytes = GC.GetAllocatedBytesForCurrentThread();
-            _sendSnapshot(builtSnapshot.Client.Peer, builtSnapshot.SentSnapshot, builtSnapshot.Payload);
-            builtSnapshot.Client.RememberResolvedSnapshotState(builtSnapshot.ResolvedFullSnapshot);
+            var snapshotSent = false;
+            try
+            {
+                _sendSnapshot(builtSnapshot.Client.Peer, builtSnapshot.SentSnapshot, builtSnapshot.Payload);
+                snapshotSent = true;
+            }
+            catch (Exception ex)
+            {
+                _log($"[server] failed to send snapshot to {builtSnapshot.Client.RemoteDescription}: {ex.Message}");
+            }
+
+            if (snapshotSent)
+            {
+                builtSnapshot.Client.RememberResolvedSnapshotState(builtSnapshot.ResolvedFullSnapshot);
+            }
+
             perClientTicks += Stopwatch.GetTimestamp() - commitStartTimestamp;
             perClientAllocatedBytes += GC.GetAllocatedBytesForCurrentThread() - commitStartAllocatedBytes;
 

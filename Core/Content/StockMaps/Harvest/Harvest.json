@@ -2,6 +2,7 @@
   "formatVersion": 1,
   "name": "Harvest",
   "scale": 3,
+  "visualScale": 3,
   "backgroundImage": "background.png",
   "walkmaskImage": "walkmask.png",
   "metadata": {

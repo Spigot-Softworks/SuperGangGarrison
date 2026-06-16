@@ -94,6 +94,7 @@ internal sealed class HudLayoutDocument
             SnapEnabled = Editor.SnapEnabled,
             MinorGridSize = Math.Max(2, Editor.MinorGridSize),
             MajorGridSize = Math.Max(2, Editor.MajorGridSize),
+            HudOpacity = HudLayoutProfile.NormalizeHudOpacity(Editor.HudOpacity),
         };
 
         if (Version != 1)
@@ -132,6 +133,7 @@ internal sealed class HudLayoutDocument
                 SnapEnabled = profile.SnapEnabled,
                 MinorGridSize = Math.Max(2, profile.MinorGridSize),
                 MajorGridSize = Math.Max(2, profile.MajorGridSize),
+                HudOpacity = HudLayoutProfile.NormalizeHudOpacity(profile.HudOpacity),
             },
             Elements = elements,
         };
@@ -147,4 +149,6 @@ internal sealed class HudLayoutEditorDocument
     public int MinorGridSize { get; set; } = 16;
 
     public int MajorGridSize { get; set; } = 64;
+
+    public float HudOpacity { get; set; } = HudLayoutProfile.MaxHudOpacity;
 }
