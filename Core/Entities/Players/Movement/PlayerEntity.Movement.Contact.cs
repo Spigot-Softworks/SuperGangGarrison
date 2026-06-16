@@ -247,6 +247,7 @@ public sealed partial class PlayerEntity
 
         Y = bestPlatform.Value.Top - CollisionBottomOffset;
         IsGrounded = true;
+        ResetCivvieUmbrellaAirLift();
         RemainingAirJumps = MaxAirJumps;
         VerticalSpeed = 0f;
         if (bestPlatform.Value.ResetsMovementState())
@@ -278,6 +279,7 @@ public sealed partial class PlayerEntity
         }
 
         IsGrounded = true;
+        ResetCivvieUmbrellaAirLift();
         RemainingAirJumps = MaxAirJumps;
         VerticalSpeed = 0f;
         if (groundedOnFloor || groundedOnDirectionalWall)

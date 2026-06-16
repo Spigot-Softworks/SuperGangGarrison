@@ -55,6 +55,8 @@ public sealed class ClientSettings
         set => MusicMode = value ? MusicMode.MenuAndInGame : MusicMode.MenuOnly;
     }
 
+    public int MasterVolumePercent { get; set; } = 100;
+
     public int MenuMusicVolumePercent { get; set; } = 70;
 
     public int IngameMusicVolumePercent { get; set; } = 70;
@@ -264,6 +266,7 @@ public sealed class ClientSettings
             ShowUberOutlinesEnabled = document.ShowUberOutlinesEnabled,
             ProjectileTeamTintEnabled = document.ProjectileTeamTintEnabled,
             AudioMuted = document.AudioMuted,
+            MasterVolumePercent = Math.Clamp(document.MasterVolumePercent, 0, 100),
             MenuMusicVolumePercent = Math.Clamp(document.MenuMusicVolumePercent, 0, 100),
             IngameMusicVolumePercent = Math.Clamp(document.IngameMusicVolumePercent, 0, 100),
             DynamicMusicEnabled = document.DynamicMusicEnabled,
@@ -343,6 +346,7 @@ public sealed class ClientSettings
         preferences.ShowUberOutlinesEnabled = ShowUberOutlinesEnabled;
         preferences.ProjectileTeamTintEnabled = ProjectileTeamTintEnabled;
         preferences.AudioMuted = AudioMuted;
+        preferences.MasterVolumePercent = Math.Clamp(MasterVolumePercent, 0, 100);
         preferences.MenuMusicVolumePercent = MenuMusicVolumePercent;
         preferences.IngameMusicVolumePercent = IngameMusicVolumePercent;
         preferences.DynamicMusicEnabled = DynamicMusicEnabled;

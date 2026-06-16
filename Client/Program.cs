@@ -6,6 +6,12 @@ using System.Runtime.InteropServices;
 using OpenGarrison.Core;
 
 Directory.SetCurrentDirectory(AppContext.BaseDirectory);
+
+// Put a splash on screen the instant the process starts so the player sees "Launching..." during
+// the several seconds of cold start before the game window appears. Closed on the first rendered
+// frame (Game1.Draw). No-op on non-Windows.
+OpenGarrison.Client.PreLaunchSplash.Show("Launching Super Gang Garrison...");
+
 WriteStartupDiagnostics();
 
 AppDomain.CurrentDomain.UnhandledException += (_, args) =>
@@ -30,7 +36,12 @@ try
 catch (Exception ex)
 {
     WriteCrashLog("fatal-client-crash", ex);
-    
+}
+finally
+{
+    // Safety net: the splash is normally dismissed on the first rendered frame, but make sure it is
+    // gone if startup throws before then.
+    OpenGarrison.Client.PreLaunchSplash.Close();
 }
 
 static void WriteCrashLog(string kind, Exception exception)

@@ -388,8 +388,32 @@ public sealed partial class PlayerEntity
             return false;
         }
 
+        var wasActive = IsCivvieUmbrellaActive;
         IsCivvieUmbrellaActive = true;
+        if (!wasActive)
+        {
+            TryApplyCivvieUmbrellaAirLift();
+        }
+
         return true;
+    }
+
+    private void TryApplyCivvieUmbrellaAirLift()
+    {
+        if (IsGrounded || CivvieUmbrellaAirLiftUsed)
+        {
+            return;
+        }
+
+        var liftSpeed = CivvieUmbrellaAirLiftSpeedPerTick
+            * LegacyMovementModel.SourceTicksPerSecond;
+        VerticalSpeed -= liftSpeed;
+        CivvieUmbrellaAirLiftUsed = true;
+    }
+
+    private void ResetCivvieUmbrellaAirLift()
+    {
+        CivvieUmbrellaAirLiftUsed = false;
     }
 
     public void BeginCivvieUmbrellaOpening()
@@ -503,6 +527,7 @@ public sealed partial class PlayerEntity
         CivvieUmbrellaChargeTicks = Math.Max(1, maxChargeTicks);
         IsCivvieUmbrellaActive = false;
         IsCivvieUmbrellaBroken = false;
+        ResetCivvieUmbrellaAirLift();
         ResetCivvieUmbrellaOpening();
     }
 

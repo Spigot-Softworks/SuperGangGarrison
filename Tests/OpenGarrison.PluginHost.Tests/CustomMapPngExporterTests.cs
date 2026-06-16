@@ -796,6 +796,53 @@ public sealed class CustomMapPngExporterTests
         }
     }
 
+    [Fact]
+    public void CustomMapSyncInfersStandardPackageUrlWhenServerOmitsDownloadUrl()
+    {
+        using var workspace = TempWorkspace.Create();
+        var previousMapsDirectory = Environment.GetEnvironmentVariable("OPENGARRISON_MAPS_DIR");
+        Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", workspace.PathFor("ClientMaps"));
+        try
+        {
+            Directory.CreateDirectory(RuntimePaths.MapsDirectory);
+            var serverPackageDirectory = workspace.PathFor(Path.Combine("ServerMaps", "missing_url_sync"));
+            Directory.CreateDirectory(serverPackageDirectory);
+            var backgroundPath = workspace.PathFor("server-background.png");
+            var walkmaskPath = workspace.PathFor("server-walkmask.png");
+            WriteSolidPng(backgroundPath, 4, 2, new Rgba32(20, 70, 120, 255));
+            WriteWalkmaskPng(walkmaskPath);
+            var sourceManifestPath = Path.Combine(serverPackageDirectory, "missing_url_sync.json");
+            CustomMapPackageExporter.Export(CreateSpawnOnlyDocument(backgroundPath, walkmaskPath, 6f, 18f) with
+            {
+                Name = "missing_url_sync",
+            }, sourceManifestPath);
+
+            var packageHash = CustomMapHashService.ComputePackageSha256(sourceManifestPath);
+            var inferredManifestUrl = "https://example.invalid/opengarrison/maps/missing_url_sync/missing_url_sync.json";
+            using var httpClient = CreatePackageHttpClient(sourceManifestPath, inferredManifestUrl);
+
+            var available = CustomMapSyncService.EnsureMapAvailable(
+                "missing_url_sync",
+                isCustomMap: true,
+                mapDownloadUrl: string.Empty,
+                $"sha256:{packageHash}",
+                new Uri("https://example.invalid/"),
+                httpClient,
+                out var error);
+
+            Assert.True(available, error);
+            var finalManifestPath = CustomMapLocatorStore.GetPackageManifestPath("missing_url_sync");
+            Assert.True(File.Exists(finalManifestPath));
+            Assert.NotNull(CustomMapPackageImporter.Import(finalManifestPath));
+            Assert.Equal(inferredManifestUrl, CustomMapLocatorStore.TryReadMapUrl("missing_url_sync"));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", previousMapsDirectory);
+            SimpleLevelFactory.ClearCachedCatalog();
+        }
+    }
+
     [Theory]
     [InlineData("file:///tmp/bad_scheme.png", "file")]
     [InlineData(",file:///tmp/bad_scheme.png", ",file")]

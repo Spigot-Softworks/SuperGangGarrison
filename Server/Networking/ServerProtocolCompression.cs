@@ -14,6 +14,18 @@ internal static class ServerProtocolCompression
     /// </summary>
     public static ProtocolCompressionSettings Settings => _settings;
 
+    public static ProtocolCompressionSettings GetSettingsFor(IProtocolMessage message)
+    {
+        if (!_settings.EnableCompression)
+        {
+            return _settings;
+        }
+
+        return message is CustomBubbleStateMessage
+            ? ProtocolCompressionSettings.AllMessages
+            : _settings;
+    }
+
     /// <summary>
     /// Configure compression settings based on server configuration.
     /// </summary>

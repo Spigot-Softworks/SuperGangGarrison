@@ -1,0 +1,347 @@
+{
+  "formatVersion": 1,
+  "name": "ctf_conflict",
+  "scale": 2,
+  "backgroundImage": "background.png",
+  "walkmaskImage": "walkmask.png",
+  "metadata": {
+    "background": "ffffff",
+    "void": "000000"
+  },
+  "entities": [
+    {
+      "type": "bluespawn",
+      "x": 3198,
+      "y": 870,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redintel",
+      "x": 840,
+      "y": 702,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueintel",
+      "x": 3654,
+      "y": 702,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1440,
+      "y": 864,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3168,
+      "y": 864,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3024,
+      "y": 864,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 1260,
+      "y": 768,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 1266,
+      "y": 768,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1296,
+      "y": 864,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 3018,
+      "y": 870,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 3156,
+      "y": 870,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 3054,
+      "y": 870,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 1266,
+      "y": 828,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 1260,
+      "y": 828,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 1260,
+      "y": 852,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 1116,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 1122,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 1128,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 1266,
+      "y": 852,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 1134,
+      "y": 918,
+      "xScale": 6.14,
+      "yScale": 1.29,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 1494,
+      "y": 768,
+      "xScale": 2,
+      "yScale": 2.4,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 1464,
+      "y": 870,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 1428,
+      "y": 870,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 1284,
+      "y": 870,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 1326,
+      "y": 870,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 1272,
+      "y": 762,
+      "xScale": 5.29,
+      "yScale": 3.71,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3342,
+      "y": 936,
+      "xScale": 3,
+      "yScale": 0.6,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 2988,
+      "y": 768,
+      "xScale": 2,
+      "yScale": 2.4,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3222,
+      "y": 768,
+      "xScale": 2,
+      "yScale": 2.4,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3000,
+      "y": 762,
+      "xScale": 5.29,
+      "yScale": 3.71,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3096,
+      "y": 918,
+      "xScale": 5.86,
+      "yScale": 1.29,
+      "properties": {}
+    }
+  ],
+  "resources": [
+    {
+      "name": "bg_foreground",
+      "kind": "foreground",
+      "path": "bg_foreground.png"
+    },
+    {
+      "name": "bg_layer0",
+      "kind": "parallaxLayer",
+      "path": "bg_layer0.png"
+    },
+    {
+      "name": "bg_layer1",
+      "kind": "parallaxLayer",
+      "path": "bg_layer1.png"
+    },
+    {
+      "name": "bg_layer2",
+      "kind": "parallaxLayer",
+      "path": "bg_layer2.png"
+    },
+    {
+      "name": "bg_layer3",
+      "kind": "parallaxLayer",
+      "path": "bg_layer3.png"
+    },
+    {
+      "name": "bg_layer4",
+      "kind": "parallaxLayer",
+      "path": "bg_layer4.png"
+    },
+    {
+      "name": "bg_layer5",
+      "kind": "parallaxLayer",
+      "path": "bg_layer5.png"
+    },
+    {
+      "name": "bg_layer6",
+      "kind": "parallaxLayer",
+      "path": "bg_layer6.png"
+    }
+  ],
+  "parallaxLayers": [
+    {
+      "index": 0,
+      "resourceName": "bg_layer0",
+      "xFactor": 10,
+      "yFactor": 10
+    },
+    {
+      "index": 1,
+      "resourceName": "bg_layer1",
+      "xFactor": 9,
+      "yFactor": 9
+    },
+    {
+      "index": 2,
+      "resourceName": "bg_layer2",
+      "xFactor": 8,
+      "yFactor": 8
+    },
+    {
+      "index": 3,
+      "resourceName": "bg_layer3",
+      "xFactor": 7,
+      "yFactor": 7
+    },
+    {
+      "index": 4,
+      "resourceName": "bg_layer4",
+      "xFactor": 6,
+      "yFactor": 6
+    },
+    {
+      "index": 5,
+      "resourceName": "bg_layer5",
+      "xFactor": 5,
+      "yFactor": 5
+    },
+    {
+      "index": 6,
+      "resourceName": "bg_layer6",
+      "xFactor": 4,
+      "yFactor": 5
+    }
+  ]
+}

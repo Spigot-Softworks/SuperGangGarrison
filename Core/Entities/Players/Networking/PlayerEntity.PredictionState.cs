@@ -66,6 +66,7 @@ public sealed partial class PlayerEntity
         int CivvieUmbrellaChargeTicks,
         bool IsCivvieUmbrellaActive,
         bool IsCivvieUmbrellaBroken,
+        bool CivvieUmbrellaAirLiftUsed,
         int PyroAirblastCooldownTicks,
         bool IsSpyCloaked,
         float SpyCloakAlpha,
@@ -177,6 +178,7 @@ public sealed partial class PlayerEntity
             CivvieUmbrellaChargeTicks,
             IsCivvieUmbrellaActive,
             IsCivvieUmbrellaBroken,
+            CivvieUmbrellaAirLiftUsed,
             PyroAirblastCooldownTicks,
             IsSpyCloaked,
             SpyCloakAlpha,
@@ -293,6 +295,7 @@ public sealed partial class PlayerEntity
         CivvieUmbrellaChargeTicks = Math.Clamp(state.CivvieUmbrellaChargeTicks, 0, CivvieUmbrellaMaxChargeTicks);
         IsCivvieUmbrellaActive = state.IsCivvieUmbrellaActive;
         IsCivvieUmbrellaBroken = state.IsCivvieUmbrellaBroken;
+        CivvieUmbrellaAirLiftUsed = state.CivvieUmbrellaAirLiftUsed;
         PyroAirblastCooldownTicks = state.PyroAirblastCooldownTicks;
         PyroFlareCooldownTicks = state.PyroFlareCooldownTicks;
         IsSpyCloaked = state.IsSpyCloaked;

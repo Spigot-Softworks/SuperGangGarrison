@@ -293,6 +293,11 @@
       "name": "bg_layer5",
       "kind": "parallaxLayer",
       "path": "bg_layer5.png"
+    },
+    {
+      "name": "bg_layer6",
+      "kind": "parallaxLayer",
+      "path": "bg_layer6.png"
     }
   ],
   "parallaxLayers": [
@@ -330,6 +335,12 @@
       "index": 5,
       "resourceName": "bg_layer5",
       "xFactor": 5,
+      "yFactor": 5
+    },
+    {
+      "index": 6,
+      "resourceName": "bg_layer6",
+      "xFactor": 4,
       "yFactor": 5
     }
   ]

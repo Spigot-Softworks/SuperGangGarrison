@@ -54,6 +54,7 @@ public partial class Game1
         _uberOutlineEnabled = _clientSettings.ShowUberOutlinesEnabled;
         _projectileTeamTintEnabled = _clientSettings.ProjectileTeamTintEnabled;
         _audioMuted = _clientSettings.AudioMuted;
+        _masterVolumePercent = Math.Clamp(_clientSettings.MasterVolumePercent, 0, 100);
         _menuMusicVolumePercent = Math.Clamp(_clientSettings.MenuMusicVolumePercent, 0, 100);
         _ingameMusicVolumePercent = Math.Clamp(_clientSettings.IngameMusicVolumePercent, 0, 100);
         _dynamicMusicEnabled = _clientSettings.DynamicMusicEnabled;
@@ -112,6 +113,7 @@ public partial class Game1
         _clientSettings.ShowUberOutlinesEnabled = _uberOutlineEnabled;
         _clientSettings.ProjectileTeamTintEnabled = _projectileTeamTintEnabled;
         _clientSettings.AudioMuted = _audioMuted;
+        _clientSettings.MasterVolumePercent = _masterVolumePercent;
         _clientSettings.MenuMusicVolumePercent = _menuMusicVolumePercent;
         _clientSettings.IngameMusicVolumePercent = _ingameMusicVolumePercent;
         _clientSettings.DynamicMusicEnabled = _dynamicMusicEnabled;

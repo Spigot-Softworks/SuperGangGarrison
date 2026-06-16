@@ -1019,6 +1019,13 @@ public partial class Game1
         PersistClientSettings();
     }
 
+    private void AdjustMasterVolume(int deltaPercent)
+    {
+        _masterVolumePercent = Math.Clamp(_masterVolumePercent + deltaPercent, 0, 100);
+        ApplyAudioVolumeState();
+        PersistClientSettings();
+    }
+
     private void AdjustMenuMusicVolume(int deltaPercent)
     {
         _menuMusicVolumePercent = Math.Clamp(_menuMusicVolumePercent + deltaPercent, 0, 100);

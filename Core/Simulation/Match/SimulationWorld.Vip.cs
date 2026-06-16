@@ -391,7 +391,7 @@ public sealed partial class SimulationWorld
         TrySetNetworkPlayerClassDefinition(slot, civilianDefinition);
         if (player.Team != team)
         {
-            TrySetNetworkPlayerTeam(slot, team);
+            TrySetNetworkPlayerTeam(slot, team, respawnLivePlayerImmediately: true);
         }
 
         if (player.ClassId != PlayerClass.Quote)

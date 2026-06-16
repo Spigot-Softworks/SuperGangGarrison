@@ -144,6 +144,8 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool AudioMuted { get; set; }
 
+    public int MasterVolumePercent { get; set; } = 100;
+
     public int MenuMusicVolumePercent { get; set; } = 70;
 
     public int IngameMusicVolumePercent { get; set; } = 70;
@@ -280,6 +282,7 @@ public sealed class OpenGarrisonPreferencesDocument
             ShowUberOutlinesEnabled = ini.GetBool(SettingsSection, "Show Uber Outlines", true),
             ProjectileTeamTintEnabled = ini.GetBool(SettingsSection, "Projectile Team Tint", true),
             AudioMuted = ini.GetBool(SettingsSection, "Audio Muted", false),
+            MasterVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Master Volume", 100), 0, 100),
             MenuMusicVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Menu Music Volume", 100), 0, 100),
             IngameMusicVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Ingame Music Volume", 100), 0, 100),
             DynamicMusicEnabled = ini.GetBool(SettingsSection, "Dynamic Music", true),
@@ -374,6 +377,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(SettingsSection, "Show Uber Outlines", ShowUberOutlinesEnabled);
         ini.SetBool(SettingsSection, "Projectile Team Tint", ProjectileTeamTintEnabled);
         ini.SetBool(SettingsSection, "Audio Muted", AudioMuted);
+        ini.SetInt(SettingsSection, "Master Volume", Math.Clamp(MasterVolumePercent, 0, 100));
         ini.SetInt(SettingsSection, "Menu Music Volume", MenuMusicVolumePercent);
         ini.SetInt(SettingsSection, "Ingame Music Volume", IngameMusicVolumePercent);
         ini.SetBool(SettingsSection, "Dynamic Music", DynamicMusicEnabled);

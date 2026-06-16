@@ -25,6 +25,7 @@ public sealed partial class PlayerEntity
             if (VerticalSpeed > 0f)
             {
                 IsGrounded = true;
+                ResetCivvieUmbrellaAirLift();
             }
 
             Y = clampedY;

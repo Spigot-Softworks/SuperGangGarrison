@@ -106,7 +106,7 @@ public sealed partial class SimulationWorld
         player.IsTypingChatMessage = isTyping;
     }
 
-    public bool TrySetNetworkPlayerTeam(byte slot, PlayerTeam team)
+    public bool TrySetNetworkPlayerTeam(byte slot, PlayerTeam team, bool respawnLivePlayerImmediately = false)
     {
         if (TryGetNetworkPlayer(slot, out var configuredPlayer) && configuredPlayer.Team != team)
         {
@@ -142,8 +142,33 @@ public sealed partial class SimulationWorld
         }
 
         player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
+        SyncExperimentalGameplayLoadout(slot, player);
+        if (player.IsAlive && player.Team != team && !respawnLivePlayerImmediately)
+        {
+            PrepareNetworkPlayerTeamChangeRespawn(slot, player, team);
+            return true;
+        }
+
         SpawnPlayerResolved(player, team, ReserveSpawn(player, team, slot), playRespawnSound: true);
         return true;
+    }
+
+    private void PrepareNetworkPlayerTeamChangeRespawn(byte slot, PlayerEntity player, PlayerTeam team)
+    {
+        RemoveOwnedSpyArtifacts(player.Id);
+        player.ClearMedicHealingTarget();
+        foreach (var otherPlayer in EnumerateSimulatedPlayers())
+        {
+            if (otherPlayer.MedicHealTargetId == player.Id)
+            {
+                otherPlayer.ClearMedicHealingTarget();
+            }
+        }
+
+        player.Kill();
+        player.SetPendingRespawnTeam(team);
+        SetNetworkPlayerDeathCam(slot, null);
+        TrySetNetworkPlayerRespawnTicks(slot, MatchRules.Mode == GameModeKind.Arena ? 0 : _configuredRespawnTicks);
     }
 
     public bool TryRequestNetworkPlayerTeamSelection(byte slot, PlayerTeam team)

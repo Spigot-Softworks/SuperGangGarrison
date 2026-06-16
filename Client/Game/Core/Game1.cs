@@ -192,6 +192,9 @@ public partial class Game1 : Game
     private readonly OpenGarrisonPresenceClient _presenceClient;
     private readonly GraphicsDeviceManager _graphics;
     private RenderTarget2D? _gameRenderTarget;
+    private RenderTarget2D? _hudRenderTarget;
+    private bool _hudOpacityCompositePending;
+    private bool _preLaunchSplashDismissed;
     private SimulationConfig _config = null!;
     private SimulationWorld _world = null!;
     private FixedStepSimulator _simulator = null!;
@@ -518,6 +521,12 @@ public partial class Game1 : Game
 
         base.Draw(gameTime);
         RecordBrowserDrawDuration(browserDrawStartTimestamp);
+
+        if (!_preLaunchSplashDismissed)
+        {
+            _preLaunchSplashDismissed = true;
+            PreLaunchSplash.Close();
+        }
     }
 
     private void LogBrowserFrameState(string phase, ref int counter, GameTime gameTime)

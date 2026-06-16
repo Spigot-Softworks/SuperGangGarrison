@@ -199,7 +199,8 @@ internal static class ServerRuntimeBootstrapFactory
             outboundMessaging.SendSnapshotPayload,
             snapshotBudgetMode,
             recordCanonicalSnapshot: snapshot => demoRecorder?.RecordSnapshot(snapshot),
-            shouldRecordCanonicalSnapshot: () => demoRecorder?.IsActive == true);
+            shouldRecordCanonicalSnapshot: () => demoRecorder?.IsActive == true,
+            log: log);
 
         demoRecorder = new ServerDemoRecorder(
             () => snapshotBroadcaster.CreateCanonicalDemoWelcomeMessage(serverName),

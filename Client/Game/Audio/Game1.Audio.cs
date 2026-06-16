@@ -101,6 +101,7 @@ public partial class Game1
     private SoundEffectInstance? _localUberIdleSoundInstance;
     private bool _audioAvailable = true;
     private bool _audioMuted;
+    private int _masterVolumePercent = 100;
     private int _menuMusicVolumePercent = 70;
     private int _ingameMusicVolumePercent = 70;
     private int _combatMusicVolumePercent = OpenGarrisonPreferencesDocument.DefaultCombatMusicVolumePercent;
@@ -628,7 +629,7 @@ public partial class Game1
     {
         try
         {
-            SoundEffect.MasterVolume = _audioMuted ? 0f : 1f;
+            SoundEffect.MasterVolume = _audioMuted ? 0f : GetNonLinearVolumeScale(_masterVolumePercent);
         }
         catch (Exception ex)
         {

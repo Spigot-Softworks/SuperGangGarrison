@@ -32,6 +32,70 @@ public partial class Game1
     private const string GameplayRenderTraceFileName = "client-gameplay-render-trace.log";
     private static readonly bool GameplayRenderTraceEnabled = GetGameplayRenderTraceEnabled();
 
+    // Renders the whole HUD layer into a dedicated target before the world pass so a single alpha
+    // multiply at composite time can dim the entire HUD uniformly. Only runs when the user lowered
+    // HUD opacity below max; otherwise the default direct-draw path is taken with no behavior change.
+    private void PrepareGameplayHudOpacityComposite(MouseState mouse, Vector2 cameraPosition)
+    {
+        _hudOpacityCompositePending = false;
+        if (_gameplayHudHidden
+            || _hudLayoutProfile.HudOpacity >= HudLayoutProfile.MaxHudOpacity - 0.001f
+            || OperatingSystem.IsBrowser())
+        {
+            return;
+        }
+
+        EnsureHudRenderTarget();
+        if (_hudRenderTarget is null)
+        {
+            return;
+        }
+
+        GraphicsDevice.SetRenderTarget(_hudRenderTarget);
+        GraphicsDevice.Clear(Color.Transparent);
+        _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+        DrawGameplayHudLayers(mouse, cameraPosition);
+        _spriteBatch.End();
+        GraphicsDevice.SetRenderTarget(null);
+        _hudOpacityCompositePending = true;
+    }
+
+    // Called at the HUD draw point inside the logical frame: either blits the pre-rendered, dimmed
+    // HUD target onto the active batch, or falls through to the normal direct HUD draw.
+    private void DrawGameplayHudLayersOrComposite(MouseState mouse, Vector2 cameraPosition)
+    {
+        if (!_hudOpacityCompositePending || _hudRenderTarget is null)
+        {
+            DrawGameplayHudLayers(mouse, cameraPosition);
+            return;
+        }
+
+        _hudOpacityCompositePending = false;
+        var opacity = HudLayoutProfile.NormalizeHudOpacity(_hudLayoutProfile.HudOpacity);
+        _spriteBatch.Draw(_hudRenderTarget, Vector2.Zero, Color.White * opacity);
+    }
+
+    private void EnsureHudRenderTarget()
+    {
+        if (_hudRenderTarget is not null
+            && _hudRenderTarget.Width == ViewportWidth
+            && _hudRenderTarget.Height == ViewportHeight)
+        {
+            return;
+        }
+
+        _hudRenderTarget?.Dispose();
+        _hudRenderTarget = new RenderTarget2D(
+            GraphicsDevice,
+            ViewportWidth,
+            ViewportHeight,
+            mipMap: false,
+            SurfaceFormat.Color,
+            DepthFormat.None,
+            preferredMultiSampleCount: 0,
+            RenderTargetUsage.PreserveContents);
+    }
+
     private void DrawGameplayHudLayers(MouseState mouse, Vector2 cameraPosition)
     {
         BeginHudElementFrame();
