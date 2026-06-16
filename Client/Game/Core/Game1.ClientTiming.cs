@@ -25,6 +25,9 @@ public partial class Game1
     private bool _hasLatestLocalAimWorldPosition;
     private float _latestLocalAimWorldX;
     private float _latestLocalAimWorldY;
+    private bool _hasLatestNetworkInputAimOrigin;
+    private float _latestNetworkInputAimOriginX;
+    private float _latestNetworkInputAimOriginY;
     private int _writeBubbleTick;
 
     private int ConsumeClientTickCount(GameTime gameTime)
@@ -53,6 +56,9 @@ public partial class Game1
         _hasLatestLocalAimWorldPosition = false;
         _latestLocalAimWorldX = 0f;
         _latestLocalAimWorldY = 0f;
+        _hasLatestNetworkInputAimOrigin = false;
+        _latestNetworkInputAimOriginX = 0f;
+        _latestNetworkInputAimOriginY = 0f;
         _writeBubbleTick = 0;
     }
 
@@ -180,7 +186,10 @@ public partial class Game1
                 outboundNetworkInput = outboundNetworkInput with { Up = true };
             }
 
-            var sentInputSequence = _networkClient.SendInput(outboundNetworkInput, _world.LocalPlayer.X, _world.LocalPlayer.Y);
+            var aimOrigin = _hasLatestNetworkInputAimOrigin
+                ? new Vector2(_latestNetworkInputAimOriginX, _latestNetworkInputAimOriginY)
+                : GetLocalViewPosition();
+            var sentInputSequence = _networkClient.SendInput(outboundNetworkInput, aimOrigin.X, aimOrigin.Y);
             if (_pendingPredictedJumpPress && sentInputSequence != 0)
             {
                 _latchedJumpPressSequence = sentInputSequence;

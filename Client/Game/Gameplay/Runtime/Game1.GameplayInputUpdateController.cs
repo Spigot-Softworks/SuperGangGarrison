@@ -30,6 +30,10 @@ public partial class Game1
                 _game.GetGameplayCameraViewportHeight(_game.ViewportHeight),
                 mouse.X,
                 mouse.Y);
+            var gameplayCameraViewportHeight = _game.GetGameplayCameraViewportHeight(_game.ViewportHeight);
+            _game._latestNetworkInputAimOriginX = cameraPosition.X + (_game.ViewportWidth / 2f);
+            _game._latestNetworkInputAimOriginY = cameraPosition.Y + (gameplayCameraViewportHeight / 2f);
+            _game._hasLatestNetworkInputAimOrigin = true;
             _game.UpdateGarrisonBuilderEditor(keyboard, mouse, (float)gameTime.ElapsedGameTime.TotalSeconds);
             _game.UpdateNavEditor(keyboard, mouse, rawMouse, cameraPosition, (float)gameTime.ElapsedGameTime.TotalSeconds);
             _game.UpdateScoreboardState(keyboard, mouse);
