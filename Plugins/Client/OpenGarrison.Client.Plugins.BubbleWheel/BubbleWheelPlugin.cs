@@ -32,7 +32,6 @@ public sealed class BubbleWheelPlugin :
     private ClientBubbleMenuKind _lastBubbleMenuKind = ClientBubbleMenuKind.None;
     private int _lastBubbleMenuXPageIndex;
     private int _lastHoveredSlot = -1;
-
     public string Id => "bubblewheel";
 
     public string DisplayName => "Bubble Wheel";
@@ -105,7 +104,9 @@ public sealed class BubbleWheelPlugin :
             if (digitResult.NewXPageIndex.HasValue)
             {
                 _lastBubbleMenuXPageIndex = digitResult.NewXPageIndex.Value;
-                _lastHoveredSlot = -1;
+                // Keep the current wheel slot so submenu navigation does not immediately
+                // commit a class portrait on the next hover update.
+                _lastHoveredSlot = inputState.SelectedSlotOrDefault();
             }
             else
             {
@@ -116,13 +117,15 @@ public sealed class BubbleWheelPlugin :
         }
 
         var selectedSlot = inputState.SelectedSlotOrDefault();
+        var behavior = OpenGarrisonPreferencesDocument.NormalizeBubbleWheelBehavior(_config.Behavior);
         var menuChanged = inputState.Kind != _lastBubbleMenuKind || inputState.XPageIndex != _lastBubbleMenuXPageIndex;
         var slotChanged = selectedSlot != _lastHoveredSlot;
+        var pressAndClickActivation = behavior == BubbleWheelBehavior.PressAndClick && inputState.LeftMousePressed;
 
         _lastBubbleMenuKind = inputState.Kind;
         _lastBubbleMenuXPageIndex = inputState.XPageIndex;
 
-        if (!menuChanged && !slotChanged && !inputState.QPressed)
+        if (!menuChanged && !slotChanged && !inputState.QPressed && !pressAndClickActivation)
         {
             return null;
         }
@@ -133,7 +136,7 @@ public sealed class BubbleWheelPlugin :
         {
             ClientBubbleMenuKind.Z => ResolveWheelSelection(selectedSlot, 19),
             ClientBubbleMenuKind.C => ResolveWheelSelection(selectedSlot, 35),
-            ClientBubbleMenuKind.X => ResolveXSelection(inputState, selectedSlot),
+            ClientBubbleMenuKind.X => ResolveXSelection(inputState, selectedSlot, behavior),
             _ => null,
         };
 
@@ -224,7 +227,7 @@ public sealed class BubbleWheelPlugin :
             canvas.DrawScreenTexture(
                 _bubbleWheelStripAtlas.Texture,
                 center,
-                Color.White * renderState.Alpha,
+                Color.White,
                 Vector2.One,
                 sourceRectangle,
                 0f,
@@ -240,7 +243,7 @@ public sealed class BubbleWheelPlugin :
         canvas.DrawScreenTexture(
             menuTexture,
             center,
-            Color.White * renderState.Alpha,
+            Color.White,
             Vector2.One,
             null,
             0f,
@@ -258,7 +261,10 @@ public sealed class BubbleWheelPlugin :
         return new ClientBubbleMenuUpdateResult(BubbleFrame: frameBase + selectedSlot);
     }
 
-    private static ClientBubbleMenuUpdateResult? ResolveXSelection(ClientBubbleMenuInputState inputState, int selectedSlot)
+    private static ClientBubbleMenuUpdateResult? ResolveXSelection(
+        ClientBubbleMenuInputState inputState,
+        int selectedSlot,
+        BubbleWheelBehavior behavior)
     {
         if (inputState.XPageIndex == 0)
         {
@@ -269,7 +275,14 @@ public sealed class BubbleWheelPlugin :
 
             if (selectedSlot is 1 or 2)
             {
-                return new ClientBubbleMenuUpdateResult(ClearBubbleSelection: true);
+                if (behavior == BubbleWheelBehavior.PressAndClick && !inputState.LeftMousePressed)
+                {
+                    return new ClientBubbleMenuUpdateResult(ClearBubbleSelection: true);
+                }
+
+                return new ClientBubbleMenuUpdateResult(
+                    NewXPageIndex: selectedSlot,
+                    ClearBubbleSelection: true);
             }
 
             return selectedSlot is >= 3 and <= 9

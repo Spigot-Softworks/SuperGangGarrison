@@ -104,10 +104,21 @@ local function resolve_wheel_selection(selected_slot, frame_base)
     return { bubbleFrame = frame_base + selected_slot }
 end
 
-local function resolve_x_selection(input_state, selected_slot)
+local function resolve_x_selection(input_state, selected_slot, behavior)
     if input_state.xPageIndex == 0 then
-        if selected_slot == 0 or selected_slot == 1 or selected_slot == 2 then
+        if selected_slot == 0 then
             return { clearBubbleSelection = true }
+        end
+
+        if selected_slot == 1 or selected_slot == 2 then
+            if behavior == BEHAVIOR_PRESS_AND_CLICK and not input_state.leftMousePressed then
+                return { clearBubbleSelection = true }
+            end
+
+            return {
+                newXPageIndex = selected_slot,
+                clearBubbleSelection = true
+            }
         end
 
         if selected_slot >= 3 and selected_slot <= 9 then
@@ -251,7 +262,7 @@ function plugin.try_handle_bubble_menu_input(input_state)
         last_bubble_menu_kind = input_state.kind
         if digit_result.newXPageIndex ~= nil then
             last_bubble_menu_x_page_index = digit_result.newXPageIndex
-            last_hovered_slot = -1
+            last_hovered_slot = selected_slot_or_default(input_state)
         else
             last_bubble_menu_x_page_index = input_state.xPageIndex
         end
@@ -260,13 +271,15 @@ function plugin.try_handle_bubble_menu_input(input_state)
     end
 
     local selected_slot = selected_slot_or_default(input_state)
+    local behavior = normalize_behavior(config.Behavior)
     local menu_changed = input_state.kind ~= last_bubble_menu_kind or input_state.xPageIndex ~= last_bubble_menu_x_page_index
     local slot_changed = selected_slot ~= last_hovered_slot
+    local press_and_click_activation = behavior == BEHAVIOR_PRESS_AND_CLICK and input_state.leftMousePressed
 
     last_bubble_menu_kind = input_state.kind
     last_bubble_menu_x_page_index = input_state.xPageIndex
 
-    if not menu_changed and not slot_changed and not input_state.qPressed then
+    if not menu_changed and not slot_changed and not input_state.qPressed and not press_and_click_activation then
         return nil
     end
 
@@ -278,7 +291,7 @@ function plugin.try_handle_bubble_menu_input(input_state)
     elseif input_state.kind == "C" then
         result = resolve_wheel_selection(selected_slot, 35)
     elseif input_state.kind == "X" then
-        result = resolve_x_selection(input_state, selected_slot)
+        result = resolve_x_selection(input_state, selected_slot, behavior)
     end
 
     if result ~= nil and result.newXPageIndex ~= nil then
@@ -292,7 +305,7 @@ function plugin.try_draw_bubble_menu(canvas, render_state)
     ensure_textures_loaded()
 
     local center = plugin.host.vec2(canvas.viewport_width / 2.0, canvas.viewport_height / 2.0)
-    local tint = tinted_white(render_state.alpha)
+    local tint = WHITE
     for index = 0, 9 do
         local frame_index = index == render_state.selectedSlot and (index + 10) or index
         canvas.draw_screen_texture_atlas_frame(
