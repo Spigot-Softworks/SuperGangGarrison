@@ -9,7 +9,8 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class BubbleWheelPluginTests
 {
-    private const float RedTeamBubbleAimDegrees = -70f;
+    private const float RedTeamBubbleAimDegrees = 20f;
+    private const float Z3AimDegrees = 80f;
 
     [Fact]
     public void DigitOneOnXMenuMainPageOpensRedTeamSubmenuWithoutImmediateClassSelection()
@@ -42,6 +43,26 @@ public sealed class BubbleWheelPluginTests
             PressedDigit: null,
             QPressed: false));
         Assert.Null(hoverAfterPageSwitch);
+    }
+
+    [Fact]
+    public void HoveringZMenuSlotThreeSelectsZThreeBubble()
+    {
+        var plugin = CreatePlugin(BubbleWheelBehavior.HoldAndHover);
+
+        var selection = plugin.TryHandleBubbleMenuInput(new ClientBubbleMenuInputState(
+            ClientBubbleMenuKind.Z,
+            XPageIndex: 0,
+            AimDirectionDegrees: Z3AimDegrees,
+            DistanceFromCenter: 60f,
+            LeftMousePressed: false,
+            LeftMouseDown: false,
+            LeftMouseReleased: false,
+            PressedDigit: null,
+            QPressed: false));
+
+        Assert.NotNull(selection);
+        Assert.Equal(22, selection!.BubbleFrame);
     }
 
     [Fact]

@@ -171,6 +171,26 @@ public sealed partial class SimulationWorld
             || (!VipWarmupActive && player.ClassId == PlayerClass.Quote && IsVipPlayer(player));
     }
 
+    private bool CanPlayerAffectControlPointInVipMode(PlayerEntity player)
+    {
+        return !IsVipModeActive || !VipWarmupActive;
+    }
+
+    private bool CanPlayerPauseVipCaptureDecay(PlayerEntity player)
+    {
+        return IsVipModeActive
+            && !VipWarmupActive
+            && !IsVipPlayer(player)
+            && IsVipDead(player.Team);
+    }
+
+    private bool IsVipDead(PlayerTeam team)
+    {
+        return _vipSlotsByTeam.TryGetValue(team, out var slot)
+            && TryGetNetworkPlayer(slot, out var vip)
+            && !vip.IsAlive;
+    }
+
     private bool RequiresDualVip()
     {
         return IsVipModeActive && !_controlPointSetupMode;

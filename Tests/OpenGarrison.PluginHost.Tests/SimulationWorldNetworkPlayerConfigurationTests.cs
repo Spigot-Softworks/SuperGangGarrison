@@ -7,6 +7,24 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class SimulationWorldNetworkPlayerConfigurationTests
 {
     [Fact]
+    public void NetworkPlayerSlotRangeSupportsFortyPlayableSlots()
+    {
+        Assert.Equal(40, SimulationWorld.MaxPlayableNetworkPlayers);
+        Assert.Equal(SimulationWorld.MaxPlayableNetworkPlayers, SimulationWorld.NetworkPlayerSlots.Count);
+        Assert.Equal(SimulationWorld.LocalPlayerSlot, SimulationWorld.NetworkPlayerSlots[0]);
+        Assert.Equal((byte)SimulationWorld.MaxPlayableNetworkPlayers, SimulationWorld.NetworkPlayerSlots[^1]);
+        Assert.True(SimulationWorld.IsPlayableNetworkPlayerSlot((byte)SimulationWorld.MaxPlayableNetworkPlayers));
+        Assert.False(SimulationWorld.IsPlayableNetworkPlayerSlot((byte)(SimulationWorld.MaxPlayableNetworkPlayers + 1)));
+        Assert.False(SimulationWorld.IsPlayableNetworkPlayerSlot(SimulationWorld.FirstSpectatorSlot));
+
+        var world = new SimulationWorld();
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin((byte)SimulationWorld.MaxPlayableNetworkPlayers));
+        Assert.False(world.TryPrepareNetworkPlayerJoin((byte)(SimulationWorld.MaxPlayableNetworkPlayers + 1)));
+        Assert.False(world.TryPrepareNetworkPlayerJoin(SimulationWorld.FirstSpectatorSlot));
+    }
+
+    [Fact]
     public void TrySetNetworkPlayerGameplayLoadoutUpdatesLocalPlayerAuthoritativeState()
     {
         var world = CreateWorldWithLocalClass(PlayerClass.Soldier);

@@ -212,7 +212,7 @@ public sealed partial class SimulationWorld
         {
             var previousHealth = target.Health;
             target.ApplyContinuousHealing(healAmount);
-            medic.AddHealPoints(Math.Max(0, target.Health - previousHealth));
+            AwardHealingPoints(medic, Math.Max(0, target.Health - previousHealth));
         }
 
         if (!medic.IsMedicUbering)
@@ -239,7 +239,7 @@ public sealed partial class SimulationWorld
         var healedAmount = Math.Max(0, target.Health - healthBefore);
         if (healedAmount > 0)
         {
-            medic.AddHealPoints(healedAmount);
+            AwardHealingPoints(medic, healedAmount);
             ApplyHealingWithFeedback(target, healedAmount, "HealSnd", medic.X, medic.Y);
         }
 
@@ -268,7 +268,7 @@ public sealed partial class SimulationWorld
         if (appliedDamage > 0)
         {
             var appliedHealing = engineer.ApplyContinuousHealingAndGetAmount(appliedDamage);
-            engineer.AddHealPoints(appliedHealing);
+            AwardHealingPoints(engineer, appliedHealing);
             var chunkHealing = engineer.AccumulateExperimentalEngineerEssenceExtractorHealing(
                 appliedHealing,
                 global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerEssenceExtractorHealingChunkSize);
@@ -549,7 +549,7 @@ public sealed partial class SimulationWorld
         }
 
         var appliedHealing = ApplyHealingWithFeedback(engineer, pendingHealing);
-        engineer.AddHealPoints(appliedHealing);
+        AwardHealingPoints(engineer, appliedHealing);
     }
 
     private int GetExperimentalEngineerEssenceExtractorSlowTicks()

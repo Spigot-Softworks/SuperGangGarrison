@@ -5,6 +5,8 @@ param(
     [ValidateSet("stable", "beta")]
     [string]$Channel = "stable",
     [string]$UpdateManifestVersion = "",
+    [string]$ChainedUpdateManifestUrl = "",
+    [switch]$LegacyRootLayout,
     [switch]$RunTests,
     [switch]$SkipTests,
     [switch]$IncludeLegacyClrPlugins
@@ -21,9 +23,16 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $distRoot = Join-Path $repoRoot "dist"
 $stagingRoot = Join-Path $distRoot "_staging"
 $configuration = "Release"
+$appPayloadDirectoryName = "app"
 $projects =
 @(
     "Updater/OpenGarrison.Updater.csproj",
+    "Client/OpenGarrison.Client.csproj",
+    "Server/OpenGarrison.Server.csproj",
+    "ServerLauncher/OpenGarrison.ServerLauncher.csproj"
+)
+$payloadProjects =
+@(
     "Client/OpenGarrison.Client.csproj",
     "Server/OpenGarrison.Server.csproj",
     "ServerLauncher/OpenGarrison.ServerLauncher.csproj"
@@ -162,6 +171,22 @@ function Get-UpdatePlatformSegment {
     }
 }
 
+function Get-RuntimeChainedUpdateManifestUrl {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RuntimeIdentifier,
+        [string]$Template
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Template)) {
+        return ""
+    }
+
+    $platformSegment = Get-UpdatePlatformSegment -RuntimeIdentifier $RuntimeIdentifier
+    $url = $Template.Replace("{platform}", $platformSegment)
+    return $url.Replace("{runtime}", $RuntimeIdentifier)
+}
+
 function Test-IsSelfContainedRuntime {
     param(
         [Parameter(Mandatory = $true)]
@@ -193,6 +218,19 @@ function Get-RuntimeExecutableName {
     }
 
     return $BaseName
+}
+
+function Get-RootLauncherExecutableName {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RuntimeIdentifier
+    )
+
+    if (Test-IsWindowsRuntime -RuntimeIdentifier $RuntimeIdentifier) {
+        return "Super Gang Garrison.exe"
+    }
+
+    return Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2"
 }
 
 function New-PackageArchive {
@@ -399,6 +437,48 @@ function Invoke-PublishDistributionMaps {
         $DestinationDirectory,
         "--drop-unconverted-legacy-pngs"
     )
+}
+
+function Assert-RequiredDistributionMaps {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$MapsDirectory,
+        [Parameter(Mandatory = $true)]
+        [string]$ContentDirectory
+    )
+
+    $requiredCustomMaps = @(
+        "cp_gully",
+        "cp_thundermountain_d",
+        "cp_coldfront_v7",
+        "cp_docking_v2"
+    )
+
+    foreach ($mapName in $requiredCustomMaps) {
+        $manifestPath = Join-Path (Join-Path $MapsDirectory $mapName) "$mapName.json"
+        if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+            throw "Release maps are missing required packaged custom map '$mapName' at '$manifestPath'."
+        }
+    }
+
+    $requiredStockMaps = @(
+        [pscustomobject]@{ IniKey = "cp_dirtbowl"; RoomName = "Dirtbowl" },
+        [pscustomobject]@{ IniKey = "cp_egypt"; RoomName = "Egypt" }
+    )
+
+    foreach ($map in $requiredStockMaps) {
+        $stockMapPath = Join-Path (Join-Path $ContentDirectory "StockMaps") "$($map.IniKey).png"
+        if (-not (Test-Path -LiteralPath $stockMapPath -PathType Leaf)) {
+            throw "Release maps are missing required stock map image '$($map.IniKey)' at '$stockMapPath'."
+        }
+
+        $roomPath = Join-Path (Join-Path (Join-Path $ContentDirectory "Rooms") "Maps") "$($map.RoomName).xml"
+        if (-not (Test-Path -LiteralPath $roomPath -PathType Leaf)) {
+            throw "Release maps are missing required stock map room '$($map.RoomName)' at '$roomPath'."
+        }
+    }
+
+    Write-Host "[package] verified required distribution maps: cp_dirtbowl, cp_gully, cp_thundermountain_d, cp_coldfront_v7, cp_egypt, cp_docking_v2"
 }
 
 function Restore-CollisionMaskImages {
@@ -659,21 +739,32 @@ function New-UnixLauncherScript {
         [Parameter(Mandatory = $true)]
         [string]$DestinationPath,
         [Parameter(Mandatory = $true)]
-        [string]$ExecutableName
+        [string]$ExecutableName,
+        [string]$WorkingDirectory = ""
     )
+
+    $workingDirectoryCommand = if ([string]::IsNullOrWhiteSpace($WorkingDirectory)) {
+        'cd "$SCRIPT_DIR"'
+    }
+    else {
+        "cd `"`$SCRIPT_DIR/$WorkingDirectory`""
+    }
 
     $scriptContents = @'
 #!/bin/sh
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-cd "$SCRIPT_DIR"
+__WORKING_DIRECTORY_COMMAND__
 chmod +x "./__EXECUTABLE__"
 if [ -f "./OG2.Game" ]; then
     chmod +x "./OG2.Game"
 fi
 exec "./__EXECUTABLE__" "$@"
-'@.Replace("`r`n", "`n").Replace("__EXECUTABLE__", $ExecutableName)
+'@.
+        Replace("`r`n", "`n").
+        Replace("__WORKING_DIRECTORY_COMMAND__", $workingDirectoryCommand).
+        Replace("__EXECUTABLE__", $ExecutableName)
 
     [System.IO.File]::WriteAllText($DestinationPath, $scriptContents, [System.Text.Encoding]::ASCII)
 }
@@ -743,10 +834,120 @@ function Set-ClientEntrypointLayout {
     Write-Host "[package] client entrypoint: $clientExecutableName launches updater; game binary is $gameExecutableName; compatibility updater helper is $legacyLauncherExecutableName"
 }
 
+function Set-CleanClientPayloadEntrypointLayout {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PayloadDirectory,
+        [Parameter(Mandatory = $true)]
+        [string]$RuntimeIdentifier
+    )
+
+    $clientExecutableName = Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2"
+    $gameExecutableName = Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2.Game"
+    $serverExecutableName = Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2.Server"
+    $serverLauncherExecutableName = Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2.ServerLauncher"
+
+    $clientExecutablePath = Join-Path $PayloadDirectory $clientExecutableName
+    $gameExecutablePath = Join-Path $PayloadDirectory $gameExecutableName
+
+    if (-not (Test-Path -LiteralPath $clientExecutablePath)) {
+        throw "Package is missing client executable '$clientExecutableName'."
+    }
+
+    Copy-Item -LiteralPath $clientExecutablePath -Destination $gameExecutablePath -Force
+    Remove-Item -LiteralPath $clientExecutablePath -Force
+
+    if (-not (Test-IsWindowsRuntime -RuntimeIdentifier $RuntimeIdentifier)) {
+        foreach ($executableName in @($gameExecutableName, $serverExecutableName, $serverLauncherExecutableName)) {
+            Set-UnixExecutable -Path (Join-Path $PayloadDirectory $executableName)
+        }
+    }
+
+    Write-Host "[package] clean client payload: game binary is $appPayloadDirectoryName/$gameExecutableName; root launcher is published separately"
+}
+
+function Publish-RootUpdaterEntrypoint {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot,
+        [Parameter(Mandatory = $true)]
+        [string]$OutputDirectory,
+        [Parameter(Mandatory = $true)]
+        [string]$ScratchDirectory,
+        [Parameter(Mandatory = $true)]
+        [string]$RuntimeIdentifier,
+        [Parameter(Mandatory = $true)]
+        [string]$AssemblyFileVersion,
+        [Parameter(Mandatory = $true)]
+        [string]$PackageVersion
+    )
+
+    if (Test-Path $ScratchDirectory) {
+        Remove-Item $ScratchDirectory -Recurse -Force
+    }
+
+    New-Item -ItemType Directory -Path $ScratchDirectory -Force | Out-Null
+
+    $updaterProjectPath = Join-Path $RepoRoot "Updater/OpenGarrison.Updater.csproj"
+    $selfContained = Test-IsSelfContainedRuntime -RuntimeIdentifier $RuntimeIdentifier
+    Invoke-DotNet -Arguments @(
+        "restore",
+        $updaterProjectPath,
+        "-r", $RuntimeIdentifier
+    )
+
+    $selfContainedArguments = if ($selfContained) {
+        @("--self-contained", "true")
+    }
+    else {
+        @("--no-self-contained", "-p:SelfContained=false")
+    }
+
+    $commonPublishArguments = @(
+        "--no-restore",
+        "/nr:false",
+        "/m:1",
+        "-p:PublishSingleFile=true",
+        "-p:DebugType=None",
+        "-p:DebugSymbols=false",
+        "-p:Version=$AssemblyFileVersion",
+        "-p:AssemblyVersion=$AssemblyFileVersion",
+        "-p:FileVersion=$AssemblyFileVersion",
+        "-p:InformationalVersion=$PackageVersion",
+        "-p:IncludeSourceRevisionInInformationalVersion=false",
+        "-o", $ScratchDirectory
+    )
+
+    $publishArguments = @(
+        "publish",
+        $updaterProjectPath,
+        "-c", $configuration,
+        "-r", $RuntimeIdentifier
+    ) + $selfContainedArguments + $commonPublishArguments
+    Invoke-DotNet -Arguments $publishArguments
+
+    $publishedUpdaterName = Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2.Updater"
+    $rootEntrypointName = Get-RootLauncherExecutableName -RuntimeIdentifier $RuntimeIdentifier
+    $publishedUpdaterPath = Join-Path $ScratchDirectory $publishedUpdaterName
+    if (-not (Test-Path -LiteralPath $publishedUpdaterPath)) {
+        throw "Package is missing published updater executable '$publishedUpdaterName'."
+    }
+
+    $rootEntrypointPath = Join-Path $OutputDirectory $rootEntrypointName
+    Copy-Item -LiteralPath $publishedUpdaterPath -Destination $rootEntrypointPath -Force
+    if (-not (Test-IsWindowsRuntime -RuntimeIdentifier $RuntimeIdentifier)) {
+        Set-UnixExecutable -Path $rootEntrypointPath
+    }
+
+    Remove-Item $ScratchDirectory -Recurse -Force
+    Write-Host "[package] clean root entrypoint: $rootEntrypointName is single-file updater"
+}
+
 function Add-UnixLaunchers {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$OutputDirectory
+        [string]$OutputDirectory,
+        [string]$PayloadSubdirectory = ""
     )
 
     $launchers = @(
@@ -757,8 +958,32 @@ function Add-UnixLaunchers {
 
     foreach ($launcher in $launchers) {
         $scriptPath = Join-Path $OutputDirectory $launcher.Script
-        $executablePath = Join-Path $OutputDirectory $launcher.Executable
-        New-UnixLauncherScript -DestinationPath $scriptPath -ExecutableName $launcher.Executable
+        $rootExecutablePath = Join-Path $OutputDirectory $launcher.Executable
+        $payloadExecutablePath = if ([string]::IsNullOrWhiteSpace($PayloadSubdirectory)) {
+            $rootExecutablePath
+        }
+        else {
+            Join-Path $OutputDirectory (Join-Path $PayloadSubdirectory $launcher.Executable)
+        }
+
+        $workingDirectory = if (Test-Path -LiteralPath $rootExecutablePath) {
+            ""
+        }
+        elseif (Test-Path -LiteralPath $payloadExecutablePath) {
+            $PayloadSubdirectory
+        }
+        else {
+            ""
+        }
+
+        $executablePath = if ([string]::IsNullOrWhiteSpace($workingDirectory)) {
+            $rootExecutablePath
+        }
+        else {
+            $payloadExecutablePath
+        }
+
+        New-UnixLauncherScript -DestinationPath $scriptPath -ExecutableName $launcher.Executable -WorkingDirectory $workingDirectory
         Set-UnixExecutable -Path $scriptPath
         Set-UnixExecutable -Path $executablePath
     }
@@ -908,6 +1133,7 @@ else {
 }
 
 $releaseChannel = $Channel.Trim().ToLowerInvariant()
+$chainedUpdateManifestUrl = $ChainedUpdateManifestUrl.Trim()
 $assemblyFileVersion = Get-AssemblyFileVersion -PackageVersion $packageVersion
 Write-Host "[package] version: $packageVersion"
 if (-not [string]::Equals($manifestVersion, $packageVersion, [System.StringComparison]::OrdinalIgnoreCase)) {
@@ -915,6 +1141,9 @@ if (-not [string]::Equals($manifestVersion, $packageVersion, [System.StringCompa
 }
 
 Write-Host "[package] channel: $releaseChannel"
+if (-not [string]::IsNullOrWhiteSpace($chainedUpdateManifestUrl)) {
+    Write-Host "[package] chained update manifest: $chainedUpdateManifestUrl"
+}
 
 $toolManifestPaths = @(
     (Join-Path $repoRoot ".config/dotnet-tools.json"),
@@ -928,13 +1157,31 @@ $builtOutputs = @()
 
 foreach ($runtimeIdentifier in $Platforms) {
     $stagingDirectory = Join-Path $stagingRoot $runtimeIdentifier
+    $updaterScratchDirectory = Join-Path $stagingRoot "$runtimeIdentifier-root-updater"
     if (Test-Path $stagingDirectory) {
         Remove-Item $stagingDirectory -Recurse -Force
     }
+    if (Test-Path $updaterScratchDirectory) {
+        Remove-Item $updaterScratchDirectory -Recurse -Force
+    }
 
     New-Item -ItemType Directory -Path $stagingDirectory -Force | Out-Null
+    $payloadDirectory = if ($LegacyRootLayout) {
+        $stagingDirectory
+    }
+    else {
+        Join-Path $stagingDirectory $appPayloadDirectoryName
+    }
+    New-Item -ItemType Directory -Path $payloadDirectory -Force | Out-Null
 
-    foreach ($project in $projects) {
+    $projectsToPublish = if ($LegacyRootLayout) {
+        $projects
+    }
+    else {
+        $payloadProjects
+    }
+
+    foreach ($project in $projectsToPublish) {
         $projectPath = Join-Path $repoRoot $project
         $selfContained = if (Test-IsSelfContainedRuntime -RuntimeIdentifier $runtimeIdentifier) { "true" } else { "false" }
         Invoke-DotNet -Arguments @(
@@ -958,40 +1205,65 @@ foreach ($runtimeIdentifier in $Platforms) {
             "-p:FileVersion=$assemblyFileVersion",
             "-p:InformationalVersion=$packageVersion",
             "-p:IncludeSourceRevisionInInformationalVersion=false",
-            "-o", $stagingDirectory
+            "-o", $payloadDirectory
         )
 
         Invoke-DotNet -Arguments $publishArguments
     }
 
-    Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "Core/Content") -DestinationDirectory (Join-Path $stagingDirectory "Content")
-    Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "Client/Content") -DestinationDirectory (Join-Path $stagingDirectory "Content")
-    Invoke-PublishDistributionMaps -RepoRoot $repoRoot -DestinationDirectory (Join-Path $stagingDirectory "Maps")
+    if (-not $LegacyRootLayout) {
+        Publish-RootUpdaterEntrypoint `
+            -RepoRoot $repoRoot `
+            -OutputDirectory $stagingDirectory `
+            -ScratchDirectory $updaterScratchDirectory `
+            -RuntimeIdentifier $runtimeIdentifier `
+            -AssemblyFileVersion $assemblyFileVersion `
+            -PackageVersion $packageVersion
+    }
 
-    Invoke-GenerateDistributionAtlases -RepoRoot $repoRoot -ContentDirectory (Join-Path $stagingDirectory "Content")
-    Restore-CollisionMaskImages -RepoRoot $repoRoot -ContentDirectory (Join-Path $stagingDirectory "Content")
-    Remove-PackagedContentResidue -ContentDirectory (Join-Path $stagingDirectory "Content")
-    Convert-PackagedBotBrainJsonAssetsToGzip -ContentDirectory (Join-Path $stagingDirectory "Content")
-    Assert-PackagedContentPolicy -ContentDirectory (Join-Path $stagingDirectory "Content")
-    Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "packaging/config") -DestinationDirectory (Join-Path $stagingDirectory "config")
-    Copy-Item (Join-Path $repoRoot "Client/practice-bot-names.txt") (Join-Path $stagingDirectory "config/practice-bot-names.txt") -Force
-    Copy-Item (Join-Path $repoRoot "sampleMapRotation.txt") (Join-Path $stagingDirectory "config/sampleMapRotation.txt") -Force
+    Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "Core/Content") -DestinationDirectory (Join-Path $payloadDirectory "Content")
+    Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "Client/Content") -DestinationDirectory (Join-Path $payloadDirectory "Content")
+    Invoke-PublishDistributionMaps -RepoRoot $repoRoot -DestinationDirectory (Join-Path $payloadDirectory "Maps")
+
+    Invoke-GenerateDistributionAtlases -RepoRoot $repoRoot -ContentDirectory (Join-Path $payloadDirectory "Content")
+    Restore-CollisionMaskImages -RepoRoot $repoRoot -ContentDirectory (Join-Path $payloadDirectory "Content")
+    Remove-PackagedContentResidue -ContentDirectory (Join-Path $payloadDirectory "Content")
+    Convert-PackagedBotBrainJsonAssetsToGzip -ContentDirectory (Join-Path $payloadDirectory "Content")
+    Assert-PackagedContentPolicy -ContentDirectory (Join-Path $payloadDirectory "Content")
+    Assert-RequiredDistributionMaps -MapsDirectory (Join-Path $payloadDirectory "Maps") -ContentDirectory (Join-Path $payloadDirectory "Content")
+    Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "packaging/config") -DestinationDirectory (Join-Path $payloadDirectory "config")
+    Copy-Item (Join-Path $repoRoot "Client/practice-bot-names.txt") (Join-Path $payloadDirectory "config/practice-bot-names.txt") -Force
+    Copy-Item (Join-Path $repoRoot "sampleMapRotation.txt") (Join-Path $payloadDirectory "config/sampleMapRotation.txt") -Force
     Copy-Item (Join-Path $repoRoot "packaging/README.txt") (Join-Path $stagingDirectory "README.txt") -Force
     Set-Content -Path (Join-Path $stagingDirectory "version.txt") -Value $packageVersion -NoNewline -Encoding ASCII
     Set-Content -Path (Join-Path $stagingDirectory "release-channel.txt") -Value $releaseChannel -NoNewline -Encoding ASCII
-
-    Set-ClientEntrypointLayout -OutputDirectory $stagingDirectory -RuntimeIdentifier $runtimeIdentifier
-
-    if (Test-IsSelfContainedRuntime -RuntimeIdentifier $runtimeIdentifier) {
-        Add-UnixLaunchers -OutputDirectory $stagingDirectory
+    if (-not $LegacyRootLayout) {
+        Set-Content -Path (Join-Path $payloadDirectory "version.txt") -Value $packageVersion -NoNewline -Encoding ASCII
+        Set-Content -Path (Join-Path $payloadDirectory "release-channel.txt") -Value $releaseChannel -NoNewline -Encoding ASCII
+    }
+    $runtimeChainedUpdateManifestUrl = Get-RuntimeChainedUpdateManifestUrl -RuntimeIdentifier $runtimeIdentifier -Template $chainedUpdateManifestUrl
+    if (-not [string]::IsNullOrWhiteSpace($runtimeChainedUpdateManifestUrl)) {
+        Set-Content -Path (Join-Path $stagingDirectory "chained-update-manifest-url.txt") -Value $runtimeChainedUpdateManifestUrl -NoNewline -Encoding ASCII
     }
 
-    Publish-PackagedExamples -RepoRoot $repoRoot -OutputDirectory $stagingDirectory
+    if ($LegacyRootLayout) {
+        Set-ClientEntrypointLayout -OutputDirectory $stagingDirectory -RuntimeIdentifier $runtimeIdentifier
+    }
+    else {
+        Set-CleanClientPayloadEntrypointLayout -PayloadDirectory $payloadDirectory -RuntimeIdentifier $runtimeIdentifier
+    }
+
+    if (-not (Test-IsWindowsRuntime -RuntimeIdentifier $runtimeIdentifier)) {
+        $launcherPayloadSubdirectory = if ($LegacyRootLayout) { "" } else { $appPayloadDirectoryName }
+        Add-UnixLaunchers -OutputDirectory $stagingDirectory -PayloadSubdirectory $launcherPayloadSubdirectory
+    }
+
+    Publish-PackagedExamples -RepoRoot $repoRoot -OutputDirectory $payloadDirectory
 
     if ($IncludeLegacyClrPlugins) {
         Publish-BundledPlugins `
             -RepoRoot $repoRoot `
-            -OutputDirectory $stagingDirectory `
+            -OutputDirectory $payloadDirectory `
             -RuntimeIdentifier $runtimeIdentifier `
             -RootDirectoryName "LegacyPlugins"
     }

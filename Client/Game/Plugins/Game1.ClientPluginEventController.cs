@@ -286,7 +286,7 @@ public partial class Game1
                 damageEvent.AssistedByPlayerId,
                 (LocalDamageFlags)damageEvent.Flags);
             _game._clientPluginHost?.NotifyLocalDamage(pluginEvent);
-            if ((dealtByLocalPlayer && !isSelfDamage) || assistedByLocalPlayer)
+            if (ShouldNotifyHitConfirmed(dealtByLocalPlayer, isSelfDamage, assistedByLocalPlayer, pluginEvent.Flags))
             {
                 _game._clientPluginHost?.NotifyHitConfirmed(new ClientHitConfirmedEvent(
                     pluginEvent.Amount,
@@ -327,7 +327,7 @@ public partial class Game1
                 damageEvent.AssistedByPlayerId,
                 (LocalDamageFlags)damageEvent.Flags);
             _game._clientPluginHost?.NotifyLocalDamage(pluginEvent);
-            if ((dealtByLocalPlayer && !isSelfDamage) || assistedByLocalPlayer)
+            if (ShouldNotifyHitConfirmed(dealtByLocalPlayer, isSelfDamage, assistedByLocalPlayer, pluginEvent.Flags))
             {
                 _game._clientPluginHost?.NotifyHitConfirmed(new ClientHitConfirmedEvent(
                     pluginEvent.Amount,
@@ -340,6 +340,20 @@ public partial class Game1
                     pluginEvent.Flags,
                     (ulong)Math.Max(0, _game._world.Frame)));
             }
+        }
+
+        private static bool ShouldNotifyHitConfirmed(
+            bool dealtByLocalPlayer,
+            bool isSelfDamage,
+            bool assistedByLocalPlayer,
+            LocalDamageFlags flags)
+        {
+            if (dealtByLocalPlayer && !isSelfDamage)
+            {
+                return true;
+            }
+
+            return assistedByLocalPlayer && !flags.HasFlag(LocalDamageFlags.AfterburnTick);
         }
 
         private void DispatchClientRoundPhaseEvents()

@@ -102,7 +102,7 @@ sealed class AutoBalancer
 
         var candidateSlot = (byte)0;
         PlayerEntity? candidate = null;
-        var bestScore = int.MaxValue;
+        var bestScore = float.MaxValue;
         foreach (var entry in _world.EnumerateActiveNetworkPlayers())
         {
             if (entry.Player.Team != targetTeam || !entry.Player.IsAlive)
@@ -119,7 +119,7 @@ sealed class AutoBalancer
                 }
             }
 
-            var score = entry.Player.Kills + (entry.Player.Caps * 2) + entry.Player.HealPoints;
+            var score = entry.Player.Points;
             if (score < bestScore)
             {
                 bestScore = score;

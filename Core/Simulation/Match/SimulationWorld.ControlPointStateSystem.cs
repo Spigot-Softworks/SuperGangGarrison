@@ -6,6 +6,8 @@ public sealed partial class SimulationWorld
 {
     private static class ControlPointStateSystem
     {
+        private const int VipCaptureStrength = 5;
+
         public static void Update(SimulationWorld world)
         {
             if (world.MatchState.IsEnded || world._controlPoints.Count == 0)
@@ -18,12 +20,22 @@ public sealed partial class SimulationWorld
 
             var redCappersByPoint = new HashSet<int>[world._controlPoints.Count];
             var blueCappersByPoint = new HashSet<int>[world._controlPoints.Count];
+            var redPlayersByPoint = new HashSet<int>[world._controlPoints.Count];
+            var bluePlayersByPoint = new HashSet<int>[world._controlPoints.Count];
+            var redVipDecayBlockersByPoint = new HashSet<int>[world._controlPoints.Count];
+            var blueVipDecayBlockersByPoint = new HashSet<int>[world._controlPoints.Count];
             var redCapStrengthByPoint = new int[world._controlPoints.Count];
             var blueCapStrengthByPoint = new int[world._controlPoints.Count];
+            var redReverseStrengthByPoint = new int[world._controlPoints.Count];
+            var blueReverseStrengthByPoint = new int[world._controlPoints.Count];
             for (var index = 0; index < world._controlPoints.Count; index += 1)
             {
                 redCappersByPoint[index] = new HashSet<int>();
                 blueCappersByPoint[index] = new HashSet<int>();
+                redPlayersByPoint[index] = new HashSet<int>();
+                bluePlayersByPoint[index] = new HashSet<int>();
+                redVipDecayBlockersByPoint[index] = new HashSet<int>();
+                blueVipDecayBlockersByPoint[index] = new HashSet<int>();
             }
 
             foreach (var player in world.EnumerateSimulatedPlayers())
@@ -31,7 +43,7 @@ public sealed partial class SimulationWorld
                 if (!player.IsAlive
                     || player.IsSpyCloaked
                     || IsIgnoringPlayerForCapture(world, player)
-                    || !world.CanPlayerCaptureInVipMode(player))
+                    || !world.CanPlayerAffectControlPointInVipMode(player))
                 {
                     continue;
                 }
@@ -51,16 +63,40 @@ public sealed partial class SimulationWorld
                         continue;
                     }
 
+                    var canProgressCapture = world.CanPlayerCaptureInVipMode(player);
+                    var reverseStrength = GetCapStrength(world, player);
+                    var pausesVipDecay = world.CanPlayerPauseVipCaptureDecay(player);
                     if (player.Team == PlayerTeam.Red)
                     {
-                        if (redCappersByPoint[zone.ControlPointIndex].Add(player.Id))
+                        if (redPlayersByPoint[zone.ControlPointIndex].Add(player.Id))
                         {
-                            redCapStrengthByPoint[zone.ControlPointIndex] += GetCapStrength(world, player);
+                            redReverseStrengthByPoint[zone.ControlPointIndex] += reverseStrength;
+                            if (pausesVipDecay)
+                            {
+                                redVipDecayBlockersByPoint[zone.ControlPointIndex].Add(player.Id);
+                            }
+                        }
+
+                        if (canProgressCapture && redCappersByPoint[zone.ControlPointIndex].Add(player.Id))
+                        {
+                            redCapStrengthByPoint[zone.ControlPointIndex] += GetCaptureProgressStrength(world, player);
                         }
                     }
-                    else if (blueCappersByPoint[zone.ControlPointIndex].Add(player.Id))
+                    else
                     {
-                        blueCapStrengthByPoint[zone.ControlPointIndex] += GetCapStrength(world, player);
+                        if (bluePlayersByPoint[zone.ControlPointIndex].Add(player.Id))
+                        {
+                            blueReverseStrengthByPoint[zone.ControlPointIndex] += reverseStrength;
+                            if (pausesVipDecay)
+                            {
+                                blueVipDecayBlockersByPoint[zone.ControlPointIndex].Add(player.Id);
+                            }
+                        }
+
+                        if (canProgressCapture && blueCappersByPoint[zone.ControlPointIndex].Add(player.Id))
+                        {
+                            blueCapStrengthByPoint[zone.ControlPointIndex] += GetCaptureProgressStrength(world, player);
+                        }
                     }
                 }
             }
@@ -72,45 +108,50 @@ public sealed partial class SimulationWorld
                 var previousBlueCappers = point.BlueCappers;
                 var redCappers = redCapStrengthByPoint[index];
                 var blueCappers = blueCapStrengthByPoint[index];
+                var redPlayers = redPlayersByPoint[index].Count;
+                var bluePlayers = bluePlayersByPoint[index].Count;
                 point.RedCappers = redCappers;
                 point.BlueCappers = blueCappers;
 
-                var defended = redCappers > 0 && blueCappers > 0;
+                var defended = IsPointDefended(world, redCappers, blueCappers, redPlayers, bluePlayers);
                 PlayerTeam? capTeam = null;
                 var cappers = 0;
 
-                if (redCappers > 0 && blueCappers == 0 && point.Team != PlayerTeam.Red)
+                if (redCappers > 0 && bluePlayers == 0 && point.Team != PlayerTeam.Red)
                 {
                     capTeam = PlayerTeam.Red;
                     cappers = redCappers;
                 }
-                else if (blueCappers > 0 && redCappers == 0 && point.Team != PlayerTeam.Blue)
+                else if (blueCappers > 0 && redPlayers == 0 && point.Team != PlayerTeam.Blue)
                 {
                     capTeam = PlayerTeam.Blue;
                     cappers = blueCappers;
                 }
 
-                if (point.CappingTicks > 0f && point.CappingTeam != capTeam)
+                if (point.CappingTicks > 0f && capTeam.HasValue && point.CappingTeam != capTeam)
+                {
+                    cappers = 0;
+                    ClearCaptureParticipants(point);
+                }
+                else if (point.CappingTicks > 0f && point.CappingTeam != capTeam)
                 {
                     cappers = 0;
                 }
                 else if (point.Team.HasValue && capTeam == point.Team.Value)
                 {
                     cappers = 0;
+                    ClearCaptureParticipants(point);
                 }
 
                 if (world._controlPointSetupMode && capTeam == PlayerTeam.Blue)
                 {
                     cappers = 0;
+                    ClearCaptureParticipants(point);
                 }
 
                 point.Cappers = cappers;
 
-                var capStrength = 0f;
-                for (var strengthIndex = 1; strengthIndex <= cappers; strengthIndex += 1)
-                {
-                    capStrength += strengthIndex <= 2 ? 1f : 0.5f;
-                }
+                var capStrength = GetCaptureProgressPerTick(world, cappers);
 
                 if (world.Level.ControlPointSettings.OverrideInitialOwnership)
                 {
@@ -152,24 +193,29 @@ public sealed partial class SimulationWorld
                 {
                     point.CappingTicks = 0f;
                     point.CappingTeam = null;
+                    ClearCaptureParticipants(point);
                     continue;
                 }
 
                 if (capTeam.HasValue && cappers > 0 && point.CappingTicks < point.CapTimeTicks)
                 {
+                    TrackCaptureParticipants(point, capTeam.Value, redCappersByPoint[index], blueCappersByPoint[index]);
                     point.CappingTicks += capStrength;
                     point.CappingTeam = capTeam;
                 }
-                else if (point.CappingTicks > 0f && cappers == 0 && !defended)
+                else if (point.CappingTicks > 0f
+                    && cappers == 0
+                    && !defended
+                    && !IsCaptureDecayPausedByVipTeammates(point, index, redVipDecayBlockersByPoint, blueVipDecayBlockersByPoint))
                 {
                     point.CappingTicks -= 1f;
                     if (point.Team == PlayerTeam.Blue)
                     {
-                        point.CappingTicks -= blueCappers * 0.5f;
+                        point.CappingTicks -= blueReverseStrengthByPoint[index] * 0.5f;
                     }
                     else if (point.Team == PlayerTeam.Red)
                     {
-                        point.CappingTicks -= redCappers * 0.5f;
+                        point.CappingTicks -= redReverseStrengthByPoint[index] * 0.5f;
                     }
                 }
 
@@ -177,6 +223,7 @@ public sealed partial class SimulationWorld
                 {
                     point.CappingTicks = 0f;
                     point.CappingTeam = null;
+                    ClearCaptureParticipants(point);
                     continue;
                 }
 
@@ -185,6 +232,38 @@ public sealed partial class SimulationWorld
                     CapturePoint(world, point, index, point.CappingTeam.Value, redCappersByPoint, blueCappersByPoint);
                 }
             }
+        }
+
+        private static int GetCaptureProgressStrength(SimulationWorld world, PlayerEntity player)
+        {
+            return world.IsVipModeActive ? VipCaptureStrength : GetCapStrength(world, player);
+        }
+
+        private static float GetCaptureProgressPerTick(SimulationWorld world, int cappers)
+        {
+            if (world.IsVipModeActive)
+            {
+                return cappers;
+            }
+
+            var capStrength = 0f;
+            for (var strengthIndex = 1; strengthIndex <= cappers; strengthIndex += 1)
+            {
+                capStrength += strengthIndex <= 2 ? 1f : 0.5f;
+            }
+
+            return capStrength;
+        }
+
+        private static bool IsPointDefended(SimulationWorld world, int redCappers, int blueCappers, int redPlayers, int bluePlayers)
+        {
+            if (world.IsVipModeActive)
+            {
+                return (redCappers > 0 && bluePlayers > 0)
+                    || (blueCappers > 0 && redPlayers > 0);
+            }
+
+            return redPlayers > 0 && bluePlayers > 0;
         }
 
         private static int GetCapStrength(SimulationWorld world, PlayerEntity player)
@@ -212,6 +291,20 @@ public sealed partial class SimulationWorld
             return 1;
         }
 
+        private static bool IsCaptureDecayPausedByVipTeammates(
+            ControlPointState point,
+            int pointIndex,
+            HashSet<int>[] redVipDecayBlockersByPoint,
+            HashSet<int>[] blueVipDecayBlockersByPoint)
+        {
+            return point.CappingTeam switch
+            {
+                PlayerTeam.Red => redVipDecayBlockersByPoint[pointIndex].Count > 0,
+                PlayerTeam.Blue => blueVipDecayBlockersByPoint[pointIndex].Count > 0,
+                _ => false,
+            };
+        }
+
         private static bool IsIgnoringPlayerForCapture(SimulationWorld world, PlayerEntity player)
         {
             if (!player.IsUbered)
@@ -223,6 +316,31 @@ public sealed partial class SimulationWorld
                 || !player.IsRaging
                 || player.ClassId != PlayerClass.Soldier
                 || !world.IsExperimentalPracticePowerOwner(player);
+        }
+
+        private static void TrackCaptureParticipants(
+            ControlPointState point,
+            PlayerTeam team,
+            HashSet<int> redCappers,
+            HashSet<int> blueCappers)
+        {
+            var participants = team == PlayerTeam.Red
+                ? point.RedCaptureParticipantIds
+                : point.BlueCaptureParticipantIds;
+            var currentCappers = team == PlayerTeam.Red
+                ? redCappers
+                : blueCappers;
+
+            foreach (var playerId in currentCappers)
+            {
+                participants.Add(playerId);
+            }
+        }
+
+        private static void ClearCaptureParticipants(ControlPointState point)
+        {
+            point.RedCaptureParticipantIds.Clear();
+            point.BlueCaptureParticipantIds.Clear();
         }
 
         private static bool IsLocked(SimulationWorld world, ControlPointState point)
@@ -305,7 +423,14 @@ public sealed partial class SimulationWorld
             point.HasHealingAura = world.ExperimentalGameplaySettings.EnableCapturedPointHealingAura
                 && team == PlayerTeam.Red;
 
-            var capperIds = team == PlayerTeam.Red ? redCappersByPoint[pointIndex] : blueCappersByPoint[pointIndex];
+            var finalCapperIds = team == PlayerTeam.Red ? redCappersByPoint[pointIndex] : blueCappersByPoint[pointIndex];
+            var participantIds = team == PlayerTeam.Red ? point.RedCaptureParticipantIds : point.BlueCaptureParticipantIds;
+            var capperIds = new HashSet<int>(participantIds);
+            foreach (var playerId in finalCapperIds)
+            {
+                capperIds.Add(playerId);
+            }
+
             if (capperIds.Count > 0)
             {
                 foreach (var player in world.EnumerateSimulatedPlayers())
@@ -321,6 +446,7 @@ public sealed partial class SimulationWorld
             }
 
             world.RecordControlPointCapturedObjectiveLog(team, capperIds);
+            ClearCaptureParticipants(point);
 
             if (world._controlPointSetupMode)
             {

@@ -350,24 +350,24 @@ public sealed class PlayerEntityMovementRegressionTests
     }
 
     [Fact]
-    public void CivilianPogoToggleAppliesHalfJumpBounceOrSuperJumpWhenUpHeld()
+    public void CivilianPogoToggleStaysGroundedUnlessUpHeld()
     {
         var level = CreateFlatGroundLevel();
         var player = CreateGroundedCivilian(level);
         player.SyncCivviePogoSuperJumpInput(false);
         Assert.True(player.TryToggleCivviePogo());
         FulfillCivviePogoGroundBounce(player, level);
-        var baseBounceSpeed = MathF.Abs(player.VerticalSpeed);
+        Assert.True(player.IsGrounded);
+        Assert.Equal(0f, player.VerticalSpeed);
         player.DeactivateCivviePogo();
-        LandGroundedCivilian(player, level);
 
         player.SyncCivviePogoSuperJumpInput(true);
         Assert.True(player.TryToggleCivviePogo());
         FulfillCivviePogoGroundBounce(player, level);
         var superBounceSpeed = MathF.Abs(player.VerticalSpeed);
 
-        Assert.True(baseBounceSpeed > 0f);
-        Assert.True(superBounceSpeed > baseBounceSpeed * 2f);
+        Assert.False(player.IsGrounded);
+        Assert.True(superBounceSpeed > 0f);
     }
 
     [Fact]
@@ -466,7 +466,52 @@ public sealed class PlayerEntityMovementRegressionTests
     }
 
     [Fact]
-    public void CivilianPogoStuckGroundRecoveryRebouncesWhenGroundedWithoutVerticalMovement()
+    public void CivilianPogoLandingOnLowerSurfaceAppliesPassiveBoost()
+    {
+        var level = CreateSteppedPogoLevel();
+        const float upperSurfaceY = 400f;
+        const float lowerSurfaceY = 520f;
+        var player = new PlayerEntity(1, CharacterClassCatalog.Civilian, "Test");
+        player.Spawn(PlayerTeam.Red, 128f, 0f);
+        player.TeleportTo(128f, upperSurfaceY - player.CollisionBottomOffset);
+        var deltaSeconds = 1d / SimulationConfig.DefaultTicksPerSecond;
+        var idleInput = MoveRightInput with { Right = false };
+        var startedGrounded = player.PrepareMovement(idleInput, level, PlayerTeam.Red, deltaSeconds, out _);
+        player.CompleteMovement(
+            level,
+            PlayerTeam.Red,
+            deltaSeconds,
+            startedGrounded,
+            jumped: false,
+            allowDropdownFallThrough: false);
+        Assert.True(player.IsGrounded);
+
+        player.SyncCivviePogoSuperJumpInput(false);
+        Assert.True(player.TryToggleCivviePogo());
+        FulfillCivviePogoGroundBounce(player, level);
+        Assert.True(player.IsGrounded);
+
+        player.TeleportTo(512f, lowerSurfaceY - player.CollisionBottomOffset - 2f);
+        player.ApplyVelocityImpulse(0f, 300f);
+        startedGrounded = player.PrepareMovement(idleInput, level, PlayerTeam.Red, deltaSeconds, out _);
+        Assert.False(startedGrounded);
+        player.CompleteMovement(
+            level,
+            PlayerTeam.Red,
+            deltaSeconds,
+            startedGrounded,
+            jumped: false,
+            allowDropdownFallThrough: false);
+
+        Assert.True(player.IsCivviePogoActive);
+        Assert.False(player.IsGrounded);
+        Assert.True(
+            player.VerticalSpeed < -0.01f,
+            $"expected lower pogo landing to add upward boost, vertical={player.VerticalSpeed:0.###}");
+    }
+
+    [Fact]
+    public void CivilianPogoStuckGroundRecoveryDoesNotRebounceWithoutUpHeld()
     {
         var level = CreateFlatGroundLevel();
         var player = CreateGroundedCivilian(level);
@@ -476,7 +521,7 @@ public sealed class PlayerEntityMovementRegressionTests
 
         var deltaSeconds = 1d / SimulationConfig.DefaultTicksPerSecond;
         var moveInput = MoveRightInput;
-        var recovered = false;
+        var stayedGrounded = true;
         for (var tick = 0; tick < 48; tick += 1)
         {
             var startedGrounded = player.PrepareMovement(moveInput, level, PlayerTeam.Red, deltaSeconds, out _);
@@ -489,13 +534,13 @@ public sealed class PlayerEntityMovementRegressionTests
                 allowDropdownFallThrough: false);
             if (!player.IsGrounded || player.VerticalSpeed < -0.01f)
             {
-                recovered = true;
+                stayedGrounded = false;
                 break;
             }
         }
 
         Assert.True(player.IsCivviePogoActive);
-        Assert.True(recovered, "expected stuck-ground recovery to trigger another pogo bounce");
+        Assert.True(stayedGrounded, "expected idle pogo recovery to avoid adding vertical momentum");
     }
 
     private static void ClearCivviePogoNeedsGroundBounce(PlayerEntity player)
@@ -684,6 +729,34 @@ public sealed class PlayerEntityMovementRegressionTests
             roomObjects: [],
             floorY: 500f,
             solids: [new LevelSolid(0f, 500f, 2048f, 524f)],
+            importedFromSource: false);
+    }
+
+    private static SimpleLevel CreateSteppedPogoLevel()
+    {
+        return new SimpleLevel(
+            name: "movement_stepped_pogo",
+            mode: GameModeKind.CaptureTheFlag,
+            bounds: new WorldBounds(2048f, 1024f),
+            mapScale: 1f,
+            backgroundAssetName: null,
+            mapAreaIndex: 1,
+            mapAreaCount: 1,
+            localSpawn: new SpawnPoint(128f, 128f),
+            redSpawns: [new SpawnPoint(128f, 128f)],
+            blueSpawns: [new SpawnPoint(256f, 128f)],
+            intelBases:
+            [
+                new IntelBaseMarker(PlayerTeam.Red, 128f, 128f),
+                new IntelBaseMarker(PlayerTeam.Blue, 256f, 128f),
+            ],
+            roomObjects: [],
+            floorY: 900f,
+            solids:
+            [
+                new LevelSolid(0f, 400f, 256f, 624f),
+                new LevelSolid(384f, 520f, 1664f, 504f),
+            ],
             importedFromSource: false);
     }
 

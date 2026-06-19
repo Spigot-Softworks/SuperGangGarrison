@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 
@@ -23,6 +24,13 @@ public static partial class ProtocolCodec
             writer.Write(entry.VictimPlayerId);
             writer.Write((byte)entry.SpecialType);
             writer.Write(entry.EventId);
+            var involvedPlayerIds = entry.InvolvedPlayerIds;
+            var involvedCount = Math.Min(involvedPlayerIds.Count, byte.MaxValue);
+            writer.Write((byte)involvedCount);
+            for (var involvedIndex = 0; involvedIndex < involvedCount; involvedIndex += 1)
+            {
+                writer.Write(involvedPlayerIds[involvedIndex]);
+            }
         }
     }
 
@@ -32,7 +40,7 @@ public static partial class ProtocolCodec
         var killFeed = new List<SnapshotKillFeedEntry>(count);
         for (var index = 0; index < count; index += 1)
         {
-            killFeed.Add(new SnapshotKillFeedEntry(
+            var entry = new SnapshotKillFeedEntry(
                 ReadString(reader, MaxPlayerNameBytes),
                 reader.ReadByte(),
                 ReadString(reader, MaxAssetNameBytes),
@@ -44,7 +52,15 @@ public static partial class ProtocolCodec
                 reader.ReadInt32(),
                 reader.ReadInt32(),
                 (KillFeedSpecialType)reader.ReadByte(),
-                reader.ReadUInt64()));
+                reader.ReadUInt64());
+            var involvedCount = reader.ReadByte();
+            var involvedPlayerIds = new int[involvedCount];
+            for (var involvedIndex = 0; involvedIndex < involvedPlayerIds.Length; involvedIndex += 1)
+            {
+                involvedPlayerIds[involvedIndex] = reader.ReadInt32();
+            }
+
+            killFeed.Add(entry with { InvolvedPlayerIds = involvedPlayerIds });
         }
 
         return killFeed;

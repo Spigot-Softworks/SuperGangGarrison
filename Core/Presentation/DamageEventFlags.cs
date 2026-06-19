@@ -12,4 +12,5 @@ public enum DamageEventFlags : byte
     Evaded = 1 << 1,
     GhostDash = 1 << 2,
     CivvieUmbrellaBlock = 1 << 3,
+    AfterburnTick = 1 << 4,
 }

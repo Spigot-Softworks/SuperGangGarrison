@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace OpenGarrison.Core;
 
@@ -31,6 +32,10 @@ public sealed class ControlPointState
     public int BlueCappers { get; set; }
 
     public int Cappers { get; set; }
+
+    public HashSet<int> RedCaptureParticipantIds { get; } = new();
+
+    public HashSet<int> BlueCaptureParticipantIds { get; } = new();
 
     public bool IsLocked { get; set; }
 

@@ -171,6 +171,11 @@ public sealed partial class SimulationWorld
 
     private bool TryPrepareNetworkPlayerJoinState(byte slot)
     {
+        if (!IsPlayableNetworkPlayerSlot(slot))
+        {
+            return false;
+        }
+
         if (slot != LocalPlayerSlot)
         {
             EnsureAdditionalNetworkPlayer(slot);

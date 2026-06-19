@@ -373,7 +373,7 @@ public sealed class BotBrainController
             UpdatePath(self, team);
         }
 
-        var routeMissingAfterUpdate = _currentPath is null || _currentPath.IsComplete;
+        var routeMissingAfterUpdate = _currentPath is null || _currentPath.IsComplete || _currentPath.Count < 2;
         var steeringOutput = new SteeringOutput();
         PlayerInputSnapshot? inputOverride = null;
         var dynamicCtfSteering = steeringOutput;

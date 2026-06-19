@@ -6,7 +6,7 @@ public sealed partial class SimulationWorld
 {
     private readonly RuntimeController _runtimeController;
     private readonly RuntimeQueryController _runtimeQueryController;
-    public const int MaxPlayableNetworkPlayers = 20;
+    public const int MaxPlayableNetworkPlayers = 40;
     public const byte LocalPlayerSlot = 1;
     public const byte FirstSpectatorSlot = 128;
     public static IReadOnlyList<byte> NetworkPlayerSlots { get; } = Enumerable.Range(1, MaxPlayableNetworkPlayers).Select(static value => (byte)value).ToArray();

@@ -12,6 +12,7 @@ public sealed partial class SimulationWorld
     private const float ObjectiveCapturePointValue = 2f;
     private const float BuildingDestructionPointValue = 1f;
     private const float UberActivationPointValue = 1f;
+    private const int HealingHealthPerPoint = 800;
 
     private bool ShouldAwardRoundPoints()
     {
@@ -101,6 +102,29 @@ public sealed partial class SimulationWorld
         }
 
         attacker.AddPoints(BuildingDestructionPointValue);
+    }
+
+    private void AwardHealingPoints(PlayerEntity healer, int healedAmount)
+    {
+        if (healedAmount <= 0)
+        {
+            return;
+        }
+
+        var previousMilestone = healer.HealPoints / HealingHealthPerPoint;
+        healer.AddHealPoints(healedAmount);
+
+        if (!ShouldAwardRoundPoints())
+        {
+            return;
+        }
+
+        var currentMilestone = healer.HealPoints / HealingHealthPerPoint;
+        var earnedPoints = currentMilestone - previousMilestone;
+        if (earnedPoints > 0)
+        {
+            healer.AddPoints(earnedPoints);
+        }
     }
 
     private PlayerEntity? FindHealingMedicPlayer(int targetPlayerId)
