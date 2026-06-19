@@ -211,7 +211,7 @@ public partial class Game1
 
     private static int GetPostGameMvpScore(PlayerEntity player)
     {
-        return (int)MathF.Floor(player.Points) + (int)MathF.Floor(Math.Max(0, player.HealPoints) / 200f);
+        return (int)MathF.Floor(player.Points);
     }
 
     private PostGameMvpLayout GetPostGameMvpLayout()

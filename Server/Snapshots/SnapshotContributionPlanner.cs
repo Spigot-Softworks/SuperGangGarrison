@@ -1530,7 +1530,8 @@ internal static class SnapshotContributionPlanner
             + entry.KillerName.Length
             + entry.WeaponSpriteName.Length
             + entry.VictimName.Length
-            + entry.MessageText.Length;
+            + entry.MessageText.Length
+            + (entry.InvolvedPlayerIds.Count * sizeof(int));
     }
 
     private static int EstimatePlayerBytes(SnapshotPlayerState player)

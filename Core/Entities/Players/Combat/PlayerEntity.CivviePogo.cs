@@ -4,6 +4,8 @@ namespace OpenGarrison.Core;
 
 public sealed partial class PlayerEntity
 {
+    private const float CivviePogoLowerLandingSurfaceThreshold = 1f;
+
     public void SyncCivviePogoSuperJumpInput(bool upHeld)
     {
         CivviePogoSuperJumpHeld = upHeld;
@@ -76,6 +78,7 @@ public sealed partial class PlayerEntity
         IsCivviePogoActive = true;
         CivviePogoCrunchTicksRemaining = 0;
         CivviePogoNeedsGroundBounce = true;
+        RememberCivviePogoGroundOrigin();
         ResetCivviePogoStuckRecoveryState();
         return true;
     }
@@ -87,6 +90,8 @@ public sealed partial class PlayerEntity
         CivviePogoSuperJumpTrickUsed = false;
         CivviePogoCrunchTicksRemaining = 0;
         CivviePogoNeedsGroundBounce = false;
+        CivviePogoHasGroundOrigin = false;
+        CivviePogoGroundOriginY = 0f;
         ClearCivviePogoTrick();
         ResetCivviePogoStuckRecoveryState();
     }
@@ -117,8 +122,9 @@ public sealed partial class PlayerEntity
             return false;
         }
 
-        if (!wasAirborneBeforeMove && !CivviePogoNeedsGroundBounce)
+        if (!wasAirborneBeforeMove && !CivviePogoNeedsGroundBounce && !CivviePogoSuperJumpHeld)
         {
+            RememberCivviePogoGroundOrigin();
             return false;
         }
 
@@ -166,6 +172,12 @@ public sealed partial class PlayerEntity
         if (verticalMovement >= CivviePogoStuckMinVerticalMovement
             || CivviePogoStuckRebounceCooldownTicks > 0)
         {
+            return;
+        }
+
+        if (!CivviePogoSuperJumpHeld)
+        {
+            RememberCivviePogoGroundOrigin();
             return;
         }
 
@@ -226,8 +238,15 @@ public sealed partial class PlayerEntity
 
     private bool TryApplyCivviePogoBounceImpulse()
     {
+        var superJump = CivviePogoSuperJumpHeld;
+        if (!superJump && !IsCivviePogoLandingSurfaceBelowOrigin())
+        {
+            ResolveCivviePogoGroundContactWithoutBounce();
+            return false;
+        }
+
         ApplyCivviePogoBounce(
-            CivviePogoSuperJumpHeld,
+            superJump,
             CivviePogoBaseBounceJumpScale,
             CivviePogoSuperJumpScale,
             CivviePogoCrunchDurationTicks);
@@ -247,6 +266,7 @@ public sealed partial class PlayerEntity
         float superJumpScale,
         int crunchDurationTicks)
     {
+        RememberCivviePogoGroundOrigin();
         var jumpSpeed = JumpSpeed * GetJumpScale();
         if (jumpSpeed <= 0f)
         {
@@ -268,6 +288,29 @@ public sealed partial class PlayerEntity
         CivviePogoCrunchTicksRemaining = Math.Max(1, crunchDurationTicks);
         CivviePogoSuperJumpSoundPending = superJump;
         CivviePogoPendingImpactFallSpeed = 0f;
+    }
+
+    private bool IsCivviePogoLandingSurfaceBelowOrigin()
+    {
+        return CivviePogoHasGroundOrigin
+            && Y > CivviePogoGroundOriginY + CivviePogoLowerLandingSurfaceThreshold;
+    }
+
+    private void ResolveCivviePogoGroundContactWithoutBounce()
+    {
+        CivviePogoNeedsGroundBounce = false;
+        CivviePogoPendingImpactFallSpeed = 0f;
+        CivviePogoCrunchTicksRemaining = 0;
+        IsCivviePogoSuperJumpAirPhaseActive = false;
+        CivviePogoSuperJumpTrickUsed = false;
+        ClearCivviePogoTrick();
+        RememberCivviePogoGroundOrigin();
+    }
+
+    private void RememberCivviePogoGroundOrigin()
+    {
+        CivviePogoGroundOriginY = Y;
+        CivviePogoHasGroundOrigin = true;
     }
 
     private float ComputeCivviePogoFallBounceScaleBonus(float jumpSpeed, float baseScale)
@@ -310,6 +353,10 @@ public sealed partial class PlayerEntity
     private bool CivviePogoNeedsGroundBounce { get; set; }
 
     private float CivviePogoPendingImpactFallSpeed { get; set; }
+
+    private bool CivviePogoHasGroundOrigin { get; set; }
+
+    private float CivviePogoGroundOriginY { get; set; }
 
     private bool CivviePogoTrickInputReleaseRequired { get; set; }
 

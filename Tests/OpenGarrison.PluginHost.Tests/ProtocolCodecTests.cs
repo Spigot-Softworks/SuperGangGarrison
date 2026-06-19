@@ -5,6 +5,9 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class ProtocolCodecTests
 {
+    private static readonly int[] SnapshotRoundTripRocketPassedFriendlyPlayerIds = [5, 7];
+    private static readonly int[] SnapshotRoundTripKillFeedInvolvedPlayerIds = [5, 8];
+
     [Fact]
     public void HelloMessageRoundTripsConnectionIntent()
     {
@@ -311,7 +314,13 @@ public sealed class ProtocolCodecTests
             ControlPoints: [new SnapshotControlPointState(0, 1, 0, 0, 120, 1, false)],
             Generators: [new SnapshotGeneratorState(1, 75, 100)],
             LocalDeathCam: null,
-            KillFeed: [new SnapshotKillFeedEntry("Scout", 1, "scattergun", "Pyro", 2, "Scout fragged Pyro", 0, 5, 5, 6)],
+            KillFeed:
+            [
+                new SnapshotKillFeedEntry("Scout", 1, "scattergun", "Pyro", 2, "Scout fragged Pyro", 0, 5, 5, 6)
+                {
+                    InvolvedPlayerIds = SnapshotRoundTripKillFeedInvolvedPlayerIds,
+                },
+            ],
             VisualEvents: [new SnapshotVisualEvent("spark", 10f, 20f, 45f, 1, 55)],
             DamageEvents: [new SnapshotDamageEvent(45, 5, -1, 1, 6, 10f, 20f, false, EventId: 66, SourceFrame: 101, Flags: 6)],
             SoundEvents: [new SnapshotSoundEvent("rocket_fire", 11f, 21f, 77, 101)],
@@ -362,7 +371,7 @@ public sealed class ProtocolCodecTests
                     ExplodeImmediately: true,
                     IsCritical: true,
                     EventId: 1024,
-                    PassedFriendlyPlayerIds: [5, 7]),
+                    PassedFriendlyPlayerIds: SnapshotRoundTripRocketPassedFriendlyPlayerIds),
             ],
             SentryGibs = [new SnapshotSentryGibState(3, 1, 10f, 12f, 25)],
             RemovedSentryGibIds = [3],
@@ -404,7 +413,9 @@ public sealed class ProtocolCodecTests
         Assert.True(rocketSpawn.ExplodeImmediately);
         Assert.True(rocketSpawn.IsCritical);
         Assert.Equal(1024UL, rocketSpawn.EventId);
-        Assert.Equal(new[] { 5, 7 }, rocketSpawn.PassedFriendlyPlayerIds);
+        Assert.Equal(SnapshotRoundTripRocketPassedFriendlyPlayerIds, rocketSpawn.PassedFriendlyPlayerIds);
+        var killFeedEntry = Assert.Single(roundTrippedSnapshot.KillFeed);
+        Assert.Equal(SnapshotRoundTripKillFeedInvolvedPlayerIds, killFeedEntry.InvolvedPlayerIds);
     }
 
     [Fact]

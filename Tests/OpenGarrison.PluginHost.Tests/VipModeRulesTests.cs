@@ -6,6 +6,11 @@ namespace OpenGarrison.PluginHost.Tests;
 [Collection(ContentRootTestGroup.Name)]
 public sealed class VipModeRulesTests
 {
+    private const float TestPointX = 320f;
+    private const float TestPointY = 240f;
+    private const byte RedTeammateSlot = 2;
+    private const byte BlueEnemySlot = 3;
+
     [Theory]
     [InlineData("vip_egypt", "vip_egypt", 1)]
     [InlineData("vip_dirtbowl", "vip_dirtbowl", 3)]
@@ -148,10 +153,96 @@ public sealed class VipModeRulesTests
         }
 
         Assert.True(world.LocalPlayer.IsAlive);
-        Assert.True(sawVipKilledResolution);
+        Assert.False(sawVipKilledResolution);
         Assert.Equal(PlayerClass.Quote, world.LocalPlayer.ClassId);
         Assert.True(world.TryGetVipSlot(PlayerTeam.Red, out vipSlot));
         Assert.Equal(SimulationWorld.LocalPlayerSlot, vipSlot);
+    }
+
+    [Fact]
+    public void VipCaptureRequiresVipToStartProgressAndFinish()
+    {
+        var world = CreateSinglePointVipWorldWithLocalVip();
+        var point = Assert.Single(world.ControlPoints);
+        var teammate = JoinPlayer(world, RedTeammateSlot, PlayerTeam.Red, PlayerClass.Scout);
+        MoveAwayFromPoint(world.LocalPlayer);
+        MoveToPoint(teammate);
+
+        world.AdvanceOneTick();
+
+        Assert.Equal(0f, point.CappingTicks);
+        Assert.Null(point.CappingTeam);
+        Assert.Equal(PlayerTeam.Blue, point.Team);
+
+        point.CappingTeam = PlayerTeam.Red;
+        point.CappingTicks = point.CapTimeTicks - 1f;
+
+        world.AdvanceOneTick();
+
+        Assert.Equal(PlayerTeam.Blue, point.Team);
+
+        MoveToPoint(world.LocalPlayer);
+
+        world.AdvanceOneTick();
+
+        Assert.Equal(PlayerTeam.Red, point.Team);
+    }
+
+    [Fact]
+    public void VipCaptureProgressesAtFiveTimesNormalClassSpeed()
+    {
+        var world = CreateSinglePointVipWorldWithLocalVip();
+        var point = Assert.Single(world.ControlPoints);
+        MoveToPoint(world.LocalPlayer);
+
+        world.AdvanceOneTick();
+
+        Assert.Equal(5f, point.CappingTicks);
+        Assert.Equal(PlayerTeam.Red, point.CappingTeam);
+        Assert.Equal(5, point.Cappers);
+    }
+
+    [Fact]
+    public void DeadVipTeammatePausesDecayButEnemyAloneReversesProgress()
+    {
+        var world = CreateSinglePointVipWorldWithLocalVip();
+        var point = Assert.Single(world.ControlPoints);
+        var teammate = JoinPlayer(world, RedTeammateSlot, PlayerTeam.Red, PlayerClass.Scout);
+        var enemy = JoinPlayer(world, BlueEnemySlot, PlayerTeam.Blue, PlayerClass.Scout);
+        MoveAwayFromPoint(world.LocalPlayer);
+        MoveToPoint(teammate);
+        MoveToPoint(enemy);
+
+        point.Team = PlayerTeam.Blue;
+        point.CappingTeam = PlayerTeam.Red;
+        point.CappingTicks = 20f;
+
+        world.AdvanceOneTick();
+
+        Assert.True(
+            point.CappingTicks < 20f,
+            $"expected teammate not to pause decay while VIP is alive, after={point.CappingTicks}");
+
+        MoveAwayFromPoint(enemy);
+        world.ForceKillLocalPlayer();
+        point.CappingTeam = PlayerTeam.Red;
+        point.CappingTicks = 20f;
+        MoveToPoint(teammate);
+
+        world.AdvanceOneTick();
+
+        Assert.Equal(20f, point.CappingTicks);
+        Assert.Equal(PlayerTeam.Red, point.CappingTeam);
+
+        MoveAwayFromPoint(teammate);
+        MoveToPoint(enemy);
+        var progressBeforeEnemyReverse = point.CappingTicks;
+
+        world.AdvanceOneTick();
+
+        Assert.True(
+            point.CappingTicks < progressBeforeEnemyReverse,
+            $"expected enemy alone to reverse VIP capture progress, before={progressBeforeEnemyReverse} after={point.CappingTicks}");
     }
 
     private static void AdvancePastSetup(SimulationWorld world)
@@ -164,5 +255,90 @@ public sealed class VipModeRulesTests
 
         Assert.Equal(0, world.ControlPointSetupTicksRemaining);
         world.AdvanceOneTick();
+    }
+
+    private static SimulationWorld CreateSinglePointVipWorldWithLocalVip()
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        world.CombatTestSetLevel(CreateSinglePointVipLevel());
+        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red, respawnLivePlayerImmediately: true));
+        Assert.True(world.TrySetPreferredVipSlot(PlayerTeam.Red, SimulationWorld.LocalPlayerSlot));
+
+        world.AdvanceOneTick();
+
+        Assert.True(world.TryGetVipSlot(PlayerTeam.Red, out var vipSlot));
+        Assert.Equal(SimulationWorld.LocalPlayerSlot, vipSlot);
+        Assert.Equal(PlayerClass.Quote, world.LocalPlayer.ClassId);
+        MoveAwayFromPoint(world.LocalPlayer);
+        return world;
+    }
+
+    private static PlayerEntity JoinPlayer(SimulationWorld world, byte slot, PlayerTeam team, PlayerClass playerClass)
+    {
+        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        return player;
+    }
+
+    private static void MoveToPoint(PlayerEntity player)
+    {
+        player.TeleportTo(TestPointX, TestPointY);
+    }
+
+    private static void MoveAwayFromPoint(PlayerEntity player)
+    {
+        player.TeleportTo(64f, 64f);
+    }
+
+    private static SimpleLevel CreateSinglePointVipLevel()
+    {
+        return new SimpleLevel(
+            name: "vip_test_single_point",
+            mode: GameModeKind.Vip,
+            bounds: new WorldBounds(960f, 640f),
+            mapScale: 1f,
+            backgroundAssetName: null,
+            mapAreaIndex: 1,
+            mapAreaCount: 1,
+            localSpawn: new SpawnPoint(64f, 64f),
+            redSpawns: [new SpawnPoint(64f, 64f)],
+            blueSpawns: [new SpawnPoint(860f, 64f)],
+            intelBases:
+            [
+                new IntelBaseMarker(PlayerTeam.Red, 64f, 64f),
+                new IntelBaseMarker(PlayerTeam.Blue, 860f, 64f),
+            ],
+            roomObjects:
+            [
+                new RoomObjectMarker(
+                    RoomObjectType.ControlPoint,
+                    TestPointX - 21f,
+                    TestPointY - 21f,
+                    42f,
+                    42f,
+                    "ControlPointNeutralS",
+                    SourceName: "ControlPoint1"),
+                new RoomObjectMarker(
+                    RoomObjectType.CaptureZone,
+                    TestPointX - 100f,
+                    TestPointY - 90f,
+                    200f,
+                    180f,
+                    string.Empty,
+                    SourceName: "CaptureZone"),
+                new RoomObjectMarker(
+                    RoomObjectType.ControlPointSetupGate,
+                    900f,
+                    600f,
+                    24f,
+                    24f,
+                    "SetupGateS",
+                    SourceName: "ControlPointSetupGate"),
+            ],
+            floorY: 320f,
+            solids: [new LevelSolid(0f, 320f, 960f, 320f)],
+            importedFromSource: false);
     }
 }

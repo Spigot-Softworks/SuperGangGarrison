@@ -460,6 +460,11 @@ public sealed partial class SimulationWorld
             }
         }
 
+        if (!CanPlaceStructureAt(player.X, player.Y, JumpPadEntity.Width, JumpPadEntity.Height))
+        {
+            return false;
+        }
+
         if (!player.SpendMetal(JumpPadBuildCost))
         {
             return false;

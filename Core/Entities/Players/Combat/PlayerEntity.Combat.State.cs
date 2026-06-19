@@ -80,6 +80,17 @@ public sealed partial class PlayerEntity
         SpySuperjumpHorizontalVelocity = 0f;
     }
 
+    public void ForceEndSniperScopeForHumiliation()
+    {
+        if (ClassId != PlayerClass.Sniper)
+        {
+            return;
+        }
+
+        IsSniperScoped = false;
+        SniperChargeTicks = 0;
+    }
+
     public void ForceSetHealth(int health)
     {
         Health = int.Clamp(health, 0, MaxHealth);

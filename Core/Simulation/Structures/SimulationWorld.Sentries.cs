@@ -569,6 +569,11 @@ public sealed partial class SimulationWorld
             }
         }
 
+        if (!CanPlaceStructureAt(player.X, player.Y, SentryEntity.Width, SentryEntity.Height))
+        {
+            return false;
+        }
+
         if (!player.SpendMetal(SentryBuildCost))
         {
             return false;
@@ -590,6 +595,19 @@ public sealed partial class SimulationWorld
         _sentries.Add(sentryEntity);
         _entities.Add(sentryEntity.Id, sentryEntity);
         return true;
+    }
+
+    private bool CanPlaceStructureAt(float x, float y, float width, float height)
+    {
+        var left = x - (width / 2f);
+        var right = x + (width / 2f);
+        var top = y - (height / 2f);
+        var bottom = y + (height / 2f);
+        return left >= 0f
+            && right <= Bounds.Width
+            && top >= 0f
+            && bottom <= Bounds.Height
+            && !Level.IntersectsSolid(left, top, right, bottom);
     }
 
     private bool TryDestroySentry(PlayerEntity player)

@@ -35,6 +35,7 @@ public sealed partial class SimulationWorld
                 player.TryToggleBinoculars();
             }
 
+            player.ForceEndSniperScopeForHumiliation();
             player.ForceEndSpyStealthForHumiliation();
         }
         
@@ -119,7 +120,9 @@ public sealed partial class SimulationWorld
                     player.X,
                     player.Y,
                     afterburnDamage,
-                    afterburn.IsFatal);
+                    afterburn.IsFatal,
+                    playerTarget: player,
+                    flags: DamageEventFlags.AfterburnTick);
                 ApplyExperimentalDamageRewards(burner, player, afterburnDamage, allowOsmosisHealOwnedSentries: false);
             }
         }
@@ -143,6 +146,7 @@ public sealed partial class SimulationWorld
 
         if (isHumiliated)
         {
+            player.ForceEndSniperScopeForHumiliation();
             player.ForceEndSpyStealthForHumiliation();
         }
 

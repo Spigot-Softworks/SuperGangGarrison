@@ -420,10 +420,15 @@ internal static class BubbleWheelInputStateExtensions
             return 0;
         }
 
-        var aimDirection = inputState.AimDirectionDegrees + 90f;
+        var aimDirection = inputState.AimDirectionDegrees;
         while (aimDirection >= 360f)
         {
             aimDirection -= 360f;
+        }
+
+        while (aimDirection < 0f)
+        {
+            aimDirection += 360f;
         }
 
         return Math.Clamp((int)(aimDirection / 40f) + 1, 1, 9);

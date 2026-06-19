@@ -220,6 +220,8 @@ public sealed partial class SimulationWorld
                 point.Cappers = 0;
                 point.RedCappers = 0;
                 point.BlueCappers = 0;
+                point.RedCaptureParticipantIds.Clear();
+                point.BlueCaptureParticipantIds.Clear();
                 point.IsLocked = world.Level.ControlPointSettings.OverrideInitialOwnership
                     ? ControlPointLockDependencyMetadata.GetInitialLocked(point.Marker.LockRules)
                     : false;

@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using OpenGarrison.Core;
 using Xunit;
 
@@ -130,6 +131,7 @@ public sealed class ServerMapRotationTests
             mapRotationFile: null,
             stockMapRotation: ["vip_dirtbowl", "Truefort"],
             static _ => { });
+        manager.ConfigureAdvancePolicy(MapRotationAdvanceMode.RoundCount, roundCount: 2, timeMinutes: 15);
 
         ForceMapChangeReady(world, PlayerTeam.Red);
 
@@ -142,6 +144,7 @@ public sealed class ServerMapRotationTests
         Assert.Equal("vip_dirtbowl", world.Level.Name);
         Assert.Equal(2, world.Level.MapAreaIndex);
         Assert.Equal(GameModeKind.Vip, world.MatchRules.Mode);
+        Assert.Equal(0, manager.CompletedRoundsOnCurrentMap);
     }
 
     [Fact]
@@ -154,6 +157,7 @@ public sealed class ServerMapRotationTests
             mapRotationFile: null,
             stockMapRotation: ["vip_dirtbowl", "Truefort"],
             static _ => { });
+        manager.ConfigureAdvancePolicy(MapRotationAdvanceMode.RoundCount, roundCount: 2, timeMinutes: 15);
 
         ForceMapChangeReady(world, PlayerTeam.Blue);
 
@@ -166,6 +170,82 @@ public sealed class ServerMapRotationTests
         Assert.Equal("vip_dirtbowl", world.Level.Name);
         Assert.Equal(1, world.Level.MapAreaIndex);
         Assert.Equal(GameModeKind.Vip, world.MatchRules.Mode);
+        Assert.Equal(1, manager.CompletedRoundsOnCurrentMap);
+    }
+
+    [Fact]
+    public void VipStagedMapBlueWinAdvancesRotationAfterConfiguredCompletedRounds()
+    {
+        var world = new SimulationWorld();
+        var manager = new MapRotationManager(
+            world,
+            requestedMap: "vip_dirtbowl",
+            mapRotationFile: null,
+            stockMapRotation: ["vip_dirtbowl", "Truefort"],
+            static _ => { });
+        manager.ConfigureAdvancePolicy(MapRotationAdvanceMode.RoundCount, roundCount: 2, timeMinutes: 15);
+
+        ForceMapChangeReady(world, PlayerTeam.Blue);
+        Assert.True(manager.TryApplyPendingMapChange(out _));
+        Assert.Equal(1, manager.CompletedRoundsOnCurrentMap);
+
+        ForceMapChangeReady(world, PlayerTeam.Blue);
+        Assert.True(manager.TryApplyPendingMapChange(out var transition));
+
+        Assert.Equal("vip_dirtbowl", transition.CurrentLevelName);
+        Assert.Equal("Truefort", transition.NextLevelName);
+        Assert.Equal("Truefort", world.Level.Name);
+        Assert.Equal(0, manager.CompletedRoundsOnCurrentMap);
+    }
+
+    [Fact]
+    public void VipStagedMapFinalAreaCompletionRestartsAtFirstAreaUntilRoundThreshold()
+    {
+        var world = new SimulationWorld();
+        var manager = new MapRotationManager(
+            world,
+            requestedMap: "vip_dirtbowl",
+            mapRotationFile: null,
+            stockMapRotation: ["vip_dirtbowl", "Truefort"],
+            static _ => { });
+        manager.ConfigureAdvancePolicy(MapRotationAdvanceMode.RoundCount, roundCount: 2, timeMinutes: 15);
+        Assert.True(world.TryLoadLevel("vip_dirtbowl", mapAreaIndex: 3, preservePlayerStats: false));
+        manager.AlignCurrentMap(world.Level.Name);
+
+        ForceMapChangeReady(world, PlayerTeam.Red);
+
+        Assert.True(manager.TryApplyPendingMapChange(out var transition));
+        Assert.Equal("vip_dirtbowl", transition.CurrentLevelName);
+        Assert.Equal(3, transition.CurrentAreaIndex);
+        Assert.Equal("vip_dirtbowl", transition.NextLevelName);
+        Assert.Equal(1, transition.NextAreaIndex);
+        Assert.False(transition.PreservePlayerStats);
+        Assert.Equal("vip_dirtbowl", world.Level.Name);
+        Assert.Equal(1, world.Level.MapAreaIndex);
+        Assert.Equal(1, manager.CompletedRoundsOnCurrentMap);
+    }
+
+    [Fact]
+    public void VipMapEndTransitionUsesTeamSwitchNotShuffle()
+    {
+        var server = RuntimeHelpers.GetUninitializedObject(typeof(GameServer));
+        var method = typeof(GameServer).GetMethod(
+            "DetermineRoundEndTeamRuleAction",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("DetermineRoundEndTeamRuleAction was not found.");
+        var transition = new MapChangeTransition(
+            "vip_dirtbowl",
+            1,
+            3,
+            "vip_gully",
+            1,
+            false,
+            PlayerTeam.Blue,
+            GameModeKind.Vip);
+
+        var action = method.Invoke(server, [transition]);
+
+        Assert.Equal("Switch", action?.ToString());
     }
 
     [Fact]

@@ -479,7 +479,7 @@ public partial class Game1
         var iconSpacing = 6f * scale;
         var textScale = 1f * scale;
         var localPlayerId = GetResolvedLocalPlayerId();
-        var isLocalInvolved = entry.KillerPlayerId == localPlayerId || entry.VictimPlayerId == localPlayerId;
+        var isLocalInvolved = IsLocalPlayerInKillFeedEntry(entry, localPlayerId);
         var hideVictimName = ShouldSuppressKillFeedVictimName(entry);
         var victimName = hideVictimName ? string.Empty : entry.VictimName;
         SplitKillFeedMessage(entry, out var messagePrefix, out var messageHighlight, out var messageSuffix);
@@ -590,6 +590,7 @@ public partial class Game1
             && previousEntry.KillerTeam == entry.KillerTeam
             && previousEntry.KillerPlayerId == entry.KillerPlayerId
             && previousEntry.VictimPlayerId == entry.VictimPlayerId
+            && KillFeedInvolvedPlayerIdsEqual(previousEntry.InvolvedPlayerIds, entry.InvolvedPlayerIds)
             && previousEntry.WeaponSpriteName == entry.WeaponSpriteName
             && previousEntry.VictimName == entry.VictimName
             && previousEntry.VictimTeam == entry.VictimTeam
@@ -597,6 +598,43 @@ public partial class Game1
             && previousEntry.MessageHighlightStart == entry.MessageHighlightStart
             && previousEntry.MessageHighlightLength == entry.MessageHighlightLength
             && previousEntry.SpecialType == entry.SpecialType;
+    }
+
+    private static bool IsLocalPlayerInKillFeedEntry(KillFeedEntry entry, int localPlayerId)
+    {
+        if (entry.KillerPlayerId == localPlayerId || entry.VictimPlayerId == localPlayerId)
+        {
+            return true;
+        }
+
+        var involvedPlayerIds = entry.InvolvedPlayerIds;
+        for (var index = 0; index < involvedPlayerIds.Count; index += 1)
+        {
+            if (involvedPlayerIds[index] == localPlayerId)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool KillFeedInvolvedPlayerIdsEqual(IReadOnlyList<int> left, IReadOnlyList<int> right)
+    {
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < left.Count; index += 1)
+        {
+            if (left[index] != right[index])
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static void SplitKillFeedMessage(KillFeedEntry entry, out string prefix, out string highlight, out string suffix)

@@ -567,7 +567,10 @@ internal static partial class ServerHelpers
             entry.KillerPlayerId,
             entry.VictimPlayerId,
             (OpenGarrison.Protocol.KillFeedSpecialType)entry.SpecialType,
-            entry.EventId);
+            entry.EventId)
+        {
+            InvolvedPlayerIds = entry.InvolvedPlayerIds.ToArray(),
+        };
     }
 
     internal static SnapshotDeathCamState? ToSnapshotDeathCamState(LocalDeathCamState? deathCam)

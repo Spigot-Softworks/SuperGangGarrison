@@ -82,6 +82,7 @@ public sealed partial class SimulationWorld
             && previousEntry.MessageHighlightLength == entry.MessageHighlightLength
             && previousEntry.KillerPlayerId == entry.KillerPlayerId
             && previousEntry.VictimPlayerId == entry.VictimPlayerId
+            && KillFeedInvolvedPlayerIdsEqual(previousEntry.InvolvedPlayerIds, entry.InvolvedPlayerIds)
             && previousEntry.SpecialType == entry.SpecialType;
     }
 
@@ -102,7 +103,13 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private void RecordObjectiveLogEntry(PlayerTeam team, string name, string messageText, string weaponSpriteName = "", int playerId = -1)
+    private void RecordObjectiveLogEntry(
+        PlayerTeam team,
+        string name,
+        string messageText,
+        string weaponSpriteName = "",
+        int playerId = -1,
+        IReadOnlyCollection<int>? involvedPlayerIds = null)
     {
         AppendKillFeedEntry(new KillFeedEntry(
             name,
@@ -116,7 +123,12 @@ public sealed partial class SimulationWorld
             playerId,
             -1,
             KillFeedSpecialType.None,
-            _nextKillFeedEventId++));
+            _nextKillFeedEventId++)
+        {
+            InvolvedPlayerIds = involvedPlayerIds is null
+                ? Array.Empty<int>()
+                : new List<int>(involvedPlayerIds),
+        });
     }
 
     private void RecordKillFeedAnnouncement(PlayerEntity player, string prefix, string highlightedText, string suffix, string weaponSpriteName = "")
@@ -148,7 +160,8 @@ public sealed partial class SimulationWorld
             team,
             BuildPlayerNameList(capperIds, team),
             "captured the point!",
-            team == PlayerTeam.Blue ? "BlueCaptureS" : "RedCaptureS");
+            team == PlayerTeam.Blue ? "BlueCaptureS" : "RedCaptureS",
+            involvedPlayerIds: capperIds);
     }
 
     private void RecordControlPointDefendedObjectiveLog(PlayerTeam team, IReadOnlyCollection<int> defenderIds)
@@ -157,7 +170,26 @@ public sealed partial class SimulationWorld
             team,
             BuildPlayerNameList(defenderIds, team),
             "defended the point!",
-            team == PlayerTeam.Blue ? "BlueDefenseS" : "RedDefenseS");
+            team == PlayerTeam.Blue ? "BlueDefenseS" : "RedDefenseS",
+            involvedPlayerIds: defenderIds);
+    }
+
+    private static bool KillFeedInvolvedPlayerIdsEqual(IReadOnlyList<int> left, IReadOnlyList<int> right)
+    {
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < left.Count; index += 1)
+        {
+            if (left[index] != right[index])
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void RecordIntelPickedUpObjectiveLog(PlayerEntity player)

@@ -64,6 +64,20 @@ public sealed class ServerDiscoveryLaunchOptionsTests
     }
 
     [Fact]
+    public void MaxPlayersLaunchOptionAllowsFortyPlayableClients()
+    {
+        var options = ServerLaunchOptions.Load(["--max-players", "40"], _ => new ServerSettings());
+        var clamped = ServerLaunchOptions.Load(["--max-players", "41"], _ => new ServerSettings());
+
+        Assert.Equal(40, options.MaxPlayableClients);
+        Assert.Equal(40, options.MaxTotalClients);
+        Assert.Equal(40, options.MaxSpectatorClients);
+        Assert.Equal(SimulationWorld.MaxPlayableNetworkPlayers, clamped.MaxPlayableClients);
+        Assert.Equal(SimulationWorld.MaxPlayableNetworkPlayers, clamped.MaxTotalClients);
+        Assert.Equal(SimulationWorld.MaxPlayableNetworkPlayers, clamped.MaxSpectatorClients);
+    }
+
+    [Fact]
     public void CustomNonHttpLobbyHostStillUsesLegacyLobbyDiscovery()
     {
         var options = ServerLaunchOptions.Load(

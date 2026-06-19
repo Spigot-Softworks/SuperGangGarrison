@@ -147,7 +147,7 @@ public sealed partial class SimulationWorld
                 }
             }
 
-            var isLocalInvolved = entry.KillerPlayerId == LocalPlayer.Id || entry.VictimPlayerId == LocalPlayer.Id;
+            var isLocalInvolved = IsSnapshotKillFeedEntryLocalInvolved(entry, LocalPlayer.Id);
             var lifetime = isLocalInvolved ? KillFeedLocalInvolvedLifetimeTicks : KillFeedLifetimeTicks;
             _killFeed.Insert(insertIndex, new KillFeedEntry(
                 entry.KillerName,
@@ -161,7 +161,10 @@ public sealed partial class SimulationWorld
                 entry.KillerPlayerId,
                 entry.VictimPlayerId,
                 (KillFeedSpecialType)entry.SpecialType,
-                entry.EventId));
+                entry.EventId)
+            {
+                InvolvedPlayerIds = entry.InvolvedPlayerIds,
+            });
             _killFeedEntryLifetimes.Insert(insertIndex, lifetime);
         }
 
@@ -172,5 +175,24 @@ public sealed partial class SimulationWorld
             _killFeed.RemoveAt(0);
             _killFeedEntryLifetimes.RemoveAt(0);
         }
+    }
+
+    private static bool IsSnapshotKillFeedEntryLocalInvolved(SnapshotKillFeedEntry entry, int localPlayerId)
+    {
+        if (entry.KillerPlayerId == localPlayerId || entry.VictimPlayerId == localPlayerId)
+        {
+            return true;
+        }
+
+        var involvedPlayerIds = entry.InvolvedPlayerIds;
+        for (var index = 0; index < involvedPlayerIds.Count; index += 1)
+        {
+            if (involvedPlayerIds[index] == localPlayerId)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

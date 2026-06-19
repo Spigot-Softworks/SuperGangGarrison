@@ -653,7 +653,8 @@ internal static class SnapshotDeltaBudgeter
             + EstimateStringBytes(entry.WeaponSpriteName)
             + EstimateStringBytes(entry.VictimName)
             + EstimateStringBytes(entry.MessageText)
-            + 27;
+            + 28
+            + (entry.InvolvedPlayerIds.Count * sizeof(int));
     }
 
     private static int EstimateSoundEventBytes(SnapshotSoundEvent soundEvent)

@@ -58,9 +58,7 @@ partial class GameServer
     {
         if (IsVipTransition(transition))
         {
-            return IsVipMapEndTransition(transition)
-                ? RoundEndTeamRuleAction.Shuffle
-                : RoundEndTeamRuleAction.Switch;
+            return RoundEndTeamRuleAction.Switch;
         }
 
         if (transition.PreservePlayerStats)
@@ -82,14 +80,6 @@ partial class GameServer
     {
         return transition.CurrentGameMode == GameModeKind.Vip
             || transition.CurrentLevelName.StartsWith("vip_", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsVipMapEndTransition(MapChangeTransition transition)
-    {
-        return !string.Equals(
-            transition.CurrentLevelName,
-            transition.NextLevelName,
-            StringComparison.OrdinalIgnoreCase);
     }
 
     private bool UpdateTeamShuffleWinStreak(PlayerTeam? winnerTeam)

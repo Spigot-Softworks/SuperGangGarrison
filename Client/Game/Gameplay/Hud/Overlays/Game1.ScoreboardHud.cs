@@ -37,6 +37,10 @@ public partial class Game1
     private int _scoreboardContextMenuX;
     private int _scoreboardContextMenuY;
     private readonly HashSet<byte> _scoreboardMutedSlots = [];
+    private const int ScoreboardMaxRowsPerTeam = SimulationWorld.MaxPlayableNetworkPlayers / 2;
+    private const float ScoreboardPlayerRowStartOffsetY = 70f;
+    private const float ScoreboardPlayerRowStepY = 14f;
+    private const int ScoreboardPlayerRowHeight = 14;
 
     private void DrawScoreboardHud()
     {
@@ -98,7 +102,7 @@ public partial class Game1
 
         var spectatorLines = BuildScoreboardSpectatorLines(525f, 1f);
         var footerLineHeight = MeasureBitmapFontHeight(1f) + 2f;
-        var spectatorY = yoffset + 370f;
+        var spectatorY = GetScoreboardSpectatorY(yoffset);
         for (var lineIndex = 0; lineIndex < spectatorLines.Count; lineIndex += 1)
         {
             DrawScoreboardSpectatorLine(
@@ -285,7 +289,7 @@ public partial class Game1
     private List<ScoreboardPlayerRow> BuildScoreboardPlayerRows()
     {
         var layout = GetScoreboardLayout();
-        var rows = new List<ScoreboardPlayerRow>(24);
+        var rows = new List<ScoreboardPlayerRow>(ScoreboardMaxRowsPerTeam * 2);
         AddScoreboardPlayerRows(rows, GetScoreboardPlayers(PlayerTeam.Red), PlayerTeam.Red, layout);
         AddScoreboardPlayerRows(rows, GetScoreboardPlayers(PlayerTeam.Blue), PlayerTeam.Blue, layout);
         return rows;
@@ -293,7 +297,7 @@ public partial class Game1
 
     private void AddScoreboardPlayerRows(List<ScoreboardPlayerRow> rows, List<PlayerEntity> players, PlayerTeam team, ScoreboardLayout layout)
     {
-        for (var index = 0; index < players.Count && index < 12; index += 1)
+        for (var index = 0; index < players.Count && index < ScoreboardMaxRowsPerTeam; index += 1)
         {
             var player = players[index];
             if (!TryGetScoreboardPlayerNetworkSlot(player, out var slot))
@@ -657,10 +661,10 @@ public partial class Game1
             ? xoffset + 195f
             : xoffset + 472f;
 
-        for (var index = 0; index < players.Count && index < 12; index += 1)
+        for (var index = 0; index < players.Count && index < ScoreboardMaxRowsPerTeam; index += 1)
         {
             var player = players[index];
-            var rowY = yoffset + 70f + (20f * (index + 1));
+            var rowY = GetScoreboardPlayerRowY(index, yoffset);
             if (TryGetScoreboardPlayerNetworkSlot(player, out var slot)
                 && _scoreboardHoveredPlayerRow is { } hoveredRow
                 && hoveredRow.Slot == slot)
@@ -703,14 +707,14 @@ public partial class Game1
 
             if (!player.IsAlive)
             {
-                TryDrawScreenSprite("DeadS", 0, new Vector2(deadX, rowY + 5f), Color.White * alpha, Vector2.One);
+                TryDrawScreenSprite("DeadS", 0, new Vector2(deadX, rowY + 3f), Color.White * alpha, Vector2.One);
             }
         }
     }
 
     private static Rectangle GetScoreboardPlayerRowBounds(PlayerTeam team, int index, float xoffset, float yoffset, float xsize)
     {
-        var rowY = yoffset + 70f + (20f * (index + 1));
+        var rowY = GetScoreboardPlayerRowY(index, yoffset);
         var x = team == PlayerTeam.Red
             ? xoffset + 8f
             : xoffset + (xsize / 2f) + 40f;
@@ -719,7 +723,20 @@ public partial class Game1
             (int)MathF.Round(x),
             (int)MathF.Round(rowY - 2f),
             (int)MathF.Round(width),
-            20);
+            ScoreboardPlayerRowHeight);
+    }
+
+    private static float GetScoreboardPlayerRowY(int index, float yoffset)
+    {
+        return yoffset + ScoreboardPlayerRowStartOffsetY + (ScoreboardPlayerRowStepY * (index + 1));
+    }
+
+    private static float GetScoreboardSpectatorY(float yoffset)
+    {
+        return yoffset
+            + ScoreboardPlayerRowStartOffsetY
+            + (ScoreboardPlayerRowStepY * ScoreboardMaxRowsPerTeam)
+            + 20f;
     }
 
     private void DrawScoreboardDominationBadges(PlayerEntity player, PlayerTeam team, float rowY, float alpha, float dominationX, float relationX)

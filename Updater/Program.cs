@@ -11,6 +11,8 @@ const string UpdateManifestBaseUrl = "https://api.superganggarrison.com/updates"
 const string VersionFileName = "version.txt";
 const string ReleaseChannelFileName = "release-channel.txt";
 const string ApplyUpdateArgument = "--apply-update";
+const string AppPayloadDirectoryName = "app";
+const string ChainedUpdateManifestUrlFileName = "chained-update-manifest-url.txt";
 
 if (args.Length > 0 && string.Equals(args[0], ApplyUpdateArgument, StringComparison.Ordinal))
 {
@@ -20,6 +22,7 @@ if (args.Length > 0 && string.Equals(args[0], ApplyUpdateArgument, StringCompari
 
 var appDirectory = AppContext.BaseDirectory;
 var manifestUrl = Environment.GetEnvironmentVariable("OPENGARRISON_UPDATE_MANIFEST");
+var manifestUrlOverridden = !string.IsNullOrWhiteSpace(manifestUrl);
 var expectedManifestChannel = string.Empty;
 if (string.IsNullOrWhiteSpace(manifestUrl))
 {
@@ -34,6 +37,16 @@ var launchGame = true;
 try
 {
     var result = await TryApplyUpdateAsync(appDirectory, manifestUrl, expectedManifestChannel, args, updateUi).ConfigureAwait(false);
+    if (result == UpdateApplyResult.NoUpdate && !manifestUrlOverridden)
+    {
+        result = await TryApplyChainedUpdateAsync(
+            appDirectory,
+            ReadChainedUpdateManifestUrl(appDirectory),
+            args,
+            updateUi,
+            "installed chain").ConfigureAwait(false);
+    }
+
     launchGame = result != UpdateApplyResult.DelegatedToHelper;
 }
 catch (OperationCanceledException)
@@ -88,6 +101,7 @@ static async Task RunApplyUpdateModeAsync(string[] args)
             sourceDirectory,
             destinationDirectory,
             progress => updateUi.Report(UpdateUiState.KnownProgress("Installing update...", progress)));
+        RemoveObsoleteRootEntrypointsForAppLayout(sourceDirectory, destinationDirectory);
         EnsurePackagedExecutablePermissions(destinationDirectory);
 
         var appliedVersion = ResolveAppliedPackageVersion(sourceDirectory, version);
@@ -101,6 +115,17 @@ static async Task RunApplyUpdateModeAsync(string[] args)
         if (!string.IsNullOrWhiteSpace(releaseChannel))
         {
             File.WriteAllText(Path.Combine(destinationDirectory, ReleaseChannelFileName), releaseChannel);
+        }
+
+        var chainedResult = await TryApplyChainedUpdateAsync(
+            destinationDirectory,
+            ReadChainedUpdateManifestUrl(sourceDirectory),
+            gameArgs,
+            updateUi,
+            "package chain").ConfigureAwait(false);
+        if (chainedResult == UpdateApplyResult.DelegatedToHelper)
+        {
+            return;
         }
 
         updateUi.Report(UpdateUiState.KnownProgress("Launching updated version...", 1d));
@@ -279,6 +304,31 @@ static string ReadReleaseChannelFile(string directory)
     }
 }
 
+static string ReadChainedUpdateManifestUrl(string directory)
+{
+    try
+    {
+        var path = Path.Combine(directory, ChainedUpdateManifestUrlFileName);
+        if (!File.Exists(path))
+        {
+            return string.Empty;
+        }
+
+        var manifestUrl = File.ReadAllText(path).Trim();
+        if (!Uri.TryCreate(manifestUrl, UriKind.Absolute, out var uri)
+            || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+        {
+            return string.Empty;
+        }
+
+        return uri.ToString();
+    }
+    catch
+    {
+        return string.Empty;
+    }
+}
+
 static string NormalizeUpdateChannel(string channel)
 {
     var normalized = channel.Trim().ToLowerInvariant();
@@ -314,6 +364,49 @@ static string GetUpdatePlatformSegment()
     }
 
     return $"{RuntimeInformation.OSDescription.ToLowerInvariant().Replace(' ', '-')}-{architecture}";
+}
+
+static async Task<UpdateApplyResult> TryApplyChainedUpdateAsync(
+    string appDirectory,
+    string chainedManifestUrl,
+    string[] gameArgs,
+    IUpdateUi updateUi,
+    string reason)
+{
+    if (string.IsNullOrWhiteSpace(chainedManifestUrl))
+    {
+        return UpdateApplyResult.NoUpdate;
+    }
+
+    try
+    {
+        LogUpdaterEvent(appDirectory, $"checking chained update reason=\"{reason}\" manifestUrl=\"{chainedManifestUrl}\"");
+        updateUi.Show();
+        updateUi.Report(UpdateUiState.Indeterminate("Checking next update..."));
+        return await TryApplyUpdateAsync(
+            appDirectory,
+            chainedManifestUrl,
+            string.Empty,
+            gameArgs,
+            updateUi).ConfigureAwait(false);
+    }
+    catch (OperationCanceledException)
+    {
+        updateUi.Report(UpdateUiState.KnownProgress("Update canceled. Launching installed version...", 0d));
+        await Task.Delay(450).ConfigureAwait(false);
+        return UpdateApplyResult.NoUpdate;
+    }
+    catch (Exception ex)
+    {
+        LogUpdaterEvent(appDirectory, $"chained update failed; launching installed version reason=\"{reason}\"", ex);
+        if (updateUi.IsVisible)
+        {
+            updateUi.Report(UpdateUiState.KnownProgress("Next update failed. Launching installed version...", 0d));
+            await Task.Delay(900).ConfigureAwait(false);
+        }
+
+        return UpdateApplyResult.NoUpdate;
+    }
 }
 
 static async Task DownloadPackageAsync(
@@ -422,19 +515,19 @@ static bool ContainsUpdatePayloadRoot(string directory)
         return true;
     }
 
-    return GetUpdaterHelperExecutableNames().Any(name => File.Exists(Path.Combine(directory, name)))
-        || GetGameExecutableNames().Any(name => File.Exists(Path.Combine(directory, name)));
+    return GetUpdaterHelperExecutableRelativePaths().Any(relativePath => File.Exists(Path.Combine(directory, relativePath)))
+        || GetGameExecutableRelativePaths().Any(relativePath => File.Exists(Path.Combine(directory, relativePath)));
 }
 
 static bool TryLaunchUpdateHelper(string extractPath, string appDirectory, string version, string[] gameArgs)
 {
-    var helperPath = GetUpdaterHelperExecutableNames()
-        .Select(executableName => Path.Combine(extractPath, executableName))
+    var helperPath = GetUpdaterHelperExecutableRelativePaths()
+        .Select(relativePath => Path.Combine(extractPath, relativePath))
         .FirstOrDefault(File.Exists);
 
     if (helperPath is null)
     {
-        var expectedHelpers = string.Join(", ", GetUpdaterHelperExecutableNames());
+        var expectedHelpers = string.Join(", ", GetUpdaterHelperExecutableRelativePaths());
         LogUpdaterEvent(appDirectory, $"update helper missing in extracted package \"{extractPath}\" expected=[{expectedHelpers}]");
         return false;
     }
@@ -446,7 +539,7 @@ static bool TryLaunchUpdateHelper(string extractPath, string appDirectory, strin
         var startInfo = new ProcessStartInfo
         {
             FileName = helperPath,
-            WorkingDirectory = extractPath,
+            WorkingDirectory = Path.GetDirectoryName(helperPath) ?? extractPath,
             UseShellExecute = false,
         };
         startInfo.ArgumentList.Add(ApplyUpdateArgument);
@@ -477,25 +570,48 @@ static bool TryLaunchUpdateHelper(string extractPath, string appDirectory, strin
     }
 }
 
-static string[] GetUpdaterHelperExecutableNames()
+static string[] GetUpdaterHelperExecutableRelativePaths()
 {
     return OperatingSystem.IsWindows()
-        ? ["OG2.Updater.exe", "OG2.Launcher.exe"]
-        : ["OG2.Updater", "OG2.Launcher"];
+        ? [
+            "OG2.Updater.exe",
+            "OG2.Launcher.exe",
+            "Super Gang Garrison.exe",
+            "OG2.exe",
+            Path.Combine(AppPayloadDirectoryName, "OG2.Updater.exe"),
+            Path.Combine(AppPayloadDirectoryName, "OG2.Launcher.exe")
+        ]
+        : [
+            "OG2.Updater",
+            "OG2.Launcher",
+            "OG2",
+            Path.Combine(AppPayloadDirectoryName, "OG2.Updater"),
+            Path.Combine(AppPayloadDirectoryName, "OG2.Launcher")
+        ];
 }
 
-static string[] GetGameExecutableNames()
+static string[] GetGameExecutableRelativePaths()
 {
     return OperatingSystem.IsWindows()
-        ? ["OG2.Game.exe", "OG2.exe"]
-        : ["OG2.Game", "OG2"];
+        ? [
+            Path.Combine(AppPayloadDirectoryName, "OG2.Game.exe"),
+            Path.Combine(AppPayloadDirectoryName, "OG2.exe"),
+            "OG2.Game.exe",
+            "OG2.exe"
+        ]
+        : [
+            Path.Combine(AppPayloadDirectoryName, "OG2.Game"),
+            Path.Combine(AppPayloadDirectoryName, "OG2"),
+            "OG2.Game",
+            "OG2"
+        ];
 }
 
 static string? GetGameExecutablePath(string appDirectory)
 {
-    foreach (var executableName in GetGameExecutableNames())
+    foreach (var relativePath in GetGameExecutableRelativePaths())
     {
-        var executablePath = Path.Combine(appDirectory, executableName);
+        var executablePath = Path.Combine(appDirectory, relativePath);
         if (File.Exists(executablePath) && !IsUpdaterExecutable(executablePath))
         {
             return executablePath;
@@ -759,6 +875,12 @@ static void EnsurePackagedExecutablePermissions(string appDirectory)
         "OG2.Launcher",
         "OG2.Server",
         "OG2.ServerLauncher",
+        Path.Combine(AppPayloadDirectoryName, "OG2"),
+        Path.Combine(AppPayloadDirectoryName, "OG2.Game"),
+        Path.Combine(AppPayloadDirectoryName, "OG2.Updater"),
+        Path.Combine(AppPayloadDirectoryName, "OG2.Launcher"),
+        Path.Combine(AppPayloadDirectoryName, "OG2.Server"),
+        Path.Combine(AppPayloadDirectoryName, "OG2.ServerLauncher"),
         "run-client.sh",
         "run-server.sh",
         "run-server-launcher.sh",
@@ -798,6 +920,117 @@ static bool ShouldPreserveLocalPath(string relativePath)
         || firstSegment.Equals("logs", StringComparison.OrdinalIgnoreCase);
 }
 
+static void RemoveObsoleteRootEntrypointsForAppLayout(string sourceDirectory, string destinationDirectory)
+{
+    if (!UsesAppPayloadLayout(sourceDirectory))
+    {
+        return;
+    }
+
+    foreach (var relativePath in GetObsoleteRootEntrypointRelativePaths())
+    {
+        if (File.Exists(Path.Combine(sourceDirectory, relativePath)))
+        {
+            continue;
+        }
+
+        RemovePackagedRootEntrypoint(destinationDirectory, relativePath);
+    }
+}
+
+static bool UsesAppPayloadLayout(string packageRoot)
+{
+    var appDirectory = Path.Combine(packageRoot, AppPayloadDirectoryName);
+    if (!Directory.Exists(appDirectory))
+    {
+        return false;
+    }
+
+    return OperatingSystem.IsWindows()
+        ? File.Exists(Path.Combine(appDirectory, "OG2.Game.exe"))
+            || File.Exists(Path.Combine(appDirectory, "OG2.exe"))
+            || Directory.Exists(Path.Combine(appDirectory, "Content"))
+        : File.Exists(Path.Combine(appDirectory, "OG2.Game"))
+            || File.Exists(Path.Combine(appDirectory, "OG2"))
+            || Directory.Exists(Path.Combine(appDirectory, "Content"));
+}
+
+static string[] GetObsoleteRootEntrypointRelativePaths()
+{
+    return OperatingSystem.IsWindows()
+        ? [
+            "OG2.exe",
+            "OG2.Game.exe",
+            "OG2.Updater.exe",
+            "OG2.Launcher.exe",
+            "OG2.Server.exe",
+            "OG2.ServerLauncher.exe"
+        ]
+        : [
+            "OG2.Game",
+            "OG2.Updater",
+            "OG2.Launcher",
+            "OG2.Server",
+            "OG2.ServerLauncher",
+            "run-client.sh",
+            "run-server.sh",
+            "run-server-launcher.sh"
+        ];
+}
+
+static void RemovePackagedRootEntrypoint(string destinationDirectory, string relativePath)
+{
+    if (Path.IsPathRooted(relativePath) || IsEscapingRelativePath(relativePath))
+    {
+        return;
+    }
+
+    var destinationRoot = Path.GetFullPath(destinationDirectory);
+    var targetPath = Path.GetFullPath(Path.Combine(destinationRoot, relativePath));
+    if (!IsPathUnderRoot(destinationRoot, targetPath) || !File.Exists(targetPath))
+    {
+        return;
+    }
+
+    try
+    {
+        File.Delete(targetPath);
+        LogUpdaterEvent(destinationDirectory, $"removed obsolete packaged root entrypoint \"{relativePath}\"");
+    }
+    catch (Exception ex)
+    {
+        LogUpdaterEvent(destinationDirectory, $"failed to remove obsolete packaged root entrypoint \"{relativePath}\"", ex);
+    }
+}
+
+static bool IsPathUnderRoot(string rootDirectory, string candidatePath)
+{
+    var comparison = OperatingSystem.IsWindows()
+        ? StringComparison.OrdinalIgnoreCase
+        : StringComparison.Ordinal;
+    var normalizedRoot = Path.GetFullPath(rootDirectory);
+    var normalizedCandidate = Path.GetFullPath(candidatePath);
+    if (string.Equals(normalizedRoot, normalizedCandidate, comparison))
+    {
+        return true;
+    }
+
+    if (!normalizedRoot.EndsWith(Path.DirectorySeparatorChar)
+        && !normalizedRoot.EndsWith(Path.AltDirectorySeparatorChar))
+    {
+        normalizedRoot += Path.DirectorySeparatorChar;
+    }
+
+    return normalizedCandidate.StartsWith(normalizedRoot, comparison);
+}
+
+static bool IsEscapingRelativePath(string relativePath)
+{
+    return relativePath == ".."
+        || relativePath.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+        || relativePath.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal);
+}
+
 static void LaunchGame(string appDirectory, string[] args)
 {
     var gamePath = GetGameExecutablePath(appDirectory);
@@ -805,7 +1038,7 @@ static void LaunchGame(string appDirectory, string[] args)
     {
         NotifyLaunchFailure(
             appDirectory,
-            "Super Gang Garrison could not find OG2.Game.exe. Extract the full OpenGarrison zip to a folder, then start OG2.exe from that extracted folder.");
+            $"Super Gang Garrison could not find the game executable. Extract the full OpenGarrison zip to a folder, then start {GetLauncherDisplayName()} from that extracted folder.");
         return;
     }
 
@@ -814,7 +1047,7 @@ static void LaunchGame(string appDirectory, string[] args)
     var startInfo = new ProcessStartInfo
     {
         FileName = gamePath,
-        WorkingDirectory = appDirectory,
+        WorkingDirectory = Path.GetDirectoryName(gamePath) ?? appDirectory,
         UseShellExecute = true,
     };
     foreach (var argument in args)
@@ -837,6 +1070,13 @@ static void LaunchGame(string appDirectory, string[] args)
     {
         NotifyLaunchFailure(appDirectory, $"Super Gang Garrison could not start the game executable:\n{gamePath}", ex);
     }
+}
+
+static string GetLauncherDisplayName()
+{
+    return OperatingSystem.IsWindows()
+        ? "Super Gang Garrison.exe"
+        : "./OG2";
 }
 
 static void NotifyLaunchFailure(string appDirectory, string message, Exception? exception = null)

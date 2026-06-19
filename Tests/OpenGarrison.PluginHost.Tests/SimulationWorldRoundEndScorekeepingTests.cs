@@ -29,6 +29,46 @@ public sealed class SimulationWorldRoundEndScorekeepingTests
         Assert.Equal(0f, killer.Points);
     }
 
+    [Fact]
+    public void HealingAwardsOnePointPerEightHundredHealing()
+    {
+        var world = new SimulationWorld();
+        var healer = new PlayerEntity(1, CharacterClassCatalog.Medic, "Medic");
+
+        InvokeAwardHealingPoints(world, healer, 799);
+
+        Assert.Equal(799, healer.HealPoints);
+        Assert.Equal(0f, healer.Points);
+
+        InvokeAwardHealingPoints(world, healer, 1);
+
+        Assert.Equal(800, healer.HealPoints);
+        Assert.Equal(1f, healer.Points);
+
+        InvokeAwardHealingPoints(world, healer, 799);
+
+        Assert.Equal(1599, healer.HealPoints);
+        Assert.Equal(1f, healer.Points);
+
+        InvokeAwardHealingPoints(world, healer, 1);
+
+        Assert.Equal(1600, healer.HealPoints);
+        Assert.Equal(2f, healer.Points);
+    }
+
+    [Fact]
+    public void HealingAfterRoundEndTracksHealingWithoutAwardingPoints()
+    {
+        var world = new SimulationWorld();
+        var healer = new PlayerEntity(1, CharacterClassCatalog.Medic, "Medic");
+        SetMatchEnded(world, PlayerTeam.Red);
+
+        InvokeAwardHealingPoints(world, healer, 800);
+
+        Assert.Equal(800, healer.HealPoints);
+        Assert.Equal(0f, healer.Points);
+    }
+
     private static SimulationWorld CreateCombatWorld(out PlayerEntity killer)
     {
         var world = new SimulationWorld();
@@ -74,5 +114,12 @@ public sealed class SimulationWorldRoundEndScorekeepingTests
                 false,
                 true,
             ]);
+    }
+
+    private static void InvokeAwardHealingPoints(SimulationWorld world, PlayerEntity healer, int healedAmount)
+    {
+        var method = typeof(SimulationWorld).GetMethod("AwardHealingPoints", BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("AwardHealingPoints method was not found.");
+        method.Invoke(world, [healer, healedAmount]);
     }
 }

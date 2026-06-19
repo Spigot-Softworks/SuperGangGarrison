@@ -88,9 +88,13 @@ local function selected_slot_or_default(input_state)
         return 0
     end
 
-    local aim_direction = input_state.aimDirectionDegrees + 90.0
+    local aim_direction = input_state.aimDirectionDegrees
     while aim_direction >= 360.0 do
         aim_direction = aim_direction - 360.0
+    end
+
+    while aim_direction < 0.0 do
+        aim_direction = aim_direction + 360.0
     end
 
     return clamp(math.floor(aim_direction / 40.0) + 1, 1, 9)
