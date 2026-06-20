@@ -289,18 +289,18 @@ public partial class Game1
                 ? Color.Lerp(new Color(214, 24, 24), new Color(255, 86, 86), readyPulse)
                 : new Color(164, 28, 28);
 
-        _spriteBatch.Draw(_pixel, shadowRectangle, Color.Black * 0.4f);
-        _spriteBatch.Draw(_pixel, frameRectangle, frameColor);
-        _spriteBatch.Draw(_pixel, barRectangle, new Color(24, 8, 8));
-        _spriteBatch.Draw(_pixel, troughRectangle, new Color(54, 10, 10));
-        _spriteBatch.Draw(_pixel, shineRectangle, new Color(255, 222, 222) * 0.12f);
+        _spriteBatch.Draw(_pixel, shadowRectangle, ApplyCurrentHudElementOpacity(Color.Black * 0.4f));
+        _spriteBatch.Draw(_pixel, frameRectangle, ApplyCurrentHudElementOpacity(frameColor));
+        _spriteBatch.Draw(_pixel, barRectangle, ApplyCurrentHudElementOpacity(new Color(24, 8, 8)));
+        _spriteBatch.Draw(_pixel, troughRectangle, ApplyCurrentHudElementOpacity(new Color(54, 10, 10)));
+        _spriteBatch.Draw(_pixel, shineRectangle, ApplyCurrentHudElementOpacity(new Color(255, 222, 222) * 0.12f));
         if (fillRectangle.Width > 0)
         {
-            _spriteBatch.Draw(_pixel, fillRectangle, fillColor);
+            _spriteBatch.Draw(_pixel, fillRectangle, ApplyCurrentHudElementOpacity(fillColor));
             _spriteBatch.Draw(
                 _pixel,
                 new Rectangle(fillRectangle.X, fillRectangle.Y, fillRectangle.Width, Math.Max(2, fillRectangle.Height / 3)),
-                new Color(255, 214, 214) * 0.18f);
+                ApplyCurrentHudElementOpacity(new Color(255, 214, 214) * 0.18f));
         }
 
         var rageLabelPosition = new Vector2(barRectangle.Center.X, barRectangle.Y - 18f);

@@ -933,17 +933,7 @@ function Publish-RootUpdaterEntrypoint {
         throw "Package is missing published updater executable '$publishedUpdaterName'."
     }
 
-    $rootEntrypointNames = [System.Collections.Generic.List[string]]::new()
-    foreach ($name in @(
-        $rootEntrypointName,
-        (Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2.Updater"),
-        (Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2.Launcher"),
-        (Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2")
-    )) {
-        if (-not $rootEntrypointNames.Contains($name)) {
-            $rootEntrypointNames.Add($name)
-        }
-    }
+    $rootEntrypointNames = @($rootEntrypointName)
 
     foreach ($entrypointName in $rootEntrypointNames) {
         $rootEntrypointPath = Join-Path $OutputDirectory $entrypointName
@@ -957,7 +947,7 @@ function Publish-RootUpdaterEntrypoint {
     }
 
     Remove-Item $ScratchDirectory -Recurse -Force
-    Write-Host "[package] clean root entrypoints: $($rootEntrypointNames -join ', ') are single-file updater helpers"
+    Write-Host "[package] clean root entrypoint: $rootEntrypointName is a single-file updater helper"
 }
 
 function Add-UnixLaunchers {

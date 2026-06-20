@@ -429,9 +429,10 @@ public partial class Game1
             return;
         }
 
+        var drawColor = ApplyCurrentHudElementOpacity(color);
         if (_menuBitmapFontTexture is null || _menuBitmapFontGlyphs.Count == 0)
         {
-            _spriteBatch.DrawString(_menuFont, text, position, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+            _spriteBatch.DrawString(_menuFont, text, position, drawColor, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
             return;
         }
 
@@ -459,7 +460,7 @@ public partial class Game1
                         Math.Max(1, (int)MathF.Round(glyph.SourceRect.Width * scale)),
                         Math.Max(1, (int)MathF.Round(glyph.SourceRect.Height * scale))),
                     CombineSourceRectangles(_menuBitmapFontTexture.SourceRectangle, glyph.SourceRect),
-                    color);
+                    drawColor);
             }
             cursor.X += (glyph.Advance + _menuBitmapFontSpacing) * scale;
         }
