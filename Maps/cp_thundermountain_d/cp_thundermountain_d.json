@@ -1,0 +1,1432 @@
+{
+  "formatVersion": 1,
+  "name": "cp_thundermountain_d",
+  "scale": 6,
+  "visualScale": 6,
+  "backgroundImage": "background.png",
+  "walkmaskImage": "walkmask.png",
+  "metadata": {
+    "background": "ffffff",
+    "void": "000000"
+  },
+  "entities": [
+    {
+      "type": "redteamgate",
+      "x": 978,
+      "y": 594,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 984,
+      "y": 600,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 984,
+      "y": 606,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 990,
+      "y": 606,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "SetupGate",
+      "x": 1008,
+      "y": 636,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "SetupGate",
+      "x": 1008,
+      "y": 618,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "SetupGate",
+      "x": 1026,
+      "y": 720,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "SetupGate",
+      "x": 1026,
+      "y": 738,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "SetupGate",
+      "x": 1026,
+      "y": 756,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 1068,
+      "y": 696,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 1110,
+      "y": 696,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 1098,
+      "y": 708,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 1104,
+      "y": 702,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 1068,
+      "y": 702,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 1062,
+      "y": 708,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 1056,
+      "y": 714,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 1092,
+      "y": 714,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 1098,
+      "y": 468,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 1098,
+      "y": 462,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 1092,
+      "y": 462,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 1092,
+      "y": 468,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 1086,
+      "y": 462,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 1086,
+      "y": 468,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 1080,
+      "y": 468,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 1080,
+      "y": 462,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "SetupGate",
+      "x": 1074,
+      "y": 456,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "SetupGate",
+      "x": 1074,
+      "y": 474,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "SetupGate",
+      "x": 1074,
+      "y": 498,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 726,
+      "y": 720,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 708,
+      "y": 720,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 690,
+      "y": 720,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 672,
+      "y": 720,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 756,
+      "y": 696,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 780,
+      "y": 696,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 600,
+      "y": 702,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 600,
+      "y": 660,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 600,
+      "y": 624,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 636,
+      "y": 624,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 642,
+      "y": 660,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 642,
+      "y": 702,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 678,
+      "y": 702,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 720,
+      "y": 702,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 762,
+      "y": 702,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 804,
+      "y": 702,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 840,
+      "y": 702,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 840,
+      "y": 660,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 834,
+      "y": 624,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 672,
+      "y": 624,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 714,
+      "y": 624,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 750,
+      "y": 624,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 792,
+      "y": 624,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 804,
+      "y": 666,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 774,
+      "y": 666,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 738,
+      "y": 666,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 696,
+      "y": 660,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 672,
+      "y": 666,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 1104,
+      "y": 720,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 1068,
+      "y": 720,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 1038,
+      "y": 720,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 1002,
+      "y": 720,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 1062,
+      "y": 744,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 1032,
+      "y": 744,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 1002,
+      "y": 744,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 972,
+      "y": 744,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 960,
+      "y": 720,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 936,
+      "y": 708,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 924,
+      "y": 696,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 876,
+      "y": 702,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 900,
+      "y": 720,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 894,
+      "y": 720,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 912,
+      "y": 732,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 930,
+      "y": 744,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 924,
+      "y": 744,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 900,
+      "y": 690,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 876,
+      "y": 666,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 900,
+      "y": 660,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 978,
+      "y": 606,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 978,
+      "y": 624,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 948,
+      "y": 624,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 930,
+      "y": 636,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 924,
+      "y": 654,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 888,
+      "y": 624,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 912,
+      "y": 600,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 936,
+      "y": 588,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 936,
+      "y": 558,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 912,
+      "y": 564,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 900,
+      "y": 576,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 870,
+      "y": 558,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 840,
+      "y": 558,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 882,
+      "y": 570,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 894,
+      "y": 528,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 894,
+      "y": 486,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 894,
+      "y": 462,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 864,
+      "y": 456,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 846,
+      "y": 456,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 846,
+      "y": 480,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 840,
+      "y": 504,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 840,
+      "y": 522,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 864,
+      "y": 522,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 864,
+      "y": 492,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 918,
+      "y": 516,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 930,
+      "y": 462,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 924,
+      "y": 480,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 1032,
+      "y": 486,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 1032,
+      "y": 462,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 1002,
+      "y": 462,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 966,
+      "y": 456,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 954,
+      "y": 492,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 996,
+      "y": 486,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 1056,
+      "y": 702,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 1086,
+      "y": 702,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 1116,
+      "y": 702,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "controlPoint1",
+      "x": 2550,
+      "y": 588,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2544,
+      "y": 582,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2544,
+      "y": 612,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2544,
+      "y": 630,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2508,
+      "y": 630,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2496,
+      "y": 630,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2496,
+      "y": 594,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2496,
+      "y": 582,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2508,
+      "y": 582,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2580,
+      "y": 630,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2586,
+      "y": 630,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2586,
+      "y": 612,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2586,
+      "y": 588,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2586,
+      "y": 582,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2574,
+      "y": 582,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2574,
+      "y": 600,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2520,
+      "y": 612,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "controlPoint2",
+      "x": 3732,
+      "y": 552,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3726,
+      "y": 546,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3726,
+      "y": 582,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3726,
+      "y": 588,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3690,
+      "y": 588,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3666,
+      "y": 588,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3660,
+      "y": 588,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3660,
+      "y": 558,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3660,
+      "y": 528,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3660,
+      "y": 498,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3696,
+      "y": 498,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3732,
+      "y": 498,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3762,
+      "y": 498,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3774,
+      "y": 498,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3774,
+      "y": 528,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3774,
+      "y": 564,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3774,
+      "y": 588,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3756,
+      "y": 588,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3762,
+      "y": 552,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3756,
+      "y": 528,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3732,
+      "y": 528,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3702,
+      "y": 528,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3696,
+      "y": 540,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3696,
+      "y": 558,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4584,
+      "y": 468,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4608,
+      "y": 468,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "playerwall_horizontal",
+      "x": 2460,
+      "y": 462,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "playerwall_horizontal",
+      "x": 2454,
+      "y": 468,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "playerwall_horizontal",
+      "x": 2448,
+      "y": 474,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "playerwall_horizontal",
+      "x": 2622,
+      "y": 462,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "playerwall_horizontal",
+      "x": 2622,
+      "y": 468,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "playerwall_horizontal",
+      "x": 2622,
+      "y": 474,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "playerwall_horizontal",
+      "x": 2574,
+      "y": 474,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "playerwall_horizontal",
+      "x": 2502,
+      "y": 474,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "playerwall_horizontal",
+      "x": 2520,
+      "y": 474,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "playerwall_horizontal",
+      "x": 2514,
+      "y": 468,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "playerwall_horizontal",
+      "x": 2520,
+      "y": 462,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "playerwall_horizontal",
+      "x": 2568,
+      "y": 462,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "playerwall_horizontal",
+      "x": 2568,
+      "y": 468,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 4416,
+      "y": 426,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 4416,
+      "y": 468,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 4422,
+      "y": 468,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 4422,
+      "y": 432,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 4428,
+      "y": 432,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 4428,
+      "y": 462,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 4704,
+      "y": 486,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 4740,
+      "y": 486,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 4776,
+      "y": 486,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    }
+  ],
+  "resources": [],
+  "parallaxLayers": []
+}

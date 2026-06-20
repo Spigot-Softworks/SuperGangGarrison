@@ -229,6 +229,55 @@ public sealed class PluginContractValidationTests
     }
 
     [Fact]
+    public void ClientPluginHostDoesNotKeepBubbleMenuOverrideAfterDisablingLuaBubblePlugin()
+    {
+        var logLines = new List<string>();
+        var rootPath = CreateTempRoot();
+        var pluginsDirectory = Path.Combine(rootPath, "plugins");
+        WriteClientLuaPlugin(
+            pluginsDirectory,
+            "tests.client.lua-utility",
+            "Lua Utility",
+            """
+            local plugin = {}
+
+            function plugin.on_client_frame(e)
+            end
+
+            return plugin
+            """);
+        WriteClientLuaPlugin(
+            pluginsDirectory,
+            "tests.client.lua-bubble-menu",
+            "Lua Bubble Menu",
+            """
+            local plugin = {}
+
+            function plugin.try_handle_bubble_menu_input(input)
+                return { bubbleFrame = 20 }
+            end
+
+            return plugin
+            """);
+
+        var host = new ClientPluginHost(
+            new FakeClientPluginHostState(),
+            null!,
+            pluginsDirectory,
+            Path.Combine(rootPath, "config"),
+            Path.Combine(rootPath, "state.json"),
+            logLines.Add);
+
+        host.LoadPlugins();
+
+        Assert.True(host.HasLoadedBubbleMenuOverride());
+        Assert.True(host.SetPluginEnabled("tests.client.lua-bubble-menu", enabled: false));
+        Assert.Contains("tests.client.lua-utility", host.LoadedPluginIds);
+        Assert.DoesNotContain("tests.client.lua-bubble-menu", host.LoadedPluginIds);
+        Assert.False(host.HasLoadedBubbleMenuOverride(), string.Join(", ", host.LoadedPluginIds));
+    }
+
+    [Fact]
     public void ServerPluginHostRoutesValidatedInboundMessagesToTargetPluginOnly()
     {
         InboundServerReceiverPlugin.Reset();
@@ -784,6 +833,25 @@ public sealed class PluginContractValidationTests
         var path = Path.Combine(Path.GetTempPath(), "OpenGarrison.PluginHost.Tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(path);
         return path;
+    }
+
+    private static void WriteClientLuaPlugin(string pluginsDirectory, string pluginId, string displayName, string mainLua)
+    {
+        var pluginDirectory = Path.Combine(pluginsDirectory, pluginId.Replace('.', '_'));
+        Directory.CreateDirectory(pluginDirectory);
+        File.WriteAllText(Path.Combine(pluginDirectory, "plugin.json"), $$"""
+            {
+              "schemaVersion": 1,
+              "id": "{{pluginId}}",
+              "displayName": "{{displayName}}",
+              "version": "1.0.0",
+              "type": "Client",
+              "runtime": "Lua",
+              "entryPoint": "main.lua",
+              "compatibility": { "hostApiVersion": "1.0" }
+            }
+            """);
+        File.WriteAllText(Path.Combine(pluginDirectory, "main.lua"), mainLua);
     }
 
     private static OpenGarrisonPluginManifest CreateLuaManifest(

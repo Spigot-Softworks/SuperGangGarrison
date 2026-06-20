@@ -4,6 +4,8 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
+    private const int JumpInputBufferTicks = 4;
+
     private void AdvanceAlivePlayerWithInput(
         PlayerEntity player,
         PlayerInputSnapshot input,
@@ -79,6 +81,15 @@ public sealed partial class SimulationWorld
         var abilityReleased = !input.UseAbility && previousInput.UseAbility;
         var swapWeaponPressed = input.SwapWeapon && !previousInput.SwapWeapon;
         var interactWeaponPressed = input.InteractWeapon && !previousInput.InteractWeapon;
+        if (jumpPressed)
+        {
+            StartJumpInputBuffer(player);
+        }
+        else if (!input.Up)
+        {
+            ClearJumpInputBuffer(player);
+        }
+
         var allowHeldSecondaryAbility = ShouldUseHeldSecondaryAbility(player)
             || player.HasAcquiredMedigunEquipped;
         var allowHeldUtilityAbility = ShouldUseHeldUtilityAbility(player);
@@ -93,7 +104,7 @@ public sealed partial class SimulationWorld
 
         var healthBeforeTick = player.Health;
         var afterburn = player.AdvanceTickState(input, Config.FixedDeltaSeconds);
-        TryApplyPendingCivvieTauntHeal(player);
+        var afterburnDamageCommitted = false;
         if (healthBeforeTick > player.Health)
         {
             var burnedByPlayerId = afterburn.BurnedByPlayerId ?? player.BurnedByPlayerId;
@@ -124,25 +135,21 @@ public sealed partial class SimulationWorld
                     playerTarget: player,
                     flags: DamageEventFlags.AfterburnTick);
                 ApplyExperimentalDamageRewards(burner, player, afterburnDamage, allowOsmosisHealOwnedSentries: false);
+                afterburnDamageCommitted = true;
             }
         }
 
-        if (afterburn.IsFatal && !player.IsAlive)
+        if (afterburnDamageCommitted && (afterburn.IsFatal || player.Health <= 0))
         {
-            if (IsPracticeDpsDummy(player))
-            {
-                player.ForceSetHealth(player.MaxHealth);
-            }
-            else
-            {
-                var burnedByPlayerId = afterburn.BurnedByPlayerId ?? player.BurnedByPlayerId;
-                var burner = burnedByPlayerId.HasValue
-                    ? FindPlayerById(burnedByPlayerId.Value)
-                    : null;
-                KillPlayer(player, killer: burner, weaponSpriteName: "FlameKL");
-                return;
-            }
+            var burnedByPlayerId = afterburn.BurnedByPlayerId ?? player.BurnedByPlayerId;
+            var burner = burnedByPlayerId.HasValue
+                ? FindPlayerById(burnedByPlayerId.Value)
+                : null;
+            KillPlayer(player, killer: burner, weaponSpriteName: "FlameKL");
+            return;
         }
+
+        TryApplyPendingCivvieTauntHeal(player);
 
         if (isHumiliated)
         {
@@ -156,6 +163,7 @@ public sealed partial class SimulationWorld
         {
             input = ResetMovementInput(input);
             jumpPressed = false;
+            ClearJumpInputBuffer(player);
         }
 
         if (tauntPressed)
@@ -180,10 +188,13 @@ public sealed partial class SimulationWorld
         {
             jumpPressed = false;
             input = input with { Up = false };
+            ClearJumpInputBuffer(player);
         }
 
         var startedGrounded = player.PrepareMovement(input, Level, team, Config.FixedDeltaSeconds, out var canMove, isHumiliated);
-        var jumped = player.TryJumpIfPossible(canMove, jumpPressed);
+        var effectiveJumpPressed = jumpPressed || HasBufferedJumpInput(player);
+        var jumped = player.TryJumpIfPossible(canMove, effectiveJumpPressed);
+        AdvanceJumpInputBufferAfterAttempt(player, input.Up, jumped);
         var emitWallspinDust = player.IsAlive && player.IsPerformingSourceSpinjump(Level);
         if (jumped)
         {
@@ -224,8 +235,12 @@ public sealed partial class SimulationWorld
             swappedWeaponThisTick = TryHandleNetworkWeaponSwap(player);
         }
 
+        var utilityInputActive = abilityPressed
+            || (allowHeldUtilityAbility && input.UseAbility)
+            || (allowHeldUtilityAbility && abilityReleased);
         if (!cancelledSpySuperjumpChargeWithJump
-            && (abilityPressed || (allowHeldUtilityAbility && input.UseAbility) || (allowHeldUtilityAbility && abilityReleased)))
+            && utilityInputActive
+            && !input.FireSecondary)
         {
             var utilityPhase = allowHeldUtilityAbility
                 ? (abilityReleased ? GameplayAbilityInputPhase.Released : GameplayAbilityInputPhase.Held)
@@ -269,14 +284,13 @@ public sealed partial class SimulationWorld
             TryDropCarriedIntel(player);
         }
 
-        if (buildPressed)
-        {
-            TryBuildSentry(player);
-        }
-
         if (destroyPressed)
         {
             TryDestroySentry(player);
+        }
+        else if (buildPressed)
+        {
+            TryBuildSentry(player);
         }
 
         ApplyHealingCabinets(player);
@@ -307,6 +321,45 @@ public sealed partial class SimulationWorld
 
         player.CancelSpySuperjumpCharge(blockRestartUntilAbilityRelease: true);
         return true;
+    }
+
+    private void StartJumpInputBuffer(PlayerEntity player)
+    {
+        _jumpInputBufferTicksByPlayerId[player.Id] = JumpInputBufferTicks;
+    }
+
+    private bool HasBufferedJumpInput(PlayerEntity player)
+    {
+        return _jumpInputBufferTicksByPlayerId.TryGetValue(player.Id, out var ticksRemaining)
+            && ticksRemaining > 0;
+    }
+
+    private void AdvanceJumpInputBufferAfterAttempt(PlayerEntity player, bool jumpHeld, bool jumped)
+    {
+        if (jumped || !jumpHeld)
+        {
+            ClearJumpInputBuffer(player);
+            return;
+        }
+
+        if (!_jumpInputBufferTicksByPlayerId.TryGetValue(player.Id, out var ticksRemaining))
+        {
+            return;
+        }
+
+        ticksRemaining -= 1;
+        if (ticksRemaining <= 0)
+        {
+            ClearJumpInputBuffer(player);
+            return;
+        }
+
+        _jumpInputBufferTicksByPlayerId[player.Id] = ticksRemaining;
+    }
+
+    private void ClearJumpInputBuffer(PlayerEntity player)
+    {
+        _jumpInputBufferTicksByPlayerId.Remove(player.Id);
     }
 
     private static PlayerInputSnapshot ResetMovementInput(PlayerInputSnapshot input)

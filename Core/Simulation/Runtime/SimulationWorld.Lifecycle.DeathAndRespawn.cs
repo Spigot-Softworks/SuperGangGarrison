@@ -37,6 +37,14 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        if ((killer is null || ReferenceEquals(killer, player))
+            && player.Health <= 0
+            && TryResolveAfterburnDeathCredit(player, out var afterburnKiller))
+        {
+            killer = afterburnKiller;
+            weaponSpriteName = "FlameKL";
+        }
+
         var assistingPlayer = killer is not null && !ReferenceEquals(killer, player)
             ? ResolveAssistPlayer(player, killer)
             : null;
@@ -188,6 +196,22 @@ public sealed partial class SimulationWorld
         }
     }
 
+    private bool TryResolveAfterburnDeathCredit(PlayerEntity victim, out PlayerEntity killer)
+    {
+        killer = null!;
+        if (!victim.BurnedByPlayerId.HasValue
+            || !victim.IsBurning
+            || FindPlayerById(victim.BurnedByPlayerId.Value) is not { } burner
+            || ReferenceEquals(burner, victim)
+            || burner.Team == victim.Team)
+        {
+            return false;
+        }
+
+        killer = burner;
+        return true;
+    }
+
     private void AdvanceLocalDeathCam()
     {
         if (LocalDeathCam is null)
@@ -265,8 +289,6 @@ public sealed partial class SimulationWorld
         {
             FocusX = focusPlayer.X,
             FocusY = focusPlayer.Y,
-            Health = focusPlayer.Health,
-            MaxHealth = focusPlayer.MaxHealth,
         };
     }
 

@@ -1,0 +1,3512 @@
+{
+  "formatVersion": 1,
+  "name": "jt_glados",
+  "scale": 6,
+  "visualScale": 6,
+  "backgroundImage": "background.png",
+  "walkmaskImage": "walkmask.png",
+  "metadata": {
+    "background": "ffffff",
+    "void": "000000"
+  },
+  "entities": [
+    {
+      "type": "redteamgate",
+      "x": 162,
+      "y": 1482,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 168,
+      "y": 1482,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 174,
+      "y": 1482,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 396,
+      "y": 1482,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 402,
+      "y": 1482,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 408,
+      "y": 1482,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 624,
+      "y": 1632,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 630,
+      "y": 1638,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 636,
+      "y": 1644,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 642,
+      "y": 1650,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 648,
+      "y": 1656,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 654,
+      "y": 1662,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 660,
+      "y": 1668,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 666,
+      "y": 1674,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 672,
+      "y": 1680,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 678,
+      "y": 1686,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 732,
+      "y": 1740,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 738,
+      "y": 1746,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 744,
+      "y": 1752,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 750,
+      "y": 1758,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 756,
+      "y": 1764,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 762,
+      "y": 1770,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 768,
+      "y": 1776,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 774,
+      "y": 1782,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 780,
+      "y": 1788,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 786,
+      "y": 1794,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 792,
+      "y": 1800,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 798,
+      "y": 1806,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 366,
+      "y": 1518,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 342,
+      "y": 1518,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 318,
+      "y": 1518,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 294,
+      "y": 1518,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 270,
+      "y": 1518,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 246,
+      "y": 1518,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 216,
+      "y": 1518,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 378,
+      "y": 1848,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 360,
+      "y": 1848,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 336,
+      "y": 1848,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 318,
+      "y": 1848,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 300,
+      "y": 1848,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 276,
+      "y": 1848,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 258,
+      "y": 1848,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 234,
+      "y": 1848,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 162,
+      "y": 1812,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 168,
+      "y": 1812,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 174,
+      "y": 1812,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 396,
+      "y": 1812,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 402,
+      "y": 1812,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 408,
+      "y": 1812,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 624,
+      "y": 1302,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 630,
+      "y": 1308,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 636,
+      "y": 1314,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 642,
+      "y": 1320,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 648,
+      "y": 1326,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 654,
+      "y": 1332,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 660,
+      "y": 1338,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 666,
+      "y": 1344,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 672,
+      "y": 1350,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 678,
+      "y": 1356,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 684,
+      "y": 1362,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 690,
+      "y": 1368,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 696,
+      "y": 1374,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 702,
+      "y": 1380,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 708,
+      "y": 1386,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 714,
+      "y": 1392,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 720,
+      "y": 1398,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 726,
+      "y": 1404,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 732,
+      "y": 1410,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 738,
+      "y": 1416,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 744,
+      "y": 1422,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 750,
+      "y": 1428,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 756,
+      "y": 1434,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 762,
+      "y": 1440,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 768,
+      "y": 1446,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 774,
+      "y": 1452,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 780,
+      "y": 1458,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 786,
+      "y": 1464,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 792,
+      "y": 1470,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 798,
+      "y": 1476,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 804,
+      "y": 1812,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 810,
+      "y": 1812,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 816,
+      "y": 1812,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 822,
+      "y": 1812,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 828,
+      "y": 1812,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 834,
+      "y": 1812,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 900,
+      "y": 1812,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 906,
+      "y": 1812,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 912,
+      "y": 1812,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 918,
+      "y": 1812,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 924,
+      "y": 1812,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 930,
+      "y": 1812,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 936,
+      "y": 1812,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 840,
+      "y": 1770,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 840,
+      "y": 1776,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 840,
+      "y": 1782,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 840,
+      "y": 1788,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 840,
+      "y": 1794,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 840,
+      "y": 1800,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 840,
+      "y": 1806,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 840,
+      "y": 1872,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 840,
+      "y": 1878,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 840,
+      "y": 1884,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 840,
+      "y": 1890,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 1932,
+      "y": 1992,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 1938,
+      "y": 1992,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 1896,
+      "y": 2394,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 1902,
+      "y": 2394,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 1806,
+      "y": 2454,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 1836,
+      "y": 2454,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 1800,
+      "y": 2460,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate2",
+      "x": 1836,
+      "y": 2460,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "fragbox",
+      "x": 2022,
+      "y": 882,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "fragbox",
+      "x": 2022,
+      "y": 912,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "fragbox",
+      "x": 2052,
+      "y": 900,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "fragbox",
+      "x": 2052,
+      "y": 882,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 180,
+      "y": 1458,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 180,
+      "y": 1482,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 240,
+      "y": 1458,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 240,
+      "y": 1488,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 300,
+      "y": 1458,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 306,
+      "y": 1482,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 294,
+      "y": 1488,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 336,
+      "y": 1452,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 336,
+      "y": 1488,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 180,
+      "y": 1770,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 180,
+      "y": 1812,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 246,
+      "y": 1764,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 240,
+      "y": 1770,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 246,
+      "y": 1812,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 240,
+      "y": 1824,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 306,
+      "y": 1776,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 306,
+      "y": 1812,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 330,
+      "y": 1776,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 330,
+      "y": 1818,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 336,
+      "y": 1776,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 336,
+      "y": 1818,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 684,
+      "y": 1692,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 690,
+      "y": 1698,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 696,
+      "y": 1704,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 702,
+      "y": 1710,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 708,
+      "y": 1716,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 714,
+      "y": 1722,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 720,
+      "y": 1728,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 726,
+      "y": 1734,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "killbox",
+      "x": 4296,
+      "y": 2784,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "killbox",
+      "x": 4308,
+      "y": 2814,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "killbox",
+      "x": 4326,
+      "y": 2838,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "killbox",
+      "x": 4356,
+      "y": 2856,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "killbox",
+      "x": 4380,
+      "y": 2868,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "killbox",
+      "x": 4332,
+      "y": 2868,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "killbox",
+      "x": 4296,
+      "y": 2868,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "killbox",
+      "x": 4272,
+      "y": 2832,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "killbox",
+      "x": 1788,
+      "y": 2466,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "killbox",
+      "x": 1842,
+      "y": 2466,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 414,
+      "y": 1818,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 432,
+      "y": 1842,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 450,
+      "y": 1866,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 468,
+      "y": 1890,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 492,
+      "y": 1896,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 510,
+      "y": 1902,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 528,
+      "y": 1896,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 552,
+      "y": 1896,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 576,
+      "y": 1902,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 594,
+      "y": 1902,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 618,
+      "y": 1902,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 648,
+      "y": 1902,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 672,
+      "y": 1896,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 684,
+      "y": 1896,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 708,
+      "y": 1896,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 738,
+      "y": 1902,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 768,
+      "y": 1902,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 798,
+      "y": 1902,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 828,
+      "y": 1902,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 852,
+      "y": 1908,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 870,
+      "y": 1908,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 894,
+      "y": 1902,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 918,
+      "y": 1902,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 942,
+      "y": 1896,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 972,
+      "y": 1884,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 996,
+      "y": 1866,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1014,
+      "y": 1842,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1038,
+      "y": 1824,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1062,
+      "y": 1806,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1080,
+      "y": 1782,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1104,
+      "y": 1764,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1116,
+      "y": 1746,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1140,
+      "y": 1728,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1158,
+      "y": 1704,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1182,
+      "y": 1686,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1200,
+      "y": 1674,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1230,
+      "y": 1674,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1242,
+      "y": 1674,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1272,
+      "y": 1680,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1296,
+      "y": 1674,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1320,
+      "y": 1674,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1344,
+      "y": 1674,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1368,
+      "y": 1674,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 972,
+      "y": 1920,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 996,
+      "y": 1932,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1014,
+      "y": 1950,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1026,
+      "y": 1968,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 948,
+      "y": 1914,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1044,
+      "y": 1992,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1068,
+      "y": 2016,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1092,
+      "y": 2040,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1110,
+      "y": 2058,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1134,
+      "y": 2082,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1152,
+      "y": 2100,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1176,
+      "y": 2118,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1188,
+      "y": 2142,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1212,
+      "y": 2142,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1242,
+      "y": 2136,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1272,
+      "y": 2136,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1302,
+      "y": 2136,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1332,
+      "y": 2136,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1362,
+      "y": 2136,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1470,
+      "y": 2136,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1494,
+      "y": 2136,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1530,
+      "y": 2136,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1524,
+      "y": 2136,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1560,
+      "y": 2142,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1578,
+      "y": 2142,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1596,
+      "y": 2142,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1620,
+      "y": 2142,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1644,
+      "y": 2142,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1662,
+      "y": 2142,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1686,
+      "y": 2142,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1716,
+      "y": 2142,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1218,
+      "y": 2172,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1236,
+      "y": 2184,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1260,
+      "y": 2202,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1284,
+      "y": 2232,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1308,
+      "y": 2250,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1320,
+      "y": 2268,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1344,
+      "y": 2286,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1362,
+      "y": 2310,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1380,
+      "y": 2334,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1410,
+      "y": 2352,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1434,
+      "y": 2376,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1452,
+      "y": 2400,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1470,
+      "y": 2412,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1494,
+      "y": 2436,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1506,
+      "y": 2460,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1530,
+      "y": 2478,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1548,
+      "y": 2502,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1572,
+      "y": 2532,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1590,
+      "y": 2544,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1608,
+      "y": 2568,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1632,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1662,
+      "y": 2598,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1692,
+      "y": 2598,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1716,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1740,
+      "y": 2598,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1770,
+      "y": 2598,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1800,
+      "y": 2598,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1830,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1848,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1878,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1932,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1908,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1956,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1980,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2004,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2034,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2082,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2064,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2100,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2130,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2160,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2208,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2196,
+      "y": 2598,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2184,
+      "y": 2598,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2184,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2232,
+      "y": 2598,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2262,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2274,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2298,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2310,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2340,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2388,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2376,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2352,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2238,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2412,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2442,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2478,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2460,
+      "y": 2598,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2502,
+      "y": 2598,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2544,
+      "y": 2598,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2454,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2532,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2574,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2616,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2586,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2628,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2646,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2664,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2694,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2742,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2724,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2772,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2796,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2820,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2916,
+      "y": 2598,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2844,
+      "y": 2586,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2874,
+      "y": 2586,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2898,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2856,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2832,
+      "y": 2598,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2886,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2946,
+      "y": 2586,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2988,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2958,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2946,
+      "y": 2604,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3006,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3030,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3060,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3096,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3078,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3114,
+      "y": 2592,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3132,
+      "y": 2574,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3156,
+      "y": 2556,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3180,
+      "y": 2532,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3204,
+      "y": 2514,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3240,
+      "y": 2478,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3228,
+      "y": 2484,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3252,
+      "y": 2454,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3276,
+      "y": 2430,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3300,
+      "y": 2412,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3324,
+      "y": 2382,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3354,
+      "y": 2352,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3378,
+      "y": 2322,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3408,
+      "y": 2292,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3438,
+      "y": 2274,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3450,
+      "y": 2250,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3396,
+      "y": 2310,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3474,
+      "y": 2232,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3492,
+      "y": 2208,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3516,
+      "y": 2178,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3522,
+      "y": 2178,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3510,
+      "y": 2196,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3552,
+      "y": 2166,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3564,
+      "y": 2160,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3594,
+      "y": 2154,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3624,
+      "y": 2154,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3672,
+      "y": 2154,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3654,
+      "y": 2154,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3708,
+      "y": 2154,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3696,
+      "y": 2154,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3732,
+      "y": 2154,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3756,
+      "y": 2148,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3798,
+      "y": 2154,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3768,
+      "y": 2160,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3816,
+      "y": 2160,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3846,
+      "y": 2160,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3882,
+      "y": 2160,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3912,
+      "y": 2160,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3858,
+      "y": 2154,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3930,
+      "y": 2160,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3954,
+      "y": 2160,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3978,
+      "y": 2154,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4002,
+      "y": 2154,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4044,
+      "y": 2154,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4020,
+      "y": 2160,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4062,
+      "y": 2148,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4080,
+      "y": 2148,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4116,
+      "y": 2154,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4110,
+      "y": 2154,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4164,
+      "y": 2154,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4206,
+      "y": 2154,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4140,
+      "y": 2160,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4188,
+      "y": 2154,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4212,
+      "y": 2154,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4236,
+      "y": 2154,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4572,
+      "y": 2148,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4554,
+      "y": 2148,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4530,
+      "y": 2148,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4506,
+      "y": 2148,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4458,
+      "y": 2148,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4482,
+      "y": 2148,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4428,
+      "y": 2148,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4398,
+      "y": 2148,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4350,
+      "y": 2148,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4248,
+      "y": 2148,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4272,
+      "y": 2154,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4284,
+      "y": 2148,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4308,
+      "y": 2148,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4338,
+      "y": 2148,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4368,
+      "y": 2148,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4956,
+      "y": 2826,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4926,
+      "y": 2832,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4896,
+      "y": 2838,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4860,
+      "y": 2838,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4872,
+      "y": 2838,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4824,
+      "y": 2838,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4794,
+      "y": 2838,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4764,
+      "y": 2838,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4728,
+      "y": 2838,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4686,
+      "y": 2838,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4584,
+      "y": 2844,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4536,
+      "y": 2844,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4500,
+      "y": 2844,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4452,
+      "y": 2844,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4458,
+      "y": 2844,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4476,
+      "y": 2844,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4530,
+      "y": 2844,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4560,
+      "y": 2844,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4602,
+      "y": 2838,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4626,
+      "y": 2844,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4680,
+      "y": 2844,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4644,
+      "y": 2844,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4656,
+      "y": 2844,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4710,
+      "y": 2844,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4722,
+      "y": 2838,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4752,
+      "y": 2838,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4812,
+      "y": 2844,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4842,
+      "y": 2838,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4944,
+      "y": 2808,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4956,
+      "y": 2784,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4956,
+      "y": 2754,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4956,
+      "y": 2718,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4956,
+      "y": 2670,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4962,
+      "y": 2634,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4950,
+      "y": 2616,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueintel",
+      "x": 2466,
+      "y": 1284,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redintel",
+      "x": 2550,
+      "y": 1284,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1386,
+      "y": 2142,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1404,
+      "y": 2136,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1428,
+      "y": 2136,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1452,
+      "y": 2136,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 2490,
+      "y": 1242,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 3960,
+      "y": 1722,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 3972,
+      "y": 1728,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 3984,
+      "y": 1740,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3954,
+      "y": 1710,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3966,
+      "y": 1722,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3978,
+      "y": 1734,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    }
+  ],
+  "resources": [],
+  "parallaxLayers": []
+}

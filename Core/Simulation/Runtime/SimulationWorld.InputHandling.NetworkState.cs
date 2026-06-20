@@ -18,6 +18,8 @@ public sealed partial class SimulationWorld
         else
         {
             AdvanceNetworkRespawnTimer(slot);
+            ClearJumpInputBuffer(player);
+            input = ClearRespawnActionInputState(input);
         }
 
         SetPreviousNetworkInput(slot, input);
@@ -52,5 +54,23 @@ public sealed partial class SimulationWorld
         }
 
         _additionalNetworkPlayerPreviousInputs[slot] = input;
+    }
+
+    private static PlayerInputSnapshot ClearRespawnActionInputState(PlayerInputSnapshot input)
+    {
+        return input with
+        {
+            BuildSentry = false,
+            DestroySentry = false,
+            Taunt = false,
+            FirePrimary = false,
+            FireSecondary = false,
+            DebugKill = false,
+            DropIntel = false,
+            UseAbility = false,
+            InteractWeapon = false,
+            SwapWeapon = false,
+            ReadyUp = false,
+        };
     }
 }

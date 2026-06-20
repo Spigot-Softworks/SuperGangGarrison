@@ -41,6 +41,24 @@ public sealed class SimulationWorldStructureBuildPlacementTests
     }
 
     [Fact]
+    public void BuildingSentryCanShiftHorizontallyAwayFromWallHuggingSolid()
+    {
+        var world = CreateEngineerWorld(
+            solids:
+            [
+                new LevelSolid(113f, 90f, 40f, 40f),
+            ]);
+        world.TeleportLocalPlayer(100f, 100f);
+        world.LocalPlayer.SetSpawnRoomState(false);
+
+        Assert.True(world.TryBuildLocalSentry());
+
+        var sentry = Assert.Single(world.Sentries);
+        Assert.Equal(99f, sentry.X);
+        Assert.Equal(100f, sentry.Y);
+    }
+
+    [Fact]
     public void BuildingJumpPadFailsWhenInitialBodyWouldOverlapSolid()
     {
         var world = CreateEngineerWorld(
@@ -73,6 +91,24 @@ public sealed class SimulationWorldStructureBuildPlacementTests
 
         var pad = Assert.Single(world.JumpPads);
         Assert.Equal(world.LocalPlayer.Id, pad.OwnerPlayerId);
+    }
+
+    [Fact]
+    public void BuildingJumpPadCanShiftHorizontallyAwayFromWallHuggingSolid()
+    {
+        var world = CreateEngineerWorld(
+            solids:
+            [
+                new LevelSolid(109f, 90f, 40f, 40f),
+            ]);
+        world.TeleportLocalPlayer(100f, 100f);
+        world.LocalPlayer.SetSpawnRoomState(false);
+
+        Assert.True(world.TryBuildLocalJumpPad());
+
+        var pad = Assert.Single(world.JumpPads);
+        Assert.Equal(99f, pad.X);
+        Assert.Equal(100f, pad.Y);
     }
 
     private static SimulationWorld CreateEngineerWorld(IReadOnlyList<LevelSolid> solids)

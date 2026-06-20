@@ -180,9 +180,11 @@ public partial class Game1
         }
 
         var scale = GetDeathCamZoom(deathCam);
-        var center = new Vector2(viewportWidth / 2f, viewportHeight / 2f);
-        var origin = new Vector2(_deathCamCaptureTarget.Width / 2f, _deathCamCaptureTarget.Height / 2f);
-        _spriteBatch.Draw(_deathCamCaptureTarget, center, null, Color.White, 0f, origin, scale, SpriteEffects.None, 0f);
+        var focusCameraPosition = GetDeathCamFocusCameraTopLeft(viewportWidth, viewportHeight);
+        var focusScreenPosition = new Vector2(
+            Math.Clamp(deathCam.FocusX - focusCameraPosition.X, 0f, viewportWidth),
+            Math.Clamp(deathCam.FocusY - focusCameraPosition.Y, 0f, viewportHeight));
+        _spriteBatch.Draw(_deathCamCaptureTarget, focusScreenPosition, null, Color.White, 0f, focusScreenPosition, scale, SpriteEffects.None, 0f);
         return true;
     }
 }

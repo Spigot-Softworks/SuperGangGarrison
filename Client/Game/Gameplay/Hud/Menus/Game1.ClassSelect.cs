@@ -29,7 +29,7 @@ public partial class Game1
         }
 
         var keyboard = GetCurrentKeyboardState();
-        if (keyboard.IsKeyDown(Keys.Q) && !_previousKeyboard.IsKeyDown(Keys.Q))
+        if (IsClassSelectCivilianShortcutPressed(keyboard))
         {
             if (ApplyDirectClassSelection(PlayerClass.Quote))
             {
@@ -97,6 +97,12 @@ public partial class Game1
         {
             CloseGameplaySelectionMenus();
         }
+    }
+
+    private bool IsClassSelectCivilianShortcutPressed(KeyboardState keyboard)
+    {
+        return (keyboard.IsKeyDown(Keys.Q) && !_previousKeyboard.IsKeyDown(Keys.Q))
+            || (IsControllerMenuInputActive() && IsControllerButtonPressed(ControllerCallMedicButton));
     }
 
     private void DrawClassSelectHud()

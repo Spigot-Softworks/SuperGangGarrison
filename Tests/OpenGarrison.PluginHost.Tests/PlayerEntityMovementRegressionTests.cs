@@ -393,7 +393,7 @@ public sealed class PlayerEntityMovementRegressionTests
         var firstSpeedBefore = player.VerticalSpeed;
         Assert.True(player.TryActivateCivvieUmbrella());
 
-        var expectedFirstSpeed = firstSpeedBefore - PlayerEntity.CivvieUmbrellaAirLiftSpeedPerTick
+        var expectedFirstSpeed = -PlayerEntity.CivvieUmbrellaAirLiftSpeedPerTick
             * LegacyMovementModel.SourceTicksPerSecond;
         Assert.Equal(expectedFirstSpeed, player.VerticalSpeed, precision: 3);
 
@@ -408,12 +408,12 @@ public sealed class PlayerEntityMovementRegressionTests
 
         var secondSpeedBefore = player.VerticalSpeed;
         Assert.True(player.TryActivateCivvieUmbrella());
-        var expectedSecondSpeed = secondSpeedBefore - PlayerEntity.CivvieUmbrellaAirLiftSpeedPerTick
+        var expectedSecondSpeed = -PlayerEntity.CivvieUmbrellaAirLiftSpeedPerTick
             * LegacyMovementModel.SourceTicksPerSecond;
         Assert.Equal(expectedSecondSpeed, player.VerticalSpeed, precision: 3);
         Assert.True(
-            player.VerticalSpeed < secondSpeedBefore,
-            $"expected umbrella opening after landing reset to add lift, before={secondSpeedBefore:0.###} after={player.VerticalSpeed:0.###}");
+            player.VerticalSpeed < 0f,
+            $"expected umbrella opening after landing reset to apply lift, before={secondSpeedBefore:0.###} after={player.VerticalSpeed:0.###}");
     }
 
     [Fact]

@@ -53,6 +53,53 @@ public sealed class VipModeRulesTests
     }
 
     [Fact]
+    public void VipMapsWaitForJoinedPlayersInsteadOfEndingWhenVipIsMissing()
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+
+        Assert.True(world.TryLoadLevel("vip_dirtbowl"));
+        world.ResetPlayersToAwaitingJoinForFreshMap();
+
+        for (var tick = 0; tick < 60; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        Assert.False(world.MatchState.IsEnded);
+        Assert.False(world.TryGetVipSlot(PlayerTeam.Red, out _));
+    }
+
+    [Fact]
+    public void VipMapsAssignVipAfterPlayerRejoinsWithoutPriorDefenderWin()
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+
+        Assert.True(world.TryLoadLevel("vip_dirtbowl"));
+        world.ResetPlayersToAwaitingJoinForFreshMap();
+        var player = JoinPlayer(world, RedTeammateSlot, PlayerTeam.Red, PlayerClass.Scout);
+
+        world.AdvanceOneTick();
+
+        Assert.False(world.MatchState.IsEnded);
+        Assert.True(world.TryGetVipSlot(PlayerTeam.Red, out var vipSlot));
+        Assert.Equal(RedTeammateSlot, vipSlot);
+        Assert.Equal(PlayerClass.Quote, player.ClassId);
+    }
+
+    [Fact]
+    public void FiveControlPointVipWarmupDoesNotResolveRoundFromInitialOwnership()
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+
+        Assert.True(world.TryLoadLevel("vip_egypt"));
+
+        world.AdvanceOneTick();
+
+        Assert.False(world.MatchState.IsEnded);
+        Assert.True(world.VipWarmupActive);
+    }
+
+    [Fact]
     public void PracticeVipRulesDeferAssignmentUntilSetupEndsAndPreservePlayerCivilianSelection()
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });

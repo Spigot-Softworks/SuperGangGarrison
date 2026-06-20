@@ -59,16 +59,26 @@ public partial class Game1
             && ownedSentryCount < 2;
         if (!canBuildAdditionalSentry && GetLocalOwnedSentry() is not null)
         {
-            if (HasLocalOwnedJumpPad())
+            return;
+        }
+
+        var localPlayerId = GetPlayerStateKey(player);
+        var ownedSentryBlocksAdditionalBuild = false;
+        foreach (var sentry in _world.Sentries)
+        {
+            if (!sentry.IsNear(player.X, player.Y, 50f))
             {
-                return;
+                continue;
             }
 
-            if (GetPlayerMetal(player) < JumpPadBuildNoticeCost)
+            if (canBuildAdditionalSentry && sentry.OwnerPlayerId == localPlayerId)
             {
-                ShowNotice(NoticeKind.NutsNBolts);
+                ownedSentryBlocksAdditionalBuild = true;
             }
+        }
 
+        if (ownedSentryBlocksAdditionalBuild)
+        {
             return;
         }
 

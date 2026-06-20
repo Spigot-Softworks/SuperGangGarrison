@@ -1,0 +1,284 @@
+{
+  "formatVersion": 1,
+  "name": "koth_cdragon",
+  "scale": 6,
+  "visualScale": 6,
+  "backgroundImage": "background.png",
+  "walkmaskImage": "walkmask.png",
+  "metadata": {
+    "background": "ffffff",
+    "void": "000000"
+  },
+  "entities": [
+    {
+      "type": "spawnroom",
+      "x": 180,
+      "y": 654,
+      "xScale": 6.71,
+      "yScale": 5.29,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 4038,
+      "y": 654,
+      "xScale": 6.71,
+      "yScale": 5.29,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 456,
+      "y": 834,
+      "xScale": 0.29,
+      "yScale": 0.14,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 432,
+      "y": 762,
+      "xScale": 1.57,
+      "yScale": 2.71,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 4002,
+      "y": 762,
+      "xScale": 1.57,
+      "yScale": 2.71,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 228,
+      "y": 742,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 4268,
+      "y": 742,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 270,
+      "y": 742,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 4226,
+      "y": 742,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 462,
+      "y": 684,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 4032,
+      "y": 684,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 468,
+      "y": 684,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 4026,
+      "y": 684,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 498,
+      "y": 804,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3996,
+      "y": 804,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 504,
+      "y": 804,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3990,
+      "y": 804,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 504,
+      "y": 810,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3990,
+      "y": 810,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 498,
+      "y": 810,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3996,
+      "y": 810,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 240,
+      "y": 708,
+      "xScale": 1.31,
+      "yScale": 1.25,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 4218,
+      "y": 708,
+      "xScale": 1.31,
+      "yScale": 1.25,
+      "properties": {}
+    },
+    {
+      "type": "bulletwall",
+      "x": 1692,
+      "y": 930,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bulletwall",
+      "x": 2802,
+      "y": 930,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bulletwall",
+      "x": 1698,
+      "y": 930,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bulletwall",
+      "x": 2796,
+      "y": 930,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "dropdownPlatform",
+      "x": 1824,
+      "y": 990,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "dropdownPlatform",
+      "x": 2616,
+      "y": 990,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2184,
+      "y": 840,
+      "xScale": 3.14,
+      "yScale": 2.43,
+      "properties": {}
+    },
+    {
+      "type": "KothControlPoint",
+      "x": 2250,
+      "y": 840,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "moving_platform",
+      "x": 2196,
+      "y": 666,
+      "xScale": 6,
+      "yScale": 6,
+      "properties": {
+        "downspeed": "1",
+        "resource": "mplatform",
+        "scale": "6",
+        "top": "156",
+        "upspeed": "1"
+      }
+    }
+  ],
+  "resources": [
+    {
+      "name": "mplatform",
+      "kind": "genericImage",
+      "path": "mplatform.png"
+    }
+  ],
+  "parallaxLayers": []
+}

@@ -282,9 +282,19 @@ public sealed partial class SimulationWorld
     private void HandleEngineerPdaSentryCommand(PlayerEntity player)
     {
         var maxOwnedSentries = GetExperimentalMaxOwnedSentries(player);
-        if (maxOwnedSentries > 1 && GetExperimentalOwnedSentryCount(player.Id) < maxOwnedSentries)
+        var ownedSentryCount = GetExperimentalOwnedSentryCount(player.Id);
+        if (maxOwnedSentries > 1 && ownedSentryCount < maxOwnedSentries)
         {
-            TryBuildSentry(player);
+            if (TryBuildSentry(player))
+            {
+                return;
+            }
+
+            if (ownedSentryCount > 0)
+            {
+                TryDestroySentryForOwnerCommand(player);
+            }
+
             return;
         }
 

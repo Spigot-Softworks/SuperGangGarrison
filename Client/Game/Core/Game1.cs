@@ -309,6 +309,9 @@ public partial class Game1 : Game
     private float _portraitRumbleRemainingSeconds;
     private float _portraitRumbleIntensity;
     private int _portraitRumbleSeed;
+    private float _weaponFireHudRumbleRemainingSeconds;
+    private float _weaponFireHudRumbleIntensity;
+    private int _weaponFireHudRumbleSeed;
     private bool _damageVignetteEnabled = true;
     private int _damageVignetteIntensityPercent = ClientSettings.DefaultDamageVignetteIntensityPercent;
     private LowHealthColorMode _lowHealthColorMode = LowHealthColorMode.Red;

@@ -183,7 +183,7 @@ public partial class Game1
                     (int)(gib.Y - 6f - cameraPosition.Y),
                     12,
                     12);
-                _spriteBatch.Draw(_pixel, gibRectangle, new Color(160, 170, 175));
+                _spriteBatch.Draw(_pixel, gibRectangle, new Color(160, 170, 175) * gib.Alpha);
             }
         }
 

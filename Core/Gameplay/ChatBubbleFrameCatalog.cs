@@ -36,6 +36,7 @@ public static class ChatBubbleFrameCatalog
             PlayerClass.Engineer => offset + 6,
             PlayerClass.Spy => offset + 7,
             PlayerClass.Sniper => offset + 8,
+            PlayerClass.Quote => team == PlayerTeam.Blue ? 48 : 47,
             _ => Alert,
         };
     }

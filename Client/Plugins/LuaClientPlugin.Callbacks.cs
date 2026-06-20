@@ -427,6 +427,8 @@ internal sealed partial class LuaClientPlugin
         });
     }
 
+    public bool HasBubbleMenuInputOverride => HasDeclaredCallback("try_handle_bubble_menu_input");
+
     public bool TryDrawBubbleMenu(IOpenGarrisonClientHudCanvas canvas, ClientBubbleMenuRenderState renderState)
     {
         if (_script is null || _pluginTable is null || !HasCallback("try_draw_bubble_menu"))

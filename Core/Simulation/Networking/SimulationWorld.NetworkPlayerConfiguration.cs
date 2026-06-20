@@ -155,6 +155,7 @@ public sealed partial class SimulationWorld
 
     private void PrepareNetworkPlayerTeamChangeRespawn(byte slot, PlayerEntity player, PlayerTeam team)
     {
+        var wasInSpawnRoom = player.IsInSpawnRoom;
         RemoveOwnedSpyArtifacts(player.Id);
         player.ClearMedicHealingTarget();
         foreach (var otherPlayer in EnumerateSimulatedPlayers())
@@ -168,7 +169,12 @@ public sealed partial class SimulationWorld
         player.Kill();
         player.SetPendingRespawnTeam(team);
         SetNetworkPlayerDeathCam(slot, null);
-        TrySetNetworkPlayerRespawnTicks(slot, MatchRules.Mode == GameModeKind.Arena ? 0 : _configuredRespawnTicks);
+        var respawnTicks = MatchRules.Mode == GameModeKind.Arena
+            ? 0
+            : wasInSpawnRoom
+                ? 1
+                : _configuredRespawnTicks;
+        TrySetNetworkPlayerRespawnTicks(slot, respawnTicks);
     }
 
     public bool TryRequestNetworkPlayerTeamSelection(byte slot, PlayerTeam team)
@@ -470,6 +476,7 @@ public sealed partial class SimulationWorld
 
         if (player.IsAlive)
         {
+            var wasInSpawnRoom = player.IsInSpawnRoom;
             var classChangeCreatesRemains = !player.IsInSpawnRoom;
             RemoveOwnedSpyArtifacts(player.Id);
             KillPlayer(
@@ -482,7 +489,7 @@ public sealed partial class SimulationWorld
                 recordKillFeed: !player.IsInSpawnRoom);
             if (pendingTeamSelection && MatchRules.Mode != GameModeKind.Arena)
             {
-                TrySetNetworkPlayerRespawnTicks(slot, _configuredRespawnTicks);
+                TrySetNetworkPlayerRespawnTicks(slot, wasInSpawnRoom ? 1 : _configuredRespawnTicks);
             }
         }
 

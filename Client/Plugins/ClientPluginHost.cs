@@ -415,13 +415,23 @@ internal sealed class ClientPluginHost
     {
         for (var index = 0; index < _loadedPlugins.Count; index += 1)
         {
-            if (_loadedPlugins[index].LoadedPlugin.Plugin is IOpenGarrisonClientBubbleMenuHooks)
+            if (HasBubbleMenuInputOverride(_loadedPlugins[index].LoadedPlugin.Plugin))
             {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private static bool HasBubbleMenuInputOverride(IOpenGarrisonClientPlugin plugin)
+    {
+        return plugin switch
+        {
+            LuaClientPlugin luaPlugin => luaPlugin.HasBubbleMenuInputOverride,
+            IOpenGarrisonClientBubbleMenuHooks => true,
+            _ => false,
+        };
     }
 
     public bool TryDrawDeadBody(IOpenGarrisonClientHudCanvas canvas, ClientDeadBodyRenderState deadBody)

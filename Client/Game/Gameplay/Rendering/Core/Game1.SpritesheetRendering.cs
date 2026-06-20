@@ -70,11 +70,14 @@ public partial class Game1
                 (int)MathF.Floor(relY - (drawHeight * 0.5f)),
                 Math.Max(1, (int)MathF.Ceiling(drawWidth)),
                 Math.Max(1, (int)MathF.Ceiling(drawHeight)));
+            var tint = Color.White * (layer == CustomMapSpriteLayerKind.Fg
+                ? ApplyCoveredPlayerForegroundOpacity(1f, destination, cameraPosition)
+                : 1f);
             _spriteBatch.Draw(
                 texture,
                 destination,
                 new Rectangle(source.X, source.Y, source.Width, source.Height),
-                Color.White);
+                tint);
         }
     }
 }

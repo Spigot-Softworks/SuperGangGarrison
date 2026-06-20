@@ -238,7 +238,6 @@ public sealed partial class SimulationWorld
         _vipSlotsByTeam.Remove(team);
         if (!TrySelectVipSlot(team, out var selectedSlot))
         {
-            TryEndRound(GetOpposingTeam(team), "vip_missing");
             return;
         }
 
@@ -443,11 +442,12 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        foreach (var entry in _vipSlotsByTeam)
+        foreach (var entry in _vipSlotsByTeam.ToArray())
         {
             if (!TryGetNetworkPlayer(entry.Value, out _) || IsNetworkPlayerAwaitingJoin(entry.Value))
             {
-                TryEndRound(GetOpposingTeam(entry.Key), "vip_missing");
+                _vipSlotsByTeam.Remove(entry.Key);
+                _vipAssignmentVersion += 1;
                 return;
             }
 
@@ -455,5 +455,32 @@ public sealed partial class SimulationWorld
             // control-point match where only the VIP can capture; a dead VIP simply respawns
             // (and stays VIP), and the round resolves on the usual capture/time conditions.
         }
+    }
+
+    private bool ShouldDeferVipObjectiveResolution()
+    {
+        if (!IsVipModeActive)
+        {
+            return false;
+        }
+
+        if (IsPracticeVipRulesActive && ControlPointSetupActive)
+        {
+            return false;
+        }
+
+        if (VipWarmupActive)
+        {
+            return true;
+        }
+
+        return (IsVipTeamRequired(PlayerTeam.Red) && !HasValidVipAssignment(PlayerTeam.Red))
+            || (IsVipTeamRequired(PlayerTeam.Blue) && !HasValidVipAssignment(PlayerTeam.Blue));
+    }
+
+    private bool HasValidVipAssignment(PlayerTeam team)
+    {
+        return _vipSlotsByTeam.TryGetValue(team, out var slot)
+            && IsValidVipSlot(slot, team);
     }
 }

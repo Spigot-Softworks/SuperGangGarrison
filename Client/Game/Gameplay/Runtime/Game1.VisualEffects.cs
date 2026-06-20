@@ -125,6 +125,8 @@ public partial class Game1
         ResetExperimentalHealingHudIndicators();
         _portraitRumbleRemainingSeconds = 0f;
         _portraitRumbleIntensity = 0f;
+        _weaponFireHudRumbleRemainingSeconds = 0f;
+        _weaponFireHudRumbleIntensity = 0f;
         _damageVignetteIntensity = 0f;
         _damageVignetteFlashIntensity = 0f;
         _gameplayMaterialEffectsController.ResetTransientEffects();

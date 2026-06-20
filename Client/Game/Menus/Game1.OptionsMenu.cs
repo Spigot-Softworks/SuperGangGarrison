@@ -959,6 +959,8 @@ public partial class Game1
         {
             _portraitRumbleRemainingSeconds = 0f;
             _portraitRumbleIntensity = 0f;
+            _weaponFireHudRumbleRemainingSeconds = 0f;
+            _weaponFireHudRumbleIntensity = 0f;
         }
 
         PersistClientSettings();

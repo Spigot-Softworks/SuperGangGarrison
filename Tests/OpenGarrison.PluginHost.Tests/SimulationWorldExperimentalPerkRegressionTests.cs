@@ -635,9 +635,8 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     [Fact]
     public void OutputInducerEngineerPdaCanPlaceSecondSentry()
     {
-        var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerOutputInducer: true));
+        var world = CreatePrototypeEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerOutputInducer: true));
 
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
         InvokeEngineerPda(world);
         Assert.Single(world.Sentries);
 
@@ -647,6 +646,23 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         InvokeEngineerPda(world);
 
         Assert.Equal(2, world.Sentries.Count);
+    }
+
+    [Fact]
+    public void OutputInducerEngineerPdaDestroysOwnedSentryWhenSecondPlacementIsBlocked()
+    {
+        var world = CreatePrototypeEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerOutputInducer: true));
+
+        InvokeEngineerPda(world);
+        var sentry = Assert.Single(world.Sentries);
+
+        ReleaseAllInput(world);
+        AdvanceTicks(world, world.Config.TicksPerSecond * 2);
+        world.LocalPlayer.AddMetal(world.LocalPlayer.MaxMetal);
+        InvokeEngineerPda(world);
+
+        Assert.DoesNotContain(sentry, world.Sentries);
+        Assert.Empty(world.Sentries);
     }
 
     [Fact]

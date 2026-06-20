@@ -338,7 +338,7 @@ public partial class Game1
             sprite.Frames[frameIndex],
             new Vector2(gib.X - cameraPosition.X, gib.Y - cameraPosition.Y),
             null,
-            Color.White,
+            Color.White * gib.Alpha,
             0f,
             sprite.Origin.ToVector2(),
             Vector2.One,

@@ -10,6 +10,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private const float CoveredPlayerForegroundOpacity = 0.45f;
+
     private void DrawForegroundSprites(Vector2 cameraPosition, ForegroundSpriteLayerKind layer)
     {
         var visuals = GetRuntimeCustomMapVisuals();
@@ -43,7 +45,6 @@ public partial class Game1
                 continue;
             }
 
-            var opacity = ResolveForegroundSpriteDrawOpacity(roomObjectIndex, marker.ForegroundSprite);
             var screenX = marker.CenterX - cameraPosition.X;
             var screenY = marker.CenterY - cameraPosition.Y;
             var drawWidth = MathF.Max(1f, marker.Width);
@@ -53,6 +54,10 @@ public partial class Game1
                 (int)MathF.Floor(screenY - (drawHeight * 0.5f)),
                 Math.Max(1, (int)MathF.Ceiling(drawWidth)),
                 Math.Max(1, (int)MathF.Ceiling(drawHeight)));
+            var opacity = ApplyCoveredPlayerForegroundOpacity(
+                ResolveForegroundSpriteDrawOpacity(roomObjectIndex, marker.ForegroundSprite),
+                destination,
+                cameraPosition);
             var tint = Color.White * opacity;
             if (marker.ForegroundSprite.Tile)
             {
@@ -92,5 +97,31 @@ public partial class Game1
         }
 
         return Math.Clamp(opacity, 0f, 1f);
+    }
+
+    private float ApplyCoveredPlayerForegroundOpacity(float baseOpacity, Rectangle destination, Vector2 cameraPosition)
+    {
+        if (baseOpacity <= CoveredPlayerForegroundOpacity
+            || destination.Width <= 0
+            || destination.Height <= 0)
+        {
+            return Math.Clamp(baseOpacity, 0f, 1f);
+        }
+
+        foreach (var player in EnumerateRenderablePlayers())
+        {
+            if (!player.IsAlive || GetPlayerVisibilityAlpha(player) <= 0f)
+            {
+                continue;
+            }
+
+            var playerBounds = GetPlayerScreenBounds(player, GetRenderPosition(player), cameraPosition);
+            if (destination.Intersects(playerBounds))
+            {
+                return CoveredPlayerForegroundOpacity;
+            }
+        }
+
+        return Math.Clamp(baseOpacity, 0f, 1f);
     }
 }

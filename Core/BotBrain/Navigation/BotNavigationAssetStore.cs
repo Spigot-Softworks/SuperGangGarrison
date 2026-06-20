@@ -120,6 +120,12 @@ public static class BotNavigationAssetStore
     public static bool TryLoadRuntimeCache(SimpleLevel level, out BotNavigationAsset asset)
     {
         ArgumentNullException.ThrowIfNull(level);
+        if (!TryFindRuntimeCacheCandidatePath(level, out _))
+        {
+            asset = null!;
+            return false;
+        }
+
         return TryLoadFromPath(GetRuntimeCachePath(level), level, out asset);
     }
 
@@ -127,9 +133,21 @@ public static class BotNavigationAssetStore
     {
         ArgumentNullException.ThrowIfNull(level);
 
-        var expectedFingerprint = ComputeLevelFingerprint(level);
         var shippedPath = ResolveShippedPath(level);
-        var runtimeCachePath = GetRuntimeCachePath(level);
+        var shippedExists = BotBrainJsonAssetIO.TryResolveReadablePath(shippedPath, out _);
+        var runtimeCacheExists = TryFindRuntimeCacheCandidatePath(level, out _);
+        if (!shippedExists && !runtimeCacheExists)
+        {
+            return new BotNavigationAssetLoadDiagnostic(
+                ShippedPath: shippedPath,
+                RuntimeCachePath: GetRuntimeCachePlaceholderPath(level),
+                ExpectedFingerprint: "not_computed",
+                ShippedStatus: "missing",
+                RuntimeCacheStatus: "missing");
+        }
+
+        var expectedFingerprint = ComputeLevelFingerprint(level);
+        var runtimeCachePath = GetRuntimeCachePath(level.Name, level.MapAreaIndex, expectedFingerprint);
         return new BotNavigationAssetLoadDiagnostic(
             ShippedPath: shippedPath,
             RuntimeCachePath: runtimeCachePath,
@@ -386,6 +404,11 @@ public static class BotNavigationAssetStore
         return GetRuntimeCachePath(level.Name, level.MapAreaIndex, ComputeLevelFingerprint(level));
     }
 
+    private static string GetRuntimeCachePlaceholderPath(SimpleLevel level)
+    {
+        return GetRuntimeCachePath(level.Name, level.MapAreaIndex, "unknown");
+    }
+
     private static string GetRuntimeCachePath(BotNavigationAsset asset)
     {
         return GetRuntimeCachePath(asset.LevelName, asset.MapAreaIndex, asset.LevelFingerprint);
@@ -395,6 +418,35 @@ public static class BotNavigationAssetStore
     {
         var fileName = $"{SanitizeFileToken(levelName)}.a{Math.Max(1, mapAreaIndex).ToString(CultureInfo.InvariantCulture)}.{TrimFingerprint(fingerprint)}.botnav.json";
         return RuntimePaths.GetConfigPath(Path.Combine(RuntimeCacheDirectoryName, fileName));
+    }
+
+    private static bool TryFindRuntimeCacheCandidatePath(SimpleLevel level, out string path)
+    {
+        var directory = RuntimePaths.GetConfigPath(RuntimeCacheDirectoryName);
+        var filePrefix = $"{SanitizeFileToken(level.Name)}.a{Math.Max(1, level.MapAreaIndex).ToString(CultureInfo.InvariantCulture)}.";
+        path = Path.Combine(directory, $"{filePrefix}unknown.botnav.json");
+        if (!Directory.Exists(directory))
+        {
+            return false;
+        }
+
+        try
+        {
+            foreach (var candidate in Directory.EnumerateFiles(
+                         directory,
+                         $"{filePrefix}*.botnav.json",
+                         SearchOption.TopDirectoryOnly))
+            {
+                path = candidate;
+                return true;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+
+        return false;
     }
 
     private static void WriteAsset(string path, BotNavigationAsset asset)

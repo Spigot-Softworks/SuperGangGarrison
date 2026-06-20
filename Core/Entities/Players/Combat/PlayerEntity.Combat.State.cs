@@ -418,7 +418,7 @@ public sealed partial class PlayerEntity
 
         var liftSpeed = CivvieUmbrellaAirLiftSpeedPerTick
             * LegacyMovementModel.SourceTicksPerSecond;
-        VerticalSpeed -= liftSpeed;
+        VerticalSpeed = -liftSpeed;
         CivvieUmbrellaAirLiftUsed = true;
     }
 

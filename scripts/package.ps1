@@ -933,14 +933,31 @@ function Publish-RootUpdaterEntrypoint {
         throw "Package is missing published updater executable '$publishedUpdaterName'."
     }
 
-    $rootEntrypointPath = Join-Path $OutputDirectory $rootEntrypointName
-    Copy-Item -LiteralPath $publishedUpdaterPath -Destination $rootEntrypointPath -Force
+    $rootEntrypointNames = [System.Collections.Generic.List[string]]::new()
+    foreach ($name in @(
+        $rootEntrypointName,
+        (Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2.Updater"),
+        (Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2.Launcher"),
+        (Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2")
+    )) {
+        if (-not $rootEntrypointNames.Contains($name)) {
+            $rootEntrypointNames.Add($name)
+        }
+    }
+
+    foreach ($entrypointName in $rootEntrypointNames) {
+        $rootEntrypointPath = Join-Path $OutputDirectory $entrypointName
+        Copy-Item -LiteralPath $publishedUpdaterPath -Destination $rootEntrypointPath -Force
+    }
+
     if (-not (Test-IsWindowsRuntime -RuntimeIdentifier $RuntimeIdentifier)) {
-        Set-UnixExecutable -Path $rootEntrypointPath
+        foreach ($entrypointName in $rootEntrypointNames) {
+            Set-UnixExecutable -Path (Join-Path $OutputDirectory $entrypointName)
+        }
     }
 
     Remove-Item $ScratchDirectory -Recurse -Force
-    Write-Host "[package] clean root entrypoint: $rootEntrypointName is single-file updater"
+    Write-Host "[package] clean root entrypoints: $($rootEntrypointNames -join ', ') are single-file updater helpers"
 }
 
 function Add-UnixLaunchers {

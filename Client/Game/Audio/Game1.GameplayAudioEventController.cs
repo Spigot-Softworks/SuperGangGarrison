@@ -132,6 +132,11 @@ public partial class Game1
             _game.AdvanceRecentGibSoundEvents();
             _game.AdvanceRecentProjectileSoundEvents();
 
+            if (_game._pendingNetworkSoundEvents.Count > 1)
+            {
+                _game._pendingNetworkSoundEvents.Sort((left, right) => GetSoundEventPlaybackPriority(left).CompareTo(GetSoundEventPlaybackPriority(right)));
+            }
+
             var retainedNetworkSoundCount = 0;
             for (var index = 0; index < _game._pendingNetworkSoundEvents.Count; index += 1)
             {
@@ -162,6 +167,14 @@ public partial class Game1
             {
                 ProcessPendingSoundEvent(soundEvent);
             }
+        }
+
+        private int GetSoundEventPlaybackPriority(WorldSoundEvent soundEvent)
+        {
+            return _game.IsLocalPlayerSoundSource(soundEvent.SourcePlayerId)
+                && Game1.IsWeaponFireSoundName(soundEvent.SoundName)
+                    ? 0
+                    : 1;
         }
 
         private bool ProcessPendingSoundEvent(WorldSoundEvent soundEvent)
@@ -221,7 +234,7 @@ public partial class Game1
                 return true;
             }
 
-            if (!TryPlayResolvedWorldSound(resolvedSoundName, soundEvent.X, soundEvent.Y, allowBrowserDefer: OperatingSystem.IsBrowser()))
+            if (!TryPlayResolvedWorldSound(resolvedSoundName, soundEvent, allowBrowserDefer: OperatingSystem.IsBrowser()))
             {
                 return true;
             }
@@ -275,6 +288,28 @@ public partial class Game1
             }
 
             var (volume, pan) = _game.GetWorldSoundMix(worldX, worldY);
+            if (volume <= 0f)
+            {
+                return true;
+            }
+
+            return _game.TryPlaySound(sound, volume, 0f, pan);
+        }
+
+        private bool TryPlayResolvedWorldSound(string resolvedSoundName, WorldSoundEvent soundEvent, bool allowBrowserDefer)
+        {
+            var sound = _game._runtimeAssets?.GetSound(resolvedSoundName);
+            if (sound is null)
+            {
+                if (allowBrowserDefer)
+                {
+                    _game.EnqueuePendingBrowserSoundEvent(resolvedSoundName, soundEvent.X, soundEvent.Y);
+                }
+
+                return true;
+            }
+
+            var (volume, pan) = _game.GetWorldSoundMix(soundEvent);
             if (volume <= 0f)
             {
                 return true;
