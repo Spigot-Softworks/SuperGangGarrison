@@ -112,7 +112,7 @@ public sealed partial class SimulationWorld
     {
         _vipSlotsByTeam.Clear();
         _preferredVipSlotsByTeam.Clear();
-        _vipWarmupTicksRemaining = IsVipModeActive && RequiresDualVip()
+        _vipWarmupTicksRemaining = ShouldStartVipWarmup()
             ? Math.Max(1, VipWarmupSeconds * Config.TicksPerSecond)
             : 0;
         _vipAssignmentVersion += 1;
@@ -194,6 +194,11 @@ public sealed partial class SimulationWorld
     private bool RequiresDualVip()
     {
         return IsVipModeActive && !_controlPointSetupMode;
+    }
+
+    private bool ShouldStartVipWarmup()
+    {
+        return MatchRules.Mode == GameModeKind.Vip;
     }
 
     private bool IsVipTeamRequired(PlayerTeam team)
