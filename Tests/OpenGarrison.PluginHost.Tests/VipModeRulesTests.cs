@@ -40,7 +40,7 @@ public sealed class VipModeRulesTests
     }
 
     [Fact]
-    public void AttackDefenseVipMapsUseSingleAttackerVipWithoutDualWarmup()
+    public void AttackDefenseVipMapsUseSingleAttackerVipWithWarmup()
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
 
@@ -48,8 +48,22 @@ public sealed class VipModeRulesTests
 
         Assert.True(world.IsVipModeActive);
         Assert.False(world.VipRequiresDualVip);
-        Assert.False(world.VipWarmupActive);
-        Assert.Equal(0, world.VipWarmupTicksRemaining);
+        Assert.True(world.VipWarmupActive);
+        Assert.Equal(10 * world.Config.TicksPerSecond, world.VipWarmupTicksRemaining);
+    }
+
+    [Fact]
+    public void AttackDefenseVipWarmupDefersControlPointSetupCountdown()
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+
+        Assert.True(world.TryLoadLevel("vip_dirtbowl"));
+        var setupTicksBefore = world.ControlPointSetupTicksRemaining;
+
+        world.AdvanceOneTick();
+
+        Assert.True(world.VipWarmupActive);
+        Assert.Equal(setupTicksBefore, world.ControlPointSetupTicksRemaining);
     }
 
     [Fact]
@@ -317,7 +331,19 @@ public sealed class VipModeRulesTests
         Assert.Equal(SimulationWorld.LocalPlayerSlot, vipSlot);
         Assert.Equal(PlayerClass.Quote, world.LocalPlayer.ClassId);
         MoveAwayFromPoint(world.LocalPlayer);
+        AdvancePastVipWarmup(world);
         return world;
+    }
+
+    private static void AdvancePastVipWarmup(SimulationWorld world)
+    {
+        var safety = world.VipWarmupTicksRemaining + world.Config.TicksPerSecond + 5;
+        while (world.VipWarmupActive && safety-- > 0)
+        {
+            world.AdvanceOneTick();
+        }
+
+        Assert.False(world.VipWarmupActive);
     }
 
     private static PlayerEntity JoinPlayer(SimulationWorld world, byte slot, PlayerTeam team, PlayerClass playerClass)
