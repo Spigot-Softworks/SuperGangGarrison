@@ -206,6 +206,16 @@ internal sealed class ServerAdminOperations(
             return false;
         }
 
+        if (clientsGetter().ContainsKey(slot))
+        {
+            return sessionManagerGetter().TrySetClientClass(slot, playerClass);
+        }
+
+        if (botManagerGetter().BotSlots.ContainsKey(slot))
+        {
+            return TrySetBotClass(slot, playerClass);
+        }
+
         return sessionManagerGetter().TrySetClientClass(slot, playerClass);
     }
 

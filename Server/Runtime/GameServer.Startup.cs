@@ -14,6 +14,10 @@ using static ServerHelpers;
 partial class GameServer
 {
     private const int UdpSocketBufferBytes = 4 * 1024 * 1024;
+    private const int MinimumIdleSleepMilliseconds = 1;
+    private const int MaximumIdleSleepMilliseconds = 8;
+    private const double LongServerLoopDiagnosticThresholdMilliseconds = 100d;
+    private static readonly TimeSpan LongServerLoopDiagnosticCooldown = TimeSpan.FromSeconds(5);
 
     public void Run(CancellationToken cancellationToken)
     {
@@ -350,6 +354,8 @@ partial class GameServer
         var simTicksAdvancedMax = 0;
         var simAdvanceCallsWithTicks = 0;
         var simulationBacklogDropSampleCount = 0;
+        var nextPluginHeartbeatAt = TimeSpan.Zero;
+        var lastLongLoopDiagnosticAt = TimeSpan.MinValue;
         try
         {
             while (!cancellationToken.IsCancellationRequested)
@@ -368,7 +374,11 @@ partial class GameServer
                 serverLoopElapsedTotalMilliseconds += elapsedMilliseconds;
                 serverLoopElapsedMaxMilliseconds = Math.Max(serverLoopElapsedMaxMilliseconds, elapsedMilliseconds);
                 _scheduler.RunDueTasks();
-                _pluginHost?.NotifyServerHeartbeat(now);
+                if (now >= nextPluginHeartbeatAt)
+                {
+                    _pluginHost?.NotifyServerHeartbeat(now);
+                    nextPluginHeartbeatAt = now + GetServerPluginHeartbeatInterval();
+                }
 
                 var ticks = ServerSimulationBatch.Advance(
                     _simulator,
@@ -419,6 +429,14 @@ partial class GameServer
                 }
                 _lobbyRegistrar?.Tick(now, BuildLobbyServerName(_serverName, _world, _clientsBySlot, _passwordRequired, _maxPlayableClients));
                 _httpRegistryHeartbeat?.Tick(now);
+                if (elapsedMilliseconds >= LongServerLoopDiagnosticThresholdMilliseconds
+                    && (lastLongLoopDiagnosticAt == TimeSpan.MinValue
+                        || now - lastLongLoopDiagnosticAt >= LongServerLoopDiagnosticCooldown))
+                {
+                    WriteLongServerLoopDiagnostic(eventLog, elapsedMilliseconds, ticks, now);
+                    lastLongLoopDiagnosticAt = now;
+                }
+
                 if (ticks > 0)
                 {
                     _eventReporter.PublishGameplayEvents(_snapshotBroadcaster.LastCapturedTransientEvents);
@@ -560,7 +578,7 @@ partial class GameServer
                     }
                 }
 
-                Thread.Sleep(1);
+                SleepUntilNextServerLoop(ticks);
             }
         }
         finally
@@ -584,6 +602,70 @@ partial class GameServer
             _pluginHost?.ShutdownPlugins();
             Console.WriteLine("[server] shutdown complete.");
         }
+    }
+
+    private TimeSpan GetServerPluginHeartbeatInterval()
+    {
+        var fixedDeltaSeconds = _config.FixedDeltaSeconds;
+        if (!double.IsFinite(fixedDeltaSeconds) || fixedDeltaSeconds <= 0d)
+        {
+            fixedDeltaSeconds = 1d / 30d;
+        }
+
+        return TimeSpan.FromSeconds(Math.Clamp(fixedDeltaSeconds, 1d / 60d, 0.1d));
+    }
+
+    private void SleepUntilNextServerLoop(int ticksAdvanced)
+    {
+        if (ticksAdvanced > 0 || _messageTransport.HasPendingMessages)
+        {
+            Thread.Yield();
+            return;
+        }
+
+        var fixedDeltaSeconds = _config.FixedDeltaSeconds;
+        if (!double.IsFinite(fixedDeltaSeconds) || fixedDeltaSeconds <= 0d)
+        {
+            Thread.Sleep(MinimumIdleSleepMilliseconds);
+            return;
+        }
+
+        var remainingMilliseconds = (1d - _simulator.InterpolationAlpha) * fixedDeltaSeconds * 1000d;
+        var sleepMilliseconds = (int)Math.Clamp(
+            Math.Floor(remainingMilliseconds - MinimumIdleSleepMilliseconds),
+            MinimumIdleSleepMilliseconds,
+            MaximumIdleSleepMilliseconds);
+        Thread.Sleep(sleepMilliseconds);
+    }
+
+    private void WriteLongServerLoopDiagnostic(
+        PersistentServerEventLog eventLog,
+        double elapsedMilliseconds,
+        int ticksAdvanced,
+        TimeSpan now)
+    {
+        var activePlayableCount = _world.EnumerateActiveNetworkPlayers().Count();
+        var botMetrics = _botManager.Metrics;
+        eventLog.Write(
+            "server_loop_long_frame",
+            ("frame", _world.Frame),
+            ("elapsed_ms", elapsedMilliseconds),
+            ("ticks_advanced", ticksAdvanced),
+            ("clients", _clientsBySlot.Count),
+            ("active_playable", activePlayableCount),
+            ("spectators", _clientsBySlot.Keys.Count(IsSpectatorSlot)),
+            ("bot_count", _botManager.BotSlots.Count),
+            ("botbrain_navigation_loaded_count", botMetrics.BotBrainNavigationLoadedCount),
+            ("botbrain_navigation_missing_count", botMetrics.BotBrainNavigationMissingCount),
+            ("simulator_alpha", _simulator.InterpolationAlpha),
+            ("uptime_seconds", now.TotalSeconds),
+            ("map_name", _world.Level.Name),
+            ("map_area_index", _world.Level.MapAreaIndex),
+            ("mode", _world.MatchRules.Mode));
+        Console.WriteLine(
+            $"[server] long loop elapsed={elapsedMilliseconds:0.###}ms " +
+            $"frame={_world.Frame} ticks={ticksAdvanced} clients={_clientsBySlot.Count} " +
+            $"bots={_botManager.BotSlots.Count} map={_world.Level.Name}");
     }
 
     private void InitializePluginRuntime()

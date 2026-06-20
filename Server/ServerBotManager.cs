@@ -16,6 +16,8 @@ internal sealed class ServerBotManager
     private const string ForcedBotClassEnvironmentVariable = "OG_SERVER_BOT_CLASS";
     private const int BotThinkIntervalTicks = 2;
     private const int MaxBotThinkSlotsPerTick = 3;
+    private const int MissingNavigationBotThinkIntervalTicks = 10;
+    private const int MissingNavigationMaxBotThinkSlotsPerTick = 1;
     private const int HeldCombatInputReuseTicks = 6;
 
     internal enum ServerBotSource
@@ -662,12 +664,19 @@ internal sealed class ServerBotManager
         _botThinkSlotsBuffer.Clear();
         _botThinkCandidateSlotsBuffer.Clear();
         var frame = Math.Max(0L, _world.Frame);
+        var navigationMissing = IsBotBrainNavigationMissingForCurrentMap();
+        var thinkIntervalTicks = navigationMissing
+            ? MissingNavigationBotThinkIntervalTicks
+            : BotThinkIntervalTicks;
+        var maxThinkSlotsPerTick = navigationMissing
+            ? MissingNavigationMaxBotThinkSlotsPerTick
+            : MaxBotThinkSlotsPerTick;
         foreach (var entry in _controlledSlotsBuffer)
         {
             var slot = entry.Key;
             var cacheMissing = !_inputCache.ContainsKey(slot);
             var lastThinkFrame = _lastBotThinkFrameBySlot.GetValueOrDefault(slot, long.MinValue / 2);
-            var shouldThink = cacheMissing || frame - lastThinkFrame >= BotThinkIntervalTicks;
+            var shouldThink = cacheMissing || frame - lastThinkFrame >= thinkIntervalTicks;
             if (_world.TryGetNetworkPlayer(slot, out var player))
             {
                 if (_lastObservedBotAliveBySlot.TryGetValue(slot, out var wasAlive)
@@ -693,13 +702,26 @@ internal sealed class ServerBotManager
         }
 
         _botThinkCandidateSlotsBuffer.Sort(CompareBotThinkCandidates);
-        var selectedCount = Math.Min(MaxBotThinkSlotsPerTick, _botThinkCandidateSlotsBuffer.Count);
+        var selectedCount = Math.Min(maxThinkSlotsPerTick, _botThinkCandidateSlotsBuffer.Count);
         for (var index = 0; index < selectedCount; index += 1)
         {
             var slot = _botThinkCandidateSlotsBuffer[index];
             _botThinkSlotsBuffer.Add(slot);
             _lastBotThinkFrameBySlot[slot] = frame;
         }
+    }
+
+    private bool IsBotBrainNavigationMissingForCurrentMap()
+    {
+        if (_botController is not BotBrainPracticeBotController botBrainController)
+        {
+            return false;
+        }
+
+        var runtimeSnapshot = botBrainController.RuntimeSnapshot;
+        return runtimeSnapshot.ActiveControllerCount > 0
+            && runtimeSnapshot.NavigationLoadedCount == 0
+            && runtimeSnapshot.NavigationMissingCount > 0;
     }
 
     private int CompareBotThinkCandidates(byte left, byte right)

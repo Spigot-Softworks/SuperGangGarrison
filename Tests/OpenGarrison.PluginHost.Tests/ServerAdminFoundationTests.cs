@@ -1181,6 +1181,32 @@ public sealed class ServerAdminFoundationTests
     }
 
     [Fact]
+    public void ServerAdminOperationsTrySetClassAppliesToBotSlots()
+    {
+        var world = new SimulationWorld();
+        var clients = new Dictionary<byte, ClientSession>();
+        var sessionManager = CreateSessionManager(world, clients);
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController());
+        Assert.True(botManager.TryAddBot(2, PlayerTeam.Red, PlayerClass.Pyro, "Pyro Bot"));
+
+        var operations = new ServerAdminOperations(
+            static _ => { },
+            static (_, _) => { },
+            () => clients,
+            () => sessionManager,
+            () => world,
+            static () => null,
+            static () => throw new InvalidOperationException("Unexpected map rotation access."),
+            static () => throw new InvalidOperationException("Unexpected snapshot broadcaster access."),
+            () => botManager);
+
+        Assert.True(operations.TrySetClass(2, PlayerClass.Demoman));
+        Assert.True(world.TryGetNetworkPlayer(2, out var bot));
+        Assert.Equal(PlayerClass.Demoman, bot.ClassId);
+        Assert.Equal(PlayerClass.Demoman, botManager.BotSlots[2].ClassId);
+    }
+
+    [Fact]
     public void ServerBotManagerFillSkipsReservedClientSlots()
     {
         var world = new SimulationWorld();

@@ -130,6 +130,7 @@ public partial class Game1
             return;
         }
 
+        var drawColor = ApplyCurrentHudElementOpacity(color);
         var metrics = GetSpriteFontMetrics(definition, fontSprite);
         var cursor = rotation == 0f ? SnapTextPosition(position) : position;
         for (var index = 0; index < text.Length; index += 1)
@@ -156,7 +157,7 @@ public partial class Game1
                 : cursor;
             if (rotation == 0f || rotationCenter is null)
             {
-                _spriteBatch.Draw(frame.Texture, SnapTextPosition(drawPosition), frame.SourceRectangle, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+                _spriteBatch.Draw(frame.Texture, SnapTextPosition(drawPosition), frame.SourceRectangle, drawColor, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
             }
             else
             {
@@ -164,7 +165,7 @@ public partial class Game1
                     frame.Texture,
                     rotationCenter.Value,
                     frame.SourceRectangle,
-                    color,
+                    drawColor,
                     rotation,
                     (rotationCenter.Value - drawPosition) / scale,
                     scale,

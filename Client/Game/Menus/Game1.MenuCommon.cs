@@ -198,6 +198,7 @@ public partial class Game1
             return;
         }
 
+        var drawColor = ApplyCurrentHudElementOpacity(color);
         radius = Math.Clamp(radius, 0, Math.Min(bounds.Width, bounds.Height) / 2);
         var radiusSquared = radius * radius;
 
@@ -268,13 +269,13 @@ public partial class Game1
             var leftWidth = innerRowX - outerRowX;
             if (leftWidth > 0)
             {
-                _spriteBatch.Draw(_pixel, new Rectangle(outerRowX, bounds.Y + y, leftWidth, 1), color);
+                _spriteBatch.Draw(_pixel, new Rectangle(outerRowX, bounds.Y + y, leftWidth, 1), drawColor);
             }
 
             var rightWidth = outerRowEndX - innerRowEndX;
             if (rightWidth > 0)
             {
-                _spriteBatch.Draw(_pixel, new Rectangle(innerRowEndX, bounds.Y + y, rightWidth, 1), color);
+                _spriteBatch.Draw(_pixel, new Rectangle(innerRowEndX, bounds.Y + y, rightWidth, 1), drawColor);
             }
         }
     }
@@ -286,6 +287,7 @@ public partial class Game1
             return;
         }
 
+        var drawColor = ApplyCurrentHudElementOpacity(color);
         radius = Math.Clamp(radius, 0, Math.Min(bounds.Width, bounds.Height) / 2);
         var radiusSquared = radius * radius;
 
@@ -312,7 +314,7 @@ public partial class Game1
 
             if (rowWidth > 0)
             {
-                _spriteBatch.Draw(_pixel, new Rectangle(rowX, bounds.Y + y, rowWidth, 1), color);
+                _spriteBatch.Draw(_pixel, new Rectangle(rowX, bounds.Y + y, rowWidth, 1), drawColor);
             }
         }
     }

@@ -317,12 +317,12 @@ public partial class Game1
             var fillWidth = maxValue > 0f ? Math.Clamp((int)MathF.Round(barTotalWidth * MathF.Max(0f, value) / maxValue), 0, barTotalWidth) : 0;
             if (fillWidth > 0)
             {
-                _game._spriteBatch.Draw(_game._pixel, new Rectangle(barX, barY, fillWidth, barHeight), textColor * 0.6f);
+                _game._spriteBatch.Draw(_game._pixel, new Rectangle(barX, barY, fillWidth, barHeight), _game.ApplyCurrentHudElementOpacity(textColor * 0.6f));
             }
             var emptyWidth = barTotalWidth - fillWidth;
             if (emptyWidth > 0)
             {
-                _game._spriteBatch.Draw(_game._pixel, new Rectangle(barX + fillWidth, barY, emptyWidth, barHeight), Color.Black * 0.6f);
+                _game._spriteBatch.Draw(_game._pixel, new Rectangle(barX + fillWidth, barY, emptyWidth, barHeight), _game.ApplyCurrentHudElementOpacity(Color.Black * 0.6f));
             }
             _game.UpdateHudElementBounds(id, destination);
         }

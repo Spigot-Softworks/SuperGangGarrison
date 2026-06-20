@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Xna.Framework;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
@@ -79,13 +80,22 @@ public partial class Game1
         GameplayHudElementRegistry.Collect(this, _gameplayHudElements);
     }
 
-    private void DrawGameplayHudElements(int minLayerInclusive, int maxLayerInclusive)
+    private void DrawGameplayHudElements(int minLayerInclusive, int maxLayerInclusive, Vector2 cameraPosition)
     {
         foreach (var element in _gameplayHudElements
                      .Where(element => element.Layer >= minLayerInclusive && element.Layer <= maxLayerInclusive)
                      .OrderBy(static element => element.Layer))
         {
-            GameplayHudElementRegistry.Draw(this, element);
+            var previousOpacity = _activeHudElementOpacity;
+            _activeHudElementOpacity = GetGameplayHudElementDrawOpacity(element.Id, cameraPosition);
+            try
+            {
+                GameplayHudElementRegistry.Draw(this, element);
+            }
+            finally
+            {
+                _activeHudElementOpacity = previousOpacity;
+            }
         }
     }
 

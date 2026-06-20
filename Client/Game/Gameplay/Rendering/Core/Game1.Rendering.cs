@@ -830,7 +830,7 @@ public partial class Game1
             frame.Texture,
             position,
             CombineSourceRectangles(frame.SourceRectangle, sourceRectangle),
-            tint,
+            ApplyCurrentHudElementOpacity(tint),
             rotation,
             origin,
             scale,
@@ -844,7 +844,7 @@ public partial class Game1
             frame.Texture,
             destinationRectangle,
             frame.SourceRectangle,
-            tint);
+            ApplyCurrentHudElementOpacity(tint));
     }
 
     private static Rectangle? CombineSourceRectangles(Rectangle? frameSourceRectangle, Rectangle? requestedSourceRectangle)

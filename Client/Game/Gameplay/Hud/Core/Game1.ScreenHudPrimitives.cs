@@ -12,7 +12,7 @@ public partial class Game1
     private void DrawScreenHealthBar(Rectangle rectangle, float value, float maxValue, bool useTeamColors, Color? fillColor = null, Color? backColor = null, HudFillDirection fillDirection = HudFillDirection.HorizontalLeftToRight)
     {
         var resolvedBackColor = backColor ?? Color.Black;
-        _spriteBatch.Draw(_pixel, rectangle, resolvedBackColor);
+        _spriteBatch.Draw(_pixel, rectangle, ApplyCurrentHudElementOpacity(resolvedBackColor));
         if (maxValue <= 0f)
         {
             return;
@@ -44,7 +44,7 @@ public partial class Game1
             fillRectangle = new Rectangle(rectangle.X, rectangle.Y, fillWidth, rectangle.Height);
         }
 
-        _spriteBatch.Draw(_pixel, fillRectangle, resolvedFillColor);
+        _spriteBatch.Draw(_pixel, fillRectangle, ApplyCurrentHudElementOpacity(resolvedFillColor));
     }
 
     private enum HudFillDirection
@@ -82,7 +82,7 @@ public partial class Game1
         var fallbackPosition = new Vector2(
             MathF.Round(position.X - (scaledSize.X / 2f)),
             MathF.Round(position.Y - (scaledSize.Y / 2f)));
-        _spriteBatch.DrawString(_menuFont, text, fallbackPosition, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+        _spriteBatch.DrawString(_menuFont, text, fallbackPosition, ApplyCurrentHudElementOpacity(color), 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
     }
 
     private void DrawHudTextLeftAligned(string text, Vector2 position, Color color, float scale)
@@ -106,25 +106,25 @@ public partial class Game1
     private void DrawConsoleTextCentered(string text, Vector2 position, Color color, float scale)
     {
         var origin = _consoleFont.MeasureString(text) / 2f;
-        _spriteBatch.DrawString(_consoleFont, text, position, color, 0f, origin, scale, SpriteEffects.None, 0f);
+        _spriteBatch.DrawString(_consoleFont, text, position, ApplyCurrentHudElementOpacity(color), 0f, origin, scale, SpriteEffects.None, 0f);
     }
 
     private void DrawConsoleTextLeftAligned(string text, Vector2 position, Color color, float scale)
     {
-        _spriteBatch.DrawString(_consoleFont, text, position, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+        _spriteBatch.DrawString(_consoleFont, text, position, ApplyCurrentHudElementOpacity(color), 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
     }
 
     private void DrawConsoleTextRightAligned(string text, Vector2 position, Color color, float scale)
     {
         var size = _consoleFont.MeasureString(text);
-        _spriteBatch.DrawString(_consoleFont, text, position, color, 0f, size, scale, SpriteEffects.None, 0f);
+        _spriteBatch.DrawString(_consoleFont, text, position, ApplyCurrentHudElementOpacity(color), 0f, size, scale, SpriteEffects.None, 0f);
     }
 
     private void DrawConsoleTextRightAlignedCenteredY(string text, Vector2 position, Color color, float scale)
     {
         var size = _consoleFont.MeasureString(text);
         var origin = new Vector2(size.X, size.Y / 2f);
-        _spriteBatch.DrawString(_consoleFont, text, position, color, 0f, origin, scale, SpriteEffects.None, 0f);
+        _spriteBatch.DrawString(_consoleFont, text, position, ApplyCurrentHudElementOpacity(color), 0f, origin, scale, SpriteEffects.None, 0f);
     }
 
     private void DrawCenteredHudSprite(string spriteName, int frameIndex, Vector2 visualCenter, Color tint, Vector2 scale)
@@ -259,7 +259,7 @@ public partial class Game1
             return;
         }
 
-        _spriteBatch.Draw(_pixel, rectangle, outerColor);
+        _spriteBatch.Draw(_pixel, rectangle, ApplyCurrentHudElementOpacity(outerColor));
         if (rectangle.Width <= 4 || rectangle.Height <= 4)
         {
             return;
@@ -268,7 +268,7 @@ public partial class Game1
         _spriteBatch.Draw(
             _pixel,
             new Rectangle(rectangle.X + 2, rectangle.Y + 2, rectangle.Width - 4, rectangle.Height - 4),
-            innerColor);
+            ApplyCurrentHudElementOpacity(innerColor));
     }
 
     private void DrawInsetRoundedHudPanel(Rectangle rectangle, Color outerColor, Color innerColor, int radius)
@@ -324,7 +324,7 @@ public partial class Game1
 
             if (rowWidth > 0)
             {
-                _spriteBatch.Draw(_pixel, new Rectangle(rowX, bounds.Y + y, rowWidth, 1), color);
+                _spriteBatch.Draw(_pixel, new Rectangle(rowX, bounds.Y + y, rowWidth, 1), ApplyCurrentHudElementOpacity(color));
             }
         }
     }

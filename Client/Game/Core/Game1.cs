@@ -194,6 +194,9 @@ public partial class Game1 : Game
     private RenderTarget2D? _gameRenderTarget;
     private RenderTarget2D? _hudRenderTarget;
     private bool _hudOpacityCompositePending;
+    private bool _deferDamageVignetteForHudOpacityComposite;
+    private bool _damageVignetteCompositeDeferred;
+    private float _activeHudElementOpacity = 1f;
     private bool _preLaunchSplashDismissed;
     private SimulationConfig _config = null!;
     private SimulationWorld _world = null!;

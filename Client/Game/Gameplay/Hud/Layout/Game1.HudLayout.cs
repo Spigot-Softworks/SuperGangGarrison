@@ -11,6 +11,8 @@ public partial class Game1
 {
     private HudLayoutProfile _hudLayoutProfile = new();
     private readonly Dictionary<string, HudResolvedElement> _hudResolvedElements = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Rectangle> _hudElementLastBounds = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, float> _hudElementAutoFadeOpacities = new(StringComparer.Ordinal);
     private HudEditorController? _hudEditorController;
     private bool _hudEditorOpen;
     private bool _hudEditorOpenedFromOptions;
@@ -48,6 +50,7 @@ public partial class Game1
         }
 
         _hudResolvedElements[id] = resolved;
+        RecordHudElementBounds(id, resolved.Bounds);
         return true;
     }
 
@@ -76,6 +79,15 @@ public partial class Game1
         }
 
         _hudResolvedElements[id] = resolved with { Bounds = bounds };
+        RecordHudElementBounds(id, bounds);
+    }
+
+    private void RecordHudElementBounds(string id, Rectangle bounds)
+    {
+        if (bounds.Width > 0 && bounds.Height > 0)
+        {
+            _hudElementLastBounds[id] = bounds;
+        }
     }
 
     private void SetHudElementRuntimeDefault(HudElementLayout layout)
