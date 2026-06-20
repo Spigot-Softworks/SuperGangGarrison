@@ -16,6 +16,8 @@ public partial class Game1
 {
     private static string _browserLastGameplayRenderTrace = "not-started";
     private static readonly Queue<string> _browserRecentGameplayRenderTraces = new();
+    private const float GameplayHudCoveredPlayerOpacity = 0.45f;
+    private const float WeaponFireHudRumbleDurationSeconds = 0.12f;
 
     public static string GetBrowserLastGameplayRenderTrace()
     {
@@ -38,8 +40,9 @@ public partial class Game1
     private void PrepareGameplayHudOpacityComposite(MouseState mouse, Vector2 cameraPosition)
     {
         _hudOpacityCompositePending = false;
+        var effectiveOpacity = GetEffectiveGameplayHudCompositeOpacity(cameraPosition);
         if (_gameplayHudHidden
-            || _hudLayoutProfile.HudOpacity >= HudLayoutProfile.MaxHudOpacity - 0.001f
+            || (effectiveOpacity >= HudLayoutProfile.MaxHudOpacity - 0.001f && _weaponFireHudRumbleRemainingSeconds <= 0f)
             || OperatingSystem.IsBrowser())
         {
             return;
@@ -71,8 +74,84 @@ public partial class Game1
         }
 
         _hudOpacityCompositePending = false;
-        var opacity = HudLayoutProfile.NormalizeHudOpacity(_hudLayoutProfile.HudOpacity);
-        _spriteBatch.Draw(_hudRenderTarget, Vector2.Zero, Color.White * opacity);
+        var opacity = GetEffectiveGameplayHudCompositeOpacity(cameraPosition);
+        _spriteBatch.Draw(_hudRenderTarget, GetWeaponFireHudRumbleOffset(), Color.White * opacity);
+    }
+
+    private float GetEffectiveGameplayHudCompositeOpacity(Vector2 cameraPosition)
+    {
+        var userOpacity = HudLayoutProfile.NormalizeHudOpacity(_hudLayoutProfile.HudOpacity);
+        var occlusionOpacity = ShouldAutoFadeGameplayHudForCoveredPlayer(cameraPosition)
+            ? GameplayHudCoveredPlayerOpacity
+            : HudLayoutProfile.MaxHudOpacity;
+        return Math.Min(userOpacity, occlusionOpacity);
+    }
+
+    private bool ShouldAutoFadeGameplayHudForCoveredPlayer(Vector2 cameraPosition)
+    {
+        if (_hudResolvedElements.Count == 0
+            || IsLocalSpectatorPresentationActive()
+            || IsGameplayDeathCamActive())
+        {
+            return false;
+        }
+
+        foreach (var player in EnumerateRenderablePlayers())
+        {
+            if (!player.IsAlive || GetPlayerVisibilityAlpha(player) <= 0f)
+            {
+                continue;
+            }
+
+            var playerBounds = GetPlayerScreenBounds(player, GetRenderPosition(player), cameraPosition);
+            foreach (var resolved in _hudResolvedElements.Values)
+            {
+                if (resolved.Bounds.Width > 0
+                    && resolved.Bounds.Height > 0
+                    && resolved.Bounds.Intersects(playerBounds))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private void TriggerLocalWeaponFireHudRumble(float intensity = 1f)
+    {
+        if (!_portraitRumbleEnabled || intensity <= 0f)
+        {
+            return;
+        }
+
+        _weaponFireHudRumbleSeed += 1;
+        _weaponFireHudRumbleRemainingSeconds = WeaponFireHudRumbleDurationSeconds;
+        _weaponFireHudRumbleIntensity = Math.Clamp(intensity, 0.35f, 1.2f);
+    }
+
+    private Vector2 GetWeaponFireHudRumbleOffset()
+    {
+        if (!_portraitRumbleEnabled || _weaponFireHudRumbleRemainingSeconds <= 0f)
+        {
+            _weaponFireHudRumbleRemainingSeconds = 0f;
+            _weaponFireHudRumbleIntensity = 0f;
+            return Vector2.Zero;
+        }
+
+        var progress = Math.Clamp(_weaponFireHudRumbleRemainingSeconds / WeaponFireHudRumbleDurationSeconds, 0f, 1f);
+        var falloff = progress * progress;
+        var shakePixels = 1.35f * _weaponFireHudRumbleIntensity * falloff;
+        var seed = _weaponFireHudRumbleSeed * 11.71f;
+        var phase = (WeaponFireHudRumbleDurationSeconds - _weaponFireHudRumbleRemainingSeconds) * 130f;
+        var offset = new Vector2(
+            MathF.Sin(seed + phase) * shakePixels,
+            MathF.Cos((seed * 0.59f) + (phase * 1.43f)) * shakePixels * 0.55f);
+
+        _weaponFireHudRumbleRemainingSeconds = Math.Max(
+            0f,
+            _weaponFireHudRumbleRemainingSeconds - Math.Max(0f, _clientUpdateElapsedSeconds));
+        return offset;
     }
 
     private void EnsureHudRenderTarget()

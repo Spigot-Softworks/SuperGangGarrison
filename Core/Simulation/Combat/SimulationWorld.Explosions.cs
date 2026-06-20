@@ -43,7 +43,7 @@ public sealed partial class SimulationWorld
         var queuedMineIds = new Queue<int>();
         foreach (var mine in _mines)
         {
-            if (mine.OwnerId == ownerId)
+            if (mine.OwnerId == ownerId && CanPlayerDetonateMine(mine))
             {
                 queuedMineIds.Enqueue(mine.Id);
             }
@@ -53,18 +53,26 @@ public sealed partial class SimulationWorld
         {
             var mineId = queuedMineIds.Dequeue();
             var mine = FindMineById(mineId);
-            if (mine is null)
+            if (mine is null || !CanPlayerDetonateMine(mine))
             {
                 continue;
             }
 
             foreach (var chainedMine in GetTriggeredMines(mine))
             {
-                queuedMineIds.Enqueue(chainedMine.Id);
+                if (CanPlayerDetonateMine(chainedMine))
+                {
+                    queuedMineIds.Enqueue(chainedMine.Id);
+                }
             }
 
             ExplodeMine(mine);
         }
+    }
+
+    private bool CanPlayerDetonateMine(MineProjectileEntity mine)
+    {
+        return mine.CreatedFrame < Frame;
     }
 
     private void ExplodeMine(MineProjectileEntity mine, bool triggerNearbyMines = true)

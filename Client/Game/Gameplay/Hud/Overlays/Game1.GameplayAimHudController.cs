@@ -40,26 +40,7 @@ public partial class Game1
                 return;
             }
 
-            var player = _game._world.LocalPlayer;
-            var damage = _game.GetPlayerSniperRifleDamage(player);
-            var chargeScaleX = IsFacingLeftByAim(_game._world.LocalPlayer) ? 1f : -1f;
-            var chargePosition = screenAimPosition + new Vector2(15f * chargeScaleX, -10f);
-            if (damage < 85)
-            {
-                _game.TryDrawScreenSprite("ChargeS", 0, chargePosition, Color.White * 0.25f, new Vector2(chargeScaleX, 1f));
-            }
-            else
-            {
-                _game.TryDrawScreenSprite("FullChargeS", 0, screenAimPosition + new Vector2(65f * chargeScaleX, 0f), Color.White, Vector2.One);
-            }
-
-            var chargeWidth = GetSniperChargeHudFillWidthForTicks(_game.GetPlayerSniperChargeTicks(player));
-            if (chargeWidth <= 0)
-            {
-                return;
-            }
-
-            _game.TryDrawScreenSpritePart("ChargeS", 1, new Rectangle(0, 0, chargeWidth, 20), chargePosition, Color.White * 0.8f, new Vector2(chargeScaleX, 1f));
+            DrawSniperChargeHud(_game._world.LocalPlayer, screenAimPosition);
         }
 
         public void DrawSpectatorSniperHud(PlayerEntity player, Vector2 screenAimPosition)
@@ -69,8 +50,14 @@ public partial class Game1
                 return;
             }
 
+            DrawSniperChargeHud(player, screenAimPosition);
+        }
+
+        private void DrawSniperChargeHud(PlayerEntity player, Vector2 screenAimPosition)
+        {
             var damage = _game.GetPlayerSniperRifleDamage(player);
-            var chargeScaleX = IsFacingLeftByAim(player) ? 1f : -1f;
+            var facingLeft = IsFacingLeftByAim(player);
+            var chargeScaleX = facingLeft ? 1f : -1f;
             var chargePosition = screenAimPosition + new Vector2(15f * chargeScaleX, -10f);
             if (damage < 85)
             {
@@ -87,7 +74,45 @@ public partial class Game1
                 return;
             }
 
-            _game.TryDrawScreenSpritePart("ChargeS", 1, new Rectangle(0, 0, chargeWidth, 20), chargePosition, Color.White * 0.8f, new Vector2(chargeScaleX, 1f));
+            DrawSniperChargeFill(chargePosition, chargeWidth, facingLeft);
+        }
+
+        private void DrawSniperChargeFill(Vector2 chargePosition, int chargeWidth, bool facingLeft)
+        {
+            var sprite = _game.GetResolvedSprite("ChargeS");
+            if (sprite is null || sprite.Frames.Count <= 1)
+            {
+                return;
+            }
+
+            var frame = sprite.Frames[1];
+            chargeWidth = Math.Clamp(chargeWidth, 0, frame.Width);
+            if (chargeWidth <= 0)
+            {
+                return;
+            }
+
+            if (facingLeft)
+            {
+                _game.TryDrawScreenSpritePart(
+                    "ChargeS",
+                    1,
+                    new Rectangle(0, 0, chargeWidth, frame.Height),
+                    chargePosition,
+                    Color.White * 0.8f,
+                    Vector2.One);
+                return;
+            }
+
+            var sourceX = frame.Width - chargeWidth;
+            var drawPosition = new Vector2(chargePosition.X - chargeWidth, chargePosition.Y);
+            _game.TryDrawScreenSpritePart(
+                "ChargeS",
+                1,
+                new Rectangle(sourceX, 0, chargeWidth, frame.Height),
+                drawPosition,
+                Color.White * 0.8f,
+                Vector2.One);
         }
 
         public void DrawCrosshair(Vector2 screenPosition)

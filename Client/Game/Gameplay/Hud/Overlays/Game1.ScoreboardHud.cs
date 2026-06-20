@@ -681,10 +681,9 @@ public partial class Game1
             const float badgeScale = 1f;
             var badgeWidth = MeasureScoreboardBadgeWidth(player.BadgeMask, badgeScale);
             var pingLabel = FormatScoreboardPingLabel(player);
-            var pingWidth = string.IsNullOrEmpty(pingLabel)
-                ? 0f
-                : MeasureBitmapFontWidth(pingLabel, 0.75f) + 6f;
-            var nameMaxWidth = Math.Max(24f, pointsRight - nameX - 12f - pingWidth);
+            const float pingColumnWidth = 44f;
+            var pingRight = pointsRight - 8f;
+            var nameMaxWidth = Math.Max(24f, pingRight - pingColumnWidth - nameX - 6f);
             var scoreboardName = SanitizeScoreboardText(player.DisplayName);
             if (TryGetScoreboardPlayerNetworkSlot(player, out var readySlot)
                 && _world.IsNetworkPlayerReady(readySlot))
@@ -696,10 +695,10 @@ public partial class Game1
                 scoreboardName,
                 Math.Max(24f, nameMaxWidth - badgeWidth),
                 1f);
-            var nameEndX = DrawScoreboardNameWithBadges(displayName, player.BadgeMask, new Vector2(nameX, rowY), teamColor, alpha, 1f, badgeScale);
+            DrawScoreboardNameWithBadges(displayName, player.BadgeMask, new Vector2(nameX, rowY), teamColor, alpha, 1f, badgeScale);
             if (!string.IsNullOrEmpty(pingLabel))
             {
-                DrawBitmapFontText(pingLabel, new Vector2(nameEndX + 6f, rowY + 1f), new Color(205, 205, 205) * alpha, 0.75f);
+                DrawBitmapFontTextRightAligned(pingLabel, new Vector2(pingRight, rowY + 1f), new Color(205, 205, 205) * alpha, 0.75f);
             }
 
             DrawBitmapFontTextRightAligned(MathF.Floor(player.Points).ToString(CultureInfo.InvariantCulture), new Vector2(pointsRight, rowY), teamColor * alpha, 1f);
@@ -943,6 +942,7 @@ public partial class Game1
             PlayerClass.Heavy => 6,
             PlayerClass.Spy => 7,
             PlayerClass.Pyro => 8,
+            PlayerClass.Quote => 9,
             _ => 0,
         };
     }

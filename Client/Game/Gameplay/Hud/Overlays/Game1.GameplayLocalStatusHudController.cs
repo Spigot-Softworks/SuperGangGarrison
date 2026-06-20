@@ -267,7 +267,24 @@ public partial class Game1
                     }
                     
                     // Draw weapon sprite for the character (static, always facing right like HUD sprite)
-                    var weaponDefinition = GameplayWeaponRenderController.GetWeaponRenderDefinitionProxy(_game._world.LocalPlayer);
+                    var localPlayer = _game._world.LocalPlayer;
+                    var weaponAnimationMode = _game._gameplayWeaponRenderController.GetPlayerWeaponAnimationMode(localPlayer);
+                    var forceCivvieUmbrellaPresentation = weaponAnimationMode is WeaponAnimationMode.CivvieUmbrellaOpening
+                        or WeaponAnimationMode.CivvieUmbrellaHold
+                        or WeaponAnimationMode.CivvieUmbrellaClosing;
+                    if (localPlayer.IsCivvieUmbrellaActive
+                        && localPlayer.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.CivvieUmbrella)
+                        && weaponAnimationMode is not WeaponAnimationMode.CivvieUmbrellaOpening
+                            and not WeaponAnimationMode.CivvieUmbrellaHold
+                            and not WeaponAnimationMode.CivvieUmbrellaClosing)
+                    {
+                        weaponAnimationMode = WeaponAnimationMode.CivvieUmbrellaHold;
+                        forceCivvieUmbrellaPresentation = true;
+                    }
+
+                    var weaponDefinition = GameplayWeaponRenderController.GetWeaponRenderDefinitionProxy(
+                        localPlayer,
+                        forceCivvieUmbrellaPresentation);
                     if (weaponDefinition.NormalSpriteName is not null)
                     {
                         var weaponSprite = _game.GetResolvedSprite(weaponDefinition.NormalSpriteName);
@@ -284,8 +301,8 @@ public partial class Game1
                             var weaponPosition = new Vector2(weaponX, weaponY);
                             var weaponScale = new Vector2(facingScale * characterScale.X, characterScale.Y);
                             var weaponFrameIndex = _game._gameplayWeaponRenderController.GetWeaponSpriteFrameIndex(
-                                _game._world.LocalPlayer,
-                                WeaponAnimationMode.Idle,
+                                localPlayer,
+                                weaponAnimationMode,
                                 weaponDefinition,
                                 weaponSprite.Frames.Count);
 

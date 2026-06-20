@@ -20,6 +20,11 @@ public sealed partial class SimulationWorld
                 return;
             }
 
+            if (_world.ShouldDeferVipObjectiveResolution())
+            {
+                return;
+            }
+
             if (_world._controlPointSetupMode && _world._controlPointSetupTicksRemaining > 0)
             {
                 _world._controlPointSetupTicksRemaining -= 1;

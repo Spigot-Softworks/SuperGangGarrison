@@ -1917,6 +1917,35 @@ internal sealed partial class LuaClientPlugin(
         return function.Type is DataType.Function or DataType.ClrFunction;
     }
 
+    private bool HasDeclaredCallback(string callbackName)
+    {
+        if (_script is null || _pluginTable is null || _callbacksDisabled)
+        {
+            return false;
+        }
+
+        return GetDeclaredPluginTableValue(callbackName).Type is DataType.Function or DataType.ClrFunction;
+    }
+
+    private DynValue GetDeclaredPluginTableValue(string callbackName)
+    {
+        if (_pluginTable is null)
+        {
+            return DynValue.Nil;
+        }
+
+        foreach (var pair in _pluginTable.Pairs)
+        {
+            if (pair.Key.Type == DataType.String
+                && string.Equals(pair.Key.String, callbackName, StringComparison.Ordinal))
+            {
+                return pair.Value;
+            }
+        }
+
+        return DynValue.Nil;
+    }
+
     private DynValue ToDynValue(object? value)
     {
         if (_script is null)

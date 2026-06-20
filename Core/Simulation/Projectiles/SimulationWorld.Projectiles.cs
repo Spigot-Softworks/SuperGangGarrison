@@ -354,7 +354,8 @@ public sealed partial class SimulationWorld
             y,
             velocityX,
             velocityY,
-            killFeedWeaponSpriteNameOverride);
+            killFeedWeaponSpriteNameOverride,
+            createdFrame: Frame);
         if (owner.IsKritzCritBoosted)
         {
             mine.SetCritical();

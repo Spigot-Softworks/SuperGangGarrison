@@ -44,6 +44,12 @@ public sealed class BotBrainController
     private BotBrainObjectiveTapeAsset? _objectiveTapeAsset;
     private VerifiedNavProofGraphAsset? _verifiedProofGraphAsset;
     private PlayerInputSnapshot _previousInput;
+    private BotBrainCombatTarget? _graphlessCombatTarget;
+    private int _graphlessCombatTargetRefreshCooldown;
+    private bool _graphlessCombatTargetRefreshInitialized;
+    private MedicHealTargetSelection _graphlessHealTargetSelection;
+    private int _graphlessMedicHealTargetRefreshCooldown;
+    private bool _graphlessMedicHealTargetRefreshInitialized;
     private readonly Dictionary<NavEdgeBlock, int> _blockedEdges = [];
 
     /// <summary>
@@ -164,6 +170,12 @@ public sealed class BotBrainController
     /// How often (in ticks) the bot re-evaluates its objective.
     /// </summary>
     private const int ObjectiveReevalIntervalTicks = 60; // 2 seconds.
+    private const int GraphlessCombatTargetRefreshTicks = 4;
+    private const int GraphlessMedicHealTargetRefreshTicks = 6;
+    private const float GraphlessCombatTargetMaxRange = 375f;
+    private const float GraphlessSniperCombatTargetMaxRange = 760f;
+    private const float GraphlessMedicHealTargetMaxDistance = 300f;
+    private const float GraphlessMedicHumanCallTargetMaxDistance = 900f;
 
     private int _objectiveReevalCooldown;
     private (float X, float Y) _currentGoalPosition;
@@ -268,6 +280,7 @@ public sealed class BotBrainController
             _objectiveTapeExecutor.Reset();
             _proofRouteExecutor.Reset();
             _stochasticLocalMotionPlanner.Reset();
+            ResetGraphlessTargetSelection();
             _lastCarryingIntel = self.IsCarryingIntel;
 
             ReportNavigationLoadDiagnostic(world.Level, IsNavigationGraphUsable(_navGraph));
@@ -621,7 +634,7 @@ public sealed class BotBrainController
             _objectiveTapeExecutor.Reset();
         }
 
-        var combatTarget = TargetSelector.SelectCombatTarget(self, world, team);
+        var combatTarget = SelectGraphlessCombatTarget(self, world, team);
         LastCombatTarget = combatTarget;
         PlayerEntity? preferredEnemyObjectiveTarget = null;
         if (PreferEnemyPlayerObjective
@@ -630,7 +643,7 @@ public sealed class BotBrainController
             preferredEnemyObjectiveTarget = preferredEnemy;
         }
 
-        var healTargetSelection = CombatDecisionResolver.FindBestMedicHealTargetSelection(world, self, team, controlledTeamsBySlot);
+        var healTargetSelection = SelectGraphlessMedicHealTargetSelection(world, self, team, controlledTeamsBySlot);
         var healTarget = healTargetSelection.Target;
         LastMedicHealTargetId = healTarget?.Id;
         LastMedicHealTargetIsPocket = healTargetSelection.Kind == MedicHealTargetSelectionKind.Pocket;
@@ -980,6 +993,7 @@ public sealed class BotBrainController
         _combatMemory.ZoomToShootTicks = 50;
         _lastObservedDeaths = -1;
         _wasAliveLastThink = false;
+        ResetGraphlessTargetSelection();
         LastMedicHealTargetId = null;
         LastMedicHealTargetIsPocket = false;
     }
@@ -1018,7 +1032,213 @@ public sealed class BotBrainController
         _combatMemory.BeenHealingTicks = 0;
         _combatMemory.ReloadCounterTicks = 0;
         _combatMemory.ZoomToShootTicks = 50;
+        ResetGraphlessTargetSelection();
     }
+
+    private BotBrainCombatTarget? SelectGraphlessCombatTarget(
+        PlayerEntity self,
+        SimulationWorld world,
+        PlayerTeam team)
+    {
+        if (!_graphlessCombatTargetRefreshInitialized)
+        {
+            _graphlessCombatTargetRefreshInitialized = true;
+            _graphlessCombatTargetRefreshCooldown = PositiveModulo(self.Id, GraphlessCombatTargetRefreshTicks);
+        }
+
+        if (_graphlessCombatTargetRefreshCooldown > 0)
+        {
+            _graphlessCombatTargetRefreshCooldown -= 1;
+            if (_graphlessCombatTarget is { } cachedTarget
+                && TryRefreshReusableGraphlessCombatTarget(cachedTarget, self, team, out var refreshedTarget))
+            {
+                _graphlessCombatTarget = refreshedTarget;
+                return refreshedTarget;
+            }
+
+            _graphlessCombatTarget = null;
+            return null;
+        }
+
+        _graphlessCombatTarget = TargetSelector.SelectCombatTarget(self, world, team);
+        _graphlessCombatTargetRefreshCooldown = GraphlessCombatTargetRefreshTicks - 1;
+        return _graphlessCombatTarget;
+    }
+
+    private MedicHealTargetSelection SelectGraphlessMedicHealTargetSelection(
+        SimulationWorld world,
+        PlayerEntity self,
+        PlayerTeam team,
+        IReadOnlyDictionary<byte, PlayerTeam>? controlledTeamsBySlot)
+    {
+        if (self.ClassId != PlayerClass.Medic)
+        {
+            ResetGraphlessMedicHealTargetSelection();
+            return default;
+        }
+
+        if (!_graphlessMedicHealTargetRefreshInitialized)
+        {
+            _graphlessMedicHealTargetRefreshInitialized = true;
+            _graphlessMedicHealTargetRefreshCooldown = PositiveModulo(self.Id + 2, GraphlessMedicHealTargetRefreshTicks);
+        }
+
+        if (_graphlessMedicHealTargetRefreshCooldown > 0)
+        {
+            _graphlessMedicHealTargetRefreshCooldown -= 1;
+            if (IsReusableGraphlessMedicHealTarget(_graphlessHealTargetSelection, self, team))
+            {
+                return _graphlessHealTargetSelection;
+            }
+
+            _graphlessHealTargetSelection = default;
+            return default;
+        }
+
+        _graphlessHealTargetSelection = CombatDecisionResolver.FindBestMedicHealTargetSelection(
+            world,
+            self,
+            team,
+            controlledTeamsBySlot);
+        _graphlessMedicHealTargetRefreshCooldown = GraphlessMedicHealTargetRefreshTicks - 1;
+        return _graphlessHealTargetSelection;
+    }
+
+    private void ResetGraphlessTargetSelection()
+    {
+        _graphlessCombatTarget = null;
+        _graphlessCombatTargetRefreshCooldown = 0;
+        _graphlessCombatTargetRefreshInitialized = false;
+        ResetGraphlessMedicHealTargetSelection();
+    }
+
+    private void ResetGraphlessMedicHealTargetSelection()
+    {
+        _graphlessHealTargetSelection = default;
+        _graphlessMedicHealTargetRefreshCooldown = 0;
+        _graphlessMedicHealTargetRefreshInitialized = false;
+    }
+
+    private static bool TryRefreshReusableGraphlessCombatTarget(
+        BotBrainCombatTarget target,
+        PlayerEntity self,
+        PlayerTeam team,
+        out BotBrainCombatTarget refreshedTarget)
+    {
+        refreshedTarget = default;
+        if (!self.IsAlive)
+        {
+            return false;
+        }
+
+        var maxEngagementRange = ResolveGraphlessCombatTargetMaxRange(self);
+        var maxEngagementDistanceSquared = maxEngagementRange * maxEngagementRange;
+        switch (target.Kind)
+        {
+            case BotBrainCombatTargetKind.Player:
+                if (target.Player is not { } player
+                    || !player.IsAlive
+                    || player.Id == self.Id)
+                {
+                    return false;
+                }
+
+                var opposingTeam = team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
+                var treatAsFriendlyFireTarget = SimulationWorld.ShouldTreatPlayerAsExperimentalFriendlyFireTarget(self, player);
+                if (player.Team != opposingTeam && !treatAsFriendlyFireTarget)
+                {
+                    return false;
+                }
+
+                if (!CombatDecisionResolver.IsPlayerVisibleToBot(self, player)
+                    || DistanceSquared(self.X, self.Y, player.X, player.Y) >= maxEngagementDistanceSquared)
+                {
+                    return false;
+                }
+
+                refreshedTarget = new BotBrainCombatTarget(
+                    BotBrainCombatTargetKind.Player,
+                    player.Team,
+                    player.X,
+                    player.Y,
+                    Player: player);
+                return true;
+
+            case BotBrainCombatTargetKind.Sentry:
+                if (target.Sentry is not { } sentry
+                    || sentry.Team == team
+                    || sentry.Health <= 0
+                    || DistanceSquared(self.X, self.Y, sentry.X, sentry.Y) >= maxEngagementDistanceSquared)
+                {
+                    return false;
+                }
+
+                refreshedTarget = new BotBrainCombatTarget(
+                    BotBrainCombatTargetKind.Sentry,
+                    sentry.Team,
+                    sentry.X,
+                    sentry.Y,
+                    Sentry: sentry);
+                return true;
+
+            case BotBrainCombatTargetKind.Generator:
+                if (target.Generator is not { } generator
+                    || generator.Team == team
+                    || generator.IsDestroyed)
+                {
+                    return false;
+                }
+
+                var generatorX = generator.Marker.CenterX;
+                var generatorY = generator.Marker.CenterY;
+                if (DistanceSquared(self.X, self.Y, generatorX, generatorY) >= maxEngagementDistanceSquared)
+                {
+                    return false;
+                }
+
+                refreshedTarget = new BotBrainCombatTarget(
+                    BotBrainCombatTargetKind.Generator,
+                    generator.Team,
+                    generatorX,
+                    generatorY,
+                    Generator: generator);
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    private static bool IsReusableGraphlessMedicHealTarget(
+        MedicHealTargetSelection selection,
+        PlayerEntity self,
+        PlayerTeam team)
+    {
+        if (selection.Kind == MedicHealTargetSelectionKind.None
+            || self.ClassId != PlayerClass.Medic
+            || !self.IsAlive
+            || selection.Target is not { } target
+            || !target.IsAlive
+            || target.Team != team
+            || target.Id == self.Id
+            || IsGraphlessCloakedSpy(target))
+        {
+            return false;
+        }
+
+        var maxDistance = selection.Kind == MedicHealTargetSelectionKind.HumanMedicCall
+            ? GraphlessMedicHumanCallTargetMaxDistance
+            : GraphlessMedicHealTargetMaxDistance;
+        return DistanceSquared(self.X, self.Y, target.X, target.Y) <= maxDistance * maxDistance;
+    }
+
+    private static bool IsGraphlessCloakedSpy(PlayerEntity target) =>
+        target.ClassId == PlayerClass.Spy && target.IsSpyCloaked;
+
+    private static float ResolveGraphlessCombatTargetMaxRange(PlayerEntity self) =>
+        self.ClassId == PlayerClass.Sniper
+            ? GraphlessSniperCombatTargetMaxRange
+            : GraphlessCombatTargetMaxRange;
 
     private PlayerInputSnapshot ApplyCombatToInputOverride(
         PlayerEntity self,
@@ -5579,6 +5799,13 @@ public sealed class BotBrainController
         var ownIntel = GetOwnIntelState(world, team);
         return ownIntel.IsDropped
             && DistanceBetween(candidate.X, candidate.Y, ownIntel.X, ownIntel.Y) <= ObjectiveAllyIntelPressureDistance;
+    }
+
+    private static float DistanceSquared(float ax, float ay, float bx, float by)
+    {
+        var dx = bx - ax;
+        var dy = by - ay;
+        return (dx * dx) + (dy * dy);
     }
 
     private static float DistanceBetween(float ax, float ay, float bx, float by)

@@ -278,6 +278,7 @@ public partial class Game1
         {
             if (player.TryFireQuoteBubble())
             {
+                TriggerLocalWeaponFireHudRumble(0.4f);
                 SyncPredictedLocalPlayerState(player);
             }
 
@@ -300,6 +301,7 @@ public partial class Game1
             return true;
         }
 
+        TriggerLocalWeaponFireHudRumble(GetPredictedWeaponFireHudRumbleIntensity(player));
         SyncPredictedLocalPlayerState(player);
         return true;
     }
@@ -350,6 +352,7 @@ public partial class Game1
                 else if (!predictedInput.Input.FirePrimary
                     && player.TryFireMedicKritzHealNeedle())
                 {
+                    TriggerLocalWeaponFireHudRumble(0.35f);
                     SyncPredictedLocalPlayerState(player);
                 }
 
@@ -484,6 +487,7 @@ public partial class Game1
             player.TryFirePyroFlare();
         }
 
+        TriggerLocalWeaponFireHudRumble(0.55f);
         var aimRadians = player.AimDirectionDegrees * (MathF.PI / 180f);
         player.AddImpulse(
             -MathF.Cos(aimRadians) * PredictedPyroSelfAirblastImpulse,
@@ -569,6 +573,7 @@ public partial class Game1
             return false;
         }
 
+        TriggerLocalWeaponFireHudRumble(GetPredictedWeaponFireHudRumbleIntensity(player));
         SyncPredictedLocalPlayerState(player);
         return true;
     }
@@ -830,8 +835,29 @@ public partial class Game1
             return false;
         }
 
+        TriggerLocalWeaponFireHudRumble(0.35f);
         SyncPredictedLocalPlayerState(player);
         return true;
+    }
+
+    private static float GetPredictedWeaponFireHudRumbleIntensity(PlayerEntity player)
+    {
+        var weaponKind = player.IsExperimentalOffhandSelected && player.ExperimentalOffhandWeapon is not null
+            ? player.ExperimentalOffhandWeapon.Kind
+            : player.IsAcquiredWeaponPresented && player.AcquiredWeapon is not null
+                ? player.AcquiredWeapon.Kind
+                : player.PrimaryWeapon.Kind;
+
+        return weaponKind switch
+        {
+            PrimaryWeaponKind.Minigun or PrimaryWeaponKind.FlameThrower => 0.35f,
+            PrimaryWeaponKind.Medigun => 0.25f,
+            PrimaryWeaponKind.RocketLauncher or PrimaryWeaponKind.GrenadeLauncher or PrimaryWeaponKind.MineLauncher => 0.9f,
+            PrimaryWeaponKind.Rifle => 0.85f,
+            PrimaryWeaponKind.Revolver => 0.65f,
+            PrimaryWeaponKind.Blade => 0.45f,
+            _ => 0.55f,
+        };
     }
 
     private bool TryPredictedStartMedicUber(PlayerEntity player)

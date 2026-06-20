@@ -3,6 +3,7 @@ namespace OpenGarrison.Core;
 public sealed class SentryGibEntity : SimulationEntity
 {
     public const int LifetimeTicks = 150;
+    public const int FadeTicks = 10;
     public const float PickupRadius = 18f;
     public const float MetalValue = 50f;
 
@@ -23,6 +24,10 @@ public sealed class SentryGibEntity : SimulationEntity
     public int TicksRemaining { get; private set; }
 
     public bool IsExpired => TicksRemaining <= 0;
+
+    public float Alpha => TicksRemaining >= FadeTicks
+        ? 1f
+        : float.Max(0f, TicksRemaining / (float)FadeTicks);
 
     public void AdvanceOneTick()
     {

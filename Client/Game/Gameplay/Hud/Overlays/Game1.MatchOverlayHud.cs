@@ -791,8 +791,9 @@ public partial class Game1
             : position;
         var sourceX = sourcePosition.X;
         var sourceY = sourcePosition.Y;
-        var targetX = intelState.X;
-        var targetY = intelState.Y;
+        var targetPosition = GetRenderIntelPosition(intelState);
+        var targetX = targetPosition.X;
+        var targetY = targetPosition.Y;
         var directionDegrees = MathF.Atan2(targetY - sourceY, targetX - sourceX) * 180f / MathF.PI;
         var statusFrame = localPlayerCarryingEnemyIntel
             ? 3

@@ -1,0 +1,128 @@
+{
+  "formatVersion": 1,
+  "name": "koth_eureka_r2",
+  "scale": 6,
+  "visualScale": 6,
+  "backgroundImage": "background.png",
+  "walkmaskImage": "walkmask.png",
+  "metadata": {
+    "background": "ffffff",
+    "void": "000000"
+  },
+  "entities": [
+    {
+      "type": "medCabinet",
+      "x": 1224,
+      "y": 720,
+      "xScale": 1.31,
+      "yScale": 1.13,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 1194,
+      "y": 748,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 1248,
+      "y": 748,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 1290,
+      "y": 748,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 1152,
+      "y": 660,
+      "xScale": 4.43,
+      "yScale": 2.71,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 1344,
+      "y": 678,
+      "xScale": 1,
+      "yScale": 1.7,
+      "properties": {}
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2154,
+      "y": 792,
+      "xScale": 4.29,
+      "yScale": 4.14,
+      "properties": {}
+    },
+    {
+      "type": "KothControlPoint",
+      "x": 2244,
+      "y": 840,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3138,
+      "y": 666,
+      "xScale": 1,
+      "yScale": 1.9,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3222,
+      "y": 720,
+      "xScale": 1.31,
+      "yScale": 1.13,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 3192,
+      "y": 748,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 3246,
+      "y": 748,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 3300,
+      "y": 748,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3144,
+      "y": 648,
+      "xScale": 4.43,
+      "yScale": 3,
+      "properties": {}
+    }
+  ],
+  "resources": [],
+  "parallaxLayers": []
+}

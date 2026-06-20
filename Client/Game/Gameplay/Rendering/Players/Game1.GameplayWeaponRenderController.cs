@@ -672,7 +672,8 @@ public partial class Game1
             return GetWeaponSpriteFrameIndexCore(player, weaponAnimationMode, weaponDefinition, frameCount);
         }
 
-        public static WeaponRenderDefinition GetWeaponRenderDefinitionProxy(PlayerEntity player) => GetWeaponRenderDefinition(player);
+        public static WeaponRenderDefinition GetWeaponRenderDefinitionProxy(PlayerEntity player, bool forceCivvieUmbrellaPresentation = false)
+            => GetWeaponRenderDefinition(player, forceCivvieUmbrellaPresentation);
         public static float GetSourceTicksAsSecondsProxy(float ticks) => GetSourceTicksAsSeconds(ticks);
 
         private Vector2 GetWeaponAnchorOriginCore(WeaponRenderDefinition weaponDefinition, LoadedGameMakerSprite currentSprite)

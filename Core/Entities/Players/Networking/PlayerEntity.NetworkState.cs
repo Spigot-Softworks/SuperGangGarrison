@@ -316,8 +316,25 @@ public sealed partial class PlayerEntity
 
     private void HydrateNetworkReplicatedAbilityRuntimeState()
     {
+        HydrateNetworkReplicatedSniperRuntimeState();
         HydrateNetworkReplicatedHeavyRuntimeState();
         HydrateNetworkReplicatedCivvieRuntimeState();
+    }
+
+    private void HydrateNetworkReplicatedSniperRuntimeState()
+    {
+        if (ClassId != PlayerClass.Sniper || !IsSniperScoped)
+        {
+            return;
+        }
+
+        if (TryGetReplicatedStateInt(
+                GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                GameplayAbilityReplicatedState.SniperChargeTicksKey,
+                out var sniperChargeTicks))
+        {
+            SniperChargeTicks = Math.Clamp(sniperChargeTicks, 0, SniperChargeMaxTicks);
+        }
     }
 
     private void HydrateNetworkReplicatedSecondaryWeaponFromSnapshot()

@@ -23,7 +23,8 @@ public sealed class MineProjectileEntity : SimulationEntity
         float y,
         float velocityX,
         float velocityY,
-        string? killFeedWeaponSpriteNameOverride = null) : base(id)
+        string? killFeedWeaponSpriteNameOverride = null,
+        long createdFrame = 0) : base(id)
     {
         Team = team;
         OwnerId = ownerId;
@@ -31,6 +32,7 @@ public sealed class MineProjectileEntity : SimulationEntity
         Y = y;
         VelocityX = velocityX;
         VelocityY = velocityY;
+        CreatedFrame = createdFrame;
         KillFeedWeaponSpriteNameOverride = killFeedWeaponSpriteNameOverride;
     }
 
@@ -51,6 +53,8 @@ public sealed class MineProjectileEntity : SimulationEntity
     public float VelocityY { get; private set; }
 
     public string? KillFeedWeaponSpriteNameOverride { get; }
+
+    public long CreatedFrame { get; }
 
     public bool IsStickied { get; private set; }
 

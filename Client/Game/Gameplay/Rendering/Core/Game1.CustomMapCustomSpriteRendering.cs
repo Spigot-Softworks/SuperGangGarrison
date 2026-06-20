@@ -76,6 +76,9 @@ public partial class Game1
                 (int)MathF.Floor(relY - (drawHeight * 0.5f)),
                 Math.Max(1, (int)MathF.Ceiling(drawWidth)),
                 Math.Max(1, (int)MathF.Ceiling(drawHeight)));
+            var tint = Color.White * (layer == CustomMapSpriteLayerKind.Fg
+                ? ApplyCoveredPlayerForegroundOpacity(1f, destination, cameraPosition)
+                : 1f);
             if (marker.CustomMapSprite.Tile)
             {
                 var tileWidth = MathF.Max(1f, texture.Width * marker.CustomMapSprite.Scale);
@@ -87,11 +90,11 @@ public partial class Game1
                     tileWidth,
                     tileHeight,
                     marker.CustomMapSprite.TileAnchor,
-                    Color.White);
+                    tint);
             }
             else
             {
-                _spriteBatch.Draw(texture, destination, Color.White);
+                _spriteBatch.Draw(texture, destination, tint);
             }
         }
     }

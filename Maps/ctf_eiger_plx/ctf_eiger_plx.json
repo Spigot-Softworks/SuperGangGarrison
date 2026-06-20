@@ -1,0 +1,607 @@
+{
+  "formatVersion": 1,
+  "name": "ctf_eiger_plx",
+  "scale": 6,
+  "visualScale": 6,
+  "backgroundImage": "background.png",
+  "walkmaskImage": "walkmask.png",
+  "metadata": {
+    "background": "ffffff",
+    "mountain": "\u0089PNG\r\n\u001A\n\u0000\u0000\u0000\rIHDR\u0000\u0000\u0000B\u0000\u0000\u0000\u0011\b\u0006\u0000\u0000\u0000iNz\u00B1\u0000\u0000\u0000\u0001sRGB\u0000\u00AE\u00CE\u001C\u00E9\u0000\u0000\u0000\u0004gAMA\u0000\u0000\u00B1\u008F\u000B\u00FCa\u0005\u0000\u0000\u0000\tpHYs\u0000\u0000\u000E\u00C3\u0000\u0000\u000E\u00C3\u0001\u00C7o\u00A8d\u0000\u0000\u0000\u0018tEXtSoftware\u0000paint.net 4.0.3\u008C\u00E6\u0097P\u0000\u0000\u0000\u009FIDATXG\u00ED\u0090\u00C1\n\u00830\u0010\u0005\u00F3U\u009Ez\u00F4\u00FF\u007F\u00C9B;\u0088\u00C24\u00C6\u00BA\u0081$:0\u00B7\u00EC{\u00BBI9\u00E6\u00D7\u00B4DJl1\u0096qEb\u00CB\u00B1\u0090(\u00A98\u00C4f\u00A3\u00A4\u0022\u008F\rFK\u00D5Ol\u0026Z\u00AA\u001C\u001B\u00A8)\u00B5\u002B\u00F6\u00A6\u00A6\u00D4\u00EE\u00B1\u0087w\u0090\u00F3\u00BF\u00D8\u0083;\u00F9|\u00C2\u00C6\u00CFgl\u00B1G#\u00CA\u00B9ylp$9\u00B3\f\u000B\u0018A\u00CE;\u0087\u0005\u00F5,g\u00FD\u0087\u0005\u00F6(\u00E7\\\u00C3\u0082{\u00923b\u00B0\u0082\u001Ed\u00FDX\u00AC\u00A8eY\u00BB\u000EV\u00D8\u00A2\u00AC[\u0017\u002BnI\u00D6\u003CAJo\u0000\u0011\u00D4\u003E\u00EBP~\u00D4\u0000\u0000\u0000\u0000IEND\u00AEB\u0060\u0082",
+    "void": "000000"
+  },
+  "entities": [
+    {
+      "type": "redintel",
+      "x": 630,
+      "y": 828,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueintel",
+      "x": 4230,
+      "y": 828,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3678,
+      "y": 546,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3672,
+      "y": 546,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3666,
+      "y": 546,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3666,
+      "y": 564,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3672,
+      "y": 564,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3678,
+      "y": 564,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3936,
+      "y": 546,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3942,
+      "y": 546,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3942,
+      "y": 564,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3936,
+      "y": 564,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3744,
+      "y": 576,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3774,
+      "y": 576,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3804,
+      "y": 576,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 3744,
+      "y": 600,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 3786,
+      "y": 600,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 3834,
+      "y": 600,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3684,
+      "y": 492,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3684,
+      "y": 528,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3684,
+      "y": 564,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3684,
+      "y": 582,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3720,
+      "y": 582,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3756,
+      "y": 582,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3798,
+      "y": 582,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3834,
+      "y": 582,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3870,
+      "y": 582,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3894,
+      "y": 582,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3894,
+      "y": 564,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3894,
+      "y": 540,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3894,
+      "y": 522,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3894,
+      "y": 504,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3894,
+      "y": 498,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3882,
+      "y": 498,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3858,
+      "y": 498,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3840,
+      "y": 498,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3816,
+      "y": 498,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3792,
+      "y": 498,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3738,
+      "y": 498,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3720,
+      "y": 498,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3774,
+      "y": 498,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3726,
+      "y": 540,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3744,
+      "y": 540,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3768,
+      "y": 540,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3786,
+      "y": 540,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3816,
+      "y": 540,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3828,
+      "y": 540,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3852,
+      "y": 534,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3858,
+      "y": 546,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "foreground_scale",
+      "x": 2232,
+      "y": 798,
+      "xScale": 6,
+      "yScale": 6,
+      "properties": {
+        "resource": "mountain",
+        "scale": "6"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3942,
+      "y": 546,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 906,
+      "y": 546,
+      "xScale": 3,
+      "yScale": 1.3,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3936,
+      "y": 546,
+      "xScale": 3,
+      "yScale": 1.3,
+      "properties": {}
+    },
+    {
+      "type": "redteamgate",
+      "x": 1176,
+      "y": 546,
+      "xScale": 3,
+      "yScale": 1.3,
+      "properties": {}
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3666,
+      "y": 546,
+      "xScale": 3,
+      "yScale": 1.3,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 924,
+      "y": 498,
+      "xScale": 6,
+      "yScale": 3,
+      "properties": {}
+    },
+    {
+      "type": "spawnroom",
+      "x": 3684,
+      "y": 498,
+      "xScale": 6,
+      "yScale": 3,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 1026,
+      "y": 558,
+      "xScale": 1.31,
+      "yScale": 1.38,
+      "properties": {}
+    },
+    {
+      "type": "medCabinet",
+      "x": 3792,
+      "y": 558,
+      "xScale": 1.31,
+      "yScale": 1.38,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 978,
+      "y": 598,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 3878,
+      "y": 598,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 1042,
+      "y": 598,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 3814,
+      "y": 598,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "redspawn",
+      "x": 1106,
+      "y": 598,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    },
+    {
+      "type": "bluespawn",
+      "x": 3750,
+      "y": 598,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {}
+    }
+  ],
+  "resources": [
+    {
+      "name": "bg_foreground",
+      "kind": "foreground",
+      "path": "bg_foreground.png"
+    },
+    {
+      "name": "bg_layer0",
+      "kind": "parallaxLayer",
+      "path": "bg_layer0.png"
+    },
+    {
+      "name": "bg_layer1",
+      "kind": "parallaxLayer",
+      "path": "bg_layer1.png"
+    },
+    {
+      "name": "bg_layer2",
+      "kind": "parallaxLayer",
+      "path": "bg_layer2.png"
+    },
+    {
+      "name": "bg_layer3",
+      "kind": "parallaxLayer",
+      "path": "bg_layer3.png"
+    },
+    {
+      "name": "bg_layer4",
+      "kind": "parallaxLayer",
+      "path": "bg_layer4.png"
+    },
+    {
+      "name": "mountain",
+      "kind": "genericImage",
+      "path": "mountain.png"
+    }
+  ],
+  "parallaxLayers": [
+    {
+      "index": 0,
+      "resourceName": "bg_layer0",
+      "xFactor": 10,
+      "yFactor": 10
+    },
+    {
+      "index": 1,
+      "resourceName": "bg_layer1",
+      "xFactor": 9,
+      "yFactor": 9
+    },
+    {
+      "index": 2,
+      "resourceName": "bg_layer2",
+      "xFactor": 8,
+      "yFactor": 8
+    },
+    {
+      "index": 3,
+      "resourceName": "bg_layer3",
+      "xFactor": 7,
+      "yFactor": 7
+    },
+    {
+      "index": 4,
+      "resourceName": "bg_layer4",
+      "xFactor": 3,
+      "yFactor": 0
+    }
+  ]
+}

@@ -203,7 +203,7 @@ public partial class Game1
                 var healthRatio = teammate.Health / (float)Math.Max(1, teammate.MaxHealth);
                 var arrowFrame = Math.Clamp((int)MathF.Floor(healthRatio * 19f), 0, 19);
                 var defaultAlertFrame = teammate.ChatBubbleFrameIndex == 49 ? 1 : 0;
-                var detailedAlertFrame = ChatBubbleFrameCatalog.GetClassPortraitFrame(teammate.ClassId, teammate.Team);
+                var detailedAlertFrame = GetMedicAlertClassFrame(teammate);
                 var drawX = 0f;
                 var drawY = 0f;
                 var hovered = false;
@@ -345,6 +345,29 @@ public partial class Game1
             }
 
             return null;
+        }
+
+        private static int GetMedicAlertClassFrame(PlayerEntity player)
+        {
+            return ((player.Team == PlayerTeam.Blue ? 1 : 0) * 10) + GetLegacyMedicAlertClassIndex(player.ClassId) + 2;
+        }
+
+        private static int GetLegacyMedicAlertClassIndex(PlayerClass playerClass)
+        {
+            return playerClass switch
+            {
+                PlayerClass.Scout => 0,
+                PlayerClass.Soldier => 1,
+                PlayerClass.Sniper => 2,
+                PlayerClass.Demoman => 3,
+                PlayerClass.Medic => 4,
+                PlayerClass.Engineer => 5,
+                PlayerClass.Heavy => 6,
+                PlayerClass.Spy => 7,
+                PlayerClass.Pyro => 8,
+                PlayerClass.Quote => 9,
+                _ => 0,
+            };
         }
     }
 }

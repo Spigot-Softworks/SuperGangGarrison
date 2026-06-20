@@ -17,6 +17,9 @@ public partial class Game1
         private const string FlamethrowerSoundName = "FlamethrowerSnd";
         private const string MedigunSoundName = "MedigunSnd";
         private const float ManagedRapidFireSoundSuppressionDistanceSquared = 576f;
+        private const float WorldSoundFullVolumeDistance = 300f;
+        private const float WorldSoundSilenceDistance = 1500f;
+        private const float WorldSoundPanDistance = 400f;
 
         private readonly Game1 _game;
         private readonly Dictionary<RemoteRapidFireSoundKey, SoundEffectInstance> _remoteRapidFireSoundInstances = new();
@@ -120,8 +123,13 @@ public partial class Game1
             var dx = worldX - listenerPosition.X;
             var dy = worldY - listenerPosition.Y;
             var distance = MathF.Sqrt(dx * dx + dy * dy);
-            var volume = Math.Clamp(1f - (distance / 1200f), 0f, 1f) * 0.6f;
-            var pan = Math.Clamp(dx / 600f, -1f, 1f);
+            var volume = distance <= WorldSoundFullVolumeDistance
+                ? 1f
+                : Math.Clamp(
+                    1f - ((distance - WorldSoundFullVolumeDistance) / (WorldSoundSilenceDistance - WorldSoundFullVolumeDistance)),
+                    0f,
+                    1f);
+            var pan = Math.Clamp(dx / WorldSoundPanDistance, -1f, 1f);
             return (volume, pan);
         }
 
@@ -162,7 +170,8 @@ public partial class Game1
                 "UberIdleSnd",
                 player.X,
                 player.Y,
-                ref _game._localUberIdleSoundInstance);
+                ref _game._localUberIdleSoundInstance,
+                isLocalSource: true);
         }
 
         private void UpdateLocalRapidFireWeaponAudio(
@@ -176,7 +185,7 @@ public partial class Game1
                 return;
             }
 
-            UpdateLoopedWorldSound(soundName, _game._world.LocalPlayer.X, _game._world.LocalPlayer.Y, ref instance);
+            UpdateLoopedWorldSound(soundName, _game._world.LocalPlayer.X, _game._world.LocalPlayer.Y, ref instance, isLocalSource: true);
         }
 
         private void UpdateRemoteRapidFireWeaponAudio()
@@ -193,7 +202,7 @@ public partial class Game1
                 var key = new RemoteRapidFireSoundKey(player.Id, soundName);
                 _activeRemoteRapidFireSoundKeys.Add(key);
                 _remoteRapidFireSoundInstances.TryGetValue(key, out var instance);
-                UpdateLoopedWorldSound(soundName, player.X, player.Y, ref instance);
+                UpdateLoopedWorldSound(soundName, player.X, player.Y, ref instance, isLocalSource: false);
                 if (instance is not null)
                 {
                     _remoteRapidFireSoundInstances[key] = instance;
@@ -349,7 +358,8 @@ public partial class Game1
             string soundName,
             float worldX,
             float worldY,
-            ref SoundEffectInstance? instance)
+            ref SoundEffectInstance? instance,
+            bool isLocalSource)
         {
             if (instance is null)
             {
@@ -371,7 +381,7 @@ public partial class Game1
                 }
             }
 
-            var (volume, pan) = GetWorldSoundMix(worldX, worldY);
+            var (volume, pan) = _game.GetLoopedWorldSoundMix(soundName, worldX, worldY, isLocalSource);
             if (volume <= 0f)
             {
                 StopLocalRapidFireWeaponSound(ref instance);

@@ -60,8 +60,6 @@ public sealed partial class SimulationWorld
             ? player.TauntFrameIndex
             : 0f;
 
-        // Preserve the locally-advancing sniper charge when the player is still scoped;
-        // reset to 0 on scope start so the simulation begins from 0.
         var sniperChargeTicks = player.IsSniperScoped && snapshotPlayer.IsSniperScoped
             ? player.SniperChargeTicks
             : 0;
