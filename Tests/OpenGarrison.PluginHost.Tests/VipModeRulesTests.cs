@@ -306,6 +306,25 @@ public sealed class VipModeRulesTests
             $"expected enemy alone to reverse VIP capture progress, before={progressBeforeEnemyReverse} after={point.CappingTicks}");
     }
 
+    [Fact]
+    public void KillingVipSubtractsFifteenSecondsFromMatchTimer()
+    {
+        var world = CreateSinglePointVipWorldWithLocalVip();
+        var enemy = JoinPlayer(world, BlueEnemySlot, PlayerTeam.Blue, PlayerClass.Scout);
+        var timeRemainingBeforeKill = world.MatchState.TimeRemainingTicks;
+
+        Assert.True(world.TryApplyGameplayDamage(
+            world.LocalPlayer.Id,
+            world.LocalPlayer.Health + 100f,
+            enemy.Id,
+            "RocketKL"));
+
+        Assert.False(world.LocalPlayer.IsAlive);
+        Assert.Equal(
+            Math.Max(0, timeRemainingBeforeKill - (15 * world.Config.TicksPerSecond)),
+            world.MatchState.TimeRemainingTicks);
+    }
+
     private static void AdvancePastSetup(SimulationWorld world)
     {
         var safety = world.ControlPointSetupDurationTicks + 5;

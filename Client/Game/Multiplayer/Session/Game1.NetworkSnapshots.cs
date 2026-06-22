@@ -208,6 +208,8 @@ public partial class Game1
         var previousMapAreaIndex = _world.Level.MapAreaIndex;
         var previousLocalPlayerId = _lastAppliedSnapshotLocalPlayerId;
         var wasAwaitingJoin = _world.LocalPlayerAwaitingJoin;
+        var wasLocalPlayerAlive = _world.LocalPlayer.IsAlive;
+        var previousLocalClassId = _world.LocalPlayer.ClassId;
         if (!_world.ApplySnapshot(snapshot, _networkClient.LocalPlayerSlot))
         {
             if (_networkDiagnosticsEnabled)
@@ -225,6 +227,11 @@ public partial class Game1
         var currentLocalPlayerId = GetResolvedLocalPlayerId();
         var localPlayerIdentityChanged = previousLocalPlayerId.HasValue
             && previousLocalPlayerId.Value != currentLocalPlayerId;
+        var localPlayerAuthorityChanged = mapChanged
+            || localPlayerIdentityChanged
+            || previousLocalClassId != _world.LocalPlayer.ClassId
+            || wasLocalPlayerAlive != _world.LocalPlayer.IsAlive
+            || wasAwaitingJoin != _world.LocalPlayerAwaitingJoin;
         if (isServerFullSnapshot || mapChanged || localPlayerIdentityChanged)
         {
             ResetAndSeedSnapshotPresentationHistories(snapshot);
@@ -249,6 +256,11 @@ public partial class Game1
         {
             RecordApplySnapshotDuration(GetDiagnosticsElapsedMilliseconds(applySnapshotStartTimestamp));
             RecordAppliedSnapshot(snapshot.Frame, previousAppliedSnapshotFrame, _queuedAuthoritativeSnapshots.Count);
+        }
+
+        if (localPlayerAuthorityChanged)
+        {
+            ResetLocalPredictionForAuthorityTransition();
         }
 
         _lastAppliedSnapshotLocalPlayerId = currentLocalPlayerId;

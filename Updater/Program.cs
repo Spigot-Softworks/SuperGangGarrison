@@ -97,6 +97,7 @@ static async Task RunApplyUpdateModeAsync(string[] args)
         }
 
         LogUpdaterEvent(destinationDirectory, $"applying update source=\"{sourceDirectory}\" destination=\"{destinationDirectory}\" version=\"{version}\"");
+        RemoveObsoleteContentPayload(sourceDirectory, destinationDirectory);
         CopyUpdatePayload(
             sourceDirectory,
             destinationDirectory,
@@ -857,6 +858,37 @@ static void CopyUpdatePayload(string sourceDirectory, string destinationDirector
         Directory.CreateDirectory(Path.GetDirectoryName(destinationPath) ?? destinationDirectory);
         File.Copy(files[index], destinationPath, overwrite: true);
         reportProgress?.Invoke(files.Length == 0 ? 1d : Math.Clamp((index + 1) / (double)files.Length, 0d, 1d));
+    }
+}
+
+static void RemoveObsoleteContentPayload(string sourceDirectory, string destinationDirectory)
+{
+    foreach (var relativePath in new[]
+             {
+                 "Content",
+                 Path.Combine(AppPayloadDirectoryName, "Content"),
+             })
+    {
+        if (!Directory.Exists(Path.Combine(sourceDirectory, relativePath)))
+        {
+            continue;
+        }
+
+        var targetPath = Path.Combine(destinationDirectory, relativePath);
+        if (!Directory.Exists(targetPath))
+        {
+            continue;
+        }
+
+        try
+        {
+            Directory.Delete(targetPath, recursive: true);
+            LogUpdaterEvent(destinationDirectory, $"removed obsolete content payload \"{relativePath}\"");
+        }
+        catch (Exception ex)
+        {
+            LogUpdaterEvent(destinationDirectory, $"failed to remove obsolete content payload \"{relativePath}\"", ex);
+        }
     }
 }
 

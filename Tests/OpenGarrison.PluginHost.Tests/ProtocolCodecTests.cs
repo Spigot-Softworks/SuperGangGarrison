@@ -28,6 +28,25 @@ public sealed class ProtocolCodecTests
     }
 
     [Fact]
+    public void WelcomeMessageRoundTripsLocalPredictionFlag()
+    {
+        var message = new WelcomeMessage(
+            ServerName: "Prediction Server",
+            Version: ProtocolVersion.Current,
+            TickRate: 60,
+            LevelName: "ctf_truefort",
+            PlayerSlot: 1,
+            MaxPlayerCount: 16,
+            LocalPredictionEnabled: true);
+
+        var payload = ProtocolCodec.Serialize(message, ProtocolCompressionSettings.Disabled);
+
+        Assert.True(ProtocolCodec.TryDeserialize(payload, out var roundTripped));
+        var welcome = Assert.IsType<WelcomeMessage>(roundTripped);
+        Assert.True(welcome.LocalPredictionEnabled);
+    }
+
+    [Fact]
     public void ServerDetailsMessagesRoundTrip()
     {
         var requestPayload = ProtocolCodec.Serialize(new ServerDetailsRequestMessage(), ProtocolCompressionSettings.Disabled);

@@ -81,6 +81,7 @@ sealed partial class GameServer
     private bool _secondaryAbilitiesEnabled;
     private bool _randomSpreadEnabled;
     private bool _sniperAimIndicatorEnabled = true;
+    private bool _localPredictionEnabled;
     private bool _competitiveReadyUpEnabled;
     private int _competitiveSetupSeconds;
     private readonly HashSet<byte> _competitiveReadyButtonDownSlots = new();

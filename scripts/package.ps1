@@ -5,6 +5,8 @@ param(
     [ValidateSet("stable", "beta")]
     [string]$Channel = "stable",
     [string]$UpdateManifestVersion = "",
+    [string]$UpdateManifestFileName = "latest.json",
+    [string]$ArchiveNameSuffix = "",
     [string]$ChainedUpdateManifestUrl = "",
     [switch]$LegacyRootLayout,
     [switch]$RunTests,
@@ -117,7 +119,7 @@ function Get-PackageVersion {
         }
     }
 
-    return "1.0.0"
+    throw "Package version could not be resolved. Pass -Version explicitly, set OPENGARRISON_PACKAGE_VERSION, or build from a valid version tag."
 }
 
 function Get-AssemblyFileVersion {
@@ -141,19 +143,51 @@ function Get-AssemblyFileVersion {
     return [string]::Join(".", $parts)
 }
 
+function Get-ArchiveNameSuffix {
+    param(
+        [string]$Value
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return ""
+    }
+
+    $suffix = $Value.Trim()
+    if ($suffix.Contains("/") -or $suffix.Contains("\")) {
+        throw "Archive name suffix '$Value' must be a simple file name segment."
+    }
+
+    if ($suffix.IndexOfAny([System.IO.Path]::GetInvalidFileNameChars()) -ge 0) {
+        throw "Archive name suffix '$Value' contains invalid file name characters."
+    }
+
+    return $suffix
+}
+
 function Get-ArchiveName {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$RuntimeIdentifier
+        [string]$RuntimeIdentifier,
+        [string]$Suffix = ""
     )
 
-    switch ($RuntimeIdentifier) {
-        "win-x64" { return "OpenGarrison-Windows-x64.zip" }
-        "linux-x64" { return "OpenGarrison-Linux-x64.tar.gz" }
-        "osx-x64" { return "OpenGarrison-macOS-x64.tar.gz" }
-        "osx-arm64" { return "OpenGarrison-macOS-arm64.tar.gz" }
-        default { return "OpenGarrison-$RuntimeIdentifier.tar.gz" }
+    $archiveName = switch ($RuntimeIdentifier) {
+        "win-x64" { "OpenGarrison-Windows-x64.zip" }
+        "linux-x64" { "OpenGarrison-Linux-x64.tar.gz" }
+        "osx-x64" { "OpenGarrison-macOS-x64.tar.gz" }
+        "osx-arm64" { "OpenGarrison-macOS-arm64.tar.gz" }
+        default { "OpenGarrison-$RuntimeIdentifier.tar.gz" }
     }
+
+    if ([string]::IsNullOrWhiteSpace($Suffix)) {
+        return $archiveName
+    }
+
+    if ($archiveName.EndsWith(".tar.gz", [System.StringComparison]::OrdinalIgnoreCase)) {
+        return "$($archiveName.Substring(0, $archiveName.Length - ".tar.gz".Length))-$Suffix.tar.gz"
+    }
+
+    return "$([System.IO.Path]::GetFileNameWithoutExtension($archiveName))-$Suffix$([System.IO.Path]::GetExtension($archiveName))"
 }
 
 function Get-UpdatePlatformSegment {
@@ -185,6 +219,33 @@ function Get-RuntimeChainedUpdateManifestUrl {
     $platformSegment = Get-UpdatePlatformSegment -RuntimeIdentifier $RuntimeIdentifier
     $url = $Template.Replace("{platform}", $platformSegment)
     return $url.Replace("{runtime}", $RuntimeIdentifier)
+}
+
+function Get-UpdateManifestFileName {
+    param(
+        [string]$Value
+    )
+
+    $fileName = if ([string]::IsNullOrWhiteSpace($Value)) {
+        "latest.json"
+    }
+    else {
+        $Value.Trim()
+    }
+
+    if ($fileName -eq "." -or $fileName -eq ".." -or $fileName.Contains("/") -or $fileName.Contains("\")) {
+        throw "Update manifest file name '$Value' must be a simple .json file name."
+    }
+
+    if ($fileName.IndexOfAny([System.IO.Path]::GetInvalidFileNameChars()) -ge 0) {
+        throw "Update manifest file name '$Value' contains invalid file name characters."
+    }
+
+    if (-not $fileName.EndsWith(".json", [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Update manifest file name '$Value' must end with .json."
+    }
+
+    return $fileName
 }
 
 function Test-IsSelfContainedRuntime {
@@ -272,14 +333,16 @@ function Write-UpdateManifest {
         [Parameter(Mandatory = $true)]
         [string]$ManifestVersion,
         [Parameter(Mandatory = $true)]
-        [string]$ReleaseChannel
+        [string]$ReleaseChannel,
+        [Parameter(Mandatory = $true)]
+        [string]$ManifestFileName
     )
 
     $platformSegment = Get-UpdatePlatformSegment -RuntimeIdentifier $RuntimeIdentifier
     $manifestDirectory = Join-Path $repoRoot "services/opengarrison-api/updates/$platformSegment/$ReleaseChannel"
     New-Item -ItemType Directory -Path $manifestDirectory -Force | Out-Null
 
-    $manifestPath = Join-Path $manifestDirectory "latest.json"
+    $manifestPath = Join-Path $manifestDirectory $ManifestFileName
     $archiveItem = Get-Item $ArchivePath
     $manifest = [ordered]@{
         version = $ManifestVersion
@@ -402,7 +465,7 @@ function Copy-DirectoryContents {
     Copy-Item (Join-Path $SourceDirectory "*") $DestinationDirectory -Recurse -Force
 }
 
-function Invoke-GenerateDistributionAtlases {
+function Invoke-GenerateDistributionAssetManifest {
     param(
         [Parameter(Mandatory = $true)]
         [string]$RepoRoot,
@@ -415,7 +478,8 @@ function Invoke-GenerateDistributionAtlases {
         "--project",
         (Join-Path $RepoRoot "Tools\BrowserAssetBuilder\OpenGarrison.Tools.BrowserAssetBuilder.csproj"),
         "--",
-        $ContentDirectory
+        $ContentDirectory,
+        "--manifest-only"
     )
 }
 
@@ -633,6 +697,67 @@ function Remove-PackagedContentResidue {
     Write-Host "[package] removed content residue: $removedDirectories directories, $removedFiles files"
 }
 
+function Remove-PackagedDesktopWebResidue {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PayloadDirectory
+    )
+
+    if (-not (Test-Path $PayloadDirectory)) {
+        return
+    }
+
+    $payloadRoot = [System.IO.Path]::GetFullPath($PayloadDirectory)
+    $contentDirectory = Join-Path $PayloadDirectory "Content"
+    $removedDirectories = 0
+    $removedFiles = 0
+
+    $browserContentDirectory = Join-Path $contentDirectory "Browser"
+    if ((Test-Path -LiteralPath $browserContentDirectory) -and (Test-IsPathWithinDirectory -Path $browserContentDirectory -Directory $payloadRoot)) {
+        Remove-Item -LiteralPath $browserContentDirectory -Recurse -Force
+        $removedDirectories += 1
+    }
+
+    $rootWebFilePatterns = @(
+        "web.config",
+        "*.staticwebassets*.json"
+    )
+
+    foreach ($pattern in $rootWebFilePatterns) {
+        foreach ($file in Get-ChildItem -Path $PayloadDirectory -File -Force -Filter $pattern) {
+            if (-not (Test-IsPathWithinDirectory -Path $file.FullName -Directory $payloadRoot)) {
+                continue
+            }
+
+            Remove-Item -LiteralPath $file.FullName -Force
+            $removedFiles += 1
+        }
+    }
+
+    if (Test-Path $contentDirectory) {
+        $contentRoot = [System.IO.Path]::GetFullPath($contentDirectory)
+        $browserOnlyContentFileNames = @(
+            "_browser-bootstrap-assets.zip",
+            "_browser-runtime-assets.zip",
+            "_browser-pack-assets.zip",
+            "_browser-pack-definition.json"
+        )
+
+        foreach ($fileName in $browserOnlyContentFileNames) {
+            foreach ($file in Get-ChildItem -Path $contentDirectory -File -Recurse -Force -Filter $fileName) {
+                if (-not (Test-IsPathWithinDirectory -Path $file.FullName -Directory $contentRoot)) {
+                    continue
+                }
+
+                Remove-Item -LiteralPath $file.FullName -Force
+                $removedFiles += 1
+            }
+        }
+    }
+
+    Write-Host "[package] removed desktop web residue: $removedDirectories directories, $removedFiles files"
+}
+
 function Convert-PackagedBotBrainJsonAssetsToGzip {
     param(
         [Parameter(Mandatory = $true)]
@@ -721,6 +846,46 @@ function Assert-PackagedContentPolicy {
         throw "Release content still contains removed MotionProof runtime assets: '$motionProofDirectory'."
     }
 
+    $browserContentDirectory = Join-Path $ContentDirectory "Browser"
+    if (Test-Path $browserContentDirectory) {
+        throw "Release content still contains browser-only assets: '$browserContentDirectory'."
+    }
+
+    $browserOnlyContentFileNames = @(
+        "_browser-bootstrap-assets.zip",
+        "_browser-runtime-assets.zip",
+        "_browser-pack-assets.zip",
+        "_browser-pack-definition.json"
+    )
+
+    foreach ($fileName in $browserOnlyContentFileNames) {
+        $browserOnlyFile = Get-ChildItem -Path $ContentDirectory -File -Recurse -Force -Filter $fileName | Select-Object -First 1
+        if ($browserOnlyFile -ne $null) {
+            throw "Release content still contains browser-only asset '$($browserOnlyFile.FullName)'."
+        }
+    }
+
+    foreach ($pngFile in Get-ChildItem -Path $ContentDirectory -File -Recurse -Force -Filter "*.png") {
+        $stream = [System.IO.File]::OpenRead($pngFile.FullName)
+        try {
+            if ($stream.Length -lt 8) {
+                throw "Release PNG asset '$($pngFile.FullName)' is too small to be a valid PNG."
+            }
+
+            $signature = [byte[]]::new(8)
+            $bytesRead = $stream.Read($signature, 0, $signature.Length)
+            $expectedSignature = [byte[]](0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+            for ($index = 0; $index -lt $expectedSignature.Length; $index += 1) {
+                if ($bytesRead -ne $expectedSignature.Length -or $signature[$index] -ne $expectedSignature[$index]) {
+                    throw "Release PNG asset '$($pngFile.FullName)' does not have a PNG signature."
+                }
+            }
+        }
+        finally {
+            $stream.Dispose()
+        }
+    }
+
     foreach ($relativeDirectory in @("BotBrainNav", "BotBrainProofGraphs", "BotBrainCorridors", "BotBrainTapes")) {
         $directory = Join-Path $ContentDirectory $relativeDirectory
         if (-not (Test-Path $directory)) {
@@ -730,6 +895,73 @@ function Assert-PackagedContentPolicy {
         $uncompressedJson = Get-ChildItem -Path $directory -File -Recurse -Force -Filter "*.json" | Select-Object -First 1
         if ($uncompressedJson -ne $null) {
             throw "Release content contains uncompressed BotBrain JSON asset '$($uncompressedJson.FullName)'. Expected packaged .json.gz assets."
+        }
+    }
+
+    $contentRoot = [System.IO.Path]::GetFullPath($ContentDirectory)
+    $stockPackDirectory = Join-Path $ContentDirectory "Gameplay\stock.gg2"
+    $stockSpriteDirectory = Join-Path $ContentDirectory "Gameplay\stock.gg2\sprites"
+    if (-not (Test-Path $stockSpriteDirectory)) {
+        throw "Release content is missing stock gameplay sprite definitions: '$stockSpriteDirectory'."
+    }
+
+    $stockSpriteDefinitionFiles = @(Get-ChildItem -Path $stockSpriteDirectory -File -Force -Filter "*.json")
+    if ($stockSpriteDefinitionFiles.Count -eq 0) {
+        throw "Release content contains no stock gameplay sprite definitions in '$stockSpriteDirectory'."
+    }
+
+    foreach ($spriteDefinitionFile in $stockSpriteDefinitionFiles) {
+        $spriteDefinition = Get-Content -LiteralPath $spriteDefinitionFile.FullName -Raw | ConvertFrom-Json
+        $framePathsProperty = $spriteDefinition.PSObject.Properties.Match("framePaths") | Select-Object -First 1
+        if ($framePathsProperty -eq $null) {
+            continue
+        }
+
+        foreach ($framePathValue in @($framePathsProperty.Value)) {
+            $framePath = [string]$framePathValue
+            if ([string]::IsNullOrWhiteSpace($framePath)) {
+                continue
+            }
+
+            $normalizedFramePath = $framePath.Replace("/", [string][System.IO.Path]::DirectorySeparatorChar)
+            $contentPrefix = "Content$([System.IO.Path]::DirectorySeparatorChar)"
+            $absoluteFramePath = if ($normalizedFramePath.StartsWith($contentPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+                Join-Path $ContentDirectory $normalizedFramePath.Substring($contentPrefix.Length)
+            }
+            else {
+                Join-Path $stockPackDirectory $normalizedFramePath
+            }
+
+            if (-not (Test-IsPathWithinDirectory -Path $absoluteFramePath -Directory $contentRoot)) {
+                throw "Release sprite definition '$($spriteDefinitionFile.FullName)' references frame outside Content: '$framePath'."
+            }
+
+            if (-not (Test-Path -LiteralPath $absoluteFramePath -PathType Leaf)) {
+                throw "Release sprite definition '$($spriteDefinitionFile.FullName)' references missing frame asset '$framePath'."
+            }
+        }
+    }
+}
+
+function Assert-PackagedDesktopPayloadPolicy {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PayloadDirectory
+    )
+
+    if (-not (Test-Path $PayloadDirectory)) {
+        return
+    }
+
+    $rootWebFilePatterns = @(
+        "web.config",
+        "*.staticwebassets*.json"
+    )
+
+    foreach ($pattern in $rootWebFilePatterns) {
+        $webFile = Get-ChildItem -Path $PayloadDirectory -File -Force -Filter $pattern | Select-Object -First 1
+        if ($webFile -ne $null) {
+            throw "Release payload still contains static-web artifact '$($webFile.FullName)'."
         }
     }
 }
@@ -1140,6 +1372,8 @@ else {
 }
 
 $releaseChannel = $Channel.Trim().ToLowerInvariant()
+$resolvedUpdateManifestFileName = Get-UpdateManifestFileName -Value $UpdateManifestFileName
+$resolvedArchiveNameSuffix = Get-ArchiveNameSuffix -Value $ArchiveNameSuffix
 $chainedUpdateManifestUrl = $ChainedUpdateManifestUrl.Trim()
 $assemblyFileVersion = Get-AssemblyFileVersion -PackageVersion $packageVersion
 Write-Host "[package] version: $packageVersion"
@@ -1148,6 +1382,12 @@ if (-not [string]::Equals($manifestVersion, $packageVersion, [System.StringCompa
 }
 
 Write-Host "[package] channel: $releaseChannel"
+if (-not [string]::Equals($resolvedUpdateManifestFileName, "latest.json", [System.StringComparison]::OrdinalIgnoreCase)) {
+    Write-Host "[package] update manifest file: $resolvedUpdateManifestFileName"
+}
+if (-not [string]::IsNullOrWhiteSpace($resolvedArchiveNameSuffix)) {
+    Write-Host "[package] archive suffix: $resolvedArchiveNameSuffix"
+}
 if (-not [string]::IsNullOrWhiteSpace($chainedUpdateManifestUrl)) {
     Write-Host "[package] chained update manifest: $chainedUpdateManifestUrl"
 }
@@ -1232,11 +1472,13 @@ foreach ($runtimeIdentifier in $Platforms) {
     Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "Client/Content") -DestinationDirectory (Join-Path $payloadDirectory "Content")
     Invoke-PublishDistributionMaps -RepoRoot $repoRoot -DestinationDirectory (Join-Path $payloadDirectory "Maps")
 
-    Invoke-GenerateDistributionAtlases -RepoRoot $repoRoot -ContentDirectory (Join-Path $payloadDirectory "Content")
+    Invoke-GenerateDistributionAssetManifest -RepoRoot $repoRoot -ContentDirectory (Join-Path $payloadDirectory "Content")
     Restore-CollisionMaskImages -RepoRoot $repoRoot -ContentDirectory (Join-Path $payloadDirectory "Content")
     Remove-PackagedContentResidue -ContentDirectory (Join-Path $payloadDirectory "Content")
+    Remove-PackagedDesktopWebResidue -PayloadDirectory $payloadDirectory
     Convert-PackagedBotBrainJsonAssetsToGzip -ContentDirectory (Join-Path $payloadDirectory "Content")
     Assert-PackagedContentPolicy -ContentDirectory (Join-Path $payloadDirectory "Content")
+    Assert-PackagedDesktopPayloadPolicy -PayloadDirectory $payloadDirectory
     Assert-RequiredDistributionMaps -MapsDirectory (Join-Path $payloadDirectory "Maps") -ContentDirectory (Join-Path $payloadDirectory "Content")
     Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "packaging/config") -DestinationDirectory (Join-Path $payloadDirectory "config")
     Copy-Item (Join-Path $repoRoot "Client/practice-bot-names.txt") (Join-Path $payloadDirectory "config/practice-bot-names.txt") -Force
@@ -1278,7 +1520,7 @@ foreach ($runtimeIdentifier in $Platforms) {
     $finalDirectory = Get-AvailableOutputDirectory -PreferredPath (Join-Path $distRoot $runtimeIdentifier)
     Copy-DirectoryContents -SourceDirectory $stagingDirectory -DestinationDirectory $finalDirectory
 
-    $archivePath = Join-Path $distRoot (Get-ArchiveName -RuntimeIdentifier $runtimeIdentifier)
+    $archivePath = Join-Path $distRoot (Get-ArchiveName -RuntimeIdentifier $runtimeIdentifier -Suffix $resolvedArchiveNameSuffix)
     if (Test-Path $archivePath) {
         Remove-Item $archivePath -Force
     }
@@ -1289,7 +1531,8 @@ foreach ($runtimeIdentifier in $Platforms) {
         -ArchivePath $archivePath `
         -PackageVersion $packageVersion `
         -ManifestVersion $manifestVersion `
-        -ReleaseChannel $releaseChannel
+        -ReleaseChannel $releaseChannel `
+        -ManifestFileName $resolvedUpdateManifestFileName
 
     $builtOutputs += [pscustomobject]@{
         Runtime = $runtimeIdentifier

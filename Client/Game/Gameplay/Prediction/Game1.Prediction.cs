@@ -9,6 +9,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private const int MaxPendingPredictedInputs = 256;
+
     private readonly List<PredictedLocalInput> _pendingPredictedInputs = new();
     private Vector2 _predictedLocalPlayerPosition;
     private Vector2 _smoothedLocalPlayerRenderPosition;
@@ -21,6 +23,7 @@ public partial class Game1
     private PlayerEntity? _predictedLocalPlayerShadow;
     private PredictedLocalActionState _predictedLocalActionState;
     private bool _hasPredictedLocalActionState;
+    private bool _serverLocalPredictionEnabled;
     private PlayerInputSnapshot _latestPredictedLocalInput;
     private PlayerInputSnapshot _previousPredictedLocalInput;
 
@@ -35,37 +38,102 @@ public partial class Game1
     {
         _latestPredictedLocalInput = input;
 
-        if (!_networkClient.IsConnected || sequence == 0 || !_world.LocalPlayer.IsAlive || _world.LocalPlayerAwaitingJoin)
+        if (!CanUseLocalPrediction() || sequence == 0 || !_world.LocalPlayer.IsAlive || _world.LocalPlayerAwaitingJoin)
         {
+            ClearLocalPredictionState(clearPendingInputs: true);
             return;
         }
 
-        // Client-side movement and shooting prediction are disabled.
-        // Keep the latest local input for UI and jump-edge latching, but render only authoritative server state.
+        _pendingPredictedInputs.Add(new PredictedLocalInput(
+            sequence,
+            input,
+            jumpPressed,
+            primaryPressed,
+            secondaryAbilityPressed,
+            abilityPressed,
+            swapWeaponPressed));
+        if (_pendingPredictedInputs.Count > MaxPendingPredictedInputs)
+        {
+            _pendingPredictedInputs.RemoveRange(0, _pendingPredictedInputs.Count - MaxPendingPredictedInputs);
+        }
+
+        RebuildLocalPrediction(preserveRenderContinuity: true);
     }
 
     private void ReconcileLocalPrediction(uint lastProcessedInputSequence)
     {
-        if (!_networkClient.IsConnected || !_world.LocalPlayer.IsAlive || _world.LocalPlayerAwaitingJoin)
+        AcknowledgeLatchedPredictedInputs(lastProcessedInputSequence);
+
+        if (!CanUseLocalPrediction() || !_world.LocalPlayer.IsAlive || _world.LocalPlayerAwaitingJoin)
         {
-            _hasPredictedLocalPlayerPosition = false;
-            _hasSmoothedLocalPlayerRenderPosition = false;
-            _hasPredictedLocalActionState = false;
-            _predictedLocalPlayerShadow = null;
-            _predictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
-            _lastPredictedRenderSmoothingTimeSeconds = -1d;
-            _pendingPredictedInputs.Clear();
+            ClearLocalPredictionState(clearPendingInputs: true);
             return;
         }
 
-        AcknowledgeLatchedPredictedInputs(lastProcessedInputSequence);
-        _pendingPredictedInputs.Clear();
+        RemoveAcknowledgedPredictedInputs(lastProcessedInputSequence);
+        RebuildLocalPrediction(preserveRenderContinuity: true);
+    }
+
+    private bool CanUseLocalPrediction()
+    {
+        return _serverLocalPredictionEnabled
+            && _networkClient.IsConnected
+            && !_networkClient.IsAwaitingWelcome
+            && !_networkClient.IsReplayConnection
+            && !_networkClient.IsSpectator
+            && _localPlayerSnapshotEntityId.HasValue
+            && _world.LocalPlayer.IsAlive
+            && !_world.LocalPlayerAwaitingJoin;
+    }
+
+    private void ClearLocalPredictionState(bool clearPendingInputs)
+    {
         _hasPredictedLocalPlayerPosition = false;
         _hasSmoothedLocalPlayerRenderPosition = false;
         _hasPredictedLocalActionState = false;
         _predictedLocalPlayerShadow = null;
         _predictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
+        _predictedLocalPlayerVelocity = Vector2.Zero;
+        _predictedLocalPlayerGrounded = false;
+        _predictedLocalPlayerRemainingAirJumps = 0;
         _lastPredictedRenderSmoothingTimeSeconds = -1d;
+        if (clearPendingInputs)
+        {
+            _pendingPredictedInputs.Clear();
+        }
+    }
+
+    private void ResetLocalPredictionForAuthorityTransition()
+    {
+        ClearLocalPredictionState(clearPendingInputs: true);
+        ClearPendingPredictedInputEdges();
+        _latchedJumpPressSequence = 0;
+    }
+
+    private void RemoveAcknowledgedPredictedInputs(uint lastProcessedInputSequence)
+    {
+        if (lastProcessedInputSequence == 0 || _pendingPredictedInputs.Count == 0)
+        {
+            return;
+        }
+
+        var removeCount = 0;
+        while (removeCount < _pendingPredictedInputs.Count
+            && IsInputSequenceAcknowledged(_pendingPredictedInputs[removeCount].Sequence, lastProcessedInputSequence))
+        {
+            removeCount += 1;
+        }
+
+        if (removeCount > 0)
+        {
+            _pendingPredictedInputs.RemoveRange(0, removeCount);
+        }
+    }
+
+    private static bool IsInputSequenceAcknowledged(uint sequence, uint lastProcessedInputSequence)
+    {
+        return sequence == lastProcessedInputSequence
+            || unchecked((int)(lastProcessedInputSequence - sequence)) > 0;
     }
 
     private void RebuildLocalPrediction(bool preserveRenderContinuity)
@@ -74,14 +142,9 @@ public partial class Game1
         var hadRenderPositionBeforeRebuild = preserveRenderContinuity
             && TryGetCurrentPredictedRenderPosition(out renderPositionBeforeRebuild);
 
-        if (!_networkClient.IsConnected || !_world.LocalPlayer.IsAlive || _world.LocalPlayerAwaitingJoin)
+        if (!CanUseLocalPrediction() || !_world.LocalPlayer.IsAlive || _world.LocalPlayerAwaitingJoin)
         {
-            _hasPredictedLocalPlayerPosition = false;
-            _hasSmoothedLocalPlayerRenderPosition = false;
-            _hasPredictedLocalActionState = false;
-            _predictedLocalPlayerShadow = null;
-            _predictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
-            _lastPredictedRenderSmoothingTimeSeconds = -1d;
+            ClearLocalPredictionState(clearPendingInputs: false);
             return;
         }
 
@@ -137,7 +200,9 @@ public partial class Game1
 
     private PlayerEntity GetPredictedLocalPlayerShadow(PlayerEntity player)
     {
-        if (_predictedLocalPlayerShadow is null || _predictedLocalPlayerShadow.Id != player.Id)
+        if (_predictedLocalPlayerShadow is null
+            || _predictedLocalPlayerShadow.Id != player.Id
+            || _predictedLocalPlayerShadow.ClassId != player.ClassId)
         {
             _predictedLocalPlayerShadow = new PlayerEntity(player.Id, player.ClassDefinition, player.DisplayName);
         }

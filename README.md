@@ -71,7 +71,7 @@ they check for updates before starting `OG2.Game.exe` / `OG2.Game`.
 Windows:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\package.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\package.ps1 -Version 0.6.3.6
 ```
 
 Release packages should pass an explicit updater version. For the first auto-update from older packages

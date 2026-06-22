@@ -163,6 +163,7 @@ partial class GameServer
         _autoBalanceEnabled = host.AutoBalanceEnabled;
         _secondaryAbilitiesEnabled = host.SecondaryAbilitiesEnabled;
         _randomSpreadEnabled = host.RandomSpreadEnabled;
+        _localPredictionEnabled = host.LocalPredictionEnabled;
         _competitiveReadyUpEnabled = host.CompetitiveReadyUpEnabled;
         _competitiveSetupSeconds = Math.Clamp(host.CompetitiveSetupSeconds, 0, 120);
         _botAutofillEnabled = host.BotAutofillEnabled;
@@ -254,6 +255,7 @@ partial class GameServer
 
         Console.WriteLine($"Auto-balance: {(_autoBalanceEnabled ? "Enabled" : "Disabled")}");
         Console.WriteLine($"Random bullet spread: {(_randomSpreadEnabled ? "Enabled" : "Disabled")}");
+        Console.WriteLine($"Local prediction: {(_localPredictionEnabled ? "Enabled" : "Disabled")}");
         Console.WriteLine($"Special abilities: {(_secondaryAbilitiesEnabled ? "Enabled" : "Disabled")}");
         Console.WriteLine($"Snapshot budget mode: {OpenGarrison.Server.SnapshotBudgetModeParser.ToConfigString(_snapshotBudgetMode)}");
         Console.WriteLine(_competitiveReadyUpEnabled
@@ -1034,6 +1036,12 @@ partial class GameServer
                 _world.SniperAimIndicatorEnabled = value;
             });
         registry.RegisterBoolean(
+            "sv_local_prediction",
+            "Allow connected clients to locally predict their own movement and weapon state.",
+            _localPredictionEnabled,
+            () => _localPredictionEnabled,
+            value => _localPredictionEnabled = value);
+        registry.RegisterBoolean(
             "sv_specialabilities",
             "Enable or disable class special abilities, modular gameplay abilities, and ability-owned alternate weapons on the server.",
             _secondaryAbilitiesEnabled,
@@ -1230,7 +1238,8 @@ partial class GameServer
             _banService,
             receiveCustomBubbleUpload: _outboundMessaging.ReceiveCustomBubbleUpload,
             receiveCustomBubbleClear: _outboundMessaging.ReceiveCustomBubbleClear,
-            sendCustomBubbleStates: _outboundMessaging.SendCustomBubbleStatesToClient);
+            sendCustomBubbleStates: _outboundMessaging.SendCustomBubbleStatesToClient,
+            localPredictionEnabledGetter: () => _localPredictionEnabled);
         _incomingPacketPump = new OpenGarrison.Server.ServerIncomingPacketPump(
             _messageTransport,
             messageDispatcher,

@@ -49,6 +49,8 @@ public sealed partial class SimulationWorld
             ? ResolveAssistPlayer(player, killer)
             : null;
 
+        ApplyVipDeathTimerPenalty(player, killer);
+
         player.AddDeath();
         if (gibbed)
         {

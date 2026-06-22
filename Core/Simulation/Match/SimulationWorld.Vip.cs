@@ -4,6 +4,7 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
+    private const int VipDeathTimePenaltySeconds = 15;
     private const int VipWarmupSeconds = 10;
 
     private bool IsPracticeVipRulesActive => _practiceVipRulesEnabled && MatchRules.Mode == GameModeKind.ControlPoint;
@@ -163,6 +164,26 @@ public sealed partial class SimulationWorld
     private bool IsVipPlayer(PlayerEntity player)
     {
         return TryGetNetworkPlayerSlot(player, out var slot) && IsVipSlot(slot);
+    }
+
+    private void ApplyVipDeathTimerPenalty(PlayerEntity victim, PlayerEntity? killer)
+    {
+        if (!IsVipModeActive
+            || VipWarmupActive
+            || MatchState.IsEnded
+            || !IsVipPlayer(victim)
+            || killer is null
+            || ReferenceEquals(killer, victim)
+            || killer.Team == victim.Team)
+        {
+            return;
+        }
+
+        var penaltyTicks = VipDeathTimePenaltySeconds * Config.TicksPerSecond;
+        MatchState = MatchState with
+        {
+            TimeRemainingTicks = Math.Max(0, MatchState.TimeRemainingTicks - penaltyTicks),
+        };
     }
 
     private bool CanPlayerCaptureInVipMode(PlayerEntity player)
