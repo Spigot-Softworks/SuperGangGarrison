@@ -472,7 +472,7 @@ internal sealed class ServerAdminOperations(
 
         applyMapTransition?.Invoke(transition);
         mapRotationManagerGetter().ClearQueuedNextRoundMap();
-        mapRotationManagerGetter().AlignCurrentMap(levelName);
+        mapRotationManagerGetter().AlignExternalMapChange(levelName);
         snapshotBroadcasterGetter().ResetTransientEvents();
         log($"[server] admin changed map to {world.Level.Name} area {world.Level.MapAreaIndex}/{world.Level.MapAreaCount}");
         return true;

@@ -30,6 +30,30 @@ public sealed class SimulationWorldRoundEndScorekeepingTests
     }
 
     [Fact]
+    public void EnemyGetsCreditWhenBurningPlayerDiesToOwnRocket()
+    {
+        var world = CreateCombatWorld(out var enemy);
+        var victim = world.LocalPlayer;
+        victim.IgniteAfterburn(
+            enemy.Id,
+            PlayerEntity.BurnDefaultMaxDurationSourceTicks,
+            PlayerEntity.BurnMaxIntensity,
+            afterburnFalloff: false,
+            burnFalloffAmount: 1f);
+        victim.ForceSetHealth(0);
+
+        InvokeKillPlayer(world, victim, victim, "RocketKL");
+
+        Assert.Equal(1, enemy.Kills);
+        Assert.Equal(1, victim.Deaths);
+        var entry = Assert.Single(world.KillFeed);
+        Assert.Equal(enemy.Id, entry.KillerPlayerId);
+        Assert.Equal(victim.Id, entry.VictimPlayerId);
+        Assert.Equal("FlameKL", entry.WeaponSpriteName);
+        Assert.Equal(" finished off ", entry.MessageText);
+    }
+
+    [Fact]
     public void HealingAwardsOnePointPerEightHundredHealing()
     {
         var world = new SimulationWorld();

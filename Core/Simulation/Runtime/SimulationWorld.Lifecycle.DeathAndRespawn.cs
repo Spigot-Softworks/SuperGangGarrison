@@ -37,12 +37,17 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if ((killer is null || ReferenceEquals(killer, player))
+        var originalKillerWasSelf = killer is not null && ReferenceEquals(killer, player);
+        if ((killer is null || originalKillerWasSelf)
             && player.Health <= 0
             && TryResolveAfterburnDeathCredit(player, out var afterburnKiller))
         {
             killer = afterburnKiller;
             weaponSpriteName = "FlameKL";
+            if (originalKillerWasSelf && string.IsNullOrEmpty(killFeedMessage))
+            {
+                killFeedMessage = " finished off ";
+            }
         }
 
         var assistingPlayer = killer is not null && !ReferenceEquals(killer, player)

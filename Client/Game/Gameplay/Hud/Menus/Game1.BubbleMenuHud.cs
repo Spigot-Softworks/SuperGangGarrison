@@ -213,15 +213,6 @@ public partial class Game1
                 _bubbleMenuSessionHadInteraction = true;
                 CommitBubbleMenuSelectionAndClose();
             }
-            else if (!_bubbleMenuClosing && !IsCurrentBubbleMenuKeyHeld(keyboard, mouse))
-            {
-                // The built-in Z/X/C and Custom bubble menus are keyboard-only: a digit
-                // selects, and releasing the menu key commits the most recent bubble (or
-                // closes). The mouse-driven hover/click model lives solely in the Bubble
-                // Wheel plugin's override path above, so these menus no longer inherit its
-                // Hold-and-Hover / Press-and-Click setting.
-                CommitBubbleMenuSelectionAndClose();
-            }
         }
 
         AdvanceBubbleMenuAnimation();

@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\Plugins\OpenGarrison.PluginHost.Abstractions\OpenGarrison.PluginHost.Abstractions.csproj" />
     <ProjectReference Include="..\..\Plugins\Client\OpenGarrison.Client.Plugins.Abstractions\OpenGarrison.Client.Plugins.Abstractions.csproj" />
     <ProjectReference Include="..\..\Plugins\Client\OpenGarrison.Client.Plugins.BubbleWheel\OpenGarrison.Client.Plugins.BubbleWheel.csproj" />
+    <ProjectReference Include="..\..\Plugins\Client\OpenGarrison.Client.Plugins.TeamOnlyMinimap\OpenGarrison.Client.Plugins.TeamOnlyMinimap.csproj" />
     <ProjectReference Include="..\..\Plugins\Server\OpenGarrison.Server.Plugins.Abstractions\OpenGarrison.Server.Plugins.Abstractions.csproj" />
   </ItemGroup>
 
