@@ -124,7 +124,7 @@ public sealed class TeamOnlyMinimapPlugin :
 
         if (_config.ShowObjective)
         {
-            DrawObjectiveMarkers(canvas, state, view);
+            DrawObjectiveMarkers(canvas, state, ResolveFullMapView(state, layout));
         }
     }
 
@@ -372,10 +372,11 @@ public sealed class TeamOnlyMinimapPlugin :
 
     private MinimapView ResolveView(IOpenGarrisonClientReadOnlyState state, Vector2 localPlayerWorldPosition, MinimapLayout layout)
     {
-        var worldWidth = Math.Max(1f, state.LevelWidth);
-        var worldHeight = Math.Max(1f, state.LevelHeight);
-        var layoutWidth = Math.Max(20f, layout.Width);
-        var layoutHeight = Math.Max(20f, layout.Height);
+        var metrics = ResolveViewMetrics(state, layout);
+        var worldWidth = metrics.WorldWidth;
+        var worldHeight = metrics.WorldHeight;
+        var layoutWidth = metrics.LayoutWidth;
+        var layoutHeight = metrics.LayoutHeight;
         var xScale = layoutWidth / worldWidth;
         var yScale = layoutHeight / worldHeight;
 
@@ -441,9 +442,112 @@ public sealed class TeamOnlyMinimapPlugin :
             scale);
     }
 
+    private static MinimapView ResolveFullMapView(IOpenGarrisonClientReadOnlyState state, MinimapLayout layout)
+    {
+        var metrics = ResolveViewMetrics(state, layout);
+        var scale = MathF.Min(metrics.LayoutWidth / metrics.WorldWidth, metrics.LayoutHeight / metrics.WorldHeight);
+        return new MinimapView(
+            new Rectangle(
+                (int)MathF.Round(layout.X),
+                (int)MathF.Round(layout.Y),
+                Math.Max(1, (int)MathF.Round(metrics.WorldWidth * scale)),
+                Math.Max(1, (int)MathF.Round(metrics.WorldHeight * scale))),
+            0f,
+            0f,
+            metrics.WorldWidth,
+            metrics.WorldHeight,
+            scale);
+    }
+
+    internal static bool TryProjectObjectiveToScreenForTests(
+        float levelWidth,
+        float levelHeight,
+        float layoutX,
+        float layoutY,
+        float layoutWidth,
+        float layoutHeight,
+        Vector2 worldPosition,
+        out Vector2 screenPosition)
+    {
+        var view = ResolveFullMapView(
+            Math.Max(1f, levelWidth),
+            Math.Max(1f, levelHeight),
+            new MinimapLayout(layoutX, layoutY, layoutWidth, layoutHeight));
+        return TryProjectToScreen(view, worldPosition, out screenPosition);
+    }
+
+    internal static bool TryProjectPlayerCenteredToScreenForTests(
+        float levelWidth,
+        float levelHeight,
+        float layoutX,
+        float layoutY,
+        float layoutWidth,
+        float layoutHeight,
+        Vector2 localPlayerWorldPosition,
+        Vector2 worldPosition,
+        out Vector2 screenPosition)
+    {
+        var view = ResolveHeightFitView(
+            Math.Max(1f, levelWidth),
+            Math.Max(1f, levelHeight),
+            new MinimapLayout(layoutX, layoutY, layoutWidth, layoutHeight),
+            localPlayerWorldPosition);
+        return TryProjectToScreen(view, worldPosition, out screenPosition);
+    }
+
     private static float ClampViewportOrigin(float requested, float worldSize, float visibleSize)
     {
         return Math.Clamp(requested, 0f, Math.Max(0f, worldSize - visibleSize));
+    }
+
+    private static MinimapView ResolveFullMapView(float worldWidth, float worldHeight, MinimapLayout layout)
+    {
+        var layoutWidth = Math.Max(20f, layout.Width);
+        var layoutHeight = Math.Max(20f, layout.Height);
+        var scale = MathF.Min(layoutWidth / worldWidth, layoutHeight / worldHeight);
+        return new MinimapView(
+            new Rectangle(
+                (int)MathF.Round(layout.X),
+                (int)MathF.Round(layout.Y),
+                Math.Max(1, (int)MathF.Round(worldWidth * scale)),
+                Math.Max(1, (int)MathF.Round(worldHeight * scale))),
+            0f,
+            0f,
+            worldWidth,
+            worldHeight,
+            scale);
+    }
+
+    private static MinimapView ResolveHeightFitView(
+        float worldWidth,
+        float worldHeight,
+        MinimapLayout layout,
+        Vector2 localPlayerWorldPosition)
+    {
+        var layoutWidth = Math.Max(20f, layout.Width);
+        var layoutHeight = Math.Max(20f, layout.Height);
+        var scale = layoutHeight / worldHeight;
+        var visibleWorldWidth = Math.Min(worldWidth, layoutWidth / Math.Max(scale, 0.0001f));
+        return new MinimapView(
+            new Rectangle(
+                (int)MathF.Round(layout.X),
+                (int)MathF.Round(layout.Y),
+                Math.Max(1, (int)MathF.Round(visibleWorldWidth * scale)),
+                Math.Max(1, (int)MathF.Round(worldHeight * scale))),
+            ClampViewportOrigin(localPlayerWorldPosition.X - visibleWorldWidth / 2f, worldWidth, visibleWorldWidth),
+            0f,
+            visibleWorldWidth,
+            worldHeight,
+            scale);
+    }
+
+    private static ViewMetrics ResolveViewMetrics(IOpenGarrisonClientReadOnlyState state, MinimapLayout layout)
+    {
+        return new ViewMetrics(
+            Math.Max(1f, state.LevelWidth),
+            Math.Max(1f, state.LevelHeight),
+            Math.Max(20f, layout.Width),
+            Math.Max(20f, layout.Height));
     }
 
     private static bool TryProjectToScreen(MinimapView view, Vector2 worldPosition, out Vector2 screenPosition)
@@ -535,6 +639,8 @@ public sealed class TeamOnlyMinimapPlugin :
     }
 
     private readonly record struct MinimapLayout(float X, float Y, float Width, float Height);
+
+    private readonly record struct ViewMetrics(float WorldWidth, float WorldHeight, float LayoutWidth, float LayoutHeight);
 
     private readonly record struct MinimapView(
         Rectangle Bounds,

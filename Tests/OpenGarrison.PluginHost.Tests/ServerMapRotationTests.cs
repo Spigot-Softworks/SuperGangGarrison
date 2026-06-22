@@ -69,6 +69,53 @@ public sealed class ServerMapRotationTests
     }
 
     [Fact]
+    public void ExternalUnlistedMapDoesNotRewindRotationCursor()
+    {
+        var world = new SimulationWorld();
+        var manager = new MapRotationManager(
+            world,
+            requestedMap: "Truefort",
+            mapRotationFile: null,
+            stockMapRotation: ["Truefort", "Conflict", "ClassicWell"],
+            static _ => { });
+
+        manager.AlignExternalMapChange("Harvest");
+        Assert.True(world.TryLoadLevel("Harvest", mapAreaIndex: 1, preservePlayerStats: false));
+        ForceMapChangeReady(world);
+
+        Assert.True(manager.TryApplyPendingMapChange(out var transition));
+
+        Assert.Equal("Conflict", transition.NextLevelName);
+        Assert.Equal("Conflict", world.Level.Name);
+        Assert.DoesNotContain("Harvest", manager.MapRotation);
+    }
+
+    [Fact]
+    public void QueuedUnlistedMapDoesNotRewindRotationCursorAfterItFinishes()
+    {
+        var world = new SimulationWorld();
+        var manager = new MapRotationManager(
+            world,
+            requestedMap: "Truefort",
+            mapRotationFile: null,
+            stockMapRotation: ["Truefort", "Conflict", "ClassicWell"],
+            static _ => { });
+
+        Assert.True(manager.TrySetNextRoundMap("Harvest"));
+        ForceMapChangeReady(world);
+        Assert.True(manager.TryApplyPendingMapChange(out var votedTransition));
+        Assert.Equal("Harvest", votedTransition.NextLevelName);
+        Assert.Equal("Harvest", world.Level.Name);
+
+        ForceMapChangeReady(world);
+        Assert.True(manager.TryApplyPendingMapChange(out var rotationTransition));
+
+        Assert.Equal("Conflict", rotationTransition.NextLevelName);
+        Assert.Equal("Conflict", world.Level.Name);
+        Assert.DoesNotContain("Harvest", manager.MapRotation);
+    }
+
+    [Fact]
     public void MapRotationRoundCountRestartsCurrentMapUntilThreshold()
     {
         var world = new SimulationWorld();

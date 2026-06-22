@@ -239,17 +239,14 @@ public sealed partial class PlayerEntity
     private bool TryApplyCivviePogoBounceImpulse()
     {
         var superJump = CivviePogoSuperJumpHeld;
-        if (!superJump && !IsCivviePogoLandingSurfaceBelowOrigin())
-        {
-            ResolveCivviePogoGroundContactWithoutBounce();
-            return false;
-        }
+        var landedBelowOrigin = IsCivviePogoLandingSurfaceBelowOrigin();
 
         ApplyCivviePogoBounce(
             superJump,
             CivviePogoBaseBounceJumpScale,
             CivviePogoSuperJumpScale,
-            CivviePogoCrunchDurationTicks);
+            CivviePogoCrunchDurationTicks,
+            allowFallBounceBonus: landedBelowOrigin);
         if (VerticalSpeed >= 0f)
         {
             CivviePogoNeedsGroundBounce = true;
@@ -264,7 +261,8 @@ public sealed partial class PlayerEntity
         bool superJump,
         float baseBounceJumpScale,
         float superJumpScale,
-        int crunchDurationTicks)
+        int crunchDurationTicks,
+        bool allowFallBounceBonus)
     {
         RememberCivviePogoGroundOrigin();
         var jumpSpeed = JumpSpeed * GetJumpScale();
@@ -276,7 +274,10 @@ public sealed partial class PlayerEntity
         var baseScale = superJump
             ? MathF.Max(0f, superJumpScale)
             : MathF.Max(0f, baseBounceJumpScale);
-        var scale = baseScale + ComputeCivviePogoFallBounceScaleBonus(jumpSpeed, baseScale);
+        var bonusScale = allowFallBounceBonus
+            ? ComputeCivviePogoFallBounceScaleBonus(jumpSpeed, baseScale)
+            : 0f;
+        var scale = baseScale + bonusScale;
         VerticalSpeed = -jumpSpeed * scale;
         IsGrounded = false;
         IsCivviePogoSuperJumpAirPhaseActive = superJump;
@@ -294,17 +295,6 @@ public sealed partial class PlayerEntity
     {
         return CivviePogoHasGroundOrigin
             && Y > CivviePogoGroundOriginY + CivviePogoLowerLandingSurfaceThreshold;
-    }
-
-    private void ResolveCivviePogoGroundContactWithoutBounce()
-    {
-        CivviePogoNeedsGroundBounce = false;
-        CivviePogoPendingImpactFallSpeed = 0f;
-        CivviePogoCrunchTicksRemaining = 0;
-        IsCivviePogoSuperJumpAirPhaseActive = false;
-        CivviePogoSuperJumpTrickUsed = false;
-        ClearCivviePogoTrick();
-        RememberCivviePogoGroundOrigin();
     }
 
     private void RememberCivviePogoGroundOrigin()

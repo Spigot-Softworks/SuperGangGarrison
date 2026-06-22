@@ -84,12 +84,15 @@ sealed class MapRotationManager
         var preserveStats = false;
         string nextMap;
         var nextArea = 1;
+        var alignLoadedMapAsExternal = false;
 
         if (_queuedNextRoundMap is { } queuedNextRoundMap)
         {
             nextMap = queuedNextRoundMap.LevelName;
             nextArea = queuedNextRoundMap.AreaIndex;
             _queuedNextRoundMap = null;
+            AlignExternalMapChange(nextMap);
+            alignLoadedMapAsExternal = true;
             _log($"[server] advancing to voted next round map {nextMap} area {nextArea}");
         }
         else if (isVipFailedOffense && !ShouldAdvanceRotation())
@@ -200,7 +203,15 @@ sealed class MapRotationManager
             ResetPolicyCountersForCurrentMap();
         }
 
-        AlignCurrentMap(_world.Level.Name);
+        if (alignLoadedMapAsExternal)
+        {
+            AlignExternalMapChange(_world.Level.Name);
+        }
+        else
+        {
+            AlignCurrentMap(_world.Level.Name);
+        }
+
         _log($"[server] now running {_world.Level.Name} area {_world.Level.MapAreaIndex}/{_world.Level.MapAreaCount}");
         return true;
     }
@@ -275,6 +286,15 @@ sealed class MapRotationManager
         }
 
         _mapRotationIndex = EnsureMapRotationIndex(_mapRotation, levelName, levelName);
+    }
+
+    public void AlignExternalMapChange(string levelName)
+    {
+        var index = FindMapRotationIndex(_mapRotation, levelName);
+        if (index >= 0)
+        {
+            _mapRotationIndex = index;
+        }
     }
 
     private void InitializeWorldLevel(string? requestedMap)
