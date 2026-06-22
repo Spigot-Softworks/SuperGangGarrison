@@ -446,6 +446,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(ServerAdvancedSection, "CompetitiveSetupSeconds", HostSettings.CompetitiveSetupSeconds);
         ini.SetBool(ServerAdvancedSection, "RandomSpreadEnabled", HostSettings.RandomSpreadEnabled);
         ini.SetBool(ServerAdvancedSection, "SniperAimIndicatorEnabled", HostSettings.SniperAimIndicatorEnabled);
+        ini.SetBool(ServerAdvancedSection, "LocalPredictionEnabled", HostSettings.LocalPredictionEnabled);
         ini.SetBool(ServerAdvancedSection, "RoundEndFriendlyFireEnabled", HostSettings.RoundEndFriendlyFireEnabled);
         ini.SetBool(ServerAdvancedSection, "SwitchTeamsAfterRoundEnd", HostSettings.SwitchTeamsAfterRoundEnd);
         ini.SetInt(ServerAdvancedSection, "TeamShuffleAfterWins", OpenGarrisonHostSettings.NormalizeTeamShuffleAfterWins(HostSettings.TeamShuffleAfterWins));
@@ -758,6 +759,8 @@ public sealed class OpenGarrisonHostSettings
 
     public bool SniperAimIndicatorEnabled { get; set; } = true;
 
+    public bool LocalPredictionEnabled { get; set; }
+
     public bool RoundEndFriendlyFireEnabled { get; set; }
 
     public bool SwitchTeamsAfterRoundEnd { get; set; }
@@ -869,6 +872,7 @@ public sealed class OpenGarrisonHostSettings
             SecondaryAbilitiesEnabled = SecondaryAbilitiesEnabled,
             RandomSpreadEnabled = RandomSpreadEnabled,
             SniperAimIndicatorEnabled = SniperAimIndicatorEnabled,
+            LocalPredictionEnabled = LocalPredictionEnabled,
             RoundEndFriendlyFireEnabled = RoundEndFriendlyFireEnabled,
             SwitchTeamsAfterRoundEnd = SwitchTeamsAfterRoundEnd,
             TeamShuffleAfterWins = NormalizeTeamShuffleAfterWins(TeamShuffleAfterWins),
@@ -925,6 +929,7 @@ public sealed class OpenGarrisonHostSettings
                 ? ini.GetBool("Server.Advanced", "RandomSpreadEnabled", true)
                 : true,
             SniperAimIndicatorEnabled = ini.GetBool("Server.Advanced", "SniperAimIndicatorEnabled", true),
+            LocalPredictionEnabled = ini.GetBool("Server.Advanced", "LocalPredictionEnabled", false),
             RoundEndFriendlyFireEnabled = ini.GetBool("Server.Advanced", "RoundEndFriendlyFireEnabled", false),
             SwitchTeamsAfterRoundEnd = ini.GetBool("Server.Advanced", "SwitchTeamsAfterRoundEnd", false),
             TeamShuffleAfterWins = NormalizeTeamShuffleAfterWins(

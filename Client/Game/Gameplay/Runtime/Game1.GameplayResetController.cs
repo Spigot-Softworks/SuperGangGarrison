@@ -45,6 +45,9 @@ public partial class Game1
             _game.ResetBackstabVisuals();
             _game._hasPredictedLocalPlayerPosition = false;
             _game._hasSmoothedLocalPlayerRenderPosition = false;
+            _game._hasPredictedLocalActionState = false;
+            _game._serverLocalPredictionEnabled = false;
+            _game._predictedLocalPlayerShadow = null;
             _game._predictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
             _game._lastPredictedRenderSmoothingTimeSeconds = -1d;
             _game.ResetSmoothCameraState();

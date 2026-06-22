@@ -217,7 +217,8 @@ public static partial class ProtocolCodec
                     reader.ReadBoolean(),
                     ReadString(reader, MaxMapUrlBytes),
                     ReadString(reader, MaxMapHashBytes),
-                    reader.ReadSingle()),
+                    reader.ReadSingle(),
+                    stream.Position < stream.Length && reader.ReadBoolean()),
                 MessageType.ConnectionDenied => new ConnectionDeniedMessage(ReadString(reader, MaxReasonBytes)),
                 MessageType.PasswordRequest => new PasswordRequestMessage(),
                 MessageType.PasswordSubmit => new PasswordSubmitMessage(ReadString(reader, MaxPasswordBytes)),
@@ -409,6 +410,7 @@ public static partial class ProtocolCodec
                 WriteString(writer, welcome.MapDownloadUrl, MaxMapUrlBytes, nameof(welcome.MapDownloadUrl));
                 WriteString(writer, welcome.MapContentHash, MaxMapHashBytes, nameof(welcome.MapContentHash));
                 writer.Write(welcome.MapScale);
+                writer.Write(welcome.LocalPredictionEnabled);
                 break;
             case ConnectionDeniedMessage denied:
                 WriteString(writer, denied.Reason, MaxReasonBytes, nameof(denied.Reason));

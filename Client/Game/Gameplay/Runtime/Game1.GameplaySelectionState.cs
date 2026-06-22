@@ -81,6 +81,7 @@ public partial class Game1
             return;
         }
 
+        ResetLocalPredictionForAuthorityTransition();
         _networkClient.QueueSpectateSelection();
         CloseGameplaySelectionMenus();
         _menuStatusMessage = "Switching to spectator mode...";
@@ -113,6 +114,7 @@ public partial class Game1
             return;
         }
 
+        ResetLocalPredictionForAuthorityTransition();
         _networkClient.QueueTeamSelection(selectedTeam);
         _menuStatusMessage = selectedTeam switch
         {

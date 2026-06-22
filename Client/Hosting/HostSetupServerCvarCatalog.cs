@@ -62,6 +62,7 @@ internal static class HostSetupServerCvarCatalog
         Def("sv_specialabilities", "Special Abilities", HostSetupCvarEditorKind.Toggle, HostSetupServerCvarValueType.Boolean, hostSettingKey: nameof(OpenGarrisonHostSettings.SecondaryAbilitiesEnabled)),
         Def("sv_randomspread", "Random Spread", HostSetupCvarEditorKind.Toggle, HostSetupServerCvarValueType.Boolean, hostSettingKey: nameof(OpenGarrisonHostSettings.RandomSpreadEnabled)),
         Def("sv_sniper_aim_indicator", "Sniper Aim Indicator", HostSetupCvarEditorKind.Toggle, HostSetupServerCvarValueType.Boolean, hostSettingKey: nameof(OpenGarrisonHostSettings.SniperAimIndicatorEnabled)),
+        Def("sv_local_prediction", "Local Prediction", HostSetupCvarEditorKind.Toggle, HostSetupServerCvarValueType.Boolean, hostSettingKey: nameof(OpenGarrisonHostSettings.LocalPredictionEnabled)),
         Def("sv_competitive_readyup", "Competitive Ready-up", HostSetupCvarEditorKind.Toggle, HostSetupServerCvarValueType.Boolean, hostSettingKey: nameof(OpenGarrisonHostSettings.CompetitiveReadyUpEnabled)),
         Def("sv_competitive_setup_seconds", "Competitive Setup (sec)", HostSetupCvarEditorKind.Stepped, HostSetupServerCvarValueType.Integer, 0, 120, step: 1, hostSettingKey: nameof(OpenGarrisonHostSettings.CompetitiveSetupSeconds)),
         Def("sv_roundendff", "Round-end FF", HostSetupCvarEditorKind.Toggle, HostSetupServerCvarValueType.Boolean, hostSettingKey: nameof(OpenGarrisonHostSettings.RoundEndFriendlyFireEnabled)),

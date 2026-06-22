@@ -20,6 +20,8 @@ public partial class Game1
     private const string ClientPerformanceFriendlyBotsEnvironmentVariable = "OG_CLIENT_PERF_FRIENDLY_BOTS";
     private const string ClientPerformanceEnemyBotsEnvironmentVariable = "OG_CLIENT_PERF_ENEMY_BOTS";
     private const string ClientPerformanceClassEnvironmentVariable = "OG_CLIENT_PERF_CLASS";
+    private const string ClientPerformanceChangeClassEnvironmentVariable = "OG_CLIENT_PERF_CHANGE_CLASS";
+    private const string ClientPerformanceHoverClassSelectEnvironmentVariable = "OG_CLIENT_PERF_HOVER_CLASS_SELECT";
     private const string ClientPerformanceBotClassEnvironmentVariable = "OG_CLIENT_PERF_BOT_CLASS";
     private const string ClientPerformanceInputEnvironmentVariable = "OG_CLIENT_PERF_INPUT";
     private const string ClientPerformanceWarmupSecondsEnvironmentVariable = "OG_CLIENT_PERF_WARMUP_SECONDS";
@@ -49,6 +51,9 @@ public partial class Game1
     private double _clientPerformanceSummaryElapsedSeconds;
     private long _clientPerformanceLastFrameTimestamp;
     private bool _clientPerformanceTestSessionRequested;
+    private bool _clientPerformanceTestClassSelectHoverPrimed;
+    private bool _clientPerformanceTestClassChangeHoverPrimed;
+    private bool _clientPerformanceTestClassChangeApplied;
     private bool _clientPerformanceTestMeasurementStarted;
     private bool _clientPerformanceTestMeasurementCompleted;
     private double _clientPerformanceTestMeasuredSeconds;
@@ -218,13 +223,40 @@ public partial class Game1
 
         if (_classSelectOpen)
         {
-            ApplyDirectClassSelection(GetClientPerformanceClass());
+            var requestedClass = GetClientPerformanceClass();
+            var requestedClassHoverIndex = GetClientPerformanceClassSelectHoverIndex(requestedClass);
+            if (PrimeClientPerformanceClassSelectHover(requestedClass, ref _clientPerformanceTestClassSelectHoverPrimed))
+            {
+                return;
+            }
+
+            SuppressPrimaryFireUntilMouseRelease();
+            ApplyClassSelection(requestedClassHoverIndex);
             CloseGameplaySelectionMenus();
             return;
         }
 
         if (_world.LocalPlayerAwaitingJoin)
         {
+            return;
+        }
+
+        var changeClass = Environment.GetEnvironmentVariable(ClientPerformanceChangeClassEnvironmentVariable);
+        if (!_clientPerformanceTestClassChangeApplied && !string.IsNullOrWhiteSpace(changeClass))
+        {
+            _clientPerformanceTestClassChangeApplied = true;
+            var changedClass = ParseClientPerformanceClass(changeClass, _world.LocalPlayer.ClassId);
+            var changedClassHoverIndex = GetClientPerformanceClassSelectHoverIndex(changedClass);
+            OpenGameplayClassSelection();
+            if (PrimeClientPerformanceClassSelectHover(changedClass, ref _clientPerformanceTestClassChangeHoverPrimed))
+            {
+                return;
+            }
+
+            SuppressPrimaryFireUntilMouseRelease();
+            ApplyClassSelection(changedClassHoverIndex);
+            CloseGameplaySelectionMenus();
+            LogClientPerformanceLine($"event=client_perf_test_class_change class={changedClass}");
             return;
         }
 
@@ -247,6 +279,44 @@ public partial class Game1
             ResetClientPerformanceMeasurementWindow();
             LogClientPerformanceLine($"event=client_perf_test_measurement_started {FormatClientPerformanceBotBehaviorSummary()}");
         }
+    }
+
+    private bool PrimeClientPerformanceClassSelectHover(PlayerClass playerClass, ref bool hoverPrimed)
+    {
+        if (!GetClientPerformanceEnvironmentFlag(ClientPerformanceHoverClassSelectEnvironmentVariable))
+        {
+            return false;
+        }
+
+        _classSelectHoverIndex = GetClientPerformanceClassSelectHoverIndex(playerClass);
+        if (!hoverPrimed)
+        {
+            _classSelectAlpha = 0.99f;
+            _classSelectPanelY = 120f;
+            AdvanceClassSelectPortraitAnimation();
+            hoverPrimed = true;
+            LogClientPerformanceLine($"event=client_perf_test_class_select_hover class={playerClass} hover={_classSelectHoverIndex}");
+            return true;
+        }
+
+        return false;
+    }
+
+    private static int GetClientPerformanceClassSelectHoverIndex(PlayerClass playerClass)
+    {
+        return playerClass switch
+        {
+            PlayerClass.Scout => 0,
+            PlayerClass.Pyro => 1,
+            PlayerClass.Soldier => 2,
+            PlayerClass.Heavy => 3,
+            PlayerClass.Demoman => 4,
+            PlayerClass.Medic => 5,
+            PlayerClass.Engineer => 6,
+            PlayerClass.Spy => 7,
+            PlayerClass.Sniper => 8,
+            _ => 9,
+        };
     }
 
     private void AdvanceLastToDiePerformanceAutomation()

@@ -287,6 +287,7 @@ public partial class Game1
             _game._networkClient.ClearPendingTeamSelection();
             _game._networkClient.ClearPendingClassSelection();
             _game.ResetGameplayRuntimeState();
+            _game._serverLocalPredictionEnabled = welcome.LocalPredictionEnabled && !_game._networkClient.IsSpectator;
             _game.ShowJoiningServerLoadingOverlay();
             if (!_game._world.TryLoadLevel(welcome.LevelName, mapAreaIndex: 1, preservePlayerStats: false, mapScale: welcome.MapScale))
             {

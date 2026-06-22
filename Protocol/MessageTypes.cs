@@ -103,7 +103,8 @@ public sealed record WelcomeMessage(
     bool IsCustomMap = false,
     string MapDownloadUrl = "",
     string MapContentHash = "",
-    float MapScale = 1f) : IProtocolMessage
+    float MapScale = 1f,
+    bool LocalPredictionEnabled = false) : IProtocolMessage
 {
     public MessageType Type => MessageType.Welcome;
 }

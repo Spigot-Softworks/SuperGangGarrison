@@ -65,11 +65,9 @@ public partial class Game1
 
     private void UpdateLocalPredictedRenderPosition()
     {
-        if (!_networkClient.IsConnected || !_hasPredictedLocalPlayerPosition || !_world.LocalPlayer.IsAlive || _world.LocalPlayerAwaitingJoin)
+        if (!CanUseLocalPrediction() || !_hasPredictedLocalPlayerPosition || !_world.LocalPlayer.IsAlive || _world.LocalPlayerAwaitingJoin)
         {
-            _hasSmoothedLocalPlayerRenderPosition = false;
-            _predictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
-            _lastPredictedRenderSmoothingTimeSeconds = -1d;
+            ClearLocalPredictionState(clearPendingInputs: false);
             return;
         }
 
