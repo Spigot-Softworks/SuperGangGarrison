@@ -90,7 +90,7 @@ public sealed partial class PlayerEntity : SimulationEntity
     internal const float CivvieUmbrellaSlowFallFrictionFactorScale = 0.86f;
     internal const float CivvieUmbrellaSlowFallRunPowerMultiplier = 1.85f;
     internal const float CivvieUmbrellaSlowFallHorizontalSpeedMultiplier = 1.1f;
-    public const float CivvieUmbrellaAirLiftSpeedPerTick = 10f;
+    public const float CivvieUmbrellaAirLiftSpeedPerTick = 5.5f;
     public const int CivvieTauntHealAmountDefault = 15;
     public const float CivvieTauntHealRadiusDefault = 120f;
     public const int CivvieTauntHealFrameIndex = 9;
