@@ -136,6 +136,72 @@ public sealed class SimulationWorldStingerRocketTests
     }
 
     [Fact]
+    public void FriendlyExplosionBoostDisabled_SkipsTeammateRocketKnockback()
+    {
+        var world = CreateSoldierWorld(new ExperimentalGameplaySettings());
+        var owner = world.LocalPlayer;
+        owner.TeleportTo(100f, 100f);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TrySetNetworkPlayerTeam(2, owner.Team));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.TryGetNetworkPlayer(2, out var teammate));
+        teammate.TeleportTo(owner.X + 16f, owner.Y);
+        teammate.ApplyVelocityImpulse(0f, -4f);
+
+        var rocket = new RocketProjectileEntity(
+            id: 1,
+            team: owner.Team,
+            ownerId: owner.Id,
+            x: owner.X,
+            y: owner.Y,
+            speed: 0f,
+            directionRadians: 0f,
+            rangeAnchorOwnerId: owner.Id,
+            lastKnownRangeOriginX: owner.X,
+            lastKnownRangeOriginY: owner.Y);
+
+        InvokeRocketExplosion(world, rocket);
+
+        Assert.Equal(0f, teammate.HorizontalSpeed);
+        Assert.Equal(-4f, teammate.VerticalSpeed);
+    }
+
+    [Fact]
+    public void FriendlyExplosionBoostEnabled_AppliesTeammateRocketKnockback()
+    {
+        var world = CreateSoldierWorld(new ExperimentalGameplaySettings(EnableFriendlyExplosionBoost: true));
+        var owner = world.LocalPlayer;
+        owner.TeleportTo(100f, 100f);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TrySetNetworkPlayerTeam(2, owner.Team));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.TryGetNetworkPlayer(2, out var teammate));
+        teammate.TeleportTo(owner.X + 16f, owner.Y);
+        teammate.ApplyVelocityImpulse(0f, -4f);
+        var speedBefore = GetPlayerSpeedMagnitude(teammate);
+
+        var rocket = new RocketProjectileEntity(
+            id: 1,
+            team: owner.Team,
+            ownerId: owner.Id,
+            x: owner.X,
+            y: owner.Y,
+            speed: 0f,
+            directionRadians: 0f,
+            rangeAnchorOwnerId: owner.Id,
+            lastKnownRangeOriginX: owner.X,
+            lastKnownRangeOriginY: owner.Y);
+
+        InvokeRocketExplosion(world, rocket);
+
+        Assert.True(
+            GetPlayerSpeedMagnitude(teammate) > speedBefore + 0.01f,
+            $"expected teammate knockback; before={speedBefore:0.###} after h={teammate.HorizontalSpeed} v={teammate.VerticalSpeed}");
+    }
+
+    [Fact]
     public void DangerCloseChainExplosionDrainsQueueWithoutLeavingReentrantState()
     {
         var world = CreateSoldierWorld(new ExperimentalGameplaySettings(EnableSoldierDangerClose: true));

@@ -31,6 +31,7 @@ public sealed partial class SimulationWorld
         RegisterSoundEvent(player, "CompressionBlastSnd");
         RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
         ApplyAirblastToSelf(player, sourceX, sourceY, aimRadians);
+        var applyTeammateKnockback = this.ExperimentalGameplaySettings.EnableFriendlyAirblastKnockback;
         ApplyAirblastToPlayers(
             player,
             sourceX,
@@ -40,7 +41,8 @@ public sealed partial class SimulationWorld
             poofY,
             affectEnemies: false,
             affectTeammates: true,
-            carryTeammatesWithPlayerVelocity: true);
+            applyTeammateKnockback: applyTeammateKnockback,
+            carryTeammatesWithPlayerVelocity: applyTeammateKnockback);
         PushLooseBodies(sourceX, sourceY, aimRadians, poofX, poofY);
     }
 
@@ -60,7 +62,14 @@ public sealed partial class SimulationWorld
         ReflectEnemyFlares(player, aimRadians, poofX, poofY);
         ReflectEnemyGrenades(player, aimRadians, poofX, poofY);
         PushEnemyMines(player.Team, aimRadians, poofX, poofY);
-        ApplyAirblastToPlayers(player, sourceX, sourceY, aimRadians, poofX, poofY);
+        ApplyAirblastToPlayers(
+            player,
+            sourceX,
+            sourceY,
+            aimRadians,
+            poofX,
+            poofY,
+            applyTeammateKnockback: this.ExperimentalGameplaySettings.EnableFriendlyAirblastKnockback);
         PushLooseBodies(sourceX, sourceY, aimRadians, poofX, poofY);
     }
 
@@ -231,6 +240,7 @@ public sealed partial class SimulationWorld
         float poofY,
         bool affectEnemies = true,
         bool affectTeammates = true,
+        bool applyTeammateKnockback = false,
         bool carryTeammatesWithPlayerVelocity = false)
     {
         foreach (var target in EnumerateSimulatedPlayers())
@@ -252,6 +262,10 @@ public sealed partial class SimulationWorld
             {
                 SpawnAirblastExtinguishFlames(player, target, aimRadians);
                 target.ExtinguishAfterburn();
+                if (!applyTeammateKnockback)
+                {
+                    continue;
+                }
             }
 
             var scale = GetAirblastScale(sourceX, sourceY, target.X, target.Y);
