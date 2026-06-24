@@ -29,6 +29,8 @@ public partial class Game1
         EnemyHealthPackDrops,
         EnemyDroppedWeapons,
         PracticeBotsPrioritizeKills,
+        FriendlyExplosionBoost,
+        FriendlyAirblastKnockback,
     }
 
     private readonly record struct ClientPowerToggleEntry(
@@ -61,6 +63,8 @@ public partial class Game1
         new(ClientPowerToggleKind.EnemyHealthPackDrops, "Enemies drop health packs", "10% chance for enemy kills to drop a temporary small or large health pack."),
         new(ClientPowerToggleKind.EnemyDroppedWeapons, "Enemies drop weapons", "50% chance for enemy bot kills to drop a temporary primary weapon for Soldier to pick up with Q."),
         new(ClientPowerToggleKind.PracticeBotsPrioritizeKills, "Bots prioritize kills", "Enemy bots chase live targets before objectives."),
+        new(ClientPowerToggleKind.FriendlyExplosionBoost, "Friendly explosion boost", "Teammate rockets, grenades, and mines can launch airborne allies."),
+        new(ClientPowerToggleKind.FriendlyAirblastKnockback, "Friendly airblast knockback", "Pyro airblast and airburst can move teammates."),
     ];
 
     private void OpenClientPowersMenu(bool fromGameplay)
@@ -441,6 +445,8 @@ public partial class Game1
             ClientPowerToggleKind.EnemyHealthPackDrops => _practiceExperimentalGameplaySettings.EnableEnemyHealthPackDrops,
             ClientPowerToggleKind.EnemyDroppedWeapons => _practiceExperimentalGameplaySettings.EnableEnemyDroppedWeapons,
             ClientPowerToggleKind.PracticeBotsPrioritizeKills => _practiceExperimentalGameplaySettings.EnablePracticeBotsPrioritizeKills,
+            ClientPowerToggleKind.FriendlyExplosionBoost => _practiceExperimentalGameplaySettings.EnableFriendlyExplosionBoost,
+            ClientPowerToggleKind.FriendlyAirblastKnockback => _practiceExperimentalGameplaySettings.EnableFriendlyAirblastKnockback,
             _ => false,
         };
     }
@@ -540,6 +546,18 @@ public partial class Game1
                 _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
                 {
                     EnablePracticeBotsPrioritizeKills = !_practiceExperimentalGameplaySettings.EnablePracticeBotsPrioritizeKills,
+                };
+                break;
+            case ClientPowerToggleKind.FriendlyExplosionBoost:
+                _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
+                {
+                    EnableFriendlyExplosionBoost = !_practiceExperimentalGameplaySettings.EnableFriendlyExplosionBoost,
+                };
+                break;
+            case ClientPowerToggleKind.FriendlyAirblastKnockback:
+                _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
+                {
+                    EnableFriendlyAirblastKnockback = !_practiceExperimentalGameplaySettings.EnableFriendlyAirblastKnockback,
                 };
                 break;
         }

@@ -118,6 +118,11 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
+            if (ShouldSkipFriendlyExplosionBoost(player, mine.Team, mine.OwnerId))
+            {
+                continue;
+            }
+
             ApplyMineExplosionImpulse(player, mine.X, mine.Y, factor);
             if (player.Id == mine.OwnerId && player.Team == mine.Team)
             {
@@ -318,10 +323,25 @@ public sealed partial class SimulationWorld
 
     private bool ShouldIgnoreFriendlyGroundedBlast(PlayerEntity player, PlayerTeam explosiveTeam, int explosiveOwnerId)
     {
-        return player.Team == explosiveTeam
-            && player.Id != explosiveOwnerId
-            && !CanTeamDamagePlayer(explosiveTeam, explosiveOwnerId, player)
+        if (player.Team != explosiveTeam || player.Id == explosiveOwnerId)
+        {
+            return false;
+        }
+
+        if (ExperimentalGameplaySettings.EnableFriendlyExplosionBoost)
+        {
+            return false;
+        }
+
+        return !CanTeamDamagePlayer(explosiveTeam, explosiveOwnerId, player)
             && !player.CanOccupy(Level, player.Team, player.X, player.Y + 1f);
+    }
+
+    private bool ShouldSkipFriendlyExplosionBoost(PlayerEntity player, PlayerTeam explosiveTeam, int explosiveOwnerId)
+    {
+        return !ExperimentalGameplaySettings.EnableFriendlyExplosionBoost
+            && player.Team == explosiveTeam
+            && player.Id != explosiveOwnerId;
     }
 
     private void TriggerNearbyMines(MineProjectileEntity sourceMine)
@@ -469,6 +489,11 @@ public sealed partial class SimulationWorld
 
             var distanceFactor = 1f - (distance / blastRadius);
             if (distanceFactor <= RocketProjectileEntity.SplashThresholdFactor)
+            {
+                continue;
+            }
+
+            if (ShouldSkipFriendlyExplosionBoost(player, owner.Team, owner.Id))
             {
                 continue;
             }
