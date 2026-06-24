@@ -211,6 +211,11 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
+                if (world.ShouldSkipFriendlyExplosionBoost(player, rocket.Team, rocket.OwnerId))
+                {
+                    continue;
+                }
+
                 ApplyPlayerImpulse(world, player, rocket, distanceFactor);
                 ApplyMovementState(player, rocket);
                 var receivedBlastLiftBonus = player.Id != rocket.OwnerId && ShouldApplyBlastLiftBonus(player, rocket.X, rocket.Y);

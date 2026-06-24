@@ -455,6 +455,11 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
+            if (ShouldSkipFriendlyExplosionBoost(player, grenade.Team, grenade.OwnerId))
+            {
+                continue;
+            }
+
             ApplyMineExplosionImpulse(player, grenade.X, grenade.Y, factor);
             if (player.Id == grenade.OwnerId && player.Team == grenade.Team)
             {
