@@ -11,6 +11,8 @@ const string UpdateManifestBaseUrl = "https://api.superganggarrison.com/updates"
 const string VersionFileName = "version.txt";
 const string ReleaseChannelFileName = "release-channel.txt";
 const string ApplyUpdateArgument = "--apply-update";
+const string NoLaunchAfterUpdateArgument = "--no-launch-after-update";
+const string UpdateOnlyArgument = "--update-only";
 const string AppPayloadDirectoryName = "app";
 const string ChainedUpdateManifestUrlFileName = "chained-update-manifest-url.txt";
 
@@ -33,16 +35,21 @@ if (string.IsNullOrWhiteSpace(manifestUrl))
 LogUpdaterEvent(appDirectory, $"starting updater appDirectory=\"{appDirectory}\" manifestUrl=\"{manifestUrl}\" channel=\"{(string.IsNullOrWhiteSpace(expectedManifestChannel) ? "override" : expectedManifestChannel)}\"");
 
 using var updateUi = UpdateUi.Create();
+var suppressLaunchAfterUpdate = HasNoLaunchAfterUpdateArgument(args);
+var gameArgs = StripUpdaterOnlyArguments(args);
+var helperGameArgs = suppressLaunchAfterUpdate
+    ? [NoLaunchAfterUpdateArgument, .. gameArgs]
+    : gameArgs;
 var launchGame = true;
 try
 {
-    var result = await TryApplyUpdateAsync(appDirectory, manifestUrl, expectedManifestChannel, args, updateUi).ConfigureAwait(false);
+    var result = await TryApplyUpdateAsync(appDirectory, manifestUrl, expectedManifestChannel, helperGameArgs, updateUi).ConfigureAwait(false);
     if (result == UpdateApplyResult.NoUpdate && !manifestUrlOverridden)
     {
         result = await TryApplyChainedUpdateAsync(
             appDirectory,
             ReadChainedUpdateManifestUrl(appDirectory),
-            args,
+            helperGameArgs,
             updateUi,
             "installed chain").ConfigureAwait(false);
     }
@@ -65,9 +72,9 @@ catch (Exception ex)
     }
 }
 
-if (launchGame)
+if (launchGame && !suppressLaunchAfterUpdate)
 {
-    LaunchGame(appDirectory, args);
+    LaunchGame(appDirectory, gameArgs);
 }
 
 static async Task RunApplyUpdateModeAsync(string[] args)
@@ -82,7 +89,8 @@ static async Task RunApplyUpdateModeAsync(string[] args)
     var destinationDirectory = args[2];
     var version = args[3];
     _ = int.TryParse(args[4], out var parentProcessId);
-    var gameArgs = GetArgumentsAfterSeparator(args, startIndex: 5);
+    var gameArgs = StripUpdaterOnlyArguments(GetArgumentsAfterSeparator(args, startIndex: 5));
+    var suppressLaunchAfterUpdate = HasNoLaunchAfterUpdateArgument(args) || HasNoLaunchAfterUpdateArgument(gameArgs);
 
     using var updateUi = UpdateUi.Create();
     try
@@ -129,7 +137,7 @@ static async Task RunApplyUpdateModeAsync(string[] args)
             return;
         }
 
-        updateUi.Report(UpdateUiState.KnownProgress("Launching updated version...", 1d));
+        updateUi.Report(UpdateUiState.KnownProgress(suppressLaunchAfterUpdate ? "Update installed." : "Launching updated version...", 1d));
         await Task.Delay(300).ConfigureAwait(false);
     }
     catch (OperationCanceledException)
@@ -144,7 +152,26 @@ static async Task RunApplyUpdateModeAsync(string[] args)
         await Task.Delay(900).ConfigureAwait(false);
     }
 
-    LaunchGame(destinationDirectory, gameArgs);
+    if (!suppressLaunchAfterUpdate)
+    {
+        LaunchGame(destinationDirectory, gameArgs);
+    }
+}
+
+static bool HasNoLaunchAfterUpdateArgument(string[] args)
+{
+    return args.Any(static arg =>
+        string.Equals(arg, NoLaunchAfterUpdateArgument, StringComparison.Ordinal)
+        || string.Equals(arg, UpdateOnlyArgument, StringComparison.Ordinal));
+}
+
+static string[] StripUpdaterOnlyArguments(string[] args)
+{
+    return args
+        .Where(static arg =>
+            !string.Equals(arg, NoLaunchAfterUpdateArgument, StringComparison.Ordinal)
+            && !string.Equals(arg, UpdateOnlyArgument, StringComparison.Ordinal))
+        .ToArray();
 }
 
 static string[] GetArgumentsAfterSeparator(string[] args, int startIndex)

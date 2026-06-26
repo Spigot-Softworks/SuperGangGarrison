@@ -87,20 +87,20 @@ public partial class Game1
             {
                 var visual = _game._backstabVisuals[index];
                 visual.PendingSourceTicks += sourceTickAdvance;
-                var removeVisual = false;
                 while (visual.PendingSourceTicks >= 1f && !visual.Animation.IsExpired)
                 {
                     visual.PendingSourceTicks -= 1f;
-                    if (!TryGetBackstabOwnerPosition(visual.Animation.OwnerId, out var ownerPosition))
+                    if (TryGetBackstabOwnerPosition(visual.Animation.OwnerId, out var ownerPosition))
                     {
-                        removeVisual = true;
-                        break;
+                        visual.Animation.AdvanceOneTick(ownerPosition.X, ownerPosition.Y);
                     }
-
-                    visual.Animation.AdvanceOneTick(ownerPosition.X, ownerPosition.Y);
+                    else
+                    {
+                        visual.Animation.AdvanceOneTick(visual.Animation.X, visual.Animation.Y);
+                    }
                 }
 
-                if (removeVisual || visual.Animation.IsExpired)
+                if (visual.Animation.IsExpired)
                 {
                     _game._backstabVisuals.RemoveAt(index);
                 }
@@ -115,8 +115,12 @@ public partial class Game1
                 if (backstabVisual.OwnerId != 0)
                 {
                     var owner = _game.FindPlayerById(backstabVisual.OwnerId);
-                    if (owner is not null
-                        && owner.IsAlive
+                    if (owner is null)
+                    {
+                        continue;
+                    }
+
+                    if (owner.IsAlive
                         && owner.ClassId == PlayerClass.Spy
                         && _game.IsSpyHiddenFromLocalViewer(owner))
                     {

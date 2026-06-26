@@ -192,6 +192,18 @@ partial class GameServer
         _world.SetGravityScale(host.GravityScale);
         _world.SetHorizontalSpeedClampPerTick(host.HorizontalSpeedClampPerTick);
         _world.SetVerticalSpeedClampPerTick(host.VerticalSpeedClampPerTick);
+        _world.SetCaptureSpeedMultiplierPerPlayer(host.CaptureSpeedMultiplierPerPlayer);
+        _world.SetVipAllowDuplicateClasses(host.VipAllowDuplicateClasses);
+        _world.SetClassLimit(PlayerClass.Scout, host.ClassLimitScout);
+        _world.SetClassLimit(PlayerClass.Engineer, host.ClassLimitEngineer);
+        _world.SetClassLimit(PlayerClass.Pyro, host.ClassLimitPyro);
+        _world.SetClassLimit(PlayerClass.Soldier, host.ClassLimitSoldier);
+        _world.SetClassLimit(PlayerClass.Demoman, host.ClassLimitDemoman);
+        _world.SetClassLimit(PlayerClass.Heavy, host.ClassLimitHeavy);
+        _world.SetClassLimit(PlayerClass.Sniper, host.ClassLimitSniper);
+        _world.SetClassLimit(PlayerClass.Medic, host.ClassLimitMedic);
+        _world.SetClassLimit(PlayerClass.Spy, host.ClassLimitSpy);
+        _world.SetClassLimit(PlayerClass.Quote, host.ClassLimitCivilian);
     }
 
     private void ApplyRuntimeBootstrap(OpenGarrison.Server.ServerRuntimeBootstrap runtime)
@@ -981,6 +993,38 @@ partial class GameServer
             value => _world.SetVerticalSpeedClampPerTick(value),
             minValue: 1f,
             maxValue: 60f);
+        registry.RegisterFloat(
+            "sv_capture_speed_multiplier_per_player",
+            "Multiplier applied to capture progress contributed by each capturing player.",
+            _world.ConfiguredCaptureSpeedMultiplierPerPlayer,
+            () => _world.ConfiguredCaptureSpeedMultiplierPerPlayer,
+            value => _world.SetCaptureSpeedMultiplierPerPlayer(value),
+            minValue: 0f,
+            maxValue: 10f);
+        registry.RegisterBoolean(
+            "sv_vip_allow_duplicate_classes",
+            "Allow VIP maps to use regular class limits instead of one of each class per team.",
+            _world.VipAllowDuplicateClasses,
+            () => _world.VipAllowDuplicateClasses,
+            value => _world.SetVipAllowDuplicateClasses(value));
+        registry.RegisterInteger(
+            "sv_classlimit_all",
+            "Set every per-team class limit at once. Set to 0 for unlimited.",
+            _world.GetUniformClassLimit(),
+            () => _world.GetUniformClassLimit(),
+            value => _world.SetAllClassLimits(value),
+            minValue: 0,
+            maxValue: SimulationWorld.MaxPlayableNetworkPlayers);
+        RegisterClassLimitCvar(registry, PlayerClass.Scout, "sv_classlimit_scout", "Maximum Scouts per team. Set to 0 for unlimited.");
+        RegisterClassLimitCvar(registry, PlayerClass.Engineer, "sv_classlimit_engineer", "Maximum Engineers per team. Set to 0 for unlimited.");
+        RegisterClassLimitCvar(registry, PlayerClass.Pyro, "sv_classlimit_pyro", "Maximum Pyros per team. Set to 0 for unlimited.");
+        RegisterClassLimitCvar(registry, PlayerClass.Soldier, "sv_classlimit_soldier", "Maximum Soldiers per team. Set to 0 for unlimited.");
+        RegisterClassLimitCvar(registry, PlayerClass.Demoman, "sv_classlimit_demoman", "Maximum Demomen per team. Set to 0 for unlimited.");
+        RegisterClassLimitCvar(registry, PlayerClass.Heavy, "sv_classlimit_heavy", "Maximum Heavies per team. Set to 0 for unlimited.");
+        RegisterClassLimitCvar(registry, PlayerClass.Sniper, "sv_classlimit_sniper", "Maximum Snipers per team. Set to 0 for unlimited.");
+        RegisterClassLimitCvar(registry, PlayerClass.Medic, "sv_classlimit_medic", "Maximum Medics per team. Set to 0 for unlimited.");
+        RegisterClassLimitCvar(registry, PlayerClass.Spy, "sv_classlimit_spy", "Maximum Spies per team. Set to 0 for unlimited.");
+        RegisterClassLimitCvar(registry, PlayerClass.Quote, "sv_classlimit_civilian", "Maximum Civilians per team. Set to 0 for unlimited.");
         registry.RegisterBoolean(
             "sv_roundendff",
             "Enable same-team player damage during ended-round humiliation.",
@@ -1180,6 +1224,18 @@ partial class GameServer
             maxValue: 12);
         registry.EnableRuntimeProtectionPersistence(RuntimePaths.GetConfigPath("server-cvar-policy.json"));
         return registry;
+    }
+
+    private void RegisterClassLimitCvar(ServerCvarRegistry registry, PlayerClass playerClass, string name, string description)
+    {
+        registry.RegisterInteger(
+            name,
+            description,
+            _world.GetClassLimit(playerClass),
+            () => _world.GetClassLimit(playerClass),
+            value => _world.SetClassLimit(playerClass, value),
+            minValue: 0,
+            maxValue: SimulationWorld.MaxPlayableNetworkPlayers);
     }
 
     private void SetSpecialAbilitiesEnabled(bool value)

@@ -280,9 +280,9 @@ public partial class Game1 : Game
     private bool _killCamEnabled = true;
     private bool _positionSmoothingEnabled = false;
     private float _smoothCameraMultiplier = ClientSettings.DefaultSmoothCameraMultiplier;
-    private bool _hasSmoothCameraY;
-    private float _smoothCameraY;
-    private float _smoothCameraPixelY;
+    private bool _hasSmoothCamera;
+    private Vector2 _smoothCamera;
+    private Vector2 _smoothCameraPixel;
     private bool _hasGameplayCameraTopLeft;
     private Vector2 _gameplayCameraTopLeft;
     private string _lastGameplayWindowTitle = string.Empty;

@@ -7,6 +7,9 @@ namespace OpenGarrison.Core;
 
 public static class RuntimePaths
 {
+    public const string UserDataRootArgument = "--user-data-root";
+    public const string UserDataRootEnvironmentVariable = "OPENGARRISON_USER_DATA_ROOT";
+
     private static readonly StringComparison RuntimePathComparison = OperatingSystem.IsWindows()
         ? StringComparison.OrdinalIgnoreCase
         : StringComparison.Ordinal;
@@ -31,6 +34,34 @@ public static class RuntimePaths
     public static string ApplicationRoot => OperatingSystem.IsBrowser()
         ? "."
         : AppContext.BaseDirectory;
+
+    public static string[] ApplyUserDataRootArgument(string[] args)
+    {
+        ArgumentNullException.ThrowIfNull(args);
+        if (OperatingSystem.IsBrowser())
+        {
+            return args;
+        }
+
+        var filtered = new List<string>(args.Length);
+        for (var index = 0; index < args.Length; index += 1)
+        {
+            if (string.Equals(args[index], UserDataRootArgument, StringComparison.Ordinal))
+            {
+                if (index + 1 < args.Length && !string.IsNullOrWhiteSpace(args[index + 1]))
+                {
+                    Environment.SetEnvironmentVariable(UserDataRootEnvironmentVariable, args[index + 1]);
+                    index += 1;
+                }
+
+                continue;
+            }
+
+            filtered.Add(args[index]);
+        }
+
+        return filtered.Count == args.Length ? args : filtered.ToArray();
+    }
 
     public static string UserDataRoot
     {
@@ -207,14 +238,14 @@ public static class RuntimePaths
     private static bool TryGetConfiguredUserDataRoot(out string configuredPath)
     {
         configuredPath = string.Empty;
-        var configuredRoot = Environment.GetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT");
+        var configuredRoot = Environment.GetEnvironmentVariable(UserDataRootEnvironmentVariable);
         return !string.IsNullOrWhiteSpace(configuredRoot)
             && TryCreateDirectory(configuredRoot, out configuredPath);
     }
 
     private static bool HasConfiguredUserDataRoot()
     {
-        return !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT"));
+        return !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(UserDataRootEnvironmentVariable));
     }
 
     private static void MigrateKnownUserDataFilesIfNeeded(string destinationRoot)

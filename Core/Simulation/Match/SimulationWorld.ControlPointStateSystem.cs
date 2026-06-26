@@ -200,7 +200,9 @@ public sealed partial class SimulationWorld
                 if (capTeam.HasValue && cappers > 0 && point.CappingTicks < point.CapTimeTicks)
                 {
                     TrackCaptureParticipants(point, capTeam.Value, redCappersByPoint[index], blueCappersByPoint[index]);
-                    point.CappingTicks += capStrength;
+                    point.CappingTicks += world.IsVipModeActive
+                        ? capStrength
+                        : capStrength * world.ConfiguredCaptureSpeedMultiplierPerPlayer;
                     point.CappingTeam = capTeam;
                 }
                 else if (point.CappingTicks > 0f

@@ -376,7 +376,8 @@ public partial class Game1
                 }
                 catch (Exception ex)
                 {
-                    _game.DisableAudio($"starting {soundName}", ex);
+                    _game.AddConsoleLine($"looped sound skipped while starting {soundName} ({ex.GetType().Name}: {ex.Message})");
+                    StopAndDisposeLocalRapidFireWeaponSound(ref instance);
                     return;
                 }
             }
@@ -399,7 +400,8 @@ public partial class Game1
             }
             catch (Exception ex)
             {
-                _game.DisableAudio($"maintaining {soundName}", ex);
+                _game.AddConsoleLine($"looped sound skipped while maintaining {soundName} ({ex.GetType().Name}: {ex.Message})");
+                StopAndDisposeLocalRapidFireWeaponSound(ref instance);
             }
         }
 

@@ -20,6 +20,9 @@ public sealed partial class SimulationWorld
             TimeLimitTicks = snapshot.TimeLimitTicks > 0
                 ? Math.Max(snapshot.TimeRemainingTicks, snapshot.TimeLimitTicks)
                 : Math.Max(snapshot.TimeRemainingTicks, MatchRules.TimeLimitTicks),
+            CapLimit = snapshot.CapLimit > 0
+                ? Math.Clamp(snapshot.CapLimit, 1, 255)
+                : MatchRules.CapLimit,
         };
         MatchState = new MatchState(
             (MatchPhase)snapshot.MatchPhase,

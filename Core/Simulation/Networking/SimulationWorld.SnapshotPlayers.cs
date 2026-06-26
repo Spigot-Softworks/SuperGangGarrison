@@ -22,7 +22,12 @@ public sealed partial class SimulationWorld
         bool isSpectatorSnapshot)
     {
         ApplySnapshotLocalPlayerState(localPlayerState);
-        ApplySnapshotRemotePlayerState(snapshot.Players, localPlayerSlot, localPlayerState, isSpectatorSnapshot);
+        ApplySnapshotRemotePlayerState(
+            snapshot.Players,
+            snapshot.ScoreboardPlayers.Count == 0 ? snapshot.Players : snapshot.ScoreboardPlayers,
+            localPlayerSlot,
+            localPlayerState,
+            isSpectatorSnapshot);
     }
 
     private void ApplySnapshotLocalPlayerState(SnapshotPlayerState? localPlayerState)
@@ -63,11 +68,18 @@ public sealed partial class SimulationWorld
 
     private void ApplySnapshotRemotePlayerState(
         IReadOnlyList<SnapshotPlayerState> players,
+        IReadOnlyList<SnapshotPlayerState> scoreboardPlayers,
         byte localPlayerSlot,
         SnapshotPlayerState? localPlayerState,
         bool isSpectatorSnapshot)
     {
         var remotePlayerStates = players
+            .Where(player => !player.IsSpectator)
+            .Where(player => IsPlayableNetworkPlayerSlot(player.Slot))
+            .Where(player => isSpectatorSnapshot || player.Slot != localPlayerSlot)
+            .OrderBy(player => player.Slot)
+            .ToList();
+        var remoteScoreboardPlayerStates = scoreboardPlayers
             .Where(player => !player.IsSpectator)
             .Where(player => IsPlayableNetworkPlayerSlot(player.Slot))
             .Where(player => isSpectatorSnapshot || player.Slot != localPlayerSlot)
@@ -81,6 +93,7 @@ public sealed partial class SimulationWorld
         FriendlyDummyEnabled = false;
         FriendlyDummy.Kill();
         SyncRemoteSnapshotPlayers(remotePlayerStates);
+        SyncRemoteSnapshotScoreboardPlayers(remoteScoreboardPlayerStates);
 
         if (localPlayerState is not null && !localPlayerState.IsSpectator)
         {

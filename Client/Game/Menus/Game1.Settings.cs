@@ -44,7 +44,7 @@ public partial class Game1
         _smoothCameraMultiplier = NormalizeSmoothCameraMultiplier(_clientSettings.SmoothCameraMultiplier);
         if (_smoothCameraMultiplier <= 0f)
         {
-            _hasSmoothCameraY = false;
+            _hasSmoothCamera = false;
         }
 
         _spriteDropShadowEnabled = _clientSettings.SpriteDropShadowEnabled;

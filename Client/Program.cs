@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using OpenGarrison.Core;
 
+args = RuntimePaths.ApplyUserDataRootArgument(args);
 Directory.SetCurrentDirectory(AppContext.BaseDirectory);
 
 // Put a splash on screen the instant the process starts so the player sees "Launching..." during

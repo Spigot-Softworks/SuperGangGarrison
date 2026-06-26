@@ -1166,7 +1166,6 @@ public sealed partial class SimulationWorld
     {
         _snapshotSeenRemotePlayerSlots.Clear();
         _remoteSnapshotPlayers.Clear();
-        _remoteSnapshotScoreboardPlayers.Clear();
         _remoteSnapshotAwaitingJoinSlots.Clear();
         _remoteSnapshotAwaitingJoinPlayerIds.Clear();
         foreach (var snapshotPlayer in snapshotPlayers)
@@ -1244,12 +1243,50 @@ public sealed partial class SimulationWorld
             }
         }
 
-        for (var slot = LocalPlayerSlot; slot <= MaxPlayableNetworkPlayers; slot += 1)
+    }
+
+    private void SyncRemoteSnapshotScoreboardPlayers(IEnumerable<SnapshotPlayerState> snapshotPlayers)
+    {
+        _snapshotSeenRemotePlayerSlots.Clear();
+        _remoteSnapshotScoreboardPlayers.Clear();
+        foreach (var snapshotPlayer in snapshotPlayers)
         {
-            if (_remoteSnapshotPlayersBySlot.TryGetValue((byte)slot, out var player))
+            var appliedSnapshotPlayer = NormalizeAwaitingJoinSnapshotPlayerState(snapshotPlayer);
+            _snapshotSeenRemotePlayerSlots.Add(appliedSnapshotPlayer.Slot);
+            PlayerEntity player;
+            if (_remoteSnapshotPlayersBySlot.TryGetValue(appliedSnapshotPlayer.Slot, out var visiblePlayer))
             {
-                _remoteSnapshotScoreboardPlayers.Add(player);
+                player = visiblePlayer;
             }
+            else if (!_remoteSnapshotScoreboardPlayersBySlot.TryGetValue(appliedSnapshotPlayer.Slot, out player!))
+            {
+                ReserveEntityId(appliedSnapshotPlayer.PlayerId);
+                var gameplayClassId = _snapshotStringCache.Resolve(appliedSnapshotPlayer.GameplayClassCacheId, appliedSnapshotPlayer.GameplayClassId);
+                player = new PlayerEntity(
+                    appliedSnapshotPlayer.PlayerId,
+                    ResolveSnapshotClassDefinition(appliedSnapshotPlayer, gameplayClassId),
+                    appliedSnapshotPlayer.Name);
+                _remoteSnapshotScoreboardPlayersBySlot[appliedSnapshotPlayer.Slot] = player;
+            }
+
+            ApplySnapshotPlayer(player, appliedSnapshotPlayer);
+            _remoteSnapshotScoreboardPlayers.Add(player);
+        }
+
+        _snapshotStaleRemotePlayerSlots.Clear();
+        foreach (var entry in _remoteSnapshotScoreboardPlayersBySlot)
+        {
+            if (!_snapshotSeenRemotePlayerSlots.Contains(entry.Key)
+                || _remoteSnapshotPlayersBySlot.TryGetValue(entry.Key, out var visiblePlayer)
+                && ReferenceEquals(entry.Value, visiblePlayer))
+            {
+                _snapshotStaleRemotePlayerSlots.Add(entry.Key);
+            }
+        }
+
+        for (var index = 0; index < _snapshotStaleRemotePlayerSlots.Count; index += 1)
+        {
+            _remoteSnapshotScoreboardPlayersBySlot.Remove(_snapshotStaleRemotePlayerSlots[index]);
         }
     }
 

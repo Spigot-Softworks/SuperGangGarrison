@@ -1204,6 +1204,8 @@ public sealed class ServerAdminFoundationTests
         Assert.True(world.TryGetNetworkPlayer(2, out var bot));
         Assert.Equal(PlayerClass.Demoman, bot.ClassId);
         Assert.Equal(PlayerClass.Demoman, botManager.BotSlots[2].ClassId);
+        Assert.True(bot.IsAlive);
+        Assert.Equal(0, bot.Deaths);
     }
 
     [Fact]

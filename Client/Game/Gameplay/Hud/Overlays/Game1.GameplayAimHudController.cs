@@ -94,25 +94,44 @@ public partial class Game1
 
             if (facingLeft)
             {
-                _game.TryDrawScreenSpritePart(
+                TryDrawSniperChargeFillPart(
                     "ChargeS",
                     1,
                     new Rectangle(0, 0, chargeWidth, frame.Height),
                     chargePosition,
-                    Color.White * 0.8f,
-                    Vector2.One);
+                    Color.White * 0.8f);
                 return;
             }
 
             var sourceX = frame.Width - chargeWidth;
             var drawPosition = new Vector2(chargePosition.X - chargeWidth, chargePosition.Y);
-            _game.TryDrawScreenSpritePart(
+            TryDrawSniperChargeFillPart(
                 "ChargeS",
                 1,
                 new Rectangle(sourceX, 0, chargeWidth, frame.Height),
                 drawPosition,
-                Color.White * 0.8f,
-                Vector2.One);
+                Color.White * 0.8f);
+        }
+
+        private bool TryDrawSniperChargeFillPart(string spriteName, int frameIndex, Rectangle sourceRectangle, Vector2 topLeftPosition, Color tint)
+        {
+            var sprite = _game.GetResolvedSprite(spriteName);
+            if (sprite is null || frameIndex < 0 || frameIndex >= sprite.Frames.Count)
+            {
+                return false;
+            }
+
+            _game.DrawLoadedSpriteFrame(
+                sprite.Frames[frameIndex],
+                topLeftPosition,
+                sourceRectangle,
+                tint,
+                0f,
+                Vector2.Zero,
+                Vector2.One,
+                SpriteEffects.None,
+                0f);
+            return true;
         }
 
         public void DrawCrosshair(Vector2 screenPosition)

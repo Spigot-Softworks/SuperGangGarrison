@@ -65,6 +65,30 @@ public partial class Game1
 
         public float VerticalSpeedClampPerTick { get; set; } = LegacyMovementModel.MaxStepSpeedPerTick;
 
+        public float CaptureSpeedMultiplierPerPlayer { get; set; } = 2f;
+
+        public bool VipAllowDuplicateClasses { get; set; }
+
+        public int ClassLimitScout { get; set; }
+
+        public int ClassLimitEngineer { get; set; }
+
+        public int ClassLimitPyro { get; set; }
+
+        public int ClassLimitSoldier { get; set; }
+
+        public int ClassLimitDemoman { get; set; }
+
+        public int ClassLimitHeavy { get; set; }
+
+        public int ClassLimitSniper { get; set; }
+
+        public int ClassLimitMedic { get; set; }
+
+        public int ClassLimitSpy { get; set; }
+
+        public int ClassLimitCivilian { get; set; }
+
         private readonly Dictionary<string, string> _advancedCvarEditBuffers = new(StringComparer.OrdinalIgnoreCase);
 
         private static readonly string[] LinkedBasicHostSettingKeys =
@@ -303,6 +327,18 @@ public partial class Game1
             GravityScale = hostDefaults.GravityScale;
             HorizontalSpeedClampPerTick = hostDefaults.HorizontalSpeedClampPerTick;
             VerticalSpeedClampPerTick = hostDefaults.VerticalSpeedClampPerTick;
+            CaptureSpeedMultiplierPerPlayer = hostDefaults.CaptureSpeedMultiplierPerPlayer;
+            VipAllowDuplicateClasses = hostDefaults.VipAllowDuplicateClasses;
+            ClassLimitScout = hostDefaults.ClassLimitScout;
+            ClassLimitEngineer = hostDefaults.ClassLimitEngineer;
+            ClassLimitPyro = hostDefaults.ClassLimitPyro;
+            ClassLimitSoldier = hostDefaults.ClassLimitSoldier;
+            ClassLimitDemoman = hostDefaults.ClassLimitDemoman;
+            ClassLimitHeavy = hostDefaults.ClassLimitHeavy;
+            ClassLimitSniper = hostDefaults.ClassLimitSniper;
+            ClassLimitMedic = hostDefaults.ClassLimitMedic;
+            ClassLimitSpy = hostDefaults.ClassLimitSpy;
+            ClassLimitCivilian = hostDefaults.ClassLimitCivilian;
 
             foreach (var definition in HostSetupServerCvarCatalog.AdvancedDefinitions)
             {
@@ -343,6 +379,18 @@ public partial class Game1
             hostDefaults.GravityScale = GravityScale;
             hostDefaults.HorizontalSpeedClampPerTick = HorizontalSpeedClampPerTick;
             hostDefaults.VerticalSpeedClampPerTick = VerticalSpeedClampPerTick;
+            hostDefaults.CaptureSpeedMultiplierPerPlayer = CaptureSpeedMultiplierPerPlayer;
+            hostDefaults.VipAllowDuplicateClasses = VipAllowDuplicateClasses;
+            hostDefaults.ClassLimitScout = ClassLimitScout;
+            hostDefaults.ClassLimitEngineer = ClassLimitEngineer;
+            hostDefaults.ClassLimitPyro = ClassLimitPyro;
+            hostDefaults.ClassLimitSoldier = ClassLimitSoldier;
+            hostDefaults.ClassLimitDemoman = ClassLimitDemoman;
+            hostDefaults.ClassLimitHeavy = ClassLimitHeavy;
+            hostDefaults.ClassLimitSniper = ClassLimitSniper;
+            hostDefaults.ClassLimitMedic = ClassLimitMedic;
+            hostDefaults.ClassLimitSpy = ClassLimitSpy;
+            hostDefaults.ClassLimitCivilian = ClassLimitCivilian;
         }
 
         private string ReadHostSettingAsCvarString(HostSetupServerCvarDefinition definition)
@@ -374,6 +422,18 @@ public partial class Game1
                 nameof(OpenGarrisonHostSettings.GravityScale) => GravityScale.ToString("0.###", CultureInfo.InvariantCulture),
                 nameof(OpenGarrisonHostSettings.HorizontalSpeedClampPerTick) => HorizontalSpeedClampPerTick.ToString("0.###", CultureInfo.InvariantCulture),
                 nameof(OpenGarrisonHostSettings.VerticalSpeedClampPerTick) => VerticalSpeedClampPerTick.ToString("0.###", CultureInfo.InvariantCulture),
+                nameof(OpenGarrisonHostSettings.CaptureSpeedMultiplierPerPlayer) => CaptureSpeedMultiplierPerPlayer.ToString("0.###", CultureInfo.InvariantCulture),
+                nameof(OpenGarrisonHostSettings.VipAllowDuplicateClasses) => VipAllowDuplicateClasses ? "1" : "0",
+                nameof(OpenGarrisonHostSettings.ClassLimitScout) => ClassLimitScout.ToString(CultureInfo.InvariantCulture),
+                nameof(OpenGarrisonHostSettings.ClassLimitEngineer) => ClassLimitEngineer.ToString(CultureInfo.InvariantCulture),
+                nameof(OpenGarrisonHostSettings.ClassLimitPyro) => ClassLimitPyro.ToString(CultureInfo.InvariantCulture),
+                nameof(OpenGarrisonHostSettings.ClassLimitSoldier) => ClassLimitSoldier.ToString(CultureInfo.InvariantCulture),
+                nameof(OpenGarrisonHostSettings.ClassLimitDemoman) => ClassLimitDemoman.ToString(CultureInfo.InvariantCulture),
+                nameof(OpenGarrisonHostSettings.ClassLimitHeavy) => ClassLimitHeavy.ToString(CultureInfo.InvariantCulture),
+                nameof(OpenGarrisonHostSettings.ClassLimitSniper) => ClassLimitSniper.ToString(CultureInfo.InvariantCulture),
+                nameof(OpenGarrisonHostSettings.ClassLimitMedic) => ClassLimitMedic.ToString(CultureInfo.InvariantCulture),
+                nameof(OpenGarrisonHostSettings.ClassLimitSpy) => ClassLimitSpy.ToString(CultureInfo.InvariantCulture),
+                nameof(OpenGarrisonHostSettings.ClassLimitCivilian) => ClassLimitCivilian.ToString(CultureInfo.InvariantCulture),
                 _ => "0",
             };
         }
@@ -509,6 +569,46 @@ public partial class Game1
                     }
 
                     break;
+                case nameof(OpenGarrisonHostSettings.CaptureSpeedMultiplierPerPlayer):
+                    if (float.TryParse(rawValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var captureSpeedMultiplier))
+                    {
+                        CaptureSpeedMultiplierPerPlayer = float.Clamp(captureSpeedMultiplier, 0f, 10f);
+                    }
+
+                    break;
+                case nameof(OpenGarrisonHostSettings.VipAllowDuplicateClasses):
+                    VipAllowDuplicateClasses = ParseBool(rawValue);
+                    break;
+                case nameof(OpenGarrisonHostSettings.ClassLimitScout):
+                    ClassLimitScout = ParseClassLimit(rawValue);
+                    break;
+                case nameof(OpenGarrisonHostSettings.ClassLimitEngineer):
+                    ClassLimitEngineer = ParseClassLimit(rawValue);
+                    break;
+                case nameof(OpenGarrisonHostSettings.ClassLimitPyro):
+                    ClassLimitPyro = ParseClassLimit(rawValue);
+                    break;
+                case nameof(OpenGarrisonHostSettings.ClassLimitSoldier):
+                    ClassLimitSoldier = ParseClassLimit(rawValue);
+                    break;
+                case nameof(OpenGarrisonHostSettings.ClassLimitDemoman):
+                    ClassLimitDemoman = ParseClassLimit(rawValue);
+                    break;
+                case nameof(OpenGarrisonHostSettings.ClassLimitHeavy):
+                    ClassLimitHeavy = ParseClassLimit(rawValue);
+                    break;
+                case nameof(OpenGarrisonHostSettings.ClassLimitSniper):
+                    ClassLimitSniper = ParseClassLimit(rawValue);
+                    break;
+                case nameof(OpenGarrisonHostSettings.ClassLimitMedic):
+                    ClassLimitMedic = ParseClassLimit(rawValue);
+                    break;
+                case nameof(OpenGarrisonHostSettings.ClassLimitSpy):
+                    ClassLimitSpy = ParseClassLimit(rawValue);
+                    break;
+                case nameof(OpenGarrisonHostSettings.ClassLimitCivilian):
+                    ClassLimitCivilian = ParseClassLimit(rawValue);
+                    break;
             }
 
             _advancedCvarEditBuffers[definition.Name] = ReadHostSettingAsCvarString(definition);
@@ -556,6 +656,13 @@ public partial class Game1
                 "1" or "true" or "True" or "on" or "On" or "yes" or "Yes" => true,
                 _ => false,
             };
+        }
+
+        private static int ParseClassLimit(string value)
+        {
+            return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var limit)
+                ? OpenGarrisonHostSettings.NormalizeClassLimit(limit)
+                : 0;
         }
     }
 }

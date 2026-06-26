@@ -1242,6 +1242,7 @@ internal static class SnapshotDeltaBudgeter
                 BaselineFrame = BaselineFrame,
                 IsDelta = true,
                 EntityCollectionCompletenessFlags = EntityCollectionCompletenessFlags,
+                ScoreboardPlayers = _template.ScoreboardPlayers,
                 Players = Players.ToArrayCached(),
                 PlayerMovementStates = PlayerMovementStates.ToArrayCached(),
                 PlayerStatusStates = PlayerStatusStates.ToArrayCached(),

@@ -218,7 +218,9 @@ public sealed partial class SimulationWorld
             EnsureAdditionalNetworkPlayer(slot);
         }
 
-        if (!TrySetNetworkPlayerClassDefinition(slot, definition) || !TryGetNetworkPlayer(slot, out var player))
+        if (!CanApplyNetworkPlayerClassLimit(slot, definition)
+            || !TrySetNetworkPlayerClassDefinition(slot, definition)
+            || !TryGetNetworkPlayer(slot, out var player))
         {
             return false;
         }
