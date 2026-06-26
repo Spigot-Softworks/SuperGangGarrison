@@ -566,6 +566,7 @@ sealed class SnapshotBroadcaster
             ArenaBlueConsecutiveWins = _world.ArenaBlueConsecutiveWins,
             CompetitiveReadyUpPhase = (byte)_world.CompetitiveReadyUpPhase,
             CompetitiveReadyUpTicksRemaining = _world.CompetitiveReadyUpTicksRemaining,
+            CapLimit = _world.MatchRules.CapLimit,
             SentryGibs = ConvertToArray(_world.SentryGibs, static sentryGib => ToSnapshotSentryGibState(sentryGib)),
             JumpPads = ConvertToArray(_world.JumpPads, static jumpPad => ToSnapshotJumpPadState(jumpPad)),
             JumpPadGibs = ConvertToArray(_world.JumpPadGibs, static jumpPadGib => ToSnapshotJumpPadGibState(jumpPadGib)),
@@ -589,6 +590,7 @@ sealed class SnapshotBroadcaster
 
         // Start with capacity for clients + bots
         var players = new List<SnapshotPlayerState>(sharedSnapshot.OrderedClients.Length + _botManager.BotSlots.Count);
+        var scoreboardPlayers = new List<SnapshotPlayerState>(sharedSnapshot.OrderedClients.Length + _botManager.BotSlots.Count);
         var removedPlayerIds = new List<int>();
 
         // Add human client players
@@ -596,7 +598,9 @@ sealed class SnapshotBroadcaster
         {
             if (IsSpectatorSlot(entry.Slot))
             {
-                players.Add(CreateSpectatorSnapshotPlayerState(entry));
+                var spectatorState = CreateSpectatorSnapshotPlayerState(entry);
+                players.Add(spectatorState);
+                scoreboardPlayers.Add(spectatorState);
                 continue;
             }
 
@@ -605,13 +609,16 @@ sealed class SnapshotBroadcaster
                 continue;
             }
 
+            var playerState = ToSnapshotPlayerState(_world, entry.Slot, player, viewer, _stringCache, entry.PingMilliseconds);
+            scoreboardPlayers.Add(playerState);
+
             if (ShouldHideSpyFromViewer(player, viewer))
             {
                 removedPlayerIds.Add(entry.Slot);
                 continue;
             }
 
-            players.Add(ToSnapshotPlayerState(_world, entry.Slot, player, viewer, _stringCache, entry.PingMilliseconds));
+            players.Add(playerState);
         }
 
         // Add server bot players
@@ -622,24 +629,28 @@ sealed class SnapshotBroadcaster
                 continue;
             }
 
+            var playerState = ToSnapshotPlayerState(_world, botSlot, botPlayer, viewer, _stringCache);
+            scoreboardPlayers.Add(playerState);
+
             if (ShouldHideSpyFromViewer(botPlayer, viewer))
             {
                 removedPlayerIds.Add(botSlot);
                 continue;
             }
 
-            players.Add(ToSnapshotPlayerState(_world, botSlot, botPlayer, viewer, _stringCache));
+            players.Add(playerState);
         }
 
         // Build string cache updates for this client
         var cacheTracker = GetOrCreateCacheTracker(client.Slot);
-        var referencedStrings = CollectReferencedCachedStrings(players);
+        var referencedStrings = CollectReferencedCachedStrings(players.Concat(scoreboardPlayers).ToArray());
         var stringCacheUpdates = cacheTracker.BuildCacheUpdatesForSnapshot(referencedStrings);
 
         return sharedSnapshot.Template with
         {
             LastProcessedInputSequence = client.LastProcessedInputSequence,
             Players = players.ToArray(),
+            ScoreboardPlayers = scoreboardPlayers.ToArray(),
             RemovedPlayerIds = removedPlayerIds.Count == 0 ? Array.Empty<int>() : removedPlayerIds.ToArray(),
             LocalDeathCam = ToSnapshotDeathCamState(_world.GetNetworkPlayerDeathCam(client.Slot)),
             StringCacheUpdates = stringCacheUpdates,
@@ -939,7 +950,7 @@ sealed class SnapshotBroadcaster
         return tracker;
     }
 
-    private static List<(string value, ushort cacheId)> CollectReferencedCachedStrings(List<SnapshotPlayerState> players)
+    private static List<(string value, ushort cacheId)> CollectReferencedCachedStrings(IReadOnlyCollection<SnapshotPlayerState> players)
     {
         var referenced = new List<(string, ushort)>(players.Count * 8);
 

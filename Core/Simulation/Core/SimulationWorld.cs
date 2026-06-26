@@ -24,6 +24,7 @@ public sealed partial class SimulationWorld
     private const int CombatTraceLifetimeTicks = 3;
     private const int KillFeedLifetimeTicks = 150;
     private const int KillFeedLocalInvolvedLifetimeTicks = 300;
+    private const int DeathCamFocusFreezeDelayTicks = 60;
     private const int DefaultGibLevel = 3;
     private const int LocalProjectileTerminationSuppressionTicks = 12;
     private const int NetworkProjectileRemovalSuppressionTicks = 180;
@@ -68,6 +69,7 @@ public sealed partial class SimulationWorld
     private readonly List<PlayerEntity> _remoteSnapshotScoreboardPlayers = new();
     private readonly List<ScoreboardSpectatorEntry> _spectators = new();
     private readonly Dictionary<byte, PlayerEntity> _remoteSnapshotPlayersBySlot = new();
+    private readonly Dictionary<byte, PlayerEntity> _remoteSnapshotScoreboardPlayersBySlot = new();
     private readonly HashSet<int> _snapshotSeenEntityIds = new();
     private readonly List<int> _snapshotStaleEntityIds = new();
     private readonly HashSet<ulong> _processedNetworkGibSpawnEventIds = new();
@@ -94,6 +96,7 @@ public sealed partial class SimulationWorld
     private readonly Dictionary<byte, float> _networkPlayerMovementSpeedScaleOverrides = new();
     private readonly Dictionary<byte, float> _networkPlayerGravityScaleOverrides = new();
     private readonly Dictionary<byte, int> _networkPlayerMaxHealthOverrides = new();
+    private readonly Dictionary<PlayerClass, int> _configuredClassLimits = new();
     private readonly Dictionary<byte, LocalDeathCamState> _networkPlayerDeathCams = new();
     private readonly HashSet<int> _lastToDieDroneSentryIds = new();
     private readonly HashSet<int> _clientPredictedProjectileIds = new();
@@ -114,6 +117,8 @@ public sealed partial class SimulationWorld
     private float _configuredGravityScale = 1f;
     private float _configuredHorizontalSpeedClampPerTick = LegacyMovementModel.MaxStepSpeedPerTick;
     private float _configuredVerticalSpeedClampPerTick = LegacyMovementModel.MaxStepSpeedPerTick;
+    private float _configuredCaptureSpeedMultiplierPerPlayer = 2f;
+    private bool _vipAllowDuplicateClasses;
     private bool _roundEndFriendlyFireEnabled;
     private readonly Dictionary<int, int> _deterministicSpreadShotIndexByPlayerId = new();
     private CharacterClassDefinition _localPlayerClassDefinition = CharacterClassCatalog.Scout;
@@ -244,6 +249,10 @@ public sealed partial class SimulationWorld
     public float ConfiguredHorizontalSpeedClampPerTick => _configuredHorizontalSpeedClampPerTick;
 
     public float ConfiguredVerticalSpeedClampPerTick => _configuredVerticalSpeedClampPerTick;
+
+    public float ConfiguredCaptureSpeedMultiplierPerPlayer => _configuredCaptureSpeedMultiplierPerPlayer;
+
+    public bool VipAllowDuplicateClasses => _vipAllowDuplicateClasses;
 
     public bool RoundEndFriendlyFireEnabled => _roundEndFriendlyFireEnabled;
 

@@ -22,10 +22,13 @@ public partial class Game1
     private const int RecentProjectileSoundEchoLimit = 32;
     private const float RecentProjectileExplosionSoundEchoDistanceSquared = 64f * 64f;
     private const float RecentProjectileFireSoundEchoDistanceSquared = 24f * 24f;
-    private const float LocalWeaponSoundVolumeMultiplier = 1.85f;
+    private const float LocalWeaponSoundVolumeMultiplier = 2.1f;
     private const float LocalWeaponSoundMinimumVolume = 0.9f;
-    private const float RemoteWeaponSoundVolumeMultiplier = 0.72f;
+    private const float RemoteWeaponSoundVolumeMultiplier = 0.52f;
     private const float LocalWeaponSoundPanMultiplier = 0.35f;
+    private const float LocalWeaponSoundFocusDurationSeconds = 0.16f;
+    private const float FocusedRemoteWeaponSoundVolumeMultiplier = 0.58f;
+    private const float FocusedOtherWorldSoundVolumeMultiplier = 0.76f;
 
     private sealed class PendingBrowserSoundEvent
     {
@@ -125,6 +128,7 @@ public partial class Game1
     private readonly List<WorldSoundEvent> _pendingNetworkSoundEvents = new();
     private readonly List<RecentGibSoundEvent> _recentGibSoundEvents = new();
     private readonly List<RecentProjectileSoundEvent> _recentProjectileSoundEvents = new();
+    private float _localWeaponSoundFocusRemainingSeconds;
     private readonly List<PlayedExplosionSoundThisFrame> _playedExplosionSoundsThisFrame = new();
     private string _lastOneShotSoundFailureMessage = string.Empty;
 
@@ -469,6 +473,37 @@ public partial class Game1
         }
     }
 
+    private void AdvanceLocalWeaponSoundFocus()
+    {
+        if (_localWeaponSoundFocusRemainingSeconds <= 0f)
+        {
+            _localWeaponSoundFocusRemainingSeconds = 0f;
+            return;
+        }
+
+        _localWeaponSoundFocusRemainingSeconds = Math.Max(
+            0f,
+            _localWeaponSoundFocusRemainingSeconds - Math.Max(0f, _clientUpdateElapsedSeconds));
+    }
+
+    private void TriggerLocalWeaponSoundFocus()
+    {
+        _localWeaponSoundFocusRemainingSeconds = Math.Max(
+            _localWeaponSoundFocusRemainingSeconds,
+            LocalWeaponSoundFocusDurationSeconds);
+    }
+
+    private void TriggerLocalConfirmedWeaponFireFeedback(string soundName, WorldSoundEvent soundEvent)
+    {
+        if (!IsLocalPlayerSoundSource(soundEvent.SourcePlayerId) || !IsWeaponFireSoundName(soundName))
+        {
+            return;
+        }
+
+        TriggerLocalWeaponSoundFocus();
+        TriggerLocalWeaponFireHudRumble(GetWeaponSoundHudRumbleIntensity(soundName));
+    }
+
     private bool ShouldSuppressPredictedProjectileSoundEcho(string resolvedSoundName, WorldSoundEvent soundEvent)
     {
         if (!IsProjectileSoundEchoCandidate(resolvedSoundName))
@@ -691,9 +726,9 @@ public partial class Game1
 
     private Vector2 GetWorldSoundListenerPosition()
     {
-        if (_networkClient.IsReplayConnection || _networkClient.IsSpectator)
+        if (_hasGameplayCameraTopLeft)
         {
-            return GetLocalViewPosition();
+            return _gameplayCameraTopLeft + new Vector2(ViewportWidth * 0.5f, ViewportHeight * 0.5f);
         }
 
         return new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
@@ -709,7 +744,9 @@ public partial class Game1
         var (volume, pan) = GetWorldSoundMix(soundEvent.X, soundEvent.Y);
         if (!IsWeaponFireSoundName(soundEvent.SoundName))
         {
-            return (volume, pan);
+            return _localWeaponSoundFocusRemainingSeconds > 0f && !IsLocalPlayerSoundSource(soundEvent.SourcePlayerId)
+                ? (volume * FocusedOtherWorldSoundVolumeMultiplier, pan)
+                : (volume, pan);
         }
 
         if (IsLocalPlayerSoundSource(soundEvent.SourcePlayerId))
@@ -719,7 +756,13 @@ public partial class Game1
                 Math.Clamp(pan * LocalWeaponSoundPanMultiplier, -1f, 1f));
         }
 
-        return (volume * RemoteWeaponSoundVolumeMultiplier, pan);
+        var remoteMultiplier = RemoteWeaponSoundVolumeMultiplier;
+        if (_localWeaponSoundFocusRemainingSeconds > 0f)
+        {
+            remoteMultiplier *= FocusedRemoteWeaponSoundVolumeMultiplier;
+        }
+
+        return (volume * remoteMultiplier, pan);
     }
 
     private (float Volume, float Pan) GetLoopedWorldSoundMix(string soundName, float worldX, float worldY, bool isLocalSource)
@@ -761,6 +804,47 @@ public partial class Game1
             || string.Equals(soundName, "BladeSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "EyelanderSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "KnifeSnd", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static float GetWeaponSoundHudRumbleIntensity(string soundName)
+    {
+        if (string.Equals(soundName, "RocketSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "DirecthitSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "MinegunSnd", StringComparison.OrdinalIgnoreCase))
+        {
+            return 0.9f;
+        }
+
+        if (string.Equals(soundName, "RifleSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "SniperSnd", StringComparison.OrdinalIgnoreCase))
+        {
+            return 0.85f;
+        }
+
+        if (string.Equals(soundName, "RevolverSnd", StringComparison.OrdinalIgnoreCase))
+        {
+            return 0.65f;
+        }
+
+        if (string.Equals(soundName, "BladeSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "EyelanderSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "KnifeSnd", StringComparison.OrdinalIgnoreCase))
+        {
+            return 0.45f;
+        }
+
+        if (string.Equals(soundName, "ChaingunSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "FlamethrowerSnd", StringComparison.OrdinalIgnoreCase))
+        {
+            return 0.35f;
+        }
+
+        if (string.Equals(soundName, "MedigunSnd", StringComparison.OrdinalIgnoreCase))
+        {
+            return 0.25f;
+        }
+
+        return 0.55f;
     }
 
     private void StopLocalRapidFireWeaponAudio()

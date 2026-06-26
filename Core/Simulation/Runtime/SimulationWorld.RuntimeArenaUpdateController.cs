@@ -66,7 +66,7 @@ public sealed partial class SimulationWorld
 
             if (capTeam.HasValue && cappers > 0 && _world._arenaCappingTicks < ArenaPointCapTimeTicksDefault)
             {
-                _world._arenaCappingTicks += capStrength;
+                _world._arenaCappingTicks += capStrength * _world.ConfiguredCaptureSpeedMultiplierPerPlayer;
                 _world._arenaCappingTeam = capTeam;
             }
             else if (_world._arenaCappingTicks > 0f && cappers == 0 && !defended)

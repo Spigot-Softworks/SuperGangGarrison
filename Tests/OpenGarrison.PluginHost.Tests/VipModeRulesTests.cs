@@ -145,7 +145,7 @@ public sealed class VipModeRulesTests
         world.ConfigurePracticeVipRules(enabled: true);
         Assert.True(world.TryPrepareNetworkPlayerJoin(botSlot));
         Assert.True(world.TrySetNetworkPlayerTeam(botSlot, PlayerTeam.Red));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(botSlot, PlayerClass.Scout));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(botSlot, PlayerClass.Soldier));
 
         world.AdvanceOneTick();
 
@@ -168,6 +168,7 @@ public sealed class VipModeRulesTests
 
         Assert.True(world.TryLoadLevel("Dirtbowl"));
         world.ConfigurePracticeVipRules(enabled: true);
+        world.SetVipAllowDuplicateClasses(true);
         world.SetPendingLocalPlayerClass(PlayerClass.Quote);
         Assert.True(world.TryPrepareNetworkPlayerJoin(botSlot));
         Assert.True(world.TrySetNetworkPlayerTeam(botSlot, PlayerTeam.Red));
@@ -264,6 +265,96 @@ public sealed class VipModeRulesTests
     }
 
     [Fact]
+    public void VipCaptureIgnoresConfiguredCaptureSpeedMultiplier()
+    {
+        var world = CreateSinglePointVipWorldWithLocalVip();
+        var point = Assert.Single(world.ControlPoints);
+        world.SetCaptureSpeedMultiplierPerPlayer(2f);
+        MoveToPoint(world.LocalPlayer);
+
+        world.AdvanceOneTick();
+
+        Assert.Equal(5f, point.CappingTicks);
+        Assert.Equal(PlayerTeam.Red, point.CappingTeam);
+        Assert.Equal(5, point.Cappers);
+    }
+
+    [Fact]
+    public void CaptureSpeedMultiplierScalesPerPlayerCaptureProgress()
+    {
+        var world = CreateSinglePointControlPointWorld(PlayerTeam.Red, PlayerClass.Scout);
+        var point = Assert.Single(world.ControlPoints);
+        point.Team = PlayerTeam.Blue;
+        world.SetCaptureSpeedMultiplierPerPlayer(1.5f);
+        MoveToPoint(world.LocalPlayer);
+
+        world.AdvanceOneTick();
+
+        Assert.Equal(3f, point.CappingTicks);
+        Assert.Equal(PlayerTeam.Red, point.CappingTeam);
+        Assert.Equal(2, point.Cappers);
+    }
+
+    [Fact]
+    public void ClassLimitsRejectSecondSameClassOnSameTeam()
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        world.SetClassLimit(PlayerClass.Soldier, 1);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(3));
+        Assert.True(world.TrySetNetworkPlayerTeam(3, PlayerTeam.Red));
+        Assert.False(world.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Soldier));
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(4));
+        Assert.True(world.TrySetNetworkPlayerTeam(4, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(4, PlayerClass.Soldier));
+    }
+
+    [Fact]
+    public void SetAllClassLimitsAppliesSameLimitToEveryClass()
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        world.SetAllClassLimits(1);
+
+        Assert.Equal(1, world.GetUniformClassLimit());
+        Assert.Equal(1, world.GetClassLimit(PlayerClass.Scout));
+        Assert.Equal(1, world.GetClassLimit(PlayerClass.Engineer));
+        Assert.Equal(1, world.GetClassLimit(PlayerClass.Pyro));
+        Assert.Equal(1, world.GetClassLimit(PlayerClass.Soldier));
+        Assert.Equal(1, world.GetClassLimit(PlayerClass.Demoman));
+        Assert.Equal(1, world.GetClassLimit(PlayerClass.Heavy));
+        Assert.Equal(1, world.GetClassLimit(PlayerClass.Sniper));
+        Assert.Equal(1, world.GetClassLimit(PlayerClass.Medic));
+        Assert.Equal(1, world.GetClassLimit(PlayerClass.Spy));
+        Assert.Equal(1, world.GetClassLimit(PlayerClass.Quote));
+
+        world.SetClassLimit(PlayerClass.Soldier, 2);
+
+        Assert.Equal(0, world.GetUniformClassLimit());
+    }
+
+    [Fact]
+    public void VipModeDefaultsToOneOfEachClassPerTeamUnlessDuplicatesAreAllowed()
+    {
+        var world = CreateSinglePointVipWorldWithLocalVip();
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(3));
+        Assert.True(world.TrySetNetworkPlayerTeam(3, PlayerTeam.Red));
+        Assert.False(world.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Scout));
+
+        world.SetVipAllowDuplicateClasses(true);
+
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Scout));
+    }
+
+    [Fact]
     public void DeadVipTeammatePausesDecayButEnemyAloneReversesProgress()
     {
         var world = CreateSinglePointVipWorldWithLocalVip();
@@ -354,6 +445,18 @@ public sealed class VipModeRulesTests
         return world;
     }
 
+    private static SimulationWorld CreateSinglePointControlPointWorld(PlayerTeam team, PlayerClass playerClass)
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        world.CombatTestSetLevel(CreateSinglePointLevel(GameModeKind.ControlPoint, "cp_test_single_point"));
+        world.PrepareLocalPlayerJoin();
+        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, team, respawnLivePlayerImmediately: true));
+        world.CompleteLocalPlayerJoin(playerClass);
+        Assert.Equal(playerClass, world.LocalPlayer.ClassId);
+        MoveAwayFromPoint(world.LocalPlayer);
+        return world;
+    }
+
     private static void AdvancePastVipWarmup(SimulationWorld world)
     {
         var safety = world.VipWarmupTicksRemaining + world.Config.TicksPerSecond + 5;
@@ -386,9 +489,14 @@ public sealed class VipModeRulesTests
 
     private static SimpleLevel CreateSinglePointVipLevel()
     {
+        return CreateSinglePointLevel(GameModeKind.Vip, "vip_test_single_point");
+    }
+
+    private static SimpleLevel CreateSinglePointLevel(GameModeKind mode, string name)
+    {
         return new SimpleLevel(
-            name: "vip_test_single_point",
-            mode: GameModeKind.Vip,
+            name: name,
+            mode: mode,
             bounds: new WorldBounds(960f, 640f),
             mapScale: 1f,
             backgroundAssetName: null,

@@ -243,7 +243,7 @@ internal sealed class ServerBotManager
         }
 
         ConfigureBotControllerSpawnOverrides(slot, state.Team, classId);
-        if (!_world.TryApplyNetworkPlayerClassSelection(slot, classId))
+        if (!_world.TryForceNetworkPlayerClassSelectionAndRespawn(slot, classId))
         {
             ConfigureBotControllerSpawnOverrides();
             return false;

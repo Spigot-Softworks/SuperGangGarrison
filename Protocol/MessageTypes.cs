@@ -907,6 +907,7 @@ public sealed record SnapshotMessage(
     public int ArenaBlueConsecutiveWins { get; init; }
     public byte CompetitiveReadyUpPhase { get; init; }
     public int CompetitiveReadyUpTicksRemaining { get; init; }
+    public int CapLimit { get; init; }
 
     public ulong BaselineFrame { get; init; }
     public bool IsDelta { get; init; }
@@ -914,6 +915,7 @@ public sealed record SnapshotMessage(
     public IReadOnlyList<SnapshotPlayerStatusState> PlayerStatusStates { get; init; } = Array.Empty<SnapshotPlayerStatusState>();
     public IReadOnlyList<SnapshotPlayerChatBubbleState> PlayerChatBubbleStates { get; init; } = Array.Empty<SnapshotPlayerChatBubbleState>();
     public IReadOnlyList<SnapshotPlayerExtendedStatusState> PlayerExtendedStatusStates { get; init; } = Array.Empty<SnapshotPlayerExtendedStatusState>();
+    public IReadOnlyList<SnapshotPlayerState> ScoreboardPlayers { get; init; } = Array.Empty<SnapshotPlayerState>();
     public IReadOnlyList<SnapshotSentryUpdateState> SentryUpdateStates { get; init; } = Array.Empty<SnapshotSentryUpdateState>();
     public IReadOnlyList<int> RemovedPlayerIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedSentryIds { get; init; } = Array.Empty<int>();

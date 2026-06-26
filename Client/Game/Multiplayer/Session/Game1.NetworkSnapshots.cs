@@ -326,7 +326,8 @@ public partial class Game1
         }
 
         var currentVisibleEnemySpyIds = new HashSet<int>();
-        var explicitDeathOrRemovalSpyIds = new HashSet<int>(snapshot.RemovedPlayerIds);
+        var removedPlayerSlots = new HashSet<int>(snapshot.RemovedPlayerIds);
+        var explicitDeathOrRemovalSpyIds = new HashSet<int>();
         for (var playerIndex = 0; playerIndex < snapshot.Players.Count; playerIndex += 1)
         {
             var player = snapshot.Players[playerIndex];
@@ -356,6 +357,21 @@ public partial class Game1
             }
 
             currentVisibleEnemySpyIds.Add(player.PlayerId);
+        }
+
+        for (var playerIndex = 0; playerIndex < snapshot.ScoreboardPlayers.Count; playerIndex += 1)
+        {
+            var player = snapshot.ScoreboardPlayers[playerIndex];
+            if (!removedPlayerSlots.Contains(player.Slot) || player.IsAlive)
+            {
+                continue;
+            }
+
+            if (player.ClassId == (byte)PlayerClass.Spy
+                && (PlayerTeam)player.Team != _world.LocalPlayer.Team)
+            {
+                explicitDeathOrRemovalSpyIds.Add(player.PlayerId);
+            }
         }
 
         foreach (var lastSpyId in _lastVisibleEnemySpyIds)

@@ -458,6 +458,18 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetFloat(ServerAdvancedSection, "GravityScale", HostSettings.GravityScale);
         ini.SetFloat(ServerAdvancedSection, "HorizontalSpeedClampPerTick", HostSettings.HorizontalSpeedClampPerTick);
         ini.SetFloat(ServerAdvancedSection, "VerticalSpeedClampPerTick", HostSettings.VerticalSpeedClampPerTick);
+        ini.SetFloat(ServerAdvancedSection, "CaptureSpeedMultiplierPerPlayer", HostSettings.CaptureSpeedMultiplierPerPlayer);
+        ini.SetBool(ServerAdvancedSection, "VipAllowDuplicateClasses", HostSettings.VipAllowDuplicateClasses);
+        ini.SetInt(ServerAdvancedSection, "ClassLimitScout", HostSettings.ClassLimitScout);
+        ini.SetInt(ServerAdvancedSection, "ClassLimitEngineer", HostSettings.ClassLimitEngineer);
+        ini.SetInt(ServerAdvancedSection, "ClassLimitPyro", HostSettings.ClassLimitPyro);
+        ini.SetInt(ServerAdvancedSection, "ClassLimitSoldier", HostSettings.ClassLimitSoldier);
+        ini.SetInt(ServerAdvancedSection, "ClassLimitDemoman", HostSettings.ClassLimitDemoman);
+        ini.SetInt(ServerAdvancedSection, "ClassLimitHeavy", HostSettings.ClassLimitHeavy);
+        ini.SetInt(ServerAdvancedSection, "ClassLimitSniper", HostSettings.ClassLimitSniper);
+        ini.SetInt(ServerAdvancedSection, "ClassLimitMedic", HostSettings.ClassLimitMedic);
+        ini.SetInt(ServerAdvancedSection, "ClassLimitSpy", HostSettings.ClassLimitSpy);
+        ini.SetInt(ServerAdvancedSection, "ClassLimitCivilian", HostSettings.ClassLimitCivilian);
         ini.SetInt(ServerAdvancedSection, "MaxPlayableClients", MaxPlayableClients);
         ini.SetInt(ServerAdvancedSection, "MaxTotalClients", MaxTotalClients);
         ini.SetInt(ServerAdvancedSection, "MaxSpectatorClients", MaxSpectatorClients);
@@ -787,6 +799,30 @@ public sealed class OpenGarrisonHostSettings
 
     public float VerticalSpeedClampPerTick { get; set; } = LegacyMovementModel.MaxStepSpeedPerTick;
 
+    public float CaptureSpeedMultiplierPerPlayer { get; set; } = 2f;
+
+    public bool VipAllowDuplicateClasses { get; set; }
+
+    public int ClassLimitScout { get; set; }
+
+    public int ClassLimitEngineer { get; set; }
+
+    public int ClassLimitPyro { get; set; }
+
+    public int ClassLimitSoldier { get; set; }
+
+    public int ClassLimitDemoman { get; set; }
+
+    public int ClassLimitHeavy { get; set; }
+
+    public int ClassLimitSniper { get; set; }
+
+    public int ClassLimitMedic { get; set; }
+
+    public int ClassLimitSpy { get; set; }
+
+    public int ClassLimitCivilian { get; set; }
+
     public bool DedicatedModeEnabled { get; set; }
 
     public string MapRotationFile { get; set; } = string.Empty;
@@ -886,6 +922,18 @@ public sealed class OpenGarrisonHostSettings
             GravityScale = GravityScale,
             HorizontalSpeedClampPerTick = HorizontalSpeedClampPerTick,
             VerticalSpeedClampPerTick = VerticalSpeedClampPerTick,
+            CaptureSpeedMultiplierPerPlayer = CaptureSpeedMultiplierPerPlayer,
+            VipAllowDuplicateClasses = VipAllowDuplicateClasses,
+            ClassLimitScout = ClassLimitScout,
+            ClassLimitEngineer = ClassLimitEngineer,
+            ClassLimitPyro = ClassLimitPyro,
+            ClassLimitSoldier = ClassLimitSoldier,
+            ClassLimitDemoman = ClassLimitDemoman,
+            ClassLimitHeavy = ClassLimitHeavy,
+            ClassLimitSniper = ClassLimitSniper,
+            ClassLimitMedic = ClassLimitMedic,
+            ClassLimitSpy = ClassLimitSpy,
+            ClassLimitCivilian = ClassLimitCivilian,
             DedicatedModeEnabled = DedicatedModeEnabled,
             MapRotationFile = MapRotationFile,
             MapRotationShuffleEnabled = MapRotationShuffleEnabled,
@@ -952,6 +1000,18 @@ public sealed class OpenGarrisonHostSettings
                 ini.GetFloat("Server.Advanced", "VerticalSpeedClampPerTick", LegacyMovementModel.MaxStepSpeedPerTick),
                 1f,
                 60f),
+            CaptureSpeedMultiplierPerPlayer = float.Clamp(ini.GetFloat("Server.Advanced", "CaptureSpeedMultiplierPerPlayer", 2f), 0f, 10f),
+            VipAllowDuplicateClasses = ini.GetBool("Server.Advanced", "VipAllowDuplicateClasses", false),
+            ClassLimitScout = NormalizeClassLimit(ini.GetInt("Server.Advanced", "ClassLimitScout", 0)),
+            ClassLimitEngineer = NormalizeClassLimit(ini.GetInt("Server.Advanced", "ClassLimitEngineer", 0)),
+            ClassLimitPyro = NormalizeClassLimit(ini.GetInt("Server.Advanced", "ClassLimitPyro", 0)),
+            ClassLimitSoldier = NormalizeClassLimit(ini.GetInt("Server.Advanced", "ClassLimitSoldier", 0)),
+            ClassLimitDemoman = NormalizeClassLimit(ini.GetInt("Server.Advanced", "ClassLimitDemoman", 0)),
+            ClassLimitHeavy = NormalizeClassLimit(ini.GetInt("Server.Advanced", "ClassLimitHeavy", 0)),
+            ClassLimitSniper = NormalizeClassLimit(ini.GetInt("Server.Advanced", "ClassLimitSniper", 0)),
+            ClassLimitMedic = NormalizeClassLimit(ini.GetInt("Server.Advanced", "ClassLimitMedic", 0)),
+            ClassLimitSpy = NormalizeClassLimit(ini.GetInt("Server.Advanced", "ClassLimitSpy", 0)),
+            ClassLimitCivilian = NormalizeClassLimit(ini.GetInt("Server.Advanced", "ClassLimitCivilian", 0)),
             DedicatedModeEnabled = ini.GetBool("Server", "Dedicated", false),
             MapRotationFile = ini.GetString("Server", "MapRotation", string.Empty),
             MapRotationShuffleEnabled = ini.GetBool("Server", "MapRotationShuffle", false),
@@ -997,6 +1057,11 @@ public sealed class OpenGarrisonHostSettings
     public static int NormalizeTeamShuffleAfterWins(int wins)
     {
         return Math.Clamp(wins, 0, 255);
+    }
+
+    public static int NormalizeClassLimit(int limit)
+    {
+        return Math.Clamp(limit, 0, SimulationWorld.MaxPlayableNetworkPlayers);
     }
 }
 

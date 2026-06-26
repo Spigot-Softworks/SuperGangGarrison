@@ -421,7 +421,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            TryApplyNetworkPlayerClassSelection(entry.Slot, PlayerClass.Scout);
+            TryApplyNetworkPlayerClassChange(entry.Slot, CharacterClassCatalog.Scout, enforceClassLimit: false);
         }
     }
 

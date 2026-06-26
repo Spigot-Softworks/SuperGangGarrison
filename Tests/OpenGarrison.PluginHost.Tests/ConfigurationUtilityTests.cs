@@ -95,6 +95,31 @@ public sealed class ConfigurationUtilityTests
     }
 
     [Fact]
+    public void ApplyUserDataRootArgumentSetsEnvironmentAndRemovesArgument()
+    {
+        var previous = Environment.GetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT");
+        var root = Path.Combine(Path.GetTempPath(), "opengarrison-userdata-tests", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT", null);
+
+            var filtered = RuntimePaths.ApplyUserDataRootArgument(["--foo", "--user-data-root", root, "--bar"]);
+
+            Assert.Equal(["--foo", "--bar"], filtered);
+            Assert.Equal(root, Environment.GetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT"));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT", previous);
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void UserDataRootFallsBackWhenConfiguredPathIsNotDirectory()
     {
         var previous = Environment.GetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT");

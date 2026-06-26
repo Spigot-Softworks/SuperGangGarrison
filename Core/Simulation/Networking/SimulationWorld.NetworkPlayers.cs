@@ -67,6 +67,15 @@ public sealed partial class SimulationWorld
             }
         }
 
+        foreach (var entry in _remoteSnapshotScoreboardPlayersBySlot)
+        {
+            if (ReferenceEquals(entry.Value, player))
+            {
+                slot = entry.Key;
+                return true;
+            }
+        }
+
         foreach (var entry in _additionalNetworkPlayersBySlot)
         {
             if (ReferenceEquals(entry.Value, player))

@@ -352,6 +352,61 @@ public sealed class ProtocolCodecTests
             IsDelta = true,
             EntityCollectionCompletenessFlags =
                 SnapshotEntityCollectionCompletenessFlags.AllProjectiles & ~SnapshotEntityCollectionCompletenessFlags.Rockets,
+            CapLimit = 9,
+            ScoreboardPlayers =
+            [
+                new SnapshotPlayerState(
+                    Slot: 2,
+                    PlayerId: 6,
+                    Name: "Hidden Spy",
+                    Team: 2,
+                    ClassId: 8,
+                    IsAlive: true,
+                    IsAwaitingJoin: false,
+                    IsSpectator: false,
+                    RespawnTicks: 0,
+                    X: 90f,
+                    Y: 95f,
+                    HorizontalSpeed: 0f,
+                    VerticalSpeed: 0f,
+                    Health: 100,
+                    MaxHealth: 100,
+                    Ammo: 6,
+                    MaxAmmo: 6,
+                    Kills: 1,
+                    Deaths: 0,
+                    Caps: 0,
+                    Points: 2f,
+                    HealPoints: 0,
+                    ActiveDominationCount: 0,
+                    IsDominatingLocalViewer: false,
+                    IsDominatedByLocalViewer: false,
+                    Metal: 0f,
+                    IsGrounded: true,
+                    RemainingAirJumps: 0,
+                    IsCarryingIntel: false,
+                    IntelRechargeTicks: 0f,
+                    IsSpyCloaked: true,
+                    SpyCloakAlpha: 0f,
+                    IsSpySuperjumping: false,
+                    SpySuperjumpHorizontalVelocity: 0f,
+                    SpySuperjumpCooldownTicksRemaining: 0,
+                    SpyBackstabVisualTicksRemaining: 0,
+                    IsUbered: false,
+                    IsKritzCritBoosted: false,
+                    IsHeavyEating: false,
+                    HeavyEatTicksRemaining: 0,
+                    IsSniperScoped: false,
+                    IsUsingBinoculars: false,
+                    BinocularsFocusX: 0f,
+                    BinocularsFocusY: 0f,
+                    FacingDirectionX: -1f,
+                    AimDirectionDegrees: 180f,
+                    IsTaunting: false,
+                    IsChatBubbleVisible: false,
+                    ChatBubbleFrameIndex: 0,
+                    ChatBubbleAlpha: 0f),
+            ],
             PlayerMovementStates =
             [
                 new SnapshotPlayerMovementState(
@@ -425,6 +480,10 @@ public sealed class ProtocolCodecTests
         Assert.True(player.IsMedicHealing);
         Assert.Equal(73, player.PingMilliseconds);
         Assert.Equal("plugin.example.ranger", player.GameplayClassId);
+        Assert.Equal(9, roundTrippedSnapshot.CapLimit);
+        var scoreboardPlayer = Assert.Single(roundTrippedSnapshot.ScoreboardPlayers);
+        Assert.Equal(6, scoreboardPlayer.PlayerId);
+        Assert.Equal("Hidden Spy", scoreboardPlayer.Name);
         Assert.False((roundTrippedSnapshot.EntityCollectionCompletenessFlags & SnapshotEntityCollectionCompletenessFlags.Rockets) != 0);
         Assert.True((roundTrippedSnapshot.EntityCollectionCompletenessFlags & SnapshotEntityCollectionCompletenessFlags.Shots) != 0);
         var rocketSpawn = Assert.Single(roundTrippedSnapshot.RocketSpawnEvents);

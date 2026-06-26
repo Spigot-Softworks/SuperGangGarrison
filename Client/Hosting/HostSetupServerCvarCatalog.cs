@@ -80,6 +80,18 @@ internal static class HostSetupServerCvarCatalog
         Def("sv_gravity_scale", "Gravity Scale", HostSetupCvarEditorKind.NumericText, HostSetupServerCvarValueType.Float, 0, 4, hostSettingKey: nameof(OpenGarrisonHostSettings.GravityScale)),
         Def("sv_horizontal_speed_clamp", "Horizontal Speed Clamp", HostSetupCvarEditorKind.NumericText, HostSetupServerCvarValueType.Float, 1, 60, hostSettingKey: nameof(OpenGarrisonHostSettings.HorizontalSpeedClampPerTick)),
         Def("sv_vertical_speed_clamp", "Vertical Speed Clamp", HostSetupCvarEditorKind.NumericText, HostSetupServerCvarValueType.Float, 1, 60, hostSettingKey: nameof(OpenGarrisonHostSettings.VerticalSpeedClampPerTick)),
+        Def("sv_capture_speed_multiplier_per_player", "Cap Speed Per Player", HostSetupCvarEditorKind.NumericText, HostSetupServerCvarValueType.Float, 0, 10, hostSettingKey: nameof(OpenGarrisonHostSettings.CaptureSpeedMultiplierPerPlayer)),
+        Def("sv_vip_allow_duplicate_classes", "VIP Duplicate Classes", HostSetupCvarEditorKind.Toggle, HostSetupServerCvarValueType.Boolean, hostSettingKey: nameof(OpenGarrisonHostSettings.VipAllowDuplicateClasses)),
+        Def("sv_classlimit_scout", "Limit Scout", HostSetupCvarEditorKind.Stepped, HostSetupServerCvarValueType.Integer, 0, SimulationWorld.MaxPlayableNetworkPlayers, step: 1, hostSettingKey: nameof(OpenGarrisonHostSettings.ClassLimitScout)),
+        Def("sv_classlimit_engineer", "Limit Engineer", HostSetupCvarEditorKind.Stepped, HostSetupServerCvarValueType.Integer, 0, SimulationWorld.MaxPlayableNetworkPlayers, step: 1, hostSettingKey: nameof(OpenGarrisonHostSettings.ClassLimitEngineer)),
+        Def("sv_classlimit_pyro", "Limit Pyro", HostSetupCvarEditorKind.Stepped, HostSetupServerCvarValueType.Integer, 0, SimulationWorld.MaxPlayableNetworkPlayers, step: 1, hostSettingKey: nameof(OpenGarrisonHostSettings.ClassLimitPyro)),
+        Def("sv_classlimit_soldier", "Limit Soldier", HostSetupCvarEditorKind.Stepped, HostSetupServerCvarValueType.Integer, 0, SimulationWorld.MaxPlayableNetworkPlayers, step: 1, hostSettingKey: nameof(OpenGarrisonHostSettings.ClassLimitSoldier)),
+        Def("sv_classlimit_demoman", "Limit Demoman", HostSetupCvarEditorKind.Stepped, HostSetupServerCvarValueType.Integer, 0, SimulationWorld.MaxPlayableNetworkPlayers, step: 1, hostSettingKey: nameof(OpenGarrisonHostSettings.ClassLimitDemoman)),
+        Def("sv_classlimit_heavy", "Limit Heavy", HostSetupCvarEditorKind.Stepped, HostSetupServerCvarValueType.Integer, 0, SimulationWorld.MaxPlayableNetworkPlayers, step: 1, hostSettingKey: nameof(OpenGarrisonHostSettings.ClassLimitHeavy)),
+        Def("sv_classlimit_sniper", "Limit Sniper", HostSetupCvarEditorKind.Stepped, HostSetupServerCvarValueType.Integer, 0, SimulationWorld.MaxPlayableNetworkPlayers, step: 1, hostSettingKey: nameof(OpenGarrisonHostSettings.ClassLimitSniper)),
+        Def("sv_classlimit_medic", "Limit Medic", HostSetupCvarEditorKind.Stepped, HostSetupServerCvarValueType.Integer, 0, SimulationWorld.MaxPlayableNetworkPlayers, step: 1, hostSettingKey: nameof(OpenGarrisonHostSettings.ClassLimitMedic)),
+        Def("sv_classlimit_spy", "Limit Spy", HostSetupCvarEditorKind.Stepped, HostSetupServerCvarValueType.Integer, 0, SimulationWorld.MaxPlayableNetworkPlayers, step: 1, hostSettingKey: nameof(OpenGarrisonHostSettings.ClassLimitSpy)),
+        Def("sv_classlimit_civilian", "Limit Civilian", HostSetupCvarEditorKind.Stepped, HostSetupServerCvarValueType.Integer, 0, SimulationWorld.MaxPlayableNetworkPlayers, step: 1, hostSettingKey: nameof(OpenGarrisonHostSettings.ClassLimitCivilian)),
     ];
 
     public static IReadOnlyList<HostSetupServerCvarDefinition> AdvancedDefinitions { get; } = Definitions;

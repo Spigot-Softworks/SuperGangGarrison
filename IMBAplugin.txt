@@ -6,7 +6,7 @@ Pyro - Napalm shot, similar to flare, explodes in a small area, deals 30 dmg, ca
 Demoman - Eyelander+Charge
 Heavy - shotgun (3 shot clip)
 Spy - Deadringer
-Sniper - Huntsman
+Sniper - SMG
 Medic -  Split Beam - Heal two targets at once at the cost of 30% less healiing effectiveness and 50% slower uber build
 Employer - pyro airburst but usable in air
 

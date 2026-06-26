@@ -33,6 +33,9 @@ public static class SnapshotDelta
             BaselineFrame = 0,
             IsDelta = false,
             EntityCollectionCompletenessFlags = snapshot.EntityCollectionCompletenessFlags,
+            ScoreboardPlayers = snapshot.ScoreboardPlayers.Count == 0
+                ? baseline?.ScoreboardPlayers ?? Array.Empty<SnapshotPlayerState>()
+                : snapshot.ScoreboardPlayers,
             Players = MergePlayers(
                 baseline?.Players,
                 snapshot.Players,
@@ -87,6 +90,7 @@ public static class SnapshotDelta
         {
             BaselineFrame = 0,
             IsDelta = false,
+            ScoreboardPlayers = snapshot.ScoreboardPlayers,
             PlayerMovementStates = Array.Empty<SnapshotPlayerMovementState>(),
             PlayerStatusStates = Array.Empty<SnapshotPlayerStatusState>(),
             PlayerExtendedStatusStates = Array.Empty<SnapshotPlayerExtendedStatusState>(),

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using OpenGarrison.Core;
 using OpenGarrison.Server;
 
+args = RuntimePaths.ApplyUserDataRootArgument(args);
 Directory.SetCurrentDirectory(AppContext.BaseDirectory);
 ContentRoot.Initialize("Content");
 
