@@ -35,7 +35,7 @@ public sealed partial class SimulationWorld
         RegisterSoundEvent(player, "CompressionBlastSnd");
         RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
         ApplyAirblastToSelf(player, sourceX, sourceY, aimRadians);
-        var applyTeammateKnockback = this.ExperimentalGameplaySettings.EnableFriendlyAirblastKnockback;
+        var applyTeammateKnockback = this.ExperimentalGameplaySettings.EnableFriendlyAirburstKnockback;
         ApplyAirblastToPlayers(
             player,
             sourceX,
@@ -249,14 +249,18 @@ public sealed partial class SimulationWorld
     {
         foreach (var target in EnumerateSimulatedPlayers())
         {
-            if (!target.IsAlive
-                || target.Id == player.Id
-                || !IsWithinAirblastPlayerMask(poofX, poofY, aimRadians, target.X, target.Y, PyroAirblastTargetRadius))
+            if (!target.IsAlive || target.Id == player.Id)
             {
                 continue;
             }
 
             var targetIsTeammate = target.Team == player.Team;
+            var useFriendlyAirburstMask = targetIsTeammate && carryTeammatesWithPlayerVelocity;
+            if (!IsWithinAirblastPlayerMask(poofX, poofY, aimRadians, target.X, target.Y, PyroAirblastTargetRadius, useFriendlyAirburstMask))
+            {
+                continue;
+            }
+
             if (targetIsTeammate ? !affectTeammates : !affectEnemies)
             {
                 continue;
@@ -419,8 +423,20 @@ public sealed partial class SimulationWorld
             PyroAirblastMaskBottom);
     }
 
-    private static bool IsWithinAirblastPlayerMask(float poofX, float poofY, float aimRadians, float targetX, float targetY, float radius)
+    private static bool IsWithinAirblastPlayerMask(
+        float poofX,
+        float poofY,
+        float aimRadians,
+        float targetX,
+        float targetY,
+        float radius,
+        bool useFriendlyAirburstMask)
     {
+        if (!useFriendlyAirburstMask)
+        {
+            return IsWithinAirblastMask(poofX, poofY, aimRadians, targetX, targetY, radius);
+        }
+
         return IsWithinAirblastMask(
             poofX,
             poofY,

@@ -163,11 +163,12 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
-    public void ExperimentalGameplaySettings_DefaultsFriendlyBoostFlagsToTrue()
+    public void ExperimentalGameplaySettings_DefaultsFriendlyExplosionAndAirburstBoostsToTrue()
     {
         var settings = new ExperimentalGameplaySettings();
         Assert.True(settings.EnableFriendlyExplosionBoost);
-        Assert.True(settings.EnableFriendlyAirblastKnockback);
+        Assert.False(settings.EnableFriendlyAirblastKnockback);
+        Assert.True(settings.EnableFriendlyAirburstKnockback);
     }
 
     [Fact]
@@ -185,7 +186,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     [Fact]
     public void StockPyroAirblastDoesNotMoveTeammatesByDefault()
     {
-        var world = CreateJoinedPyroWorld(new ExperimentalGameplaySettings(EnableFriendlyAirblastKnockback: false));
+        var world = CreateJoinedPyroWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
         Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
         var teammate = CreateNetworkSoldier(world, 2);
@@ -200,20 +201,53 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
-    public void PyroUtilityAirburstDoesNotMoveTeammatesByDefault()
+    public void PyroUtilityAirburstDoesNotMoveTeammatesWhenFriendlyAirburstKnockbackDisabled()
     {
-        var world = CreateJoinedPyroWorld(new ExperimentalGameplaySettings(EnableFriendlyAirblastKnockback: false));
+        var world = CreateJoinedPyroWorld(new ExperimentalGameplaySettings(EnableFriendlyAirburstKnockback: false));
         AdvanceTicks(world, 1);
         Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
         var teammate = CreateNetworkSoldier(world, 2);
         PlaceTeammateInPyroAirblastRange(world, teammate);
-        Assert.False(world.ExperimentalGameplaySettings.EnableFriendlyAirblastKnockback);
+        Assert.False(world.ExperimentalGameplaySettings.EnableFriendlyAirburstKnockback);
         Assert.Equal(world.LocalPlayer.Team, teammate.Team);
 
         PressUseAbilitySpace(world, world.LocalPlayer.X + 96f, world.LocalPlayer.Y + 32f);
 
         Assert.Equal(0f, teammate.HorizontalSpeed);
         Assert.Equal(0f, teammate.VerticalSpeed);
+    }
+
+    [Fact]
+    public void FriendlyPyroAirburstUsesNarrowerPlayerConeThanAirblast()
+    {
+        var method = typeof(SimulationWorld).GetMethod(
+            "IsWithinAirblastPlayerMask",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+
+        object[] sharedArguments =
+        [
+            0f,
+            0f,
+            0f,
+            50f,
+            37f,
+            25f,
+            false,
+        ];
+        object[] airburstArguments =
+        [
+            0f,
+            0f,
+            0f,
+            50f,
+            37f,
+            25f,
+            true,
+        ];
+
+        Assert.True((bool)method!.Invoke(null, sharedArguments)!);
+        Assert.False((bool)method.Invoke(null, airburstArguments)!);
     }
 
     [Fact]
@@ -238,9 +272,9 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
-    public void PyroUtilityAirburstCarriesTeammatesWithPyroVelocityWhenFriendlyAirblastKnockbackEnabled()
+    public void PyroUtilityAirburstCarriesTeammatesWithPyroVelocityByDefault()
     {
-        var world = CreateJoinedPyroWorld(new ExperimentalGameplaySettings(EnableFriendlyAirblastKnockback: true));
+        var world = CreateJoinedPyroWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
         Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
         var teammate = CreateNetworkSoldier(world, 2);
