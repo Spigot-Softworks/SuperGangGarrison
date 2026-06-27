@@ -258,7 +258,7 @@ public partial class Game1
             (byte)Math.Clamp(outlineTint.A * alphaScale, 0f, 255f));
     }
 
-    private static Rectangle GetHealingCharacterSweepBounds(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition)
+    private Rectangle GetHealingCharacterSweepBounds(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition)
     {
         var bounds = GetPlayerScreenBounds(player, renderPosition, cameraPosition);
         bounds.Inflate(HealingCharacterSweepHorizontalPaddingPixels, 0);

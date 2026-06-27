@@ -80,14 +80,13 @@ public partial class Game1
     private readonly Dictionary<int, ImmediateNetworkDeadBodyVisual> _immediateNetworkDeadBodies = new();
     private readonly List<int> _staleImmediateNetworkDeadBodyPlayerIds = new();
 
-    private static Rectangle GetPlayerScreenBounds(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition)
+    private Rectangle GetPlayerScreenBounds(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition)
     {
-        // Derive the screen bounds from the same sprite screen origin the player sprite is drawn at
-        // (RoundToSourcePixels(renderPosition) - cameraPosition). Both quantities are integers so their
-        // difference is an integer, and the collision offsets are then added to that stable base rather
-        // than having sub-pixel renderPosition jitter influence which integer Floor/Ceiling snaps to.
-        var spriteScreenX = MathF.Round(renderPosition.X, MidpointRounding.AwayFromZero) - cameraPosition.X;
-        var spriteScreenY = MathF.Round(renderPosition.Y, MidpointRounding.AwayFromZero) - cameraPosition.Y;
+        // Round the final screen-space anchor instead of rounding world position and camera independently.
+        // With smooth camera, independent rounding can make moving players oscillate by a pixel.
+        var spriteScreenOrigin = GetPlayerSpriteScreenOrigin(renderPosition, cameraPosition);
+        var spriteScreenX = spriteScreenOrigin.X;
+        var spriteScreenY = spriteScreenOrigin.Y;
         var screenLeft = (int)MathF.Floor(spriteScreenX + player.CollisionLeftOffset);
         var screenTop = (int)MathF.Floor(spriteScreenY + player.CollisionTopOffset);
         var screenRight = (int)MathF.Ceiling(spriteScreenX + player.CollisionRightOffset);
@@ -102,6 +101,37 @@ public partial class Game1
     private static Vector2 GetRoundedPlayerSpriteOrigin(Vector2 renderPosition)
     {
         return RoundToSourcePixels(renderPosition);
+    }
+
+    private Vector2 GetPlayerSpriteOrigin(Vector2 renderPosition)
+    {
+        return _smoothCameraRenderingActive
+            ? renderPosition
+            : GetRoundedPlayerSpriteOrigin(renderPosition);
+    }
+
+    private Vector2 GetPlayerSpriteScreenOrigin(Vector2 renderPosition, Vector2 cameraPosition)
+    {
+        var screenOrigin = renderPosition - cameraPosition;
+        return _smoothCameraRenderingActive
+            ? screenOrigin
+            : RoundToSourcePixels(screenOrigin);
+    }
+
+    private Vector2 GetPlayerAnchoredScreenPosition(
+        Vector2 renderPosition,
+        Vector2 cameraPosition,
+        float anchoredWorldX,
+        float anchoredWorldY)
+    {
+        var origin = GetPlayerSpriteOrigin(renderPosition);
+        var screenOrigin = GetPlayerSpriteScreenOrigin(renderPosition, cameraPosition);
+        var position = new Vector2(
+            screenOrigin.X + anchoredWorldX - origin.X,
+            screenOrigin.Y + anchoredWorldY - origin.Y);
+        return _smoothCameraRenderingActive
+            ? position
+            : RoundToSourcePixels(position);
     }
 
     private void DrawPlayer(PlayerEntity player, Vector2 cameraPosition, Color aliveColor, Color deadColor)
@@ -214,18 +244,17 @@ public partial class Game1
 
     private void DrawIntelUnderlaySprite(
         PlayerEntity player,
-        Vector2 cameraPosition,
         Color tint,
         Vector2 scale,
         PlayerBodySpriteSelection bodySelection,
-        Vector2 roundedOrigin)
+        Vector2 screenOrigin)
     {
-        _gameplayPlayerSpriteRenderController.DrawIntelUnderlaySprite(player, cameraPosition, tint, scale, bodySelection, roundedOrigin);
+        _gameplayPlayerSpriteRenderController.DrawIntelUnderlaySprite(player, tint, scale, bodySelection, screenOrigin);
     }
 
-    private void DrawCarriedIntelTimerSprite(PlayerEntity player, Vector2 cameraPosition, Vector2 roundedOrigin)
+    private void DrawCarriedIntelTimerSprite(PlayerEntity player, Vector2 screenOrigin)
     {
-        _gameplayPlayerSpriteRenderController.DrawCarriedIntelTimerSprite(player, cameraPosition, roundedOrigin);
+        _gameplayPlayerSpriteRenderController.DrawCarriedIntelTimerSprite(player, screenOrigin);
     }
 
     private static PlayerTeam GetCarriedIntelTeam(PlayerEntity player)

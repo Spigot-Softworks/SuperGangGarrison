@@ -58,6 +58,43 @@ public sealed class CustomMapCustomSpriteTests
     }
 
     [Fact]
+    public void ImporterAppliesEntityScaleToSpriteBoundsAndDrawScale()
+    {
+        var roomObjects = new List<RoomObjectMarker>();
+        var resources = new Dictionary<string, CustomMapBuilderResource>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["icon"] = new CustomMapBuilderResource(
+                "icon",
+                string.Empty,
+                CustomMapBuilderResourceKind.CustomSprite,
+                CreatePng(32, 24)),
+        };
+        var context = new CustomMapEntityImportContext
+        {
+            RoomObjects = roomObjects,
+            Resources = resources,
+        };
+
+        Assert.True(CustomMapEntityRuntimeRegistry.TryImport(
+            CustomMapCustomSpriteMetadata.CustomSpriteEntityType,
+            100f,
+            80f,
+            1.5f,
+            0.5f,
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [CustomMapCustomSpriteMetadata.ImagePropertyKey] = "icon",
+                [CustomMapCustomSpriteMetadata.ScalePropertyKey] = "2",
+            },
+            context));
+
+        var marker = Assert.Single(roomObjects);
+        Assert.Equal(96f, marker.Width);
+        Assert.Equal(24f, marker.Height);
+        Assert.Equal(3f, marker.CustomMapSprite.Scale);
+    }
+
+    [Fact]
     public void ActivatorResolvesCustomSpriteByCenterPosition()
     {
         var roomObjects = new List<RoomObjectMarker>

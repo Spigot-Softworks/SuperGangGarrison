@@ -12,7 +12,7 @@ public partial class Game1
     private CustomMapVisualMetadata? _loadedCustomMapVisualsSource;
     private RuntimeCustomMapVisuals? _loadedCustomMapVisuals;
 
-    private void DrawCustomMapBackdrop(Rectangle worldRectangle)
+    private void DrawCustomMapBackdrop(int viewportWidth, int viewportHeight)
     {
         var visuals = GetRuntimeCustomMapVisuals();
         if (visuals?.BackgroundColor is null)
@@ -20,11 +20,10 @@ public partial class Game1
             return;
         }
 
-        var viewport = GraphicsDevice.Viewport;
-        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewport.Width, viewport.Height), visuals.BackgroundColor.Value);
+        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), visuals.BackgroundColor.Value);
     }
 
-    private void DrawCustomMapParallaxBackgrounds(Vector2 cameraPosition)
+    private void DrawCustomMapParallaxBackgrounds(Vector2 cameraPosition, int viewportWidth, int viewportHeight)
     {
         var visuals = GetRuntimeCustomMapVisuals();
         if (visuals is null || visuals.ParallaxLayers.Count == 0)
@@ -32,10 +31,9 @@ public partial class Game1
             return;
         }
 
-        var viewport = GraphicsDevice.Viewport;
         foreach (var layer in visuals.ParallaxLayers)
         {
-            DrawCustomMapParallaxLayer(layer, cameraPosition, viewport.Width, viewport.Height, visuals.ImageScale);
+            DrawCustomMapParallaxLayer(layer, cameraPosition, viewportWidth, viewportHeight, visuals.ImageScale);
         }
     }
 

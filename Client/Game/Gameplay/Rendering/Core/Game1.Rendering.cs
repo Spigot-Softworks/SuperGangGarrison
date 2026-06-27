@@ -44,6 +44,38 @@ public partial class Game1
             RoundToSourcePixel(value.Y));
     }
 
+    private Vector2 GetWorldScreenPosition(float worldX, float worldY, Vector2 cameraPosition)
+    {
+        var position = new Vector2(worldX - cameraPosition.X, worldY - cameraPosition.Y);
+        return _smoothCameraRenderingActive
+            ? position
+            : RoundToSourcePixels(position);
+    }
+
+    private Vector2 GetWorldScreenPosition(Vector2 worldPosition, Vector2 cameraPosition)
+    {
+        return GetWorldScreenPosition(worldPosition.X, worldPosition.Y, cameraPosition);
+    }
+
+    private void DrawScreenPixelRectangle(Vector2 position, float width, float height, Color color)
+    {
+        if (width <= 0f || height <= 0f)
+        {
+            return;
+        }
+
+        _spriteBatch.Draw(
+            _pixel,
+            position,
+            null,
+            color,
+            0f,
+            Vector2.Zero,
+            new Vector2(width, height),
+            SpriteEffects.None,
+            0f);
+    }
+
     private void DrawSniperTracers(Vector2 cameraPosition)
     {
         // Draw particles first (behind the tracer lines)
@@ -179,15 +211,29 @@ public partial class Game1
         }
     }
 
-    private bool DrawLevelBackground(Rectangle worldRectangle)
+    private bool DrawLevelBackground(Vector2 cameraPosition)
     {
+        var position = GetWorldScreenPosition(Vector2.Zero, cameraPosition);
+        var scale = new Vector2(_world.Bounds.Width, _world.Bounds.Height);
         if (TryGetLevelBackgroundTexture(out var background))
         {
-            _spriteBatch.Draw(background, worldRectangle, Color.White);
+            scale = new Vector2(
+                background.Width > 0 ? _world.Bounds.Width / background.Width : 1f,
+                background.Height > 0 ? _world.Bounds.Height / background.Height : 1f);
+            _spriteBatch.Draw(
+                background,
+                position,
+                null,
+                Color.White,
+                0f,
+                Vector2.Zero,
+                scale,
+                SpriteEffects.None,
+                0f);
             return true;
         }
 
-        _spriteBatch.Draw(_pixel, worldRectangle, new Color(34, 44, 60));
+        DrawScreenPixelRectangle(position, scale.X, scale.Y, new Color(34, 44, 60));
         return false;
     }
 

@@ -31,7 +31,7 @@ public partial class Game1
             }
 
             var renderPosition = _game.GetRenderPosition(player);
-            var rectangle = GetPlayerScreenBounds(player, renderPosition, cameraPosition);
+            var rectangle = _game.GetPlayerScreenBounds(player, renderPosition, cameraPosition);
             var fallbackColor = aliveColor * visibilityAlpha;
             var spriteTint = _game.GetPlayerColor(player, Color.White);
             var bodySelection = _game.GetPlayerBodySpriteSelection(player);

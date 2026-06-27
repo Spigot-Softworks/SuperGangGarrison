@@ -74,7 +74,16 @@ public partial class Game1
             }
             else
             {
-                _spriteBatch.Draw(texture, destination, tint);
+                _spriteBatch.Draw(
+                    texture,
+                    new Vector2(screenX - (drawWidth * 0.5f), screenY - (drawHeight * 0.5f)),
+                    null,
+                    tint,
+                    0f,
+                    Vector2.Zero,
+                    new Vector2(drawWidth / texture.Width, drawHeight / texture.Height),
+                    SpriteEffects.None,
+                    0f);
             }
         }
     }

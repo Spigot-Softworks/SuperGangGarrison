@@ -16,6 +16,8 @@ public partial class Game1
 
     private void DrawGameplayWorld(
         Vector2 cameraPosition,
+        int viewportWidth,
+        int viewportHeight,
         Rectangle worldRectangle,
         Rectangle playerRectangle,
         Rectangle centerLine,
@@ -28,15 +30,15 @@ public partial class Game1
         int? skippedDeadBodySourcePlayerId = null)
     {
         var browserWorldDrawStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
-        DrawCustomMapBackdrop(worldRectangle);
-        DrawCustomMapParallaxBackgrounds(cameraPosition);
+        DrawCustomMapBackdrop(viewportWidth, viewportHeight);
+        DrawCustomMapParallaxBackgrounds(cameraPosition, viewportWidth, viewportHeight);
         for (var parallaxLayer = 0; parallaxLayer <= 6; parallaxLayer += 1)
         {
             DrawCustomMapGameplaySprites(cameraPosition, (CustomMapSpriteLayerKind)(parallaxLayer + 1));
             DrawSpritesheets(cameraPosition, (CustomMapSpriteLayerKind)(parallaxLayer + 1));
         }
 
-        var hasLevelBackground = DrawLevelBackground(worldRectangle);
+        var hasLevelBackground = DrawLevelBackground(cameraPosition);
         DrawCustomMapGameplaySprites(cameraPosition, CustomMapSpriteLayerKind.Bg);
         DrawSpritesheets(cameraPosition, CustomMapSpriteLayerKind.Bg);
         DrawFallbackLevelSolids(cameraPosition, hasLevelBackground);
@@ -138,13 +140,11 @@ public partial class Game1
 
         foreach (var solid in _world.Level.Solids)
         {
-            var solidRectangle = new Rectangle(
-                (int)(solid.X - cameraPosition.X),
-                (int)(solid.Y - cameraPosition.Y),
-                (int)solid.Width,
-                (int)solid.Height);
-
-            _spriteBatch.Draw(_pixel, solidRectangle, new Color(46, 70, 56));
+            DrawScreenPixelRectangle(
+                GetWorldScreenPosition(solid.X, solid.Y, cameraPosition),
+                solid.Width,
+                solid.Height,
+                new Color(46, 70, 56));
         }
     }
 
@@ -154,11 +154,6 @@ public partial class Game1
         {
             if (!TryDrawSentry(sentry, cameraPosition))
             {
-                var sentryRectangle = new Rectangle(
-                    (int)(sentry.X - SentryEntity.Width / 2f - cameraPosition.X),
-                    (int)(sentry.Y - SentryEntity.Height / 2f - cameraPosition.Y),
-                    (int)SentryEntity.Width,
-                    (int)SentryEntity.Height);
                 var sentryColor = sentry.Team == PlayerTeam.Blue
                     ? new Color(100, 160, 235)
                     : new Color(220, 110, 90);
@@ -167,7 +162,11 @@ public partial class Game1
                     sentryColor *= 0.75f;
                 }
 
-                _spriteBatch.Draw(_pixel, sentryRectangle, sentryColor);
+                DrawScreenPixelRectangle(
+                    GetWorldScreenPosition(sentry.X - SentryEntity.Width / 2f, sentry.Y - SentryEntity.Height / 2f, cameraPosition),
+                    SentryEntity.Width,
+                    SentryEntity.Height,
+                    sentryColor);
             }
 
             DrawSentryHealthBar(sentry, cameraPosition);
@@ -178,12 +177,11 @@ public partial class Game1
         {
             if (!TryDrawSentryGib(gib, cameraPosition))
             {
-                var gibRectangle = new Rectangle(
-                    (int)(gib.X - 6f - cameraPosition.X),
-                    (int)(gib.Y - 6f - cameraPosition.Y),
-                    12,
-                    12);
-                _spriteBatch.Draw(_pixel, gibRectangle, new Color(160, 170, 175) * gib.Alpha);
+                DrawScreenPixelRectangle(
+                    GetWorldScreenPosition(gib.X - 6f, gib.Y - 6f, cameraPosition),
+                    12f,
+                    12f,
+                    new Color(160, 170, 175) * gib.Alpha);
             }
         }
 
@@ -201,15 +199,14 @@ public partial class Game1
         {
             if (!TryDrawJumpPad(jumpPad, cameraPosition))
             {
-                var padRectangle = new Rectangle(
-                    (int)(jumpPad.X - JumpPadEntity.Width / 2f - cameraPosition.X),
-                    (int)(jumpPad.Y - JumpPadEntity.Height / 2f - cameraPosition.Y),
-                    (int)JumpPadEntity.Width,
-                    (int)JumpPadEntity.Height);
                 var padColor = jumpPad.Team == PlayerTeam.Blue
                     ? new Color(100, 160, 235)
                     : new Color(220, 110, 90);
-                _spriteBatch.Draw(_pixel, padRectangle, padColor);
+                DrawScreenPixelRectangle(
+                    GetWorldScreenPosition(jumpPad.X - JumpPadEntity.Width / 2f, jumpPad.Y - JumpPadEntity.Height / 2f, cameraPosition),
+                    JumpPadEntity.Width,
+                    JumpPadEntity.Height,
+                    padColor);
             }
         }
 
@@ -217,12 +214,11 @@ public partial class Game1
         {
             if (!TryDrawJumpPadGib(gib, cameraPosition))
             {
-                var gibRectangle = new Rectangle(
-                    (int)(gib.X - 6f - cameraPosition.X),
-                    (int)(gib.Y - 6f - cameraPosition.Y),
-                    12,
-                    12);
-                _spriteBatch.Draw(_pixel, gibRectangle, new Color(160, 170, 175));
+                DrawScreenPixelRectangle(
+                    GetWorldScreenPosition(gib.X - 6f, gib.Y - 6f, cameraPosition),
+                    12f,
+                    12f,
+                    new Color(160, 170, 175));
             }
         }
 

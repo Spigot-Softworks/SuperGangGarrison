@@ -62,20 +62,20 @@ public partial class Game1
                             : bodySelection.IsHumiliated
                                 ? GetHumiliationSpriteFrameIndex(player, bodySelection.AnimationImage, sprite.Frames.Count)
                                 : GetPlayerBodySpriteFrameIndex(bodySelection.AnimationImage, sprite.Frames.Count);
-            var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
+            var screenOrigin = _game.GetPlayerSpriteScreenOrigin(renderPosition, cameraPosition);
             var bodyYOffset = isHeavyEating || player.IsTaunting || isPogo ? 0f : bodySelection.BodyYOffset * playerScale;
-            var position = new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y + bodyYOffset - cameraPosition.Y);
+            var position = _game.GetPlayerSpriteScreenOrigin(new Vector2(renderPosition.X, renderPosition.Y + bodyYOffset), cameraPosition);
 
             if (drawIntelOverlay && !isHeavyEating && !player.IsTaunting && bodySelection.DrawIntelUnderlay)
             {
                 if (isPogo)
                 {
                     var intelFrameIndex = isPogoTrick ? 0 : frameIndex;
-                    DrawPogoIntelUnderlaySprite(player, cameraPosition, tint, scale, roundedOrigin, intelFrameIndex);
+                    DrawPogoIntelUnderlaySprite(player, tint, scale, screenOrigin, intelFrameIndex);
                 }
                 else
                 {
-                    DrawIntelUnderlaySprite(player, cameraPosition, tint, scale, bodySelection, roundedOrigin);
+                    DrawIntelUnderlaySprite(player, tint, scale, bodySelection, screenOrigin);
                 }
             }
 
@@ -105,7 +105,7 @@ public partial class Game1
 
             if (drawIntelOverlay && !isHeavyEating && !player.IsTaunting && bodySelection.DrawIntelUnderlay)
             {
-                DrawCarriedIntelTimerSprite(player, cameraPosition, roundedOrigin);
+                DrawCarriedIntelTimerSprite(player, screenOrigin);
             }
 
             if (player.ClassId == PlayerClass.Spy
@@ -192,9 +192,9 @@ public partial class Game1
                             : bodySelection.IsHumiliated
                                 ? GetHumiliationSpriteFrameIndex(player, bodySelection.AnimationImage, sprite.Frames.Count)
                                 : GetPlayerBodySpriteFrameIndex(bodySelection.AnimationImage, sprite.Frames.Count);
-            var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
+            var screenOrigin = _game.GetPlayerSpriteScreenOrigin(renderPosition, cameraPosition);
             var bodyYOffset = isHeavyEating || player.IsTaunting || isPogo ? 0f : bodySelection.BodyYOffset * playerScale;
-            var position = new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y + bodyYOffset - cameraPosition.Y);
+            var position = _game.GetPlayerSpriteScreenOrigin(new Vector2(renderPosition.X, renderPosition.Y + bodyYOffset), cameraPosition);
             _game.DrawSpriteFrameOutline(sprite.Frames[frameIndex], position, outlineTint, 0f, sprite.Origin.ToVector2(), scale, outlineOffsets: outlineOffsets);
             return true;
         }
@@ -326,14 +326,14 @@ public partial class Game1
             return GetPresentationSpriteName(classId, team, static presentation => presentation.DeadSuffix ?? presentation.BaseSuffix, "DeadS");
         }
 
-        public void DrawIntelUnderlaySprite(PlayerEntity player, Vector2 cameraPosition, Color tint, Vector2 scale, PlayerBodySpriteSelection bodySelection, Vector2 roundedOrigin)
+        public void DrawIntelUnderlaySprite(PlayerEntity player, Color tint, Vector2 scale, PlayerBodySpriteSelection bodySelection, Vector2 screenOrigin)
         {
-            DrawIntelUnderlaySpriteCore(player, cameraPosition, tint, scale, bodySelection, roundedOrigin);
+            DrawIntelUnderlaySpriteCore(player, tint, scale, bodySelection, screenOrigin);
         }
 
-        public void DrawCarriedIntelTimerSprite(PlayerEntity player, Vector2 cameraPosition, Vector2 roundedOrigin)
+        public void DrawCarriedIntelTimerSprite(PlayerEntity player, Vector2 screenOrigin)
         {
-            DrawCarriedIntelTimerSpriteCore(player, cameraPosition, roundedOrigin);
+            DrawCarriedIntelTimerSpriteCore(player, screenOrigin);
         }
 
         public static PlayerTeam GetCarriedIntelTeamProxy(PlayerEntity player) => GetCarriedIntelTeam(player);
@@ -369,7 +369,7 @@ public partial class Game1
             return GetPlayerFacingScale(player);
         }
 
-        private void DrawIntelUnderlaySpriteCore(PlayerEntity player, Vector2 cameraPosition, Color tint, Vector2 scale, PlayerBodySpriteSelection bodySelection, Vector2 roundedOrigin)
+        private void DrawIntelUnderlaySpriteCore(PlayerEntity player, Color tint, Vector2 scale, PlayerBodySpriteSelection bodySelection, Vector2 screenOrigin)
         {
             var spriteName = GetPresentationSpriteName(player, static presentation => presentation.IntelSuffix ?? presentation.BaseSuffix, "IntelS");
             if (spriteName is null)
@@ -385,7 +385,7 @@ public partial class Game1
 
             _game.DrawSpriteFrameWithOptionalShadow(
                 sprite.Frames[0],
-                new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y + (bodySelection.EquipmentOffset * player.PlayerScale) - cameraPosition.Y),
+                new Vector2(screenOrigin.X, screenOrigin.Y + (bodySelection.EquipmentOffset * player.PlayerScale)),
                 tint,
                 0f,
                 sprite.Origin.ToVector2(),
@@ -394,10 +394,9 @@ public partial class Game1
 
         private void DrawPogoIntelUnderlaySprite(
             PlayerEntity player,
-            Vector2 cameraPosition,
             Color tint,
             Vector2 scale,
-            Vector2 roundedOrigin,
+            Vector2 screenOrigin,
             int frameIndex)
         {
             var spriteName = GetPogoIntelSpriteName(player);
@@ -415,14 +414,14 @@ public partial class Game1
             var clampedFrameIndex = Math.Clamp(frameIndex, 0, sprite.Frames.Count - 1);
             _game.DrawSpriteFrameWithOptionalShadow(
                 sprite.Frames[clampedFrameIndex],
-                new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y - cameraPosition.Y),
+                screenOrigin,
                 tint,
                 0f,
                 sprite.Origin.ToVector2(),
                 scale);
         }
 
-        private void DrawCarriedIntelTimerSpriteCore(PlayerEntity player, Vector2 cameraPosition, Vector2 roundedOrigin)
+        private void DrawCarriedIntelTimerSpriteCore(PlayerEntity player, Vector2 screenOrigin)
         {
             var timerSprite = _game.GetResolvedSprite("IntelTimerS");
             if (timerSprite is null || timerSprite.Frames.Count == 0)
@@ -446,7 +445,7 @@ public partial class Game1
             var playerScale = player.PlayerScale;
             _game.DrawSpriteFrameWithOptionalShadow(
                 timerSprite.Frames[System.Math.Clamp(timerFrame, 0, timerSprite.Frames.Count - 1)],
-                new Vector2(roundedOrigin.X + (2f * playerScale) - cameraPosition.X, roundedOrigin.Y - (33f * playerScale) - cameraPosition.Y),
+                new Vector2(screenOrigin.X + (2f * playerScale), screenOrigin.Y - (33f * playerScale)),
                 Color.White,
                 0f,
                 timerSprite.Origin.ToVector2(),

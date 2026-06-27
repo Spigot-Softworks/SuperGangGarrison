@@ -1,0 +1,15 @@
+class,id,weapon,slot,behavior,damage_per_shot,burst_dps,sustained_dps,assumption
+Heavy,weapon.minigun,Heavy Minigun,Primary,builtin.weapon.minigun,8.0,120.0,62.18,bullet hit
+Pyro,weapon.flamethrower,Pyro Flamethrower,Primary,builtin.weapon.flamethrower,3.2,96.0,49.76,direct flame tick + burn tick
+Scout,weapon.scout-nailgun,Scout Nailgun,Secondary,builtin.weapon.scout_nailgun,12.0,60.0,45.53,nail hit
+Scout,weapon.scattergun,Scout Scattergun,Primary,builtin.weapon.pellet_gun,48.0,72.0,40.8,all pellets hit
+Medic,weapon.medigun,Medic Needlegun,Primary,builtin.weapon.medigun,4.0,40.0,40.0,enemy needle hit
+Demoman,weapon.minelauncher,Demoman Mine Launcher,Primary,builtin.weapon.mine_launcher,45.0,51.92,33.0,max splash
+Spy,weapon.revolver,Spy Revolver,Primary,builtin.weapon.revolver,28.0,46.67,32.82,shot hit
+Soldier,weapon.rocketlauncher,Soldier Rocket Launcher,Primary,builtin.weapon.rocket_launcher,55.0,55.0,31.78,direct hit + max splash
+Engineer,weapon.shotgun,Engineer Shotgun,Primary,builtin.weapon.pellet_gun,32.0,48.0,27.38,all pellets hit
+Soldier,weapon.soldier-shotgun,Soldier 12 Gauge,Secondary,builtin.weapon.pellet_gun,32.0,48.0,26.84,all pellets hit
+Sniper,weapon.rifle,Sniper Rifle,Primary,builtin.weapon.rifle,35.0,26.25,26.25,unscoped shot
+Civilian/Employer,weapon.umbrella,Civilian/Employer Umbrella,Primary,builtin.weapon.revolver,28.0,31.11,21.93,shot hit
+Demoman,weapon.grenadelauncher,Demoman Grenade Launcher,Utility,builtin.weapon.grenade_launcher,35.0,40.38,18.47,direct impact
+Medic,weapon.medigun.crit,Medic Kritz Needle,Secondary,builtin.weapon.medigun.crit,22.0,36.67,0.73,enemy heal-needle hit

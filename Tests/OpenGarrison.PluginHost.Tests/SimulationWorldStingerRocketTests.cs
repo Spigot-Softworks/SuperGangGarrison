@@ -138,7 +138,7 @@ public sealed class SimulationWorldStingerRocketTests
     [Fact]
     public void FriendlyExplosionBoostDisabled_SkipsTeammateRocketKnockback()
     {
-        var world = CreateSoldierWorld(new ExperimentalGameplaySettings());
+        var world = CreateSoldierWorld(new ExperimentalGameplaySettings(EnableFriendlyExplosionBoost: false));
         var owner = world.LocalPlayer;
         owner.TeleportTo(100f, 100f);
 
@@ -170,7 +170,7 @@ public sealed class SimulationWorldStingerRocketTests
     [Fact]
     public void FriendlyExplosionBoostEnabled_AppliesTeammateRocketKnockback()
     {
-        var world = CreateSoldierWorld(new ExperimentalGameplaySettings(EnableFriendlyExplosionBoost: true));
+        var world = CreateSoldierWorld(new ExperimentalGameplaySettings());
         var owner = world.LocalPlayer;
         owner.TeleportTo(100f, 100f);
 

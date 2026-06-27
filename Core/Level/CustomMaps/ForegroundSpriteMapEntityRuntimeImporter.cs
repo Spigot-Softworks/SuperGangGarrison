@@ -28,11 +28,16 @@ internal sealed class ForegroundSpriteMapEntityRuntimeImporter : ICustomMapEntit
             pixelHeight = decodedHeight;
         }
 
-        var (width, height) = ForegroundSpriteMetadata.ResolveWorldDimensions(
+        var xScale = NormalizeEntityScale(args.XScale);
+        var yScale = NormalizeEntityScale(args.YScale);
+        var drawScale = configuration.Scale * MathF.Max(xScale, yScale);
+        var (baseWidth, baseHeight) = ForegroundSpriteMetadata.ResolveWorldDimensions(
             pixelWidth,
             pixelHeight,
             configuration.Scale,
             configuration);
+        var width = baseWidth * xScale;
+        var height = baseHeight * yScale;
         var (left, top) = CustomMapEntityPlacementAnchor.ToTopLeft(
             args.X,
             args.Y,
@@ -47,7 +52,12 @@ internal sealed class ForegroundSpriteMapEntityRuntimeImporter : ICustomMapEntit
             height,
             string.Empty,
             SourceName: EntityType,
-            ForegroundSprite: configuration with { }));
+            ForegroundSprite: configuration with { Scale = drawScale }));
         return true;
+    }
+
+    private static float NormalizeEntityScale(float scale)
+    {
+        return MathF.Abs(scale) > 0.0001f ? MathF.Abs(scale) : 1f;
     }
 }

@@ -370,6 +370,44 @@ public sealed class SimulationWorldSnapshotPresentationTests
     }
 
     [Fact]
+    public void NetworkPlayerDeathCamFreezesKillerHealth()
+    {
+        var world = new SimulationWorld();
+        world.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.TryGetNetworkPlayer(2, out var killer));
+        killer.ForceSetHealth(137);
+
+        var killMethod = typeof(SimulationWorld).GetMethod("KillPlayer", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(killMethod);
+        _ = killMethod!.Invoke(
+            world,
+            [
+                world.LocalPlayer,
+                false,
+                killer,
+                "RocketKL",
+                DeadBodyAnimationKind.Default,
+                null,
+                null,
+                null,
+                true,
+                true,
+                false,
+                true,
+            ]);
+
+        killer.ForceSetHealth(12);
+
+        var deathCam = world.GetNetworkPlayerDeathCam(SimulationWorld.LocalPlayerSlot);
+        Assert.NotNull(deathCam);
+        Assert.Equal(137, deathCam!.Health);
+        Assert.Equal(killer.MaxHealth, deathCam.MaxHealth);
+    }
+
+    [Fact]
     public void NetworkPlayerDeathCamFreezesTrackedKillerFocusAfterDelay()
     {
         var world = new SimulationWorld();

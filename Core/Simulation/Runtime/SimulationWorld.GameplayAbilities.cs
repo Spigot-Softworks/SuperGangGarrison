@@ -728,7 +728,7 @@ public sealed partial class SimulationWorld
             if (player.TryReleaseSpySuperjump(out var velocityX, out var velocityY, maxChargeTicks, minVelocity, maxVelocity, cooldownTicks))
             {
                 player.ApplyVelocityImpulse(velocityX, velocityY);
-                RegisterWorldSoundEvent("JumpSnd", player.X, player.Y);
+                RegisterWorldSoundEvent("JumpSnd", player.X, player.Y, player.Id);
                 return GameplayAbilityResult.HandledAndConsumed;
             }
 

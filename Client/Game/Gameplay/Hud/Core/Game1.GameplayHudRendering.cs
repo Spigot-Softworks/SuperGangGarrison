@@ -457,6 +457,8 @@ public partial class Game1
         WriteGameplayRenderTrace("modal after networkdiagnostics");
         DrawBotDiagnosticsOverlay();
         WriteGameplayRenderTrace("modal after botdiagnostics");
+        DrawCameraDebugOverlay(cameraPosition);
+        WriteGameplayRenderTrace("modal after camdebug");
 
         switch (GetActiveGameplayOverlay())
         {

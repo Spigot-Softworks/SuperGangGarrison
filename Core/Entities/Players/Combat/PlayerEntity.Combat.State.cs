@@ -182,7 +182,8 @@ public sealed partial class PlayerEntity
             || MedicNeedleRefillTicks > 0
             || IsBurning
             || HasGameplayResupplyCooldown()
-            || HasGameplayResupplyAmmoDeficit();
+            || HasGameplayResupplyAmmoDeficit()
+            || NeedsCivvieUmbrellaResupply();
     }
 
     private bool HasGameplayResupplyCooldown()
@@ -205,6 +206,12 @@ public sealed partial class PlayerEntity
             && ExperimentalOffhandCurrentShells < ExperimentalOffhandWeapon.MaxAmmo
             || AcquiredWeapon is not null
             && AcquiredWeaponCurrentShells < AcquiredWeapon.MaxAmmo;
+    }
+
+    private bool NeedsCivvieUmbrellaResupply()
+    {
+        return HasSecondaryBehavior(BuiltInGameplayBehaviorIds.CivvieUmbrella)
+            && (CivvieUmbrellaChargeTicks < CivvieUmbrellaMaxChargeTicks || IsCivvieUmbrellaBroken);
     }
 
     public void HealAndResupply()

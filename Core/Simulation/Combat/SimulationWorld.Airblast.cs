@@ -9,6 +9,10 @@ public sealed partial class SimulationWorld
     private const float PyroAirblastMaskRight = 96f;
     private const float PyroAirblastMaskTop = -13f;
     private const float PyroAirblastMaskBottom = 14f;
+    private const float PyroAirblastPlayerMaskLeft = 12f;
+    private const float PyroAirblastPlayerMaskRight = 84f;
+    private const float PyroAirblastPlayerMaskTop = -10f;
+    private const float PyroAirblastPlayerMaskBottom = 11f;
     private const float PyroAirblastMineSpeedFloor = 28f / 3f;
     private const float PyroAirblastLooseBodyImpulse = 28f;
     private const float PyroAirblastPlayerImpulse = 15f * LegacyMovementModel.SourceTicksPerSecond;
@@ -247,7 +251,7 @@ public sealed partial class SimulationWorld
         {
             if (!target.IsAlive
                 || target.Id == player.Id
-                || !IsWithinAirblastMask(poofX, poofY, aimRadians, target.X, target.Y, PyroAirblastTargetRadius))
+                || !IsWithinAirblastPlayerMask(poofX, poofY, aimRadians, target.X, target.Y, PyroAirblastTargetRadius))
             {
                 continue;
             }
@@ -402,6 +406,46 @@ public sealed partial class SimulationWorld
 
     private static bool IsWithinAirblastMask(float poofX, float poofY, float aimRadians, float targetX, float targetY, float radius)
     {
+        return IsWithinAirblastMask(
+            poofX,
+            poofY,
+            aimRadians,
+            targetX,
+            targetY,
+            radius,
+            PyroAirblastMaskLeft,
+            PyroAirblastMaskTop,
+            PyroAirblastMaskRight,
+            PyroAirblastMaskBottom);
+    }
+
+    private static bool IsWithinAirblastPlayerMask(float poofX, float poofY, float aimRadians, float targetX, float targetY, float radius)
+    {
+        return IsWithinAirblastMask(
+            poofX,
+            poofY,
+            aimRadians,
+            targetX,
+            targetY,
+            radius,
+            PyroAirblastPlayerMaskLeft,
+            PyroAirblastPlayerMaskTop,
+            PyroAirblastPlayerMaskRight,
+            PyroAirblastPlayerMaskBottom);
+    }
+
+    private static bool IsWithinAirblastMask(
+        float poofX,
+        float poofY,
+        float aimRadians,
+        float targetX,
+        float targetY,
+        float radius,
+        float maskLeft,
+        float maskTop,
+        float maskRight,
+        float maskBottom)
+    {
         var deltaX = targetX - poofX;
         var deltaY = targetY - poofY;
         var cosine = MathF.Cos(aimRadians);
@@ -413,10 +457,10 @@ public sealed partial class SimulationWorld
             localX,
             localY,
             radius,
-            PyroAirblastMaskLeft,
-            PyroAirblastMaskTop,
-            PyroAirblastMaskRight,
-            PyroAirblastMaskBottom);
+            maskLeft,
+            maskTop,
+            maskRight,
+            maskBottom);
     }
 
     private static float PointDirectionRadians(float x1, float y1, float x2, float y2, float fallbackDirectionX)

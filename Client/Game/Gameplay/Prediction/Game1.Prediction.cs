@@ -86,6 +86,18 @@ public partial class Game1
             && !_world.LocalPlayerAwaitingJoin;
     }
 
+    private bool TryGetPredictedLocalPlayerCameraPosition(out Vector2 position)
+    {
+        if (CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
+        {
+            position = _predictedLocalPlayerPosition;
+            return true;
+        }
+
+        position = default;
+        return false;
+    }
+
     private void ClearLocalPredictionState(bool clearPendingInputs)
     {
         _hasPredictedLocalPlayerPosition = false;

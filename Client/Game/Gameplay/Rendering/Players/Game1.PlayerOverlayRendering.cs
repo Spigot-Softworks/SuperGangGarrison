@@ -42,9 +42,10 @@ public partial class Game1
             return;
         }
 
+        var anchor = GetPlayerSpriteScreenOrigin(renderPosition, cameraPosition) + new Vector2(10f, -18f);
         DrawLoadedSpriteFrame(
             sprite.Frames[frameIndex],
-            new Vector2(MathF.Round(renderPosition.X, MidpointRounding.AwayFromZero) + 10f - cameraPosition.X, MathF.Round(renderPosition.Y, MidpointRounding.AwayFromZero) - 18f - cameraPosition.Y),
+            anchor,
             null,
             Color.White * alpha,
             0f,
@@ -72,9 +73,7 @@ public partial class Game1
             return;
         }
 
-        var anchor = new Vector2(
-            MathF.Round(renderPosition.X) + 10f - cameraPosition.X,
-            MathF.Round(renderPosition.Y) - 18f - cameraPosition.Y);
+        var anchor = GetPlayerSpriteScreenOrigin(renderPosition, cameraPosition) + new Vector2(10f, -18f);
         var shellOrigin = new Vector2(CustomBubbleShellOriginX, CustomBubbleShellOriginY);
         var shellScale = new Vector2(CustomBubbleGameplayScale);
         var shellTopLeft = anchor - (shellOrigin * CustomBubbleGameplayScale);
@@ -293,9 +292,10 @@ public partial class Game1
             return;
         }
 
+        var anchor = GetPlayerSpriteScreenOrigin(renderPosition, cameraPosition) + new Vector2(10f, -18f);
         DrawLoadedSpriteFrame(
             sprite.Frames[frameIndex],
-            new Vector2(MathF.Round(renderPosition.X, MidpointRounding.AwayFromZero) + 10f - cameraPosition.X, MathF.Round(renderPosition.Y, MidpointRounding.AwayFromZero) - 18f - cameraPosition.Y),
+            anchor,
             null,
             Color.White * alpha,
             0f,

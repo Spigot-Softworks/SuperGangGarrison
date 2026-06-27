@@ -291,14 +291,14 @@ public sealed partial class SimulationWorld
         _pendingSoundEvents.Add(new WorldSoundEvent(soundName, attacker.X, attacker.Y, SourceFrame: (ulong)Frame, SourcePlayerId: attacker.Id));
     }
 
-    private void RegisterWorldSoundEvent(string soundName, float x, float y)
+    private void RegisterWorldSoundEvent(string soundName, float x, float y, int sourcePlayerId = -1)
     {
         if (string.IsNullOrWhiteSpace(soundName))
         {
             return;
         }
 
-        _pendingSoundEvents.Add(new WorldSoundEvent(soundName, x, y, SourceFrame: (ulong)Frame));
+        _pendingSoundEvents.Add(new WorldSoundEvent(soundName, x, y, SourceFrame: (ulong)Frame, SourcePlayerId: sourcePlayerId));
     }
 
     private static PlayerTeam GetOpposingTeam(PlayerTeam team)

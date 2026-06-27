@@ -59,7 +59,7 @@ public partial class Game1
             }
 
             var renderPosition = _game.GetRenderPosition(player);
-            var bounds = GetPlayerScreenBounds(player, renderPosition, cameraPosition);
+            var bounds = _game.GetPlayerScreenBounds(player, renderPosition, cameraPosition);
             var alpha = Math.Clamp(visibilityAlpha, 0.55f, 1f);
             var teamFillColor = player.Team == PlayerTeam.Blue ? new Color(0x48, 0x5C, 0x67) : new Color(0xA5, 0x46, 0x40);
             var teamOutlineColor = player.Team == PlayerTeam.Blue ? new Color(0x35, 0x44, 0x4D) : new Color(0x7E, 0x35, 0x30);

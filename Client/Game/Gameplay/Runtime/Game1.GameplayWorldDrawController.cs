@@ -41,6 +41,8 @@ public partial class Game1
 
             _game.DrawGameplayWorld(
                 cameraPosition,
+                viewportWidth,
+                viewportHeight,
                 worldRectangle,
                 playerRectangle,
                 centerLine,
