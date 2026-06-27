@@ -33,6 +33,7 @@ public sealed partial class SimulationWorld
         var carriedRechargeTicks = enemyIntel.IsDropped ? enemyIntel.ReturnTicksRemaining : 0f;
         enemyIntel.PickUp();
         LocalPlayer.PickUpIntel(carriedRechargeTicks);
+        HaltSpySuperjumpHorizontalMomentumOnIntelPickup(LocalPlayer);
         RegisterWorldSoundEvent("IntelGetSnd", LocalPlayer.X, LocalPlayer.Y);
         return true;
     }
@@ -99,8 +100,14 @@ public sealed partial class SimulationWorld
         var carriedRechargeTicks = enemyIntel.IsDropped ? enemyIntel.ReturnTicksRemaining : 0f;
         enemyIntel.PickUp();
         player.PickUpIntel(carriedRechargeTicks);
+        HaltSpySuperjumpHorizontalMomentumOnIntelPickup(player);
         RegisterWorldSoundEvent("IntelGetSnd", player.X, player.Y);
         RecordIntelPickedUpObjectiveLog(player);
+    }
+
+    private static void HaltSpySuperjumpHorizontalMomentumOnIntelPickup(PlayerEntity player)
+    {
+        player.HaltSpySuperjumpHorizontalMomentum();
     }
 
     private void TryScoreCarriedIntel(PlayerEntity player)

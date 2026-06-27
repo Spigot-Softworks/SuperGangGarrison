@@ -88,7 +88,7 @@ public partial class Game1
             var facingScale = GetRenderFacingScale(player);
             var playerScale = player.PlayerScale;
             var frameIndex = GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
-            var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
+            var roundedOrigin = _game.GetPlayerSpriteOrigin(renderPosition);
             var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
             var weaponAnchorOffsetX = weaponDefinition.XOffset + anchorOrigin.X;
             var drawX = roundedOrigin.X + (weaponAnchorOffsetX * facingScale * playerScale);
@@ -104,7 +104,7 @@ public partial class Game1
                 return false;
             }
 
-            var position = new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y);
+            var position = _game.GetPlayerAnchoredScreenPosition(renderPosition, cameraPosition, drawX, drawY);
             ResolveBakedFrame(player, spriteName, frameIndex, rotation,
                 sprite, facingScale, playerScale,
                 out var drawFrame, out var drawOrigin, out var drawRotation, out var scale);
@@ -189,8 +189,8 @@ public partial class Game1
             var frameIndex = useOffensiveKritzAttackSprite
                 ? GetOffensiveKritzMedigunAttackFrameIndex(player, sprite.Frames.Count)
                 : GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
-            var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
-            var position = new Vector2(worldDrawX - cameraPosition.X, worldDrawY - cameraPosition.Y);
+            var roundedOrigin = _game.GetPlayerSpriteOrigin(renderPosition);
+            var position = _game.GetPlayerAnchoredScreenPosition(renderPosition, cameraPosition, worldDrawX, worldDrawY);
             ResolveBakedFrame(player, spriteName, frameIndex, rotation,
                 sprite, facingScale, playerScale,
                 out var drawFrame, out var drawOrigin, out var drawRotation, out var scale);
@@ -287,7 +287,7 @@ public partial class Game1
             }
 
             var frameIndex = GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
-            var position = new Vector2(worldDrawX - cameraPosition.X, worldDrawY - cameraPosition.Y);
+            var position = _game.GetPlayerAnchoredScreenPosition(renderPosition, cameraPosition, worldDrawX, worldDrawY);
             ResolveBakedFrame(player, spriteName, frameIndex, rotation,
                 sprite, facingScale, playerScale,
                 out var drawFrame, out var drawOrigin, out var drawRotation, out var scale);
@@ -298,7 +298,7 @@ public partial class Game1
         public Vector2 GetWeaponShellSpawnOrigin(PlayerEntity player)
         {
             var renderPosition = _game.GetRenderPosition(player);
-            return GetRoundedPlayerSpriteOrigin(renderPosition);
+            return _game.GetPlayerSpriteOrigin(renderPosition);
         }
 
         public void DrawCivvieUmbrellaShieldBlockVisuals(
@@ -384,7 +384,7 @@ public partial class Game1
                 out var drawOrigin,
                 out var drawRotation,
                 out var scale);
-            var screenPosition = new Vector2(worldDrawX - cameraPosition.X, worldDrawY - cameraPosition.Y);
+            var screenPosition = _game.GetPlayerAnchoredScreenPosition(renderPosition, cameraPosition, worldDrawX, worldDrawY);
             for (var index = 0; index < _game._civvieUmbrellaShieldBlockVisuals.Count; index += 1)
             {
                 var visual = _game._civvieUmbrellaShieldBlockVisuals[index];
@@ -468,7 +468,7 @@ public partial class Game1
 
             facingScale = GetRenderFacingScale(player);
             playerScale = player.PlayerScale;
-            var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
+            var roundedOrigin = _game.GetPlayerSpriteOrigin(renderPosition);
             var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
             var weaponAnchorOffsetX = weaponDefinition.XOffset + anchorOrigin.X;
             worldDrawX = roundedOrigin.X + (weaponAnchorOffsetX * facingScale * playerScale);

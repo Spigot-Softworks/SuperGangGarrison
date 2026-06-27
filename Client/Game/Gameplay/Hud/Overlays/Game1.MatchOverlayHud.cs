@@ -789,9 +789,15 @@ public partial class Game1
         var sourcePosition = _world.LocalPlayer.IsAlive
             ? GetLocalViewPosition()
             : position;
+        var targetPosition = GetIntelTrackerTargetPosition(intelState);
+        if (_hasGameplayCameraTopLeft)
+        {
+            sourcePosition = position;
+            targetPosition -= _gameplayCameraTopLeft;
+        }
+
         var sourceX = sourcePosition.X;
         var sourceY = sourcePosition.Y;
-        var targetPosition = GetRenderIntelPosition(intelState);
         var targetX = targetPosition.X;
         var targetY = targetPosition.Y;
         var directionDegrees = MathF.Atan2(targetY - sourceY, targetX - sourceX) * 180f / MathF.PI;
@@ -823,6 +829,42 @@ public partial class Game1
             position,
             Color.White,
             new Vector2(2f * scale, 2f * scale));
+    }
+
+    private Vector2 GetIntelTrackerTargetPosition(TeamIntelligenceState intelState)
+    {
+        if (intelState.IsCarried && TryGetIntelCarrierPosition(intelState.Team, out var carrierPosition))
+        {
+            return carrierPosition;
+        }
+
+        return GetRenderIntelPosition(intelState);
+    }
+
+    private bool TryGetIntelCarrierPosition(PlayerTeam intelTeam, out Vector2 position)
+    {
+        var carrierTeam = intelTeam == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
+        if (_world.LocalPlayer.IsAlive
+            && _world.LocalPlayer.Team == carrierTeam
+            && _world.LocalPlayer.IsCarryingIntel)
+        {
+            position = GetLocalViewPosition();
+            return true;
+        }
+
+        foreach (var player in EnumerateRemotePlayersForView())
+        {
+            if (player.IsAlive
+                && player.Team == carrierTeam
+                && player.IsCarryingIntel)
+            {
+                position = GetRenderPosition(player);
+                return true;
+            }
+        }
+
+        position = Vector2.Zero;
+        return false;
     }
 
     private static int GetIntelReturnTimerFrameIndex(TeamIntelligenceState intelState)

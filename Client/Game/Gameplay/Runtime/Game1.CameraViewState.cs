@@ -15,12 +15,18 @@ public partial class Game1
     private const float SmoothCameraMinVerticalWindowPixels = 0.15f;
     private const float SmoothCameraMaxVerticalWindowPixels = 2.25f;
     private Vector2 _smoothCameraVelocity;
+    private bool _smoothCameraRenderingActive;
 
     private Vector2 GetCameraTopLeft(int viewportWidth, int viewportHeight, int mouseX, int mouseY)
     {
         var cameraTopLeft = CalculateBaseCameraTopLeft(viewportWidth, viewportHeight, mouseX, mouseY, trackLiveCamera: false);
         cameraTopLeft = ApplySmoothCamera(cameraTopLeft);
-        cameraTopLeft = RoundToSourcePixels(cameraTopLeft + GetClientPluginCameraOffset() + GetLastToDieCameraShakeOffset());
+        cameraTopLeft += GetClientPluginCameraOffset() + GetLastToDieCameraShakeOffset();
+        if (!_smoothCameraRenderingActive)
+        {
+            cameraTopLeft = RoundToSourcePixels(cameraTopLeft);
+        }
+
         TrackLiveCamera(cameraTopLeft);
         _gameplayCameraTopLeft = cameraTopLeft;
         _hasGameplayCameraTopLeft = true;
@@ -111,14 +117,9 @@ public partial class Game1
 
         if (_networkClient.IsConnected && _world.LocalPlayer.IsAlive)
         {
-            if (_hasSmoothedLocalPlayerRenderPosition)
+            if (TryGetPredictedLocalPlayerCameraPosition(out var predictedCameraPosition))
             {
-                return _smoothedLocalPlayerRenderPosition;
-            }
-
-            if (_hasPredictedLocalPlayerPosition)
-            {
-                return _predictedLocalPlayerPosition;
+                return predictedCameraPosition;
             }
 
             return GetRenderPosition(_world.LocalPlayer, allowInterpolation: true);
@@ -213,7 +214,8 @@ public partial class Game1
             || Vector2.Distance(cameraTopLeft, _smoothCamera) > SmoothCameraSnapDeltaPixels)
         {
             ResetSmoothCameraState(cameraTopLeft);
-            return _smoothCameraPixel;
+            _smoothCameraRenderingActive = true;
+            return _smoothCamera;
         }
 
         var deltaSeconds = GetSmoothCameraDeltaSeconds();
@@ -255,7 +257,8 @@ public partial class Game1
             _smoothCameraPixel = RoundToSourcePixels(_smoothCamera);
         }
 
-        return _smoothCameraPixel;
+        _smoothCameraRenderingActive = true;
+        return _smoothCamera;
     }
 
     private void ResetSmoothCameraState()
@@ -263,6 +266,7 @@ public partial class Game1
         _hasSmoothCamera = false;
         _smoothCameraVelocity = Vector2.Zero;
         _hasGameplayCameraTopLeft = false;
+        _smoothCameraRenderingActive = false;
     }
 
     private void ResetSmoothCameraState(Vector2 position)

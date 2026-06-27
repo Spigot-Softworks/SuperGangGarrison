@@ -804,6 +804,17 @@ public sealed partial class PlayerEntity
         }
     }
 
+    public void HaltSpySuperjumpHorizontalMomentum()
+    {
+        if (ClassId != PlayerClass.Spy || !IsSpySuperjumping || IsGrounded)
+        {
+            return;
+        }
+
+        HorizontalSpeed = 0f;
+        SpySuperjumpHorizontalVelocity = 0f;
+    }
+
     public void IncrementSpySuperjumpCharge(float aimDirectionDegrees, int maxChargeTicks = SpySuperjumpMaxChargeTicks)
     {
         maxChargeTicks = Math.Max(1, maxChargeTicks);

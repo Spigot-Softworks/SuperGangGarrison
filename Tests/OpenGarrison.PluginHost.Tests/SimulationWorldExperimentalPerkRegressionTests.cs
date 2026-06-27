@@ -163,11 +163,11 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
-    public void ExperimentalGameplaySettings_DefaultsFriendlyBoostFlagsToFalse()
+    public void ExperimentalGameplaySettings_DefaultsFriendlyBoostFlagsToTrue()
     {
         var settings = new ExperimentalGameplaySettings();
-        Assert.False(settings.EnableFriendlyExplosionBoost);
-        Assert.False(settings.EnableFriendlyAirblastKnockback);
+        Assert.True(settings.EnableFriendlyExplosionBoost);
+        Assert.True(settings.EnableFriendlyAirblastKnockback);
     }
 
     [Fact]
@@ -1469,6 +1469,30 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
+    public void SpyIntelPickupDuringSuperjumpHaltsHorizontalMomentumOnly()
+    {
+        var world = CreateJoinedSpyWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        world.LocalPlayer.ApplyVelocityImpulse(240f, -300f);
+        SetPlayerProperty(world.LocalPlayer, nameof(PlayerEntity.IsGrounded), false);
+        SetPlayerProperty(world.LocalPlayer, nameof(PlayerEntity.IsSpySuperjumping), true);
+        SetPlayerProperty(world.LocalPlayer, nameof(PlayerEntity.SpySuperjumpHorizontalVelocity), 240f);
+
+        Assert.True(world.LocalPlayer.IsSpySuperjumping);
+        Assert.False(world.LocalPlayer.IsGrounded);
+        Assert.True(MathF.Abs(world.LocalPlayer.HorizontalSpeed) > 0f);
+        var verticalSpeedBeforePickup = world.LocalPlayer.VerticalSpeed;
+        Assert.NotEqual(0f, verticalSpeedBeforePickup);
+
+        Assert.True(world.ForceGiveEnemyIntelToLocalPlayer());
+
+        Assert.True(world.LocalPlayer.IsCarryingIntel);
+        Assert.Equal(0f, world.LocalPlayer.HorizontalSpeed);
+        Assert.Equal(0f, world.LocalPlayer.SpySuperjumpHorizontalVelocity);
+        Assert.Equal(verticalSpeedBeforePickup, world.LocalPlayer.VerticalSpeed);
+    }
+
+    [Fact]
     public void HealingCabinetRefreshesSpecialAbilityCooldowns()
     {
         var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());
@@ -1510,6 +1534,34 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.SelectedGameplayEquippedSlot);
         Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
         Assert.Equal(world.LocalPlayer.GameplayLoadoutState.SecondaryItemId, world.LocalPlayer.GameplayLoadoutState.EquippedItemId);
+    }
+
+    [Fact]
+    public void HealingCabinetRefreshesCivilianUmbrellaWithoutAmmoDeficit()
+    {
+        var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.LocalPlayer.TryActivateCivvieUmbrella());
+        Assert.True(world.LocalPlayer.TryAbsorbCivvieUmbrellaHit());
+        Assert.True(world.LocalPlayer.CivvieUmbrellaChargeTicks < PlayerEntity.CivvieUmbrellaMaxChargeTicks);
+
+        world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth);
+        world.LocalPlayer.ForceSetAmmo(world.LocalPlayer.MaxShells);
+        world.SetLocalInput(default);
+        world.DrainPendingSoundEvents();
+        var cabinet = world.Level.GetRoomObjects(RoomObjectType.HealingCabinet).First();
+        world.TeleportLocalPlayer(cabinet.CenterX, cabinet.CenterY);
+
+        world.AdvanceOneTick();
+
+        Assert.True(world.LocalPlayer.IsUsingHealingCabinet);
+        Assert.Equal(PlayerEntity.CivvieUmbrellaMaxChargeTicks, world.LocalPlayer.CivvieUmbrellaChargeTicks);
+        Assert.False(world.LocalPlayer.IsCivvieUmbrellaBroken);
+        var cabinetSound = Assert.Single(world.DrainPendingSoundEvents(), static soundEvent => soundEvent.SoundName == "CbntHealSnd");
+        Assert.Equal(world.LocalPlayer.Id, cabinetSound.SourcePlayerId);
+        Assert.Equal(cabinet.CenterX, cabinetSound.X);
+        Assert.Equal(cabinet.CenterY, cabinetSound.Y);
     }
 
     [Fact]
@@ -4020,5 +4072,17 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         }
 
         throw new InvalidOperationException($"Could not find PlayerEntity.{methodName}.");
+    }
+
+    private static void SetPlayerProperty<T>(PlayerEntity player, string propertyName, T value)
+    {
+        var property = typeof(PlayerEntity).GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
+        var setter = property?.GetSetMethod(nonPublic: true);
+        if (setter is null)
+        {
+            throw new InvalidOperationException($"Could not find settable PlayerEntity.{propertyName}.");
+        }
+
+        setter.Invoke(player, [value]);
     }
 }

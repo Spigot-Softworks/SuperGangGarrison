@@ -198,7 +198,7 @@ public sealed partial class SimulationWorld
         var emitWallspinDust = player.IsAlive && player.IsPerformingSourceSpinjump(Level);
         if (jumped)
         {
-            RegisterWorldSoundEvent("JumpSnd", player.X, player.Y);
+            RegisterWorldSoundEvent("JumpSnd", player.X, player.Y, player.Id);
             TryApplyJumpPadJumpBoostFromPlayerJump(player, jumped);
         }
 
@@ -269,7 +269,7 @@ public sealed partial class SimulationWorld
         player.CompleteMovement(Level, team, Config.FixedDeltaSeconds, startedGrounded, jumped, input.Down);
         if (player.TryConsumeCivviePogoSuperJumpSoundRequest(out var pogoJumpSoundX, out var pogoJumpSoundY))
         {
-            RegisterWorldSoundEvent("JumpSnd", pogoJumpSoundX, pogoJumpSoundY);
+            RegisterWorldSoundEvent("JumpSnd", pogoJumpSoundX, pogoJumpSoundY, player.Id);
         }
 
         ResolveMovingPlatformLanding(player, previousBottom, input.Down);

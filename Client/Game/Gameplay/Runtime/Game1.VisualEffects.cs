@@ -121,6 +121,7 @@ public partial class Game1
         ResetPendingBrowserSoundEvents();
         ResetRecentGibSoundEvents();
         ResetRecentProjectileSoundEvents();
+        ResetLowPriorityWorldSoundThrottle();
         _pendingNetworkSoundEvents.Clear();
         ResetExperimentalHealingHudIndicators();
         _portraitRumbleRemainingSeconds = 0f;

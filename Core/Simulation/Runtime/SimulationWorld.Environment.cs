@@ -175,7 +175,7 @@ public sealed partial class SimulationWorld
             ClearConfiguredGameplayAbilityCooldownsForResupply(player);
             if (player.CanPlayHealingCabinetSound())
             {
-                RegisterWorldSoundEvent("CbntHealSnd", player.X, player.Y);
+                RegisterWorldSoundEvent("CbntHealSnd", roomObject.CenterX, roomObject.CenterY, player.Id);
                 player.RestartHealingCabinetSoundCooldown();
             }
         }

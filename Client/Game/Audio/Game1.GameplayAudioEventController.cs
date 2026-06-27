@@ -132,6 +132,7 @@ public partial class Game1
             ReplayPendingBrowserSoundEvents();
             _game.AdvanceRecentGibSoundEvents();
             _game.AdvanceRecentProjectileSoundEvents();
+            _game.AdvanceLowPriorityWorldSoundThrottle();
             _game.AdvanceLocalWeaponSoundFocus();
 
             if (_game._pendingNetworkSoundEvents.Count > 1)
@@ -249,11 +250,17 @@ public partial class Game1
                 return true;
             }
 
+            if (_game.ShouldThrottleLowPriorityWorldSound(resolvedSoundName, soundEvent))
+            {
+                return true;
+            }
+
             if (!TryPlayResolvedWorldSound(resolvedSoundName, soundEvent, allowBrowserDefer: OperatingSystem.IsBrowser()))
             {
                 return true;
             }
 
+            _game.RememberPlayedLowPriorityWorldSound(resolvedSoundName, soundEvent);
             _game.TriggerLocalConfirmedWeaponFireFeedback(resolvedSoundName, soundEvent);
             _game.RememberPlayedProjectileSound(resolvedSoundName, soundEvent);
             if (isExplosionSound)

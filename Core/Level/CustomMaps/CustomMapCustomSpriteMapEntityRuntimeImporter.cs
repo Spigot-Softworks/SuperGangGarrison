@@ -28,11 +28,16 @@ internal sealed class CustomMapCustomSpriteMapEntityRuntimeImporter : ICustomMap
             pixelHeight = decodedHeight;
         }
 
-        var (width, height) = CustomMapCustomSpriteMetadata.ResolveWorldDimensions(
+        var xScale = NormalizeEntityScale(args.XScale);
+        var yScale = NormalizeEntityScale(args.YScale);
+        var drawScale = configuration.Scale * MathF.Max(xScale, yScale);
+        var (baseWidth, baseHeight) = CustomMapCustomSpriteMetadata.ResolveWorldDimensions(
             pixelWidth,
             pixelHeight,
             configuration.Scale,
             configuration);
+        var width = baseWidth * xScale;
+        var height = baseHeight * yScale;
         var (left, top) = CustomMapEntityPlacementAnchor.ToTopLeft(
             args.X,
             args.Y,
@@ -47,7 +52,12 @@ internal sealed class CustomMapCustomSpriteMapEntityRuntimeImporter : ICustomMap
             height,
             string.Empty,
             SourceName: EntityType,
-            CustomMapSprite: configuration with { }));
+            CustomMapSprite: configuration with { Scale = drawScale }));
         return true;
+    }
+
+    private static float NormalizeEntityScale(float scale)
+    {
+        return MathF.Abs(scale) > 0.0001f ? MathF.Abs(scale) : 1f;
     }
 }

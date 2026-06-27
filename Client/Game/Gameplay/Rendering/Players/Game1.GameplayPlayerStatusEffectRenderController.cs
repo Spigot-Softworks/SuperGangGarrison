@@ -149,7 +149,7 @@ public partial class Game1
                 return;
             }
 
-            var frozenBounds = Game1.GetPlayerScreenBounds(player, renderPosition, cameraPosition);
+            var frozenBounds = _game.GetPlayerScreenBounds(player, renderPosition, cameraPosition);
             frozenBounds.Inflate(4, 6);
             _game._spriteBatch.Draw(_game._pixel, frozenBounds, new Color(118, 198, 255, 184) * visibilityAlpha);
         }

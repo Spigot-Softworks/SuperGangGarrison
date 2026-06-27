@@ -53,6 +53,43 @@ public sealed class ForegroundSpriteTests
     }
 
     [Fact]
+    public void ImporterAppliesEntityScaleToForegroundBoundsAndDrawScale()
+    {
+        var roomObjects = new List<RoomObjectMarker>();
+        var resources = new Dictionary<string, CustomMapBuilderResource>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["bush"] = new CustomMapBuilderResource(
+                "bush",
+                string.Empty,
+                CustomMapBuilderResourceKind.CustomSprite,
+                CreatePng(40, 20)),
+        };
+        var context = new CustomMapEntityImportContext
+        {
+            RoomObjects = roomObjects,
+            Resources = resources,
+        };
+
+        Assert.True(CustomMapEntityRuntimeRegistry.TryImport(
+            ForegroundSpriteMetadata.ForegroundSpriteEntityType,
+            120f,
+            90f,
+            1.5f,
+            0.5f,
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ForegroundSpriteMetadata.ImagePropertyKey] = "bush",
+                [ForegroundSpriteMetadata.ScalePropertyKey] = "2",
+            },
+            context));
+
+        var marker = Assert.Single(roomObjects);
+        Assert.Equal(120f, marker.Width);
+        Assert.Equal(20f, marker.Height);
+        Assert.Equal(3f, marker.ForegroundSprite.Scale);
+    }
+
+    [Fact]
     public void IsPlayerInside_UsesBoxBoundsByDefault()
     {
         var marker = new RoomObjectMarker(

@@ -1,10 +1,10 @@
 ﻿{
-    "version":  "0.6.4",
-    "packageVersion":  "0.6.4",
+    "version":  "0.6.5",
+    "packageVersion":  "0.6.5",
     "channel":  "stable",
     "url":  "OpenGarrison-Windows-x64.zip",
-    "sha256":  "5bed1f20081e60f24bbc007a7b91e754ce2db5ff875f0c59fe2a4fa296be562c",
-    "size":  50435435,
+    "sha256":  "7b8a35e0f047157e86298a40ab451c3950be38963ea4653f8d77a6d2f96845bd",
+    "size":  50448749,
     "minLauncherVersion":  "0.1.0",
     "notesUrl":  ""
 }

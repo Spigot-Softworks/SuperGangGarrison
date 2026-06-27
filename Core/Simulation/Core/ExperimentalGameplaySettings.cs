@@ -103,8 +103,8 @@ public sealed record ExperimentalGameplaySettings(
     bool EnableDemoknightFullControlDuringCharge = false,
     bool EnableDemoknightGhostDash = false,
     bool DisableSelfDamage = false,
-    bool EnableFriendlyExplosionBoost = false,
-    bool EnableFriendlyAirblastKnockback = false)
+    bool EnableFriendlyExplosionBoost = true,
+    bool EnableFriendlyAirblastKnockback = true)
 {
     public const float CapturedPointHealingPerSecond = 8f;
     public const float DefaultEnemyHealthPackDropChance = 0.1f;

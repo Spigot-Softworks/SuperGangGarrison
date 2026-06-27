@@ -24,6 +24,9 @@ public partial class Game1
     private const float ReplayMinimumInterpolationBackTimeSeconds = 0.02f;
     private const float ReplayMaximumInterpolationBackTimeSeconds = 0.06f;
     private const float OfflineInterpolationTeleportSnapDistance = 128f;
+    private const float OfflineLocalPlayerSmoothRenderSnapDistance = 48f;
+    private const float OfflineLocalPlayerSmoothRenderMaxLeadTicks = 1.25f;
+    private const float OfflineLocalPlayerSmoothRenderIdleCatchUpRate = 28f;
     private const float SnapshotHistoryRetentionSeconds = 0.5f;
     private const float StaleEntitySnapshotHistoryPruneSeconds = 1.0f;
     private const float StaleRemotePlayerSnapshotHistoryPruneSeconds = 1.0f;
@@ -89,6 +92,9 @@ public partial class Game1
     private bool _networkWorldWarmupFullSnapshotApplied;
     private int _networkWorldWarmupAppliedSnapshotsAfterFull;
     private double _networkWorldWarmupStartedClockSeconds = -1d;
+    private Vector2 _offlineLocalPlayerSmoothRenderPosition;
+    private double _lastOfflineLocalPlayerSmoothRenderClockSeconds = -1d;
+    private bool _hasOfflineLocalPlayerSmoothRenderPosition;
 
     private bool IsPositionSmoothingActive()
     {
@@ -233,6 +239,19 @@ public partial class Game1
 
     private Vector2 GetRenderPosition(PlayerEntity player, bool allowInterpolation = true)
     {
+        if (!_networkClient.IsConnected)
+        {
+            var renderPosition = GetRenderPosition(player.Id, player.X, player.Y, allowInterpolation);
+            if (!ReferenceEquals(player, _world.LocalPlayer))
+            {
+                return renderPosition;
+            }
+
+            return ShouldUseOfflineLocalPlayerSmoothRenderPosition(player, allowInterpolation)
+                ? GetOfflineLocalPlayerSmoothRenderPosition(player, renderPosition)
+                : ResetOfflineLocalPlayerSmoothRenderPosition(renderPosition);
+        }
+
         if (_networkClient.IsConnected && ReferenceEquals(player, _world.LocalPlayer))
         {
             if (!IsPositionSmoothingActive())
@@ -254,6 +273,61 @@ public partial class Game1
         }
 
         return GetRenderPosition(player.Id, player.X, player.Y, allowInterpolation);
+    }
+
+    private bool ShouldUseOfflineLocalPlayerSmoothRenderPosition(PlayerEntity player, bool allowInterpolation)
+    {
+        return allowInterpolation
+            && ReferenceEquals(player, _world.LocalPlayer)
+            && player.IsAlive
+            && NormalizeSmoothCameraMultiplier(_smoothCameraMultiplier) > 0f
+            && ShouldSmoothCamera();
+    }
+
+    private Vector2 GetOfflineLocalPlayerSmoothRenderPosition(PlayerEntity player, Vector2 baseRenderPosition)
+    {
+        var deltaSeconds = _lastOfflineLocalPlayerSmoothRenderClockSeconds >= 0d
+            ? (float)Math.Clamp(_networkInterpolationClockSeconds - _lastOfflineLocalPlayerSmoothRenderClockSeconds, 0d, 0.05d)
+            : 0f;
+        _lastOfflineLocalPlayerSmoothRenderClockSeconds = _networkInterpolationClockSeconds;
+
+        if (!_hasOfflineLocalPlayerSmoothRenderPosition
+            || Vector2.DistanceSquared(_offlineLocalPlayerSmoothRenderPosition, baseRenderPosition) >= OfflineLocalPlayerSmoothRenderSnapDistance * OfflineLocalPlayerSmoothRenderSnapDistance)
+        {
+            _offlineLocalPlayerSmoothRenderPosition = baseRenderPosition;
+            _hasOfflineLocalPlayerSmoothRenderPosition = true;
+            return _offlineLocalPlayerSmoothRenderPosition;
+        }
+
+        var horizontalSpeed = player.HorizontalSpeed;
+        _offlineLocalPlayerSmoothRenderPosition.Y = baseRenderPosition.Y;
+        if (deltaSeconds > 0f && MathF.Abs(horizontalSpeed) > 0.01f)
+        {
+            _offlineLocalPlayerSmoothRenderPosition.X += horizontalSpeed * deltaSeconds;
+            var leadX = _offlineLocalPlayerSmoothRenderPosition.X - baseRenderPosition.X;
+            var maxLeadDistance = MathF.Max(
+                1f,
+                MathF.Abs(horizontalSpeed) * (float)_config.FixedDeltaSeconds * OfflineLocalPlayerSmoothRenderMaxLeadTicks);
+            if (MathF.Abs(leadX) > maxLeadDistance)
+            {
+                _offlineLocalPlayerSmoothRenderPosition.X = baseRenderPosition.X + (MathF.Sign(leadX) * maxLeadDistance);
+            }
+        }
+        else if (deltaSeconds > 0f)
+        {
+            var catchUp = 1f - MathF.Exp(-OfflineLocalPlayerSmoothRenderIdleCatchUpRate * deltaSeconds);
+            _offlineLocalPlayerSmoothRenderPosition.X = MathHelper.Lerp(_offlineLocalPlayerSmoothRenderPosition.X, baseRenderPosition.X, catchUp);
+        }
+
+        return _offlineLocalPlayerSmoothRenderPosition;
+    }
+
+    private Vector2 ResetOfflineLocalPlayerSmoothRenderPosition(Vector2 renderPosition)
+    {
+        _hasOfflineLocalPlayerSmoothRenderPosition = false;
+        _lastOfflineLocalPlayerSmoothRenderClockSeconds = -1d;
+        _offlineLocalPlayerSmoothRenderPosition = renderPosition;
+        return renderPosition;
     }
 
     private Vector2 GetRenderAimWorldPosition(PlayerEntity player)
