@@ -30,7 +30,7 @@ public partial class Game1
         EnemyDroppedWeapons,
         PracticeBotsPrioritizeKills,
         FriendlyExplosionBoost,
-        FriendlyAirblastKnockback,
+        FriendlyAirburstKnockback,
     }
 
     private readonly record struct ClientPowerToggleEntry(
@@ -64,7 +64,7 @@ public partial class Game1
         new(ClientPowerToggleKind.EnemyDroppedWeapons, "Enemies drop weapons", "50% chance for enemy bot kills to drop a temporary primary weapon for Soldier to pick up with Q."),
         new(ClientPowerToggleKind.PracticeBotsPrioritizeKills, "Bots prioritize kills", "Enemy bots chase live targets before objectives."),
         new(ClientPowerToggleKind.FriendlyExplosionBoost, "Friendly explosion boost", "Teammate rockets, grenades, and mines can launch airborne allies."),
-        new(ClientPowerToggleKind.FriendlyAirblastKnockback, "Friendly airblast knockback", "Pyro airblast and airburst can move teammates."),
+        new(ClientPowerToggleKind.FriendlyAirburstKnockback, "Friendly airburst boost", "Pyro airburst can carry nearby teammates."),
     ];
 
     private void OpenClientPowersMenu(bool fromGameplay)
@@ -446,7 +446,7 @@ public partial class Game1
             ClientPowerToggleKind.EnemyDroppedWeapons => _practiceExperimentalGameplaySettings.EnableEnemyDroppedWeapons,
             ClientPowerToggleKind.PracticeBotsPrioritizeKills => _practiceExperimentalGameplaySettings.EnablePracticeBotsPrioritizeKills,
             ClientPowerToggleKind.FriendlyExplosionBoost => _practiceExperimentalGameplaySettings.EnableFriendlyExplosionBoost,
-            ClientPowerToggleKind.FriendlyAirblastKnockback => _practiceExperimentalGameplaySettings.EnableFriendlyAirblastKnockback,
+            ClientPowerToggleKind.FriendlyAirburstKnockback => _practiceExperimentalGameplaySettings.EnableFriendlyAirburstKnockback,
             _ => false,
         };
     }
@@ -554,10 +554,10 @@ public partial class Game1
                     EnableFriendlyExplosionBoost = !_practiceExperimentalGameplaySettings.EnableFriendlyExplosionBoost,
                 };
                 break;
-            case ClientPowerToggleKind.FriendlyAirblastKnockback:
+            case ClientPowerToggleKind.FriendlyAirburstKnockback:
                 _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
                 {
-                    EnableFriendlyAirblastKnockback = !_practiceExperimentalGameplaySettings.EnableFriendlyAirblastKnockback,
+                    EnableFriendlyAirburstKnockback = !_practiceExperimentalGameplaySettings.EnableFriendlyAirburstKnockback,
                 };
                 break;
         }
