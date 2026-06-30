@@ -105,17 +105,13 @@ public partial class Game1
 
     private Vector2 GetPlayerSpriteOrigin(Vector2 renderPosition)
     {
-        return _smoothCameraRenderingActive
-            ? renderPosition
-            : GetRoundedPlayerSpriteOrigin(renderPosition);
+        return GetRoundedPlayerSpriteOrigin(renderPosition);
     }
 
     private Vector2 GetPlayerSpriteScreenOrigin(Vector2 renderPosition, Vector2 cameraPosition)
     {
         var screenOrigin = renderPosition - cameraPosition;
-        return _smoothCameraRenderingActive
-            ? screenOrigin
-            : RoundToSourcePixels(screenOrigin);
+        return RoundToSourcePixels(screenOrigin);
     }
 
     private Vector2 GetPlayerAnchoredScreenPosition(
@@ -129,9 +125,7 @@ public partial class Game1
         var position = new Vector2(
             screenOrigin.X + anchoredWorldX - origin.X,
             screenOrigin.Y + anchoredWorldY - origin.Y);
-        return _smoothCameraRenderingActive
-            ? position
-            : RoundToSourcePixels(position);
+        return RoundToSourcePixels(position);
     }
 
     private void DrawPlayer(PlayerEntity player, Vector2 cameraPosition, Color aliveColor, Color deadColor)

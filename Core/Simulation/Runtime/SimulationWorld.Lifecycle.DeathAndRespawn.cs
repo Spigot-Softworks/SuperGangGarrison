@@ -60,6 +60,7 @@ public sealed partial class SimulationWorld
         if (gibbed)
         {
             player.AddGibDeath();
+            MarkPendingFatalPlayerDamageEventGibbed(player.Id);
         }
 
         if (killer is not null && !ReferenceEquals(killer, player))

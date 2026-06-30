@@ -12,12 +12,12 @@ Employer - pyro airburst but usable in air
 
 Balance changes
 
-Pyro - Flames travel further and deal up to 30% more damage based on velocity while airborne (not effective when grounded)
+Pyro - Flames travel up to 30% further based on current velocity and deal up to 30% more damage based on velocity while airborne (not effective when grounded)
 Airblast can reflect bullets
 Airburst can redirect allied projectiles
 
 Scout - Nailgun causes 3hp/s bleed for 4 seconds
-10% evasion chance while airborne
+20% evasion chance while airborne
 3hp/s health regen while out of combat
 
 Heavy - Eating sandvich grants 30% extra damage resistance during the animation
@@ -26,25 +26,29 @@ Dash reloads 30% of ammo and grants crits for 1 seconds
 
 Soldier - 4 clip shotgun
 30% reduction in self damage
+Rockets can be guided (a-la STINGER rockets, without the damage increase)
 
-Demoman - GL direct hits do 50 damage
+Demoman - GL direct hits do 60 damage
 Sticky opacity reduces over 5 seconds to a minimum of 30% opacity
 
 Spy - Stab can hit multiple enemies
+Stab animation speed doubled
 4hp/s health regen while out of combat
 +20% movement speed while cloaked
 
 Sniper - Scoping/charging has no movement penalty
-Fully charged shots deal +50% damage
+Shots penetrate enemies
+Fully charged shots deal +40% damage
 
 Medic - Passive health regen doubled when under half hp
 +25% uber build rate when under 50% hp
 
 Employer - M2 airblast can push allies
 Revolver damage increased to 38
-Taunt heal increased to 30 when below 50% hp
-10% shield recharge upon damaging an enemy 
+Taunt heal increased to 40 when below 50% hp
+25% shield recharge upon damaging an enemy 
 
+Engineer - Max metal increased to 200, can place up to 2 sentries (a la some last to die perk that does the same)
 
 
 

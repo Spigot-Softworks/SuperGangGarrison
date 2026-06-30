@@ -144,6 +144,11 @@ public partial class Game1
             return _interpolatedEntityPositions.GetValueOrDefault(entityId, new Vector2(x, y));
         }
 
+        if (!IsPositionSmoothingActive())
+        {
+            return new Vector2(x, y);
+        }
+
         if (_entityInterpolationTracks.TryGetValue(entityId, out var track))
         {
             return EvaluateInterpolationTrack(track);
@@ -287,7 +292,7 @@ public partial class Game1
     private Vector2 GetOfflineLocalPlayerSmoothRenderPosition(PlayerEntity player, Vector2 baseRenderPosition)
     {
         var deltaSeconds = _lastOfflineLocalPlayerSmoothRenderClockSeconds >= 0d
-            ? (float)Math.Clamp(_networkInterpolationClockSeconds - _lastOfflineLocalPlayerSmoothRenderClockSeconds, 0d, 0.05d)
+            ? _gameplayPresentationDeltaSeconds
             : 0f;
         _lastOfflineLocalPlayerSmoothRenderClockSeconds = _networkInterpolationClockSeconds;
 

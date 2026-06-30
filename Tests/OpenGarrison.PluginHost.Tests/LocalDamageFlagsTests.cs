@@ -14,5 +14,6 @@ public sealed class LocalDamageFlagsTests
         Assert.Equal((byte)DamageEventFlags.GhostDash, (byte)LocalDamageFlags.GhostDash);
         Assert.Equal((byte)DamageEventFlags.CivvieUmbrellaBlock, (byte)LocalDamageFlags.CivvieUmbrellaBlock);
         Assert.Equal((byte)DamageEventFlags.AfterburnTick, (byte)LocalDamageFlags.AfterburnTick);
+        Assert.Equal((byte)DamageEventFlags.Gibbed, (byte)LocalDamageFlags.Gibbed);
     }
 }

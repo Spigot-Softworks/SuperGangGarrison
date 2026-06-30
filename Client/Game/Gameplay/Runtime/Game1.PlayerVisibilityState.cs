@@ -92,7 +92,7 @@ public partial class Game1
     {
         if (backstabRevealAlpha > 0f)
         {
-            return Math.Max(cloakAlpha, backstabRevealAlpha);
+            return Math.Clamp(Math.Max(cloakAlpha, backstabRevealAlpha) * bodyVisibilityScale, 0f, 1f);
         }
 
         return cloakAlpha * bodyVisibilityScale;

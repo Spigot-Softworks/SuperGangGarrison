@@ -90,7 +90,9 @@ public partial class Game1
     {
         if (CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
         {
-            position = _predictedLocalPlayerPosition;
+            position = _hasSmoothedLocalPlayerRenderPosition
+                ? _smoothedLocalPlayerRenderPosition
+                : _predictedLocalPlayerPosition + _predictedLocalPlayerRenderCorrectionOffset;
             return true;
         }
 

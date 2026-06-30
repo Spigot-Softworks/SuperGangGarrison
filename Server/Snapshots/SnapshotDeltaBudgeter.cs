@@ -15,6 +15,7 @@ internal static class SnapshotDeltaBudgeter
     public const int TargetSnapshotPayloadBytes = 1400;
     public const int LoopbackTargetSnapshotPayloadBytes = 4 * 1024;
     public const int ReliableStreamTargetSnapshotPayloadBytes = 12 * 1024;
+    public const int GameplayCriticalEmergencyPayloadBytes = 12 * 1024;
 
     internal enum ContributionKind
     {
@@ -32,6 +33,7 @@ internal static class SnapshotDeltaBudgeter
         EntityStateUpdate,
         EntityFirstAppearance,
         TransientSoundEvent,
+        KillFeed,
         TransientDamageEvent,
         ProjectileSpawn,
         ProjectileMotionUpdate,
@@ -138,6 +140,12 @@ internal static class SnapshotDeltaBudgeter
             orderedContributions,
             appliedContributions,
             SnapshotDeltaBudgeter.ContributionKind.LocalPlayerExtendedStatusUpdate,
+            ref remainingBudget);
+        ApplyRequiredContributions(
+            builder,
+            orderedContributions,
+            appliedContributions,
+            SnapshotDeltaBudgeter.ContributionKind.KillFeed,
             ref remainingBudget);
         ApplyRequiredContributions(
             builder,
@@ -871,7 +879,6 @@ internal static class SnapshotDeltaBudgeter
 
     private static readonly Func<Builder, bool>[] BudgetDropSteps =
     [
-        static builder => ClearIfAny(builder.KillFeed),
         static builder =>
         {
             var changed = false;
@@ -944,11 +951,12 @@ internal static class SnapshotDeltaBudgeter
             changed |= ClearIfAny(builder.RemovedSentryIds);
             return changed;
         },
+        static builder => RemoveLastIfAboveMinimum(builder.KillFeed, minimumCount: 1),
+        static builder => ClearIfAny(builder.KillFeed),
     ];
 
     private static readonly Func<Builder, bool>[] GameplayCriticalDropSteps =
     [
-        static builder => ClearIfAny(builder.KillFeed),
         static builder =>
         {
             var changed = false;
@@ -962,6 +970,8 @@ internal static class SnapshotDeltaBudgeter
         static builder => RemoveLastIfAboveMinimum(builder.SniperAimIndicators, minimumCount: 0),
         static builder => RemoveLastIfAboveMinimum(builder.CombatTraces, minimumCount: 0),
         static builder => ReducePlayersForGameplayCriticalBudget(builder),
+        static builder => RemoveLastIfAboveMinimum(builder.KillFeed, minimumCount: 1),
+        static builder => ClearIfAny(builder.KillFeed),
     ];
 
     private static bool ClearIfAny<T>(TrackingList<T> list)

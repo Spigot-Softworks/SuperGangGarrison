@@ -50,6 +50,26 @@ public sealed partial class SimulationWorld
         return -1;
     }
 
+    private void MarkPendingFatalPlayerDamageEventGibbed(int playerId)
+    {
+        for (var index = _pendingDamageEvents.Count - 1; index >= 0; index -= 1)
+        {
+            var damageEvent = _pendingDamageEvents[index];
+            if (!damageEvent.WasFatal
+                || damageEvent.TargetKind != DamageTargetKind.Player
+                || damageEvent.TargetEntityId != playerId)
+            {
+                continue;
+            }
+
+            _pendingDamageEvents[index] = damageEvent with
+            {
+                Flags = damageEvent.Flags | DamageEventFlags.Gibbed,
+            };
+            return;
+        }
+    }
+
     private bool ApplyPlayerDamage(
         PlayerEntity target,
         int damage,

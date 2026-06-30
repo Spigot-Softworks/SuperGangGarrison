@@ -13,4 +13,5 @@ public enum LocalDamageFlags : byte
     GhostDash = 1 << 2,
     CivvieUmbrellaBlock = 1 << 3,
     AfterburnTick = 1 << 4,
+    Gibbed = 1 << 5,
 }
