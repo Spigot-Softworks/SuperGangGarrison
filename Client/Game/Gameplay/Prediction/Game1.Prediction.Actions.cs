@@ -268,9 +268,14 @@ public partial class Game1
         }
 
         if (player.ClassId == PlayerClass.Spy
-            && predictedInput.PrimaryPressed
-            && TryPredictedStartSpyBackstab(player))
+            && player.IsSpyCloaked
+            && predictedInput.Input.FirePrimary)
         {
+            if (IsPredictedSpyBackstabReady())
+            {
+                _ = TryPredictedStartSpyBackstab(player);
+            }
+
             return;
         }
 

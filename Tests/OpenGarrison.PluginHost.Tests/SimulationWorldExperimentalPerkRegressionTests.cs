@@ -272,7 +272,27 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
-    public void PyroUtilityAirburstCarriesTeammatesWithPyroVelocityByDefault()
+    public void PyroUtilityAirburstDoesNotCarryGroundedTeammatesByDefault()
+    {
+        var world = CreateJoinedPyroWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        var teammate = CreateNetworkSoldier(world, 2);
+        PlaceTeammateInPyroAirblastRange(world, teammate);
+        var fuelBefore = world.LocalPlayer.PyroPrimaryFuelScaled;
+        var primaryCooldownBefore = world.LocalPlayer.PrimaryCooldownTicks;
+
+        PressUseAbilitySpace(world, world.LocalPlayer.X + 96f, world.LocalPlayer.Y + 32f);
+
+        Assert.True(teammate.IsGrounded);
+        Assert.Equal(0f, teammate.HorizontalSpeed);
+        Assert.Equal(0f, teammate.VerticalSpeed);
+        Assert.Equal(fuelBefore - (PlayerEntity.PyroAirburstCost * PlayerEntity.PyroPrimaryFuelScale), world.LocalPlayer.PyroPrimaryFuelScaled);
+        Assert.Equal(Math.Max(0, primaryCooldownBefore - 1), world.LocalPlayer.PrimaryCooldownTicks);
+    }
+
+    [Fact]
+    public void PyroUtilityAirburstCarriesAirborneTeammatesWithPyroVelocityByDefault()
     {
         var world = CreateJoinedPyroWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
@@ -280,7 +300,8 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var teammate = CreateNetworkSoldier(world, 2);
         teammate.TeleportTo(world.LocalPlayer.X + 64f, world.LocalPlayer.Y);
         teammate.SetSpawnRoomState(false);
-        teammate.ApplyVelocityImpulse(0f, 0f);
+        teammate.ApplyVelocityImpulse(0f, -1f);
+        SetPlayerProperty(teammate, nameof(PlayerEntity.IsGrounded), false);
         var fuelBefore = world.LocalPlayer.PyroPrimaryFuelScaled;
         var primaryCooldownBefore = world.LocalPlayer.PrimaryCooldownTicks;
 

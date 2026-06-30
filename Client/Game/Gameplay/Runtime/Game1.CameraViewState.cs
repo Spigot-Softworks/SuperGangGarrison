@@ -8,14 +8,21 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
     private const float SmoothCameraSnapDeltaPixels = 160f;
-    private const float SmoothCameraMinSmoothTimeSeconds = 0.045f;
-    private const float SmoothCameraMaxSmoothTimeSeconds = 0.135f;
-    private const float SmoothCameraFastMaxSpeedPixelsPerSecond = 16000f;
-    private const float SmoothCameraSlowMaxSpeedPixelsPerSecond = 7200f;
+    private const float SmoothCameraFastCatchUpRate = 28f;
+    private const float SmoothCameraSlowCatchUpRate = 10f;
+    private const float SmoothCameraFastMaxStepPixelsPerSecond = 16000f;
+    private const float SmoothCameraSlowMaxStepPixelsPerSecond = 7200f;
+    private const float SmoothCameraMinLookaheadSeconds = 0.035f;
+    private const float SmoothCameraMaxLookaheadSeconds = 0.12f;
+    private const float SmoothCameraMaxHorizontalLookaheadPixels = 36f;
+    private const float SmoothCameraMaxVerticalLookaheadPixels = 18f;
     private const float SmoothCameraMinVerticalWindowPixels = 0.15f;
     private const float SmoothCameraMaxVerticalWindowPixels = 2.25f;
-    private Vector2 _smoothCameraVelocity;
     private bool _smoothCameraRenderingActive;
+    private double _lastSmoothCameraUpdateClockSeconds = -1d;
+    private Vector2 _lastSmoothCameraRawTarget;
+    private bool _hasLastSmoothCameraRawTarget;
+    private Vector2 _smoothCameraLookaheadOffset;
 
     private Vector2 GetCameraTopLeft(int viewportWidth, int viewportHeight, int mouseX, int mouseY)
     {
@@ -219,36 +226,47 @@ public partial class Game1
         }
 
         var deltaSeconds = GetSmoothCameraDeltaSeconds();
-        var target = GetSmoothCameraTarget(cameraTopLeft, multiplier);
-        var smoothTimeSeconds = MathHelper.Lerp(
-            SmoothCameraMinSmoothTimeSeconds,
-            SmoothCameraMaxSmoothTimeSeconds,
-            multiplier);
-        var maxSpeedPixelsPerSecond = MathHelper.Lerp(
-            SmoothCameraFastMaxSpeedPixelsPerSecond,
-            SmoothCameraSlowMaxSpeedPixelsPerSecond,
-            multiplier);
+        var rawTargetDelta = _hasLastSmoothCameraRawTarget
+            ? cameraTopLeft - _lastSmoothCameraRawTarget
+            : Vector2.Zero;
+        if (_hasLastSmoothCameraRawTarget)
+        {
+            _smoothCamera += rawTargetDelta;
+        }
 
-        var velocityX = _smoothCameraVelocity.X;
-        var velocityY = _smoothCameraVelocity.Y;
-        var smoothX = SmoothDamp(
-            _smoothCamera.X,
-            target.X,
-            ref velocityX,
-            smoothTimeSeconds,
-            maxSpeedPixelsPerSecond,
-            deltaSeconds);
-        var smoothY = SmoothDamp(
-            _smoothCamera.Y,
-            target.Y,
-            ref velocityY,
-            smoothTimeSeconds,
-            maxSpeedPixelsPerSecond,
-            deltaSeconds);
-        _smoothCamera = new Vector2(smoothX, smoothY);
-        _smoothCameraVelocity = new Vector2(velocityX, velocityY);
+        _lastSmoothCameraRawTarget = cameraTopLeft;
+        _hasLastSmoothCameraRawTarget = true;
 
-        if (!IsFinite(_smoothCamera) || !IsFinite(_smoothCameraVelocity))
+        if (deltaSeconds > 0f)
+        {
+            var rawTargetVelocity = rawTargetDelta / deltaSeconds;
+            var lookaheadTarget = GetSmoothCameraLookaheadOffset(rawTargetVelocity, multiplier);
+            var catchUpRate = MathHelper.Lerp(
+                SmoothCameraFastCatchUpRate,
+                SmoothCameraSlowCatchUpRate,
+                multiplier);
+            var maxStepPixelsPerSecond = MathHelper.Lerp(
+                SmoothCameraFastMaxStepPixelsPerSecond,
+                SmoothCameraSlowMaxStepPixelsPerSecond,
+                multiplier);
+
+            _smoothCameraLookaheadOffset = AdvanceSmoothCameraNoOvershoot(
+                _smoothCameraLookaheadOffset,
+                lookaheadTarget,
+                catchUpRate,
+                maxStepPixelsPerSecond,
+                deltaSeconds);
+
+            var target = GetSmoothCameraTarget(cameraTopLeft + _smoothCameraLookaheadOffset, multiplier);
+            _smoothCamera = AdvanceSmoothCameraNoOvershoot(
+                _smoothCamera,
+                target,
+                catchUpRate,
+                maxStepPixelsPerSecond,
+                deltaSeconds);
+        }
+
+        if (!IsFinite(_smoothCamera))
         {
             ResetSmoothCameraState(cameraTopLeft);
         }
@@ -264,7 +282,9 @@ public partial class Game1
     private void ResetSmoothCameraState()
     {
         _hasSmoothCamera = false;
-        _smoothCameraVelocity = Vector2.Zero;
+        _lastSmoothCameraUpdateClockSeconds = -1d;
+        _hasLastSmoothCameraRawTarget = false;
+        _smoothCameraLookaheadOffset = Vector2.Zero;
         _hasGameplayCameraTopLeft = false;
         _smoothCameraRenderingActive = false;
     }
@@ -273,13 +293,22 @@ public partial class Game1
     {
         _smoothCamera = position;
         _smoothCameraPixel = RoundToSourcePixels(position);
-        _smoothCameraVelocity = Vector2.Zero;
+        _lastSmoothCameraUpdateClockSeconds = -1d;
+        _lastSmoothCameraRawTarget = position;
+        _hasLastSmoothCameraRawTarget = true;
+        _smoothCameraLookaheadOffset = Vector2.Zero;
         _hasSmoothCamera = true;
     }
 
     private float GetSmoothCameraDeltaSeconds()
     {
-        return Math.Clamp(_clientUpdateElapsedSeconds, 1f / 240f, 1f / 20f);
+        if (_lastSmoothCameraUpdateClockSeconds == _networkInterpolationClockSeconds)
+        {
+            return 0f;
+        }
+
+        _lastSmoothCameraUpdateClockSeconds = _networkInterpolationClockSeconds;
+        return Math.Clamp(_gameplayPresentationDeltaSeconds, 0f, 1f / 20f);
     }
 
     private Vector2 GetSmoothCameraTarget(Vector2 rawTarget, float multiplier)
@@ -302,42 +331,72 @@ public partial class Game1
             : rawTarget - (MathF.Sign(displacement) * windowPixels);
     }
 
+    private static Vector2 GetSmoothCameraLookaheadOffset(Vector2 rawTargetVelocity, float multiplier)
+    {
+        var lookaheadSeconds = MathHelper.Lerp(
+            SmoothCameraMinLookaheadSeconds,
+            SmoothCameraMaxLookaheadSeconds,
+            multiplier);
+        return new Vector2(
+            Math.Clamp(
+                rawTargetVelocity.X * lookaheadSeconds,
+                -SmoothCameraMaxHorizontalLookaheadPixels,
+                SmoothCameraMaxHorizontalLookaheadPixels),
+            Math.Clamp(
+                rawTargetVelocity.Y * lookaheadSeconds,
+                -SmoothCameraMaxVerticalLookaheadPixels,
+                SmoothCameraMaxVerticalLookaheadPixels));
+    }
+
+    private static Vector2 AdvanceSmoothCameraNoOvershoot(
+        Vector2 current,
+        Vector2 target,
+        float catchUpRate,
+        float maxStepPixelsPerSecond,
+        float deltaSeconds)
+    {
+        if (deltaSeconds <= 0f)
+        {
+            return current;
+        }
+
+        return new Vector2(
+            AdvanceSmoothCameraAxisNoOvershoot(current.X, target.X, catchUpRate, maxStepPixelsPerSecond, deltaSeconds),
+            AdvanceSmoothCameraAxisNoOvershoot(current.Y, target.Y, catchUpRate, maxStepPixelsPerSecond, deltaSeconds));
+    }
+
+    private static float AdvanceSmoothCameraAxisNoOvershoot(
+        float current,
+        float target,
+        float catchUpRate,
+        float maxStepPixelsPerSecond,
+        float deltaSeconds)
+    {
+        var remaining = target - current;
+        if (MathF.Abs(remaining) <= 0.001f)
+        {
+            return target;
+        }
+
+        var catchUpFactor = 1f - MathF.Exp(-MathF.Max(0f, catchUpRate) * deltaSeconds);
+        var step = remaining * catchUpFactor;
+        var maxStep = MathF.Max(0f, maxStepPixelsPerSecond) * deltaSeconds;
+        if (maxStep > 0f && MathF.Abs(step) > maxStep)
+        {
+            step = MathF.Sign(step) * maxStep;
+        }
+
+        if (MathF.Abs(step) >= MathF.Abs(remaining))
+        {
+            return target;
+        }
+
+        return current + step;
+    }
+
     private static bool IsFinite(Vector2 value)
     {
         return float.IsFinite(value.X) && float.IsFinite(value.Y);
-    }
-
-    private static float SmoothDamp(
-        float current,
-        float target,
-        ref float currentVelocity,
-        float smoothTime,
-        float maxSpeed,
-        float deltaTime)
-    {
-        smoothTime = MathF.Max(0.0001f, smoothTime);
-        deltaTime = MathF.Max(0f, deltaTime);
-        var omega = 2f / smoothTime;
-        var x = omega * deltaTime;
-        var exponential = 1f / (1f + x + (0.48f * x * x) + (0.235f * x * x * x));
-        var change = current - target;
-        var originalTarget = target;
-        var maxChange = MathF.Max(0f, maxSpeed) * smoothTime;
-        change = Math.Clamp(change, -maxChange, maxChange);
-        target = current - change;
-        var temp = (currentVelocity + (omega * change)) * deltaTime;
-        currentVelocity = (currentVelocity - (omega * temp)) * exponential;
-        var output = target + ((change + temp) * exponential);
-
-        if ((originalTarget - current > 0f) == (output > originalTarget))
-        {
-            output = originalTarget;
-            currentVelocity = deltaTime > 0f
-                ? (output - originalTarget) / deltaTime
-                : 0f;
-        }
-
-        return output;
     }
 
     private bool ShouldSmoothCamera()

@@ -74,7 +74,9 @@ public partial class Game1
         var renderPosition = localPlayer.IsAlive
             ? GetRenderPosition(localPlayer)
             : rawPosition;
-        var screenPosition = renderPosition - cameraPosition;
+        var screenPosition = localPlayer.IsAlive
+            ? GetPlayerSpriteScreenOrigin(renderPosition, cameraPosition)
+            : renderPosition - cameraPosition;
         var screenDeltaX = _cameraDebugHasPreviousSample
             ? screenPosition.X - _cameraDebugPreviousScreenX
             : 0f;

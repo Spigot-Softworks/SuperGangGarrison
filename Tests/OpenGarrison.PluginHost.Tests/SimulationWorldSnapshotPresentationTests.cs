@@ -8,6 +8,70 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class SimulationWorldSnapshotPresentationTests
 {
     [Fact]
+    public void SpawnClientPlayerGibsFromNetworkDeathIncludesFullGibSet()
+    {
+        var world = new SimulationWorld();
+        var player = new PlayerEntity(202, CharacterClassCatalog.GetDefinition(PlayerClass.Soldier), "Remote");
+        player.ApplyNetworkState(
+            PlayerTeam.Blue,
+            CharacterClassCatalog.GetDefinition(PlayerClass.Soldier),
+            isAlive: false,
+            x: 512f,
+            y: 384f,
+            horizontalSpeed: 0f,
+            verticalSpeed: 0f,
+            health: 0,
+            currentShells: 4,
+            kills: 0,
+            deaths: 1,
+            caps: 0,
+            points: 0f,
+            healPoints: 0,
+            activeDominationCount: 0,
+            isDominatingLocalViewer: false,
+            isDominatedByLocalViewer: false,
+            metal: 0f,
+            isGrounded: true,
+            remainingAirJumps: 0,
+            isCarryingIntel: false,
+            intelRechargeTicks: 0f,
+            isSpyCloaked: false,
+            spyCloakAlpha: 1f,
+            isSpySuperjumping: false,
+            spySuperjumpHorizontalVelocity: 0f,
+            spySuperjumpCooldownTicksRemaining: 0,
+            spyBackstabVisualTicksRemaining: 0,
+            isUbered: false,
+            isKritzCritBoosted: false,
+            isHeavyEating: false,
+            heavyEatTicksRemaining: 0,
+            isSniperScoped: false,
+            sniperChargeTicks: 0,
+            isUsingBinoculars: false,
+            binocularsFocusX: 512f,
+            binocularsFocusY: 384f,
+            facingDirectionX: 1f,
+            aimDirectionDegrees: 0f,
+            aimWorldX: 513f,
+            aimWorldY: 384f,
+            isTaunting: false,
+            tauntFrameIndex: 0f,
+            isChatBubbleVisible: false,
+            chatBubbleFrameIndex: 0,
+            chatBubbleAlpha: 0f,
+            gibDeaths: 1);
+
+        world.SpawnClientPlayerGibsFromNetworkDeath(player, 512f, 384f);
+
+        Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == "GibS");
+        Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == "BlueClumpS");
+        Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == "HeadS");
+        Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == "FeetS");
+        Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == "HandS");
+        Assert.Contains(world.PendingVisualEvents, visualEvent => visualEvent.EffectName == "GibBlood");
+    }
+
+    [Fact]
     public void ApplySnapshotSpawnsRemotePlayerGibsWhenGibDeathStateAdvances()
     {
         var world = new SimulationWorld();
@@ -83,6 +147,39 @@ public sealed class SimulationWorldSnapshotPresentationTests
 
         Assert.True(world.ApplySnapshot(deathSnapshot, localPlayerSlot: 1));
         Assert.Equal(immediateGibCount, world.PlayerGibs.Count);
+    }
+
+    [Fact]
+    public void ApplySnapshotAddsOnlineKillFeedEntryAfterProtocolRoundTrip()
+    {
+        var world = new SimulationWorld();
+        var localPlayer = CreatePlayerState(1, 101, "Local", PlayerTeam.Red, PlayerClass.Scout, isAlive: true, gibDeaths: 0);
+        var remotePlayer = CreatePlayerState(2, 202, "Remote", PlayerTeam.Blue, PlayerClass.Soldier, isAlive: false, gibDeaths: 0);
+        var killFeedEntry = new SnapshotKillFeedEntry(
+            "Local",
+            (byte)PlayerTeam.Red,
+            "ScatterKL",
+            "Remote",
+            (byte)PlayerTeam.Blue,
+            EventId: 77)
+        {
+            InvolvedPlayerIds = [101, 202],
+        };
+        var snapshot = CreateSnapshot(world, frame: 109, localPlayer, remotePlayer) with
+        {
+            KillFeed = [killFeedEntry],
+        };
+        var payload = ProtocolCodec.Serialize(snapshot, ProtocolCompressionSettings.Disabled);
+
+        Assert.True(ProtocolCodec.TryDeserialize(payload, out var roundTripped));
+        var roundTrippedSnapshot = Assert.IsType<SnapshotMessage>(roundTripped);
+
+        Assert.True(world.ApplySnapshot(roundTrippedSnapshot, localPlayerSlot: 1));
+
+        var entry = Assert.Single(world.KillFeed);
+        Assert.Equal(killFeedEntry.EventId, entry.EventId);
+        Assert.Equal("Local", entry.KillerName);
+        Assert.Equal("Remote", entry.VictimName);
     }
 
     [Fact]

@@ -14,6 +14,9 @@ public partial class Game1
     private double _clientTickAccumulatorSeconds;
     private double _networkInputAccumulatorSeconds;
     private float _clientUpdateElapsedSeconds;
+    private float _gameplayPresentationDeltaSeconds;
+    private double _lastGameplayPresentationClockSeconds = -1d;
+    private int _lastGameplayPresentationClientTicks;
     private float _goreSourceTickAccumulator;
     private bool _pendingPredictedJumpPress;
     private bool _pendingPredictedPrimaryPress;
@@ -50,6 +53,9 @@ public partial class Game1
     {
         _clientTickAccumulatorSeconds = 0d;
         _networkInputAccumulatorSeconds = 0d;
+        _gameplayPresentationDeltaSeconds = 0f;
+        _lastGameplayPresentationClockSeconds = -1d;
+        _lastGameplayPresentationClientTicks = 0;
         _goreSourceTickAccumulator = 0f;
         ClearPendingPredictedInputEdges();
         _latchedJumpPressSequence = 0;

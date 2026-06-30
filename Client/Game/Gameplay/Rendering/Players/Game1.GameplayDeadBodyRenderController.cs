@@ -36,6 +36,11 @@ internal static class ImmediateNetworkDeathPresentationPlanner
             return null;
         }
 
+        if (((DamageEventFlags)damageEvent.Flags).HasFlag(DamageEventFlags.Gibbed))
+        {
+            return null;
+        }
+
         if (TryGetFreshAuthoritativeDeadBodyForPlayer(resolvedSnapshot, damageEvent, targetPlayer, out var authoritativeDeadBody))
         {
             return new ImmediateNetworkDeadBodyPresentationState(
@@ -190,8 +195,7 @@ public partial class Game1
 
             foreach (var deadBody in _game._world.DeadBodies)
             {
-                var renderPosition = _game.GetRenderPosition(deadBody.Id, deadBody.X, deadBody.Y);
-                _game._trackedDeadBodyVisuals[deadBody.Id] = new RetainedDeadBodyVisual(deadBody.Id, deadBody.SourcePlayerId, deadBody.ClassId, deadBody.Team, deadBody.AnimationKind, renderPosition.X, renderPosition.Y, deadBody.Width, deadBody.Height, deadBody.FacingLeft, deadBody.TicksRemaining);
+                _game._trackedDeadBodyVisuals[deadBody.Id] = new RetainedDeadBodyVisual(deadBody.Id, deadBody.SourcePlayerId, deadBody.ClassId, deadBody.Team, deadBody.AnimationKind, deadBody.X, deadBody.Y, deadBody.Width, deadBody.Height, deadBody.FacingLeft, deadBody.TicksRemaining);
                 _game._staleTrackedDeadBodyIds.Remove(deadBody.Id);
                 RemoveRetainedDeadBody(deadBody.Id);
             }
@@ -307,6 +311,12 @@ public partial class Game1
                 return;
             }
 
+            if (((DamageEventFlags)damageEvent.Flags).HasFlag(DamageEventFlags.Gibbed))
+            {
+                TryQueueImmediateNetworkGibPresentationFromSnapshot(resolvedSnapshot, damageEvent, targetPlayer);
+                return;
+            }
+
             var plannedDeadBody = ImmediateNetworkDeathPresentationPlanner.TryCreate(
                 resolvedSnapshot,
                 damageEvent,
@@ -353,6 +363,128 @@ public partial class Game1
             }
 
             return false;
+        }
+
+        private bool TryQueueImmediateNetworkGibPresentationFromSnapshot(SnapshotMessage resolvedSnapshot, SnapshotDamageEvent damageEvent, PlayerEntity? targetPlayer)
+        {
+            for (var index = 0; index < resolvedSnapshot.Players.Count; index += 1)
+            {
+                var snapshotPlayer = resolvedSnapshot.Players[index];
+                if (snapshotPlayer.PlayerId != damageEvent.TargetEntityId)
+                {
+                    continue;
+                }
+
+                if (targetPlayer is not null
+                    && snapshotPlayer.GibDeaths > targetPlayer.GibDeaths
+                    && _game._world.TryPresentNetworkGibDeath(damageEvent.TargetEntityId, snapshotPlayer.GibDeaths, damageEvent.X, damageEvent.Y))
+                {
+                    _game.PlayPredictedGibSound(damageEvent.X, damageEvent.Y);
+                    return true;
+                }
+
+                var presentationPlayer = CreateSnapshotGibPresentationPlayer(snapshotPlayer, targetPlayer);
+                _game._world.SpawnClientPlayerGibsFromNetworkDeath(presentationPlayer, damageEvent.X, damageEvent.Y);
+                _game.PlayPredictedGibSound(damageEvent.X, damageEvent.Y);
+                return true;
+            }
+
+            return false;
+        }
+
+        private static PlayerEntity CreateSnapshotGibPresentationPlayer(SnapshotPlayerState snapshotPlayer, PlayerEntity? targetPlayer)
+        {
+            var classId = (PlayerClass)snapshotPlayer.ClassId;
+            var player = new PlayerEntity(
+                snapshotPlayer.PlayerId,
+                CharacterClassCatalog.GetDefinition(classId),
+                snapshotPlayer.Name);
+            player.ApplyNetworkState(
+                (PlayerTeam)snapshotPlayer.Team,
+                targetPlayer?.ClassDefinition ?? CharacterClassCatalog.GetDefinition(classId),
+                snapshotPlayer.IsAlive,
+                snapshotPlayer.X,
+                snapshotPlayer.Y,
+                snapshotPlayer.HorizontalSpeed,
+                snapshotPlayer.VerticalSpeed,
+                snapshotPlayer.Health,
+                snapshotPlayer.Ammo,
+                snapshotPlayer.Kills,
+                snapshotPlayer.Deaths,
+                snapshotPlayer.Caps,
+                snapshotPlayer.Points,
+                snapshotPlayer.HealPoints,
+                snapshotPlayer.ActiveDominationCount,
+                snapshotPlayer.IsDominatingLocalViewer,
+                snapshotPlayer.IsDominatedByLocalViewer,
+                snapshotPlayer.Metal,
+                snapshotPlayer.IsGrounded,
+                snapshotPlayer.RemainingAirJumps,
+                snapshotPlayer.IsCarryingIntel,
+                snapshotPlayer.IntelRechargeTicks,
+                snapshotPlayer.IsSpyCloaked,
+                snapshotPlayer.SpyCloakAlpha,
+                snapshotPlayer.IsSpySuperjumping,
+                snapshotPlayer.SpySuperjumpHorizontalVelocity,
+                snapshotPlayer.SpySuperjumpCooldownTicksRemaining,
+                snapshotPlayer.SpyBackstabVisualTicksRemaining,
+                snapshotPlayer.IsUbered,
+                snapshotPlayer.IsKritzCritBoosted,
+                snapshotPlayer.IsHeavyEating,
+                snapshotPlayer.HeavyEatTicksRemaining,
+                snapshotPlayer.IsSniperScoped,
+                0,
+                snapshotPlayer.IsUsingBinoculars,
+                snapshotPlayer.BinocularsFocusX,
+                snapshotPlayer.BinocularsFocusY,
+                snapshotPlayer.FacingDirectionX,
+                snapshotPlayer.AimDirectionDegrees,
+                snapshotPlayer.AimWorldX,
+                snapshotPlayer.AimWorldY,
+                snapshotPlayer.IsTaunting,
+                0f,
+                snapshotPlayer.IsChatBubbleVisible,
+                snapshotPlayer.ChatBubbleFrameIndex,
+                snapshotPlayer.ChatBubbleAlpha,
+                snapshotPlayer.BurnIntensity,
+                snapshotPlayer.BurnDurationSourceTicks,
+                snapshotPlayer.BurnDecayDelaySourceTicksRemaining,
+                snapshotPlayer.BurnIntensityDecayPerSourceTick,
+                snapshotPlayer.BurnedByPlayerId,
+                snapshotPlayer.MovementState,
+                snapshotPlayer.PrimaryCooldownTicks,
+                snapshotPlayer.ReloadTicksUntilNextShell,
+                snapshotPlayer.MedicNeedleCooldownTicks,
+                snapshotPlayer.MedicNeedleRefillTicks,
+                snapshotPlayer.PyroAirblastCooldownTicks,
+                snapshotPlayer.PyroFlareCooldownTicks,
+                snapshotPlayer.PyroPrimaryFuelScaled,
+                snapshotPlayer.IsPyroPrimaryRefilling,
+                snapshotPlayer.PyroFlameLoopTicksRemaining,
+                snapshotPlayer.PyroPrimaryRequiresReleaseAfterEmpty,
+                snapshotPlayer.HeavyEatCooldownTicksRemaining,
+                snapshotPlayer.Assists,
+                snapshotPlayer.BadgeMask,
+                snapshotPlayer.IsMedicHealing,
+                snapshotPlayer.MedicHealTargetId,
+                snapshotPlayer.MedicUberCharge,
+                snapshotPlayer.IsMedicUberReady,
+                snapshotPlayer.GameplayModPackId,
+                snapshotPlayer.GameplayLoadoutId,
+                snapshotPlayer.GameplayPrimaryItemId,
+                snapshotPlayer.GameplaySecondaryItemId,
+                snapshotPlayer.GameplayUtilityItemId,
+                snapshotPlayer.GameplayEquippedSlot,
+                snapshotPlayer.GameplayEquippedItemId,
+                snapshotPlayer.GameplayAcquiredItemId,
+                snapshotPlayer.OwnedGameplayItemIds,
+                replicatedStateEntries: null,
+                snapshotPlayer.PlayerScale,
+                offhandCooldownTicks: snapshotPlayer.OffhandCooldownTicks,
+                offhandReloadTicks: snapshotPlayer.OffhandReloadTicks,
+                gibDeaths: snapshotPlayer.GibDeaths,
+                isTypingChatMessage: snapshotPlayer.IsTypingChatMessage);
+            return player;
         }
 
         public ClientDeadBodyAnimationKind ResolveClientPluginDeadBodyAnimationKind(int sourcePlayerId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind)

@@ -250,6 +250,8 @@ public partial class Game1
                 var animation = _game._backstabVisuals[index].Animation;
                 if (ownerId != 0 && animation.OwnerId == ownerId)
                 {
+                    _game._backstabVisuals[index] = new BackstabVisual(
+                        new StabAnimEntity(_game._nextClientBackstabVisualId--, ownerId, team, x, y, normalizedDirection));
                     return;
                 }
 

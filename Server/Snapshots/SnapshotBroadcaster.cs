@@ -424,7 +424,9 @@ sealed class SnapshotBroadcaster
                 workItem.FullSnapshot,
                 workItem.Baseline,
                 contributions,
-                workItem.TargetPayloadBytes)
+                Math.Max(
+                    workItem.TargetPayloadBytes,
+                    OpenGarrison.Server.SnapshotDeltaBudgeter.GameplayCriticalEmergencyPayloadBytes))
             : OpenGarrison.Server.SnapshotDeltaBudgeter.BuildBudgetedSnapshotWithMetrics(
                 workItem.FullSnapshot,
                 workItem.Baseline,

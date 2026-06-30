@@ -182,8 +182,15 @@ public sealed partial class SimulationWorld
             return true;
         }
 
-        if (primaryPressed && TryStartSpyBackstab(player, input.AimWorldX, input.AimWorldY))
+        if (input.FirePrimary
+            && player.ClassId == PlayerClass.Spy
+            && player.IsSpyCloaked)
         {
+            if (player.IsSpyBackstabReady)
+            {
+                _ = TryStartSpyBackstab(player, input.AimWorldX, input.AimWorldY);
+            }
+
             return true;
         }
 

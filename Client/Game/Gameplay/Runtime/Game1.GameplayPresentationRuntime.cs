@@ -16,6 +16,11 @@ public partial class Game1
 
     private void UpdateGameplayPresentation(GameTime gameTime, KeyboardState keyboard, MouseState mouse, int clientTicks)
     {
+        _gameplayPresentationDeltaSeconds = _lastGameplayPresentationClockSeconds >= 0d
+            ? (float)Math.Clamp(_networkInterpolationClockSeconds - _lastGameplayPresentationClockSeconds, 0d, 0.05d)
+            : 0f;
+        _lastGameplayPresentationClockSeconds = _networkInterpolationClockSeconds;
+        _lastGameplayPresentationClientTicks = Math.Max(0, clientTicks);
         ObserveCameraDebugFrameTicks(clientTicks);
         var browserPresentationStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
         var interpolationStartTimestamp = (_networkDiagnosticsEnabled || IsClientPerformanceDiagnosticsEnabled()) ? Stopwatch.GetTimestamp() : 0L;

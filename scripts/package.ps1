@@ -758,6 +758,47 @@ function Remove-PackagedDesktopWebResidue {
     Write-Host "[package] removed desktop web residue: $removedDirectories directories, $removedFiles files"
 }
 
+function Remove-PackagedDebugResidue {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PayloadDirectory
+    )
+
+    if (-not (Test-Path $PayloadDirectory)) {
+        return
+    }
+
+    $payloadRoot = [System.IO.Path]::GetFullPath($PayloadDirectory)
+    $removedFiles = 0
+
+    foreach ($file in Get-ChildItem -Path $PayloadDirectory -File -Recurse -Force -Filter "*.pdb") {
+        if (-not (Test-IsPathWithinDirectory -Path $file.FullName -Directory $payloadRoot)) {
+            continue
+        }
+
+        Remove-Item -LiteralPath $file.FullName -Force
+        $removedFiles += 1
+    }
+
+    $runtimeDiagnosticFileNames = @(
+        "createdump",
+        "libmscordaccore.so",
+        "libmscordbi.so",
+        "mscordaccore.dll",
+        "mscordbi.dll"
+    )
+
+    foreach ($fileName in $runtimeDiagnosticFileNames) {
+        $diagnosticFile = Join-Path $PayloadDirectory $fileName
+        if ((Test-Path -LiteralPath $diagnosticFile -PathType Leaf) -and (Test-IsPathWithinDirectory -Path $diagnosticFile -Directory $payloadRoot)) {
+            Remove-Item -LiteralPath $diagnosticFile -Force
+            $removedFiles += 1
+        }
+    }
+
+    Write-Host "[package] removed debug residue: $removedFiles files"
+}
+
 function Convert-PackagedBotBrainJsonAssetsToGzip {
     param(
         [Parameter(Mandatory = $true)]
@@ -1001,6 +1042,36 @@ exec "./__EXECUTABLE__" "$@"
     [System.IO.File]::WriteAllText($DestinationPath, $scriptContents, [System.Text.Encoding]::ASCII)
 }
 
+function New-UnixRootUpdaterEntrypoint {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$OutputDirectory,
+        [Parameter(Mandatory = $true)]
+        [string]$PayloadSubdirectory,
+        [Parameter(Mandatory = $true)]
+        [string]$RootEntrypointName,
+        [Parameter(Mandatory = $true)]
+        [string]$UpdaterExecutableName
+    )
+
+    $rootEntrypointPath = Join-Path $OutputDirectory $RootEntrypointName
+    $scriptContents = @'
+#!/bin/sh
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+cd "$SCRIPT_DIR/__PAYLOAD_SUBDIRECTORY__"
+chmod +x "./__UPDATER_EXECUTABLE__"
+exec "./__UPDATER_EXECUTABLE__" "$@"
+'@.
+        Replace("`r`n", "`n").
+        Replace("__PAYLOAD_SUBDIRECTORY__", $PayloadSubdirectory).
+        Replace("__UPDATER_EXECUTABLE__", $UpdaterExecutableName)
+
+    [System.IO.File]::WriteAllText($rootEntrypointPath, $scriptContents, [System.Text.Encoding]::ASCII)
+    Set-UnixExecutable -Path $rootEntrypointPath
+}
+
 function Set-UnixExecutable {
     param(
         [Parameter(Mandatory = $true)]
@@ -1105,6 +1176,8 @@ function Publish-RootUpdaterEntrypoint {
         [Parameter(Mandatory = $true)]
         [string]$OutputDirectory,
         [Parameter(Mandatory = $true)]
+        [string]$PayloadDirectory,
+        [Parameter(Mandatory = $true)]
         [string]$ScratchDirectory,
         [Parameter(Mandatory = $true)]
         [string]$RuntimeIdentifier,
@@ -1113,6 +1186,25 @@ function Publish-RootUpdaterEntrypoint {
         [Parameter(Mandatory = $true)]
         [string]$PackageVersion
     )
+
+    $publishedUpdaterName = Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2.Updater"
+    $rootEntrypointName = Get-RootLauncherExecutableName -RuntimeIdentifier $RuntimeIdentifier
+
+    if (-not (Test-IsWindowsRuntime -RuntimeIdentifier $RuntimeIdentifier)) {
+        $payloadUpdaterPath = Join-Path $PayloadDirectory $publishedUpdaterName
+        if (-not (Test-Path -LiteralPath $payloadUpdaterPath)) {
+            throw "Package is missing payload updater executable '$publishedUpdaterName'."
+        }
+
+        Set-UnixExecutable -Path $payloadUpdaterPath
+        New-UnixRootUpdaterEntrypoint `
+            -OutputDirectory $OutputDirectory `
+            -PayloadSubdirectory $appPayloadDirectoryName `
+            -RootEntrypointName $rootEntrypointName `
+            -UpdaterExecutableName $publishedUpdaterName
+        Write-Host "[package] clean root entrypoint: $rootEntrypointName launches $appPayloadDirectoryName/$publishedUpdaterName"
+        return
+    }
 
     if (Test-Path $ScratchDirectory) {
         Remove-Item $ScratchDirectory -Recurse -Force
@@ -1158,8 +1250,6 @@ function Publish-RootUpdaterEntrypoint {
     ) + $selfContainedArguments + $commonPublishArguments
     Invoke-DotNet -Arguments $publishArguments
 
-    $publishedUpdaterName = Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2.Updater"
-    $rootEntrypointName = Get-RootLauncherExecutableName -RuntimeIdentifier $RuntimeIdentifier
     $publishedUpdaterPath = Join-Path $ScratchDirectory $publishedUpdaterName
     if (-not (Test-Path -LiteralPath $publishedUpdaterPath)) {
         throw "Package is missing published updater executable '$publishedUpdaterName'."
@@ -1424,6 +1514,9 @@ foreach ($runtimeIdentifier in $Platforms) {
     $projectsToPublish = if ($LegacyRootLayout) {
         $projects
     }
+    elseif (-not (Test-IsWindowsRuntime -RuntimeIdentifier $runtimeIdentifier)) {
+        $payloadProjects + @("Updater/OpenGarrison.Updater.csproj")
+    }
     else {
         $payloadProjects
     }
@@ -1447,6 +1540,8 @@ foreach ($runtimeIdentifier in $Platforms) {
             "/nr:false",
             "/m:1",
             "-p:OpenGarrisonPackageScriptOwnsContent=true",
+            "-p:DebugType=None",
+            "-p:DebugSymbols=false",
             "-p:Version=$assemblyFileVersion",
             "-p:AssemblyVersion=$assemblyFileVersion",
             "-p:FileVersion=$assemblyFileVersion",
@@ -1462,6 +1557,7 @@ foreach ($runtimeIdentifier in $Platforms) {
         Publish-RootUpdaterEntrypoint `
             -RepoRoot $repoRoot `
             -OutputDirectory $stagingDirectory `
+            -PayloadDirectory $payloadDirectory `
             -ScratchDirectory $updaterScratchDirectory `
             -RuntimeIdentifier $runtimeIdentifier `
             -AssemblyFileVersion $assemblyFileVersion `
@@ -1476,6 +1572,7 @@ foreach ($runtimeIdentifier in $Platforms) {
     Restore-CollisionMaskImages -RepoRoot $repoRoot -ContentDirectory (Join-Path $payloadDirectory "Content")
     Remove-PackagedContentResidue -ContentDirectory (Join-Path $payloadDirectory "Content")
     Remove-PackagedDesktopWebResidue -PayloadDirectory $payloadDirectory
+    Remove-PackagedDebugResidue -PayloadDirectory $payloadDirectory
     Convert-PackagedBotBrainJsonAssetsToGzip -ContentDirectory (Join-Path $payloadDirectory "Content")
     Assert-PackagedContentPolicy -ContentDirectory (Join-Path $payloadDirectory "Content")
     Assert-PackagedDesktopPayloadPolicy -PayloadDirectory $payloadDirectory

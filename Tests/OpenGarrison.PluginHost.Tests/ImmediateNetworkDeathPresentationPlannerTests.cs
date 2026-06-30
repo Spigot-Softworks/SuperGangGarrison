@@ -156,6 +156,30 @@ public sealed class ImmediateNetworkDeathPresentationPlannerTests
         Assert.Null(result);
     }
 
+    [Fact]
+    public void TryCreateSkipsTemporaryDeadBodyForGibbedDeath()
+    {
+        var plannerMethod = GetPlannerMethod();
+        var targetPlayer = CreateDeadPlayer(playerId: 7, PlayerTeam.Blue, PlayerClass.Soldier, x: 100f, y: 200f, facingDirectionX: 1f);
+        var snapshot = CreateSnapshot(Array.Empty<SnapshotDeadBodyState>());
+        var damageEvent = new SnapshotDamageEvent(
+            Amount: 120,
+            AttackerPlayerId: 4,
+            AssistedByPlayerId: -1,
+            TargetKind: (byte)DamageTargetKind.Player,
+            TargetEntityId: 7,
+            X: 100f,
+            Y: 200f,
+            WasFatal: true,
+            EventId: 12,
+            SourceFrame: 23,
+            Flags: (byte)DamageEventFlags.Gibbed);
+
+        var result = plannerMethod.Invoke(null, [snapshot, damageEvent, targetPlayer, 90]);
+
+        Assert.Null(result);
+    }
+
     private static MethodInfo GetPlannerMethod()
     {
         var plannerType = typeof(Game1).Assembly.GetType("OpenGarrison.Client.ImmediateNetworkDeathPresentationPlanner");

@@ -24,6 +24,29 @@ public sealed class SpyBackstabTests
     }
 
     [Fact]
+    public void BackstabCanRestartWhenReadyBeforePreviousVisualExpires()
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TrySetLocalClass(PlayerClass.Spy));
+        world.ForceRespawnLocalPlayer();
+
+        var player = world.LocalPlayer;
+        Assert.True(player.TryToggleSpyCloak());
+        Assert.True(player.TryStartSpyBackstab(0f));
+
+        for (var tick = 0; tick < PlayerEntity.SpyBackstabWindupTicksDefault + PlayerEntity.SpyBackstabRecoveryTicksDefault; tick += 1)
+        {
+            player.AdvanceTickState(default, world.Config.FixedDeltaSeconds);
+        }
+
+        Assert.True(player.IsSpyBackstabReady);
+        Assert.InRange(player.SpyBackstabVisualTicksRemaining, 1, PlayerEntity.SpyBackstabVisualTicksDefault - 1);
+        Assert.True(player.TryStartSpyBackstab(180f));
+        Assert.Equal(PlayerEntity.SpyBackstabVisualTicksDefault, player.SpyBackstabVisualTicksRemaining);
+        Assert.Equal(180f, player.SpyBackstabDirectionDegrees);
+    }
+
+    [Fact]
     public void BackstabAnimationSoftlySlowsHorizontalMovementWithoutInput()
     {
         var world = new SimulationWorld();

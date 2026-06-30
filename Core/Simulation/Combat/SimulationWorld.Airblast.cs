@@ -289,6 +289,11 @@ public sealed partial class SimulationWorld
 
             if (targetIsTeammate && carryTeammatesWithPlayerVelocity)
             {
+                if (target.IsGrounded)
+                {
+                    continue;
+                }
+
                 target.AddImpulse(
                     player.HorizontalSpeed - target.HorizontalSpeed,
                     player.VerticalSpeed - target.VerticalSpeed);
