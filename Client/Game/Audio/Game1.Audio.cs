@@ -272,6 +272,7 @@ public partial class Game1
 
     private void StopIngameMusic()
     {
+        StopGameplaySoundMusicOverride();
         _gameplayAudioMusicController.StopIngameMusic();
         ResetDynamicMusicPlayback();
     }
@@ -712,6 +713,7 @@ public partial class Game1
         StopIngameMusic();
         StopLastToDieIngameMusic();
         StopLastToDieGameOverSound();
+        StopGameplaySoundMusicOverride();
         DisposeDynamicMusic();
         _menuMusicInstance?.Dispose();
         _menuMusicInstance = null;
@@ -791,10 +793,12 @@ public partial class Game1
         SetSoundEffectInstanceVolume(_lastToDieMenuMusicInstance, GetNonLinearVolumeScale(_menuMusicVolumePercent) * 0.82f);
         SetSoundEffectInstanceVolume(_faucetMusicInstance, GetNonLinearVolumeScale(_menuMusicVolumePercent) * 0.8f);
         var ingameMusicVolume = GetNonLinearVolumeScale(_ingameMusicVolumePercent);
-        SetSoundEffectInstanceVolume(_ingameMusicInstance, ingameMusicVolume * 0.8f * _dynamicNormalMusicFade);
-        SetSoundEffectInstanceVolume(_lastToDieIngameMusicInstance, ingameMusicVolume * 0.82f);
+        var gameplaySoundUnderlyingScale = GetGameplaySoundUnderlyingMusicVolumeScale();
+        SetSoundEffectInstanceVolume(_ingameMusicInstance, ingameMusicVolume * 0.8f * _dynamicNormalMusicFade * gameplaySoundUnderlyingScale);
+        SetSoundEffectInstanceVolume(_lastToDieIngameMusicInstance, ingameMusicVolume * 0.82f * gameplaySoundUnderlyingScale);
+        SetSoundEffectInstanceVolume(_gameplaySoundMusicOverrideInstance, GetGameplaySoundMusicOverrideVolume());
         SetSoundEffectInstanceVolume(_lastToDieGameOverSoundInstance, ingameMusicVolume * 0.85f);
-        UpdateDynamicMusicInstanceVolumes(ingameMusicVolume);
+        UpdateDynamicMusicInstanceVolumes(ingameMusicVolume * gameplaySoundUnderlyingScale);
     }
 
     private static float GetNonLinearVolumeScale(int percent)

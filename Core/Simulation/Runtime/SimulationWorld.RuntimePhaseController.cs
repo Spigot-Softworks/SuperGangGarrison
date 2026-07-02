@@ -46,6 +46,7 @@ public sealed partial class SimulationWorld
         public void AdvancePostPlayerSimulationPhase()
         {
             _entityPhaseController.AdvancePostPlayerEntityPhase();
+            _world.TickMapLogicTimersOncePerFrame();
             _matchPhaseController.AdvancePostPlayerMatchPhase();
         }
 

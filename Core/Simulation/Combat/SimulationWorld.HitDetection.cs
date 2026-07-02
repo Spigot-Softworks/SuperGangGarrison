@@ -34,6 +34,7 @@ public sealed partial class SimulationWorld
         RebuildForegroundJungleSpriteCache();
         ResetModeStateForNewRound();
         ResetMovingPlatformsForLevel();
+        ResetHealthPackSpawnsForLevel();
     }
 
     internal void CombatTestAddSentry(SentryEntity sentry)

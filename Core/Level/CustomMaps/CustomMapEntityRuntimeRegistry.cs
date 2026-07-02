@@ -29,6 +29,11 @@ public static class CustomMapEntityRuntimeRegistry
         Register(new CustomMapCustomSpriteMapEntityRuntimeImporter());
         Register(new ForegroundSpriteMapEntityRuntimeImporter());
         Register(new SpritesheetMapEntityRuntimeImporter());
+        Register(new HealthPackMapEntityRuntimeImporter());
+        Register(new BotSpawnMapEntityRuntimeImporter());
+        Register(new GameplayMessageMapEntityRuntimeImporter());
+        Register(new GameplaySoundMapEntityRuntimeImporter());
+        Register(new SpawnClassBehaviorMapEntityRuntimeImporter());
         Register(new LogicMapEntityRuntimeImporter());
     }
 
@@ -109,6 +114,11 @@ public sealed class CustomMapEntityImportContext
     public IList<SpawnPoint> RedSpawns { get; init; } = [];
     public IList<SpawnPoint> BlueSpawns { get; init; } = [];
     public List<RoomObjectMarker> RoomObjects { get; init; } = [];
+    public IList<HealthPackSpawnMarker> HealthPackSpawns { get; init; } = [];
+    public IList<BotSpawnMarker> BotSpawns { get; init; } = [];
+    public IList<GameplayMessageMarker> GameplayMessages { get; init; } = [];
+    public IList<GameplaySoundMarker> GameplaySounds { get; init; } = [];
+    public IList<SpawnClassBehaviorMarker> SpawnClassBehaviors { get; init; } = [];
 
     /// <summary>
     /// When true, entity X/Y are sprite-origin coordinates and room-object markers are shifted to top-left.
@@ -117,6 +127,91 @@ public sealed class CustomMapEntityImportContext
 
     public IReadOnlyDictionary<string, CustomMapBuilderResource> Resources { get; init; } =
         new Dictionary<string, CustomMapBuilderResource>(StringComparer.OrdinalIgnoreCase);
+}
+
+internal sealed class HealthPackMapEntityRuntimeImporter : ICustomMapEntityRuntimeImporter
+{
+    public string EntityType => HealthPackMetadata.HealthPackEntityType;
+
+    public bool TryImport(CustomMapEntityImportArgs args, CustomMapEntityImportContext context)
+    {
+        if (!HealthPackMetadata.IsHealthPackEntityType(args.Type))
+        {
+            return false;
+        }
+
+        context.HealthPackSpawns.Add(HealthPackSpawnMarker.FromProperties(args.X, args.Y, args.Properties));
+        return true;
+    }
+}
+
+internal sealed class BotSpawnMapEntityRuntimeImporter : ICustomMapEntityRuntimeImporter
+{
+    public string EntityType => BotSpawnMetadata.BotSpawnEntityType;
+
+    public bool TryImport(CustomMapEntityImportArgs args, CustomMapEntityImportContext context)
+    {
+        if (!BotSpawnMetadata.IsBotSpawnEntityType(args.Type))
+        {
+            return false;
+        }
+
+        context.BotSpawns.Add(BotSpawnMetadata.FromProperties(args.X, args.Y, args.Properties));
+        return true;
+    }
+}
+
+internal sealed class GameplayMessageMapEntityRuntimeImporter : ICustomMapEntityRuntimeImporter
+{
+    public string EntityType => GameplayMessageMetadata.EntityType;
+
+    public bool TryImport(CustomMapEntityImportArgs args, CustomMapEntityImportContext context)
+    {
+        if (!GameplayMessageMetadata.IsGameplayMessageEntityType(args.Type))
+        {
+            return false;
+        }
+
+        context.GameplayMessages.Add(GameplayMessageMetadata.FromProperties(
+            args.X,
+            args.Y,
+            args.XScale,
+            args.YScale,
+            args.Properties));
+        return true;
+    }
+}
+
+internal sealed class SpawnClassBehaviorMapEntityRuntimeImporter : ICustomMapEntityRuntimeImporter
+{
+    public string EntityType => SpawnClassBehaviorMetadata.EntityType;
+
+    public bool TryImport(CustomMapEntityImportArgs args, CustomMapEntityImportContext context)
+    {
+        if (!SpawnClassBehaviorMetadata.IsSpawnClassBehaviorEntityType(args.Type))
+        {
+            return false;
+        }
+
+        context.SpawnClassBehaviors.Add(SpawnClassBehaviorMetadata.FromProperties(args.X, args.Y, args.Properties));
+        return true;
+    }
+}
+
+internal sealed class GameplaySoundMapEntityRuntimeImporter : ICustomMapEntityRuntimeImporter
+{
+    public string EntityType => GameplaySoundMetadata.EntityType;
+
+    public bool TryImport(CustomMapEntityImportArgs args, CustomMapEntityImportContext context)
+    {
+        if (!GameplaySoundMetadata.IsGameplaySoundEntityType(args.Type))
+        {
+            return false;
+        }
+
+        context.GameplaySounds.Add(GameplaySoundMetadata.FromProperties(args.X, args.Y, args.Properties));
+        return true;
+    }
 }
 
 internal sealed class SpawnMapEntityRuntimeImporter : ICustomMapEntityRuntimeImporter

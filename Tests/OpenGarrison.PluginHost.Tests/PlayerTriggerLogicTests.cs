@@ -29,6 +29,30 @@ public sealed class PlayerTriggerLogicTests
     }
 
     [Fact]
+    public void PlayerTriggerUsesPlayerCollisionBounds()
+    {
+        var zone = CreatePlayerTriggerZone(90f, 112f, 96f, 32f, PlayerTriggerTeamFilter.Any, "trigger");
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "trigger",
+                Kind = MapLogicNodeKind.PlayerTrigger,
+                PlayerTriggerRoomObjectIndex = 0,
+                PlayerTriggerTeamFilter = PlayerTriggerTeamFilter.Any,
+            },
+        ]);
+
+        var player = CreatePlayer(PlayerTeam.Red, 128f, 100f);
+        Assert.False(PlayerTriggerMetadata.IsPointInsideZone(player.X, player.Y, zone));
+
+        var context = new PlayerTriggerEvaluationContext([player], [zone], _ => true);
+        graph.EvaluateCombinatorial([], context);
+
+        Assert.True(graph.GetOutput(graph.NodeIndexByKey["trigger"]));
+    }
+
+    [Fact]
     public void PlayerTriggerRespectsTeamFilter()
     {
         var zone = CreatePlayerTriggerZone(0f, 0f, 42f, 42f, PlayerTriggerTeamFilter.Red, "trigger");
@@ -47,6 +71,37 @@ public sealed class PlayerTriggerLogicTests
         var context = new PlayerTriggerEvaluationContext([bluePlayer], [zone], _ => true);
         graph.EvaluateCombinatorial([], context);
 
+        Assert.False(graph.GetOutput(graph.NodeIndexByKey["trigger"]));
+    }
+
+    [Fact]
+    public void PlayerTriggerMaxFiresLimitsImpulses()
+    {
+        var zone = CreatePlayerTriggerZone(0f, 0f, 42f, 42f, PlayerTriggerTeamFilter.Any, "trigger");
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "trigger",
+                Kind = MapLogicNodeKind.PlayerTrigger,
+                PlayerTriggerRoomObjectIndex = 0,
+                PlayerTriggerTeamFilter = PlayerTriggerTeamFilter.Any,
+                SignalMode = MapLogicSignalMode.Impulse,
+                PlayerDetectMode = MapLogicPlayerDetectMode.PlayerEnter,
+                PlayerTriggerMaxFires = 1,
+            },
+        ]);
+
+        var player = CreatePlayer(PlayerTeam.Red, 10f, 10f);
+        var emptyContext = new PlayerTriggerEvaluationContext([], [zone], _ => true);
+        var occupiedContext = new PlayerTriggerEvaluationContext([player], [zone], _ => true);
+
+        graph.ResetPlayerTriggerStates(emptyContext);
+        graph.EvaluateCombinatorial([], occupiedContext);
+        Assert.True(graph.GetOutput(graph.NodeIndexByKey["trigger"]));
+
+        graph.EvaluateCombinatorial([], emptyContext);
+        graph.EvaluateCombinatorial([], occupiedContext);
         Assert.False(graph.GetOutput(graph.NodeIndexByKey["trigger"]));
     }
 
@@ -78,6 +133,43 @@ public sealed class PlayerTriggerLogicTests
         graph.EvaluateCombinatorial([], context);
 
         Assert.True(graph.GetOutput(graph.NodeIndexByKey["gate"]));
+    }
+
+    [Fact]
+    public void ExternalPulseSurvivesOneEvaluationAndPropagates()
+    {
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "pulse",
+                Kind = MapLogicNodeKind.Gate,
+                GateType = MapLogicGateType.And,
+            },
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "consumer",
+                Kind = MapLogicNodeKind.Gate,
+                GateType = MapLogicGateType.And,
+                InputRef1 = "node:pulse",
+                InputRef2 = "node:pulse",
+            },
+        ]);
+
+        var pulseIndex = graph.NodeIndexByKey["pulse"];
+        var consumerIndex = graph.NodeIndexByKey["consumer"];
+
+        Assert.True(graph.PulseExternalOutput(pulseIndex));
+        Assert.True(graph.GetOutput(pulseIndex));
+        Assert.True(graph.GetOutput(consumerIndex));
+
+        graph.EvaluateCombinatorial([]);
+        Assert.True(graph.GetOutput(pulseIndex));
+        Assert.True(graph.GetOutput(consumerIndex));
+
+        graph.EvaluateCombinatorial([]);
+        Assert.False(graph.GetOutput(pulseIndex));
+        Assert.False(graph.GetOutput(consumerIndex));
     }
 
     [Fact]
@@ -272,6 +364,121 @@ public sealed class PlayerTriggerLogicTests
         world.TickMapLogicTimers();
 
         Assert.True(world.Level.LogicGraph.GetOutput(world.Level.LogicGraph.NodeIndexByKey["trigger"]));
+    }
+
+    [Fact]
+    public void FrameScopedMapLogicTickDoesNotConsumePlayerEnterImpulseTwice()
+    {
+        var zone = CreatePlayerTriggerZone(90f, 112f, 96f, 32f, PlayerTriggerTeamFilter.Red, "trigger");
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "trigger",
+                Kind = MapLogicNodeKind.PlayerTrigger,
+                PlayerTriggerRoomObjectIndex = 0,
+                PlayerTriggerTeamFilter = PlayerTriggerTeamFilter.Red,
+                SignalMode = MapLogicSignalMode.Impulse,
+                PlayerDetectMode = MapLogicPlayerDetectMode.PlayerEnter,
+            },
+        ]);
+        var world = new SimulationWorld();
+        var setLevel = typeof(SimulationWorld).GetMethod(
+            "CombatTestSetLevel",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(setLevel);
+        setLevel.Invoke(
+            world,
+            [
+                new SimpleLevel(
+                    "player-trigger-frame-test",
+                    GameModeKind.TeamDeathmatch,
+                    new WorldBounds(512f, 512f),
+                    1f,
+                    null,
+                    0,
+                    1,
+                    new SpawnPoint(0f, 0f),
+                    [],
+                    [],
+                    [],
+                    [zone],
+                    0f,
+                    [],
+                    importedFromSource: false,
+                    logicGraph: graph),
+            ]);
+
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        world.LocalPlayer.TeleportTo(128f, 100f);
+
+        world.TickMapLogicTimersOncePerFrame();
+        world.TickMapLogicTimersOncePerFrame();
+
+        Assert.True(world.Level.LogicGraph.GetOutput(world.Level.LogicGraph.NodeIndexByKey["trigger"]));
+    }
+
+    [Fact]
+    public void OfflineSimulationEvaluatesPlayerTriggersBeforeAfterTickCallback()
+    {
+        var zone = CreatePlayerTriggerZone(90f, 112f, 96f, 32f, PlayerTriggerTeamFilter.Red, "trigger");
+        var graph = MapLogicGraphBuilder.Build(
+        [
+            new MapLogicNodeDefinition
+            {
+                LogicKey = "trigger",
+                Kind = MapLogicNodeKind.PlayerTrigger,
+                PlayerTriggerRoomObjectIndex = 0,
+                PlayerTriggerTeamFilter = PlayerTriggerTeamFilter.Red,
+                SignalMode = MapLogicSignalMode.Impulse,
+                PlayerDetectMode = MapLogicPlayerDetectMode.PlayerEnter,
+            },
+        ]);
+        var world = new SimulationWorld();
+        var setLevel = typeof(SimulationWorld).GetMethod(
+            "CombatTestSetLevel",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(setLevel);
+        setLevel.Invoke(
+            world,
+            [
+                new SimpleLevel(
+                    "player-trigger-after-tick-test",
+                    GameModeKind.TeamDeathmatch,
+                    new WorldBounds(512f, 512f),
+                    1f,
+                    null,
+                    0,
+                    1,
+                    new SpawnPoint(0f, 0f),
+                    [],
+                    [],
+                    [],
+                    [zone],
+                    0f,
+                    [],
+                    importedFromSource: false,
+                    logicGraph: graph),
+            ]);
+
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        world.LocalPlayer.TeleportTo(128f, 100f);
+
+        var simulator = new FixedStepSimulator(world);
+        var afterTickSawOutput = false;
+        simulator.Step(
+            world.Config.FixedDeltaSeconds,
+            beforeTickAdvanced: null,
+            onTickAdvanced: () =>
+            {
+                afterTickSawOutput = world.Level.LogicGraph.GetOutput(world.Level.LogicGraph.NodeIndexByKey["trigger"]);
+            });
+
+        Assert.True(afterTickSawOutput);
     }
 
     private static RoomObjectMarker CreatePlayerTriggerZone(

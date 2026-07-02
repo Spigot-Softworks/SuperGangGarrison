@@ -51,12 +51,20 @@ public static class CustomMapPackageExporter
         foreach (var resource in normalized.Resources.Values.OrderBy(static resource => resource.Name, StringComparer.OrdinalIgnoreCase))
         {
             var bytes = CustomMapBuilderResourceCodec.GetResourceBytes(resource);
-            if (!IsPng(bytes))
+            if (resource.Kind == CustomMapBuilderResourceKind.MessageSound)
+            {
+                if (!CustomMapBuilderResourceCodec.IsSupportedSound(bytes))
+                {
+                    throw new InvalidOperationException($"Resource \"{resource.Name}\" must be an OGG sound for package export.");
+                }
+            }
+            else if (!IsPng(bytes))
             {
                 throw new InvalidOperationException($"Resource \"{resource.Name}\" must be a PNG image for package export.");
             }
 
-            var resourceFileName = ReserveFileName(reservedNames, $"{SanitizeFileName(resource.Name)}.png");
+            var extension = resource.Kind == CustomMapBuilderResourceKind.MessageSound ? ".ogg" : ".png";
+            var resourceFileName = ReserveFileName(reservedNames, $"{SanitizeFileName(resource.Name)}{extension}");
             File.WriteAllBytes(Path.Combine(packageDirectory, resourceFileName), bytes);
             resources.Add(new CustomMapPackageResource
             {
@@ -306,6 +314,7 @@ public static class CustomMapPackageExporter
             CustomMapBuilderResourceKind.Foreground => "foreground",
             CustomMapBuilderResourceKind.EntitySprite => "entitySprite",
             CustomMapBuilderResourceKind.CustomSprite => "customSprite",
+            CustomMapBuilderResourceKind.MessageSound => "messageSound",
             _ => "genericImage",
         };
     }

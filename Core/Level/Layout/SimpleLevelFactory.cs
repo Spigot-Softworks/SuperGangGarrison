@@ -111,6 +111,11 @@ public static class SimpleLevelFactory
         var intelBases = FilterByArea(importedRoom.IntelBases, areaFilter);
         var roomObjects = FilterByArea(importedRoom.RoomObjects, areaFilter);
         var movingPlatforms = FilterByArea(importedRoom.MovingPlatforms, areaFilter);
+        var healthPackSpawns = FilterByArea(importedRoom.HealthPackSpawns, areaFilter);
+        var botSpawns = FilterByArea(importedRoom.BotSpawns, areaFilter);
+        var gameplayMessages = FilterByArea(importedRoom.GameplayMessages, areaFilter);
+        var gameplaySounds = FilterByArea(importedRoom.GameplaySounds, areaFilter);
+        var spawnClassBehaviors = FilterByArea(importedRoom.SpawnClassBehaviors, areaFilter);
         var floorY = FindFloorBelowSpawn(importedSolids, spawn)
             ?? MathF.Min(bounds.Height - 40f, spawn.Y + 360f);
         if (usesCustomMapRuntimeFormat && importedSolids.Count == 0)
@@ -140,13 +145,18 @@ public static class SimpleLevelFactory
             unsupportedSourceEntities: importedRoom.UnsupportedEntities,
             customMapVisuals: importedRoom.CustomMapVisuals,
             movingPlatforms: movingPlatforms,
+            healthPackSpawns: healthPackSpawns,
             controlPointSettings: importedRoom.ControlPointSettings,
             scrSettings: importedRoom.ScrSettings,
             showControlPoints: importedRoom.ShowControlPoints,
             logicGraph: importedRoom.LogicGraph,
             logicActivators: importedRoom.LogicActivators,
             logicScoreTriggers: importedRoom.LogicScoreTriggers,
-            spritesheetPlaybackSet: importedRoom.SpritesheetPlaybackSet);
+            spritesheetPlaybackSet: importedRoom.SpritesheetPlaybackSet,
+            botSpawns: botSpawns,
+            gameplayMessages: gameplayMessages,
+            gameplaySounds: gameplaySounds,
+            spawnClassBehaviors: spawnClassBehaviors);
         return SimpleLevelScaling.ApplyUniformScale(level, mapScale);
     }
 
@@ -678,6 +688,42 @@ public static class SimpleLevelFactory
         {
             return source
                 .Cast<MovingPlatformMarker>()
+                .Where(marker => includeY(marker.Y))
+                .Cast<T>()
+                .ToArray();
+        }
+
+        if (typeof(T) == typeof(HealthPackSpawnMarker))
+        {
+            return source
+                .Cast<HealthPackSpawnMarker>()
+                .Where(marker => includeY(marker.Y))
+                .Cast<T>()
+                .ToArray();
+        }
+
+        if (typeof(T) == typeof(BotSpawnMarker))
+        {
+            return source
+                .Cast<BotSpawnMarker>()
+                .Where(marker => includeY(marker.Y))
+                .Cast<T>()
+                .ToArray();
+        }
+
+        if (typeof(T) == typeof(GameplayMessageMarker))
+        {
+            return source
+                .Cast<GameplayMessageMarker>()
+                .Where(marker => includeY(marker.Y))
+                .Cast<T>()
+                .ToArray();
+        }
+
+        if (typeof(T) == typeof(SpawnClassBehaviorMarker))
+        {
+            return source
+                .Cast<SpawnClassBehaviorMarker>()
                 .Where(marker => includeY(marker.Y))
                 .Cast<T>()
                 .ToArray();

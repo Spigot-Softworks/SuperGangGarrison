@@ -465,7 +465,7 @@ function Copy-DirectoryContents {
     Copy-Item (Join-Path $SourceDirectory "*") $DestinationDirectory -Recurse -Force
 }
 
-function Invoke-GenerateDistributionAssetManifest {
+function Invoke-GenerateDistributionRuntimeAtlases {
     param(
         [Parameter(Mandatory = $true)]
         [string]$RepoRoot,
@@ -478,8 +478,7 @@ function Invoke-GenerateDistributionAssetManifest {
         "--project",
         (Join-Path $RepoRoot "Tools\BrowserAssetBuilder\OpenGarrison.Tools.BrowserAssetBuilder.csproj"),
         "--",
-        $ContentDirectory,
-        "--manifest-only"
+        $ContentDirectory
     )
 }
 
@@ -709,14 +708,7 @@ function Remove-PackagedDesktopWebResidue {
 
     $payloadRoot = [System.IO.Path]::GetFullPath($PayloadDirectory)
     $contentDirectory = Join-Path $PayloadDirectory "Content"
-    $removedDirectories = 0
     $removedFiles = 0
-
-    $browserContentDirectory = Join-Path $contentDirectory "Browser"
-    if ((Test-Path -LiteralPath $browserContentDirectory) -and (Test-IsPathWithinDirectory -Path $browserContentDirectory -Directory $payloadRoot)) {
-        Remove-Item -LiteralPath $browserContentDirectory -Recurse -Force
-        $removedDirectories += 1
-    }
 
     $rootWebFilePatterns = @(
         "web.config",
@@ -755,7 +747,7 @@ function Remove-PackagedDesktopWebResidue {
         }
     }
 
-    Write-Host "[package] removed desktop web residue: $removedDirectories directories, $removedFiles files"
+    Write-Host "[package] removed desktop web residue: $removedFiles files"
 }
 
 function Remove-PackagedDebugResidue {
@@ -872,6 +864,48 @@ function Convert-PackagedBotBrainJsonAssetsToGzip {
     Write-Host "[package] compressed BotBrain JSON assets: $compressedFiles files, $rawMb MB -> $compressedMb MB"
 }
 
+function Remove-PackagedLooseSpriteFrameDirectories {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ContentDirectory
+    )
+
+    if (-not (Test-Path $ContentDirectory)) {
+        return
+    }
+
+    $spritesDirectory = Join-Path $ContentDirectory "Sprites"
+    if (-not (Test-Path $spritesDirectory)) {
+        return
+    }
+
+    $contentRoot = [System.IO.Path]::GetFullPath($ContentDirectory)
+    $collisionMapsDirectory = [System.IO.Path]::GetFullPath((Join-Path $spritesDirectory "Collision Maps"))
+    if (-not $collisionMapsDirectory.EndsWith([System.IO.Path]::DirectorySeparatorChar)) {
+        $collisionMapsDirectory += [System.IO.Path]::DirectorySeparatorChar
+    }
+
+    $removedDirectories = 0
+    $removedFiles = 0
+    foreach ($directory in Get-ChildItem -Path $spritesDirectory -Directory -Recurse -Force -Filter "*.images" | Sort-Object FullName -Descending) {
+        if (-not (Test-IsPathWithinDirectory -Path $directory.FullName -Directory $contentRoot)) {
+            continue
+        }
+
+        $directoryPath = [System.IO.Path]::GetFullPath($directory.FullName)
+        if ($directoryPath.StartsWith($collisionMapsDirectory, [System.StringComparison]::OrdinalIgnoreCase)) {
+            continue
+        }
+
+        $fileCount = (Get-ChildItem -Path $directory.FullName -File -Recurse -Force | Measure-Object).Count
+        Remove-Item -LiteralPath $directory.FullName -Recurse -Force
+        $removedDirectories += 1
+        $removedFiles += $fileCount
+    }
+
+    Write-Host "[package] removed loose sprite frame directories: $removedDirectories directories, $removedFiles files"
+}
+
 function Assert-PackagedContentPolicy {
     param(
         [Parameter(Mandatory = $true)]
@@ -887,9 +921,39 @@ function Assert-PackagedContentPolicy {
         throw "Release content still contains removed MotionProof runtime assets: '$motionProofDirectory'."
     }
 
-    $browserContentDirectory = Join-Path $ContentDirectory "Browser"
-    if (Test-Path $browserContentDirectory) {
-        throw "Release content still contains browser-only assets: '$browserContentDirectory'."
+    $browserManifestsDirectory = Join-Path $ContentDirectory "Browser/Manifests"
+    $browserAtlasesDirectory = Join-Path $ContentDirectory "Browser/Atlases"
+    foreach ($requiredAtlasPath in @(
+        (Join-Path $browserManifestsDirectory "bootstrap-manifest.json"),
+        (Join-Path $browserManifestsDirectory "stock-pack-atlas-manifest.json"),
+        (Join-Path $browserManifestsDirectory "gamemaker-atlas-manifest.json")
+    )) {
+        if (-not (Test-Path -LiteralPath $requiredAtlasPath -PathType Leaf)) {
+            throw "Release content is missing required runtime atlas manifest '$requiredAtlasPath'."
+        }
+    }
+
+    if (-not (Test-Path -LiteralPath $browserAtlasesDirectory -PathType Container)) {
+        throw "Release content is missing runtime atlas pages: '$browserAtlasesDirectory'."
+    }
+
+    $stockAtlasManifestPath = Join-Path $browserManifestsDirectory "stock-pack-atlas-manifest.json"
+    $stockAtlasManifest = Get-Content -LiteralPath $stockAtlasManifestPath -Raw | ConvertFrom-Json
+    $stockAtlasSprites = $stockAtlasManifest.Manifest.Sprites.PSObject.Properties
+    if (@($stockAtlasSprites).Count -eq 0) {
+        throw "Release stock gameplay atlas manifest contains no sprites: '$stockAtlasManifestPath'."
+    }
+
+    foreach ($requiredStockSprite in @("HeadS", "FeetS", "BloodS", "BlueClumpS", "RedClumpS", "GibS")) {
+        if (($stockAtlasManifest.Manifest.Sprites.PSObject.Properties.Match($requiredStockSprite) | Select-Object -First 1) -eq $null) {
+            throw "Release stock gameplay atlas manifest is missing required sprite '$requiredStockSprite'."
+        }
+    }
+
+    $gameMakerAtlasManifestPath = Join-Path $browserManifestsDirectory "gamemaker-atlas-manifest.json"
+    $gameMakerAtlasManifest = Get-Content -LiteralPath $gameMakerAtlasManifestPath -Raw | ConvertFrom-Json
+    if (@($gameMakerAtlasManifest.Manifest.Sprites.PSObject.Properties).Count -eq 0) {
+        throw "Release GameMaker atlas manifest contains no sprites: '$gameMakerAtlasManifestPath'."
     }
 
     $browserOnlyContentFileNames = @(
@@ -939,47 +1003,20 @@ function Assert-PackagedContentPolicy {
         }
     }
 
-    $contentRoot = [System.IO.Path]::GetFullPath($ContentDirectory)
-    $stockPackDirectory = Join-Path $ContentDirectory "Gameplay\stock.gg2"
-    $stockSpriteDirectory = Join-Path $ContentDirectory "Gameplay\stock.gg2\sprites"
-    if (-not (Test-Path $stockSpriteDirectory)) {
-        throw "Release content is missing stock gameplay sprite definitions: '$stockSpriteDirectory'."
-    }
-
-    $stockSpriteDefinitionFiles = @(Get-ChildItem -Path $stockSpriteDirectory -File -Force -Filter "*.json")
-    if ($stockSpriteDefinitionFiles.Count -eq 0) {
-        throw "Release content contains no stock gameplay sprite definitions in '$stockSpriteDirectory'."
-    }
-
-    foreach ($spriteDefinitionFile in $stockSpriteDefinitionFiles) {
-        $spriteDefinition = Get-Content -LiteralPath $spriteDefinitionFile.FullName -Raw | ConvertFrom-Json
-        $framePathsProperty = $spriteDefinition.PSObject.Properties.Match("framePaths") | Select-Object -First 1
-        if ($framePathsProperty -eq $null) {
-            continue
+    $spritesDirectory = Join-Path $ContentDirectory "Sprites"
+    if (Test-Path $spritesDirectory) {
+        $collisionMapsDirectory = [System.IO.Path]::GetFullPath((Join-Path $spritesDirectory "Collision Maps"))
+        if (-not $collisionMapsDirectory.EndsWith([System.IO.Path]::DirectorySeparatorChar)) {
+            $collisionMapsDirectory += [System.IO.Path]::DirectorySeparatorChar
         }
 
-        foreach ($framePathValue in @($framePathsProperty.Value)) {
-            $framePath = [string]$framePathValue
-            if ([string]::IsNullOrWhiteSpace($framePath)) {
+        foreach ($directory in Get-ChildItem -Path $spritesDirectory -Directory -Recurse -Force -Filter "*.images") {
+            $directoryPath = [System.IO.Path]::GetFullPath($directory.FullName)
+            if ($directoryPath.StartsWith($collisionMapsDirectory, [System.StringComparison]::OrdinalIgnoreCase)) {
                 continue
             }
 
-            $normalizedFramePath = $framePath.Replace("/", [string][System.IO.Path]::DirectorySeparatorChar)
-            $contentPrefix = "Content$([System.IO.Path]::DirectorySeparatorChar)"
-            $absoluteFramePath = if ($normalizedFramePath.StartsWith($contentPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-                Join-Path $ContentDirectory $normalizedFramePath.Substring($contentPrefix.Length)
-            }
-            else {
-                Join-Path $stockPackDirectory $normalizedFramePath
-            }
-
-            if (-not (Test-IsPathWithinDirectory -Path $absoluteFramePath -Directory $contentRoot)) {
-                throw "Release sprite definition '$($spriteDefinitionFile.FullName)' references frame outside Content: '$framePath'."
-            }
-
-            if (-not (Test-Path -LiteralPath $absoluteFramePath -PathType Leaf)) {
-                throw "Release sprite definition '$($spriteDefinitionFile.FullName)' references missing frame asset '$framePath'."
-            }
+            throw "Release content still contains loose sprite frame directory '$($directory.FullName)'. Runtime sprites must come from atlases."
         }
     }
 }
@@ -1568,11 +1605,12 @@ foreach ($runtimeIdentifier in $Platforms) {
     Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "Client/Content") -DestinationDirectory (Join-Path $payloadDirectory "Content")
     Invoke-PublishDistributionMaps -RepoRoot $repoRoot -DestinationDirectory (Join-Path $payloadDirectory "Maps")
 
-    Invoke-GenerateDistributionAssetManifest -RepoRoot $repoRoot -ContentDirectory (Join-Path $payloadDirectory "Content")
+    Invoke-GenerateDistributionRuntimeAtlases -RepoRoot $repoRoot -ContentDirectory (Join-Path $payloadDirectory "Content")
     Restore-CollisionMaskImages -RepoRoot $repoRoot -ContentDirectory (Join-Path $payloadDirectory "Content")
     Remove-PackagedContentResidue -ContentDirectory (Join-Path $payloadDirectory "Content")
     Remove-PackagedDesktopWebResidue -PayloadDirectory $payloadDirectory
     Remove-PackagedDebugResidue -PayloadDirectory $payloadDirectory
+    Remove-PackagedLooseSpriteFrameDirectories -ContentDirectory (Join-Path $payloadDirectory "Content")
     Convert-PackagedBotBrainJsonAssetsToGzip -ContentDirectory (Join-Path $payloadDirectory "Content")
     Assert-PackagedContentPolicy -ContentDirectory (Join-Path $payloadDirectory "Content")
     Assert-PackagedDesktopPayloadPolicy -PayloadDirectory $payloadDirectory

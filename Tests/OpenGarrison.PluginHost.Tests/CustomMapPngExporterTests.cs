@@ -1436,6 +1436,8 @@ public sealed class CustomMapPngExporterTests
                 : new Uri(manifestUri, file.RelativePath);
             var contentType = file.RelativePath.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
                 ? "application/json"
+                : file.RelativePath.EndsWith(".ogg", StringComparison.OrdinalIgnoreCase)
+                    ? "audio/ogg"
                 : "image/png";
             responses[uri.AbsolutePath] = new StubHttpResponse(File.ReadAllBytes(file.FullPath), contentType);
         }
@@ -1543,6 +1545,137 @@ public sealed class CustomMapPngExporterTests
         Assert.True(room.CustomMapVisuals.SpriteResources.ContainsKey("prop"));
         Assert.Contains(room.RoomObjects, marker => marker.Type == RoomObjectType.CustomMapSprite);
         Assert.Contains(room.RoomObjects, marker => marker.Type == RoomObjectType.ForegroundSprite);
+    }
+
+    [Fact]
+    public void PackageImporter_AttachesGameplayMessageSoundResources()
+    {
+        using var workspace = TempWorkspace.Create();
+        var packageDirectory = workspace.PathFor("message_sound_map");
+        Directory.CreateDirectory(packageDirectory);
+        var backgroundPath = workspace.PathFor("background.png");
+        var walkmaskPath = workspace.PathFor("walkmask.png");
+        var soundPath = workspace.PathFor("alert.ogg");
+        var musicPath = workspace.PathFor("theme.ogg");
+        var exitSoundPath = workspace.PathFor("exit.ogg");
+        WriteSolidPng(backgroundPath, 8, 4, new Rgba32(32, 64, 96, 255));
+        WriteWalkmaskPng(walkmaskPath);
+        File.WriteAllBytes(soundPath, [0x4f, 0x67, 0x67, 0x53, 0, 2, 0, 0]);
+        File.WriteAllBytes(musicPath, [0x4f, 0x67, 0x67, 0x53, 0, 2, 0, 0]);
+        File.WriteAllBytes(exitSoundPath, [0x4f, 0x67, 0x67, 0x53, 0, 2, 0, 0]);
+
+        var soundResource = CustomMapBuilderResourceCodec.FromFile(
+            "alert",
+            soundPath,
+            CustomMapBuilderResourceKind.MessageSound);
+        var musicResource = CustomMapBuilderResourceCodec.FromFile(
+            "theme",
+            musicPath,
+            CustomMapBuilderResourceKind.MessageSound);
+        var exitSoundResource = CustomMapBuilderResourceCodec.FromFile(
+            "exit",
+            exitSoundPath,
+            CustomMapBuilderResourceKind.MessageSound);
+        var document = CreateSpawnOnlyDocument(backgroundPath, walkmaskPath, 12f, 36f) with
+        {
+            Name = "message_sound_map",
+            Entities =
+            [
+                CustomMapBuilderEntity.Create("redspawn", 12f, 6f),
+                CustomMapBuilderEntity.Create("bluespawn", 36f, 6f),
+                CustomMapBuilderEntity.Create(
+                    GameplayMessageMetadata.EntityType,
+                    40f,
+                    20f,
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [GameplayMessageMetadata.TextPropertyKey] = "Incoming",
+                        [GameplayMessageMetadata.SoundPropertyKey] = "alert.ogg",
+                        [GameplayMessageMetadata.MusicPropertyKey] = "theme.ogg",
+                        [GameplayMessageMetadata.OnEndPlaySoundPropertyKey] = "true",
+                        [GameplayMessageMetadata.OnEndSoundPropertyKey] = "exit.ogg",
+                    }),
+            ],
+            Resources = new Dictionary<string, CustomMapBuilderResource>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["alert"] = soundResource,
+                ["theme"] = musicResource,
+                ["exit"] = exitSoundResource,
+            },
+        };
+
+        var manifestPath = Path.Combine(packageDirectory, "message_sound_map.json");
+        CustomMapPackageExporter.Export(document, manifestPath);
+
+        var contentFiles = CustomMapPackageImporter.GetPackageContentFiles(manifestPath);
+        var imported = CustomMapPackageImporter.Import(manifestPath);
+
+        Assert.Contains(contentFiles, file => file.RelativePath.EndsWith("alert.ogg", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(contentFiles, file => file.RelativePath.EndsWith("theme.ogg", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(contentFiles, file => file.RelativePath.EndsWith("exit.ogg", StringComparison.OrdinalIgnoreCase));
+        Assert.NotNull(imported);
+        var room = imported!.Room;
+        Assert.Contains(
+            room.GameplayMessages,
+            marker => marker.SoundName.Equals("alert.ogg", StringComparison.OrdinalIgnoreCase)
+                && marker.MusicName.Equals("theme.ogg", StringComparison.OrdinalIgnoreCase)
+                && marker.OnEndSoundName.Equals("exit.ogg", StringComparison.OrdinalIgnoreCase));
+        Assert.True(room.CustomMapVisuals.SoundResources.ContainsKey("alert"));
+        Assert.True(room.CustomMapVisuals.SoundResources.ContainsKey("theme"));
+        Assert.True(room.CustomMapVisuals.SoundResources.ContainsKey("exit"));
+    }
+
+    [Fact]
+    public void PackageImporter_AttachesGameplaySoundResources()
+    {
+        using var workspace = TempWorkspace.Create();
+        var packageDirectory = workspace.PathFor("gameplay_sound_map");
+        Directory.CreateDirectory(packageDirectory);
+        var backgroundPath = workspace.PathFor("background.png");
+        var walkmaskPath = workspace.PathFor("walkmask.png");
+        var soundPath = workspace.PathFor("music.ogg");
+        WriteSolidPng(backgroundPath, 8, 4, new Rgba32(32, 64, 96, 255));
+        WriteWalkmaskPng(walkmaskPath);
+        File.WriteAllBytes(soundPath, [0x4f, 0x67, 0x67, 0x53, 0, 2, 0, 0]);
+
+        var soundResource = CustomMapBuilderResourceCodec.FromFile(
+            "music",
+            soundPath,
+            CustomMapBuilderResourceKind.MessageSound);
+        var document = CreateSpawnOnlyDocument(backgroundPath, walkmaskPath, 12f, 36f) with
+        {
+            Name = "gameplay_sound_map",
+            Entities =
+            [
+                CustomMapBuilderEntity.Create("redspawn", 12f, 6f),
+                CustomMapBuilderEntity.Create("bluespawn", 36f, 6f),
+                CustomMapBuilderEntity.Create(
+                    GameplaySoundMetadata.EntityType,
+                    40f,
+                    20f,
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [GameplaySoundMetadata.SoundPropertyKey] = "music.ogg",
+                        [GameplaySoundMetadata.ModePropertyKey] = "music",
+                    }),
+            ],
+            Resources = new Dictionary<string, CustomMapBuilderResource>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["music"] = soundResource,
+            },
+        };
+
+        var manifestPath = Path.Combine(packageDirectory, "gameplay_sound_map.json");
+        CustomMapPackageExporter.Export(document, manifestPath);
+
+        var contentFiles = CustomMapPackageImporter.GetPackageContentFiles(manifestPath);
+        var imported = CustomMapPackageImporter.Import(manifestPath);
+
+        Assert.Contains(contentFiles, file => file.RelativePath.EndsWith("music.ogg", StringComparison.OrdinalIgnoreCase));
+        Assert.NotNull(imported);
+        var room = imported!.Room;
+        Assert.Contains(room.GameplaySounds, marker => marker.SoundName.Equals("music.ogg", StringComparison.OrdinalIgnoreCase));
+        Assert.True(room.CustomMapVisuals.SoundResources.ContainsKey("music"));
     }
 
     private sealed class TempWorkspace : IDisposable

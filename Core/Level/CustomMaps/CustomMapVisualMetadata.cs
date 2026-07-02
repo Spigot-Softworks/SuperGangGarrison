@@ -8,6 +8,7 @@ public sealed record CustomMapVisualMetadata(
     CustomMapVisualResource? Foreground,
     IReadOnlyDictionary<string, CustomMapVisualResource> Resources,
     IReadOnlyDictionary<string, CustomMapVisualResource> SpriteResources,
+    IReadOnlyDictionary<string, CustomMapVisualResource> SoundResources,
     IReadOnlyDictionary<int, ForegroundSpriteHitMask> ForegroundSpriteJungleHitMasks)
 {
     public float ForegroundOffsetX { get; init; }
@@ -18,6 +19,9 @@ public sealed record CustomMapVisualMetadata(
         new Dictionary<string, CustomMapVisualResource>(StringComparer.OrdinalIgnoreCase);
 
     private static readonly IReadOnlyDictionary<string, CustomMapVisualResource> EmptySpriteResources =
+        new Dictionary<string, CustomMapVisualResource>(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly IReadOnlyDictionary<string, CustomMapVisualResource> EmptySoundResources =
         new Dictionary<string, CustomMapVisualResource>(StringComparer.OrdinalIgnoreCase);
 
     private static readonly IReadOnlyDictionary<int, ForegroundSpriteHitMask> EmptyHitMasks =
@@ -31,6 +35,7 @@ public sealed record CustomMapVisualMetadata(
         Foreground: null,
         Resources: EmptyResources,
         SpriteResources: EmptySpriteResources,
+        SoundResources: EmptySoundResources,
         ForegroundSpriteJungleHitMasks: EmptyHitMasks);
 }
 

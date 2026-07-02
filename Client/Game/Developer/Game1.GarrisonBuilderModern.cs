@@ -74,9 +74,21 @@ public partial class Game1
     private float _builderResizeOriginY;
     private bool _builderEntityDragging;
     private Vector2 _builderEntityDragPointerOffsetWorld;
+    private bool _builderGameplayMessageImageDragging;
+    private int _builderGameplayMessageImageDragEntityIndex = -1;
+    private Vector2 _builderGameplayMessageImageDragStartWorld;
+    private float _builderGameplayMessageImageDragStartX;
+    private float _builderGameplayMessageImageDragStartY;
+    private GarrisonBuilderResizeHandle _builderGameplayMessageImageActiveResizeHandle = GarrisonBuilderResizeHandle.None;
+    private int _builderGameplayMessageImageResizeEntityIndex = -1;
+    private float _builderGameplayMessageImageResizeStartLeft;
+    private float _builderGameplayMessageImageResizeStartTop;
+    private float _builderGameplayMessageImageResizeStartWidth;
+    private float _builderGameplayMessageImageResizeStartHeight;
     private enum GarrisonBuilderEntityPaletteCategory
     {
         Gameplay,
+        SpawnClassBehavior,
         Logic,
     }
 
@@ -87,17 +99,20 @@ public partial class Game1
     private static readonly (GarrisonBuilderEntityPaletteCategory Category, string Label)[] EntityPaletteCategories =
     [
         (GarrisonBuilderEntityPaletteCategory.Gameplay, "Gameplay"),
+        (GarrisonBuilderEntityPaletteCategory.SpawnClassBehavior, "Spawn + Class"),
         (GarrisonBuilderEntityPaletteCategory.Logic, "Logic"),
     ];
 
     private readonly Dictionary<GarrisonBuilderEntityPaletteCategory, bool> _builderEntityPaletteCategoryExpanded = new()
     {
         [GarrisonBuilderEntityPaletteCategory.Gameplay] = false,
+        [GarrisonBuilderEntityPaletteCategory.SpawnClassBehavior] = false,
         [GarrisonBuilderEntityPaletteCategory.Logic] = false,
     };
 
     private int _builderEntityPaletteScrollOffset;
     private GarrisonBuilderEntityPaletteCategory? _builderPaletteHoverCategory;
+    private GarrisonBuilderEntityPaletteCategory? _builderPaletteHoverEntityCategory;
     private int _builderPaletteHoverEntityIndex = -1;
     private int _builderPaletteHoverLogicEntityIndex = -1;
     private bool _builderEntityContextMenuOpen;
@@ -211,6 +226,14 @@ public partial class Game1
     private Vector2 BuilderScreenToWorld(Point screen)
     {
         return BuilderScreenToWorld(screen.ToVector2());
+    }
+
+    private void ClearGarrisonBuilderGameplayMessageImageInteraction()
+    {
+        _builderGameplayMessageImageDragging = false;
+        _builderGameplayMessageImageDragEntityIndex = -1;
+        _builderGameplayMessageImageActiveResizeHandle = GarrisonBuilderResizeHandle.None;
+        _builderGameplayMessageImageResizeEntityIndex = -1;
     }
 
     private void UpdateModernGarrisonBuilderEditor(KeyboardState keyboard, MouseState mouse, float deltaSeconds)
@@ -522,6 +545,41 @@ public partial class Game1
 
         var world = BuilderScreenToWorld(mouse.Position);
 
+        if (_builderGameplayMessageImageDragging
+            && mouse.LeftButton == ButtonState.Released
+            && _previousMouse.LeftButton == ButtonState.Pressed)
+        {
+            _builderGameplayMessageImageDragging = false;
+            _builderGameplayMessageImageDragEntityIndex = -1;
+            UpdateGarrisonBuilderDocumentEntities();
+            _builderDirty = true;
+            return;
+        }
+
+        if (_builderGameplayMessageImageDragging && mouse.LeftButton == ButtonState.Pressed)
+        {
+            ApplyGarrisonBuilderGameplayMessageImageDrag(world);
+            return;
+        }
+
+        if (_builderGameplayMessageImageActiveResizeHandle != GarrisonBuilderResizeHandle.None
+            && mouse.LeftButton == ButtonState.Released
+            && _previousMouse.LeftButton == ButtonState.Pressed)
+        {
+            _builderGameplayMessageImageActiveResizeHandle = GarrisonBuilderResizeHandle.None;
+            _builderGameplayMessageImageResizeEntityIndex = -1;
+            UpdateGarrisonBuilderDocumentEntities();
+            _builderDirty = true;
+            return;
+        }
+
+        if (_builderGameplayMessageImageActiveResizeHandle != GarrisonBuilderResizeHandle.None
+            && mouse.LeftButton == ButtonState.Pressed)
+        {
+            ApplyGarrisonBuilderGameplayMessageImageResizeDrag(world);
+            return;
+        }
+
         if (_builderEntityDragging
             && mouse.LeftButton == ButtonState.Released
             && _previousMouse.LeftButton == ButtonState.Pressed)
@@ -626,6 +684,20 @@ public partial class Game1
 
             if (_builderActiveTool == GarrisonBuilderTool.Select
                 && GetGarrisonBuilderSelectedEntityCount() <= 1
+                && TryBeginGarrisonBuilderGameplayMessageImageResize(mouse.Position))
+            {
+                return;
+            }
+
+            if (_builderActiveTool == GarrisonBuilderTool.Select
+                && GetGarrisonBuilderSelectedEntityCount() <= 1
+                && TryBeginGarrisonBuilderGameplayMessageImageDrag(mouse.Position, world))
+            {
+                return;
+            }
+
+            if (_builderActiveTool == GarrisonBuilderTool.Select
+                && GetGarrisonBuilderSelectedEntityCount() <= 1
                 && _builderSelectedEntityIndex >= 0
                 && TryBeginGarrisonBuilderResize(mouse.Position, world))
             {
@@ -709,6 +781,407 @@ public partial class Game1
                 BeginEditingGarrisonBuilderPlacementProperties(definition);
             }
         }
+    }
+
+    private bool TryBeginGarrisonBuilderGameplayMessageImageDrag(Point screenPosition, Vector2 world)
+    {
+        if (_builderSelectedEntityIndex < 0 || _builderSelectedEntityIndex >= _builderEntities.Count)
+        {
+            return false;
+        }
+
+        var entity = _builderEntities[_builderSelectedEntityIndex];
+        if (!TryGetGarrisonBuilderGameplayMessageImageScreenBounds(entity, out var imageBounds)
+            || !imageBounds.Contains(screenPosition))
+        {
+            return false;
+        }
+
+        var marker = GameplayMessageMetadata.FromProperties(
+            entity.X,
+            entity.Y,
+            entity.XScale,
+            entity.YScale,
+            entity.Properties);
+
+        CloseGarrisonBuilderEntityContextMenu();
+        RecordGarrisonBuilderHistory();
+        _builderGameplayMessageImageDragging = true;
+        _builderGameplayMessageImageDragEntityIndex = _builderSelectedEntityIndex;
+        _builderGameplayMessageImageDragStartWorld = world;
+        _builderGameplayMessageImageDragStartX = marker.ImageOffsetX;
+        _builderGameplayMessageImageDragStartY = marker.ImageOffsetY;
+        _builderStatus = "dragging message image";
+        return true;
+    }
+
+    private void ApplyGarrisonBuilderGameplayMessageImageDrag(Vector2 world)
+    {
+        if (!_builderGameplayMessageImageDragging
+            || _builderGameplayMessageImageDragEntityIndex < 0
+            || _builderGameplayMessageImageDragEntityIndex >= _builderEntities.Count)
+        {
+            return;
+        }
+
+        var delta = world - _builderGameplayMessageImageDragStartWorld;
+        var snappedOffset = SnapGarrisonBuilderPoint(new Vector2(
+            _builderGameplayMessageImageDragStartX + delta.X,
+            _builderGameplayMessageImageDragStartY + delta.Y));
+        var entity = _builderEntities[_builderGameplayMessageImageDragEntityIndex];
+        var marker = GameplayMessageMetadata.FromProperties(
+            entity.X,
+            entity.Y,
+            entity.XScale,
+            entity.YScale,
+            entity.Properties);
+        SetGarrisonBuilderGameplayMessageImageProperties(
+            _builderGameplayMessageImageDragEntityIndex,
+            snappedOffset.X,
+            snappedOffset.Y,
+            marker.ImageWidth,
+            marker.ImageHeight);
+    }
+
+    private bool TryBeginGarrisonBuilderGameplayMessageImageResize(Point screenPosition)
+    {
+        if (_builderSelectedEntityIndex < 0 || _builderSelectedEntityIndex >= _builderEntities.Count)
+        {
+            return false;
+        }
+
+        var entity = _builderEntities[_builderSelectedEntityIndex];
+        if (!TryGetGarrisonBuilderGameplayMessageImageWorldBounds(entity, out var left, out var top, out var width, out var height))
+        {
+            return false;
+        }
+
+        var handles = GetGarrisonBuilderResizeHandlePoints(left, top, width, height);
+        foreach (var pair in handles)
+        {
+            var screen = BuilderWorldToScreen(pair.Value);
+            var handleBounds = new Rectangle((int)screen.X - 5, (int)screen.Y - 5, 10, 10);
+            if (!handleBounds.Contains(screenPosition))
+            {
+                continue;
+            }
+
+            CloseGarrisonBuilderEntityContextMenu();
+            RecordGarrisonBuilderHistory();
+            _builderGameplayMessageImageActiveResizeHandle = pair.Key;
+            _builderGameplayMessageImageResizeEntityIndex = _builderSelectedEntityIndex;
+            _builderGameplayMessageImageResizeStartLeft = left;
+            _builderGameplayMessageImageResizeStartTop = top;
+            _builderGameplayMessageImageResizeStartWidth = width;
+            _builderGameplayMessageImageResizeStartHeight = height;
+            _builderStatus = "resizing message image";
+            return true;
+        }
+
+        return false;
+    }
+
+    private void ApplyGarrisonBuilderGameplayMessageImageResizeDrag(Vector2 world)
+    {
+        if (_builderGameplayMessageImageActiveResizeHandle == GarrisonBuilderResizeHandle.None
+            || _builderGameplayMessageImageResizeEntityIndex < 0
+            || _builderGameplayMessageImageResizeEntityIndex >= _builderEntities.Count)
+        {
+            return;
+        }
+
+        world = SnapGarrisonBuilderPoint(world);
+        const float minSize = 4f;
+        var startRight = _builderGameplayMessageImageResizeStartLeft + _builderGameplayMessageImageResizeStartWidth;
+        var startBottom = _builderGameplayMessageImageResizeStartTop + _builderGameplayMessageImageResizeStartHeight;
+        var centerX = _builderGameplayMessageImageResizeStartLeft + (_builderGameplayMessageImageResizeStartWidth * 0.5f);
+        var centerY = _builderGameplayMessageImageResizeStartTop + (_builderGameplayMessageImageResizeStartHeight * 0.5f);
+        var newLeft = _builderGameplayMessageImageResizeStartLeft;
+        var newTop = _builderGameplayMessageImageResizeStartTop;
+        var newWidth = _builderGameplayMessageImageResizeStartWidth;
+        var newHeight = _builderGameplayMessageImageResizeStartHeight;
+        var handle = _builderGameplayMessageImageActiveResizeHandle;
+
+        if (_builderCtrlHeld)
+        {
+            ApplyGarrisonBuilderImageCenterResize(
+                handle,
+                world,
+                centerX,
+                centerY,
+                minSize,
+                ref newLeft,
+                ref newTop,
+                ref newWidth,
+                ref newHeight);
+        }
+        else
+        {
+            switch (handle)
+            {
+                case GarrisonBuilderResizeHandle.TopLeft:
+                    newLeft = world.X;
+                    newTop = world.Y;
+                    newWidth = startRight - newLeft;
+                    newHeight = startBottom - newTop;
+                    break;
+                case GarrisonBuilderResizeHandle.Top:
+                    newTop = world.Y;
+                    newHeight = startBottom - newTop;
+                    break;
+                case GarrisonBuilderResizeHandle.TopRight:
+                    newTop = world.Y;
+                    newWidth = world.X - _builderGameplayMessageImageResizeStartLeft;
+                    newHeight = startBottom - newTop;
+                    break;
+                case GarrisonBuilderResizeHandle.Right:
+                    newWidth = world.X - _builderGameplayMessageImageResizeStartLeft;
+                    break;
+                case GarrisonBuilderResizeHandle.BottomRight:
+                    newWidth = world.X - _builderGameplayMessageImageResizeStartLeft;
+                    newHeight = world.Y - _builderGameplayMessageImageResizeStartTop;
+                    break;
+                case GarrisonBuilderResizeHandle.Bottom:
+                    newHeight = world.Y - _builderGameplayMessageImageResizeStartTop;
+                    break;
+                case GarrisonBuilderResizeHandle.BottomLeft:
+                    newLeft = world.X;
+                    newWidth = startRight - newLeft;
+                    newHeight = world.Y - _builderGameplayMessageImageResizeStartTop;
+                    break;
+                case GarrisonBuilderResizeHandle.Left:
+                    newLeft = world.X;
+                    newWidth = startRight - newLeft;
+                    break;
+            }
+        }
+
+        if (_builderShiftHeld && IsGarrisonBuilderCornerResizeHandle(handle))
+        {
+            var aspectRatio = _builderGameplayMessageImageResizeStartWidth
+                / MathF.Max(0.01f, _builderGameplayMessageImageResizeStartHeight);
+            ApplyGarrisonBuilderAspectLockedCornerResize(
+                ref newLeft,
+                ref newTop,
+                ref newWidth,
+                ref newHeight,
+                handle,
+                _builderGameplayMessageImageResizeStartLeft,
+                _builderGameplayMessageImageResizeStartTop,
+                startRight,
+                startBottom,
+                aspectRatio);
+        }
+
+        ClampGarrisonBuilderImageResizeBounds(
+            handle,
+            minSize,
+            startRight,
+            startBottom,
+            centerX,
+            centerY,
+            ref newLeft,
+            ref newTop,
+            ref newWidth,
+            ref newHeight);
+
+        var entity = _builderEntities[_builderGameplayMessageImageResizeEntityIndex];
+        if (!TryGetGarrisonBuilderGameplayMessagePresentationWorldBounds(entity, out var messageLeft, out var messageTop, out _, out _))
+        {
+            return;
+        }
+
+        SetGarrisonBuilderGameplayMessageImageProperties(
+            _builderGameplayMessageImageResizeEntityIndex,
+            newLeft - messageLeft,
+            newTop - messageTop,
+            newWidth,
+            newHeight);
+    }
+
+    private static void ApplyGarrisonBuilderImageCenterResize(
+        GarrisonBuilderResizeHandle handle,
+        Vector2 world,
+        float centerX,
+        float centerY,
+        float minSize,
+        ref float left,
+        ref float top,
+        ref float width,
+        ref float height)
+    {
+        switch (handle)
+        {
+            case GarrisonBuilderResizeHandle.Left:
+            case GarrisonBuilderResizeHandle.Right:
+                width = MathF.Max(minSize, MathF.Abs(world.X - centerX) * 2f);
+                left = centerX - (width * 0.5f);
+                return;
+            case GarrisonBuilderResizeHandle.Top:
+            case GarrisonBuilderResizeHandle.Bottom:
+                height = MathF.Max(minSize, MathF.Abs(world.Y - centerY) * 2f);
+                top = centerY - (height * 0.5f);
+                return;
+        }
+
+        if (IsGarrisonBuilderCornerResizeHandle(handle))
+        {
+            width = MathF.Max(minSize, MathF.Abs(world.X - centerX) * 2f);
+            height = MathF.Max(minSize, MathF.Abs(world.Y - centerY) * 2f);
+            left = centerX - (width * 0.5f);
+            top = centerY - (height * 0.5f);
+        }
+    }
+
+    private static void ClampGarrisonBuilderImageResizeBounds(
+        GarrisonBuilderResizeHandle handle,
+        float minSize,
+        float startRight,
+        float startBottom,
+        float centerX,
+        float centerY,
+        ref float left,
+        ref float top,
+        ref float width,
+        ref float height)
+    {
+        if (width < minSize)
+        {
+            if (handle is GarrisonBuilderResizeHandle.Left
+                or GarrisonBuilderResizeHandle.TopLeft
+                or GarrisonBuilderResizeHandle.BottomLeft)
+            {
+                left = startRight - minSize;
+            }
+            else if (handle is GarrisonBuilderResizeHandle.Top
+                or GarrisonBuilderResizeHandle.Bottom)
+            {
+                left = centerX - (minSize * 0.5f);
+            }
+
+            width = minSize;
+        }
+
+        if (height < minSize)
+        {
+            if (handle is GarrisonBuilderResizeHandle.Top
+                or GarrisonBuilderResizeHandle.TopLeft
+                or GarrisonBuilderResizeHandle.TopRight)
+            {
+                top = startBottom - minSize;
+            }
+            else if (handle is GarrisonBuilderResizeHandle.Left
+                or GarrisonBuilderResizeHandle.Right)
+            {
+                top = centerY - (minSize * 0.5f);
+            }
+
+            height = minSize;
+        }
+    }
+
+    private void SetGarrisonBuilderGameplayMessageImageProperties(
+        int entityIndex,
+        float imageX,
+        float imageY,
+        float imageWidth,
+        float imageHeight)
+    {
+        if (entityIndex < 0 || entityIndex >= _builderEntities.Count)
+        {
+            return;
+        }
+
+        var entity = _builderEntities[entityIndex];
+        var properties = new Dictionary<string, string>(entity.Properties, StringComparer.OrdinalIgnoreCase)
+        {
+            [GameplayMessageMetadata.ImageOffsetXPropertyKey] = imageX.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            [GameplayMessageMetadata.ImageOffsetYPropertyKey] = imageY.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            [GameplayMessageMetadata.ImageWidthPropertyKey] = MathF.Max(1f, imageWidth).ToString(System.Globalization.CultureInfo.InvariantCulture),
+            [GameplayMessageMetadata.ImageHeightPropertyKey] = MathF.Max(1f, imageHeight).ToString(System.Globalization.CultureInfo.InvariantCulture),
+        };
+
+        _builderEntities[entityIndex] = (entity with
+        {
+            Properties = properties,
+        }).NormalizeForEditing();
+
+        if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.SelectedMapEntity
+            && _builderSelectedEntityIndex == entityIndex)
+        {
+            _builderPropertyEditorValues[GameplayMessageMetadata.ImageOffsetXPropertyKey] =
+                imageX.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            _builderPropertyEditorValues[GameplayMessageMetadata.ImageOffsetYPropertyKey] =
+                imageY.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            _builderPropertyEditorValues[GameplayMessageMetadata.ImageWidthPropertyKey] =
+                MathF.Max(1f, imageWidth).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            _builderPropertyEditorValues[GameplayMessageMetadata.ImageHeightPropertyKey] =
+                MathF.Max(1f, imageHeight).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+    }
+
+    private bool TryGetGarrisonBuilderGameplayMessageImageScreenBounds(
+        CustomMapBuilderEntity entity,
+        out Rectangle imageBounds)
+    {
+        imageBounds = Rectangle.Empty;
+        if (!GameplayMessageMetadata.IsGameplayMessageEntityType(entity.Type))
+        {
+            return false;
+        }
+
+        var marker = GameplayMessageMetadata.FromProperties(
+            entity.X,
+            entity.Y,
+            entity.XScale,
+            entity.YScale,
+            entity.Properties);
+        if (string.IsNullOrWhiteSpace(marker.ImageResourceName))
+        {
+            return false;
+        }
+
+        var visuals = GetRuntimeCustomMapVisuals();
+        if (visuals is null
+            || !visuals.SpriteResources.TryGetValue(marker.ImageResourceName.Trim(), out var resource)
+            || !TryGetCustomMapSpriteTexture(resource, out var texture))
+        {
+            return false;
+        }
+
+        var mapViewport = _builderUseModernUi
+            ? GetModernGarrisonBuilderMapViewport()
+            : new Rectangle(0, 0, BuilderViewportWidth, BuilderViewportHeight);
+        var screenBounds = ResolveGarrisonBuilderGameplayMessagePreviewBounds(marker, mapViewport, out var renderScale);
+        var styledBounds = ResolveGameplayMessageStyleBounds(screenBounds, mapViewport, marker, marker.Text, renderScale);
+        var destination = new Rectangle(
+            styledBounds.X + (int)MathF.Round(marker.ImageOffsetX * renderScale),
+            styledBounds.Y + (int)MathF.Round(marker.ImageOffsetY * renderScale),
+            (int)MathF.Round(MathF.Max(1f, marker.ImageWidth * renderScale)),
+            (int)MathF.Round(MathF.Max(1f, marker.ImageHeight * renderScale)));
+        imageBounds = FitGameplayMessageImageDestination(texture, destination);
+        return imageBounds.Width > 0 && imageBounds.Height > 0;
+    }
+
+    private bool TryGetGarrisonBuilderGameplayMessageImageWorldBounds(
+        CustomMapBuilderEntity entity,
+        out float left,
+        out float top,
+        out float width,
+        out float height)
+    {
+        left = top = width = height = 0f;
+        if (!TryGetGarrisonBuilderGameplayMessageImageScreenBounds(entity, out var imageBounds))
+        {
+            return false;
+        }
+
+        var worldBounds = ToGarrisonBuilderWorldRectangle(imageBounds);
+        left = worldBounds.X;
+        top = worldBounds.Y;
+        width = worldBounds.Width;
+        height = worldBounds.Height;
+        return width > 0f && height > 0f;
     }
 
     private bool TryHandleModernGarrisonBuilderUiClick(Point position, bool leftClick, bool rightClick)
@@ -1320,9 +1793,7 @@ public partial class Game1
             return true;
         }
 
-        var paletteDefinitions = hit.Category == GarrisonBuilderEntityPaletteCategory.Logic
-            ? GetLogicGarrisonBuilderEntityDefinitions()
-            : definitions;
+        var paletteDefinitions = GetModernGarrisonBuilderPaletteDefinitions(hit.Category, definitions);
         if (hit.EntityDefinitionIndex < 0 || hit.EntityDefinitionIndex >= paletteDefinitions.Count)
         {
             return true;
@@ -1393,6 +1864,7 @@ public partial class Game1
     {
         _builderEntityDragging = false;
         _builderAreaSelectDragging = false;
+        ClearGarrisonBuilderGameplayMessageImageInteraction();
         CloseGarrisonBuilderEntityContextMenu();
         CloseGarrisonBuilderEntityOverlapPicker();
         if (!IsValidGarrisonBuilderMapEntityIndex(entityIndex))
@@ -1888,6 +2360,22 @@ public partial class Game1
         return Math.Max(1, width);
     }
 
+    private IReadOnlyList<CustomMapBuilderEntityDefinition> GetModernGarrisonBuilderPaletteDefinitions(
+        GarrisonBuilderEntityPaletteCategory category,
+        IReadOnlyList<CustomMapBuilderEntityDefinition> gameplayDefinitions)
+    {
+        return category switch
+        {
+            GarrisonBuilderEntityPaletteCategory.Logic => GetLogicGarrisonBuilderEntityDefinitions(),
+            GarrisonBuilderEntityPaletteCategory.SpawnClassBehavior => gameplayDefinitions
+                .Where(static definition => SpawnClassBehaviorMetadata.IsSpawnClassBehaviorEntityType(definition.Type))
+                .ToArray(),
+            _ => gameplayDefinitions
+                .Where(static definition => !SpawnClassBehaviorMetadata.IsSpawnClassBehaviorEntityType(definition.Type))
+                .ToArray(),
+        };
+    }
+
     private static Rectangle GetEntityPaletteScrollbarTrackBounds(ModernGarrisonBuilderPaletteLayout layout)
     {
         var listWidth = GetEntityPaletteListWidth(layout);
@@ -1909,9 +2397,10 @@ public partial class Game1
                 continue;
             }
 
-            var categoryCount = category == GarrisonBuilderEntityPaletteCategory.Logic
-                ? GetLogicGarrisonBuilderEntityDefinitions().Count
-                : GetActiveGarrisonBuilderEntityDefinitions().Count;
+            var categoryCount = GetModernGarrisonBuilderPaletteDefinitions(
+                    category,
+                    GetActiveGarrisonBuilderEntityDefinitions())
+                .Count;
             if (categoryCount == 0)
             {
                 continue;
@@ -1967,9 +2456,7 @@ public partial class Game1
                 continue;
             }
 
-            var categoryDefinitions = category == GarrisonBuilderEntityPaletteCategory.Logic
-                ? GetLogicGarrisonBuilderEntityDefinitions()
-                : definitions;
+            var categoryDefinitions = GetModernGarrisonBuilderPaletteDefinitions(category, definitions);
             for (var index = 0; index < categoryDefinitions.Count; index += 1)
             {
                 var rowBounds = new Rectangle(layout.ContentBounds.X, y, listWidth, layout.ItemHeight);
@@ -2048,6 +2535,7 @@ public partial class Game1
     private void UpdateModernGarrisonBuilderPaletteHover(MouseState mouse)
     {
         _builderPaletteHoverCategory = null;
+        _builderPaletteHoverEntityCategory = null;
         _builderPaletteHoverEntityIndex = -1;
         _builderPaletteHoverLogicEntityIndex = -1;
         if (!_builderEntityPaletteVisible)
@@ -2075,10 +2563,12 @@ public partial class Game1
 
         if (hit.Category == GarrisonBuilderEntityPaletteCategory.Logic)
         {
+            _builderPaletteHoverEntityCategory = hit.Category;
             _builderPaletteHoverLogicEntityIndex = hit.EntityDefinitionIndex;
             return;
         }
 
+        _builderPaletteHoverEntityCategory = hit.Category;
         _builderPaletteHoverEntityIndex = hit.EntityDefinitionIndex;
     }
 
@@ -2167,17 +2657,16 @@ public partial class Game1
                 continue;
             }
 
-            var categoryDefinitions = category == GarrisonBuilderEntityPaletteCategory.Logic
-                ? GetLogicGarrisonBuilderEntityDefinitions()
-                : definitions;
+            var categoryDefinitions = GetModernGarrisonBuilderPaletteDefinitions(category, definitions);
             for (var index = 0; index < categoryDefinitions.Count; index += 1)
             {
                 var definition = categoryDefinitions[index];
                 var rowBounds = new Rectangle(layout.ContentBounds.X, y, listWidth, layout.ItemHeight);
                 var selected = string.Equals(_builderSelectedEntityType, definition.Type, StringComparison.OrdinalIgnoreCase);
-                var hovered = category == GarrisonBuilderEntityPaletteCategory.Logic
-                    ? _builderPaletteHoverLogicEntityIndex == index
-                    : _builderPaletteHoverEntityIndex == index;
+                var hovered = _builderPaletteHoverEntityCategory == category
+                    && (category == GarrisonBuilderEntityPaletteCategory.Logic
+                        ? _builderPaletteHoverLogicEntityIndex == index
+                        : _builderPaletteHoverEntityIndex == index);
                 DrawEntityPaletteEntityRow(rowBounds, definition.Label, selected, hovered, layout.ContentBounds);
                 y += layout.ItemHeight + ModernBuilderPaletteItemSpacing;
             }
@@ -2295,7 +2784,9 @@ public partial class Game1
             return false;
         }
 
-        var handles = GetGarrisonBuilderResizeHandlePoints(left, top, width, height);
+        var handles = IsGarrisonBuilderGameplayMessageFullWidthStyle(entity)
+            ? GetGarrisonBuilderVerticalResizeHandlePoints(left, top, width, height)
+            : GetGarrisonBuilderResizeHandlePoints(left, top, width, height);
         foreach (var pair in handles)
         {
             var screen = BuilderWorldToScreen(pair.Value);
@@ -2364,6 +2855,12 @@ public partial class Game1
         if (IsGarrisonBuilderSpritesheetResizable(entity))
         {
             ApplyGarrisonBuilderSpritesheetResizeDrag(world);
+            return;
+        }
+
+        if (IsGarrisonBuilderGameplayMessageFullWidthStyle(entity))
+        {
+            ApplyGarrisonBuilderFullWidthGameplayMessageResizeDrag(entity, world);
             return;
         }
 
@@ -2719,6 +3216,49 @@ public partial class Game1
             [GarrisonBuilderResizeHandle.BottomLeft] = new(left, bottom),
             [GarrisonBuilderResizeHandle.Left] = new(left, centerY),
         };
+    }
+
+    private static Dictionary<GarrisonBuilderResizeHandle, Vector2> GetGarrisonBuilderVerticalResizeHandlePoints(float left, float top, float width, float height)
+    {
+        var bottom = top + height;
+        var centerX = left + (width * 0.5f);
+        return new Dictionary<GarrisonBuilderResizeHandle, Vector2>
+        {
+            [GarrisonBuilderResizeHandle.Top] = new(centerX, top),
+            [GarrisonBuilderResizeHandle.Bottom] = new(centerX, bottom),
+        };
+    }
+
+    private void ApplyGarrisonBuilderFullWidthGameplayMessageResizeDrag(CustomMapBuilderEntity entity, Vector2 world)
+    {
+        var startBottom = _builderResizeStartTop + _builderResizeStartHeight;
+        var newTop = _builderResizeStartTop;
+        var newHeight = _builderResizeStartHeight;
+        switch (_builderActiveResizeHandle)
+        {
+            case GarrisonBuilderResizeHandle.Top:
+                newTop = world.Y;
+                newHeight = startBottom - newTop;
+                break;
+            case GarrisonBuilderResizeHandle.Bottom:
+                newHeight = world.Y - _builderResizeStartTop;
+                break;
+            default:
+                return;
+        }
+
+        newHeight = MathF.Max(GameplayMessageMetadata.MinHeight, newHeight);
+        if (_builderActiveResizeHandle == GarrisonBuilderResizeHandle.Top)
+        {
+            newTop = startBottom - newHeight;
+        }
+
+        var updated = entity with
+        {
+            Y = newTop,
+            YScale = MathF.Max(0.05f, newHeight / GameplayMessageMetadata.DefaultHeight),
+        };
+        _builderEntities[_builderSelectedEntityIndex] = updated.NormalizeForEditing();
     }
 
     private void BeginEditingGarrisonBuilderSelectedEntity()
@@ -3340,6 +3880,7 @@ public partial class Game1
             && !IsGarrisonBuilderEntityHidden(_builderSelectedEntityIndex))
         {
             DrawSelectionResizeHandles(_builderEntities[_builderSelectedEntityIndex]);
+            DrawGarrisonBuilderGameplayMessageImageSelection(_builderEntities[_builderSelectedEntityIndex]);
         }
     }
 
@@ -3421,10 +3962,32 @@ public partial class Game1
             return;
         }
 
-        foreach (var point in GetGarrisonBuilderResizeHandlePoints(left, top, width, height).Values)
+        var handles = IsGarrisonBuilderGameplayMessageFullWidthStyle(entity)
+            ? GetGarrisonBuilderVerticalResizeHandlePoints(left, top, width, height)
+            : GetGarrisonBuilderResizeHandlePoints(left, top, width, height);
+        foreach (var point in handles.Values)
         {
             var screen = BuilderWorldToScreen(point);
             _spriteBatch.Draw(_pixel, new Rectangle((int)screen.X - 4, (int)screen.Y - 4, 8, 8), new Color(213, 205, 188));
+        }
+    }
+
+    private void DrawGarrisonBuilderGameplayMessageImageSelection(CustomMapBuilderEntity entity)
+    {
+        if (!TryGetGarrisonBuilderGameplayMessageImageScreenBounds(entity, out var bounds))
+        {
+            return;
+        }
+
+        var borderColor = new Color(120, 220, 255, 220);
+        DrawGarrisonBuilderRectangleOutline(bounds, borderColor);
+        var handles = GetGarrisonBuilderResizeHandlePoints(bounds.X, bounds.Y, bounds.Width, bounds.Height);
+        foreach (var point in handles.Values)
+        {
+            var x = (int)MathF.Round(point.X) - 4;
+            var y = (int)MathF.Round(point.Y) - 4;
+            _spriteBatch.Draw(_pixel, new Rectangle(x - 1, y - 1, 10, 10), Color.Black * 0.55f);
+            _spriteBatch.Draw(_pixel, new Rectangle(x, y, 8, 8), borderColor);
         }
     }
 

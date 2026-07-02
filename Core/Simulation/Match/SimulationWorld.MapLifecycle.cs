@@ -203,6 +203,7 @@ public sealed partial class SimulationWorld
         _nextBlueSpawnIndex = 0;
         ClearDynamicEntities();
         ResetMovingPlatformsForLevel();
+        ResetHealthPackSpawnsForLevel();
         RespawnPlayersForNewRound();
         if (_competitiveReadyUpEnabled
             && enterCompetitiveSkirmish

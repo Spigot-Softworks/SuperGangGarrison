@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
@@ -294,6 +295,70 @@ internal static partial class ServerHelpers
             jumpPadGib.X,
             jumpPadGib.Y,
             jumpPadGib.TicksRemaining);
+    }
+
+    internal static SnapshotHealthPackState ToSnapshotHealthPackState(HealthPackEntity healthPack, int respawnTicksRemaining = 0)
+    {
+        return new SnapshotHealthPackState(
+            healthPack.NetworkSnapshotId,
+            (byte)healthPack.Size,
+            healthPack.X,
+            healthPack.Y,
+            healthPack.HorizontalSpeed,
+            healthPack.VerticalSpeed,
+            healthPack.TicksRemaining,
+            healthPack.SourceSpawnIndex,
+            respawnTicksRemaining,
+            Active: true);
+    }
+
+    internal static SnapshotHealthPackState[] ToSnapshotHealthPackStates(SimulationWorld world)
+    {
+        if (world.HealthPacks.Count == 0 && world.Level.HealthPackSpawns.Count == 0)
+        {
+            return [];
+        }
+
+        var states = new List<SnapshotHealthPackState>(world.HealthPacks.Count + world.Level.HealthPackSpawns.Count);
+        var activeMapSpawns = new HashSet<int>();
+        for (var index = 0; index < world.HealthPacks.Count; index += 1)
+        {
+            var healthPack = world.HealthPacks[index];
+            if (healthPack.SourceSpawnIndex >= 0)
+            {
+                activeMapSpawns.Add(healthPack.SourceSpawnIndex);
+            }
+
+            states.Add(ToSnapshotHealthPackState(
+                healthPack,
+                healthPack.SourceSpawnIndex >= 0
+                    ? world.GetHealthPackSpawnRespawnTicksRemaining(healthPack.SourceSpawnIndex)
+                    : 0));
+        }
+
+        for (var spawnIndex = 0; spawnIndex < world.Level.HealthPackSpawns.Count; spawnIndex += 1)
+        {
+            if (activeMapSpawns.Contains(spawnIndex))
+            {
+                continue;
+            }
+
+            var marker = world.Level.HealthPackSpawns[spawnIndex];
+            states.Add(new SnapshotHealthPackState(
+                HealthPackEntity.GetNetworkSnapshotId(spawnIndex, entityId: 0),
+                (byte)marker.Size,
+                marker.X,
+                marker.Y,
+                VelocityX: 0f,
+                VelocityY: 0f,
+                TicksRemaining: 0,
+                SourceSpawnIndex: spawnIndex,
+                world.GetHealthPackSpawnRespawnTicksRemaining(spawnIndex),
+                Active: false));
+        }
+
+        states.Sort(static (left, right) => left.Id.CompareTo(right.Id));
+        return states.ToArray();
     }
 
     internal static SnapshotShotState ToSnapshotBulletState(ShotProjectileEntity shot)

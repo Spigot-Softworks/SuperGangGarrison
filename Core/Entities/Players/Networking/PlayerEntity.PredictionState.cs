@@ -67,6 +67,12 @@ public sealed partial class PlayerEntity
         bool IsCivvieUmbrellaActive,
         bool IsCivvieUmbrellaBroken,
         bool CivvieUmbrellaAirLiftUsed,
+        bool IsCivviePogoActive,
+        bool IsCivviePogoSuperJumpAirPhaseActive,
+        bool CivviePogoSuperJumpTrickUsed,
+        int CivviePogoCrunchTicksRemaining,
+        int CivviePogoTrickTicksRemaining,
+        int CivviePogoTrickDurationTicks,
         int PyroAirblastCooldownTicks,
         bool IsSpyCloaked,
         float SpyCloakAlpha,
@@ -179,6 +185,12 @@ public sealed partial class PlayerEntity
             IsCivvieUmbrellaActive,
             IsCivvieUmbrellaBroken,
             CivvieUmbrellaAirLiftUsed,
+            IsCivviePogoActive,
+            IsCivviePogoSuperJumpAirPhaseActive,
+            CivviePogoSuperJumpTrickUsed,
+            CivviePogoCrunchTicksRemaining,
+            CivviePogoTrickTicksRemaining,
+            CivviePogoTrickDurationTicks,
             PyroAirblastCooldownTicks,
             IsSpyCloaked,
             SpyCloakAlpha,
@@ -296,6 +308,12 @@ public sealed partial class PlayerEntity
         IsCivvieUmbrellaActive = state.IsCivvieUmbrellaActive;
         IsCivvieUmbrellaBroken = state.IsCivvieUmbrellaBroken;
         CivvieUmbrellaAirLiftUsed = state.CivvieUmbrellaAirLiftUsed;
+        IsCivviePogoActive = state.IsCivviePogoActive;
+        IsCivviePogoSuperJumpAirPhaseActive = state.IsCivviePogoSuperJumpAirPhaseActive;
+        CivviePogoSuperJumpTrickUsed = state.CivviePogoSuperJumpTrickUsed;
+        CivviePogoCrunchTicksRemaining = Math.Max(0, state.CivviePogoCrunchTicksRemaining);
+        CivviePogoTrickTicksRemaining = Math.Max(0, state.CivviePogoTrickTicksRemaining);
+        CivviePogoTrickDurationTicks = Math.Max(0, state.CivviePogoTrickDurationTicks);
         PyroAirblastCooldownTicks = state.PyroAirblastCooldownTicks;
         PyroFlareCooldownTicks = state.PyroFlareCooldownTicks;
         IsSpyCloaked = state.IsSpyCloaked;

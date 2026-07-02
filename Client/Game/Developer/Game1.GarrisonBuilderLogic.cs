@@ -401,7 +401,7 @@ public partial class Game1
         {
             var entity = _builderEntities[entityIndex];
             var propertyKey = _builderEntityMapPickTargetPropertyKey;
-            if (propertyKey.Equals(TeleportMetadata.TeleportExitPropertyKey, StringComparison.OrdinalIgnoreCase))
+            if (IsGarrisonBuilderTeleportExitMapPickProperty(propertyKey))
             {
                 return entity.Type.Equals(TeleportMetadata.TeleportExitEntityType, StringComparison.OrdinalIgnoreCase);
             }
@@ -630,7 +630,7 @@ public partial class Game1
     {
         _builderEntityMapPickActive = true;
         _builderEntityMapPickTargetPropertyKey = propertyKey;
-        _builderStatus = propertyKey.Equals(TeleportMetadata.TeleportExitPropertyKey, StringComparison.OrdinalIgnoreCase)
+        _builderStatus = IsGarrisonBuilderTeleportExitMapPickProperty(propertyKey)
             ? "pick a teleport exit on the map"
             : propertyKey.Equals(AreaExtensionMetadata.ExtendsPropertyKey, StringComparison.OrdinalIgnoreCase)
                 ? "pick a player trigger, teleport, or area to extend"
@@ -665,9 +665,7 @@ public partial class Game1
         var bounds = GetGarrisonBuilderEntityMapPickPromptBounds();
         var highlighted = bounds.Contains(mouse.Position);
         DrawGarrisonBuilderBrownPanel(bounds);
-        var label = _builderEntityMapPickTargetPropertyKey.Equals(
-                TeleportMetadata.TeleportExitPropertyKey,
-                StringComparison.OrdinalIgnoreCase)
+        var label = IsGarrisonBuilderTeleportExitMapPickProperty(_builderEntityMapPickTargetPropertyKey)
             ? "Pick teleport exit"
             : _builderEntityMapPickTargetPropertyKey.Equals(
                 AreaExtensionMetadata.ExtendsPropertyKey,
@@ -683,9 +681,7 @@ public partial class Game1
 
     private bool TryPickGarrisonBuilderEntityMapPickAtWorld(Vector2 world, out CustomMapBuilderEntity picked)
     {
-        if (_builderEntityMapPickTargetPropertyKey.Equals(
-                TeleportMetadata.TeleportExitPropertyKey,
-                StringComparison.OrdinalIgnoreCase))
+        if (IsGarrisonBuilderTeleportExitMapPickProperty(_builderEntityMapPickTargetPropertyKey))
         {
             return TryPickGarrisonBuilderTeleportExitAtWorld(world, out picked);
         }
@@ -819,6 +815,46 @@ public partial class Game1
             }
 
             picked = entity;
+            return true;
+        }
+
+        const float fallbackRadius = TeleportMetadata.ExitMarkerSize * 1.5f;
+        var bestIndex = -1;
+        var bestDistanceSquared = fallbackRadius * fallbackRadius;
+        for (var index = 0; index < _builderEntities.Count; index += 1)
+        {
+            if (IsGarrisonBuilderEntityHidden(index))
+            {
+                continue;
+            }
+
+            var entity = _builderEntities[index];
+            if (!entity.Type.Equals(TeleportMetadata.TeleportExitEntityType, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var distanceSquared = Vector2.DistanceSquared(world, new Vector2(entity.X, entity.Y));
+            if (TryGetGarrisonBuilderEntityPickBounds(entity, out var bounds))
+            {
+                var clampedX = Math.Clamp(world.X, bounds.X, bounds.Right);
+                var clampedY = Math.Clamp(world.Y, bounds.Y, bounds.Bottom);
+                var boundsDistanceSquared = Vector2.DistanceSquared(world, new Vector2(clampedX, clampedY));
+                distanceSquared = MathF.Min(distanceSquared, boundsDistanceSquared);
+            }
+
+            if (distanceSquared >= bestDistanceSquared)
+            {
+                continue;
+            }
+
+            bestIndex = index;
+            bestDistanceSquared = distanceSquared;
+        }
+
+        if (bestIndex >= 0)
+        {
+            picked = _builderEntities[bestIndex];
             return true;
         }
 
@@ -1173,7 +1209,8 @@ public partial class Game1
 
     private static bool IsGarrisonBuilderTeleportExitMapPickProperty(string key)
     {
-        return key.Equals(TeleportMetadata.TeleportExitPropertyKey, StringComparison.OrdinalIgnoreCase);
+        return key.Equals(TeleportMetadata.TeleportExitPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(GameplayMessageMetadata.OnEndTeleportExitPropertyKey, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsGarrisonBuilderAreaExtendsMapPickProperty(string key)
@@ -1234,6 +1271,8 @@ public partial class Game1
             || key.Equals(MapLogicMetadata.LogicSignalPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(MapLogicMetadata.LockedWhenLogicPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(MapLogicMetadata.UnlockedWhenLogicPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(GameplayMessageMetadata.OnEndTriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(BotSpawnMetadata.DeathTriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(DamageableMetadata.HealWhenPropertyKey, StringComparison.OrdinalIgnoreCase)
             || SpritesheetMetadata.IsLogicInputPropertyKey(key);
     }
@@ -1264,6 +1303,7 @@ public partial class Game1
                 MapLogicSignalMetadata.DetectPropertyKey,
                 PlayerTriggerMetadata.TeamPropertyKey,
                 PlayerTriggerMetadata.IntelCarriersOnlyPropertyKey,
+                PlayerTriggerMetadata.MaxFiresPropertyKey,
                 MapLogicMetadata.NodePriorityPropertyKey,
             ]
             : entityType.Equals(MapLogicMetadata.ScoreTriggerEntityType, StringComparison.OrdinalIgnoreCase)
@@ -2468,6 +2508,17 @@ public partial class Game1
             return $"Team: {PlayerTriggerMetadata.GetTeamDisplayLabel(value)}";
         }
 
+        if (key.Equals(PlayerTriggerMetadata.MaxFiresPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && TryGetGarrisonBuilderEditedEntityType(out var playerTriggerMaxFiresEntity)
+            && playerTriggerMaxFiresEntity.Equals(MapLogicMetadata.PlayerTriggerEntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            var maxFires = PlayerTriggerMetadata.ParseMaxFires(new Dictionary<string, string>
+            {
+                [PlayerTriggerMetadata.MaxFiresPropertyKey] = value,
+            });
+            return maxFires <= 0 ? "Max fires: Unlimited" : $"Max fires: {maxFires}";
+        }
+
         if (key.Equals(MapLogicScoreTriggerMetadata.ScoreTeamPropertyKey, StringComparison.OrdinalIgnoreCase)
             && TryGetGarrisonBuilderEditedEntityType(out var scoreTeamEntity)
             && scoreTeamEntity.Equals(MapLogicMetadata.ScoreTriggerEntityType, StringComparison.OrdinalIgnoreCase))
@@ -2495,6 +2546,12 @@ public partial class Game1
         if (key.Equals(TeleportMetadata.TeleportExitPropertyKey, StringComparison.OrdinalIgnoreCase))
         {
             return $"Teleport exit: {GetGarrisonBuilderTeleportExitDisplayValue(value)}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndTeleportExitPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"OnEnd teleport exit: {GetGarrisonBuilderTeleportExitDisplayValue(value)}";
         }
 
         if (key.Equals(AreaExtensionMetadata.ExtendsPropertyKey, StringComparison.OrdinalIgnoreCase))
@@ -2567,6 +2624,36 @@ public partial class Game1
         if (IsGarrisonBuilderNodePriorityPropertyKey(key))
         {
             return "Node priority";
+        }
+
+        if (key.Equals(BotSpawnMetadata.TriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            return $"Trigger: {GetGarrisonBuilderLogicPropertyDisplayValue(key, value)}";
+        }
+
+        if (key.Equals(BotSpawnMetadata.DeathTriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            return $"On death logic: {GetGarrisonBuilderLogicPropertyDisplayValue(key, value)}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.TriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"Trigger: {GetGarrisonBuilderLogicPropertyDisplayValue(key, value)}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndTriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"OnEnd logic: {GetGarrisonBuilderLogicPropertyDisplayValue(key, value)}";
+        }
+
+        if (key.Equals(GameplaySoundMetadata.TriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplaySoundEntity())
+        {
+            return $"Trigger: {GetGarrisonBuilderLogicPropertyDisplayValue(key, value)}";
         }
 
         if (IsGarrisonBuilderLogicMapPickProperty(key))

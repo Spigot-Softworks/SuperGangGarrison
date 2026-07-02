@@ -80,6 +80,12 @@ public sealed class GameplayModAssetCache(GraphicsDevice graphicsDevice) : IDisp
             return atlasSprite;
         }
 
+        if (ShouldRequireAtlasSprite(registeredSprite))
+        {
+            throw new InvalidOperationException(
+                $"Packaged stock gameplay sprite \"{spriteId}\" could not be loaded from the atlas. Packaged desktop builds must not fall back to loose gameplay sprite frames.");
+        }
+
         if (OperatingSystem.IsBrowser())
         {
             return TryGetBrowserSprite(spriteId, registeredSprite);
@@ -89,6 +95,11 @@ public sealed class GameplayModAssetCache(GraphicsDevice graphicsDevice) : IDisp
         _sprites[spriteId] = sprite;
         return sprite;
     }
+
+    private static bool ShouldRequireAtlasSprite(RegisteredGameplaySprite registeredSprite)
+        => !OperatingSystem.IsBrowser()
+            && string.Equals(registeredSprite.AssetService.PackId, StockGameplayModCatalog.StockPackDirectoryName, StringComparison.OrdinalIgnoreCase)
+            && ClientRuntimeBootstrap.GetBrowserStockGameplayAtlasManifest() is not null;
 
     public static IReadOnlyList<string> GetBrowserAtlasPagePaths()
     {

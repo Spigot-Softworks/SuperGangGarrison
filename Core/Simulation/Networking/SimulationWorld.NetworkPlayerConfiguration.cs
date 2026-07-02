@@ -212,7 +212,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        var definition = CharacterClassCatalog.GetDefinition(gameplayClassId);
+        var definition = ResolveMapForcedClassDefinition(slot, CharacterClassCatalog.GetDefinition(gameplayClassId));
         if (!CanApplyNetworkPlayerClassLimit(slot, definition)
             || !TrySetNetworkPlayerClassDefinition(slot, definition)
             || !TryGetOrEnsurePlayableNetworkPlayer(slot, out var player))
@@ -228,6 +228,8 @@ public sealed partial class SimulationWorld
 
     public bool TryApplyNetworkPlayerClassSelection(byte slot, string gameplayClassId)
     {
+        var resolvedDefinition = ResolveMapForcedClassDefinition(slot, CharacterClassCatalog.GetDefinition(gameplayClassId));
+        gameplayClassId = resolvedDefinition.GameplayClassId;
         if (IsNetworkPlayerAwaitingJoin(slot))
         {
             return TryCompleteNetworkPlayerJoinState(slot, gameplayClassId);
@@ -238,7 +240,7 @@ public sealed partial class SimulationWorld
             return TrySetLocalClass(gameplayClassId);
         }
 
-        var definition = CharacterClassCatalog.GetDefinition(gameplayClassId);
+        var definition = resolvedDefinition;
         if (!TryGetNetworkPlayer(slot, out var player)
             || (string.Equals(definition.GameplayClassId, GetNetworkPlayerClassDefinition(slot).GameplayClassId, StringComparison.Ordinal)
                 && player.Team == GetNetworkPlayerConfiguredTeam(slot)
@@ -493,6 +495,7 @@ public sealed partial class SimulationWorld
 
     private bool TryApplyNetworkPlayerClassChange(byte slot, CharacterClassDefinition definition, bool enforceClassLimit = true)
     {
+        definition = ResolveMapForcedClassDefinition(slot, definition);
         if ((enforceClassLimit && !CanApplyNetworkPlayerClassLimit(slot, definition))
             || !TrySetNetworkPlayerClassDefinition(slot, definition)
             || !TryGetNetworkPlayer(slot, out var player))

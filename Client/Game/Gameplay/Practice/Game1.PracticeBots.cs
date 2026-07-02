@@ -82,12 +82,28 @@ public partial class Game1
 
     private sealed class PracticeBotSlotState
     {
-        public PracticeBotSlotState(byte slot, PlayerTeam team, PlayerClass classId, string displayName)
+        public PracticeBotSlotState(
+            byte slot,
+            PlayerTeam team,
+            PlayerClass classId,
+            string displayName,
+            bool isDummy = false,
+            bool isMapSpawned = false,
+            bool respawn = true,
+            BotSpawnRespawnMode respawnMode = BotSpawnRespawnMode.NormalSpawn,
+            float mapSpawnX = 0f,
+            float mapSpawnY = 0f)
         {
             Slot = slot;
             Team = team;
             ClassId = classId;
             DisplayName = displayName;
+            IsDummy = isDummy;
+            IsMapSpawned = isMapSpawned;
+            Respawn = respawn;
+            RespawnMode = respawnMode;
+            MapSpawnX = mapSpawnX;
+            MapSpawnY = mapSpawnY;
         }
 
         public byte Slot { get; }
@@ -97,6 +113,18 @@ public partial class Game1
         public PlayerClass ClassId { get; }
 
         public string DisplayName { get; }
+
+        public bool IsDummy { get; }
+
+        public bool IsMapSpawned { get; }
+
+        public bool Respawn { get; }
+
+        public BotSpawnRespawnMode RespawnMode { get; }
+
+        public float MapSpawnX { get; }
+
+        public float MapSpawnY { get; }
     }
 
     private sealed class ManualPracticeBotRequest
@@ -141,11 +169,11 @@ public partial class Game1
 
         var desiredSlots = BuildDesiredPracticeBotSlots(localTeam);
         var staleSlots = new List<byte>();
-        foreach (var slot in _practiceBotSlots.Keys)
+        foreach (var entry in _practiceBotSlots)
         {
-            if (!desiredSlots.ContainsKey(slot))
+            if (!entry.Value.IsMapSpawned && !desiredSlots.ContainsKey(entry.Key))
             {
-                staleSlots.Add(slot);
+                staleSlots.Add(entry.Key);
             }
         }
 
@@ -167,6 +195,7 @@ public partial class Game1
         foreach (var desired in desiredSlots.Values)
         {
             var isNewSlot = !_practiceBotSlots.TryGetValue(desired.Slot, out var existing);
+            _world.SetNetworkPlayerMapSpawnClassBehaviorBypass(desired.Slot, true);
             if (isNewSlot)
             {
                 _world.TryPrepareNetworkPlayerJoin(desired.Slot);
@@ -883,6 +912,11 @@ public partial class Game1
         _controlledPracticeBotSlotsBuffer.Clear();
         foreach (var entry in _practiceBotSlots)
         {
+            if (entry.Value.IsDummy)
+            {
+                continue;
+            }
+
             _controlledPracticeBotSlotsBuffer[entry.Key] = new ControlledBotSlot(
                 entry.Key,
                 entry.Value.Team,

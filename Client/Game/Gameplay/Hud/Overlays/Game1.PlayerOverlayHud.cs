@@ -141,6 +141,11 @@ public partial class Game1
         _gameplayPlayerNameHudController.DrawPersistentSelfNameHud(cameraPosition);
     }
 
+    private void DrawForcedPlayerNameHuds(Vector2 cameraPosition)
+    {
+        _gameplayPlayerNameHudController.DrawForcedPlayerNameHuds(cameraPosition);
+    }
+
     private void DrawHoveredPlayerNameHud(MouseState mouse, Vector2 cameraPosition)
     {
         _gameplayPlayerNameHudController.DrawHoveredPlayerNameHud(mouse, cameraPosition);
@@ -155,6 +160,20 @@ public partial class Game1
     {
         return _gameplayPlayerNameHudController.GetHoveredPlayerForNameHud(mouse, cameraPosition);
     }
+
+    private static bool ShouldForceMapBotNameplate(PlayerEntity player) =>
+        player.TryGetReplicatedStateBool(
+            BotSpawnMetadata.VisualReplicatedStateOwnerId,
+            BotSpawnMetadata.ForceNameplateReplicatedStateKey,
+            out var forced)
+        && forced;
+
+    private static bool ShouldForceMapBotHealthBar(PlayerEntity player) =>
+        player.TryGetReplicatedStateBool(
+            BotSpawnMetadata.VisualReplicatedStateOwnerId,
+            BotSpawnMetadata.ForceHealthBarReplicatedStateKey,
+            out var forced)
+        && forced;
 
     private void DrawCrosshair(Vector2 screenPosition)
     {

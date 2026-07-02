@@ -573,6 +573,7 @@ sealed class SnapshotBroadcaster
             JumpPads = ConvertToArray(_world.JumpPads, static jumpPad => ToSnapshotJumpPadState(jumpPad)),
             JumpPadGibs = ConvertToArray(_world.JumpPadGibs, static jumpPadGib => ToSnapshotJumpPadGibState(jumpPadGib)),
             Grenades = ConvertToArray(_world.Grenades, static grenade => ToSnapshotGrenadeState(grenade)),
+            HealthPacks = ToSnapshotHealthPackStates(_world),
             GibSpawnEvents = gibSpawnEvents,
             RocketSpawnEvents = rocketSpawnEvents,
         };

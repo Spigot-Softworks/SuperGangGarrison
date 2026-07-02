@@ -5,7 +5,8 @@ namespace OpenGarrison.Core;
 public enum HealthPackSize : byte
 {
     Small = 1,
-    Large = 2,
+    Medium = 2,
+    Large = Medium,
 }
 
 public sealed class HealthPackEntity : SimulationEntity
@@ -20,9 +21,8 @@ public sealed class HealthPackEntity : SimulationEntity
     public const float MaxFallSpeed = 8f;
     public const float StopHorizontalSpeed = 0.08f;
     private const float GroundFrictionDivisor = 1.18f;
-    public const int SmallBaseHealAmount = 25;
-    public const float LargeBonusMaxHealthFraction = 0.1f;
-    public const int LargeBonusRoundIncrement = 5;
+    public const float SmallHealFraction = 0.2f;
+    public const float MediumHealFraction = 0.4f;
 
     public HealthPackEntity(
         int id,
@@ -30,14 +30,17 @@ public sealed class HealthPackEntity : SimulationEntity
         float y,
         HealthPackSize size,
         float horizontalSpeed,
-        float verticalSpeed) : base(id)
+        float verticalSpeed,
+        int sourceSpawnIndex = -1) : base(id)
     {
         X = x;
         Y = y;
         Size = size;
         HorizontalSpeed = horizontalSpeed;
         VerticalSpeed = verticalSpeed;
-        TicksRemaining = LifetimeTicks;
+        SourceSpawnIndex = sourceSpawnIndex;
+        TicksRemaining = IsMapSpawned ? int.MaxValue : LifetimeTicks;
+        HasLanded = IsMapSpawned;
     }
 
     public float X { get; private set; }
@@ -54,6 +57,12 @@ public sealed class HealthPackEntity : SimulationEntity
 
     public int TicksRemaining { get; private set; }
 
+    public int SourceSpawnIndex { get; }
+
+    public bool IsMapSpawned => SourceSpawnIndex >= 0;
+
+    public int NetworkSnapshotId => GetNetworkSnapshotId(SourceSpawnIndex, Id);
+
     public bool IsExpired => TicksRemaining <= 0;
 
     public float Alpha => TicksRemaining > FadeTicks
@@ -62,6 +71,11 @@ public sealed class HealthPackEntity : SimulationEntity
 
     public void Advance(SimpleLevel level, WorldBounds bounds)
     {
+        if (IsMapSpawned)
+        {
+            return;
+        }
+
         if (TicksRemaining > 0)
         {
             TicksRemaining -= 1;
@@ -87,24 +101,22 @@ public sealed class HealthPackEntity : SimulationEntity
 
     public int GetHealAmount(PlayerEntity player)
     {
-        var amount = SmallBaseHealAmount;
-        if (Size == HealthPackSize.Large)
-        {
-            amount += RoundToNearestIncrement(player.MaxHealth * LargeBonusMaxHealthFraction, LargeBonusRoundIncrement);
-        }
-
-        return Math.Max(0, amount);
+        var fraction = Size == HealthPackSize.Small ? SmallHealFraction : MediumHealFraction;
+        return Math.Max(0, (int)MathF.Round(player.MaxHealth * fraction));
     }
 
-    private static int RoundToNearestIncrement(float value, int increment)
+    public void ApplyNetworkState(float x, float y, float horizontalSpeed, float verticalSpeed, int ticksRemaining)
     {
-        if (increment <= 0)
-        {
-            return (int)MathF.Round(value);
-        }
-
-        return (int)MathF.Round(value / increment) * increment;
+        X = x;
+        Y = y;
+        HorizontalSpeed = horizontalSpeed;
+        VerticalSpeed = verticalSpeed;
+        TicksRemaining = IsMapSpawned ? int.MaxValue : ticksRemaining;
+        HasLanded = IsMapSpawned || VerticalSpeed == 0f;
     }
+
+    public static int GetNetworkSnapshotId(int sourceSpawnIndex, int entityId) =>
+        sourceSpawnIndex >= 0 ? -(sourceSpawnIndex + 1) : entityId;
 
     private void MoveHorizontally(SimpleLevel level, WorldBounds bounds)
     {

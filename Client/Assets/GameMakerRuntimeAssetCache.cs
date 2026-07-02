@@ -61,6 +61,15 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
             return atlasSprite;
         }
 
+        if (ShouldRequireRuntimeAtlas())
+        {
+            var reason = ClientRuntimeBootstrap.GetBrowserGameMakerAtlasManifest() is null
+                ? "the runtime GameMaker atlas manifest was not loaded"
+                : "the sprite was not present in the runtime GameMaker atlas";
+            throw new InvalidOperationException(
+                $"Packaged runtime sprite \"{spriteName}\" could not be loaded from the atlas because {reason}. Packaged desktop builds must not fall back to loose GameMaker sprite frames.");
+        }
+
         if (OperatingSystem.IsBrowser())
         {
             return TryGetBrowserSprite(spriteName, spriteAsset);
@@ -263,6 +272,9 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
 
         return sprite;
     }
+
+    private bool ShouldRequireRuntimeAtlas()
+        => !OperatingSystem.IsBrowser() && !_manifest.ImportedFromSource;
 
     private LoadedGameMakerSprite? TryGetBrowserSprite(string spriteName, GameMakerSpriteAsset spriteAsset)
     {

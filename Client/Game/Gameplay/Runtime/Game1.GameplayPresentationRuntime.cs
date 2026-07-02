@@ -69,6 +69,7 @@ public partial class Game1
         PlayRoundEndSoundIfNeeded();
         PlayKillFeedAnnouncementSounds();
         var musicStartTimestamp = IsClientPerformanceDiagnosticsEnabled() ? Stopwatch.GetTimestamp() : 0L;
+        UpdateGameplaySounds(gameTime);
         EnsureIngameMusicPlaying();
         UpdateDynamicMusic(gameTime, clientTicks);
         if (musicStartTimestamp > 0)
@@ -79,6 +80,7 @@ public partial class Game1
         UpdateLastToDieCombatFeedbackPresentation();
         UpdateEvasionMissPopups();
         UpdateHeavyDashDodgePopup();
+        UpdateGameplayMessages(gameTime, keyboard, mouse);
         UpdateTeamSelect(keyboard, mouse);
         UpdateClassSelect(mouse);
         RecordBrowserPresentationDuration(browserPresentationStartTimestamp);

@@ -8,6 +8,7 @@ public sealed partial class SimulationWorld
     private MapLogicActivatorRuntimeState _logicActivatorRuntimeState = new();
 
     private ulong _mapLogicControlPointInputSignature;
+    private long _mapLogicTimersLastFrame = -1;
 
     public void EvaluateMapLogicGraph(bool resetStatefulNodes = true)
     {
@@ -91,6 +92,28 @@ public sealed partial class SimulationWorld
         {
             ApplyMapLogicActivators();
         }
+    }
+
+    public void TickMapLogicTimersOncePerFrame()
+    {
+        if (_mapLogicTimersLastFrame == Frame)
+        {
+            return;
+        }
+
+        _mapLogicTimersLastFrame = Frame;
+        TickMapLogicTimers();
+    }
+
+    public bool PulseMapLogicNode(int nodeIndex)
+    {
+        if (!Level.LogicGraph.PulseExternalOutput(nodeIndex))
+        {
+            return false;
+        }
+
+        ApplyMapLogicActivators();
+        return true;
     }
 
     private void EvaluateMapLogicPlayerTriggersIfNeeded()

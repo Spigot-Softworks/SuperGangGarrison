@@ -81,6 +81,7 @@ public sealed partial class SimulationWorld
         TrySetNetworkPlayerConfiguredTeam(slot, GetDefaultNetworkPlayerTeam(slot));
         ConsumePendingNetworkPlayerTeamSelection(slot);
         _networkPlayerSpawnOverrides.Remove(slot);
+        _networkPlayerMapSpawnClassBehaviorBypassSlots.Remove(slot);
         _networkPlayerMovementSpeedScaleOverrides.Remove(slot);
         _networkPlayerGravityScaleOverrides.Remove(slot);
         _networkPlayerMaxHealthOverrides.Remove(slot);
@@ -212,7 +213,7 @@ public sealed partial class SimulationWorld
 
     private bool TryCompleteNetworkPlayerJoinState(byte slot, string gameplayClassId)
     {
-        var definition = CharacterClassCatalog.GetDefinition(gameplayClassId);
+        var definition = ResolveMapForcedClassDefinition(slot, CharacterClassCatalog.GetDefinition(gameplayClassId));
         if (slot != LocalPlayerSlot)
         {
             EnsureAdditionalNetworkPlayer(slot);

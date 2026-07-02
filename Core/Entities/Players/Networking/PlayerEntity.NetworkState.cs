@@ -421,6 +421,14 @@ public sealed partial class PlayerEntity
         {
             CivviePogoTrickTicksRemaining = Math.Max(0, pogoTrickTicks);
         }
+
+        if (TryGetReplicatedStateInt(
+                GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                GameplayAbilityReplicatedState.CivviePogoTrickDurationTicksKey,
+                out var pogoTrickDurationTicks))
+        {
+            CivviePogoTrickDurationTicks = Math.Max(0, pogoTrickDurationTicks);
+        }
     }
 
     private void HydrateNetworkReplicatedCivvieRuntimeState()
@@ -432,6 +440,8 @@ public sealed partial class PlayerEntity
             IsCivvieUmbrellaBroken = false;
             IsCivviePogoActive = false;
             CivviePogoCrunchTicksRemaining = 0;
+            CivviePogoTrickTicksRemaining = 0;
+            CivviePogoTrickDurationTicks = 0;
             return;
         }
 

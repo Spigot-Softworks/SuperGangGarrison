@@ -288,6 +288,11 @@ public static class CustomMapPngImporter
         var intelBases = new List<IntelBaseMarker>();
         var roomObjects = new List<RoomObjectMarker>();
         var movingPlatforms = new List<MovingPlatformMarker>();
+        var healthPackSpawns = new List<HealthPackSpawnMarker>();
+        var botSpawns = new List<BotSpawnMarker>();
+        var gameplayMessages = new List<GameplayMessageMarker>();
+        var gameplaySounds = new List<GameplaySoundMarker>();
+        var spawnClassBehaviors = new List<SpawnClassBehaviorMarker>();
         var areaTransitionMarkers = new List<AreaTransitionMarker>();
         var unsupportedEntities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -307,6 +312,11 @@ public static class CustomMapPngImporter
                 RedSpawns = redSpawns,
                 BlueSpawns = blueSpawns,
                 RoomObjects = roomObjects,
+                HealthPackSpawns = healthPackSpawns,
+                BotSpawns = botSpawns,
+                GameplayMessages = gameplayMessages,
+                GameplaySounds = gameplaySounds,
+                SpawnClassBehaviors = spawnClassBehaviors,
                 UseCenterOrigin = useCenterOrigin,
                 Resources = decodedResources,
             };
@@ -369,11 +379,18 @@ public static class CustomMapPngImporter
         var logicActivators = MapLogicActivatorImporter.BuildFromEntities(mapEntities, roomObjects, logicGraph);
         var logicScoreTriggers = MapLogicScoreTriggerImporter.BuildFromEntities(mapEntities, logicGraph);
         var spritesheetPlaybackSet = SpritesheetPlaybackImporter.BuildFromRoomObjects(roomObjects, logicGraph);
+        var resolvedBotSpawns = BotSpawnRuntimePatch.ResolveTriggerSignals(botSpawns, logicGraph);
+        var resolvedGameplayMessages = GameplayMessageRuntimePatch.ResolveTriggerSignals(
+            gameplayMessages,
+            logicGraph,
+            roomObjects,
+            mapEntities);
+        var resolvedGameplaySounds = GameplaySoundRuntimePatch.ResolveTriggerSignals(gameplaySounds, logicGraph);
         MapLogicRuntimePatch.ApplySpawnLogicSignals(redSpawns, mapEntities, logicGraph);
         MapLogicRuntimePatch.ApplyControlPointLogicLocks(roomObjects, mapEntities, logicGraph);
         MapTeleportRuntimePatch.ApplyExitLinks(roomObjects, mapEntities);
         MapDamageableRuntimePatch.ApplyHealWhenLinks(roomObjects, mapEntities, logicGraph);
-        visuals = AttachCustomSpriteResources(visuals, roomObjects, decodedResources);
+        visuals = AttachCustomSpriteResources(visuals, roomObjects, gameplayMessages, gameplaySounds, decodedResources);
 
         return new GameMakerRoomMetadata(
             mapName,
@@ -391,6 +408,11 @@ public static class CustomMapPngImporter
                 .ToArray(),
             CustomMapVisuals = visuals,
             MovingPlatforms = movingPlatforms.ToArray(),
+            HealthPackSpawns = healthPackSpawns.ToArray(),
+            BotSpawns = resolvedBotSpawns,
+            GameplayMessages = resolvedGameplayMessages,
+            GameplaySounds = resolvedGameplaySounds,
+            SpawnClassBehaviors = spawnClassBehaviors.ToArray(),
             ControlPointSettings = new CustomMapControlPointSettings(
                 ControlPointMapSettingsMetadata.ParseOverrideInitialCps(metadata)),
             ScrSettings = ScrMapSettingsMetadata.ParseScrSettings(metadata),
@@ -455,18 +477,25 @@ public static class CustomMapPngImporter
             Foreground: foreground,
             Resources: visualResources,
             SpriteResources: EmptySpriteResources,
+            SoundResources: EmptySoundResources,
             ForegroundSpriteJungleHitMasks: CustomMapVisualMetadata.Empty.ForegroundSpriteJungleHitMasks);
     }
 
     private static readonly IReadOnlyDictionary<string, CustomMapVisualResource> EmptySpriteResources =
         new Dictionary<string, CustomMapVisualResource>(StringComparer.OrdinalIgnoreCase);
 
+    private static readonly IReadOnlyDictionary<string, CustomMapVisualResource> EmptySoundResources =
+        new Dictionary<string, CustomMapVisualResource>(StringComparer.OrdinalIgnoreCase);
+
     private static CustomMapVisualMetadata AttachCustomSpriteResources(
         CustomMapVisualMetadata visuals,
         IReadOnlyList<RoomObjectMarker> roomObjects,
+        IReadOnlyList<GameplayMessageMarker> gameplayMessages,
+        IReadOnlyList<GameplaySoundMarker> gameplaySounds,
         IReadOnlyDictionary<string, CustomMapBuilderResource> decodedResources)
     {
         var spriteResources = new Dictionary<string, CustomMapVisualResource>(StringComparer.OrdinalIgnoreCase);
+        var soundResources = new Dictionary<string, CustomMapVisualResource>(StringComparer.OrdinalIgnoreCase);
         var jungleHitMasks = new Dictionary<int, ForegroundSpriteHitMask>();
         for (var index = 0; index < roomObjects.Count; index += 1)
         {
@@ -505,7 +534,21 @@ public static class CustomMapPngImporter
             jungleHitMasks[index] = hitMask;
         }
 
-        if (spriteResources.Count == 0 && jungleHitMasks.Count == 0)
+        for (var index = 0; index < gameplayMessages.Count; index += 1)
+        {
+            var marker = gameplayMessages[index];
+            TryAttachSpriteResource(marker.ImageResourceName, spriteResources, decodedResources);
+            TryAttachSoundResource(marker.SoundName, soundResources, decodedResources);
+            TryAttachSoundResource(marker.MusicName, soundResources, decodedResources);
+            TryAttachSoundResource(marker.OnEndSoundName, soundResources, decodedResources);
+        }
+
+        for (var index = 0; index < gameplaySounds.Count; index += 1)
+        {
+            TryAttachSoundResource(gameplaySounds[index].SoundName, soundResources, decodedResources);
+        }
+
+        if (spriteResources.Count == 0 && soundResources.Count == 0 && jungleHitMasks.Count == 0)
         {
             return visuals;
         }
@@ -513,6 +556,7 @@ public static class CustomMapPngImporter
         return visuals with
         {
             SpriteResources = spriteResources.Count == 0 ? visuals.SpriteResources : spriteResources,
+            SoundResources = soundResources.Count == 0 ? visuals.SoundResources : soundResources,
             ForegroundSpriteJungleHitMasks = jungleHitMasks.Count == 0
                 ? visuals.ForegroundSpriteJungleHitMasks
                 : jungleHitMasks,
@@ -554,16 +598,61 @@ public static class CustomMapPngImporter
         out byte[] bytes)
     {
         bytes = Array.Empty<byte>();
-        if (string.IsNullOrWhiteSpace(resourceName)
-            || spriteResources.ContainsKey(resourceName)
-            || !decodedResources.TryGetValue(resourceName, out var resource)
-            || !CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out bytes))
+        foreach (var candidate in EnumerateResourceNameCandidates(resourceName))
         {
-            return false;
+            if (spriteResources.ContainsKey(candidate)
+                || !decodedResources.TryGetValue(candidate, out var resource)
+                || !CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out bytes)
+                || !CustomMapBuilderResourceCodec.IsSupportedImage(bytes))
+            {
+                continue;
+            }
+
+            spriteResources[candidate] = new CustomMapVisualResource(candidate, bytes);
+            return true;
         }
 
-        spriteResources[resourceName] = new CustomMapVisualResource(resourceName, bytes);
-        return true;
+        return false;
+    }
+
+    private static bool TryAttachSoundResource(
+        string resourceName,
+        IDictionary<string, CustomMapVisualResource> soundResources,
+        IReadOnlyDictionary<string, CustomMapBuilderResource> decodedResources)
+    {
+        foreach (var candidate in EnumerateResourceNameCandidates(resourceName))
+        {
+            if (soundResources.ContainsKey(candidate)
+                || !decodedResources.TryGetValue(candidate, out var resource)
+                || !CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var bytes)
+                || !CustomMapBuilderResourceCodec.IsSupportedSound(bytes))
+            {
+                continue;
+            }
+
+            soundResources[candidate] = new CustomMapVisualResource(candidate, bytes);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static IEnumerable<string> EnumerateResourceNameCandidates(string resourceName)
+    {
+        if (string.IsNullOrWhiteSpace(resourceName))
+        {
+            yield break;
+        }
+
+        var trimmed = resourceName.Trim();
+        yield return trimmed;
+
+        var withoutExtension = Path.GetFileNameWithoutExtension(trimmed);
+        if (!string.IsNullOrWhiteSpace(withoutExtension)
+            && !withoutExtension.Equals(trimmed, StringComparison.OrdinalIgnoreCase))
+        {
+            yield return withoutExtension;
+        }
     }
 
     private static float ResolveParallaxFactor(

@@ -24,6 +24,7 @@ internal sealed class ServerBotManager
     {
         Manual,
         Autofill,
+        MapSpawn,
     }
 
     private static readonly PlayerClass[] DefaultFillClassCycle =
@@ -64,6 +65,7 @@ internal sealed class ServerBotManager
     private readonly Dictionary<byte, ControlledBotSlot> _controllerConfigurationSlotsBuffer = new();
     private readonly Dictionary<byte, PlayerInputSnapshot> _inputCache = new();
     private readonly Dictionary<byte, int> _inputCacheAgeTicks = new();
+    private readonly Dictionary<byte, bool> _mapBotDeathPulseAliveBySlot = new();
     private readonly Dictionary<byte, bool> _lastObservedBotAliveBySlot = new();
     private readonly Dictionary<byte, bool> _lastObservedBotCarryingIntelBySlot = new();
     private readonly Dictionary<byte, long> _lastBotThinkFrameBySlot = new();
@@ -136,7 +138,20 @@ internal sealed class ServerBotManager
         return TryAddBot(slot, team, classId, displayName, ServerBotSource.Manual);
     }
 
-    private bool TryAddBot(byte slot, PlayerTeam team, PlayerClass classId, string displayName, ServerBotSource source)
+    private bool TryAddBot(
+        byte slot,
+        PlayerTeam team,
+        PlayerClass classId,
+        string displayName,
+        ServerBotSource source,
+        bool isDummy = false,
+        bool respawn = true,
+        BotSpawnRespawnMode respawnMode = BotSpawnRespawnMode.NormalSpawn,
+        bool forceNameplate = false,
+        bool forceHealthBar = false,
+        float mapSpawnX = 0f,
+        float mapSpawnY = 0f,
+        int deathTriggerNodeIndex = -1)
     {
         if (!IsValidServerBotSlot(slot) || !_isSlotAvailableForBot(slot))
         {
@@ -148,20 +163,27 @@ internal sealed class ServerBotManager
             return false;
         }
 
+        _world.SetNetworkPlayerMapSpawnClassBehaviorBypass(slot, true);
         var resolvedDisplayName = ResolveBotDisplayName(slot, team, displayName);
         if (!_world.TryPrepareNetworkPlayerJoin(slot)
             || !_world.TrySetNetworkPlayerName(slot, resolvedDisplayName)
             || !_world.TrySetNetworkPlayerTeam(slot, team))
         {
             _world.TryReleaseNetworkPlayerSlot(slot);
+            _world.SetNetworkPlayerMapSpawnClassBehaviorBypass(slot, false);
             _botDisplayNamePool.ReleaseSlot(slot);
             return false;
         }
 
-        ConfigureBotControllerSpawnOverrides(slot, team, classId);
+        if (!isDummy)
+        {
+            ConfigureBotControllerSpawnOverrides(slot, team, classId);
+        }
+
         if (!_world.TryApplyNetworkPlayerClassSelection(slot, classId))
         {
             _world.TryReleaseNetworkPlayerSlot(slot);
+            _world.SetNetworkPlayerMapSpawnClassBehaviorBypass(slot, false);
             _botDisplayNamePool.ReleaseSlot(slot);
             ConfigureBotControllerSpawnOverrides();
             return false;
@@ -169,13 +191,28 @@ internal sealed class ServerBotManager
 
         if (_world.TryGetNetworkPlayer(slot, out var player))
         {
+            ApplyMapBotReplicatedStates(player, forceNameplate, forceHealthBar, deathTriggerNodeIndex);
             resolvedDisplayName = player.DisplayName;
         }
 
         _botDisplayNamePool.Reserve(resolvedDisplayName);
-        _botSlots[slot] = new ServerBotSlotState(slot, team, classId, resolvedDisplayName, source);
+        _botSlots[slot] = new ServerBotSlotState(
+            slot,
+            team,
+            classId,
+            resolvedDisplayName,
+            source,
+            isDummy,
+            respawn,
+            respawnMode,
+            forceNameplate,
+            forceHealthBar,
+            mapSpawnX,
+            mapSpawnY,
+            deathTriggerNodeIndex);
         _inputCache.Remove(slot);
         _inputCacheAgeTicks.Remove(slot);
+        _mapBotDeathPulseAliveBySlot.Remove(slot);
         _lastObservedBotAliveBySlot.Remove(slot);
         _lastObservedBotCarryingIntelBySlot.Remove(slot);
         _lastBotThinkFrameBySlot.Remove(slot);
@@ -196,6 +233,7 @@ internal sealed class ServerBotManager
         _botDisplayNamePool.ReleaseSlot(slot);
         _inputCache.Remove(slot);
         _inputCacheAgeTicks.Remove(slot);
+        _mapBotDeathPulseAliveBySlot.Remove(slot);
         _lastObservedBotAliveBySlot.Remove(slot);
         _lastObservedBotCarryingIntelBySlot.Remove(slot);
         _lastBotThinkFrameBySlot.Remove(slot);
@@ -252,6 +290,68 @@ internal sealed class ServerBotManager
         _botSlots[slot] = state.WithClassId(classId);
         ConfigureBotControllerSpawnOverrides();
         return true;
+    }
+
+    public bool TrySpawnMapBot(
+        PlayerTeam team,
+        PlayerClass? requestedClass,
+        BotSpawnKind kind,
+        bool respawn,
+        BotSpawnRespawnMode respawnMode,
+        BotSpawnNameMode nameMode,
+        string name,
+        bool forceNameplate,
+        bool forceHealthBar,
+        float x,
+        float y,
+        out byte slot,
+        int deathTriggerNodeIndex = -1)
+    {
+        slot = 0;
+        var availableSlot = FindNextAvailableSlot();
+        if (!availableSlot.HasValue)
+        {
+            return false;
+        }
+
+        slot = availableSlot.Value;
+        var teamBotCount = _botSlots.Values.Count(state => state.Team == team);
+        var playerClass = ResolveFillClass(team, teamBotCount, requestedClass);
+        var isDummy = kind == BotSpawnKind.Dummy;
+        var displayName = !string.IsNullOrWhiteSpace(name)
+            ? name.Trim()
+            : isDummy ? $"{team} Dummy" : string.Empty;
+        _world.TrySetNetworkPlayerSpawnOverride(slot, x, y);
+        try
+        {
+            var added = TryAddBot(
+                slot,
+                team,
+                playerClass,
+                displayName,
+                ServerBotSource.MapSpawn,
+                isDummy,
+                respawn,
+                respawnMode,
+                forceNameplate,
+                forceHealthBar,
+                x,
+                y,
+                deathTriggerNodeIndex);
+            if (added && respawn && respawnMode == BotSpawnRespawnMode.Node)
+            {
+                _world.TrySetNetworkPlayerSpawnOverride(slot, x, y);
+            }
+
+            return added;
+        }
+        finally
+        {
+            if (!respawn || respawnMode != BotSpawnRespawnMode.Node)
+            {
+                _world.TryClearNetworkPlayerSpawnOverride(slot);
+            }
+        }
     }
 
     /// <summary>
@@ -479,6 +579,11 @@ internal sealed class ServerBotManager
                 continue;
             }
 
+            if (_world.TryGetNetworkPlayer(slot, out var player))
+            {
+                ApplyMapBotVisualOverrides(player, state.ForceNameplate, state.ForceHealthBar);
+            }
+
             if (_world.IsNetworkPlayerAwaitingJoin(slot))
             {
                 continue;
@@ -495,6 +600,8 @@ internal sealed class ServerBotManager
     /// </summary>
     public void AdvanceBotReactions()
     {
+        ApplyMapBotDeathLogicPulses();
+        ApplyMapBotRespawnPolicies();
         if (_botSlots.Count == 0)
         {
             return;
@@ -527,6 +634,73 @@ internal sealed class ServerBotManager
         }
 
         _reactionController.UpdateReactions(_world, _controlledSlotsBuffer, observedEvents);
+    }
+
+    private void ApplyMapBotRespawnPolicies()
+    {
+        if (_botSlots.Count == 0)
+        {
+            return;
+        }
+
+        _staleSlotsBuffer.Clear();
+        foreach (var entry in _botSlots)
+        {
+            var state = entry.Value;
+            if (state.Source != ServerBotSource.MapSpawn
+                || state.Respawn
+                || !_world.TryGetNetworkPlayer(entry.Key, out var player)
+                || player.IsAlive)
+            {
+                continue;
+            }
+
+            _staleSlotsBuffer.Add(entry.Key);
+        }
+
+        foreach (var slot in _staleSlotsBuffer)
+        {
+            TryRemoveBot(slot);
+        }
+    }
+
+    private void ApplyMapBotDeathLogicPulses()
+    {
+        if (_botSlots.Count == 0)
+        {
+            _mapBotDeathPulseAliveBySlot.Clear();
+            return;
+        }
+
+        _staleSlotsBuffer.Clear();
+        foreach (var entry in _botSlots)
+        {
+            var slot = entry.Key;
+            var state = entry.Value;
+            if (state.Source != ServerBotSource.MapSpawn
+                || state.DeathTriggerNodeIndex < 0
+                || state.DeathTriggerNodeIndex >= _world.Level.LogicGraph.Nodes.Count
+                || !_world.TryGetNetworkPlayer(slot, out var player))
+            {
+                _staleSlotsBuffer.Add(slot);
+                continue;
+            }
+
+            var alive = player.IsAlive;
+            if (_mapBotDeathPulseAliveBySlot.TryGetValue(slot, out var wasAlive)
+                && wasAlive
+                && !alive)
+            {
+                _world.PulseMapLogicNode(state.DeathTriggerNodeIndex);
+            }
+
+            _mapBotDeathPulseAliveBySlot[slot] = alive;
+        }
+
+        foreach (var slot in _staleSlotsBuffer)
+        {
+            _mapBotDeathPulseAliveBySlot.Remove(slot);
+        }
     }
 
     private List<BotObservedDeath> CollectObservedBotDeaths()
@@ -597,6 +771,11 @@ internal sealed class ServerBotManager
         _controlledSlotsBuffer.Clear();
         foreach (var entry in _botSlots)
         {
+            if (entry.Value.IsDummy)
+            {
+                continue;
+            }
+
             if (_world.IsNetworkPlayerAwaitingJoin(entry.Key))
             {
                 continue;
@@ -623,6 +802,11 @@ internal sealed class ServerBotManager
         foreach (var entry in _botSlots)
         {
             var state = entry.Value;
+            if (state.IsDummy)
+            {
+                continue;
+            }
+
             _controllerConfigurationSlotsBuffer[entry.Key] = new ControlledBotSlot(
                 entry.Key,
                 state.Team,
@@ -947,6 +1131,40 @@ internal sealed class ServerBotManager
         var teamBotNumber = _botSlots.Values.Count(state => state.Team == team) + 1;
         return _botDisplayNamePool.GetOrAssign(slot, team, teamBotNumber);
     }
+
+    private static void ApplyMapBotReplicatedStates(
+        PlayerEntity player,
+        bool forceNameplate,
+        bool forceHealthBar,
+        int deathTriggerNodeIndex)
+    {
+        SetMapBotVisualOverride(player, BotSpawnMetadata.ForceNameplateReplicatedStateKey, forceNameplate);
+        SetMapBotVisualOverride(player, BotSpawnMetadata.ForceHealthBarReplicatedStateKey, forceHealthBar);
+        if (deathTriggerNodeIndex >= 0)
+        {
+            player.SetReplicatedStateInt(
+                BotSpawnMetadata.VisualReplicatedStateOwnerId,
+                BotSpawnMetadata.DeathTriggerNodeReplicatedStateKey,
+                deathTriggerNodeIndex);
+        }
+        else
+        {
+            player.ClearReplicatedState(
+                BotSpawnMetadata.VisualReplicatedStateOwnerId,
+                BotSpawnMetadata.DeathTriggerNodeReplicatedStateKey);
+        }
+    }
+
+    private static void SetMapBotVisualOverride(PlayerEntity player, string key, bool enabled)
+    {
+        if (enabled)
+        {
+            player.SetReplicatedStateBool(BotSpawnMetadata.VisualReplicatedStateOwnerId, key, true);
+            return;
+        }
+
+        player.ClearReplicatedState(BotSpawnMetadata.VisualReplicatedStateOwnerId, key);
+    }
 }
 
 /// <summary>
@@ -954,13 +1172,34 @@ internal sealed class ServerBotManager
 /// </summary>
 internal readonly struct ServerBotSlotState
 {
-    public ServerBotSlotState(byte slot, PlayerTeam team, PlayerClass classId, string displayName, ServerBotManager.ServerBotSource source)
+    public ServerBotSlotState(
+        byte slot,
+        PlayerTeam team,
+        PlayerClass classId,
+        string displayName,
+        ServerBotManager.ServerBotSource source,
+        bool isDummy = false,
+        bool respawn = true,
+        BotSpawnRespawnMode respawnMode = BotSpawnRespawnMode.NormalSpawn,
+        bool forceNameplate = false,
+        bool forceHealthBar = false,
+        float mapSpawnX = 0f,
+        float mapSpawnY = 0f,
+        int deathTriggerNodeIndex = -1)
     {
         Slot = slot;
         Team = team;
         ClassId = classId;
         DisplayName = displayName;
         Source = source;
+        IsDummy = isDummy;
+        Respawn = respawn;
+        RespawnMode = respawnMode;
+        ForceNameplate = forceNameplate;
+        ForceHealthBar = forceHealthBar;
+        MapSpawnX = mapSpawnX;
+        MapSpawnY = mapSpawnY;
+        DeathTriggerNodeIndex = deathTriggerNodeIndex;
     }
 
     public byte Slot { get; }
@@ -968,8 +1207,16 @@ internal readonly struct ServerBotSlotState
     public PlayerClass ClassId { get; }
     public string DisplayName { get; }
     public ServerBotManager.ServerBotSource Source { get; }
+    public bool IsDummy { get; }
+    public bool Respawn { get; }
+    public BotSpawnRespawnMode RespawnMode { get; }
+    public bool ForceNameplate { get; }
+    public bool ForceHealthBar { get; }
+    public float MapSpawnX { get; }
+    public float MapSpawnY { get; }
+    public int DeathTriggerNodeIndex { get; }
 
-    public ServerBotSlotState WithTeam(PlayerTeam newTeam) => new(Slot, newTeam, ClassId, DisplayName, Source);
-    public ServerBotSlotState WithClassId(PlayerClass newClassId) => new(Slot, Team, newClassId, DisplayName, Source);
-    public ServerBotSlotState WithDisplayName(string newDisplayName) => new(Slot, Team, ClassId, newDisplayName, Source);
+    public ServerBotSlotState WithTeam(PlayerTeam newTeam) => new(Slot, newTeam, ClassId, DisplayName, Source, IsDummy, Respawn, RespawnMode, ForceNameplate, ForceHealthBar, MapSpawnX, MapSpawnY, DeathTriggerNodeIndex);
+    public ServerBotSlotState WithClassId(PlayerClass newClassId) => new(Slot, Team, newClassId, DisplayName, Source, IsDummy, Respawn, RespawnMode, ForceNameplate, ForceHealthBar, MapSpawnX, MapSpawnY, DeathTriggerNodeIndex);
+    public ServerBotSlotState WithDisplayName(string newDisplayName) => new(Slot, Team, ClassId, newDisplayName, Source, IsDummy, Respawn, RespawnMode, ForceNameplate, ForceHealthBar, MapSpawnX, MapSpawnY, DeathTriggerNodeIndex);
 }

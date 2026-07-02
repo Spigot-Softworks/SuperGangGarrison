@@ -16,7 +16,7 @@ public sealed partial class SimulationWorld
             }
 
             world.RefreshMapLogicRuntimeIfControlPointInputsChanged();
-            world.TickMapLogicTimers();
+            world.TickMapLogicTimersOncePerFrame();
 
             var redCappersByPoint = new HashSet<int>[world._controlPoints.Count];
             var blueCappersByPoint = new HashSet<int>[world._controlPoints.Count];

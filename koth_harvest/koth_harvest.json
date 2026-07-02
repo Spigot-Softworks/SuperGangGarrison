@@ -7,6 +7,8 @@
   "walkmaskImage": "walkmask.png",
   "metadata": {
     "background": "ffffff",
+    "entity_schema": "modern",
+    "gameMode": "koth",
     "void": "000000"
   },
   "entities": [
@@ -16,7 +18,9 @@
       "y": 732,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "c5aab06e"
+      }
     },
     {
       "type": "redspawn",
@@ -24,7 +28,9 @@
       "y": 732,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "69795764"
+      }
     },
     {
       "type": "redspawn",
@@ -32,7 +38,9 @@
       "y": 732,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "f918a10b"
+      }
     },
     {
       "type": "redspawn",
@@ -40,7 +48,9 @@
       "y": 732,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "eb3bd197"
+      }
     },
     {
       "type": "KothControlPoint",
@@ -48,7 +58,9 @@
       "y": 726,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "6e11751e"
+      }
     },
     {
       "type": "playerwall",
@@ -56,7 +68,9 @@
       "y": 6,
       "xScale": 2,
       "yScale": 12.3,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "7467fe50"
+      }
     },
     {
       "type": "playerwall",
@@ -64,7 +78,9 @@
       "y": 6,
       "xScale": 2,
       "yScale": 12,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "7cf9358f"
+      }
     },
     {
       "type": "redteamgate",
@@ -72,7 +88,9 @@
       "y": 678,
       "xScale": 11,
       "yScale": 0.2,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "d7894540"
+      }
     },
     {
       "type": "redteamgate",
@@ -80,7 +98,9 @@
       "y": 726,
       "xScale": 2,
       "yScale": 1.2,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "65fe6738"
+      }
     },
     {
       "type": "medCabinet",
@@ -88,7 +108,9 @@
       "y": 738,
       "xScale": 0.94,
       "yScale": 1.25,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "88773e1c"
+      }
     },
     {
       "type": "spawnroom",
@@ -96,7 +118,9 @@
       "y": 690,
       "xScale": 6.29,
       "yScale": 2.57,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "915d29d8"
+      }
     },
     {
       "type": "spawnroom",
@@ -104,7 +128,9 @@
       "y": 714,
       "xScale": 0.57,
       "yScale": 2,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "ea26c810"
+      }
     },
     {
       "type": "spawnroom",
@@ -112,7 +138,9 @@
       "y": 678,
       "xScale": 2.14,
       "yScale": 0.29,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "077b84de"
+      }
     },
     {
       "type": "spawnroom",
@@ -120,7 +148,9 @@
       "y": 666,
       "xScale": 1.57,
       "yScale": 0.29,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "5f6046a6"
+      }
     },
     {
       "type": "blueteamgate",
@@ -128,7 +158,9 @@
       "y": 678,
       "xScale": 11,
       "yScale": 0.2,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "3127399a"
+      }
     },
     {
       "type": "blueteamgate",
@@ -136,7 +168,9 @@
       "y": 726,
       "xScale": 2,
       "yScale": 1.2,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "3cff838f"
+      }
     },
     {
       "type": "medCabinet",
@@ -144,7 +178,9 @@
       "y": 738,
       "xScale": 0.94,
       "yScale": 1.25,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "1dfe163d"
+      }
     },
     {
       "type": "spawnroom",
@@ -152,7 +188,9 @@
       "y": 690,
       "xScale": 6.29,
       "yScale": 2.57,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "d87b9918"
+      }
     },
     {
       "type": "spawnroom",
@@ -160,7 +198,9 @@
       "y": 678,
       "xScale": 2.14,
       "yScale": 0.29,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "48627be7"
+      }
     },
     {
       "type": "spawnroom",
@@ -168,7 +208,9 @@
       "y": 666,
       "xScale": 1.57,
       "yScale": 0.29,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "197cb0d2"
+      }
     },
     {
       "type": "spawnroom",
@@ -176,7 +218,9 @@
       "y": 714,
       "xScale": 0.57,
       "yScale": 2,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "535c1ef9"
+      }
     },
     {
       "type": "bulletwall",
@@ -184,7 +228,9 @@
       "y": 678,
       "xScale": 2,
       "yScale": 1.9,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "d55e9aca"
+      }
     },
     {
       "type": "CapturePoint",
@@ -192,7 +238,9 @@
       "y": 744,
       "xScale": 3.86,
       "yScale": 2,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "62643939"
+      }
     },
     {
       "type": "CapturePoint",
@@ -200,7 +248,9 @@
       "y": 726,
       "xScale": 1.86,
       "yScale": 0.43,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "f48f9d41"
+      }
     },
     {
       "type": "bulletwall",
@@ -208,7 +258,9 @@
       "y": 678,
       "xScale": 2,
       "yScale": 1.9,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "82cc4a25"
+      }
     },
     {
       "type": "bluespawn",
@@ -216,7 +268,9 @@
       "y": 732,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "9e2956aa"
+      }
     },
     {
       "type": "bluespawn",
@@ -224,7 +278,9 @@
       "y": 732,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "0f9ea8e1"
+      }
     },
     {
       "type": "bluespawn",
@@ -232,7 +288,9 @@
       "y": 732,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "e360b3e2"
+      }
     },
     {
       "type": "bluespawn",
@@ -240,7 +298,238 @@
       "y": 732,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "adb7d33b"
+      }
+    },
+    {
+      "type": "healthPack",
+      "x": 1903.5,
+      "y": 619.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4d51a310",
+        "respawnSeconds": "10",
+        "size": "small"
+      }
+    },
+    {
+      "type": "healthPack",
+      "x": 2955,
+      "y": 625.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "566793ce",
+        "respawnSeconds": "10",
+        "size": "small"
+      }
+    },
+    {
+      "type": "healthPack",
+      "x": 3385,
+      "y": 715,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f700761d",
+        "respawnSeconds": "10",
+        "size": "medium"
+      }
+    },
+    {
+      "type": "healthPack",
+      "x": 1480,
+      "y": 718,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "7209ab3b",
+        "respawnSeconds": "10",
+        "size": "medium"
+      }
+    },
+    {
+      "type": "botSpawn",
+      "x": 2556,
+      "y": 740.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "class": "soldier",
+        "forceHealthBar": "true",
+        "forceNameplate": "true",
+        "kind": "bot",
+        "mapEntityId": "501c89c0",
+        "name": "Rocketman",
+        "nameMode": "random",
+        "respawn": "false",
+        "respawnAt": "spawn",
+        "team": "blue",
+        "trigger": "node:fe1af457"
+      }
+    },
+    {
+      "type": "logicPlayerTrigger",
+      "x": 2437.5,
+      "y": 822.75,
+      "xScale": 4.160714,
+      "yScale": 0.53571427,
+      "properties": {
+        "detect": "playerEnter",
+        "intelCarriersOnly": "false",
+        "logicKey": "fe1af457",
+        "mapEntityId": "c5308180",
+        "maxFires": "2",
+        "nodePriority": "0",
+        "signal": "impulse",
+        "team": "red"
+      }
+    },
+    {
+      "type": "spawnClassBehavior",
+      "x": 1324.5,
+      "y": 709.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "allowClassChange": "false",
+        "allowTeamChange": "false",
+        "forceClass": "scout",
+        "manualSpawn": "true",
+        "mapEntityId": "23fa0076",
+        "skipTeamSelect": "true",
+        "team": "red"
+      }
+    },
+    {
+      "type": "logicPlayerTrigger",
+      "x": 1372.5,
+      "y": 709.5,
+      "xScale": 1.4642857,
+      "yScale": 1.2678572,
+      "properties": {
+        "intelCarriersOnly": "false",
+        "logicKey": "51a09d72",
+        "mapEntityId": "56479113",
+        "maxFires": "1",
+        "nodePriority": "0",
+        "signal": "latch",
+        "team": "any"
+      }
+    },
+    {
+      "type": "teleportExit",
+      "x": 2401.5,
+      "y": 642,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "42515f9a"
+      }
+    },
+    {
+      "type": "gameplayMessage",
+      "x": 1365,
+      "y": 508.5,
+      "xScale": 0.6375,
+      "yScale": 1.0356479,
+      "properties": {
+        "align": "center",
+        "animation": "fromRight",
+        "chatTeam": "auto",
+        "dialogueBox": "default",
+        "duration": "3",
+        "end": "auto",
+        "font": "default",
+        "fontSize": "2",
+        "freeze": "false",
+        "image": "message_image",
+        "imageAnimation": "fromLeft",
+        "imageH": "111.5",
+        "imageW": "255.17065",
+        "imageX": "-133.5",
+        "imageY": "12",
+        "input": "any",
+        "mapEntityId": "1f5b125e",
+        "music": "message_music",
+        "musicCrossfade": "true",
+        "musicCrossfadeSeconds": "1.5",
+        "musicFadeAfter": "0",
+        "musicLoop": "false",
+        "onEnd": "none",
+        "onEndFade": "false",
+        "onEndFlash": "true",
+        "onEndLogic": "false",
+        "onEndMap": "",
+        "onEndMapReset": "false",
+        "onEndMapTeleport": "true",
+        "onEndMapTransition": "false",
+        "onEndPlaySound": "true",
+        "onEndSeconds": "1",
+        "onEndSound": "message_end_sound",
+        "onEndTeleportExit": "entity:teleportExit@id:42515f9a",
+        "onEndTrigger": "",
+        "onEndX": "0",
+        "onEndY": "0",
+        "sound": "message_sound",
+        "style": "dialogue",
+        "text": "Welcome to Super Gang Garrison!",
+        "trigger": "node:51a09d72",
+        "typingDuration": "1.5"
+      }
+    },
+    {
+      "type": "gameplayMessage",
+      "x": 2416.5,
+      "y": 841.5,
+      "xScale": 1,
+      "yScale": 1.356481,
+      "properties": {
+        "align": "center",
+        "animation": "fade",
+        "chatTeam": "auto",
+        "dialogueBox": "default",
+        "duration": "2",
+        "end": "input",
+        "font": "default",
+        "fontSize": "3",
+        "freeze": "true",
+        "image": "",
+        "imageAnimation": "none",
+        "imageH": "64",
+        "imageW": "64",
+        "imageX": "0",
+        "imageY": "0",
+        "input": "any",
+        "mapEntityId": "a7cf59f4",
+        "music": "",
+        "musicCrossfade": "true",
+        "musicCrossfadeSeconds": "1.5",
+        "musicFadeAfter": "0",
+        "musicLoop": "true",
+        "onEnd": "none",
+        "onEndFade": "false",
+        "onEndFlash": "false",
+        "onEndLogic": "false",
+        "onEndMap": "",
+        "onEndMapReset": "false",
+        "onEndMapTeleport": "false",
+        "onEndMapTransition": "false",
+        "onEndPlaySound": "false",
+        "onEndSeconds": "1",
+        "onEndSound": "",
+        "onEndTeleportExit": "",
+        "onEndTrigger": "",
+        "onEndX": "0",
+        "onEndY": "0",
+        "sound": "",
+        "style": "notification",
+        "text": "KILL THE ENEMY ROCKETMAN!",
+        "trigger": "node:fe1af457",
+        "typingDuration": "1.5"
+      }
     }
   ],
   "resources": [
@@ -268,6 +557,26 @@
       "name": "bg_layer6",
       "kind": "parallaxLayer",
       "path": "bg_layer6.png"
+    },
+    {
+      "name": "message_end_sound",
+      "kind": "messageSound",
+      "path": "message_end_sound.ogg"
+    },
+    {
+      "name": "message_image",
+      "kind": "genericImage",
+      "path": "message_image.png"
+    },
+    {
+      "name": "message_music",
+      "kind": "messageSound",
+      "path": "message_music.ogg"
+    },
+    {
+      "name": "message_sound",
+      "kind": "messageSound",
+      "path": "message_sound.ogg"
     }
   ],
   "parallaxLayers": [

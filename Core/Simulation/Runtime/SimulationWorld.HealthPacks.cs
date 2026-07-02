@@ -4,6 +4,8 @@ public sealed partial class SimulationWorld
 {
     private void AdvanceHealthPacks()
     {
+        AdvanceHealthPackSpawnTimers();
+
         for (var packIndex = _healthPacks.Count - 1; packIndex >= 0; packIndex -= 1)
         {
             var healthPack = _healthPacks[packIndex];
@@ -75,6 +77,64 @@ public sealed partial class SimulationWorld
         _entities.Add(healthPack.Id, healthPack);
     }
 
+    private void SpawnMapHealthPack(int spawnIndex)
+    {
+        if (spawnIndex < 0 || spawnIndex >= Level.HealthPackSpawns.Count)
+        {
+            return;
+        }
+
+        var marker = Level.HealthPackSpawns[spawnIndex];
+        var healthPack = new HealthPackEntity(
+            AllocateEntityId(),
+            Bounds.ClampX(marker.X, HealthPackEntity.Width),
+            Bounds.ClampY(marker.Y, HealthPackEntity.Height),
+            marker.Size,
+            horizontalSpeed: 0f,
+            verticalSpeed: 0f,
+            sourceSpawnIndex: spawnIndex);
+        _healthPacks.Add(healthPack);
+        _entities.Add(healthPack.Id, healthPack);
+    }
+
+    private void AdvanceHealthPackSpawnTimers()
+    {
+        for (var spawnIndex = 0; spawnIndex < _healthPackSpawnRespawnTicks.Count; spawnIndex += 1)
+        {
+            if (_healthPackSpawnRespawnTicks[spawnIndex] <= 0)
+            {
+                continue;
+            }
+
+            _healthPackSpawnRespawnTicks[spawnIndex] -= 1;
+            if (_healthPackSpawnRespawnTicks[spawnIndex] <= 0)
+            {
+                SpawnMapHealthPack(spawnIndex);
+            }
+        }
+    }
+
+    public int GetHealthPackSpawnRespawnTicksRemaining(int spawnIndex)
+    {
+        if (spawnIndex < 0 || spawnIndex >= _healthPackSpawnRespawnTicks.Count)
+        {
+            return 0;
+        }
+
+        return _healthPackSpawnRespawnTicks[spawnIndex];
+    }
+
+    private void ResetHealthPackSpawnsForLevel()
+    {
+        _healthPackSpawnRespawnTicks.Clear();
+        RemoveEntities(_healthPacks);
+        for (var spawnIndex = 0; spawnIndex < Level.HealthPackSpawns.Count; spawnIndex += 1)
+        {
+            _healthPackSpawnRespawnTicks.Add(0);
+            SpawnMapHealthPack(spawnIndex);
+        }
+    }
+
     private void TrySpawnExperimentalEnemyHealthPackDrop(PlayerEntity victim, PlayerEntity? killer)
     {
         var dropChance = ExperimentalGameplaySettings.EnemyHealthPackDropChance;
@@ -98,11 +158,33 @@ public sealed partial class SimulationWorld
     private void ClearHealthPacks()
     {
         RemoveEntities(_healthPacks);
+        _healthPackSpawnRespawnTicks.Clear();
+    }
+
+    private void ClearTemporaryHealthPacks()
+    {
+        for (var index = _healthPacks.Count - 1; index >= 0; index -= 1)
+        {
+            if (_healthPacks[index].IsMapSpawned)
+            {
+                continue;
+            }
+
+            RemoveHealthPackAt(index);
+        }
     }
 
     private void RemoveHealthPackAt(int index)
     {
-        _entities.Remove(_healthPacks[index].Id);
+        var healthPack = _healthPacks[index];
+        _entities.Remove(healthPack.Id);
         _healthPacks.RemoveAt(index);
+        if (healthPack.SourceSpawnIndex >= 0
+            && healthPack.SourceSpawnIndex < Level.HealthPackSpawns.Count
+            && healthPack.SourceSpawnIndex < _healthPackSpawnRespawnTicks.Count)
+        {
+            _healthPackSpawnRespawnTicks[healthPack.SourceSpawnIndex] =
+                Math.Max(1, Level.HealthPackSpawns[healthPack.SourceSpawnIndex].RespawnTicks);
+        }
     }
 }

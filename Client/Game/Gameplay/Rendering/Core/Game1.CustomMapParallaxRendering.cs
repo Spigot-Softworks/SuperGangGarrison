@@ -227,6 +227,7 @@ public partial class Game1
         _loadedCustomMapVisuals = null;
         _loadedCustomMapVisualsSource = null;
         ClearCustomMapSpriteTextureCache();
+        ClearGameplayMessageSoundCache();
     }
 
     private bool TryGetRuntimeCustomMapVisualResourceTexture(string resourceName, out Texture2D texture)

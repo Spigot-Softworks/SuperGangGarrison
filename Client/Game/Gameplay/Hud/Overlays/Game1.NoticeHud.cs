@@ -22,19 +22,7 @@ public partial class Game1
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
         var alpha = Math.Clamp(_notice.Alpha, 0.01f, 0.99f);
-        var tint = Color.White * alpha;
-        var barRectangle = new Rectangle(0, viewportHeight - 110, viewportWidth, 18);
-        var noticeTextY = viewportHeight - 106f;
-        _spriteBatch.Draw(_pixel, barRectangle, Color.Black * alpha);
-        var textHeight = MeasureBitmapFontHeight(1f);
-        var spriteY = noticeTextY + (textHeight / 2f);
-        TryDrawScreenSprite("GameNoticeS", 0, new Vector2(25f, spriteY), tint, new Vector2(2f, 2f));
-
-        var text = _notice.Text;
-        if (!string.IsNullOrEmpty(text))
-        {
-            DrawHudTextLeftAligned(text, new Vector2(50f, noticeTextY), tint, 1f);
-        }
+        DrawGameplayNoticeBar(_notice.Text, new Rectangle(0, viewportHeight - 110, viewportWidth, 18), 1f, Color.White * alpha);
     }
 
     private void UpdateLocalSentryNotice()

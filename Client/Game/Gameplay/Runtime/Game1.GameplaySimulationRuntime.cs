@@ -25,7 +25,7 @@ public partial class Game1
             // Server snapshots remain authoritative and will correct any mispredictions
             _simulator.World.ClientPredictionMode = true;
             var elapsedSeconds = gameTime.ElapsedGameTime.TotalSeconds;
-            simulationTickCount = _simulator.Step(elapsedSeconds);
+            simulationTickCount = _simulator.Step(elapsedSeconds, AdvanceGameplayLogicPresentationTriggers);
         }
         else
         {
@@ -90,6 +90,9 @@ public partial class Game1
     {
         OnNavEditorTraversalCaptureAfterTick();
         OnScoreRouteRecorderAfterTick();
+        AdvancePracticeMapBotSpawns();
+        AdvancePracticeMapBotRespawnPolicies();
+        AdvanceGameplayLogicPresentationTriggers();
         if (IsPracticeSessionActive)
         {
             _practiceSessionElapsedTicks += 1;
@@ -98,5 +101,12 @@ public partial class Game1
         AdvanceLastToDieSimulationTick();
         UpdateLastToDieBotReactions();
         AdvanceJumpSimulationTick();
+    }
+
+    private void AdvanceGameplayLogicPresentationTriggers()
+    {
+        AdvanceMapBotDeathLogicPulses();
+        AdvanceGameplayMessages();
+        AdvanceGameplaySounds();
     }
 }

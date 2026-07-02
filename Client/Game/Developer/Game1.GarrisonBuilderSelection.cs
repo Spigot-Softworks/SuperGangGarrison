@@ -126,6 +126,7 @@ public partial class Game1
         _builderAreaSelectCurrentScreen = screenPosition;
         _builderEntityDragging = false;
         _builderActiveResizeHandle = GarrisonBuilderResizeHandle.None;
+        ClearGarrisonBuilderGameplayMessageImageInteraction();
         CloseGarrisonBuilderEntityContextMenu();
         CloseGarrisonBuilderEntityOverlapPicker();
     }
@@ -415,6 +416,11 @@ public partial class Game1
 
             var snapped = SnapGarrisonBuilderPoint(new Vector2(snapshot.X + delta.X, snapshot.Y + delta.Y));
             var entity = _builderEntities[snapshot.Index];
+            if (IsGarrisonBuilderGameplayMessageFullWidthStyle(entity))
+            {
+                snapped.X = snapshot.X;
+            }
+
             _builderEntities[snapshot.Index] = (entity with
             {
                 X = snapped.X,

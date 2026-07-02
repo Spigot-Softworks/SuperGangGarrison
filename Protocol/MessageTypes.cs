@@ -792,6 +792,18 @@ public sealed record SnapshotDamageEvent(
     ulong SourceFrame = 0,
     byte Flags = 0);
 
+public sealed record SnapshotHealthPackState(
+    int Id,
+    byte Size,
+    float X,
+    float Y,
+    float VelocityX,
+    float VelocityY,
+    int TicksRemaining,
+    int SourceSpawnIndex,
+    int RespawnTicksRemaining,
+    bool Active);
+
 public enum SnapshotReplicatedStateValueKind : byte
 {
     Whole = 1,
@@ -938,6 +950,8 @@ public sealed record SnapshotMessage(
     public IReadOnlyList<int> RemovedJumpPadIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<SnapshotJumpPadGibState> JumpPadGibs { get; init; } = Array.Empty<SnapshotJumpPadGibState>();
     public IReadOnlyList<int> RemovedJumpPadGibIds { get; init; } = Array.Empty<int>();
+    public IReadOnlyList<SnapshotHealthPackState> HealthPacks { get; init; } = Array.Empty<SnapshotHealthPackState>();
+    public IReadOnlyList<int> RemovedHealthPackIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<SnapshotPlayerGibState> PlayerGibs { get; init; } = Array.Empty<SnapshotPlayerGibState>();
     public IReadOnlyList<SnapshotGibSpawnEvent> GibSpawnEvents { get; init; } = Array.Empty<SnapshotGibSpawnEvent>();
     public IReadOnlyList<SnapshotRocketSpawnEvent> RocketSpawnEvents { get; init; } = Array.Empty<SnapshotRocketSpawnEvent>();

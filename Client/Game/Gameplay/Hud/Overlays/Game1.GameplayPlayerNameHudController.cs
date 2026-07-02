@@ -28,6 +28,21 @@ public partial class Game1
             DrawPlayerNameHud(_game._world.LocalPlayer, cameraPosition);
         }
 
+        public void DrawForcedPlayerNameHuds(Vector2 cameraPosition)
+        {
+            foreach (var player in _game.EnumerateRenderablePlayers())
+            {
+                if (!player.IsAlive
+                    || ReferenceEquals(player, _game._world.LocalPlayer)
+                    || !Game1.ShouldForceMapBotNameplate(player))
+                {
+                    continue;
+                }
+
+                DrawPlayerNameHud(player, cameraPosition, forceVisible: true);
+            }
+        }
+
         public void DrawHoveredPlayerNameHud(MouseState mouse, Vector2 cameraPosition)
         {
             var hoveredPlayer = GetHoveredPlayerForNameHud(mouse, cameraPosition);
@@ -41,10 +56,15 @@ public partial class Game1
                 return;
             }
 
+            if (Game1.ShouldForceMapBotNameplate(hoveredPlayer))
+            {
+                return;
+            }
+
             DrawPlayerNameHud(hoveredPlayer, cameraPosition);
         }
 
-        public void DrawPlayerNameHud(PlayerEntity player, Vector2 cameraPosition)
+        public void DrawPlayerNameHud(PlayerEntity player, Vector2 cameraPosition, bool forceVisible = false)
         {
             var label = GetHudPlayerLabel(player);
             if (string.IsNullOrWhiteSpace(label))
@@ -52,7 +72,7 @@ public partial class Game1
                 return;
             }
 
-            var visibilityAlpha = _game.GetPlayerVisibilityAlpha(player);
+            var visibilityAlpha = forceVisible ? 1f : _game.GetPlayerVisibilityAlpha(player);
             if (visibilityAlpha <= 0f)
             {
                 return;

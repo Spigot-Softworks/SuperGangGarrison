@@ -2662,6 +2662,58 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
+    public void SnapshotDeltaMergesHealthPackUpdatesAndRemovals()
+    {
+        var activePack = new SnapshotHealthPackState(
+            Id: -1,
+            Size: 1,
+            X: 128f,
+            Y: 64f,
+            VelocityX: 0f,
+            VelocityY: 0f,
+            TicksRemaining: 0,
+            SourceSpawnIndex: 0,
+            RespawnTicksRemaining: 0,
+            Active: true);
+        var removedPack = new SnapshotHealthPackState(
+            Id: 712,
+            Size: 0,
+            X: 256f,
+            Y: 96f,
+            VelocityX: 1f,
+            VelocityY: 2f,
+            TicksRemaining: 180,
+            SourceSpawnIndex: -1,
+            RespawnTicksRemaining: 0,
+            Active: true);
+        var inactivePack = activePack with
+        {
+            X = 130f,
+            Active = false,
+            RespawnTicksRemaining = 90,
+        };
+        var baseline = CreateSnapshot(420) with
+        {
+            HealthPacks = [activePack, removedPack],
+        };
+        var delta = CreateSnapshot(421) with
+        {
+            IsDelta = true,
+            BaselineFrame = baseline.Frame,
+            HealthPacks = [inactivePack],
+            RemovedHealthPackIds = [removedPack.Id],
+        };
+
+        var merged = SnapshotDelta.ToFullSnapshot(delta, baseline);
+
+        var healthPack = Assert.Single(merged.HealthPacks);
+        Assert.Equal(activePack.Id, healthPack.Id);
+        Assert.False(healthPack.Active);
+        Assert.Equal(90, healthPack.RespawnTicksRemaining);
+        Assert.Empty(merged.RemovedHealthPackIds);
+    }
+
+    [Fact]
     public void SnapshotDeltaMergesPlayerMovementDeltasIntoBaselinePlayers()
     {
         var baselinePlayers = new[]

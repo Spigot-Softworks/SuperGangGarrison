@@ -449,6 +449,21 @@ public sealed class ProtocolCodecTests
             ],
             SentryGibs = [new SnapshotSentryGibState(3, 1, 10f, 12f, 25)],
             RemovedSentryGibIds = [3],
+            HealthPacks =
+            [
+                new SnapshotHealthPackState(
+                    Id: -1,
+                    Size: 1,
+                    X: 64f,
+                    Y: 96f,
+                    VelocityX: 0f,
+                    VelocityY: 0f,
+                    TicksRemaining: 0,
+                    SourceSpawnIndex: 0,
+                    RespawnTicksRemaining: 120,
+                    Active: false),
+            ],
+            RemovedHealthPackIds = [42],
         };
 
         var measuredSize = ProtocolCodec.MeasureSerializedSize(snapshot);
@@ -494,6 +509,12 @@ public sealed class ProtocolCodecTests
         Assert.Equal(SnapshotRoundTripRocketPassedFriendlyPlayerIds, rocketSpawn.PassedFriendlyPlayerIds);
         var killFeedEntry = Assert.Single(roundTrippedSnapshot.KillFeed);
         Assert.Equal(SnapshotRoundTripKillFeedInvolvedPlayerIds, killFeedEntry.InvolvedPlayerIds);
+        var healthPack = Assert.Single(roundTrippedSnapshot.HealthPacks);
+        Assert.Equal(-1, healthPack.Id);
+        Assert.Equal(1, healthPack.Size);
+        Assert.Equal(120, healthPack.RespawnTicksRemaining);
+        Assert.False(healthPack.Active);
+        Assert.Equal([42], roundTrippedSnapshot.RemovedHealthPackIds);
     }
 
     [Fact]

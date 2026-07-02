@@ -13,9 +13,12 @@ public static class CustomMapBuilderResourceCodec
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
 
         var bytes = File.ReadAllBytes(sourcePath);
-        if (!IsSupportedImage(bytes))
+        if (!IsSupportedForKind(bytes, kind))
         {
-            throw new InvalidOperationException($"Resource \"{sourcePath}\" is not a PNG or GIF image.");
+            var required = kind == CustomMapBuilderResourceKind.MessageSound
+                ? "an OGG sound"
+                : "a PNG or GIF image";
+            throw new InvalidOperationException($"Resource \"{sourcePath}\" is not {required}.");
         }
 
         return new CustomMapBuilderResource(name, sourcePath, kind, bytes).NormalizeForEditing();
@@ -110,19 +113,35 @@ public static class CustomMapBuilderResourceCodec
         ArgumentException.ThrowIfNullOrWhiteSpace(outputDirectory);
 
         var bytes = GetResourceBytes(resource);
-        if (!IsSupportedImage(bytes))
+        if (!IsSupportedForKind(bytes, resource.Kind))
         {
-            throw new InvalidOperationException($"Resource \"{resource.Name}\" is not a PNG or GIF image.");
+            var required = resource.Kind == CustomMapBuilderResourceKind.MessageSound
+                ? "an OGG sound"
+                : "a PNG or GIF image";
+            throw new InvalidOperationException($"Resource \"{resource.Name}\" is not {required}.");
         }
 
         Directory.CreateDirectory(outputDirectory);
-        var extension = IsGif(bytes) ? ".GIF" : ".PNG";
+        var extension = IsOgg(bytes) ? ".OGG" : IsGif(bytes) ? ".GIF" : ".PNG";
         var outputPath = Path.Combine(outputDirectory, $"{SanitizeFileName(resource.Name)}{extension}");
         File.WriteAllBytes(outputPath, bytes);
         return outputPath;
     }
 
     public static bool IsSupportedImage(byte[] bytes) => IsPng(bytes) || IsGif(bytes);
+
+    public static bool IsSupportedSound(byte[] bytes) => IsOgg(bytes);
+
+    public static bool IsSupportedForKind(byte[] bytes, CustomMapBuilderResourceKind kind) =>
+        kind == CustomMapBuilderResourceKind.MessageSound
+            ? IsSupportedSound(bytes)
+            : IsSupportedImage(bytes);
+
+    public static bool IsImageResourceKind(CustomMapBuilderResourceKind kind) =>
+        kind != CustomMapBuilderResourceKind.MessageSound;
+
+    public static bool IsSoundResourceKind(CustomMapBuilderResourceKind kind) =>
+        kind == CustomMapBuilderResourceKind.MessageSound;
 
     public static IReadOnlyDictionary<string, CustomMapBuilderResource> DecodeResourcesFromMetadata(
         IReadOnlyDictionary<string, string> metadata)
@@ -177,6 +196,15 @@ public static class CustomMapBuilderResourceCodec
             && bytes[3] == '8'
             && (bytes[4] == '7' || bytes[4] == '9')
             && bytes[5] == 'a';
+    }
+
+    private static bool IsOgg(byte[] bytes)
+    {
+        return bytes.Length >= 4
+            && bytes[0] == 'O'
+            && bytes[1] == 'g'
+            && bytes[2] == 'g'
+            && bytes[3] == 'S';
     }
 
     private static string SanitizeFileName(string name)

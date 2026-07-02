@@ -640,22 +640,29 @@ internal static class CustomMapSyncService
                 return false;
             }
 
-            foreach (var imageReference in CustomMapPackageImporter.GetReferencedImagePaths(manifest))
+            foreach (var contentReference in CustomMapPackageImporter.GetReferencedContentPaths(manifest))
             {
-                if (!CustomMapPackageImporter.TryResolvePackageImagePath(
+                if (!CustomMapPackageImporter.TryResolvePackageContentPath(
                     tempDirectory,
-                    imageReference,
+                    contentReference,
                     requireFileExists: false,
-                    out var imageOutputPath,
+                    out var contentOutputPath,
                     out var normalizedRelativePath))
                 {
-                    error = $"Package image reference is invalid: {imageReference}";
+                    error = $"Package content reference is invalid: {contentReference}";
                     return false;
                 }
 
-                Directory.CreateDirectory(Path.GetDirectoryName(imageOutputPath)!);
-                var imageUri = new Uri(manifestUri, normalizedRelativePath);
-                if (!TryDownloadToFile(httpClient, imageUri, imageOutputPath, IsSupportedPngContentType, "Map package image", out error))
+                Directory.CreateDirectory(Path.GetDirectoryName(contentOutputPath)!);
+                var contentUri = new Uri(manifestUri, normalizedRelativePath);
+                var contentLabel = GetPackageContentLabel(normalizedRelativePath);
+                if (!TryDownloadToFile(
+                        httpClient,
+                        contentUri,
+                        contentOutputPath,
+                        GetPackageContentTypeValidator(normalizedRelativePath),
+                        contentLabel,
+                        out error))
                 {
                     return false;
                 }
@@ -760,31 +767,31 @@ internal static class CustomMapSyncService
                 return CustomMapSyncResult.Fail(error);
             }
 
-            foreach (var imageReference in CustomMapPackageImporter.GetReferencedImagePaths(manifest))
+            foreach (var contentReference in CustomMapPackageImporter.GetReferencedContentPaths(manifest))
             {
-                if (!CustomMapPackageImporter.TryResolvePackageImagePath(
+                if (!CustomMapPackageImporter.TryResolvePackageContentPath(
                     tempDirectory,
-                    imageReference,
+                    contentReference,
                     requireFileExists: false,
-                    out var imageOutputPath,
+                    out var contentOutputPath,
                     out var normalizedRelativePath))
                 {
-                    return CustomMapSyncResult.Fail($"Package image reference is invalid: {imageReference}");
+                    return CustomMapSyncResult.Fail($"Package content reference is invalid: {contentReference}");
                 }
 
-                Directory.CreateDirectory(Path.GetDirectoryName(imageOutputPath)!);
-                var imageUri = new Uri(manifestUri, normalizedRelativePath);
-                var imageResult = await TryDownloadToFileAsync(
+                Directory.CreateDirectory(Path.GetDirectoryName(contentOutputPath)!);
+                var contentUri = new Uri(manifestUri, normalizedRelativePath);
+                var contentResult = await TryDownloadToFileAsync(
                         httpClient,
-                        imageUri,
-                        imageOutputPath,
-                        IsSupportedPngContentType,
-                        "Map package image",
+                        contentUri,
+                        contentOutputPath,
+                        GetPackageContentTypeValidator(normalizedRelativePath),
+                        GetPackageContentLabel(normalizedRelativePath),
                         progress)
                     .ConfigureAwait(false);
-                if (!imageResult.Success)
+                if (!contentResult.Success)
                 {
-                    return imageResult;
+                    return contentResult;
                 }
             }
 
@@ -964,6 +971,24 @@ internal static class CustomMapSyncService
             || mediaType.Contains("png", StringComparison.OrdinalIgnoreCase)
             || mediaType.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase);
     }
+
+    private static bool IsSupportedOggContentType(string? mediaType)
+    {
+        return string.IsNullOrWhiteSpace(mediaType)
+            || mediaType.Contains("ogg", StringComparison.OrdinalIgnoreCase)
+            || mediaType.Contains("vorbis", StringComparison.OrdinalIgnoreCase)
+            || mediaType.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static Func<string?, bool> GetPackageContentTypeValidator(string relativePath) =>
+        Path.GetExtension(relativePath).Equals(".ogg", StringComparison.OrdinalIgnoreCase)
+            ? IsSupportedOggContentType
+            : IsSupportedPngContentType;
+
+    private static string GetPackageContentLabel(string relativePath) =>
+        Path.GetExtension(relativePath).Equals(".ogg", StringComparison.OrdinalIgnoreCase)
+            ? "Map package sound"
+            : "Map package image";
 
     private static void TryDeleteDirectory(string directory)
     {

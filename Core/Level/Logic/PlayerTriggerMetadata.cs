@@ -19,6 +19,7 @@ public static class PlayerTriggerMetadata
     public const string PlayerTriggerEntityType = "logicPlayerTrigger";
     public const string TeamPropertyKey = "team";
     public const string IntelCarriersOnlyPropertyKey = "intelCarriersOnly";
+    public const string MaxFiresPropertyKey = "maxFires";
     public const string TeamAnyPropertyValue = "any";
     public const float DefaultZoneWidth = 42f;
     public const float DefaultZoneHeight = 42f;
@@ -98,6 +99,21 @@ public static class PlayerTriggerMetadata
         };
     }
 
+    public static int ParseMaxFires(IReadOnlyDictionary<string, string>? properties)
+    {
+        if (properties is null
+            || !properties.TryGetValue(MaxFiresPropertyKey, out var value)
+            || !int.TryParse(value, out var parsed))
+        {
+            return 0;
+        }
+
+        return Math.Max(0, parsed);
+    }
+
+    public static string ToMaxFiresPropertyValue(int maxFires) =>
+        Math.Max(0, maxFires).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
     public static PlayerTriggerZoneConfiguration ParseZoneConfiguration(IReadOnlyDictionary<string, string>? properties)
     {
         var team = TryParseTeamFilter(
@@ -136,7 +152,7 @@ public static class PlayerTriggerMetadata
                 continue;
             }
 
-            if (IsPointInsideZone(player.X, player.Y, zone))
+            if (player.IntersectsMarker(zone.CenterX, zone.CenterY, zone.Width, zone.Height))
             {
                 return true;
             }

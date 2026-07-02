@@ -213,7 +213,8 @@ public partial class Game1
                 _pendingPredictedPrimaryPress,
                 _pendingPredictedSecondaryAbilityPress,
                 _pendingPredictedAbilityPress,
-                _pendingPredictedSwapWeaponPress);
+                _pendingPredictedSwapWeaponPress,
+                outboundNetworkInput.Taunt && !_previousPredictedLocalInput.Taunt);
             ClearPendingPredictedInputEdges();
         }
     }

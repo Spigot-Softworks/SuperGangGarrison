@@ -41,6 +41,7 @@ public partial class Game1
     private const string GarrisonBuilderMapPropertyNameKey = "$name";
     private const string GarrisonBuilderMapPropertyVisualScaleKey = "$visualScale";
     private const string GarrisonBuilderMapPropertyWalkmaskScaleKey = "$walkmaskScale";
+    private const string GarrisonBuilderGameplayMessagePreviewAnimationKey = "$previewAnimation";
 
     private static readonly string[] GarrisonBuilderMapPropertyRowOrder =
     [
@@ -190,6 +191,7 @@ public partial class Game1
     private int _builderResourceScrollIndex;
     private string _builderPendingResourceName = string.Empty;
     private CustomMapBuilderResourceKind _builderPendingResourceKind = CustomMapBuilderResourceKind.GenericImage;
+    private string _builderPendingResourceAssignPropertyKey = string.Empty;
     private string _builderSelectedResourceName = string.Empty;
     private string _builderResourceNameBuffer = string.Empty;
     private string _builderResourcePathBuffer = string.Empty;
@@ -219,6 +221,8 @@ public partial class Game1
     private int _builderActionVisibleRows = LegacyBuilderVisibleActionRows;
     private bool _builderActionExpanded = true;
     private float _builderActionExpandProgress = 1f;
+    private float _builderGameplayMessagePreviewElapsedSeconds;
+    private float _builderGameplayMessagePreviewSecondsRemaining;
     private bool _builderGameModeMenuOpen;
     private LegacyBuilderPanelDragTarget _builderPanelDragTarget = LegacyBuilderPanelDragTarget.None;
     private Point _builderPanelDragLastMouse;
@@ -266,6 +270,7 @@ public partial class Game1
 
         LoadGarrisonBuilderEditorAssets();
         UpdateGarrisonBuilderTransientStatus(deltaSeconds);
+        UpdateGarrisonBuilderGameplayMessagePreviewTimer(deltaSeconds);
         _builderShiftHeld = keyboard.IsKeyDown(Keys.LeftShift) || keyboard.IsKeyDown(Keys.RightShift);
         _builderCtrlHeld = keyboard.IsKeyDown(Keys.LeftControl) || keyboard.IsKeyDown(Keys.RightControl);
         _builderAltHeld = keyboard.IsKeyDown(Keys.LeftAlt) || keyboard.IsKeyDown(Keys.RightAlt);
@@ -472,6 +477,41 @@ public partial class Game1
         {
             CommitGarrisonBuilderErase(mouse.Position.ToVector2() + _builderCamera);
         }
+    }
+
+    private void UpdateGarrisonBuilderGameplayMessagePreviewTimer(float deltaSeconds)
+    {
+        if (_builderGameplayMessagePreviewSecondsRemaining <= 0f)
+        {
+            _builderGameplayMessagePreviewElapsedSeconds = 0f;
+            _builderGameplayMessagePreviewSecondsRemaining = 0f;
+            return;
+        }
+
+        var clampedDelta = Math.Clamp(deltaSeconds, 0f, 0.1f);
+        _builderGameplayMessagePreviewElapsedSeconds += clampedDelta;
+        _builderGameplayMessagePreviewSecondsRemaining = MathF.Max(0f, _builderGameplayMessagePreviewSecondsRemaining - clampedDelta);
+    }
+
+    private void StartGarrisonBuilderGameplayMessageAnimationPreview()
+    {
+        var marker = GameplayMessageMetadata.FromProperties(0f, 0f, _builderPropertyEditorValues);
+        _builderGameplayMessagePreviewElapsedSeconds = 0f;
+        var textPreviewSeconds = ResolveGarrisonBuilderGameplayMessagePreviewSeconds(marker, marker.Animation);
+        var imagePreviewSeconds = ResolveGarrisonBuilderGameplayMessagePreviewSeconds(marker, marker.ImageAnimation);
+        _builderGameplayMessagePreviewSecondsRemaining = MathF.Max(textPreviewSeconds, imagePreviewSeconds);
+        _builderStatus = "previewing message animation";
+    }
+
+    private static float ResolveGarrisonBuilderGameplayMessagePreviewSeconds(GameplayMessageMarker marker, GameplayMessageAnimation animation)
+    {
+        return animation switch
+        {
+            GameplayMessageAnimation.None => 0.75f,
+            GameplayMessageAnimation.Typing => MathF.Max(0.25f, marker.TypingDurationSeconds) + 0.65f,
+            GameplayMessageAnimation.Ltd => MathF.Max(0.75f, marker.DurationSeconds) + 0.65f,
+            _ => MathF.Max(0.75f, MathF.Min(0.75f, marker.DurationSeconds * 0.4f) + 0.65f),
+        };
     }
 
     private void DrawGarrisonBuilderEditorOverlay(MouseState mouse)
@@ -1069,6 +1109,7 @@ public partial class Game1
                 CustomMapBuilderResourceKind.ParallaxLayer => "L",
                 CustomMapBuilderResourceKind.Foreground => "F",
                 CustomMapBuilderResourceKind.EntitySprite => "E",
+                CustomMapBuilderResourceKind.MessageSound => "S",
                 _ => "R",
             };
             var label = $"{prefix} {resource.Name}";
@@ -1171,7 +1212,7 @@ public partial class Game1
         }
 
         var rows = GetGarrisonBuilderPropertyRows();
-        var visibleRows = GetGarrisonBuilderPropertyVisibleRows(bounds);
+        var visibleRows = GetGarrisonBuilderPropertyVisibleRows(bounds, rows.Count);
         _builderPropertyScrollIndex = Math.Clamp(_builderPropertyScrollIndex, 0, Math.Max(0, rows.Count - visibleRows));
         var rowHeight = GetGarrisonBuilderPropertyRowHeight();
         var y = GetGarrisonBuilderPropertyListTop(bounds);
@@ -1517,6 +1558,11 @@ public partial class Game1
         out float height)
     {
         left = top = width = height = 0f;
+        if (TryGetGarrisonBuilderGameplayMessagePresentationWorldBounds(entity, out left, out top, out width, out height))
+        {
+            return true;
+        }
+
         if (TryGetGarrisonBuilderLogicNodeWorldBounds(entity, out left, out top, out width, out height))
         {
             return true;
@@ -2299,10 +2345,14 @@ public partial class Game1
         BeginAddingGarrisonBuilderResource(CustomMapBuilderResourceKind.ParallaxLayer, $"bg_layer{_builderLayerIndex}");
     }
 
-    private void BeginAddingGarrisonBuilderResource(CustomMapBuilderResourceKind kind, string suggestedName)
+    private void BeginAddingGarrisonBuilderResource(
+        CustomMapBuilderResourceKind kind,
+        string suggestedName,
+        string assignPropertyKey = "")
     {
         _builderPendingResourceKind = kind;
         _builderPendingResourceName = suggestedName.Trim();
+        _builderPendingResourceAssignPropertyKey = assignPropertyKey.Trim();
         _builderResourceNameBuffer = suggestedName;
         _builderResourcePathBuffer = string.Empty;
         BeginEditingGarrisonBuilderPath(string.IsNullOrWhiteSpace(suggestedName)
@@ -2336,6 +2386,7 @@ public partial class Game1
         try
         {
             var resource = CustomMapBuilderResourceCodec.FromFile(_builderPendingResourceName, path, _builderPendingResourceKind);
+            var assignPropertyKey = _builderPendingResourceAssignPropertyKey;
             var resources = new Dictionary<string, CustomMapBuilderResource>(_builderDocument.Resources, StringComparer.OrdinalIgnoreCase)
             {
                 [resource.Name] = resource,
@@ -2344,8 +2395,15 @@ public partial class Game1
             _builderDocument = _builderDocument with { Resources = resources };
             _builderSelectedResourceName = resource.Name;
             _builderPendingResourceName = string.Empty;
+            _builderPendingResourceAssignPropertyKey = string.Empty;
             RemoveGarrisonBuilderResourceTexture(resource.Name);
-            if (resource.Kind == CustomMapBuilderResourceKind.ParallaxLayer && _builderLayerIndex is >= 0 and <= 6)
+            var assignedToProperty = TryAssignGarrisonBuilderResourceToCurrentProperty(assignPropertyKey, resource);
+            if (assignedToProperty)
+            {
+                _builderSelectedResourceName = string.Empty;
+                _builderStatus = $"assigned {resource.Name}";
+            }
+            else if (resource.Kind == CustomMapBuilderResourceKind.ParallaxLayer && _builderLayerIndex is >= 0 and <= 6)
             {
                 AssignGarrisonBuilderResourceToLayer(_builderLayerIndex, resource.Name);
             }
@@ -2358,7 +2416,11 @@ public partial class Game1
                 _builderDirty = true;
             }
 
-            _builderStatus = $"resource loaded: {resource.Name}";
+            if (!assignedToProperty)
+            {
+                _builderStatus = $"resource loaded: {resource.Name}";
+            }
+
             AddConsoleLine($"builder resource: {resource.Name} <- {path}");
         }
         catch (Exception ex)
@@ -2478,6 +2540,7 @@ public partial class Game1
 
         if (!_builderDocument.Resources.TryGetValue(resourceName, out var resource)
             || !CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var bytes)
+            || !CustomMapBuilderResourceCodec.IsSupportedImage(bytes)
             || bytes.Length == 0)
         {
             return null;
@@ -3610,6 +3673,7 @@ public partial class Game1
         _builderEntityDragging = false;
         _builderMultiDragSnapshots.Clear();
         _builderActiveResizeHandle = GarrisonBuilderResizeHandle.None;
+        ClearGarrisonBuilderGameplayMessageImageInteraction();
         CloseGarrisonBuilderPropertyEditor(applyChanges: false);
         CloseGarrisonBuilderEntityContextMenu();
         CloseGarrisonBuilderEntityOverlapPicker();
@@ -3647,6 +3711,7 @@ public partial class Game1
             _builderAreaSelectDragging = false;
             _builderMultiDragSnapshots.Clear();
             _builderActiveResizeHandle = GarrisonBuilderResizeHandle.None;
+            ClearGarrisonBuilderGameplayMessageImageInteraction();
             CloseGarrisonBuilderPropertyEditor(applyChanges: false);
             CloseGarrisonBuilderEntityContextMenu();
         }
@@ -4004,6 +4069,11 @@ public partial class Game1
             return true;
         }
 
+        if (TryDrawGarrisonBuilderGameplayMessageEntity(definition, entity, tint))
+        {
+            return true;
+        }
+
         if (definition.Type.Equals("directionalWall", StringComparison.OrdinalIgnoreCase))
         {
             DrawGarrisonBuilderDirectionalWallPattern(entity, tint);
@@ -4043,6 +4113,153 @@ public partial class Game1
             SpriteEffects.None,
             0f);
         return true;
+    }
+
+    private bool TryDrawGarrisonBuilderGameplayMessageEntity(
+        CustomMapBuilderEntityDefinition definition,
+        CustomMapBuilderEntity entity,
+        Color tint)
+    {
+        if (!GameplayMessageMetadata.IsGameplayMessageEntityType(definition.Type))
+        {
+            return false;
+        }
+
+        var marker = GameplayMessageMetadata.FromProperties(
+            entity.X,
+            entity.Y,
+            entity.XScale,
+            entity.YScale,
+            entity.Properties);
+        var mapViewport = _builderUseModernUi
+            ? GetModernGarrisonBuilderMapViewport()
+            : new Rectangle(0, 0, BuilderViewportWidth, BuilderViewportHeight);
+        var screenBounds = ResolveGarrisonBuilderGameplayMessagePreviewBounds(marker, mapViewport, out var renderScale);
+        if (screenBounds.Width <= 0 || screenBounds.Height <= 0)
+        {
+            return true;
+        }
+
+        var alpha = Math.Clamp(tint.A / 255f, 0.2f, 1f);
+        DrawGameplayMessagePreview(
+            marker,
+            screenBounds,
+            mapViewport,
+            alpha,
+            renderScale,
+            _builderGameplayMessagePreviewSecondsRemaining > 0f
+                ? _builderGameplayMessagePreviewElapsedSeconds
+                : -1f);
+        return true;
+    }
+
+    private Rectangle ResolveGarrisonBuilderGameplayMessagePreviewBounds(
+        GameplayMessageMarker marker,
+        Rectangle mapViewport,
+        out float renderScale)
+    {
+        if (IsGameplayMessageWorldPlaced(marker))
+        {
+            renderScale = _builderUseModernUi
+                ? MathF.Max(0.1f, GetGarrisonBuilderMapVisualScale())
+                : 1f;
+            return ToUnclippedGarrisonBuilderScreenRectangle(new RectangleF(
+                marker.ScreenX,
+                marker.ScreenY,
+                MathF.Max(1f, marker.Width),
+                MathF.Max(1f, marker.Height)));
+        }
+
+        renderScale = 1f;
+        var width = MathF.Max(1f, marker.Width);
+        var height = MathF.Max(1f, marker.Height);
+        var x = mapViewport.X + ResolveGameplayMessageCoordinate(marker.ScreenX, mapViewport.Width, width);
+        var y = mapViewport.Y + ResolveGameplayMessageCoordinate(marker.ScreenY, mapViewport.Height, height);
+        return new Rectangle(
+            (int)MathF.Round(x),
+            (int)MathF.Round(y),
+            (int)MathF.Round(width),
+            (int)MathF.Round(height));
+    }
+
+    private Rectangle ToUnclippedGarrisonBuilderScreenRectangle(RectangleF rectangle)
+    {
+        if (_builderUseModernUi)
+        {
+            var topLeft = BuilderWorldToScreen(new Vector2(rectangle.X, rectangle.Y));
+            var bottomRight = BuilderWorldToScreen(new Vector2(rectangle.Right, rectangle.Bottom));
+            var left = (int)MathF.Round(MathF.Min(topLeft.X, bottomRight.X));
+            var top = (int)MathF.Round(MathF.Min(topLeft.Y, bottomRight.Y));
+            var right = (int)MathF.Round(MathF.Max(topLeft.X, bottomRight.X));
+            var bottom = (int)MathF.Round(MathF.Max(topLeft.Y, bottomRight.Y));
+            return new Rectangle(left, top, Math.Max(1, right - left), Math.Max(1, bottom - top));
+        }
+
+        return new Rectangle(
+            (int)MathF.Round(rectangle.X - _builderCamera.X),
+            (int)MathF.Round(rectangle.Y - _builderCamera.Y),
+            Math.Max(1, (int)MathF.Round(rectangle.Width)),
+            Math.Max(1, (int)MathF.Round(rectangle.Height)));
+    }
+
+    private bool TryGetGarrisonBuilderGameplayMessagePresentationWorldBounds(
+        CustomMapBuilderEntity entity,
+        out float left,
+        out float top,
+        out float width,
+        out float height)
+    {
+        left = top = width = height = 0f;
+        if (!GameplayMessageMetadata.IsGameplayMessageEntityType(entity.Type))
+        {
+            return false;
+        }
+
+        var marker = GameplayMessageMetadata.FromProperties(
+            entity.X,
+            entity.Y,
+            entity.XScale,
+            entity.YScale,
+            entity.Properties);
+        var mapViewport = _builderUseModernUi
+            ? GetModernGarrisonBuilderMapViewport()
+            : new Rectangle(0, 0, BuilderViewportWidth, BuilderViewportHeight);
+        var screenBounds = ResolveGarrisonBuilderGameplayMessagePreviewBounds(marker, mapViewport, out var renderScale);
+        var styledBounds = ResolveGameplayMessageStyleBounds(screenBounds, mapViewport, marker, marker.Text, renderScale);
+        var worldBounds = ToGarrisonBuilderWorldRectangle(styledBounds);
+        left = worldBounds.X;
+        top = worldBounds.Y;
+        width = worldBounds.Width;
+        height = worldBounds.Height;
+        return width > 0f && height > 0f;
+    }
+
+    private static bool IsGarrisonBuilderGameplayMessageFullWidthStyle(CustomMapBuilderEntity entity)
+    {
+        if (!GameplayMessageMetadata.IsGameplayMessageEntityType(entity.Type))
+        {
+            return false;
+        }
+
+        var style = GameplayMessageMetadata.ParseStyle(entity.Properties);
+        return style is GameplayMessageStyle.Notification
+            or GameplayMessageStyle.Notification2;
+    }
+
+    private RectangleF ToGarrisonBuilderWorldRectangle(Rectangle rectangle)
+    {
+        if (_builderUseModernUi)
+        {
+            return CreateWorldRectangle(
+                BuilderScreenToWorld(new Vector2(rectangle.X, rectangle.Y)),
+                BuilderScreenToWorld(new Vector2(rectangle.Right, rectangle.Bottom)));
+        }
+
+        return new RectangleF(
+            rectangle.X + _builderCamera.X,
+            rectangle.Y + _builderCamera.Y,
+            Math.Max(1f, rectangle.Width),
+            Math.Max(1f, rectangle.Height));
     }
 
     private static Color GetGarrisonBuilderEntityDrawTint(
@@ -4192,7 +4409,13 @@ public partial class Game1
             var spriteName = definition.EntitySpriteName;
 
             var frameIndex = Math.Clamp(definition.EntityImage, 0, 5);
-            if (definition.Type.Equals(TeleportMetadata.TeleportExitEntityType, StringComparison.OrdinalIgnoreCase))
+            if (HealthPackMetadata.IsHealthPackEntityType(definition.Type)
+                && HealthPackMetadata.ParseSize(properties) == HealthPackSize.Small)
+            {
+                spriteName = HealthPackMetadata.SmallSpriteName;
+                frameIndex = 0;
+            }
+            else if (definition.Type.Equals(TeleportMetadata.TeleportExitEntityType, StringComparison.OrdinalIgnoreCase))
             {
                 frameIndex = 0;
             }
@@ -4241,6 +4464,7 @@ public partial class Game1
         return type.Equals(TeleportMetadata.TeleportEntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals(PlayerTriggerMetadata.PlayerTriggerEntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals(DamageableMetadata.DamageableEntityType, StringComparison.OrdinalIgnoreCase)
+            || GameplayMessageMetadata.IsGameplayMessageEntityType(type)
             || type.Equals("barrier", StringComparison.OrdinalIgnoreCase)
             || type.Equals("directionalWall", StringComparison.OrdinalIgnoreCase)
             || type.Equals("redteamgate", StringComparison.OrdinalIgnoreCase)
@@ -4319,6 +4543,20 @@ public partial class Game1
             return true;
         }
 
+        if (GameplayMessageMetadata.IsGameplayMessageEntityType(type))
+        {
+            var messageWidth = float.Clamp(
+                GameplayMessageMetadata.DefaultWidth * NormalizeGarrisonBuilderMessageScale(xScale),
+                GameplayMessageMetadata.MinWidth,
+                4096f);
+            var messageHeight = float.Clamp(
+                GameplayMessageMetadata.DefaultHeight * NormalizeGarrisonBuilderMessageScale(yScale),
+                GameplayMessageMetadata.MinHeight,
+                4096f);
+            metrics = new GarrisonBuilderEntityMetrics(messageWidth, messageHeight, 0f, 0f, 0f, 0f, -messageWidth);
+            return true;
+        }
+
         if (!IsGarrisonBuilderAnchorSizedEntityType(type))
         {
             metrics = default;
@@ -4333,6 +4571,9 @@ public partial class Game1
         metrics = new GarrisonBuilderEntityMetrics(width, height, 0f, 0f, 0f, 0f, -width);
         return true;
     }
+
+    private static float NormalizeGarrisonBuilderMessageScale(float scale) =>
+        float.IsFinite(scale) && MathF.Abs(scale) > 0f ? MathF.Abs(scale) : 1f;
 
     private static int ResolveGarrisonBuilderSpawnSpriteFrame(IReadOnlyDictionary<string, string> properties)
     {
@@ -4380,6 +4621,11 @@ public partial class Game1
             return;
         }
 
+        if (GameplayMessageMetadata.IsGameplayMessageEntityType(type))
+        {
+            return;
+        }
+
         minWidth = baseWidth * 0.25f;
         minHeight = baseHeight * 0.25f;
     }
@@ -4400,6 +4646,13 @@ public partial class Game1
         {
             minWidth = PlayerTriggerMetadata.MinZoneExtent;
             minHeight = PlayerTriggerMetadata.MinZoneExtent;
+            return;
+        }
+
+        if (GameplayMessageMetadata.IsGameplayMessageEntityType(type))
+        {
+            minWidth = GameplayMessageMetadata.MinWidth;
+            minHeight = GameplayMessageMetadata.MinHeight;
             return;
         }
 
@@ -4848,7 +5101,7 @@ public partial class Game1
             GarrisonBuilderPathField.Walkmask => "enter a walkmask PNG path",
             GarrisonBuilderPathField.Save => "enter an output PNG or JSON package path",
             GarrisonBuilderPathField.ResourceName => "enter a resource name",
-            GarrisonBuilderPathField.ResourcePath => "enter a PNG/GIF resource path",
+            GarrisonBuilderPathField.ResourcePath => GetGarrisonBuilderResourcePathPrompt(),
             GarrisonBuilderPathField.ResourceOutputDirectory => "enter a directory for decompiled resources",
             _ => _builderStatus,
         };
@@ -4858,6 +5111,7 @@ public partial class Game1
     {
         _builderPendingResourceName = string.Empty;
         _builderPendingResourceKind = CustomMapBuilderResourceKind.GenericImage;
+        _builderPendingResourceAssignPropertyKey = string.Empty;
         _builderResourcePathBuffer = string.Empty;
     }
 
@@ -4910,7 +5164,8 @@ public partial class Game1
                 return TryChooseGarrisonBuilderFile("Load walkmask PNG", "PNG files (*.png)|*.png|All files (*.*)|*.*", _builderWalkmaskPathBuffer, out _builderWalkmaskPathBuffer)
                     && ApplyChosenGarrisonBuilderPath(field);
             case GarrisonBuilderPathField.ResourcePath:
-                return TryChooseGarrisonBuilderFile("Load builder resource", "Image files (*.png;*.gif)|*.png;*.gif|PNG files (*.png)|*.png|GIF files (*.gif)|*.gif|All files (*.*)|*.*", _builderResourcePathBuffer, out _builderResourcePathBuffer)
+                var resourceDialog = GetGarrisonBuilderResourcePathDialogOptions();
+                return TryChooseGarrisonBuilderFile(resourceDialog.Title, resourceDialog.Filter, _builderResourcePathBuffer, out _builderResourcePathBuffer)
                     && ApplyChosenGarrisonBuilderPath(field);
             case GarrisonBuilderPathField.ResourceOutputDirectory:
                 return TryChooseGarrisonBuilderFolder("Choose resource output directory", _builderResourceOutputDirectoryBuffer, out _builderResourceOutputDirectoryBuffer)
@@ -4922,6 +5177,16 @@ public partial class Game1
                 return false;
         }
     }
+
+    private string GetGarrisonBuilderResourcePathPrompt() =>
+        _builderPendingResourceKind == CustomMapBuilderResourceKind.MessageSound
+            ? "enter an OGG resource path"
+            : "enter a PNG/GIF resource path";
+
+    private (string Title, string Filter) GetGarrisonBuilderResourcePathDialogOptions() =>
+        _builderPendingResourceKind == CustomMapBuilderResourceKind.MessageSound
+            ? ("Load message sound", "OGG sound files (*.ogg)|*.ogg|All files (*.*)|*.*")
+            : ("Load builder resource", "Image files (*.png;*.gif)|*.png;*.gif|PNG files (*.png)|*.png|GIF files (*.gif)|*.gif|All files (*.*)|*.*");
 
     private bool ApplyChosenGarrisonBuilderPath(GarrisonBuilderPathField field)
     {
@@ -5168,10 +5433,11 @@ public partial class Game1
                     return true;
                 }
 
-                if (GetGarrisonBuilderPropertyEditorBounds().Contains(mouse.Position))
+                var editorBounds = GetGarrisonBuilderPropertyEditorBounds();
+                if (editorBounds.Contains(mouse.Position))
                 {
                     var rows = GetGarrisonBuilderPropertyRows();
-                    var visibleRows = GetGarrisonBuilderPropertyVisibleRows(GetGarrisonBuilderPropertyEditorBounds());
+                    var visibleRows = GetGarrisonBuilderPropertyVisibleRows(editorBounds, rows.Count);
                     _builderPropertyScrollIndex = Math.Clamp(
                         _builderPropertyScrollIndex + (wheelDelta > 0 ? -1 : 1),
                         0,
@@ -5361,7 +5627,7 @@ public partial class Game1
         }
 
         var rows = GetGarrisonBuilderPropertyRows();
-        var visibleRows = GetGarrisonBuilderPropertyVisibleRows(bounds);
+        var visibleRows = GetGarrisonBuilderPropertyVisibleRows(bounds, rows.Count);
         _builderPropertyScrollIndex = Math.Clamp(_builderPropertyScrollIndex, 0, Math.Max(0, rows.Count - visibleRows));
         var visibleRowIndex = (position.Y - GetGarrisonBuilderPropertyListTop(bounds)) / GetGarrisonBuilderPropertyRowHeight();
         if (visibleRowIndex < 0 || visibleRowIndex >= visibleRows)
@@ -5391,6 +5657,13 @@ public partial class Game1
         var rowBounds = GetGarrisonBuilderPropertyRowBounds(bounds, rowY);
         if (TryClearGarrisonBuilderPropertyConnectionClick(key, value, rowBounds, position))
         {
+            return true;
+        }
+
+        if (key.Equals(GarrisonBuilderGameplayMessagePreviewAnimationKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            StartGarrisonBuilderGameplayMessageAnimationPreview();
             return true;
         }
 
@@ -5493,6 +5766,170 @@ public partial class Game1
         }
         else if (TryHandleGarrisonBuilderScrScorePropertyClick(key, value, rowBounds, position))
         {
+        }
+        else if (key.Equals(HealthPackMetadata.SizePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderHealthPackEntity())
+        {
+            _builderPropertyEditorValues[key] = HealthPackMetadata.CycleSizePropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(BotSpawnMetadata.TeamPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            _builderPropertyEditorValues[key] = BotSpawnMetadata.CycleTeamPropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(BotSpawnMetadata.ClassPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            _builderPropertyEditorValues[key] = BotSpawnMetadata.CycleClassPropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(BotSpawnMetadata.KindPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            _builderPropertyEditorValues[key] = BotSpawnMetadata.CycleKindPropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(BotSpawnMetadata.RespawnPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            _builderPropertyEditorValues[key] = BotSpawnMetadata.CycleRespawnPropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(BotSpawnMetadata.RespawnAtPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            _builderPropertyEditorValues[key] = BotSpawnMetadata.CycleRespawnModePropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(BotSpawnMetadata.NameModePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            _builderPropertyEditorValues[key] = BotSpawnMetadata.CycleNameModePropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(BotSpawnMetadata.ForceNameplatePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            _builderPropertyEditorValues[key] = BotSpawnMetadata.CycleForceNameplatePropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(BotSpawnMetadata.ForceHealthBarPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            _builderPropertyEditorValues[key] = BotSpawnMetadata.CycleForceHealthBarPropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(GameplayMessageMetadata.StylePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            _builderPropertyEditorValues[key] = GameplayMessageMetadata.CycleStylePropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+            ClampGarrisonBuilderPropertyEditorScrollIndex();
+        }
+        else if (key.Equals(GameplayMessageMetadata.DialogueBoxPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            _builderPropertyEditorValues[key] = GameplayMessageMetadata.CycleDialogueBoxStylePropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(GameplayMessageMetadata.AnimationPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            _builderPropertyEditorValues[key] = GameplayMessageMetadata.CycleAnimationPropertyValue(value);
+            _builderGameplayMessagePreviewElapsedSeconds = 0f;
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(GameplayMessageMetadata.ImageAnimationPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            _builderPropertyEditorValues[key] = GameplayMessageMetadata.CycleImageAnimationPropertyValue(value);
+            _builderGameplayMessagePreviewElapsedSeconds = 0f;
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(GameplayMessageMetadata.FontPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            _builderPropertyEditorValues[key] = GameplayMessageMetadata.CycleFontPropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(GameplayMessageMetadata.AlignmentPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            _builderPropertyEditorValues[key] = GameplayMessageMetadata.CycleAlignmentPropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(GameplayMessageMetadata.ChatTeamPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            _builderPropertyEditorValues[key] = GameplayMessageMetadata.CycleChatTeamPropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(GameplayMessageMetadata.EndModePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            _builderPropertyEditorValues[key] = GameplayMessageMetadata.CycleEndModePropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(GameplayMessageMetadata.OnEndActionPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            _builderPropertyEditorValues[key] = GameplayMessageMetadata.CycleOnEndActionPropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+            ClampGarrisonBuilderPropertyEditorScrollIndex();
+        }
+        else if (TryHandleGarrisonBuilderGameplayMessageResourcePropertyClick(key, value, leftClick))
+        {
+        }
+        else if (key.Equals(GameplaySoundMetadata.ModePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplaySoundEntity())
+        {
+            _builderPropertyEditorValues[key] = GameplaySoundMetadata.CycleModePropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(GameplaySoundMetadata.CrossfadePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplaySoundEntity())
+        {
+            _builderPropertyEditorValues[key] = GameplaySoundMetadata.CycleCrossfadePropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (TryHandleGarrisonBuilderGameplaySoundResourcePropertyClick(key, value))
+        {
+        }
+        else if (key.Equals(SpawnClassBehaviorMetadata.TeamPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderSpawnClassBehaviorEntity())
+        {
+            _builderPropertyEditorValues[key] = SpawnClassBehaviorMetadata.CycleTeamPropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(SpawnClassBehaviorMetadata.ForceClassPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderSpawnClassBehaviorEntity())
+        {
+            _builderPropertyEditorValues[key] = SpawnClassBehaviorMetadata.CycleForcedClassPropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
         }
         else if (key.Equals("team", StringComparison.OrdinalIgnoreCase))
         {
@@ -5616,7 +6053,8 @@ public partial class Game1
         }
         else if (IsGarrisonBuilderTeleportExitMapPickProperty(key)
             && TryGetGarrisonBuilderEditedEntityType(out var teleportPickEntity)
-            && teleportPickEntity.Equals(TeleportMetadata.TeleportEntityType, StringComparison.OrdinalIgnoreCase))
+            && (teleportPickEntity.Equals(TeleportMetadata.TeleportEntityType, StringComparison.OrdinalIgnoreCase)
+                || teleportPickEntity.Equals(GameplayMessageMetadata.EntityType, StringComparison.OrdinalIgnoreCase)))
         {
             BeginGarrisonBuilderEntityMapPick(key);
         }
@@ -5657,6 +6095,21 @@ public partial class Game1
             _builderPropertyEditorValues[key] = DamageableMetadata.CycleBooleanPropertyValue(value);
             ApplyGarrisonBuilderPropertyEditorLivePreview();
             MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(BotSpawnMetadata.TriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            BeginGarrisonBuilderLogicMapPick(key);
+        }
+        else if (key.Equals(GameplayMessageMetadata.TriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            BeginGarrisonBuilderLogicMapPick(key);
+        }
+        else if (key.Equals(GameplaySoundMetadata.TriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplaySoundEntity())
+        {
+            BeginGarrisonBuilderLogicMapPick(key);
         }
         else if (IsGarrisonBuilderLogicMapPickProperty(key))
         {
@@ -5953,6 +6406,15 @@ public partial class Game1
                     MapLogicMetadata.ToCountdownSecondsPropertyValue(
                         value.Length == 0 ? 1f : MapLogicMetadata.ParseCountdownSeconds(value));
             }
+            else if (_builderPropertyEditKey.Equals(HealthPackMetadata.RespawnSecondsPropertyKey, StringComparison.OrdinalIgnoreCase)
+                && IsEditingGarrisonBuilderHealthPackEntity())
+            {
+                _builderPropertyEditorValues[_builderPropertyEditKey] =
+                    HealthPackMetadata.ToRespawnSecondsPropertyValue(
+                        value.Length == 0
+                            ? HealthPackSpawnMarker.DefaultRespawnSeconds
+                            : HealthPackMetadata.ParseRespawnSeconds(value));
+            }
             else if (_builderPropertyEditKey.Equals(MapLogicSignalMetadata.PeriodPropertyKey, StringComparison.OrdinalIgnoreCase))
             {
                 _builderPropertyEditorValues[_builderPropertyEditKey] =
@@ -6095,6 +6557,9 @@ public partial class Game1
                 PruneGarrisonBuilderLogicPropertiesForSave(
                     placementEntityType,
                     _builderPlacementPropertyOverrides);
+                PruneGarrisonBuilderGameplayMessagePropertiesForSave(
+                    placementEntityType,
+                    _builderPlacementPropertyOverrides);
             }
 
             _builderStatus = "placement properties updated";
@@ -6110,6 +6575,7 @@ public partial class Game1
             PreserveGarrisonBuilderHiddenEntityProperties(entity.Properties, properties);
             PruneGarrisonBuilderControlPointPropertiesForSave(entity.Type, properties);
             PruneGarrisonBuilderLogicPropertiesForSave(entity.Type, properties);
+            PruneGarrisonBuilderGameplayMessagePropertiesForSave(entity.Type, properties);
             properties["type"] = entity.Type;
             properties["x"] = entity.X.ToString(System.Globalization.CultureInfo.InvariantCulture);
             properties["y"] = entity.Y.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -6219,7 +6685,271 @@ public partial class Game1
             return BuildGarrisonBuilderControlPointPropertyRowsWithLogic(propertyRows);
         }
 
+        if (IsEditingGarrisonBuilderHealthPackEntity())
+        {
+            return OrderGarrisonBuilderPropertyRows(
+                propertyRows,
+                [HealthPackMetadata.SizePropertyKey, HealthPackMetadata.RespawnSecondsPropertyKey],
+                []);
+        }
+
+        if (IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            return OrderGarrisonBuilderPropertyRows(
+                propertyRows,
+                [
+                    BotSpawnMetadata.TriggerPropertyKey,
+                    BotSpawnMetadata.TeamPropertyKey,
+                    BotSpawnMetadata.ClassPropertyKey,
+                    BotSpawnMetadata.KindPropertyKey,
+                    BotSpawnMetadata.RespawnPropertyKey,
+                    BotSpawnMetadata.RespawnAtPropertyKey,
+                    BotSpawnMetadata.NameModePropertyKey,
+                    BotSpawnMetadata.NamePropertyKey,
+                    BotSpawnMetadata.ForceNameplatePropertyKey,
+                    BotSpawnMetadata.ForceHealthBarPropertyKey,
+                    BotSpawnMetadata.DeathTriggerPropertyKey,
+                ],
+                []);
+        }
+
+        if (IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            if (!propertyRows.Contains(GarrisonBuilderGameplayMessagePreviewAnimationKey, StringComparer.OrdinalIgnoreCase))
+            {
+                propertyRows.Add(GarrisonBuilderGameplayMessagePreviewAnimationKey);
+            }
+
+            return OrderGarrisonBuilderPropertyRows(
+                propertyRows,
+                [
+                    GameplayMessageMetadata.TriggerPropertyKey,
+                    GameplayMessageMetadata.TextPropertyKey,
+                    GameplayMessageMetadata.StylePropertyKey,
+                    GameplayMessageMetadata.DialogueBoxPropertyKey,
+                    GameplayMessageMetadata.AnimationPropertyKey,
+                    GarrisonBuilderGameplayMessagePreviewAnimationKey,
+                    GameplayMessageMetadata.FontPropertyKey,
+                    GameplayMessageMetadata.FontScalePropertyKey,
+                    GameplayMessageMetadata.TypingDurationPropertyKey,
+                    GameplayMessageMetadata.AlignmentPropertyKey,
+                    GameplayMessageMetadata.ChatTeamPropertyKey,
+                    GameplayMessageMetadata.DurationPropertyKey,
+                    GameplayMessageMetadata.EndModePropertyKey,
+                    GameplayMessageMetadata.InputPropertyKey,
+                    GameplayMessageMetadata.FreezeSimulationPropertyKey,
+                    GameplayMessageMetadata.SoundPropertyKey,
+                    GameplayMessageMetadata.MusicPropertyKey,
+                    GameplayMessageMetadata.MusicCrossfadePropertyKey,
+                    GameplayMessageMetadata.MusicCrossfadeSecondsPropertyKey,
+                    GameplayMessageMetadata.MusicLoopPropertyKey,
+                    GameplayMessageMetadata.MusicFadeAfterSecondsPropertyKey,
+                    GameplayMessageMetadata.ImagePropertyKey,
+                    GameplayMessageMetadata.ImageAnimationPropertyKey,
+                    GameplayMessageMetadata.OnEndFlashPropertyKey,
+                    GameplayMessageMetadata.OnEndPlaySoundPropertyKey,
+                    GameplayMessageMetadata.OnEndFadePropertyKey,
+                    GameplayMessageMetadata.OnEndMapResetPropertyKey,
+                    GameplayMessageMetadata.OnEndMapTransitionPropertyKey,
+                    GameplayMessageMetadata.OnEndMapTeleportPropertyKey,
+                    GameplayMessageMetadata.OnEndLogicPropertyKey,
+                    GameplayMessageMetadata.OnEndSoundPropertyKey,
+                    GameplayMessageMetadata.OnEndSecondsPropertyKey,
+                    GameplayMessageMetadata.OnEndMapPropertyKey,
+                    GameplayMessageMetadata.OnEndTeleportExitPropertyKey,
+                    GameplayMessageMetadata.OnEndTriggerPropertyKey,
+                ],
+                []);
+        }
+
+        if (IsEditingGarrisonBuilderGameplaySoundEntity())
+        {
+            return OrderGarrisonBuilderPropertyRows(
+                propertyRows,
+                [
+                    GameplaySoundMetadata.TriggerPropertyKey,
+                    GameplaySoundMetadata.SoundPropertyKey,
+                    GameplaySoundMetadata.ModePropertyKey,
+                    GameplaySoundMetadata.CrossfadePropertyKey,
+                    GameplaySoundMetadata.CrossfadeSecondsPropertyKey,
+                ],
+                []);
+        }
+
+        if (IsEditingGarrisonBuilderSpawnClassBehaviorEntity())
+        {
+            return OrderGarrisonBuilderPropertyRows(
+                propertyRows,
+                [
+                    SpawnClassBehaviorMetadata.TeamPropertyKey,
+                    SpawnClassBehaviorMetadata.ForceClassPropertyKey,
+                    SpawnClassBehaviorMetadata.ManualSpawnPropertyKey,
+                    SpawnClassBehaviorMetadata.SkipTeamSelectPropertyKey,
+                    SpawnClassBehaviorMetadata.AllowTeamChangePropertyKey,
+                    SpawnClassBehaviorMetadata.AllowClassChangePropertyKey,
+                ],
+                []);
+        }
+
         return propertyRows;
+    }
+
+    private bool TryAssignGarrisonBuilderResourceToCurrentProperty(string propertyKey, CustomMapBuilderResource resource)
+    {
+        if (string.IsNullOrWhiteSpace(propertyKey)
+            || !IsGarrisonBuilderResourceAssignmentTarget(propertyKey, resource))
+        {
+            return false;
+        }
+
+        _builderPropertyEditorValues[propertyKey] = resource.Name;
+        ApplyGarrisonBuilderPropertyEditorLivePreview();
+        MarkGarrisonBuilderPropertyEditorChanged();
+        return true;
+    }
+
+    private bool IsGarrisonBuilderResourceAssignmentTarget(string propertyKey, CustomMapBuilderResource resource)
+    {
+        return IsEditingGarrisonBuilderGameplayMessageEntity()
+                && IsGarrisonBuilderGameplayMessageResourcePropertyKey(propertyKey)
+                && IsGarrisonBuilderResourceUsableForGameplayMessageProperty(resource, propertyKey)
+            || IsEditingGarrisonBuilderGameplaySoundEntity()
+                && propertyKey.Equals(GameplaySoundMetadata.SoundPropertyKey, StringComparison.OrdinalIgnoreCase)
+                && IsGarrisonBuilderResourceUsableForGameplaySoundProperty(resource);
+    }
+
+    private bool TryHandleGarrisonBuilderGameplayMessageResourcePropertyClick(string key, string value, bool leftClick)
+    {
+        if (!IsEditingGarrisonBuilderGameplayMessageEntity()
+            || !IsGarrisonBuilderGameplayMessageResourcePropertyKey(key))
+        {
+            return false;
+        }
+
+        if (!leftClick)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                _builderPropertyEditorValues[key] = string.Empty;
+                if (key.Equals(GameplayMessageMetadata.ImagePropertyKey, StringComparison.OrdinalIgnoreCase))
+                {
+                    _builderPropertyEditorValues[GameplayMessageMetadata.ImageAnimationPropertyKey] =
+                        GameplayMessageMetadata.ToAnimationPropertyValue(GameplayMessageAnimation.None);
+                }
+
+                ApplyGarrisonBuilderPropertyEditorLivePreview();
+                MarkGarrisonBuilderPropertyEditorChanged();
+                _builderStatus = $"cleared {FormatGarrisonBuilderPropertyKeyLabel(key)}";
+            }
+
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_builderSelectedResourceName)
+            && _builderDocument.Resources.TryGetValue(_builderSelectedResourceName, out var selectedResource)
+            && IsGarrisonBuilderResourceUsableForGameplayMessageProperty(selectedResource, key)
+            && !selectedResource.Name.Equals(value.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            _builderPropertyEditorValues[key] = selectedResource.Name;
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+            _builderSelectedResourceName = string.Empty;
+            _builderStatus = $"assigned {selectedResource.Name}";
+            return true;
+        }
+
+        if (_builderSelectedResourceName.Equals(value.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            _builderSelectedResourceName = string.Empty;
+        }
+
+        var suggestedName = CreateGarrisonBuilderGameplayMessageResourceSuggestedName(key, value);
+        var kind = key.Equals(GameplayMessageMetadata.SoundPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(GameplayMessageMetadata.MusicPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(GameplayMessageMetadata.OnEndSoundPropertyKey, StringComparison.OrdinalIgnoreCase)
+            ? CustomMapBuilderResourceKind.MessageSound
+            : CustomMapBuilderResourceKind.GenericImage;
+        BeginAddingGarrisonBuilderResource(kind, suggestedName, key);
+        return true;
+    }
+
+    private bool TryHandleGarrisonBuilderGameplaySoundResourcePropertyClick(string key, string value)
+    {
+        if (!IsEditingGarrisonBuilderGameplaySoundEntity()
+            || !key.Equals(GameplaySoundMetadata.SoundPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_builderSelectedResourceName)
+            && _builderDocument.Resources.TryGetValue(_builderSelectedResourceName, out var selectedResource)
+            && IsGarrisonBuilderResourceUsableForGameplaySoundProperty(selectedResource))
+        {
+            _builderPropertyEditorValues[key] = selectedResource.Name;
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+            _builderSelectedResourceName = string.Empty;
+            _builderStatus = $"assigned {selectedResource.Name}";
+            return true;
+        }
+
+        var suggestedName = !string.IsNullOrWhiteSpace(value)
+            ? Path.GetFileNameWithoutExtension(value.Trim())
+            : "gameplay_sound";
+        BeginAddingGarrisonBuilderResource(CustomMapBuilderResourceKind.MessageSound, suggestedName, key);
+        return true;
+    }
+
+    private static bool IsGarrisonBuilderGameplayMessageResourcePropertyKey(string key) =>
+        key.Equals(GameplayMessageMetadata.ImagePropertyKey, StringComparison.OrdinalIgnoreCase)
+        || key.Equals(GameplayMessageMetadata.SoundPropertyKey, StringComparison.OrdinalIgnoreCase)
+        || key.Equals(GameplayMessageMetadata.MusicPropertyKey, StringComparison.OrdinalIgnoreCase)
+        || key.Equals(GameplayMessageMetadata.OnEndSoundPropertyKey, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsGarrisonBuilderResourceUsableForGameplayMessageProperty(
+        CustomMapBuilderResource resource,
+        string propertyKey)
+    {
+        if (!CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var bytes)
+            || bytes.Length == 0)
+        {
+            return false;
+        }
+
+        return propertyKey.Equals(GameplayMessageMetadata.SoundPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || propertyKey.Equals(GameplayMessageMetadata.MusicPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || propertyKey.Equals(GameplayMessageMetadata.OnEndSoundPropertyKey, StringComparison.OrdinalIgnoreCase)
+            ? CustomMapBuilderResourceCodec.IsSupportedSound(bytes)
+            : CustomMapBuilderResourceCodec.IsSupportedImage(bytes);
+    }
+
+    private static bool IsGarrisonBuilderResourceUsableForGameplaySoundProperty(CustomMapBuilderResource resource) =>
+        CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var bytes)
+        && bytes.Length > 0
+        && CustomMapBuilderResourceCodec.IsSupportedSound(bytes);
+
+    private static string CreateGarrisonBuilderGameplayMessageResourceSuggestedName(string key, string value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            var trimmed = value.Trim();
+            var withoutExtension = Path.GetFileNameWithoutExtension(trimmed);
+            return string.IsNullOrWhiteSpace(withoutExtension) ? trimmed : withoutExtension;
+        }
+
+        if (key.Equals(GameplayMessageMetadata.MusicPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return "message_music";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndSoundPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return "message_end_sound";
+        }
+
+        return key.Equals(GameplayMessageMetadata.SoundPropertyKey, StringComparison.OrdinalIgnoreCase)
+            ? "message_sound"
+            : "message_image";
     }
 
     private static readonly string[] GarrisonBuilderSpawnPropertyRowOrder =
@@ -6298,6 +7028,21 @@ public partial class Game1
         }
 
         MapLogicMetadata.EnsureNodePriorityProperty(properties);
+    }
+
+    private static void PruneGarrisonBuilderGameplayMessagePropertiesForSave(
+        string entityType,
+        IDictionary<string, string> properties)
+    {
+        if (!GameplayMessageMetadata.IsGameplayMessageEntityType(entityType))
+        {
+            return;
+        }
+
+        properties.Remove(GameplayMessageMetadata.ScreenXPropertyKey);
+        properties.Remove(GameplayMessageMetadata.ScreenYPropertyKey);
+        properties.Remove(GameplayMessageMetadata.WidthPropertyKey);
+        properties.Remove(GameplayMessageMetadata.HeightPropertyKey);
     }
 
     private static List<string> OrderGarrisonBuilderSpawnPropertyRows(List<string> rows)
@@ -6473,6 +7218,62 @@ public partial class Game1
             return true;
         }
 
+        if (IsEditingGarrisonBuilderGameplayMessageEntity()
+            && key.Equals(GameplayMessageMetadata.ChatTeamPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && GameplayMessageMetadata.ParseStyle(_builderPropertyEditorValues) != GameplayMessageStyle.Chat)
+        {
+            return true;
+        }
+
+        if (IsEditingGarrisonBuilderGameplayMessageEntity()
+            && key.Equals(GameplayMessageMetadata.DialogueBoxPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && GameplayMessageMetadata.ParseStyle(_builderPropertyEditorValues) != GameplayMessageStyle.Dialogue)
+        {
+            return true;
+        }
+
+        if (IsEditingGarrisonBuilderGameplayMessageEntity()
+            && ShouldSkipGarrisonBuilderGameplayMessageImagePropertyRow(key))
+        {
+            return true;
+        }
+
+        if (IsEditingGarrisonBuilderGameplayMessageEntity()
+            && ShouldSkipGarrisonBuilderGameplayMessageMusicPropertyRow(key))
+        {
+            return true;
+        }
+
+        if (IsEditingGarrisonBuilderGameplayMessageEntity()
+            && ShouldSkipGarrisonBuilderGameplayMessageOnEndPropertyRow(key))
+        {
+            return true;
+        }
+
+        if (IsEditingGarrisonBuilderGameplayMessageEntity()
+            && IsGarrisonBuilderGameplayMessageLegacyPlacementPropertyKey(key))
+        {
+            return true;
+        }
+
+        if (IsEditingGarrisonBuilderGameplaySoundEntity()
+            && (key.Equals(GameplaySoundMetadata.CrossfadePropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(GameplaySoundMetadata.CrossfadeSecondsPropertyKey, StringComparison.OrdinalIgnoreCase))
+            && GameplaySoundMetadata.ParseMode(_builderPropertyEditorValues) != GameplaySoundMode.Music)
+        {
+            return true;
+        }
+
+        if (IsEditingGarrisonBuilderGameplaySoundEntity()
+            && key.Equals(GameplaySoundMetadata.CrossfadeSecondsPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && !DamageTriggerMetadata.ParseBoolProperty(
+                _builderPropertyEditorValues.TryGetValue(GameplaySoundMetadata.CrossfadePropertyKey, out var crossfadeValue)
+                    ? crossfadeValue
+                    : "true"))
+        {
+            return true;
+        }
+
         if (!IsEditingGarrisonBuilderSpawnEntity())
         {
             return false;
@@ -6522,6 +7323,118 @@ public partial class Game1
 
         return false;
     }
+
+    private bool ShouldSkipGarrisonBuilderGameplayMessageImagePropertyRow(string key)
+    {
+        if (key.Equals(GameplayMessageMetadata.ImageOffsetXPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(GameplayMessageMetadata.ImageOffsetYPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(GameplayMessageMetadata.ImageWidthPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(GameplayMessageMetadata.ImageHeightPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!key.Equals(GameplayMessageMetadata.ImageAnimationPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return !_builderPropertyEditorValues.TryGetValue(GameplayMessageMetadata.ImagePropertyKey, out var image)
+            || string.IsNullOrWhiteSpace(image);
+    }
+
+    private bool ShouldSkipGarrisonBuilderGameplayMessageMusicPropertyRow(string key)
+    {
+        var isMusicOption = key.Equals(GameplayMessageMetadata.MusicCrossfadePropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(GameplayMessageMetadata.MusicCrossfadeSecondsPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(GameplayMessageMetadata.MusicLoopPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(GameplayMessageMetadata.MusicFadeAfterSecondsPropertyKey, StringComparison.OrdinalIgnoreCase);
+        if (!isMusicOption)
+        {
+            return false;
+        }
+
+        if (!_builderPropertyEditorValues.TryGetValue(GameplayMessageMetadata.MusicPropertyKey, out var music)
+            || string.IsNullOrWhiteSpace(music))
+        {
+            return true;
+        }
+
+        return key.Equals(GameplayMessageMetadata.MusicCrossfadeSecondsPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && !GameplayMessageMetadata.ParseMusicCrossfade(_builderPropertyEditorValues);
+    }
+
+    private bool ShouldSkipGarrisonBuilderGameplayMessageOnEndPropertyRow(string key)
+    {
+        if (key.Equals(GameplayMessageMetadata.TypingDurationPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return GameplayMessageMetadata.ParseAnimation(_builderPropertyEditorValues) != GameplayMessageAnimation.Typing;
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndActionPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndSoundPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return !GameplayMessageMetadata.ParseOnEndEffectEnabled(
+                _builderPropertyEditorValues,
+                GameplayMessageMetadata.OnEndPlaySoundPropertyKey,
+                GameplayMessageOnEndEffects.PlaySound);
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndSecondsPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            var flash = GameplayMessageMetadata.ParseOnEndEffectEnabled(
+                _builderPropertyEditorValues,
+                GameplayMessageMetadata.OnEndFlashPropertyKey,
+                GameplayMessageOnEndEffects.FlashWhite);
+            var fade = GameplayMessageMetadata.ParseOnEndEffectEnabled(
+                _builderPropertyEditorValues,
+                GameplayMessageMetadata.OnEndFadePropertyKey,
+                GameplayMessageOnEndEffects.FadeOut);
+            return !flash && !fade;
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndMapPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return !GameplayMessageMetadata.ParseOnEndEffectEnabled(
+                _builderPropertyEditorValues,
+                GameplayMessageMetadata.OnEndMapTransitionPropertyKey,
+                GameplayMessageOnEndEffects.MapTransition);
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndTeleportXPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(GameplayMessageMetadata.OnEndTeleportYPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndTeleportExitPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return !GameplayMessageMetadata.ParseOnEndEffectEnabled(
+                _builderPropertyEditorValues,
+                GameplayMessageMetadata.OnEndMapTeleportPropertyKey,
+                GameplayMessageOnEndEffects.MapTeleport);
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndTriggerPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return !GameplayMessageMetadata.ParseOnEndEffectEnabled(
+                _builderPropertyEditorValues,
+                GameplayMessageMetadata.OnEndLogicPropertyKey,
+                GameplayMessageOnEndEffects.Logic);
+        }
+
+        return false;
+    }
+
+    private static bool IsGarrisonBuilderGameplayMessageLegacyPlacementPropertyKey(string key) =>
+        key.Equals(GameplayMessageMetadata.ScreenXPropertyKey, StringComparison.OrdinalIgnoreCase)
+        || key.Equals(GameplayMessageMetadata.ScreenYPropertyKey, StringComparison.OrdinalIgnoreCase)
+        || key.Equals(GameplayMessageMetadata.WidthPropertyKey, StringComparison.OrdinalIgnoreCase)
+        || key.Equals(GameplayMessageMetadata.HeightPropertyKey, StringComparison.OrdinalIgnoreCase);
 
     private bool IsGarrisonBuilderEditedSpawnForwardEnabled()
     {
@@ -6611,7 +7524,7 @@ public partial class Game1
 
         var bounds = GetGarrisonBuilderPropertyEditorBounds();
         var rows = GetGarrisonBuilderPropertyRows();
-        var visibleRows = GetGarrisonBuilderPropertyVisibleRows(bounds);
+        var visibleRows = GetGarrisonBuilderPropertyVisibleRows(bounds, rows.Count);
         _builderPropertyScrollIndex = Math.Clamp(_builderPropertyScrollIndex, 0, Math.Max(0, rows.Count - visibleRows));
     }
 
@@ -6643,6 +7556,36 @@ public partial class Game1
     {
         return TryGetGarrisonBuilderEditedEntityType(out var entityType)
             && ControlPointOwnershipResolver.IsControlPointEntity(entityType);
+    }
+
+    private bool IsEditingGarrisonBuilderHealthPackEntity()
+    {
+        return TryGetGarrisonBuilderEditedEntityType(out var entityType)
+            && HealthPackMetadata.IsHealthPackEntityType(entityType);
+    }
+
+    private bool IsEditingGarrisonBuilderBotSpawnEntity()
+    {
+        return TryGetGarrisonBuilderEditedEntityType(out var entityType)
+            && BotSpawnMetadata.IsBotSpawnEntityType(entityType);
+    }
+
+    private bool IsEditingGarrisonBuilderGameplayMessageEntity()
+    {
+        return TryGetGarrisonBuilderEditedEntityType(out var entityType)
+            && GameplayMessageMetadata.IsGameplayMessageEntityType(entityType);
+    }
+
+    private bool IsEditingGarrisonBuilderGameplaySoundEntity()
+    {
+        return TryGetGarrisonBuilderEditedEntityType(out var entityType)
+            && GameplaySoundMetadata.IsGameplaySoundEntityType(entityType);
+    }
+
+    private bool IsEditingGarrisonBuilderSpawnClassBehaviorEntity()
+    {
+        return TryGetGarrisonBuilderEditedEntityType(out var entityType)
+            && SpawnClassBehaviorMetadata.IsSpawnClassBehaviorEntityType(entityType);
     }
 
     private bool TryGetGarrisonBuilderEditedEntityType(out string entityType)
@@ -7044,6 +7987,24 @@ public partial class Game1
             return ControlPointCapTimeMultiplierMetadata.IsCustom(_builderPropertyEditorValues);
         }
 
+        if (key.Equals(BotSpawnMetadata.TriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            return !string.IsNullOrWhiteSpace(value);
+        }
+
+        if (key.Equals(GameplayMessageMetadata.TriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return !string.IsNullOrWhiteSpace(value);
+        }
+
+        if (key.Equals(GameplaySoundMetadata.TriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplaySoundEntity())
+        {
+            return !string.IsNullOrWhiteSpace(value);
+        }
+
         return IsGarrisonBuilderClearableConnectionProperty(key)
             && !string.IsNullOrWhiteSpace(value);
     }
@@ -7161,7 +8122,7 @@ public partial class Game1
         }
     }
 
-    private static bool IsGarrisonBuilderBooleanProperty(string key, string value)
+    private bool IsGarrisonBuilderBooleanProperty(string key, string value)
     {
         if (key.Equals(DirectionalWallConfiguration.PassDirectionPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(DirectionalWallConfiguration.PlayersPropertyKey, StringComparison.OrdinalIgnoreCase)
@@ -7178,9 +8139,65 @@ public partial class Game1
             || key.Equals(MapLogicMetadata.FalseTimePropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(MapLogicSignalMetadata.SignalPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(MapLogicSignalMetadata.DetectPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(PlayerTriggerMetadata.MaxFiresPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(HealthPackMetadata.SizePropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(HealthPackMetadata.RespawnSecondsPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(ControlPointCapTimeMultiplierMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase)
             || IsGarrisonBuilderObjectiveMapPickProperty(key)
             || IsGarrisonBuilderSpawnUseWhenProperty(key))
+        {
+            return false;
+        }
+
+        if (TryGetGarrisonBuilderEditedEntityType(out var botSpawnEntityType)
+            && BotSpawnMetadata.IsBotSpawnEntityType(botSpawnEntityType)
+            && (key.Equals(BotSpawnMetadata.TeamPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(BotSpawnMetadata.ClassPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(BotSpawnMetadata.KindPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(BotSpawnMetadata.RespawnPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(BotSpawnMetadata.RespawnAtPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(BotSpawnMetadata.NameModePropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(BotSpawnMetadata.ForceNameplatePropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(BotSpawnMetadata.ForceHealthBarPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(BotSpawnMetadata.DeathTriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(BotSpawnMetadata.TriggerPropertyKey, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        if (TryGetGarrisonBuilderEditedEntityType(out var gameplayMessageEntityType)
+            && GameplayMessageMetadata.IsGameplayMessageEntityType(gameplayMessageEntityType)
+            && (key.Equals(GameplayMessageMetadata.TriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(GameplayMessageMetadata.StylePropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(GameplayMessageMetadata.DialogueBoxPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(GameplayMessageMetadata.AnimationPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(GameplayMessageMetadata.ImageAnimationPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(GameplayMessageMetadata.FontPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(GameplayMessageMetadata.AlignmentPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(GameplayMessageMetadata.ChatTeamPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(GameplayMessageMetadata.EndModePropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(GameplayMessageMetadata.OnEndActionPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(GameplayMessageMetadata.OnEndTriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(GameplayMessageMetadata.OnEndTeleportExitPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(GarrisonBuilderGameplayMessagePreviewAnimationKey, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        if (TryGetGarrisonBuilderEditedEntityType(out var spawnClassBehaviorEntityType)
+            && SpawnClassBehaviorMetadata.IsSpawnClassBehaviorEntityType(spawnClassBehaviorEntityType)
+            && (key.Equals(SpawnClassBehaviorMetadata.TeamPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(SpawnClassBehaviorMetadata.ForceClassPropertyKey, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        if (TryGetGarrisonBuilderEditedEntityType(out var gameplaySoundEntityType)
+            && GameplaySoundMetadata.IsGameplaySoundEntityType(gameplaySoundEntityType)
+            && (key.Equals(GameplaySoundMetadata.TriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(GameplaySoundMetadata.SoundPropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(GameplaySoundMetadata.ModePropertyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(GameplaySoundMetadata.CrossfadeSecondsPropertyKey, StringComparison.OrdinalIgnoreCase)))
         {
             return false;
         }
@@ -7224,6 +8241,7 @@ public partial class Game1
             || key.Equals(MapLogicMetadata.RequiredOwnerPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(MapLogicSignalMetadata.SignalPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(MapLogicSignalMetadata.DetectPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(PlayerTriggerMetadata.MaxFiresPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(MapLogicSignalMetadata.PeriodPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(MapLogicMetadata.ActivatorBehaviorPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(MapLogicMetadata.ActivateOnStartPropertyKey, StringComparison.OrdinalIgnoreCase)
@@ -7259,6 +8277,418 @@ public partial class Game1
         if (IsGarrisonBuilderSpawnUseWhenProperty(key))
         {
             return $"Use when: {ForwardSpawnMetadata.GetUseConditionDisplayLabel(value)}";
+        }
+
+        if (key.Equals(HealthPackMetadata.SizePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderHealthPackEntity())
+        {
+            return $"Size: {HealthPackMetadata.GetSizeDisplayLabel(value)}";
+        }
+
+        if (key.Equals(HealthPackMetadata.RespawnSecondsPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderHealthPackEntity())
+        {
+            return $"Respawn (sec): {HealthPackMetadata.ToRespawnSecondsPropertyValue(HealthPackMetadata.ParseRespawnSeconds(value))}";
+        }
+
+        if (key.Equals(BotSpawnMetadata.TriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            return FormatGarrisonBuilderLogicPropertyRowLabel(key, value);
+        }
+
+        if (key.Equals(BotSpawnMetadata.DeathTriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            return FormatGarrisonBuilderLogicPropertyRowLabel(key, value);
+        }
+
+        if (key.Equals(BotSpawnMetadata.TeamPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            return $"Team: {BotSpawnMetadata.GetTeamDisplayLabel(value)}";
+        }
+
+        if (key.Equals(BotSpawnMetadata.ClassPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            return $"Class: {BotSpawnMetadata.GetClassDisplayLabel(value)}";
+        }
+
+        if (key.Equals(BotSpawnMetadata.KindPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            return $"Type: {BotSpawnMetadata.GetKindDisplayLabel(value)}";
+        }
+
+        if (key.Equals(BotSpawnMetadata.RespawnPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            return $"Respawn: {BotSpawnMetadata.GetRespawnDisplayLabel(value)}";
+        }
+
+        if (key.Equals(BotSpawnMetadata.RespawnAtPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            return $"Respawn at: {BotSpawnMetadata.GetRespawnModeDisplayLabel(value)}";
+        }
+
+        if (key.Equals(BotSpawnMetadata.NameModePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            return $"Name: {BotSpawnMetadata.GetNameModeDisplayLabel(value)}";
+        }
+
+        if (key.Equals(BotSpawnMetadata.NamePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            return string.IsNullOrWhiteSpace(value) ? "Manual name: <empty>" : $"Manual name: {value}";
+        }
+
+        if (key.Equals(BotSpawnMetadata.ForceNameplatePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            return $"Force nameplate: {BotSpawnMetadata.GetForceNameplateDisplayLabel(value)}";
+        }
+
+        if (key.Equals(BotSpawnMetadata.ForceHealthBarPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderBotSpawnEntity())
+        {
+            return $"Force HP bar: {BotSpawnMetadata.GetForceHealthBarDisplayLabel(value)}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.TriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return FormatGarrisonBuilderLogicPropertyRowLabel(key, value);
+        }
+
+        if (key.Equals(GameplayMessageMetadata.TextPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return string.IsNullOrWhiteSpace(value) ? "Text: <empty>" : $"Text: {value}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.StylePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"Style: {GameplayMessageMetadata.GetStyleDisplayLabel(value)}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.DialogueBoxPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"Box style: {GameplayMessageMetadata.GetDialogueBoxStyleDisplayLabel(value)}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.AnimationPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"Animation: {GameplayMessageMetadata.GetAnimationDisplayLabel(value)}";
+        }
+
+        if (key.Equals(GarrisonBuilderGameplayMessagePreviewAnimationKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return _builderGameplayMessagePreviewSecondsRemaining > 0f
+                ? "Preview animation: playing"
+                : "Preview animation";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.FontPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"Font: {GameplayMessageMetadata.GetFontDisplayLabel(value)}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.FontScalePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"Font size: {value}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.TypingDurationPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"Typing duration: {value}s";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.AlignmentPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"Align: {GameplayMessageMetadata.GetAlignmentDisplayLabel(value)}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.ChatTeamPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"Chat team: {GameplayMessageMetadata.GetChatTeamDisplayLabel(value)}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.ScreenXPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"Screen X: {value}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.ScreenYPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"Screen Y: {value}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.WidthPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"Width: {value}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.HeightPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"Height: {value}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.DurationPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"Duration: {value}s";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.EndModePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"End: {GameplayMessageMetadata.GetEndModeDisplayLabel(value)}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.InputPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return string.IsNullOrWhiteSpace(value) ? "Input: any" : $"Input: {value}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.FreezeSimulationPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return "Freeze simulation";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.SoundPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return string.IsNullOrWhiteSpace(value) ? "Sound (.ogg): none" : $"Sound (.ogg): {value}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.MusicPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return string.IsNullOrWhiteSpace(value) ? "Music (.ogg): none" : $"Music (.ogg): {value}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.MusicCrossfadePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return "Music crossfade";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.MusicCrossfadeSecondsPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"Music crossfade: {value}s";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.MusicLoopPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return "Loop music";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.MusicFadeAfterSecondsPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return TryParseGarrisonBuilderNonNegativeSeconds(value, out var seconds) && seconds <= 0f
+                ? "Fade music after: never"
+                : $"Fade music after: {value}s";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.ImagePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return string.IsNullOrWhiteSpace(value) ? "Image PNG: none" : $"Image PNG: {value}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.ImageAnimationPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"Image animation: {GameplayMessageMetadata.GetImageAnimationDisplayLabel(value)}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.ImageOffsetXPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"Image X: {value}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.ImageOffsetYPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"Image Y: {value}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.ImageWidthPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"Image W: {value}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.ImageHeightPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"Image H: {value}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndActionPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"OnEnd: {GameplayMessageMetadata.GetOnEndActionDisplayLabel(value)}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndFlashPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return "OnEnd: Flash white";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndPlaySoundPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return "OnEnd: Play sound";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndFadePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return "OnEnd: Fade out";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndMapResetPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return "OnEnd: Map reset";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndMapTransitionPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return "OnEnd: Map transition";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndMapTeleportPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return "OnEnd: Map teleport";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndLogicPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return "OnEnd: Logic pulse";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndSoundPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return string.IsNullOrWhiteSpace(value) ? "OnEnd sound (.ogg): none" : $"OnEnd sound (.ogg): {value}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndSecondsPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return $"OnEnd seconds: {value}s";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndMapPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return string.IsNullOrWhiteSpace(value) ? "OnEnd map: <empty>" : $"OnEnd map: {value}";
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndTeleportExitPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return FormatGarrisonBuilderLogicPropertyRowLabel(key, value);
+        }
+
+        if (key.Equals(GameplayMessageMetadata.OnEndTriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplayMessageEntity())
+        {
+            return FormatGarrisonBuilderLogicPropertyRowLabel(key, value);
+        }
+
+        if (key.Equals(GameplaySoundMetadata.TriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplaySoundEntity())
+        {
+            return FormatGarrisonBuilderLogicPropertyRowLabel(key, value);
+        }
+
+        if (key.Equals(GameplaySoundMetadata.SoundPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplaySoundEntity())
+        {
+            return string.IsNullOrWhiteSpace(value) ? "Sound (.ogg): none" : $"Sound (.ogg): {value}";
+        }
+
+        if (key.Equals(GameplaySoundMetadata.ModePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplaySoundEntity())
+        {
+            return $"Mode: {GameplaySoundMetadata.GetModeDisplayLabel(value)}";
+        }
+
+        if (key.Equals(GameplaySoundMetadata.CrossfadePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplaySoundEntity())
+        {
+            return "Crossfade";
+        }
+
+        if (key.Equals(GameplaySoundMetadata.CrossfadeSecondsPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderGameplaySoundEntity())
+        {
+            return $"Crossfade: {value}s";
+        }
+
+        if (key.Equals(SpawnClassBehaviorMetadata.TeamPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderSpawnClassBehaviorEntity())
+        {
+            return $"Team: {SpawnClassBehaviorMetadata.GetTeamDisplayLabel(value)}";
+        }
+
+        if (key.Equals(SpawnClassBehaviorMetadata.ForceClassPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderSpawnClassBehaviorEntity())
+        {
+            return $"Force class: {SpawnClassBehaviorMetadata.GetForcedClassDisplayLabel(value)}";
+        }
+
+        if (key.Equals(SpawnClassBehaviorMetadata.ManualSpawnPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderSpawnClassBehaviorEntity())
+        {
+            return "Manual spawn";
+        }
+
+        if (key.Equals(SpawnClassBehaviorMetadata.SkipTeamSelectPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderSpawnClassBehaviorEntity())
+        {
+            return "Skip team select";
+        }
+
+        if (key.Equals(SpawnClassBehaviorMetadata.AllowTeamChangePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderSpawnClassBehaviorEntity())
+        {
+            return "Allow team change";
+        }
+
+        if (key.Equals(SpawnClassBehaviorMetadata.AllowClassChangePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderSpawnClassBehaviorEntity())
+        {
+            return "Allow class change";
         }
 
         if (BarrierTargetFilterMetadata.IsTargetPropertyKey(key)
@@ -7504,6 +8934,19 @@ public partial class Game1
         }
 
         return char.ToUpperInvariant(key[0]) + key[1..];
+    }
+
+    private static bool TryParseGarrisonBuilderNonNegativeSeconds(string value, out float seconds)
+    {
+        if (float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out seconds)
+            && float.IsFinite(seconds)
+            && seconds >= 0f)
+        {
+            return true;
+        }
+
+        seconds = 0f;
+        return false;
     }
 
     private static string FormatGarrisonBuilderTeamPropertyLabel(string team)
@@ -8107,11 +9550,10 @@ public partial class Game1
             GetGarrisonBuilderPropertyRowHeight() - 4);
     }
 
-    private int GetGarrisonBuilderPropertyVisibleRows(Rectangle editorBounds)
+    private int GetGarrisonBuilderPropertyVisibleRows(Rectangle editorBounds, int rowCount)
     {
         var rowHeight = GetGarrisonBuilderPropertyRowHeight();
         var availableHeight = GetGarrisonBuilderPropertyAddBounds(editorBounds).Y - GetGarrisonBuilderPropertyListTop(editorBounds) - 6;
-        var rowCount = GetGarrisonBuilderPropertyRows().Count;
         var fitted = Math.Max(1, availableHeight / rowHeight);
         return Math.Max(1, Math.Min(Math.Max(1, rowCount), fitted));
     }
@@ -8165,8 +9607,6 @@ public partial class Game1
 
     private int GetGarrisonBuilderPropertyEditorHeight(int width)
     {
-        const int titleArea = 32;
-        const int footerArea = 52;
         const int editModeHeight = 118;
         if (_builderPropertyEditMode != GarrisonBuilderPropertyEditMode.List)
         {
@@ -8178,11 +9618,11 @@ public partial class Game1
             return 340;
         }
 
-        var rowHeight = GetGarrisonBuilderPropertyRowHeight();
-        var rowCount = Math.Max(1, GetGarrisonBuilderPropertyRows().Count);
         const int listChrome = 88;
-        var idealHeight = listChrome + (rowCount * rowHeight);
-        return Math.Min(BuilderViewportHeight - 24, idealHeight);
+        const int maxRowsWithoutScroll = 14;
+        var idealHeight = listChrome + (maxRowsWithoutScroll * GetGarrisonBuilderPropertyRowHeight());
+        var viewportHeight = Math.Max(editModeHeight, BuilderViewportHeight - 24);
+        return Math.Min(viewportHeight, idealHeight);
     }
 
     private Rectangle GetGarrisonBuilderPropertyAddBounds(Rectangle editorBounds)
@@ -8561,6 +10001,7 @@ public partial class Game1
         }
 
         PrepareGarrisonBuilderQuickTestPlayer();
+        LogPracticeMapBotSpawnDiagnostics("quick test loaded");
         _builderStatus = "quick test: soldier on map";
         AddConsoleLine(_builderStatus);
     }
@@ -9802,6 +11243,7 @@ public partial class Game1
             _builderEntityDragging = false;
             _builderAreaSelectDragging = false;
             _builderActiveResizeHandle = GarrisonBuilderResizeHandle.None;
+            ClearGarrisonBuilderGameplayMessageImageInteraction();
             ClearGarrisonBuilderHiddenEntities();
             CloseGarrisonBuilderPropertyEditor(applyChanges: false);
             CloseGarrisonBuilderEntityContextMenu();
