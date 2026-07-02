@@ -222,6 +222,7 @@ partial class GameServer
         _snapshotBroadcaster = runtime.SnapshotBroadcaster;
         _mapRotationManager = runtime.MapRotationManager;
         _botManager = runtime.BotManager;
+        _mapBotSpawnController = new OpenGarrison.Server.MapBotSpawnController(_world, _botManager);
         _demoRecorder = runtime.DemoRecorder;
     }
 
@@ -415,6 +416,7 @@ partial class GameServer
                                 $"preloaded={botNavigationPreloaded} preloadMs={botNavigationPreloadMs:0.###}");
                             ApplyRoundEndTeamRules(transition);
                             var restoredBotCount = _botManager.ReactivateBotsAfterMapChange();
+                            _mapBotSpawnController.Reset();
                             _eventReporter.ApplyMapTransition(transition);
                             _demoRecorder.HandleMapTransition(transition);
                             _snapshotBroadcaster.ResetTransientEvents();
@@ -424,6 +426,7 @@ partial class GameServer
                             }
                         }
                         PublishVipAnnouncements();
+                        _mapBotSpawnController.Tick();
                         // Update bot reactions/emotes AFTER simulation advances
                         _botManager.AdvanceBotReactions();
                     },

@@ -630,12 +630,24 @@ public sealed class PlayerEntityNetworkStateTests
                     GameplayAbilityReplicatedState.CivviePogoCrunchTicksKey,
                     GameplayReplicatedStateValueKind.Whole,
                     IntValue: 2),
+                new GameplayReplicatedStateEntry(
+                    GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                    GameplayAbilityReplicatedState.CivviePogoTrickTicksKey,
+                    GameplayReplicatedStateValueKind.Whole,
+                    IntValue: 11),
+                new GameplayReplicatedStateEntry(
+                    GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                    GameplayAbilityReplicatedState.CivviePogoTrickDurationTicksKey,
+                    GameplayReplicatedStateValueKind.Whole,
+                    IntValue: 18),
             ]);
 
         Assert.False(player.IsCivvieUmbrellaActive);
         Assert.True(player.IsCivvieUmbrellaDisabled);
         Assert.True(player.IsCivviePogoActive);
         Assert.Equal(2, player.CivviePogoCrunchTicksRemaining);
+        Assert.Equal(11, player.CivviePogoTrickTicksRemaining);
+        Assert.Equal(18, player.CivviePogoTrickDurationAtStart);
     }
 
     [Fact]

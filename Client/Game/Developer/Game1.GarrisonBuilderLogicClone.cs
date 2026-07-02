@@ -19,6 +19,8 @@ public partial class Game1
         MapLogicMetadata.LockedWhenLogicPropertyKey,
         MapLogicMetadata.UnlockedWhenLogicPropertyKey,
         DamageableMetadata.HealWhenPropertyKey,
+        BotSpawnMetadata.TriggerPropertyKey,
+        BotSpawnMetadata.DeathTriggerPropertyKey,
     ];
 
     private static readonly string[] GarrisonBuilderEntityRefPropertyKeys =

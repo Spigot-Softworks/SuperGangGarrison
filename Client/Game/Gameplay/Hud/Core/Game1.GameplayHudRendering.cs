@@ -302,6 +302,8 @@ public partial class Game1
         {
             DrawPersistentSelfNameHud(cameraPosition);
             WriteGameplayRenderTrace("hud after persistentselfname");
+            DrawForcedPlayerNameHuds(cameraPosition);
+            WriteGameplayRenderTrace("hud after forcedplayernames");
             DrawHoveredPlayerNameHud(mouse, cameraPosition);
             WriteGameplayRenderTrace("hud after hoveredplayername");
             DrawSpectatorTrackedPlayerCrosshair(cameraPosition);
@@ -330,6 +332,8 @@ public partial class Game1
 
         DrawNoticeHud();
         WriteGameplayRenderTrace("hud after notice");
+        DrawGameplayMessageHud(cameraPosition);
+        WriteGameplayRenderTrace("hud after gameplaymessage");
         DrawScoreboardHud();
         WriteGameplayRenderTrace("hud after scoreboard");
         if (CanDrawGameplayBubbleHud())

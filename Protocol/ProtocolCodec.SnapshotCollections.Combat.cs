@@ -366,6 +366,47 @@ public static partial class ProtocolCodec
         return grenades;
     }
 
+    private static void WriteHealthPackStates(BinaryWriter writer, IReadOnlyList<SnapshotHealthPackState> healthPacks)
+    {
+        writer.Write((ushort)healthPacks.Count);
+        for (var index = 0; index < healthPacks.Count; index += 1)
+        {
+            var healthPack = healthPacks[index];
+            writer.Write(healthPack.Id);
+            writer.Write(healthPack.Size);
+            writer.Write(healthPack.X);
+            writer.Write(healthPack.Y);
+            writer.Write(healthPack.VelocityX);
+            writer.Write(healthPack.VelocityY);
+            writer.Write(healthPack.TicksRemaining);
+            writer.Write(healthPack.SourceSpawnIndex);
+            writer.Write(healthPack.RespawnTicksRemaining);
+            writer.Write(healthPack.Active);
+        }
+    }
+
+    private static List<SnapshotHealthPackState> ReadHealthPackStates(BinaryReader reader)
+    {
+        var count = reader.ReadUInt16();
+        var healthPacks = new List<SnapshotHealthPackState>(count);
+        for (var index = 0; index < count; index += 1)
+        {
+            healthPacks.Add(new SnapshotHealthPackState(
+                reader.ReadInt32(),
+                reader.ReadByte(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadInt32(),
+                reader.ReadInt32(),
+                reader.ReadInt32(),
+                reader.ReadBoolean()));
+        }
+
+        return healthPacks;
+    }
+
     private static void WriteCombatTraces(BinaryWriter writer, IReadOnlyList<SnapshotCombatTraceState> combatTraces)
     {
         writer.Write((ushort)combatTraces.Count);

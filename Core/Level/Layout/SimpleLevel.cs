@@ -37,7 +37,12 @@ public sealed class SimpleLevel
         MapLogicGraph? logicGraph = null,
         MapLogicActivatorSet? logicActivators = null,
         MapLogicScoreTriggerSet? logicScoreTriggers = null,
-        SpritesheetPlaybackSet? spritesheetPlaybackSet = null)
+        SpritesheetPlaybackSet? spritesheetPlaybackSet = null,
+        IReadOnlyList<HealthPackSpawnMarker>? healthPackSpawns = null,
+        IReadOnlyList<BotSpawnMarker>? botSpawns = null,
+        IReadOnlyList<GameplayMessageMarker>? gameplayMessages = null,
+        IReadOnlyList<GameplaySoundMarker>? gameplaySounds = null,
+        IReadOnlyList<SpawnClassBehaviorMarker>? spawnClassBehaviors = null)
     {
         Name = name;
         Mode = mode;
@@ -58,6 +63,11 @@ public sealed class SimpleLevel
         UnsupportedSourceEntities = unsupportedSourceEntities ?? Array.Empty<string>();
         CustomMapVisuals = customMapVisuals ?? CustomMapVisualMetadata.Empty;
         MovingPlatforms = movingPlatforms ?? Array.Empty<MovingPlatformMarker>();
+        HealthPackSpawns = healthPackSpawns ?? Array.Empty<HealthPackSpawnMarker>();
+        BotSpawns = botSpawns ?? Array.Empty<BotSpawnMarker>();
+        GameplayMessages = gameplayMessages ?? Array.Empty<GameplayMessageMarker>();
+        GameplaySounds = gameplaySounds ?? Array.Empty<GameplaySoundMarker>();
+        SpawnClassBehaviors = spawnClassBehaviors ?? Array.Empty<SpawnClassBehaviorMarker>();
         ControlPointSettings = controlPointSettings ?? CustomMapControlPointSettings.Default;
         ScrSettings = scrSettings ?? CustomMapScrSettings.Default;
         ShowControlPoints = showControlPoints;
@@ -112,6 +122,16 @@ public sealed class SimpleLevel
     public CustomMapVisualMetadata CustomMapVisuals { get; }
 
     public IReadOnlyList<MovingPlatformMarker> MovingPlatforms { get; }
+
+    public IReadOnlyList<HealthPackSpawnMarker> HealthPackSpawns { get; }
+
+    public IReadOnlyList<BotSpawnMarker> BotSpawns { get; }
+
+    public IReadOnlyList<GameplayMessageMarker> GameplayMessages { get; }
+
+    public IReadOnlyList<GameplaySoundMarker> GameplaySounds { get; }
+
+    public IReadOnlyList<SpawnClassBehaviorMarker> SpawnClassBehaviors { get; }
 
     public CustomMapControlPointSettings ControlPointSettings { get; }
 

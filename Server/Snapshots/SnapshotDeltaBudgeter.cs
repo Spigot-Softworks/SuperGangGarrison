@@ -504,7 +504,8 @@ internal static class SnapshotDeltaBudgeter
             + EstimateUShortCountCollection(snapshot.GibSpawnEvents, EstimateGibSpawnEventBytes)
             + EstimateUShortCountCollection(snapshot.DeadBodies, static _ => 40)
             + EstimateUShortCountCollection(snapshot.SentryGibs, static _ => 17)
-            + EstimateUShortCountCollection(snapshot.JumpPadGibs, static _ => 17);
+            + EstimateUShortCountCollection(snapshot.JumpPadGibs, static _ => 17)
+            + EstimateUShortCountCollection(snapshot.HealthPacks, static _ => 35);
         var removalBytes =
             EstimateEntityIdListBytes(snapshot.RemovedPlayerIds)
             + EstimateEntityIdListBytes(snapshot.RemovedSentryIds)
@@ -521,7 +522,8 @@ internal static class SnapshotDeltaBudgeter
             + EstimateEntityIdListBytes(snapshot.RemovedDeadBodyIds)
             + EstimateEntityIdListBytes(snapshot.RemovedSentryGibIds)
             + EstimateEntityIdListBytes(snapshot.RemovedJumpPadIds)
-            + EstimateEntityIdListBytes(snapshot.RemovedJumpPadGibIds);
+            + EstimateEntityIdListBytes(snapshot.RemovedJumpPadGibIds)
+            + EstimateEntityIdListBytes(snapshot.RemovedHealthPackIds);
         var worldBytes =
             EstimateByteCountCollection(snapshot.ControlPoints, static _ => 8)
             + EstimateByteCountCollection(snapshot.Generators, static _ => 5)
@@ -858,6 +860,7 @@ internal static class SnapshotDeltaBudgeter
             SentryGibs = Array.Empty<SnapshotSentryGibState>(),
             JumpPads = Array.Empty<SnapshotJumpPadState>(),
             JumpPadGibs = Array.Empty<SnapshotJumpPadGibState>(),
+            HealthPacks = Array.Empty<SnapshotHealthPackState>(),
             RemovedPlayerIds = Array.Empty<int>(),
             RemovedSentryIds = Array.Empty<int>(),
             RemovedShotIds = Array.Empty<int>(),
@@ -874,6 +877,7 @@ internal static class SnapshotDeltaBudgeter
             RemovedSentryGibIds = Array.Empty<int>(),
             RemovedJumpPadIds = Array.Empty<int>(),
             RemovedJumpPadGibIds = Array.Empty<int>(),
+            RemovedHealthPackIds = Array.Empty<int>(),
         };
     }
 
@@ -1110,6 +1114,7 @@ internal static class SnapshotDeltaBudgeter
             SentryGibs = seedFromTemplateCollections ? new TrackingList<SnapshotSentryGibState>(template.SentryGibs) : [];
             JumpPads = seedFromTemplateCollections ? new TrackingList<SnapshotJumpPadState>(template.JumpPads) : [];
             JumpPadGibs = seedFromTemplateCollections ? new TrackingList<SnapshotJumpPadGibState>(template.JumpPadGibs) : [];
+            HealthPacks = seedFromTemplateCollections ? new TrackingList<SnapshotHealthPackState>(template.HealthPacks) : [];
             PlayerGibs = seedFromTemplateCollections ? new TrackingList<SnapshotPlayerGibState>(template.PlayerGibs) : [];
             DeadBodies = seedFromTemplateCollections ? new TrackingList<SnapshotDeadBodyState>(template.DeadBodies) : [];
             RemovedPlayerIds = new TrackingList<int>(template.RemovedPlayerIds);
@@ -1127,6 +1132,7 @@ internal static class SnapshotDeltaBudgeter
             RemovedSentryGibIds = new TrackingList<int>(template.RemovedSentryGibIds);
             RemovedJumpPadIds = new TrackingList<int>(template.RemovedJumpPadIds);
             RemovedJumpPadGibIds = new TrackingList<int>(template.RemovedJumpPadGibIds);
+            RemovedHealthPackIds = new TrackingList<int>(template.RemovedHealthPackIds);
             RemovedPlayerGibIds = new TrackingList<int>(template.RemovedPlayerGibIds);
             RemovedDeadBodyIds = new TrackingList<int>(template.RemovedDeadBodyIds);
         }
@@ -1179,8 +1185,10 @@ internal static class SnapshotDeltaBudgeter
             RemovedSentryGibIds = new TrackingList<int>(other.RemovedSentryGibIds);
             JumpPads = new TrackingList<SnapshotJumpPadState>(other.JumpPads);
             JumpPadGibs = new TrackingList<SnapshotJumpPadGibState>(other.JumpPadGibs);
+            HealthPacks = new TrackingList<SnapshotHealthPackState>(other.HealthPacks);
             RemovedJumpPadIds = new TrackingList<int>(other.RemovedJumpPadIds);
             RemovedJumpPadGibIds = new TrackingList<int>(other.RemovedJumpPadGibIds);
+            RemovedHealthPackIds = new TrackingList<int>(other.RemovedHealthPackIds);
             RemovedPlayerGibIds = new TrackingList<int>(other.RemovedPlayerGibIds);
             RemovedDeadBodyIds = new TrackingList<int>(other.RemovedDeadBodyIds);
         }
@@ -1215,6 +1223,7 @@ internal static class SnapshotDeltaBudgeter
         public TrackingList<SnapshotSentryGibState> SentryGibs { get; } = [];
         public TrackingList<SnapshotJumpPadState> JumpPads { get; } = [];
         public TrackingList<SnapshotJumpPadGibState> JumpPadGibs { get; } = [];
+        public TrackingList<SnapshotHealthPackState> HealthPacks { get; } = [];
         public TrackingList<SnapshotPlayerGibState> PlayerGibs { get; } = [];
         public TrackingList<SnapshotDeadBodyState> DeadBodies { get; } = [];
         public TrackingList<int> RemovedPlayerIds { get; } = [];
@@ -1232,6 +1241,7 @@ internal static class SnapshotDeltaBudgeter
         public TrackingList<int> RemovedSentryGibIds { get; } = [];
         public TrackingList<int> RemovedJumpPadIds { get; } = [];
         public TrackingList<int> RemovedJumpPadGibIds { get; } = [];
+        public TrackingList<int> RemovedHealthPackIds { get; } = [];
         public TrackingList<int> RemovedPlayerGibIds { get; } = [];
         public TrackingList<int> RemovedDeadBodyIds { get; } = [];
 
@@ -1275,6 +1285,7 @@ internal static class SnapshotDeltaBudgeter
                 SentryGibs = SentryGibs.ToArrayCached(),
                 JumpPads = JumpPads.ToArrayCached(),
                 JumpPadGibs = JumpPadGibs.ToArrayCached(),
+                HealthPacks = HealthPacks.ToArrayCached(),
                 PlayerGibs = PlayerGibs.ToArrayCached(),
                 DeadBodies = DeadBodies.ToArrayCached(),
                 KillFeed = KillFeed.ToArrayCached(),
@@ -1298,6 +1309,7 @@ internal static class SnapshotDeltaBudgeter
                 RemovedSentryGibIds = RemovedSentryGibIds.ToArrayCached(),
                 RemovedJumpPadIds = RemovedJumpPadIds.ToArrayCached(),
                 RemovedJumpPadGibIds = RemovedJumpPadGibIds.ToArrayCached(),
+                RemovedHealthPackIds = RemovedHealthPackIds.ToArrayCached(),
                 RemovedPlayerGibIds = RemovedPlayerGibIds.ToArrayCached(),
                 RemovedDeadBodyIds = RemovedDeadBodyIds.ToArrayCached(),
             };

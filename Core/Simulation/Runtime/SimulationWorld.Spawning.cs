@@ -295,10 +295,28 @@ public sealed partial class SimulationWorld
 
     private SpawnPoint ReserveSpawn(PlayerEntity player, PlayerTeam team, byte slot)
     {
-        if (_networkPlayerSpawnOverrides.TryGetValue(slot, out var spawnOverride)
-            && player.CanOccupy(Level, team, spawnOverride.X, spawnOverride.Y))
+        if (_networkPlayerSpawnOverrides.TryGetValue(slot, out var spawnOverride))
         {
-            return spawnOverride;
+            if (player.CanOccupy(Level, team, spawnOverride.X, spawnOverride.Y))
+            {
+                return spawnOverride;
+            }
+
+            if (TryFindSafeObjectiveSpawnPosition(
+                    player,
+                    team,
+                    spawnOverride.X,
+                    spawnOverride.Y,
+                    out var safeX,
+                    out var safeY))
+            {
+                return new SpawnPoint(safeX, safeY);
+            }
+        }
+
+        if (TryResolveMapManualSpawn(player, team, slot, out var mapManualSpawn))
+        {
+            return mapManualSpawn;
         }
 
         return ReserveSpawn(player, team);

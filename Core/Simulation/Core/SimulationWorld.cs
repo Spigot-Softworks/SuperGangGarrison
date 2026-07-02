@@ -51,6 +51,7 @@ public sealed partial class SimulationWorld
     private readonly List<PlayerGibEntity> _playerGibs = new();
     private readonly List<BloodDropEntity> _bloodDrops = new();
     private readonly List<HealthPackEntity> _healthPacks = new();
+    private readonly List<int> _healthPackSpawnRespawnTicks = new();
     private readonly CivvieMoneyTrailTracker _civvieMoneyTrailTracker = new();
     private readonly List<DroppedWeaponEntity> _droppedWeapons = new();
     private readonly List<DeadBodyEntity> _deadBodies = new();
@@ -93,6 +94,7 @@ public sealed partial class SimulationWorld
     private readonly Dictionary<byte, PlayerTeam> _additionalNetworkPlayerTeams = new();
     private readonly HashSet<byte> _pendingNetworkPlayerTeamSelections = new();
     private readonly Dictionary<byte, SpawnPoint> _networkPlayerSpawnOverrides = new();
+    private readonly HashSet<byte> _networkPlayerMapSpawnClassBehaviorBypassSlots = new();
     private readonly Dictionary<byte, float> _networkPlayerMovementSpeedScaleOverrides = new();
     private readonly Dictionary<byte, float> _networkPlayerGravityScaleOverrides = new();
     private readonly Dictionary<byte, int> _networkPlayerMaxHealthOverrides = new();
@@ -443,6 +445,7 @@ public sealed partial class SimulationWorld
         ApplyServerGameplayTuning(slot: 0, FriendlyDummy);
         FriendlyDummy.Kill();
         _entities.Add(FriendlyDummy.Id, FriendlyDummy);
+        ResetHealthPackSpawnsForLevel();
     }
 
     public void ConfigureExperimentalGameplaySettings(ExperimentalGameplaySettings settings)
@@ -456,7 +459,7 @@ public sealed partial class SimulationWorld
 
         if (!ExperimentalGameplaySettings.EnableEnemyHealthPackDrops)
         {
-            ClearHealthPacks();
+            ClearTemporaryHealthPacks();
         }
         if (!ExperimentalGameplaySettings.EnableEnemyDroppedWeapons)
         {
@@ -530,7 +533,7 @@ public sealed partial class SimulationWorld
 
     public bool TrySetLocalClass(string gameplayClassId)
     {
-        var definition = CharacterClassCatalog.GetDefinition(gameplayClassId);
+        var definition = ResolveMapForcedClassDefinition(LocalPlayerSlot, CharacterClassCatalog.GetDefinition(gameplayClassId));
         if (string.Equals(definition.GameplayClassId, GetNetworkPlayerClassDefinition(LocalPlayerSlot).GameplayClassId, StringComparison.Ordinal))
         {
             // Allow same-class selection to commit a pending team swap.

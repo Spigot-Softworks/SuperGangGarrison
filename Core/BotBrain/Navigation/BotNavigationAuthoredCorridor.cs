@@ -114,6 +114,21 @@ public static class BotNavigationAuthoredCorridorStore
         return path;
     }
 
+    public static string Save(SimpleLevel level, BotNavigationAuthoredCorridorAsset asset)
+    {
+        ArgumentNullException.ThrowIfNull(level);
+        ArgumentNullException.ThrowIfNull(asset);
+
+        asset.LevelName = level.Name;
+        asset.MapAreaIndex = level.MapAreaIndex;
+        asset.FormatVersion = 1;
+
+        var path = ResolvePath(level.Name, level.MapAreaIndex);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, JsonSerializer.Serialize(asset, SerializerOptions));
+        return path;
+    }
+
     public static string ResolvePath(string levelName, int mapAreaIndex)
     {
         var fileName = $"{SanitizeFileToken(levelName)}.a{Math.Max(1, mapAreaIndex).ToString(CultureInfo.InvariantCulture)}.botbrain-corridors.json";

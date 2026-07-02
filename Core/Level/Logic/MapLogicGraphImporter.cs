@@ -159,6 +159,7 @@ public static class MapLogicGraphImporter
                     PlayerTriggerZoneRoomObjectIndices = zoneIndices,
                     PlayerTriggerTeamFilter = teamFilter,
                     PlayerTriggerIntelCarriersOnly = intelCarriersOnly,
+                    PlayerTriggerMaxFires = PlayerTriggerMetadata.ParseMaxFires(properties),
                     NodePriority = MapLogicMetadata.ParseNodePriority(properties),
                     SignalMode = MapLogicSignalMetadata.ParseSignalMode(properties),
                     PlayerDetectMode = MapLogicSignalMetadata.ParsePlayerDetectMode(properties),

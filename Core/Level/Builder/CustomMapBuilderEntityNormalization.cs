@@ -104,7 +104,8 @@ public static class CustomMapBuilderEntityNormalization
 
     public static bool IsEditorOnlyType(string type)
     {
-        return CustomMapEntityRuntimeRegistry.IsModernEntityType(type);
+        return CustomMapEntityRuntimeRegistry.IsModernEntityType(type)
+            || HealthPackMetadata.IsHealthPackEntityType(type);
     }
 
     /// <summary>

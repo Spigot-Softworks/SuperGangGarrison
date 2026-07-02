@@ -38,7 +38,12 @@ internal static class SimpleLevelScaling
             level.LogicGraph,
             level.LogicActivators,
             level.LogicScoreTriggers,
-            level.SpritesheetPlaybackSet)
+            level.SpritesheetPlaybackSet,
+            level.HealthPackSpawns.Select(marker => Scale(marker, clampedScale)).ToArray(),
+            level.BotSpawns.Select(marker => Scale(marker, clampedScale)).ToArray(),
+            level.GameplayMessages.Select(marker => Scale(marker, clampedScale)).ToArray(),
+            level.GameplaySounds.Select(marker => Scale(marker, clampedScale)).ToArray(),
+            level.SpawnClassBehaviors.Select(marker => Scale(marker, clampedScale)).ToArray())
         {
             ControlPointSetupGatesActive = level.ControlPointSetupGatesActive,
             ForcedBlockingTeamGates = level.ForcedBlockingTeamGates,
@@ -97,6 +102,94 @@ internal static class SimpleLevelScaling
         marker.ResetMovementState,
         marker.ResourceName,
         marker.SourceName);
+
+    private static HealthPackSpawnMarker Scale(HealthPackSpawnMarker marker, float scale) => new(
+        marker.X * scale,
+        marker.Y * scale,
+        marker.Size,
+        marker.RespawnTicks);
+
+    private static BotSpawnMarker Scale(BotSpawnMarker marker, float scale) => new(
+        marker.X * scale,
+        marker.Y * scale,
+        marker.TriggerRef,
+        marker.Team,
+        marker.ClassId,
+        marker.Kind,
+        marker.Respawn,
+        marker.RespawnMode,
+        marker.NameMode,
+        marker.Name,
+        marker.ForceNameplate,
+        marker.ForceHealthBar,
+        marker.DeathTriggerRef,
+        marker.DeathTriggerNodeIndex,
+        marker.TriggerNodeIndex);
+
+    private static GameplayMessageMarker Scale(GameplayMessageMarker marker, float scale) => new(
+        marker.X * scale,
+        marker.Y * scale,
+        marker.TriggerRef,
+        marker.Text,
+        marker.Style,
+        marker.DialogueBoxStyle,
+        marker.Animation,
+        marker.Font,
+        marker.FontScale,
+        marker.Alignment,
+        marker.ChatTeam,
+        marker.ScreenX * scale,
+        marker.ScreenY * scale,
+        marker.Width * scale,
+        marker.Height * scale,
+        marker.DurationSeconds,
+        marker.TypingDurationSeconds,
+        marker.EndMode,
+        marker.InputBinding,
+        marker.FreezeSimulation,
+        marker.SoundName,
+        marker.MusicName,
+        marker.MusicCrossfade,
+        marker.MusicCrossfadeSeconds,
+        marker.MusicLoop,
+        marker.MusicFadeAfterSeconds,
+        marker.ImageResourceName,
+        marker.ImageAnimation,
+        marker.ImageOffsetX,
+        marker.ImageOffsetY,
+        marker.ImageWidth,
+        marker.ImageHeight,
+        marker.OnEndAction,
+        marker.OnEndEffects,
+        marker.OnEndSoundName,
+        marker.OnEndSeconds,
+        marker.OnEndMapName,
+        marker.OnEndTeleportX * scale,
+        marker.OnEndTeleportY * scale,
+        marker.OnEndTeleportExitRef,
+        marker.OnEndTriggerRef,
+        marker.OnEndTriggerNodeIndex,
+        marker.TriggerNodeIndex);
+
+    private static GameplaySoundMarker Scale(GameplaySoundMarker marker, float scale) => new(
+        marker.X * scale,
+        marker.Y * scale,
+        marker.TriggerRef,
+        marker.SoundName,
+        marker.Mode,
+        marker.Crossfade,
+        marker.CrossfadeSeconds,
+        marker.TriggerNodeIndex);
+
+    private static SpawnClassBehaviorMarker Scale(SpawnClassBehaviorMarker marker, float scale) => new(
+        marker.X * scale,
+        marker.Y * scale,
+        marker.Team,
+        marker.ForcedClass,
+        marker.ManualSpawn,
+        marker.SkipTeamSelect,
+        marker.AllowTeamChange,
+        marker.AllowClassChange);
 
     private static CustomMapVisualMetadata Scale(CustomMapVisualMetadata metadata, float scale)
     {

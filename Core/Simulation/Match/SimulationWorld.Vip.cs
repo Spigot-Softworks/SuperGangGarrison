@@ -56,6 +56,11 @@ public sealed partial class SimulationWorld
 
     public bool CanNetworkPlayerChangeTeamInCurrentMode(byte slot)
     {
+        if (!CanNetworkPlayerChangeTeamByMapBehavior(slot))
+        {
+            return false;
+        }
+
         if (IsPracticeVipRulesActive && ControlPointSetupActive)
         {
             return true;
@@ -66,6 +71,11 @@ public sealed partial class SimulationWorld
 
     public bool CanNetworkPlayerSelectClassInCurrentMode(byte slot, CharacterClassDefinition definition)
     {
+        if (!CanNetworkPlayerSelectClassByMapBehavior(slot, definition))
+        {
+            return false;
+        }
+
         if (IsPracticeVipRulesActive && ControlPointSetupActive)
         {
             return true;

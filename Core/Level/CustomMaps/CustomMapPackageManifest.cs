@@ -35,7 +35,7 @@ public sealed class CustomMapPackageManifest
         WriteIndented = true,
     };
 
-    public IEnumerable<string> EnumerateImageReferences()
+    public IEnumerable<string> EnumerateContentReferences()
     {
         if (!string.IsNullOrWhiteSpace(BackgroundImage))
         {

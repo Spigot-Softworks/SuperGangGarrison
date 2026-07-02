@@ -7,6 +7,9 @@ namespace OpenGarrison.Core;
 
 public static class CustomMapPackageImporter
 {
+    private static readonly string[] PackageImageExtensions = [".png"];
+    private static readonly string[] PackageContentExtensions = [".png", ".ogg"];
+
     public sealed record PackageContentFile(string RelativePath, string FullPath);
 
     public static CustomMapPngImporter.Result? Import(string manifestPath)
@@ -140,9 +143,9 @@ public static class CustomMapPackageImporter
             [Path.GetFileName(manifestPath)] = new(Path.GetFileName(manifestPath), Path.GetFullPath(manifestPath)),
         };
 
-        foreach (var reference in manifest.EnumerateImageReferences())
+        foreach (var reference in manifest.EnumerateContentReferences())
         {
-            if (!TryResolvePackageImagePath(packageDirectory, reference, requireFileExists: true, out var fullPath, out var normalizedRelativePath))
+            if (!TryResolvePackageContentPath(packageDirectory, reference, requireFileExists: true, out var fullPath, out var normalizedRelativePath))
             {
                 return Array.Empty<PackageContentFile>();
             }
@@ -155,10 +158,20 @@ public static class CustomMapPackageImporter
             .ToArray();
     }
 
+    public static IReadOnlyList<string> GetReferencedContentPaths(CustomMapPackageManifest manifest)
+    {
+        return manifest.EnumerateContentReferences()
+            .Where(static path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
     public static IReadOnlyList<string> GetReferencedImagePaths(CustomMapPackageManifest manifest)
     {
-        return manifest.EnumerateImageReferences()
-            .Where(static path => !string.IsNullOrWhiteSpace(path))
+        return manifest.EnumerateContentReferences()
+            .Where(static path => !string.IsNullOrWhiteSpace(path)
+                && Path.GetExtension(path).Equals(".png", StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -168,6 +181,35 @@ public static class CustomMapPackageImporter
         string packageDirectory,
         string relativePath,
         bool requireFileExists,
+        out string fullPath,
+        out string normalizedRelativePath) =>
+        TryResolvePackageContentPath(
+            packageDirectory,
+            relativePath,
+            requireFileExists,
+            PackageImageExtensions,
+            out fullPath,
+            out normalizedRelativePath);
+
+    public static bool TryResolvePackageContentPath(
+        string packageDirectory,
+        string relativePath,
+        bool requireFileExists,
+        out string fullPath,
+        out string normalizedRelativePath) =>
+        TryResolvePackageContentPath(
+            packageDirectory,
+            relativePath,
+            requireFileExists,
+            PackageContentExtensions,
+            out fullPath,
+            out normalizedRelativePath);
+
+    private static bool TryResolvePackageContentPath(
+        string packageDirectory,
+        string relativePath,
+        bool requireFileExists,
+        IReadOnlyList<string> allowedExtensions,
         out string fullPath,
         out string normalizedRelativePath)
     {
@@ -179,9 +221,10 @@ public static class CustomMapPackageImporter
         }
 
         var trimmedPath = relativePath.Trim();
+        var extension = Path.GetExtension(trimmedPath);
         if (Path.IsPathRooted(trimmedPath)
             || trimmedPath.Contains(':', StringComparison.Ordinal)
-            || !Path.GetExtension(trimmedPath).Equals(".png", StringComparison.OrdinalIgnoreCase))
+            || !allowedExtensions.Any(allowed => allowed.Equals(extension, StringComparison.OrdinalIgnoreCase)))
         {
             return false;
         }
@@ -249,16 +292,18 @@ public static class CustomMapPackageImporter
         foreach (var manifestResource in manifest.Resources ?? [])
         {
             if (string.IsNullOrWhiteSpace(manifestResource.Name)
-                || !TryResolvePackageImagePath(packageDirectory, manifestResource.Path, requireFileExists: true, out var resourcePath, out _))
+                || !TryResolvePackageContentPath(packageDirectory, manifestResource.Path, requireFileExists: true, out var resourcePath, out _))
             {
-                error = "Package resources must have a name and an existing relative PNG path inside the package folder.";
+                error = "Package resources must have a name and an existing relative PNG or OGG path inside the package folder.";
                 return false;
             }
 
             var kind = ParseResourceKind(manifestResource.Kind);
             if (!TryCreateResource(manifestResource.Name.Trim(), resourcePath, kind, out var resource))
             {
-                error = $"Package resource \"{manifestResource.Name}\" must reference a PNG image.";
+                error = kind == CustomMapBuilderResourceKind.MessageSound
+                    ? $"Package resource \"{manifestResource.Name}\" must reference an OGG sound."
+                    : $"Package resource \"{manifestResource.Name}\" must reference a PNG image.";
                 return false;
             }
 
@@ -359,6 +404,7 @@ public static class CustomMapPackageImporter
             "foreground" or "fg" => CustomMapBuilderResourceKind.Foreground,
             "entitysprite" or "entity_sprite" => CustomMapBuilderResourceKind.EntitySprite,
             "customsprite" or "custom_sprite" => CustomMapBuilderResourceKind.CustomSprite,
+            "messagesound" or "message_sound" or "sound" or "ogg" => CustomMapBuilderResourceKind.MessageSound,
             _ => CustomMapBuilderResourceKind.GenericImage,
         };
     }
@@ -371,7 +417,7 @@ public static class CustomMapPackageImporter
     {
         resource = default;
         if (!TryReadPackageBytes(path, out var bytes)
-            || !CustomMapBuilderResourceCodec.IsSupportedImage(bytes))
+            || !CustomMapBuilderResourceCodec.IsSupportedForKind(bytes, kind))
         {
             return false;
         }

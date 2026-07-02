@@ -82,6 +82,7 @@ public sealed class MapLogicNode
         int[]? playerTriggerZoneRoomObjectIndices = null,
         PlayerTriggerTeamFilter playerTriggerTeamFilter = PlayerTriggerTeamFilter.Any,
         bool playerTriggerIntelCarriersOnly = false,
+        int playerTriggerMaxFires = 0,
         int damageableRoomObjectIndex = -1,
         int triggerBelowPercent = DamageTriggerMetadata.DefaultTriggerBelowPercent,
         bool triggerBelowThreshold = false,
@@ -126,6 +127,7 @@ public sealed class MapLogicNode
         PlayerTriggerZoneRoomObjectIndices = playerTriggerZoneRoomObjectIndices ?? [];
         PlayerTriggerTeamFilter = playerTriggerTeamFilter;
         PlayerTriggerIntelCarriersOnly = playerTriggerIntelCarriersOnly;
+        PlayerTriggerMaxFires = Math.Max(0, playerTriggerMaxFires);
         DamageableRoomObjectIndex = damageableRoomObjectIndex;
         TriggerBelowPercent = triggerBelowPercent;
         TriggerBelowThreshold = triggerBelowThreshold;
@@ -196,6 +198,8 @@ public sealed class MapLogicNode
 
     public bool PlayerTriggerIntelCarriersOnly { get; }
 
+    public int PlayerTriggerMaxFires { get; }
+
     public int DamageableRoomObjectIndex { get; }
 
     public int TriggerBelowPercent { get; }
@@ -248,6 +252,8 @@ internal sealed class MapLogicCpTriggerNodeState
 internal sealed class MapLogicPlayerTriggerNodeState
 {
     public bool WasOccupied;
+
+    public int FireCount;
 }
 
 internal sealed class MapLogicDamageTriggerNodeState
@@ -307,6 +313,8 @@ public sealed class MapLogicGraph
 {
     private readonly MapLogicNode[] _nodes;
     private readonly bool[] _outputs;
+    private readonly bool[] _externalPulseOutputs;
+    private readonly bool[] _externalPulseConsumed;
     private readonly int[] _evaluationOrder;
     private readonly MapLogicTimerNodeState[]? _timerStates;
     private readonly MapLogicOscillatorNodeState[]? _oscillatorStates;
@@ -321,6 +329,8 @@ public sealed class MapLogicGraph
     {
         _nodes = nodes.ToArray();
         _outputs = new bool[_nodes.Length];
+        _externalPulseOutputs = new bool[_nodes.Length];
+        _externalPulseConsumed = new bool[_nodes.Length];
         _evaluationOrder = evaluationOrder;
         NodeIndexByKey = BuildKeyIndex(_nodes);
         HasTimers = _nodes.Any(node => node.Kind == MapLogicNodeKind.Timer);
@@ -443,6 +453,20 @@ public sealed class MapLogicGraph
         return _outputs[nodeIndex];
     }
 
+    public bool PulseExternalOutput(int nodeIndex)
+    {
+        if (nodeIndex < 0 || nodeIndex >= _outputs.Length)
+        {
+            return false;
+        }
+
+        _outputs[nodeIndex] = true;
+        _externalPulseOutputs[nodeIndex] = true;
+        _externalPulseConsumed[nodeIndex] = false;
+        EvaluateCombinatorialPropagators(nodeIndex);
+        return true;
+    }
+
     public int GetNodePriority(int nodeIndex)
     {
         if (nodeIndex < 0 || nodeIndex >= _nodes.Length)
@@ -469,10 +493,16 @@ public sealed class MapLogicGraph
             return;
         }
 
+        ClearConsumedExternalPulseOutputs();
         Array.Clear(_outputs, 0, _outputs.Length);
         for (var orderIndex = 0; orderIndex < _evaluationOrder.Length; orderIndex += 1)
         {
             var nodeIndex = _evaluationOrder[orderIndex];
+            if (_externalPulseOutputs[nodeIndex])
+            {
+                continue;
+            }
+
             var node = _nodes[nodeIndex];
             if (node.Kind is MapLogicNodeKind.Timer or MapLogicNodeKind.Oscillator or MapLogicNodeKind.DamageTrigger or MapLogicNodeKind.IntelTrigger)
             {
@@ -492,6 +522,41 @@ public sealed class MapLogicGraph
                 MapLogicNodeKind.Latch => EvaluateLatch(nodeIndex, node),
                 _ => false,
             };
+        }
+
+        ApplyExternalPulseOutputs();
+    }
+
+    private void ClearConsumedExternalPulseOutputs()
+    {
+        for (var index = 0; index < _externalPulseOutputs.Length; index += 1)
+        {
+            if (_externalPulseOutputs[index] && _externalPulseConsumed[index])
+            {
+                _externalPulseOutputs[index] = false;
+                _externalPulseConsumed[index] = false;
+            }
+        }
+    }
+
+    private void ApplyExternalPulseOutputs()
+    {
+        var hasPulse = false;
+        for (var index = 0; index < _externalPulseOutputs.Length; index += 1)
+        {
+            if (!_externalPulseOutputs[index])
+            {
+                continue;
+            }
+
+            _outputs[index] = true;
+            _externalPulseConsumed[index] = true;
+            hasPulse = true;
+        }
+
+        if (hasPulse)
+        {
+            EvaluateCombinatorialPropagators();
         }
     }
 
@@ -625,9 +690,22 @@ public sealed class MapLogicGraph
         var occupied = IsPlayerTriggerOccupied(node, context);
         if (node.SignalMode == MapLogicSignalMode.Latch)
         {
-            if (_playerTriggerStates is not null)
+            var latchState = _playerTriggerStates is null ? null : _playerTriggerStates[nodeIndex];
+            if (node.PlayerTriggerMaxFires > 0
+                && latchState is not null
+                && latchState.FireCount >= node.PlayerTriggerMaxFires)
             {
-                _playerTriggerStates[nodeIndex].WasOccupied = occupied;
+                return false;
+            }
+
+            if (latchState is not null)
+            {
+                if (!latchState.WasOccupied && occupied)
+                {
+                    latchState.FireCount += 1;
+                }
+
+                latchState.WasOccupied = occupied;
             }
 
             return occupied;
@@ -639,12 +717,23 @@ public sealed class MapLogicGraph
         }
 
         var state = _playerTriggerStates[nodeIndex];
+        if (node.PlayerTriggerMaxFires > 0 && state.FireCount >= node.PlayerTriggerMaxFires)
+        {
+            state.WasOccupied = occupied;
+            return false;
+        }
+
         var impulse = node.PlayerDetectMode switch
         {
             MapLogicPlayerDetectMode.PlayerExit => state.WasOccupied && !occupied,
             _ => !state.WasOccupied && occupied,
         };
         state.WasOccupied = occupied;
+        if (impulse)
+        {
+            state.FireCount += 1;
+        }
+
         return impulse;
     }
 
@@ -733,6 +822,7 @@ public sealed class MapLogicGraph
             }
 
             _playerTriggerStates[index].WasOccupied = IsPlayerTriggerOccupied(node, context);
+            _playerTriggerStates[index].FireCount = 0;
         }
     }
 
@@ -962,7 +1052,7 @@ public sealed class MapLogicGraph
             && PlayerTriggerMetadata.AllowsTeam(node.DamageTriggerTeamFilter, damagingTeam.Value);
     }
 
-    public void EvaluateCombinatorialPropagators()
+    public void EvaluateCombinatorialPropagators(int pinnedOutputNodeIndex = -1)
     {
         if (_nodes.Length == 0)
         {
@@ -972,6 +1062,11 @@ public sealed class MapLogicGraph
         for (var orderIndex = 0; orderIndex < _evaluationOrder.Length; orderIndex += 1)
         {
             var nodeIndex = _evaluationOrder[orderIndex];
+            if (nodeIndex == pinnedOutputNodeIndex || _externalPulseOutputs[nodeIndex])
+            {
+                continue;
+            }
+
             var node = _nodes[nodeIndex];
             _outputs[nodeIndex] = node.Kind switch
             {
@@ -1421,6 +1516,7 @@ public static class MapLogicGraphBuilder
                 definition.PlayerTriggerZoneRoomObjectIndices,
                 definition.PlayerTriggerTeamFilter,
                 definition.PlayerTriggerIntelCarriersOnly,
+                definition.PlayerTriggerMaxFires,
                 definition.DamageableRoomObjectIndex,
                 definition.TriggerBelowPercent,
                 definition.TriggerBelowThreshold,
@@ -1472,6 +1568,7 @@ public static class MapLogicGraphBuilder
                 baseNode.PlayerTriggerZoneRoomObjectIndices,
                 baseNode.PlayerTriggerTeamFilter,
                 baseNode.PlayerTriggerIntelCarriersOnly,
+                baseNode.PlayerTriggerMaxFires,
                 baseNode.DamageableRoomObjectIndex,
                 baseNode.TriggerBelowPercent,
                 baseNode.TriggerBelowThreshold,
@@ -1625,6 +1722,8 @@ public sealed class MapLogicNodeDefinition
     public PlayerTriggerTeamFilter PlayerTriggerTeamFilter { get; init; } = PlayerTriggerTeamFilter.Any;
 
     public bool PlayerTriggerIntelCarriersOnly { get; init; }
+
+    public int PlayerTriggerMaxFires { get; init; }
 
     public int DamageableRoomObjectIndex { get; init; } = -1;
 

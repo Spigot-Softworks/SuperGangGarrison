@@ -514,9 +514,9 @@ public partial class Game1
             _spriteBatch.Draw(_pixel, pulseRectangle, new Color(130, 255, 150) * (0.4f * alpha));
         }
 
-        var packSpriteName = healthPack.Size == HealthPackSize.Large
-            ? "HealthPackLargeS"
-            : "HealthPackSmallS";
+        var packSpriteName = healthPack.Size == HealthPackSize.Medium
+            ? HealthPackMetadata.MediumSpriteName
+            : HealthPackMetadata.SmallSpriteName;
         var packSprite = GetResolvedSprite(packSpriteName);
         if (packSprite is not null && packSprite.Frames.Count > 0)
         {
@@ -534,7 +534,7 @@ public partial class Game1
             return;
         }
 
-        var fillColor = healthPack.Size == HealthPackSize.Large
+        var fillColor = healthPack.Size == HealthPackSize.Medium
             ? new Color(140, 255, 140)
             : new Color(200, 255, 200);
         var packRectangle = new Rectangle(

@@ -136,6 +136,7 @@ sealed partial class GameServer
     private ServerAdminChatRouter _adminChatRouter = null!;
     private ServerBanService _banService = null!;
     private ServerBotManager _botManager = null!;
+    private OpenGarrison.Server.MapBotSpawnController _mapBotSpawnController = null!;
 
     public GameServer(
         SimulationConfig config,

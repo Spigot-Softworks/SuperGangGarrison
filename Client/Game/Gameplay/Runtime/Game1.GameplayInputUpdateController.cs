@@ -38,12 +38,12 @@ public partial class Game1
             _game.UpdateNavEditor(keyboard, mouse, rawMouse, cameraPosition, (float)gameTime.ElapsedGameTime.TotalSeconds);
             _game.UpdateScoreboardState(keyboard, mouse);
             var (gameplayInput, networkInput) = _game.BuildGameplayInputs(keyboard, mouse, cameraPosition, (float)gameTime.ElapsedGameTime.TotalSeconds);
+            _game.SetNavEditorTraversalCaptureInput(gameplayInput);
+            _game.SetScoreRouteRecorderCaptureInput(gameplayInput);
+            networkInput = _game.ResolveNavEditorGameplayInput(networkInput);
             _game._latestLocalAimWorldX = networkInput.AimWorldX;
             _game._latestLocalAimWorldY = networkInput.AimWorldY;
             _game._hasLatestLocalAimWorldPosition = true;
-            _game.SetNavEditorTraversalCaptureInput(gameplayInput);
-            _game.SetScoreRouteRecorderCaptureInput(gameplayInput);
-            _game.ResolveNavEditorGameplayInput(gameplayInput);
             _game.CapturePendingPredictedInputEdges(keyboard, mouse, networkInput);
             if (_game.IsGameplayInputBlocked())
             {

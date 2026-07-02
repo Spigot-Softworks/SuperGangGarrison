@@ -20,6 +20,16 @@ public sealed record GameMakerRoomMetadata(
 
     public IReadOnlyList<MovingPlatformMarker> MovingPlatforms { get; init; } = Array.Empty<MovingPlatformMarker>();
 
+    public IReadOnlyList<HealthPackSpawnMarker> HealthPackSpawns { get; init; } = Array.Empty<HealthPackSpawnMarker>();
+
+    public IReadOnlyList<BotSpawnMarker> BotSpawns { get; init; } = Array.Empty<BotSpawnMarker>();
+
+    public IReadOnlyList<GameplayMessageMarker> GameplayMessages { get; init; } = Array.Empty<GameplayMessageMarker>();
+
+    public IReadOnlyList<GameplaySoundMarker> GameplaySounds { get; init; } = Array.Empty<GameplaySoundMarker>();
+
+    public IReadOnlyList<SpawnClassBehaviorMarker> SpawnClassBehaviors { get; init; } = Array.Empty<SpawnClassBehaviorMarker>();
+
     public CustomMapControlPointSettings ControlPointSettings { get; init; } = CustomMapControlPointSettings.Default;
 
     public MapLogicGraph LogicGraph { get; init; } = MapLogicGraph.Empty;

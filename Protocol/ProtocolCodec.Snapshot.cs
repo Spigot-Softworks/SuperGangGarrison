@@ -82,6 +82,8 @@ public static partial class ProtocolCodec
         WriteEntityIdList(writer, snapshot.RemovedJumpPadIds);
         WriteJumpPadGibStates(writer, snapshot.JumpPadGibs);
         WriteEntityIdList(writer, snapshot.RemovedJumpPadGibIds);
+        WriteHealthPackStates(writer, snapshot.HealthPacks);
+        WriteEntityIdList(writer, snapshot.RemovedHealthPackIds);
         writer.Write(snapshot.ControlPointSetupTicksRemaining);
         writer.Write(snapshot.KothUnlockTicksRemaining);
         writer.Write(snapshot.KothRedTimerTicksRemaining);
@@ -173,6 +175,8 @@ public static partial class ProtocolCodec
         var removedJumpPadIds = ReadEntityIdList(reader);
         var jumpPadGibs = ReadJumpPadGibStates(reader);
         var removedJumpPadGibIds = ReadEntityIdList(reader);
+        var healthPacks = ReadHealthPackStates(reader);
+        var removedHealthPackIds = ReadEntityIdList(reader);
         var controlPointSetupTicksRemaining = reader.ReadInt32();
         var kothUnlockTicksRemaining = reader.ReadInt32();
         var kothRedTimerTicksRemaining = reader.ReadInt32();
@@ -284,6 +288,8 @@ public static partial class ProtocolCodec
             RemovedJumpPadIds = removedJumpPadIds,
             JumpPadGibs = jumpPadGibs,
             RemovedJumpPadGibIds = removedJumpPadGibIds,
+            HealthPacks = healthPacks,
+            RemovedHealthPackIds = removedHealthPackIds,
         };
     }
 

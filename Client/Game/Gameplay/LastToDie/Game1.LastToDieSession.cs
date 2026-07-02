@@ -632,12 +632,13 @@ public partial class Game1
 
     private bool ShouldSuspendOfflineGameplaySimulation()
     {
-        return IsLastToDieSessionActive
+        return IsGameplayMessageSimulationFreezeActive
+            || (IsLastToDieSessionActive
             && (HasOpenGameplayOverlay()
                 || _lastToDieSurvivorMenuOpen
                 || _lastToDiePerkMenuOpen
                 || IsLastToDieStageClearOverlayActive()
-                || IsLastToDieFailurePresentationActive());
+                || IsLastToDieFailurePresentationActive()));
     }
 
     private bool IsLastToDieStageClearOverlayActive()

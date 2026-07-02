@@ -31,7 +31,7 @@ public partial class Game1
         var keyboard = GetCurrentKeyboardState();
         if (IsClassSelectCivilianShortcutPressed(keyboard))
         {
-            if (ApplyDirectClassSelection(PlayerClass.Quote))
+            if (ApplyPreferredPluginClassSelection() || ApplyDirectClassSelection(PlayerClass.Quote))
             {
                 CloseGameplaySelectionMenus();
             }
@@ -39,9 +39,9 @@ public partial class Game1
             return;
         }
 
-        if (TryGetClassSelectHotkeySelection(keyboard, out var hotkeyClass))
+        if (TryGetClassSelectHotkeySelection(keyboard, out var hotkeyGameplayClassId))
         {
-            if (ApplyDirectClassSelection(hotkeyClass))
+            if (ApplyDirectGameplayClassSelection(hotkeyGameplayClassId))
             {
                 CloseGameplaySelectionMenus();
             }
@@ -185,6 +185,11 @@ public partial class Game1
 
     private bool ApplyClassSelection(int hoverIndex)
     {
+        if (hoverIndex == 9 && ApplyPreferredPluginClassSelection())
+        {
+            return true;
+        }
+
         var selectedClass = hoverIndex switch
         {
             0 => PlayerClass.Scout,
@@ -202,14 +207,44 @@ public partial class Game1
         return ApplyDirectClassSelection(selectedClass);
     }
 
+    private bool ApplyPreferredPluginClassSelection()
+    {
+        return TryGetPreferredPluginGameplayClass(out var gameplayClassId, out _)
+            && ApplyDirectGameplayClassSelection(gameplayClassId);
+    }
+
     private bool ApplyDirectClassSelection(PlayerClass selectedClass)
     {
-        if (!CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(selectedClass, out _))
+        if (!CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(selectedClass, out var binding))
         {
             _menuStatusMessage = $"{selectedClass} is not available.";
             return false;
         }
 
+        return ApplyDirectGameplayClassSelection(binding.ClassId);
+    }
+
+    private bool ApplyDirectGameplayClassSelection(string gameplayClassId)
+    {
+        var requestedDefinition = CharacterClassCatalog.GetDefinition(gameplayClassId);
+        if (!CanLocalPlayerSelectClassByMapBehavior(requestedDefinition))
+        {
+            _menuStatusMessage = "Class changes are locked by this map.";
+            return false;
+        }
+
+        if (TryResolveLocalMapForcedGameplayClass(out var forcedGameplayClassId))
+        {
+            gameplayClassId = forcedGameplayClassId;
+        }
+
+        if (!CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(gameplayClassId, out var binding))
+        {
+            _menuStatusMessage = "Class is not available.";
+            return false;
+        }
+
+        var selectedClass = binding.PlayerClass;
         if (!IsClassAllowedForCurrentGameplaySession(selectedClass))
         {
             _menuStatusMessage = "Jump allows Rocketman or Detonator.";
@@ -221,12 +256,12 @@ public partial class Game1
         if (_networkClient.IsConnected)
         {
             ResetLocalPredictionForAuthorityTransition();
-            _networkClient.QueueClassSelection(selectedClass);
+            _networkClient.QueueGameplayClassSelection(binding.ClassId);
             return true;
         }
         else
         {
-            ApplyOfflineClassSelection(selectedClass);
+            ApplyOfflineClassSelection(binding.ClassId);
             return true;
         }
     }
@@ -274,16 +309,32 @@ public partial class Game1
         return drawX[Math.Clamp(hoverIndex, 0, drawX.Length - 1)];
     }
 
-    private bool TryGetClassSelectHotkeySelection(KeyboardState keyboard, out PlayerClass selectedClass)
+    private bool TryGetClassSelectHotkeySelection(KeyboardState keyboard, out string gameplayClassId)
     {
-        selectedClass = default;
+        gameplayClassId = string.Empty;
         var pressedDigit = GetPressedDigit(keyboard);
         if (!pressedDigit.HasValue)
         {
             return false;
         }
 
-        selectedClass = pressedDigit.Value switch
+        if (pressedDigit.Value == 0)
+        {
+            if (TryGetPreferredPluginGameplayClass(out gameplayClassId, out _))
+            {
+                return true;
+            }
+
+            if (!CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(GetRandomPlayableClass(), out var randomBinding))
+            {
+                return false;
+            }
+
+            gameplayClassId = randomBinding.ClassId;
+            return true;
+        }
+
+        var selectedClass = pressedDigit.Value switch
         {
             1 => PlayerClass.Scout,
             2 => PlayerClass.Pyro,
@@ -294,14 +345,66 @@ public partial class Game1
             7 => PlayerClass.Engineer,
             8 => PlayerClass.Spy,
             9 => PlayerClass.Sniper,
-            0 => GetRandomPlayableClass(),
             _ => default,
         };
+        if (!CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(selectedClass, out var binding))
+        {
+            return false;
+        }
+
+        gameplayClassId = binding.ClassId;
         return true;
     }
 
-    private static string[] GetClassSelectDescription(int hoverIndex)
+    private bool TryGetPreferredPluginGameplayClass(out string gameplayClassId, out PlayerClass playerClass)
     {
+        gameplayClassId = string.Empty;
+        playerClass = default;
+        GameplayClassRuntimeBinding? selectedBinding = null;
+        foreach (var binding in CharacterClassCatalog.RuntimeRegistry.RuntimeClassBindings)
+        {
+            if (binding.BindsLegacyPlayerClass || !IsClassAllowedForCurrentGameplaySession(binding.PlayerClass))
+            {
+                continue;
+            }
+
+            if (selectedBinding is null || ComparePreferredPluginClass(binding, selectedBinding) < 0)
+            {
+                selectedBinding = binding;
+            }
+        }
+
+        if (selectedBinding is null)
+        {
+            return false;
+        }
+
+        gameplayClassId = selectedBinding.ClassId;
+        playerClass = selectedBinding.PlayerClass;
+        return true;
+    }
+
+    private static int ComparePreferredPluginClass(GameplayClassRuntimeBinding left, GameplayClassRuntimeBinding right)
+    {
+        var leftQuoteRank = left.BasePlayerClass == PlayerClass.Quote ? 0 : 1;
+        var rightQuoteRank = right.BasePlayerClass == PlayerClass.Quote ? 0 : 1;
+        if (leftQuoteRank != rightQuoteRank)
+        {
+            return leftQuoteRank.CompareTo(rightQuoteRank);
+        }
+
+        return string.Compare(left.ClassId, right.ClassId, StringComparison.Ordinal);
+    }
+
+    private string[] GetClassSelectDescription(int hoverIndex)
+    {
+        if (hoverIndex == 9 && TryGetPreferredPluginGameplayClass(out var gameplayClassId, out _))
+        {
+            var gameplayClass = CharacterClassCatalog.RuntimeRegistry.GetClassDefinition(gameplayClassId);
+            var primaryItem = CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(gameplayClassId);
+            return [gameplayClass.DisplayName, $"Weapon: {primaryItem.DisplayName}", "A specialist from an active", "gameplay pack.", string.Empty];
+        }
+
         return hoverIndex switch
         {
             0 => ["Runner", "Weapon: Scattergun", "Quick as the wind, the Runner", "excels in recovering objectives.", "He can double jump in mid-air."],

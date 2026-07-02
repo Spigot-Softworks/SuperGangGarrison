@@ -34,7 +34,8 @@ public partial class Game1
         bool primaryPressed,
         bool secondaryAbilityPressed,
         bool abilityPressed,
-        bool swapWeaponPressed)
+        bool swapWeaponPressed,
+        bool tauntPressed)
     {
         _latestPredictedLocalInput = input;
 
@@ -51,7 +52,8 @@ public partial class Game1
             primaryPressed,
             secondaryAbilityPressed,
             abilityPressed,
-            swapWeaponPressed));
+            swapWeaponPressed,
+            tauntPressed));
         if (_pendingPredictedInputs.Count > MaxPendingPredictedInputs)
         {
             _pendingPredictedInputs.RemoveRange(0, _pendingPredictedInputs.Count - MaxPendingPredictedInputs);
@@ -268,6 +270,7 @@ public partial class Game1
             IsCivvieUmbrellaActive = player.IsCivvieUmbrellaActive,
             IsCivviePogoActive = player.IsCivviePogoActive,
             CivviePogoCrunchTicksRemaining = player.CivviePogoCrunchTicksRemaining,
+            CivviePogoTrickTicksRemaining = player.CivviePogoTrickTicksRemaining,
         };
         _hasPredictedLocalActionState = true;
     }
@@ -276,6 +279,8 @@ public partial class Game1
     {
         player.SyncCivvieUmbrellaSecondaryInput(predictedInput.Input.FireSecondary);
         player.SyncCivviePogoSuperJumpInput(predictedInput.Input.Up);
+        player.ObserveTauntInput(predictedInput.Input.Taunt);
+        player.ObserveCivviePogoTrickInput(predictedInput.Input.Taunt);
 
         var afterburn = player.AdvanceTickState(predictedInput.Input, _config.FixedDeltaSeconds);
         if (afterburn.IsFatal)
@@ -297,6 +302,7 @@ public partial class Game1
         }
 
         ApplyPredictedRoomForces(player);
+        ApplyPredictedTaunt(player, predictedInput);
         var startedGrounded = player.PrepareMovement(movementInput, _world.Level, player.Team, _config.FixedDeltaSeconds, out var canMove);
         var jumped = player.TryJumpIfPossible(canMove, jumpPressed);
         ApplyPredictedSecondaryFire(player, predictedInput);
@@ -381,6 +387,7 @@ public partial class Game1
         public bool IsCivvieUmbrellaActive;
         public bool IsCivviePogoActive;
         public int CivviePogoCrunchTicksRemaining;
+        public int CivviePogoTrickTicksRemaining;
     }
 
     private readonly record struct PredictedLocalInput(
@@ -390,5 +397,6 @@ public partial class Game1
         bool PrimaryPressed,
         bool SecondaryAbilityPressed,
         bool AbilityPressed,
-        bool SwapWeaponPressed);
+        bool SwapWeaponPressed,
+        bool TauntPressed);
 }

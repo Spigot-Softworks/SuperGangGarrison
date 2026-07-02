@@ -7,6 +7,7 @@ public enum CustomMapBuilderResourceKind
     Foreground = 2,
     EntitySprite = 3,
     CustomSprite = 4,
+    MessageSound = 5,
 }
 
 public readonly record struct CustomMapBuilderResource(

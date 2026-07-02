@@ -118,7 +118,7 @@ public partial class Game1
         for (var index = 0; index < _world.RemoteSnapshotPlayers.Count; index += 1)
         {
             var player = _world.RemoteSnapshotPlayers[index];
-            if (player.ClassId != PlayerClass.Spy || player.Team == _world.LocalPlayer.Team)
+            if (!player.IsAlive || player.ClassId != PlayerClass.Spy || player.Team == _world.LocalPlayer.Team)
             {
                 continue;
             }
