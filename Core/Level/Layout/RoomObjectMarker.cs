@@ -22,7 +22,8 @@ public readonly record struct RoomObjectMarker(
     AreaExtensionConfiguration AreaExtension = default,
     DamageableZoneConfiguration DamageableZone = default,
     ForegroundSpriteConfiguration ForegroundSprite = default,
-    SpritesheetConfiguration Spritesheet = default)
+    SpritesheetConfiguration Spritesheet = default,
+    CatapultConfiguration Catapult = default)
 {
     public float Left => X;
 

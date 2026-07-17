@@ -1,0 +1,10 @@
+﻿{
+    "version":  "0.6.5.5",
+    "packageVersion":  "0.6.5.5",
+    "channel":  "stable",
+    "url":  "OpenGarrison-macOS-x64.tar.gz",
+    "sha256":  "dd927f35d1411284acf1566762dd5bd8b09fda0fb222cbbe5905dd5c31591ed8",
+    "size":  94557874,
+    "minLauncherVersion":  "0.1.0",
+    "notesUrl":  ""
+}
