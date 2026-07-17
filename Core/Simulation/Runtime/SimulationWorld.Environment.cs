@@ -234,13 +234,17 @@ public sealed partial class SimulationWorld
         return !string.Equals(stateOwner, GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId, StringComparison.Ordinal);
     }
 
-    private void ApplyRoomForces(PlayerEntity player)
+    private bool ApplyRoomForces(PlayerEntity player, bool jumpPressed = false)
     {
+        EnsureCatapultContactCacheForCurrentLevel();
+
         if (!player.IsAlive)
         {
-            return;
+            ClearCatapultContactsForPlayer(player.Id);
+            return false;
         }
 
+        var consumedJumpPress = false;
         foreach (var roomObject in Level.RoomObjects)
         {
             if (!roomObject.IsMoveBox())
@@ -265,6 +269,76 @@ public sealed partial class SimulationWorld
 
             player.SetMovementState(LegacyMovementState.None);
             player.AddImpulse(impulse.X, impulse.Y);
+        }
+
+        for (var index = 0; index < Level.RoomObjects.Count; index += 1)
+        {
+            var roomObject = Level.RoomObjects[index];
+            if (!roomObject.IsCatapult())
+            {
+                continue;
+            }
+
+            var intersects = player.IntersectsMarker(
+                roomObject.CenterX,
+                roomObject.CenterY,
+                roomObject.Width,
+                roomObject.Height);
+            var key = (player.Id, index);
+            var wasIntersecting = _catapultContacts.TryGetValue(key, out var previous) && previous;
+            if (intersects)
+            {
+                _catapultContacts[key] = true;
+            }
+            else
+            {
+                _catapultContacts.Remove(key);
+            }
+
+            if (!intersects)
+            {
+                continue;
+            }
+
+            var configuration = roomObject.Catapult;
+            var shouldLaunch = configuration.RequiresJumpPress
+                ? jumpPressed
+                : !wasIntersecting;
+            if (!shouldLaunch)
+            {
+                continue;
+            }
+
+            var impulse = configuration.GetImpulse();
+            if (impulse.X == 0f && impulse.Y == 0f)
+            {
+                continue;
+            }
+
+            player.SetMovementState(LegacyMovementState.None);
+            player.AddImpulse(impulse.X, impulse.Y);
+            consumedJumpPress |= configuration.RequiresJumpPress;
+        }
+
+        return consumedJumpPress;
+    }
+
+    private void EnsureCatapultContactCacheForCurrentLevel()
+    {
+        if (ReferenceEquals(_catapultContactLevel, Level))
+        {
+            return;
+        }
+
+        _catapultContacts.Clear();
+        _catapultContactLevel = Level;
+    }
+
+    private void ClearCatapultContactsForPlayer(int playerId)
+    {
+        for (var index = 0; index < Level.RoomObjects.Count; index += 1)
+        {
+            _catapultContacts.Remove((playerId, index));
         }
     }
 

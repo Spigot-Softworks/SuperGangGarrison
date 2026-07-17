@@ -90,6 +90,8 @@ public sealed partial class SimulationWorld
     private readonly Dictionary<byte, bool> _additionalNetworkPlayerAwaitingJoin = new();
     private readonly Dictionary<byte, int> _additionalNetworkPlayerRespawnTicks = new();
     private readonly Dictionary<int, int> _jumpInputBufferTicksByPlayerId = new();
+    private readonly Dictionary<(int PlayerId, int RoomObjectIndex), bool> _catapultContacts = new();
+    private SimpleLevel? _catapultContactLevel;
     private readonly Dictionary<byte, int> _networkPlayerPingMillisecondsBySlot = new();
     private readonly Dictionary<byte, PlayerTeam> _additionalNetworkPlayerTeams = new();
     private readonly HashSet<byte> _pendingNetworkPlayerTeamSelections = new();

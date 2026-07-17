@@ -77,6 +77,11 @@ public static class RoomObjectMarkerExtensions
         };
     }
 
+    public static bool IsCatapult(this RoomObjectMarker marker)
+    {
+        return marker.Type == RoomObjectType.Catapult;
+    }
+
     public static bool BlocksDirectionalMovement(
         this RoomObjectMarker marker,
         float previousLeft,
