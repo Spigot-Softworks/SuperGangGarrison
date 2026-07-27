@@ -249,6 +249,20 @@ public partial class Game1
             : player.IsCivvieUmbrellaActive;
     }
 
+    private bool GetPlayerIsCivvieUmbrellaBroken(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.IsCivvieUmbrellaBroken
+            : player.IsCivvieUmbrellaBroken;
+    }
+
+    private int GetPlayerCivvieUmbrellaChargeTicks(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.CivvieUmbrellaChargeTicks
+            : player.CivvieUmbrellaChargeTicks;
+    }
+
     private bool GetPlayerIsCivviePogoActive(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
@@ -261,5 +275,33 @@ public partial class Game1
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.CivviePogoCrunchTicksRemaining
             : player.CivviePogoCrunchTicksRemaining;
+    }
+
+    private int GetPlayerCivviePogoTrickTicksRemaining(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.CivviePogoTrickTicksRemaining
+            : player.CivviePogoTrickTicksRemaining;
+    }
+
+    private int GetPlayerCivviePogoTrickDurationAtStart(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.CivviePogoTrickDurationAtStart
+            : player.CivviePogoTrickDurationAtStart;
+    }
+
+    private bool GetPlayerIsCivviePogoTrickActive(PlayerEntity player)
+    {
+        return GetPlayerCivviePogoTrickTicksRemaining(player) > 0;
+    }
+
+    private PlayerEntity GetPlayerCivviePresentationSource(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            && _predictedLocalPlayerShadow is { } predictedPlayer
+            && predictedPlayer.Id == player.Id
+                ? predictedPlayer
+                : player;
     }
 }

@@ -62,7 +62,7 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
-    public void BuildUntrimmedSnapshotEmergencyReductionDoesNotClearAllSoundEventsForKillFeed()
+    public void BuildUntrimmedSnapshotPreservesAllContributionsAboveTarget()
     {
         var baseline = CreateSnapshot(106);
         var killFeedEntry = new SnapshotKillFeedEntry(
@@ -99,13 +99,16 @@ public sealed class SnapshotDeltaBudgeterTests
             current,
             baseline);
 
-        var result = SnapshotDeltaBudgeter.BuildUntrimmedSnapshotWithEmergencyReduction(
+        var result = SnapshotDeltaBudgeter.BuildUntrimmedSnapshot(
             current,
             baseline,
             contributions,
-            targetPayloadBytes: SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
+            targetPayloadBytes: 1);
 
-        Assert.NotEmpty(result.Message.SoundEvents);
+        Assert.Equal(2, result.Message.SoundEvents.Count);
+        Assert.Single(result.Message.KillFeed);
+        Assert.True(result.Payload.Length > 1);
+        Assert.False(result.ReductionApplied);
     }
 
     [Fact]
@@ -134,14 +137,13 @@ public sealed class SnapshotDeltaBudgeterTests
             current,
             baseline);
 
-        var result = SnapshotDeltaBudgeter.BuildUntrimmedSnapshotWithEmergencyReduction(
+        var result = SnapshotDeltaBudgeter.BuildUntrimmedSnapshot(
             current,
             baseline,
             contributions,
-            targetPayloadBytes: SnapshotDeltaBudgeter.GameplayCriticalEmergencyPayloadBytes);
+            targetPayloadBytes: SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
 
         Assert.True(result.Payload.Length > SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
-        Assert.True(result.Payload.Length <= SnapshotDeltaBudgeter.GameplayCriticalEmergencyPayloadBytes);
         Assert.False(result.ReductionApplied);
         Assert.Equal(soundEvents.Length, result.Message.SoundEvents.Count);
 
@@ -386,7 +388,7 @@ public sealed class SnapshotDeltaBudgeterTests
             baseline,
             contributions,
             SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
-        var untrimmed = SnapshotDeltaBudgeter.BuildUntrimmedSnapshotWithEmergencyReduction(
+        var untrimmed = SnapshotDeltaBudgeter.BuildUntrimmedSnapshot(
             current,
             baseline,
             contributions,
@@ -399,7 +401,7 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
-    public void BuildUntrimmedSnapshotReducesOptionalDataBeforeDroppingCriticalData()
+    public void BuildUntrimmedSnapshotNeverReducesDataToMeetTarget()
     {
         var player = CreatePlayerState(1, 611, "Critical Player") with
         {
@@ -491,20 +493,20 @@ public sealed class SnapshotDeltaBudgeterTests
                 }),
         };
 
-        var result = SnapshotDeltaBudgeter.BuildUntrimmedSnapshotWithEmergencyReduction(
+        var result = SnapshotDeltaBudgeter.BuildUntrimmedSnapshot(
             current,
             baseline,
             contributions,
             targetPayloadBytes);
 
-        Assert.True(result.ReductionApplied);
+        Assert.False(result.ReductionApplied);
         Assert.True(result.CandidateComposition.FinalPayloadBytes > targetPayloadBytes);
-        Assert.True(result.Payload.Length <= targetPayloadBytes);
+        Assert.True(result.Payload.Length > targetPayloadBytes);
         Assert.Single(result.Message.PlayerMovementStates);
         Assert.Single(result.Message.PlayerChatBubbleStates);
         Assert.Single(result.Message.Rockets);
-        Assert.Empty(result.Message.GibSpawnEvents);
-        Assert.True(result.CandidateComposition.EventBytes > result.Composition.EventBytes);
+        Assert.Equal(visualEvents.Length, result.Message.GibSpawnEvents.Count);
+        Assert.Equal(result.CandidateComposition.EventBytes, result.Composition.EventBytes);
     }
 
     [Fact]

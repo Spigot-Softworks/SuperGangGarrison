@@ -27,7 +27,7 @@ public partial class Game1
         {
             var isHeavyEating = _game.GetPlayerIsHeavyEating(player);
             var isPogo = _game.GetPlayerIsCivviePogoActive(player);
-            var isPogoTrick = isPogo && player.IsCivviePogoTrickActive;
+            var isPogoTrick = isPogo && _game.GetPlayerIsCivviePogoTrickActive(player);
             var spriteName = isHeavyEating
                 ? GetHeavyEatSpriteName(player)
                 : isPogoTrick
@@ -56,7 +56,9 @@ public partial class Game1
                 : isPogoTrick
                     ? _game.GetCivviePogoTrickPresentationFrameIndex(player, sprite.Frames.Count)
                     : isPogo
-                        ? PlayerEntity.GetCivviePogoSpriteFrameIndex(player, sprite.Frames.Count)
+                        ? PlayerEntity.GetCivviePogoSpriteFrameIndex(
+                            _game.GetPlayerCivviePogoCrunchTicksRemaining(player),
+                            sprite.Frames.Count)
                         : player.IsTaunting
                             ? GetTauntSpriteFrameIndex(player, sprite.Frames.Count)
                             : bodySelection.IsHumiliated
@@ -157,7 +159,7 @@ public partial class Game1
 
             var isHeavyEating = _game.GetPlayerIsHeavyEating(player);
             var isPogo = _game.GetPlayerIsCivviePogoActive(player);
-            var isPogoTrick = isPogo && player.IsCivviePogoTrickActive;
+            var isPogoTrick = isPogo && _game.GetPlayerIsCivviePogoTrickActive(player);
             var spriteName = isHeavyEating
                 ? GetHeavyEatSpriteName(player)
                 : isPogoTrick
@@ -186,7 +188,9 @@ public partial class Game1
                 : isPogoTrick
                     ? _game.GetCivviePogoTrickPresentationFrameIndex(player, sprite.Frames.Count)
                     : isPogo
-                        ? PlayerEntity.GetCivviePogoSpriteFrameIndex(player, sprite.Frames.Count)
+                        ? PlayerEntity.GetCivviePogoSpriteFrameIndex(
+                            _game.GetPlayerCivviePogoCrunchTicksRemaining(player),
+                            sprite.Frames.Count)
                         : player.IsTaunting
                             ? GetTauntSpriteFrameIndex(player, sprite.Frames.Count)
                             : bodySelection.IsHumiliated

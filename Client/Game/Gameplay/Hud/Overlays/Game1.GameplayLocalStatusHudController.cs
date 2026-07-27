@@ -272,7 +272,7 @@ public partial class Game1
                     var forceCivvieUmbrellaPresentation = weaponAnimationMode is WeaponAnimationMode.CivvieUmbrellaOpening
                         or WeaponAnimationMode.CivvieUmbrellaHold
                         or WeaponAnimationMode.CivvieUmbrellaClosing;
-                    if (localPlayer.IsCivvieUmbrellaActive
+                    if (_game.GetPlayerIsCivvieUmbrellaActive(localPlayer)
                         && localPlayer.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.CivvieUmbrella)
                         && weaponAnimationMode is not WeaponAnimationMode.CivvieUmbrellaOpening
                             and not WeaponAnimationMode.CivvieUmbrellaHold

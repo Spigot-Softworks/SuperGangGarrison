@@ -491,7 +491,7 @@ public sealed class CustomMapPngExporterTests
             Assert.Equal(0f, level.CustomMapVisuals.ForegroundOffsetX);
             Assert.Equal(0f, level.CustomMapVisuals.ForegroundOffsetY);
             Assert.Equal(File.ReadAllBytes(FindRepoFile("Core", "Content", "StockMaps", "Conflict", "bg_foreground.png")), level.CustomMapVisuals.Foreground.Bytes);
-            Assert.NotEqual(File.ReadAllBytes(FindRepoFile("ctf_conflict.png")), level.CustomMapVisuals.Foreground.Bytes);
+            Assert.NotEqual(File.ReadAllBytes(FindRepoFile("Core", "Content", "StockMaps", "ctf_conflict.png")), level.CustomMapVisuals.Foreground.Bytes);
 
             var layers = level.CustomMapVisuals.ParallaxLayers.ToDictionary(static layer => layer.Index);
             Assert.Equal([0, 1, 2, 3, 4, 5], layers.Keys.OrderBy(static key => key).ToArray());

@@ -30,13 +30,15 @@ public partial class Game1
                 continue;
             }
 
-            var currentTicks = player.CivviePogoTrickTicksRemaining;
+            var currentTicks = GetPlayerCivviePogoTrickTicksRemaining(player);
             if (currentTicks > 0)
             {
                 if (_civviePogoTrickBurstSpawnedPlayerIds.Add(player.Id))
                 {
                     _civviePogoTrickDurationTicksByPlayerId[player.Id] = currentTicks;
-                    SpawnCivviePogoTrickMoneyBurst(player, (ulong)Math.Max(0, _world.Frame));
+                    SpawnCivviePogoTrickMoneyBurst(
+                        GetPlayerCivviePresentationSource(player),
+                        (ulong)Math.Max(0, _world.Frame));
                 }
             }
             else
@@ -74,13 +76,14 @@ public partial class Game1
 
     private int GetCivviePogoTrickPresentationFrameIndex(PlayerEntity player, int frameCount)
     {
-        if (!player.IsCivviePogoTrickActive || frameCount <= 0)
+        if (!GetPlayerIsCivviePogoTrickActive(player) || frameCount <= 0)
         {
             return 0;
         }
 
-        var durationTicks = player.CivviePogoTrickDurationAtStart > 0
-            ? player.CivviePogoTrickDurationAtStart
+        var predictedDurationTicks = GetPlayerCivviePogoTrickDurationAtStart(player);
+        var durationTicks = predictedDurationTicks > 0
+            ? predictedDurationTicks
             : _civviePogoTrickDurationTicksByPlayerId.GetValueOrDefault(
                 player.Id,
                 PlayerEntity.CivviePogoTrickDurationTicksDefault);
@@ -89,7 +92,7 @@ public partial class Game1
             player.Id,
             (ulong)System.Math.Max(0, _world.Frame),
             durationTicks,
-            player.CivviePogoTrickTicksRemaining,
+            GetPlayerCivviePogoTrickTicksRemaining(player),
             frameCount);
     }
 }

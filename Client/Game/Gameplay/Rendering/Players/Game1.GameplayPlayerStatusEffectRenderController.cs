@@ -50,7 +50,7 @@ public partial class Game1
                 return;
             }
 
-            var fillFraction = player.CivvieUmbrellaChargeTicks / (float)PlayerEntity.CivvieUmbrellaMaxChargeTicks;
+            var fillFraction = _game.GetPlayerCivvieUmbrellaChargeTicks(player) / (float)PlayerEntity.CivvieUmbrellaMaxChargeTicks;
             _game.DrawShieldBar(player, cameraPosition, fillFraction, CivvieUmbrellaShieldBarColor, Color.Black, Color.Black);
         }
 

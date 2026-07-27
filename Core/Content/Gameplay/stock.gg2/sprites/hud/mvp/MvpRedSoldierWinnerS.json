@@ -1,0 +1,10 @@
+{
+    "id":  "MvpRedSoldierWinnerS",
+    "framePaths":  [
+                       "assets/hud/mvp/red/soldier/winner_0.png",
+                       "assets/hud/mvp/red/soldier/winner_1.png",
+                       "assets/hud/mvp/red/soldier/winner_2.png"
+                   ],
+    "originX":  26,
+    "originY":  52
+}

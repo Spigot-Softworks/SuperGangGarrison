@@ -1,0 +1,9 @@
+{
+  "id": "stock.gg2.weapon.directhit.recoil",
+  "framePaths": [
+    "assets/weapons/variants/directhit/DirectHitFS.red.png",
+    "assets/weapons/variants/directhit/DirectHitFS.blue.png"
+  ],
+  "originX": 10,
+  "originY": 6
+}

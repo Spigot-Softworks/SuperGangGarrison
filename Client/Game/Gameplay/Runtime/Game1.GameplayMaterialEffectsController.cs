@@ -260,7 +260,7 @@ public partial class Game1
 
         public void SpawnCivvieMoneyVisual(CivvieMoneyTrailSpawn spawn)
         {
-            if (_game._particleMode != 0)
+            if (!AreCivvieMoneyParticlesEnabled(_game._particleMode))
             {
                 return;
             }
@@ -297,7 +297,7 @@ public partial class Game1
 
         public void SpawnCivvieMoneyBurstVisual(CivvieMoneyBurstSpawn spawn)
         {
-            if (_game._particleMode != 0)
+            if (!AreCivvieMoneyParticlesEnabled(_game._particleMode))
             {
                 return;
             }
@@ -333,7 +333,7 @@ public partial class Game1
         public void SpawnLooseSheetVisual(float x, float y, float initialHorizontalSpeed, string? spriteName = null, bool isCivvieMoney = false)
         {
             string[] sheetSprites = ["SheetFalling1", "SheetFalling2", "SheetFalling3"];
-            if (isCivvieMoney && _game._particleMode != 0)
+            if (isCivvieMoney && !AreCivvieMoneyParticlesEnabled(_game._particleMode))
             {
                 return;
             }

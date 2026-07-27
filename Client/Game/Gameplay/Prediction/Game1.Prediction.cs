@@ -268,9 +268,12 @@ public partial class Game1
             ReloadTicksUntilNextShell = player.ReloadTicksUntilNextShell,
             PyroFlareCooldownTicks = player.PyroFlareCooldownTicks,
             IsCivvieUmbrellaActive = player.IsCivvieUmbrellaActive,
+            IsCivvieUmbrellaBroken = player.IsCivvieUmbrellaBroken,
+            CivvieUmbrellaChargeTicks = player.CivvieUmbrellaChargeTicks,
             IsCivviePogoActive = player.IsCivviePogoActive,
             CivviePogoCrunchTicksRemaining = player.CivviePogoCrunchTicksRemaining,
             CivviePogoTrickTicksRemaining = player.CivviePogoTrickTicksRemaining,
+            CivviePogoTrickDurationAtStart = player.CivviePogoTrickDurationAtStart,
         };
         _hasPredictedLocalActionState = true;
     }
@@ -385,9 +388,12 @@ public partial class Game1
         public int ReloadTicksUntilNextShell;
         public int PyroFlareCooldownTicks;
         public bool IsCivvieUmbrellaActive;
+        public bool IsCivvieUmbrellaBroken;
+        public int CivvieUmbrellaChargeTicks;
         public bool IsCivviePogoActive;
         public int CivviePogoCrunchTicksRemaining;
         public int CivviePogoTrickTicksRemaining;
+        public int CivviePogoTrickDurationAtStart;
     }
 
     private readonly record struct PredictedLocalInput(

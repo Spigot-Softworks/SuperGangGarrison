@@ -1,0 +1,40 @@
+{
+    "id":  "GrenadeLauncherFRS",
+    "framePaths":  [
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 0.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 1.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 2.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 3.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 4.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 5.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 6.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 7.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 8.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 9.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 10.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 11.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 12.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 13.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 14.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 15.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 16.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 17.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 18.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 19.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 20.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 21.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 22.png",
+                       "assets/weapons/reloading/GrenadeLauncherFRS.images/image 23.png"
+                   ],
+    "originX":  10,
+    "originY":  10,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

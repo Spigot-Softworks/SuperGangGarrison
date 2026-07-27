@@ -201,12 +201,17 @@ public sealed partial class PlayerEntity
 
     public static int GetCivviePogoSpriteFrameIndex(PlayerEntity player, int frameCount)
     {
+        return GetCivviePogoSpriteFrameIndex(player.CivviePogoCrunchTicksRemaining, frameCount);
+    }
+
+    public static int GetCivviePogoSpriteFrameIndex(int crunchTicksRemaining, int frameCount)
+    {
         if (frameCount <= 0)
         {
             return 0;
         }
 
-        return player.CivviePogoCrunchTicksRemaining > 0
+        return crunchTicksRemaining > 0
             ? Math.Clamp(1, 0, frameCount - 1)
             : 0;
     }

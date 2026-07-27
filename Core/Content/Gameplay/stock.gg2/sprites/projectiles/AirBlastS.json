@@ -1,0 +1,22 @@
+{
+    "id":  "AirBlastS",
+    "framePaths":  [
+                       "assets/projectiles/AirBlastS.images/image 0.png",
+                       "assets/projectiles/AirBlastS.images/image 1.png",
+                       "assets/projectiles/AirBlastS.images/image 2.png",
+                       "assets/projectiles/AirBlastS.images/image 3.png",
+                       "assets/projectiles/AirBlastS.images/image 4.png",
+                       "assets/projectiles/AirBlastS.images/image 5.png"
+                   ],
+    "originX":  0,
+    "originY":  5,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

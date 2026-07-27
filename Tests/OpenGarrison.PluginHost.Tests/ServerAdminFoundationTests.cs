@@ -1581,7 +1581,7 @@ public sealed class ServerAdminFoundationTests
     }
 
     [Fact]
-    public void SnapshotBroadcasterKeepsServerBotRosterDeltasWithinRemoteBudget()
+    public void SnapshotBroadcasterDoesNotTrimRosterDeltasWhenBalancedModeIsConfigured()
     {
         var world = new SimulationWorld();
         var client = new ClientSession(
@@ -1604,7 +1604,8 @@ public sealed class ServerAdminFoundationTests
             botManager,
             transientEventReplayTicks: 0,
             new ServerMapMetadataResolver(world),
-            (_, message, payload) => sentSnapshots.Add((message, payload)));
+            (_, message, payload) => sentSnapshots.Add((message, payload)),
+            snapshotBudgetMode: SnapshotBudgetMode.Balanced);
 
         world.AdvanceOneTick();
         broadcaster.BroadcastSnapshot();
@@ -1612,42 +1613,20 @@ public sealed class ServerAdminFoundationTests
         client.AcknowledgeSnapshot(baseline.Frame);
         sentSnapshots.Clear();
 
-        Assert.Equal(19, botManager.FillBots(targetPerTeam: 10, PlayerClass.Soldier));
+        var addedBotCount = botManager.FillBots(targetPerTeam: 10, PlayerClass.Soldier);
+        Assert.True(addedBotCount > 0);
         world.AdvanceOneTick();
         broadcaster.BroadcastSnapshot();
 
         var sent = Assert.Single(sentSnapshots);
-        Assert.True(sent.Payload.Length <= SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
         Assert.True(sent.Message.IsDelta);
-        Assert.InRange(sent.Message.Players.Count, 1, 19);
+        Assert.Equal(addedBotCount, sent.Message.Players.Count);
         var merged = SnapshotDelta.ToFullSnapshot(sent.Message, baseline);
-        Assert.InRange(merged.Players.Count, 2, 20);
-        client.AcknowledgeSnapshot(sent.Message.Frame);
-        sentSnapshots.Clear();
-
-        SnapshotBaselineState? latestBaseline = null;
-        for (var index = 0; index < 40; index += 1)
+        Assert.Equal(baseline.Players.Count + addedBotCount, merged.Players.Count);
+        Assert.Equal(0, broadcaster.Metrics.BudgetedClientCount);
+        for (var index = 0; index < sent.Message.Players.Count; index += 1)
         {
-            world.AdvanceOneTick();
-            broadcaster.BroadcastSnapshot();
-            var next = Assert.Single(sentSnapshots);
-            Assert.True(next.Payload.Length <= SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
-            client.AcknowledgeSnapshot(next.Message.Frame);
-            Assert.True(client.TryGetSnapshotState(client.LastAcknowledgedSnapshotFrame, out latestBaseline));
-            sentSnapshots.Clear();
-
-            if (latestBaseline.Players.Count >= 20)
-            {
-                break;
-            }
-        }
-
-        Assert.NotNull(latestBaseline);
-        Assert.Equal(20, latestBaseline.Players.Count);
-        Assert.Contains(latestBaseline.Players, player => player.Slot == SimulationWorld.FirstSpectatorSlot);
-        for (var slot = 2; slot <= 20; slot += 1)
-        {
-            Assert.Contains(latestBaseline.Players, player => player.Slot == slot);
+            Assert.Contains(merged.Players, player => player.PlayerId == sent.Message.Players[index].PlayerId);
         }
     }
 

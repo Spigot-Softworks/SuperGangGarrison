@@ -1,0 +1,18 @@
+{
+    "id":  "ScrollButtonS",
+    "framePaths":  [
+                       "assets/hud/lobby/ScrollButtonS.images/image 0.png",
+                       "assets/hud/lobby/ScrollButtonS.images/image 1.png"
+                   ],
+    "originX":  8,
+    "originY":  8,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "FULL",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

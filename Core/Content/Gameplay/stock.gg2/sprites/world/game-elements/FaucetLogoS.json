@@ -1,0 +1,38 @@
+{
+    "id":  "FaucetLogoS",
+    "framePaths":  [
+                       "assets/world/game-elements/FaucetLogoS.images/image 0.png",
+                       "assets/world/game-elements/FaucetLogoS.images/image 1.png",
+                       "assets/world/game-elements/FaucetLogoS.images/image 2.png",
+                       "assets/world/game-elements/FaucetLogoS.images/image 3.png",
+                       "assets/world/game-elements/FaucetLogoS.images/image 4.png",
+                       "assets/world/game-elements/FaucetLogoS.images/image 5.png",
+                       "assets/world/game-elements/FaucetLogoS.images/image 6.png",
+                       "assets/world/game-elements/FaucetLogoS.images/image 7.png",
+                       "assets/world/game-elements/FaucetLogoS.images/image 8.png",
+                       "assets/world/game-elements/FaucetLogoS.images/image 9.png",
+                       "assets/world/game-elements/FaucetLogoS.images/image 10.png",
+                       "assets/world/game-elements/FaucetLogoS.images/image 11.png",
+                       "assets/world/game-elements/FaucetLogoS.images/image 12.png",
+                       "assets/world/game-elements/FaucetLogoS.images/image 13.png",
+                       "assets/world/game-elements/FaucetLogoS.images/image 14.png",
+                       "assets/world/game-elements/FaucetLogoS.images/image 15.png",
+                       "assets/world/game-elements/FaucetLogoS.images/image 16.png",
+                       "assets/world/game-elements/FaucetLogoS.images/image 17.png",
+                       "assets/world/game-elements/FaucetLogoS.images/image 18.png",
+                       "assets/world/game-elements/FaucetLogoS.images/image 19.png",
+                       "assets/world/game-elements/FaucetLogoS.images/image 20.png",
+                       "assets/world/game-elements/FaucetLogoS.images/image 21.png"
+                   ],
+    "originX":  60,
+    "originY":  41,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

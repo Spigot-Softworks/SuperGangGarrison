@@ -1,0 +1,9 @@
+{
+  "id": "stock.gg2.weapon.directhit.world",
+  "framePaths": [
+    "assets/weapons/variants/directhit/DirectHit.red.png",
+    "assets/weapons/variants/directhit/DirectHit.blue.png"
+  ],
+  "originX": 10,
+  "originY": 6
+}

@@ -906,6 +906,28 @@ function Remove-PackagedLooseSpriteFrameDirectories {
     Write-Host "[package] removed loose sprite frame directories: $removedDirectories directories, $removedFiles files"
 }
 
+function Remove-PackagedGameplaySpriteSources {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ContentDirectory
+    )
+
+    if (-not (Test-Path $ContentDirectory)) {
+        return
+    }
+
+    $contentRoot = [System.IO.Path]::GetFullPath($ContentDirectory)
+    $stockPackDirectory = Join-Path $ContentDirectory "Gameplay/stock.gg2"
+    foreach ($sourceDirectoryName in @("assets", "sprites")) {
+        $sourceDirectory = Join-Path $stockPackDirectory $sourceDirectoryName
+        if ((Test-Path -LiteralPath $sourceDirectory -PathType Container) `
+            -and (Test-IsPathWithinDirectory -Path $sourceDirectory -Directory $contentRoot)) {
+            Remove-Item -LiteralPath $sourceDirectory -Recurse -Force
+            Write-Host "[package] removed stock sprite build input: Gameplay/stock.gg2/$sourceDirectoryName"
+        }
+    }
+}
+
 function Assert-PackagedContentPolicy {
     param(
         [Parameter(Mandatory = $true)]
@@ -924,6 +946,7 @@ function Assert-PackagedContentPolicy {
     $browserManifestsDirectory = Join-Path $ContentDirectory "Browser/Manifests"
     $browserAtlasesDirectory = Join-Path $ContentDirectory "Browser/Atlases"
     foreach ($requiredAtlasPath in @(
+        (Join-Path $ContentDirectory "Gameplay/stock.gg2/runtime.json"),
         (Join-Path $browserManifestsDirectory "bootstrap-manifest.json"),
         (Join-Path $browserManifestsDirectory "stock-pack-atlas-manifest.json"),
         (Join-Path $browserManifestsDirectory "gamemaker-atlas-manifest.json")
@@ -947,6 +970,19 @@ function Assert-PackagedContentPolicy {
     foreach ($requiredStockSprite in @("HeadS", "FeetS", "BloodS", "BlueClumpS", "RedClumpS", "GibS")) {
         if (($stockAtlasManifest.Manifest.Sprites.PSObject.Properties.Match($requiredStockSprite) | Select-Object -First 1) -eq $null) {
             throw "Release stock gameplay atlas manifest is missing required sprite '$requiredStockSprite'."
+        }
+    }
+
+    $stockRuntimeDefinitionPath = Join-Path $ContentDirectory "Gameplay/stock.gg2/runtime.json"
+    $stockRuntimeDefinition = Get-Content -LiteralPath $stockRuntimeDefinitionPath -Raw | ConvertFrom-Json
+    if (@($stockRuntimeDefinition.Assets.Sprites.PSObject.Properties).Count -eq 0) {
+        throw "Release stock gameplay runtime metadata contains no sprite metadata: '$stockRuntimeDefinitionPath'."
+    }
+
+    foreach ($sourceDirectoryName in @("assets", "sprites")) {
+        $sourceDirectory = Join-Path $ContentDirectory "Gameplay/stock.gg2/$sourceDirectoryName"
+        if (Test-Path -LiteralPath $sourceDirectory) {
+            throw "Release content still contains stock sprite build input '$sourceDirectory'."
         }
     }
 
@@ -1611,13 +1647,15 @@ foreach ($runtimeIdentifier in $Platforms) {
     Remove-PackagedDesktopWebResidue -PayloadDirectory $payloadDirectory
     Remove-PackagedDebugResidue -PayloadDirectory $payloadDirectory
     Remove-PackagedLooseSpriteFrameDirectories -ContentDirectory (Join-Path $payloadDirectory "Content")
+    Remove-PackagedGameplaySpriteSources -ContentDirectory (Join-Path $payloadDirectory "Content")
     Convert-PackagedBotBrainJsonAssetsToGzip -ContentDirectory (Join-Path $payloadDirectory "Content")
     Assert-PackagedContentPolicy -ContentDirectory (Join-Path $payloadDirectory "Content")
+    & (Join-Path $repoRoot "scripts/verify-packaged-content.ps1") -Path (Join-Path $payloadDirectory "Content")
     Assert-PackagedDesktopPayloadPolicy -PayloadDirectory $payloadDirectory
     Assert-RequiredDistributionMaps -MapsDirectory (Join-Path $payloadDirectory "Maps") -ContentDirectory (Join-Path $payloadDirectory "Content")
     Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "packaging/config") -DestinationDirectory (Join-Path $payloadDirectory "config")
     Copy-Item (Join-Path $repoRoot "Client/practice-bot-names.txt") (Join-Path $payloadDirectory "config/practice-bot-names.txt") -Force
-    Copy-Item (Join-Path $repoRoot "sampleMapRotation.txt") (Join-Path $payloadDirectory "config/sampleMapRotation.txt") -Force
+    Copy-Item (Join-Path $repoRoot "packaging/config/sampleMapRotation.txt") (Join-Path $payloadDirectory "config/sampleMapRotation.txt") -Force
     Copy-Item (Join-Path $repoRoot "packaging/README.txt") (Join-Path $stagingDirectory "README.txt") -Force
     Set-Content -Path (Join-Path $stagingDirectory "version.txt") -Value $packageVersion -NoNewline -Encoding ASCII
     Set-Content -Path (Join-Path $stagingDirectory "release-channel.txt") -Value $releaseChannel -NoNewline -Encoding ASCII

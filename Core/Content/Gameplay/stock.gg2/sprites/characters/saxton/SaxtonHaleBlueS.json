@@ -1,0 +1,22 @@
+{
+    "id": "SaxtonHaleBlueS",
+    "framePaths": [
+        "assets/characters/saxton/SaxtonHaleBlueS.images/image 0.png",
+        "assets/characters/saxton/SaxtonHaleBlueS.images/image 1.png",
+        "assets/characters/saxton/SaxtonHaleBlueS.images/image 2.png",
+        "assets/characters/saxton/SaxtonHaleBlueS.images/image 3.png",
+        "assets/characters/saxton/SaxtonHaleBlueS.images/image 4.png",
+        "assets/characters/saxton/SaxtonHaleBlueS.images/image 5.png"
+    ],
+    "originX": 30,
+    "originY": 40,
+    "mask": {
+        "separate": false,
+        "shape": "RECTANGLE",
+        "boundsMode": "MANUAL",
+        "left": 24,
+        "top": 32,
+        "right": 36,
+        "bottom": 63
+    }
+}
