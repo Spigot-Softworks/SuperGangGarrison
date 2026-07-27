@@ -150,6 +150,7 @@ public sealed class Protocol64FoundationTests
         var bodyLength = BitConverter.ToUInt32(encoded, 28);
         var bodyTruncated = encoded[..^1];
         BitConverter.GetBytes(bodyLength - 1).CopyTo(bodyTruncated, 28);
+        BitConverter.GetBytes(bodyLength - 1).CopyTo(bodyTruncated, 32);
 
         var result = Protocol64FrameCodec.Decode(bodyTruncated, registry);
 
