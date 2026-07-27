@@ -256,8 +256,8 @@ internal sealed class Networking64InMemoryTransport
         Events.Add(new Networking64TransportEvent(
             Networking64TransportEventKind.StreamReset,
             streamId,
-            sequence: 0,
-            affectedPacketCount: removedPacketCount));
+            Sequence: 0,
+            AffectedPacketCount: removedPacketCount));
         return removedPacketCount;
     }
 

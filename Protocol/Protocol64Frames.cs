@@ -345,7 +345,8 @@ public static class Protocol64FrameCodec
                 $"Protocol-64 frame declares version {header.ProtocolVersion}; expected {Protocol64.Version}.",
                 options.Backend,
                 streamId: options.StreamId,
-                header: header)), options.FaultSink);
+                header: header,
+                completeFrameDelivered: false)), options.FaultSink);
         }
 
         if ((header.Flags & ~Protocol64FrameFlags.Lz4) != Protocol64FrameFlags.None)
@@ -387,7 +388,8 @@ public static class Protocol64FrameCodec
                 $"Protocol-64 frame declares {header.EncodedBodyLength} body bytes but only {payload.Length - Protocol64FrameHeader.EncodedSize} arrived.",
                 options.Backend,
                 streamId: options.StreamId,
-                header: header)), options.FaultSink);
+                header: header,
+                completeFrameDelivered: false)), options.FaultSink);
         }
 
         if (payload.Length > expectedLength)
@@ -542,7 +544,8 @@ public static class Protocol64FrameCodec
         IProtocol64EventSchema? schema = null,
         Protocol64Direction? direction = null,
         int encodedBodyBytes = 0,
-        int decodedBodyBytes = 0)
+        int decodedBodyBytes = 0,
+        bool? completeFrameDelivered = null)
     {
         return new Protocol64Fault(
             kind,
@@ -555,15 +558,18 @@ public static class Protocol64FrameCodec
                 header?.FrameId,
                 backend,
                 streamId,
-                header is not null,
+                completeFrameDelivered ?? header is not null,
                 encodedBodyBytes != 0
                     ? encodedBodyBytes
-                    : header is null ? 0 : checked((int)header.EncodedBodyLength),
+                    : header is null ? 0 : ClampLength(header.EncodedBodyLength),
                 decodedBodyBytes != 0
                     ? decodedBodyBytes
-                    : header is null ? 0 : checked((int)header.DecodedBodyLength)),
+                    : header is null ? 0 : ClampLength(header.DecodedBodyLength)),
             exception);
     }
+
+    private static int ClampLength(uint length)
+        => length > int.MaxValue ? int.MaxValue : (int)length;
 }
 
 internal sealed class Protocol64FrameParseException : Exception
