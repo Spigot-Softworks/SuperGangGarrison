@@ -2,6 +2,8 @@ using System.Linq;
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Collections.Concurrent;
+using System.Threading;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 using OpenGarrison.Server.Plugins;
@@ -21,9 +23,19 @@ internal sealed class ServerOutboundMessaging(
     Action<IProtocolMessage>? recordBroadcastMessage = null)
 {
     private readonly Dictionary<byte, ServerCustomBubbleState> _customBubblesBySlot = new();
+    private readonly Protocol64SchemaRegistry _protocol64Registry = Protocol64SchemaRegistryFactory.CreateDefault();
+    private readonly Protocol64StatePublisher _protocol64StatePublisher = new(world);
+    private readonly ConcurrentDictionary<ulong, ulong> _protocol64ConnectionEpochs = new();
+    private long _nextProtocol64FrameId;
 
     public void SendMessage(ServerTransportPeer remotePeer, IProtocolMessage message)
     {
+        if (clientsBySlot.Values.Any(client => client.Protocol64Enabled && client.Peer == remotePeer))
+        {
+            SendProtocol64Event(remotePeer, message);
+            return;
+        }
+
         var payload = ProtocolCodec.Serialize(message, ServerProtocolCompression.GetSettingsFor(message));
         SendPayload(
             remotePeer,
@@ -31,10 +43,99 @@ internal sealed class ServerOutboundMessaging(
             message is SnapshotMessage ? MessageType.Snapshot : null);
     }
 
+    /// <summary>
+    /// Sends a protocol-64 event through the selected connection container's
+    /// complete-frame boundary. This is intentionally separate from the legacy
+    /// MessageType serializer so a caller cannot choose reliability ad hoc.
+    /// </summary>
+    public void SendProtocol64Event(ServerTransportPeer remotePeer, object eventValue)
+    {
+        ArgumentNullException.ThrowIfNull(eventValue);
+
+        var encoded = Protocol64FrameCodec.EncodeObject(
+            _protocol64Registry,
+            eventValue,
+            GetProtocol64ConnectionEpoch(remotePeer),
+            NextProtocol64FrameId(),
+            new Protocol64FrameEncodeOptions { Backend = remotePeer.Kind.ToString() });
+
+        if (!encoded.Succeeded || encoded.Payload is null)
+        {
+            log($"[network] protocol-64 event {eventValue.GetType().Name} rejected: {encoded.Fault?.Message}");
+            return;
+        }
+
+        var schema = _protocol64Registry.Get(encoded.Header!.SchemaId, encoded.Header.SchemaRevision);
+        if (schema.Descriptor.Direction != Protocol64Direction.ServerToClient)
+        {
+            log($"[network] protocol-64 event {eventValue.GetType().Name} is not a server-to-client schema.");
+            return;
+        }
+
+        transport.SendProtocol64(
+            remotePeer,
+            encoded.Payload,
+            schema.Descriptor.Delivery,
+            GetProtocol64ReplacementKey(eventValue));
+    }
+
     public void SendSnapshotPayload(ServerTransportPeer remotePeer, SnapshotMessage _, byte[] payload)
     {
         SendPayload(remotePeer, payload, MessageType.Snapshot);
     }
+
+    public void BroadcastProtocol64State(uint stateTick)
+    {
+        var players = _protocol64StatePublisher.BuildPlayerStateBatch(stateTick);
+        var roster = _protocol64StatePublisher.BuildRosterState(stateTick);
+        var projectiles = _protocol64StatePublisher.BuildProjectileStates(stateTick);
+        var projectileLifecycles = _protocol64StatePublisher.BuildProjectileLifecycleEvents();
+        foreach (var client in clientsBySlot.Values)
+        {
+            if (client.IsAuthorized && client.Protocol64Enabled)
+            {
+                SendProtocol64Event(client.Peer, players);
+                SendProtocol64Event(client.Peer, roster);
+                foreach (var projectile in projectiles)
+                {
+                    SendProtocol64Event(client.Peer, projectile);
+                }
+                foreach (var lifecycle in projectileLifecycles)
+                {
+                    SendProtocol64Event(client.Peer, lifecycle);
+                }
+            }
+        }
+    }
+
+    public void SendProtocol64StateResync(
+        ClientSession client,
+        Protocol64StateResyncRequest request,
+        uint stateTick)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        SendProtocol64Event(
+            client.Peer,
+            _protocol64StatePublisher.BuildResyncResponse(request, stateTick));
+    }
+
+    private ulong GetProtocol64ConnectionEpoch(ServerTransportPeer remotePeer)
+        => _protocol64ConnectionEpochs.GetOrAdd(
+            remotePeer.Id,
+            static peerId => peerId == 0 ? 1UL : peerId);
+
+    private ulong NextProtocol64FrameId()
+        => unchecked((ulong)Interlocked.Increment(ref _nextProtocol64FrameId));
+
+    private static string? GetProtocol64ReplacementKey(object eventValue)
+        => eventValue switch
+        {
+            Protocol64ProjectileState projectile => $"projectile:{projectile.EntityId}",
+            Protocol64PlayerStateBatch => "players",
+            Protocol64RosterState => "roster",
+            Protocol64StateResyncResponse response => $"resync:{response.RequestId}",
+            _ => null,
+        };
 
     public void SendServerStatus(ServerTransportPeer remotePeer)
     {

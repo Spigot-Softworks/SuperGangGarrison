@@ -53,9 +53,24 @@ public sealed record Protocol64RepairRequest(
     ulong? MissingSequenceFrom,
     ulong? MissingSequenceTo,
     ulong? OffendingFrameId,
-    bool ExcludeOffendingFrame)
+    bool ExcludeOffendingFrame,
+    int Lane = 0)
 {
     public static ChannelType RequestChannel => ChannelType.Control;
+
+    public Protocol64RetransmitRequest ToProtocolEvent()
+        => new(
+            RequestId,
+            ConnectionEpoch,
+            (Protocol64TransportRepairReason)Reason,
+            StreamId,
+            Channel,
+            Delivery,
+            MissingSequenceFrom,
+            MissingSequenceTo,
+            OffendingFrameId,
+            ExcludeOffendingFrame,
+            Lane);
 
     public static Protocol64RepairRequest MissingReliableFrame(
         ulong connectionEpoch,

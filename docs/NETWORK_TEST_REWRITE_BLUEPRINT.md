@@ -1,8 +1,8 @@
 # OG2 networking rewrite blueprint
 
-Status: architecture and implementation blueprint for the `network-test` branch.
+Status: implemented protocol-64 canary blueprint for the `network-test` branch.
 
-Scope: the current OG2 codebase outside `Modern`. This document is intentionally a design and migration plan; it does not change the live protocol or gameplay code by itself.
+Scope: the current OG2 codebase outside `Modern`. This document records the design, migration plan, and implementation status for the protocol-64 canary; it is not a claim that legacy UDP has already been retired.
 
 ## Executive decision
 
@@ -19,9 +19,37 @@ The canonical backends should be:
 
 Raw UDP should remain only as a legacy compatibility backend while the migration is running. It must not be the reference implementation for the new protocol.
 
-The first new wire contract should be the protocol-58 schema family requested here. The repository currently reports `ProtocolVersion.Current = 63`, so this needs an explicit versioning decision: either publish the new wire format as a reviewed successor version, or negotiate a `SchemaFamily = 58` capability inside a later protocol version. Do not silently give new bytes the old meaning of version 63.
+The first new wire contract is protocol 64. Protocol 63 and earlier remain legacy wire formats during migration; protocol 64 introduces the dedicated event-schema architecture and this networking rewrite. Do not assign new protocol-64 bytes legacy protocol-63 meaning.
 
-## What is in the repository today
+## Current implementation status
+
+The protocol-64 rewrite is implemented on `network-test` through the core canary path. The branch now contains:
+
+- a complete protocol-64 schema registry for the current message families plus split player, roster, projectile, lifecycle, resync, retransmit, and durable-input events;
+- bounded complete-frame envelopes with compression, exact body consumption, CRC integrity, direction checks, typed faults, and warning/fault callbacks;
+- backend-neutral channel scheduling with reliable ordered/unordered queues, explicit backpressure, and keyed `LastWins` mailboxes;
+- canonical protocol-64 WebSocket handling for browser and desktop endpoints, including fragmented-message assembly, bounded recovery/retry state, and explicit send failure;
+- native `System.Net.Quic` client/server containers with Control/Input streams, unordered stream lanes, LastWins stream fallback, stream generation recovery, bounded retransmit cache, dedicated replay streams, and recovery lane/sequence metadata;
+- inline class identity, generation-aware authoritative state, explicit roster/projectile removal, atomic resync application, and a live `SimulationWorld` bridge;
+- durable ordered input commands with server-side deduplication/consumption and post-simulation `InputCommandResult` acknowledgements;
+- telemetry counters for frame/byte delivery, backpressure, LastWins behavior, decode faults, repair, protocol errors, state repair, and input outcomes.
+
+The canonical endpoints are selected explicitly with `ws64://`, `wss64://`, or `quic64://`. Legacy UDP and the legacy WebSocket endpoint remain available for migration and are not upgraded in place. QUIC datagrams are represented by the same LastWins lane contract, with a reliable stream fallback until native datagram send/receive is enabled in the runtime adapter.
+
+The shareable build gate used for this branch is:
+
+```powershell
+dotnet build Core/OpenGarrison.Core.csproj --no-restore -p:OpenGarrisonPackageScriptOwnsContent=true -m:1 -nr:false
+dotnet build Server/OpenGarrison.Server.csproj --no-restore -p:OpenGarrisonPackageScriptOwnsContent=true -m:1 -nr:false
+dotnet build Client/OpenGarrison.Client.csproj --no-restore -p:OpenGarrisonPackageScriptOwnsContent=true -p:RunAOTCompilation=false -m:1 -nr:false
+dotnet build Client.Browser/OpenGarrison.Client.Browser.csproj --no-restore -p:OpenGarrisonBrowserAot=false -p:RunAOTCompilation=false -p:BuildProjectReferences=false -p:OpenGarrisonPackageScriptOwnsContent=true -m:1 -nr:false
+dotnet test Tests/OpenGarrison.Networking.Tests/OpenGarrison.Networking.Tests.csproj --no-restore
+dotnet test Tests/OpenGarrison.PluginHost.Tests/OpenGarrison.PluginHost.Tests.csproj --no-build --filter "FullyQualifiedName~Protocol64"
+```
+
+Enable the native server QUIC listener with `OPENGARRISON_QUIC_PORT=<port>` and the existing WebSocket PKCS#12 certificate configuration. Browser and desktop WebSocket canaries use the `/opengarrison/ws64` endpoint. A full PluginHost run is still useful as a regression signal, but it currently contains unrelated pre-existing gameplay/asset fixture failures; the protocol-64 and networking suites are the release gate for this branch.
+
+## Baseline inventory before the protocol-64 canary
 
 ### Repository shape
 
@@ -51,7 +79,7 @@ The wire path currently works like this:
 
 `SnapshotMessage` is a large aggregate containing world state, player state, scoreboards, projectiles, transient events, removals, string-cache updates, baseline information, delta information, and completeness flags. It is not a collection of independently versioned events.
 
-`ProtocolVersion.Current` is 63. No QUIC implementation or `System.Net.Quic` reference was found in the in-scope source, project files, or docs. The protocol project currently has LZ4 as its only direct package dependency.
+Before this branch, `ProtocolVersion.Current` was 63. The baseline had no QUIC implementation or `System.Net.Quic` reference in the in-scope source or project files. The protocol project had LZ4 as its only direct package dependency.
 
 ### Native client transport
 
@@ -161,7 +189,7 @@ Keep message contracts in `OpenGarrison.Protocol`, but replace the central messa
 The requested metadata should be expressible directly on each schema, for example:
 
 ```csharp
-[ProtocolEvent(58, EventId.PlayerStateBatch, Direction.S2C)]
+[ProtocolEvent(64, EventId.PlayerStateBatch, Direction.S2C)]
 [ReliableUnordered(ChannelType.State)]
 public sealed class PlayerStateBatchSchema : IEventSchema<PlayerStateBatch> { ... }
 ```
@@ -333,7 +361,7 @@ If bandwidth later requires deltas, make the base explicit and enforce it as a r
 
 ### String and class identity
 
-The safest protocol-58 rule is to remove string-cache indirection from correctness-critical records. Send bounded UTF-8 identifiers for gameplay class, loadout, mod pack, and item identity, then rely on frame compression rather than an unreliable dictionary.
+The safest protocol-64 rule is to remove string-cache indirection from correctness-critical records. Send bounded UTF-8 identifiers for gameplay class, loadout, mod pack, and item identity, then rely on frame compression rather than an unreliable dictionary.
 
 If a dictionary is retained for bandwidth, it must become its own reliable protocol:
 
@@ -425,7 +453,7 @@ Add no semantic behavior changes yet. Add:
 
 Add deterministic fault-injection tests for loss, duplication, reordering, truncation, oversized length, stale cache, and delayed input. This stage should make the four reported symptoms measurable before the rewrite changes their frequency.
 
-### Stage 1 — schema registry and protocol-58 event family
+### Stage 1 — schema registry and protocol-64 event family
 
 Create dedicated schema types and registry entries for every current packet type, even before splitting all snapshot contents. The registry must be able to return the delivery descriptor and max sizes without knowing whether the connection is UDP, WebSocket, or QUIC.
 
@@ -437,7 +465,7 @@ Exit criteria:
 - no new code passes `MessageType?` to choose reliability;
 - malformed and trailing-byte fixtures produce typed failures;
 - old and new codecs round-trip agreed fixtures;
-- version negotiation cannot confuse the current v63 wire with the schema-58 family.
+- version negotiation cleanly separates legacy v63 from the new v64 wire.
 
 ### Stage 2 — backend-neutral connection API and WebSocket backend
 
@@ -499,7 +527,7 @@ Exit criteria:
 Run dual-stack compatibility behind configuration, for example:
 
 - backend: `legacy-udp`, `websocket`, or `quic`;
-- schema family: legacy codec or protocol-58 schema registry;
+- schema family: legacy v63 codec or protocol-64 schema registry;
 - state mode: legacy snapshot or split authoritative events;
 - input mode: legacy input state or durable commands.
 
@@ -521,7 +549,7 @@ After an agreed soak period, make QUIC the native default and WebSocket the brow
 - invalid enum/identity/generation fields;
 - per-event maximum size;
 - delivery annotations are present and match the registry;
-- version/capability negotiation between legacy, schema-58, and future versions.
+- version/capability negotiation between legacy v63, protocol 64, and future versions.
 
 ### Backend tests
 

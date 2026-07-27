@@ -76,6 +76,7 @@
     <ProjectReference Include="..\Core\OpenGarrison.Core.csproj" />
     <ProjectReference Include="..\GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj" />
     <ProjectReference Include="..\Protocol\OpenGarrison.Protocol.csproj" />
+    <ProjectReference Include="..\Networking\OpenGarrison.Networking.csproj" />
   </ItemGroup>
   <ItemGroup Condition="'$(OpenGarrisonClientAsLibrary)' == 'true'">
     <ProjectReference Include="..\Plugins\Client\OpenGarrison.Client.Plugins.Abstractions\OpenGarrison.Client.Plugins.Abstractions.csproj">

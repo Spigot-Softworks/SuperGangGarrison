@@ -28,6 +28,7 @@ partial class GameServer
         ApplyRuntimeBootstrap(CreateRuntimeBootstrap(eventLog));
         ApplyHostGameplayDefaults();
         InitializeWebSocketHost();
+        InitializeQuicHost();
         InitializeGameplayOwnershipService();
         InitializePluginRuntime();
         InitializeHttpRegistryHeartbeat();
@@ -56,7 +57,7 @@ partial class GameServer
         _udp.Client.Blocking = false;
         TryConfigureUdpSocketBuffers(_udp.Client);
         TryDisableUdpConnectionReset(_udp.Client);
-        _messageTransport = new OpenGarrison.Server.CompositeServerMessageTransport(_udp);
+        _messageTransport = new OpenGarrison.Server.CompositeServerMessageTransport(_udp, Console.WriteLine);
     }
 
     private static void TryConfigureUdpSocketBuffers(Socket socket)
@@ -206,6 +207,37 @@ partial class GameServer
         _world.SetClassLimit(PlayerClass.Quote, host.ClassLimitCivilian);
     }
 
+    private void InitializeQuicHost()
+    {
+        var configuredPort = Environment.GetEnvironmentVariable("OPENGARRISON_QUIC_PORT");
+        if (!int.TryParse(configuredPort, out var quicPort) || quicPort <= 0)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_webSocketCertificatePath))
+        {
+            Console.WriteLine("[server] protocol-64 QUIC disabled: OPENGARRISON_QUIC_PORT requires the WebSocket PKCS#12 certificate.");
+            return;
+        }
+
+        try
+        {
+            _quicHost = OpenGarrison.Server.Protocol64QuicServerHost.Start(
+                quicPort,
+                _webSocketCertificatePath,
+                _webSocketCertificatePassword,
+                (OpenGarrison.Server.CompositeServerMessageTransport)_messageTransport,
+                Console.WriteLine);
+            Console.WriteLine($"[server] protocol-64 QUIC listener enabled on quic://0.0.0.0:{quicPort}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[server] failed to start protocol-64 QUIC listener: {ex.Message}");
+            _quicHost = null;
+        }
+    }
+
     private void ApplyRuntimeBootstrap(OpenGarrison.Server.ServerRuntimeBootstrap runtime)
     {
         _lobbyRegistrar = runtime.LobbyRegistrar;
@@ -238,6 +270,9 @@ partial class GameServer
         Console.WriteLine(_webSocketPort <= 0 || _webSocketHost is null
             ? "[server] WebSocket: disabled"
             : $"[server] WebSocket: {(_webSocketCertificatePath is null ? "ws" : "wss")}://0.0.0.0:{_webSocketPort}/opengarrison/ws");
+        Console.WriteLine(_quicHost is null
+            ? "[server] protocol-64 QUIC: disabled"
+            : "[server] protocol-64 QUIC: enabled");
         Console.WriteLine(_mapDownloadEndpointAvailable
             ? $"[server] custom map downloads: enabled on port {ResolveMapDownloadPort()}"
             : "[server] custom map downloads: unavailable");
@@ -406,6 +441,7 @@ partial class GameServer
                     },
                     () =>
                     {
+                        _sessionManager.CompleteProtocol64InputsAfterSimulationTick();
                         _autoBalancer.Tick(now, 1, _autoBalanceEnabled);
                         if (_mapRotationManager.TryApplyPendingMapChange(out var transition))
                         {
@@ -456,6 +492,7 @@ partial class GameServer
 
                 if (ticks > 0)
                 {
+                    _outboundMessaging.BroadcastProtocol64State(unchecked((uint)_world.Frame));
                     _eventReporter.PublishGameplayEvents(_snapshotBroadcaster.LastCapturedTransientEvents);
                 }
 
@@ -615,6 +652,11 @@ partial class GameServer
             _httpRegistryHeartbeat = null;
             _webSocketHost?.Dispose();
             _webSocketHost = null;
+            if (_quicHost is not null)
+            {
+                _quicHost.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                _quicHost = null;
+            }
             _pluginHost?.NotifyServerStopped();
             _pluginHost?.ShutdownPlugins();
             Console.WriteLine("[server] shutdown complete.");
@@ -1298,7 +1340,9 @@ partial class GameServer
             receiveCustomBubbleUpload: _outboundMessaging.ReceiveCustomBubbleUpload,
             receiveCustomBubbleClear: _outboundMessaging.ReceiveCustomBubbleClear,
             sendCustomBubbleStates: _outboundMessaging.SendCustomBubbleStatesToClient,
-            localPredictionEnabledGetter: () => _localPredictionEnabled);
+            localPredictionEnabledGetter: () => _localPredictionEnabled,
+            sendProtocol64StateResync: (client, request) =>
+                _outboundMessaging.SendProtocol64StateResync(client, request, unchecked((uint)_world.Frame)));
         _incomingPacketPump = new OpenGarrison.Server.ServerIncomingPacketPump(
             _messageTransport,
             messageDispatcher,

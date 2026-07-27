@@ -33,7 +33,8 @@ internal sealed class ServerIncomingMessageDispatcher(
     Action<ClientSession, CustomBubbleUploadMessage>? receiveCustomBubbleUpload = null,
     Action<ClientSession>? receiveCustomBubbleClear = null,
     Action<ServerTransportPeer>? sendCustomBubbleStates = null,
-    Func<bool>? localPredictionEnabledGetter = null)
+    Func<bool>? localPredictionEnabledGetter = null,
+    Action<ClientSession, Protocol64StateResyncRequest>? sendProtocol64StateResync = null)
 {
     public void Dispatch(IProtocolMessage message, ServerTransportPeer remotePeer)
     {
@@ -47,6 +48,10 @@ internal sealed class ServerIncomingMessageDispatcher(
                 break;
             case HelloMessage hello:
                 HandleHello(hello, remotePeer);
+                if (remotePeer.IsProtocol64 && TryGetClient(remotePeer, out var protocol64HelloClient))
+                {
+                    protocol64HelloClient.Protocol64Enabled = true;
+                }
                 break;
             case PasswordSubmitMessage passwordSubmit:
                 if (TryGetClient(remotePeer, out var passwordClient))
@@ -154,6 +159,58 @@ internal sealed class ServerIncomingMessageDispatcher(
         Dispatch(message, ServerTransportPeer.FromUdpEndPoint(remoteEndPoint));
     }
 
+    public void DispatchProtocol64(object eventValue, ServerTransportPeer remotePeer)
+    {
+        ArgumentNullException.ThrowIfNull(eventValue);
+
+        if (remotePeer.Kind == ServerTransportKind.Udp)
+        {
+            log($"[network] protocol-64 event rejected from legacy UDP peer {remotePeer}.");
+            return;
+        }
+
+        switch (eventValue)
+        {
+            case Protocol64InputCommand command:
+                if (TryGetAuthorizedClient(remotePeer, out var inputClient))
+                {
+                    inputClient.Protocol64Enabled = true;
+                    inputClient.LastSeen = elapsedGetter();
+                    sessionManager.HandleProtocol64InputCommand(inputClient, command);
+                }
+                break;
+            case Protocol64InputCommandResultAck acknowledgement:
+                if (TryGetAuthorizedClient(remotePeer, out var acknowledgementClient))
+                {
+                    acknowledgementClient.Protocol64Enabled = true;
+                    acknowledgementClient.LastSeen = elapsedGetter();
+                    sessionManager.HandleProtocol64InputResultAck(acknowledgementClient, acknowledgement);
+                }
+                break;
+            case Protocol64StateResyncRequest request:
+                if (TryGetAuthorizedClient(remotePeer, out var stateClient))
+                {
+                    stateClient.Protocol64Enabled = true;
+                    stateClient.LastSeen = elapsedGetter();
+                    sendProtocol64StateResync?.Invoke(stateClient, request);
+                }
+                break;
+            default:
+                if (eventValue is IProtocolMessage legacyMessage)
+                {
+                    Dispatch(legacyMessage, remotePeer);
+                    if (legacyMessage is HelloMessage && TryGetClient(remotePeer, out var protocol64Client))
+                    {
+                        protocol64Client.Protocol64Enabled = true;
+                    }
+                    break;
+                }
+
+                log($"[network] protocol-64 event {eventValue.GetType().Name} is not accepted from clients.");
+                break;
+        }
+    }
+
     private void HandleHello(HelloMessage hello, ServerTransportPeer remotePeer)
     {
         var remoteDescription = remotePeer.ToString();
@@ -179,6 +236,7 @@ internal sealed class ServerIncomingMessageDispatcher(
             existingClient.Name = clientName;
             existingClient.BadgeMask = hello.BadgeMask;
             existingClient.IsWatchOnly = existingClient.IsWatchOnly || hello.Intent == ConnectionIntent.Watch;
+            existingClient.Protocol64Enabled |= remotePeer.IsProtocol64;
             existingClient.LastSeen = elapsedGetter();
             sessionManager.ApplyClientProfile(
                 existingClient.Slot,
@@ -259,6 +317,7 @@ internal sealed class ServerIncomingMessageDispatcher(
             FriendCode = hello.FriendCode.Trim(),
             PlayerCardJson = hello.PlayerCardJson.Trim(),
             IsWatchOnly = watchOnly,
+            Protocol64Enabled = remotePeer.IsProtocol64,
         };
         clientsBySlot[assignedSlot] = client;
         if (SimulationWorld.IsPlayableNetworkPlayerSlot(assignedSlot))

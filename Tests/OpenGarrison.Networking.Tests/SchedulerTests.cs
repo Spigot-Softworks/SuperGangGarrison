@@ -142,6 +142,10 @@ public sealed class SchedulerTests
             frameId,
             checked((uint)bytes.Length),
             checked((uint)bytes.Length));
+        header = header with
+        {
+            Integrity = Protocol64FrameCodec.ComputeIntegrity(CreateEncodedPayload(bytes, header))
+        };
         return new Protocol64OutboundFrame(
             CreateEncodedPayload(bytes, header),
             header,
@@ -165,6 +169,10 @@ public sealed class SchedulerTests
             streamSequence,
             checked((uint)bytes.Length),
             checked((uint)bytes.Length));
+        header = header with
+        {
+            Integrity = Protocol64FrameCodec.ComputeIntegrity(CreateEncodedPayload(bytes, header))
+        };
         return new Protocol64ReceivedFrame(
             CreateEncodedPayload(bytes, header),
             header,
@@ -186,6 +194,7 @@ public sealed class SchedulerTests
         BinaryPrimitives.WriteUInt64LittleEndian(payload.AsSpan(20), header.FrameId);
         BinaryPrimitives.WriteUInt32LittleEndian(payload.AsSpan(28), header.EncodedBodyLength);
         BinaryPrimitives.WriteUInt32LittleEndian(payload.AsSpan(32), header.DecodedBodyLength);
+        BinaryPrimitives.WriteUInt32LittleEndian(payload.AsSpan(36), header.Integrity);
         body.CopyTo(payload, Protocol64FrameHeader.EncodedSize);
         return payload;
     }

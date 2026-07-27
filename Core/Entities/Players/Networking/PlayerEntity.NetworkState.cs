@@ -1,10 +1,43 @@
 using System;
 using OpenGarrison.GameplayModding;
+using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Core;
 
 public sealed partial class PlayerEntity
 {
+    /// <summary>
+    /// Applies the deliberately small, self-contained player state carried by
+    /// protocol 64.  This is separate from the legacy snapshot hydrator: the
+    /// protocol-64 record does not claim to contain score, inventory, or
+    /// ability-runtime fields, so those fields must not be reset here.
+    /// </summary>
+    public void ApplyProtocol64State(
+        Protocol64PlayerState state,
+        CharacterClassDefinition classDefinition)
+    {
+        Team = (PlayerTeam)state.Team;
+        if (!string.Equals(ClassDefinition.GameplayClassId, classDefinition.GameplayClassId, StringComparison.Ordinal)
+            || ClassDefinition.Id != classDefinition.Id)
+        {
+            SetClassDefinition(classDefinition);
+        }
+
+        X = state.X;
+        Y = state.Y;
+        HorizontalSpeed = state.VelocityX;
+        VerticalSpeed = state.VelocityY;
+        IsAlive = state.IsAlive;
+        Health = state.IsAlive
+            ? int.Clamp(state.Health, 0, MaxHealth)
+            : 0;
+        if (!state.IsAlive)
+        {
+            ResetPassiveRegenState();
+            ClearMedicHealingTarget();
+        }
+    }
+
     public void ApplyNetworkState(
         PlayerTeam team,
         CharacterClassDefinition classDefinition,

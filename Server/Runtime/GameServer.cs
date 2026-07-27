@@ -108,6 +108,7 @@ sealed partial class GameServer
     private UdpClient _udp = null!;
     private OpenGarrison.Server.IServerMessageTransport _messageTransport = null!;
     private OpenGarrison.Server.WebSocketServerHost? _webSocketHost;
+    private OpenGarrison.Server.Protocol64QuicServerHost? _quicHost;
     private bool _mapDownloadEndpointAvailable;
     private LobbyServerRegistrar? _lobbyRegistrar;
     private HttpServerRegistryHeartbeat? _httpRegistryHeartbeat;

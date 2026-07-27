@@ -2315,6 +2315,18 @@ public sealed class ServerAdminFoundationTests
         {
             _ = messageType;
         }
+
+        public void SendProtocol64(
+            ServerTransportPeer remotePeer,
+            byte[] payload,
+            Protocol64DeliveryDescriptor delivery,
+            string? replacementKey = null)
+        {
+            _ = remotePeer;
+            _ = payload;
+            _ = delivery;
+            _ = replacementKey;
+        }
     }
 
     private sealed class AlwaysBackloggedServerTransport(IProtocolMessage message) : IServerMessageTransport
@@ -2336,6 +2348,18 @@ public sealed class ServerAdminFoundationTests
         public void Send(ServerTransportPeer remotePeer, byte[] payload, MessageType? messageType = null)
         {
             _ = messageType;
+        }
+
+        public void SendProtocol64(
+            ServerTransportPeer remotePeer,
+            byte[] payload,
+            Protocol64DeliveryDescriptor delivery,
+            string? replacementKey = null)
+        {
+            _ = remotePeer;
+            _ = payload;
+            _ = delivery;
+            _ = replacementKey;
         }
     }
 

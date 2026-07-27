@@ -21,6 +21,7 @@
     <ProjectReference Include="..\..\Client\OpenGarrison.Client.csproj" />
     <ProjectReference Include="..\..\Client.Shared\OpenGarrison.Client.Shared.csproj" />
     <ProjectReference Include="..\..\Server\OpenGarrison.Server.csproj" />
+    <ProjectReference Include="..\..\Networking\OpenGarrison.Networking.csproj" />
     <ProjectReference Include="..\..\Plugins\OpenGarrison.PluginHost.Abstractions\OpenGarrison.PluginHost.Abstractions.csproj" />
     <ProjectReference Include="..\..\Plugins\Client\OpenGarrison.Client.Plugins.Abstractions\OpenGarrison.Client.Plugins.Abstractions.csproj" />
     <ProjectReference Include="..\..\Plugins\Client\OpenGarrison.Client.Plugins.BubbleWheel\OpenGarrison.Client.Plugins.BubbleWheel.csproj" />

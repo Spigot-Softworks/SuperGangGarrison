@@ -9,6 +9,7 @@
     <ProjectReference Include="..\Plugins\Server\OpenGarrison.Server.Plugins.Abstractions\OpenGarrison.Server.Plugins.Abstractions.csproj" />
     <ProjectReference Include="..\Core\OpenGarrison.Core.csproj" />
     <ProjectReference Include="..\Protocol\OpenGarrison.Protocol.csproj" />
+    <ProjectReference Include="..\Networking\OpenGarrison.Networking.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -43,10 +43,29 @@ internal sealed class NetworkGameClient : IDisposable
     private const int MaxTrackedInputRoundTrips = 512;
     private const int MaxTrackedPingRoundTrips = 32;
     private const long PingIntervalMilliseconds = 1000;
+    private const InputButtons Protocol64OneShotInputMask =
+        InputButtons.Up
+        | InputButtons.BuildSentry
+        | InputButtons.DestroySentry
+        | InputButtons.Taunt
+        | InputButtons.FirePrimary
+        | InputButtons.FireSecondary
+        | InputButtons.DropIntel
+        | InputButtons.UseAbility
+        | InputButtons.InteractWeapon
+        | InputButtons.SwapWeapon
+        | InputButtons.ReadyUp;
 
     [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "The client transport seam must support browser WebSocket adapters.")]
     private INetworkClientMessageTransport? _transport;
     private uint _nextInputSequence = 1;
+    private ulong _nextProtocol64FrameId = 1;
+    private ulong _nextProtocol64CommandId = 1;
+    private ulong _protocol64ConnectionEpoch = 1;
+    private PlayerInputSnapshot _lastProtocol64Input;
+    private readonly Protocol64SchemaRegistry _protocol64Registry = Protocol64SchemaRegistryFactory.CreateDefault();
+    private readonly Protocol64StateApplier _protocol64State = new();
+    private readonly Dictionary<ulong, Protocol64InputCommandResult> _protocol64InputResults = new();
     private uint _nextControlSequence = 1;
     private int _pendingChatBubbleFrameIndex = -1;
     private readonly Dictionary<ControlCommandKind, PendingControlCommand> _pendingControlCommands = new();
@@ -82,6 +101,22 @@ internal sealed class NetworkGameClient : IDisposable
     private int _smoothedPingMilliseconds = -1;
 
     public bool CollectDiagnostics { get; set; }
+
+    /// <summary>
+    /// Canary switch for the protocol-64 event path. Legacy transports remain
+    /// available until a WebSocket/QUIC container is selected explicitly.
+    /// </summary>
+    public bool Protocol64ModeEnabled { get; set; }
+
+    public Protocol64StateApplier Protocol64State => _protocol64State;
+
+    public void ApplyProtocol64StateToWorld(SimulationWorld world)
+    {
+        if (Protocol64ModeEnabled)
+        {
+            _protocol64State.ApplyToWorld(world);
+        }
+    }
 
     // Keep this as a diagnostics knob, but do not add deliberate input latency by default.
     public int NetworkInputDelayTicks { get; set; }
@@ -125,12 +160,14 @@ internal sealed class NetworkGameClient : IDisposable
 
         try
         {
+            var protocol64Endpoint = IsProtocol64Endpoint(host);
             var hasMapDownloadBaseUri = CustomMapSyncService.TryCreateServerDownloadBaseUri(host, port, out var mapDownloadBaseUri);
             if (!NetworkClientMessageTransportRegistry.TryConnect(host, port, out var transport, out error) || transport is null)
             {
                 return false;
             }
 
+            Protocol64ModeEnabled = protocol64Endpoint;
             if (!Connect(transport, playerName, badgeMask, out error, friendCode, playerCardJson, intent))
             {
                 return false;
@@ -166,6 +203,10 @@ internal sealed class NetworkGameClient : IDisposable
         }
 
         _transport = transport;
+        if (IsProtocol64Endpoint(transport.RemoteDescription))
+        {
+            Protocol64ModeEnabled = true;
+        }
         if (transport is IPlaybackMessageTransport playbackTransport)
         {
             IsReplayConnection = true;
@@ -210,6 +251,11 @@ internal sealed class NetworkGameClient : IDisposable
         _transport?.Dispose();
         _transport = null;
         _nextInputSequence = 1;
+        _nextProtocol64FrameId = 1;
+        _nextProtocol64CommandId = 1;
+        _protocol64ConnectionEpoch = 1;
+        _lastProtocol64Input = default;
+        _protocol64InputResults.Clear();
         _nextControlSequence = 1;
         _pendingChatBubbleFrameIndex = -1;
         _pendingControlCommands.Clear();
@@ -584,6 +630,28 @@ internal sealed class NetworkGameClient : IDisposable
         if (input.ReadyUp) buttons |= InputButtons.ReadyUp;
         if (input.IsTypingChatMessage) buttons |= InputButtons.IsTypingChatMessage;
 
+        if (Protocol64ModeEnabled)
+        {
+            var protocol64Sequence = _nextInputSequence++;
+            var heldButtons = buttons & ~Protocol64OneShotInputMask;
+            TrySendProtocol64Event(new InputStateMessage(
+                protocol64Sequence,
+                heldButtons,
+                input.AimWorldX - aimOriginX,
+                input.AimWorldY - aimOriginY,
+                _pendingChatBubbleFrameIndex,
+                input.IsUsingBinoculars,
+                input.BinocularsFocusX,
+                input.BinocularsFocusY,
+                EstimatedPingMilliseconds));
+            if (SendProtocol64InputEdges(input, _lastProtocol64Input, buttons, aimOriginX, aimOriginY))
+            {
+                _lastProtocol64Input = input;
+            }
+            _pendingChatBubbleFrameIndex = -1;
+            return protocol64Sequence;
+        }
+
         SendPendingControlCommands();
         var sequence = _nextInputSequence++;
         var inputMessage = new InputStateMessage(
@@ -608,6 +676,29 @@ internal sealed class NetworkGameClient : IDisposable
 
         _pendingChatBubbleFrameIndex = -1;
         return sequence;
+    }
+
+    public ulong SendProtocol64InputCommand(
+        Protocol64InputCommandKind kind,
+        InputButtons heldButtons,
+        float aimRelX,
+        float aimRelY,
+        uint clientTick = 0)
+    {
+        if (!Protocol64ModeEnabled || !IsConnected)
+        {
+            return 0;
+        }
+
+        var command = new Protocol64InputCommand(
+            _nextProtocol64CommandId++,
+            _nextInputSequence++,
+            kind,
+            heldButtons,
+            aimRelX,
+            aimRelY,
+            clientTick);
+        return TrySendProtocol64Event(command) ? command.CommandId : 0;
     }
 
     public void AcknowledgeProcessedInput(uint sequence)
@@ -717,6 +808,16 @@ internal sealed class NetworkGameClient : IDisposable
                     maxPayloadBytes = Math.Max(maxPayloadBytes, payload.Length);
                 }
 
+                if (payload.Length >= sizeof(uint)
+                    && System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(payload) == Protocol64FrameHeader.Magic)
+                {
+                    if (HandleProtocol64Frame(payload) is { } protocol64Message)
+                    {
+                        messages.Add(protocol64Message);
+                    }
+                    continue;
+                }
+
                 var deserializeStartTimestamp = collectDiagnostics ? Stopwatch.GetTimestamp() : 0L;
                 var deserialized = ProtocolCodec.TryDeserialize(payload, out var message);
                 if (collectDiagnostics)
@@ -799,10 +900,161 @@ internal sealed class NetworkGameClient : IDisposable
         return true;
     }
 
+    public bool TryGetProtocol64InputResult(
+        ulong commandId,
+        out Protocol64InputCommandResult result)
+        => _protocol64InputResults.TryGetValue(commandId, out result!);
+
+    private bool TrySendProtocol64Event(object eventValue)
+    {
+        var transport = _transport;
+        if (!Protocol64ModeEnabled || transport is null)
+        {
+            return false;
+        }
+
+        var encoded = Protocol64FrameCodec.EncodeObject(
+            _protocol64Registry,
+            eventValue,
+            _protocol64ConnectionEpoch,
+            _nextProtocol64FrameId++,
+            new Protocol64FrameEncodeOptions { Backend = "client" });
+
+        if (!encoded.Succeeded || encoded.Payload is null)
+        {
+            return false;
+        }
+
+        var schema = _protocol64Registry.Get(encoded.Header!.SchemaId, encoded.Header.SchemaRevision);
+        if (schema.Descriptor.Direction != Protocol64Direction.ClientToServer)
+        {
+            return false;
+        }
+
+        transport.Send(encoded.Payload);
+        return true;
+    }
+
+    private bool SendProtocol64InputEdges(
+        PlayerInputSnapshot input,
+        PlayerInputSnapshot previous,
+        InputButtons buttons,
+        float aimOriginX,
+        float aimOriginY)
+    {
+        var heldButtons = buttons & ~Protocol64OneShotInputMask;
+        var aimRelX = input.AimWorldX - aimOriginX;
+        var aimRelY = input.AimWorldY - aimOriginY;
+        var allSent = true;
+        allSent &= SendProtocol64Edge(input.Up && !previous.Up, Protocol64InputCommandKind.Jump, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.BuildSentry && !previous.BuildSentry, Protocol64InputCommandKind.BuildSentry, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.DestroySentry && !previous.DestroySentry, Protocol64InputCommandKind.DestroySentry, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.Taunt && !previous.Taunt, Protocol64InputCommandKind.Taunt, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.FirePrimary && !previous.FirePrimary, Protocol64InputCommandKind.FirePrimary, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.FireSecondary && !previous.FireSecondary, Protocol64InputCommandKind.FireSecondary, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.DropIntel && !previous.DropIntel, Protocol64InputCommandKind.DropIntel, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.UseAbility && !previous.UseAbility, Protocol64InputCommandKind.UseAbility, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.InteractWeapon && !previous.InteractWeapon, Protocol64InputCommandKind.InteractWeapon, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.SwapWeapon && !previous.SwapWeapon, Protocol64InputCommandKind.SwapWeapon, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.ReadyUp && !previous.ReadyUp, Protocol64InputCommandKind.ReadyUp, heldButtons, aimRelX, aimRelY);
+        return allSent;
+    }
+
+    private bool SendProtocol64Edge(
+        bool rising,
+        Protocol64InputCommandKind kind,
+        InputButtons heldButtons,
+        float aimRelX,
+        float aimRelY)
+    {
+        if (rising)
+        {
+            return SendProtocol64InputCommand(kind, heldButtons, aimRelX, aimRelY, unchecked((uint)_networkInputTick)) != 0;
+        }
+
+        return true;
+    }
+
+    private IProtocolMessage? HandleProtocol64Frame(byte[] payload)
+    {
+        var decoded = Protocol64FrameCodec.Decode(
+            payload,
+            _protocol64Registry,
+            new Protocol64FrameDecodeOptions
+            {
+                Backend = "client",
+                ExpectedDirection = Protocol64Direction.ServerToClient,
+                FaultSink = new DelegateProtocol64FaultSink(fault =>
+                {
+                    Debug.WriteLine($"Protocol-64 frame ignored ({fault.Kind}): {fault.Message}");
+                }),
+            });
+
+        if (!decoded.Succeeded || decoded.Event is null)
+        {
+            if (decoded.Header is { SchemaId: >= 32 and <= 35 })
+            {
+                TrySendProtocol64Event(_protocol64State.CreateResyncRequest(Protocol64StateResyncReason.InvalidState));
+            }
+
+            return null;
+        }
+
+        _lastServerMessageReceivedAtMilliseconds = _clock.ElapsedMilliseconds;
+        if (decoded.Header is { } header)
+        {
+            _protocol64ConnectionEpoch = header.ConnectionEpoch;
+        }
+
+        switch (decoded.Event)
+        {
+            case Protocol64InputCommandResult result:
+                _protocol64InputResults[result.CommandId] = result;
+                TrySendProtocol64Event(new Protocol64InputCommandResultAck(result.CommandId));
+                break;
+            case Protocol64PlayerStateBatch players:
+                SendStateRepairIfNeeded(_protocol64State.ApplyPlayerStateBatch(players));
+                break;
+            case Protocol64RosterState roster:
+                SendStateRepairIfNeeded(_protocol64State.ApplyRosterState(roster));
+                break;
+            case Protocol64ProjectileState projectile:
+                SendStateRepairIfNeeded(_protocol64State.ApplyProjectileState(projectile));
+                break;
+            case Protocol64ProjectileLifecycle lifecycle:
+                SendStateRepairIfNeeded(_protocol64State.ApplyProjectileLifecycle(lifecycle));
+                break;
+            case Protocol64StateResyncResponse resync:
+                SendStateRepairIfNeeded(_protocol64State.ApplyResyncResponse(resync));
+                break;
+            case IProtocolMessage message:
+                if (!TryHandleInternalMessage(message))
+                {
+                    return message;
+                }
+                break;
+        }
+
+        return null;
+    }
+
+    private void SendStateRepairIfNeeded(Protocol64StateApplyResult result)
+    {
+        if (result.RepairRequest is not null)
+        {
+            TrySendProtocol64Event(result.RepairRequest);
+        }
+    }
+
     private void Send(IProtocolMessage message)
     {
         var transport = _transport;
         if (transport is null)
+        {
+            return;
+        }
+
+        if (Protocol64ModeEnabled && TrySendProtocol64Event(message))
         {
             return;
         }
@@ -825,6 +1077,11 @@ internal sealed class NetworkGameClient : IDisposable
             ? ProtocolCompressionSettings.AllMessages
             : ProtocolCompressionSettings.Default;
     }
+
+    private static bool IsProtocol64Endpoint(string? endpoint)
+        => endpoint?.StartsWith("ws64://", StringComparison.OrdinalIgnoreCase) == true
+            || endpoint?.StartsWith("wss64://", StringComparison.OrdinalIgnoreCase) == true
+            || endpoint?.StartsWith("quic64://", StringComparison.OrdinalIgnoreCase) == true;
 
     private void CaptureInboundDemoMessage(INetworkClientMessageTransport transport, IProtocolMessage message, byte[] payload)
     {

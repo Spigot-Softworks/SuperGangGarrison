@@ -23,6 +23,7 @@ sealed class ServerSessionManager
     private readonly Action<IPAddress> _recordPasswordFailure;
     private readonly Action<IPAddress> _clearPasswordFailures;
     private readonly Action<ServerTransportPeer, IProtocolMessage> _sendMessage;
+    private readonly Action<ServerTransportPeer, object>? _sendProtocol64Event;
     private readonly Action<string> _log;
     private readonly Action<ClientSession, string> _clientRemoved;
     private readonly Action<ClientSession> _clientProfileChanged;
@@ -32,6 +33,13 @@ sealed class ServerSessionManager
     private readonly Func<byte, bool> _isPlayableSlotAvailable;
     private readonly Action<byte, byte> _clientSlotChanged;
     private GameplayOwnershipService? _gameplayOwnershipService;
+    private uint _protocol64ServerTick;
+    private readonly List<PendingProtocol64InputConsumption> _pendingProtocol64InputConsumptions = [];
+
+    private readonly record struct PendingProtocol64InputConsumption(
+        ClientSession Client,
+        Protocol64InputCommand Command,
+        bool AcceptedByWorld);
 
     public ServerSessionManager(
         SimulationWorld world,
@@ -56,7 +64,8 @@ sealed class ServerSessionManager
         Action<ClientSession, PlayerTeam>? playerTeamChanged = null,
         Action<ClientSession, PlayerClass>? playerClassChanged = null,
         Func<byte, bool>? isPlayableSlotAvailable = null,
-        Action<byte, byte>? clientSlotChanged = null)
+        Action<byte, byte>? clientSlotChanged = null,
+        Action<ServerTransportPeer, object>? sendProtocol64Event = null)
     {
         _world = world;
         _clientsBySlot = clientsBySlot;
@@ -73,6 +82,7 @@ sealed class ServerSessionManager
         _recordPasswordFailure = recordPasswordFailure;
         _clearPasswordFailures = clearPasswordFailures;
         _sendMessage = sendMessage;
+        _sendProtocol64Event = sendProtocol64Event;
         _log = log;
         _clientRemoved = clientRemoved ?? ((_, _) => { });
         _clientProfileChanged = clientProfileChanged ?? (_ => { });
@@ -117,10 +127,24 @@ sealed class ServerSessionManager
 
     public void PreparePlayableClientInputsForNextTick()
     {
+        _protocol64ServerTick = unchecked(_protocol64ServerTick + 1);
         for (var index = 0; index < SimulationWorld.NetworkPlayerSlots.Count; index += 1)
         {
             var slot = SimulationWorld.NetworkPlayerSlots[index];
             if (_clientsBySlot.TryGetValue(slot, out var client)
+                && client.IsAuthorized
+                && client.TryDequeueProtocol64InputCommand(out var command))
+            {
+                var commandInput = ApplyProtocol64Command(client.LatestReceivedInput, command);
+                var applied = _world.TrySetNetworkPlayerInput(
+                    slot,
+                    ConvertAimPositionFromClient(slot, commandInput));
+                _pendingProtocol64InputConsumptions.Add(new(
+                    client,
+                    command,
+                    applied));
+            }
+            else if (_clientsBySlot.TryGetValue(slot, out client)
                 && client.IsAuthorized
                 && client.TryGetInputForNextTick(out var input))
             {
@@ -131,6 +155,124 @@ sealed class ServerSessionManager
                 _world.TryClearNetworkPlayerInputOverride(slot);
             }
         }
+    }
+
+    public uint Protocol64ServerTick => _protocol64ServerTick;
+
+    /// <summary>
+    /// Completes durable protocol-64 input commands only after the simulation
+    /// has advanced the tick for which the command was accepted.  An enqueue
+    /// into the world's input override is not itself proof that a jump/fire
+    /// edge was consumed by gameplay.
+    /// </summary>
+    public void CompleteProtocol64InputsAfterSimulationTick()
+    {
+        if (_pendingProtocol64InputConsumptions.Count == 0)
+        {
+            return;
+        }
+
+        for (var index = 0; index < _pendingProtocol64InputConsumptions.Count; index += 1)
+        {
+            var pending = _pendingProtocol64InputConsumptions[index];
+            var result = pending.Client.CompleteProtocol64InputCommand(
+                pending.Command,
+                _protocol64ServerTick,
+                pending.AcceptedByWorld,
+                pending.AcceptedByWorld
+                    ? string.Empty
+                    : "The command target is not an active playable player.");
+            _sendProtocol64Event?.Invoke(pending.Client.Peer, result);
+        }
+
+        _pendingProtocol64InputConsumptions.Clear();
+    }
+
+    public void HandleProtocol64InputCommand(
+        ClientSession client,
+        Protocol64InputCommand command)
+    {
+        if (_passwordRequired && !client.IsAuthorized)
+        {
+            SendProtocol64InputResult(client, client.CompleteProtocol64InputCommand(
+                command,
+                _protocol64ServerTick,
+                consumed: false,
+                "The session is not authorized."));
+            return;
+        }
+
+        if (!client.TryEnqueueProtocol64InputCommand(
+                command,
+                _protocol64ServerTick,
+                out var immediateResult))
+        {
+            if (immediateResult is not null)
+            {
+                SendProtocol64InputResult(client, immediateResult);
+            }
+
+            return;
+        }
+    }
+
+    public void HandleProtocol64InputResultAck(
+        ClientSession client,
+        Protocol64InputCommandResultAck acknowledgement)
+    {
+        client.AcknowledgeProtocol64InputCommand(acknowledgement.CommandId);
+    }
+
+    private void SendProtocol64InputResult(
+        ClientSession client,
+        Protocol64InputCommandResult result)
+    {
+        _sendProtocol64Event?.Invoke(client.Peer, result);
+    }
+
+    private static PlayerInputSnapshot ApplyProtocol64Command(
+        PlayerInputSnapshot latest,
+        Protocol64InputCommand command)
+    {
+        var buttons = command.HeldButtons;
+        var input = latest with
+        {
+            Left = buttons.HasFlag(InputButtons.Left),
+            Right = buttons.HasFlag(InputButtons.Right),
+            Up = buttons.HasFlag(InputButtons.Up),
+            Down = buttons.HasFlag(InputButtons.Down),
+            BuildSentry = buttons.HasFlag(InputButtons.BuildSentry),
+            DestroySentry = buttons.HasFlag(InputButtons.DestroySentry),
+            Taunt = buttons.HasFlag(InputButtons.Taunt),
+            FirePrimary = buttons.HasFlag(InputButtons.FirePrimary),
+            FireSecondary = buttons.HasFlag(InputButtons.FireSecondary),
+            DebugKill = buttons.HasFlag(InputButtons.DebugKill),
+            DropIntel = buttons.HasFlag(InputButtons.DropIntel),
+            UseAbility = buttons.HasFlag(InputButtons.UseAbility),
+            InteractWeapon = buttons.HasFlag(InputButtons.InteractWeapon),
+            SwapWeapon = buttons.HasFlag(InputButtons.SwapWeapon),
+            ReadyUp = buttons.HasFlag(InputButtons.ReadyUp),
+            IsTypingChatMessage = buttons.HasFlag(InputButtons.IsTypingChatMessage),
+            AimWorldX = command.AimRelX,
+            AimWorldY = command.AimRelY,
+        };
+
+        return command.Kind switch
+        {
+            Protocol64InputCommandKind.Jump => input with { Up = true },
+            Protocol64InputCommandKind.BuildSentry => input with { BuildSentry = true },
+            Protocol64InputCommandKind.DestroySentry => input with { DestroySentry = true },
+            Protocol64InputCommandKind.Taunt => input with { Taunt = true },
+            Protocol64InputCommandKind.FirePrimary => input with { FirePrimary = true },
+            Protocol64InputCommandKind.FireSecondary => input with { FireSecondary = true },
+            Protocol64InputCommandKind.DebugKill => input with { DebugKill = true },
+            Protocol64InputCommandKind.DropIntel => input with { DropIntel = true },
+            Protocol64InputCommandKind.UseAbility => input with { UseAbility = true },
+            Protocol64InputCommandKind.InteractWeapon => input with { InteractWeapon = true },
+            Protocol64InputCommandKind.SwapWeapon => input with { SwapWeapon = true },
+            Protocol64InputCommandKind.ReadyUp => input with { ReadyUp = true },
+            _ => input,
+        };
     }
 
     private PlayerInputSnapshot ConvertAimPositionFromClient(byte slot, PlayerInputSnapshot input)

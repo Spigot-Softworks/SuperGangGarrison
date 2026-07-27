@@ -5,9 +5,11 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Net.WebSockets;
+using System.Net.Quic;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using OpenGarrison.Networking;
 using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Server;
@@ -16,6 +18,7 @@ internal enum ServerTransportKind
 {
     Udp = 1,
     WebSocket = 2,
+    Quic = 3,
 }
 
 internal readonly struct ServerTransportPeer : IEquatable<ServerTransportPeer>
@@ -26,7 +29,8 @@ internal readonly struct ServerTransportPeer : IEquatable<ServerTransportPeer>
         string description,
         IPEndPoint? udpEndPoint,
         IPAddress? remoteAddress,
-        int remotePort)
+        int remotePort,
+        bool isProtocol64 = false)
     {
         if (id == 0)
         {
@@ -39,6 +43,7 @@ internal readonly struct ServerTransportPeer : IEquatable<ServerTransportPeer>
         UdpEndPoint = udpEndPoint;
         RemoteAddress = NormalizeAddress(remoteAddress ?? udpEndPoint?.Address);
         RemotePort = remotePort > 0 ? remotePort : udpEndPoint?.Port ?? 0;
+        IsProtocol64 = isProtocol64;
     }
 
     public ServerTransportKind Kind { get; }
@@ -47,6 +52,7 @@ internal readonly struct ServerTransportPeer : IEquatable<ServerTransportPeer>
     public IPEndPoint? UdpEndPoint { get; }
     public IPAddress? RemoteAddress { get; }
     public int RemotePort { get; }
+    public bool IsProtocol64 { get; }
 
     public bool IsLoopback
     {
@@ -89,7 +95,7 @@ internal readonly struct ServerTransportPeer : IEquatable<ServerTransportPeer>
             endPoint.Port);
     }
 
-    public static ServerTransportPeer FromWebSocketSession(long sessionId, IPAddress? remoteAddress, int remotePort)
+    public static ServerTransportPeer FromWebSocketSession(long sessionId, IPAddress? remoteAddress, int remotePort, bool protocol64 = false)
     {
         var normalizedAddress = NormalizeAddress(remoteAddress);
         var description = normalizedAddress is null
@@ -101,7 +107,25 @@ internal readonly struct ServerTransportPeer : IEquatable<ServerTransportPeer>
             description,
             udpEndPoint: null,
             normalizedAddress,
-            remotePort);
+            remotePort,
+            protocol64);
+    }
+
+    public static ServerTransportPeer FromQuicSession(long sessionId, IPEndPoint? remoteEndPoint)
+    {
+        var remoteAddress = NormalizeAddress(remoteEndPoint?.Address);
+        var remotePort = remoteEndPoint?.Port ?? 0;
+        var description = remoteAddress is null
+            ? $"quic:unknown#{sessionId}"
+            : $"quic:{remoteAddress}:{remotePort}#{sessionId}";
+        return new ServerTransportPeer(
+            ServerTransportKind.Quic,
+            unchecked((ulong)sessionId),
+            description,
+            udpEndPoint: null,
+            remoteAddress,
+            remotePort,
+            isProtocol64: true);
     }
 
     public static bool operator ==(ServerTransportPeer left, ServerTransportPeer right)
@@ -269,6 +293,11 @@ internal interface IServerMessageTransport
 
     ServerMessagePacket Receive();
     void Send(ServerTransportPeer remotePeer, byte[] payload, MessageType? messageType = null);
+    void SendProtocol64(
+        ServerTransportPeer remotePeer,
+        byte[] payload,
+        Protocol64DeliveryDescriptor delivery,
+        string? replacementKey = null);
 }
 
 internal sealed class UdpServerMessageTransport : IServerMessageTransport
@@ -315,6 +344,13 @@ internal sealed class UdpServerMessageTransport : IServerMessageTransport
                 failed);
         }
     }
+
+    public void SendProtocol64(
+        ServerTransportPeer remotePeer,
+        byte[] payload,
+        Protocol64DeliveryDescriptor delivery,
+        string? replacementKey = null)
+        => Send(remotePeer, payload, messageType: null);
 }
 
 internal sealed class CompositeServerMessageTransport : IServerMessageTransport
@@ -330,10 +366,15 @@ internal sealed class CompositeServerMessageTransport : IServerMessageTransport
     private readonly UdpServerMessageTransport _udpTransport;
     private readonly ConcurrentQueue<ServerMessagePacket> _inboundMessages = new();
     private readonly ConcurrentDictionary<ulong, WebSocketPeerConnection> _webSocketConnections = new();
+    private readonly ConcurrentDictionary<ulong, Protocol64WebSocketConnection> _protocol64WebSocketConnections = new();
+    private readonly ConcurrentDictionary<ulong, Protocol64QuicConnectionRuntime> _protocol64QuicConnections = new();
+    private readonly Protocol64SchemaRegistry _protocol64Registry = Protocol64SchemaRegistryFactory.CreateDefault();
+    private readonly Action<string> _log;
 
-    public CompositeServerMessageTransport(UdpClient udp)
+    public CompositeServerMessageTransport(UdpClient udp, Action<string>? log = null)
     {
         _udpTransport = new UdpServerMessageTransport(udp, _diagnostics);
+        _log = log ?? (message => Console.Error.WriteLine(message));
     }
 
     public bool HasPendingMessages => !_inboundMessages.IsEmpty || _udpTransport.HasPendingMessages;
@@ -375,6 +416,64 @@ internal sealed class CompositeServerMessageTransport : IServerMessageTransport
         }
     }
 
+    public void SendProtocol64(
+        ServerTransportPeer remotePeer,
+        byte[] payload,
+        Protocol64DeliveryDescriptor delivery,
+        string? replacementKey = null)
+    {
+        if (remotePeer.Kind == ServerTransportKind.Udp)
+        {
+            _log($"[server] refusing protocol-64 delivery to legacy UDP peer {remotePeer}; canonical backends are WebSocket/QUIC.");
+            return;
+        }
+
+        if (remotePeer.Kind == ServerTransportKind.Quic)
+        {
+            if (_protocol64QuicConnections.TryGetValue(remotePeer.Id, out var quicConnection))
+            {
+                var result = quicConnection.EnqueueFrame(payload);
+                if (!result.Accepted)
+                {
+                    _log($"[server] protocol-64 QUIC peer {remotePeer} rejected outbound frame: {result.Fault?.Message}");
+                }
+            }
+
+            return;
+        }
+
+        if (_protocol64WebSocketConnections.TryGetValue(remotePeer.Id, out var protocol64Connection))
+        {
+            try
+            {
+                if (delivery.IsLastWins)
+                {
+                    protocol64Connection.PublishLastWinsFrame(
+                        replacementKey ?? "protocol64-state",
+                        payload,
+                        delivery);
+                }
+                else
+                {
+                    protocol64Connection.QueueReliableFrame(payload, delivery);
+                }
+            }
+            catch (Protocol64WebSocketBackpressureException exception)
+            {
+                _log($"[server] closing protocol-64 WebSocket peer {remotePeer} after explicit backpressure: {exception.Message}");
+                _protocol64WebSocketConnections.TryRemove(remotePeer.Id, out _);
+                protocol64Connection.Dispose();
+            }
+
+            return;
+        }
+
+        // During migration, a protocol-64 frame can still be carried by the
+        // legacy WebSocket adapter. It remains a complete binary message, but
+        // it does not get the canonical container's recovery semantics.
+        Send(remotePeer, payload);
+    }
+
     public async Task RunWebSocketPeerAsync(WebSocket webSocket, IPAddress? remoteAddress, int remotePort, Action<string> log, CancellationToken cancellationToken)
     {
         var sessionId = Interlocked.Increment(ref _nextWebSocketSessionId);
@@ -394,6 +493,97 @@ internal sealed class CompositeServerMessageTransport : IServerMessageTransport
             _webSocketConnections.TryRemove(peer.Id, out _);
             connection.Dispose();
         }
+    }
+
+    public async Task RunProtocol64WebSocketPeerAsync(
+        WebSocket webSocket,
+        IPAddress? remoteAddress,
+        int remotePort,
+        Action<string> log,
+        CancellationToken cancellationToken)
+    {
+        var sessionId = Interlocked.Increment(ref _nextWebSocketSessionId);
+        var peer = ServerTransportPeer.FromWebSocketSession(sessionId, remoteAddress, remotePort, protocol64: true);
+        var connection = new Protocol64WebSocketConnection(
+            webSocket,
+            _protocol64Registry,
+            connectionEpoch: peer.Id,
+            options: new Protocol64WebSocketOptions
+            {
+                WarningLogger = log,
+                FaultSink = new DelegateProtocol64FaultSink(fault =>
+                    log($"[server] protocol-64 WebSocket fault peer={peer}: {fault.Kind} {fault.Message}")),
+            });
+        if (!_protocol64WebSocketConnections.TryAdd(peer.Id, connection))
+        {
+            connection.Dispose();
+            throw new InvalidOperationException($"A protocol-64 WebSocket peer with id {peer.Id} is already connected.");
+        }
+
+        try
+        {
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            var linkedToken = linkedCts.Token;
+            var receiveTask = Task.Run(async () =>
+            {
+                while (!linkedToken.IsCancellationRequested && !connection.IsDisposed)
+                {
+                    var result = await connection.ReceiveAsync(linkedToken).ConfigureAwait(false);
+                    if (result.Status is Protocol64WebSocketReceiveStatus.Closed
+                        or Protocol64WebSocketReceiveStatus.ProtocolError)
+                    {
+                        break;
+                    }
+
+                    if (result.HasFrame && result.Decoded?.Event is not null)
+                    {
+                        _inboundMessages.Enqueue(new ServerMessagePacket(peer, result.EncodedPayload!));
+                    }
+                }
+            }, linkedToken);
+            var sendTask = connection.RunSendLoopAsync(linkedToken);
+            await Task.WhenAny(receiveTask, sendTask).ConfigureAwait(false);
+            linkedCts.Cancel();
+            try
+            {
+                await Task.WhenAll(receiveTask, sendTask).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (linkedToken.IsCancellationRequested)
+            {
+            }
+        }
+        finally
+        {
+            _protocol64WebSocketConnections.TryRemove(peer.Id, out _);
+            await connection.CloseAsync(
+                WebSocketCloseStatus.NormalClosure,
+                "Protocol-64 WebSocket session ended.",
+                CancellationToken.None).ConfigureAwait(false);
+        }
+    }
+
+    public void RegisterProtocol64QuicConnection(
+        ServerTransportPeer peer,
+        Protocol64QuicConnectionRuntime connection)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+        if (!_protocol64QuicConnections.TryAdd(peer.Id, connection))
+        {
+            throw new InvalidOperationException($"A protocol-64 QUIC peer with id {peer.Id} is already connected.");
+        }
+    }
+
+    public void UnregisterProtocol64QuicConnection(ServerTransportPeer peer)
+    {
+        _protocol64QuicConnections.TryRemove(peer.Id, out _);
+    }
+
+    public void EnqueueInboundProtocol64Frame(
+        ServerTransportPeer peer,
+        Protocol64ReceivedFrame frame)
+    {
+        ArgumentNullException.ThrowIfNull(frame);
+        _inboundMessages.Enqueue(new ServerMessagePacket(peer, frame.EncodedPayload.ToArray()));
     }
 
     private sealed class WebSocketPeerConnection : IDisposable

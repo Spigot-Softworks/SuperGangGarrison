@@ -16,6 +16,7 @@ public partial class Game1
         UpdatePendingNetworkMapSync();
         var processStartTimestamp = _networkDiagnosticsEnabled ? Stopwatch.GetTimestamp() : 0L;
         var messages = _networkClient.ReceiveMessages();
+        _networkClient.ApplyProtocol64StateToWorld(_world);
         if (_networkDiagnosticsEnabled)
         {
             RecordNetworkReceiveDiagnostics(_networkClient.LastReceiveDiagnostics);
