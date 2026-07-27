@@ -259,14 +259,16 @@ internal static class CustomMapSyncService
         if (Uri.TryCreate(trimmedHost, UriKind.Absolute, out var absoluteUri)
             && (absoluteUri.Scheme == "ws"
                 || absoluteUri.Scheme == "wss"
+                || absoluteUri.Scheme == "ws64"
+                || absoluteUri.Scheme == "wss64"
                 || absoluteUri.Scheme == Uri.UriSchemeHttp
                 || absoluteUri.Scheme == Uri.UriSchemeHttps))
         {
             var builder = new UriBuilder(absoluteUri)
             {
-                Scheme = absoluteUri.Scheme == "wss"
+                Scheme = absoluteUri.Scheme is "wss" or "wss64"
                     ? Uri.UriSchemeHttps
-                    : absoluteUri.Scheme == "ws"
+                    : absoluteUri.Scheme is "ws" or "ws64"
                         ? Uri.UriSchemeHttp
                         : absoluteUri.Scheme,
                 Path = string.Empty,

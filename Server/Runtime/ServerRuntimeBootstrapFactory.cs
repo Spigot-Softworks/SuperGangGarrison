@@ -166,7 +166,8 @@ internal static class ServerRuntimeBootstrapFactory
                 outboundMessaging.BroadcastCustomBubbleClear(oldSlot);
                 outboundMessaging.BroadcastPlayerSocialProfileRemoval(oldSlot);
                 outboundMessaging.BroadcastPlayerSocialProfiles();
-            });
+            },
+            outboundMessaging.SendProtocol64Event);
         var autoBalancer = new AutoBalancer(
             world,
             config,

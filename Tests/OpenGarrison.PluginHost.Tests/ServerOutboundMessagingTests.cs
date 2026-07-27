@@ -134,5 +134,19 @@ public sealed class ServerOutboundMessagingTests
             SendAttempts += 1;
             throw new SocketException((int)SocketError.WouldBlock);
         }
+
+        public void SendProtocol64(
+            ServerTransportPeer remotePeer,
+            byte[] payload,
+            Protocol64DeliveryDescriptor delivery,
+            string? replacementKey = null)
+        {
+            _ = remotePeer;
+            _ = payload;
+            _ = delivery;
+            _ = replacementKey;
+            SendAttempts += 1;
+            throw new SocketException((int)SocketError.WouldBlock);
+        }
     }
 }

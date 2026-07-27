@@ -68,6 +68,7 @@ internal sealed class WebSocketServerHost : IDisposable
                 KeepAliveInterval = TimeSpan.FromSeconds(20),
             });
             app.Map("/opengarrison/ws", HandleWebSocketAsync);
+            app.Map("/opengarrison/ws64", HandleProtocol64WebSocketAsync);
         }
 
         if (_enableMapDownloads)
@@ -86,6 +87,7 @@ internal sealed class WebSocketServerHost : IDisposable
         if (_enableWebSocket)
         {
             _log($"[server] WebSocket listener enabled on {scheme}://0.0.0.0:{_port}/opengarrison/ws");
+            _log($"[server] protocol-64 WebSocket listener enabled on {scheme}://0.0.0.0:{_port}/opengarrison/ws64");
         }
 
         if (_enableMapDownloads)
@@ -136,6 +138,28 @@ internal sealed class WebSocketServerHost : IDisposable
         _log($"[server] WebSocket session accepted remote={remoteIp}:{remotePort}");
         await _transport.RunWebSocketPeerAsync(webSocket, remoteIp, remotePort, _log, context.RequestAborted).ConfigureAwait(false);
         _log($"[server] WebSocket session ended remote={remoteIp}:{remotePort}");
+    }
+
+    private async Task HandleProtocol64WebSocketAsync(HttpContext context)
+    {
+        if (!context.WebSockets.IsWebSocketRequest)
+        {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await context.Response.WriteAsync("WebSocket request required.", context.RequestAborted).ConfigureAwait(false);
+            return;
+        }
+
+        var remoteIp = context.Connection.RemoteIpAddress;
+        var remotePort = context.Connection.RemotePort;
+        using var webSocket = await context.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false);
+        _log($"[server] protocol-64 WebSocket session accepted remote={remoteIp}:{remotePort}");
+        await _transport.RunProtocol64WebSocketPeerAsync(
+            webSocket,
+            remoteIp,
+            remotePort,
+            _log,
+            context.RequestAborted).ConfigureAwait(false);
+        _log($"[server] protocol-64 WebSocket session ended remote={remoteIp}:{remotePort}");
     }
 
     private X509Certificate2 LoadCertificate()

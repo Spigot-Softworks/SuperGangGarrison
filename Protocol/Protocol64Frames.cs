@@ -68,6 +68,8 @@ public sealed record Protocol64FrameDecodeOptions
 
     public int? StreamId { get; init; }
 
+    public Protocol64Direction? ExpectedDirection { get; init; }
+
     public IProtocol64FaultSink? FaultSink { get; init; }
 }
 
@@ -79,10 +81,13 @@ public sealed record Protocol64FrameHeader(
     ulong ConnectionEpoch,
     ulong FrameId,
     uint EncodedBodyLength,
-    uint DecodedBodyLength)
+    uint DecodedBodyLength,
+    uint Integrity = 0)
 {
     public const uint Magic = 0x3432474F; // "OG24" in little-endian byte order.
-    public const int EncodedSize = 36;
+    public const int EncodedSize = 40;
+
+    public const int IntegrityOffset = 36;
 
     public Protocol64Compression Compression =>
         (Flags & Protocol64FrameFlags.Lz4) != 0
@@ -184,6 +189,165 @@ public sealed record Protocol64FrameDecodeResult<TEvent>(
 
 public static class Protocol64FrameCodec
 {
+    /// <summary>
+    /// Computes the protocol-64 CRC32 over the complete frame while treating
+    /// the integrity field itself as zero. This covers both the envelope and
+    /// the encoded body, so corruption cannot be mistaken for a schema error.
+    /// </summary>
+    public static uint ComputeIntegrity(ReadOnlySpan<byte> payload)
+        => Protocol64FrameIntegrity.Compute(payload);
+
+    public static Protocol64Fault? ValidateIntegrity(
+        ReadOnlyMemory<byte> payload,
+        Protocol64FrameHeader header,
+        string? backend = null,
+        int? streamId = null)
+    {
+        if (header.Integrity == 0)
+        {
+            return CreateFault(
+                Protocol64FaultKind.IntegrityMismatch,
+                "Protocol-64 frame does not contain an integrity value.",
+                backend,
+                streamId: streamId,
+                header: header);
+        }
+
+        var computed = ComputeIntegrity(payload.Span);
+        return computed == header.Integrity
+            ? null
+            : CreateFault(
+                Protocol64FaultKind.IntegrityMismatch,
+                $"Protocol-64 frame integrity mismatch; expected 0x{header.Integrity:X8}, computed 0x{computed:X8}.",
+                backend,
+                streamId: streamId,
+                header: header);
+    }
+
+    public static Protocol64FrameEncodeResult EncodeObject(
+        Protocol64SchemaRegistry registry,
+        object eventValue,
+        ulong connectionEpoch,
+        ulong frameId,
+        Protocol64FrameEncodeOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(registry);
+        ArgumentNullException.ThrowIfNull(eventValue);
+
+        if (connectionEpoch == 0 || frameId == 0)
+        {
+            return Protocol64FrameEncodeResult.Failure(CreateFault(
+                Protocol64FaultKind.InvalidArgument,
+                "Protocol-64 connection epochs and frame IDs must be non-zero.",
+                options?.Backend));
+        }
+
+        options ??= new Protocol64FrameEncodeOptions();
+        var limits = options.Limits ?? Protocol64FrameLimits.Default;
+        var limitFault = limits.Validate();
+        if (limitFault is not null)
+        {
+            return Protocol64FrameEncodeResult.Failure(limitFault);
+        }
+
+        IProtocol64EventSchema schema;
+        try
+        {
+            schema = registry.Get(eventValue.GetType());
+        }
+        catch (Exception ex) when (ex is KeyNotFoundException or InvalidOperationException)
+        {
+            return Protocol64FrameEncodeResult.Failure(CreateFault(
+                Protocol64FaultKind.UnknownSchema,
+                $"No protocol-64 schema is registered for event type {eventValue.GetType().FullName}.",
+                options.Backend,
+                ex));
+        }
+
+        if (options.CompressionThresholdBytes < 0)
+        {
+            return Protocol64FrameEncodeResult.Failure(CreateFault(
+                Protocol64FaultKind.InvalidArgument,
+                "Compression threshold cannot be negative.",
+                options.Backend));
+        }
+
+        var bodyResult = schema.EncodeObject(eventValue);
+        if (!bodyResult.Succeeded)
+        {
+            return Protocol64FrameEncodeResult.Failure(bodyResult.Fault!);
+        }
+
+        var decodedBody = bodyResult.Body!;
+        if (decodedBody.Length > limits.MaxDecodedBodyBytes ||
+            decodedBody.Length > schema.Descriptor.MaxBodyBytes)
+        {
+            return Protocol64FrameEncodeResult.Failure(CreateFault(
+                Protocol64FaultKind.BodyTooLarge,
+                $"Decoded body length {decodedBody.Length} exceeds the configured protocol-64 limit.",
+                options.Backend,
+                direction: schema.Descriptor.Direction,
+                schema: schema,
+                decodedBodyBytes: decodedBody.Length));
+        }
+
+        var encodedBody = decodedBody;
+        var flags = Protocol64FrameFlags.None;
+        if (options.Compression == Protocol64Compression.Lz4 &&
+            decodedBody.Length >= options.CompressionThresholdBytes)
+        {
+            try
+            {
+                var compressed = LZ4Pickler.Pickle(decodedBody, LZ4Level.L00_FAST);
+                if (compressed.Length < decodedBody.Length)
+                {
+                    encodedBody = compressed;
+                    flags |= Protocol64FrameFlags.Lz4;
+                }
+            }
+            catch (Exception ex)
+            {
+                return Protocol64FrameEncodeResult.Failure(CreateFault(
+                    Protocol64FaultKind.CompressionFailed,
+                    "Protocol-64 LZ4 compression failed.",
+                    options.Backend,
+                    direction: schema.Descriptor.Direction,
+                    schema: schema,
+                    exception: ex,
+                    decodedBodyBytes: decodedBody.Length));
+            }
+        }
+
+        if (encodedBody.Length > limits.MaxEncodedBodyBytes ||
+            Protocol64FrameHeader.EncodedSize > limits.MaxEnvelopeBytes - encodedBody.Length)
+        {
+            return Protocol64FrameEncodeResult.Failure(CreateFault(
+                Protocol64FaultKind.OversizedLength,
+                $"Encoded frame length {encodedBody.Length + Protocol64FrameHeader.EncodedSize} exceeds the configured limit.",
+                options.Backend,
+                direction: schema.Descriptor.Direction,
+                schema: schema,
+                encodedBodyBytes: encodedBody.Length,
+                decodedBodyBytes: decodedBody.Length));
+        }
+
+        var header = new Protocol64FrameHeader(
+            ProtocolVersion: Protocol64.Version,
+            Flags: flags,
+            SchemaId: schema.Descriptor.Key.SchemaId,
+            SchemaRevision: schema.Descriptor.Key.Revision,
+            ConnectionEpoch: connectionEpoch,
+            FrameId: frameId,
+            EncodedBodyLength: checked((uint)encodedBody.Length),
+            DecodedBodyLength: checked((uint)decodedBody.Length));
+        var payload = new byte[Protocol64FrameHeader.EncodedSize + encodedBody.Length];
+        WriteHeader(payload, header);
+        encodedBody.CopyTo(payload, Protocol64FrameHeader.EncodedSize);
+        header = header with { Integrity = ComputeIntegrity(payload) };
+        WriteHeader(payload, header);
+        return Protocol64FrameEncodeResult.Success(payload, header);
+    }
+
     public static Protocol64FrameEncodeResult Encode<TEvent>(
         Protocol64SchemaRegistry registry,
         TEvent eventValue,
@@ -193,6 +357,14 @@ public static class Protocol64FrameCodec
     {
         ArgumentNullException.ThrowIfNull(registry);
         options ??= new Protocol64FrameEncodeOptions();
+
+        if (connectionEpoch == 0 || frameId == 0)
+        {
+            return Protocol64FrameEncodeResult.Failure(CreateFault(
+                Protocol64FaultKind.InvalidArgument,
+                "Protocol-64 connection epochs and frame IDs must be non-zero.",
+                options.Backend));
+        }
 
         var limits = options.Limits ?? Protocol64FrameLimits.Default;
         var limitFault = limits.Validate();
@@ -295,6 +467,8 @@ public static class Protocol64FrameCodec
         var payload = new byte[Protocol64FrameHeader.EncodedSize + encodedBody.Length];
         WriteHeader(payload, header);
         encodedBody.CopyTo(payload, Protocol64FrameHeader.EncodedSize);
+        header = header with { Integrity = ComputeIntegrity(payload) };
+        WriteHeader(payload, header);
         return Protocol64FrameEncodeResult.Success(payload, header);
     }
 
@@ -402,6 +576,12 @@ public static class Protocol64FrameCodec
                 header: header)), options.FaultSink);
         }
 
+        var integrityFault = ValidateIntegrity(payload, header, options.Backend, options.StreamId);
+        if (integrityFault is not null)
+        {
+            return Report(Protocol64FrameDecodeResult.Failure(integrityFault, header), options.FaultSink);
+        }
+
         if (!registry.TryGet(header.SchemaId, header.SchemaRevision, out var schema) || schema is null)
         {
             return Report(Protocol64FrameDecodeResult.Failure(CreateFault(
@@ -410,6 +590,19 @@ public static class Protocol64FrameCodec
                 options.Backend,
                 streamId: options.StreamId,
                 header: header)), options.FaultSink);
+        }
+
+        if (options.ExpectedDirection is Protocol64Direction expected &&
+            schema.Descriptor.Direction != Protocol64Direction.Bidirectional &&
+            schema.Descriptor.Direction != expected)
+        {
+            return Report(Protocol64FrameDecodeResult.Failure(CreateFault(
+                Protocol64FaultKind.ValidationFailed,
+                $"Protocol-64 schema direction {schema.Descriptor.Direction} is not valid for {options.ExpectedDirection}.",
+                options.Backend,
+                streamId: options.StreamId,
+                header: header,
+                schema: schema)), options.FaultSink);
         }
 
         var encodedBody = payload.Slice(Protocol64FrameHeader.EncodedSize, checked((int)header.EncodedBodyLength));
@@ -518,7 +711,8 @@ public static class Protocol64FrameCodec
             BinaryPrimitives.ReadUInt64LittleEndian(payload[12..]),
             BinaryPrimitives.ReadUInt64LittleEndian(payload[20..]),
             BinaryPrimitives.ReadUInt32LittleEndian(payload[28..]),
-            BinaryPrimitives.ReadUInt32LittleEndian(payload[32..]));
+            BinaryPrimitives.ReadUInt32LittleEndian(payload[32..]),
+            BinaryPrimitives.ReadUInt32LittleEndian(payload[36..]));
     }
 
     private static void WriteHeader(Span<byte> payload, Protocol64FrameHeader header)
@@ -532,6 +726,7 @@ public static class Protocol64FrameCodec
         BinaryPrimitives.WriteUInt64LittleEndian(payload[20..], header.FrameId);
         BinaryPrimitives.WriteUInt32LittleEndian(payload[28..], header.EncodedBodyLength);
         BinaryPrimitives.WriteUInt32LittleEndian(payload[32..], header.DecodedBodyLength);
+        BinaryPrimitives.WriteUInt32LittleEndian(payload[36..], header.Integrity);
     }
 
     private static Protocol64Fault CreateFault(
@@ -570,6 +765,39 @@ public static class Protocol64FrameCodec
 
     private static int ClampLength(uint length)
         => length > int.MaxValue ? int.MaxValue : (int)length;
+}
+
+public static class Protocol64FrameIntegrity
+{
+    private const uint Polynomial = 0xEDB88320;
+
+    public static uint Compute(ReadOnlySpan<byte> payload)
+    {
+        if (payload.Length < Protocol64FrameHeader.EncodedSize)
+        {
+            throw new ArgumentException(
+                $"A protocol-64 frame must contain at least {Protocol64FrameHeader.EncodedSize} bytes.",
+                nameof(payload));
+        }
+
+        var crc = 0xFFFFFFFFu;
+        for (var index = 0; index < payload.Length; index += 1)
+        {
+            var value = index >= Protocol64FrameHeader.IntegrityOffset &&
+                index < Protocol64FrameHeader.IntegrityOffset + sizeof(uint)
+                ? (byte)0
+                : payload[index];
+            crc ^= value;
+            for (var bit = 0; bit < 8; bit += 1)
+            {
+                crc = (crc & 1) != 0
+                    ? (crc >> 1) ^ Polynomial
+                    : crc >> 1;
+            }
+        }
+
+        return ~crc;
+    }
 }
 
 internal sealed class Protocol64FrameParseException : Exception

@@ -47,6 +47,17 @@ public enum Protocol64EventId : ushort
     CustomBubbleClear = 26,
     PingRequest = 27,
     PingResponse = 28,
+    InputCommand = 29,
+    InputCommandResult = 30,
+    InputCommandResultAck = 31,
+    PlayerStateBatch = 32,
+    RosterState = 33,
+    ProjectileState = 34,
+    ProjectileLifecycle = 35,
+    StateResyncRequest = 36,
+    StateResyncResponse = 37,
+    RetransmitRequest = 38,
+    RetransmitResponse = 39,
 }
 
 public readonly record struct Protocol64SchemaKey(ushort SchemaId, ushort Revision);
@@ -405,6 +416,17 @@ public sealed class Protocol64SchemaRegistry
         }
 
         return schema!;
+    }
+
+    public IProtocol64EventSchema Get(Type eventType)
+    {
+        ArgumentNullException.ThrowIfNull(eventType);
+        if (!_schemasByType.TryGetValue(eventType, out var schema))
+        {
+            throw new KeyNotFoundException($"Protocol-64 event type {eventType.FullName} is not registered.");
+        }
+
+        return schema;
     }
 }
 

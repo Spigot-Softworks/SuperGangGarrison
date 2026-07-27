@@ -47,7 +47,11 @@ internal sealed class BrowserWebSocketMessageTransport : INetworkClientMessageTr
             return false;
         }
 
-        var remoteDescription = port > 0 ? $"{host}:{port}" : host;
+        var protocol64 = host.StartsWith("ws64://", StringComparison.OrdinalIgnoreCase)
+            || host.StartsWith("wss64://", StringComparison.OrdinalIgnoreCase);
+        var remoteDescription = protocol64
+            ? $"{(host.StartsWith("wss64://", StringComparison.OrdinalIgnoreCase) ? "wss64" : "ws64")}://{host[(host.IndexOf("://", StringComparison.Ordinal) + 3)..]}:{port}"
+            : port > 0 ? $"{host}:{port}" : host;
         var pendingTransport = new BrowserWebSocketMessageTransport(inProcessRuntime, remoteDescription, Guid.NewGuid().ToString("N"));
         try
         {

@@ -129,11 +129,19 @@
                     return normalizedHost;
                 }
 
-                const hostWithBrackets = normalizedHost.includes(":") && !normalizedHost.startsWith("[")
-                    ? "[" + normalizedHost + "]"
+                const isProtocol64 = normalizedHost.toLowerCase().startsWith("ws64://")
+                    || normalizedHost.toLowerCase().startsWith("wss64://");
+                const isSecureProtocol64 = normalizedHost.toLowerCase().startsWith("wss64://");
+                const hostWithoutScheme = isProtocol64
+                    ? normalizedHost.substring(normalizedHost.indexOf("://") + 3)
                     : normalizedHost;
+                const hostWithBrackets = hostWithoutScheme.includes(":") && !hostWithoutScheme.startsWith("[")
+                    ? "[" + hostWithoutScheme + "]"
+                    : hostWithoutScheme;
                 const pageProtocol = window.location && window.location.protocol === "https:" ? "wss://" : "ws://";
-                return pageProtocol + hostWithBrackets + ":" + port + "/opengarrison/ws";
+                const protocol = isSecureProtocol64 || pageProtocol === "wss://" ? "wss://" : "ws://";
+                const path = isProtocol64 ? "/opengarrison/ws64" : "/opengarrison/ws";
+                return protocol + hostWithBrackets + ":" + port + path;
             },
             openWebSocketClient: function (clientId, host, port, transportHost) {
                 const api = window.OpenGarrisonBrowserHost;
@@ -222,9 +230,12 @@
                     return false;
                 }
 
-                if (entry.socket.bufferedAmount > 1048576) {
-                    return false;
-                }
+    if (entry.socket.bufferedAmount > 1048576) {
+      // Protocol-64 reliable sends must fail the session explicitly when the
+      // browser cannot accept more bytes. Returning false is unsafe here:
+      // InvokeVoid drops that result and the input command would disappear.
+      throw new Error("WebSocket send backpressure exceeded 1 MiB.");
+    }
 
                 try {
                     entry.socket.send(payload);

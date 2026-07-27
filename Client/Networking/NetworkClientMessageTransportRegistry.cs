@@ -21,6 +21,17 @@ public static class NetworkClientMessageTransportRegistry
 
     internal static bool TryConnect(string host, int port, out INetworkClientMessageTransport? transport, out string error)
     {
+        if (QuicNetworkClientMessageTransport.IsQuicEndpoint(host))
+        {
+            return QuicNetworkClientMessageTransport.TryConnect(host, port, out transport, out error);
+        }
+
+        if (WebSocketNetworkClientMessageTransport.IsWebSocketEndpoint(host)
+            && !OperatingSystem.IsBrowser())
+        {
+            return WebSocketNetworkClientMessageTransport.TryConnect(host, port, out transport, out error);
+        }
+
         if (OperatingSystem.IsBrowser())
         {
             if (_browserTransportFactory is null)

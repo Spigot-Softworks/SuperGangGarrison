@@ -57,6 +57,19 @@ public sealed class Protocol64FoundationTests
     }
 
     [Fact]
+    public void CorruptedEnvelopeOrBodyReturnsAnIntegrityFault()
+    {
+        var registry = CreateRegistry();
+        var encoded = Encode(new Protocol64TestEvent("hello"), registry);
+        encoded[^1] ^= 0x40;
+
+        var result = Protocol64FrameCodec.Decode(encoded, registry);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(Protocol64FaultKind.IntegrityMismatch, result.Fault!.Kind);
+    }
+
+    [Fact]
     public void TruncatedFrameReturnsTypedFaultAndMetadata()
     {
         var registry = CreateRegistry();
@@ -119,6 +132,7 @@ public sealed class Protocol64FoundationTests
         expanded[^1] = 0xFF;
         BitConverter.GetBytes(bodyLength + 1).CopyTo(expanded, 28);
         BitConverter.GetBytes(7U).CopyTo(expanded, 32);
+        RefreshIntegrity(expanded);
 
         var result = Protocol64FrameCodec.Decode(expanded, registry);
 
@@ -134,6 +148,7 @@ public sealed class Protocol64FoundationTests
         var registry = CreateRegistry();
         var encoded = Encode(new Protocol64TestEvent("hello"), registry);
         BitConverter.GetBytes((ushort)999).CopyTo(encoded, 8);
+        RefreshIntegrity(encoded);
 
         var result = Protocol64FrameCodec.Decode(encoded, registry);
 
@@ -151,6 +166,7 @@ public sealed class Protocol64FoundationTests
         var bodyTruncated = encoded[..^1];
         BitConverter.GetBytes(bodyLength - 1).CopyTo(bodyTruncated, 28);
         BitConverter.GetBytes(bodyLength - 1).CopyTo(bodyTruncated, 32);
+        RefreshIntegrity(bodyTruncated);
 
         var result = Protocol64FrameCodec.Decode(bodyTruncated, registry);
 
@@ -177,6 +193,9 @@ public sealed class Protocol64FoundationTests
             {
                 Compression = Protocol64Compression.None,
             }).Payload!;
+
+    private static void RefreshIntegrity(byte[] payload)
+        => BitConverter.GetBytes(Protocol64FrameCodec.ComputeIntegrity(payload)).CopyTo(payload, Protocol64FrameHeader.IntegrityOffset);
 
     private sealed record Protocol64TestEvent(string Value);
 

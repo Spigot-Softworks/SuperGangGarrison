@@ -19,6 +19,7 @@ public enum Protocol64FaultKind : byte
     TrailingBodyBytes = 13,
     BodyTooLarge = 14,
     ValidationFailed = 15,
+    IntegrityMismatch = 16,
 }
 
 public sealed record Protocol64FaultMetadata(

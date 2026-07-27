@@ -444,6 +444,15 @@ public static class Protocol64SchemaRegistryFactory
         registry.Register(new PingResponseMessageSchema());
         registry.Register(new Protocol64InputCommandSchema());
         registry.Register(new Protocol64InputCommandResultSchema());
+        registry.Register(new Protocol64InputCommandResultAckSchema());
+        registry.Register(new Protocol64PlayerStateBatchSchema());
+        registry.Register(new Protocol64RosterStateSchema());
+        registry.Register(new Protocol64ProjectileStateSchema());
+        registry.Register(new Protocol64ProjectileLifecycleSchema());
+        registry.Register(new Protocol64StateResyncRequestSchema());
+        registry.Register(new Protocol64StateResyncResponseSchema());
+        registry.Register(new Protocol64RetransmitRequestSchema());
+        registry.Register(new Protocol64RetransmitResponseSchema());
 
         return registry;
     }

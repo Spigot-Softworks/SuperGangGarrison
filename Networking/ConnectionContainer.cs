@@ -7,6 +7,8 @@ public interface IConnectionContainer : IDisposable
 {
     ulong ConnectionEpoch { get; }
 
+    Protocol64NetworkTelemetry Telemetry { get; }
+
     Protocol64ConnectionState State { get; }
 
     IReadOnlyList<Protocol64StreamRecoverySnapshot> Streams { get; }
@@ -41,6 +43,8 @@ public sealed class Protocol64ConnectionContainer : IConnectionContainer
     private readonly Protocol64ConnectionRecovery _recovery;
     private bool _disposed;
 
+    public Protocol64NetworkTelemetry Telemetry { get; }
+
     public Protocol64ConnectionContainer(
         ulong connectionEpoch,
         Protocol64ChannelSchedulerOptions? schedulerOptions = null)
@@ -48,6 +52,7 @@ public sealed class Protocol64ConnectionContainer : IConnectionContainer
         ArgumentOutOfRangeException.ThrowIfZero(connectionEpoch);
 
         ConnectionEpoch = connectionEpoch;
+        Telemetry = new Protocol64NetworkTelemetry();
         _sendScheduler = new Protocol64ChannelScheduler(schedulerOptions);
         _receiveScheduler = new Protocol64ReceiveScheduler(
             schedulerOptions?.MaxPendingReliableFrames ?? 4096);
@@ -78,7 +83,21 @@ public sealed class Protocol64ConnectionContainer : IConnectionContainer
                 "Frame connection epoch does not match the container."));
         }
 
-        return _sendScheduler.Enqueue(frame);
+        var result = _sendScheduler.Enqueue(frame);
+        switch (result.Status)
+        {
+            case ConnectionSendStatus.Backpressured:
+                Telemetry.RecordReliableBackpressure();
+                break;
+            case ConnectionSendStatus.Replaced:
+                Telemetry.RecordLastWinsReplacement();
+                break;
+            case ConnectionSendStatus.IgnoredStale:
+                Telemetry.RecordLastWinsStaleDiscard();
+                break;
+        }
+
+        return result;
     }
 
     public bool TryDequeueSend(out Protocol64ScheduledFrame frame)
@@ -127,7 +146,23 @@ public sealed class Protocol64ConnectionContainer : IConnectionContainer
                     CompleteFrameDelivered: true));
         }
 
-        return _receiveScheduler.Accept(frame);
+        var result = _receiveScheduler.Accept(frame);
+        if (result.Status is ConnectionReceiveStatus.Delivered or ConnectionReceiveStatus.Replaced)
+        {
+            Telemetry.RecordFrameReceived(frame.Header, frame.Delivery, frame.EncodedLength);
+        }
+
+        if (result.RepairRequest is not null)
+        {
+            Telemetry.RecordRepairRequested();
+        }
+
+        if (result.Fault?.ProtocolFault is { } protocolFault)
+        {
+            Telemetry.RecordDecodeFault(protocolFault);
+        }
+
+        return result;
     }
 
     public bool TryDequeueReceived(out Protocol64ReceivedFrame frame)
@@ -139,7 +174,19 @@ public sealed class Protocol64ConnectionContainer : IConnectionContainer
     public Protocol64RecoveryResult ReportTransportFault(Protocol64TransportFault fault)
     {
         EnsureUsable();
-        return _recovery.ReportFault(fault);
+        Telemetry.RecordTransportFault(fault);
+        var result = _recovery.ReportFault(fault);
+        if (result.RepairRequest is not null)
+        {
+            Telemetry.RecordRepairRequested();
+        }
+
+        if (result.RequiresDisconnect)
+        {
+            Telemetry.RecordProtocolErrorDisconnect();
+        }
+
+        return result;
     }
 
     public Protocol64RecoveryResult MarkStreamReopened(int streamId)
@@ -151,7 +198,13 @@ public sealed class Protocol64ConnectionContainer : IConnectionContainer
     public Protocol64RecoveryResult MarkRepairCompleted(Guid requestId, int streamId)
     {
         EnsureUsable();
-        return _recovery.MarkRepairCompleted(requestId, streamId);
+        var result = _recovery.MarkRepairCompleted(requestId, streamId);
+        if (result.Accepted)
+        {
+            Telemetry.RecordRepairCompleted();
+        }
+
+        return result;
     }
 
     public void Close()
@@ -235,6 +288,13 @@ internal static class Protocol64ConnectionFrameValidation
         }
 
         var payloadSpan = encodedPayload.Span;
+        if (payloadSpan.Length < Protocol64FrameHeader.EncodedSize)
+        {
+            return Fault(
+                Protocol64FaultKind.TruncatedFrame,
+                $"Protocol-64 frame header is truncated at {payloadSpan.Length} bytes.");
+        }
+
         if (BinaryPrimitives.ReadUInt32LittleEndian(payloadSpan) != Protocol64FrameHeader.Magic)
         {
             return Fault(
@@ -272,12 +332,19 @@ internal static class Protocol64ConnectionFrameValidation
             BinaryPrimitives.ReadUInt64LittleEndian(payloadSpan[12..]),
             BinaryPrimitives.ReadUInt64LittleEndian(payloadSpan[20..]),
             BinaryPrimitives.ReadUInt32LittleEndian(payloadSpan[28..]),
-            BinaryPrimitives.ReadUInt32LittleEndian(payloadSpan[32..]));
+            BinaryPrimitives.ReadUInt32LittleEndian(payloadSpan[32..]),
+            BinaryPrimitives.ReadUInt32LittleEndian(payloadSpan[36..]));
         if (encodedHeader != header)
         {
             return Fault(
                 Protocol64FaultKind.InvalidEnvelope,
                 "Protocol-64 frame metadata does not match the encoded header.");
+        }
+
+        var integrityFault = Protocol64FrameCodec.ValidateIntegrity(encodedPayload, header);
+        if (integrityFault is not null)
+        {
+            return integrityFault;
         }
 
         return null;

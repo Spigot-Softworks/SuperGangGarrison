@@ -15,6 +15,7 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
     private const int MaximumPendingInputEdges = 32;
     private const int AcknowledgedTransientEventHistoryLimit = 4096;
     private readonly List<SequencedPlayerInputEdge> _pendingInputEdges = new();
+    private readonly Protocol64InputCommandLedger _protocol64InputCommands = new();
     private readonly Dictionary<ulong, SnapshotBaselineState> _snapshotStatesByFrame = new();
     private readonly Queue<ulong> _snapshotFrameOrder = new();
     private readonly Dictionary<ulong, ulong[]> _snapshotTransientEventIdsByFrame = new();
@@ -52,12 +53,14 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
     public uint LastReceivedInputSequence { get; private set; }
     public uint LastProcessedInputSequence { get; private set; }
     public int PendingInputCount => _pendingInputEdges.Count;
+    public int PendingProtocol64InputCommandCount => _protocol64InputCommands.PendingCount;
     public uint LastTeamCommandSequence { get; set; }
     public uint LastClassCommandSequence { get; set; }
     public uint LastSpectateCommandSequence { get; set; }
     public uint LastGameplayLoadoutCommandSequence { get; set; }
     public ulong LastAcknowledgedSnapshotFrame { get; private set; }
     public bool IsAuthorized { get; set; } = true;
+    public bool Protocol64Enabled { get; set; }
     public bool IsWatchOnly { get; set; }
     public TimeSpan LastPasswordRequestSentAt { get; set; } = TimeSpan.MinValue;
     public OpenGarrisonServerAdminPermissions AdminPermissions { get; set; } = OpenGarrisonServerAdminPermissions.None;
@@ -122,6 +125,30 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
         input = default;
         return false;
     }
+
+    public bool TryEnqueueProtocol64InputCommand(
+        Protocol64InputCommand command,
+        uint serverTick,
+        out Protocol64InputCommandResult? immediateResult)
+        => _protocol64InputCommands.TryEnqueue(command, serverTick, out immediateResult);
+
+    public bool TryDequeueProtocol64InputCommand(out Protocol64InputCommand command)
+        => _protocol64InputCommands.TryDequeue(out command);
+
+    public Protocol64InputCommandResult CompleteProtocol64InputCommand(
+        Protocol64InputCommand command,
+        uint serverTick,
+        bool consumed,
+        string reason = "")
+        => _protocol64InputCommands.Complete(command, serverTick, consumed, reason);
+
+    public bool TryGetProtocol64InputCommandResult(
+        ulong commandId,
+        out Protocol64InputCommandResult result)
+        => _protocol64InputCommands.TryGetCompleted(commandId, out result);
+
+    public bool AcknowledgeProtocol64InputCommand(ulong commandId)
+        => _protocol64InputCommands.Acknowledge(commandId);
 
     private PlayerInputSnapshot ResolveInputEdgeBaseline(uint sequence)
     {
