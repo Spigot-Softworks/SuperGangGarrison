@@ -1,0 +1,18 @@
+{
+    "id":  "MinigunOverlayFS",
+    "framePaths":  [
+                       "assets/weapons/other/MinigunOverlayFS.images/image 0.png",
+                       "assets/weapons/other/MinigunOverlayFS.images/image 1.png"
+                   ],
+    "originX":  22,
+    "originY":  11,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

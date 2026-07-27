@@ -270,7 +270,7 @@ partial class GameServer
         Console.WriteLine($"Random bullet spread: {(_randomSpreadEnabled ? "Enabled" : "Disabled")}");
         Console.WriteLine($"Local prediction: {(_localPredictionEnabled ? "Enabled" : "Disabled")}");
         Console.WriteLine($"Special abilities: {(_secondaryAbilitiesEnabled ? "Enabled" : "Disabled")}");
-        Console.WriteLine($"Snapshot budget mode: {OpenGarrison.Server.SnapshotBudgetModeParser.ToConfigString(_snapshotBudgetMode)}");
+        Console.WriteLine("Snapshot budgeting: Disabled");
         Console.WriteLine(_competitiveReadyUpEnabled
             ? $"Competitive ready-up: enabled (setup {_competitiveSetupSeconds} seconds)"
             : "Competitive ready-up: disabled");

@@ -111,7 +111,7 @@ internal static class BrowserAssetBuildPipeline
         var stockPackDirectory = Path.Combine(context.ContentRoot, "Gameplay", "stock.gg2");
         var stockPackDefinition = GameplayModPackDirectoryLoader.LoadFromDirectory(stockPackDirectory);
         WriteText(
-            Path.Combine(context.OutputContentRoot, "Gameplay", "stock.gg2", "_browser-pack-definition.json"),
+            Path.Combine(context.OutputContentRoot, "Gameplay", "stock.gg2", "runtime.json"),
             JsonSerializer.Serialize(BrowserGameplayModPackDefinitionDocument.FromDefinition(stockPackDefinition), JsonOptions),
             generatedFiles);
         return stockPackDefinition;
@@ -454,9 +454,7 @@ internal static class BrowserAssetBuildPipeline
     private static string ResolveGameplaySpriteContentPath(string framePath)
     {
         var normalizedPath = framePath.Replace('\\', '/').TrimStart('/');
-        return normalizedPath.StartsWith("Content/", StringComparison.OrdinalIgnoreCase)
-            ? normalizedPath
-            : $"Content/Gameplay/stock.gg2/{normalizedPath}";
+        return $"Content/Gameplay/stock.gg2/{normalizedPath}";
     }
 
     private static AtlasSpriteInput? CreateGameMakerSpriteInput(

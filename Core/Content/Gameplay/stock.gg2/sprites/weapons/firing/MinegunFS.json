@@ -1,0 +1,40 @@
+{
+    "id":  "MinegunFS",
+    "framePaths":  [
+                       "assets/weapons/firing/MinegunFS.images/image 0.png",
+                       "assets/weapons/firing/MinegunFS.images/image 1.png",
+                       "assets/weapons/firing/MinegunFS.images/image 2.png",
+                       "assets/weapons/firing/MinegunFS.images/image 3.png",
+                       "assets/weapons/firing/MinegunFS.images/image 4.png",
+                       "assets/weapons/firing/MinegunFS.images/image 5.png",
+                       "assets/weapons/firing/MinegunFS.images/image 6.png",
+                       "assets/weapons/firing/MinegunFS.images/image 7.png",
+                       "assets/weapons/firing/MinegunFS.images/image 8.png",
+                       "assets/weapons/firing/MinegunFS.images/image 9.png",
+                       "assets/weapons/firing/MinegunFS.images/image 10.png",
+                       "assets/weapons/firing/MinegunFS.images/image 11.png",
+                       "assets/weapons/firing/MinegunFS.images/image 12.png",
+                       "assets/weapons/firing/MinegunFS.images/image 13.png",
+                       "assets/weapons/firing/MinegunFS.images/image 14.png",
+                       "assets/weapons/firing/MinegunFS.images/image 15.png",
+                       "assets/weapons/firing/MinegunFS.images/image 16.png",
+                       "assets/weapons/firing/MinegunFS.images/image 17.png",
+                       "assets/weapons/firing/MinegunFS.images/image 18.png",
+                       "assets/weapons/firing/MinegunFS.images/image 19.png",
+                       "assets/weapons/firing/MinegunFS.images/image 20.png",
+                       "assets/weapons/firing/MinegunFS.images/image 21.png",
+                       "assets/weapons/firing/MinegunFS.images/image 22.png",
+                       "assets/weapons/firing/MinegunFS.images/image 23.png"
+                   ],
+    "originX":  25,
+    "originY":  19,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

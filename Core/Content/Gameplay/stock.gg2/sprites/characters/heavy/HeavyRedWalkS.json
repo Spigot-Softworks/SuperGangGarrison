@@ -1,0 +1,20 @@
+{
+    "id":  "HeavyRedWalkS",
+    "framePaths":  [
+                       "assets/characters/heavy/HeavyRedWalkS.images/image 0.png",
+                       "assets/characters/heavy/HeavyRedWalkS.images/image 1.png",
+                       "assets/characters/heavy/HeavyRedWalkS.images/image 2.png",
+                       "assets/characters/heavy/HeavyRedWalkS.images/image 3.png"
+                   ],
+    "originX":  19,
+    "originY":  40,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  10,
+                 "top":  28,
+                 "right":  28,
+                 "bottom":  63
+             }
+}

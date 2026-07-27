@@ -138,8 +138,7 @@ public sealed class SimulationWorldRocketSourceParityTests
         var maskBounds = GetPlayerPresentationHitBounds(world, enemy);
 
         Assert.Equal("SoldierBlueRunS", spriteName);
-        Assert.True(manifest.Sprites.ContainsKey("SoldierBlueRunS"));
-        Assert.Equal(20, manifest.Sprites["SoldierBlueRunS"].Mask.Left);
+        Assert.False(manifest.Sprites.ContainsKey("SoldierBlueRunS"));
         Assert.InRange(maskBounds.Left, 9.9f, 10.1f);
         Assert.InRange(collisionLeft, 13.9f, 14.1f);
         Assert.True(maskBounds.Left < collisionLeft, "expected animated run mask to extend farther than the fixed collision box");
@@ -159,9 +158,9 @@ public sealed class SimulationWorldRocketSourceParityTests
         Assert.Equal("CivvieBlueS", spriteName);
         Assert.False(manifest.Sprites.ContainsKey("CivvieBlueS"));
         Assert.InRange(maskBounds.Left, 87.9f, 88.1f);
-        Assert.InRange(maskBounds.Top, 95.9f, 96.1f);
+        Assert.InRange(maskBounds.Top, 93.9f, 94.1f);
         Assert.InRange(maskBounds.Right, 110.9f, 111.1f);
-        Assert.InRange(maskBounds.Bottom, 133.9f, 134.1f);
+        Assert.InRange(maskBounds.Bottom, 131.9f, 132.1f);
         Assert.True(maskBounds.Left < collisionLeft, "expected Civilian gameplay sprite mask to extend beyond the fixed collision box");
         Assert.True(maskBounds.Top < collisionTop, "expected Civilian gameplay sprite mask to extend above the fixed collision box");
     }

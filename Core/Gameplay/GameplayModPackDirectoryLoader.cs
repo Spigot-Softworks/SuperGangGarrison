@@ -11,6 +11,7 @@ namespace OpenGarrison.Core;
 public static class GameplayModPackDirectoryLoader
 {
     private const string PackMetadataFileName = "pack.json";
+    private const string RuntimeMetadataFileName = "runtime.json";
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
 
     public static IReadOnlyList<GameplayModPackDefinition> LoadAllFromContentRoot()
@@ -49,6 +50,21 @@ public static class GameplayModPackDirectoryLoader
         }
 
         var metadata = LoadRequiredJson<PackMetadataDocument>(Path.Combine(fullPackDirectory, PackMetadataFileName));
+        var runtimeMetadataPath = Path.Combine(fullPackDirectory, RuntimeMetadataFileName);
+        if (File.Exists(runtimeMetadataPath))
+        {
+            var runtimeDefinition = LoadRequiredJson<BrowserGameplayModPackDefinitionDocument>(runtimeMetadataPath).ToDefinition();
+            if (!string.Equals(runtimeDefinition.Id, metadata.Id, StringComparison.Ordinal)
+                || !string.Equals(runtimeDefinition.DisplayName, metadata.DisplayName, StringComparison.Ordinal)
+                || !string.Equals(runtimeDefinition.Version.ToString(), metadata.Version, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"Gameplay runtime metadata \"{runtimeMetadataPath}\" does not match \"{PackMetadataFileName}\".");
+            }
+
+            return runtimeDefinition;
+        }
+
         var items = LoadDefinitionsFromDirectory<GameplayItemDefinition>(
             fullPackDirectory,
             "items",
@@ -260,7 +276,7 @@ public static class GameplayModPackDirectoryLoader
 
         var results = new List<TDefinition>();
         var ids = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var filePath in Directory.GetFiles(fullDirectory, "*.json", SearchOption.TopDirectoryOnly).OrderBy(static path => path, StringComparer.OrdinalIgnoreCase))
+        foreach (var filePath in Directory.GetFiles(fullDirectory, "*.json", SearchOption.AllDirectories).OrderBy(static path => path, StringComparer.OrdinalIgnoreCase))
         {
             var definition = LoadRequiredJson<TDefinition>(filePath);
             var normalized = normalize(definition, Path.GetFileNameWithoutExtension(filePath), filePath);
@@ -692,28 +708,26 @@ public static class GameplayModPackDirectoryLoader
     {
         ValidateRequiredText(relativePath, "framePaths", filePath);
         var normalizedRelativePath = relativePath!.Trim().Replace('\\', '/');
-        const string contentPrefix = "Content/";
-        if (normalizedRelativePath.StartsWith(contentPrefix, StringComparison.OrdinalIgnoreCase))
+        if (normalizedRelativePath.StartsWith("Content/", StringComparison.OrdinalIgnoreCase))
         {
-            var contentRelativePath = normalizedRelativePath[contentPrefix.Length..];
-            if (string.IsNullOrWhiteSpace(contentRelativePath) || contentRelativePath.Contains("..", StringComparison.Ordinal))
-            {
-                throw new InvalidOperationException($"Gameplay asset \"{assetId}\" frame path escapes content root in \"{filePath}\": {relativePath}");
-            }
+            throw new InvalidOperationException(
+                $"Gameplay asset \"{assetId}\" frame path must be relative to its pack in \"{filePath}\": {relativePath}");
+        }
 
-            var fullContentRoot = Path.GetFullPath(ContentRoot.Path);
-            var combinedContentPath = Path.GetFullPath(ContentRoot.GetPath(contentRelativePath));
-            if (!combinedContentPath.StartsWith(fullContentRoot, StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException($"Gameplay asset \"{assetId}\" frame path escapes content root in \"{filePath}\": {relativePath}");
-            }
-
-            return normalizedRelativePath;
+        var pathSegments = normalizedRelativePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (Path.IsPathRooted(normalizedRelativePath)
+            || normalizedRelativePath.StartsWith('/')
+            || normalizedRelativePath.Contains(':', StringComparison.Ordinal)
+            || pathSegments.Any(static segment => segment is "." or ".."))
+        {
+            throw new InvalidOperationException($"Gameplay asset \"{assetId}\" frame path escapes pack directory in \"{filePath}\": {relativePath}");
         }
 
         var fullPackDirectory = Path.GetFullPath(packDirectory);
         var combinedPath = Path.GetFullPath(Path.Combine(fullPackDirectory, normalizedRelativePath));
-        if (!combinedPath.StartsWith(fullPackDirectory, StringComparison.OrdinalIgnoreCase))
+        var packDirectoryPrefix = fullPackDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+        if (!combinedPath.StartsWith(packDirectoryPrefix, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException($"Gameplay asset \"{assetId}\" frame path escapes pack directory in \"{filePath}\": {relativePath}");
         }

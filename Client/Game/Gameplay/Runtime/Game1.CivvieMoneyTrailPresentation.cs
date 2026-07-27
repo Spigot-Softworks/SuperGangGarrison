@@ -12,6 +12,8 @@ public partial class Game1
     private readonly List<CivvieMoneyPickupParticipant> _civvieMoneyParticipantBuffer = new();
     private readonly HashSet<int> _civvieMoneyTrailPlayerIds = new();
 
+    internal static bool AreCivvieMoneyParticlesEnabled(int particleMode) => particleMode != 1;
+
     private void ResetCivvieMoneyTrailPresentation()
     {
         _civvieMoneyPresentationTracker.Clear();
@@ -47,7 +49,7 @@ public partial class Game1
         _civvieMoneyParticipantBuffer.Clear();
         _civvieMoneyTrailPlayerIds.Clear();
 
-        var localPlayer = _world.LocalPlayer;
+        var localPlayer = GetPlayerCivviePresentationSource(_world.LocalPlayer);
         if (_civvieMoneyTrailPlayerIds.Add(localPlayer.Id))
         {
             _civvieMoneyPresentationTracker.TryRegisterTrail(snapshot.Frame, ticksPerSecond, localPlayer);

@@ -125,14 +125,14 @@ public sealed class SnapshotDeltaBudgeterRocketRemovalTests
                 Kind: SnapshotDeltaBudgeter.ContributionKind.TransientSoundEvent),
         };
 
-        var result = SnapshotDeltaBudgeter.BuildUntrimmedSnapshotWithEmergencyReduction(
+        var result = SnapshotDeltaBudgeter.BuildUntrimmedSnapshot(
             current,
             baseline,
             contributions,
             targetPayloadBytes);
         var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
 
-        Assert.True(result.ReductionApplied);
+        Assert.False(result.ReductionApplied);
         Assert.True(result.Payload.Length > targetPayloadBytes);
         Assert.True(result.Composition.PayloadOverTarget);
         Assert.Equal(rocket.Id, Assert.Single(result.Message.RemovedRocketIds));

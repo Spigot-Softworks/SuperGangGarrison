@@ -1,7 +1,5 @@
 using System.Net;
 using System.Net.Http;
-using OpenGarrison.Core;
-
 namespace OpenGarrison.ClientShared;
 
 public interface IAssetBinarySource
@@ -33,17 +31,19 @@ public sealed class FileSystemAssetBinarySource(string baseDirectory) : IAssetBi
 
     private bool TryResolvePath(string assetPath, out string fullPath)
     {
-        if (GameplayPackAssetPathUtility.IsContentRootRelativePath(assetPath))
+        try
         {
-            var normalizedPath = assetPath.Replace('\\', '/').TrimStart('/');
-            const string contentPrefix = "Content/";
-            fullPath = Path.GetFullPath(ContentRoot.GetPath(normalizedPath[contentPrefix.Length..]));
-            var fullContentRoot = Path.GetFullPath(ContentRoot.Path);
-            return fullPath.StartsWith(fullContentRoot, StringComparison.OrdinalIgnoreCase);
+            var normalizedPath = GameplayPackAssetPathUtility.NormalizePackRelativePath(assetPath);
+            fullPath = Path.GetFullPath(Path.Combine(_baseDirectory, normalizedPath));
+            var baseDirectoryPrefix = _baseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                + Path.DirectorySeparatorChar;
+            return fullPath.StartsWith(baseDirectoryPrefix, StringComparison.OrdinalIgnoreCase);
         }
-
-        fullPath = Path.GetFullPath(Path.Combine(_baseDirectory, assetPath));
-        return fullPath.StartsWith(_baseDirectory, StringComparison.OrdinalIgnoreCase);
+        catch (ArgumentException)
+        {
+            fullPath = string.Empty;
+            return false;
+        }
     }
 }
 
@@ -106,10 +106,8 @@ public sealed class HttpAssetBinarySource(HttpClient httpClient, string packBase
 
     private string BuildAssetUrl(string assetPath)
     {
-        var normalizedPath = assetPath.TrimStart('/').Replace('\\', '/');
-        return GameplayPackAssetPathUtility.IsContentRootRelativePath(normalizedPath)
-            ? normalizedPath
-            : $"{_packBaseUrl}/{normalizedPath}";
+        var normalizedPath = GameplayPackAssetPathUtility.NormalizePackRelativePath(assetPath);
+        return $"{_packBaseUrl}/{normalizedPath}";
     }
 
     private static string NormalizeBaseUrl(string packBaseUrl)

@@ -1,0 +1,34 @@
+{
+    "id":  "RandomPortraitAnimationS",
+    "framePaths":  [
+                       "assets/hud/portraitanimations/RandomPortraitAnimationS.images/image 0.png",
+                       "assets/hud/portraitanimations/RandomPortraitAnimationS.images/image 1.png",
+                       "assets/hud/portraitanimations/RandomPortraitAnimationS.images/image 2.png",
+                       "assets/hud/portraitanimations/RandomPortraitAnimationS.images/image 3.png",
+                       "assets/hud/portraitanimations/RandomPortraitAnimationS.images/image 4.png",
+                       "assets/hud/portraitanimations/RandomPortraitAnimationS.images/image 5.png",
+                       "assets/hud/portraitanimations/RandomPortraitAnimationS.images/image 6.png",
+                       "assets/hud/portraitanimations/RandomPortraitAnimationS.images/image 7.png",
+                       "assets/hud/portraitanimations/RandomPortraitAnimationS.images/image 8.png",
+                       "assets/hud/portraitanimations/RandomPortraitAnimationS.images/image 9.png",
+                       "assets/hud/portraitanimations/RandomPortraitAnimationS.images/image 10.png",
+                       "assets/hud/portraitanimations/RandomPortraitAnimationS.images/image 11.png",
+                       "assets/hud/portraitanimations/RandomPortraitAnimationS.images/image 12.png",
+                       "assets/hud/portraitanimations/RandomPortraitAnimationS.images/image 13.png",
+                       "assets/hud/portraitanimations/RandomPortraitAnimationS.images/image 14.png",
+                       "assets/hud/portraitanimations/RandomPortraitAnimationS.images/image 15.png",
+                       "assets/hud/portraitanimations/RandomPortraitAnimationS.images/image 16.png",
+                       "assets/hud/portraitanimations/RandomPortraitAnimationS.images/image 17.png"
+                   ],
+    "originX":  26,
+    "originY":  26,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

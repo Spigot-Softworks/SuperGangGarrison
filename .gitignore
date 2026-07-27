@@ -4,7 +4,6 @@ obj/
 Gang-Garrison-2/
 /Modern/
 /NextPrioritiesAndBugs.txt
-/AbilityNames.txt
 /bot-work.txt
 /bot work.txt
 .codex-dotnet/
@@ -27,6 +26,10 @@ temp_*.json
 Thumbs.db
 *.user
 *.suo
+
+# Local experiments and uncommitted design notes
+/.local/
+/docs/design/*.local.txt
 ReferenceAssets/GG2Randomizer/
 Client.Browser/wwwroot/Content/
 Client.Browser/wwwroot/Plugins/
@@ -45,18 +48,6 @@ Tests/BrowserSmoke/node_modules/
 /botbrain-conflict-trace.txt
 /combined plan.txt
 /name.pem
-
-# Loose Civilian source drops kept outside the packaged content tree
-/civ_run.zip
-/civ_stands.png
-/civtaunt.zip
-/killfeed1.png
-/killfeed2.png
-/logo_final_elkondo.png
-/portrait_finalish.png
-/shield.zip
-/umbrella_open_v2.png
-/v4.zip
 
 # Generated bot navigation and canary artifacts
 /BotBrain.Tools/canaries/

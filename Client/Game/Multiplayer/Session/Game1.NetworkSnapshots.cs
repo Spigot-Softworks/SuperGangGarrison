@@ -265,7 +265,6 @@ public partial class Game1
 
         _lastAppliedSnapshotLocalPlayerId = currentLocalPlayerId;
         ObserveAppliedNetworkWorldSnapshot(snapshot, isServerFullSnapshot);
-        ProcessOnlineCivvieMoneyTrailPresentation(snapshot);
 
         if (!_classSelectOpen)
         {
@@ -274,6 +273,7 @@ public partial class Game1
         var reconcileStartTimestamp = _networkDiagnosticsEnabled ? Stopwatch.GetTimestamp() : 0L;
         _networkClient.AcknowledgeProcessedInput(snapshot.LastProcessedInputSequence);
         ReconcileLocalPrediction(snapshot.LastProcessedInputSequence);
+        ProcessOnlineCivvieMoneyTrailPresentation(snapshot);
         if (_networkDiagnosticsEnabled)
         {
             RecordReconcileDuration(GetDiagnosticsElapsedMilliseconds(reconcileStartTimestamp));

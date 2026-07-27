@@ -107,9 +107,9 @@ public partial class Game1
         if (!_networkClient.IsConnected || ReferenceEquals(player, _world.LocalPlayer))
         {
             return new CivvieUmbrellaShieldBlockObservationState(
-                player.CivvieUmbrellaChargeTicks,
-                player.IsCivvieUmbrellaActive,
-                player.IsCivvieUmbrellaBroken);
+                GetPlayerCivvieUmbrellaChargeTicks(player),
+                GetPlayerIsCivvieUmbrellaActive(player),
+                GetPlayerIsCivvieUmbrellaBroken(player));
         }
 
         var chargeTicks = player.CivvieUmbrellaChargeTicks;

@@ -1,0 +1,22 @@
+{
+    "id":  "ParachuteSentry",
+    "framePaths":  [
+                       "assets/world/in-game-elements/ParachuteSentry.images/image 0.png",
+                       "assets/world/in-game-elements/ParachuteSentry.images/image 1.png",
+                       "assets/world/in-game-elements/ParachuteSentry.images/image 2.png",
+                       "assets/world/in-game-elements/ParachuteSentry.images/image 3.png",
+                       "assets/world/in-game-elements/ParachuteSentry.images/image 4.png",
+                       "assets/world/in-game-elements/ParachuteSentry.images/image 5.png"
+                   ],
+    "originX":  22,
+    "originY":  27,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "MANUAL",
+                 "left":  8,
+                 "top":  19,
+                 "right":  35,
+                 "bottom":  40
+             }
+}

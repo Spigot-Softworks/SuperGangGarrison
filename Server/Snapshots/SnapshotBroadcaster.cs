@@ -28,8 +28,7 @@ sealed class SnapshotBroadcaster
         SnapshotMessage FullSnapshot,
         SnapshotBaselineState? Baseline,
         int TargetPayloadBytes,
-        OpenGarrison.Server.SnapshotContributionPlanningContext PlanningContext,
-        OpenGarrison.Server.SnapshotBudgetMode BudgetMode);
+        OpenGarrison.Server.SnapshotContributionPlanningContext PlanningContext);
 
     private readonly record struct BuiltClientSnapshot(
         ClientSession Client,
@@ -48,7 +47,6 @@ sealed class SnapshotBroadcaster
     private readonly Action<ServerTransportPeer, SnapshotMessage, byte[]> _sendSnapshot;
     private readonly OpenGarrison.Server.ServerMapMetadataResolver _mapMetadataResolver;
     private readonly OpenGarrison.Server.SnapshotTransientEventBuffer _transientEventBuffer;
-    private readonly OpenGarrison.Server.SnapshotBudgetMode _snapshotBudgetMode;
     private readonly Action<SnapshotMessage>? _recordCanonicalSnapshot;
     private readonly Func<bool>? _shouldRecordCanonicalSnapshot;
     private readonly Action<string> _log;
@@ -79,7 +77,7 @@ sealed class SnapshotBroadcaster
         _botManager = botManager;
         _mapMetadataResolver = mapMetadataResolver;
         _transientEventBuffer = new OpenGarrison.Server.SnapshotTransientEventBuffer(transientEventReplayTicks);
-        _snapshotBudgetMode = snapshotBudgetMode;
+        _ = snapshotBudgetMode; // Retained for launch/config compatibility; live snapshot trimming is disabled.
         _sendSnapshot = sendSnapshot;
         _recordCanonicalSnapshot = recordCanonicalSnapshot;
         _shouldRecordCanonicalSnapshot = shouldRecordCanonicalSnapshot;
@@ -365,8 +363,7 @@ sealed class SnapshotBroadcaster
             fullSnapshot,
             TryGetBaselineSnapshot(client, fullSnapshot),
             GetTargetSnapshotPayloadBytes(client),
-            OpenGarrison.Server.SnapshotContributionPlanner.CreatePlanningContext(client, fullSnapshot, _world),
-            _snapshotBudgetMode);
+            OpenGarrison.Server.SnapshotContributionPlanner.CreatePlanningContext(client, fullSnapshot, _world));
     }
 
     private static BuiltClientSnapshot[] BuildClientSnapshots(ClientSnapshotWorkItem[] workItems)
@@ -419,19 +416,11 @@ sealed class SnapshotBroadcaster
             workItem.PlanningContext,
             workItem.FullSnapshot,
             workItem.Baseline);
-        var snapshot = workItem.BudgetMode == OpenGarrison.Server.SnapshotBudgetMode.GameplayCriticalUntrimmed
-            ? OpenGarrison.Server.SnapshotDeltaBudgeter.BuildUntrimmedSnapshotWithEmergencyReduction(
-                workItem.FullSnapshot,
-                workItem.Baseline,
-                contributions,
-                Math.Max(
-                    workItem.TargetPayloadBytes,
-                    OpenGarrison.Server.SnapshotDeltaBudgeter.GameplayCriticalEmergencyPayloadBytes))
-            : OpenGarrison.Server.SnapshotDeltaBudgeter.BuildBudgetedSnapshotWithMetrics(
-                workItem.FullSnapshot,
-                workItem.Baseline,
-                contributions,
-                workItem.TargetPayloadBytes);
+        var snapshot = OpenGarrison.Server.SnapshotDeltaBudgeter.BuildUntrimmedSnapshot(
+            workItem.FullSnapshot,
+            workItem.Baseline,
+            contributions,
+            workItem.TargetPayloadBytes);
         var resolvedFullSnapshot = SnapshotDelta.ToFullSnapshot(snapshot.Message, workItem.Baseline);
         return new BuiltClientSnapshot(
             workItem.Client,
@@ -442,8 +431,7 @@ sealed class SnapshotBroadcaster
                 FullPayloadBytes: fullSnapshotPayloadBytes,
                 SentPayloadBytes: snapshot.Payload.Length,
                 SerializePassCount: snapshot.SerializePassCount,
-                WasBudgeted: workItem.BudgetMode == OpenGarrison.Server.SnapshotBudgetMode.Balanced
-                    || snapshot.ReductionApplied,
+                WasBudgeted: false,
                 BaselineHit: workItem.Baseline is not null,
                 BaselineMiss: workItem.Baseline is null,
                 Composition: snapshot.Composition,

@@ -15,7 +15,6 @@ internal static class SnapshotDeltaBudgeter
     public const int TargetSnapshotPayloadBytes = 1400;
     public const int LoopbackTargetSnapshotPayloadBytes = 4 * 1024;
     public const int ReliableStreamTargetSnapshotPayloadBytes = 12 * 1024;
-    public const int GameplayCriticalEmergencyPayloadBytes = 12 * 1024;
 
     internal enum ContributionKind
     {
@@ -225,7 +224,7 @@ internal static class SnapshotDeltaBudgeter
         return new SnapshotBudgetBuildResult(snapshot, payload, serializePassCount, composition, candidateComposition, ReductionApplied: true);
     }
 
-    internal static SnapshotBudgetBuildResult BuildUntrimmedSnapshotWithEmergencyReduction(
+    internal static SnapshotBudgetBuildResult BuildUntrimmedSnapshot(
         SnapshotMessage fullSnapshot,
         ISnapshotBaselineState? baseline,
         IReadOnlyList<Contribution> contributions,
@@ -242,23 +241,8 @@ internal static class SnapshotDeltaBudgeter
         var payloadSize = Measure(snapshot);
         var payload = Serialize(snapshot, payloadSize, ref serializePassCount);
         var candidateComposition = BuildCompositionMetrics(snapshot, targetPayloadBytes, payloadSize, payload.Length);
-        var reductionApplied = false;
-
-        if (payload.Length > targetPayloadBytes)
-        {
-            reductionApplied = true;
-            var reducedSnapshot = ReduceGameplayCriticalSnapshot(
-                builder,
-                targetPayloadBytes,
-                new SerializedSnapshot(snapshot, payload, payloadSize),
-                ref serializePassCount);
-            snapshot = reducedSnapshot.Message;
-            payload = reducedSnapshot.Payload;
-            payloadSize = reducedSnapshot.UncompressedBytes;
-        }
-
         var composition = BuildCompositionMetrics(snapshot, targetPayloadBytes, payloadSize, payload.Length);
-        return new SnapshotBudgetBuildResult(snapshot, payload, serializePassCount, composition, candidateComposition, reductionApplied);
+        return new SnapshotBudgetBuildResult(snapshot, payload, serializePassCount, composition, candidateComposition, ReductionApplied: false);
     }
 
     private static void ApplyRequiredRosterContribution(
@@ -368,40 +352,6 @@ internal static class SnapshotDeltaBudgeter
         }
 
         return null;
-    }
-
-    private static SerializedSnapshot ReduceGameplayCriticalSnapshot(
-        Builder builder,
-        int targetPayloadBytes,
-        SerializedSnapshot latest,
-        ref int serializePassCount)
-    {
-        if (latest.Payload.Length <= targetPayloadBytes)
-        {
-            return latest;
-        }
-
-        var madeProgress = true;
-        while (madeProgress)
-        {
-            madeProgress = false;
-            foreach (var dropStep in GameplayCriticalDropSteps)
-            {
-                if (!dropStep(builder))
-                {
-                    continue;
-                }
-
-                madeProgress = true;
-                latest = SerializeBuilderSnapshot(builder, ref serializePassCount);
-                if (latest.Payload.Length <= targetPayloadBytes)
-                {
-                    return latest;
-                }
-            }
-        }
-
-        return latest;
     }
 
     private static SerializedSnapshot SerializeBuilderSnapshot(Builder builder, ref int serializePassCount)
@@ -959,25 +909,6 @@ internal static class SnapshotDeltaBudgeter
         static builder => ClearIfAny(builder.KillFeed),
     ];
 
-    private static readonly Func<Builder, bool>[] GameplayCriticalDropSteps =
-    [
-        static builder =>
-        {
-            var changed = false;
-            changed |= ClearIfAny(builder.GibSpawnEvents);
-            changed |= ClearIfAny(builder.PlayerGibs);
-            changed |= ClearIfAny(builder.SentryGibs);
-            changed |= ClearIfAny(builder.JumpPadGibs);
-            changed |= ClearIfAny(builder.DeadBodies);
-            return changed;
-        },
-        static builder => RemoveLastIfAboveMinimum(builder.SniperAimIndicators, minimumCount: 0),
-        static builder => RemoveLastIfAboveMinimum(builder.CombatTraces, minimumCount: 0),
-        static builder => ReducePlayersForGameplayCriticalBudget(builder),
-        static builder => RemoveLastIfAboveMinimum(builder.KillFeed, minimumCount: 1),
-        static builder => ClearIfAny(builder.KillFeed),
-    ];
-
     private static bool ClearIfAny<T>(TrackingList<T> list)
     {
         if (list.Count == 0)
@@ -1026,55 +957,6 @@ internal static class SnapshotDeltaBudgeter
 
         list.RemoveLast();
         return true;
-    }
-
-    private static bool ReducePlayersForGameplayCriticalBudget(Builder builder)
-    {
-        if (builder.Players.Count == 0)
-        {
-            return false;
-        }
-
-        var reducedPlayers = new SnapshotPlayerState[builder.Players.Count];
-        var changed = false;
-        for (var index = 0; index < builder.Players.Count; index += 1)
-        {
-            var player = builder.Players[index];
-            var reducedPlayer = ReducePlayerStateForGameplayCriticalBudget(player);
-            reducedPlayers[index] = reducedPlayer;
-            changed |= !EqualityComparer<SnapshotPlayerState>.Default.Equals(player, reducedPlayer);
-        }
-
-        if (!changed)
-        {
-            return false;
-        }
-
-        builder.Players.ReplaceWith(reducedPlayers);
-        return true;
-    }
-
-    private static SnapshotPlayerState ReducePlayerStateForGameplayCriticalBudget(SnapshotPlayerState player)
-    {
-        return player with
-        {
-            BadgeMask = 0,
-            OwnedGameplayItemIds = Array.Empty<string>(),
-            IsChatBubbleVisible = false,
-            ChatBubbleFrameIndex = 0,
-            ChatBubbleAlpha = 0f,
-            IsTypingChatMessage = false,
-            Kills = 0,
-            Deaths = 0,
-            Caps = 0,
-            Points = 0f,
-            HealPoints = 0,
-            ActiveDominationCount = 0,
-            IsDominatingLocalViewer = false,
-            IsDominatedByLocalViewer = false,
-            Assists = 0,
-            GibDeaths = 0,
-        };
     }
 
     internal sealed class Builder

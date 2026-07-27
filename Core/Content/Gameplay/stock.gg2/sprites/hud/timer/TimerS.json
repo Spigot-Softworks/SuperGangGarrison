@@ -1,0 +1,28 @@
+{
+    "id":  "TimerS",
+    "framePaths":  [
+                       "assets/hud/timer/TimerS.images/image 0.png",
+                       "assets/hud/timer/TimerS.images/image 1.png",
+                       "assets/hud/timer/TimerS.images/image 2.png",
+                       "assets/hud/timer/TimerS.images/image 3.png",
+                       "assets/hud/timer/TimerS.images/image 4.png",
+                       "assets/hud/timer/TimerS.images/image 5.png",
+                       "assets/hud/timer/TimerS.images/image 6.png",
+                       "assets/hud/timer/TimerS.images/image 7.png",
+                       "assets/hud/timer/TimerS.images/image 8.png",
+                       "assets/hud/timer/TimerS.images/image 9.png",
+                       "assets/hud/timer/TimerS.images/image 10.png",
+                       "assets/hud/timer/TimerS.images/image 11.png"
+                   ],
+    "originX":  5,
+    "originY":  5,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

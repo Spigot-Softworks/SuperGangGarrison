@@ -1,0 +1,26 @@
+{
+    "id":  "GrenadeLauncherFS",
+    "framePaths":  [
+                       "assets/weapons/firing/GrenadeLauncherFS.images/image 0.png",
+                       "assets/weapons/firing/GrenadeLauncherFS.images/image 1.png",
+                       "assets/weapons/firing/GrenadeLauncherFS.images/image 2.png",
+                       "assets/weapons/firing/GrenadeLauncherFS.images/image 3.png",
+                       "assets/weapons/firing/GrenadeLauncherFS.images/image 4.png",
+                       "assets/weapons/firing/GrenadeLauncherFS.images/image 5.png",
+                       "assets/weapons/firing/GrenadeLauncherFS.images/image 6.png",
+                       "assets/weapons/firing/GrenadeLauncherFS.images/image 7.png",
+                       "assets/weapons/firing/GrenadeLauncherFS.images/image 8.png",
+                       "assets/weapons/firing/GrenadeLauncherFS.images/image 9.png"
+                   ],
+    "originX":  10,
+    "originY":  10,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

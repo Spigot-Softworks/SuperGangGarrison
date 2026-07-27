@@ -31,7 +31,7 @@ public partial class Game1
         var keyboard = GetCurrentKeyboardState();
         if (IsClassSelectCivilianShortcutPressed(keyboard))
         {
-            if (ApplyPreferredPluginClassSelection() || ApplyDirectClassSelection(PlayerClass.Quote))
+            if (ApplyDirectGameplayClassSelection(ResolveClassSelectCivilianShortcutGameplayClassId()))
             {
                 CloseGameplaySelectionMenus();
             }
@@ -103,6 +103,11 @@ public partial class Game1
     {
         return (keyboard.IsKeyDown(Keys.Q) && !_previousKeyboard.IsKeyDown(Keys.Q))
             || (IsControllerMenuInputActive() && IsControllerButtonPressed(ControllerCallMedicButton));
+    }
+
+    internal static string ResolveClassSelectCivilianShortcutGameplayClassId()
+    {
+        return CharacterClassCatalog.RuntimeRegistry.GetRequiredClassBinding(PlayerClass.Quote).ClassId;
     }
 
     private void DrawClassSelectHud()
