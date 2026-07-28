@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 
 namespace OpenGarrison.Client;
@@ -9,21 +10,42 @@ internal enum NetworkEndpointTransport
 {
     Udp,
     WebSocket,
+    Quic,
 }
 
-internal readonly record struct NetworkEndpoint(string Host, int UdpPort, int WebSocketPort, string WebSocketUrl = "")
+internal readonly record struct NetworkEndpointCandidate(string Host, int Port, NetworkEndpointTransport Transport);
+
+internal readonly record struct NetworkEndpoint(string Host, int UdpPort, int WebSocketPort, string WebSocketUrl = "", int QuicPort = 0, string QuicUrl = "")
 {
     public bool HasUdpEndpoint => UdpPort is > 0 and <= 65535;
     public bool HasWebSocketEndpoint => !string.IsNullOrWhiteSpace(WebSocketUrl) || WebSocketPort is > 0 and <= 65535;
+    public bool HasQuicEndpoint => !string.IsNullOrWhiteSpace(QuicUrl) || QuicPort is > 0 and <= 65535;
 
     public bool TryResolveForCurrentRuntime(out string host, out int port, out NetworkEndpointTransport transport)
     {
-        host = Host.Trim();
+        foreach (var candidate in EnumerateConnectionCandidates())
+        {
+            host = candidate.Host;
+            port = candidate.Port;
+            transport = candidate.Transport;
+            return true;
+        }
+
+        host = string.Empty;
         port = 0;
         transport = NetworkEndpointTransport.Udp;
+        return false;
+    }
+
+    public IReadOnlyList<NetworkEndpointCandidate> GetConnectionCandidates()
+        => [.. EnumerateConnectionCandidates()];
+
+    private IEnumerable<NetworkEndpointCandidate> EnumerateConnectionCandidates()
+    {
+        var host = Host.Trim();
         if (string.IsNullOrWhiteSpace(host))
         {
-            return false;
+            yield break;
         }
 
         if (OperatingSystem.IsBrowser())
@@ -31,28 +53,45 @@ internal readonly record struct NetworkEndpoint(string Host, int UdpPort, int We
             var webSocketUrl = WebSocketUrl.Trim();
             if (!string.IsNullOrWhiteSpace(webSocketUrl))
             {
-                host = webSocketUrl;
-                transport = NetworkEndpointTransport.WebSocket;
-                return true;
+                yield return new NetworkEndpointCandidate(webSocketUrl, 0, NetworkEndpointTransport.WebSocket);
+                yield break;
             }
 
-            if (WebSocketPort is <= 0 or > 65535)
+            if (WebSocketPort is > 0 and <= 65535)
             {
-                return false;
+                yield return new NetworkEndpointCandidate(host, WebSocketPort, NetworkEndpointTransport.WebSocket);
             }
 
-            port = WebSocketPort;
-            transport = NetworkEndpointTransport.WebSocket;
-            return true;
+            yield break;
         }
 
-        if (!HasUdpEndpoint)
+        var quicUrl = QuicUrl.Trim();
+        if (!string.IsNullOrWhiteSpace(quicUrl))
         {
-            return false;
+            yield return new NetworkEndpointCandidate(quicUrl, 0, NetworkEndpointTransport.Quic);
+        }
+        else if (QuicPort is > 0 and <= 65535)
+        {
+            yield return new NetworkEndpointCandidate(host, QuicPort, NetworkEndpointTransport.Quic);
         }
 
-        port = UdpPort;
-        return true;
+        var nativeWebSocketUrl = WebSocketUrl.Trim();
+        if (!string.IsNullOrWhiteSpace(nativeWebSocketUrl))
+        {
+            if (TryCreateProtocol64WebSocketEndpoint(nativeWebSocketUrl, out var protocol64WebSocketUrl))
+            {
+                yield return new NetworkEndpointCandidate(protocol64WebSocketUrl, 0, NetworkEndpointTransport.WebSocket);
+            }
+        }
+        else if (WebSocketPort is > 0 and <= 65535)
+        {
+            yield return new NetworkEndpointCandidate($"ws64://{host}", WebSocketPort, NetworkEndpointTransport.WebSocket);
+        }
+
+        if (HasUdpEndpoint)
+        {
+            yield return new NetworkEndpointCandidate(host, UdpPort, NetworkEndpointTransport.Udp);
+        }
     }
 
     public string AddressLabel
@@ -60,6 +99,12 @@ internal readonly record struct NetworkEndpoint(string Host, int UdpPort, int We
         get
         {
             var host = Host.Trim();
+            if (HasQuicEndpoint)
+            {
+                var quicLabel = string.IsNullOrWhiteSpace(QuicUrl) ? QuicPort.ToString(CultureInfo.InvariantCulture) : QuicUrl.Trim();
+                return $"{host}:quic {quicLabel}";
+            }
+
             if (HasUdpEndpoint && HasWebSocketEndpoint && UdpPort != WebSocketPort)
             {
                 var webSocketLabel = string.IsNullOrWhiteSpace(WebSocketUrl) ? WebSocketPort.ToString(CultureInfo.InvariantCulture) : WebSocketUrl.Trim();
@@ -100,5 +145,27 @@ internal readonly record struct NetworkEndpoint(string Host, int UdpPort, int We
     private static int NormalizePort(int port)
     {
         return port is > 0 and <= 65535 ? port : 0;
+    }
+
+    private static bool TryCreateProtocol64WebSocketEndpoint(string value, out string endpoint)
+    {
+        endpoint = string.Empty;
+        if (!Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
+            || uri.Scheme is not ("ws" or "wss" or "ws64" or "wss64")
+            || string.IsNullOrWhiteSpace(uri.Host))
+        {
+            return false;
+        }
+
+        var scheme = uri.Scheme is "wss" or "wss64" ? "wss64" : "ws64";
+        var builder = new UriBuilder(scheme, uri.Host)
+        {
+            Port = uri.IsDefaultPort ? -1 : uri.Port,
+            Path = string.Empty,
+            Query = string.Empty,
+            Fragment = string.Empty,
+        };
+        endpoint = builder.Uri.ToString();
+        return true;
     }
 }

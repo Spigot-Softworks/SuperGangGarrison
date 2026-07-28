@@ -1,0 +1,10 @@
+﻿{
+    "version":  "64.0.0",
+    "packageVersion":  "64.0.0",
+    "channel":  "stable",
+    "url":  "OpenGarrison-Linux-x64-alpha.tar.gz",
+    "sha256":  "9da3dd0e478d98a2c53aa67dde0b9df5dfe02dab4fee7c8f0e55933432ce7353",
+    "size":  100289174,
+    "minLauncherVersion":  "0.1.0",
+    "notesUrl":  ""
+}

@@ -17,7 +17,8 @@ public sealed class Protocol64InputEventTests
             HeldButtons: InputButtons.Right,
             AimRelX: 12.5f,
             AimRelY: -3.25f,
-            ClientTick: 101);
+            ClientTick: 101,
+            CommandSequence: 8);
 
         var schema = registry.Get<Protocol64InputCommand>();
         Assert.Equal(Protocol64DeliveryKind.ReliableOrdered, schema.Descriptor.Delivery.Kind);
@@ -58,7 +59,8 @@ public sealed class Protocol64InputEventTests
             CommandId: 9,
             InputSequence: 44,
             Result: Protocol64InputCommandResultKind.Consumed,
-            ServerTick: 555);
+            ServerTick: 555,
+            CommandSequence: 8);
 
         var encoded = Protocol64FrameCodec.Encode(registry, value, 2, 3).Payload!;
         var decoded = Protocol64FrameCodec.Decode<Protocol64InputCommandResult>(encoded, registry);

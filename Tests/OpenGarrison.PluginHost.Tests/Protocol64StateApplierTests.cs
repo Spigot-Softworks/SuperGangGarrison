@@ -55,6 +55,23 @@ public sealed class Protocol64StateApplierTests
     }
 
     [Fact]
+    public void RosterRejectsCompetingIdentitiesForTheSameSlot()
+    {
+        var applier = new Protocol64StateApplier();
+        var result = applier.ApplyRosterState(new Protocol64RosterState(
+            1,
+            1,
+            [
+                new Protocol64PlayerIdentity(2, 22, 1),
+                new Protocol64PlayerIdentity(2, 23, 1),
+            ],
+            []));
+
+        Assert.Equal(Protocol64StateApplyStatus.RepairRequested, result.Status);
+        Assert.Empty(applier.Players);
+    }
+
+    [Fact]
     public void RosterRemovalTombstoneRejectsAnOlderPlayerBatchThatArrivesLate()
     {
         var applier = new Protocol64StateApplier();
@@ -114,6 +131,55 @@ public sealed class Protocol64StateApplierTests
         Assert.Equal(75, player.Health);
         Assert.Equal(123f, player.X);
         Assert.Equal(45f, player.Y);
+    }
+
+    [Fact]
+    public void PlayerStateExposesTheLocalInputWatermarkForReconciliation()
+    {
+        var applier = new Protocol64StateApplier();
+        var player = Player(2, 22, 1, StockGameplayModCatalog.GetClassId(PlayerClass.Scout), 75)
+            with { LastProcessedInputSequence = 17 };
+
+        Assert.Equal(
+            Protocol64StateApplyStatus.Applied,
+            applier.ApplyPlayerStateBatch(new Protocol64PlayerStateBatch(8, 100, [player])).Status);
+
+        Assert.True(applier.TryGetPlayerState(2, out var applied));
+        Assert.Equal(17U, applied.LastProcessedInputSequence);
+    }
+
+    [Fact]
+    public void StateApplierResetDropsOldStateAndRepairRequests()
+    {
+        var applier = new Protocol64StateApplier();
+        Assert.Equal(
+            Protocol64StateApplyStatus.Applied,
+            applier.ApplyPlayerStateBatch(new Protocol64PlayerStateBatch(3, 10, [Player(2, 22, 1, "class.scout", 75)])).Status);
+        applier.CreateResyncRequest(Protocol64StateResyncReason.ClientRequested);
+
+        applier.Reset();
+
+        Assert.Equal(0UL, applier.PlayerStateSequence);
+        Assert.Empty(applier.Players);
+        Assert.False(applier.TryGetPlayerState(2, out _));
+        var request = applier.CreateResyncRequest(Protocol64StateResyncReason.InitialState);
+        Assert.Equal(1UL, request.RequestId);
+    }
+
+    [Fact]
+    public void NewerStateSequenceCannotRollBackAnInputWatermark()
+    {
+        var applier = new Protocol64StateApplier();
+        var current = Player(2, 22, 1, "class.scout", 100) with { LastProcessedInputSequence = 20 };
+        var regressed = current with { LastProcessedInputSequence = 19 };
+
+        Assert.Equal(
+            Protocol64StateApplyStatus.Applied,
+            applier.ApplyPlayerStateBatch(new Protocol64PlayerStateBatch(1, 1, [current])).Status);
+        Assert.Equal(
+            Protocol64StateApplyStatus.Stale,
+            applier.ApplyPlayerStateBatch(new Protocol64PlayerStateBatch(2, 2, [regressed])).Status);
+        Assert.Equal(20U, Assert.Single(applier.Players).LastProcessedInputSequence);
     }
 
     private static Protocol64PlayerState Player(ushort slot, ulong playerId, uint generation, string classId, int health)

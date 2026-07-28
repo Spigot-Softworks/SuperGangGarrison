@@ -438,7 +438,7 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private bool TryBuildJumpPad(PlayerEntity player)
+    private bool TryBuildJumpPad(PlayerEntity player, bool ignoreMetalCost = false)
     {
         if (!player.IsAlive
             || player.ClassId != PlayerClass.Engineer
@@ -465,7 +465,7 @@ public sealed partial class SimulationWorld
             }
         }
 
-        if (!player.SpendMetal(JumpPadBuildCost))
+        if (!ignoreMetalCost && !player.SpendMetal(JumpPadBuildCost))
         {
             return false;
         }

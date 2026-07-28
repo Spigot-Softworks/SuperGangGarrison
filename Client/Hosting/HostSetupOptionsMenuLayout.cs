@@ -63,11 +63,11 @@ internal sealed class HostSetupOptionsMenuLayout
             buttonWidth,
             buttonHeight);
 
-        var tabCount = 2;
+        var tabCount = 7;
         var tabSpacing = compactLayout ? 8 : 12;
         var tabButtonWidth = System.Math.Min(
             160,
-            System.Math.Max(100, (panel.Width - (padding * 2) - tabSpacing) / tabCount));
+            System.Math.Max(72, (panel.Width - (padding * 2) - ((tabCount - 1) * tabSpacing)) / tabCount));
         var tabStartX = panel.X + padding;
         var tabY = panel.Y + (compactLayout ? 52 : 60);
         var tabBounds = new Rectangle[tabCount];

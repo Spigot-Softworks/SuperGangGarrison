@@ -94,6 +94,7 @@ public partial class Game1
         }
 
         WarmBrowserSprite("CrosshairS");
+        WarmBrowserSprite(ContinuousCrosshairSpriteName);
         WarmBrowserSprite("IntelTimerS");
     }
 

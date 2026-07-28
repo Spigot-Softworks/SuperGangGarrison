@@ -54,6 +54,38 @@ public sealed class Protocol64StateApplier
 
     public uint LastStateTick => _lastStateTick;
 
+    public bool TryGetPlayerState(byte slot, out Protocol64PlayerState state)
+    {
+        foreach (var pair in _players)
+        {
+            if (pair.Key.Slot == slot)
+            {
+                state = pair.Value;
+                return true;
+            }
+        }
+
+        state = null!;
+        return false;
+    }
+
+    public void Reset()
+    {
+        _players.Clear();
+        _removedPlayerGenerations.Clear();
+        _projectiles.Clear();
+        _removedProjectiles.Clear();
+        _lastWorldProjectiles.Clear();
+        _lastWorldPlayerSequence = 0;
+        _lastWorldRosterSequence = 0;
+        _playerStateSequence = 0;
+        _rosterStateSequence = 0;
+        _projectileStateSequence = 0;
+        _lastStateTick = 0;
+        _nextRepairRequestId = 1;
+        _outstandingResyncRequests.Clear();
+    }
+
     public Protocol64StateResyncRequest CreateResyncRequest(Protocol64StateResyncReason reason)
     {
         var request = new Protocol64StateResyncRequest(
@@ -78,7 +110,7 @@ public sealed class Protocol64StateApplier
             return new(Protocol64StateApplyStatus.Stale, Reason: "Player state sequence is not newer.");
         }
 
-        var replacement = new Dictionary<(ushort Slot, ulong PlayerId), Protocol64PlayerState>(_players);
+        var replacement = new Dictionary<(ushort Slot, ulong PlayerId), Protocol64PlayerState>();
         foreach (var player in batch.Players)
         {
             if (!IsValidPlayer(player))
@@ -87,6 +119,12 @@ public sealed class Protocol64StateApplier
             }
 
             var key = (player.Slot, player.PlayerId);
+            if (_players.TryGetValue(key, out var previousPlayer)
+                && player.Generation == previousPlayer.Generation
+                && IsSequenceOlder(player.LastProcessedInputSequence, previousPlayer.LastProcessedInputSequence))
+            {
+                return new(Protocol64StateApplyStatus.Stale, Reason: "Player input watermark is older than the applied state.");
+            }
             if (_removedPlayerGenerations.TryGetValue(key, out var removedGeneration))
             {
                 if (player.Generation <= removedGeneration)
@@ -138,11 +176,14 @@ public sealed class Protocol64StateApplier
 
         var replacement = new Dictionary<(ushort Slot, ulong PlayerId), Protocol64PlayerState>(_players);
         var seenPlayers = new HashSet<(ushort Slot, ulong PlayerId)>();
+        var seenSlots = new HashSet<ushort>();
         foreach (var player in roster.Players)
         {
-            if (!IsValidIdentity(player) || !seenPlayers.Add((player.Slot, player.PlayerId)))
+            if (!IsValidIdentity(player)
+                || !seenPlayers.Add((player.Slot, player.PlayerId))
+                || !seenSlots.Add(player.Slot))
             {
-                return Repair(Protocol64StateResyncReason.InvalidState, "Roster contains an invalid or duplicate player identity.");
+                return Repair(Protocol64StateResyncReason.InvalidState, "Roster contains an invalid or duplicate player slot or identity.");
             }
 
             var playerKey = (player.Slot, player.PlayerId);
@@ -156,9 +197,11 @@ public sealed class Protocol64StateApplier
         var seenRemoved = new HashSet<(ushort Slot, ulong PlayerId)>();
         foreach (var removed in roster.RemovedPlayers)
         {
-            if (!IsValidIdentity(removed) || !seenRemoved.Add((removed.Slot, removed.PlayerId)))
+            if (!IsValidIdentity(removed)
+                || !seenRemoved.Add((removed.Slot, removed.PlayerId))
+                || !seenSlots.Add(removed.Slot))
             {
-                return Repair(Protocol64StateResyncReason.InvalidState, "Roster contains an invalid or duplicate removal identity.");
+                return Repair(Protocol64StateResyncReason.InvalidState, "Roster contains an invalid or duplicate removal slot or identity.");
             }
 
             var key = (removed.Slot, removed.PlayerId);
@@ -272,6 +315,7 @@ public sealed class Protocol64StateApplier
         }
 
         var nextPlayers = new Dictionary<(ushort Slot, ulong PlayerId), Protocol64PlayerState>();
+        var nextPlayerSlots = new HashSet<ushort>();
         foreach (var player in response.Players)
         {
             if (!IsValidPlayer(player))
@@ -280,9 +324,15 @@ public sealed class Protocol64StateApplier
             }
 
             var key = (player.Slot, player.PlayerId);
-            if (!nextPlayers.TryAdd(key, player))
+            if (_players.TryGetValue(key, out var previousPlayer)
+                && player.Generation == previousPlayer.Generation
+                && IsSequenceOlder(player.LastProcessedInputSequence, previousPlayer.LastProcessedInputSequence))
             {
-                return Repair(Protocol64StateResyncReason.InvalidState, "State resync contains duplicate player identity.");
+                return new(Protocol64StateApplyStatus.Stale, Reason: "State resync would roll back a player input watermark.");
+            }
+            if (!nextPlayers.TryAdd(key, player) || !nextPlayerSlots.Add(player.Slot))
+            {
+                return Repair(Protocol64StateResyncReason.InvalidState, "State resync contains duplicate player slot or identity.");
             }
         }
 
@@ -394,6 +444,7 @@ public sealed class Protocol64StateApplier
             && player.Health >= 0
             && player.MaxHealth > 0
             && player.Health <= player.MaxHealth
+            && player.RemainingAirJumps >= 0
             && float.IsFinite(player.X)
             && float.IsFinite(player.Y)
             && float.IsFinite(player.VelocityX)
@@ -404,4 +455,20 @@ public sealed class Protocol64StateApplier
             && identity.PlayerId != 0
             && identity.Generation != 0
             && identity.Slot < 64;
+
+    private static bool IsSequenceOlder(uint candidate, uint baseline)
+    {
+        if (candidate == baseline || baseline == 0)
+        {
+            return false;
+        }
+
+        if (candidate == 0)
+        {
+            return true;
+        }
+
+        var difference = unchecked(candidate - baseline);
+        return difference >= 0x80000000u;
+    }
 }

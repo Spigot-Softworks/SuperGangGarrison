@@ -165,6 +165,20 @@ internal sealed class PluginCommandRegistry
         return true;
     }
 
+    public void UnregisterOwner(string ownerId)
+    {
+        var registrations = _commandsByName
+            .Where(entry => string.Equals(entry.Value.OwnerId, ownerId, StringComparison.OrdinalIgnoreCase))
+            .Select(entry => entry.Key)
+            .ToArray();
+        foreach (var name in registrations)
+        {
+            _commandsByName.Remove(name);
+        }
+
+        _primaryCommands.RemoveAll(entry => string.Equals(entry.OwnerId, ownerId, StringComparison.OrdinalIgnoreCase));
+    }
+
     private static bool IsCommandNameMatch(string commandLine, string registeredName)
     {
         return commandLine.Equals(registeredName, StringComparison.OrdinalIgnoreCase)

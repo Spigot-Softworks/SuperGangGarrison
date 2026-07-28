@@ -59,6 +59,7 @@ internal sealed class NetworkGameClient : IDisposable
     [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "The client transport seam must support browser WebSocket adapters.")]
     private INetworkClientMessageTransport? _transport;
     private uint _nextInputSequence = 1;
+    private uint _nextProtocol64CommandSequence = 1;
     private ulong _nextProtocol64FrameId = 1;
     private ulong _nextProtocol64CommandId = 1;
     private ulong _protocol64ConnectionEpoch = 1;
@@ -109,6 +110,9 @@ internal sealed class NetworkGameClient : IDisposable
     public bool Protocol64ModeEnabled { get; set; }
 
     public Protocol64StateApplier Protocol64State => _protocol64State;
+
+    public bool TryGetProtocol64PlayerState(byte slot, out Protocol64PlayerState state)
+        => _protocol64State.TryGetPlayerState(slot, out state);
 
     public void ApplyProtocol64StateToWorld(SimulationWorld world)
     {
@@ -251,11 +255,13 @@ internal sealed class NetworkGameClient : IDisposable
         _transport?.Dispose();
         _transport = null;
         _nextInputSequence = 1;
+        _nextProtocol64CommandSequence = 1;
         _nextProtocol64FrameId = 1;
         _nextProtocol64CommandId = 1;
         _protocol64ConnectionEpoch = 1;
         _lastProtocol64Input = default;
         _protocol64InputResults.Clear();
+        _protocol64State.Reset();
         _nextControlSequence = 1;
         _pendingChatBubbleFrameIndex = -1;
         _pendingControlCommands.Clear();
@@ -644,7 +650,7 @@ internal sealed class NetworkGameClient : IDisposable
                 input.BinocularsFocusX,
                 input.BinocularsFocusY,
                 EstimatedPingMilliseconds));
-            if (SendProtocol64InputEdges(input, _lastProtocol64Input, buttons, aimOriginX, aimOriginY))
+            if (SendProtocol64InputEdges(input, _lastProtocol64Input, protocol64Sequence, buttons, aimOriginX, aimOriginY))
             {
                 _lastProtocol64Input = input;
             }
@@ -683,7 +689,8 @@ internal sealed class NetworkGameClient : IDisposable
         InputButtons heldButtons,
         float aimRelX,
         float aimRelY,
-        uint clientTick = 0)
+        uint clientTick = 0,
+        uint inputSequence = 0)
     {
         if (!Protocol64ModeEnabled || !IsConnected)
         {
@@ -692,12 +699,13 @@ internal sealed class NetworkGameClient : IDisposable
 
         var command = new Protocol64InputCommand(
             _nextProtocol64CommandId++,
-            _nextInputSequence++,
+            inputSequence == 0 ? _nextInputSequence++ : inputSequence,
             kind,
             heldButtons,
             aimRelX,
             aimRelY,
-            clientTick);
+            clientTick,
+            _nextProtocol64CommandSequence++);
         return TrySendProtocol64Event(command) ? command.CommandId : 0;
     }
 
@@ -938,6 +946,7 @@ internal sealed class NetworkGameClient : IDisposable
     private bool SendProtocol64InputEdges(
         PlayerInputSnapshot input,
         PlayerInputSnapshot previous,
+        uint inputSequence,
         InputButtons buttons,
         float aimOriginX,
         float aimOriginY)
@@ -946,30 +955,31 @@ internal sealed class NetworkGameClient : IDisposable
         var aimRelX = input.AimWorldX - aimOriginX;
         var aimRelY = input.AimWorldY - aimOriginY;
         var allSent = true;
-        allSent &= SendProtocol64Edge(input.Up && !previous.Up, Protocol64InputCommandKind.Jump, heldButtons, aimRelX, aimRelY);
-        allSent &= SendProtocol64Edge(input.BuildSentry && !previous.BuildSentry, Protocol64InputCommandKind.BuildSentry, heldButtons, aimRelX, aimRelY);
-        allSent &= SendProtocol64Edge(input.DestroySentry && !previous.DestroySentry, Protocol64InputCommandKind.DestroySentry, heldButtons, aimRelX, aimRelY);
-        allSent &= SendProtocol64Edge(input.Taunt && !previous.Taunt, Protocol64InputCommandKind.Taunt, heldButtons, aimRelX, aimRelY);
-        allSent &= SendProtocol64Edge(input.FirePrimary && !previous.FirePrimary, Protocol64InputCommandKind.FirePrimary, heldButtons, aimRelX, aimRelY);
-        allSent &= SendProtocol64Edge(input.FireSecondary && !previous.FireSecondary, Protocol64InputCommandKind.FireSecondary, heldButtons, aimRelX, aimRelY);
-        allSent &= SendProtocol64Edge(input.DropIntel && !previous.DropIntel, Protocol64InputCommandKind.DropIntel, heldButtons, aimRelX, aimRelY);
-        allSent &= SendProtocol64Edge(input.UseAbility && !previous.UseAbility, Protocol64InputCommandKind.UseAbility, heldButtons, aimRelX, aimRelY);
-        allSent &= SendProtocol64Edge(input.InteractWeapon && !previous.InteractWeapon, Protocol64InputCommandKind.InteractWeapon, heldButtons, aimRelX, aimRelY);
-        allSent &= SendProtocol64Edge(input.SwapWeapon && !previous.SwapWeapon, Protocol64InputCommandKind.SwapWeapon, heldButtons, aimRelX, aimRelY);
-        allSent &= SendProtocol64Edge(input.ReadyUp && !previous.ReadyUp, Protocol64InputCommandKind.ReadyUp, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.Up && !previous.Up, Protocol64InputCommandKind.Jump, inputSequence, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.BuildSentry && !previous.BuildSentry, Protocol64InputCommandKind.BuildSentry, inputSequence, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.DestroySentry && !previous.DestroySentry, Protocol64InputCommandKind.DestroySentry, inputSequence, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.Taunt && !previous.Taunt, Protocol64InputCommandKind.Taunt, inputSequence, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.FirePrimary && !previous.FirePrimary, Protocol64InputCommandKind.FirePrimary, inputSequence, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.FireSecondary && !previous.FireSecondary, Protocol64InputCommandKind.FireSecondary, inputSequence, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.DropIntel && !previous.DropIntel, Protocol64InputCommandKind.DropIntel, inputSequence, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.UseAbility && !previous.UseAbility, Protocol64InputCommandKind.UseAbility, inputSequence, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.InteractWeapon && !previous.InteractWeapon, Protocol64InputCommandKind.InteractWeapon, inputSequence, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.SwapWeapon && !previous.SwapWeapon, Protocol64InputCommandKind.SwapWeapon, inputSequence, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.ReadyUp && !previous.ReadyUp, Protocol64InputCommandKind.ReadyUp, inputSequence, heldButtons, aimRelX, aimRelY);
         return allSent;
     }
 
     private bool SendProtocol64Edge(
         bool rising,
         Protocol64InputCommandKind kind,
+        uint inputSequence,
         InputButtons heldButtons,
         float aimRelX,
         float aimRelY)
     {
         if (rising)
         {
-            return SendProtocol64InputCommand(kind, heldButtons, aimRelX, aimRelY, unchecked((uint)_networkInputTick)) != 0;
+            return SendProtocol64InputCommand(kind, heldButtons, aimRelX, aimRelY, unchecked((uint)_networkInputTick), inputSequence) != 0;
         }
 
         return true;

@@ -84,6 +84,11 @@ public partial class Game1
         };
     }
 
+    private static string GetCursorSizeLabel(int cursorSizePercent)
+    {
+        return $"{ClientSettings.NormalizeCursorSizePercent(cursorSizePercent)}%";
+    }
+
     private static string GetLowHealthColorModeLabel(LowHealthColorMode mode)
     {
         return ClientSettings.NormalizeLowHealthColorMode(mode) switch
@@ -490,6 +495,12 @@ public partial class Game1
         ApplyConfiguredPracticeBotController(respawnActiveBots: true);
     }
 
+    private void TogglePositionSmoothingSetting()
+    {
+        _positionSmoothingEnabled = !_positionSmoothingEnabled;
+        PersistClientSettings();
+    }
+
     private void CycleSwapWeaponsBindingSetting()
     {
         _inputBindings.SwapWeaponsBinding = InputBindingsSettings.NormalizeSwapWeaponsBinding(_inputBindings.SwapWeaponsBinding) switch
@@ -826,6 +837,27 @@ public partial class Game1
             ClientSettings.PlayerCardSizeMedium => ClientSettings.PlayerCardSizeLarge,
             _ => ClientSettings.PlayerCardSizeSmall,
         };
+
+        PersistClientSettings();
+    }
+
+    private void CycleCursorSizeSetting()
+    {
+        var current = ClientSettings.NormalizeCursorSizePercent(_cursorSizePercent);
+        _cursorSizePercent = current >= ClientSettings.CursorSizeMaxPercent
+            ? ClientSettings.CursorSizeMinPercent
+            : current + ClientSettings.CursorSizeStepPercent;
+
+        PersistClientSettings();
+    }
+
+    private void AdjustCursorSizeSetting(int step)
+    {
+        var current = ClientSettings.NormalizeCursorSizePercent(_cursorSizePercent);
+        _cursorSizePercent = Math.Clamp(
+            current + (step * ClientSettings.CursorSizeStepPercent),
+            ClientSettings.CursorSizeMinPercent,
+            ClientSettings.CursorSizeMaxPercent);
 
         PersistClientSettings();
     }

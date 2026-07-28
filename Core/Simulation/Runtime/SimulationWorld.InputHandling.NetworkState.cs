@@ -1,3 +1,5 @@
+using OpenGarrison.Protocol;
+
 namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
@@ -11,6 +13,11 @@ public sealed partial class SimulationWorld
 
         var input = ResolveNetworkPlayerInput(slot);
         var previousInput = GetPreviousNetworkInput(slot);
+        if (_networkPlayerForcedPressedButtons.TryGetValue(slot, out var forcedPressedButtons))
+        {
+            previousInput = ClearForcedPressedButtons(previousInput, forcedPressedButtons);
+            _networkPlayerForcedPressedButtons.Remove(slot);
+        }
         if (player.IsAlive)
         {
             AdvanceAlivePlayerWithInput(player, input, previousInput, GetNetworkPlayerTeam(slot), slot == LocalPlayerSlot);
@@ -71,6 +78,27 @@ public sealed partial class SimulationWorld
             InteractWeapon = false,
             SwapWeapon = false,
             ReadyUp = false,
+        };
+    }
+
+    private static PlayerInputSnapshot ClearForcedPressedButtons(
+        PlayerInputSnapshot input,
+        InputButtons forcedPressedButtons)
+    {
+        return input with
+        {
+            Up = forcedPressedButtons.HasFlag(InputButtons.Up) ? false : input.Up,
+            BuildSentry = forcedPressedButtons.HasFlag(InputButtons.BuildSentry) ? false : input.BuildSentry,
+            DestroySentry = forcedPressedButtons.HasFlag(InputButtons.DestroySentry) ? false : input.DestroySentry,
+            Taunt = forcedPressedButtons.HasFlag(InputButtons.Taunt) ? false : input.Taunt,
+            FirePrimary = forcedPressedButtons.HasFlag(InputButtons.FirePrimary) ? false : input.FirePrimary,
+            FireSecondary = forcedPressedButtons.HasFlag(InputButtons.FireSecondary) ? false : input.FireSecondary,
+            DebugKill = forcedPressedButtons.HasFlag(InputButtons.DebugKill) ? false : input.DebugKill,
+            DropIntel = forcedPressedButtons.HasFlag(InputButtons.DropIntel) ? false : input.DropIntel,
+            UseAbility = forcedPressedButtons.HasFlag(InputButtons.UseAbility) ? false : input.UseAbility,
+            InteractWeapon = forcedPressedButtons.HasFlag(InputButtons.InteractWeapon) ? false : input.InteractWeapon,
+            SwapWeapon = forcedPressedButtons.HasFlag(InputButtons.SwapWeapon) ? false : input.SwapWeapon,
+            ReadyUp = forcedPressedButtons.HasFlag(InputButtons.ReadyUp) ? false : input.ReadyUp,
         };
     }
 }

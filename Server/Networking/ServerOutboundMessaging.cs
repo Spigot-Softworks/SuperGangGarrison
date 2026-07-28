@@ -24,7 +24,11 @@ internal sealed class ServerOutboundMessaging(
 {
     private readonly Dictionary<byte, ServerCustomBubbleState> _customBubblesBySlot = new();
     private readonly Protocol64SchemaRegistry _protocol64Registry = Protocol64SchemaRegistryFactory.CreateDefault();
-    private readonly Protocol64StatePublisher _protocol64StatePublisher = new(world);
+    private readonly Protocol64StatePublisher _protocol64StatePublisher = new(
+        world,
+        slot => clientsBySlot.TryGetValue(slot, out var client)
+            ? client.LastProcessedInputSequence
+            : 0u);
     private readonly ConcurrentDictionary<ulong, ulong> _protocol64ConnectionEpochs = new();
     private long _nextProtocol64FrameId;
 

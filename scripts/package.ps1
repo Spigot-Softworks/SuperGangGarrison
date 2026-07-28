@@ -8,6 +8,8 @@ param(
     [string]$UpdateManifestFileName = "latest.json",
     [string]$ArchiveNameSuffix = "",
     [string]$ChainedUpdateManifestUrl = "",
+    [string]$LinuxMsQuicLibraryPath = "",
+    [string]$ReusePackagedAtlasFrom = "",
     [switch]$LegacyRootLayout,
     [switch]$RunTests,
     [switch]$SkipTests,
@@ -266,6 +268,114 @@ function Test-IsWindowsRuntime {
     return $RuntimeIdentifier.StartsWith("win-", [System.StringComparison]::OrdinalIgnoreCase)
 }
 
+function Resolve-LinuxNativeLibraryFile {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    $currentPath = $Path
+    for ($hop = 0; $hop -lt 8; $hop += 1) {
+        $item = Get-Item -LiteralPath $currentPath -Force
+        $linkTypeProperty = $item.PSObject.Properties["LinkType"]
+        if ($null -eq $linkTypeProperty -or $item.LinkType -ne "SymbolicLink") {
+            return $item.FullName
+        }
+
+        $target = [string]$item.Target
+        if ([string]::IsNullOrWhiteSpace($target)) {
+            throw "Linux native library symlink '$currentPath' has no target."
+        }
+
+        $currentPath = if ([System.IO.Path]::IsPathRooted($target)) {
+            $target
+        }
+        else {
+            Join-Path $item.DirectoryName $target
+        }
+    }
+
+    throw "Linux native library path '$Path' contains too many symbolic-link hops."
+}
+
+function Resolve-LinuxMsQuicLibraryPath {
+    param(
+        [string]$ExplicitPath = ""
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($ExplicitPath)) {
+        if (-not (Test-Path -LiteralPath $ExplicitPath -PathType Leaf)) {
+            throw "Linux MsQuic library path '$ExplicitPath' does not exist or is not a file."
+        }
+
+        return Resolve-LinuxNativeLibraryFile -Path $ExplicitPath
+    }
+
+    $ldconfig = Get-Command ldconfig -ErrorAction SilentlyContinue
+    if ($null -ne $ldconfig) {
+        $ldconfigOutput = @(& $ldconfig.Source -p 2>$null)
+        foreach ($line in $ldconfigOutput) {
+            if ($line -match '=>\s*(?<path>/\S*libmsquic\.so(?:\.[^\s/]+)?)\s*$') {
+                $candidatePath = $Matches["path"]
+                if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
+                    return Resolve-LinuxNativeLibraryFile -Path $candidatePath
+                }
+            }
+        }
+    }
+
+    foreach ($candidatePath in @(
+        "/lib/x86_64-linux-gnu/libmsquic.so.2",
+        "/usr/lib/x86_64-linux-gnu/libmsquic.so.2",
+        "/lib64/libmsquic.so.2",
+        "/usr/lib64/libmsquic.so.2",
+        "/lib/libmsquic.so.2",
+        "/usr/lib/libmsquic.so.2"
+    )) {
+        if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
+            return Resolve-LinuxNativeLibraryFile -Path $candidatePath
+        }
+    }
+
+    throw "Linux packaging requires libmsquic. Install the Linux MsQuic package on the build host, or pass -LinuxMsQuicLibraryPath with a compatible libmsquic.so.2 file."
+}
+
+function Bundle-LinuxMsQuic {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PayloadDirectory,
+        [Parameter(Mandatory = $true)]
+        [string]$RuntimeIdentifier,
+        [string]$ExplicitLibraryPath = ""
+    )
+
+    if ($RuntimeIdentifier -ne "linux-x64") {
+        return
+    }
+
+    $sourcePath = Resolve-LinuxMsQuicLibraryPath -ExplicitPath $ExplicitLibraryPath
+    $versionedDestinationPath = Join-Path $PayloadDirectory "libmsquic.so.2"
+    $unversionedDestinationPath = Join-Path $PayloadDirectory "libmsquic.so"
+
+    Copy-Item -LiteralPath $sourcePath -Destination $versionedDestinationPath -Force
+    Copy-Item -LiteralPath $sourcePath -Destination $unversionedDestinationPath -Force
+
+    $hash = (Get-FileHash -LiteralPath $versionedDestinationPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $metadata = @(
+        "component=libmsquic",
+        "runtime=linux-x64",
+        "source_file=$([System.IO.Path]::GetFileName($sourcePath))",
+        "sha256=$hash"
+    ) -join "`n"
+    [System.IO.File]::WriteAllText(
+        (Join-Path $PayloadDirectory "libmsquic.bundle.txt"),
+        "$metadata`n",
+        [System.Text.Encoding]::ASCII
+    )
+
+    Write-Host "[package] bundled Linux MsQuic: $sourcePath"
+}
+
 function Get-RuntimeExecutableName {
     param(
         [Parameter(Mandatory = $true)]
@@ -465,6 +575,76 @@ function Copy-DirectoryContents {
     Copy-Item (Join-Path $SourceDirectory "*") $DestinationDirectory -Recurse -Force
 }
 
+function Resolve-PackagedBrowserAtlasDirectory {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SourceDirectory
+    )
+
+    if ([string]::IsNullOrWhiteSpace($SourceDirectory)) {
+        return ""
+    }
+
+    if (-not (Test-Path -LiteralPath $SourceDirectory -PathType Container)) {
+        throw "Reusable packaged browser atlas directory '$SourceDirectory' does not exist."
+    }
+
+    $resolvedSourceDirectory = (Resolve-Path -LiteralPath $SourceDirectory -ErrorAction Stop).Path
+    $requiredDirectories = @(
+        "Atlases",
+        "Bootstrap",
+        "Manifests"
+    )
+    foreach ($relativeDirectory in $requiredDirectories) {
+        $directory = Join-Path $resolvedSourceDirectory $relativeDirectory
+        if (-not (Test-Path -LiteralPath $directory -PathType Container)) {
+            throw "Reusable packaged browser atlas directory '$resolvedSourceDirectory' is missing '$relativeDirectory'."
+        }
+    }
+
+    $requiredFiles = @(
+        "Manifests/bootstrap-manifest.json",
+        "Manifests/gamemaker-atlas-manifest.json",
+        "Manifests/stock-pack-atlas-manifest.json"
+    )
+    foreach ($relativeFile in $requiredFiles) {
+        $file = Join-Path $resolvedSourceDirectory $relativeFile
+        if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
+            throw "Reusable packaged browser atlas directory '$resolvedSourceDirectory' is missing '$relativeFile'."
+        }
+    }
+
+    $runtimeManifest = Join-Path (Split-Path -Parent $resolvedSourceDirectory) "Gameplay/stock.gg2/runtime.json"
+    if (-not (Test-Path -LiteralPath $runtimeManifest -PathType Leaf)) {
+        throw "Reusable packaged browser atlas directory '$resolvedSourceDirectory' is missing its generated gameplay runtime manifest '$runtimeManifest'."
+    }
+
+    return $resolvedSourceDirectory
+}
+
+function Copy-PackagedBrowserAtlas {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SourceDirectory,
+        [Parameter(Mandatory = $true)]
+        [string]$ContentDirectory
+    )
+
+    $destinationDirectory = Join-Path $ContentDirectory "Browser"
+    if (Test-Path -LiteralPath $destinationDirectory) {
+        Remove-Item -LiteralPath $destinationDirectory -Recurse -Force
+    }
+
+    Copy-DirectoryContents -SourceDirectory $SourceDirectory -DestinationDirectory $destinationDirectory
+
+    $sourceContentDirectory = Split-Path -Parent $SourceDirectory
+    $sourceRuntimeManifest = Join-Path $sourceContentDirectory "Gameplay/stock.gg2/runtime.json"
+    $destinationRuntimeManifest = Join-Path $ContentDirectory "Gameplay/stock.gg2/runtime.json"
+    New-Item -ItemType Directory -Path (Split-Path -Parent $destinationRuntimeManifest) -Force | Out-Null
+    Copy-Item -LiteralPath $sourceRuntimeManifest -Destination $destinationRuntimeManifest -Force
+    Write-Host "[package] reused packaged browser atlas from $SourceDirectory"
+}
+
 function Invoke-GenerateDistributionRuntimeAtlases {
     param(
         [Parameter(Mandatory = $true)]
@@ -479,6 +659,24 @@ function Invoke-GenerateDistributionRuntimeAtlases {
         (Join-Path $RepoRoot "Tools\BrowserAssetBuilder\OpenGarrison.Tools.BrowserAssetBuilder.csproj"),
         "--",
         $ContentDirectory
+    )
+}
+
+function Invoke-GeneratePackagedRuntimeAssetManifest {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot,
+        [Parameter(Mandatory = $true)]
+        [string]$ContentDirectory
+    )
+
+    Invoke-DotNet -Arguments @(
+        "run",
+        "--project",
+        (Join-Path $RepoRoot "Tools\BrowserAssetBuilder\OpenGarrison.Tools.BrowserAssetBuilder.csproj"),
+        "--",
+        $ContentDirectory,
+        "--manifest-only"
     )
 }
 
@@ -1102,6 +1300,13 @@ set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 __WORKING_DIRECTORY_COMMAND__
+if [ -f "./libmsquic.so.2" ]; then
+    if [ -n "${LD_LIBRARY_PATH:-}" ]; then
+        export LD_LIBRARY_PATH="$PWD:$LD_LIBRARY_PATH"
+    else
+        export LD_LIBRARY_PATH="$PWD"
+    fi
+fi
 chmod +x "./__EXECUTABLE__"
 if [ -f "./OG2.Game" ]; then
     chmod +x "./OG2.Game"
@@ -1134,6 +1339,13 @@ set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 cd "$SCRIPT_DIR/__PAYLOAD_SUBDIRECTORY__"
+if [ -f "./libmsquic.so.2" ]; then
+    if [ -n "${LD_LIBRARY_PATH:-}" ]; then
+        export LD_LIBRARY_PATH="$PWD:$LD_LIBRARY_PATH"
+    else
+        export LD_LIBRARY_PATH="$PWD"
+    fi
+fi
 chmod +x "./__UPDATER_EXECUTABLE__"
 exec "./__UPDATER_EXECUTABLE__" "$@"
 '@.
@@ -1563,6 +1775,18 @@ if ($toolManifestPaths | Where-Object { Test-Path $_ }) {
     Invoke-DotNet -Arguments @("tool", "restore")
 }
 
+$resolvedLinuxMsQuicLibraryPath = if ($Platforms -contains "linux-x64") {
+    Resolve-LinuxMsQuicLibraryPath -ExplicitPath $LinuxMsQuicLibraryPath
+}
+else {
+    ""
+}
+
+$resolvedReusablePackagedAtlasDirectory = Resolve-PackagedBrowserAtlasDirectory -SourceDirectory $ReusePackagedAtlasFrom
+if (-not [string]::IsNullOrWhiteSpace($resolvedReusablePackagedAtlasDirectory)) {
+    Write-Host "[package] atlas generation skipped; reusing packaged browser atlas"
+}
+
 $builtOutputs = @()
 
 foreach ($runtimeIdentifier in $Platforms) {
@@ -1626,6 +1850,11 @@ foreach ($runtimeIdentifier in $Platforms) {
         Invoke-DotNet -Arguments $publishArguments
     }
 
+    Bundle-LinuxMsQuic `
+        -PayloadDirectory $payloadDirectory `
+        -RuntimeIdentifier $runtimeIdentifier `
+        -ExplicitLibraryPath $resolvedLinuxMsQuicLibraryPath
+
     if (-not $LegacyRootLayout) {
         Publish-RootUpdaterEntrypoint `
             -RepoRoot $repoRoot `
@@ -1641,7 +1870,17 @@ foreach ($runtimeIdentifier in $Platforms) {
     Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "Client/Content") -DestinationDirectory (Join-Path $payloadDirectory "Content")
     Invoke-PublishDistributionMaps -RepoRoot $repoRoot -DestinationDirectory (Join-Path $payloadDirectory "Maps")
 
-    Invoke-GenerateDistributionRuntimeAtlases -RepoRoot $repoRoot -ContentDirectory (Join-Path $payloadDirectory "Content")
+    if ([string]::IsNullOrWhiteSpace($resolvedReusablePackagedAtlasDirectory)) {
+        Invoke-GenerateDistributionRuntimeAtlases -RepoRoot $repoRoot -ContentDirectory (Join-Path $payloadDirectory "Content")
+    }
+    else {
+        Copy-PackagedBrowserAtlas `
+            -SourceDirectory $resolvedReusablePackagedAtlasDirectory `
+            -ContentDirectory (Join-Path $payloadDirectory "Content")
+    }
+    Invoke-GeneratePackagedRuntimeAssetManifest `
+        -RepoRoot $repoRoot `
+        -ContentDirectory (Join-Path $payloadDirectory "Content")
     Restore-CollisionMaskImages -RepoRoot $repoRoot -ContentDirectory (Join-Path $payloadDirectory "Content")
     Remove-PackagedContentResidue -ContentDirectory (Join-Path $payloadDirectory "Content")
     Remove-PackagedDesktopWebResidue -PayloadDirectory $payloadDirectory

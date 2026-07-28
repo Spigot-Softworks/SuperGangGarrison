@@ -119,6 +119,8 @@ def initialize_db() -> None:
                 udp_port INTEGER NOT NULL DEFAULT 0,
                 websocket_port INTEGER NOT NULL DEFAULT 0,
                 websocket_url TEXT NOT NULL DEFAULT '',
+                quic_port INTEGER NOT NULL DEFAULT 0,
+                quic_url TEXT NOT NULL DEFAULT '',
                 private INTEGER NOT NULL DEFAULT 0,
                 map TEXT NOT NULL DEFAULT '',
                 mode TEXT NOT NULL DEFAULT '',
@@ -160,6 +162,8 @@ def initialize_db() -> None:
         ensure_column(db, "servers", "build_version", "TEXT NOT NULL DEFAULT ''")
         ensure_column(db, "servers", "release_channel", "TEXT NOT NULL DEFAULT ''")
         ensure_column(db, "servers", "compatibility_key", "TEXT NOT NULL DEFAULT ''")
+        ensure_column(db, "servers", "quic_port", "INTEGER NOT NULL DEFAULT 0")
+        ensure_column(db, "servers", "quic_url", "TEXT NOT NULL DEFAULT ''")
 
 
 def ensure_column(db: sqlite3.Connection, table: str, column: str, definition: str) -> None:
@@ -273,6 +277,8 @@ class ServerRegistryRequest(BaseModel):
     udpPort: int = 0
     webSocketPort: int = 0
     webSocketUrl: str = ""
+    quicPort: int = 0
+    quicUrl: str = ""
     private: bool = False
     map: str = ""
     mode: str = ""
@@ -384,6 +390,9 @@ def healthz() -> dict[str, str]:
 
 @app.get("/api/servers")
 @app.get("/API/og2servers.php")
+@app.get("/servers.json")
+@app.get("/api/servers/servers.json")
+@app.get("/API/servers.json")
 def get_servers(
     protocolVersion: int | None = None,
     buildVersion: str = "",
@@ -391,9 +400,25 @@ def get_servers(
     channel: str = "",
     compatibilityKey: str = "",
 ) -> dict[str, Any]:
-    requested_channel = clean_text(releaseChannel or channel, 32).lower() or "stable"
     requested_build_version = clean_text(buildVersion, 64)
     requested_compatibility_key = clean_text(compatibilityKey, 128)
+    requested_channel_explicit = bool(clean_text(releaseChannel or channel, 32))
+    requested_channel = clean_text(releaseChannel or channel, 32).lower()
+    if not requested_channel and requested_compatibility_key:
+        compatibility_channel = requested_compatibility_key.split(":", 1)[0].strip().lower()
+        if compatibility_channel:
+            requested_channel = clean_text(compatibility_channel, 32).lower()
+
+    if not requested_channel:
+        # Protocol 64 is the alpha/beta transport line. Some 64.0.0 clients were
+        # shipped before releaseChannel was added to registry queries, so keep
+        # those clients from silently querying stable and seeing only legacy rows.
+        normalized_build_version = requested_build_version.strip().lower()
+        if protocolVersion == 64 or normalized_build_version.startswith("64."):
+            requested_channel = "alpha"
+        else:
+            requested_channel = "stable"
+
     with connect_db() as db:
         prune_expired(db)
         where_clauses = ["last_seen >= ?", "release_channel = ?"]
@@ -426,6 +451,8 @@ def get_servers(
                 "udpPort": row["udp_port"],
                 "webSocketPort": row["websocket_port"],
                 "webSocketUrl": row["websocket_url"],
+                "quicPort": row["quic_port"],
+                "quicUrl": row["quic_url"],
                 "private": bool(row["private"]),
                 "map": row["map"],
                 "mode": row["mode"],
@@ -434,14 +461,56 @@ def get_servers(
                 "spectators": row["spectators"],
                 "protocolVersion": row["protocol_version"],
                 "buildVersion": row["build_version"],
-                "releaseChannel": row["release_channel"],
-                "compatibilityKey": row["compatibility_key"],
+                "releaseChannel": response_release_channel(row, requested_channel_explicit, protocolVersion, requested_build_version),
+                "compatibilityKey": response_compatibility_key(row, requested_channel_explicit, protocolVersion, requested_build_version),
                 "lastSeenIso": iso_from_seconds(row["last_seen"]),
             }
             for row in rows
         ],
         "generatedAt": iso_from_seconds(now_seconds()),
     }
+
+
+def response_release_channel(
+    row: sqlite3.Row,
+    requested_channel_explicit: bool,
+    protocol_version: int | None,
+    requested_build_version: str,
+) -> str:
+    if should_mask_alpha_channel_for_legacy_client(row, requested_channel_explicit, protocol_version, requested_build_version):
+        return "stable"
+
+    return row["release_channel"]
+
+
+def response_compatibility_key(
+    row: sqlite3.Row,
+    requested_channel_explicit: bool,
+    protocol_version: int | None,
+    requested_build_version: str,
+) -> str:
+    if should_mask_alpha_channel_for_legacy_client(row, requested_channel_explicit, protocol_version, requested_build_version):
+        build_version = clean_text(row["build_version"], 64) or clean_text(requested_build_version, 64)
+        protocol = clamp_int(row["protocol_version"], 0, 999999)
+        return f"stable:{build_version}:{protocol}"
+
+    return row["compatibility_key"]
+
+
+def should_mask_alpha_channel_for_legacy_client(
+    row: sqlite3.Row,
+    requested_channel_explicit: bool,
+    protocol_version: int | None,
+    requested_build_version: str,
+) -> bool:
+    if requested_channel_explicit:
+        return False
+
+    if clean_text(row["release_channel"], 32).lower() != "alpha":
+        return False
+
+    normalized_build_version = clean_text(requested_build_version, 64).lower()
+    return protocol_version == 64 or normalized_build_version.startswith("64.")
 
 
 @app.post("/api/servers")
@@ -473,25 +542,29 @@ def post_server_registry(payload: ServerRegistryRequest, request: Request) -> di
         udp_port = clamp_int(payload.udpPort, 0, 65535)
         websocket_port = clamp_int(payload.webSocketPort, 0, 65535)
         websocket_url = clean_text(payload.webSocketUrl, 512)
+        quic_port = clamp_int(payload.quicPort, 0, 65535)
+        quic_url = clean_text(payload.quicUrl, 512)
         build_version = clean_text(payload.buildVersion, 64)
         release_channel = clean_text(payload.releaseChannel, 32).lower() or "stable"
         compatibility_key = clean_text(payload.compatibilityKey, 128)
-        server_id = clean_text(payload.serverId, 512) or f"og2:{host.lower()}:{udp_port}:{websocket_port}:{websocket_url}"
+        server_id = clean_text(payload.serverId, 512) or f"og2:{host.lower()}:{udp_port}:{websocket_port}:{websocket_url}:{quic_port}:{quic_url}"
         current = now_seconds()
         db.execute(
             """
             INSERT INTO servers (
-                server_id, name, host, udp_port, websocket_port, websocket_url, private,
+                server_id, name, host, udp_port, websocket_port, websocket_url, quic_port, quic_url, private,
                 map, mode, players, max_players, spectators, protocol_version,
                 build_version, release_channel, compatibility_key, request_ip, last_seen
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(server_id) DO UPDATE SET
                 name = excluded.name,
                 host = excluded.host,
                 udp_port = excluded.udp_port,
                 websocket_port = excluded.websocket_port,
                 websocket_url = excluded.websocket_url,
+                quic_port = excluded.quic_port,
+                quic_url = excluded.quic_url,
                 private = excluded.private,
                 map = excluded.map,
                 mode = excluded.mode,
@@ -512,6 +585,8 @@ def post_server_registry(payload: ServerRegistryRequest, request: Request) -> di
                 udp_port,
                 websocket_port,
                 websocket_url,
+                quic_port,
+                quic_url,
                 1 if payload.private else 0,
                 clean_text(payload.map, 128),
                 clean_text(payload.mode, 64),

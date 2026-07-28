@@ -7,6 +7,9 @@ public sealed partial class PlayerEntity
     public const string ServerTuningReplicatedStateOwnerId = "serverruntime";
     public const string MovementSpeedScaleReplicatedStateKey = "movescale";
     public const string GravityScaleReplicatedStateKey = "gravityscale";
+    public const string NoclipReplicatedStateKey = "noclip";
+    public const string FrozenReplicatedStateKey = "frozen";
+    public const string StunTicksReplicatedStateKey = "stunticks";
 
     private int ExperimentalMovementBoostTicksRemaining { get; set; }
 
@@ -21,6 +24,12 @@ public sealed partial class PlayerEntity
     private float ServerDamageScaleValue { get; set; } = 1f;
 
     private float ServerGravityScaleValue { get; set; } = 1f;
+
+    private bool ServerNoclipValue { get; set; }
+
+    private bool ServerFrozenValue { get; set; }
+
+    private int ServerStunTicksRemainingValue { get; set; }
 
     private float ServerHorizontalSpeedClampPerTickValue { get; set; } = LegacyMovementModel.MaxStepSpeedPerTick;
 
@@ -129,6 +138,14 @@ public sealed partial class PlayerEntity
     public float ServerMovementSpeedScale => ServerMovementSpeedScaleValue;
 
     public float ServerGravityScale => ServerGravityScaleValue;
+
+    public bool IsServerNoclip => ServerNoclipValue;
+
+    public bool IsServerFrozen => ServerFrozenValue;
+
+    public bool IsServerStunned => ServerStunTicksRemainingValue > 0;
+
+    public bool IsServerInputSuppressed => ServerFrozenValue || IsServerStunned;
 
     public bool IsExperimentalLuckyBastardActive => ExperimentalLuckyBastardTicksRemaining > 0;
 
@@ -304,6 +321,43 @@ public sealed partial class PlayerEntity
     public void SetServerGravityScale(float multiplier)
     {
         ServerGravityScaleValue = MathF.Max(0f, multiplier);
+    }
+
+    public bool SetServerNoclip(bool enabled)
+    {
+        ServerNoclipValue = enabled;
+        return SetReplicatedStateBool(ServerTuningReplicatedStateOwnerId, NoclipReplicatedStateKey, enabled);
+    }
+
+    public bool SetServerFrozen(bool frozen)
+    {
+        ServerFrozenValue = frozen;
+        if (frozen)
+        {
+            HorizontalSpeed = 0f;
+            VerticalSpeed = 0f;
+        }
+
+        return SetReplicatedStateBool(ServerTuningReplicatedStateOwnerId, FrozenReplicatedStateKey, frozen);
+    }
+
+    public bool SetServerStunTicks(int ticks)
+    {
+        ServerStunTicksRemainingValue = Math.Max(0, ticks);
+        return SetReplicatedStateInt(
+            ServerTuningReplicatedStateOwnerId,
+            StunTicksReplicatedStateKey,
+            ServerStunTicksRemainingValue);
+    }
+
+    private void AdvanceServerStunState()
+    {
+        if (ServerStunTicksRemainingValue <= 0)
+        {
+            return;
+        }
+
+        SetServerStunTicks(ServerStunTicksRemainingValue - 1);
     }
 
     public void SetServerMovementSpeedClamps(float horizontalClampPerTick, float verticalClampPerTick)
@@ -1412,6 +1466,22 @@ public sealed partial class PlayerEntity
 
         SetServerMovementSpeedScale(movementSpeedScale);
         SetServerGravityScale(gravityScale);
+        ServerNoclipValue = TryGetReplicatedStateBool(
+            ServerTuningReplicatedStateOwnerId,
+            NoclipReplicatedStateKey,
+            out var replicatedNoclip)
+            && replicatedNoclip;
+        ServerFrozenValue = TryGetReplicatedStateBool(
+            ServerTuningReplicatedStateOwnerId,
+            FrozenReplicatedStateKey,
+            out var replicatedFrozen)
+            && replicatedFrozen;
+        ServerStunTicksRemainingValue = TryGetReplicatedStateInt(
+            ServerTuningReplicatedStateOwnerId,
+            StunTicksReplicatedStateKey,
+            out var replicatedStunTicks)
+            ? Math.Max(0, replicatedStunTicks)
+            : 0;
     }
 
     private void StartExperimentalDemoknightChargeMovementState()

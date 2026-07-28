@@ -31,7 +31,10 @@ public sealed class Protocol64StateEventTests
                     VelocityY: -1f,
                     ActiveWeapon: 3,
                     AbilityState: 0x10,
-                    StateTick: 120),
+                    StateTick: 120,
+                    LastProcessedInputSequence: 44,
+                    IsGrounded: true,
+                    RemainingAirJumps: 1),
             ]);
 
         var decoded = RoundTrip(registry, value, 1);
@@ -44,6 +47,9 @@ public sealed class Protocol64StateEventTests
         Assert.Equal(7U, player.Generation);
         Assert.Equal("class.scout", player.GameplayClassId);
         Assert.Equal(87, player.Health);
+        Assert.Equal(44U, player.LastProcessedInputSequence);
+        Assert.True(player.IsGrounded);
+        Assert.Equal(1, player.RemainingAirJumps);
     }
 
     [Fact]
@@ -92,6 +98,7 @@ public sealed class Protocol64StateEventTests
         Assert.Equal(value.RequestId, decoded.RequestId);
         Assert.Equal(value.StateSequence, decoded.StateSequence);
         Assert.Equal("class.medic", Assert.Single(decoded.Players).GameplayClassId);
+        Assert.Equal(0U, Assert.Single(decoded.Players).LastProcessedInputSequence);
         Assert.Equal(6U, Assert.Single(decoded.Projectiles).Generation);
         Assert.Equal(Protocol64DeliveryKind.ReliableOrdered, registry.Get<Protocol64StateResyncResponse>().Descriptor.Delivery.Kind);
     }

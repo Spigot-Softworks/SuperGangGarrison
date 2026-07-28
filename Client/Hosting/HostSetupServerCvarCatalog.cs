@@ -21,6 +21,17 @@ internal enum HostSetupCvarEditorKind
     NumericText,
 }
 
+internal enum HostSetupOptionsTab
+{
+    Basic,
+    Match,
+    Competitive,
+    Teams,
+    Bots,
+    Simulation,
+    Classes,
+}
+
 internal sealed class HostSetupServerCvarDefinition
 {
     public required string Name { get; init; }
@@ -38,6 +49,8 @@ internal sealed class HostSetupServerCvarDefinition
     public double Step { get; init; } = 1d;
 
     public string? HostSettingKey { get; init; }
+
+    public HostSetupOptionsTab Category { get; init; }
 }
 
 internal static class HostSetupServerCvarCatalog
@@ -97,6 +110,25 @@ internal static class HostSetupServerCvarCatalog
     public static IReadOnlyList<HostSetupServerCvarDefinition> AdvancedDefinitions { get; } = Definitions;
 
     public static int BasicOptionCount => 5;
+
+    public static IReadOnlyList<HostSetupServerCvarDefinition> GetDefinitionsForTab(HostSetupOptionsTab tab)
+    {
+        if (tab == HostSetupOptionsTab.Basic)
+        {
+            return Array.Empty<HostSetupServerCvarDefinition>();
+        }
+
+        var definitions = new List<HostSetupServerCvarDefinition>();
+        foreach (var definition in Definitions)
+        {
+            if (definition.Category == tab)
+            {
+                definitions.Add(definition);
+            }
+        }
+
+        return definitions;
+    }
 
     public static bool TryGetDefinition(string name, out HostSetupServerCvarDefinition definition)
     {
@@ -290,7 +322,48 @@ internal static class HostSetupServerCvarCatalog
             Maximum = maximum,
             Step = step,
             HostSettingKey = hostSettingKey,
+            Category = GetCategory(name),
         };
+    }
+
+    private static HostSetupOptionsTab GetCategory(string name)
+    {
+        if (name.StartsWith("sv_competitive_", StringComparison.OrdinalIgnoreCase))
+        {
+            return HostSetupOptionsTab.Competitive;
+        }
+
+        if (name is "sv_roundendff" or "sv_switch_teams_after_round_end" or "sv_team_shuffle_after_wins")
+        {
+            return HostSetupOptionsTab.Teams;
+        }
+
+        if (name.StartsWith("sv_bot_", StringComparison.OrdinalIgnoreCase))
+        {
+            return HostSetupOptionsTab.Bots;
+        }
+
+        if (name is "sv_tickrate"
+            or "sv_player_scale"
+            or "sv_map_scale"
+            or "sv_movement_speed_scale"
+            or "sv_projectile_speed_scale"
+            or "sv_damage_scale"
+            or "sv_gravity_scale"
+            or "sv_horizontal_speed_clamp"
+            or "sv_vertical_speed_clamp"
+            or "sv_capture_speed_multiplier_per_player")
+        {
+            return HostSetupOptionsTab.Simulation;
+        }
+
+        if (name == "sv_vip_allow_duplicate_classes"
+            || name.StartsWith("sv_classlimit_", StringComparison.OrdinalIgnoreCase))
+        {
+            return HostSetupOptionsTab.Classes;
+        }
+
+        return HostSetupOptionsTab.Match;
     }
 
     private static bool ParseBool(string value)

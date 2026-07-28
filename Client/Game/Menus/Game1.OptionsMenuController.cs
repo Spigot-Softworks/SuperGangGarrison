@@ -13,25 +13,34 @@ public partial class Game1
 {
     private sealed class OptionsMenuController
     {
-        private readonly record struct OptionsMenuAction(string Label, string Value, Action Activate, OptionsMenuTab Tab);
+        private readonly record struct OptionsMenuAction(
+            string Label,
+            string Value,
+            Action Activate,
+            OptionsMenuTab Tab,
+            Action<int>? AdjustValue = null);
         private readonly record struct ReplayMenuEntry(string DisplayName, string Path, string Kind, bool IsOpenGarrisonDemo, DateTime LastWriteTimeUtc);
 
         private enum OptionsMenuTab
         {
             Graphics,
             Audio,
+            Controls,
+            Hud,
             Gameplay,
             Replays,
-            Other,
+            Plugins,
         }
 
         private static readonly string[] OptionsMenuTabLabels =
         {
             "Graphics",
             "Audio",
+            "Controls",
+            "HUD",
             "Gameplay",
             "Replays",
-            "Other",
+            "Plugins",
         };
 
         private const string MasterVolumeLabel = "Global Volume";
@@ -303,7 +312,7 @@ public partial class Game1
             }
 
             var selectedAction = actions[_game._optionsHoverIndex];
-            if (IsOptionsStepperRow(selectedAction.Label))
+            if (IsOptionsStepperRow(selectedAction))
             {
                 var visibleIndex = _game._optionsHoverIndex - _game._optionsScrollOffset;
                 var rowBounds = new Rectangle(listBounds.X, listBounds.Y + (visibleIndex * rowHeight), listBounds.Width, rowHeight);
@@ -313,7 +322,7 @@ public partial class Game1
                 var valueX = valueRightX - valueWidth;
                 if (mouse.X < valueX + (valueWidth / 2))
                 {
-                    TryAdjustOptionsStepperValue(selectedAction.Label, -1);
+                    TryAdjustOptionsStepperValue(selectedAction, -1);
                     return;
                 }
             }
@@ -351,7 +360,7 @@ public partial class Game1
                     if (_game._optionsHoverIndex >= 0 && _game._optionsHoverIndex < actions.Count)
                     {
                         var selectedAction = actions[_game._optionsHoverIndex];
-                        if (TryAdjustOptionsStepperValue(selectedAction.Label, horizontalStep))
+                        if (TryAdjustOptionsStepperValue(selectedAction, horizontalStep))
                         {
                             return true;
                         }
@@ -387,66 +396,20 @@ public partial class Game1
             return handled;
         }
 
-        private bool TryAdjustOptionsStepperValue(string label, int step)
+        private static bool TryAdjustOptionsStepperValue(OptionsMenuAction action, int step)
         {
-            if (step == 0)
+            if (step == 0 || action.AdjustValue is null)
             {
                 return false;
             }
 
-            switch (label)
-            {
-                case MasterVolumeLabel:
-                    _game.AdjustMasterVolume(step * 5);
-                    return true;
-                case MenuMusicVolumeLabel:
-                    _game.AdjustMenuMusicVolume(step * 5);
-                    return true;
-                case InGameMusicVolumeLabel:
-                    _game.AdjustIngameMusicVolume(step * 5);
-                    return true;
-                case CombatMusicVolumeLabel:
-                    _game.AdjustCombatMusicVolume(step * 5);
-                    return true;
-                case SoundEffectsVolumeLabel:
-                    _game.AdjustSoundEffectsVolume(step * 5);
-                    return true;
-                case ControllerAimAssistStrengthLabel:
-                    _game.AdjustControllerAimAssistStrengthSetting(step * 0.1f);
-                    return true;
-                case ControllerAimDeadzoneLabel:
-                    _game.AdjustControllerAimDeadzoneSetting(step * 0.05f);
-                    return true;
-                case ControllerScopedAimSpeedLabel:
-                    _game.AdjustControllerScopedPrecisionSpeedSetting(step * 30f);
-                    return true;
-                case ControllerAimDistanceTier1Label:
-                    _game.AdjustControllerAimDistanceTier1Setting(step * 16f);
-                    return true;
-                case ControllerAimDistanceTier2Label:
-                    _game.AdjustControllerAimDistanceTier2Setting(step * 16f);
-                    return true;
-                case ControllerAimDistanceTier3Label:
-                    _game.AdjustControllerAimDistanceTier3Setting(step * 16f);
-                    return true;
-                default:
-                    return false;
-            }
+            action.AdjustValue(step);
+            return true;
         }
 
-        private static bool IsOptionsStepperRow(string label)
+        private static bool IsOptionsStepperRow(OptionsMenuAction action)
         {
-            return label is MasterVolumeLabel
-                or MenuMusicVolumeLabel
-                or InGameMusicVolumeLabel
-                or CombatMusicVolumeLabel
-                or SoundEffectsVolumeLabel
-                or ControllerAimAssistStrengthLabel
-                or ControllerAimDeadzoneLabel
-                or ControllerScopedAimSpeedLabel
-                or ControllerAimDistanceTier1Label
-                or ControllerAimDistanceTier2Label
-                or ControllerAimDistanceTier3Label;
+            return action.AdjustValue is not null;
         }
 
         private void EnsureOptionsControllerSelectionVisible(int actionCount, int visibleRowCount)
@@ -527,7 +490,7 @@ public partial class Game1
                 var valueRightX = rowBounds.Right - optionsRowHorizontalPadding;
                 var displayValue = row.Label switch
                 {
-                    _ when IsOptionsStepperRow(row.Label) => $"< {row.Value} >",
+                    _ when IsOptionsStepperRow(row) => $"< {row.Value} >",
                     _ => row.Value,
                 };
                 var trimmedValue = _game.TrimBitmapMenuText(displayValue, rowBounds.Width * 0.42f, textScale);
@@ -588,11 +551,11 @@ public partial class Game1
             var currentTab = GetOptionsMenuTab(_game._optionsPageIndex);
             var allActions = new List<OptionsMenuAction>
             {
-                new("Player Name", _game._editingPlayerName ? GetTextWithCursor(_game._playerNameEditBuffer, _game._playerNameEditCursorIndex) : _game._world.LocalPlayer.DisplayName, _game.BeginEditingPlayerName, OptionsMenuTab.Other),
-                new("Version", GetApplicationVersionLabel(), NoOp, OptionsMenuTab.Other),
+                // Graphics: display, rendering, and client-side visual presentation.
                 new("Display Mode", OperatingSystem.IsBrowser() ? "Browser" : Game1.GetDisplayModeLabel(_game._displayMode), _game.CycleDisplayModeSetting, OptionsMenuTab.Graphics),
                 new("Aspect Ratio", Game1.GetIngameResolutionLabel(_game._ingameResolution), _game.CycleIngameResolutionSetting, OptionsMenuTab.Graphics),
                 new("Window Size", OperatingSystem.IsBrowser() ? "Browser" : Game1.GetWindowSizeLabel(_game._windowSize), _game.CycleWindowSizeSetting, OptionsMenuTab.Graphics),
+                new("Cursor Size", Game1.GetCursorSizeLabel(_game._cursorSizePercent), _game.CycleCursorSizeSetting, OptionsMenuTab.Graphics, _game.AdjustCursorSizeSetting),
                 new("Menu Background", GetMenuBackgroundModeLabel(_game._menuBackgroundMode), _game.CycleMenuBackgroundModeSetting, OptionsMenuTab.Graphics),
                 new("Particles", GetParticleModeLabel(_game._particleMode), _game.CycleParticleModeSetting, OptionsMenuTab.Graphics),
                 new("Flame Style", GetFlameRenderModeLabel(_game._flameRenderMode), _game.CycleFlameRenderModeSetting, OptionsMenuTab.Graphics),
@@ -600,56 +563,67 @@ public partial class Game1
                 new("Corpses", GetCorpseDurationLabel(_game._corpseDurationMode), _game.CycleCorpseDurationSetting, OptionsMenuTab.Graphics),
                 new("Sprite Shadow", _game._spriteDropShadowEnabled ? "Enabled" : "Disabled", _game.ToggleSpriteDropShadowSetting, OptionsMenuTab.Graphics),
                 new("Weapon Rotation", _game._pixelPerfectWeaponRotation ? "Pixel-Perfect" : "High-Res", _game.ToggleWeaponRotationStyleSetting, OptionsMenuTab.Graphics),
+                new("Weapon Rotation Source", _game._useLocalWeaponRotation ? "Local (snappier)" : "Remote (accurate)", _game.ToggleWeaponRotationSourceSetting, OptionsMenuTab.Graphics),
+                new("Smooth Camera", Game1.GetSmoothCameraMultiplierLabel(_game._smoothCameraMultiplier), _game.CycleSmoothCameraMultiplierSetting, OptionsMenuTab.Graphics),
+                new("Uber Outlines", _game._uberOutlineEnabled ? "Enabled" : "Disabled", _game.ToggleUberOutlinesSetting, OptionsMenuTab.Graphics),
+                new("Projectile Team Tint", _game._projectileTeamTintEnabled ? "Enabled" : "Disabled", _game.ToggleProjectileTeamTintSetting, OptionsMenuTab.Graphics),
                 new("Frame Limit", GetFrameRateLimitLabel(_game._frameRateLimit), _game.CycleFrameRateLimitSetting, OptionsMenuTab.Graphics),
                 new("V Sync", _game._graphics.SynchronizeWithVerticalRetrace ? "Enabled" : "Disabled", _game.ToggleVSyncSetting, OptionsMenuTab.Graphics),
                 new("Reset Window Size", string.Empty, _game.ResetWindowSize, OptionsMenuTab.Graphics),
-                new(MasterVolumeLabel, $"{_game._masterVolumePercent}%", () => _game.AdjustMasterVolume(5), OptionsMenuTab.Audio),
+
+                // Audio: volume, music, and global audio behavior.
+                new(MasterVolumeLabel, $"{_game._masterVolumePercent}%", () => _game.AdjustMasterVolume(5), OptionsMenuTab.Audio, step => _game.AdjustMasterVolume(step * 5)),
                 new("Music", GetMusicModeLabel(_game._musicMode), _game.CycleMusicModeSetting, OptionsMenuTab.Audio),
-                new(MenuMusicVolumeLabel, $"{_game._menuMusicVolumePercent}%", () => _game.AdjustMenuMusicVolume(5), OptionsMenuTab.Audio),
-                new(InGameMusicVolumeLabel, $"{_game._ingameMusicVolumePercent}%", () => _game.AdjustIngameMusicVolume(5), OptionsMenuTab.Audio),
+                new(MenuMusicVolumeLabel, $"{_game._menuMusicVolumePercent}%", () => _game.AdjustMenuMusicVolume(5), OptionsMenuTab.Audio, step => _game.AdjustMenuMusicVolume(step * 5)),
+                new(InGameMusicVolumeLabel, $"{_game._ingameMusicVolumePercent}%", () => _game.AdjustIngameMusicVolume(5), OptionsMenuTab.Audio, step => _game.AdjustIngameMusicVolume(step * 5)),
                 new("Dynamic Music", _game._dynamicMusicEnabled ? "Enabled" : "Disabled", _game.ToggleDynamicMusicSetting, OptionsMenuTab.Audio),
-                new(CombatMusicVolumeLabel, $"{_game._combatMusicVolumePercent}%", () => _game.AdjustCombatMusicVolume(5), OptionsMenuTab.Audio),
-                new(SoundEffectsVolumeLabel, $"{_game._soundEffectsVolumePercent}%", () => _game.AdjustSoundEffectsVolume(5), OptionsMenuTab.Audio),
+                new(CombatMusicVolumeLabel, $"{_game._combatMusicVolumePercent}%", () => _game.AdjustCombatMusicVolume(5), OptionsMenuTab.Audio, step => _game.AdjustCombatMusicVolume(step * 5)),
+                new(SoundEffectsVolumeLabel, $"{_game._soundEffectsVolumePercent}%", () => _game.AdjustSoundEffectsVolume(5), OptionsMenuTab.Audio, step => _game.AdjustSoundEffectsVolume(step * 5)),
                 new("Mute All Audio (F12)", _game._audioMuted ? "Muted" : "Unmuted", _game.ToggleAudioMuteSetting, OptionsMenuTab.Audio),
-                new("Controls", string.Empty, OpenControlsMenuFromOptions, OptionsMenuTab.Gameplay),
-                new("Weapon rotation", _game._useLocalWeaponRotation ? "Local (snappier)" : "Remote (accurate)", _game.ToggleWeaponRotationSourceSetting, OptionsMenuTab.Gameplay),
-                new("Healer Radar", _game._healerRadarEnabled ? "Enabled" : "Disabled", _game.ToggleHealerRadarSetting, OptionsMenuTab.Gameplay),
-                new("Show Healer", _game._showHealerEnabled ? "Enabled" : "Disabled", _game.ToggleShowHealerSetting, OptionsMenuTab.Gameplay),
-                new("Show Healing", _game._showHealingEnabled ? "Enabled" : "Disabled", _game.ToggleShowHealingSetting, OptionsMenuTab.Gameplay),
-                new("Healthbar", _game._showHealthBarEnabled ? "Enabled" : "Disabled", _game.ToggleShowHealthBarSetting, OptionsMenuTab.Gameplay),
-                new("Shield Bar", _game._showShieldBarEnabled ? "Enabled" : "Disabled", _game.ToggleShowShieldBarSetting, OptionsMenuTab.Gameplay),
-                new("Hud", Game1.GetHudWeaponDisplayModeLabel(_game._hudShowOnlyActiveWeapon), _game.ToggleHudWeaponDisplayModeSetting, OptionsMenuTab.Gameplay),
-                new("Overhead Chat", _game._overheadChatEnabled ? "Enabled" : "Disabled", _game.ToggleOverheadChatSetting, OptionsMenuTab.Gameplay),
-                new("Low HP Color", Game1.GetLowHealthColorModeLabel(_game._lowHealthColorMode), _game.CycleLowHealthColorModeSetting, OptionsMenuTab.Gameplay),
-                new("Portrait Rumble", _game._portraitRumbleEnabled ? "Enabled" : "Disabled", _game.TogglePortraitRumbleSetting, OptionsMenuTab.Gameplay),
-                new("MVP Art", _game._postGameMvpArtEnabled ? "Enabled" : "Disabled", _game.TogglePostGameMvpArtSetting, OptionsMenuTab.Gameplay),
-                new("Damage Vignette", _game._damageVignetteEnabled ? "Enabled" : "Disabled", _game.ToggleDamageVignetteSetting, OptionsMenuTab.Gameplay),
-                new("Vignette Intensity", Game1.GetDamageVignetteIntensityLabel(_game._damageVignetteIntensityPercent), _game.CycleDamageVignetteIntensitySetting, OptionsMenuTab.Gameplay),
-                new("Persistent Name", _game._showPersistentSelfNameEnabled ? "Enabled" : "Disabled", _game.TogglePersistentSelfNameSetting, OptionsMenuTab.Gameplay),
-                new("Uber Outlines", _game._uberOutlineEnabled ? "Enabled" : "Disabled", _game.ToggleUberOutlinesSetting, OptionsMenuTab.Gameplay),
-                new("Projectile Team Tint", _game._projectileTeamTintEnabled ? "Enabled" : "Disabled", _game.ToggleProjectileTeamTintSetting, OptionsMenuTab.Gameplay),
+
+                // Controls: bindings and controller aiming behavior.
+                new("Keyboard & Mouse", string.Empty, OpenControlsMenuFromOptions, OptionsMenuTab.Controls),
+                new("Swap Weapons", _game.GetSwapWeaponsBindingLabel(), _game.CycleSwapWeaponsBindingSetting, OptionsMenuTab.Controls),
+                new("Controller Input", Game1.GetControllerInputModeLabel(_game._clientSettings.ControllerInputMode), _game.CycleControllerInputModeSetting, OptionsMenuTab.Controls),
+                new("Controller Reticle", Game1.GetControllerReticleModeLabel(_game._clientSettings.ControllerReticleMode), _game.CycleControllerReticleModeSetting, OptionsMenuTab.Controls),
+                new("Controller Aim Assist", _game._clientSettings.ControllerAimAssistEnabled ? "Enabled" : "Disabled", _game.ToggleControllerAimAssistSetting, OptionsMenuTab.Controls),
+                new("Flick to Change Directions", _game._clientSettings.ControllerFlickToChangeDirections ? "Enabled" : "Disabled", _game.ToggleControllerFlickToChangeDirectionsSetting, OptionsMenuTab.Controls),
+                new(ControllerAimAssistStrengthLabel, Game1.GetControllerPercentLabel(OpenGarrisonPreferencesDocument.NormalizeControllerAimAssistStrength(_game._clientSettings.ControllerAimAssistStrength)), _game.CycleControllerAimAssistStrengthSetting, OptionsMenuTab.Controls, step => _game.AdjustControllerAimAssistStrengthSetting(step * 0.1f)),
+                new(ControllerAimDeadzoneLabel, Game1.GetControllerPercentLabel(OpenGarrisonPreferencesDocument.NormalizeControllerAimDeadzone(_game._clientSettings.ControllerAimDeadzone)), _game.CycleControllerAimDeadzoneSetting, OptionsMenuTab.Controls, step => _game.AdjustControllerAimDeadzoneSetting(step * 0.05f)),
+                new(ControllerScopedAimSpeedLabel, Game1.GetControllerSpeedLabel(OpenGarrisonPreferencesDocument.NormalizeControllerScopedPrecisionSpeed(_game._clientSettings.ControllerScopedPrecisionSpeed)), _game.CycleControllerScopedPrecisionSpeedSetting, OptionsMenuTab.Controls, step => _game.AdjustControllerScopedPrecisionSpeedSetting(step * 30f)),
+                new(ControllerAimDistanceTier1Label, Game1.GetControllerPixelsLabel(OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(_game._clientSettings.ControllerAimDistanceTier1, OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier1)), _game.CycleControllerAimDistanceTier1Setting, OptionsMenuTab.Controls, step => _game.AdjustControllerAimDistanceTier1Setting(step * 16f)),
+                new(ControllerAimDistanceTier2Label, Game1.GetControllerPixelsLabel(OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(_game._clientSettings.ControllerAimDistanceTier2, OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier2)), _game.CycleControllerAimDistanceTier2Setting, OptionsMenuTab.Controls, step => _game.AdjustControllerAimDistanceTier2Setting(step * 16f)),
+                new(ControllerAimDistanceTier3Label, Game1.GetControllerPixelsLabel(OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(_game._clientSettings.ControllerAimDistanceTier3, OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier3)), _game.CycleControllerAimDistanceTier3Setting, OptionsMenuTab.Controls, step => _game.AdjustControllerAimDistanceTier3Setting(step * 16f)),
+
+                // HUD: in-match overlays, player presentation, and feedback effects.
+                new("Healer Radar", _game._healerRadarEnabled ? "Enabled" : "Disabled", _game.ToggleHealerRadarSetting, OptionsMenuTab.Hud),
+                new("Show Healer", _game._showHealerEnabled ? "Enabled" : "Disabled", _game.ToggleShowHealerSetting, OptionsMenuTab.Hud),
+                new("Show Healing", _game._showHealingEnabled ? "Enabled" : "Disabled", _game.ToggleShowHealingSetting, OptionsMenuTab.Hud),
+                new("Health Bar", _game._showHealthBarEnabled ? "Enabled" : "Disabled", _game.ToggleShowHealthBarSetting, OptionsMenuTab.Hud),
+                new("Shield Bar", _game._showShieldBarEnabled ? "Enabled" : "Disabled", _game.ToggleShowShieldBarSetting, OptionsMenuTab.Hud),
+                new("Weapon HUD", Game1.GetHudWeaponDisplayModeLabel(_game._hudShowOnlyActiveWeapon), _game.ToggleHudWeaponDisplayModeSetting, OptionsMenuTab.Hud),
+                new("Overhead Chat", _game._overheadChatEnabled ? "Enabled" : "Disabled", _game.ToggleOverheadChatSetting, OptionsMenuTab.Hud),
+                new("Low HP Color", Game1.GetLowHealthColorModeLabel(_game._lowHealthColorMode), _game.CycleLowHealthColorModeSetting, OptionsMenuTab.Hud),
+                new("Playercard Size", Game1.GetPlayerCardSizeLabel(_game._playerCardSizeMode), _game.CyclePlayerCardSizeSetting, OptionsMenuTab.Hud),
+                new("Portrait Rumble", _game._portraitRumbleEnabled ? "Enabled" : "Disabled", _game.TogglePortraitRumbleSetting, OptionsMenuTab.Hud),
+                new("MVP Art", _game._postGameMvpArtEnabled ? "Enabled" : "Disabled", _game.TogglePostGameMvpArtSetting, OptionsMenuTab.Hud),
+                new("Damage Vignette", _game._damageVignetteEnabled ? "Enabled" : "Disabled", _game.ToggleDamageVignetteSetting, OptionsMenuTab.Hud),
+                new("Vignette Intensity", Game1.GetDamageVignetteIntensityLabel(_game._damageVignetteIntensityPercent), _game.CycleDamageVignetteIntensitySetting, OptionsMenuTab.Hud),
+                new("Persistent Name", _game._showPersistentSelfNameEnabled ? "Enabled" : "Disabled", _game.TogglePersistentSelfNameSetting, OptionsMenuTab.Hud),
+                new("Edit HUD", _game._mainMenuOpen ? "In game only" : string.Empty, OpenHudEditorFromOptions, OptionsMenuTab.Hud),
+
+                // Gameplay: rules and simulation behavior that affect the match itself.
+                new("Player Name", _game._editingPlayerName ? GetTextWithCursor(_game._playerNameEditBuffer, _game._playerNameEditCursorIndex) : _game._world.LocalPlayer.DisplayName, _game.BeginEditingPlayerName, OptionsMenuTab.Gameplay),
                 new("Kill Cam", _game._killCamEnabled ? "Enabled" : "Disabled", _game.ToggleKillCamSetting, OptionsMenuTab.Gameplay),
-                new("Smooth Camera", Game1.GetSmoothCameraMultiplierLabel(_game._smoothCameraMultiplier), _game.CycleSmoothCameraMultiplierSetting, OptionsMenuTab.Gameplay),
-                new("Playercard Size", Game1.GetPlayerCardSizeLabel(_game._playerCardSizeMode), _game.CyclePlayerCardSizeSetting, OptionsMenuTab.Gameplay),
-                new("Bot Controller", Game1.GetBotModeLabel(_game._clientSettings.BotMode), _game.CycleBotModeSetting, OptionsMenuTab.Gameplay),
-                new("Swap Weapons", _game.GetSwapWeaponsBindingLabel(), _game.CycleSwapWeaponsBindingSetting, OptionsMenuTab.Gameplay),
-                new("Controller Input", Game1.GetControllerInputModeLabel(_game._clientSettings.ControllerInputMode), _game.CycleControllerInputModeSetting, OptionsMenuTab.Gameplay),
-                new("Controller Reticle", Game1.GetControllerReticleModeLabel(_game._clientSettings.ControllerReticleMode), _game.CycleControllerReticleModeSetting, OptionsMenuTab.Gameplay),
-                new("Controller Assist", _game._clientSettings.ControllerAimAssistEnabled ? "Enabled" : "Disabled", _game.ToggleControllerAimAssistSetting, OptionsMenuTab.Gameplay),
-                new("Flick to change directions", _game._clientSettings.ControllerFlickToChangeDirections ? "Enabled" : "Disabled", _game.ToggleControllerFlickToChangeDirectionsSetting, OptionsMenuTab.Gameplay),
-                new(ControllerAimAssistStrengthLabel, Game1.GetControllerPercentLabel(OpenGarrisonPreferencesDocument.NormalizeControllerAimAssistStrength(_game._clientSettings.ControllerAimAssistStrength)), _game.CycleControllerAimAssistStrengthSetting, OptionsMenuTab.Gameplay),
-                new(ControllerAimDeadzoneLabel, Game1.GetControllerPercentLabel(OpenGarrisonPreferencesDocument.NormalizeControllerAimDeadzone(_game._clientSettings.ControllerAimDeadzone)), _game.CycleControllerAimDeadzoneSetting, OptionsMenuTab.Gameplay),
-                new(ControllerScopedAimSpeedLabel, Game1.GetControllerSpeedLabel(OpenGarrisonPreferencesDocument.NormalizeControllerScopedPrecisionSpeed(_game._clientSettings.ControllerScopedPrecisionSpeed)), _game.CycleControllerScopedPrecisionSpeedSetting, OptionsMenuTab.Gameplay),
-                new(ControllerAimDistanceTier1Label, Game1.GetControllerPixelsLabel(OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(_game._clientSettings.ControllerAimDistanceTier1, OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier1)), _game.CycleControllerAimDistanceTier1Setting, OptionsMenuTab.Gameplay),
-                new(ControllerAimDistanceTier2Label, Game1.GetControllerPixelsLabel(OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(_game._clientSettings.ControllerAimDistanceTier2, OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier2)), _game.CycleControllerAimDistanceTier2Setting, OptionsMenuTab.Gameplay),
-                new(ControllerAimDistanceTier3Label, Game1.GetControllerPixelsLabel(OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(_game._clientSettings.ControllerAimDistanceTier3, OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier3)), _game.CycleControllerAimDistanceTier3Setting, OptionsMenuTab.Gameplay),
-                new("Edit HUD", _game._mainMenuOpen ? "In game only" : string.Empty, OpenHudEditorFromOptions, OptionsMenuTab.Gameplay),
+                new("Network Smoothing", _game._positionSmoothingEnabled ? "Enabled" : "Disabled", _game.TogglePositionSmoothingSetting, OptionsMenuTab.Gameplay),
             };
 
             if (_game.HasClientPluginOptions())
             {
-                allActions.Add(new OptionsMenuAction("Plugin Options", string.Empty, OpenPluginOptionsMenuFromOptions, OptionsMenuTab.Other));
+                allActions.Add(new OptionsMenuAction("Plugin Options", string.Empty, OpenPluginOptionsMenuFromOptions, OptionsMenuTab.Plugins));
             }
+
+            allActions.Add(new OptionsMenuAction("Version", GetApplicationVersionLabel(), NoOp, OptionsMenuTab.Plugins));
 
             if (currentTab == OptionsMenuTab.Replays)
             {
@@ -675,9 +649,11 @@ public partial class Game1
             {
                 0 => OptionsMenuTab.Graphics,
                 1 => OptionsMenuTab.Audio,
-                2 => OptionsMenuTab.Gameplay,
-                3 => OptionsMenuTab.Replays,
-                _ => OptionsMenuTab.Other,
+                2 => OptionsMenuTab.Controls,
+                3 => OptionsMenuTab.Hud,
+                4 => OptionsMenuTab.Gameplay,
+                5 => OptionsMenuTab.Replays,
+                _ => OptionsMenuTab.Plugins,
             };
         }
 
@@ -816,8 +792,7 @@ public partial class Game1
             var buttonHeight = compactLayout ? 34 : 42;
             var tabCount = OptionsMenuTabLabels.Length;
             var spacing = compactLayout ? 8 : 12;
-            var totalWidth = (tabCount * 140) + ((tabCount - 1) * spacing);
-            var buttonWidth = Math.Min(160, Math.Max(100, (panel.Width - (padding * 2) - ((tabCount - 1) * spacing)) / tabCount));
+            var buttonWidth = Math.Min(160, Math.Max(72, (panel.Width - (padding * 2) - ((tabCount - 1) * spacing)) / tabCount));
             var startX = panel.X + padding;
             var y = panel.Y + (compactLayout ? 52 : 60);
             var bounds = new Rectangle[tabCount];

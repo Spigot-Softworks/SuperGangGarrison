@@ -79,6 +79,7 @@ sealed partial class GameServer
     private int _botAutofillPerTeam;
     private int _botAutofillLastTick;
     private bool _secondaryAbilitiesEnabled;
+    private bool _svCheatsEnabled;
     private bool _randomSpreadEnabled;
     private bool _sniperAimIndicatorEnabled = true;
     private bool _localPredictionEnabled;
@@ -92,6 +93,8 @@ sealed partial class GameServer
     private readonly string? _webSocketCertificatePath;
     private readonly string? _webSocketCertificatePassword;
     private readonly string? _publicWebSocketUrl;
+    private readonly int _quicPort;
+    private readonly string? _publicQuicUrl;
     private readonly double _clientTimeoutSeconds;
     private readonly double _passwordTimeoutSeconds;
     private readonly double _passwordRetrySeconds;
@@ -187,6 +190,8 @@ sealed partial class GameServer
         string? webSocketCertificatePath,
         string? webSocketCertificatePassword,
         string? publicWebSocketUrl,
+        int quicPort,
+        string? publicQuicUrl,
         double clientTimeoutSeconds,
         double passwordTimeoutSeconds,
         double passwordRetrySeconds,
@@ -247,6 +252,8 @@ sealed partial class GameServer
         _webSocketCertificatePath = webSocketCertificatePath;
         _webSocketCertificatePassword = webSocketCertificatePassword;
         _publicWebSocketUrl = publicWebSocketUrl;
+        _quicPort = quicPort is > 0 and <= 65535 ? quicPort : 0;
+        _publicQuicUrl = publicQuicUrl;
         _clientTimeoutSeconds = clientTimeoutSeconds;
         _passwordTimeoutSeconds = passwordTimeoutSeconds;
         _passwordRetrySeconds = passwordRetrySeconds;

@@ -51,6 +51,7 @@ public partial class Game1
         _pixelPerfectWeaponRotation = _clientSettings.PixelPerfectWeaponRotation;
         _useLocalWeaponRotation = _clientSettings.UseLocalWeaponRotation;
         _playerCardSizeMode = ClientSettings.NormalizePlayerCardSizeMode(_clientSettings.PlayerCardSizeMode);
+        _cursorSizePercent = ClientSettings.NormalizeCursorSizePercent(_clientSettings.CursorSizePercent);
         _uberOutlineEnabled = _clientSettings.ShowUberOutlinesEnabled;
         _projectileTeamTintEnabled = _clientSettings.ProjectileTeamTintEnabled;
         _audioMuted = _clientSettings.AudioMuted;
@@ -110,6 +111,7 @@ public partial class Game1
         _clientSettings.PixelPerfectWeaponRotation = _pixelPerfectWeaponRotation;
         _clientSettings.UseLocalWeaponRotation = _useLocalWeaponRotation;
         _clientSettings.PlayerCardSizeMode = ClientSettings.NormalizePlayerCardSizeMode(_playerCardSizeMode);
+        _clientSettings.CursorSizePercent = ClientSettings.NormalizeCursorSizePercent(_cursorSizePercent);
         _clientSettings.ShowUberOutlinesEnabled = _uberOutlineEnabled;
         _clientSettings.ProjectileTeamTintEnabled = _projectileTeamTintEnabled;
         _clientSettings.AudioMuted = _audioMuted;

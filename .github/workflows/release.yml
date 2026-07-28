@@ -14,12 +14,33 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+
+      - name: Install Linux MsQuic native dependency
+        run: |
+          if ! apt-cache show libmsquic >/dev/null 2>&1; then
+            ubuntu_version="$(. /etc/os-release && printf '%s' "$VERSION_ID")"
+            curl -fsSL "https://packages.microsoft.com/config/ubuntu/${ubuntu_version}/packages-microsoft-prod.deb" -o /tmp/packages-microsoft-prod.deb
+            sudo dpkg -i /tmp/packages-microsoft-prod.deb
+            sudo apt-get update
+          fi
+          sudo apt-get install -y libmsquic
+          ldconfig -p | grep -E 'libmsquic\.so'
+
+      - name: Run protocol-64 networking tests
+        run: |
+          dotnet test Tests/OpenGarrison.Networking.Tests/OpenGarrison.Networking.Tests.csproj --configuration Release --verbosity minimal
+          dotnet test Tests/OpenGarrison.PluginHost.Tests/OpenGarrison.PluginHost.Tests.csproj --configuration Release --filter "FullyQualifiedName~Protocol64" --verbosity minimal
+
+      - name: Verify packaged-content policy tests
+        shell: pwsh
+        run: ./scripts/verify-packaged-content.ps1 -SelfTest
 
       - name: Package Linux and Windows
         shell: pwsh
@@ -29,7 +50,14 @@ jobs:
             $version = "${{ github.event.release.tag_name }}"
           }
 
-          pwsh ./scripts/package.ps1 -Platforms linux-x64,win-x64 -Version $version
+          $platforms = @("linux-x64", "win-x64")
+          ./scripts/package.ps1 -Platforms $platforms -Version $version
+
+      - name: Verify distribution archives
+        shell: pwsh
+        run: |
+          ./scripts/verify-package.ps1 -RuntimeIdentifier linux-x64 -ArchivePath ./dist/OpenGarrison-Linux-x64.tar.gz
+          ./scripts/verify-package.ps1 -RuntimeIdentifier win-x64 -ArchivePath ./dist/OpenGarrison-Windows-x64.zip
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
@@ -37,3 +65,5 @@ jobs:
           files: |
             dist/OpenGarrison-Linux-x64.tar.gz
             dist/OpenGarrison-Windows-x64.zip
+            services/opengarrison-api/updates/linux-x64/stable/latest.json
+            services/opengarrison-api/updates/windows-x64/stable/latest.json

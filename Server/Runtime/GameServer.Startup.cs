@@ -209,8 +209,7 @@ partial class GameServer
 
     private void InitializeQuicHost()
     {
-        var configuredPort = Environment.GetEnvironmentVariable("OPENGARRISON_QUIC_PORT");
-        if (!int.TryParse(configuredPort, out var quicPort) || quicPort <= 0)
+        if (_quicPort <= 0)
         {
             return;
         }
@@ -224,12 +223,12 @@ partial class GameServer
         try
         {
             _quicHost = OpenGarrison.Server.Protocol64QuicServerHost.Start(
-                quicPort,
+                _quicPort,
                 _webSocketCertificatePath,
                 _webSocketCertificatePassword,
                 (OpenGarrison.Server.CompositeServerMessageTransport)_messageTransport,
                 Console.WriteLine);
-            Console.WriteLine($"[server] protocol-64 QUIC listener enabled on quic://0.0.0.0:{quicPort}");
+            Console.WriteLine($"[server] protocol-64 QUIC listener enabled on quic://0.0.0.0:{_quicPort}");
         }
         catch (Exception ex)
         {
@@ -924,6 +923,8 @@ partial class GameServer
             _port,
             _webSocketHost is null ? 0 : _webSocketPort,
             _publicWebSocketUrl,
+            _quicHost is null ? 0 : _quicPort,
+            _quicHost is null ? null : _publicQuicUrl,
             _passwordRequired,
             _buildVersion,
             _releaseChannel,
@@ -938,6 +939,12 @@ partial class GameServer
     private ServerCvarRegistry CreateServerCvarRegistry()
     {
         var registry = new ServerCvarRegistry();
+        registry.RegisterBoolean(
+            "sv_cheats",
+            "Enable cheat-gated server commands. Only authenticated host/RCON administration can change this value.",
+            false,
+            () => _svCheatsEnabled,
+            value => _svCheatsEnabled = value);
         registry.RegisterString(
             "sv_rcon_password",
             "Remote admin password for private !gt_* sessions.",

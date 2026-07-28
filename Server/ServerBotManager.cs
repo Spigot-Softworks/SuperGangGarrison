@@ -138,6 +138,44 @@ internal sealed class ServerBotManager
         return TryAddBot(slot, team, classId, displayName, ServerBotSource.Manual);
     }
 
+    public bool TryAddMimicBot(byte sourceSlot, PlayerTeam team, PlayerClass classId, string displayName, out byte botSlot)
+    {
+        botSlot = 0;
+        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(sourceSlot)
+            || !_world.TryGetNetworkPlayer(sourceSlot, out _))
+        {
+            return false;
+        }
+
+        var availableSlot = FindNextAvailableSlot();
+        if (!availableSlot.HasValue)
+        {
+            return false;
+        }
+
+        botSlot = availableSlot.Value;
+        return TryAddBot(botSlot, team, classId, displayName, ServerBotSource.Manual, mimicSourceSlot: sourceSlot);
+    }
+
+    public bool TryAddFollowHealerBot(byte targetSlot, string displayName, out byte botSlot)
+    {
+        botSlot = 0;
+        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(targetSlot)
+            || !_world.TryGetNetworkPlayer(targetSlot, out var target))
+        {
+            return false;
+        }
+
+        var availableSlot = FindNextAvailableSlot();
+        if (!availableSlot.HasValue)
+        {
+            return false;
+        }
+
+        botSlot = availableSlot.Value;
+        return TryAddBot(botSlot, target.Team, PlayerClass.Medic, displayName, ServerBotSource.Manual, followTargetSlot: targetSlot);
+    }
+
     private bool TryAddBot(
         byte slot,
         PlayerTeam team,
@@ -151,7 +189,9 @@ internal sealed class ServerBotManager
         bool forceHealthBar = false,
         float mapSpawnX = 0f,
         float mapSpawnY = 0f,
-        int deathTriggerNodeIndex = -1)
+        int deathTriggerNodeIndex = -1,
+        byte? mimicSourceSlot = null,
+        byte? followTargetSlot = null)
     {
         if (!IsValidServerBotSlot(slot) || !_isSlotAvailableForBot(slot))
         {
@@ -209,7 +249,9 @@ internal sealed class ServerBotManager
             forceHealthBar,
             mapSpawnX,
             mapSpawnY,
-            deathTriggerNodeIndex);
+            deathTriggerNodeIndex,
+            mimicSourceSlot,
+            followTargetSlot);
         _inputCache.Remove(slot);
         _inputCacheAgeTicks.Remove(slot);
         _mapBotDeathPulseAliveBySlot.Remove(slot);
@@ -844,7 +886,50 @@ internal sealed class ServerBotManager
         }
 
         SyncInputCache(refreshedInputs);
+        foreach (var entry in _botSlots)
+        {
+            var state = entry.Value;
+            if (state.MimicSourceSlot is { } mimicSourceSlot
+                && _world.TryGetNetworkPlayerInput(mimicSourceSlot, out var mimicInput))
+            {
+                _inputCache[entry.Key] = mimicInput with { DebugKill = false };
+            }
+            else if (state.FollowTargetSlot is { } followTargetSlot
+                && TryBuildFollowHealerInput(entry.Key, followTargetSlot, out var healerInput))
+            {
+                _inputCache[entry.Key] = healerInput;
+            }
+        }
+
         return _inputCache;
+    }
+
+    private bool TryBuildFollowHealerInput(byte healerSlot, byte targetSlot, out PlayerInputSnapshot input)
+    {
+        input = default;
+        if (!_world.TryGetNetworkPlayer(healerSlot, out var healer)
+            || !_world.TryGetNetworkPlayer(targetSlot, out var target))
+        {
+            return false;
+        }
+
+        var horizontalDelta = target.X - healer.X;
+        var verticalDelta = target.Y - healer.Y;
+        var shouldMove = MathF.Abs(horizontalDelta) > 28f;
+        input = new PlayerInputSnapshot(
+            Left: shouldMove && horizontalDelta < 0f,
+            Right: shouldMove && horizontalDelta > 0f,
+            Up: verticalDelta < -18f && healer.IsGrounded,
+            Down: verticalDelta > 32f,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: true,
+            AimWorldX: target.X,
+            AimWorldY: target.Y,
+            DebugKill: false);
+        return true;
     }
 
     private void SelectBotThinkSlots()
@@ -1189,7 +1274,9 @@ internal readonly struct ServerBotSlotState
         bool forceHealthBar = false,
         float mapSpawnX = 0f,
         float mapSpawnY = 0f,
-        int deathTriggerNodeIndex = -1)
+        int deathTriggerNodeIndex = -1,
+        byte? mimicSourceSlot = null,
+        byte? followTargetSlot = null)
     {
         Slot = slot;
         Team = team;
@@ -1204,6 +1291,8 @@ internal readonly struct ServerBotSlotState
         MapSpawnX = mapSpawnX;
         MapSpawnY = mapSpawnY;
         DeathTriggerNodeIndex = deathTriggerNodeIndex;
+        MimicSourceSlot = mimicSourceSlot;
+        FollowTargetSlot = followTargetSlot;
     }
 
     public byte Slot { get; }
@@ -1219,8 +1308,10 @@ internal readonly struct ServerBotSlotState
     public float MapSpawnX { get; }
     public float MapSpawnY { get; }
     public int DeathTriggerNodeIndex { get; }
+    public byte? MimicSourceSlot { get; }
+    public byte? FollowTargetSlot { get; }
 
-    public ServerBotSlotState WithTeam(PlayerTeam newTeam) => new(Slot, newTeam, ClassId, DisplayName, Source, IsDummy, Respawn, RespawnMode, ForceNameplate, ForceHealthBar, MapSpawnX, MapSpawnY, DeathTriggerNodeIndex);
-    public ServerBotSlotState WithClassId(PlayerClass newClassId) => new(Slot, Team, newClassId, DisplayName, Source, IsDummy, Respawn, RespawnMode, ForceNameplate, ForceHealthBar, MapSpawnX, MapSpawnY, DeathTriggerNodeIndex);
-    public ServerBotSlotState WithDisplayName(string newDisplayName) => new(Slot, Team, ClassId, newDisplayName, Source, IsDummy, Respawn, RespawnMode, ForceNameplate, ForceHealthBar, MapSpawnX, MapSpawnY, DeathTriggerNodeIndex);
+    public ServerBotSlotState WithTeam(PlayerTeam newTeam) => new(Slot, newTeam, ClassId, DisplayName, Source, IsDummy, Respawn, RespawnMode, ForceNameplate, ForceHealthBar, MapSpawnX, MapSpawnY, DeathTriggerNodeIndex, MimicSourceSlot, FollowTargetSlot);
+    public ServerBotSlotState WithClassId(PlayerClass newClassId) => new(Slot, Team, newClassId, DisplayName, Source, IsDummy, Respawn, RespawnMode, ForceNameplate, ForceHealthBar, MapSpawnX, MapSpawnY, DeathTriggerNodeIndex, MimicSourceSlot, FollowTargetSlot);
+    public ServerBotSlotState WithDisplayName(string newDisplayName) => new(Slot, Team, ClassId, newDisplayName, Source, IsDummy, Respawn, RespawnMode, ForceNameplate, ForceHealthBar, MapSpawnX, MapSpawnY, DeathTriggerNodeIndex, MimicSourceSlot, FollowTargetSlot);
 }

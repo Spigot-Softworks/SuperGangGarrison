@@ -1,0 +1,10 @@
+﻿{
+    "version":  "64.0.0",
+    "packageVersion":  "64.0.0",
+    "channel":  "stable",
+    "url":  "OpenGarrison-Windows-x64-alpha.zip",
+    "sha256":  "ebe9989f94e224ec6d30e276a94f698b98cb410cd57d346ee07661e192686896",
+    "size":  49321803,
+    "minLauncherVersion":  "0.1.0",
+    "notesUrl":  ""
+}

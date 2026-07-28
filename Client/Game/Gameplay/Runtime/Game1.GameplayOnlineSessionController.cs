@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.Collections.Generic;
 using System.IO;
 using OpenGarrison.ClientShared;
 using OpenGarrison.Protocol;
@@ -89,7 +90,8 @@ public partial class Game1
             _game.ClearReplayQueue(clearActiveReplayPath: true);
             _game.ClearPendingNetworkMapSync();
             _game._onlineConnectionIntent = intent;
-            if (!endpoint.TryResolveForCurrentRuntime(out var host, out var port, out var transport))
+            var candidates = endpoint.GetConnectionCandidates();
+            if (candidates.Count == 0)
             {
                 _game._onlineConnectionIntent = OnlineConnectionIntent.Join;
                 _game.SetNetworkStatus("Connect failed: endpoint does not support this runtime.");
@@ -101,47 +103,62 @@ public partial class Game1
                 return false;
             }
 
-            if (_game._networkClient.Connect(
-                    host,
-                    port,
-                    _game._world.LocalPlayer.DisplayName,
-                    _game._world.LocalPlayer.BadgeMask,
-                    out var error,
-                    _game._clientIdentity.FriendCode,
-                    PlayerCardProfile.Serialize(_game._clientIdentity.PlayerCard),
-                    ToProtocolConnectionIntent(intent)))
+            var errors = new List<string>();
+            foreach (var candidate in candidates)
             {
-                _game.SetSocialPresenceNetworkEndpoint(endpoint);
-                _game.RecordRecentConnection(host, port);
-                _game.ClearOnlinePlayerSocialProfiles();
-                _game.ResetGameplayRuntimeState();
-                // Online sessions must always start from default server-authoritative gameplay rules.
-                // This prevents offline experimental settings (for example Last To Die perks)
-                // from leaking into client prediction when the world instance is reused.
-                _game._world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings());
-                _game.CloseLobbyBrowser(clearStatus: false);
-                var transportLabel = transport == NetworkEndpointTransport.WebSocket ? "WebSocket" : "UDP";
-                var actionLabel = intent == OnlineConnectionIntent.Watch ? "Watching" : "Connecting to";
-                _game.SetJoiningServerLoadingLabel(endpoint.AddressLabel);
-                _game.ShowJoiningServerLoadingOverlay();
-                _game.SetNetworkStatus($"{actionLabel} {host}:{port} over {transportLabel}...");
-                if (addConsoleFeedback)
+                if (_game._networkClient.Connect(
+                        candidate.Host,
+                        candidate.Port,
+                        _game._world.LocalPlayer.DisplayName,
+                        _game._world.LocalPlayer.BadgeMask,
+                        out var error,
+                        _game._clientIdentity.FriendCode,
+                        PlayerCardProfile.Serialize(_game._clientIdentity.PlayerCard),
+                        ToProtocolConnectionIntent(intent)))
                 {
-                    _game.AddNetworkConsoleLine($"{actionLabel.ToLowerInvariant()} {host}:{port} over {transportLabel}");
+                    _game.SetSocialPresenceNetworkEndpoint(endpoint);
+                    _game.RecordRecentConnection(candidate.Host, candidate.Port);
+                    _game.ClearOnlinePlayerSocialProfiles();
+                    _game.ResetGameplayRuntimeState();
+                    // Online sessions must always start from default server-authoritative gameplay rules.
+                    // This prevents offline experimental settings (for example Last To Die perks)
+                    // from leaking into client prediction when the world instance is reused.
+                    _game._world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings());
+                    _game.CloseLobbyBrowser(clearStatus: false);
+                    var transportLabel = FormatNetworkEndpointTransport(candidate.Transport);
+                    var actionLabel = intent == OnlineConnectionIntent.Watch ? "Watching" : "Connecting to";
+                    _game.SetJoiningServerLoadingLabel(endpoint.AddressLabel);
+                    _game.ShowJoiningServerLoadingOverlay();
+                    _game.SetNetworkStatus($"{actionLabel} {candidate.Host}:{candidate.Port} over {transportLabel}...");
+                    if (addConsoleFeedback)
+                    {
+                        _game.AddNetworkConsoleLine($"{actionLabel.ToLowerInvariant()} {candidate.Host}:{candidate.Port} over {transportLabel}");
+                    }
+
+                    return true;
                 }
 
-                return true;
+                errors.Add($"{FormatNetworkEndpointTransport(candidate.Transport)}: {error}");
             }
 
             _game._onlineConnectionIntent = OnlineConnectionIntent.Join;
-            _game.SetNetworkStatus($"Connect failed: {error}");
+            var errorText = errors.Count == 0 ? "no compatible endpoint" : string.Join("; ", errors);
+            _game.SetNetworkStatus($"Connect failed: {errorText}");
             if (addConsoleFeedback)
             {
-                _game.AddNetworkConsoleLine($"connect failed: {error}");
+                _game.AddNetworkConsoleLine($"connect failed: {errorText}");
             }
 
             return false;
         }
+
+        private static string FormatNetworkEndpointTransport(NetworkEndpointTransport transport)
+            => transport switch
+            {
+                NetworkEndpointTransport.Quic => "QUIC64",
+                NetworkEndpointTransport.WebSocket => "WebSocket",
+                _ => "UDP",
+            };
 
         public bool TryPlayLegacyReplay(string replayPath, bool addConsoleFeedback, bool clearQueuedReplays = true)
         {

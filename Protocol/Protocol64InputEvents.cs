@@ -38,14 +38,18 @@ public sealed record Protocol64InputCommand(
     InputButtons HeldButtons,
     float AimRelX,
     float AimRelY,
-    uint ClientTick = 0);
+    uint ClientTick = 0,
+    // Command ordering is a separate stream from the latest-state input
+    // sequence. Multiple one-shot commands can belong to one input frame.
+    uint CommandSequence = 0);
 
 public sealed record Protocol64InputCommandResult(
     ulong CommandId,
     uint InputSequence,
     Protocol64InputCommandResultKind Result,
     uint ServerTick,
-    string Reason = "");
+    string Reason = "",
+    uint CommandSequence = 0);
 
 public sealed record Protocol64InputCommandResultAck(ulong CommandId);
 
@@ -63,7 +67,7 @@ public sealed class Protocol64InputCommandSchema
     public Protocol64InputCommandSchema()
         : base(
             Protocol64InputSchemaIds.InputCommand,
-            revision: 1,
+            revision: 2,
             Protocol64Direction.ClientToServer,
             maxBodyBytes: 64)
     {
@@ -78,6 +82,7 @@ public sealed class Protocol64InputCommandSchema
         writer.Write(value.AimRelX);
         writer.Write(value.AimRelY);
         writer.Write(value.ClientTick);
+        writer.Write(value.CommandSequence);
     }
 
     public override Protocol64InputCommand ReadBody(BinaryReader reader)
@@ -89,6 +94,7 @@ public sealed class Protocol64InputCommandSchema
             (InputButtons)reader.ReadUInt16(),
             reader.ReadSingle(),
             reader.ReadSingle(),
+            reader.ReadUInt32(),
             reader.ReadUInt32());
     }
 
@@ -118,7 +124,7 @@ public sealed class Protocol64InputCommandResultSchema
     public Protocol64InputCommandResultSchema()
         : base(
             Protocol64InputSchemaIds.InputCommandResult,
-            revision: 1,
+            revision: 2,
             Protocol64Direction.ServerToClient,
             maxBodyBytes: 256)
     {
@@ -131,6 +137,7 @@ public sealed class Protocol64InputCommandResultSchema
         writer.Write((byte)value.Result);
         writer.Write(value.ServerTick);
         writer.Write(value.Reason ?? string.Empty);
+        writer.Write(value.CommandSequence);
     }
 
     public override Protocol64InputCommandResult ReadBody(BinaryReader reader)
@@ -140,7 +147,8 @@ public sealed class Protocol64InputCommandResultSchema
             reader.ReadUInt32(),
             (Protocol64InputCommandResultKind)reader.ReadByte(),
             reader.ReadUInt32(),
-            reader.ReadString());
+            reader.ReadString(),
+            reader.ReadUInt32());
     }
 
     public override void Validate(Protocol64InputCommandResult value)

@@ -110,6 +110,14 @@ public sealed class SteeringMachine
         var hasCurrentEdge = path.TryGetCurrentEdge(out var currentEdge);
         var edgeKind = hasCurrentEdge ? currentEdge.Kind : NavEdgeKind.Walk;
         var edgeTicks = UpdateCurrentEdgeTimer(player, path, hasCurrentEdge);
+        if (hasCurrentEdge && currentEdge.Kind == NavEdgeKind.Jump && edgeTicks == 0)
+        {
+            // The preceding walk edge may have committed the opposite
+            // direction. A measured jump run-up must begin from this edge's
+            // launch direction, not from stale corridor momentum.
+            _commitTicksRemaining = 0;
+            _commitDirectionX = 0f;
+        }
         UpdateCurrentEdgePhase(player, hasCurrentEdge);
         if (hasCurrentEdge)
         {
@@ -135,16 +143,30 @@ public sealed class SteeringMachine
                     steeringDx,
                     dy,
                     suppressJumpUntilLaunch,
-                    ResolveJumpTriggerTick(player, currentEdge),
+                    ResolveJumpTriggerTick(currentEdge),
                     edgeTicks,
                     ShouldAssistSemanticWalkClimb(player, currentEdge),
                     RequiresCertifiedRunup(player, currentEdge, level.Mode),
+                    currentEdge.ProbeTicks > 0 && currentEdge.JumpTriggerTick > 0,
+                    RequiresLaunchReadinessWait(player, path, currentEdge, level.Mode),
+                    currentEdge.IsOg2Contact,
+                    currentEdge.IsOg2Contact
+                        && _currentEdgeLandedAfterAirborne
+                        && graph.IsOnAcceptedCompletionSurface(player.X, player.Y, currentEdge.Completion),
                     currentEdge.LaunchRecipe,
                     ref output);
                 break;
             case SteeringState.Airborne:
             case SteeringState.Falling:
-                SteerAirborne(player, edgeKind, steeringDx, dy, ref output);
+                SteerAirborne(
+                    player,
+                    edgeKind,
+                    currentEdge.Completion,
+                    steeringDx,
+                    dy,
+                    currentEdge.IsOg2Contact,
+                    currentEdge.ProbeMoveDirectionX,
+                    ref output);
                 break;
             case SteeringState.Recovery:
                 SteerRecovery(player, steeringDx, ref output);
@@ -165,11 +187,26 @@ public sealed class SteeringMachine
                 output.Jump);
         }
 
-        if (_stuckEscapePhase > 0)
+        var hasCertifiedContactEdge = hasCurrentEdge
+            && currentEdge.IsOg2Contact
+            && currentEdge.LaunchRecipe.HasRecipe;
+        if (_stuckEscapePhase > 0 && !hasCertifiedContactEdge)
         {
             ApplyStuckEscape(player, ref output);
         }
-        ApplyPressedBlockerHop(player, level, team, ref output);
+        if (!hasCertifiedContactEdge)
+        {
+            ApplyPressedBlockerHop(player, level, team, ref output);
+        }
+
+        // A jump edge's launch direction is part of its OG2 proof. Do not let
+        // the short walking commitment from the preceding edge turn a right
+        // launch into a left launch (or vice versa).
+        if (hasCurrentEdge && currentEdge.Kind == NavEdgeKind.Jump && output.Jump)
+        {
+            _commitTicksRemaining = 0;
+            _commitDirectionX = 0f;
+        }
 
         var fastJumpRetry = output.Jump
             && player.IsGrounded
@@ -182,6 +219,22 @@ public sealed class SteeringMachine
                 FinalMoveDirection = output.MoveDirection,
                 FinalJump = output.Jump,
             };
+        }
+
+        // A certified launch window is a stronger movement contract than the
+        // short directional commitment used for ordinary corridor steering.
+        // If the bot enters the band above the measured launch speed, cancel
+        // the stale commitment before it can overwrite the braking direction
+        // selected by SteerGrounded and carry the bot past the recipe window.
+        if (hasCurrentEdge
+            && currentEdge.Kind == NavEdgeKind.Jump
+            && RequiresCertifiedRunup(player, currentEdge, level.Mode)
+            && player.IsGrounded
+            && IsInLaunchPositionWindow(player, currentEdge.LaunchRecipe)
+            && player.HorizontalSpeed > currentEdge.LaunchRecipe.LaunchMaxHorizontalSpeed)
+        {
+            _commitTicksRemaining = 0;
+            _commitDirectionX = 0f;
         }
 
         TrackJumpRequest(edgeKind, output);
@@ -267,6 +320,22 @@ public sealed class SteeringMachine
         if (distSq < WaypointReachRadius * WaypointReachRadius)
         {
             if (!player.IsGrounded
+                && path.TryGetIncomingEdge(path.CurrentIndex, out var incomingEdge)
+                && incomingEdge.RequiresGroundedContinuation)
+            {
+                return false;
+            }
+
+            if (!player.IsGrounded && NextEdgeRequiresGroundedContact(path))
+            {
+                // A fall/drop can satisfy the current waypoint while the
+                // player is still airborne above its destination surface. Do
+                // not hand the route to a grounded OG2 contact until the live
+                // body has actually landed on that surface.
+                return false;
+            }
+
+            if (!player.IsGrounded
                 && player.ClassId != PlayerClass.Heavy
                 && NextEdgeRequiresGroundedLaunch(path))
             {
@@ -278,12 +347,36 @@ public sealed class SteeringMachine
 
         return path.TryGetCurrentEdge(out var edge)
             && edge.Completion.HasWindow
+            && !ShouldDeferContactHandoff(path, edge, distSq)
             && (player.IsGrounded
                 ? graph.IsEdgeCompletionSatisfied(player.X, player.Y, edge.Completion)
                     || IsNearGroundedContinuationCompletion(player, edge, level)
                 : player.ClassId != PlayerClass.Heavy
                     && (IsAirborneCompletionContinuation(player, graph, edge)
                         || IsNearGroundedContinuationCompletion(player, edge, level)));
+    }
+
+    private static bool ShouldDeferContactHandoff(NavPath path, NavEdge edge, float distanceSquared)
+    {
+        if (distanceSquared <= WaypointReachRadius * WaypointReachRadius
+            || !edge.IsOg2Contact
+            || edge.Kind != NavEdgeKind.Jump
+            || path.CurrentIndex + 1 >= path.Count
+            || !path.TryGetIncomingEdge(path.CurrentIndex + 1, out var nextEdge)
+            || !nextEdge.IsOg2Contact
+            || nextEdge.Kind != NavEdgeKind.Jump
+            || edge.ProbeMoveDirectionX == 0f
+            || nextEdge.ProbeMoveDirectionX == 0f)
+        {
+            return false;
+        }
+
+        // A reverse-direction contact chain needs the current landing node as
+        // its state handoff. Advancing from the outer completion band can
+        // feed the next recipe the preceding jump's residual momentum before
+        // the bot has actually reached the node the probe started from.
+        return MathF.Sign(edge.ProbeMoveDirectionX)
+            != MathF.Sign(nextEdge.ProbeMoveDirectionX);
     }
 
     private bool IsNearGroundedContinuationCompletion(PlayerEntity player, NavEdge edge, SimpleLevel level) =>
@@ -310,31 +403,66 @@ public sealed class SteeringMachine
         && path.TryGetIncomingEdge(path.CurrentIndex + 1, out var nextEdge)
         && RequiresVerticalCertifiedLaunch(nextEdge);
 
-    private static int ResolveJumpTriggerTick(PlayerEntity player, NavEdge edge)
-    {
-        if (edge.Kind != NavEdgeKind.Jump)
-        {
-            return 0;
-        }
+    private static bool NextEdgeRequiresGroundedContact(NavPath path) =>
+        path.CurrentIndex + 1 < path.Count
+        && path.TryGetIncomingEdge(path.CurrentIndex + 1, out var nextEdge)
+        && nextEdge.IsOg2Contact
+        && nextEdge.LaunchRecipe.StartGrounded;
 
-        return edge.JumpTriggerTick;
-    }
+    private static int ResolveJumpTriggerTick(NavEdge edge) =>
+        edge.Kind == NavEdgeKind.Jump
+            ? edge.JumpTriggerTick
+            : 0;
 
     private static bool RequiresCertifiedRunup(PlayerEntity player, NavEdge edge, GameModeKind mode) =>
         edge.Kind == NavEdgeKind.Jump
         && edge.LaunchRecipe.HasRecipe
         && edge.ProbeMoveDirectionX != 0f
-        && (player.ClassId == PlayerClass.Soldier
+        && (edge.IsOg2Contact
+            || player.ClassId == PlayerClass.Soldier
+            || player.ClassId == PlayerClass.Sniper
             || (mode == GameModeKind.CaptureTheFlag && player.ClassId == PlayerClass.Engineer)
-            || (mode == GameModeKind.CaptureTheFlag && player.ClassId == PlayerClass.Heavy)
-            || RequiresVerticalCertifiedLaunch(edge));
+            || (mode == GameModeKind.CaptureTheFlag && player.ClassId == PlayerClass.Heavy));
+
+    private bool RequiresLaunchReadinessWait(
+        PlayerEntity player,
+        NavPath path,
+        NavEdge edge,
+        GameModeKind mode)
+    {
+        if (!RequiresCertifiedRunup(player, edge, mode)
+            || !_edgeStartGrounded
+            || path.CurrentIndex < 2
+            || !edge.LaunchRecipe.HasRecipe)
+        {
+            return false;
+        }
+
+        var launchDirection = MathF.Sign(edge.LaunchRecipe.ExpectedMoveDirectionX);
+        if (launchDirection == 0f
+            || (_edgeStartHorizontalSpeed * launchDirection) >= -8f
+            || !path.TryGetIncomingEdge(path.CurrentIndex - 1, out var previousEdge)
+            || previousEdge.ProbeMoveDirectionX == 0f)
+        {
+            return false;
+        }
+
+        // A predecessor travelling against the next jump's launch direction
+        // needs a real braking/setup phase. The isolated OG2 contact proof is
+        // still authoritative; this only prevents the executor from firing
+        // the recorded tick before the live state reaches that proof.
+        return MathF.Sign(previousEdge.ProbeMoveDirectionX) != launchDirection;
+    }
 
     private static bool RequiresVerticalCertifiedLaunch(NavEdge edge) =>
         edge.Completion.HasWindow
         && edge.LaunchRecipe.HasRecipe
         && edge.LaunchRecipe.LaunchMinY - edge.Completion.MaxY >= 20f;
 
-    private int UpdateCurrentEdgeTimer(PlayerEntity player, NavPath path, bool hasCurrentEdge)
+    private int UpdateCurrentEdgeTimer(
+        PlayerEntity player,
+        NavPath path,
+        bool hasCurrentEdge)
     {
         if (!hasCurrentEdge || path.CurrentIndex <= 0)
         {
@@ -413,9 +541,7 @@ public sealed class SteeringMachine
         for (var index = path.CurrentIndex + 1; index <= maxIndex; index += 1)
         {
             if (path.TryGetIncomingEdge(index, out var incomingEdge)
-                && incomingEdge.Kind == NavEdgeKind.Jump
-                && incomingEdge.LaunchRecipe.HasRecipe
-                && player.IsGrounded)
+                && incomingEdge.RequiresGroundedContinuation)
             {
                 break;
             }
@@ -607,12 +733,82 @@ public sealed class SteeringMachine
         }
 
         if (edge.Kind == NavEdgeKind.Jump
+            && edge.IsOg2Contact
+            && edge.LaunchRecipe.HasRecipe
+            && player.IsGrounded
+            && !_currentEdgeLandedAfterAirborne)
+        {
+            var launchDirection = MathF.Sign(edge.LaunchRecipe.ExpectedMoveDirectionX);
+            if (launchDirection != 0f)
+            {
+                var launchCenterX = (edge.LaunchRecipe.LaunchMinX + edge.LaunchRecipe.LaunchMaxX) * 0.5f;
+                var launchDx = launchCenterX - player.X;
+                var inLaunchWindow = IsInLaunchPositionWindow(player, edge.LaunchRecipe);
+                if (!inLaunchWindow
+                    || !IsInLaunchSpeedWindow(player, edge.LaunchRecipe))
+                {
+                    suppressJumpUntilLaunch = true;
+                    if (inLaunchWindow)
+                    {
+                        var tooSlowInLaunchDirection = launchDirection > 0f
+                            ? player.HorizontalSpeed < edge.LaunchRecipe.LaunchMinHorizontalSpeed
+                            : player.HorizontalSpeed > edge.LaunchRecipe.LaunchMaxHorizontalSpeed;
+                        return tooSlowInLaunchDirection
+                            ? launchDirection * JumpTriggerDistance
+                            : -launchDirection * JumpTriggerDistance;
+                    }
+
+                    // Keep the contact's launch direction active even when
+                    // the center is inside the steering dead zone. A single
+                    // neutral update here can bleed enough speed to make the
+                    // measured launch state unreachable before the timer.
+                    return MathF.Abs(launchDx) > HorizontalDeadZone
+                        ? launchDx
+                        : launchDirection * (HorizontalDeadZone + 1f);
+                }
+            }
+        }
+
+        // Do not counter-steer into the completion-center X when the next
+        // certified jump continues in the same direction. That reversal can
+        // leave a live bot on the landing surface with momentum opposite to
+        // the next launch recipe, even though both contacts are individually
+        // valid in the OG2 probe.
+        if (edge.Kind == NavEdgeKind.Jump
+            && !player.IsGrounded
+            && edge.ProbeMoveDirectionX != 0f
+            && path.CurrentIndex + 1 < path.Count
+            && path.TryGetIncomingEdge(path.CurrentIndex + 1, out var nextEdge)
+            && nextEdge.Kind == NavEdgeKind.Jump
+            && nextEdge.ProbeMoveDirectionX != 0f
+            && MathF.Sign(nextEdge.ProbeMoveDirectionX) == MathF.Sign(edge.ProbeMoveDirectionX)
+            && player.X >= edge.Completion.MinX - 24f
+            && player.X <= edge.Completion.MaxX + 24f
+            && player.Y >= edge.Completion.MinY - 48f
+            && player.Y <= edge.Completion.MaxY + 24f)
+        {
+            return edge.ProbeMoveDirectionX * MathF.Max(JumpTriggerDistance, MathF.Abs(waypointDx));
+        }
+
+        if (edge.Kind == NavEdgeKind.Jump
             && player.IsGrounded
             && player.Y > edge.Completion.MaxY + 8f
+            && MathF.Abs(waypointDx) > JumpTriggerDistance
             && path.CurrentIndex > 0)
         {
             var launchNode = graph.GetNode(path.GetWaypoint(path.CurrentIndex - 1));
-            var launchDx = launchNode.X - player.X;
+            // Contact edges carry a measured launch band which is not
+            // necessarily centered on the source node. This is especially
+            // important on the reverse OG2 stair chain: the source node is
+            // the landing point of the preceding step, while the certified
+            // run-up begins several pixels back toward the next jump. Pulling
+            // back to the source node after entering that band makes the
+            // executor oscillate forever and invalidates an otherwise valid
+            // contact proof.
+            var launchTargetX = edge.IsOg2Contact && edge.LaunchRecipe.HasRecipe
+                ? (edge.LaunchRecipe.LaunchMinX + edge.LaunchRecipe.LaunchMaxX) * 0.5f
+                : launchNode.X;
+            var launchDx = launchTargetX - player.X;
             if (MathF.Abs(launchDx) > JumpTriggerDistance)
             {
                 suppressJumpUntilLaunch = true;
@@ -628,7 +824,10 @@ public sealed class SteeringMachine
             var targetNode = graph.GetNode(path.CurrentNode);
             var travelDirection = MathF.Sign(targetNode.X - launchNode.X);
             var signedDistanceFromLaunch = (player.X - launchNode.X) * travelDirection;
-            if (travelDirection != 0f && signedDistanceFromLaunch < -JumpLaunchGateTolerance)
+            var isNearLaunchWindow = IsNearCertifiedLaunchWindow(player, edge.LaunchRecipe, travelDirection);
+            if (travelDirection != 0f
+                && !isNearLaunchWindow
+                && signedDistanceFromLaunch < -JumpLaunchGateTolerance)
             {
                 suppressJumpUntilLaunch = true;
                 return launchNode.X - player.X;
@@ -637,11 +836,17 @@ public sealed class SteeringMachine
             if (travelDirection != 0f
                 && RequiresCertifiedRunup(player, edge, mode)
                 && !IsInLaunchPositionWindow(player, edge.LaunchRecipe)
-                && signedDistanceFromLaunch > ResolveCertifiedLaunchForwardTolerance(edge.JumpTriggerTick)
-                && player.Y > edge.Completion.MaxY + 8f)
+                        && (isNearLaunchWindow
+                            || (signedDistanceFromLaunch > ResolveCertifiedLaunchForwardTolerance(edge.JumpTriggerTick)
+                        && player.Y > edge.Completion.MaxY + 8f
+                        && MathF.Abs(waypointDx) > JumpTriggerDistance)))
             {
                 suppressJumpUntilLaunch = true;
-                return launchNode.X - player.X;
+                return isNearLaunchWindow
+                    ? (edge.LaunchRecipe.LaunchMinX + edge.LaunchRecipe.LaunchMaxX) * 0.5f - player.X
+                    : edge.IsOg2Contact && edge.LaunchRecipe.HasRecipe
+                        ? (edge.LaunchRecipe.LaunchMinX + edge.LaunchRecipe.LaunchMaxX) * 0.5f - player.X
+                        : launchNode.X - player.X;
             }
         }
 
@@ -889,9 +1094,27 @@ public sealed class SteeringMachine
 
     private static int ResolveMaximumEdgeTicks(NavEdge edge)
     {
+        if (edge.Kind == NavEdgeKind.Walk && edge.ProbeTicks > 0)
+        {
+            // Contact-first alpha walk links carry the measured OG2 sweep
+            // duration. Long stair chains are still physically validated, but
+            // they cannot fit the legacy fixed 60-tick waypoint budget.
+            return int.Clamp(edge.ProbeTicks + CertifiedEdgeRetrySlackTicks, MaximumWalkEdgeTicks, MaximumCertifiedEdgeTicks);
+        }
+
         if (edge.Kind == NavEdgeKind.Walk)
         {
             return MaximumWalkEdgeTicks;
+        }
+
+        if (edge.Kind == NavEdgeKind.Jump && edge.LaunchRecipe.HasRecipe)
+        {
+            // A measured contact includes a grounded run-up before the jump.
+            // Runtime entry can inherit different momentum and spend part of
+            // the edge reacquiring its launch state, so probe duration alone
+            // is not a valid watchdog. Keep the bound finite, but allow the
+            // full certified execution budget for late landings.
+            return MaximumCertifiedEdgeTicks;
         }
 
         if (!edge.Completion.HasWindow)
@@ -919,6 +1142,10 @@ public sealed class SteeringMachine
         int edgeTicks,
         bool assistSemanticWalkClimb,
         bool requiresCertifiedRunup,
+        bool requiresMeasuredRunup,
+        bool waitForLaunchRecipe,
+        bool isOg2Contact,
+        bool holdContactLanding,
         NavEdgeLaunchRecipe launchRecipe,
         ref SteeringOutput output)
     {
@@ -928,7 +1155,20 @@ public sealed class SteeringMachine
         {
             case NavEdgeKind.Jump:
                 output.MoveDirection = moveDir;
-                var jumpDelaySatisfied = edgeTicks >= jumpTriggerTick;
+                if (holdContactLanding)
+                {
+                    // The OG2 contact already landed on the certified target
+                    // surface. Finish the measured completion window instead
+                    // of re-firing the jump from a slightly early landing.
+                    break;
+                }
+
+                var recipeReady = launchRecipe.HasRecipe
+                    && IsLaunchRecipeReady(player, launchRecipe, moveDir);
+                var measuredContactLaunchWindow = isOg2Contact
+                    && launchRecipe.HasRecipe
+                    && IsInLaunchPositionWindow(player, launchRecipe)
+                    && edgeTicks >= Math.Max(0, jumpTriggerTick - 4);
                 if (requiresCertifiedRunup
                     && launchRecipe.HasRecipe
                     && IsInLaunchPositionWindow(player, launchRecipe)
@@ -944,6 +1184,7 @@ public sealed class SteeringMachine
 
                 var needsRunup = player.ClassId == PlayerClass.Soldier
                     || requiresCertifiedRunup
+                    || requiresMeasuredRunup
                     || (player.ClassId == PlayerClass.Heavy && moveDir < 0f);
                 var minimumRunupSpeed = requiresCertifiedRunup
                     ? ResolveCertifiedRunupSpeed(jumpTriggerTick)
@@ -954,17 +1195,29 @@ public sealed class SteeringMachine
                     || (player.HorizontalSpeed * moveDir) >= minimumRunupSpeed
                     || (!requiresCertifiedRunup
                         && edgeTicks >= jumpTriggerTick + MaximumDelayedJumpRunupTicks);
-                var recipeReady = !requiresCertifiedRunup && jumpDelaySatisfied
-                    || (edgeTicks >= launchRecipe.LaunchTick
-                        && IsLaunchRecipeReady(player, launchRecipe, moveDir));
-                if (jumpDelaySatisfied
+                var jumpTimingSatisfied = isOg2Contact && launchRecipe.HasRecipe
+                    // For an OG2 contact, the measured launch state is the
+                    // authoritative trigger. The recorded tick describes the
+                    // canonical probe, but live entry momentum can make that
+                    // state valid earlier or later; requiring both would
+                    // reject valid composable contacts, while the recipe
+                    // itself prevents premature jumps.
+                    ? recipeReady
+                    : waitForLaunchRecipe
+                        ? edgeTicks >= jumpTriggerTick
+                            && recipeReady
+                        : edgeTicks >= jumpTriggerTick
+                            || measuredContactLaunchWindow
+                            || (jumpTriggerTick <= 0 && recipeReady);
+                if (jumpTimingSatisfied
                     && (recipeReady || runupSatisfied)
-                    && (MathF.Abs(dx) <= JumpTriggerDistance
-                    || recipeReady
-                    || (!suppressJumpUntilLaunch
-                        && (dy <= TargetAboveJumpThreshold
-                            || IsApproachingCliff(player, level, team, moveDir)
-                            || WouldHitWall(player, level, team, moveDir)))))
+                    && (recipeReady
+                        || (!suppressJumpUntilLaunch
+                            && (MathF.Abs(dx) <= JumpTriggerDistance
+                                || dy <= TargetAboveJumpThreshold
+                                || dy >= -TargetAboveJumpThreshold
+                                || IsApproachingCliff(player, level, team, moveDir)
+                                || WouldHitWall(player, level, team, moveDir)))))
                 {
                     output.Jump = true;
                 }
@@ -985,7 +1238,7 @@ public sealed class SteeringMachine
             default:
                 output.MoveDirection = moveDir;
                 var jumpableObstacleAhead = IsJumpableObstacleAhead(player, level, team, moveDir);
-                if (assistSemanticWalkClimb && edgeTicks >= 2)
+                if (assistSemanticWalkClimb && edgeTicks >= 0)
                 {
                     output.Jump = true;
                 }
@@ -1013,15 +1266,37 @@ public sealed class SteeringMachine
     private static void SteerAirborne(
         PlayerEntity player,
         NavEdgeKind edgeKind,
+        NavEdgeCompletion completion,
         float dx,
         float dy,
+        bool isOg2Contact,
+        float probeMoveDirectionX,
         ref SteeringOutput output)
     {
-        output.MoveDirection = GetMoveDirection(dx);
+        output.MoveDirection = isOg2Contact && probeMoveDirectionX != 0f
+            ? MathF.Sign(probeMoveDirectionX)
+            : GetMoveDirection(dx);
 
-        if (edgeKind == NavEdgeKind.Jump
+        // Airborne movement keeps residual horizontal momentum. Once a
+        // measured jump is inside its completion approach band, counter-steer
+        // that momentum instead of continuing to accelerate through the
+        // landing window. This is especially important for movement profiles
+        // whose live entry speed differs from the isolated OG2 contact probe.
+        if (!isOg2Contact
+            && edgeKind == NavEdgeKind.Jump
+            && completion.HasWindow
+            && player.HorizontalSpeed != 0f
+            && (output.MoveDirection == 0f
+                || MathF.Sign(player.HorizontalSpeed) == output.MoveDirection)
+            && MathF.Abs(dx) <= MathF.Max(48f, MathF.Abs(player.HorizontalSpeed) * 0.45f))
+        {
+            output.MoveDirection = -MathF.Sign(player.HorizontalSpeed);
+        }
+
+        if ((edgeKind == NavEdgeKind.Jump
+                || edgeKind == NavEdgeKind.Walk && completion.HasWindow)
             && player.RemainingAirJumps > 0
-            && dy < -24f
+            && dy < -8f
             && player.VerticalSpeed > 0f)
         {
             output.Jump = true;
@@ -1236,6 +1511,22 @@ public sealed class SteeringMachine
         recipe.HasRecipe
         && player.HorizontalSpeed >= recipe.LaunchMinHorizontalSpeed
         && player.HorizontalSpeed <= recipe.LaunchMaxHorizontalSpeed;
+
+    private static bool IsNearCertifiedLaunchWindow(
+        PlayerEntity player,
+        NavEdgeLaunchRecipe recipe,
+        float travelDirection)
+    {
+        if (!recipe.HasRecipe || travelDirection == 0f)
+        {
+            return false;
+        }
+
+        const float recoveryBand = 24f;
+        return travelDirection < 0f
+            ? player.X > recipe.LaunchMaxX && player.X - recipe.LaunchMaxX <= recoveryBand
+            : player.X < recipe.LaunchMinX && recipe.LaunchMinX - player.X <= recoveryBand;
+    }
 
     private static float ResolveCertifiedRunupSpeed(int jumpTriggerTick) =>
         jumpTriggerTick <= 3 ? 55f : MinimumDelayedJumpRunupSpeed;

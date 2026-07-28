@@ -56,6 +56,8 @@ sealed class ServerLaunchOptions
     public string? WebSocketCertificatePath { get; private init; }
     public string? WebSocketCertificatePassword { get; private init; }
     public string? PublicWebSocketUrl { get; private init; }
+    public int QuicPort { get; private init; }
+    public string? PublicQuicUrl { get; private init; }
     public SnapshotBudgetMode SnapshotBudgetMode { get; private init; } = SnapshotBudgetMode.GameplayCriticalUntrimmed;
 
     public static ServerLaunchOptions Load(string[] args)
@@ -127,6 +129,13 @@ sealed class ServerLaunchOptions
         string? webSocketCertificatePath = null;
         string? webSocketCertificatePassword = null;
         string? publicWebSocketUrl = Environment.GetEnvironmentVariable("OPENGARRISON_PUBLIC_WEBSOCKET_URL");
+        string? publicQuicUrl = Environment.GetEnvironmentVariable("OPENGARRISON_PUBLIC_QUIC_URL");
+        var quicPort = 0;
+        if (int.TryParse(Environment.GetEnvironmentVariable("OPENGARRISON_QUIC_PORT"), out var environmentQuicPort)
+            && environmentQuicPort is > 0 and <= 65535)
+        {
+            quicPort = environmentQuicPort;
+        }
         var snapshotBudgetMode = SnapshotBudgetModeParser.Parse(
             Environment.GetEnvironmentVariable("OPENGARRISON_SNAPSHOT_BUDGET_MODE"),
             settings.SnapshotBudgetMode);
@@ -565,6 +574,29 @@ sealed class ServerLaunchOptions
                 continue;
             }
 
+            if ((string.Equals(arg, "--quic-port", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(arg, "--quic64-port", StringComparison.OrdinalIgnoreCase))
+                && index + 1 < args.Length)
+            {
+                if (int.TryParse(args[index + 1], out var parsedQuicPort) && parsedQuicPort is > 0 and <= 65535)
+                {
+                    quicPort = parsedQuicPort;
+                }
+
+                index += 1;
+                continue;
+            }
+
+            if ((string.Equals(arg, "--public-quic-url", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(arg, "--quic-url", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(arg, "--quic64-url", StringComparison.OrdinalIgnoreCase))
+                && index + 1 < args.Length)
+            {
+                publicQuicUrl = NormalizePublicQuicUrl(args[index + 1]);
+                index += 1;
+                continue;
+            }
+
             if (index == 0 && int.TryParse(arg, out var firstPort))
             {
                 port = firstPort;
@@ -633,6 +665,8 @@ sealed class ServerLaunchOptions
             WebSocketCertificatePath = webSocketCertificatePath,
             WebSocketCertificatePassword = webSocketCertificatePassword,
             PublicWebSocketUrl = NormalizePublicWebSocketUrl(publicWebSocketUrl),
+            QuicPort = quicPort,
+            PublicQuicUrl = NormalizePublicQuicUrl(publicQuicUrl),
             SnapshotBudgetMode = snapshotBudgetMode,
         };
     }
@@ -646,6 +680,23 @@ sealed class ServerLaunchOptions
 
         if (!Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
             || (uri.Scheme != "ws" && uri.Scheme != "wss")
+            || string.IsNullOrWhiteSpace(uri.Host))
+        {
+            return null;
+        }
+
+        return uri.ToString();
+    }
+
+    private static string? NormalizePublicQuicUrl(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
+            || !string.Equals(uri.Scheme, "quic64", StringComparison.OrdinalIgnoreCase)
             || string.IsNullOrWhiteSpace(uri.Host))
         {
             return null;

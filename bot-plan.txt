@@ -1,0 +1,672 @@
+Completed the codebase orientation and blueprinting pass. The implementation is now underway, but the new runtime graph is not yet validated for production use. I ignored the root `Modern` folder entirely; `Tools/NavAuthoringLegacy` was inspected only as historical evidence.
+
+## Current implementation status and validation gate
+
+The current alpha implementation is a prototype, not an accepted navigation system.
+It can build a compact OG2-derived graph and report abstract graph paths, but an
+abstract `spawn -> objective` path is not evidence that a bot can physically
+execute the route. The first alpha runtime trial did not complete the outbound
+Truefort trip to the enemy intel, so the graph must currently be treated as
+untrusted.
+
+This distinction is now an explicit development gate:
+
+```text
+Graph reports a path
+    -> trace the exact edge sequence
+    -> validate each edge against the OG2 movement model
+    -> execute the same edge sequence in the runtime
+    -> classify the failure as graph or executor
+```
+
+Debugging order is mandatory:
+
+1. Establish a deterministic Truefort spawn-to-enemy-intel route. The outbound
+   route is the descent over the stair platforms; the carrier return is a
+   separate ascent route and must not be used as the first outbound diagnosis.
+2. For every generated edge on that route, record its source/target coordinates,
+   link kind, completion recipe, support/clearance assumptions, and runtime
+   result.
+3. If the OG2 movement validator rejects an edge, the graph generator is wrong
+   or overly permissive. Fix the graph before tuning steering.
+4. If the movement validator accepts an edge but runtime execution fails, fix
+   the route executor or steering contract without weakening graph validity.
+5. Only after the outbound capture is physically proven should carrier return,
+   other objectives, other classes, and the stock-map matrix be expanded.
+
+The current hard acceptance gate is therefore:
+
+- no graph-level reachability result counts as a pass by itself;
+- no generated edge may rely on an unverified broad heuristic that the runtime
+  cannot execute;
+- Truefort outbound capture must pass before return-path work is considered
+  complete;
+- the full class/map matrix remains blocked until both directions pass on the
+  focused Truefort test.
+
+Known current status: Core and the diagnostic tool compile, the alpha graph and
+diagnostic harness exist, but Truefort outbound runtime capture is not yet
+passing and the requested stock-map/class matrix has not been accepted.
+
+## Immediate pivot: authoritative contact graph
+
+The heuristic alpha graph is not a valid navigation graph and is no longer a
+candidate for incremental tuning. In particular, the previous stair/step
+profile admitted long links that looked plausible in geometry but could not be
+executed by OG2. The graph must not be made to appear reachable by adding broad
+relays, objective-specific exceptions, or carrier-only capabilities.
+
+The next implementation milestone is an authoritative local-contact graph:
+
+1. Extract a shared geometry snapshot and topology-change surface intervals.
+2. Place only local contact/portal samples at surface boundaries, step changes,
+   corridor mouths, objective approaches, and spawn approaches.
+3. Run bounded OG2 movement sweeps from those samples in both directions. A
+   contact is emitted only when the real `PlayerEntity` movement model reaches
+   and settles on the recorded destination surface.
+4. Store the resulting directional contacts as geometry capabilities. They are
+   never gated by carrying intel, objective role, or carrier state. A non-carrier
+   must be able to use the same ascent/descent contact when its class can move
+   through it.
+5. Collapse equivalent contacts across representative movement profiles into
+   one shared topology with conservative physical capability metadata.
+6. Convert the validated contact sequence into the runtime graph and execute
+   that exact sequence in the bot harness.
+
+The first hard proof is Truefort spawn -> enemy intel. This is the outbound
+descent over the stair platforms. The return ascent is a separate proof after
+the outbound route passes; it is not carrier-only and must also be usable by a
+bot chasing, defending, or otherwise entering the corridor without intel.
+
+Until this contact graph proves that route edge-by-edge, the existing alpha
+graph remains diagnostic-only, steering/objective behavior remains frozen, and
+no stock-map/class matrix result may be reported as a navigation pass.
+
+### Contact-first implementation checkpoint
+
+The first contact-first implementation is available behind
+`BOTBRAIN_NAV_ALPHA_CONTACT_GRAPH=1`. On Truefort with the Scout representative
+it currently builds a substantially smaller graph than the heuristic builder
+and produces reachable paths in both directions. The runtime reaches enemy
+intel, picks it up, and executes the long return stair ascent; it still fails
+later in the lower-left transition chain, so this is evidence of progress, not
+acceptance. The graph remains opt-in until the exact outbound and return route
+passes in the runtime.
+
+The current contact build is also too slow for the final runtime target when
+all representative profiles are enabled. The next optimization is spatially
+bounded contact seeding and reusable sweep state—not removal of OG2 movement
+validation and not a return to broad pairwise heuristics.
+
+## What the current project contains
+
+The relevant runtime is centered in:
+
+- [BotBrainController.cs](<C:/Users/level/Desktop/OpenGarrison Active/OpenGarrison-Fork/Core/BotBrain/BotBrainController.cs:267>)
+- [NavGraph.cs](<C:/Users/level/Desktop/OpenGarrison Active/OpenGarrison-Fork/Core/BotBrain/Navigation/NavGraph.cs:35>)
+- [BotNavigationAssetBuilder.cs](<C:/Users/level/Desktop/OpenGarrison Active/OpenGarrison-Fork/Core/BotBrain/Navigation/BotNavigationAssetBuilder.cs:812>)
+- [BotBrainMovementProbe.cs](<C:/Users/level/Desktop/OpenGarrison Active/OpenGarrison-Fork/Core/BotBrain/Navigation/BotBrainMovementProbe.cs:26>)
+- [ObjectiveEvaluator.cs](<C:/Users/level/Desktop/OpenGarrison Active/OpenGarrison-Fork/Core/BotBrain/Objectives/ObjectiveEvaluator.cs:16>)
+- [BotBrain.Tools/Program.cs](<C:/Users/level/Desktop/OpenGarrison Active/OpenGarrison-Fork/BotBrain.Tools/Program.cs:166>)
+
+The simulation authority is correctly located in `Core`: `SimpleLevel`, `LevelSolid`, `RoomObjectMarker`, `PlayerEntity`, `LegacyMovementModel`, `SimulationWorld`, control-point systems, intel systems, gates, dropdowns, teleports, jump pads, and moving platforms.
+
+The project also has a substantial diagnostic/test surface:
+
+- navigation cost tests
+- no-graph fallback tests
+- carrier performance tests
+- movement regression tests
+- traversal lab tests
+- class behavior/combat/medic/spy tests
+
+The current checkout is heavily modified in unrelated areas. I preserved all of it.
+
+## Diagnosis of the existing navigation stack
+
+The current system is not one navigation system. It is several competing systems:
+
+```mermaid
+flowchart TD
+    O[ObjectiveEvaluator] --> B[BotBrainController]
+    B --> G[Cached NavGraph]
+    B --> S[SteeringMachine]
+    B --> D[Direct Seek]
+    B --> L[Local Motion]
+    B --> P[Primitive Direct Drive]
+    B --> T[Objective Tapes]
+    B --> V[Verified Proof Routes]
+    B --> C[Map-Specific Repairs]
+```
+
+Important findings:
+
+1. The live controller calls `TryLoadCachedGraph`; it does not normally call the available `LoadGraphOrBuild` path. Missing or invalid graphs therefore enter `ThinkWithoutNavigationGraph`, where direct seek and local motion take over.
+
+2. The current asset builder is already a large, sophisticated system, but it is doing too much:
+   - surface extraction
+   - portal generation
+   - pairwise candidate discovery
+   - runtime movement simulation
+   - class/team certification
+   - map-specific repairs
+   - authored corridors
+   - proof-route integration
+   - objective anchoring
+
+3. Existing shipped assets demonstrate the cost problem:
+
+   - roughly 129–1,000 nodes per map
+   - roughly 378–9,548 edges
+   - up to 42,872 node-pair checks
+   - up to 21,128 movement-probe attempts
+   - assets ranging from hundreds of KB to over 7 MB
+
+   Some maps still report spawn/objective reachability failures despite this effort, notably Destroy, Dirtbowl, Egypt, and Gallery.
+
+4. `NavGraph` performs brute-force nearest-node searches and allocates fresh arrays and priority queues for reachable-node and path queries.
+
+5. `BotBrainMovementProbe` simulates `PlayerEntity` instances for many candidate edges, across multiple profiles, teams, launch timings, and variants. This is fundamentally too expensive for a runtime-first generator.
+
+6. The graph is not fully class/team agnostic today. Its topology is shared, but edge metadata contains class/team masks produced by probing selected classes—primarily Heavy, Soldier, and Scout—and runtime filtering depends on those masks.
+
+7. Movement ownership is fragmented. `SteeringMachine`, objective tapes, proof routes, direct seek, local-motion recovery, primitive drive, and map-specific methods can all override one another.
+
+8. `ObjectiveEvaluator` is comparatively clean and should remain. Combat, targeting, medic behavior, class behavior, and objective selection should not be rewritten as part of navigation.
+
+The existing tests confirm this architecture. For example, [BotBrainNoGraphFallbackTests.cs](<C:/Users/level/Desktop/OpenGarrison Active/OpenGarrison-Fork/Tests/OpenGarrison.PluginHost.Tests/BotBrainNoGraphFallbackTests.cs:8>) intentionally validates direct-seek behavior when navigation is missing, while [BotBrainNavigationCostTests.cs](<C:/Users/level/Desktop/OpenGarrison Active/OpenGarrison-Fork/Tests/OpenGarrison.PluginHost.Tests/BotBrainNavigationCostTests.cs:9>) encodes several map-specific routing penalties.
+
+## Recommended architecture: an OG2-native surface/portal graph
+
+The replacement should not be a rebuilt version of the old graph. It should be a smaller, runtime-generated graph derived directly from the current OG2 simulation model.
+
+The key design is:
+
+- static geometry topology
+- dynamic traversal policies
+- objective goal regions
+- compact transition links
+- deterministic route execution
+
+```mermaid
+flowchart TD
+    L[SimpleLevel + OG2 collision/object metadata] --> S[Geometry Snapshot]
+    S --> X[Walkable Surface Extraction]
+    X --> P[Portal and Anchor Extraction]
+    P --> E[Analytic Link Generation]
+    E --> A[Objective Goal Regions]
+    A --> G[Immutable Og2NavGraph]
+
+    G --> Q[Nav Query Context]
+    Q --> R[A* Route]
+    R --> F[Route Executor]
+    F --> I[PlayerInputSnapshot]
+
+    D[Dynamic gates/objective state] --> Q
+    C[Class movement profile] --> Q
+    T[Team/carrying-intel policy] --> Q
+```
+
+### 1. Immutable geometry snapshot
+
+Create a compact `Og2NavigationGeometry` snapshot from `SimpleLevel`.
+
+It should contain:
+
+- world bounds and level fingerprint
+- static solid rectangles
+- walk-blocking room objects
+- dropdown platforms
+- team gates and intel gates
+- directional walls and barriers
+- teleports, catapults, jump pads, and moving-platform metadata
+- spawn regions
+- intel base regions
+- control-point and capture-zone regions
+- generator and arena-objective regions
+
+The snapshot must be independent of `PlayerEntity` instances and safe to build once per level.
+
+### 2. Surface regions instead of dense waypoint chains
+
+A surface should be a horizontal walkable interval:
+
+```text
+Surface:
+    leftX
+    rightX
+    topY
+    clearance
+    flags
+```
+
+Generate surfaces by taking exposed solid top edges and subtracting intervals blocked by other geometry. Merge adjacent coplanar intervals.
+
+Do not create a waypoint every 80 pixels. A long flat floor should be one surface region with implicit movement along its X interval.
+
+This removes most unnecessary nodes and makes movement naturally smooth.
+
+### 3. Portals and anchors
+
+Create portals only where topology changes:
+
+- surface endpoints
+- step transitions
+- jump launch/landing bands
+- drop/fall edges
+- dropdown transitions
+- special-object entry/exit points
+- narrow corridor entrances
+- objective approach points
+
+Objectives should not be represented as one raw center node. They should be represented as goal regions with multiple valid standing slots.
+
+For a control point, the goal region should derive from the actual capture zone, because capture logic uses the zone geometry rather than merely the control-point marker center. A goal region can contain:
+
+- center slot
+- left/right slots
+- upper/lower slots where geometry permits
+- approach slots just outside the capture area
+
+The resolver chooses the closest reachable slot, not the mathematically nearest point.
+
+### 4. Class/team-agnostic links
+
+The graph topology must never be duplicated per class or team.
+
+A link stores physical requirements, not class IDs:
+
+```text
+Link:
+    fromPortal
+    toPortal
+    kind
+    baseCost
+    horizontalDistance
+    verticalDelta
+    requiredClearance
+    requiredJumpHeight
+    requiredFallCapacity
+    executionRecipe
+    dynamicPolicyReference
+```
+
+At query time, a `NavTraversalContext` supplies:
+
+- player class movement profile
+- team
+- carrying-intel state
+- current dynamic gate state
+- objective mode/state
+
+This preserves one graph while allowing the runtime to reject links a specific agent cannot use.
+
+Team gates, barriers, and intel gates should be policy checks, not separate graphs.
+
+### 5. Contact-first link generation
+
+Analytic geometry is a candidate prefilter only. It may bound the local sweep
+neighborhood and reject impossible clearance/range pairs, but it cannot certify
+that a link is traversable. Every emitted step, jump, fall, and dropdown link
+must come from a bounded OG2 movement sweep that records the actual contact and
+settled destination.
+
+The build pipeline is:
+
+1. snapshot level geometry
+2. extract exposed walkable intervals
+3. merge/prune surfaces
+4. create topology-change contacts and objective/spawn approach samples
+5. query only spatially adjacent contact candidates
+6. run short directional OG2 sweeps from each candidate in both directions
+7. emit only contacts with a settled destination and an executable recipe
+8. validate connected components and objective reachability
+9. publish one immutable graph
+
+This deliberately spends bounded simulation time on local contacts instead of
+spending unbounded time on pairwise heuristic edges. Runtime probing is not a
+fallback after generation; it is the authority for ambiguous traversal.
+
+## Runtime query and movement model
+
+The new runtime should provide:
+
+```text
+Og2NavWorld
+    Immutable graph
+    Spatial attachment index
+    Dynamic policy/version state
+    Reusable pathfinding scratch buffers
+
+NavQueryContext
+    Class profile
+    Team
+    Carrying intel
+    Current objective state
+
+NavRoute
+    Surface corridors
+    Transition links
+    Goal region/slot
+
+NavRouteExecutor
+    Walk corridor
+    Jump recipe
+    Drop recipe
+    Special transition recipe
+```
+
+Key runtime behavior:
+
+- attach the bot to the nearest valid surface interval using a spatial index
+- attach the objective to a reachable goal slot
+- run A* over portals/surface regions
+- move along a surface corridor implicitly
+- execute transitions using explicit link recipes
+- replan only on route invalidation, failed transition, major goal change, or periodic health interval
+- use reusable arrays/queues so steady-state navigation allocates nothing
+
+`FindNearestReachableNode` should disappear. The route query should directly search for the best reachable goal slot using the current context.
+
+## Dynamic state handling
+
+The static graph should not be rebuilt when:
+
+- a control point changes ownership
+- a player carries intel
+- a setup gate expires
+- a team gate changes accessibility
+- a forward-spawn state changes
+
+Instead, these become dynamic policy checks attached to links.
+
+The existing semantics in `SimpleLevel.GetBlockingTeamGates`, `PlayerEntity.CanOccupy`, control-point capture logic, and intel logic should be centralized behind a navigation-access policy so the graph and simulation agree.
+
+Dynamic state should have a small version counter. Routes cache the version they were planned against and invalidate when relevant policy changes.
+
+## Objective integration without changing behavior
+
+Keep `ObjectiveEvaluator`, target selection, combat decisions, medic logic, spy behavior, and class behavior unchanged.
+
+Only replace the travel seam:
+
+```text
+Existing behavior logic
+    -> existing objective/target decision
+    -> navigation goal resolver
+    -> new graph route
+    -> new route executor
+```
+
+The first integration can continue accepting the evaluator’s `(X, Y)` output, with a resolver that recognizes nearby control points, intel bases, generators, and capture zones. Later, the evaluator can emit a richer goal descriptor without changing its decision policy.
+
+This removes the need for:
+
+- objective tapes
+- verified proof graphs
+- authored corridors
+- CTF-specific return graph hacks
+- map-specific direct-seek repairs
+- per-objective direct-drive branches
+
+Direct movement should remain only as a short-lived emergency recovery mechanism when a route transition fails—not as a second navigation system.
+
+## Performance targets
+
+These should become acceptance criteria after benchmarking:
+
+- one graph build per `SimpleLevel`, shared by all bots
+- no full `PlayerEntity.Advance` loop for normal graph construction
+- no O(N²) portal pairing
+- build target: under 100 ms for typical stock maps and under 250 ms for the largest stock maps
+- steady-state path query: under 0.25 ms per bot, with zero allocations
+- nearest surface/goal attachment through the spatial index, not full graph scans
+- route recomputation only on invalidation or meaningful goal changes
+- materially fewer nodes/links than current assets, with no fixed waypoint spacing
+
+The graph should be built synchronously during level setup or match preflight. Background building can be added later, but it should not be required for correctness.
+
+## Migration plan
+
+### Phase 0: establish the contract
+
+Add instrumentation for:
+
+- graph build duration
+- path query duration
+- allocations
+- route failures
+- transition failures
+- stuck duration
+- objective reachability
+- capture/pickup/return/score completion
+
+Preserve existing behavior tests as regression tests.
+
+### Phase 1: build the new graph offline/runtime-shared
+
+Implement the geometry snapshot, surface extraction, portal graph, objective slots, and diagnostics in `BotBrain.Tools`.
+
+Reuse the existing map-loading and traversal-lab infrastructure, but do not reuse the old graph builder as production code.
+
+### Phase 2: integrate behind a feature switch
+
+Add the new navigation service beside `NavGraph`.
+
+Run both systems against the same maps and compare:
+
+- graph size
+- build time
+- route length
+- route completion
+- stuck/repath counts
+- objective reachability
+
+### Phase 3: replace movement ownership
+
+Make the new route executor the sole owner of navigation movement.
+
+Keep combat steering and objective selection intact. Reduce direct seek/local motion to bounded transition recovery.
+
+### Phase 4: retire legacy navigation layers
+
+After map-matrix validation, remove live dependencies on:
+
+- `BotNavigationAssetBuilder`
+- `BotBrainMovementProbe` as a general edge generator
+- objective tapes
+- proof graphs
+- authored corridors
+- map-specific navigation repairs
+- graphless objective travel
+
+The legacy assets may remain temporarily for comparison, but should no longer be required to start a match.
+
+## Validation matrix
+
+The replacement should be accepted only after deterministic validation across every shipped map and area:
+
+- all spawn regions attach to the graph
+- every objective has at least one reachable goal slot from each team’s spawn component
+- control-point zones are enterable and capturable
+- intel can be picked up, returned, and scored
+- generators and arena objectives are reachable
+- dropdowns, stairs, jumps, falls, gates, and narrow corridors work
+- all classes can route where their physical profile permits
+- both teams receive the same topology
+- carrying intel changes policies without rebuilding topology
+- no route requires an authored tape or map-specific repair
+
+The targeted navigation/traversal tests did not complete within the two-minute diagnostic window in this dirty checkout, so I am not treating that run as a pass or failure.
+
+The architectural decision is clear: build one compact, immutable, OG2-native surface/portal graph per level; keep class/team differences in runtime link eligibility and policies; keep objectives and combat behavior unchanged; and make one route executor the only normal source of bot traversal.
+
+## 2026-07-27 validation correction and active checkpoint
+
+The earlier checkpoint above is stale in one important respect: the contact-first
+graph has now proven the focused Truefort outbound descent and carrier return for
+the exact Pyro movement signature on both teams (2/2). Exact Spy and Quote
+contacts also pass both teams (4/4), and exact Soldier and Heavy contacts pass
+both teams (4/4). This is runtime capture evidence, not merely abstract graph
+reachability.
+
+The graph is still not accepted or default. A Heavy-only capability envelope
+passed 10/16 ordinary-class Truefort trials; the failures were caused by
+movement-capability mismatches, not evidence that the route itself is globally
+invalid. The exact-signature runs corrected those failures for Spy, Quote,
+Soldier, and Heavy. The remaining acceptance work is to validate the other
+movement signatures, resolve the intended test contract for support/defensive
+classes without changing their production behavior, reduce the current contact
+sweep build cost, and run the requested stock-map matrix.
+
+The current graph contains two deliberate state distinctions that must remain:
+
+- every contact is certified from the real OG2 movement model for a movement
+  signature; class IDs are only a runtime capability mask;
+- carrying-intel and non-carrying contacts are separate policy variants, and
+  same-surface walk spans are checked for carrier clearance so a team gate that
+  blocks the carrier cannot be crossed by a generic walk edge.
+
+The current alpha graph is still opt-in through
+`BOTBRAIN_NAV_ALPHA_CONTACT_GRAPH=1`. Do not make it default until the full
+map/class capture gate passes. The current build cost is roughly 130-145 seconds
+for two representative movement signatures on Truefort, so generator
+optimization is now a first-class task; removing OG2 validation is not an
+acceptable optimization.
+
+## 2026-07-27 composability checkpoint
+
+The immediate bottleneck is now identified: individual contact edges can be
+OG2-valid in isolation while the A* route assembled from them is not
+state-composable. A live carrier can enter the next jump with residual
+horizontal momentum from the preceding edge; the current edge contract does
+not represent that incoming motion state. On Truefort the shared graph chose
+the `158 -> 361 -> 436 -> 121` carrier route and repeatedly re-entered the
+`361 -> 436` jump, while the Heavy-only graph chose a different validated
+contact sequence. This is a graph/runtime contract failure, not justification
+for weakening launch validation or restricting ascent edges to carriers.
+
+The next implementation step is state-composable contacts: retain OG2
+movement proof, record the source/launch state needed by each transition, and
+make route selection reject or penalize incompatible predecessor-to-edge
+transitions. A compact velocity/grounded state bucket or explicit setup
+contact is preferable to ad-hoc speed slack. Full capture by every class on
+all requested stock maps remains the acceptance gate before defaulting alpha.
+
+## 2026-07-27 corridor evidence and rejected experiment
+
+The latest Truefort evidence narrows the composability failure further. Soldier
+and Engineer now pass both teams (4/4) after the measured positive-trigger
+launch correction. Quote still fails at the stair-pocket transition around
+x=2854: the bot is grounded against a low-clearance step edge, while the
+shared graph has the neighboring platform nodes but no stable node representing
+that launch pocket. Reattaching to a distant platform node is therefore
+incorrect, and the current nearest-node API needed an alpha-only lower
+attachment bound plus stale-first-waypoint invalidation.
+
+An attempted fix that materialized raw solid-edge pockets was rejected. It grew
+Truefort from 93 surfaces to 782 and degraded routing, proving that raw solid
+edges are not a suitable node source. The correct next step is a bounded
+OG2-probed contact/setup state for short-lived ledge launch pockets, with
+class-specific capability validation and explicit predecessor compatibility;
+the graph must not be expanded by indiscriminate geometry tessellation.
+
+The alpha graph remains opt-in and unaccepted. The latest build compiles with
+zero errors; no default switch or full stock-map acceptance claim is justified
+until the pocket/setup state and remaining class routes pass the matrix.
+
+## 2026-07-28 graph gate and roster checkpoint
+
+The validation work has now been split into two explicit gates:
+
+- The graph-only gate validates finite nodes, valid edge metadata, objective
+  attachment, class/team filters, carrying-intel variants, and filtered paths
+  from every spawn to the required CTF objectives. Truefort passes this gate
+  for the full roster: 200/200 filtered routes, 568 nodes, zero structural
+  issues. This proves abstract topology support only; it is not runtime
+  capture acceptance.
+- The runtime capture gate executes actual PlayerEntity movement. Quote now
+  completes a full Truefort capture after contact edges honor their measured
+  airborne travel direction. The trace reaches enemy intel, traverses the
+  reverse stair chain, clears 205 -> 202, and captures.
+
+The first full Truefort roster runtime matrix is not green: 9/20 trials passed
+(both teams, ten classes). Red Scout/Pyro/Heavy and Blue Scout/Soldier/Heavy/
+Demoman/Spy/Sniper/Quote still fail. The failures are spread across several
+OG2 contacts and setup/landing transitions, so the graph is not yet validated
+for the whole roster and alpha must remain opt-in/default-off.
+
+The current concrete contract is that an isolated OG2 contact recipe is not
+enough: the executor must preserve the probe's airborne direction and the
+graph must eventually encode compatible incoming grounded/velocity state for
+successive contacts. A blanket trigger-tick fallback was tested and reverted
+because it regressed the first reverse stair edge. A contact-specific airborne
+direction fix is retained because it matches the OG2 probe and made Quote's
+205 -> 202 transition pass. The rejected launch-node materialization and tight
+handoff-radius experiments remain reverted.
+
+Next acceptance work is graph/runtime composition validation and the remaining
+roster failures, followed by the eight-map matrix requested in the task. No
+default switch is justified until those runtime gates pass.
+
+## 2026-07-28 runtime-state follow-up
+
+The broad contact-source gate was tested and rejected. Requiring a live bot to
+be within a small fixed position tolerance of every contact source regressed
+Heavy outbound traversal before intel, so it is not a valid general solution.
+
+The OG2 contact generator itself was rechecked on the Heavy carrier transition
+represented by graph nodes `239 -> 207` (surface ids `80 -> 70`). The carrying
+probe records an actual carrying state, launch near `(4428,822)`, and landing
+near `(4606,756)` on the target surface. The raw movement diagnostic was also
+corrected to match the generator's setup and documented internally: generator
+sweep ticks are zero-based, while the diagnostic's `--jump-tick` is one-based.
+The equivalent raw probe reaches the same target surface.
+
+The remaining failure is runtime route-state composition. A route can enter a
+grounded-only contact while still airborne from a preceding fall, or enter a
+valid contact from the predecessor completion corridor with a different
+run-up distance. The executor now uses the edge's measured launch window to
+derive an entry-position run-up delay and refuses to hand off to a grounded
+OG2 contact while airborne. Those changes are generic graph-metadata rules,
+not carrier-only or class-specific restrictions, but the full Truefort Heavy
+capture is still not green, so they are not acceptance evidence yet.
+
+Current status remains: graph-only topology is structurally valid for the
+full Truefort roster, but runtime graph validity is not proven. The next
+implementation target is an explicit, bounded contact entry-state contract
+(grounded/launch-direction/run-up state) that is represented in route
+selection or contact setup, followed by focused Truefort composition tests
+before any wider stock-map matrix or alpha default switch.
+
+## 2026-07-28 regression-report correction
+
+The earlier observation that Heavy reached intel and then failed on the return
+route is historical evidence from a pre-subsequent-change run. It was not
+revalidated after later graph recipe, steering, and runtime-contact changes.
+The latest focused Red Heavy runs instead fail outbound before pickup. Therefore
+the earlier result must not be treated as maintained behavior, and the prior
+`15/20` Truefort runtime count must not be reported as the current acceptance
+state.
+
+Going forward, every navigation change needs a fixed smoke/regression run before
+its result is used: at minimum the affected class/team/map route plus the full
+Truefort matrix before claiming a maintained pass count. Historical passes and
+structural graph-route passes remain useful diagnostics, but are not runtime
+acceptance evidence after an unregressed change.
+
+## 2026-07-28 post-change Truefort matrix
+
+The current source was rebuilt and the complete Truefort alpha runtime matrix
+was rerun: 10 classes x 2 teams, 20 capture trials, 9000 ticks per trial.
+The result was `16/20` passed and `4/20` failed in 407.9 seconds.
+
+Passed: Red Scout, Pyro, Demoman, Medic, Engineer, Spy, Sniper, Quote;
+Blue Scout, Pyro, Soldier, Heavy, Medic, Engineer, Spy, Quote.
+
+Failed: Red Soldier (carrying, stalled on the return route), Red Heavy
+(stalled outbound before pickup), Blue Demoman (carrying, fell/stalled on the
+return route), and Blue Sniper (carrying, lost its route). The aggregate is one
+better than the historical `15/20`, and Blue Heavy now passes, but the failure
+set changed. Because the earlier per-trial baseline was not preserved, this
+result does not prove that no individual class/team regressed.

@@ -26,6 +26,7 @@ public partial class Game1
     private bool _serverLocalPredictionEnabled;
     private PlayerInputSnapshot _latestPredictedLocalInput;
     private PlayerInputSnapshot _previousPredictedLocalInput;
+    private ulong _lastProtocol64PredictionStateSequence;
 
     private void RecordPredictedInput(
         uint sequence,
@@ -124,6 +125,31 @@ public partial class Game1
         ClearLocalPredictionState(clearPendingInputs: true);
         ClearPendingPredictedInputEdges();
         _latchedJumpPressSequence = 0;
+        _lastProtocol64PredictionStateSequence = 0;
+    }
+
+    private void ReconcileProtocol64PredictionState()
+    {
+        if (!_networkClient.Protocol64ModeEnabled)
+        {
+            _lastProtocol64PredictionStateSequence = 0;
+            return;
+        }
+
+        var stateSequence = _networkClient.Protocol64State.PlayerStateSequence;
+        if (stateSequence == 0 || stateSequence == _lastProtocol64PredictionStateSequence)
+        {
+            return;
+        }
+
+        if (!_networkClient.TryGetProtocol64PlayerState(_networkClient.LocalPlayerSlot, out var localPlayer))
+        {
+            return;
+        }
+
+        _lastProtocol64PredictionStateSequence = stateSequence;
+        _networkClient.AcknowledgeProcessedInput(localPlayer.LastProcessedInputSequence);
+        ReconcileLocalPrediction(localPlayer.LastProcessedInputSequence);
     }
 
     private void RemoveAcknowledgedPredictedInputs(uint lastProcessedInputSequence)

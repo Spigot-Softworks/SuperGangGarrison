@@ -143,7 +143,7 @@ public partial class Game1
         public bool TryParseManualConnectTarget(out NetworkEndpoint endpoint)
         {
             endpoint = default;
-            if (TryParseManualConnectWebSocketEndpoint(out endpoint))
+            if (TryParseManualConnectUriEndpoint(out endpoint))
             {
                 return true;
             }
@@ -169,7 +169,8 @@ public partial class Game1
             }
 
             if (OperatingSystem.IsBrowser()
-                && TryParseExplicitWebSocketUri(host, out var explicitWebSocketUri))
+                && TryParseExplicitNetworkUri(host, out var explicitWebSocketUri)
+                && (explicitWebSocketUri.Scheme == "ws" || explicitWebSocketUri.Scheme == "wss"))
             {
                 host = explicitWebSocketUri.ToString();
                 return true;
@@ -348,7 +349,7 @@ public partial class Game1
             }
         }
 
-        private bool TryParseManualConnectWebSocketEndpoint(out NetworkEndpoint endpoint)
+        private bool TryParseManualConnectUriEndpoint(out NetworkEndpoint endpoint)
         {
             return TryCreateManualConnectEndpoint(_game._connectHostBuffer, TryParseBrowserPort(_game._connectPortBuffer), out endpoint);
         }
@@ -362,10 +363,34 @@ public partial class Game1
                 return false;
             }
 
-            if (OperatingSystem.IsBrowser()
-                && TryParseExplicitWebSocketUri(host, out var explicitWebSocketUri))
+            if (TryParseExplicitNetworkUri(host, out var explicitUri))
             {
-                endpoint = new NetworkEndpoint(explicitWebSocketUri.Host, 0, 0, explicitWebSocketUri.ToString());
+                if (string.Equals(explicitUri.Scheme, "quic64", StringComparison.OrdinalIgnoreCase))
+                {
+                    var quicPort = explicitUri.IsDefaultPort ? port : explicitUri.Port;
+                    if (quicPort is <= 0 or > 65535)
+                    {
+                        return false;
+                    }
+
+                    var builder = new UriBuilder(explicitUri.Scheme, explicitUri.Host)
+                    {
+                        Port = quicPort,
+                        Path = string.Empty,
+                        Query = string.Empty,
+                        Fragment = string.Empty,
+                    };
+                    endpoint = new NetworkEndpoint(explicitUri.Host, 0, 0, QuicUrl: builder.Uri.ToString());
+                    return true;
+                }
+
+                if (OperatingSystem.IsBrowser())
+                {
+                    endpoint = new NetworkEndpoint(explicitUri.Host, 0, 0, explicitUri.ToString());
+                    return true;
+                }
+
+                endpoint = new NetworkEndpoint(explicitUri.Host, 0, 0, explicitUri.ToString());
                 return true;
             }
 
@@ -378,10 +403,14 @@ public partial class Game1
             return true;
         }
 
-        private static bool TryParseExplicitWebSocketUri(string value, out Uri uri)
+        private static bool TryParseExplicitNetworkUri(string value, out Uri uri)
         {
             if (Uri.TryCreate(value, UriKind.Absolute, out uri!)
-                && (uri.Scheme == "ws" || uri.Scheme == "wss")
+                && (uri.Scheme == "ws"
+                    || uri.Scheme == "wss"
+                    || uri.Scheme == "ws64"
+                    || uri.Scheme == "wss64"
+                    || uri.Scheme == "quic64")
                 && !string.IsNullOrWhiteSpace(uri.Host))
             {
                 return true;

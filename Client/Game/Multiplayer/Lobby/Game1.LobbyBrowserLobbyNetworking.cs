@@ -323,8 +323,12 @@ public partial class Game1
         var webSocketUrl = !string.IsNullOrWhiteSpace(incoming.WebSocketUrl)
             ? incoming.WebSocketUrl.Trim()
             : existing.WebSocketUrl;
+        var quicPort = incoming.QuicPort is > 0 and <= 65535 ? incoming.QuicPort : existing.QuicPort;
+        var quicUrl = !string.IsNullOrWhiteSpace(incoming.QuicUrl)
+            ? incoming.QuicUrl.Trim()
+            : existing.QuicUrl;
 
-        return new NetworkEndpoint(host, udpPort, webSocketPort, webSocketUrl);
+        return new NetworkEndpoint(host, udpPort, webSocketPort, webSocketUrl, quicPort, quicUrl);
     }
 
     private static string FormatLobbyDisplayName(string name, bool isPrivate)
