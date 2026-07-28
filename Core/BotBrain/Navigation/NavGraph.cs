@@ -16,19 +16,22 @@ public sealed class NavGraph
     private readonly int[] _spawnAdjacentTeamMasks;
     private readonly string? _levelName;
     private readonly GameModeKind? _mode;
+    private readonly bool _isOg2Alpha;
 
     public NavGraph(
         NavNode[] nodes,
         List<NavEdge>[] adjacency,
         string? levelName = null,
         GameModeKind? mode = null,
-        IReadOnlyList<NavSpawnAnchor>? spawnAnchors = null)
+        IReadOnlyList<NavSpawnAnchor>? spawnAnchors = null,
+        bool isOg2Alpha = false)
     {
         _nodes = nodes;
         _adjacency = adjacency;
         _spawnAdjacentTeamMasks = ResolveSpawnAdjacentTeamMasks(nodes, spawnAnchors);
         _levelName = levelName;
         _mode = mode;
+        _isOg2Alpha = isOg2Alpha;
     }
 
     public int NodeCount => _nodes.Length;
@@ -67,7 +70,11 @@ public sealed class NavGraph
         return bestIndex;
     }
 
-    public int FindNearestTraversalStartNode(float x, float y, float maxAboveDistance = float.PositiveInfinity)
+    public int FindNearestTraversalStartNode(
+        float x,
+        float y,
+        float maxAboveDistance = float.PositiveInfinity,
+        float maxBelowDistance = float.PositiveInfinity)
     {
         if (_nodes.Length == 0)
         {
@@ -79,6 +86,11 @@ public sealed class NavGraph
         for (var i = 0; i < _nodes.Length; i++)
         {
             if (_nodes[i].Y < y - maxAboveDistance)
+            {
+                continue;
+            }
+
+            if (_nodes[i].Y > y + maxBelowDistance)
             {
                 continue;
             }
@@ -99,9 +111,11 @@ public sealed class NavGraph
             }
         }
 
-        return bestIndex >= 0
-            ? bestIndex
-            : FindNearestTraversalStartNode(x, y);
+        return bestIndex >= 0 || float.IsPositiveInfinity(maxBelowDistance)
+            ? bestIndex >= 0
+                ? bestIndex
+                : FindNearestTraversalStartNode(x, y)
+            : -1;
     }
 
     public bool IsOnAcceptedCompletionSurface(float x, float y, NavEdgeCompletion completion)
@@ -204,7 +218,7 @@ public sealed class NavGraph
             for (var i = 0; i < edges.Length; i++)
             {
                 var edge = edges[i];
-                if (playerClass.HasValue && !edge.Supports(playerClass.Value, team, carryingIntel))
+                if (playerClass.HasValue && !SupportsEdge(edge, playerClass.Value, team, carryingIntel))
                 {
                     continue;
                 }
@@ -215,7 +229,7 @@ public sealed class NavGraph
                     continue;
                 }
 
-                if (ShouldBlockSuspiciousVerticalRelayForExperiment(edge, current, neighbor))
+                if (!_isOg2Alpha && ShouldBlockSuspiciousVerticalRelayForExperiment(edge, current, neighbor))
                 {
                     continue;
                 }
@@ -291,7 +305,7 @@ public sealed class NavGraph
             for (var i = 0; i < edges.Length; i++)
             {
                 var edge = edges[i];
-                if (playerClass.HasValue && !edge.Supports(playerClass.Value, team, carryingIntel))
+                if (playerClass.HasValue && !SupportsEdge(edge, playerClass.Value, team, carryingIntel))
                 {
                     continue;
                 }
@@ -302,7 +316,7 @@ public sealed class NavGraph
                     continue;
                 }
 
-                if (ShouldBlockSuspiciousVerticalRelayForExperiment(edge, current, neighbor))
+                if (!_isOg2Alpha && ShouldBlockSuspiciousVerticalRelayForExperiment(edge, current, neighbor))
                 {
                     continue;
                 }
@@ -335,8 +349,53 @@ public sealed class NavGraph
         return MathF.Sqrt((dx * dx) + (dy * dy));
     }
 
+    private bool SupportsEdge(
+        NavEdge edge,
+        PlayerClass playerClass,
+        PlayerTeam? team,
+        bool carryingIntel)
+    {
+        if (!_isOg2Alpha)
+        {
+            return edge.Supports(playerClass, team, carryingIntel);
+        }
+
+        // Alpha contacts are certified per exact OG2 movement signature. Do
+        // not let the legacy conservative-profile substitution broaden an
+        // alpha route and select a recipe proven for another class.
+        return (edge.SupportedClassMask == BotBrainClassMask.All
+                || (edge.SupportedClassMask & BotBrainClassMask.For(playerClass)) != 0)
+            && (!team.HasValue || BotBrainTeamMask.Contains(edge.SupportedTeamMask, team.Value))
+            && (!edge.RequiresCarryingIntel || carryingIntel)
+            && (!edge.CarryingIntelRequirement.HasValue
+                || edge.CarryingIntelRequirement.Value == carryingIntel);
+    }
+
     private float ResolveTraversalCost(NavEdge edge, int fromNodeIndex, int toNodeIndex, PlayerClass? playerClass, bool carryingIntel, PlayerTeam? team)
     {
+        if (_isOg2Alpha)
+        {
+            var alphaCost = MathF.Max(1f, edge.Cost);
+            alphaCost += edge.Kind switch
+            {
+                NavEdgeKind.Jump => 36f,
+                NavEdgeKind.Fall => 28f,
+                NavEdgeKind.Dropdown => 18f,
+                _ => 0f,
+            };
+            if (edge.RequiresGroundedContinuation)
+            {
+                alphaCost += 24f;
+            }
+
+            if (carryingIntel && edge.Kind is NavEdgeKind.Jump or NavEdgeKind.Fall)
+            {
+                alphaCost += 20f;
+            }
+
+            return alphaCost;
+        }
+
         var fromNode = _nodes[fromNodeIndex];
         var toNode = _nodes[toNodeIndex];
         var cost = MathF.Max(1f, edge.Cost);
@@ -758,7 +817,9 @@ public readonly record struct NavEdge(
     int SupportedTeamMask,
     bool RequiresGroundedContinuation,
     bool RequiresCarryingIntel,
-    NavEdgeLaunchRecipe LaunchRecipe)
+    NavEdgeLaunchRecipe LaunchRecipe,
+    bool? CarryingIntelRequirement = null,
+    bool IsOg2Contact = false)
 {
     public NavEdge(int toNode, NavEdgeKind kind, float cost)
         : this(toNode, kind, cost, NavEdgeCompletion.None, 0, 0, 0f, 0, 0, BotBrainClassMask.All, BotBrainTeamMask.All, false, false, NavEdgeLaunchRecipe.None)
@@ -770,7 +831,8 @@ public readonly record struct NavEdge(
     public bool Supports(PlayerClass playerClass, PlayerTeam? team, bool carryingIntel = false) =>
         BotBrainClassMask.Contains(SupportedClassMask, playerClass)
         && (!team.HasValue || BotBrainTeamMask.Contains(SupportedTeamMask, team.Value))
-        && (!RequiresCarryingIntel || carryingIntel);
+        && (!RequiresCarryingIntel || carryingIntel)
+        && (!CarryingIntelRequirement.HasValue || CarryingIntelRequirement.Value == carryingIntel);
 }
 
 public readonly record struct NavEdgeCompletion(

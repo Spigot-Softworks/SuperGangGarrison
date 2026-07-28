@@ -84,7 +84,13 @@ public sealed record Protocol64PlayerState(
     float VelocityY,
     byte ActiveWeapon,
     uint AbilityState,
-    uint StateTick);
+    uint StateTick,
+    // This is scoped to the player record rather than the batch because the
+    // batch contains every player while each client has its own input stream.
+    // A zero value means that no input has been authoritatively consumed yet.
+    uint LastProcessedInputSequence = 0,
+    bool IsGrounded = false,
+    int RemainingAirJumps = 0);
 
 public sealed record Protocol64PlayerStateBatch(
     ulong StateSequence,
@@ -171,7 +177,7 @@ public sealed class Protocol64PlayerStateBatchSchema
     public const int MaxBodyBytes = 64 * 1024;
 
     public Protocol64PlayerStateBatchSchema()
-        : base(Protocol64StateSchemaIds.PlayerStateBatch, 1, Protocol64Direction.ServerToClient, MaxBodyBytes)
+        : base(Protocol64StateSchemaIds.PlayerStateBatch, 2, Protocol64Direction.ServerToClient, MaxBodyBytes)
     {
     }
 
@@ -329,7 +335,7 @@ public sealed class Protocol64StateResyncResponseSchema
     public const int MaxBodyBytes = 256 * 1024;
 
     public Protocol64StateResyncResponseSchema()
-        : base(Protocol64StateSchemaIds.StateResyncResponse, 1, Protocol64Direction.ServerToClient, MaxBodyBytes)
+        : base(Protocol64StateSchemaIds.StateResyncResponse, 2, Protocol64Direction.ServerToClient, MaxBodyBytes)
     {
     }
 
@@ -429,6 +435,11 @@ internal static class Protocol64StateValidation
         {
             throw new Protocol64SchemaValidationException("Player team is outside the protocol range.");
         }
+
+        if (value.RemainingAirJumps < 0)
+        {
+            throw new Protocol64SchemaValidationException("Player remaining air jumps cannot be negative.");
+        }
     }
 
     public static void Validate(Protocol64PlayerStateBatch value)
@@ -440,12 +451,14 @@ internal static class Protocol64StateValidation
 
         ValidateCount(value.Players, MaxPlayers, nameof(value.Players));
         var identities = new HashSet<(ushort Slot, ulong PlayerId, uint Generation)>();
+        var slots = new HashSet<ushort>();
         foreach (var player in value.Players)
         {
             Validate(player);
-            if (!identities.Add((player.Slot, player.PlayerId, player.Generation)))
+            if (!identities.Add((player.Slot, player.PlayerId, player.Generation))
+                || !slots.Add(player.Slot))
             {
-                throw new Protocol64SchemaValidationException("Player state batch contains duplicate identities.");
+                throw new Protocol64SchemaValidationException("Player state batch contains duplicate player slots or identities.");
             }
         }
     }
@@ -459,6 +472,22 @@ internal static class Protocol64StateValidation
 
         ValidateIdentities(value.Players, nameof(value.Players));
         ValidateIdentities(value.RemovedPlayers, nameof(value.RemovedPlayers));
+        var slots = new HashSet<ushort>();
+        foreach (var player in value.Players)
+        {
+            if (!slots.Add(player.Slot))
+            {
+                throw new Protocol64SchemaValidationException("Roster state contains duplicate player slots.");
+            }
+        }
+
+        foreach (var removedPlayer in value.RemovedPlayers)
+        {
+            if (!slots.Add(removedPlayer.Slot))
+            {
+                throw new Protocol64SchemaValidationException("Roster state contains duplicate player slots.");
+            }
+        }
     }
 
     public static void Validate(Protocol64ProjectileState value)
@@ -512,7 +541,15 @@ internal static class Protocol64StateValidation
         ValidateCount(value.RemovedPlayers, MaxPlayers, nameof(value.RemovedPlayers));
         ValidateCount(value.Projectiles, MaxProjectiles, nameof(value.Projectiles));
         ValidateCount(value.RemovedProjectiles, MaxProjectiles, nameof(value.RemovedProjectiles));
-        foreach (var player in value.Players) Validate(player);
+        var slots = new HashSet<ushort>();
+        foreach (var player in value.Players)
+        {
+            Validate(player);
+            if (!slots.Add(player.Slot))
+            {
+                throw new Protocol64SchemaValidationException("State resync contains duplicate player slots.");
+            }
+        }
         ValidateIdentities(value.RemovedPlayers, nameof(value.RemovedPlayers));
         foreach (var projectile in value.Projectiles) Validate(projectile);
         foreach (var projectile in value.RemovedProjectiles) Validate(projectile);
@@ -652,6 +689,9 @@ internal static class Protocol64StateBinary
         writer.Write(value.ActiveWeapon);
         writer.Write(value.AbilityState);
         writer.Write(value.StateTick);
+        writer.Write(value.LastProcessedInputSequence);
+        writer.Write(value.IsGrounded);
+        writer.Write(value.RemainingAirJumps);
     }
 
     public static Protocol64PlayerState ReadPlayer(BinaryReader reader)
@@ -670,7 +710,10 @@ internal static class Protocol64StateBinary
             reader.ReadSingle(),
             reader.ReadByte(),
             reader.ReadUInt32(),
-            reader.ReadUInt32());
+            reader.ReadUInt32(),
+            reader.ReadUInt32(),
+            reader.ReadBoolean(),
+            reader.ReadInt32());
 
     public static void WriteProjectileState(BinaryWriter writer, Protocol64ProjectileState value)
     {

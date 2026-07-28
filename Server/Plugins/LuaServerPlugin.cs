@@ -100,6 +100,44 @@ internal sealed class LuaServerPlugin(
         _callbacksDisabled = false;
     }
 
+    public IReadOnlyList<string> ExecuteLuaCode(OpenGarrisonServerCommandContext commandContext, string code)
+    {
+        if (_script is null || _pluginTable is null)
+        {
+            return [$"[server] Lua plugin {manifest.Id} is not initialized."];
+        }
+
+        var previousIdentity = _activeCommandIdentity;
+        var previousPlugin = _script.Globals.Get("plugin");
+        var previousHost = _script.Globals.Get("host");
+        _activeCommandIdentity = commandContext.Identity;
+        try
+        {
+            return ExecuteInPhase(ServerLuaCallbackPhase.CommandInteraction, () =>
+            {
+                _script.Globals.Set("plugin", DynValue.NewTable(_pluginTable));
+                var host = _pluginTable.Get("host");
+                if (!host.IsNil())
+                {
+                    _script.Globals.Set("host", host);
+                }
+
+                var result = _script.DoString(code);
+                return ReadLuaCommandResponseLines(result);
+            });
+        }
+        catch (Exception ex)
+        {
+            return [$"[server] Lua execution failed: {ex.Message}"];
+        }
+        finally
+        {
+            _script.Globals.Set("plugin", previousPlugin);
+            _script.Globals.Set("host", previousHost);
+            _activeCommandIdentity = previousIdentity;
+        }
+    }
+
     public void OnServerStarting() => ExecuteInPhase(ServerLuaCallbackPhase.Lifecycle, () => CallIfPresent("on_server_starting"));
 
     public void OnServerStarted() => ExecuteInPhase(ServerLuaCallbackPhase.Lifecycle, () => CallIfPresent("on_server_started"));
@@ -626,6 +664,29 @@ internal sealed class LuaServerPlugin(
             context.RegisterCommand(registration.Command, registration.RequiredPermissions, registration.Aliases);
             return DynValue.True;
         });
+        host["execute_lua"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanIssueServerMutation("execute_lua", "Lua execution") || !_activeCommandIdentity.HasValue)
+            {
+                return DynValue.Nil;
+            }
+
+            var commandContext = new OpenGarrisonServerCommandContext(
+                context.ServerState,
+                context.AdminOperations,
+                context.Cvars,
+                context.Scheduler,
+                _activeCommandIdentity.Value,
+                OpenGarrisonServerCommandSource.PrivateChat);
+            var lines = ExecuteLuaCode(commandContext, ReadStringArgument(args, 0));
+            var result = new Table(script);
+            for (var index = 0; index < lines.Count; index += 1)
+            {
+                result.Set(index + 1, DynValue.NewString(lines[index]));
+            }
+
+            return DynValue.NewTable(result);
+        });
         host["get_server_state"] = DynValue.NewCallback((_, _) => DynValue.NewTable(CreateServerStateTable(script, context.ServerState)));
         host["get_match_state"] = DynValue.NewCallback((_, _) => ToDynValue(context.ServerState.GetMatchState()));
         host["get_objectives"] = DynValue.NewCallback((_, _) => ToDynValue(context.ServerState.GetObjectives()));
@@ -980,6 +1041,81 @@ internal sealed class LuaServerPlugin(
                 CanIssueServerMutation("try_force_kill", $"player {slot}")
                 && context.AdminOperations.TryForceKill(slot));
         });
+        host["try_explode_player"] = DynValue.NewCallback((_, args) =>
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_explode_player", $"player {slot}")
+                && context.AdminOperations.TryExplodePlayer(slot));
+        });
+        host["try_build_jump_pad"] = DynValue.NewCallback((_, args) =>
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_build_jump_pad", $"player {slot}")
+                && context.AdminOperations.TryBuildJumpPad(slot));
+        });
+        host["try_set_player_noclip"] = DynValue.NewCallback((_, args) =>
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_set_player_noclip", $"player {slot}")
+                && context.AdminOperations.TrySetPlayerNoclip(slot, ReadBoolArgument(args, 1)));
+        });
+        host["try_toggle_player_noclip"] = DynValue.NewCallback((_, args) =>
+        {
+            var slot = ReadByteArgument(args, 0);
+            if (!CanIssueServerMutation("try_toggle_player_noclip", $"player {slot}")
+                || !context.AdminOperations.TryTogglePlayerNoclip(slot, out var enabled))
+            {
+                return DynValue.Nil;
+            }
+
+            return DynValue.NewBoolean(enabled);
+        });
+        host["try_set_player_frozen"] = DynValue.NewCallback((_, args) =>
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_set_player_frozen", $"player {slot}")
+                && context.AdminOperations.TrySetPlayerFrozen(slot, ReadBoolArgument(args, 1)));
+        });
+        host["try_toggle_player_frozen"] = DynValue.NewCallback((_, args) =>
+        {
+            var slot = ReadByteArgument(args, 0);
+            if (!CanIssueServerMutation("try_toggle_player_frozen", $"player {slot}")
+                || !context.AdminOperations.TryTogglePlayerFrozen(slot, out var frozen))
+            {
+                return DynValue.Nil;
+            }
+
+            return DynValue.NewBoolean(frozen);
+        });
+        host["try_stun_player"] = DynValue.NewCallback((_, args) =>
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_stun_player", $"player {slot}")
+                && context.AdminOperations.TryStunPlayer(slot, (float)ReadOptionalDoubleArgument(args, 1, 2d)));
+        });
+        host["try_teleport_player_to_player"] = DynValue.NewCallback((_, args) =>
+        {
+            var sourceSlot = ReadByteArgument(args, 0);
+            var targetSlot = ReadByteArgument(args, 1);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_teleport_player_to_player", $"player {sourceSlot}")
+                && context.AdminOperations.TryTeleportPlayerToPlayer(sourceSlot, targetSlot));
+        });
+        host["try_set_player_respawn_position"] = DynValue.NewCallback((_, args) =>
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_set_player_respawn_position", $"player {slot}")
+                && context.AdminOperations.TrySetPlayerRespawnPosition(
+                    slot,
+                    (float)ReadDoubleArgument(args, 1),
+                    (float)ReadDoubleArgument(args, 2)));
+        });
         host["try_ignite_player"] = DynValue.NewCallback((_, args) =>
         {
             var slot = ReadByteArgument(args, 0);
@@ -1082,6 +1218,30 @@ internal sealed class LuaServerPlugin(
                 && TryParseEnumArgument<PlayerTeam>(args, 1, out var team)
                 && TryParseEnumArgument<PlayerClass>(args, 2, out var playerClass)
                 && context.AdminOperations.TryAddBot(slot, team, playerClass, ReadOptionalStringArgument(args, 3) ?? string.Empty));
+        });
+        host["try_add_mimic_bot"] = DynValue.NewCallback((_, args) =>
+        {
+            var sourceSlot = ReadByteArgument(args, 0);
+            if (!CanIssueServerMutation("try_add_mimic_bot", $"mimic source {sourceSlot}")
+                || !TryParseEnumArgument<PlayerTeam>(args, 1, out var team)
+                || !TryParseEnumArgument<PlayerClass>(args, 2, out var playerClass)
+                || !context.AdminOperations.TryAddMimicBot(sourceSlot, team, playerClass, ReadOptionalStringArgument(args, 3) ?? string.Empty, out var botSlot))
+            {
+                return DynValue.Nil;
+            }
+
+            return DynValue.NewNumber(botSlot);
+        });
+        host["try_add_follow_healer_bot"] = DynValue.NewCallback((_, args) =>
+        {
+            var targetSlot = ReadByteArgument(args, 0);
+            if (!CanIssueServerMutation("try_add_follow_healer_bot", $"follow target {targetSlot}")
+                || !context.AdminOperations.TryAddFollowHealerBot(targetSlot, ReadOptionalStringArgument(args, 1) ?? string.Empty, out var botSlot))
+            {
+                return DynValue.Nil;
+            }
+
+            return DynValue.NewNumber(botSlot);
         });
         host["try_remove_bot"] = DynValue.NewCallback((_, args) =>
         {

@@ -1,0 +1,10 @@
+﻿{
+    "version":  "64.0.0",
+    "packageVersion":  "64.0.0",
+    "channel":  "stable",
+    "url":  "OpenGarrison-Linux-x64-atlas-reuse.tar.gz",
+    "sha256":  "7e82b5b2a63e28b22d447a68a0cdbc939f2e040e777e937bf6f5581010092f30",
+    "size":  100238154,
+    "minLauncherVersion":  "0.1.0",
+    "notesUrl":  ""
+}

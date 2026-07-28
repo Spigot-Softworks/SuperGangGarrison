@@ -11,6 +11,7 @@ namespace OpenGarrison.Server;
 internal sealed class Protocol64StatePublisher
 {
     private readonly SimulationWorld _world;
+    private readonly Func<byte, uint> _lastProcessedInputSequenceProvider;
     private readonly Dictionary<(ushort Slot, ulong PlayerId), PlayerIdentityState> _playerIdentities = [];
     private readonly Dictionary<ulong, ProjectileIdentityState> _projectileIdentities = [];
     private readonly Dictionary<(ushort Slot, ulong PlayerId), Protocol64PlayerIdentity> _lastRoster = [];
@@ -18,9 +19,12 @@ internal sealed class Protocol64StatePublisher
     private Protocol64ProjectileLifecycle[] _pendingProjectileLifecycles = [];
     private ulong _stateSequence;
 
-    public Protocol64StatePublisher(SimulationWorld world)
+    public Protocol64StatePublisher(
+        SimulationWorld world,
+        Func<byte, uint>? lastProcessedInputSequenceProvider = null)
     {
         _world = world ?? throw new ArgumentNullException(nameof(world));
+        _lastProcessedInputSequenceProvider = lastProcessedInputSequenceProvider ?? (_ => 0u);
     }
 
     public Protocol64PlayerStateBatch BuildPlayerStateBatch(uint stateTick)
@@ -319,7 +323,10 @@ internal sealed class Protocol64StatePublisher
             player.VerticalSpeed,
             (byte)player.SelectedGameplayEquippedSlot,
             checked((uint)Math.Max(0, player.GetReplicatedStateEntries().Count)),
-            stateTick);
+            stateTick,
+            _lastProcessedInputSequenceProvider(slot),
+            player.IsGrounded,
+            Math.Max(0, player.RemainingAirJumps));
 
     private Protocol64PlayerIdentity ToPlayerIdentity(byte slot, PlayerEntity player)
         => new(

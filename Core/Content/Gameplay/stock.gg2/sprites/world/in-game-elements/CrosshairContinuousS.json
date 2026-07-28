@@ -1,0 +1,27 @@
+{
+    "id":  "CrosshairContinuousS",
+    "framePaths":  [
+                       "assets/world/in-game-elements/CrosshairContinuousS.images/1.png",
+                       "assets/world/in-game-elements/CrosshairContinuousS.images/2.png",
+                       "assets/world/in-game-elements/CrosshairContinuousS.images/3.png",
+                       "assets/world/in-game-elements/CrosshairContinuousS.images/4.png",
+                       "assets/world/in-game-elements/CrosshairContinuousS.images/5.png",
+                       "assets/world/in-game-elements/CrosshairContinuousS.images/6.png",
+                       "assets/world/in-game-elements/CrosshairContinuousS.images/7.png",
+                       "assets/world/in-game-elements/CrosshairContinuousS.images/8.png",
+                       "assets/world/in-game-elements/CrosshairContinuousS.images/9.png",
+                       "assets/world/in-game-elements/CrosshairContinuousS.images/10.png",
+                       "assets/world/in-game-elements/CrosshairContinuousS.images/11.png"
+                   ],
+    "originX":  8,
+    "originY":  8,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

@@ -147,7 +147,7 @@ public partial class Game1
             webSocketUrl = browserWebSocketUrl;
         }
 
-        return new NetworkEndpoint(host, entry.UdpPort, entry.WebSocketPort, webSocketUrl);
+        return new NetworkEndpoint(host, entry.UdpPort, entry.WebSocketPort, webSocketUrl, entry.QuicPort, entry.QuicUrl);
     }
 
     private static bool TryCreateBrowserPublicWebSocketUrl(string host, out string webSocketUrl)
@@ -303,6 +303,12 @@ public partial class Game1
         [JsonPropertyName("webSocketUrl")]
         public string WebSocketUrl { get; set; } = string.Empty;
 
+        [JsonPropertyName("quicPort")]
+        public int QuicPort { get; set; }
+
+        [JsonPropertyName("quicUrl")]
+        public string QuicUrl { get; set; } = string.Empty;
+
         [JsonPropertyName("private")]
         public bool IsPrivate { get; set; }
 
@@ -343,6 +349,8 @@ public partial class Game1
             || ProtocolVersion > 0
             || !string.IsNullOrWhiteSpace(BuildVersion)
             || !string.IsNullOrWhiteSpace(ReleaseChannel)
-            || !string.IsNullOrWhiteSpace(CompatibilityKey);
+            || !string.IsNullOrWhiteSpace(CompatibilityKey)
+            || QuicPort > 0
+            || !string.IsNullOrWhiteSpace(QuicUrl);
     }
 }

@@ -1,10 +1,19 @@
 {
     "id":  "CrosshairS",
     "framePaths":  [
-                       "assets/world/in-game-elements/CrosshairS.images/image 0.png"
+                       "assets/world/in-game-elements/CrosshairS.images/19.png",
+                       "assets/world/in-game-elements/CrosshairS.images/20.png",
+                       "assets/world/in-game-elements/CrosshairS.images/21.png",
+                       "assets/world/in-game-elements/CrosshairS.images/22.png",
+                       "assets/world/in-game-elements/CrosshairS.images/23.png",
+                       "assets/world/in-game-elements/CrosshairS.images/24.png",
+                       "assets/world/in-game-elements/CrosshairS.images/25.png",
+                       "assets/world/in-game-elements/CrosshairS.images/26.png",
+                       "assets/world/in-game-elements/CrosshairS.images/27.png",
+                       "assets/world/in-game-elements/CrosshairS.images/28.png"
                    ],
-    "originX":  10,
-    "originY":  10,
+    "originX":  8,
+    "originY":  8,
     "mask":  {
                  "separate":  false,
                  "shape":  "RECTANGLE",

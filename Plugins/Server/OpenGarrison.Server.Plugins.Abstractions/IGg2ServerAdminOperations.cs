@@ -54,6 +54,32 @@ public interface IOpenGarrisonServerAdminOperations
 
     bool TryForceKill(byte slot);
 
+    bool TryExplodePlayer(byte slot) => false;
+
+    bool TryBuildJumpPad(byte slot) => false;
+
+    bool TrySetPlayerNoclip(byte slot, bool enabled) => false;
+
+    bool TryTogglePlayerNoclip(byte slot, out bool enabled)
+    {
+        enabled = false;
+        return false;
+    }
+
+    bool TrySetPlayerFrozen(byte slot, bool frozen) => false;
+
+    bool TryTogglePlayerFrozen(byte slot, out bool frozen)
+    {
+        frozen = false;
+        return false;
+    }
+
+    bool TryStunPlayer(byte slot, float durationSeconds) => false;
+
+    bool TryTeleportPlayerToPlayer(byte sourceSlot, byte targetSlot) => false;
+
+    bool TrySetPlayerRespawnPosition(byte slot, float x, float y) => false;
+
     bool TryIgnitePlayer(byte slot, float durationSeconds);
 
     bool TrySetPlayerScale(byte slot, float scale);
@@ -78,6 +104,18 @@ public interface IOpenGarrisonServerAdminOperations
 
     // Bot management
     bool TryAddBot(byte slot, PlayerTeam team, PlayerClass playerClass, string displayName);
+
+    bool TryAddMimicBot(byte sourceSlot, PlayerTeam team, PlayerClass playerClass, string displayName, out byte botSlot)
+    {
+        botSlot = 0;
+        return false;
+    }
+
+    bool TryAddFollowHealerBot(byte targetSlot, string displayName, out byte botSlot)
+    {
+        botSlot = 0;
+        return false;
+    }
 
     bool TryRemoveBot(byte slot);
 

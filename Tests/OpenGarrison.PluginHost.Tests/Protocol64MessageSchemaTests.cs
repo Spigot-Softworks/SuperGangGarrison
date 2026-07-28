@@ -61,12 +61,18 @@ public sealed class Protocol64MessageSchemaTests
 
         foreach (var (eventId, expected) in ExpectedSchemas)
         {
+            var expectedRevision = eventId is Protocol64EventId.InputCommand
+                or Protocol64EventId.InputCommandResult
+                or Protocol64EventId.PlayerStateBatch
+                or Protocol64EventId.StateResyncResponse
+                ? (ushort)2
+                : (ushort)1;
             Assert.True(
-                registry.TryGet((ushort)eventId, revision: 1, out var schema),
+                registry.TryGet((ushort)eventId, revision: expectedRevision, out var schema),
                 $"Schema {eventId} was not registered.");
             Assert.NotNull(schema);
             Assert.Equal((ushort)eventId, schema!.Descriptor.Key.SchemaId);
-            Assert.Equal(1, schema.Descriptor.Key.Revision);
+            Assert.Equal(expectedRevision, schema.Descriptor.Key.Revision);
             Assert.Equal(expected.EventType, schema.EventType);
             Assert.True(schema.Descriptor.MaxBodyBytes > 0);
         }
@@ -79,7 +85,13 @@ public sealed class Protocol64MessageSchemaTests
 
         foreach (var (eventId, expected) in ExpectedSchemas)
         {
-            var schema = registry.Get((ushort)eventId, revision: 1);
+            var expectedRevision = eventId is Protocol64EventId.InputCommand
+                or Protocol64EventId.InputCommandResult
+                or Protocol64EventId.PlayerStateBatch
+                or Protocol64EventId.StateResyncResponse
+                ? (ushort)2
+                : (ushort)1;
+            var schema = registry.Get((ushort)eventId, revision: expectedRevision);
 
             Assert.Equal(expected.Direction, schema.Descriptor.Direction);
             Assert.Equal(expected.Delivery, schema.Descriptor.Delivery.Kind);

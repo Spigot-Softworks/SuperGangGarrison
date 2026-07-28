@@ -27,6 +27,8 @@ public sealed partial class PlayerEntity
         Y = state.Y;
         HorizontalSpeed = state.VelocityX;
         VerticalSpeed = state.VelocityY;
+        IsGrounded = state.IsGrounded;
+        RemainingAirJumps = Math.Max(0, state.RemainingAirJumps);
         IsAlive = state.IsAlive;
         Health = state.IsAlive
             ? int.Clamp(state.Health, 0, MaxHealth)

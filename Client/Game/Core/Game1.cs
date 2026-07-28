@@ -328,6 +328,7 @@ public partial class Game1 : Game
     private bool _pixelPerfectWeaponRotation = true;
     private bool _useLocalWeaponRotation = false;
     private int _playerCardSizeMode = ClientSettings.PlayerCardSizeSmall;
+    private int _cursorSizePercent = ClientSettings.DefaultCursorSizePercent;
     private bool _uberOutlineEnabled = true;
     private bool _projectileTeamTintEnabled = true;
     private bool _wasWindowActive = true;

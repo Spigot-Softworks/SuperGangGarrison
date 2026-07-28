@@ -111,7 +111,11 @@ internal static class ServerPluginRuntimeFactory
             },
             () => pluginHost?.LoadedPluginIds ?? Array.Empty<string>(),
             cvarRegistry,
-            scheduler)
+            scheduler,
+            executeLuaCommand: (context, code) => pluginHost?.ExecuteLuaCommand(context, code)
+                ?? ["[server] Lua execution is unavailable."],
+            reloadLuaPlugins: () => pluginHost?.ReloadLuaPlugins()
+                ?? ["[server] Lua plugin reload is unavailable."])
             .RegisterAll();
 
         pluginHost = new PluginHost(

@@ -1,5 +1,7 @@
 using OpenGarrison.GameplayModding;
 
+using OpenGarrison.Protocol;
+
 namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
@@ -274,10 +276,22 @@ public sealed partial class SimulationWorld
     }
 
     public bool TrySetNetworkPlayerInput(byte slot, PlayerInputSnapshot input)
+        => TrySetNetworkPlayerInput(slot, input, InputButtons.None);
+
+    /// <summary>
+    /// Sets a network input frame and optionally declares one-shot buttons as
+    /// explicit rising edges. Protocol-64 commands use this seam so two
+    /// adjacent jumps cannot be collapsed into one held-button transition.
+    /// </summary>
+    public bool TrySetNetworkPlayerInput(
+        byte slot,
+        PlayerInputSnapshot input,
+        InputButtons forcedPressedButtons)
     {
         if (slot == LocalPlayerSlot)
         {
             SetLocalInput(input);
+            _networkPlayerForcedPressedButtons[slot] = forcedPressedButtons;
             return true;
         }
 
@@ -288,6 +302,7 @@ public sealed partial class SimulationWorld
 
         EnsureAdditionalNetworkPlayer(slot);
         _additionalNetworkPlayerInputs[slot] = input;
+        _networkPlayerForcedPressedButtons[slot] = forcedPressedButtons;
         return true;
     }
 
@@ -318,11 +333,13 @@ public sealed partial class SimulationWorld
         if (slot == LocalPlayerSlot)
         {
             SetLocalInput(default);
+            _networkPlayerForcedPressedButtons.Remove(slot);
             return true;
         }
 
         _additionalNetworkPlayerInputs.Remove(slot);
         _additionalNetworkPlayerPreviousInputs.Remove(slot);
+        _networkPlayerForcedPressedButtons.Remove(slot);
         return IsPlayableNetworkPlayerSlot(slot);
     }
 

@@ -9,7 +9,16 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private static readonly string[] HostSetupOptionsTabLabels = ["Basic", "Advanced"];
+    private static readonly string[] HostSetupOptionsTabLabels =
+    [
+        "Basic",
+        "Match",
+        "Competitive",
+        "Teams",
+        "Bots",
+        "Simulation",
+        "Classes",
+    ];
 
     private void DrawHostSetupOptionsMenuOverlay()
     {

@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -185,26 +186,41 @@ public partial class Game1
             return;
         }
 
-        if (!entry.Endpoint.TryResolveForCurrentRuntime(out var host, out var port, out _))
+        var candidates = entry.Endpoint.GetConnectionCandidates();
+        if (candidates.Count == 0)
         {
             _lobbyBrowserDetailsStatus = "Server cannot be reached from this runtime.";
             return;
         }
 
-        if (!NetworkClientMessageTransportRegistry.TryConnect(host, port, out var transport, out var error) || transport is null)
+        var errors = new List<string>();
+        foreach (var candidate in candidates)
         {
-            _lobbyBrowserDetailsStatus = string.IsNullOrWhiteSpace(error)
-                ? "Could not open details connection."
-                : $"Details failed: {error}";
-            return;
+            if (NetworkClientMessageTransportRegistry.TryConnect(candidate.Host, candidate.Port, out var transport, out var error) && transport is not null)
+            {
+                _lobbyBrowserDetailsTransport = transport;
+                _lobbyBrowserDetailsRequestInFlight = true;
+                _lobbyBrowserDetailsRequestStartedAtMilliseconds = Environment.TickCount64;
+                _lobbyBrowserDetailsStatus = "Loading server details...";
+                transport.Send(ProtocolCodec.Serialize(new ServerDetailsRequestMessage()));
+                return;
+            }
+
+            errors.Add($"{FormatLobbyBrowserTransport(candidate.Transport)}: {error}");
         }
 
-        _lobbyBrowserDetailsTransport = transport;
-        _lobbyBrowserDetailsRequestInFlight = true;
-        _lobbyBrowserDetailsRequestStartedAtMilliseconds = Environment.TickCount64;
-        _lobbyBrowserDetailsStatus = "Loading server details...";
-        transport.Send(ProtocolCodec.Serialize(new ServerDetailsRequestMessage()));
+        _lobbyBrowserDetailsStatus = errors.Count == 0
+            ? "Could not open details connection."
+            : $"Details failed: {string.Join("; ", errors)}";
     }
+
+    private static string FormatLobbyBrowserTransport(NetworkEndpointTransport transport)
+        => transport switch
+        {
+            NetworkEndpointTransport.Quic => "QUIC64",
+            NetworkEndpointTransport.WebSocket => "WebSocket",
+            _ => "UDP",
+        };
 
     private void UpdateLobbyBrowserDetailsState()
     {

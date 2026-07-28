@@ -178,6 +178,36 @@ if (options.ProofGraphRequired)
 var repoRoot = FindRepoRoot(AppContext.BaseDirectory);
 ContentRoot.Initialize(Path.Combine(repoRoot, "Core", "Content"));
 
+if (rawOptions.ContainsKey("alpha-nav-report"))
+{
+    Og2AlphaNavigationDiagnostics.RunReport(rawOptions);
+    return;
+}
+
+if (rawOptions.ContainsKey("alpha-graph-gate"))
+{
+    Og2AlphaNavigationDiagnostics.RunGraphGate(rawOptions);
+    return;
+}
+
+if (rawOptions.ContainsKey("alpha-raw-validate"))
+{
+    Og2AlphaNavigationDiagnostics.RunRawTransitionValidation(rawOptions);
+    return;
+}
+
+if (rawOptions.ContainsKey("alpha-raw-sweep"))
+{
+    Og2AlphaNavigationDiagnostics.RunRawMovementSweep(rawOptions);
+    return;
+}
+
+if (rawOptions.ContainsKey("alpha-capture-matrix"))
+{
+    Og2AlphaNavigationDiagnostics.RunCaptureMatrix(rawOptions);
+    return;
+}
+
 if (rawOptions.TryGetValue("bot-traversal-soak", out var botTraversalSoak)
     && bool.TryParse(botTraversalSoak, out var parsedBotTraversalSoak)
     && parsedBotTraversalSoak)
@@ -4450,7 +4480,17 @@ internal static class BotBrainToolCommandHelpers
                 continue;
             }
 
-            var key = args[i][2..];
+            var rawKey = args[i][2..];
+            var equalsIndex = rawKey.IndexOf('=');
+            if (equalsIndex >= 0)
+            {
+                var optionKey = rawKey[..equalsIndex];
+                var value = rawKey[(equalsIndex + 1)..];
+                options[optionKey] = value;
+                continue;
+            }
+
+            var key = rawKey;
             if (i + 1 < args.Length && !args[i + 1].StartsWith("--", StringComparison.Ordinal))
             {
                 options[key] = args[i + 1];

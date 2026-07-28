@@ -9,12 +9,6 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private enum HostSetupOptionsTab
-    {
-        Basic,
-        Advanced,
-    }
-
     private sealed partial class HostSetupFormState
     {
         public int OptionsTabIndex { get; set; }
@@ -100,18 +94,18 @@ public partial class Game1
             nameof(OpenGarrisonHostSettings.SecondaryAbilitiesEnabled),
         ];
 
-        public HostSetupOptionsTab OptionsTab => (HostSetupOptionsTab)Math.Clamp(OptionsTabIndex, 0, 1);
+        public HostSetupOptionsTab OptionsTab => (HostSetupOptionsTab)Math.Clamp(OptionsTabIndex, 0, (int)HostSetupOptionsTab.Classes);
 
         public int GetHostOptionsRowCount()
         {
             return OptionsTab == HostSetupOptionsTab.Basic
                 ? HostSetupServerCvarCatalog.BasicOptionCount
-                : HostSetupServerCvarCatalog.AdvancedDefinitions.Count;
+                : HostSetupServerCvarCatalog.GetDefinitionsForTab(OptionsTab).Count;
         }
 
         public void SetHostOptionsTab(int tabIndex)
         {
-            OptionsTabIndex = Math.Clamp(tabIndex, 0, 1);
+            OptionsTabIndex = Math.Clamp(tabIndex, 0, (int)HostSetupOptionsTab.Classes);
             OptionsHoverIndex = -1;
             OptionsScrollOffset = 0;
             ClearAdvancedCvarEditFocus();
@@ -215,12 +209,13 @@ public partial class Game1
                 }
             }
 
-            if (rowIndex < 0 || rowIndex >= HostSetupServerCvarCatalog.AdvancedDefinitions.Count)
+            var definitions = HostSetupServerCvarCatalog.GetDefinitionsForTab(OptionsTab);
+            if (rowIndex < 0 || rowIndex >= definitions.Count)
             {
                 return false;
             }
 
-            definition = HostSetupServerCvarCatalog.AdvancedDefinitions[rowIndex];
+            definition = definitions[rowIndex];
             label = definition.Label;
             var rawValue = GetAdvancedCvarRawValue(definition);
             displayValue = definition.EditorKind == HostSetupCvarEditorKind.Stepped
@@ -266,15 +261,20 @@ public partial class Game1
 
         public bool TryGetAdvancedDefinitionForRow(int rowIndex, out HostSetupServerCvarDefinition definition)
         {
-            if (OptionsTab != HostSetupOptionsTab.Advanced
-                || rowIndex < 0
-                || rowIndex >= HostSetupServerCvarCatalog.AdvancedDefinitions.Count)
+            if (OptionsTab == HostSetupOptionsTab.Basic)
             {
                 definition = null!;
                 return false;
             }
 
-            definition = HostSetupServerCvarCatalog.AdvancedDefinitions[rowIndex];
+            var definitions = HostSetupServerCvarCatalog.GetDefinitionsForTab(OptionsTab);
+            if (rowIndex < 0 || rowIndex >= definitions.Count)
+            {
+                definition = null!;
+                return false;
+            }
+
+            definition = definitions[rowIndex];
             return true;
         }
 

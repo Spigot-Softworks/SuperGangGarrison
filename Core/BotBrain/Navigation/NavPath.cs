@@ -83,4 +83,15 @@ public sealed class NavPath
         edge = _incomingEdges[index];
         return true;
     }
+
+    public bool ReplaceIncomingEdge(int index, NavEdge edge)
+    {
+        if (index <= 0 || index >= _incomingEdges.Length)
+        {
+            return false;
+        }
+
+        _incomingEdges[index] = edge;
+        return true;
+    }
 }

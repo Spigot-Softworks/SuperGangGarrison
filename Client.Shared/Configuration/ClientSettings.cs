@@ -16,6 +16,10 @@ public sealed class ClientSettings
     public const int PlayerCardSizeSmall = 0;
     public const int PlayerCardSizeMedium = 1;
     public const int PlayerCardSizeLarge = 2;
+    public const int CursorSizeMinPercent = OpenGarrisonPreferencesDocument.MinCursorSizePercent;
+    public const int CursorSizeMaxPercent = OpenGarrisonPreferencesDocument.MaxCursorSizePercent;
+    public const int CursorSizeStepPercent = OpenGarrisonPreferencesDocument.CursorSizeStepPercent;
+    public const int DefaultCursorSizePercent = OpenGarrisonPreferencesDocument.DefaultCursorSizePercent;
 
     public string PlayerName { get; set; } = "Player";
 
@@ -126,6 +130,8 @@ public sealed class ClientSettings
     public bool DisableLegacyGameplaySpriteFallback { get; set; }
 
     public int PlayerCardSizeMode { get; set; } = PlayerCardSizeSmall;
+
+    public int CursorSizePercent { get; set; } = DefaultCursorSizePercent;
 
     public ControllerInputMode ControllerInputMode { get; set; } = ControllerInputMode.Auto;
 
@@ -280,6 +286,7 @@ public sealed class ClientSettings
             UseLocalWeaponRotation = document.UseLocalWeaponRotation,
             DisableLegacyGameplaySpriteFallback = document.DisableLegacyGameplaySpriteFallback,
             PlayerCardSizeMode = NormalizePlayerCardSizeMode(document.PlayerCardSizeMode),
+            CursorSizePercent = NormalizeCursorSizePercent(document.CursorSizePercent),
             ControllerInputMode = OpenGarrisonPreferencesDocument.NormalizeControllerInputMode(document.ControllerInputMode),
             ControllerReticleMode = OpenGarrisonPreferencesDocument.NormalizeControllerReticleMode(document.ControllerReticleMode),
             ControllerAimAssistEnabled = document.ControllerAimAssistEnabled,
@@ -361,6 +368,7 @@ public sealed class ClientSettings
         preferences.FrameRateLimit = FrameRateLimit;
         preferences.DisableLegacyGameplaySpriteFallback = DisableLegacyGameplaySpriteFallback;
         preferences.PlayerCardSizeMode = NormalizePlayerCardSizeMode(PlayerCardSizeMode);
+        preferences.CursorSizePercent = NormalizeCursorSizePercent(CursorSizePercent);
         preferences.ControllerInputMode = OpenGarrisonPreferencesDocument.NormalizeControllerInputMode(ControllerInputMode);
         preferences.ControllerReticleMode = OpenGarrisonPreferencesDocument.NormalizeControllerReticleMode(ControllerReticleMode);
         preferences.ControllerAimAssistEnabled = ControllerAimAssistEnabled;
@@ -393,6 +401,11 @@ public sealed class ClientSettings
     public static int NormalizePlayerCardSizeMode(int sizeMode)
     {
         return Math.Clamp(sizeMode, PlayerCardSizeSmall, PlayerCardSizeLarge);
+    }
+
+    public static int NormalizeCursorSizePercent(int cursorSizePercent)
+    {
+        return OpenGarrisonPreferencesDocument.NormalizeCursorSizePercent(cursorSizePercent);
     }
 
     public static LowHealthColorMode NormalizeLowHealthColorMode(LowHealthColorMode mode)

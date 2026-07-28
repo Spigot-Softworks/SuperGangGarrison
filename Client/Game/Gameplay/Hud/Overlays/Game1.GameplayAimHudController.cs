@@ -9,7 +9,54 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    internal const string ContinuousCrosshairSpriteName = "CrosshairContinuousS";
+    internal const int ContinuousCrosshairActiveFrameCount = 10;
+    internal const int ContinuousCrosshairIdleFrameIndex = ContinuousCrosshairActiveFrameCount;
+    internal const int RechargeCrosshairIdleFrameIndex = 0;
+    internal const int RechargeCrosshairActiveFrameOffset = 1;
+    internal const int RechargeCrosshairActiveFrameCount = 9;
+
     internal const int SniperChargeHudFillMaxWidth = 40;
+
+    internal static bool IsContinuousCrosshairWeapon(PrimaryWeaponDefinition weapon)
+    {
+        ArgumentNullException.ThrowIfNull(weapon);
+        return weapon.Kind is PrimaryWeaponKind.Minigun or PrimaryWeaponKind.FlameThrower;
+    }
+
+    internal static int GetCrosshairFrameIndex(
+        PrimaryWeaponDefinition weapon,
+        int cooldownTicks,
+        int reloadTicks)
+    {
+        ArgumentNullException.ThrowIfNull(weapon);
+
+        var remainingTicks = Math.Max(0, Math.Max(cooldownTicks, reloadTicks));
+        if (remainingTicks <= 0)
+        {
+            return IsContinuousCrosshairWeapon(weapon)
+                ? ContinuousCrosshairIdleFrameIndex
+                : RechargeCrosshairIdleFrameIndex;
+        }
+
+        var durationTicks = Math.Max(1, Math.Max(weapon.ReloadDelayTicks, weapon.AmmoReloadTicks));
+        var elapsedFraction = Math.Clamp(
+            1f - (remainingTicks / (float)durationTicks),
+            0f,
+            1f);
+        if (IsContinuousCrosshairWeapon(weapon))
+        {
+            return Math.Clamp(
+                (int)MathF.Floor(elapsedFraction * ContinuousCrosshairActiveFrameCount),
+                0,
+                ContinuousCrosshairActiveFrameCount - 1);
+        }
+
+        return RechargeCrosshairActiveFrameOffset + Math.Clamp(
+            (int)MathF.Floor(elapsedFraction * RechargeCrosshairActiveFrameCount),
+            0,
+            RechargeCrosshairActiveFrameCount - 1);
+    }
 
     internal static int GetSniperChargeHudFillWidthForTicks(int chargeTicks)
     {
@@ -136,13 +183,21 @@ public partial class Game1
 
         public void DrawCrosshair(Vector2 screenPosition)
         {
-            var crosshair = _game.GetResolvedSprite("CrosshairS");
+            var weapon = _game.GetLocalDisplayedMainWeaponStats();
+            var cooldownTicks = _game.GetLocalDisplayedMainWeaponCooldownTicks();
+            var reloadTicks = _game.GetLocalDisplayedMainWeaponReloadTicks();
+            var spriteName = IsContinuousCrosshairWeapon(weapon)
+                ? ContinuousCrosshairSpriteName
+                : "CrosshairS";
+            var frameIndex = GetCrosshairFrameIndex(weapon, cooldownTicks, reloadTicks);
+            var crosshair = _game.GetResolvedSprite(spriteName);
             if (crosshair is null || crosshair.Frames.Count == 0)
             {
                 return;
             }
 
-            _game.DrawLoadedSpriteFrame(crosshair.Frames[0], screenPosition, null, Color.White, 0f, crosshair.Origin.ToVector2(), Vector2.One, SpriteEffects.None, 0f);
+            frameIndex = Math.Clamp(frameIndex, 0, crosshair.Frames.Count - 1);
+            _game.DrawLoadedSpriteFrame(crosshair.Frames[frameIndex], screenPosition, null, Color.White, 0f, crosshair.Origin.ToVector2(), Vector2.One, SpriteEffects.None, 0f);
         }
 
         public void DrawControllerAimLine(Vector2 cameraPosition, Vector2 screenAimPosition)

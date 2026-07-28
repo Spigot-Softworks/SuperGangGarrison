@@ -122,6 +122,19 @@ append_command_spec({ name = "ban", label = "Ban", category = "Player Control", 
 append_command_spec({ name = "banip", label = "Ban IP", category = "Player Control", branch = "player_management", menuMode = "detail", usage = "!gt_banip <target|ip> [minutes|0] [reason]", summary = "Ban by target endpoint or raw IP with high-trust authority.", keywords = "ban address endpoint ip timeout permanent", usesTargets = true })
 append_command_spec({ name = "unban", label = "Unban", category = "Player Control", branch = "player_management", menuMode = "detail", usage = "!gt_unban <ip>", summary = "Remove an IP ban.", keywords = "unban pardon address ip" })
 append_command_spec({ name = "slay", label = "Slay", category = "Player Control", branch = "player_management", menuMode = "action", usage = "!gt_slay <target>", summary = "Kill one or more live targets.", keywords = "kill suicide eliminate", usesTargets = true })
+append_command_spec({ name = "kill", label = "Kill", category = "Player Control", branch = "player_management", hidden = true, menuMode = "hidden", usage = "!gt_kill [target]", summary = "Kill yourself or a target when cheats are enabled.", keywords = "kill suicide eliminate", usesTargets = true })
+append_command_spec({ name = "explode", label = "Explode", category = "Player Control", branch = "player_management", hidden = true, menuMode = "hidden", usage = "!gt_explode [target]", summary = "Explode yourself or a target when cheats are enabled.", keywords = "explode gib suicide", usesTargets = true })
+append_command_spec({ name = "build_jump_pad", label = "Build jump pad", category = "Effects", branch = "fun", hidden = true, menuMode = "hidden", usage = "!gt_build_jump_pad", summary = "Build a jump pad without spending metal.", keywords = "jump pad engineer build" })
+append_command_spec({ name = "spawn_mimic", label = "Spawn mimic", category = "Player Control", branch = "player_management", hidden = true, menuMode = "hidden", usage = "!gt_spawn_mimic <enemy|friendly> <class>", summary = "Spawn a bot that mirrors your input.", keywords = "mimic bot clone" })
+append_command_spec({ name = "spawn_followhealer", label = "Spawn follow healer", category = "Player Control", branch = "player_management", hidden = true, menuMode = "hidden", usage = "!gt_spawn_followhealer", summary = "Spawn a Medic bot that follows and heals you.", keywords = "medic healer pocket bot" })
+append_command_spec({ name = "noclip", label = "Noclip", category = "Effects", branch = "fun", hidden = true, menuMode = "hidden", usage = "!gt_noclip [target]", summary = "Toggle noclip when cheats are enabled.", keywords = "fly wall walls" , usesTargets = true })
+append_command_spec({ name = "set_speed", label = "Set speed", category = "Effects", branch = "fun", hidden = true, menuMode = "hidden", usage = "!gt_set_speed [target] [scale]", summary = "Set movement speed when cheats are enabled.", keywords = "speed fast movement", usesTargets = true })
+append_command_spec({ name = "set_respawnpos", label = "Set respawn position", category = "Effects", branch = "fun", hidden = true, menuMode = "hidden", usage = "!gt_set_respawnpos <x> <y>", summary = "Set your next respawn position.", keywords = "spawn respawn position" })
+append_command_spec({ name = "tpme", label = "Teleport me", category = "Effects", branch = "fun", hidden = true, menuMode = "hidden", usage = "!gt_tpme <target>", summary = "Teleport to a target when cheats are enabled.", keywords = "teleport tp" , usesTargets = true })
+append_command_spec({ name = "freeze", label = "Freeze", category = "Effects", branch = "fun", hidden = true, menuMode = "hidden", usage = "!gt_freeze [target]", summary = "Toggle player input freeze when cheats are enabled.", keywords = "freeze lock" , usesTargets = true })
+append_command_spec({ name = "resize", label = "Resize", category = "Effects", branch = "fun", hidden = true, menuMode = "hidden", usage = "!gt_resize [target]", summary = "Make a player tiny when cheats are enabled.", keywords = "tiny small size" , usesTargets = true })
+append_command_spec({ name = "stun", label = "Stun", category = "Effects", branch = "fun", hidden = true, menuMode = "hidden", usage = "!gt_stun [target] [seconds]", summary = "Stun a player when cheats are enabled.", keywords = "stun disable" , usesTargets = true })
+append_command_spec({ name = "execute", label = "Execute Lua", category = "Server management", branch = "server_management", hidden = true, menuMode = "hidden", usage = "!gt_execute <lua>", summary = "Execute a Lua chunk with the authenticated admin context.", keywords = "lua script vscript eval" })
 append_command_spec({ name = "burn", label = "Burn", category = "Player Control", branch = "player_management", menuMode = "action", usage = "!gt_burn <target> [time]", summary = "Ignite one or more live targets for a duration.", keywords = "ignite fire afterburn", usesTargets = true })
 append_command_spec({ name = "gag", label = "Gag", category = "Player Control", branch = "player_management", menuMode = "action", usage = "!gt_gag <target>", summary = "Toggle chat gagging for one target.", keywords = "mute silence chat", usesTargets = true })
 append_command_spec({ name = "rename", label = "Rename", category = "Player Control", branch = "player_management", menuMode = "detail", usage = "!gt_rename <target> <name>", summary = "Rename one target.", keywords = "name alias nick", usesTargets = true })
@@ -169,6 +182,11 @@ local function get_admin_menu_branch_ordered_categories(branch_id)
     if branch_id == "player_management" then
         category_count = category_count + 1
         categories[category_count] = "Player Control"
+        return categories
+    end
+    if branch_id == "fun" then
+        category_count = category_count + 1
+        categories[category_count] = "Effects"
         return categories
     end
 
@@ -1710,6 +1728,258 @@ local function handle_unban(event, arguments)
     return true
 end
 
+local function cheats_enabled()
+    local cvar = plugin.host.get_cvar("sv_cheats")
+    if cvar == nil then
+        return false
+    end
+
+    local value = cvar.currentValue or cvar.CurrentValue or ""
+    return value == "1" or string.lower(tostring(value)) == "true"
+end
+
+local function require_cheats(event, command_name)
+    if cheats_enabled() then
+        return true
+    end
+
+    send_private(event.slot, "[GT] " .. command_name .. " requires sv_cheats 1.")
+    return false
+end
+
+local function resolve_optional_command_target(event, target_text)
+    local normalized = string.lower(trim(target_text or ""))
+    if normalized == "" or normalized == "self" or normalized == "me" then
+        return { slot = event.slot, name = "yourself" }, nil, true
+    end
+
+    local target, error_text = resolve_single_target(event.slot, target_text, { includeSpectators = false })
+    return target, error_text, false
+end
+
+local function handle_kill_or_explode(event, arguments, explode)
+    local target, error_text, is_self = resolve_optional_command_target(event, arguments)
+    if target == nil then
+        send_private(event.slot, "[GT] " .. error_text)
+        return true
+    end
+
+    if not is_self and not require_cheats(event, explode and "explode" or "kill") then
+        return true
+    end
+
+    local succeeded = explode
+        and plugin.host.try_explode_player(target.slot)
+        or plugin.host.try_force_kill(target.slot)
+    if succeeded then
+        send_private(event.slot, "[GT] " .. (explode and "exploded " or "killed ") .. target.name .. ".")
+    else
+        send_private(event.slot, "[GT] unable to affect " .. target.name .. ".")
+    end
+
+    return true
+end
+
+local function handle_build_jump_pad(event)
+    if not require_cheats(event, "build_jump_pad") then
+        return true
+    end
+
+    send_private(event.slot, plugin.host.try_build_jump_pad(event.slot)
+        and "[GT] jump pad built."
+        or "[GT] unable to build a jump pad.")
+    return true
+end
+
+local function handle_spawn_mimic(event, arguments)
+    if not require_cheats(event, "spawn_mimic") then
+        return true
+    end
+
+    local side, player_class = split_first_word(arguments)
+    side = string.lower(trim(side))
+    player_class = trim(player_class)
+    if (side ~= "enemy" and side ~= "friendly") or player_class == "" then
+        send_private(event.slot, "[GT] usage: !gt_spawn_mimic <enemy|friendly> <class>")
+        return true
+    end
+
+    local source, error_text = resolve_single_target(event.slot, "self", { includeSpectators = false })
+    if source == nil or source.team == nil then
+        send_private(event.slot, "[GT] " .. (error_text or "your player is not on a team."))
+        return true
+    end
+
+    local source_team = tostring(source.team)
+    local team = source_team
+    if side == "enemy" then
+        team = string.lower(source_team) == "red" and "Blue" or "Red"
+    end
+
+    local bot_slot = plugin.host.try_add_mimic_bot(event.slot, team, player_class, "")
+    send_private(event.slot, bot_slot ~= nil
+        and "[GT] mimic bot spawned at slot " .. tostring(bot_slot) .. "."
+        or "[GT] unable to spawn mimic bot.")
+    return true
+end
+
+local function handle_spawn_follow_healer(event)
+    if not require_cheats(event, "spawn_followhealer") then
+        return true
+    end
+
+    local bot_slot = plugin.host.try_add_follow_healer_bot(event.slot, "")
+    send_private(event.slot, bot_slot ~= nil
+        and "[GT] follow healer spawned at slot " .. tostring(bot_slot) .. "."
+        or "[GT] unable to spawn follow healer.")
+    return true
+end
+
+local function handle_toggle_player_effect(event, arguments, effect_name)
+    if not require_cheats(event, effect_name) then
+        return true
+    end
+
+    local target_text = trim(arguments)
+    local target, error_text = resolve_optional_command_target(event, target_text)
+    if target == nil then
+        send_private(event.slot, "[GT] " .. error_text)
+        return true
+    end
+
+    local enabled
+    if effect_name == "noclip" then
+        enabled = plugin.host.try_toggle_player_noclip(target.slot)
+    else
+        enabled = plugin.host.try_toggle_player_frozen(target.slot)
+    end
+    if enabled == nil then
+        send_private(event.slot, "[GT] unable to update " .. effect_name .. ".")
+    else
+        send_private(event.slot, "[GT] " .. effect_name .. " " .. (enabled and "enabled" or "disabled") .. " for " .. target.name .. ".")
+    end
+    return true
+end
+
+local function handle_set_speed(event, arguments)
+    if not require_cheats(event, "set_speed") then
+        return true
+    end
+
+    local first, remainder = split_first_word(arguments)
+    local target_text = first
+    local scale_text = remainder
+    if tonumber(first) ~= nil and trim(remainder) == "" then
+        target_text = "self"
+        scale_text = first
+    end
+
+    local target, error_text = resolve_optional_command_target(event, target_text)
+    local scale = tonumber(trim(scale_text))
+    if target == nil or scale == nil or scale < 0.1 or scale > 4.0 then
+        send_private(event.slot, "[GT] usage: !gt_set_speed [target] [scale]")
+        return true
+    end
+
+    send_private(event.slot, plugin.host.try_set_player_movement_speed_scale(target.slot, scale)
+        and "[GT] speed for " .. target.name .. " set to " .. tostring(scale) .. "x."
+        or "[GT] unable to set speed for " .. target.name .. ".")
+    return true
+end
+
+local function handle_set_respawn_position(event, arguments)
+    if not require_cheats(event, "set_respawnpos") then
+        return true
+    end
+
+    arguments = trim(arguments):gsub("[(),]", " ")
+    local x_text, y_text = split_first_word(arguments)
+    local x = tonumber(x_text)
+    local y = tonumber(y_text)
+    if x == nil or y == nil then
+        send_private(event.slot, "[GT] usage: !gt_set_respawnpos <x> <y>")
+        return true
+    end
+
+    send_private(event.slot, plugin.host.try_set_player_respawn_position(event.slot, x, y)
+        and "[GT] respawn position updated."
+        or "[GT] unable to update respawn position.")
+    return true
+end
+
+local function handle_tpme(event, arguments)
+    if not require_cheats(event, "tpme") then
+        return true
+    end
+
+    local target, error_text = resolve_single_target(event.slot, trim(arguments), { includeSpectators = false })
+    if target == nil then
+        send_private(event.slot, "[GT] " .. (error_text or "usage: !gt_tpme <target>"))
+        return true
+    end
+
+    send_private(event.slot, plugin.host.try_teleport_player_to_player(event.slot, target.slot)
+        and "[GT] teleported to " .. target.name .. "."
+        or "[GT] unable to teleport.")
+    return true
+end
+
+local function handle_resize(event, arguments)
+    if not require_cheats(event, "resize") then
+        return true
+    end
+
+    local target, error_text = resolve_optional_command_target(event, trim(arguments))
+    if target == nil then
+        send_private(event.slot, "[GT] " .. error_text)
+        return true
+    end
+
+    send_private(event.slot, plugin.host.try_set_player_scale(target.slot, 0.5)
+        and "[GT] resized " .. target.name .. "."
+        or "[GT] unable to resize " .. target.name .. ".")
+    return true
+end
+
+local function handle_stun(event, arguments)
+    if not require_cheats(event, "stun") then
+        return true
+    end
+
+    local target_text, duration_text = split_first_word(arguments)
+    local target, error_text = resolve_optional_command_target(event, target_text)
+    local duration = trim(duration_text) == "" and 2 or tonumber(duration_text)
+    if target == nil or duration == nil or duration <= 0 or duration > 60 then
+        send_private(event.slot, "[GT] usage: !gt_stun [target] [seconds]")
+        return true
+    end
+
+    send_private(event.slot, plugin.host.try_stun_player(target.slot, duration)
+        and "[GT] stunned " .. target.name .. " for " .. tostring(duration) .. "s."
+        or "[GT] unable to stun " .. target.name .. ".")
+    return true
+end
+
+local function handle_execute(event, arguments)
+    if trim(arguments) == "" then
+        send_private(event.slot, "[GT] usage: !gt_execute <lua>")
+        return true
+    end
+
+    local lines = plugin.host.execute_lua(arguments)
+    if lines == nil then
+        send_private(event.slot, "[GT] Lua execution failed.")
+        return true
+    end
+
+    local index = 1
+    while lines[index] ~= nil do
+        send_private(event.slot, tostring(lines[index]))
+        index = index + 1
+    end
+    return true
+end
+
 local function handle_slay(event, arguments)
     local target_text = trim(arguments)
     if target_text == "" then
@@ -2984,6 +3254,32 @@ local function dispatch_garrison_tools_command(context, event, command_name, arg
         return handle_unban(event, arguments)
     elseif command_name == "slay" then
         return handle_slay(event, arguments)
+    elseif command_name == "kill" then
+        return handle_kill_or_explode(event, arguments, false)
+    elseif command_name == "explode" then
+        return handle_kill_or_explode(event, arguments, true)
+    elseif command_name == "build_jump_pad" then
+        return handle_build_jump_pad(event)
+    elseif command_name == "spawn_mimic" then
+        return handle_spawn_mimic(event, arguments)
+    elseif command_name == "spawn_followhealer" then
+        return handle_spawn_follow_healer(event)
+    elseif command_name == "noclip" then
+        return handle_toggle_player_effect(event, arguments, "noclip")
+    elseif command_name == "set_speed" then
+        return handle_set_speed(event, arguments)
+    elseif command_name == "set_respawnpos" then
+        return handle_set_respawn_position(event, arguments)
+    elseif command_name == "tpme" then
+        return handle_tpme(event, arguments)
+    elseif command_name == "freeze" then
+        return handle_toggle_player_effect(event, arguments, "freeze")
+    elseif command_name == "resize" then
+        return handle_resize(event, arguments)
+    elseif command_name == "stun" then
+        return handle_stun(event, arguments)
+    elseif command_name == "execute" then
+        return handle_execute(event, arguments)
     elseif command_name == "burn" then
         return handle_burn(event, arguments)
     elseif command_name == "gag" then

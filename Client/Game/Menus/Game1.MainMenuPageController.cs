@@ -133,10 +133,10 @@ public partial class Game1
             {
                 MainMenuPage.PlayOnline => (
                     [
-                        new MenuPageAction("Host Match", _game.OpenHostSetupMenu),
-                        new MenuPageAction("Join (IP)", _game.OpenManualConnectMenu),
                         new MenuPageAction("Join (Lobby)", _game.OpenLobbyBrowser),
+                        new MenuPageAction("Join (IP)", _game.OpenManualConnectMenu),
                         new MenuPageAction("Watch", _game.OpenWatchBrowser),
+                        new MenuPageAction("Host Match", _game.OpenHostSetupMenu),
                     ],
                     null,
                     "Back",

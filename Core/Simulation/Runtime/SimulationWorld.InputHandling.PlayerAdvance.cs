@@ -15,6 +15,26 @@ public sealed partial class SimulationWorld
     {
         var preAdvanceX = player.X;
         var preAdvanceY = player.Y;
+        if (player.IsServerInputSuppressed)
+        {
+            input = input with
+            {
+                Left = false,
+                Right = false,
+                Up = false,
+                Down = false,
+                BuildSentry = false,
+                DestroySentry = false,
+                Taunt = false,
+                FirePrimary = false,
+                FireSecondary = false,
+                DebugKill = false,
+                DropIntel = false,
+                UseAbility = false,
+                InteractWeapon = false,
+                SwapWeapon = false,
+            };
+        }
         var isHumiliated = IsPlayerHumiliated(player);
         player.ObserveTauntInput(input.Taunt);
         player.ObserveCivviePogoTrickInput(input.Taunt);
@@ -146,6 +166,11 @@ public sealed partial class SimulationWorld
                 ? FindPlayerById(burnedByPlayerId.Value)
                 : null;
             KillPlayer(player, killer: burner, weaponSpriteName: "FlameKL");
+            return;
+        }
+
+        if (player.IsServerFrozen)
+        {
             return;
         }
 

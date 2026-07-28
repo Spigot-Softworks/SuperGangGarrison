@@ -98,6 +98,7 @@ public sealed partial class PlayerEntity
     public AfterburnTickResult AdvanceTickState(PlayerInputSnapshot input, double deltaSeconds)
     {
         var dt = (float)deltaSeconds;
+        AdvanceServerStunState();
         UpdateAimDirection(input);
         UpdatePyroPrimaryHoldState(input.FirePrimary);
         if (HealingCabinetSoundCooldownSecondsRemaining > 0f)
@@ -146,6 +147,22 @@ public sealed partial class PlayerEntity
         if (!IsAlive)
         {
             canMove = false;
+            return false;
+        }
+
+        if (IsServerNoclip)
+        {
+            canMove = true;
+            var noclipHorizontalDirection = (input.Right ? 1f : 0f) - (input.Left ? 1f : 0f);
+            var verticalDirection = (input.Down ? 1f : 0f) - (input.Up ? 1f : 0f);
+            var movementSpeed = MaxRunSpeed * GetMovementScale(input);
+            X += noclipHorizontalDirection * movementSpeed * dt;
+            Y += verticalDirection * movementSpeed * dt;
+            ClampTo(level.Bounds);
+            HorizontalSpeed = noclipHorizontalDirection * movementSpeed;
+            VerticalSpeed = verticalDirection * movementSpeed;
+            IsGrounded = false;
+            MovementState = LegacyMovementState.None;
             return false;
         }
 
@@ -304,6 +321,11 @@ public sealed partial class PlayerEntity
 
     public bool TryJumpIfPossible(bool canMove, bool jumpPressed)
     {
+        if (IsServerNoclip)
+        {
+            return false;
+        }
+
         // Disable jumping while using binoculars
         if (IsUsingBinoculars)
         {
@@ -326,6 +348,11 @@ public sealed partial class PlayerEntity
     {
         var dt = (float)deltaSeconds;
         if (!IsAlive)
+        {
+            return;
+        }
+
+        if (IsServerNoclip)
         {
             return;
         }

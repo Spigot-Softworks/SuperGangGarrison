@@ -85,6 +85,8 @@ var server = new GameServer(
     launchOptions.WebSocketCertificatePath,
     launchOptions.WebSocketCertificatePassword,
     launchOptions.PublicWebSocketUrl,
+    launchOptions.QuicPort,
+    launchOptions.PublicQuicUrl,
     clientTimeoutSeconds,
     passwordTimeoutSeconds,
     passwordRetrySeconds,

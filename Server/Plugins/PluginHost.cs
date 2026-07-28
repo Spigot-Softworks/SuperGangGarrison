@@ -363,6 +363,47 @@ internal sealed class PluginHost
         }
     }
 
+    public IReadOnlyList<string> ExecuteLuaCommand(OpenGarrisonServerCommandContext context, string code)
+    {
+        var luaPlugin = _loadedPlugins
+            .Select(entry => entry.Plugin)
+            .OfType<LuaServerPlugin>()
+            .OrderByDescending(plugin => plugin.Id.Contains("garrisontools", StringComparison.OrdinalIgnoreCase))
+            .FirstOrDefault();
+        return luaPlugin is null
+            ? ["[server] no Lua server plugin is loaded."]
+            : luaPlugin.ExecuteLuaCode(context, code);
+    }
+
+    public IReadOnlyList<string> ReloadLuaPlugins()
+    {
+        var luaPlugins = _loadedPlugins
+            .Where(entry => entry.Plugin is LuaServerPlugin)
+            .ToArray();
+        if (luaPlugins.Length == 0)
+        {
+            return ["[server] no Lua server plugins are loaded."];
+        }
+
+        var reloaded = 0;
+        foreach (var loadedPlugin in luaPlugins)
+        {
+            try
+            {
+                _commandRegistry.UnregisterOwner(loadedPlugin.Plugin.Id);
+                loadedPlugin.Plugin.Shutdown();
+                loadedPlugin.Plugin.Initialize(loadedPlugin.Context);
+                reloaded += 1;
+            }
+            catch (Exception ex)
+            {
+                _log($"[plugin] Lua reload failed for {loadedPlugin.Plugin.Id}: {ex.Message}");
+            }
+        }
+
+        return [$"[server] reloaded {reloaded}/{luaPlugins.Length} Lua plugin(s)."];
+    }
+
     public bool TryNotifyGameplayAbilityInput(WorldGameplayAbilityEvent e)
     {
         var inputEvent = ToGameplayAbilityInputEvent(e);

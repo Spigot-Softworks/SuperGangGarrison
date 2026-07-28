@@ -85,6 +85,8 @@ internal sealed class QuicNetworkClientMessageTransport : INetworkClientMessageT
                 new QuicClientConnectionOptions
                 {
                     RemoteEndPoint = remoteEndPoint,
+                    DefaultStreamErrorCode = 0x100,
+                    DefaultCloseErrorCode = 0x101,
                     ClientAuthenticationOptions = new SslClientAuthenticationOptions
                     {
                         TargetHost = tlsHost,

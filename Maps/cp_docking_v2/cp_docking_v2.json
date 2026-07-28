@@ -1,13 +1,22 @@
 {
   "formatVersion": 1,
   "name": "cp_docking_v2",
-  "scale": 6,
-  "visualScale": 6,
+  "scale": 2,
+  "visualScale": 2,
   "backgroundImage": "background.png",
   "walkmaskImage": "walkmask.png",
   "metadata": {
     "background": "ffffff",
-    "void": "000000"
+    "blueStartingScore": "0",
+    "entity_schema": "modern",
+    "gameMode": "cp",
+    "overrideInitialCps": "false",
+    "redStartingScore": "0",
+    "roundEndWin": "morePoints",
+    "scoreToWin": "10",
+    "showCps": "false",
+    "void": "000000",
+    "winWhenScore": "moreEqual"
   },
   "entities": [
     {
@@ -16,7 +25,9 @@
       "y": 378,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "4b0bc663"
+      }
     },
     {
       "type": "redteamgate",
@@ -24,7 +35,9 @@
       "y": 378,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "b926ab3f"
+      }
     },
     {
       "type": "redteamgate",
@@ -32,7 +45,9 @@
       "y": 378,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "6289bfb2"
+      }
     },
     {
       "type": "redteamgate",
@@ -40,7 +55,9 @@
       "y": 396,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "45ac847b"
+      }
     },
     {
       "type": "redteamgate",
@@ -48,7 +65,9 @@
       "y": 396,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "ac73ed46"
+      }
     },
     {
       "type": "redteamgate",
@@ -56,7 +75,9 @@
       "y": 396,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "a6c1b633"
+      }
     },
     {
       "type": "redteamgate",
@@ -64,7 +85,9 @@
       "y": 780,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "8738f4c1"
+      }
     },
     {
       "type": "redteamgate",
@@ -72,7 +95,9 @@
       "y": 780,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "e94544dc"
+      }
     },
     {
       "type": "redteamgate",
@@ -80,7 +105,9 @@
       "y": 774,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "de1f218b"
+      }
     },
     {
       "type": "redteamgate",
@@ -88,7 +115,9 @@
       "y": 780,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "08edf6d6"
+      }
     },
     {
       "type": "medCabinet",
@@ -96,7 +125,9 @@
       "y": 726,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "d66c37d4"
+      }
     },
     {
       "type": "medCabinet",
@@ -104,7 +135,9 @@
       "y": 408,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "12458505"
+      }
     },
     {
       "type": "redspawn",
@@ -112,7 +145,9 @@
       "y": 606,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "e17207b5"
+      }
     },
     {
       "type": "redspawn",
@@ -120,7 +155,9 @@
       "y": 606,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "6742e182"
+      }
     },
     {
       "type": "redspawn",
@@ -128,7 +165,9 @@
       "y": 606,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "ba990818"
+      }
     },
     {
       "type": "redspawn",
@@ -136,7 +175,9 @@
       "y": 570,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "54b6943b"
+      }
     },
     {
       "type": "redspawn",
@@ -144,7 +185,9 @@
       "y": 570,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "f5329d76"
+      }
     },
     {
       "type": "redspawn",
@@ -152,7 +195,9 @@
       "y": 570,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "90c43e82"
+      }
     },
     {
       "type": "spawnroom",
@@ -160,7 +205,9 @@
       "y": 372,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "5677079b"
+      }
     },
     {
       "type": "spawnroom",
@@ -168,7 +215,9 @@
       "y": 402,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "6c84c796"
+      }
     },
     {
       "type": "spawnroom",
@@ -176,7 +225,9 @@
       "y": 420,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "87136f0b"
+      }
     },
     {
       "type": "spawnroom",
@@ -184,7 +235,9 @@
       "y": 366,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "852a148d"
+      }
     },
     {
       "type": "spawnroom",
@@ -192,7 +245,9 @@
       "y": 390,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "c935ff05"
+      }
     },
     {
       "type": "spawnroom",
@@ -200,7 +255,9 @@
       "y": 420,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "26d5a290"
+      }
     },
     {
       "type": "spawnroom",
@@ -208,7 +265,9 @@
       "y": 366,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "333134a8"
+      }
     },
     {
       "type": "spawnroom",
@@ -216,7 +275,9 @@
       "y": 396,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "dc7b7dd4"
+      }
     },
     {
       "type": "spawnroom",
@@ -224,7 +285,9 @@
       "y": 426,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "15b826dc"
+      }
     },
     {
       "type": "spawnroom",
@@ -232,7 +295,9 @@
       "y": 384,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "a28079a3"
+      }
     },
     {
       "type": "spawnroom",
@@ -240,7 +305,9 @@
       "y": 444,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "532e8dab"
+      }
     },
     {
       "type": "spawnroom",
@@ -248,7 +315,9 @@
       "y": 408,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "e79905b6"
+      }
     },
     {
       "type": "spawnroom",
@@ -256,7 +325,9 @@
       "y": 444,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "d67a916e"
+      }
     },
     {
       "type": "spawnroom",
@@ -264,7 +335,9 @@
       "y": 408,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "fdc8035c"
+      }
     },
     {
       "type": "spawnroom",
@@ -272,7 +345,9 @@
       "y": 456,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "1d8e9b32"
+      }
     },
     {
       "type": "spawnroom",
@@ -280,7 +355,9 @@
       "y": 450,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "93a7ffb8"
+      }
     },
     {
       "type": "spawnroom",
@@ -288,7 +365,9 @@
       "y": 450,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "132a8b0b"
+      }
     },
     {
       "type": "spawnroom",
@@ -296,7 +375,9 @@
       "y": 450,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "c0a06fcf"
+      }
     },
     {
       "type": "spawnroom",
@@ -304,7 +385,9 @@
       "y": 450,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "e3b68d50"
+      }
     },
     {
       "type": "spawnroom",
@@ -312,7 +395,9 @@
       "y": 456,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "cda791d8"
+      }
     },
     {
       "type": "spawnroom",
@@ -320,7 +405,9 @@
       "y": 444,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "db36e6ef"
+      }
     },
     {
       "type": "spawnroom",
@@ -328,7 +415,9 @@
       "y": 456,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "771cf94b"
+      }
     },
     {
       "type": "spawnroom",
@@ -336,7 +425,9 @@
       "y": 480,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "c60469af"
+      }
     },
     {
       "type": "spawnroom",
@@ -344,7 +435,9 @@
       "y": 498,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "78e2fab7"
+      }
     },
     {
       "type": "spawnroom",
@@ -352,7 +445,9 @@
       "y": 504,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "81a402a7"
+      }
     },
     {
       "type": "spawnroom",
@@ -360,7 +455,9 @@
       "y": 480,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "0fb75f1a"
+      }
     },
     {
       "type": "spawnroom",
@@ -368,7 +465,9 @@
       "y": 492,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "5e3f66d6"
+      }
     },
     {
       "type": "spawnroom",
@@ -376,7 +475,9 @@
       "y": 516,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "7c7cfc42"
+      }
     },
     {
       "type": "spawnroom",
@@ -384,7 +485,9 @@
       "y": 552,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "293513ea"
+      }
     },
     {
       "type": "spawnroom",
@@ -392,7 +495,9 @@
       "y": 588,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "15c95803"
+      }
     },
     {
       "type": "spawnroom",
@@ -400,7 +505,9 @@
       "y": 594,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "6657a6ee"
+      }
     },
     {
       "type": "spawnroom",
@@ -408,7 +515,9 @@
       "y": 594,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "ec2f2a22"
+      }
     },
     {
       "type": "spawnroom",
@@ -416,7 +525,9 @@
       "y": 564,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "11c267fd"
+      }
     },
     {
       "type": "spawnroom",
@@ -424,7 +535,9 @@
       "y": 504,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "1ad190c9"
+      }
     },
     {
       "type": "spawnroom",
@@ -432,7 +545,9 @@
       "y": 480,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "6da72f87"
+      }
     },
     {
       "type": "spawnroom",
@@ -440,7 +555,9 @@
       "y": 546,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "ec2a31c3"
+      }
     },
     {
       "type": "spawnroom",
@@ -448,7 +565,9 @@
       "y": 528,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "1b743814"
+      }
     },
     {
       "type": "spawnroom",
@@ -456,7 +575,9 @@
       "y": 468,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "94574596"
+      }
     },
     {
       "type": "spawnroom",
@@ -464,7 +585,9 @@
       "y": 516,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "7be10e1a"
+      }
     },
     {
       "type": "spawnroom",
@@ -472,7 +595,9 @@
       "y": 498,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "40233c1b"
+      }
     },
     {
       "type": "spawnroom",
@@ -480,7 +605,9 @@
       "y": 510,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "1297ed39"
+      }
     },
     {
       "type": "spawnroom",
@@ -488,7 +615,9 @@
       "y": 540,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "60b7c03e"
+      }
     },
     {
       "type": "spawnroom",
@@ -496,7 +625,9 @@
       "y": 534,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "5cdfb877"
+      }
     },
     {
       "type": "spawnroom",
@@ -504,7 +635,9 @@
       "y": 552,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "9ba7d689"
+      }
     },
     {
       "type": "spawnroom",
@@ -512,7 +645,9 @@
       "y": 576,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "75abe4d7"
+      }
     },
     {
       "type": "spawnroom",
@@ -520,7 +655,9 @@
       "y": 594,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "5a1aada3"
+      }
     },
     {
       "type": "spawnroom",
@@ -528,7 +665,9 @@
       "y": 612,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "a67c72fa"
+      }
     },
     {
       "type": "spawnroom",
@@ -536,7 +675,9 @@
       "y": 618,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "4584c604"
+      }
     },
     {
       "type": "spawnroom",
@@ -544,7 +685,9 @@
       "y": 648,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "2dd3ef03"
+      }
     },
     {
       "type": "spawnroom",
@@ -552,7 +695,9 @@
       "y": 666,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "2763a40e"
+      }
     },
     {
       "type": "spawnroom",
@@ -560,7 +705,9 @@
       "y": 696,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "16f6bf29"
+      }
     },
     {
       "type": "spawnroom",
@@ -568,7 +715,9 @@
       "y": 720,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "16c6c8b0"
+      }
     },
     {
       "type": "spawnroom",
@@ -576,7 +725,9 @@
       "y": 600,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "d050e9f4"
+      }
     },
     {
       "type": "spawnroom",
@@ -584,7 +735,9 @@
       "y": 630,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "e607a6d7"
+      }
     },
     {
       "type": "spawnroom",
@@ -592,7 +745,9 @@
       "y": 660,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "3189d2f9"
+      }
     },
     {
       "type": "spawnroom",
@@ -600,7 +755,9 @@
       "y": 684,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "f18aabf8"
+      }
     },
     {
       "type": "spawnroom",
@@ -608,7 +765,9 @@
       "y": 672,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "776e13b4"
+      }
     },
     {
       "type": "spawnroom",
@@ -616,7 +775,9 @@
       "y": 684,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "4454dbd6"
+      }
     },
     {
       "type": "spawnroom",
@@ -624,7 +785,9 @@
       "y": 684,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "1b9d977c"
+      }
     },
     {
       "type": "spawnroom",
@@ -632,7 +795,9 @@
       "y": 684,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "eb3fe8e6"
+      }
     },
     {
       "type": "spawnroom",
@@ -640,7 +805,9 @@
       "y": 720,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "5be2d818"
+      }
     },
     {
       "type": "spawnroom",
@@ -648,7 +815,9 @@
       "y": 762,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "b4215529"
+      }
     },
     {
       "type": "spawnroom",
@@ -656,7 +825,9 @@
       "y": 798,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "f2773e6b"
+      }
     },
     {
       "type": "spawnroom",
@@ -664,7 +835,9 @@
       "y": 804,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "37d2ad68"
+      }
     },
     {
       "type": "spawnroom",
@@ -672,7 +845,9 @@
       "y": 804,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "66652fa1"
+      }
     },
     {
       "type": "spawnroom",
@@ -680,7 +855,9 @@
       "y": 756,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "e8c9e766"
+      }
     },
     {
       "type": "spawnroom",
@@ -688,7 +865,9 @@
       "y": 780,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "781d3146"
+      }
     },
     {
       "type": "spawnroom",
@@ -696,7 +875,9 @@
       "y": 720,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "6302a65b"
+      }
     },
     {
       "type": "spawnroom",
@@ -704,7 +885,9 @@
       "y": 744,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "99b1dc3a"
+      }
     },
     {
       "type": "spawnroom",
@@ -712,7 +895,9 @@
       "y": 714,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "2d684b04"
+      }
     },
     {
       "type": "blueteamgate",
@@ -720,7 +905,9 @@
       "y": 378,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "afc032ba"
+      }
     },
     {
       "type": "blueteamgate",
@@ -728,7 +915,9 @@
       "y": 378,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "dc92e5a4"
+      }
     },
     {
       "type": "blueteamgate",
@@ -736,7 +925,9 @@
       "y": 378,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "6bae3251"
+      }
     },
     {
       "type": "blueteamgate",
@@ -744,7 +935,9 @@
       "y": 396,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "a81a65ef"
+      }
     },
     {
       "type": "blueteamgate",
@@ -752,7 +945,9 @@
       "y": 396,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "b5e055bc"
+      }
     },
     {
       "type": "blueteamgate",
@@ -760,7 +955,9 @@
       "y": 396,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "beb85d97"
+      }
     },
     {
       "type": "blueteamgate",
@@ -768,7 +965,9 @@
       "y": 774,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "f2cb25fa"
+      }
     },
     {
       "type": "blueteamgate",
@@ -776,7 +975,9 @@
       "y": 780,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "65e216ad"
+      }
     },
     {
       "type": "blueteamgate",
@@ -784,7 +985,9 @@
       "y": 780,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "6e7bdfd2"
+      }
     },
     {
       "type": "blueteamgate",
@@ -792,7 +995,9 @@
       "y": 780,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "ec5e5085"
+      }
     },
     {
       "type": "medCabinet",
@@ -800,7 +1005,9 @@
       "y": 408,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "fe53ba1f"
+      }
     },
     {
       "type": "medCabinet",
@@ -808,7 +1015,9 @@
       "y": 726,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "a01701ef"
+      }
     },
     {
       "type": "bluespawn",
@@ -816,7 +1025,9 @@
       "y": 612,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "856e27ee"
+      }
     },
     {
       "type": "bluespawn",
@@ -824,7 +1035,9 @@
       "y": 612,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "97b370a5"
+      }
     },
     {
       "type": "bluespawn",
@@ -832,7 +1045,9 @@
       "y": 612,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "d94ffdbc"
+      }
     },
     {
       "type": "bluespawn",
@@ -840,7 +1055,9 @@
       "y": 570,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "9408c934"
+      }
     },
     {
       "type": "bluespawn",
@@ -848,7 +1065,9 @@
       "y": 570,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "dc22a62f"
+      }
     },
     {
       "type": "bluespawn",
@@ -856,7 +1075,9 @@
       "y": 570,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "6566d0a8"
+      }
     },
     {
       "type": "spawnroom",
@@ -864,7 +1085,9 @@
       "y": 792,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "86ebc55c"
+      }
     },
     {
       "type": "spawnroom",
@@ -872,7 +1095,9 @@
       "y": 804,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "6c8788cd"
+      }
     },
     {
       "type": "spawnroom",
@@ -880,7 +1105,9 @@
       "y": 804,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "eb4dbfc7"
+      }
     },
     {
       "type": "spawnroom",
@@ -888,7 +1115,9 @@
       "y": 750,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "4f3e4b8c"
+      }
     },
     {
       "type": "spawnroom",
@@ -896,7 +1125,9 @@
       "y": 756,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "b7b5b3fc"
+      }
     },
     {
       "type": "spawnroom",
@@ -904,7 +1135,9 @@
       "y": 726,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "0bd6c6de"
+      }
     },
     {
       "type": "spawnroom",
@@ -912,7 +1145,9 @@
       "y": 696,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "f0f233a9"
+      }
     },
     {
       "type": "spawnroom",
@@ -920,7 +1155,9 @@
       "y": 678,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "e03b4928"
+      }
     },
     {
       "type": "spawnroom",
@@ -928,7 +1165,9 @@
       "y": 678,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "f1dd5a25"
+      }
     },
     {
       "type": "spawnroom",
@@ -936,7 +1175,9 @@
       "y": 726,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "28be139a"
+      }
     },
     {
       "type": "spawnroom",
@@ -944,7 +1185,9 @@
       "y": 708,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "6a8281da"
+      }
     },
     {
       "type": "spawnroom",
@@ -952,7 +1195,9 @@
       "y": 768,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "4d7a8576"
+      }
     },
     {
       "type": "spawnroom",
@@ -960,7 +1205,9 @@
       "y": 798,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "d141cc05"
+      }
     },
     {
       "type": "spawnroom",
@@ -968,7 +1215,9 @@
       "y": 684,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "66a51ad7"
+      }
     },
     {
       "type": "spawnroom",
@@ -976,7 +1225,9 @@
       "y": 720,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "3a8cc2f3"
+      }
     },
     {
       "type": "spawnroom",
@@ -984,7 +1235,9 @@
       "y": 738,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "7df10ea5"
+      }
     },
     {
       "type": "spawnroom",
@@ -992,7 +1245,9 @@
       "y": 762,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "dc5daf92"
+      }
     },
     {
       "type": "spawnroom",
@@ -1000,7 +1255,9 @@
       "y": 672,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "ac2c7022"
+      }
     },
     {
       "type": "spawnroom",
@@ -1008,7 +1265,9 @@
       "y": 720,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "abc7fd00"
+      }
     },
     {
       "type": "spawnroom",
@@ -1016,7 +1275,9 @@
       "y": 708,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "09555d6e"
+      }
     },
     {
       "type": "spawnroom",
@@ -1024,7 +1285,9 @@
       "y": 720,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "a6fd9c25"
+      }
     },
     {
       "type": "spawnroom",
@@ -1032,7 +1295,9 @@
       "y": 678,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "e9ce93bd"
+      }
     },
     {
       "type": "spawnroom",
@@ -1040,7 +1305,9 @@
       "y": 648,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "ccebb3f8"
+      }
     },
     {
       "type": "spawnroom",
@@ -1048,7 +1315,9 @@
       "y": 624,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "b9391216"
+      }
     },
     {
       "type": "spawnroom",
@@ -1056,7 +1325,9 @@
       "y": 660,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "50b13820"
+      }
     },
     {
       "type": "spawnroom",
@@ -1064,7 +1335,9 @@
       "y": 606,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "3a9b32b6"
+      }
     },
     {
       "type": "spawnroom",
@@ -1072,7 +1345,9 @@
       "y": 624,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "0091d336"
+      }
     },
     {
       "type": "spawnroom",
@@ -1080,7 +1355,9 @@
       "y": 600,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "42a22dea"
+      }
     },
     {
       "type": "spawnroom",
@@ -1088,7 +1365,9 @@
       "y": 594,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "cd09d9cb"
+      }
     },
     {
       "type": "spawnroom",
@@ -1096,7 +1375,9 @@
       "y": 600,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "398072a2"
+      }
     },
     {
       "type": "spawnroom",
@@ -1104,7 +1385,9 @@
       "y": 570,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "d47e1b6c"
+      }
     },
     {
       "type": "spawnroom",
@@ -1112,7 +1395,9 @@
       "y": 540,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "60886d44"
+      }
     },
     {
       "type": "spawnroom",
@@ -1120,7 +1405,9 @@
       "y": 504,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "bb8ddb37"
+      }
     },
     {
       "type": "spawnroom",
@@ -1128,7 +1415,9 @@
       "y": 462,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "d90316f8"
+      }
     },
     {
       "type": "spawnroom",
@@ -1136,7 +1425,9 @@
       "y": 444,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "632054f2"
+      }
     },
     {
       "type": "spawnroom",
@@ -1144,7 +1435,9 @@
       "y": 456,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "ae292180"
+      }
     },
     {
       "type": "spawnroom",
@@ -1152,7 +1445,9 @@
       "y": 456,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "2befd1a1"
+      }
     },
     {
       "type": "spawnroom",
@@ -1160,7 +1455,9 @@
       "y": 456,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "a683ea26"
+      }
     },
     {
       "type": "spawnroom",
@@ -1168,7 +1465,9 @@
       "y": 492,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "86dd18ad"
+      }
     },
     {
       "type": "spawnroom",
@@ -1176,7 +1475,9 @@
       "y": 516,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "be240074"
+      }
     },
     {
       "type": "spawnroom",
@@ -1184,7 +1485,9 @@
       "y": 552,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "23167e25"
+      }
     },
     {
       "type": "spawnroom",
@@ -1192,7 +1495,9 @@
       "y": 570,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "9cfdf949"
+      }
     },
     {
       "type": "spawnroom",
@@ -1200,7 +1505,9 @@
       "y": 564,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "80b9a7f6"
+      }
     },
     {
       "type": "spawnroom",
@@ -1208,7 +1515,9 @@
       "y": 564,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "5e37d0d0"
+      }
     },
     {
       "type": "spawnroom",
@@ -1216,7 +1525,9 @@
       "y": 534,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "a31433a7"
+      }
     },
     {
       "type": "spawnroom",
@@ -1224,7 +1535,9 @@
       "y": 498,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "20c7fbe1"
+      }
     },
     {
       "type": "spawnroom",
@@ -1232,7 +1545,9 @@
       "y": 486,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "bdff2827"
+      }
     },
     {
       "type": "spawnroom",
@@ -1240,7 +1555,9 @@
       "y": 492,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "6e146944"
+      }
     },
     {
       "type": "spawnroom",
@@ -1248,7 +1565,9 @@
       "y": 528,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "58157959"
+      }
     },
     {
       "type": "spawnroom",
@@ -1256,7 +1575,9 @@
       "y": 534,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "bbbf38e7"
+      }
     },
     {
       "type": "spawnroom",
@@ -1264,7 +1585,9 @@
       "y": 504,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "a4907928"
+      }
     },
     {
       "type": "spawnroom",
@@ -1272,7 +1595,9 @@
       "y": 486,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "7d77146e"
+      }
     },
     {
       "type": "spawnroom",
@@ -1280,7 +1605,9 @@
       "y": 492,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "ad917aab"
+      }
     },
     {
       "type": "spawnroom",
@@ -1288,7 +1615,9 @@
       "y": 438,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "721f42b7"
+      }
     },
     {
       "type": "spawnroom",
@@ -1296,7 +1625,9 @@
       "y": 456,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "0ba1be7b"
+      }
     },
     {
       "type": "spawnroom",
@@ -1304,7 +1635,9 @@
       "y": 480,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "95554e62"
+      }
     },
     {
       "type": "spawnroom",
@@ -1312,7 +1645,9 @@
       "y": 450,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "0e22c083"
+      }
     },
     {
       "type": "spawnroom",
@@ -1320,7 +1655,9 @@
       "y": 438,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "515a8cf8"
+      }
     },
     {
       "type": "spawnroom",
@@ -1328,7 +1665,9 @@
       "y": 426,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "a6240430"
+      }
     },
     {
       "type": "spawnroom",
@@ -1336,7 +1675,9 @@
       "y": 396,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "e53ba911"
+      }
     },
     {
       "type": "spawnroom",
@@ -1344,7 +1685,9 @@
       "y": 402,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "44e75daa"
+      }
     },
     {
       "type": "spawnroom",
@@ -1352,7 +1695,9 @@
       "y": 372,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "6a20141e"
+      }
     },
     {
       "type": "spawnroom",
@@ -1360,7 +1705,9 @@
       "y": 396,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "78034bf5"
+      }
     },
     {
       "type": "spawnroom",
@@ -1368,7 +1715,9 @@
       "y": 420,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "71f9ceac"
+      }
     },
     {
       "type": "spawnroom",
@@ -1376,7 +1725,9 @@
       "y": 372,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "e8792ec6"
+      }
     },
     {
       "type": "spawnroom",
@@ -1384,7 +1735,9 @@
       "y": 372,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "41db0c52"
+      }
     },
     {
       "type": "spawnroom",
@@ -1392,7 +1745,9 @@
       "y": 372,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "12d33024"
+      }
     },
     {
       "type": "spawnroom",
@@ -1400,7 +1755,9 @@
       "y": 402,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "d183e313"
+      }
     },
     {
       "type": "spawnroom",
@@ -1408,7 +1765,9 @@
       "y": 420,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "2d384ea4"
+      }
     },
     {
       "type": "spawnroom",
@@ -1416,7 +1775,9 @@
       "y": 768,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "675ff286"
+      }
     },
     {
       "type": "spawnroom",
@@ -1424,7 +1785,9 @@
       "y": 798,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "d6eaf0dc"
+      }
     },
     {
       "type": "spawnroom",
@@ -1432,7 +1795,9 @@
       "y": 780,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "95db39e7"
+      }
     },
     {
       "type": "spawnroom",
@@ -1440,7 +1805,9 @@
       "y": 774,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "64c09923"
+      }
     },
     {
       "type": "spawnroom",
@@ -1448,15 +1815,19 @@
       "y": 414,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "ded141d4"
+      }
     },
     {
       "type": "controlPoint1",
-      "x": 1164,
+      "x": 1183,
       "y": 648,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "b69bffc2"
+      }
     },
     {
       "type": "CapturePoint",
@@ -1464,7 +1835,9 @@
       "y": 672,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "a71859c3"
+      }
     },
     {
       "type": "CapturePoint",
@@ -1472,7 +1845,9 @@
       "y": 672,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "f607e930"
+      }
     },
     {
       "type": "CapturePoint",
@@ -1480,7 +1855,9 @@
       "y": 648,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "d0210e46"
+      }
     },
     {
       "type": "CapturePoint",
@@ -1488,15 +1865,19 @@
       "y": 648,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "b2b0eeb5"
+      }
     },
     {
       "type": "controlPoint2",
-      "x": 2124,
-      "y": 678,
+      "x": 2134,
+      "y": 679,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "cb60f17a"
+      }
     },
     {
       "type": "CapturePoint",
@@ -1504,7 +1885,9 @@
       "y": 714,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "f6ffd74a"
+      }
     },
     {
       "type": "CapturePoint",
@@ -1512,7 +1895,9 @@
       "y": 714,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "c2daa179"
+      }
     },
     {
       "type": "CapturePoint",
@@ -1520,7 +1905,9 @@
       "y": 690,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "c200eb67"
+      }
     },
     {
       "type": "CapturePoint",
@@ -1528,15 +1915,19 @@
       "y": 690,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "f0f567e8"
+      }
     },
     {
       "type": "controlPoint3",
-      "x": 3078,
-      "y": 654,
+      "x": 3088,
+      "y": 653,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "3b2ee285"
+      }
     },
     {
       "type": "CapturePoint",
@@ -1544,7 +1935,9 @@
       "y": 672,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "808bdf80"
+      }
     },
     {
       "type": "CapturePoint",
@@ -1552,7 +1945,9 @@
       "y": 672,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "98b64f14"
+      }
     },
     {
       "type": "CapturePoint",
@@ -1560,7 +1955,9 @@
       "y": 648,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "a87bcfd0"
+      }
     },
     {
       "type": "CapturePoint",
@@ -1568,9 +1965,73 @@
       "y": 648,
       "xScale": 1,
       "yScale": 1,
-      "properties": {}
+      "properties": {
+        "mapEntityId": "7f6e7921"
+      }
     }
   ],
-  "resources": [],
-  "parallaxLayers": []
+  "resources": [
+    {
+      "name": "bg_foreground",
+      "kind": "foreground",
+      "path": "bg_foreground.png"
+    },
+    {
+      "name": "bg_layer0",
+      "kind": "parallaxLayer",
+      "path": "bg_layer0.png"
+    },
+    {
+      "name": "bg_layer1",
+      "kind": "parallaxLayer",
+      "path": "bg_layer1.png"
+    },
+    {
+      "name": "bg_layer2",
+      "kind": "parallaxLayer",
+      "path": "bg_layer2.png"
+    },
+    {
+      "name": "bg_layer3",
+      "kind": "parallaxLayer",
+      "path": "bg_layer3.png"
+    },
+    {
+      "name": "bg_layer4",
+      "kind": "parallaxLayer",
+      "path": "bg_layer4.png"
+    }
+  ],
+  "parallaxLayers": [
+    {
+      "index": 0,
+      "resourceName": "bg_layer0",
+      "xFactor": 10,
+      "yFactor": 10
+    },
+    {
+      "index": 1,
+      "resourceName": "bg_layer1",
+      "xFactor": 9,
+      "yFactor": 7
+    },
+    {
+      "index": 2,
+      "resourceName": "bg_layer2",
+      "xFactor": 4,
+      "yFactor": 7
+    },
+    {
+      "index": 3,
+      "resourceName": "bg_layer3",
+      "xFactor": 9,
+      "yFactor": 7
+    },
+    {
+      "index": 4,
+      "resourceName": "bg_layer4",
+      "xFactor": 3,
+      "yFactor": 4
+    }
+  ]
 }

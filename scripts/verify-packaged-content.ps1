@@ -126,6 +126,7 @@ function Test-PackagedContentPolicy {
     $violations = [System.Collections.Generic.List[string]]::new()
 
     $requiredFiles = [ordered]@{
+        "_gamemaker-asset-manifest.json" = "runtime GameMaker asset manifest"
         "Gameplay/stock.gg2/pack.json" = "stock gameplay pack definition"
         "Gameplay/stock.gg2/runtime.json" = "compact stock gameplay runtime metadata"
         "Browser/Manifests/bootstrap-manifest.json" = "bootstrap atlas manifest"
@@ -345,6 +346,7 @@ function New-PolicyTestFixture {
     }
 
     Set-Content -LiteralPath (Join-Path $contentRoot "Gameplay/stock.gg2/pack.json") -Value '{"id":"stock.gg2"}' -Encoding UTF8
+    Set-Content -LiteralPath (Join-Path $contentRoot "_gamemaker-asset-manifest.json") -Value '{"sprites":{}}' -Encoding UTF8
     Set-Content -LiteralPath (Join-Path $contentRoot "Gameplay/stock.gg2/runtime.json") -Value '{"assets":{"sprites":{"test":{}}}}' -Encoding UTF8
     Set-Content -LiteralPath (Join-Path $contentRoot "Gameplay/stock.gg2/classes/test.json") -Value '{}' -Encoding UTF8
     Set-Content -LiteralPath (Join-Path $contentRoot "Gameplay/stock.gg2/items/test.json") -Value '{}' -Encoding UTF8

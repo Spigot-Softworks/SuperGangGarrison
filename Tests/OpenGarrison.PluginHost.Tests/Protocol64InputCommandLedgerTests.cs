@@ -38,6 +38,16 @@ public sealed class Protocol64InputCommandLedgerTests
     }
 
     [Fact]
+    public void MultipleCommandsCanShareAnInputFrameWhenCommandSequencesAdvance()
+    {
+        var ledger = new Protocol64InputCommandLedger();
+
+        Assert.True(ledger.TryEnqueue(Command(1, 20) with { CommandSequence = 1 }, 100, out _));
+        Assert.True(ledger.TryEnqueue(Command(2, 20) with { CommandSequence = 2 }, 100, out _));
+        Assert.Equal(2, ledger.PendingCount);
+    }
+
+    [Fact]
     public void ResultStaysRetainedUntilAcknowledged()
     {
         var ledger = new Protocol64InputCommandLedger();

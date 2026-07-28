@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Core;
 
@@ -87,6 +88,7 @@ public sealed partial class SimulationWorld
     private readonly Dictionary<byte, CharacterClassDefinition> _additionalNetworkPlayerClassDefinitions = new();
     private readonly Dictionary<byte, PlayerInputSnapshot> _additionalNetworkPlayerInputs = new();
     private readonly Dictionary<byte, PlayerInputSnapshot> _additionalNetworkPlayerPreviousInputs = new();
+    private readonly Dictionary<byte, InputButtons> _networkPlayerForcedPressedButtons = new();
     private readonly Dictionary<byte, bool> _additionalNetworkPlayerAwaitingJoin = new();
     private readonly Dictionary<byte, int> _additionalNetworkPlayerRespawnTicks = new();
     private readonly Dictionary<int, int> _jumpInputBufferTicksByPlayerId = new();

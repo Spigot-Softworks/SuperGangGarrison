@@ -135,14 +135,30 @@ sealed class ServerSessionManager
                 && client.IsAuthorized
                 && client.TryDequeueProtocol64InputCommand(out var command))
             {
-                var commandInput = ApplyProtocol64Command(client.LatestReceivedInput, command);
+                var hasLatestInput = client.TryGetInputForNextTick(out var latestInput);
+                var commandInput = ApplyProtocol64Command(
+                    hasLatestInput ? latestInput : client.LatestReceivedInput,
+                    command);
+                var commandEdges = GetProtocol64CommandEdge(command.Kind);
+                var commandsForThisTick = new List<Protocol64InputCommand> { command };
+                while (client.TryDequeueProtocol64InputCommand(out var nextCommand))
+                {
+                    commandInput = ApplyProtocol64Command(commandInput, nextCommand);
+                    commandEdges |= GetProtocol64CommandEdge(nextCommand.Kind);
+                    commandsForThisTick.Add(nextCommand);
+                }
+
                 var applied = _world.TrySetNetworkPlayerInput(
                     slot,
-                    ConvertAimPositionFromClient(slot, commandInput));
-                _pendingProtocol64InputConsumptions.Add(new(
-                    client,
-                    command,
-                    applied));
+                    ConvertAimPositionFromClient(slot, commandInput),
+                    commandEdges);
+                foreach (var commandForThisTick in commandsForThisTick)
+                {
+                    _pendingProtocol64InputConsumptions.Add(new(
+                        client,
+                        commandForThisTick,
+                        applied));
+                }
             }
             else if (_clientsBySlot.TryGetValue(slot, out client)
                 && client.IsAuthorized
@@ -194,11 +210,12 @@ sealed class ServerSessionManager
     {
         if (_passwordRequired && !client.IsAuthorized)
         {
-            SendProtocol64InputResult(client, client.CompleteProtocol64InputCommand(
+            var result = client.CompleteProtocol64InputCommand(
                 command,
                 _protocol64ServerTick,
                 consumed: false,
-                "The session is not authorized."));
+                "The session is not authorized.");
+            SendProtocol64InputResult(client, result);
             return;
         }
 
@@ -274,6 +291,24 @@ sealed class ServerSessionManager
             _ => input,
         };
     }
+
+    private static InputButtons GetProtocol64CommandEdge(Protocol64InputCommandKind kind)
+        => kind switch
+        {
+            Protocol64InputCommandKind.Jump => InputButtons.Up,
+            Protocol64InputCommandKind.BuildSentry => InputButtons.BuildSentry,
+            Protocol64InputCommandKind.DestroySentry => InputButtons.DestroySentry,
+            Protocol64InputCommandKind.Taunt => InputButtons.Taunt,
+            Protocol64InputCommandKind.FirePrimary => InputButtons.FirePrimary,
+            Protocol64InputCommandKind.FireSecondary => InputButtons.FireSecondary,
+            Protocol64InputCommandKind.DebugKill => InputButtons.DebugKill,
+            Protocol64InputCommandKind.DropIntel => InputButtons.DropIntel,
+            Protocol64InputCommandKind.UseAbility => InputButtons.UseAbility,
+            Protocol64InputCommandKind.InteractWeapon => InputButtons.InteractWeapon,
+            Protocol64InputCommandKind.SwapWeapon => InputButtons.SwapWeapon,
+            Protocol64InputCommandKind.ReadyUp => InputButtons.ReadyUp,
+            _ => InputButtons.None,
+        };
 
     private PlayerInputSnapshot ConvertAimPositionFromClient(byte slot, PlayerInputSnapshot input)
     {

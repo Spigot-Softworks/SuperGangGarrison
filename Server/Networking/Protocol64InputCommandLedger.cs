@@ -51,7 +51,8 @@ internal sealed class Protocol64InputCommandLedger
                 command.InputSequence,
                 Protocol64InputCommandResultKind.Duplicate,
                 serverTick,
-                "Input command is already queued.");
+                "Input command is already queued.",
+                command.CommandSequence);
             return false;
         }
 
@@ -62,14 +63,17 @@ internal sealed class Protocol64InputCommandLedger
             return false;
         }
 
-        if (_lastAcceptedSequence != 0 && !IsSequenceNewer(command.InputSequence, _lastAcceptedSequence))
+        var commandSequence = command.CommandSequence == 0
+            ? command.InputSequence
+            : command.CommandSequence;
+        if (_lastAcceptedSequence != 0 && !IsSequenceNewer(commandSequence, _lastAcceptedSequence))
         {
             _pendingIds.Remove(command.CommandId);
             immediateResult = Rejected(command, serverTick, "Input command sequence is stale.");
             return false;
         }
 
-        _lastAcceptedSequence = command.InputSequence;
+        _lastAcceptedSequence = commandSequence;
         _pending.Enqueue(command);
         immediateResult = null;
         return true;
@@ -101,7 +105,8 @@ internal sealed class Protocol64InputCommandLedger
                 ? Protocol64InputCommandResultKind.Consumed
                 : Protocol64InputCommandResultKind.Rejected,
             serverTick,
-            reason ?? string.Empty);
+            reason ?? string.Empty,
+            command.CommandSequence);
 
         _completed[command.CommandId] = result;
         _completedOrder.Enqueue(command.CommandId);
@@ -128,7 +133,8 @@ internal sealed class Protocol64InputCommandLedger
             command.InputSequence,
             Protocol64InputCommandResultKind.Rejected,
             serverTick,
-            reason);
+            reason,
+            command.CommandSequence);
 
     private static bool IsSequenceNewer(uint candidate, uint baseline)
     {

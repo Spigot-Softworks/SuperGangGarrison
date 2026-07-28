@@ -288,6 +288,83 @@ internal sealed class ServerAdminOperations(
         return worldGetter().ForceKillNetworkPlayer(slot);
     }
 
+    public bool TryExplodePlayer(byte slot)
+    {
+        return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
+            && worldGetter().TryExplodeNetworkPlayer(slot);
+    }
+
+    public bool TryBuildJumpPad(byte slot)
+    {
+        return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
+            && worldGetter().TryBuildNetworkJumpPad(slot);
+    }
+
+    public bool TrySetPlayerNoclip(byte slot, bool enabled)
+    {
+        return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
+            && worldGetter().TrySetNetworkPlayerNoclip(slot, enabled);
+    }
+
+    public bool TryTogglePlayerNoclip(byte slot, out bool enabled)
+    {
+        enabled = false;
+        var world = worldGetter();
+        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
+            || !world.TryGetNetworkPlayer(slot, out var player))
+        {
+            return false;
+        }
+
+        enabled = !player.IsServerNoclip;
+        return world.TrySetNetworkPlayerNoclip(slot, enabled);
+    }
+
+    public bool TrySetPlayerFrozen(byte slot, bool frozen)
+    {
+        return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
+            && worldGetter().TrySetNetworkPlayerFrozen(slot, frozen);
+    }
+
+    public bool TryTogglePlayerFrozen(byte slot, out bool frozen)
+    {
+        frozen = false;
+        var world = worldGetter();
+        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
+            || !world.TryGetNetworkPlayer(slot, out var player))
+        {
+            return false;
+        }
+
+        frozen = !player.IsServerFrozen;
+        return world.TrySetNetworkPlayerFrozen(slot, frozen);
+    }
+
+    public bool TryStunPlayer(byte slot, float durationSeconds)
+    {
+        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
+        {
+            return false;
+        }
+
+        var world = worldGetter();
+        var ticks = Math.Max(1, (int)MathF.Round(float.Clamp(durationSeconds, 0.1f, 60f) * world.Config.TicksPerSecond));
+        return world.TryStunNetworkPlayer(slot, ticks);
+    }
+
+    public bool TryTeleportPlayerToPlayer(byte sourceSlot, byte targetSlot)
+    {
+        return SimulationWorld.IsPlayableNetworkPlayerSlot(sourceSlot)
+            && SimulationWorld.IsPlayableNetworkPlayerSlot(targetSlot)
+            && worldGetter().TryTeleportNetworkPlayerToPlayer(sourceSlot, targetSlot);
+    }
+
+    public bool TrySetPlayerRespawnPosition(byte slot, float x, float y)
+    {
+        return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
+            && worldGetter().TrySetNetworkPlayerRespawnOverride(slot, x, y);
+    }
+
     public bool TryIgnitePlayer(byte slot, float durationSeconds)
     {
         if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
@@ -511,6 +588,26 @@ internal sealed class ServerAdminOperations(
         else
         {
             log($"[server] failed to add bot slot={slot}: slot unavailable or invalid");
+        }
+        return result;
+    }
+
+    public bool TryAddMimicBot(byte sourceSlot, PlayerTeam team, PlayerClass playerClass, string displayName, out byte botSlot)
+    {
+        var result = botManagerGetter().TryAddMimicBot(sourceSlot, team, playerClass, displayName, out botSlot);
+        if (result)
+        {
+            log($"[server] added mimic bot slot={botSlot} source={sourceSlot} team={team} class={playerClass}");
+        }
+        return result;
+    }
+
+    public bool TryAddFollowHealerBot(byte targetSlot, string displayName, out byte botSlot)
+    {
+        var result = botManagerGetter().TryAddFollowHealerBot(targetSlot, displayName, out botSlot);
+        if (result)
+        {
+            log($"[server] added follow healer slot={botSlot} target={targetSlot}");
         }
         return result;
     }

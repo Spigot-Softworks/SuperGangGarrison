@@ -85,7 +85,10 @@ public partial class Game1
         switch (command)
         {
             case "help":
-                AddConsoleLine("help, clear, hide_hud <on|off|toggle|status>, hud <show|hide|on|off|toggle|status>, camdebug <on|off|toggle|status>, connect <host> [port], replay_play <path>, demo_play <path>, demo_record <start [path]|stop|cancel|status>, replay_queue <path|status|clear>, replay_pause <on|off|toggle|status>, replay_speed <percent>, replay_status, replay_stop, disconnect, net_delay <ms>, net_diag/netdiag/net-diag <on|off|status|clear|export|path>, bot_diag <on|off|status|clear>, debug <0|1>, bots <server bot command>, practice_bot <add|list|clear>, nav_edit <on|off|status|save|reload|rebuild>, builder <on|off|new|open|bg|wm|save|status>, score_route_rec <start|stop|save|cancel|status> ..., spawn_dummy (offline training), despawn_dummy (offline training), spawn_combat_dummy/spawn_dps_dummy (offline practice), despawn_combat_dummy/despawn_dps_dummy (offline practice), spawn_friendly_dummy (offline support), despawn_friendly_dummy (offline support), set_name <text>, set_dummy_name <text> (offline training), set_friendly_name <text> (offline support), set_friendly_dummy_hp <n> (offline support), killme, respawn_me, build_sentry, destroy_sentry, give_intel, drop_intel, set_hp <n>, set_ammo <n>, set_class <scout|engineer|pyro|soldier|demoman|heavy|sniper|medic|spy|quote>, load_map <map>, teleport <x> <y>, fill_uber, ltd_win, ltd_forcespecial <a|b|c|d>, show_import, show_engineer, show_medic, +fire (hold fire), -fire (release fire)");
+                AddConsoleLine("help, bind <key> <action>, clear, hide_hud <on|off|toggle|status>, hud <show|hide|on|off|toggle|status>, camdebug <on|off|toggle|status>, connect <host> [port], replay_play <path>, demo_play <path>, demo_record <start [path]|stop|cancel|status>, replay_queue <path|status|clear>, replay_pause <on|off|toggle|status>, replay_speed <percent>, replay_status, replay_stop, disconnect, net_delay <ms>, net_diag/netdiag/net-diag <on|off|status|clear|export|path>, bot_diag <on|off|status|clear>, debug <0|1>, bots <server bot command>, practice_bot <add|list|clear>, nav_edit <on|off|status|save|reload|rebuild>, builder <on|off|new|open|bg|wm|save|status>, score_route_rec <start|stop|save|cancel|status> ..., spawn_dummy (offline training), despawn_dummy (offline training), spawn_combat_dummy/spawn_dps_dummy (offline practice), despawn_combat_dummy/despawn_dps_dummy (offline practice), spawn_friendly_dummy (offline support), despawn_friendly_dummy (offline support), set_name <text>, set_dummy_name <text> (offline training), set_friendly_name <text> (offline support), set_friendly_dummy_hp <n> (offline support), killme, respawn_me, build_sentry, destroy_sentry, give_intel, drop_intel, set_hp <n>, set_ammo <n>, set_class <scout|engineer|pyro|soldier|demoman|heavy|sniper|medic|spy|quote>, load_map <map>, teleport <x> <y>, fill_uber, ltd_win, ltd_forcespecial <a|b|c|d>, show_import, show_engineer, show_medic, +fire (hold fire), -fire (release fire)");
+                break;
+            case "bind":
+                HandleBindConsoleCommand(parts);
                 break;
             case "clear":
                 _consoleHistory.Clear();
@@ -754,6 +757,109 @@ public partial class Game1
     {
         value = 0;
         return parts.Length >= 2 && int.TryParse(parts[1], out value);
+    }
+
+    private void HandleBindConsoleCommand(string[] parts)
+    {
+        if (parts.Length < 3 || !InputBindingsSettings.TryParseBinding(parts[1], out var binding))
+        {
+            AddConsoleLine("usage: bind <key> <action>");
+            return;
+        }
+
+        var action = parts[2]
+            .Trim()
+            .TrimStart('+', '-')
+            .Replace("_", string.Empty, StringComparison.Ordinal)
+            .Replace("-", string.Empty, StringComparison.Ordinal)
+            .ToLowerInvariant();
+        if (!TrySetConsoleBinding(action, binding))
+        {
+            AddConsoleLine("unknown bind action; use jump, down, left, right, taunt, medic, ability, interact, swap, scoreboard, team, class, console, bubble_z, bubble_x, bubble_c, or custom_bubble");
+            return;
+        }
+
+        PersistInputBindings();
+        AddConsoleLine($"bound {InputBindingsSettings.FormatBinding(binding)} to {action}");
+    }
+
+    private bool TrySetConsoleBinding(string action, InputBinding binding)
+    {
+        switch (action)
+        {
+            case "jump":
+            case "up":
+                _inputBindings.MoveUp = binding;
+                return true;
+            case "down":
+                _inputBindings.MoveDown = binding;
+                return true;
+            case "left":
+            case "moveleft":
+                _inputBindings.MoveLeft = binding;
+                return true;
+            case "right":
+            case "moveright":
+                _inputBindings.MoveRight = binding;
+                return true;
+            case "taunt":
+                _inputBindings.Taunt = binding;
+                return true;
+            case "medic":
+            case "callmedic":
+                _inputBindings.CallMedic = binding;
+                return true;
+            case "ability":
+            case "secondary":
+            case "useability":
+                _inputBindings.UseAbility = binding;
+                return true;
+            case "interact":
+            case "interactweapon":
+                _inputBindings.InteractWeapon = binding;
+                return true;
+            case "swap":
+            case "swapweapons":
+                if (binding.Kind == InputBindingKind.Keyboard)
+                {
+                    _inputBindings.SwapWeaponsBinding = WeaponSwapBindingMode.Custom;
+                    _inputBindings.SwapWeaponsCustomKey = binding;
+                }
+                else
+                {
+                    _inputBindings.SwapWeaponsBinding = WeaponSwapBindingMode.MouseSecondary;
+                }
+                return true;
+            case "scoreboard":
+            case "showscores":
+                _inputBindings.ShowScoreboard = binding;
+                return true;
+            case "team":
+            case "changeteam":
+                _inputBindings.ChangeTeam = binding;
+                return true;
+            case "class":
+            case "changeclass":
+                _inputBindings.ChangeClass = binding;
+                return true;
+            case "console":
+                _inputBindings.ToggleConsole = binding;
+                return true;
+            case "bubblez":
+                _inputBindings.OpenBubbleMenuZ = binding;
+                return true;
+            case "bubblex":
+                _inputBindings.OpenBubbleMenuX = binding;
+                return true;
+            case "bubblec":
+                _inputBindings.OpenBubbleMenuC = binding;
+                return true;
+            case "custombubble":
+                _inputBindings.CustomBubble = binding;
+                return true;
+            default:
+                return false;
+        }
     }
 
     private static bool TryParsePlayerClass(string value, out PlayerClass playerClass)

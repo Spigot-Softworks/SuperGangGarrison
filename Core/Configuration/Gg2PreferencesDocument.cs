@@ -38,6 +38,10 @@ public sealed class OpenGarrisonPreferencesDocument
     public const int DefaultDamageVignetteIntensityPercent = 100;
     public const int DefaultCombatMusicVolumePercent = 120;
     public const bool DefaultPostGameMvpArtEnabled = true;
+    public const int MinCursorSizePercent = 50;
+    public const int MaxCursorSizePercent = 250;
+    public const int CursorSizeStepPercent = 10;
+    public const int DefaultCursorSizePercent = 100;
     public const int MaxCombatMusicVolumePercent = 300;
     public const float DefaultControllerAimAssistStrength = 0.6f;
     public const float DefaultControllerAimDeadzone = 0.22f;
@@ -172,6 +176,8 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public int PlayerCardSizeMode { get; set; }
 
+    public int CursorSizePercent { get; set; } = DefaultCursorSizePercent;
+
     public ControllerInputMode ControllerInputMode { get; set; } = ControllerInputMode.Auto;
 
     public ControllerReticleMode ControllerReticleMode { get; set; } = ControllerReticleMode.Cursor;
@@ -296,6 +302,7 @@ public sealed class OpenGarrisonPreferencesDocument
             UseLocalWeaponRotation = ini.GetBool(SettingsSection, "Use Local Weapon Rotation", false),
             DisableLegacyGameplaySpriteFallback = ini.GetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", false),
             PlayerCardSizeMode = Math.Clamp(ini.GetInt(SettingsSection, "Playercard Size", 0), 0, 2),
+            CursorSizePercent = ReadCursorSizePercent(ini),
             ControllerInputMode = ParseControllerInputMode(ini.GetString(SettingsSection, "Controller Input Mode", ControllerInputMode.Auto.ToString())),
             ControllerReticleMode = ParseControllerReticleMode(ini.GetString(SettingsSection, "Controller Reticle Mode", ControllerReticleMode.Cursor.ToString())),
             ControllerAimAssistEnabled = ini.GetBool(SettingsSection, "Controller Aim Assist", true),
@@ -391,6 +398,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(SettingsSection, "Use Local Weapon Rotation", UseLocalWeaponRotation);
         ini.SetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", DisableLegacyGameplaySpriteFallback);
         ini.SetInt(SettingsSection, "Playercard Size", Math.Clamp(PlayerCardSizeMode, 0, 2));
+        ini.SetInt(SettingsSection, "Cursor Size", NormalizeCursorSizePercent(CursorSizePercent));
         ini.SetString(SettingsSection, "Controller Input Mode", NormalizeControllerInputMode(ControllerInputMode).ToString());
         ini.SetString(SettingsSection, "Controller Reticle Mode", NormalizeControllerReticleMode(ControllerReticleMode).ToString());
         ini.SetBool(SettingsSection, "Controller Aim Assist", ControllerAimAssistEnabled);
@@ -653,6 +661,27 @@ public sealed class OpenGarrisonPreferencesDocument
             DisplayModeKind.Fullscreen => DisplayModeKind.Fullscreen,
             _ => DefaultDisplayMode,
         };
+    }
+
+    private static int ReadCursorSizePercent(IniConfigurationFile ini)
+    {
+        var cursorSize = ini.GetInt(SettingsSection, "Cursor Size", DefaultCursorSizePercent);
+
+        // Migrate the previous 1x/2x/3x values to their equivalent percentages.
+        if (cursorSize is >= 1 and <= 3)
+        {
+            return cursorSize * MinCursorSizePercent;
+        }
+
+        return NormalizeCursorSizePercent(cursorSize);
+    }
+
+    public static int NormalizeCursorSizePercent(int cursorSizePercent)
+    {
+        var clamped = Math.Clamp(cursorSizePercent, MinCursorSizePercent, MaxCursorSizePercent);
+        var stepped = MinCursorSizePercent
+            + (((clamped - MinCursorSizePercent) / CursorSizeStepPercent) * CursorSizeStepPercent);
+        return Math.Clamp(stepped, MinCursorSizePercent, MaxCursorSizePercent);
     }
 
     public static DisplayScaleModeKind NormalizeDisplayScaleMode(DisplayScaleModeKind displayScaleMode)

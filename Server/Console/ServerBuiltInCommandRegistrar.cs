@@ -18,7 +18,9 @@ internal sealed class ServerBuiltInCommandRegistrar(
     Func<(bool Success, string Status, string Error)> tryStopDemoRecording,
     Func<IReadOnlyList<string>> loadedPluginIdsProvider,
     IOpenGarrisonServerCvarRegistry cvarRegistry,
-    IOpenGarrisonServerScheduler scheduler)
+    IOpenGarrisonServerScheduler scheduler,
+    Func<OpenGarrisonServerCommandContext, string, IReadOnlyList<string>>? executeLuaCommand = null,
+    Func<IReadOnlyList<string>>? reloadLuaPlugins = null)
 {
     public void RegisterAll()
     {
@@ -335,13 +337,18 @@ internal sealed class ServerBuiltInCommandRegistrar(
             OpenGarrisonServerAdminPermissions.ManagePlayers);
         commandRegistry.RegisterBuiltIn(
             "kill",
-            "Kill a playable slot's current character.",
-            "kill <slot>",
+            "Kill yourself or a playable slot's current character.",
+            "kill [self|slot|name]",
             (context, arguments, _) =>
             {
-                if (!TryParseSlot(arguments, out var slot))
+                if (!TryResolveTargetSlot(context, arguments, allowSelf: true, out var slot, out var isSelf))
                 {
-                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: kill <slot>"]);
+                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: kill [self|slot|name]"]);
+                }
+
+                if (!isSelf && !TryRequireCheats(context, "kill"))
+                {
+                    return Task.FromResult<IReadOnlyList<string>>(["[server] kill on another player requires sv_cheats 1."]);
                 }
 
                 return Task.FromResult<IReadOnlyList<string>>(context.AdminOperations.TryForceKill(slot)
@@ -349,6 +356,7 @@ internal sealed class ServerBuiltInCommandRegistrar(
                     : [$"[server] unable to kill slot {slot}."]);
             },
             OpenGarrisonServerAdminPermissions.ManagePlayers);
+        RegisterCheatCommands();
         commandRegistry.RegisterBuiltIn(
             "changemap",
             "Change to another map.",
@@ -487,6 +495,199 @@ internal sealed class ServerBuiltInCommandRegistrar(
             OpenGarrisonServerAdminPermissions.ManagePlayers);
     }
 
+    private void RegisterCheatCommands()
+    {
+        commandRegistry.RegisterBuiltIn(
+            "explode",
+            "Explode yourself or a playable player.",
+            "explode [self|slot|name]",
+            (context, arguments, _) =>
+            {
+                if (!TryResolveTargetSlot(context, arguments, allowSelf: true, out var slot, out var isSelf))
+                {
+                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: explode [self|slot|name]"]);
+                }
+
+                if (!isSelf && !TryRequireCheats(context, "explode"))
+                {
+                    return Task.FromResult<IReadOnlyList<string>>(["[server] explode on another player requires sv_cheats 1."]);
+                }
+
+                return Task.FromResult<IReadOnlyList<string>>(context.AdminOperations.TryExplodePlayer(slot)
+                    ? [$"[server] exploded slot {slot}."]
+                    : [$"[server] unable to explode slot {slot}."]);
+            },
+            OpenGarrisonServerAdminPermissions.ManagePlayers);
+        commandRegistry.RegisterBuiltIn(
+            "build_jump_pad",
+            "Build a jump pad at your current position.",
+            "build_jump_pad",
+            (context, _, _) => Task.FromResult<IReadOnlyList<string>>(TryRequireSourceSlot(context, out var slot)
+                && TryRequireCheats(context, "build_jump_pad")
+                && context.AdminOperations.TryBuildJumpPad(slot)
+                    ? ["[server] jump pad built."]
+                    : ["[server] unable to build a jump pad."]),
+            OpenGarrisonServerAdminPermissions.ManagePlayers);
+        commandRegistry.RegisterBuiltIn(
+            "spawn_mimic",
+            "Spawn a bot that mirrors a player's input.",
+            "spawn_mimic <enemy|friendly> <class>",
+            (context, arguments, _) =>
+            {
+                if (!TryRequireCheats(context, "spawn_mimic")
+                    || !TryRequireSourceSlot(context, out var sourceSlot)
+                    || !TryParseMimicArguments(context, arguments, sourceSlot, out var team, out var playerClass))
+                {
+                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: spawn_mimic <enemy|friendly> <class>"]);
+                }
+
+                return Task.FromResult<IReadOnlyList<string>>(context.AdminOperations.TryAddMimicBot(sourceSlot, team, playerClass, "", out var botSlot)
+                    ? [$"[server] mimic bot spawned at slot {botSlot}."]
+                    : ["[server] unable to spawn mimic bot."]);
+            },
+            OpenGarrisonServerAdminPermissions.ManagePlayers);
+        commandRegistry.RegisterBuiltIn(
+            "spawn_followhealer",
+            "Spawn a Medic bot that follows and heals you.",
+            "spawn_followhealer",
+            (context, _, _) => Task.FromResult<IReadOnlyList<string>>(TryRequireSourceSlot(context, out var targetSlot)
+                && TryRequireCheats(context, "spawn_followhealer")
+                && context.AdminOperations.TryAddFollowHealerBot(targetSlot, "", out var botSlot)
+                    ? [$"[server] follow healer spawned at slot {botSlot}."]
+                    : ["[server] unable to spawn follow healer."]),
+            OpenGarrisonServerAdminPermissions.ManagePlayers);
+        commandRegistry.RegisterBuiltIn(
+            "noclip",
+            "Toggle noclip for yourself or a player.",
+            "noclip [slot|name]",
+            (context, arguments, _) => Task.FromResult<IReadOnlyList<string>>(TryResolveTargetSlot(context, arguments, allowSelf: true, out var slot, out var ignoredIsSelf)
+                && TryRequireCheats(context, "noclip")
+                && context.AdminOperations.TryTogglePlayerNoclip(slot, out var enabled)
+                    ? [$"[server] noclip {(enabled ? "enabled" : "disabled")} for slot {slot}."]
+                    : ["[server] unable to toggle noclip."]),
+            OpenGarrisonServerAdminPermissions.ManagePlayers);
+        commandRegistry.RegisterBuiltIn(
+            "set_speed",
+            "Set a player's movement speed multiplier.",
+            "set_speed [slot|name] [scale]",
+            (context, arguments, _) =>
+            {
+                if (!TryParseTargetAndScale(context, arguments, out var slot, out var scale)
+                    || !TryRequireCheats(context, "set_speed"))
+                {
+                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: set_speed [slot|name] [scale]"]);
+                }
+
+                return Task.FromResult<IReadOnlyList<string>>(context.AdminOperations.TrySetPlayerMovementSpeedScale(slot, scale)
+                    ? [$"[server] speed for slot {slot} set to {scale:G4}x."]
+                    : [$"[server] unable to set speed for slot {slot}."]);
+            },
+            OpenGarrisonServerAdminPermissions.ManagePlayers);
+        commandRegistry.RegisterBuiltIn(
+            "set_respawnpos",
+            "Set your next respawn position.",
+            "set_respawnpos <x> <y>",
+            (context, arguments, _) =>
+            {
+                if (!TryRequireSourceSlot(context, out var slot)
+                    || !TryParsePosition(arguments, out var x, out var y)
+                    || !TryRequireCheats(context, "set_respawnpos"))
+                {
+                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: set_respawnpos <x> <y>"]);
+                }
+
+                return Task.FromResult<IReadOnlyList<string>>(context.AdminOperations.TrySetPlayerRespawnPosition(slot, x, y)
+                    ? [$"[server] respawn position for slot {slot} set to {x:G4}, {y:G4}."]
+                    : ["[server] unable to set respawn position."]);
+            },
+            OpenGarrisonServerAdminPermissions.ManagePlayers);
+        commandRegistry.RegisterBuiltIn(
+            "tpme",
+            "Teleport yourself to another player.",
+            "tpme <slot|name>",
+            (context, arguments, _) =>
+            {
+                if (!TryRequireSourceSlot(context, out var sourceSlot)
+                    || !TryResolveTargetSlot(context, arguments, allowSelf: false, out var targetSlot, out var ignoredIsSelf)
+                    || !TryRequireCheats(context, "tpme"))
+                {
+                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: tpme <slot|name>"]);
+                }
+
+                return Task.FromResult<IReadOnlyList<string>>(context.AdminOperations.TryTeleportPlayerToPlayer(sourceSlot, targetSlot)
+                    ? [$"[server] teleported slot {sourceSlot} to slot {targetSlot}."]
+                    : ["[server] unable to teleport player."]);
+            },
+            OpenGarrisonServerAdminPermissions.ManagePlayers);
+        commandRegistry.RegisterBuiltIn(
+            "freeze",
+            "Toggle a player's movement and actions.",
+            "freeze [slot|name]",
+            (context, arguments, _) => Task.FromResult<IReadOnlyList<string>>(TryResolveTargetSlot(context, arguments, allowSelf: true, out var slot, out var ignoredIsSelf)
+                && TryRequireCheats(context, "freeze")
+                && context.AdminOperations.TryTogglePlayerFrozen(slot, out var frozen)
+                    ? [$"[server] freeze {(frozen ? "enabled" : "disabled")} for slot {slot}."]
+                    : ["[server] unable to toggle freeze."]),
+            OpenGarrisonServerAdminPermissions.ManagePlayers);
+        commandRegistry.RegisterBuiltIn(
+            "resize",
+            "Make a player tiny.",
+            "resize [slot|name]",
+            (context, arguments, _) => Task.FromResult<IReadOnlyList<string>>(TryResolveTargetSlot(context, arguments, allowSelf: true, out var slot, out var ignoredIsSelf)
+                && TryRequireCheats(context, "resize")
+                && context.AdminOperations.TrySetPlayerScale(slot, 0.5f)
+                    ? [$"[server] resized slot {slot}."]
+                    : ["[server] unable to resize player."]),
+            OpenGarrisonServerAdminPermissions.ManagePlayers);
+        commandRegistry.RegisterBuiltIn(
+            "stun",
+            "Stun a player for a duration.",
+            "stun [slot|name] [seconds]",
+            (context, arguments, _) =>
+            {
+                if (!TryParseTargetAndDuration(context, arguments, out var slot, out var seconds)
+                    || !TryRequireCheats(context, "stun"))
+                {
+                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: stun [slot|name] [seconds]"]);
+                }
+
+                return Task.FromResult<IReadOnlyList<string>>(context.AdminOperations.TryStunPlayer(slot, seconds)
+                    ? [$"[server] stunned slot {slot} for {seconds:G4}s."]
+                    : ["[server] unable to stun player."]);
+            },
+            OpenGarrisonServerAdminPermissions.ManagePlayers);
+        commandRegistry.RegisterBuiltIn(
+            "execute",
+            "Execute a Lua chunk through the loaded server Lua plugin.",
+            "execute <lua>",
+            (context, arguments, _) =>
+            {
+                if (executeLuaCommand is null)
+                {
+                    return Task.FromResult<IReadOnlyList<string>>(["[server] Lua execution is unavailable."]);
+                }
+
+                if (string.IsNullOrWhiteSpace(arguments))
+                {
+                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: execute <lua>"]);
+                }
+
+                var response = executeLuaCommand(context, arguments.Trim());
+                return Task.FromResult<IReadOnlyList<string>>(response.Count == 0
+                    ? ["[server] Lua executed."]
+                    : response);
+            },
+            OpenGarrisonServerAdminPermissions.ManagePlugins);
+        commandRegistry.RegisterBuiltIn(
+            "reload_lua_plugins",
+            "Reload loaded Lua server plugins.",
+            "reload_lua_plugins",
+            (_, _, _) => Task.FromResult(reloadLuaPlugins?.Invoke() ?? ["[server] Lua plugin reload is unavailable."]),
+            OpenGarrisonServerAdminPermissions.ManagePlugins,
+            "lua_reload",
+            "reload_plugins");
+    }
+
     private List<string> BuildHelpLines(OpenGarrisonServerCommandContext context)
     {
         var lines = new List<string>
@@ -599,6 +800,166 @@ internal sealed class ServerBuiltInCommandRegistrar(
         }
 
         return lines;
+    }
+
+    private static bool TryRequireCheats(OpenGarrisonServerCommandContext context, string commandName)
+    {
+        if (!context.Cvars.TryGet("sv_cheats", includeProtectedValue: true, out var cvar))
+        {
+            return false;
+        }
+
+        return cvar.CurrentValue.Equals("1", StringComparison.OrdinalIgnoreCase)
+            || bool.TryParse(cvar.CurrentValue, out var enabled) && enabled;
+    }
+
+    private static bool TryRequireSourceSlot(OpenGarrisonServerCommandContext context, out byte slot)
+    {
+        slot = context.Identity.SourceSlot.GetValueOrDefault();
+        return context.Identity.SourceSlot.HasValue && SimulationWorld.IsPlayableNetworkPlayerSlot(slot);
+    }
+
+    private static bool TryResolveTargetSlot(
+        OpenGarrisonServerCommandContext context,
+        string arguments,
+        bool allowSelf,
+        out byte slot,
+        out bool isSelf)
+    {
+        slot = 0;
+        isSelf = false;
+        var token = arguments.Trim();
+        if (token.Length == 0 || token.Equals("self", StringComparison.OrdinalIgnoreCase) || token.Equals("me", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!allowSelf || !TryRequireSourceSlot(context, out slot))
+            {
+                return false;
+            }
+
+            isSelf = true;
+            return true;
+        }
+
+        var firstToken = token.Split(' ', StringSplitOptions.RemoveEmptyEntries)[0];
+        if (TryParseSlot(firstToken, out slot))
+        {
+            var requestedSlot = slot;
+            return context.ServerState.GetPlayers().Any(player => player.Slot == requestedSlot);
+        }
+
+        var exactName = context.ServerState.GetPlayers()
+            .FirstOrDefault(player => player.Name.Equals(token, StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrWhiteSpace(exactName.Name))
+        {
+            slot = exactName.Slot;
+            return true;
+        }
+
+        var partial = context.ServerState.GetPlayers()
+            .Where(player => player.Name.Contains(token, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (partial.Length == 1)
+        {
+            slot = partial[0].Slot;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryParseMimicArguments(
+        OpenGarrisonServerCommandContext context,
+        string arguments,
+        byte sourceSlot,
+        out PlayerTeam team,
+        out PlayerClass playerClass)
+    {
+        team = default;
+        playerClass = default;
+        var parts = arguments.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 2 || !Enum.TryParse<PlayerClass>(parts[1], true, out playerClass))
+        {
+            return false;
+        }
+
+        var source = context.ServerState.GetPlayers().FirstOrDefault(player => player.Slot == sourceSlot);
+        if (!source.Team.HasValue)
+        {
+            return false;
+        }
+
+        if (parts[0].Equals("friendly", StringComparison.OrdinalIgnoreCase))
+        {
+            team = source.Team.Value;
+            return true;
+        }
+
+        if (parts[0].Equals("enemy", StringComparison.OrdinalIgnoreCase))
+        {
+            team = source.Team.Value == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryParseTargetAndScale(OpenGarrisonServerCommandContext context, string arguments, out byte slot, out float scale)
+    {
+        slot = 0;
+        scale = 2f;
+        var parts = arguments.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
+        {
+            return TryRequireSourceSlot(context, out slot);
+        }
+
+        if (parts.Length == 1 && float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out scale))
+        {
+            return TryRequireSourceSlot(context, out slot) && scale is >= 0.1f and <= 4f;
+        }
+
+        if (!TryResolveTargetSlot(context, parts[0], allowSelf: true, out slot, out _))
+        {
+            return false;
+        }
+
+        return parts.Length < 2
+            || float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out scale) && scale is >= 0.1f and <= 4f;
+    }
+
+    private static bool TryParseTargetAndDuration(OpenGarrisonServerCommandContext context, string arguments, out byte slot, out float seconds)
+    {
+        slot = 0;
+        seconds = 2f;
+        var parts = arguments.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
+        {
+            return TryRequireSourceSlot(context, out slot);
+        }
+
+        if (parts.Length == 1 && float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out seconds))
+        {
+            return TryRequireSourceSlot(context, out slot) && seconds is > 0f and <= 60f;
+        }
+
+        if (!TryResolveTargetSlot(context, parts[0], allowSelf: true, out slot, out _))
+        {
+            return false;
+        }
+
+        return parts.Length < 2
+            || float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out seconds) && seconds is > 0f and <= 60f;
+    }
+
+    private static bool TryParsePosition(string arguments, out float x, out float y)
+    {
+        x = 0f;
+        y = 0f;
+        var normalized = arguments.Trim().Trim('(', ')');
+        var parts = normalized.Replace(',', ' ').Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length == 2
+            && float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out x)
+            && float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out y);
     }
 
     private static bool TryParseBoundedInt(string text, int min, int max, out int value)

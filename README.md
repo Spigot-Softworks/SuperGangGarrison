@@ -65,14 +65,16 @@ Then open `http://127.0.0.1:5014/`.
 ## Packaging
 
 Packaging is handled by the existing scripts in `scripts/` and docs in `packaging/`.
-In packaged builds, `OG2.exe` on Windows and `OG2` on Linux/macOS are the updater entrypoints;
+In packaged builds, `Super Gang Garrison.exe` on Windows and `OG2` on Linux/macOS are the updater entrypoints;
 they check for updates before starting `OG2.Game.exe` / `OG2.Game`.
 
 Windows:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\package.ps1 -Version 0.6.3.6
+powershell -ExecutionPolicy Bypass -File .\scripts\package.ps1 -Platforms win-x64 -Version 0.6.3.6
 ```
+
+To build both Windows and Linux packages from Windows, also provide a compatible Linux `libmsquic.so.2` with `-LinuxMsQuicLibraryPath`.
 
 Release packages should pass an explicit updater version. For the first auto-update from older packages
 that did not include `version.txt`, use a version greater than `1.0.0` because those binaries can report
@@ -82,10 +84,10 @@ the SDK default product version:
 powershell -ExecutionPolicy Bypass -File .\scripts\package.ps1 -Platforms win-x64 -Version 1.0.1
 ```
 
-Linux or macOS with PowerShell:
+Linux with PowerShell:
 
 ```bash
-pwsh ./scripts/package.ps1
+pwsh ./scripts/package.ps1 -Platforms linux-x64
 ```
 
 Bash wrapper:
