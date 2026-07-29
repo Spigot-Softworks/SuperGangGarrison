@@ -154,6 +154,7 @@ internal static class Og2AlphaNavigationDiagnostics
                             $"contact={(edge.IsOg2Contact ? 1 : 0)} " +
                             $"classMask={edge.SupportedClassMask} " +
                             $"recipe={(edge.LaunchRecipe.HasRecipe ? 1 : 0)} " +
+                            $"jumpGround={(edge.LaunchRecipe.JumpStartsGrounded ? 1 : 0)} " +
                             $"launch=({edge.LaunchRecipe.LaunchMinX:0.0},{edge.LaunchRecipe.LaunchMaxX:0.0}," +
                             $"{edge.LaunchRecipe.LaunchMinY:0.0},{edge.LaunchRecipe.LaunchMaxY:0.0}," +
                             $"{edge.LaunchRecipe.LaunchTick}) " +
@@ -560,13 +561,33 @@ internal static class Og2AlphaNavigationDiagnostics
             throw new InvalidOperationException("alpha capture matrix has no valid classes.");
         }
 
+        var graphClasses = rawOptions.TryGetValue("graph-classes", out var graphClassText)
+            ? graphClassText
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(ParseClass)
+                .Where(static playerClass => playerClass.HasValue)
+                .Select(static playerClass => playerClass!.Value)
+                .Distinct()
+                .ToArray()
+            : classes;
+        if (graphClasses.Length == 0)
+        {
+            throw new InvalidOperationException("alpha capture matrix graph has no valid classes.");
+        }
+
         // The acceptance matrix must exercise the graph being accepted. Do
         // not silently fall back to the legacy heuristic builder or a probe
         // subset left behind by an earlier interactive diagnostic.
         Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_CONTACT_GRAPH", "1");
+        // Reuse the immutable generated graph across diagnostic processes.
+        // The cache key includes the generator fingerprint, map fingerprint,
+        // class set, and sweep settings, so steering changes do not pay the
+        // graph-build cost again while generator changes miss.
+        Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_PERSISTENT_CACHE", "1");
+        Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_CACHE_TRACE", "1");
         Environment.SetEnvironmentVariable(
             "BOTBRAIN_NAV_ALPHA_CONTACT_CLASSES",
-            string.Join(',', classes));
+            string.Join(',', graphClasses));
         if (rawOptions.ContainsKey("trace-stair-inputs"))
         {
             Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_TRACE_INPUTS", "1");
@@ -654,6 +675,8 @@ internal static class Og2AlphaNavigationDiagnostics
         // caller's interactive environment accidentally validate the legacy
         // heuristic builder or a single-class reduced probe set.
         Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_CONTACT_GRAPH", "1");
+        Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_PERSISTENT_CACHE", "1");
+        Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_CACHE_TRACE", "1");
         Environment.SetEnvironmentVariable(
             "BOTBRAIN_NAV_ALPHA_CONTACT_CLASSES",
             string.Join(',', classes));
@@ -813,8 +836,11 @@ internal static class Og2AlphaNavigationDiagnostics
                         $"edge={controller.LastSteeringOutput.RecipeTrace.FromNode}->{controller.LastSteeringOutput.RecipeTrace.ToNode} " +
                         $"edgeTicks={controller.LastSteeringOutput.RecipeTrace.EdgeTicks} " +
                         $"speed={controller.LastSteeringOutput.RecipeTrace.CurrentHorizontalSpeed:0.0} " +
+                        $"recipeX=({controller.LastSteeringOutput.RecipeTrace.RecipeLaunchMinX:0.0},{controller.LastSteeringOutput.RecipeTrace.RecipeLaunchMaxX:0.0}) " +
+                        $"recipeY=({controller.LastSteeringOutput.RecipeTrace.RecipeLaunchMinY:0.0},{controller.LastSteeringOutput.RecipeTrace.RecipeLaunchMaxY:0.0}) " +
                         $"recipeSpeed=({controller.LastSteeringOutput.RecipeTrace.RecipeLaunchMinHorizontalSpeed:0.0},{controller.LastSteeringOutput.RecipeTrace.RecipeLaunchMaxHorizontalSpeed:0.0}) " +
                         $"recipeReady={(controller.LastSteeringOutput.RecipeTrace.RecipeReady ? 1 : 0)} " +
+                        $"runtimeResolved={(controller.LastSteeringOutput.RecipeTrace.RuntimeResolved ? 1 : 0)} " +
                         $"recipeWindow={(controller.LastSteeringOutput.RecipeTrace.InLaunchXWindow ? 1 : 0)} " +
                         $"recipeSuppress={(controller.LastSteeringOutput.RecipeTrace.SuppressJumpUntilLaunch ? 1 : 0)} " +
                         $"recipeDx={controller.LastSteeringOutput.RecipeTrace.SteeringDx:0.0}");

@@ -118,6 +118,78 @@ public sealed class NavGraph
             : -1;
     }
 
+    /// <summary>
+    /// Select the nearest traversal attachment that can actually reach the
+    /// requested goal under the supplied navigation profile. This is used for
+    /// recovery after a missed contact, where the geometrically nearest node
+    /// can belong to a small local component while a slightly farther node is
+    /// the valid continuation of the route.
+    /// </summary>
+    public int FindNearestTraversalStartNodeForGoal(
+        float x,
+        float y,
+        float maxAboveDistance,
+        float maxBelowDistance,
+        int goalNode,
+        PlayerClass? playerClass = null,
+        IReadOnlySet<NavEdgeBlock>? blockedEdges = null,
+        PlayerTeam? team = null,
+        bool carryingIntel = false,
+        int maxCandidates = 32,
+        float maxHorizontalDistance = float.PositiveInfinity)
+    {
+        if (_nodes.Length == 0
+            || goalNode < 0
+            || goalNode >= _nodes.Length)
+        {
+            return -1;
+        }
+
+        var candidates = new List<(int NodeIndex, float Score)>();
+        for (var i = 0; i < _nodes.Length; i += 1)
+        {
+            if (_nodes[i].Y < y - maxAboveDistance
+                || _nodes[i].Y > y + maxBelowDistance)
+            {
+                continue;
+            }
+
+            var dx = _nodes[i].X - x;
+            if (MathF.Abs(dx) > maxHorizontalDistance)
+            {
+                continue;
+            }
+
+            var dy = _nodes[i].Y - y;
+            var score = (dx * dx) + (dy * dy * 4f);
+            if (_nodes[i].Y < y - 24f)
+            {
+                var above = y - _nodes[i].Y;
+                score += 1_000_000f + (above * above * 16f);
+            }
+
+            candidates.Add((i, score));
+        }
+
+        foreach (var candidate in candidates
+                     .OrderBy(static candidate => candidate.Score)
+                     .Take(Math.Max(1, maxCandidates)))
+        {
+            if (FindPath(
+                    candidate.NodeIndex,
+                    goalNode,
+                    playerClass,
+                    blockedEdges,
+                    team,
+                    carryingIntel) is not null)
+            {
+                return candidate.NodeIndex;
+            }
+        }
+
+        return -1;
+    }
+
     public bool IsOnAcceptedCompletionSurface(float x, float y, NavEdgeCompletion completion)
     {
         if (completion.AcceptedSurfaceIds.Length == 0)
@@ -223,6 +295,12 @@ public sealed class NavGraph
                     continue;
                 }
 
+                if (playerClass.HasValue
+                    && ShouldPreferCertifiedJump(edges, edge, playerClass.Value, team, carryingIntel))
+                {
+                    continue;
+                }
+
                 var neighbor = edge.ToNode;
                 if (blockedEdges is not null && blockedEdges.Contains(new NavEdgeBlock(current, neighbor, edge.Kind)))
                 {
@@ -310,6 +388,12 @@ public sealed class NavGraph
                     continue;
                 }
 
+                if (playerClass.HasValue
+                    && ShouldPreferCertifiedJump(edges, edge, playerClass.Value, team, carryingIntel))
+                {
+                    continue;
+                }
+
                 var neighbor = edge.ToNode;
                 if (blockedEdges is not null && blockedEdges.Contains(new NavEdgeBlock(current, neighbor, edge.Kind)))
                 {
@@ -360,15 +444,52 @@ public sealed class NavGraph
             return edge.Supports(playerClass, team, carryingIntel);
         }
 
-        // Alpha contacts are certified per exact OG2 movement signature. Do
-        // not let the legacy conservative-profile substitution broaden an
-        // alpha route and select a recipe proven for another class.
-        return (edge.SupportedClassMask == BotBrainClassMask.All
-                || (edge.SupportedClassMask & BotBrainClassMask.For(playerClass)) != 0)
+        // Alpha contacts are certified against the conservative Heavy envelope
+        // and the separate Scout air-jump envelope. Use the same certified
+        // movement-profile substitution as graph generation; jump contacts are
+        // still re-proved from the live class before steering, so this broadens
+        // topology eligibility without reusing another class's physics recipe.
+        return BotBrainClassMask.Contains(edge.SupportedClassMask, playerClass)
             && (!team.HasValue || BotBrainTeamMask.Contains(edge.SupportedTeamMask, team.Value))
             && (!edge.RequiresCarryingIntel || carryingIntel)
             && (!edge.CarryingIntelRequirement.HasValue
                 || edge.CarryingIntelRequirement.Value == carryingIntel);
+    }
+
+    private bool ShouldPreferCertifiedJump(
+        ReadOnlySpan<NavEdge> edges,
+        NavEdge edge,
+        PlayerClass playerClass,
+        PlayerTeam? team,
+        bool carryingIntel)
+    {
+        if (!_isOg2Alpha
+            || !edge.IsOg2Contact
+            || edge.Kind is not (NavEdgeKind.Walk or NavEdgeKind.Fall))
+        {
+            return false;
+        }
+
+        // A contact-first sweep can observe a nominal walk/fall landing that
+        // is valid from a clean probe but fragile when composed after a prior
+        // jump. If the same directed transition has a class/team/carrying
+        // compatible certified jump, choose that explicit recipe instead of
+        // the less constrained landing.
+        for (var index = 0; index < edges.Length; index += 1)
+        {
+            var candidate = edges[index];
+            if (candidate.ToNode != edge.ToNode
+                || candidate.Kind != NavEdgeKind.Jump
+                || !candidate.IsOg2Contact
+                || !SupportsEdge(candidate, playerClass, team, carryingIntel))
+            {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     private float ResolveTraversalCost(NavEdge edge, int fromNodeIndex, int toNodeIndex, PlayerClass? playerClass, bool carryingIntel, PlayerTeam? team)
@@ -819,7 +940,8 @@ public readonly record struct NavEdge(
     bool RequiresCarryingIntel,
     NavEdgeLaunchRecipe LaunchRecipe,
     bool? CarryingIntelRequirement = null,
-    bool IsOg2Contact = false)
+    bool IsOg2Contact = false,
+    bool IsRuntimeResolved = false)
 {
     public NavEdge(int toNode, NavEdgeKind kind, float cost)
         : this(toNode, kind, cost, NavEdgeCompletion.None, 0, 0, 0f, 0, 0, BotBrainClassMask.All, BotBrainTeamMask.All, false, false, NavEdgeLaunchRecipe.None)
@@ -863,7 +985,10 @@ public readonly record struct NavEdgeLaunchRecipe(
     float LaunchMaxY,
     float LaunchMinHorizontalSpeed,
     float LaunchMaxHorizontalSpeed,
-    float ExpectedMoveDirectionX)
+    float ExpectedMoveDirectionX,
+    bool JumpStartsGrounded = true,
+    NavEdgeAirControlMode AirControlMode = NavEdgeAirControlMode.HoldDirection,
+    int AirControlHoldTicks = 0)
 {
     public static NavEdgeLaunchRecipe None { get; } = new(
         StartGrounded: false,
@@ -874,7 +999,10 @@ public readonly record struct NavEdgeLaunchRecipe(
         LaunchMaxY: 0f,
         LaunchMinHorizontalSpeed: 0f,
         LaunchMaxHorizontalSpeed: 0f,
-        ExpectedMoveDirectionX: 0f);
+        ExpectedMoveDirectionX: 0f,
+        JumpStartsGrounded: false,
+        AirControlMode: NavEdgeAirControlMode.HoldDirection,
+        AirControlHoldTicks: 0);
 
     public bool HasRecipe =>
         LaunchTick >= 0
@@ -891,6 +1019,18 @@ public readonly record struct NavEdgeLaunchRecipe(
         && player.Y <= LaunchMaxY
         && player.HorizontalSpeed >= LaunchMinHorizontalSpeed
         && player.HorizontalSpeed <= LaunchMaxHorizontalSpeed;
+}
+
+/// <summary>
+/// Horizontal input schedule after a certified jump has consumed its launch
+/// input. The schedule is part of the OG2 contact proof because faster classes
+/// can otherwise cross a narrow landing window while holding the launch key.
+/// </summary>
+public enum NavEdgeAirControlMode : byte
+{
+    HoldDirection = 0,
+    ReleaseDirection = 1,
+    CounterSteer = 2,
 }
 
 public enum NavEdgeKind : byte

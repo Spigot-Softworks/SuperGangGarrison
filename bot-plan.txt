@@ -670,3 +670,157 @@ return route), and Blue Sniper (carrying, lost its route). The aggregate is one
 better than the historical `15/20`, and Blue Heavy now passes, but the failure
 set changed. Because the earlier per-trial baseline was not preserved, this
 result does not prove that no individual class/team regressed.
+
+## 2026-07-28 diagnostic iteration speed-up
+
+The alpha graph is now persisted as a compact binary snapshot under the
+OpenGarrison user config directory. Its key includes the OG2 generator
+fingerprint, map geometry fingerprint, map area/mode, contact-class set, and
+sweep settings. Steering/runtime changes reuse the exact graph; generator or
+map changes invalidate it. The current generator fingerprint is
+`og2-contact-20260728-v1` in `Og2NavigationGraphBuilder` and must be bumped for
+graph-generation logic changes.
+
+The Truefort full-roster graph was verified to load from cache in approximately
+one second and still pass the structural `200/200` graph gate. The subsequent
+full runtime matrix reused that graph and completed in approximately 128
+seconds instead of paying the approximately five-minute generation cost.
+
+`--alpha-capture-matrix` now accepts `--graph-classes` separately from
+`--classes`, allowing a small set of failing trials to run against the exact
+full-roster graph. Use short `--capture-ticks` values for targeted smoke runs;
+retain the full tick budget for acceptance checkpoints. This prevents a single
+runtime/steering change from requiring a cold graph build and 20 long trials.
+
+## 2026-07-28 regression recovery and Truefort acceptance
+
+The subsequent 9/20 regression was traced to a graph-construction defect, not
+aiming or player facing. `AddAnchor` connected each spawn anchor to several
+nearby surfaces without constraining elevation, producing an invalid ordinary
+walk edge from the Blue spawn `(3702,456)` directly to the lower platform
+`(3690,570)` (`555 -> 141`). The graph was structurally connected but that edge
+was not a valid traversal contract. Spawn anchors now directly attach only to
+surfaces within a 24-pixel vertical band; cross-level movement must come from
+same-surface corridors or OG2-certified contacts. The generator fingerprint is
+`og2-contact-20260728-v3`, invalidating the prior snapshot.
+
+Runtime contact tracing also found that the executor was counter-steering every
+other tick against the measured launch-speed window. That diverged from the
+runtime probe, which holds its measured launch direction until the recorded
+jump tick. Runtime-resolved contacts now follow that exact measured run-up.
+
+After the graph rebuild (568 nodes, 14,655 edges; cold build approximately 255
+seconds), the cached full-roster Truefort runtime matrix passed `20/20` in
+72.5 seconds at 3,800 ticks per trial. Every class passed for both Red and
+Blue. This is the first current, unregressed Truefort acceptance result; alpha
+remains opt-in until the remaining stock-map gates pass.
+
+## 2026-07-28 Eiger acceptance
+
+The same anchor-elevation defect appeared on Eiger at objective anchors: lower
+floor nodes `(622,978)` and `(4232,978)` had invalid ordinary-walk edges to
+objectives `(627,822)` and `(4231,822)`. The shared anchor vertical tolerance
+was applied to objective anchors as well, producing generator fingerprint
+`og2-contact-20260728-v4`. The corrected Eiger graph contains 356 nodes and
+11,063 edges.
+
+The affected Red Demoman, Blue Heavy, and Blue Demoman trials all pass after
+the fix. The complete Eiger matrix then passed `20/20` (all 10 classes on both
+teams) in 11.6 seconds using the warm graph cache. Truefort and Eiger are now
+both current full-roster runtime gates; alpha remains opt-in while the other
+requested stock maps are tested.
+
+## 2026-07-28 team-aware graph and Truefort regression recovery
+
+The generator now probes both Red and Blue collision contexts while building
+the shared graph. This is required for OG2 maps with asymmetric team gates:
+the same geometry remains class-agnostic while edge capability records retain
+the team masks under which each contact was actually certified. The generator
+fingerprint is now `og2-contact-20260728-v5`; generator changes invalidate the
+persistent binary cache, while steering-only changes reuse it.
+
+The first v5 Corinth run exposed a real execution problem: generic semantic
+walk-climb and pressed-obstacle jump recovery were overriding certified OG2
+contacts. Those fallbacks are now suppressed while an OG2 contact edge is
+active. Runtime contact resolution also waits for a grounded retry after a
+preceding airborne edge instead of continuing static steering with an invalid
+live state.
+
+The current full-roster runtime gates are:
+
+- Corinth: `20/20`, 300 nodes, 8,252 edges, warm-cache runtime.
+- Eiger: `20/20`, 359 nodes, 11,349 edges, warm-cache runtime.
+- Truefort: `20/20`, 587 nodes, 15,608 edges, warm-cache runtime.
+
+Truefort required one final generic fix. Red Pyro entered the certified
+`258 -> 228` launch corridor above its 100--117 horizontal-speed window and
+the old executor began braking one update too late. The executor now starts
+the measured counter-steer when the next fixed update would enter the launch
+band above its certified speed. Red Pyro then completed at tick 2,847, and
+the complete Truefort matrix passed again with no graph rebuild.
+
+This is the first checkpoint where the graph and runtime executor are both
+validated for the full roster on three stock maps. The remaining five
+requested maps still need the same full matrix; alpha must not become the
+default until those gates are green.
+
+## 2026-07-28 remaining-map fixture audit
+
+The requested Docking matrix was attempted before proceeding with the other
+maps. The diagnostics normalized `Docking` to `cp_docking_v2`, but that map
+asset is not present/importable in this checkout, so the run stopped at map
+load with zero trials. This is a fixture-availability block, not a navigation
+pass or fail, and must not be counted in the acceptance denominator. Harvest,
+Conflict, Gallery, and Valley remain to be exercised wherever their stock
+assets are available; any additional missing fixture will be recorded the
+same way rather than silently substituted.
+
+## 2026-07-28 current validation checkpoint
+
+The generator/runtime transition has now passed the complete available stock-map
+matrix after the latest runtime handoff fix. The current OG2 generator fingerprint
+is `og2-contact-20260728-v18`; persistent graph snapshots are keyed by that
+fingerprint and the map geometry, so steering-only changes reuse the graph while
+generator changes rebuild it.
+
+The final warm-cache acceptance runs completed as follows:
+
+| Map | Mode | Graph | Runtime trials |
+|---|---|---:|---:|
+| Truefort | Capture the Flag | 603 nodes / 7,487 edges | 20/20 |
+| Conflict | Capture the Flag | 359 nodes / 4,214 edges | 20/20 |
+| Eiger | Capture the Flag | 369 nodes / 5,046 edges | 20/20 |
+| Docking | Control Point | 268 nodes / 3,273 edges | 20/20 |
+| Corinth | King of the Hill | 305 nodes / 3,872 edges | 20/20 |
+| Harvest | King of the Hill | 197 nodes / 2,196 edges | 20/20 |
+| Gallery | King of the Hill | 333 nodes / 4,132 edges | 20/20 |
+| Valley | King of the Hill | 418 nodes / 4,787 edges | 20/20 |
+
+That is 160/160 completed class/team objective-capture trials across all eight
+requested stock maps. Truefort and Conflict include full outbound intel
+pickup and carrier return scoring for all ten classes on both teams. The other
+maps use their imported Control Point or KOTH objective rules and therefore
+validate objective arrival/capture rather than a CTF return leg.
+
+Docking's package is stored under the repository-level `Maps/cp_docking_v2`
+directory rather than the default built-output map directory. The acceptance run
+sets `OPENGARRISON_MAPS_DIR` to that existing fixture directory; the diagnostic
+then imports it as `cp_docking_v2` and completes all 20 trials. No map source was
+substituted or modified.
+
+The latest execution defect was not an aim-direction issue and was not fixed with
+map- or class-specific routing. A grounded-start contact could be handed off one
+simulation tick while the live body was still airborne. The controller then
+suppressed every input while waiting for grounded runtime proof, freezing Red
+Soldier and Red Sniper on Truefort's return route. The controller now lets the
+steering layer apply horizontal recovery toward the unresolved contact while
+explicitly suppressing the jump pulse until grounded; runtime OG2 proof still
+begins from the real live state. The formerly failing Truefort subset then passed
+6/6, followed by the full 20/20 matrix.
+
+The alpha navigation path is now the default for normal bot controllers:
+`BOTBRAIN_NAVIGATION_MODE=legacy` or `asset` is required to opt back into the
+legacy asset path. The contact graph remains runtime-generated and persistent;
+the graph is shared across bots and does not rebuild when only steering changes.
+The default-path practice-game smoke test should still be run interactively
+against these cached graphs; the automated acceptance matrix itself is green.
