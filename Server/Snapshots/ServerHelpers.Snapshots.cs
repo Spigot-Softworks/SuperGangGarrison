@@ -16,6 +16,12 @@ internal static partial class ServerHelpers
     private const string ScoutNailgunAmmoKey = "scout_nailgun_ammo";
     private const string ScoutNailgunMaxAmmoKey = "scout_nailgun_max_ammo";
     private const string ScoutNailgunAvailableKey = "scout_nailgun_available";
+    private const string SniperBowAmmoKey = "sniper_bow_ammo";
+    private const string SniperBowMaxAmmoKey = "sniper_bow_max_ammo";
+    private const string SniperBowAvailableKey = "sniper_bow_available";
+    private const string MedicKritzAmmoKey = "medic_kritz_ammo";
+    private const string MedicKritzMaxAmmoKey = "medic_kritz_max_ammo";
+    private const string MedicKritzAvailableKey = "medic_kritz_available";
 
     internal static SnapshotPlayerState ToSnapshotPlayerState(
         SimulationWorld world,
@@ -134,6 +140,56 @@ internal static partial class ServerHelpers
             replicatedStates.Add(new SnapshotReplicatedStateEntry(
                 CoreReplicatedOwnerId,
                 ScoutNailgunMaxAmmoKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandMaxShells,
+                0f,
+                false));
+        }
+
+        if (player.ClassId == PlayerClass.Sniper && player.HasExperimentalOffhandWeapon)
+        {
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                SniperBowAvailableKey,
+                SnapshotReplicatedStateValueKind.Toggle,
+                0,
+                0f,
+                true));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                SniperBowAmmoKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandCurrentShells,
+                0f,
+                false));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                SniperBowMaxAmmoKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandMaxShells,
+                0f,
+                false));
+        }
+
+        if (player.ClassId == PlayerClass.Medic && player.HasExperimentalOffhandWeapon)
+        {
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                MedicKritzAvailableKey,
+                SnapshotReplicatedStateValueKind.Toggle,
+                0,
+                0f,
+                true));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                MedicKritzAmmoKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandCurrentShells,
+                0f,
+                false));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                MedicKritzMaxAmmoKey,
                 SnapshotReplicatedStateValueKind.Whole,
                 player.ExperimentalOffhandMaxShells,
                 0f,
@@ -368,6 +424,7 @@ internal static partial class ServerHelpers
 
     internal static SnapshotShotState ToSnapshotNeedleState(NeedleProjectileEntity shot)
     {
+        var isArrow = shot is ArrowProjectileEntity;
         return new SnapshotShotState(
             shot.Id,
             (byte)shot.Team,
@@ -378,7 +435,9 @@ internal static partial class ServerHelpers
             shot.VelocityY,
             shot.TicksRemaining,
             shot.IsCritical,
-            shot is MedicHealNeedleProjectileEntity);
+            shot is MedicHealNeedleProjectileEntity,
+            isArrow,
+            isArrow ? ((ArrowProjectileEntity)shot).FakeSpeedMultiplier : 1f);
     }
 
     internal static SnapshotShotState ToSnapshotBubbleState(BubbleProjectileEntity bubble)

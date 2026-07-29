@@ -26,6 +26,8 @@ public partial class Game1
     private bool _serverLocalPredictionEnabled;
     private PlayerInputSnapshot _latestPredictedLocalInput;
     private PlayerInputSnapshot _previousPredictedLocalInput;
+    private int _predictedSniperRifleChargePendingCount;
+    private int _predictedSniperBowChargePendingCount;
 
     private void RecordPredictedInput(
         uint sequence,
@@ -112,6 +114,8 @@ public partial class Game1
         _predictedLocalPlayerVelocity = Vector2.Zero;
         _predictedLocalPlayerGrounded = false;
         _predictedLocalPlayerRemainingAirJumps = 0;
+        _predictedSniperRifleChargePendingCount = 0;
+        _predictedSniperBowChargePendingCount = 0;
         _lastPredictedRenderSmoothingTimeSeconds = -1d;
         if (clearPendingInputs)
         {
@@ -165,14 +169,45 @@ public partial class Game1
         }
 
         var player = _world.LocalPlayer;
+        if (_hasLatestLocalAimWorldPosition)
+        {
+            // Keep LocalPlayer aim on the cursor so Capture/HUD/arc do not wait on snapshot aim.
+            player.ApplyPredictionAimWorld(_latestLocalAimWorldX, _latestLocalAimWorldY);
+        }
+
+        var hadPredictedState = _hasPredictedLocalActionState;
+        var previousRifleCharge = hadPredictedState
+            ? _predictedLocalActionState.SniperChargeTicks
+            : player.SniperChargeTicks;
+        var previousBowCharge = hadPredictedState
+            ? _predictedLocalActionState.SniperBowChargeTicks
+            : player.SniperBowChargeTicks;
+        var previousRiflePending = _predictedSniperRifleChargePendingCount;
+        var previousBowPending = _predictedSniperBowChargePendingCount;
+        var previousScoped = hadPredictedState && _predictedLocalActionState.IsSniperScoped;
+
         var predictedPlayer = GetPredictedLocalPlayerShadow(player);
         predictedPlayer.RestorePredictionState(player.CapturePredictionState());
+        SeedPredictedSniperRifleCharge(
+            predictedPlayer,
+            player,
+            previousRifleCharge,
+            previousRiflePending,
+            previousScoped);
+        SeedPredictedSniperBowCharge(
+            predictedPlayer,
+            player,
+            previousBowCharge,
+            previousBowPending);
         SyncPredictedLocalPlayerState(predictedPlayer);
 
         for (var index = 0; index < _pendingPredictedInputs.Count; index += 1)
         {
             ApplyPredictedInputStep(predictedPlayer, _pendingPredictedInputs[index]);
         }
+
+        _predictedSniperRifleChargePendingCount = _pendingPredictedInputs.Count;
+        _predictedSniperBowChargePendingCount = CountPendingBowChargingInputs();
 
         if (!_hasSmoothedLocalPlayerRenderPosition)
         {
@@ -194,6 +229,88 @@ public partial class Game1
         }
 
         _smoothedLocalPlayerRenderPosition = _predictedLocalPlayerPosition + _predictedLocalPlayerRenderCorrectionOffset;
+    }
+
+    private void SeedPredictedSniperRifleCharge(
+        PlayerEntity predictedPlayer,
+        PlayerEntity authorityPlayer,
+        int previousPredictedCharge,
+        int previousPendingCount,
+        bool previousScoped)
+    {
+        if (!predictedPlayer.HasScopedSniperWeaponEquipped && !authorityPlayer.HasScopedSniperWeaponEquipped)
+        {
+            return;
+        }
+
+        var impliedBaseline = previousPredictedCharge - previousPendingCount;
+        if (impliedBaseline < 0)
+        {
+            impliedBaseline = 0;
+        }
+
+        int seeded;
+        if (!previousScoped && !predictedPlayer.IsSniperScoped)
+        {
+            seeded = authorityPlayer.SniperChargeTicks;
+        }
+        else if (authorityPlayer.SniperChargeTicks < impliedBaseline)
+        {
+            // Server reset/corrected downward (shot fired, unscoped, etc.).
+            seeded = authorityPlayer.SniperChargeTicks;
+        }
+        else
+        {
+            // Network charge often lags; keep synthesizing from the last predicted value so
+            // rebuild+replay still advances one tick per local input.
+            seeded = Math.Max(impliedBaseline, authorityPlayer.SniperChargeTicks);
+        }
+
+        predictedPlayer.ApplyPredictionSniperChargeTicks(seeded);
+    }
+
+    private void SeedPredictedSniperBowCharge(
+        PlayerEntity predictedPlayer,
+        PlayerEntity authorityPlayer,
+        int previousPredictedCharge,
+        int previousPendingCount)
+    {
+        if (!predictedPlayer.IsSniperBowEquipped && !authorityPlayer.IsSniperBowEquipped)
+        {
+            return;
+        }
+
+        var impliedBaseline = previousPredictedCharge - previousPendingCount;
+        if (impliedBaseline < 0)
+        {
+            impliedBaseline = 0;
+        }
+
+        int seeded;
+        if (authorityPlayer.SniperBowChargeTicks < impliedBaseline)
+        {
+            seeded = authorityPlayer.SniperBowChargeTicks;
+        }
+        else
+        {
+            seeded = Math.Max(impliedBaseline, authorityPlayer.SniperBowChargeTicks);
+        }
+
+        predictedPlayer.ApplyPredictionSniperBowChargeTicks(seeded);
+    }
+
+    private int CountPendingBowChargingInputs()
+    {
+        var count = 0;
+        for (var index = 0; index < _pendingPredictedInputs.Count; index += 1)
+        {
+            if (_pendingPredictedInputs[index].Input.FirePrimary)
+            {
+                count += 1;
+            }
+        }
+
+        return count;
     }
 
     private bool TryGetCurrentPredictedRenderPosition(out Vector2 renderPosition)
@@ -244,6 +361,7 @@ public partial class Game1
             ExperimentalGhostDashCooldownTicksRemaining = player.ExperimentalGhostDashCooldownTicksRemaining,
             IsSniperScoped = player.IsSniperScoped,
             SniperChargeTicks = player.SniperChargeTicks,
+            SniperBowChargeTicks = player.SniperBowChargeTicks,
             IsUsingBinoculars = player.IsUsingBinoculars,
             IsSpyCloaked = player.IsSpyCloaked,
             SpyCloakAlpha = player.SpyCloakAlpha,
@@ -361,6 +479,7 @@ public partial class Game1
         public int ExperimentalGhostDashCooldownTicksRemaining;
         public bool IsSniperScoped;
         public int SniperChargeTicks;
+        public int SniperBowChargeTicks;
         public bool IsUsingBinoculars;
         public bool IsSpyCloaked;
         public float SpyCloakAlpha;

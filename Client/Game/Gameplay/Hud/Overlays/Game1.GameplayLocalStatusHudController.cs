@@ -68,6 +68,12 @@ public partial class Game1
         private const string ScoutNailgunAmmoKey = "scout_nailgun_ammo";
         private const string ScoutNailgunMaxAmmoKey = "scout_nailgun_max_ammo";
         private const string ScoutNailgunAvailableKey = "scout_nailgun_available";
+        private const string SniperBowAmmoKey = "sniper_bow_ammo";
+        private const string SniperBowMaxAmmoKey = "sniper_bow_max_ammo";
+        private const string SniperBowAvailableKey = "sniper_bow_available";
+        private const string MedicKritzAmmoKey = "medic_kritz_ammo";
+        private const string MedicKritzMaxAmmoKey = "medic_kritz_max_ammo";
+        private const string MedicKritzAvailableKey = "medic_kritz_available";
 
         private static readonly Color AmmoHudBarColor = new(217, 217, 183);
         private static readonly Color AmmoHudTextColor = new(245, 235, 210);
@@ -1777,8 +1783,17 @@ public partial class Game1
             }
 
             var isScout = _game._world.LocalPlayer.ClassId == PlayerClass.Scout;
-            var offhandAmmoKey = isScout ? ScoutNailgunAmmoKey : SoldierShotgunAmmoKey;
-            var offhandMaxAmmoKey = isScout ? ScoutNailgunMaxAmmoKey : SoldierShotgunMaxAmmoKey;
+            var isSniper = _game._world.LocalPlayer.ClassId == PlayerClass.Sniper;
+            var offhandAmmoKey = isScout
+                ? ScoutNailgunAmmoKey
+                : isSniper
+                    ? SniperBowAmmoKey
+                    : SoldierShotgunAmmoKey;
+            var offhandMaxAmmoKey = isScout
+                ? ScoutNailgunMaxAmmoKey
+                : isSniper
+                    ? SniperBowMaxAmmoKey
+                    : SoldierShotgunMaxAmmoKey;
 
             var currentShells = _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, offhandAmmoKey, out var replicatedOffhandAmmo)
                 ? replicatedOffhandAmmo
@@ -1842,10 +1857,26 @@ public partial class Game1
                 return true;
             }
 
+            if (player.TryGetReplicatedStateBool(CoreReplicatedOwnerId, SniperBowAvailableKey, out var bowAvailable)
+                && bowAvailable)
+            {
+                return true;
+            }
+
+            if (player.TryGetReplicatedStateBool(CoreReplicatedOwnerId, MedicKritzAvailableKey, out var kritzAvailable)
+                && kritzAvailable)
+            {
+                return true;
+            }
+
             if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunAmmoKey, out _)
                 || player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunMaxAmmoKey, out _)
                 || player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, ScoutNailgunAmmoKey, out _)
-                || player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, ScoutNailgunMaxAmmoKey, out _))
+                || player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, ScoutNailgunMaxAmmoKey, out _)
+                || player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SniperBowAmmoKey, out _)
+                || player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SniperBowMaxAmmoKey, out _)
+                || player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, MedicKritzAmmoKey, out _)
+                || player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, MedicKritzMaxAmmoKey, out _))
             {
                 return true;
             }
@@ -1919,8 +1950,8 @@ public partial class Game1
         {
             var player = _game._world.LocalPlayer;
             var itemId = player.GameplayLoadoutState.SecondaryItemId ?? "weapon.medigun.crit";
-            var currentShells = player.ExperimentalOffhandCurrentShells;
-            var maxShells = Math.Max(1, player.ExperimentalOffhandMaxShells);
+            var currentShells = GetLocalMedicKritzCurrentShells();
+            var maxShells = GetLocalMedicKritzMaxShells();
             var reloadProgress = GetMedicNeedleReloadProgress(
                 currentShells,
                 maxShells,
@@ -1981,8 +2012,8 @@ public partial class Game1
                 if (IsLocalMedicKritzHealNeedlesPresented())
                 {
                     return GetMedicNeedleReloadProgress(
-                        player.ExperimentalOffhandCurrentShells,
-                        Math.Max(1, player.ExperimentalOffhandMaxShells),
+                        GetLocalMedicKritzCurrentShells(),
+                        GetLocalMedicKritzMaxShells(),
                         player.ExperimentalOffhandReloadTicksUntilNextShell);
                 }
 
@@ -2311,8 +2342,8 @@ public partial class Game1
             if (ReferenceEquals(player, _game._world.LocalPlayer) && IsLocalMedicKritzHealNeedlesPresented())
             {
                 return GetMedicNeedleReloadProgress(
-                    player.ExperimentalOffhandCurrentShells,
-                    Math.Max(1, player.ExperimentalOffhandMaxShells),
+                    GetLocalMedicKritzCurrentShells(),
+                    GetLocalMedicKritzMaxShells(),
                     player.ExperimentalOffhandReloadTicksUntilNextShell);
             }
 
@@ -2369,7 +2400,7 @@ public partial class Game1
         {
             if (IsLocalMedicKritzHealNeedlesPresented())
             {
-                return _game._world.LocalPlayer.ExperimentalOffhandCurrentShells;
+                return GetLocalMedicKritzCurrentShells();
             }
 
             return _game._world.LocalPlayer.IsAcquiredWeaponPresented
@@ -2383,7 +2414,7 @@ public partial class Game1
         {
             if (IsLocalMedicKritzHealNeedlesPresented())
             {
-                return Math.Max(1, _game._world.LocalPlayer.ExperimentalOffhandMaxShells);
+                return GetLocalMedicKritzMaxShells();
             }
 
             return _game._world.LocalPlayer.IsAcquiredWeaponPresented
@@ -2478,6 +2509,18 @@ public partial class Game1
                 return replicatedNailgunAmmo;
             }
 
+            if (player.ClassId == PlayerClass.Sniper
+                && player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SniperBowAmmoKey, out var replicatedBowAmmo))
+            {
+                return replicatedBowAmmo;
+            }
+
+            if (player.ClassId == PlayerClass.Medic
+                && player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, MedicKritzAmmoKey, out var replicatedKritzAmmo))
+            {
+                return replicatedKritzAmmo;
+            }
+
             return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunAmmoKey, out var replicatedShotgunAmmo)
                 ? replicatedShotgunAmmo
                 : player.ExperimentalOffhandCurrentShells;
@@ -2497,8 +2540,36 @@ public partial class Game1
                 return Math.Max(1, replicatedNailgunMaxAmmo);
             }
 
+            if (player.ClassId == PlayerClass.Sniper
+                && player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SniperBowMaxAmmoKey, out var replicatedBowMaxAmmo))
+            {
+                return Math.Max(1, replicatedBowMaxAmmo);
+            }
+
+            if (player.ClassId == PlayerClass.Medic
+                && player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, MedicKritzMaxAmmoKey, out var replicatedKritzMaxAmmo))
+            {
+                return Math.Max(1, replicatedKritzMaxAmmo);
+            }
+
             return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunMaxAmmoKey, out var replicatedShotgunMaxAmmo)
                 ? Math.Max(1, replicatedShotgunMaxAmmo)
+                : Math.Max(1, player.ExperimentalOffhandMaxShells);
+        }
+
+        private int GetLocalMedicKritzCurrentShells()
+        {
+            var player = _game._world.LocalPlayer;
+            return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, MedicKritzAmmoKey, out var replicatedAmmo)
+                ? replicatedAmmo
+                : player.ExperimentalOffhandCurrentShells;
+        }
+
+        private int GetLocalMedicKritzMaxShells()
+        {
+            var player = _game._world.LocalPlayer;
+            return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, MedicKritzMaxAmmoKey, out var replicatedMaxAmmo)
+                ? Math.Max(1, replicatedMaxAmmo)
                 : Math.Max(1, player.ExperimentalOffhandMaxShells);
         }
 

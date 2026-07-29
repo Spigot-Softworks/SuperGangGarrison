@@ -1682,6 +1682,70 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
+    public void BuildBudgetedSnapshotPreservesSniperChargeRuntimeStateWhenFullDetailIsCrowdedOut()
+    {
+        var baselineSniper = CreatePlayerState(1, 961, "Local Sniper") with
+        {
+            ClassId = (byte)PlayerClass.Sniper,
+            IsSniperScoped = true,
+            ReplicatedStates =
+            [
+                CreateCoreAbilityState(
+                    GameplayAbilityReplicatedState.SniperChargeTicksKey,
+                    SnapshotReplicatedStateValueKind.Whole),
+                CreateCoreAbilityState(
+                    GameplayAbilityReplicatedState.SniperBowChargeTicksKey,
+                    SnapshotReplicatedStateValueKind.Whole),
+            ],
+        };
+        var remoteBot = CreatePlayerState(2, 962, "Remote Bot");
+        var currentSniper = baselineSniper with
+        {
+            ReplicatedStates =
+            [
+                CreateCoreAbilityState(
+                    GameplayAbilityReplicatedState.SniperChargeTicksKey,
+                    SnapshotReplicatedStateValueKind.Whole,
+                    intValue: 42),
+                CreateCoreAbilityState(
+                    GameplayAbilityReplicatedState.SniperBowChargeTicksKey,
+                    SnapshotReplicatedStateValueKind.Whole,
+                    intValue: 18),
+            ],
+        };
+        var baseline = CreateSnapshot(962) with
+        {
+            Players = [baselineSniper, remoteBot],
+        };
+        var current = CreateSnapshot(963) with
+        {
+            Players = [currentSniper, remoteBot],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8191),
+            "Tester",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 260);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+
+        Assert.True(result.Payload.Length <= 260);
+        Assert.Empty(result.Message.Players);
+        var statusState = Assert.Single(result.Message.PlayerStatusStates);
+        Assert.Equal(1, statusState.Slot);
+        Assert.Contains(statusState.SecondaryAmmoStates ?? [], IsSniperChargeState);
+        Assert.Contains(statusState.SecondaryAmmoStates ?? [], IsSniperBowChargeState);
+
+        var mergedSniper = Assert.Single(merged.Players, player => player.Slot == 1);
+        Assert.Contains(mergedSniper.ReplicatedStates ?? [], IsSniperChargeState);
+        Assert.Contains(mergedSniper.ReplicatedStates ?? [], IsSniperBowChargeState);
+    }
+
+    [Fact]
     public void BuildBudgetedSnapshotForcesAllLocalPlayerUpdates()
     {
         var localPlayer = CreatePlayerState(1, 861, "Local Player") with
@@ -2949,5 +3013,21 @@ public sealed class SnapshotDeltaBudgeterTests
             && state.Key == GameplayAbilityReplicatedState.HeavyDashTrailAlphaKey
             && state.Kind == SnapshotReplicatedStateValueKind.Scalar
             && MathF.Abs(state.FloatValue - 0.4f) <= 0.0001f;
+    }
+
+    private static bool IsSniperChargeState(SnapshotReplicatedStateEntry state)
+    {
+        return state.OwnerId == GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId
+            && state.Key == GameplayAbilityReplicatedState.SniperChargeTicksKey
+            && state.Kind == SnapshotReplicatedStateValueKind.Whole
+            && state.IntValue == 42;
+    }
+
+    private static bool IsSniperBowChargeState(SnapshotReplicatedStateEntry state)
+    {
+        return state.OwnerId == GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId
+            && state.Key == GameplayAbilityReplicatedState.SniperBowChargeTicksKey
+            && state.Kind == SnapshotReplicatedStateValueKind.Whole
+            && state.IntValue == 18;
     }
 }

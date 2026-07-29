@@ -13,6 +13,7 @@ public partial class Game1
 {
     private readonly List<ExplosionVisual> _explosions = new();
     private readonly List<ImpactVisual> _impactVisuals = new();
+    private readonly List<StuckArrowVisual> _stuckArrowVisuals = new();
     private readonly List<AirBlastVisual> _airBlasts = new();
     private readonly List<BubblePopVisual> _bubblePops = new();
     private readonly List<BackstabVisual> _backstabVisuals = new();
@@ -82,6 +83,8 @@ public partial class Game1
     private const float RecentPredictedExplosionVisualEchoDistanceSquared = 64f * 64f;
     private int _nextClientBackstabVisualId = -1;
     private int _spySuperjumpTrajectoryAnimationTicks;
+    private const int TrajectoryPreviewMaxTicks = 300;
+    private const float SniperBowAimArcFadeLength = 1000f;
 
     // Per-player cloak-reveal timers triggered when a cloaked spy superjumps (visual only).
     // Key = player ID. Cancelled if the spy uncloaks while the timer is running.
@@ -243,6 +246,11 @@ public partial class Game1
     private void AdvanceImpactVisuals()
     {
         _gameplayImpactEffectsController.AdvanceImpactVisuals();
+    }
+
+    private void AdvanceStuckArrowVisuals()
+    {
+        _gameplayImpactEffectsController.AdvanceStuckArrowVisuals();
     }
 
     private void AdvanceLooseSheetVisuals()
@@ -415,7 +423,7 @@ public partial class Game1
         var simY = localPlayer.Y;
         var simVelX = velocityX;
         var simVelY = velocityY;
-        var maxTicks = 300;
+        var maxTicks = TrajectoryPreviewMaxTicks;
         var collisionDetected = false;
         var collisionTick = maxTicks;
 
@@ -599,6 +607,278 @@ public partial class Game1
         }
     }
 
+    private void DrawSniperBowAimArc(Vector2 cameraPosition)
+    {
+        var localPlayer = _world.LocalPlayer;
+        if (localPlayer is null || !localPlayer.IsAlive || !GetPlayerIsSniperBowEquipped(localPlayer))
+        {
+            return;
+        }
+
+        var chargeTicks = GetPlayerSniperBowChargeTicks(localPlayer);
+        if (chargeTicks <= 0 || localPlayer.IsTaunting || localPlayer.IsHeavyEating || localPlayer.IsCarryingIntel)
+        {
+            return;
+        }
+
+        var chargeFraction = float.Min(1f, chargeTicks / (float)PlayerEntity.SniperBowMaxChargeTicks);
+        var chargeDirection = GetLocalSniperBowAimDirectionDegrees(localPlayer);
+        var radians = chargeDirection * (MathF.PI / 180f);
+        var velocity = PlayerEntity.SniperBowMinVelocity
+            + (PlayerEntity.SniperBowMaxVelocity - PlayerEntity.SniperBowMinVelocity) * chargeFraction;
+        var velocityX = MathF.Cos(radians) * velocity;
+        var velocityY = MathF.Sin(radians) * velocity;
+
+        if (!_gameplayWeaponRenderController.TryGetWeaponRotationPivot(localPlayer, out var spawnX, out var spawnY))
+        {
+            var facingScale = MathF.Cos(radians) < 0f ? -1f : 1f;
+            spawnX = localPlayer.X + (PlayerEntity.SniperBowPivotOffsetX * facingScale);
+            spawnY = localPlayer.Y + PlayerEntity.SniperBowPivotOffsetY;
+        }
+
+        const float gravityPerTick = ArrowProjectileEntity.GravityPerTick;
+        const int maxTicks = TrajectoryPreviewMaxTicks;
+        const float collisionRadius = 1f;
+        var trajectoryPoints = new List<(float X, float Y)>(maxTicks + 1)
+        {
+            (spawnX, spawnY),
+        };
+
+        var simX = spawnX;
+        var simY = spawnY;
+        var simVelX = velocityX;
+        var simVelY = velocityY;
+        var level = _world.Level;
+        var collisionDetected = false;
+        for (var tick = 0; tick < maxTicks && !collisionDetected; tick++)
+        {
+            simX += simVelX;
+            simY += simVelY;
+            simVelY += gravityPerTick;
+            trajectoryPoints.Add((simX, simY));
+
+            foreach (var solid in level.Solids)
+            {
+                if (simX + collisionRadius <= solid.Left
+                    || simX - collisionRadius >= solid.Right
+                    || simY + collisionRadius <= solid.Top
+                    || simY - collisionRadius >= solid.Bottom)
+                {
+                    continue;
+                }
+
+                collisionDetected = true;
+                break;
+            }
+        }
+
+        var peakAlpha = 0.55f + (chargeFraction * 0.25f);
+        var baseColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(localPlayer.Team);
+        var cellAlphas = new Dictionary<(int GridX, int GridY), float>();
+        var distanceAlongPath = 0f;
+        var previousGrid = WorldToTwoByTwoPixelGrid(trajectoryPoints[0].X, trajectoryPoints[0].Y);
+        AddFadedTwoByTwoPixelGridCell(cellAlphas, previousGrid.GridX, previousGrid.GridY, peakAlpha);
+
+        for (var index = 1; index < trajectoryPoints.Count; index += 1)
+        {
+            if (distanceAlongPath >= SniperBowAimArcFadeLength)
+            {
+                break;
+            }
+
+            var previous = trajectoryPoints[index - 1];
+            var current = trajectoryPoints[index];
+            var segmentDeltaX = current.X - previous.X;
+            var segmentDeltaY = current.Y - previous.Y;
+            var segmentLength = MathF.Sqrt((segmentDeltaX * segmentDeltaX) + (segmentDeltaY * segmentDeltaY));
+            var currentGrid = WorldToTwoByTwoPixelGrid(current.X, current.Y);
+            AddFadedTwoByTwoPixelGridLine(
+                previousGrid.GridX,
+                previousGrid.GridY,
+                currentGrid.GridX,
+                currentGrid.GridY,
+                distanceAlongPath,
+                segmentLength,
+                SniperBowAimArcFadeLength,
+                peakAlpha,
+                cellAlphas);
+            distanceAlongPath += segmentLength;
+            previousGrid = currentGrid;
+        }
+
+        DrawFadedTwoByTwoPixelGridCells(cellAlphas, cameraPosition, baseColor);
+    }
+
+    private float GetLocalSniperBowAimDirectionDegrees(PlayerEntity localPlayer)
+    {
+        if (_hasLatestLocalAimWorldPosition)
+        {
+            float originX;
+            float originY;
+            if (TryGetPredictedLocalPlayerCameraPosition(out var predictedPosition))
+            {
+                originX = predictedPosition.X;
+                originY = predictedPosition.Y;
+            }
+            else
+            {
+                originX = localPlayer.X;
+                originY = localPlayer.Y;
+            }
+
+            var aimDeltaX = _latestLocalAimWorldX - originX;
+            var aimDeltaY = _latestLocalAimWorldY - originY;
+            if (MathF.Abs(aimDeltaX) > 0.0001f || MathF.Abs(aimDeltaY) > 0.0001f)
+            {
+                var degrees = MathF.Atan2(aimDeltaY, aimDeltaX) * (180f / MathF.PI);
+                degrees %= 360f;
+                if (degrees < 0f)
+                {
+                    degrees += 360f;
+                }
+
+                return degrees;
+            }
+        }
+
+        return localPlayer.AimDirectionDegrees;
+    }
+
+    private static (int GridX, int GridY) WorldToTwoByTwoPixelGrid(float worldX, float worldY)
+    {
+        return ((int)MathF.Floor(worldX / 2f), (int)MathF.Floor(worldY / 2f));
+    }
+
+    private static void AddTwoByTwoPixelGridLine(int startGridX, int startGridY, int endGridX, int endGridY, HashSet<(int GridX, int GridY)> cells)
+    {
+        var deltaX = Math.Abs(endGridX - startGridX);
+        var deltaY = Math.Abs(endGridY - startGridY);
+        var stepX = startGridX < endGridX ? 1 : -1;
+        var stepY = startGridY < endGridY ? 1 : -1;
+        var error = deltaX - deltaY;
+        var gridX = startGridX;
+        var gridY = startGridY;
+
+        while (true)
+        {
+            cells.Add((gridX, gridY));
+            if (gridX == endGridX && gridY == endGridY)
+            {
+                break;
+            }
+
+            var error2 = error * 2;
+            if (error2 > -deltaY)
+            {
+                error -= deltaY;
+                gridX += stepX;
+            }
+
+            if (error2 < deltaX)
+            {
+                error += deltaX;
+                gridY += stepY;
+            }
+        }
+    }
+
+    private static void AddFadedTwoByTwoPixelGridLine(
+        int startGridX,
+        int startGridY,
+        int endGridX,
+        int endGridY,
+        float segmentStartDistance,
+        float segmentLength,
+        float fadeLength,
+        float peakAlpha,
+        Dictionary<(int GridX, int GridY), float> cellAlphas)
+    {
+        var deltaX = Math.Abs(endGridX - startGridX);
+        var deltaY = Math.Abs(endGridY - startGridY);
+        var stepX = startGridX < endGridX ? 1 : -1;
+        var stepY = startGridY < endGridY ? 1 : -1;
+        var error = deltaX - deltaY;
+        var gridX = startGridX;
+        var gridY = startGridY;
+        var steps = Math.Max(deltaX, deltaY);
+        var stepIndex = 0;
+
+        while (true)
+        {
+            var segmentProgress = steps <= 0 ? 1f : stepIndex / (float)steps;
+            var distanceAlongPath = segmentStartDistance + (segmentLength * segmentProgress);
+            var fade = 1f - float.Clamp(distanceAlongPath / fadeLength, 0f, 1f);
+            AddFadedTwoByTwoPixelGridCell(cellAlphas, gridX, gridY, peakAlpha * fade);
+
+            if (gridX == endGridX && gridY == endGridY)
+            {
+                break;
+            }
+
+            var error2 = error * 2;
+            if (error2 > -deltaY)
+            {
+                error -= deltaY;
+                gridX += stepX;
+            }
+
+            if (error2 < deltaX)
+            {
+                error += deltaX;
+                gridY += stepY;
+            }
+
+            stepIndex += 1;
+        }
+    }
+
+    private static void AddFadedTwoByTwoPixelGridCell(
+        Dictionary<(int GridX, int GridY), float> cellAlphas,
+        int gridX,
+        int gridY,
+        float alpha)
+    {
+        if (alpha <= 0.001f)
+        {
+            return;
+        }
+
+        var key = (gridX, gridY);
+        if (!cellAlphas.TryGetValue(key, out var existingAlpha) || alpha > existingAlpha)
+        {
+            cellAlphas[key] = alpha;
+        }
+    }
+
+    private void DrawTwoByTwoPixelGridCells(HashSet<(int GridX, int GridY)> cells, Vector2 cameraPosition, Color color)
+    {
+        foreach (var (gridX, gridY) in cells)
+        {
+            var pixelRect = new Rectangle(
+                (int)MathF.Round((gridX * 2f) - cameraPosition.X),
+                (int)MathF.Round((gridY * 2f) - cameraPosition.Y),
+                2,
+                2);
+            _spriteBatch.Draw(_pixel, pixelRect, color);
+        }
+    }
+
+    private void DrawFadedTwoByTwoPixelGridCells(
+        Dictionary<(int GridX, int GridY), float> cellAlphas,
+        Vector2 cameraPosition,
+        Color baseColor)
+    {
+        foreach (var ((gridX, gridY), alpha) in cellAlphas)
+        {
+            var pixelRect = new Rectangle(
+                (int)MathF.Round((gridX * 2f) - cameraPosition.X),
+                (int)MathF.Round((gridY * 2f) - cameraPosition.Y),
+                2,
+                2);
+            _spriteBatch.Draw(_pixel, pixelRect, baseColor * alpha);
+        }
+    }
+
     private void DrawRocketSmokeVisuals(Vector2 cameraPosition)
     {
         _gameplaySmokeEffectsController.DrawRocketSmokeVisuals(cameraPosition);
@@ -617,6 +897,11 @@ public partial class Game1
     private void DrawImpactVisuals(Vector2 cameraPosition)
     {
         _gameplayImpactEffectsController.DrawImpactVisuals(cameraPosition);
+    }
+
+    private void DrawStuckArrowVisuals(Vector2 cameraPosition)
+    {
+        _gameplayImpactEffectsController.DrawStuckArrowVisuals(cameraPosition);
     }
 
     private void DrawLooseSheetVisuals(Vector2 cameraPosition)
@@ -953,6 +1238,39 @@ public partial class Game1
         public float PendingSourceTicks { get; set; }
     }
 
+    private sealed class StuckArrowVisual
+    {
+        public const int VisibleTicks = 10 * ClientUpdateTicksPerSecond;
+        public const int FadeTicks = ClientUpdateTicksPerSecond;
+        public const int MaxVisuals = 32;
+        public const float SpawnDedupDistanceSquared = 32f * 32f;
+
+        public StuckArrowVisual(float x, float y, float rotationRadians, int frameIndex, bool flipY)
+        {
+            X = x;
+            Y = y;
+            RotationRadians = rotationRadians;
+            FrameIndex = frameIndex;
+            FlipY = flipY;
+            TicksUntilFade = VisibleTicks;
+            Alpha = 1f;
+        }
+
+        public float X { get; }
+
+        public float Y { get; }
+
+        public float RotationRadians { get; }
+
+        public int FrameIndex { get; }
+
+        public bool FlipY { get; }
+
+        public int TicksUntilFade { get; set; }
+
+        public float Alpha { get; set; }
+    }
+
     private sealed class BackstabVisual
     {
         public BackstabVisual(StabAnimEntity animation)
@@ -1274,7 +1592,19 @@ public partial class Game1
 
     private sealed class RocketSmokeVisual
     {
-        public RocketSmokeVisual(float x, float y, float offsetX, float offsetY, float driftX, float driftY, float initialRadius, float finalRadius, float initialAlpha, int lifetimeTicks)
+        public RocketSmokeVisual(
+            float x,
+            float y,
+            float offsetX,
+            float offsetY,
+            float driftX,
+            float driftY,
+            float initialRadius,
+            float finalRadius,
+            float initialAlpha,
+            int lifetimeTicks,
+            float initialShade = 0.98f,
+            float finalShade = 0.62f)
         {
             X = x;
             Y = y;
@@ -1285,6 +1615,8 @@ public partial class Game1
             InitialRadius = initialRadius;
             FinalRadius = finalRadius;
             InitialAlpha = initialAlpha;
+            InitialShade = initialShade;
+            FinalShade = finalShade;
             LifetimeTicks = Math.Max(1, lifetimeTicks);
             TicksRemaining = LifetimeTicks;
         }
@@ -1306,6 +1638,10 @@ public partial class Game1
         public float FinalRadius { get; }
 
         public float InitialAlpha { get; }
+
+        public float InitialShade { get; }
+
+        public float FinalShade { get; }
 
         public int LifetimeTicks { get; }
 

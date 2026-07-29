@@ -29,12 +29,14 @@ public sealed partial class SimulationWorld
         public ShotHitResult? GetNearestNeedleHit(NeedleProjectileEntity needle, float directionX, float directionY, float maxDistance)
         {
             ShotHitResult? nearestHit = null;
-            UpdateNearestProjectileHitFromSolids(ref nearestHit, needle, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
-            UpdateNearestProjectileHitFromGates(ref nearestHit, needle.Team, needle, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
-            UpdateNearestProjectileHitFromSentries(ref nearestHit, needle, needle.Team, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
-            UpdateNearestProjectileHitFromGenerators(ref nearestHit, needle, needle.Team, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
-            UpdateNearestProjectileHitFromJumpPads(ref nearestHit, needle.Team, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance);
-            UpdateNearestProjectileHitFromPlayers(ref nearestHit, needle, needle.Team, needle.OwnerId, needle.PreviousX, needle.PreviousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
+            var previousX = needle.RaycastPreviousX;
+            var previousY = needle.RaycastPreviousY;
+            UpdateNearestProjectileHitFromSolids(ref nearestHit, needle, previousX, previousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
+            UpdateNearestProjectileHitFromGates(ref nearestHit, needle.Team, needle, previousX, previousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
+            UpdateNearestProjectileHitFromSentries(ref nearestHit, needle, needle.Team, previousX, previousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
+            UpdateNearestProjectileHitFromGenerators(ref nearestHit, needle, needle.Team, previousX, previousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
+            UpdateNearestProjectileHitFromJumpPads(ref nearestHit, needle.Team, previousX, previousY, directionX, directionY, maxDistance);
+            UpdateNearestProjectileHitFromPlayers(ref nearestHit, needle, needle.Team, needle.OwnerId, previousX, previousY, directionX, directionY, maxDistance, UpdateNearestNeedleHit);
             return nearestHit;
         }
 
@@ -350,7 +352,7 @@ public sealed partial class SimulationWorld
         private static void UpdateNearestNeedleHit(ref ShotHitResult? nearestHit, NeedleProjectileEntity needle, float directionX, float directionY, float distance, PlayerEntity? player, SentryEntity? sentry = null, GeneratorState? generator = null)
         {
             if (nearestHit.HasValue && nearestHit.Value.Distance <= distance) { return; }
-            nearestHit = new ShotHitResult(distance, needle.PreviousX + directionX * distance, needle.PreviousY + directionY * distance, player, sentry, generator);
+            nearestHit = new ShotHitResult(distance, needle.RaycastPreviousX + directionX * distance, needle.RaycastPreviousY + directionY * distance, player, sentry, generator);
         }
 
         private static void UpdateNearestRevolverHit(ref ShotHitResult? nearestHit, RevolverProjectileEntity shot, float directionX, float directionY, float distance, PlayerEntity? player, SentryEntity? sentry = null, GeneratorState? generator = null)
