@@ -13,6 +13,10 @@ namespace OpenGarrison.Core.BotBrain;
 /// </summary>
 public static class Og2NavigationGraphBuilder
 {
+    // Bump whenever graph-generation behavior changes. Runtime steering
+    // changes intentionally do not invalidate the graph cache.
+    public const string GeneratorFingerprint = "og2-contact-20260728-v18";
+
     private static readonly ConditionalWeakTable<SimpleLevel, StaticNavigationBlockers> StaticBlockerCache = new();
 
     private const float SurfaceMergeVerticalTolerance = 2f;
@@ -2050,23 +2054,56 @@ public static class Og2NavigationGraphStore
     public static NavGraph GetOrBuild(SimpleLevel level)
     {
         ArgumentNullException.ThrowIfNull(level);
+        var cacheKey = Og2NavigationGraphCache.BuildKey(level);
         if (Cache.TryGetValue(level, out var cached))
         {
-            return cached.Graph;
+            if (string.Equals(cached.Key, cacheKey, StringComparison.Ordinal))
+            {
+                return cached.Graph;
+            }
+
+            Cache.Remove(level);
         }
 
         lock (Sync)
         {
             if (Cache.TryGetValue(level, out cached))
             {
-                return cached.Graph;
+                if (string.Equals(cached.Key, cacheKey, StringComparison.Ordinal))
+                {
+                    return cached.Graph;
+                }
+
+                Cache.Remove(level);
+            }
+
+            if (Og2NavigationGraphCache.TryLoad(level, cacheKey, out var cachedGraph, out var cachePath))
+            {
+                Cache.Add(level, new CachedGraph(cacheKey, cachedGraph));
+                TraceCache(level, "hit", cachePath, cachedGraph);
+                return cachedGraph;
             }
 
             var graph = Og2NavigationGraphBuilder.Build(level);
-            Cache.Add(level, new CachedGraph(graph));
+            Og2NavigationGraphCache.Save(level, cacheKey, graph, out var savedPath);
+            Cache.Add(level, new CachedGraph(cacheKey, graph));
+            TraceCache(level, "miss-built", savedPath, graph);
             return graph;
         }
     }
 
-    private sealed record CachedGraph(NavGraph Graph);
+    private static void TraceCache(SimpleLevel level, string status, string path, NavGraph graph)
+    {
+        if (Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_CACHE_TRACE") is not ("1" or "true" or "TRUE"))
+        {
+            return;
+        }
+
+        var edgeCount = Enumerable.Range(0, graph.NodeCount).Sum(index => graph.GetEdges(index).Length);
+        Console.WriteLine(
+            $"[botbrain] og2-nav-cache level={level.Name} area={level.MapAreaIndex} " +
+            $"status={status} nodes={graph.NodeCount} edges={edgeCount} path=\"{path}\"");
+    }
+
+    private sealed record CachedGraph(string Key, NavGraph Graph);
 }
