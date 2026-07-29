@@ -121,6 +121,99 @@ public partial class Game1
                 }
             }
 
+            // Arrow trails reuse rocket smoke visuals: ~6px thick, half rocket lifetime.
+            const float arrowSmokeThickness = 6f;
+            const float arrowSmokeRadius = arrowSmokeThickness * 0.5f;
+            foreach (var needle in _game._world.Needles)
+            {
+                if (needle is not ArrowProjectileEntity)
+                {
+                    continue;
+                }
+
+                if (_game._particleMode == 2 && ((_game._world.Frame + needle.Id) & 1) != 0)
+                {
+                    continue;
+                }
+
+                var velocityX = needle.X - needle.PreviousX;
+                var velocityY = needle.Y - needle.PreviousY;
+                if (MathF.Abs(velocityX) <= 0.001f && MathF.Abs(velocityY) <= 0.001f)
+                {
+                    continue;
+                }
+
+                var speed = MathF.Sqrt((velocityX * velocityX) + (velocityY * velocityY));
+                if (speed <= 0.001f)
+                {
+                    continue;
+                }
+
+                var forwardX = velocityX / speed;
+                var forwardY = velocityY / speed;
+                var rightX = -forwardY;
+                var rightY = forwardX;
+                const float tailDistance = 2.5f;
+                // ArrowS is 10px tall with originY 2; shift toward sprite center (+local Y / flipped when facing left).
+                const float arrowSmokeCenterOffset = 3f;
+                var centerSign = needle.VelocityX < 0f ? -1f : 1f;
+                var renderPosition = _game.GetRenderPosition(needle.Id, needle.X, needle.Y);
+                var anchorX = renderPosition.X + (rightX * arrowSmokeCenterOffset * centerSign);
+                var anchorY = renderPosition.Y + (rightY * arrowSmokeCenterOffset * centerSign);
+
+                if (!CanEmitBrowserVisual(_game._rocketSmokeVisuals.Count, BrowserRocketSmokeVisualLimit))
+                {
+                    continue;
+                }
+
+                var primaryBackJitter = 0.4f + (_game._visualRandom.NextSingle() * 0.4f);
+                var primaryLateralJitter = (_game._visualRandom.NextSingle() * 2f - 1f) * 0.35f;
+                var primaryX = anchorX - (forwardX * (tailDistance + primaryBackJitter)) + (rightX * primaryLateralJitter);
+                var primaryY = anchorY - (forwardY * (tailDistance + primaryBackJitter)) + (rightY * primaryLateralJitter);
+                var primaryOffsetBack = _game._visualRandom.NextSingle() * 0.5f;
+                var primaryOffsetLateral = (_game._visualRandom.NextSingle() * 2f - 1f) * 0.35f;
+                var primaryDriftBack = 0.7f + (_game._visualRandom.NextSingle() * 1.1f);
+                var primaryDriftLateral = (_game._visualRandom.NextSingle() * 2f - 1f) * 0.7f;
+                _game._rocketSmokeVisuals.Add(new RocketSmokeVisual(
+                    primaryX,
+                    primaryY,
+                    -(forwardX * primaryOffsetBack) + (rightX * primaryOffsetLateral),
+                    -(forwardY * primaryOffsetBack) + (rightY * primaryOffsetLateral),
+                    -(forwardX * primaryDriftBack) + (rightX * primaryDriftLateral),
+                    -(forwardY * primaryDriftBack) + (rightY * primaryDriftLateral),
+                    arrowSmokeRadius * (0.85f + (_game._visualRandom.NextSingle() * 0.15f)),
+                    arrowSmokeRadius * (0.95f + (_game._visualRandom.NextSingle() * 0.15f)),
+                    0.75f + (_game._visualRandom.NextSingle() * 0.15f),
+                    11 + _game._visualRandom.Next(6),
+                    initialShade: 1f,
+                    finalShade: 1f));
+                if (_game._particleMode == 0
+                    && CanEmitBrowserVisual(_game._rocketSmokeVisuals.Count, BrowserRocketSmokeVisualLimit))
+                {
+                    var secondaryBackJitter = 0.2f + (_game._visualRandom.NextSingle() * 0.4f);
+                    var secondaryLateralJitter = (_game._visualRandom.NextSingle() * 2f - 1f) * 0.3f;
+                    var secondaryX = anchorX - (forwardX * (tailDistance + secondaryBackJitter)) + (rightX * secondaryLateralJitter);
+                    var secondaryY = anchorY - (forwardY * (tailDistance + secondaryBackJitter)) + (rightY * secondaryLateralJitter);
+                    var secondaryOffsetBack = _game._visualRandom.NextSingle() * 0.45f;
+                    var secondaryOffsetLateral = (_game._visualRandom.NextSingle() * 2f - 1f) * 0.3f;
+                    var secondaryDriftBack = 0.55f + (_game._visualRandom.NextSingle() * 1.0f);
+                    var secondaryDriftLateral = (_game._visualRandom.NextSingle() * 2f - 1f) * 0.6f;
+                    _game._rocketSmokeVisuals.Add(new RocketSmokeVisual(
+                        secondaryX,
+                        secondaryY,
+                        -(forwardX * secondaryOffsetBack) + (rightX * secondaryOffsetLateral),
+                        -(forwardY * secondaryOffsetBack) + (rightY * secondaryOffsetLateral),
+                        -(forwardX * secondaryDriftBack) + (rightX * secondaryDriftLateral),
+                        -(forwardY * secondaryDriftBack) + (rightY * secondaryDriftLateral),
+                        arrowSmokeRadius * (0.85f + (_game._visualRandom.NextSingle() * 0.15f)),
+                        arrowSmokeRadius * (0.95f + (_game._visualRandom.NextSingle() * 0.15f)),
+                        0.75f + (_game._visualRandom.NextSingle() * 0.15f),
+                        11 + _game._visualRandom.Next(6),
+                        initialShade: 1f,
+                        finalShade: 1f));
+                }
+            }
+
             for (var index = _game._rocketSmokeVisuals.Count - 1; index >= 0; index -= 1)
             {
                 _game._rocketSmokeVisuals[index].TicksRemaining -= 1;
@@ -510,7 +603,7 @@ public partial class Game1
 
                 var radius = MathHelper.Lerp(smoke.InitialRadius, smoke.FinalRadius, progress);
                 var colorProgress = MathF.Min(1f, progress * 1.9f);
-                var shade = MathHelper.Lerp(0.98f, 0.62f, colorProgress);
+                var shade = MathHelper.Lerp(smoke.InitialShade, smoke.FinalShade, colorProgress);
                 var ageTicks = smoke.LifetimeTicks - smoke.TicksRemaining;
                 var driftProgress = Math.Clamp(ageTicks / driftTicks, 0f, 1f);
                 var worldX = smoke.X + smoke.OffsetX + (smoke.DriftX * driftProgress);

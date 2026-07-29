@@ -1,0 +1,14 @@
+{
+  "id": "ability.sniper-bow-toggle",
+  "displayName": "Sniper Bow Toggle",
+  "slot": "Utility",
+  "behaviorId": "builtin.utility.sniper_bow",
+  "ability": {
+    "category": "utility",
+    "activation": "pressed",
+    "executorId": "builtin.ability.sniper_bow_toggle",
+    "tags": [ "weapon_toggle" ]
+  },
+  "ammo": {},
+  "presentation": {}
+}

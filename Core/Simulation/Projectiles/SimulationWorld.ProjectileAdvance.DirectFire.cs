@@ -259,6 +259,7 @@ public sealed partial class SimulationWorld
 
             var directionX = movementX / movementDistance;
             var directionY = movementY / movementDistance;
+            needle.PrepareRaycastProbe();
             var hit = needle is MedicHealNeedleProjectileEntity healNeedle
                 ? GetNearestMedicHealNeedleHit(healNeedle, directionX, directionY, movementDistance)
                 : GetNearestNeedleHit(needle, directionX, directionY, movementDistance);
@@ -266,7 +267,15 @@ public sealed partial class SimulationWorld
             {
                 var hitResult = hit.Value;
                 var owner = FindPlayerById(needle.OwnerId);
-                needle.MoveTo(hitResult.HitX, hitResult.HitY);
+                if (needle.HitProbeForwardOffset > 0f)
+                {
+                    needle.GetBasePositionFromProbeHit(hitResult.HitX, hitResult.HitY, directionX, directionY, out var baseX, out var baseY);
+                    needle.MoveTo(baseX, baseY);
+                }
+                else
+                {
+                    needle.MoveTo(hitResult.HitX, hitResult.HitY);
+                }
                 RegisterCombatTrace(needle.PreviousX, needle.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
                 if (hitResult.HitPlayer is not null
                     && needle is MedicHealNeedleProjectileEntity medicHealNeedle
@@ -287,7 +296,10 @@ public sealed partial class SimulationWorld
                             damageFlags,
                             civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(needle.CriticalDamageMultiplier)))
                     {
-                        var killFeedSprite = needle is NailProjectileEntity ? "NailgunKL" : needle is MedicHealNeedleProjectileEntity ? "NeedleKL" : "NeedleKL";
+                        var killFeedSprite = needle is ArrowProjectileEntity ? "BowKL"
+                            : needle is NailProjectileEntity ? "NailgunKL"
+                            : needle is MedicHealNeedleProjectileEntity ? "NeedleKL"
+                            : "NeedleKL";
                         KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: killFeedSprite);
                     }
                 }
@@ -305,11 +317,11 @@ public sealed partial class SimulationWorld
                 }
                 else if (TryHandleProjectileDamageableZoneHit(hitResult, needle.Damage * needle.CriticalDamageMultiplier, needle.Team))
                 {
-                    RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
+                    RegisterArrowOrImpactEffect(needle, hitResult.HitX, hitResult.HitY, directionX, directionY);
                 }
                 else
                 {
-                    RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
+                    RegisterArrowOrImpactEffect(needle, hitResult.HitX, hitResult.HitY, directionX, directionY);
                 }
 
                 needle.Destroy();
@@ -324,6 +336,22 @@ public sealed partial class SimulationWorld
                 RemoveNeedleAt(needleIndex);
             }
         }
+    }
+
+    private void RegisterArrowOrImpactEffect(
+        NeedleProjectileEntity needle,
+        float hitX,
+        float hitY,
+        float directionX,
+        float directionY)
+    {
+        if (needle is ArrowProjectileEntity arrow)
+        {
+            RegisterStuckArrowEffect(hitX, hitY, directionX, directionY, arrow);
+            return;
+        }
+
+        RegisterImpactEffect(hitX, hitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
     }
 
     private void AdvanceRevolverShots()

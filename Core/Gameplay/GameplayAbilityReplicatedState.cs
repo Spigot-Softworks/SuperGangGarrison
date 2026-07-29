@@ -9,6 +9,7 @@ public static class GameplayAbilityReplicatedState
     public const string HeavyEatTicksRemainingKey = "heavy_eat_ticks_remaining";
     public const string HeavyEatCooldownTicksKey = "heavy_eat_cooldown_ticks";
     public const string SniperChargeTicksKey = "sniper_charge_ticks";
+    public const string SniperBowChargeTicksKey = "sniper_bow_charge_ticks";
     public const string SpyCloakAlphaKey = "spy_cloak_alpha";
     public const string SpySuperjumpCooldownTicksKey = "spy_superjump_cooldown_ticks";
     public const string SpySuperjumpActiveKey = "spy_superjump_active";
@@ -51,6 +52,7 @@ public static class GameplayAbilityReplicatedState
             PlayerClass.Sniper =>
             [
                 Whole(SniperChargeTicksKey, player.SniperChargeTicks),
+                Whole(SniperBowChargeTicksKey, player.SniperBowChargeTicks),
             ],
             PlayerClass.Spy =>
             [
@@ -113,6 +115,7 @@ public static class GameplayAbilityReplicatedState
             HeavyEatCooldownTicksKey when player.ClassId == PlayerClass.Heavy => player.HeavyEatCooldownTicksRemaining,
             HeavyDashCooldownTicksKey when player.ClassId == PlayerClass.Heavy => player.ExperimentalGhostDashCooldownTicksRemaining,
             SniperChargeTicksKey when player.ClassId == PlayerClass.Sniper => player.SniperChargeTicks,
+            SniperBowChargeTicksKey when player.ClassId == PlayerClass.Sniper => player.SniperBowChargeTicks,
             SpySuperjumpCooldownTicksKey when player.ClassId == PlayerClass.Spy => player.SpySuperjumpCooldownTicksRemaining,
             CivvieUmbrellaCooldownTicksKey when player.ClassId == PlayerClass.Quote => player.CivvieUmbrellaCooldownTicks,
             CivviePogoCrunchTicksKey when player.ClassId == PlayerClass.Quote => player.CivviePogoCrunchTicksRemaining,
@@ -126,7 +129,7 @@ public static class GameplayAbilityReplicatedState
             PyroAirblastCooldownTicksKey => player.ClassId == PlayerClass.Pyro,
             MedicNeedlegunCooldownTicksKey => player.ClassId == PlayerClass.Medic,
             HeavyEatTicksRemainingKey or HeavyEatCooldownTicksKey or HeavyDashCooldownTicksKey => player.ClassId == PlayerClass.Heavy,
-            SniperChargeTicksKey => player.ClassId == PlayerClass.Sniper,
+            SniperChargeTicksKey or SniperBowChargeTicksKey => player.ClassId == PlayerClass.Sniper,
             SpySuperjumpCooldownTicksKey => player.ClassId == PlayerClass.Spy,
             CivvieUmbrellaCooldownTicksKey
                 or CivviePogoCrunchTicksKey

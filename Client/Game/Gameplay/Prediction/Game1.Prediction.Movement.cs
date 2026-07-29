@@ -32,7 +32,9 @@ public partial class Game1
             return 0f;
         }
 
-        if (player.HasScopedSniperWeaponEquipped && _predictedLocalActionState.IsSniperScoped)
+        if (player.HasScopedSniperWeaponEquipped
+            && _predictedLocalActionState.IsSniperScoped
+            && !player.IsSniperBowEquipped)
         {
             return PlayerEntity.SniperScopedMoveScale;
         }
@@ -52,7 +54,9 @@ public partial class Game1
             return player.IsExperimentalDemoknightChargeFullControlEnabled ? 1f : 0f;
         }
 
-        if (player.HasScopedSniperWeaponEquipped && _predictedLocalActionState.IsSniperScoped)
+        if (player.HasScopedSniperWeaponEquipped
+            && _predictedLocalActionState.IsSniperScoped
+            && !player.IsSniperBowEquipped)
         {
             return PlayerEntity.SniperScopedJumpScale;
         }

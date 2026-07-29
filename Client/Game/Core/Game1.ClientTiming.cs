@@ -261,6 +261,7 @@ public partial class Game1
             UpdateNoticeState();
             AdvanceExplosionVisuals();
             AdvanceImpactVisuals();
+            AdvanceStuckArrowVisuals();
             AdvanceGoreSourceTicks();
             AdvanceExperimentalHealingHudIndicators();
             AdvanceShellVisuals();

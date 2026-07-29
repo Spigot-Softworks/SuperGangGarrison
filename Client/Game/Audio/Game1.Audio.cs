@@ -920,6 +920,7 @@ public partial class Game1
             || string.Equals(soundName, "MinegunSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "RevolverSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "SniperSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "BowSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "MedichaingunSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "ChaingunSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "FlamethrowerSnd", StringComparison.OrdinalIgnoreCase)
@@ -951,7 +952,8 @@ public partial class Game1
 
         if (string.Equals(soundName, "BladeSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "EyelanderSnd", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(soundName, "KnifeSnd", StringComparison.OrdinalIgnoreCase))
+            || string.Equals(soundName, "KnifeSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "BowSnd", StringComparison.OrdinalIgnoreCase))
         {
             return 0.45f;
         }

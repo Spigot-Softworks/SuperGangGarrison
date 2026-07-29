@@ -368,7 +368,11 @@ public static class SnapshotDelta
             or "civvie_umbrella_active"
             or "civvie_umbrella_disabled"
             or "civvie_pogo_active"
-            or "civvie_pogo_crunch_ticks";
+            or "civvie_pogo_crunch_ticks"
+            or "civvie_pogo_trick_ticks"
+            or "civvie_pogo_trick_duration_ticks"
+            or "sniper_charge_ticks"
+            or "sniper_bow_charge_ticks";
     }
 
     private static IReadOnlyList<SnapshotSentryState> MergeSentries(

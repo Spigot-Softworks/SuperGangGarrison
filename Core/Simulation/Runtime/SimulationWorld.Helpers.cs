@@ -42,8 +42,8 @@ public sealed partial class SimulationWorld
 
         foreach (var player in EnumerateSimulatedPlayers())
         {
-            // Only show aim indicator for scoped snipers
-            if (!player.IsSniperScoped || !player.IsAlive)
+            // Only show aim indicator for scoped rifle snipers (not bow).
+            if (!player.IsSniperScoped || !player.IsAlive || player.IsSniperBowEquipped)
             {
                 continue;
             }
@@ -212,6 +212,62 @@ public sealed partial class SimulationWorld
     private void RegisterImpactEffect(float x, float y, float directionDegrees)
     {
         RegisterVisualEffect("Impact", x, y, directionDegrees);
+    }
+
+    private void RegisterStuckArrowEffect(
+        float hitX,
+        float hitY,
+        float directionX,
+        float directionY,
+        ArrowProjectileEntity arrow)
+    {
+        // Freeze at the sweep contact pose with a slight tip embed into the surface.
+        const float embedPixels = 5f;
+        var tipOffset = arrow.HitProbeForwardOffset;
+        var tipX = hitX + (directionX * embedPixels);
+        var tipY = hitY + (directionY * embedPixels);
+        arrow.GetBasePositionFromProbeHit(tipX, tipY, directionX, directionY, out var freezeX, out var freezeY);
+
+        // Stairs/slopes are stacks of long RLE walkmask rows. The origin (near the fletching) often
+        // lands buried under the slope; pull the whole arrow back until the tail clears solids.
+        const float maxPullPixels = 64f;
+        for (var pulled = 0f; pulled < maxPullPixels; pulled += 1f)
+        {
+            if (!IsStuckArrowPointInSolid(freezeX, freezeY))
+            {
+                break;
+            }
+
+            freezeX -= directionX;
+            freezeY -= directionY;
+        }
+
+        // After pullback, nudge forward so the tip is at least slightly into the surface again.
+        tipX = freezeX + (directionX * tipOffset);
+        tipY = freezeY + (directionY * tipOffset);
+        if (!IsStuckArrowPointInSolid(tipX, tipY))
+        {
+            for (var pushed = 0; pushed < 12; pushed += 1)
+            {
+                freezeX += directionX;
+                freezeY += directionY;
+                tipX += directionX;
+                tipY += directionY;
+                if (IsStuckArrowPointInSolid(tipX, tipY))
+                {
+                    break;
+                }
+            }
+        }
+
+        var directionDegrees = MathF.Atan2(directionY, directionX) * (180f / MathF.PI);
+        // Count encodes the ArrowS team frame: Red=1, Blue=2 (matches PlayerTeam values).
+        RegisterVisualEffect("StuckArrow", freezeX, freezeY, directionDegrees, count: (int)arrow.Team);
+    }
+
+    private bool IsStuckArrowPointInSolid(float x, float y)
+    {
+        return Level.IntersectsSolid(x, y, x + 0.1f, y + 0.1f);
     }
 
     private void RegisterWallspinDustEffect(PlayerEntity player)

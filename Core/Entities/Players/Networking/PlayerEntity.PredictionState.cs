@@ -49,6 +49,7 @@ public sealed partial class PlayerEntity
         float TauntFrameIndex,
         bool IsSniperScoped,
         int SniperChargeTicks,
+        int SniperBowChargeTicks,
         bool IsUsingBinoculars,
         float BinocularsFocusX,
         float BinocularsFocusY,
@@ -167,6 +168,7 @@ public sealed partial class PlayerEntity
             TauntFrameIndex,
             IsSniperScoped,
             SniperChargeTicks,
+            SniperBowChargeTicks,
             IsUsingBinoculars,
             BinocularsFocusX,
             BinocularsFocusY,
@@ -290,6 +292,7 @@ public sealed partial class PlayerEntity
         TauntFrameIndex = state.TauntFrameIndex;
         IsSniperScoped = state.IsSniperScoped;
         SniperChargeTicks = state.SniperChargeTicks;
+        SniperBowChargeTicks = Math.Clamp(state.SniperBowChargeTicks, 0, SniperBowMaxChargeTicks);
         IsUsingBinoculars = state.IsUsingBinoculars;
         BinocularsFocusX = state.BinocularsFocusX;
         BinocularsFocusY = state.BinocularsFocusY;

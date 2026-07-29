@@ -186,6 +186,94 @@ public sealed class PlayerEntityNetworkStateTests
     }
 
     [Fact]
+    public void ApplyNetworkStateHydratesSniperBowFromReplicatedAvailability()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Sniper, "Test");
+        player.Spawn(PlayerTeam.Red, 0f, 0f);
+
+        Assert.False(player.HasExperimentalOffhandWeapon);
+        Assert.False(player.IsSniperBowEquipped);
+
+        ApplySniperNetworkSnapshot(
+            player,
+            GameplayEquipmentSlot.Secondary,
+            [
+                new GameplayReplicatedStateEntry(
+                    "core.player",
+                    "sniper_bow_available",
+                    GameplayReplicatedStateValueKind.Toggle,
+                    0,
+                    0f,
+                    true),
+                new GameplayReplicatedStateEntry(
+                    "core.player",
+                    "sniper_bow_ammo",
+                    GameplayReplicatedStateValueKind.Whole,
+                    1,
+                    0f,
+                    false),
+                new GameplayReplicatedStateEntry(
+                    "core.player",
+                    "sniper_bow_max_ammo",
+                    GameplayReplicatedStateValueKind.Whole,
+                    1,
+                    0f,
+                    false),
+            ]);
+
+        Assert.True(player.HasExperimentalOffhandWeapon);
+        Assert.True(player.IsExperimentalOffhandEquipped);
+        Assert.True(player.IsSniperBowEquipped);
+        Assert.Equal("weapon.bow", player.GameplayLoadoutState.SecondaryItemId);
+        Assert.Equal("weapon.bow", player.GameplayLoadoutState.EquippedItemId);
+    }
+
+    [Fact]
+    public void ApplyNetworkStateHydratesMedicKritzHealNeedlesFromReplicatedAvailability()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Medic, "Test");
+        player.Spawn(PlayerTeam.Red, 0f, 0f);
+
+        Assert.False(player.HasExperimentalOffhandWeapon);
+        Assert.Equal(0, player.ExperimentalOffhandCurrentShells);
+
+        ApplyMedicNetworkSnapshot(
+            player,
+            GameplayEquipmentSlot.Secondary,
+            [
+                new GameplayReplicatedStateEntry(
+                    "core.player",
+                    "medic_kritz_available",
+                    GameplayReplicatedStateValueKind.Toggle,
+                    0,
+                    0f,
+                    true),
+                new GameplayReplicatedStateEntry(
+                    "core.player",
+                    "medic_kritz_ammo",
+                    GameplayReplicatedStateValueKind.Whole,
+                    4,
+                    0f,
+                    false),
+                new GameplayReplicatedStateEntry(
+                    "core.player",
+                    "medic_kritz_max_ammo",
+                    GameplayReplicatedStateValueKind.Whole,
+                    6,
+                    0f,
+                    false),
+            ]);
+
+        Assert.True(player.HasExperimentalOffhandWeapon);
+        Assert.True(player.IsExperimentalOffhandEquipped);
+        Assert.True(player.IsExperimentalOffhandSelected);
+        Assert.Equal(4, player.ExperimentalOffhandCurrentShells);
+        Assert.Equal(6, player.ExperimentalOffhandMaxShells);
+        Assert.Equal("weapon.medigun.crit", player.GameplayLoadoutState.SecondaryItemId);
+        Assert.Equal("weapon.medigun.crit", player.GameplayLoadoutState.EquippedItemId);
+    }
+
+    [Fact]
     public void CloakedSpyHitRevealsCloakToMinimumThirtyPercent()
     {
         var player = new PlayerEntity(1, CharacterClassCatalog.Spy, "SpyTest");
@@ -857,6 +945,140 @@ public sealed class PlayerEntityNetworkStateTests
             gameplayUtilityItemId: includeFullLoadoutState ? "ability.soldier-utility" : "",
             gameplayEquippedSlot: (byte)equippedSlot,
             gameplayEquippedItemId: includeFullLoadoutState ? equippedItemId : "",
+            gameplayAcquiredItemId: "",
+            replicatedStateEntries: replicatedStateEntries);
+    }
+
+    private static void ApplySniperNetworkSnapshot(
+        PlayerEntity player,
+        GameplayEquipmentSlot equippedSlot,
+        GameplayReplicatedStateEntry[]? replicatedStateEntries = null)
+    {
+        var equippedItemId = equippedSlot == GameplayEquipmentSlot.Secondary
+            ? "weapon.bow"
+            : "weapon.rifle";
+
+        player.ApplyNetworkState(
+            team: PlayerTeam.Red,
+            classDefinition: CharacterClassCatalog.Sniper,
+            isAlive: true,
+            x: 10f,
+            y: 20f,
+            horizontalSpeed: 0f,
+            verticalSpeed: 0f,
+            health: 120,
+            currentShells: 1,
+            kills: 0,
+            deaths: 0,
+            caps: 0,
+            points: 0f,
+            healPoints: 0,
+            activeDominationCount: 0,
+            isDominatingLocalViewer: false,
+            isDominatedByLocalViewer: false,
+            metal: 0f,
+            isGrounded: true,
+            remainingAirJumps: 0,
+            isCarryingIntel: false,
+            intelRechargeTicks: 0f,
+            isSpyCloaked: false,
+            spyCloakAlpha: 0f,
+            isSpySuperjumping: false,
+            spySuperjumpHorizontalVelocity: 0f,
+            spySuperjumpCooldownTicksRemaining: 0,
+            spyBackstabVisualTicksRemaining: 0,
+            isUbered: false,
+            isKritzCritBoosted: false,
+            isHeavyEating: false,
+            heavyEatTicksRemaining: 0,
+            isSniperScoped: false,
+            sniperChargeTicks: 0,
+            isUsingBinoculars: false,
+            binocularsFocusX: 0f,
+            binocularsFocusY: 0f,
+            facingDirectionX: 1f,
+            aimDirectionDegrees: 0f,
+            aimWorldX: 106f,
+            aimWorldY: 20f,
+            isTaunting: false,
+            tauntFrameIndex: 0f,
+            isChatBubbleVisible: false,
+            chatBubbleFrameIndex: 0,
+            chatBubbleAlpha: 0f,
+            gameplayModPackId: "stock.gg2",
+            gameplayLoadoutId: "sniper.stock",
+            gameplayPrimaryItemId: "weapon.rifle",
+            gameplaySecondaryItemId: "weapon.bow",
+            gameplayUtilityItemId: "ability.sniper-bow-toggle",
+            gameplayEquippedSlot: (byte)equippedSlot,
+            gameplayEquippedItemId: equippedItemId,
+            gameplayAcquiredItemId: "",
+            replicatedStateEntries: replicatedStateEntries);
+    }
+
+    private static void ApplyMedicNetworkSnapshot(
+        PlayerEntity player,
+        GameplayEquipmentSlot equippedSlot,
+        GameplayReplicatedStateEntry[]? replicatedStateEntries = null)
+    {
+        var equippedItemId = equippedSlot == GameplayEquipmentSlot.Secondary
+            ? "weapon.medigun.crit"
+            : "weapon.medigun";
+
+        player.ApplyNetworkState(
+            team: PlayerTeam.Red,
+            classDefinition: CharacterClassCatalog.Medic,
+            isAlive: true,
+            x: 10f,
+            y: 20f,
+            horizontalSpeed: 0f,
+            verticalSpeed: 0f,
+            health: 120,
+            currentShells: 40,
+            kills: 0,
+            deaths: 0,
+            caps: 0,
+            points: 0f,
+            healPoints: 0,
+            activeDominationCount: 0,
+            isDominatingLocalViewer: false,
+            isDominatedByLocalViewer: false,
+            metal: 0f,
+            isGrounded: true,
+            remainingAirJumps: 0,
+            isCarryingIntel: false,
+            intelRechargeTicks: 0f,
+            isSpyCloaked: false,
+            spyCloakAlpha: 0f,
+            isSpySuperjumping: false,
+            spySuperjumpHorizontalVelocity: 0f,
+            spySuperjumpCooldownTicksRemaining: 0,
+            spyBackstabVisualTicksRemaining: 0,
+            isUbered: false,
+            isKritzCritBoosted: false,
+            isHeavyEating: false,
+            heavyEatTicksRemaining: 0,
+            isSniperScoped: false,
+            sniperChargeTicks: 0,
+            isUsingBinoculars: false,
+            binocularsFocusX: 0f,
+            binocularsFocusY: 0f,
+            facingDirectionX: 1f,
+            aimDirectionDegrees: 0f,
+            aimWorldX: 106f,
+            aimWorldY: 20f,
+            isTaunting: false,
+            tauntFrameIndex: 0f,
+            isChatBubbleVisible: false,
+            chatBubbleFrameIndex: 0,
+            chatBubbleAlpha: 0f,
+            gameplayModPackId: "stock.gg2",
+            gameplayLoadoutId: "medic.stock",
+            gameplayPrimaryItemId: "weapon.medigun",
+            gameplaySecondaryItemId: "weapon.medigun.crit",
+            gameplayUtilityItemId: "ability.medic-uber",
+            gameplayEquippedSlot: (byte)equippedSlot,
+            gameplayEquippedItemId: equippedItemId,
             gameplayAcquiredItemId: "",
             replicatedStateEntries: replicatedStateEntries);
     }

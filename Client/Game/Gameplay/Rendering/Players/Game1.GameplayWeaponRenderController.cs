@@ -301,6 +301,46 @@ public partial class Game1
             return _game.GetPlayerSpriteOrigin(renderPosition);
         }
 
+        public bool TryGetWeaponRotationPivot(PlayerEntity player, out float pivotX, out float pivotY)
+        {
+            pivotX = 0f;
+            pivotY = 0f;
+
+            var renderPosition = _game.GetRenderPosition(player);
+            var bodySelection = _game._gameplayPlayerSpriteRenderController.GetPlayerBodySpriteSelection(player);
+            var weaponAnimationMode = GetPlayerWeaponAnimationMode(player);
+            var weaponDefinition = GetWeaponRenderDefinition(player);
+            if (weaponDefinition.NormalSpriteName is null)
+            {
+                return false;
+            }
+
+            var sprite = _game.GetResolvedSprite(weaponDefinition.NormalSpriteName);
+            if (sprite is null || sprite.Frames.Count == 0)
+            {
+                return false;
+            }
+
+            if (!TryGetWeaponDrawTransform(
+                    player,
+                    renderPosition,
+                    bodySelection,
+                    weaponAnimationMode,
+                    weaponDefinition,
+                    sprite,
+                    out pivotX,
+                    out pivotY,
+                    out _,
+                    out _,
+                    out _,
+                    applySniperBowVisualForwardOffset: true))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
         public void DrawCivvieUmbrellaShieldBlockVisuals(
             PlayerEntity player,
             Vector2 cameraPosition,
@@ -453,7 +493,8 @@ public partial class Game1
             out float worldDrawY,
             out float rotation,
             out float facingScale,
-            out float playerScale)
+            out float playerScale,
+            bool applySniperBowVisualForwardOffset = true)
         {
             worldDrawX = 0f;
             worldDrawY = 0f;
@@ -477,6 +518,11 @@ public partial class Game1
             if (TryApplyLocalWeaponAim(player, roundedOrigin, weaponAnchorOffsetX, playerScale, ref facingScale, ref worldDrawX, worldDrawY, out var localAimRotation))
             {
                 rotation = localAimRotation;
+            }
+
+            if (player.IsSniperBowEquipped && applySniperBowVisualForwardOffset)
+            {
+                worldDrawX += PlayerEntity.SniperBowWeaponVisualForwardOffsetX * facingScale * playerScale;
             }
 
             return true;
@@ -680,6 +726,11 @@ public partial class Game1
         {
             if (weaponDefinition.NormalSpriteName is not null)
             {
+                if (string.Equals(weaponDefinition.NormalSpriteName, "BowS", StringComparison.Ordinal))
+                {
+                    return new Vector2(PlayerEntity.SniperBowAnchorOriginX, PlayerEntity.SniperBowAnchorOriginY);
+                }
+
                 var normalSprite = _game.GetResolvedSprite(weaponDefinition.NormalSpriteName);
                 if (normalSprite is not null)
                 {

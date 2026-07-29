@@ -395,7 +395,7 @@ public partial class Game1
         var lastWriteUtc = GetFileLastWriteUtcOrDefault(path);
         if (lastWriteUtc != default && lastWriteUtc != _bubbleWheelPluginConfigLastWriteUtc)
         {
-            _bubbleWheelBehavior = BubbleWheelPluginConfig.LoadOrCreate(path, _bubbleWheelBehavior).Behavior;
+            _bubbleWheelBehavior = BubbleWheelPluginConfig.Load(path).Behavior;
             _bubbleWheelPluginConfigLastWriteUtc = GetFileLastWriteUtcOrDefault(path);
         }
 
@@ -999,6 +999,17 @@ public partial class Game1
     private void ToggleSpriteDropShadowSetting()
     {
         _spriteDropShadowEnabled = !_spriteDropShadowEnabled;
+        PersistClientSettings();
+    }
+
+    private void ToggleStuckArrowsSetting()
+    {
+        _stuckArrowsEnabled = !_stuckArrowsEnabled;
+        if (!_stuckArrowsEnabled)
+        {
+            _stuckArrowVisuals.Clear();
+        }
+
         PersistClientSettings();
     }
 

@@ -583,7 +583,7 @@ internal static class SnapshotDeltaBudgeter
 
     private static int EstimateEntityIdListBytes(IReadOnlyList<int> ids) => 1 + (ids.Count * 4);
 
-    private static int EstimateShotCollectionBytes(IReadOnlyList<SnapshotShotState> shots) => 2 + (shots.Count * 30);
+    private static int EstimateShotCollectionBytes(IReadOnlyList<SnapshotShotState> shots) => 2 + (shots.Count * 31);
 
     private static int EstimateRocketBytes(SnapshotRocketState rocket)
     {
@@ -773,7 +773,9 @@ internal static class SnapshotDeltaBudgeter
                 && entry.Key.IndexOf("_ammo", StringComparison.Ordinal) >= 0)
             || (!string.Equals(entry.OwnerId, "core.player", StringComparison.Ordinal)
                 && entry.Kind == SnapshotReplicatedStateValueKind.Whole
-                && entry.Key.IndexOf("cooldown", StringComparison.OrdinalIgnoreCase) >= 0);
+                && entry.Key.IndexOf("cooldown", StringComparison.OrdinalIgnoreCase) >= 0)
+            || (string.Equals(entry.OwnerId, "core.ability", StringComparison.Ordinal)
+                && entry.Key is "sniper_charge_ticks" or "sniper_bow_charge_ticks");
     }
 
     private static SnapshotPlayerState ReducePlayerStateAggressivelyForBudget(SnapshotPlayerState player)

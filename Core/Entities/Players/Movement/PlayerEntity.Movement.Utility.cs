@@ -58,7 +58,7 @@ public sealed partial class PlayerEntity
             return 0.2f;
         }
 
-        if (HasScopedSniperWeaponEquipped && IsSniperScoped)
+        if (HasScopedSniperWeaponEquipped && IsSniperScoped && !IsSniperBowEquipped)
         {
             return SniperScopedMoveScale;
         }
@@ -78,7 +78,7 @@ public sealed partial class PlayerEntity
             return ExperimentalDemoknightChargeFullControlEnabled ? 1f : 0f;
         }
 
-        if (HasScopedSniperWeaponEquipped && IsSniperScoped)
+        if (HasScopedSniperWeaponEquipped && IsSniperScoped && !IsSniperBowEquipped)
         {
             return SniperScopedJumpScale;
         }
@@ -102,6 +102,30 @@ public sealed partial class PlayerEntity
         }
 
         AimDirectionDegrees = NormalizeDegrees(MathF.Atan2(aimDeltaY, aimDeltaX) * (180f / MathF.PI));
+    }
+
+    internal void ApplyPredictionAimWorld(float aimWorldX, float aimWorldY)
+    {
+        AimWorldX = aimWorldX;
+        AimWorldY = aimWorldY;
+        var aimDeltaX = aimWorldX - X;
+        var aimDeltaY = aimWorldY - Y;
+        if (MathF.Abs(aimDeltaX) <= 0.0001f && MathF.Abs(aimDeltaY) <= 0.0001f)
+        {
+            return;
+        }
+
+        AimDirectionDegrees = NormalizeDegrees(MathF.Atan2(aimDeltaY, aimDeltaX) * (180f / MathF.PI));
+    }
+
+    internal void ApplyPredictionSniperChargeTicks(int chargeTicks)
+    {
+        SniperChargeTicks = Math.Clamp(chargeTicks, 0, SniperChargeMaxTicks);
+    }
+
+    internal void ApplyPredictionSniperBowChargeTicks(int chargeTicks)
+    {
+        SniperBowChargeTicks = Math.Clamp(chargeTicks, 0, SniperBowMaxChargeTicks);
     }
 
     private static float NormalizeDegrees(float degrees)

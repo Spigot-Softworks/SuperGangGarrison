@@ -340,6 +340,27 @@ public sealed partial class SimulationWorld
             secondaryItemId = selectedLoadout.SecondaryItemId;
         }
 
+        if (runtimeRegistry.TryGetLoadout(player.GameplayClassId, player.SelectedGameplayLoadoutId, out var loadout)
+            && loadout.AbilityItemIds is not null)
+        {
+            foreach (var abilityItemId in loadout.AbilityItemIds)
+            {
+                if (string.IsNullOrWhiteSpace(abilityItemId))
+                {
+                    continue;
+                }
+
+                if (!runtimeRegistry.TryGetGameplayAbilityDefinition(abilityItemId, out var abilityItem, out var abilityDefinition)
+                    || !string.Equals(abilityDefinition.Category, GameplayAbilityConstants.SecondaryCategory, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                item = abilityItem;
+                return true;
+            }
+        }
+
         return runtimeRegistry.TryGetGameplayAbilityDefinition(secondaryItemId, out item, out _);
     }
 
@@ -990,9 +1011,52 @@ public sealed partial class SimulationWorld
         return GameplayAbilityResult.HandledAndConsumed;
     }
 
+    internal GameplayAbilityResult ExecuteSniperBowToggleAbility(GameplayAbilityContext context)
+    {
+        var player = context.Player;
+        if (player.IsSniperScoped)
+        {
+            player.TryToggleSniperScope();
+        }
+
+        player.CancelSniperBowCharge();
+
+        if (!context.Input.SwapWeapon)
+        {
+            TryHandleLegacyNetworkSecondaryWeaponToggle(context.Player, context.Input);
+        }
+
+        return GameplayAbilityResult.HandledAndConsumed;
+    }
+
     internal GameplayPrimaryWeaponResult ExecuteScoutNailgunPrimaryWeapon(GameplayPrimaryWeaponContext context)
     {
         WeaponHandler.FireScoutNailgun(context.Player, context.Weapon, context.AimWorldX, context.AimWorldY);
+        return GameplayPrimaryWeaponResult.HandledResult;
+    }
+
+    internal GameplayPrimaryWeaponResult ExecuteSniperBowPrimaryWeapon(GameplayPrimaryWeaponContext context)
+    {
+        if (!context.Player.TryReleaseSniperBowCharge(out var velocityX, out var velocityY, out var damage, out var fakeSpeedMultiplier))
+        {
+            return GameplayPrimaryWeaponResult.Ignored;
+        }
+
+        if (!context.Player.TryFireExperimentalOffhandWeapon())
+        {
+            return GameplayPrimaryWeaponResult.Ignored;
+        }
+
+        WeaponHandler.FireSniperBow(
+            context.Player,
+            context.Weapon,
+            context.AimWorldX,
+            context.AimWorldY,
+            velocityX,
+            velocityY,
+            damage,
+            fakeSpeedMultiplier,
+            context.KillFeedWeaponSpriteName);
         return GameplayPrimaryWeaponResult.HandledResult;
     }
 

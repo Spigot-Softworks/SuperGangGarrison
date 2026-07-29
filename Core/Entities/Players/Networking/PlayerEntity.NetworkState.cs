@@ -297,15 +297,17 @@ public sealed partial class PlayerEntity
             gameplayEquippedSlot,
             gameplayEquippedItemId,
             gameplayAcquiredItemId);
-        ReconcileReplicatedWeaponSelection();
-        RefreshMedicUberReadyState();
         ReplaceOwnedGameplayItemIds(ownedGameplayItemIds ?? []);
         if (replicatedStateEntries is { Count: > 0 })
         {
             MergeReplicatedStateEntries(replicatedStateEntries);
         }
 
+        // Hydrate offhand weapon definitions before reconciling selection so Secondary-slot
+        // snapshots (soldier shotgun / scout nailgun / sniper bow) can mark the offhand equipped.
         HydrateNetworkReplicatedSecondaryWeaponFromSnapshot();
+        ReconcileReplicatedWeaponSelection();
+        RefreshMedicUberReadyState();
         HydrateNetworkReplicatedAbilityRuntimeState();
         // Apply offhand weapon animation state so recoil/reload animations are visible to other players.
         // These values arrive via the movement delta (OffhandCooldownTicks / OffhandReloadTicks) so they
@@ -323,23 +325,40 @@ public sealed partial class PlayerEntity
 
     private void HydrateNetworkReplicatedSniperRuntimeState()
     {
-        if (ClassId != PlayerClass.Sniper || !IsSniperScoped)
+        if (ClassId != PlayerClass.Sniper)
         {
             return;
         }
 
-        if (TryGetReplicatedStateInt(
+        if (IsSniperScoped
+            && TryGetReplicatedStateInt(
                 GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
                 GameplayAbilityReplicatedState.SniperChargeTicksKey,
                 out var sniperChargeTicks))
         {
             SniperChargeTicks = Math.Clamp(sniperChargeTicks, 0, SniperChargeMaxTicks);
         }
+
+        if (TryGetReplicatedStateInt(
+                GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                GameplayAbilityReplicatedState.SniperBowChargeTicksKey,
+                out var sniperBowChargeTicks))
+        {
+            if (IsSniperBowEquipped)
+            {
+                SniperBowChargeTicks = Math.Clamp(sniperBowChargeTicks, 0, SniperBowMaxChargeTicks);
+            }
+            else
+            {
+                SniperBowChargeTicks = 0;
+                SniperBowChargeDirectionDegrees = 0f;
+            }
+        }
     }
 
     private void HydrateNetworkReplicatedSecondaryWeaponFromSnapshot()
     {
-        if (ClassId is not (PlayerClass.Soldier or PlayerClass.Scout))
+        if (ClassId is not (PlayerClass.Soldier or PlayerClass.Scout or PlayerClass.Sniper or PlayerClass.Medic))
         {
             return;
         }
@@ -367,13 +386,38 @@ public sealed partial class PlayerEntity
         }
 
         var currentOffhandItemId = ResolveRegisteredWeaponItemId(ExperimentalOffhandWeapon);
-        if (string.Equals(currentOffhandItemId, loadoutSecondaryItemId, StringComparison.Ordinal))
+        if (!string.Equals(currentOffhandItemId, loadoutSecondaryItemId, StringComparison.Ordinal))
+        {
+            var item = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(loadoutSecondaryItemId);
+            SetExperimentalOffhandWeapon(CharacterClassCatalog.RuntimeRegistry.CreatePrimaryWeaponDefinition(item));
+        }
+
+        ApplyNetworkReplicatedSecondaryWeaponAmmo();
+    }
+
+    private void ApplyNetworkReplicatedSecondaryWeaponAmmo()
+    {
+        if (!HasExperimentalOffhandWeapon)
         {
             return;
         }
 
-        var item = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(loadoutSecondaryItemId);
-        SetExperimentalOffhandWeapon(CharacterClassCatalog.RuntimeRegistry.CreatePrimaryWeaponDefinition(item));
+        const string coreReplicatedOwnerId = "core.player";
+        var ammoKey = ClassId switch
+        {
+            PlayerClass.Soldier => "soldier_shotgun_ammo",
+            PlayerClass.Scout => "scout_nailgun_ammo",
+            PlayerClass.Sniper => "sniper_bow_ammo",
+            PlayerClass.Medic => "medic_kritz_ammo",
+            _ => null,
+        };
+        if (ammoKey is null
+            || !TryGetReplicatedStateInt(coreReplicatedOwnerId, ammoKey, out var ammo))
+        {
+            return;
+        }
+
+        ExperimentalOffhandCurrentShells = int.Clamp(ammo, 0, ExperimentalOffhandMaxShells);
     }
 
     private bool IsReplicatedSecondaryWeaponAvailable()
@@ -390,6 +434,14 @@ public sealed partial class PlayerEntity
                     && nailgunAvailable)
                 || TryGetReplicatedStateInt(coreReplicatedOwnerId, "scout_nailgun_ammo", out _)
                 || TryGetReplicatedStateInt(coreReplicatedOwnerId, "scout_nailgun_max_ammo", out _),
+            PlayerClass.Sniper => (TryGetReplicatedStateBool(coreReplicatedOwnerId, "sniper_bow_available", out var bowAvailable)
+                    && bowAvailable)
+                || TryGetReplicatedStateInt(coreReplicatedOwnerId, "sniper_bow_ammo", out _)
+                || TryGetReplicatedStateInt(coreReplicatedOwnerId, "sniper_bow_max_ammo", out _),
+            PlayerClass.Medic => (TryGetReplicatedStateBool(coreReplicatedOwnerId, "medic_kritz_available", out var kritzAvailable)
+                    && kritzAvailable)
+                || TryGetReplicatedStateInt(coreReplicatedOwnerId, "medic_kritz_ammo", out _)
+                || TryGetReplicatedStateInt(coreReplicatedOwnerId, "medic_kritz_max_ammo", out _),
             _ => false,
         };
     }

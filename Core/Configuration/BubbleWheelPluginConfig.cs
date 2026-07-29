@@ -12,12 +12,9 @@ public sealed class BubbleWheelPluginConfig
 
     public static BubbleWheelPluginConfig LoadOrCreate(string path, BubbleWheelBehavior? legacyBehavior = null)
     {
+        var createdNew = !File.Exists(path);
         BubbleWheelPluginConfig config;
-        if (File.Exists(path))
-        {
-            config = Load(path);
-        }
-        else
+        if (createdNew)
         {
             config = new BubbleWheelPluginConfig
             {
@@ -25,9 +22,18 @@ public sealed class BubbleWheelPluginConfig
                     legacyBehavior ?? OpenGarrisonPreferencesDocument.DefaultBubbleWheelBehavior),
             };
         }
+        else
+        {
+            config = Load(path);
+        }
 
+        var behaviorBeforeNormalize = config.Behavior;
         config.Normalize();
-        Save(path, config);
+        if (createdNew || behaviorBeforeNormalize != config.Behavior)
+        {
+            Save(path, config);
+        }
+
         return config;
     }
 

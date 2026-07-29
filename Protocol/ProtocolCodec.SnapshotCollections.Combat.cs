@@ -111,6 +111,11 @@ public static partial class ProtocolCodec
             writer.Write(shot.TicksRemaining);
             writer.Write(shot.IsCritical);
             writer.Write(shot.IsMedicHealNeedle);
+            writer.Write(shot.IsArrow);
+            if (shot.IsArrow)
+            {
+                writer.Write(shot.ArrowFakeSpeedMultiplier);
+            }
         }
     }
 
@@ -120,17 +125,33 @@ public static partial class ProtocolCodec
         var shots = new List<SnapshotShotState>(count);
         for (var index = 0; index < count; index += 1)
         {
+            var id = reader.ReadInt32();
+            var team = reader.ReadByte();
+            var ownerId = reader.ReadInt32();
+            var x = reader.ReadSingle();
+            var y = reader.ReadSingle();
+            var velocityX = reader.ReadSingle();
+            var velocityY = reader.ReadSingle();
+            var ticksRemaining = reader.ReadInt32();
+            var isCritical = reader.ReadBoolean();
+            var isMedicHealNeedle = reader.ReadBoolean();
+            var isArrow = reader.ReadBoolean();
+            var arrowFakeSpeedMultiplier = isArrow
+                ? reader.ReadSingle()
+                : 1f;
             shots.Add(new SnapshotShotState(
-                reader.ReadInt32(),
-                reader.ReadByte(),
-                reader.ReadInt32(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadInt32(),
-                reader.ReadBoolean(),
-                reader.ReadBoolean()));
+                id,
+                team,
+                ownerId,
+                x,
+                y,
+                velocityX,
+                velocityY,
+                ticksRemaining,
+                isCritical,
+                isMedicHealNeedle,
+                isArrow,
+                arrowFakeSpeedMultiplier));
         }
 
         return shots;
