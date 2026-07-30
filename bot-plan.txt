@@ -824,3 +824,494 @@ legacy asset path. The contact graph remains runtime-generated and persistent;
 the graph is shared across bots and does not rebuild when only steering changes.
 The default-path practice-game smoke test should still be run interactively
 against these cached graphs; the automated acceptance matrix itself is green.
+
+## 2026-07-28 expansion audit correction
+
+The preceding eight-map matrix is not a valid current acceptance result for
+the graph-generator expansion. It was recorded before the controlled cold
+graph gate was rerun and must not be used as evidence that the new generator
+supports the remaining stock maps.
+
+The post-crash controlled gate is currently negative:
+
+- `TwodFortTwo`: `0/160` class/team graph routes; cached and cold rebuilds both
+  produce a disconnected upper stair route (`305` nodes, `2,779` edges).
+- `Waterway`: `0/360` graph routes (`466` nodes, `4,848` edges).
+- `Dirtbowl`: `480/2,000` graph routes and `0/20` runtime captures.
+- `Egypt`: `1,600/4,500` graph routes and `20/20` runtime captures; the runtime
+  result does not override the failed graph gate.
+
+Expansion is halted until the graph topology is validated. No nearest-
+reachable fallback, class-specific steering tweak, or capture-only result is
+an acceptance pass. The failure is generator topology: OG2 stair routes use
+narrow six-pixel step supports plus compound movement programs, while the
+current contact graph only retains fully standable surfaces and certifies one
+fixed-direction jump per contact.
+
+The package inventory was also corrected before expansion resumes. The 16
+packages `dj_Delta_v1`, `dj_Loop_of_Fate`, `dj_Magik`, `dj_thundermountain`,
+`jt_aperture`, `jt_glados`, `nfa_readyup`, `nfa_transition`, `rj_2dfortremix`,
+`rj_classicwell`, `rj_conflict`, `rj_duality`, `rj_facility_colored`,
+`rj_lavafort`, `rr_sandzone2`, and `vip_docking` are excluded from graph
+coverage. The remaining 48 packages collapse to 42 graph builds because six
+pairs share an identical walkmask: `ctf_eiger`/`ctf_eiger_plx`,
+`ctf_hemisphere`/`ctf_hemisphere_plx`, `koth_corinth`/`koth_corinth_plx`,
+`koth_valley`/`koth_valley_plx`, `koth_bayou`/`koth_styx`, and
+`dkoth_kots`/`dkoth_kots_a3`.
+
+The next generator milestone is an OG2-authoritative compound contact:
+bounded simulation may use narrow step lips internally, may issue repeated
+jump pulses and direction changes, and may emit an edge only after landing on
+the target stable surface. Its measured control schedule must be replayable at
+runtime. Only after that topology gate is green will the 42 unique walkmask
+representatives be expanded and aliases mapped to the same graph.
+
+## 2026-07-28 runtime-replay audit
+
+The TwodFortTwo graph was audited at the edge-recipe level before any further
+map expansion. The previous v54/v55/v56 Pyro graph gate reported `16/16`
+abstract routes, but the cache-hit live capture matrix still reported `0/2`
+Pyro captures. The failing Red route repeatedly stopped at `209->229`, a
+lower-floor-to-upper-platform edge whose stored recipe was only
+`jump + 25 neutral ticks`; it could not reach the target surface in the live
+simulation. Blue failed at an analogous upper-stair contact.
+
+The audit found two generator defects: contact-edge merging discarded entry
+and exit sample buckets and could retain the first recipe instead of the
+compound recipe; and the retained compound contact could have a launch point
+outside its source surface after surface-node clamping. v55 bucketed contact
+edges and v57 added the source-launch invariant. v57 correctly rejected the
+invalid topology (`0/16` Pyro graph routes), proving that the old `16/16` gate
+was only an abstract connectivity result. v58 additionally seeds all
+standable-width surfaces, including the 24-pixel intermediate stair landing,
+but still reports `0/16`; the explorer is not yet emitting the required
+intermediate landing chain.
+
+Runtime resolver work is therefore paused behind generator validity. The
+resolver must preserve the graph-certified control direction (it must not aim
+at the completion-window center), must validate only the first jump's grounded
+state for multi-jump schedules, and must eventually use bounded state-keyed
+retry rather than permanently abandoning a grounded edge after one failed
+probe. None of these runtime changes constitutes a graph acceptance pass.
+
+## 2026-07-29 current-authority route certificate and generator-cost audit
+
+The current PlayerEntity physics now has a separate whole-route certificate
+replay. It records every confirmed grounded surface transition and preserves
+the exact per-contact entry/exit prediction state, jump-held state, and action
+window. The explorer also carries PredictionState and PreviousJumpHeld across
+compound-program segments instead of reconstructing each segment from only
+position and velocity. This is required groundwork for composing contacts;
+it is not, by itself, a graph or live-controller acceptance gate.
+
+The ten checked-in TwodFortTwo pickup proof tapes (five representative stock
+movement profiles on both teams) all replay continuously through current
+PlayerEntity authority to enemy intel:
+
+| Team | Engineer | Heavy | Pyro | Scout | Soldier |
+|---|---:|---:|---:|---:|---:|
+| Red | pass | pass | pass | pass | pass |
+| Blue | pass | pass | pass | pass | pass |
+
+These are route-proof passes only. They do not prove that the runtime-generated
+contact graph contains the same contacts, that the runtime resolver can execute
+the stored recipes, or that the remaining roster profiles are covered.
+
+Generator fingerprint `og2-contact-20260729-v74-bounded-compound-program-bank`
+now uses frontier-scoped control-program seeds and a smaller bounded compound
+program bank. A cold Pyro/Red/non-carrier TwodFortTwo build fell from about
+262 seconds to about 215 seconds and produced a graph whose filtered gate was
+`4/16`: the four Red outbound variants passed, including the newly certified
+final narrow-stair transition from surface `21` to intel surface `4`.
+The deliberate context filter excluded Blue and carrier contexts, so the
+remaining twelve failures are expected and are not acceptance evidence.
+
+A combined all-context cold build exceeded ten minutes without completing and
+was stopped. This is now an explicit generator performance blocker: the graph
+must be generated once and then reused from the persistent cache, but the cold
+builder is still too broad to be the normal iteration loop. The next generator
+step is to separate reusable base-contact evidence from bounded context
+compound certification, then run the full two-team/carrying matrix against one
+complete artifact. Until that artifact and the live runtime capture matrix are
+green, alpha remains an experimental default path for diagnostics/practice only
+and no full-map or full-roster claim is valid.
+
+### Generator-cost follow-up (v75-v81)
+
+The phase-timed cold-build baseline is now explicit. On the deliberately
+narrow TwodFortTwo Pyro/Red/non-carrier context (32-tick ordinary sweep,
+16 ordinary build workers, 16 compound expansions, frontier limit 8), v75
+measured approximately 13.3 seconds in ordinary contacts and 202.1 seconds in
+compound certification, for 215.6 seconds total. This confirms compound
+certification—not geometry extraction or ordinary OG2 contact sweeps—is the
+generator bottleneck.
+
+The following measured cuts are retained in the current generator:
+
+- v76 reuses one landing probe per compound schedule and skips repeated
+  same-surface landing scans only while the PlayerEntity remains within the
+  certified surface interval and within 1.5 pixels of its top. The build was
+  208.3 seconds with unchanged filtered reachability (4/16).
+- v77 seeds control programs from existing compound/base-contact exit states
+  and two fallback samples per selected frontier surface. This changed the
+  graph shape but did not improve wall time by itself.
+- v78 bounds the control-program expansion queue to 32 for the shallow pass and
+  v79 removes the redundant direct-run/short-stair compound programs already
+  covered by ordinary contacts. The measured cold build reached 165.1 seconds
+  with the same filtered result (4/16).
+- v80 bounds the deep retry to 64 expansions by default. The same build reached
+  105.7 seconds, still with 4/16 in the intentionally filtered context.
+  Experiments at retry limits 16 and 32 were faster but lost the outbound
+  compound route (0/16), so 64 is currently the minimum observed route-safe
+  retry for this case.
+- v81 skips compound certification for a specific class/team/carry context
+  only when the already-certified base contact closure reaches that context's
+  objective surface. This preserves compound work for contexts that need it.
+
+The full representative-roster TwodFortTwo build was rerun after v81 with
+16-way compound context parallelism and exceeded 10 minutes without producing
+a graph artifact; it was stopped cleanly. Therefore the full graph is still
+not validated, no all-roster capture claim is authorized, and the runtime
+alpha default must remain gated. The next implementation task is reusable
+per-context evidence/graph assembly (or an equivalent context-sharing design),
+not further blind increases/decreases of heuristic expansion limits.
+
+## 2026-07-29 process postmortem
+
+The eight-hour TwodFortTwo focus was a process failure, not evidence that the
+map's geometry intrinsically requires ten minutes. The measured facts are:
+
+- A narrow Pyro/Red/non-carrier TwodFortTwo build took about 106 seconds under
+  v80. Its base contact phase took about 13 seconds; compound certification
+  took about 92 seconds.
+- The run that exceeded ten minutes used the full representative movement
+  roster, both teams, and both carrying states. The generator replays expensive
+  OG2 PlayerEntity control programs independently for those contexts. Map
+  surface count is therefore not the dominant cost; context multiplication and
+  repeated compound exploration are.
+- Each context could perform a shallow exploration and then restart from the
+  initial seeds for a deep retry. A graph artifact was written only after all
+  contexts completed, so an interrupted build produced no reusable partial
+  evidence.
+- Generator fingerprint changes from v74 through v82 invalidated prior alpha
+  graph-cache keys. We did not maintain a committed, known-good graph artifact
+  set or a per-context resumable evidence cache before iterating, so changes
+  could not be compared against the previously passing map set cheaply.
+- The ten current-authority TwodFortTwo proof-tape replays are valid standalone
+  route evidence, but they are not graph-gate or live-capture evidence. The
+  filtered graph result remained 4/16, and the full roster graph was never
+  validated.
+- The first parallel expansion run reported mostly `load_failed` because the
+  custom package search path was not set to the repository `Maps` directory;
+  only built-in Eiger loaded. That run is invalid map coverage. The corrected
+  runs were stopped before completion and are also not coverage evidence.
+
+The operational mistakes were continuing to tune the hardest map after the
+generator gate was known negative, treating route certificates as a proxy for
+graph acceptance, failing to pin a known-good baseline before changing the
+generator fingerprint, and launching the shipped-map matrix before the harness
+was configured for custom packages. Consequently, we do not know that the
+other maps remained passing after the v74-v82 changes; that assumption would be
+unsafe.
+
+The next work item is not another TwodFortTwo heuristic tweak. Freeze the
+current experiment, implement context-scoped resumable compound evidence with
+exact OG2 prediction state, correct the package-aware canonical map harness,
+then run a small canary set against a preserved baseline before expanding to
+all 42 graph representatives. No alpha-default or full-roster claim is
+authorized until that canary and the complete capture matrix are green.
+
+## 2026-07-29 recovery and regression finding
+
+The v82 experiment was regenerated on Truefort and failed the graph gate:
+`518 nodes`, `19,397 edges`, `0/200` filtered roster routes. An unfiltered
+route existed, but its route depended on transitions marked
+`RequiresCarryingIntel`; this is not acceptable for ordinary traversal and
+confirms a graph capability regression.
+
+The prior known-good v18 artifact was not deleted. The preserved cache was
+verified through a clean HEAD-based build: `603 nodes`, `7,487 edges`,
+`200/200` filtered Truefort routes, zero issues, in about 1.5 seconds from
+cache. The active source was then restored to the v18 generator/navigation
+baseline and rebuilt successfully. The v82 experiment is preserved separately
+at Git ref `refs/codex/recovery-experimental`
+(commit `286d3d5f848e8c61d75008c035344c63b687fc4a`).
+
+This establishes the recovery rule: no generator change may replace the
+known-good path or invalidate its cache format without first passing the
+Truefort `200/200` canary and retaining a directly runnable rollback.
+
+## 2026-07-29 v28 measured-launch checkpoint and dynamic-goal integration
+
+The active contact graph is now fingerprinted as
+`og2-contact-20260729-v28-measured-stair-launch-height`. v28 corrected a
+runtime-composition defect: a stair contact's jump recipe must use the OG2
+probe's measured launch height, not the source surface height. On Truefort,
+the isolated Red Heavy carrier-return failure passed after this correction.
+
+The current v28 runtime evidence is:
+
+- Truefort: `20/20` class/team captures, all ten classes on both teams.
+- The seven original imported representatives Eiger, Corinth, Docking,
+  Harvest, Conflict, Gallery, and Valley: `20/20` each.
+- `cp_coldfront_v7` has a v28 graph artifact (`420` nodes, `23,399` edges),
+  but its v28 live matrix still must be rerun. Its earlier `20/20` result was
+  against v27 and is not silently carried forward after the fingerprint bump.
+- The next seven newly built artifacts are `3cp_kistra`, `cp_gully`,
+  `cp_thundermountain_d`, `ctf_conflict2_v3`, `ctf_conflict_plx`,
+  `ctf_conflict_pro`, and `ctf_conflict_srs_red`. They have graph-build
+  evidence but no accepted live capture result yet.
+
+This means the current accepted v28 capture count is eight representatives,
+`160/160` trials. Graph-build completion and structural route reports are not
+substitutes for live capture acceptance; the stopped long-tail validator is
+not counted as a pass.
+
+The graph is not an objective-only route. Spawn, intel, capture-zone, and
+generator coordinates seed surface discovery, but the builder expands the
+whole reachable surface component by probing both directions with OG2
+movement. It emits local walk, jump, fall, and dropdown contacts, records
+class-signature/team/carrying-intel capabilities, and then attaches objective
+anchors to the resulting network. Runtime goals are coordinates: the
+controller attaches the current position and goal to reachable graph nodes and
+searches the graph, so moving targets do not need baked graph nodes.
+
+Dynamic-target coverage is now explicitly split from static graph coverage.
+Alpha no longer suppresses `TryResolveCaptureTheFlagDynamicObjectiveSeek`.
+Enemy carriers can call `TryRouteToDirectSeekTarget` using the alpha graph,
+including same-level targets; dropped-intel routing already used this graph
+route. A focused alpha regression and the existing legacy engineer-carrier
+regression both pass. Dedicated dynamic CTF pursuit still needs live-map
+scenario coverage, and arbitrary knockback recovery remains an explicit test
+requirement rather than an assumption from ordinary capture passes.
+
+The fast-test rule remains: graph caches are keyed by generator fingerprint,
+map fingerprint, class set, and sweep settings; steering/controller changes
+must reuse the graph cache. Independent class/team trials may run concurrently,
+but a missing cache is prewarmed once before fanout to avoid duplicate cold
+builds. Any interrupted or malformed fanout is discarded as harness evidence,
+not reported as a map result.
+
+## 2026-07-29 v29 capture-zone anchor validation and dynamic CTF coverage
+
+The capture-zone overlap correction is now fingerprinted as
+`og2-contact-20260729-v29-capture-zone-overlap-anchors`. A capture-zone center
+is not necessarily contained by one extracted surface interval: on 3cp Kistra,
+CP2's gameplay zone spans the adjacent surface boundary. The builder now
+attaches capture-zone anchors to the nearest supporting surface overlap inside
+the zone bounds, while preserving the zone center as the objective completion
+coordinate. This produced an explicit objective node at `(2355,885)` on
+3cp Kistra instead of dropping the anchor and routing bots to `(2328,882)`.
+
+The v29 Kistra graph rebuilt in 107.6 seconds with `482` nodes and `29,734`
+edges. Its accelerated 20-case capture screen reached `19/20`; all classes
+passed for Blue and all Red classes except Spy. The remaining Red Spy failure
+is a controller capture-staging `captureStrafeHop` hold at the edge of the
+zone, not a missing graph anchor, and is intentionally tracked separately from
+this generator change.
+
+Alpha dynamic CTF objective resolution is now graph-backed for all three
+dynamic target forms: enemy carriers, dropped enemy intel, and friendly carrier
+escorts. The alpha dropped-enemy branch no longer requires the legacy proof
+graph before it can call `TryRouteToDirectSeekTarget`; legacy behavior retains
+that proof gate. Focused coverage passes `4/4`: the three alpha dynamic-target
+tests plus the existing legacy Engineer enemy-carrier regression.
+
+## 2026-07-29 v29 live revalidation checkpoint
+
+The first v29 Truefort screen was incorrectly run with only `1,500` simulated
+capture ticks. That budget is shorter than the valid class/team return time;
+it produced `0/20` timeouts even though a longer Scout trial captured at tick
+`2,130`. This was a test-budget error, not evidence of a broken graph.
+
+With the v29 graph cached and a `3,000`-tick accelerated budget, Truefort is
+validated again at `20/20`. The clean v29 rebuild produced `669` nodes and
+`42,652` edges in `260.5` seconds; the full cache-only matrix completed in
+`171.6` seconds, with the slowest capture at tick `2,944`.
+
+The current v29 live-map evidence beyond Truefort is not yet a full pass:
+
+- `cp_gully`: `19/20`; only Blue Pyro failed in the shared full-roster graph.
+  The same Pyro passes against a Pyro-only diagnostic graph, so this is not
+  accepted as class-agnostic graph coverage and remains a shared-graph/runtime
+  issue to isolate.
+- `cp_thundermountain_d`: `0/20`; nearest assigned capture-zone selection
+  corrected the target coordinates, but point-state progression still fails.
+
+All current capture acceptance screens use at least `3,000` simulated ticks;
+`1,500` is no longer a valid acceptance budget for the roster. Graph builds
+remain serialized per map, and capture trials reuse the resulting cache.
+
+The v29 regression screen has now added two more current full passes:
+
+- `Eiger`: graph `392` nodes / `28,308` edges, cold build `88.4` seconds,
+  cache-only matrix `20/20` in `45.7` seconds; slowest capture tick `1,915`.
+- `Corinth`: graph `334` nodes / `22,905` edges, cold build `81.3` seconds;
+  the four-at-a-time cache-only matrix completed `20/20` in approximately
+  three minutes, with all KOTH captures completing by tick `1,052`.
+
+This makes the current v29 accepted set `3/43` unique representatives, with
+`40` still requiring a current full roster pass. The 16 no-graph packages and
+the duplicate walkmask aliases remain excluded from that denominator.
+
+`cp_docking_v2` is now also v29-validated at `20/20` (all classes and both
+teams). Its shared graph has `290` nodes and `18,528` edges, built cold in
+`86.1` seconds; the cache-only matrix completed in about `43` seconds. The
+friendly `vip_docking` package remains excluded as a no-graph alias.
+
+The current accepted set is therefore `4/43`, with `39` representatives left.
+
+`Harvest` is now v29-validated at `20/20`. Its shared graph has `221` nodes
+and `12,871` edges, built cold in `54.7` seconds; the four-at-a-time matrix
+completed in about `63` seconds, with all captures completing by tick `1,052`.
+The current accepted set is `5/43`, leaving `38` representatives.
+
+`Conflict` is now v29-validated at `20/20` on its `380`-node / `22,912`-
+edge shared graph. The cold build took `95.0` seconds; the five-batch
+cache-only matrix completed in about `58` seconds, with the slowest capture
+at tick `1,435`. The current accepted set is `6/43`, leaving `37`.
+
+`Gallery` is now v29-validated at `20/20`. Its graph has `360` nodes and
+`23,240` edges, built cold in `79.9` seconds; the five-batch cache-only
+matrix completed in about `175` seconds, with all captures completing by
+tick `1,052`. The current accepted set is `7/43`, leaving `36`.
+
+`Valley` is now v29-validated at `20/20`. Its graph has `438` nodes and
+`26,928` edges, built cold in `139.8` seconds; the five-batch cache-only
+matrix completed in about `86` seconds, with all captures completing by tick
+`1,052`. The historical eight-map set is therefore fully revalidated under
+v29, and the current accepted set is `8/43`, leaving `35` representatives.
+
+The follow-up `3cp_kistra` cache-only screen now passes `20/20` after the
+alpha capture-staging bypass. The v29 graph remains `482` nodes / `29,734`
+edges, and all ten classes pass for both teams. This raises the accepted set
+to `9/43`, leaving `34` representatives; the earlier `19/20` screen is
+retained only as the pre-fix diagnostic result.
+
+The focused `cp_gully` Blue Pyro rerun also passed on the shared full-roster
+graph at tick `1,519` after one recoverable missed-jump edge. A complete
+four-way cache-only matrix then passed `20/20` at the `3,000`-tick budget.
+The earlier `19/20` result was a `1,500`-tick screen and is superseded. The
+accepted set is now `10/43`, leaving `33` representatives.
+
+The earlier `cp_thundermountain_d` `0/20` result is withdrawn from acceptance
+accounting. Its saved screen used per-class graph caches rather than the
+shared full-roster cache, and the map is Attack/Defense setup mode: all points
+initialize Blue, so the current generic “changed to my team” predicate can
+never pass a Blue trial. This requires a mode-aware acceptance contract
+(attacker capture progression versus defender traversal/hold), not generator
+tuning, before it can be screened fairly.
+
+`cp_coldfront_v7` is now v29-validated at `20/20`. Its shared graph has `420`
+nodes and `23,399` edges; the cold build took `289.7` seconds, while the
+five-batch cache-only matrix completed in about `68` seconds. The current
+accepted set is `11/43`, leaving `32` representatives.
+
+`ctf_conflict2_v3` has a valid v29 structural artifact (`346` nodes,
+`21,602` edges, cold build `151.0` seconds), but its live acceptance is
+quarantined. Red Engineer/Soldier trials reach enemy intel and then enter a
+long-tail return edge that exceeds the bounded runner; the partial fanout was
+stopped and is not counted. This is a targeted carrier-return investigation,
+not evidence to weaken the graph gate or to accept a partial roster.
+
+`koth_cdragon` has a v29 structural artifact (`273` nodes, `18,565` edges,
+cold build `51.6` seconds), but its live screen is quarantined. The capture
+zone-adjacent surface is a disconnected moving-platform component; the
+reachable route stops on a lower surface at y≈1074 while the KOTH zone is at
+y≈891. This is a dynamic-surface connectivity gap to solve explicitly, not a
+class-by-class acceptance failure.
+
+`koth_crab_v2` is now v29-validated at `20/20` after an alpha-only capture
+arrival hold was added in the controller. The graph itself was unchanged:
+`309` nodes and `22,222` edges, loaded from the existing cache. The original
+screen was `17/20`; the three failing Blue cases (Pyro, Soldier, and Sniper)
+all reached the final objective node but carried residual horizontal momentum
+past the capture zone. The focused rerun passed all three against the shared
+ten-class graph, and the complete five-batch cache-only matrix passed all ten
+classes for both teams. Captures completed at ticks `976`â€“`1,052`. This raises
+the accepted v29 set to `12/43`, leaving `31` representatives.
+
+The arrival hold is runtime steering behavior, not a generator exception: it
+only engages for alpha capture/KOTH goals after graph-route completion, brakes
+or centers the bot inside the active zone, and leaves legacy navigation
+unchanged. Because the graph fingerprint did not change, no graph rebuild was
+needed for this validation.
+
+`ctf_conflict_plx` is now v29-validated at `20/20`. Its current shared graph
+has `379` nodes and `22,805` edges (cache hit after the current full-roster
+key was built once). The five-batch cache-only matrix passed all ten classes
+for both teams, with capture ticks from `868` to `1,435`. The accepted set is
+now `13/43`, leaving `30` representatives.
+
+`ctf_conflict_pro` is now v29-validated at `20/20`. Its shared graph has
+`382` nodes and `22,847` edges, built once in `87.2` seconds; the subsequent
+five-batch cache-only matrix passed all ten classes for both teams, with
+capture ticks from `854` to `1,455`. The accepted set is now `14/43`, leaving
+`29` representatives.
+
+`koth_eureka_r2` is currently quarantined after its v29 cache-only matrix
+completed. The graph built in `38.8` seconds with `283` nodes and `15,301`
+edges, but most class/team trials stopped at different final surface nodes
+around xâ‰ˆ1900 or xâ‰ˆ2570 while the KOTH objective was at xâ‰ˆ2244. Only one
+trial reached capture. This is a shared graph-to-objective connectivity issue,
+not a reason to add per-class exceptions, so it is not counted as a pass.
+
+`koth_stonemine` is also quarantined for investigation: its cold v29 report
+produced no graph result within the five-minute diagnostic ceiling and was
+stopped after verifying the exact orphaned report process. No cache or live
+acceptance result was created. This is now tracked as a generator performance
+case rather than inferred from the map package's small file size.
+
+`ctf_conflict_srs_red` is now v29-validated at `20/20`. Its shared graph has
+`385` nodes and `23,717` edges, built once in `129.0` seconds; the five-batch
+cache-only matrix passed all ten classes for both teams, with capture ticks
+from `727` to `1,413`. The accepted set is now `15/43`, leaving `28`
+representatives.
+
+`koth_AMERICA` is quarantined as another generator-performance case. Its
+v29 graph report remained CPU-bound past the three-minute diagnostic ceiling
+without emitting a graph result; the exact report process was stopped. No
+cache or live acceptance result exists, so it is not counted as a pass.
+
+`koth_trestle` is now v29-validated at `20/20`. Its shared graph has `281`
+nodes and `15,431` edges, built once in `49.0` seconds; the five-batch
+cache-only matrix passed all ten classes for both teams, with captures from
+tick `976` to `1,052`. The accepted set is now `17/43`, leaving `26`
+representatives.
+
+`ctf_RSM` is quarantined after the accelerated screen exposed a carrier-return
+failure: Red Scout reached enemy intel but timed out at tick `3,000` still
+carrying it, while the opposite Scout completed. The remaining full fanout was
+stopped after this disqualifying shared-route result to avoid spending several
+minutes on a matrix that cannot be accepted. It is not counted as a pass.
+
+`koth_standoff` is now v29-validated at `20/20`. Its shared graph has `291`
+nodes and `18,563` edges, built once in `67.9` seconds; the five-batch
+cache-only matrix passed all ten classes for both teams, with captures from
+tick `976` to `1,052`. The accepted set is now `17/43`, leaving `26`
+representatives.
+
+## 2026-07-29 current sweep reconciliation
+
+The current v29 accepted representatives are `17/43`:
+Truefort, Eiger, Corinth, `cp_docking_v2`, Harvest, Conflict, Gallery,
+Valley, `3cp_kistra`, `cp_gully`, `cp_coldfront_v7`, `koth_crab_v2`,
+`ctf_conflict_plx`, `ctf_conflict_pro`, `ctf_conflict_srs_red`,
+`koth_trestle`, and `koth_standoff`. Every accepted representative has a
+full `20/20` matrix: all ten classes on both teams, with a shared ten-class
+graph and a `3,000`-tick accelerated budget.
+
+The current non-accepted cases are intentionally separated by failure type:
+`koth_eureka_r2` has a shared graph-to-objective connectivity gap;
+`ctf_RSM` has a Red carrier-return timeout; `ctf_conflict2_v3` has a
+long-tail carrier-return issue; `koth_cdragon` has a moving-platform
+connectivity gap; `cp_thundermountain_d` needs an Attack/Defense-specific
+acceptance contract; and `koth_stonemine`/`koth_AMERICA` exceeded the cold
+graph diagnostic ceiling without producing a result. None of these are
+counted as partial passes.
+
+For iteration speed, a generator-affecting change requires one serialized cold
+build per unique walkmask representative. Controller/steering changes reuse
+the persistent graph cache. Runtime acceptance trials are launched in five
+batches of four independent class/team processes; this keeps a full matrix
+near one to three minutes on cache hits and avoids duplicate cold builds.

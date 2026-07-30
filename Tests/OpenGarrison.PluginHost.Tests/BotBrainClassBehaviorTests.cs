@@ -310,6 +310,60 @@ public sealed class BotBrainClassBehaviorTests
     }
 
     [Fact]
+    public void AlphaCtfDynamicCarrierUsesGraphRoute()
+    {
+        var world = CreateClassWorld(PlayerClass.Soldier, out var engineer);
+        engineer.TeleportTo(100f, 100f);
+        engineer.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        var carrier = AddNetworkPlayer(world, 2, PlayerClass.Scout, PlayerTeam.Blue, 300f, 100f);
+        carrier.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: -1f);
+        world.RedIntel.PickUp();
+        carrier.PickUpIntel();
+
+        var graph = CreateObstacleWalkGraph(engineer.X, engineer.Y, carrier.X, carrier.Y);
+        var controller = new BotBrainController(graph, forceAlphaNavigation: true);
+
+        _ = controller.Think(engineer, world, PlayerTeam.Red);
+
+        Assert.Contains("directRoute=dynamicEnemyCarrier", controller.LastDirectDriveTrace, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AlphaCtfDynamicDroppedIntelUsesGraphRoute()
+    {
+        var world = CreateClassWorld(PlayerClass.Soldier, out var soldier);
+        soldier.TeleportTo(100f, 100f);
+        soldier.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        world.BlueIntel.Drop(1_000f, 100f, returnTicks: 600);
+
+        var graph = CreateObstacleWalkGraph(soldier.X, soldier.Y, 1_000f, 100f);
+        var controller = new BotBrainController(graph, forceAlphaNavigation: true);
+
+        _ = controller.Think(soldier, world, PlayerTeam.Red);
+
+        Assert.Contains("directRoute=dynamicDroppedEnemyIntel", controller.LastDirectDriveTrace, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AlphaCtfDynamicFriendlyCarrierUsesGraphRoute()
+    {
+        var world = CreateClassWorld(PlayerClass.Soldier, out var soldier);
+        soldier.TeleportTo(100f, 100f);
+        soldier.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        var carrier = AddNetworkPlayer(world, 2, PlayerClass.Scout, PlayerTeam.Red, 1_200f, 100f);
+        carrier.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        world.BlueIntel.PickUp();
+        carrier.PickUpIntel();
+
+        var graph = CreateObstacleWalkGraph(soldier.X, soldier.Y, carrier.X, carrier.Y);
+        var controller = new BotBrainController(graph, forceAlphaNavigation: true);
+
+        _ = controller.Think(soldier, world, PlayerTeam.Red);
+
+        Assert.Contains("directRoute=dynamicEscortCarrier", controller.LastDirectDriveTrace, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void BotDoesNotCaptureStrafeOnOwnedKothPoint()
     {
         var world = CreateKothWorld(PlayerTeam.Red, PlayerClass.Heavy, out var player);

@@ -15,10 +15,11 @@ public static class SimpleLevelBarrierCollision
         float nextRight,
         float nextBottom)
     {
-        for (var index = 0; index < level.RoomObjects.Count; index += 1)
+        foreach (var entry in level.Barriers)
         {
-            var barrier = level.RoomObjects[index];
-            if (barrier.Type != RoomObjectType.Barrier || !level.IsRoomObjectActive(index))
+            var index = entry.Index;
+            var barrier = entry.Marker;
+            if (!level.IsRoomObjectActive(index))
             {
                 continue;
             }
@@ -41,10 +42,11 @@ public static class SimpleLevelBarrierCollision
             }
         }
 
-        for (var index = 0; index < level.RoomObjects.Count; index += 1)
+        foreach (var entry in level.DirectionalWalls)
         {
-            var wall = level.RoomObjects[index];
-            if (wall.Type != RoomObjectType.DirectionalWall || !level.IsRoomObjectActive(index))
+            var index = entry.Index;
+            var wall = entry.Marker;
+            if (!level.IsRoomObjectActive(index))
             {
                 continue;
             }
@@ -67,10 +69,11 @@ public static class SimpleLevelBarrierCollision
             }
         }
 
-        for (var index = 0; index < level.RoomObjects.Count; index += 1)
+        foreach (var entry in level.DamageableZones)
         {
-            var zone = level.RoomObjects[index];
-            if (zone.Type != RoomObjectType.DamageableZone || !level.IsRoomObjectActive(index))
+            var index = entry.Index;
+            var zone = entry.Marker;
+            if (!level.IsRoomObjectActive(index))
             {
                 continue;
             }

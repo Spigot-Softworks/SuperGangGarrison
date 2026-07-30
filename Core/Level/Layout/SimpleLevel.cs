@@ -5,11 +5,15 @@ namespace OpenGarrison.Core;
 public sealed class SimpleLevel
 {
     private readonly Dictionary<RoomObjectType, RoomObjectMarker[]> _roomObjectsByType;
+    private readonly IndexedRoomObject[] _playerWalls;
+    private readonly IndexedRoomObject[] _barriers;
+    private readonly IndexedRoomObject[] _directionalWalls;
+    private readonly IndexedRoomObject[] _damageableZones;
     private readonly SpatialSolidIndex _solidIndex;
     private bool _controlPointSetupGatesActive;
     private TeamGateLockMask _forcedBlockingTeamGates;
-    private BlockingTeamGateCacheKey _blockingTeamGateCacheKey;
-    private IReadOnlyList<RoomObjectMarker>? _blockingTeamGateCache;
+    private readonly object _blockingTeamGateCacheSync = new();
+    private readonly Dictionary<BlockingTeamGateCacheKey, RoomObjectMarker[]> _blockingTeamGateCaches = [];
 
     public SimpleLevel(
         string name,
@@ -82,6 +86,10 @@ public sealed class SimpleLevel
         _roomObjectsByType = RoomObjects
             .GroupBy(roomObject => roomObject.Type)
             .ToDictionary(group => group.Key, group => group.ToArray());
+        _playerWalls = BuildIndexedRoomObjects(RoomObjectType.PlayerWall);
+        _barriers = BuildIndexedRoomObjects(RoomObjectType.Barrier);
+        _directionalWalls = BuildIndexedRoomObjects(RoomObjectType.DirectionalWall);
+        _damageableZones = BuildIndexedRoomObjects(RoomObjectType.DamageableZone);
         _solidIndex = SpatialSolidIndex.Build(Solids);
     }
 
@@ -213,7 +221,10 @@ public sealed class SimpleLevel
             }
 
             _controlPointSetupGatesActive = value;
-            _blockingTeamGateCache = null;
+            lock (_blockingTeamGateCacheSync)
+            {
+                _blockingTeamGateCaches.Clear();
+            }
         }
     }
 
@@ -228,7 +239,10 @@ public sealed class SimpleLevel
             }
 
             _forcedBlockingTeamGates = value;
-            _blockingTeamGateCache = null;
+            lock (_blockingTeamGateCacheSync)
+            {
+                _blockingTeamGateCaches.Clear();
+            }
         }
     }
 
@@ -266,55 +280,70 @@ public sealed class SimpleLevel
             : Array.Empty<RoomObjectMarker>();
     }
 
+    // Collision probes run once or more per movement tick. Keep the hot path
+    // indexed by collision-relevant marker type while retaining the original
+    // room-object index for logic-activation checks. This is behaviorally
+    // identical to scanning RoomObjects and skipping unrelated markers.
+    internal IReadOnlyList<IndexedRoomObject> PlayerWalls => _playerWalls;
+
+    internal IReadOnlyList<IndexedRoomObject> Barriers => _barriers;
+
+    internal IReadOnlyList<IndexedRoomObject> DirectionalWalls => _directionalWalls;
+
+    internal IReadOnlyList<IndexedRoomObject> DamageableZones => _damageableZones;
+
     public IReadOnlyList<RoomObjectMarker> GetBlockingTeamGates(PlayerTeam team, bool carryingIntel)
     {
         var cacheKey = new BlockingTeamGateCacheKey(team, carryingIntel, ControlPointSetupGatesActive, ForcedBlockingTeamGates);
-        if (_blockingTeamGateCache is not null && _blockingTeamGateCacheKey.Equals(cacheKey))
+        lock (_blockingTeamGateCacheSync)
         {
-            return _blockingTeamGateCache;
-        }
-
-        var blockingGates = new List<RoomObjectMarker>();
-        for (var index = 0; index < RoomObjects.Count; index += 1)
-        {
-            var roomObject = RoomObjects[index];
-            if (!IsRoomObjectActive(index))
+            if (_blockingTeamGateCaches.TryGetValue(cacheKey, out var cachedGates))
             {
-                continue;
+                return cachedGates;
             }
 
-            switch (roomObject.Type)
+            var blockingGates = new List<RoomObjectMarker>();
+            for (var index = 0; index < RoomObjects.Count; index += 1)
             {
-                case RoomObjectType.ControlPointSetupGate:
-                    if (ControlPointSetupGatesActive)
-                    {
-                        blockingGates.Add(roomObject);
-                    }
-                    break;
-                case RoomObjectType.TeamGate:
-                    if (roomObject.Team.HasValue && IsForcedBlockingTeamGate(roomObject.Team.Value))
-                    {
-                        blockingGates.Add(roomObject);
+                var roomObject = RoomObjects[index];
+                if (!IsRoomObjectActive(index))
+                {
+                    continue;
+                }
+
+                switch (roomObject.Type)
+                {
+                    case RoomObjectType.ControlPointSetupGate:
+                        if (ControlPointSetupGatesActive)
+                        {
+                            blockingGates.Add(roomObject);
+                        }
                         break;
-                    }
+                    case RoomObjectType.TeamGate:
+                        if (roomObject.Team.HasValue && IsForcedBlockingTeamGate(roomObject.Team.Value))
+                        {
+                            blockingGates.Add(roomObject);
+                            break;
+                        }
 
-                    if (carryingIntel || (roomObject.Team.HasValue && roomObject.Team.Value != team))
-                    {
-                        blockingGates.Add(roomObject);
-                    }
-                    break;
-                case RoomObjectType.IntelGate:
-                    if (IsIntelGateBlocking(roomObject, team, carryingIntel))
-                    {
-                        blockingGates.Add(roomObject);
-                    }
-                    break;
+                        if (carryingIntel || (roomObject.Team.HasValue && roomObject.Team.Value != team))
+                        {
+                            blockingGates.Add(roomObject);
+                        }
+                        break;
+                    case RoomObjectType.IntelGate:
+                        if (IsIntelGateBlocking(roomObject, team, carryingIntel))
+                        {
+                            blockingGates.Add(roomObject);
+                        }
+                        break;
+                }
             }
-        }
 
-        _blockingTeamGateCacheKey = cacheKey;
-        _blockingTeamGateCache = blockingGates.Count == 0 ? Array.Empty<RoomObjectMarker>() : blockingGates.ToArray();
-        return _blockingTeamGateCache;
+            cachedGates = blockingGates.Count == 0 ? Array.Empty<RoomObjectMarker>() : blockingGates.ToArray();
+            _blockingTeamGateCaches[cacheKey] = cachedGates;
+            return cachedGates;
+        }
     }
 
     public bool IntersectsSolid(float left, float top, float right, float bottom)
@@ -357,6 +386,16 @@ public sealed class SimpleLevel
         bool CarryingIntel,
         bool ControlPointSetupGatesActive,
         TeamGateLockMask ForcedBlockingTeamGates);
+
+    internal readonly record struct IndexedRoomObject(int Index, RoomObjectMarker Marker);
+
+    private IndexedRoomObject[] BuildIndexedRoomObjects(RoomObjectType type)
+    {
+        return RoomObjects
+            .Select((marker, index) => new IndexedRoomObject(index, marker))
+            .Where(entry => entry.Marker.Type == type)
+            .ToArray();
+    }
 
     private sealed class SpatialSolidIndex
     {

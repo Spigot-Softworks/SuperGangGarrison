@@ -34,6 +34,14 @@ internal static class Og2AlphaNavigationDiagnostics
             : [rawOptions.TryGetValue("map", out var mapValue) ? mapValue : "Truefort"];
         var area = ReadInt(rawOptions, "area", 1);
         var dumpAlphaPath = rawOptions.ContainsKey("dump-alpha-path");
+        var reportProbeClass = rawOptions.TryGetValue("probe-class", out var probeClassText)
+            ? ParseClass(probeClassText) ?? PlayerClass.Scout
+            : PlayerClass.Scout;
+        var reportProbeTeam = rawOptions.TryGetValue("probe-team", out var probeTeamText)
+            ? ParseTeam(probeTeamText) ?? PlayerTeam.Red
+            : PlayerTeam.Red;
+        var reportProbeCarrying = rawOptions.TryGetValue("probe-carrying", out var probeCarryingText)
+            && probeCarryingText is "1" or "true" or "TRUE";
 
         foreach (var map in maps)
         {
@@ -193,9 +201,9 @@ internal static class Og2AlphaNavigationDiagnostics
 
                     var probeResult = FindPathSummary(
                         graph,
-                        level.RedSpawns,
-                        PlayerTeam.Red,
-                        PlayerClass.Scout,
+                        reportProbeTeam == PlayerTeam.Blue ? level.BlueSpawns : level.RedSpawns,
+                        reportProbeTeam,
+                        reportProbeClass,
                         probeX,
                         probeY,
                         dumpAlphaPath,
@@ -220,7 +228,7 @@ internal static class Og2AlphaNavigationDiagnostics
                     var startNode = graph.FindNearestTraversalStartNode(startX, startY, maxAboveDistance: 48f);
                     var goalNode = graph.FindNearestNode(goalX, goalY);
                     var path = startNode >= 0 && goalNode >= 0
-                        ? graph.FindPath(startNode, goalNode, PlayerClass.Scout, team: PlayerTeam.Red, carryingIntel: true)
+                        ? graph.FindPath(startNode, goalNode, reportProbeClass, team: reportProbeTeam, carryingIntel: reportProbeCarrying)
                         : null;
                     Console.WriteLine(
                         $"alphaNavProbe route=({startX:0.0},{startY:0.0})->({goalX:0.0},{goalY:0.0}) " +
