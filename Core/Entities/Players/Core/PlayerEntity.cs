@@ -991,10 +991,11 @@ public sealed partial class PlayerEntity : SimulationEntity
             }
         }
 
-        for (var wallIndex = 0; wallIndex < level.RoomObjects.Count; wallIndex += 1)
+        foreach (var wallEntry in level.PlayerWalls)
         {
-            var wall = level.RoomObjects[wallIndex];
-            if (wall.Type != RoomObjectType.PlayerWall || !level.IsRoomObjectActive(wallIndex))
+            var wallIndex = wallEntry.Index;
+            var wall = wallEntry.Marker;
+            if (!level.IsRoomObjectActive(wallIndex))
             {
                 continue;
             }

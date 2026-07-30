@@ -26,7 +26,13 @@ public static class Og2LocalContactGraphBuilder
     // ticks can certify Scout's early/double-jump route while missing the
     // later single-jump route used by slower classes. Keep the sweep bounded,
     // but cover the complete local run-up window used by stock maps.
-    private static readonly int[] JumpSweepTicks = [0, 6, 10, 14, 18, 22];
+    private static readonly int[] JumpSweepTicks =
+    [
+        0, 6, 10, 14, 18, 22,
+        // Long OG2 stair runs can require the jump at the far end of the
+        // approach after the probe has climbed several six-pixel lips.
+        30, 38, 46, 54, 60, 66, 72,
+    ];
     private const float SurfaceMatchTolerance = 10f;
     private const float ContactBucket = 16f;
     private const int MaximumContactsPerSurfacePair = 8;
@@ -35,28 +41,20 @@ public static class Og2LocalContactGraphBuilder
     private const float AnchorCompletionVerticalSlack = 28f;
     private const float AnchorDirectAttachVerticalTolerance = 24f;
 
-    // The graph's node network is shared, but contact capabilities must be
-    // certified against the actual OG2 movement constants. Legacy bot
-    // profiles are intentionally not used here: Pyro, Medic, Spy, Quote,
-    // etc. do not all execute a Soldier/Scout recipe at the same speed or
-    // with the same collision envelope.
-    // Heavy is the conservative stock collision/run envelope and therefore
-    // covers every non-Scout stock class through BotBrainClassMask's certified
-    // profile substitution. Scout is the only stock profile with an additional
-    // air jump, so it is the second and final contact-certification profile.
-    // Keeping the graph class-agnostic does not require replaying the same OG2
-    // sweep for every class whose movement is already dominated by Heavy.
-    private static readonly PlayerClass[] RepresentativeClasses =
-    [
-        PlayerClass.Heavy,
-        PlayerClass.Scout,
-    ];
+    // The node network is shared, but contact recipes are certified against
+    // the actual OG2 movement constants. Runtime testing showed that a Heavy
+    // recipe can be structurally valid for another class yet fail when that
+    // class executes it, so each distinct movement signature is probed here.
+    // Identical movement signatures share one recipe and one capability mask.
+    private static readonly PlayerClass[] AllMovementClasses = Enum.GetValues<PlayerClass>();
 
     public static NavGraph Build(SimpleLevel level)
     {
         ArgumentNullException.ThrowIfNull(level);
 
         var stopwatch = Stopwatch.StartNew();
+        var stageStopwatch = Stopwatch.StartNew();
+        var traceBuild = Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_BUILD_TRACE") is "1" or "true" or "TRUE";
         var geometry = VerifiedNavCandidateBuilder.Build(level, new VerifiedNavBuildOptions
         {
             Team = PlayerTeam.Red,
@@ -65,6 +63,11 @@ public static class Og2LocalContactGraphBuilder
             MinSurfaceWidth = MinimumSurfaceWidth,
             SurfaceEndpointInset = SurfaceSampleInset,
         });
+        if (traceBuild)
+        {
+            Console.WriteLine($"[botbrain] contact-nav stage level={level.Name} name=geometry surfaces={geometry.Surfaces.Count} elapsedMs={stageStopwatch.Elapsed.TotalMilliseconds:0.00}");
+        }
+        stageStopwatch.Restart();
 
         var maximumCollisionBottom = Enum.GetValues<PlayerClass>()
             .Select(CharacterClassCatalog.GetDefinition)
@@ -93,7 +96,12 @@ public static class Og2LocalContactGraphBuilder
 
             surfaceNodeIndices[surface.Id] = indices;
         }
+        if (traceBuild)
+        {
+            Console.WriteLine($"[botbrain] contact-nav stage level={level.Name} name=surface-nodes nodes={nodes.Count} elapsedMs={stageStopwatch.Elapsed.TotalMilliseconds:0.00}");
+        }
 
+        stageStopwatch.Restart();
         var contacts = DiscoverContacts(
             level,
             geometry,
@@ -101,6 +109,11 @@ public static class Og2LocalContactGraphBuilder
             nodeBySample,
             minimumCollisionBottom,
             maximumCollisionBottom);
+        if (traceBuild)
+        {
+            Console.WriteLine($"[botbrain] contact-nav stage level={level.Name} name=contacts contacts={contacts.Count} elapsedMs={stageStopwatch.Elapsed.TotalMilliseconds:0.00}");
+        }
+        stageStopwatch.Restart();
         // Contact samples become graph nodes before adjacency is allocated so
         // the immutable NavGraph receives a complete node/index relationship.
         foreach (var contact in contacts.Values)
@@ -135,6 +148,11 @@ public static class Og2LocalContactGraphBuilder
             edgeIndex,
             minimumCollisionBottom,
             maximumCollisionBottom);
+        if (traceBuild)
+        {
+            Console.WriteLine($"[botbrain] contact-nav stage level={level.Name} name=surface-edges edges={CountEdges(adjacency)} elapsedMs={stageStopwatch.Elapsed.TotalMilliseconds:0.00}");
+        }
+        stageStopwatch.Restart();
 
         foreach (var contact in contacts.Values)
         {
@@ -189,6 +207,10 @@ public static class Og2LocalContactGraphBuilder
             spawnAnchors,
             minimumCollisionBottom,
             maximumCollisionBottom);
+        if (traceBuild)
+        {
+            Console.WriteLine($"[botbrain] contact-nav stage level={level.Name} name=anchors nodes={nodes.Count} elapsedMs={stageStopwatch.Elapsed.TotalMilliseconds:0.00}");
+        }
 
         var graph = new NavGraph(
             nodes.ToArray(),
@@ -219,7 +241,9 @@ public static class Og2LocalContactGraphBuilder
     {
         var contacts = new Dictionary<ContactKey, ContactRecord>();
         var seedSurfaceIds = BuildContactSeedSurfaceIds(level, geometry.Surfaces, maximumCollisionBottom);
+        var surfaceIndex = new SurfaceSpatialIndex(geometry.Surfaces);
         var representativeClasses = EnumerateRepresentativeClasses().ToArray();
+        var jobs = new List<(bool CarryingIntel, PlayerClass PlayerClass, PlayerTeam ProbeTeam)>();
         foreach (var carryingIntel in new[] { false, true })
         {
             // PlayerEntity probes are independent per movement signature. The
@@ -231,32 +255,70 @@ public static class Og2LocalContactGraphBuilder
             // graph certification.
             level.GetBlockingTeamGates(PlayerTeam.Red, carryingIntel);
             level.GetBlockingTeamGates(PlayerTeam.Blue, carryingIntel);
-            var classContactsByIndex = new Dictionary<ContactKey, ContactRecord>[representativeClasses.Length];
-            Parallel.For(
-                0,
-                representativeClasses.Length,
-                new ParallelOptions
-                {
-                    MaxDegreeOfParallelism = ResolveContactBuildParallelism(),
-                },
-                classIndex =>
-                {
-            classContactsByIndex[classIndex] = DiscoverContactsForClassState(
-                        level,
-                        geometry,
-                        seedSurfaceIds,
-                        representativeClasses[classIndex],
-                        carryingIntel);
-                });
+            jobs.AddRange(
+                representativeClasses.SelectMany(playerClass =>
+                    Enum.GetValues<PlayerTeam>().Select(probeTeam => (carryingIntel, playerClass, probeTeam))));
+        }
 
-            // Preserve the serial builder's deterministic class ordering. A
-            // parallel completion-order merge changes node indices and can
-            // change equal-cost A* tie breaks between runs.
-            foreach (var classContacts in classContactsByIndex)
+        var contactsByJob = new Dictionary<ContactKey, ContactRecord>[jobs.Count];
+        var jobElapsedMs = new double[jobs.Count];
+        Parallel.For(
+            0,
+            jobs.Count,
+            new ParallelOptions
             {
-                foreach (var pair in classContacts)
+                MaxDegreeOfParallelism = ResolveContactBuildParallelism(),
+            },
+            jobIndex =>
+            {
+                var job = jobs[jobIndex];
+                var jobStopwatch = Stopwatch.StartNew();
+                contactsByJob[jobIndex] = DiscoverContactsForClassState(
+                    level,
+                    geometry,
+                    surfaceIndex,
+                    seedSurfaceIds,
+                    job.PlayerClass,
+                    job.CarryingIntel,
+                    job.ProbeTeam);
+                jobStopwatch.Stop();
+                jobElapsedMs[jobIndex] = jobStopwatch.Elapsed.TotalMilliseconds;
+            });
+
+        if (Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_CONTACT_PROFILE") is "1" or "true" or "TRUE")
+        {
+            for (var jobIndex = 0; jobIndex < jobs.Count; jobIndex += 1)
+            {
+                var job = jobs[jobIndex];
+                Console.WriteLine(
+                    $"[botbrain] contact-nav job level={level.Name} class={job.PlayerClass} " +
+                    $"carry={(job.CarryingIntel ? 1 : 0)} team={job.ProbeTeam} " +
+                    $"elapsedMs={jobElapsedMs[jobIndex]:0.00} contacts={contactsByJob[jobIndex].Count}");
+            }
+        }
+
+        // Preserve the serial builder's deterministic state ordering. A
+        // parallel completion-order merge changes contact insertion order,
+        // node indices, and equal-cost A* tie breaks.
+        foreach (var classContacts in contactsByJob)
+        {
+            foreach (var pair in classContacts)
+            {
+                if (contacts.TryGetValue(pair.Key, out var existing))
                 {
-                    contacts[pair.Key] = pair.Value;
+                    var preferred = pair.Value.JumpTriggerTick > existing.JumpTriggerTick
+                        ? pair.Value
+                        : existing;
+                    contacts[pair.Key] = preferred with
+                    {
+                        SupportedClassMask = existing.SupportedClassMask | pair.Value.SupportedClassMask,
+                        SupportedTeamMask = existing.SupportedTeamMask | pair.Value.SupportedTeamMask,
+                        ProbeTicks = Math.Min(existing.ProbeTicks, pair.Value.ProbeTicks),
+                    };
+                }
+                else
+                {
+                    contacts.Add(pair.Key, pair.Value);
                 }
             }
         }
@@ -267,90 +329,92 @@ public static class Og2LocalContactGraphBuilder
     private static Dictionary<ContactKey, ContactRecord> DiscoverContactsForClassState(
         SimpleLevel level,
         VerifiedNavCandidateGraph geometry,
+        SurfaceSpatialIndex surfaceIndex,
         IReadOnlySet<int> seedSurfaceIds,
         PlayerClass playerClass,
-        bool carryingIntel)
+        bool carryingIntel,
+        PlayerTeam probeTeam)
     {
         var contacts = new Dictionary<ContactKey, ContactRecord>();
         var definition = CharacterClassCatalog.GetDefinition(playerClass);
         var classMask = ResolveMovementClassMask(playerClass);
-        foreach (var probeTeam in Enum.GetValues<PlayerTeam>())
+        var visitedSurfaces = new HashSet<int>(seedSurfaceIds);
+        var pendingSurfaces = new Queue<int>(seedSurfaceIds);
+        while (pendingSurfaces.Count > 0)
         {
-            var visitedSurfaces = new HashSet<int>(seedSurfaceIds);
-            var pendingSurfaces = new Queue<int>(seedSurfaceIds);
-            while (pendingSurfaces.Count > 0)
+            var surface = geometry.Surfaces[pendingSurfaces.Dequeue()];
+            var discoveredSurfaceIds = new HashSet<int>();
+            foreach (var startX in BuildContactSamples(surface))
             {
-                var surface = geometry.Surfaces[pendingSurfaces.Dequeue()];
-                foreach (var startX in BuildContactSamples(surface))
+                foreach (var direction in new[] { -1, 1 })
                 {
-                    foreach (var direction in new[] { -1, 1 })
+                    if (HasPotentialTransition(
+                            geometry.Surfaces,
+                            surfaceIndex,
+                            level,
+                            definition,
+                            surface,
+                            startX,
+                            direction,
+                            jumped: false))
                     {
-                        if (HasPotentialTransition(
+                        DiscoverSweep(
+                            level,
+                            geometry,
+                            definition,
+                            classMask,
+                            BotBrainTeamMask.For(probeTeam),
+                            carryingIntel,
+                            probeTeam,
+                            surface,
+                            startX,
+                            direction,
+                            jumpTick: -1,
+                            contacts,
+                            discoveredSurfaceIds);
+                    }
+
+                    foreach (var jumpTick in JumpSweepTicks)
+                    {
+                        if (!HasPotentialTransition(
                                 geometry.Surfaces,
+                                surfaceIndex,
                                 level,
                                 definition,
                                 surface,
                                 startX,
                                 direction,
-                                jumped: false))
+                                jumped: true))
                         {
-                            DiscoverSweep(
+                            continue;
+                        }
+
+                        DiscoverSweep(
                                 level,
                                 geometry,
                                 definition,
-                                classMask,
-                                BotBrainTeamMask.For(probeTeam),
-                                carryingIntel,
-                                probeTeam,
-                                surface,
-                                startX,
-                                direction,
-                                jumpTick: -1,
-                                contacts);
-                        }
-
-                        foreach (var jumpTick in JumpSweepTicks)
-                        {
-                            if (!HasPotentialTransition(
-                                    geometry.Surfaces,
-                                    level,
-                                    definition,
-                                    surface,
-                                    startX,
-                                    direction,
-                                    jumped: true))
-                            {
-                                continue;
-                            }
-
-                            DiscoverSweep(
-                                level,
-                                geometry,
-                                definition,
-                                classMask,
-                                BotBrainTeamMask.For(probeTeam),
-                                carryingIntel,
-                                probeTeam,
-                                surface,
-                                startX,
-                                direction,
-                                jumpTick,
-                                contacts);
-                        }
+                            classMask,
+                            BotBrainTeamMask.For(probeTeam),
+                            carryingIntel,
+                            probeTeam,
+                            surface,
+                            startX,
+                            direction,
+                            jumpTick,
+                            contacts,
+                            discoveredSurfaceIds);
                     }
                 }
+            }
 
-                foreach (var record in contacts.Values)
+            foreach (var destinationSurfaceId in discoveredSurfaceIds)
+            {
+                if (!visitedSurfaces.Add(destinationSurfaceId))
                 {
-                    if (record.FromSurfaceId != surface.Id
-                        || (record.SupportedTeamMask & BotBrainTeamMask.For(probeTeam)) == 0
-                        || !visitedSurfaces.Add(record.ToSurfaceId))
-                    {
-                        continue;
-                    }
-
-                    pendingSurfaces.Enqueue(record.ToSurfaceId);
+                    continue;
                 }
+
+                pendingSurfaces.Enqueue(destinationSurfaceId);
             }
         }
 
@@ -410,6 +474,7 @@ public static class Og2LocalContactGraphBuilder
 
     private static bool HasPotentialTransition(
         IReadOnlyList<VerifiedNavSurface> surfaces,
+        SurfaceSpatialIndex surfaceIndex,
         SimpleLevel level,
         CharacterClassDefinition definition,
         VerifiedNavSurface source,
@@ -432,12 +497,7 @@ public static class Og2LocalContactGraphBuilder
         var minimumTop = source.Top - maximumRise;
         var maximumTop = source.Top + level.Bounds.Height;
 
-        return surfaces.Any(candidate =>
-            candidate.Id != source.Id
-            && candidate.Right >= minX
-            && candidate.Left <= maxX
-            && candidate.Top >= minimumTop
-            && candidate.Top <= maximumTop);
+        return surfaceIndex.HasCandidate(source.Id, minX, maxX, minimumTop, maximumTop);
     }
 
     private static void DiscoverSweep(
@@ -452,7 +512,8 @@ public static class Og2LocalContactGraphBuilder
         float startX,
         int direction,
         int jumpTick,
-        Dictionary<ContactKey, ContactRecord> contacts)
+        Dictionary<ContactKey, ContactRecord> contacts,
+        HashSet<int> discoveredSurfaceIds)
     {
         var startY = startSurface.Top - definition.CollisionBottom;
         var player = new PlayerEntity(-910_001, definition, "Og2LocalContactProbe");
@@ -595,6 +656,7 @@ public static class Og2LocalContactGraphBuilder
                 classMask,
                 carryingIntel,
                 record.JumpStartsGrounded);
+            var recorded = false;
             if (contacts.TryGetValue(key, out var existing))
             {
                 var preferred = record.JumpTriggerTick > existing.JumpTriggerTick
@@ -606,6 +668,7 @@ public static class Og2LocalContactGraphBuilder
                     SupportedTeamMask = existing.SupportedTeamMask | supportedTeamMask,
                     ProbeTicks = Math.Min(existing.ProbeTicks, record.ProbeTicks),
                 };
+                recorded = true;
             }
             else if (CountPairContacts(
                          contacts,
@@ -615,6 +678,12 @@ public static class Og2LocalContactGraphBuilder
                          carryingIntel) < MaximumContactsPerSurfacePair)
             {
                 contacts.Add(key, record);
+                recorded = true;
+            }
+
+            if (recorded)
+            {
+                discoveredSurfaceIds.Add(record.ToSurfaceId);
             }
 
             currentSurfaceId = detectedSurfaceId;
@@ -947,13 +1016,13 @@ public static class Og2LocalContactGraphBuilder
             LaunchTick: Math.Max(0, contact.JumpTriggerTick),
             LaunchMinX: contact.LaunchX - positionTolerance,
             LaunchMaxX: contact.LaunchX + positionTolerance,
-            // The contact edge begins at the source surface node. Keep the
-            // vertical launch band anchored to that source state; a sweep can
-            // momentarily report an intermediate stair sample before the
-            // jump input is consumed, but that sample is not a composable
-            // runtime node and must not invalidate the source contact.
-            LaunchMinY: contact.SourceY - 8f,
-            LaunchMaxY: contact.SourceY + 8f,
+            // Stair run-ups can climb several lips before the measured jump
+            // input is consumed. The source surface Y is not the live launch
+            // state; preserve the OG2 probe's measured launch height so the
+            // runtime can recognize the same contact after composing walk
+            // links into the route.
+            LaunchMinY: contact.LaunchY - 8f,
+            LaunchMaxY: contact.LaunchY + 8f,
             LaunchMinHorizontalSpeed: contact.LaunchHorizontalSpeed - speedTolerance,
             LaunchMaxHorizontalSpeed: contact.LaunchHorizontalSpeed + speedTolerance,
             ExpectedMoveDirectionX: contact.MoveDirection,
@@ -1026,6 +1095,7 @@ public static class Og2LocalContactGraphBuilder
             AddAnchor(level, surfaces, nodes, nodeBySample, adjacency, edgeIndex, intel.X, intel.Y, NavNodeKind.Objective, intel.Team, true, spawnAnchors, minimumCollisionBottom, maximumCollisionBottom);
         }
 
+        var hasCaptureZones = level.GetRoomObjects(RoomObjectType.CaptureZone).Count > 0;
         foreach (var roomObject in level.RoomObjects)
         {
             if (roomObject.Type is not (RoomObjectType.ArenaControlPoint
@@ -1036,7 +1106,34 @@ public static class Og2LocalContactGraphBuilder
                 continue;
             }
 
-            AddAnchor(level, surfaces, nodes, nodeBySample, adjacency, edgeIndex, roomObject.CenterX, roomObject.CenterY, NavNodeKind.Objective, roomObject.Team, true, spawnAnchors, minimumCollisionBottom, maximumCollisionBottom);
+            // ControlPoint/ArenaControlPoint markers are logical or visual
+            // anchors above the floor. Runtime alpha objective selection
+            // already resolves them to the associated CaptureZone, which is
+            // the coordinate a bot can actually occupy. Do not add a second
+            // dangling objective node when that gameplay zone exists.
+            if (hasCaptureZones
+                && roomObject.Type is RoomObjectType.ArenaControlPoint or RoomObjectType.ControlPoint)
+            {
+                continue;
+            }
+
+            AddAnchor(
+                level,
+                surfaces,
+                nodes,
+                nodeBySample,
+                adjacency,
+                edgeIndex,
+                roomObject.CenterX,
+                roomObject.CenterY,
+                NavNodeKind.Objective,
+                roomObject.Team,
+                true,
+                spawnAnchors,
+                minimumCollisionBottom,
+                maximumCollisionBottom,
+                roomObject.Type == RoomObjectType.CaptureZone ? roomObject.Left : null,
+                roomObject.Type == RoomObjectType.CaptureZone ? roomObject.Right : null);
         }
     }
 
@@ -1054,28 +1151,46 @@ public static class Og2LocalContactGraphBuilder
         bool objective,
         List<NavSpawnAnchor> spawnAnchors,
         float minimumCollisionBottom,
-        float maximumCollisionBottom)
+        float maximumCollisionBottom,
+        float? horizontalMinX = null,
+        float? horizontalMaxX = null)
     {
         var anchorIndex = nodes.Count;
         nodes.Add(new NavNode(x, y, kind));
-        if (team.HasValue && kind == NavNodeKind.Spawn)
-        {
-            spawnAnchors.Add(new NavSpawnAnchor(x, y, team.Value));
-        }
+        var attached = false;
 
+        var candidateMinX = horizontalMinX ?? (x - 2f);
+        var candidateMaxX = horizontalMaxX ?? (x + 2f);
         var candidates = surfaces
-            // An anchor may only receive a direct walk attachment from a
-            // surface that actually contains its horizontal position. A
-            // nearby surface across a gap is a candidate for a jump/contact
-            // route, not a valid objective approach edge.
-            .Where(surface => surface.Left <= x + 2f && surface.Right >= x - 2f)
-            .Select(surface => (Surface: surface, Distance: MathF.Abs(surface.Top - (y + maximumCollisionBottom)) + DistanceToInterval(surface, x)))
+            // Ordinary anchors require the supporting surface to contain the
+            // anchor's horizontal position. A capture zone is different: its
+            // gameplay volume can extend over several adjacent surface
+            // intervals, and the center may sit just beyond a wall/ledge
+            // boundary. In that case attach to the nearest overlap within the
+            // actual zone bounds so the objective remains a real graph goal.
+            .Where(surface => surface.Left <= candidateMaxX && surface.Right >= candidateMinX)
+            .Select(surface =>
+            {
+                var attachMinX = horizontalMinX.HasValue
+                    ? MathF.Max(surface.Left, horizontalMinX.Value)
+                    : surface.Left;
+                var attachMaxX = horizontalMaxX.HasValue
+                    ? MathF.Min(surface.Right, horizontalMaxX.Value)
+                    : surface.Right;
+                var attachX = attachMinX <= attachMaxX
+                    ? Math.Clamp(x, attachMinX, attachMaxX)
+                    : Math.Clamp(x, surface.Left, surface.Right);
+                return (
+                    Surface: surface,
+                    AttachX: attachX,
+                    Distance: MathF.Abs(surface.Top - (y + maximumCollisionBottom)) + MathF.Abs(attachX - x));
+            })
             .OrderBy(static candidate => candidate.Distance)
             .Take(4)
             .ToArray();
         foreach (var candidate in candidates)
         {
-            var surfaceX = Math.Clamp(x, candidate.Surface.Left, candidate.Surface.Right);
+            var surfaceX = candidate.AttachX;
             var surfaceY = candidate.Surface.Top - maximumCollisionBottom;
             if (MathF.Abs(surfaceY - y) > AnchorDirectAttachVerticalTolerance)
             {
@@ -1085,6 +1200,7 @@ public static class Og2LocalContactGraphBuilder
                 continue;
             }
 
+            attached = true;
             var surfaceIndex = GetOrAddSurfaceNode(nodes, nodeBySample, candidate.Surface, surfaceX, maximumCollisionBottom);
             EnsureAdjacencyCapacity(adjacency, nodes.Count);
             var surfaceNode = nodes[surfaceIndex];
@@ -1151,6 +1267,20 @@ public static class Og2LocalContactGraphBuilder
                 AddSimpleEdge(surfaceIndex, anchorIndex, NavEdgeKind.Walk, nodes, adjacency, edgeIndex, BotBrainClassMask.All, minimumCollisionBottom, maximumCollisionBottom, candidate.Surface.Id);
                 AddSimpleEdge(anchorIndex, surfaceIndex, NavEdgeKind.Walk, nodes, adjacency, edgeIndex, BotBrainClassMask.All, minimumCollisionBottom, maximumCollisionBottom, candidate.Surface.Id);
             }
+        }
+
+        if (!attached)
+        {
+            // Do not leave a logical marker in the nearest-node search when
+            // no walkable surface actually supports it. Runtime objective
+            // selection will attach to the nearest reachable surface instead.
+            nodes.RemoveAt(anchorIndex);
+            return;
+        }
+
+        if (team.HasValue && kind == NavNodeKind.Spawn)
+        {
+            spawnAnchors.Add(new NavSpawnAnchor(x, y, team.Value));
         }
     }
 
@@ -1299,6 +1429,76 @@ public static class Og2LocalContactGraphBuilder
         {
             yield return right;
         }
+    }
+
+    /// <summary>
+    /// Broad-phase index for contact probes. The old implementation tested
+    /// every other surface for every probe launch, which made a local sweep
+    /// quadratic in the number of extracted surfaces. The index only narrows
+    /// that conservative query; OG2 movement remains the authority for the
+    /// emitted contact.
+    /// </summary>
+    private sealed class SurfaceSpatialIndex
+    {
+        private const float CellSize = 128f;
+        private readonly IReadOnlyList<VerifiedNavSurface> _surfaces;
+        private readonly Dictionary<int, List<int>> _surfaceIdsByCell = [];
+
+        public SurfaceSpatialIndex(IReadOnlyList<VerifiedNavSurface> surfaces)
+        {
+            _surfaces = surfaces;
+            for (var index = 0; index < surfaces.Count; index += 1)
+            {
+                var surface = surfaces[index];
+                var firstCell = Cell(surface.Left);
+                var lastCell = Cell(surface.Right);
+                for (var cell = firstCell; cell <= lastCell; cell += 1)
+                {
+                    if (!_surfaceIdsByCell.TryGetValue(cell, out var surfaceIds))
+                    {
+                        surfaceIds = [];
+                        _surfaceIdsByCell[cell] = surfaceIds;
+                    }
+
+                    surfaceIds.Add(index);
+                }
+            }
+        }
+
+        public bool HasCandidate(
+            int sourceSurfaceId,
+            float minX,
+            float maxX,
+            float minimumTop,
+            float maximumTop)
+        {
+            var firstCell = Cell(minX);
+            var lastCell = Cell(maxX);
+            for (var cell = firstCell; cell <= lastCell; cell += 1)
+            {
+                if (!_surfaceIdsByCell.TryGetValue(cell, out var surfaceIds))
+                {
+                    continue;
+                }
+
+                foreach (var surfaceIndex in surfaceIds)
+                {
+                    var candidate = _surfaces[surfaceIndex];
+                    if (candidate.Id != sourceSurfaceId
+                        && candidate.Right >= minX
+                        && candidate.Left <= maxX
+                        && candidate.Top >= minimumTop
+                        && candidate.Top <= maximumTop)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static int Cell(float value) => (int)MathF.Floor(value / CellSize);
     }
 
     private static NavEdgeCompletion CreateSurfaceCompletion(
@@ -1527,40 +1727,28 @@ public static class Og2LocalContactGraphBuilder
                 });
     }
 
-    private static IEnumerable<PlayerClass> EnumerateRepresentativeClasses()
+    private static PlayerClass[] EnumerateRepresentativeClasses()
     {
         var configured = Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_CONTACT_CLASSES");
-        if (!string.IsNullOrWhiteSpace(configured))
-        {
-            var selected = configured
+        var candidates = !string.IsNullOrWhiteSpace(configured)
+            ? configured
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .Select(value => Enum.TryParse<PlayerClass>(value, ignoreCase: true, out var playerClass) ? (PlayerClass?)playerClass : null)
                 .Where(static playerClass => playerClass.HasValue)
                 .Select(static playerClass => playerClass!.Value)
                 .Distinct()
-                .ToArray();
-            if (selected.Length > 0)
-            {
-                var representatives = new List<PlayerClass>(2);
-                if (selected.Contains(PlayerClass.Heavy)
-                    || selected.Any(static playerClass => playerClass != PlayerClass.Scout))
-                {
-                    representatives.Add(PlayerClass.Heavy);
-                }
+                .ToArray()
+            : AllMovementClasses;
 
-                if (selected.Contains(PlayerClass.Scout))
-                {
-                    representatives.Add(PlayerClass.Scout);
-                }
-
-                if (representatives.Count > 0)
-                {
-                    return representatives;
-                }
-            }
+        if (candidates.Length == 0)
+        {
+            return AllMovementClasses;
         }
 
-        return RepresentativeClasses;
+        var seenSignatures = new HashSet<MovementSignature>();
+        return candidates
+            .Where(playerClass => seenSignatures.Add(MovementSignature.For(playerClass)))
+            .ToArray();
     }
 
     private static int ResolveMovementClassMask(PlayerClass playerClass)

@@ -12,6 +12,9 @@ public static class Og2NavigationGraphValidator
 {
     private const float SpawnMaxAboveDistance = 64f;
     private const float SpawnMaxBelowDistance = 96f;
+    private const float ObjectiveApproachMaxAboveDistance = 256f;
+    private const float ObjectiveApproachMaxBelowDistance = 256f;
+    private const float ObjectiveApproachMaxHorizontalDistance = 256f;
     private const float CarrierMaxAboveDistance = 96f;
     private const float CarrierMaxBelowDistance = 128f;
     private const int MaximumReportedIssues = 256;
@@ -303,10 +306,7 @@ public static class Og2NavigationGraphValidator
 
         foreach (var target in targets)
         {
-            var goalNode = FindObjectiveNode(graph, target);
-            var path = goalNode >= 0
-                ? graph.FindPath(spawnNode, goalNode, playerClass, team: team)
-                : null;
+            var approach = FindObjectiveApproachPath(graph, target, spawnNode, playerClass, team);
             AddRouteCheck(
                 routes,
                 issues,
@@ -316,9 +316,64 @@ public static class Og2NavigationGraphValidator
                 playerClass,
                 carryingIntel: false,
                 spawnNode,
-                goalNode,
-                path);
+                approach.GoalNode,
+                approach.Path);
         }
+    }
+
+    private static (int GoalNode, NavPath? Path) FindObjectiveApproachPath(
+        NavGraph graph,
+        Og2NavigationObjectiveTarget target,
+        int startNode,
+        PlayerClass playerClass,
+        PlayerTeam team)
+    {
+        // The exact objective marker is not necessarily a walkable coordinate:
+        // stock CP/KOTH maps commonly place the logical marker above the
+        // floor. Try it first for maps that provide a real attached objective
+        // node, then fall back to the nearest reachable surface node within
+        // the same approach envelope used by alpha runtime navigation.
+        var exactGoalNode = FindObjectiveNode(graph, target);
+        if (exactGoalNode >= 0)
+        {
+            var exactPath = graph.FindPath(startNode, exactGoalNode, playerClass, team: team);
+            if (exactPath is not null)
+            {
+                return (exactGoalNode, exactPath);
+            }
+        }
+
+        var candidates = new List<(int NodeIndex, float Score)>();
+        for (var nodeIndex = 0; nodeIndex < graph.NodeCount; nodeIndex += 1)
+        {
+            var node = graph.GetNode(nodeIndex);
+            if (!node.SurfaceId.HasValue || node.Kind is NavNodeKind.Spawn or NavNodeKind.Objective)
+            {
+                continue;
+            }
+
+            var dx = node.X - target.X;
+            var dy = node.Y - target.Y;
+            if (MathF.Abs(dx) > ObjectiveApproachMaxHorizontalDistance
+                || dy < -ObjectiveApproachMaxAboveDistance
+                || dy > ObjectiveApproachMaxBelowDistance)
+            {
+                continue;
+            }
+
+            candidates.Add((nodeIndex, (dx * dx) + (dy * dy * 4f)));
+        }
+
+        foreach (var candidate in candidates.OrderBy(static candidate => candidate.Score))
+        {
+            var path = graph.FindPath(startNode, candidate.NodeIndex, playerClass, team: team);
+            if (path is not null)
+            {
+                return (candidate.NodeIndex, path);
+            }
+        }
+
+        return (exactGoalNode, null);
     }
 
     private static void AddRouteCheck(
@@ -493,12 +548,23 @@ public static class Og2NavigationGraphValidator
             return targets;
         }
 
+        var hasCaptureZones = level.GetRoomObjects(RoomObjectType.CaptureZone).Count > 0;
         foreach (var roomObject in level.RoomObjects)
         {
             if (roomObject.Type is not (RoomObjectType.ArenaControlPoint
                 or RoomObjectType.ControlPoint
                 or RoomObjectType.CaptureZone
                 or RoomObjectType.Generator))
+            {
+                continue;
+            }
+
+            // The control-point marker is a logical/visual object and may be
+            // above the walkable floor. The runtime alpha planner targets the
+            // associated CaptureZone, so validating both coordinates would
+            // report a false unreachable route for an otherwise playable map.
+            if (hasCaptureZones
+                && roomObject.Type is RoomObjectType.ArenaControlPoint or RoomObjectType.ControlPoint)
             {
                 continue;
             }

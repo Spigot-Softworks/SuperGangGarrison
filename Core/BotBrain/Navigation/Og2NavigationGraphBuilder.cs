@@ -15,7 +15,7 @@ public static class Og2NavigationGraphBuilder
 {
     // Bump whenever graph-generation behavior changes. Runtime steering
     // changes intentionally do not invalidate the graph cache.
-    public const string GeneratorFingerprint = "og2-contact-20260728-v18";
+    public const string GeneratorFingerprint = "og2-contact-20260729-v29-capture-zone-overlap-anchors";
 
     private static readonly ConditionalWeakTable<SimpleLevel, StaticNavigationBlockers> StaticBlockerCache = new();
 

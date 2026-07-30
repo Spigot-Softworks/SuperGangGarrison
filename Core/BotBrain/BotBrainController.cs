@@ -418,7 +418,7 @@ public sealed class BotBrainController
         _lastCarryingIntel = self.IsCarryingIntel;
 
         // 3. Find/update path.
-        var graphSuspendedForPointCapture = ShouldSuspendGraphRoutingForControlPointCapture(world, self, team);
+        var graphSuspendedForPointCapture = ShouldSuspendGraphRoutingForControlPointCapture(world, self, team, _alphaNavigation);
         var bypassCarrierReturnProofGraph = ShouldBypassCarrierReturnProofGraph(world, self, proofGraphRequired);
         if (bypassCarrierReturnProofGraph)
         {
@@ -444,8 +444,7 @@ public sealed class BotBrainController
         PlayerInputSnapshot? inputOverride = null;
         var dynamicCtfSteering = steeringOutput;
         var dynamicCtfTrace = string.Empty;
-        var dynamicCtfResolved = !_alphaNavigation
-            && !PreferEnemyPlayerObjective
+        var dynamicCtfResolved = !PreferEnemyPlayerObjective
             && !engineerCtfDefender
             && TryResolveCaptureTheFlagDynamicObjectiveSeek(
             world,
@@ -975,7 +974,8 @@ public sealed class BotBrainController
         }
 
         RoomObjectMarker? bestZone = null;
-        var bestArea = float.NegativeInfinity;
+        var bestContainsSelf = false;
+        var bestDistance = float.PositiveInfinity;
         foreach (var zone in world.Level.GetRoomObjects(RoomObjectType.CaptureZone))
         {
             if (!IsCaptureZoneAssignedToPoint(world, zone, point))
@@ -983,13 +983,17 @@ public sealed class BotBrainController
                 continue;
             }
 
-            var area = zone.Width * zone.Height;
-            if (area <= bestArea)
+            var containsSelf = self.IntersectsMarker(zone.CenterX, zone.CenterY, zone.Width, zone.Height);
+            var distance = DistanceBetween(self.X, self.Y, zone.CenterX, zone.CenterY);
+            if (bestZone.HasValue
+                && ((bestContainsSelf && !containsSelf)
+                    || (bestContainsSelf == containsSelf && distance >= bestDistance)))
             {
                 continue;
             }
 
-            bestArea = area;
+            bestContainsSelf = containsSelf;
+            bestDistance = distance;
             bestZone = zone;
         }
 
@@ -3098,6 +3102,7 @@ public sealed class BotBrainController
                     steeringOutput,
                     out directSteering,
                     out directTrace,
+                    requireVerticalSeparation: !_alphaNavigation,
                     activePathReuseDistance: MovingCarrierRouteReuseDistance)
                 || TryResolveLocalMotionRecovery(
                     world,
@@ -3141,6 +3146,7 @@ public sealed class BotBrainController
                     steeringOutput,
                     out directSteering,
                     out directTrace,
+                    requireVerticalSeparation: !_alphaNavigation,
                     activePathReuseDistance: MovingCarrierRouteReuseDistance)
                 || TryResolveLocalMotionRecovery(
                     world,
@@ -3155,7 +3161,7 @@ public sealed class BotBrainController
         }
 
         var enemyIntel = GetEnemyIntelState(world, team);
-        if (CanOwnCaptureTheFlagEnemyObjective()
+        if ((_alphaNavigation || CanOwnCaptureTheFlagEnemyObjective())
             && enemyIntel.IsDropped
             && ShouldDirectSeekDroppedIntel(self, world, team, enemyIntel))
         {
@@ -4858,14 +4864,16 @@ public sealed class BotBrainController
     private static bool ShouldSuspendGraphRoutingForControlPointCapture(
         SimulationWorld world,
         PlayerEntity self,
-        PlayerTeam team)
+        PlayerTeam team,
+        bool alphaNavigation = false)
     {
         if (TryFindActivePointBeingCaptured(world, self, team, out _))
         {
             return true;
         }
 
-        if (!TryFindNearestUnownedControlPoint(world, self, team, CapturePointHoldHorizontalRange, out var point))
+        if (alphaNavigation
+            || !TryFindNearestUnownedControlPoint(world, self, team, CapturePointHoldHorizontalRange, out var point))
         {
             return false;
         }
@@ -5556,6 +5564,12 @@ public sealed class BotBrainController
         PlayerTeam team,
         ref SteeringOutput steeringOutput)
     {
+        if (_alphaNavigation)
+        {
+            ApplyAlphaCaptureArrivalHold(world, self, team, ref steeringOutput);
+            return;
+        }
+
         if (!TryFindControlPointStrafeTarget(world, self, team, out var point, out var reason))
         {
             return;
@@ -5618,6 +5632,82 @@ public sealed class BotBrainController
         LastDirectDriveTrace = string.IsNullOrWhiteSpace(LastDirectDriveTrace)
             ? $"captureStrafeHop point:{point.Index} reason:{reason} style:{style} move:{moveDirection} phase:{phase}{spacingSuffix}"
             : $"{LastDirectDriveTrace} captureStrafeHop point:{point.Index} reason:{reason} style:{style} move:{moveDirection} phase:{phase}{spacingSuffix}";
+    }
+
+    private void ApplyAlphaCaptureArrivalHold(
+        SimulationWorld world,
+        PlayerEntity self,
+        PlayerTeam team,
+        ref SteeringOutput steeringOutput)
+    {
+        if (world.MatchRules.Mode is not (GameModeKind.Arena
+            or GameModeKind.ControlPoint
+            or GameModeKind.KingOfTheHill
+            or GameModeKind.DoubleKingOfTheHill))
+        {
+            return;
+        }
+
+        var pathComplete = _currentPath is null || _currentPath.IsComplete;
+        ControlPointState? bestPoint = null;
+        var bestDistance = float.PositiveInfinity;
+        var bestInZone = false;
+        foreach (var point in world.ControlPoints)
+        {
+            var goalDistance = DistanceBetween(
+                _currentGoalPosition.X,
+                _currentGoalPosition.Y,
+                point.HealingAuraCenterX,
+                point.HealingAuraCenterY);
+            if (goalDistance > 128f)
+            {
+                continue;
+            }
+
+            var inZone = world.IsPlayerInControlPointCaptureZone(self, point.Index);
+            if (!inZone && !pathComplete)
+            {
+                continue;
+            }
+
+            var horizontalDistance = MathF.Abs(point.HealingAuraCenterX - self.X);
+            var verticalDistance = MathF.Abs(point.HealingAuraCenterY - self.Y);
+            if (!inZone && (horizontalDistance > 112f || verticalDistance > 96f))
+            {
+                continue;
+            }
+
+            if (bestPoint is not null
+                && ((bestInZone && !inZone)
+                    || (bestInZone == inZone && goalDistance >= bestDistance)))
+            {
+                continue;
+            }
+
+            bestPoint = point;
+            bestDistance = goalDistance;
+            bestInZone = inZone;
+        }
+
+        if (bestPoint is null)
+        {
+            return;
+        }
+
+        var targetX = ResolveCapturePointLaneTargetX(world, self, team, bestPoint);
+        var dx = targetX - self.X;
+        var moveDirection = MathF.Abs(dx) > CapturePointLaneTargetDeadZone
+            ? dx > 0f ? 1 : -1
+            : MathF.Abs(self.HorizontalSpeed) > CaptureStrafeBrakeSpeed
+                ? self.HorizontalSpeed > 0f ? -1 : 1
+                : 0;
+
+        steeringOutput.MoveDirection = moveDirection;
+        steeringOutput.Jump = false;
+        steeringOutput.DropDown = false;
+        LastDirectDriveTrace = string.IsNullOrWhiteSpace(LastDirectDriveTrace)
+            ? $"alphaCaptureArrivalHold point:{bestPoint.Index} inZone:{(bestInZone ? 1 : 0)} targetX:{targetX:0.0} dx:{dx:0.0} move:{moveDirection}"
+            : $"{LastDirectDriveTrace} alphaCaptureArrivalHold point:{bestPoint.Index} inZone:{(bestInZone ? 1 : 0)} targetX:{targetX:0.0} dx:{dx:0.0} move:{moveDirection}";
     }
 
     private CapturePointHoldStyle ResolveCapturePointHoldStyle(
