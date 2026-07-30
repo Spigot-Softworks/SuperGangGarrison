@@ -1299,11 +1299,11 @@ representatives.
 
 ## 2026-07-29 current sweep reconciliation
 
-The current v29 accepted representatives are `18/43`:
+The current v29 accepted representatives are `19/43`:
 Truefort, Eiger, Corinth, `cp_docking_v2`, Harvest, Conflict, Gallery,
 Valley, `3cp_kistra`, `cp_gully`, `cp_coldfront_v7`, `koth_crab_v2`,
 `ctf_conflict_plx`, `ctf_conflict_pro`, `ctf_conflict_srs_red`,
-`koth_trestle`, `koth_standoff`, and `koth_nightly`. Every accepted representative has a
+`koth_trestle`, `koth_standoff`, `koth_nightly`, and `koth_pumpkinseed`. Every accepted representative has a
 full `20/20` matrix: all ten classes on both teams, with a shared ten-class
 graph and a `3,000`-tick accelerated budget.
 
@@ -1351,3 +1351,14 @@ route failure was established. It is not counted as a pass.
 report remained CPU-bound beyond the three-minute diagnostic ceiling without
 emitting a graph result. The exact report process was stopped, and no cache or
 live acceptance result exists.
+
+`koth_pumpkinseed` is now v29-validated at `20/20`. Its shared graph has `284`
+nodes and `16,116` edges, built once in `49.2` seconds; the five-batch
+cache-only matrix passed all ten classes for both teams, with captures from
+tick `976` to `1,052`. The accepted set is now `19/43`, leaving `24`
+representatives.
+
+`koth_ravine` is quarantined after its v29 screen showed both teams stopping
+on surfaces around y=`1260` while the KOTH objective was near y=`1047` across
+almost every class. This is a map-wide vertical graph-to-objective
+connectivity gap, not a steering exception, and it is not counted as a pass.
