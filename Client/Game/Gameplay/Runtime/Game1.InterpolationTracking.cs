@@ -1712,9 +1712,11 @@ public partial class Game1
         }
 
         // Check for needles
-        if (TryGetNeedleById(entityId, out _))
+        if (TryGetNeedleById(entityId, out var needle))
         {
-            gravityPerTick = NeedleProjectileEntity.GravityPerTick;
+            gravityPerTick = needle is ArrowProjectileEntity arrow
+                ? ArrowProjectileEntity.GravityPerTick * arrow.FakeSpeedMultiplier * arrow.FakeSpeedMultiplier
+                : NeedleProjectileEntity.GravityPerTick;
             maxFallSpeed = float.MaxValue;
             return true;
         }

@@ -82,22 +82,78 @@ public partial class Game1
 
         public void DrawSniperHud(Vector2 screenAimPosition)
         {
-            if (!_game._world.LocalPlayer.HasScopedSniperWeaponEquipped || !_game.GetPlayerIsSniperScoped(_game._world.LocalPlayer))
+            var localPlayer = _game._world.LocalPlayer;
+            if (_game.GetPlayerIsSniperBowEquipped(localPlayer))
+            {
+                DrawSniperBowChargeHud(localPlayer, screenAimPosition);
+                return;
+            }
+
+            if (!localPlayer.HasScopedSniperWeaponEquipped || !_game.GetPlayerIsSniperScoped(localPlayer))
             {
                 return;
             }
 
-            DrawSniperChargeHud(_game._world.LocalPlayer, screenAimPosition);
+            DrawSniperChargeHud(localPlayer, screenAimPosition);
         }
 
         public void DrawSpectatorSniperHud(PlayerEntity player, Vector2 screenAimPosition)
         {
+            if (player.IsSniperBowEquipped)
+            {
+                DrawSniperBowChargeHud(player, screenAimPosition);
+                return;
+            }
+
             if (!player.HasScopedSniperWeaponEquipped || !_game.GetPlayerIsSniperScoped(player))
             {
                 return;
             }
 
             DrawSniperChargeHud(player, screenAimPosition);
+        }
+
+        private void DrawSniperBowChargeHud(PlayerEntity player, Vector2 screenAimPosition)
+        {
+            var chargeTicks = _game.GetPlayerSniperBowChargeTicks(player);
+            if (chargeTicks <= 0)
+            {
+                return;
+            }
+
+            var facingLeft = IsFacingLeftByAim(player);
+            var chargeScaleX = facingLeft ? 1f : -1f;
+            var chargePosition = screenAimPosition + new Vector2(15f * chargeScaleX, -10f);
+            var isFullyCharged = chargeTicks >= PlayerEntity.SniperBowMaxChargeTicks;
+            if (!isFullyCharged)
+            {
+                _game.TryDrawScreenSprite("ChargeS", 0, chargePosition, Color.White * 0.25f, new Vector2(chargeScaleX, 1f));
+            }
+            else
+            {
+                _game.TryDrawScreenSprite("FullChargeS", 0, screenAimPosition + new Vector2(65f * chargeScaleX, 0f), Color.White, Vector2.One);
+            }
+
+            var chargeWidth = GetSniperBowChargeHudFillWidthForTicks(chargeTicks);
+            if (chargeWidth <= 0)
+            {
+                return;
+            }
+
+            DrawSniperChargeFill(chargePosition, chargeWidth, facingLeft);
+        }
+
+        internal static int GetSniperBowChargeHudFillWidthForTicks(int chargeTicks)
+        {
+            if (chargeTicks <= 0)
+            {
+                return 0;
+            }
+
+            return Math.Clamp(
+                (int)MathF.Ceiling(chargeTicks * (SniperChargeHudFillMaxWidth / (float)PlayerEntity.SniperBowMaxChargeTicks)),
+                0,
+                SniperChargeHudFillMaxWidth);
         }
 
         private void DrawSniperChargeHud(PlayerEntity player, Vector2 screenAimPosition)
@@ -150,17 +206,24 @@ public partial class Game1
                 return;
             }
 
-            var sourceX = frame.Width - chargeWidth;
+            // Background uses negative X scale from chargePosition, so it extends left.
+            // Place the flipped fill so it occupies the same leftward region.
             var drawPosition = new Vector2(chargePosition.X - chargeWidth, chargePosition.Y);
             TryDrawSniperChargeFillPart(
                 "ChargeS",
                 1,
-                new Rectangle(sourceX, 0, chargeWidth, frame.Height),
+                new Rectangle(0, 0, chargeWidth, frame.Height),
                 drawPosition,
-                Color.White * 0.8f);
+                Color.White * 0.8f,
+                SpriteEffects.FlipHorizontally);
         }
 
         private bool TryDrawSniperChargeFillPart(string spriteName, int frameIndex, Rectangle sourceRectangle, Vector2 topLeftPosition, Color tint)
+        {
+            return TryDrawSniperChargeFillPart(spriteName, frameIndex, sourceRectangle, topLeftPosition, tint, SpriteEffects.None);
+        }
+
+        private bool TryDrawSniperChargeFillPart(string spriteName, int frameIndex, Rectangle sourceRectangle, Vector2 topLeftPosition, Color tint, SpriteEffects effects)
         {
             var sprite = _game.GetResolvedSprite(spriteName);
             if (sprite is null || frameIndex < 0 || frameIndex >= sprite.Frames.Count)
@@ -176,7 +239,7 @@ public partial class Game1
                 0f,
                 Vector2.Zero,
                 Vector2.One,
-                SpriteEffects.None,
+                effects,
                 0f);
             return true;
         }

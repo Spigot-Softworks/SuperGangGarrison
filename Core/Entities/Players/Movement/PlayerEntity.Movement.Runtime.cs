@@ -135,6 +135,7 @@ public sealed partial class PlayerEntity
             AdvanceMedicState();
             AdvanceSpyState();
             AdvanceSpySuperjumpState();
+            AdvanceSniperBowState();
             AdvanceIntelCarryState();
         }
 

@@ -45,7 +45,7 @@ public static class JsonConfigurationFile
 
         try
         {
-            var json = File.ReadAllText(path);
+            var json = ReadAllTextShared(path);
             var loaded = JsonSerializer.Deserialize<T>(json, SerializerOptions);
             if (loaded is not null)
             {
@@ -79,7 +79,100 @@ public static class JsonConfigurationFile
             Directory.CreateDirectory(directory);
         }
 
-        var json = JsonSerializer.Serialize(value, SerializerOptions);
-        File.WriteAllText(path, json);
+        try
+        {
+            var json = JsonSerializer.Serialize(value, SerializerOptions);
+            SaveText(path, json);
+        }
+        catch (IOException)
+        {
+            // Multiple client instances can share the same config path on one machine.
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
+
+    public static bool TryReadText(string path, out string contents)
+    {
+        contents = string.Empty;
+        if (!File.Exists(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            contents = ReadAllTextShared(path);
+            return true;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    public static void SaveText(string path, string contents)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        if (OperatingSystem.IsBrowser())
+        {
+            return;
+        }
+
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        try
+        {
+            WriteAllTextAtomically(path, contents);
+        }
+        catch (IOException)
+        {
+            // Multiple client instances can share the same config path on one machine.
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
+
+    private static string ReadAllTextShared(string path)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
+    private static void WriteAllTextAtomically(string path, string contents)
+    {
+        var directory = Path.GetDirectoryName(path) ?? string.Empty;
+        var tempPath = Path.Combine(directory, $".{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
+        try
+        {
+            File.WriteAllText(tempPath, contents);
+            if (File.Exists(path))
+            {
+                File.Replace(tempPath, path, destinationBackupFileName: null);
+            }
+            else
+            {
+                File.Move(tempPath, path);
+            }
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
+        }
     }
 }

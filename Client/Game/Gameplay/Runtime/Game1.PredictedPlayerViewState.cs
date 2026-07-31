@@ -123,6 +123,25 @@ public partial class Game1
             : player.SniperChargeTicks;
     }
 
+    private int GetPlayerSniperBowChargeTicks(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.SniperBowChargeTicks
+            : player.SniperBowChargeTicks;
+    }
+
+    private bool GetPlayerIsSniperBowEquipped(PlayerEntity player)
+    {
+        if (IsUsingPredictedLocalState(player)
+            && _predictedLocalPlayerShadow is not null
+            && ReferenceEquals(player, _world.LocalPlayer))
+        {
+            return _predictedLocalPlayerShadow.IsSniperBowEquipped;
+        }
+
+        return player.IsSniperBowEquipped;
+    }
+
     private int GetPlayerSniperRifleDamage(PlayerEntity player)
     {
         if (!player.HasScopedSniperWeaponEquipped || !GetPlayerIsSniperScoped(player))

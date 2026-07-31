@@ -325,6 +325,7 @@ public partial class Game1 : Game
     private int _damageVignetteTextureHeight;
     private bool _showPersistentSelfNameEnabled;
     private bool _spriteDropShadowEnabled;
+    private bool _stuckArrowsEnabled = true;
     private bool _pixelPerfectWeaponRotation = true;
     private bool _useLocalWeaponRotation = false;
     private int _playerCardSizeMode = ClientSettings.PlayerCardSizeSmall;

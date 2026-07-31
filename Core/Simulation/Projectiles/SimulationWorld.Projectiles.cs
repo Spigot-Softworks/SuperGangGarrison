@@ -114,6 +114,27 @@ public sealed partial class SimulationWorld
         _entities.Add(nail.Id, nail);
     }
 
+    private void SpawnArrow(PlayerEntity owner, float x, float y, float velocityX, float velocityY, int damage, float fakeSpeedMultiplier)
+    {
+        var arrow = new ArrowProjectileEntity(
+            AllocateEntityId(),
+            owner.Team,
+            owner.Id,
+            x,
+            y,
+            velocityX,
+            velocityY,
+            damage,
+            fakeSpeedMultiplier);
+        if (owner.IsKritzCritBoosted)
+        {
+            arrow.SetCritical();
+        }
+
+        _needles.Add(arrow);
+        _entities.Add(arrow.Id, arrow);
+    }
+
     private void SpawnNeedle(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
     {
         var needle = new NeedleProjectileEntity(

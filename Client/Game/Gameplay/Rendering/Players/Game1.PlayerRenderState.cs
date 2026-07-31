@@ -15,6 +15,10 @@ public partial class Game1
     private const string SoldierShotgunMaxAmmoKey = "soldier_shotgun_max_ammo";
     private const string ScoutNailgunAmmoKey = "scout_nailgun_ammo";
     private const string ScoutNailgunMaxAmmoKey = "scout_nailgun_max_ammo";
+    private const string SniperBowAmmoKey = "sniper_bow_ammo";
+    private const string SniperBowMaxAmmoKey = "sniper_bow_max_ammo";
+    private const string MedicKritzAmmoKey = "medic_kritz_ammo";
+    private const string MedicKritzMaxAmmoKey = "medic_kritz_max_ammo";
 
     private enum WeaponAnimationMode
     {
@@ -60,6 +64,8 @@ public partial class Game1
         // Identifies the weapon slot currently being animated (null = primary, "offhand:soldier" = soldier shotgun, "acquired" = acquired weapon).
         // When this changes, animation state is reset to avoid stale comparisons from the previous weapon.
         public string? ActiveWeaponTag { get; set; }
+
+        public float BowAnimationPauseRemainingSeconds { get; set; }
     }
 
     private readonly HashSet<int> _activePlayerRenderStateIds = new();
@@ -192,6 +198,7 @@ public partial class Game1
         {
             renderState.ActiveWeaponTag = activeWeaponTag;
             StopWeaponAnimation(renderState);
+            renderState.BowAnimationPauseRemainingSeconds = 0f;
             renderState.PreviousAmmoCount = GetRenderWeaponAmmoCount(player);
             renderState.PreviousCooldownTicks = GetRenderWeaponCooldownTicks(player);
             renderState.PreviousReloadTicks = GetRenderWeaponReloadTicks(player);
@@ -238,7 +245,7 @@ public partial class Game1
 
         if (player.ClassId == PlayerClass.Sniper)
         {
-            UpdateSniperWeaponAnimationState(player, renderState, weaponRenderDefinition, shotStarted);
+            UpdateSniperWeaponAnimationState(player, renderState, weaponRenderDefinition, shotStarted, elapsedSeconds, currentCooldownTicks);
             QueueWeaponShellVisuals(player, shotStarted, ammoIncreased, reloadRestarted);
             renderState.PreviousAmmoCount = currentAmmoCount;
             renderState.PreviousCooldownTicks = currentCooldownTicks;
@@ -374,8 +381,18 @@ public partial class Game1
         PlayerEntity player,
         PlayerRenderState renderState,
         WeaponRenderDefinition weaponDefinition,
-        bool shotStarted)
+        bool shotStarted,
+        float elapsedSeconds,
+        int currentCooldownTicks)
     {
+        _ = shotStarted;
+        _ = elapsedSeconds;
+        if (player.IsSniperBowEquipped)
+        {
+            UpdateSniperBowWeaponAnimationState(renderState, weaponDefinition, currentCooldownTicks);
+            return;
+        }
+
         if (shotStarted)
         {
             if (player.IsSniperScoped && weaponDefinition.ReloadSpriteName is not null)
@@ -412,6 +429,90 @@ public partial class Game1
         {
             StopWeaponAnimation(renderState);
         }
+    }
+
+    private static void UpdateSniperBowWeaponAnimationState(
+        PlayerRenderState renderState,
+        WeaponRenderDefinition weaponDefinition,
+        int currentCooldownTicks)
+    {
+        var fireTicks = PlayerEntity.SniperBowFireAnimationSourceTicks;
+        var pauseTicks = PlayerEntity.SniperBowReloadPauseSourceTicks;
+        var reloadTicks = PlayerEntity.SniperBowReloadAnimationSourceTicks;
+        var totalCycleTicks = PlayerEntity.SniperBowCycleLockoutSourceTicks;
+
+        if (currentCooldownTicks <= 0)
+        {
+            StopWeaponAnimation(renderState);
+            renderState.BowAnimationPauseRemainingSeconds = 0f;
+            return;
+        }
+
+        var elapsedTicks = Math.Clamp(totalCycleTicks - currentCooldownTicks, 0, totalCycleTicks - 1);
+        if (elapsedTicks < fireTicks)
+        {
+            if (weaponDefinition.RecoilSpriteName is not null)
+            {
+                SyncSniperBowAnimationPhase(renderState, WeaponAnimationMode.Recoil, fireTicks, elapsedTicks);
+            }
+            else
+            {
+                StopWeaponAnimation(renderState);
+            }
+
+            renderState.BowAnimationPauseRemainingSeconds = 0f;
+            return;
+        }
+
+        if (elapsedTicks < fireTicks + pauseTicks)
+        {
+            // Hold the last fire frame until reload starts so the cycle still ends on refire-ready.
+            if (weaponDefinition.RecoilSpriteName is not null && fireTicks > 0)
+            {
+                SyncSniperBowAnimationPhase(renderState, WeaponAnimationMode.Recoil, fireTicks, fireTicks - 1);
+                var pauseElapsedTicks = elapsedTicks - fireTicks;
+                renderState.BowAnimationPauseRemainingSeconds =
+                    Math.Max(0, pauseTicks - pauseElapsedTicks) / (float)LegacyMovementModel.SourceTicksPerSecond;
+            }
+            else
+            {
+                StopWeaponAnimation(renderState);
+                renderState.BowAnimationPauseRemainingSeconds = 0f;
+            }
+
+            return;
+        }
+
+        if (weaponDefinition.ReloadSpriteName is not null)
+        {
+            SyncSniperBowAnimationPhase(
+                renderState,
+                WeaponAnimationMode.Reload,
+                reloadTicks,
+                elapsedTicks - fireTicks - pauseTicks);
+        }
+        else
+        {
+            StopWeaponAnimation(renderState);
+        }
+
+        renderState.BowAnimationPauseRemainingSeconds = 0f;
+    }
+
+    private static void SyncSniperBowAnimationPhase(
+        PlayerRenderState renderState,
+        WeaponAnimationMode mode,
+        int phaseDurationSourceTicks,
+        int phaseElapsedSourceTicks)
+    {
+        var ticksPerSecond = LegacyMovementModel.SourceTicksPerSecond;
+        var clampedElapsedTicks = Math.Clamp(phaseElapsedSourceTicks, 0, Math.Max(0, phaseDurationSourceTicks - 1));
+        var durationSeconds = phaseDurationSourceTicks / (float)ticksPerSecond;
+        var elapsedSeconds = clampedElapsedTicks / (float)ticksPerSecond;
+        renderState.WeaponAnimationMode = mode;
+        renderState.WeaponAnimationDurationSeconds = durationSeconds;
+        renderState.WeaponAnimationElapsedSeconds = elapsedSeconds;
+        renderState.WeaponAnimationTimeRemainingSeconds = MathF.Max(0f, durationSeconds - elapsedSeconds);
     }
 
     private void RemoveStalePlayerRenderState()
@@ -631,6 +732,16 @@ public partial class Game1
             return player.ExperimentalOffhandCurrentShells;
         }
 
+        if (ShouldPresentSniperBow(player))
+        {
+            if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SniperBowAmmoKey, out var replicatedAmmo))
+            {
+                return Math.Max(0, replicatedAmmo);
+            }
+
+            return player.ExperimentalOffhandCurrentShells;
+        }
+
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
         {
             return player.ExperimentalOffhandCurrentShells;
@@ -638,6 +749,11 @@ public partial class Game1
 
         if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
         {
+            if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, MedicKritzAmmoKey, out var replicatedAmmo))
+            {
+                return Math.Max(0, replicatedAmmo);
+            }
+
             return player.ExperimentalOffhandCurrentShells;
         }
 
@@ -661,6 +777,11 @@ public partial class Game1
         }
 
         if (ShouldPresentExperimentalScoutNailgun(player))
+        {
+            return player.ExperimentalOffhandCooldownTicks;
+        }
+
+        if (ShouldPresentSniperBow(player))
         {
             return player.ExperimentalOffhandCooldownTicks;
         }
@@ -707,6 +828,11 @@ public partial class Game1
         }
 
         if (ShouldPresentExperimentalScoutNailgun(player))
+        {
+            return player.ExperimentalOffhandReloadTicksUntilNextShell;
+        }
+
+        if (ShouldPresentSniperBow(player))
         {
             return player.ExperimentalOffhandReloadTicksUntilNextShell;
         }
@@ -761,6 +887,13 @@ public partial class Game1
                 : player.ExperimentalOffhandMaxShells;
         }
 
+        if (ShouldPresentSniperBow(player))
+        {
+            return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SniperBowMaxAmmoKey, out var replicatedMaxAmmo)
+                ? Math.Max(1, replicatedMaxAmmo)
+                : player.ExperimentalOffhandMaxShells;
+        }
+
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
         {
             return player.ExperimentalOffhandMaxShells;
@@ -768,7 +901,9 @@ public partial class Game1
 
         if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
         {
-            return Math.Max(1, player.ExperimentalOffhandMaxShells);
+            return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, MedicKritzMaxAmmoKey, out var replicatedMaxAmmo)
+                ? Math.Max(1, replicatedMaxAmmo)
+                : Math.Max(1, player.ExperimentalOffhandMaxShells);
         }
 
         return player.MaxShells;
@@ -797,6 +932,11 @@ public partial class Game1
         }
 
         if (ShouldPresentExperimentalScoutNailgun(player))
+        {
+            return player.ExperimentalOffhandWeapon ?? player.PrimaryWeapon;
+        }
+
+        if (ShouldPresentSniperBow(player))
         {
             return player.ExperimentalOffhandWeapon ?? player.PrimaryWeapon;
         }
@@ -870,6 +1010,11 @@ public partial class Game1
             return "offhand:scout";
         }
 
+        if (ShouldPresentSniperBow(player))
+        {
+            return "offhand:sniper-bow";
+        }
+
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
         {
             return "offhand:demoman";
@@ -914,6 +1059,13 @@ public partial class Game1
             || player.GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Secondary;
     }
 
+    private static bool ShouldPresentSniperBow(PlayerEntity player)
+    {
+        if (player.ClassId != PlayerClass.Sniper) return false;
+        return player.IsExperimentalOffhandPresented
+            || player.GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Secondary;
+    }
+
     private static float WrapAnimationImage(float animationImage, float length)
     {
         if (length <= 0f)
@@ -932,7 +1084,7 @@ public partial class Game1
 
     private float GetPlayerBodyAnimationLength(PlayerEntity player, float? horizontalSourceStepSpeed = null)
     {
-        if ((player.ClassId == PlayerClass.Sniper && player.IsSniperScoped)
+        if ((player.ClassId == PlayerClass.Sniper && player.IsSniperScoped && !player.IsSniperBowEquipped)
             || _world.IsPlayerHumiliated(player))
         {
             return 2f;

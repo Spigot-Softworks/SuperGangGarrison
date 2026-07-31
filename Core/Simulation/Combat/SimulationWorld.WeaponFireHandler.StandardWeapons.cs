@@ -103,6 +103,42 @@ public sealed partial class SimulationWorld
                 launchedVelocityY);
         }
 
+        public void FireSniperBow(
+            PlayerEntity attacker,
+            PrimaryWeaponDefinition weapon,
+            float aimWorldX,
+            float aimWorldY,
+            float velocityX,
+            float velocityY,
+            int damage,
+            float fakeSpeedMultiplier,
+            string killFeedWeaponSpriteName)
+        {
+            RegisterSoundEvent(attacker, weapon.FireSoundName ?? "BowSnd");
+            var weaponOrigin = GetSourceWeaponOrigin(attacker);
+            var pivotRay = GetWeaponPivotRay(
+                weaponOrigin.BaseX,
+                weaponOrigin.BaseY,
+                aimWorldX,
+                aimWorldY,
+                attacker.FacingDirectionX,
+                PlayerEntity.SniperBowPivotOffsetX,
+                PlayerEntity.SniperBowPivotOffsetY + weaponOrigin.EquipmentOffset);
+            var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
+                attacker,
+                velocityX,
+                velocityY);
+            SpawnArrow(
+                attacker,
+                pivotRay.PivotX,
+                pivotRay.PivotY,
+                launchedVelocityX,
+                launchedVelocityY,
+                damage,
+                fakeSpeedMultiplier);
+            _ = killFeedWeaponSpriteName;
+        }
+
         public void FireAcquiredMedicNeedle(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
             RegisterSoundEvent(attacker, "MedichaingunSnd");

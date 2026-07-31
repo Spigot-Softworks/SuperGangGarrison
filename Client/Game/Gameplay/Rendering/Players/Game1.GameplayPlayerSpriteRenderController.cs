@@ -232,7 +232,7 @@ public partial class Game1
                 return new PlayerBodySpriteSelection(GetPresentationSpriteName(player, static presentation => presentation.HumiliationSuffix ?? presentation.BaseSuffix, "HS"), animationImage, 0f, 0f, false, true);
             }
 
-            if (player.ClassId == PlayerClass.Sniper && player.IsSniperScoped)
+            if (player.ClassId == PlayerClass.Sniper && player.IsSniperScoped && !player.IsSniperBowEquipped)
             {
                 return new PlayerBodySpriteSelection(GetPresentationSpriteName(player, static presentation => presentation.ScopedSuffix ?? presentation.BaseSuffix, "CrouchS"), WrapAnimationImage(animationImage, 2f), 0f, 0f, false, false);
             }

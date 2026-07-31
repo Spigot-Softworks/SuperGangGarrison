@@ -78,6 +78,8 @@ public sealed partial class PlayerEntity
         SpySuperjumpChargeTicks = 0;
         IsSpySuperjumping = false;
         SpySuperjumpHorizontalVelocity = 0f;
+        SniperBowChargeTicks = 0;
+        SniperBowChargeDirectionDegrees = 0f;
     }
 
     public void ForceEndSniperScopeForHumiliation()

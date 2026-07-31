@@ -118,6 +118,12 @@ public partial class Game1
 
     private void AdvancePredictedSniperState(PlayerEntity player)
     {
+        if (player.IsSniperBowEquipped)
+        {
+            _predictedLocalActionState.SniperChargeTicks = 0;
+            return;
+        }
+
         if (!player.HasScopedSniperWeaponEquipped || !_predictedLocalActionState.IsSniperScoped || _predictedLocalActionState.PrimaryCooldownTicks > 0)
         {
             _predictedLocalActionState.SniperChargeTicks = 0;
@@ -128,6 +134,37 @@ public partial class Game1
         {
             _predictedLocalActionState.SniperChargeTicks += 1;
         }
+    }
+
+    private bool ApplyPredictedSniperBowPrimaryFire(PlayerEntity player, PredictedLocalInput predictedInput)
+    {
+        if (!player.IsSniperBowEquipped)
+        {
+            _predictedLocalActionState.SniperBowChargeTicks = 0;
+            return false;
+        }
+
+        var input = predictedInput.Input;
+        if (input.FirePrimary)
+        {
+            var directionDegrees = player.AimDirectionDegrees;
+            if (player.SniperBowChargeTicks == 0)
+            {
+                _ = player.TryStartSniperBowCharge(directionDegrees);
+            }
+            else
+            {
+                player.IncrementSniperBowCharge(directionDegrees);
+            }
+        }
+        else if (player.SniperBowChargeTicks > 0)
+        {
+            // Match server release: clear local charge; the authoritative arrow comes from the snapshot.
+            player.CancelSniperBowCharge();
+        }
+
+        _predictedLocalActionState.SniperBowChargeTicks = player.SniperBowChargeTicks;
+        return true;
     }
 
     private void AdvancePredictedMedicState(PlayerEntity player)
@@ -257,6 +294,11 @@ public partial class Game1
             return;
         }
 
+        if (ApplyPredictedSniperBowPrimaryFire(player, predictedInput))
+        {
+            return;
+        }
+
         if (!predictedInput.Input.FirePrimary)
         {
             return;
@@ -299,6 +341,11 @@ public partial class Game1
             || !player.IsExperimentalOffhandSelected)
         {
             return false;
+        }
+
+        if (player.IsSniperBowEquipped)
+        {
+            return true;
         }
 
         if (!player.TryFireExperimentalOffhandWeapon())

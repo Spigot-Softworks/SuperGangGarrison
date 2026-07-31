@@ -35,9 +35,9 @@
       "id": "sniper.stock",
       "displayName": "Stock",
       "primaryItemId": "weapon.rifle",
-      "secondaryItemId": "ability.sniper-scope",
-      "utilityItemId": "ability.sniper-utility",
-      "abilityItemIds": [ "ability.experimental-ltd-passive" ]
+      "secondaryItemId": "weapon.bow",
+      "utilityItemId": "ability.sniper-bow-toggle",
+      "abilityItemIds": [ "ability.experimental-ltd-passive", "ability.sniper-scope" ]
     }
   },
   "defaultLoadoutId": "sniper.stock"

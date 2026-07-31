@@ -17,7 +17,8 @@ public class NeedleProjectileEntity : SimulationEntity
         float x,
         float y,
         float velocityX,
-        float velocityY) : base(id)
+        float velocityY,
+        int lifetimeTicks = LifetimeTicks) : base(id)
     {
         Team = team;
         OwnerId = ownerId;
@@ -25,7 +26,7 @@ public class NeedleProjectileEntity : SimulationEntity
         Y = y;
         VelocityX = velocityX;
         VelocityY = velocityY;
-        TicksRemaining = LifetimeTicks;
+        TicksRemaining = lifetimeTicks;
     }
 
     public PlayerTeam Team { get; private set; }
@@ -52,7 +53,49 @@ public class NeedleProjectileEntity : SimulationEntity
 
     public float CriticalDamageMultiplier => IsCritical ? ExperimentalGameplaySettings.KritzCriticalDamageMultiplier : 1f;
 
+    public virtual float HitProbeForwardOffset => 0f;
+
+    internal float RaycastPreviousX { get; private set; }
+
+    internal float RaycastPreviousY { get; private set; }
+
     public void SetCritical() { IsCritical = true; }
+
+    public void PrepareRaycastProbe()
+    {
+        GetForwardProbePosition(PreviousX, PreviousY, out var probeX, out var probeY);
+        RaycastPreviousX = probeX;
+        RaycastPreviousY = probeY;
+    }
+
+    public void GetForwardProbePosition(float baseX, float baseY, out float probeX, out float probeY)
+    {
+        var offset = HitProbeForwardOffset;
+        if (offset <= 0f)
+        {
+            probeX = baseX;
+            probeY = baseY;
+            return;
+        }
+
+        var speed = MathF.Sqrt((VelocityX * VelocityX) + (VelocityY * VelocityY));
+        if (speed <= 0.0001f)
+        {
+            probeX = baseX;
+            probeY = baseY;
+            return;
+        }
+
+        probeX = baseX + ((VelocityX / speed) * offset);
+        probeY = baseY + ((VelocityY / speed) * offset);
+    }
+
+    public void GetBasePositionFromProbeHit(float probeHitX, float probeHitY, float directionX, float directionY, out float baseX, out float baseY)
+    {
+        var offset = HitProbeForwardOffset;
+        baseX = probeHitX - (directionX * offset);
+        baseY = probeHitY - (directionY * offset);
+    }
 
     public void AdvanceOneTick(float gravityScale = 1f)
     {

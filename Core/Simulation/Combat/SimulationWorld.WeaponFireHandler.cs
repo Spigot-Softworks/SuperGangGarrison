@@ -236,6 +236,11 @@ public sealed partial class SimulationWorld
             _world.SpawnNail(owner, x, y, velocityX, velocityY);
         }
 
+        private void SpawnArrow(PlayerEntity owner, float x, float y, float velocityX, float velocityY, int damage, float fakeSpeedMultiplier)
+        {
+            _world.SpawnArrow(owner, x, y, velocityX, velocityY, damage, fakeSpeedMultiplier);
+        }
+
         private static float DegreesToRadians(float degrees)
         {
             return SimulationWorld.DegreesToRadians(degrees);

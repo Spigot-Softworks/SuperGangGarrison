@@ -2368,6 +2368,51 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
+    public void SniperSwapWeaponInputCanToggleBowAndBackToRifle()
+    {
+        var world = CreateJoinedSniperWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+
+        Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.False(world.LocalPlayer.IsSniperBowEquipped);
+
+        PressSwapWeaponSpace(world);
+
+        Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.True(world.LocalPlayer.IsSniperBowEquipped);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+
+        ReleaseAllInput(world);
+        PressSwapWeaponSpace(world);
+
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.False(world.LocalPlayer.IsSniperBowEquipped);
+        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+    }
+
+    [Fact]
+    public void NetworkSniperSwapWeaponInputCanToggleBowAndBackToRifle()
+    {
+        var world = CreateJoinedSniperWorld(new ExperimentalGameplaySettings());
+        var player = CreateNetworkSniper(world, 2);
+        AdvanceTicks(world, 1);
+
+        Assert.True(player.HasExperimentalOffhandWeapon);
+        Assert.False(player.IsSniperBowEquipped);
+
+        PressNetworkSwapWeaponSpace(world, 2, player);
+        Assert.True(player.IsExperimentalOffhandEquipped);
+        Assert.True(player.IsSniperBowEquipped);
+
+        ReleaseNetworkInput(world, 2);
+
+        PressNetworkSwapWeaponSpace(world, 2, player);
+        Assert.False(player.IsExperimentalOffhandEquipped);
+        Assert.False(player.IsSniperBowEquipped);
+        Assert.Equal(GameplayEquipmentSlot.Primary, player.GameplayLoadoutState.EquippedSlot);
+    }
+
+    [Fact]
     public void SoldierPrimarySlotSnapshotAfterShotgunSwapAllowsRocketFire()
     {
         var world = CreateJoinedSoldierWorld(new ExperimentalGameplaySettings(EnableSoldierShotgunSecondaryWeapon: true));
@@ -3374,6 +3419,15 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
         Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Red));
         Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Soldier));
+        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        return player;
+    }
+
+    private static PlayerEntity CreateNetworkSniper(SimulationWorld world, byte slot)
+    {
+        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Red));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Sniper));
         Assert.True(world.TryGetNetworkPlayer(slot, out var player));
         return player;
     }

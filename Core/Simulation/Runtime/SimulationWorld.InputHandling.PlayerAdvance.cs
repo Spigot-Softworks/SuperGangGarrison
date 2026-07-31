@@ -183,7 +183,7 @@ public sealed partial class SimulationWorld
         }
 
         var wasSpyBackstabAnimating = player.IsSpyBackstabAnimating;
-        TryHandleNetworkPrimaryFire(player, input, primaryPressed, suppressPyroPrimaryThisTick);
+        TryHandleNetworkPrimaryFire(player, input, previousInput, primaryPressed, suppressPyroPrimaryThisTick);
         if (!wasSpyBackstabAnimating && player.IsSpyBackstabAnimating)
         {
             input = ResetMovementInput(input);

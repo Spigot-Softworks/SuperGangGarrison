@@ -69,13 +69,19 @@ public sealed partial class SimulationWorld
                 return null;
             }
 
-            var distance = tMin >= 0f ? tMin : tMax;
-            if (distance < 0f || distance > maxDistance)
+            // Already overlapping (common on walkmask stairs / RLE treads): contact here.
+            // Using tMax (exit) teleports hits to the far side of long solids and buries projectiles.
+            if (tMin < 0f)
+            {
+                return 0f;
+            }
+
+            if (tMin > maxDistance)
             {
                 return null;
             }
 
-            return distance;
+            return tMin;
         }
 
         // Like GetRayIntersectionDistanceWithRectangle but also returns the surface normal at the hit point.
@@ -131,23 +137,35 @@ public sealed partial class SimulationWorld
                 return null;
             }
 
-            var distance = tMin >= 0f ? tMin : tMax;
-            if (distance < 0f || distance > maxDistance)
+            float distance;
+            float normalX;
+            float normalY;
+            if (tMin < 0f)
             {
-                return null;
-            }
-
-            // Determine which face was hit: the axis whose slab constrained tMin.
-            float normalX, normalY;
-            if (tMinX >= tMinY)
-            {
-                normalX = directionX > 0f ? -1f : 1f;
-                normalY = 0f;
+                // Already overlapping — contact at the current point, push back along inbound direction.
+                distance = 0f;
+                normalX = -directionX;
+                normalY = -directionY;
             }
             else
             {
-                normalX = 0f;
-                normalY = directionY > 0f ? -1f : 1f;
+                if (tMin > maxDistance)
+                {
+                    return null;
+                }
+
+                distance = tMin;
+                // Determine which face was hit: the axis whose slab constrained tMin.
+                if (tMinX >= tMinY)
+                {
+                    normalX = directionX > 0f ? -1f : 1f;
+                    normalY = 0f;
+                }
+                else
+                {
+                    normalX = 0f;
+                    normalY = directionY > 0f ? -1f : 1f;
+                }
             }
 
             return (distance, normalX, normalY);
