@@ -140,4 +140,69 @@ public sealed class CustomMapEntityRuntimeRegistryTests
         Assert.True(CustomMapEntityRuntimeRegistry.IsModernEntityType(TeleportMetadata.TeleportEntityType));
         Assert.True(CustomMapEntityRuntimeRegistry.IsModernEntityType(TeleportMetadata.TeleportExitEntityType));
     }
+
+    [Fact]
+    public void PushBlockImportsToLegacyMoveBoxMarker()
+    {
+        var context = new CustomMapEntityImportContext
+        {
+            RoomObjects = [],
+            UseCenterOrigin = true,
+        };
+
+        Assert.True(CustomMapEntityRuntimeRegistry.TryImport(
+            PushBlockMetadata.EntityType,
+            100f,
+            120f,
+            2f,
+            1f,
+            new Dictionary<string, string>
+            {
+                [PushBlockMetadata.DirectionPropertyKey] = PushBlockMetadata.RightValue,
+                [PushBlockMetadata.SpeedPropertyKey] = "7",
+            },
+            context));
+
+        var marker = Assert.Single(context.RoomObjects);
+        Assert.Equal(RoomObjectType.MoveBoxRight, marker.Type);
+        Assert.Equal(84f, marker.Width);
+        Assert.Equal(42f, marker.Height);
+        Assert.Equal(58f, marker.X);
+        Assert.Equal(99f, marker.Y);
+        Assert.Equal(7f * LegacyMovementModel.SourceTicksPerSecond, marker.Value);
+    }
+
+    [Fact]
+    public void CatapultImportsToRoomObjectMarker()
+    {
+        var context = new CustomMapEntityImportContext
+        {
+            RoomObjects = [],
+            UseCenterOrigin = true,
+        };
+
+        Assert.True(CustomMapEntityRuntimeRegistry.TryImport(
+            CatapultMetadata.EntityType,
+            50f,
+            60f,
+            1f,
+            2f,
+            new Dictionary<string, string>
+            {
+                [CatapultMetadata.AnglePropertyKey] = "45",
+                [CatapultMetadata.SpeedPropertyKey] = "12",
+                [CatapultMetadata.RequiresJumpPressPropertyKey] = "true",
+            },
+            context));
+
+        var marker = Assert.Single(context.RoomObjects);
+        Assert.Equal(RoomObjectType.Catapult, marker.Type);
+        Assert.Equal(42f, marker.Width);
+        Assert.Equal(84f, marker.Height);
+        Assert.Equal(29f, marker.X);
+        Assert.Equal(18f, marker.Y);
+        Assert.Equal(45f, marker.Catapult.AngleDegrees);
+        Assert.Equal(12f * LegacyMovementModel.SourceTicksPerSecond, marker.Catapult.Speed);
+        Assert.True(marker.Catapult.RequiresJumpPress);
+    }
 }

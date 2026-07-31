@@ -581,7 +581,11 @@ internal sealed class ServerBotManager
 
             if (_world.TryGetNetworkPlayer(slot, out var player))
             {
-                ApplyMapBotReplicatedStates(player, state.ForceNameplate, state.ForceHealthBar, state.DeathTriggerNodeIndex);
+                ApplyMapBotReplicatedStates(
+                    player,
+                    state.ForceNameplate,
+                    state.ForceHealthBar,
+                    state.DeathTriggerNodeIndex);
             }
 
             if (_world.IsNetworkPlayerAwaitingJoin(slot))

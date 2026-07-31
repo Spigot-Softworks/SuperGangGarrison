@@ -2051,6 +2051,65 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
+    public void SnapshotDeltaStatusUpdateClearsRemovedCivilianPogoTrickRuntimeState()
+    {
+        var baselineCivilian = CreatePlayerState(2, 1093, "Remote Civilian") with
+        {
+            ClassId = (byte)PlayerClass.Quote,
+            ReplicatedStates =
+            [
+                CreateCoreAbilityState(
+                    GameplayAbilityReplicatedState.CivviePogoActiveKey,
+                    SnapshotReplicatedStateValueKind.Toggle,
+                    boolValue: true),
+                CreateCoreAbilityState(
+                    GameplayAbilityReplicatedState.CivviePogoCrunchTicksKey,
+                    SnapshotReplicatedStateValueKind.Whole,
+                    intValue: 2),
+                CreateCoreAbilityState(
+                    GameplayAbilityReplicatedState.CivviePogoTrickTicksKey,
+                    SnapshotReplicatedStateValueKind.Whole,
+                    intValue: 11),
+                CreateCoreAbilityState(
+                    GameplayAbilityReplicatedState.CivviePogoTrickDurationTicksKey,
+                    SnapshotReplicatedStateValueKind.Whole,
+                    intValue: 18),
+            ],
+        };
+        var baseline = CreateSnapshot(1092) with
+        {
+            Players = [baselineCivilian],
+        };
+        var delta = CreateSnapshot(1093) with
+        {
+            IsDelta = true,
+            BaselineFrame = baseline.Frame,
+            PlayerStatusStates =
+            [
+                new SnapshotPlayerStatusState(
+                    baselineCivilian.Slot,
+                    baselineCivilian.Health,
+                    baselineCivilian.MaxHealth,
+                    baselineCivilian.Ammo,
+                    baselineCivilian.MaxAmmo,
+                    baselineCivilian.Metal,
+                    baselineCivilian.IsCarryingIntel,
+                    baselineCivilian.IntelRechargeTicks,
+                    SecondaryAmmoStates: []),
+            ],
+        };
+
+        var merged = SnapshotDelta.ToFullSnapshot(delta, baseline);
+
+        var mergedCivilian = Assert.Single(merged.Players);
+        var states = mergedCivilian.ReplicatedStates ?? [];
+        Assert.DoesNotContain(states, state => state.Key == GameplayAbilityReplicatedState.CivviePogoActiveKey);
+        Assert.DoesNotContain(states, state => state.Key == GameplayAbilityReplicatedState.CivviePogoCrunchTicksKey);
+        Assert.DoesNotContain(states, state => state.Key == GameplayAbilityReplicatedState.CivviePogoTrickTicksKey);
+        Assert.DoesNotContain(states, state => state.Key == GameplayAbilityReplicatedState.CivviePogoTrickDurationTicksKey);
+    }
+
+    [Fact]
     public void BuildContributionsDoesNotSendFullPlayerForAimAndBinocularDriftBetweenDetailWindows()
     {
         var localPlayer = CreatePlayerState(1, 1121, "Viewer");
