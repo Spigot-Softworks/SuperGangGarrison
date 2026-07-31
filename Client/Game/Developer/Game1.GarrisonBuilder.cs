@@ -4074,6 +4074,18 @@ public partial class Game1
             return true;
         }
 
+        if (definition.Type.Equals(PushBlockMetadata.EntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            DrawGarrisonBuilderPushBlockPattern(entity, tint);
+            return true;
+        }
+
+        if (definition.Type.Equals(CatapultMetadata.EntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            DrawGarrisonBuilderCatapultPattern(entity, tint);
+            return true;
+        }
+
         if (definition.Type.Equals("directionalWall", StringComparison.OrdinalIgnoreCase))
         {
             DrawGarrisonBuilderDirectionalWallPattern(entity, tint);
@@ -4277,6 +4289,16 @@ public partial class Game1
             return Color.Lerp(new Color(72, 110, 82, 220), baseTint, 0.35f);
         }
 
+        if (definition.Type.Equals(PushBlockMetadata.EntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            return Color.Lerp(new Color(72, 120, 150, 220), baseTint, 0.3f);
+        }
+
+        if (definition.Type.Equals(CatapultMetadata.EntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            return Color.Lerp(new Color(124, 96, 52, 220), baseTint, 0.3f);
+        }
+
         if (definition.Type.Equals("spawn", StringComparison.OrdinalIgnoreCase)
             && GetEntityProperty(entity.Properties, "team", "red").Equals("neutral", StringComparison.OrdinalIgnoreCase))
         {
@@ -4465,6 +4487,8 @@ public partial class Game1
             || type.Equals(PlayerTriggerMetadata.PlayerTriggerEntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals(DamageableMetadata.DamageableEntityType, StringComparison.OrdinalIgnoreCase)
             || GameplayMessageMetadata.IsGameplayMessageEntityType(type)
+            || type.Equals(PushBlockMetadata.EntityType, StringComparison.OrdinalIgnoreCase)
+            || type.Equals(CatapultMetadata.EntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals("barrier", StringComparison.OrdinalIgnoreCase)
             || type.Equals("directionalWall", StringComparison.OrdinalIgnoreCase)
             || type.Equals("redteamgate", StringComparison.OrdinalIgnoreCase)
@@ -4563,6 +4587,15 @@ public partial class Game1
             return false;
         }
 
+        if (type.Equals(PushBlockMetadata.EntityType, StringComparison.OrdinalIgnoreCase)
+            || type.Equals(CatapultMetadata.EntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            var zoneWidth = 42f * (float.IsFinite(xScale) && MathF.Abs(xScale) > 0f ? MathF.Abs(xScale) : 1f);
+            var zoneHeight = 42f * (float.IsFinite(yScale) && MathF.Abs(yScale) > 0f ? MathF.Abs(yScale) : 1f);
+            metrics = new GarrisonBuilderEntityMetrics(zoneWidth, zoneHeight, 0f, 0f, 0f, 0f, -zoneWidth);
+            return true;
+        }
+
         var floor = type.Equals("barrier", StringComparison.OrdinalIgnoreCase)
             ? BarrierConfiguration.IsFloorOrientation(properties)
             : type.Equals("directionalWall", StringComparison.OrdinalIgnoreCase)
@@ -4621,6 +4654,12 @@ public partial class Game1
             return;
         }
 
+        if (type.Equals(PushBlockMetadata.EntityType, StringComparison.OrdinalIgnoreCase)
+            || type.Equals(CatapultMetadata.EntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
         if (GameplayMessageMetadata.IsGameplayMessageEntityType(type))
         {
             return;
@@ -4637,6 +4676,14 @@ public partial class Game1
         {
             minWidth = BarrierConfiguration.MinExtent;
             minHeight = BarrierConfiguration.MinExtent;
+            return;
+        }
+
+        if (type.Equals(PushBlockMetadata.EntityType, StringComparison.OrdinalIgnoreCase)
+            || type.Equals(CatapultMetadata.EntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            minWidth = 8f;
+            minHeight = 8f;
             return;
         }
 
@@ -5176,6 +5223,151 @@ public partial class Game1
             default:
                 return false;
         }
+    }
+
+    private void DrawGarrisonBuilderPushBlockPattern(CustomMapBuilderEntity entity, Color tint)
+    {
+        if (!TryGetGarrisonBuilderEntityWorldBounds(entity, out var left, out var top, out var width, out var height))
+        {
+            return;
+        }
+
+        var topLeft = BuilderWorldToScreen(new Vector2(left, top));
+        var bottomRight = BuilderWorldToScreen(new Vector2(left + width, top + height));
+        var screenLeft = MathF.Min(topLeft.X, bottomRight.X);
+        var screenTop = MathF.Min(topLeft.Y, bottomRight.Y);
+        var screenRight = MathF.Max(topLeft.X, bottomRight.X);
+        var screenBottom = MathF.Max(topLeft.Y, bottomRight.Y);
+        var screenBounds = new Rectangle(
+            (int)MathF.Floor(screenLeft),
+            (int)MathF.Floor(screenTop),
+            Math.Max(1, (int)MathF.Ceiling(screenRight - screenLeft)),
+            Math.Max(1, (int)MathF.Ceiling(screenBottom - screenTop)));
+
+        var fillColor = Color.Lerp(new Color(56, 108, 138, 185), tint, 0.25f);
+        var arrowColor = Color.Lerp(new Color(148, 230, 255, 230), tint, 0.2f);
+        var borderColor = Color.Lerp(new Color(32, 64, 84, 255), tint, 0.15f);
+        _spriteBatch.Draw(_pixel, screenBounds, fillColor);
+        DrawGarrisonBuilderRectangleOutline(screenBounds, borderColor);
+
+        var direction = PushBlockMetadata.ParseDirection(entity.Properties);
+        const float tileSize = 14f;
+        for (var cellY = top; cellY < top + height - 0.01f; cellY += tileSize)
+        {
+            for (var cellX = left; cellX < left + width - 0.01f; cellX += tileSize)
+            {
+                DrawGarrisonBuilderPushBlockArrowCell(
+                    direction,
+                    cellX,
+                    cellY,
+                    MathF.Min(tileSize, left + width - cellX),
+                    MathF.Min(tileSize, top + height - cellY),
+                    arrowColor);
+            }
+        }
+    }
+
+    private void DrawGarrisonBuilderCatapultPattern(CustomMapBuilderEntity entity, Color tint)
+    {
+        if (!TryGetGarrisonBuilderEntityWorldBounds(entity, out var left, out var top, out var width, out var height))
+        {
+            return;
+        }
+
+        var topLeft = BuilderWorldToScreen(new Vector2(left, top));
+        var bottomRight = BuilderWorldToScreen(new Vector2(left + width, top + height));
+        var screenBounds = new Rectangle(
+            (int)MathF.Floor(MathF.Min(topLeft.X, bottomRight.X)),
+            (int)MathF.Floor(MathF.Min(topLeft.Y, bottomRight.Y)),
+            Math.Max(1, (int)MathF.Ceiling(MathF.Abs(bottomRight.X - topLeft.X))),
+            Math.Max(1, (int)MathF.Ceiling(MathF.Abs(bottomRight.Y - topLeft.Y))));
+        var fillColor = Color.Lerp(new Color(126, 92, 42, 185), tint, 0.25f);
+        var arrowColor = Color.Lerp(new Color(255, 216, 120, 235), tint, 0.2f);
+        var borderColor = Color.Lerp(new Color(86, 54, 24, 255), tint, 0.15f);
+        _spriteBatch.Draw(_pixel, screenBounds, fillColor);
+        DrawGarrisonBuilderRectangleOutline(screenBounds, borderColor);
+
+        var angleDegrees = CatapultMetadata.ParseAngleDegrees(entity.Properties);
+        var radians = angleDegrees * (MathF.PI / 180f);
+        var direction = new Vector2(MathF.Cos(radians), -MathF.Sin(radians));
+        var center = new Vector2(left + (width * 0.5f), top + (height * 0.5f));
+        var length = MathF.Max(12f, MathF.Min(width, height) * 0.65f);
+        var start = center - (direction * length * 0.35f);
+        var tip = center + (direction * length * 0.5f);
+        DrawGarrisonBuilderWorldArrow(start, tip, arrowColor, 3f);
+    }
+
+    private void DrawGarrisonBuilderPushBlockArrowCell(
+        PushBlockDirection direction,
+        float worldX,
+        float worldY,
+        float cellWidth,
+        float cellHeight,
+        Color arrowColor)
+    {
+        var inset = MathF.Max(1f, MathF.Min(cellWidth, cellHeight) * 0.18f);
+        var left = worldX + inset;
+        var top = worldY + inset;
+        var right = worldX + cellWidth - inset;
+        var bottom = worldY + cellHeight - inset;
+        var centerX = (left + right) * 0.5f;
+        var centerY = (top + bottom) * 0.5f;
+
+        switch (direction)
+        {
+            case PushBlockDirection.Right:
+                DrawGarrisonBuilderFilledTriangle(
+                    BuilderWorldToScreen(new Vector2(right, centerY)),
+                    BuilderWorldToScreen(new Vector2(left, top)),
+                    BuilderWorldToScreen(new Vector2(left, bottom)),
+                    arrowColor);
+                break;
+            case PushBlockDirection.Left:
+                DrawGarrisonBuilderFilledTriangle(
+                    BuilderWorldToScreen(new Vector2(left, centerY)),
+                    BuilderWorldToScreen(new Vector2(right, top)),
+                    BuilderWorldToScreen(new Vector2(right, bottom)),
+                    arrowColor);
+                break;
+            case PushBlockDirection.Down:
+                DrawGarrisonBuilderFilledTriangle(
+                    BuilderWorldToScreen(new Vector2(centerX, bottom)),
+                    BuilderWorldToScreen(new Vector2(left, top)),
+                    BuilderWorldToScreen(new Vector2(right, top)),
+                    arrowColor);
+                break;
+            default:
+                DrawGarrisonBuilderFilledTriangle(
+                    BuilderWorldToScreen(new Vector2(centerX, top)),
+                    BuilderWorldToScreen(new Vector2(left, bottom)),
+                    BuilderWorldToScreen(new Vector2(right, bottom)),
+                    arrowColor);
+                break;
+        }
+    }
+
+    private void DrawGarrisonBuilderWorldArrow(Vector2 startWorld, Vector2 tipWorld, Color color, float thickness)
+    {
+        var start = BuilderWorldToScreen(startWorld);
+        var tip = BuilderWorldToScreen(tipWorld);
+        var delta = tip - start;
+        var length = delta.Length();
+        if (length < 1f)
+        {
+            return;
+        }
+
+        var direction = delta / length;
+        var perpendicular = new Vector2(-direction.Y, direction.X);
+        var headLength = MathF.Min(18f, MathF.Max(8f, length * 0.35f));
+        var headWidth = MathF.Min(12f, MathF.Max(5f, headLength * 0.65f));
+        var baseCenter = tip - (direction * headLength);
+        DrawGarrisonBuilderLine(start, baseCenter, color, thickness);
+        DrawGarrisonBuilderFilledTriangle(
+            tip,
+            baseCenter + (perpendicular * headWidth),
+            baseCenter - (perpendicular * headWidth),
+            color);
     }
 
     private string GetGarrisonBuilderResourcePathPrompt() =>
@@ -5771,6 +5963,20 @@ public partial class Game1
             && IsEditingGarrisonBuilderHealthPackEntity())
         {
             _builderPropertyEditorValues[key] = HealthPackMetadata.CycleSizePropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(PushBlockMetadata.DirectionPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderPushBlockEntity())
+        {
+            _builderPropertyEditorValues[key] = PushBlockMetadata.CycleDirectionPropertyValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
+        else if (key.Equals(CatapultMetadata.RequiresJumpPressPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderCatapultEntity())
+        {
+            _builderPropertyEditorValues[key] = CatapultMetadata.CycleRequiresJumpPressPropertyValue(value);
             ApplyGarrisonBuilderPropertyEditorLivePreview();
             MarkGarrisonBuilderPropertyEditorChanged();
         }
@@ -7564,6 +7770,18 @@ public partial class Game1
             && HealthPackMetadata.IsHealthPackEntityType(entityType);
     }
 
+    private bool IsEditingGarrisonBuilderPushBlockEntity()
+    {
+        return TryGetGarrisonBuilderEditedEntityType(out var entityType)
+            && PushBlockMetadata.IsPushBlockEntityType(entityType);
+    }
+
+    private bool IsEditingGarrisonBuilderCatapultEntity()
+    {
+        return TryGetGarrisonBuilderEditedEntityType(out var entityType)
+            && CatapultMetadata.IsCatapultEntityType(entityType);
+    }
+
     private bool IsEditingGarrisonBuilderBotSpawnEntity()
     {
         return TryGetGarrisonBuilderEditedEntityType(out var entityType)
@@ -8142,6 +8360,8 @@ public partial class Game1
             || key.Equals(PlayerTriggerMetadata.MaxFiresPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(HealthPackMetadata.SizePropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(HealthPackMetadata.RespawnSecondsPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(PushBlockMetadata.DirectionPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(CatapultMetadata.RequiresJumpPressPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(ControlPointCapTimeMultiplierMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase)
             || IsGarrisonBuilderObjectiveMapPickProperty(key)
             || IsGarrisonBuilderSpawnUseWhenProperty(key))
@@ -8289,6 +8509,36 @@ public partial class Game1
             && IsEditingGarrisonBuilderHealthPackEntity())
         {
             return $"Respawn (sec): {HealthPackMetadata.ToRespawnSecondsPropertyValue(HealthPackMetadata.ParseRespawnSeconds(value))}";
+        }
+
+        if (key.Equals(PushBlockMetadata.DirectionPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderPushBlockEntity())
+        {
+            return $"Direction: {PushBlockMetadata.GetDirectionDisplayLabel(value)}";
+        }
+
+        if (key.Equals(PushBlockMetadata.SpeedPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderPushBlockEntity())
+        {
+            return $"Speed: {PushBlockMetadata.ParseSpeedPerTick(value, PushBlockMetadata.DefaultPushSpeedPerTick):0.###}";
+        }
+
+        if (key.Equals(CatapultMetadata.AnglePropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderCatapultEntity())
+        {
+            return $"Angle: {CatapultMetadata.ParseAngleDegrees(value):0.###}";
+        }
+
+        if (key.Equals(CatapultMetadata.SpeedPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderCatapultEntity())
+        {
+            return $"Speed: {PushBlockMetadata.ParseSpeedPerTick(value, CatapultMetadata.DefaultLaunchSpeedPerTick):0.###}";
+        }
+
+        if (key.Equals(CatapultMetadata.RequiresJumpPressPropertyKey, StringComparison.OrdinalIgnoreCase)
+            && IsEditingGarrisonBuilderCatapultEntity())
+        {
+            return $"Trigger: {CatapultMetadata.GetRequiresJumpPressDisplayLabel(value)}";
         }
 
         if (key.Equals(BotSpawnMetadata.TriggerPropertyKey, StringComparison.OrdinalIgnoreCase)

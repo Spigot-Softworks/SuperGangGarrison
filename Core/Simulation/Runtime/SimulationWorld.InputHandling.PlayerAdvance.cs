@@ -182,7 +182,13 @@ public sealed partial class SimulationWorld
             }
         }
 
-        ApplyRoomForces(player);
+        if (ApplyRoomForces(player, jumpPressed))
+        {
+            jumpPressed = false;
+            input = input with { Up = false };
+            ClearJumpInputBuffer(player);
+        }
+
         var cancelledSpySuperjumpChargeWithJump = TryCancelSpySuperjumpChargeFromJumpInput(player, jumpPressed, input.UseAbility);
         if (cancelledSpySuperjumpChargeWithJump)
         {

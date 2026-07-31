@@ -25,6 +25,8 @@ public static class CustomMapEntityRuntimeRegistry
         Register(new TeleportZoneMapEntityRuntimeImporter());
         Register(new PlayerTriggerMapEntityRuntimeImporter());
         Register(new DamageableMapEntityRuntimeImporter());
+        Register(new PushBlockMapEntityRuntimeImporter());
+        Register(new CatapultMapEntityRuntimeImporter());
         Register(new AreaMapEntityRuntimeImporter());
         Register(new CustomMapCustomSpriteMapEntityRuntimeImporter());
         Register(new ForegroundSpriteMapEntityRuntimeImporter());
@@ -194,6 +196,50 @@ internal sealed class SpawnClassBehaviorMapEntityRuntimeImporter : ICustomMapEnt
         }
 
         context.SpawnClassBehaviors.Add(SpawnClassBehaviorMetadata.FromProperties(args.X, args.Y, args.Properties));
+        return true;
+    }
+}
+
+internal sealed class PushBlockMapEntityRuntimeImporter : ICustomMapEntityRuntimeImporter
+{
+    public string EntityType => PushBlockMetadata.EntityType;
+
+    public bool TryImport(CustomMapEntityImportArgs args, CustomMapEntityImportContext context)
+    {
+        if (!PushBlockMetadata.IsPushBlockEntityType(args.Type))
+        {
+            return false;
+        }
+
+        context.RoomObjects.Add(PushBlockMetadata.CreateMarker(
+            args.X,
+            args.Y,
+            args.XScale,
+            args.YScale,
+            args.Properties,
+            context.UseCenterOrigin));
+        return true;
+    }
+}
+
+internal sealed class CatapultMapEntityRuntimeImporter : ICustomMapEntityRuntimeImporter
+{
+    public string EntityType => CatapultMetadata.EntityType;
+
+    public bool TryImport(CustomMapEntityImportArgs args, CustomMapEntityImportContext context)
+    {
+        if (!CatapultMetadata.IsCatapultEntityType(args.Type))
+        {
+            return false;
+        }
+
+        context.RoomObjects.Add(CatapultMetadata.CreateMarker(
+            args.X,
+            args.Y,
+            args.XScale,
+            args.YScale,
+            args.Properties,
+            context.UseCenterOrigin));
         return true;
     }
 }
