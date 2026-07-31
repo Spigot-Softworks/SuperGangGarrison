@@ -146,6 +146,8 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool ProjectileTeamTintEnabled { get; set; } = true;
 
+    public bool StuckArrowsEnabled { get; set; } = true;
+
     public bool AudioMuted { get; set; }
 
     public int MasterVolumePercent { get; set; } = 100;
@@ -287,6 +289,7 @@ public sealed class OpenGarrisonPreferencesDocument
             LowHealthColorMode = ParseLowHealthColorMode(ini.GetString(SettingsSection, "Low Health Color", LowHealthColorMode.Red.ToString())),
             ShowUberOutlinesEnabled = ini.GetBool(SettingsSection, "Show Uber Outlines", true),
             ProjectileTeamTintEnabled = ini.GetBool(SettingsSection, "Projectile Team Tint", true),
+            StuckArrowsEnabled = ini.GetBool(SettingsSection, "Stuck Arrows", true),
             AudioMuted = ini.GetBool(SettingsSection, "Audio Muted", false),
             MasterVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Master Volume", 100), 0, 100),
             MenuMusicVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Menu Music Volume", 100), 0, 100),
@@ -383,6 +386,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetString(SettingsSection, "Low Health Color", NormalizeLowHealthColorMode(LowHealthColorMode).ToString());
         ini.SetBool(SettingsSection, "Show Uber Outlines", ShowUberOutlinesEnabled);
         ini.SetBool(SettingsSection, "Projectile Team Tint", ProjectileTeamTintEnabled);
+        ini.SetBool(SettingsSection, "Stuck Arrows", StuckArrowsEnabled);
         ini.SetBool(SettingsSection, "Audio Muted", AudioMuted);
         ini.SetInt(SettingsSection, "Master Volume", Math.Clamp(MasterVolumePercent, 0, 100));
         ini.SetInt(SettingsSection, "Menu Music Volume", MenuMusicVolumePercent);

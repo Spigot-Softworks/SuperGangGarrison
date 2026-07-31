@@ -223,6 +223,7 @@ public sealed partial class PlayerEntity
             return false;
         }
 
+        CancelSniperBowCharge();
         IsSniperScoped = !IsSniperScoped;
         if (!IsSniperScoped)
         {
@@ -900,6 +901,105 @@ public sealed partial class PlayerEntity
         {
             IsSpySuperjumping = false;
             SpySuperjumpHorizontalVelocity = 0f;
+        }
+    }
+
+    public bool IsSniperBowEquipped =>
+        ClassId == PlayerClass.Sniper
+        && IsExperimentalOffhandSelected
+        && HasEquippedBehavior(BuiltInGameplayBehaviorIds.SniperBow);
+
+    public bool TryStartSniperBowCharge(float aimDirectionDegrees)
+    {
+        if (!IsAlive
+            || !IsSniperBowEquipped
+            || IsTaunting
+            || IsHeavyEating
+            || IsCarryingIntel
+            || SniperBowChargeTicks > 0
+            || ExperimentalOffhandCooldownTicks > 0
+            || ExperimentalOffhandCurrentShells <= 0)
+        {
+            return false;
+        }
+
+        SniperBowChargeTicks = 1;
+        SniperBowChargeDirectionDegrees = aimDirectionDegrees;
+        return true;
+    }
+
+    public void CancelSniperBowCharge()
+    {
+        SniperBowChargeTicks = 0;
+        SniperBowChargeDirectionDegrees = 0f;
+    }
+
+    public void IncrementSniperBowCharge(float aimDirectionDegrees, int maxChargeTicks = SniperBowMaxChargeTicks)
+    {
+        maxChargeTicks = Math.Max(1, maxChargeTicks);
+        if (SniperBowChargeTicks > 0 && SniperBowChargeTicks < maxChargeTicks)
+        {
+            SniperBowChargeTicks += 1;
+        }
+
+        SniperBowChargeDirectionDegrees = aimDirectionDegrees;
+    }
+
+    public bool TryReleaseSniperBowCharge(
+        out float velocityX,
+        out float velocityY,
+        out int damage,
+        out float fakeSpeedMultiplier,
+        int maxChargeTicks = SniperBowMaxChargeTicks,
+        float minVelocity = SniperBowMinVelocity,
+        float maxVelocity = SniperBowMaxVelocity)
+    {
+        velocityX = 0f;
+        velocityY = 0f;
+        damage = SniperBowMinDamage;
+        fakeSpeedMultiplier = SniperBowMinFakeSpeedMultiplier;
+
+        if (!IsAlive || !IsSniperBowEquipped || SniperBowChargeTicks <= 0)
+        {
+            return false;
+        }
+
+        maxChargeTicks = Math.Max(1, maxChargeTicks);
+        minVelocity = MathF.Max(0f, minVelocity);
+        maxVelocity = MathF.Max(minVelocity, maxVelocity);
+
+        var chargeFraction = float.Min(1f, SniperBowChargeTicks / (float)maxChargeTicks);
+        fakeSpeedMultiplier = GetSniperBowFakeSpeedMultiplierForChargeFraction(chargeFraction);
+        var velocity = (minVelocity + (maxVelocity - minVelocity) * chargeFraction) * fakeSpeedMultiplier;
+        var radians = SniperBowChargeDirectionDegrees * (MathF.PI / 180f);
+        velocityX = MathF.Cos(radians) * velocity;
+        velocityY = MathF.Sin(radians) * velocity;
+        damage = GetSniperBowDamageForChargeFraction(chargeFraction);
+
+        SniperBowChargeTicks = 0;
+        SniperBowChargeDirectionDegrees = 0f;
+        return true;
+    }
+
+    public static int GetSniperBowDamageForChargeFraction(float chargeFraction)
+    {
+        chargeFraction = float.Clamp(chargeFraction, 0f, 1f);
+        return (int)MathF.Round(SniperBowMinDamage + ((SniperBowMaxDamage - SniperBowMinDamage) * chargeFraction));
+    }
+
+    public static float GetSniperBowFakeSpeedMultiplierForChargeFraction(float chargeFraction)
+    {
+        chargeFraction = float.Clamp(chargeFraction, 0f, 1f);
+        return SniperBowMinFakeSpeedMultiplier
+            + ((SniperBowMaxFakeSpeedMultiplier - SniperBowMinFakeSpeedMultiplier) * chargeFraction);
+    }
+
+    private void AdvanceSniperBowState()
+    {
+        if (ClassId != PlayerClass.Sniper || !IsSniperBowEquipped)
+        {
+            SniperBowChargeTicks = 0;
+            SniperBowChargeDirectionDegrees = 0f;
         }
     }
 }

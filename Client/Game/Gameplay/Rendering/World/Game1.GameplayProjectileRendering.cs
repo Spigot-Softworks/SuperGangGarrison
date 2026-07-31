@@ -824,6 +824,8 @@ public partial class Game1
         DrawExplosionVisuals(cameraPosition);
         WriteGameplayRenderTrace("effects before impacts");
         DrawImpactVisuals(cameraPosition);
+        WriteGameplayRenderTrace("effects before stuck-arrows");
+        DrawStuckArrowVisuals(cameraPosition);
         WriteGameplayRenderTrace("effects before loose-sheets");
         DrawLooseSheetVisuals(cameraPosition);
         if (_gibLevel > 0)
@@ -1023,18 +1025,33 @@ public partial class Game1
 
         // Use NailS sprite for Scout's nailgun projectiles, NeedleHealS for Kritzkrieg heal needles, NeedleS for Medic needles
         var owner = FindPlayerById(needle.OwnerId);
-        var needleSpriteName = needle is MedicHealNeedleProjectileEntity
+        var needleSpriteName = needle is ArrowProjectileEntity
+            ? "ArrowS"
+            : needle is MedicHealNeedleProjectileEntity
             ? "NeedleHealS"
             : owner?.ClassId == PlayerClass.Scout ? "NailS" : "NeedleS";
+
+        var needleFrameIndex = 0;
+        var useTeamSpriteFrames = false;
+        if (needle is ArrowProjectileEntity)
+        {
+            var arrowSprite = GetResolvedSprite("ArrowS");
+            if (arrowSprite is { Frames.Count: >= 2 })
+            {
+                needleFrameIndex = needle.Team == PlayerTeam.Blue ? 1 : 0;
+                useTeamSpriteFrames = true;
+            }
+        }
 
         // Draw outline first (behind sprite) if critical
         if (needle.IsCritical)
         {
-            DrawCriticalProjectileOutline(needleSpriteName, 0, renderPosition.X, renderPosition.Y, cameraPosition, needle.Team, rotation, needleScale);
+            DrawCriticalProjectileOutline(needleSpriteName, needleFrameIndex, renderPosition.X, renderPosition.Y, cameraPosition, needle.Team, rotation, needleScale);
         }
 
         // Draw main sprite
-        if (!TryDrawSprite(needleSpriteName, 0, renderPosition.X, renderPosition.Y, cameraPosition, needleColor, rotation, needleScale))
+        var drawColor = useTeamSpriteFrames ? Color.White : needleColor;
+        if (!TryDrawSprite(needleSpriteName, needleFrameIndex, renderPosition.X, renderPosition.Y, cameraPosition, drawColor, rotation, needleScale))
         {
             var needleRectangle = new Rectangle(
                 (int)(renderPosition.X - 3f - cameraPosition.X),
@@ -1059,7 +1076,7 @@ public partial class Game1
         else if (needle.IsCritical)
         {
             // Draw screen blend overlay on top
-            DrawCriticalProjectileOverlay(needleSpriteName, 0, renderPosition.X, renderPosition.Y, cameraPosition, needle.Team, rotation, needleScale);
+            DrawCriticalProjectileOverlay(needleSpriteName, needleFrameIndex, renderPosition.X, renderPosition.Y, cameraPosition, needle.Team, rotation, needleScale);
         }
     }
 

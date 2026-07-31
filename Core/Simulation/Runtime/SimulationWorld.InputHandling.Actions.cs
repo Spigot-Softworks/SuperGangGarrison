@@ -4,7 +4,7 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private void TryHandleNetworkPrimaryFire(PlayerEntity player, PlayerInputSnapshot input, bool primaryPressed, bool suppressPyroPrimaryThisTick)
+    private void TryHandleNetworkPrimaryFire(PlayerEntity player, PlayerInputSnapshot input, PlayerInputSnapshot previousInput, bool primaryPressed, bool suppressPyroPrimaryThisTick)
     {
         if (player.IsTaunting)
         {
@@ -18,6 +18,11 @@ public sealed partial class SimulationWorld
         }
 
         if (TryHandleAcquiredPrimaryFire(player, input, suppressPyroPrimaryThisTick))
+        {
+            return;
+        }
+
+        if (TryHandleSniperBowPrimaryFire(player, input, previousInput))
         {
             return;
         }
@@ -48,11 +53,65 @@ public sealed partial class SimulationWorld
         FirePrimaryWeapon(player, input.AimWorldX, input.AimWorldY);
     }
 
+    private bool TryHandleSniperBowPrimaryFire(PlayerEntity player, PlayerInputSnapshot input, PlayerInputSnapshot previousInput)
+    {
+        if (!player.IsSniperBowEquipped)
+        {
+            return false;
+        }
+
+        var directionDegrees = PointDirectionDegrees(player.X, player.Y, input.AimWorldX, input.AimWorldY);
+        if (!input.FirePrimary && previousInput.FirePrimary)
+        {
+            if (player.TryReleaseSniperBowCharge(out var velocityX, out var velocityY, out var damage, out var fakeSpeedMultiplier)
+                && player.TryFireExperimentalOffhandWeapon())
+            {
+                WeaponHandler.FireSniperBow(
+                    player,
+                    player.ExperimentalOffhandWeapon!,
+                    input.AimWorldX,
+                    input.AimWorldY,
+                    velocityX,
+                    velocityY,
+                    damage,
+                    fakeSpeedMultiplier,
+                    "BowKL");
+            }
+            else
+            {
+                player.CancelSniperBowCharge();
+            }
+
+            return true;
+        }
+
+        if (input.FirePrimary)
+        {
+            if (player.SniperBowChargeTicks == 0)
+            {
+                _ = player.TryStartSniperBowCharge(directionDegrees);
+            }
+            else
+            {
+                player.IncrementSniperBowCharge(directionDegrees);
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
     private bool TryHandleExperimentalOffhandPrimaryFire(PlayerEntity player, PlayerInputSnapshot input)
     {
         if (TryHandleExperimentalEngineerBeamPrimaryFire(player, input))
         {
             return true;
+        }
+
+        if (player.IsSniperBowEquipped)
+        {
+            return input.FirePrimary;
         }
 
         if (!input.FirePrimary

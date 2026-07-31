@@ -55,6 +55,11 @@ public sealed partial class GameplayRuntimeRegistry
             PrimaryWeaponKind.Custom,
             Executor: new DelegateGameplayPrimaryWeaponExecutor(static context =>
                 context.World.ExecuteScoutNailgunPrimaryWeapon(context))));
+        RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(
+            BuiltInGameplayBehaviorIds.SniperBow,
+            PrimaryWeaponKind.Custom,
+            Executor: new DelegateGameplayPrimaryWeaponExecutor(static context =>
+                context.World.ExecuteSniperBowPrimaryWeapon(context))));
         RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.EngineerPda, static context => context.World.ExecuteEngineerPdaAbility(context));
         RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.PyroAirblast, static context => context.World.ExecutePyroAirblastAbility(context));
         RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.DemomanDetonate, static context => context.World.ExecuteDemomanDetonateAbility(context));
@@ -73,6 +78,7 @@ public sealed partial class GameplayRuntimeRegistry
         RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.CivviePogo, static context => context.World.ExecuteCivviePogoAbility(context));
         RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.ScoutTaunt, static context => context.World.ExecuteScoutTauntAbility(context));
         RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.ScoutNailgunToggle, static context => context.World.ExecuteScoutNailgunToggleAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SniperBowToggle, static context => context.World.ExecuteSniperBowToggleAbility(context));
         RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SoldierSecondaryToggle, static context => context.World.ExecuteSoldierSecondaryToggleAbility(context));
         RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.EngineerJumpPad, static context => context.World.ExecuteEngineerJumpPadAbility(context));
         RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.HeavyGhostDash, static context => context.World.ExecuteHeavyGhostDashAbility(context));

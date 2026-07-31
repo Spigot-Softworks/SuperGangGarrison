@@ -32,6 +32,7 @@ public static class BuiltInGameplayBehaviorIds
     public const string CivviePogo = "builtin.ability.civvie_pogo";
     public const string ScoutTaunt = "builtin.ability.scout_taunt";
     public const string ScoutNailgunToggle = "builtin.ability.scout_nailgun_toggle";
+    public const string SniperBowToggle = "builtin.ability.sniper_bow_toggle";
     public const string SoldierSecondaryToggle = "builtin.ability.soldier_secondary_toggle";
     public const string EngineerJumpPad = "builtin.ability.engineer_jump_pad";
     public const string HeavyGhostDash = "builtin.ability.heavy_ghost_dash";
@@ -42,12 +43,14 @@ public static class BuiltInGameplayBehaviorIds
     public const string ScoutUtility = "builtin.utility.scout";
     public const string ScoutNailgunUtility = "builtin.utility.scout_nailgun";
     public const string ScoutNailgun = "builtin.weapon.scout_nailgun";
+    public const string SniperBow = "builtin.weapon.sniper_bow";
     public const string EngineerUtility = "builtin.utility.engineer";
     public const string PyroUtility = "builtin.utility.pyro";
     public const string SoldierSecondaryWeapon = "builtin.utility.soldier_secondary_weapon";
     public const string DemomanUtility = "builtin.utility.demoman";
     public const string HeavyUtility = "builtin.utility.heavy";
     public const string SniperUtility = "builtin.utility.sniper";
+    public const string SniperBowUtility = "builtin.utility.sniper_bow";
     public const string MedicUtility = "builtin.utility.medic";
     public const string SpyUtility = "builtin.utility.spy";
     public const string QuoteUtility = "builtin.utility.quote";

@@ -1,0 +1,26 @@
+{
+  "id": "BowFRS",
+  "framePaths": [
+    "assets/sniper-bow/BowFRS.images/image 0.png",
+    "assets/sniper-bow/BowFRS.images/image 1.png",
+    "assets/sniper-bow/BowFRS.images/image 2.png",
+    "assets/sniper-bow/BowFRS.images/image 3.png",
+    "assets/sniper-bow/BowFRS.images/image 4.png",
+    "assets/sniper-bow/BowFRS.images/image 5.png",
+    "assets/sniper-bow/BowFRS.images/image 6.png",
+    "assets/sniper-bow/BowFRS.images/image 7.png",
+    "assets/sniper-bow/BowFRS.images/image 8.png",
+    "assets/sniper-bow/BowFRS.images/image 9.png"
+  ],
+  "originX": 2,
+  "originY": 16,
+  "mask": {
+    "separate": false,
+    "shape": "PRECISE",
+    "boundsMode": "AUTO",
+    "left": null,
+    "top": null,
+    "right": null,
+    "bottom": null
+  }
+}

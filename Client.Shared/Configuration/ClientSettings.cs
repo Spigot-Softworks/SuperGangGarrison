@@ -113,6 +113,8 @@ public sealed class ClientSettings
 
     public bool ProjectileTeamTintEnabled { get; set; } = true;
 
+    public bool StuckArrowsEnabled { get; set; } = true;
+
     public bool AudioMuted { get; set; }
 
     public bool ShowPersistentSelfNameEnabled { get; set; }
@@ -271,6 +273,7 @@ public sealed class ClientSettings
             LowHealthColorMode = NormalizeLowHealthColorMode(document.LowHealthColorMode),
             ShowUberOutlinesEnabled = document.ShowUberOutlinesEnabled,
             ProjectileTeamTintEnabled = document.ProjectileTeamTintEnabled,
+            StuckArrowsEnabled = document.StuckArrowsEnabled,
             AudioMuted = document.AudioMuted,
             MasterVolumePercent = Math.Clamp(document.MasterVolumePercent, 0, 100),
             MenuMusicVolumePercent = Math.Clamp(document.MenuMusicVolumePercent, 0, 100),
@@ -352,6 +355,7 @@ public sealed class ClientSettings
         preferences.LowHealthColorMode = NormalizeLowHealthColorMode(LowHealthColorMode);
         preferences.ShowUberOutlinesEnabled = ShowUberOutlinesEnabled;
         preferences.ProjectileTeamTintEnabled = ProjectileTeamTintEnabled;
+        preferences.StuckArrowsEnabled = StuckArrowsEnabled;
         preferences.AudioMuted = AudioMuted;
         preferences.MasterVolumePercent = Math.Clamp(MasterVolumePercent, 0, 100);
         preferences.MenuMusicVolumePercent = MenuMusicVolumePercent;

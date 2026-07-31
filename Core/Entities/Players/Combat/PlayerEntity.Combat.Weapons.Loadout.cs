@@ -118,6 +118,25 @@ public sealed partial class PlayerEntity
             return;
         }
 
+        if (ClassId == PlayerClass.Sniper)
+        {
+            var offhandItemId = ResolveRegisteredWeaponItemId(ExperimentalOffhandWeapon);
+            if (!string.IsNullOrWhiteSpace(offhandItemId)
+                && string.Equals(
+                    CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(offhandItemId).BehaviorId,
+                    BuiltInGameplayBehaviorIds.SniperBow,
+                    StringComparison.Ordinal))
+            {
+                if (IsSniperScoped)
+                {
+                    IsSniperScoped = false;
+                    SniperChargeTicks = 0;
+                }
+
+                CancelSniperBowCharge();
+            }
+        }
+
         IsExperimentalOffhandEquipped = true;
         SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Secondary;
         RefreshGameplayLoadoutState();
@@ -130,6 +149,7 @@ public sealed partial class PlayerEntity
             return;
         }
 
+        CancelSniperBowCharge();
         IsExperimentalOffhandEquipped = false;
         if (!IsAcquiredWeaponEquipped)
         {

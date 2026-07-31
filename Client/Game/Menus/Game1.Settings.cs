@@ -48,6 +48,7 @@ public partial class Game1
         }
 
         _spriteDropShadowEnabled = _clientSettings.SpriteDropShadowEnabled;
+        _stuckArrowsEnabled = _clientSettings.StuckArrowsEnabled;
         _pixelPerfectWeaponRotation = _clientSettings.PixelPerfectWeaponRotation;
         _useLocalWeaponRotation = _clientSettings.UseLocalWeaponRotation;
         _playerCardSizeMode = ClientSettings.NormalizePlayerCardSizeMode(_clientSettings.PlayerCardSizeMode);
@@ -108,6 +109,7 @@ public partial class Game1
         _clientSettings.PositionSmoothingEnabled = _positionSmoothingEnabled;
         _clientSettings.SmoothCameraMultiplier = NormalizeSmoothCameraMultiplier(_smoothCameraMultiplier);
         _clientSettings.SpriteDropShadowEnabled = _spriteDropShadowEnabled;
+        _clientSettings.StuckArrowsEnabled = _stuckArrowsEnabled;
         _clientSettings.PixelPerfectWeaponRotation = _pixelPerfectWeaponRotation;
         _clientSettings.UseLocalWeaponRotation = _useLocalWeaponRotation;
         _clientSettings.PlayerCardSizeMode = ClientSettings.NormalizePlayerCardSizeMode(_playerCardSizeMode);

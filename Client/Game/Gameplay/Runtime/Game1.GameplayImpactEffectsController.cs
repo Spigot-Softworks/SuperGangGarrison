@@ -22,6 +22,7 @@ public partial class Game1
         {
             _game._explosions.Clear();
             _game._impactVisuals.Clear();
+            _game._stuckArrowVisuals.Clear();
             _game._airBlasts.Clear();
             _game._bubblePops.Clear();
         }
@@ -128,6 +129,35 @@ public partial class Game1
             }
         }
 
+        public void AdvanceStuckArrowVisuals()
+        {
+            if (!_game._stuckArrowsEnabled)
+            {
+                if (_game._stuckArrowVisuals.Count > 0)
+                {
+                    _game._stuckArrowVisuals.Clear();
+                }
+
+                return;
+            }
+
+            for (var index = _game._stuckArrowVisuals.Count - 1; index >= 0; index -= 1)
+            {
+                var arrow = _game._stuckArrowVisuals[index];
+                if (arrow.TicksUntilFade > 0)
+                {
+                    arrow.TicksUntilFade -= 1;
+                    continue;
+                }
+
+                arrow.Alpha -= 1f / StuckArrowVisual.FadeTicks;
+                if (arrow.Alpha <= 0f)
+                {
+                    _game._stuckArrowVisuals.RemoveAt(index);
+                }
+            }
+        }
+
         public void DrawExplosionVisuals(Vector2 cameraPosition)
         {
             DrawAirBlastVisuals(cameraPosition);
@@ -175,6 +205,40 @@ public partial class Game1
             }
         }
 
+        public void DrawStuckArrowVisuals(Vector2 cameraPosition)
+        {
+            if (!_game._stuckArrowsEnabled)
+            {
+                return;
+            }
+
+            var sprite = _game.GetResolvedSprite("ArrowS");
+            if (sprite is null || sprite.Frames.Count == 0)
+            {
+                return;
+            }
+
+            for (var index = 0; index < _game._stuckArrowVisuals.Count; index += 1)
+            {
+                var arrow = _game._stuckArrowVisuals[index];
+                var frameIndex = Math.Clamp(arrow.FrameIndex, 0, sprite.Frames.Count - 1);
+                var scale = arrow.FlipY ? new Vector2(1f, -1f) : Vector2.One;
+                _game.DrawLoadedSpriteFrame(
+                    sprite.Frames[frameIndex],
+                    new Vector2(arrow.X - cameraPosition.X, arrow.Y - cameraPosition.Y),
+                    null,
+                    Color.White * arrow.Alpha,
+                    arrow.RotationRadians,
+                    sprite.Origin.ToVector2(),
+                    scale,
+                    SpriteEffects.None,
+                    0f);
+
+                // Redraw walkmask solids over the tip so it appears embedded in the wall.
+                DrawWalkmaskOcclusionOverStuckArrow(arrow, cameraPosition);
+            }
+        }
+
         public bool TryPlayVisualEvent(string effectName, float x, float y, float directionDegrees, int count)
         {
             if (string.Equals(effectName, "Explosion", StringComparison.OrdinalIgnoreCase))
@@ -195,6 +259,12 @@ public partial class Game1
                 return true;
             }
 
+            if (string.Equals(effectName, "StuckArrow", StringComparison.OrdinalIgnoreCase))
+            {
+                SpawnStuckArrowVisual(x, y, directionDegrees, count);
+                return true;
+            }
+
             if (string.Equals(effectName, "AirBlast", StringComparison.OrdinalIgnoreCase))
             {
                 _game._airBlasts.Add(new AirBlastVisual(x, y, directionDegrees * (MathF.PI / 180f)));
@@ -208,6 +278,100 @@ public partial class Game1
             }
 
             return false;
+        }
+
+        private void SpawnStuckArrowVisual(float x, float y, float directionDegrees, int count)
+        {
+            if (!_game._stuckArrowsEnabled)
+            {
+                return;
+            }
+
+            // Dedup predicted local + networked echo of the same impact.
+            for (var index = 0; index < _game._stuckArrowVisuals.Count; index += 1)
+            {
+                var existing = _game._stuckArrowVisuals[index];
+                var deltaX = existing.X - x;
+                var deltaY = existing.Y - y;
+                if ((deltaX * deltaX) + (deltaY * deltaY) <= StuckArrowVisual.SpawnDedupDistanceSquared)
+                {
+                    return;
+                }
+            }
+
+            while (_game._stuckArrowVisuals.Count >= StuckArrowVisual.MaxVisuals)
+            {
+                _game._stuckArrowVisuals.RemoveAt(0);
+            }
+
+            var rotationRadians = directionDegrees * (MathF.PI / 180f);
+            var frameIndex = count >= (int)PlayerTeam.Blue ? 1 : 0;
+            var flipY = MathF.Cos(rotationRadians) < 0f;
+            _game._stuckArrowVisuals.Add(new StuckArrowVisual(x, y, rotationRadians, frameIndex, flipY));
+        }
+
+        private void DrawWalkmaskOcclusionOverStuckArrow(
+            StuckArrowVisual arrow,
+            Vector2 cameraPosition)
+        {
+            // Only mask near the tip so walkmask redraw doesn't cover the whole shaft
+            // (a large AABB around the origin made shallow floor/wall sticks look like they vanished).
+            const float tipOffset = 35f;
+            const float tipPad = 10f;
+            var tipX = arrow.X + (MathF.Cos(arrow.RotationRadians) * tipOffset);
+            var tipY = arrow.Y + (MathF.Sin(arrow.RotationRadians) * tipOffset);
+            var regionLeft = tipX - tipPad;
+            var regionTop = tipY - tipPad;
+            var regionRight = tipX + tipPad;
+            var regionBottom = tipY + tipPad;
+
+            var hasBackground = _game.TryGetLevelBackgroundTexture(out var background);
+            var worldWidth = Math.Max(1f, _game._world.Bounds.Width);
+            var worldHeight = Math.Max(1f, _game._world.Bounds.Height);
+            var fallbackColor = new Color(46, 70, 56);
+
+            foreach (var solid in _game._world.Level.Solids)
+            {
+                var left = Math.Max(solid.Left, regionLeft);
+                var top = Math.Max(solid.Top, regionTop);
+                var right = Math.Min(solid.Right, regionRight);
+                var bottom = Math.Min(solid.Bottom, regionBottom);
+                if (left >= right || top >= bottom)
+                {
+                    continue;
+                }
+
+                var destX = (int)MathF.Floor(left - cameraPosition.X);
+                var destY = (int)MathF.Floor(top - cameraPosition.Y);
+                var destWidth = Math.Max(1, (int)MathF.Ceiling(right - left));
+                var destHeight = Math.Max(1, (int)MathF.Ceiling(bottom - top));
+                var destination = new Rectangle(destX, destY, destWidth, destHeight);
+
+                if (!hasBackground)
+                {
+                    _game._spriteBatch.Draw(_game._pixel, destination, fallbackColor);
+                    continue;
+                }
+
+                var sourceX = (int)MathF.Floor(left * background.Width / worldWidth);
+                var sourceY = (int)MathF.Floor(top * background.Height / worldHeight);
+                var sourceWidth = Math.Max(1, (int)MathF.Ceiling((right - left) * background.Width / worldWidth));
+                var sourceHeight = Math.Max(1, (int)MathF.Ceiling((bottom - top) * background.Height / worldHeight));
+                sourceX = Math.Clamp(sourceX, 0, Math.Max(0, background.Width - 1));
+                sourceY = Math.Clamp(sourceY, 0, Math.Max(0, background.Height - 1));
+                sourceWidth = Math.Min(sourceWidth, background.Width - sourceX);
+                sourceHeight = Math.Min(sourceHeight, background.Height - sourceY);
+                if (sourceWidth <= 0 || sourceHeight <= 0)
+                {
+                    continue;
+                }
+
+                _game._spriteBatch.Draw(
+                    background,
+                    destination,
+                    new Rectangle(sourceX, sourceY, sourceWidth, sourceHeight),
+                    Color.White);
+            }
         }
 
         private static ExplosionVisual CreateExplosionVisual(float x, float y, int initialElapsedSourceTicks = 1)

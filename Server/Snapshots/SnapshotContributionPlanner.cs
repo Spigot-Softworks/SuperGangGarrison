@@ -1100,7 +1100,9 @@ internal static class SnapshotContributionPlanner
             or GameplayAbilityReplicatedState.CivviePogoActiveKey
             or GameplayAbilityReplicatedState.CivviePogoCrunchTicksKey
             or GameplayAbilityReplicatedState.CivviePogoTrickTicksKey
-            or GameplayAbilityReplicatedState.CivviePogoTrickDurationTicksKey;
+            or GameplayAbilityReplicatedState.CivviePogoTrickDurationTicksKey
+            or GameplayAbilityReplicatedState.SniperChargeTicksKey
+            or GameplayAbilityReplicatedState.SniperBowChargeTicksKey;
     }
 
     private static bool ReplicatedStateKeysEqual(SnapshotReplicatedStateEntry left, SnapshotReplicatedStateEntry right)

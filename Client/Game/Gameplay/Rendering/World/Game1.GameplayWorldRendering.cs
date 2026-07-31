@@ -77,6 +77,7 @@ public partial class Game1
         DrawFrozenSpyVisuals(cameraPosition);
         DrawBackstabVisuals(cameraPosition);
         DrawSpySuperjumpVisuals(cameraPosition);
+        DrawSniperBowAimArc(cameraPosition);
         DrawSniperAimIndicators(cameraPosition);
         DrawCustomMapGameplaySprites(cameraPosition, CustomMapSpriteLayerKind.Fg);
         DrawSpritesheets(cameraPosition, CustomMapSpriteLayerKind.Fg);

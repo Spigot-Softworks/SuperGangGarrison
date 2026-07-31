@@ -47,7 +47,9 @@ local function load_config()
     local normalized = {
         Behavior = normalize_behavior(loaded.Behavior)
     }
-    plugin.host.save_json_config(CONFIG_PATH, normalized)
+    if normalized.Behavior ~= loaded.Behavior then
+        plugin.host.save_json_config(CONFIG_PATH, normalized)
+    end
     return normalized
 end
 

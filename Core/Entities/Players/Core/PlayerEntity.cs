@@ -623,6 +623,56 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public int SpySuperjumpCooldownTicksRemaining { get; private set; }
 
+    public int SniperBowChargeTicks { get; private set; }
+
+    public float SniperBowChargeDirectionDegrees { get; private set; }
+
+    public const int SniperBowMaxChargeTicks = 45;
+
+    public const float SniperBowMinVelocity = 7.5f;
+
+    public const float SniperBowMaxVelocity = 18f;
+
+    // Multiplies travel speed along the charge arc (velocity * k, gravity * k²) without changing path shape.
+    public const float SniperBowMinFakeSpeedMultiplier = 1f;
+
+    public const float SniperBowMaxFakeSpeedMultiplier = 1.5f;
+
+    // Match unscoped rifle DPS: SniperBaseDamage/40-tick rifle cycle vs 25-tick bow cycle → round(35*25/40)=22.
+    public const int SniperBowMinDamage = 22;
+
+    public const int SniperBowMaxDamage = 75;
+
+    public const int SniperBowFireAnimationSourceTicks = 6;
+
+    public const int SniperBowReloadPauseSourceTicks = 7;
+
+    public const int SniperBowReloadAnimationSourceTicks = 12;
+
+    public const int SniperBowCycleLockoutSourceTicks =
+        SniperBowFireAnimationSourceTicks + SniperBowReloadPauseSourceTicks + SniperBowReloadAnimationSourceTicks;
+
+    // Keep in sync with weapon.bow.json presentation.weaponOffset* and BowS placement anchor.
+    public const float SniperBowWeaponOffsetX = -18f;
+
+    public const float SniperBowWeaponOffsetY = -4f;
+
+    public const float SniperBowAnchorOriginX = 4f;
+
+    public const float SniperBowAnchorOriginY = 4f;
+
+    public const float SniperBowWeaponVisualForwardOffsetX = 10f;
+
+    public const float SniperBowSpriteOriginX = SniperBowAnchorOriginX;
+
+    public const float SniperBowSpriteOriginY = SniperBowAnchorOriginY;
+
+    // World-space weapon pivot (matches rendered bow rotation point, including visual forward nudge).
+    public const float SniperBowPivotOffsetX =
+        SniperBowWeaponOffsetX + SniperBowAnchorOriginX + SniperBowWeaponVisualForwardOffsetX;
+
+    public const float SniperBowPivotOffsetY = SniperBowWeaponOffsetY + SniperBowAnchorOriginY;
+
     public int Kills { get; private set; }
 
     public int Deaths { get; private set; }

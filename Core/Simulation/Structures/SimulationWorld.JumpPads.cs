@@ -124,7 +124,7 @@ public sealed partial class SimulationWorld
 
         var extraVerticalImpulse = boostedVerticalSpeed - player.VerticalSpeed;
         player.AddImpulse(0f, extraVerticalImpulse);
-        RegisterSoundEvent(player, "CompressionBlastSnd");
+        RegisterSoundEvent(player, "JumpPadSnd");
         RegisterVisualEffect("AirBlast", player.X, player.Y - 8f, 270f);
         return true;
     }

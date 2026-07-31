@@ -2331,8 +2331,7 @@ internal sealed partial class LuaClientPlugin(
             return;
         }
 
-        Directory.CreateDirectory(Path.GetDirectoryName(path) ?? string.Empty);
-        File.WriteAllText(path, json);
+        JsonConfigurationFile.SaveText(path, json);
     }
 
     private static bool TryReadConfigJson(string path, out string json)
@@ -2343,13 +2342,7 @@ internal sealed partial class LuaClientPlugin(
             return TryReadBrowserConfigJson(path, out json);
         }
 
-        if (!File.Exists(path))
-        {
-            return false;
-        }
-
-        json = File.ReadAllText(path);
-        return true;
+        return JsonConfigurationFile.TryReadText(path, out json);
     }
 
     private static bool TryReadBrowserConfigJson(string path, out string json)
