@@ -12,6 +12,8 @@ public sealed class ArrowProjectileEntity : NeedleProjectileEntity
 
     public float FakeSpeedMultiplier { get; private set; }
 
+    public bool IsLanded { get; private set; }
+
     protected override float ProjectileGravityPerTick =>
         GravityPerTick * FakeSpeedMultiplier * FakeSpeedMultiplier;
 
@@ -37,4 +39,46 @@ public sealed class ArrowProjectileEntity : NeedleProjectileEntity
     {
         FakeSpeedMultiplier = MathF.Max(0.0001f, fakeSpeedMultiplier);
     }
+
+    public override void AdvanceOneTick(float gravityScale = 1f)
+    {
+        if (!IsLanded)
+        {
+            base.AdvanceOneTick(gravityScale);
+            return;
+        }
+
+        SetPreviousPositionToCurrent();
+        AdvanceLifetimeOneTick();
+    }
+
+    public void Land(float x, float y, float directionX, float directionY)
+    {
+        MoveTo(x, y);
+        SetPreviousPositionToCurrent();
+
+        var directionLength = MathF.Sqrt((directionX * directionX) + (directionY * directionY));
+        if (directionLength > 0.0001f)
+        {
+            SetVelocity(directionX / directionLength, directionY / directionLength);
+        }
+
+        IsLanded = true;
+    }
+
+    public void SetLanded(bool isLanded)
+    {
+        IsLanded = isLanded;
+        if (isLanded)
+        {
+            SetPreviousPositionToCurrent();
+        }
+    }
+
+    public override void Reflect(int ownerId, PlayerTeam team, float directionRadians)
+    {
+        base.Reflect(ownerId, team, directionRadians);
+        IsLanded = false;
+    }
+
 }

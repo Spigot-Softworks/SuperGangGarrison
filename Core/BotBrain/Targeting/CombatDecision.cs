@@ -1233,7 +1233,7 @@ public static class CombatDecisionResolver
                 }
             }
 
-            foreach (var barrier in world.Level.GetRoomObjects(RoomObjectType.Barrier))
+            foreach (var barrier in frameCache.GetBarrierCandidates(levelCache, lineLeft, lineTop, lineRight, lineBottom))
             {
                 var hitDistance = GetRayIntersectionDistanceWithRectangle(
                     originX,
@@ -1259,7 +1259,7 @@ public static class CombatDecisionResolver
                 }
             }
 
-            foreach (var wall in world.Level.GetRoomObjects(RoomObjectType.DirectionalWall))
+            foreach (var wall in frameCache.GetDirectionalWallCandidates(levelCache, lineLeft, lineTop, lineRight, lineBottom))
             {
                 var hitDistance = GetRayIntersectionDistanceWithRectangle(
                     originX,
@@ -1396,6 +1396,10 @@ public static class CombatDecisionResolver
         private readonly List<LevelSolid> _solidCandidates = [];
         private readonly HashSet<int> _staticRoomObjectBlockerCandidateIndices = [];
         private readonly List<RoomObjectMarker> _staticRoomObjectBlockerCandidates = [];
+        private readonly HashSet<int> _barrierCandidateIndices = [];
+        private readonly List<RoomObjectMarker> _barrierCandidates = [];
+        private readonly HashSet<int> _directionalWallCandidateIndices = [];
+        private readonly List<RoomObjectMarker> _directionalWallCandidates = [];
         private long _frame = long.MinValue;
         private SimpleLevel? _level;
 
@@ -1455,6 +1459,32 @@ public static class CombatDecisionResolver
             return _staticRoomObjectBlockerCandidates;
         }
 
+        public List<RoomObjectMarker> GetBarrierCandidates(
+            LineOfSightLevelCache levelCache,
+            float left,
+            float top,
+            float right,
+            float bottom)
+        {
+            _barrierCandidateIndices.Clear();
+            _barrierCandidates.Clear();
+            levelCache.AddBarrierCandidates(left, top, right, bottom, _barrierCandidateIndices, _barrierCandidates);
+            return _barrierCandidates;
+        }
+
+        public List<RoomObjectMarker> GetDirectionalWallCandidates(
+            LineOfSightLevelCache levelCache,
+            float left,
+            float top,
+            float right,
+            float bottom)
+        {
+            _directionalWallCandidateIndices.Clear();
+            _directionalWallCandidates.Clear();
+            levelCache.AddDirectionalWallCandidates(left, top, right, bottom, _directionalWallCandidateIndices, _directionalWallCandidates);
+            return _directionalWallCandidates;
+        }
+
         private void Prepare(long frame, SimpleLevel level)
         {
             if (_frame == frame && ReferenceEquals(_level, level))
@@ -1474,6 +1504,8 @@ public static class CombatDecisionResolver
         private readonly object _gateCacheSync = new();
         private readonly LineOfSightSpatialIndex<LevelSolid> _solidIndex;
         private readonly LineOfSightSpatialIndex<RoomObjectMarker> _staticRoomObjectBlockerIndex;
+        private readonly LineOfSightSpatialIndex<RoomObjectMarker> _barrierIndex;
+        private readonly LineOfSightSpatialIndex<RoomObjectMarker> _directionalWallIndex;
         private readonly RoomObjectMarker[] _gateCandidates;
         private readonly Dictionary<LineOfSightGateCacheKey, IReadOnlyList<RoomObjectMarker>> _blockingGatesByKey = [];
         private readonly Dictionary<bool, IReadOnlyList<RoomObjectMarker>> _combatGateBlockersBySetupState = [];
@@ -1490,6 +1522,18 @@ public static class CombatDecisionResolver
                 level.RoomObjects
                     .Where(static roomObject => roomObject.Type is RoomObjectType.PlayerWall or RoomObjectType.BulletWall)
                     .ToArray(),
+                static roomObject => roomObject.Left,
+                static roomObject => roomObject.Top,
+                static roomObject => roomObject.Right,
+                static roomObject => roomObject.Bottom);
+            _barrierIndex = LineOfSightSpatialIndex<RoomObjectMarker>.Build(
+                level.GetRoomObjects(RoomObjectType.Barrier),
+                static roomObject => roomObject.Left,
+                static roomObject => roomObject.Top,
+                static roomObject => roomObject.Right,
+                static roomObject => roomObject.Bottom);
+            _directionalWallIndex = LineOfSightSpatialIndex<RoomObjectMarker>.Build(
+                level.GetRoomObjects(RoomObjectType.DirectionalWall),
                 static roomObject => roomObject.Left,
                 static roomObject => roomObject.Top,
                 static roomObject => roomObject.Right,
@@ -1519,6 +1563,28 @@ public static class CombatDecisionResolver
             List<RoomObjectMarker> candidates)
         {
             _staticRoomObjectBlockerIndex.AddCandidates(left, top, right, bottom, seenIndices, candidates);
+        }
+
+        public void AddBarrierCandidates(
+            float left,
+            float top,
+            float right,
+            float bottom,
+            HashSet<int> seenIndices,
+            List<RoomObjectMarker> candidates)
+        {
+            _barrierIndex.AddCandidates(left, top, right, bottom, seenIndices, candidates);
+        }
+
+        public void AddDirectionalWallCandidates(
+            float left,
+            float top,
+            float right,
+            float bottom,
+            HashSet<int> seenIndices,
+            List<RoomObjectMarker> candidates)
+        {
+            _directionalWallIndex.AddCandidates(left, top, right, bottom, seenIndices, candidates);
         }
 
         public IReadOnlyList<RoomObjectMarker> GetBlockingTeamGates(

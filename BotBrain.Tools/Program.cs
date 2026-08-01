@@ -16,6 +16,17 @@ var artifactJsonOptions = new JsonSerializerOptions
 };
 
 var rawOptions = BotBrainToolCommandHelpers.ParseRawOptions(args);
+if (rawOptions.ContainsKey("compact-alpha-cache"))
+{
+    var compactionResult = Og2NavigationGraphCache.CompactPersistentCache();
+    Console.WriteLine(
+        $"alphaCacheCompaction scanned={compactionResult.Scanned} compressed={compactionResult.Compressed} " +
+        $"skipped={compactionResult.Skipped} failed={compactionResult.Failed} " +
+        $"pruned={compactionResult.Pruned} bytesBefore={compactionResult.BytesBefore} " +
+        $"bytesAfter={compactionResult.BytesAfter} bytesPruned={compactionResult.BytesPruned}");
+    return;
+}
+
 if (rawOptions.TryGetValue("author-traversal-tape", out var traversalScenarioPath))
 {
     BotBrainToolCommandHelpers.AuthorTraversalTape(
@@ -187,6 +198,12 @@ if (rawOptions.ContainsKey("alpha-nav-report"))
 if (rawOptions.ContainsKey("alpha-graph-gate"))
 {
     Og2AlphaNavigationDiagnostics.RunGraphGate(rawOptions);
+    return;
+}
+
+if (rawOptions.ContainsKey("prewarm-alpha-graphs"))
+{
+    Og2AlphaNavigationDiagnostics.RunPrewarmShippedGraphs(rawOptions);
     return;
 }
 
@@ -1767,6 +1784,12 @@ static TraversalSoakRunResult RunBotTraversalSoakMap(
     var oscillationWindowTicks = Math.Max(1, GetRosterInt(rawOptions, "oscillation-window-ticks", 150));
     var oscillationFlips = Math.Max(1, GetRosterInt(rawOptions, "oscillation-flips", 8));
     var oscillationDistance = MathF.Max(0f, GetRosterFloat(rawOptions, "oscillation-distance", 48f));
+    var thinkSpikeMilliseconds = MathF.Max(0f, GetRosterFloat(rawOptions, "think-spike-ms", 100f));
+    var forceObjectiveNavigation = GetRosterBool(rawOptions, "force-objective-navigation", false);
+    var disableCombat = GetRosterBool(rawOptions, "disable-combat", false);
+    var traceSlot = GetRosterInt(rawOptions, "trace-slot", -1);
+    var traceFromTick = Math.Max(1, GetRosterInt(rawOptions, "trace-from-tick", 1));
+    var traceToTick = Math.Max(traceFromTick, GetRosterInt(rawOptions, "trace-to-tick", int.MaxValue));
     var maxBots = includeLocal
         ? SimulationWorld.MaxPlayableNetworkPlayers
         : SimulationWorld.MaxPlayableNetworkPlayers - 1;
@@ -1817,7 +1840,11 @@ static TraversalSoakRunResult RunBotTraversalSoakMap(
             continue;
         }
 
-        controllers[slot] = new BotBrainController();
+        controllers[slot] = new BotBrainController
+        {
+            ForceObjectiveNavigationForDiagnostics = forceObjectiveNavigation,
+            DisableCombatForDiagnostics = disableCombat,
+        };
         stats[slot] = new TraversalSoakBotStats(slot, team, classId, bot.X, bot.Y, bot.Bottom);
     }
 
@@ -1834,6 +1861,9 @@ static TraversalSoakRunResult RunBotTraversalSoakMap(
         $"inertFailTicks:{inertFailTicks} stagnantWindowTicks:{stagnantWindowTicks} " +
         $"stagnantDistance:{stagnantDistance:0.0} oscillationWindowTicks:{oscillationWindowTicks} " +
         $"oscillationFlips:{oscillationFlips} oscillationDistance:{oscillationDistance:0.0} " +
+        $"thinkSpikeMs:{thinkSpikeMilliseconds:0.0} " +
+        $"forceObjectiveNavigation:{(forceObjectiveNavigation ? 1 : 0)} " +
+        $"disableCombat:{(disableCombat ? 1 : 0)} " +
         $"classCycle:{string.Join('+', classCycle.Select(static classId => classId.ToString()))} " +
         $"failOnAcceptance:{(failOnAcceptance ? 1 : 0)}");
     foreach (var entry in stats.Values.OrderBy(static stat => stat.Slot))
@@ -1850,6 +1880,7 @@ static TraversalSoakRunResult RunBotTraversalSoakMap(
     long totalThinkStopwatchTicks = 0;
     long totalTickStopwatchTicks = 0;
     long maxTickThinkStopwatchTicks = 0;
+    long maxWorldAdvanceStopwatchTicks = 0;
     var controlledThinkTicks = 0L;
     for (var tick = 1; tick <= ticks; tick += 1)
     {
@@ -1868,7 +1899,33 @@ static TraversalSoakRunResult RunBotTraversalSoakMap(
             totalThinkStopwatchTicks += thinkElapsed;
             controlledThinkTicks += 1;
             inputs[slot] = bot.IsAlive ? input : default;
+            var previousMoveSign = stats[slot].LastMoveSign;
             ObserveTraversalSoakBotPreAdvance(stats[slot], tick, bot, input, controller, thinkElapsed);
+            if (slot == traceSlot
+                && tick >= traceFromTick
+                && tick <= traceToTick
+                && previousMoveSign != stats[slot].LastMoveSign)
+            {
+                Console.WriteLine(
+                    $"soakTrace=slot:{slot} tick:{tick} pos=({bot.X:0.0},{bot.Y:0.0}) " +
+                    $"speed=({bot.HorizontalSpeed:0.0},{bot.VerticalSpeed:0.0}) " +
+                    $"grounded:{(bot.IsGrounded ? 1 : 0)} " +
+                    $"input=({(input.Left ? 'L' : input.Right ? 'R' : '-')}{(input.Up ? 'J' : '-')}) " +
+                    $"path:{controller.CurrentPathIndex}/{controller.CurrentPathCount} " +
+                    $"node:{controller.CurrentPathNode} goal:{controller.CurrentGoalNode} " +
+                    $"trace:{stats[slot].LastTraversalTrace}");
+            }
+            var thinkElapsedMilliseconds = StopwatchTicksToMilliseconds(thinkElapsed);
+            if (thinkSpikeMilliseconds > 0f && thinkElapsedMilliseconds >= thinkSpikeMilliseconds)
+            {
+                Console.WriteLine(
+                    $"soakThinkSpike=tick:{tick} slot:{slot} team:{bot.Team} class:{bot.ClassId} " +
+                    $"elapsedMs:{thinkElapsedMilliseconds:0.000} pos=({bot.X:0.0},{bot.Y:0.0}) " +
+                    $"alive:{(bot.IsAlive ? 1 : 0)} grounded:{(bot.IsGrounded ? 1 : 0)} " +
+                    $"pathIndex:{controller.CurrentPathIndex} pathCount:{controller.CurrentPathCount} " +
+                    $"direct:{controller.LastDirectDriveTrace} semantic:{controller.LastSemanticRecoveryTrace} " +
+                    $"timing:{controller.LastThinkTimingTrace}");
+            }
         }
 
         foreach (var (slot, input) in inputs)
@@ -1876,7 +1933,21 @@ static TraversalSoakRunResult RunBotTraversalSoakMap(
             world.TrySetNetworkPlayerInput(slot, input);
         }
 
+        var worldAdvanceStart = Stopwatch.GetTimestamp();
         world.AdvanceOneTick();
+        var worldAdvanceElapsed = Stopwatch.GetTimestamp() - worldAdvanceStart;
+        if (worldAdvanceElapsed > maxWorldAdvanceStopwatchTicks)
+        {
+            maxWorldAdvanceStopwatchTicks = worldAdvanceElapsed;
+        }
+
+        var worldAdvanceMilliseconds = StopwatchTicksToMilliseconds(worldAdvanceElapsed);
+        if (worldAdvanceMilliseconds >= 50d)
+        {
+            Console.WriteLine(
+                $"soakWorldAdvanceSpike=tick:{tick} elapsedMs:{worldAdvanceMilliseconds:0.000} " +
+                $"redCaps:{world.RedCaps - initialRedCaps} blueCaps:{world.BlueCaps - initialBlueCaps}");
+        }
         var tickThinkElapsed = Stopwatch.GetTimestamp() - tickThinkStart;
         totalTickStopwatchTicks += tickThinkElapsed;
         if (tickThinkElapsed > maxTickThinkStopwatchTicks)
@@ -1952,6 +2023,7 @@ static TraversalSoakRunResult RunBotTraversalSoakMap(
     var avgTickMsPerTickFinal = ticks > 0 ? totalTickMs / ticks : 0d;
     var avgThinkMsPerBotTick = controlledThinkTicks > 0 ? totalThinkMs / controlledThinkTicks : 0d;
     var maxTickThinkMs = StopwatchTicksToMilliseconds(maxTickThinkStopwatchTicks);
+    var maxWorldAdvanceMs = StopwatchTicksToMilliseconds(maxWorldAdvanceStopwatchTicks);
 
     Console.WriteLine(
         $"soakResult=map:{world.Level.Name} area:{world.Level.MapAreaIndex} passed:{(passed ? 1 : 0)} reason:{reason} " +
@@ -1959,7 +2031,8 @@ static TraversalSoakRunResult RunBotTraversalSoakMap(
         $"maxInertTicks:{finalMaxInertTicks} inertFailTicks:{inertFailTicks} oscillationEvents:{finalOscillationEvents} " +
         $"totalThinkMs:{totalThinkMs:0.000} avgThinkMsPerTick:{avgThinkMsPerTickFinal:0.000} " +
         $"totalTickMs:{totalTickMs:0.000} avgTickMsPerTick:{avgTickMsPerTickFinal:0.000} " +
-        $"avgThinkMsPerBotTick:{avgThinkMsPerBotTick:0.0000} maxTickThinkMs:{maxTickThinkMs:0.000}");
+        $"avgThinkMsPerBotTick:{avgThinkMsPerBotTick:0.0000} maxTickThinkMs:{maxTickThinkMs:0.000} " +
+        $"maxWorldAdvanceMs:{maxWorldAdvanceMs:0.000}");
     foreach (var entry in stats.Values.OrderBy(static stat => stat.Slot))
     {
         Console.WriteLine(FormatTraversalSoakBotSummary(entry));
@@ -2033,9 +2106,14 @@ static void ObserveTraversalSoakBotPreAdvance(
     stats.LastPreY = bot.Y;
     stats.LastPreBottom = bot.Bottom;
     stats.LastInput = input;
-    stats.LastTraversalTrace = FormatTraversalSoakControllerTrace(controller);
+        stats.LastTraversalTrace = FormatTraversalSoakControllerTrace(controller);
     stats.LastSemanticTrace = controller.LastSemanticRecoveryTrace;
-    stats.ThinkTicks += 1;
+        stats.ThinkTicks += 1;
+        if (IsTraversalSoakIntentionalObjectiveHold(stats.LastTraversalTrace))
+        {
+            stats.IntentionalObjectiveHoldTicks += 1;
+            stats.OscillationWindowIntentionalHoldTicks += 1;
+        }
     stats.ThinkStopwatchTicks += thinkStopwatchTicks;
     if (thinkStopwatchTicks > stats.MaxThinkStopwatchTicks)
     {
@@ -2051,7 +2129,15 @@ static void ObserveTraversalSoakBotPreAdvance(
     if (moveSign != 0 && stats.LastMoveSign != 0 && moveSign != stats.LastMoveSign)
     {
         stats.MoveFlips += 1;
-        stats.OscillationWindowLowSpeedMoveFlips += MathF.Abs(bot.HorizontalSpeed) < 40f ? 1 : 0;
+        if (MathF.Abs(bot.HorizontalSpeed) < 40f)
+        {
+            stats.OscillationWindowLowSpeedMoveFlips += 1;
+            if (IsTraversalSoakGraphRouteOwned(stats.LastTraversalTrace))
+            {
+                stats.OscillationWindowRouteLowSpeedMoveFlips += 1;
+                stats.RouteLowSpeedMoveFlips += 1;
+            }
+        }
         if (MathF.Abs(bot.HorizontalSpeed) < 40f)
         {
             stats.LowSpeedMoveFlips += 1;
@@ -2071,9 +2157,26 @@ static void ObserveTraversalSoakBotPreAdvance(
 
 static string FormatTraversalSoakControllerTrace(BotBrainController controller)
 {
-    var trace = string.Empty;
+    var steering = controller.LastSteeringOutput;
+    var edgeTrace = controller.CurrentPath is { } currentPath
+        && currentPath.TryGetCurrentEdge(out var currentEdge)
+        ? $" edgeFrom:{(currentPath.CurrentIndex > 0 ? currentPath.GetWaypoint(currentPath.CurrentIndex - 1) : -1)} " +
+          $"edgeProbe:{currentEdge.ProbeMoveDirectionX:0.0} edgeCompletion=({currentEdge.Completion.MinX:0.0},{currentEdge.Completion.MaxX:0.0},{currentEdge.Completion.MinY:0.0},{currentEdge.Completion.MaxY:0.0})"
+        : string.Empty;
+    var trace = string.Create(
+        CultureInfo.InvariantCulture,
+        $"nav=path:{controller.CurrentPathIndex}/{controller.CurrentPathCount} " +
+        $"node:{controller.CurrentPathNode} goal:{controller.CurrentGoalNode} " +
+        $"goalPos=({controller.CurrentGoalPosition.X:0.0},{controller.CurrentGoalPosition.Y:0.0}) " +
+        $"combat:{(controller.LastCombatTarget is null ? 0 : 1)} " +
+        $"move:{steering.MoveDirection:0.0} jump:{(steering.Jump ? 1 : 0)} " +
+        $"repath:{(steering.RequestRepath ? 1 : 0)} edge:{steering.EdgeKind}{edgeTrace}");
     AppendTrace(controller.LastSemanticRecoveryTrace);
     AppendTrace(controller.LastDirectDriveTrace);
+    if (steering.FailedEdge.HasFailure)
+    {
+        AppendTrace($"failedEdge={steering.FailedEdge.FromNode}->{steering.FailedEdge.ToNode}/{steering.FailedEdge.Kind}:{steering.FailedEdge.Reason}");
+    }
     AppendTrace(controller.LastObjectiveTapeTrace);
     AppendTrace(controller.LastProofGraphTrace);
     return trace;
@@ -2164,14 +2267,17 @@ static void ObserveTraversalSoakBotPostAdvance(
         stats.OscillationWindowX = bot.X;
         stats.OscillationWindowY = bot.Y;
         stats.OscillationWindowLowSpeedMoveFlips = 0;
+        stats.OscillationWindowRouteLowSpeedMoveFlips = 0;
+        stats.OscillationWindowIntentionalHoldTicks = 0;
         return;
     }
 
-    if (tick % stagnantWindowTicks == 0)
-    {
-        var windowMovement = Distance(stats.WindowX, stats.WindowY, bot.X, bot.Y);
-        stats.RecentWindowMovement = windowMovement;
-        stats.RecentStagnant = windowMovement < stagnantDistance;
+        if (tick % stagnantWindowTicks == 0)
+        {
+            var windowMovement = Distance(stats.WindowX, stats.WindowY, bot.X, bot.Y);
+            stats.RecentWindowMovement = windowMovement;
+            var intentionalObjectiveHold = IsTraversalSoakIntentionalObjectiveHold(stats.LastTraversalTrace);
+            stats.RecentStagnant = windowMovement < stagnantDistance && !intentionalObjectiveHold;
         if (stats.RecentStagnant)
         {
             stats.StagnantWindows += 1;
@@ -2203,7 +2309,8 @@ static void ObserveTraversalSoakBotPostAdvance(
         var oscillationMovement = Distance(stats.OscillationWindowX, stats.OscillationWindowY, bot.X, bot.Y);
         stats.RecentOscillationWindowMovement = oscillationMovement;
         if (oscillationMovement < oscillationDistance
-            && stats.OscillationWindowLowSpeedMoveFlips >= oscillationFlips)
+            && stats.OscillationWindowRouteLowSpeedMoveFlips >= oscillationFlips
+            && stats.OscillationWindowIntentionalHoldTicks == 0)
         {
             stats.OscillationEvents += 1;
             if (stats.FirstOscillationTick < 0)
@@ -2216,7 +2323,39 @@ static void ObserveTraversalSoakBotPostAdvance(
         stats.OscillationWindowX = bot.X;
         stats.OscillationWindowY = bot.Y;
         stats.OscillationWindowLowSpeedMoveFlips = 0;
+        stats.OscillationWindowRouteLowSpeedMoveFlips = 0;
+        stats.OscillationWindowIntentionalHoldTicks = 0;
     }
+}
+
+static bool IsTraversalSoakIntentionalObjectiveHold(string trace) =>
+    trace.Contains("alphaCaptureArrivalHold", StringComparison.Ordinal)
+    || trace.Contains("alphaCaptureContestHold", StringComparison.Ordinal)
+    || trace.Contains("medicSupport:Pocket", StringComparison.Ordinal)
+    || trace.Contains("medicSupport:Critical", StringComparison.Ordinal)
+    || trace.Contains("engineerIntelDefense=hold", StringComparison.Ordinal)
+    || trace.Contains("engineerIntelDefense=patrol", StringComparison.Ordinal);
+
+static bool IsTraversalSoakGraphRouteOwned(string trace)
+{
+    if (string.IsNullOrWhiteSpace(trace)
+        || !trace.Contains("nav=path:", StringComparison.Ordinal))
+    {
+        return false;
+    }
+
+    // These owners intentionally steer toward a moving combat/objective
+    // target or run local recovery. Their direction changes are not evidence
+    // that a static graph edge is oscillating, but keep the aggregate flip
+    // counters visible in the report for performance review.
+    return !trace.Contains("directRoute=", StringComparison.Ordinal)
+        && !trace.Contains("directDrive=", StringComparison.Ordinal)
+        && !trace.Contains("localMotion=", StringComparison.Ordinal)
+        && !trace.Contains("routeFallback", StringComparison.Ordinal)
+        && !trace.Contains("alphaPathless", StringComparison.Ordinal)
+        && !trace.Contains("combat:1", StringComparison.Ordinal)
+        && !trace.Contains("medicSupport:", StringComparison.Ordinal)
+        && !trace.Contains("engineerIntelDefense=", StringComparison.Ordinal);
 }
 
 static string FormatTraversalSoakBotTick(TraversalSoakBotStats stats)
@@ -2232,6 +2371,7 @@ static string FormatTraversalSoakBotTick(TraversalSoakBotStats stats)
         $"soakBotTick=slot:{stats.Slot} {stats.Team} {stats.ClassId} pos=({stats.LastX:0.0},{stats.LastY:0.0}) " +
         $"speed=({stats.LastHorizontalSpeed:0.0},{stats.LastVerticalSpeed:0.0}) caps:{stats.LastCaps} " +
         $"carrying:{(stats.LastCarryingIntel ? 1 : 0)} inert:{stats.ConsecutiveInertTicks}/{stats.MaxConsecutiveInertTicks} " +
+        $"objectiveHoldTicks:{stats.IntentionalObjectiveHoldTicks} " +
         $"windowMove:{stats.RecentWindowMovement:0.0} flips:{stats.LowSpeedMoveFlips} " +
         $"trace:{trace}");
 }
@@ -2255,8 +2395,10 @@ static string FormatTraversalSoakBotSummary(TraversalSoakBotStats stats)
         $"returnTicks:{stats.CarrierConversionTicks} carryLosses:{stats.CarryLossCount} firstCarryLossTick:{stats.FirstCarryLossTick} " +
         $"deaths:{stats.DeathCount} firstDeathTick:{stats.FirstDeathTick} movement:{stats.TotalMovement:0.0} " +
         $"stagnantWindows:{stats.StagnantWindows} maxInertTicks:{stats.MaxConsecutiveInertTicks} firstInertTick:{stats.FirstInertFailTick} " +
+        $"objectiveHoldTicks:{stats.IntentionalObjectiveHoldTicks} " +
         $"oscillationEvents:{stats.OscillationEvents} firstOscillationTick:{stats.FirstOscillationTick} " +
         $"zeroInput:{stats.ZeroInputTicks} flips:{stats.MoveFlips} lowSpeedFlips:{stats.LowSpeedMoveFlips} " +
+        $"routeLowSpeedFlips:{stats.RouteLowSpeedMoveFlips} " +
         $"avgThinkMs:{(stats.ThinkTicks > 0 ? StopwatchTicksToMilliseconds(stats.ThinkStopwatchTicks) / stats.ThinkTicks : 0d):0.0000} " +
         $"maxThinkMs:{StopwatchTicksToMilliseconds(stats.MaxThinkStopwatchTicks):0.000} final=({stats.LastX:0.0},{stats.LastY:0.0}) issue:{issue}");
 }
@@ -2319,10 +2461,17 @@ static void RunPracticeRosterSimulation(
     BotBrainCanaryOptions options,
     IReadOnlyDictionary<string, string> rawOptions)
 {
+    // This diagnostic is intended to exercise the production alpha roster.
+    // Passing the deprecated asset graph as a controller override silently
+    // selects legacy proof/tape navigation, so obtain the same immutable OG2
+    // graph that the live client resolves and force alpha mode explicitly.
+    graph = Og2NavigationGraphStore.GetOrBuild(level);
+
     var ticks = GetRosterInt(rawOptions, "ticks", options.Ticks);
     var reportEvery = GetRosterInt(rawOptions, "report-every", Math.Max(30, options.ReportEveryTicks));
     var friendlyCount = GetRosterInt(rawOptions, "friendly-bots", 3);
     var enemyCount = GetRosterInt(rawOptions, "enemy-bots", 3);
+    var forceObjectiveNavigation = GetRosterBool(rawOptions, "force-objective-navigation", false);
     var localTeam = options.Team;
     var enemyTeam = localTeam == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
     PlayerClass[] classCycle =
@@ -2353,8 +2502,8 @@ static void RunPracticeRosterSimulation(
     var controllers = new Dictionary<byte, BotBrainController>();
     var stats = new Dictionary<byte, PracticeRosterBotStats>();
     var nextSlot = (byte)(SimulationWorld.LocalPlayerSlot + 1);
-    AppendPracticeRosterBots(world, graph, controllers, stats, ref nextSlot, localTeam, friendlyCount, classCycle, classOffset: 0);
-    AppendPracticeRosterBots(world, graph, controllers, stats, ref nextSlot, enemyTeam, enemyCount, classCycle, classOffset: 3);
+    AppendPracticeRosterBots(world, graph, controllers, stats, ref nextSlot, localTeam, friendlyCount, classCycle, classOffset: 0, forceObjectiveNavigation);
+    AppendPracticeRosterBots(world, graph, controllers, stats, ref nextSlot, enemyTeam, enemyCount, classCycle, classOffset: 3, forceObjectiveNavigation);
 
     Console.WriteLine(
         $"practiceRoster=map:{level.Name} area:{level.MapAreaIndex} mode:{world.MatchRules.Mode} " +
@@ -2439,7 +2588,8 @@ static void AppendPracticeRosterBots(
     PlayerTeam team,
     int count,
     IReadOnlyList<PlayerClass> classCycle,
-    int classOffset)
+    int classOffset,
+    bool forceObjectiveNavigation)
 {
     for (var index = 0; index < count && nextSlot <= SimulationWorld.MaxPlayableNetworkPlayers; index += 1)
     {
@@ -2454,7 +2604,10 @@ static void AppendPracticeRosterBots(
             continue;
         }
 
-        controllers[slot] = new BotBrainController(graph);
+        controllers[slot] = new BotBrainController(graph, forceAlphaNavigation: true)
+        {
+            ForceObjectiveNavigationForDiagnostics = forceObjectiveNavigation,
+        };
         stats[slot] = new PracticeRosterBotStats(slot, team, classId, bot.X, bot.Y, bot.Bottom);
     }
 }
@@ -2475,6 +2628,14 @@ static void ObservePracticeRosterBotPreAdvance(
     stats.LastTapeTrace = controller.LastObjectiveTapeTrace;
     stats.LastPathCount = controller.CurrentPathCount;
     stats.LastPathIndex = controller.CurrentPathIndex;
+    stats.LastAlphaNavigation = controller.IsAlphaNavigation;
+    stats.LastRouteOwned = controller.IsAlphaNavigation
+        && controller.CurrentPathCount > 0
+        && string.IsNullOrWhiteSpace(controller.LastDirectDriveTrace)
+        && string.IsNullOrWhiteSpace(controller.LastProofGraphTrace)
+        && string.IsNullOrWhiteSpace(controller.LastObjectiveTapeTrace);
+    stats.CurrentRoutePathIndex = controller.CurrentPathIndex;
+    stats.CurrentRouteEdgeKind = controller.LastSteeringOutput.EdgeKind;
 
     if (!string.IsNullOrWhiteSpace(controller.LastProofGraphTrace))
     {
@@ -2524,6 +2685,43 @@ static void ObservePracticeRosterBotPreAdvance(
     if (moveSign != 0)
     {
         stats.LastMoveSign = moveSign;
+        if (stats.LastRouteOwned)
+        {
+            if (stats.LastRouteMoveSign != 0 && moveSign != stats.LastRouteMoveSign)
+            {
+                stats.RouteMoveFlips += 1;
+                if (stats.LastRoutePathIndex == stats.CurrentRoutePathIndex
+                    && stats.LastRouteEdgeKind == stats.CurrentRouteEdgeKind)
+                {
+                    stats.RouteSameEdgeFlips += 1;
+                    if (stats.CurrentRouteEdgeKind == NavEdgeKind.Walk)
+                    {
+                        stats.RouteSameEdgeWalkFlips += 1;
+                    }
+                }
+
+                if (MathF.Abs(bot.HorizontalSpeed) < 40f)
+                {
+                    stats.RouteLowSpeedMoveFlips += 1;
+                }
+            }
+
+            stats.LastRouteMoveSign = moveSign;
+        }
+        else
+        {
+            stats.LastRouteMoveSign = 0;
+        }
+    }
+
+    if (stats.LastRouteOwned)
+    {
+        stats.LastRoutePathIndex = stats.CurrentRoutePathIndex;
+        stats.LastRouteEdgeKind = stats.CurrentRouteEdgeKind;
+    }
+    else
+    {
+        stats.LastRoutePathIndex = -1;
     }
 
     if (bot.IsCarryingIntel && stats.CarryingIntelTick < 0)
@@ -2645,7 +2843,7 @@ static string FormatPracticeRosterBotTick(PracticeRosterBotStats stats)
         $"speed=({stats.LastHorizontalSpeed:0.0},{stats.LastVerticalSpeed:0.0}) caps:{stats.LastCaps} " +
         $"carrying:{(stats.LastCarryingIntel ? 1 : 0)} " +
         $"stagnant:{(stats.RecentStagnant ? 1 : 0)} windowMove:{stats.RecentWindowMovement:0.0} " +
-        $"auth:{authority} path:{stats.LastPathIndex}/{stats.LastPathCount} trace:{trace}");
+        $"auth:{authority} alpha:{(stats.LastAlphaNavigation ? 1 : 0)} path:{stats.LastPathIndex}/{stats.LastPathCount} trace:{trace}");
 }
 
 static string FormatPracticeRosterBotSummary(PracticeRosterBotStats stats)
@@ -2664,6 +2862,8 @@ static string FormatPracticeRosterBotSummary(PracticeRosterBotStats stats)
         $"deaths:{stats.DeathCount} firstDeathTick:{stats.FirstDeathTick} " +
         $"movement:{stats.TotalMovement:0.0} stagnantWindows:{stats.StagnantWindows} " +
         $"zeroInput:{stats.ZeroInputTicks} flips:{stats.MoveFlips} lowSpeedFlips:{stats.LowSpeedMoveFlips} " +
+        $"routeFlips:{stats.RouteMoveFlips} routeLowSpeedFlips:{stats.RouteLowSpeedMoveFlips} " +
+        $"routeSameEdgeFlips:{stats.RouteSameEdgeFlips} routeSameEdgeWalkFlips:{stats.RouteSameEdgeWalkFlips} " +
         $"proof:{stats.ProofTicks} proofIdle:{stats.ProofIdleTicks} proofAbort:{stats.ProofAbortTicks} proofAbortEvents:{SumValues(stats.ProofAbortByReason)} proofIdleEvents:{SumValues(stats.ProofIdleByReason)} " +
         $"direct:{stats.DirectTicks} directRejects:{SumValues(stats.DirectRejectByReason)} localMotionFailures:{SumValues(stats.LocalMotionFailureByReason)} graph:{stats.GraphTicks} tape:{stats.TapeTicks} " +
         $"final=({stats.LastX:0.0},{stats.LastY:0.0}) issue:{issue}");
@@ -9636,6 +9836,10 @@ internal sealed class TraversalSoakBotStats
 
     public int OscillationWindowLowSpeedMoveFlips { get; set; }
 
+    public int OscillationWindowRouteLowSpeedMoveFlips { get; set; }
+
+    public int OscillationWindowIntentionalHoldTicks { get; set; }
+
     public float RecentOscillationWindowMovement { get; set; }
 
     public int OscillationEvents { get; set; }
@@ -9646,9 +9850,13 @@ internal sealed class TraversalSoakBotStats
 
     public int ZeroInputTicks { get; set; }
 
+    public int IntentionalObjectiveHoldTicks { get; set; }
+
     public int MoveFlips { get; set; }
 
     public int LowSpeedMoveFlips { get; set; }
+
+    public int RouteLowSpeedMoveFlips { get; set; }
 
     public int LastMoveSign { get; set; }
 
@@ -9724,6 +9932,28 @@ internal sealed class PracticeRosterBotStats
     public int LastPathCount { get; set; }
 
     public int LastPathIndex { get; set; }
+
+    public bool LastAlphaNavigation { get; set; }
+
+    public bool LastRouteOwned { get; set; }
+
+    public int RouteMoveFlips { get; set; }
+
+    public int RouteLowSpeedMoveFlips { get; set; }
+
+    public int LastRouteMoveSign { get; set; }
+
+    public int LastRoutePathIndex { get; set; } = -1;
+
+    public NavEdgeKind LastRouteEdgeKind { get; set; }
+
+    public int CurrentRoutePathIndex { get; set; } = -1;
+
+    public NavEdgeKind CurrentRouteEdgeKind { get; set; }
+
+    public int RouteSameEdgeFlips { get; set; }
+
+    public int RouteSameEdgeWalkFlips { get; set; }
 
     public int LastCaps { get; set; }
 

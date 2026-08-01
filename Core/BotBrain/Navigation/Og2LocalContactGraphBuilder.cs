@@ -28,11 +28,9 @@ public static class Og2LocalContactGraphBuilder
     // but cover the complete local run-up window used by stock maps.
     private static readonly int[] JumpSweepTicks =
     [
-        0, 6, 10, 14, 18, 22,
-        // Long OG2 stair runs can require the jump at the far end of the
-        // approach after the probe has climbed several six-pixel lips.
-        30, 38, 46, 54, 60, 66, 72,
+        0, 10, 18, 30, 46, 60, 72,
     ];
+    private static readonly int[] LogicalObjectiveJumpSweepTicks = [0, 6, 10, 14, 18];
     private const float SurfaceMatchTolerance = 10f;
     private const float ContactBucket = 16f;
     private const int MaximumContactsPerSurfacePair = 8;
@@ -40,6 +38,19 @@ public static class Og2LocalContactGraphBuilder
     private const float AnchorCompletionHorizontalSlack = 28f;
     private const float AnchorCompletionVerticalSlack = 28f;
     private const float AnchorDirectAttachVerticalTolerance = 24f;
+    // Stock KOTH/arena maps may expose only a logical control-point marker.
+    // Its center is above the walkable support surface, while explicit
+    // CaptureZone markers already provide the physically meaningful goal.
+    // Keep ordinary anchors strict; widen only this typed logical-objective
+    // contract so the graph can represent the actual capture position.
+    private const float LogicalObjectiveAttachVerticalTolerance = 64f;
+    private const float LogicalObjectiveCompletionVerticalSlack = 64f;
+    private const float LogicalObjectiveSearchVerticalDistance = 360f;
+    // Heavy has the stock no-air-jump profile and the lowest run power. A
+    // 32-tick local sweep can miss a valid long run-up contact even though the
+    // same transition is executable in OG2. Keep the shared graph topology,
+    // but give this slow grounded profile the extended certification horizon.
+    private const int SlowGroundedProfileSweepTicks = 96;
 
     // The node network is shared, but contact recipes are certified against
     // the actual OG2 movement constants. Runtime testing showed that a Heavy
@@ -212,6 +223,20 @@ public static class Og2LocalContactGraphBuilder
             Console.WriteLine($"[botbrain] contact-nav stage level={level.Name} name=anchors nodes={nodes.Count} elapsedMs={stageStopwatch.Elapsed.TotalMilliseconds:0.00}");
         }
 
+        // Objective attachment can create a new surface sample after the
+        // contact pass. If that candidate has no certified edge in either
+        // direction, remove the dead traversal sample while preserving
+        // objective and spawn terminal nodes for their own validation rules.
+        var postAnchorPruned = PruneIsolatedSurfaceNodes(
+            nodes,
+            adjacency,
+            retainNonSurfaceNodes: true);
+        if (postAnchorPruned.RemovedCount > 0)
+        {
+            nodes = postAnchorPruned.Nodes;
+            adjacency = postAnchorPruned.Adjacency;
+        }
+
         var graph = new NavGraph(
             nodes.ToArray(),
             adjacency,
@@ -243,21 +268,39 @@ public static class Og2LocalContactGraphBuilder
         var seedSurfaceIds = BuildContactSeedSurfaceIds(level, geometry.Surfaces, maximumCollisionBottom);
         var surfaceIndex = new SurfaceSpatialIndex(geometry.Surfaces);
         var representativeClasses = EnumerateRepresentativeClasses().ToArray();
-        var jobs = new List<(bool CarryingIntel, PlayerClass PlayerClass, PlayerTeam ProbeTeam)>();
-        foreach (var carryingIntel in new[] { false, true })
+        var jobs = new List<(
+            bool CarryingIntel,
+            PlayerClass PlayerClass,
+            PlayerTeam ProbeTeam,
+            int SupportedTeamMask)>();
+        var carryingStates = level.Mode == GameModeKind.CaptureTheFlag
+            ? new[] { false, true }
+            : new[] { false };
+        foreach (var carryingIntel in carryingStates)
         {
             // PlayerEntity probes are independent per movement signature. The
             // level's gate set is immutable during graph construction; warm
             // the state-specific caches before fanning out so workers perform
-            // read-only collision queries against the same state. Team gates
-            // are asymmetric: an own gate is passable while an enemy gate is
-            // not, so both team collision contexts are part of the shared
-            // graph certification.
-            level.GetBlockingTeamGates(PlayerTeam.Red, carryingIntel);
-            level.GetBlockingTeamGates(PlayerTeam.Blue, carryingIntel);
-            jobs.AddRange(
-                representativeClasses.SelectMany(playerClass =>
-                    Enum.GetValues<PlayerTeam>().Select(probeTeam => (carryingIntel, playerClass, probeTeam))));
+            // read-only collision queries against the same state. Static maps
+            // have identical collision geometry for both teams, so one Red
+            // probe can certify both team masks. Maps with team-dependent
+            // blockers retain the separate Red/Blue probes.
+            if (CanShareContactGeometryAcrossTeams(level, carryingIntel))
+            {
+                level.GetBlockingTeamGates(PlayerTeam.Red, carryingIntel);
+                jobs.AddRange(
+                    representativeClasses.Select(playerClass =>
+                        (carryingIntel, playerClass, PlayerTeam.Red, BotBrainTeamMask.All)));
+            }
+            else
+            {
+                level.GetBlockingTeamGates(PlayerTeam.Red, carryingIntel);
+                level.GetBlockingTeamGates(PlayerTeam.Blue, carryingIntel);
+                jobs.AddRange(
+                    representativeClasses.SelectMany(playerClass =>
+                        Enum.GetValues<PlayerTeam>().Select(probeTeam =>
+                            (carryingIntel, playerClass, probeTeam, BotBrainTeamMask.For(probeTeam)))));
+            }
         }
 
         var contactsByJob = new Dictionary<ContactKey, ContactRecord>[jobs.Count];
@@ -280,7 +323,8 @@ public static class Og2LocalContactGraphBuilder
                     seedSurfaceIds,
                     job.PlayerClass,
                     job.CarryingIntel,
-                    job.ProbeTeam);
+                    job.ProbeTeam,
+                    job.SupportedTeamMask);
                 jobStopwatch.Stop();
                 jobElapsedMs[jobIndex] = jobStopwatch.Elapsed.TotalMilliseconds;
             });
@@ -293,6 +337,7 @@ public static class Og2LocalContactGraphBuilder
                 Console.WriteLine(
                     $"[botbrain] contact-nav job level={level.Name} class={job.PlayerClass} " +
                     $"carry={(job.CarryingIntel ? 1 : 0)} team={job.ProbeTeam} " +
+                    $"teamMask={job.SupportedTeamMask} " +
                     $"elapsedMs={jobElapsedMs[jobIndex]:0.00} contacts={contactsByJob[jobIndex].Count}");
             }
         }
@@ -333,11 +378,22 @@ public static class Og2LocalContactGraphBuilder
         IReadOnlySet<int> seedSurfaceIds,
         PlayerClass playerClass,
         bool carryingIntel,
-        PlayerTeam probeTeam)
+        PlayerTeam probeTeam,
+        int supportedTeamMask)
     {
         var contacts = new Dictionary<ContactKey, ContactRecord>();
+        // Admission is capped per directed surface pair. Counting that cap by
+        // scanning every existing contact made dense maps quadratic in the
+        // number of discovered contacts. Keep the same rule in O(1).
+        var contactCountsByPair = new Dictionary<ContactPairKey, int>();
         var definition = CharacterClassCatalog.GetDefinition(playerClass);
         var classMask = ResolveMovementClassMask(playerClass);
+        var sweepTicks = ResolveContactSweepTicks(playerClass);
+        // Every trajectory starts with Spawn/TeleportTo and restores the same
+        // probe state. Reusing one probe per class/team/carrying job avoids
+        // allocating tens of thousands of PlayerEntity instances during a
+        // graph build without changing the OG2 movement authority.
+        var probe = new PlayerEntity(-910_001, definition, "Og2LocalContactProbe");
         var visitedSurfaces = new HashSet<int>(seedSurfaceIds);
         var pendingSurfaces = new Queue<int>(seedSurfaceIds);
         while (pendingSurfaces.Count > 0)
@@ -356,6 +412,7 @@ public static class Og2LocalContactGraphBuilder
                             surface,
                             startX,
                             direction,
+                            sweepTicks,
                             jumped: false))
                     {
                         DiscoverSweep(
@@ -363,19 +420,27 @@ public static class Og2LocalContactGraphBuilder
                             geometry,
                             definition,
                             classMask,
-                            BotBrainTeamMask.For(probeTeam),
+                            supportedTeamMask,
                             carryingIntel,
                             probeTeam,
                             surface,
                             startX,
                             direction,
+                            sweepTicks,
                             jumpTick: -1,
+                            probe,
                             contacts,
+                            contactCountsByPair,
                             discoveredSurfaceIds);
                     }
 
                     foreach (var jumpTick in JumpSweepTicks)
                     {
+                        if (jumpTick >= sweepTicks)
+                        {
+                            continue;
+                        }
+
                         if (!HasPotentialTransition(
                                 geometry.Surfaces,
                                 surfaceIndex,
@@ -384,6 +449,7 @@ public static class Og2LocalContactGraphBuilder
                                 surface,
                                 startX,
                                 direction,
+                                sweepTicks,
                                 jumped: true))
                         {
                             continue;
@@ -394,14 +460,17 @@ public static class Og2LocalContactGraphBuilder
                                 geometry,
                                 definition,
                             classMask,
-                            BotBrainTeamMask.For(probeTeam),
+                            supportedTeamMask,
                             carryingIntel,
                             probeTeam,
                             surface,
                             startX,
                             direction,
+                            sweepTicks,
                             jumpTick,
+                            probe,
                             contacts,
+                            contactCountsByPair,
                             discoveredSurfaceIds);
                     }
                 }
@@ -421,6 +490,32 @@ public static class Og2LocalContactGraphBuilder
         return contacts;
     }
 
+    private static bool CanShareContactGeometryAcrossTeams(SimpleLevel level, bool carryingIntel)
+    {
+        var redGates = level.GetBlockingTeamGates(PlayerTeam.Red, carryingIntel);
+        var blueGates = level.GetBlockingTeamGates(PlayerTeam.Blue, carryingIntel);
+        if (redGates.Count != blueGates.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < redGates.Count; index += 1)
+        {
+            var redGate = redGates[index];
+            var blueGate = blueGates[index];
+            if (redGate.Type != blueGate.Type
+                || redGate.Left != blueGate.Left
+                || redGate.Top != blueGate.Top
+                || redGate.Right != blueGate.Right
+                || redGate.Bottom != blueGate.Bottom)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private static int ResolveContactBuildParallelism()
     {
         if (int.TryParse(Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_BUILD_PARALLELISM"), out var configured))
@@ -428,7 +523,44 @@ public static class Og2LocalContactGraphBuilder
             return Math.Clamp(configured, 1, Environment.ProcessorCount);
         }
 
-        return Math.Max(1, Environment.ProcessorCount - 1);
+        // Graph generation is an offline/prewarm operation, not a render-loop
+        // job. On the development machine the previous processor-count-minus-
+        // one default left a full class/team wave serialized behind an unused
+        // logical core; using the available workers materially shortens dense
+        // map generation while the deterministic merge still preserves graph
+        // ordering.
+        return Math.Max(1, Environment.ProcessorCount);
+    }
+
+    private static int ResolveContactSweepTicks(PlayerClass playerClass)
+    {
+        var configuredExtendedClasses = Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_EXTENDED_CONTACT_CLASSES");
+        if (string.IsNullOrWhiteSpace(configuredExtendedClasses))
+        {
+            return playerClass == PlayerClass.Heavy
+                ? Math.Max(SweepTicks, SlowGroundedProfileSweepTicks)
+                : SweepTicks;
+        }
+
+        var extendedClasses = configuredExtendedClasses
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(value => Enum.TryParse<PlayerClass>(value, ignoreCase: true, out var configuredClass)
+                ? (PlayerClass?)configuredClass
+                : null)
+            .Where(static configuredClass => configuredClass.HasValue)
+            .Select(static configuredClass => configuredClass!.Value)
+            .ToHashSet();
+        if (extendedClasses.Count == 0 || extendedClasses.Contains(playerClass))
+        {
+            return SweepTicks;
+        }
+
+        if (int.TryParse(Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_BASE_SWEEP_TICKS"), out var baseSweepTicks))
+        {
+            return Math.Clamp(baseSweepTicks, 24, 128);
+        }
+
+        return Math.Min(SweepTicks, 32);
     }
 
     private static IReadOnlySet<int> BuildContactSeedSurfaceIds(
@@ -480,6 +612,7 @@ public static class Og2LocalContactGraphBuilder
         VerifiedNavSurface source,
         float startX,
         int direction,
+        int sweepTicks,
         bool jumped)
     {
         // This is deliberately a one-sided, conservative broad phase. It can
@@ -487,7 +620,7 @@ public static class Og2LocalContactGraphBuilder
         // movement envelope; the OG2 PlayerEntity sweep remains the authority
         // for the emitted contact and its execution recipe.
         var maxTravel = definition.MaxRunSpeed
-            * (SweepTicks / (float)SimulationConfig.DefaultTicksPerSecond)
+            * (sweepTicks / (float)SimulationConfig.DefaultTicksPerSecond)
             + 64f;
         var minX = direction < 0 ? startX - maxTravel : startX - 32f;
         var maxX = direction > 0 ? startX + maxTravel : startX + 32f;
@@ -511,33 +644,35 @@ public static class Og2LocalContactGraphBuilder
         VerifiedNavSurface startSurface,
         float startX,
         int direction,
+        int sweepTicks,
         int jumpTick,
+        PlayerEntity probe,
         Dictionary<ContactKey, ContactRecord> contacts,
+        Dictionary<ContactPairKey, int> contactCountsByPair,
         HashSet<int> discoveredSurfaceIds)
     {
         var startY = startSurface.Top - definition.CollisionBottom;
-        var player = new PlayerEntity(-910_001, definition, "Og2LocalContactProbe");
-        player.Spawn(probeTeam, startX, startY);
-        player.TeleportTo(startX, startY);
+        probe.Spawn(probeTeam, startX, startY);
+        probe.TeleportTo(startX, startY);
         if (carryingIntel)
         {
-            player.PickUpIntel();
+            probe.PickUpIntel();
         }
-        player.ResolveBlockingOverlap(level, probeTeam);
-        player.RestoreMovementProbeState(isGrounded: true, player.MaxAirJumps, direction);
+        probe.ResolveBlockingOverlap(level, probeTeam);
+        probe.RestoreMovementProbeState(isGrounded: true, probe.MaxAirJumps, direction);
 
         var previousInput = default(PlayerInputSnapshot);
         var currentSurfaceId = startSurface.Id;
         var pendingSurfaceId = -1;
         var pendingTicks = 0;
         var entryX = startX;
-        var entryBottom = player.Bottom;
+        var entryBottom = probe.Bottom;
         var launchCaptured = false;
         var jumpStartsGrounded = false;
         var launchX = 0f;
         var launchY = 0f;
         var launchHorizontalSpeed = 0f;
-        for (var tick = 0; tick < SweepTicks; tick += 1)
+        for (var tick = 0; tick < sweepTicks; tick += 1)
         {
             var jump = tick == jumpTick;
             var input = new PlayerInputSnapshot(
@@ -550,22 +685,22 @@ public static class Og2LocalContactGraphBuilder
                 Taunt: false,
                 FirePrimary: false,
                 FireSecondary: false,
-                AimWorldX: player.X + direction * 256f,
-                AimWorldY: player.Y,
+                AimWorldX: probe.X + direction * 256f,
+                AimWorldY: probe.Y,
                 DebugKill: false,
                 DropIntel: false,
                 UseAbility: false);
             var jumpPressed = input.Up && !previousInput.Up;
-            var canConsumeJump = jumpPressed && (player.IsGrounded || player.RemainingAirJumps > 0);
+            var canConsumeJump = jumpPressed && (probe.IsGrounded || probe.RemainingAirJumps > 0);
             if (canConsumeJump && !launchCaptured)
             {
                 launchCaptured = true;
-                jumpStartsGrounded = player.IsGrounded;
-                launchX = player.X;
-                launchY = player.Y;
-                launchHorizontalSpeed = player.HorizontalSpeed;
+                jumpStartsGrounded = probe.IsGrounded;
+                launchX = probe.X;
+                launchY = probe.Y;
+                launchHorizontalSpeed = probe.HorizontalSpeed;
             }
-            player.Advance(
+            probe.Advance(
                 input,
                 jumpPressed,
                 level,
@@ -573,14 +708,14 @@ public static class Og2LocalContactGraphBuilder
                 1d / SimulationConfig.DefaultTicksPerSecond);
             previousInput = input;
 
-            if (!player.IsGrounded)
+            if (!probe.IsGrounded)
             {
                 pendingSurfaceId = -1;
                 pendingTicks = 0;
                 continue;
             }
 
-            var detectedSurfaceId = FindSurfaceAt(geometry.Surfaces, player);
+            var detectedSurfaceId = FindSurfaceAt(geometry.Surfaces, probe);
             if (detectedSurfaceId < 0 || detectedSurfaceId == currentSurfaceId)
             {
                 continue;
@@ -596,7 +731,12 @@ public static class Og2LocalContactGraphBuilder
                 pendingTicks = 1;
             }
 
-            if (pendingTicks < 2)
+            var sourceSurface = geometry.Surfaces[currentSurfaceId];
+            var destinationSurface = geometry.Surfaces[detectedSurfaceId];
+            var isOneTickDownwardLanding = !launchCaptured
+                && destinationSurface.Top > sourceSurface.Top + SurfaceMatchTolerance;
+            var requiredGroundedTicks = isOneTickDownwardLanding ? 1 : 2;
+            if (pendingTicks < requiredGroundedTicks)
             {
                 continue;
             }
@@ -613,19 +753,18 @@ public static class Og2LocalContactGraphBuilder
                 continue;
             }
 
-            var destinationSurface = geometry.Surfaces[detectedSurfaceId];
             var kind = ResolveContactKind(
                 launchCaptured,
-                player.Bottom,
+                probe.Bottom,
                 entryBottom,
                 destinationSurface.Kind == VerifiedNavSurfaceKind.DropdownPlatform);
             var record = new ContactRecord(
                 currentSurfaceId,
                 detectedSurfaceId,
                 entryX,
-                player.X,
+                probe.X,
                 startY,
-                player.Bottom,
+                probe.Bottom,
                 kind,
                 launchCaptured ? jumpTick : -1,
                 Math.Max(1, tick + 1),
@@ -635,15 +774,15 @@ public static class Og2LocalContactGraphBuilder
                 supportedTeamMask,
                 launchCaptured ? launchX : entryX,
                 launchCaptured ? launchY : startY,
-                launchCaptured ? launchHorizontalSpeed : player.HorizontalSpeed,
+                launchCaptured ? launchHorizontalSpeed : probe.HorizontalSpeed,
                 launchCaptured && jumpStartsGrounded);
             if (ShouldTraceContact(currentSurfaceId, detectedSurfaceId, carryingIntel))
             {
                 Console.WriteLine(
                     $"[botbrain] contact-trace from={currentSurfaceId} to={detectedSurfaceId} " +
                     $"carry={(carryingIntel ? 1 : 0)} start=({startX:0.0},{startY:0.0}) " +
-                    $"actualCarry={(player.IsCarryingIntel ? 1 : 0)} maxRun={player.MaxRunSpeed:0.0} " +
-                    $"entry=({entryX:0.0},{entryBottom:0.0}) landing=({player.X:0.0},{player.Bottom:0.0}) " +
+                    $"actualCarry={(probe.IsCarryingIntel ? 1 : 0)} maxRun={probe.MaxRunSpeed:0.0} " +
+                    $"entry=({entryX:0.0},{entryBottom:0.0}) landing=({probe.X:0.0},{probe.Bottom:0.0}) " +
                     $"kind={record.Kind} launchCaptured={(launchCaptured ? 1 : 0)} " +
                     $"jump={jumpTick} tick={tick + 1} launch=({record.LaunchX:0.0},{record.LaunchY:0.0})");
             }
@@ -670,27 +809,40 @@ public static class Og2LocalContactGraphBuilder
                 };
                 recorded = true;
             }
-            else if (CountPairContacts(
-                         contacts,
-                         record.FromSurfaceId,
-                         record.ToSurfaceId,
-                         classMask,
-                         carryingIntel) < MaximumContactsPerSurfacePair)
+            else
             {
-                contacts.Add(key, record);
-                recorded = true;
+                var pairKey = new ContactPairKey(
+                    record.FromSurfaceId,
+                    record.ToSurfaceId,
+                    classMask,
+                    carryingIntel);
+                var pairCount = contactCountsByPair.GetValueOrDefault(pairKey);
+                if (pairCount < MaximumContactsPerSurfacePair)
+                {
+                    contacts.Add(key, record);
+                    contactCountsByPair[pairKey] = pairCount + 1;
+                    recorded = true;
+                }
             }
 
             if (recorded)
             {
                 discoveredSurfaceIds.Add(record.ToSurfaceId);
+
+                // A sweep is a local contact experiment, not a route replay.
+                // Once the first destination has been grounded and certified,
+                // the frontier will enqueue that surface and probe it with its
+                // own launch samples. Continuing through additional landings
+                // in this same experiment duplicates work and causes long
+                // horizons to grow superlinearly on stair-heavy maps.
+                break;
             }
 
             currentSurfaceId = detectedSurfaceId;
             pendingSurfaceId = -1;
             pendingTicks = 0;
-            entryX = player.X;
-            entryBottom = player.Bottom;
+            entryX = probe.X;
+            entryBottom = probe.Bottom;
             launchCaptured = false;
             launchX = 0f;
             launchY = 0f;
@@ -1066,7 +1218,7 @@ public static class Og2LocalContactGraphBuilder
             RequiresCarryingIntel: carryingIntelRequirement == true,
             NavEdgeLaunchRecipe.None,
             CarryingIntelRequirement: carryingIntelRequirement);
-        AddOrMergeEdge(fromNode, edge, adjacency, edgeIndex);
+        AddOrMergeEdge(fromNode, edge, adjacency, edgeIndex, mergeClassVariants: true);
     }
 
     private static void AddAnchors(
@@ -1133,7 +1285,12 @@ public static class Og2LocalContactGraphBuilder
                 minimumCollisionBottom,
                 maximumCollisionBottom,
                 roomObject.Type == RoomObjectType.CaptureZone ? roomObject.Left : null,
-                roomObject.Type == RoomObjectType.CaptureZone ? roomObject.Right : null);
+                roomObject.Type == RoomObjectType.CaptureZone ? roomObject.Right : null,
+                roomObject.Type == RoomObjectType.CaptureZone ? roomObject.Top : null,
+                roomObject.Type == RoomObjectType.CaptureZone ? roomObject.Bottom : null,
+                allowLogicalObjectiveSupport: roomObject.Type == RoomObjectType.CaptureZone
+                    || (!hasCaptureZones
+                        && (roomObject.Type is RoomObjectType.ArenaControlPoint or RoomObjectType.ControlPoint)));
         }
     }
 
@@ -1153,7 +1310,10 @@ public static class Og2LocalContactGraphBuilder
         float minimumCollisionBottom,
         float maximumCollisionBottom,
         float? horizontalMinX = null,
-        float? horizontalMaxX = null)
+        float? horizontalMaxX = null,
+        float? verticalMinY = null,
+        float? verticalMaxY = null,
+        bool allowLogicalObjectiveSupport = false)
     {
         var anchorIndex = nodes.Count;
         nodes.Add(new NavNode(x, y, kind));
@@ -1161,14 +1321,19 @@ public static class Og2LocalContactGraphBuilder
 
         var candidateMinX = horizontalMinX ?? (x - 2f);
         var candidateMaxX = horizontalMaxX ?? (x + 2f);
-        var candidates = surfaces
+        var orderedCandidates = surfaces
             // Ordinary anchors require the supporting surface to contain the
             // anchor's horizontal position. A capture zone is different: its
             // gameplay volume can extend over several adjacent surface
             // intervals, and the center may sit just beyond a wall/ledge
             // boundary. In that case attach to the nearest overlap within the
             // actual zone bounds so the objective remains a real graph goal.
-            .Where(surface => surface.Left <= candidateMaxX && surface.Right >= candidateMinX)
+            .Where(surface => allowLogicalObjectiveSupport
+                ? surface.Left <= x + AnchorSearchDistance
+                    && surface.Right >= x - AnchorSearchDistance
+                    && MathF.Abs((surface.Top - maximumCollisionBottom) - y)
+                        <= LogicalObjectiveSearchVerticalDistance
+                : surface.Left <= candidateMaxX && surface.Right >= candidateMinX)
             .Select(surface =>
             {
                 var attachMinX = horizontalMinX.HasValue
@@ -1186,13 +1351,28 @@ public static class Og2LocalContactGraphBuilder
                     Distance: MathF.Abs(surface.Top - (y + maximumCollisionBottom)) + MathF.Abs(attachX - x));
             })
             .OrderBy(static candidate => candidate.Distance)
-            .Take(4)
             .ToArray();
+        var candidates = allowLogicalObjectiveSupport
+            ? orderedCandidates
+                .Take(4)
+                .Concat(orderedCandidates
+                    .Where(candidate => candidate.Surface.Top - maximumCollisionBottom
+                        > y + LogicalObjectiveAttachVerticalTolerance)
+                    .Take(2))
+                .DistinctBy(static candidate => candidate.Surface.Id)
+                .ToArray()
+            : orderedCandidates.Take(4).ToArray();
+        var logicalObjectiveClassMask = 0;
+        var logicalObjectiveTeamMask = 0;
         foreach (var candidate in candidates)
         {
             var surfaceX = candidate.AttachX;
             var surfaceY = candidate.Surface.Top - maximumCollisionBottom;
-            if (MathF.Abs(surfaceY - y) > AnchorDirectAttachVerticalTolerance)
+            var attachVerticalTolerance = allowLogicalObjectiveSupport
+                ? LogicalObjectiveAttachVerticalTolerance
+                : AnchorDirectAttachVerticalTolerance;
+            if (!allowLogicalObjectiveSupport
+                && MathF.Abs(surfaceY - y) > attachVerticalTolerance)
             {
                 // Do not materialize a surface node for an anchor that is not
                 // actually attached to it. A rejected candidate must not leave
@@ -1200,7 +1380,6 @@ public static class Og2LocalContactGraphBuilder
                 continue;
             }
 
-            attached = true;
             var surfaceIndex = GetOrAddSurfaceNode(nodes, nodeBySample, candidate.Surface, surfaceX, maximumCollisionBottom);
             EnsureAdjacencyCapacity(adjacency, nodes.Count);
             var surfaceNode = nodes[surfaceIndex];
@@ -1214,13 +1393,161 @@ public static class Og2LocalContactGraphBuilder
                 minimumCollisionBottom,
                 maximumCollisionBottom);
 
+            if (objective && allowLogicalObjectiveSupport)
+            {
+                // A logical capture zone can be centered above the actual
+                // standing surface. When the zone overlaps that surface and
+                // the OG2 occupancy probe confirms the short horizontal span,
+                // attach it as a grounded walk goal before trying jump-only
+                // objective approaches. Without this edge a perfectly
+                // reachable KOTH point can remain a dangling objective node.
+                var objectiveMinX = horizontalMinX ?? (x - 21f);
+                var objectiveMaxX = horizontalMaxX ?? (x + 21f);
+                var objectiveMinY = verticalMinY ?? (y - 21f);
+                var objectiveMaxY = verticalMaxY ?? (y + 21f);
+                var directWalkSupported = candidate.Surface.Left <= objectiveMaxX
+                    && candidate.Surface.Right >= objectiveMinX
+                    && MathF.Abs(surfaceY - y) <= LogicalObjectiveAttachVerticalTolerance;
+                var nearbyWalkProbeSupported = !directWalkSupported
+                    && MathF.Abs(surfaceX - x) <= 96f;
+                if (directWalkSupported || nearbyWalkProbeSupported)
+                {
+                    var directCompletion = new NavEdgeCompletion(
+                        objectiveMinX,
+                        objectiveMaxX,
+                        objectiveMinY,
+                        objectiveMaxY,
+                        [],
+                        AllowsAirborneObjective: true);
+                    foreach (var movementClass in EnumerateRepresentativeClasses())
+                    {
+                        var supportedTeamMask = directWalkSupported
+                            ? ResolveStaticWalkTeamMask(
+                                level,
+                                surfaceNode,
+                                nodes[anchorIndex],
+                                movementClass,
+                                carryingIntel: false,
+                                maximumCollisionBottom)
+                            : ProbeLogicalObjectiveWalkTeamMask(
+                                level,
+                                candidate.Surface,
+                                surfaceX,
+                                x,
+                                y,
+                                objectiveMinX,
+                                objectiveMaxX,
+                                objectiveMinY,
+                                objectiveMaxY,
+                                movementClass);
+                        if (supportedTeamMask == 0)
+                        {
+                            continue;
+                        }
+
+                        var supportedClassMask = ResolveMovementClassMask(movementClass);
+                        AddOrMergeEdge(
+                            surfaceIndex,
+                            new NavEdge(
+                                anchorIndex,
+                                NavEdgeKind.Walk,
+                                MathF.Max(1f, MathF.Abs(x - surfaceNode.X) + 12f),
+                                directCompletion,
+                                JumpTriggerTick: 0,
+                                ProbeTicks: 0,
+                                ProbeMoveDirectionX: MathF.Sign(x - surfaceNode.X),
+                                ProbeVariantAttempts: 1,
+                                ProbeVariantSuccesses: 1,
+                                supportedClassMask,
+                                supportedTeamMask,
+                                RequiresGroundedContinuation: false,
+                                RequiresCarryingIntel: false,
+                                NavEdgeLaunchRecipe.None,
+                                IsOg2Contact: false),
+                            adjacency,
+                            edgeIndex);
+                        AddSimpleEdge(
+                            anchorIndex,
+                            surfaceIndex,
+                            NavEdgeKind.Walk,
+                            nodes,
+                            adjacency,
+                            edgeIndex,
+                            supportedClassMask,
+                            minimumCollisionBottom,
+                            maximumCollisionBottom,
+                            candidate.Surface.Id,
+                            carryingIntelRequirement: false,
+                            supportedTeamMask);
+                        attached = true;
+                    }
+                }
+
+                var logicalApproaches = FindLogicalObjectiveApproaches(
+                    level,
+                    candidate.Surface,
+                    surfaceX,
+                    x,
+                    y,
+                    objectiveMinX,
+                    objectiveMaxX,
+                    objectiveMinY,
+                    objectiveMaxY);
+                foreach (var approach in logicalApproaches)
+                {
+                    AddOrMergeEdge(
+                        surfaceIndex,
+                        new NavEdge(
+                            anchorIndex,
+                            NavEdgeKind.Jump,
+                            approach.ProbeTicks + MathF.Abs(x - surfaceNode.X) * 0.05f + 12f,
+                            approach.Completion,
+                            approach.JumpTriggerTick,
+                            approach.ProbeTicks,
+                            approach.MoveDirectionX,
+                            approach.VariantAttempts,
+                            approach.VariantSuccesses,
+                            approach.SupportedClassMask,
+                            approach.SupportedTeamMask,
+                            RequiresGroundedContinuation: false,
+                            RequiresCarryingIntel: false,
+                            approach.LaunchRecipe,
+                            IsOg2Contact: true),
+                        adjacency,
+                        edgeIndex,
+                        Quantize(surfaceX),
+                        Quantize(x));
+                }
+
+                if (logicalApproaches.Count > 0)
+                {
+                    attached = true;
+                    foreach (var approach in logicalApproaches)
+                    {
+                        logicalObjectiveClassMask |= approach.SupportedClassMask;
+                        logicalObjectiveTeamMask |= approach.SupportedTeamMask;
+                    }
+                    if (BotBrainClassMask.CoversAll(logicalObjectiveClassMask)
+                        && BotBrainTeamMask.CoversAll(logicalObjectiveTeamMask))
+                    {
+                        break;
+                    }
+                }
+
+                continue;
+            }
+
+            attached = true;
             if (objective)
             {
+                var completionVerticalSlack = allowLogicalObjectiveSupport
+                    ? LogicalObjectiveCompletionVerticalSlack
+                    : AnchorCompletionVerticalSlack;
                 var approachCompletion = new NavEdgeCompletion(
                     x - AnchorCompletionHorizontalSlack,
                     x + AnchorCompletionHorizontalSlack,
-                    y - AnchorCompletionVerticalSlack,
-                    y + AnchorCompletionVerticalSlack,
+                    y - completionVerticalSlack,
+                    y + completionVerticalSlack,
                     []);
                 AddOrMergeEdge(
                     surfaceIndex,
@@ -1282,6 +1609,281 @@ public static class Og2LocalContactGraphBuilder
         {
             spawnAnchors.Add(new NavSpawnAnchor(x, y, team.Value));
         }
+    }
+
+    private static List<LogicalObjectiveApproach> FindLogicalObjectiveApproaches(
+        SimpleLevel level,
+        VerifiedNavSurface surface,
+        float startX,
+        float objectiveX,
+        float objectiveY,
+        float objectiveMinX,
+        float objectiveMaxX,
+        float objectiveMinY,
+        float objectiveMaxY)
+    {
+        var approaches = new List<LogicalObjectiveApproach>();
+        foreach (var movementClassGroup in EnumerateRepresentativeClasses()
+                     .GroupBy(MovementSignature.For))
+        {
+            var movementClass = movementClassGroup.First();
+            var supportedClassMask = ResolveMovementClassMask(movementClass);
+            foreach (var team in Enum.GetValues<PlayerTeam>())
+            {
+                if (!TryProbeLogicalObjectiveJump(
+                        level,
+                        surface,
+                        startX,
+                        objectiveX,
+                        objectiveY,
+                        objectiveMinX,
+                        objectiveMaxX,
+                        objectiveMinY,
+                        objectiveMaxY,
+                        movementClass,
+                        team,
+                        out var probe))
+                {
+                    continue;
+                }
+
+                approaches.Add(new LogicalObjectiveApproach(
+                    supportedClassMask,
+                    BotBrainTeamMask.For(team),
+                    probe.JumpTriggerTick,
+                    probe.ProbeTicks,
+                    probe.MoveDirectionX,
+                    probe.VariantAttempts,
+                    probe.VariantSuccesses,
+                    probe.Completion,
+                    probe.LaunchRecipe));
+            }
+        }
+
+        return approaches;
+    }
+
+    private static int ProbeLogicalObjectiveWalkTeamMask(
+        SimpleLevel level,
+        VerifiedNavSurface surface,
+        float startX,
+        float objectiveX,
+        float objectiveY,
+        float objectiveMinX,
+        float objectiveMaxX,
+        float objectiveMinY,
+        float objectiveMaxY,
+        PlayerClass playerClass)
+    {
+        var teamMask = 0;
+        foreach (var team in Enum.GetValues<PlayerTeam>())
+        {
+            if (TryProbeLogicalObjectiveWalk(
+                    level,
+                    surface,
+                    startX,
+                    objectiveX,
+                    objectiveY,
+                    objectiveMinX,
+                    objectiveMaxX,
+                    objectiveMinY,
+                    objectiveMaxY,
+                    playerClass,
+                    team))
+            {
+                teamMask |= BotBrainTeamMask.For(team);
+            }
+        }
+
+        return teamMask;
+    }
+
+    private static bool TryProbeLogicalObjectiveWalk(
+        SimpleLevel level,
+        VerifiedNavSurface surface,
+        float startX,
+        float objectiveX,
+        float objectiveY,
+        float objectiveMinX,
+        float objectiveMaxX,
+        float objectiveMinY,
+        float objectiveMaxY,
+        PlayerClass playerClass,
+        PlayerTeam team)
+    {
+        var definition = CharacterClassCatalog.GetDefinition(playerClass);
+        var startY = surface.Top - definition.CollisionBottom;
+        var movementDirection = (float)MathF.Sign(objectiveX - startX);
+        if (movementDirection == 0f)
+        {
+            movementDirection = 1f;
+        }
+
+        var player = new PlayerEntity(-910_004, definition, "Og2LogicalObjectiveWalkProbe");
+        player.Spawn(team, startX, startY);
+        player.TeleportTo(startX, startY);
+        player.ResolveBlockingOverlap(level, team);
+        player.RestoreMovementProbeState(isGrounded: true, player.MaxAirJumps, movementDirection);
+
+        var input = new PlayerInputSnapshot(
+            Left: movementDirection < 0f,
+            Right: movementDirection > 0f,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: objectiveX,
+            AimWorldY: objectiveY,
+            DebugKill: false,
+            DropIntel: false,
+            UseAbility: false);
+        var objectiveCenterX = (objectiveMinX + objectiveMaxX) * 0.5f;
+        var objectiveCenterY = (objectiveMinY + objectiveMaxY) * 0.5f;
+        var objectiveWidth = objectiveMaxX - objectiveMinX;
+        var objectiveHeight = objectiveMaxY - objectiveMinY;
+        for (var tick = 0; tick < Math.Max(SweepTicks, 96); tick += 1)
+        {
+            player.Advance(
+                input,
+                jumpPressed: false,
+                level,
+                team,
+                1d / SimulationConfig.DefaultTicksPerSecond);
+            if (player.IntersectsMarker(
+                    objectiveCenterX,
+                    objectiveCenterY,
+                    objectiveWidth,
+                    objectiveHeight))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryProbeLogicalObjectiveJump(
+        SimpleLevel level,
+        VerifiedNavSurface surface,
+        float startX,
+        float objectiveX,
+        float objectiveY,
+        float objectiveMinX,
+        float objectiveMaxX,
+        float objectiveMinY,
+        float objectiveMaxY,
+        PlayerClass playerClass,
+        PlayerTeam team,
+        out LogicalObjectiveProbe result)
+    {
+        result = default;
+        var definition = CharacterClassCatalog.GetDefinition(playerClass);
+        var startY = surface.Top - definition.CollisionBottom;
+        var direction = MathF.Sign(objectiveX - startX);
+        var movementDirection = direction == 0f ? 1f : direction;
+        foreach (var jumpTick in LogicalObjectiveJumpSweepTicks)
+        {
+            var player = new PlayerEntity(-910_003, definition, "Og2LogicalObjectiveProbe");
+            player.Spawn(team, startX, startY);
+            player.TeleportTo(startX, startY);
+            player.ResolveBlockingOverlap(level, team);
+            player.RestoreMovementProbeState(isGrounded: true, player.MaxAirJumps, movementDirection);
+
+            var previousInput = default(PlayerInputSnapshot);
+            var launchCaptured = false;
+            var launchX = 0f;
+            var launchY = 0f;
+            var launchHorizontalSpeed = 0f;
+            var jumpStartsGrounded = false;
+            for (var tick = 0; tick < Math.Max(SweepTicks, 96); tick += 1)
+            {
+                var input = new PlayerInputSnapshot(
+                    Left: movementDirection < 0f,
+                    Right: movementDirection > 0f,
+                    Up: tick == jumpTick,
+                    Down: false,
+                    BuildSentry: false,
+                    DestroySentry: false,
+                    Taunt: false,
+                    FirePrimary: false,
+                    FireSecondary: false,
+                    AimWorldX: objectiveX,
+                    AimWorldY: objectiveY,
+                    DebugKill: false,
+                    DropIntel: false,
+                    UseAbility: false);
+                var jumpPressed = input.Up && !previousInput.Up;
+                var jumpConsumed = jumpPressed && (player.IsGrounded || player.RemainingAirJumps > 0);
+                if (jumpConsumed)
+                {
+                    launchCaptured = true;
+                    jumpStartsGrounded = player.IsGrounded;
+                    launchX = player.X;
+                    launchY = player.Y;
+                    launchHorizontalSpeed = player.HorizontalSpeed;
+                }
+
+                player.Advance(
+                    input,
+                    jumpPressed,
+                    level,
+                    team,
+                    1d / SimulationConfig.DefaultTicksPerSecond);
+                previousInput = input;
+
+                if (!launchCaptured
+                    || !player.IntersectsMarker(
+                        (objectiveMinX + objectiveMaxX) * 0.5f,
+                        (objectiveMinY + objectiveMaxY) * 0.5f,
+                        objectiveMaxX - objectiveMinX,
+                        objectiveMaxY - objectiveMinY))
+                {
+                    continue;
+                }
+
+                var launchPositionTolerance = MathF.Max(
+                    4f,
+                    definition.MaxRunSpeed / LegacyMovementModel.SourceTicksPerSecond);
+                var launchSpeedTolerance = MathF.Max(
+                    8f,
+                    definition.RunPower * LegacyMovementModel.SourceTicksPerSecond * 0.25f);
+                result = new LogicalObjectiveProbe(
+                    new NavEdgeCompletion(
+                        player.X - 42f,
+                        player.X + 42f,
+                        player.Y - LogicalObjectiveCompletionVerticalSlack,
+                        player.Y + LogicalObjectiveCompletionVerticalSlack,
+                        [],
+                        AllowsAirborneObjective: true),
+                    tick + 1,
+                    jumpTick,
+                    movementDirection,
+                    LogicalObjectiveJumpSweepTicks.Length,
+                    1,
+                    new NavEdgeLaunchRecipe(
+                        StartGrounded: jumpStartsGrounded,
+                        LaunchTick: jumpTick,
+                        LaunchMinX: launchX - launchPositionTolerance,
+                        LaunchMaxX: launchX + launchPositionTolerance,
+                        LaunchMinY: launchY - 8f,
+                        LaunchMaxY: launchY + 8f,
+                        LaunchMinHorizontalSpeed: launchHorizontalSpeed - launchSpeedTolerance,
+                        LaunchMaxHorizontalSpeed: launchHorizontalSpeed + launchSpeedTolerance,
+                        ExpectedMoveDirectionX: movementDirection,
+                        JumpStartsGrounded: jumpStartsGrounded));
+                return true;
+            }
+
+            if (launchCaptured && player.IsGrounded)
+            {
+                break;
+            }
+        }
+
+        return false;
     }
 
     private static void ConnectAnchorSurfaceNode(
@@ -1402,6 +2004,11 @@ public static class Og2LocalContactGraphBuilder
 
     private static List<float> BuildSurfaceSamples(VerifiedNavSurface surface)
     {
+        if (surface.Width <= 2f * SurfaceSampleInset)
+        {
+            return [surface.CenterX];
+        }
+
         var samples = new List<float>
         {
             surface.Left,
@@ -1422,13 +2029,26 @@ public static class Og2LocalContactGraphBuilder
 
     private static IEnumerable<float> BuildContactSamples(VerifiedNavSurface surface)
     {
+        if (surface.Width <= 2f * SurfaceSampleInset)
+        {
+            yield return surface.CenterX;
+            yield break;
+        }
+
         var left = MathF.Min(surface.Right, surface.Left + SurfaceSampleInset);
         var right = MathF.Max(surface.Left, surface.Right - SurfaceSampleInset);
         yield return left;
         if (MathF.Abs(right - left) > ContactBucket)
         {
+            // Endpoint-only probes can miss the intended route on wide
+            // platforms: a stair/drop may be reachable from the interior
+            // while both inset endpoints commit to a different side path.
+            // Keep the sample set bounded; each trajectory is still certified
+            // independently by the class/team OG2 probe.
+            yield return (left + right) * 0.5f;
             yield return right;
         }
+
     }
 
     /// <summary>
@@ -1520,17 +2140,20 @@ public static class Og2LocalContactGraphBuilder
         IReadOnlyList<List<NavEdge>> adjacency,
         Dictionary<DirectedEdgeKey, int> edgeIndex,
         int entryBucket = 0,
-        int exitBucket = 0)
+        int exitBucket = 0,
+        bool mergeClassVariants = false)
     {
         var key = new DirectedEdgeKey(
             fromNode,
             edge.ToNode,
             edge.Kind,
-            edge.SupportedClassMask,
+            mergeClassVariants ? 0 : edge.SupportedClassMask,
+            edge.SupportedTeamMask,
             edge.RequiresCarryingIntel,
             entryBucket,
             exitBucket,
-            edge.LaunchRecipe.JumpStartsGrounded);
+            edge.LaunchRecipe.JumpStartsGrounded,
+            mergeClassVariants);
         if (edgeIndex.TryGetValue(key, out var index))
         {
             var existing = adjacency[fromNode][index];
@@ -1576,7 +2199,8 @@ public static class Og2LocalContactGraphBuilder
 
     private static (List<NavNode> Nodes, List<NavEdge>[] Adjacency, int RemovedCount) PruneIsolatedSurfaceNodes(
         IReadOnlyList<NavNode> nodes,
-        IReadOnlyList<List<NavEdge>> adjacency)
+        IReadOnlyList<List<NavEdge>> adjacency,
+        bool retainNonSurfaceNodes = false)
     {
         var incoming = new int[nodes.Count];
         for (var fromNode = 0; fromNode < nodes.Count; fromNode += 1)
@@ -1594,7 +2218,9 @@ public static class Og2LocalContactGraphBuilder
         var retainedNodes = new List<NavNode>(nodes.Count);
         for (var nodeIndex = 0; nodeIndex < nodes.Count; nodeIndex += 1)
         {
-            if (adjacency[nodeIndex].Count == 0 && incoming[nodeIndex] == 0)
+            if ((!retainNonSurfaceNodes || nodes[nodeIndex].SurfaceId.HasValue)
+                && adjacency[nodeIndex].Count == 0
+                && incoming[nodeIndex] == 0)
             {
                 continue;
             }
@@ -1676,11 +2302,13 @@ public static class Og2LocalContactGraphBuilder
                     fromNode,
                     edge.ToNode,
                     edge.Kind,
-                    edge.SupportedClassMask,
+                    !edge.IsOg2Contact && edge.ProbeTicks == 0 ? 0 : edge.SupportedClassMask,
+                    edge.SupportedTeamMask,
                     edge.RequiresCarryingIntel,
                     0,
                     0,
-                    edge.LaunchRecipe.JumpStartsGrounded)] = edgeIndexInList;
+                    edge.LaunchRecipe.JumpStartsGrounded,
+                    !edge.IsOg2Contact && edge.ProbeTicks == 0)] = edgeIndexInList;
             }
         }
 
@@ -1698,18 +2326,6 @@ public static class Og2LocalContactGraphBuilder
         x < surface.Left ? surface.Left - x : x > surface.Right ? x - surface.Right : 0f;
 
     private static int Quantize(float x) => (int)MathF.Round(x / ContactBucket);
-
-    private static int CountPairContacts(
-        IReadOnlyDictionary<ContactKey, ContactRecord> contacts,
-        int fromSurfaceId,
-        int toSurfaceId,
-        int classMask,
-        bool carryingIntel) =>
-        contacts.Values.Count(record =>
-            record.FromSurfaceId == fromSurfaceId
-            && record.ToSurfaceId == toSurfaceId
-            && record.RequiresCarryingIntel == carryingIntel
-            && (record.SupportedClassMask & classMask) != 0);
 
     private static bool ShouldTraceContact(int fromSurfaceId, int toSurfaceId, bool carryingIntel)
     {
@@ -1729,6 +2345,19 @@ public static class Og2LocalContactGraphBuilder
 
     private static PlayerClass[] EnumerateRepresentativeClasses()
     {
+        // A production graph must contain every movement signature. The
+        // diagnostic class list controls route validation, not graph
+        // generation; allowing it to shrink the graph would make a shipped
+        // cache unsafe for a live roster.
+        if (Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_ALLOW_PARTIAL_CONTACT_GRAPH")
+            is not ("1" or "true" or "TRUE"))
+        {
+            return AllMovementClasses
+                .GroupBy(MovementSignature.For)
+                .Select(static group => group.First())
+                .ToArray();
+        }
+
         var configured = Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_CONTACT_CLASSES");
         var candidates = !string.IsNullOrWhiteSpace(configured)
             ? configured
@@ -1775,10 +2404,12 @@ public static class Og2LocalContactGraphBuilder
         int ToNode,
         NavEdgeKind Kind,
         int SupportedClassMask,
+        int SupportedTeamMask,
         bool RequiresCarryingIntel,
         int EntryBucket,
         int ExitBucket,
-        bool JumpStartsGrounded);
+        bool JumpStartsGrounded,
+        bool MergeClassVariants);
 
     private readonly record struct ContactKey(
         int FromSurfaceId,
@@ -1789,6 +2420,12 @@ public static class Og2LocalContactGraphBuilder
         int ClassMask,
         bool RequiresCarryingIntel,
         bool JumpStartsGrounded);
+
+    private readonly record struct ContactPairKey(
+        int FromSurfaceId,
+        int ToSurfaceId,
+        int ClassMask,
+        bool RequiresCarryingIntel);
 
     private readonly record struct ContactRecord(
         int FromSurfaceId,
@@ -1809,9 +2446,34 @@ public static class Og2LocalContactGraphBuilder
         float LaunchHorizontalSpeed,
         bool JumpStartsGrounded);
 
+    private readonly record struct LogicalObjectiveApproach(
+        int SupportedClassMask,
+        int SupportedTeamMask,
+        int JumpTriggerTick,
+        int ProbeTicks,
+        float MoveDirectionX,
+        int VariantAttempts,
+        int VariantSuccesses,
+        NavEdgeCompletion Completion,
+        NavEdgeLaunchRecipe LaunchRecipe);
+
+    private readonly record struct LogicalObjectiveProbe(
+        NavEdgeCompletion Completion,
+        int ProbeTicks,
+        int JumpTriggerTick,
+        float MoveDirectionX,
+        int VariantAttempts,
+        int VariantSuccesses,
+        NavEdgeLaunchRecipe LaunchRecipe);
+
     private readonly record struct MovementSignature(
         float RunPower,
         float JumpStrength,
+        float MaxRunSpeed,
+        float GroundAcceleration,
+        float GroundDeceleration,
+        float Gravity,
+        float JumpSpeed,
         int MaxAirJumps,
         float CollisionLeft,
         float CollisionTop,
@@ -1824,6 +2486,11 @@ public static class Og2LocalContactGraphBuilder
             return new MovementSignature(
                 definition.RunPower,
                 definition.JumpStrength,
+                definition.MaxRunSpeed,
+                definition.GroundAcceleration,
+                definition.GroundDeceleration,
+                definition.Gravity,
+                definition.JumpSpeed,
                 definition.MaxAirJumps,
                 definition.CollisionLeft,
                 definition.CollisionTop,

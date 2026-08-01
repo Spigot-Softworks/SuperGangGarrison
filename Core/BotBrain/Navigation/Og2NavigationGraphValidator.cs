@@ -17,6 +17,7 @@ public static class Og2NavigationGraphValidator
     private const float ObjectiveApproachMaxHorizontalDistance = 256f;
     private const float CarrierMaxAboveDistance = 96f;
     private const float CarrierMaxBelowDistance = 128f;
+    private const float ObjectiveAnchorMatchTolerance = 4f;
     private const int MaximumReportedIssues = 256;
 
     public static Og2NavigationGraphValidationReport Validate(
@@ -190,12 +191,22 @@ public static class Og2NavigationGraphValidator
                 $"Edge {fromNode}->{edge.ToNode}/{edge.Kind} has no settled completion window.");
         }
 
-        if (edge.Completion.AcceptedSurfaceIds.Length == 0)
+        if (edge.Completion.AcceptedSurfaceIds.Length == 0
+            && !edge.Completion.AllowsAirborneObjective)
         {
             AddIssue(
                 issues,
                 "missing_completion_surface",
                 $"Edge {fromNode}->{edge.ToNode}/{edge.Kind} has no accepted destination surface.");
+        }
+
+        if (edge.Completion.AllowsAirborneObjective
+            && graph.GetNode(edge.ToNode).Kind != NavNodeKind.Objective)
+        {
+            AddIssue(
+                issues,
+                "airborne_completion_non_objective",
+                $"Edge {fromNode}->{edge.ToNode}/{edge.Kind} uses an airborne completion contract without an objective target.");
         }
 
         if (edge.Kind == NavEdgeKind.Jump
@@ -241,9 +252,9 @@ public static class Og2NavigationGraphValidator
             return;
         }
 
-        var spawnNode = FindSpawnNode(graph, spawn);
-        var enemyGoalNode = FindObjectiveNode(graph, enemyTarget);
-        var ownGoalNode = FindObjectiveNode(graph, ownTarget);
+        var spawnNode = FindSpawnNode(graph, spawn, playerClass, team, carryingIntel: false);
+        var enemyGoalNode = FindObjectiveNode(graph, enemyTarget.X, enemyTarget.Y);
+        var ownGoalNode = FindObjectiveNode(graph, ownTarget.X, ownTarget.Y);
         if (spawnNode < 0 || enemyGoalNode < 0 || ownGoalNode < 0)
         {
             AddIssue(
@@ -271,7 +282,10 @@ public static class Og2NavigationGraphValidator
             enemyTarget.X,
             enemyTarget.Y,
             CarrierMaxAboveDistance,
-            CarrierMaxBelowDistance);
+            CarrierMaxBelowDistance,
+            playerClass,
+            team,
+            carryingIntel: true);
         var returnPath = carrierStartNode >= 0
             ? graph.FindPath(carrierStartNode, ownGoalNode, playerClass, team: team, carryingIntel: true)
             : null;
@@ -297,7 +311,7 @@ public static class Og2NavigationGraphValidator
         List<Og2NavigationGraphRouteCheck> routes,
         List<Og2NavigationGraphValidationIssue> issues)
     {
-        var spawnNode = FindSpawnNode(graph, spawn);
+        var spawnNode = FindSpawnNode(graph, spawn, playerClass, team, carryingIntel: false);
         if (spawnNode < 0)
         {
             AddIssue(issues, "spawn_not_attached", $"Could not attach {team}/{playerClass} spawn ({spawn.X:0.0},{spawn.Y:0.0}) to the graph.");
@@ -330,11 +344,19 @@ public static class Og2NavigationGraphValidator
     {
         // The exact objective marker is not necessarily a walkable coordinate:
         // stock CP/KOTH maps commonly place the logical marker above the
-        // floor. Try it first for maps that provide a real attached objective
-        // node, then fall back to the nearest reachable surface node within
-        // the same approach envelope used by alpha runtime navigation.
-        var exactGoalNode = FindObjectiveNode(graph, target);
-        if (exactGoalNode >= 0)
+        // floor. The generator must nevertheless provide a typed objective
+        // node with a certified completion contract. A nearby reachable
+        // surface is not an acceptable substitute: it can make a broken
+        // graph look valid while the runtime bot stalls outside the capture
+        // volume. A control point may have several exact capture-zone anchors;
+        // the runtime accepts any assigned zone, so choose any reachable exact
+        // objective node from that region.
+        var exactGoalNodes = target.Anchors
+            .Select(anchor => FindObjectiveNode(graph, anchor.X, anchor.Y))
+            .Where(static nodeIndex => nodeIndex >= 0)
+            .Distinct()
+            .ToArray();
+        foreach (var exactGoalNode in exactGoalNodes)
         {
             var exactPath = graph.FindPath(startNode, exactGoalNode, playerClass, team: team);
             if (exactPath is not null)
@@ -343,37 +365,7 @@ public static class Og2NavigationGraphValidator
             }
         }
 
-        var candidates = new List<(int NodeIndex, float Score)>();
-        for (var nodeIndex = 0; nodeIndex < graph.NodeCount; nodeIndex += 1)
-        {
-            var node = graph.GetNode(nodeIndex);
-            if (!node.SurfaceId.HasValue || node.Kind is NavNodeKind.Spawn or NavNodeKind.Objective)
-            {
-                continue;
-            }
-
-            var dx = node.X - target.X;
-            var dy = node.Y - target.Y;
-            if (MathF.Abs(dx) > ObjectiveApproachMaxHorizontalDistance
-                || dy < -ObjectiveApproachMaxAboveDistance
-                || dy > ObjectiveApproachMaxBelowDistance)
-            {
-                continue;
-            }
-
-            candidates.Add((nodeIndex, (dx * dx) + (dy * dy * 4f)));
-        }
-
-        foreach (var candidate in candidates.OrderBy(static candidate => candidate.Score))
-        {
-            var path = graph.FindPath(startNode, candidate.NodeIndex, playerClass, team: team);
-            if (path is not null)
-            {
-                return (candidate.NodeIndex, path);
-            }
-        }
-
-        return (exactGoalNode, null);
+        return (exactGoalNodes.FirstOrDefault(-1), null);
     }
 
     private static void AddRouteCheck(
@@ -457,23 +449,33 @@ public static class Og2NavigationGraphValidator
         return "reachable";
     }
 
-    private static int FindSpawnNode(NavGraph graph, SpawnPoint spawn) =>
+    private static int FindSpawnNode(
+        NavGraph graph,
+        SpawnPoint spawn,
+        PlayerClass playerClass,
+        PlayerTeam team,
+        bool carryingIntel) =>
         FindNearestSurfaceNode(
             graph,
             spawn.X,
             spawn.Y,
             SpawnMaxAboveDistance,
-            SpawnMaxBelowDistance);
+            SpawnMaxBelowDistance,
+            playerClass,
+            team,
+            carryingIntel);
 
     private static int FindNearestSurfaceNode(
         NavGraph graph,
         float x,
         float y,
         float maxAboveDistance,
-        float maxBelowDistance)
+        float maxBelowDistance,
+        PlayerClass? playerClass = null,
+        PlayerTeam? team = null,
+        bool carryingIntel = false)
     {
-        var bestNode = -1;
-        var bestScore = float.MaxValue;
+        var candidates = new List<(int NodeIndex, float Score)>();
         for (var nodeIndex = 0; nodeIndex < graph.NodeCount; nodeIndex += 1)
         {
             var node = graph.GetNode(nodeIndex);
@@ -493,17 +495,49 @@ public static class Og2NavigationGraphValidator
             var dx = node.X - x;
             var dy = node.Y - y;
             var score = (dx * dx) + (dy * dy * 4f);
-            if (score < bestScore)
+            candidates.Add((nodeIndex, score));
+        }
+
+        foreach (var candidate in candidates.OrderBy(static candidate => candidate.Score))
+        {
+            if (playerClass.HasValue
+                && !HasSupportedOutgoingEdge(
+                    graph,
+                    candidate.NodeIndex,
+                    playerClass.Value,
+                    team,
+                    carryingIntel))
             {
-                bestScore = score;
-                bestNode = nodeIndex;
+                continue;
+            }
+
+            return candidate.NodeIndex;
+        }
+
+        return candidates.Count > 0
+            ? candidates.OrderBy(static candidate => candidate.Score).First().NodeIndex
+            : -1;
+    }
+
+    private static bool HasSupportedOutgoingEdge(
+        NavGraph graph,
+        int nodeIndex,
+        PlayerClass playerClass,
+        PlayerTeam? team,
+        bool carryingIntel)
+    {
+        foreach (var edge in graph.GetEdges(nodeIndex))
+        {
+            if (edge.Supports(playerClass, team, carryingIntel))
+            {
+                return true;
             }
         }
 
-        return bestNode;
+        return false;
     }
 
-    private static int FindObjectiveNode(NavGraph graph, Og2NavigationObjectiveTarget target)
+    private static int FindObjectiveNode(NavGraph graph, float x, float y)
     {
         var bestNode = -1;
         var bestDistance = float.MaxValue;
@@ -515,10 +549,11 @@ public static class Og2NavigationGraphValidator
                 continue;
             }
 
-            var dx = node.X - target.X;
-            var dy = node.Y - target.Y;
+            var dx = node.X - x;
+            var dy = node.Y - y;
             var distance = (dx * dx) + (dy * dy);
-            if (distance < bestDistance)
+            if (distance <= ObjectiveAnchorMatchTolerance * ObjectiveAnchorMatchTolerance
+                && distance < bestDistance)
             {
                 bestDistance = distance;
                 bestNode = nodeIndex;
@@ -548,7 +583,20 @@ public static class Og2NavigationGraphValidator
             return targets;
         }
 
-        var hasCaptureZones = level.GetRoomObjects(RoomObjectType.CaptureZone).Count > 0;
+        var captureZones = level.GetRoomObjects(RoomObjectType.CaptureZone);
+        var controlPointMarkers = level.RoomObjects
+            .Where(static roomObject => roomObject.Type is RoomObjectType.ArenaControlPoint or RoomObjectType.ControlPoint)
+            .ToArray();
+        if (captureZones.Count > 0 && controlPointMarkers.Length > 0)
+        {
+            // Runtime assigns each capture-zone fragment to its nearest
+            // control point, then uses the largest assigned zone as that
+            // point's effective objective/aura center. Validate the same
+            // contract instead of requiring a route to every decorative zone
+            // fragment; a bot only needs to enter one assigned zone to cap.
+            return BuildEffectiveControlPointTargets(controlPointMarkers, captureZones);
+        }
+
         foreach (var roomObject in level.RoomObjects)
         {
             if (roomObject.Type is not (RoomObjectType.ArenaControlPoint
@@ -563,12 +611,6 @@ public static class Og2NavigationGraphValidator
             // above the walkable floor. The runtime alpha planner targets the
             // associated CaptureZone, so validating both coordinates would
             // report a false unreachable route for an otherwise playable map.
-            if (hasCaptureZones
-                && roomObject.Type is RoomObjectType.ArenaControlPoint or RoomObjectType.ControlPoint)
-            {
-                continue;
-            }
-
             targets.Add(new Og2NavigationObjectiveTarget(
                 $"{roomObject.Type}:{roomObject.CenterX:0}:{roomObject.CenterY:0}",
                 roomObject.CenterX,
@@ -596,6 +638,74 @@ public static class Og2NavigationGraphValidator
             .GroupBy(static target => (target.Label, target.X, target.Y, target.Team))
             .Select(static group => group.First())
             .ToList();
+    }
+
+    private static List<Og2NavigationObjectiveTarget> BuildEffectiveControlPointTargets(
+        IReadOnlyList<RoomObjectMarker> controlPointMarkers,
+        IReadOnlyList<RoomObjectMarker> captureZones)
+    {
+        var selectedZones = new RoomObjectMarker?[controlPointMarkers.Count];
+        var selectedAreas = new float[controlPointMarkers.Count];
+        var captureZonesByPoint = Enumerable.Range(0, controlPointMarkers.Count)
+            .Select(static _ => new List<RoomObjectMarker>())
+            .ToArray();
+        for (var index = 0; index < controlPointMarkers.Count; index += 1)
+        {
+            var marker = controlPointMarkers[index];
+            selectedAreas[index] = Math.Max(48f, marker.Width * 1.4f)
+                * Math.Max(28f, marker.Height * 1.25f);
+        }
+
+        foreach (var zone in captureZones)
+        {
+            var closestPointIndex = -1;
+            var closestDistance = float.MaxValue;
+            for (var pointIndex = 0; pointIndex < controlPointMarkers.Count; pointIndex += 1)
+            {
+                var point = controlPointMarkers[pointIndex];
+                var dx = zone.CenterX - point.CenterX;
+                var dy = zone.CenterY - point.CenterY;
+                var distance = (dx * dx) + (dy * dy);
+                if (distance < closestDistance)
+                {
+                    closestDistance = distance;
+                    closestPointIndex = pointIndex;
+                }
+            }
+
+            if (closestPointIndex < 0)
+            {
+                continue;
+            }
+
+            captureZonesByPoint[closestPointIndex].Add(zone);
+            var zoneArea = zone.Width * zone.Height;
+            if (zoneArea >= selectedAreas[closestPointIndex])
+            {
+                selectedAreas[closestPointIndex] = zoneArea;
+                selectedZones[closestPointIndex] = zone;
+            }
+        }
+
+        var targets = new List<Og2NavigationObjectiveTarget>(controlPointMarkers.Count);
+        for (var index = 0; index < controlPointMarkers.Count; index += 1)
+        {
+            var point = controlPointMarkers[index];
+            var effectiveMarker = selectedZones[index] ?? point;
+            var candidateAnchors = captureZonesByPoint[index].Count > 0
+                ? captureZonesByPoint[index]
+                    .Select(static zone => new Og2NavigationObjectiveAnchor(zone.CenterX, zone.CenterY))
+                    .ToArray()
+                : [new Og2NavigationObjectiveAnchor(point.CenterX, point.CenterY)];
+            targets.Add(new Og2NavigationObjectiveTarget(
+                $"ControlPoint:{index + 1}:{effectiveMarker.CenterX:0}:{effectiveMarker.CenterY:0}",
+                effectiveMarker.CenterX,
+                effectiveMarker.CenterY,
+                point.Team,
+                candidateAnchors));
+        }
+
+        return targets;
     }
 
     private static PlayerTeam OpposingTeam(PlayerTeam team) =>
@@ -653,7 +763,13 @@ public readonly record struct Og2NavigationObjectiveTarget(
     string Label,
     float X,
     float Y,
-    PlayerTeam? Team)
+    PlayerTeam? Team,
+    IReadOnlyList<Og2NavigationObjectiveAnchor>? CandidateAnchors = null)
 {
     public bool IsValid => !string.IsNullOrWhiteSpace(Label);
+
+    public IReadOnlyList<Og2NavigationObjectiveAnchor> Anchors =>
+        CandidateAnchors ?? [new Og2NavigationObjectiveAnchor(X, Y)];
 }
+
+public readonly record struct Og2NavigationObjectiveAnchor(float X, float Y);

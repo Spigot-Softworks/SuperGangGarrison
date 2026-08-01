@@ -319,7 +319,21 @@ public sealed class ProtocolCodecTests
             Shots: [new SnapshotShotState(8, 1, 5, 100f, 120f, 10f, 0f, 15)],
             Bubbles: Array.Empty<SnapshotShotState>(),
             Blades: Array.Empty<SnapshotShotState>(),
-            Needles: Array.Empty<SnapshotShotState>(),
+            Needles:
+            [
+                new SnapshotShotState(
+                    Id: 12,
+                    Team: 1,
+                    OwnerId: 5,
+                    X: 100f,
+                    Y: 120f,
+                    VelocityX: 1f,
+                    VelocityY: 0f,
+                    TicksRemaining: 90,
+                    IsArrow: true,
+                    ArrowFakeSpeedMultiplier: 0.75f,
+                    IsLanded: true),
+            ],
             RevolverShots: Array.Empty<SnapshotShotState>(),
             Rockets: [new SnapshotRocketState(9, 1, 5, 100f, 120f, 96f, 120f, 0.2f, 240f, 20)],
             Flames: Array.Empty<SnapshotFlameState>(),
@@ -503,6 +517,10 @@ public sealed class ProtocolCodecTests
         Assert.True((roundTrippedSnapshot.EntityCollectionCompletenessFlags & SnapshotEntityCollectionCompletenessFlags.Shots) != 0);
         var rocketSpawn = Assert.Single(roundTrippedSnapshot.RocketSpawnEvents);
         Assert.Equal(901, rocketSpawn.Id);
+        var landedArrow = Assert.Single(roundTrippedSnapshot.Needles);
+        Assert.True(landedArrow.IsArrow);
+        Assert.True(landedArrow.IsLanded);
+        Assert.Equal(0.75f, landedArrow.ArrowFakeSpeedMultiplier);
         Assert.True(rocketSpawn.ExplodeImmediately);
         Assert.True(rocketSpawn.IsCritical);
         Assert.Equal(1024UL, rocketSpawn.EventId);

@@ -622,22 +622,45 @@ internal static class Og2AlphaNavigationDiagnostics
 
             var sharedGraph = Og2NavigationGraphStore.GetOrBuild(level);
             var mapPassed = true;
-            foreach (var team in requestedTeams)
-            {
-                foreach (var playerClass in classes)
+            var trials = requestedTeams
+                .SelectMany(team => classes.Select(playerClass => (Team: team, PlayerClass: playerClass)))
+                .ToArray();
+            var results = new CaptureTrialResult[trials.Length];
+            var parallelism = traceCapture
+                ? 1
+                : Math.Max(1, Environment.ProcessorCount - 1);
+            Parallel.For(
+                0,
+                trials.Length,
+                new ParallelOptions { MaxDegreeOfParallelism = parallelism },
+                trialIndex =>
                 {
-                    total += 1;
-                    var result = RunCaptureTrial(mapName, area, team, playerClass, level.Mode, ticks, sharedGraph, traceCapture);
-                    passed &= result.Passed;
-                    mapPassed &= result.Passed;
-                    passedCount += result.Passed ? 1 : 0;
-                    Console.WriteLine(
-                        $"alphaCapture map={requestedMap} loadedMap={mapName} area={area} mode={result.Mode} " +
-                        $"team={team} class={playerClass} passed={(result.Passed ? 1 : 0)} " +
-                        $"tick={result.CompletionTick} reason={result.Reason} " +
-                        $"start=({result.StartX:0.0},{result.StartY:0.0}) " +
-                        $"end=({result.EndX:0.0},{result.EndY:0.0})");
-                }
+                    var trial = trials[trialIndex];
+                    results[trialIndex] = RunCaptureTrial(
+                        mapName,
+                        area,
+                        trial.Team,
+                        trial.PlayerClass,
+                        level.Mode,
+                        ticks,
+                        sharedGraph,
+                        traceCapture);
+                });
+
+            for (var trialIndex = 0; trialIndex < trials.Length; trialIndex += 1)
+            {
+                var trial = trials[trialIndex];
+                var result = results[trialIndex];
+                total += 1;
+                passed &= result.Passed;
+                mapPassed &= result.Passed;
+                passedCount += result.Passed ? 1 : 0;
+                Console.WriteLine(
+                    $"alphaCapture map={requestedMap} loadedMap={mapName} area={area} mode={result.Mode} " +
+                    $"team={trial.Team} class={trial.PlayerClass} passed={(result.Passed ? 1 : 0)} " +
+                    $"tick={result.CompletionTick} reason={result.Reason} " +
+                    $"start=({result.StartX:0.0},{result.StartY:0.0}) " +
+                    $"end=({result.EndX:0.0},{result.EndY:0.0})");
             }
 
             Console.WriteLine(
@@ -763,6 +786,119 @@ internal static class Og2AlphaNavigationDiagnostics
         }
     }
 
+    public static void RunPrewarmShippedGraphs(IReadOnlyDictionary<string, string> rawOptions)
+    {
+        Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_CONTACT_GRAPH", "1");
+        Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_PERSISTENT_CACHE", "1");
+        Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_SWEEP_TICKS", "32");
+        Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_EXTENDED_SWEEP", "0");
+        Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_CONTACT_CLASSES", null);
+        TryRegisterPackagedQuoteCurlyGameplayPack();
+
+        var area = ReadInt(rawOptions, "area", 1);
+        var requestedMaps = rawOptions.TryGetValue("maps", out var mapText)
+            ? mapText.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            : DiscoverShippedGraphMaps(rawOptions);
+        if (requestedMaps.Length == 0)
+        {
+            throw new InvalidOperationException("No eligible maps were found for alpha graph prewarm.");
+        }
+
+        var built = 0;
+        var failed = 0;
+        var stopwatch = Stopwatch.StartNew();
+        foreach (var requestedMap in requestedMaps)
+        {
+            var mapName = NormalizeMapName(requestedMap);
+            try
+            {
+                var level = SimpleLevelFactory.CreateImportedLevel(mapName, area);
+                if (level is null)
+                {
+                    failed += 1;
+                    Console.WriteLine(
+                        $"alphaGraphPrewarm map={requestedMap} loadedMap={mapName} area={area} status=load_failed");
+                    continue;
+                }
+
+                var key = Og2NavigationGraphCache.BuildKey(level);
+                var graphStopwatch = Stopwatch.StartNew();
+                var graph = Og2NavigationGraphStore.GetOrBuild(level);
+                graphStopwatch.Stop();
+                Og2NavigationGraphCache.SaveShipped(level, key, graph, out var shippedPath);
+                built += 1;
+                Console.WriteLine(
+                    $"alphaGraphPrewarm map={requestedMap} loadedMap={mapName} area={area} " +
+                    $"status=written buildMs={graphStopwatch.Elapsed.TotalMilliseconds:0.0} " +
+                    $"nodes={graph.NodeCount} path=\"{shippedPath}\"");
+            }
+            catch (Exception ex) when (ex is IOException
+                or UnauthorizedAccessException
+                or InvalidDataException
+                or EndOfStreamException
+                or FormatException
+                or InvalidOperationException
+                or ArgumentException)
+            {
+                failed += 1;
+                Console.WriteLine(
+                    $"alphaGraphPrewarm map={requestedMap} loadedMap={mapName} area={area} " +
+                    $"status=failed error={ex.GetType().Name}:{ex.Message}");
+            }
+        }
+
+        stopwatch.Stop();
+        Console.WriteLine(
+            $"alphaGraphPrewarmSuite maps={requestedMaps.Length} built={built} failed={failed} " +
+            $"elapsedMs={stopwatch.Elapsed.TotalMilliseconds:0.0}");
+        if (failed > 0)
+        {
+            Environment.ExitCode = 1;
+        }
+    }
+
+    private static string[] DiscoverShippedGraphMaps(IReadOnlyDictionary<string, string> rawOptions)
+    {
+        var mapNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var definition in OpenGarrisonStockMapCatalog.SourceDefinitions)
+        {
+            if (!IsNonNavigableStockMap(definition.LevelName))
+            {
+                mapNames.Add(definition.LevelName);
+            }
+        }
+
+        var mapsRoot = rawOptions.TryGetValue("maps-root", out var configuredRoot)
+            ? configuredRoot
+            : RuntimePaths.MapSearchDirectories.FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(mapsRoot) && Directory.Exists(mapsRoot))
+        {
+            foreach (var directory in Directory.EnumerateDirectories(mapsRoot, "*", SearchOption.TopDirectoryOnly))
+            {
+                var mapName = Path.GetFileName(directory);
+                if (!string.IsNullOrWhiteSpace(mapName) && !IsNonNavigableStockMap(mapName))
+                {
+                    mapNames.Add(mapName);
+                }
+            }
+        }
+
+        return mapNames
+            .OrderBy(static name => name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static bool IsNonNavigableStockMap(string mapName)
+    {
+        var normalized = mapName.Trim();
+        return normalized.StartsWith("dj_", StringComparison.OrdinalIgnoreCase)
+            || normalized.StartsWith("jt_", StringComparison.OrdinalIgnoreCase)
+            || normalized.StartsWith("nfa_", StringComparison.OrdinalIgnoreCase)
+            || normalized.StartsWith("rj_", StringComparison.OrdinalIgnoreCase)
+            || normalized.StartsWith("rr_", StringComparison.OrdinalIgnoreCase)
+            || normalized.StartsWith("vip_", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static CaptureTrialResult RunCaptureTrial(
         string mapName,
         int area,
@@ -807,6 +943,7 @@ internal static class Og2AlphaNavigationDiagnostics
         var lastTracePathCount = -1;
         var lastTraceCarryingIntel = false;
         var lastTraceFailedEdge = string.Empty;
+        var defensiveObjectiveHoldTicks = 0;
         var traceInputs = Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_TRACE_INPUTS") is "1" or "true" or "TRUE";
         var traceAllInputs = Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_TRACE_ALL_INPUTS") is "1" or "true" or "TRUE";
         var traceStairInputs = Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_TRACE_STAIR_INPUTS") is "1" or "true" or "TRUE";
@@ -821,6 +958,26 @@ internal static class Og2AlphaNavigationDiagnostics
             if (HasCapturedObjective(world, bot, team, initialRedCaps, initialBlueCaps, initialControlPointTeams))
             {
                 return CaptureTrialResult.Succeeded(world.MatchRules.Mode, tick, "objective_captured", startX, startY, bot.X, bot.Y);
+            }
+
+            if (IsAttackDefenseDefensiveObjectiveSatisfied(world, bot, team))
+            {
+                defensiveObjectiveHoldTicks += 1;
+                if (defensiveObjectiveHoldTicks >= 30)
+                {
+                    return CaptureTrialResult.Succeeded(
+                        world.MatchRules.Mode,
+                        tick,
+                        "defensive_objective_reached",
+                        startX,
+                        startY,
+                        bot.X,
+                        bot.Y);
+                }
+            }
+            else
+            {
+                defensiveObjectiveHoldTicks = 0;
             }
 
             if (bot.IsAlive)
@@ -843,6 +1000,7 @@ internal static class Og2AlphaNavigationDiagnostics
                         $"path={controller.CurrentPathIndex}/{controller.CurrentPathCount} node={controller.CurrentPathNode} " +
                         $"edge={controller.LastSteeringOutput.RecipeTrace.FromNode}->{controller.LastSteeringOutput.RecipeTrace.ToNode} " +
                         $"edgeTicks={controller.LastSteeringOutput.RecipeTrace.EdgeTicks} " +
+                        $"recipeTick={controller.LastSteeringOutput.RecipeTrace.RecipeLaunchTick} " +
                         $"speed={controller.LastSteeringOutput.RecipeTrace.CurrentHorizontalSpeed:0.0} " +
                         $"recipeX=({controller.LastSteeringOutput.RecipeTrace.RecipeLaunchMinX:0.0},{controller.LastSteeringOutput.RecipeTrace.RecipeLaunchMaxX:0.0}) " +
                         $"recipeY=({controller.LastSteeringOutput.RecipeTrace.RecipeLaunchMinY:0.0},{controller.LastSteeringOutput.RecipeTrace.RecipeLaunchMaxY:0.0}) " +
@@ -941,6 +1099,26 @@ internal static class Og2AlphaNavigationDiagnostics
         }
 
         return world.MatchState.IsEnded && world.MatchState.WinnerTeam == team;
+    }
+
+    private static bool IsAttackDefenseDefensiveObjectiveSatisfied(
+        SimulationWorld world,
+        PlayerEntity bot,
+        PlayerTeam team)
+    {
+        if (world.MatchRules.Mode != GameModeKind.ControlPoint
+            || team != PlayerTeam.Blue
+            || world.Level.GetRoomObjects(RoomObjectType.ControlPointSetupGate).Count == 0)
+        {
+            return false;
+        }
+
+        var defensiveFrontier = world.ControlPoints
+            .Where(point => point.Team == team && !point.IsLocked)
+            .OrderBy(point => point.Index)
+            .FirstOrDefault();
+        return defensiveFrontier is not null
+            && world.IsPlayerInControlPointCaptureZone(bot, defensiveFrontier.Index);
     }
 
     private static int GetTeamCaps(SimulationWorld world, PlayerTeam team)

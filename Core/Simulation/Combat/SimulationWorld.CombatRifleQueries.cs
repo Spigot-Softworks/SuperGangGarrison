@@ -41,8 +41,14 @@ public sealed partial class SimulationWorld
 
         private void UpdateNearestRifleHitFromSolids(ref RifleHitState hitState, float originX, float originY, float directionX, float directionY)
         {
-            foreach (var solid in Level.Solids)
+            var rayBounds = GetRayBounds(originX, originY, directionX, directionY, hitState.NearestDistance);
+            foreach (var solid in GetPotentialSolidRaycastCandidates(rayBounds))
             {
+                if (!RayBoundsMayIntersectRectangle(rayBounds, solid.Left, solid.Top, solid.Right, solid.Bottom))
+                {
+                    continue;
+                }
+
                 var distance = GetRayIntersectionDistanceWithRectangle(originX, originY, directionX, directionY, solid.Left, solid.Top, solid.Right, solid.Bottom, hitState.NearestDistance);
                 if (distance.HasValue) { UpdateNearestRifleObstacleHit(ref hitState, distance.Value); }
             }
@@ -56,8 +62,15 @@ public sealed partial class SimulationWorld
             float directionX,
             float directionY)
         {
-            foreach (var roomObject in Level.RoomObjects)
+            var rayBounds = GetRayBounds(originX, originY, directionX, directionY, hitState.NearestDistance);
+            foreach (var indexedRoomObject in GetPotentialRoomObjectRaycastCandidates(rayBounds))
             {
+                var roomObject = indexedRoomObject.Marker;
+                if (!RayBoundsMayIntersectRectangle(rayBounds, roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom))
+                {
+                    continue;
+                }
+
                 var distance = GetRayIntersectionDistanceWithRectangle(originX, originY, directionX, directionY, roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom, hitState.NearestDistance);
                 if (!distance.HasValue)
                 {

@@ -572,7 +572,7 @@ internal sealed partial class LuaClientPlugin
         var coroutine = _script.CreateCoroutine(function).Coroutine;
         coroutine.AutoYieldCounter = CallbackAutoYieldCounter;
 
-        var stopwatch = Stopwatch.StartNew();
+        var callbackStartTimestamp = Stopwatch.GetTimestamp();
         var maxDuration = GetMaxCallbackDuration(_currentCallbackPhase);
         var maxResumeCount = GetMaxCallbackResumeCount(_currentCallbackPhase);
         var resumeCount = 0;
@@ -593,7 +593,7 @@ internal sealed partial class LuaClientPlugin
                 throw new TimeoutException($"Lua callback exceeded the resume budget of {maxResumeCount} slices.");
             }
 
-            if (stopwatch.Elapsed > maxDuration)
+            if (Stopwatch.GetElapsedTime(callbackStartTimestamp) > maxDuration)
             {
                 throw new TimeoutException($"Lua callback exceeded the {maxDuration.TotalMilliseconds:0.##}ms budget.");
             }

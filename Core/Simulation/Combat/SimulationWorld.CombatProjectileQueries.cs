@@ -69,7 +69,7 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                GetPlayerPresentationHitBounds(_world, player, out var left, out var top, out var right, out var bottom);
+                _world.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
                 if (!RayBoundsMayIntersectRectangle(rayBounds, left, top, right, bottom))
                 {
                     continue;
@@ -350,7 +350,7 @@ public sealed partial class SimulationWorld
             foreach (var player in EnumerateSimulatedPlayers())
             {
                 if (!_world.CanTeamDamagePlayer(projectileTeam, ownerId, player) || player.Id == ownerId) { continue; }
-                GetPlayerPresentationHitBounds(_world, player, out var left, out var top, out var right, out var bottom);
+                _world.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
                 if (!RayBoundsMayIntersectRectangle(
                     rayBounds,
                     left,
@@ -384,7 +384,7 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                GetPlayerPresentationHitBounds(_world, player, out var left, out var top, out var right, out var bottom);
+                _world.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
                 if (!RayBoundsMayIntersectRectangle(rayBounds, left, top, right, bottom))
                 {
                     continue;

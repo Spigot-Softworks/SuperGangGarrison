@@ -556,7 +556,8 @@ public sealed record SnapshotShotState(
     bool IsCritical = false,
     bool IsMedicHealNeedle = false,
     bool IsArrow = false,
-    float ArrowFakeSpeedMultiplier = 1f);
+    float ArrowFakeSpeedMultiplier = 1f,
+    bool IsLanded = false);
 
 public sealed record SnapshotGrenadeState(
     int Id,

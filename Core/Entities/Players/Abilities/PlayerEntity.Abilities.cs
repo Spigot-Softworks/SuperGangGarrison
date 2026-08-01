@@ -915,7 +915,6 @@ public sealed partial class PlayerEntity
             || !IsSniperBowEquipped
             || IsTaunting
             || IsHeavyEating
-            || IsCarryingIntel
             || SniperBowChargeTicks > 0
             || ExperimentalOffhandCooldownTicks > 0
             || ExperimentalOffhandCurrentShells <= 0)

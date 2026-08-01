@@ -76,6 +76,6 @@ public partial class Game1
     private static int ScaleCursorPixels(int pixels, int sizePercent)
     {
         // 100% is the former 2x cursor, so 50% maps to the original 1x pixel grid.
-        return (int)MathF.Round(pixels * (sizePercent / 50f));
+        return (int)MathF.Round(pixels * ClientSettings.GetCursorScale(sizePercent));
     }
 }

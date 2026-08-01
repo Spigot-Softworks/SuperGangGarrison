@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 
 namespace OpenGarrison.Core;
@@ -12,8 +13,7 @@ public sealed class SimpleLevel
     private readonly SpatialSolidIndex _solidIndex;
     private bool _controlPointSetupGatesActive;
     private TeamGateLockMask _forcedBlockingTeamGates;
-    private readonly object _blockingTeamGateCacheSync = new();
-    private readonly Dictionary<BlockingTeamGateCacheKey, RoomObjectMarker[]> _blockingTeamGateCaches = [];
+    private readonly ConcurrentDictionary<BlockingTeamGateCacheKey, RoomObjectMarker[]> _blockingTeamGateCaches = [];
 
     public SimpleLevel(
         string name,
@@ -221,10 +221,7 @@ public sealed class SimpleLevel
             }
 
             _controlPointSetupGatesActive = value;
-            lock (_blockingTeamGateCacheSync)
-            {
-                _blockingTeamGateCaches.Clear();
-            }
+            _blockingTeamGateCaches.Clear();
         }
     }
 
@@ -239,10 +236,7 @@ public sealed class SimpleLevel
             }
 
             _forcedBlockingTeamGates = value;
-            lock (_blockingTeamGateCacheSync)
-            {
-                _blockingTeamGateCaches.Clear();
-            }
+            _blockingTeamGateCaches.Clear();
         }
     }
 
@@ -295,55 +289,51 @@ public sealed class SimpleLevel
     public IReadOnlyList<RoomObjectMarker> GetBlockingTeamGates(PlayerTeam team, bool carryingIntel)
     {
         var cacheKey = new BlockingTeamGateCacheKey(team, carryingIntel, ControlPointSetupGatesActive, ForcedBlockingTeamGates);
-        lock (_blockingTeamGateCacheSync)
+        if (_blockingTeamGateCaches.TryGetValue(cacheKey, out var cachedGates))
         {
-            if (_blockingTeamGateCaches.TryGetValue(cacheKey, out var cachedGates))
-            {
-                return cachedGates;
-            }
-
-            var blockingGates = new List<RoomObjectMarker>();
-            for (var index = 0; index < RoomObjects.Count; index += 1)
-            {
-                var roomObject = RoomObjects[index];
-                if (!IsRoomObjectActive(index))
-                {
-                    continue;
-                }
-
-                switch (roomObject.Type)
-                {
-                    case RoomObjectType.ControlPointSetupGate:
-                        if (ControlPointSetupGatesActive)
-                        {
-                            blockingGates.Add(roomObject);
-                        }
-                        break;
-                    case RoomObjectType.TeamGate:
-                        if (roomObject.Team.HasValue && IsForcedBlockingTeamGate(roomObject.Team.Value))
-                        {
-                            blockingGates.Add(roomObject);
-                            break;
-                        }
-
-                        if (carryingIntel || (roomObject.Team.HasValue && roomObject.Team.Value != team))
-                        {
-                            blockingGates.Add(roomObject);
-                        }
-                        break;
-                    case RoomObjectType.IntelGate:
-                        if (IsIntelGateBlocking(roomObject, team, carryingIntel))
-                        {
-                            blockingGates.Add(roomObject);
-                        }
-                        break;
-                }
-            }
-
-            cachedGates = blockingGates.Count == 0 ? Array.Empty<RoomObjectMarker>() : blockingGates.ToArray();
-            _blockingTeamGateCaches[cacheKey] = cachedGates;
             return cachedGates;
         }
+
+        var blockingGates = new List<RoomObjectMarker>();
+        for (var index = 0; index < RoomObjects.Count; index += 1)
+        {
+            var roomObject = RoomObjects[index];
+            if (!IsRoomObjectActive(index))
+            {
+                continue;
+            }
+
+            switch (roomObject.Type)
+            {
+                case RoomObjectType.ControlPointSetupGate:
+                    if (ControlPointSetupGatesActive)
+                    {
+                        blockingGates.Add(roomObject);
+                    }
+                    break;
+                case RoomObjectType.TeamGate:
+                    if (roomObject.Team.HasValue && IsForcedBlockingTeamGate(roomObject.Team.Value))
+                    {
+                        blockingGates.Add(roomObject);
+                        break;
+                    }
+
+                    if (carryingIntel || (roomObject.Team.HasValue && roomObject.Team.Value != team))
+                    {
+                        blockingGates.Add(roomObject);
+                    }
+                    break;
+                case RoomObjectType.IntelGate:
+                    if (IsIntelGateBlocking(roomObject, team, carryingIntel))
+                    {
+                        blockingGates.Add(roomObject);
+                    }
+                    break;
+            }
+        }
+
+        cachedGates = blockingGates.Count == 0 ? Array.Empty<RoomObjectMarker>() : blockingGates.ToArray();
+        return _blockingTeamGateCaches.GetOrAdd(cacheKey, cachedGates);
     }
 
     public bool IntersectsSolid(float left, float top, float right, float bottom)

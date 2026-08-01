@@ -1,8 +1,8 @@
 {
   "id": "BowKL",
   "framePaths": [
-    "Content/Sprites/HUDs/Kill Icons/BowKL.images/image 0.png",
-    "Content/Sprites/HUDs/Kill Icons/BowKL.images/image 1.png"
+    "assets/hud/kill-icons/BowKL.images/image 0.png",
+    "assets/hud/kill-icons/BowKL.images/image 1.png"
   ],
   "originX": 24,
   "originY": 5,

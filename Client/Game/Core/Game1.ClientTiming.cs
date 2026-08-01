@@ -249,6 +249,8 @@ public partial class Game1
 
     private void AdvanceGameplayClientTicks(int ticks)
     {
+        AdvanceContinuousCrosshairAnimation(ticks);
+
         for (var tick = 0; tick < ticks; tick += 1)
         {
             AdvancePredictedAfterburnVisuals();
@@ -286,6 +288,28 @@ public partial class Game1
 
             AdvanceBackstabVisuals();
         }
+    }
+
+    private void AdvanceContinuousCrosshairAnimation(int ticks)
+    {
+        var weapon = GetLocalDisplayedMainWeaponStats();
+        if (!IsContinuousCrosshairWeapon(weapon))
+        {
+            _continuousCrosshairActiveTicks = 0;
+            return;
+        }
+
+        var cooldownTicks = GetLocalDisplayedMainWeaponCooldownTicks();
+        if (!_latestPredictedLocalInput.FirePrimary && cooldownTicks <= 0)
+        {
+            _continuousCrosshairActiveTicks = 0;
+            return;
+        }
+
+        var fillDurationTicks = Math.Max(1, weapon.ReloadDelayTicks) * ContinuousCrosshairFillCycles;
+        _continuousCrosshairActiveTicks = Math.Min(
+            fillDurationTicks,
+            _continuousCrosshairActiveTicks + Math.Max(0, ticks));
     }
 
     private void AdvanceWriteBubbleTick()

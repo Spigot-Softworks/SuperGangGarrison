@@ -15,7 +15,7 @@ public static class Og2NavigationGraphBuilder
 {
     // Bump whenever graph-generation behavior changes. Runtime steering
     // changes intentionally do not invalidate the graph cache.
-    public const string GeneratorFingerprint = "og2-contact-20260729-v29-capture-zone-overlap-anchors";
+    public const string GeneratorFingerprint = "og2-contact-20260731-v50-merge-static-class-edges";
 
     private static readonly ConditionalWeakTable<SimpleLevel, StaticNavigationBlockers> StaticBlockerCache = new();
 
@@ -2048,16 +2048,31 @@ public static class Og2NavigationGraphBuilder
 /// </summary>
 public static class Og2NavigationGraphStore
 {
+    private const string ExtendedSweepTicks = "96";
     private static readonly ConditionalWeakTable<SimpleLevel, CachedGraph> Cache = new();
     private static readonly object Sync = new();
 
     public static NavGraph GetOrBuild(SimpleLevel level)
     {
         ArgumentNullException.ThrowIfNull(level);
-        var cacheKey = Og2NavigationGraphCache.BuildKey(level);
+
+        // This store is the production entry point for the alpha controller.
+        // Keep the runtime path on the same lightweight, class-agnostic contact
+        // graph that the acceptance diagnostics validate. Diagnostics may
+        // override these values explicitly; an unset value gets the validated
+        // production default so a practice match cannot silently fall back to
+        // the deprecated graph builder or its slow exploratory sweep.
+        Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_CONTACT_GRAPH", "1");
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_SWEEP_TICKS")))
+        {
+            Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_SWEEP_TICKS", "32");
+        }
+
+        var requestedKey = Og2NavigationGraphCache.BuildKey(level);
         if (Cache.TryGetValue(level, out var cached))
         {
-            if (string.Equals(cached.Key, cacheKey, StringComparison.Ordinal))
+            if (string.Equals(cached.RequestedKey, requestedKey, StringComparison.Ordinal)
+                || string.Equals(cached.EffectiveKey, requestedKey, StringComparison.Ordinal))
             {
                 return cached.Graph;
             }
@@ -2069,7 +2084,8 @@ public static class Og2NavigationGraphStore
         {
             if (Cache.TryGetValue(level, out cached))
             {
-                if (string.Equals(cached.Key, cacheKey, StringComparison.Ordinal))
+                if (string.Equals(cached.RequestedKey, requestedKey, StringComparison.Ordinal)
+                    || string.Equals(cached.EffectiveKey, requestedKey, StringComparison.Ordinal))
                 {
                     return cached.Graph;
                 }
@@ -2077,19 +2093,119 @@ public static class Og2NavigationGraphStore
                 Cache.Remove(level);
             }
 
-            if (Og2NavigationGraphCache.TryLoad(level, cacheKey, out var cachedGraph, out var cachePath))
+            NavGraph graph;
+            var effectiveKey = requestedKey;
+            if (Og2NavigationGraphCache.TryLoad(level, requestedKey, out var cachedGraph, out var cachePath))
             {
-                Cache.Add(level, new CachedGraph(cacheKey, cachedGraph));
+                graph = cachedGraph;
                 TraceCache(level, "hit", cachePath, cachedGraph);
-                return cachedGraph;
+            }
+            else
+            {
+                graph = Og2NavigationGraphBuilder.Build(level);
+                Og2NavigationGraphCache.Save(level, requestedKey, graph, out var savedPath);
+                TraceCache(level, "miss-built", savedPath, graph);
             }
 
-            var graph = Og2NavigationGraphBuilder.Build(level);
-            Og2NavigationGraphCache.Save(level, cacheKey, graph, out var savedPath);
-            Cache.Add(level, new CachedGraph(cacheKey, graph));
-            TraceCache(level, "miss-built", savedPath, graph);
+            // The extended class sweep is a certification/build-time tool. It
+            // must not run implicitly during a live practice match: that turns
+            // the first bot Think into a multi-second frame stall. Production
+            // loads the cached base graph; certification can opt in explicitly
+            // with BOTBRAIN_NAV_ALPHA_EXTENDED_SWEEP=1.
+            var extendedContactClasses = IsExtendedContactSweepEnabled()
+                ? ResolveExtendedContactClasses(level, graph)
+                : Array.Empty<PlayerClass>();
+            if (extendedContactClasses.Length > 0)
+            {
+                var previousExtendedClasses = Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_EXTENDED_CONTACT_CLASSES");
+                var previousBaseSweepTicks = Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_BASE_SWEEP_TICKS");
+                Environment.SetEnvironmentVariable(
+                    "BOTBRAIN_NAV_ALPHA_EXTENDED_CONTACT_CLASSES",
+                    string.Join(',', extendedContactClasses));
+                try
+                {
+                    effectiveKey = Og2NavigationGraphCache.BuildKey(
+                        level,
+                        sweepTicksOverride: ExtendedSweepTicks,
+                        contactGraphOverride: "1");
+                    if (Og2NavigationGraphCache.TryLoad(level, effectiveKey, out var extendedGraph, out var extendedCachePath))
+                    {
+                        graph = extendedGraph;
+                        TraceCache(level, "hit-extended", extendedCachePath, graph);
+                    }
+                    else
+                    {
+                        var previousSweepTicks = Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_SWEEP_TICKS");
+                        Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_BASE_SWEEP_TICKS", previousSweepTicks ?? "32");
+                        Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_SWEEP_TICKS", ExtendedSweepTicks);
+                        try
+                        {
+                            graph = Og2NavigationGraphBuilder.Build(level);
+                        }
+                        finally
+                        {
+                            Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_SWEEP_TICKS", previousSweepTicks);
+                        }
+
+                        Og2NavigationGraphCache.Save(level, effectiveKey, graph, out var extendedSavedPath);
+                        TraceCache(level, "miss-built-extended", extendedSavedPath, graph);
+                    }
+                }
+                finally
+                {
+                    Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_EXTENDED_CONTACT_CLASSES", previousExtendedClasses);
+                    Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_BASE_SWEEP_TICKS", previousBaseSweepTicks);
+                }
+            }
+
+            Cache.Add(level, new CachedGraph(requestedKey, effectiveKey, graph));
             return graph;
         }
+    }
+
+    private static PlayerClass[] ResolveExtendedContactClasses(SimpleLevel level, NavGraph graph)
+    {
+        if (!graph.IsOg2Alpha
+            || Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_SKIP_EXTENDED_SWEEP") is "1" or "true" or "TRUE"
+            || string.Equals(
+                Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_SWEEP_TICKS"),
+                ExtendedSweepTicks,
+                StringComparison.Ordinal))
+        {
+            return Array.Empty<PlayerClass>();
+        }
+
+        var report = Og2NavigationGraphValidator.Validate(level, graph, ResolveValidationClasses());
+        return report.Routes
+            .Where(static route => !route.Passed)
+            .Select(static route => route.PlayerClass)
+            .Distinct()
+            .ToArray();
+    }
+
+    private static bool IsExtendedContactSweepEnabled() =>
+        Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_EXTENDED_SWEEP") is "1" or "true" or "TRUE"
+        && Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_SKIP_EXTENDED_SWEEP") is not ("1" or "true" or "TRUE");
+
+    private static IReadOnlyList<PlayerClass> ResolveValidationClasses()
+    {
+        var configured = Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_CONTACT_CLASSES");
+        if (string.IsNullOrWhiteSpace(configured))
+        {
+            return Enum.GetValues<PlayerClass>();
+        }
+
+        var classes = configured
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(value => Enum.TryParse<PlayerClass>(value, ignoreCase: true, out var playerClass)
+                ? (PlayerClass?)playerClass
+                : null)
+            .Where(static playerClass => playerClass.HasValue)
+            .Select(static playerClass => playerClass!.Value)
+            .Distinct()
+            .ToArray();
+
+        return classes.Length > 0 ? classes : Enum.GetValues<PlayerClass>();
     }
 
     private static void TraceCache(SimpleLevel level, string status, string path, NavGraph graph)
@@ -2105,5 +2221,5 @@ public static class Og2NavigationGraphStore
             $"status={status} nodes={graph.NodeCount} edges={edgeCount} path=\"{path}\"");
     }
 
-    private sealed record CachedGraph(string Key, NavGraph Graph);
+    private sealed record CachedGraph(string RequestedKey, string EffectiveKey, NavGraph Graph);
 }

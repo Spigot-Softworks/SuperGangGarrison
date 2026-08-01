@@ -152,7 +152,7 @@ public partial class Game1
             var stepStartTimestamp = sessionStartTimestamp;
             void LogBrowserPracticeStartupStep(string label)
             {
-                if (!OperatingSystem.IsBrowser())
+                if (!OperatingSystem.IsBrowser() && !_game.IsClientPerformanceDiagnosticsEnabled())
                 {
                     return;
                 }
@@ -160,7 +160,16 @@ public partial class Game1
                 var now = Stopwatch.GetTimestamp();
                 var stepMilliseconds = (now - stepStartTimestamp) * 1000d / Stopwatch.Frequency;
                 var totalMilliseconds = (now - sessionStartTimestamp) * 1000d / Stopwatch.Frequency;
-                Console.WriteLine($"Browser practice startup {label}: step={stepMilliseconds:0.0}ms total={totalMilliseconds:0.0}ms");
+                if (OperatingSystem.IsBrowser())
+                {
+                    Console.WriteLine($"Browser practice startup {label}: step={stepMilliseconds:0.0}ms total={totalMilliseconds:0.0}ms");
+                }
+                else
+                {
+                    _game.LogClientPerformanceLine(
+                        $"event=client_perf_startup_step label={label} stepMs={stepMilliseconds:0.0} totalMs={totalMilliseconds:0.0}");
+                }
+
                 stepStartTimestamp = now;
             }
 
@@ -210,6 +219,11 @@ public partial class Game1
                 return false;
             }
             LogBrowserPracticeStartupStep("load-level");
+            // Warm the shared alpha graph while the map is still in the
+            // session-loading phase. This keeps the first bot Think out of
+            // the frame-time-critical simulation loop.
+            _game.LoadPracticeNavigationAssetsForCurrentLevel();
+            LogBrowserPracticeStartupStep("load-navigation");
 
             var forcedBlockingTeamGates = TeamGateLockMask.None;
             if (sessionKind == GameplaySessionKind.LastToDie && _game._lastToDieRun is not null)
@@ -222,10 +236,11 @@ public partial class Game1
             _game._world.AutoRestartOnMapChange = sessionKind != GameplaySessionKind.LastToDie
                 && sessionKind != GameplaySessionKind.Jump;
             LogBrowserPracticeStartupStep("configure-level");
-            _game.LoadPracticeNavigationAssetsForCurrentLevel();
-            LogBrowserPracticeStartupStep("load-navigation");
             _sessionController.EnterGameplaySession(sessionKind, openJoinMenus, statusMessage: string.Empty);
             LogBrowserPracticeStartupStep("enter-session");
+            // The offline bot counts are finalized as part of entering the
+            // session. Warm the shared alpha routes after that point so the
+            // first bot Think cannot pay a full spawn-to-objective A* search.
             _game.InitializePracticeBotNamePoolForMatch();
             LogBrowserPracticeStartupStep("bot-names");
 

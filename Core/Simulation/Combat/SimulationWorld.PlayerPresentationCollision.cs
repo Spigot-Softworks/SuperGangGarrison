@@ -8,6 +8,32 @@ public sealed partial class SimulationWorld
     private static readonly object s_presentationSpriteAssetCacheSync = new();
     private static readonly Dictionary<string, GameMakerSpriteAsset> s_resolvedPresentationSpriteAssets = new(StringComparer.OrdinalIgnoreCase);
     private static readonly HashSet<string> s_missingPresentationSpriteAssets = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<int, PresentationHitBoundsCacheEntry> _presentationHitBoundsCache = new();
+    private long _presentationHitBoundsCacheFrame = long.MinValue;
+
+    private readonly record struct PresentationHitBoundsCacheKey(
+        float X,
+        float Y,
+        float HorizontalSpeed,
+        float VerticalSpeed,
+        float PlayerScale,
+        PlayerClass ClassId,
+        PlayerTeam Team,
+        bool IsAlive,
+        bool IsGrounded,
+        bool IsHeavyEating,
+        bool IsTaunting,
+        bool IsSniperScoped,
+        bool IsSourceFacingLeft,
+        bool IsCarryingIntel,
+        bool IsHumiliated);
+
+    private readonly record struct PresentationHitBoundsCacheEntry(
+        PresentationHitBoundsCacheKey Key,
+        float Left,
+        float Top,
+        float Right,
+        float Bottom);
 
     private static void GetPlayerPresentationHitBounds(
         SimulationWorld world,
@@ -23,6 +49,54 @@ public sealed partial class SimulationWorld
         }
 
         player.GetCollisionBounds(out left, out top, out right, out bottom);
+    }
+
+    private void GetCachedPlayerPresentationHitBounds(
+        PlayerEntity player,
+        out float left,
+        out float top,
+        out float right,
+        out float bottom)
+    {
+        if (_presentationHitBoundsCacheFrame != Frame)
+        {
+            _presentationHitBoundsCache.Clear();
+            _presentationHitBoundsCacheFrame = Frame;
+        }
+
+        var key = new PresentationHitBoundsCacheKey(
+            player.X,
+            player.Y,
+            player.HorizontalSpeed,
+            player.VerticalSpeed,
+            player.PlayerScale,
+            player.ClassId,
+            player.Team,
+            player.IsAlive,
+            player.IsGrounded,
+            player.IsHeavyEating,
+            player.IsTaunting,
+            player.IsSniperScoped,
+            player.IsSourceFacingLeft,
+            player.IsCarryingIntel,
+            IsPlayerHumiliated(player));
+        if (_presentationHitBoundsCache.TryGetValue(player.Id, out var cached)
+            && cached.Key.Equals(key))
+        {
+            left = cached.Left;
+            top = cached.Top;
+            right = cached.Right;
+            bottom = cached.Bottom;
+            return;
+        }
+
+        GetPlayerPresentationHitBounds(this, player, out left, out top, out right, out bottom);
+        _presentationHitBoundsCache[player.Id] = new PresentationHitBoundsCacheEntry(
+            key,
+            left,
+            top,
+            right,
+            bottom);
     }
 
     private static bool TryGetPlayerPresentationHitBounds(

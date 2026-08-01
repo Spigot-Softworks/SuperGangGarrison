@@ -277,6 +277,7 @@ public sealed partial class SimulationWorld
                     needle.MoveTo(hitResult.HitX, hitResult.HitY);
                 }
                 RegisterCombatTrace(needle.PreviousX, needle.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
+                var registerImpactEffect = false;
                 if (hitResult.HitPlayer is not null
                     && needle is MedicHealNeedleProjectileEntity medicHealNeedle
                     && owner is not null
@@ -317,14 +318,26 @@ public sealed partial class SimulationWorld
                 }
                 else if (TryHandleProjectileDamageableZoneHit(hitResult, needle.Damage * needle.CriticalDamageMultiplier, needle.Team))
                 {
-                    RegisterArrowOrImpactEffect(needle, hitResult.HitX, hitResult.HitY, directionX, directionY);
+                    registerImpactEffect = true;
                 }
                 else
                 {
-                    RegisterArrowOrImpactEffect(needle, hitResult.HitX, hitResult.HitY, directionX, directionY);
+                    registerImpactEffect = true;
                 }
 
-                needle.Destroy();
+                if (hitResult.HitPlayer is null)
+                {
+                    if (needle is ArrowProjectileEntity
+                        || registerImpactEffect)
+                    {
+                        RegisterArrowOrImpactEffect(needle, hitResult.HitX, hitResult.HitY, directionX, directionY);
+                    }
+                }
+
+                if (needle is not ArrowProjectileEntity { IsLanded: true })
+                {
+                    needle.Destroy();
+                }
             }
             else
             {

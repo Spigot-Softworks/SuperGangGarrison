@@ -5,6 +5,30 @@ public sealed partial class PlayerEntity
     private const int MaxCollisionResolutionIterations = 10;
     private const float CollisionResolutionEpsilon = 0.1f;
     private const float CollisionSubpixelPrecision = 8f;
+    private static readonly bool MovementCollisionDiagnosticsEnabled =
+        Environment.GetEnvironmentVariable("OG_CLIENT_PERF_SIM_TRACE") is "1" or "true" or "TRUE";
+    private int _movementCollisionContactIterations;
+    private int _movementCollisionOccupyChecks;
+    private int _movementCollisionResolutionIterations;
+
+    internal int MovementCollisionContactIterations => _movementCollisionContactIterations;
+
+    internal int MovementCollisionOccupyChecks => _movementCollisionOccupyChecks;
+
+    internal int MovementCollisionResolutionIterations => _movementCollisionResolutionIterations;
+
+
+    private void BeginMovementCollisionDiagnostics()
+    {
+        if (!MovementCollisionDiagnosticsEnabled)
+        {
+            return;
+        }
+
+        _movementCollisionContactIterations = 0;
+        _movementCollisionOccupyChecks = 0;
+        _movementCollisionResolutionIterations = 0;
+    }
 
     public void ClampTo(WorldBounds bounds)
     {

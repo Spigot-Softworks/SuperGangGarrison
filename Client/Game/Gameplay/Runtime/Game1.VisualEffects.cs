@@ -616,7 +616,7 @@ public partial class Game1
         }
 
         var chargeTicks = GetPlayerSniperBowChargeTicks(localPlayer);
-        if (chargeTicks <= 0 || localPlayer.IsTaunting || localPlayer.IsHeavyEating || localPlayer.IsCarryingIntel)
+        if (chargeTicks <= 0 || localPlayer.IsTaunting || localPlayer.IsHeavyEating)
         {
             return;
         }

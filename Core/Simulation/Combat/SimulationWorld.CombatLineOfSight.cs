@@ -2,6 +2,11 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
+    public void WarmCombatSpatialIndices()
+    {
+        Combat.WarmSpatialIndices();
+    }
+
     private sealed partial class CombatResolver
     {
         private bool IsBlockingGate(RoomObjectMarker roomObject)
@@ -329,8 +334,14 @@ public sealed partial class SimulationWorld
 
             var directionX = (targetX - originX) / distance;
             var directionY = (targetY - originY) / distance;
-            foreach (var solid in Level.Solids)
+            var rayBounds = GetRayBounds(originX, originY, directionX, directionY, distance);
+            foreach (var solid in GetPotentialSolidRaycastCandidates(rayBounds))
             {
+                if (!RayBoundsMayIntersectRectangle(rayBounds, solid.Left, solid.Top, solid.Right, solid.Bottom))
+                {
+                    continue;
+                }
+
                 if (GetRayIntersectionDistanceWithRectangle(
                     originX,
                     originY,
@@ -379,10 +390,21 @@ public sealed partial class SimulationWorld
                 return true;
             }
 
+            if (TryGetCachedObstacleLineOfSight(originX, originY, targetX, targetY, out var cachedResult))
+            {
+                return cachedResult;
+            }
+
             var directionX = (targetX - originX) / distance;
             var directionY = (targetY - originY) / distance;
-            foreach (var solid in Level.Solids)
+            var rayBounds = GetRayBounds(originX, originY, directionX, directionY, distance);
+            foreach (var solid in GetPotentialSolidRaycastCandidates(rayBounds))
             {
+                if (!RayBoundsMayIntersectRectangle(rayBounds, solid.Left, solid.Top, solid.Right, solid.Bottom))
+                {
+                    continue;
+                }
+
                 if (GetRayIntersectionDistanceWithRectangle(
                     originX,
                     originY,
@@ -394,10 +416,12 @@ public sealed partial class SimulationWorld
                     solid.Bottom,
                     distance).HasValue)
                 {
+                    CacheObstacleLineOfSight(originX, originY, targetX, targetY, hasLineOfSight: false);
                     return false;
                 }
             }
 
+            CacheObstacleLineOfSight(originX, originY, targetX, targetY, hasLineOfSight: true);
             return true;
         }
 

@@ -97,7 +97,7 @@ public class NeedleProjectileEntity : SimulationEntity
         baseY = probeHitY - (directionY * offset);
     }
 
-    public void AdvanceOneTick(float gravityScale = 1f)
+    public virtual void AdvanceOneTick(float gravityScale = 1f)
     {
         PreviousX = X;
         PreviousY = Y;
@@ -118,7 +118,7 @@ public class NeedleProjectileEntity : SimulationEntity
         TicksRemaining = 0;
     }
 
-    public void Reflect(int ownerId, PlayerTeam team, float directionRadians)
+    public virtual void Reflect(int ownerId, PlayerTeam team, float directionRadians)
     {
         var speed = MathF.Sqrt((VelocityX * VelocityX) + (VelocityY * VelocityY));
         OwnerId = ownerId;
@@ -128,6 +128,23 @@ public class NeedleProjectileEntity : SimulationEntity
         PreviousX = X;
         PreviousY = Y;
         TicksRemaining = LifetimeTicks;
+    }
+
+    protected void SetPreviousPositionToCurrent()
+    {
+        PreviousX = X;
+        PreviousY = Y;
+    }
+
+    protected void SetVelocity(float velocityX, float velocityY)
+    {
+        VelocityX = velocityX;
+        VelocityY = velocityY;
+    }
+
+    protected void AdvanceLifetimeOneTick()
+    {
+        TicksRemaining -= 1;
     }
 
     public void ApplyNetworkState(float x, float y, float velocityX, float velocityY, int ticksRemaining)

@@ -9,9 +9,18 @@ public sealed partial class SimulationWorld
     {
         private readonly SimulationWorld _world;
         private readonly List<LevelSolid> _solidRaycastCandidates = new();
-        private readonly HashSet<int> _solidRaycastCandidateIndices = new();
+        private int[] _solidRaycastCandidateMarks = [];
+        private int _solidRaycastCandidateStamp;
+        private readonly List<SimpleLevel.IndexedRoomObject> _roomObjectRaycastCandidates = new();
+        private int[] _roomObjectRaycastCandidateMarks = [];
+        private int _roomObjectRaycastCandidateStamp;
+        private readonly Dictionary<ObstacleLineOfSightCacheKey, bool> _obstacleLineOfSightCache = new();
         private SimpleLevel? _solidRaycastIndexLevel;
         private SolidRaycastIndex? _solidRaycastIndex;
+        private SimpleLevel? _roomObjectRaycastIndexLevel;
+        private RoomObjectRaycastIndex? _roomObjectRaycastIndex;
+        private SimpleLevel? _obstacleLineOfSightCacheLevel;
+        private long _obstacleLineOfSightCacheFrame = long.MinValue;
 
         public CombatResolver(SimulationWorld world)
         {
@@ -38,17 +47,117 @@ public sealed partial class SimulationWorld
                 return Array.Empty<LevelSolid>();
             }
 
-            if (_solidRaycastIndex is null || !ReferenceEquals(_solidRaycastIndexLevel, Level))
-            {
-                _solidRaycastIndexLevel = Level;
-                _solidRaycastIndex = SolidRaycastIndex.Build(Level);
-            }
+            EnsureSolidRaycastIndex();
 
             _solidRaycastCandidates.Clear();
-            _solidRaycastCandidateIndices.Clear();
-            _solidRaycastIndex.AddCandidates(rayBounds, _solidRaycastCandidateIndices, _solidRaycastCandidates);
+            _solidRaycastCandidateStamp += 1;
+            if (_solidRaycastCandidateStamp == int.MaxValue)
+            {
+                Array.Clear(_solidRaycastCandidateMarks);
+                _solidRaycastCandidateStamp = 1;
+            }
+
+            _solidRaycastIndex.AddCandidates(
+                rayBounds,
+                _solidRaycastCandidateMarks,
+                _solidRaycastCandidateStamp,
+                _solidRaycastCandidates);
             return _solidRaycastCandidates;
         }
+
+        private IReadOnlyList<SimpleLevel.IndexedRoomObject> GetPotentialRoomObjectRaycastCandidates(RectangleHitbox rayBounds)
+        {
+            if (Level.RoomObjects.Count == 0)
+            {
+                return Array.Empty<SimpleLevel.IndexedRoomObject>();
+            }
+
+            EnsureRoomObjectRaycastIndex();
+
+            _roomObjectRaycastCandidates.Clear();
+            _roomObjectRaycastCandidateStamp += 1;
+            if (_roomObjectRaycastCandidateStamp == int.MaxValue)
+            {
+                Array.Clear(_roomObjectRaycastCandidateMarks);
+                _roomObjectRaycastCandidateStamp = 1;
+            }
+
+            _roomObjectRaycastIndex!.AddCandidates(
+                rayBounds,
+                _roomObjectRaycastCandidateMarks,
+                _roomObjectRaycastCandidateStamp,
+                _roomObjectRaycastCandidates);
+            return _roomObjectRaycastCandidates;
+        }
+
+        public void WarmSpatialIndices()
+        {
+            EnsureSolidRaycastIndex();
+            EnsureRoomObjectRaycastIndex();
+        }
+
+        private void EnsureSolidRaycastIndex()
+        {
+            if (_solidRaycastIndex is not null && ReferenceEquals(_solidRaycastIndexLevel, Level))
+            {
+                return;
+            }
+
+            _solidRaycastIndexLevel = Level;
+            _solidRaycastIndex = SolidRaycastIndex.Build(Level);
+            _solidRaycastCandidateMarks = new int[Level.Solids.Count];
+            _solidRaycastCandidateStamp = 0;
+        }
+
+        private void EnsureRoomObjectRaycastIndex()
+        {
+            if (_roomObjectRaycastIndex is not null && ReferenceEquals(_roomObjectRaycastIndexLevel, Level))
+            {
+                return;
+            }
+
+            _roomObjectRaycastIndexLevel = Level;
+            _roomObjectRaycastIndex = RoomObjectRaycastIndex.Build(Level);
+            _roomObjectRaycastCandidateMarks = new int[Level.RoomObjects.Count];
+            _roomObjectRaycastCandidateStamp = 0;
+        }
+
+        private bool TryGetCachedObstacleLineOfSight(
+            float originX,
+            float originY,
+            float targetX,
+            float targetY,
+            out bool hasLineOfSight)
+        {
+            if (_obstacleLineOfSightCacheFrame != _world.Frame
+                || !ReferenceEquals(_obstacleLineOfSightCacheLevel, Level))
+            {
+                _obstacleLineOfSightCache.Clear();
+                _obstacleLineOfSightCacheFrame = _world.Frame;
+                _obstacleLineOfSightCacheLevel = Level;
+            }
+
+            return _obstacleLineOfSightCache.TryGetValue(
+                new ObstacleLineOfSightCacheKey(originX, originY, targetX, targetY),
+                out hasLineOfSight);
+        }
+
+        private void CacheObstacleLineOfSight(
+            float originX,
+            float originY,
+            float targetX,
+            float targetY,
+            bool hasLineOfSight)
+        {
+            _obstacleLineOfSightCache[
+                new ObstacleLineOfSightCacheKey(originX, originY, targetX, targetY)] = hasLineOfSight;
+        }
+
+        private readonly record struct ObstacleLineOfSightCacheKey(
+            float OriginX,
+            float OriginY,
+            float TargetX,
+            float TargetY);
 
         private sealed class SolidRaycastIndex
         {
@@ -91,7 +200,11 @@ public sealed partial class SimulationWorld
                 return new SolidRaycastIndex(level.Solids, solidIndicesByCell);
             }
 
-            public void AddCandidates(RectangleHitbox rayBounds, HashSet<int> seenIndices, List<LevelSolid> candidates)
+            public void AddCandidates(
+                RectangleHitbox rayBounds,
+                int[] seenMarks,
+                int queryStamp,
+                List<LevelSolid> candidates)
             {
                 var minCellX = GetCellCoordinate(rayBounds.Left);
                 var maxCellX = GetCellCoordinate(rayBounds.Right);
@@ -109,8 +222,9 @@ public sealed partial class SimulationWorld
                         for (var index = 0; index < solidIndices.Count; index += 1)
                         {
                             var solidIndex = solidIndices[index];
-                            if (seenIndices.Add(solidIndex))
+                            if (seenMarks[solidIndex] != queryStamp)
                             {
+                                seenMarks[solidIndex] = queryStamp;
                                 candidates.Add(_solids[solidIndex]);
                             }
                         }
@@ -122,6 +236,90 @@ public sealed partial class SimulationWorld
             {
                 return (int)MathF.Floor(value / CellSize);
             }
+
+            private readonly record struct CellKey(int X, int Y);
+        }
+
+        private sealed class RoomObjectRaycastIndex
+        {
+            private const float CellSize = 128f;
+            private readonly IReadOnlyList<SimpleLevel.IndexedRoomObject> _roomObjects;
+            private readonly Dictionary<CellKey, List<int>> _roomObjectIndicesByCell;
+
+            private RoomObjectRaycastIndex(
+                IReadOnlyList<SimpleLevel.IndexedRoomObject> roomObjects,
+                Dictionary<CellKey, List<int>> roomObjectIndicesByCell)
+            {
+                _roomObjects = roomObjects;
+                _roomObjectIndicesByCell = roomObjectIndicesByCell;
+            }
+
+            public static RoomObjectRaycastIndex Build(SimpleLevel level)
+            {
+                var roomObjects = level.RoomObjects
+                    .Select((marker, index) => new SimpleLevel.IndexedRoomObject(index, marker))
+                    .ToArray();
+                var roomObjectIndicesByCell = new Dictionary<CellKey, List<int>>();
+                for (var roomObjectIndex = 0; roomObjectIndex < roomObjects.Length; roomObjectIndex += 1)
+                {
+                    var marker = roomObjects[roomObjectIndex].Marker;
+                    var minCellX = GetCellCoordinate(marker.Left);
+                    var maxCellX = GetCellCoordinate(marker.Right);
+                    var minCellY = GetCellCoordinate(marker.Top);
+                    var maxCellY = GetCellCoordinate(marker.Bottom);
+                    for (var cellY = minCellY; cellY <= maxCellY; cellY += 1)
+                    {
+                        for (var cellX = minCellX; cellX <= maxCellX; cellX += 1)
+                        {
+                            var key = new CellKey(cellX, cellY);
+                            if (!roomObjectIndicesByCell.TryGetValue(key, out var indices))
+                            {
+                                indices = [];
+                                roomObjectIndicesByCell[key] = indices;
+                            }
+
+                            indices.Add(roomObjectIndex);
+                        }
+                    }
+                }
+
+                return new RoomObjectRaycastIndex(roomObjects, roomObjectIndicesByCell);
+            }
+
+            public void AddCandidates(
+                RectangleHitbox rayBounds,
+                int[] seenMarks,
+                int queryStamp,
+                List<SimpleLevel.IndexedRoomObject> candidates)
+            {
+                var minCellX = GetCellCoordinate(rayBounds.Left);
+                var maxCellX = GetCellCoordinate(rayBounds.Right);
+                var minCellY = GetCellCoordinate(rayBounds.Top);
+                var maxCellY = GetCellCoordinate(rayBounds.Bottom);
+                for (var cellY = minCellY; cellY <= maxCellY; cellY += 1)
+                {
+                    for (var cellX = minCellX; cellX <= maxCellX; cellX += 1)
+                    {
+                        if (!_roomObjectIndicesByCell.TryGetValue(new CellKey(cellX, cellY), out var roomObjectIndices))
+                        {
+                            continue;
+                        }
+
+                        for (var index = 0; index < roomObjectIndices.Count; index += 1)
+                        {
+                            var roomObjectIndex = roomObjectIndices[index];
+                            if (seenMarks[roomObjectIndex] != queryStamp)
+                            {
+                                seenMarks[roomObjectIndex] = queryStamp;
+                                candidates.Add(_roomObjects[roomObjectIndex]);
+                            }
+                        }
+                    }
+                }
+            }
+
+            private static int GetCellCoordinate(float value) =>
+                (int)MathF.Floor(value / CellSize);
 
             private readonly record struct CellKey(int X, int Y);
         }

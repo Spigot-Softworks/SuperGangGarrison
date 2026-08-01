@@ -1012,6 +1012,13 @@ public partial class Game1
 
     private void DrawNeedleProjectile(NeedleProjectileEntity needle, Vector2 cameraPosition)
     {
+        if (needle is ArrowProjectileEntity { IsLanded: true })
+        {
+            // Landed arrows are presented by the StuckArrow visual event, which
+            // owns the existing visibility and fade-out behavior.
+            return;
+        }
+
         var renderPosition = GetRenderPosition(needle.Id, needle.X, needle.Y);
         var needleColor = ResolveProjectileTint(
             needle.Team,

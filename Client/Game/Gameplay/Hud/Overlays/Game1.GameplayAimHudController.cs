@@ -3,6 +3,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using OpenGarrison.ClientShared;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
@@ -12,6 +13,7 @@ public partial class Game1
     internal const string ContinuousCrosshairSpriteName = "CrosshairContinuousS";
     internal const int ContinuousCrosshairActiveFrameCount = 10;
     internal const int ContinuousCrosshairIdleFrameIndex = ContinuousCrosshairActiveFrameCount;
+    internal const int ContinuousCrosshairFillCycles = ContinuousCrosshairActiveFrameCount;
     internal const int RechargeCrosshairIdleFrameIndex = 0;
     internal const int RechargeCrosshairActiveFrameOffset = 1;
     internal const int RechargeCrosshairActiveFrameCount = 9;
@@ -27,16 +29,21 @@ public partial class Game1
     internal static int GetCrosshairFrameIndex(
         PrimaryWeaponDefinition weapon,
         int cooldownTicks,
-        int reloadTicks)
+        int reloadTicks,
+        int continuousActiveTicks = 0)
     {
         ArgumentNullException.ThrowIfNull(weapon);
 
         var remainingTicks = Math.Max(0, Math.Max(cooldownTicks, reloadTicks));
+        if (IsContinuousCrosshairWeapon(weapon))
+        {
+            var activeTicks = Math.Max(continuousActiveTicks, remainingTicks > 0 ? 1 : 0);
+            return GetContinuousCrosshairFrameIndex(activeTicks, weapon.ReloadDelayTicks);
+        }
+
         if (remainingTicks <= 0)
         {
-            return IsContinuousCrosshairWeapon(weapon)
-                ? ContinuousCrosshairIdleFrameIndex
-                : RechargeCrosshairIdleFrameIndex;
+            return RechargeCrosshairIdleFrameIndex;
         }
 
         var durationTicks = Math.Max(1, Math.Max(weapon.ReloadDelayTicks, weapon.AmmoReloadTicks));
@@ -44,18 +51,25 @@ public partial class Game1
             1f - (remainingTicks / (float)durationTicks),
             0f,
             1f);
-        if (IsContinuousCrosshairWeapon(weapon))
-        {
-            return Math.Clamp(
-                (int)MathF.Floor(elapsedFraction * ContinuousCrosshairActiveFrameCount),
-                0,
-                ContinuousCrosshairActiveFrameCount - 1);
-        }
-
         return RechargeCrosshairActiveFrameOffset + Math.Clamp(
             (int)MathF.Floor(elapsedFraction * RechargeCrosshairActiveFrameCount),
             0,
             RechargeCrosshairActiveFrameCount - 1);
+    }
+
+    internal static int GetContinuousCrosshairFrameIndex(int activeTicks, int reloadDelayTicks)
+    {
+        if (activeTicks <= 0)
+        {
+            return ContinuousCrosshairIdleFrameIndex;
+        }
+
+        var fillDurationTicks = Math.Max(1, reloadDelayTicks) * ContinuousCrosshairFillCycles;
+        var elapsedTicks = Math.Clamp(activeTicks - 1, 0, fillDurationTicks - 1);
+        return Math.Clamp(
+            (int)MathF.Floor(elapsedTicks * (ContinuousCrosshairActiveFrameCount / (float)fillDurationTicks)),
+            0,
+            ContinuousCrosshairActiveFrameCount - 1);
     }
 
     internal static int GetSniperChargeHudFillWidthForTicks(int chargeTicks)
@@ -252,7 +266,11 @@ public partial class Game1
             var spriteName = IsContinuousCrosshairWeapon(weapon)
                 ? ContinuousCrosshairSpriteName
                 : "CrosshairS";
-            var frameIndex = GetCrosshairFrameIndex(weapon, cooldownTicks, reloadTicks);
+            var frameIndex = GetCrosshairFrameIndex(
+                weapon,
+                cooldownTicks,
+                reloadTicks,
+                _game._continuousCrosshairActiveTicks);
             var crosshair = _game.GetResolvedSprite(spriteName);
             if (crosshair is null || crosshair.Frames.Count == 0)
             {
@@ -260,7 +278,17 @@ public partial class Game1
             }
 
             frameIndex = Math.Clamp(frameIndex, 0, crosshair.Frames.Count - 1);
-            _game.DrawLoadedSpriteFrame(crosshair.Frames[frameIndex], screenPosition, null, Color.White, 0f, crosshair.Origin.ToVector2(), Vector2.One, SpriteEffects.None, 0f);
+            var cursorScale = ClientSettings.GetCursorScale(_game._cursorSizePercent);
+            _game.DrawLoadedSpriteFrame(
+                crosshair.Frames[frameIndex],
+                screenPosition,
+                null,
+                Color.White,
+                0f,
+                crosshair.Origin.ToVector2(),
+                new Vector2(cursorScale, cursorScale),
+                SpriteEffects.None,
+                0f);
         }
 
         public void DrawControllerAimLine(Vector2 cameraPosition, Vector2 screenAimPosition)

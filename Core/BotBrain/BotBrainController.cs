@@ -1,3 +1,7 @@
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+
 namespace OpenGarrison.Core.BotBrain;
 
 /// <summary>
@@ -12,6 +16,22 @@ public sealed class BotBrainController
 {
     private static readonly object NavigationDiagnosticSync = new();
     private static readonly HashSet<string> ReportedNavigationDiagnostics = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly bool NavigationEventTracingEnabled =
+        Environment.GetEnvironmentVariable("OG_CLIENT_PERF_BOT_TRACE") is "1" or "true" or "TRUE";
+    private static readonly string? NavigationEventTracePath = NavigationEventTracingEnabled
+        ? RuntimePaths.GetLogPath($"bot-navigation-events-{DateTime.Now.ToString("yyyyMMdd-HHmmssfff", CultureInfo.InvariantCulture)}.log")
+        : null;
+    private static bool NavigationStageTracingEnabled =>
+        Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_STAGE_TRACE") is "1" or "true" or "TRUE";
+    private static readonly double ThinkTimingTraceThresholdMilliseconds = ResolveThinkTimingTraceThresholdMilliseconds();
+
+    private static double ResolveThinkTimingTraceThresholdMilliseconds()
+    {
+        var configured = Environment.GetEnvironmentVariable("OG_CLIENT_PERF_BOT_TRACE_THRESHOLD_MS");
+        return double.TryParse(configured, NumberStyles.Float, CultureInfo.InvariantCulture, out var threshold)
+            ? Math.Max(0d, threshold)
+            : 8d;
+    }
 
     private readonly SteeringMachine _steering = new();
     private readonly AimResolver _aimResolver = new();
@@ -53,18 +73,52 @@ public sealed class BotBrainController
     private int _graphlessMedicHealTargetRefreshCooldown;
     private bool _graphlessMedicHealTargetRefreshInitialized;
     private readonly Dictionary<NavEdgeBlock, int> _blockedEdges = [];
+    private int _blockedEdgesVersion;
+    private AlphaRecoverySearchFailure? _alphaRecoverySearchFailure;
     private int _runtimeContactPathIndex = -1;
     private int _runtimeContactFromNode = -1;
     private int _runtimeContactToNode = -1;
     private bool _runtimeContactProbeAttempted;
-    private bool _runtimeContactLastGrounded;
+    private int _runtimeContactRetryThinkTick;
+    private int _runtimeContactFailureCount;
+    private int _pathObjectiveStateSignature;
+    private bool _alphaRecoveryPending;
+    private int _alphaRecoveryNextAttemptThinkTick;
+    private int _dynamicRouteRetryCooldownTicks;
+    private bool _hasDynamicRouteTarget;
+    private (float X, float Y) _dynamicRouteTargetPosition;
+    private int _alphaPathlessEscapeDirection;
+    private int _alphaPathlessEscapeUntilThinkTick;
+    private string? _alphaDynamicRecoveryLabel;
+    private float _alphaDynamicRecoveryLastX;
+    private float _alphaDynamicRecoveryLastY;
+    private int _alphaDynamicRecoveryStagnantTicks;
+    private float _dynamicRouteProgressLastX;
+    private float _dynamicRouteProgressLastY;
+    private int _dynamicRouteProgressStagnantTicks;
+    private int _dynamicRouteProgressLowSpeedFlips;
+    private int _dynamicRouteProgressLastMoveDirection;
+    private NavPath? _dynamicRouteProgressPath;
+    private string? _combatRouteProgressOwner;
+    private float _combatRouteProgressLastX;
+    private float _combatRouteProgressLastY;
+    private int _combatRouteProgressStagnantTicks;
 
     /// <summary>
     /// How often (in ticks) the bot reconsiders its path.
     /// </summary>
     private const int RepathIntervalTicks = 30; // 1 second at 30 tps.
 
-    private const int FailedEdgeBlockTicks = 9000; // 5 minutes at 30 tps.
+    // A failed edge must be absent from the next route search, but it also
+    // cannot be a permanent ban: a transient landing/attachment failure may
+    // be recoverable once the bot has escaped the local obstruction. Six
+    // 1.5 seconds is long enough to prevent an immediate same-edge hot loop
+    // while still allowing a later retry without stranding the bot for a match.
+    // Dynamic crates and bodies are not part of the static OG2 graph. Keep a
+    // transition that just failed out of the route search long enough for the
+    // replacement path to clear the local support region; 45 ticks was short
+    // enough for Waterway to re-select the same invalid central contact.
+    private const int FailedEdgeBlockTicks = 1_200; // 40 seconds at 30 tps; long enough to avoid reselecting a failed contact during recovery.
     private const float DirectSeekPlayerDistance = 900f;
     private const float MedicSupportDirectSeekDistance = 900f;
     private const float MedicSupportHoldMinDistance = 78f;
@@ -74,7 +128,13 @@ public sealed class BotBrainController
     private const float EscortCarrierDirectSeekDistance = 900f;
     private const float DynamicEscortCarrierDirectSeekDistance = 2400f;
     private const float DirectRouteGoalReuseDistance = 8f;
-    private const float MovingCarrierRouteReuseDistance = 128f;
+    // A graph route is a coarse traversal plan, not a pixel-perfect chase
+    // line. Keep the active traversal edge while a carrier moves through the
+    // surrounding region; rebuilding as soon as the target crosses a single
+    // graph relay restarts the jump schedule and can strand a bot on the same
+    // launch surface indefinitely. A completed/failed edge still forces a
+    // fresh route immediately.
+    private const float MovingCarrierRouteReuseDistance = 2_048f;
     private const int CaptureStrafeHopCycleTicks = 32;
     private const int CaptureStrafeHopSideTicks = 14;
     private const int CaptureStrafeTapTicks = 5;
@@ -84,6 +144,9 @@ public sealed class BotBrainController
     private const float CapturePointLaneSpacing = 18f;
     private const float CapturePointLaneTargetDeadZone = 6f;
     private const float CapturePointLaneBoundaryPadding = 4f;
+    private const int CapturePointDefensePatrolCycleTicks = 180;
+    private const int CapturePointDefensePatrolLegTicks = 72;
+    private const float CapturePointDefensePatrolOffset = 32f;
     private const float CapturePointClusterMinimumDistance = 24f;
     private const float CapturePointClusterVerticalRange = 40f;
     private const float CapturePointDirectSeekDistance = 360f;
@@ -91,6 +154,8 @@ public sealed class BotBrainController
     private const float CapturePointClearEnemyDistance = 260f;
     private const float CapturePointClearEnemyVerticalRange = 120f;
     private const float CapturePointClearSelfInterestDistance = 420f;
+    private const float AlphaCapturePointCombatEngagementDistance = 280f;
+    private const float AlphaObjectiveCombatOverlayDistance = 192f;
     private const float CapturePointObstacleProbeDistance = 36f;
     private const float ArenaCaptureDirectDriveHorizontalRange = 420f;
     private const float ArenaCaptureDirectDriveVerticalMin = -320f;
@@ -176,13 +241,61 @@ public sealed class BotBrainController
     // A failed contact can leave the bot grounded on the next lower support
     // surface rather than exactly on the failed edge's source surface. The
     // alpha graph must be able to reattach to that valid landing support.
-    private const float AlphaTraversalStartMaxBelowDistance = 96f;
+    // A missed jump can leave the live body several supports below the
+    // certified launch surface. Corinth's point well is a concrete example:
+    // the lower recovery floor is more than one platform height below the
+    // point. The goal-aware path check still rejects a disconnected candidate,
+    // so this wider attachment is not a blind seek.
+    private const float AlphaTraversalStartMaxBelowDistance = 512f;
     private const float AlphaRecoveryMaxHorizontalAttachmentDistance = 192f;
+    // Runtime jump proof is only valid when the live grounded body is still
+    // attached to the edge's source surface. A lower recovery floor must
+    // reattach to its own graph node instead of repeatedly probing an upper
+    // stair edge that can no longer be launched from the current Y.
+    private const float AlphaRuntimeContactSourceVerticalTolerance = 42f;
 
     /// <summary>
     /// How often (in ticks) the bot re-evaluates its objective.
     /// </summary>
     private const int ObjectiveReevalIntervalTicks = 60; // 2 seconds.
+    // Three probes can all occur before SteeringMachine's shared stagnation
+    // detector reaches its first recovery phase. Keep the resolver bounded,
+    // but leave enough attempts for a real body to escape a transient crate
+    // or body-block before declaring the contact unavailable and hot-looping
+    // through equivalent graph edges.
+    // A runtime proof is an adaptive refinement of the shipped OG2 contact,
+    // not a prerequisite for using that contact. Keep the retry count small:
+    // repeating the probe while the player is moving replays the expensive
+    // physics sandbox and can freeze a live frame for 100 ms or more.
+    private const int DefaultMaximumRuntimeContactProbeFailures = 6;
+    private static int MaximumRuntimeContactProbeFailures
+    {
+        get
+        {
+            var configured = Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_RUNTIME_CONTACT_FAILURES");
+            return int.TryParse(configured, out var value)
+                ? Math.Clamp(value, 1, 6)
+                : DefaultMaximumRuntimeContactProbeFailures;
+        }
+    }
+    private const int AlphaRecoveryRetryTicks = 6;
+    private const int AlphaRecoveryNegativeCacheTicks = 18;
+    // A failed alpha route must never leave the bot with a neutral movement
+    // owner while the graph is reattaching. Hold a deterministic escape
+    // direction briefly so a box/body-block does not turn into left/right
+    // churn while the next graph search is pending.
+    private const int AlphaPathlessEscapeCommitTicks = 12;
+    private const float AlphaPathlessEscapeTargetDeadZone = 8f;
+    // A dynamic target route that just failed is temporarily handed to the
+    // local recovery owner. Re-running the same synchronous A* every think
+    // produces visible frame stalls while the bot is still beside the failed
+    // contact.
+    private const int DynamicRouteRetryCooldownTicks = 12;
+    private const int DynamicObjectiveRecoveryStagnationTicks = 18;
+    private const float DynamicObjectiveRecoveryProgressDistance = 4f;
+    private const int DynamicRouteProgressStagnationTicks = 18;
+    private const int CombatRouteProgressStagnationTicks = 30;
+    private const float CombatRouteProgressDistance = 3f;
     private const int GraphlessCombatTargetRefreshTicks = 4;
     private const int GraphlessMedicHealTargetRefreshTicks = 6;
     private const float GraphlessCombatTargetMaxRange = 375f;
@@ -217,6 +330,8 @@ public sealed class BotBrainController
 
     public int CurrentPathCount => _currentPath?.Count ?? 0;
 
+    public bool IsAlphaNavigation => _alphaNavigation;
+
     public int CurrentGoalNode => _goalNodeIndex;
 
     public NavPath? CurrentPath => _currentPath;
@@ -232,6 +347,13 @@ public sealed class BotBrainController
     /// </summary>
     public bool ForceObjectiveNavigationForDiagnostics { get; set; }
 
+    /// <summary>
+    /// Test-only seam for separating navigation/body-traffic failures from
+    /// combat targeting. Production callers leave this false; it does not
+    /// alter shipped combat behavior.
+    /// </summary>
+    public bool DisableCombatForDiagnostics { get; set; }
+
     public bool HasNavigationGraph => IsNavigationGraphUsable(_navGraph);
 
     public bool HasObjectiveTapeAsset => _objectiveTapeAsset is not null;
@@ -239,6 +361,40 @@ public sealed class BotBrainController
     public bool HasActivePath => _currentPath is not null && !_currentPath.IsComplete;
 
     public SteeringOutput LastSteeringOutput { get; private set; }
+
+    /// <summary>
+    /// Runtime-certified contacts are schedules measured one simulation tick at a
+    /// time. The client may batch ordinary bot thinking for performance, but must
+    /// advance the entire contact edge one simulation tick at a time. In
+    /// particular, stopping the fast path while airborne leaves the cached input
+    /// running ahead of the edge state and hides the landing handoff from the
+    /// controller.
+    /// </summary>
+    public bool RequiresPerTickNavigationThink
+    {
+        get
+        {
+            if (!_alphaNavigation
+                || _navGraph is null
+                || _currentPath is null
+                || !_currentPath.TryGetCurrentEdge(out var edge)
+                || !edge.IsOg2Contact)
+            {
+                return false;
+            }
+
+            return LastSteeringOutput.RecipeTrace.HasRecipe;
+        }
+    }
+
+    /// <summary>
+    /// A batched client must promote a bot whose alpha route was cleared back
+    /// into the next full brain pass. Cached steering cannot reconstruct the
+    /// objective target or choose a new graph attachment on its own.
+    /// </summary>
+    public bool RequiresImmediateNavigationThink =>
+        _alphaNavigation
+        && (_currentPath is null || _alphaRecoveryPending);
 
     public BotBrainCombatTarget? LastCombatTarget { get; private set; }
 
@@ -249,6 +405,8 @@ public sealed class BotBrainController
     public string LastSemanticRecoveryTrace { get; private set; } = string.Empty;
 
     public string LastDirectDriveTrace { get; private set; } = string.Empty;
+
+    public string LastThinkTimingTrace { get; private set; } = string.Empty;
 
     public string LastObjectiveTapeTrace { get; private set; } = string.Empty;
 
@@ -281,10 +439,18 @@ public sealed class BotBrainController
         PlayerTeam team,
         IReadOnlyDictionary<byte, PlayerTeam>? controlledTeamsBySlot = null)
     {
+        var thinkStartTimestamp = Stopwatch.GetTimestamp();
+        var graphReadyTimestamp = thinkStartTimestamp;
+        var targetSelectionTimestamp = thinkStartTimestamp;
+        var pathUpdatedTimestamp = thinkStartTimestamp;
+        var routeSteeringResolvedTimestamp = thinkStartTimestamp;
+        var directSteeringResolvedTimestamp = thinkStartTimestamp;
+        var steeringResolvedTimestamp = thinkStartTimestamp;
         LastSemanticRecoveryTrace = string.Empty;
         LastDirectDriveTrace = string.Empty;
         LastObjectiveTapeTrace = string.Empty;
         LastProofGraphTrace = string.Empty;
+        LastThinkTimingTrace = string.Empty;
         LastCombatTarget = null;
         _thinkTicks += 1;
         var proofGraphRequired = false;
@@ -309,6 +475,7 @@ public sealed class BotBrainController
                     : null;
             _lastLevel = world.Level;
             _currentPath = null;
+            _hasDynamicRouteTarget = false;
             _goalNodeIndex = -1;
             _steering.Reset();
             _objectiveTapeExecutor.Reset();
@@ -319,15 +486,15 @@ public sealed class BotBrainController
 
             if (_alphaNavigation)
             {
-                Console.WriteLine(
-                    $"[botbrain] alpha-nav level={world.Level.Name} area={world.Level.MapAreaIndex} " +
-                    $"loaded={IsNavigationGraphUsable(_navGraph)} nodes={_navGraph?.NodeCount ?? 0}");
+                ReportAlphaNavigationLoadDiagnostic(world.Level, _navGraph);
             }
             else
             {
                 ReportNavigationLoadDiagnostic(world.Level, IsNavigationGraphUsable(_navGraph));
             }
         }
+
+        graphReadyTimestamp = Stopwatch.GetTimestamp();
 
         proofGraphRequired = !_alphaNavigation
             && !PreferEnemyPlayerObjective
@@ -369,7 +536,9 @@ public sealed class BotBrainController
         }
 
         // 1. Select combat/heal targets.
-        var combatTarget = TargetSelector.SelectCombatTarget(self, world, team);
+        var combatTarget = DisableCombatForDiagnostics
+            ? null
+            : TargetSelector.SelectCombatTarget(self, world, team);
         LastCombatTarget = combatTarget;
         PlayerEntity? preferredEnemyObjectiveTarget = null;
         if (PreferEnemyPlayerObjective
@@ -378,23 +547,44 @@ public sealed class BotBrainController
             preferredEnemyObjectiveTarget = preferredEnemy;
         }
 
-        var healTargetSelection = CombatDecisionResolver.FindBestMedicHealTargetSelection(world, self, team, controlledTeamsBySlot);
+        var healTargetSelection = DisableCombatForDiagnostics
+            ? new MedicHealTargetSelection(null, MedicHealTargetSelectionKind.None)
+            : CombatDecisionResolver.FindBestMedicHealTargetSelection(world, self, team, controlledTeamsBySlot);
         var healTarget = healTargetSelection.Target;
         LastMedicHealTargetId = healTarget?.Id;
         LastMedicHealTargetIsPocket = healTargetSelection.Kind == MedicHealTargetSelectionKind.Pocket;
+        targetSelectionTimestamp = Stopwatch.GetTimestamp();
 
         // 2. Evaluate objective (throttled).
+        var objectiveNavigationMustRefresh = self.IsCarryingIntel != _lastCarryingIntel;
         if (self.IsCarryingIntel != _lastCarryingIntel)
         {
             _objectiveReevalCooldown = 0;
             _currentPath = null;
+            _hasDynamicRouteTarget = false;
             _goalNodeIndex = -1;
             _repathCooldownTicks = 0;
+            _alphaRecoveryPending = false;
+            _alphaRecoveryNextAttemptThinkTick = 0;
+            _alphaPathlessEscapeDirection = 0;
+            _alphaPathlessEscapeUntilThinkTick = 0;
+            ResetAlphaDynamicRecoveryProgress();
             _steering.Reset();
             _stochasticLocalMotionPlanner.Reset();
         }
 
         _objectiveReevalCooldown--;
+        if (_alphaNavigation
+            && _pathObjectiveStateSignature != 0
+            && _pathObjectiveStateSignature != ComputeObjectiveStateSignature(world))
+        {
+            // Capture/CTF state is a navigation input, not a cosmetic event.
+            // Do not wait for the normal two-second objective cadence when a
+            // point changes owner or intel changes state.
+            _objectiveReevalCooldown = 0;
+            objectiveNavigationMustRefresh = true;
+        }
+
         if (_objectiveReevalCooldown <= 0 || combatTarget is not null)
         {
             var previousGoalPosition = _currentGoalPosition;
@@ -434,18 +624,51 @@ public sealed class BotBrainController
             _repathCooldownTicks = RepathIntervalTicks;
             _steering.Reset();
         }
-        else if ((!proofGraphRequired || engineerCtfDefender) && !proofGraphOwnsMovement && !tapeOwnsMovement)
+        else if ((!proofGraphRequired || engineerCtfDefender)
+            && !proofGraphOwnsMovement
+            && !tapeOwnsMovement
+            // Combat can override an already-valid objective route, but a
+            // capture/drop/carry transition must rebuild that route first.
+            // Otherwise scoring clears the old path, the dynamic CTF owner
+            // correctly returns no target, and this optimization leaves the
+            // bot with no movement owner while an enemy remains visible.
+            // The same rule applies after any failed edge: once steering has
+            // cleared the route, combat must not suppress the replacement
+            // graph route on the next think.
+            && (combatTarget is null
+                || objectiveNavigationMustRefresh
+                || _currentPath is null
+                || _currentPath.IsComplete
+                || _currentPath.Count < 2))
         {
-            UpdatePath(self, team);
+            UpdatePath(world, self, team);
         }
+
+        // A moving CTF carrier can leave the bot attached to a still-valid
+        // graph edge that is no longer useful from the live body position.
+        // The steering machine cannot report that as a failed static edge,
+        // so bound the dynamic route's own progress and reattach from the
+        // current surface when it has made no measurable progress.
+        BreakStalledDynamicRoute(self, world);
+        BreakStalledCombatRoute(self);
+
+        pathUpdatedTimestamp = Stopwatch.GetTimestamp();
 
         var routeMissingAfterUpdate = _currentPath is null || _currentPath.IsComplete || _currentPath.Count < 2;
         var steeringOutput = new SteeringOutput();
         PlayerInputSnapshot? inputOverride = null;
         var dynamicCtfSteering = steeringOutput;
         var dynamicCtfTrace = string.Empty;
-        var dynamicCtfResolved = !PreferEnemyPlayerObjective
-            && !engineerCtfDefender
+        // An Engineer normally owns the static intel-defense behavior. Once
+        // our intel is being carried, that defense owner intentionally exits;
+        // allow the dynamic CTF resolver to take over so the Engineer chases
+        // the live enemy carrier instead of falling through to pathless
+        // objective recovery with no movement owner.
+        var engineerNeedsDynamicCtfResponse = engineerCtfDefender
+            && GetOwnIntelState(world, team).IsCarried;
+        var dynamicCtfResolved = !ForceObjectiveNavigationForDiagnostics
+            && !PreferEnemyPlayerObjective
+            && (!engineerCtfDefender || engineerNeedsDynamicCtfResponse)
             && TryResolveCaptureTheFlagDynamicObjectiveSeek(
             world,
             self,
@@ -498,7 +721,7 @@ public sealed class BotBrainController
             _steering.Reset();
             if (!proofGraphRequired)
             {
-                UpdatePath(self, team);
+                UpdatePath(world, self, team);
             }
         }
         else if (_proofRouteExecutor.LastTrace.StartsWith("proofGraph=idle", StringComparison.Ordinal)
@@ -560,7 +783,7 @@ public sealed class BotBrainController
                 _goalNodeIndex = -1;
                 _repathCooldownTicks = 0;
                 _steering.Reset();
-                UpdatePath(self, team);
+                UpdatePath(world, self, team);
             }
             else if (_objectiveTapeExecutor.LastTrace.StartsWith("objectiveTape=idle", StringComparison.Ordinal))
             {
@@ -587,6 +810,74 @@ public sealed class BotBrainController
             }
         }
 
+        if (_alphaNavigation
+            && _currentPath is { IsComplete: true }
+            && !IsAlphaCompletedRouteAtLiveTarget(world, self))
+        {
+            TraceNavigationEvent(
+                self,
+                team,
+                $"event=completed_route_not_at_target path={_currentPath.Count} index={_currentPath.CurrentIndex} " +
+                $"goalNode={_goalNodeIndex} dynamic={(_hasDynamicRouteTarget ? 1 : 0)} " +
+                $"pos=({self.X:0.0},{self.Y:0.0}) goalPos=({_currentGoalPosition.X:0.0},{_currentGoalPosition.Y:0.0})");
+            // Steering can satisfy a graph completion window and advance the
+            // final waypoint during this same think even though the live body
+            // is still outside the gameplay marker (or a moving dynamic
+            // target). Do not expose that stale completed route to the rest
+            // of the controller; leave the objective active and let the
+            // immediate recovery/repath lane own this tick.
+            _currentPath = null;
+            _goalNodeIndex = -1;
+            // Do not rebuild the same terminal path every think while a body,
+            // pickup contact, or collision rounding keeps it just outside the
+            // live intel marker. The pathless recovery lane remains active,
+            // and the graph gets a fresh attachment attempt on the normal
+            // one-second repath cadence.
+            _repathCooldownTicks = RepathIntervalTicks;
+            _hasDynamicRouteTarget = false;
+            _steering.Reset();
+            MarkAlphaRecoveryPending();
+            if (dynamicCtfResolved)
+            {
+                // The dynamic owner just completed a stale graph terminal.
+                // Give it one fresh target-resolution pass now that the old
+                // path has been discarded; otherwise the later recovery lane
+                // would only know about the macro objective, not the live
+                // carrier/intel position that requested this route.
+                dynamicCtfResolved = false;
+                steeringOutput = new SteeringOutput();
+                if (world.MatchRules.Mode == GameModeKind.CaptureTheFlag
+                    && !ForceObjectiveNavigationForDiagnostics
+                    && !PreferEnemyPlayerObjective
+                    && (!engineerCtfDefender || engineerNeedsDynamicCtfResponse)
+                    && TryResolveCaptureTheFlagDynamicObjectiveSeek(
+                        world,
+                        self,
+                        team,
+                        steeringOutput,
+                        out var refreshedDynamicSteering,
+                        out var refreshedDynamicTrace))
+                {
+                    dynamicCtfResolved = true;
+                    steeringOutput = refreshedDynamicSteering;
+                    LastDirectDriveTrace = refreshedDynamicTrace;
+                    _repathCooldownTicks = 0;
+                }
+            }
+        }
+
+        routeSteeringResolvedTimestamp = Stopwatch.GetTimestamp();
+
+        // A dynamic CTF resolver can invalidate the active graph edge while
+        // it is trying to reuse it (body collision, failed contact, or a
+        // moving target). Recompute this after all route owners have had a
+        // chance to touch the path; the pre-dynamic snapshot otherwise
+        // mislabels the newly pathless controller as healthy and suppresses
+        // the recovery lane for the rest of the tick.
+        routeMissingAfterUpdate = routeMissingAfterUpdate
+            || _currentPath is null
+            || _currentPath.IsComplete
+            || _currentPath.Count < 2;
         var routeRecoveryRequested = routeMissingAfterUpdate || steeringOutput.RequestRepath;
         if (!dynamicCtfResolved
             && (!proofGraphRequired || engineerCtfDefender)
@@ -602,7 +893,38 @@ public sealed class BotBrainController
         // Handle repath requests from stuck detection.
         if (!dynamicCtfResolved && (!proofGraphRequired || engineerCtfDefender) && !proofResolved && !tapeResolved && steeringOutput.RequestRepath)
         {
+            var repathStartTimestamp = NavigationStageTracingEnabled
+                ? Stopwatch.GetTimestamp()
+                : 0L;
             HandleSteeringRepathRequest(self, team, steeringOutput);
+            TraceSlowNavigationStage(self, "HandleSteeringRepathRequest", repathStartTimestamp);
+
+            // Steering can invalidate the path after routeMissingAfterUpdate
+            // was first sampled above. Re-enter alpha recovery immediately on
+            // a grounded failed edge so the bot does not spend this tick (or
+            // the next local-motion suppression window) with an empty input.
+            // This is deliberately limited to failed navigation recovery; the
+            // combat resolver and its movement ownership are unchanged.
+            if (_alphaNavigation
+                && self.IsGrounded
+                && (_currentPath is null
+                    || _currentPath.IsComplete
+                    || _currentPath.Count < 2))
+            {
+                UpdatePath(world, self, team);
+                if (_currentPath is { IsComplete: false, Count: >= 2 })
+                {
+                    var waitingForReplacementRuntimeContact = PrepareAlphaRuntimeContact(self, team, world.Level);
+                    steeringOutput = waitingForReplacementRuntimeContact
+                        ? new SteeringOutput()
+                        : _steering.Update(self, _navGraph!, _currentPath, world.Level, team);
+                }
+            }
+
+            routeMissingAfterUpdate = _currentPath is null
+                || _currentPath.IsComplete
+                || _currentPath.Count < 2;
+            routeRecoveryRequested = routeMissingAfterUpdate || steeringOutput.RequestRepath;
         }
 
         if (!dynamicCtfResolved
@@ -649,7 +971,64 @@ public sealed class BotBrainController
             LastDirectDriveTrace = directTrace;
             directResolved = true;
         }
-
+        if (!dynamicCtfResolved
+            && _alphaNavigation
+            && world.MatchRules.Mode == GameModeKind.CaptureTheFlag
+            && combatTarget is null
+            && routeMissingAfterUpdate)
+        {
+            // A carrier can disappear after the dynamic route owner has
+            // invalidated its path. Refresh the macro objective before the
+            // pathless recovery lane starts steering toward that stale
+            // carrier position.
+            var refreshedObjectiveGoal = ForceObjectiveNavigationForDiagnostics
+                ? ResolveDiagnosticObjectiveGoal(self, world, team)
+                : ObjectiveEvaluator.EvaluateGoal(self, world, team, combatTarget: null);
+            var refreshedAlphaGoal = ResolveAlphaObjectiveGoal(world, self, team, refreshedObjectiveGoal);
+            if (DistanceBetween(
+                    _currentGoalPosition.X,
+                    _currentGoalPosition.Y,
+                    refreshedAlphaGoal.X,
+                    refreshedAlphaGoal.Y) > 96f)
+            {
+                _currentGoalPosition = refreshedAlphaGoal;
+                _currentPath = null;
+                _goalNodeIndex = -1;
+                _hasDynamicRouteTarget = false;
+                _repathCooldownTicks = 0;
+            }
+        }
+        if (!dynamicCtfResolved
+            && !directResolved
+            && _alphaNavigation
+            && routeRecoveryRequested
+            && !self.IsGrounded
+            && TryResolveAlphaAirborneRecoverySteering(
+                self,
+                steeringOutput,
+                out var alphaAirborneRecoverySteering,
+                out var alphaAirborneRecoveryTrace))
+        {
+            steeringOutput = alphaAirborneRecoverySteering;
+            LastDirectDriveTrace = alphaAirborneRecoveryTrace;
+            directResolved = true;
+        }
+        if (!dynamicCtfResolved
+            && !directResolved
+            && _alphaNavigation
+            && routeRecoveryRequested
+            && combatTarget is null
+            && TryResolveAlphaObjectiveArrivalCorrection(
+                world,
+                self,
+                steeringOutput,
+                out var alphaObjectiveCorrectionSteering,
+                out var alphaObjectiveCorrectionTrace))
+        {
+            steeringOutput = alphaObjectiveCorrectionSteering;
+            LastDirectDriveTrace = alphaObjectiveCorrectionTrace;
+            directResolved = true;
+        }
         if (!dynamicCtfResolved
             && !proofResolved
             && !tapeResolved
@@ -660,9 +1039,67 @@ public sealed class BotBrainController
             steeringOutput = routeFallbackSteering;
             LastDirectDriveTrace = $"routeFallback {routeFallbackTrace}";
         }
+        // A route owner can invalidate the path after the initial missing-path
+        // snapshot (for example when a dynamic Intel route reaches a stale
+        // terminal node). Keep the alpha CTF recovery contract total: a
+        // pathless, combat-free bot must never leave this phase with neutral
+        // navigation input. This is deliberately after all combat resolution
+        // and is limited to objective traversal, so combat behavior remains
+        // unchanged.
+        if (_alphaNavigation
+            && !proofResolved
+            && !tapeResolved
+            && (_currentPath is null || _currentPath.IsComplete || _currentPath.Count < 2)
+            && IsNeutralNavigationOutput(steeringOutput))
+        {
+            // A moving carrier can disappear between objective refreshes. If
+            // the route is already pathless, do one cheap objective
+            // re-evaluation before committing local recovery to the stale
+            // carrier position; otherwise the bot can oscillate around the
+            // last carrier location for the remainder of the refresh window.
+            // This also covers a combat resolver that yielded no movement
+            // after invalidating its direct route. Combat target selection and
+            // fire/aim synthesis remain unchanged; this guard only restores a
+            // movement owner when the route owner is pathless and neutral.
+            var refreshedObjectiveGoal = ForceObjectiveNavigationForDiagnostics
+                ? ResolveDiagnosticObjectiveGoal(self, world, team)
+                : ObjectiveEvaluator.EvaluateGoal(self, world, team, combatTarget: null);
+            var refreshedAlphaGoal = ResolveAlphaObjectiveGoal(world, self, team, refreshedObjectiveGoal);
+            if (DistanceBetween(
+                    _currentGoalPosition.X,
+                    _currentGoalPosition.Y,
+                    refreshedAlphaGoal.X,
+                    refreshedAlphaGoal.Y) > 96f)
+            {
+                _currentGoalPosition = refreshedAlphaGoal;
+                _currentPath = null;
+                _goalNodeIndex = -1;
+                _hasDynamicRouteTarget = false;
+                _repathCooldownTicks = 0;
+            }
 
+            var alphaObjectiveTarget = new DirectDriveTarget(
+                DirectDriveTargetKind.Objective,
+                _currentGoalPosition.X,
+                _currentGoalPosition.Y,
+                "alphaPathlessObjectiveFinal");
+            if (TryResolveAlphaPathlessEscape(
+                    world,
+                    self,
+                    alphaObjectiveTarget,
+                    steeringOutput,
+                    out var finalRecoverySteering,
+                    out var finalRecoveryTrace))
+            {
+                steeringOutput = finalRecoverySteering;
+                LastDirectDriveTrace = $"routeFallback {finalRecoveryTrace}";
+            }
+        }
+        directSteeringResolvedTimestamp = Stopwatch.GetTimestamp();
         ApplyCaptureStrafeHop(world, self, team, ref steeringOutput);
         LastSteeringOutput = steeringOutput;
+        TraceRuntimeRecipeExecution(self, team, steeringOutput);
+        steeringResolvedTimestamp = Stopwatch.GetTimestamp();
 
         // 5. Resolve aim.
         var aimHealTarget = ResolveMedicAimHealTarget(world, self, healTarget);
@@ -670,13 +1107,155 @@ public sealed class BotBrainController
 
         // 6. Synthesize input.
         var combat = CombatDecisionResolver.Resolve(world, self, combatTarget, healTarget, _combatMemory);
+        var synthesisPreviousInput = ResolveNavigationJumpPulsePreviousInput(steeringOutput, _previousInput);
         var input = inputOverride.HasValue
             ? ApplyCombatToInputOverride(self, inputOverride.Value, combat)
-            : BotInputSynthesizer.Synthesize(self, steeringOutput, aimX, aimY, combat, _previousInput);
+            : BotInputSynthesizer.Synthesize(self, steeringOutput, aimX, aimY, combat, synthesisPreviousInput);
         input = ApplyEngineerCaptureTheFlagDefenseInput(world, self, team, input);
         input = ApplyEngineerControlPointInput(world, self, team, input);
         _previousInput = input;
+        var thinkElapsedStopwatchTicks = Stopwatch.GetTimestamp() - thinkStartTimestamp;
+        var thinkElapsedMilliseconds = thinkElapsedStopwatchTicks * 1000d / Stopwatch.Frequency;
+        if (thinkElapsedMilliseconds >= 50d
+            || (NavigationEventTracingEnabled && thinkElapsedMilliseconds >= ThinkTimingTraceThresholdMilliseconds))
+        {
+            var graphMilliseconds = (graphReadyTimestamp - thinkStartTimestamp) * 1000d / Stopwatch.Frequency;
+            var targetMilliseconds = (targetSelectionTimestamp - graphReadyTimestamp) * 1000d / Stopwatch.Frequency;
+            var pathMilliseconds = (pathUpdatedTimestamp - targetSelectionTimestamp) * 1000d / Stopwatch.Frequency;
+            var steeringMilliseconds = (steeringResolvedTimestamp - pathUpdatedTimestamp) * 1000d / Stopwatch.Frequency;
+            var routeSteeringMilliseconds = (routeSteeringResolvedTimestamp - pathUpdatedTimestamp) * 1000d / Stopwatch.Frequency;
+            var directSteeringMilliseconds = (directSteeringResolvedTimestamp - routeSteeringResolvedTimestamp) * 1000d / Stopwatch.Frequency;
+            var postRouteMilliseconds = (steeringResolvedTimestamp - directSteeringResolvedTimestamp) * 1000d / Stopwatch.Frequency;
+            LastThinkTimingTrace =
+                $"thinkTiming totalMs:{thinkElapsedMilliseconds:0.000} graphMs:{graphMilliseconds:0.000} " +
+                $"targetMs:{targetMilliseconds:0.000} pathMs:{pathMilliseconds:0.000} "+
+                $"steeringMs:{steeringMilliseconds:0.000} routeMs:{routeSteeringMilliseconds:0.000} " +
+                $"directMs:{directSteeringMilliseconds:0.000} postDirectMs:{postRouteMilliseconds:0.000}";
+        }
         return input;
+    }
+
+    private static PlayerInputSnapshot ResolveNavigationJumpPulsePreviousInput(
+        SteeringOutput steeringOutput,
+        PlayerInputSnapshot previousInput)
+    {
+        // SteeringMachine owns the jump cooldown and emits a one-tick recipe
+        // pulse. The input synthesizer also edge-detects Up, so a route edge
+        // entered immediately after another jump could otherwise inherit the
+        // previous Up=true state and silently lose a valid jump-at-tick-zero
+        // request. Reset only that synthesis edge for certified navigation;
+        // combat/weapon inputs remain unchanged.
+        return steeringOutput.RecipeTrace.HasRecipe
+            && steeringOutput.Jump
+            && previousInput.Up
+            ? previousInput with { Up = false }
+            : previousInput;
+    }
+
+    /// <summary>
+    /// Advance only an already-certified OG2 contact. This is intentionally
+    /// separate from Think: high-frequency contact ticks exist to keep a measured
+    /// jump pulse in the physics time domain, not to rerun objective selection,
+    /// combat targeting, or graph search every simulation tick.
+    /// </summary>
+    public PlayerInputSnapshot ThinkRuntimeContact(
+        PlayerEntity self,
+        SimulationWorld world,
+        PlayerTeam team)
+    {
+        if (!_alphaNavigation
+            || _navGraph is null
+            || _currentPath is null
+            || !_currentPath.TryGetCurrentEdge(out var edge)
+            || !edge.IsOg2Contact)
+        {
+            return _previousInput;
+        }
+
+        PrepareAlphaRuntimeContact(self, team, world.Level);
+        var steeringOutput = _steering.Update(
+            self,
+            _navGraph,
+            _currentPath,
+            world.Level,
+            team);
+        if (steeringOutput.RequestRepath)
+        {
+            HandleSteeringRepathRequest(self, team, steeringOutput);
+        }
+
+        LastSteeringOutput = steeringOutput;
+        TraceRuntimeRecipeExecution(self, team, steeringOutput);
+
+        var contactPreviousInput = ResolveNavigationJumpPulsePreviousInput(steeringOutput, _previousInput);
+        var input = _previousInput with
+        {
+            Left = steeringOutput.MoveDirection < 0f,
+            Right = steeringOutput.MoveDirection > 0f,
+            Up = steeringOutput.Jump && !contactPreviousInput.Up,
+            Down = steeringOutput.DropDown,
+        };
+        _previousInput = input;
+        return input;
+    }
+
+    /// <summary>
+    /// Advance only the already-selected graph edge for a bot whose expensive
+    /// objective/target think is intentionally in another scheduler batch.
+    /// This keeps edge timers, stuck detection, and jump pulses in physics-tick
+    /// time without rerunning objective evaluation or A*.
+    /// </summary>
+    public bool TryAdvanceCachedNavigation(
+        PlayerEntity self,
+        SimulationWorld world,
+        PlayerTeam team,
+        PlayerInputSnapshot cachedInput,
+        out PlayerInputSnapshot input)
+    {
+        input = cachedInput;
+        if (!_alphaNavigation
+            || _navGraph is null
+            || !self.IsAlive)
+        {
+            return false;
+        }
+
+        // The full brain may be in another scheduler batch when a point is
+        // captured or an intel state changes. Refresh the cheap objective
+        // contract and route immediately so a completed path cannot leave a
+        // bot holding neutral input until its next expensive think.
+        RefreshAlphaNavigationStateIfNeeded(world, self, team);
+        if (_currentPath is null
+            || _currentPath.IsComplete
+            || !_currentPath.TryGetCurrentEdge(out _))
+        {
+            return false;
+        }
+
+        PrepareAlphaRuntimeContact(self, team, world.Level);
+        var steeringOutput = _steering.Update(
+            self,
+            _navGraph,
+            _currentPath,
+            world.Level,
+            team);
+        if (steeringOutput.RequestRepath)
+        {
+            HandleSteeringRepathRequest(self, team, steeringOutput);
+        }
+
+        LastSteeringOutput = steeringOutput;
+        TraceRuntimeRecipeExecution(self, team, steeringOutput);
+        var cachedPreviousInput = ResolveNavigationJumpPulsePreviousInput(steeringOutput, cachedInput);
+        input = cachedInput with
+        {
+            Left = steeringOutput.MoveDirection < 0f,
+            Right = steeringOutput.MoveDirection > 0f,
+            Up = steeringOutput.Jump && !cachedPreviousInput.Up,
+            Down = steeringOutput.DropDown,
+        };
+        _previousInput = input;
+        return true;
     }
 
     private PlayerInputSnapshot ThinkWithoutNavigationGraph(
@@ -695,12 +1274,16 @@ public sealed class BotBrainController
 
         var engineerCtfDefender = !ForceObjectiveNavigationForDiagnostics
             && IsCaptureTheFlagEngineerDefender(world, self);
+        var engineerNeedsDynamicCtfResponse = engineerCtfDefender
+            && GetOwnIntelState(world, team).IsCarried;
         if (engineerCtfDefender)
         {
             _objectiveTapeExecutor.Reset();
         }
 
-        var combatTarget = SelectGraphlessCombatTarget(self, world, team);
+        var combatTarget = DisableCombatForDiagnostics
+            ? null
+            : SelectGraphlessCombatTarget(self, world, team);
         LastCombatTarget = combatTarget;
         PlayerEntity? preferredEnemyObjectiveTarget = null;
         if (PreferEnemyPlayerObjective
@@ -709,7 +1292,9 @@ public sealed class BotBrainController
             preferredEnemyObjectiveTarget = preferredEnemy;
         }
 
-        var healTargetSelection = SelectGraphlessMedicHealTargetSelection(world, self, team, controlledTeamsBySlot);
+        var healTargetSelection = DisableCombatForDiagnostics
+            ? new MedicHealTargetSelection(null, MedicHealTargetSelectionKind.None)
+            : SelectGraphlessMedicHealTargetSelection(world, self, team, controlledTeamsBySlot);
         var healTarget = healTargetSelection.Target;
         LastMedicHealTargetId = healTarget?.Id;
         LastMedicHealTargetIsPocket = healTargetSelection.Kind == MedicHealTargetSelectionKind.Pocket;
@@ -747,8 +1332,9 @@ public sealed class BotBrainController
         PlayerInputSnapshot? inputOverride = null;
         var directResolved = false;
 
-        if (!PreferEnemyPlayerObjective
-            && !engineerCtfDefender
+        if (!ForceObjectiveNavigationForDiagnostics
+            && !PreferEnemyPlayerObjective
+            && (!engineerCtfDefender || engineerNeedsDynamicCtfResponse)
             && TryResolveCaptureTheFlagDynamicObjectiveSeek(
                 world,
                 self,
@@ -824,31 +1410,99 @@ public sealed class BotBrainController
             || _currentPath is null
             || !_currentPath.TryGetCurrentEdge(out var edge)
             || !edge.IsOg2Contact
+            || edge.Kind != NavEdgeKind.Jump
             || _currentPath.CurrentIndex <= 0)
         {
             _runtimeContactPathIndex = -1;
             _runtimeContactFromNode = -1;
             _runtimeContactToNode = -1;
             _runtimeContactProbeAttempted = false;
-            _runtimeContactLastGrounded = false;
+            _runtimeContactRetryThinkTick = 0;
+            _runtimeContactFailureCount = 0;
             return false;
         }
 
         var fromNode = _currentPath.GetWaypoint(_currentPath.CurrentIndex - 1);
         var toNode = _currentPath.CurrentNode;
-        if (_runtimeContactProbeAttempted
+        if (edge.RuntimeResolutionExhausted)
+        {
+            return false;
+        }
+
+        // A grounded-start contact cannot be re-proved from a support surface
+        // that is materially below its graph source. This is the common
+        // knock-off state under Corinth's point: spending three probe retries
+        // there only burns CPU because the edge's launch contract is on the
+        // upper platform. Mark it unavailable immediately and let recovery
+        // attach to the actual lower support.
+        if (self.IsGrounded
+            && edge.LaunchRecipe.StartGrounded
+            && !edge.IsRuntimeResolved
+            && MathF.Abs(self.Y - _navGraph.GetNode(fromNode).Y) > AlphaRuntimeContactSourceVerticalTolerance)
+        {
+            _currentPath.ReplaceIncomingEdge(
+                _currentPath.CurrentIndex,
+                // This recipe is certified for the upper source surface, not
+                // for the lower support where the live body actually landed.
+                // Remove it as a fallback as well: retaining it makes
+                // SteeringMachine replay an impossible jump until its long
+                // watchdog expires instead of immediately reattaching the
+                // graph from the real support.
+                edge with
+                {
+                    RuntimeResolutionExhausted = true,
+                    LaunchRecipe = default,
+                    JumpTriggerTick = -1,
+                    ProbeTicks = 0,
+                });
+            _runtimeContactRetryThinkTick = int.MaxValue;
+            return false;
+        }
+
+        var sameContact = _runtimeContactProbeAttempted
             && _runtimeContactPathIndex == _currentPath.CurrentIndex
             && _runtimeContactFromNode == fromNode
-            && _runtimeContactToNode == toNode)
+            && _runtimeContactToNode == toNode;
+        if (!sameContact)
+        {
+            _runtimeContactFailureCount = 0;
+            _runtimeContactRetryThinkTick = 0;
+        }
+
+        // A grounded-start contact cannot be proved from an airborne handoff.
+        // The next edge can become active on the same fixed update that the
+        // previous jump is still settling, so the first runtime-contact pass
+        // may see an airborne body even though the edge is valid. Do not spend
+        // a probe budget or count a guaranteed failure here; retain the edge
+        // identity and let the first grounded sample perform the proof.
+        if (edge.LaunchRecipe.StartGrounded
+            && !self.IsGrounded)
+        {
+            _runtimeContactPathIndex = _currentPath.CurrentIndex;
+            _runtimeContactFromNode = fromNode;
+            _runtimeContactToNode = toNode;
+            _runtimeContactProbeAttempted = true;
+            return false;
+        }
+
+        if (sameContact)
         {
             if (edge.IsRuntimeResolved
-                || !self.IsGrounded
-                || _runtimeContactLastGrounded)
+                || !self.IsGrounded)
             {
                 // Keep steering an unresolved grounded-start edge while the
                 // body settles from an airborne handoff. The steering layer
                 // supplies horizontal recovery and suppresses the jump
                 // pulse; returning true here would freeze the carrier.
+                return false;
+            }
+
+            // Entry momentum can be outside the certified launch window even
+            // though this edge becomes executable after a few settling ticks.
+            // Retry at a bounded cadence instead of probing every tick or
+            // leaving the bot oscillating at the launch band forever.
+            if (_thinkTicks < _runtimeContactRetryThinkTick)
+            {
                 return false;
             }
         }
@@ -857,13 +1511,39 @@ public sealed class BotBrainController
         _runtimeContactFromNode = fromNode;
         _runtimeContactToNode = toNode;
         _runtimeContactProbeAttempted = true;
-        _runtimeContactLastGrounded = self.IsGrounded;
+
+        // Most contacts are entered directly inside the graph's certified
+        // launch window. Re-simulating those clean entries is both redundant
+        // and a source of frame spikes; the runtime probe exists for composed
+        // handoffs and recovery states that are outside the canonical window.
+        if (edge.LaunchRecipe.StartGrounded
+            && self.IsGrounded
+            && edge.LaunchRecipe.ContainsLaunchState(self))
+        {
+            var immediateRecipe = edge.LaunchRecipe with
+            {
+                LaunchTick = 0,
+                PreLaunchBrakeTicks = 0,
+            };
+            var immediateEdge = edge with
+            {
+                JumpTriggerTick = 0,
+                IsRuntimeResolved = true,
+                RequiresGroundedContinuation = true,
+                LaunchRecipe = immediateRecipe,
+            };
+            _currentPath.ReplaceIncomingEdge(_currentPath.CurrentIndex, immediateEdge);
+            _runtimeContactRetryThinkTick = int.MaxValue;
+            _runtimeContactFailureCount = 0;
+            return true;
+        }
 
         var resolved = Og2RuntimeContactPlanner.TryResolve(
                 level,
                 _navGraph,
                 self,
                 team,
+                fromNode,
                 edge,
                 out var resolvedEdge);
         if (Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_TRACE_RUNTIME_CONTACTS") is "1" or "true" or "TRUE")
@@ -884,6 +1564,28 @@ public sealed class BotBrainController
         if (resolved)
         {
             _currentPath.ReplaceIncomingEdge(_currentPath.CurrentIndex, resolvedEdge);
+            _runtimeContactRetryThinkTick = int.MaxValue;
+            _runtimeContactFailureCount = 0;
+        }
+        else
+        {
+            _runtimeContactFailureCount += 1;
+            if (_runtimeContactFailureCount >= MaximumRuntimeContactProbeFailures)
+            {
+                // The live body may be on a lower recovery support from which
+                // this edge cannot be re-proved. Do not hold the bot in the
+                // unresolved gate forever: mark the canonical edge unavailable
+                // so SteeringMachine immediately repaths from the actual
+                // support surface.
+                _currentPath.ReplaceIncomingEdge(
+                    _currentPath.CurrentIndex,
+                    edge with { RuntimeResolutionExhausted = true });
+                _runtimeContactRetryThinkTick = int.MaxValue;
+            }
+            else
+            {
+                _runtimeContactRetryThinkTick = _thinkTicks + 6;
+            }
         }
 
         // A grounded-start contact cannot be certified from an airborne handoff.
@@ -920,6 +1622,23 @@ public sealed class BotBrainController
             $"expectedFingerprint={fingerprint} " +
             $"shipped={diagnostic.ShippedStatus} shippedPath=\"{diagnostic.ShippedPath}\" " +
             $"runtimeCache={diagnostic.RuntimeCacheStatus} runtimeCachePath=\"{diagnostic.RuntimeCachePath}\"");
+    }
+
+    private static void ReportAlphaNavigationLoadDiagnostic(SimpleLevel level, NavGraph? graph)
+    {
+        var loaded = IsNavigationGraphUsable(graph);
+        var key = $"alpha:{level.Name}:{level.MapAreaIndex}:{loaded}:{graph?.NodeCount ?? 0}";
+        lock (NavigationDiagnosticSync)
+        {
+            if (!ReportedNavigationDiagnostics.Add(key))
+            {
+                return;
+            }
+        }
+
+        Console.WriteLine(
+            $"[botbrain] alpha-nav level={level.Name} area={level.MapAreaIndex} " +
+            $"loaded={loaded} nodes={graph?.NodeCount ?? 0}");
     }
 
     private static (float X, float Y) ResolveDiagnosticObjectiveGoal(
@@ -1009,17 +1728,101 @@ public sealed class BotBrainController
             || string.Equals(mode, "asset", StringComparison.OrdinalIgnoreCase);
     }
 
-    private void UpdatePath(PlayerEntity self, PlayerTeam team)
+    private void UpdatePath(SimulationWorld world, PlayerEntity self, PlayerTeam team)
     {
         if (_navGraph is null)
         {
             return;
         }
 
+        if (_alphaNavigation
+            && _pathObjectiveStateSignature != 0
+            && _pathObjectiveStateSignature != ComputeObjectiveStateSignature(world))
+        {
+            _currentPath = null;
+            _goalNodeIndex = -1;
+            _repathCooldownTicks = 0;
+            _alphaRecoveryPending = false;
+            _alphaRecoveryNextAttemptThinkTick = 0;
+            _alphaRecoverySearchFailure = null;
+            _steering.Reset();
+            _hasDynamicRouteTarget = false;
+        }
+
         _repathCooldownTicks--;
+        if (_alphaNavigation
+            && _currentPath is { IsComplete: true }
+            && _repathCooldownTicks > 0)
+        {
+            // A completed route is normally stable for a short period so we
+            // do not rerun A* every high-frequency steering update.  A
+            // control-point capture is different: it changes the objective
+            // for both teams immediately.  Retaining the completed path after
+            // that transition leaves the opposing team with neutral steering
+            // because alpha navigation has no direct-seek fallback.
+            if (_pathObjectiveStateSignature != ComputeObjectiveStateSignature(world))
+            {
+                _currentPath = null;
+                _goalNodeIndex = -1;
+                _repathCooldownTicks = 0;
+                _steering.Reset();
+            }
+            else if (IsAtAlphaObjectiveArrival(world, self))
+            {
+                // Completion of an objective edge is a stable state, not a
+                // reason to run A* again on every high-frequency contact
+                // update. Keep the completed route for the normal repath
+                // interval; objective changes and carrier-state changes still
+                // clear this cooldown explicitly.
+                return;
+            }
+            else
+            {
+                // A graph terminal node is only an attachment hint. The
+                // live body may still be outside the gameplay marker because
+                // a crate, a teammate, or collision rounding stopped the
+                // final approach. Do not let the cooldown turn that partial
+                // arrival into a pathless local-motion loop; reattach from
+                // the body's actual support surface now.
+                _currentPath = null;
+                _goalNodeIndex = -1;
+                _repathCooldownTicks = RepathIntervalTicks;
+                _steering.Reset();
+            }
+        }
+
+        if (_alphaNavigation
+            && _currentPath is { IsComplete: true }
+            && _pathObjectiveStateSignature == ComputeObjectiveStateSignature(world)
+            && IsAtAlphaObjectiveArrival(world, self))
+        {
+            // A completed route at the live objective is a stable arrival
+            // state, not a request to attach to a nearby node and run A* again
+            // every repath interval. Rebuilding here creates tiny corrective
+            // paths around a capture zone, which shows up as visible
+            // left/right oscillation and needless CPU work. Objective-state
+            // changes still invalidate this path above, so an ownership,
+            // capping, or intel transition immediately leaves the hold state.
+            _repathCooldownTicks = RepathIntervalTicks;
+            return;
+        }
+
+        var alphaRecoveryReady = _alphaNavigation
+            && _alphaRecoveryPending
+            && self.IsGrounded
+            && _thinkTicks >= _alphaRecoveryNextAttemptThinkTick;
         var needsRepath = _currentPath is null
-            || _currentPath.IsComplete
-            || (!_alphaNavigation && _repathCooldownTicks <= 0);
+            ? _repathCooldownTicks <= 0
+            : _currentPath.IsComplete
+                || (!_alphaNavigation && _repathCooldownTicks <= 0);
+        needsRepath |= alphaRecoveryReady;
+
+        if (alphaRecoveryReady)
+        {
+            // A failed attachment must get a grounded retry, but not an A*
+            // hot loop when the body is still inside the same obstruction.
+            _alphaRecoveryNextAttemptThinkTick = _thinkTicks + AlphaRecoveryRetryTicks;
+        }
 
         if (_alphaNavigation
             && _currentPath is { IsComplete: false } activePath
@@ -1061,19 +1864,81 @@ public sealed class BotBrainController
             self.Y,
             ResolveTraversalStartMaxAboveDistance(self, pathMissing, _alphaNavigation),
             _alphaNavigation ? AlphaTraversalStartMaxBelowDistance : float.PositiveInfinity);
-        var exactGoalNode = ShouldPreserveExactControlObjective()
-            ? _navGraph.FindNearestReachableNode(
+        var preserveExactControlObjective = ShouldPreserveExactControlObjective();
+        // A failed edge invalidates the current path, not the objective. Keep
+        // the previously selected alpha goal node as the fast recovery target;
+        // the blocked-edge A* below will prove whether the current support can
+        // still reach it. Re-running the multi-start goal-aware reachability
+        // search for every knockback/missed landing was a major source of
+        // recovery-frame spikes on dense maps.
+        var canReuseAlphaGoalNode = _alphaNavigation
+            && _goalNodeIndex >= 0
+            && _pathObjectiveStateSignature == ComputeObjectiveStateSignature(world);
+        if (canReuseAlphaGoalNode
+            && preserveExactControlObjective
+            && startNode == _goalNodeIndex
+            && !IsAtAlphaObjectiveArrival(world, self))
+        {
+            // A recovery attachment can land on the same graph node that was
+            // retained as the control-point goal. Reusing that node produces
+            // a complete one-node path even though the body is outside the
+            // live capture volume; alpha navigation then has no route input
+            // and the bot appears inert. Re-resolve the objective anchor from
+            // the current support instead of treating the support as arrival.
+            canReuseAlphaGoalNode = false;
+        }
+        var exactGoalNode = preserveExactControlObjective
+            ? canReuseAlphaGoalNode
+                ? _goalNodeIndex
+                : _alphaNavigation
+                    ? _navGraph.FindNearestReachableObjectiveNode(
+                        _currentGoalPosition.X,
+                        _currentGoalPosition.Y,
+                        startNode,
+                        self.BotGraphClassId,
+                        team: team,
+                        carryingIntel: self.IsCarryingIntel)
+                    : -1
+            : _navGraph.FindNearestNode(_currentGoalPosition.X, _currentGoalPosition.Y);
+        if (exactGoalNode < 0 && preserveExactControlObjective)
+        {
+            exactGoalNode = _navGraph.FindNearestReachableNode(
                 _currentGoalPosition.X,
                 _currentGoalPosition.Y,
                 startNode,
                 self.BotGraphClassId,
                 team: team,
-                carryingIntel: self.IsCarryingIntel)
-            : _navGraph.FindNearestNode(_currentGoalPosition.X, _currentGoalPosition.Y);
+                carryingIntel: self.IsCarryingIntel);
+        }
         if (startNode < 0 || exactGoalNode < 0)
         {
             _currentPath = null;
             _goalNodeIndex = -1;
+            _repathCooldownTicks = RepathIntervalTicks;
+            if (alphaRecoveryReady)
+            {
+                _alphaRecoveryNextAttemptThinkTick = _thinkTicks + AlphaRecoveryRetryTicks;
+            }
+            return;
+        }
+
+        if (alphaRecoveryReady
+            && _alphaRecoverySearchFailure is { } cachedFailure
+            && cachedFailure.Matches(
+                startNode,
+                exactGoalNode,
+                _pathObjectiveStateSignature,
+                _blockedEdgesVersion,
+                self.BotGraphClassId,
+                team,
+                self.IsCarryingIntel)
+            && _thinkTicks < cachedFailure.ExpiresThinkTick)
+        {
+            // A failed alpha recovery search is deterministic while the
+            // attachment node, objective, blocked-edge set, and movement
+            // profile are unchanged. Do not rerun the dense graph search
+            // every six ticks while the failed contact is still blocked.
+            _alphaRecoveryNextAttemptThinkTick = cachedFailure.ExpiresThinkTick;
             _repathCooldownTicks = RepathIntervalTicks;
             return;
         }
@@ -1093,26 +1958,96 @@ public sealed class BotBrainController
         var activeBlockedEdges = _blockedEdges.Count > 0
             ? _blockedEdges.Keys.ToHashSet()
             : null;
+        var objectiveApproachReattach = false;
+
         if (_alphaNavigation
-            && _lastLevel?.Mode == GameModeKind.CaptureTheFlag
-            && !self.IsCarryingIntel
-            && activeBlockedEdges is not null)
+            && world.MatchRules.Mode == GameModeKind.CaptureTheFlag
+            && startNode == exactGoalNode
+            && !IsAtAlphaObjectiveArrival(world, self))
         {
-            // Outbound CTF recovery has no carrier-state safety constraint.
-            // Failed contacts encountered while probing a route should not
-            // force the next attachment onto a reverse/local component; the
-            // clean objective path is the authoritative outbound candidate.
-            _blockedEdges.Clear();
-            activeBlockedEdges = null;
+            // The nearest traversal attachment can be the objective anchor
+            // itself while the live body is still outside the intel marker.
+            // A* then returns a legal one-node path, which has no movement
+            // edge for the final approach and sends the controller into local
+            // recovery. Attach to the closest valid predecessor instead so
+            // the graph owns the approach all the way to the marker.
+            var approachNode = _navGraph.FindNearestObjectiveApproachNode(
+                exactGoalNode,
+                self.X,
+                self.Y,
+                self.BotGraphClassId,
+                activeBlockedEdges,
+                team,
+                self.IsCarryingIntel);
+            if (approachNode < 0)
+            {
+                approachNode = _navGraph.FindNearestObjectiveApproachNode(
+                    exactGoalNode,
+                    self.X,
+                    self.Y,
+                    self.BotGraphClassId,
+                    team: team,
+                    carryingIntel: self.IsCarryingIntel);
+            }
+
+            if (approachNode >= 0)
+            {
+                objectiveApproachReattach = true;
+                TraceNavigationEvent(
+                    self,
+                    team,
+                    $"event=objective_approach_reattach fromNode={startNode} approachNode={approachNode} " +
+                    $"goalNode={exactGoalNode} pos=({self.X:0.0},{self.Y:0.0})");
+                startNode = approachNode;
+            }
         }
+
         var goalNode = exactGoalNode;
-        var preserveExactControlObjective = ShouldPreserveExactControlObjective();
         var rejectDistantGoalProxy = ShouldRejectCarrierReturnDistantGoalProxy(_lastLevel, self, team, _currentGoalPosition);
-        var refreshedPath = _navGraph.FindPath(startNode, goalNode, self.BotGraphClassId, activeBlockedEdges, team, self.IsCarryingIntel);
+        var goalAwareBlockedStartSearched = false;
+        if (_alphaNavigation
+            && activeBlockedEdges is { Count: > 0 }
+            && exactGoalNode != startNode
+            && !objectiveApproachReattach)
+        {
+            // A blocked-edge recovery search is already asking the graph to
+            // find a support that can reach the exact objective. Do that
+            // attachment selection before attempting A* from the known
+            // blocked support; otherwise the first search can exhaust the
+            // entire directed graph just to prove that this start is dead.
+            var reachableStartNode = _navGraph.FindNearestTraversalStartNodeForGoal(
+                self.X,
+                self.Y,
+                ResolveTraversalStartMaxAboveDistance(self, pathMissing, alphaNavigation: true),
+                AlphaTraversalStartMaxBelowDistance,
+                exactGoalNode,
+                self.BotGraphClassId,
+                activeBlockedEdges,
+                team,
+                self.IsCarryingIntel,
+                maxHorizontalDistance: AlphaRecoveryMaxHorizontalAttachmentDistance);
+            goalAwareBlockedStartSearched = true;
+            if (reachableStartNode >= 0)
+            {
+                startNode = reachableStartNode;
+            }
+        }
+
+        var refreshedPath = _navGraph.FindPath(
+            startNode,
+            goalNode,
+            self.BotGraphClassId,
+            activeBlockedEdges,
+            team,
+            self.IsCarryingIntel,
+            traceContext: "UpdatePath",
+            routeVariant: ResolveRouteVariant(self));
 
         if (refreshedPath is null
             && _alphaNavigation
-            && exactGoalNode != startNode)
+            && exactGoalNode != startNode
+            && !objectiveApproachReattach
+            && !goalAwareBlockedStartSearched)
         {
             var reachableStartNode = _navGraph.FindNearestTraversalStartNodeForGoal(
                 self.X,
@@ -1129,13 +2064,49 @@ public sealed class BotBrainController
             {
                 startNode = reachableStartNode;
                 goalNode = exactGoalNode;
+                if (startNode == exactGoalNode
+                    && !IsAtAlphaObjectiveArrival(world, self))
+                {
+                    var approachNode = _navGraph.FindNearestObjectiveApproachNode(
+                        exactGoalNode,
+                        self.X,
+                        self.Y,
+                        self.BotGraphClassId,
+                        activeBlockedEdges,
+                        team,
+                        self.IsCarryingIntel);
+                    if (approachNode < 0)
+                    {
+                        approachNode = _navGraph.FindNearestObjectiveApproachNode(
+                            exactGoalNode,
+                            self.X,
+                            self.Y,
+                            self.BotGraphClassId,
+                            team: team,
+                            carryingIntel: self.IsCarryingIntel);
+                    }
+
+                    if (approachNode >= 0)
+                    {
+                        objectiveApproachReattach = true;
+                        TraceNavigationEvent(
+                            self,
+                            team,
+                            $"event=objective_approach_reattach_after_reachable_start " +
+                            $"fromNode={startNode} approachNode={approachNode} goalNode={exactGoalNode} " +
+                            $"pos=({self.X:0.0},{self.Y:0.0})");
+                        startNode = approachNode;
+                    }
+                }
                 refreshedPath = _navGraph.FindPath(
                     startNode,
                     goalNode,
                     self.BotGraphClassId,
                     activeBlockedEdges,
                     team,
-                    self.IsCarryingIntel);
+                    self.IsCarryingIntel,
+                    traceContext: "UpdatePath:reachableStart",
+                    routeVariant: ResolveRouteVariant(self));
             }
         }
 
@@ -1155,12 +2126,21 @@ public sealed class BotBrainController
                 self.IsCarryingIntel);
             refreshedPath = !IsRejectedDistantDirectSeekRouteGoalProxy(_navGraph, goalNode, _currentGoalPosition.X, _currentGoalPosition.Y, rejectDistantGoalProxy)
                 && (goalNode != startNode || exactGoalNode == startNode)
-                ? _navGraph.FindPath(startNode, goalNode, self.BotGraphClassId, activeBlockedEdges, team, self.IsCarryingIntel)
+                ? _navGraph.FindPath(
+                    startNode,
+                    goalNode,
+                    self.BotGraphClassId,
+                    activeBlockedEdges,
+                    team,
+                    self.IsCarryingIntel,
+                    traceContext: "UpdatePath:reachableGoal",
+                    routeVariant: ResolveRouteVariant(self))
                 : null;
         }
 
         if (refreshedPath is null
             && activeBlockedEdges is not null
+            && !_alphaNavigation
             && !preserveExactControlObjective
             && (!self.IsCarryingIntel || !ShouldPreserveCarrierFailedEdgeBlocks(_lastLevel, self)))
         {
@@ -1184,7 +2164,48 @@ public sealed class BotBrainController
                     startNode = reachableStartNode;
                 }
             }
-            refreshedPath = _navGraph.FindPath(startNode, goalNode, self.BotGraphClassId, team: team, carryingIntel: self.IsCarryingIntel);
+            refreshedPath = _navGraph.FindPath(
+                startNode,
+                goalNode,
+                self.BotGraphClassId,
+                team: team,
+                carryingIntel: self.IsCarryingIntel,
+                traceContext: "UpdatePath:unblockedLegacy",
+                routeVariant: ResolveRouteVariant(self));
+        }
+
+        if (refreshedPath is null
+            && activeBlockedEdges is not null
+            && _alphaNavigation
+            && alphaCaptureTheFlag)
+        {
+            // Failed-edge blocks are a temporary live-collision memory, not a
+            // permanent topology change. If every currently unblocked route
+            // has been exhausted, retaining the empty result strands the bot
+            // in pathless local motion even though the static graph still has
+            // a route to the objective. Prefer that route over inertness; a
+            // repeated failure will reinsert the edge into the block set after
+            // the bot has had a bounded recovery attempt.
+            var unblockedPath = _navGraph.FindPath(
+                startNode,
+                exactGoalNode,
+                self.BotGraphClassId,
+                team: team,
+                carryingIntel: self.IsCarryingIntel,
+                traceContext: "UpdatePath:unblockedAlpha",
+                routeVariant: ResolveRouteVariant(self));
+            if (unblockedPath is not null)
+            {
+                refreshedPath = unblockedPath;
+                _blockedEdges.Clear();
+                _blockedEdgesVersion += 1;
+                activeBlockedEdges = null;
+                TraceNavigationEvent(
+                    self,
+                    team,
+                    $"event=blocked_route_fallback startNode={startNode} goalNode={exactGoalNode} " +
+                    $"waypoints={unblockedPath.Count}");
+            }
         }
 
         // A fallback reachable goal can still resolve to the current goal even when
@@ -1200,15 +2221,172 @@ public sealed class BotBrainController
 
         if (refreshedPath is null)
         {
+            TraceNavigationEvent(
+                self,
+                team,
+                $"event=path_search_failed startNode={startNode} goalNode={goalNode} " +
+                $"exactGoalNode={exactGoalNode} blockedCount={_blockedEdges.Count} " +
+                $"recoveryReady={(alphaRecoveryReady ? 1 : 0)} " +
+                $"pos=({self.X:0.0},{self.Y:0.0}) goalPos=({_currentGoalPosition.X:0.0},{_currentGoalPosition.Y:0.0})");
+            if (_alphaNavigation && _currentPath is { IsComplete: true })
+            {
+                // The completed path was already proven to be short of the
+                // live objective marker. If the fresh attachment search cannot
+                // connect from the body's current support, retaining that
+                // completed path makes every subsequent tick look like a
+                // successful terminal route and suppresses clean recovery.
+                _currentPath = null;
+                _steering.Reset();
+            }
+
+            if (alphaRecoveryReady)
+            {
+                _alphaRecoverySearchFailure = new AlphaRecoverySearchFailure(
+                    startNode,
+                    goalNode,
+                    _pathObjectiveStateSignature,
+                    _blockedEdgesVersion,
+                    self.BotGraphClassId,
+                    team,
+                    self.IsCarryingIntel,
+                    _thinkTicks + AlphaRecoveryNegativeCacheTicks);
+                _alphaRecoveryNextAttemptThinkTick = _thinkTicks + AlphaRecoveryNegativeCacheTicks;
+            }
+
+            return;
+        }
+
+        if (_alphaNavigation
+            && refreshedPath.Count < 2
+            && !IsAtAlphaObjectiveArrival(world, self))
+        {
+            TraceNavigationEvent(
+                self,
+                team,
+                $"event=one_node_route_not_at_target node={goalNode} startNode={startNode} " +
+                $"pos=({self.X:0.0},{self.Y:0.0}) goalPos=({_currentGoalPosition.X:0.0},{_currentGoalPosition.Y:0.0})");
+            // The graph objective anchor is the correct terminal support, but
+            // the live gameplay objective can still reject the body by a few
+            // pixels at the edge of its capture volume. Keep the graph goal
+            // for the terminal correction phase without exposing a completed
+            // one-node route to the steering state machine.
+            _currentPath = null;
+            _goalNodeIndex = goalNode;
+            _pathObjectiveStateSignature = ComputeObjectiveStateSignature(world);
+            _repathCooldownTicks = RepathIntervalTicks;
+            _steering.Reset();
+            if (alphaRecoveryReady)
+            {
+                _alphaRecoveryNextAttemptThinkTick = _thinkTicks + AlphaRecoveryRetryTicks;
+            }
             return;
         }
 
         _currentPath = refreshedPath;
+        _hasDynamicRouteTarget = false;
         _goalNodeIndex = goalNode;
+        _pathObjectiveStateSignature = ComputeObjectiveStateSignature(world);
+        _alphaRecoveryPending = false;
+        _alphaRecoveryNextAttemptThinkTick = 0;
+        _alphaRecoverySearchFailure = null;
         if (_currentPath is not null)
         {
             _steering.Reset();
+            TraceNavigationEvent(
+                self,
+                team,
+                $"event=path_assigned start=({self.X:0.0},{self.Y:0.0}) startNode={startNode} goalNode={goalNode} " +
+                $"waypoints={_currentPath.Count} path={FormatPath(_currentPath, _navGraph)} " +
+                $"goalPos=({_currentGoalPosition.X:0.0},{_currentGoalPosition.Y:0.0}) " +
+                $"objectiveArrival={(IsAtAlphaObjectiveArrival(world, self) ? 1 : 0)}");
         }
+    }
+
+    private bool IsAtAlphaObjectiveArrival(SimulationWorld world, PlayerEntity self)
+    {
+        var isControlPointMode = world.MatchRules.Mode is GameModeKind.Arena
+            or GameModeKind.ControlPoint
+            or GameModeKind.KingOfTheHill
+            or GameModeKind.DoubleKingOfTheHill;
+        if (isControlPointMode)
+        {
+            foreach (var point in world.ControlPoints)
+            {
+                if (DistanceBetween(
+                        _currentGoalPosition.X,
+                        _currentGoalPosition.Y,
+                        point.HealingAuraCenterX,
+                        point.HealingAuraCenterY) <= 128f
+                    && world.IsPlayerInControlPointCaptureZone(self, point.Index))
+                {
+                    return true;
+                }
+            }
+
+            // Being near the logical marker is not enough for a control-point
+            // arrival. Some stock maps place the marker above the actual
+            // capture volume, and the bot must keep routing until the runtime
+            // capture-zone test is true.
+            return false;
+        }
+
+        if (world.MatchRules.Mode == GameModeKind.CaptureTheFlag
+            && self.IsCarryingIntel)
+        {
+            // A graph terminal near home is not a completed return. The
+            // gameplay scorer uses the actual 24x24 intel marker, so use that
+            // same contact test for carrier arrival instead of the broad
+            // graph-distance tolerance. Otherwise a carrier can keep a
+            // completed path while standing just outside the score marker and
+            // never enter the terminal recovery lane.
+            var ownBase = world.Level.GetIntelBase(self.Team);
+            return ownBase.HasValue
+                && self.IntersectsMarker(ownBase.Value.X, ownBase.Value.Y, 24f, 24f);
+        }
+
+        if (world.MatchRules.Mode == GameModeKind.CaptureTheFlag
+            && !self.IsCarryingIntel
+            && IsAlphaCtfEnemyIntelGoal(world, self.Team))
+        {
+            // Reaching an intel anchor is not the same as completing the CTF
+            // objective. An outbound bot can be within the graph terminal's
+            // tolerance while a crate, teammate, pickup cooldown, or marker
+            // edge still prevents the actual pickup. Only a carrier arriving
+            // at its own base has completed the CTF navigation leg. If the
+            // enemy intel is already carried, however, this static base goal
+            // is no longer actionable; the dynamic carrier resolver owns the
+            // next leg and the completed anchor must not hot-loop.
+            if (GetEnemyIntelState(world, self.Team).IsCarried)
+            {
+                return true;
+            }
+
+            // Outbound bots must retain the final approach until the world
+            // flips their carrying state.
+            return false;
+        }
+
+        return DistanceBetween(
+                self.X,
+                self.Y,
+                _currentGoalPosition.X,
+                _currentGoalPosition.Y) <= 48f;
+    }
+
+    private bool IsAlphaCompletedRouteAtLiveTarget(SimulationWorld world, PlayerEntity self)
+    {
+        if (_hasDynamicRouteTarget)
+        {
+            var dy = _dynamicRouteTargetPosition.Y - self.Y;
+            return DistanceBetween(
+                    self.X,
+                    self.Y,
+                    _dynamicRouteTargetPosition.X,
+                    _dynamicRouteTargetPosition.Y) <= DroppedIntelNearHoldDistance
+                && MathF.Abs(dy) <= DroppedIntelNearHorizontalDeadZone;
+        }
+
+        return IsAtAlphaObjectiveArrival(world, self);
     }
 
     private static bool IsObjectiveTapeHandoffTrace(string trace)
@@ -1313,12 +2491,21 @@ public sealed class BotBrainController
         _thinkTicks = 0;
         _carrierCapFinishRunupUntilTick = 0;
         _carrierCapFinishAttackUntilTick = 0;
+        _alphaRecoveryPending = false;
+        _alphaRecoveryNextAttemptThinkTick = 0;
+        _dynamicRouteRetryCooldownTicks = 0;
+        _hasDynamicRouteTarget = false;
+        _dynamicRouteTargetPosition = default;
         _platformLadderStage = 0;
         _platformLadderSide = 0f;
         _ataliaPointClimbStage = 0;
         _ataliaPointClimbSide = 0f;
         _ataliaCentralRecoveryStage = 0;
         _harvestRightSpoolLowMotionTicks = 0;
+        _alphaPathlessEscapeDirection = 0;
+        _alphaPathlessEscapeUntilThinkTick = 0;
+        ResetAlphaDynamicRecoveryProgress();
+        ResetDynamicRouteProgress();
         ResetCarrierReturnDirectEscape();
         _objectiveReevalCooldown = 0;
         _lastLevel = null;
@@ -1335,6 +2522,14 @@ public sealed class BotBrainController
         LastObjectiveTapeTrace = string.Empty;
         LastProofGraphTrace = string.Empty;
         _blockedEdges.Clear();
+        _runtimeContactPathIndex = -1;
+        _runtimeContactFromNode = -1;
+        _runtimeContactToNode = -1;
+        _runtimeContactProbeAttempted = false;
+        _runtimeContactRetryThinkTick = 0;
+        _runtimeContactFailureCount = 0;
+        _pathObjectiveStateSignature = 0;
+        _alphaRecoverySearchFailure = null;
         _objectiveTapeExecutor.Reset();
         _proofRouteExecutor.Reset();
         _combatMemory.BeenHealingTicks = 0;
@@ -1347,22 +2542,121 @@ public sealed class BotBrainController
         LastMedicHealTargetIsPocket = false;
     }
 
+    private static int ComputeObjectiveStateSignature(SimulationWorld world)
+    {
+        if (world.MatchRules.Mode == GameModeKind.CaptureTheFlag)
+        {
+            unchecked
+            {
+                var signature = 17;
+                signature = (signature * 31) + (int)world.MatchRules.Mode;
+                signature = AppendIntelStateSignature(signature, world.RedIntel);
+                signature = AppendIntelStateSignature(signature, world.BlueIntel);
+                return signature == 0 ? 1 : signature;
+            }
+        }
+
+        if (world.MatchRules.Mode is not (GameModeKind.Arena
+            or GameModeKind.ControlPoint
+            or GameModeKind.KingOfTheHill
+            or GameModeKind.DoubleKingOfTheHill))
+        {
+            return 1;
+        }
+
+        unchecked
+        {
+            var signature = 17;
+            signature = (signature * 31) + (int)world.MatchRules.Mode;
+            foreach (var point in world.ControlPoints)
+            {
+                signature = (signature * 31) + point.Index;
+                signature = (signature * 31) + (point.Team.HasValue ? (int)point.Team.Value + 1 : 0);
+                signature = (signature * 31) + (point.CappingTeam.HasValue ? (int)point.CappingTeam.Value + 1 : 0);
+                signature = (signature * 31) + (point.IsLocked ? 1 : 0);
+            }
+
+            return signature == 0 ? 1 : signature;
+        }
+    }
+
+    private static int AppendIntelStateSignature(int signature, TeamIntelligenceState intel)
+    {
+        signature = (signature * 31) + (intel.IsAtBase ? 1 : 0);
+        signature = (signature * 31) + (intel.IsDropped ? 1 : 0);
+        if (intel.IsDropped)
+        {
+            signature = (signature * 31) + (int)MathF.Round(intel.X / 16f);
+            signature = (signature * 31) + (int)MathF.Round(intel.Y / 16f);
+        }
+
+        return signature;
+    }
+
+    private void RefreshAlphaNavigationStateIfNeeded(
+        SimulationWorld world,
+        PlayerEntity self,
+        PlayerTeam team)
+    {
+        var objectiveStateChanged = _pathObjectiveStateSignature != 0
+            && _pathObjectiveStateSignature != ComputeObjectiveStateSignature(world);
+        var carryingStateChanged = self.IsCarryingIntel != _lastCarryingIntel;
+        if (!objectiveStateChanged && !carryingStateChanged)
+        {
+            return;
+        }
+
+        _currentPath = null;
+        _hasDynamicRouteTarget = false;
+        _goalNodeIndex = -1;
+        _repathCooldownTicks = 0;
+        _alphaRecoveryPending = false;
+        _alphaRecoveryNextAttemptThinkTick = 0;
+        _objectiveReevalCooldown = 0;
+        _steering.Reset();
+        _stochasticLocalMotionPlanner.Reset();
+
+        var evaluatedGoal = ObjectiveEvaluator.EvaluateGoal(self, world, team, combatTarget: null);
+        _currentGoalPosition = ResolveAlphaObjectiveGoal(world, self, team, evaluatedGoal);
+        _lastCarryingIntel = self.IsCarryingIntel;
+        UpdatePath(world, self, team);
+    }
+
     private static bool IsNavigationGraphUsable(NavGraph? graph) =>
         graph is { NodeCount: > 0 };
+
+    private static int ResolveRouteVariant(PlayerEntity self)
+    {
+        unchecked
+        {
+            var hash = (uint)self.Id;
+            hash ^= hash >> 16;
+            hash *= 2_246_822_519u;
+            hash ^= hash >> 13;
+            return (int)(hash % 31u) + 1;
+        }
+    }
 
     private void ResetTransientNavigationStateForNewLife()
     {
         _currentPath = null;
+        _hasDynamicRouteTarget = false;
+        _dynamicRouteTargetPosition = default;
         _goalNodeIndex = -1;
         _repathCooldownTicks = 0;
         _carrierCapFinishRunupUntilTick = 0;
         _carrierCapFinishAttackUntilTick = 0;
+        _alphaRecoveryPending = false;
+        _alphaRecoveryNextAttemptThinkTick = 0;
         _platformLadderStage = 0;
         _platformLadderSide = 0f;
         _ataliaPointClimbStage = 0;
         _ataliaPointClimbSide = 0f;
         _ataliaCentralRecoveryStage = 0;
         _harvestRightSpoolLowMotionTicks = 0;
+        _alphaPathlessEscapeDirection = 0;
+        _alphaPathlessEscapeUntilThinkTick = 0;
+        ResetDynamicRouteProgress();
         ResetCarrierReturnDirectEscape();
         _objectiveReevalCooldown = 0;
         _currentGoalPosition = default;
@@ -1376,6 +2670,14 @@ public sealed class BotBrainController
         LastObjectiveTapeTrace = string.Empty;
         LastProofGraphTrace = string.Empty;
         _blockedEdges.Clear();
+        _runtimeContactPathIndex = -1;
+        _runtimeContactFromNode = -1;
+        _runtimeContactToNode = -1;
+        _runtimeContactProbeAttempted = false;
+        _runtimeContactRetryThinkTick = 0;
+        _runtimeContactFailureCount = 0;
+        _pathObjectiveStateSignature = 0;
+        _alphaRecoverySearchFailure = null;
         _objectiveTapeExecutor.Reset();
         _proofRouteExecutor.Reset();
         _combatMemory.BeenHealingTicks = 0;
@@ -1600,9 +2902,11 @@ public sealed class BotBrainController
         PlayerTeam team,
         SteeringFailedEdge failedEdge,
         NavEdgeBlock failedBlock,
-        out string trace)
+        out string trace,
+        out NavPath? continuationPath)
     {
         trace = string.Empty;
+        continuationPath = null;
         if (_navGraph is null || _currentPath is null || _goalNodeIndex < 0)
         {
             return false;
@@ -1627,13 +2931,20 @@ public sealed class BotBrainController
             ? _blockedEdges.Keys.ToHashSet()
             : [];
         activeBlockedEdges.Add(failedBlock);
-        var continuationPath = _navGraph.FindPath(startNode, _goalNodeIndex, self.BotGraphClassId, activeBlockedEdges, team, self.IsCarryingIntel);
-        if (continuationPath is null)
+        var candidatePath = _navGraph.FindPath(
+            startNode,
+            _goalNodeIndex,
+            self.BotGraphClassId,
+            activeBlockedEdges,
+            team,
+            self.IsCarryingIntel,
+            routeVariant: ResolveRouteVariant(self));
+        if (candidatePath is null)
         {
             return false;
         }
 
-        if (PathStartsWithFailedEdge(continuationPath, failedBlock))
+        if (PathStartsWithFailedEdge(candidatePath, failedBlock))
         {
             return false;
         }
@@ -1641,8 +2952,9 @@ public sealed class BotBrainController
         var start = _navGraph.GetNode(startNode);
         trace =
             $"semanticRecovery=continuation reason:{failedEdge.Reason} failed:{failedEdge.FromNode}->{failedEdge.ToNode}/{failedEdge.Kind} " +
-            $"startNode:{startNode}@({start.X:0.0},{start.Y:0.0}) goalNode:{_goalNodeIndex} pathWaypoints:{continuationPath.Count} " +
+            $"startNode:{startNode}@({start.X:0.0},{start.Y:0.0}) goalNode:{_goalNodeIndex} pathWaypoints:{candidatePath.Count} " +
             $"pos:({self.X:0.0},{self.Y:0.0}) grounded:{(self.IsGrounded ? 1 : 0)} edgeTicks:{failedEdge.EdgeTicks}";
+        continuationPath = candidatePath;
         return true;
     }
 
@@ -1655,15 +2967,123 @@ public sealed class BotBrainController
                 steeringOutput.FailedEdge.ToNode,
                 steeringOutput.FailedEdge.Kind);
             _blockedEdges[failedBlock] = FailedEdgeBlockTicks;
-            if (TrySemanticContinuationAfterFailedEdge(self, team, steeringOutput.FailedEdge, failedBlock, out var recoveryTrace))
+            _blockedEdgesVersion += 1;
+            _alphaRecoverySearchFailure = null;
+            var failedEdgeTrace = _currentPath is not null
+                && _currentPath.TryGetCurrentEdge(out var failedEdge)
+                ? $" og2={(failedEdge.IsOg2Contact ? 1 : 0)} runtime={(failedEdge.IsRuntimeResolved ? 1 : 0)} " +
+                  $"recipe={(failedEdge.LaunchRecipe.HasRecipe ? 1 : 0)} jump={failedEdge.JumpTriggerTick} probe={failedEdge.ProbeTicks}"
+                : string.Empty;
+            TraceNavigationEvent(
+                self,
+                team,
+                $"event=edge_failed edge={failedBlock.FromNode}->{failedBlock.ToNode}/{failedBlock.Kind} " +
+                $"ticks={steeringOutput.FailedEdge.EdgeTicks} reason={steeringOutput.FailedEdge.Reason} " +
+                $"pos=({self.X:0.0},{self.Y:0.0}) grounded={(self.IsGrounded ? 1 : 0)} " +
+                $"speed={self.HorizontalSpeed:0.0} pathIndex={_currentPath?.CurrentIndex ?? -1} " +
+                $"goalNode={_goalNodeIndex} blockedCount={_blockedEdges.Count}{failedEdgeTrace}");
+            if (TrySemanticContinuationAfterFailedEdge(
+                    self,
+                    team,
+                    steeringOutput.FailedEdge,
+                    failedBlock,
+                    out var recoveryTrace,
+                    out var continuationPath))
             {
                 LastSemanticRecoveryTrace = recoveryTrace;
+                _currentPath = continuationPath;
+                _repathCooldownTicks = RepathIntervalTicks;
+                _steering.Reset();
+                return;
             }
         }
 
         _currentPath = null;
-        _goalNodeIndex = -1;
+        _hasDynamicRouteTarget = false;
+        // Preserve the alpha goal across a failed contact. UpdatePath clears
+        // it when the objective-state signature changes, and the fallback
+        // reachability search still replaces it when this goal cannot be
+        // reached from the new support attachment.
+        if (!_alphaNavigation)
+        {
+            _goalNodeIndex = -1;
+        }
         _repathCooldownTicks = 0;
+        MarkAlphaRecoveryPending();
+        _dynamicRouteRetryCooldownTicks = _alphaNavigation
+            ? DynamicRouteRetryCooldownTicks
+            : 0;
+        _steering.Reset();
+    }
+
+    private void MarkAlphaRecoveryPending()
+    {
+        if (!_alphaNavigation)
+        {
+            return;
+        }
+
+        _alphaRecoveryPending = true;
+        _alphaRecoveryNextAttemptThinkTick = 0;
+    }
+
+    private static string FormatPath(NavPath path, NavGraph graph)
+    {
+        var parts = new string[Math.Max(0, path.Count - 1)];
+        for (var index = 1; index < path.Count; index += 1)
+        {
+            var fromNode = path.GetWaypoint(index - 1);
+            var toNode = path.GetWaypoint(index);
+            var edgeKind = path.TryGetIncomingEdge(index, out var edge)
+                ? edge.Kind.ToString()
+                : "Unknown";
+            parts[index - 1] = $"{fromNode}>{toNode}/{edgeKind}";
+        }
+
+        return string.Join(',', parts);
+    }
+
+    private static void TraceNavigationEvent(PlayerEntity self, PlayerTeam team, string message)
+    {
+        if (!NavigationEventTracingEnabled || string.IsNullOrWhiteSpace(NavigationEventTracePath))
+        {
+            return;
+        }
+
+        var line = string.Create(
+            CultureInfo.InvariantCulture,
+            $"{DateTime.Now:O} bot={self.Id} team={team} class={self.ClassId} {message}{Environment.NewLine}");
+        lock (NavigationDiagnosticSync)
+        {
+            File.AppendAllText(NavigationEventTracePath, line);
+        }
+    }
+
+    private void TraceRuntimeRecipeExecution(PlayerEntity self, PlayerTeam team, SteeringOutput steeringOutput)
+    {
+        var trace = steeringOutput.RecipeTrace;
+        var traceAllRuntimeRecipeEdges =
+            Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_TRACE_RUNTIME_EXECUTION") is "1" or "true" or "TRUE";
+        if (!NavigationEventTracingEnabled
+            || !trace.HasRecipe
+            || (!traceAllRuntimeRecipeEdges && trace.ToNode is not (305 or 306 or 307 or 538))
+            || (trace.EdgeTicks % 5 != 0 && !trace.FinalJump))
+        {
+            return;
+        }
+
+        TraceNavigationEvent(
+            self,
+            team,
+            $"event=contact_execution edge={trace.FromNode}->{trace.ToNode} edgeTicks={trace.EdgeTicks} " +
+            $"pos=({trace.CurrentX:0.0},{trace.CurrentY:0.0}) grounded={(trace.CurrentGrounded ? 1 : 0)} " +
+            $"speed={trace.CurrentHorizontalSpeed:0.0} " +
+            $"launchX={trace.RecipeLaunchMinX:0.0}..{trace.RecipeLaunchMaxX:0.0} " +
+            $"launchSpeed={trace.RecipeLaunchMinHorizontalSpeed:0.0}..{trace.RecipeLaunchMaxHorizontalSpeed:0.0} " +
+            $"inX={(trace.InLaunchXWindow ? 1 : 0)} inY={(trace.InLaunchYWindow ? 1 : 0)} " +
+            $"inSpeed={(trace.InLaunchSpeedWindow ? 1 : 0)} ready={(trace.RecipeReady ? 1 : 0)} " +
+            $"suppress={(trace.SuppressJumpUntilLaunch ? 1 : 0)} " +
+            $"move={trace.FinalMoveDirection:0} jump={(trace.FinalJump ? 1 : 0)} prevUp={(_previousInput.Up ? 1 : 0)}");
     }
 
     private static bool IsSemanticContinuationCandidate(SteeringFailedEdge failedEdge) =>
@@ -1705,6 +3125,7 @@ public sealed class BotBrainController
             if (remaining <= 0)
             {
                 _blockedEdges.Remove(key);
+                _blockedEdgesVersion += 1;
             }
             else
             {
@@ -1714,6 +3135,32 @@ public sealed class BotBrainController
     }
 
     private bool TryResolveDirectSeek(
+        SimulationWorld world,
+        PlayerEntity self,
+        PlayerTeam team,
+        BotBrainCombatTarget? combatTarget,
+        bool routeRecoveryRequested,
+        SteeringOutput steeringOutput,
+        out SteeringOutput directSteering,
+        out string directTrace)
+    {
+        var stageStartTimestamp = NavigationStageTracingEnabled
+            ? Stopwatch.GetTimestamp()
+            : 0L;
+        var resolved = TryResolveDirectSeekCore(
+            world,
+            self,
+            team,
+            combatTarget,
+            routeRecoveryRequested,
+            steeringOutput,
+            out directSteering,
+            out directTrace);
+        TraceSlowNavigationStage(self, "TryResolveDirectSeek", stageStartTimestamp);
+        return resolved;
+    }
+
+    private bool TryResolveDirectSeekCore(
         SimulationWorld world,
         PlayerEntity self,
         PlayerTeam team,
@@ -1753,7 +3200,8 @@ public sealed class BotBrainController
             return true;
         }
 
-        if (TryResolveControlPointEnemyClearSeek(world, self, team, steeringOutput, out directSteering, out directTrace))
+        if (!DisableCombatForDiagnostics
+            && TryResolveControlPointEnemyClearSeek(world, self, team, steeringOutput, out directSteering, out directTrace))
         {
             return true;
         }
@@ -1764,7 +3212,8 @@ public sealed class BotBrainController
             return true;
         }
 
-        if (ShouldDirectSeekEnemiesAfterKothCapture(world, team)
+        if (!_alphaNavigation
+            && ShouldDirectSeekEnemiesAfterKothCapture(world, team)
             && TryFindNearestEnemyPlayer(world, self, team, DirectSeekPlayerDistance, out var ownedKothTarget))
         {
             if (TryRouteToDirectSeekTarget(
@@ -1791,7 +3240,8 @@ public sealed class BotBrainController
 
         if (!routeRecoveryRequested)
         {
-            if (combatTarget is { Kind: BotBrainCombatTargetKind.Player, Player: { } directCombatTarget }
+            if (!_alphaNavigation
+                && combatTarget is { Kind: BotBrainCombatTargetKind.Player, Player: { } directCombatTarget }
                 && TryRouteToDirectSeekTarget(
                     world,
                     self,
@@ -1806,7 +3256,29 @@ public sealed class BotBrainController
                 return true;
             }
 
-            return TryResolvePrimitiveCombatDrive(world, self, combatTarget, steeringOutput, out directSteering, out directTrace);
+            return TryResolveAlphaAwarePrimitiveCombatDrive(
+                world,
+                self,
+                combatTarget,
+                steeringOutput,
+                out directSteering,
+                out directTrace);
+        }
+
+        // A failed/repathing alpha graph route must not turn into a route to
+        // whichever enemy happened to be selected that tick.  That creates a
+        // second route owner during recovery and makes the bot alternate
+        // between the objective and a moving combat target.  Immediate local
+        // combat remains available; the next graph update owns traversal.
+        if (_alphaNavigation)
+        {
+            return TryResolveAlphaAwarePrimitiveCombatDrive(
+                world,
+                self,
+                combatTarget,
+                steeringOutput,
+                out directSteering,
+                out directTrace);
         }
 
         if (TryFindNearestEnemyPlayer(world, self, team, DirectSeekPlayerDistance, out var recoveryTarget))
@@ -1909,6 +3381,59 @@ public sealed class BotBrainController
         return primitiveResolved;
     }
 
+    private bool TryResolveAlphaAwarePrimitiveCombatDrive(
+        SimulationWorld world,
+        PlayerEntity self,
+        BotBrainCombatTarget? combatTarget,
+        SteeringOutput steeringOutput,
+        out SteeringOutput directSteering,
+        out string directTrace)
+    {
+        var stageStartTimestamp = NavigationStageTracingEnabled
+            ? Stopwatch.GetTimestamp()
+            : 0L;
+        var resolved = TryResolveAlphaAwarePrimitiveCombatDriveCore(
+            world,
+            self,
+            combatTarget,
+            steeringOutput,
+            out directSteering,
+            out directTrace);
+        TraceSlowNavigationStage(self, "TryResolveAlphaAwarePrimitiveCombatDrive", stageStartTimestamp);
+        return resolved;
+    }
+
+    private bool TryResolveAlphaAwarePrimitiveCombatDriveCore(
+        SimulationWorld world,
+        PlayerEntity self,
+        BotBrainCombatTarget? combatTarget,
+        SteeringOutput steeringOutput,
+        out SteeringOutput directSteering,
+        out string directTrace)
+    {
+        directSteering = steeringOutput;
+        directTrace = string.Empty;
+        if (_alphaNavigation
+            && _currentPath is { IsComplete: false }
+            && combatTarget is { Kind: BotBrainCombatTargetKind.Player, Player: { } target }
+            && DistanceBetween(self.X, self.Y, target.X, target.Y) > AlphaObjectiveCombatOverlayDistance)
+        {
+            // Keep the graph moving toward the live objective while a merely
+            // visible enemy is still outside the immediate combat pocket.
+            // Point-clear and dynamic CTF resolvers run earlier and remain
+            // allowed to take ownership when the objective requires it.
+            return false;
+        }
+
+        return TryResolvePrimitiveCombatDrive(
+            world,
+            self,
+            combatTarget,
+            steeringOutput,
+            out directSteering,
+            out directTrace);
+    }
+
     private bool TryResolveNoGraphObjectiveSeek(
         SimulationWorld world,
         PlayerEntity self,
@@ -1920,6 +3445,97 @@ public sealed class BotBrainController
     {
         if (_alphaNavigation)
         {
+            // Alpha still owns long-range traversal. This is only the
+            // grounded emergency lane after the graph has no executable path
+            // for this tick (for example immediately after a missed landing
+            // or a dynamic body-block). It keeps the bot moving out of the
+            // invalid attachment region while UpdatePath retries the graph;
+            // it is deliberately not a replacement for graph routing.
+            if (_navGraph is not null)
+            {
+                var alphaObjectiveTarget = new DirectDriveTarget(
+                    DirectDriveTargetKind.Objective,
+                    _currentGoalPosition.X,
+                    _currentGoalPosition.Y,
+                    "alphaPathlessObjective");
+                var forceCtfIntelApproach = IsAlphaCtfTerminalIntelApproach(world, self, alphaObjectiveTarget);
+                var objectiveDistance = DistanceBetween(self.X, self.Y, alphaObjectiveTarget.X, alphaObjectiveTarget.Y);
+
+                if (world.MatchRules.Mode == GameModeKind.CaptureTheFlag
+                    && self.IsCarryingIntel
+                    && TryResolveAlphaCarrierTerminalReturn(
+                        world,
+                        self,
+                        team,
+                        steeringOutput,
+                        out directSteering,
+                        out directTrace))
+                {
+                    return true;
+                }
+
+                if (!forceCtfIntelApproach
+                    && self.IsGrounded
+                    && TryResolveLocalMotionRecovery(
+                            world,
+                            self,
+                            alphaObjectiveTarget,
+                            steeringOutput,
+                            out directSteering,
+                            out directTrace)
+                        && !IsSuppressedObjectiveProbeTrace(directTrace)
+                        && (!IsNeutralNavigationOutput(directSteering)
+                            || objectiveDistance <= DroppedIntelNearHoldDistance))
+                {
+                    directTrace = $"alphaPathlessRecovery {directTrace}";
+                    return true;
+                }
+
+                if (forceCtfIntelApproach
+                    && TryResolveAlphaPathlessEscape(
+                        world,
+                        self,
+                        alphaObjectiveTarget,
+                        steeringOutput,
+                        out directSteering,
+                        out directTrace))
+                {
+                    directTrace = $"alphaCtfIntelApproach {directTrace}";
+                    return true;
+                }
+
+                // A stale/neutral local plan must not become the movement
+                // owner while the graph is reattaching. Give the body one
+                // cheap deterministic objective drive instead. This also
+                // covers an airborne failed-edge handoff; waiting for the
+                // next grounded think with an empty SteeringOutput is what
+                // made bots visibly freeze after a missed landing.
+                if (PrimitiveDirectDrive.TryResolveRecovery(
+                        world,
+                        self,
+                        alphaObjectiveTarget,
+                        steeringOutput,
+                        out directSteering,
+                        out directTrace)
+                    && !IsNeutralNavigationOutput(directSteering))
+                {
+                    directTrace = $"alphaPathlessPrimitive {directTrace}";
+                    return true;
+                }
+
+                if (combatTarget is null
+                    && TryResolveAlphaPathlessEscape(
+                        world,
+                        self,
+                        alphaObjectiveTarget,
+                        steeringOutput,
+                        out directSteering,
+                        out directTrace))
+                {
+                    return true;
+                }
+            }
+
             directSteering = steeringOutput;
             directTrace = string.Empty;
             return false;
@@ -1941,7 +3557,8 @@ public sealed class BotBrainController
             return true;
         }
 
-        if (TryResolveControlPointEnemyClearSeek(world, self, team, steeringOutput, out directSteering, out directTrace))
+        if (!DisableCombatForDiagnostics
+            && TryResolveControlPointEnemyClearSeek(world, self, team, steeringOutput, out directSteering, out directTrace))
         {
             return true;
         }
@@ -1983,9 +3600,279 @@ public sealed class BotBrainController
         return false;
     }
 
+    private static bool TryResolveAlphaCarrierTerminalReturn(
+        SimulationWorld world,
+        PlayerEntity self,
+        PlayerTeam team,
+        SteeringOutput steeringOutput,
+        out SteeringOutput directSteering,
+        out string directTrace)
+    {
+        directSteering = steeringOutput;
+        directTrace = string.Empty;
+        var ownBase = world.Level.GetIntelBase(team);
+        if (!ownBase.HasValue)
+        {
+            return false;
+        }
+
+        var dx = ownBase.Value.X - self.X;
+        var dy = ownBase.Value.Y - self.Y;
+        var distance = DistanceBetween(self.X, self.Y, ownBase.Value.X, ownBase.Value.Y);
+        if (distance > 220f || MathF.Abs(dy) > 128f)
+        {
+            return false;
+        }
+
+        var moveDirection = Math.Sign(dx);
+        directSteering.MoveDirection = moveDirection;
+        // A grounded player can always initiate the normal jump, even when
+        // the class has no mid-air jumps. RemainingAirJumps only gates a
+        // second jump after takeoff.
+        directSteering.Jump = self.IsGrounded && dy < -4f;
+        directSteering.DropDown = false;
+        directSteering.RequestRepath = false;
+        directTrace = string.Create(
+            CultureInfo.InvariantCulture,
+            $"alphaCarrierTerminal team:{team} dx:{dx:0.0} dy:{dy:0.0} " +
+            $"dist:{distance:0.0} move:{moveDirection:0} jump:{(directSteering.Jump ? 1 : 0)}");
+        return true;
+    }
+
+    private bool TryResolveAlphaPathlessEscape(
+        SimulationWorld world,
+        PlayerEntity self,
+        DirectDriveTarget target,
+        SteeringOutput steeringOutput,
+        out SteeringOutput directSteering,
+        out string directTrace)
+    {
+        directSteering = steeringOutput;
+        directTrace = string.Empty;
+        if (!self.IsAlive)
+        {
+            return false;
+        }
+
+        var dx = target.X - self.X;
+        var dy = target.Y - self.Y;
+        var distance = DistanceBetween(self.X, self.Y, target.X, target.Y);
+        if (distance <= DroppedIntelNearHoldDistance
+            && MathF.Abs(dy) <= DroppedIntelNearHorizontalDeadZone
+            && !IsAlphaCtfTerminalIntelApproach(world, self, target))
+        {
+            // The bot is already in the terminal horizontal objective band;
+            // a neutral hold here is intentional (capture/scoring owns it).
+            return false;
+        }
+
+        var terminalIntelApproach = IsAlphaCtfTerminalIntelApproach(world, self, target);
+        if (terminalIntelApproach
+            && self.IntersectsMarker(target.X, target.Y, 24f, 24f))
+        {
+            return false;
+        }
+        var desiredObjectiveDirection = MathF.Sign(dx);
+        var targetCrossedCommittedDirection = terminalIntelApproach
+            && desiredObjectiveDirection != 0f
+            && desiredObjectiveDirection != _alphaPathlessEscapeDirection
+            // Once the body has crossed the marker, reverse immediately. The
+            // old 8px dead zone could preserve the stale direction while the
+            // bot was already on the far side of the intel, making it walk
+            // away from the pickup/score volume until the commit expired.
+            && MathF.Abs(dx) > 1f;
+        if (_alphaPathlessEscapeUntilThinkTick <= _thinkTicks
+            || _alphaPathlessEscapeDirection == 0
+            || targetCrossedCommittedDirection)
+        {
+            var objectiveDirection = desiredObjectiveDirection;
+            if (objectiveDirection == 0f)
+            {
+                objectiveDirection = terminalIntelApproach
+                    ? 0
+                    : MathF.Sign(self.FacingDirectionX);
+            }
+
+            if (objectiveDirection == 0f && !terminalIntelApproach)
+            {
+                objectiveDirection = self.Id % 2 == 0 ? 1 : -1;
+            }
+
+            // If the objective-facing side is blocked, move away from the
+            // obstruction long enough to leave the stale attachment region.
+            // If both sides are blocked, retain the objective direction and
+            // use a jump pulse as the final cheap escape attempt.
+            var objectiveDirectionBlocked = PrimitiveDirectDrive.WouldMoveIntoObstacle(
+                world,
+                self,
+                objectiveDirection);
+            _alphaPathlessEscapeDirection = terminalIntelApproach
+                ? objectiveDirection
+                : objectiveDirectionBlocked
+                    ? -objectiveDirection
+                    : objectiveDirection;
+            _alphaPathlessEscapeUntilThinkTick = _thinkTicks + AlphaPathlessEscapeCommitTicks;
+        }
+
+        var escapeDirection = _alphaPathlessEscapeDirection;
+        var escapeBlocked = escapeDirection != 0
+            && PrimitiveDirectDrive.WouldMoveIntoObstacle(world, self, escapeDirection);
+        // RemainingAirJumps is zero for every non-Scout class while grounded;
+        // it must not suppress the ordinary ground jump used to recover onto
+        // an upper support.
+        var jump = self.IsGrounded
+            && (escapeBlocked
+                || dy < (terminalIntelApproach
+                    ? -DroppedIntelNearHorizontalDeadZone
+                    : -AlphaPathlessEscapeTargetDeadZone));
+        directSteering = steeringOutput;
+        directSteering.MoveDirection = escapeDirection;
+        directSteering.Jump = jump;
+        directSteering.DropDown = false;
+        directSteering.RequestRepath = false;
+        MarkAlphaRecoveryPending();
+        directTrace =
+            $"alphaPathlessEscape target:{target.Label} dx:{dx:0.0} dy:{dy:0.0} " +
+            $"dist:{distance:0.0} move:{escapeDirection:0} blocked:{(escapeBlocked ? 1 : 0)} " +
+            $"jump:{(jump ? 1 : 0)} remaining:{Math.Max(0, _alphaPathlessEscapeUntilThinkTick - _thinkTicks)}";
+        return true;
+    }
+
+    private bool IsAlphaCtfEnemyIntelGoal(SimulationWorld world, PlayerTeam team)
+    {
+        if (world.MatchRules.Mode != GameModeKind.CaptureTheFlag)
+        {
+            return false;
+        }
+
+        var enemyIntel = GetEnemyIntelState(world, team);
+        var targetX = enemyIntel.IsAtBase ? enemyIntel.HomeX : enemyIntel.X;
+        var targetY = enemyIntel.IsAtBase ? enemyIntel.HomeY : enemyIntel.Y;
+        return DistanceBetween(_currentGoalPosition.X, _currentGoalPosition.Y, targetX, targetY)
+            <= DroppedIntelNearHoldDistance;
+    }
+
+    private static bool IsAlphaCtfTerminalIntelApproach(
+        SimulationWorld world,
+        PlayerEntity self,
+        DirectDriveTarget target)
+    {
+        if (world.MatchRules.Mode != GameModeKind.CaptureTheFlag
+            || self.IsCarryingIntel
+            || target.Kind != DirectDriveTargetKind.Objective)
+        {
+            return false;
+        }
+
+        var enemyIntel = GetEnemyIntelState(world, self.Team);
+        var ownIntel = GetOwnIntelState(world, self.Team);
+        var enemyTarget = (enemyIntel.IsAtBase || enemyIntel.IsDropped)
+            && DistanceBetween(target.X, target.Y, enemyIntel.X, enemyIntel.Y) <= DroppedIntelNearHoldDistance;
+        var ownDroppedTarget = ownIntel.IsDropped
+            && DistanceBetween(target.X, target.Y, ownIntel.X, ownIntel.Y) <= DroppedIntelNearHoldDistance;
+        return enemyTarget || ownDroppedTarget;
+    }
+
+    private bool TryResolveAlphaObjectiveArrivalCorrection(
+        SimulationWorld world,
+        PlayerEntity self,
+        SteeringOutput steeringOutput,
+        out SteeringOutput correctionSteering,
+        out string trace)
+    {
+        correctionSteering = steeringOutput;
+        trace = string.Empty;
+        if (world.MatchRules.Mode is not (GameModeKind.Arena
+            or GameModeKind.ControlPoint
+            or GameModeKind.KingOfTheHill
+            or GameModeKind.DoubleKingOfTheHill)
+            || world.ControlPoints.Count == 0
+            || IsAtAlphaObjectiveArrival(world, self))
+        {
+            return false;
+        }
+
+        var point = world.ControlPoints
+            .OrderBy(candidate => DistanceBetween(
+                candidate.HealingAuraCenterX,
+                candidate.HealingAuraCenterY,
+                _currentGoalPosition.X,
+                _currentGoalPosition.Y))
+            .First();
+        if (point.IsLocked
+            || DistanceBetween(
+                point.HealingAuraCenterX,
+                point.HealingAuraCenterY,
+                _currentGoalPosition.X,
+                _currentGoalPosition.Y) > 160f)
+        {
+            return false;
+        }
+
+        var dx = _currentGoalPosition.X - self.X;
+        var dy = _currentGoalPosition.Y - self.Y;
+        if (MathF.Abs(dx) > 128f || MathF.Abs(dy) > 96f)
+        {
+            return false;
+        }
+
+        // The graph has already attached the body to the objective node, but
+        // the live capture volume can end a few pixels short of that node's
+        // completion bounds (especially on the upper Corinth platform). Use
+        // one deterministic horizontal correction to enter the real volume;
+        // this is a terminal approach correction, not a second combat or
+        // long-range navigation owner.
+        var moveDirection = MathF.Sign(dx);
+        if (moveDirection == 0f)
+        {
+            return false;
+        }
+
+        correctionSteering.MoveDirection = moveDirection;
+        correctionSteering.Jump = false;
+        correctionSteering.DropDown = false;
+        trace = string.Create(
+            CultureInfo.InvariantCulture,
+            $"alphaObjectiveCorrection point:{point.Index} dx:{dx:0.0} dy:{dy:0.0} move:{moveDirection:0}");
+        return true;
+    }
+
+    private bool TryResolveAlphaAirborneRecoverySteering(
+        PlayerEntity self,
+        SteeringOutput steeringOutput,
+        out SteeringOutput recoverySteering,
+        out string trace)
+    {
+        recoverySteering = steeringOutput;
+        trace = string.Empty;
+        if (_currentPath is { IsComplete: false })
+        {
+            return false;
+        }
+
+        var dx = _currentGoalPosition.X - self.X;
+        if (MathF.Abs(dx) <= 8f)
+        {
+            return false;
+        }
+
+        var moveDirection = MathF.Sign(dx);
+        recoverySteering.MoveDirection = moveDirection;
+        recoverySteering.Jump = false;
+        recoverySteering.DropDown = false;
+        trace = string.Create(
+            CultureInfo.InvariantCulture,
+            $"alphaAirborneRecovery dx:{dx:0.0} move:{moveDirection:0} " +
+            $"pos:({self.X:0.0},{self.Y:0.0}) goal:({_currentGoalPosition.X:0.0},{_currentGoalPosition.Y:0.0})");
+        return true;
+    }
+
     private static bool IsLocalMotionSuppressionTrace(string trace) =>
         trace.StartsWith("localMotion=suppressed", StringComparison.Ordinal)
         || trace.StartsWith("localMotion=failed", StringComparison.Ordinal);
+
+    private static bool IsSuppressedObjectiveProbeTrace(string trace) =>
+        trace.StartsWith("localMotion=suppressedProbe", StringComparison.Ordinal);
 
     private bool TryResolvePreferredEnemyPlayerSeek(
         SimulationWorld world,
@@ -2052,6 +3939,272 @@ public sealed class BotBrainController
             out directSteering,
             out directTrace);
 
+    private bool TryResolveDynamicObjectiveLocalMotionRecovery(
+        SimulationWorld world,
+        PlayerEntity self,
+        DirectDriveTarget target,
+        SteeringOutput steeringOutput,
+        out SteeringOutput directSteering,
+        out string directTrace)
+    {
+        if (!TryResolveLocalMotionRecovery(
+                world,
+                self,
+                target,
+                steeringOutput,
+                out directSteering,
+                out directTrace))
+        {
+            return false;
+        }
+
+        // An alpha dynamic target is a movement owner only while it emits a
+        // real input. A neutral local plan at world-scale distance otherwise
+        // masks the graph route and leaves the bot standing still until the
+        // moving target changes enough to force another search. Near-target
+        // neutral output is only a terminal hold when the bot is also in the
+        // target's horizontal band; a vertically offset neutral plan still
+        // needs graph/local recovery to reach the gameplay contact.
+        var dx = target.X - self.X;
+        var dy = target.Y - self.Y;
+        var distance = DistanceBetween(self.X, self.Y, target.X, target.Y);
+        var nearTerminal = distance <= DroppedIntelNearHoldDistance
+            && MathF.Abs(dy) <= DroppedIntelNearHorizontalDeadZone;
+        if (nearTerminal)
+        {
+            ResetAlphaDynamicRecoveryProgress();
+        }
+        else if (IsAlphaDynamicRecoveryStagnant(self, target))
+        {
+            _localMotionController.AbortActivePlan();
+            MarkAlphaRecoveryPending();
+            directTrace = $"{directTrace} reject:stagnant_dynamic ticks:{_alphaDynamicRecoveryStagnantTicks} " +
+                $"distance:{distance:0.0} dx:{dx:0.0} dy:{dy:0.0}";
+            return false;
+        }
+        if (_alphaNavigation
+            && ((target.Kind == DirectDriveTargetKind.Intel
+                    && IsSuppressedObjectiveProbeTrace(directTrace))
+                || (!nearTerminal
+                    && (IsNeutralNavigationOutput(directSteering)
+                        || IsSuppressedObjectiveProbeTrace(directTrace)))))
+        {
+            directTrace = $"{directTrace} reject:nonmoving_dynamic distance:{distance:0.0} dx:{dx:0.0} dy:{dy:0.0}";
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool IsAlphaDynamicRecoveryStagnant(PlayerEntity self, DirectDriveTarget target)
+    {
+        if (!string.Equals(_alphaDynamicRecoveryLabel, target.Label, StringComparison.Ordinal)
+            || DistanceBetween(
+                _alphaDynamicRecoveryLastX,
+                _alphaDynamicRecoveryLastY,
+                target.X,
+                target.Y) > DroppedIntelNearHoldDistance)
+        {
+            _alphaDynamicRecoveryLabel = target.Label;
+            _alphaDynamicRecoveryLastX = self.X;
+            _alphaDynamicRecoveryLastY = self.Y;
+            _alphaDynamicRecoveryStagnantTicks = 0;
+            return false;
+        }
+
+        var moved = DistanceBetween(
+            _alphaDynamicRecoveryLastX,
+            _alphaDynamicRecoveryLastY,
+            self.X,
+            self.Y);
+        _alphaDynamicRecoveryLastX = self.X;
+        _alphaDynamicRecoveryLastY = self.Y;
+        if (moved < DynamicObjectiveRecoveryProgressDistance)
+        {
+            _alphaDynamicRecoveryStagnantTicks += 1;
+        }
+        else
+        {
+            _alphaDynamicRecoveryStagnantTicks = 0;
+        }
+
+        return _alphaDynamicRecoveryStagnantTicks >= DynamicObjectiveRecoveryStagnationTicks;
+    }
+
+    private void ResetAlphaDynamicRecoveryProgress()
+    {
+        _alphaDynamicRecoveryLabel = null;
+        _alphaDynamicRecoveryLastX = 0f;
+        _alphaDynamicRecoveryLastY = 0f;
+        _alphaDynamicRecoveryStagnantTicks = 0;
+    }
+
+    private bool BreakStalledDynamicRoute(PlayerEntity self, SimulationWorld world)
+    {
+        if (!_alphaNavigation
+            || world.MatchRules.Mode != GameModeKind.CaptureTheFlag
+            || !_hasDynamicRouteTarget
+            || _currentPath is null
+            || _currentPath.IsComplete
+            || DistanceBetween(
+                self.X,
+                self.Y,
+                _dynamicRouteTargetPosition.X,
+                _dynamicRouteTargetPosition.Y) <= DroppedIntelNearHoldDistance)
+        {
+            ResetDynamicRouteProgress();
+            return false;
+        }
+
+        if (!ReferenceEquals(_dynamicRouteProgressPath, _currentPath))
+        {
+            _dynamicRouteProgressPath = _currentPath;
+            _dynamicRouteProgressLastX = self.X;
+            _dynamicRouteProgressLastY = self.Y;
+            _dynamicRouteProgressStagnantTicks = 0;
+            _dynamicRouteProgressLowSpeedFlips = 0;
+            _dynamicRouteProgressLastMoveDirection = 0;
+            return false;
+        }
+
+        _dynamicRouteProgressStagnantTicks += 1;
+        var moveDirection = Math.Sign(LastSteeringOutput.MoveDirection);
+        if (moveDirection != 0
+            && _dynamicRouteProgressLastMoveDirection != 0
+            && moveDirection != _dynamicRouteProgressLastMoveDirection)
+        {
+            _dynamicRouteProgressLowSpeedFlips += 1;
+        }
+
+        if (moveDirection != 0)
+        {
+            _dynamicRouteProgressLastMoveDirection = moveDirection;
+        }
+
+        if (_dynamicRouteProgressStagnantTicks < DynamicRouteProgressStagnationTicks)
+        {
+            return false;
+        }
+
+        var moved = DistanceBetween(
+            _dynamicRouteProgressLastX,
+            _dynamicRouteProgressLastY,
+            self.X,
+            self.Y);
+        var oscillating = self.IsGrounded
+            && _dynamicRouteProgressLowSpeedFlips >= 4
+            && moved < 32f;
+        if (!oscillating)
+        {
+            _dynamicRouteProgressLastX = self.X;
+            _dynamicRouteProgressLastY = self.Y;
+            _dynamicRouteProgressStagnantTicks = 0;
+            _dynamicRouteProgressLowSpeedFlips = 0;
+            _dynamicRouteProgressLastMoveDirection = 0;
+            return false;
+        }
+
+        var stalledTicks = _dynamicRouteProgressStagnantTicks;
+        var stalledFlips = _dynamicRouteProgressLowSpeedFlips;
+        _currentPath = null;
+        _goalNodeIndex = -1;
+        _hasDynamicRouteTarget = false;
+        _repathCooldownTicks = 0;
+        _dynamicRouteRetryCooldownTicks = 0;
+        _steering.Reset();
+        MarkAlphaRecoveryPending();
+        ResetDynamicRouteProgress();
+        TraceNavigationEvent(
+            self,
+            self.Team,
+            $"event=dynamic_route_stall_recovery ticks={stalledTicks} flips={stalledFlips} " +
+            $"pos=({self.X:0.0},{self.Y:0.0}) " +
+            $"target=({_dynamicRouteTargetPosition.X:0.0},{_dynamicRouteTargetPosition.Y:0.0})");
+        LastSemanticRecoveryTrace = $"dynamicRouteRecovery=stalled ticks:{stalledTicks} flips:{stalledFlips}";
+        return true;
+    }
+
+    private bool BreakStalledCombatRoute(PlayerEntity self)
+    {
+        var directTrace = LastDirectDriveTrace;
+        var directOwner = directTrace.Contains("controlPointClearEnemy", StringComparison.Ordinal)
+            ? "controlPointClearEnemy"
+            : directTrace.Contains("spyRetreat", StringComparison.Ordinal)
+                ? "spyRetreat"
+                : directTrace.Contains("directRoute=", StringComparison.Ordinal)
+                    ? "directRoute"
+                    : directTrace.Contains("directDrive=", StringComparison.Ordinal)
+                        ? "directDrive"
+                        : null;
+        if (!_alphaNavigation
+            || LastCombatTarget is null
+            || directOwner is null
+            || directTrace.Contains("alphaCapture", StringComparison.Ordinal)
+            || directTrace.Contains("medicSupport:", StringComparison.Ordinal)
+            || MathF.Abs(LastSteeringOutput.MoveDirection) <= 0.01f)
+        {
+            ResetCombatRouteProgress();
+            return false;
+        }
+
+        if (!string.Equals(_combatRouteProgressOwner, directOwner, StringComparison.Ordinal))
+        {
+            _combatRouteProgressOwner = directOwner;
+            _combatRouteProgressLastX = self.X;
+            _combatRouteProgressLastY = self.Y;
+            _combatRouteProgressStagnantTicks = 0;
+            return false;
+        }
+
+        var moved = DistanceBetween(
+            _combatRouteProgressLastX,
+            _combatRouteProgressLastY,
+            self.X,
+            self.Y);
+        _combatRouteProgressLastX = self.X;
+        _combatRouteProgressLastY = self.Y;
+        if (moved >= CombatRouteProgressDistance)
+        {
+            _combatRouteProgressStagnantTicks = 0;
+            return false;
+        }
+
+        _combatRouteProgressStagnantTicks += 1;
+        if (_combatRouteProgressStagnantTicks < CombatRouteProgressStagnationTicks)
+        {
+            return false;
+        }
+
+        var stalledTicks = _combatRouteProgressStagnantTicks;
+        _currentPath = null;
+        _goalNodeIndex = -1;
+        _hasDynamicRouteTarget = false;
+        _repathCooldownTicks = 0;
+        _steering.Reset();
+        MarkAlphaRecoveryPending();
+        LastSemanticRecoveryTrace = $"combatRouteRecovery=stalled ticks:{stalledTicks}";
+        ResetCombatRouteProgress();
+        return true;
+    }
+
+    private void ResetCombatRouteProgress()
+    {
+        _combatRouteProgressOwner = null;
+        _combatRouteProgressLastX = 0f;
+        _combatRouteProgressLastY = 0f;
+        _combatRouteProgressStagnantTicks = 0;
+    }
+
+    private void ResetDynamicRouteProgress()
+    {
+        _dynamicRouteProgressLastX = 0f;
+        _dynamicRouteProgressLastY = 0f;
+        _dynamicRouteProgressStagnantTicks = 0;
+        _dynamicRouteProgressLowSpeedFlips = 0;
+        _dynamicRouteProgressLastMoveDirection = 0;
+        _dynamicRouteProgressPath = null;
+    }
+
     private bool TryResolvePrimitiveCombatDrive(
         SimulationWorld world,
         PlayerEntity self,
@@ -2110,6 +4263,32 @@ public sealed class BotBrainController
         out SteeringOutput directSteering,
         out string directTrace)
     {
+        var stageStartTimestamp = NavigationStageTracingEnabled
+            ? Stopwatch.GetTimestamp()
+            : 0L;
+        var resolved = TryResolveMedicSupportDriveCore(
+            world,
+            self,
+            team,
+            healTarget,
+            selectionKind,
+            steeringOutput,
+            out directSteering,
+            out directTrace);
+        TraceSlowNavigationStage(self, "TryResolveMedicSupportDrive", stageStartTimestamp);
+        return resolved;
+    }
+
+    private bool TryResolveMedicSupportDriveCore(
+        SimulationWorld world,
+        PlayerEntity self,
+        PlayerTeam team,
+        PlayerEntity? healTarget,
+        MedicHealTargetSelectionKind selectionKind,
+        SteeringOutput steeringOutput,
+        out SteeringOutput directSteering,
+        out string directTrace)
+    {
         directSteering = steeringOutput;
         directTrace = string.Empty;
         if (self.ClassId != PlayerClass.Medic
@@ -2130,15 +4309,20 @@ public sealed class BotBrainController
             return false;
         }
 
+        var healLinkStartTimestamp = Stopwatch.GetTimestamp();
         var hasHealLink = distance <= MedicSupportHealRange
             && CombatDecisionResolver.HasLineOfSight(world, self.X, self.Y, healTarget.X, healTarget.Y, self.Team, self.IsCarryingIntel);
+        var healLinkMilliseconds = (Stopwatch.GetTimestamp() - healLinkStartTimestamp) * 1000d / Stopwatch.Frequency;
+        var healLinkTiming = healLinkMilliseconds >= 8d
+            ? $" losMs:{healLinkMilliseconds:0.0}"
+            : string.Empty;
         var label = $"medicSupport:{selectionKind} player:{healTarget.Id}";
         if (distance < MedicSupportHoldMinDistance)
         {
             directSteering.MoveDirection = ResolveMedicSupportAwayDirection(self, dx);
             directSteering.Jump = false;
             directSteering.DropDown = false;
-            directTrace = $"{label} space dx:{dx:0.0} dy:{dy:0.0} dist:{distance:0.0} move:{directSteering.MoveDirection:0}";
+            directTrace = $"{label} space dx:{dx:0.0} dy:{dy:0.0} dist:{distance:0.0} move:{directSteering.MoveDirection:0}{healLinkTiming}";
             return true;
         }
 
@@ -2147,7 +4331,7 @@ public sealed class BotBrainController
             directSteering.MoveDirection = 0;
             directSteering.Jump = false;
             directSteering.DropDown = false;
-            directTrace = $"{label} hold dx:{dx:0.0} dy:{dy:0.0} dist:{distance:0.0}";
+            directTrace = $"{label} hold dx:{dx:0.0} dy:{dy:0.0} dist:{distance:0.0}{healLinkTiming}";
             return true;
         }
 
@@ -2187,7 +4371,7 @@ public sealed class BotBrainController
         directSteering.MoveDirection = 0;
         directSteering.Jump = false;
         directSteering.DropDown = false;
-        directTrace = $"{label} holdFallback dx:{dx:0.0} dy:{dy:0.0} dist:{distance:0.0}";
+        directTrace = $"{label} holdFallback dx:{dx:0.0} dy:{dy:0.0} dist:{distance:0.0}{healLinkTiming}";
         return true;
     }
 
@@ -2439,6 +4623,30 @@ public sealed class BotBrainController
     }
 
     private bool TryResolveCaptureTheFlagEngineerDefenseSeek(
+        SimulationWorld world,
+        PlayerEntity self,
+        PlayerTeam team,
+        BotBrainCombatTarget? combatTarget,
+        SteeringOutput steeringOutput,
+        out SteeringOutput directSteering,
+        out string directTrace)
+    {
+        var stageStartTimestamp = NavigationStageTracingEnabled
+            ? Stopwatch.GetTimestamp()
+            : 0L;
+        var resolved = TryResolveCaptureTheFlagEngineerDefenseSeekCore(
+            world,
+            self,
+            team,
+            combatTarget,
+            steeringOutput,
+            out directSteering,
+            out directTrace);
+        TraceSlowNavigationStage(self, "TryResolveCaptureTheFlagEngineerDefenseSeek", stageStartTimestamp);
+        return resolved;
+    }
+
+    private bool TryResolveCaptureTheFlagEngineerDefenseSeekCore(
         SimulationWorld world,
         PlayerEntity self,
         PlayerTeam team,
@@ -3147,8 +5355,9 @@ public sealed class BotBrainController
                     out directSteering,
                     out directTrace,
                     requireVerticalSeparation: !_alphaNavigation,
+                    traceFailure: true,
                     activePathReuseDistance: MovingCarrierRouteReuseDistance)
-                || TryResolveLocalMotionRecovery(
+                || TryResolveDynamicObjectiveLocalMotionRecovery(
                     world,
                     self,
                     new DirectDriveTarget(DirectDriveTargetKind.Carrier, enemyCarrier.X, enemyCarrier.Y, $"dynamicEnemyCarrier player:{enemyCarrier.Id}"),
@@ -3203,26 +5412,22 @@ public sealed class BotBrainController
             var carrierDx = friendlyCarrier.X - self.X;
             var carrierDy = friendlyCarrier.Y - self.Y;
             var carrierDistance = MathF.Sqrt((carrierDx * carrierDx) + (carrierDy * carrierDy));
-            if (carrierDistance <= EscortCarrierDirectSeekDistance
-                && (TryResolveLocalMotionRecovery(
-                        world,
-                        self,
-                        new DirectDriveTarget(DirectDriveTargetKind.Escort, friendlyCarrier.X, friendlyCarrier.Y, $"dynamicEscortCarrier player:{friendlyCarrier.Id}"),
-                        steeringOutput,
-                        out directSteering,
-                        out directTrace)
-                    || PrimitiveDirectDrive.TryResolveRecovery(
-                        world,
-                        self,
-                        new DirectDriveTarget(DirectDriveTargetKind.Escort, friendlyCarrier.X, friendlyCarrier.Y, $"dynamicEscortCarrierPrimitive player:{friendlyCarrier.Id}"),
-                        steeringOutput,
-                        out directSteering,
-                        out directTrace)))
-            {
-                return true;
-            }
+            var escortTarget = new DirectDriveTarget(
+                DirectDriveTargetKind.Escort,
+                friendlyCarrier.X,
+                friendlyCarrier.Y,
+                $"dynamicEscortCarrier player:{friendlyCarrier.Id}");
+            var escortNeedsTerminalLocalMotion = carrierDistance <= DroppedIntelNearHoldDistance
+                && MathF.Abs(carrierDy) <= DroppedIntelNearHorizontalDeadZone;
 
-            if (TryRouteToDirectSeekTarget(
+            // A moving carrier is still a world-scale objective. Let the
+            // alpha graph choose the next traversal edge until the bot is in
+            // the final local-contact radius. Starting with primitive local
+            // motion made body collisions and carrier movement look like
+            // route indecision, and it could keep the bot oscillating without
+            // ever giving the graph a chance to reattach around the blocker.
+            if (!escortNeedsTerminalLocalMotion
+                && TryRouteToDirectSeekTarget(
                     world,
                     self,
                     team,
@@ -3233,11 +5438,27 @@ public sealed class BotBrainController
                     out directSteering,
                     out directTrace,
                     requireVerticalSeparation: false,
-                    activePathReuseDistance: MovingCarrierRouteReuseDistance)
-                || TryResolveLocalMotionRecovery(
+                    traceFailure: true,
+                    activePathReuseDistance: MovingCarrierRouteReuseDistance))
+            {
+                return true;
+            }
+
+            if (TryResolveDynamicObjectiveLocalMotionRecovery(
                     world,
                     self,
-                    new DirectDriveTarget(DirectDriveTargetKind.Escort, friendlyCarrier.X, friendlyCarrier.Y, $"dynamicEscortCarrier player:{friendlyCarrier.Id}"),
+                    escortTarget,
+                    steeringOutput,
+                    out directSteering,
+                    out directTrace)
+                || PrimitiveDirectDrive.TryResolveRecovery(
+                    world,
+                    self,
+                    new DirectDriveTarget(
+                        DirectDriveTargetKind.Escort,
+                        friendlyCarrier.X,
+                        friendlyCarrier.Y,
+                        $"dynamicEscortCarrierPrimitive player:{friendlyCarrier.Id}"),
                     steeringOutput,
                     out directSteering,
                     out directTrace))
@@ -4044,27 +6265,15 @@ public sealed class BotBrainController
             return false;
         }
 
-        if (distance <= DroppedIntelPrimitiveDirectSeekDistance
-            && MathF.Abs(dy) <= DroppedIntelPrimitiveDirectSeekVerticalRange
-            && TryResolveLocalMotionRecovery(world, self, target, steeringOutput, out directSteering, out directTrace))
-        {
-            return true;
-        }
-
-        if (distance <= DroppedIntelNearHoldDistance)
-        {
-            directSteering = steeringOutput;
-            directSteering.MoveDirection = MathF.Abs(dx) > DroppedIntelNearHorizontalDeadZone
-                ? dx > 0f ? 1 : -1
-                : 0;
-            directSteering.Jump = dy < -DroppedIntelNearHorizontalDeadZone || steeringOutput.Jump;
-            directSteering.DropDown = false;
-            directSteering.RequestRepath = false;
-            directTrace = $"directDrive={label} near dx:{dx:0.0} dy:{dy:0.0} dist:{distance:0.0} move:{directSteering.MoveDirection:0} jump:{(directSteering.Jump ? 1 : 0)}";
-            return true;
-        }
-
-        if (TryRouteToDirectSeekTarget(
+        var preferGraphRoute = label.StartsWith("dynamic", StringComparison.Ordinal)
+            && (distance > DroppedIntelNearHoldDistance
+                // Being close in Euclidean distance is not terminal when the
+                // intel is on the platform above/below the bot. A direct
+                // move:0/jump:1 fallback leaves bots under Waterway's point
+                // hopping in place instead of using the graph's stair route.
+                || MathF.Abs(dy) > DroppedIntelNearHorizontalDeadZone);
+        if (preferGraphRoute
+            && TryRouteToDirectSeekTarget(
                 world,
                 self,
                 team,
@@ -4074,12 +6283,66 @@ public sealed class BotBrainController
                 steeringOutput,
                 out directSteering,
                 out directTrace,
-                requireVerticalSeparation: false))
+                requireVerticalSeparation: false,
+                traceFailure: true))
         {
             return true;
         }
 
-        return TryResolveLocalMotionRecovery(world, self, target, steeringOutput, out directSteering, out directTrace);
+        if (distance <= DroppedIntelPrimitiveDirectSeekDistance
+            && MathF.Abs(dy) <= DroppedIntelPrimitiveDirectSeekVerticalRange
+            && TryResolveDynamicObjectiveLocalMotionRecovery(world, self, target, steeringOutput, out directSteering, out directTrace))
+        {
+            return true;
+        }
+
+        if (distance <= DroppedIntelNearHoldDistance)
+        {
+            var nearMoveDirection = MathF.Abs(dx) > DroppedIntelNearHorizontalDeadZone
+                ? dx > 0f ? 1 : -1
+                : 0;
+            if (nearMoveDirection == 0
+                && label.Contains("DroppedIntel", StringComparison.Ordinal))
+            {
+                // A failed local probe can leave the bot exactly on the
+                // dropped-intel marker with neutral steering forever. Give
+                // only this dynamic pickup target a short deterministic
+                // nudge; control-point holds and combat spacing retain their
+                // intentional neutral/strafe behavior.
+                nearMoveDirection = MathF.Sign(self.FacingDirectionX);
+                if (nearMoveDirection == 0)
+                {
+                    nearMoveDirection = self.Id % 2 == 0 ? 1 : -1;
+                }
+            }
+
+            directSteering = steeringOutput;
+            directSteering.MoveDirection = nearMoveDirection;
+            directSteering.Jump = dy < -DroppedIntelNearHorizontalDeadZone || steeringOutput.Jump;
+            directSteering.DropDown = false;
+            directSteering.RequestRepath = false;
+            directTrace = $"directDrive={label} near dx:{dx:0.0} dy:{dy:0.0} dist:{distance:0.0} move:{directSteering.MoveDirection:0} jump:{(directSteering.Jump ? 1 : 0)}";
+            return true;
+        }
+
+        if (!preferGraphRoute
+            && TryRouteToDirectSeekTarget(
+                world,
+                self,
+                team,
+                intel.X,
+                intel.Y,
+                label,
+                steeringOutput,
+                out directSteering,
+                out directTrace,
+                requireVerticalSeparation: false,
+                traceFailure: label.StartsWith("dynamic", StringComparison.Ordinal)))
+        {
+            return true;
+        }
+
+        return TryResolveDynamicObjectiveLocalMotionRecovery(world, self, target, steeringOutput, out directSteering, out directTrace);
     }
 
     private bool HasProofRoute(VerifiedNavProofRouteKind routeKind)
@@ -4143,6 +6406,16 @@ public sealed class BotBrainController
     {
         routedSteering = currentSteering;
         trace = string.Empty;
+        var routeStartTimestamp = Stopwatch.GetTimestamp();
+        var goalSelectionStartTimestamp = routeStartTimestamp;
+        var pathSearchStartTimestamp = routeStartTimestamp;
+        string StampRouteTiming(string routeTrace)
+        {
+            var elapsedMilliseconds = (Stopwatch.GetTimestamp() - routeStartTimestamp) * 1000d / Stopwatch.Frequency;
+            return elapsedMilliseconds >= 8d
+                ? $"{routeTrace} searchMs:{elapsedMilliseconds:0.0}"
+                : routeTrace;
+        }
         if (_navGraph is null)
         {
             if (traceFailure)
@@ -4155,10 +6428,29 @@ public sealed class BotBrainController
 
         var dx = targetX - self.X;
         var dy = targetY - self.Y;
+        var distance = MathF.Sqrt((dx * dx) + (dy * dy));
         var routeTeam = routeTeamOverride ?? team;
         var routeTeamTrace = routeTeamOverride.HasValue && routeTeamOverride.Value != team
             ? $" routeTeam:{routeTeamOverride.Value}"
             : string.Empty;
+        var isDynamicRoute = label.StartsWith("dynamic", StringComparison.Ordinal)
+            || label.StartsWith("medicSupport:", StringComparison.Ordinal);
+        var isMovingTargetRoute = isDynamicRoute
+            || label.StartsWith("controlPointClearEnemy", StringComparison.Ordinal)
+            || label.StartsWith("enemy player:", StringComparison.Ordinal)
+            || label.StartsWith("ownedKothEnemy", StringComparison.Ordinal)
+            || label.StartsWith("recoveryEnemy", StringComparison.Ordinal);
+        if (isDynamicRoute
+            && _dynamicRouteRetryCooldownTicks > 0)
+        {
+            _dynamicRouteRetryCooldownTicks -= 1;
+            if (traceFailure)
+            {
+                trace = $"directRoute={label}{routeTeamTrace} reject:retry_cooldown remaining:{_dynamicRouteRetryCooldownTicks}";
+            }
+
+            return false;
+        }
         if (requireVerticalSeparation && MathF.Abs(dy) < DirectSeekRouteVerticalThreshold)
         {
             if (traceFailure)
@@ -4169,9 +6461,12 @@ public sealed class BotBrainController
             return false;
         }
 
+        var activeRouteReuseGoal = isDynamicRoute && _hasDynamicRouteTarget
+            ? _dynamicRouteTargetPosition
+            : _currentGoalPosition;
         if (_currentPath is not null
             && !_currentPath.IsComplete
-            && DistanceBetween(_currentGoalPosition.X, _currentGoalPosition.Y, targetX, targetY) <= activePathReuseDistance)
+            && DistanceBetween(activeRouteReuseGoal.X, activeRouteReuseGoal.Y, targetX, targetY) <= activePathReuseDistance)
         {
             if (IsRejectedDistantDirectSeekRouteGoalProxy(_navGraph, _goalNodeIndex, targetX, targetY, rejectDistantGoalProxy))
             {
@@ -4183,19 +6478,84 @@ public sealed class BotBrainController
             }
 
             _currentGoalPosition = (targetX, targetY);
+            if (_alphaNavigation)
+            {
+                _pathObjectiveStateSignature = ComputeObjectiveStateSignature(world);
+            }
             _repathCooldownTicks = RepathIntervalTicks;
-            routedSteering = _steering.Update(self, _navGraph, _currentPath, world.Level, team);
+
+            // The normal route phase has already advanced this same path
+            // through SteeringMachine.Update for this think. Re-running it
+            // here for a direct-seek reuse performs collision/contact scans,
+            // stuck accounting, and edge-timer advancement twice in one
+            // simulation tick. Apart from wasting 20-40 ms on busy Corinth
+            // frames, that duplicate state advance can make a bot appear to
+            // change its mind. Reuse the output that was just computed; a
+            // newly-built direct path below still receives one steering pass.
+            routedSteering = currentSteering;
             if (routedSteering.RequestRepath)
             {
-                HandleSteeringRepathRequest(self, team, routedSteering);
                 trace = $"directRoute={label}{routeTeamTrace} reject:repath dx:{dx:0.0} dy:{dy:0.0}";
                 return false;
+            }
+
+            // A moving CTF target can keep a previously selected path alive
+            // after that path's current edge has become neutral: for example,
+            // the route may be waiting on a runtime contact or may have
+            // reached a stale terminal surface while the carrier moved on.
+            // Treating that neutral output as a successful dynamic route
+            // suppresses LocalMotionController recovery and leaves the bot
+            // inert while the trace continues to say "reuseMoving". Combat
+            // and fixed-target direct routes keep their existing behavior;
+            // only dynamic objective targets are allowed to fall through to
+            // their cheap local recovery path here.
+            if (label.StartsWith("dynamic", StringComparison.Ordinal)
+                && IsNeutralNavigationOutput(routedSteering)
+                && (distance > DroppedIntelNearHoldDistance
+                    || MathF.Abs(dy) > DroppedIntelNearHorizontalDeadZone))
+            {
+                // Dynamic CTF routing is resolved before the normal graph
+                // steering phase in Think().  A reused path therefore has
+                // not been advanced yet; returning the caller's empty
+                // SteeringOutput here made every moving-carrier route look
+                // valid while emitting neutral input. Advance the existing
+                // path once in the dynamic owner, matching the normal route
+                // phase contract. Only fall through when that real steering
+                // pass is still neutral or requests a repath.
+                if (_alphaNavigation)
+                {
+                    PrepareAlphaRuntimeContact(self, team, world.Level);
+                }
+
+                routedSteering = _steering.Update(
+                    self,
+                    _navGraph,
+                    _currentPath,
+                    world.Level,
+                    team);
+                if (routedSteering.RequestRepath)
+                {
+                    HandleSteeringRepathRequest(self, team, routedSteering);
+                    trace = $"directRoute={label}{routeTeamTrace} reject:repath_reuse dx:{dx:0.0} dy:{dy:0.0}";
+                    return false;
+                }
+
+                if (IsNeutralNavigationOutput(routedSteering))
+                {
+                    _currentPath = null;
+                    _goalNodeIndex = -1;
+                    _repathCooldownTicks = 0;
+                    MarkAlphaRecoveryPending();
+                    _steering.Reset();
+                    trace = $"directRoute={label}{routeTeamTrace} reject:neutral_reuse dx:{dx:0.0} dy:{dy:0.0}";
+                    return false;
+                }
             }
 
             var reuseKind = activePathReuseDistance > DirectRouteGoalReuseDistance
                 ? "reuseMoving"
                 : "reuse";
-            trace = $"directRoute={label}{routeTeamTrace} {reuseKind} dx:{dx:0.0} dy:{dy:0.0} path:{_currentPath.Count}";
+            trace = StampRouteTiming($"directRoute={label}{routeTeamTrace} {reuseKind} dx:{dx:0.0} dy:{dy:0.0} path:{_currentPath.Count}");
             return true;
         }
 
@@ -4204,6 +6564,7 @@ public sealed class BotBrainController
             self.Y,
             ResolveTraversalStartMaxAboveDistance(self, _currentPath is null),
             _alphaNavigation ? AlphaTraversalStartMaxBelowDistance : float.PositiveInfinity);
+        goalSelectionStartTimestamp = Stopwatch.GetTimestamp();
         if (startNode < 0)
         {
             if (traceFailure)
@@ -4217,16 +6578,34 @@ public sealed class BotBrainController
         var activeBlockedEdges = _blockedEdges.Count > 0
             ? _blockedEdges.Keys.ToHashSet()
             : null;
-        var goalNode = _navGraph.FindNearestReachableNode(
-            targetX,
-            targetY,
-            startNode,
-            self.BotGraphClassId,
-            activeBlockedEdges,
-            team: routeTeam,
-            carryingIntel: self.IsCarryingIntel,
-            verticalWeight: 8f,
-            penalizeLowerCandidate: true);
+        var preferNearestGoalFastPath = _alphaNavigation
+            && (isMovingTargetRoute
+                || label.StartsWith("engineerIntelDefense", StringComparison.Ordinal));
+        var isMedicSupportRoute = label.StartsWith("medicSupport:", StringComparison.Ordinal);
+        // Moving targets do not justify an unbounded A* on the simulation
+        // thread. Keep the class-specific retry smaller for Medic support,
+        // while allowing dynamic CTF targets enough room to retain a useful
+        // route before the local recovery lane takes over.
+        var movingTargetPathSearchBudgetMilliseconds = isMedicSupportRoute
+            ? 8d
+            : isMovingTargetRoute
+                ? 8d
+                : 24d;
+        var allowExpensiveDynamicGoalFallback =
+            !isMedicSupportRoute
+            && !isMovingTargetRoute;
+        var goalNode = preferNearestGoalFastPath
+            ? _navGraph.FindNearestNode(targetX, targetY)
+            : _navGraph.FindNearestReachableNode(
+                targetX,
+                targetY,
+                startNode,
+                self.BotGraphClassId,
+                activeBlockedEdges,
+                team: routeTeam,
+                carryingIntel: self.IsCarryingIntel,
+                verticalWeight: 8f,
+                penalizeLowerCandidate: true);
         if (goalNode < 0)
         {
             goalNode = _navGraph.FindNearestNode(targetX, targetY);
@@ -4265,29 +6644,177 @@ public sealed class BotBrainController
             && !ShouldReplaceStalePathFromCurrentPosition(self, _navGraph, _currentPath, _alphaNavigation))
         {
             _currentGoalPosition = (targetX, targetY);
+            if (isDynamicRoute)
+            {
+                _hasDynamicRouteTarget = true;
+                _dynamicRouteTargetPosition = (targetX, targetY);
+            }
             _repathCooldownTicks = RepathIntervalTicks;
-            routedSteering = _steering.Update(self, _navGraph, _currentPath, world.Level, team);
+
+            // As above, the route phase already evaluated this unchanged
+            // path. Keeping the same SteeringOutput avoids a second mutation
+            // of the stateful edge executor in the same think.
+            routedSteering = currentSteering;
             if (routedSteering.RequestRepath)
             {
-                HandleSteeringRepathRequest(self, team, routedSteering);
                 trace = $"directRoute={label}{routeTeamTrace} reject:repath dx:{dx:0.0} dy:{dy:0.0}";
                 return false;
             }
 
-            trace = $"directRoute={label}{routeTeamTrace} reuseGoal dx:{dx:0.0} dy:{dy:0.0} goal:{goalNode} path:{_currentPath.Count}";
+            if (label.StartsWith("dynamic", StringComparison.Ordinal)
+                && IsNeutralNavigationOutput(routedSteering)
+                && (distance > DroppedIntelNearHoldDistance
+                    || MathF.Abs(dy) > DroppedIntelNearHorizontalDeadZone))
+            {
+                // This branch is also reached by the pre-route dynamic CTF
+                // resolver. The moving target may have changed its precise
+                // position while the graph goal node stayed the same; do not
+                // mistake that goal-node reuse for an already-advanced route.
+                if (_alphaNavigation)
+                {
+                    PrepareAlphaRuntimeContact(self, team, world.Level);
+                }
+
+                routedSteering = _steering.Update(
+                    self,
+                    _navGraph,
+                    _currentPath,
+                    world.Level,
+                    team);
+                if (routedSteering.RequestRepath)
+                {
+                    HandleSteeringRepathRequest(self, team, routedSteering);
+                    trace = $"directRoute={label}{routeTeamTrace} reject:repath_reuseGoal dx:{dx:0.0} dy:{dy:0.0}";
+                    return false;
+                }
+
+                if (IsNeutralNavigationOutput(routedSteering))
+                {
+                    _currentPath = null;
+                    _goalNodeIndex = -1;
+                    _repathCooldownTicks = 0;
+                    MarkAlphaRecoveryPending();
+                    _steering.Reset();
+                    trace = $"directRoute={label}{routeTeamTrace} reject:neutral_reuseGoal dx:{dx:0.0} dy:{dy:0.0}";
+                    return false;
+                }
+            }
+
+            trace = StampRouteTiming($"directRoute={label}{routeTeamTrace} reuseGoal dx:{dx:0.0} dy:{dy:0.0} goal:{goalNode} path:{_currentPath.Count}");
             return true;
         }
 
-        var path = _navGraph.FindPath(startNode, goalNode, self.BotGraphClassId, activeBlockedEdges, routeTeam, self.IsCarryingIntel);
+        pathSearchStartTimestamp = Stopwatch.GetTimestamp();
+        var path = preferNearestGoalFastPath
+            ? _navGraph.FindPath(
+                startNode,
+                goalNode,
+                playerClass: null,
+                // Dynamic/support targets are resolved frequently. Reuse the
+                // immutable alpha route cache even while an unrelated edge
+                // is blocked, then validate the returned route below. Only
+                // fall back to a blocked-edge search when this specific path
+                // actually uses a blocked transition.
+                blockedEdges: null,
+                team: null,
+                carryingIntel: self.IsCarryingIntel,
+                maxSearchMilliseconds: movingTargetPathSearchBudgetMilliseconds,
+                traceContext: label,
+                routeVariant: ResolveRouteVariant(self))
+            : _navGraph.FindPath(
+                startNode,
+                goalNode,
+                self.BotGraphClassId,
+                activeBlockedEdges,
+                routeTeam,
+                self.IsCarryingIntel,
+                maxSearchMilliseconds: isMovingTargetRoute
+                    ? movingTargetPathSearchBudgetMilliseconds
+                    : 0d,
+                traceContext: label,
+                routeVariant: ResolveRouteVariant(self));
+        if (preferNearestGoalFastPath
+            && path is not null
+            && (!_navGraph.IsPathCompatible(path, self.BotGraphClassId, routeTeam, self.IsCarryingIntel)
+                || ContainsBlockedNavigationEdge(path, activeBlockedEdges)))
+        {
+            path = _navGraph.FindPath(
+                startNode,
+                goalNode,
+                self.BotGraphClassId,
+                activeBlockedEdges,
+                routeTeam,
+                self.IsCarryingIntel,
+                maxSearchMilliseconds: movingTargetPathSearchBudgetMilliseconds,
+                traceContext: $"{label}:compatible",
+                routeVariant: ResolveRouteVariant(self));
+        }
         if (path is null
+            && preferNearestGoalFastPath
+            && allowExpensiveDynamicGoalFallback)
+        {
+            // Dynamic targets are usually standing on the same connected
+            // surface as the bot. The nearest-node path above avoids a full
+            // reachable-goal flood in that common case. If class/team filters
+            // reject that node, retain the exact reachable-goal behavior as a
+            // fallback rather than accepting a proxy or abandoning the route.
+            goalNode = _navGraph.FindNearestReachableNode(
+                targetX,
+                targetY,
+                startNode,
+                self.BotGraphClassId,
+                activeBlockedEdges,
+                team: routeTeam,
+                carryingIntel: self.IsCarryingIntel,
+                verticalWeight: 8f,
+                penalizeLowerCandidate: true);
+            path = goalNode >= 0
+                ? _navGraph.FindPath(
+                    startNode,
+                    goalNode,
+                    self.BotGraphClassId,
+                    activeBlockedEdges,
+                    routeTeam,
+                    self.IsCarryingIntel,
+                    maxSearchMilliseconds: movingTargetPathSearchBudgetMilliseconds,
+                    traceContext: $"{label}:reachable",
+                    routeVariant: ResolveRouteVariant(self))
+                : null;
+        }
+        // Once an edge has been marked failed, an unblocked fallback is not a
+        // fallback at all: it can immediately select the same transition and
+        // put the bot back into the obstruction that just rejected it. This
+        // was especially harmful for dynamic CTF targets, where the route
+        // resolver runs frequently and could reintroduce the failed edge on
+        // the very next think. Let local recovery own the interval until the
+        // failed-edge block expires or a blocked search proves an alternative.
+        if (path is null
+            && activeBlockedEdges is not { Count: > 0 }
+            && allowExpensiveDynamicGoalFallback
             && (ShouldPreferCarrierReturnGraph(world, self)
                 || !self.IsCarryingIntel
                 || !ShouldPreserveCarrierFailedEdgeBlocks(world.Level, self)))
         {
-            path = _navGraph.FindPath(startNode, goalNode, self.BotGraphClassId, team: routeTeam, carryingIntel: self.IsCarryingIntel);
+            path = _navGraph.FindPath(
+                startNode,
+                goalNode,
+                self.BotGraphClassId,
+                team: routeTeam,
+                carryingIntel: self.IsCarryingIntel,
+                maxSearchMilliseconds: movingTargetPathSearchBudgetMilliseconds,
+                traceContext: $"{label}:unblocked",
+                routeVariant: ResolveRouteVariant(self));
         }
         if (path is null || path.Count < 2)
         {
+            if (isDynamicRoute && _alphaNavigation)
+            {
+                // A failed dynamic search must not become a synchronous
+                // search hot loop. The caller still gets the normal local
+                // recovery lane while this short cooldown expires.
+                _dynamicRouteRetryCooldownTicks = DynamicRouteRetryCooldownTicks;
+            }
+
             if (traceFailure)
             {
                 trace = $"directRoute={label}{routeTeamTrace} reject:no_path start:{startNode} goal:{goalNode} dx:{dx:0.0} dy:{dy:0.0}";
@@ -4296,12 +6823,29 @@ public sealed class BotBrainController
             return false;
         }
 
+        var pathSearchCompletedTimestamp = Stopwatch.GetTimestamp();
         _currentGoalPosition = (targetX, targetY);
         _currentPath = path;
         _goalNodeIndex = goalNode;
+        if (isDynamicRoute)
+        {
+            _hasDynamicRouteTarget = true;
+            _dynamicRouteTargetPosition = (targetX, targetY);
+            _dynamicRouteRetryCooldownTicks = 0;
+        }
+        else
+        {
+            _hasDynamicRouteTarget = false;
+        }
+        if (_alphaNavigation)
+        {
+            _pathObjectiveStateSignature = ComputeObjectiveStateSignature(world);
+        }
         _repathCooldownTicks = RepathIntervalTicks;
         _steering.Reset();
+        var steeringStartTimestamp = Stopwatch.GetTimestamp();
         routedSteering = _steering.Update(self, _navGraph, _currentPath, world.Level, team);
+        var steeringElapsedMilliseconds = (Stopwatch.GetTimestamp() - steeringStartTimestamp) * 1000d / Stopwatch.Frequency;
         if (routedSteering.RequestRepath)
         {
             HandleSteeringRepathRequest(self, team, routedSteering);
@@ -4309,8 +6853,73 @@ public sealed class BotBrainController
             return false;
         }
 
-        trace = $"directRoute={label}{routeTeamTrace} dx:{dx:0.0} dy:{dy:0.0} path:{path.Count}";
+        if (_alphaNavigation
+            && isDynamicRoute
+            && IsNeutralNavigationOutput(routedSteering)
+            && (distance > DroppedIntelNearHoldDistance
+                || MathF.Abs(dy) > DroppedIntelNearHorizontalDeadZone))
+        {
+            // A newly-created dynamic route can land on a graph node whose
+            // first edge is already complete/neutral even though the live
+            // carrier or dropped-intel marker is still offset from the bot.
+            // Do not report that path as the movement owner: clear only this
+            // dynamic attachment and let the bounded local recovery lane
+            // choose a real input for the live target.
+            _currentPath = null;
+            _goalNodeIndex = -1;
+            _repathCooldownTicks = 0;
+            _hasDynamicRouteTarget = false;
+            _steering.Reset();
+            MarkAlphaRecoveryPending();
+            trace = $"directRoute={label}{routeTeamTrace} reject:neutral_new dx:{dx:0.0} dy:{dy:0.0} path:{path.Count}";
+            return false;
+        }
+
+        var totalSearchMilliseconds = (Stopwatch.GetTimestamp() - routeStartTimestamp) * 1000d / Stopwatch.Frequency;
+        if (totalSearchMilliseconds >= 8d)
+        {
+            var goalMilliseconds = (pathSearchStartTimestamp - goalSelectionStartTimestamp) * 1000d / Stopwatch.Frequency;
+            var pathMilliseconds = (pathSearchCompletedTimestamp - pathSearchStartTimestamp) * 1000d / Stopwatch.Frequency;
+            trace = $"directRoute={label}{routeTeamTrace} dx:{dx:0.0} dy:{dy:0.0} path:{path.Count} " +
+                $"searchMs:{totalSearchMilliseconds:0.0} goalMs:{goalMilliseconds:0.0} pathMs:{pathMilliseconds:0.0} steeringMs:{steeringElapsedMilliseconds:0.0}";
+        }
+        else
+        {
+            trace = $"directRoute={label}{routeTeamTrace} dx:{dx:0.0} dy:{dy:0.0} path:{path.Count}";
+        }
         return true;
+    }
+
+    private static bool IsNeutralNavigationOutput(SteeringOutput steering) =>
+        MathF.Abs(steering.MoveDirection) <= 0.01f
+        && !steering.Jump
+        && !steering.DropDown;
+
+    private static bool ContainsBlockedNavigationEdge(
+        NavPath path,
+        IReadOnlySet<NavEdgeBlock>? blockedEdges)
+    {
+        if (blockedEdges is null || blockedEdges.Count == 0)
+        {
+            return false;
+        }
+
+        for (var index = 1; index < path.Count; index += 1)
+        {
+            if (!path.TryGetIncomingEdge(index, out var edge))
+            {
+                continue;
+            }
+
+            var fromNode = path.GetWaypoint(index - 1);
+            var toNode = path.GetWaypoint(index);
+            if (blockedEdges.Contains(new NavEdgeBlock(fromNode, toNode, edge.Kind)))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool ShouldRejectCarrierReturnDistantGoalProxy(
@@ -4689,9 +7298,46 @@ public sealed class BotBrainController
         out SteeringOutput directSteering,
         out string directTrace)
     {
+        var stageStartTimestamp = NavigationStageTracingEnabled
+            ? Stopwatch.GetTimestamp()
+            : 0L;
+        var resolved = TryResolveControlPointEnemyClearSeekCore(
+            world,
+            self,
+            team,
+            steeringOutput,
+            out directSteering,
+            out directTrace);
+        TraceSlowNavigationStage(self, "TryResolveControlPointEnemyClearSeek", stageStartTimestamp);
+        return resolved;
+    }
+
+    private bool TryResolveControlPointEnemyClearSeekCore(
+        SimulationWorld world,
+        PlayerEntity self,
+        PlayerTeam team,
+        SteeringOutput steeringOutput,
+        out SteeringOutput directSteering,
+        out string directTrace)
+    {
         directSteering = steeringOutput;
         directTrace = string.Empty;
         if (!TryFindControlPointEnemyClearTarget(world, self, team, out var target, out var point))
+        {
+            return false;
+        }
+
+        // Alpha navigation owns the long-range objective route.  A visible
+        // enemy near a point must not replace that route while the bot is
+        // still approaching from the rest of the map: doing so makes every
+        // small enemy movement rebuild/retarget a route and produces the
+        // characteristic forward/backward oscillation.  Once the bot is in
+        // the capture zone or in the point's immediate engagement pocket,
+        // combat is allowed to take ownership and clear the point.
+        if (_alphaNavigation
+            && !world.IsPlayerInControlPointCaptureZone(self, point.Index)
+            && DistanceBetween(self.X, self.Y, point.HealingAuraCenterX, point.HealingAuraCenterY)
+                > AlphaCapturePointCombatEngagementDistance)
         {
             return false;
         }
@@ -4726,7 +7372,7 @@ public sealed class BotBrainController
             return true;
         }
 
-        if (TryRouteToDirectSeekTarget(
+        var directRouteResolved = TryRouteToDirectSeekTarget(
                 world,
                 self,
                 team,
@@ -4736,7 +7382,25 @@ public sealed class BotBrainController
                 steeringOutput,
                 out directSteering,
                 out directTrace,
-                requireVerticalSeparation: false)
+                requireVerticalSeparation: false);
+        if (directRouteResolved && IsNeutralNavigationOutput(directSteering))
+        {
+            // A direct combat route is an optional movement owner. If its
+            // stateful graph edge returns neutral, do not report success and
+            // suppress the objective route for the rest of the think. Keep
+            // combat targeting intact, but hand movement back to the alpha
+            // objective recovery lane below.
+            _currentPath = null;
+            _goalNodeIndex = -1;
+            _repathCooldownTicks = 0;
+            _hasDynamicRouteTarget = false;
+            _steering.Reset();
+            MarkAlphaRecoveryPending();
+            directTrace = $"{directTrace} reject:neutral_combat_route";
+            directRouteResolved = false;
+        }
+
+        if (directRouteResolved
             || TryResolveLocalMotionRecovery(
                 world,
                 self,
@@ -5654,11 +8318,12 @@ public sealed class BotBrainController
         var bestInZone = false;
         foreach (var point in world.ControlPoints)
         {
+            var (activeZoneCenterX, activeZoneCenterY, _, _) = ResolveCapturePointActiveZone(world, self, point);
             var goalDistance = DistanceBetween(
                 _currentGoalPosition.X,
                 _currentGoalPosition.Y,
-                point.HealingAuraCenterX,
-                point.HealingAuraCenterY);
+                activeZoneCenterX,
+                activeZoneCenterY);
             if (goalDistance > 128f)
             {
                 continue;
@@ -5670,8 +8335,8 @@ public sealed class BotBrainController
                 continue;
             }
 
-            var horizontalDistance = MathF.Abs(point.HealingAuraCenterX - self.X);
-            var verticalDistance = MathF.Abs(point.HealingAuraCenterY - self.Y);
+            var horizontalDistance = MathF.Abs(activeZoneCenterX - self.X);
+            var verticalDistance = MathF.Abs(activeZoneCenterY - self.Y);
             if (!inZone && (horizontalDistance > 112f || verticalDistance > 96f))
             {
                 continue;
@@ -5694,7 +8359,44 @@ public sealed class BotBrainController
             return;
         }
 
+        // An enemy already inside the point must remain the combat objective;
+        // the control-point enemy-clear resolver ran earlier in Think and its
+        // steering must not be overwritten by this arrival helper.
+        var botOwnsPoint = bestPoint.Team == team;
+        var botIsCapturingPoint = bestPoint.CappingTeam == team;
+        var enemyIsCapturingPoint = bestPoint.CappingTeam.HasValue
+            && bestPoint.CappingTeam != team;
+        if (enemyIsCapturingPoint
+            || (bestInZone
+                && !DisableCombatForDiagnostics
+                && TryFindControlPointEnemyClearTarget(world, self, team, out _, out _)))
+        {
+            return;
+        }
+
+        // A completed alpha route can leave a bot in an enemy-owned point
+        // while the simulation has not yet exposed a capping team (for
+        // example while the point is contested or during the ownership
+        // transition). Keep it engaged in the live capture volume rather than
+        // returning neutral input. Once the point is no longer enemy-owned,
+        // this is the normal owned-point arrival hold below.
+        var contestingEnemyPoint = bestInZone && !botOwnsPoint && !botIsCapturingPoint;
+
         var targetX = ResolveCapturePointLaneTargetX(world, self, team, bestPoint);
+        if (bestInZone && botOwnsPoint && !botIsCapturingPoint)
+        {
+            var patrolPhase = PositiveModulo(
+                _thinkTicks + (self.Id * 29) + (bestPoint.Index * 17),
+                CapturePointDefensePatrolCycleTicks);
+            var patrolOffset = patrolPhase < CapturePointDefensePatrolLegTicks
+                ? -CapturePointDefensePatrolOffset
+                : patrolPhase < CapturePointDefensePatrolLegTicks * 2
+                    ? CapturePointDefensePatrolOffset
+                    : 0f;
+            var (zoneCenterX, _, zoneWidth, _) = ResolveCapturePointActiveZone(world, self, bestPoint);
+            var (zoneMinX, zoneMaxX) = ResolveCapturePointLaneBounds(zoneCenterX, zoneWidth);
+            targetX = Math.Clamp(targetX + patrolOffset, zoneMinX, zoneMaxX);
+        }
         var dx = targetX - self.X;
         var moveDirection = MathF.Abs(dx) > CapturePointLaneTargetDeadZone
             ? dx > 0f ? 1 : -1
@@ -5706,8 +8408,8 @@ public sealed class BotBrainController
         steeringOutput.Jump = false;
         steeringOutput.DropDown = false;
         LastDirectDriveTrace = string.IsNullOrWhiteSpace(LastDirectDriveTrace)
-            ? $"alphaCaptureArrivalHold point:{bestPoint.Index} inZone:{(bestInZone ? 1 : 0)} targetX:{targetX:0.0} dx:{dx:0.0} move:{moveDirection}"
-            : $"{LastDirectDriveTrace} alphaCaptureArrivalHold point:{bestPoint.Index} inZone:{(bestInZone ? 1 : 0)} targetX:{targetX:0.0} dx:{dx:0.0} move:{moveDirection}";
+            ? $"alphaCapture{(contestingEnemyPoint ? "Contest" : "Arrival")}Hold point:{bestPoint.Index} inZone:{(bestInZone ? 1 : 0)} targetX:{targetX:0.0} dx:{dx:0.0} move:{moveDirection}"
+            : $"{LastDirectDriveTrace} alphaCapture{(contestingEnemyPoint ? "Contest" : "Arrival")}Hold point:{bestPoint.Index} inZone:{(bestInZone ? 1 : 0)} targetX:{targetX:0.0} dx:{dx:0.0} move:{moveDirection}";
     }
 
     private CapturePointHoldStyle ResolveCapturePointHoldStyle(
@@ -5842,7 +8544,7 @@ public sealed class BotBrainController
         PlayerTeam team,
         ControlPointState point)
     {
-        var (centerX, width) = ResolveCapturePointActiveZone(world, self, point);
+        var (centerX, _, width, _) = ResolveCapturePointActiveZone(world, self, point);
         var (minX, maxX) = ResolveCapturePointLaneBounds(centerX, width);
         if (minX >= maxX)
         {
@@ -5862,7 +8564,7 @@ public sealed class BotBrainController
         return lane * CapturePointLaneSpacing;
     }
 
-    private static (float CenterX, float Width) ResolveCapturePointActiveZone(
+    private static (float CenterX, float CenterY, float Width, float Height) ResolveCapturePointActiveZone(
         SimulationWorld world,
         PlayerEntity self,
         ControlPointState point)
@@ -5892,8 +8594,8 @@ public sealed class BotBrainController
         }
 
         return bestZone.HasValue
-            ? (bestZone.Value.CenterX, bestZone.Value.Width)
-            : (point.Marker.CenterX, point.Marker.Width);
+            ? (bestZone.Value.CenterX, bestZone.Value.CenterY, bestZone.Value.Width, bestZone.Value.Height)
+            : (point.Marker.CenterX, point.Marker.CenterY, point.Marker.Width, point.Marker.Height);
     }
 
     private static bool IsCaptureZoneAssignedToPoint(
@@ -5931,7 +8633,7 @@ public sealed class BotBrainController
         ControlPointState point,
         int moveDirection)
     {
-        var (centerX, width) = ResolveCapturePointActiveZone(world, self, point);
+        var (centerX, _, width, _) = ResolveCapturePointActiveZone(world, self, point);
         var (minX, maxX) = ResolveCapturePointLaneBounds(centerX, width);
         return moveDirection < 0
             ? self.X > minX
@@ -6274,6 +8976,57 @@ public sealed class BotBrainController
         var dx = bx - ax;
         var dy = by - ay;
         return MathF.Sqrt((dx * dx) + (dy * dy));
+    }
+
+    private static void TraceSlowNavigationStage(
+        PlayerEntity self,
+        string stage,
+        long startTimestamp,
+        long? endTimestamp = null)
+    {
+        if (startTimestamp == 0L)
+        {
+            return;
+        }
+
+        var elapsedMilliseconds = ((endTimestamp ?? Stopwatch.GetTimestamp()) - startTimestamp)
+            * 1000d
+            / Stopwatch.Frequency;
+        if (elapsedMilliseconds < 20d)
+        {
+            return;
+        }
+
+        Console.WriteLine(
+            $"[botbrain] alpha-stage slowMs:{elapsedMilliseconds:0.0} stage:{stage} " +
+            $"player:{self.Id} class:{self.ClassId} pos:({self.X:0.0},{self.Y:0.0})");
+    }
+
+    private readonly record struct AlphaRecoverySearchFailure(
+        int StartNode,
+        int GoalNode,
+        int ObjectiveSignature,
+        int BlockedEdgesVersion,
+        PlayerClass GraphClass,
+        PlayerTeam Team,
+        bool CarryingIntel,
+        int ExpiresThinkTick)
+    {
+        public bool Matches(
+            int startNode,
+            int goalNode,
+            int objectiveSignature,
+            int blockedEdgesVersion,
+            PlayerClass graphClass,
+            PlayerTeam team,
+            bool carryingIntel) =>
+            StartNode == startNode
+            && GoalNode == goalNode
+            && ObjectiveSignature == objectiveSignature
+            && BlockedEdgesVersion == blockedEdgesVersion
+            && GraphClass == graphClass
+            && Team == team
+            && CarryingIntel == carryingIntel;
     }
 
 }

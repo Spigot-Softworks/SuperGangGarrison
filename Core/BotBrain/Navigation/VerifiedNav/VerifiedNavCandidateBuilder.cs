@@ -67,6 +67,7 @@ public static class VerifiedNavCandidateBuilder
         foreach (var rawSurface in rawSurfaces)
         {
             AppendStandableWindows(level, options, probe, rawSurface, surfaces);
+            AppendEdgeLaunchWindows(level, options, probe, rawSurface, surfaces);
         }
 
         return MergeAdjacentSurfaces(surfaces, options.MinSurfaceWidth)
@@ -103,11 +104,23 @@ public static class VerifiedNavCandidateBuilder
                 continue;
             }
 
-            FlushWindow(rawSurface, windowStart, lastGoodX, surfaces, options.MinSurfaceWidth);
+            FlushWindow(
+                rawSurface,
+                windowStart,
+                lastGoodX,
+                surfaces,
+                options.MinSurfaceWidth,
+                options.MinimumLaunchSurfaceWidth);
             windowStart = null;
         }
 
-        FlushWindow(rawSurface, windowStart, lastGoodX, surfaces, options.MinSurfaceWidth);
+        FlushWindow(
+            rawSurface,
+            windowStart,
+            lastGoodX,
+            surfaces,
+            options.MinSurfaceWidth,
+            options.MinimumLaunchSurfaceWidth);
     }
 
     private static bool CanStandOnSurface(
@@ -133,9 +146,119 @@ public static class VerifiedNavCandidateBuilder
             return false;
         }
 
-        return surface.Kind == VerifiedNavSurfaceKind.DropdownPlatform
+        var supported = surface.Kind == VerifiedNavSurfaceKind.DropdownPlatform
             ? x + probe.CollisionRightOffset > surface.Left && x + probe.CollisionLeftOffset < surface.Right
             : !probe.CanOccupy(level, team, x, y + 1f);
+        return supported;
+    }
+
+    private static void AppendEdgeLaunchWindows(
+        SimpleLevel level,
+        VerifiedNavBuildOptions options,
+        PlayerEntity probe,
+        RawSurface rawSurface,
+        List<VerifiedNavSurface> surfaces)
+    {
+        if (rawSurface.Kind != VerifiedNavSurfaceKind.SolidTop
+            || options.EdgeLaunchProbeWidth <= 0f)
+        {
+            return;
+        }
+
+        var overlapMinX = rawSurface.Left - probe.CollisionRightOffset + 1f;
+        var overlapMaxX = rawSurface.Right - probe.CollisionLeftOffset - 1f;
+        if (overlapMaxX <= overlapMinX)
+        {
+            return;
+        }
+
+        var sampleStep = 1f;
+        AppendEdgeWindow(
+            level,
+            options,
+            probe,
+            rawSurface,
+            overlapMinX,
+            MathF.Min(overlapMaxX, rawSurface.Left + options.EdgeLaunchProbeWidth),
+            sampleStep,
+            surfaces);
+        AppendEdgeWindow(
+            level,
+            options,
+            probe,
+            rawSurface,
+            MathF.Max(overlapMinX, rawSurface.Right - options.EdgeLaunchProbeWidth),
+            overlapMaxX,
+            sampleStep,
+            surfaces);
+    }
+
+    private static void AppendEdgeWindow(
+        SimpleLevel level,
+        VerifiedNavBuildOptions options,
+        PlayerEntity probe,
+        RawSurface rawSurface,
+        float minX,
+        float maxX,
+        float sampleStep,
+        List<VerifiedNavSurface> surfaces)
+    {
+        if (maxX < minX)
+        {
+            return;
+        }
+
+        float? windowStart = null;
+        var lastGoodX = minX;
+        for (var x = minX; x <= maxX + 0.001f; x += sampleStep)
+        {
+            var sampleX = MathF.Min(x, maxX);
+            if (CanStandOnSurface(level, options.Team, probe, rawSurface, sampleX))
+            {
+                windowStart ??= sampleX;
+                lastGoodX = sampleX;
+                continue;
+            }
+
+            AppendEdgeSurface(
+                rawSurface,
+                options.MinimumLaunchSurfaceWidth,
+                windowStart,
+                lastGoodX,
+                surfaces);
+            windowStart = null;
+        }
+
+        AppendEdgeSurface(
+            rawSurface,
+            options.MinimumLaunchSurfaceWidth,
+            windowStart,
+            lastGoodX,
+            surfaces);
+    }
+
+    private static void AppendEdgeSurface(
+        RawSurface rawSurface,
+        float minimumLaunchSurfaceWidth,
+        float? windowStart,
+        float windowEnd,
+        List<VerifiedNavSurface> surfaces)
+    {
+        if (!windowStart.HasValue)
+        {
+            return;
+        }
+
+        var width = windowEnd - windowStart.Value;
+        var center = (windowStart.Value + windowEnd) * 0.5f;
+        var halfWidth = MathF.Max(minimumLaunchSurfaceWidth * 0.5f, width * 0.5f);
+        surfaces.Add(new VerifiedNavSurface(
+            surfaces.Count,
+            rawSurface.Kind,
+            center - halfWidth,
+            center + halfWidth,
+            rawSurface.Top,
+            rawSurface.SourceIndex));
     }
 
     private static void FlushWindow(
@@ -143,15 +266,28 @@ public static class VerifiedNavCandidateBuilder
         float? windowStart,
         float windowEnd,
         List<VerifiedNavSurface> surfaces,
-        float minSurfaceWidth)
+        float minSurfaceWidth,
+        float minimumLaunchSurfaceWidth)
     {
         if (!windowStart.HasValue)
         {
             return;
         }
 
-        if (windowEnd - windowStart.Value < minSurfaceWidth)
+        var width = windowEnd - windowStart.Value;
+        if (width < minSurfaceWidth)
         {
+            var center = (windowStart.Value + windowEnd) * 0.5f;
+            var halfWidth = MathF.Max(
+                minimumLaunchSurfaceWidth * 0.5f,
+                (width * 0.5f) + 1f);
+            surfaces.Add(new VerifiedNavSurface(
+                surfaces.Count,
+                rawSurface.Kind,
+                center - halfWidth,
+                center + halfWidth,
+                rawSurface.Top,
+                rawSurface.SourceIndex));
             return;
         }
 

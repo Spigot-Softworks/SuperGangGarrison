@@ -1403,6 +1403,9 @@ internal static class BotBrainClassMask
 {
     public const int All = -1;
 
+    public static bool CoversAll(int mask) =>
+        Enum.GetValues<PlayerClass>().All(playerClass => Contains(mask, playerClass));
+
     public static int For(PlayerClass playerClass) => 1 << (int)playerClass;
 
     public static bool Contains(int mask, PlayerClass playerClass) =>
@@ -1495,6 +1498,9 @@ internal static class BotBrainClassMask
 internal static class BotBrainTeamMask
 {
     public const int All = -1;
+
+    public static bool CoversAll(int mask) =>
+        Enum.GetValues<PlayerTeam>().All(team => Contains(mask, team));
 
     public static int For(PlayerTeam team) => 1 << (int)team;
 

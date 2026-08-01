@@ -286,7 +286,10 @@ public sealed partial class SimulationWorld
             {
                 entity.ApplyNetworkState(state.X, state.Y, state.VelocityX, state.VelocityY, state.TicksRemaining);
                 if (entity is ArrowProjectileEntity arrow)
+                {
                     arrow.SetFakeSpeedMultiplier(state.ArrowFakeSpeedMultiplier);
+                    arrow.SetLanded(state.IsLanded);
+                }
                 if (state.IsCritical && !entity.IsCritical)
                     entity.SetCritical();
             },

@@ -8,13 +8,20 @@ public sealed class SteeringMachine
     private const int MinCommitTicks = 3;
     private const int StuckDetectionWindow = 15;
     private const float StuckDistanceThreshold = 2f;
+    private const int GroundedWalkProgressRepathWindows = 2;
     private const float WaypointReachRadius = NavGraphBuilder.WaypointArrivalRadius;
     private const int WaypointLookaheadSkipCount = 4;
     private const float WaypointLookaheadReachMultiplier = 1.5f;
     private const float InitialWalkAttachmentVerticalTolerance = 24f;
     private const float EdgeProbeDistance = 18f;
     private const float JumpTriggerDistance = 32f;
-    private const float RuntimeLaunchCenterTolerance = 1f;
+    // Runtime contact recipes record a launch window, not a single exact
+    // pixel. Requiring the live body to revisit the probe's exact center
+    // makes a valid contact miss after ordinary collision rounding or a
+    // one-tick handoff from the preceding edge; the edge then waits for its
+    // watchdog and repaths. Keep this inside the measured positional window
+    // while allowing the live executor to use the same certified contact.
+    private const float RuntimeLaunchCenterTolerance = 6f;
     private const float JumpLaunchGateTolerance = 4f;
     private const float CertifiedLaunchForwardTolerance = 16f;
     private const float ShortCertifiedLaunchForwardTolerance = 24f;
@@ -24,17 +31,27 @@ public sealed class SteeringMachine
     private const int JumpRetryCooldownTicks = 6;
     private const int FastObstacleJumpRetryCooldownTicks = 2;
     private const int PressedBlockerHopTicks = 3;
+    private const int PressedBlockerRepathTicks = 3;
     private const float MinimumDelayedJumpRunupSpeed = 80f;
     private const int MaximumDelayedJumpRunupTicks = 18;
     private const int GroundedContinuationRecoveryTicks = 45;
     private const int LandedBelowCompletionRecoveryTicks = 90;
     private const int LandedBelowCompletionFastFailSlackTicks = 8;
+    private const int AlphaLandedBelowCompletionRecoveryTicks = 18;
     private const float LandedBelowCompletionVerticalSlack = 8f;
     private const int GroundedWalkBelowTargetFastFailTicks = 8;
     private const float GroundedWalkBelowTargetVerticalSlack = 48f;
     private const float GroundedContinuationCompletionSlack = 8f;
     private const float AirborneCompletionContinuationSlack = 8f;
-    private const int MaximumCertifiedEdgeTicks = 120;
+    // A failed contact must relinquish control quickly after the bot has
+    // landed away from its completion surface.  The previous four-second
+    // watchdog made a knocked-off bot look inert even though the route was
+    // requesting recovery.
+    private const int MaximumCertifiedEdgeTicks = 72;
+    private const int RuntimeResolvedEdgeSlackTicks = 12;
+    private const int MinimumRuntimeResolvedEdgeTicks = 90;
+    private const int MaximumRuntimeResolvedEdgeTicks = 120;
+    private const float RuntimeResolvedFarBelowCompletionVerticalSlack = 144f;
     private const int CertifiedEdgeRetrySlackTicks = 36;
     private const int MaximumUncertifiedTraversalEdgeTicks = 180;
     private const int MaximumWalkEdgeTicks = 60;
@@ -54,6 +71,7 @@ public sealed class SteeringMachine
     private int _currentEdgeTicks;
     private bool _currentEdgeWasAirborne;
     private bool _currentEdgeLandedAfterAirborne;
+    private bool _currentEdgeCompletionSatisfiedGrounded;
     private bool _currentEdgeJumpRequested;
     private EdgeExecutionPhase _edgePhase = EdgeExecutionPhase.None;
     private int _edgePhaseTicks;
@@ -62,6 +80,12 @@ public sealed class SteeringMachine
     private float _edgeStartY;
     private float _edgeStartHorizontalSpeed;
     private float _edgeStartVerticalSpeed;
+    private int _walkProgressFromNode = -1;
+    private int _walkProgressToNode = -1;
+    private float _walkProgressCheckX;
+    private float _walkProgressCheckY;
+    private int _walkProgressTicks;
+    private int _walkProgressStagnantWindows;
 
     public SteeringOutput Update(
         PlayerEntity player,
@@ -89,7 +113,16 @@ public sealed class SteeringMachine
         }
 
         TryAdvanceToReachedFutureWaypoint(player, graph, path);
-        if (ShouldAdvanceWaypoint(player, graph, path, level))
+        var hasPreAdvanceEdge = path.TryGetCurrentEdge(out var preAdvanceEdge);
+        var preAdvanceCompletionSatisfied = hasPreAdvanceEdge
+            && graph.IsEdgeCompletionSatisfied(player.X, player.Y, preAdvanceEdge.Completion);
+        var advancedWaypoint = ShouldAdvanceWaypoint(
+            player,
+            graph,
+            path,
+            level,
+            preAdvanceCompletionSatisfied);
+        if (advancedWaypoint)
         {
             path.Advance();
             if (path.IsComplete)
@@ -105,13 +138,15 @@ public sealed class SteeringMachine
 
         // A waypoint handoff can expose the next OG2 contact during this
         // steering update, after the controller's runtime resolver has
-        // already run for the previous edge. Do not launch the newly-entered
-        // contact from a stale/in-flight state; let the next think resolve its
-        // measured recipe from the live state first.
+        // already run for the previous edge. Keep steering the newly-entered
+        // edge, but leave it unresolved so the next think can measure its
+        // recipe from the live state. Returning a neutral output here drops
+        // the bot's launch surface for one tick and can turn a valid grounded
+        // handoff into an airborne start with stale momentum.
         if (path.CurrentIndex > initialPathIndex
             && IsAwaitingRuntimeContactResolution(path))
         {
-            return output;
+            // Intentionally continue through the normal edge steering below.
         }
 
         var targetNode = graph.GetNode(path.CurrentNode);
@@ -123,6 +158,13 @@ public sealed class SteeringMachine
         var hasCurrentEdge = path.TryGetCurrentEdge(out var currentEdge);
         var edgeKind = hasCurrentEdge ? currentEdge.Kind : NavEdgeKind.Walk;
         var edgeTicks = UpdateCurrentEdgeTimer(player, path, hasCurrentEdge);
+        // Several phases of one steering update need the same completion
+        // answer. Reuse the result already computed for waypoint handoff when
+        // the edge did not change; otherwise resolve the new edge once.
+        var currentEdgeCompletionSatisfied = hasCurrentEdge
+            && (!advancedWaypoint
+                ? preAdvanceCompletionSatisfied
+                : graph.IsEdgeCompletionSatisfied(player.X, player.Y, currentEdge.Completion));
         if (hasCurrentEdge && currentEdge.Kind == NavEdgeKind.Jump && edgeTicks == 0)
         {
             // The preceding walk edge may have committed the opposite
@@ -131,17 +173,100 @@ public sealed class SteeringMachine
             _commitTicksRemaining = 0;
             _commitDirectionX = 0f;
         }
-        UpdateCurrentEdgePhase(player, hasCurrentEdge);
         if (hasCurrentEdge)
         {
-            UpdateCurrentEdgeExecutionPhase(player, graph, path, currentEdge);
-            TryFailExpiredEdge(player, graph, path, currentEdge, edgeTicks, level.Mode, ref output);
+            UpdateCurrentEdgePhase(player, currentEdge, currentEdgeCompletionSatisfied);
+            UpdateCurrentEdgeExecutionPhase(player, graph, path, currentEdge, currentEdgeCompletionSatisfied);
+            var awaitingRuntimeContactResolution = ShouldAwaitRuntimeContactResolution(
+                player,
+                graph,
+                currentEdge);
+            var groundedWalkProgressStalled = UpdateGroundedWalkProgress(
+                player,
+                path,
+                currentEdge,
+                edgeTicks);
+            if (!awaitingRuntimeContactResolution)
+            {
+                TryFailExpiredEdge(player, graph, path, currentEdge, edgeTicks, level.Mode, currentEdgeCompletionSatisfied, ref output);
+            }
+            if (!output.RequestRepath
+                && groundedWalkProgressStalled
+                && path.CurrentIndex > 0)
+            {
+                output.RequestRepath = true;
+                output.FailedEdge = new SteeringFailedEdge(
+                    HasFailure: true,
+                    FromNode: path.GetWaypoint(path.CurrentIndex - 1),
+                    ToNode: path.CurrentNode,
+                    Kind: currentEdge.Kind,
+                    EdgeTicks: edgeTicks,
+                    Reason: "walk_progress_stuck");
+            }
+            if (!output.RequestRepath
+                && !awaitingRuntimeContactResolution
+                && ShouldRequestEarlyContactRecovery(player, currentEdge, edgeTicks))
+            {
+                output.RequestRepath = true;
+                output.FailedEdge = new SteeringFailedEdge(
+                    HasFailure: true,
+                    FromNode: path.GetWaypoint(path.CurrentIndex - 1),
+                    ToNode: path.CurrentNode,
+                    Kind: currentEdge.Kind,
+                    EdgeTicks: edgeTicks,
+                    Reason: "contact_stuck");
+            }
         }
 
         var suppressJumpUntilLaunch = false;
         var steeringDx = hasCurrentEdge
-            ? ResolveEdgeSteeringDx(player, level.Mode, graph, path, currentEdge, dx, out suppressJumpUntilLaunch)
+            ? ResolveEdgeSteeringDx(player, level.Mode, graph, path, currentEdge, dx, currentEdgeCompletionSatisfied, out suppressJumpUntilLaunch)
             : dx;
+
+        var awaitingRuntimeContactResolutionForSteering = hasCurrentEdge
+            && ShouldAwaitRuntimeContactResolution(player, graph, currentEdge);
+        var allowRuntimeContactRecovery = awaitingRuntimeContactResolutionForSteering
+            && _stuckEscapePhase > 0
+            && player.IsGrounded;
+        if (awaitingRuntimeContactResolutionForSteering
+            && !allowRuntimeContactRecovery)
+        {
+            // A static graph recipe is only a canonical hint until it has
+            // been re-proved from this live entry state. Do not fire the
+            // static jump while the runtime resolver is still searching: it
+            // can consume the jump and land below the completion surface,
+            // which is exactly the inert-under-the-point failure mode. Keep
+            // the bot moving toward the measured launch state while the
+            // bounded resolver retries. Once the contact is resolved, the
+            // airborne executor uses the completion window or measured
+            // schedule below. ResolveEdgeSteeringDx may deliberately reverse
+            // the nominal route direction when the live body has already
+            // overshot the narrow launch band.
+            output.State = _state;
+            output.EdgeKind = edgeKind;
+            var launchCorrectionDirection = MathF.Sign(steeringDx);
+            output.MoveDirection = launchCorrectionDirection != 0f
+                ? launchCorrectionDirection
+                : MathF.Sign(currentEdge.LaunchRecipe.ExpectedMoveDirectionX);
+            output.Jump = false;
+            output.DropDown = false;
+            return output;
+        }
+
+        if (allowRuntimeContactRecovery)
+        {
+            // The runtime probe has not produced an executable jump yet, but
+            // the body has also failed the shared stagnation detector. Let
+            // the normal escape phase run below instead of trapping the bot
+            // in the unresolved-contact hold branch. Clear any static jump
+            // decision first: recovery owns this tick, and the measured
+            // contact must not be fired from an unproved state.
+            output.Jump = false;
+            output.DropDown = false;
+        }
+
+        var useAirborneSteeringDx = hasCurrentEdge
+            && ShouldCounterSteerForNextContact(player, graph, path, currentEdge, currentEdgeCompletionSatisfied);
         output.State = _state;
         output.EdgeKind = edgeKind;
 
@@ -166,7 +291,13 @@ public sealed class SteeringMachine
                     currentEdge.IsRuntimeResolved,
                     currentEdge.IsOg2Contact
                         && _currentEdgeLandedAfterAirborne
-                        && graph.IsOnAcceptedCompletionSurface(player.X, player.Y, currentEdge.Completion),
+                        && currentEdgeCompletionSatisfied,
+                    // Alpha walk edges are ordinary traversal corridors. Keep
+                    // the cheap static obstacle probe available on them so a
+                    // crate or other map prop that was not part of the graph
+                    // sample cannot turn the route into a wall hug. Certified
+                    // jump/fall contacts remain recipe-driven below.
+                    !graph.IsOg2Alpha || (hasCurrentEdge && edgeKind == NavEdgeKind.Walk),
                     currentEdge.LaunchRecipe,
                     ref output);
                 break;
@@ -179,9 +310,12 @@ public sealed class SteeringMachine
                     steeringDx,
                     dy,
                     currentEdge.IsOg2Contact,
+                    currentEdge.IsRuntimeResolved,
+                    useAirborneSteeringDx,
                     currentEdge.ProbeMoveDirectionX,
                     currentEdge.JumpTriggerTick,
                     edgeTicks,
+                    _currentEdgeJumpRequested,
                     currentEdge.LaunchRecipe,
                     ref output);
                 break;
@@ -204,17 +338,73 @@ public sealed class SteeringMachine
                 output.Jump);
         }
 
-        var hasCertifiedContactEdge = hasCurrentEdge
-            && currentEdge.IsOg2Contact
-            && currentEdge.LaunchRecipe.HasRecipe;
         var hasOg2ContactEdge = hasCurrentEdge && currentEdge.IsOg2Contact;
-        if (_stuckEscapePhase > 0 && !hasCertifiedContactEdge && !hasOg2ContactEdge)
+        var walkEdgeInsideCompletionCorridor = hasCurrentEdge
+            && edgeKind == NavEdgeKind.Walk
+            && (!currentEdge.Completion.HasWindow
+                || currentEdge.Completion.Contains(player.X, player.Y));
+        var allowLocalObstacleProbing = !graph.IsOg2Alpha
+            || allowRuntimeContactRecovery
+            // Walk edges are ordinary corridors, even in the alpha graph.
+            // A crate or live body can invalidate their straight-line sample
+            // after graph generation, so retain the cheap stuck escape for
+            // walk traversal. Certified jump/fall contacts stay recipe-only.
+            || walkEdgeInsideCompletionCorridor;
+        // A walk contact is still a walk corridor. It may be blocked by a
+        // crate, a body, or a small collision discrepancy after graph build,
+        // so it must retain the cheap local escape tools. Suppress those tools
+        // for a healthy OG2 jump/fall/drop contact whose launch recipe is the
+        // movement contract being replayed, but reopen the cheap escape path
+        // when a grounded jump contact has actually stopped outside its launch
+        // window. Dynamic bodies and small collision differences must not turn
+        // a certified route into a permanent wall hug.
+        var allowWalkContactRecovery = walkEdgeInsideCompletionCorridor;
+        var allowStuckJumpContactRecovery = hasOg2ContactEdge
+            && edgeKind == NavEdgeKind.Jump
+            && _stuckEscapePhase > 0
+            && player.IsGrounded
+            && (!currentEdge.LaunchRecipe.HasRecipe
+                || !currentEdge.LaunchRecipe.ContainsLaunchState(player));
+        var allowOg2ContactRecovery = allowWalkContactRecovery
+            || allowStuckJumpContactRecovery
+            || allowRuntimeContactRecovery;
+        if (_stuckEscapePhase > 0
+            && (!hasOg2ContactEdge || allowOg2ContactRecovery))
         {
             ApplyStuckEscape(player, ref output);
         }
-        if (!hasCertifiedContactEdge && !hasOg2ContactEdge)
+        var allowOg2BlockerHop = allowWalkContactRecovery
+            // Walk contacts may be blocked by a static prop even while the
+            // route's stagnation detector is still below its recovery phase.
+            // Let the existing three-tick blocker probe handle that cheap
+            // case immediately; the phase-based escape remains the fallback.
+            ? true
+            : allowStuckJumpContactRecovery || allowRuntimeContactRecovery;
+        if (allowLocalObstacleProbing && (!hasOg2ContactEdge || allowOg2BlockerHop))
         {
             ApplyPressedBlockerHop(player, level, team, ref output);
+        }
+
+        if (!output.RequestRepath
+            && graph.IsOg2Alpha
+            && hasCurrentEdge
+            && currentEdge.Kind == NavEdgeKind.Walk
+            && path.CurrentIndex > 0)
+        {
+            // A walk corridor can be invalidated by a static prop or a live
+            // body that was absent when the graph was built. If the cheap
+            // jump probe cannot clear the obstruction, do not wait for the
+            // 60-tick walk watchdog: hand the failed edge back to the graph
+            // and let the alternate route/recovery owner take over.
+            ApplyPressedWalkBlockerRepath(
+                player,
+                level,
+                team,
+                path,
+                currentEdge,
+                edgeTicks,
+                walkEdgeInsideCompletionCorridor,
+                ref output);
         }
 
         // A jump edge's launch direction is part of its OG2 proof. Do not let
@@ -228,6 +418,7 @@ public sealed class SteeringMachine
 
         var fastJumpRetry = output.Jump
             && player.IsGrounded
+            && allowLocalObstacleProbing
             && ShouldUseFastJumpRetry(player, level, team, output.MoveDirection);
         ApplyJumpPulse(ref output, fastJumpRetry);
         if (output.RecipeTrace.HasRecipe)
@@ -307,6 +498,66 @@ public sealed class SteeringMachine
         _edgeStartY = 0f;
         _edgeStartHorizontalSpeed = 0f;
         _edgeStartVerticalSpeed = 0f;
+        _walkProgressFromNode = -1;
+        _walkProgressToNode = -1;
+        _walkProgressCheckX = 0f;
+        _walkProgressCheckY = 0f;
+        _walkProgressTicks = 0;
+        _walkProgressStagnantWindows = 0;
+    }
+
+    private bool UpdateGroundedWalkProgress(
+        PlayerEntity player,
+        NavPath path,
+        NavEdge edge,
+        int edgeTicks)
+    {
+        if (edge.Kind != NavEdgeKind.Walk
+            || !player.IsGrounded
+            || path.CurrentIndex <= 0)
+        {
+            _walkProgressFromNode = -1;
+            _walkProgressToNode = -1;
+            _walkProgressTicks = 0;
+            _walkProgressStagnantWindows = 0;
+            return false;
+        }
+
+        var fromNode = path.GetWaypoint(path.CurrentIndex - 1);
+        var toNode = path.CurrentNode;
+        if (fromNode != _walkProgressFromNode || toNode != _walkProgressToNode)
+        {
+            _walkProgressFromNode = fromNode;
+            _walkProgressToNode = toNode;
+            _walkProgressCheckX = player.X;
+            _walkProgressCheckY = player.Y;
+            _walkProgressTicks = 0;
+            _walkProgressStagnantWindows = 0;
+            return false;
+        }
+
+        _walkProgressTicks += 1;
+        if (_walkProgressTicks < StuckDetectionWindow)
+        {
+            return false;
+        }
+
+        var movedX = MathF.Abs(player.X - _walkProgressCheckX);
+        var movedY = MathF.Abs(player.Y - _walkProgressCheckY);
+        if (movedX < StuckDistanceThreshold && movedY < StuckDistanceThreshold)
+        {
+            _walkProgressStagnantWindows += 1;
+        }
+        else
+        {
+            _walkProgressStagnantWindows = 0;
+        }
+
+        _walkProgressCheckX = player.X;
+        _walkProgressCheckY = player.Y;
+        _walkProgressTicks = 0;
+        return edgeTicks >= StuckDetectionWindow * GroundedWalkProgressRepathWindows
+            && _walkProgressStagnantWindows >= GroundedWalkProgressRepathWindows;
     }
 
     private void UpdateState(PlayerEntity player)
@@ -351,7 +602,12 @@ public sealed class SteeringMachine
         _stuckTicks = 0;
     }
 
-    private bool ShouldAdvanceWaypoint(PlayerEntity player, NavGraph graph, NavPath path, SimpleLevel level)
+    private bool ShouldAdvanceWaypoint(
+        PlayerEntity player,
+        NavGraph graph,
+        NavPath path,
+        SimpleLevel level,
+        bool currentEdgeCompletionSatisfied)
     {
         var targetNode = graph.GetNode(path.CurrentNode);
         var dx = targetNode.X - player.X;
@@ -375,7 +631,18 @@ public sealed class SteeringMachine
                 && path.TryGetIncomingEdge(path.CurrentIndex, out var incomingEdge)
                 && incomingEdge.RequiresGroundedContinuation)
             {
-                return false;
+                // A resolved OG2 contact can enter its certified landing
+                // window one physics update before collision state refreshes
+                // IsGrounded. If the measured completion is already true,
+                // hand the route to an ordinary corridor immediately instead
+                // of making the bot fall through the landing and replay the
+                // same jump forever. The next-edge grounded guard below still
+                // blocks a follow-up certified contact until the body lands.
+                if (!incomingEdge.IsRuntimeResolved
+                    || !currentEdgeCompletionSatisfied)
+                {
+                    return false;
+                }
             }
 
             if (!player.IsGrounded && NextEdgeRequiresGroundedContact(path))
@@ -399,16 +666,28 @@ public sealed class SteeringMachine
 
         return path.TryGetCurrentEdge(out var edge)
             && edge.Completion.HasWindow
-            && !ShouldDeferContactHandoff(path, edge, distSq)
+            && !ShouldDeferContactHandoff(
+                player,
+                graph,
+                path,
+                edge,
+                distSq,
+                currentEdgeCompletionSatisfied)
             && (player.IsGrounded
-                ? graph.IsEdgeCompletionSatisfied(player.X, player.Y, edge.Completion)
+                ? currentEdgeCompletionSatisfied
                     || IsNearGroundedContinuationCompletion(player, edge, level)
                 : player.ClassId != PlayerClass.Heavy
                     && (IsAirborneCompletionContinuation(player, graph, edge)
                         || IsNearGroundedContinuationCompletion(player, edge, level)));
     }
 
-    private static bool ShouldDeferContactHandoff(NavPath path, NavEdge edge, float distanceSquared)
+    private static bool ShouldDeferContactHandoff(
+        PlayerEntity player,
+        NavGraph graph,
+        NavPath path,
+        NavEdge edge,
+        float distanceSquared,
+        bool currentEdgeCompletionSatisfied)
     {
         if (distanceSquared <= WaypointReachRadius * WaypointReachRadius
             || !edge.IsOg2Contact
@@ -419,6 +698,18 @@ public sealed class SteeringMachine
             || nextEdge.Kind != NavEdgeKind.Jump
             || edge.ProbeMoveDirectionX == 0f
             || nextEdge.ProbeMoveDirectionX == 0f)
+        {
+            return false;
+        }
+
+        // A reverse-direction contact normally waits for the exact landing
+        // node so the next recipe does not inherit stale momentum. The OG2
+        // completion contract is the stronger fact, however: a grounded bot
+        // on the certified surface/window has completed the edge even when
+        // collision resolution leaves its live Y offset from the nominal
+        // node. Do not deadlock that valid landing behind the node-radius
+        // handoff guard.
+        if (player.IsGrounded && currentEdgeCompletionSatisfied)
         {
             return false;
         }
@@ -467,7 +758,19 @@ public sealed class SteeringMachine
         && path.TryGetCurrentEdge(out var edge)
         && edge.IsOg2Contact
         && edge.LaunchRecipe.HasRecipe
-        && !edge.IsRuntimeResolved;
+        && !edge.IsRuntimeResolved
+        && !edge.RuntimeResolutionExhausted;
+
+    private static bool ShouldAwaitRuntimeContactResolution(
+        PlayerEntity player,
+        NavGraph graph,
+        NavEdge edge) =>
+        graph.IsOg2Alpha
+        && edge.IsOg2Contact
+        && edge.Kind == NavEdgeKind.Jump
+        && !edge.IsRuntimeResolved
+        && !edge.RuntimeResolutionExhausted
+        && player.IsGrounded;
 
     private static int ResolveJumpTriggerTick(NavEdge edge) =>
         edge.Kind == NavEdgeKind.Jump
@@ -531,6 +834,7 @@ public sealed class SteeringMachine
             _currentEdgeTicks = 0;
             _currentEdgeWasAirborne = false;
             _currentEdgeLandedAfterAirborne = false;
+            _currentEdgeCompletionSatisfiedGrounded = false;
             _currentEdgeJumpRequested = false;
             _edgePhase = EdgeExecutionPhase.None;
             _edgePhaseTicks = 0;
@@ -551,6 +855,7 @@ public sealed class SteeringMachine
             _currentEdgeTicks = 0;
             _currentEdgeWasAirborne = false;
             _currentEdgeLandedAfterAirborne = false;
+            _currentEdgeCompletionSatisfiedGrounded = false;
             _currentEdgeJumpRequested = false;
             _edgePhase = EdgeExecutionPhase.None;
             _edgePhaseTicks = 0;
@@ -566,17 +871,17 @@ public sealed class SteeringMachine
         return _currentEdgeTicks;
     }
 
-    private void UpdateCurrentEdgePhase(PlayerEntity player, bool hasCurrentEdge)
+    private void UpdateCurrentEdgePhase(PlayerEntity player, NavEdge edge, bool completionSatisfied)
     {
-        if (!hasCurrentEdge)
-        {
-            return;
-        }
-
         if (!player.IsGrounded)
         {
             _currentEdgeWasAirborne = true;
             return;
+        }
+
+        if (completionSatisfied)
+        {
+            _currentEdgeCompletionSatisfiedGrounded = true;
         }
 
         if (_currentEdgeWasAirborne)
@@ -713,12 +1018,17 @@ public sealed class SteeringMachine
         }
     }
 
-    private void UpdateCurrentEdgeExecutionPhase(PlayerEntity player, NavGraph graph, NavPath path, NavEdge edge)
+    private void UpdateCurrentEdgeExecutionPhase(
+        PlayerEntity player,
+        NavGraph graph,
+        NavPath path,
+        NavEdge edge,
+        bool completionSatisfied)
     {
         if (_edgePhase != EdgeExecutionPhase.None)
         {
             _edgePhaseTicks += 1;
-            if (ShouldExitEdgeExecutionPhase(player, graph, edge))
+            if (ShouldExitEdgeExecutionPhase(player, graph, edge, completionSatisfied))
             {
                 _edgePhase = EdgeExecutionPhase.None;
                 _edgePhaseTicks = 0;
@@ -727,7 +1037,7 @@ public sealed class SteeringMachine
             return;
         }
 
-        if (ShouldEnterLandedBelowCompletionPhase(player, graph, path, edge))
+        if (ShouldEnterLandedBelowCompletionPhase(player, graph, path, edge, completionSatisfied))
         {
             _edgePhase = EdgeExecutionPhase.LandedBelowCompletion;
             _edgePhaseTicks = 0;
@@ -741,10 +1051,11 @@ public sealed class SteeringMachine
         NavPath path,
         NavEdge edge,
         float waypointDx,
+        bool currentEdgeCompletionSatisfied,
         out bool suppressJumpUntilLaunch)
     {
         suppressJumpUntilLaunch = false;
-        if (IsExperimentalFallDropdownSteeringEnabled()
+        if (IsExperimentalFallDropdownSteeringEnabled(graph)
             && edge.Kind is (NavEdgeKind.Fall or NavEdgeKind.Dropdown)
             && player.IsGrounded
             && path.CurrentIndex > 0)
@@ -760,13 +1071,53 @@ public sealed class SteeringMachine
             }
         }
 
-        if (!edge.Completion.HasWindow)
-        {
-            return waypointDx;
-        }
-
         if (edge.Kind == NavEdgeKind.Walk)
         {
+            if (graph.IsOg2Alpha && edge.ProbeMoveDirectionX != 0f)
+            {
+                if (path.CurrentIndex > 0)
+                {
+                    var fromNode = graph.GetNode(path.GetWaypoint(path.CurrentIndex - 1));
+                    var targetNode = graph.GetNode(path.CurrentNode);
+                    if (MathF.Abs(targetNode.X - fromNode.X) <= HorizontalDeadZone)
+                    {
+                        // Surface relays can differ by a fraction of a pixel
+                        // after class-neutral graph quantization. Their
+                        // measured direction is not a traversal contract: it
+                        // can point backward while the live body is still
+                        // approaching the relay from the other side. Follow
+                        // the live waypoint delta so a vertical handoff does
+                        // not turn into a long reverse walk off the platform.
+                        return waypointDx;
+                    }
+
+                    var travelDirection = MathF.Sign(edge.ProbeMoveDirectionX);
+                    var passedTargetDistance = (player.X - targetNode.X) * travelDirection;
+                    if (passedTargetDistance > WaypointReachRadius)
+                    {
+                        // The measured direction is authoritative only while
+                        // the live body is still approaching this waypoint.
+                        // Once it has crossed the target by a full waypoint
+                        // radius, continuing to force that direction drives
+                        // it off the support surface and creates the visible
+                        // forward/backward route loop.
+                        return waypointDx;
+                    }
+                }
+
+                // Walk edges are directed graph contracts. Following the
+                // measured direction prevents a small waypoint overshoot from
+                // flipping the bot's input every think and producing the
+                // visible forward/backward oscillation.
+                return MathF.Sign(edge.ProbeMoveDirectionX)
+                    * MathF.Max(HorizontalDeadZone + 1f, MathF.Abs(waypointDx));
+            }
+
+            if (!edge.Completion.HasWindow)
+            {
+                return waypointDx;
+            }
+
             if (ShouldAssistSemanticWalkClimb(player, edge))
             {
                 var walkCompletionCenterX = (edge.Completion.MinX + edge.Completion.MaxX) * 0.5f;
@@ -776,6 +1127,11 @@ public sealed class SteeringMachine
                     : waypointDx;
             }
 
+            return waypointDx;
+        }
+
+        if (!edge.Completion.HasWindow)
+        {
             return waypointDx;
         }
 
@@ -795,6 +1151,24 @@ public sealed class SteeringMachine
         if (edge.Kind == NavEdgeKind.Jump
             && edge.IsOg2Contact
             && edge.LaunchRecipe.HasRecipe
+            && edge.LaunchRecipe.StartGrounded
+            && !edge.IsRuntimeResolved
+            && !player.IsGrounded)
+        {
+            // A preceding contact can hand off one fixed update before the
+            // live body is marked grounded. Do not continue toward the next
+            // waypoint while that handoff is airborne: residual momentum can
+            // carry the bot off the certified source surface before the
+            // runtime resolver gets a grounded sample. Brake/recover toward
+            // the measured launch window instead.
+            suppressJumpUntilLaunch = true;
+            var launchCenterX = (edge.LaunchRecipe.LaunchMinX + edge.LaunchRecipe.LaunchMaxX) * 0.5f;
+            return launchCenterX - player.X;
+        }
+
+        if (edge.Kind == NavEdgeKind.Jump
+            && edge.IsOg2Contact
+            && edge.LaunchRecipe.HasRecipe
             && player.IsGrounded
             && !_currentEdgeLandedAfterAirborne)
         {
@@ -803,13 +1177,65 @@ public sealed class SteeringMachine
             {
                 var launchCenterX = (edge.LaunchRecipe.LaunchMinX + edge.LaunchRecipe.LaunchMaxX) * 0.5f;
                 var launchDx = launchCenterX - player.X;
+                var runtimeAtMeasuredLaunchState =
+                    edge.IsRuntimeResolved
+                    && MathF.Abs(launchDx) <= RuntimeLaunchCenterTolerance
+                    && MathF.Abs(player.Y - ((edge.LaunchRecipe.LaunchMinY + edge.LaunchRecipe.LaunchMaxY) * 0.5f))
+                        <= RuntimeLaunchCenterTolerance
+                    && IsInLaunchSpeedWindow(player, edge.LaunchRecipe);
                 if (edge.IsRuntimeResolved)
                 {
                     // The runtime probe is the executable schedule for this
-                    // edge: it holds the measured launch direction until the
-                    // measured jump tick. Counter-steering against the live
-                    // speed window changes that schedule and can oscillate
-                    // forever around the launch band.
+                    // edge. It may include a bounded counter-steer phase
+                    // before the jump when the preceding contact handed off
+                    // residual momentum. Replaying that phase is necessary
+                    // for composed contacts; steering directly toward the
+                    // launch band can otherwise overshoot it before the
+                    // measured jump tick.
+                    var jumpTick = Math.Max(0, edge.LaunchRecipe.LaunchTick);
+                    var preLaunchBrakeTicks = Math.Clamp(
+                        edge.LaunchRecipe.PreLaunchBrakeTicks,
+                        0,
+                        jumpTick);
+                    if (preLaunchBrakeTicks > 0
+                        && _currentEdgeTicks >= jumpTick - preLaunchBrakeTicks
+                        && _currentEdgeTicks < jumpTick)
+                    {
+                        suppressJumpUntilLaunch = true;
+                        return -launchDirection * MathF.Max(JumpTriggerDistance, MathF.Abs(launchDx));
+                    }
+
+                    // The runtime probe records a launch *window*, not merely
+                    // a direction. If the live handoff enters past that
+                    // window, multiplying the absolute distance by the route
+                    // direction drives the bot farther away from the only
+                    // state in which the measured jump can fire. This was
+                    // especially visible on Corinth's red stair edge: fast
+                    // classes crossed the window during the handoff and then
+                    // continued forward indefinitely. Steer toward the
+                    // measured band until the state is ready; the direction
+                    // naturally becomes the route direction before the band
+                    // and reverses only when the bot has overshot it.
+                    if (!runtimeAtMeasuredLaunchState)
+                    {
+                        var launchSteeringDirection = MathF.Sign(launchDx);
+                        if (launchSteeringDirection != 0f)
+                        {
+                            return launchSteeringDirection
+                                * MathF.Max(JumpTriggerDistance, MathF.Abs(launchDx));
+                        }
+
+                        if (!IsInLaunchSpeedWindow(player, edge.LaunchRecipe))
+                        {
+                            var speedDirection = player.HorizontalSpeed > edge.LaunchRecipe.LaunchMaxHorizontalSpeed
+                                ? -1f
+                                : player.HorizontalSpeed < edge.LaunchRecipe.LaunchMinHorizontalSpeed
+                                    ? 1f
+                                    : launchDirection;
+                            return speedDirection * JumpTriggerDistance;
+                        }
+                    }
+
                     return launchDirection * MathF.Max(JumpTriggerDistance, MathF.Abs(launchDx));
                 }
 
@@ -875,6 +1301,12 @@ public sealed class SteeringMachine
             && player.Y >= edge.Completion.MinY - 48f
             && player.Y <= edge.Completion.MaxY + 24f)
         {
+            if (ShouldCounterSteerForNextContact(player, graph, path, edge, currentEdgeCompletionSatisfied))
+            {
+                var nextDirection = MathF.Sign(nextEdge.LaunchRecipe.ExpectedMoveDirectionX);
+                return -nextDirection * MathF.Max(JumpTriggerDistance, MathF.Abs(waypointDx));
+            }
+
             return edge.ProbeMoveDirectionX * MathF.Max(JumpTriggerDistance, MathF.Abs(waypointDx));
         }
 
@@ -1028,7 +1460,8 @@ public sealed class SteeringMachine
         PlayerEntity player,
         NavGraph graph,
         NavPath path,
-        NavEdge edge)
+        NavEdge edge,
+        bool completionSatisfied)
     {
         if (edge.Kind != NavEdgeKind.Jump
             || edge.ProbeMoveDirectionX == 0f
@@ -1046,7 +1479,7 @@ public sealed class SteeringMachine
             return false;
         }
 
-        if (graph.IsEdgeCompletionSatisfied(player.X, player.Y, edge.Completion))
+        if (completionSatisfied)
         {
             return false;
         }
@@ -1055,9 +1488,13 @@ public sealed class SteeringMachine
             || edge.JumpTriggerTick > 0;
     }
 
-    private bool ShouldExitEdgeExecutionPhase(PlayerEntity player, NavGraph graph, NavEdge edge)
+    private bool ShouldExitEdgeExecutionPhase(
+        PlayerEntity player,
+        NavGraph graph,
+        NavEdge edge,
+        bool completionSatisfied)
     {
-        if (graph.IsEdgeCompletionSatisfied(player.X, player.Y, edge.Completion))
+        if (completionSatisfied)
         {
             return true;
         }
@@ -1075,10 +1512,11 @@ public sealed class SteeringMachine
         NavEdge edge,
         int edgeTicks,
         GameModeKind mode,
+        bool completionSatisfied,
         ref SteeringOutput output)
     {
         if (path.CurrentIndex <= 0
-            || graph.IsEdgeCompletionSatisfied(player.X, player.Y, edge.Completion))
+            || completionSatisfied)
         {
             return;
         }
@@ -1086,6 +1524,27 @@ public sealed class SteeringMachine
         var fromNode = path.GetWaypoint(path.CurrentIndex - 1);
         var toNode = path.CurrentNode;
         var targetNode = graph.GetNode(toNode);
+        if (edge.RuntimeResolutionExhausted
+            && !edge.LaunchRecipe.HasRecipe)
+        {
+            // A runtime proof can exhaust its small search budget even when
+            // the canonical OG2 contact remains executable from the current
+            // support surface. Contact preparation marks that state so it
+            // stops spending probe time; keep the static recipe available as
+            // the bounded fallback instead of converting a probe miss into an
+            // immediate route failure. Edges without a recipe have no safe
+            // fallback and still fail immediately.
+            output.RequestRepath = true;
+            output.FailedEdge = new SteeringFailedEdge(
+                HasFailure: true,
+                FromNode: fromNode,
+                ToNode: toNode,
+                Kind: edge.Kind,
+                EdgeTicks: edgeTicks,
+                Reason: "runtime_contact_unavailable");
+            return;
+        }
+
         if (ShouldFastFailGroundedWalkBelowTarget(player, edge, targetNode, edgeTicks))
         {
             output.RequestRepath = true;
@@ -1099,7 +1558,41 @@ public sealed class SteeringMachine
             return;
         }
 
-        if (ShouldFastFailLandedBelowCompletion(player, edge, edgeTicks, mode))
+        if (ShouldFastFailGroundedWalkBelowCompletion(player, edge, edgeTicks, graph.IsOg2Alpha))
+        {
+            output.RequestRepath = true;
+            output.FailedEdge = new SteeringFailedEdge(
+                HasFailure: true,
+                FromNode: fromNode,
+                ToNode: toNode,
+                Kind: edge.Kind,
+                EdgeTicks: edgeTicks,
+                Reason: "walk_below_completion");
+            return;
+        }
+
+        // A missed OG2 jump can leave the body grounded on a lower support
+        // while the path still points at the upper jump completion window.
+        // The normal jump watchdog is intentionally generous for launch
+        // setup, but once the body has either been airborne or has had a
+        // bounded launch grace period, continuing to steer at the stale
+        // upper edge produces the visible back/forth stall under ledges and
+        // points. Reattach from the live support instead.
+        if (ShouldFastFailGroundedJumpBelowCompletion(player, edge, edgeTicks, graph.IsOg2Alpha)
+            && (_currentEdgeWasAirborne || edgeTicks >= GroundedJumpBelowCompletionGraceTicks))
+        {
+            output.RequestRepath = true;
+            output.FailedEdge = new SteeringFailedEdge(
+                HasFailure: true,
+                FromNode: fromNode,
+                ToNode: toNode,
+                Kind: edge.Kind,
+                EdgeTicks: edgeTicks,
+                Reason: "jump_below_completion");
+            return;
+        }
+
+        if (ShouldFastFailLandedBelowCompletion(player, edge, edgeTicks, mode, graph.IsOg2Alpha))
         {
             output.RequestRepath = true;
             output.FailedEdge = new SteeringFailedEdge(
@@ -1109,6 +1602,53 @@ public sealed class SteeringMachine
                 Kind: edge.Kind,
                 EdgeTicks: edgeTicks,
                 Reason: "landed_below_completion");
+            return;
+        }
+
+        // A live prop or player body can block an ordinary alpha walk
+        // corridor without making the static CanOccupy probe fail. Once the
+        // shared stagnation detector has observed two consecutive windows of
+        // no movement, keeping the same walk edge only produces a multi-second
+        // wall-hug/freeze. Return the edge to graph recovery while the
+        // obstruction is still local. Moving corridors never enter this path.
+        if (graph.IsOg2Alpha
+            && edge.Kind == NavEdgeKind.Walk
+            && player.IsGrounded
+            && _stuckEscapePhase >= 2
+            && edgeTicks >= StuckDetectionWindow * 2)
+        {
+            output.RequestRepath = true;
+            output.FailedEdge = new SteeringFailedEdge(
+                HasFailure: true,
+                FromNode: fromNode,
+                ToNode: toNode,
+                Kind: edge.Kind,
+                EdgeTicks: edgeTicks,
+                Reason: "walk_stuck");
+            return;
+        }
+
+        // A certified jump recipe is only useful while the body is actually
+        // making progress toward its launch/completion surface. If a live
+        // prop, body, or stale landing state leaves a grounded bot issuing
+        // the same jump edge with no displacement, the recipe itself must
+        // not keep the edge alive indefinitely. Repath after two complete
+        // stagnation windows; this is deliberately based on measured body
+        // movement rather than class, team, target, or combat state.
+        if (graph.IsOg2Alpha
+            && edge.Kind == NavEdgeKind.Jump
+            && player.IsGrounded
+            && _stuckEscapePhase >= 2
+            && edgeTicks >= StuckDetectionWindow * 2)
+        {
+            output.RequestRepath = true;
+            output.FailedEdge = new SteeringFailedEdge(
+                HasFailure: true,
+                FromNode: fromNode,
+                ToNode: toNode,
+                Kind: edge.Kind,
+                EdgeTicks: edgeTicks,
+                Reason: "jump_stuck");
             return;
         }
 
@@ -1143,22 +1683,84 @@ public sealed class SteeringMachine
             Reason: ResolveEdgeFailureReason(player, edge, targetDistance));
     }
 
-    private static bool IsExperimentalFallDropdownSteeringEnabled() =>
-        Environment.GetEnvironmentVariable("BOTBRAIN_EXPERIMENTAL_FALL_DROPDOWN_STEERING") is "1" or "true" or "TRUE";
+    private static bool IsExperimentalFallDropdownSteeringEnabled(NavGraph graph) =>
+        graph.IsOg2Alpha
+        || Environment.GetEnvironmentVariable("BOTBRAIN_EXPERIMENTAL_FALL_DROPDOWN_STEERING") is "1" or "true" or "TRUE";
 
-    private bool ShouldFastFailLandedBelowCompletion(PlayerEntity player, NavEdge edge, int edgeTicks, GameModeKind mode)
+    private bool ShouldFastFailLandedBelowCompletion(
+        PlayerEntity player,
+        NavEdge edge,
+        int edgeTicks,
+        GameModeKind mode,
+        bool alphaNavigation)
     {
+        var landedBelowCompletion = _currentEdgeLandedAfterAirborne
+            && player.IsGrounded
+            && !edge.Completion.Contains(player.X, player.Y)
+            && player.Y > edge.Completion.MaxY + LandedBelowCompletionVerticalSlack;
+        if (alphaNavigation
+            && edge.IsOg2Contact
+            && edge.Kind == NavEdgeKind.Jump
+            && edge.IsRuntimeResolved
+            // Runtime resolution can replace an unresolved contact on the
+            // same grounded update in which the previous attempt landed
+            // below the completion band. Give the newly measured schedule
+            // one steering update to fire before treating that stale landing
+            // flag as a fresh failure; otherwise a valid probe is discarded
+            // immediately and the route repaths in a loop.
+            && edgeTicks > 1
+            && player.IsGrounded
+            && !edge.Completion.Contains(player.X, player.Y)
+            && player.Y > edge.Completion.MaxY + RuntimeResolvedFarBelowCompletionVerticalSlack)
+        {
+            // A resolved contact may legitimately cross intermediate stair
+            // surfaces below its final completion window. Only fail early
+            // when the live body is materially farther below the window than
+            // any intermediate surface in the certified contact; this is a
+            // knock-off/recovery state, not a launch-contract failure.
+            return true;
+        }
+
+        if (alphaNavigation
+            && edge.IsOg2Contact
+            && edge.Kind == NavEdgeKind.Jump
+            && landedBelowCompletion
+            && !edge.IsRuntimeResolved
+            && edgeTicks >= Math.Max(
+                AlphaLandedBelowCompletionRecoveryTicks,
+                edge.JumpTriggerTick + AlphaLandedBelowCompletionRecoveryTicks))
+        {
+            return true;
+        }
+
         return _edgePhase == EdgeExecutionPhase.None
-            && mode == GameModeKind.CaptureTheFlag
+            && (mode == GameModeKind.CaptureTheFlag || alphaNavigation)
             && edge.Kind == NavEdgeKind.Jump
             && edge.Completion.HasWindow
-            && _currentEdgeLandedAfterAirborne
+            && landedBelowCompletion
             && _currentEdgeJumpRequested
             && player.IsGrounded
             && player.ClassId is not PlayerClass.Soldier and not PlayerClass.Heavy
-            && !edge.Completion.Contains(player.X, player.Y)
-            && player.Y > edge.Completion.MaxY + LandedBelowCompletionVerticalSlack
             && edgeTicks >= Math.Max(0, ResolveMaximumEdgeTicks(edge) - LandedBelowCompletionFastFailSlackTicks);
+    }
+
+    private bool ShouldRequestEarlyContactRecovery(PlayerEntity player, NavEdge edge, int edgeTicks)
+    {
+        if (_stuckEscapePhase < 2
+            || edge.Kind != NavEdgeKind.Jump
+            || !edge.IsOg2Contact
+            || !edge.LaunchRecipe.HasRecipe
+            || edgeTicks < 30
+            || !player.IsGrounded)
+        {
+            return false;
+        }
+
+        // A grounded bot sitting inside the measured launch state may simply
+        // be waiting for its scheduled jump tick. Only recover early when it
+        // is both stuck and outside the launch/completion contracts.
+        return !edge.LaunchRecipe.ContainsLaunchState(player)
+            && !edge.Completion.Contains(player.X, player.Y);
     }
 
     private static bool ShouldFastFailGroundedWalkBelowTarget(PlayerEntity player, NavEdge edge, NavNode targetNode, int edgeTicks)
@@ -1169,6 +1771,73 @@ public sealed class SteeringMachine
             && player.ClassId is not PlayerClass.Soldier and not PlayerClass.Heavy
             && player.Y > targetNode.Y + GroundedWalkBelowTargetVerticalSlack
             && edgeTicks >= GroundedWalkBelowTargetFastFailTicks;
+    }
+
+    private static bool ShouldFastFailGroundedWalkBelowCompletion(
+        PlayerEntity player,
+        NavEdge edge,
+        int edgeTicks,
+        bool alphaNavigation)
+    {
+        // A missed OG2 jump can hand the path executor a grounded body on a
+        // lower surface while the next path entry is already a Walk relay on
+        // the upper surface. That relay's horizontal completion band is
+        // valid geometry, but it is not reachable from the body's actual
+        // landing. Keeping it alive makes the bot counter-steer against the
+        // stale relay for several seconds. Reattach from the live support
+        // after a short bounded grace period instead.
+        return alphaNavigation
+            && edge.Kind == NavEdgeKind.Walk
+            && edge.Completion.HasWindow
+            && player.IsGrounded
+            && player.Y > edge.Completion.MaxY + LandedBelowCompletionVerticalSlack
+            && edgeTicks >= 12;
+    }
+
+    private const int GroundedJumpBelowCompletionGraceTicks = 30;
+
+    private static bool ShouldFastFailGroundedJumpBelowCompletion(
+        PlayerEntity player,
+        NavEdge edge,
+        int edgeTicks,
+        bool alphaNavigation)
+    {
+        if (!alphaNavigation
+            || edge.Kind != NavEdgeKind.Jump
+            || !edge.Completion.HasWindow
+            || !player.IsGrounded
+            || player.Y <= edge.Completion.MaxY + LandedBelowCompletionVerticalSlack
+            || edgeTicks < 12)
+        {
+            return false;
+        }
+
+        if (edge.LaunchRecipe.HasRecipe
+            && edge.LaunchRecipe.StartGrounded
+            && player.IsGrounded)
+        {
+            // A grounded bot can be vertically below the eventual landing
+            // surface while it is still making the certified horizontal
+            // run-up. That is normal for long OG2 stair relays; treating it
+            // as a stale lower landing before the launch corridor is reached
+            // repaths the edge before its measured jump tick and creates the
+            // visible back/forth loop. Only the post-launch/near-launch case
+            // belongs to this fast-fail lane.
+            var launchDirection = MathF.Sign(edge.LaunchRecipe.ExpectedMoveDirectionX);
+            if (launchDirection > 0f
+                && player.X < edge.LaunchRecipe.LaunchMinX - JumpTriggerDistance)
+            {
+                return false;
+            }
+
+            if (launchDirection < 0f
+                && player.X > edge.LaunchRecipe.LaunchMaxX + JumpTriggerDistance)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static string ResolveEdgeFailureReason(PlayerEntity player, NavEdge edge, float targetDistance)
@@ -1215,8 +1884,19 @@ public sealed class SteeringMachine
             // A measured contact includes a grounded run-up before the jump.
             // Runtime entry can inherit different momentum and spend part of
             // the edge reacquiring its launch state, so probe duration alone
-            // is not a valid watchdog. Keep the bound finite, but allow the
-            // full certified execution budget for late landings.
+            // is not a valid watchdog. A runtime-resolved contact may also
+            // legitimately touch an intermediate stair surface before the
+            // probe's completion tick, so give that measured horizon a small
+            // bounded handoff margin instead of applying the 72-tick legacy
+            // watchdog to it.
+            if (edge.IsRuntimeResolved && edge.ProbeTicks > 0)
+            {
+                return Math.Clamp(
+                    Math.Max(MinimumRuntimeResolvedEdgeTicks, edge.ProbeTicks + RuntimeResolvedEdgeSlackTicks),
+                    MinimumRuntimeResolvedEdgeTicks,
+                    MaximumRuntimeResolvedEdgeTicks);
+            }
+
             return MaximumCertifiedEdgeTicks;
         }
 
@@ -1250,6 +1930,7 @@ public sealed class SteeringMachine
         bool isOg2Contact,
         bool isRuntimeResolved,
         bool holdContactLanding,
+        bool allowLocalObstacleProbing,
         NavEdgeLaunchRecipe launchRecipe,
         ref SteeringOutput output)
     {
@@ -1328,6 +2009,9 @@ public sealed class SteeringMachine
                         : edgeTicks >= jumpTriggerTick
                             || measuredContactLaunchWindow
                             || (jumpTriggerTick <= 0 && recipeReady);
+                var obstacleJumpReady = allowLocalObstacleProbing
+                    && (IsApproachingCliff(player, level, team, moveDir)
+                        || WouldHitWall(player, level, team, moveDir));
                 if (jumpTimingSatisfied
                     && (isRuntimeResolved || recipeReady || runupSatisfied)
                     && (isRuntimeResolved || recipeReady
@@ -1335,8 +2019,7 @@ public sealed class SteeringMachine
                             && (MathF.Abs(dx) <= JumpTriggerDistance
                                 || dy <= TargetAboveJumpThreshold
                                 || dy >= -TargetAboveJumpThreshold
-                                || IsApproachingCliff(player, level, team, moveDir)
-                                || WouldHitWall(player, level, team, moveDir)))))
+                                || obstacleJumpReady))))
                 {
                     output.Jump = true;
                 }
@@ -1356,14 +2039,16 @@ public sealed class SteeringMachine
 
             default:
                 output.MoveDirection = moveDir;
-                var jumpableObstacleAhead = !isOg2Contact
+                var jumpableObstacleAhead = allowLocalObstacleProbing
+                    && !isOg2Contact
                     && IsJumpableObstacleAhead(player, level, team, moveDir);
                 if (assistSemanticWalkClimb && edgeTicks >= 0)
                 {
                     output.Jump = true;
                 }
 
-                if (!isOg2Contact
+                if (allowLocalObstacleProbing
+                    && !isOg2Contact
                     && (jumpableObstacleAhead
                     || (WouldHitWall(player, level, team, moveDir) && dy <= TargetAboveJumpThreshold))
                     )
@@ -1371,7 +2056,8 @@ public sealed class SteeringMachine
                     output.Jump = true;
                 }
 
-                if (!isOg2Contact
+                if (allowLocalObstacleProbing
+                    && !isOg2Contact
                     && dy <= TargetAboveJumpThreshold
                     && IsApproachingCliff(player, level, team, moveDir))
                 {
@@ -1388,6 +2074,63 @@ public sealed class SteeringMachine
         && player.IsGrounded
         && player.Y > edge.Completion.MaxY + LandedBelowCompletionVerticalSlack;
 
+    private bool ShouldCounterSteerForNextContact(
+        PlayerEntity player,
+        NavGraph graph,
+        NavPath path,
+        NavEdge edge,
+        bool currentEdgeCompletionSatisfied)
+    {
+        if (!edge.IsRuntimeResolved
+            || !edge.IsOg2Contact
+            || edge.Kind != NavEdgeKind.Jump
+            || player.IsGrounded
+            || !_currentEdgeLandedAfterAirborne
+            || path.CurrentIndex + 1 >= path.Count
+            || !path.TryGetIncomingEdge(path.CurrentIndex + 1, out var nextEdge)
+            || !nextEdge.IsOg2Contact
+            || nextEdge.Kind != NavEdgeKind.Jump
+            || !nextEdge.LaunchRecipe.HasRecipe
+            || edge.ProbeMoveDirectionX == 0f
+            || !_currentEdgeCompletionSatisfiedGrounded
+            || !currentEdgeCompletionSatisfied
+            // The observed non-composable handoff is the leftward OG2 stair
+            // chain: its landing surface ends immediately behind the launch
+            // band, so inherited leftward momentum carries the bot off before
+            // the next grounded resolver can sample it. Rightward chains have
+            // enough platform runway and must retain their certified landing
+            // control; do not apply this recovery to them speculatively.
+            || edge.ProbeMoveDirectionX > 0f
+            || nextEdge.LaunchRecipe.ExpectedMoveDirectionX == 0f
+            || MathF.Sign(nextEdge.LaunchRecipe.ExpectedMoveDirectionX)
+                != MathF.Sign(edge.ProbeMoveDirectionX)
+            // Do not counter-steer while the current contact is still
+            // outside its landing band. The earlier wider handoff margin
+            // could reverse a leftward jump before it reached the target
+            // surface, especially on Heavy's longer central stair relay.
+            || player.X < edge.Completion.MinX - 8f
+            || player.X > edge.Completion.MaxX + 8f
+            || player.Y < edge.Completion.MinY - 48f
+            || player.Y > edge.Completion.MaxY + 24f)
+        {
+            return false;
+        }
+
+        var nextLaunchCenterX =
+            (nextEdge.LaunchRecipe.LaunchMinX + nextEdge.LaunchRecipe.LaunchMaxX) * 0.5f;
+        if (MathF.Abs(player.X - nextLaunchCenterX) > 48f)
+        {
+            return false;
+        }
+
+        var nextDirection = MathF.Sign(nextEdge.LaunchRecipe.ExpectedMoveDirectionX);
+        var speedInNextDirection = player.HorizontalSpeed * nextDirection;
+        var maximumLaunchSpeed = MathF.Max(
+            MathF.Abs(nextEdge.LaunchRecipe.LaunchMinHorizontalSpeed),
+            MathF.Abs(nextEdge.LaunchRecipe.LaunchMaxHorizontalSpeed));
+        return speedInNextDirection > maximumLaunchSpeed;
+    }
+
     private static void SteerAirborne(
         PlayerEntity player,
         NavEdgeKind edgeKind,
@@ -1395,21 +2138,48 @@ public sealed class SteeringMachine
         float dx,
         float dy,
         bool isOg2Contact,
+        bool isRuntimeResolved,
+        bool useSteeringDx,
         float probeMoveDirectionX,
         int jumpTriggerTick,
         int edgeTicks,
+        bool currentEdgeJumpRequested,
         NavEdgeLaunchRecipe launchRecipe,
         ref SteeringOutput output)
     {
-        output.MoveDirection = isOg2Contact && probeMoveDirectionX != 0f
+        output.MoveDirection = useSteeringDx
+            ? GetMoveDirection(dx)
+            : isOg2Contact && probeMoveDirectionX != 0f
             ? MathF.Sign(probeMoveDirectionX)
             : GetMoveDirection(dx);
+
+        if (isOg2Contact
+            && edgeKind == NavEdgeKind.Jump
+            && launchRecipe.HasRecipe
+            && launchRecipe.StartGrounded
+            && !isRuntimeResolved)
+        {
+            // Before a grounded-start contact has been runtime-resolved, an
+            // airborne handoff is a recovery phase rather than the jump
+            // itself. Once the jump pulse has actually been requested,
+            // however, this is the contact's real flight phase and the
+            // measured direction must remain authoritative; waypoint-delta
+            // steering can reverse after the body crosses the nominal target
+            // X and create a visible route oscillation.
+            output.MoveDirection = currentEdgeJumpRequested
+                ? completion.HasWindow
+                    ? GetMoveDirection(
+                        ((completion.MinX + completion.MaxX) * 0.5f) - player.X)
+                    : GetMoveDirection(dx)
+                : GetMoveDirection(dx);
+        }
 
         // Runtime contact proof may select a class-specific horizontal control
         // schedule. Match the probe after the launch input has been consumed;
         // otherwise a faster class can invalidate the successful landing by
         // continuing to hold the approach direction through the air.
-        if (isOg2Contact
+        if (isRuntimeResolved
+            && isOg2Contact
             && edgeKind == NavEdgeKind.Jump
             && launchRecipe.HasRecipe
             && launchRecipe.AirControlMode != NavEdgeAirControlMode.HoldDirection
@@ -1535,6 +2305,41 @@ public sealed class SteeringMachine
         {
             output.Jump = true;
         }
+    }
+
+    private void ApplyPressedWalkBlockerRepath(
+        PlayerEntity player,
+        SimpleLevel level,
+        PlayerTeam team,
+        NavPath path,
+        NavEdge currentEdge,
+        int edgeTicks,
+        bool allowJumpableObstacleEscape,
+        ref SteeringOutput output)
+    {
+        if (!player.IsGrounded
+            || output.MoveDirection == 0f
+            || player.CanOccupy(level, team, player.X + (output.MoveDirection * 4f), player.Y)
+            || (allowJumpableObstacleEscape
+                && IsJumpableObstacleAhead(player, level, team, output.MoveDirection)))
+        {
+            return;
+        }
+
+        _pressedBlockerTicks += 1;
+        if (_pressedBlockerTicks < PressedBlockerRepathTicks)
+        {
+            return;
+        }
+
+        output.RequestRepath = true;
+        output.FailedEdge = new SteeringFailedEdge(
+            HasFailure: true,
+            FromNode: path.GetWaypoint(path.CurrentIndex - 1),
+            ToNode: path.CurrentNode,
+            Kind: currentEdge.Kind,
+            EdgeTicks: edgeTicks,
+            Reason: "walk_blocked");
     }
 
     private void ApplyJumpPulse(ref SteeringOutput output, bool fastRetry)
