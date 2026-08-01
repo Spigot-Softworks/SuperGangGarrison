@@ -303,7 +303,11 @@ public partial class Game1
                             // Character position is where the character's origin is placed
                             var weaponX = characterPosition.X + ((weaponDefinition.XOffset + weaponAnchorOrigin.X) * facingScale * characterScale.X);
                             var weaponY = characterPosition.Y + ((weaponDefinition.YOffset + weaponAnchorOrigin.Y) * characterScale.Y);
-                            
+                            if (localPlayer.IsSniperBowEquipped)
+                            {
+                                weaponX += PlayerEntity.SniperBowWeaponVisualForwardOffsetX * facingScale * characterScale.X;
+                            }
+
                             var weaponPosition = new Vector2(weaponX, weaponY);
                             var weaponScale = new Vector2(facingScale * characterScale.X, characterScale.Y);
                             var weaponFrameIndex = _game._gameplayWeaponRenderController.GetWeaponSpriteFrameIndex(

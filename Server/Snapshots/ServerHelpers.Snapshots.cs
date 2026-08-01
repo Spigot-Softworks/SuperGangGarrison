@@ -437,7 +437,8 @@ internal static partial class ServerHelpers
             shot.IsCritical,
             shot is MedicHealNeedleProjectileEntity,
             isArrow,
-            isArrow ? ((ArrowProjectileEntity)shot).FakeSpeedMultiplier : 1f);
+            isArrow ? ((ArrowProjectileEntity)shot).FakeSpeedMultiplier : 1f,
+            isArrow && ((ArrowProjectileEntity)shot).IsLanded);
     }
 
     internal static SnapshotShotState ToSnapshotBubbleState(BubbleProjectileEntity bubble)

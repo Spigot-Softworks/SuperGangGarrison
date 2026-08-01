@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Diagnostics;
+using OpenGarrison.ClientShared;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
@@ -387,7 +388,17 @@ public partial class Game1
         var screenPosition = new Vector2(aimWorldPosition.X - cameraPosition.X, aimWorldPosition.Y - cameraPosition.Y);
         var frameIndex = trackedPlayer.Team == PlayerTeam.Blue ? 1 : 0;
         frameIndex = Math.Clamp(frameIndex, 0, crosshairSprite.Frames.Count - 1);
-        DrawLoadedSpriteFrame(crosshairSprite.Frames[frameIndex], screenPosition, null, Color.White, 0f, crosshairSprite.Origin.ToVector2(), Vector2.One, SpriteEffects.None, 0f);
+        var cursorScale = ClientSettings.GetCursorScale(_cursorSizePercent);
+        DrawLoadedSpriteFrame(
+            crosshairSprite.Frames[frameIndex],
+            screenPosition,
+            null,
+            Color.White,
+            0f,
+            crosshairSprite.Origin.ToVector2(),
+            new Vector2(cursorScale, cursorScale),
+            SpriteEffects.None,
+            0f);
     }
 
     private void DrawGameplayModalOverlays(MouseState mouse, Vector2 cameraPosition)

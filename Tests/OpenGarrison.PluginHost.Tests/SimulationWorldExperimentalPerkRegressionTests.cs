@@ -19,6 +19,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     private static readonly MethodInfo ApplyExperimentalSentryPlayerHitMethod = GetRequiredNonPublicMethod("ApplyExperimentalSentryPlayerHit");
     private static readonly MethodInfo SpawnRocketMethod = GetRequiredNonPublicMethod("SpawnRocket");
     private static readonly MethodInfo SpawnShotMethod = GetRequiredNonPublicMethod("SpawnShot");
+    private static readonly MethodInfo SpawnArrowMethod = GetRequiredNonPublicMethod("SpawnArrow");
     private static readonly MethodInfo TryResolveExperimentalEngineerRocketTrackingDirectionMethod = GetRequiredNonPublicMethod("TryResolveExperimentalEngineerRocketTrackingDirection");
     private static readonly MethodInfo GetExperimentalSentryReloadTicksMethod = GetRequiredNonPublicMethod("GetExperimentalSentryReloadTicks");
     private static readonly MethodInfo GetExperimentalSentryIdleResetTicksMethod = GetRequiredNonPublicMethod("GetExperimentalSentryIdleResetTicks");
@@ -2391,6 +2392,79 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
+    public void SniperBowCanStartChargingWhileCarryingIntel()
+    {
+        var world = CreateJoinedSniperWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        PressSwapWeaponSpace(world);
+        ReleaseAllInput(world);
+
+        Assert.True(world.LocalPlayer.IsSniperBowEquipped);
+        Assert.True(world.ForceGiveEnemyIntelToLocalPlayer());
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 96f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+
+        Assert.True(world.LocalPlayer.IsCarryingIntel);
+        Assert.True(world.LocalPlayer.SniperBowChargeTicks > 0);
+    }
+
+    [Fact]
+    public void SniperArrowRemainsLandedAfterTerrainCollisionUntilItsLifetimeExpires()
+    {
+        var world = CreateJoinedSniperWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        SetArrowCollisionTestLevel(world);
+
+        SpawnArrowMethod.Invoke(
+            world,
+            [
+                world.LocalPlayer,
+                100f,
+                730f,
+                0f,
+                8f,
+                PlayerEntity.SniperBowMinDamage,
+                PlayerEntity.SniperBowMinFakeSpeedMultiplier,
+            ]);
+
+        var arrow = Assert.IsType<ArrowProjectileEntity>(Assert.Single(world.Needles));
+        var lifetimeBeforeCollision = arrow.TicksRemaining;
+
+        AdvanceTicks(world, 1);
+
+        Assert.Same(arrow, Assert.Single(world.Needles));
+        Assert.True(arrow.IsLanded);
+        Assert.True(arrow.TicksRemaining < lifetimeBeforeCollision);
+        Assert.Contains(world.PendingVisualEvents, static visualEvent => visualEvent.EffectName == "StuckArrow");
+
+        var landedX = arrow.X;
+        var landedY = arrow.Y;
+        var landedLifetime = arrow.TicksRemaining;
+        AdvanceTicks(world, 5);
+
+        Assert.Equal(landedX, arrow.X);
+        Assert.Equal(landedY, arrow.Y);
+        Assert.True(arrow.TicksRemaining < landedLifetime);
+
+        AdvanceTicks(world, arrow.TicksRemaining);
+
+        Assert.DoesNotContain(arrow, world.Needles);
+    }
+
+    [Fact]
     public void NetworkSniperSwapWeaponInputCanToggleBowAndBackToRifle()
     {
         var world = CreateJoinedSniperWorld(new ExperimentalGameplaySettings());
@@ -3347,6 +3421,34 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
                     roomObjects: [],
                     floorY: 768f,
                     solids: [],
+                    importedFromSource: false),
+            ]);
+    }
+
+    private static void SetArrowCollisionTestLevel(SimulationWorld world)
+    {
+        CombatTestSetLevelMethod.Invoke(
+            world,
+            [
+                new SimpleLevel(
+                    name: "experimental_arrow_collision_test",
+                    mode: GameModeKind.CaptureTheFlag,
+                    bounds: new WorldBounds(1024f, 768f),
+                    mapScale: 1f,
+                    backgroundAssetName: null,
+                    mapAreaIndex: 1,
+                    mapAreaCount: 1,
+                    localSpawn: new SpawnPoint(100f, 100f),
+                    redSpawns: [new SpawnPoint(100f, 100f)],
+                    blueSpawns: [new SpawnPoint(900f, 100f)],
+                    intelBases:
+                    [
+                        new IntelBaseMarker(PlayerTeam.Red, 100f, 100f),
+                        new IntelBaseMarker(PlayerTeam.Blue, 900f, 100f),
+                    ],
+                    roomObjects: [],
+                    floorY: 768f,
+                    solids: [new LevelSolid(0f, 768f, 1024f, 792f)],
                     importedFromSource: false),
             ]);
     }

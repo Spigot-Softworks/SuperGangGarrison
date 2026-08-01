@@ -11,6 +11,7 @@ public sealed partial class GameplayRuntimeRegistry
     private readonly Dictionary<string, string> _classOwningModPackIds = new(StringComparer.Ordinal);
     private readonly Dictionary<PlayerClass, GameplayClassRuntimeBinding> _classBindings = new();
     private readonly Dictionary<string, GameplayClassRuntimeBinding> _classBindingsByClassId = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, CharacterClassDefinition> _characterClassDefinitionCache = new(StringComparer.Ordinal);
     private readonly Dictionary<string, GameplayPrimaryWeaponRuntimeBinding> _primaryWeaponBindingsByBehaviorId = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IGameplayAbilityExecutor> _abilityExecutorsById = new(StringComparer.Ordinal);
     private bool _abilityDefinitionsSealed;
@@ -163,6 +164,8 @@ public sealed partial class GameplayRuntimeRegistry
                 _classBindings[classBinding.PlayerClass] = classBinding;
             }
         }
+
+        _characterClassDefinitionCache.Clear();
 
         return true;
     }
@@ -696,6 +699,7 @@ public sealed partial class GameplayRuntimeRegistry
 
     private void AddRuntimeItem(string modPackId, GameplayItemDefinition item)
     {
+        _characterClassDefinitionCache.Clear();
         _items[item.Id] = item;
         _itemOwningModPackIds[item.Id] = modPackId;
         if (!_modPacks.TryGetValue(modPackId, out var modPack))
@@ -900,13 +904,18 @@ public sealed partial class GameplayRuntimeRegistry
 
     private CharacterClassDefinition CreateCharacterClassDefinition(GameplayClassRuntimeBinding binding)
     {
+        if (_characterClassDefinitionCache.TryGetValue(binding.ClassId, out var cachedDefinition))
+        {
+            return cachedDefinition;
+        }
+
         var gameplayClass = GetRequiredClass(binding.ClassId);
         var movement = gameplayClass.Movement;
         var primaryWeapon = CreatePrimaryWeaponDefinition(GetPrimaryItem(binding.ClassId));
         var width = movement.CollisionRight - movement.CollisionLeft;
         var height = movement.CollisionBottom - movement.CollisionTop;
 
-        return new CharacterClassDefinition(
+        var definition = new CharacterClassDefinition(
             Id: binding.PlayerClass,
             DisplayName: gameplayClass.DisplayName,
             PrimaryWeapon: primaryWeapon,
@@ -929,6 +938,8 @@ public sealed partial class GameplayRuntimeRegistry
             GameplayClassId: binding.ClassId,
             GameplayModPackId: binding.ModPackId,
             BotGraphClassId: binding.BotGraphPlayerClass);
+        _characterClassDefinitionCache[binding.ClassId] = definition;
+        return definition;
     }
 
     private PrimaryWeaponKind ResolvePrimaryWeaponKind(string behaviorId)
@@ -1091,6 +1102,7 @@ public sealed partial class GameplayRuntimeRegistry
 
     private void AddLoadoutToClass(string classId, GameplayClassDefinition gameplayClass, GameplayClassLoadoutDefinition loadout)
     {
+        _characterClassDefinitionCache.Clear();
         var loadouts = gameplayClass.Loadouts.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal);
         loadouts[loadout.Id] = loadout;
         _classes[classId] = gameplayClass with { Loadouts = loadouts };

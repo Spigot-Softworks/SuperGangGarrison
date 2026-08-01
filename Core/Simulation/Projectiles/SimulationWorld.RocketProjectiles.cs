@@ -561,7 +561,7 @@ public sealed partial class SimulationWorld
             out float right,
             out float bottom)
         {
-            GetPlayerPresentationHitBounds(world, player, out left, out top, out right, out bottom);
+            world.GetCachedPlayerPresentationHitBounds(player, out left, out top, out right, out bottom);
         }
 
         private static bool TryGetRocketPlayerSpriteMaskBounds(

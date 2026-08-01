@@ -102,6 +102,14 @@ public sealed class VerifiedNavBuildOptions
 
     public float SurfaceEndpointInset { get; init; } = 8f;
 
+    // A bot can be grounded on a small, valid OG2 overhang while setting up
+    // a jump. These points are kept as launch surfaces only when the probe
+    // confirms the actual collision/support state; they are not inferred from
+    // raw rectangle dimensions.
+    public float EdgeLaunchProbeWidth { get; init; } = 16f;
+
+    public float MinimumLaunchSurfaceWidth { get; init; } = 2f;
+
     public float SameSurfaceMaxEdgeLength { get; init; } = 240f;
 
     public float DropHorizontalReach { get; init; } = 144f;

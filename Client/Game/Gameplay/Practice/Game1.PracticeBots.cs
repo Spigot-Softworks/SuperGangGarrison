@@ -59,6 +59,7 @@ public partial class Game1
     private readonly List<byte> _practiceBotThinkSlotsBuffer = new();
     private readonly List<byte> _practiceBotRosterSlotsBuffer = new();
     private readonly List<byte> _practiceBotStaleSlotsBuffer = new();
+    private readonly List<byte> _practiceBotPerTickNavigationSlotsBuffer = new();
     private readonly List<ManualPracticeBotRequest> _manualPracticeBotRequests = new();
     private readonly PracticeBotDisplayNamePool _practiceBotDisplayNamePool = new();
     [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "Practice bots intentionally sit behind a controller seam so client and server bot plumbing can select different controller implementations.")]
@@ -73,6 +74,10 @@ public partial class Game1
         (PlayerClass.Medic, PlayerClass.Demoman),
     ];
     private int _practiceBotThinkTick;
+    // A render frame can advance several fixed simulation ticks after a
+    // transient stall. Allow the expensive brain pass once per render frame;
+    // catch-up ticks use the cached graph steering heartbeat below.
+    private bool _practiceBotExpensiveThinkAvailableThisAdvance;
     private int _practiceBotPerfSamples;
     private double _practiceBotPerfBuildInputTotalMilliseconds;
     private double _practiceBotPerfBuildInputMaxMilliseconds;
@@ -702,7 +707,9 @@ public partial class Game1
             return;
         }
 
-        var collectDiagnostics = ClientPerformanceTestEnabled || _botDiagnosticsEnabled || (_navEditorEnabled && _navEditorShowBotTags);
+        var collectDiagnostics = (ClientPerformanceTestEnabled && ClientPerformanceBotDiagnosticsEnabled)
+            || _botDiagnosticsEnabled
+            || (_navEditorEnabled && _navEditorShowBotTags);
         _practiceBotController.CollectDiagnostics = collectDiagnostics;
         if (_practiceBotSlots.Count == 0)
         {
@@ -717,7 +724,9 @@ public partial class Game1
         var diagnosticsStartTimestamp = _botDiagnosticsEnabled ? Stopwatch.GetTimestamp() : 0L;
         var controlledSlots = BuildControlledPracticeBotSlots();
         var buildInputsStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
-        var inputsBySlot = GetPracticeBotInputs(controlledSlots);
+        var allowExpensiveThink = _practiceBotExpensiveThinkAvailableThisAdvance;
+        _practiceBotExpensiveThinkAvailableThisAdvance = false;
+        var inputsBySlot = GetPracticeBotInputs(controlledSlots, allowExpensiveThink);
         var buildInputsMilliseconds = GetDiagnosticsElapsedMilliseconds(buildInputsStartTimestamp);
         var setInputsStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
         foreach (var entry in controlledSlots)
@@ -739,18 +748,103 @@ public partial class Game1
     }
 
     private IReadOnlyDictionary<byte, PlayerInputSnapshot> GetPracticeBotInputs(
-        Dictionary<byte, ControlledBotSlot> controlledSlots)
+        Dictionary<byte, ControlledBotSlot> controlledSlots,
+        bool allowExpensiveThink)
     {
         _practiceBotThinkTick += 1;
         SyncPracticeBotInputCacheRoster(controlledSlots);
-        var slotsToThink = SelectPracticeBotThinkSlots(controlledSlots);
+        IReadOnlyCollection<byte> slotsToThink;
+        if (allowExpensiveThink)
+        {
+            slotsToThink = SelectPracticeBotThinkSlots(controlledSlots);
+        }
+        else
+        {
+            _practiceBotThinkSlotsBuffer.Clear();
+            slotsToThink = Array.Empty<byte>();
+        }
         if (slotsToThink.Count == 0)
         {
-            return _practiceBotInputCache;
+            _practiceBotStaleSlotsBuffer.Clear();
+            foreach (var slot in controlledSlots.Keys)
+            {
+                _practiceBotStaleSlotsBuffer.Add(slot);
+            }
+
+            return ApplyCachedPracticeBotNavigationInputs(
+                controlledSlots,
+                _practiceBotStaleSlotsBuffer,
+                advanceOnlyPerTickNavigation: !allowExpensiveThink);
         }
 
         var refreshedInputs = _practiceBotController.BuildInputsForSlots(_world, controlledSlots, slotsToThink);
         ApplyPracticeBotInputRefresh(controlledSlots, refreshedInputs);
+
+        // Full brain thinking is intentionally batched, but an active graph
+        // edge still has physics-tick state on the normal first tick. On an
+        // additional catch-up tick, ordinary routes reuse their already-built
+        // input; only a runtime-certified contact is advanced again because
+        // its launch schedule is explicitly measured in physics ticks.
+        _practiceBotStaleSlotsBuffer.Clear();
+        foreach (var slot in controlledSlots.Keys)
+        {
+            if (!_practiceBotThinkSlotsBuffer.Contains(slot))
+            {
+                _practiceBotStaleSlotsBuffer.Add(slot);
+            }
+        }
+
+        return ApplyCachedPracticeBotNavigationInputs(
+            controlledSlots,
+            _practiceBotStaleSlotsBuffer,
+            advanceOnlyPerTickNavigation: false);
+    }
+
+    private IReadOnlyDictionary<byte, PlayerInputSnapshot> ApplyCachedPracticeBotNavigationInputs(
+        Dictionary<byte, ControlledBotSlot> controlledSlots,
+        IReadOnlyCollection<byte> staleSlots,
+        bool advanceOnlyPerTickNavigation)
+    {
+        if (advanceOnlyPerTickNavigation)
+        {
+            _practiceBotPerTickNavigationSlotsBuffer.Clear();
+            foreach (var slot in staleSlots)
+            {
+                if (_practiceBotController.RequiresPerTickNavigationThink(slot))
+                {
+                    _practiceBotPerTickNavigationSlotsBuffer.Add(slot);
+                }
+            }
+
+            staleSlots = _practiceBotPerTickNavigationSlotsBuffer;
+        }
+
+        if (staleSlots.Count == 0)
+        {
+            return _practiceBotInputCache;
+        }
+
+        var cachedNavigationInputs = _practiceBotController.AdvanceCachedNavigationForSlots(
+            _world,
+            controlledSlots,
+            staleSlots,
+            _practiceBotInputCache);
+        foreach (var entry in cachedNavigationInputs)
+        {
+            if (!_practiceBotInputCache.TryGetValue(entry.Key, out var cachedInput))
+            {
+                continue;
+            }
+
+            _practiceBotInputCache[entry.Key] = cachedInput with
+            {
+                Left = entry.Value.Left,
+                Right = entry.Value.Right,
+                Up = entry.Value.Up,
+                Down = entry.Value.Down,
+            };
+        }
+
         return _practiceBotInputCache;
     }
 
@@ -793,12 +887,12 @@ public partial class Game1
             };
         }
 
-        return controlledBotCount switch
-        {
-            >= 8 => PracticeBotThinkBatchSizeLargeRoster,
-            >= 4 => PracticeBotThinkBatchSizeMediumRoster,
-            _ => PracticeBotThinkBatchSizeSmallRoster,
-        };
+        // Native practice sessions have a real thread pool and do not need to
+        // trade away 0.2+ seconds of decision latency to protect the browser's
+        // single-threaded frame budget. Running the complete roster here keeps
+        // combat, objective transitions, and route recovery in one time domain;
+        // the graph/A* layers are already cooldown-gated and cache-backed.
+        return controlledBotCount;
     }
 
     private List<byte> SelectPracticeBotThinkSlots(IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots)
@@ -824,6 +918,21 @@ public partial class Game1
         {
             var slotIndex = (startIndex + batchIndex) % _practiceBotRosterSlotsBuffer.Count;
             _practiceBotThinkSlotsBuffer.Add(_practiceBotRosterSlotsBuffer[slotIndex]);
+        }
+
+        // Ordinary navigation can use the roster batch above. A runtime-certified
+        // OG2 contact is different: its launch recipe is measured in physics ticks,
+        // while the cached input continues to be applied between brain updates.
+        // Think those bots every update until the contact finishes so the live input
+        // schedule stays in the same time domain as the probe that certified it.
+        foreach (var slot in _practiceBotRosterSlotsBuffer)
+        {
+            if ((_practiceBotController.RequiresPerTickNavigationThink(slot)
+                    || _practiceBotController.RequiresImmediateNavigationThink(slot))
+                && !_practiceBotThinkSlotsBuffer.Contains(slot))
+            {
+                _practiceBotThinkSlotsBuffer.Add(slot);
+            }
         }
 
         return _practiceBotThinkSlotsBuffer;

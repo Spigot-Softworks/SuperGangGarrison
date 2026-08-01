@@ -22,4 +22,15 @@ public interface IPracticeBotController
         SimulationWorld world,
         IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots,
         IReadOnlyCollection<byte> slotsToThink);
+
+    IReadOnlyDictionary<byte, PlayerInputSnapshot> AdvanceCachedNavigationForSlots(
+        SimulationWorld world,
+        IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots,
+        IReadOnlyCollection<byte> slotsToAdvance,
+        IReadOnlyDictionary<byte, PlayerInputSnapshot> cachedInputs) =>
+        new Dictionary<byte, PlayerInputSnapshot>();
+
+    bool RequiresPerTickNavigationThink(byte slot) => false;
+
+    bool RequiresImmediateNavigationThink(byte slot) => false;
 }

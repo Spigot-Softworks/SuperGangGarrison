@@ -95,6 +95,30 @@ public sealed partial class PlayerEntity
         return jumped;
     }
 
+    /// <summary>
+    /// Advances only the movement/collision portion of a navigation probe.
+    /// Runtime OG2 contact validation does not need weapon, ability, aim, or
+    /// status-effect simulation; running those systems for every candidate
+    /// jump schedule can monopolize the live simulation thread.
+    /// </summary>
+    public bool AdvanceNavigationProbe(
+        PlayerInputSnapshot input,
+        bool jumpPressed,
+        SimpleLevel level,
+        PlayerTeam team,
+        double deltaSeconds)
+    {
+        if (!IsAlive)
+        {
+            return false;
+        }
+
+        var startedGrounded = PrepareMovement(input, level, team, deltaSeconds, out var canMove);
+        var jumped = TryJumpIfPossible(canMove, jumpPressed);
+        CompleteMovement(level, team, deltaSeconds, startedGrounded, jumped, input.Down);
+        return jumped;
+    }
+
     public AfterburnTickResult AdvanceTickState(PlayerInputSnapshot input, double deltaSeconds)
     {
         var dt = (float)deltaSeconds;
@@ -389,6 +413,7 @@ public sealed partial class PlayerEntity
             CivviePogoPendingImpactFallSpeed = VerticalSpeed;
         }
 
+        BeginMovementCollisionDiagnostics();
         MoveWithCollisions(level, team, HorizontalSpeed * dt, VerticalSpeed * dt, allowDropdownFallThrough);
         if (gravityPerTick > 0f && CanOccupy(level, team, X, Y + 1f))
         {
@@ -477,6 +502,11 @@ public sealed partial class PlayerEntity
             iteration < MaxCollisionResolutionIterations && (MathF.Abs(remainingX) > CollisionResolutionEpsilon || MathF.Abs(remainingY) > CollisionResolutionEpsilon);
             iteration += 1)
         {
+            if (MovementCollisionDiagnosticsEnabled)
+            {
+                _movementCollisionResolutionIterations += 1;
+            }
+
             var previousX = X;
             var previousY = Y;
             MoveContact(level, team, remainingX, remainingY);

@@ -115,6 +115,7 @@ public static partial class ProtocolCodec
             if (shot.IsArrow)
             {
                 writer.Write(shot.ArrowFakeSpeedMultiplier);
+                writer.Write(shot.IsLanded);
             }
         }
     }
@@ -139,6 +140,7 @@ public static partial class ProtocolCodec
             var arrowFakeSpeedMultiplier = isArrow
                 ? reader.ReadSingle()
                 : 1f;
+            var isLanded = isArrow && reader.ReadBoolean();
             shots.Add(new SnapshotShotState(
                 id,
                 team,
@@ -151,7 +153,8 @@ public static partial class ProtocolCodec
                 isCritical,
                 isMedicHealNeedle,
                 isArrow,
-                arrowFakeSpeedMultiplier));
+                arrowFakeSpeedMultiplier,
+                isLanded));
         }
 
         return shots;

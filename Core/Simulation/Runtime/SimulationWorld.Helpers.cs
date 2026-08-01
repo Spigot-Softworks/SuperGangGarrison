@@ -260,6 +260,7 @@ public sealed partial class SimulationWorld
             }
         }
 
+        arrow.Land(freezeX, freezeY, directionX, directionY);
         var directionDegrees = MathF.Atan2(directionY, directionX) * (180f / MathF.PI);
         // Count encodes the ArrowS team frame: Red=1, Blue=2 (matches PlayerTeam values).
         RegisterVisualEffect("StuckArrow", freezeX, freezeY, directionDegrees, count: (int)arrow.Team);

@@ -509,16 +509,19 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            if (!HasMedicHealingLineOfSight(medic, player))
-            {
-                continue;
-            }
-
             var mouseDistance = DistanceBetween(player.X, player.Y, aimWorldX, aimWorldY);
             var targetScore = mouseDistance <= maxMouseSelectDistance
                 ? 3f - (mouseDistance / maxMouseSelectDistance)
                 : 1f - (healDistance / maxDistance);
             if (targetScore < bestScore)
+            {
+                // LOS cannot make a lower-scoring candidate win. Defer the
+                // expensive four-ray check until the candidate can actually
+                // replace the current target; selection semantics are unchanged.
+                continue;
+            }
+
+            if (!HasMedicHealingLineOfSight(medic, player))
             {
                 continue;
             }

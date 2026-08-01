@@ -14,6 +14,7 @@ public sealed class LocalMotionController
     private const int DropHoldTicks = 8;
     private const int ProgressWindowTicks = 30;
     private const int SuppressionTicks = 90;
+    private const int ProbeRetryCooldownTicks = 12;
     private const int MaxStagnantWindows = 2;
     private const int MaxProbePlansPerWorldFrame = 1;
     private const float ProgressWindowMinMovement = 10f;
@@ -28,6 +29,7 @@ public sealed class LocalMotionController
 
     private static readonly ConditionalWeakTable<SimulationWorld, LocalMotionProbeBudgetState> ProbeBudgets = new();
     private readonly Dictionary<LocalMotionFailureKey, int> _suppressedTargets = [];
+    private readonly Dictionary<LocalMotionFailureKey, int> _probeRetryCooldowns = [];
 
     private LocalMotionPlan _activePlan;
     private LocalMotionFailureKey _activeKey;
@@ -45,8 +47,20 @@ public sealed class LocalMotionController
     public void Reset()
     {
         _suppressedTargets.Clear();
+        _probeRetryCooldowns.Clear();
         ClearActivePlan();
         LastTrace = string.Empty;
+    }
+
+    /// <summary>
+    /// Abandon only the currently committed local plan. Objective recovery
+    /// uses this when its caller has independently detected that the body has
+    /// made no progress; suppression/probe history remains intact for the
+    /// normal retry policy.
+    /// </summary>
+    public void AbortActivePlan()
+    {
+        ClearActivePlan();
     }
 
     public bool TryResolveRecovery(
@@ -64,23 +78,36 @@ public sealed class LocalMotionController
         trace = string.Empty;
 
         var key = LocalMotionFailureKey.From(world.Level, self, target);
+        var cacheProbeFailure = target.Kind != DirectDriveTargetKind.Enemy;
         if (_suppressedTargets.TryGetValue(key, out var suppressedTicks) && suppressedTicks > 0)
         {
-            if (TryConsumeProbeBudget(world, thinkTick)
-                && TryResolveProbePlan(world, self, target, baseSteering, thinkTick, "suppressed", out var suppressedPlan, out var suppressedTrace))
+            if ((!cacheProbeFailure || CanAttemptProbe(key))
+                && TryConsumeProbeBudget(world, thinkTick))
             {
-                if (!TryCommitPlan(self, target, key, suppressedPlan, thinkTick, out var commitFailureTrace))
+                if (TryResolveProbePlan(world, self, target, baseSteering, thinkTick, "suppressed", out var suppressedPlan, out var suppressedTrace))
                 {
-                    trace = commitFailureTrace;
+                    if (cacheProbeFailure)
+                    {
+                        _probeRetryCooldowns.Remove(key);
+                    }
+                    if (!TryCommitPlan(self, target, key, suppressedPlan, thinkTick, out var commitFailureTrace))
+                    {
+                        trace = commitFailureTrace;
+                        LastTrace = trace;
+                        localSteering = baseSteering;
+                        return false;
+                    }
+
+                    localSteering = ApplyPlan(baseSteering, suppressedPlan, thinkTick);
+                    trace = suppressedTrace;
                     LastTrace = trace;
-                    localSteering = baseSteering;
-                    return false;
+                    return true;
                 }
 
-                localSteering = ApplyPlan(baseSteering, suppressedPlan, thinkTick);
-                trace = suppressedTrace;
-                LastTrace = trace;
-                return true;
+                if (cacheProbeFailure)
+                {
+                    _probeRetryCooldowns[key] = ProbeRetryCooldownTicks;
+                }
             }
 
             if (TryResolveBlockedEscape(
@@ -127,21 +154,33 @@ public sealed class LocalMotionController
 
         if (!primitiveNeedsObstaclePlan
             && ShouldRunProbe(self, target, primitiveResolved, primitiveSteering, primitiveNeedsObstaclePlan)
-            && TryConsumeProbeBudget(world, thinkTick)
-            && TryResolveProbePlan(world, self, target, baseSteering, thinkTick, "probe", out var probePlan, out var probeTrace))
+            && (!cacheProbeFailure || CanAttemptProbe(key))
+            && TryConsumeProbeBudget(world, thinkTick))
         {
-            if (!TryCommitPlan(self, target, key, probePlan, thinkTick, out var commitFailureTrace))
+            if (TryResolveProbePlan(world, self, target, baseSteering, thinkTick, "probe", out var probePlan, out var probeTrace))
             {
-                trace = commitFailureTrace;
+                if (cacheProbeFailure)
+                {
+                    _probeRetryCooldowns.Remove(key);
+                }
+                if (!TryCommitPlan(self, target, key, probePlan, thinkTick, out var commitFailureTrace))
+                {
+                    trace = commitFailureTrace;
+                    LastTrace = trace;
+                    localSteering = baseSteering;
+                    return false;
+                }
+
+                localSteering = ApplyPlan(baseSteering, probePlan, thinkTick);
+                trace = probeTrace;
                 LastTrace = trace;
-                localSteering = baseSteering;
-                return false;
+                return true;
             }
 
-            localSteering = ApplyPlan(baseSteering, probePlan, thinkTick);
-            trace = probeTrace;
-            LastTrace = trace;
-            return true;
+            if (cacheProbeFailure)
+            {
+                _probeRetryCooldowns[key] = ProbeRetryCooldownTicks;
+            }
         }
 
         if (primitiveNeedsObstaclePlan)
@@ -544,7 +583,13 @@ public sealed class LocalMotionController
 
         var finalDistance = Distance(probe.X, probe.Y, target.X, target.Y);
         var progress = startDistance - bestDistance;
-        var accepted = finalDistance <= ProbeAcceptDistance || progress >= MathF.Max(ProbeMinimumProgress, startDistance * 0.06f);
+        var acceptsTerminalDistance = finalDistance <= ProbeAcceptDistance
+            && (target.Kind is DirectDriveTargetKind.Enemy
+                or DirectDriveTargetKind.Carrier
+                or DirectDriveTargetKind.Escort
+                || MathF.Abs(target.Y - probe.Y) <= 8f);
+        var accepted = acceptsTerminalDistance
+            || progress >= MathF.Max(ProbeMinimumProgress, startDistance * 0.06f);
         if (!accepted)
         {
             return false;
@@ -591,23 +636,26 @@ public sealed class LocalMotionController
 
     private void DecaySuppression()
     {
-        if (_suppressedTargets.Count == 0)
+        if (_suppressedTargets.Count == 0 && _probeRetryCooldowns.Count == 0)
         {
             return;
         }
 
-        var updates = new List<(LocalMotionFailureKey Key, int Ticks)>(_suppressedTargets.Count);
-        foreach (var (key, ticks) in _suppressedTargets)
+        DecayTicks(_suppressedTargets);
+        DecayTicks(_probeRetryCooldowns);
+    }
+
+    private static void DecayTicks(Dictionary<LocalMotionFailureKey, int> ticksByKey)
+    {
+        if (ticksByKey.Count == 0)
         {
-            var remaining = ticks - 1;
-            if (remaining <= 0)
-            {
-                updates.Add((key, 0));
-            }
-            else
-            {
-                updates.Add((key, remaining));
-            }
+            return;
+        }
+
+        var updates = new List<(LocalMotionFailureKey Key, int Ticks)>(ticksByKey.Count);
+        foreach (var (key, ticks) in ticksByKey)
+        {
+            updates.Add((key, ticks - 1));
         }
 
         for (var index = 0; index < updates.Count; index += 1)
@@ -615,14 +663,18 @@ public sealed class LocalMotionController
             var update = updates[index];
             if (update.Ticks <= 0)
             {
-                _suppressedTargets.Remove(update.Key);
+                ticksByKey.Remove(update.Key);
             }
             else
             {
-                _suppressedTargets[update.Key] = update.Ticks;
+                ticksByKey[update.Key] = update.Ticks;
             }
         }
     }
+
+    private bool CanAttemptProbe(LocalMotionFailureKey key) =>
+        !_probeRetryCooldowns.TryGetValue(key, out var remainingTicks)
+        || remainingTicks <= 0;
 
     private void ClearActivePlan()
     {

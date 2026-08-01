@@ -94,4 +94,14 @@ public sealed class NavPath
         _incomingEdges[index] = edge;
         return true;
     }
+
+    internal NavPath Clone()
+    {
+        var clone = new NavPath(
+            (int[])_waypoints.Clone(),
+            (NavEdge[])_incomingEdges.Clone(),
+            TotalCost);
+        clone._currentIndex = _currentIndex;
+        return clone;
+    }
 }

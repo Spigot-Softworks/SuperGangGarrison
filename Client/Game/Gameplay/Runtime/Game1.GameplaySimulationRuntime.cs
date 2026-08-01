@@ -35,6 +35,7 @@ public partial class Game1
                 return;
             }
 
+            _practiceBotExpensiveThinkAvailableThisAdvance = true;
             // Offline mode: disable client prediction (run full simulation)
             _simulator.World.ClientPredictionMode = false;
             BeginBotDiagnosticsFrame(gameTime);

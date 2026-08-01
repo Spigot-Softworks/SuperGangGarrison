@@ -239,7 +239,7 @@ public sealed partial class SimulationWorld
                 return null;
             }
 
-            GetPlayerPresentationHitBounds(world, player, out var left, out var top, out var right, out var bottom);
+            world.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
             return GetRayIntersectionDistanceWithRectangle(
                 originX,
                 originY,
@@ -380,7 +380,7 @@ public sealed partial class SimulationWorld
 
             var directionX = (endX - originX) / distance;
             var directionY = (endY - originY) / distance;
-            GetPlayerPresentationHitBounds(_world, player, out var left, out var top, out var right, out var bottom);
+            _world.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
             return GetThickRayIntersectionDistanceWithRectangle(
                 originX,
                 originY,

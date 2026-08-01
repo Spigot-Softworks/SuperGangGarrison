@@ -412,6 +412,11 @@ public sealed class ClientSettings
         return OpenGarrisonPreferencesDocument.NormalizeCursorSizePercent(cursorSizePercent);
     }
 
+    public static float GetCursorScale(int cursorSizePercent)
+    {
+        return NormalizeCursorSizePercent(cursorSizePercent) / (float)CursorSizeMinPercent;
+    }
+
     public static LowHealthColorMode NormalizeLowHealthColorMode(LowHealthColorMode mode)
     {
         return mode switch

@@ -24,20 +24,32 @@ public partial class Game1
 
     private string WarmPracticeBotBrainNavigationForCurrentLevel()
     {
-        if (!OperatingSystem.IsBrowser()
-            || _world.Level is null
-            || GetOfflineEnemyBotCount() + GetOfflineFriendlyBotCount() <= 0)
+        if (_world.Level is null)
         {
             return string.Empty;
         }
 
+        var warmTrace = Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_WARM_TRACE") is "1" or "true" or "TRUE";
+        if (warmTrace)
+        {
+            Console.WriteLine($"[botbrain] practice-warm-entry level={_world.Level.Name} bots={GetOfflineEnemyBotCount() + GetOfflineFriendlyBotCount()}");
+        }
+
         var stopwatch = Stopwatch.StartNew();
         var graphLoaded = BotNavigationAssetStore.TryLoadCachedGraph(_world.Level, out _);
+        var alphaGraph = Og2NavigationGraphStore.GetOrBuild(_world.Level);
+        var warmedAlphaPaths = alphaGraph.WarmAlphaObjectiveRoutes(_world.Level, GetEligiblePracticeBotClassCycle());
+        _world.WarmCombatSpatialIndices();
         var tapeLoaded = BotBrainObjectiveTapeStore.TryLoad(_world.Level, out _);
         var proofGraphCount = WarmPracticeBotBrainProofGraphsForCurrentLevel();
         stopwatch.Stop();
 
-        return $" botbrain-warmup graph={graphLoaded} tape={tapeLoaded} proofgraphs={proofGraphCount} elapsed={stopwatch.Elapsed.TotalMilliseconds:0.0}ms";
+        if (warmTrace)
+        {
+            Console.WriteLine($"[botbrain] practice-warm-result paths={warmedAlphaPaths} cache={alphaGraph.AlphaPathCacheCount} elapsedMs={stopwatch.Elapsed.TotalMilliseconds:0.0}");
+        }
+
+        return $" botbrain-warmup graph={graphLoaded} alphaNodes={alphaGraph.NodeCount} alphaPaths={warmedAlphaPaths} tape={tapeLoaded} proofgraphs={proofGraphCount} elapsed={stopwatch.Elapsed.TotalMilliseconds:0.0}ms";
     }
 
     private int WarmPracticeBotBrainProofGraphsForCurrentLevel()

@@ -1,10 +1,21 @@
 using OpenGarrison.GameplayModding;
 
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+
 namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
     private const int JumpInputBufferTicks = 4;
+    private static readonly bool SlowPlayerPhaseTracingEnabled =
+        Environment.GetEnvironmentVariable("OG_CLIENT_PERF_SIM_TRACE") is "1" or "true" or "TRUE";
+    private static readonly double SlowPlayerPhaseThresholdMilliseconds = ResolveSlowPlayerPhaseThresholdMilliseconds();
+    private static readonly string? SlowPlayerPhaseTracePath = SlowPlayerPhaseTracingEnabled
+        ? RuntimePaths.GetLogPath($"simulation-player-phases-{DateTime.Now.ToString("yyyyMMdd-HHmmssfff", CultureInfo.InvariantCulture)}.log")
+        : null;
+    private static readonly object SlowPlayerPhaseTraceSync = new();
 
     private void AdvanceAlivePlayerWithInput(
         PlayerEntity player,
@@ -15,6 +26,16 @@ public sealed partial class SimulationWorld
     {
         var preAdvanceX = player.X;
         var preAdvanceY = player.Y;
+        var phaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+        var advanceTickStateMilliseconds = 0d;
+        var primaryFireMilliseconds = 0d;
+        var prepareMovementMilliseconds = 0d;
+        var completeMovementMilliseconds = 0d;
+        var postMovementMilliseconds = 0d;
+        var postMovementContactEffectsMilliseconds = 0d;
+        var postMovementObjectiveEffectsMilliseconds = 0d;
+        var postMovementInventoryEffectsMilliseconds = 0d;
+        var postMovementPassiveAbilitiesMilliseconds = 0d;
         if (player.IsServerInputSuppressed)
         {
             input = input with
@@ -123,7 +144,9 @@ public sealed partial class SimulationWorld
         player.SyncCivviePogoSuperJumpInput(input.Up);
 
         var healthBeforeTick = player.Health;
+        var subphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
         var afterburn = player.AdvanceTickState(input, Config.FixedDeltaSeconds);
+        advanceTickStateMilliseconds = ElapsedMilliseconds(subphaseStartTimestamp);
         var afterburnDamageCommitted = false;
         if (healthBeforeTick > player.Health)
         {
@@ -183,7 +206,9 @@ public sealed partial class SimulationWorld
         }
 
         var wasSpyBackstabAnimating = player.IsSpyBackstabAnimating;
+        subphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
         TryHandleNetworkPrimaryFire(player, input, previousInput, primaryPressed, suppressPyroPrimaryThisTick);
+        primaryFireMilliseconds = ElapsedMilliseconds(subphaseStartTimestamp);
         if (!wasSpyBackstabAnimating && player.IsSpyBackstabAnimating)
         {
             input = ResetMovementInput(input);
@@ -222,7 +247,9 @@ public sealed partial class SimulationWorld
             ClearJumpInputBuffer(player);
         }
 
+        subphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
         var startedGrounded = player.PrepareMovement(input, Level, team, Config.FixedDeltaSeconds, out var canMove, isHumiliated);
+        prepareMovementMilliseconds = ElapsedMilliseconds(subphaseStartTimestamp);
         var effectiveJumpPressed = jumpPressed || HasBufferedJumpInput(player);
         var jumped = player.TryJumpIfPossible(canMove, effectiveJumpPressed);
         AdvanceJumpInputBufferAfterAttempt(player, input.Up, jumped);
@@ -295,21 +322,29 @@ public sealed partial class SimulationWorld
             RegisterWallspinDustEffect(player);
         }
 
+        subphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
         AdvancePendingRocketsForOwner(player.Id);
         var previousBottom = preAdvanceY + player.CollisionBottomOffset;
         player.CompleteMovement(Level, team, Config.FixedDeltaSeconds, startedGrounded, jumped, input.Down);
+        completeMovementMilliseconds = ElapsedMilliseconds(subphaseStartTimestamp);
         if (player.TryConsumeCivviePogoSuperJumpSoundRequest(out var pogoJumpSoundX, out var pogoJumpSoundY))
         {
             RegisterWorldSoundEvent("JumpSnd", pogoJumpSoundX, pogoJumpSoundY, player.Id);
         }
 
+        var postMovementSubphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
         ResolveMovingPlatformLanding(player, previousBottom, input.Down);
         HandleJumpPadTriggerContactEffects(player);
         TryRegisterIntelTrailEffect(player);
         TryRegisterCivvieMoneyTrail(player);
+        postMovementContactEffectsMilliseconds = ElapsedMilliseconds(postMovementSubphaseStartTimestamp);
+
+        postMovementSubphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
         UpdateSpawnRoomState(player);
         TryActivatePendingSpyBackstab(player);
+        postMovementObjectiveEffectsMilliseconds = ElapsedMilliseconds(postMovementSubphaseStartTimestamp);
 
+        postMovementSubphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
         if (dropPressed)
         {
             TryDropCarriedIntel(player);
@@ -327,17 +362,108 @@ public sealed partial class SimulationWorld
         ApplyHealingCabinets(player);
         ApplyRoomHazards(player);
         ApplyTeleportZones(player);
+        postMovementInventoryEffectsMilliseconds = ElapsedMilliseconds(postMovementSubphaseStartTimestamp);
         if (!player.IsAlive)
         {
             return;
         }
 
+        postMovementSubphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
         DispatchPassiveGameplayAbilities(player, input, previousInput, preAdvanceX, preAdvanceY);
+        postMovementPassiveAbilitiesMilliseconds = ElapsedMilliseconds(postMovementSubphaseStartTimestamp);
+
+        postMovementMilliseconds = ElapsedMilliseconds(phaseStartTimestamp)
+            - advanceTickStateMilliseconds
+            - primaryFireMilliseconds
+            - prepareMovementMilliseconds
+            - completeMovementMilliseconds;
+        TraceSlowPlayerPhases(
+            player,
+            phaseStartTimestamp,
+            advanceTickStateMilliseconds,
+            primaryFireMilliseconds,
+            prepareMovementMilliseconds,
+            completeMovementMilliseconds,
+            postMovementMilliseconds,
+            postMovementContactEffectsMilliseconds,
+            postMovementObjectiveEffectsMilliseconds,
+            postMovementInventoryEffectsMilliseconds,
+            postMovementPassiveAbilitiesMilliseconds,
+            player.MovementCollisionContactIterations,
+            player.MovementCollisionOccupyChecks,
+            player.MovementCollisionResolutionIterations);
 
         if (allowDebugKill && killPressed)
         {
             KillPlayer(player);
         }
+    }
+
+    private static double ResolveSlowPlayerPhaseThresholdMilliseconds()
+    {
+        var configured = Environment.GetEnvironmentVariable("OG_CLIENT_PERF_SIM_PLAYER_PHASE_TRACE_THRESHOLD_MS");
+        return double.TryParse(configured, NumberStyles.Float, CultureInfo.InvariantCulture, out var threshold)
+            ? Math.Max(0d, threshold)
+            : 10d;
+    }
+
+    private static double ElapsedMilliseconds(long startTimestamp)
+    {
+        return startTimestamp == 0L
+            ? 0d
+            : (Stopwatch.GetTimestamp() - startTimestamp) * 1000d / Stopwatch.Frequency;
+    }
+
+    private void TraceSlowPlayerPhases(
+        PlayerEntity player,
+        long startTimestamp,
+        double advanceTickStateMilliseconds,
+        double primaryFireMilliseconds,
+        double prepareMovementMilliseconds,
+        double completeMovementMilliseconds,
+        double postMovementMilliseconds,
+        double postMovementContactEffectsMilliseconds,
+        double postMovementObjectiveEffectsMilliseconds,
+        double postMovementInventoryEffectsMilliseconds,
+        double postMovementPassiveAbilitiesMilliseconds,
+        int movementCollisionContactIterations,
+        int movementCollisionOccupyChecks,
+        int movementCollisionResolutionIterations)
+    {
+        if (!SlowPlayerPhaseTracingEnabled
+            || startTimestamp == 0L
+            || string.IsNullOrWhiteSpace(SlowPlayerPhaseTracePath))
+        {
+            return;
+        }
+
+        var totalMilliseconds = ElapsedMilliseconds(startTimestamp);
+        if (totalMilliseconds < SlowPlayerPhaseThresholdMilliseconds)
+        {
+            return;
+        }
+
+        var line = string.Create(
+            CultureInfo.InvariantCulture,
+            $"{DateTime.Now:O} frame={Frame} slot={FindNetworkSlotForPlayer(player)} class={player.ClassId} totalMs={totalMilliseconds:0.0} advanceTickStateMs={advanceTickStateMilliseconds:0.0} primaryFireMs={primaryFireMilliseconds:0.0} prepareMovementMs={prepareMovementMilliseconds:0.0} completeMovementMs={completeMovementMilliseconds:0.0} postMovementMs={postMovementMilliseconds:0.0} postContactMs={postMovementContactEffectsMilliseconds:0.0} postObjectiveMs={postMovementObjectiveEffectsMilliseconds:0.0} postInventoryMs={postMovementInventoryEffectsMilliseconds:0.0} postPassiveMs={postMovementPassiveAbilitiesMilliseconds:0.0} collisionContactIterations={movementCollisionContactIterations} collisionOccupyChecks={movementCollisionOccupyChecks} collisionResolutionIterations={movementCollisionResolutionIterations}{Environment.NewLine}");
+        lock (SlowPlayerPhaseTraceSync)
+        {
+            File.AppendAllText(SlowPlayerPhaseTracePath, line);
+        }
+    }
+
+    private byte FindNetworkSlotForPlayer(PlayerEntity player)
+    {
+        for (var index = 0; index < NetworkPlayerSlots.Count; index += 1)
+        {
+            var slot = NetworkPlayerSlots[index];
+            if (TryGetNetworkPlayer(slot, out var networkPlayer) && networkPlayer.Id == player.Id)
+            {
+                return slot;
+            }
+        }
+
+        return byte.MaxValue;
     }
 
     private static bool TryCancelSpySuperjumpChargeFromJumpInput(PlayerEntity player, bool jumpPressed, bool useAbilityHeld)

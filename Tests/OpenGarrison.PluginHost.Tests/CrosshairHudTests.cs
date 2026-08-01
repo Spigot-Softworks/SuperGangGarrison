@@ -40,5 +40,16 @@ public sealed class CrosshairHudTests
         Assert.Equal(
             0,
             Game1.GetCrosshairFrameIndex(weapon, weapon.ReloadDelayTicks, 0));
+        Assert.Equal(
+            0,
+            Game1.GetContinuousCrosshairFrameIndex(1, weapon.ReloadDelayTicks));
+        Assert.True(
+            Game1.GetContinuousCrosshairFrameIndex(weapon.ReloadDelayTicks * 5, weapon.ReloadDelayTicks)
+                > Game1.GetContinuousCrosshairFrameIndex(1, weapon.ReloadDelayTicks));
+        Assert.Equal(
+            Game1.ContinuousCrosshairActiveFrameCount - 1,
+            Game1.GetContinuousCrosshairFrameIndex(
+                weapon.ReloadDelayTicks * Game1.ContinuousCrosshairFillCycles,
+                weapon.ReloadDelayTicks));
     }
 }

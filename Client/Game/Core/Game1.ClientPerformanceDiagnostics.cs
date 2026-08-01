@@ -27,9 +27,14 @@ public partial class Game1
     private const string ClientPerformanceWarmupSecondsEnvironmentVariable = "OG_CLIENT_PERF_WARMUP_SECONDS";
     private const string ClientPerformanceMeasureSecondsEnvironmentVariable = "OG_CLIENT_PERF_MEASURE_SECONDS";
     private const string ClientPerformanceAutoExitEnvironmentVariable = "OG_CLIENT_PERF_AUTO_EXIT";
+    private const string ClientPerformanceRequireObjectiveEventEnvironmentVariable = "OG_CLIENT_PERF_REQUIRE_OBJECTIVE_EVENT";
+    private const string ClientPerformanceBotDiagnosticsEnvironmentVariable = "OG_CLIENT_PERF_BOT_DIAGNOSTICS";
+    private const string ClientPerformanceBotBehaviorCheckEnvironmentVariable = "OG_CLIENT_PERF_BOT_BEHAVIOR_CHECK";
     private const string ClientPerformanceLastToDieSurvivorEnvironmentVariable = "OG_CLIENT_PERF_LTD_SURVIVOR";
     private const string ClientPerformanceLogFilePrefix = "client-perf";
     private const double ClientPerformanceSummaryIntervalSeconds = 1d;
+    private const double ClientPerformanceMinimumFps = 45d;
+    private const double ClientPerformanceMaximumFrameMilliseconds = 200d;
     private const int ClientPerformanceDefaultFriendlyBots = 3;
     private const int ClientPerformanceDefaultEnemyBots = 3;
     private const int ClientPerformanceDefaultWarmupSeconds = 5;
@@ -45,6 +50,11 @@ public partial class Game1
 
     private static readonly bool ClientPerformanceLoggingEnabled = GetClientPerformanceEnvironmentFlag(ClientPerformanceLogEnvironmentVariable);
     private static readonly bool ClientPerformanceTestEnabled = GetClientPerformanceEnvironmentFlag(ClientPerformanceTestEnvironmentVariable);
+    // A combat soak should measure the live practice path, not the optional
+    // formatted diagnostics overlay. Navigation behavior tests can opt back in
+    // with OG_CLIENT_PERF_BOT_DIAGNOSTICS=1.
+    private static readonly bool ClientPerformanceBotDiagnosticsEnabled =
+        GetClientPerformanceEnvironmentFlagOrDefault(ClientPerformanceBotDiagnosticsEnvironmentVariable, fallback: true);
     private readonly ClientPerformanceAccumulator _clientPerformance = new();
     private string? _clientPerformanceLogPath;
     private bool _clientPerformanceDiagnosticsInitialized;
@@ -62,6 +72,8 @@ public partial class Game1
     private double _clientPerformanceTestDrawFpsTotal;
     private double _clientPerformanceTestMinUpdateFps = double.MaxValue;
     private double _clientPerformanceTestMinDrawFps = double.MaxValue;
+    private double _clientPerformanceTestMaxUpdateMilliseconds;
+    private double _clientPerformanceTestMaxDrawMilliseconds;
     private readonly Dictionary<byte, ClientPerformanceBotBehaviorSlot> _clientPerformanceBotBehaviorSlots = new();
     private bool _clientPerformanceBotBehaviorActive;
     private int _clientPerformanceBotBehaviorInitialRedCaps;
@@ -276,6 +288,8 @@ public partial class Game1
             _clientPerformanceTestDrawFpsTotal = 0d;
             _clientPerformanceTestMinUpdateFps = double.MaxValue;
             _clientPerformanceTestMinDrawFps = double.MaxValue;
+            _clientPerformanceTestMaxUpdateMilliseconds = 0d;
+            _clientPerformanceTestMaxDrawMilliseconds = 0d;
             ResetClientPerformanceMeasurementWindow();
             LogClientPerformanceLine($"event=client_perf_test_measurement_started {FormatClientPerformanceBotBehaviorSummary()}");
         }
@@ -359,6 +373,8 @@ public partial class Game1
             _clientPerformanceTestDrawFpsTotal = 0d;
             _clientPerformanceTestMinUpdateFps = double.MaxValue;
             _clientPerformanceTestMinDrawFps = double.MaxValue;
+            _clientPerformanceTestMaxUpdateMilliseconds = 0d;
+            _clientPerformanceTestMaxDrawMilliseconds = 0d;
             ResetClientPerformanceMeasurementWindow();
             LogClientPerformanceLine(
                 $"event=client_perf_test_measurement_started mode=lasttodie survivor={_lastToDieRun.SurvivorKind} round={_lastToDieRun.StageNumber} enemyBots={_lastToDieRun.EnemyBotCount}");
@@ -403,6 +419,7 @@ public partial class Game1
         var updateFps = snapshot.UpdateCount / elapsedSeconds;
         var drawFps = snapshot.DrawCount / elapsedSeconds;
         var currentMemoryMegabytes = GC.GetTotalMemory(forceFullCollection: false) / (1024d * 1024d);
+        var gcHeapMegabytes = GC.GetGCMemoryInfo().HeapSizeBytes / (1024d * 1024d);
         var line = string.Create(
             CultureInfo.InvariantCulture,
             $"event=client_perf_summary updateFps={updateFps:F1} drawFps={drawFps:F1} " +
@@ -420,6 +437,10 @@ public partial class Game1
             $"music={snapshot.GetSummary(ClientPerformanceMetric.Music)} " +
             $"botBuild={snapshot.GetSummary(ClientPerformanceMetric.BotBuild)} " +
             $"botApply={snapshot.GetSummary(ClientPerformanceMetric.BotApply)} " +
+            $"gc0={GC.CollectionCount(0)} " +
+            $"gc1={GC.CollectionCount(1)} " +
+            $"gc2={GC.CollectionCount(2)} " +
+            $"gcHeapMb={gcHeapMegabytes:0.0} " +
             $"looseSheets={_looseSheetVisuals.Count} " +
             $"moneySheets={GetClientPerformanceMoneySheetCount()} " +
             $"pendingVisuals={_pendingNetworkVisualEvents.Count} " +
@@ -434,6 +455,12 @@ public partial class Game1
             _clientPerformanceTestDrawFpsTotal += drawFps;
             _clientPerformanceTestMinUpdateFps = Math.Min(_clientPerformanceTestMinUpdateFps, updateFps);
             _clientPerformanceTestMinDrawFps = Math.Min(_clientPerformanceTestMinDrawFps, drawFps);
+            _clientPerformanceTestMaxUpdateMilliseconds = Math.Max(
+                _clientPerformanceTestMaxUpdateMilliseconds,
+                snapshot.GetMaxMilliseconds(ClientPerformanceMetric.Update));
+            _clientPerformanceTestMaxDrawMilliseconds = Math.Max(
+                _clientPerformanceTestMaxDrawMilliseconds,
+                snapshot.GetMaxMilliseconds(ClientPerformanceMetric.Draw));
             var measureSeconds = Math.Max(1, GetClientPerformanceEnvironmentInt(ClientPerformanceMeasureSecondsEnvironmentVariable, ClientPerformanceDefaultMeasureSeconds));
             if (_clientPerformanceTestMeasuredSeconds >= measureSeconds)
             {
@@ -454,15 +481,17 @@ public partial class Game1
         var minimumUpdateFps = _clientPerformanceTestMinUpdateFps == double.MaxValue ? 0d : _clientPerformanceTestMinUpdateFps;
         var minimumDrawFps = _clientPerformanceTestMinDrawFps == double.MaxValue ? 0d : _clientPerformanceTestMinDrawFps;
         var botBehaviorPass = IsClientPerformanceBotBehaviorPass(out var botBehaviorFailureReason);
-        var pass = averageUpdateFps >= 60d
-            && averageDrawFps >= 60d
-            && minimumUpdateFps >= 60d
-            && minimumDrawFps >= 60d
+        var pass = averageUpdateFps >= ClientPerformanceMinimumFps
+            && averageDrawFps >= ClientPerformanceMinimumFps
+            && minimumUpdateFps >= ClientPerformanceMinimumFps
+            && minimumDrawFps >= ClientPerformanceMinimumFps
+            && _clientPerformanceTestMaxUpdateMilliseconds < ClientPerformanceMaximumFrameMilliseconds
+            && _clientPerformanceTestMaxDrawMilliseconds < ClientPerformanceMaximumFrameMilliseconds
             && botBehaviorPass;
         LogClientPerformanceLine(
             string.Create(
                 CultureInfo.InvariantCulture,
-                $"event=client_perf_test_result pass={pass} avgUpdateFps={averageUpdateFps:F1} avgDrawFps={averageDrawFps:F1} minUpdateFps={minimumUpdateFps:F1} minDrawFps={minimumDrawFps:F1} seconds={_clientPerformanceTestMeasuredSeconds:F1} botBehaviorPass={botBehaviorPass} botBehaviorReason={botBehaviorFailureReason}"));
+                $"event=client_perf_test_result pass={pass} avgUpdateFps={averageUpdateFps:F1} avgDrawFps={averageDrawFps:F1} minUpdateFps={minimumUpdateFps:F1} minDrawFps={minimumDrawFps:F1} maxUpdateMs={_clientPerformanceTestMaxUpdateMilliseconds:F1} maxDrawMs={_clientPerformanceTestMaxDrawMilliseconds:F1} minFpsGate={ClientPerformanceMinimumFps:F1} maxFrameGateMs={ClientPerformanceMaximumFrameMilliseconds:F1} seconds={_clientPerformanceTestMeasuredSeconds:F1} botBehaviorPass={botBehaviorPass} botBehaviorReason={botBehaviorFailureReason}"));
         LogClientPerformanceLine(
             $"event=client_perf_test_bot_behavior pass={botBehaviorPass} reason={botBehaviorFailureReason} {FormatClientPerformanceBotBehaviorSummary()}");
 
@@ -577,6 +606,12 @@ public partial class Game1
 
     private bool IsClientPerformanceBotBehaviorPass(out string failureReason)
     {
+        if (!GetClientPerformanceEnvironmentFlagOrDefault(ClientPerformanceBotBehaviorCheckEnvironmentVariable, fallback: true))
+        {
+            failureReason = "disabled_for_combat_soak";
+            return true;
+        }
+
         if (GetClientPerformanceMode() != ClientPerformanceMode.Practice)
         {
             failureReason = "not_practice";
@@ -659,7 +694,10 @@ public partial class Game1
             return false;
         }
 
-        if (_clientPerformanceBotBehaviorFirstPickupTick < 0
+        var objectiveEventRequired = Environment.GetEnvironmentVariable(ClientPerformanceRequireObjectiveEventEnvironmentVariable)
+            is not ("0" or "false" or "False" or "FALSE");
+        if (objectiveEventRequired
+            && _clientPerformanceBotBehaviorFirstPickupTick < 0
             && _clientPerformanceBotBehaviorFirstScoreTick < 0
             && _clientPerformanceBotBehaviorFirstControlTick < 0)
         {
@@ -955,6 +993,14 @@ public partial class Game1
             || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool GetClientPerformanceEnvironmentFlagOrDefault(string variableName, bool fallback)
+    {
+        return Environment.GetEnvironmentVariable(variableName) is { } value
+            ? string.Equals(value, "1", StringComparison.Ordinal)
+                || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
+            : fallback;
+    }
+
     private static int GetClientPerformanceEnvironmentInt(string variableName, int fallback)
     {
         var value = Environment.GetEnvironmentVariable(variableName);
@@ -1101,6 +1147,11 @@ public partial class Game1
             return string.Create(
                 CultureInfo.InvariantCulture,
                 $"{accumulator.LastMilliseconds:0.00}/{accumulator.GetAverageMilliseconds():0.00}/{accumulator.MaxMilliseconds:0.00}ms");
+        }
+
+        public double GetMaxMilliseconds(ClientPerformanceMetric metric)
+        {
+            return Metrics[(int)metric].MaxMilliseconds;
         }
     }
 

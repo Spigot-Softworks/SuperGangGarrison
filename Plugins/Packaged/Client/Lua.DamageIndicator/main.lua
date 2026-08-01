@@ -7,6 +7,7 @@ local ROLLUP_IDLE_SECONDS = 2.0
 local WORLD_INDICATOR_RISE_SPEED = 150.0
 local HUD_INDICATOR_RISE_SPEED = 150.0
 local HEAL_INDICATOR_RISE_SPEED = 120.0
+local DING_MIN_INTERVAL_SECONDS = 0.25
 
 local OFF_WHITE = { r = 217, g = 217, b = 183, a = 255 }
 local WAREYA_GREEN = { r = 0, g = 255, b = 0, a = 255 }
@@ -47,6 +48,7 @@ local rolling_damage = 0
 local rolling_damage_timer_seconds = 0.0
 local rolling_damage_airshot = false
 local ding_sound_registered = false
+local ding_cooldown_seconds = 0.0
 
 local function clamp(value, minimum, maximum)
     if value < minimum then
@@ -108,6 +110,7 @@ local function reset_state()
     rolling_damage = 0
     rolling_damage_timer_seconds = 0.0
     rolling_damage_airshot = false
+    ding_cooldown_seconds = 0.0
 end
 
 local function add_hud_indicator(amount, airshot)
@@ -207,7 +210,7 @@ local function resolve_world_indicator_position(canvas, index)
 end
 
 local function play_ding(target_world_position)
-    if not config.playDing then
+    if not config.playDing or ding_cooldown_seconds > 0.0 then
         return
     end
 
@@ -229,7 +232,9 @@ local function play_ding(target_world_position)
         end
     end
 
-    plugin.host.play_sound("ding", 1.0, 0.0, pan)
+    if plugin.host.play_sound("ding", 1.0, 0.0, pan) then
+        ding_cooldown_seconds = DING_MIN_INTERVAL_SECONDS
+    end
 end
 
 local function try_merge_world_indicator(event)
@@ -358,6 +363,8 @@ function plugin.on_client_frame(e)
         reset_state()
         return
     end
+
+    ding_cooldown_seconds = math.max(0.0, ding_cooldown_seconds - e.deltaSeconds)
 
     prune_world_indicators(e.deltaSeconds)
     prune_hud_indicators(e.deltaSeconds)

@@ -1362,3 +1362,599 @@ representatives.
 on surfaces around y=`1260` while the KOTH objective was near y=`1047` across
 almost every class. This is a map-wide vertical graph-to-objective
 connectivity gap, not a steering exception, and it is not counted as a pass.
+
+## 2026-07-29 goal continuation: validated objective approach work
+
+The all-maps completion goal is now explicit: finish every remaining unique
+graph-bearing stock-map representative with a full `20/20` matrix (all ten
+classes on both teams) under the accelerated `3,000`-tick acceptance budget.
+The filesystem inventory now reconciles to `64` map directories: `16` are the
+explicit no-graph packages, leaving `48` graph-bearing map directories. Six
+duplicate walkmask pairs collapse that to `42` unique graph representatives.
+The three newly accepted v44 representatives (`koth_viaduct_a3`,
+`koth_thundermountain_v2`, and `ctf_hemisphere`) bring the current accepted
+count to `20/42`, leaving `22` unique representatives. No representative is
+accepted without a fresh full matrix for the active generator fingerprint.
+
+The v41 generator fingerprint is
+`og2-contact-20260729-v41-v39-surface-threshold`. Existing v29-v40
+artifacts remain in the persistent cache under their old fingerprints; they
+were not deleted or overwritten. The current generator keeps strict ordinary
+spawn/intel/generator anchor tolerances, while capture volumes and logical
+control-point markers receive bounded, OG2-probe-certified jump approaches.
+Each such edge records the supported movement signature, team mask, launch
+recipe, and marker completion window. The generator caps objective probing to
+four nearest candidates plus two below-goal candidates and stops a failed
+jump probe after its landing, to prevent objective handling from multiplying
+the contact-build cost without bound.
+
+Ravine v37 cache-gate evidence was `226` nodes, `12,770` edges, with
+`200/300` validator routes and `100` unreachable objective routes. The v38
+cold build produced `226` nodes and `12,366` edges in approximately `136.5s`
+after pruning redundant objective probes. It still has objective nodes and
+certified upper-ledge jump edges, but no spawn-to-objective path: the spawn
+component terminates on the lower surface around y=`1260`, while the capture
+volume is around y=`981`-`1047`. The map remains quarantined; no capture pass
+is claimed. The next fix must address the actual shared graph connectivity or
+map-input contract, not add an unproven lower-surface relay.
+
+The v39 generator removes the duplicate carrying-intel contact probe state
+from non-CTF maps. CTF still probes both non-carrier and carrier states because
+the carrier return route is gameplay-significant; other modes cannot carry
+intel, so retaining that second state only doubled cold-build work.
+
+The v40 narrow-surface experiment lowered the certified standable-window
+threshold from 12 to 4 source units and the surface endpoint inset from 8 to
+4. It added 47 Ravine nodes but did not create a spawn-to-objective route, and
+it exceeded the three-minute safety ceiling while rebuilding Truefort. The
+default v41 surface threshold therefore returns to the v39 values; the v40
+cache remains preserved as diagnostic evidence, but the experiment is not
+accepted as the runtime default.
+
+The v42 generator fingerprint is
+`og2-contact-20260729-v42-v41-shared-static-team-probes`. On maps whose room
+objects contain no team-dependent blocker (`TeamGate`, `IntelGate`, player
+walls, directional walls, or control-point setup gates), contact discovery
+probes Red once and certifies the resulting contacts for both teams. Maps
+with any such blocker retain separate Red/Blue probes. This changes only the
+build scheduling/certification mask; it does not fabricate geometry or alter
+movement behavior. The v42 build must be re-screened for exact objective
+reachability before any matrix result is accepted.
+
+The v43 refinement compares the active Red/Blue blocker geometry for each
+carrying state instead of treating every blocker marker type as asymmetric.
+Identical active gate geometry (including shared control-point setup gates)
+can therefore use one physics probe safely; different gate geometry retains
+separate probes. This remains a scheduling/certification optimization only.
+
+The v44 graph-gate contract now mirrors runtime control-point semantics:
+capture-zone fragments are assigned to their nearest control-point marker and
+the largest assigned fragment is used as that point's effective objective
+center, matching `ControlPointSetupSystem.BuildZones`. The gate no longer
+requires an exact route to every decorative fragment of the same capture
+point. This is a validation-contract correction only; it does not accept a
+nearby proxy when the effective objective node itself is unreachable.
+
+The v44 exact-objective screen quarantined `koth_ravine` at `0/20`: its one
+effective control-point target at `(1821,993)` is unreachable from both spawn
+components for every class/team context. The fresh graph is `224` nodes and
+`9,487` edges; the cold build took approximately `74.3s`. This confirms the
+map-wide lower-floor-to-objective disconnect after removing the old proxy
+fallback.
+
+`koth_viaduct_a3` is the first newly accepted representative under the active
+v44 graph fingerprint. Its graph gate passed `60/60` routes (`224` nodes,
+`12,139` edges, `0` issues), and the accelerated runtime matrix passed `20/20`
+(all ten classes on both teams) with the shared cache reused for every trial.
+Capture completion was approximately ticks `976`-`1052`; matrix trials were
+run as four concurrent one-class/team processes so the full matrix completed
+in about two minutes of wall-clock time instead of serially timing out.
+
+`koth_bayou` remains quarantined at `18/20` exact graph routes: only Red and
+Blue Heavy fail to reach the effective objective at `(2475,897)`. No runtime
+matrix is claimed for a graph that cannot support that class/team pair.
+`koth_odvuschwa` exceeded the bounded cold-screen window without emitting a
+graph result and is retained as a generator-performance case pending a
+dedicated optimization pass.
+
+`koth_thundermountain_v2` is the second newly accepted representative under
+v44. Its graph gate passed `80/80` routes with `238` nodes and `9,168` edges;
+the four-way accelerated runtime matrix passed `20/20` for all ten classes on
+both teams, with every trial reusing the shared graph cache. Completion was
+approximately ticks `976`-`1052`.
+
+The Hemisphere Quote failure was a runtime completion-ownership bug, not an
+unreachable graph. A nearby logical objective node could win the nearest-node
+lookup even though it has no supporting surface ID, causing a valid landing on
+surface `48` to be rejected and recovery to loop on the lower surface. The
+runtime lookup now excludes objective/spawn anchors when resolving accepted
+landing surfaces; the completion window retains bounded `16` horizontal / `8`
+vertical runtime handoff slack. After the fix, `ctf_hemisphere` passed its
+fresh graph gate `140/140` (`327` nodes, `17,473` edges, `0` issues) and the
+full accelerated runtime matrix `20/20` for all ten classes on both teams,
+with cache hits for every trial. Completion was approximately ticks `815`-
+`1603` (Quote Red `1061`, Quote Blue `1184`).
+
+## 2026-07-29 goal continuation: remaining-map failure screen
+
+The active completion goal remains: do not stop until every remaining unique
+graph-bearing stock-map representative has a fresh `20/20` accelerated matrix
+pass for all ten classes on both teams. The current shared graph fingerprint
+is still v44; the old v45 interior-contact-sample experiment was reverted.
+
+The first bounded remaining-map graph gate screen produced these current
+results (all cache hits except the explicitly noted Conflict2 rebuild):
+
+- `ctf_RSM`: `44/160`, `116` route issues; multiple outbound/carrier-return
+  gaps. It remains quarantined.
+- `ctf_conflict2_v3`: `90/120`, `30` issues on the freshly rebuilt
+  `346`-node/`21,602`-edge graph. The failures are class-filtered CTF routes,
+  concentrated in Heavy and several carrier-return contexts. It remains
+  quarantined.
+- `koth_bayou`: `18/20`; only Red and Blue Heavy fail to reach the effective
+  objective at `(2475,897)`. It remains quarantined.
+- `koth_eureka`: `6/120`; Red Scout reaches the objective from all six Red
+  spawns, while the other class/team contexts do not. It remains quarantined.
+
+The v45 experiment added one midpoint launch sample to sufficiently wide
+surfaces. On `koth_eureka_r2` it increased the graph from `11,669` to `12,036`
+edges and took `43.0s` to build, but left the gate unchanged at `30/60` with
+the same class-filtered failures. It was reverted and is not part of the
+active generator. This confirms that the next generator work must address
+compound traversal certification or a specific missing map transition; simply
+sampling one more point per wide surface is not a productive default.
+
+The current investigation also confirmed that the failing gate routes are not
+validator-only artifacts: they are missing filtered paths in the shared graph,
+and the relevant edge masks exclude the affected movement profiles. No partial
+route or class-specific exception is being counted as acceptance.
+
+The bounded v45/v46 sampling experiments are now closed as negative results.
+The midpoint-only v45 probe increased `koth_eureka_r2` from `11,669` to
+`12,036` edges with no gate improvement. Reusing all existing surface-node
+sample positions as contact launch positions (v46) increased the same map to
+`13,235` edges and took approximately `64.3s` to build, but remained `30/60`.
+Both fingerprints were reverted; v44 is again the active default and its
+caches remain intact. This rules out launch-sample density as the shared fix.
+
+The compound-contact review found a format boundary that must be handled
+explicitly before implementation: the current `NavEdge`/`NavEdgeLaunchRecipe`
+can encode one jump pulse and one post-jump control mode, while a valid
+compound proof may require multiple pulses, grounded handoffs, or direction
+changes. A compound edge must therefore carry a bounded replayable input
+program, include that program in contact/edge deduplication, serialize it with
+a cache-format bump, and be emitted only after exact OG2 replay confirms every
+jump consumption and final settled surface. No compound edge is being faked by
+OR-ing a new class mask onto an existing scalar recipe.
+
+The filesystem audit also corrected the denominator: there are `42` unique
+graph-bearing walkmask representatives, not `43`; the extra historical count
+included a built-in Truefort entry outside `Maps`. Six representatives remain
+unclassified (`dkoth_kots`, `dkoth_kulay`, `dkoth_kulay_v2`, `dkoth_pharaoh`,
+`dkoth_sandrid_m1_v2`, and `Dkoth_Standoff!`) and are retained in the remaining
+set until they receive a complete graph gate and `20/20` matrix. A parallel
+screen of those six was stopped at the bounded process ceiling without usable
+results; this is recorded as a performance issue, not as a pass or failure.
+
+After restoring the v44 executable, the known fresh regression gate remains
+clean: `koth_viaduct_a3` `60/60`, `koth_thundermountain_v2` `80/80`, and
+`ctf_hemisphere` `140/140` (`280/280` total, all cache hits). This confirms the
+negative experiments did not overwrite or regress the accepted v44 caches.
+
+`Dkoth_Standoff!` is the next accepted unique representative. Its v44 graph
+gate passed `120/120` (`280` nodes, `13,209` edges, `0` issues). The complete
+accelerated capture matrix then passed `20/20`: all ten classes on both teams,
+with every trial reusing the shared graph cache. Completion was approximately
+ticks `976`-`1052` (Quote used the wider class-specific standing envelope).
+The current unique accepted count is therefore `21/42`, leaving `21` remaining
+representatives; `dkoth_pharaoh` remains quarantined at `0/120`.
+
+`dkoth_sandrid_m1_v2` is also accepted under v44. Its graph gate passed
+`120/120` (`374` nodes, `19,093` edges, `0` issues), and the full accelerated
+matrix passed `20/20` for all ten classes on both teams with cache hits for
+every trial. Completion was approximately ticks `976`-`1052`; the slowest
+individual trial was still bounded and completed successfully. The current
+unique accepted count is `22/42`, leaving `20` remaining representatives.
+
+## 2026-07-30 koth_drill_v3 acceptance and runtime composition fix
+
+`koth_drill_v3` is now accepted as representative `23/42`. Its current v44
+contact graph passed the structural gate `40/40` (`228` nodes, `9,979` edges,
+`0` issues). The full accelerated runtime matrix passed `20/20` for all ten
+classes on both Red and Blue, with the shared graph cache reused; the matrix
+completed in approximately `45.0s` at the `3,000`-tick acceptance budget.
+
+The runtime defect found while closing this map was a composed-contact handoff
+failure, not a missing individual edge. A preceding OG2 jump could hand off
+one update before the next grounded-start contact was available, and a neutral
+handoff output let inherited momentum carry the bot off the next launch band.
+The executor now continues steering the newly exposed unresolved edge during
+that update, while deferring runtime proof until the following grounded sample.
+For the observed leftward stair-chain composition, a bounded next-edge launch
+speed check can apply counter-steer during the preceding runtime-resolved
+landing approach. It is limited to nearby leftward OG2 contacts; rightward
+certified landings are left unchanged after a regression check. This fix was
+validated across the complete roster, including the formerly failing Blue
+Pyro/Medic and Blue Spy/Quote cases, and no graph rebuild was needed for the
+steering-only iteration.
+
+The remaining unique representative count is `19/42`. The next leverage point
+is still the shared objective/topology problem identified by the sidecar audit:
+`koth_ravine`, `koth_eureka`, `koth_warehouse`, and `koth_cdragon` require
+graph-level connectivity work; `koth_bayou` and `koth_gartiex` remain Heavy-only
+near-passes. No map is accepted from a partial graph gate or a partial roster
+matrix.
+
+## 2026-07-30 koth_ravine acceptance and runtime handoff fixes
+
+`koth_ravine` is now accepted as representative `24/42`; `18` remain. Its
+shared v44 contact graph passed `20/20` graph-gate routes with `781` nodes,
+`27,838` edges, and `0` issues. The graph was generated once with the
+16-pixel edge-launch scan and 32-tick local sweep (`~90.1s` cold) and then
+reused as a warm cache hit for the acceptance screen.
+
+The complete accelerated live matrix passed `20/20` at the 3,000-tick budget:
+all ten classes on Red and Blue. Every class/team shard reused the shared graph
+cache; captures completed around ticks `976`-`1052`.
+
+Two runtime defects found while closing the map were fixed generally:
+completion ownership now prefers the edge's recorded accepted surface IDs over
+a merely nearer neighboring surface, and next-contact counter-steering is
+suppressed until the current airborne contact has actually landed. These fixes
+preserve class/team-agnostic graph topology and do not add carrier-only or
+map-specific traversal exceptions.
+
+## 2026-07-30 koth_bayou acceptance
+
+`koth_bayou` is now accepted as representative `25/42`; `17` remain. Its
+fresh v44 contact graph passed `20/20` graph-gate routes with `945` nodes,
+`37,868` edges, and `0` issues. The cold build completed in `18.9s`; every
+capture below reused that cache artifact.
+
+The complete accelerated matrix passed `20/20` at the 3,000-tick budget:
+all ten classes on Red and Blue. Captures completed around ticks `976`-`1052`,
+including both Heavy trials that had previously failed in the partial screen.
+No map-specific or carrier-only exception was added.
+
+## 2026-07-30 koth_eureka_r2 acceptance and strict contact handoff fix
+
+`koth_eureka_r2` is now accepted as representative `28/42`; `14` remain.
+Its shared v44 contact graph passed `60/60` structural routes with `676`
+nodes, `26,267` edges, and `0` issues. The graph was already present in the
+adaptive cache, so this acceptance iteration did not rebuild it.
+
+The first runtime screen exposed two Blue failures for Pyro and Medic at the
+same leftward jump handoff. A temporary 32-unit completion-surface tolerance
+made those two cases appear to pass, but it also falsely accepted Soldier and
+Sniper while they were standing on the lower neighboring surface. That
+experiment was reverted; completion ownership remains strict at the bounded
+16-unit above-surface tolerance and recorded accepted-surface IDs.
+
+The general fix was instead made in the steering state machine: a composed
+next-contact counter-steer is now permitted only after the current edge has
+been genuinely satisfied while grounded. A transient lower-surface landing
+or an airborne position inside the broad completion Y window can no longer
+reverse the jump before its certified landing. The full accelerated matrix
+then passed `20/20` for all ten classes on Red and Blue, with cache hits for
+every trial and completion around ticks `976`-`1052`.
+
+As a regression check after this shared steering change, the complete
+`20/20` matrices also passed for `koth_ravine`, `koth_bayou`, `koth_gartiex`,
+and `dkoth_pharaoh`. Their existing graph artifacts were reused, including
+Pharaoh's adaptive 96-tick artifact (`696` nodes, `47,495` edges).
+
+## 2026-07-30 koth_eureka acceptance
+
+`koth_eureka` is now accepted as representative `29/42`; `13` remain. Its
+fresh shared contact graph passed `120/120` structural routes with `918`
+nodes, `36,215` edges, and `0` issues. The cold build completed in about
+`16.4s`, and every runtime trial reused that graph cache.
+
+The complete accelerated matrix passed `20/20` at the 3,000-tick budget for
+all ten classes on Red and Blue, with completion around ticks `976`-`1052`.
+
+## 2026-07-30 ctf_RSM acceptance and certified reverse handoff fix
+
+`ctf_RSM` is now accepted as representative `37/42`; `5` remain. Its
+adaptive extended graph passed `160/160` structural routes with `1,010`
+nodes, `100,181` edges, and `0` issues. The full accelerated matrix initially
+reached `19/20`: only Red Pyro stalled on the carrier return at a certified
+reverse-direction contact.
+
+Tracing showed the live carrier was on the recorded completion surface and
+inside the edge completion window, but the reverse-contact handoff guard still
+waited for the nominal target-node radius. Collision resolution left the live
+Y position 24 units above that nominal node, so the guard could never hand off
+despite a valid completion. The general fix lets a grounded, fully satisfied
+OG2 completion contract advance immediately; it does not relax surface
+ownership or completion bounds. The rerun passed `20/20`, including Red Pyro
+at tick `1769`, with the extended cache reused.
+
+## 2026-07-30 koth_stonemine and koth_AMERICA acceptance
+
+Two additional representatives cleared both gates and the complete runtime
+matrix:
+
+- `koth_stonemine` is accepted as `32/42`: `822` nodes, `32,772` edges,
+  `20/20` structural routes, `0` issues, and a `20/20` class/team matrix.
+- `koth_AMERICA` is accepted as `33/42`: `730` nodes, `29,918` edges,
+  `60/60` structural routes, `0` issues, and a `20/20` class/team matrix.
+
+Both graphs were built once and reused by every accelerated trial; captures
+completed within the 3,000-tick budget around ticks `976`-`1052`.
+
+## 2026-07-30 high5tower, Attack/Defense, and Conflict2 acceptance
+
+Three more representatives are now fully accepted:
+
+- `koth_high5tower_a1`: `34/42`; adaptive extended graph `633` nodes /
+  `43,245` edges, `80/80` structural routes, and `20/20` runtime trials.
+  The former Blue Soldier/Sniper waypoint failures both passed.
+- `cp_thundermountain_d`: `35/42`; `754` nodes / `30,739` edges, `140/140`
+  structural routes, and `20/20` runtime trials. This Attack/Defense map uses
+  the mode-correct acceptance contract: Red completes a capture, while Blue
+  reaches and holds its unlocked defensive frontier point for 30 ticks.
+- `ctf_conflict2_v3`: `36/42`; fresh graph `1,098` nodes / `66,230` edges,
+  `120/120` structural routes, and `20/20` runtime trials. The graph and all
+  carrier-return paths were reused by the complete matrix.
+
+The accepted total is now `36/42`; six representatives remain. KOTS and both
+Kulay variants remain pending scale validation because their current graph
+gate runs exceed the bounded diagnostic window without emitting a report.
+This is a separate walkmask representative from `koth_eureka_r2`; neither
+was counted as a duplicate.
+
+## 2026-07-30 koth_cdragon acceptance and completion-contract fix
+
+`koth_cdragon` is now accepted as representative `30/42`; `12` remain. Its
+shared contact graph passed `40/40` structural routes with `729` nodes,
+`29,708` edges, and `0` issues. The graph was built once and reused for the
+runtime matrix.
+
+The first runtime screen was `19/20`: only Red Pyro stopped on the final
+moving-platform approach. The controller had marked an OG2 contact as landed
+from the accepted surface ID alone while still outside that edge's certified
+completion X window, suppressing the jump pulse. The handoff now requires
+the complete edge completion contract (bounded X/Y window plus accepted
+surface), preserving strict surface ownership without a map-specific rule.
+
+After that general fix, the complete accelerated matrix passed `20/20` for
+all ten classes on Red and Blue, around ticks `976`-`1052`, with the shared
+cache reused for every trial.
+
+## 2026-07-30 dkoth_pharaoh acceptance and adaptive sweep fallback
+
+dkoth_pharaoh is now accepted as representative 27/42; 15 remain. Its fast
+32-tick contact graph initially passed 117/120 routes but exposed three
+identical Red Heavy failures to ControlPoint:2. Contact tracing showed that
+the lower-to-upper transition was physically supportable but exceeded the
+short local sweep horizon for Heavy; the other classes discovered the same
+surface contact within the short sweep.
+
+The extended 96-tick graph passed 120/120 structural routes with 696 nodes,
+47,495 edges, and 0 issues. Its cold build took 50.2s. The full accelerated
+runtime matrix passed 20/20 for all ten classes on Red and Blue, with captures
+around ticks 976-1052.
+
+The production graph store now handles this generally: it builds the fast
+32-tick artifact first, runs the structural route check, and only loads/builds
+the separate 96-tick artifact when filtered routes are unreachable. A default-
+environment acceptance run reused the 96-tick cache and passed the same 20/20
+matrix. Normal maps retain the fast path, while long Heavy contacts no longer
+silently ship an incomplete graph.
+
+## 2026-07-30 koth_gartiex acceptance
+
+`koth_gartiex` is now accepted as representative `26/42`; `16` remain. Its
+fresh v44 contact graph passed `40/40` graph-gate routes with `930` nodes,
+`36,860` edges, and `0` issues. The cold build completed in `26.7s`; all
+capture trials reused the warm cache.
+
+The complete accelerated matrix passed `20/20` at the 3,000-tick budget for
+all ten classes on Red and Blue, including the two Heavy trials that had been
+the remaining partial-screen failures. Completion was approximately ticks
+`976`-`1052`. No map-specific or carrier-only exception was added.
+
+## 2026-07-30 post-cdragon regression sweep
+
+After the cdragon completion-contract fix, the previously accepted baseline
+was rerun with the complete accelerated matrix and existing graph caches:
+
+| representative | graph artifact | result |
+|---|---:|---:|
+| `koth_ravine` | 781 nodes / 27,838 edges | 20/20 |
+| `koth_bayou` | 945 nodes / 37,868 edges | 20/20 |
+| `koth_gartiex` | 930 nodes / 36,860 edges | 20/20 |
+| `dkoth_pharaoh` | 696 nodes / 47,495 edges (adaptive extended) | 20/20 |
+| `koth_eureka_r2` | 676 nodes / 26,267 edges | 20/20 |
+| `koth_eureka` | 918 nodes / 36,215 edges | 20/20 |
+
+All trials covered the ten classes on Red and Blue, completed within the
+3,000-tick budget, and loaded the expected cached graph. No accepted map
+regressed; the authoritative count remains `30/42`, with `12` unique
+graph-bearing representatives left.
+
+## 2026-07-30 koth_warehouse acceptance
+
+`koth_warehouse` is now accepted as representative `31/42`; `11` remain. Its
+fresh shared contact graph passed `80/80` structural routes with `1,083`
+nodes, `43,704` edges, and `0` issues. The cold build completed in about
+`21.5s` and all runtime trials reused that cache.
+
+The complete accelerated matrix passed `20/20` at the 3,000-tick budget for
+all ten classes on Red and Blue, with completion around ticks `976`-`1052`.
+
+## 2026-07-30 current authoritative acceptance state
+
+The accepted total is now `37/42`. The five remaining unique representatives
+are `koth_heist`, `koth_odvuschwa`, `dkoth_kots`, `dkoth_kulay`, and
+`dkoth_kulay_v2`. KOTS and both Kulay variants have not been counted: their
+current graph-gate attempts exceeded the bounded validation window before
+emitting a report, and no partial result is being treated as a pass.
+
+`ctf_RSM` is fully accepted under the current generator and runtime fix:
+`1,010` nodes, `100,181` edges, `160/160` structural routes, and `20/20`
+accelerated class/team trials. The Red Pyro reverse-contact handoff fix was
+validated with the shared extended cache and did not broaden surface or
+completion ownership.
+
+`dkoth_kots` is now fully accepted under generator fingerprint
+`og2-contact-20260730-v46-targeted-extended-frontier`. The fast graph was
+`771` nodes and `27,032` edges; the targeted extended graph was `955` nodes
+and `41,388` edges. The structural gate passed `240/240` routes in `88.7s`.
+The five accelerated matrix shards were cache hits and passed all `20/20`
+class/team trials at the `3,000`-tick budget. Only the classes with failed
+fast-graph routes paid the extended `96`-tick contact sweep; the other class
+families stayed on the fast horizon.
+
+`koth_heist` is fully accepted under the same fingerprint with an `875`-node,
+`31,793`-edge fast graph, `80/80` structural routes, and `20/20` accelerated
+class/team trials. Its matrix reused the generated cache and completed without
+an extended rebuild.
+
+The current authoritative total is now `39/42`. The remaining unique
+representatives are `koth_odvuschwa`, `dkoth_kulay`, and `dkoth_kulay_v2`.
+
+`koth_odvuschwa` is fully accepted with a `889`-node/`28,323`-edge fast graph
+and a targeted `934`-node/`32,609`-edge extended graph. The structural gate
+passed `80/80` routes in `59.5s`, and the cache-hit accelerated matrix passed
+`20/20` trials.
+
+The current authoritative total is now `40/42`. Only `dkoth_kulay` and
+`dkoth_kulay_v2` remain.
+
+## 2026-07-30 final v47 full acceptance audit
+
+The remaining-map goal is complete. The authoritative acceptance set is now
+`42/42` unique graph-bearing representatives. The sixteen shipped packages
+identified as no-graph content remain excluded, and the six duplicate
+walkmask aliases remain represented by their shared graph representative.
+
+All artifacts in this audit use generator fingerprint
+`og2-contact-20260730-v47-targeted-extended-frontier` and the shared cache root
+`C:\Users\level\AppData\Local\Temp\final-v47-20260730`. The structural gate
+was rerun after the final runtime changes and passed `5,500/5,500` filtered
+routes across all 42 representatives with `0` issues:
+
+| shard | representatives | routes |
+|---|---:|---:|
+| 1 | 9 | 2,600/2,600 |
+| 2 | 7 | 1,140/1,140 |
+| 3 | 7 | 460/460 |
+| 4 | 7 | 500/500 |
+| 5 | 7 | 440/440 |
+| 6 | 5 | 360/360 |
+
+The final accelerated runtime matrix was rerun after those fixes with the
+shared cached graph, `3,000` ticks per trial, both teams, and all ten classes.
+It passed `840/840` trials (`42` maps x `20` class/team trials), with every
+map summary passing and no quarantined or partial representative remaining.
+
+The last two generator-gate failures were `koth_harvest` and
+`koth_pumpkinseed`: both were nearest-spawn attachment ambiguity for Heavy,
+not missing map traversal. Structural validation now selects the nearest
+surface with a compatible outgoing class/team edge. The last runtime failures
+were Blue Pyro and Blue Demoman on `koth_valley`: the controller had selected a
+nearby walkable proxy when the nearest capture-zone anchor was filtered. Alpha
+objective routing now searches nearby reachable objective anchors, including
+nearby compatible start attachments, and never settles on a non-capturing
+surface proxy when a capture-zone route exists.
+
+The release build completed successfully with the existing warning baseline.
+The alpha contact graph remains the default production graph entry point,
+with persistent cache reuse and adaptive targeted extended sweeps enabled.
+
+## 2026-07-30 live Valley execution correction
+
+The `42/42` accelerated matrix above must not be read as proof that live
+practice-bot execution was smooth. A live 8v8 Valley observation exposed a
+separate executor-timebase defect: the probe certified OG2 contact schedules in
+physics ticks, but the practice client only thought a small batch of bots per
+update while continuing to apply their cached movement input between thoughts.
+Bots could therefore run past the measured launch band before the next brain
+update. Because the edge was marked certified, normal stuck escape was
+suppressed and the bot waited for the certified-edge timeout. This produced the
+visible Blue lower-stair/box stall and the Scout stair oscillation.
+
+The correction is runtime-only and does not invalidate the graph topology:
+active grounded certified contacts receive a navigation-only high-frequency
+think until their jump pulse is issued; airborne contacts return to the normal
+batched brain path. Completed alpha routes are also cooldown-protected from
+per-update A* rebuilds. A traced Valley smoke run recorded zero failures on the
+photographed lower-stair contacts `373->305`, `373->306`, and `373->307`.
+
+The clean warm-cache 8v8 Valley performance run averaged `117.6` FPS with a
+`25.9` FPS observed minimum. This is a correction smoke result, not a renewed
+full acceptance: the generic practice harness still reports `no_link_execution`
+for Valley/KOTH, and other Valley contacts remain under active validation.
+## 2026-07-30 catastrophic live execution regression correction
+
+The live Harvest/Cdragon sessions exposed a failure level that is not acceptable for alpha handoff. The accelerated capture matrix did not cover ordinary live no-stall execution, and the first per-physics-tick correction introduced a scheduler mismatch: grounded recipe-backed edges that were not `IsOg2Contact` could be promoted to `ThinkRuntimeContact`, which intentionally returns cached input for those edges. That made bots appear completely inert in practice sessions.
+
+The promotion predicate is now restricted to the exact certified contact-edge type supported by `ThinkRuntimeContact`, and the Release build compiles with zero errors. A warm-cache Harvest smoke then showed 16/16 bots moving and displacing. This does not constitute acceptance: a longer Cdragon trace still found live jump-edge failures including `113->686`, `218->112`, `63->68`, `100->62`, and `149->101` (`missed_completion`/`landed_below_completion`) followed by edge blocking and replanning. The graph can contain a route while its jump edges remain unvalidated for live execution. Alpha navigation must remain in live-failure investigation until those edge classes and the remaining no-movement spawn slots pass a continuous no-stall test.
+
+## 2026-07-30 live symptom correction pass: state, scheduler, recovery, and process gates
+
+The live reports above are not one defect and must not be accepted as a graph
+pass. This pass separates the acceptance gates:
+
+- Objective state is now part of alpha route validity. Control-point owner,
+  capping team, lock state, and CTF intel state invalidate a completed or active
+  route immediately; bots no longer wait for the normal two-second objective
+  reevaluation after a capture.
+- Native practice sessions now think the complete roster each update. Browser
+  sessions retain their budgeted batch scheduler, with cached navigation
+  advancement for stale slots. This removes the desktop-side deliberate
+  decision gap that made bots visibly idle while another batch was thinking.
+- Ordinary OG2 walk contacts retain local blocker recovery so a crate/body
+  collision can trigger a bounded hop/repath. Certified jump/fall/drop
+  contacts still retain their measured execution contract. Recovery attachment
+  now accepts a wider lower support band and still requires a graph path to the
+  objective.
+- A regression test now proves that an alpha KOTH bot rebuilds its route after
+  completing the old route and then observing a point-owner change. The focused
+  test passed `1/1`.
+- Graph-build probes now reuse one `PlayerEntity` per class/team/carrying-state
+  worker. Harvest topology remained identical (`758` nodes, `29,823` edges);
+  the cold all-class/team profile improved from approximately `53-55s` to
+  `44.8s`. This is measurable but remains too slow for an interactive first
+  map load; no claim of acceptable cold-load latency is made.
+- The alpha capture diagnostic now runs independent class/team trials in
+  parallel while preserving deterministic report order. The per-trial
+  physics simulation is unchanged; this only removes serial test-harness
+  waiting.
+
+Verification status for this pass: the targeted alpha objective suite passed
+`6/6`; the new post-capture regression passed `1/1`; the BotBrain class
+behavior filter remained `37/40` with three pre-existing behavior failures;
+the broad BotBrain filter did not finish within its `180s` bound. Release
+client and BotBrain.Tools builds completed with `0` errors. This section does
+not promote alpha navigation to live acceptance: Harvest/Valley/Corinth
+continuous no-stall execution, post-capture two-team behavior, oscillation
+rate, and cold graph-load hitches still require focused evidence.
+
+## 2026-07-31 Waterway live-stall investigation
+
+The Waterway `20/20` alpha capture result is explicitly downgraded to an
+isolated route result. It runs one bot per trial, with no opposing roster or
+live body blocking, and stops at the first capture. It is not evidence that a
+full practice roster can traverse Waterway without stalls or that both teams
+continue planning after a capture.
+
+A live-style Waterway soak with sixteen bots reproduced the reported failure:
+the run reached only one team capture, recorded inert windows up to `1,260`
+ticks, and recorded an oscillation event. The traces repeatedly showed
+`dynamicEnemyCarrier`, `dynamicEscortCarrier`, or dropped-intel direct routes
+being reported as reused while the bot's actual position and input remained
+stationary. A read-only subagent audit classified the screenshots primarily as
+route/recovery failure under live collisions, with stale cached input a
+secondary browser/catch-up risk and Engineer/Sniper/Medic holds only narrow
+role-specific exceptions.
+
+The static OG2 contact graph can certify a route while a live crate/body
+collision makes the measured contact invalid. The runtime must therefore treat
+a neutral dynamic-route reuse as a failed navigation handoff and give bounded
+local recovery/re-attachment a chance. This is an execution gate, not a graph
+pass. The Waterway full-roster no-stall gate remains failing until both teams
+capture, inert duration stays below the gate, oscillation is zero, and think /
+world-advance spikes are separately attributed and eliminated.

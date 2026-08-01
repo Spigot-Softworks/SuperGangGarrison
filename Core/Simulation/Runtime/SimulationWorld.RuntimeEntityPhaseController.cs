@@ -1,9 +1,26 @@
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+
 namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
     private sealed class RuntimeEntityPhaseController
     {
+        private static readonly bool SlowPlayerTracingEnabled =
+            Environment.GetEnvironmentVariable("OG_CLIENT_PERF_SIM_TRACE") is "1" or "true" or "TRUE";
+        private static readonly double SlowPlayerThresholdMilliseconds = ResolveSlowPlayerThresholdMilliseconds();
+        private static readonly string? SlowPlayerTracePath = SlowPlayerTracingEnabled
+            ? RuntimePaths.GetLogPath($"simulation-player-spikes-{DateTime.Now.ToString("yyyyMMdd-HHmmssfff", CultureInfo.InvariantCulture)}.log")
+            : null;
+        private static readonly string? SlowPlayerBreakdownTracePath = SlowPlayerTracingEnabled
+            ? RuntimePaths.GetLogPath($"simulation-player-breakdowns-{DateTime.Now.ToString("yyyyMMdd-HHmmssfff", CultureInfo.InvariantCulture)}.log")
+            : null;
+        private static readonly string? SlowPhaseTracePath = SlowPlayerTracingEnabled
+            ? RuntimePaths.GetLogPath($"simulation-phase-spikes-{DateTime.Now.ToString("yyyyMMdd-HHmmssfff", CultureInfo.InvariantCulture)}.log")
+            : null;
+        private static readonly object SlowPlayerTraceSync = new();
         private readonly SimulationWorld _world;
 
         public RuntimeEntityPhaseController(SimulationWorld world)
@@ -13,6 +30,12 @@ public sealed partial class SimulationWorld
 
         public void AdvanceProjectileAndTransientEntityPhase()
         {
+            if (SlowPlayerTracingEnabled)
+            {
+                AdvanceProjectileAndTransientEntityPhaseWithTracing();
+                return;
+            }
+
             _world.AdvanceCombatTraces();
             _world.ComputeSniperAimIndicators();
             _world.AdvanceShots();
@@ -34,6 +57,49 @@ public sealed partial class SimulationWorld
             _world.AdvanceJumpPadGibs();
         }
 
+        private void AdvanceProjectileAndTransientEntityPhaseWithTracing()
+        {
+            AdvanceTimedPhase("combatTraces", _world.AdvanceCombatTraces);
+            AdvanceTimedPhase("sniperIndicators", _world.ComputeSniperAimIndicators);
+            AdvanceTimedPhase("shots", _world.AdvanceShots);
+            AdvanceTimedPhase("bubbles", _world.AdvanceBubbles);
+            AdvanceTimedPhase("blades", _world.AdvanceBlades);
+            AdvanceTimedPhase("needles", _world.AdvanceNeedles);
+            AdvanceTimedPhase("revolverShots", _world.AdvanceRevolverShots);
+            AdvanceTimedPhase("stabAnimations", _world.AdvanceStabAnimations);
+            AdvanceTimedPhase("stabMasks", _world.AdvanceStabMasks);
+            AdvanceTimedPhase("flames", _world.AdvanceFlames);
+            AdvanceTimedPhase("flares", _world.AdvanceFlares);
+            AdvanceTimedPhase("rockets", _world.AdvanceRockets);
+            AdvanceTimedPhase("mines", _world.AdvanceMines);
+            AdvanceTimedPhase("grenades", _world.AdvanceGrenades);
+            AdvanceTimedPhase("playerGibs", _world.AdvancePlayerGibs);
+            AdvanceTimedPhase("bloodDrops", _world.AdvanceBloodDrops);
+            AdvanceTimedPhase("deadBodies", _world.AdvanceDeadBodies);
+            AdvanceTimedPhase("sentryGibs", _world.AdvanceSentryGibs);
+            AdvanceTimedPhase("jumpPadGibs", _world.AdvanceJumpPadGibs);
+        }
+
+        private void AdvanceTimedPhase(string name, Action advance)
+        {
+            var startTimestamp = Stopwatch.GetTimestamp();
+            advance();
+            var elapsedMilliseconds = ElapsedMilliseconds(startTimestamp);
+            if (elapsedMilliseconds < SlowPlayerThresholdMilliseconds
+                || string.IsNullOrWhiteSpace(SlowPhaseTracePath))
+            {
+                return;
+            }
+
+            var line = string.Create(
+                CultureInfo.InvariantCulture,
+                $"{DateTime.Now:O} frame={_world.Frame} phase={name} elapsedMs={elapsedMilliseconds:0.0}{Environment.NewLine}");
+            lock (SlowPlayerTraceSync)
+            {
+                File.AppendAllText(SlowPhaseTracePath, line);
+            }
+        }
+
         public void AdvanceLocalPlayerOnly()
         {
             // Only advance the local player for client-side prediction
@@ -47,10 +113,23 @@ public sealed partial class SimulationWorld
 
         public void AdvancePlayerSimulationPhase()
         {
+            var phaseStartTimestamp = SlowPlayerTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+            byte[]? playerTimingSlots = SlowPlayerTracingEnabled ? new byte[NetworkPlayerSlots.Count] : null;
+            double[]? playerTimingMilliseconds = SlowPlayerTracingEnabled ? new double[NetworkPlayerSlots.Count] : null;
             for (var index = 0; index < NetworkPlayerSlots.Count; index += 1)
             {
-                _world.AdvancePlayableNetworkPlayer(NetworkPlayerSlots[index]);
+                var slot = NetworkPlayerSlots[index];
+                var startTimestamp = SlowPlayerTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+                _world.AdvancePlayableNetworkPlayer(slot);
+                TraceSlowPlayer(slot, startTimestamp);
+                if (playerTimingSlots is not null && playerTimingMilliseconds is not null)
+                {
+                    playerTimingSlots[index] = slot;
+                    playerTimingMilliseconds[index] = ElapsedMilliseconds(startTimestamp);
+                }
             }
+
+            TracePlayerPhaseBreakdown(phaseStartTimestamp, playerTimingSlots, playerTimingMilliseconds);
 
             // Taunt frames are advanced inside PlayerEntity.AdvanceTickState during full
             // simulation. AdvanceRemoteSnapshotPlayerTauntStates is client-prediction only.
@@ -77,6 +156,95 @@ public sealed partial class SimulationWorld
             _world.AdvanceSentries();
             _world.AdvanceJumpPads();
             _world.AdvanceCivilDefenseTurrets();
+        }
+
+        private static double ResolveSlowPlayerThresholdMilliseconds()
+        {
+            var configured = Environment.GetEnvironmentVariable("OG_CLIENT_PERF_SIM_PLAYER_TRACE_THRESHOLD_MS");
+            return double.TryParse(configured, NumberStyles.Float, CultureInfo.InvariantCulture, out var threshold)
+                ? Math.Max(0d, threshold)
+                : 5d;
+        }
+
+        private static double ElapsedMilliseconds(long startTimestamp)
+        {
+            return startTimestamp == 0L
+                ? 0d
+                : (Stopwatch.GetTimestamp() - startTimestamp) * 1000d / Stopwatch.Frequency;
+        }
+
+        private void TracePlayerPhaseBreakdown(long startTimestamp, byte[]? slots, double[]? timings)
+        {
+            if (!SlowPlayerTracingEnabled
+                || startTimestamp == 0L
+                || slots is null
+                || timings is null
+                || string.IsNullOrWhiteSpace(SlowPlayerBreakdownTracePath))
+            {
+                return;
+            }
+
+            var totalMilliseconds = ElapsedMilliseconds(startTimestamp);
+            if (totalMilliseconds < SlowPlayerThresholdMilliseconds)
+            {
+                return;
+            }
+
+            var builder = new System.Text.StringBuilder();
+            builder.Append(DateTime.Now.ToString("O", CultureInfo.InvariantCulture));
+            builder.Append(" frame=");
+            builder.Append(_world.Frame.ToString(CultureInfo.InvariantCulture));
+            builder.Append(" totalMs=");
+            builder.Append(totalMilliseconds.ToString("0.0", CultureInfo.InvariantCulture));
+            builder.Append(" players=");
+            for (var index = 0; index < slots.Length; index += 1)
+            {
+                if (index > 0)
+                {
+                    builder.Append('|');
+                }
+
+                var slot = slots[index];
+                var className = _world.TryGetNetworkPlayer(slot, out var player)
+                    ? player.ClassId.ToString()
+                    : "missing";
+                builder.Append(slot.ToString(CultureInfo.InvariantCulture));
+                builder.Append(':');
+                builder.Append(className);
+                builder.Append('=');
+                builder.Append(timings[index].ToString("0.0", CultureInfo.InvariantCulture));
+            }
+
+            builder.AppendLine();
+            lock (SlowPlayerTraceSync)
+            {
+                File.AppendAllText(SlowPlayerBreakdownTracePath, builder.ToString());
+            }
+        }
+
+        private void TraceSlowPlayer(byte slot, long startTimestamp)
+        {
+            if (!SlowPlayerTracingEnabled || startTimestamp == 0L || string.IsNullOrWhiteSpace(SlowPlayerTracePath))
+            {
+                return;
+            }
+
+            var elapsedMilliseconds = (Stopwatch.GetTimestamp() - startTimestamp) * 1000d / Stopwatch.Frequency;
+            if (elapsedMilliseconds < SlowPlayerThresholdMilliseconds)
+            {
+                return;
+            }
+
+            var className = _world.TryGetNetworkPlayer(slot, out var player)
+                ? player.ClassId.ToString()
+                : "missing";
+            var line = string.Create(
+                CultureInfo.InvariantCulture,
+                $"{DateTime.Now:O} frame={_world.Frame} slot={slot} class={className} elapsedMs={elapsedMilliseconds:0.0}{Environment.NewLine}");
+            lock (SlowPlayerTraceSync)
+            {
+                File.AppendAllText(SlowPlayerTracePath, line);
+            }
         }
     }
 }

@@ -5,3 +5,4 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("OG2")]
 [assembly: InternalsVisibleTo("OpenGarrison.Client")]
 [assembly: InternalsVisibleTo("OpenGarrison.Server")]
+[assembly: InternalsVisibleTo("OpenGarrison.BotBrain.Tools")]

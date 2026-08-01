@@ -21,6 +21,15 @@ public sealed class CursorSizeSettingsTests
         Assert.Equal(expected, ClientSettings.NormalizeCursorSizePercent(input));
     }
 
+    [Theory]
+    [InlineData(50, 1f)]
+    [InlineData(100, 2f)]
+    [InlineData(250, 5f)]
+    public void CursorSizePercentProducesExpectedRenderScale(int percent, float expectedScale)
+    {
+        Assert.Equal(expectedScale, ClientSettings.GetCursorScale(percent));
+    }
+
     [Fact]
     public void CursorSizePercentRoundTripsThroughClientPreferences()
     {

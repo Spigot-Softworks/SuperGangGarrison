@@ -329,6 +329,53 @@ public sealed class BotBrainClassBehaviorTests
     }
 
     [Fact]
+    public void AlphaCtfDynamicCarrierReuseAdvancesTheGraphPath()
+    {
+        var world = CreateClassWorld(PlayerClass.Soldier, out var soldier);
+        soldier.TeleportTo(100f, 100f);
+        soldier.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        var carrier = AddNetworkPlayer(world, 2, PlayerClass.Scout, PlayerTeam.Blue, 300f, 100f);
+        carrier.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: -1f);
+        world.RedIntel.PickUp();
+        carrier.PickUpIntel();
+
+        var controller = new BotBrainController(
+            CreateObstacleWalkGraph(soldier.X, soldier.Y, carrier.X, carrier.Y),
+            forceAlphaNavigation: true);
+
+        _ = controller.Think(soldier, world, PlayerTeam.Red);
+        var secondInput = controller.Think(soldier, world, PlayerTeam.Red);
+
+        Assert.True(secondInput.Right);
+        Assert.Contains("directRoute=dynamicEnemyCarrier", controller.LastDirectDriveTrace, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AlphaCtfGroundedPathlessRecoveryReattachesWithoutWaitingForCooldown()
+    {
+        var world = CreateClassWorld(PlayerClass.Soldier, out var soldier);
+        soldier.TeleportTo(100f, 100f);
+        soldier.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        var controller = new BotBrainController(
+            CreateObstacleWalkGraph(soldier.X, soldier.Y, 400f, soldier.Y),
+            forceAlphaNavigation: true);
+
+        _ = controller.Think(soldier, world, PlayerTeam.Red);
+        SetControllerField<NavPath?>(controller, "_currentPath", null);
+        SetControllerField(controller, "_goalNodeIndex", -1);
+        SetControllerField(controller, "_repathCooldownTicks", 30);
+        SetControllerField(controller, "_alphaRecoveryPending", true);
+        SetControllerField(controller, "_alphaRecoveryNextAttemptThinkTick", 0);
+
+        var input = controller.Think(soldier, world, PlayerTeam.Red);
+
+        Assert.True(input.Right);
+        Assert.True(controller.HasActivePath);
+        Assert.True(controller.CurrentPathCount >= 2);
+        Assert.False(GetControllerField<bool>(controller, "_alphaRecoveryPending"));
+    }
+
+    [Fact]
     public void AlphaCtfDynamicDroppedIntelUsesGraphRoute()
     {
         var world = CreateClassWorld(PlayerClass.Soldier, out var soldier);
@@ -361,6 +408,88 @@ public sealed class BotBrainClassBehaviorTests
         _ = controller.Think(soldier, world, PlayerTeam.Red);
 
         Assert.Contains("directRoute=dynamicEscortCarrier", controller.LastDirectDriveTrace, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AlphaControlPointRouteRebuildsAfterCaptureStateChanges()
+    {
+        var world = CreateKothWorld(PlayerTeam.Blue, PlayerClass.Soldier, out var player);
+        var point = Assert.Single(world.ControlPoints);
+        point.IsLocked = false;
+        point.Team = PlayerTeam.Red;
+        player.TeleportTo(120f, 100f);
+        player.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        var controller = new BotBrainController(
+            CreateObstacleWalkGraph(player.X, player.Y, point.HealingAuraCenterX, point.HealingAuraCenterY),
+            forceAlphaNavigation: true);
+
+        var outboundInput = controller.Think(player, world, PlayerTeam.Blue);
+        Assert.True(outboundInput.Right);
+
+        // Finish the old route while the point is still enemy-owned. The next
+        // objective state must invalidate this completed path rather than leave
+        // the bot on neutral input after the point changes owner.
+        player.TeleportTo(point.HealingAuraCenterX, point.HealingAuraCenterY);
+        player.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        _ = controller.Think(player, world, PlayerTeam.Blue);
+
+        point.Team = PlayerTeam.Blue;
+        player.TeleportTo(120f, 100f);
+        player.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+
+        var postCaptureInput = controller.Think(player, world, PlayerTeam.Blue);
+
+        Assert.True(postCaptureInput.Right);
+        Assert.True(controller.HasActivePath);
+    }
+
+    [Fact]
+    public void AlphaEnemyOwnedPointDoesNotFallThroughToNeutralAfterArrival()
+    {
+        var world = CreateKothWorld(PlayerTeam.Blue, PlayerClass.Soldier, out var player);
+        var point = Assert.Single(world.ControlPoints);
+        point.IsLocked = false;
+        point.Team = PlayerTeam.Red;
+        point.CappingTeam = null;
+        player.TeleportTo(point.HealingAuraCenterX, point.HealingAuraCenterY);
+        player.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        var controller = new BotBrainController(
+            CreateSingleNodeGraph(player.X, player.Y, GameModeKind.KingOfTheHill),
+            forceAlphaNavigation: true);
+
+        _ = controller.Think(player, world, PlayerTeam.Blue);
+
+        Assert.Contains("alphaCaptureContestHold", controller.LastDirectDriveTrace, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AlphaNavigationKeepsObjectiveRouteWhileEnemyIsNearPointButBotIsFarAway()
+    {
+        var world = CreateKothWorld(PlayerTeam.Blue, PlayerClass.Soldier, out var player);
+        var point = Assert.Single(world.ControlPoints);
+        point.IsLocked = false;
+        point.Team = PlayerTeam.Red;
+        point.CappingTeam = null;
+        player.TeleportTo(0f, point.HealingAuraCenterY);
+        player.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        var enemy = AddNetworkPlayer(
+            world,
+            2,
+            PlayerClass.Heavy,
+            PlayerTeam.Red,
+            point.HealingAuraCenterX + 180f,
+            point.HealingAuraCenterY);
+        enemy.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: -1f);
+
+        var controller = new BotBrainController(
+            CreateObstacleWalkGraph(player.X, player.Y, point.HealingAuraCenterX, point.HealingAuraCenterY),
+            forceAlphaNavigation: true);
+
+        var input = controller.Think(player, world, PlayerTeam.Blue);
+
+        Assert.True(input.Right);
+        Assert.DoesNotContain("controlPointClearEnemy", controller.LastDirectDriveTrace, StringComparison.Ordinal);
+        Assert.True(controller.HasActivePath);
     }
 
     [Fact]
@@ -603,6 +732,48 @@ public sealed class BotBrainClassBehaviorTests
         var steering = new SteeringMachine().Update(player, graph, path, world.Level, PlayerTeam.Red);
 
         Assert.Equal(2, path.CurrentIndex);
+        Assert.Equal(1f, steering.MoveDirection);
+    }
+
+    [Fact]
+    public void AlphaDirectedWalkDoesNotReverseWhenWaypointDeltaOvershoots()
+    {
+        var world = CreateClassWorld(PlayerClass.Pyro, out var player);
+        player.TeleportTo(120f, 100f);
+        player.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
+        var nodes = new[]
+        {
+            new NavNode(0f, 100f, NavNodeKind.Surface, 1),
+            new NavNode(100f, 100f, NavNodeKind.Surface, 1),
+        };
+        var adjacency = CreateAdjacency(nodes.Length);
+        adjacency[0].Add(new NavEdge(
+            ToNode: 1,
+            Kind: NavEdgeKind.Walk,
+            Cost: 100f,
+            Completion: NavEdgeCompletion.None,
+            JumpTriggerTick: 0,
+            ProbeTicks: 0,
+            ProbeMoveDirectionX: 1f,
+            ProbeVariantAttempts: 1,
+            ProbeVariantSuccesses: 1,
+            SupportedClassMask: BotBrainClassMask.All,
+            SupportedTeamMask: BotBrainTeamMask.All,
+            RequiresGroundedContinuation: false,
+            RequiresCarryingIntel: false,
+            LaunchRecipe: NavEdgeLaunchRecipe.None));
+        var graph = new NavGraph(
+            nodes,
+            adjacency,
+            levelName: "SyntheticAlpha",
+            mode: GameModeKind.CaptureTheFlag,
+            isOg2Alpha: true);
+        var path = graph.FindPath(0, 1, PlayerClass.Pyro, team: PlayerTeam.Red);
+        Assert.NotNull(path);
+        path!.Advance();
+
+        var steering = new SteeringMachine().Update(player, graph, path, world.Level, PlayerTeam.Red);
+
         Assert.Equal(1f, steering.MoveDirection);
     }
 

@@ -21,8 +21,17 @@ public sealed partial class PlayerEntity
         var directionY = deltaY / maxDistance;
 
         var totalMoved = 0f;
-        while (totalMoved < maxDistance)
+        var maximumIterations = Math.Clamp(
+            (int)MathF.Ceiling(maxDistance * (CollisionSubpixelPrecision * 2f)) + 16,
+            16,
+            65_536);
+        for (var iteration = 0; totalMoved < maxDistance && iteration < maximumIterations; iteration += 1)
         {
+            if (MovementCollisionDiagnosticsEnabled)
+            {
+                _movementCollisionContactIterations += 1;
+            }
+
             var remainingDistance = MathF.Min(1f, maxDistance - totalMoved);
             var movedThisIteration = false;
             for (var subpixel = CollisionSubpixelPrecision; subpixel >= 1f; subpixel -= 1f)
@@ -31,6 +40,11 @@ public sealed partial class PlayerEntity
                 var stepDistance = remainingDistance * fraction;
                 var nextX = X + (directionX * stepDistance);
                 var nextY = Y + (directionY * stepDistance);
+                if (MovementCollisionDiagnosticsEnabled)
+                {
+                    _movementCollisionOccupyChecks += 1;
+                }
+
                 if (!CanOccupy(level, team, nextX, nextY))
                 {
                     continue;
