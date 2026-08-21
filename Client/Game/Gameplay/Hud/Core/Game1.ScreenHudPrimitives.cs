@@ -224,6 +224,30 @@ public partial class Game1
     private bool TryDrawScreenSpritePart(string spriteName, int frameIndex, Rectangle sourceRectangle, Vector2 position, Color tint, Vector2 scale, SpriteEffects effects)
     {
         var sprite = GetResolvedSprite(spriteName);
+        return sprite is not null
+            && sprite.Frames.Count > 0
+            && TryDrawScreenSpritePart(
+                spriteName,
+                frameIndex,
+                sourceRectangle,
+                position,
+                tint,
+                scale,
+                effects,
+                sprite.Origin.ToVector2());
+    }
+
+    private bool TryDrawScreenSpritePart(
+        string spriteName,
+        int frameIndex,
+        Rectangle sourceRectangle,
+        Vector2 position,
+        Color tint,
+        Vector2 scale,
+        SpriteEffects effects,
+        Vector2 origin)
+    {
+        var sprite = GetResolvedSprite(spriteName);
         if (sprite is null || sprite.Frames.Count == 0)
         {
             return false;
@@ -245,7 +269,7 @@ public partial class Game1
             clampedSourceRectangle,
             tint,
             0f,
-            sprite.Origin.ToVector2(),
+            origin,
             scale,
             effects,
             0f);

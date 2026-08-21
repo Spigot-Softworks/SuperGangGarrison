@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.JSInterop;
@@ -5,8 +6,12 @@ using OpenGarrison.Client;
 using OpenGarrison.Client.Browser;
 using OpenGarrison.Client.Browser.Services;
 using OpenGarrison.ClientShared;
+using OpenGarrison.Core;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
+ApplicationBuildInfo.InitializeBrowserMetadata(
+    ReadBrowserAssemblyMetadata("OpenGarrisonBrowserBuildVersion"),
+    ReadBrowserAssemblyMetadata("OpenGarrisonBrowserReleaseChannel"));
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
@@ -40,3 +45,11 @@ NetworkClientMessageTransportRegistry.SetBrowserTransportFactory(
         BrowserWebSocketMessageTransport.TryConnect(jsRuntime, targetHost, targetPort, out transport, out error));
 
 await host.RunAsync();
+
+static string? ReadBrowserAssemblyMetadata(string key)
+{
+    return Assembly.GetExecutingAssembly()
+        .GetCustomAttributes<AssemblyMetadataAttribute>()
+        .FirstOrDefault(attribute => string.Equals(attribute.Key, key, StringComparison.Ordinal))
+        ?.Value;
+}

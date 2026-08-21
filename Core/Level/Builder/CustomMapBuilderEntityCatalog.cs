@@ -70,6 +70,7 @@ public static class CustomMapBuilderEntityCatalog
         Define("killbox", AllModes, "xscale=1;yscale=1", 58, "Kill box", "Kills a player.", "sprite64", 2),
         Define("pitfall", AllModes, "xscale=1;yscale=1", 62, "Pitfall", "Kills a player.", "sprite64", 3),
         Define("fragbox", AllModes, "xscale=1;yscale=1", 60, "Frag box", "Gibs a player.", "sprite64", 4),
+        Define("firebox", AllModes, "xscale=1;yscale=1", 58, "Fire zone", "Ignites players while they remain inside this zone.", "sprite64", 2),
         Define(
             HealthPackMetadata.HealthPackEntityType,
             AllModes,

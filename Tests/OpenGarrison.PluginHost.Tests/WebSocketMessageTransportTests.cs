@@ -115,6 +115,18 @@ public sealed class WebSocketMessageTransportTests
         Assert.NotEqual(udpPeer, websocketPeer);
     }
 
+    [Fact]
+    public void RelayDiagnosticsRedactBearerToken()
+    {
+        var endpoint = new Uri("wss://relay.example.com/api/relay/ws/run/host?token=host-secret");
+
+        var redacted = CompositeServerMessageTransport.RedactRelayEndpoint(endpoint);
+
+        Assert.Contains("/api/relay/ws/run/host", redacted, StringComparison.Ordinal);
+        Assert.Contains("token=REDACTED", redacted, StringComparison.Ordinal);
+        Assert.DoesNotContain("host-secret", redacted, StringComparison.Ordinal);
+    }
+
     private static async Task<ServerMessagePacket> WaitForServerPacketAsync(
         CompositeServerMessageTransport transport,
         CancellationToken cancellationToken)

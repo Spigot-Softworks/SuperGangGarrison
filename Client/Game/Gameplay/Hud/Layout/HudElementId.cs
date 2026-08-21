@@ -15,12 +15,16 @@ internal static class HudElementId
     public const string MatchKothRedTimer = "match.koth.red.timer";
     public const string MatchKothBlueTimer = "match.koth.blue.timer";
     public const string LastToDieRage = "last-to-die.rage";
+    public const string LastToDieSpyCloak = "last-to-die.spy-cloak";
     public const string LastToDieBuffIcon = "last-to-die.buff-icon";
+    public const string LastToDieActionStatus = "last-to-die.action-status";
     public const string ClassMedicUber = "class.medic.uber";
     public const string ClassMedicHealingTarget = "class.medic.healing-target";
     public const string ClassMedicHealer = "class.medic.healer";
     public const string ClassEngineerMetal = "class.engineer.metal";
     public const string ClassEngineerSentry = "class.engineer.sentry";
+    public const string ClassEngineerDispenser = "class.engineer.dispenser";
+    public const string ClassEngineerBuildMenu = "class.engineer.build-menu";
 
     public static string LocalAbility(string id) => LocalAbilityPrefix + id;
 

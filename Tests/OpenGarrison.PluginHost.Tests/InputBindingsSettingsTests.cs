@@ -10,6 +10,66 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class InputBindingsSettingsTests
 {
     [Fact]
+    public void WeaponSwapDefaultsToSpaceOutsideExclusiveMultiplayerWeapons()
+    {
+        Assert.Equal(WeaponSwapBindingMode.Space, new InputBindingsSettings().SwapWeaponsBinding);
+        Assert.True(KeyboardInputMapper.UsesMultiplayerExclusivePrimarySwapBinding(
+            isNetworkMultiplayerSession: true,
+            isLastToDieSession: false,
+            isLockedPrimaryWeaponClass: true));
+        Assert.False(KeyboardInputMapper.UsesMultiplayerExclusivePrimarySwapBinding(
+            isNetworkMultiplayerSession: true,
+            isLastToDieSession: true,
+            isLockedPrimaryWeaponClass: true));
+    }
+
+    [Fact]
+    public void ExclusiveMultiplayerQSwapDoesNotAlsoTriggerWeaponInteraction()
+    {
+        var bindings = new InputBindingsSettings
+        {
+            SwapWeaponsBinding = WeaponSwapBindingMode.Space,
+            InteractWeapon = InputBinding.FromKey(Keys.Q),
+        };
+
+        var snapshot = KeyboardInputMapper.BuildGameplaySnapshot(
+            bindings,
+            new KeyboardState(Keys.Q),
+            new MouseState(),
+            cameraX: 0f,
+            cameraY: 0f,
+            localPlayerX: 0f,
+            localPlayerY: 0f,
+            useMultiplayerExclusivePrimarySwapBinding: true);
+
+        Assert.True(snapshot.SwapWeapon);
+        Assert.False(snapshot.InteractWeapon);
+    }
+
+    [Fact]
+    public void LastToDieKeepsQAsWeaponInteractionWhenUsingNormalSwapBinding()
+    {
+        var bindings = new InputBindingsSettings
+        {
+            SwapWeaponsBinding = WeaponSwapBindingMode.Space,
+            InteractWeapon = InputBinding.FromKey(Keys.Q),
+        };
+
+        var snapshot = KeyboardInputMapper.BuildGameplaySnapshot(
+            bindings,
+            new KeyboardState(Keys.Q),
+            new MouseState(),
+            cameraX: 0f,
+            cameraY: 0f,
+            localPlayerX: 0f,
+            localPlayerY: 0f,
+            useMultiplayerExclusivePrimarySwapBinding: false);
+
+        Assert.False(snapshot.SwapWeapon);
+        Assert.True(snapshot.InteractWeapon);
+    }
+
+    [Fact]
     public void ParseBindingSupportsLegacyIntegerKeyValues()
     {
         Assert.True(InputBindingsSettings.TryParseBinding(((int)Keys.Tab).ToString(CultureInfo.InvariantCulture), out var binding));

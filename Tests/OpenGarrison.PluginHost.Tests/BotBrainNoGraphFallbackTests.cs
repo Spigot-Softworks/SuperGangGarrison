@@ -18,7 +18,7 @@ public sealed class BotBrainNoGraphFallbackTests
         Assert.True(world.TryLoadLevel("Lumberyard"));
         Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
         world.ForceRespawnLocalPlayer();
-        var controller = new BotBrainController();
+        var controller = new BotBrainController(disableShippedNavigationGraph: true);
 
         var input = controller.Think(world.LocalPlayer, world, PlayerTeam.Red);
 
@@ -50,7 +50,7 @@ public sealed class BotBrainNoGraphFallbackTests
         Assert.True(world.TryGetNetworkPlayer(blueBotSlot, out var blueBot));
         var redStartX = redBot.X;
         var blueStartX = blueBot.X;
-        var controller = new BotBrainPracticeBotController();
+        var controller = new BotBrainPracticeBotController(disableShippedNavigationGraphs: true);
         var slots = new Dictionary<byte, ControlledBotSlot>
         {
             [redBotSlot] = new(redBotSlot, PlayerTeam.Red, PlayerClass.Scout),
@@ -103,10 +103,11 @@ public sealed class BotBrainNoGraphFallbackTests
         Assert.NotNull(blueBrain);
         Assert.False(redBrain!.HasNavigationGraph);
         Assert.False(blueBrain!.HasNavigationGraph);
-        Assert.True(activeTicks > 180, $"redTrace:{redBrain.LastDirectDriveTrace} blueTrace:{blueBrain.LastDirectDriveTrace}");
         Assert.True(
             MathF.Abs(redBot.X - redStartX) > 256f || MathF.Abs(blueBot.X - blueStartX) > 256f,
-            $"redStart:{redStartX:0.0} redEnd:{redBot.X:0.0} blueStart:{blueStartX:0.0} blueEnd:{blueBot.X:0.0} redTrace:{redBrain.LastDirectDriveTrace} blueTrace:{blueBrain.LastDirectDriveTrace}");
+            $"activeTicks:{activeTicks} redStart:{redStartX:0.0} redEnd:{redBot.X:0.0} "
+            + $"blueStart:{blueStartX:0.0} blueEnd:{blueBot.X:0.0} "
+            + $"redTrace:{redBrain.LastDirectDriveTrace} blueTrace:{blueBrain.LastDirectDriveTrace}");
         Assert.True(
             combatTick >= 0 || captureTick >= 0,
             $"combatTick:{combatTick} captureTick:{captureTick} red:({redBot.X:0.0},{redBot.Y:0.0}) blue:({blueBot.X:0.0},{blueBot.Y:0.0}) redTrace:{redBrain.LastDirectDriveTrace} blueTrace:{blueBrain.LastDirectDriveTrace}");

@@ -21,9 +21,8 @@ public sealed partial class SimulationWorld
 
     public IEnumerable<(byte Slot, PlayerEntity Player)> EnumerateActiveNetworkPlayers()
     {
-        for (var index = 0; index < NetworkPlayerSlots.Count; index += 1)
+        foreach (var slot in EnumerateEnabledNetworkPlayerSlots())
         {
-            var slot = NetworkPlayerSlots[index];
             if (!IsNetworkPlayerEnabled(slot)
                 || IsNetworkPlayerAwaitingJoin(slot)
                 || !TryGetNetworkPlayer(slot, out var player))
@@ -37,9 +36,8 @@ public sealed partial class SimulationWorld
 
     public IEnumerable<(byte Slot, PlayerEntity Player)> EnumerateReplicatedNetworkPlayers()
     {
-        for (var index = 0; index < NetworkPlayerSlots.Count; index += 1)
+        foreach (var slot in EnumerateEnabledNetworkPlayerSlots())
         {
-            var slot = NetworkPlayerSlots[index];
             if (!IsNetworkPlayerEnabled(slot)
                 || !TryGetNetworkPlayer(slot, out var player))
             {
@@ -47,6 +45,17 @@ public sealed partial class SimulationWorld
             }
 
             yield return (slot, player);
+        }
+    }
+
+    private IEnumerable<byte> EnumerateEnabledNetworkPlayerSlots()
+    {
+        // The local player is always slot 1 in the simulation. Additional
+        // slots are materialized only when a player is actually enabled.
+        yield return LocalPlayerSlot;
+        foreach (var slot in _enabledAdditionalNetworkPlayerSlots)
+        {
+            yield return slot;
         }
     }
 

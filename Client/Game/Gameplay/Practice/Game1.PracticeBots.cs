@@ -797,7 +797,7 @@ public partial class Game1
         return ApplyCachedPracticeBotNavigationInputs(
             controlledSlots,
             _practiceBotStaleSlotsBuffer,
-            advanceOnlyPerTickNavigation: false);
+            advanceOnlyPerTickNavigation: true);
     }
 
     private IReadOnlyDictionary<byte, PlayerInputSnapshot> ApplyCachedPracticeBotNavigationInputs(
@@ -875,7 +875,7 @@ public partial class Game1
             $"apply(last/avg/max)={setInputsMilliseconds:0.0}/{averageSetInputsMilliseconds:0.0}/{_practiceBotPerfSetInputMaxMilliseconds:0.0}ms");
     }
 
-    private static int GetPracticeBotThinkBatchSize(int controlledBotCount)
+    internal static int GetPracticeBotThinkBatchSize(int controlledBotCount)
     {
         if (OperatingSystem.IsBrowser())
         {
@@ -887,12 +887,18 @@ public partial class Game1
             };
         }
 
-        // Native practice sessions have a real thread pool and do not need to
-        // trade away 0.2+ seconds of decision latency to protect the browser's
-        // single-threaded frame budget. Running the complete roster here keeps
-        // combat, objective transitions, and route recovery in one time domain;
-        // the graph/A* layers are already cooldown-gated and cache-backed.
-        return controlledBotCount;
+        // Keep native practice on the same bounded cadence as a hosted server.
+        // Running the complete roster on every simulation tick makes an offline
+        // match more expensive than the equivalent hosted client, even though
+        // the hosted client only receives the server's already-advanced state.
+        // The cached inputs remain valid between think batches, while immediate
+        // contacts and navigation recovery are still added below when needed.
+        return controlledBotCount switch
+        {
+            >= 8 => PracticeBotThinkBatchSizeLargeRoster,
+            >= 4 => PracticeBotThinkBatchSizeMediumRoster,
+            _ => PracticeBotThinkBatchSizeSmallRoster,
+        };
     }
 
     private List<byte> SelectPracticeBotThinkSlots(IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots)
@@ -920,15 +926,13 @@ public partial class Game1
             _practiceBotThinkSlotsBuffer.Add(_practiceBotRosterSlotsBuffer[slotIndex]);
         }
 
-        // Ordinary navigation can use the roster batch above. A runtime-certified
-        // OG2 contact is different: its launch recipe is measured in physics ticks,
-        // while the cached input continues to be applied between brain updates.
-        // Think those bots every update until the contact finishes so the live input
-        // schedule stays in the same time domain as the probe that certified it.
+        // A per-tick navigation requirement is a cached-input heartbeat, not
+        // an extra full think.  Full Think must remain the only place that
+        // refreshes target selection and combat decisions; stale slots are
+        // advanced below and only their movement fields are merged.
         foreach (var slot in _practiceBotRosterSlotsBuffer)
         {
-            if ((_practiceBotController.RequiresPerTickNavigationThink(slot)
-                    || _practiceBotController.RequiresImmediateNavigationThink(slot))
+            if (_practiceBotController.RequiresImmediateNavigationThink(slot)
                 && !_practiceBotThinkSlotsBuffer.Contains(slot))
             {
                 _practiceBotThinkSlotsBuffer.Add(slot);

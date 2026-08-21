@@ -86,6 +86,16 @@ public partial class Game1
             return _onlineSessionController.TryConnectToServer(endpoint, addConsoleFeedback, intent);
         }
 
+        public bool TryAdvancePendingConnectionCandidate(string disconnectReason)
+        {
+            return _onlineSessionController.TryAdvancePendingConnectionCandidate(disconnectReason);
+        }
+
+        public void ClearPendingConnectionCandidates()
+        {
+            _onlineSessionController.ClearPendingConnectionCandidates();
+        }
+
         public bool TryPlayLegacyReplay(string replayPath, bool addConsoleFeedback, bool clearQueuedReplays = true)
         {
             return _onlineSessionController.TryPlayLegacyReplay(replayPath, addConsoleFeedback, clearQueuedReplays);

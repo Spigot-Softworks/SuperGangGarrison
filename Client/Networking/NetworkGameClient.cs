@@ -22,6 +22,7 @@ internal sealed class NetworkGameClient : IDisposable
         int SnapshotMaxPayloadBytes,
         int MaxPayloadBytes,
         int PendingInboundMessages,
+        bool ReceiveBudgetHit,
         double DeserializeMilliseconds,
         double MaxDeserializeMilliseconds);
 
@@ -42,11 +43,16 @@ internal sealed class NetworkGameClient : IDisposable
     private const long LocalConnectedTimeoutMilliseconds = 30000;
     private const int MaxTrackedInputRoundTrips = 512;
     private const int MaxTrackedPingRoundTrips = 32;
+    private const int MaxPendingLastToDieCommands = 128;
+    private const long LastToDieCommandRetryMilliseconds = 250;
+    private const int MaxReceivePacketsPerFrame = 256;
+    private const double MaxReceiveMillisecondsPerFrame = 4d;
     private const long PingIntervalMilliseconds = 1000;
     private const InputButtons Protocol64OneShotInputMask =
         InputButtons.Up
         | InputButtons.BuildSentry
         | InputButtons.DestroySentry
+        | InputButtons.DestroyDispenser
         | InputButtons.Taunt
         | InputButtons.FirePrimary
         | InputButtons.FireSecondary
@@ -54,7 +60,8 @@ internal sealed class NetworkGameClient : IDisposable
         | InputButtons.UseAbility
         | InputButtons.InteractWeapon
         | InputButtons.SwapWeapon
-        | InputButtons.ReadyUp;
+        | InputButtons.ReadyUp
+        | InputButtons.BuildDispenser;
 
     [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "The client transport seam must support browser WebSocket adapters.")]
     private INetworkClientMessageTransport? _transport;
@@ -62,10 +69,15 @@ internal sealed class NetworkGameClient : IDisposable
     private uint _nextProtocol64CommandSequence = 1;
     private ulong _nextProtocol64FrameId = 1;
     private ulong _nextProtocol64CommandId = 1;
+    private ulong _nextLastToDieCommandId = 1;
+    private readonly Guid _defaultClientInstanceId = Guid.NewGuid();
+    private ulong _lastToDieContentReadyStageInstanceId;
     private ulong _protocol64ConnectionEpoch = 1;
     private PlayerInputSnapshot _lastProtocol64Input;
     private readonly Protocol64SchemaRegistry _protocol64Registry = Protocol64SchemaRegistryFactory.CreateDefault();
     private readonly Protocol64StateApplier _protocol64State = new();
+    private readonly LastToDieReplicatedState _lastToDieState = new();
+    private readonly Dictionary<ulong, PendingLastToDieCommand> _pendingLastToDieCommands = [];
     private readonly Dictionary<ulong, Protocol64InputCommandResult> _protocol64InputResults = new();
     private uint _nextControlSequence = 1;
     private int _pendingChatBubbleFrameIndex = -1;
@@ -85,6 +97,7 @@ internal sealed class NetworkGameClient : IDisposable
     private string _pendingHelloFriendCode = string.Empty;
     private string _pendingHelloPlayerCardJson = string.Empty;
     private ConnectionIntent _pendingHelloIntent = ConnectionIntent.Join;
+    private Guid _pendingHelloClientInstanceId;
     private long _connectStartedAtMilliseconds = -1;
     private long _lastHelloSentAtMilliseconds = -1;
     private long _lastPingSentAtMilliseconds = -1;
@@ -110,6 +123,8 @@ internal sealed class NetworkGameClient : IDisposable
     public bool Protocol64ModeEnabled { get; set; }
 
     public Protocol64StateApplier Protocol64State => _protocol64State;
+
+    public LastToDieReplicatedState LastToDieState => _lastToDieState;
 
     public bool TryGetProtocol64PlayerState(byte slot, out Protocol64PlayerState state)
         => _protocol64State.TryGetPlayerState(slot, out state);
@@ -152,7 +167,8 @@ internal sealed class NetworkGameClient : IDisposable
         out string error,
         string friendCode = "",
         string playerCardJson = "",
-        ConnectionIntent intent = ConnectionIntent.Join)
+        ConnectionIntent intent = ConnectionIntent.Join,
+        Guid clientInstanceId = default)
     {
         error = string.Empty;
         var armedDemoRecordingPath = _demoRecorder is null ? _armedDemoRecordingPath : null;
@@ -172,7 +188,15 @@ internal sealed class NetworkGameClient : IDisposable
             }
 
             Protocol64ModeEnabled = protocol64Endpoint;
-            if (!Connect(transport, playerName, badgeMask, out error, friendCode, playerCardJson, intent))
+            if (!Connect(
+                    transport,
+                    playerName,
+                    badgeMask,
+                    out error,
+                    friendCode,
+                    playerCardJson,
+                    intent,
+                    clientInstanceId))
             {
                 return false;
             }
@@ -195,7 +219,8 @@ internal sealed class NetworkGameClient : IDisposable
         out string error,
         string friendCode = "",
         string playerCardJson = "",
-        ConnectionIntent intent = ConnectionIntent.Join)
+        ConnectionIntent intent = ConnectionIntent.Join,
+        Guid clientInstanceId = default)
     {
         error = string.Empty;
         ArgumentNullException.ThrowIfNull(transport);
@@ -240,6 +265,9 @@ internal sealed class NetworkGameClient : IDisposable
         _pendingHelloFriendCode = NormalizeSocialProfileField(friendCode, ProtocolCodec.MaxFriendCodeBytes);
         _pendingHelloPlayerCardJson = NormalizeSocialProfileField(playerCardJson, ProtocolCodec.MaxPlayerCardBytes);
         _pendingHelloIntent = intent;
+        _pendingHelloClientInstanceId = clientInstanceId == Guid.Empty
+            ? _defaultClientInstanceId
+            : clientInstanceId;
         _connectStartedAtMilliseconds = _clock.ElapsedMilliseconds;
         _lastHelloSentAtMilliseconds = -1;
         LocalPlayerSlot = 0;
@@ -258,10 +286,14 @@ internal sealed class NetworkGameClient : IDisposable
         _nextProtocol64CommandSequence = 1;
         _nextProtocol64FrameId = 1;
         _nextProtocol64CommandId = 1;
+        _nextLastToDieCommandId = 1;
+        _lastToDieContentReadyStageInstanceId = 0;
         _protocol64ConnectionEpoch = 1;
         _lastProtocol64Input = default;
         _protocol64InputResults.Clear();
         _protocol64State.Reset();
+        _lastToDieState.Reset();
+        _pendingLastToDieCommands.Clear();
         _nextControlSequence = 1;
         _pendingChatBubbleFrameIndex = -1;
         _pendingControlCommands.Clear();
@@ -625,7 +657,9 @@ internal sealed class NetworkGameClient : IDisposable
         if (input.Up) buttons |= InputButtons.Up;
         if (input.Down) buttons |= InputButtons.Down;
         if (input.BuildSentry) buttons |= InputButtons.BuildSentry;
+        if (input.BuildDispenser) buttons |= InputButtons.BuildDispenser;
         if (input.DestroySentry) buttons |= InputButtons.DestroySentry;
+        if (input.DestroyDispenser) buttons |= InputButtons.DestroyDispenser;
         if (input.Taunt) buttons |= InputButtons.Taunt;
         if (input.FirePrimary) buttons |= InputButtons.FirePrimary;
         if (input.FireSecondary) buttons |= InputButtons.FireSecondary;
@@ -638,6 +672,12 @@ internal sealed class NetworkGameClient : IDisposable
 
         if (Protocol64ModeEnabled)
         {
+            // Team/class selections are reliable control commands queued by
+            // the gameplay menus. Flush them on the protocol-64 path too;
+            // otherwise QUIC sends input and receives snapshots but never
+            // tells the server that this client selected a playable roster.
+            SendPendingControlCommands();
+
             var protocol64Sequence = _nextInputSequence++;
             var heldButtons = buttons & ~Protocol64OneShotInputMask;
             TrySendProtocol64Event(new InputStateMessage(
@@ -781,6 +821,7 @@ internal sealed class NetworkGameClient : IDisposable
 
         FlushHandshakeState();
         FlushTransportState();
+        FlushLastToDieCommands();
         FlushPendingOutboundPackets();
         FlushPingState();
         FlushPendingOutboundPackets();
@@ -799,19 +840,29 @@ internal sealed class NetworkGameClient : IDisposable
         var maxPayloadBytes = 0;
         var deserializeMilliseconds = 0d;
         var maxDeserializeMilliseconds = 0d;
+        var receiveBudgetHit = false;
+        var receiveStartTimestamp = Stopwatch.GetTimestamp();
         var messages = new List<IProtocolMessage>();
         while (transport.HasPendingMessages)
         {
+            if (packetsRead >= MaxReceivePacketsPerFrame
+                || (packetsRead > 0
+                    && Stopwatch.GetElapsedTime(receiveStartTimestamp).TotalMilliseconds >= MaxReceiveMillisecondsPerFrame))
+            {
+                receiveBudgetHit = true;
+                break;
+            }
+
             try
             {
                 if (!transport.TryReceive(out var payload))
                 {
-                    continue;
+                    break;
                 }
 
+                packetsRead += 1;
                 if (collectDiagnostics)
                 {
-                    packetsRead += 1;
                     bytesRead += payload.Length;
                     maxPayloadBytes = Math.Max(maxPayloadBytes, payload.Length);
                 }
@@ -871,9 +922,13 @@ internal sealed class NetworkGameClient : IDisposable
 
         FlushTransportState();
         FlushConnectedState();
-        while (_pendingInboundMessages.Count > 0 && _pendingInboundMessages.Peek().ReleaseAtMilliseconds <= _clock.ElapsedMilliseconds)
+        var releasedDelayedMessages = 0;
+        while (releasedDelayedMessages < MaxReceivePacketsPerFrame
+            && _pendingInboundMessages.Count > 0
+            && _pendingInboundMessages.Peek().ReleaseAtMilliseconds <= _clock.ElapsedMilliseconds)
         {
             var message = _pendingInboundMessages.Dequeue().Message;
+            releasedDelayedMessages += 1;
             if (!TryHandleInternalMessage(message))
             {
                 messages.Add(message);
@@ -889,6 +944,7 @@ internal sealed class NetworkGameClient : IDisposable
                 snapshotMaxPayloadBytes,
                 maxPayloadBytes,
                 _pendingInboundMessages.Count,
+                receiveBudgetHit,
                 deserializeMilliseconds,
                 maxDeserializeMilliseconds)
             : default;
@@ -912,6 +968,67 @@ internal sealed class NetworkGameClient : IDisposable
         ulong commandId,
         out Protocol64InputCommandResult result)
         => _protocol64InputResults.TryGetValue(commandId, out result!);
+
+    public ulong SendLastToDieCommand(
+        LastToDieCommandKind kind,
+        string selectedId = "",
+        ulong offerId = 0)
+    {
+        if (!IsConnected || _lastToDieState.Snapshot is not { } snapshot)
+        {
+            return 0;
+        }
+
+        var commandId = _nextLastToDieCommandId++;
+        var command = new LastToDieCommandMessage(
+            commandId,
+            snapshot.RunId,
+            snapshot.StructuralRevision,
+            kind,
+            snapshot.StageInstanceId,
+            offerId,
+            selectedId ?? string.Empty);
+        if (_pendingLastToDieCommands.Count >= MaxPendingLastToDieCommands)
+        {
+            _pendingLastToDieCommands.Remove(_pendingLastToDieCommands.Keys.Min());
+        }
+
+        _pendingLastToDieCommands.Add(
+            commandId,
+            new PendingLastToDieCommand(command, _clock.ElapsedMilliseconds));
+        Send(command);
+        return commandId;
+    }
+
+    public void SendLastToDieLeave()
+    {
+        if (IsConnected && _lastToDieState.Snapshot is not null)
+        {
+            SendLastToDieCommand(LastToDieCommandKind.Leave);
+        }
+    }
+
+    public void NotifyWorldSnapshotApplied(SnapshotMessage snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        if (_lastToDieState.Snapshot is not { } lastToDie
+            || lastToDie.Phase != LastToDieWirePhase.LoadingStage
+            || lastToDie.StageInstanceId == 0
+            || lastToDie.BaselineStartFrame == 0
+            || snapshot.Frame < lastToDie.BaselineStartFrame
+            || !string.Equals(snapshot.LevelName, lastToDie.CurrentMap, StringComparison.OrdinalIgnoreCase)
+            || _lastToDieContentReadyStageInstanceId == lastToDie.StageInstanceId)
+        {
+            return;
+        }
+
+        if (SendLastToDieCommand(
+                LastToDieCommandKind.StageContentReady,
+                selectedId: lastToDie.CurrentMap) != 0)
+        {
+            _lastToDieContentReadyStageInstanceId = lastToDie.StageInstanceId;
+        }
+    }
 
     private bool TrySendProtocol64Event(object eventValue)
     {
@@ -957,7 +1074,9 @@ internal sealed class NetworkGameClient : IDisposable
         var allSent = true;
         allSent &= SendProtocol64Edge(input.Up && !previous.Up, Protocol64InputCommandKind.Jump, inputSequence, heldButtons, aimRelX, aimRelY);
         allSent &= SendProtocol64Edge(input.BuildSentry && !previous.BuildSentry, Protocol64InputCommandKind.BuildSentry, inputSequence, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.BuildDispenser && !previous.BuildDispenser, Protocol64InputCommandKind.BuildDispenser, inputSequence, heldButtons, aimRelX, aimRelY);
         allSent &= SendProtocol64Edge(input.DestroySentry && !previous.DestroySentry, Protocol64InputCommandKind.DestroySentry, inputSequence, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.DestroyDispenser && !previous.DestroyDispenser, Protocol64InputCommandKind.DestroyDispenser, inputSequence, heldButtons, aimRelX, aimRelY);
         allSent &= SendProtocol64Edge(input.Taunt && !previous.Taunt, Protocol64InputCommandKind.Taunt, inputSequence, heldButtons, aimRelX, aimRelY);
         allSent &= SendProtocol64Edge(input.FirePrimary && !previous.FirePrimary, Protocol64InputCommandKind.FirePrimary, inputSequence, heldButtons, aimRelX, aimRelY);
         allSent &= SendProtocol64Edge(input.FireSecondary && !previous.FireSecondary, Protocol64InputCommandKind.FireSecondary, inputSequence, heldButtons, aimRelX, aimRelY);
@@ -1036,6 +1155,20 @@ internal sealed class NetworkGameClient : IDisposable
                 break;
             case Protocol64StateResyncResponse resync:
                 SendStateRepairIfNeeded(_protocol64State.ApplyResyncResponse(resync));
+                break;
+            case LastToDieCommandResultMessage lastToDieResult:
+                _lastToDieState.ApplyCommandResult(lastToDieResult);
+                _pendingLastToDieCommands.Remove(lastToDieResult.CommandId);
+                break;
+            case LastToDieRunSnapshotMessage lastToDieSnapshot:
+                var lastToDieApply = _lastToDieState.ApplySnapshot(lastToDieSnapshot);
+                CompleteProvenLastToDieCommands(lastToDieSnapshot);
+                if ((lastToDieApply.Kind is LastToDieSnapshotApplyKind.Applied
+                        or LastToDieSnapshotApplyKind.Duplicate)
+                    && _lastToDieState.CreateSnapshotAcknowledgement() is { } acknowledgement)
+                {
+                    TrySendProtocol64Event(acknowledgement);
+                }
                 break;
             case IProtocolMessage message:
                 if (!TryHandleInternalMessage(message))
@@ -1332,13 +1465,27 @@ internal sealed class NetworkGameClient : IDisposable
 
     private bool TryHandleInternalMessage(IProtocolMessage message)
     {
-        if (message is not PingResponseMessage pingResponse)
+        switch (message)
         {
-            return false;
-        }
+            case PingResponseMessage pingResponse:
+                AcknowledgePing(pingResponse.Sequence);
+                return true;
+            case LastToDieCommandResultMessage result:
+                _lastToDieState.ApplyCommandResult(result);
+                _pendingLastToDieCommands.Remove(result.CommandId);
+                return true;
+            case LastToDieRunSnapshotMessage snapshot:
+                _lastToDieState.ApplySnapshot(snapshot);
+                CompleteProvenLastToDieCommands(snapshot);
+                if (_lastToDieState.CreateSnapshotAcknowledgement() is { } acknowledgement)
+                {
+                    Send(acknowledgement);
+                }
 
-        AcknowledgePing(pingResponse.Sequence);
-        return true;
+                return true;
+            default:
+                return false;
+        }
     }
 
     private void AcknowledgePing(uint sequence)
@@ -1461,6 +1608,78 @@ internal sealed class NetworkGameClient : IDisposable
         }
     }
 
+    private void FlushLastToDieCommands()
+    {
+        if (!IsConnected || _pendingLastToDieCommands.Count == 0)
+        {
+            return;
+        }
+
+        var nowMilliseconds = _clock.ElapsedMilliseconds;
+        foreach (var pending in _pendingLastToDieCommands.Values)
+        {
+            if (nowMilliseconds - pending.LastSentAtMilliseconds < LastToDieCommandRetryMilliseconds)
+            {
+                continue;
+            }
+
+            Send(pending.Command);
+            pending.LastSentAtMilliseconds = nowMilliseconds;
+        }
+    }
+
+    private void CompleteProvenLastToDieCommands(LastToDieRunSnapshotMessage snapshot)
+    {
+        if (_pendingLastToDieCommands.Count == 0)
+        {
+            return;
+        }
+
+        var localPlayer = snapshot.Players.FirstOrDefault(player => player.Slot == LocalPlayerSlot);
+        var completed = new List<ulong>();
+        foreach (var (commandId, pending) in _pendingLastToDieCommands)
+        {
+            var command = pending.Command;
+            if (command.RunId != snapshot.RunId
+                || snapshot.StructuralRevision < command.ExpectedStructuralRevision)
+            {
+                continue;
+            }
+
+            var proven = command.Kind switch
+            {
+                LastToDieCommandKind.RequestStart
+                    => snapshot.Phase != LastToDieWirePhase.Lobby,
+                LastToDieCommandKind.ChooseSurvivor
+                    => string.Equals(localPlayer?.SurvivorId, command.SelectedId, StringComparison.Ordinal),
+                LastToDieCommandKind.SelectReward
+                    => localPlayer?.OwnedPerkIds.Contains(command.SelectedId, StringComparer.Ordinal) == true,
+                LastToDieCommandKind.Ready or LastToDieCommandKind.StageContentReady
+                    => localPlayer?.IsReady == true
+                        || snapshot.Phase is LastToDieWirePhase.Playing
+                            or LastToDieWirePhase.Won
+                            or LastToDieWirePhase.Lost,
+                LastToDieCommandKind.Leave
+                    => localPlayer is null,
+                LastToDieCommandKind.Retry
+                    => localPlayer?.IsReady == true
+                        || snapshot.Phase != LastToDieWirePhase.Lost,
+                LastToDieCommandKind.ReturnToLobby
+                    => snapshot.Phase == LastToDieWirePhase.Lobby,
+                _ => false,
+            };
+            if (proven)
+            {
+                completed.Add(commandId);
+            }
+        }
+
+        foreach (var commandId in completed)
+        {
+            _pendingLastToDieCommands.Remove(commandId);
+        }
+    }
+
     private void SendHello()
     {
         if (_pendingHelloPlayerName is null)
@@ -1474,7 +1693,8 @@ internal sealed class NetworkGameClient : IDisposable
             _pendingHelloBadgeMask,
             _pendingHelloFriendCode,
             _pendingHelloPlayerCardJson,
-            _pendingHelloIntent));
+            _pendingHelloIntent,
+            _pendingHelloClientInstanceId));
         _lastHelloSentAtMilliseconds = _clock.ElapsedMilliseconds;
     }
 
@@ -1542,6 +1762,15 @@ internal sealed class NetworkGameClient : IDisposable
     private sealed record TrackedPingRoundTrip(uint Sequence, long SentAtMilliseconds);
     private sealed record PendingPacket(long ReleaseAtMilliseconds, byte[] Payload);
     private sealed record PendingMessage(long ReleaseAtMilliseconds, IProtocolMessage Message);
+
+    private sealed class PendingLastToDieCommand(
+        LastToDieCommandMessage command,
+        long lastSentAtMilliseconds)
+    {
+        public LastToDieCommandMessage Command { get; } = command;
+
+        public long LastSentAtMilliseconds { get; set; } = lastSentAtMilliseconds;
+    }
 }
 
 

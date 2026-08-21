@@ -25,6 +25,8 @@ public static partial class ProtocolCodec
             writer.Write(sentry.HasActiveTarget);
             writer.Write(sentry.LastShotTargetX);
             writer.Write(sentry.LastShotTargetY);
+            writer.Write(sentry.IsDispenser);
+            writer.Write(sentry.DispenserRampTicks);
         }
     }
 
@@ -48,7 +50,9 @@ public static partial class ProtocolCodec
                 reader.ReadBoolean(),
                 reader.ReadBoolean(),
                 reader.ReadSingle(),
-                reader.ReadSingle()));
+                reader.ReadSingle(),
+                reader.ReadBoolean(),
+                reader.ReadInt32()));
         }
 
         return sentries;
@@ -70,6 +74,7 @@ public static partial class ProtocolCodec
             writer.Write(update.HasActiveTarget);
             writer.Write(update.LastShotTargetX);
             writer.Write(update.LastShotTargetY);
+            writer.Write(update.DispenserRampTicks);
         }
     }
 
@@ -89,13 +94,17 @@ public static partial class ProtocolCodec
                 reader.ReadInt32(),
                 reader.ReadBoolean(),
                 reader.ReadSingle(),
-                reader.ReadSingle()));
+                reader.ReadSingle(),
+                reader.ReadInt32()));
         }
 
         return updates;
     }
 
-    private static void WriteShotStates(BinaryWriter writer, IReadOnlyList<SnapshotShotState> shots)
+    private static void WriteShotStates(
+        BinaryWriter writer,
+        IReadOnlyList<SnapshotShotState> shots,
+        bool includeRevolverPayload = false)
     {
         writer.Write((ushort)shots.Count);
         for (var index = 0; index < shots.Count; index += 1)
@@ -112,15 +121,42 @@ public static partial class ProtocolCodec
             writer.Write(shot.IsCritical);
             writer.Write(shot.IsMedicHealNeedle);
             writer.Write(shot.IsArrow);
+            if (shot.IsMedicHealNeedle)
+            {
+                writer.Write(shot.LastToDieMedicKritzM2Payload);
+                writer.Write(shot.IsLastToDieMedicJavelinAnchored);
+                writer.Write(shot.LastToDieMedicJavelinFuseTicksRemaining);
+                writer.Write(shot.HasLastToDieMedicJavelinExploded);
+            }
             if (shot.IsArrow)
             {
                 writer.Write(shot.ArrowFakeSpeedMultiplier);
                 writer.Write(shot.IsLanded);
+                writer.Write(shot.AppliesLastToDieGuardian);
+                writer.Write(shot.PiercesPlayers);
+                writer.Write(shot.AppliesLastToDieTranqDarts);
+                writer.Write(shot.LastToDiePoisonDamagePerSecond);
+                writer.Write(shot.LastToDieGhostDamageMultiplier);
+                writer.Write(shot.AppliesLastToDieDecapitator);
+                writer.Write(shot.IsLastToDieDecapitatorFullyCharged);
+                writer.Write(shot.LastToDieAttachedHeadClassId);
+                writer.Write(shot.LastToDieAttachedHeadTeam);
+                writer.Write(shot.AppliesLastToDieExplosiveTip);
+                writer.Write(shot.DamageValue);
             }
+            if (includeRevolverPayload)
+            {
+                writer.Write(shot.DamageValue);
+                writer.Write(shot.LastToDieRevolverProfile);
+                writer.Write(shot.AppliesLuckyStrikeStun);
+            }
+            writer.Write(shot.CriticalDamageMultiplier);
         }
     }
 
-    private static List<SnapshotShotState> ReadShotStates(BinaryReader reader)
+    private static List<SnapshotShotState> ReadShotStates(
+        BinaryReader reader,
+        bool includeRevolverPayload = false)
     {
         var count = reader.ReadUInt16();
         var shots = new List<SnapshotShotState>(count);
@@ -137,10 +173,34 @@ public static partial class ProtocolCodec
             var isCritical = reader.ReadBoolean();
             var isMedicHealNeedle = reader.ReadBoolean();
             var isArrow = reader.ReadBoolean();
+            var lastToDieMedicKritzM2Payload = isMedicHealNeedle
+                ? reader.ReadByte()
+                : (byte)0;
+            var isLastToDieMedicJavelinAnchored = isMedicHealNeedle
+                && reader.ReadBoolean();
+            var lastToDieMedicJavelinFuseTicksRemaining = isMedicHealNeedle
+                ? reader.ReadInt32()
+                : 0;
+            var hasLastToDieMedicJavelinExploded = isMedicHealNeedle
+                && reader.ReadBoolean();
             var arrowFakeSpeedMultiplier = isArrow
                 ? reader.ReadSingle()
                 : 1f;
             var isLanded = isArrow && reader.ReadBoolean();
+            var appliesLastToDieGuardian = isArrow && reader.ReadBoolean();
+            var piercesPlayers = isArrow && reader.ReadBoolean();
+            var appliesLastToDieTranqDarts = isArrow && reader.ReadBoolean();
+            var lastToDiePoisonDamagePerSecond = isArrow ? reader.ReadSingle() : 0f;
+            var lastToDieGhostDamageMultiplier = isArrow ? reader.ReadSingle() : 1f;
+            var appliesLastToDieDecapitator = isArrow && reader.ReadBoolean();
+            var isLastToDieDecapitatorFullyCharged = isArrow && reader.ReadBoolean();
+            var lastToDieAttachedHeadClassId = isArrow ? reader.ReadByte() : (byte)0;
+            var lastToDieAttachedHeadTeam = isArrow ? reader.ReadByte() : (byte)0;
+            var appliesLastToDieExplosiveTip = isArrow && reader.ReadBoolean();
+            var damageValue = isArrow || includeRevolverPayload ? reader.ReadSingle() : 0f;
+            var lastToDieRevolverProfile = includeRevolverPayload ? reader.ReadInt32() : 0;
+            var appliesLuckyStrikeStun = includeRevolverPayload && reader.ReadBoolean();
+            var criticalDamageMultiplier = reader.ReadSingle();
             shots.Add(new SnapshotShotState(
                 id,
                 team,
@@ -154,7 +214,25 @@ public static partial class ProtocolCodec
                 isMedicHealNeedle,
                 isArrow,
                 arrowFakeSpeedMultiplier,
-                isLanded));
+                isLanded,
+                appliesLastToDieGuardian,
+                piercesPlayers,
+                appliesLastToDieTranqDarts,
+                lastToDiePoisonDamagePerSecond,
+                lastToDieGhostDamageMultiplier,
+                appliesLastToDieDecapitator,
+                isLastToDieDecapitatorFullyCharged,
+                lastToDieAttachedHeadClassId,
+                lastToDieAttachedHeadTeam,
+                appliesLastToDieExplosiveTip,
+                damageValue,
+                lastToDieRevolverProfile,
+                appliesLuckyStrikeStun,
+                lastToDieMedicKritzM2Payload,
+                isLastToDieMedicJavelinAnchored,
+                lastToDieMedicJavelinFuseTicksRemaining,
+                hasLastToDieMedicJavelinExploded,
+                criticalDamageMultiplier));
         }
 
         return shots;
@@ -194,6 +272,7 @@ public static partial class ProtocolCodec
                     writer.Write(passedFriendlyPlayerIds[passedIndex]);
                 }
             }
+            writer.Write(rocket.CriticalDamageMultiplier);
         }
     }
 
@@ -228,6 +307,7 @@ public static partial class ProtocolCodec
             {
                 passedFriendlyPlayerIds[passedIndex] = reader.ReadInt32();
             }
+            var criticalDamageMultiplier = reader.ReadSingle();
 
             rockets.Add(new SnapshotRocketState(
                 id,
@@ -249,7 +329,8 @@ public static partial class ProtocolCodec
                 isFading,
                 fadeSourceTicksRemaining,
                 passedFriendlyPlayerIds,
-                isCritical));
+                isCritical,
+                criticalDamageMultiplier));
         }
 
         return rockets;
@@ -275,6 +356,7 @@ public static partial class ProtocolCodec
             writer.Write(flame.AttachedOffsetX);
             writer.Write(flame.AttachedOffsetY);
             writer.Write(flame.IsCritical);
+            writer.Write(flame.CriticalDamageMultiplier);
         }
     }
 
@@ -298,7 +380,8 @@ public static partial class ProtocolCodec
                 reader.ReadInt32(),
                 reader.ReadSingle(),
                 reader.ReadSingle(),
-                reader.ReadBoolean()));
+                reader.ReadBoolean(),
+                reader.ReadSingle()));
         }
 
         return flames;
@@ -321,6 +404,7 @@ public static partial class ProtocolCodec
             writer.Write(mine.IsDestroyed);
             writer.Write(mine.ExplosionDamage);
             writer.Write(mine.IsCritical);
+            writer.Write(mine.CriticalDamageMultiplier);
         }
     }
 
@@ -341,7 +425,8 @@ public static partial class ProtocolCodec
                 reader.ReadBoolean(),
                 reader.ReadBoolean(),
                 reader.ReadSingle(),
-                reader.ReadBoolean()));
+                reader.ReadBoolean(),
+                reader.ReadSingle()));
         }
 
         return mines;
@@ -364,6 +449,7 @@ public static partial class ProtocolCodec
             writer.Write(grenade.VelocityY);
             writer.Write(grenade.FuseTicksLeft);
             writer.Write(grenade.IsCritical);
+            writer.Write(grenade.CriticalDamageMultiplier);
         }
     }
 
@@ -384,7 +470,8 @@ public static partial class ProtocolCodec
                 reader.ReadSingle(),
                 reader.ReadSingle(),
                 reader.ReadInt32(),
-                reader.ReadBoolean()));
+                reader.ReadBoolean(),
+                reader.ReadSingle()));
         }
 
         return grenades;

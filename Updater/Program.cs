@@ -6,6 +6,7 @@ using System.Net.Http.Json;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
+using OpenGarrison.Bootstrap;
 
 const string UpdateManifestBaseUrl = "https://api.superganggarrison.com/updates";
 const string VersionFileName = "version.txt";
@@ -1101,6 +1102,8 @@ static void LaunchGame(string appDirectory, string[] args)
         return;
     }
 
+    WarnIfServerRuntimeIsMissing(appDirectory, gamePath);
+
     EnsureExecutablePermission(gamePath);
 
     var startInfo = new ProcessStartInfo
@@ -1128,6 +1131,66 @@ static void LaunchGame(string appDirectory, string[] args)
     catch (Exception ex)
     {
         NotifyLaunchFailure(appDirectory, $"Super Gang Garrison could not start the game executable:\n{gamePath}", ex);
+    }
+}
+
+static void WarnIfServerRuntimeIsMissing(string appDirectory, string gamePath)
+{
+    if (!OperatingSystem.IsWindows())
+    {
+        return;
+    }
+
+    var payloadDirectory = Path.GetDirectoryName(gamePath) ?? appDirectory;
+    var runtimeConfigPath = Path.Combine(payloadDirectory, "OG2.Server.runtimeconfig.json");
+    if (!File.Exists(runtimeConfigPath))
+    {
+        runtimeConfigPath = Path.Combine(payloadDirectory, "OpenGarrison.Server.runtimeconfig.json");
+    }
+
+    if (!File.Exists(runtimeConfigPath)
+        || !DotNetRuntimePrerequisite.TryReadFrameworkRequirement(
+            runtimeConfigPath,
+            "Microsoft.AspNetCore.App",
+            out var requirement))
+    {
+        return;
+    }
+
+    if (!DotNetRuntimePrerequisite.TryQueryInstalledRuntimes(out var installedRuntimes, out var queryError))
+    {
+        LogUpdaterEvent(appDirectory, $"could not verify ASP.NET Core runtime: {queryError}");
+        return;
+    }
+
+    if (DotNetRuntimePrerequisite.IsFrameworkAvailable(installedRuntimes, requirement))
+    {
+        return;
+    }
+
+    var downloadUrl = DotNetRuntimePrerequisite.GetDownloadUrl(requirement);
+    var message = $"Super Gang Garrison requires ASP.NET Core Runtime {requirement.VersionFamily} (x64) "
+        + "for local hosting and the dedicated server, but no compatible runtime is installed.\n\n"
+        + $"Required framework: {requirement.FrameworkName} {requirement.VersionFamily}.x\n\n"
+        + "Open the official Microsoft download page now?\n\n"
+        + "Choose No to continue without local server hosting. After installing the runtime, restart Super Gang Garrison.\n\n"
+        + downloadUrl;
+    LogUpdaterEvent(appDirectory, $"missing required runtime {requirement.FrameworkName} {requirement.VersionFamily}.x");
+    if (!WindowsMessageBox.Confirm(message, "ASP.NET Core Runtime required"))
+    {
+        return;
+    }
+
+    try
+    {
+        Process.Start(new ProcessStartInfo(downloadUrl) { UseShellExecute = true });
+    }
+    catch (Exception ex)
+    {
+        LogUpdaterEvent(appDirectory, $"failed to open ASP.NET Core runtime download page {downloadUrl}", ex);
+        WindowsMessageBox.Show(
+            $"Could not open the download page automatically.\n\nOpen this address in a browser:\n{downloadUrl}",
+            "ASP.NET Core Runtime required");
     }
 }
 
@@ -1451,7 +1514,7 @@ internal sealed class WindowsUpdateUi : IUpdateUi
         _handle = CreateWindowEx(
             0,
             _className,
-            "Smoke - Updating",
+            "Super Gang Garrison",
             WsPopup,
             left,
             top,
@@ -1554,7 +1617,7 @@ internal sealed class WindowsUpdateUi : IUpdateUi
             }
 
             FillRect(hdc, new Rect(0, 0, WindowWidth, WindowHeight), BackgroundColor);
-            DrawTextLine(hdc, "Smoke - Updating", new Rect(26, 7, 260, 24), WhiteColor, DtLeft | DtSingleLine | DtVCenter);
+            DrawTextLine(hdc, "Super Gang Garrison", new Rect(26, 7, 260, 24), WhiteColor, DtLeft | DtSingleLine | DtVCenter);
             DrawTextLine(hdc, state.Message, new Rect(26, 38, 268, 60), WhiteColor, DtLeft | DtSingleLine | DtVCenter);
             DrawProgressFrame(hdc);
             DrawProgressSegments(hdc, state.Progress);
@@ -1764,15 +1827,32 @@ internal sealed class WindowsUpdateUi : IUpdateUi
 
 internal static class WindowsMessageBox
 {
+    private const uint ErrorIcon = 0x00000010;
+    private const uint WarningIcon = 0x00000030;
+    private const uint YesNoButtons = 0x00000004;
+    private const int YesResult = 6;
+
     public static void Show(string text, string caption)
     {
         try
         {
-            _ = MessageBox(IntPtr.Zero, text, caption, 0x00000010);
+            _ = MessageBox(IntPtr.Zero, text, caption, ErrorIcon);
         }
         catch
         {
             // If user32 is unavailable or the process cannot show UI, the log still has the failure.
+        }
+    }
+
+    public static bool Confirm(string text, string caption)
+    {
+        try
+        {
+            return MessageBox(IntPtr.Zero, text, caption, WarningIcon | YesNoButtons) == YesResult;
+        }
+        catch
+        {
+            return false;
         }
     }
 

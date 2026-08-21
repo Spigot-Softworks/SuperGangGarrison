@@ -21,4 +21,6 @@ public readonly record struct PlayerInputSnapshot(
     float BinocularsFocusY = 0f,
     bool SwapWeapon = false,
     bool ReadyUp = false,
-    bool IsTypingChatMessage = false);
+    bool IsTypingChatMessage = false,
+    bool BuildDispenser = false,
+    bool DestroyDispenser = false);

@@ -69,8 +69,15 @@
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       <Visible>false</Visible>
     </None>
+    <None Include="..\Docking\**\*" Condition="Exists('..\Docking')">
+      <TargetPath>Maps\Docking\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <Visible>false</Visible>
+    </None>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\Bootstrap\DotNetRuntimePrerequisite.cs" Link="Bootstrap\DotNetRuntimePrerequisite.cs" />
     <ProjectReference Include="..\Client.Shared\OpenGarrison.Client.Shared.csproj" />
     <ProjectReference Include="..\Plugins\OpenGarrison.PluginHost.Abstractions\OpenGarrison.PluginHost.Abstractions.csproj" />
     <ProjectReference Include="..\Core\OpenGarrison.Core.csproj" />

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using OpenGarrison.Client;
 using OpenGarrison.Core;
 using Xunit;
 
@@ -6,6 +7,22 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class CustomMapBuilderDocumentTests
 {
+    [Theory]
+    [InlineData(-20, 4, 0)]
+    [InlineData(0, 4, 0)]
+    [InlineData(3, 4, 3)]
+    [InlineData(20, 4, 3)]
+    [InlineData(20, 0, -1)]
+    public void BuilderFrameSelectionCannotIndexOutsideReplacementSpriteAtlas(
+        int requestedFrameIndex,
+        int frameCount,
+        int expectedFrameIndex)
+    {
+        Assert.Equal(
+            expectedFrameIndex,
+            Game1.ClampGarrisonBuilderFrameIndex(requestedFrameIndex, frameCount));
+    }
+
     [Fact]
     public void CreateEmptyStartsWithGg2CompatibleMetadata()
     {
@@ -112,6 +129,20 @@ public sealed class CustomMapBuilderDocumentTests
         Assert.Equal("sky", metadata["bg_layer6"]);
         Assert.Equal("10", metadata["layer6xfactor"]);
         Assert.Equal("0", metadata["layer6yfactor"]);
+    }
+
+    [Fact]
+    public void ResolveWalkmaskHorizontalScalePreservesNonUniformMapMetadata()
+    {
+        var metadata = new Dictionary<string, string>
+        {
+            [CustomMapBuilderDocument.WalkmaskHorizontalScaleMetadataKey] = "6.24",
+        };
+
+        Assert.Equal(6.24f, CustomMapBuilderDocument.ResolveWalkmaskHorizontalScale(metadata, 6f));
+        Assert.Equal(6f, CustomMapBuilderDocument.ResolveWalkmaskHorizontalScale(
+            new Dictionary<string, string>(),
+            6f));
     }
 
     [Fact]

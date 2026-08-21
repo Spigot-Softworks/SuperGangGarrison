@@ -12,6 +12,7 @@ public partial class Game1
     private bool IsGameplayInputBlocked()
     {
         return !IsGameplayWindowInputActive()
+            || IsHostedLastToDieBlockingGameplay()
             || IsGameplayMenuOpen()
             || ShouldBlockGameplayForGarrisonBuilder()
             || _consoleOpen
@@ -110,6 +111,7 @@ public partial class Game1
             && !ShouldBlockGameplayForGarrisonBuilder()
             && !_teamSelectOpen
             && !_classSelectOpen
+            && !ShouldConsumeHostedLastToDieBackInput()
             && !HasOpenGameplayOverlay();
     }
 }

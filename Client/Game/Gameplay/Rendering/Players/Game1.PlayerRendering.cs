@@ -231,9 +231,10 @@ public partial class Game1
         Vector2 cameraPosition,
         Color tint,
         PlayerBodySpriteSelection bodySelection,
-        bool drawIntelOverlay)
+        bool drawIntelOverlay,
+        bool drawTopDownShadow = false)
     {
-        return _gameplayPlayerSpriteRenderController.TryDrawPlayerSpriteAtPosition(player, renderPosition, cameraPosition, tint, bodySelection, drawIntelOverlay);
+        return _gameplayPlayerSpriteRenderController.TryDrawPlayerSpriteAtPosition(player, renderPosition, cameraPosition, tint, bodySelection, drawIntelOverlay, drawTopDownShadow);
     }
 
     private void DrawIntelUnderlaySprite(

@@ -17,6 +17,7 @@ public partial class Game1
 
         public void ResetGameplayRuntimeState()
         {
+            _game.CancelPracticeNavigationWarmup();
             _game.ResetClientTimingState();
             _game._lastAppliedSnapshotFrame = 0;
             _game._lastBufferedSnapshotFrame = 0;

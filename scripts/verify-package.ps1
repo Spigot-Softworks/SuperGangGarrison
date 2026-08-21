@@ -87,7 +87,8 @@ try {
         "app/Content/_gamemaker-asset-manifest.json",
         "app/Content/Gameplay/stock.gg2/runtime.json",
         "app/Content/Browser/Manifests/stock-pack-atlas-manifest.json",
-        "app/Maps/cp_docking_v2/cp_docking_v2.json"
+        "app/Maps/cp_docking_v2/cp_docking_v2.json",
+        "app/Maps/Docking/Docking.json"
     )) {
         Assert-RequiredFile -Root $extractRoot -RelativePath $relativePath
     }

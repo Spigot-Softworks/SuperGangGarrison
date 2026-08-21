@@ -32,6 +32,7 @@ public sealed class Protocol64StateApplier
     private readonly Dictionary<(ushort Slot, ulong PlayerId), uint> _removedPlayerGenerations = [];
     private readonly Dictionary<ulong, Protocol64ProjectileState> _projectiles = [];
     private readonly Dictionary<ulong, Protocol64ProjectileIdentity> _removedProjectiles = [];
+    private readonly Dictionary<(ushort Slot, ulong PlayerId), uint> _lastWorldPlayers = [];
     private readonly Dictionary<ulong, Protocol64ProjectileState> _lastWorldProjectiles = [];
     private ulong _lastWorldPlayerSequence;
     private ulong _lastWorldRosterSequence;
@@ -75,6 +76,7 @@ public sealed class Protocol64StateApplier
         _removedPlayerGenerations.Clear();
         _projectiles.Clear();
         _removedProjectiles.Clear();
+        _lastWorldPlayers.Clear();
         _lastWorldProjectiles.Clear();
         _lastWorldPlayerSequence = 0;
         _lastWorldRosterSequence = 0;
@@ -294,7 +296,29 @@ public sealed class Protocol64StateApplier
             lifecycle.Rotation,
             lifecycle.IsActive,
             lifecycle.RemainingLifetimeTicks,
-            lifecycle.Damage));
+            lifecycle.Damage,
+            lifecycle.IsCritical,
+            lifecycle.LastToDieSpyRevolverProfile,
+            lifecycle.AppliesLastToDieLuckyStrikeStun,
+            lifecycle.ArrowFakeSpeedMultiplier,
+            lifecycle.IsArrowLanded,
+            lifecycle.AppliesLastToDieGuardian,
+            lifecycle.PiercesPlayers,
+            lifecycle.AppliesLastToDieTranqDarts,
+            lifecycle.LastToDiePoisonDamagePerSecond,
+            lifecycle.LastToDieGhostDamageMultiplier,
+            lifecycle.AppliesLastToDieDecapitator,
+            lifecycle.IsLastToDieDecapitatorFullyCharged,
+            lifecycle.LastToDieAttachedHeadClassId,
+            lifecycle.LastToDieAttachedHeadTeam,
+            lifecycle.AppliesLastToDieExplosiveTip,
+            lifecycle.LastToDieMedicKritzM2Payload,
+            lifecycle.LastToDieMedicJavelinOwnerPlayerId,
+            lifecycle.LastToDieMedicJavelinTeam,
+            lifecycle.IsLastToDieMedicJavelinAnchored,
+            lifecycle.LastToDieMedicJavelinFuseTicksRemaining,
+            lifecycle.HasLastToDieMedicJavelinExploded,
+            lifecycle.CriticalDamageMultiplier));
     }
 
     public Protocol64StateApplyResult ApplyResyncResponse(Protocol64StateResyncResponse response)
@@ -403,9 +427,26 @@ public sealed class Protocol64StateApplier
 
         if (_lastWorldPlayerSequence != _playerStateSequence)
         {
+            foreach (var previous in _lastWorldPlayers)
+            {
+                if (!_players.ContainsKey(previous.Key))
+                {
+                    world.RemoveProtocol64Player(new Protocol64PlayerIdentity(
+                        previous.Key.Slot,
+                        previous.Key.PlayerId,
+                        previous.Value));
+                }
+            }
+
             foreach (var player in _players.Values)
             {
                 world.ApplyProtocol64PlayerState(player);
+            }
+
+            _lastWorldPlayers.Clear();
+            foreach (var player in _players)
+            {
+                _lastWorldPlayers[player.Key] = player.Value.Generation;
             }
 
             _lastWorldPlayerSequence = _playerStateSequence;

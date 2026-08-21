@@ -4,6 +4,9 @@ public sealed partial class SimulationWorld
 {
     private sealed partial class CombatResolver
     {
+        private const int MaximumOrderedRiflePlayerHits = 64;
+        private const float FriendlyOverlapContactEpsilon = 8f;
+
         private struct RifleHitState
         {
             public RifleHitState(float nearestDistance)
@@ -13,6 +16,7 @@ public sealed partial class SimulationWorld
                 HitSentry = null;
                 HitGenerator = null;
                 HitJumpPad = null;
+                HasTerminalContact = false;
             }
 
             public float NearestDistance;
@@ -20,23 +24,153 @@ public sealed partial class SimulationWorld
             public SentryEntity? HitSentry;
             public GeneratorState? HitGenerator;
             public JumpPadEntity? HitJumpPad;
+            public bool HasTerminalContact;
         }
 
         public RifleHitResult ResolveRifleHit(PlayerEntity attacker, float directionX, float directionY, float maxDistance)
             => ResolveRifleHit(attacker, attacker.X, attacker.Y, directionX, directionY, maxDistance);
 
+        public bool IsFriendlyPlayerFirstRifleContact(
+            PlayerEntity attacker,
+            float originX,
+            float originY,
+            float directionX,
+            float directionY,
+            float maxDistance)
+        {
+            var result = ResolveOrderedRifleHits(
+                attacker,
+                originX,
+                originY,
+                directionX,
+                directionY,
+                maxDistance,
+                new RifleTracePolicy(
+                    IgnoreOrdinaryGeometry: false,
+                    AllowFriendlySupport: true,
+                    MaximumEnemyPlayerHits: 1));
+            return result.PlayerHits.Count > 0 && result.PlayerHits[0].IsFriendlySupport;
+        }
+
         public RifleHitResult ResolveRifleHit(PlayerEntity attacker, float originX, float originY, float directionX, float directionY, float maxDistance)
+        {
+            var orderedResult = ResolveOrderedRifleHits(
+                attacker,
+                originX,
+                originY,
+                directionX,
+                directionY,
+                maxDistance,
+                new RifleTracePolicy(
+                    IgnoreOrdinaryGeometry: false,
+                    AllowFriendlySupport: false,
+                    MaximumEnemyPlayerHits: 1));
+            if (orderedResult.PlayerHits.Count > 0)
+            {
+                var playerHit = orderedResult.PlayerHits[0];
+                return new RifleHitResult(
+                    playerHit.Distance,
+                    playerHit.Player,
+                    HitSentry: null,
+                    HitGenerator: null);
+            }
+
+            return new RifleHitResult(
+                orderedResult.Distance,
+                HitPlayer: null,
+                HitSentry: orderedResult.HitSentry,
+                HitGenerator: orderedResult.HitGenerator)
+            {
+                HitJumpPad = orderedResult.HitJumpPad,
+            };
+        }
+
+        public OrderedRifleHitResult ResolveOrderedRifleHits(
+            PlayerEntity attacker,
+            float originX,
+            float originY,
+            float directionX,
+            float directionY,
+            float maxDistance,
+            RifleTracePolicy policy)
         {
             var hitState = new RifleHitState(maxDistance);
 
-            UpdateNearestRifleHitFromSolids(ref hitState, originX, originY, directionX, directionY);
-            UpdateNearestRifleHitFromRoomObjects(ref hitState, attacker, originX, originY, directionX, directionY);
+            UpdateNearestRifleHitFromWorldBounds(
+                ref hitState,
+                originX,
+                originY,
+                directionX,
+                directionY);
+            if (!policy.IgnoreOrdinaryGeometry)
+            {
+                UpdateNearestRifleHitFromSolids(ref hitState, originX, originY, directionX, directionY);
+            }
+            UpdateNearestRifleHitFromRoomObjects(
+                ref hitState,
+                attacker,
+                originX,
+                originY,
+                directionX,
+                directionY,
+                policy.IgnoreOrdinaryGeometry);
             UpdateNearestRifleHitFromGenerators(ref hitState, attacker, originX, originY, directionX, directionY);
             UpdateNearestRifleHitFromSentries(ref hitState, attacker, originX, originY, directionX, directionY);
             UpdateNearestRifleHitFromJumpPads(ref hitState, attacker, originX, originY, directionX, directionY);
-            UpdateNearestRifleHitFromPlayers(ref hitState, attacker, originX, originY, directionX, directionY);
 
-            return new RifleHitResult(hitState.NearestDistance, hitState.HitPlayer, hitState.HitSentry, hitState.HitGenerator) { HitJumpPad = hitState.HitJumpPad };
+            var playerHits = ResolveOrderedRiflePlayerHits(
+                ref hitState,
+                attacker,
+                originX,
+                originY,
+                directionX,
+                directionY,
+                policy);
+            return new OrderedRifleHitResult(
+                hitState.NearestDistance,
+                playerHits,
+                hitState.HitSentry,
+                hitState.HitGenerator)
+            {
+                HitJumpPad = hitState.HitJumpPad,
+            };
+        }
+
+        private void UpdateNearestRifleHitFromWorldBounds(
+            ref RifleHitState hitState,
+            float originX,
+            float originY,
+            float directionX,
+            float directionY)
+        {
+            var boundaryDistance = hitState.NearestDistance;
+            if (directionX > 0.0001f)
+            {
+                boundaryDistance = Math.Min(
+                    boundaryDistance,
+                    (Level.Bounds.Width - originX) / directionX);
+            }
+            else if (directionX < -0.0001f)
+            {
+                boundaryDistance = Math.Min(boundaryDistance, -originX / directionX);
+            }
+
+            if (directionY > 0.0001f)
+            {
+                boundaryDistance = Math.Min(
+                    boundaryDistance,
+                    (Level.Bounds.Height - originY) / directionY);
+            }
+            else if (directionY < -0.0001f)
+            {
+                boundaryDistance = Math.Min(boundaryDistance, -originY / directionY);
+            }
+
+            if (boundaryDistance >= 0f
+                && boundaryDistance < hitState.NearestDistance)
+            {
+                UpdateNearestRifleObstacleHit(ref hitState, boundaryDistance);
+            }
         }
 
         private void UpdateNearestRifleHitFromSolids(ref RifleHitState hitState, float originX, float originY, float directionX, float directionY)
@@ -60,11 +194,17 @@ public sealed partial class SimulationWorld
             float originX,
             float originY,
             float directionX,
-            float directionY)
+            float directionY,
+            bool ignoreOrdinaryGeometry)
         {
             var rayBounds = GetRayBounds(originX, originY, directionX, directionY, hitState.NearestDistance);
             foreach (var indexedRoomObject in GetPotentialRoomObjectRaycastCandidates(rayBounds))
             {
+                if (!Level.IsRoomObjectActive(indexedRoomObject.Index))
+                {
+                    continue;
+                }
+
                 var roomObject = indexedRoomObject.Marker;
                 if (!RayBoundsMayIntersectRectangle(rayBounds, roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom))
                 {
@@ -73,6 +213,12 @@ public sealed partial class SimulationWorld
 
                 var distance = GetRayIntersectionDistanceWithRectangle(originX, originY, directionX, directionY, roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom, hitState.NearestDistance);
                 if (!distance.HasValue)
+                {
+                    continue;
+                }
+
+                if (ignoreOrdinaryGeometry
+                    && roomObject.Type is RoomObjectType.BulletWall or RoomObjectType.DirectionalWall)
                 {
                     continue;
                 }
@@ -145,23 +291,115 @@ public sealed partial class SimulationWorld
             }
         }
 
-        private void UpdateNearestRifleHitFromPlayers(ref RifleHitState hitState, PlayerEntity attacker, float originX, float originY, float directionX, float directionY)
+        private IReadOnlyList<OrderedRiflePlayerHit> ResolveOrderedRiflePlayerHits(
+            ref RifleHitState hitState,
+            PlayerEntity attacker,
+            float originX,
+            float originY,
+            float directionX,
+            float directionY,
+            RifleTracePolicy policy)
         {
+            var candidates = new List<OrderedRiflePlayerHit>();
             foreach (var player in EnumerateSimulatedPlayers())
             {
                 if (!player.IsAlive || player.Id == attacker.Id) { continue; }
-                var distance = GetRayIntersectionDistanceWithPlayer(originX, originY, directionX, directionY, _world, player, hitState.NearestDistance);
-                if (!distance.HasValue) { continue; }
-
-                if (_world.CanPlayerDamagePlayer(attacker, player))
+                var bodyDistance = GetRayIntersectionDistanceWithPlayer(
+                    originX,
+                    originY,
+                    directionX,
+                    directionY,
+                    _world,
+                    player,
+                    hitState.NearestDistance);
+                var headDistance = policy.DetectLastToDieHeadshots
+                    ? GetRayIntersectionDistanceWithLastToDieDecapitatorHeadZone(
+                        originX,
+                        originY,
+                        directionX,
+                        directionY,
+                        _world,
+                        player,
+                        hitState.NearestDistance)
+                    : null;
+                var isHeadshot = headDistance.HasValue
+                    && (!bodyDistance.HasValue || headDistance.Value <= bodyDistance.Value);
+                var distance = isHeadshot ? headDistance : bodyDistance;
+                if (!distance.HasValue
+                    || distance.Value > hitState.NearestDistance
+                    || (hitState.HasTerminalContact
+                        && distance.Value == hitState.NearestDistance))
                 {
-                    UpdateNearestRiflePlayerHit(ref hitState, distance.Value, player);
+                    continue;
                 }
-                else
+
+                candidates.Add(new OrderedRiflePlayerHit(
+                    distance.Value,
+                    player,
+                    IsFriendlySupport: player.Team == attacker.Team,
+                    IsLastToDieHeadshot: isHeadshot));
+            }
+
+            candidates.Sort(static (left, right) =>
+            {
+                var distanceOrder = left.Distance.CompareTo(right.Distance);
+                return distanceOrder != 0
+                    ? distanceOrder
+                    : left.Player.Id.CompareTo(right.Player.Id);
+            });
+
+            // Allocation order must not decide whether an overlapping friendly
+            // body blocks an ordinary rifle trace.
+            if (!policy.AllowFriendlySupport)
+            {
+                var firstEnemyDistance = candidates
+                    .Where(static candidate => !candidate.IsFriendlySupport)
+                    .Select(static candidate => candidate.Distance)
+                    .DefaultIfEmpty(float.PositiveInfinity)
+                    .Min();
+                var firstFriendlyDistance = candidates
+                    .Where(static candidate => candidate.IsFriendlySupport)
+                    .Select(static candidate => candidate.Distance)
+                    .DefaultIfEmpty(float.PositiveInfinity)
+                    .Min();
+                if (candidates.Count > 0
+                    && firstFriendlyDistance <= firstEnemyDistance + FriendlyOverlapContactEpsilon)
                 {
-                    UpdateNearestRifleObstacleHit(ref hitState, distance.Value);
+                    UpdateNearestRifleObstacleHit(ref hitState, firstFriendlyDistance);
+                    return [];
                 }
             }
+
+            var maximumEnemyHits = Math.Clamp(
+                policy.MaximumEnemyPlayerHits,
+                1,
+                MaximumOrderedRiflePlayerHits);
+            var orderedHits = new List<OrderedRiflePlayerHit>(
+                Math.Min(candidates.Count, maximumEnemyHits));
+            var enemyHitCount = 0;
+            foreach (var candidate in candidates)
+            {
+                if (candidate.IsFriendlySupport)
+                {
+                    if (policy.AllowFriendlySupport)
+                    {
+                        orderedHits.Add(candidate);
+                    }
+
+                    UpdateNearestRifleObstacleHit(ref hitState, candidate.Distance);
+                    break;
+                }
+
+                orderedHits.Add(candidate);
+                enemyHitCount += 1;
+                if (enemyHitCount >= maximumEnemyHits)
+                {
+                    UpdateNearestRifleObstacleHit(ref hitState, candidate.Distance);
+                    break;
+                }
+            }
+
+            return orderedHits;
         }
 
         private static void UpdateNearestRifleObstacleHit(ref RifleHitState hitState, float distance)
@@ -171,6 +409,7 @@ public sealed partial class SimulationWorld
             hitState.HitSentry = null;
             hitState.HitGenerator = null;
             hitState.HitJumpPad = null;
+            hitState.HasTerminalContact = true;
         }
 
         private static void UpdateNearestRifleSentryHit(ref RifleHitState hitState, float distance, SentryEntity sentry)
@@ -180,6 +419,7 @@ public sealed partial class SimulationWorld
             hitState.HitSentry = sentry;
             hitState.HitGenerator = null;
             hitState.HitJumpPad = null;
+            hitState.HasTerminalContact = true;
         }
 
         private static void UpdateNearestRifleGeneratorHit(ref RifleHitState hitState, float distance, GeneratorState generator)
@@ -189,15 +429,7 @@ public sealed partial class SimulationWorld
             hitState.HitSentry = null;
             hitState.HitGenerator = generator;
             hitState.HitJumpPad = null;
-        }
-
-        private static void UpdateNearestRiflePlayerHit(ref RifleHitState hitState, float distance, PlayerEntity player)
-        {
-            hitState.NearestDistance = distance;
-            hitState.HitPlayer = player;
-            hitState.HitSentry = null;
-            hitState.HitGenerator = null;
-            hitState.HitJumpPad = null;
+            hitState.HasTerminalContact = true;
         }
 
         private void UpdateNearestRifleHitFromJumpPads(ref RifleHitState hitState, PlayerEntity attacker, float originX, float originY, float directionX, float directionY)
@@ -213,6 +445,7 @@ public sealed partial class SimulationWorld
                     hitState.HitSentry = null;
                     hitState.HitGenerator = null;
                     hitState.HitJumpPad = pad;
+                    hitState.HasTerminalContact = true;
                 }
             }
         }

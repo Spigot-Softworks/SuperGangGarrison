@@ -518,7 +518,7 @@ public sealed partial class SimulationWorld
                 BladeProjectileEntity blade => blade.HitDamage * blade.CriticalDamageMultiplier,
                 FlameProjectileEntity flame => flame.DirectHitDamageValue * flame.CriticalDamageMultiplier,
                 FlareProjectileEntity flare => FlareProjectileEntity.DamagePerHit * flare.CriticalDamageMultiplier,
-                RocketProjectileEntity rocket => rocket.DirectHitDamageValue,
+                RocketProjectileEntity rocket => rocket.DirectHitDamageValue * rocket.CriticalDamageMultiplier,
                 MineProjectileEntity mine => mine.ExplosionDamage * mine.CriticalDamageMultiplier,
                 GrenadeProjectileEntity grenade => GrenadeProjectileEntity.DirectHitDamage,
                 _ => 1f,

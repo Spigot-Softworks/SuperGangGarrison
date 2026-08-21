@@ -204,20 +204,65 @@ public sealed partial class SimulationWorld
             foreach (var player in EnumerateSimulatedPlayers())
             {
                 if (!player.IsAlive || player.Id == ownerId) { continue; }
+                if (projectile is ArrowProjectileEntity arrow
+                    && arrow.HasPiercedPlayer(player.Id))
+                {
+                    continue;
+                }
+                if (projectile is ArrowProjectileEntity
+                    {
+                        HasLastToDieAttachedHead: true,
+                        PiercesPlayers: false,
+                    })
+                {
+                    continue;
+                }
                 _world.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
+                var decapitatorArrow = projectile as ArrowProjectileEntity;
+                var detectsHeadshots = decapitatorArrow?.AppliesLastToDieDecapitator == true;
+                var broadPhaseTop = detectsHeadshots
+                    ? top - global::OpenGarrison.Core.LastToDie.LastToDieSniperProfile.DecapitatorHeadshotZoneSize
+                    : top;
                 if (!RayBoundsMayIntersectRectangle(
                     rayBounds,
                     left,
-                    top,
+                    broadPhaseTop,
                     right,
                     bottom))
                 {
                     continue;
                 }
 
-                var distance = GetRayIntersectionDistanceWithPlayer(previousX, previousY, directionX, directionY, _world, player, maxDistance);
+                var bodyDistance = GetRayIntersectionDistanceWithPlayer(
+                    previousX,
+                    previousY,
+                    directionX,
+                    directionY,
+                    _world,
+                    player,
+                    maxDistance);
+                var headDistance = detectsHeadshots
+                    ? GetRayIntersectionDistanceWithLastToDieDecapitatorHeadZone(
+                        previousX,
+                        previousY,
+                        directionX,
+                        directionY,
+                        _world,
+                        player,
+                        maxDistance)
+                    : null;
+                var isHeadshot = headDistance.HasValue
+                    && (!bodyDistance.HasValue || headDistance.Value <= bodyDistance.Value);
+                var distance = isHeadshot ? headDistance : bodyDistance;
                 if (!distance.HasValue) { continue; }
-                if (!_world.CanTeamDamagePlayer(projectileTeam, ownerId, player)) { continue; }
+                var isGuardianAlly = projectile is ArrowProjectileEntity guardianArrow
+                    && guardianArrow.AppliesLastToDieGuardian
+                    && player.Team == projectileTeam;
+                if (!isGuardianAlly
+                    && !_world.CanTeamDamagePlayer(projectileTeam, ownerId, player))
+                {
+                    continue;
+                }
 
                 updateHit(
                     ref nearestHit,
@@ -228,6 +273,13 @@ public sealed partial class SimulationWorld
                     player,
                     null,
                     null);
+                if (isHeadshot
+                    && nearestHit is { HitPlayer: { } hitPlayer } nearestPlayerHit
+                    && hitPlayer.Id == player.Id
+                    && nearestPlayerHit.Distance == distance.Value)
+                {
+                    nearestHit = nearestPlayerHit with { IsLastToDieHeadshot = true };
+                }
             }
         }
 

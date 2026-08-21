@@ -17,6 +17,7 @@ public partial class Game1
         var processStartTimestamp = _networkDiagnosticsEnabled ? Stopwatch.GetTimestamp() : 0L;
         var messages = _networkClient.ReceiveMessages();
         _networkClient.ApplyProtocol64StateToWorld(_world);
+        ApplyHostedLastToDiePredictionProfiles();
         ReconcileProtocol64PredictionState();
         if (_networkDiagnosticsEnabled)
         {
@@ -103,6 +104,11 @@ public partial class Game1
                 return;
             }
 
+            if (_gameplaySessionController.TryAdvancePendingConnectionCandidate(disconnectReason))
+            {
+                return;
+            }
+
             ReturnToMainMenuWithNetworkStatus(disconnectReason, $"network disconnected: {disconnectReason}");
         }
     }
@@ -119,7 +125,51 @@ public partial class Game1
             return;
         }
 
+        // During the join warmup, do not expose the world while snapshots are
+        // still waiting behind the first full snapshot. Applying the bounded
+        // backlog here is safe because gameplay and input remain behind the
+        // loading overlay, and it prevents the first visible frame from being
+        // several authoritative updates behind the server.
+        if (IsNetworkWorldWarmupBlockingGameplay())
+        {
+            while (_queuedAuthoritativeSnapshots.Count > 0)
+            {
+                ApplyNextQueuedAuthoritativeSnapshot();
+            }
+
+            return;
+        }
+
         ApplyNextQueuedAuthoritativeSnapshot();
+    }
+
+    private void ApplyHostedLastToDiePredictionProfiles()
+    {
+        if (!_networkClient.IsConnected)
+        {
+            return;
+        }
+
+        var perksBySlot = new Dictionary<byte, IReadOnlyList<string>>();
+        if (_networkClient.LastToDieState.Snapshot is { } snapshot)
+        {
+            foreach (var player in snapshot.Players)
+            {
+                perksBySlot[player.Slot] = player.OwnedPerkIds;
+            }
+        }
+
+        foreach (var slot in SimulationWorld.NetworkPlayerSlots)
+        {
+            _world.TrySetNetworkPlayerAutomaticRespawnSuppressed(
+                slot,
+                perksBySlot.ContainsKey(slot));
+            _world.TryApplyLastToDiePlayerPredictionProfile(
+                slot,
+                perksBySlot.TryGetValue(slot, out var perkIds)
+                    ? perkIds
+                    : Array.Empty<string>());
+        }
     }
 
     private static string GetTeamLabel(byte team)

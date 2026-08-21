@@ -25,8 +25,10 @@ partial class GameServer
         using var timerResolution = WindowsTimerResolutionScope.Create1Millisecond();
         using var eventLog = new PersistentServerEventLog(_eventLogPath, Console.WriteLine);
         InitializeUdpTransport(udp);
+        InitializeOutboundRelay(cancellationToken);
         ApplyRuntimeBootstrap(CreateRuntimeBootstrap(eventLog));
         ApplyHostGameplayDefaults();
+        InitializeGameplayVariantRuntime();
         InitializeWebSocketHost();
         InitializeQuicHost();
         InitializeGameplayOwnershipService();
@@ -164,7 +166,13 @@ partial class GameServer
         _autoBalanceEnabled = host.AutoBalanceEnabled;
         _secondaryAbilitiesEnabled = host.SecondaryAbilitiesEnabled;
         _randomSpreadEnabled = host.RandomSpreadEnabled;
-        _localPredictionEnabled = host.LocalPredictionEnabled;
+        // Relayed co-op uses the same Protocol64 reconciliation stream as a
+        // directly connected game. Keep server-side prediction support on for
+        // Last to Die; each client may still disable presentation prediction
+        // in its own gameplay settings.
+        _localPredictionEnabled = ResolveLocalPredictionEnabled(
+            _gameplayVariant,
+            host.LocalPredictionEnabled);
         _competitiveReadyUpEnabled = host.CompetitiveReadyUpEnabled;
         _competitiveSetupSeconds = Math.Clamp(host.CompetitiveSetupSeconds, 0, 120);
         _botAutofillEnabled = host.BotAutofillEnabled;
@@ -205,6 +213,23 @@ partial class GameServer
         _world.SetClassLimit(PlayerClass.Medic, host.ClassLimitMedic);
         _world.SetClassLimit(PlayerClass.Spy, host.ClassLimitSpy);
         _world.SetClassLimit(PlayerClass.Quote, host.ClassLimitCivilian);
+    }
+
+    internal static bool ResolveLocalPredictionEnabled(
+        GameplayVariantKind gameplayVariant,
+        bool configuredEnabled)
+        => gameplayVariant == GameplayVariantKind.LastToDie || configuredEnabled;
+
+    private void InitializeOutboundRelay(CancellationToken cancellationToken)
+    {
+        if (_relayHostUrl is null)
+        {
+            return;
+        }
+
+        _relayHostCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _relayHostTask = ((OpenGarrison.Server.CompositeServerMessageTransport)_messageTransport)
+            .RunOutboundProtocol64RelayAsync(_relayHostUrl, Console.WriteLine, _relayHostCts.Token);
     }
 
     private void InitializeQuicHost()
@@ -310,7 +335,17 @@ partial class GameServer
             : "Competitive ready-up: disabled");
         Console.WriteLine($"Level: {_world.Level.Name} area={_world.Level.MapAreaIndex}/{_world.Level.MapAreaCount} imported={_world.Level.ImportedFromSource} mode={_world.MatchRules.Mode}");
         Console.WriteLine($"World bounds: {_world.Bounds.Width}x{_world.Bounds.Height}");
-        var botNavigationPreloaded = PreloadBotNavigationForCurrentLevel(out var botNavigationPreloadMs);
+        // Last to Die starts in its lobby and does not spawn bots until the
+        // client has connected and selected a survivor.  Do not make the
+        // initial network handshake wait behind a synchronous navigation
+        // build for the default world (or for a missing shipped asset).  The
+        // stage commit preloads the graph after the client is registered.
+        var botNavigationPreloadMs = 0d;
+        var botNavigationPreloaded = false;
+        if (!IsLastToDieHosted)
+        {
+            botNavigationPreloaded = PreloadBotNavigationForCurrentLevel(out botNavigationPreloadMs);
+        }
         var botNavigationDiagnostic = BotNavigationAssetStore.GetLoadDiagnostic(_world.Level);
         Console.WriteLine(
             "[botbrain] startup-nav " +
@@ -387,7 +422,13 @@ partial class GameServer
     private bool PreloadBotNavigationForCurrentLevel(out double elapsedMilliseconds)
     {
         var startTimestamp = Stopwatch.GetTimestamp();
-        var loaded = BotNavigationAssetStore.TryLoadCachedGraph(_world.Level, out _);
+        // The live bot brain is OG2-first. The previous preload only queried
+        // the retired BotBrainNav asset store, so an OG2 cache miss was paid by
+        // the first bot Think on the simulation thread. Resolve the shared OG2
+        // graph at startup/map transition instead; every controller then sees a
+        // warmed immutable graph and cannot block a running simulation tick.
+        _ = Og2NavigationGraphStore.GetOrBuild(_world.Level);
+        var loaded = true;
         elapsedMilliseconds = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
         return loaded;
     }
@@ -414,6 +455,7 @@ partial class GameServer
                 PumpIncomingPackets();
                 _sessionManager.PruneTimedOutClients();
                 _sessionManager.RefreshPasswordRequests();
+                SynchronizeLastToDieClients();
 
                 var now = _clock.Elapsed;
                 var elapsedSeconds = (now - _previous).TotalSeconds;
@@ -435,33 +477,47 @@ partial class GameServer
                     () =>
                     {
                         _sessionManager.PreparePlayableClientInputsForNextTick();
-                        ProcessCompetitiveReadyUpBeforeSimulationTick();
+                        if (!IsLastToDieHosted)
+                        {
+                            ProcessCompetitiveReadyUpBeforeSimulationTick();
+                        }
+                        else
+                        {
+                            PrepareLastToDieEnemySpawnsBeforeSimulationTick();
+                        }
                         _botManager.FeedBotInputsBeforeSimulationAdvance();
                     },
                     () =>
                     {
                         _sessionManager.CompleteProtocol64InputsAfterSimulationTick();
-                        _autoBalancer.Tick(now, 1, _autoBalanceEnabled);
-                        if (_mapRotationManager.TryApplyPendingMapChange(out var transition))
+                        if (IsLastToDieHosted)
                         {
-                            var botNavigationPreloaded = PreloadBotNavigationForCurrentLevel(out var botNavigationPreloadMs);
-                            Console.WriteLine(
-                                "[botbrain] map-nav " +
-                                $"level={_world.Level.Name} area={_world.Level.MapAreaIndex} " +
-                                $"preloaded={botNavigationPreloaded} preloadMs={botNavigationPreloadMs:0.###}");
-                            ApplyRoundEndTeamRules(transition);
-                            var restoredBotCount = _botManager.ReactivateBotsAfterMapChange();
-                            _mapBotSpawnController.Reset();
-                            _eventReporter.ApplyMapTransition(transition);
-                            _demoRecorder.HandleMapTransition(transition);
-                            _snapshotBroadcaster.ResetTransientEvents();
-                            if (restoredBotCount > 0)
-                            {
-                                Console.WriteLine($"[server] restored {restoredBotCount} server bots after map change.");
-                            }
+                            AdvanceLastToDieAfterSimulationTick();
                         }
-                        PublishVipAnnouncements();
-                        _mapBotSpawnController.Tick();
+                        else
+                        {
+                            _autoBalancer.Tick(now, 1, _autoBalanceEnabled);
+                            if (_mapRotationManager.TryApplyPendingMapChange(out var transition))
+                            {
+                                var botNavigationPreloaded = PreloadBotNavigationForCurrentLevel(out var botNavigationPreloadMs);
+                                Console.WriteLine(
+                                    "[botbrain] map-nav " +
+                                    $"level={_world.Level.Name} area={_world.Level.MapAreaIndex} " +
+                                    $"preloaded={botNavigationPreloaded} preloadMs={botNavigationPreloadMs:0.###}");
+                                ApplyRoundEndTeamRules(transition);
+                                var restoredBotCount = _botManager.ReactivateBotsAfterMapChange();
+                                _mapBotSpawnController.Reset();
+                                _eventReporter.ApplyMapTransition(transition);
+                                _demoRecorder.HandleMapTransition(transition);
+                                _snapshotBroadcaster.ResetTransientEvents();
+                                if (restoredBotCount > 0)
+                                {
+                                    Console.WriteLine($"[server] restored {restoredBotCount} server bots after map change.");
+                                }
+                            }
+                            PublishVipAnnouncements();
+                            _mapBotSpawnController.Tick();
+                        }
                         // Update bot reactions/emotes AFTER simulation advances
                         _botManager.AdvanceBotReactions();
                     },
@@ -495,7 +551,9 @@ partial class GameServer
                     _eventReporter.PublishGameplayEvents(_snapshotBroadcaster.LastCapturedTransientEvents);
                 }
 
-                if (ticks > 0 && _world.Frame % (_config.TicksPerSecond * 5) == 0)
+                if (_serverFrameInfoEnabled
+                    && ticks > 0
+                    && _world.Frame % (_config.TicksPerSecond * 5) == 0)
                 {
                     var activePlayableCount = _world.EnumerateActiveNetworkPlayers().Count();
                     Console.WriteLine(
@@ -624,11 +682,16 @@ partial class GameServer
                             ("max_apply_input_ms", botMetrics.MaxApplyInputMilliseconds));
                     }
 
-                    // Check bot autofill every 5 seconds
-                    if (_botAutofillEnabled && _world.Frame - _botAutofillLastTick >= (long)_config.TicksPerSecond * 5)
-                    {
-                        ApplyBotAutofill();
-                    }
+                }
+
+                // Bot autofill is gameplay behavior, not optional diagnostics. Keep it
+                // outside the server-frame-info block so hosted servers fill even when
+                // verbose frame reporting is disabled.
+                if (ticks > 0
+                    && _botAutofillEnabled
+                    && _world.Frame - _botAutofillLastTick >= (long)_config.TicksPerSecond * 5)
+                {
+                    ApplyBotAutofill();
                 }
 
                 SleepUntilNextServerLoop(ticks);
@@ -656,6 +719,24 @@ partial class GameServer
                 _quicHost.DisposeAsync().AsTask().GetAwaiter().GetResult();
                 _quicHost = null;
             }
+            if (_relayHostTask is not null)
+            {
+                _relayHostCts?.Cancel();
+                try
+                {
+                    _relayHostTask.GetAwaiter().GetResult();
+                }
+                catch (OperationCanceledException)
+                {
+                }
+                catch (Exception exception)
+                {
+                    Console.WriteLine($"[server] relay shutdown error: {exception.Message}");
+                }
+                _relayHostTask = null;
+            }
+            _relayHostCts?.Dispose();
+            _relayHostCts = null;
             _pluginHost?.NotifyServerStopped();
             _pluginHost?.ShutdownPlugins();
             Console.WriteLine("[server] shutdown complete.");
@@ -945,6 +1026,12 @@ partial class GameServer
             false,
             () => _svCheatsEnabled,
             value => _svCheatsEnabled = value);
+        registry.RegisterBoolean(
+            "sv_frame_info",
+            "Write the periodic server frame summary to the command console.",
+            false,
+            () => _serverFrameInfoEnabled,
+            value => _serverFrameInfoEnabled = value);
         registry.RegisterString(
             "sv_rcon_password",
             "Remote admin password for private !gt_* sessions.",
@@ -1349,7 +1436,14 @@ partial class GameServer
             sendCustomBubbleStates: _outboundMessaging.SendCustomBubbleStatesToClient,
             localPredictionEnabledGetter: () => _localPredictionEnabled,
             sendProtocol64StateResync: (client, request) =>
-                _outboundMessaging.SendProtocol64StateResync(client, request, unchecked((uint)_world.Frame)));
+                _outboundMessaging.SendProtocol64StateResync(client, request, unchecked((uint)_world.Frame)),
+            receiveLastToDieCommand: (client, command) =>
+                _lastToDieNetworkSession?.HandleCommand(client, command),
+            receiveLastToDieSnapshotAck: (client, acknowledgement) =>
+                _lastToDieNetworkSession?.HandleSnapshotAck(client, acknowledgement),
+            allowControlCommand: (_, _) => !IsLastToDieHosted,
+            resolveLastToDieReconnectSlot: clientInstanceId =>
+                _lastToDieNetworkSession?.ResolveReconnectSlot(clientInstanceId) ?? (byte)0);
         _incomingPacketPump = new OpenGarrison.Server.ServerIncomingPacketPump(
             _messageTransport,
             messageDispatcher,

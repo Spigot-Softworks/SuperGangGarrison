@@ -10,10 +10,10 @@ public sealed class TeamOnlyMinimapProjectionTests
     public void ObjectiveProjectionUsesHudBoundsInsteadOfPlayerCenteredViewport()
     {
         var objectivePosition = new Vector2(100f, 500f);
-        var localPlayerPosition = new Vector2(900f, 500f);
+        var localPlayerPosition = new Vector2(3500f, 500f);
 
         var playerCenteredVisible = TeamOnlyMinimapPlugin.TryProjectPlayerCenteredToScreenForTests(
-            levelWidth: 1000f,
+            levelWidth: 4000f,
             levelHeight: 1000f,
             layoutX: 10f,
             layoutY: 20f,
@@ -23,7 +23,7 @@ public sealed class TeamOnlyMinimapProjectionTests
             objectivePosition,
             out _);
         var objectiveVisible = TeamOnlyMinimapPlugin.TryProjectObjectiveToScreenForTests(
-            levelWidth: 1000f,
+            levelWidth: 4000f,
             levelHeight: 1000f,
             layoutX: 10f,
             layoutY: 20f,

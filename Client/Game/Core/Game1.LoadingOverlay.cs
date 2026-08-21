@@ -8,7 +8,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const string LoadingOverlayTitle = "Smoke - Loading";
+    private const string LoadingOverlayTitle = "Super Gang Garrison";
     private const int LoadingOverlayWidth = 340;
     private const int LoadingOverlayHeight = 84;
     private const int LoadingOverlayMargin = 12;
@@ -57,8 +57,20 @@ public partial class Game1
 
     private void ShowJoiningServerLoadingOverlay(string? serverLabel = null)
     {
+        if (!ShouldShowJoiningServerLoadingOverlay(_lastToDieConnectionPresentationPending))
+        {
+            // LTD already owns the full-screen loading presentation and progress
+            // bar. Suppress the generic online popup instead of drawing the same
+            // message twice.
+            HideLoadingOverlay();
+            return;
+        }
+
         ShowLoadingOverlay(CreateJoiningServerLoadingMessage(serverLabel), progress: null);
     }
+
+    internal static bool ShouldShowJoiningServerLoadingOverlay(bool isLastToDie)
+        => !isLastToDie;
 
     private void SetJoiningServerLoadingLabel(string? serverLabel)
     {
@@ -83,8 +95,13 @@ public partial class Game1
             resolvedServerLabel = "server";
         }
 
-        return $"Joining {resolvedServerLabel}...";
+        return FormatJoiningServerLoadingMessage(
+            _lastToDieConnectionPresentationPending,
+            resolvedServerLabel);
     }
+
+    internal static string FormatJoiningServerLoadingMessage(bool isLastToDie, string serverLabel)
+        => isLastToDie ? "Loading Last to Die..." : $"Joining {serverLabel}...";
 
     private static string NormalizeLoadingOverlayServerLabel(string? serverLabel)
     {

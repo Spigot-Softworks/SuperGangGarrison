@@ -21,6 +21,7 @@ public sealed partial class SimulationWorld
         if (player.IsAlive)
         {
             AdvanceAlivePlayerWithInput(player, input, previousInput, GetNetworkPlayerTeam(slot), slot == LocalPlayerSlot);
+            AdvanceLastToDiePassivePerks(slot, player);
         }
         else
         {
@@ -68,7 +69,9 @@ public sealed partial class SimulationWorld
         return input with
         {
             BuildSentry = false,
+            BuildDispenser = false,
             DestroySentry = false,
+            DestroyDispenser = false,
             Taunt = false,
             FirePrimary = false,
             FireSecondary = false,
@@ -89,7 +92,9 @@ public sealed partial class SimulationWorld
         {
             Up = forcedPressedButtons.HasFlag(InputButtons.Up) ? false : input.Up,
             BuildSentry = forcedPressedButtons.HasFlag(InputButtons.BuildSentry) ? false : input.BuildSentry,
+            BuildDispenser = forcedPressedButtons.HasFlag(InputButtons.BuildDispenser) ? false : input.BuildDispenser,
             DestroySentry = forcedPressedButtons.HasFlag(InputButtons.DestroySentry) ? false : input.DestroySentry,
+            DestroyDispenser = forcedPressedButtons.HasFlag(InputButtons.DestroyDispenser) ? false : input.DestroyDispenser,
             Taunt = forcedPressedButtons.HasFlag(InputButtons.Taunt) ? false : input.Taunt,
             FirePrimary = forcedPressedButtons.HasFlag(InputButtons.FirePrimary) ? false : input.FirePrimary,
             FireSecondary = forcedPressedButtons.HasFlag(InputButtons.FireSecondary) ? false : input.FireSecondary,

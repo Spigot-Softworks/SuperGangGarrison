@@ -36,9 +36,11 @@ public partial class Game1
         bool jumpPressed,
         bool primaryPressed,
         bool secondaryAbilityPressed,
+        bool secondaryAbilityReleased,
         bool abilityPressed,
         bool swapWeaponPressed,
-        bool tauntPressed)
+        bool tauntPressed,
+        bool abilityReleased)
     {
         _latestPredictedLocalInput = input;
 
@@ -54,9 +56,11 @@ public partial class Game1
             jumpPressed,
             primaryPressed,
             secondaryAbilityPressed,
+            secondaryAbilityReleased,
             abilityPressed,
             swapWeaponPressed,
-            tauntPressed));
+            tauntPressed,
+            abilityReleased));
         if (_pendingPredictedInputs.Count > MaxPendingPredictedInputs)
         {
             _pendingPredictedInputs.RemoveRange(0, _pendingPredictedInputs.Count - MaxPendingPredictedInputs);
@@ -81,7 +85,8 @@ public partial class Game1
 
     private bool CanUseLocalPrediction()
     {
-        return _serverLocalPredictionEnabled
+        return _enablePrediction
+            && _serverLocalPredictionEnabled
             && _networkClient.IsConnected
             && !_networkClient.IsAwaitingWelcome
             && !_networkClient.IsReplayConnection
@@ -95,9 +100,11 @@ public partial class Game1
     {
         if (CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
         {
-            position = _hasSmoothedLocalPlayerRenderPosition
-                ? _smoothedLocalPlayerRenderPosition
-                : _predictedLocalPlayerPosition + _predictedLocalPlayerRenderCorrectionOffset;
+            // Do not put the local camera on the render-correction spring. That
+            // spring is useful for hiding small network corrections on a remote
+            // presentation, but following it locally makes the entire view lag
+            // behind held movement even when smooth camera is disabled.
+            position = _predictedLocalPlayerPosition + _predictedLocalPlayerRenderCorrectionOffset;
             return true;
         }
 
@@ -341,13 +348,7 @@ public partial class Game1
 
     private bool TryGetCurrentPredictedRenderPosition(out Vector2 renderPosition)
     {
-        if (_hasSmoothedLocalPlayerRenderPosition)
-        {
-            renderPosition = _smoothedLocalPlayerRenderPosition;
-            return true;
-        }
-
-        if (_hasPredictedLocalPlayerPosition)
+        if (CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
         {
             renderPosition = _predictedLocalPlayerPosition + _predictedLocalPlayerRenderCorrectionOffset;
             return true;
@@ -391,10 +392,16 @@ public partial class Game1
             IsUsingBinoculars = player.IsUsingBinoculars,
             IsSpyCloaked = player.IsSpyCloaked,
             SpyCloakAlpha = player.SpyCloakAlpha,
+            LastToDieSpyCloakMeterUnits = player.LastToDieSpyCloakMeterUnits,
+            LastToDieSpyCloakMeterMaximumUnits = player.LastToDieSpyCloakMeterMaximumUnits,
+            LastToDieSpyRogueRampStacks = player.LastToDieSpyRogueRampStacks,
             SpySuperjumpChargeTicks = player.SpySuperjumpChargeTicks,
+            SpySuperjumpChargeDirectionDegrees = player.SpySuperjumpChargeDirectionDegrees,
             IsSpySuperjumping = player.IsSpySuperjumping,
             SpySuperjumpHorizontalVelocity = player.SpySuperjumpHorizontalVelocity,
             SpySuperjumpCooldownTicksRemaining = player.SpySuperjumpCooldownTicksRemaining,
+            SpySuperjumpAvailableCharges = player.SpySuperjumpAvailableCharges,
+            SpySuperjumpMaximumCharges = player.SpySuperjumpMaximumCharges,
             IsSpyVisibleToEnemies = player.IsSpyVisibleToEnemies,
             SpyBackstabWindupTicksRemaining = player.SpyBackstabWindupTicksRemaining,
             SpyBackstabRecoveryTicksRemaining = player.SpyBackstabRecoveryTicksRemaining,
@@ -405,6 +412,7 @@ public partial class Game1
             IsCarryingIntel = player.IsCarryingIntel,
             IsMedicUberReady = player.IsMedicUberReady,
             IsMedicUbering = player.IsMedicUbering,
+            MedicUberDeliveryMode = player.MedicUberPresentationMode,
             MedicNeedleCooldownTicks = player.MedicNeedleCooldownTicks,
             MedicNeedleRefillTicks = player.MedicNeedleRefillTicks,
             CurrentShells = player.CurrentShells,
@@ -424,6 +432,8 @@ public partial class Game1
 
     private void ApplyPredictedInputStep(PlayerEntity player, PredictedLocalInput predictedInput)
     {
+        var previousBottom = player.Bottom;
+        player.ObserveSpySuperjumpAbilityInput(predictedInput.Input.UseAbility);
         player.SyncCivvieUmbrellaSecondaryInput(predictedInput.Input.FireSecondary);
         player.SyncCivviePogoSuperJumpInput(predictedInput.Input.Up);
         player.ObserveTauntInput(predictedInput.Input.Taunt);
@@ -449,11 +459,33 @@ public partial class Game1
         }
 
         ApplyPredictedRoomForces(player);
+        if (player.ClassId == PlayerClass.Spy
+            && jumpPressed
+            && predictedInput.Input.UseAbility
+            && player.SpySuperjumpChargeTicks > 0)
+        {
+            player.CancelSpySuperjumpCharge(blockRestartUntilAbilityRelease: true);
+            jumpPressed = false;
+            movementInput = movementInput with { Up = false };
+        }
         ApplyPredictedTaunt(player, predictedInput);
-        var startedGrounded = player.PrepareMovement(movementInput, _world.Level, player.Team, _config.FixedDeltaSeconds, out var canMove);
+        var startedGrounded = player.PrepareMovement(
+            movementInput,
+            _world.Level,
+            player.Team,
+            _config.FixedDeltaSeconds,
+            out var canMove,
+            isSupportedByOneWayPlatform: _world.HasLandedArrowGroundSupport(player, movementInput.Down));
         var jumped = player.TryJumpIfPossible(canMove, jumpPressed);
+        if (jumped)
+        {
+            _world.TryApplyJumpPadJumpBoostForPrediction(player, jumped);
+        }
         ApplyPredictedSecondaryFire(player, predictedInput);
+        ApplyPredictedUtilityAbility(player, predictedInput);
         player.CompleteMovement(_world.Level, player.Team, _config.FixedDeltaSeconds, startedGrounded, jumped, movementInput.Down);
+        _world.ResolveLandedArrowLanding(player, previousBottom, movementInput.Down);
+        player.AdvanceLastToDieSpyCloakMeter(_config.TicksPerSecond);
         SyncPredictedLocalPlayerState(player);
     }
 
@@ -512,10 +544,16 @@ public partial class Game1
         public bool IsUsingBinoculars;
         public bool IsSpyCloaked;
         public float SpyCloakAlpha;
+        public int LastToDieSpyCloakMeterUnits;
+        public int LastToDieSpyCloakMeterMaximumUnits;
+        public int LastToDieSpyRogueRampStacks;
         public int SpySuperjumpChargeTicks;
+        public float SpySuperjumpChargeDirectionDegrees;
         public bool IsSpySuperjumping;
         public float SpySuperjumpHorizontalVelocity;
         public int SpySuperjumpCooldownTicksRemaining;
+        public int SpySuperjumpAvailableCharges;
+        public int SpySuperjumpMaximumCharges;
         public bool IsSpyVisibleToEnemies;
         public int SpyBackstabWindupTicksRemaining;
         public int SpyBackstabRecoveryTicksRemaining;
@@ -526,6 +564,7 @@ public partial class Game1
         public bool IsCarryingIntel;
         public bool IsMedicUberReady;
         public bool IsMedicUbering;
+        public MedicUberDeliveryMode MedicUberDeliveryMode;
         public int MedicNeedleCooldownTicks;
         public int MedicNeedleRefillTicks;
         public int CurrentShells;
@@ -547,7 +586,9 @@ public partial class Game1
         bool JumpPressed,
         bool PrimaryPressed,
         bool SecondaryAbilityPressed,
+        bool SecondaryAbilityReleased,
         bool AbilityPressed,
         bool SwapWeaponPressed,
-        bool TauntPressed);
+        bool TauntPressed,
+        bool AbilityReleased);
 }

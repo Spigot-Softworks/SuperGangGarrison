@@ -7,15 +7,18 @@ public sealed class SentryGibEntity : SimulationEntity
     public const float PickupRadius = 18f;
     public const float MetalValue = 50f;
 
-    public SentryGibEntity(int id, PlayerTeam team, float x, float y) : base(id)
+    public SentryGibEntity(int id, PlayerTeam team, float x, float y, bool isDispenser = false) : base(id)
     {
         Team = team;
         X = x;
         Y = y;
+        IsDispenser = isDispenser;
         TicksRemaining = LifetimeTicks;
     }
 
     public PlayerTeam Team { get; }
+
+    public bool IsDispenser { get; }
 
     public float X { get; private set; }
 

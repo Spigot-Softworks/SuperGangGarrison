@@ -32,6 +32,8 @@ sealed class ServerSessionManager
     private readonly Action<ClientSession, PlayerClass> _playerClassChanged;
     private readonly Func<byte, bool> _isPlayableSlotAvailable;
     private readonly Action<byte, byte> _clientSlotChanged;
+    private Func<byte, bool> _retainPlayableSlotOnDisconnect = static _ => false;
+    private Func<byte, bool> _canAcceptPlayableInput = static _ => true;
     private GameplayOwnershipService? _gameplayOwnershipService;
     private uint _protocol64ServerTick;
     private readonly List<PendingProtocol64InputConsumption> _pendingProtocol64InputConsumptions = [];
@@ -98,6 +100,16 @@ sealed class ServerSessionManager
         _gameplayOwnershipService = gameplayOwnershipService;
     }
 
+    public void ConfigurePlayableClientLifecyclePolicy(
+        Func<byte, bool> retainPlayableSlotOnDisconnect,
+        Func<byte, bool> canAcceptPlayableInput)
+    {
+        _retainPlayableSlotOnDisconnect = retainPlayableSlotOnDisconnect
+            ?? throw new ArgumentNullException(nameof(retainPlayableSlotOnDisconnect));
+        _canAcceptPlayableInput = canAcceptPlayableInput
+            ?? throw new ArgumentNullException(nameof(canAcceptPlayableInput));
+    }
+
     public void ApplyClientProfile(byte slot, string name, ulong badgeMask, string? friendCode = null, string? playerCardJson = null)
     {
         var sanitizedName = PlayerEntity.NormalizeDisplayName(name);
@@ -133,6 +145,7 @@ sealed class ServerSessionManager
             var slot = SimulationWorld.NetworkPlayerSlots[index];
             if (_clientsBySlot.TryGetValue(slot, out var client)
                 && client.IsAuthorized
+                && _canAcceptPlayableInput(slot)
                 && client.TryDequeueProtocol64InputCommand(out var command))
             {
                 var hasLatestInput = client.TryGetInputForNextTick(out var latestInput);
@@ -162,6 +175,7 @@ sealed class ServerSessionManager
             }
             else if (_clientsBySlot.TryGetValue(slot, out client)
                 && client.IsAuthorized
+                && _canAcceptPlayableInput(slot)
                 && client.TryGetInputForNextTick(out var input))
             {
                 _world.TrySetNetworkPlayerInput(slot, ConvertAimPositionFromClient(slot, input));
@@ -259,7 +273,9 @@ sealed class ServerSessionManager
             Up = buttons.HasFlag(InputButtons.Up),
             Down = buttons.HasFlag(InputButtons.Down),
             BuildSentry = buttons.HasFlag(InputButtons.BuildSentry),
+            BuildDispenser = buttons.HasFlag(InputButtons.BuildDispenser),
             DestroySentry = buttons.HasFlag(InputButtons.DestroySentry),
+            DestroyDispenser = buttons.HasFlag(InputButtons.DestroyDispenser),
             Taunt = buttons.HasFlag(InputButtons.Taunt),
             FirePrimary = buttons.HasFlag(InputButtons.FirePrimary),
             FireSecondary = buttons.HasFlag(InputButtons.FireSecondary),
@@ -278,7 +294,9 @@ sealed class ServerSessionManager
         {
             Protocol64InputCommandKind.Jump => input with { Up = true },
             Protocol64InputCommandKind.BuildSentry => input with { BuildSentry = true },
+            Protocol64InputCommandKind.BuildDispenser => input with { BuildDispenser = true },
             Protocol64InputCommandKind.DestroySentry => input with { DestroySentry = true },
+            Protocol64InputCommandKind.DestroyDispenser => input with { DestroyDispenser = true },
             Protocol64InputCommandKind.Taunt => input with { Taunt = true },
             Protocol64InputCommandKind.FirePrimary => input with { FirePrimary = true },
             Protocol64InputCommandKind.FireSecondary => input with { FireSecondary = true },
@@ -297,7 +315,9 @@ sealed class ServerSessionManager
         {
             Protocol64InputCommandKind.Jump => InputButtons.Up,
             Protocol64InputCommandKind.BuildSentry => InputButtons.BuildSentry,
+            Protocol64InputCommandKind.BuildDispenser => InputButtons.BuildDispenser,
             Protocol64InputCommandKind.DestroySentry => InputButtons.DestroySentry,
+            Protocol64InputCommandKind.DestroyDispenser => InputButtons.DestroyDispenser,
             Protocol64InputCommandKind.Taunt => InputButtons.Taunt,
             Protocol64InputCommandKind.FirePrimary => InputButtons.FirePrimary,
             Protocol64InputCommandKind.FireSecondary => InputButtons.FireSecondary,
@@ -441,8 +461,12 @@ sealed class ServerSessionManager
         _clientRemoved(removedClient, reason);
         if (SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
         {
-            _world.TryReleaseNetworkPlayerSlot(slot);
-            _gameplayOwnershipService?.ReleaseSlot(slot);
+            _world.TryClearNetworkPlayerInputOverride(slot);
+            if (!_retainPlayableSlotOnDisconnect(slot))
+            {
+                _world.TryReleaseNetworkPlayerSlot(slot);
+                _gameplayOwnershipService?.ReleaseSlot(slot);
+            }
         }
     }
 

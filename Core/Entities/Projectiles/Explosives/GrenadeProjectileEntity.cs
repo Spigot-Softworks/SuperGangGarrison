@@ -14,7 +14,7 @@ public sealed class GrenadeProjectileEntity : SimulationEntity
     public const float SelfDamageScale = 5f / 9f;
     public const float SplashThresholdFactor = 0.25f;
     public const float SentryDamageMultiplier = 1.5f;
-    public const float BounceVelocityRetention = 0.55f; // Grenades lose 45% velocity on bounce
+    public const float BounceVelocityRetention = 0.77f; // About 40% more retained bounce speed than stock
     public const float HorizontalAirFriction = 0.985f; // Per-tick horizontal velocity damping (stronger than vertical)
     public const float AirFriction = 0.998f; // Per-tick vertical velocity damping (very slight)
     public const float RotationFriction = 0.88f; // Per-tick rotation speed damping
@@ -74,9 +74,18 @@ public sealed class GrenadeProjectileEntity : SimulationEntity
 
     public bool HasBounced { get; private set; }
 
-    public float CriticalDamageMultiplier => IsCritical ? ExperimentalGameplaySettings.KritzCriticalDamageMultiplier : 1f;
+    public float CriticalDamageMultiplier { get; private set; } = 1f;
 
-    public void SetCritical() { IsCritical = true; }
+    public void SetCritical(float damageMultiplier = ExperimentalGameplaySettings.KritzCriticalDamageMultiplier)
+        => HydrateCritical(true, damageMultiplier);
+
+    public void HydrateCritical(bool isCritical, float damageMultiplier)
+    {
+        IsCritical = isCritical;
+        CriticalDamageMultiplier = isCritical
+            ? ExperimentalGameplaySettings.NormalizeCriticalDamageMultiplier(damageMultiplier)
+            : 1f;
+    }
 
     public void AdvanceOneTick(float gravityScale = 1f)
     {

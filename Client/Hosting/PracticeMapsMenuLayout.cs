@@ -9,6 +9,9 @@ internal readonly record struct PracticeMapsMenuLayout(
     Rectangle Panel,
     Rectangle MapsLabelBounds,
     Rectangle ColumnPanelBounds,
+    Rectangle SuperGangGarrisonButtonBounds,
+    Rectangle ClassicMapsButtonBounds,
+    Rectangle CustomMapsButtonBounds,
     Rectangle ModeFilterBounds,
     Rectangle FiltersButtonBounds,
     Rectangle ListRowsBounds,
@@ -156,16 +159,34 @@ internal static class PracticeMapsMenuLayoutCalculator
         var listAreaWidth = interiorWidth - scrollbarWidth - 6;
 
         const int filterBarGap = 6;
-        var modeFilterWidth = Math.Max(compactLayout ? 72 : 88, (interiorWidth - filterBarGap) / 2);
-        var modeFilterBounds = new Rectangle(
+        var sectionWidth = Math.Max(1, (interiorWidth - (filterBarGap * 2)) / 3);
+        var superGangGarrisonButtonBounds = new Rectangle(
             columnPanel.X + panelInnerPadding,
             columnPanel.Y + panelInnerPadding,
+            sectionWidth,
+            modeFilterHeight);
+        var classicMapsButtonBounds = new Rectangle(
+            superGangGarrisonButtonBounds.Right + filterBarGap,
+            superGangGarrisonButtonBounds.Y,
+            sectionWidth,
+            modeFilterHeight);
+        var customMapsButtonBounds = new Rectangle(
+            classicMapsButtonBounds.Right + filterBarGap,
+            classicMapsButtonBounds.Y,
+            Math.Max(1, interiorWidth - (sectionWidth * 2) - (filterBarGap * 2)),
+            modeFilterHeight);
+
+        var filterBarWidth = Math.Max(1, (interiorWidth - filterBarGap) / 2);
+        var modeFilterWidth = Math.Max(compactLayout ? 72 : 88, filterBarWidth);
+        var modeFilterBounds = new Rectangle(
+            columnPanel.X + panelInnerPadding,
+            superGangGarrisonButtonBounds.Bottom + filterBarGap,
             modeFilterWidth,
             modeFilterHeight);
         var filtersButtonBounds = new Rectangle(
             modeFilterBounds.Right + filterBarGap,
             modeFilterBounds.Y,
-            interiorWidth - modeFilterWidth - filterBarGap,
+            Math.Max(1, interiorWidth - modeFilterWidth - filterBarGap),
             modeFilterHeight);
 
         var previewBounds = new Rectangle(
@@ -184,6 +205,9 @@ internal static class PracticeMapsMenuLayoutCalculator
             panel,
             mapsLabelBounds,
             columnPanel,
+            superGangGarrisonButtonBounds,
+            classicMapsButtonBounds,
+            customMapsButtonBounds,
             modeFilterBounds,
             filtersButtonBounds,
             listRowsBounds,

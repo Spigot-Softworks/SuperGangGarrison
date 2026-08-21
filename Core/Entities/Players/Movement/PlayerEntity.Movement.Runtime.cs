@@ -11,6 +11,7 @@ public sealed partial class PlayerEntity
         IsGrounded = false;
         LegacyStateTickAccumulator = 0f;
         MovementState = LegacyMovementState.None;
+        BlockedJumpRetrySuppressionTicksRemaining = 0;
         ResetExperimentalDemoknightChargeMovementState();
     }
 
@@ -113,6 +114,7 @@ public sealed partial class PlayerEntity
             return false;
         }
 
+        AdvanceBlockedJumpRetrySuppression();
         var startedGrounded = PrepareMovement(input, level, team, deltaSeconds, out var canMove);
         var jumped = TryJumpIfPossible(canMove, jumpPressed);
         CompleteMovement(level, team, deltaSeconds, startedGrounded, jumped, input.Down);
@@ -122,12 +124,17 @@ public sealed partial class PlayerEntity
     public AfterburnTickResult AdvanceTickState(PlayerInputSnapshot input, double deltaSeconds)
     {
         var dt = (float)deltaSeconds;
+        AdvanceBlockedJumpRetrySuppression();
         AdvanceServerStunState();
         UpdateAimDirection(input);
         UpdatePyroPrimaryHoldState(input.FirePrimary);
         if (HealingCabinetSoundCooldownSecondsRemaining > 0f)
         {
             HealingCabinetSoundCooldownSecondsRemaining = float.Max(0f, HealingCabinetSoundCooldownSecondsRemaining - dt);
+        }
+        if (HealingCabinetResupplyCooldownSecondsRemaining > 0f)
+        {
+            HealingCabinetResupplyCooldownSecondsRemaining = float.Max(0f, HealingCabinetResupplyCooldownSecondsRemaining - dt);
         }
 
         if (!IsAlive)
@@ -156,27 +163,41 @@ public sealed partial class PlayerEntity
             AdvanceTauntState();
             AdvanceSniperState();
             AdvanceUberState();
+            AdvanceLastToDieMedicHailMaryState();
             AdvanceMedicState();
             AdvanceSpyState();
             AdvanceSpySuperjumpState();
+            AdvanceLastToDieSpyInfiltrateState();
+            AdvanceLastToDieSpyAfterlifeState();
+            AdvanceLastToDieSniperGhostState();
             AdvanceSniperBowState();
+            AdvanceLastToDieSniperVolleyState();
             AdvanceIntelCarryState();
         }
 
         return AdvanceAfterburn(dt);
     }
 
-    public bool PrepareMovement(PlayerInputSnapshot input, SimpleLevel level, PlayerTeam team, double deltaSeconds, out bool canMove, bool isHumiliated = false)
+    public bool PrepareMovement(
+        PlayerInputSnapshot input,
+        SimpleLevel level,
+        PlayerTeam team,
+        double deltaSeconds,
+        out bool canMove,
+        bool isHumiliated = false,
+        bool isSupportedByOneWayPlatform = false)
     {
         var dt = (float)deltaSeconds;
         if (!IsAlive)
         {
+            TopDownMovementPrepared = false;
             canMove = false;
             return false;
         }
 
         if (IsServerNoclip)
         {
+            TopDownMovementPrepared = false;
             canMove = true;
             var noclipHorizontalDirection = (input.Right ? 1f : 0f) - (input.Left ? 1f : 0f);
             var verticalDirection = (input.Down ? 1f : 0f) - (input.Up ? 1f : 0f);
@@ -195,6 +216,15 @@ public sealed partial class PlayerEntity
             && (!IsTaunting || IsRaging)
             && !IsSpyBackstabAnimating
             && !IsExperimentalCryoFrozen;
+
+        if (level.IsTopDown)
+        {
+            TopDownMovementPrepared = true;
+            PrepareTopDownMovement(input, canMove);
+            return true;
+        }
+
+        TopDownMovementPrepared = false;
 
         var isDemoknightChargeDriving = IsExperimentalDemoknightCharging && canMove;
         var allowChargeFullControl = isDemoknightChargeDriving && ExperimentalDemoknightChargeFullControlEnabled;
@@ -272,8 +302,19 @@ public sealed partial class PlayerEntity
             horizontalDirection = 0f;
         }
 
+        if (IsLastToDieSpyInfiltrateDashing)
+        {
+            hasHorizontalInput = false;
+            horizontalDirection = 0f;
+        }
+
+        if (IsLastToDieSpyInfiltrateDashing)
+        {
+            HorizontalSpeed = LastToDieSpyInfiltrateDirectionX
+                * global::OpenGarrison.Core.LastToDie.LastToDieDerivedModifiers.SpyInfiltrateHorizontalSpeed;
+        }
         // Special handling for spy superjump: preserve momentum but allow air control
-        if (IsSpySuperjumping && !IsGrounded)
+        else if (IsSpySuperjumping && !IsGrounded)
         {
             // Apply limited air control input directly to the base velocity
             if (hasHorizontalInput && horizontalDirection != 0f)
@@ -314,7 +355,10 @@ public sealed partial class PlayerEntity
                 isHumiliated);
         }
 
-        ClampMovementSpeedsToMovementMaximum();
+        if (!IsLastToDieSpyInfiltrateDashing)
+        {
+            ClampMovementSpeedsToMovementMaximum();
+        }
 
         if (!CanOccupy(level, team, X, Y))
         {
@@ -323,7 +367,8 @@ public sealed partial class PlayerEntity
         }
 
         var startedGrounded = !CanOccupy(level, team, X, Y + 1f)
-            || IsStandingOnDropdownPlatform(level, input.Down);
+            || IsStandingOnDropdownPlatform(level, input.Down)
+            || (isSupportedByOneWayPlatform && !input.Down);
         if (startedGrounded)
         {
             IsGrounded = true;
@@ -356,6 +401,16 @@ public sealed partial class PlayerEntity
         {
             return false;
         }
+
+        if (TopDownMovementPrepared)
+        {
+            return false;
+        }
+
+        if (BlockedJumpRetrySuppressionTicksRemaining > 0)
+        {
+            return false;
+        }
         
         var allowHeldChargeJump = IsExperimentalDemoknightCharging
             && ExperimentalDemoknightChargeFullControlEnabled
@@ -377,12 +432,20 @@ public sealed partial class PlayerEntity
             return;
         }
 
+        if (level.IsTopDown)
+        {
+            CompleteTopDownMovement(level, team, deltaSeconds);
+            TopDownMovementPrepared = false;
+            return;
+        }
+
         if (IsServerNoclip)
         {
             return;
         }
 
         GetCollisionBounds(out _, out _, out _, out var previousBottom);
+        var jumpAttemptY = Y;
         var wasAirborneBeforeMove = !IsGrounded;
 
         var gravityPerTick = 0f;
@@ -440,6 +503,100 @@ public sealed partial class PlayerEntity
         TryApplyCivviePogoLandingBounce(wasAirborneBeforeMove);
         TryFulfillCivviePogoGroundBounceAfterMovement();
         AdvanceCivviePogoStuckGroundRecovery();
+
+        // A blocked jump retry suppression belongs only to the support contact
+        // that rejected the launch. Once an actual airborne interval lands, the
+        // player must get a fresh grounded jump and (for Scout) a fresh air jump.
+        if (wasAirborneBeforeMove && IsGrounded)
+        {
+            BlockedJumpRetrySuppressionTicksRemaining = 0;
+        }
+
+        if (jumped
+            && startedGrounded
+            && IsGrounded
+            && MathF.Abs(Y - jumpAttemptY) <= BlockedJumpVerticalMovementEpsilon)
+        {
+            // TryJump() is intentionally optimistic and runs before collision
+            // resolution. If the player is still grounded at the same height,
+            // a wall/ceiling or other contact rejected the launch. Suppress
+            // only the rapid retry loop; horizontal movement and all normal
+            // airborne jumps retain their existing behavior.
+            BlockedJumpRetrySuppressionTicksRemaining = BlockedJumpRetrySuppressionTicks;
+        }
+    }
+
+    private void AdvanceBlockedJumpRetrySuppression()
+    {
+        if (BlockedJumpRetrySuppressionTicksRemaining > 0)
+        {
+            BlockedJumpRetrySuppressionTicksRemaining -= 1;
+        }
+    }
+
+    private void PrepareTopDownMovement(PlayerInputSnapshot input, bool canMove)
+    {
+        var directionX = canMove
+            ? (input.Right ? 1f : 0f) - (input.Left ? 1f : 0f)
+            : 0f;
+        var directionY = canMove
+            ? (input.Down ? 1f : 0f) - (input.Up ? 1f : 0f)
+            : 0f;
+        var length = MathF.Sqrt((directionX * directionX) + (directionY * directionY));
+        if (length > 1f)
+        {
+            directionX /= length;
+            directionY /= length;
+        }
+
+        var movementSpeed = MaxRunSpeed * GetMovementScale(input);
+        HorizontalSpeed = directionX * movementSpeed;
+        VerticalSpeed = directionY * movementSpeed;
+        if (directionX != 0f)
+        {
+            FacingDirectionX = directionX;
+        }
+
+        IsGrounded = true;
+        RemainingAirJumps = MaxAirJumps;
+        MovementState = LegacyMovementState.None;
+    }
+
+    private void CompleteTopDownMovement(SimpleLevel level, PlayerTeam team, double deltaSeconds)
+    {
+        if (IsServerNoclip)
+        {
+            return;
+        }
+
+        var dt = (float)deltaSeconds;
+        if (!float.IsFinite(dt) || dt <= 0f)
+        {
+            HorizontalSpeed = 0f;
+            VerticalSpeed = 0f;
+            return;
+        }
+
+        if (!CanOccupy(level, team, X, Y))
+        {
+            NudgeOutsideBlockingGeometry(level, team);
+        }
+
+        BeginMovementCollisionDiagnostics();
+        MoveTopDownContact(level, team, HorizontalSpeed * dt, VerticalSpeed * dt);
+        ClampTo(level.Bounds);
+        if (!CanOccupy(level, team, X, Y))
+        {
+            NudgeOutsideBlockingGeometry(level, team);
+            ClampTo(level.Bounds);
+        }
+
+        // Top-down movement has no support plane. Keep the legacy grounded
+        // flag stable so animation, weapon use, and prediction do not enter
+        // airborne/jump state machines.
+        IsGrounded = true;
+        RemainingAirJumps = MaxAirJumps;
+        MovementState = LegacyMovementState.None;
     }
 
     private bool IsCivvieUmbrellaAimingUpForSlowFall()

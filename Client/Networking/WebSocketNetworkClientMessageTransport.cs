@@ -37,7 +37,7 @@ internal sealed class WebSocketNetworkClientMessageTransport : INetworkClientMes
     {
         _webSocket = webSocket;
         _lifetimeCts = lifetimeCts;
-        RemoteDescription = endpoint.ToString();
+        RemoteDescription = RedactEndpoint(endpoint);
         _receiveTask = ReceiveLoopAsync(lifetimeCts.Token);
     }
 
@@ -218,7 +218,7 @@ internal sealed class WebSocketNetworkClientMessageTransport : INetworkClientMes
         }
     }
 
-    private static bool TryCreateEndpoint(string host, int port, out Uri endpoint, out string error)
+    internal static bool TryCreateEndpoint(string host, int port, out Uri endpoint, out string error)
     {
         endpoint = null!;
         error = string.Empty;
@@ -229,13 +229,11 @@ internal sealed class WebSocketNetworkClientMessageTransport : INetworkClientMes
             return false;
         }
 
-        if (!string.IsNullOrEmpty(source.AbsolutePath) && source.AbsolutePath != "/")
-        {
-            error = "A ws64 endpoint cannot include a path.";
-            return false;
-        }
-
-        var resolvedPort = port > 0 ? port : source.Port;
+        var resolvedPort = port > 0
+            ? port
+            : source.Port > 0
+                ? source.Port
+                : source.Scheme == "wss64" ? 443 : 80;
         if (resolvedPort is <= 0 or > 65535)
         {
             error = "WebSocket port must be between 1 and 65535.";
@@ -243,10 +241,31 @@ internal sealed class WebSocketNetworkClientMessageTransport : INetworkClientMes
         }
 
         var scheme = source.Scheme == "wss64" ? "wss" : "ws";
-        endpoint = new UriBuilder(scheme, source.Host, resolvedPort, "/opengarrison/ws64").Uri;
+        var path = string.IsNullOrEmpty(source.AbsolutePath) || source.AbsolutePath == "/"
+            ? "/opengarrison/ws64"
+            : source.AbsolutePath;
+        endpoint = new UriBuilder(scheme, source.Host, resolvedPort, path)
+        {
+            Query = source.Query.TrimStart('?'),
+            Fragment = string.Empty,
+        }.Uri;
         return true;
     }
 
     private void SetDisconnectReason(string reason)
         => Interlocked.CompareExchange(ref _disconnectReason, reason, null);
+
+    private static string RedactEndpoint(Uri endpoint)
+    {
+        if (string.IsNullOrWhiteSpace(endpoint.Query))
+        {
+            return endpoint.ToString();
+        }
+
+        return new UriBuilder(endpoint)
+        {
+            Query = "token=REDACTED",
+            Fragment = string.Empty,
+        }.Uri.ToString();
+    }
 }

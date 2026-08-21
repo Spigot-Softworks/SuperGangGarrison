@@ -124,13 +124,20 @@ public partial class Game1
             return;
         }
 
+        if (player.LastToDieSniperProfile.LightMarksmanEnabled)
+        {
+            _predictedLocalActionState.IsSniperScoped = false;
+            _predictedLocalActionState.SniperChargeTicks = 0;
+            return;
+        }
+
         if (!player.HasScopedSniperWeaponEquipped || !_predictedLocalActionState.IsSniperScoped || _predictedLocalActionState.PrimaryCooldownTicks > 0)
         {
             _predictedLocalActionState.SniperChargeTicks = 0;
             return;
         }
 
-        if (_predictedLocalActionState.SniperChargeTicks < PlayerEntity.SniperChargeMaxTicks)
+        if (_predictedLocalActionState.SniperChargeTicks < player.LastToDieSniperRifleFullChargeTicks)
         {
             _predictedLocalActionState.SniperChargeTicks += 1;
         }
@@ -189,6 +196,7 @@ public partial class Game1
             {
                 _predictedLocalActionState.MedicUberCharge = 0f;
                 _predictedLocalActionState.IsMedicUbering = false;
+                _predictedLocalActionState.MedicUberDeliveryMode = MedicUberDeliveryMode.None;
             }
         }
 
@@ -225,9 +233,12 @@ public partial class Game1
             _predictedLocalActionState.SpyCloakAlpha = 1f;
             _predictedLocalActionState.IsSpyVisibleToEnemies = false;
             _predictedLocalActionState.SpySuperjumpChargeTicks = 0;
+            _predictedLocalActionState.SpySuperjumpChargeDirectionDegrees = 0f;
             _predictedLocalActionState.IsSpySuperjumping = false;
             _predictedLocalActionState.SpySuperjumpHorizontalVelocity = 0f;
             _predictedLocalActionState.SpySuperjumpCooldownTicksRemaining = 0;
+            _predictedLocalActionState.SpySuperjumpAvailableCharges = 1;
+            _predictedLocalActionState.SpySuperjumpMaximumCharges = 1;
             _predictedLocalActionState.SpyBackstabWindupTicksRemaining = 0;
             _predictedLocalActionState.SpyBackstabRecoveryTicksRemaining = 0;
             _predictedLocalActionState.SpyBackstabVisualTicksRemaining = 0;
@@ -237,6 +248,11 @@ public partial class Game1
         if (_predictedLocalActionState.SpySuperjumpCooldownTicksRemaining > 0)
         {
             _predictedLocalActionState.SpySuperjumpCooldownTicksRemaining -= 1;
+            if (_predictedLocalActionState.SpySuperjumpCooldownTicksRemaining == 0)
+            {
+                _predictedLocalActionState.SpySuperjumpAvailableCharges =
+                    Math.Max(1, _predictedLocalActionState.SpySuperjumpMaximumCharges);
+            }
         }
         if (_predictedLocalActionState.IsSpySuperjumping && player.IsGrounded)
         {
@@ -313,26 +329,38 @@ public partial class Game1
             && player.IsSpyCloaked
             && predictedInput.Input.FirePrimary)
         {
-            if (IsPredictedSpyBackstabReady())
+            var isLastToDieProfessionalFireChord = predictedInput.Input.FireSecondary
+                && player.CanFireLastToDieProfessionalRevolverWhileCloaked;
+            if (!isLastToDieProfessionalFireChord && IsPredictedSpyBackstabReady())
             {
                 _ = TryPredictedStartSpyBackstab(player);
+                return;
             }
 
-            return;
+            if (!isLastToDieProfessionalFireChord)
+            {
+                return;
+            }
         }
 
         if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Blade))
         {
             if (player.TryFireQuoteBubble())
             {
-                TriggerLocalWeaponFireHudRumble(0.4f);
                 SyncPredictedLocalPlayerState(player);
             }
 
             return;
         }
 
-        TryPredictedFirePrimaryWeapon(player);
+        if (TryPredictedFirePrimaryWeapon(player)
+            && predictedInput.Input.FireSecondary
+            && player.IsSpyCloaked
+            && player.LastToDieProfessionalEnabled)
+        {
+            _ = player.MarkLastToDieProfessionalFireChordConsumed();
+            SyncPredictedLocalPlayerState(player);
+        }
     }
 
     private bool TryPredictedFireExperimentalOffhandPrimaryWeapon(PlayerEntity player, bool firePrimary)
@@ -353,7 +381,6 @@ public partial class Game1
             return true;
         }
 
-        TriggerLocalWeaponFireHudRumble(GetPredictedWeaponFireHudRumbleIntensity(player));
         SyncPredictedLocalPlayerState(player);
         return true;
     }
@@ -369,9 +396,136 @@ public partial class Game1
         ApplyPredictedSecondaryWeaponFire(player, predictedInput, swappedWeaponThisTick);
     }
 
+    private void ApplyPredictedUtilityAbility(PlayerEntity player, PredictedLocalInput predictedInput)
+    {
+        if (player.IsTaunting
+            || predictedInput.Input.FireSecondary
+            || !_world.ExperimentalGameplaySettings.EnableSecondaryAbilities
+            || !player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SpyUtility))
+        {
+            return;
+        }
+
+        var ability = GetPredictedSpySuperjumpAbility(player);
+        var maxChargeTicks = ability is null
+            ? PlayerEntity.SpySuperjumpMaxChargeTicks
+            : GameplayAbilityParameterReader.GetInt(
+                ability,
+                "maxChargeTicks",
+                PlayerEntity.SpySuperjumpMaxChargeTicks,
+                minValue: 1);
+        maxChargeTicks = player.ResolveSpySuperjumpMaxChargeTicks(maxChargeTicks);
+        var cooldownTicks = ability is null
+            ? PlayerEntity.SpySuperjumpCooldownTicks
+            : GameplayAbilityParameterReader.GetTicks(
+                ability,
+                "cooldownTicks",
+                "cooldownSeconds",
+                PlayerEntity.SpySuperjumpCooldownTicks,
+                _config.TicksPerSecond);
+        var minVelocity = ability is null
+            ? PlayerEntity.SpySuperjumpMinVelocity
+            : GameplayAbilityParameterReader.GetFloat(
+                ability,
+                "minVelocity",
+                PlayerEntity.SpySuperjumpMinVelocity,
+                minValue: 0f);
+        var maxVelocity = ability is null
+            ? PlayerEntity.SpySuperjumpMaxVelocity
+            : GameplayAbilityParameterReader.GetFloat(
+                ability,
+                "maxVelocity",
+                PlayerEntity.SpySuperjumpMaxVelocity,
+                minValue: minVelocity);
+
+        var directionDegrees = GetPredictedAimDirectionDegrees(player, predictedInput.Input);
+        if (predictedInput.AbilityReleased)
+        {
+            if (player.TryReleaseSpySuperjump(
+                out var velocityX,
+                out var velocityY,
+                maxChargeTicks,
+                minVelocity,
+                maxVelocity,
+                cooldownTicks))
+            {
+                player.ApplyVelocityImpulse(velocityX, velocityY);
+            }
+
+            SyncPredictedLocalPlayerState(player);
+            return;
+        }
+
+        if (!predictedInput.AbilityPressed && !predictedInput.Input.UseAbility)
+        {
+            return;
+        }
+
+        if (player.SpySuperjumpChargeTicks == 0)
+        {
+            player.TryStartSpySuperjumpCharge(
+                directionDegrees,
+                predictedInput.Input.Left,
+                predictedInput.Input.Right,
+                predictedInput.Input.Up,
+                predictedInput.Input.Down);
+            SyncPredictedLocalPlayerState(player);
+            return;
+        }
+
+        if (player.SpySuperjumpChargeTicks <= 0)
+        {
+            return;
+        }
+
+        var heldButtons = player.SpySuperjumpChargeStartMovementButtons;
+        var leftWasHeld = (heldButtons & 0x01) != 0;
+        var rightWasHeld = (heldButtons & 0x02) != 0;
+        var upWasHeld = (heldButtons & 0x04) != 0;
+        var downWasHeld = (heldButtons & 0x08) != 0;
+        var newButtonPressed = (predictedInput.Input.Left && !leftWasHeld)
+            || (predictedInput.Input.Right && !rightWasHeld)
+            || (predictedInput.Input.Up && !upWasHeld)
+            || (predictedInput.Input.Down && !downWasHeld);
+        if (newButtonPressed || player.IsSpyBackstabAnimating || player.IsCarryingIntel)
+        {
+            player.CancelSpySuperjumpCharge();
+        }
+        else
+        {
+            player.IncrementSpySuperjumpCharge(directionDegrees, maxChargeTicks);
+        }
+
+        SyncPredictedLocalPlayerState(player);
+    }
+
+    private static GameplayAbilityDefinition? GetPredictedSpySuperjumpAbility(PlayerEntity player)
+    {
+        return CharacterClassCatalog.RuntimeRegistry.TryGetGameplayAbilityDefinition(
+                player.GameplayLoadoutState.UtilityItemId,
+                out _,
+                out var ability)
+            ? ability
+            : null;
+    }
+
+    private static float GetPredictedAimDirectionDegrees(PlayerEntity player, PlayerInputSnapshot input)
+    {
+        var degrees = MathF.Atan2(input.AimWorldY - player.Y, input.AimWorldX - player.X) * (180f / MathF.PI);
+        degrees %= 360f;
+        return degrees < 0f ? degrees + 360f : degrees;
+    }
+
     private bool ApplyPredictedWeaponSwap(PlayerEntity player, PredictedLocalInput predictedInput)
     {
         if (player.IsTaunting || !predictedInput.SwapWeaponPressed)
+        {
+            return false;
+        }
+
+        if (player.IsLockedPrimaryWeaponClass
+            && !_world.IsNetworkPlayerAutomaticRespawnSuppressed(player)
+            && !_world.IsNearPrimaryWeaponSwapStation(player))
         {
             return false;
         }
@@ -384,6 +538,22 @@ public partial class Game1
         if (player.IsTaunting)
         {
             return false;
+        }
+
+        if (predictedInput.SecondaryAbilityReleased
+            && player.TryReleaseLastToDieProfessionalFireChord(out var shouldDecloakFromProfessionalChord))
+        {
+            if (shouldDecloakFromProfessionalChord)
+            {
+                player.ForceDecloak();
+                SyncPredictedLocalPlayerState(player);
+            }
+            else
+            {
+                SyncPredictedLocalPlayerState(player);
+            }
+
+            return true;
         }
 
         if (player.ClassId == PlayerClass.Medic)
@@ -404,7 +574,6 @@ public partial class Game1
                 else if (!predictedInput.Input.FirePrimary
                     && player.TryFireMedicKritzHealNeedle())
                 {
-                    TriggerLocalWeaponFireHudRumble(0.35f);
                     SyncPredictedLocalPlayerState(player);
                 }
 
@@ -457,7 +626,7 @@ public partial class Game1
             return true;
         }
 
-        if (player.HasScopedSniperWeaponEquipped)
+        if (player.HasScopedSniperWeaponEquipped && !player.IsSniperBowEquipped)
         {
             TryPredictedToggleSniperScope(player);
             return true;
@@ -465,6 +634,12 @@ public partial class Game1
 
         if (player.ClassId == PlayerClass.Spy)
         {
+            if (player.TryBeginLastToDieProfessionalFireChord())
+            {
+                SyncPredictedLocalPlayerState(player);
+                return true;
+            }
+
             if (!predictedInput.Input.FirePrimary)
             {
                 TryPredictedToggleSpyCloak(player);
@@ -539,7 +714,6 @@ public partial class Game1
             player.TryFirePyroFlare();
         }
 
-        TriggerLocalWeaponFireHudRumble(0.55f);
         var aimRadians = player.AimDirectionDegrees * (MathF.PI / 180f);
         player.AddImpulse(
             -MathF.Cos(aimRadians) * PredictedPyroSelfAirblastImpulse,
@@ -625,7 +799,6 @@ public partial class Game1
             return false;
         }
 
-        TriggerLocalWeaponFireHudRumble(GetPredictedWeaponFireHudRumbleIntensity(player));
         SyncPredictedLocalPlayerState(player);
         return true;
     }
@@ -949,29 +1122,8 @@ public partial class Game1
             return false;
         }
 
-        TriggerLocalWeaponFireHudRumble(0.35f);
         SyncPredictedLocalPlayerState(player);
         return true;
-    }
-
-    private static float GetPredictedWeaponFireHudRumbleIntensity(PlayerEntity player)
-    {
-        var weaponKind = player.IsExperimentalOffhandSelected && player.ExperimentalOffhandWeapon is not null
-            ? player.ExperimentalOffhandWeapon.Kind
-            : player.IsAcquiredWeaponPresented && player.AcquiredWeapon is not null
-                ? player.AcquiredWeapon.Kind
-                : player.PrimaryWeapon.Kind;
-
-        return weaponKind switch
-        {
-            PrimaryWeaponKind.Minigun or PrimaryWeaponKind.FlameThrower => 0.35f,
-            PrimaryWeaponKind.Medigun => 0.25f,
-            PrimaryWeaponKind.RocketLauncher or PrimaryWeaponKind.GrenadeLauncher or PrimaryWeaponKind.MineLauncher => 0.9f,
-            PrimaryWeaponKind.Rifle => 0.85f,
-            PrimaryWeaponKind.Revolver => 0.65f,
-            PrimaryWeaponKind.Blade => 0.45f,
-            _ => 0.55f,
-        };
     }
 
     private bool TryPredictedStartMedicUber(PlayerEntity player)

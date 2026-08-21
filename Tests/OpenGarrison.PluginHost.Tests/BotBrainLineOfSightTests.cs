@@ -64,7 +64,7 @@ public sealed class BotBrainLineOfSightTests
     }
 
     [Fact]
-    public void BotTargetSelectionIgnoresEnemyBehindOwnSpawnDoor()
+    public void BotTargetSelectionCanAcquireEnemyBehindOwnSpawnDoor()
     {
         var world = CreateWorld(
             roomObjects:
@@ -80,12 +80,69 @@ public sealed class BotBrainLineOfSightTests
 
         var target = TargetSelector.SelectCombatTarget(world.LocalPlayer, world, PlayerTeam.Red);
 
-        Assert.Null(target);
+        Assert.NotNull(target);
+        Assert.Equal(enemy.Id, target!.Value.Player!.Id);
         Assert.False(CombatDecisionResolver.HasCombatLineOfSight(world, world.LocalPlayer.X, world.LocalPlayer.Y, enemy.X, enemy.Y));
+
+        var fireDecision = CombatDecisionResolver.Resolve(
+            world,
+            world.LocalPlayer,
+            target,
+            healTarget: null,
+            new CombatDecisionMemory());
+        Assert.False(fireDecision.FirePrimary);
+        Assert.False(fireDecision.FireSecondary);
+        Assert.False(fireDecision.UseAbility);
     }
 
     [Fact]
-    public void BotNearestEnemyFallbackIgnoresEnemyBehindSpawnDoor()
+    public void BotPursuesDistantEnemyWithoutFiringUntilWithinPracticalRange()
+    {
+        var world = CreateWorld(roomObjects: [], solids: []);
+        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.ForceRespawnLocalPlayer();
+        world.LocalPlayer.TeleportTo(100f, 100f);
+        var enemy = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue, 700f, 100f);
+
+        var target = TargetSelector.SelectCombatTarget(world.LocalPlayer, world, PlayerTeam.Red);
+        var fireDecision = CombatDecisionResolver.Resolve(
+            world,
+            world.LocalPlayer,
+            target,
+            healTarget: null,
+            new CombatDecisionMemory());
+
+        Assert.NotNull(target);
+        Assert.Equal(enemy.Id, target!.Value.Player!.Id);
+        Assert.True(CombatDecisionResolver.HasCombatLineOfSight(world, world.LocalPlayer.X, world.LocalPlayer.Y, enemy.X, enemy.Y));
+        Assert.False(fireDecision.FirePrimary);
+        Assert.False(fireDecision.FireSecondary);
+        Assert.False(fireDecision.UseAbility);
+    }
+
+    [Fact]
+    public void BotFiresWhenEnemyIsVisibleAndWithinPracticalRange()
+    {
+        var world = CreateWorld(roomObjects: [], solids: []);
+        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.ForceRespawnLocalPlayer();
+        world.LocalPlayer.TeleportTo(100f, 100f);
+        _ = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue, 400f, 100f);
+
+        var target = TargetSelector.SelectCombatTarget(world.LocalPlayer, world, PlayerTeam.Red);
+        var fireDecision = CombatDecisionResolver.Resolve(
+            world,
+            world.LocalPlayer,
+            target,
+            healTarget: null,
+            new CombatDecisionMemory());
+
+        Assert.NotNull(target);
+        Assert.True(fireDecision.FirePrimary);
+    }
+
+    [Fact]
+    public void BotNearestEnemyFallbackCanAcquireEnemyBehindSpawnDoor()
     {
         var world = CreateWorld(
             roomObjects:
@@ -96,15 +153,37 @@ public sealed class BotBrainLineOfSightTests
         Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
         world.ForceRespawnLocalPlayer();
         world.LocalPlayer.TeleportTo(100f, 100f);
-        _ = AddNetworkPlayer(world, 2, PlayerClass.Scout, PlayerTeam.Blue, 400f, 100f);
+        var enemy = AddNetworkPlayer(world, 2, PlayerClass.Scout, PlayerTeam.Blue, 400f, 100f);
         var method = typeof(BotBrainController).GetMethod("TryFindNearestEnemyPlayer", BindingFlags.Static | BindingFlags.NonPublic);
         Assert.NotNull(method);
         object?[] args = [world, world.LocalPlayer, PlayerTeam.Red, float.PositiveInfinity, null];
 
         var found = (bool)method!.Invoke(null, args)!;
 
-        Assert.False(found);
-        Assert.Null(args[4]);
+        Assert.True(found);
+        Assert.NotNull(args[4]);
+        Assert.Equal(enemy.Id, ((PlayerEntity)args[4]!).Id);
+    }
+
+    [Fact]
+    public void BotTargetSelectionDoesNotTreatBulletWallsAsScreenVisibilityBlockers()
+    {
+        var world = CreateWorld(
+            roomObjects:
+            [
+                new RoomObjectMarker(RoomObjectType.BulletWall, 200f, 90f, 32f, 60f, "KulayBulletWall"),
+            ],
+            solids: []);
+        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.ForceRespawnLocalPlayer();
+        world.LocalPlayer.TeleportTo(100f, 100f);
+        var enemy = AddNetworkPlayer(world, 2, PlayerClass.Scout, PlayerTeam.Blue, 400f, 100f);
+
+        var target = TargetSelector.SelectCombatTarget(world.LocalPlayer, world, PlayerTeam.Red);
+
+        Assert.NotNull(target);
+        Assert.Equal(enemy.Id, target!.Value.Player!.Id);
+        Assert.False(CombatDecisionResolver.HasCombatLineOfSight(world, world.LocalPlayer.X, world.LocalPlayer.Y, enemy.X, enemy.Y));
     }
 
     private static SimulationWorld CreateWorld(

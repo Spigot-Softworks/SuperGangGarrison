@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using OpenGarrison.Core.LastToDie;
 using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Core;
@@ -34,7 +35,7 @@ public sealed partial class SimulationWorld
         }
 
         var classDefinition = CharacterClassCatalog.GetDefinition(state.GameplayClassId);
-        player.ApplyProtocol64State(state, classDefinition);
+        player.ApplyProtocol64State(state, classDefinition, Config.TicksPerSecond);
         TrySetNetworkPlayerConfiguredTeam(slot, (PlayerTeam)state.Team);
         TrySetNetworkPlayerAwaitingJoin(slot, !state.IsAlive);
         return true;
@@ -59,8 +60,15 @@ public sealed partial class SimulationWorld
 
         var id = (int)state.EntityId;
         RemoveProtocol64Projectile(id);
-        var ownerId = TryGetNetworkPlayer((byte)state.OwnerSlot, out var owner) ? owner.Id : 0;
-        var team = owner?.Team ?? PlayerTeam.Red;
+        var hasLiveOwner = TryGetNetworkPlayer((byte)state.OwnerSlot, out var owner);
+        var ownerId = state.LastToDieMedicJavelinOwnerPlayerId > 0
+            ? state.LastToDieMedicJavelinOwnerPlayerId
+            : hasLiveOwner
+                ? owner.Id
+                : 0;
+        var team = state.LastToDieMedicJavelinTeam is >= 1 and <= 2
+            ? (PlayerTeam)state.LastToDieMedicJavelinTeam
+            : owner?.Team ?? PlayerTeam.Red;
         var lifetime = Math.Clamp((int)state.RemainingLifetimeTicks, 1, 1000000);
         var entity = CreateProtocol64Projectile(state, id, team, ownerId, lifetime);
         if (entity is null)
@@ -68,6 +76,10 @@ public sealed partial class SimulationWorld
             return false;
         }
 
+        HydrateProtocol64ProjectileCritical(
+            entity,
+            state.IsCritical,
+            state.CriticalDamageMultiplier);
         AddProtocol64Projectile(entity);
         return true;
     }
@@ -121,9 +133,38 @@ public sealed partial class SimulationWorld
         return state.EntityKind switch
         {
             Protocol64ProjectileKind.Bullet => new ShotProjectileEntity(id, team, ownerId, state.X, state.Y, state.VelocityX, state.VelocityY),
-            Protocol64ProjectileKind.Blade => new BladeProjectileEntity(id, team, ownerId, state.X, state.Y, state.VelocityX, state.VelocityY, Math.Max(0, state.Damage), lifetime),
+            Protocol64ProjectileKind.Blade => new BladeProjectileEntity(id, team, ownerId, state.X, state.Y, state.VelocityX, state.VelocityY, Math.Max(0, (int)MathF.Round(state.Damage)), lifetime),
+            Protocol64ProjectileKind.Needle when state.LastToDieMedicKritzM2Payload != 0
+                => new MedicHealNeedleProjectileEntity(
+                    id,
+                    team,
+                    ownerId,
+                    state.X,
+                    state.Y,
+                    state.VelocityX,
+                    state.VelocityY,
+                    enemyDamagePerHit: Math.Max(0, (int)MathF.Round(state.Damage)),
+                    lastToDiePayload: LastToDieMedicKritzM2Payload.Decode(
+                        state.LastToDieMedicKritzM2Payload),
+                    lastToDieJavelinFuseTicksRemaining:
+                        state.LastToDieMedicJavelinFuseTicksRemaining,
+                    isLastToDieJavelinAnchored:
+                        state.IsLastToDieMedicJavelinAnchored,
+                    hasLastToDieJavelinExploded:
+                        state.HasLastToDieMedicJavelinExploded),
             Protocol64ProjectileKind.Needle => new NeedleProjectileEntity(id, team, ownerId, state.X, state.Y, state.VelocityX, state.VelocityY),
-            Protocol64ProjectileKind.RevolverShot => new RevolverProjectileEntity(id, team, ownerId, state.X, state.Y, state.VelocityX, state.VelocityY, Math.Max(0, state.Damage)),
+            Protocol64ProjectileKind.Arrow => CreateProtocol64ArrowProjectile(
+                state,
+                id,
+                team,
+                ownerId,
+                lifetime),
+            Protocol64ProjectileKind.RevolverShot => CreateProtocol64RevolverProjectile(
+                state,
+                id,
+                team,
+                ownerId,
+                lifetime),
             Protocol64ProjectileKind.Rocket => new RocketProjectileEntity(
                 id,
                 team,
@@ -145,6 +186,75 @@ public sealed partial class SimulationWorld
         };
     }
 
+    private static RevolverProjectileEntity CreateProtocol64RevolverProjectile(
+        Protocol64ProjectileState state,
+        int id,
+        PlayerTeam team,
+        int ownerId,
+        int lifetime)
+    {
+        var shot = new RevolverProjectileEntity(
+            id,
+            team,
+            ownerId,
+            state.X,
+            state.Y,
+            state.VelocityX,
+            state.VelocityY,
+            Math.Max(0f, state.Damage),
+            lastToDieProfile: LastToDieSpyRevolverProfile.Decode(
+                state.LastToDieSpyRevolverProfile),
+            appliesLuckyStrikeStun: state.AppliesLastToDieLuckyStrikeStun);
+        shot.ApplyNetworkState(
+            state.X,
+            state.Y,
+            state.VelocityX,
+            state.VelocityY,
+            lifetime);
+        return shot;
+    }
+
+    private static ArrowProjectileEntity CreateProtocol64ArrowProjectile(
+        Protocol64ProjectileState state,
+        int id,
+        PlayerTeam team,
+        int ownerId,
+        int lifetime)
+    {
+        var arrow = new ArrowProjectileEntity(
+            id,
+            team,
+            ownerId,
+            state.X,
+            state.Y,
+            state.VelocityX,
+            state.VelocityY,
+            Math.Max(0, (int)MathF.Round(state.Damage)),
+            fakeSpeedMultiplier: state.ArrowFakeSpeedMultiplier,
+            appliesLastToDieGuardian: state.AppliesLastToDieGuardian,
+            piercesPlayers: state.PiercesPlayers,
+            appliesLastToDieTranqDarts: state.AppliesLastToDieTranqDarts,
+            lastToDiePoisonDamagePerSecond: state.LastToDiePoisonDamagePerSecond,
+            lastToDieGhostDamageMultiplier: state.LastToDieGhostDamageMultiplier,
+            appliesLastToDieDecapitator: state.AppliesLastToDieDecapitator,
+            isLastToDieDecapitatorFullyCharged: state.IsLastToDieDecapitatorFullyCharged,
+            appliesLastToDieExplosiveTip: state.AppliesLastToDieExplosiveTip,
+            lastToDieAttachedHeadClassId: state.LastToDieAttachedHeadClassId > 0
+                ? (PlayerClass?)state.LastToDieAttachedHeadClassId
+                : null,
+            lastToDieAttachedHeadTeam: state.LastToDieAttachedHeadTeam > 0
+                ? (PlayerTeam?)state.LastToDieAttachedHeadTeam
+                : null);
+        arrow.ApplyNetworkState(
+            state.X,
+            state.Y,
+            state.VelocityX,
+            state.VelocityY,
+            lifetime);
+        arrow.SetLanded(state.IsArrowLanded);
+        return arrow;
+    }
+
     private void AddProtocol64Projectile(SimulationEntity entity)
     {
         switch (entity)
@@ -158,10 +268,51 @@ public sealed partial class SimulationWorld
             case FlareProjectileEntity value: _flares.Add(value); break;
             case MineProjectileEntity value: _mines.Add(value); break;
             case GrenadeProjectileEntity value: _grenades.Add(value); break;
+            case BubbleProjectileEntity value: _bubbles.Add(value); break;
             default: throw new ArgumentOutOfRangeException(nameof(entity));
         }
 
         _entities[entity.Id] = entity;
         ReserveEntityId(entity.Id);
+    }
+
+    private static void HydrateProtocol64ProjectileCritical(
+        SimulationEntity entity,
+        bool isCritical,
+        float criticalDamageMultiplier)
+    {
+        switch (entity)
+        {
+            case ShotProjectileEntity value:
+                value.HydrateCritical(isCritical, criticalDamageMultiplier);
+                break;
+            case BubbleProjectileEntity value:
+                value.HydrateCritical(isCritical, criticalDamageMultiplier);
+                break;
+            case BladeProjectileEntity value:
+                value.HydrateCritical(isCritical, criticalDamageMultiplier);
+                break;
+            case NeedleProjectileEntity value:
+                value.HydrateCritical(isCritical, criticalDamageMultiplier);
+                break;
+            case RevolverProjectileEntity value:
+                value.HydrateCritical(isCritical, criticalDamageMultiplier);
+                break;
+            case RocketProjectileEntity value:
+                value.HydrateCritical(isCritical, criticalDamageMultiplier);
+                break;
+            case FlameProjectileEntity value:
+                value.HydrateCritical(isCritical, criticalDamageMultiplier);
+                break;
+            case FlareProjectileEntity value:
+                value.HydrateCritical(isCritical, criticalDamageMultiplier);
+                break;
+            case MineProjectileEntity value:
+                value.HydrateCritical(isCritical, criticalDamageMultiplier);
+                break;
+            case GrenadeProjectileEntity value:
+                value.HydrateCritical(isCritical, criticalDamageMultiplier);
+                break;
+        }
     }
 }

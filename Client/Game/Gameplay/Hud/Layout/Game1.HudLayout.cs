@@ -97,7 +97,17 @@ public partial class Game1
 
     private Dictionary<string, HudResolvedElement> GetHudEditorElements()
     {
-        return new Dictionary<string, HudResolvedElement>(_hudResolvedElements, StringComparer.Ordinal);
+        var elements = new Dictionary<string, HudResolvedElement>(_hudResolvedElements, StringComparer.Ordinal);
+        foreach (var id in _hudLayoutProfile.Overrides.Keys)
+        {
+            if (!elements.ContainsKey(id)
+                && _hudLayoutProfile.TryResolveEvenIfHidden(id, ViewportWidth, ViewportHeight, out var resolved))
+            {
+                elements[id] = resolved;
+            }
+        }
+
+        return elements;
     }
 
     private void SetHudElementOrigin(string id, Vector2 origin)
@@ -108,6 +118,11 @@ public partial class Game1
     private bool SetHudElementScale(string id, float scale)
     {
         return _hudLayoutProfile.SetElementScale(id, scale);
+    }
+
+    private bool SetHudElementVisibility(string id, bool visible)
+    {
+        return _hudLayoutProfile.SetElementVisibility(id, visible);
     }
 
     private void OpenHudEditor(bool openedFromOptions)

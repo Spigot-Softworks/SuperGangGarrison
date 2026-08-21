@@ -51,7 +51,7 @@ public class NeedleProjectileEntity : SimulationEntity
 
     public bool IsCritical { get; private set; }
 
-    public float CriticalDamageMultiplier => IsCritical ? ExperimentalGameplaySettings.KritzCriticalDamageMultiplier : 1f;
+    public float CriticalDamageMultiplier { get; private set; } = 1f;
 
     public virtual float HitProbeForwardOffset => 0f;
 
@@ -59,7 +59,16 @@ public class NeedleProjectileEntity : SimulationEntity
 
     internal float RaycastPreviousY { get; private set; }
 
-    public void SetCritical() { IsCritical = true; }
+    public void SetCritical(float damageMultiplier = ExperimentalGameplaySettings.KritzCriticalDamageMultiplier)
+        => HydrateCritical(true, damageMultiplier);
+
+    public void HydrateCritical(bool isCritical, float damageMultiplier)
+    {
+        IsCritical = isCritical;
+        CriticalDamageMultiplier = isCritical
+            ? ExperimentalGameplaySettings.NormalizeCriticalDamageMultiplier(damageMultiplier)
+            : 1f;
+    }
 
     public void PrepareRaycastProbe()
     {
@@ -113,7 +122,7 @@ public class NeedleProjectileEntity : SimulationEntity
         Y = y;
     }
 
-    public void Destroy()
+    public virtual void Destroy()
     {
         TicksRemaining = 0;
     }

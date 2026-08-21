@@ -14,11 +14,14 @@ public partial class Game1
 {
     private const int DynamicMusicCombatLingerTicks = SimulationConfig.DefaultTicksPerSecond * 10;
     private const float DynamicMusicFadeInPerSecond = 1.45f;
-    private const float DynamicMusicFadeOutPerSecond = 0.95f;
+    // Combat should release back to normal music gradually after the linger
+    // window; quick drops make brief contact breaks sound like repeated track
+    // changes. Escalation still uses the faster fade-in below.
+    private const float DynamicMusicFadeOutPerSecond = 0.45f;
     private const float DynamicMusicCombatRiserDelaySeconds = 0.83f;
     private const float DynamicMusicCombatLowHealthThreshold = 0.35f;
-    private const float DynamicMusicCombatLeadVolumeScale = 1.15f;
-    private const float DynamicMusicCombatBackingWithLeadScale = 0.82f;
+    private const float DynamicMusicCombatLeadVolumeScale = 1.60f;
+    private const float DynamicMusicCombatBackingWithLeadScale = 0.76f;
     private const int DynamicMusicDirtbowlGateLeadSeconds = 7;
     private const float DynamicMusicDirtbowlGateFadeOutSeconds = 3f;
     private const float DynamicMusicIntelVolumeScale = 0.70f;
@@ -71,6 +74,7 @@ public partial class Game1
     private readonly Dictionary<int, int> _dynamicCombatParticipantTicks = new();
     private int _dynamicMusicCombatTicksRemaining;
     private DynamicCombatMusicStage _dynamicCombatMusicStage;
+    private DynamicCombatMusicStage _dynamicCombatPeakStage;
     private DynamicCombatMusicStage _dynamicCombatRiserHoldStage;
     private DynamicCombatMusicLeadStem _dynamicCombatLeadStem;
     private bool _dynamicCombatRiserPending;
@@ -117,6 +121,7 @@ public partial class Game1
                 ? DynamicCombatMusicLeadStem.Drum
                 : DynamicCombatMusicLeadStem.BodyBass;
             _dynamicCombatDrumsLocked = false;
+            _dynamicCombatPeakStage = DynamicCombatMusicStage.None;
         }
 
         _dynamicMusicCombatTicksRemaining = DynamicMusicCombatLingerTicks;
@@ -232,17 +237,17 @@ public partial class Game1
         }
 
         var participantCount = CountActiveDynamicCombatParticipants();
-        if (participantCount >= 4)
+        var currentStage = participantCount >= 4
+            ? DynamicCombatMusicStage.Hard
+            : IsLocalPlayerLowHealthForDynamicCombatMusic() || participantCount >= 3
+                ? DynamicCombatMusicStage.Medium
+                : DynamicCombatMusicStage.Light;
+        if (currentStage > _dynamicCombatPeakStage)
         {
-            return DynamicCombatMusicStage.Hard;
+            _dynamicCombatPeakStage = currentStage;
         }
 
-        if (IsLocalPlayerLowHealthForDynamicCombatMusic() || participantCount >= 3)
-        {
-            return DynamicCombatMusicStage.Medium;
-        }
-
-        return DynamicCombatMusicStage.Light;
+        return _dynamicCombatPeakStage;
     }
 
     private int CountActiveDynamicCombatParticipants()
@@ -276,6 +281,7 @@ public partial class Game1
     {
         _dynamicCombatParticipantTicks.Clear();
         _dynamicCombatMusicStage = DynamicCombatMusicStage.None;
+        _dynamicCombatPeakStage = DynamicCombatMusicStage.None;
         _dynamicCombatRiserHoldStage = DynamicCombatMusicStage.None;
         _dynamicCombatLeadStem = DynamicCombatMusicLeadStem.None;
         _dynamicCombatRiserPending = false;
@@ -325,7 +331,7 @@ public partial class Game1
             && _audioAvailable
             && AllowsIngameMusic()
             && !_world.MatchState.IsEnded
-            && !IsLastToDieSessionActive
+            && !IsAnyLastToDieSessionActive
             && !IsLastToDieDeathFocusPresentationActive();
     }
 
@@ -894,6 +900,7 @@ public partial class Game1
         _dynamicMusicCombatTicksRemaining = 0;
         _dynamicCombatParticipantTicks.Clear();
         _dynamicCombatMusicStage = DynamicCombatMusicStage.None;
+        _dynamicCombatPeakStage = DynamicCombatMusicStage.None;
         _dynamicCombatRiserHoldStage = DynamicCombatMusicStage.None;
         _dynamicCombatLeadStem = DynamicCombatMusicLeadStem.None;
         _dynamicCombatRiserPending = false;
@@ -994,6 +1001,7 @@ public partial class Game1
         _dynamicMusicLoadAttempted = false;
         _dynamicCombatParticipantTicks.Clear();
         _dynamicCombatMusicStage = DynamicCombatMusicStage.None;
+        _dynamicCombatPeakStage = DynamicCombatMusicStage.None;
         _dynamicCombatRiserHoldStage = DynamicCombatMusicStage.None;
         _dynamicCombatLeadStem = DynamicCombatMusicLeadStem.None;
         _dynamicCombatRiserPending = false;

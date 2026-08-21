@@ -54,6 +54,21 @@ public sealed class BubbleProjectileEntity : SimulationEntity
 
     public bool IsExpired => TicksRemaining <= 0;
 
+    public bool IsCritical { get; private set; }
+
+    public float CriticalDamageMultiplier { get; private set; } = 1f;
+
+    public void SetCritical(float damageMultiplier = ExperimentalGameplaySettings.KritzCriticalDamageMultiplier)
+        => HydrateCritical(true, damageMultiplier);
+
+    public void HydrateCritical(bool isCritical, float damageMultiplier)
+    {
+        IsCritical = isCritical;
+        CriticalDamageMultiplier = isCritical
+            ? ExperimentalGameplaySettings.NormalizeCriticalDamageMultiplier(damageMultiplier)
+            : 1f;
+    }
+
     public void AdvanceOneTick(float ownerX, float ownerY, float ownerHorizontalSpeed, float ownerVerticalSpeed, float aimDirectionDegrees, float deltaSeconds)
     {
         PreviousX = X;

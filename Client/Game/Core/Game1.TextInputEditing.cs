@@ -923,6 +923,14 @@ public partial class Game1
 
         if (_mainMenuOpen && _manualConnectOpen && _editingConnectHost)
         {
+            if (_lastToDieRoomCodeJoinOpen
+                && TryExtractFriendCodeFromText(pasteText, out var roomCode))
+            {
+                _connectHostBuffer = roomCode;
+                InitializeConnectHostCursor();
+                return true;
+            }
+
             var result = InsertTextAtCursor(
                 _connectHostBuffer,
                 pasteText,

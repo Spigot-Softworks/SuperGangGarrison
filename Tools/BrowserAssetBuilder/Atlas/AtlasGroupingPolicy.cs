@@ -41,6 +41,7 @@ internal static class AtlasGroupingPolicy
         }
 
         if (id.Contains("Sentry", StringComparison.Ordinal)
+            || id.Contains("Dispenser", StringComparison.Ordinal)
             || id.Contains("Generator", StringComparison.Ordinal)
             || id.Contains("Door", StringComparison.Ordinal)
             || id.Contains("ControlPoint", StringComparison.Ordinal)

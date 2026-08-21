@@ -21,7 +21,8 @@ public partial class Game1
 
         public void DrawFrame(GameTime gameTime)
         {
-            if (_game.IsNetworkWorldWarmupBlockingGameplay())
+            if (_game.IsNetworkWorldWarmupBlockingGameplay()
+                || _game.IsPracticeNavigationWarmupBlockingGameplay())
             {
                 _game.BeginLogicalFrame(new Color(24, 32, 48));
                 _game.DrawLoadingOverlay();
@@ -37,8 +38,8 @@ public partial class Game1
             var viewportWidth = _game.ViewportWidth;
             var viewportHeight = _game.ViewportHeight;
             var gameplayViewportHeight = _game.GetGameplayCameraViewportHeight(viewportHeight);
-            var rawMouse = _game.GetConstrainedMouseState(Game1.GetCurrentMouseState());
-            var mouse = _game.GetScaledMouseState(rawMouse);
+            var rawMouse = _game.GetFrameRawMouseState();
+            var mouse = _game.GetFrameMouseState();
             var cameraPosition = _game.GetCameraTopLeft(viewportWidth, gameplayViewportHeight, mouse.X, mouse.Y);
             _game.PrepareLastToDieDeathFocusOverlayIfNeeded(viewportWidth, viewportHeight);
             if (!_game.IsLastToDieDeathFocusPresentationActive())

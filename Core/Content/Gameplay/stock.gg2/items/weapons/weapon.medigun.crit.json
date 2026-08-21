@@ -1,6 +1,6 @@
 {
   "id": "weapon.medigun.crit",
-  "displayName": "Kritzkrieg",
+  "displayName": "Kritz Kraze",
   "slot": "Secondary",
   "behaviorId": "builtin.weapon.medigun.crit",
   "ammo": {

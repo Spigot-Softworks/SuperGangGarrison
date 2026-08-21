@@ -238,6 +238,8 @@ public static class SnapshotDelta
                 SpyBackstabVisualTicksRemaining = status.SpyBackstabVisualTicksRemaining,
                 IsUbered = status.IsUbered,
                 IsKritzCritBoosted = status.IsKritzCritBoosted,
+                IsDispenserBuffed = status.IsDispenserBuffed,
+                DispenserAttackReloadSpeedMultiplier = status.DispenserAttackReloadSpeedMultiplier,
                 IsHeavyEating = status.IsHeavyEating,
                 HeavyEatTicksRemaining = status.HeavyEatTicksRemaining,
                 IsSniperScoped = status.IsSniperScoped,
@@ -252,6 +254,19 @@ public static class SnapshotDelta
                 HeavyEatCooldownTicksRemaining = status.HeavyEatCooldownTicksRemaining,
                 MedicUberCharge = status.MedicUberCharge,
                 IsMedicUberReady = status.IsMedicUberReady,
+                LastToDieSpyCloakMeterUnits = status.LastToDieSpyCloakMeterUnits,
+                LastToDieSpyRogueRampStacks = status.LastToDieSpyRogueRampStacks,
+                LastToDieSpyRogueRampTicks = status.LastToDieSpyRogueRampTicks,
+                SpySuperjumpAvailableCharges = status.SpySuperjumpAvailableCharges,
+                SpySuperjumpMaximumCharges = status.SpySuperjumpMaximumCharges,
+                SpySuperjumpChargeTicks = status.SpySuperjumpChargeTicks,
+                SpySuperjumpChargeDirectionDegrees = status.SpySuperjumpChargeDirectionDegrees,
+                SpySuperjumpChargeStartMovementButtons = status.SpySuperjumpChargeStartMovementButtons,
+                SpySuperjumpChargeStartBlockedUntilAbilityRelease = status.SpySuperjumpChargeStartBlockedUntilAbilityRelease,
+                MedicUberDeliveryState = status.MedicUberDeliveryState,
+                KritzCritBoostProviderPlayerId = status.KritzCritBoostProviderPlayerId,
+                KritzCritBoostProviderSlot = status.KritzCritBoostProviderSlot,
+                KritzCritBoostDamageMultiplier = status.KritzCritBoostDamageMultiplier,
             };
         }
 
@@ -338,7 +353,17 @@ public static class SnapshotDelta
     private static bool IsRuntimeReplicatedState(SnapshotReplicatedStateEntry entry)
     {
         return IsSecondaryWeaponRuntimeReplicatedState(entry)
-            || IsCoreAbilityRuntimeReplicatedState(entry);
+            || IsCoreAbilityRuntimeReplicatedState(entry)
+            || IsLastToDieStatusRuntimeReplicatedState(entry)
+            || string.Equals(entry.OwnerId, "ltd.weapon", StringComparison.Ordinal)
+            || string.Equals(entry.OwnerId, "ltd.link", StringComparison.Ordinal);
+    }
+
+    private static bool IsLastToDieStatusRuntimeReplicatedState(SnapshotReplicatedStateEntry entry)
+    {
+        return string.Equals(entry.OwnerId, "ltd.status", StringComparison.Ordinal)
+            || (string.Equals(entry.OwnerId, "serverruntime", StringComparison.Ordinal)
+                && string.Equals(entry.Key, "stunticks", StringComparison.Ordinal));
     }
 
     private static bool IsSecondaryWeaponRuntimeReplicatedState(SnapshotReplicatedStateEntry entry)
@@ -350,7 +375,9 @@ public static class SnapshotDelta
 
         return entry.Key.IndexOf("_ammo", StringComparison.Ordinal) >= 0
             || entry.Key.EndsWith("_reload_ticks", StringComparison.Ordinal)
-            || entry.Key.EndsWith("_cooldown_ticks", StringComparison.Ordinal);
+            || entry.Key.EndsWith("_cooldown_ticks", StringComparison.Ordinal)
+            || entry.Key.EndsWith("_equipped", StringComparison.Ordinal)
+            || entry.Key.EndsWith("_available", StringComparison.Ordinal);
     }
 
     private static bool IsCoreAbilityRuntimeReplicatedState(SnapshotReplicatedStateEntry entry)
@@ -461,6 +488,7 @@ public static class SnapshotDelta
                 HasActiveTarget = update.HasActiveTarget,
                 LastShotTargetX = update.LastShotTargetX,
                 LastShotTargetY = update.LastShotTargetY,
+                DispenserRampTicks = update.DispenserRampTicks,
             };
         }
 

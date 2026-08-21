@@ -1,4 +1,5 @@
 using OpenGarrison.GameplayModding;
+using OpenGarrison.Core.LastToDie;
 
 namespace OpenGarrison.Core;
 
@@ -711,6 +712,11 @@ public sealed partial class SimulationWorld
 
     internal GameplayAbilityResult ExecuteSpyCloakAbility(GameplayAbilityContext context)
     {
+        if (context.Player.TryBeginLastToDieProfessionalFireChord())
+        {
+            return GameplayAbilityResult.HandledAndConsumed;
+        }
+
         if (context.Input.FirePrimary)
         {
             return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
@@ -727,6 +733,7 @@ public sealed partial class SimulationWorld
             "maxChargeTicks",
             PlayerEntity.SpySuperjumpMaxChargeTicks,
             minValue: 1);
+        maxChargeTicks = player.ResolveSpySuperjumpMaxChargeTicks(maxChargeTicks);
         var cooldownTicks = GameplayAbilityParameterReader.GetTicks(
             context.Ability,
             "cooldownTicks",
@@ -749,6 +756,16 @@ public sealed partial class SimulationWorld
             if (player.TryReleaseSpySuperjump(out var velocityX, out var velocityY, maxChargeTicks, minVelocity, maxVelocity, cooldownTicks))
             {
                 player.ApplyVelocityImpulse(velocityX, velocityY);
+                if (player.LastToDieHealingHarnessEnabled)
+                {
+                    ApplyHealingWithFeedback(
+                        player,
+                        LastToDieDerivedModifiers.SpyHealingHarnessHealing,
+                        "HealSnd",
+                        player.X,
+                        player.Y);
+                    player.ExtinguishAfterburn();
+                }
                 RegisterWorldSoundEvent("JumpSnd", player.X, player.Y, player.Id);
                 return GameplayAbilityResult.HandledAndConsumed;
             }
@@ -756,7 +773,7 @@ public sealed partial class SimulationWorld
             return new GameplayAbilityResult(Handled: false, ConsumedInput: player.SpySuperjumpChargeTicks > 0);
         }
 
-        if (player.SpySuperjumpChargeTicks == 0 && !player.IsSpySuperjumping)
+        if (player.SpySuperjumpChargeTicks == 0)
         {
             return new GameplayAbilityResult(
                 player.TryStartSpySuperjumpCharge(directionDegrees, context.Input.Left, context.Input.Right, context.Input.Up, context.Input.Down),

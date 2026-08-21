@@ -93,6 +93,13 @@ public partial class Game1
                     if ((keyboard.IsKeyDown(Keys.Escape) && !_game._previousKeyboard.IsKeyDown(Keys.Escape))
                         || _game.IsControllerMenuBackPressed())
                     {
+                        if (_game._hostSetupEditField != HostSetupEditField.None)
+                        {
+                            _game._hostSetupState.CancelEditSnapshot();
+                            _game._hostSetupFlowController.ClearHostSetupFocus();
+                            return true;
+                        }
+
                         if (!_game.TryHandleServerLauncherBackAction())
                         {
                             _game.CloseHostSetupMenu();

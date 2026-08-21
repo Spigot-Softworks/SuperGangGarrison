@@ -31,4 +31,5 @@ public enum RoomObjectType
     ForegroundSprite = 27,
     Spritesheet = 28,
     Catapult = 29,
+    FireBox = 30,
 }

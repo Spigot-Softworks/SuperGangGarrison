@@ -265,6 +265,14 @@ public partial class Game1
 
         private void HandleHostSetupMainMenu(MouseState mouse, bool clickPressed, HostSetupMenuLayout layout)
         {
+            // Footer actions must be handled before content scrolling. A scrollbar drag can
+            // otherwise consume the click and return before Host/Back is considered, especially
+            // when this overlay was opened while another menu still owned the shared scrollbar.
+            if (clickPressed && TryHandleHostSetupFooterClick(mouse, layout))
+            {
+                return;
+            }
+
             HandleHostSetupContentScroll(mouse, layout);
             if (_game.ScrollbarDrag.IsActive)
             {
@@ -283,6 +291,31 @@ public partial class Game1
 
             _game.ResetTextFieldClickTarget();
             HandleHostSetupMainMenuClick(mouse, layout);
+        }
+
+        private bool TryHandleHostSetupFooterClick(MouseState mouse, HostSetupMenuLayout layout)
+        {
+            if (!_game.IsHostedServerRunning && layout.HostBounds.Contains(mouse.Position))
+            {
+                _game.TryHostFromSetup();
+                return true;
+            }
+
+            if (_game.IsServerLauncherMode
+                && !_game.IsHostedServerRunning
+                && layout.TerminalButtonBounds.Contains(mouse.Position))
+            {
+                _game.TryHostFromSetup(runInTerminal: true);
+                return true;
+            }
+
+            if (layout.BackBounds.Contains(mouse.Position))
+            {
+                CloseHostSetupMenuFromBackAction();
+                return true;
+            }
+
+            return false;
         }
 
         private void HandleHostSetupMapsMenu(MouseState mouse, bool clickPressed, HostSetupMenuLayout layout)
@@ -417,7 +450,13 @@ public partial class Game1
                     break;
                 case '\r':
                 case '\n':
-                    if (_game._hostSetupScreen == HostSetupScreen.Options)
+                    if (_game._hostSetupScreen == HostSetupScreen.Options
+                        && _game._hostSetupEditField != HostSetupEditField.None)
+                    {
+                        _game._hostSetupState.CommitEditSnapshot();
+                        ClearHostSetupFocus();
+                    }
+                    else if (_game._hostSetupScreen == HostSetupScreen.Options)
                     {
                         _game._hostSetupState.NavigateToMainScreen();
                         FocusHostSetupField(HostSetupEditField.ServerName);
@@ -427,6 +466,14 @@ public partial class Game1
                         _game.CloseAllHostSetupMapPreviews();
                         _game._hostSetupState.ConfirmMapsScreen();
                         FocusHostSetupField(HostSetupEditField.ServerName);
+                    }
+                    else if (_game._hostSetupEditField != HostSetupEditField.None)
+                    {
+                        // Enter confirms the active field. Starting the server is
+                        // deliberately kept on the Host button so an accidental
+                        // Enter while editing cannot launch with partial input.
+                        _game._hostSetupState.CommitEditSnapshot();
+                        ClearHostSetupFocus();
                     }
                     else
                     {
@@ -470,12 +517,23 @@ public partial class Game1
 
         public void FocusHostSetupField(HostSetupEditField field)
         {
+            if (_game._hostSetupEditField != HostSetupEditField.None
+                && _game._hostSetupEditField != field)
+            {
+                _game._hostSetupState.CommitEditSnapshot();
+            }
+
             _game._hostSetupEditField = field;
+            if (field != HostSetupEditField.None)
+            {
+                _game._hostSetupState.BeginEditSnapshot(field);
+            }
             _game.InitializeHostSetupFieldCursor(field);
         }
 
         public void ClearHostSetupFocus()
         {
+            _game._hostSetupState.CommitEditSnapshot();
             _game._hostSetupEditField = HostSetupEditField.None;
         }
 

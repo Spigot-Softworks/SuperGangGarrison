@@ -50,6 +50,28 @@ public sealed class BotBrainSpyBehaviorTests
     }
 
     [Fact]
+    public void RevealedCloakSpyKeepsAValidKnifeOpportunity()
+    {
+        var world = CreateSpyWorld(out var spy);
+        var target = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue, 300f, 100f);
+        spy.TeleportTo(target.X + 26f, target.Y);
+        Assert.True(spy.TryToggleSpyCloak());
+
+        // A revealed/fading cloak is still a valid knife opportunity. The old
+        // plan rejected compromised spies, so the controller retreated before
+        // it could finish the approach.
+        spy.RevealSpy(PlayerEntity.SpyDamageRevealAlpha);
+        var combatTarget = CreateCombatTarget(target);
+        var plan = CombatDecisionResolver.ResolveSpyBackstabPlan(world, spy, combatTarget);
+        var decision = CombatDecisionResolver.Resolve(world, spy, combatTarget, null, new CombatDecisionMemory());
+
+        Assert.True(plan.ShouldAttempt);
+        Assert.True(plan.ReadyToStab);
+        Assert.True(decision.FirePrimary);
+        Assert.False(decision.FireSecondary);
+    }
+
+    [Fact]
     public void CloakedSpyBreaksCloakToShootGroupedTarget()
     {
         var world = CreateSpyWorld(out var spy);

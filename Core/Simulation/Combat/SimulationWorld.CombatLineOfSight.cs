@@ -466,6 +466,56 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
+                if (roomObject.Type == RoomObjectType.DirectionalWall)
+                {
+                    var wallHitDistance = GetRayIntersectionDistanceWithRectangle(
+                        originX,
+                        originY,
+                        directionX,
+                        directionY,
+                        roomObject.Left,
+                        roomObject.Top,
+                        roomObject.Right,
+                        roomObject.Bottom,
+                        distance);
+                    if (!wallHitDistance.HasValue)
+                    {
+                        continue;
+                    }
+
+                    // Directional-wall collision is side-dependent. Evaluate
+                    // the segment as a crossing of the wall, rather than only
+                    // testing the final spawn point (which can be beyond the
+                    // wall and therefore no longer intersect its rectangle).
+                    const float crossingProbe = 0.5f;
+                    var previousDistance = MathF.Max(0f, wallHitDistance.Value - crossingProbe);
+                    var nextDistance = MathF.Min(distance, wallHitDistance.Value + crossingProbe);
+                    var previousX = originX + (directionX * previousDistance);
+                    var previousY = originY + (directionY * previousDistance);
+                    var nextX = originX + (directionX * nextDistance);
+                    var nextY = originY + (directionY * nextDistance);
+                    if (DirectionalWallCollision.BlocksProjectilePath(
+                            roomObject.DirectionalWall,
+                            shotTeam,
+                            roomObject,
+                            previousX,
+                            previousY,
+                            nextX,
+                            nextY))
+                    {
+                        _world.SetProjectileSpawnBlockedDebug(roomObject.Left, roomObject.Top, roomObject.Width, roomObject.Height, $"RoomObject:{roomObject.Type}");
+                        return true;
+                    }
+
+                    // A projectile can leave the same one-way door that the
+                    // player is leaving.  The old spawn check treated every
+                    // directional wall as a solid rectangle, so firing on
+                    // the exit frame caused an immediate self-hit/explosion
+                    // and looked like the player's horizontal momentum was
+                    // being cancelled.
+                    continue;
+                }
+
                 if (roomObject.Type == RoomObjectType.Barrier)
                 {
                     if (BarrierProjectileRaycast.TryRaycastMarker(
@@ -498,6 +548,135 @@ public sealed partial class SimulationWorld
                     distance).HasValue)
                 {
                     _world.SetProjectileSpawnBlockedDebug(roomObject.Left, roomObject.Top, roomObject.Width, roomObject.Height, $"RoomObject:{roomObject.Type}");
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public bool IsProjectilePathBlocked(
+            float originX,
+            float originY,
+            float targetX,
+            float targetY,
+            PlayerTeam projectileTeam)
+        {
+            var distance = DistanceBetween(originX, originY, targetX, targetY);
+            if (distance <= 0.0001f)
+            {
+                return false;
+            }
+
+            var directionX = (targetX - originX) / distance;
+            var directionY = (targetY - originY) / distance;
+            var rayBounds = GetRayBounds(originX, originY, directionX, directionY, distance);
+            foreach (var solid in GetPotentialSolidRaycastCandidates(rayBounds))
+            {
+                if (RayBoundsMayIntersectRectangle(
+                        rayBounds,
+                        solid.Left,
+                        solid.Top,
+                        solid.Right,
+                        solid.Bottom)
+                    && GetRayIntersectionDistanceWithRectangle(
+                        originX,
+                        originY,
+                        directionX,
+                        directionY,
+                        solid.Left,
+                        solid.Top,
+                        solid.Right,
+                        solid.Bottom,
+                        distance).HasValue)
+                {
+                    return true;
+                }
+            }
+
+            for (var roomObjectIndex = 0; roomObjectIndex < Level.RoomObjects.Count; roomObjectIndex += 1)
+            {
+                if (!Level.IsRoomObjectActive(roomObjectIndex))
+                {
+                    continue;
+                }
+
+                var roomObject = Level.RoomObjects[roomObjectIndex];
+                if (!RayBoundsMayIntersectRectangle(
+                        rayBounds,
+                        roomObject.Left,
+                        roomObject.Top,
+                        roomObject.Right,
+                        roomObject.Bottom))
+                {
+                    continue;
+                }
+
+                var intersectionDistance = GetRayIntersectionDistanceWithRectangle(
+                    originX,
+                    originY,
+                    directionX,
+                    directionY,
+                    roomObject.Left,
+                    roomObject.Top,
+                    roomObject.Right,
+                    roomObject.Bottom,
+                    distance);
+                if (!intersectionDistance.HasValue)
+                {
+                    continue;
+                }
+
+                if (roomObject.Type == RoomObjectType.Barrier)
+                {
+                    if (BarrierProjectileRaycast.TryRaycastMarker(
+                            roomObject.Barrier,
+                            projectileTeam,
+                            roomObject,
+                            originX,
+                            originY,
+                            directionX,
+                            directionY,
+                            distance,
+                            out _))
+                    {
+                        return true;
+                    }
+
+                    continue;
+                }
+
+                if (roomObject.Type == RoomObjectType.DamageableZone)
+                {
+                    if (_world.BlocksProjectileDamageableZone(roomObjectIndex))
+                    {
+                        return true;
+                    }
+
+                    continue;
+                }
+
+                if (roomObject.Type == RoomObjectType.DirectionalWall)
+                {
+                    var hitX = originX + (directionX * intersectionDistance.Value);
+                    var hitY = originY + (directionY * intersectionDistance.Value);
+                    if (DirectionalWallCollision.BlocksProjectilePath(
+                            roomObject.DirectionalWall,
+                            projectileTeam,
+                            roomObject,
+                            originX,
+                            originY,
+                            hitX,
+                            hitY))
+                    {
+                        return true;
+                    }
+
+                    continue;
+                }
+
+                if (IsBlockingProjectileRoomObject(roomObject, projectileTeam))
+                {
                     return true;
                 }
             }

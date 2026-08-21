@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Collections.Concurrent;
 using System.Text;
 using OpenGarrison.Networking;
 using OpenGarrison.Protocol;
@@ -88,6 +89,78 @@ public sealed class SchedulerTests
         Assert.Equal(12UL, dequeued.Header.FrameId);
         Assert.Equal("new", Encoding.UTF8.GetString(dequeued.EncodedPayload.Span[Protocol64FrameHeader.EncodedSize..]));
         Assert.False(scheduler.TryDequeue(out _));
+    }
+
+    [Fact]
+    public async Task EnqueueAndDequeueCanRunConcurrentlyWithoutCorruptingScheduler()
+    {
+        var scheduler = new Protocol64ChannelScheduler(new Protocol64ChannelSchedulerOptions
+        {
+            MaxPendingReliableFrames = 4096,
+            MaxPendingReliableBytes = 8 * 1024 * 1024,
+        });
+        var errors = new ConcurrentQueue<Exception>();
+        var producerCount = 4;
+        var framesPerProducer = 500;
+        var expectedFrameCount = producerCount * framesPerProducer;
+        var producersCompleted = 0;
+        var dequeuedFrameIds = new ConcurrentBag<ulong>();
+
+        var producers = Enumerable.Range(0, producerCount)
+            .Select(producer => Task.Run(() =>
+            {
+                try
+                {
+                    for (var index = 0; index < framesPerProducer; index += 1)
+                    {
+                        var frameId = (ulong)(producer * framesPerProducer + index + 1);
+                        var result = scheduler.Enqueue(CreateOutbound(
+                            Protocol64DeliveryKind.ReliableUnordered,
+                            ChannelType.GameplayEvents,
+                            frameId));
+                        Assert.True(result.Accepted);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    errors.Enqueue(exception);
+                }
+                finally
+                {
+                    Interlocked.Increment(ref producersCompleted);
+                }
+            }))
+            .ToArray();
+
+        var consumer = Task.Run(() =>
+        {
+            try
+            {
+                while (Volatile.Read(ref producersCompleted) < producerCount
+                    || scheduler.PendingFrames > 0)
+                {
+                    if (scheduler.TryDequeue(out var frame))
+                    {
+                        dequeuedFrameIds.Add(frame.Header.FrameId);
+                    }
+                    else
+                    {
+                        Thread.Yield();
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                errors.Enqueue(exception);
+            }
+        });
+
+        await Task.WhenAll(producers.Append(consumer));
+
+        Assert.Empty(errors);
+        Assert.Equal(expectedFrameCount, dequeuedFrameIds.Count);
+        Assert.Equal(expectedFrameCount, dequeuedFrameIds.Distinct().Count());
+        Assert.Equal(0, scheduler.PendingFrames);
     }
 
     [Fact]

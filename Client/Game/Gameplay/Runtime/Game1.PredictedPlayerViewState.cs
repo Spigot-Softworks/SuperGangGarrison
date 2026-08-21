@@ -9,7 +9,7 @@ public partial class Game1
 {
     private bool IsUsingPredictedLocalState(PlayerEntity player)
     {
-        return _networkClient.IsConnected
+        return CanUseLocalPrediction()
             && ReferenceEquals(player, _world.LocalPlayer)
             && _hasPredictedLocalActionState;
     }
@@ -83,6 +83,34 @@ public partial class Game1
             : player.SpySuperjumpCooldownTicksRemaining;
     }
 
+    private int GetPlayerSpySuperjumpAvailableCharges(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.SpySuperjumpAvailableCharges
+            : player.SpySuperjumpAvailableCharges;
+    }
+
+    private int GetPlayerSpySuperjumpMaximumCharges(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? Math.Max(1, _predictedLocalActionState.SpySuperjumpMaximumCharges)
+            : player.SpySuperjumpMaximumCharges;
+    }
+
+    private int GetPlayerSpySuperjumpChargeTicks(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.SpySuperjumpChargeTicks
+            : player.SpySuperjumpChargeTicks;
+    }
+
+    private float GetPlayerSpySuperjumpChargeDirectionDegrees(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.SpySuperjumpChargeDirectionDegrees
+            : player.SpySuperjumpChargeDirectionDegrees;
+    }
+
     private bool GetPlayerIsSpySuperjumpActive(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
@@ -99,7 +127,9 @@ public partial class Game1
 
     private bool GetPlayerIsSniperScoped(PlayerEntity player)
     {
-        if (!player.HasScopedSniperWeaponEquipped)
+        if (!player.HasScopedSniperWeaponEquipped
+            || GetPlayerIsSniperBowEquipped(player)
+            || player.LastToDieSniperProfile.LightMarksmanEnabled)
         {
             return false;
         }
@@ -144,13 +174,9 @@ public partial class Game1
 
     private int GetPlayerSniperRifleDamage(PlayerEntity player)
     {
-        if (!player.HasScopedSniperWeaponEquipped || !GetPlayerIsSniperScoped(player))
-        {
-            return PlayerEntity.SniperBaseDamage;
-        }
-
-        var chargeTicks = GetPlayerSniperChargeTicks(player);
-        return PlayerEntity.SniperBaseDamage + (int)MathF.Floor(MathF.Sqrt(chargeTicks * 125f / 6f));
+        return player.GetSniperRifleDamageForCharge(
+            GetPlayerSniperChargeTicks(player),
+            GetPlayerIsSniperScoped(player));
     }
 
     private bool GetPlayerIsSpyCloaked(PlayerEntity player)
@@ -165,6 +191,26 @@ public partial class Game1
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.SpyCloakAlpha
             : player.SpyCloakAlpha;
+    }
+
+    private float GetPlayerLastToDieSpyCloakMeterFraction(PlayerEntity player)
+    {
+        if (!IsUsingPredictedLocalState(player))
+        {
+            return player.LastToDieSpyCloakMeterFraction;
+        }
+
+        var maximum = _predictedLocalActionState.LastToDieSpyCloakMeterMaximumUnits;
+        return maximum <= 0
+            ? 1f
+            : Math.Clamp(_predictedLocalActionState.LastToDieSpyCloakMeterUnits / (float)maximum, 0f, 1f);
+    }
+
+    private int GetPlayerLastToDieSpyRogueRampStacks(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.LastToDieSpyRogueRampStacks
+            : player.LastToDieSpyRogueRampStacks;
     }
 
     private bool GetPlayerIsSpyVisibleToEnemies(PlayerEntity player)
@@ -312,7 +358,22 @@ public partial class Game1
 
     private bool GetPlayerIsCivviePogoTrickActive(PlayerEntity player)
     {
-        return GetPlayerCivviePogoTrickTicksRemaining(player) > 0;
+        return GetPlayerCivviePogoTrickTicksRemaining(player) > 0
+            || _civviePogoTrickPresentationTicksByPlayerId.ContainsKey(player.Id);
+    }
+
+    private MedicUberDeliveryMode GetPlayerMedicUberDeliveryMode(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.MedicUberDeliveryMode
+            : player.MedicUberPresentationMode;
+    }
+
+    private bool GetPlayerIsMedicUbering(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.IsMedicUbering
+            : player.IsMedicUberDeliveryActive;
     }
 
     private PlayerEntity GetPlayerCivviePresentationSource(PlayerEntity player)

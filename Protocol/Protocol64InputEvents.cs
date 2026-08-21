@@ -17,6 +17,8 @@ public enum Protocol64InputCommandKind : byte
     InteractWeapon = 10,
     SwapWeapon = 11,
     ReadyUp = 12,
+    BuildDispenser = 13,
+    DestroyDispenser = 14,
 }
 
 public enum Protocol64InputCommandResultKind : byte
@@ -67,7 +69,7 @@ public sealed class Protocol64InputCommandSchema
     public Protocol64InputCommandSchema()
         : base(
             Protocol64InputSchemaIds.InputCommand,
-            revision: 2,
+            revision: 3,
             Protocol64Direction.ClientToServer,
             maxBodyBytes: 64)
     {
@@ -78,7 +80,7 @@ public sealed class Protocol64InputCommandSchema
         writer.Write(value.CommandId);
         writer.Write(value.InputSequence);
         writer.Write((byte)value.Kind);
-        writer.Write((ushort)value.HeldButtons);
+        writer.Write((uint)value.HeldButtons);
         writer.Write(value.AimRelX);
         writer.Write(value.AimRelY);
         writer.Write(value.ClientTick);
@@ -91,7 +93,7 @@ public sealed class Protocol64InputCommandSchema
             reader.ReadUInt64(),
             reader.ReadUInt32(),
             (Protocol64InputCommandKind)reader.ReadByte(),
-            (InputButtons)reader.ReadUInt16(),
+            (InputButtons)reader.ReadUInt32(),
             reader.ReadSingle(),
             reader.ReadSingle(),
             reader.ReadUInt32(),

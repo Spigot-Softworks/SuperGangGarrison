@@ -91,7 +91,9 @@ public sealed partial class SimulationWorld
 
             // Calculate transparency based on charge level
             // 0 ticks = 0.25 (25%), max ticks (120) = 0.80 (80%)
-            var chargeRatio = MathF.Min(1f, player.SniperChargeTicks / (float)PlayerEntity.SniperChargeMaxTicks);
+            var chargeRatio = MathF.Min(
+                1f,
+                player.SniperChargeTicks / (float)player.LastToDieSniperRifleFullChargeTicks);
             var transparency = 0.25f + (chargeRatio * 0.55f);
 
             _sniperAimIndicators.Add(new SniperAimIndicator(

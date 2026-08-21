@@ -34,7 +34,11 @@ internal sealed class ServerIncomingMessageDispatcher(
     Action<ClientSession>? receiveCustomBubbleClear = null,
     Action<ServerTransportPeer>? sendCustomBubbleStates = null,
     Func<bool>? localPredictionEnabledGetter = null,
-    Action<ClientSession, Protocol64StateResyncRequest>? sendProtocol64StateResync = null)
+    Action<ClientSession, Protocol64StateResyncRequest>? sendProtocol64StateResync = null,
+    Action<ClientSession, LastToDieCommandMessage>? receiveLastToDieCommand = null,
+    Action<ClientSession, LastToDieRunSnapshotAckMessage>? receiveLastToDieSnapshotAck = null,
+    Func<ClientSession, ControlCommandMessage, bool>? allowControlCommand = null,
+    Func<Guid, byte>? resolveLastToDieReconnectSlot = null)
 {
     public void Dispatch(IProtocolMessage message, ServerTransportPeer remotePeer)
     {
@@ -133,7 +137,30 @@ internal sealed class ServerIncomingMessageDispatcher(
                 if (TryGetAuthorizedClient(remotePeer, out var controlClient))
                 {
                     controlClient.LastSeen = elapsedGetter();
-                    sessionManager.HandleControlCommand(controlClient, command);
+                    if (allowControlCommand?.Invoke(controlClient, command) != false)
+                    {
+                        sessionManager.HandleControlCommand(controlClient, command);
+                    }
+                    else
+                    {
+                        sendMessage(
+                            controlClient.Peer,
+                            new ControlAckMessage(command.Sequence, command.Kind, Accepted: false));
+                    }
+                }
+                break;
+            case LastToDieCommandMessage lastToDieCommand:
+                if (TryGetAuthorizedClient(remotePeer, out var lastToDieClient))
+                {
+                    lastToDieClient.LastSeen = elapsedGetter();
+                    receiveLastToDieCommand?.Invoke(lastToDieClient, lastToDieCommand);
+                }
+                break;
+            case LastToDieRunSnapshotAckMessage lastToDieSnapshotAck:
+                if (TryGetAuthorizedClient(remotePeer, out var lastToDieAckClient))
+                {
+                    lastToDieAckClient.LastSeen = elapsedGetter();
+                    receiveLastToDieSnapshotAck?.Invoke(lastToDieAckClient, lastToDieSnapshotAck);
                 }
                 break;
             case ClientPluginMessage pluginMessage:
@@ -177,6 +204,20 @@ internal sealed class ServerIncomingMessageDispatcher(
                     inputClient.Protocol64Enabled = true;
                     inputClient.LastSeen = elapsedGetter();
                     sessionManager.HandleProtocol64InputCommand(inputClient, command);
+                }
+                break;
+            case LastToDieCommandMessage lastToDieCommand:
+                if (TryGetAuthorizedClient(remotePeer, out var lastToDieClient))
+                {
+                    lastToDieClient.LastSeen = elapsedGetter();
+                    receiveLastToDieCommand?.Invoke(lastToDieClient, lastToDieCommand);
+                }
+                break;
+            case LastToDieRunSnapshotAckMessage lastToDieSnapshotAck:
+                if (TryGetAuthorizedClient(remotePeer, out var lastToDieAckClient))
+                {
+                    lastToDieAckClient.LastSeen = elapsedGetter();
+                    receiveLastToDieSnapshotAck?.Invoke(lastToDieAckClient, lastToDieSnapshotAck);
                 }
                 break;
             case Protocol64InputCommandResultAck acknowledgement:
@@ -226,6 +267,15 @@ internal sealed class ServerIncomingMessageDispatcher(
         var existingClient = FindClient(clientsBySlot, remotePeer);
         if (existingClient is not null)
         {
+            if (existingClient.ClientInstanceId != Guid.Empty
+                && hello.ClientInstanceId != Guid.Empty
+                && existingClient.ClientInstanceId != hello.ClientInstanceId)
+            {
+                log($"[server] rejected client-instance change for existing peer {remoteDescription}.");
+                sendMessage(remotePeer, new ConnectionDeniedMessage("Client session identity changed."));
+                return;
+            }
+
             if (hello.Intent == ConnectionIntent.Watch && !IsSpectatorSlot(existingClient.Slot))
             {
                 log($"[server] rejected watch refresh {remoteDescription}; existing slot is playable slot={existingClient.Slot}");
@@ -293,7 +343,35 @@ internal sealed class ServerIncomingMessageDispatcher(
         }
 
         var watchOnly = hello.Intent == ConnectionIntent.Watch;
-        var assignedSlot = watchOnly
+        var reconnectSlot = !watchOnly && hello.ClientInstanceId != Guid.Empty
+            ? resolveLastToDieReconnectSlot?.Invoke(hello.ClientInstanceId) ?? (byte)0
+            : (byte)0;
+        if (reconnectSlot != 0
+            && (!SimulationWorld.IsPlayableNetworkPlayerSlot(reconnectSlot)
+                || reconnectSlot > maxPlayableClients
+                || reconnectSlot > maxTotalClients
+                || isPlayableSlotAvailable?.Invoke(reconnectSlot) == false))
+        {
+            log($"[server] rejected invalid Last to Die reconnect slot={reconnectSlot} peer={remoteDescription}.");
+            sendMessage(remotePeer, new ConnectionDeniedMessage("Reserved Last to Die slot is unavailable."));
+            return;
+        }
+
+        if (reconnectSlot != 0
+            && clientsBySlot.TryGetValue(reconnectSlot, out var supersededClient))
+        {
+            if (supersededClient.ClientInstanceId != hello.ClientInstanceId)
+            {
+                sendMessage(remotePeer, new ConnectionDeniedMessage("Reserved Last to Die slot identity did not match."));
+                return;
+            }
+
+            sessionManager.RemoveClient(reconnectSlot, "superseded by Last to Die reconnect");
+        }
+
+        var assignedSlot = reconnectSlot != 0
+            ? reconnectSlot
+            : watchOnly
             ? FindAvailableSpectatorSlot(clientsBySlot, maxTotalClients, maxSpectatorClients)
             : FindAvailableSlot(
                 clientsBySlot,
@@ -310,7 +388,13 @@ internal sealed class ServerIncomingMessageDispatcher(
         }
 
         var now = elapsedGetter();
-        var client = new ClientSession(assignedSlot, allocateUserId(), remotePeer, clientName, now)
+        var client = new ClientSession(
+            assignedSlot,
+            allocateUserId(),
+            remotePeer,
+            clientName,
+            now,
+            hello.ClientInstanceId)
         {
             IsAuthorized = !passwordRequired,
             BadgeMask = hello.BadgeMask,

@@ -139,6 +139,34 @@ public sealed partial class SimulationWorld
             _ = killFeedWeaponSpriteName;
         }
 
+        public void FireQueuedLastToDieSniperBowArrow(
+            PlayerEntity attacker,
+            in LastToDieSniperVolleyState volley)
+        {
+            RegisterSoundEvent(attacker, attacker.ExperimentalOffhandWeapon?.FireSoundName ?? "BowSnd");
+            var weaponOrigin = GetSourceWeaponOrigin(attacker);
+            var directionX = volley.VelocityX;
+            var directionY = volley.VelocityY;
+            if (MathF.Abs(directionX) + MathF.Abs(directionY) <= 0.0001f)
+            {
+                directionX = attacker.FacingDirectionX;
+            }
+
+            var pivotRay = GetWeaponPivotRay(
+                weaponOrigin.BaseX,
+                weaponOrigin.BaseY,
+                weaponOrigin.BaseX + directionX,
+                weaponOrigin.BaseY + directionY,
+                attacker.FacingDirectionX,
+                PlayerEntity.SniperBowPivotOffsetX,
+                PlayerEntity.SniperBowPivotOffsetY + weaponOrigin.EquipmentOffset);
+            _world.SpawnQueuedLastToDieSniperArrow(
+                attacker,
+                pivotRay.PivotX,
+                pivotRay.PivotY,
+                volley);
+        }
+
         public void FireAcquiredMedicNeedle(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
             RegisterSoundEvent(attacker, "MedichaingunSnd");

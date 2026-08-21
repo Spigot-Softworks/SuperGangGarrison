@@ -249,7 +249,14 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                if (world.ApplyPlayerContinuousDamage(player, BubbleProjectileEntity.DamagePerHit, owner))
+                if (world.ApplyPlayerContinuousDamageWithContext(
+                        player,
+                        BubbleProjectileEntity.DamagePerHit * bubble.CriticalDamageMultiplier,
+                        owner,
+                        civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(
+                            bubble.CriticalDamageMultiplier),
+                        civvieUmbrellaUseLiveAttackerCriticalBoost: false,
+                        additionalTraits: PlayerDamageTraits.DirectProjectile))
                 {
                     world.KillPlayer(player, killer: owner, weaponSpriteName: "BladeKL");
                 }
@@ -288,7 +295,11 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                if (world.ApplySentryDamage(sentry, (int)MathF.Ceiling(BubbleProjectileEntity.DamagePerHit), owner))
+                if (world.ApplySentryDamage(
+                        sentry,
+                        (int)MathF.Ceiling(
+                            BubbleProjectileEntity.DamagePerHit * bubble.CriticalDamageMultiplier),
+                        owner))
                 {
                     world.DestroySentry(sentry, owner);
                 }
@@ -306,7 +317,10 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                world.TryDamageGenerator(generator.Team, BubbleProjectileEntity.DamagePerHit, owner);
+                world.TryDamageGenerator(
+                    generator.Team,
+                    BubbleProjectileEntity.DamagePerHit * bubble.CriticalDamageMultiplier,
+                    owner);
                 return true;
             }
 

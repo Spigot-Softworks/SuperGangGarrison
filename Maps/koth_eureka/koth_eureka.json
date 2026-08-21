@@ -7,7 +7,8 @@
   "walkmaskImage": "walkmask.png",
   "metadata": {
     "background": "ffffff",
-    "void": "000000"
+    "void": "000000",
+    "walkmaskScaleX": "6.24"
   },
   "entities": [
     {

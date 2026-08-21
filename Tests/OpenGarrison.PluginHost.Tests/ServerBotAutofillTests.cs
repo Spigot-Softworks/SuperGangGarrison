@@ -7,6 +7,41 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class ServerBotAutofillTests
 {
+    [Fact]
+    public void LastToDieBotsSwitchToEnemyObjectiveOnlyAfterTheirTeamOwnsThePoint()
+    {
+        var point = new ControlPointState(
+            1,
+            new RoomObjectMarker(
+                RoomObjectType.ControlPoint,
+                100f,
+                100f,
+                32f,
+                32f,
+                "ControlPointNeutralS"));
+        IReadOnlyList<ControlPointState> points = [point];
+
+        Assert.False(ServerBotManager.ShouldSeekEnemyPlayersAfterOwningControlPoint(
+            enabled: true,
+            PlayerTeam.Blue,
+            points));
+
+        point.Team = PlayerTeam.Blue;
+
+        Assert.True(ServerBotManager.ShouldSeekEnemyPlayersAfterOwningControlPoint(
+            enabled: true,
+            PlayerTeam.Blue,
+            points));
+        Assert.False(ServerBotManager.ShouldSeekEnemyPlayersAfterOwningControlPoint(
+            enabled: false,
+            PlayerTeam.Blue,
+            points));
+        Assert.False(ServerBotManager.ShouldSeekEnemyPlayersAfterOwningControlPoint(
+            enabled: true,
+            PlayerTeam.Red,
+            points));
+    }
+
     [Theory]
     [InlineData(0, 0, 12, 6, 6, 6)]
     [InlineData(6, 6, 12, 6, 0, 0)]

@@ -15,7 +15,7 @@ public static class Og2NavigationGraphBuilder
 {
     // Bump whenever graph-generation behavior changes. Runtime steering
     // changes intentionally do not invalidate the graph cache.
-    public const string GeneratorFingerprint = "og2-contact-20260731-v50-merge-static-class-edges";
+    public const string GeneratorFingerprint = "og2-contact-20260818-v55-topdown-team-barrier-clearance";
 
     private static readonly ConditionalWeakTable<SimpleLevel, StaticNavigationBlockers> StaticBlockerCache = new();
 
@@ -63,6 +63,11 @@ public static class Og2NavigationGraphBuilder
     public static NavGraph Build(SimpleLevel level)
     {
         ArgumentNullException.ThrowIfNull(level);
+
+        if (level.IsTopDown)
+        {
+            return TopDownNavigationGraphBuilder.Build(level);
+        }
 
         if (Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_CONTACT_GRAPH") is "1" or "true" or "TRUE")
         {
@@ -2050,7 +2055,42 @@ public static class Og2NavigationGraphStore
 {
     private const string ExtendedSweepTicks = "96";
     private static readonly ConditionalWeakTable<SimpleLevel, CachedGraph> Cache = new();
+    private static readonly ConditionalWeakTable<SimpleLevel, CachedGraph> ShippedCache = new();
     private static readonly object Sync = new();
+
+    public static bool TryLoadShipped(SimpleLevel level, out NavGraph graph)
+    {
+        ArgumentNullException.ThrowIfNull(level);
+        ConfigureProductionGraphSettings();
+
+        var requestedKey = Og2NavigationGraphCache.BuildKey(level);
+        if (ShippedCache.TryGetValue(level, out var cached)
+            && string.Equals(cached.RequestedKey, requestedKey, StringComparison.Ordinal))
+        {
+            graph = cached.Graph;
+            return true;
+        }
+
+        lock (Sync)
+        {
+            if (ShippedCache.TryGetValue(level, out cached)
+                && string.Equals(cached.RequestedKey, requestedKey, StringComparison.Ordinal))
+            {
+                graph = cached.Graph;
+                return true;
+            }
+
+            if (!Og2NavigationGraphCache.TryLoadShipped(level, requestedKey, out graph, out var shippedPath))
+            {
+                graph = null!;
+                return false;
+            }
+
+            ShippedCache.Add(level, new CachedGraph(requestedKey, requestedKey, graph));
+            TraceCache(level, "shipped-hit", shippedPath, graph);
+            return true;
+        }
+    }
 
     public static NavGraph GetOrBuild(SimpleLevel level)
     {
@@ -2062,11 +2102,7 @@ public static class Og2NavigationGraphStore
         // override these values explicitly; an unset value gets the validated
         // production default so a practice match cannot silently fall back to
         // the deprecated graph builder or its slow exploratory sweep.
-        Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_CONTACT_GRAPH", "1");
-        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_SWEEP_TICKS")))
-        {
-            Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_SWEEP_TICKS", "32");
-        }
+        ConfigureProductionGraphSettings();
 
         var requestedKey = Og2NavigationGraphCache.BuildKey(level);
         if (Cache.TryGetValue(level, out var cached))
@@ -2186,6 +2222,15 @@ public static class Og2NavigationGraphStore
     private static bool IsExtendedContactSweepEnabled() =>
         Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_EXTENDED_SWEEP") is "1" or "true" or "TRUE"
         && Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_SKIP_EXTENDED_SWEEP") is not ("1" or "true" or "TRUE");
+
+    private static void ConfigureProductionGraphSettings()
+    {
+        Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_CONTACT_GRAPH", "1");
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_SWEEP_TICKS")))
+        {
+            Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_SWEEP_TICKS", "32");
+        }
+    }
 
     private static IReadOnlyList<PlayerClass> ResolveValidationClasses()
     {

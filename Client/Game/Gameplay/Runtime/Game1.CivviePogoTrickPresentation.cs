@@ -7,13 +7,20 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private const int CivviePogoTrickPresentationDropoutGraceTicks = 3;
     private readonly Dictionary<int, int> _civviePogoTrickDurationTicksByPlayerId = new();
+    private readonly Dictionary<int, int> _civviePogoTrickPresentationTicksByPlayerId = new();
+    private readonly Dictionary<int, int> _civviePogoTrickPresentationGraceByPlayerId = new();
+    private readonly Dictionary<int, int> _civviePogoTrickPresentationFrameByPlayerId = new();
     private readonly Dictionary<int, int> _civviePogoTrickPreviousTicksByPlayerId = new();
     private readonly HashSet<int> _civviePogoTrickBurstSpawnedPlayerIds = new();
 
     private void ResetCivviePogoTrickPresentationObservation()
     {
         _civviePogoTrickDurationTicksByPlayerId.Clear();
+        _civviePogoTrickPresentationTicksByPlayerId.Clear();
+        _civviePogoTrickPresentationGraceByPlayerId.Clear();
+        _civviePogoTrickPresentationFrameByPlayerId.Clear();
         _civviePogoTrickPreviousTicksByPlayerId.Clear();
         _civviePogoTrickBurstSpawnedPlayerIds.Clear();
     }
@@ -25,6 +32,9 @@ public partial class Game1
             if (!player.IsAlive || player.ClassId != PlayerClass.Quote)
             {
                 _civviePogoTrickDurationTicksByPlayerId.Remove(player.Id);
+                _civviePogoTrickPresentationTicksByPlayerId.Remove(player.Id);
+                _civviePogoTrickPresentationGraceByPlayerId.Remove(player.Id);
+                _civviePogoTrickPresentationFrameByPlayerId.Remove(player.Id);
                 _civviePogoTrickPreviousTicksByPlayerId.Remove(player.Id);
                 _civviePogoTrickBurstSpawnedPlayerIds.Remove(player.Id);
                 continue;
@@ -33,6 +43,8 @@ public partial class Game1
             var currentTicks = GetPlayerCivviePogoTrickTicksRemaining(player);
             if (currentTicks > 0)
             {
+                _civviePogoTrickPresentationTicksByPlayerId[player.Id] = currentTicks;
+                _civviePogoTrickPresentationGraceByPlayerId[player.Id] = CivviePogoTrickPresentationDropoutGraceTicks;
                 if (_civviePogoTrickBurstSpawnedPlayerIds.Add(player.Id))
                 {
                     _civviePogoTrickDurationTicksByPlayerId[player.Id] = currentTicks;
@@ -41,9 +53,23 @@ public partial class Game1
                         (ulong)Math.Max(0, _world.Frame));
                 }
             }
+            else if (_civviePogoTrickPresentationTicksByPlayerId.TryGetValue(player.Id, out var presentationTicks)
+                && _civviePogoTrickPresentationGraceByPlayerId.TryGetValue(player.Id, out var graceTicks)
+                && graceTicks > 0)
+            {
+                // Snapshot interpolation can briefly expose the completed state
+                // between two positive trick states. Keep the presentation alive
+                // for a few client ticks so the trick sprite cannot flash back to
+                // the normal body animation.
+                _civviePogoTrickPresentationTicksByPlayerId[player.Id] = Math.Max(1, presentationTicks - 1);
+                _civviePogoTrickPresentationGraceByPlayerId[player.Id] = graceTicks - 1;
+            }
             else
             {
                 _civviePogoTrickDurationTicksByPlayerId.Remove(player.Id);
+                _civviePogoTrickPresentationTicksByPlayerId.Remove(player.Id);
+                _civviePogoTrickPresentationGraceByPlayerId.Remove(player.Id);
+                _civviePogoTrickPresentationFrameByPlayerId.Remove(player.Id);
                 _civviePogoTrickBurstSpawnedPlayerIds.Remove(player.Id);
             }
 
@@ -69,6 +95,9 @@ public partial class Game1
         {
             var playerId = stalePlayerIds[index];
             _civviePogoTrickDurationTicksByPlayerId.Remove(playerId);
+            _civviePogoTrickPresentationTicksByPlayerId.Remove(playerId);
+            _civviePogoTrickPresentationGraceByPlayerId.Remove(playerId);
+            _civviePogoTrickPresentationFrameByPlayerId.Remove(playerId);
             _civviePogoTrickPreviousTicksByPlayerId.Remove(playerId);
             _civviePogoTrickBurstSpawnedPlayerIds.Remove(playerId);
         }
@@ -76,7 +105,9 @@ public partial class Game1
 
     private int GetCivviePogoTrickPresentationFrameIndex(PlayerEntity player, int frameCount)
     {
-        if (!GetPlayerIsCivviePogoTrickActive(player) || frameCount <= 0)
+        if (frameCount <= 0
+            || (!GetPlayerIsCivviePogoTrickActive(player)
+                && !_civviePogoTrickPresentationTicksByPlayerId.ContainsKey(player.Id)))
         {
             return 0;
         }
@@ -87,12 +118,24 @@ public partial class Game1
             : _civviePogoTrickDurationTicksByPlayerId.GetValueOrDefault(
                 player.Id,
                 PlayerEntity.CivviePogoTrickDurationTicksDefault);
-        return CivviePogoTrickRules.ResolveTrickFrameIndex(
+        var presentationTicks = GetPlayerCivviePogoTrickTicksRemaining(player);
+        if (presentationTicks <= 0)
+        {
+            presentationTicks = _civviePogoTrickPresentationTicksByPlayerId.GetValueOrDefault(player.Id, 1);
+        }
+        if (_civviePogoTrickPresentationFrameByPlayerId.TryGetValue(player.Id, out var latchedFrame))
+        {
+            return System.Math.Clamp(latchedFrame, 0, frameCount - 1);
+        }
+
+        var resolvedFrame = CivviePogoTrickRules.ResolveTrickFrameIndex(
             _world.SessionPresentationSeed,
             player.Id,
             (ulong)System.Math.Max(0, _world.Frame),
             durationTicks,
-            GetPlayerCivviePogoTrickTicksRemaining(player),
+            presentationTicks,
             frameCount);
+        _civviePogoTrickPresentationFrameByPlayerId[player.Id] = resolvedFrame;
+        return resolvedFrame;
     }
 }

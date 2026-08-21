@@ -17,11 +17,15 @@ public partial class Game1
 
         public void DrawGameplayWorldForCamera(Vector2 cameraPosition, int viewportWidth, int viewportHeight, int? skippedDeadBodySourcePlayerId = null)
         {
+            var worldLeft = (int)MathF.Floor(-cameraPosition.X);
+            var worldTop = (int)MathF.Floor(-cameraPosition.Y);
+            var worldRight = (int)MathF.Ceiling(_game._world.Bounds.Width - cameraPosition.X);
+            var worldBottom = (int)MathF.Ceiling(_game._world.Bounds.Height - cameraPosition.Y);
             var worldRectangle = new Rectangle(
-                (int)-cameraPosition.X,
-                (int)-cameraPosition.Y,
-                (int)_game._world.Bounds.Width,
-                (int)_game._world.Bounds.Height);
+                worldLeft,
+                worldTop,
+                Math.Max(0, worldRight - worldLeft),
+                Math.Max(0, worldBottom - worldTop));
 
             var playerRectangle = _game.GetLocalPlayerRectangle(cameraPosition);
 

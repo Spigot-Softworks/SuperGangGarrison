@@ -60,7 +60,9 @@ public sealed partial class SimulationWorld
             var count = 0;
             foreach (var player in _world.EnumerateSimulatedPlayers())
             {
-                if (!player.IsAlive || player.Team != team)
+                if (!player.IsAlive
+                    || player.Team != team
+                    || !_world.CanPlayerContributeToControlPoint(player))
                 {
                     continue;
                 }

@@ -9,6 +9,8 @@ public sealed class PlayerGibEntity : SimulationEntity
     public const int SplatCooldownTicks = 18;
     public const float Scale = 2f;
     public const float DefaultBloodChance = 1.8f;
+    private const float TopDownFriction = 0.88f;
+    private const float TopDownCollisionBounce = 0.35f;
 
     public PlayerGibEntity(
         int id,
@@ -75,7 +77,11 @@ public sealed class PlayerGibEntity : SimulationEntity
         ? 1f
         : float.Max(0f, TicksRemaining / (float)FadeTicks);
 
-    public void Advance(SimpleLevel level, WorldBounds bounds)
+    public void Advance(
+        SimpleLevel level,
+        WorldBounds bounds,
+        bool preservePosition = false,
+        bool topDown = false)
     {
         if (TicksRemaining > 0)
         {
@@ -89,6 +95,18 @@ public sealed class PlayerGibEntity : SimulationEntity
 
         if (TicksRemaining <= 0)
         {
+            return;
+        }
+
+        if (topDown)
+        {
+            AdvanceTopDown(level, bounds);
+            return;
+        }
+
+        if (preservePosition)
+        {
+            RotationDegrees += RotationSpeedDegrees;
             return;
         }
 
@@ -107,6 +125,71 @@ public sealed class PlayerGibEntity : SimulationEntity
         {
             RotationSpeedDegrees = 0f;
         }
+    }
+
+    private void AdvanceTopDown(SimpleLevel level, WorldBounds bounds)
+    {
+        RotationDegrees += RotationSpeedDegrees;
+        if (MathF.Abs(VelocityX) < 0.1f && MathF.Abs(VelocityY) < 0.1f)
+        {
+            VelocityX = 0f;
+            VelocityY = 0f;
+            RotationSpeedDegrees = 0f;
+            return;
+        }
+
+        var previousX = X;
+        var previousY = Y;
+        X += VelocityX;
+        Y += VelocityY;
+
+        foreach (var solid in level.Solids)
+        {
+            if (!Intersects(solid))
+            {
+                continue;
+            }
+
+            var resolvedOnX = !IntersectsAt(previousX, Y, solid);
+            var resolvedOnY = !IntersectsAt(X, previousY, solid);
+            if (resolvedOnX && !resolvedOnY)
+            {
+                X = previousX;
+                VelocityX *= -TopDownCollisionBounce;
+            }
+            else if (resolvedOnY && !resolvedOnX)
+            {
+                Y = previousY;
+                VelocityY *= -TopDownCollisionBounce;
+            }
+            else
+            {
+                X = previousX;
+                Y = previousY;
+                VelocityX *= -TopDownCollisionBounce;
+                VelocityY *= -TopDownCollisionBounce;
+            }
+
+            break;
+        }
+
+        var clampedX = bounds.ClampX(X, BoundingSize);
+        if (clampedX != X)
+        {
+            X = clampedX;
+            VelocityX *= -TopDownCollisionBounce;
+        }
+
+        var clampedY = bounds.ClampY(Y, BoundingSize);
+        if (clampedY != Y)
+        {
+            Y = clampedY;
+            VelocityY *= -TopDownCollisionBounce;
+        }
+
+        VelocityX *= TopDownFriction;
+        VelocityY *= TopDownFriction;
+        RotationSpeedDegrees *= TopDownFriction;
     }
 
     public float Speed => MathF.Sqrt((VelocityX * VelocityX) + (VelocityY * VelocityY));
@@ -243,6 +326,18 @@ public sealed class PlayerGibEntity : SimulationEntity
         var right = X + (BoundingSize / 2f);
         var top = Y - (BoundingSize / 2f);
         var bottom = Y + (BoundingSize / 2f);
+        return left < solid.Right
+            && right > solid.Left
+            && top < solid.Bottom
+            && bottom > solid.Top;
+    }
+
+    private bool IntersectsAt(float x, float y, LevelSolid solid)
+    {
+        var left = x - (BoundingSize / 2f);
+        var right = x + (BoundingSize / 2f);
+        var top = y - (BoundingSize / 2f);
+        var bottom = y + (BoundingSize / 2f);
         return left < solid.Right
             && right > solid.Left
             && top < solid.Bottom

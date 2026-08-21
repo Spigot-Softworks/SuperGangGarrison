@@ -62,7 +62,7 @@ public partial class Game1
         var previousLevelName = _jumpMapIndex >= 0 && _jumpMapIndex < _jumpMapEntries.Count
             ? _jumpMapEntries[_jumpMapIndex].LevelName
             : null;
-        _jumpMapEntries = BuildPracticeMapEntries()
+        _jumpMapEntries = BuildAllLocalMapEntries()
             .Where(IsJumpMapEntry)
             .OrderBy(entry => entry.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();

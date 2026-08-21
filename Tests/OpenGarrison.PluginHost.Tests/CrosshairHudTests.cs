@@ -36,20 +36,24 @@ public sealed class CrosshairHudTests
         Assert.True(Game1.IsContinuousCrosshairWeapon(weapon));
         Assert.Equal(
             Game1.ContinuousCrosshairIdleFrameIndex,
-            Game1.GetCrosshairFrameIndex(weapon, 0, 0));
+            Game1.GetCrosshairFrameIndex(weapon, 0, 0, weapon.MaxAmmo, weapon.MaxAmmo));
         Assert.Equal(
             0,
-            Game1.GetCrosshairFrameIndex(weapon, weapon.ReloadDelayTicks, 0));
+            Game1.GetCrosshairFrameIndex(weapon, weapon.ReloadDelayTicks, 0, weapon.MaxAmmo, weapon.MaxAmmo));
         Assert.Equal(
             0,
-            Game1.GetContinuousCrosshairFrameIndex(1, weapon.ReloadDelayTicks));
-        Assert.True(
-            Game1.GetContinuousCrosshairFrameIndex(weapon.ReloadDelayTicks * 5, weapon.ReloadDelayTicks)
-                > Game1.GetContinuousCrosshairFrameIndex(1, weapon.ReloadDelayTicks));
+            Game1.GetContinuousCrosshairFrameIndex(weapon.MaxAmmo, weapon.MaxAmmo, true));
         Assert.Equal(
             Game1.ContinuousCrosshairActiveFrameCount - 1,
             Game1.GetContinuousCrosshairFrameIndex(
-                weapon.ReloadDelayTicks * Game1.ContinuousCrosshairFillCycles,
-                weapon.ReloadDelayTicks));
+                0,
+                weapon.MaxAmmo,
+                true));
+        Assert.True(
+            Game1.GetContinuousCrosshairFrameIndex(weapon.MaxAmmo / 2, weapon.MaxAmmo, true)
+                > Game1.GetContinuousCrosshairFrameIndex(weapon.MaxAmmo, weapon.MaxAmmo, true));
+        Assert.Equal(
+            Game1.ContinuousCrosshairIdleFrameIndex,
+            Game1.GetContinuousCrosshairFrameIndex(0, weapon.MaxAmmo, false));
     }
 }

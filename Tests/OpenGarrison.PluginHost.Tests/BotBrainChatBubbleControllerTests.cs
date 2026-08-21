@@ -58,6 +58,37 @@ public sealed class BotBrainChatBubbleControllerTests
     }
 
     [Fact]
+    public void DelayedKillTauntIsCancelledWhenBotHasReturnedToCombat()
+    {
+        var world = new SimulationWorld(new SimulationConfig
+        {
+            EnableLocalDummies = false,
+        });
+        var player = world.LocalPlayer;
+        var controller = new BotBrainChatBubbleController();
+
+        _ = controller.Update(world, SimulationWorld.LocalPlayerSlot, player, PlayerTeam.Red, EmptyContext(), default, EmptyControlledSlots);
+        player.AddKill();
+        _ = controller.Update(world, SimulationWorld.LocalPlayerSlot, player, PlayerTeam.Red, EmptyContext(), default, EmptyControlledSlots);
+
+        SetFrame(world, 48);
+        var combatInput = controller.Update(
+            world,
+            SimulationWorld.LocalPlayerSlot,
+            player,
+            PlayerTeam.Red,
+            EmptyContext(),
+            default(PlayerInputSnapshot) with { FirePrimary = true },
+            EmptyControlledSlots);
+        SetFrame(world, 49);
+        var afterCancelInput = controller.Update(world, SimulationWorld.LocalPlayerSlot, player, PlayerTeam.Red, EmptyContext(), default, EmptyControlledSlots);
+
+        Assert.True(combatInput.FirePrimary);
+        Assert.False(combatInput.Taunt);
+        Assert.False(afterCancelInput.Taunt);
+    }
+
+    [Fact]
     public void NearbyAlliedHumanTauntUsesFiftyPercentMirrorChance()
     {
         var tauntScenario = CreateNearbyHumanTauntScenario(expectedTaunt: true);

@@ -3,6 +3,9 @@
 using System.Diagnostics;
 using System.IO;
 using System.Net.Sockets;
+using OpenGarrison.Bootstrap;
+using OpenGarrison.Core;
+using OpenGarrison.Core.LastToDie;
 
 namespace OpenGarrison.Client;
 
@@ -23,13 +26,47 @@ internal sealed record HostedServerLaunchOptions(
     bool AutoBalance,
     bool SecondaryAbilitiesEnabled,
     string? RequestedMap,
-    string? MapRotationFile);
+    string? MapRotationFile,
+    GameplayVariantKind GameplayVariant = GameplayVariantKind.Standard,
+    LastToDieDifficulty LastToDieDifficulty = LastToDieDifficulty.Standard,
+    ulong? LastToDieSeed = null,
+    string RelayHostUrl = "")
+{
+    public static HostedServerLaunchOptions CreateLastToDie(
+        string configPath,
+        string serverName,
+        int port,
+        LastToDieDifficulty difficulty,
+        ulong? seed = null,
+        int maxPlayers = 2)
+        => new(
+            configPath,
+            serverName,
+            port,
+            MaxPlayers: Math.Clamp(maxPlayers, 1, 2),
+            Password: string.Empty,
+            RconPassword: string.Empty,
+            TimeLimitMinutes: 30,
+            CapLimit: 5,
+            RespawnSeconds: 5,
+            // Private co-op is discovered through authenticated friend
+            // presence and its short-lived relay, not the public server list.
+            LobbyAnnounce: false,
+            AutoBalance: false,
+            SecondaryAbilitiesEnabled: true,
+            RequestedMap: null,
+            MapRotationFile: null,
+            GameplayVariantKind.LastToDie,
+            difficulty,
+            seed);
+}
 
 internal static class HostedServerBootstrapper
 {
     private const string PreferredServerAssemblyName = "OG2.Server.dll";
     private const string LegacyServerAssemblyName = "OpenGarrison.Server.dll";
     private const string ServerTargetFramework = "net10.0";
+    private const string AspNetCoreFrameworkName = "Microsoft.AspNetCore.App";
     private static readonly string PackagedServerPluginsRelativePath = Path.Combine("Plugins", "Packaged", "Server");
     private const string HostedServerStdOutLogFileName = "hosted-server-stdout.log";
     private const string HostedServerStdErrLogFileName = "hosted-server-stderr.log";
@@ -170,6 +207,16 @@ internal static class HostedServerBootstrapper
 
         arguments.Add($"--config {QuoteArgument(options.ConfigPath)}");
 
+        if (options.GameplayVariant == GameplayVariantKind.LastToDie)
+        {
+            arguments.Add("--gameplay-variant last-to-die");
+            arguments.Add($"--last-to-die-difficulty {options.LastToDieDifficulty.ToString().ToLowerInvariant()}");
+            if (options.LastToDieSeed is { } seed)
+            {
+                arguments.Add($"--last-to-die-seed {seed}");
+            }
+        }
+
         if (options.Port > 0)
         {
             arguments.Add($"--port {options.Port}");
@@ -224,6 +271,49 @@ internal static class HostedServerBootstrapper
         arguments.Add(options.AutoBalance ? "--auto-balance" : "--no-auto-balance");
         arguments.Add(options.SecondaryAbilitiesEnabled ? "--special-abilities" : "--no-special-abilities");
         return string.Join(' ', arguments);
+    }
+
+    public static bool TryValidateRuntimePrerequisites(
+        HostedServerLaunchTarget launchTarget,
+        out string error)
+    {
+        ArgumentNullException.ThrowIfNull(launchTarget);
+        error = string.Empty;
+
+        // Shipped Linux/macOS servers are self-contained. Windows packages are
+        // framework-dependent and need the ASP.NET Core shared framework.
+        if (!OperatingSystem.IsWindows())
+        {
+            return true;
+        }
+
+        var runtimeConfigPath = FindServerRuntimeConfigPath(launchTarget.WorkingDirectory);
+        if (runtimeConfigPath is null
+            || !DotNetRuntimePrerequisite.TryReadFrameworkRequirement(
+                runtimeConfigPath,
+                AspNetCoreFrameworkName,
+                out var requirement))
+        {
+            return true;
+        }
+
+        if (!DotNetRuntimePrerequisite.TryQueryInstalledRuntimes(out var installedRuntimes, out var queryError))
+        {
+            error = "Could not verify the installed ASP.NET Core runtime"
+                + (string.IsNullOrWhiteSpace(queryError) ? "." : $": {queryError}");
+            return false;
+        }
+
+        if (DotNetRuntimePrerequisite.IsFrameworkAvailable(installedRuntimes, requirement))
+        {
+            return true;
+        }
+
+        var downloadUrl = DotNetRuntimePrerequisite.GetDownloadUrl(requirement);
+        error = $"ASP.NET Core Runtime {requirement.VersionFamily} (x64) is required to start the local server, "
+            + $"but no compatible {requirement.FrameworkName} {requirement.VersionFamily}.x runtime was found. "
+            + $"Install it from {downloadUrl}, then restart Super Gang Garrison.";
+        return false;
     }
 
     public static HostedServerProcessLogPaths PrepareProcessLogFiles()
@@ -345,6 +435,24 @@ internal static class HostedServerBootstrapper
         {
             var candidate = Path.Combine(root, PackagedServerPluginsRelativePath);
             if (Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private static string? FindServerRuntimeConfigPath(string workingDirectory)
+    {
+        foreach (var fileName in new[]
+                 {
+                     "OG2.Server.runtimeconfig.json",
+                     "OpenGarrison.Server.runtimeconfig.json",
+                 })
+        {
+            var candidate = Path.Combine(workingDirectory, fileName);
+            if (File.Exists(candidate))
             {
                 return candidate;
             }

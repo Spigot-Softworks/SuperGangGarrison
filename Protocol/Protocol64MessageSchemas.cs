@@ -18,10 +18,11 @@ public abstract class Protocol64LegacyMessageSchema<TMessage>
     protected Protocol64LegacyMessageSchema(
         Protocol64EventId eventId,
         Protocol64Direction direction,
-        int maxBodyBytes)
+        int maxBodyBytes,
+        ushort revision = 1)
         : base(
             schemaId: (ushort)eventId,
-            revision: 1,
+            revision,
             direction,
             maxBodyBytes)
     {
@@ -74,7 +75,7 @@ public sealed class HelloMessageSchema
     public const int MaxBodyBytes = 4 * 1024;
 
     public HelloMessageSchema()
-        : base(Protocol64EventId.Hello, Protocol64Direction.ClientToServer, MaxBodyBytes)
+        : base(Protocol64EventId.Hello, Protocol64Direction.ClientToServer, MaxBodyBytes, revision: 2)
     {
     }
 }
@@ -110,7 +111,11 @@ public sealed class SnapshotMessageSchema
     public const int MaxBodyBytes = 4 * 1024 * 1024;
 
     public SnapshotMessageSchema()
-        : base(Protocol64EventId.Snapshot, Protocol64Direction.ServerToClient, MaxBodyBytes)
+        : base(
+            Protocol64EventId.Snapshot,
+            Protocol64Direction.ServerToClient,
+            MaxBodyBytes,
+            revision: 4)
     {
     }
 }
@@ -453,6 +458,10 @@ public static class Protocol64SchemaRegistryFactory
         registry.Register(new Protocol64StateResyncResponseSchema());
         registry.Register(new Protocol64RetransmitRequestSchema());
         registry.Register(new Protocol64RetransmitResponseSchema());
+        registry.Register(new LastToDieCommandSchema());
+        registry.Register(new LastToDieCommandResultSchema());
+        registry.Register(new LastToDieRunSnapshotSchema());
+        registry.Register(new LastToDieRunSnapshotAckSchema());
 
         return registry;
     }

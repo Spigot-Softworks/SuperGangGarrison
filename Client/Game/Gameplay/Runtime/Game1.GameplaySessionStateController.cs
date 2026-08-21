@@ -40,6 +40,7 @@ public partial class Game1
 
         public void ResetToMainMenuState(string? statusMessage)
         {
+            _game._lastToDieConnectionPresentationPending = false;
             _game._pendingHostedConnectTicks = -1;
             _game._pendingHostedConnectPort = 8190;
             _game._mainMenuOpen = true;
@@ -70,8 +71,10 @@ public partial class Game1
         {
             _game.ResetPracticeBotManagerState(releaseWorldSlots: true);
             Game1.ResetPracticeNavigationState();
+            _game._networkClient.SendLastToDieLeave();
             _game._networkClient.Disconnect();
             _game.ClearSocialPresenceNetworkEndpoint();
+            _game.ClearHostedSocialPresenceEndpoint();
             _game.ResetGameplayTransitionEffects();
             _game.ReinitializeSimulationForTickRate(SimulationConfig.DefaultTicksPerSecond);
             _game.ResetGameplayRuntimeState();

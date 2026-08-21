@@ -118,12 +118,23 @@ public static class SimpleLevelFactory
         var spawnClassBehaviors = FilterByArea(importedRoom.SpawnClassBehaviors, areaFilter);
         var floorY = FindFloorBelowSpawn(importedSolids, spawn)
             ?? MathF.Min(bounds.Height - 40f, spawn.Y + 360f);
-        if (usesCustomMapRuntimeFormat && importedSolids.Count == 0)
+        if (usesCustomMapRuntimeFormat
+            && importedSolids.Count == 0
+            && !importedRoom.IsTopDown)
         {
             return null;
         }
 
-        var solids = importedSolids.Count > 0 ? importedSolids : CreateFallbackSolids(bounds, spawn, floorY);
+        // An empty walkmask is intentional for top-down maps: the whole map
+        // plane is traversable unless the author marks an exclusion. The
+        // platformer fallback solids would manufacture a floor and raised
+        // platforms here, causing both players and the top-down bot graph to
+        // see invisible walls on an otherwise open map.
+        var solids = importedSolids.Count > 0
+            ? importedSolids
+            : importedRoom.IsTopDown
+                ? Array.Empty<LevelSolid>()
+                : CreateFallbackSolids(bounds, spawn, floorY);
 
         var level = new SimpleLevel(
             name: levelSpec.Name,
@@ -156,7 +167,8 @@ public static class SimpleLevelFactory
             botSpawns: botSpawns,
             gameplayMessages: gameplayMessages,
             gameplaySounds: gameplaySounds,
-            spawnClassBehaviors: spawnClassBehaviors);
+            spawnClassBehaviors: spawnClassBehaviors,
+            isTopDown: importedRoom.IsTopDown);
         return SimpleLevelScaling.ApplyUniformScale(level, mapScale);
     }
 
@@ -325,49 +337,73 @@ public static class SimpleLevelFactory
 
         CustomMapLegacyPackageAutoConverter.ConvertTopLevelLegacyPngs(RuntimePaths.MapSearchDirectories);
 
-        var discoveredCustomMapNames = new HashSet<string>(
-            entries.Select(static entry => entry.Name),
-            NameComparer);
+        // Keep stock/custom collisions visible so the builder can warn about
+        // them while normal lookup continues to prefer the stock entry.
+        // Deduplicate only between custom search roots.
+        var discoveredCustomMapNames = new HashSet<string>(NameComparer);
+
+        // Docking is maintained as a canonical package at the repository root
+        // and copied into the shipped Maps directory by the client/package
+        // build. Include that source package during source-tree tools/tests so
+        // it resolves exactly like the packaged map.
+        var packageDirectories = RuntimePaths.MapSearchDirectories
+            .Where(Directory.Exists)
+            .SelectMany(customMapsDirectory => Directory.EnumerateDirectories(
+                customMapsDirectory,
+                "*",
+                SearchOption.TopDirectoryOnly))
+            .ToList();
+        var canonicalDockingDirectory = ProjectSourceLocator.FindDirectory("Docking");
+        if (!string.IsNullOrWhiteSpace(canonicalDockingDirectory))
+        {
+            packageDirectories.Add(canonicalDockingDirectory);
+        }
+
+        foreach (var packageDirectory in packageDirectories
+                     .Distinct(NameComparer)
+                     .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase))
+        {
+            if (!CustomMapPackageImporter.TryFindManifestInDirectory(packageDirectory, out var manifestPath))
+            {
+                continue;
+            }
+
+            var mapName = Path.GetFileNameWithoutExtension(manifestPath);
+            if (string.IsNullOrWhiteSpace(mapName))
+            {
+                continue;
+            }
+
+            var imported = CustomMapPackageImporter.Import(manifestPath);
+            if (imported is null)
+            {
+                continue;
+            }
+
+            if (IsEquivalentStockPackage(entries, mapName, manifestPath))
+            {
+                continue;
+            }
+
+            if (!discoveredCustomMapNames.Add(mapName))
+            {
+                continue;
+            }
+
+            entries.Add(new LevelCatalogEntry(
+                mapName,
+                DetectMode(imported.Room),
+                manifestPath,
+                null,
+                CustomMapSourceKind.Package,
+                IsCustomMap: true));
+        }
+
         foreach (var customMapsDirectory in RuntimePaths.MapSearchDirectories)
         {
             if (!Directory.Exists(customMapsDirectory))
             {
                 continue;
-            }
-
-            foreach (var packageDirectory in Directory
-                .EnumerateDirectories(customMapsDirectory, "*", SearchOption.TopDirectoryOnly)
-                .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase))
-            {
-                if (!CustomMapPackageImporter.TryFindManifestInDirectory(packageDirectory, out var manifestPath))
-                {
-                    continue;
-                }
-
-                var mapName = Path.GetFileNameWithoutExtension(manifestPath);
-                if (string.IsNullOrWhiteSpace(mapName))
-                {
-                    continue;
-                }
-
-                var imported = CustomMapPackageImporter.Import(manifestPath);
-                if (imported is null)
-                {
-                    continue;
-                }
-
-                if (!discoveredCustomMapNames.Add(mapName))
-                {
-                    continue;
-                }
-
-                entries.Add(new LevelCatalogEntry(
-                    mapName,
-                    DetectMode(imported.Room),
-                    manifestPath,
-                    null,
-                    CustomMapSourceKind.Package,
-                    IsCustomMap: true));
             }
 
             foreach (var mapFile in Directory
@@ -399,6 +435,75 @@ public static class SimpleLevelFactory
                     CustomMapSourceKind.LegacyPng,
                     IsCustomMap: true));
             }
+        }
+    }
+
+    private static bool IsEquivalentStockPackage(
+        IReadOnlyList<LevelCatalogEntry> entries,
+        string mapName,
+        string candidateManifestPath)
+    {
+        var candidateDirectory = Path.GetDirectoryName(candidateManifestPath);
+        if (string.IsNullOrWhiteSpace(candidateDirectory))
+        {
+            return false;
+        }
+
+        foreach (var entry in entries)
+        {
+            if (entry.IsCustomMap
+                || entry.SourceKind != CustomMapSourceKind.Package
+                || !entry.Name.Equals(mapName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var stockDirectory = Path.GetDirectoryName(entry.RoomSourcePath);
+            if (!string.IsNullOrWhiteSpace(stockDirectory)
+                && PackageDirectoriesHaveEqualContents(stockDirectory, candidateDirectory))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool PackageDirectoriesHaveEqualContents(string leftDirectory, string rightDirectory)
+    {
+        try
+        {
+            var leftFiles = Directory.EnumerateFiles(leftDirectory, "*", SearchOption.AllDirectories)
+                .ToDictionary(
+                    path => Path.GetRelativePath(leftDirectory, path),
+                    path => path,
+                    StringComparer.OrdinalIgnoreCase);
+            var rightFiles = Directory.EnumerateFiles(rightDirectory, "*", SearchOption.AllDirectories)
+                .ToDictionary(
+                    path => Path.GetRelativePath(rightDirectory, path),
+                    path => path,
+                    StringComparer.OrdinalIgnoreCase);
+            if (leftFiles.Count != rightFiles.Count || leftFiles.Keys.Except(rightFiles.Keys, NameComparer).Any())
+            {
+                return false;
+            }
+
+            foreach (var relativePath in leftFiles.Keys)
+            {
+                var left = new FileInfo(leftFiles[relativePath]);
+                var right = new FileInfo(rightFiles[relativePath]);
+                if (left.Length != right.Length
+                    || !File.ReadAllBytes(left.FullName).AsSpan().SequenceEqual(File.ReadAllBytes(right.FullName)))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
         }
     }
 
@@ -511,7 +616,19 @@ public static class SimpleLevelFactory
             return (sourceRoomPath, sourceCollisionPath);
         }
 
-        return (FindStockMapPngSourcePath(definition), null);
+        var stockPngSourcePath = FindStockMapPngSourcePath(definition);
+        if (!string.IsNullOrWhiteSpace(stockPngSourcePath))
+        {
+            return (stockPngSourcePath, null);
+        }
+
+        var bundledPackageManifestPath = FindBundledMapPackageSourcePath(definition);
+        if (!string.IsNullOrWhiteSpace(bundledPackageManifestPath))
+        {
+            return (bundledPackageManifestPath, null);
+        }
+
+        return (FindBundledMapPngSourcePath(definition), null);
     }
 
     private static CustomMapSourceKind ResolveSourceKind(string sourcePath)
@@ -598,6 +715,85 @@ public static class SimpleLevelFactory
         }
 
         return null;
+    }
+
+    private static string? FindBundledMapPackageSourcePath(OpenGarrisonStockMapDefinition definition)
+    {
+        foreach (var mapsDirectory in EnumerateBundledMapDirectories())
+        {
+            foreach (var mapDirectoryName in EnumerateDefinitionNames(definition))
+            {
+                var packageDirectory = Path.Combine(mapsDirectory, mapDirectoryName);
+                if (CustomMapPackageImporter.TryFindManifestInDirectory(packageDirectory, out var manifestPath))
+                {
+                    return manifestPath;
+                }
+            }
+        }
+
+        var canonicalMapDirectory = ProjectSourceLocator.FindDirectory(definition.LevelName);
+        if (!string.IsNullOrWhiteSpace(canonicalMapDirectory)
+            && CustomMapPackageImporter.TryFindManifestInDirectory(canonicalMapDirectory, out var canonicalManifestPath))
+        {
+            return canonicalManifestPath;
+        }
+
+        return null;
+    }
+
+    private static string? FindBundledMapPngSourcePath(OpenGarrisonStockMapDefinition definition)
+    {
+        foreach (var mapsDirectory in EnumerateBundledMapDirectories())
+        {
+            foreach (var mapName in EnumerateDefinitionNames(definition))
+            {
+                var bundledMapPath = Path.Combine(mapsDirectory, $"{mapName}.png");
+                if (File.Exists(bundledMapPath))
+                {
+                    return bundledMapPath;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static IEnumerable<string> EnumerateBundledMapDirectories()
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var directory in RuntimePaths.MapSearchDirectories)
+        {
+            if (Directory.Exists(directory) && seen.Add(Path.GetFullPath(directory)))
+            {
+                yield return directory;
+            }
+        }
+
+        var sourceMapsDirectory = ProjectSourceLocator.FindDirectory("Maps");
+        if (!string.IsNullOrWhiteSpace(sourceMapsDirectory)
+            && seen.Add(Path.GetFullPath(sourceMapsDirectory)))
+        {
+            yield return sourceMapsDirectory;
+        }
+    }
+
+    private static IEnumerable<string> EnumerateDefinitionNames(OpenGarrisonStockMapDefinition definition)
+    {
+        yield return definition.LevelName;
+        if (!string.Equals(definition.IniKey, definition.LevelName, StringComparison.OrdinalIgnoreCase))
+        {
+            yield return definition.IniKey;
+        }
+
+        foreach (var alias in definition.Aliases)
+        {
+            if (!string.IsNullOrWhiteSpace(alias)
+                && !string.Equals(alias, definition.LevelName, StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(alias, definition.IniKey, StringComparison.OrdinalIgnoreCase))
+            {
+                yield return alias;
+            }
+        }
     }
 
     private static string NormalizeLevelName(string levelName)

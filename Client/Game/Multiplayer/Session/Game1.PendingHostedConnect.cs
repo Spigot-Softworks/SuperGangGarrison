@@ -19,6 +19,8 @@ public partial class Game1
 
         if (_hostedServerRuntime.HasTrackedProcessExited)
         {
+            ClearHostedSocialPresenceEndpoint();
+            _lastToDieConnectionPresentationPending = false;
             CancelPendingHostedLocalConnect(BuildHostedServerExitMessage());
             return;
         }

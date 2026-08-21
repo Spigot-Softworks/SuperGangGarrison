@@ -11,6 +11,7 @@ public partial class Game1
 {
     private const int ClientUpdateTicksPerSecond = 60;
     private const double ClientUpdateStepSeconds = 1d / ClientUpdateTicksPerSecond;
+    private const int LegacyBuildMenuCommandRetryInputTicks = 4;
     private double _clientTickAccumulatorSeconds;
     private double _networkInputAccumulatorSeconds;
     private float _clientUpdateElapsedSeconds;
@@ -21,8 +22,14 @@ public partial class Game1
     private bool _pendingPredictedJumpPress;
     private bool _pendingPredictedPrimaryPress;
     private bool _pendingPredictedSecondaryAbilityPress;
+    private bool _pendingPredictedSecondaryAbilityRelease;
     private bool _pendingPredictedAbilityPress;
+    private bool _pendingPredictedAbilityRelease;
     private bool _pendingPredictedSwapWeaponPress;
+    private int _pendingPredictedBuildSentryTicksRemaining;
+    private int _pendingPredictedBuildDispenserTicksRemaining;
+    private int _pendingPredictedDestroySentryTicksRemaining;
+    private int _pendingPredictedDestroyDispenserTicksRemaining;
     private uint _latchedJumpPressSequence;
 
     private bool _hasLatestLocalAimWorldPosition;
@@ -73,8 +80,14 @@ public partial class Game1
         _pendingPredictedJumpPress = false;
         _pendingPredictedPrimaryPress = false;
         _pendingPredictedSecondaryAbilityPress = false;
+        _pendingPredictedSecondaryAbilityRelease = false;
         _pendingPredictedAbilityPress = false;
+        _pendingPredictedAbilityRelease = false;
         _pendingPredictedSwapWeaponPress = false;
+        _pendingPredictedBuildSentryTicksRemaining = 0;
+        _pendingPredictedBuildDispenserTicksRemaining = 0;
+        _pendingPredictedDestroySentryTicksRemaining = 0;
+        _pendingPredictedDestroyDispenserTicksRemaining = 0;
     }
 
     private void CapturePendingPredictedInputEdges(KeyboardState keyboard, MouseState mouse, PlayerInputSnapshot networkInput)
@@ -83,17 +96,57 @@ public partial class Game1
         _latestPredictedLocalInput = networkInput;
         var previousPredictedInput = _previousPredictedLocalInput;
 
+        if (networkInput.BuildSentry && !previousPredictedInput.BuildSentry)
+        {
+            _pendingPredictedBuildSentryTicksRemaining = GetBuildMenuCommandRetryInputTicks();
+        }
+
+        if (networkInput.BuildDispenser && !previousPredictedInput.BuildDispenser)
+        {
+            _pendingPredictedBuildDispenserTicksRemaining = GetBuildMenuCommandRetryInputTicks();
+            _pendingPredictedDestroyDispenserTicksRemaining = 0;
+        }
+
+        if (networkInput.DestroySentry && !previousPredictedInput.DestroySentry)
+        {
+            _pendingPredictedDestroySentryTicksRemaining = GetBuildMenuCommandRetryInputTicks();
+        }
+
+        if (networkInput.DestroyDispenser && !previousPredictedInput.DestroyDispenser)
+        {
+            _pendingPredictedDestroyDispenserTicksRemaining = GetBuildMenuCommandRetryInputTicks();
+            _pendingPredictedBuildDispenserTicksRemaining = 0;
+        }
+
         if (!_networkClient.IsConnected)
         {
             ClearPendingPredictedInputEdges();
             return;
         }
 
+        var abilityReleased = !networkInput.UseAbility && previousPredictedInput.UseAbility;
+        if (abilityReleased)
+        {
+            _pendingPredictedAbilityRelease = true;
+        }
+
+        var secondaryAbilityReleased = !networkInput.FireSecondary && previousPredictedInput.FireSecondary;
+        if (secondaryAbilityReleased)
+        {
+            _pendingPredictedSecondaryAbilityRelease = true;
+        }
+
         if (!networkInput.Up
             && !networkInput.FirePrimary
             && !networkInput.FireSecondary
             && !networkInput.UseAbility
-            && !networkInput.SwapWeapon)
+            && !networkInput.SwapWeapon
+            && !networkInput.BuildSentry
+            && !networkInput.BuildDispenser
+            && !networkInput.DestroySentry
+            && !networkInput.DestroyDispenser
+            && !abilityReleased
+            && !secondaryAbilityReleased)
         {
             return;
         }
@@ -174,6 +227,26 @@ public partial class Game1
             input = input with { UseAbility = true };
         }
 
+        if (_pendingPredictedBuildSentryTicksRemaining > 0 && !input.BuildSentry)
+        {
+            input = input with { BuildSentry = true };
+        }
+
+        if (_pendingPredictedBuildDispenserTicksRemaining > 0 && !input.BuildDispenser)
+        {
+            input = input with { BuildDispenser = true };
+        }
+
+        if (_pendingPredictedDestroySentryTicksRemaining > 0 && !input.DestroySentry)
+        {
+            input = input with { DestroySentry = true };
+        }
+
+        if (_pendingPredictedDestroyDispenserTicksRemaining > 0 && !input.DestroyDispenser)
+        {
+            input = input with { DestroyDispenser = true };
+        }
+
         return input;
     }
 
@@ -206,17 +279,57 @@ public partial class Game1
                 _latchedJumpPressSequence = sentInputSequence;
             }
 
+            var buildSentryCommandSent = _pendingPredictedBuildSentryTicksRemaining > 0 && outboundNetworkInput.BuildSentry;
+            var buildDispenserCommandSent = _pendingPredictedBuildDispenserTicksRemaining > 0 && outboundNetworkInput.BuildDispenser;
+            var destroySentryCommandSent = _pendingPredictedDestroySentryTicksRemaining > 0 && outboundNetworkInput.DestroySentry;
+            var destroyDispenserCommandSent = _pendingPredictedDestroyDispenserTicksRemaining > 0 && outboundNetworkInput.DestroyDispenser;
+
             RecordPredictedInput(
                 sentInputSequence,
                 outboundNetworkInput,
                 _pendingPredictedJumpPress,
                 _pendingPredictedPrimaryPress,
                 _pendingPredictedSecondaryAbilityPress,
+                _pendingPredictedSecondaryAbilityRelease,
                 _pendingPredictedAbilityPress,
                 _pendingPredictedSwapWeaponPress,
-                outboundNetworkInput.Taunt && !_previousPredictedLocalInput.Taunt);
+                outboundNetworkInput.Taunt && !_previousPredictedLocalInput.Taunt,
+                _pendingPredictedAbilityRelease);
             ClearPendingPredictedInputEdges();
+            if (buildSentryCommandSent)
+            {
+                _pendingPredictedBuildSentryTicksRemaining = GetRemainingBuildMenuCommandRetryInputTicks();
+            }
+
+            if (buildDispenserCommandSent)
+            {
+                _pendingPredictedBuildDispenserTicksRemaining = GetRemainingBuildMenuCommandRetryInputTicks();
+            }
+
+            if (destroySentryCommandSent)
+            {
+                _pendingPredictedDestroySentryTicksRemaining = GetRemainingBuildMenuCommandRetryInputTicks();
+            }
+
+            if (destroyDispenserCommandSent)
+            {
+                _pendingPredictedDestroyDispenserTicksRemaining = GetRemainingBuildMenuCommandRetryInputTicks();
+            }
         }
+    }
+
+    private int GetBuildMenuCommandRetryInputTicks()
+    {
+        return _networkClient.Protocol64ModeEnabled
+            ? 1
+            : LegacyBuildMenuCommandRetryInputTicks;
+    }
+
+    private int GetRemainingBuildMenuCommandRetryInputTicks()
+    {
+        return _networkClient.Protocol64ModeEnabled
+            ? 0
+            : LegacyBuildMenuCommandRetryInputTicks - 1;
     }
 
     private void AcknowledgeLatchedPredictedInputs(uint lastProcessedInputSequence)
@@ -249,12 +362,9 @@ public partial class Game1
 
     private void AdvanceGameplayClientTicks(int ticks)
     {
-        AdvanceContinuousCrosshairAnimation(ticks);
-
         for (var tick = 0; tick < ticks; tick += 1)
         {
             AdvancePredictedAfterburnVisuals();
-            AdvanceClientSideSuperjumpCharging();
             AdvanceSpySuperjumpTrajectoryAnimation();
             AdvanceSpySuperjumpCloakReveal();
             EnsureRemoteSpyBackstabVisuals();
@@ -290,28 +400,6 @@ public partial class Game1
         }
     }
 
-    private void AdvanceContinuousCrosshairAnimation(int ticks)
-    {
-        var weapon = GetLocalDisplayedMainWeaponStats();
-        if (!IsContinuousCrosshairWeapon(weapon))
-        {
-            _continuousCrosshairActiveTicks = 0;
-            return;
-        }
-
-        var cooldownTicks = GetLocalDisplayedMainWeaponCooldownTicks();
-        if (!_latestPredictedLocalInput.FirePrimary && cooldownTicks <= 0)
-        {
-            _continuousCrosshairActiveTicks = 0;
-            return;
-        }
-
-        var fillDurationTicks = Math.Max(1, weapon.ReloadDelayTicks) * ContinuousCrosshairFillCycles;
-        _continuousCrosshairActiveTicks = Math.Min(
-            fillDurationTicks,
-            _continuousCrosshairActiveTicks + Math.Max(0, ticks));
-    }
-
     private void AdvanceWriteBubbleTick()
     {
         _writeBubbleTick += 1;
@@ -341,111 +429,25 @@ public partial class Game1
         player.AdvanceAfterburnVisual((float)ClientUpdateStepSeconds);
     }
 
-    private void AdvanceClientSideSuperjumpCharging()
-    {
-        // Only run client-side charging in online mode (client prediction)
-        // In offline mode, the server-side simulation handles everything
-        if (!_networkClient.IsConnected)
-        {
-            return;
-        }
-
-        var localPlayer = _world.LocalPlayer;
-        if (localPlayer == null || !localPlayer.IsAlive || localPlayer.ClassId != PlayerClass.Spy)
-        {
-            return;
-        }
-
-        var input = _latestPredictedLocalInput;
-        var previousInput = _previousPredictedLocalInput;
-        localPlayer.ObserveSpySuperjumpAbilityInput(input.UseAbility);
-
-        // Calculate aim direction
-        var degrees = MathF.Atan2(input.AimWorldY - localPlayer.Y, input.AimWorldX - localPlayer.X) * (180f / MathF.PI);
-        if (degrees < 0f)
-        {
-            degrees += 360f;
-        }
-        var aimDirectionDegrees = degrees;
-
-        // Detect ability button edge (transition from off to on)
-        var abilityPressed = input.UseAbility && !previousInput.UseAbility;
-        var jumpPressed = input.Up && !previousInput.Up;
-
-        // Don't allow spy superjump if special abilities are disabled.
-        if (!_world.ExperimentalGameplaySettings.EnableSecondaryAbilities)
-        {
-            return;
-        }
-
-        if (jumpPressed && input.UseAbility && localPlayer.SpySuperjumpChargeTicks > 0)
-        {
-            localPlayer.CancelSpySuperjumpCharge(blockRestartUntilAbilityRelease: true);
-            _predictedLocalActionState.SpySuperjumpChargeTicks = 0;
-            _predictedLocalActionState.IsSpySuperjumping = false;
-            _predictedLocalActionState.SpySuperjumpHorizontalVelocity = 0f;
-            return;
-        }
-
-        // Start charging when UseAbility is first pressed (edge detection)
-        // Don't start during backstab animation (TryStartSpySuperjumpCharge also checks this)
-        if (abilityPressed && !localPlayer.IsSpyBackstabAnimating)
-        {
-            localPlayer.TryStartSpySuperjumpCharge(aimDirectionDegrees, input.Left, input.Right, input.Up, input.Down);
-        }
-        // Also start charging if UseAbility is being held and not already charging (handles holding space while landing)
-        else if (input.UseAbility && localPlayer.SpySuperjumpChargeTicks == 0 && !localPlayer.IsSpySuperjumping && !localPlayer.IsSpyBackstabAnimating)
-        {
-            localPlayer.TryStartSpySuperjumpCharge(aimDirectionDegrees, input.Left, input.Right, input.Up, input.Down);
-        }
-
-        // Process charging state
-        if (localPlayer.SpySuperjumpChargeTicks > 0)
-        {
-            // Cancel if NEW movement buttons are pressed (not ones held when charging started)
-            var heldButtons = localPlayer.SpySuperjumpChargeStartMovementButtons;
-            var leftWasHeld = (heldButtons & 0x01) != 0;
-            var rightWasHeld = (heldButtons & 0x02) != 0;
-            var upWasHeld = (heldButtons & 0x04) != 0;
-            var downWasHeld = (heldButtons & 0x08) != 0;
-
-            var newButtonPressed = (input.Left && !leftWasHeld)
-                || (input.Right && !rightWasHeld)
-                || (input.Up && !upWasHeld)
-                || (input.Down && !downWasHeld);
-
-            if (newButtonPressed)
-            {
-                localPlayer.CancelSpySuperjumpCharge();
-            }
-            // Cancel if backstab starts
-            else if (localPlayer.IsSpyBackstabAnimating)
-            {
-                localPlayer.CancelSpySuperjumpCharge();
-            }
-            // Continue charging while UseAbility is held
-            else if (input.UseAbility)
-            {
-                localPlayer.IncrementSpySuperjumpCharge(aimDirectionDegrees);
-            }
-            // Release when UseAbility is released (server will handle actual jump, only if grounded)
-            else
-            {
-                localPlayer.CancelSpySuperjumpCharge();
-            }
-        }
-    }
-
     private void AdvanceSpySuperjumpTrajectoryAnimation()
     {
         var localPlayer = _world.LocalPlayer;
-        if (localPlayer != null && localPlayer.ClassId == PlayerClass.Spy && localPlayer.SpySuperjumpChargeTicks > 0 && !localPlayer.IsSpyBackstabAnimating && !localPlayer.IsCarryingIntel)
+        if (localPlayer != null
+            && (localPlayer.ClassId == PlayerClass.Spy || GetPlayerIsSniperBowEquipped(localPlayer))
+            && (localPlayer.ClassId == PlayerClass.Spy
+                ? GetPlayerSpySuperjumpChargeTicks(localPlayer)
+                : GetPlayerSniperBowChargeTicks(localPlayer)) > 0
+            && !GetPlayerIsSpyBackstabAnimating(localPlayer)
+            && !GetPlayerIsCarryingIntel(localPlayer)
+            && !localPlayer.IsTaunting
+            && !localPlayer.IsHeavyEating)
         {
             // Pre-populate 8 dots when charging first starts
             if (_spySuperjumpTrajectoryAnimationTicks == 0)
             {
                 // Start at a tick value that makes 8 dots spawn and be spread along trajectory
-                // With dotSpawnInterval=13.33 and dotSpeed=0.3, spacing dots ~13.33 ticks apart:
+                // With dotSpawnInterval=26.66 and dotSpeed=0.075, the dots begin pre-spread
+                // along the same trajectory used by the Spy preview renderer:
                 // Last dot (index 7) spawns at 93.31, needs to travel 280 ticks, requiring dotAge=933
                 // So animationProgress = 93.31 + 933 = 1026
                 _spySuperjumpTrajectoryAnimationTicks = 1020;

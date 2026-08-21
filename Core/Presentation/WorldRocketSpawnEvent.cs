@@ -23,4 +23,5 @@ public readonly record struct WorldRocketSpawnEvent(
     float FadeSourceTicksRemaining,
     bool ExplodeImmediately,
     bool IsCritical,
-    IReadOnlyList<int>? PassedFriendlyPlayerIds = null);
+    IReadOnlyList<int>? PassedFriendlyPlayerIds = null,
+    float CriticalDamageMultiplier = 1f);

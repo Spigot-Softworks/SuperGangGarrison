@@ -15,6 +15,7 @@ public partial class Game1
         private const float SentryHudSpriteWidth = 43f;
         private const float SentryHudSpriteHeight = 32f;
         private const int EditorPreviewSentryHealth = 100;
+        private const int EditorPreviewDispenserHealth = SentryEntity.DispenserMaxHealth;
 
         private readonly Game1 _game;
 
@@ -27,6 +28,7 @@ public partial class Game1
         {
             DrawEngineerMetalHud();
             DrawEngineerSentryHud();
+            DrawEngineerDispenserHud();
         }
 
         public void DrawEngineerMetalHud()
@@ -111,6 +113,77 @@ public partial class Game1
             _game.UpdateHudElementBounds(HudElementId.ClassEngineerSentry, resolved.Layout.ResolveBounds(resolved.Origin));
         }
 
+        public void DrawEngineerDispenserHud()
+        {
+            if (_game._world.LocalPlayer.ClassId != PlayerClass.Engineer)
+            {
+                return;
+            }
+
+            var localDispenser = GetLocalOwnedDispenser();
+            if (localDispenser is null && !_game._hudEditorOpen)
+            {
+                return;
+            }
+
+            if (!_game.TryResolveHudElement(HudElementId.ClassEngineerDispenser, out var resolved))
+            {
+                return;
+            }
+
+            var dispenserPosition = resolved.Origin;
+            var hudScale = resolved.Layout.Scale;
+            var health = localDispenser?.Health ?? EditorPreviewDispenserHealth;
+            var maxHealth = localDispenser?.MaxHealth ?? EditorPreviewDispenserHealth;
+
+            // Use the stock player-health plaque as the generic structure health
+            // element. The dispenser deliberately has no character/sentry picture;
+            // only the blank team plaque, medical cross, fill, and HP text are shown.
+            var healthHudScale = new Vector2(2f * hudScale, 2f * hudScale);
+            var healthHudSpriteName = _game._world.LocalPlayer.Team == PlayerTeam.Blue
+                ? "PlayerHealthBlu"
+                : "PlayerHealthRed";
+            _game.TryDrawScreenSprite(healthHudSpriteName, 0, dispenserPosition, Color.White, healthHudScale);
+
+            var crossSprite = _game.GetResolvedSprite("PlayerHealthCross");
+            var crossPosition = dispenserPosition + new Vector2(40f * hudScale, -2f * hudScale);
+            _game.TryDrawScreenSprite("PlayerHealthCross", 0, crossPosition, Color.White, healthHudScale);
+
+            var medicineSprite = _game.GetResolvedSprite("PlayerHealthCrossInternalMedicine");
+            if (medicineSprite is not null && medicineSprite.Frames.Count > 0)
+            {
+                var medicineFrame = medicineSprite.Frames[0];
+                var sourceRectangle = Game1.GetLocalHealthMedicineSourceRectangle(
+                    medicineFrame.Width,
+                    medicineFrame.Height,
+                    medicineFrame.OpaqueBounds,
+                    health,
+                    maxHealth);
+                if (sourceRectangle is { } fillSource)
+                {
+                    var fillPosition = crossPosition + new Vector2(0f, fillSource.Y * healthHudScale.Y);
+                    _game.TryDrawScreenSpritePart(
+                        "PlayerHealthCrossInternalMedicine",
+                        0,
+                        fillSource,
+                        fillPosition,
+                        Color.Green,
+                        healthHudScale);
+                }
+            }
+
+            var dispenserHpColor = health > (maxHealth / 3.5f) ? Color.White : Color.Red;
+            var healthTextPosition = crossPosition + new Vector2(
+                (crossSprite?.Frames[0].Width ?? 0) * healthHudScale.X / 2f,
+                (crossSprite?.Frames[0].Height ?? 0) * healthHudScale.Y / 2f);
+            _game.DrawHudTextCentered(
+                Math.Max(health, 0).ToString(CultureInfo.InvariantCulture),
+                healthTextPosition,
+                dispenserHpColor,
+                1f * hudScale);
+            _game.UpdateHudElementBounds(HudElementId.ClassEngineerDispenser, resolved.Layout.ResolveBounds(resolved.Origin));
+        }
+
         public void SetEngineerSentryRuntimeDefault()
         {
             _game.SetHudElementRuntimeDefault(_game._gameplayLocalStatusHudController.CreateAbilityStackedHudElementLayout(
@@ -121,11 +194,31 @@ public partial class Game1
                 HudElementLayerClassEngineerSentry));
         }
 
+        public void SetEngineerDispenserRuntimeDefault(bool stackAboveSentry)
+        {
+            var layout = _game._gameplayLocalStatusHudController.CreateAbilityStackedHudElementLayout(
+                HudElementId.ClassEngineerDispenser,
+                SentryHudSourceX,
+                Vector2.Zero,
+                GetSentryHudBoundsSize(),
+                HudElementLayerClassEngineerDispenser);
+            if (stackAboveSentry)
+            {
+                layout = layout with
+                {
+                    Offset = layout.Offset - new Vector2(0f, SentryHudSpriteHeight * SentryHudScale + 10f),
+                };
+            }
+
+            _game.SetHudElementRuntimeDefault(layout);
+        }
+
         public SentryEntity? GetLocalOwnedSentry()
         {
             foreach (var sentry in _game._world.Sentries)
             {
-                if (sentry.OwnerPlayerId == _game.GetPlayerStateKey(_game._world.LocalPlayer))
+                if (sentry.OwnerPlayerId == _game.GetPlayerStateKey(_game._world.LocalPlayer)
+                    && !sentry.IsDispenser)
                 {
                     return sentry;
                 }
@@ -139,13 +232,28 @@ public partial class Game1
             var ownedCount = 0;
             foreach (var sentry in _game._world.Sentries)
             {
-                if (sentry.OwnerPlayerId == _game.GetPlayerStateKey(_game._world.LocalPlayer))
+                if (sentry.OwnerPlayerId == _game.GetPlayerStateKey(_game._world.LocalPlayer)
+                    && !sentry.IsDispenser)
                 {
                     ownedCount += 1;
                 }
             }
 
             return ownedCount;
+        }
+
+        public SentryEntity? GetLocalOwnedDispenser()
+        {
+            foreach (var sentry in _game._world.Sentries)
+            {
+                if (sentry.OwnerPlayerId == _game.GetPlayerStateKey(_game._world.LocalPlayer)
+                    && sentry.IsDispenser)
+                {
+                    return sentry;
+                }
+            }
+
+            return null;
         }
 
         private static Vector2 GetSentryHudBoundsSize()

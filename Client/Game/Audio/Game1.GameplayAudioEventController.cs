@@ -149,10 +149,7 @@ public partial class Game1
                     continue;
                 }
 
-                if (retainedNetworkSoundCount < Game1.PendingNetworkSoundEventRetryLimit)
-                {
-                    _game._pendingNetworkSoundEvents[retainedNetworkSoundCount++] = soundEvent;
-                }
+                _game._pendingNetworkSoundEvents[retainedNetworkSoundCount++] = soundEvent;
             }
 
             if (retainedNetworkSoundCount == 0)
@@ -173,7 +170,10 @@ public partial class Game1
                 sortedWorldSoundEvents.Sort((left, right) => GetSoundEventPlaybackPriority(left).CompareTo(GetSoundEventPlaybackPriority(right)));
                 foreach (var soundEvent in sortedWorldSoundEvents)
                 {
-                    ProcessPendingSoundEvent(soundEvent);
+                    if (!ProcessPendingSoundEvent(soundEvent))
+                    {
+                        QueueSoundEventForRetry(soundEvent);
+                    }
                 }
 
                 return;
@@ -181,8 +181,27 @@ public partial class Game1
 
             foreach (var soundEvent in worldSoundEvents)
             {
-                ProcessPendingSoundEvent(soundEvent);
+                if (!ProcessPendingSoundEvent(soundEvent))
+                {
+                    QueueSoundEventForRetry(soundEvent);
+                }
             }
+        }
+
+        private void QueueSoundEventForRetry(WorldSoundEvent soundEvent)
+        {
+            if (soundEvent.EventId != 0)
+            {
+                for (var index = 0; index < _game._pendingNetworkSoundEvents.Count; index += 1)
+                {
+                    if (_game._pendingNetworkSoundEvents[index].EventId == soundEvent.EventId)
+                    {
+                        return;
+                    }
+                }
+            }
+
+            _game._pendingNetworkSoundEvents.Add(soundEvent);
         }
 
         private int GetSoundEventPlaybackPriority(WorldSoundEvent soundEvent)
@@ -200,35 +219,33 @@ public partial class Game1
                 return true;
             }
 
-            if (_game._audioAvailable && _game._runtimeAssets is null)
+            if (string.Equals(soundEvent.SoundName, "ExplosionSnd", StringComparison.OrdinalIgnoreCase)
+                && !_game.HasPresentedExplosionVisualThisFrame(soundEvent.X, soundEvent.Y)
+                && !_game.HasPresentedExplosionVisualForSoundEvent(soundEvent)
+                && _game.TryCreateExplosionVisual(soundEvent, out var explosion))
+            {
+                _game._explosions.Add(explosion!);
+                _game.RememberPresentedExplosionVisualForSoundEvent(soundEvent);
+            }
+
+            if (!_game._audioAvailable)
+            {
+                return CompleteSoundEvent(soundEvent);
+            }
+
+            if (_game._runtimeAssets is null)
             {
                 return false;
             }
 
-            if (string.Equals(soundEvent.SoundName, "ExplosionSnd", StringComparison.OrdinalIgnoreCase)
-                && !_game.HasPresentedExplosionVisualThisFrame(soundEvent.X, soundEvent.Y)
-                && _game.TryCreateExplosionVisual(soundEvent, out var explosion))
-            {
-                _game._explosions.Add(explosion!);
-            }
-
-            _game.NotifyClientPluginsWorldSound(soundEvent);
-
-            Game1.MarkProcessedNetworkEvent(soundEvent.EventId, _game._processedNetworkSoundEventIds, _game._processedNetworkSoundEventOrder);
-
-            if (!_game._audioAvailable)
-            {
-                return true;
-            }
-
             if (_game.ShouldSuppressManagedRapidFireSound(soundEvent))
             {
-                return true;
+                return CompleteSoundEvent(soundEvent);
             }
 
             if (_game.ShouldSuppressPredictedGibSoundEcho(soundEvent))
             {
-                return true;
+                return CompleteSoundEvent(soundEvent);
             }
 
             var resolvedSoundName = string.Equals(soundEvent.SoundName, "HealExplosionSnd", StringComparison.OrdinalIgnoreCase)
@@ -236,30 +253,33 @@ public partial class Game1
                 : soundEvent.SoundName;
             if (_game._runtimeAssets is null)
             {
-                return true;
+                return false;
             }
 
             var isExplosionSound = string.Equals(resolvedSoundName, "ExplosionSnd", StringComparison.OrdinalIgnoreCase);
             if (isExplosionSound && _game.HasPlayedExplosionSoundThisFrame(soundEvent.X, soundEvent.Y))
             {
-                return true;
+                return CompleteSoundEvent(soundEvent);
             }
 
             if (_game.ShouldSuppressPredictedProjectileSoundEcho(resolvedSoundName, soundEvent))
             {
-                return true;
+                return CompleteSoundEvent(soundEvent);
             }
 
             if (_game.ShouldThrottleLowPriorityWorldSound(resolvedSoundName, soundEvent))
             {
-                return true;
+                return CompleteSoundEvent(soundEvent);
             }
 
             if (!TryPlayResolvedWorldSound(resolvedSoundName, soundEvent, allowBrowserDefer: OperatingSystem.IsBrowser()))
             {
-                return true;
+                return false;
             }
 
+            _game.NotifyClientPluginsWorldSound(soundEvent);
+            Game1.MarkProcessedNetworkEvent(soundEvent.EventId, _game._processedNetworkSoundEventIds, _game._processedNetworkSoundEventOrder);
+            _game.ForgetPresentedExplosionVisualForSoundEvent(soundEvent);
             _game.RememberPlayedLowPriorityWorldSound(resolvedSoundName, soundEvent);
             _game.TriggerLocalConfirmedWeaponFireFeedback(resolvedSoundName, soundEvent);
             _game.RememberPlayedProjectileSound(resolvedSoundName, soundEvent);
@@ -270,6 +290,14 @@ public partial class Game1
             }
 
             _game.RememberPlayedGibSound(soundEvent);
+            return true;
+        }
+
+        private bool CompleteSoundEvent(WorldSoundEvent soundEvent)
+        {
+            _game.NotifyClientPluginsWorldSound(soundEvent);
+            Game1.MarkProcessedNetworkEvent(soundEvent.EventId, _game._processedNetworkSoundEventIds, _game._processedNetworkSoundEventOrder);
+            _game.ForgetPresentedExplosionVisualForSoundEvent(soundEvent);
             return true;
         }
 
@@ -305,9 +333,10 @@ public partial class Game1
                 if (allowBrowserDefer)
                 {
                     _game.EnqueuePendingBrowserSoundEvent(resolvedSoundName, worldX, worldY);
+                    return true;
                 }
 
-                return true;
+                return false;
             }
 
             var (volume, pan) = _game.GetWorldSoundMix(worldX, worldY);
@@ -327,9 +356,10 @@ public partial class Game1
                 if (allowBrowserDefer)
                 {
                     _game.EnqueuePendingBrowserSoundEvent(resolvedSoundName, soundEvent.X, soundEvent.Y);
+                    return true;
                 }
 
-                return true;
+                return false;
             }
 
             var (volume, pan) = _game.GetWorldSoundMix(soundEvent);

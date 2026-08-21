@@ -83,14 +83,23 @@ internal sealed class ServerOutboundMessaging(
             GetProtocol64ReplacementKey(eventValue));
     }
 
-    public void SendSnapshotPayload(ServerTransportPeer remotePeer, SnapshotMessage _, byte[] payload)
+    public void SendSnapshotPayload(ServerTransportPeer remotePeer, SnapshotMessage snapshot, byte[] payload)
     {
+        // QUIC peers do not have a legacy payload lane.  The protocol-64
+        // snapshot schema is the canonical handoff for the client's initial
+        // world warmup, so route the snapshot through the same protocol-64
+        // event path as the other server-authoritative state.
+        if (remotePeer.Kind == ServerTransportKind.Quic)
+        {
+            SendMessage(remotePeer, snapshot);
+            return;
+        }
+
         SendPayload(remotePeer, payload, MessageType.Snapshot);
     }
 
     public void BroadcastProtocol64State(uint stateTick)
     {
-        var players = _protocol64StatePublisher.BuildPlayerStateBatch(stateTick);
         var roster = _protocol64StatePublisher.BuildRosterState(stateTick);
         var projectiles = _protocol64StatePublisher.BuildProjectileStates(stateTick);
         var projectileLifecycles = _protocol64StatePublisher.BuildProjectileLifecycleEvents();
@@ -98,7 +107,9 @@ internal sealed class ServerOutboundMessaging(
         {
             if (client.IsAuthorized && client.Protocol64Enabled)
             {
-                SendProtocol64Event(client.Peer, players);
+                SendProtocol64Event(
+                    client.Peer,
+                    _protocol64StatePublisher.BuildPlayerStateBatch(stateTick, client.Slot));
                 SendProtocol64Event(client.Peer, roster);
                 foreach (var projectile in projectiles)
                 {
@@ -120,13 +131,27 @@ internal sealed class ServerOutboundMessaging(
         ArgumentNullException.ThrowIfNull(client);
         SendProtocol64Event(
             client.Peer,
-            _protocol64StatePublisher.BuildResyncResponse(request, stateTick));
+            _protocol64StatePublisher.BuildResyncResponse(request, stateTick, client.Slot));
     }
 
     private ulong GetProtocol64ConnectionEpoch(ServerTransportPeer remotePeer)
-        => _protocol64ConnectionEpochs.GetOrAdd(
+    {
+        // Native QUIC currently creates the client runtime before it has
+        // received a server frame, so there is no negotiation round-trip in
+        // which the server-assigned peer id can be learned.  The QUIC runtime
+        // therefore uses one epoch per QUIC connection (the QUIC connection
+        // itself supplies the isolation); using the server's monotonically
+        // increasing peer id here made every reconnect after session #1 reject
+        // both directions as belonging to another epoch.
+        if (remotePeer.Kind == ServerTransportKind.Quic)
+        {
+            return 1UL;
+        }
+
+        return _protocol64ConnectionEpochs.GetOrAdd(
             remotePeer.Id,
             static peerId => peerId == 0 ? 1UL : peerId);
+    }
 
     private ulong NextProtocol64FrameId()
         => unchecked((ulong)Interlocked.Increment(ref _nextProtocol64FrameId));

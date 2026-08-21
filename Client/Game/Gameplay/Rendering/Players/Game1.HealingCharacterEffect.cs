@@ -188,6 +188,11 @@ public partial class Game1
         {
             _observedPlayerHealthForHealingCharacterEffects[playerStateKey] = currentHealth;
             _wasPlayerAliveForHealingCharacterEffects[playerStateKey] = player.IsAlive;
+            if (player.IsAlive && player.IsDispenserBuffed)
+            {
+                QueueHealingCharacterEffect(player.Id);
+            }
+
             return;
         }
 
@@ -196,6 +201,13 @@ public partial class Game1
         {
             _wasPlayerAliveForHealingCharacterEffects[playerStateKey] = false;
             return;
+        }
+
+        if (player.IsDispenserBuffed)
+        {
+            // A dispenser grants a persistent status visual, including while the
+            // recipient is at full health and no healing delta is emitted.
+            QueueHealingCharacterEffect(player.Id);
         }
 
         if (!wasAlive)

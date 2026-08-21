@@ -680,6 +680,12 @@ public partial class Game1
                 AddConsoleLine(_world.TryFillLocalMedicUber() ? "medic uber filled" : "local player is not medic");
                 break;
             case "ltd_win":
+                if (IsHostedLastToDieActive())
+                {
+                    TryForwardHostedLastToDieConsoleCommand(commandText);
+                    break;
+                }
+
                 if (!IsLastToDieSessionActive)
                 {
                     AddConsoleLine("ltd_win is only available during Last To Die.");
@@ -716,6 +722,28 @@ public partial class Game1
 
                 AddConsoleLine($"unknown command: {command}");
                 break;
+        }
+    }
+
+    private void TryForwardHostedLastToDieConsoleCommand(string commandText)
+    {
+        if (!IsHostedServerRunning)
+        {
+            AddConsoleLine("Last to Die developer commands can only be issued by the room host.");
+            return;
+        }
+
+        if (!TrySendHostedServerAdminCommand(commandText.Trim(), out var responseLines, out var error))
+        {
+            AddConsoleLine(error);
+            return;
+        }
+
+        _hostedServerConsole.ApplyServerMessages(responseLines);
+        AppendHostedServerLog("launcher", $"> {commandText.Trim()}");
+        foreach (var line in responseLines)
+        {
+            AddConsoleLine(line);
         }
     }
 

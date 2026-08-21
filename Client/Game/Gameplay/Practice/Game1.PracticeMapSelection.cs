@@ -30,6 +30,21 @@ public partial class Game1
         DrawBitmapFontText("AVAILABLE MAPS", new Vector2(mapsHeader.X, mapsTextY), Color.White, labelScale);
 
         DrawHostSetupColumnPanelOutline(layout.ColumnPanelBounds);
+        DrawMenuButtonScaled(
+            layout.SuperGangGarrisonButtonBounds,
+            "Super Gang Garrison",
+            _practiceSetupState.MapBrowserSection == PracticeSetupState.PracticeMapBrowserSection.SuperGangGarrison,
+            buttonScale);
+        DrawMenuButtonScaled(
+            layout.ClassicMapsButtonBounds,
+            "Classic",
+            _practiceSetupState.MapBrowserSection == PracticeSetupState.PracticeMapBrowserSection.Classic,
+            buttonScale);
+        DrawMenuButtonScaled(
+            layout.CustomMapsButtonBounds,
+            "Custom",
+            _practiceSetupState.MapBrowserSection == PracticeSetupState.PracticeMapBrowserSection.Custom,
+            buttonScale);
         DrawPracticeMapSelectionModeFilter(layout, buttonScale);
         DrawMenuButtonScaled(
             layout.FiltersButtonBounds,
@@ -92,7 +107,7 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, dropdownBounds, new Color(46, 40, 35, 255));
         DrawRoundedRectangleOutline(dropdownBounds, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 2, radius: 6);
 
-        var mousePosition = GetScaledMouseState(GetConstrainedMouseState(Game1.GetCurrentMouseState())).Position;
+        var mousePosition = GetFrameMouseState().Position;
         for (var index = 0; index < options.Count; index += 1)
         {
             var optionBounds = new Rectangle(
@@ -315,6 +330,24 @@ public partial class Game1
             return;
         }
 
+        if (layout.SuperGangGarrisonButtonBounds.Contains(mouse.Position))
+        {
+            SelectPracticeMapBrowserSection(PracticeSetupState.PracticeMapBrowserSection.SuperGangGarrison);
+            return;
+        }
+
+        if (layout.ClassicMapsButtonBounds.Contains(mouse.Position))
+        {
+            SelectPracticeMapBrowserSection(PracticeSetupState.PracticeMapBrowserSection.Classic);
+            return;
+        }
+
+        if (layout.CustomMapsButtonBounds.Contains(mouse.Position))
+        {
+            SelectPracticeMapBrowserSection(PracticeSetupState.PracticeMapBrowserSection.Custom);
+            return;
+        }
+
         if (_practiceSetupState.FiltersPopupOpen)
         {
             if (TryHandlePracticeMapSelectionFiltersPopupClick(mouse, layout))
@@ -349,6 +382,15 @@ public partial class Game1
         {
             _practiceSetupState.SelectAvailableMap(mapIndex);
         }
+    }
+
+    private void SelectPracticeMapBrowserSection(PracticeSetupState.PracticeMapBrowserSection section)
+    {
+        _practiceSetupState.SetMapBrowserSection(section);
+        _practiceSetupState.ModeFilterDropdownOpen = false;
+        _practiceSetupState.FiltersPopupOpen = false;
+        _practiceEditField = PracticeEditField.None;
+        _practiceMapHoverIndex = -1;
     }
 
     private void UpdatePracticeMapSelectionHover(MouseState mouse, PracticeMapsMenuLayout layout, List<OpenGarrisonMapRotationEntry> availableMaps)

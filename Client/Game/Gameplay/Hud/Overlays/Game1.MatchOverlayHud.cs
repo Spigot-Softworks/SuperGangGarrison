@@ -192,10 +192,47 @@ public partial class Game1
             DrawHudTextCentered(_world.ArenaCappers.ToString(CultureInfo.InvariantCulture), new Vector2(objectiveOrigin.X + (13f * objectiveScale), objectiveHudCounterY), Color.Black, 1f * objectiveScale);
         }
 
-        TryDrawScreenSprite("ArenaPlayerCountS", 0, new Vector2(centerX, 71f), Color.White, new Vector2(2f, 2f));
+        DrawArenaPlayerCountIcon(centerX, 71f, sourceFrameIndex: 0);
         DrawHudTextCentered(_world.ArenaRedAliveCount.ToString(CultureInfo.InvariantCulture), new Vector2(centerX + 15f, 73f), Color.Black, 1f);
-        TryDrawScreenSprite("ArenaPlayerCountS", 1, new Vector2(centerX, 104f), Color.White, new Vector2(2f, 2f));
+        DrawArenaPlayerCountIcon(centerX, 104f, sourceFrameIndex: 1);
         DrawHudTextCentered(_world.ArenaBlueAliveCount.ToString(CultureInfo.InvariantCulture), new Vector2(centerX + 15f, 106f), Color.Black, 1f);
+    }
+
+    private void DrawArenaPlayerCountIcon(float centerX, float centerY, int sourceFrameIndex)
+    {
+        var sprite = GetResolvedSprite("ArenaPlayerCountS");
+        if (sprite is null || sprite.Frames.Count == 0)
+        {
+            return;
+        }
+
+        if (sprite.Frames.Count > 1)
+        {
+            TryDrawScreenSprite(
+                "ArenaPlayerCountS",
+                sourceFrameIndex,
+                new Vector2(centerX, centerY),
+                Color.White,
+                new Vector2(2f, 2f));
+            return;
+        }
+
+        var frame = sprite.Frames[0];
+        var halfWidth = frame.Width / 2;
+        if (halfWidth <= 0)
+        {
+            return;
+        }
+
+        TryDrawScreenSpritePart(
+            "ArenaPlayerCountS",
+            0,
+            new Rectangle(sourceFrameIndex * halfWidth, 0, halfWidth, frame.Height),
+            new Vector2(centerX, centerY),
+            Color.White,
+            new Vector2(2f, 2f),
+            SpriteEffects.None,
+            new Vector2(halfWidth / 2f, sprite.Origin.Y));
     }
 
     private void DrawGeneratorHud()

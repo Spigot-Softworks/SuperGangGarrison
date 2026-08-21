@@ -17,6 +17,7 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const int HeavyEatDurationTicks = 124;
     public const int HeavySandvichCooldownTicks = 1350;
     private const float HealingCabinetSoundCooldownSeconds = 4f;
+    private const float HealingCabinetResupplyCooldownSeconds = 4f;
     private static readonly float HeavyEatHealPerTick = 200f / HeavyEatDurationTicks;
     private float HeavyEatHealPerTickValue { get; set; } = HeavyEatHealPerTick;
     private const float StepUpHeight = 6f;
@@ -140,6 +141,8 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const int PyroFlameLoopMaintainTicks = 2;
     private const int TauntRestartCooldownTicks = 30;
     private const float TauntFrameStepPerTick = 0.3f;
+    private const int BlockedJumpRetrySuppressionTicks = 6;
+    private const float BlockedJumpVerticalMovementEpsilon = 1.5f;
     private const int ChatBubbleHoldTicks = 60;
     private const float ChatBubbleFadePerTick = 0.05f;
     private float _playerScale = 1f;
@@ -208,13 +211,23 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public float VerticalSpeed { get; private set; }
 
+    /// <summary>
+    /// Prevents a jump edge from being retried every tick after collision
+    /// resolution proves that the attempted jump never left the support
+    /// surface. This is intentionally short-lived and prediction-backed so a
+    /// player can immediately jump again after clearing the obstruction.
+    /// </summary>
+    public int BlockedJumpRetrySuppressionTicksRemaining { get; private set; }
+
     public bool IsGrounded { get; private set; }
 
     public bool IsAlive { get; private set; }
 
     public int Health { get; private set; }
 
-    public int MaxHealth => ExperimentalMaxHealthOverrideValue ?? ClassDefinition.MaxHealth + ExperimentalMaxHealthBonusValue;
+    public int MaxHealth => ExperimentalMaxHealthOverrideValue
+        ?? NetworkMaxHealthOverrideValue
+        ?? ClassDefinition.MaxHealth + ExperimentalMaxHealthBonusValue;
 
     public float Metal { get; private set; } = 100f;
 
@@ -233,13 +246,18 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public float HealingCabinetSoundCooldownSecondsRemaining { get; private set; }
 
+    public float HealingCabinetResupplyCooldownSecondsRemaining { get; private set; }
+
     public int RemainingAirJumps { get; private set; }
 
     public float FacingDirectionX { get; private set; }
 
     public float AimDirectionDegrees { get; private set; }
 
-    public PrimaryWeaponDefinition PrimaryWeapon => ExperimentalPrimaryWeaponOverride ?? ClassDefinition.PrimaryWeapon;
+    public PrimaryWeaponDefinition PrimaryWeapon =>
+        LastToDiePrimaryWeaponOverride
+        ?? ExperimentalPrimaryWeaponOverride
+        ?? ClassDefinition.PrimaryWeapon;
     public float AimWorldX { get; private set; }
 
     public float AimWorldY { get; private set; }
@@ -372,15 +390,23 @@ public sealed partial class PlayerEntity : SimulationEntity
     public bool IsUbered => UberTicksRemaining > 0;
 
     public bool HasInfiniteAmmoFromUber => IsUbered
-        || ClassId == PlayerClass.Medic
-        && IsMedicUbering
-        && !HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit);
+        || IsMedicRegularUberDeliveryActive;
 
     public int UberTicksRemaining { get; private set; }
 
     public bool IsKritzCritBoosted => KritzCritBoostTicksRemaining > 0;
 
     public int KritzCritBoostTicksRemaining { get; private set; }
+
+    public int KritzCritBoostProviderPlayerId { get; private set; }
+
+    public int KritzCritBoostProviderSlot { get; private set; } = int.MaxValue;
+
+    public float KritzCritBoostDamageMultiplier { get; private set; } = 1f;
+
+    public float ActiveKritzCritDamageMultiplier => IsKritzCritBoosted
+        ? KritzCritBoostDamageMultiplier
+        : 1f;
 
     public float RageCharge { get; private set; }
 
@@ -408,6 +434,8 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public bool IsMedicUbering { get; private set; }
 
+    public MedicUberDeliveryMode MedicUberDeliveryMode { get; private set; }
+
     public bool MedicUberReadyPresentationPending { get; private set; }
 
     public int MedicNeedleCooldownTicks { get; private set; }
@@ -415,6 +443,48 @@ public sealed partial class PlayerEntity : SimulationEntity
     public int MedicNeedleRefillTicks { get; private set; }
 
     public float ContinuousHealingAccumulator { get; private set; }
+
+    public bool IsDispenserBuffed { get; private set; }
+
+    public float DispenserAttackReloadSpeedMultiplier { get; private set; } = 1f;
+
+    public bool IsLockedPrimaryWeaponClass =>
+        ClassId is PlayerClass.Scout or PlayerClass.Sniper or PlayerClass.Medic
+        && IsLockedPrimaryWeaponItem;
+
+    private bool IsLockedPrimaryWeaponItem
+    {
+        get
+        {
+            var itemId = GameplayLoadoutState.SecondaryItemId;
+            return string.Equals(itemId, "weapon.bow", StringComparison.Ordinal)
+                || string.Equals(itemId, "weapon.medigun.crit", StringComparison.Ordinal)
+                || string.Equals(itemId, "weapon.scout-nailgun", StringComparison.Ordinal);
+        }
+    }
+
+    public void SetDispenserBuffed(bool enabled, float attackReloadSpeedMultiplier = 1f)
+    {
+        if (!enabled)
+        {
+            IsDispenserBuffed = false;
+            DispenserAttackReloadSpeedMultiplier = 1f;
+            return;
+        }
+
+        IsDispenserBuffed = true;
+        DispenserAttackReloadSpeedMultiplier = MathF.Max(
+            DispenserAttackReloadSpeedMultiplier,
+            MathF.Max(1f, attackReloadSpeedMultiplier));
+    }
+
+    internal void HydrateDispenserBuff(bool enabled, float attackReloadSpeedMultiplier)
+    {
+        IsDispenserBuffed = enabled;
+        DispenserAttackReloadSpeedMultiplier = enabled && float.IsFinite(attackReloadSpeedMultiplier)
+            ? MathF.Max(1f, attackReloadSpeedMultiplier)
+            : 1f;
+    }
 
     public int QuoteBubbleCount { get; private set; }
 
@@ -611,9 +681,9 @@ public sealed partial class PlayerEntity : SimulationEntity
     // Tracks which movement buttons were held when superjump charging started (client-side only)
     public byte SpySuperjumpChargeStartMovementButtons { get; private set; }
 
-    private bool SpySuperjumpChargeStartBlockedUntilAbilityRelease { get; set; }
+    public bool SpySuperjumpChargeStartBlockedUntilAbilityRelease { get; private set; }
 
-    public const int SpySuperjumpMaxChargeTicks = 30; // 0.5s at 60 ticks/sec
+    public const int SpySuperjumpMaxChargeTicks = 30; // 1 second at the canonical 30 source ticks/sec.
 
     public const float SpySuperjumpMinVelocity = 200f; // units per second
 
@@ -622,6 +692,12 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const int SpySuperjumpCooldownTicks = 240; // 8 seconds at 30 ticks/sec
 
     public int SpySuperjumpCooldownTicksRemaining { get; private set; }
+
+    public int SpySuperjumpAvailableCharges { get; private set; } = 1;
+
+    private int SpySuperjumpMaximumChargesValue { get; set; } = 1;
+
+    public int SpySuperjumpMaximumCharges => SpySuperjumpMaximumChargesValue;
 
     public int SniperBowChargeTicks { get; private set; }
 
@@ -737,6 +813,11 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     private int? ExperimentalMaxHealthOverrideValue { get; set; }
 
+    // Network snapshots carry the authoritative max health because it can differ
+    // from the local class definition. Keep this separate from the server-side
+    // experimental override used by simulation tuning.
+    private int? NetworkMaxHealthOverrideValue { get; set; }
+
     private float ExperimentalHealthPackHealingMultiplierValue { get; set; } = 1f;
 
     private int PyroPrimaryFuelScaledValue { get; set; }
@@ -744,6 +825,11 @@ public sealed partial class PlayerEntity : SimulationEntity
     private float LegacyStateTickAccumulator { get; set; }
 
     public LegacyMovementState MovementState { get; private set; }
+
+    // Set for the duration of the PrepareMovement -> TryJumpIfPossible ->
+    // CompleteMovement pipeline so the top-down movement model can suppress
+    // jump input without changing the public movement API used by prediction.
+    private bool TopDownMovementPrepared { get; set; }
 
     private float SourceFacingDirectionX { get; set; } = 1f;
 
@@ -786,6 +872,8 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public void Spawn(PlayerTeam team, float x, float y)
     {
+        ResetLastToDieSpyCloakDynamicState();
+        ResetLastToDieSpyInfiltrateDynamicState();
         Team = team;
         X = x;
         Y = y;
@@ -822,7 +910,11 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public void SetClassDefinition(CharacterClassDefinition classDefinition)
     {
+        CancelLastToDieSniperVolley();
+        ResetLastToDieSpyInfiltrateDynamicState();
+        NetworkMaxHealthOverrideValue = null;
         ClassDefinition = classDefinition;
+        RefreshLastToDieWeaponOverrideForClassDefinition();
         SelectedGameplayLoadoutId = CharacterClassCatalog.RuntimeRegistry.GetDefaultLoadout(GameplayClassId).Id;
         SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
         SetExperimentalOffhandWeapon(null);
@@ -850,6 +942,9 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public void Kill()
     {
+        CancelLastToDieSniperVolley();
+        ResetLastToDieSpyCloakDynamicState();
+        ResetLastToDieSpyInfiltrateDynamicState();
         IsAlive = false;
         Health = 0;
         HorizontalSpeed = 0f;
@@ -857,13 +952,23 @@ public sealed partial class PlayerEntity : SimulationEntity
         IsGrounded = false;
         IsCarryingIntel = false;
         IntelRechargeTicks = 0f;
-        ResetExperimentalOffhandRuntimeState(refillAmmo: false);
+        var preserveLockedAlternateSelection = IsLockedPrimaryWeaponClass
+            && SelectedGameplayEquippedSlot == GameplayEquipmentSlot.Secondary;
+        // Clear acquired/drop equipment while the remembered locked-primary
+        // selection is still represented by the offhand flag. SetAcquiredWeapon
+        // otherwise falls back to Primary when it sees neither equipped flag.
         SetAcquiredWeapon(null);
+        ResetExperimentalOffhandRuntimeState(refillAmmo: false);
+        if (!preserveLockedAlternateSelection)
+        {
+            SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
+        }
         ResetExperimentalPowerRuntimeState();
         ResetTransientState(
             pyroFlareCooldownTicks: 0,
             resetMedicUberCharge: false,
             clearSpawnRoomState: true);
+        ResetLastToDieLuckyStrikeTriggerProgress();
         RefreshGameplayLoadoutState();
     }
 
@@ -896,6 +1001,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         TauntFrameIndex = 0f;
         TauntRestartCooldownTicksRemaining = 0;
         TauntInputReleaseRequired = false;
+        BlockedJumpRetrySuppressionTicksRemaining = 0;
         CivvieTauntHealPending = false;
         CivviePogoSuperJumpSoundPending = false;
         IsSniperScoped = false;
@@ -905,7 +1011,11 @@ public sealed partial class PlayerEntity : SimulationEntity
         BinocularsFocusY = Y;
         UberTicksRemaining = 0;
         KritzCritBoostTicksRemaining = 0;
+        KritzCritBoostProviderPlayerId = 0;
+        KritzCritBoostProviderSlot = int.MaxValue;
+        KritzCritBoostDamageMultiplier = 1f;
         SpySuperjumpCooldownTicksRemaining = 0;
+        SpySuperjumpAvailableCharges = SpySuperjumpMaximumCharges;
         MedicHealTargetId = null;
         IsMedicHealing = false;
         if (resetMedicUberCharge)
@@ -916,6 +1026,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         }
 
         IsMedicUbering = false;
+        MedicUberDeliveryMode = MedicUberDeliveryMode.None;
         MedicUberCommittedCharge = 0f;
         MedicUberingTicksRemaining = 0;
         MedicUberingTotalTicks = 0;
@@ -923,6 +1034,8 @@ public sealed partial class PlayerEntity : SimulationEntity
         MedicNeedleCooldownTicks = 0;
         MedicNeedleRefillTicks = 0;
         ContinuousHealingAccumulator = 0f;
+        IsDispenserBuffed = false;
+        DispenserAttackReloadSpeedMultiplier = 1f;
         QuoteBubbleCount = 0;
         QuoteBladesOut = 0;
         ResetCivvieUmbrellaState();
@@ -940,6 +1053,7 @@ public sealed partial class PlayerEntity : SimulationEntity
 
         IsUsingHealingCabinet = false;
         HealingCabinetSoundCooldownSecondsRemaining = 0f;
+        HealingCabinetResupplyCooldownSecondsRemaining = 0f;
         ClearRecentDamageDealers();
         ResetCombatPerformanceTracking();
         ResetSpyTransientState();
@@ -957,6 +1071,14 @@ public sealed partial class PlayerEntity : SimulationEntity
         SpyBackstabDirectionDegrees = 0f;
         IsSpyVisibleToEnemies = false;
         SpyBackstabHitboxPending = false;
+        SpySuperjumpChargeTicks = 0;
+        SpySuperjumpChargeDirectionDegrees = 0f;
+        SpySuperjumpChargeStartMovementButtons = 0;
+        SpySuperjumpChargeStartBlockedUntilAbilityRelease = false;
+        IsSpySuperjumping = false;
+        SpySuperjumpHorizontalVelocity = 0f;
+        SpySuperjumpCooldownTicksRemaining = 0;
+        SpySuperjumpAvailableCharges = SpySuperjumpMaximumCharges;
     }
 
     private void ResetMovementPresentationState()
@@ -979,6 +1101,16 @@ public sealed partial class PlayerEntity : SimulationEntity
     public void RestartHealingCabinetSoundCooldown()
     {
         HealingCabinetSoundCooldownSecondsRemaining = HealingCabinetSoundCooldownSeconds;
+    }
+
+    public bool IsHealingCabinetResupplyOnCooldown()
+    {
+        return HealingCabinetResupplyCooldownSecondsRemaining > 0f;
+    }
+
+    public void RestartHealingCabinetResupplyCooldown()
+    {
+        HealingCabinetResupplyCooldownSecondsRemaining = HealingCabinetResupplyCooldownSeconds;
     }
 
     private void ResetSourceFacingDirectionState()
@@ -1121,7 +1253,13 @@ public sealed partial class PlayerEntity : SimulationEntity
         ExperimentalOffhandReloadTicksUntilNextShell = refillAmmo
             ? 0
             : Math.Max(0, ExperimentalOffhandReloadTicksUntilNextShell);
-        IsExperimentalOffhandEquipped = false;
+        // A locked alternate primary is a class/loadout choice, not a dropped
+        // weapon. Keep its selected slot through death and restore the runtime
+        // equipped flag on the next same-class/loadout Spawn. Normal offhands
+        // and acquired weapons never satisfy this predicate.
+        IsExperimentalOffhandEquipped = refillAmmo
+            && IsLockedPrimaryWeaponClass
+            && SelectedGameplayEquippedSlot == GameplayEquipmentSlot.Secondary;
     }
 
     private void ResetAcquiredWeaponRuntimeState(bool refillAmmo)
@@ -1183,12 +1321,36 @@ public sealed partial class PlayerEntity : SimulationEntity
             equippedSlot = SelectedGameplayEquippedSlot;
         }
 
-        return runtimeRegistry.CreatePlayerLoadoutState(
+        var loadoutState = runtimeRegistry.CreatePlayerLoadoutState(
             GameplayClassId,
             SelectedGameplayLoadoutId,
             equippedSlot,
             secondaryItemOverrideId: secondaryItemId,
             acquiredItemId: acquiredItemId);
+
+        // Acquired weapons and a normal secondary weapon share the Secondary slot
+        // in the replicated loadout schema. The registry cannot infer which one is
+        // actually selected, so keep EquippedItemId aligned with the runtime flag.
+        if (!IsAcquiredWeaponEquipped && IsExperimentalOffhandEquipped)
+        {
+            var equippedOffhandItemId = equippedSlot switch
+            {
+                GameplayEquipmentSlot.Secondary => secondaryItemId,
+                GameplayEquipmentSlot.Utility => loadoutState.UtilityItemId,
+                _ => null,
+            };
+
+            if (!string.IsNullOrWhiteSpace(equippedOffhandItemId))
+            {
+                loadoutState = loadoutState with
+                {
+                    EquippedSlot = equippedSlot,
+                    EquippedItemId = equippedOffhandItemId,
+                };
+            }
+        }
+
+        return loadoutState;
     }
 
     private static string? ResolveRegisteredWeaponItemId(PrimaryWeaponDefinition? weaponDefinition)

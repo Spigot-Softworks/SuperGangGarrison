@@ -12,6 +12,29 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    internal static bool ShouldShowStowedPrimaryWeaponHud(bool showOnlyActiveWeapon, bool alternatePrimarySelected)
+        => !showOnlyActiveWeapon && !alternatePrimarySelected;
+
+    // Locked alternate primaries (Scout nailgun, Sniper bow, and Medic Kritz
+    // needles) occupy the active primary presentation slot. They are not an
+    // additional secondary panel, even when the user asks to show stowed
+    // weapons. Keep this decision pure so the row builder and regression tests
+    // share the same rule.
+    internal static bool ShouldShowSecondaryWeaponHud(
+        bool showOnlyActiveWeapon,
+        bool lockedPrimaryWeaponClass,
+        bool lockedPrimaryWeaponSelected,
+        bool secondaryWeaponAvailable)
+    {
+        return !showOnlyActiveWeapon
+            && secondaryWeaponAvailable
+            // Locked alternate-primary classes have one exclusive primary
+            // presentation slot. The selected-slot bit can briefly lag the
+            // loadout during spawn, so the class rule must suppress the
+            // independent secondary row in either state.
+            && !lockedPrimaryWeaponClass;
+    }
+
     private const float PortraitRumbleDurationSeconds = 0.24f;
     private const float LowHealthHudThresholdMaxHealthDivisor = 3.5f;
     private const float DamageVignettePersistentHealthFraction = 0.45f;
@@ -55,6 +78,21 @@ public partial class Game1
             0f,
             DamageVignetteReactiveMaximumIntensity);
         _damageVignetteIntensity = Math.Max(_damageVignetteIntensity, _damageVignetteFlashIntensity);
+    }
+
+    internal static Rectangle? GetLocalHealthMedicineSourceRectangle(
+        int frameWidth,
+        int frameHeight,
+        Rectangle? opaqueBounds,
+        int health,
+        int maxHealth)
+    {
+        return GameplayLocalStatusHudController.GetLocalHealthMedicineSourceRectangle(
+            frameWidth,
+            frameHeight,
+            opaqueBounds,
+            health,
+            maxHealth);
     }
 
     private sealed class GameplayLocalStatusHudController
@@ -326,20 +364,26 @@ public partial class Game1
             _game.TryDrawScreenSprite("PlayerHealthCross", 0, crossPosition, Color.White, scale);
             
             // Draw the medical cross with health-based masking and green overlay
-            var healthPercent = MathF.Max(0f, (float)_game._world.LocalPlayer.Health / _game._world.LocalPlayer.MaxHealth);
             var medicineSprite = _game.GetResolvedSprite("PlayerHealthCrossInternalMedicine");
             if (medicineSprite is not null && medicineSprite.Frames.Count > 0)
             {
-                var medicineHeight = medicineSprite.Frames[0].Height;
-                var maskedHeight = (int)MathF.Ceiling(healthPercent * medicineHeight);
-                
-                if (maskedHeight > 0)
+                var medicineFrame = medicineSprite.Frames[0];
+                var sourceRect = GetLocalHealthMedicineSourceRectangle(
+                    medicineFrame.Width,
+                    medicineFrame.Height,
+                    medicineFrame.OpaqueBounds,
+                    _game._world.LocalPlayer.Health,
+                    _game._world.LocalPlayer.MaxHealth);
+
+                if (sourceRect is { } fillSource)
                 {
-                    // Mask from bottom up (full health = full height)
-                    var sourceRect = new Rectangle(0, medicineHeight - maskedHeight, medicineSprite.Frames[0].Width, maskedHeight);
-                    var drawPosition = crossPosition + new Vector2(0f, (medicineHeight - maskedHeight) * scale.Y);
+                    // Mask the opaque portion from the bottom up. The stock medicine
+                    // sprite has two transparent rows above its cross; using the full
+                    // 24px frame made 90% health (for example 144/160 Soldier HP)
+                    // include every opaque row and look indistinguishable from full.
+                    var drawPosition = crossPosition + new Vector2(0f, fillSource.Y * scale.Y);
                     
-                    _game.TryDrawScreenSpritePart("PlayerHealthCrossInternalMedicine", 0, sourceRect, drawPosition, Color.Green, scale);
+                    _game.TryDrawScreenSpritePart("PlayerHealthCrossInternalMedicine", 0, fillSource, drawPosition, Color.Green, scale);
                 }
             }
             
@@ -351,6 +395,37 @@ public partial class Game1
             var healthTextPosition = crossPosition + new Vector2((crossSprite?.Frames[0].Width ?? 0) * scale.X / 2f, (crossSprite?.Frames[0].Height ?? 0) * scale.Y / 2f);
             _game.DrawHudTextCentered(health.ToString(CultureInfo.InvariantCulture), healthTextPosition, hpColor, 1f * hudScale);
             UpdateLocalHealthHudBounds(portraitPosition, scale, backgroundHealthSprite, crossPosition, crossSprite);
+        }
+
+        internal static Rectangle? GetLocalHealthMedicineSourceRectangle(
+            int frameWidth,
+            int frameHeight,
+            Rectangle? opaqueBounds,
+            int health,
+            int maxHealth)
+        {
+            if (frameWidth <= 0 || frameHeight <= 0 || maxHealth <= 0 || health <= 0)
+            {
+                return null;
+            }
+
+            var contentBounds = opaqueBounds ?? new Rectangle(0, 0, frameWidth, frameHeight);
+            var contentTop = Math.Clamp(contentBounds.Y, 0, frameHeight);
+            var contentBottom = Math.Clamp(contentBounds.Bottom, contentTop, frameHeight);
+            var contentHeight = contentBottom - contentTop;
+            if (contentHeight <= 0)
+            {
+                return null;
+            }
+
+            var healthFraction = Math.Clamp(health / (float)maxHealth, 0f, 1f);
+            var fillHeight = (int)MathF.Ceiling(healthFraction * contentHeight);
+            if (fillHeight <= 0)
+            {
+                return null;
+            }
+
+            return new Rectangle(0, contentBottom - fillHeight, frameWidth, fillHeight);
         }
 
         private void UpdateLocalHealthHudBounds(
@@ -570,6 +645,13 @@ public partial class Game1
             var displayedWeaponStats = GetLocalDisplayedMainWeaponStats();
             var hasGrenadeLauncher = HasLocalDemomanGrenadeLauncher();
             var showOnlyActiveWeapon = _game._hudShowOnlyActiveWeapon;
+            var localPlayer = _game._world.LocalPlayer;
+            var lockedPrimaryWeaponSelected = localPlayer.IsLockedPrimaryWeaponClass
+                && localPlayer.GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Secondary
+                && string.Equals(
+                    localPlayer.GameplayLoadoutState.EquippedItemId,
+                    localPlayer.GameplayLoadoutState.SecondaryItemId,
+                    StringComparison.Ordinal);
             var selectedOffhandItemId = IsLocalDisplayedOffhandWeaponSelected()
                 ? GetLocalDisplayedOffhandPresentationItemId()
                 : null;
@@ -602,7 +684,14 @@ public partial class Game1
 
             AddPrimaryWeaponHudRow(rows, displayedWeaponStats, hasGrenadeLauncher: false);
 
-            if (!showOnlyActiveWeapon && selectedOffhandItemId is not null)
+            // A configured alternate primary occupies the active weapon slot;
+            // the base primary is not an additional usable weapon in this
+            // presentation. Showing a second ammo panel here made classes
+            // such as Soldier/Scout/Sniper appear to carry two primaries.
+            if (ShouldShowStowedPrimaryWeaponHud(
+                    showOnlyActiveWeapon,
+                    !IsLocalDisplayedMainWeaponAcquired() || selectedOffhandItemId is not null)
+                && !lockedPrimaryWeaponSelected)
             {
                 AddStowedPrimaryWeaponHudRow(rows);
             }
@@ -623,7 +712,11 @@ public partial class Game1
                     Order: WeaponHudOrderAcquired));
             }
 
-            if (!showOnlyActiveWeapon && ShouldDrawSecondaryWeaponHudRow(out var secondaryItem))
+            if (ShouldShowSecondaryWeaponHud(
+                    showOnlyActiveWeapon,
+                    localPlayer.IsLockedPrimaryWeaponClass,
+                    lockedPrimaryWeaponSelected,
+                    ShouldDrawSecondaryWeaponHudRow(out var secondaryItem)))
             {
                 rows.Add(new WeaponHudRow(
                     "local.weapon.secondary",
@@ -1482,6 +1575,17 @@ public partial class Game1
                 : AmmoHudBarColor;
             var barRectangle = GetSourceHudRectangle(AbilityCooldownBarSourceX, sourceY + 13f, 35f, 5f);
             _game.DrawScreenHealthBar(barRectangle, meterFraction, 1f, false, meterColor, Color.Black);
+            if (string.Equals(item.Ability?.ExecutorId, BuiltInGameplayBehaviorIds.SpySuperjump, StringComparison.Ordinal)
+                && _game.GetPlayerSpySuperjumpMaximumCharges(_game._world.LocalPlayer) > 1)
+            {
+                var availableCharges = _game.GetPlayerSpySuperjumpAvailableCharges(_game._world.LocalPlayer);
+                var maximumCharges = _game.GetPlayerSpySuperjumpMaximumCharges(_game._world.LocalPlayer);
+                _game.DrawBitmapFontText(
+                    $"{availableCharges}/{maximumCharges}",
+                    GetSourceHudPoint(AbilityCooldownBarSourceX + 39f, sourceY + 8f),
+                    isDisabled ? DisabledAmmoHudColor : Color.White,
+                    GetSourceHudTextScale(0.65f));
+            }
         }
 
         private void DrawDummyAbilityHud(float sourceY)
@@ -1910,9 +2014,10 @@ public partial class Game1
 
             if (localPlayer.HasExperimentalOffhandWeapon)
             {
-                var offhandItemId = CharacterClassCatalog.RuntimeRegistry.TryResolvePrimaryWeaponItemId(
-                    localPlayer.ExperimentalOffhandWeapon, out var resolvedId) ? resolvedId : null;
-                if (string.Equals(offhandItemId, item.Id, StringComparison.Ordinal))
+                var offhandWeapon = localPlayer.ExperimentalOffhandWeapon;
+                if (offhandWeapon is not null
+                    && CharacterClassCatalog.RuntimeRegistry.TryResolvePrimaryWeaponItemId(offhandWeapon, out var resolvedId)
+                    && string.Equals(resolvedId, item.Id, StringComparison.Ordinal))
                 {
                     return true;
                 }

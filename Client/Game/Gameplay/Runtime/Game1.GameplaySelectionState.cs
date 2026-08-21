@@ -77,6 +77,19 @@ public partial class Game1
             return;
         }
 
+        // A server opens the team menu while a client is awaiting its first
+        // team/class selection.  N is also the toggle key, but closing this
+        // menu at that point leaves the local slot unjoined while gameplay
+        // continues to run around the last replicated camera position.  The
+        // join menu must remain modal until the player chooses a team or
+        // explicitly chooses Spectate.
+        if (_world.LocalPlayerAwaitingJoin)
+        {
+            _teamSelectOpen = true;
+            _classSelectOpen = false;
+            return;
+        }
+
         if (!_world.CanNetworkPlayerChangeTeamByMapBehavior(SimulationWorld.LocalPlayerSlot))
         {
             CloseGameplaySelectionMenus();

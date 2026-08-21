@@ -33,6 +33,10 @@ public enum MessageType : byte
     CustomBubbleClear = 26,
     PingRequest = 27,
     PingResponse = 28,
+    LastToDieCommand = 29,
+    LastToDieCommandResult = 30,
+    LastToDieRunSnapshot = 31,
+    LastToDieRunSnapshotAck = 32,
 }
 
 public enum ConnectionIntent : byte
@@ -56,7 +60,7 @@ public enum ControlCommandKind : byte
 }
 
 [Flags]
-public enum InputButtons : ushort
+public enum InputButtons : uint
 {
     None = 0,
     Left = 1 << 0,
@@ -75,6 +79,8 @@ public enum InputButtons : ushort
     SwapWeapon = 1 << 13,
     ReadyUp = 1 << 14,
     IsTypingChatMessage = 1 << 15,
+    BuildDispenser = 1 << 16,
+    DestroyDispenser = 1 << 17,
 }
 
 public interface IProtocolMessage
@@ -88,7 +94,8 @@ public sealed record HelloMessage(
     ulong BadgeMask,
     string FriendCode = "",
     string PlayerCardJson = "",
-    ConnectionIntent Intent = ConnectionIntent.Join) : IProtocolMessage
+    ConnectionIntent Intent = ConnectionIntent.Join,
+    Guid ClientInstanceId = default) : IProtocolMessage
 {
     public MessageType Type => MessageType.Hello;
 }
@@ -435,7 +442,24 @@ public sealed record SnapshotPlayerState(
     bool IsReady = false,
     string GameplayClassId = "",
     ushort GameplayClassCacheId = 0,
-    int PingMilliseconds = -1);
+    int PingMilliseconds = -1,
+    ushort LastToDieSpyCloakMeterUnits = 0,
+    byte LastToDieSpyRogueRampStacks = 0,
+    ushort LastToDieSpyRogueRampTicks = 0,
+    byte SpySuperjumpAvailableCharges = 1,
+    byte SpySuperjumpMaximumCharges = 1,
+    ushort SpySuperjumpChargeTicks = 0,
+    float SpySuperjumpChargeDirectionDegrees = 0f,
+    byte SpySuperjumpChargeStartMovementButtons = 0,
+    bool SpySuperjumpChargeStartBlockedUntilAbilityRelease = false,
+    byte MedicUberDeliveryState = 0,
+    int KritzCritBoostProviderPlayerId = 0,
+    int KritzCritBoostProviderSlot = int.MaxValue,
+    float KritzCritBoostDamageMultiplier = 1f,
+    // Optional-at-end normal gameplay buff state. Older constructor call
+    // sites remain valid and decode as an unbuffed player.
+    bool IsDispenserBuffed = false,
+    float DispenserAttackReloadSpeedMultiplier = 1f);
 
 public sealed record SnapshotPlayerMovementState(
     byte Slot,
@@ -503,7 +527,22 @@ public sealed record SnapshotPlayerExtendedStatusState(
     bool PyroPrimaryRequiresReleaseAfterEmpty = false,
     int HeavyEatCooldownTicksRemaining = 0,
     float MedicUberCharge = 0f,
-    bool IsMedicUberReady = false);
+    bool IsMedicUberReady = false,
+    ushort LastToDieSpyCloakMeterUnits = 0,
+    byte LastToDieSpyRogueRampStacks = 0,
+    ushort LastToDieSpyRogueRampTicks = 0,
+    byte SpySuperjumpAvailableCharges = 1,
+    byte SpySuperjumpMaximumCharges = 1,
+    ushort SpySuperjumpChargeTicks = 0,
+    float SpySuperjumpChargeDirectionDegrees = 0f,
+    byte SpySuperjumpChargeStartMovementButtons = 0,
+    bool SpySuperjumpChargeStartBlockedUntilAbilityRelease = false,
+    byte MedicUberDeliveryState = 0,
+    int KritzCritBoostProviderPlayerId = 0,
+    int KritzCritBoostProviderSlot = int.MaxValue,
+    float KritzCritBoostDamageMultiplier = 1f,
+    bool IsDispenserBuffed = false,
+    float DispenserAttackReloadSpeedMultiplier = 1f);
 
 public sealed record SnapshotIntelState(
     byte Team,
@@ -527,7 +566,9 @@ public sealed record SnapshotSentryState(
     bool HasLanded,
     bool HasActiveTarget,
     float LastShotTargetX,
-    float LastShotTargetY);
+    float LastShotTargetY,
+    bool IsDispenser = false,
+    int DispenserRampTicks = 0);
 
 /// <summary>
 /// Lightweight sentry update for delta compression. Contains only frequently-changing fields.
@@ -542,7 +583,8 @@ public sealed record SnapshotSentryUpdateState(
     int ShotTraceTicksRemaining,
     bool HasActiveTarget,
     float LastShotTargetX,
-    float LastShotTargetY);
+    float LastShotTargetY,
+    int DispenserRampTicks = 0);
 
 public sealed record SnapshotShotState(
     int Id,
@@ -557,7 +599,25 @@ public sealed record SnapshotShotState(
     bool IsMedicHealNeedle = false,
     bool IsArrow = false,
     float ArrowFakeSpeedMultiplier = 1f,
-    bool IsLanded = false);
+    bool IsLanded = false,
+    bool AppliesLastToDieGuardian = false,
+    bool PiercesPlayers = false,
+    bool AppliesLastToDieTranqDarts = false,
+    float LastToDiePoisonDamagePerSecond = 0f,
+    float LastToDieGhostDamageMultiplier = 1f,
+    bool AppliesLastToDieDecapitator = false,
+    bool IsLastToDieDecapitatorFullyCharged = false,
+    byte LastToDieAttachedHeadClassId = 0,
+    byte LastToDieAttachedHeadTeam = 0,
+    bool AppliesLastToDieExplosiveTip = false,
+    float DamageValue = 0f,
+    int LastToDieRevolverProfile = 0,
+    bool AppliesLuckyStrikeStun = false,
+    byte LastToDieMedicKritzM2Payload = 0,
+    bool IsLastToDieMedicJavelinAnchored = false,
+    int LastToDieMedicJavelinFuseTicksRemaining = 0,
+    bool HasLastToDieMedicJavelinExploded = false,
+    float CriticalDamageMultiplier = 1f);
 
 public sealed record SnapshotGrenadeState(
     int Id,
@@ -570,7 +630,8 @@ public sealed record SnapshotGrenadeState(
     float VelocityX,
     float VelocityY,
     int FuseTicksLeft,
-    bool IsCritical = false);
+    bool IsCritical = false,
+    float CriticalDamageMultiplier = 1f);
 
 public sealed record SnapshotRocketState(
     int Id,
@@ -592,7 +653,8 @@ public sealed record SnapshotRocketState(
     bool IsFading = false,
     float FadeSourceTicksRemaining = 0f,
     IReadOnlyList<int>? PassedFriendlyPlayerIds = null,
-    bool IsCritical = false);
+    bool IsCritical = false,
+    float CriticalDamageMultiplier = 1f);
 
 public sealed record SnapshotRocketSpawnEvent(
     int Id,
@@ -616,7 +678,8 @@ public sealed record SnapshotRocketSpawnEvent(
     bool ExplodeImmediately = false,
     bool IsCritical = false,
     ulong EventId = 0,
-    IReadOnlyList<int>? PassedFriendlyPlayerIds = null);
+    IReadOnlyList<int>? PassedFriendlyPlayerIds = null,
+    float CriticalDamageMultiplier = 1f);
 
 public sealed record SnapshotFlameState(
     int Id,
@@ -632,7 +695,8 @@ public sealed record SnapshotFlameState(
     int AttachedPlayerId,
     float AttachedOffsetX,
     float AttachedOffsetY,
-    bool IsCritical = false);
+    bool IsCritical = false,
+    float CriticalDamageMultiplier = 1f);
 
 public sealed record SnapshotMineState(
     int Id,
@@ -645,7 +709,8 @@ public sealed record SnapshotMineState(
     bool IsStickied,
     bool IsDestroyed,
     float ExplosionDamage,
-    bool IsCritical = false);
+    bool IsCritical = false,
+    float CriticalDamageMultiplier = 1f);
 
 public sealed record SnapshotControlPointState(
     byte Index,
@@ -681,7 +746,8 @@ public sealed record SnapshotSentryGibState(
     byte Team,
     float X,
     float Y,
-    int TicksRemaining);
+    int TicksRemaining,
+    bool IsDispenser = false);
 
 public sealed record SnapshotJumpPadGibState(
     int Id,

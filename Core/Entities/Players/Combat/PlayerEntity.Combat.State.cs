@@ -8,7 +8,12 @@ public sealed partial class PlayerEntity
 
     public bool ApplyDamage(int damage, float spyRevealAlpha = 0f)
     {
-        if (!IsAlive || IsUbered || IsExperimentalGhostDashing || damage <= 0)
+        if (!IsAlive
+            || IsUbered
+            || IsLastToDieMedicHailMaryInvulnerable
+            || IsExperimentalGhostDashing
+            || IsLastToDieSpyAfterlifeIncomingDamageImmune
+            || damage <= 0)
         {
             return false;
         }
@@ -21,7 +26,12 @@ public sealed partial class PlayerEntity
 
     public bool ApplyContinuousDamage(float damage, float spyRevealAlpha = 0f)
     {
-        if (!IsAlive || IsUbered || IsExperimentalGhostDashing || damage <= 0f)
+        if (!IsAlive
+            || IsUbered
+            || IsLastToDieMedicHailMaryInvulnerable
+            || IsExperimentalGhostDashing
+            || IsLastToDieSpyAfterlifeIncomingDamageImmune
+            || damage <= 0f)
         {
             return false;
         }
@@ -35,6 +45,33 @@ public sealed partial class PlayerEntity
 
         ContinuousDamageAccumulator -= wholeDamage;
         return ApplyDamage(wholeDamage, spyRevealAlpha);
+    }
+
+    internal bool ApplyContinuousDamageCapped(
+        float damage,
+        int maximumHealthDamage,
+        float spyRevealAlpha = 0f)
+    {
+        if (!IsAlive
+            || IsUbered
+            || IsLastToDieMedicHailMaryInvulnerable
+            || IsExperimentalGhostDashing
+            || IsLastToDieSpyAfterlifeIncomingDamageImmune
+            || damage <= 0f
+            || maximumHealthDamage <= 0)
+        {
+            return false;
+        }
+
+        ContinuousDamageAccumulator += damage;
+        var wholeDamage = (int)ContinuousDamageAccumulator;
+        if (wholeDamage <= 0)
+        {
+            return false;
+        }
+
+        ContinuousDamageAccumulator -= wholeDamage;
+        return ApplyDamage(Math.Min(wholeDamage, maximumHealthDamage), spyRevealAlpha);
     }
 
     public void RevealSpy(float alpha)
@@ -60,6 +97,7 @@ public sealed partial class PlayerEntity
         IsSpyCloaked = false;
         SpyCloakAlpha = 1f;
         IsSpyVisibleToEnemies = false;
+        ResetLastToDieProfessionalFireChord();
     }
 
     public void ForceEndSpyStealthForHumiliation()
@@ -127,11 +165,17 @@ public sealed partial class PlayerEntity
         CivviePogoSuperJumpSoundPending = false;
         IsSniperScoped = false;
         SniperChargeTicks = 0;
+        CancelLastToDieSniperVolley();
         UberTicksRemaining = 0;
         KritzCritBoostTicksRemaining = 0;
+        KritzCritBoostProviderPlayerId = 0;
+        KritzCritBoostProviderSlot = int.MaxValue;
+        KritzCritBoostDamageMultiplier = 1f;
+        SetLastToDieMedicHailMaryTicks(0);
         MedicHealTargetId = null;
         IsMedicHealing = false;
         IsMedicUbering = false;
+        MedicUberDeliveryMode = MedicUberDeliveryMode.None;
         MedicNeedleCooldownTicks = 0;
         MedicNeedleRefillTicks = 0;
         ContinuousHealingAccumulator = 0f;
@@ -150,6 +194,14 @@ public sealed partial class PlayerEntity
         SpyBackstabDirectionDegrees = 0f;
         IsSpyVisibleToEnemies = false;
         SpyBackstabHitboxPending = false;
+        SpySuperjumpChargeTicks = 0;
+        SpySuperjumpChargeDirectionDegrees = 0f;
+        SpySuperjumpChargeStartMovementButtons = 0;
+        SpySuperjumpChargeStartBlockedUntilAbilityRelease = false;
+        IsSpySuperjumping = false;
+        SpySuperjumpHorizontalVelocity = 0f;
+        SpySuperjumpCooldownTicksRemaining = 0;
+        SpySuperjumpAvailableCharges = SpySuperjumpMaximumCharges;
         LegacyStateTickAccumulator = 0f;
         MovementState = LegacyMovementState.None;
         ClearChatBubble();
@@ -246,7 +298,7 @@ public sealed partial class PlayerEntity
     {
         ClearHeavyEatCooldown();
         ExperimentalGhostDashCooldownTicksRemaining = 0;
-        SpySuperjumpCooldownTicksRemaining = 0;
+        RestoreLastToDieSpyJumpBootCharges();
         MedicNeedleCooldownTicks = 0;
         PyroAirblastCooldownTicks = 0;
         PyroFlareCooldownTicks = 0;

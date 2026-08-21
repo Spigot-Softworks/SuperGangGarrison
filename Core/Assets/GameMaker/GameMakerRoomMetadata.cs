@@ -40,6 +40,8 @@ public sealed record GameMakerRoomMetadata(
 
     public bool ShowControlPoints { get; init; }
 
+    public bool IsTopDown { get; init; }
+
     public MapLogicScoreTriggerSet LogicScoreTriggers { get; init; } = MapLogicScoreTriggerSet.Empty;
 
     public SpritesheetPlaybackSet SpritesheetPlaybackSet { get; init; } = SpritesheetPlaybackSet.Empty;

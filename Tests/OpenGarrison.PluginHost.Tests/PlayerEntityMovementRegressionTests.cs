@@ -420,6 +420,82 @@ public sealed class PlayerEntityMovementRegressionTests
     }
 
     [Fact]
+    public void LowCeilingJumpDoesNotRetryEveryInputEdge()
+    {
+        var level = CreateLowCeilingLevel();
+        var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Test");
+        player.Spawn(PlayerTeam.Red, 128f, 0f);
+        player.TeleportTo(128f, level.FloorY - player.CollisionBottomOffset);
+        var deltaSeconds = 1d / SimulationConfig.DefaultTicksPerSecond;
+        var idleInput = MoveRightInput with { Right = false };
+        player.Advance(idleInput, jumpPressed: false, level, PlayerTeam.Red, deltaSeconds);
+        Assert.True(player.IsGrounded);
+
+        var standingY = player.Y;
+        var jumpInput = idleInput with { Up = true };
+        Assert.True(player.Advance(jumpInput, jumpPressed: true, level, PlayerTeam.Red, deltaSeconds));
+        Assert.True(player.IsGrounded);
+        Assert.Equal(standingY, player.Y, precision: 2);
+        Assert.True(player.BlockedJumpRetrySuppressionTicksRemaining > 0);
+
+        for (var tick = 0; tick < 5; tick += 1)
+        {
+            Assert.False(player.Advance(jumpInput, jumpPressed: true, level, PlayerTeam.Red, deltaSeconds));
+        }
+    }
+
+    [Fact]
+    public void ScoutGetsFreshGroundedAndAirJumpAfterLandingFollowingBlockedRetry()
+    {
+        var lowCeiling = CreateLowCeilingLevel();
+        var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Test");
+        player.Spawn(PlayerTeam.Red, 128f, 0f);
+        player.TeleportTo(128f, lowCeiling.FloorY - player.CollisionBottomOffset);
+        var deltaSeconds = 1d / SimulationConfig.DefaultTicksPerSecond;
+        var idleInput = MoveRightInput with { Right = false };
+        var jumpInput = idleInput with { Up = true };
+
+        player.Advance(idleInput, jumpPressed: false, lowCeiling, PlayerTeam.Red, deltaSeconds);
+        Assert.True(player.Advance(jumpInput, jumpPressed: true, lowCeiling, PlayerTeam.Red, deltaSeconds));
+        Assert.True(player.BlockedJumpRetrySuppressionTicksRemaining > 0);
+
+        // Walk out from under the obstruction, then perform a real airborne ->
+        // grounded cycle without teleporting (TeleportTo intentionally clears
+        // the retry state and would not exercise the regression).
+        for (var tick = 0; tick < 24; tick += 1)
+        {
+            player.Advance(MoveRightInput, jumpPressed: false, lowCeiling, PlayerTeam.Red, deltaSeconds);
+        }
+
+        Assert.Equal(0, player.BlockedJumpRetrySuppressionTicksRemaining);
+        var sawAirborne = false;
+        var landed = false;
+        player.Advance(jumpInput, jumpPressed: true, lowCeiling, PlayerTeam.Red, deltaSeconds);
+        sawAirborne = !player.IsGrounded;
+        for (var tick = 0; tick < 120; tick += 1)
+        {
+            player.Advance(idleInput, jumpPressed: false, lowCeiling, PlayerTeam.Red, deltaSeconds);
+            if (sawAirborne && player.IsGrounded)
+            {
+                landed = true;
+                break;
+            }
+            sawAirborne |= !player.IsGrounded;
+        }
+
+        Assert.True(sawAirborne);
+        Assert.True(landed);
+        Assert.Equal(0, player.BlockedJumpRetrySuppressionTicksRemaining);
+        Assert.True(player.Advance(jumpInput, jumpPressed: true, lowCeiling, PlayerTeam.Red, deltaSeconds));
+        Assert.False(player.IsGrounded);
+
+        // Release/repress while airborne: Scout's single air jump remains available.
+        player.Advance(idleInput with { Up = false }, jumpPressed: false, lowCeiling, PlayerTeam.Red, deltaSeconds);
+        Assert.True(player.Advance(jumpInput, jumpPressed: true, lowCeiling, PlayerTeam.Red, deltaSeconds));
+        Assert.False(player.Advance(jumpInput, jumpPressed: true, lowCeiling, PlayerTeam.Red, deltaSeconds));
+    }
+
+    [Fact]
     public void CivilianUmbrellaAirLiftReplacesUpwardVelocityInsteadOfStacking()
     {
         var earlyJumpPlayer = CreateAirborneCivilianWithFallSpeed(0f);
@@ -751,6 +827,34 @@ public sealed class PlayerEntityMovementRegressionTests
             roomObjects: [],
             floorY: 500f,
             solids: [new LevelSolid(0f, 500f, 2048f, 524f)],
+            importedFromSource: false);
+    }
+
+    private static SimpleLevel CreateLowCeilingLevel()
+    {
+        return new SimpleLevel(
+            name: "movement_low_ceiling",
+            mode: GameModeKind.CaptureTheFlag,
+            bounds: new WorldBounds(2048f, 1024f),
+            mapScale: 1f,
+            backgroundAssetName: null,
+            mapAreaIndex: 1,
+            mapAreaCount: 1,
+            localSpawn: new SpawnPoint(128f, 128f),
+            redSpawns: [new SpawnPoint(128f, 128f)],
+            blueSpawns: [new SpawnPoint(256f, 128f)],
+            intelBases:
+            [
+                new IntelBaseMarker(PlayerTeam.Red, 128f, 128f),
+                new IntelBaseMarker(PlayerTeam.Blue, 256f, 128f),
+            ],
+            roomObjects: [],
+            floorY: 500f,
+            solids:
+            [
+                new LevelSolid(0f, 500f, 2048f, 524f),
+                new LevelSolid(80f, 460f, 100f, 6f),
+            ],
             importedFromSource: false);
     }
 

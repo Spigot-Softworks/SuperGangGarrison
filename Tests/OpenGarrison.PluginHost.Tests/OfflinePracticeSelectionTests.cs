@@ -11,6 +11,18 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class OfflinePracticeSelectionTests
 {
+    [Theory]
+    [InlineData(0, 1)]
+    [InlineData(1, 1)]
+    [InlineData(3, 1)]
+    [InlineData(4, 2)]
+    [InlineData(7, 2)]
+    [InlineData(8, 3)]
+    public void NativePracticeThinksBotsInBoundedRosterBatches(int controlledBotCount, int expectedBatchSize)
+    {
+        Assert.Equal(expectedBatchSize, Game1.GetPracticeBotThinkBatchSize(controlledBotCount));
+    }
+
     [Fact]
     public void HeavyDashPredictionFallbackUsesStockBurstDash()
     {
@@ -28,17 +40,44 @@ public sealed class OfflinePracticeSelectionTests
     }
 
     [Fact]
-    public void PracticeMapSelectionIncludesEveryStockMap()
+    public void PracticeMapSelectionUsesCuratedBuiltInOrderAndHidesEverythingElse()
     {
         var entries = BuildPracticeMapEntries();
-        var levelNames = entries
-            .Select(GetPracticeMapLevelName)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        (string LevelName, string DisplayName)[] expected =
+        [
+            (LevelName: "cp_coldfront_js", DisplayName: "Coldfront"),
+            (LevelName: "Kulay", DisplayName: "Kulay"),
+            (LevelName: "Harvest", DisplayName: "Harvest"),
+            (LevelName: "Docking", DisplayName: "Docking"),
+            (LevelName: "Conflict", DisplayName: "Conflict"),
+            (LevelName: "Gallery", DisplayName: "Gallery"),
+            (LevelName: "Valley", DisplayName: "Valley"),
+            (LevelName: "Corinth", DisplayName: "Corinth"),
+            (LevelName: "Dirtbowl", DisplayName: "Dirtbowl"),
+            (LevelName: "Egypt", DisplayName: "Egypt"),
+            (LevelName: "Eiger", DisplayName: "Eiger"),
+            (LevelName: "Truefort", DisplayName: "Truefort"),
+            (LevelName: "Waterway", DisplayName: "Waterway"),
+            (LevelName: "koth_bayou", DisplayName: "Bayou"),
+            (LevelName: "koth_cdragon", DisplayName: "Cdragon"),
+            (LevelName: "koth_eureka", DisplayName: "Eureka"),
+            (LevelName: "koth_AMERICA", DisplayName: "America"),
+            (LevelName: "3cp_kistra", DisplayName: "Kistra"),
+            (LevelName: "cp_gully", DisplayName: "Gully"),
+            (LevelName: "koth_ravine", DisplayName: "Ravine"),
+            (LevelName: "koth_standoff", DisplayName: "Standoff"),
+            (LevelName: "koth_crab_v2", DisplayName: "Crab"),
+            (LevelName: "koth_thundermountain_v2", DisplayName: "Thundermountain_v2"),
+            (LevelName: "koth_high5tower_a1", DisplayName: "Hightower"),
+            (LevelName: "koth_heist", DisplayName: "Heist"),
+            (LevelName: "koth_drill_v3", DisplayName: "Drill"),
+            (LevelName: "koth_nightly", DisplayName: "Nightly"),
+        ];
 
-        foreach (var definition in OpenGarrisonStockMapCatalog.Definitions)
-        {
-            Assert.Contains(definition.LevelName, levelNames);
-        }
+        Assert.Equal(expected.Length, entries.Count());
+        Assert.Equal(expected.Select(item => item.LevelName), entries.Select(GetPracticeMapLevelName));
+        Assert.Equal(expected.Select(item => item.DisplayName), entries.Select(GetPracticeMapDisplayName));
+        Assert.All(entries, entry => Assert.False(GetPracticeMapIsCustom(entry), GetPracticeMapLevelName(entry)));
     }
 
     [Theory]
@@ -212,22 +251,69 @@ public sealed class OfflinePracticeSelectionTests
 
         SetPracticeMapBrowserProperty(setupStateType, state, "IncludeCustomMaps", true);
         SetPracticeMapBrowserProperty(setupStateType, state, "IncludeBaseMaps", false);
+        SetPracticeMapBrowserProperty(setupStateType, state, "ShowCustomMaps", true);
         Assert.Equal(["downloaded_koth"], GetPracticeAvailableMapLevelNames(setupStateType, state));
     }
 
     [Fact]
-    public void PracticeMapSelectionIncludesVipCatalogEntries()
+    public void PracticeMapBrowserKeepsCustomMapsBehindTheCustomMapsSourceButton()
+    {
+        var setupStateType = typeof(Game1).GetNestedType("PracticeSetupState", BindingFlags.NonPublic);
+        var entryType = typeof(Game1).GetNestedType("PracticeMapEntry", BindingFlags.NonPublic);
+        var state = Activator.CreateInstance(setupStateType!, nonPublic: true)!;
+        var mapEntriesProperty = setupStateType!.GetProperty("MapEntries", BindingFlags.Instance | BindingFlags.Public);
+        var listType = typeof(List<>).MakeGenericType(entryType!);
+        var entries = (IList)Activator.CreateInstance(listType)!;
+        entries.Add(CreatePracticeMapEntry("Harvest", GameModeKind.KingOfTheHill));
+        entries.Add(CreatePracticeMapEntry("downloaded_koth", GameModeKind.KingOfTheHill, isCustomMap: true));
+        mapEntriesProperty!.SetValue(state, entries);
+
+        Assert.Equal(["Harvest"], GetPracticeAvailableMapLevelNames(setupStateType, state));
+
+        SetPracticeMapBrowserProperty(setupStateType, state, "ShowCustomMaps", true);
+        Assert.Equal(["downloaded_koth"], GetPracticeAvailableMapLevelNames(setupStateType, state));
+    }
+
+    [Fact]
+    public void PracticeMapBrowserSectionsUseRequestedMapGroups()
+    {
+        var setupStateType = typeof(Game1).GetNestedType("PracticeSetupState", BindingFlags.NonPublic);
+        var state = Activator.CreateInstance(setupStateType!, nonPublic: true)!;
+        var mapEntriesProperty = setupStateType!.GetProperty("MapEntries", BindingFlags.Instance | BindingFlags.Public);
+        var buildMapEntriesMethod = setupStateType.GetMethod("BuildMapEntries", BindingFlags.Public | BindingFlags.Static);
+        var sectionType = setupStateType.GetNestedType("PracticeMapBrowserSection", BindingFlags.Public | BindingFlags.NonPublic);
+        var setSectionMethod = setupStateType.GetMethod("SetMapBrowserSection", BindingFlags.Instance | BindingFlags.Public);
+
+        Assert.NotNull(mapEntriesProperty);
+        Assert.NotNull(buildMapEntriesMethod);
+        Assert.NotNull(sectionType);
+        Assert.NotNull(setSectionMethod);
+        mapEntriesProperty.SetValue(state, buildMapEntriesMethod.Invoke(null, null));
+
+        var sgg = Enum.Parse(sectionType!, "SuperGangGarrison");
+        setSectionMethod.Invoke(state, [sgg]);
+        Assert.Equal(["cp_coldfront_js", "Kulay", "Harvest", "Docking", "Conflict"], GetPracticeAvailableMapLevelNames(setupStateType, state));
+
+        var classic = Enum.Parse(sectionType!, "Classic");
+        setSectionMethod.Invoke(state, [classic]);
+        Assert.Equal(
+            ["Gallery", "Valley", "Corinth", "Dirtbowl", "Egypt", "Eiger", "Truefort", "Waterway", "koth_bayou", "koth_cdragon", "koth_eureka", "koth_AMERICA", "3cp_kistra", "cp_gully", "koth_ravine", "koth_standoff", "koth_crab_v2", "koth_thundermountain_v2", "koth_high5tower_a1", "koth_heist", "koth_drill_v3", "koth_nightly"],
+            GetPracticeAvailableMapLevelNames(setupStateType, state));
+    }
+
+    [Fact]
+    public void PracticeMapSelectionDoesNotExposeVipOrUnlistedMaps()
     {
         var entries = BuildPracticeMapEntries();
         var levelNames = entries
             .Select(GetPracticeMapLevelName)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var modes = entries.ToDictionary(GetPracticeMapLevelName, GetPracticeMapMode, StringComparer.OrdinalIgnoreCase);
 
-        Assert.Contains("Dirtbowl", levelNames);
-        Assert.True(OpenGarrisonStockMapCatalog.TryGetDefinition("vip_dirtbowl", out var vipDefinition));
-        Assert.Contains(vipDefinition.LevelName, levelNames);
-        Assert.Equal(GameModeKind.Vip, modes[vipDefinition.LevelName]);
+        Assert.DoesNotContain("vip_dirtbowl", levelNames);
+        Assert.DoesNotContain("TwodFortTwo", levelNames);
+        Assert.DoesNotContain("Mantic", levelNames);
+        Assert.DoesNotContain("Lumberyard", levelNames);
+        Assert.DoesNotContain("Montane", levelNames);
     }
 
     [Fact]
@@ -282,7 +368,7 @@ public sealed class OfflinePracticeSelectionTests
     }
 
     [Fact]
-    public void DefaultLastToDieRotationRemainsKingOfTheHillOnly()
+    public void DefaultLastToDieRotationAllowsOnlyStockKingOfTheHillAndCaptureTheFlag()
     {
         var harvestEntry = CreatePracticeMapEntry("Harvest", GameModeKind.KingOfTheHill);
         var conflictEntry = CreatePracticeMapEntry("Conflict", GameModeKind.CaptureTheFlag);
@@ -298,12 +384,12 @@ public sealed class OfflinePracticeSelectionTests
         Assert.NotNull(practiceMapEntryType);
         Assert.NotNull(method);
         Assert.True((bool)method.Invoke(null, [harvestEntry])!);
-        Assert.False((bool)method.Invoke(null, [conflictEntry])!);
+        Assert.True((bool)method.Invoke(null, [conflictEntry])!);
         Assert.False((bool)method.Invoke(null, [customKothEntry])!);
     }
 
     [Fact]
-    public void EngineerLastToDieRotationUsesConfiguredMixedMapPool()
+    public void EngineerLastToDieRotationUsesTheSameKothAndCtfEligibility()
     {
         var engineerKind = GetLastToDieSurvivorKind("Engineer");
         var practiceMapEntryType = typeof(Game1).GetNestedType("PracticeMapEntry", BindingFlags.NonPublic);
@@ -325,7 +411,8 @@ public sealed class OfflinePracticeSelectionTests
         Assert.True(InvokeLastToDieRotationEligibility(eligibilityMethod, engineerKind, CreatePracticeMapEntry("TwodFortTwo", GameModeKind.CaptureTheFlag)));
         Assert.True(InvokeLastToDieRotationEligibility(eligibilityMethod, engineerKind, CreatePracticeMapEntry("Conflict", GameModeKind.CaptureTheFlag)));
         Assert.True(InvokeLastToDieRotationEligibility(eligibilityMethod, engineerKind, CreatePracticeMapEntry("Eiger", GameModeKind.CaptureTheFlag)));
-        Assert.False(InvokeLastToDieRotationEligibility(eligibilityMethod, engineerKind, CreatePracticeMapEntry("Valley", GameModeKind.KingOfTheHill)));
+        Assert.True(InvokeLastToDieRotationEligibility(eligibilityMethod, engineerKind, CreatePracticeMapEntry("Valley", GameModeKind.KingOfTheHill)));
+        Assert.False(InvokeLastToDieRotationEligibility(eligibilityMethod, engineerKind, CreatePracticeMapEntry("Dirtbowl", GameModeKind.ControlPoint)));
         Assert.False(InvokeLastToDieRotationEligibility(eligibilityMethod, engineerKind, CreatePracticeMapEntry("Conflict", GameModeKind.CaptureTheFlag, isCustomMap: true)));
     }
 
@@ -357,6 +444,22 @@ public sealed class OfflinePracticeSelectionTests
 
         Assert.NotNull(property);
         return (string)property.GetValue(entry)!;
+    }
+
+    private static string GetPracticeMapDisplayName(object entry)
+    {
+        var property = entry.GetType().GetProperty("DisplayName", BindingFlags.Instance | BindingFlags.Public);
+
+        Assert.NotNull(property);
+        return (string)property.GetValue(entry)!;
+    }
+
+    private static bool GetPracticeMapIsCustom(object entry)
+    {
+        var property = entry.GetType().GetProperty("IsCustomMap", BindingFlags.Instance | BindingFlags.Public);
+
+        Assert.NotNull(property);
+        return (bool)property.GetValue(entry)!;
     }
 
     private static string[] GetPracticeAvailableMapLevelNames(Type setupStateType, object state)

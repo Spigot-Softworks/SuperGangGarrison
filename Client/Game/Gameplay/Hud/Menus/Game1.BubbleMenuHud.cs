@@ -19,7 +19,7 @@ public partial class Game1
             return;
         }
 
-        var bubbleMenuMouse = GetScaledMouseState(GetConstrainedMouseState(GetCurrentMouseState()));
+        var bubbleMenuMouse = GetFrameMouseState();
         var renderState = new ClientBubbleMenuRenderState(
             ToClientBubbleMenuKind(_bubbleMenuKind),
             _bubbleMenuAlpha,

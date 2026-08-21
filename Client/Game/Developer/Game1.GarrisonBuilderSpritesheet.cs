@@ -403,11 +403,17 @@ public partial class Game1
             return;
         }
 
+        var previousResourceName = _builderPropertyEditorValues.TryGetValue(
+            SpritesheetMetadata.ImagePropertyKey,
+            out var previous)
+            ? previous
+            : string.Empty;
         var resources = new Dictionary<string, CustomMapBuilderResource>(_builderDocument.Resources, StringComparer.OrdinalIgnoreCase);
         var resourceName = SpritesheetMetadata.FindOrAssignImageResource(selectedPath, resources);
         _builderDocument = _builderDocument with { Resources = resources };
         _builderPropertyEditorValues[SpritesheetMetadata.ImagePropertyKey] = resourceName;
         ApplyGarrisonBuilderPropertyEditorLivePreview();
+        PruneGarrisonBuilderResourceIfUnreferenced(previousResourceName);
         MarkGarrisonBuilderPropertyEditorChanged();
     }
 
@@ -429,6 +435,8 @@ public partial class Game1
         }
 
         (width, height) = SpritesheetMetadata.ResolveWorldDimensions(imageWidth, imageHeight, configuration.Scale, configuration);
+        width *= NormalizeGarrisonBuilderEntityScale(entity.XScale);
+        height *= NormalizeGarrisonBuilderEntityScale(entity.YScale);
         return true;
     }
 

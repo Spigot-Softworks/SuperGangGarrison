@@ -58,7 +58,9 @@ public partial class Game1
 
     private bool IsGameplayDeathCamActive()
     {
-        return _killCamEnabled && _world.LocalDeathCam is not null;
+        return !IsHostedLastToDieActive()
+            && _killCamEnabled
+            && _world.LocalDeathCam is not null;
     }
 
     private bool IsGameplaySelectionOverlayVisible()
@@ -126,6 +128,11 @@ public partial class Game1
 
     private bool ShouldSuppressGameplayHudForActiveOverlay()
     {
+        if (IsHostedLastToDieBlockingGameplay())
+        {
+            return true;
+        }
+
         return GetActiveGameplayOverlay() switch
         {
             GameplayOverlayKind.None => false,
@@ -157,6 +164,7 @@ public partial class Game1
             || _scoreboardOpen
             || IsGameplaySelectionOverlayVisible()
             || HasOpenGameplayBlockingMenu()
+            || IsHostedLastToDieBlockingGameplay()
             || ShouldBlockGameplayForGarrisonBuilder();
     }
 }

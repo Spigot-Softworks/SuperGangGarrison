@@ -996,6 +996,7 @@ internal static class Og2AlphaNavigationDiagnostics
                     Console.WriteLine(
                         $"alphaCaptureInput map={mapName} team={team} class={playerClass} tick={tick} " +
                         $"pos=({bot.X:0.0},{bot.Y:0.0}) grounded={(bot.IsGrounded ? 1 : 0)} " +
+                        $"pogo={(bot.IsCivviePogoActive ? 1 : 0)} pogoSuper={(bot.IsCivviePogoSuperJumpAirPhaseActive ? 1 : 0)} " +
                         $"input=({(input.Left ? 'L' : input.Right ? 'R' : '-')}{(input.Up ? 'J' : '-')}) " +
                         $"path={controller.CurrentPathIndex}/{controller.CurrentPathCount} node={controller.CurrentPathNode} " +
                         $"edge={controller.LastSteeringOutput.RecipeTrace.FromNode}->{controller.LastSteeringOutput.RecipeTrace.ToNode} " +
@@ -1200,9 +1201,7 @@ internal static class Og2AlphaNavigationDiagnostics
         => rawOptions.TryGetValue(key, out var text) && bool.TryParse(text, out var value) ? value : fallback;
 
     private static string NormalizeMapName(string requestedMap)
-        => requestedMap.Equals("Docking", StringComparison.OrdinalIgnoreCase)
-            ? "cp_docking_v2"
-            : requestedMap;
+        => requestedMap;
 
     private static void TryRegisterPackagedQuoteCurlyGameplayPack()
     {

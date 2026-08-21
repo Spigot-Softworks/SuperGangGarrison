@@ -213,13 +213,13 @@ public partial class Game1
         {
             if (string.Equals(effectName, "BackstabBlue", StringComparison.OrdinalIgnoreCase))
             {
-                SpawnBackstabVisual(ownerId: count, PlayerTeam.Blue, x, y, directionDegrees);
+                _game.SpawnBackstabVisual(ownerId: count, PlayerTeam.Blue, x, y, directionDegrees);
                 return true;
             }
 
             if (string.Equals(effectName, "BackstabRed", StringComparison.OrdinalIgnoreCase))
             {
-                SpawnBackstabVisual(ownerId: count, PlayerTeam.Red, x, y, directionDegrees);
+                _game.SpawnBackstabVisual(ownerId: count, PlayerTeam.Red, x, y, directionDegrees);
                 return true;
             }
 
@@ -259,7 +259,13 @@ public partial class Game1
             SpawnBloodImpactVisuals(x, y, 270f, burstCount);
         }
 
-        public void SpawnBackstabVisual(int ownerId, PlayerTeam team, float x, float y, float directionDegrees)
+        public void SpawnBackstabVisual(
+            int ownerId,
+            PlayerTeam team,
+            float x,
+            float y,
+            float directionDegrees,
+            int speedMultiplier = 1)
         {
             var normalizedDirection = NormalizeDirectionDegrees(directionDegrees);
             for (var index = 0; index < _game._backstabVisuals.Count; index += 1)
@@ -268,7 +274,14 @@ public partial class Game1
                 if (ownerId != 0 && animation.OwnerId == ownerId)
                 {
                     _game._backstabVisuals[index] = new BackstabVisual(
-                        new StabAnimEntity(_game._nextClientBackstabVisualId--, ownerId, team, x, y, normalizedDirection));
+                        new StabAnimEntity(
+                            _game._nextClientBackstabVisualId--,
+                            ownerId,
+                            team,
+                            x,
+                            y,
+                            normalizedDirection,
+                            speedMultiplier));
                     return;
                 }
 
@@ -296,7 +309,14 @@ public partial class Game1
             }
 
             _game._backstabVisuals.Add(new BackstabVisual(
-                new StabAnimEntity(_game._nextClientBackstabVisualId--, ownerId, team, x, y, normalizedDirection)));
+                new StabAnimEntity(
+                    _game._nextClientBackstabVisualId--,
+                    ownerId,
+                    team,
+                    x,
+                    y,
+                    normalizedDirection,
+                    speedMultiplier)));
         }
 
         public void ResetBackstabVisuals()

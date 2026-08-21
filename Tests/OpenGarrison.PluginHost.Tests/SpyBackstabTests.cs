@@ -1,4 +1,5 @@
 using OpenGarrison.Core;
+using OpenGarrison.Core.LastToDie;
 using System.Reflection;
 using Xunit;
 
@@ -90,6 +91,137 @@ public sealed class SpyBackstabTests
             allowDropdownFallThrough: false);
 
         Assert.InRange(player.HorizontalSpeed, 0.01f, horizontalSpeedBeforeBackstab - 0.01f);
+    }
+
+    [Fact]
+    public void CloakedPrimaryStartsBackstabWithoutAContactTarget()
+    {
+        var world = CreateSpyCombatWorld();
+        var spy = world.LocalPlayer;
+        spy.TeleportTo(0f, 0f);
+        Assert.True(spy.TryToggleSpyCloak());
+
+        world.SetLocalInput(CreatePrimaryInput(spy.X + 256f, spy.Y));
+        world.AdvanceOneTick();
+
+        var animation = Assert.Single(world.StabAnimations);
+        Assert.Equal(spy.Id, animation.OwnerId);
+        Assert.Equal(PlayerEntity.SpyBackstabWindupTicksDefault, spy.SpyBackstabWindupTicksRemaining);
+        Assert.Contains(
+            world.PendingVisualEvents,
+            effect => effect.EffectName == "BackstabRed" && effect.Count == spy.Id);
+    }
+
+    [Fact]
+    public void ProfessionalCloakedPrimaryStillBackstabsUnlessSecondaryIsHeld()
+    {
+        var world = CreateSpyCombatWorld();
+        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+            SimulationWorld.LocalPlayerSlot,
+            [LastToDiePerkIds.Spy.Professional],
+            resetDynamicState: true));
+        var spy = world.LocalPlayer;
+        Assert.True(spy.TryToggleSpyCloak());
+
+        world.SetLocalInput(CreatePrimaryInput(spy.X + 256f, spy.Y));
+        world.AdvanceOneTick();
+
+        Assert.Single(world.StabAnimations);
+        Assert.Empty(world.RevolverShots);
+        Assert.True(spy.IsSpyBackstabAnimating);
+    }
+
+    [Fact]
+    public void ProfessionalSecondaryTapDefersDecloakUntilRelease()
+    {
+        var world = CreateSpyCombatWorld();
+        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+            SimulationWorld.LocalPlayerSlot,
+            [LastToDiePerkIds.Spy.Professional],
+            resetDynamicState: true));
+        var spy = world.LocalPlayer;
+        Assert.True(spy.TryToggleSpyCloak());
+
+        world.SetLocalInput(CreateCombatInput(spy.X + 256f, spy.Y, fireSecondary: true));
+        world.AdvanceOneTick();
+
+        Assert.True(spy.IsSpyCloaked);
+        Assert.Equal((byte)1, spy.LastToDieProfessionalFireChordState);
+
+        world.SetLocalInput(default);
+        world.AdvanceOneTick();
+
+        Assert.False(spy.IsSpyCloaked);
+        Assert.Equal((byte)0, spy.LastToDieProfessionalFireChordState);
+    }
+
+    [Fact]
+    public void ProfessionalSecondaryHoldFiresCloakedRevolverAndReleaseDoesNotDecloak()
+    {
+        var world = CreateSpyCombatWorld();
+        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+            SimulationWorld.LocalPlayerSlot,
+            [LastToDiePerkIds.Spy.Professional],
+            resetDynamicState: true));
+        var spy = world.LocalPlayer;
+        var enemy = AddEnemy(world, slot: 2, x: 24f, y: 0f);
+        Assert.True(spy.TryToggleSpyCloak());
+        var fullMeter = spy.LastToDieSpyCloakMeterMaximumUnits;
+
+        world.SetLocalInput(CreateCombatInput(
+            enemy.X,
+            enemy.Y,
+            firePrimary: true,
+            fireSecondary: true));
+        world.AdvanceOneTick();
+
+        Assert.Single(world.RevolverShots);
+        Assert.Empty(world.StabAnimations);
+        Assert.True(spy.IsSpyCloaked);
+        Assert.Equal((byte)2, spy.LastToDieProfessionalFireChordState);
+        Assert.Equal(fullMeter - (fullMeter / 5), spy.LastToDieSpyCloakMeterUnits);
+
+        world.SetLocalInput(default);
+        world.AdvanceOneTick();
+
+        Assert.True(spy.IsSpyCloaked);
+        Assert.Equal((byte)0, spy.LastToDieProfessionalFireChordState);
+    }
+
+    [Fact]
+    public void InstastabPrimarySpawnsVisualAndHitsAfterAcceleratedWindup()
+    {
+        var world = CreateSpyCombatWorld();
+        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+            SimulationWorld.LocalPlayerSlot,
+            [LastToDiePerkIds.Spy.Instastab],
+            resetDynamicState: true));
+        var spy = world.LocalPlayer;
+        spy.TeleportTo(0f, 0f);
+        var enemy = AddEnemy(world, slot: 2, x: 24f, y: 0f);
+        Assert.True(spy.TryToggleSpyCloak());
+
+        world.SetLocalInput(CreatePrimaryInput(enemy.X, enemy.Y));
+        world.AdvanceOneTick();
+
+        var animation = Assert.Single(world.StabAnimations);
+        Assert.Equal(LastToDieDerivedModifiers.SpyInstastabSpeedMultiplier, animation.SpeedMultiplier);
+        Assert.Equal(11, animation.LifetimeTicks);
+        Assert.Equal(6, spy.SpyBackstabWindupTicksRemaining);
+
+        world.SetLocalInput(default);
+        for (var tick = 0; tick < 7; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        Assert.False(enemy.IsAlive);
+        Assert.Empty(world.StabMasks);
+        Assert.Contains(
+            world.PendingDamageEvents,
+            damageEvent => damageEvent.AttackerPlayerId == spy.Id
+                && damageEvent.TargetEntityId == enemy.Id
+                && damageEvent.Amount == enemy.MaxHealth);
     }
 
     [Fact]
@@ -274,6 +406,28 @@ public sealed class SpyBackstabTests
         return enemy;
     }
 
+    private static PlayerInputSnapshot CreatePrimaryInput(float aimWorldX, float aimWorldY) =>
+        CreateCombatInput(aimWorldX, aimWorldY, firePrimary: true);
+
+    private static PlayerInputSnapshot CreateCombatInput(
+        float aimWorldX,
+        float aimWorldY,
+        bool firePrimary = false,
+        bool fireSecondary = false) =>
+        new(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: firePrimary,
+            FireSecondary: fireSecondary,
+            AimWorldX: aimWorldX,
+            AimWorldY: aimWorldY,
+            DebugKill: false);
+
     private static void SetCombatLevel(SimulationWorld world, SimpleLevel level)
     {
         var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -281,7 +435,7 @@ public sealed class SpyBackstabTests
         _ = method!.Invoke(world, [level]);
     }
 
-    private static (float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry) GetNearestStabHit(
+    private static (float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, int HitDamageableZoneRoomObjectIndex) GetNearestStabHit(
         SimulationWorld world,
         StabMaskEntity mask)
     {
@@ -289,7 +443,7 @@ public sealed class SpyBackstabTests
         Assert.NotNull(method);
         var result = method!.Invoke(world, [mask, mask.FacingLeft ? -1f : 1f, 0f]);
         Assert.NotNull(result);
-        return ((float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry))result!;
+        return ((float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, int HitDamageableZoneRoomObjectIndex))result!;
     }
 
     private static void InvokeFirePrimaryWeapon(SimulationWorld world, PlayerEntity player, float aimWorldX, float aimWorldY)

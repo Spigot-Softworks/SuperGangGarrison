@@ -1,3 +1,5 @@
+using OpenGarrison.Core.LastToDie;
+
 namespace OpenGarrison.Core;
 
 public sealed class RevolverProjectileEntity : SimulationEntity
@@ -15,7 +17,9 @@ public sealed class RevolverProjectileEntity : SimulationEntity
         float velocityX,
         float velocityY,
         float damagePerHit = DamagePerHit,
-        string? killFeedWeaponSpriteNameOverride = null) : base(id)
+        string? killFeedWeaponSpriteNameOverride = null,
+        LastToDieSpyRevolverProfile? lastToDieProfile = null,
+        bool appliesLuckyStrikeStun = false) : base(id)
     {
         Team = team;
         OwnerId = ownerId;
@@ -25,6 +29,8 @@ public sealed class RevolverProjectileEntity : SimulationEntity
         VelocityY = velocityY;
         DamageValue = damagePerHit;
         KillFeedWeaponSpriteNameOverride = killFeedWeaponSpriteNameOverride;
+        LastToDieProfile = lastToDieProfile ?? LastToDieSpyRevolverProfile.Stock;
+        AppliesLuckyStrikeStun = appliesLuckyStrikeStun;
         TicksRemaining = LifetimeTicks;
     }
 
@@ -48,11 +54,24 @@ public sealed class RevolverProjectileEntity : SimulationEntity
 
     public string? KillFeedWeaponSpriteNameOverride { get; }
 
+    public LastToDieSpyRevolverProfile LastToDieProfile { get; }
+
+    public bool AppliesLuckyStrikeStun { get; }
+
     public bool IsCritical { get; private set; }
 
-    public float CriticalDamageMultiplier => IsCritical ? ExperimentalGameplaySettings.KritzCriticalDamageMultiplier : 1f;
+    public float CriticalDamageMultiplier { get; private set; } = 1f;
 
-    public void SetCritical() { IsCritical = true; }
+    public void SetCritical(float damageMultiplier = ExperimentalGameplaySettings.KritzCriticalDamageMultiplier)
+        => HydrateCritical(true, damageMultiplier);
+
+    public void HydrateCritical(bool isCritical, float damageMultiplier)
+    {
+        IsCritical = isCritical;
+        CriticalDamageMultiplier = isCritical
+            ? ExperimentalGameplaySettings.NormalizeCriticalDamageMultiplier(damageMultiplier)
+            : 1f;
+    }
 
     public int TicksRemaining { get; private set; }
 
@@ -100,6 +119,5 @@ public sealed class RevolverProjectileEntity : SimulationEntity
         VelocityX = velocityX;
         VelocityY = velocityY;
         TicksRemaining = ticksRemaining;
-        DamageValue = DamagePerHit;
     }
 }

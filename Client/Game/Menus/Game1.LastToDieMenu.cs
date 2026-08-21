@@ -15,6 +15,7 @@ public partial class Game1
     {
         Root,
         Difficulty,
+        CoOp,
         Stats,
     }
 
@@ -27,12 +28,16 @@ public partial class Game1
     private bool _lastToDieMenuOpen;
     private LastToDieMenuPage _lastToDieMenuPage;
     private int _lastToDieMenuHoverIndex = -1;
+    private bool _lastToDieFriendsHover;
     private LoadedSpriteFrame? _lastToDieLogoTexture;
     private string? _lastToDieLogoTexturePath;
 
     private bool IsLastToDieMenuActive()
     {
-        return _mainMenuOpen && _lastToDieMenuOpen;
+        return _mainMenuOpen
+            && (_lastToDieMenuOpen
+                || _lastToDieRoomCodeJoinOpen
+                || _lastToDieConnectionPresentationPending);
     }
 
     private void OpenLastToDieMenu(string? statusMessage = null)
@@ -71,6 +76,10 @@ public partial class Game1
             {
                 OpenLastToDieDifficultyPage(false);
             }
+            else if (_lastToDieMenuPage == LastToDieMenuPage.CoOp)
+            {
+                OpenLastToDieCoOpPage(false);
+            }
             else
             {
                 CloseLastToDieMenu();
@@ -79,32 +88,40 @@ public partial class Game1
             return;
         }
 
+        var navigationCount = buttonLabels.Length + 1;
         if (IsKeyPressed(keyboard, Keys.Up))
         {
-            SetLastToDieMenuHoverIndex((_lastToDieMenuHoverIndex <= 0 ? buttonLabels.Length : _lastToDieMenuHoverIndex) - 1, buttonLabels.Length);
+            SetLastToDieMenuHoverIndex((_lastToDieMenuHoverIndex <= 0 ? navigationCount : _lastToDieMenuHoverIndex) - 1, navigationCount);
         }
         else if (IsKeyPressed(keyboard, Keys.Down))
         {
-            SetLastToDieMenuHoverIndex((_lastToDieMenuHoverIndex + 1 + buttonLabels.Length) % buttonLabels.Length, buttonLabels.Length);
+            SetLastToDieMenuHoverIndex((_lastToDieMenuHoverIndex + 1 + navigationCount) % navigationCount, navigationCount);
         }
 
         if (TryConsumeControllerMenuNavigation(out _, out var verticalStep) && verticalStep != 0)
         {
             SetLastToDieMenuHoverIndex(
-                MoveControllerMenuSelection(_lastToDieMenuHoverIndex, buttonLabels.Length, verticalStep),
-                buttonLabels.Length);
+                MoveControllerMenuSelection(_lastToDieMenuHoverIndex, navigationCount, verticalStep),
+                navigationCount);
         }
 
-        var hoveredButtonIndex = ShouldUseMouseMenuHover(mouse)
+        var useMouseHover = ShouldUseMouseMenuHover(mouse);
+        var friendsBounds = GetLastToDieFriendsButtonBounds(layout.Scale);
+        _lastToDieFriendsHover = useMouseHover && friendsBounds.Contains(mouse.Position);
+        var hoveredButtonIndex = useMouseHover
             ? GetHoveredLastToDieMenuButtonIndex(mouse.Position, layout)
             : -1;
         if (hoveredButtonIndex >= 0)
         {
             _lastToDieMenuHoverIndex = hoveredButtonIndex;
         }
+        else if (_lastToDieFriendsHover)
+        {
+            _lastToDieMenuHoverIndex = buttonLabels.Length;
+        }
         else if (IsControllerMenuInputActive() && _lastToDieMenuHoverIndex < 0)
         {
-            SetLastToDieMenuHoverIndex(0, buttonLabels.Length);
+            SetLastToDieMenuHoverIndex(0, navigationCount);
         }
         else if (_lastToDieMenuHoverIndex < 0 && buttonLabels.Length > 0)
         {
@@ -113,14 +130,25 @@ public partial class Game1
 
         if (IsKeyPressed(keyboard, Keys.Enter) || IsControllerMenuConfirmPressed())
         {
-            ActivateLastToDieMenuButton(_lastToDieMenuHoverIndex >= 0 ? _lastToDieMenuHoverIndex : 0);
+            if (_lastToDieMenuHoverIndex == buttonLabels.Length)
+            {
+                OpenFriendsMenu();
+            }
+            else
+            {
+                ActivateLastToDieMenuButton(_lastToDieMenuHoverIndex >= 0 ? _lastToDieMenuHoverIndex : 0);
+            }
             return;
         }
 
         var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
-        if (clickPressed && _lastToDieMenuHoverIndex >= 0)
+        if (clickPressed && _lastToDieFriendsHover)
         {
-            ActivateLastToDieMenuButton(_lastToDieMenuHoverIndex);
+            OpenFriendsMenu();
+        }
+        else if (clickPressed && hoveredButtonIndex >= 0)
+        {
+            ActivateLastToDieMenuButton(hoveredButtonIndex);
         }
     }
 
@@ -130,7 +158,8 @@ public partial class Game1
         {
             LastToDieMenuPage.Stats => ["Back"],
             LastToDieMenuPage.Difficulty => ["Standard", "Hardcore", "Back"],
-            _ => ["Play", "Stats", "Back"],
+            LastToDieMenuPage.CoOp => ["Create", "Join", "Back"],
+            _ => ["Play Solo", "Play Co-Op", "Stats", "Back"],
         };
     }
 
@@ -149,13 +178,29 @@ public partial class Game1
                 switch (index)
                 {
                     case 0:
-                        TryStartLastToDieRun(LastToDieDifficulty.Standard);
+                        TryStartSoloLastToDieRun(OpenGarrison.Core.LastToDie.LastToDieDifficulty.Standard);
                         break;
                     case 1:
-                        TryStartLastToDieRun(LastToDieDifficulty.Hardcore);
+                        TryStartSoloLastToDieRun(OpenGarrison.Core.LastToDie.LastToDieDifficulty.Hardcore);
                         break;
                     case 2:
                         OpenLastToDieDifficultyPage(false);
+                        break;
+                }
+                break;
+
+            case LastToDieMenuPage.CoOp:
+                switch (index)
+                {
+                    case 0:
+                        TryStartHostedLastToDieRun(
+                            OpenGarrison.Core.LastToDie.LastToDieDifficulty.Standard);
+                        break;
+                    case 1:
+                        OpenLastToDieRoomCodeJoin();
+                        break;
+                    case 2:
+                        OpenLastToDieCoOpPage(false);
                         break;
                 }
                 break;
@@ -167,9 +212,12 @@ public partial class Game1
                         OpenLastToDieDifficultyPage(true);
                         break;
                     case 1:
-                        OpenLastToDieStatsPage(true);
+                        OpenLastToDieCoOpPage(true);
                         break;
                     case 2:
+                        OpenLastToDieStatsPage(true);
+                        break;
+                    case 3:
                         CloseLastToDieMenu();
                         break;
                 }
@@ -186,6 +234,12 @@ public partial class Game1
     private void OpenLastToDieDifficultyPage(bool open)
     {
         _lastToDieMenuPage = open ? LastToDieMenuPage.Difficulty : LastToDieMenuPage.Root;
+        _lastToDieMenuHoverIndex = 0;
+    }
+
+    private void OpenLastToDieCoOpPage(bool open)
+    {
+        _lastToDieMenuPage = open ? LastToDieMenuPage.CoOp : LastToDieMenuPage.Root;
         _lastToDieMenuHoverIndex = 0;
     }
 
@@ -274,19 +328,39 @@ public partial class Game1
         return -1;
     }
 
+    private Rectangle GetLastToDieFriendsButtonBounds(float scale)
+    {
+        var texture = _lastToDieMenuTextBoxSoloTexture ?? _menuTextBoxSoloTexture;
+        if (texture is null)
+        {
+            return Rectangle.Empty;
+        }
+
+        const int bottomBarHeight = 76;
+        var width = Math.Max(1, (int)MathF.Round(texture.Width * scale));
+        var height = Math.Max(1, (int)MathF.Round(texture.Height * scale));
+        var rightMargin = MathF.Max(20f, ViewportWidth * 0.04f);
+        return new Rectangle(
+            ViewportWidth - (int)MathF.Round(rightMargin) - width,
+            ViewportHeight - bottomBarHeight + ((bottomBarHeight - height) / 2),
+            width,
+            height);
+    }
+
     private void DrawLastToDieMenu()
     {
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), new Color(4, 6, 10, 220));
 
-        // Draw bottom bar and runners (in animated mode only) - behind everything else
+        // The LTD screen has its own gray footer treatment. Animated backgrounds
+        // additionally get the usual runner silhouettes.
+        const int bottomBarHeight = 76;
+        var barY = viewportHeight - bottomBarHeight;
+        var bottomBarBounds = new Rectangle(0, barY, viewportWidth, bottomBarHeight);
+        _spriteBatch.Draw(_pixel, bottomBarBounds, new Color(0x4b, 0x4d, 0x50));
         if (_menuBackgroundMode != MenuBackgroundMode.Static)
         {
-            const int bottomBarHeight = 76;
-            var barY = viewportHeight - bottomBarHeight;
-            var bottomBarBounds = new Rectangle(0, barY, viewportWidth, bottomBarHeight);
-            _spriteBatch.Draw(_pixel, bottomBarBounds, new Color(0x57, 0x4f, 0x47));
             _menuBottomBarRunners.Draw(bottomBarBounds);
         }
 
@@ -316,6 +390,14 @@ public partial class Game1
             DrawLastToDieMenuButton(buttonTexture, layout.ButtonBounds[index], buttonLabels[index], hovered: index == _lastToDieMenuHoverIndex, layout.Scale);
         }
 
+        var friendsBounds = GetLastToDieFriendsButtonBounds(layout.Scale);
+        DrawLastToDieMenuButton(
+            buttonTexture,
+            friendsBounds,
+            "Friends",
+            hovered: _lastToDieFriendsHover || _lastToDieMenuHoverIndex == buttonLabels.Length,
+            layout.Scale);
+
         if (!string.IsNullOrWhiteSpace(_menuStatusMessage))
         {
             DrawShadowedMenuBitmapFontText(
@@ -342,26 +424,14 @@ public partial class Game1
         {
             LastToDieMenuPage.Stats => "Stats",
             LastToDieMenuPage.Difficulty => "Difficulty",
+            LastToDieMenuPage.CoOp => "Co-op",
             _ => "Last to Die",
         };
-        var subtitle = _lastToDieMenuPage == LastToDieMenuPage.Stats
-            ? "Track your best solo runs."
-            : _lastToDieMenuPage == LastToDieMenuPage.Difficulty
-                ? string.Empty
-                : "Survive the escalating gauntlet.";
         DrawShadowedMenuBitmapFontText(
             title,
             new Vector2(layout.ContentBounds.X, layout.ContentBounds.Y),
             Color.White,
             1.06f * layout.Scale);
-        if (!string.IsNullOrEmpty(subtitle))
-        {
-            DrawShadowedMenuBitmapFontText(
-                subtitle,
-                new Vector2(layout.ContentBounds.X, layout.ContentBounds.Y + (26f * layout.Scale)),
-                new Color(236, 236, 236),
-                0.58f * layout.Scale);
-        }
     }
 
     private void DrawLastToDieStatsPage(LastToDieMenuLayout layout)
@@ -485,7 +555,7 @@ public partial class Game1
             return;
         }
 
-        const float targetWidth = 300f;
+        const float targetWidth = 420f;
         var scale = targetWidth / Math.Max(1f, _lastToDieLogoTexture.Width);
         var targetHeight = _lastToDieLogoTexture.Height * scale;
         var destination = new Rectangle(
@@ -498,7 +568,7 @@ public partial class Game1
 
     private void EnsureLastToDieLogoTexture()
     {
-        var path = ContentRoot.GetPath("Sprites", "Menu", "LastToDie", "last2die.png");
+        var path = ContentRoot.GetPath("Sprites", "Menu", "LastToDie", "logo.png");
         if (string.IsNullOrWhiteSpace(path) || !CanLoadSpriteFrameFromPath(path))
         {
             DisposeLastToDieLogoTexture();

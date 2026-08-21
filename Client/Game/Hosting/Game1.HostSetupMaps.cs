@@ -195,7 +195,7 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, dropdownBounds, new Color(46, 40, 35, 255));
         DrawRoundedRectangleOutline(dropdownBounds, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 2, radius: 6);
 
-        var mousePosition = GetScaledMouseState(GetConstrainedMouseState(Game1.GetCurrentMouseState())).Position;
+        var mousePosition = GetFrameMouseState().Position;
         for (var index = 0; index < options.Count; index += 1)
         {
             var optionBounds = new Rectangle(
@@ -634,16 +634,18 @@ public partial class Game1
     private HostSetupMapPreviewState CreateHostSetupMapPreviewState(SimpleLevel level)
     {
         Texture2D? stockBackground = null;
-        if (TryGetLevelBackgroundFileTexture(level.BackgroundAssetName, out var fileBackground))
+        var ownsStockBackground = false;
+        if (TryLoadIndependentLevelBackgroundTexture(level.BackgroundAssetName, out var fileBackground))
         {
             stockBackground = fileBackground;
+            ownsStockBackground = true;
         }
         else if (!string.IsNullOrWhiteSpace(level.BackgroundAssetName) && _runtimeAssets is not null)
         {
             stockBackground = _runtimeAssets.GetBackground(level.BackgroundAssetName);
         }
 
-        return HostSetupMapPreviewState.Create(this, level, _pixel, stockBackground);
+        return HostSetupMapPreviewState.Create(this, level, _pixel, stockBackground, ownsStockBackground);
     }
 
     private HostSetupMapContextMenuState CreateHostSetupMapContextMenu(Point position, OpenGarrisonMapRotationEntry entry, bool isPlaylistList)

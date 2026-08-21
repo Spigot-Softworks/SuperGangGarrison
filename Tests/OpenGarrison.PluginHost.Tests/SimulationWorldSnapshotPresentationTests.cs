@@ -1,5 +1,6 @@
 using System.Reflection;
 using OpenGarrison.Core;
+using OpenGarrison.Core.LastToDie;
 using OpenGarrison.Protocol;
 using Xunit;
 
@@ -7,6 +8,135 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class SimulationWorldSnapshotPresentationTests
 {
+    [Fact]
+    public void ApplySnapshotRetainsPendingSoundEventsAcrossNewerSnapshots()
+    {
+        var world = new SimulationWorld();
+        var local = CreatePlayerState(1, 101, "Local", PlayerTeam.Red, PlayerClass.Scout, isAlive: true, gibDeaths: 0);
+        var first = CreateSnapshot(world, frame: 80, localPlayer: local) with
+        {
+            SoundEvents =
+            [
+                new SnapshotSoundEvent("JumpSnd", 128f, 96f, EventId: 7001, SourceFrame: 80, SourcePlayerId: 101),
+            ],
+        };
+        var second = CreateSnapshot(world, frame: 81, localPlayer: local) with
+        {
+            SoundEvents =
+            [
+                new SnapshotSoundEvent("RocketSnd", 160f, 96f, EventId: 7002, SourceFrame: 81, SourcePlayerId: 202),
+            ],
+        };
+        var retransmit = CreateSnapshot(world, frame: 82, localPlayer: local) with
+        {
+            SoundEvents =
+            [
+                new SnapshotSoundEvent("JumpSnd", 128f, 96f, EventId: 7001, SourceFrame: 80, SourcePlayerId: 101),
+            ],
+        };
+
+        Assert.True(world.ApplySnapshot(first, localPlayerSlot: 1));
+        Assert.True(world.ApplySnapshot(second, localPlayerSlot: 1));
+        Assert.True(world.ApplySnapshot(retransmit, localPlayerSlot: 1));
+
+        Assert.Equal(2, world.PendingSoundEvents.Count);
+        Assert.Contains(world.PendingSoundEvents, sound => sound.EventId == 7001);
+        Assert.Contains(world.PendingSoundEvents, sound => sound.EventId == 7002);
+    }
+
+    [Fact]
+    public void ApplySnapshotRecreatesRevolverWithItsImmutablePerkPayload()
+    {
+        var world = new SimulationWorld();
+        var profile = LastToDieSpyRevolverProfile.FromPerks(
+            new HashSet<LastToDiePerkId>
+            {
+                LastToDiePerkIds.Spy.Blunderbuss1,
+                LastToDiePerkIds.Spy.Blunderbuss2,
+                LastToDiePerkIds.Spy.Ricochet,
+                LastToDiePerkIds.Spy.LuckyStrike,
+            });
+        var snapshot = CreateSnapshot(
+            world,
+            frame: 80,
+            localPlayer: CreatePlayerState(1, 101, "Local", PlayerTeam.Red, PlayerClass.Scout, isAlive: true, gibDeaths: 0),
+            remotePlayer: CreatePlayerState(2, 202, "Remote Spy", PlayerTeam.Blue, PlayerClass.Spy, isAlive: true, gibDeaths: 0)) with
+        {
+            RevolverShots =
+            [
+                new SnapshotShotState(
+                    900,
+                    (byte)PlayerTeam.Blue,
+                    202,
+                    128f,
+                    96f,
+                    12f,
+                    0f,
+                    20,
+                    IsCritical: true,
+                    DamageValue: 11.2f,
+                    LastToDieRevolverProfile: profile.Encode(),
+                    AppliesLuckyStrikeStun: true),
+            ],
+        };
+
+        Assert.True(world.ApplySnapshot(snapshot, localPlayerSlot: 1));
+
+        var shot = Assert.Single(world.RevolverShots);
+        Assert.Equal(11.2f, shot.DamageValue);
+        Assert.Equal(profile, shot.LastToDieProfile);
+        Assert.True(shot.IsCritical);
+        Assert.True(shot.AppliesLuckyStrikeStun);
+    }
+
+    [Fact]
+    public void ApplySnapshotReplacesRevolverWhenAuthoritativeImmutablePayloadDiffers()
+    {
+        var world = new SimulationWorld();
+        var local = CreatePlayerState(1, 101, "Local", PlayerTeam.Red, PlayerClass.Scout, isAlive: true, gibDeaths: 0);
+        var owner = CreatePlayerState(2, 202, "Remote Spy", PlayerTeam.Blue, PlayerClass.Spy, isAlive: true, gibDeaths: 0);
+        var initial = CreateSnapshot(world, frame: 90, localPlayer: local, remotePlayer: owner) with
+        {
+            RevolverShots =
+            [
+                new SnapshotShotState(901, (byte)PlayerTeam.Blue, 202, 128f, 96f, 12f, 0f, 20),
+            ],
+        };
+        var profile = LastToDieSpyRevolverProfile.FromPerks(
+            new HashSet<LastToDiePerkId>
+            {
+                LastToDiePerkIds.Spy.Ricochet,
+                LastToDiePerkIds.Spy.LuckyStrike,
+            });
+        var corrected = CreateSnapshot(world, frame: 91, localPlayer: local, remotePlayer: owner) with
+        {
+            RevolverShots =
+            [
+                new SnapshotShotState(
+                    901,
+                    (byte)PlayerTeam.Blue,
+                    202,
+                    130f,
+                    96f,
+                    12f,
+                    0f,
+                    19,
+                    DamageValue: 28f,
+                    LastToDieRevolverProfile: profile.Encode(),
+                    AppliesLuckyStrikeStun: true),
+            ],
+        };
+
+        Assert.True(world.ApplySnapshot(initial, localPlayerSlot: 1));
+        var predicted = Assert.Single(world.RevolverShots);
+        Assert.True(world.ApplySnapshot(corrected, localPlayerSlot: 1));
+
+        var authoritative = Assert.Single(world.RevolverShots);
+        Assert.NotSame(predicted, authoritative);
+        Assert.Equal(profile, authoritative.LastToDieProfile);
+        Assert.True(authoritative.AppliesLuckyStrikeStun);
+    }
+
     [Fact]
     public void SpawnClientPlayerGibsFromNetworkDeathIncludesFullGibSet()
     {
@@ -456,6 +586,8 @@ public sealed class SimulationWorldSnapshotPresentationTests
                 true,
                 false,
                 true,
+                -1,
+                false,
             ]);
 
         killer.TeleportTo(320f, 192f);
@@ -494,6 +626,8 @@ public sealed class SimulationWorldSnapshotPresentationTests
                 true,
                 false,
                 true,
+                -1,
+                false,
             ]);
 
         killer.ForceSetHealth(12);
@@ -509,6 +643,7 @@ public sealed class SimulationWorldSnapshotPresentationTests
     {
         var world = new SimulationWorld();
         world.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.LocalPlayer.SetSpawnRoomState(false);
         Assert.True(world.TryPrepareNetworkPlayerJoin(2));
         Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
         Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
@@ -532,6 +667,8 @@ public sealed class SimulationWorldSnapshotPresentationTests
                 true,
                 false,
                 true,
+                -1,
+                false,
             ]);
 
         killer.TeleportTo(224f, 128f);
@@ -701,6 +838,8 @@ public sealed class SimulationWorldSnapshotPresentationTests
                 true,
                 false,
                 true,
+                -1,
+                false,
             ]);
     }
 }

@@ -23,6 +23,7 @@ public partial class Game1
     {
         Request,
         Message,
+        InviteToLastToDie,
         Join,
         Remove,
         Accept,
@@ -376,6 +377,9 @@ public partial class Game1
                 break;
             case FriendsContextMenuAction.Message:
                 TrySelectSelectedFriendForDirectMessage();
+                break;
+            case FriendsContextMenuAction.InviteToLastToDie:
+                TryInviteSelectedFriendToLastToDie();
                 break;
             case FriendsContextMenuAction.Join:
                 TryJoinSelectedFriend();
@@ -815,24 +819,53 @@ public partial class Game1
         }
         else if (_friendsMenuTab == FriendsMenuTab.Messages)
         {
-            actions =
-            [
-                FriendsContextMenuAction.Message,
-                FriendsContextMenuAction.Join,
-                FriendsContextMenuAction.Remove,
-            ];
-            labels = ["Message", "Join", "Remove"];
+            if (CanInviteToHostedLastToDie())
+            {
+                actions =
+                [
+                    FriendsContextMenuAction.Message,
+                    FriendsContextMenuAction.InviteToLastToDie,
+                    FriendsContextMenuAction.Join,
+                    FriendsContextMenuAction.Remove,
+                ];
+                labels = ["Message", "Invite to LTD", "Join", "Remove"];
+            }
+            else
+            {
+                actions =
+                [
+                    FriendsContextMenuAction.Message,
+                    FriendsContextMenuAction.Join,
+                    FriendsContextMenuAction.Remove,
+                ];
+                labels = ["Message", "Join", "Remove"];
+            }
         }
         else
         {
-            actions =
-            [
-                FriendsContextMenuAction.Request,
-                FriendsContextMenuAction.Message,
-                FriendsContextMenuAction.Join,
-                FriendsContextMenuAction.Remove,
-            ];
-            labels = ["Request", "Message", "Join", "Remove"];
+            if (CanInviteToHostedLastToDie())
+            {
+                actions =
+                [
+                    FriendsContextMenuAction.Request,
+                    FriendsContextMenuAction.Message,
+                    FriendsContextMenuAction.InviteToLastToDie,
+                    FriendsContextMenuAction.Join,
+                    FriendsContextMenuAction.Remove,
+                ];
+                labels = ["Request", "Message", "Invite to LTD", "Join", "Remove"];
+            }
+            else
+            {
+                actions =
+                [
+                    FriendsContextMenuAction.Request,
+                    FriendsContextMenuAction.Message,
+                    FriendsContextMenuAction.Join,
+                    FriendsContextMenuAction.Remove,
+                ];
+                labels = ["Request", "Message", "Join", "Remove"];
+            }
         }
 
         const int popupPadding = 8;
@@ -1315,15 +1348,55 @@ public partial class Game1
         return true;
     }
 
+    private bool CanInviteToHostedLastToDie()
+    {
+        if (_hostedSocialPresenceUdpPort <= 0
+            || !IsHostedServerRunning
+            || _networkClient.LastToDieState.Snapshot is not { } snapshot
+            || snapshot.Phase != OpenGarrison.Protocol.LastToDieWirePhase.Lobby)
+        {
+            return false;
+        }
+
+        return snapshot.Players.Any(player =>
+            player.Slot == _networkClient.LocalPlayerSlot && player.IsHost);
+    }
+
+    private bool TryInviteSelectedFriendToLastToDie()
+    {
+        if (!CanInviteToHostedLastToDie())
+        {
+            _menuStatusMessage = "Start a hosted Last to Die lobby before inviting friends.";
+            return false;
+        }
+
+        if (!TryGetSelectedFriend(out var friend))
+        {
+            _menuStatusMessage = "Choose a friend to invite.";
+            return false;
+        }
+
+        var sent = TrySendDirectMessage(
+            friend.FriendCode,
+            $"Last to Die invite from {GetSocialPresenceDisplayName()}. Open Social and select Join, or use code {_clientIdentity.FriendCode}.",
+            echoToChat: false);
+        if (sent)
+        {
+            _menuStatusMessage = $"Sending Last to Die invite to {friend.DisplayLabel}...";
+        }
+
+        return sent;
+    }
+
     private bool TryJoinSelectedFriend()
     {
-        if (!TryGetSelectedFriendPresence(out var presence) || !CanJoinFriendPresence(presence))
+        if (!TryGetSelectedFriendPresence(out var presence)
+            || !FriendPresenceSessionResolver.TryCreateJoinEndpoint(presence, out var endpoint))
         {
             _menuStatusMessage = "Friend is not on a joinable server.";
             return false;
         }
 
-        var endpoint = new NetworkEndpoint(presence.Host, presence.UdpPort, presence.WebSocketPort, presence.WebSocketUrl);
         var connected = TryConnectToServer(endpoint, addConsoleFeedback: false);
         if (connected)
         {
@@ -1335,7 +1408,8 @@ public partial class Game1
 
     private bool CanJoinSelectedFriend()
     {
-        return TryGetSelectedFriendPresence(out var presence) && CanJoinFriendPresence(presence);
+        return TryGetSelectedFriendPresence(out var presence)
+            && FriendPresenceSessionResolver.TryCreateJoinEndpoint(presence, out _);
     }
 
     private bool CanRemoveSelectedFriend()
@@ -1352,14 +1426,6 @@ public partial class Game1
         }
 
         return _friendPresenceByCode.TryGetValue(friend.FriendCode, out presence!);
-    }
-
-    private static bool CanJoinFriendPresence(FriendPresenceEntry presence)
-    {
-        return presence.Online
-            && presence.Joinable
-            && !string.IsNullOrWhiteSpace(presence.Host)
-            && (presence.UdpPort > 0 || presence.WebSocketPort > 0 || !string.IsNullOrWhiteSpace(presence.WebSocketUrl));
     }
 
     private static string GetFriendDisplayName(FriendListEntry friend, FriendPresenceEntry? presence)

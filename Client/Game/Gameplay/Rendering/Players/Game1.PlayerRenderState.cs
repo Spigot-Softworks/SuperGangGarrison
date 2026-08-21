@@ -13,6 +13,8 @@ public partial class Game1
     private const string CoreReplicatedOwnerId = "core.player";
     private const string SoldierShotgunAmmoKey = "soldier_shotgun_ammo";
     private const string SoldierShotgunMaxAmmoKey = "soldier_shotgun_max_ammo";
+    private const string DemomanGrenadeLauncherAmmoKey = "demoman_gl_ammo";
+    private const string DemomanGrenadeLauncherMaxAmmoKey = "demoman_gl_max_ammo";
     private const string ScoutNailgunAmmoKey = "scout_nailgun_ammo";
     private const string ScoutNailgunMaxAmmoKey = "scout_nailgun_max_ammo";
     private const string SniperBowAmmoKey = "sniper_bow_ammo";
@@ -88,6 +90,21 @@ public partial class Game1
         var renderHorizontalSpeed = GetPlayerRenderHorizontalSpeed(player, observedRenderVelocity);
         var renderVerticalSpeed = GetPlayerRenderVerticalSpeed(player, observedRenderVelocity);
         var animationHorizontalSpeed = GetPlayerPhysicsHorizontalSpeedForPresentation(player);
+        if (_world.Level.IsTopDown)
+        {
+            var physicsVerticalSpeed = GetPlayerPhysicsVerticalSpeedForPresentation(player);
+            var planarSpeed = MathF.Sqrt(
+                (animationHorizontalSpeed * animationHorizontalSpeed)
+                + (physicsVerticalSpeed * physicsVerticalSpeed));
+
+            // The body sprites are not direction-specific in top-down mode,
+            // so use the planar movement speed to drive the normal run cycle.
+            // Preserve left/right cycle direction when horizontal input exists;
+            // pure vertical movement uses a positive cycle direction.
+            animationHorizontalSpeed = animationHorizontalSpeed != 0f
+                ? MathF.CopySign(planarSpeed, animationHorizontalSpeed)
+                : planarSpeed;
+        }
         var horizontalSourceStepSpeed = GetPlayerAnimationSourceStepSpeed(animationHorizontalSpeed);
         var verticalSourceStepSpeed = GetPlayerAnimationSourceStepSpeed(renderVerticalSpeed);
         var animationElapsedSeconds = GetPlayerAnimationElapsedSeconds();
@@ -602,7 +619,7 @@ public partial class Game1
                 return serverVelocity.X;
             }
 
-            if (_hasPredictedLocalPlayerPosition)
+            if (CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
             {
                 return MathF.Abs(observedRenderVelocity.X) > MathF.Abs(_predictedLocalPlayerVelocity.X)
                     ? observedRenderVelocity.X
@@ -619,7 +636,7 @@ public partial class Game1
     {
         if (_networkClient.IsConnected && ReferenceEquals(player, _world.LocalPlayer))
         {
-            if (_hasPredictedLocalPlayerPosition)
+            if (CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
             {
                 return _predictedLocalPlayerVelocity.X;
             }
@@ -633,6 +650,24 @@ public partial class Game1
         return player.HorizontalSpeed;
     }
 
+    private float GetPlayerPhysicsVerticalSpeedForPresentation(PlayerEntity player)
+    {
+        if (_networkClient.IsConnected && ReferenceEquals(player, _world.LocalPlayer))
+        {
+            if (CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
+            {
+                return _predictedLocalPlayerVelocity.Y;
+            }
+
+            if (TryGetLatestLocalServerVelocity(out var serverVelocity))
+            {
+                return serverVelocity.Y;
+            }
+        }
+
+        return player.VerticalSpeed;
+    }
+
     private float GetPlayerRenderVerticalSpeed(PlayerEntity player, Vector2 observedRenderVelocity)
     {
         if (_networkClient.IsConnected && ReferenceEquals(player, _world.LocalPlayer))
@@ -642,7 +677,7 @@ public partial class Game1
                 return serverVelocity.Y;
             }
 
-            if (_hasPredictedLocalPlayerPosition)
+            if (CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
             {
                 return MathF.Abs(observedRenderVelocity.Y) > MathF.Abs(_predictedLocalPlayerVelocity.Y)
                     ? observedRenderVelocity.Y
@@ -677,6 +712,7 @@ public partial class Game1
 
         return _networkClient.IsConnected
             && ReferenceEquals(player, _world.LocalPlayer)
+            && CanUseLocalPrediction()
             && _hasPredictedLocalPlayerPosition
                 ? _predictedLocalPlayerGrounded
                 : player.IsGrounded;
@@ -744,7 +780,9 @@ public partial class Game1
 
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
         {
-            return player.ExperimentalOffhandCurrentShells;
+            return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, DemomanGrenadeLauncherAmmoKey, out var replicatedAmmo)
+                ? Math.Max(0, replicatedAmmo)
+                : player.ExperimentalOffhandCurrentShells;
         }
 
         if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
@@ -759,6 +797,7 @@ public partial class Game1
 
         return _networkClient.IsConnected
             && ReferenceEquals(player, _world.LocalPlayer)
+            && CanUseLocalPrediction()
             && _hasPredictedLocalActionState
                 ? _predictedLocalActionState.CurrentShells
                 : player.CurrentShells;
@@ -798,6 +837,7 @@ public partial class Game1
 
         if (_networkClient.IsConnected
             && ReferenceEquals(player, _world.LocalPlayer)
+            && CanUseLocalPrediction()
             && _hasPredictedLocalActionState)
         {
             return player.ClassId == PlayerClass.Medic
@@ -849,6 +889,7 @@ public partial class Game1
 
         if (_networkClient.IsConnected
             && ReferenceEquals(player, _world.LocalPlayer)
+            && CanUseLocalPrediction()
             && _hasPredictedLocalActionState)
         {
             return player.ClassId == PlayerClass.Medic
@@ -896,7 +937,9 @@ public partial class Game1
 
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
         {
-            return player.ExperimentalOffhandMaxShells;
+            return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, DemomanGrenadeLauncherMaxAmmoKey, out var replicatedMaxAmmo)
+                ? Math.Max(1, replicatedMaxAmmo)
+                : player.ExperimentalOffhandMaxShells;
         }
 
         if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
@@ -1045,11 +1088,7 @@ public partial class Game1
     private static bool ShouldPresentExperimentalSoldierShotgun(PlayerEntity player)
     {
         if (player.ClassId != PlayerClass.Soldier) return false;
-        // GameplayEquippedSlot is delivered via movement deltas and is the authoritative
-        // presentation signal. Replicated shotgun toggles can lag under snapshot budgeting,
-        // so they must not keep the shotgun visible after the slot returns to primary.
-        return player.IsExperimentalOffhandPresented
-            || player.GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Secondary;
+        return player.IsExperimentalOffhandSelected;
     }
 
     private static bool ShouldPresentExperimentalScoutNailgun(PlayerEntity player)

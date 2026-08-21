@@ -45,7 +45,9 @@ public sealed partial class SimulationWorld
                 Up = false,
                 Down = false,
                 BuildSentry = false,
+                BuildDispenser = false,
                 DestroySentry = false,
+                DestroyDispenser = false,
                 Taunt = false,
                 FirePrimary = false,
                 FireSecondary = false,
@@ -69,7 +71,9 @@ public sealed partial class SimulationWorld
                 UseAbility = false,
                 SwapWeapon = false,
                 BuildSentry = false,
+                BuildDispenser = false,
                 DestroySentry = false,
+                DestroyDispenser = false,
             };
 
             // Force exit binoculars at the start of humiliation
@@ -113,11 +117,14 @@ public sealed partial class SimulationWorld
         var jumpPressed = input.Up && !previousInput.Up;
         var dropPressed = input.DropIntel && !previousInput.DropIntel;
         var buildPressed = input.BuildSentry && !previousInput.BuildSentry;
+        var buildDispenserPressed = input.BuildDispenser && !previousInput.BuildDispenser;
         var destroyPressed = input.DestroySentry && !previousInput.DestroySentry;
+        var destroyDispenserPressed = input.DestroyDispenser && !previousInput.DestroyDispenser;
         var tauntPressed = input.Taunt && !previousInput.Taunt;
         var killPressed = input.DebugKill && !previousInput.DebugKill;
         var primaryPressed = input.FirePrimary && !previousInput.FirePrimary;
         var secondaryAbilityPressed = input.FireSecondary && !previousInput.FireSecondary;
+        var secondaryAbilityReleased = !input.FireSecondary && previousInput.FireSecondary;
         var abilityPressed = input.UseAbility && !previousInput.UseAbility;
         var abilityReleased = !input.UseAbility && previousInput.UseAbility;
         var swapWeaponPressed = input.SwapWeapon && !previousInput.SwapWeapon;
@@ -147,6 +154,22 @@ public sealed partial class SimulationWorld
         var subphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
         var afterburn = player.AdvanceTickState(input, Config.FixedDeltaSeconds);
         advanceTickStateMilliseconds = ElapsedMilliseconds(subphaseStartTimestamp);
+        if (TryCompleteExpiredLastToDieSpyAfterlife(player))
+        {
+            return;
+        }
+
+        while (player.TryTakeDueLastToDieSniperVolleyArrow(out var volleyArrow))
+        {
+            if (!player.IsAlive || player.ClassId != PlayerClass.Sniper || !player.IsSniperBowEquipped)
+            {
+                player.CancelLastToDieSniperVolley();
+                break;
+            }
+
+            WeaponHandler.FireQueuedLastToDieSniperBowArrow(player, volleyArrow);
+        }
+
         var afterburnDamageCommitted = false;
         if (healthBeforeTick > player.Health)
         {
@@ -178,6 +201,11 @@ public sealed partial class SimulationWorld
                     playerTarget: player,
                     flags: DamageEventFlags.AfterburnTick);
                 ApplyExperimentalDamageRewards(burner, player, afterburnDamage, allowOsmosisHealOwnedSentries: false);
+                ApplyLastToDieDamageRewards(
+                    burner,
+                    player,
+                    afterburnDamage,
+                    PlayerDamageTraits.Periodic | PlayerDamageTraits.Fire);
                 afterburnDamageCommitted = true;
             }
         }
@@ -248,7 +276,14 @@ public sealed partial class SimulationWorld
         }
 
         subphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
-        var startedGrounded = player.PrepareMovement(input, Level, team, Config.FixedDeltaSeconds, out var canMove, isHumiliated);
+        var startedGrounded = player.PrepareMovement(
+            input,
+            Level,
+            team,
+            Config.FixedDeltaSeconds,
+            out var canMove,
+            isHumiliated,
+            HasLandedArrowGroundSupport(player, input.Down));
         prepareMovementMilliseconds = ElapsedMilliseconds(subphaseStartTimestamp);
         var effectiveJumpPressed = jumpPressed || HasBufferedJumpInput(player);
         var jumped = player.TryJumpIfPossible(canMove, effectiveJumpPressed);
@@ -261,7 +296,28 @@ public sealed partial class SimulationWorld
         }
 
         var secondaryAbilityConsumedInput = false;
-        if (player.ClassId == PlayerClass.Medic)
+        if (secondaryAbilityReleased
+            && player.TryReleaseLastToDieProfessionalFireChord(out var shouldDecloakFromProfessionalChord))
+        {
+            if (shouldDecloakFromProfessionalChord)
+            {
+                // The chord deliberately defers the normal M2 toggle until
+                // release. Complete that toggle even while cloak is still
+                // fading in; TryToggleSpyCloak rejects that transition.
+                player.ForceDecloak();
+            }
+
+            secondaryAbilityConsumedInput = true;
+        }
+        else if (secondaryAbilityPressed
+            && player.IsSniperBowEquipped
+            && (player.LastToDieSniperProfile.ExplosiveTipEnabled
+                || HasOwnedLastToDieSniperExplosiveArrow(player)))
+        {
+            secondaryAbilityConsumedInput = true;
+            _ = DetonateOwnedLastToDieSniperArrows(player);
+        }
+        else if (player.ClassId == PlayerClass.Medic)
         {
             if (input.FireSecondary)
             {
@@ -314,7 +370,15 @@ public sealed partial class SimulationWorld
 
         if (interactWeaponPressed)
         {
-            TryHandleNetworkWeaponInteraction(player);
+            var ghostConsumedInput = !isHumiliated
+                && player.TryActivateLastToDieSniperGhostCloak();
+            var infiltrateConsumedInput = !ghostConsumedInput
+                && !isHumiliated
+                && player.TryStartLastToDieSpyInfiltrate(Config.TicksPerSecond);
+            if (!ghostConsumedInput && !infiltrateConsumedInput)
+            {
+                TryHandleNetworkWeaponInteraction(player);
+            }
         }
 
         if (emitWallspinDust)
@@ -334,6 +398,7 @@ public sealed partial class SimulationWorld
 
         var postMovementSubphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
         ResolveMovingPlatformLanding(player, previousBottom, input.Down);
+        ResolveLandedArrowLanding(player, previousBottom, input.Down);
         HandleJumpPadTriggerContactEffects(player);
         TryRegisterIntelTrailEffect(player);
         TryRegisterCivvieMoneyTrail(player);
@@ -353,6 +418,14 @@ public sealed partial class SimulationWorld
         if (destroyPressed)
         {
             TryDestroySentry(player);
+        }
+        else if (destroyDispenserPressed)
+        {
+            TryDestroyDispenser(player);
+        }
+        else if (buildDispenserPressed)
+        {
+            TryBuildDispenser(player);
         }
         else if (buildPressed)
         {

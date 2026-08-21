@@ -22,7 +22,13 @@ public sealed class BotBrainCarrierPerformanceTests
         Assert.True(world.ForceGiveEnemyIntelToLocalPlayer());
 
         var escort = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Red, 1300f, 612f);
-        var controller = new BotBrainController();
+        // Conflict currently has no compatible shipped OG2 graph. This test
+        // exercises dynamic escort route reuse, so provide the smallest
+        // explicit route fixture instead of coupling the behavior assertion
+        // to whichever maps happen to ship a graph.
+        var controller = new BotBrainController(
+            CreateEscortRouteGraph(escort.X, escort.Y, world.LocalPlayer.X, world.LocalPlayer.Y),
+            forceAlphaNavigation: true);
 
         _ = controller.Think(escort, world, PlayerTeam.Red);
 
@@ -49,5 +55,33 @@ public sealed class BotBrainCarrierPerformanceTests
         Assert.True(world.TryGetNetworkPlayer(slot, out var player));
         player.TeleportTo(x, y);
         return player;
+    }
+
+    private static NavGraph CreateEscortRouteGraph(
+        float escortX,
+        float escortY,
+        float carrierX,
+        float carrierY)
+    {
+        var nodes = new[]
+        {
+            new NavNode(escortX, escortY, NavNodeKind.Surface, 1),
+            new NavNode(carrierX, carrierY, NavNodeKind.Surface, 1),
+        };
+        var adjacency = new[]
+        {
+            new List<NavEdge>(),
+            new List<NavEdge>(),
+        };
+        var cost = MathF.Sqrt(
+            MathF.Pow(carrierX - escortX, 2f)
+            + MathF.Pow(carrierY - escortY, 2f));
+        adjacency[0].Add(new NavEdge(1, NavEdgeKind.Walk, cost));
+        adjacency[1].Add(new NavEdge(0, NavEdgeKind.Walk, cost));
+        return new NavGraph(
+            nodes,
+            adjacency,
+            levelName: "SyntheticEscort",
+            mode: GameModeKind.CaptureTheFlag);
     }
 }

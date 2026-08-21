@@ -40,6 +40,26 @@ public sealed class SimulationWorldProjectileSpawnBlockingTests
         Assert.True(blocked);
     }
 
+    [Fact]
+    public void ProjectileSpawnBlockCheckRespectsDirectionalWallExitDirection()
+    {
+        var world = new SimulationWorld();
+        var configuration = new DirectionalWallConfiguration(
+            DirectionalWallPassDirection.Right,
+            DirectionalWallAffectSetting.Ignore,
+            DirectionalWallAffectSetting.Affect);
+        SetLevel(
+            world,
+            CreateLevel(
+                roomObjects:
+                [
+                    DirectionalWallConfiguration.CreateMarker(10f, 0f, 1f, 1f, configuration),
+                ]));
+
+        Assert.False(InvokeProjectileSpawnBlocked(world, 0f, 20f, 20f, 20f, PlayerTeam.Red));
+        Assert.True(InvokeProjectileSpawnBlocked(world, 20f, 20f, 0f, 20f, PlayerTeam.Red));
+    }
+
     private static bool InvokeProjectileSpawnBlocked(
         SimulationWorld world,
         float originX,

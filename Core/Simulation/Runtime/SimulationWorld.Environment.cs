@@ -122,9 +122,8 @@ public sealed partial class SimulationWorld
     // Includes debug dummy players when enabled.
     private IEnumerable<PlayerEntity> EnumerateSimulatedPlayers()
     {
-        for (var index = 0; index < NetworkPlayerSlots.Count; index += 1)
+        foreach (var slot in EnumerateEnabledNetworkPlayerSlots())
         {
-            var slot = NetworkPlayerSlots[index];
             if (!IsNetworkPlayerEnabled(slot) || !TryGetNetworkPlayer(slot, out var player))
             {
                 continue;
@@ -163,6 +162,12 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
+            if (player.IsHealingCabinetResupplyOnCooldown())
+            {
+                usingHealingCabinet = true;
+                continue;
+            }
+
             var needsCabinet = player.NeedsHealingCabinetResupply()
                 || HasConfiguredGameplayAbilityCooldownForResupply(player);
             if (!needsCabinet)
@@ -172,6 +177,7 @@ public sealed partial class SimulationWorld
 
             usingHealingCabinet = true;
             player.HealAndResupply();
+            player.RestartHealingCabinetResupplyCooldown();
             ClearConfiguredGameplayAbilityCooldownsForResupply(player);
             if (player.CanPlayHealingCabinetSound())
             {
@@ -412,6 +418,27 @@ public sealed partial class SimulationWorld
 
                     KillPlayer(player);
                     return;
+                case RoomObjectType.FireBox:
+                    if (!player.IntersectsMarker(
+                        roomObject.CenterX,
+                        roomObject.CenterY,
+                        roomObject.Width,
+                        roomObject.Height))
+                    {
+                        continue;
+                    }
+
+                    // Refresh the burn every simulation tick while the player
+                    // remains inside. An environment hazard has no attacking
+                    // player to credit, so owner id 0 intentionally produces
+                    // unattributed afterburn damage.
+                    player.IgniteAfterburn(
+                        ownerPlayerId: 0,
+                        durationIncreaseSourceTicks: PlayerEntity.BurnDefaultMaxDurationSourceTicks,
+                        intensityIncrease: PlayerEntity.BurnMaxIntensity,
+                        afterburnFalloff: false,
+                        burnFalloffAmount: 0f);
+                    break;
             }
         }
     }

@@ -787,6 +787,10 @@ public partial class Game1
         private static WeaponRenderDefinition GetWeaponRenderDefinition(PlayerEntity player, bool forceCivvieUmbrellaPresentation = false)
         {
             var presentation = ResolveRenderPresentation(player, forceCivvieUmbrellaPresentation);
+            var rifleCycleSpeed = player.ClassId == PlayerClass.Sniper
+                    && player.PrimaryWeapon.Kind == PrimaryWeaponKind.Rifle
+                ? player.LastToDieSniperProfile.RifleCycleSpeedMultiplier
+                : 1f;
             return new WeaponRenderDefinition(
                 presentation.WorldSpriteName,
                 presentation.RecoilSpriteName,
@@ -805,9 +809,9 @@ public partial class Game1
                     presentation.ReloadOverlayRotationDegrees),
                 presentation.WeaponOffsetX,
                 presentation.WeaponOffsetY,
-                GetSourceTicksAsSeconds(presentation.RecoilDurationSourceTicks),
+                GetSourceTicksAsSeconds(presentation.RecoilDurationSourceTicks) / rifleCycleSpeed,
                 GetSourceTicksAsSeconds(presentation.ReloadDurationSourceTicks),
-                GetSourceTicksAsSeconds(presentation.ScopedRecoilDurationSourceTicks),
+                GetSourceTicksAsSeconds(presentation.ScopedRecoilDurationSourceTicks) / rifleCycleSpeed,
                 presentation.LoopRecoilWhileActive);
         }
 

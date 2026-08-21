@@ -1,6 +1,8 @@
 using System;
 using System.IO;
+using System.Linq;
 using OpenGarrison.Core;
+using OpenGarrison.Core.LastToDie;
 using OpenGarrison.Protocol;
 using OpenGarrison.Server;
 
@@ -58,7 +60,11 @@ sealed class ServerLaunchOptions
     public string? PublicWebSocketUrl { get; private init; }
     public int QuicPort { get; private init; }
     public string? PublicQuicUrl { get; private init; }
+    public Uri? RelayHostUrl { get; private init; }
     public SnapshotBudgetMode SnapshotBudgetMode { get; private init; } = SnapshotBudgetMode.GameplayCriticalUntrimmed;
+    public GameplayVariantKind GameplayVariant { get; private init; } = GameplayVariantKind.Standard;
+    public LastToDieDifficulty LastToDieDifficulty { get; private init; } = LastToDieDifficulty.Standard;
+    public ulong? LastToDieSeed { get; private init; }
 
     public static ServerLaunchOptions Load(string[] args)
     {
@@ -97,6 +103,7 @@ sealed class ServerLaunchOptions
         string? serverPassword = string.IsNullOrWhiteSpace(settings.Password) ? null : settings.Password;
         string? rconPassword = string.IsNullOrWhiteSpace(settings.RconPassword) ? null : settings.RconPassword;
         var useLobbyServer = settings.UseLobbyServer;
+        var lobbyPublicationExplicitlyRequested = false;
         var lobbyHost = NormalizeLobbyHost(settings.LobbyHost);
         var lobbyPort = settings.LobbyPort > 0 ? settings.LobbyPort : DefaultLobbyPort;
         string? registryUrlOverride = null;
@@ -130,6 +137,7 @@ sealed class ServerLaunchOptions
         string? webSocketCertificatePassword = null;
         string? publicWebSocketUrl = Environment.GetEnvironmentVariable("OPENGARRISON_PUBLIC_WEBSOCKET_URL");
         string? publicQuicUrl = Environment.GetEnvironmentVariable("OPENGARRISON_PUBLIC_QUIC_URL");
+        var relayHostUrl = NormalizeRelayHostUrl(Environment.GetEnvironmentVariable("OPENGARRISON_RELAY_HOST_URL"));
         var quicPort = 0;
         if (int.TryParse(Environment.GetEnvironmentVariable("OPENGARRISON_QUIC_PORT"), out var environmentQuicPort)
             && environmentQuicPort is > 0 and <= 65535)
@@ -139,6 +147,9 @@ sealed class ServerLaunchOptions
         var snapshotBudgetMode = SnapshotBudgetModeParser.Parse(
             Environment.GetEnvironmentVariable("OPENGARRISON_SNAPSHOT_BUDGET_MODE"),
             settings.SnapshotBudgetMode);
+        var gameplayVariant = GameplayVariantKind.Standard;
+        var lastToDieDifficulty = LastToDieDifficulty.Standard;
+        ulong? lastToDieSeed = null;
 
         for (var index = 0; index < args.Length; index += 1)
         {
@@ -445,6 +456,7 @@ sealed class ServerLaunchOptions
             if (string.Equals(arg, "--lobby", StringComparison.OrdinalIgnoreCase))
             {
                 useLobbyServer = true;
+                lobbyPublicationExplicitlyRequested = true;
                 continue;
             }
 
@@ -458,6 +470,7 @@ sealed class ServerLaunchOptions
             {
                 lobbyHost = NormalizeLobbyHost(args[index + 1]);
                 useLobbyServer = true;
+                lobbyPublicationExplicitlyRequested = true;
                 index += 1;
                 continue;
             }
@@ -468,6 +481,7 @@ sealed class ServerLaunchOptions
                 {
                     lobbyPort = parsedLobbyPort;
                     useLobbyServer = true;
+                    lobbyPublicationExplicitlyRequested = true;
                 }
                 index += 1;
                 continue;
@@ -477,6 +491,7 @@ sealed class ServerLaunchOptions
             {
                 registryUrlOverride = args[index + 1];
                 useLobbyServer = true;
+                lobbyPublicationExplicitlyRequested = true;
                 index += 1;
                 continue;
             }
@@ -574,6 +589,37 @@ sealed class ServerLaunchOptions
                 continue;
             }
 
+            if (string.Equals(arg, "--last-to-die", StringComparison.OrdinalIgnoreCase))
+            {
+                gameplayVariant = GameplayVariantKind.LastToDie;
+                continue;
+            }
+
+            if (string.Equals(arg, "--gameplay-variant", StringComparison.OrdinalIgnoreCase)
+                && index + 1 < args.Length)
+            {
+                gameplayVariant = ParseGameplayVariant(args[index + 1]);
+                index += 1;
+                continue;
+            }
+
+            if (string.Equals(arg, "--last-to-die-difficulty", StringComparison.OrdinalIgnoreCase)
+                && index + 1 < args.Length)
+            {
+                lastToDieDifficulty = ParseLastToDieDifficulty(args[index + 1]);
+                index += 1;
+                continue;
+            }
+
+            if (string.Equals(arg, "--last-to-die-seed", StringComparison.OrdinalIgnoreCase)
+                && index + 1 < args.Length
+                && ulong.TryParse(args[index + 1], out var parsedLastToDieSeed))
+            {
+                lastToDieSeed = parsedLastToDieSeed;
+                index += 1;
+                continue;
+            }
+
             if ((string.Equals(arg, "--quic-port", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(arg, "--quic64-port", StringComparison.OrdinalIgnoreCase))
                 && index + 1 < args.Length)
@@ -607,6 +653,25 @@ sealed class ServerLaunchOptions
             }
         }
 
+        if (gameplayVariant == GameplayVariantKind.LastToDie
+            && !lobbyPublicationExplicitlyRequested)
+        {
+            // Direct co-op is private by default even when the persisted
+            // standard-server preference normally advertises to a registry.
+            // Publishing LTD requires an explicit launch-time opt-in.
+            useLobbyServer = false;
+        }
+
+        if (gameplayVariant == GameplayVariantKind.LastToDie)
+        {
+            // Last to Die owns its map sequence. Never let the ordinary host
+            // map file, persisted requested map, or a custom playlist entry
+            // select the initial world or feed the stock-only director.
+            requestedMap = null;
+            mapRotationFile = null;
+            stockMapRotation = ResolveLastToDieStockRotation(stockMapRotation);
+        }
+
         var registryUrl = useLobbyServer
             ? ResolveRegistryUrl(registryUrlOverride, lobbyHost, lobbyPort)
             : null;
@@ -620,6 +685,17 @@ sealed class ServerLaunchOptions
             buildVersion,
             releaseChannel,
             compatibilityKeyOverride);
+
+        if (gameplayVariant == GameplayVariantKind.LastToDie)
+        {
+            maxPlayableClients = Math.Clamp(maxPlayableClients, 1, 2);
+            maxTotalClients = maxPlayableClients;
+            maxSpectatorClients = 0;
+            autoBalanceEnabled = false;
+            switchTeamsAfterRoundEnd = false;
+            teamShuffleAfterWins = 0;
+            competitiveReadyUpEnabled = false;
+        }
 
         return new ServerLaunchOptions
         {
@@ -667,9 +743,48 @@ sealed class ServerLaunchOptions
             PublicWebSocketUrl = NormalizePublicWebSocketUrl(publicWebSocketUrl),
             QuicPort = quicPort,
             PublicQuicUrl = NormalizePublicQuicUrl(publicQuicUrl),
+            RelayHostUrl = relayHostUrl,
             SnapshotBudgetMode = snapshotBudgetMode,
+            GameplayVariant = gameplayVariant,
+            LastToDieDifficulty = lastToDieDifficulty,
+            LastToDieSeed = lastToDieSeed,
         };
     }
+
+    private static GameplayVariantKind ParseGameplayVariant(string? value)
+        => value?.Trim().ToLowerInvariant() switch
+        {
+            "last-to-die" or "last_to_die" or "ltd" => GameplayVariantKind.LastToDie,
+            _ => GameplayVariantKind.Standard,
+        };
+
+    private static IReadOnlyList<string> ResolveLastToDieStockRotation(
+        IReadOnlyList<string> configuredRotation)
+    {
+        var filtered = configuredRotation
+            .Where(map => OpenGarrisonStockMapCatalog.TryGetDefinition(map, out var definition)
+                && definition.Mode is GameModeKind.KingOfTheHill or GameModeKind.CaptureTheFlag)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (filtered.Length > 0)
+        {
+            return filtered;
+        }
+
+        return OpenGarrisonStockMapCatalog.Definitions
+            .Where(definition => definition.Mode is GameModeKind.KingOfTheHill or GameModeKind.CaptureTheFlag)
+            .OrderBy(definition => definition.DefaultOrder == 0 ? int.MaxValue : definition.DefaultOrder)
+            .ThenBy(definition => definition.LevelName, StringComparer.OrdinalIgnoreCase)
+            .Select(definition => definition.LevelName)
+            .ToArray();
+    }
+
+    private static LastToDieDifficulty ParseLastToDieDifficulty(string? value)
+        => value?.Trim().ToLowerInvariant() switch
+        {
+            "hardcore" => LastToDieDifficulty.Hardcore,
+            _ => LastToDieDifficulty.Standard,
+        };
 
     private static string? NormalizePublicWebSocketUrl(string? value)
     {
@@ -703,6 +818,15 @@ sealed class ServerLaunchOptions
         }
 
         return uri.ToString();
+    }
+
+    private static Uri? NormalizeRelayHostUrl(string? value)
+    {
+        return Uri.TryCreate(value?.Trim(), UriKind.Absolute, out var uri)
+            && uri.Scheme is "ws" or "wss"
+            && !string.IsNullOrWhiteSpace(uri.Host)
+                ? uri
+                : null;
     }
 
     private static string NormalizeLobbyHost(string? value)

@@ -2,6 +2,7 @@
 
 using System;
 using OpenGarrison.Core;
+using OpenGarrison.Core.LastToDie;
 
 namespace OpenGarrison.Client;
 
@@ -12,6 +13,15 @@ public partial class Game1
         if (!player.IsAlive)
         {
             return 1f;
+        }
+
+        if (player.IsLastToDieSniperGhostCloaked)
+        {
+            return IsLocalSpectatorPresentationActive()
+                || ReferenceEquals(player, _world.LocalPlayer)
+                || player.Team == _world.LocalPlayer.Team
+                    ? PlayerEntity.SpyMinAllyCloakAlpha
+                    : 0f;
         }
 
         var bodyVisibilityScale = GetSpyBackstabBodyVisibilityScale(player);
@@ -165,23 +175,12 @@ public partial class Game1
             return 1f;
         }
 
-        var elapsedTicks = StabAnimEntity.TotalLifetimeTicks - Math.Clamp(visualTicksRemaining, 0, StabAnimEntity.TotalLifetimeTicks);
-        if (elapsedTicks <= StabAnimEntity.WarmupTicks)
-        {
-            var warmupProgress = elapsedTicks / (float)StabAnimEntity.WarmupTicks;
-            return Math.Clamp(1f - (warmupProgress * 0.99f), 0.01f, 1f);
-        }
-
-        var fullyVisibleBackstabTicks = StabAnimEntity.WarmupTicks + StabAnimEntity.SwingTicks;
-        if (elapsedTicks <= fullyVisibleBackstabTicks)
-        {
-            return 0.01f;
-        }
-
-        var fadeTicks = Math.Clamp(elapsedTicks - fullyVisibleBackstabTicks, 0, StabAnimEntity.FadeOutTicks);
-        var fadeProgress = fadeTicks / (float)StabAnimEntity.FadeOutTicks;
-        var estimatedBackstabAlpha = Math.Clamp(0.99f * (1f - fadeProgress), 0f, 0.99f);
-        return Math.Clamp(1f - estimatedBackstabAlpha, 0f, 1f);
+        var speedMultiplier = player.LastToDieInstastabEnabled
+            ? LastToDieDerivedModifiers.SpyInstastabSpeedMultiplier
+            : 1;
+        var lifetimeTicks = StabAnimEntity.ResolveLifetimeTicks(speedMultiplier);
+        var elapsedTicks = lifetimeTicks - Math.Clamp(visualTicksRemaining, 0, lifetimeTicks);
+        return Math.Clamp(1f - StabAnimEntity.ResolveAlpha(elapsedTicks, speedMultiplier), 0f, 1f);
     }
 
     private bool IsSpyHiddenFromLocalViewer(PlayerEntity player)

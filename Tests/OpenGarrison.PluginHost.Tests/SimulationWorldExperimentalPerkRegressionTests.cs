@@ -98,6 +98,8 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
                 true,
                 false,
                 true,
+                -1,
+                false,
             ]);
 
         Assert.True(world.LocalPlayer.IsExperimentalGhostDashing);
@@ -1593,6 +1595,35 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
+    public void HealingCabinetDoesNotResupplyAgainUntilFourSecondsHaveElapsed()
+    {
+        var world = CreateJoinedSoldierWorld(new ExperimentalGameplaySettings());
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+
+        var cabinet = world.Level.GetRoomObjects(RoomObjectType.HealingCabinet).First();
+        world.TeleportLocalPlayer(cabinet.CenterX, cabinet.CenterY);
+        world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth);
+        world.LocalPlayer.ForceSetAmmo(0);
+        world.SetLocalInput(default);
+        world.AdvanceOneTick();
+
+        Assert.True(world.LocalPlayer.IsUsingHealingCabinet);
+        Assert.Equal(world.LocalPlayer.MaxShells, world.LocalPlayer.CurrentShells);
+        Assert.True(world.LocalPlayer.HealingCabinetResupplyCooldownSecondsRemaining > 0f);
+
+        world.LocalPlayer.ForceSetAmmo(0);
+        world.AdvanceOneTick();
+
+        Assert.True(world.LocalPlayer.IsUsingHealingCabinet);
+        Assert.Equal(0, world.LocalPlayer.CurrentShells);
+
+        AdvanceTicks(world, world.Config.TicksPerSecond * 4);
+
+        Assert.Equal(world.LocalPlayer.MaxShells, world.LocalPlayer.CurrentShells);
+        Assert.False(world.LocalPlayer.IsHealingCabinetResupplyOnCooldown());
+    }
+
+    [Fact]
     public void HealingCabinetRefreshesCivilianUmbrellaWithoutAmmoDeficit()
     {
         var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
@@ -1673,13 +1704,13 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        SetOpenCombatLevel(world);
         var spy = CreateBlueNetworkSpy(world, 2);
         var civilian = world.LocalPlayer;
         var chargeBefore = civilian.CivvieUmbrellaChargeTicks;
 
-        civilian.TeleportTo(0f, 0f);
-        spy.TeleportTo(-24f, 0f);
+        civilian.TeleportTo(100f, 100f);
+        spy.TeleportTo(76f, 100f);
         SetPlayerAimDirection(civilian, 0f);
         Assert.True(civilian.TryActivateCivvieUmbrella());
         Assert.True(spy.TryToggleSpyCloak());
@@ -1688,7 +1719,9 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         InvokeSpawnStabMask(world, spy, 0f);
         InvokeAdvanceStabMasks(world);
 
-        Assert.False(civilian.IsAlive);
+        Assert.False(
+            civilian.IsAlive,
+            $"backstab should kill through the umbrella; health={civilian.Health}, max={civilian.MaxHealth}");
         Assert.Equal(chargeBefore, civilian.CivvieUmbrellaChargeTicks);
         Assert.Empty(world.DrainPendingDamageEvents().Where(static damageEvent =>
             damageEvent.Flags.HasFlag(DamageEventFlags.CivvieUmbrellaBlock)));
@@ -1699,12 +1732,12 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        SetOpenCombatLevel(world);
         var spy = CreateBlueNetworkSpy(world, 2);
         var civilian = world.LocalPlayer;
 
-        civilian.TeleportTo(0f, 0f);
-        spy.TeleportTo(24f, 0f);
+        civilian.TeleportTo(100f, 100f);
+        spy.TeleportTo(124f, 100f);
         SetPlayerAimDirection(civilian, 0f);
         Assert.True(civilian.TryActivateCivvieUmbrella());
         Assert.True(spy.TryToggleSpyCloak());
@@ -1717,7 +1750,9 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         InvokeSpawnStabMask(world, spy, 180f);
         InvokeAdvanceStabMasks(world);
 
-        Assert.False(civilian.IsAlive);
+        Assert.False(
+            civilian.IsAlive,
+            $"front-facing umbrella should not block backstab; health={civilian.Health}, max={civilian.MaxHealth}");
         Assert.Empty(world.DrainPendingDamageEvents().Where(static damageEvent =>
             damageEvent.Flags.HasFlag(DamageEventFlags.CivvieUmbrellaBlock)));
     }
@@ -2392,6 +2427,19 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
+    public void SniperBowCannotEnterRifleScope()
+    {
+        var world = CreateJoinedSniperWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        PressSwapWeaponSpace(world);
+        ReleaseAllInput(world);
+
+        Assert.True(world.LocalPlayer.IsSniperBowEquipped);
+        Assert.False(world.LocalPlayer.TryToggleSniperScope());
+        Assert.False(world.LocalPlayer.IsSniperScoped);
+    }
+
+    [Fact]
     public void SniperBowCanStartChargingWhileCarryingIntel()
     {
         var world = CreateJoinedSniperWorld(new ExperimentalGameplaySettings());
@@ -2462,6 +2510,72 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         AdvanceTicks(world, arrow.TicksRemaining);
 
         Assert.DoesNotContain(arrow, world.Needles);
+    }
+
+    [Fact]
+    public void SniperArrowBecomesAJumpThroughPlatformOnlyAfterLanding()
+    {
+        var world = CreateJoinedSniperWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        SetArrowCollisionTestLevel(world);
+
+        SpawnArrowMethod.Invoke(
+            world,
+            [
+                world.LocalPlayer,
+                300f,
+                300f,
+                0f,
+                0f,
+                PlayerEntity.SniperBowMinDamage,
+                PlayerEntity.SniperBowMinFakeSpeedMultiplier,
+            ]);
+
+        var arrow = Assert.IsType<ArrowProjectileEntity>(Assert.Single(world.Needles));
+        Assert.False(arrow.TryGetOneWayPlatformBounds(out _, out _, out _));
+
+        arrow.Land(300f, 300f, 1f, 0f);
+        Assert.True(arrow.TryGetOneWayPlatformBounds(out _, out var platformTop, out _));
+
+        var player = world.LocalPlayer;
+        player.SetSpawnRoomState(false);
+        player.TeleportTo(300f, platformTop - player.CollisionBottomOffset - 48f);
+        world.SetLocalInput(default);
+        for (var tick = 0; tick < 120 && !player.IsGrounded; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        Assert.True(player.IsGrounded);
+        Assert.InRange(player.Bottom, platformTop - 0.01f, platformTop + 0.01f);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: true,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: player.X + 96f,
+            AimWorldY: player.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+
+        Assert.False(player.IsGrounded);
+        Assert.True(player.Bottom < platformTop);
+
+        world.SetLocalInput(default);
+        var passedAbovePlatform = false;
+        for (var tick = 0; tick < 12; tick += 1)
+        {
+            world.AdvanceOneTick();
+            passedAbovePlatform |= player.Bottom < platformTop - 4f;
+        }
+
+        Assert.True(passedAbovePlatform);
     }
 
     [Fact]
@@ -3586,6 +3700,13 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void PressSwapWeaponSpace(SimulationWorld world)
     {
+        // Locked-primary weapon tests model Last to Die's post-death interaction state;
+        // normal gameplay still requires the player to be at a primary swap station.
+        if (world.LocalPlayer.IsLockedPrimaryWeaponClass)
+        {
+            Assert.True(world.TrySetNetworkPlayerAutomaticRespawnSuppressed(SimulationWorld.LocalPlayerSlot, suppressed: true));
+        }
+
         world.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
@@ -3790,6 +3911,11 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void PressNetworkSwapWeaponSpace(SimulationWorld world, byte slot, PlayerEntity player)
     {
+        if (player.IsLockedPrimaryWeaponClass)
+        {
+            Assert.True(world.TrySetNetworkPlayerAutomaticRespawnSuppressed(slot, suppressed: true));
+        }
+
         Assert.True(world.TrySetNetworkPlayerInput(
             slot,
             new PlayerInputSnapshot(
@@ -4040,7 +4166,9 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void InvokeApplyExperimentalSentryPlayerHit(SimulationWorld world, SentryEntity sentry, PlayerEntity owner, PlayerEntity target, int baseDamage)
     {
-        ApplyExperimentalSentryPlayerHitMethod.Invoke(world, [sentry, owner, target, baseDamage]);
+        ApplyExperimentalSentryPlayerHitMethod.Invoke(
+            world,
+            [sentry, owner, target, baseDamage, PlayerDamageTraits.None, false, true, null, null]);
     }
 
     private static void InvokeSpawnRocket(

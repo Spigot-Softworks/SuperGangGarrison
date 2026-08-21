@@ -74,7 +74,7 @@ public sealed partial class SimulationWorld
 
     private void ResolveMovingPlatformLanding(PlayerEntity player, float previousBottom, bool allowFallThrough)
     {
-        if (_movingPlatforms.Count == 0 || !player.IsAlive)
+        if (Level.IsTopDown || _movingPlatforms.Count == 0 || !player.IsAlive)
         {
             return;
         }
@@ -92,6 +92,65 @@ public sealed partial class SimulationWorld
                     platform.ResetMovementState))
             {
                 platform.TryTrigger(player.IsCarryingIntel);
+                return;
+            }
+        }
+    }
+
+    public bool HasLandedArrowGroundSupport(PlayerEntity player, bool allowFallThrough)
+    {
+        if (Level.IsTopDown || allowFallThrough || !player.IsAlive || player.VerticalSpeed < 0f)
+        {
+            return false;
+        }
+
+        foreach (var needle in _needles)
+        {
+            if (needle is not ArrowProjectileEntity arrow
+                || !arrow.TryGetOneWayPlatformBounds(out var left, out var top, out var right))
+            {
+                continue;
+            }
+
+            if (player.IsStandingOnMovingPlatform(left, top, right))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public void ResolveLandedArrowLanding(PlayerEntity player, float previousBottom, bool allowFallThrough)
+    {
+        if (Level.IsTopDown)
+        {
+            return;
+        }
+
+        if (allowFallThrough || !player.IsAlive || player.IsGrounded)
+        {
+            return;
+        }
+
+        foreach (var needle in _needles)
+        {
+            if (needle is not ArrowProjectileEntity arrow
+                || !arrow.TryGetOneWayPlatformBounds(out var left, out var top, out var right))
+            {
+                continue;
+            }
+
+            if (player.TryLandOnMovingPlatform(
+                    Level,
+                    player.Team,
+                    left,
+                    top,
+                    right,
+                    previousBottom,
+                    allowFallThrough,
+                    resetMovementState: false))
+            {
                 return;
             }
         }

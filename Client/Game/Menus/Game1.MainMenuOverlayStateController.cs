@@ -37,6 +37,8 @@ public partial class Game1
         public void OpenManualConnectMenu()
         {
             PrepareForExclusiveMainMenuOverlayOpen();
+            _game._lastToDieRoomCodeJoinOpen = false;
+            _game.CancelFriendCodeJoin();
             _game._manualConnectOpen = true;
             _game._manualConnectControllerIndex = 0;
             _game._connectionFlowController.SetManualConnectEditingField(editHost: true);
@@ -111,6 +113,7 @@ public partial class Game1
 
         public void CloseLastToDieMenu(bool clearStatus = false)
         {
+            _game.CancelPendingHostedLastToDieRelayLaunch();
             _game._lastToDieMenuOpen = false;
             _game._lastToDieMenuPage = LastToDieMenuPage.Root;
             _game._lastToDieMenuHoverIndex = -1;
@@ -143,6 +146,8 @@ public partial class Game1
         {
             _game.CloseLobbyBrowser(clearStatus: false);
             _game._manualConnectOpen = false;
+            _game._lastToDieRoomCodeJoinOpen = false;
+            _game.CancelFriendCodeJoin();
             CloseHostSetupMenu(clearStatus: false);
             CloseCreditsMenu();
             CloseFriendsMenu(clearStatus: false);
@@ -152,6 +157,9 @@ public partial class Game1
 
         private void PrepareForExclusiveMainMenuOverlayOpen()
         {
+            // Scrollbar ownership is transient UI state. Do not let a drag from the
+            // previously active overlay consume the first click in the next one.
+            _game.ScrollbarDrag.Clear();
             CloseMainMenuTransientOverlays();
             CloseLastToDieMenu(clearStatus: false);
             CloseJumpMenu(clearStatus: false);

@@ -100,7 +100,7 @@ public partial class Game1
                 return Vector2.Zero;
             }
 
-            var mouse = _game.GetScaledMouseState(_game.GetConstrainedMouseState(Game1.GetCurrentMouseState()));
+            var mouse = _game.GetFrameMouseState();
             return _game._hasGameplayCameraTopLeft
                 ? _game._gameplayCameraTopLeft
                 : _game.GetUntrackedCameraTopLeft(_game.ViewportWidth, _game.ViewportHeight, mouse.X, mouse.Y);

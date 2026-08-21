@@ -14,9 +14,27 @@ public static class ApplicationBuildInfo
     public const string DefaultBuildVersion = "dev";
     public const string DefaultReleaseChannel = "stable";
 
+    private static string? _browserBuildVersion;
+    private static string? _browserReleaseChannel;
+
     public static string BuildVersion => ResolveBuildVersion();
 
     public static string ReleaseChannel => ResolveReleaseChannel();
+
+    public static void InitializeBrowserMetadata(string? buildVersion, string? releaseChannel)
+    {
+        if (!OperatingSystem.IsBrowser())
+        {
+            return;
+        }
+
+        _browserBuildVersion = TryNormalizeBuildVersion(buildVersion, out var normalizedVersion)
+            ? normalizedVersion
+            : null;
+        _browserReleaseChannel = TryNormalizeReleaseChannel(releaseChannel, out var normalizedChannel)
+            ? normalizedChannel
+            : null;
+    }
 
     public static string ResolveBuildVersion(string? overrideValue = null)
     {
@@ -28,6 +46,12 @@ public static class ApplicationBuildInfo
         if (TryNormalizeBuildVersion(Environment.GetEnvironmentVariable("OPENGARRISON_BUILD_VERSION"), out var envVersion))
         {
             return envVersion;
+        }
+
+        if (OperatingSystem.IsBrowser()
+            && TryNormalizeBuildVersion(_browserBuildVersion, out var browserVersion))
+        {
+            return browserVersion;
         }
 
         foreach (var candidate in EnumerateBuildVersionCandidates())
@@ -52,6 +76,12 @@ public static class ApplicationBuildInfo
         if (TryNormalizeReleaseChannel(Environment.GetEnvironmentVariable("OPENGARRISON_RELEASE_CHANNEL"), out var envChannel))
         {
             return envChannel;
+        }
+
+        if (OperatingSystem.IsBrowser()
+            && TryNormalizeReleaseChannel(_browserReleaseChannel, out var browserChannel))
+        {
+            return browserChannel;
         }
 
         if (!OperatingSystem.IsBrowser())

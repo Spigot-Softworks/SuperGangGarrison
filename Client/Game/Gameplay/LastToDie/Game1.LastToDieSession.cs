@@ -6,6 +6,7 @@ using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Core.BotBrain;
 using OpenGarrison.Core;
 using OpenGarrison.GameplayModding;
+using OpenGarrison.Protocol;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -33,6 +34,10 @@ public partial class Game1
     private const float LastToDieStageIntroDurationSeconds = 2f;
     private const int LastToDieKillTimerReductionSeconds = 3;
     private const float LastToDieAccessoryChoiceChance = 0.2f;
+    // Special rounds are temporarily disabled for the shipped Last To Die ruleset.
+    // Keep the selection machinery intact so it can be re-enabled deliberately later,
+    // but do not allow random or forced rounds to alter the normal enemy roster.
+    private const bool LastToDieSpecialRoundsEnabled = false;
     private const int LastToDieSpecialRoundChancePercent = 10;
     private const int LastToDieHardcoreMaxHealth = 25;
     private const float LastToDieGigaScale = 1.7f;
@@ -296,27 +301,6 @@ public partial class Game1
             string.Empty),
     ];
 
-    private static readonly HashSet<string> LastToDieEngineerRotationMapNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Harvest",
-        "Gallery",
-        "TwodFortTwo",
-        "Conflict",
-        "Eiger",
-    };
-
-    private static readonly HashSet<string> LastToDieEngineerCaptureTheFlagMapNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "TwodFortTwo",
-        "Conflict",
-        "Eiger",
-    };
-
-    private static readonly HashSet<string> LastToDieClassicRotationExcludedMapNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Corinth",
-    };
-
     private static readonly LastToDiePerkDefinition[] LastToDieSoldierPerkCatalog =
     [
         new(LastToDiePerkKind.SoldierShotgun, "12 Gauge", "Doubles shotgun pellet count."),
@@ -403,6 +387,7 @@ public partial class Game1
     private int _lastToDieStageClearOverlayTicks;
     private bool _lastToDieFailureOverlayOpen;
     private int _lastToDieFailureOverlayTicks;
+    private int _lastToDieFailureActionIndex;
     private int _lastToDieTimerReductionPopupTicksRemaining;
     private float _lastToDieTimerReductionPopupRise;
     private int _lastToDieTimerReductionPopupSeconds;
@@ -414,6 +399,9 @@ public partial class Game1
     private const string LastToDieDogtagsLoadoutItemId = "ltd.accessory.dogtags";
 
     private bool IsLastToDieSessionActive => _gameplaySessionKind == GameplaySessionKind.LastToDie;
+
+    private bool IsAnyLastToDieSessionActive =>
+        IsLastToDieSessionActive || IsHostedLastToDieActive();
 
     private bool IsOfflineBotSessionActive => _gameplaySessionKind is GameplaySessionKind.Practice or GameplaySessionKind.LastToDie;
 
@@ -530,15 +518,32 @@ public partial class Game1
         ];
     }
 
+    internal static bool ShouldPresentLastToDieBuffIcon(
+        bool localPlayerAlive,
+        bool localPlayerAwaitingJoin,
+        bool hasLastToDieBonuses,
+        bool hasNormalGameplayBuffs)
+    {
+        return localPlayerAlive
+            && !localPlayerAwaitingJoin
+            && (hasLastToDieBonuses || hasNormalGameplayBuffs);
+    }
+
     private bool ShouldDrawLastToDieBuffIcon()
     {
-        return IsLastToDieSessionActive && _lastToDieRun is not null && !_world.LocalPlayerAwaitingJoin;
+        var runHasBonuses = IsLastToDieSessionActive
+            && _lastToDieRun is { } run
+            && HasLastToDieBuffs(run);
+        return ShouldPresentLastToDieBuffIcon(
+            _world.LocalPlayer.IsAlive,
+            _world.LocalPlayerAwaitingJoin,
+            runHasBonuses,
+            GameplayBuffPresentationCatalog.HasAny(_world.LocalPlayer));
     }
 
     private void DrawLastToDieBuffIcon()
     {
         if (!ShouldDrawLastToDieBuffIcon()
-            || _lastToDieRun is not { } run
             || !TryResolveHudElement(HudElementId.LastToDieBuffIcon, out var resolved))
         {
             return;
@@ -562,7 +567,14 @@ public partial class Game1
             return;
         }
 
-        var lines = BuildLastToDieBuffTooltipLines(run);
+        var lines = _lastToDieRun is { } run
+            ? BuildLastToDieBuffTooltipLines(run)
+            : [];
+        foreach (var presentation in GameplayBuffPresentationCatalog.Collect(_world.LocalPlayer))
+        {
+            lines.AddRange(presentation.StatLines);
+        }
+
         if (lines.Count == 0)
         {
             lines.Add("No stat bonuses");
@@ -660,6 +672,10 @@ public partial class Game1
     {
         StopLastToDieGameOverSound();
         PersistLastToDieRunStatsIfNeeded(_lastToDieRun);
+        _hostedLastToDieObservedRunId = Guid.Empty;
+        _hostedLastToDieObservedPhase = null;
+        _hostedLastToDieObservedAliveBySlot.Clear();
+        _hostedLastToDieRetryMusicPending = false;
         _lastToDieRun = null;
         _lastToDieSurvivorMenuOpen = false;
         _lastToDieSurvivorHoverIndex = -1;
@@ -672,6 +688,7 @@ public partial class Game1
         ResetLastToDieCombatFeedbackPresentation();
         _lastToDieFailureOverlayOpen = false;
         _lastToDieFailureOverlayTicks = 0;
+        _lastToDieFailureActionIndex = 0;
         _lastToDieTimerReductionPopupTicksRemaining = 0;
         _lastToDieTimerReductionPopupRise = 0f;
         _lastToDieTimerReductionPopupSeconds = 0;
@@ -684,7 +701,7 @@ public partial class Game1
 
     private void TryStartLastToDieRun(LastToDieDifficulty difficulty)
     {
-        _practiceMapEntries = BuildPracticeMapEntries();
+        _practiceMapEntries = BuildAllLocalMapEntries();
         var initialMap = SelectInitialLastToDieMap();
         if (initialMap is null)
         {
@@ -727,6 +744,13 @@ public partial class Game1
 
     private LastToDieStageSpecialRoundState RollLastToDieStageSpecialRound(LastToDieRunState run)
     {
+        if (!AreLastToDieSpecialRoundsEnabled())
+        {
+            run.ForcedNextSpecialRoundKind = null;
+            run.NextSpecialRoundChancePercent = LastToDieSpecialRoundChancePercent;
+            return LastToDieStageSpecialRoundState.None;
+        }
+
         if (run.ForcedNextSpecialRoundKind is { } forcedKind)
         {
             run.ForcedNextSpecialRoundKind = null;
@@ -855,6 +879,7 @@ public partial class Game1
             player.SetExperimentalDemoknightSwordDamageMultiplier(ExperimentalGameplaySettings.DefaultDemoknightSwordDamageMultiplier);
             player.SetExperimentalDemoknightSwordCooldownMultiplier(ExperimentalGameplaySettings.DefaultDemoknightSwordCooldownMultiplier);
             ApplyLastToDieEnemyMaxHealthOverride(slot, GetStandardLastToDieEnemyMaxHealthOverride(slotState.ClassId));
+            ApplyLastToDieSniperHuntsmanLoadout(slot, slotState.ClassId);
 
             if (_lastToDieRun.CurrentSpecialRound.Kind == LastToDieSpecialRoundKind.Giga
                 && enemyIndex < _lastToDieRun.CurrentSpecialRound.GigaClasses.Length)
@@ -909,6 +934,41 @@ public partial class Game1
     private void ApplyLastToDieEnemyMaxHealthOverride(byte slot, int? maxHealth)
     {
         _world.TrySetNetworkPlayerMaxHealthOverride(slot, maxHealth, refillHealth: true);
+    }
+
+    private void ApplyLastToDieSniperHuntsmanLoadout(byte slot, PlayerClass classId)
+    {
+        if (classId != PlayerClass.Sniper
+            || !_world.TryGetNetworkPlayer(slot, out var player)
+            || player.IsSniperBowEquipped)
+        {
+            return;
+        }
+
+        // The stock Sniper loadout exposes the Huntsman as the secondary item. Keep
+        // Last To Die enemy snipers on that slot; the normal bot input path then uses
+        // primary fire to charge/release the bow and cannot scope the rifle.
+        _world.TrySetNetworkPlayerGameplayEquippedSlot(slot, GameplayEquipmentSlot.Secondary);
+    }
+
+    private void EnforceLastToDieSniperHuntsmanLoadouts()
+    {
+        if (!IsLastToDieSessionActive || _lastToDieRun is null)
+        {
+            return;
+        }
+
+        var enemyTeam = GetOpposingTeam(PlayerTeam.Red);
+        foreach (var entry in _practiceBotSlots)
+        {
+            var slotState = entry.Value;
+            if (slotState.Team != enemyTeam)
+            {
+                continue;
+            }
+
+            ApplyLastToDieSniperHuntsmanLoadout(entry.Key, slotState.ClassId);
+        }
     }
 
     private bool IsLastToDieHaxtonPlayer(PlayerEntity player)
@@ -1045,6 +1105,8 @@ public partial class Game1
 
     private void AdvanceLastToDieSimulationTick()
     {
+        EnforceLastToDieSniperHuntsmanLoadouts();
+
         if (!IsLastToDieSessionActive
             || _lastToDieRun is null
             || _lastToDieSurvivorMenuOpen
@@ -1207,6 +1269,12 @@ public partial class Game1
             return;
         }
 
+        if (!AreLastToDieSpecialRoundsEnabled())
+        {
+            AddConsoleLine("Last To Die special rounds are disabled.");
+            return;
+        }
+
         if (_lastToDieRun is not null)
         {
             _lastToDieRun.ForcedNextSpecialRoundKind = kind;
@@ -1217,6 +1285,8 @@ public partial class Game1
         _pendingLastToDieForcedSpecialRoundKind = kind;
         AddConsoleLine($"last to die first round of the next run forced to {GetLastToDieSpecialRoundConsoleLabel(kind)}.");
     }
+
+    private static bool AreLastToDieSpecialRoundsEnabled() => LastToDieSpecialRoundsEnabled;
 
     private static bool TryParseLastToDieForcedSpecialRoundKind(string value, out LastToDieSpecialRoundKind kind)
     {
@@ -1479,7 +1549,7 @@ public partial class Game1
     {
         if (_practiceMapEntries.Count == 0)
         {
-            _practiceMapEntries = BuildPracticeMapEntries();
+            _practiceMapEntries = BuildAllLocalMapEntries();
         }
 
         if (_practiceMapEntries.Count == 0)
@@ -1512,7 +1582,7 @@ public partial class Game1
     {
         if (_practiceMapEntries.Count == 0)
         {
-            _practiceMapEntries = BuildPracticeMapEntries();
+            _practiceMapEntries = BuildAllLocalMapEntries();
         }
 
         return SelectRandomLastToDieMap(LastToDieSurvivorKind.Soldier, excludedLevelName: null);
@@ -1525,26 +1595,23 @@ public partial class Game1
 
     private static bool IsEligibleLastToDieRotationMap(LastToDieSurvivorKind survivorKind, PracticeMapEntry entry)
     {
+        _ = survivorKind;
         if (entry.IsCustomMap)
         {
             return false;
         }
 
-        return survivorKind switch
-        {
-            LastToDieSurvivorKind.Engineer => LastToDieEngineerRotationMapNames.Contains(entry.LevelName),
-            _ => entry.Mode == GameModeKind.KingOfTheHill
-                && !LastToDieClassicRotationExcludedMapNames.Contains(entry.LevelName),
-        };
+        return entry.Mode is GameModeKind.KingOfTheHill or GameModeKind.CaptureTheFlag;
     }
 
     private static LastToDieStageRuleProfile ResolveLastToDieStageRuleProfile(
         LastToDieSurvivorKind survivorKind,
         string? levelName)
     {
-        if (survivorKind == LastToDieSurvivorKind.Engineer
-            && !string.IsNullOrWhiteSpace(levelName)
-            && LastToDieEngineerCaptureTheFlagMapNames.Contains(levelName))
+        _ = survivorKind;
+        if (!string.IsNullOrWhiteSpace(levelName)
+            && OpenGarrisonStockMapCatalog.TryGetDefinition(levelName, out var definition)
+            && definition.Mode == GameModeKind.CaptureTheFlag)
         {
             return new LastToDieStageRuleProfile(
                 CapLimit: 3,
@@ -1569,7 +1636,7 @@ public partial class Game1
 
         if (_practiceMapEntries.Count == 0)
         {
-            _practiceMapEntries = BuildPracticeMapEntries();
+            _practiceMapEntries = BuildAllLocalMapEntries();
         }
 
         return _practiceMapEntries.FirstOrDefault(entry => string.Equals(entry.LevelName, levelName, StringComparison.OrdinalIgnoreCase));
@@ -2064,6 +2131,13 @@ public partial class Game1
         return lines;
     }
 
+    private static bool HasLastToDieBuffs(LastToDieRunState run)
+    {
+        return run.EquippedHelmet.HasValue
+            || run.EquippedDogtags.HasValue
+            || run.ChosenPerks.Count > 0;
+    }
+
     private static string GetLastToDieAccessoryTooltipLine(LastToDieAccessoryDefinition accessory)
     {
         return $"{accessory.SlotLabel}: {GetLastToDieAccessoryPrefix(accessory)} +{accessory.Value}";
@@ -2277,9 +2351,69 @@ public partial class Game1
 
     private void UpdateLastToDieFailureOverlay(KeyboardState keyboard, MouseState mouse)
     {
-        _ = mouse;
         if (!_lastToDieFailureOverlayOpen)
         {
+            return;
+        }
+
+        if (IsHostedLastToDieActive())
+        {
+            _lastToDieFailureOverlayTicks += 1;
+            var snapshot = _networkClient.LastToDieState.Snapshot;
+            if (snapshot?.Phase != LastToDieWirePhase.Lost)
+            {
+                _lastToDieFailureOverlayOpen = false;
+                _lastToDieFailureOverlayTicks = 0;
+                _lastToDieFailureActionIndex = 0;
+                ClearLastToDieDeathFocusPresentation();
+                StopLastToDieGameOverSound();
+                return;
+            }
+
+            if (_lastToDieFailureOverlayTicks < LastToDieFailureContinueDelayTicks)
+            {
+                return;
+            }
+
+            var (retryBounds, exitBounds) = GetLastToDieFailureActionBounds();
+            if (retryBounds.Contains(mouse.Position))
+            {
+                _lastToDieFailureActionIndex = 0;
+            }
+            else if (exitBounds.Contains(mouse.Position))
+            {
+                _lastToDieFailureActionIndex = 1;
+            }
+
+            if ((IsKeyPressed(keyboard, Keys.Left) || IsKeyPressed(keyboard, Keys.Up))
+                || TryConsumeControllerMenuNavigation(out var horizontalStep, out var verticalStep)
+                    && (horizontalStep < 0 || verticalStep < 0))
+            {
+                _lastToDieFailureActionIndex = 0;
+            }
+            else if ((IsKeyPressed(keyboard, Keys.Right) || IsKeyPressed(keyboard, Keys.Down))
+                     || horizontalStep > 0 || verticalStep > 0)
+            {
+                _lastToDieFailureActionIndex = 1;
+            }
+
+            var clicked = mouse.LeftButton == ButtonState.Pressed
+                && _previousMouse.LeftButton != ButtonState.Pressed;
+            var confirmed = IsKeyPressed(keyboard, Keys.Enter)
+                || IsControllerMenuConfirmPressed()
+                || clicked && (_lastToDieFailureActionIndex == 0
+                    ? retryBounds.Contains(mouse.Position)
+                    : exitBounds.Contains(mouse.Position));
+            if (!confirmed)
+            {
+                return;
+            }
+
+            var commandKind = _lastToDieFailureActionIndex == 0
+                ? LastToDieCommandKind.Retry
+                : LastToDieCommandKind.ReturnToLobby;
+            _hostedLastToDieRetryMusicPending = commandKind == LastToDieCommandKind.Retry;
+            _networkClient.SendLastToDieCommand(commandKind);
             return;
         }
 
@@ -2294,6 +2428,19 @@ public partial class Game1
         {
             ReturnToLastToDieMenu();
         }
+    }
+
+    private (Rectangle Retry, Rectangle Exit) GetLastToDieFailureActionBounds()
+    {
+        var width = Math.Clamp((int)MathF.Round(ViewportWidth * 0.22f), 210, 330);
+        var height = Math.Clamp((int)MathF.Round(ViewportHeight * 0.072f), 44, 64);
+        var gap = Math.Clamp((int)MathF.Round(ViewportWidth * 0.018f), 16, 30);
+        var totalWidth = (width * 2) + gap;
+        var x = (ViewportWidth - totalWidth) / 2;
+        var y = (int)MathF.Round(ViewportHeight * 0.81f);
+        return (
+            new Rectangle(x, y, width, height),
+            new Rectangle(x + width + gap, y, width, height));
     }
 
     private void DrawLastToDieFailureOverlay()
@@ -2320,29 +2467,74 @@ public partial class Game1
             DrawLastToDieFailureCorpse(viewportWidth, viewportHeight, alpha);
         }
 
-        if (_lastToDieRun is null || alpha < 0.2f)
+        var hostedSnapshot = IsHostedLastToDieActive()
+            ? _networkClient.LastToDieState.Snapshot
+            : null;
+        var hostedFailure = hostedSnapshot?.Phase == LastToDieWirePhase.Lost;
+        if ((_lastToDieRun is null && !hostedFailure) || alpha < 0.2f)
         {
             return;
         }
 
         DrawHudTextCentered(
-            "YOU FAILED YOUR TEAM",
+            hostedFailure ? "GAME OVER!" : "YOU FAILED YOUR TEAM",
             new Vector2(viewportWidth / 2f, viewportHeight * 0.18f),
             new Color(230, 214, 214) * alpha,
             3f);
 
+        if (hostedFailure)
+        {
+            DrawHudTextCentered(
+                string.IsNullOrWhiteSpace(hostedSnapshot!.TerminalReason)
+                    ? "Your team has fallen."
+                    : hostedSnapshot.TerminalReason,
+                new Vector2(viewportWidth / 2f, viewportHeight * 0.70f),
+                new Color(220, 214, 214) * alpha,
+                1.15f);
+
+            if (_lastToDieFailureOverlayTicks >= LastToDieFailureContinueDelayTicks)
+            {
+                var localPlayer = hostedSnapshot.Players.FirstOrDefault(
+                    player => player.Slot == _networkClient.LocalPlayerSlot);
+                var (retryBounds, exitBounds) = GetLastToDieFailureActionBounds();
+                DrawMenuButtonCentered(
+                    retryBounds,
+                    "RETRY",
+                    _lastToDieFailureActionIndex == 0,
+                    1f);
+                DrawMenuButtonCentered(
+                    exitBounds,
+                    hostedSnapshot.MaximumPlayers == 1 ? "MENU" : "LOBBY",
+                    _lastToDieFailureActionIndex == 1,
+                    1f);
+
+                if (localPlayer?.IsReady == true && hostedSnapshot.MaximumPlayers > 1)
+                {
+                    var readyCount = hostedSnapshot.Players.Count(player => player.IsReady);
+                    DrawHudTextCentered(
+                        $"Retry selected - waiting for partner ({readyCount}/{hostedSnapshot.MaximumPlayers})",
+                        new Vector2(viewportWidth / 2f, viewportHeight * 0.93f),
+                        new Color(214, 214, 214) * alpha,
+                        0.9f);
+                }
+            }
+            return;
+        }
+
+        var run = _lastToDieRun!;
+
         DrawHudTextCentered(
-            $"Kills: {_lastToDieRun.TotalKills}",
+            $"Kills: {run.TotalKills}",
             new Vector2(viewportWidth / 2f, viewportHeight * 0.74f),
             new Color(220, 214, 214) * alpha,
             1.15f);
         DrawHudTextCentered(
-            $"Damage: {_lastToDieRun.TotalDamageDealt}",
+            $"Damage: {run.TotalDamageDealt}",
             new Vector2(viewportWidth / 2f, viewportHeight * 0.80f),
             new Color(220, 214, 214) * alpha,
             1.15f);
         DrawHudTextCentered(
-            $"Matches clutched: {_lastToDieRun.LevelsCompleted}",
+            $"Matches clutched: {run.LevelsCompleted}",
             new Vector2(viewportWidth / 2f, viewportHeight * 0.86f),
             new Color(220, 214, 214) * alpha,
             1.15f);

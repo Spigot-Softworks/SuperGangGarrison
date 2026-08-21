@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using OpenGarrison.ClientShared;
@@ -14,6 +15,10 @@ public partial class Game1
     {
         private readonly Game1 _game;
         private readonly GameplaySessionController _sessionController;
+        private IReadOnlyList<NetworkEndpointCandidate>? _pendingConnectionCandidates;
+        private NetworkEndpoint _pendingConnectionEndpoint;
+        private OnlineConnectionIntent _pendingConnectionIntent = OnlineConnectionIntent.Join;
+        private int _nextPendingConnectionCandidateIndex;
 
         public OnlineSessionController(Game1 game, GameplaySessionController sessionController)
         {
@@ -91,6 +96,8 @@ public partial class Game1
             _game.ClearPendingNetworkMapSync();
             _game._onlineConnectionIntent = intent;
             var candidates = endpoint.GetConnectionCandidates();
+            _pendingConnectionCandidates = null;
+            _nextPendingConnectionCandidateIndex = 0;
             if (candidates.Count == 0)
             {
                 _game._onlineConnectionIntent = OnlineConnectionIntent.Join;
@@ -103,44 +110,24 @@ public partial class Game1
                 return false;
             }
 
+            _pendingConnectionCandidates = candidates;
+            _pendingConnectionEndpoint = endpoint;
+            _pendingConnectionIntent = intent;
             var errors = new List<string>();
-            foreach (var candidate in candidates)
+            for (var candidateIndex = 0; candidateIndex < candidates.Count; candidateIndex += 1)
             {
-                if (_game._networkClient.Connect(
-                        candidate.Host,
-                        candidate.Port,
-                        _game._world.LocalPlayer.DisplayName,
-                        _game._world.LocalPlayer.BadgeMask,
-                        out var error,
-                        _game._clientIdentity.FriendCode,
-                        PlayerCardProfile.Serialize(_game._clientIdentity.PlayerCard),
-                        ToProtocolConnectionIntent(intent)))
+                var candidate = candidates[candidateIndex];
+                if (TryConnectCandidate(candidate, intent, out var error))
                 {
-                    _game.SetSocialPresenceNetworkEndpoint(endpoint);
-                    _game.RecordRecentConnection(candidate.Host, candidate.Port);
-                    _game.ClearOnlinePlayerSocialProfiles();
-                    _game.ResetGameplayRuntimeState();
-                    // Online sessions must always start from default server-authoritative gameplay rules.
-                    // This prevents offline experimental settings (for example Last To Die perks)
-                    // from leaking into client prediction when the world instance is reused.
-                    _game._world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings());
-                    _game.CloseLobbyBrowser(clearStatus: false);
-                    var transportLabel = FormatNetworkEndpointTransport(candidate.Transport);
-                    var actionLabel = intent == OnlineConnectionIntent.Watch ? "Watching" : "Connecting to";
-                    _game.SetJoiningServerLoadingLabel(endpoint.AddressLabel);
-                    _game.ShowJoiningServerLoadingOverlay();
-                    _game.SetNetworkStatus($"{actionLabel} {candidate.Host}:{candidate.Port} over {transportLabel}...");
-                    if (addConsoleFeedback)
-                    {
-                        _game.AddNetworkConsoleLine($"{actionLabel.ToLowerInvariant()} {candidate.Host}:{candidate.Port} over {transportLabel}");
-                    }
-
+                    _nextPendingConnectionCandidateIndex = candidateIndex + 1;
+                    PresentSuccessfulConnectionStart(endpoint, candidate, intent, addConsoleFeedback);
                     return true;
                 }
 
                 errors.Add($"{FormatNetworkEndpointTransport(candidate.Transport)}: {error}");
             }
 
+            _pendingConnectionCandidates = null;
             _game._onlineConnectionIntent = OnlineConnectionIntent.Join;
             var errorText = errors.Count == 0 ? "no compatible endpoint" : string.Join("; ", errors);
             _game.SetNetworkStatus($"Connect failed: {errorText}");
@@ -150,6 +137,95 @@ public partial class Game1
             }
 
             return false;
+        }
+
+        public bool TryAdvancePendingConnectionCandidate(string disconnectReason)
+        {
+            var candidates = _pendingConnectionCandidates;
+            if (candidates is null
+                || _nextPendingConnectionCandidateIndex >= candidates.Count
+                || string.IsNullOrWhiteSpace(disconnectReason)
+                || !disconnectReason.Contains("timed out", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            var endpoint = _pendingConnectionEndpoint;
+            var intent = _pendingConnectionIntent;
+            var errors = new List<string> { $"{FormatNetworkEndpointTransport(candidates[_nextPendingConnectionCandidateIndex - 1].Transport)}: {disconnectReason}" };
+            while (_nextPendingConnectionCandidateIndex < candidates.Count)
+            {
+                var candidateIndex = _nextPendingConnectionCandidateIndex;
+                var candidate = candidates[candidateIndex];
+                _nextPendingConnectionCandidateIndex = candidateIndex + 1;
+                if (TryConnectCandidate(candidate, intent, out var error))
+                {
+                    PresentSuccessfulConnectionStart(endpoint, candidate, intent, addConsoleFeedback: false);
+                    return true;
+                }
+
+                errors.Add($"{FormatNetworkEndpointTransport(candidate.Transport)}: {error}");
+            }
+
+            _pendingConnectionCandidates = null;
+            _game._onlineConnectionIntent = OnlineConnectionIntent.Join;
+            _game.SetNetworkStatus($"Connect failed: {string.Join("; ", errors)}");
+            return false;
+        }
+
+        public void ClearPendingConnectionCandidates()
+        {
+            _pendingConnectionCandidates = null;
+            _nextPendingConnectionCandidateIndex = 0;
+        }
+
+        private bool TryConnectCandidate(
+            NetworkEndpointCandidate candidate,
+            OnlineConnectionIntent intent,
+            out string error)
+        {
+            var clientInstanceId = Guid.TryParse(_game._clientIdentity.ClientId, out var parsedClientInstanceId)
+                ? parsedClientInstanceId
+                : Guid.Empty;
+            return _game._networkClient.Connect(
+                candidate.Host,
+                candidate.Port,
+                _game._world.LocalPlayer.DisplayName,
+                _game._world.LocalPlayer.BadgeMask,
+                out error,
+                _game._clientIdentity.FriendCode,
+                PlayerCardProfile.Serialize(_game._clientIdentity.PlayerCard),
+                ToProtocolConnectionIntent(intent),
+                clientInstanceId);
+        }
+
+        private void PresentSuccessfulConnectionStart(
+            NetworkEndpoint endpoint,
+            NetworkEndpointCandidate candidate,
+            OnlineConnectionIntent intent,
+            bool addConsoleFeedback)
+        {
+            _game.SetSocialPresenceNetworkEndpoint(endpoint);
+            _game.RecordRecentConnection(candidate.Host, candidate.Port);
+            _game.ClearOnlinePlayerSocialProfiles();
+            _game.ResetGameplayRuntimeState();
+            // Online sessions must always start from default server-authoritative gameplay rules.
+            // This prevents offline experimental settings (for example Last To Die perks)
+            // from leaking into client prediction when the world instance is reused.
+            _game._world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings());
+            _game.CloseLobbyBrowser(clearStatus: false);
+            var transportLabel = FormatNetworkEndpointTransport(candidate.Transport);
+            var actionLabel = intent == OnlineConnectionIntent.Watch ? "Watching" : "Connecting to";
+            _game.SetJoiningServerLoadingLabel(endpoint.AddressLabel);
+            _game.ShowJoiningServerLoadingOverlay();
+            _game.SetNetworkStatus(
+                _game._lastToDieConnectionPresentationPending
+                    ? "Loading Last to Die..."
+                    : $"{actionLabel} {candidate.Host}:{candidate.Port} over {transportLabel}...");
+            if (addConsoleFeedback)
+            {
+                _game.AddNetworkConsoleLine($"{actionLabel.ToLowerInvariant()} {candidate.Host}:{candidate.Port} over {transportLabel}");
+            }
         }
 
         private static string FormatNetworkEndpointTransport(NetworkEndpointTransport transport)
@@ -260,6 +336,7 @@ public partial class Game1
 
         public void HandleWelcomeMessage(WelcomeMessage welcome)
         {
+            ClearPendingConnectionCandidates();
             if (welcome.Version != ProtocolVersion.Current)
             {
                 _game._networkClient.Disconnect();

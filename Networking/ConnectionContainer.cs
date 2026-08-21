@@ -38,6 +38,10 @@ public interface IConnectionContainer : IDisposable
 /// </summary>
 public sealed class Protocol64ConnectionContainer : IConnectionContainer
 {
+    // EnqueueSend is called by the simulation thread while the QUIC runtime
+    // dequeues on its I/O thread. Keep the container's lifecycle and recovery
+    // state under the same ownership boundary as the schedulers.
+    private readonly object _gate = new();
     private readonly Protocol64ChannelScheduler _sendScheduler;
     private readonly Protocol64ReceiveScheduler _receiveScheduler;
     private readonly Protocol64ConnectionRecovery _recovery;
@@ -61,161 +65,203 @@ public sealed class Protocol64ConnectionContainer : IConnectionContainer
 
     public ulong ConnectionEpoch { get; }
 
-    public Protocol64ConnectionState State => _recovery.State;
+    public Protocol64ConnectionState State
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _recovery.State;
+            }
+        }
+    }
 
-    public IReadOnlyList<Protocol64StreamRecoverySnapshot> Streams => _recovery.Streams;
+    public IReadOnlyList<Protocol64StreamRecoverySnapshot> Streams
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _recovery.Streams;
+            }
+        }
+    }
 
     public ConnectionSendResult EnqueueSend(Protocol64OutboundFrame frame)
     {
-        EnsureUsable();
-        ArgumentNullException.ThrowIfNull(frame);
-        if (State is Protocol64ConnectionState.ProtocolError or Protocol64ConnectionState.Closed)
+        lock (_gate)
         {
-            return ConnectionSendResult.Rejected(Protocol64ConnectionFrameValidation.Fault(
-                Protocol64FaultKind.ValidationFailed,
-                "Cannot enqueue a frame on a failed or closed connection."));
-        }
+            EnsureUsable();
+            ArgumentNullException.ThrowIfNull(frame);
+            if (_recovery.State is Protocol64ConnectionState.ProtocolError or Protocol64ConnectionState.Closed)
+            {
+                return ConnectionSendResult.Rejected(Protocol64ConnectionFrameValidation.Fault(
+                    Protocol64FaultKind.ValidationFailed,
+                    "Cannot enqueue a frame on a failed or closed connection."));
+            }
 
-        if (frame.Header.ConnectionEpoch != ConnectionEpoch)
-        {
-            return ConnectionSendResult.Rejected(Protocol64ConnectionFrameValidation.Fault(
-                Protocol64FaultKind.ValidationFailed,
-                "Frame connection epoch does not match the container."));
-        }
+            if (frame.Header.ConnectionEpoch != ConnectionEpoch)
+            {
+                return ConnectionSendResult.Rejected(Protocol64ConnectionFrameValidation.Fault(
+                    Protocol64FaultKind.ValidationFailed,
+                    "Frame connection epoch does not match the container."));
+            }
 
-        var result = _sendScheduler.Enqueue(frame);
-        switch (result.Status)
-        {
-            case ConnectionSendStatus.Backpressured:
-                Telemetry.RecordReliableBackpressure();
-                break;
-            case ConnectionSendStatus.Replaced:
-                Telemetry.RecordLastWinsReplacement();
-                break;
-            case ConnectionSendStatus.IgnoredStale:
-                Telemetry.RecordLastWinsStaleDiscard();
-                break;
-        }
+            var result = _sendScheduler.Enqueue(frame);
+            switch (result.Status)
+            {
+                case ConnectionSendStatus.Backpressured:
+                    Telemetry.RecordReliableBackpressure();
+                    break;
+                case ConnectionSendStatus.Replaced:
+                    Telemetry.RecordLastWinsReplacement();
+                    break;
+                case ConnectionSendStatus.IgnoredStale:
+                    Telemetry.RecordLastWinsStaleDiscard();
+                    break;
+            }
 
-        return result;
+            return result;
+        }
     }
 
     public bool TryDequeueSend(out Protocol64ScheduledFrame frame)
     {
-        EnsureUsable();
-        return _sendScheduler.TryDequeue(out frame);
+        lock (_gate)
+        {
+            EnsureUsable();
+            return _sendScheduler.TryDequeue(out frame);
+        }
     }
 
     public ConnectionReceiveResult AcceptReceived(Protocol64ReceivedFrame frame)
     {
-        EnsureUsable();
-        ArgumentNullException.ThrowIfNull(frame);
-        if (State is Protocol64ConnectionState.ProtocolError or Protocol64ConnectionState.Closed)
+        lock (_gate)
         {
-            return new ConnectionReceiveResult(
-                ConnectionReceiveStatus.Rejected,
-                [],
-                Fault: new Protocol64TransportFault(
-                    Protocol64TransportFaultKind.ProtocolViolation,
-                    Protocol64TransportFaultScope.Connection,
-                    "Cannot accept a frame on a failed or closed connection.",
-                    ConnectionEpoch,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    CompleteFrameDelivered: false));
-        }
+            EnsureUsable();
+            ArgumentNullException.ThrowIfNull(frame);
+            if (_recovery.State is Protocol64ConnectionState.ProtocolError or Protocol64ConnectionState.Closed)
+            {
+                return new ConnectionReceiveResult(
+                    ConnectionReceiveStatus.Rejected,
+                    [],
+                    Fault: new Protocol64TransportFault(
+                        Protocol64TransportFaultKind.ProtocolViolation,
+                        Protocol64TransportFaultScope.Connection,
+                        "Cannot accept a frame on a failed or closed connection.",
+                        ConnectionEpoch,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        CompleteFrameDelivered: false));
+            }
 
-        if (frame.Header.ConnectionEpoch != ConnectionEpoch)
-        {
-            return new ConnectionReceiveResult(
-                ConnectionReceiveStatus.Rejected,
-                [],
-                Fault: new Protocol64TransportFault(
-                    Protocol64TransportFaultKind.ProtocolViolation,
-                    Protocol64TransportFaultScope.Connection,
-                    "Received frame belongs to another connection epoch.",
-                    ConnectionEpoch,
-                    frame.StreamId,
-                    frame.EffectiveChannel,
-                    frame.Delivery.Kind,
-                    frame.StreamSequence,
-                    frame.Header.FrameId,
-                    CompleteFrameDelivered: true));
-        }
+            if (frame.Header.ConnectionEpoch != ConnectionEpoch)
+            {
+                return new ConnectionReceiveResult(
+                    ConnectionReceiveStatus.Rejected,
+                    [],
+                    Fault: new Protocol64TransportFault(
+                        Protocol64TransportFaultKind.ProtocolViolation,
+                        Protocol64TransportFaultScope.Connection,
+                        "Received frame belongs to another connection epoch.",
+                        ConnectionEpoch,
+                        frame.StreamId,
+                        frame.EffectiveChannel,
+                        frame.Delivery.Kind,
+                        frame.StreamSequence,
+                        frame.Header.FrameId,
+                        CompleteFrameDelivered: true));
+            }
 
-        var result = _receiveScheduler.Accept(frame);
-        if (result.Status is ConnectionReceiveStatus.Delivered or ConnectionReceiveStatus.Replaced)
-        {
-            Telemetry.RecordFrameReceived(frame.Header, frame.Delivery, frame.EncodedLength);
-        }
+            var result = _receiveScheduler.Accept(frame);
+            if (result.Status is ConnectionReceiveStatus.Delivered or ConnectionReceiveStatus.Replaced)
+            {
+                Telemetry.RecordFrameReceived(frame.Header, frame.Delivery, frame.EncodedLength);
+            }
 
-        if (result.RepairRequest is not null)
-        {
-            Telemetry.RecordRepairRequested();
-        }
+            if (result.RepairRequest is not null)
+            {
+                Telemetry.RecordRepairRequested();
+            }
 
-        if (result.Fault?.ProtocolFault is { } protocolFault)
-        {
-            Telemetry.RecordDecodeFault(protocolFault);
-        }
+            if (result.Fault?.ProtocolFault is { } protocolFault)
+            {
+                Telemetry.RecordDecodeFault(protocolFault);
+            }
 
-        return result;
+            return result;
+        }
     }
 
     public bool TryDequeueReceived(out Protocol64ReceivedFrame frame)
     {
-        EnsureUsable();
-        return _receiveScheduler.TryDequeue(out frame);
+        lock (_gate)
+        {
+            EnsureUsable();
+            return _receiveScheduler.TryDequeue(out frame);
+        }
     }
 
     public Protocol64RecoveryResult ReportTransportFault(Protocol64TransportFault fault)
     {
-        EnsureUsable();
-        Telemetry.RecordTransportFault(fault);
-        var result = _recovery.ReportFault(fault);
-        if (result.RepairRequest is not null)
+        lock (_gate)
         {
-            Telemetry.RecordRepairRequested();
-        }
+            EnsureUsable();
+            Telemetry.RecordTransportFault(fault);
+            var result = _recovery.ReportFault(fault);
+            if (result.RepairRequest is not null)
+            {
+                Telemetry.RecordRepairRequested();
+            }
 
-        if (result.RequiresDisconnect)
-        {
-            Telemetry.RecordProtocolErrorDisconnect();
-        }
+            if (result.RequiresDisconnect)
+            {
+                Telemetry.RecordProtocolErrorDisconnect();
+            }
 
-        return result;
+            return result;
+        }
     }
 
     public Protocol64RecoveryResult MarkStreamReopened(int streamId)
     {
-        EnsureUsable();
-        return _recovery.MarkStreamReopened(streamId);
+        lock (_gate)
+        {
+            EnsureUsable();
+            return _recovery.MarkStreamReopened(streamId);
+        }
     }
 
     public Protocol64RecoveryResult MarkRepairCompleted(Guid requestId, int streamId)
     {
-        EnsureUsable();
-        var result = _recovery.MarkRepairCompleted(requestId, streamId);
-        if (result.Accepted)
+        lock (_gate)
         {
-            Telemetry.RecordRepairCompleted();
-        }
+            EnsureUsable();
+            var result = _recovery.MarkRepairCompleted(requestId, streamId);
+            if (result.Accepted)
+            {
+                Telemetry.RecordRepairCompleted();
+            }
 
-        return result;
+            return result;
+        }
     }
 
     public void Close()
     {
-        if (_disposed)
+        lock (_gate)
         {
-            return;
-        }
+            if (_disposed)
+            {
+                return;
+            }
 
-        _recovery.Close();
-        _disposed = true;
+            _recovery.Close();
+            _disposed = true;
+        }
     }
 
     public void Dispose() => Close();

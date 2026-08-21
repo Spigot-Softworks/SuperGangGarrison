@@ -1,0 +1,23 @@
+{
+  "id": "DispenserRed",
+  "framePaths": [
+    "assets/world/in-game-elements/DispenserRedS.images/image 0.png",
+    "assets/world/in-game-elements/DispenserRedS.images/image 1.png",
+    "assets/world/in-game-elements/DispenserRedS.images/image 2.png",
+    "assets/world/in-game-elements/DispenserRedS.images/image 3.png",
+    "assets/world/in-game-elements/DispenserRedS.images/image 4.png",
+    "assets/world/in-game-elements/DispenserRedS.images/image 5.png",
+    "assets/world/in-game-elements/DispenserRedS.images/image 6.png",
+    "assets/world/in-game-elements/DispenserRedS.images/image 7.png",
+    "assets/world/in-game-elements/DispenserRedS.images/image 8.png",
+    "assets/world/in-game-elements/DispenserRedS.images/image 9.png",
+    "assets/world/in-game-elements/DispenserRedS.images/image 10.png",
+    "assets/world/in-game-elements/DispenserRedS.images/image 11.png",
+    "assets/world/in-game-elements/DispenserRedS.images/image 12.png",
+    "assets/world/in-game-elements/DispenserRedS.images/image 13.png",
+    "assets/world/in-game-elements/DispenserRedS.images/image 14.png",
+    "assets/world/in-game-elements/DispenserRedS.images/image 15.png"
+  ],
+  "originX": 32,
+  "originY": 32
+}

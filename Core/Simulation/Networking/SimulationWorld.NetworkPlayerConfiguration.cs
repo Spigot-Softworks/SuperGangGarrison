@@ -110,7 +110,9 @@ public sealed partial class SimulationWorld
 
     public bool TrySetNetworkPlayerTeam(byte slot, PlayerTeam team, bool respawnLivePlayerImmediately = false)
     {
-        if (TryGetNetworkPlayer(slot, out var configuredPlayer) && configuredPlayer.Team != team)
+        var changesTeam = TryGetNetworkPlayer(slot, out var configuredPlayer)
+            && configuredPlayer.Team != team;
+        if (changesTeam)
         {
             TryDropCarriedIntel(configuredPlayer);
             ClearDominationsForPlayer(configuredPlayer);
@@ -119,6 +121,12 @@ public sealed partial class SimulationWorld
         if (!TrySetNetworkPlayerConfiguredTeam(slot, team))
         {
             return false;
+        }
+
+        if (changesTeam)
+        {
+            ClearLastToDieSniperMarksTargeting(slot);
+            configuredPlayer.ResetLastToDieSniperDynamicState();
         }
 
         if (slot == LocalPlayerSlot)

@@ -11,6 +11,9 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
     private readonly Dictionary<string, Texture2D> _customMapSpriteTextureCache = new(StringComparer.OrdinalIgnoreCase);
+    private SimpleLevel? _customMapLayerCacheLevel;
+    private readonly Dictionary<CustomMapSpriteLayerKind, (int Index, RoomObjectMarker Marker)[]> _customMapSpriteLayerCache = new();
+    private readonly Dictionary<CustomMapSpriteLayerKind, (int Index, RoomObjectMarker Marker)[]> _spritesheetLayerCache = new();
 
     private void ClearCustomMapSpriteTextureCache()
     {
@@ -20,6 +23,70 @@ public partial class Game1
         }
 
         _customMapSpriteTextureCache.Clear();
+        _customMapLayerCacheLevel = null;
+        _customMapSpriteLayerCache.Clear();
+        _spritesheetLayerCache.Clear();
+    }
+
+    private (int Index, RoomObjectMarker Marker)[] GetCachedCustomMapSprites(CustomMapSpriteLayerKind layer)
+    {
+        EnsureCustomMapLayerCacheLevel();
+        if (_customMapSpriteLayerCache.TryGetValue(layer, out var cached))
+        {
+            return cached;
+        }
+
+        cached = _world.Level.RoomObjects
+            .Select(static (marker, index) => (Index: index, Marker: marker))
+            .Where(entry => entry.Marker.Type == RoomObjectType.CustomMapSprite
+                && entry.Marker.CustomMapSprite.Layer == layer)
+            .OrderBy(static entry => entry.Marker.CustomMapSprite.ZOrder)
+            .ThenBy(static entry => entry.Marker.CenterX)
+            .ThenBy(static entry => entry.Marker.CenterY)
+            .ToArray();
+        _customMapSpriteLayerCache[layer] = cached;
+        return cached;
+    }
+
+    private (int Index, RoomObjectMarker Marker)[] GetCachedSpritesheets(CustomMapSpriteLayerKind layer)
+    {
+        EnsureCustomMapLayerCacheLevel();
+        if (_spritesheetLayerCache.TryGetValue(layer, out var cached))
+        {
+            return cached;
+        }
+
+        cached = _world.Level.RoomObjects
+            .Select(static (marker, index) => (Index: index, Marker: marker))
+            .Where(entry => entry.Marker.Type == RoomObjectType.Spritesheet
+                && entry.Marker.Spritesheet.Layer == layer)
+            .OrderBy(static entry => entry.Marker.Spritesheet.ZOrder)
+            .ThenBy(static entry => entry.Marker.CenterX)
+            .ThenBy(static entry => entry.Marker.CenterY)
+            .ToArray();
+        _spritesheetLayerCache[layer] = cached;
+        return cached;
+    }
+
+    private void EnsureCustomMapLayerCacheLevel()
+    {
+        if (ReferenceEquals(_customMapLayerCacheLevel, _world.Level))
+        {
+            return;
+        }
+
+        // Resource names are only unique within a level.  A newly loaded map
+        // may reuse a name with different bytes, so dispose the old texture
+        // cache along with the marker-layer cache.
+        foreach (var texture in _customMapSpriteTextureCache.Values)
+        {
+            texture.Dispose();
+        }
+
+        _customMapSpriteTextureCache.Clear();
+        _customMapLayerCacheLevel = _world.Level;
+        _customMapSpriteLayerCache.Clear();
+        _spritesheetLayerCache.Clear();
     }
 
     private void DrawCustomMapGameplaySprites(Vector2 cameraPosition, CustomMapSpriteLayerKind layer)
@@ -33,29 +100,9 @@ public partial class Game1
 
         var viewport = GraphicsDevice.Viewport;
         var parallaxLayers = _world.Level.CustomMapVisuals.ParallaxLayers;
-        var sprites = new List<(int Index, RoomObjectMarker Marker)>();
-        for (var index = 0; index < _world.Level.RoomObjects.Count; index += 1)
+        foreach (var (roomObjectIndex, marker) in GetCachedCustomMapSprites(layer))
         {
-            var marker = _world.Level.RoomObjects[index];
-            if (marker.Type != RoomObjectType.CustomMapSprite
-                || marker.CustomMapSprite.Layer != layer
-                || !_world.Level.IsRoomObjectActive(index))
-            {
-                continue;
-            }
-
-            sprites.Add((index, marker));
-        }
-
-        foreach (var (_, marker) in sprites
-                     .OrderBy(static entry => entry.Marker.CustomMapSprite.ZOrder)
-                     .ThenBy(static entry => entry.Marker.CenterX)
-                     .ThenBy(static entry => entry.Marker.CenterY))
-        {
-            var resourceName = marker.CustomMapSprite.ImageResourceName;
-            if (string.IsNullOrWhiteSpace(resourceName)
-                || !spriteResources.TryGetValue(resourceName, out var resource)
-                || !TryGetCustomMapSpriteTexture(resource, out var texture))
+            if (!_world.Level.IsRoomObjectActive(roomObjectIndex))
             {
                 continue;
             }
@@ -76,6 +123,22 @@ public partial class Game1
                 (int)MathF.Floor(relY - (drawHeight * 0.5f)),
                 Math.Max(1, (int)MathF.Ceiling(drawWidth)),
                 Math.Max(1, (int)MathF.Ceiling(drawHeight)));
+            if (destination.Right <= 0
+                || destination.Left >= viewport.Width
+                || destination.Bottom <= 0
+                || destination.Top >= viewport.Height)
+            {
+                continue;
+            }
+
+            var resourceName = marker.CustomMapSprite.ImageResourceName;
+            if (string.IsNullOrWhiteSpace(resourceName)
+                || !spriteResources.TryGetValue(resourceName, out var resource)
+                || !TryGetCustomMapSpriteTexture(resource, out var texture))
+            {
+                continue;
+            }
+
             var tint = Color.White * (layer == CustomMapSpriteLayerKind.Fg
                 ? ApplyCoveredPlayerForegroundOpacity(1f, destination, cameraPosition)
                 : 1f);

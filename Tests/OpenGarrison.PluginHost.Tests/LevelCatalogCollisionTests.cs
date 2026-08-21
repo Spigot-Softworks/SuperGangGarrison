@@ -5,6 +5,7 @@ using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
 
+[Collection(MapDirectoryTestGroup.Name)]
 public sealed class LevelCatalogCollisionTests
 {
     [Fact]
@@ -162,6 +163,59 @@ public sealed class LevelCatalogCollisionTests
     {
         Assert.Equal("_garrison_quicktest_Harvest", GarrisonBuilderQuickTestNaming.BuildQuickTestLevelName("Harvest"));
         Assert.Equal("_garrison_quicktest_My_Map", GarrisonBuilderQuickTestNaming.BuildQuickTestLevelName("My Map!"));
+    }
+
+    [Fact]
+    public void EurekaWalkmaskUsesTheBackgroundCoordinateFrame()
+    {
+        var solutionPath = ProjectSourceLocator.FindFile("OpenGarrison.sln");
+        Assert.NotNull(solutionPath);
+        var repositoryRoot = Path.GetDirectoryName(solutionPath!);
+        Assert.False(string.IsNullOrWhiteSpace(repositoryRoot));
+        var manifestPath = Path.Combine(repositoryRoot!, "Maps", "koth_eureka", "koth_eureka.json");
+        Assert.True(File.Exists(manifestPath), manifestPath);
+        var packageDirectory = Path.GetDirectoryName(manifestPath!);
+        Assert.False(string.IsNullOrWhiteSpace(packageDirectory));
+        var mapsDirectory = Path.GetDirectoryName(packageDirectory!);
+        Assert.False(string.IsNullOrWhiteSpace(mapsDirectory));
+        var previousMapsDirectory = Environment.GetEnvironmentVariable("OPENGARRISON_MAPS_DIR");
+        Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", mapsDirectory);
+        try
+        {
+            Assert.True(
+                CustomMapPackageImporter.TryReadManifest(manifestPath!, out _, out var manifestError),
+                $"{manifestError} path={manifestPath}");
+            Assert.NotNull(CustomMapPackageImporter.Import(manifestPath!));
+
+            SimpleLevelFactory.ClearCachedCatalog();
+            var level = SimpleLevelFactory.CreateImportedLevel("koth_eureka");
+
+            Assert.NotNull(level);
+            Assert.Equal(832f * 6f, level!.Bounds.Width);
+            Assert.Equal(190f * 6f, level.Bounds.Height);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", previousMapsDirectory);
+            SimpleLevelFactory.ClearCachedCatalog();
+        }
+    }
+
+    [Fact]
+    public void CanonicalDockingLoadsAsControlPoint()
+    {
+        SimpleLevelFactory.ClearCachedCatalog();
+        try
+        {
+            var level = SimpleLevelFactory.CreateImportedLevel("Docking");
+
+            Assert.NotNull(level);
+            Assert.Equal(GameModeKind.ControlPoint, level!.Mode);
+        }
+        finally
+        {
+            SimpleLevelFactory.ClearCachedCatalog();
+        }
     }
 
     private static SimpleLevelFactory.LevelCatalogEntry CreateCatalogEntry(

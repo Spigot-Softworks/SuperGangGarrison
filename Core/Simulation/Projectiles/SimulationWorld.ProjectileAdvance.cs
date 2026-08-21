@@ -2,6 +2,15 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
+    /// <summary>
+    /// Ballistic gravity belongs to the platformer movement model. In a
+    /// top-down map projectile Y is the second map-plane axis, not height, so
+    /// applying gravity bends shots downward and can make them leave the map.
+    /// Keep the ordinary configured gravity for every other map type.
+    /// </summary>
+    private float ResolveProjectileGravityScale() =>
+        Level.IsTopDown ? 0f : _configuredGravityScale;
+
     private void RemoveShotAt(int shotIndex)
     {
         var shot = _shots[shotIndex];
@@ -26,6 +35,20 @@ public sealed partial class SimulationWorld
     private void RemoveNeedleAt(int needleIndex)
     {
         var needle = _needles[needleIndex];
+        if (needle is MedicHealNeedleProjectileEntity
+            {
+                AppliesLastToDieJavelin: true,
+                HasLastToDieJavelinExploded: false,
+            } javelin
+            && (!ClientPredictionMode || ShouldAdvanceProjectileForClientPrediction(javelin.OwnerId)))
+        {
+            _ = TryExplodeLastToDieMedicJavelin(javelin);
+        }
+        if (needle is ArrowProjectileEntity explosiveArrow
+            && (!ClientPredictionMode || ShouldAdvanceProjectileForClientPrediction(explosiveArrow.OwnerId)))
+        {
+            _ = TryExplodeLastToDieSniperArrow(explosiveArrow);
+        }
         _entities.Remove(needle.Id);
         MarkProjectileTerminated(needle.Id);
         _needles.RemoveAt(needleIndex);
@@ -73,6 +96,15 @@ public sealed partial class SimulationWorld
 
         for (var needleIndex = _needles.Count - 1; needleIndex >= 0; needleIndex -= 1)
         {
+            if (_needles[needleIndex] is MedicHealNeedleProjectileEntity
+                {
+                    AppliesLastToDieJavelin: true,
+                    HasLastToDieJavelinExploded: false,
+                })
+            {
+                continue;
+            }
+
             if (_needles[needleIndex].OwnerId == ownerId)
             {
                 RemoveNeedleAt(needleIndex);

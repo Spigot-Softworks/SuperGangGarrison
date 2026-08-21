@@ -8,10 +8,15 @@ namespace OpenGarrison.Core.BotBrain;
 /// </summary>
 public static class TargetSelector
 {
+    private const float MartyrProtectorPriorityRange = 375f;
     /// <summary>
     /// Maximum engagement distance. Beyond this, the bot won't try to fight.
     /// </summary>
-    private const float MaxEngagementRange = 375f;
+    // Bot perception is screen-based in the legacy game. Weapon-specific
+    // decisions still limit whether a shot is useful, but target acquisition
+    // must not make bots blind merely because a map wall or bulletwall sits
+    // between two points on the 2D playfield.
+    private const float MaxEngagementRange = 1100f;
 
     /// <summary>
     /// Find the best target to engage, or null if no valid target exists.
@@ -79,12 +84,24 @@ public static class TargetSelector
                     continue;
                 }
 
+                var prioritizedCandidate = ResolveMartyrPriorityTarget(
+                    self,
+                    world,
+                    candidate,
+                    opposingTeam,
+                    maxEngagementDistanceSquared);
+                distanceSquared = DistanceSquared(
+                    self.X,
+                    self.Y,
+                    prioritizedCandidate.X,
+                    prioritizedCandidate.Y);
+
                 AddCandidate(new BotBrainCombatTarget(
                     BotBrainCombatTargetKind.Player,
-                    candidate.Team,
-                    candidate.X,
-                    candidate.Y,
-                    Player: candidate), distanceSquared);
+                    prioritizedCandidate.Team,
+                    prioritizedCandidate.X,
+                    prioritizedCandidate.Y,
+                    Player: prioritizedCandidate), distanceSquared);
             }
 
             foreach (var sentry in world.Sentries)
@@ -100,12 +117,19 @@ public static class TargetSelector
                     continue;
                 }
 
+                // Dispensers are valid structure targets just like sentries. Give an
+                // active dispenser a modest defensive priority so bots do not walk
+                // past the source of the enemy team's healing/speed aura while
+                // choosing a farther player target.
+                var targetSelectionDistanceSquared = sentry.IsDispenser
+                    ? distanceSquared * 0.75f
+                    : distanceSquared;
                 AddCandidate(new BotBrainCombatTarget(
                     BotBrainCombatTargetKind.Sentry,
                     sentry.Team,
                     sentry.X,
                     sentry.Y,
-                    Sentry: sentry), distanceSquared);
+                    Sentry: sentry), targetSelectionDistanceSquared);
             }
 
             if (candidateCount == 0)
@@ -118,16 +142,12 @@ public static class TargetSelector
                 Array.Sort(candidates, 0, candidateCount, BotBrainTargetCandidateDistanceComparer.Instance);
             }
 
-            for (var index = 0; index < candidateCount; index += 1)
-            {
-                var target = candidates[index].Target;
-                if (CombatDecisionResolver.HasCombatLineOfSight(world, self.X, self.Y, target.X, target.Y))
-                {
-                    return target;
-                }
-            }
-
-            return null;
+            // Seeing a player and being able to damage that player are separate
+            // concerns. The authoritative weapon trace remains responsible for
+            // stopping shots at solids, barriers, bulletwalls, and teammates.
+            // Keeping acquisition screen-wide lets navigation/combat steering
+            // react instead of leaving bots idle whenever a trace is blocked.
+            return candidates[0].Target;
         }
         finally
         {
@@ -188,6 +208,28 @@ public static class TargetSelector
         }
 
         return true;
+    }
+
+    internal static PlayerEntity ResolveMartyrPriorityTarget(
+        PlayerEntity self,
+        SimulationWorld world,
+        PlayerEntity candidate,
+        PlayerTeam opposingTeam,
+        float maxEngagementDistanceSquared)
+    {
+        if (!world.TryGetLastToDieMartyrProtector(candidate, out var protector)
+            || !IsValidTarget(protector, self, opposingTeam)
+            || DistanceSquared(self.X, self.Y, protector.X, protector.Y)
+                >= MathF.Min(maxEngagementDistanceSquared, MartyrProtectorPriorityRange * MartyrProtectorPriorityRange)
+            // The protector is a special damage-priority exception. Keep the
+            // exception grounded in the actual combat line so a spawn gate or
+            // solid cannot make a bot abandon the visible martyr target.
+            || !CombatDecisionResolver.HasCombatLineOfSight(world, self.X, self.Y, protector.X, protector.Y))
+        {
+            return candidate;
+        }
+
+        return protector;
     }
 
     private static float DistanceSquared(float ax, float ay, float bx, float by)

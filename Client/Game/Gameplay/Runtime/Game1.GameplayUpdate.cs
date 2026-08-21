@@ -65,6 +65,7 @@ public partial class Game1
             && !_world.LocalPlayer.IsAlive
             && _world.LocalDeathCam is not null
             && GetDeathCamElapsedTicks(_world.LocalDeathCam) >= DeathCamFocusDelayTicks;
+        ObservePracticeRoundCompletion();
         _wasMatchEnded = _world.MatchState.IsEnded;
     }
 }

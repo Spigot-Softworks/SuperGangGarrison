@@ -65,14 +65,12 @@ internal readonly record struct NetworkEndpoint(string Host, int UdpPort, int We
             yield break;
         }
 
-        var quicUrl = QuicUrl.Trim();
-        if (!string.IsNullOrWhiteSpace(quicUrl))
+        // Native clients prefer the reliable UDP transport. QUIC remains a
+        // fallback for endpoints that advertise it, while explicit QUIC-only
+        // endpoints still work when no UDP endpoint is present.
+        if (HasUdpEndpoint)
         {
-            yield return new NetworkEndpointCandidate(quicUrl, 0, NetworkEndpointTransport.Quic);
-        }
-        else if (QuicPort is > 0 and <= 65535)
-        {
-            yield return new NetworkEndpointCandidate(host, QuicPort, NetworkEndpointTransport.Quic);
+            yield return new NetworkEndpointCandidate(host, UdpPort, NetworkEndpointTransport.Udp);
         }
 
         var nativeWebSocketUrl = WebSocketUrl.Trim();
@@ -88,9 +86,18 @@ internal readonly record struct NetworkEndpoint(string Host, int UdpPort, int We
             yield return new NetworkEndpointCandidate($"ws64://{host}", WebSocketPort, NetworkEndpointTransport.WebSocket);
         }
 
-        if (HasUdpEndpoint)
+        var quicUrl = QuicUrl.Trim();
+        if (!string.IsNullOrWhiteSpace(quicUrl))
         {
-            yield return new NetworkEndpointCandidate(host, UdpPort, NetworkEndpointTransport.Udp);
+            yield return new NetworkEndpointCandidate(quicUrl, 0, NetworkEndpointTransport.Quic);
+        }
+        else if (QuicPort is > 0 and <= 65535)
+        {
+            // The transport registry selects the native transport from the
+            // endpoint scheme. Keep the advertised transport metadata and the
+            // actual connection target in agreement; passing a plain host
+            // here would make a QUIC fallback go through UDP instead.
+            yield return new NetworkEndpointCandidate($"quic64://{host}", QuicPort, NetworkEndpointTransport.Quic);
         }
     }
 
@@ -99,12 +106,6 @@ internal readonly record struct NetworkEndpoint(string Host, int UdpPort, int We
         get
         {
             var host = Host.Trim();
-            if (HasQuicEndpoint)
-            {
-                var quicLabel = string.IsNullOrWhiteSpace(QuicUrl) ? QuicPort.ToString(CultureInfo.InvariantCulture) : QuicUrl.Trim();
-                return $"{host}:quic {quicLabel}";
-            }
-
             if (HasUdpEndpoint && HasWebSocketEndpoint && UdpPort != WebSocketPort)
             {
                 var webSocketLabel = string.IsNullOrWhiteSpace(WebSocketUrl) ? WebSocketPort.ToString(CultureInfo.InvariantCulture) : WebSocketUrl.Trim();
@@ -120,7 +121,13 @@ internal readonly record struct NetworkEndpoint(string Host, int UdpPort, int We
 
             if (HasUdpEndpoint)
             {
-                return $"{host}:{UdpPort}";
+                return $"{host}:udp {UdpPort}";
+            }
+
+            if (HasQuicEndpoint)
+            {
+                var quicLabel = string.IsNullOrWhiteSpace(QuicUrl) ? QuicPort.ToString(CultureInfo.InvariantCulture) : QuicUrl.Trim();
+                return $"{host}:quic {quicLabel}";
             }
 
             return host;
@@ -139,7 +146,7 @@ internal readonly record struct NetworkEndpoint(string Host, int UdpPort, int We
         var normalizedPort = NormalizePort(port);
         return OperatingSystem.IsBrowser()
             ? new NetworkEndpoint(host, 0, normalizedPort)
-            : new NetworkEndpoint(host, normalizedPort, 0);
+            : new NetworkEndpoint(host, normalizedPort, 0, QuicPort: normalizedPort);
     }
 
     private static int NormalizePort(int port)
@@ -161,8 +168,8 @@ internal readonly record struct NetworkEndpoint(string Host, int UdpPort, int We
         var builder = new UriBuilder(scheme, uri.Host)
         {
             Port = uri.IsDefaultPort ? -1 : uri.Port,
-            Path = string.Empty,
-            Query = string.Empty,
+            Path = string.IsNullOrEmpty(uri.AbsolutePath) ? string.Empty : uri.AbsolutePath,
+            Query = uri.Query.TrimStart('?'),
             Fragment = string.Empty,
         };
         endpoint = builder.Uri.ToString();

@@ -289,7 +289,6 @@ public partial class Game1
             PlayerClass.Engineer,
             PlayerClass.Spy,
             PlayerClass.Sniper,
-            PlayerClass.Quote,
         ];
 
         var availableClasses = new PlayerClass[classes.Length];

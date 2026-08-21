@@ -68,13 +68,14 @@ public partial class Game1
         _practiceSetupState.CloseMapBrowser();
         ClosePracticeMapBrowserPreview();
 
-        _practiceMapEntries = BuildPracticeMapEntries();
+        _practiceMapEntries = BuildAllPracticeMapEntries();
         if (IsPracticeSessionActive)
         {
             SelectPracticeMapEntry(_world.Level.Name);
         }
 
         NormalizePracticeSetupState();
+        OpenPracticeMapBrowser();
     }
 
     private void UpdatePracticeSetupMenu(KeyboardState keyboard, MouseState mouse)
@@ -345,7 +346,7 @@ public partial class Game1
         var rowLabelX = panel.X + (compactLayout ? 24f : 28f);
         var rowTextOffset = (layout.MapValueBounds.Height - MeasureBitmapFontHeight(labelScale)) * 0.5f;
         var mapEntry = GetSelectedPracticeMapEntry();
-        var mouse = GetScaledMouseState(GetConstrainedMouseState(Game1.GetCurrentMouseState()));
+        var mouse = GetFrameMouseState();
         var controllerMenuActive = IsControllerMenuInputActive();
 
         bool IsPracticeControlHighlighted(int rowIndex, params Rectangle[] bounds)

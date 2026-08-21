@@ -139,6 +139,11 @@ public partial class Game1
 
     private Vector2 GetDefaultFreeCameraCenter()
     {
+        if (GetHostedLastToDieLivingTeammateForView() is { } lastToDieTeammate)
+        {
+            return GetRenderPosition(lastToDieTeammate);
+        }
+
         if (IsLocalSpectatorPresentationActive())
         {
             var spectatorFocus = GetSpectatorFocusPlayer();

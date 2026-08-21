@@ -221,6 +221,11 @@ public static class CustomMapBuilderValidator
                         }
                     }
                 }
+
+                if (MapMovementModeMetadata.IsTopDown(document.Metadata))
+                {
+                    return;
+                }
             }
             catch (Exception ex)
             {
@@ -229,6 +234,12 @@ public static class CustomMapBuilderValidator
             }
 
             AddError(issues, "empty_walkmask", "Walkmask image must contain at least one solid pixel.");
+            return;
+        }
+
+        if (MapMovementModeMetadata.IsTopDown(document.Metadata)
+            && !string.IsNullOrWhiteSpace(document.EmbeddedWalkmaskSection))
+        {
             return;
         }
 

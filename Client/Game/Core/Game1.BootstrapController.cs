@@ -326,6 +326,7 @@ public partial class Game1
             _game._gameplayLoadoutHelmetTexture?.Dispose();
             _game._gameplayLoadoutDogTagsTexture?.Dispose();
             _game._lastToDieLogoTexture?.Dispose();
+            _game.DisposeLastToDieSurvivorCarouselAssets();
             _game.DisposeLastToDieBuffIconFrame();
             _game.DisposeGameplayMissPopupFrame();
             _game.DisposeGarrisonBuilderEditorAssets();
@@ -339,6 +340,7 @@ public partial class Game1
             _game._levelBackgroundFileTexture = null;
             _game._levelBackgroundFileTexturePath = null;
             _game._levelBackgroundFileFailedPath = null;
+            _game._levelBackgroundFileTextureLevel = null;
             _game._menuBackgroundTexture = null;
             _game._menuBackgroundTexturePath = null;
             _game._menuBitmapFontTexture = null;

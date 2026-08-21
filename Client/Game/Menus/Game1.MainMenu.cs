@@ -124,6 +124,7 @@ public partial class Game1
 
     private void OpenManualConnectMenu()
     {
+        _lastToDieConnectionPresentationPending = false;
         _mainMenuOverlayStateController.OpenManualConnectMenu();
     }
 

@@ -13,7 +13,6 @@ public partial class Game1
     internal const string ContinuousCrosshairSpriteName = "CrosshairContinuousS";
     internal const int ContinuousCrosshairActiveFrameCount = 10;
     internal const int ContinuousCrosshairIdleFrameIndex = ContinuousCrosshairActiveFrameCount;
-    internal const int ContinuousCrosshairFillCycles = ContinuousCrosshairActiveFrameCount;
     internal const int RechargeCrosshairIdleFrameIndex = 0;
     internal const int RechargeCrosshairActiveFrameOffset = 1;
     internal const int RechargeCrosshairActiveFrameCount = 9;
@@ -30,15 +29,19 @@ public partial class Game1
         PrimaryWeaponDefinition weapon,
         int cooldownTicks,
         int reloadTicks,
-        int continuousActiveTicks = 0)
+        int currentAmmo = -1,
+        int maxAmmo = -1,
+        bool isFireHeld = false)
     {
         ArgumentNullException.ThrowIfNull(weapon);
 
         var remainingTicks = Math.Max(0, Math.Max(cooldownTicks, reloadTicks));
         if (IsContinuousCrosshairWeapon(weapon))
         {
-            var activeTicks = Math.Max(continuousActiveTicks, remainingTicks > 0 ? 1 : 0);
-            return GetContinuousCrosshairFrameIndex(activeTicks, weapon.ReloadDelayTicks);
+            return GetContinuousCrosshairFrameIndex(
+                currentAmmo,
+                maxAmmo,
+                isFireHeld || remainingTicks > 0);
         }
 
         if (remainingTicks <= 0)
@@ -57,22 +60,23 @@ public partial class Game1
             RechargeCrosshairActiveFrameCount - 1);
     }
 
-    internal static int GetContinuousCrosshairFrameIndex(int activeTicks, int reloadDelayTicks)
+    internal static int GetContinuousCrosshairFrameIndex(int currentAmmo, int maxAmmo, bool isActive)
     {
-        if (activeTicks <= 0)
+        if (!isActive || maxAmmo <= 0)
         {
             return ContinuousCrosshairIdleFrameIndex;
         }
 
-        var fillDurationTicks = Math.Max(1, reloadDelayTicks) * ContinuousCrosshairFillCycles;
-        var elapsedTicks = Math.Clamp(activeTicks - 1, 0, fillDurationTicks - 1);
+        var ammoFraction = Math.Clamp(currentAmmo / (float)maxAmmo, 0f, 1f);
         return Math.Clamp(
-            (int)MathF.Floor(elapsedTicks * (ContinuousCrosshairActiveFrameCount / (float)fillDurationTicks)),
+            (int)MathF.Floor((1f - ammoFraction) * ContinuousCrosshairActiveFrameCount),
             0,
             ContinuousCrosshairActiveFrameCount - 1);
     }
 
-    internal static int GetSniperChargeHudFillWidthForTicks(int chargeTicks)
+    internal static int GetSniperChargeHudFillWidthForTicks(
+        int chargeTicks,
+        int fullChargeTicks = PlayerEntity.SniperChargeMaxTicks)
     {
         if (chargeTicks <= 0)
         {
@@ -80,7 +84,22 @@ public partial class Game1
         }
 
         return Math.Clamp(
-            (int)MathF.Ceiling(chargeTicks * (SniperChargeHudFillMaxWidth / (float)PlayerEntity.SniperChargeMaxTicks)),
+            (int)MathF.Ceiling(chargeTicks * (SniperChargeHudFillMaxWidth / (float)Math.Max(1, fullChargeTicks))),
+            0,
+            SniperChargeHudFillMaxWidth);
+    }
+
+    internal static int GetSniperBowChargeHudFillWidthForTicks(
+        int chargeTicks,
+        int fullChargeTicks = PlayerEntity.SniperBowMaxChargeTicks)
+    {
+        if (chargeTicks <= 0)
+        {
+            return 0;
+        }
+
+        return Math.Clamp(
+            (int)MathF.Ceiling(chargeTicks * (SniperChargeHudFillMaxWidth / (float)Math.Max(1, fullChargeTicks))),
             0,
             SniperChargeHudFillMaxWidth);
     }
@@ -138,7 +157,7 @@ public partial class Game1
             var facingLeft = IsFacingLeftByAim(player);
             var chargeScaleX = facingLeft ? 1f : -1f;
             var chargePosition = screenAimPosition + new Vector2(15f * chargeScaleX, -10f);
-            var isFullyCharged = chargeTicks >= PlayerEntity.SniperBowMaxChargeTicks;
+            var isFullyCharged = chargeTicks >= player.LastToDieSniperBowFullChargeTicks;
             if (!isFullyCharged)
             {
                 _game.TryDrawScreenSprite("ChargeS", 0, chargePosition, Color.White * 0.25f, new Vector2(chargeScaleX, 1f));
@@ -148,26 +167,15 @@ public partial class Game1
                 _game.TryDrawScreenSprite("FullChargeS", 0, screenAimPosition + new Vector2(65f * chargeScaleX, 0f), Color.White, Vector2.One);
             }
 
-            var chargeWidth = GetSniperBowChargeHudFillWidthForTicks(chargeTicks);
+            var chargeWidth = GetSniperBowChargeHudFillWidthForTicks(
+                chargeTicks,
+                player.LastToDieSniperBowFullChargeTicks);
             if (chargeWidth <= 0)
             {
                 return;
             }
 
             DrawSniperChargeFill(chargePosition, chargeWidth, facingLeft);
-        }
-
-        internal static int GetSniperBowChargeHudFillWidthForTicks(int chargeTicks)
-        {
-            if (chargeTicks <= 0)
-            {
-                return 0;
-            }
-
-            return Math.Clamp(
-                (int)MathF.Ceiling(chargeTicks * (SniperChargeHudFillMaxWidth / (float)PlayerEntity.SniperBowMaxChargeTicks)),
-                0,
-                SniperChargeHudFillMaxWidth);
         }
 
         private void DrawSniperChargeHud(PlayerEntity player, Vector2 screenAimPosition)
@@ -185,7 +193,9 @@ public partial class Game1
                 _game.TryDrawScreenSprite("FullChargeS", 0, screenAimPosition + new Vector2(65f * chargeScaleX, 0f), Color.White, Vector2.One);
             }
 
-            var chargeWidth = GetSniperChargeHudFillWidthForTicks(_game.GetPlayerSniperChargeTicks(player));
+            var chargeWidth = GetSniperChargeHudFillWidthForTicks(
+                _game.GetPlayerSniperChargeTicks(player),
+                player.LastToDieSniperRifleFullChargeTicks);
             if (chargeWidth <= 0)
             {
                 return;
@@ -263,6 +273,8 @@ public partial class Game1
             var weapon = _game.GetLocalDisplayedMainWeaponStats();
             var cooldownTicks = _game.GetLocalDisplayedMainWeaponCooldownTicks();
             var reloadTicks = _game.GetLocalDisplayedMainWeaponReloadTicks();
+            var currentAmmo = _game.GetLocalDisplayedMainWeaponCurrentShells();
+            var maxAmmo = _game.GetLocalDisplayedMainWeaponMaxShells();
             var spriteName = IsContinuousCrosshairWeapon(weapon)
                 ? ContinuousCrosshairSpriteName
                 : "CrosshairS";
@@ -270,7 +282,9 @@ public partial class Game1
                 weapon,
                 cooldownTicks,
                 reloadTicks,
-                _game._continuousCrosshairActiveTicks);
+                currentAmmo,
+                maxAmmo,
+                _game._latestPredictedLocalInput.FirePrimary);
             var crosshair = _game.GetResolvedSprite(spriteName);
             if (crosshair is null || crosshair.Frames.Count == 0)
             {

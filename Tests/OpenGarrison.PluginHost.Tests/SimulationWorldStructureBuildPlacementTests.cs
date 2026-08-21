@@ -59,6 +59,55 @@ public sealed class SimulationWorldStructureBuildPlacementTests
     }
 
     [Fact]
+    public void BuildingDispenserCostsOneHundredMetalAndUsesDispenserHealth()
+    {
+        var world = CreateEngineerWorld(
+            solids:
+            [
+                new LevelSolid(0f, 120f, 512f, 20f),
+            ]);
+        world.TeleportLocalPlayer(100f, 100f);
+        world.LocalPlayer.SetSpawnRoomState(false);
+        var metalBefore = world.LocalPlayer.Metal;
+
+        Assert.True(world.TryBuildLocalDispenser());
+
+        var dispenser = Assert.Single(world.Sentries);
+        Assert.True(dispenser.IsDispenser);
+        Assert.Equal(SentryEntity.DispenserMaxHealth, dispenser.MaxHealth);
+        Assert.Equal(metalBefore - 100f, world.LocalPlayer.Metal);
+
+        dispenser.ForceBuilt();
+        Assert.True(world.IsNearPrimaryWeaponSwapStation(world.LocalPlayer));
+    }
+
+    [Fact]
+    public void BuiltDispenserHealsAndMarksNearbyAlliedPlayersAsBuffed()
+    {
+        var world = CreateEngineerWorld(
+            solids:
+            [
+                new LevelSolid(0f, 120f, 512f, 20f),
+            ]);
+        world.TeleportLocalPlayer(100f, 100f);
+        world.LocalPlayer.SetSpawnRoomState(false);
+        Assert.True(world.TryBuildLocalDispenser());
+
+        var dispenser = Assert.Single(world.Sentries);
+        dispenser.ForceBuilt();
+        world.LocalPlayer.ApplyDamage(20);
+        var healthBefore = world.LocalPlayer.Health;
+
+        for (var tick = 0; tick < 12; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        Assert.True(world.LocalPlayer.IsDispenserBuffed);
+        Assert.True(world.LocalPlayer.Health > healthBefore);
+    }
+
+    [Fact]
     public void BuildingJumpPadFailsWhenInitialBodyWouldOverlapSolid()
     {
         var world = CreateEngineerWorld(

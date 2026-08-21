@@ -10,6 +10,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using OpenGarrison.Core;
+using OpenGarrison.Core.LastToDie;
 using OpenGarrison.Protocol;
 using OpenGarrison.Server;
 using OpenGarrison.Server.Plugins;
@@ -80,6 +81,7 @@ sealed partial class GameServer
     private int _botAutofillLastTick;
     private bool _secondaryAbilitiesEnabled;
     private bool _svCheatsEnabled;
+    private bool _serverFrameInfoEnabled;
     private bool _randomSpreadEnabled;
     private bool _sniperAimIndicatorEnabled = true;
     private bool _localPredictionEnabled;
@@ -95,6 +97,7 @@ sealed partial class GameServer
     private readonly string? _publicWebSocketUrl;
     private readonly int _quicPort;
     private readonly string? _publicQuicUrl;
+    private readonly Uri? _relayHostUrl;
     private readonly double _clientTimeoutSeconds;
     private readonly double _passwordTimeoutSeconds;
     private readonly double _passwordRetrySeconds;
@@ -103,6 +106,9 @@ sealed partial class GameServer
     private readonly PersistentGameplayOwnershipIdentityMode _persistentGameplayOwnershipIdentityMode;
     private readonly string _persistentGameplayOwnershipFile;
     private readonly OpenGarrison.Server.SnapshotBudgetMode _snapshotBudgetMode;
+    private readonly GameplayVariantKind _gameplayVariant;
+    private readonly LastToDieDifficulty _lastToDieDifficulty;
+    private readonly ulong? _lastToDieSeed;
     private readonly bool _passwordRequired;
     private readonly byte[] _protocolUuidBytes;
     private readonly ConcurrentQueue<PendingConsoleCommand> _pendingConsoleCommands = new();
@@ -112,6 +118,8 @@ sealed partial class GameServer
     private OpenGarrison.Server.IServerMessageTransport _messageTransport = null!;
     private OpenGarrison.Server.WebSocketServerHost? _webSocketHost;
     private OpenGarrison.Server.Protocol64QuicServerHost? _quicHost;
+    private Task? _relayHostTask;
+    private CancellationTokenSource? _relayHostCts;
     private bool _mapDownloadEndpointAvailable;
     private LobbyServerRegistrar? _lobbyRegistrar;
     private HttpServerRegistryHeartbeat? _httpRegistryHeartbeat;
@@ -192,6 +200,7 @@ sealed partial class GameServer
         string? publicWebSocketUrl,
         int quicPort,
         string? publicQuicUrl,
+        Uri? relayHostUrl,
         double clientTimeoutSeconds,
         double passwordTimeoutSeconds,
         double passwordRetrySeconds,
@@ -200,6 +209,9 @@ sealed partial class GameServer
         PersistentGameplayOwnershipIdentityMode persistentGameplayOwnershipIdentityMode,
         string persistentGameplayOwnershipFile,
         OpenGarrisonHostSettings hostGameplayDefaults,
+        GameplayVariantKind gameplayVariant,
+        LastToDieDifficulty lastToDieDifficulty,
+        ulong? lastToDieSeed,
         OpenGarrison.Server.SnapshotBudgetMode snapshotBudgetMode = OpenGarrison.Server.SnapshotBudgetMode.GameplayCriticalUntrimmed)
     {
         _config = config;
@@ -254,6 +266,7 @@ sealed partial class GameServer
         _publicWebSocketUrl = publicWebSocketUrl;
         _quicPort = quicPort is > 0 and <= 65535 ? quicPort : 0;
         _publicQuicUrl = publicQuicUrl;
+        _relayHostUrl = relayHostUrl;
         _clientTimeoutSeconds = clientTimeoutSeconds;
         _passwordTimeoutSeconds = passwordTimeoutSeconds;
         _passwordRetrySeconds = passwordRetrySeconds;
@@ -263,6 +276,9 @@ sealed partial class GameServer
             ? persistentGameplayOwnershipIdentityMode
             : PersistentGameplayOwnershipIdentityMode.Disabled;
         _persistentGameplayOwnershipFile = persistentGameplayOwnershipFile;
+        _gameplayVariant = gameplayVariant;
+        _lastToDieDifficulty = lastToDieDifficulty;
+        _lastToDieSeed = lastToDieSeed;
         _snapshotBudgetMode = snapshotBudgetMode;
         _passwordRequired = !string.IsNullOrWhiteSpace(serverPassword);
         _protocolUuidBytes = ParseProtocolUuid(protocolUuidString);
@@ -331,6 +347,11 @@ sealed partial class GameServer
         if (normalized.Length == 0)
         {
             return [];
+        }
+
+        if (TryBuildLastToDieConsoleCommandResponse(normalized, out var lastToDieResponseLines))
+        {
+            return lastToDieResponseLines;
         }
 
         if (_pluginCommandRegistry.TryExecute(normalized, CreateCommandContext(identity, source), CancellationToken.None, out var responseLines))

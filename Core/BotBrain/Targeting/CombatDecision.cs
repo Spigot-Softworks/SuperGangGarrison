@@ -7,7 +7,11 @@ public sealed class CombatDecisionMemory
 {
     public int BeenHealingTicks { get; set; }
 
-    public int BeenHealingSwitchTicks { get; set; } = 8;
+    // Target selection is refreshed independently of the simulation beam. Keep
+    // the current non-medic target stable long enough for normal target jitter
+    // and cached bot inputs to settle; only a genuinely persistent switch should
+    // release the beam for one tick.
+    public int BeenHealingSwitchTicks { get; set; } = 30;
 
     public int ReloadCounterTicks { get; set; }
 
@@ -75,6 +79,7 @@ public static class CombatDecisionResolver
 
     private const int HeavyIdleEatHealth = 100;
     private const int HeavyCombatEatHealth = 30;
+    private const float MaxPracticalFireRange = 500f;
     private const float CloseCombatDistance = 170f;
     private const float SniperDangerDistance = 300f;
     private const float SoldierShotgunDistance = 260f;
@@ -88,13 +93,14 @@ public static class CombatDecisionResolver
     private const float MedicHumanCallTargetMaxDistanceSquared = MedicHumanCallTargetMaxDistance * MedicHumanCallTargetMaxDistance;
     private const float SpyLowHealthFraction = 0.25f;
     private const float SpyBackstabMaxPlanDistance = 260f;
-    private const float SpyBackstabAllyIsolationDistance = 340f;
-    private const float SpyBackstabStableTargetSpeed = 45f;
+    private const float SpyBackstabAllyIsolationDistance = 220f;
+    private const float SpyBackstabStableTargetSpeed = 90f;
     private const float SpyBackstabApproachOffset = 26f;
     private const float SpyBackstabReadyHorizontalError = 18f;
     private const float SpyBackstabReadyVerticalError = 22f;
     private const float SpyRevolverAttackDistance = 420f;
     private const float SpyIntelDecloakDistance = 48f;
+    private const float QuoteBladeAttackDistance = 260f;
     private const float PyroReflectDetectionDistance = 300f;
     private const float PyroReflectLaneRadius = 46f;
     private const float PyroReflectAccurateWindowTicks = 8f;
@@ -105,6 +111,7 @@ public static class CombatDecisionResolver
     private const float HeavyDashThreatWindowTicks = 14f;
     private const float DemomanGrenadeMinDistance = 90f;
     private const float DemomanGrenadeMaxDistance = 520f;
+    private const float CivvieUmbrellaCombatDistance = 360f;
     private const int DemomanGrenadeLoadedPreferenceTicks = 12;
     private const int DemomanGrenadeReloadPreferenceTicks = 52;
 
@@ -325,9 +332,36 @@ public static class CombatDecisionResolver
             return false;
         }
 
+        if (!HasPracticalCombatFiringSolution(world, self, combatTarget.Value))
+        {
+            // Target acquisition deliberately reaches farther and ignores
+            // geometry so navigation can pursue enemies. Trigger pulls must
+            // still wait for a practical, unobstructed firing solution.
+            return false;
+        }
+
         if (self.ClassId == PlayerClass.Spy)
         {
             return ResolveSpyPrimaryFire(world, self, combatTarget);
+        }
+
+        if (self.PrimaryWeapon.Kind == PrimaryWeaponKind.Rifle
+            && combatTarget is { Kind: BotBrainCombatTargetKind.Player, Player: { } rifleTarget }
+            && IsFriendlyPlayerBlockingRifle(world, self, rifleTarget))
+        {
+            // Keep the target selected so the bot can reposition, but do not
+            // repeatedly pull the trigger into an overlapping teammate.
+            return false;
+        }
+
+        // Quote/Curly's primary item is the legacy bubble launcher, while its
+        // actual damage tool is the secondary blade ability. Prefer the blade
+        // when it can reach the target so the bot does not fire a bubble first
+        // and consume the shared primary cooldown before M2 is processed.
+        if (self.ClassId == PlayerClass.Quote
+            && ShouldQuoteCurlyUseBlade(self, combatTarget))
+        {
+            return false;
         }
 
         if (self.ClassId == PlayerClass.Heavy && ShouldHeavyEat(self, isBeingHealed, HeavyCombatEatHealth))
@@ -364,7 +398,8 @@ public static class CombatDecisionResolver
                 return self.IsMedicUberReady && (healTarget.Health < 50 || self.Health < 40);
             }
 
-            return combatTarget is not null;
+            return combatTarget is { } target
+                && HasPracticalCombatFiringSolution(world, self, target);
         }
 
         if (self.ClassId == PlayerClass.Heavy)
@@ -404,6 +439,18 @@ public static class CombatDecisionResolver
             return ResolveSpySecondaryFire(world, self, combatTarget);
         }
 
+        if (self.ClassId == PlayerClass.Quote)
+        {
+            if (combatTarget is { } target
+                && HasPracticalCombatFiringSolution(world, self, target)
+                && ShouldQuoteCurlyUseBlade(self, combatTarget))
+            {
+                return true;
+            }
+
+            return ShouldCivilianUseUmbrella(self, combatTarget);
+        }
+
         return self.ClassId == PlayerClass.Demoman && ShouldDetonateMines(world, self);
     }
 
@@ -419,7 +466,14 @@ public static class CombatDecisionResolver
 
         if (self.IsSpyCloaked)
         {
-            return ResolveSpyBackstabPlan(world, self, combatTarget).ReadyToStab;
+            if (ResolveSpyBackstabPlan(world, self, combatTarget).ReadyToStab)
+            {
+                return true;
+            }
+
+            return self.CanFireLastToDieProfessionalRevolverWhileCloaked
+                && ShouldSpyUseRevolver(self, target)
+                && ShouldPrimaryWeaponFire(self, DistanceBetween(self.X, self.Y, target.X, target.Y));
         }
 
         return ShouldSpyUseRevolver(self, target)
@@ -475,9 +529,14 @@ public static class CombatDecisionResolver
 
     private static bool ShouldSpyDecloakForObjectiveCapture(SimulationWorld world, PlayerEntity self)
     {
-        if (world.MatchRules.Mode is not (GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill)
+        if (world.MatchRules.Mode is not (GameModeKind.Arena or GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Scr)
             || self.ClassId != PlayerClass.Spy
             || !self.IsSpyCloaked)
+        {
+            return false;
+        }
+
+        if (world.CanPlayerCaptureControlPointsWhileCloaked(self))
         {
             return false;
         }
@@ -487,8 +546,13 @@ public static class CombatDecisionResolver
 
     private static bool ShouldSpyStayUncloakedForObjectiveCapture(SimulationWorld world, PlayerEntity self)
     {
-        if (world.MatchRules.Mode is not (GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill)
+        if (world.MatchRules.Mode is not (GameModeKind.Arena or GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Scr)
             || self.ClassId != PlayerClass.Spy)
+        {
+            return false;
+        }
+
+        if (world.CanPlayerCaptureControlPointsWhileCloaked(self))
         {
             return false;
         }
@@ -546,7 +610,6 @@ public static class CombatDecisionResolver
             || self.IsCarryingIntel
             || self.Health <= 0
             || GetHealthFraction(self) < SpyLowHealthFraction
-            || IsSpyCompromised(self)
             || combatTarget is not { Kind: BotBrainCombatTargetKind.Player, Player: { } target }
             || !target.IsAlive
             || !IsValidSpyBackstabTarget(world, self, target))
@@ -590,6 +653,16 @@ public static class CombatDecisionResolver
         bool fireSecondary,
         CombatDecisionMemory memory)
     {
+        if (self.ClassId == PlayerClass.Quote
+            && self.HasUtilityBehavior(BuiltInGameplayBehaviorIds.CivviePogo)
+            && !self.IsTaunting
+            && (self.IsCivviePogoActive
+                ? firePrimary || fireSecondary
+                : !firePrimary && !fireSecondary))
+        {
+            return true;
+        }
+
         if (self.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
         {
             return self.IsMedicUberReady && (self.Health < 40 || healTarget is { Health: < 50 });
@@ -613,18 +686,54 @@ public static class CombatDecisionResolver
 
         if (self.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SoldierSecondaryWeapon))
         {
-            return !fireSecondary
+            return HasPracticalCombatFiringSolution(world, self, target)
+                && !fireSecondary
                 && (!firePrimary || self.CurrentShells <= 0)
                 && self.ExperimentalOffhandCurrentShells > 0
                 && DistanceBetween(self.X, self.Y, target.X, target.Y) <= SoldierShotgunDistance;
         }
 
-        if (ShouldDemomanUseGrenadeLauncher(self, target, fireSecondary, memory))
+        if (HasPracticalCombatFiringSolution(world, self, target)
+            && ShouldDemomanUseGrenadeLauncher(self, target, fireSecondary, memory))
         {
             return true;
         }
 
         return false;
+    }
+
+    private static bool ShouldCivilianUseUmbrella(
+        PlayerEntity self,
+        BotBrainCombatTarget? combatTarget)
+    {
+        if (!self.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.CivvieUmbrella)
+            || self.IsCivvieUmbrellaDisabled
+            || self.IsTaunting
+            || combatTarget is not { Kind: BotBrainCombatTargetKind.Player })
+        {
+            return false;
+        }
+
+        return DistanceBetween(self.X, self.Y, combatTarget.Value.X, combatTarget.Value.Y)
+            <= CivvieUmbrellaCombatDistance;
+    }
+
+    private static bool ShouldQuoteCurlyUseBlade(
+        PlayerEntity self,
+        BotBrainCombatTarget? combatTarget)
+    {
+        if (!self.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.QuoteBladeThrow)
+            || self.IsTaunting
+            || self.IsCivviePogoActive
+            || self.PrimaryCooldownTicks > 0
+            || self.QuoteBladesOut >= PlayerEntity.QuoteBladeMaxOut
+            || self.CurrentShells < PlayerEntity.QuoteBladeEnergyCost
+            || combatTarget is not { Kind: BotBrainCombatTargetKind.Player, Player: { IsAlive: true } target })
+        {
+            return false;
+        }
+
+        return DistanceBetween(self.X, self.Y, target.X, target.Y) <= QuoteBladeAttackDistance;
     }
 
     private static bool ShouldDemomanUseGrenadeLauncher(
@@ -1053,6 +1162,28 @@ public static class CombatDecisionResolver
         return true;
     }
 
+    private static bool IsFriendlyPlayerBlockingRifle(
+        SimulationWorld world,
+        PlayerEntity self,
+        PlayerEntity target)
+    {
+        var aimDeltaX = target.X - self.X;
+        var aimDeltaY = target.Y - self.Y;
+        var distance = MathF.Sqrt((aimDeltaX * aimDeltaX) + (aimDeltaY * aimDeltaY));
+        if (distance <= 0.0001f)
+        {
+            return false;
+        }
+
+        return world.CombatTestIsFriendlyPlayerFirstRifleContact(
+            self,
+            self.X,
+            self.Y,
+            aimDeltaX / distance,
+            aimDeltaY / distance,
+            2000f);
+    }
+
     private static float ResolveBehindDirection(PlayerEntity target)
     {
         return target.FacingDirectionX >= 0f ? -1f : 1f;
@@ -1369,6 +1500,15 @@ public static class CombatDecisionResolver
                     && GetRayIntersectionDistanceWithRectangle(originX, originY, directionX, directionY, left, top, right, bottom, distance).HasValue;
             }
         }
+    }
+
+    private static bool HasPracticalCombatFiringSolution(
+        SimulationWorld world,
+        PlayerEntity self,
+        BotBrainCombatTarget target)
+    {
+        return DistanceBetween(self.X, self.Y, target.X, target.Y) <= MaxPracticalFireRange
+            && HasCombatLineOfSight(world, self.X, self.Y, target.X, target.Y);
     }
 
     private readonly record struct LineOfSightCacheKey(

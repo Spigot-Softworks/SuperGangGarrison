@@ -4,6 +4,77 @@ namespace OpenGarrison.Core;
 
 public sealed partial class PlayerEntity
 {
+    private void MoveTopDownContact(SimpleLevel level, PlayerTeam team, float deltaX, float deltaY)
+    {
+        if (!float.IsFinite(deltaX) || !float.IsFinite(deltaY))
+        {
+            return;
+        }
+
+        // Top-down movement has no support plane, step-up logic, or slope
+        // resolution. Move one axis at a time so the player naturally slides
+        // along blockers, and only binary-search the axis when the full move
+        // is blocked. This avoids the platformer's subpixel contact loop,
+        // which can perform dozens of occupancy probes per player per tick.
+        MoveTopDownAxis(level, team, deltaX, moveAlongX: true);
+        MoveTopDownAxis(level, team, deltaY, moveAlongX: false);
+    }
+
+    private void MoveTopDownAxis(SimpleLevel level, PlayerTeam team, float delta, bool moveAlongX)
+    {
+        if (MathF.Abs(delta) <= CollisionResolutionEpsilon)
+        {
+            return;
+        }
+
+        var targetX = moveAlongX ? X + delta : X;
+        var targetY = moveAlongX ? Y : Y + delta;
+        if (CanOccupy(level, team, targetX, targetY))
+        {
+            if (moveAlongX)
+            {
+                X = targetX;
+            }
+            else
+            {
+                Y = targetY;
+            }
+
+            return;
+        }
+
+        var acceptedFraction = 0f;
+        var rejectedFraction = 1f;
+        for (var iteration = 0; iteration < 8; iteration += 1)
+        {
+            var fraction = (acceptedFraction + rejectedFraction) * 0.5f;
+            var candidateX = moveAlongX ? X + (delta * fraction) : X;
+            var candidateY = moveAlongX ? Y : Y + (delta * fraction);
+            if (CanOccupy(level, team, candidateX, candidateY))
+            {
+                acceptedFraction = fraction;
+            }
+            else
+            {
+                rejectedFraction = fraction;
+            }
+        }
+
+        if (acceptedFraction <= 0f)
+        {
+            return;
+        }
+
+        if (moveAlongX)
+        {
+            X += delta * acceptedFraction;
+        }
+        else
+        {
+            Y += delta * acceptedFraction;
+        }
+    }
+
     private void MoveContact(SimpleLevel level, PlayerTeam team, float deltaX, float deltaY)
     {
         if (!float.IsFinite(deltaX) || !float.IsFinite(deltaY))

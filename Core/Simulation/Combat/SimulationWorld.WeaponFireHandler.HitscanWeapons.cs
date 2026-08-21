@@ -32,23 +32,135 @@ public sealed partial class SimulationWorld
                 return;
             }
 
+            // FireRifle is reached only after the weapon trigger has accepted
+            // ammo/cycle state. Capture and spend Ghost exactly once here;
+            // misses still count as fired shots, while dry/blocked triggers
+            // never reach this seam.
+            var ghostDamageMultiplier = attacker.ClassId == PlayerClass.Sniper
+                ? attacker.CaptureLastToDieSniperGhostShot(Config.TicksPerSecond)
+                : 1f;
+            var capturedCriticalDamageMultiplier = attacker.ActiveKritzCritDamageMultiplier;
+            var isCritical = PlayerEntity.IsCriticalDamageMultiplierBoosted(
+                capturedCriticalDamageMultiplier);
+
             var directionX = aimDeltaX / distance;
             var directionY = aimDeltaY / distance;
-            var result = ResolveRifleHit(attacker, weaponOrigin.BaseX, weaponOrigin.BaseY, directionX, directionY, rifleDistance);
-            RegisterCombatTrace(weaponOrigin.BaseX, weaponOrigin.BaseY, directionX, directionY, result.Distance, result.HitPlayer is not null, attacker.Team, isSniperTracer: true, isCritical: attacker.IsKritzCritBoosted);
+            var sniperProfile = attacker.ClassId == PlayerClass.Sniper
+                ? attacker.LastToDieSniperProfile
+                : global::OpenGarrison.Core.LastToDie.LastToDieSniperProfile.Stock;
+            var isFullyCharged = !sniperProfile.LightMarksmanEnabled
+                && attacker.IsSniperScoped
+                && attacker.SniperChargeTicks >= attacker.LastToDieSniperRifleFullChargeTicks;
+            var maximumEnemyPlayerHits = sniperProfile.MechanicaEnabled && isFullyCharged
+                ? 64
+                : sniperProfile.FiftyCalEnabled
+                    ? global::OpenGarrison.Core.LastToDie.LastToDieSniperProfile.FiftyCalMaximumPlayerHits
+                    : 1;
+            var result = ResolveOrderedRifleHits(
+                attacker,
+                weaponOrigin.BaseX,
+                weaponOrigin.BaseY,
+                directionX,
+                directionY,
+                rifleDistance,
+                new RifleTracePolicy(
+                    IgnoreOrdinaryGeometry: sniperProfile.FmjEnabled,
+                    AllowFriendlySupport: sniperProfile.GuardianEnabled,
+                    MaximumEnemyPlayerHits: maximumEnemyPlayerHits,
+                    DetectLastToDieHeadshots: sniperProfile.DecapitatorEnabled));
+            RegisterCombatTrace(
+                weaponOrigin.BaseX,
+                weaponOrigin.BaseY,
+                directionX,
+                directionY,
+                result.Distance,
+                result.PlayerHits.Count > 0,
+                attacker.Team,
+                isSniperTracer: true,
+                isCritical: isCritical);
             var damage = attacker.GetSniperRifleDamage();
-            if (result.HitPlayer is not null)
+            if (sniperProfile.TranqDartsEnabled)
             {
-                RegisterBloodEffect(result.HitPlayer.X, result.HitPlayer.Y, PointDirectionDegrees(weaponOrigin.BaseX, weaponOrigin.BaseY, result.HitPlayer.X, result.HitPlayer.Y) - 180f);
-                if (ApplyPlayerDamage(result.HitPlayer, damage, attacker, PlayerEntity.SpySniperRevealAlpha))
+                damage = Math.Max(
+                    1,
+                    (int)MathF.Round(
+                        damage * global::OpenGarrison.Core.LastToDie.LastToDieSniperProfile.TranqDartsDirectDamageMultiplier));
+            }
+            damage = Math.Max(
+                1,
+                (int)MathF.Round(
+                    damage
+                        * ghostDamageMultiplier
+                        * capturedCriticalDamageMultiplier));
+            var enemyHitOrdinal = 0;
+            foreach (var playerHit in result.PlayerHits)
+            {
+                if (playerHit.IsFriendlySupport)
                 {
-                    var deadBodyAnimationKind = damage > PlayerEntity.SniperBaseDamage
+                    _world.TryApplyLastToDieSniperGuardian(attacker, playerHit.Player);
+                    break;
+                }
+
+                var executesFromFiftyCal = sniperProfile.FiftyCalEnabled && enemyHitOrdinal == 0;
+                var executesFromDecapitator = sniperProfile.DecapitatorEnabled
+                    && isFullyCharged
+                    && playerHit.IsLastToDieHeadshot;
+                var executesTarget = executesFromFiftyCal || executesFromDecapitator;
+                enemyHitOrdinal += 1;
+                RegisterBloodEffect(
+                    playerHit.Player.X,
+                    playerHit.Player.Y,
+                    PointDirectionDegrees(
+                        weaponOrigin.BaseX,
+                        weaponOrigin.BaseY,
+                        playerHit.Player.X,
+                        playerHit.Player.Y) - 180f);
+                var resolution = ResolveRiflePlayerDamage(
+                    playerHit.Player,
+                    damage,
+                    attacker,
+                    weaponOrigin.BaseX,
+                    weaponOrigin.BaseY,
+                    executesTarget,
+                    isCritical,
+                    killFeedWeaponSpriteNameOverride);
+                if (resolution.ShouldApplyOnHitEffects && sniperProfile.TranqDartsEnabled)
+                {
+                    _world.TryApplyLastToDieSniperStatusPayload(
+                        attacker,
+                        playerHit.Player,
+                        appliesTranqDarts: true,
+                        poisonTipDamagePerSecond: 0f);
+                }
+
+                if (!resolution.WasFatal)
+                {
+                    continue;
+                }
+
+                var deadBodyAnimationKind = executesFromDecapitator && !executesFromFiftyCal
+                    ? DeadBodyAnimationKind.Decapitated
+                    : damage > PlayerEntity.SniperBaseDamage
                         ? DeadBodyAnimationKind.Severe
                         : DeadBodyAnimationKind.Rifle;
-                    KillPlayer(result.HitPlayer, killer: attacker, weaponSpriteName: killFeedWeaponSpriteNameOverride, deadBodyAnimationKind: deadBodyAnimationKind);
+                KillPlayer(
+                    playerHit.Player,
+                    gibbed: executesFromFiftyCal,
+                    killer: attacker,
+                    weaponSpriteName: killFeedWeaponSpriteNameOverride,
+                    deadBodyAnimationKind: deadBodyAnimationKind);
+                if (executesFromDecapitator
+                    && !executesFromFiftyCal
+                    && !playerHit.Player.IsAlive)
+                {
+                    _world.TrySpawnExperimentalDemoknightDecapitationRemains(
+                        playerHit.Player,
+                        directionX,
+                        directionY);
                 }
             }
-            else if (result.HitSentry is not null && ApplySentryDamage(result.HitSentry, damage, attacker))
+
+            if (result.HitSentry is not null && ApplySentryDamage(result.HitSentry, damage, attacker))
             {
                 DestroySentry(result.HitSentry, attacker);
             }
@@ -60,13 +172,61 @@ public sealed partial class SimulationWorld
             {
                 result.HitJumpPad.TakeDamage(damage);
             }
-            else if (result.Distance < rifleDistance)
+            else if (result.PlayerHits.Count == 0 && result.Distance < rifleDistance)
             {
                 RegisterImpactEffect(
                     weaponOrigin.BaseX + directionX * result.Distance,
                     weaponOrigin.BaseY + directionY * result.Distance,
                     PointDirectionDegrees(0f, 0f, directionX, directionY));
             }
+        }
+
+        private PlayerDamageResolution ResolveRiflePlayerDamage(
+            PlayerEntity target,
+            int damage,
+            PlayerEntity attacker,
+            float originX,
+            float originY,
+            bool executeAfterDefenses,
+            bool isCritical,
+            string killFeedWeaponSpriteName)
+        {
+            var traits = PlayerDamageTraits.CanEvade
+                | PlayerDamageTraits.CanApplyOnHitEffects
+                | PlayerDamageTraits.CanReflect
+                | PlayerDamageTraits.Bullet
+                | PlayerDamageTraits.EstablishLastToDieSpotted
+                | PlayerDamageTraits.BenefitFromLastToDieSpotted
+                | PlayerDamageTraits.LastToDieOverkillerEligible;
+            if (isCritical)
+            {
+                traits |= PlayerDamageTraits.Critical;
+            }
+            if (executeAfterDefenses)
+            {
+                traits |= PlayerDamageTraits.ExecuteAfterDefenses;
+            }
+
+            return _world.ResolvePlayerDamage(
+                target,
+                new PlayerDamageRequest(
+                    PlayerDamageApplicationKind.Instant,
+                    damage,
+                    attacker,
+                    PlayerEntity.SpySniperRevealAlpha,
+                    DamageEventFlags.None,
+                    traits,
+                    AllowOsmosisHealOwnedSentries: true,
+                    new PlayerDamageUmbrellaOptions(
+                        AllowBlock: true,
+                        ThreatSourceX: originX,
+                        ThreatSourceY: originY,
+                        CriticalBoost: isCritical,
+                        UseLiveAttackerCriticalBoost: false),
+                    AttackerWasGrounded: attacker.IsGrounded,
+                    TargetWasGrounded: target.IsGrounded,
+                    GibOnFatal: executeAfterDefenses,
+                    FatalWeaponSpriteName: killFeedWeaponSpriteName));
         }
     }
 }

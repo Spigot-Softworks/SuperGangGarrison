@@ -114,6 +114,7 @@ public sealed partial class SimulationWorld
 
             if (result.HitPlayer is not null)
             {
+                var targetWasGrounded = result.HitPlayer.IsGrounded;
                 RegisterBloodEffect(
                     result.HitPlayer.X,
                     result.HitPlayer.Y,
@@ -123,7 +124,12 @@ public sealed partial class SimulationWorld
                 {
                     result.HitPlayer.AddImpulse(directionX * 2.5f * LegacyMovementModel.SourceTicksPerSecond, -1.5f * LegacyMovementModel.SourceTicksPerSecond);
                 }
-                if (ApplyPlayerDamage(result.HitPlayer, damage, attacker, PlayerEntity.SpyDamageRevealAlpha))
+                if (ApplyPlayerDamage(
+                        result.HitPlayer,
+                        damage,
+                        attacker,
+                        PlayerEntity.SpyDamageRevealAlpha,
+                        targetWasGrounded: targetWasGrounded))
                 {
                     KillPlayer(
                         result.HitPlayer,

@@ -19,7 +19,7 @@ public partial class Game1
         Erase,
     }
 
-    private enum GarrisonBuilderResizeHandle
+    internal enum GarrisonBuilderResizeHandle
     {
         None,
         TopLeft,
@@ -1648,6 +1648,7 @@ public partial class Game1
             GarrisonBuilderMenuBarMenu.Map =>
             [
                 ("Set game mode...", () => _builderGameModeMenuOpen = true),
+                ($"Top-down movement{(MapMovementModeMetadata.IsTopDown(_builderDocument.Metadata) ? " *" : string.Empty)}", ToggleGarrisonBuilderTopDownMode),
                 ("Center on map", () =>
                 {
                     CenterGarrisonBuilderCameraOnMap();
@@ -1687,6 +1688,25 @@ public partial class Game1
     {
         _builderFastScrolling = !_builderFastScrolling;
         _builderStatus = _builderFastScrolling ? "fast scrolling on" : "fast scrolling off";
+    }
+
+    private void ToggleGarrisonBuilderTopDownMode()
+    {
+        RecordGarrisonBuilderHistory();
+        var metadata = new Dictionary<string, string>(
+            _builderDocument.Metadata,
+            StringComparer.OrdinalIgnoreCase)
+        {
+            [MapMovementModeMetadata.MovementModePropertyKey] = MapMovementModeMetadata.ToPropertyValue(
+                !MapMovementModeMetadata.IsTopDown(_builderDocument.Metadata)),
+        };
+
+        _builderDocument = (_builderDocument with { Metadata = metadata }).NormalizeForEditing();
+        _builderDirty = true;
+        RequestGarrisonBuilderCameraCenter();
+        _builderStatus = MapMovementModeMetadata.IsTopDown(metadata)
+            ? "top-down movement enabled (opaque walkmask pixels block)"
+            : "platformer movement enabled";
     }
 
     private void ToggleGarrisonBuilderShowBackground()
@@ -2899,43 +2919,14 @@ public partial class Game1
         }
         else
         {
-            switch (_builderActiveResizeHandle)
-            {
-                case GarrisonBuilderResizeHandle.TopLeft:
-                    newLeft = world.X;
-                    newTop = world.Y;
-                    newWidth = startRight - newLeft;
-                    newHeight = startBottom - newTop;
-                    break;
-                case GarrisonBuilderResizeHandle.Top:
-                    newTop = world.Y;
-                    newHeight = startBottom - newTop;
-                    break;
-                case GarrisonBuilderResizeHandle.TopRight:
-                    newTop = world.Y;
-                    newWidth = world.X - _builderResizeStartLeft;
-                    newHeight = startBottom - newTop;
-                    break;
-                case GarrisonBuilderResizeHandle.Right:
-                    newWidth = world.X - _builderResizeStartLeft;
-                    break;
-                case GarrisonBuilderResizeHandle.BottomRight:
-                    newWidth = world.X - _builderResizeStartLeft;
-                    newHeight = world.Y - _builderResizeStartTop;
-                    break;
-                case GarrisonBuilderResizeHandle.Bottom:
-                    newHeight = world.Y - _builderResizeStartTop;
-                    break;
-                case GarrisonBuilderResizeHandle.BottomLeft:
-                    newLeft = world.X;
-                    newWidth = startRight - newLeft;
-                    newHeight = world.Y - _builderResizeStartTop;
-                    break;
-                case GarrisonBuilderResizeHandle.Left:
-                    newLeft = world.X;
-                    newWidth = startRight - newLeft;
-                    break;
-            }
+            (newLeft, newTop, newWidth, newHeight) = ResolveGarrisonBuilderResizeDragBounds(
+                _builderActiveResizeHandle,
+                _builderResizeStartLeft,
+                _builderResizeStartTop,
+                _builderResizeStartWidth,
+                _builderResizeStartHeight,
+                world.X,
+                world.Y);
 
             if (lockAspect)
             {
@@ -2965,29 +2956,102 @@ public partial class Game1
             ref newWidth,
             ref newHeight);
 
-        var newXScale = MathF.Max(0.05f, newWidth / metrics.Width);
-        var newYScale = MathF.Max(0.05f, newHeight / metrics.Height);
-        float newX;
-        float newY;
-        if (UsesGarrisonBuilderCenterPlacementAnchor(entity.Type))
-        {
-            newX = newLeft + (newWidth * 0.5f);
-            newY = newTop + (newHeight * 0.5f);
-        }
-        else
-        {
-            newX = newLeft + (_builderResizeOriginX * newXScale);
-            newY = newTop + (_builderResizeOriginY * newYScale);
-        }
+        var placement = ResolveGarrisonBuilderResizePlacement(
+            entity.Type,
+            newLeft,
+            newTop,
+            newWidth,
+            newHeight,
+            metrics.Width,
+            metrics.Height,
+            _builderResizeOriginX,
+            _builderResizeOriginY);
 
         var updated = entity with
         {
-            X = newX,
-            Y = newY,
-            XScale = newXScale,
-            YScale = newYScale,
+            X = placement.X,
+            Y = placement.Y,
+            XScale = placement.XScale,
+            YScale = placement.YScale,
         };
         _builderEntities[_builderSelectedEntityIndex] = updated.NormalizeForEditing();
+    }
+
+    internal static (float Left, float Top, float Width, float Height) ResolveGarrisonBuilderResizeDragBounds(
+        GarrisonBuilderResizeHandle handle,
+        float startLeft,
+        float startTop,
+        float startWidth,
+        float startHeight,
+        float dragX,
+        float dragY)
+    {
+        var startRight = startLeft + startWidth;
+        var startBottom = startTop + startHeight;
+        var left = startLeft;
+        var top = startTop;
+        var width = startWidth;
+        var height = startHeight;
+        switch (handle)
+        {
+            case GarrisonBuilderResizeHandle.TopLeft:
+                left = dragX;
+                top = dragY;
+                width = startRight - left;
+                height = startBottom - top;
+                break;
+            case GarrisonBuilderResizeHandle.Top:
+                top = dragY;
+                height = startBottom - top;
+                break;
+            case GarrisonBuilderResizeHandle.TopRight:
+                top = dragY;
+                width = dragX - startLeft;
+                height = startBottom - top;
+                break;
+            case GarrisonBuilderResizeHandle.Right:
+                width = dragX - startLeft;
+                break;
+            case GarrisonBuilderResizeHandle.BottomRight:
+                width = dragX - startLeft;
+                height = dragY - startTop;
+                break;
+            case GarrisonBuilderResizeHandle.Bottom:
+                height = dragY - startTop;
+                break;
+            case GarrisonBuilderResizeHandle.BottomLeft:
+                left = dragX;
+                width = startRight - left;
+                height = dragY - startTop;
+                break;
+            case GarrisonBuilderResizeHandle.Left:
+                left = dragX;
+                width = startRight - left;
+                break;
+        }
+
+        return (left, top, width, height);
+    }
+
+    internal static (float X, float Y, float XScale, float YScale) ResolveGarrisonBuilderResizePlacement(
+        string entityType,
+        float left,
+        float top,
+        float width,
+        float height,
+        float metricsWidth,
+        float metricsHeight,
+        float originX,
+        float originY)
+    {
+        var xScale = MathF.Max(0.05f, width / metricsWidth);
+        var yScale = MathF.Max(0.05f, height / metricsHeight);
+        var centerPlacement = UsesGarrisonBuilderCenterPlacementAnchor(entityType);
+        return (
+            centerPlacement ? left + (width * 0.5f) : left + (originX * xScale),
+            centerPlacement ? top + (height * 0.5f) : top + (originY * yScale),
+            xScale,
+            yScale);
     }
 
     private static bool IsGarrisonBuilderCornerResizeHandle(GarrisonBuilderResizeHandle handle)

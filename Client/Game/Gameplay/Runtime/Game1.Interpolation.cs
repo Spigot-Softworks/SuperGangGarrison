@@ -24,9 +24,6 @@ public partial class Game1
     private const float ReplayMinimumInterpolationBackTimeSeconds = 0.02f;
     private const float ReplayMaximumInterpolationBackTimeSeconds = 0.06f;
     private const float OfflineInterpolationTeleportSnapDistance = 128f;
-    private const float OfflineLocalPlayerSmoothRenderSnapDistance = 48f;
-    private const float OfflineLocalPlayerSmoothRenderMaxLeadTicks = 1.25f;
-    private const float OfflineLocalPlayerSmoothRenderIdleCatchUpRate = 28f;
     private const float SnapshotHistoryRetentionSeconds = 0.5f;
     private const float StaleEntitySnapshotHistoryPruneSeconds = 1.0f;
     private const float StaleRemotePlayerSnapshotHistoryPruneSeconds = 1.0f;
@@ -58,6 +55,9 @@ public partial class Game1
     private readonly Dictionary<int, NetworkDiagnosticEntityInterpolationKind> _entitySnapshotHistoryKinds = new();
     private readonly Dictionary<PlayerTeam, List<EntitySnapshotSample>> _intelSnapshotHistories = new();
     private readonly Dictionary<int, List<PlayerSnapshotSample>> _remotePlayerSnapshotHistories = new();
+    // This is a launch-origin bridge only. Recomputing it every frame makes local projectiles
+    // inherit the player's prediction correction and visibly follow jumps/rollback.
+    private readonly Dictionary<int, Vector2> _localProjectileLaunchOriginOffsets = new();
     private readonly HashSet<int> _activeInterpolatedEntityIds = new();
     private readonly List<int> _staleInterpolatedEntityIds = new();
     private readonly Dictionary<ulong, SnapshotBaselineState> _snapshotStatesByFrame = new();
@@ -92,9 +92,6 @@ public partial class Game1
     private bool _networkWorldWarmupFullSnapshotApplied;
     private int _networkWorldWarmupAppliedSnapshotsAfterFull;
     private double _networkWorldWarmupStartedClockSeconds = -1d;
-    private Vector2 _offlineLocalPlayerSmoothRenderPosition;
-    private double _lastOfflineLocalPlayerSmoothRenderClockSeconds = -1d;
-    private bool _hasOfflineLocalPlayerSmoothRenderPosition;
 
     private bool IsPositionSmoothingActive()
     {
@@ -134,6 +131,17 @@ public partial class Game1
 
     private Vector2 GetRenderPosition(int entityId, float x, float y, bool allowInterpolation = true)
     {
+        var renderPosition = GetBaseRenderPosition(entityId, x, y, allowInterpolation);
+        if (TryGetLocalProjectileLaunchOriginOffset(entityId, out var predictionOffset))
+        {
+            renderPosition += predictionOffset;
+        }
+
+        return renderPosition;
+    }
+
+    private Vector2 GetBaseRenderPosition(int entityId, float x, float y, bool allowInterpolation = true)
+    {
         if (!allowInterpolation)
         {
             return new Vector2(x, y);
@@ -171,6 +179,63 @@ public partial class Game1
         }
 
         return new Vector2(x, y);
+    }
+
+    private bool TryGetLocalProjectileLaunchOriginOffset(int entityId, out Vector2 predictionOffset)
+    {
+        predictionOffset = Vector2.Zero;
+        if (_world.Entities.TryGetValue(entityId, out var entity)
+            && entity is MineProjectileEntity { IsStickied: true })
+        {
+            // A sticky mine is a world-anchored object. It must stop inheriting the local
+            // player's prediction correction as soon as it contacts the map.
+            _localProjectileLaunchOriginOffsets.Remove(entityId);
+            return false;
+        }
+
+        if (_localProjectileLaunchOriginOffsets.TryGetValue(entityId, out var cachedOffset))
+        {
+            predictionOffset = cachedOffset;
+            return predictionOffset.LengthSquared() > 0.0001f;
+        }
+
+        if (!CanUseLocalPrediction()
+            || !_world.LocalPlayer.IsAlive
+            || entity is null)
+        {
+            return false;
+        }
+
+        var ownerId = entity switch
+        {
+            ShotProjectileEntity shot => shot.OwnerId,
+            BubbleProjectileEntity bubble => bubble.OwnerId,
+            BladeProjectileEntity blade => blade.OwnerId,
+            NeedleProjectileEntity needle => needle.OwnerId,
+            RevolverProjectileEntity revolverShot => revolverShot.OwnerId,
+            FlameProjectileEntity flame => flame.OwnerId,
+            FlareProjectileEntity flare => flare.OwnerId,
+            RocketProjectileEntity rocket => rocket.OwnerId,
+            MineProjectileEntity mine => mine.OwnerId,
+            GrenadeProjectileEntity grenade => grenade.OwnerId,
+            _ => -1,
+        };
+        if (ownerId != _world.LocalPlayer.Id
+            || !TryGetCurrentPredictedRenderPosition(out var predictedRenderPosition))
+        {
+            return false;
+        }
+
+        predictionOffset = predictedRenderPosition - new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
+        const float maximumPredictionOffset = 96f;
+        var offsetLengthSquared = predictionOffset.LengthSquared();
+        if (offsetLengthSquared > maximumPredictionOffset * maximumPredictionOffset)
+        {
+            predictionOffset *= maximumPredictionOffset / MathF.Sqrt(offsetLengthSquared);
+        }
+
+        _localProjectileLaunchOriginOffsets[entityId] = predictionOffset;
+        return predictionOffset.LengthSquared() > 0.0001f;
     }
 
     private bool IsLocallyAdvancedProjectileEntity(int entityId)
@@ -246,15 +311,12 @@ public partial class Game1
     {
         if (!_networkClient.IsConnected)
         {
-            var renderPosition = GetRenderPosition(player.Id, player.X, player.Y, allowInterpolation);
-            if (!ReferenceEquals(player, _world.LocalPlayer))
-            {
-                return renderPosition;
-            }
-
-            return ShouldUseOfflineLocalPlayerSmoothRenderPosition(player, allowInterpolation)
-                ? GetOfflineLocalPlayerSmoothRenderPosition(player, renderPosition)
-                : ResetOfflineLocalPlayerSmoothRenderPosition(renderPosition);
+            // Offline practice already advances the authoritative local player
+            // in the same fixed-step simulation that feeds the camera. Do not
+            // add a second actor-only lead/catch-up spring here; hosted play
+            // uses prediction directly and otherwise feels more responsive
+            // than practice with the same camera setting.
+            return GetRenderPosition(player.Id, player.X, player.Y, allowInterpolation);
         }
 
         if (_networkClient.IsConnected && ReferenceEquals(player, _world.LocalPlayer))
@@ -264,75 +326,18 @@ public partial class Game1
                 return GetRenderPosition(GetResolvedLocalPlayerId(), player.X, player.Y, allowInterpolation);
             }
 
-            if (_hasPredictedLocalPlayerPosition)
+            if (CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
             {
-                if (_hasSmoothedLocalPlayerRenderPosition)
-                {
-                    return _smoothedLocalPlayerRenderPosition;
-                }
-
-                return _predictedLocalPlayerPosition;
+                // Local prediction is already the input-responsive position.
+                // The optional render-correction spring must not delay the
+                // actor or camera during ordinary movement.
+                return _predictedLocalPlayerPosition + _predictedLocalPlayerRenderCorrectionOffset;
             }
 
             return GetRenderPosition(GetResolvedLocalPlayerId(), player.X, player.Y, allowInterpolation);
         }
 
         return GetRenderPosition(player.Id, player.X, player.Y, allowInterpolation);
-    }
-
-    private bool ShouldUseOfflineLocalPlayerSmoothRenderPosition(PlayerEntity player, bool allowInterpolation)
-    {
-        return allowInterpolation
-            && ReferenceEquals(player, _world.LocalPlayer)
-            && player.IsAlive
-            && NormalizeSmoothCameraMultiplier(_smoothCameraMultiplier) > 0f
-            && ShouldSmoothCamera();
-    }
-
-    private Vector2 GetOfflineLocalPlayerSmoothRenderPosition(PlayerEntity player, Vector2 baseRenderPosition)
-    {
-        var deltaSeconds = _lastOfflineLocalPlayerSmoothRenderClockSeconds >= 0d
-            ? _gameplayPresentationDeltaSeconds
-            : 0f;
-        _lastOfflineLocalPlayerSmoothRenderClockSeconds = _networkInterpolationClockSeconds;
-
-        if (!_hasOfflineLocalPlayerSmoothRenderPosition
-            || Vector2.DistanceSquared(_offlineLocalPlayerSmoothRenderPosition, baseRenderPosition) >= OfflineLocalPlayerSmoothRenderSnapDistance * OfflineLocalPlayerSmoothRenderSnapDistance)
-        {
-            _offlineLocalPlayerSmoothRenderPosition = baseRenderPosition;
-            _hasOfflineLocalPlayerSmoothRenderPosition = true;
-            return _offlineLocalPlayerSmoothRenderPosition;
-        }
-
-        var horizontalSpeed = player.HorizontalSpeed;
-        _offlineLocalPlayerSmoothRenderPosition.Y = baseRenderPosition.Y;
-        if (deltaSeconds > 0f && MathF.Abs(horizontalSpeed) > 0.01f)
-        {
-            _offlineLocalPlayerSmoothRenderPosition.X += horizontalSpeed * deltaSeconds;
-            var leadX = _offlineLocalPlayerSmoothRenderPosition.X - baseRenderPosition.X;
-            var maxLeadDistance = MathF.Max(
-                1f,
-                MathF.Abs(horizontalSpeed) * (float)_config.FixedDeltaSeconds * OfflineLocalPlayerSmoothRenderMaxLeadTicks);
-            if (MathF.Abs(leadX) > maxLeadDistance)
-            {
-                _offlineLocalPlayerSmoothRenderPosition.X = baseRenderPosition.X + (MathF.Sign(leadX) * maxLeadDistance);
-            }
-        }
-        else if (deltaSeconds > 0f)
-        {
-            var catchUp = 1f - MathF.Exp(-OfflineLocalPlayerSmoothRenderIdleCatchUpRate * deltaSeconds);
-            _offlineLocalPlayerSmoothRenderPosition.X = MathHelper.Lerp(_offlineLocalPlayerSmoothRenderPosition.X, baseRenderPosition.X, catchUp);
-        }
-
-        return _offlineLocalPlayerSmoothRenderPosition;
-    }
-
-    private Vector2 ResetOfflineLocalPlayerSmoothRenderPosition(Vector2 renderPosition)
-    {
-        _hasOfflineLocalPlayerSmoothRenderPosition = false;
-        _lastOfflineLocalPlayerSmoothRenderClockSeconds = -1d;
-        _offlineLocalPlayerSmoothRenderPosition = renderPosition;
-        return renderPosition;
     }
 
     private Vector2 GetRenderAimWorldPosition(PlayerEntity player)

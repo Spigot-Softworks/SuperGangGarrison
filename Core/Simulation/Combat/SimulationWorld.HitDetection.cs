@@ -7,6 +7,8 @@ public sealed partial class SimulationWorld
         public JumpPadEntity? HitJumpPad { get; init; }
 
         public int HitDamageableZoneRoomObjectIndex { get; init; } = -1;
+
+        public bool IsLastToDieHeadshot { get; init; }
     }
     private readonly record struct FlameHitResult(float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)
     {
@@ -24,6 +26,24 @@ public sealed partial class SimulationWorld
     {
         public JumpPadEntity? HitJumpPad { get; init; }
     }
+    private readonly record struct OrderedRiflePlayerHit(
+        float Distance,
+        PlayerEntity Player,
+        bool IsFriendlySupport,
+        bool IsLastToDieHeadshot = false);
+    private readonly record struct OrderedRifleHitResult(
+        float Distance,
+        IReadOnlyList<OrderedRiflePlayerHit> PlayerHits,
+        SentryEntity? HitSentry,
+        GeneratorState? HitGenerator)
+    {
+        public JumpPadEntity? HitJumpPad { get; init; }
+    }
+    private readonly record struct RifleTracePolicy(
+        bool IgnoreOrdinaryGeometry,
+        bool AllowFriendlySupport,
+        int MaximumEnemyPlayerHits,
+        bool DetectLastToDieHeadshots = false);
     private readonly record struct RectangleHitbox(float Left, float Top, float Right, float Bottom);
 
     internal void CombatTestSetLevel(SimpleLevel level)
@@ -170,6 +190,10 @@ public sealed partial class SimulationWorld
             velocityX,
             velocityY,
             GetSimulationTicksFromSourceTicks(BubbleProjectileEntity.LifetimeTicks));
+        if (owner.IsKritzCritBoosted)
+        {
+            bubble.SetCritical(owner.ActiveKritzCritDamageMultiplier);
+        }
         _bubbles.Add(bubble);
         _entities[bubble.Id] = bubble;
         return bubble;
@@ -360,6 +384,23 @@ public sealed partial class SimulationWorld
         return (hit.Distance, hit.HitPlayer, hit.HitSentry, hit.HitGenerator);
     }
 
+    internal bool CombatTestIsFriendlyPlayerFirstRifleContact(
+        PlayerEntity attacker,
+        float originX,
+        float originY,
+        float directionX,
+        float directionY,
+        float maxDistance)
+    {
+        return Combat.IsFriendlyPlayerFirstRifleContact(
+            attacker,
+            originX,
+            originY,
+            directionX,
+            directionY,
+            maxDistance);
+    }
+
     private bool HasLineOfSight(PlayerEntity attacker, PlayerEntity target)
         => Combat.HasLineOfSight(attacker, target);
 
@@ -377,6 +418,9 @@ public sealed partial class SimulationWorld
 
     private bool IsProjectileSpawnBlocked(float originX, float originY, float targetX, float targetY, PlayerTeam shotTeam)
         => Combat.IsProjectileSpawnBlocked(originX, originY, targetX, targetY, shotTeam);
+
+    private bool IsProjectilePathBlocked(float originX, float originY, float targetX, float targetY, PlayerTeam shotTeam)
+        => Combat.IsProjectilePathBlocked(originX, originY, targetX, targetY, shotTeam);
 
     private float? GetLineIntersectionDistanceToPlayer(
         float originX,
@@ -415,6 +459,12 @@ public sealed partial class SimulationWorld
     private ShotHitResult? GetNearestStabHit(StabMaskEntity mask, float directionX, float directionY)
         => Combat.GetNearestStabHit(mask, directionX, directionY);
 
+    private ShotHitResult? GetNearestHealstabHit(StabMaskEntity mask, float directionX, float directionY)
+        => Combat.GetNearestHealstabHit(mask, directionX, directionY);
+
+    private bool HasStabChainLineOfSight(float originX, float originY, float targetX, float targetY)
+        => Combat.HasStabChainLineOfSight(originX, originY, targetX, targetY);
+
     private RocketHitResult? GetNearestRocketHit(RocketProjectileEntity rocket, float directionX, float directionY, float maxDistance)
         => Combat.GetNearestRocketHit(rocket, directionX, directionY, maxDistance);
 
@@ -448,4 +498,21 @@ public sealed partial class SimulationWorld
 
     private RifleHitResult ResolveRifleHit(PlayerEntity attacker, float originX, float originY, float directionX, float directionY, float maxDistance)
         => Combat.ResolveRifleHit(attacker, originX, originY, directionX, directionY, maxDistance);
+
+    private OrderedRifleHitResult ResolveOrderedRifleHits(
+        PlayerEntity attacker,
+        float originX,
+        float originY,
+        float directionX,
+        float directionY,
+        float maxDistance,
+        RifleTracePolicy policy)
+        => Combat.ResolveOrderedRifleHits(
+            attacker,
+            originX,
+            originY,
+            directionX,
+            directionY,
+            maxDistance,
+            policy);
 }

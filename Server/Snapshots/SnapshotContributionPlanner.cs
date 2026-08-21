@@ -25,16 +25,16 @@ internal static class SnapshotContributionPlanner
     // Byte budget estimates per player contribution type. These must stay at or above the
     // true serialized size so the budgeter does not over-admit contributions.
     // SnapshotPlayerFixedBytes accounts for the full WriteSnapshotPlayers entry:
-    //   ~251 fixed bytes (all strings cache-hit, empty owned-item / replicated-state lists)
+    //   ~273 fixed bytes (all strings cache-hit, empty owned-item / replicated-state lists)
     //   + ~18 bytes for a typical player name (16 chars + 2-byte length prefix)
-    //   = ~269 bytes. Keep a small margin above the true value.
-    private const int SnapshotPlayerFixedBytes = 269;
+    //   = ~286 bytes. Keep a small margin above the true value.
+    private const int SnapshotPlayerFixedBytes = 295;
     private const int SnapshotPlayerMovementBytes = 28;
     private const int SnapshotPlayerStatusBytes = 20;
     private const string CoreReplicatedOwnerId = "core.player";
-    // WriteSnapshotPlayerExtendedStatusStates per entry: 30 bytes
-    //   (1 slot + 2 flag bytes + 1 spy-cloak byte + 14 uint16 fields × 2 bytes each)
-    private const int SnapshotPlayerExtendedStatusBytes = 32;
+    // Matches the encoded compact status payload, including authoritative Kritz
+    // source state and normal gameplay dispenser state.
+    private const int SnapshotPlayerExtendedStatusBytes = 59;
     private const int SnapshotPlayerChatBubbleBytes = 10;
     private const int PlayerMovementHeartbeatIntervalTicks = 1;
     private const int ProjectileSnapshotUpdateIntervalTicks = 1;
@@ -143,7 +143,7 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.Grenades,
             baseline?.Grenades,
             priority: 1115,
-            estimateUpdatedBytes: static state => 38,
+            estimateUpdatedBytes: static state => 42,
             estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
@@ -183,7 +183,7 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.Flares,
             baseline?.Flares,
             priority: 1105,
-            estimateUpdatedBytes: static state => 30,
+            estimateUpdatedBytes: static state => EstimateShotBytes(state),
             estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
@@ -203,7 +203,7 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.Mines,
             baseline?.Mines,
             priority: 1100,
-            estimateUpdatedBytes: static state => 31,
+            estimateUpdatedBytes: static state => 36,
             estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
@@ -223,7 +223,7 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.Shots,
             baseline?.Shots,
             priority: 1080,
-            estimateUpdatedBytes: static state => 30,
+            estimateUpdatedBytes: static state => EstimateShotBytes(state),
             estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
@@ -243,7 +243,7 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.Needles,
             baseline?.Needles,
             priority: 1070,
-            estimateUpdatedBytes: static state => 30,
+            estimateUpdatedBytes: static state => EstimateShotBytes(state),
             estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
@@ -263,7 +263,7 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.RevolverShots,
             baseline?.RevolverShots,
             priority: 1060,
-            estimateUpdatedBytes: static state => 30,
+            estimateUpdatedBytes: static state => EstimateShotBytes(state, includeRevolverPayload: true),
             estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
@@ -283,7 +283,7 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.Bubbles,
             baseline?.Bubbles,
             priority: 1050,
-            estimateUpdatedBytes: static state => 30,
+            estimateUpdatedBytes: static state => EstimateShotBytes(state),
             estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
@@ -303,7 +303,7 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.Blades,
             baseline?.Blades,
             priority: 1040,
-            estimateUpdatedBytes: static state => 30,
+            estimateUpdatedBytes: static state => EstimateShotBytes(state),
             estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
@@ -370,7 +370,7 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.RocketSpawnEvents,
             fullSnapshot.Rockets,
             priority: 1290,
-            estimateBytes: static state => 84 + ((state.PassedFriendlyPlayerIds?.Count ?? 0) * 4),
+            estimateBytes: static state => 88 + ((state.PassedFriendlyPlayerIds?.Count ?? 0) * 4),
             focus,
             kind: SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
         AddPointEventContributions(
@@ -709,7 +709,22 @@ internal static class SnapshotContributionPlanner
             player.PyroPrimaryRequiresReleaseAfterEmpty,
             player.HeavyEatCooldownTicksRemaining,
             player.MedicUberCharge,
-            player.IsMedicUberReady);
+            player.IsMedicUberReady,
+            player.LastToDieSpyCloakMeterUnits,
+            player.LastToDieSpyRogueRampStacks,
+            player.LastToDieSpyRogueRampTicks,
+            player.SpySuperjumpAvailableCharges,
+            player.SpySuperjumpMaximumCharges,
+            player.SpySuperjumpChargeTicks,
+            player.SpySuperjumpChargeDirectionDegrees,
+            player.SpySuperjumpChargeStartMovementButtons,
+            player.SpySuperjumpChargeStartBlockedUntilAbilityRelease,
+            player.MedicUberDeliveryState,
+            player.KritzCritBoostProviderPlayerId,
+            player.KritzCritBoostProviderSlot,
+            player.KritzCritBoostDamageMultiplier,
+            player.IsDispenserBuffed,
+            player.DispenserAttackReloadSpeedMultiplier);
     }
 
     private static bool HasPlayerMovementChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
@@ -782,6 +797,8 @@ internal static class SnapshotContributionPlanner
             SpyBackstabVisualTicksRemaining = baselinePlayer.SpyBackstabVisualTicksRemaining,
             IsUbered = baselinePlayer.IsUbered,
             IsKritzCritBoosted = baselinePlayer.IsKritzCritBoosted,
+            IsDispenserBuffed = baselinePlayer.IsDispenserBuffed,
+            DispenserAttackReloadSpeedMultiplier = baselinePlayer.DispenserAttackReloadSpeedMultiplier,
             IsHeavyEating = baselinePlayer.IsHeavyEating,
             HeavyEatTicksRemaining = baselinePlayer.HeavyEatTicksRemaining,
             IsSniperScoped = baselinePlayer.IsSniperScoped,
@@ -799,6 +816,15 @@ internal static class SnapshotContributionPlanner
             HeavyEatCooldownTicksRemaining = baselinePlayer.HeavyEatCooldownTicksRemaining,
             MedicUberCharge = baselinePlayer.MedicUberCharge,
             IsMedicUberReady = baselinePlayer.IsMedicUberReady,
+            LastToDieSpyCloakMeterUnits = baselinePlayer.LastToDieSpyCloakMeterUnits,
+            LastToDieSpyRogueRampStacks = baselinePlayer.LastToDieSpyRogueRampStacks,
+            LastToDieSpyRogueRampTicks = baselinePlayer.LastToDieSpyRogueRampTicks,
+            SpySuperjumpAvailableCharges = baselinePlayer.SpySuperjumpAvailableCharges,
+            SpySuperjumpMaximumCharges = baselinePlayer.SpySuperjumpMaximumCharges,
+            SpySuperjumpChargeTicks = baselinePlayer.SpySuperjumpChargeTicks,
+            SpySuperjumpChargeDirectionDegrees = baselinePlayer.SpySuperjumpChargeDirectionDegrees,
+            SpySuperjumpChargeStartMovementButtons = baselinePlayer.SpySuperjumpChargeStartMovementButtons,
+            SpySuperjumpChargeStartBlockedUntilAbilityRelease = baselinePlayer.SpySuperjumpChargeStartBlockedUntilAbilityRelease,
             IsChatBubbleVisible = baselinePlayer.IsChatBubbleVisible,
             ChatBubbleFrameIndex = baselinePlayer.ChatBubbleFrameIndex,
             ChatBubbleAlpha = baselinePlayer.ChatBubbleAlpha,
@@ -908,7 +934,22 @@ internal static class SnapshotContributionPlanner
             || player.PyroPrimaryRequiresReleaseAfterEmpty != baselinePlayer.PyroPrimaryRequiresReleaseAfterEmpty
             || player.HeavyEatCooldownTicksRemaining != baselinePlayer.HeavyEatCooldownTicksRemaining
             || player.MedicUberCharge != baselinePlayer.MedicUberCharge
-            || player.IsMedicUberReady != baselinePlayer.IsMedicUberReady;
+            || player.IsMedicUberReady != baselinePlayer.IsMedicUberReady
+            || player.LastToDieSpyCloakMeterUnits != baselinePlayer.LastToDieSpyCloakMeterUnits
+            || player.LastToDieSpyRogueRampStacks != baselinePlayer.LastToDieSpyRogueRampStacks
+            || player.LastToDieSpyRogueRampTicks != baselinePlayer.LastToDieSpyRogueRampTicks
+            || player.SpySuperjumpAvailableCharges != baselinePlayer.SpySuperjumpAvailableCharges
+            || player.SpySuperjumpMaximumCharges != baselinePlayer.SpySuperjumpMaximumCharges
+            || player.SpySuperjumpChargeTicks != baselinePlayer.SpySuperjumpChargeTicks
+            || player.SpySuperjumpChargeDirectionDegrees != baselinePlayer.SpySuperjumpChargeDirectionDegrees
+            || player.SpySuperjumpChargeStartMovementButtons != baselinePlayer.SpySuperjumpChargeStartMovementButtons
+            || player.SpySuperjumpChargeStartBlockedUntilAbilityRelease != baselinePlayer.SpySuperjumpChargeStartBlockedUntilAbilityRelease
+            || player.MedicUberDeliveryState != baselinePlayer.MedicUberDeliveryState
+            || player.KritzCritBoostProviderPlayerId != baselinePlayer.KritzCritBoostProviderPlayerId
+            || player.KritzCritBoostProviderSlot != baselinePlayer.KritzCritBoostProviderSlot
+            || player.KritzCritBoostDamageMultiplier != baselinePlayer.KritzCritBoostDamageMultiplier
+            || player.IsDispenserBuffed != baselinePlayer.IsDispenserBuffed
+            || player.DispenserAttackReloadSpeedMultiplier != baselinePlayer.DispenserAttackReloadSpeedMultiplier;
     }
 
     private static bool ShouldSendLowFrequencyPlayerDetail(long frame, byte slot)
@@ -1070,7 +1111,32 @@ internal static class SnapshotContributionPlanner
     private static bool IsRuntimeReplicatedState(SnapshotReplicatedStateEntry entry)
     {
         return IsSecondaryWeaponRuntimeReplicatedState(entry)
-            || IsCoreAbilityRuntimeReplicatedState(entry);
+            || IsCoreAbilityRuntimeReplicatedState(entry)
+            || IsLastToDieStatusRuntimeReplicatedState(entry)
+            || string.Equals(
+                entry.OwnerId,
+                PlayerEntity.LastToDieWeaponReplicatedStateOwnerId,
+                StringComparison.Ordinal)
+            || string.Equals(
+                entry.OwnerId,
+                PlayerEntity.LastToDieMedicLinkReplicatedStateOwnerId,
+                StringComparison.Ordinal);
+    }
+
+    private static bool IsLastToDieStatusRuntimeReplicatedState(SnapshotReplicatedStateEntry entry)
+    {
+        return string.Equals(
+                entry.OwnerId,
+                PlayerEntity.LastToDieStatusReplicatedStateOwnerId,
+                StringComparison.Ordinal)
+            || (string.Equals(
+                    entry.OwnerId,
+                    PlayerEntity.ServerTuningReplicatedStateOwnerId,
+                    StringComparison.Ordinal)
+                && string.Equals(
+                    entry.Key,
+                    PlayerEntity.StunTicksReplicatedStateKey,
+                    StringComparison.Ordinal));
     }
 
     private static bool IsSecondaryWeaponRuntimeReplicatedState(SnapshotReplicatedStateEntry entry)
@@ -1620,7 +1686,21 @@ internal static class SnapshotContributionPlanner
     private static int EstimateRocketBytes(SnapshotRocketState state)
     {
         var passedFriendlyPlayerCount = state.PassedFriendlyPlayerIds?.Count ?? 0;
-        return 69 + (passedFriendlyPlayerCount * 4);
+        return 73 + (passedFriendlyPlayerCount * 4);
+    }
+
+    private static int EstimateShotBytes(
+        SnapshotShotState state,
+        bool includeRevolverPayload = false)
+    {
+        const int baseBytes = 36;
+        const int medicHealNeedlePayloadBytes = 7;
+        const int arrowPayloadBytes = 25;
+        const int revolverPayloadBytes = 9;
+        return baseBytes
+            + (state.IsMedicHealNeedle ? medicHealNeedlePayloadBytes : 0)
+            + (state.IsArrow ? arrowPayloadBytes : 0)
+            + (includeRevolverPayload ? revolverPayloadBytes : 0);
     }
 
     private static EntityDelta<T> DiffEntities<T>(
@@ -1720,11 +1800,11 @@ internal static class SnapshotContributionPlanner
 
             if (isNew)
             {
-                // New sentry - send full state (44 bytes)
+                // New sentry - send full state (48 bytes)
                 contributions.Add(new SnapshotDeltaBudgeter.Contribution(
                     priority,
                     DistanceSquared(focus.X, focus.Y, current.X, current.Y),
-                    44, // Full state: 4 (id) + 4 (owner) + 1 (team) + 8 (x,y) + 4 (health) + 1 (isBuilt) + 4 (facing) + 4 (aim) + 4 (shotTrace) + 1 (hasLanded) + 1 (hasTarget) + 8 (lastShot)
+                    48, // Full state includes the 4-byte dispenser ramp counter.
                     builder => builder.Sentries.Add(current)));
             }
             else
@@ -1733,20 +1813,21 @@ internal static class SnapshotContributionPlanner
                 var staticFieldsChanged = current.OwnerPlayerId != baseline!.OwnerPlayerId
                     || current.Team != baseline.Team
                     || current.IsBuilt != baseline.IsBuilt
-                    || current.HasLanded != baseline.HasLanded;
+                    || current.HasLanded != baseline.HasLanded
+                    || current.IsDispenser != baseline.IsDispenser;
 
                 if (staticFieldsChanged)
                 {
-                    // Static fields changed - send full state (44 bytes)
+                    // Static fields changed - send full state (48 bytes)
                     contributions.Add(new SnapshotDeltaBudgeter.Contribution(
                         priority,
                         DistanceSquared(focus.X, focus.Y, current.X, current.Y),
-                        44,
+                        48,
                         builder => builder.Sentries.Add(current)));
                 }
                 else
                 {
-                    // Only dynamic fields changed - send lightweight update (39 bytes)
+                    // Only dynamic fields changed - send lightweight update (43 bytes)
                     var update = new SnapshotSentryUpdateState(
                         current.Id,
                         current.X,
@@ -1757,12 +1838,13 @@ internal static class SnapshotContributionPlanner
                         current.ShotTraceTicksRemaining,
                         current.HasActiveTarget,
                         current.LastShotTargetX,
-                        current.LastShotTargetY);
+                        current.LastShotTargetY,
+                        current.DispenserRampTicks);
 
                     contributions.Add(new SnapshotDeltaBudgeter.Contribution(
                         priority,
                         DistanceSquared(focus.X, focus.Y, current.X, current.Y),
-                        39, // Lightweight update: 4 (id) + 8 (x,y) + 4 (health) + 4 (facing) + 4 (aim) + 4 (shotTrace) + 1 (hasTarget) + 8 (lastShot) + 2 (overhead)
+                        43, // Lightweight update includes the 4-byte dispenser ramp counter.
                         builder => builder.SentryUpdateStates.Add(update)));
                 }
             }

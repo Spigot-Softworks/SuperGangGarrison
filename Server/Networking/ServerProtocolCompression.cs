@@ -21,7 +21,7 @@ internal static class ServerProtocolCompression
             return _settings;
         }
 
-        return message is CustomBubbleStateMessage
+        return message is CustomBubbleStateMessage or LastToDieRunSnapshotMessage
             ? ProtocolCompressionSettings.AllMessages
             : _settings;
     }

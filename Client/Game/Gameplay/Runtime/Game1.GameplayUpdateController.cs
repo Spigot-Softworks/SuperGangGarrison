@@ -22,6 +22,12 @@ public partial class Game1
 
         public void UpdateFrame(GameTime gameTime, KeyboardState keyboard, MouseState mouse, MouseState rawMouse, int clientTicks)
         {
+            if (_game.IsPracticeNavigationWarmupBlockingGameplay()
+                && _game.UpdatePracticeNavigationWarmup())
+            {
+                return;
+            }
+
             if (_game._networkClient.IsConnected)
             {
                 _game.ProcessNetworkMessages();
