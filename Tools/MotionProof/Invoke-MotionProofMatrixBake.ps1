@@ -61,12 +61,12 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
-$toolProject = Join-Path $repoRoot 'MotionProof.Tools\OpenGarrison.MotionProof.Tools.csproj'
+$toolProject = Join-Path $repoRoot 'Tools\MotionProof\OpenGarrison.MotionProof.Tools.csproj'
 $artifactRoot = Join-Path $repoRoot 'Core\Content\MotionProof'
 $graphArtifactRoot = Join-Path $artifactRoot 'graphs'
 $tapeArtifactRoot = Join-Path $artifactRoot 'tapes'
-$logRoot = Join-Path $repoRoot 'MotionProof.Tools\logs'
-$candidateRoot = Join-Path $repoRoot 'MotionProof.Tools\candidates'
+$logRoot = Join-Path $repoRoot 'Tools\MotionProof\logs'
+$candidateRoot = Join-Path $repoRoot 'Tools\MotionProof\candidates'
 New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $graphArtifactRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $tapeArtifactRoot | Out-Null

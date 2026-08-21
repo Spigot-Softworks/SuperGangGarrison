@@ -15,7 +15,7 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$project = Join-Path $repoRoot "BotBrain.Tools\OpenGarrison.BotBrain.Tools.csproj"
+$project = Join-Path $repoRoot "Tools\BotBrain\OpenGarrison.BotBrain.Tools.csproj"
 
 if ([string]::IsNullOrWhiteSpace($ArtifactRoot)) {
     $stamp = Get-Date -Format "yyyyMMdd-HHmmss"

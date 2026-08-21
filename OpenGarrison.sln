@@ -17,7 +17,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Server.Plugins
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Client.Plugins.Abstractions", "Plugins\Client\OpenGarrison.Client.Plugins.Abstractions\OpenGarrison.Client.Plugins.Abstractions.csproj", "{B2081A7C-39B8-4E1B-B8AF-4A82E0C0DE77}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.GameplayModding.Abstractions", "GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj", "{D09D3A4D-4B95-4DA4-B742-95B9807D0C1E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.GameplayModding.Abstractions", "Plugins\GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj", "{D09D3A4D-4B95-4DA4-B742-95B9807D0C1E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.ServerLauncher", "ServerLauncher\OpenGarrison.ServerLauncher.csproj", "{2E938D9E-532E-471F-8192-30CDB8828AB7}"
 EndProject

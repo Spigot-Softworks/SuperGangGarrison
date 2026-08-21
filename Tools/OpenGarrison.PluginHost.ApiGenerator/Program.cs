@@ -25,7 +25,9 @@ if (!File.Exists(serverSourcePath))
 
 var clientFunctions = LuaHostApiBindingScanner.Scan(clientSourcePath);
 var serverFunctions = LuaHostApiBindingScanner.Scan(serverSourcePath);
-var generatedSource = LuaHostApiSurfaceSourceBuilder.Build(clientFunctions, serverFunctions);
+var generatedSource = LuaHostApiSurfaceSourceBuilder
+    .Build(clientFunctions, serverFunctions)
+    .ReplaceLineEndings("\n");
 
 if (options.CheckOnly)
 {

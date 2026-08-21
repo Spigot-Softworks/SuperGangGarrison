@@ -7,7 +7,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\OpenGarrison.PluginHost.Abstractions\OpenGarrison.PluginHost.Abstractions.csproj" />
     <ProjectReference Include="..\..\..\Core\OpenGarrison.Core.csproj" />
-    <ProjectReference Include="..\..\..\GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj" />
+    <ProjectReference Include="..\..\GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>

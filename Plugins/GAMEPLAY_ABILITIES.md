@@ -294,7 +294,7 @@ Add a Scout loadout variant in
 ```
 
 Add built-in behavior IDs in
-`GameplayModding.Abstractions/BuiltInGameplayBehaviorIds.cs`:
+`Plugins/GameplayModding.Abstractions/BuiltInGameplayBehaviorIds.cs`:
 
 ```csharp
 public const string ScoutNailgun = "builtin.weapon.scout_nailgun";

@@ -13,6 +13,8 @@ history so it can be ported back deliberately.
 
 ## Extracted areas
 
+The generated `extracted/` directory is intentionally ignored and is not kept in the repository. Git commit `14b0d1ff` remains the source of truth.
+
 - `Client/Game/Developer/Game1.BotNavEditor.cs`
 - `BotAI/BotNavigationModernGraphEditor.cs`
 - `BotAI/BotNavigationHintAsset.cs`

@@ -13,15 +13,18 @@ This repository contains the OpenGarrison solution and supporting tools.
 - `Server/`: dedicated server runtime, networking, sessions, snapshots, admin commands, plugins, and map rotation.
 - `Protocol/`: network message contracts and binary serialization.
 - `Core/BotBrain/`: authoritative bot behavior and navigation runtime.
-- `BotBrain.Tools/`: offline BotBrain navigation asset generation and validation tools.
+- `Tools/BotBrain/`: offline BotBrain navigation asset generation and validation tools.
 - `Plugins/`: client and server plugin abstractions, Lua plugin packages, and legacy CLR migration references.
-- `GameplayModding.Abstractions/`: early gameplay-mod support contracts.
+- `Plugins/GameplayModding.Abstractions/`: gameplay-mod support contracts shared by the runtime and plugin APIs.
 - `ServerLauncher/`: launcher-focused entry point built on the client runtime.
 - `packaging/`: release packaging notes and default packaged config files.
 - `scripts/`: packaging entry points.
 - `Tools/Browser*/`: browser publish and atlas/manifest generation tools.
+- `Tools/MotionProof/`: offline movement proof and trace-baking tools.
 - `Tests/BrowserSmoke/`: Playwright smoke test for the browser host.
 - `docs/`: focused design and reference notes.
+
+See `docs/REPOSITORY_AUDIT.md` for root ownership, cleanup decisions, and deferred repository-history work.
 
 ## Build
 

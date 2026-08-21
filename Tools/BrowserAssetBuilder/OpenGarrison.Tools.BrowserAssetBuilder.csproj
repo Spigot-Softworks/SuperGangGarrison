@@ -13,6 +13,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Client.Shared\OpenGarrison.Client.Shared.csproj" />
     <ProjectReference Include="..\..\Core\OpenGarrison.Core.csproj" />
-    <ProjectReference Include="..\..\GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Plugins\GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj" />
   </ItemGroup>
 </Project>
