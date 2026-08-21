@@ -1,5 +1,24 @@
+* text=auto
+
 *.sh text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
-*.md text
-*.ps1 text
+*.md text eol=lf
+*.ps1 text eol=lf
+*.cs text eol=lf
+*.csproj text eol=lf
+*.props text eol=lf
+*.targets text eol=lf
+*.sln text eol=lf
+*.json text eol=lf
+*.xml text eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ogg binary
+*.wav binary
+*.bin binary
+*.dll binary
+*.exe binary
